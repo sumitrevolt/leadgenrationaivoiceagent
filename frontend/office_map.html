@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
+<title>LeadGen AI — Operating HQ</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<!-- Vendored (not CDN) — phaser@3.80.1, MIT license, served from frontend/design-system/
+     (/design-system mount), same pattern as sigma/graphology/elkjs in control_center_graph.html.
+     Avoids a third-party CDN runtime dependency for a core admin page. -->
+<script src="/design-system/vendor/phaser.min.js"></script>
+<style>
+  :root{
+    --brand:#6d28d9; --brand-2:#4f46e5; --brand-soft:#ede9fe;
+    --ink:#1e1b2e; --muted:#6b7280; --line:#e9e7f2; --bg:#f6f5fb; --card:#ffffff;
+    --ok:#10b981; --warn:#f59e0b; --err:#ef4444; --info:#3b82f6;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px}
+  .topbar{position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px;text-decoration:none;color:var(--ink)}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:16px;color:#fff}
+  .back{font-size:12.5px;color:var(--muted);text-decoration:none;font-weight:600}
+  .spacer{flex:1}
+  #banner{display:none;max-width:1280px;margin:10px auto 0;padding:0 16px}
+  #banner .b{background:#fef2f2;color:#991b1b;border:1px solid #fecaca;border-radius:10px;
+    padding:8px 14px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:10px}
+  #banner button{border:1px solid #fecaca;background:#fff;color:#991b1b;border-radius:7px;
+    padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
+  #page{max-width:1280px;margin:16px auto;padding:0 16px;display:flex;flex-direction:column;gap:16px}
+
+  /* ---- KPI summary row ---- */
+  .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+  .kpi .k-label{font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+  .kpi .k-val{font-size:21px;font-weight:800;margin-top:2px}
+  .kpi.k-warn .k-val{color:var(--warn)} .kpi.k-err .k-val{color:var(--err)} .kpi.k-ok .k-val{color:var(--ok)}
+
+  /* ---- Next best actions ---- */
+  #nbaCard{background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:10px 14px;display:none}
+  #nbaCard.show{display:block}
+  #nbaCard .nba-head{font-weight:800;font-size:12.5px;margin-bottom:6px;color:#9a3412}
+  .nba-item{font-size:12.5px;padding:5px 0;border-top:1px dashed #fed7aa;cursor:pointer}
+  .nba-item:first-of-type{border-top:none}
+  .nba-item:hover{text-decoration:underline}
+
+  /* ---- Office stage (Phaser) — desktop/tablet only ---- */
+  #stageWrap{width:100%;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05)}
+  #roomListCompact{display:none}
+
+  /* ---- Filterable live feed ---- */
+  .feed-card{background:#111827;color:#e5e7eb;border-radius:12px;padding:10px 14px}
+  .feed-head{display:flex;align-items:center;gap:7px;font-weight:700;margin-bottom:8px;color:#f9fafb;font-size:12.5px;flex-wrap:wrap}
+  .ticker-dot{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:tickerPulse 1.4s infinite}
+  @keyframes tickerPulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+  .filter-btn{background:#1f2937;color:#cbd5e1;border:1px solid #374151;border-radius:999px;
+    padding:3px 11px;font-size:11px;font-weight:700;cursor:pointer}
+  .filter-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  #tickerList{max-height:220px;overflow-y:auto}
+  .ticker-row{display:flex;gap:9px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,.07);
+    font-size:12px;animation:tickerIn .3s ease-out;cursor:default}
+  .ticker-row:last-child{border-bottom:none}
+  .ticker-time{flex:0 0 auto;color:#9ca3af;font-variant-numeric:tabular-nums;width:78px}
+  .ticker-who{flex:0 0 auto;font-weight:700;color:#c4b5fd;max-width:130px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap}
+  .ticker-what{color:#e5e7eb;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+  .sev-dot{width:7px;height:7px;border-radius:50%;flex:0 0 auto;margin-top:4px}
+  @keyframes tickerIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ---- Pipeline board ---- */
+  #pipelineBoard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .board-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .board-title{font-weight:800;font-size:13.5px}
+  .board-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px}
+  .stage-card{flex:0 0 168px;background:var(--bg);border:1px solid var(--line);border-radius:10px;
+    padding:9px 10px;cursor:pointer}
+  .stage-card:hover{border-color:var(--brand-2)}
+  .stage-name{font-size:11px;font-weight:700;color:var(--muted);min-height:28px}
+  .stage-count{font-size:22px;font-weight:800;margin:2px 0}
+  .stage-badges{display:flex;gap:5px;flex-wrap:wrap;font-size:10px}
+  .badge{border-radius:999px;padding:1.5px 6px;font-weight:700}
+  .badge-stuck{background:#fef3c7;color:#92400e}
+  .badge-err{background:#fee2e2;color:#991b1b}
+  .badge-sample{background:#e5e7eb;color:#4b5563}
+
+  /* ---- Approvals + system health strip ---- */
+  .two-col{display:grid;grid-template-columns:1.3fr 1fr;gap:14px}
+  .panel-box{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .panel-box h3{margin:0 0 8px;font-size:13px}
+  .appr-row{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line);font-size:12px}
+  .appr-row:first-of-type{border-top:none}
+  .appr-title{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .appr-btn{border:none;border-radius:7px;padding:4px 9px;font-size:11px;font-weight:700;cursor:pointer}
+  .appr-approve{background:var(--ok);color:#fff}
+  .appr-reject{background:#fee2e2;color:#991b1b}
+  .health-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px}
+  .health-dot{width:8px;height:8px;border-radius:50%}
+  .empty-note{color:var(--muted);font-size:12px;padding:8px 0}
+
+  #agentPanel{position:fixed;inset:0;background:rgba(15,17,35,.35);z-index:50;display:flex;
+    justify-content:flex-end}
+  #agentPanel.panel-hidden{display:none}
+  .panel-card{width:360px;max-width:92vw;height:100%;background:#fff;box-shadow:-8px 0 30px rgba(24,16,55,.18);
+    padding:18px;overflow-y:auto;position:relative}
+  .panel-card #panelClose{position:absolute;top:12px;right:12px;border:none;background:var(--bg);
+    width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:14px}
+  .panel-title{font-size:17px;font-weight:800;margin:4px 0 2px;padding-right:34px}
+  .panel-sub{color:var(--muted);font-size:12.5px;margin-bottom:12px}
+  .panel-stats{display:flex;gap:8px;margin:10px 0;flex-wrap:wrap}
+  .panel-stat{background:var(--bg);border-radius:9px;padding:8px 10px;font-size:11.5px;color:var(--muted);flex:1;min-width:70px}
+  .panel-stat b{display:block;font-size:16px;color:var(--ink)}
+  .panel-events{margin-top:14px;font-size:12.5px}
+  .panel-event{border-left:3px solid var(--brand-2);padding:6px 10px;margin-bottom:6px;background:var(--bg);border-radius:0 8px 8px 0}
+  .panel-event .pe-when{color:var(--muted);font-size:10.5px}
+  .panel-actions{display:flex;gap:8px;margin:12px 0}
+  .panel-actions button{border:none;border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;background:var(--brand);color:#fff}
+  .panel-actions button:disabled{background:#e5e7eb;color:#9ca3af;cursor:not-allowed}
+  .item-row{border-top:1px solid var(--line);padding:8px 0;font-size:12.5px}
+  .item-row:first-of-type{border-top:none}
+  .item-row .ir-name{font-weight:700}
+  .item-row .ir-meta{color:var(--muted);font-size:11px}
+  .sla-risk{color:var(--err);font-weight:700}
+  .needs-approval{color:#7c3aed;font-weight:700}
+
+  .stage-toolbar{margin:8px 0}
+  .stage-search{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;margin-bottom:8px;box-sizing:border-box}
+  .stage-filter-row{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+  .sf-btn{background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:999px;
+    padding:3px 10px;font-size:10.5px;font-weight:700;cursor:pointer}
+  .sf-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .item-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
+  .ia-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:2px 7px;font-size:10.5px;cursor:pointer}
+  .ia-btn:hover{border-color:var(--brand-2)}
+  .appr-row{cursor:pointer}
+  .health-row.clickable{cursor:pointer}
+  .ticker-row.clickable{cursor:pointer}
+  .ticker-row.clickable:hover{background:rgba(255,255,255,.04)}
+
+  #roomTooltip{position:fixed;z-index:60;background:#111827;color:#e5e7eb;font-size:11.5px;
+    padding:6px 10px;border-radius:8px;pointer-events:none;display:none;max-width:220px;line-height:1.5}
+
+  .loading-note{color:var(--muted);font-size:12.5px;padding:14px 4px;animation:loadingPulse 1.4s ease-in-out infinite}
+  @keyframes loadingPulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+  /* ---- Quick-nav chips (sticky section jumper) ---- */
+  #quickNav{position:sticky;top:57px;z-index:19;background:var(--bg);padding:6px 0 2px;
+    display:flex;gap:6px;flex-wrap:wrap}
+  .qn-chip{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;
+    padding:4px 12px;font-size:11.5px;font-weight:700;cursor:pointer}
+  .qn-chip:hover{border-color:var(--brand-2);color:var(--brand-2)}
+
+  /* ---- Map toolbar (search + zoom controls) ---- */
+  #mapToolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  #agentSearchWrap{position:relative;flex:1;min-width:180px;max-width:320px}
+  #agentSearch{width:100%;border:1px solid var(--line);border-radius:8px;padding:6px 10px;
+    font-size:12.5px;box-sizing:border-box}
+  #agentSearchResults{position:absolute;top:34px;left:0;right:0;background:#fff;border:1px solid var(--line);
+    border-radius:8px;box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:25;display:none;max-height:240px;overflow-y:auto}
+  .asr-row{padding:7px 10px;font-size:12.5px;cursor:pointer;display:flex;gap:7px;align-items:center}
+  .asr-row:hover{background:var(--brand-soft)}
+  .asr-row .asr-title{color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .map-btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 10px;
+    font-size:12.5px;font-weight:700;cursor:pointer}
+  .map-btn:hover{border-color:var(--brand-2)}
+  #mapHint{font-size:11px;color:var(--muted)}
+
+  /* ---- Aaj ka Schedule ---- */
+  .sched-row{display:flex;align-items:center;gap:9px;padding:5px 0;border-top:1px dashed var(--line);font-size:12.5px}
+  .sched-row:first-of-type{border-top:none}
+  .sched-time{flex:0 0 auto;width:96px;font-variant-numeric:tabular-nums;color:var(--muted);font-weight:700}
+  .sched-label{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sched-chip{flex:0 0 auto;border-radius:999px;padding:2px 9px;font-size:10.5px;font-weight:700}
+  .sc-done{background:#d1fae5;color:#065f46}
+  .sc-open{background:#dbeafe;color:#1e40af}
+  .sc-pending{background:#f3f4f6;color:#4b5563}
+  .sc-miss{background:#fee2e2;color:#991b1b}
+  .sc-off{background:#e5e7eb;color:#6b7280}
+  .sc-na{background:#f3f4f6;color:#9ca3af}
+  #scheduleNowLine{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:800;color:var(--brand);margin:4px 0}
+  #scheduleNowLine .now-rule{flex:1;height:2px;background:var(--brand);opacity:.35;border-radius:2px}
+  #recurringStrip{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:8px;border-top:1px solid var(--line)}
+  .rec-chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:999px;
+    padding:3px 10px;font-size:10.5px;font-weight:600;color:var(--ink);background:var(--bg)}
+  .rec-dot{width:7px;height:7px;border-radius:50%}
+
+  /* ---- Leaderboard + activity chart ---- */
+  .lb-row{display:flex;align-items:center;gap:8px;padding:5px 0;font-size:12.5px;cursor:pointer}
+  .lb-row:hover .lb-name{color:var(--brand-2)}
+  .lb-rank{flex:0 0 20px;font-weight:800;color:var(--muted)}
+  .lb-name{flex:0 0 132px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+  .lb-bar-wrap{flex:1;background:var(--bg);border-radius:6px;height:14px;overflow:hidden}
+  .lb-bar{height:100%;background:linear-gradient(90deg,#a78bfa,#6366f1);border-radius:6px}
+  .lb-count{flex:0 0 auto;font-weight:800;font-size:11.5px}
+  .lb-err{color:var(--err);font-size:10.5px;font-weight:700}
+  #activityChart{display:flex;align-items:flex-end;gap:2px;height:90px;padding:4px 0}
+  .act-bar{flex:1;background:linear-gradient(180deg,#a78bfa,#6366f1);border-radius:2px 2px 0 0;min-height:2px;opacity:.85}
+  .act-bar.act-now{background:linear-gradient(180deg,#f59e0b,#d97706)}
+  #activityHours{display:flex;gap:2px;font-size:9px;color:var(--muted)}
+  #activityHours span{flex:1;text-align:center}
+
+  @media (max-width:900px){ .two-col{grid-template-columns:1fr} }
+  @media (max-width:760px){
+    #stageWrap{display:none}
+    #mapToolbar{display:none}
+    #quickNav{top:auto;position:static}
+    #roomListCompact{display:flex;flex-direction:column;gap:8px}
+    .board-row{flex-direction:column}
+    .stage-card{flex:1 1 auto}
+    .panel-card{width:100vw;max-width:100vw}
+  }
+  .rc-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+  .rc-head{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13px}
+  .rc-status{width:8px;height:8px;border-radius:50%;margin-left:auto}
+  .rc-agents{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .rc-chip{font-size:15px}
+  .rc-meta{font-size:10.5px;color:var(--muted);margin-top:4px}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="brand" href="/app/admin"><span class="logo">🏢</span> Operating HQ</a>
+    <span id="legendToggle" style="cursor:pointer;font-size:13px;color:var(--muted);
+      border:1px solid var(--line);border-radius:50%;width:18px;height:18px;
+      display:inline-flex;align-items:center;justify-content:center" title="Legend">?</span>
+    <a class="back" href="/app/team">AI Staff Team (list view) →</a>
+    <div class="spacer"></div>
+    <span id="istClock" style="font-size:11.5px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums"></span>
+    <span id="freshnessBadge" style="font-size:11.5px;color:var(--muted)"></span>
+    <button id="manualRefreshBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
+      padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer">🔄 Refresh now</button>
+  </div>
+  <div id="legendPopover" style="display:none;position:fixed;top:50px;left:16px;background:#fff;
+    border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:12.5px;
+    box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;max-width:320px">
+    <div style="font-weight:800;margin-bottom:8px">Kaise padhein</div>
+    <div>🟢 <b>Working</b> — abhi active</div>
+    <div>🟡 <b>Active</b> — aaj kaam kiya, abhi rest</div>
+    <div>⚪ <b>Offline</b> — aaj kuch nahi (hover karke reason dekho)</div>
+    <div style="margin-top:6px">🟡 Golden dot — Coordinator ne kisi agent ko task diya</div>
+    <div style="margin-top:6px">🏗️ System Map — live architecture, click to expand</div>
+    <div style="margin-top:6px">🔎 Map: Ctrl+scroll ya ➕/➖ = zoom · zoom me drag = pan · poora room clickable</div>
+    <div style="margin-top:6px">🕒 Schedule — aaj kaunsa automation kab chalega/chala (green pulse ring = abhi working)</div>
+    <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:#fff;
+      border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer">Band karo</button>
+  </div>
+  <div id="banner"><div class="b"><span id="bannerMsg"></span><button id="bannerRetry">Retry</button></div></div>
+  <div id="page">
+    <div id="quickNav">
+      <button class="qn-chip" data-jump="stageWrap">🏢 Map</button>
+      <button class="qn-chip" data-jump="feedCard">📰 Feed</button>
+      <button class="qn-chip" data-jump="leaderboardPanel">🏆 Team</button>
+      <button class="qn-chip" data-jump="pipelineBoard">📈 Pipeline</button>
+      <button class="qn-chip" data-jump="schedulePanel">🕒 Schedule</button>
+      <button class="qn-chip" data-jump="approvalsPanel">🗂️ Approvals</button>
+      <button class="qn-chip" data-jump="systemHealthPanel">🛠️ Health</button>
+      <button class="qn-chip" data-jump="failureConsoleCard">🚨 Reliability</button>
+    </div>
+    <div id="statusSummary" style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px"></div>
+    <div class="kpi-row" id="kpiRow"><div class="loading-note">⏳ HQ data load ho raha hai (pehli baar ~8-9s lag sakta hai)…</div></div>
+    <div id="nbaCard"><div class="nba-head">🧭 Next best actions</div><div id="nbaList"></div></div>
+
+    <div id="mapToolbar">
+      <div id="agentSearchWrap">
+        <input id="agentSearch" placeholder="🔎 Agent dhundo (naam/role)…" autocomplete="off" />
+        <div id="agentSearchResults"></div>
+      </div>
+      <button class="map-btn" id="zoomInBtn" title="Zoom in">➕</button>
+      <button class="map-btn" id="zoomOutBtn" title="Zoom out">➖</button>
+      <button class="map-btn" id="zoomResetBtn" title="Reset view">🔄 Reset</button>
+      <span id="mapHint">Ctrl+scroll = zoom · zoom me drag = pan · room/agent pe click = detail</span>
+    </div>
+    <div id="stageWrap"><div id="stage"></div></div>
+    <div id="roomListCompact"><div class="loading-note">⏳ Loading rooms…</div></div>
+
+    <div class="feed-card" id="feedCard">
+      <div class="feed-head"><span class="ticker-dot"></span> Live automation feed — poora project ka feed</div>
+      <div class="filter-row" id="filterRow"></div>
+      <div id="tickerList"><div class="loading-note">⏳ Loading feed…</div></div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel-box" id="leaderboardPanel">
+        <h3>🏆 Top performers (aaj)</h3>
+        <div id="leaderboardList"><div class="loading-note">⏳ Loading…</div></div>
+      </div>
+      <div class="panel-box" id="activityPanel">
+        <h3>📊 Team activity — last 24h (IST)</h3>
+        <div id="activityChart"><div class="loading-note">⏳ Loading…</div></div>
+        <div id="activityHours"></div>
+        <div id="activityMeta" class="empty-note"></div>
+      </div>
+    </div>
+
+    <div id="pipelineBoard">
+      <div class="board-head"><div class="board-title">📈 Lead → Renewal Pipeline</div></div>
+      <div class="board-row" id="boardRow"><div class="loading-note">⏳ Loading pipeline…</div></div>
+    </div>
+
+    <div id="schedulePanel" class="panel-box">
+      <h3>🕒 Aaj ka Schedule (IST)
+        <span style="font-weight:400;font-size:12px;color:var(--muted)">— automation day-plan, live status ke saath</span>
+      </h3>
+      <div id="scheduleList"><div class="loading-note">⏳ Loading…</div></div>
+      <div id="recurringStrip"></div>
+    </div>
+
+    <div id="systemMapCard" class="panel-box">
+      <h3 id="systemMapToggle" style="cursor:pointer;user-select:none">
+        🏗️ System Map <span id="systemMapChevron">▸</span>
+        <span style="font-weight:400;font-size:12px;color:var(--muted)">— live architecture (click to expand)</span>
+      </h3>
+      <div id="systemMapBody" style="display:none">
+        <iframe id="systemMapFrame" src="" style="width:100%;height:520px;border:1px solid var(--line);border-radius:10px;background:#0f1117"
+          title="Live architecture map"></iframe>
+        <div style="margin-top:8px;font-size:12.5px">
+          <a href="/app/control-center" target="_blank" rel="noopener">Open full Control Center →</a>
+        </div>
+      </div>
+    </div>
+
+    <div id="workflowRunsCard" class="panel-box" style="margin-top:14px;display:none">
+      <h3>⚙️ Recent Workflow Runs</h3>
+      <div id="workflowRunsList"><div class="loading-note">⏳ Loading…</div></div>
+    </div>
+
+    <div id="activeCoordCard" class="panel-box" style="margin-top:14px;display:none">
+      <h3>🔗 Active Coordination</h3>
+      <div id="activeCoordList"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel-box" id="approvalsPanel">
+        <h3>🗂️ Approvals needed</h3>
+        <div id="approvalsList"><div class="loading-note">⏳ Loading…</div></div>
+      </div>
+      <div class="panel-box" id="systemHealthPanel">
+        <h3>🛠️ System health</h3>
+        <div id="healthList"><div class="loading-note">⏳ Loading…</div></div>
+      </div>
+    </div>
+
+    <div id="failureConsoleCard" class="panel-box" style="margin-top:14px">
+      <h3 style="display:flex;align-items:center;gap:8px">
+        🚨 Reliability Console — failed jobs &amp; recovery
+        <button id="dlqSweepBtn" style="margin-left:auto;border:1px solid var(--line);background:#fff;
+          border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
+          title="Failed jobs ko backoff + attempt-cap ke saath dobara chalao">🔁 Retry sweep</button>
+      </h3>
+      <div id="failureConsoleList"><div class="loading-note">⏳ Loading…</div></div>
+    </div>
+  </div>
+
+  <div id="roomTooltip"></div>
+  <div id="coordinatorTickerBox" style="position:absolute;display:none;background:#fff;border:1px solid var(--line);
+    border-radius:8px;padding:6px 10px;max-width:280px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.08);z-index:15">
+    <div style="font-weight:700;margin-bottom:3px">🧑‍💼 Coordinator log</div>
+    <div id="coordinatorTicker"></div>
+  </div>
+  <div id="agentPanel" class="panel-hidden">
+    <div class="panel-card">
+      <button id="panelClose" aria-label="Close">✕</button>
+      <div id="panelBody">Loading…</div>
+    </div>
+  </div>
+<script>
+  var OFFICE = {};
+
+  // ---- Auth (same localStorage key as every other admin page) -------------
+  function token(){ return localStorage.getItem("accessToken") || ""; }
+  function hdrs(json){
+    var h = {};
+    var t = token();
+    if (t) h["Authorization"] = "Bearer " + t;
+    if (json) h["Content-Type"] = "application/json";
+    return h;
+  }
+  function showBanner(msg){
+    document.getElementById("bannerMsg").textContent = msg;
+    document.getElementById("banner").style.display = "block";
+  }
+  function hideBanner(){ document.getElementById("banner").style.display = "none"; }
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function relTime(iso){
+    if (!iso) return "";
+    var t = new Date(iso).getTime();
+    if (isNaN(t)) return "";
+    var s = Math.max(0, Math.floor((Date.now() - t) / 1000));
+    if (s < 60) return "abhi";
+    if (s < 3600) return Math.floor(s / 60) + " min pehle";
+    if (s < 86400) return Math.floor(s / 3600) + " ghante pehle";
+    return Math.floor(s / 86400) + " din pehle";
+  }
+
+  // ---- Snapshot (rooms + agents + metrics + pipeline + approvals + health) --
+  OFFICE.fetchSnapshot = async function(){
+    try {
+      var r = await fetch("/api/platform/office/snapshot", { headers: hdrs() });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var data = await r.json();
+      hideBanner();
+      return data;
+    } catch (e) {
+      showBanner("HQ snapshot load nahi ho paya — 25s me retry hoga.");
+      return null;
+    }
+  };
+
+  OFFICE.fetchEvents = async function(limit){
+    try {
+      var r = await fetch("/api/platform/team/events?limit=" + (limit || 60), { headers: hdrs() });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var d = await r.json();
+      return (d && d.events) || [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  // ---- 8-room layout (frontend-owned pixel geometry; room IDENTITY + agent
+  // membership + counts come from the backend snapshot so there is one source
+  // of truth for "who is in which room"). ----------------------------------
+  OFFICE.ROOMS = [
+    { id: "coordinator",           label: "🧑‍💼 Coordinator Room",        x: 0,   y: 0,   w: 1200, h: 120, stroke: 0x8b5cf6, floor: "floor_stone_cream", rug: "rug_purple" },
+    { id: "lead_lab",               label: "🧹 Data / Lead Lab",           x: 0,   y: 120, w: 300,  h: 350, stroke: 0x0ea5e9, floor: "floor_stone_grey",  rug: "rug_cyan" },
+    { id: "sales_crm",              label: "🤝 Sales / CRM",               x: 300, y: 120, w: 300,  h: 350, stroke: 0xf97316, floor: "floor_stone_grey",  rug: "rug_orange" },
+    { id: "voice_team",             label: "📞 Voice Team",                x: 600, y: 120, w: 300,  h: 350, stroke: 0x3b82f6, floor: "floor_stone_grey",  rug: "rug_cyan" },
+    { id: "marketing_team",         label: "📣 Marketing Team",            x: 900, y: 120, w: 300,  h: 350, stroke: 0xec4899, floor: "floor_stone_grey",  rug: "rug_orange" },
+    { id: "qa_audit",               label: "🧪 QA / Audit",                x: 0,   y: 470, w: 250,  h: 350, stroke: 0xeab308, floor: "floor_stone_grey",  rug: "rug_purple" },
+    { id: "platform_engineering",   label: "🛠️ Platform / Engineering",   x: 250, y: 470, w: 700,  h: 350, stroke: 0x10b981, floor: "floor_stone_grey",  rug: "rug_teal" },
+    { id: "admin_finance",          label: "💰 Admin / Finance",           x: 950, y: 470, w: 250,  h: 350, stroke: 0x64748b, floor: "floor_stone_grey",  rug: "rug_teal" }
+  ];
+  OFFICE.roomById = {};
+  OFFICE.ROOMS.forEach(function(r){ OFFICE.roomById[r.id] = r; });
+
+  // Shared scale for every furniture/floor/character tile (native 16x16px) so
+  // desks, rugs and avatars all read as the same art scale.
+  OFFICE.TILE_SCALE = 2.0;
+
+  // Canvas-space (pointer) coords -> page coords. Pointer.x/y are already in
+  // game/canvas space regardless of camera zoom, so NO camera transform here.
+  OFFICE.canvasToPage = function(x, y){
+    try {
+      var sm = OFFICE.game.scale;
+      var b = sm.canvasBounds || sm.canvas.getBoundingClientRect();
+      return { x: b.x + x * sm.displayScale.x, y: b.y + y * sm.displayScale.y };
+    } catch (e) { return { x: 0, y: 0 }; }
+  };
+
+  // WORLD coords -> page coords — camera-aware (zoom/pan supported). Used for
+  // overlays anchored to world positions (coordinator ticker box).
+  OFFICE.worldToPage = function(x, y){
+    try {
+      var cam = OFFICE.scene && OFFICE.scene.cameras.main;
+      if (cam) {
+        x = (x - cam.midPoint.x) * cam.zoom + cam.width / 2;
+        y = (y - cam.midPoint.y) * cam.zoom + cam.height / 2;
+      }
+      return OFFICE.canvasToPage(x, y);
+    } catch (e) { return { x: 0, y: 0 }; }
+  };
+
+  // Reposition world-anchored DOM overlays after any camera change.
+  OFFICE.updateTickerBoxPos = function(){
+    var tickerBox = document.getElementById("coordinatorTickerBox");
+    if (!tickerBox || tickerBox.style.display === "none") return;
+    var room = OFFICE.roomById.coordinator;
+    var pagePos = OFFICE.worldToPage(room.x + room.w - 290, room.y + 30);
+    tickerBox.style.left = pagePos.x + "px";
+    tickerBox.style.top = pagePos.y + "px";
+  };
+
+  OFFICE.roomDots = {};   // room id -> Phaser circle (live status dot on the map)
+  OFFICE.drawRooms = function(){
+    var scene = OFFICE.scene;
+    var s = OFFICE.TILE_SCALE;
+    OFFICE.ROOMS.forEach(function(room){
+      var ix = room.x + 6, iy = room.y + 6, iw = room.w - 12, ih = room.h - 12;
+      scene.add.tileSprite(ix, iy, iw, ih, room.floor).setOrigin(0, 0).setTileScale(s, s);
+      var rugH = Math.min(30, ih * 0.2);
+      scene.add.tileSprite(ix, iy, iw, rugH, room.rug).setOrigin(0, 0).setTileScale(s, s).setAlpha(0.5);
+      var border = scene.add.graphics();
+      border.lineStyle(4, room.stroke, 1);
+      border.strokeRect(ix, iy, iw, ih);
+      // Whole-room click/hover zone (invisible, created BEFORE avatars so
+      // avatars stay on top for input priority). Click = room panel; drag = pan.
+      var zone = scene.add.rectangle(ix, iy, iw, ih, 0xffffff, 0.001).setOrigin(0, 0);
+      zone.setInteractive({ useHandCursor: true });
+      zone.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openRoomPanel(room.id); });
+      zone.on("pointerover", function(p){ OFFICE.showRoomTooltip(room.id, p); });
+      zone.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
+      zone.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
+      var lbl = scene.add.text(room.x + 14, room.y + 12, room.label, {
+        fontSize: "14px", fontFamily: "sans-serif", fontStyle: "bold", color: "#1e1b2e"
+      }).setShadow(0, 1, "#ffffff", 2, false, true);
+      lbl.setInteractive({ useHandCursor: true });
+      lbl.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openRoomPanel(room.id); });
+      lbl.on("pointerover", function(p){ OFFICE.showRoomTooltip(room.id, p); });
+      lbl.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
+      lbl.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
+      // Live status dot next to the label — colored from the backend snapshot
+      // (idle/active/blocked/error) on every refresh, so the map itself shows
+      // room health at a glance, not just the compact list.
+      var dot = scene.add.circle(room.x + 14 + lbl.width + 12, room.y + 21, 5, 0x94a3b8)
+        .setStrokeStyle(1.5, 0xffffff);
+      OFFICE.roomDots[room.id] = dot;
+      OFFICE.drawRoomDecor(room, ix, iy, iw, ih);
+      if (room.id === "coordinator") {
+        document.getElementById("coordinatorTickerBox").style.display = "block";
+        OFFICE.updateTickerBoxPos();
+      }
+    });
+  };
+
+  OFFICE.drawRoomDecor = function(room, ix, iy, iw, ih){
+    var scene = OFFICE.scene;
+    scene.add.image(ix + iw - 16, iy + 20, "painting").setScale(OFFICE.TILE_SCALE * 0.8);
+    scene.add.image(ix + 14, iy + ih - 14, "plant").setScale(OFFICE.TILE_SCALE * 0.8);
+  };
+
+  OFFICE.showRoomTooltip = function(roomId, pointer){
+    var room = OFFICE.roomStats && OFFICE.roomStats[roomId];
+    var tip = document.getElementById("roomTooltip");
+    if (!room) { tip.style.display = "none"; return; }
+    tip.innerHTML = "<b>" + esc(room.name) + "</b><br>" + esc(room.purpose) + "<br>" +
+      "Active: " + room.activeTaskCount + " · Blocked: " + room.blockedTaskCount +
+      " · Errors: " + room.errorCount + " · Approvals: " + room.approvalCount;
+    tip.style.display = "block";
+    OFFICE.moveRoomTooltip(pointer);
+  };
+  OFFICE.moveRoomTooltip = function(pointer){
+    var tip = document.getElementById("roomTooltip");
+    if (tip.style.display !== "block") return;
+    // pointer.x/y are canvas-space — canvasToPage (NOT the camera-aware worldToPage).
+    var p = OFFICE.canvasToPage(pointer.x, pointer.y);
+    tip.style.left = (p.x + 12) + "px";
+    tip.style.top = (p.y + 12) + "px";
+  };
+  OFFICE.hideRoomTooltip = function(){ document.getElementById("roomTooltip").style.display = "none"; };
+
+  // ---- Staff avatars: real pixel-art character sprites -----------------------
+  OFFICE.CHAR_COUNT = 10;
+  OFFICE.STATE_COLOR = { working: 0x10b981, active: 0xf59e0b, offline: 0x94a3b8 };
+  OFFICE.OFFLINE_REASON_LABEL = {
+    "no_data_today": "Koi matching data aaj nahi mila — flag ON hai, bas kaam nahi aaya",
+    "unknown": "Wajah pata nahi — dekho logs",
+  };
+  OFFICE.offlineReasonText = function(reason){
+    if (!reason) return "";
+    if (reason.indexOf("flag_off:") === 0) {
+      return "Flag " + reason.slice(9) + " OFF hai (design se — enable nahi kiya gaya)";
+    }
+    return OFFICE.OFFLINE_REASON_LABEL[reason] || OFFICE.OFFLINE_REASON_LABEL.unknown;
+  };
+  OFFICE.avatars = {};
+  OFFICE.agentRoom = {};   // member key -> room id (single source: backend snapshot)
+  OFFICE.agentByKey = {};  // member key -> full agent object (for drawer/tooltip)
+
+  OFFICE.charKeyFor = function(memberKey){
+    var h = 0;
+    for (var i = 0; i < memberKey.length; i++) h = (h * 31 + memberKey.charCodeAt(i)) >>> 0;
+    return "char" + ((h % OFFICE.CHAR_COUNT) + 1);
+  };
+
+  OFFICE.layoutSlots = function(room, count){
+    var padX = 20, padTop = 46, padBottom = 16;
+    var usableW = room.w - padX * 2;
+    var usableH = room.h - padTop - padBottom;
+    var cols = Math.max(1, Math.min(count, Math.floor(usableW / 62)));
+    var rows = Math.max(1, Math.ceil(count / cols));
+    var pitchX = usableW / cols;
+    var pitchY = Math.min(74, usableH / rows);
+    var slots = [];
+    for (var i = 0; i < count; i++){
+      var r = Math.floor(i / cols), c = i % cols;
+      slots.push({
+        x: room.x + padX + pitchX * c + pitchX / 2,
+        y: room.y + padTop + pitchY * r + pitchY / 2
+      });
+    }
+    return slots;
+  };
+
+  OFFICE.drawAvatar = function(m, slot){
+    var scene = OFFICE.scene;
+    var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
+    var s = OFFICE.TILE_SCALE;
+    var desk = scene.add.image(slot.x, slot.y + 13, "desk_1").setScale(s);
+    var sprite = scene.add.image(0, -4, OFFICE.charKeyFor(m.key)).setScale(s);
+    sprite.setInteractive({ useHandCursor: true });
+    sprite.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openAgentPanel(m.key); });
+    sprite.on("pointerover", function(p){
+      var tip = document.getElementById("roomTooltip");
+      var a = OFFICE.agentByKey[m.key] || m;
+      var reason = a.offlineReason || a.offline_reason;
+      var extra = (a.state || a.status) === "offline" && reason
+        ? esc(OFFICE.offlineReasonText(reason))
+        : "Aaj " + esc(a.todayActions != null ? a.todayActions : "?") + " action(s)";
+      tip.innerHTML = "<b>" + esc(a.name || m.name) + " — " + esc(a.state || a.status || "?") + "</b><br>" + extra;
+      tip.style.display = "block";
+      OFFICE.moveRoomTooltip(p);
+    });
+    sprite.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
+    sprite.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
+    var badge = scene.add.circle(12, 6, 5.5, color).setStrokeStyle(2, 0xffffff);
+    var label = scene.add.text(0, 30, m.name, {
+      fontSize: "10px", fontFamily: "sans-serif", color: "#1e293b"
+    }).setOrigin(0.5, 0);
+    var group = scene.add.container(slot.x, slot.y, [sprite, badge, label]);
+    var av = {
+      desk: desk, sprite: sprite, badge: badge, label: label, group: group,
+      homeX: slot.x, homeY: slot.y, wandering: false, pulse: null, pulseTween: null
+    };
+    OFFICE.setAvatarState(av, m.state);
+    OFFICE.scheduleWander(m.key);
+    return av;
+  };
+
+  // Status ko map par turant readable banao: working = green pulse ring,
+  // offline = dimmed avatar (dot ke alawa). Idempotent — har refresh pe call hota.
+  OFFICE.setAvatarState = function(av, state){
+    var scene = OFFICE.scene;
+    if (!av || !scene) return;
+    av.badge.setFillStyle(OFFICE.STATE_COLOR[state] || OFFICE.STATE_COLOR.offline);
+    av.group.setAlpha(state === "offline" ? 0.55 : 1);
+    if (state === "working" && !av.pulse) {
+      av.pulse = scene.add.circle(0, -2, 16, 0x10b981, 0.22);
+      av.group.addAt(av.pulse, 0);  // ring stays BEHIND the sprite
+      av.pulseTween = scene.tweens.add({
+        targets: av.pulse, scale: 1.45, alpha: 0.05,
+        duration: 950, yoyo: true, repeat: -1, ease: "Sine.easeInOut"
+      });
+    } else if (state !== "working" && av.pulse) {
+      try { av.pulseTween && av.pulseTween.stop(); av.pulse.destroy(); } catch (e) {}
+      av.pulse = null; av.pulseTween = null;
+    }
+  };
+
+  OFFICE.scheduleWander = function(key){
+    setTimeout(function(){
+      var av = OFFICE.avatars[key];
+      if (!av || !OFFICE.scene) return;
+      OFFICE.wanderOnce(av);
+      OFFICE.scheduleWander(key);
+    }, 4000 + Math.random() * 10000);
+  };
+
+  OFFICE.wanderOnce = function(av){
+    if (av.wandering) return;
+    av.wandering = true;
+    var scene = OFFICE.scene;
+    var dx = (Math.random() - 0.5) * 34;
+    var dy = (Math.random() - 0.5) * 20;
+    av.sprite.setFlipX(dx < 0);
+    scene.tweens.add({
+      targets: av.group,
+      x: av.homeX + dx, y: av.homeY + dy,
+      duration: 850 + Math.random() * 350,
+      ease: "Sine.easeInOut",
+      yoyo: true,
+      hold: 700 + Math.random() * 900,
+      onYoyo: function(){ av.sprite.setFlipX(dx >= 0); },
+      onComplete: function(){
+        av.sprite.setFlipX(false);
+        av.group.setPosition(av.homeX, av.homeY);
+        av.wandering = false;
+      }
+    });
+  };
+
+  // ---- Render agents into rooms (Phaser desktop + compact mobile list) -----
+  OFFICE.renderMembers = function(snapshot){
+    if (!snapshot || !snapshot.agents) return;
+    OFFICE.agentRoom = {};
+    OFFICE.agentByKey = {};
+    snapshot.agents.forEach(function(a){ OFFICE.agentRoom[a.key] = a.room; OFFICE.agentByKey[a.key] = a; });
+    OFFICE.roomStats = {};
+    (snapshot.rooms || []).forEach(function(r){ OFFICE.roomStats[r.id] = r; });
+
+    if (OFFICE.scene) {
+      var byRoom = {};
+      OFFICE.ROOMS.forEach(function(r){ byRoom[r.id] = []; });
+      snapshot.agents.forEach(function(a){
+        var m = { key: a.key, name: a.name, emoji: a.emoji, title: a.title, duties: a.duties, state: a.status, offlineReason: a.offline_reason };
+        (byRoom[a.room] || byRoom.platform_engineering).push(m);
+      });
+      OFFICE.ROOMS.forEach(function(room){
+        var members = byRoom[room.id];
+        var slots = OFFICE.layoutSlots(room, members.length);
+        members.forEach(function(m, i){
+          var existing = OFFICE.avatars[m.key];
+          if (existing) {
+            OFFICE.setAvatarState(existing, m.state);
+          } else {
+            OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, slots[i]);
+          }
+        });
+      });
+      // Live room-status dots on the map itself (same colors as compact list).
+      (snapshot.rooms || []).forEach(function(r){
+        var dot = OFFICE.roomDots[r.id];
+        if (dot) dot.setFillStyle(ROOM_STATUS_COLOR_HEX[r.status] != null ? ROOM_STATUS_COLOR_HEX[r.status] : 0x94a3b8);
+      });
+    }
+    OFFICE.renderRoomListCompact(snapshot.rooms || []);
+  };
+
+  var ROOM_STATUS_COLOR = { idle: "#94a3b8", active: "#f59e0b", blocked: "#f97316", error: "#ef4444" };
+  var ROOM_STATUS_COLOR_HEX = { idle: 0x94a3b8, active: 0xf59e0b, blocked: 0xf97316, error: 0xef4444 };
+  OFFICE.renderRoomListCompact = function(rooms){
+    var el = document.getElementById("roomListCompact");
+    el.innerHTML = rooms.map(function(r){
+      var chips = (r.agent_keys || []).slice(0, 12).map(function(k){
+        var a = OFFICE.agentByKey[k];
+        return '<span class="rc-chip" title="' + esc(a ? a.name : k) + '">' + esc(a ? a.emoji : "🤖") + '</span>';
+      }).join("");
+      return '<div class="rc-card" data-room="' + esc(r.id) + '">' +
+        '<div class="rc-head">' + esc(r.emoji) + ' ' + esc(r.name) +
+          '<span class="rc-status" style="background:' + (ROOM_STATUS_COLOR[r.status] || "#94a3b8") + '"></span></div>' +
+        '<div class="rc-agents">' + chips + '</div>' +
+        '<div class="rc-meta">Active ' + r.activeTaskCount + ' · Blocked ' + r.blockedTaskCount +
+          ' · Errors ' + r.errorCount + ' · Approvals ' + r.approvalCount + '</div>' +
+      '</div>';
+    }).join("") || '<div class="empty-note">Koi room data nahi mila.</div>';
+    Array.prototype.forEach.call(el.querySelectorAll(".rc-card"), function(card){
+      card.onclick = function(){ OFFICE.openRoomPanel(card.getAttribute("data-room")); };
+    });
+  };
+
+  // ---- KPI summary row -------------------------------------------------------
+  OFFICE.KPI_DEFS = [
+    { key: "new_leads_today", label: "New leads (aaj)" },
+    { key: "qualified_leads_today", label: "Qualified (aaj)" },
+    { key: "calls_completed_today", label: "Calls done (aaj)" },
+    { key: "appointments_booked", label: "Appointments" },
+    { key: "campaigns_ready", label: "Content ready" },
+    { key: "payments_pending", label: "Payments pending", warnIfPositive: true },
+    { key: "active_customers", label: "Active customers" },
+    { key: "failed_automations", label: "Failed automations", errIfPositive: true },
+    { key: "approvals_needed", label: "Approvals needed", warnIfPositive: true },
+    { key: "system_issues", label: "System issues", errIfPositive: true },
+  ];
+  OFFICE.renderMetrics = function(metrics){
+    metrics = metrics || {};
+    var el = document.getElementById("kpiRow");
+    el.innerHTML = OFFICE.KPI_DEFS.map(function(d){
+      var v = metrics[d.key] || 0;
+      var cls = "kpi";
+      if (d.errIfPositive && v > 0) cls += " k-err";
+      else if (d.warnIfPositive && v > 0) cls += " k-warn";
+      return '<div class="' + cls + '"><div class="k-label">' + esc(d.label) + '</div><div class="k-val">' + esc(v) + '</div></div>';
+    }).join("") + '<div class="kpi k-ok"><div class="k-label">MRR (est.)</div><div class="k-val">₹' + esc(metrics.mrr || 0) + '</div></div>';
+  };
+
+  OFFICE.renderStatusSummary = function(snapshot){
+    var el = document.getElementById("statusSummary");
+    if (!el || !snapshot) return;
+    var agents = snapshot.agents || [];
+    var activeCount = agents.filter(function(a){ return a.status !== "offline"; }).length;
+    var metrics = snapshot.metrics || {};
+    var pending = metrics.approvals_needed || 0;
+    var issues = metrics.system_issues || 0;
+    var healthLine = issues > 0 ? issues + " automation issue(s)" : "sab automation healthy";
+    el.textContent = activeCount + "/" + agents.length + " agents active · " +
+      pending + " approvals pending · " + healthLine;
+  };
+
+  OFFICE.renderNextActions = function(actions){
+    var card = document.getElementById("nbaCard");
+    var list = document.getElementById("nbaList");
+    actions = actions || [];
+    if (!actions.length) { card.classList.remove("show"); return; }
+    card.classList.add("show");
+    list.innerHTML = actions.map(function(a){
+      return '<div class="nba-item" data-cta="' + esc(a.cta_target || "") + '">' + esc(a.label) + '</div>';
+    }).join("");
+    Array.prototype.forEach.call(list.querySelectorAll(".nba-item"), function(row){
+      row.onclick = function(){ OFFICE.jumpToCta(row.getAttribute("data-cta")); };
+    });
+  };
+  OFFICE.jumpToCta = function(cta){
+    if (!cta) return;
+    if (cta === "approvals") { document.getElementById("approvalsPanel").scrollIntoView({behavior:"smooth"}); return; }
+    if (cta === "system_health") { document.getElementById("systemHealthPanel").scrollIntoView({behavior:"smooth"}); return; }
+    OFFICE.openStagePanel(cta);
+  };
+
+  // ---- Pipeline board --------------------------------------------------------
+  OFFICE.renderPipeline = function(stages){
+    var el = document.getElementById("boardRow");
+    el.innerHTML = (stages || []).map(function(s){
+      var badges = "";
+      if (s.stuckCount) badges += '<span class="badge badge-stuck">' + s.stuckCount + ' stuck</span>';
+      if (s.errorCount) badges += '<span class="badge badge-err">' + s.errorCount + ' error</span>';
+      if (s.source !== "real") badges += '<span class="badge badge-sample">◌ ' + esc(s.source) + '</span>';
+      return '<div class="stage-card" data-stage="' + esc(s.id) + '">' +
+        '<div class="stage-name">' + esc(s.order) + '. ' + esc(s.name) + '</div>' +
+        '<div class="stage-count">' + esc(s.count) + '</div>' +
+        '<div class="stage-badges">' + badges + '</div>' +
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".stage-card"), function(card){
+      card.onclick = function(){ OFFICE.openStagePanel(card.getAttribute("data-stage")); };
+    });
+  };
+
+  // Stage-detail drawer: filters (Today/This week/All/Hot leads/Errors/
+  // Needs approval/Stuck/No owner) + search (name/phone/city/category/source),
+  // operating client-side on the FULL item list the drill-down endpoint
+  // returns (up to 50, vs the 3 embedded in the board mini-card).
+  OFFICE.STAGE_FILTERS = ["All", "Today", "This week", "Hot leads", "Stuck", "Needs approval", "No owner"];
+  OFFICE.stageFilter = "All";
+  OFFICE.stageSearch = "";
+  OFFICE.currentStage = null;
+
+  OFFICE.stageItemMatches = function(it){
+    var f = OFFICE.stageFilter;
+    if (f === "Hot leads" && it.priority !== "hot") return false;
+    if (f === "Stuck" && !it.slaRisk) return false;
+    if (f === "Needs approval" && !it.needsApproval) return false;
+    if (f === "No owner" && it.assignedAgentId) return false;
+    if (f === "Today" || f === "This week") {
+      if (!it.lastActivityAt) return false;
+      var ageMs = Date.now() - new Date(it.lastActivityAt).getTime();
+      if (isNaN(ageMs)) return false;
+      if (f === "Today" && ageMs > 24 * 3600 * 1000) return false;
+      if (f === "This week" && ageMs > 7 * 24 * 3600 * 1000) return false;
+    }
+    var q = OFFICE.stageSearch.trim().toLowerCase();
+    if (q) {
+      var hay = [it.name, it.city, it.category, it.source, it.status].filter(Boolean).join(" ").toLowerCase();
+      if (hay.indexOf(q) < 0) return false;
+    }
+    return true;
+  };
+
+  OFFICE.renderStageItems = function(){
+    var stage = OFFICE.currentStage;
+    if (!stage) return;
+    var filterRow = document.getElementById("stageFilterRow");
+    if (filterRow) {
+      filterRow.innerHTML = OFFICE.STAGE_FILTERS.map(function(f){
+        return '<button class="sf-btn' + (f === OFFICE.stageFilter ? " active" : "") + '" data-sf="' + f + '">' + f + '</button>';
+      }).join("");
+      Array.prototype.forEach.call(filterRow.querySelectorAll(".sf-btn"), function(btn){
+        btn.onclick = function(){ OFFICE.stageFilter = btn.getAttribute("data-sf"); OFFICE.renderStageItems(); };
+      });
+    }
+    var list = document.getElementById("stageItemsList");
+    if (!list) return;
+    var filtered = (stage.items || []).filter(OFFICE.stageItemMatches);
+    var agentOptions = Object.keys(OFFICE.agentByKey).map(function(k){
+      var a = OFFICE.agentByKey[k];
+      return '<option value="' + esc(k) + '">' + esc(a.emoji) + ' ' + esc(a.name) + '</option>';
+    }).join("");
+    list.innerHTML = filtered.map(function(it, idx){
+      var canMove = it.type === "deal" || it.type === "lead";
+      return '<div class="item-row" data-idx="' + idx + '">' +
+        '<div class="ir-name">' + esc(it.name) +
+          (it.slaRisk ? ' <span class="sla-risk">⚠ SLA risk</span>' : "") +
+          (it.needsApproval ? ' <span class="needs-approval">🗂 needs approval</span>' : "") +
+        '</div>' +
+        '<div class="ir-meta">' + [it.city, it.category, it.source, it.status].filter(Boolean).map(esc).join(" · ") + '</div>' +
+        '<div class="ir-meta">Owner: ' + esc(it.assignedAgentId ? (OFFICE.agentByKey[it.assignedAgentId] || {}).name || it.assignedAgentId : "— none —") +
+          ' · Next: ' + esc(it.nextAction || "-") + '</div>' +
+        '<div class="item-actions">' +
+          '<select class="ia-assign">' + '<option value="">Assign to…</option>' + agentOptions + '</select>' +
+          '<button class="ia-btn ia-next">📝 Next action</button>' +
+          (it.slaRisk ? '<button class="ia-btn ia-resolve">✓ Resolve stuck</button>' : "") +
+          (canMove ? '<button class="ia-btn ia-move">➡ Move stage</button>' : "") +
+        '</div>' +
+      '</div>';
+    }).join("") || '<div class="empty-note">"' + esc(OFFICE.stageFilter) + '" filter/search me abhi koi item nahi hai.</div>';
+
+    Array.prototype.forEach.call(list.querySelectorAll(".item-row"), function(row){
+      var it = filtered[parseInt(row.getAttribute("data-idx"), 10)];
+      var assignSel = row.querySelector(".ia-assign");
+      if (assignSel) assignSel.onchange = async function(){
+        if (!assignSel.value) return;
+        await fetch("/api/platform/office/pipeline/item/" + encodeURIComponent(it.id) + "/assign", {
+          method: "POST", headers: hdrs(true), body: JSON.stringify({ agent_key: assignSel.value })
+        });
+        OFFICE.openStagePanel(stage.id);
+      };
+      var nextBtn = row.querySelector(".ia-next");
+      if (nextBtn) nextBtn.onclick = async function(){
+        var note = window.prompt("Next action note:", it.nextAction || "");
+        if (note == null) return;
+        await fetch("/api/platform/office/pipeline/item/" + encodeURIComponent(it.id) + "/next-action", {
+          method: "POST", headers: hdrs(true), body: JSON.stringify({ note: note })
+        });
+        OFFICE.openStagePanel(stage.id);
+      };
+      var resolveBtn = row.querySelector(".ia-resolve");
+      if (resolveBtn) resolveBtn.onclick = async function(){
+        await fetch("/api/platform/office/pipeline/item/" + encodeURIComponent(it.id) + "/resolve-stuck", {
+          method: "POST", headers: hdrs()
+        });
+        OFFICE.openStagePanel(stage.id);
+      };
+      var moveBtn = row.querySelector(".ia-move");
+      if (moveBtn) moveBtn.onclick = async function(){
+        var next = window.prompt(
+          it.type === "deal" ? "Next deal stage (new/contacted/interested/demo_sent/proposal_sent/negotiating/won/lost):"
+                              : "Next lead status (new/contacted/qualified/appointment/callback/not_interested/wrong_number/dnd/converted/lost):"
+        );
+        if (!next) return;
+        await fetch("/api/platform/office/pipeline/item/" + encodeURIComponent(it.id) + "/move", {
+          method: "POST", headers: hdrs(true), body: JSON.stringify({ item_type: it.type, next_stage: next.trim() })
+        });
+        OFFICE.openStagePanel(stage.id);
+      };
+    });
+  };
+
+  OFFICE.openStagePanel = async function(stageId){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    body.innerHTML = "Loading…";
+    var stage;
+    try {
+      var r = await fetch("/api/platform/office/pipeline/" + encodeURIComponent(stageId), { headers: hdrs() });
+      stage = r.ok ? await r.json() : null;
+    } catch (e) { stage = null; }
+    if (!stage) { body.innerHTML = "Stage load nahi ho paya."; return; }
+    OFFICE.currentStage = stage;
+    OFFICE.stageFilter = "All";
+    body.innerHTML =
+      '<div class="panel-title">' + esc(stage.order) + '. ' + esc(stage.name) + '</div>' +
+      '<div class="panel-sub">' + (stage.source !== "real" ? '<span class="badge badge-sample">◌ ' + esc(stage.source) + '</span> ' : '') + esc(stage.note || "") + '</div>' +
+      '<div class="panel-stats">' +
+        '<div class="panel-stat">Count<br><b>' + esc(stage.count) + '</b></div>' +
+        '<div class="panel-stat">Stuck<br><b>' + esc(stage.stuckCount || 0) + '</b></div>' +
+        '<div class="panel-stat">Errors<br><b>' + esc(stage.errorCount || 0) + '</b></div>' +
+      '</div>' +
+      '<div class="stage-toolbar">' +
+        '<input class="stage-search" id="stageSearchInput" placeholder="Search name/city/category/source…" />' +
+        '<div class="stage-filter-row" id="stageFilterRow"></div>' +
+      '</div>' +
+      '<div class="panel-events" id="stageItemsList"></div>';
+    var searchInput = document.getElementById("stageSearchInput");
+    searchInput.oninput = function(){ OFFICE.stageSearch = searchInput.value; OFFICE.renderStageItems(); };
+    OFFICE.renderStageItems();
+  };
+
+  // ---- Room detail panel ------------------------------------------------------
+  OFFICE.openRoomPanel = function(roomId){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    var room = (OFFICE.roomStats || {})[roomId];
+    if (!room) { body.innerHTML = "Room nahi mila."; return; }
+    var agentsHtml = (room.agent_keys || []).map(function(k){
+      var a = OFFICE.agentByKey[k];
+      if (!a) return "";
+      return '<div class="item-row"><div class="ir-name">' + esc(a.emoji) + ' ' + esc(a.name) + ' — ' + esc(a.title) + '</div>' +
+        '<div class="ir-meta">' + esc(a.status) + ' · aaj ' + esc(a.todayActions) + ' actions, ' + esc(a.todayErrors) + ' errors</div></div>';
+    }).join("") || '<div class="empty-note">Is room me koi agent nahi.</div>';
+    body.innerHTML =
+      '<div class="panel-title">' + esc(room.emoji) + ' ' + esc(room.name) + '</div>' +
+      '<div class="panel-sub">' + esc(room.purpose) + '</div>' +
+      '<div class="panel-stats">' +
+        '<div class="panel-stat">Active<br><b>' + esc(room.activeTaskCount) + '</b></div>' +
+        '<div class="panel-stat">Blocked<br><b>' + esc(room.blockedTaskCount) + '</b></div>' +
+        '<div class="panel-stat">Errors<br><b>' + esc(room.errorCount) + '</b></div>' +
+        '<div class="panel-stat">Approvals<br><b>' + esc(room.approvalCount) + '</b></div>' +
+      '</div>' +
+      '<div class="panel-events">' + agentsHtml + '</div>';
+  };
+
+  // ---- Approvals panel (reuses the EXISTING growth-approvals cockpit API) --
+  OFFICE.lastApprovals = [];
+  OFFICE.renderApprovals = function(approvals){
+    var el = document.getElementById("approvalsList");
+    var drafts = (approvals && approvals.drafts) || [];
+    OFFICE.lastApprovals = drafts;
+    if (!drafts.length) { el.innerHTML = '<div class="empty-note">Koi approval pending nahi hai.</div>'; return; }
+    el.innerHTML = drafts.slice(0, 8).map(function(d){
+      return '<div class="appr-row" data-source="' + esc(d.source) + '" data-id="' + esc(d.id) + '">' +
+        '<div class="appr-title">' + esc(d.title || d.id) + '</div>' +
+        '<button class="appr-btn appr-approve" data-decision="approve">✓</button>' +
+        '<button class="appr-btn appr-reject" data-decision="reject">✕</button>' +
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".appr-row"), function(row){
+      row.onclick = function(){ OFFICE.openApprovalPanel(row.getAttribute("data-source"), row.getAttribute("data-id")); };
+    });
+    Array.prototype.forEach.call(el.querySelectorAll(".appr-btn"), function(btn){
+      btn.onclick = async function(evt){
+        evt.stopPropagation();
+        var row = btn.closest(".appr-row");
+        var source = row.getAttribute("data-source"), id = row.getAttribute("data-id");
+        var decision = btn.getAttribute("data-decision");
+        btn.disabled = true;
+        try {
+          await fetch("/api/growth/approvals/drafts/" + encodeURIComponent(source) + "/" + encodeURIComponent(id) + "/decide", {
+            method: "POST", headers: hdrs(true), body: JSON.stringify({ decision: decision })
+          });
+        } catch (e) { /* best-effort — snapshot refresh will show the true state */ }
+        OFFICE.refreshSnapshot();
+      };
+    });
+  };
+
+  // ---- Approval detail drawer (full body/meta + approve/reject) ------------
+  OFFICE.openApprovalPanel = function(source, id){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    var draft = OFFICE.lastApprovals.filter(function(d){ return d.source === source && String(d.id) === String(id); })[0];
+    if (!draft) { body.innerHTML = "Approval draft nahi mila."; return; }
+    body.innerHTML =
+      '<div class="panel-title">' + esc(draft.title || draft.id) + '</div>' +
+      '<div class="panel-sub">Source: ' + esc(draft.source) + ' · Status: ' + esc(draft.status || "pending") + '</div>' +
+      '<div class="panel-events"><div class="item-row">' + esc(draft.body || "(no preview available)").slice(0, 2000) + '</div></div>' +
+      '<div class="panel-actions">' +
+        '<button id="apprApproveBtn">✓ Approve</button>' +
+        '<button id="apprRejectBtn" style="background:#ef4444">✕ Reject</button>' +
+      '</div>';
+    var mkHandler = function(decision){
+      return async function(){
+        await fetch("/api/growth/approvals/drafts/" + encodeURIComponent(source) + "/" + encodeURIComponent(id) + "/decide", {
+          method: "POST", headers: hdrs(true), body: JSON.stringify({ decision: decision })
+        });
+        document.getElementById("agentPanel").classList.add("panel-hidden");
+        OFFICE.refreshSnapshot();
+      };
+    };
+    document.getElementById("apprApproveBtn").onclick = mkHandler("approve");
+    document.getElementById("apprRejectBtn").onclick = mkHandler("reject");
+  };
+
+  var HEALTH_COLOR = { ok: "#10b981", overdue: "#f59e0b", last_failed: "#ef4444", never_ran: "#94a3b8", scheduled_off: "#cbd5e1" };
+  OFFICE.lastHealthJobs = [];
+  OFFICE.renderSystemHealth = function(health){
+    var el = document.getElementById("healthList");
+    var jobs = (health && health.jobs) || [];
+    OFFICE.lastHealthJobs = jobs;
+    var problems = jobs.filter(function(j){ return j.status === "overdue" || j.status === "last_failed"; });
+    var q = (health && health.queue) || {};
+    var rows = problems.slice(0, 8).map(function(j){
+      return '<div class="health-row clickable" data-job="' + esc(j.job) + '"><span class="health-dot" style="background:' + (HEALTH_COLOR[j.status] || "#94a3b8") + '"></span>' +
+        esc(j.job) + ' — ' + esc(j.status) + '</div>';
+    }).join("");
+    var queueLine = '<div class="health-row"><span class="health-dot" style="background:' + ((q.dlq || 0) > 0 ? "#ef4444" : "#10b981") + '"></span>' +
+      'Queue: celery=' + esc(q.celery != null ? q.celery : "-") + ' · dlq=' + esc(q.dlq != null ? q.dlq : "-") + '</div>';
+    el.innerHTML = queueLine + (rows || '<div class="empty-note">Koi overdue/failed job nahi — sab healthy hai.</div>');
+    Array.prototype.forEach.call(el.querySelectorAll(".health-row.clickable"), function(row){
+      row.onclick = function(){ OFFICE.openHealthPanel(row.getAttribute("data-job")); };
+    });
+  };
+
+  // ---- Reliability Console: DLQ failed/dead jobs + one-click retry-sweep -----
+  // Real data from /api/growth/infra/dlq (failed + dead) + recovery via
+  // /api/growth/infra/dlq/sweep — both admin-gated. No mock: if empty, shows
+  // healthy state; if the endpoint errors, shows the error honestly.
+  OFFICE.renderFailureConsole = async function(){
+    var el = document.getElementById("failureConsoleList");
+    if (!el) return;
+    var failed = { count: 0, items: [] }, dead = { count: 0, items: [] };
+    try {
+      var rf = await fetch("/api/growth/infra/dlq?key=failed&limit=15", { headers: hdrs() });
+      if (rf.ok) failed = await rf.json();
+      var rd = await fetch("/api/growth/infra/dlq?key=dead&limit=15", { headers: hdrs() });
+      if (rd.ok) dead = await rd.json();
+    } catch (e) {
+      el.innerHTML = '<div class="empty-note">DLQ load nahi ho paya (Redis reachable?).</div>';
+      return;
+    }
+    var fc = failed.count || 0, dc = dead.count || 0;
+    var head = '<div class="health-row"><span class="health-dot" style="background:' +
+      (fc > 0 ? "#ef4444" : "#10b981") + '"></span>Failed (retry-able): <b>' + esc(fc) + '</b>' +
+      ' &nbsp;·&nbsp; <span class="health-dot" style="background:' + (dc > 0 ? "#f59e0b" : "#10b981") +
+      '"></span>Dead (exhausted): <b>' + esc(dc) + '</b></div>';
+    var items = (failed.items || []).concat(dead.items || []).slice(0, 12);
+    var rows = items.map(function(it){
+      var task = esc(it.task || it.name || it.job || "unknown task");
+      var err = esc(String(it.error || it.exc || it.reason || "").slice(0, 120));
+      var when = it.ts || it.at || it.failed_at;
+      return '<div class="item-row"><div class="ir-name">⚠️ ' + task + '</div>' +
+        (err ? '<div class="ir-meta">' + err + '</div>' : '') +
+        (when ? '<div class="ir-meta">' + esc(relTime(when)) + '</div>' : '') + '</div>';
+    }).join("");
+    if (fc === 0 && dc === 0) {
+      el.innerHTML = head + '<div class="empty-note">Koi failed/dead job nahi — automation healthy hai. 🎉</div>';
+    } else {
+      el.innerHTML = head + (rows || '<div class="empty-note">Counts hain par preview items abhi nahi mile.</div>');
+    }
+  };
+
+  OFFICE.openHealthPanel = function(job){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    var j = OFFICE.lastHealthJobs.filter(function(x){ return x.job === job; })[0];
+    if (!j) { body.innerHTML = "Job nahi mila."; return; }
+    body.innerHTML =
+      '<div class="panel-title">🛠️ ' + esc(job) + '</div>' +
+      '<div class="panel-sub">Status: ' + esc(j.status) + (j.last_run ? (" · Last run: " + esc(relTime(j.last_run))) : "") + '</div>' +
+      '<div class="empty-note">Yeh scheduled automation job hai (team_scheduler.py). Overdue/failed hone par worker/scheduler container check karo (/app/automation).</div>';
+  };
+
+  // ---- Live event feed: filters (All/Leads/Voice/Marketing/Sales/Billing/
+  // Approvals/Errors/System) computed client-side from each event's room. ----
+  OFFICE.FILTERS = ["All", "Leads", "Voice", "Marketing", "Sales", "Billing", "Approvals", "Errors", "System"];
+  OFFICE.activeFilter = "All";
+  OFFICE.allEvents = [];
+
+  OFFICE.eventCategory = function(e){
+    if (e.status === "error") return "Errors";
+    if (/approv/i.test((e.action || "") + " " + (e.detail || ""))) return "Approvals";
+    var room = OFFICE.agentRoom[e.member] || "";
+    if (room === "lead_lab") return "Leads";
+    if (room === "voice_team") return "Voice";
+    if (room === "marketing_team") return "Marketing";
+    if (room === "sales_crm") return "Sales";
+    if (room === "admin_finance") return "Billing";
+    return "System";
+  };
+
+  OFFICE.renderFilters = function(){
+    var el = document.getElementById("filterRow");
+    el.innerHTML = OFFICE.FILTERS.map(function(f){
+      return '<button class="filter-btn' + (f === OFFICE.activeFilter ? " active" : "") + '" data-f="' + f + '">' + f + '</button>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".filter-btn"), function(btn){
+      btn.onclick = function(){ OFFICE.activeFilter = btn.getAttribute("data-f"); OFFICE.renderTicker(OFFICE.allEvents); };
+    });
+  };
+
+  OFFICE.renderTicker = function(events){
+    OFFICE.renderFilters();
+    var list = document.getElementById("tickerList");
+    var filtered = OFFICE.activeFilter === "All" ? events : events.filter(function(e){ return OFFICE.eventCategory(e) === OFFICE.activeFilter; });
+    var top = filtered.slice(0, 25);
+    list.innerHTML = top.map(function(e, idx){
+      var sevColor = e.status === "error" ? "#ef4444" : (e.status === "warn" ? "#f59e0b" : "#10b981");
+      return '<div class="ticker-row clickable" data-idx="' + idx + '"><div class="sev-dot" style="background:' + sevColor + '"></div>' +
+        '<div class="ticker-time">' + esc(relTime(e.at)) + '</div>' +
+        '<div class="ticker-who">' + esc(e.emoji || "🤖") + ' ' + esc(e.name || e.member) + '</div>' +
+        '<div class="ticker-what">' + esc(e.detail || e.action) + '</div>' +
+      '</div>';
+    }).join("") || '<div class="ticker-row"><div class="ticker-what">"' + esc(OFFICE.activeFilter) + '" me abhi koi activity nahi.</div></div>';
+    Array.prototype.forEach.call(list.querySelectorAll(".ticker-row.clickable"), function(row){
+      row.onclick = function(){
+        var e = top[parseInt(row.getAttribute("data-idx"), 10)];
+        if (e && e.member) OFFICE.openAgentPanel(e.member);
+      };
+    });
+  };
+
+  // ---- Speech bubble + workflow token (unchanged behaviour) ------------------
+  OFFICE.spawnBubble = function(memberKey, text){
+    var av = OFFICE.avatars[memberKey];
+    if (!av || !OFFICE.scene) return;
+    var scene = OFFICE.scene;
+    var short = String(text || "").slice(0, 36);
+    var t = scene.add.text(av.homeX, av.homeY - 26, short, {
+      fontSize: "10px", fontFamily: "sans-serif", color: "#1e1b2e",
+      backgroundColor: "#ffffff", padding: { x: 6, y: 3 }
+    }).setOrigin(0.5, 1).setDepth(50);
+    scene.tweens.add({
+      targets: t, alpha: 0, y: t.y - 14, duration: 1200, delay: 4200,
+      onComplete: function(){ t.destroy(); }
+    });
+  };
+
+  OFFICE.COORD_ACTIONS = { coordinated_step: 1, fanout_step: 1, hier_step: 1, adv_step: 1, av_contrib: 1 };
+
+  // Session bookends — manager-only events marking a multi-agent run's start/end.
+  // These were spec'd (2026-07-01 design, "Coordinator Room ticker") but never
+  // shipped — the office map only ever showed individual step-tokens with no
+  // "this is one run" framing. Confirmed live in app/agents/coordinator.py.
+  OFFICE.MANAGER_START_ACTIONS = { coordinate_start: 1, hier_start: 1, advanced_start: 1, council_start: 1 };
+  OFFICE.MANAGER_DONE_ACTIONS = { coordinate_done: 1, hier_done: 1, advanced_done: 1, council_done: 1 };
+  OFFICE.coordinatorTickerLines = [];  // most-recent-first, capped at 6
+
+  OFFICE.pushCoordinatorTicker = function(text){
+    OFFICE.coordinatorTickerLines.unshift(text);
+    OFFICE.coordinatorTickerLines = OFFICE.coordinatorTickerLines.slice(0, 6);
+    var el = document.getElementById("coordinatorTicker");
+    if (el) {
+      el.innerHTML = OFFICE.coordinatorTickerLines.map(function(l){
+        return '<div class="pe-when">' + esc(l) + '</div>';
+      }).join("");
+    }
+  };
+
+  // In-flight multi-agent session tracker — sessionId (start event's id) -> {mode, startedAt, agentsInvolved: Set}.
+  // Best-effort: action tags don't carry a session id, so close-pairing is a heuristic
+  // (oldest open session of matching mode), same honesty caveat as the workflow-token above.
+  OFFICE.activeCoordinations = {};
+
+  OFFICE.renderActiveCoordinations = function(){
+    var el = document.getElementById("activeCoordList");
+    var card = document.getElementById("activeCoordCard");
+    var sessions = Object.keys(OFFICE.activeCoordinations).map(function(k){ return OFFICE.activeCoordinations[k]; });
+    if (!sessions.length) { card.style.display = "none"; return; }
+    card.style.display = "block";
+    el.innerHTML = sessions.map(function(s){
+      return '<div class="panel-event"><div><b>' + esc(s.mode) + '</b> — ' + s.agentsInvolved.size + ' agent(s) so far</div>' +
+        '<div class="pe-when">Shuru hua ' + relTime(s.startedAt) + '</div></div>';
+    }).join("");
+  };
+
+  OFFICE.spawnWorkflowToken = function(fromKey, toKey){
+    var from = OFFICE.avatars[fromKey], to = OFFICE.avatars[toKey];
+    if (!from || !to || !OFFICE.scene) return;
+    var scene = OFFICE.scene;
+    var dot = scene.add.circle(from.homeX, from.homeY - 18, 6, 0xfbbf24).setStrokeStyle(2, 0x92400e).setDepth(60);
+    var pulse = scene.add.circle(from.homeX, from.homeY - 18, 10, 0xfbbf24, 0.35).setDepth(59);
+    scene.tweens.add({ targets: pulse, radius: 20, alpha: 0, duration: 500, onComplete: function(){ pulse.destroy(); } });
+    scene.tweens.add({
+      targets: dot,
+      x: to.homeX, y: to.homeY - 18,
+      duration: 900, ease: "Cubic.easeInOut",
+      onComplete: function(){
+        var ring = scene.add.circle(to.homeX, to.homeY - 18, 8, 0xfbbf24, 0.4).setDepth(59);
+        scene.tweens.add({ targets: ring, radius: 18, alpha: 0, duration: 450, onComplete: function(){ ring.destroy(); } });
+        dot.destroy();
+      }
+    });
+  };
+
+  OFFICE.seenEventIds = {};
+  OFFICE.eventsSeeded = false;
+
+  OFFICE.pollEvents = async function(){
+    var events = await OFFICE.fetchEvents(60);
+    OFFICE.allEvents = events;
+    OFFICE.renderTicker(events);
+    if (!OFFICE.eventsSeeded){
+      events.forEach(function(e){ OFFICE.seenEventIds[e.id] = true; });
+      OFFICE.eventsSeeded = true;
+      return;
+    }
+    var fresh = events.filter(function(e){ return !OFFICE.seenEventIds[e.id]; });
+    fresh.slice().reverse().forEach(function(e){
+      OFFICE.seenEventIds[e.id] = true;
+      OFFICE.spawnBubble(e.member, e.detail || e.action);
+      if (e.member === "manager" && OFFICE.MANAGER_START_ACTIONS[e.action]) {
+        OFFICE.pushCoordinatorTicker("▶ " + (e.detail || e.action));
+        OFFICE.activeCoordinations[e.id] = { mode: e.action.replace("_start", ""), startedAt: e.at, agentsInvolved: new Set() };
+        OFFICE.renderActiveCoordinations();
+      } else if (e.member === "manager" && OFFICE.MANAGER_DONE_ACTIONS[e.action]) {
+        OFFICE.pushCoordinatorTicker("✓ " + (e.detail || e.action));
+        // Close the OLDEST open session of a matching mode (best-effort pairing
+        // — action tags don't carry a session id, so this is a heuristic, same
+        // honesty caveat as the existing workflow-token: approximate, not a
+        // guaranteed-accurate process graph).
+        var doneMode = e.action.replace("_done", "");
+        var openKey = Object.keys(OFFICE.activeCoordinations).find(function(k){
+          return OFFICE.activeCoordinations[k].mode === doneMode;
+        });
+        if (openKey) delete OFFICE.activeCoordinations[openKey];
+        OFFICE.renderActiveCoordinations();
+      } else if (OFFICE.COORD_ACTIONS[e.action] && e.member !== "manager") {
+        OFFICE.spawnWorkflowToken("manager", e.member);
+        Object.keys(OFFICE.activeCoordinations).forEach(function(k){
+          OFFICE.activeCoordinations[k].agentsInvolved.add(e.member);
+        });
+        OFFICE.renderActiveCoordinations();
+      }
+    });
+  };
+
+  // ---- Click-to-expand agent panel (incl. real "Run now" for wired agents) --
+  OFFICE.openAgentPanel = async function(key){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    panel.classList.remove("panel-hidden");
+    body.innerHTML = "Loading…";
+    var member = OFFICE.agentByKey[key];
+    var eventsHtml = "";
+    try {
+      var r = await fetch("/api/platform/team/events?member=" + encodeURIComponent(key) + "&limit=8", { headers: hdrs() });
+      var d = r.ok ? await r.json() : { events: [] };
+      eventsHtml = (d.events || []).map(function(e){
+        return '<div class="panel-event"><div>' + esc(e.detail || e.action) + '</div>' +
+          '<div class="pe-when">' + esc(e.action) + ' · ' + relTime(e.at) + '</div></div>';
+      }).join("") || '<div class="pe-when">Koi recent activity nahi mili.</div>';
+    } catch (e) {
+      eventsHtml = '<div class="pe-when">Events load nahi ho paye.</div>';
+    }
+    if (!member) { body.innerHTML = "Agent nahi mila."; return; }
+    body.innerHTML =
+      '<div class="panel-title">' + esc(member.emoji) + ' ' + esc(member.name) + '</div>' +
+      '<div class="panel-sub">' + esc(member.title) + '</div>' +
+      '<div class="panel-sub">' + esc(member.duties) + '</div>' +
+      '<div class="panel-stats">' +
+        '<div class="panel-stat">State<br><b>' + esc(member.status) + '</b></div>' +
+        '<div class="panel-stat">Aaj actions<br><b>' + esc(member.todayActions) + '</b></div>' +
+        '<div class="panel-stat">Aaj errors<br><b>' + esc(member.todayErrors) + '</b></div>' +
+      '</div>' +
+      '<div class="panel-actions">' +
+        '<button id="runNowBtn"' + (member.runnable && !member.paused ? "" : " disabled") +
+          (member.runnable ? "" : ' title="Manual run wired nahi hai is agent ke liye"') +
+          (member.paused ? ' title="Paused — resume karo pehle"' : "") + '>▶ Run now</button>' +
+        (member.runnable ?
+          '<button id="pauseResumeBtn">' + (member.paused ? "▶ Resume" : "⏸ Pause") + '</button>' :
+          '<button disabled title="Pause sirf manual-run-wired agents ke liye hai">⏸ Pause</button>') +
+      '</div>' +
+      (member.runnable ? '<div class="panel-sub">Pause = sirf "Run now" block karta hai (scheduled automation par asar nahi — scheduler alag path use karta hai).</div>' : '') +
+      '<div class="panel-events">' + eventsHtml + '</div>';
+    var runBtn = document.getElementById("runNowBtn");
+    if (runBtn && member.runnable && !member.paused) {
+      runBtn.onclick = async function(){
+        runBtn.disabled = true; runBtn.textContent = "Running…";
+        try {
+          await fetch("/api/platform/team/run/" + encodeURIComponent(key), { method: "POST", headers: hdrs() });
+        } catch (e) { /* best-effort */ }
+        runBtn.textContent = "✓ Triggered";
+        OFFICE.pollEvents();
+      };
+    }
+    var pauseBtn = document.getElementById("pauseResumeBtn");
+    if (pauseBtn) {
+      pauseBtn.onclick = async function(){
+        pauseBtn.disabled = true;
+        var action = member.paused ? "resume" : "pause";
+        try {
+          await fetch("/api/platform/office/agents/" + encodeURIComponent(key) + "/" + action, {
+            method: "POST", headers: hdrs()
+          });
+        } catch (e) { /* best-effort */ }
+        await OFFICE.refreshSnapshot();
+        OFFICE.openAgentPanel(key);
+      };
+    }
+  };
+
+  document.getElementById("panelClose").onclick = function(){
+    document.getElementById("agentPanel").classList.add("panel-hidden");
+  };
+  document.getElementById("bannerRetry").onclick = function(){ OFFICE.refreshSnapshot(); };
+
+  var systemMapLoaded = false;
+  document.getElementById("systemMapToggle").onclick = function(){
+    var body = document.getElementById("systemMapBody");
+    var chevron = document.getElementById("systemMapChevron");
+    var expanded = body.style.display !== "none";
+    body.style.display = expanded ? "none" : "block";
+    chevron.textContent = expanded ? "▸" : "▾";
+    if (!expanded && !systemMapLoaded) {
+      systemMapLoaded = true;
+      document.getElementById("systemMapFrame").src = "/app/control-center/graph?view=automation";
+    }
+  };
+
+  // ---- Recent Workflow Runs (process-engine, /api/growth/process/runs) ----
+  // Real response shape (confirmed from app/api/growth_process.py + app/agents/flow_dispatch.py
+  // list_runs()): {"runs": [{run_id, process, status, engine, step_index, nodes, last_error,
+  // started_at}]} — there is no "mode" or "agents" field; "process" is the workflow name and
+  // "engine" is "linear"|"dag". "nodes" is an int (dag step count) or null (linear).
+  OFFICE.fetchWorkflowRuns = async function(){
+    try {
+      var r = await fetch("/api/growth/process/runs?limit=5", { headers: hdrs() });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var d = await r.json();
+      return (d && d.runs) || [];
+    } catch (e) {
+      return [];
+    }
+  };
+
+  OFFICE.renderWorkflowRuns = function(runs){
+    var card = document.getElementById("workflowRunsCard");
+    var list = document.getElementById("workflowRunsList");
+    if (!runs || !runs.length) { card.style.display = "none"; return; }
+    card.style.display = "block";
+    list.innerHTML = runs.slice(0, 5).map(function(run){
+      var nodeCount = (typeof run.nodes === "number") ? run.nodes + " nodes · " : "";
+      return '<div class="panel-event" data-run="' + esc(run.run_id || "") + '">' +
+        '<div><b>' + esc(run.process || "run") + '</b> — ' + esc(run.status || "?") +
+          ' <span style="color:var(--muted);font-size:10.5px">(' + esc(run.engine || "linear") + ')</span></div>' +
+        '<div class="pe-when">' + nodeCount + relTime(run.started_at) + '</div>' +
+      '</div>';
+    }).join("");
+    list.querySelectorAll("[data-run]").forEach(function(el){
+      el.style.cursor = "pointer";
+      el.onclick = function(){
+        window.open("/app/control-center#workflow?run=" + encodeURIComponent(el.getAttribute("data-run")), "_blank");
+      };
+    });
+  };
+
+  OFFICE.lastSnapshot = null;
+  OFFICE.lastRefreshAt = null;
+  OFFICE.updateFreshnessBadge = function(){
+    var el = document.getElementById("freshnessBadge");
+    if (!el || !OFFICE.lastRefreshAt) return;
+    var secs = Math.floor((Date.now() - OFFICE.lastRefreshAt) / 1000);
+    el.textContent = "Updated " + secs + "s pehle";
+  };
+  setInterval(OFFICE.updateFreshnessBadge, 1000);
+
+  OFFICE.refreshSnapshot = async function(){
+    var data = await OFFICE.fetchSnapshot();
+    OFFICE.fetchWorkflowRuns().then(OFFICE.renderWorkflowRuns);
+    if (!data) return;
+    OFFICE.lastSnapshot = data;
+    OFFICE.lastRefreshAt = Date.now();
+    OFFICE.updateFreshnessBadge();
+    OFFICE.renderMembers(data);
+    OFFICE.renderStatusSummary(data);
+    OFFICE.renderMetrics(data.metrics);
+    OFFICE.renderNextActions(data.next_best_actions);
+    OFFICE.renderPipeline(data.pipeline);
+    OFFICE.renderApprovals(data.approvals);
+    OFFICE.renderSystemHealth(data.system_health);
+    OFFICE.renderSchedule(data);
+    OFFICE.renderLeaderboard(data);
+    OFFICE.renderFailureConsole();
+  };
+
+  // ---- IST clock + helpers ---------------------------------------------------
+  function pad2(n){ return (n < 10 ? "0" : "") + n; }
+  function istTimeParts(){
+    // {h, m, wd} in IST; wd = python-style weekday (0=Mon .. 6=Sun) to match
+    // the backend SCHEDULE_DEFS weekday convention.
+    var parts = {};
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", hour12: false,
+      hour: "2-digit", minute: "2-digit", weekday: "short"
+    }).formatToParts(new Date()).forEach(function(p){ parts[p.type] = p.value; });
+    var dayMap = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+    return { h: (parseInt(parts.hour, 10) || 0) % 24, m: parseInt(parts.minute, 10) || 0,
+             wd: dayMap[parts.weekday] != null ? dayMap[parts.weekday] : 0 };
+  }
+  function renderIstClock(){
+    var el = document.getElementById("istClock");
+    if (!el) return;
+    var t = istTimeParts();
+    el.textContent = "🕐 " + pad2(t.h) + ":" + pad2(t.m) + " IST";
+  }
+  renderIstClock();
+  setInterval(renderIstClock, 15000);
+
+  // ---- Quick-nav chips ---------------------------------------------------------
+  Array.prototype.forEach.call(document.querySelectorAll(".qn-chip"), function(btn){
+    btn.onclick = function(){
+      var el = document.getElementById(btn.getAttribute("data-jump"));
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+  });
+
+  // ---- Map camera: zoom / drag-pan / focus ----------------------------------
+  OFFICE.dragMoved = false;
+  OFFICE.zoomLevel = 1;
+  OFFICE.setZoomLevel = function(z){
+    if (!OFFICE.scene) return;
+    z = Math.max(1, Math.min(2.2, z));
+    OFFICE.zoomLevel = z;
+    var cam = OFFICE.scene.cameras.main;
+    cam.setZoom(z);
+    if (z === 1) cam.centerOn(600, 410);
+    OFFICE.updateTickerBoxPos();
+  };
+  OFFICE.setupCameraControls = function(scene){
+    var cam = scene.cameras.main;
+    cam.setBounds(0, 0, 1200, 820);
+    var downX = 0, downY = 0, panning = false;
+    scene.input.on("pointerdown", function(p){
+      downX = p.x; downY = p.y; panning = true; OFFICE.dragMoved = false;
+    });
+    scene.input.on("pointermove", function(p){
+      if (!panning || !p.isDown) return;
+      if (Math.abs(p.x - downX) + Math.abs(p.y - downY) > 8) OFFICE.dragMoved = true;
+      if (OFFICE.zoomLevel > 1 && OFFICE.dragMoved) {
+        cam.scrollX -= (p.x - p.prevPosition.x) / cam.zoom;
+        cam.scrollY -= (p.y - p.prevPosition.y) / cam.zoom;
+      }
+    });
+    scene.input.on("pointerup", function(){
+      panning = false;
+      // Delay the reset so object-level pointerup handlers (avatar/room click)
+      // still see dragMoved=true after an actual drag.
+      setTimeout(function(){ OFFICE.dragMoved = false; }, 30);
+    });
+    var wrap = document.getElementById("stageWrap");
+    if (wrap) wrap.addEventListener("wheel", function(e){
+      if (!e.ctrlKey) return;  // plain scroll = page scroll (map hijack nahi)
+      e.preventDefault();
+      OFFICE.setZoomLevel(OFFICE.zoomLevel + (e.deltaY < 0 ? 0.15 : -0.15));
+    }, { passive: false });
+  };
+  document.getElementById("zoomInBtn").onclick = function(){ OFFICE.setZoomLevel(OFFICE.zoomLevel + 0.25); };
+  document.getElementById("zoomOutBtn").onclick = function(){ OFFICE.setZoomLevel(OFFICE.zoomLevel - 0.25); };
+  document.getElementById("zoomResetBtn").onclick = function(){ OFFICE.setZoomLevel(1); };
+
+  OFFICE.focusAgent = function(key){
+    var av = OFFICE.avatars[key];
+    if (!av || !OFFICE.scene) return;
+    var cam = OFFICE.scene.cameras.main;
+    OFFICE.zoomLevel = 1.8;
+    cam.zoomTo(1.8, 350);
+    cam.pan(av.homeX, av.homeY, 450, "Sine.easeInOut");
+    var ring = OFFICE.scene.add.circle(av.homeX, av.homeY - 4, 30)
+      .setStrokeStyle(4, 0x6d28d9).setDepth(70);
+    OFFICE.scene.tweens.add({ targets: ring, scale: 1.6, alpha: 0, duration: 1600,
+      onComplete: function(){ ring.destroy(); } });
+  };
+
+  // ---- Agent finder (search -> pan camera + open panel) ----------------------
+  (function(){
+    var input = document.getElementById("agentSearch");
+    var results = document.getElementById("agentSearchResults");
+    function hide(){ results.style.display = "none"; }
+    input.oninput = function(){
+      var q = input.value.trim().toLowerCase();
+      if (!q) { hide(); return; }
+      var matches = Object.keys(OFFICE.agentByKey).map(function(k){ return OFFICE.agentByKey[k]; })
+        .filter(function(a){
+          return (a.name || "").toLowerCase().indexOf(q) >= 0 ||
+                 (a.title || "").toLowerCase().indexOf(q) >= 0 ||
+                 (a.key || "").toLowerCase().indexOf(q) >= 0;
+        }).slice(0, 8);
+      results.style.display = "block";
+      if (!matches.length) { results.innerHTML = '<div class="asr-row">Koi agent nahi mila.</div>'; return; }
+      results.innerHTML = matches.map(function(a){
+        return '<div class="asr-row" data-key="' + esc(a.key) + '">' + esc(a.emoji) + ' <b>' + esc(a.name) + '</b>' +
+          ' <span class="asr-title">' + esc(a.title) + '</span></div>';
+      }).join("");
+      Array.prototype.forEach.call(results.querySelectorAll(".asr-row[data-key]"), function(row){
+        row.onclick = function(){
+          var k = row.getAttribute("data-key");
+          hide(); input.value = "";
+          OFFICE.focusAgent(k);
+          OFFICE.openAgentPanel(k);
+        };
+      });
+    };
+    document.addEventListener("click", function(e){
+      var wrap = document.getElementById("agentSearchWrap");
+      if (wrap && !wrap.contains(e.target)) hide();
+    });
+  })();
+
+  // ---- Aaj ka Schedule (IST day-plan; status merged from system_health beats) --
+  var WEEKDAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  function fmtIstDate(d){ return d.toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }); }
+  function fmtIstTime(d){
+    return d.toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hour12: false });
+  }
+  function lastRunTodayIst(beat){
+    // "HH:MM" agar job ka heartbeat AAJ (IST) ka hai, warna null.
+    try {
+      if (!beat || !beat.last_run) return null;
+      var d = new Date(beat.last_run);
+      if (isNaN(d.getTime())) return null;
+      if (fmtIstDate(d) !== fmtIstDate(new Date())) return null;
+      return fmtIstTime(d);
+    } catch (e) { return null; }
+  }
+
+  OFFICE.renderSchedule = function(snapshot){
+    var list = document.getElementById("scheduleList");
+    var strip = document.getElementById("recurringStrip");
+    if (!list || !strip) return;
+    var sched = (snapshot && snapshot.schedule) || [];
+    if (!sched.length) {
+      // Deploy-race safety: purana cached snapshot bina `schedule` key ke aa
+      // sakta hai (18s TTL) — panel gracefully wait kare, error na dikhaye.
+      list.innerHTML = '<div class="empty-note">Schedule data abhi nahi mila…</div>';
+      strip.innerHTML = "";
+      return;
+    }
+    var beats = {};
+    (((snapshot || {}).system_health || {}).jobs || []).forEach(function(j){ if (j && j.job) beats[j.job] = j; });
+    var t = istTimeParts();
+    var nowMin = t.h * 60 + t.m;
+    var nowLine = '<div id="scheduleNowLine"><span>ABHI ' + pad2(t.h) + ':' + pad2(t.m) + ' IST</span><span class="now-rule"></span></div>';
+
+    var daily = sched.filter(function(s){ return s.type === "daily" || s.type === "weekly"; })
+      .sort(function(a, b){ return (a.window[0] * 60 + a.window[1]) - (b.window[0] * 60 + b.window[1]); });
+    var rows = [];
+    var nowInserted = false;
+    daily.forEach(function(s){
+      var startMin = s.window[0] * 60 + s.window[1];
+      var endMin = s.window[2] * 60 + s.window[3];
+      var timeStr = pad2(s.window[0]) + ":" + pad2(s.window[1]) + "–" + pad2(s.window[2]) + ":" + pad2(s.window[3]);
+      var beat = beats[s.job];
+      var ranAt = lastRunTodayIst(beat);
+      var notToday = s.type === "weekly" && s.weekday !== t.wd;
+      var chip;
+      if (notToday) chip = '<span class="sched-chip sc-na">sirf ' + WEEKDAY_NAMES[s.weekday] + '</span>';
+      else if (beat && beat.status === "scheduled_off") chip = '<span class="sched-chip sc-off">OFF (flag)</span>';
+      else if (ranAt) chip = '<span class="sched-chip sc-done">✓ ho gaya · ' + ranAt + '</span>';
+      else if (nowMin >= startMin && nowMin < endMin) chip = '<span class="sched-chip sc-open">🟢 window khula</span>';
+      else if (nowMin < startMin) chip = '<span class="sched-chip sc-pending">⏳ aayega</span>';
+      else if (beat && beat.status === "last_failed") chip = '<span class="sched-chip sc-miss">✕ fail hua</span>';
+      else if (beat) chip = '<span class="sched-chip sc-miss">aaj nahi chala</span>';
+      else chip = '<span class="sched-chip sc-na">no heartbeat</span>';
+      if (!nowInserted && startMin > nowMin) { rows.push(nowLine); nowInserted = true; }
+      rows.push('<div class="sched-row"' + (notToday ? ' style="opacity:.55"' : '') + '>' +
+        '<div class="sched-time">' + timeStr + '</div>' +
+        '<div class="sched-label" title="' + esc(s.job) + '">' + esc(s.label) + '</div>' + chip + '</div>');
+    });
+    if (!nowInserted) rows.push(nowLine);
+    list.innerHTML = rows.join("");
+
+    var recDot = { ok: "#10b981", overdue: "#f59e0b", last_failed: "#ef4444", never_ran: "#94a3b8", scheduled_off: "#cbd5e1" };
+    strip.innerHTML = sched.filter(function(s){ return s.type === "recurring"; }).map(function(s){
+      var beat = beats[s.job];
+      var color = beat ? (recDot[beat.status] || "#94a3b8") : "#e5e7eb";
+      var title = esc(s.job) + (beat && beat.last_run ? " · last: " + esc(relTime(beat.last_run)) : " · no heartbeat");
+      return '<span class="rec-chip" title="' + title + '">' +
+        '<span class="rec-dot" style="background:' + color + '"></span>' + esc(s.label) + ' · ' + esc(s.cadence) + '</span>';
+    }).join("");
+  };
+
+  // ---- Leaderboard (aaj ke todayActions se — snapshot ka hi data) -------------
+  OFFICE.renderLeaderboard = function(snapshot){
+    var el = document.getElementById("leaderboardList");
+    if (!el) return;
+    var agents = ((snapshot || {}).agents || []).slice()
+      .sort(function(a, b){ return (b.todayActions || 0) - (a.todayActions || 0); });
+    var top = agents.filter(function(a){ return (a.todayActions || 0) > 0; }).slice(0, 5);
+    if (!top.length) { el.innerHTML = '<div class="empty-note">Aaj abhi tak kisi agent ka action record nahi hua.</div>'; return; }
+    var max = top[0].todayActions || 1;
+    el.innerHTML = top.map(function(a, i){
+      var pct = Math.max(6, Math.round((a.todayActions / max) * 100));
+      return '<div class="lb-row" data-key="' + esc(a.key) + '">' +
+        '<div class="lb-rank">' + (i + 1) + '</div>' +
+        '<div class="lb-name">' + esc(a.emoji) + ' ' + esc(a.name) + '</div>' +
+        '<div class="lb-bar-wrap"><div class="lb-bar" style="width:' + pct + '%"></div></div>' +
+        '<div class="lb-count">' + esc(a.todayActions) +
+          (a.todayErrors ? ' <span class="lb-err">(' + esc(a.todayErrors) + ' err)</span>' : '') + '</div>' +
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".lb-row"), function(row){
+      row.onclick = function(){ OFFICE.openAgentPanel(row.getAttribute("data-key")); };
+    });
+  };
+
+  // ---- 24h activity histogram (agent_events, client-side hourly buckets) ------
+  OFFICE.renderActivityChart = async function(){
+    var chart = document.getElementById("activityChart");
+    var hoursEl = document.getElementById("activityHours");
+    var meta = document.getElementById("activityMeta");
+    if (!chart) return;
+    var events = await OFFICE.fetchEvents(250);
+    if (!events.length) {
+      chart.innerHTML = "";
+      hoursEl.innerHTML = "";
+      meta.textContent = "Events data abhi load nahi hua.";
+      return;
+    }
+    var now = Date.now();
+    var buckets = new Array(24).fill(0);  // index 23 = current hour, 0 = 23h pehle
+    var counted = 0;
+    events.forEach(function(e){
+      var ts = new Date(e.at).getTime();
+      if (isNaN(ts)) return;
+      var ageH = (now - ts) / 3600000;
+      if (ageH < 0 || ageH >= 24) return;
+      buckets[23 - Math.floor(ageH)]++;
+      counted++;
+    });
+    var max = Math.max.apply(null, buckets) || 1;
+    chart.innerHTML = buckets.map(function(n, i){
+      var hPct = Math.max(2, Math.round((n / max) * 100));
+      return '<div class="act-bar' + (i === 23 ? " act-now" : "") + '" style="height:' + hPct + '%" title="' + n + ' event(s)"></div>';
+    }).join("");
+    var tNow = istTimeParts();
+    hoursEl.innerHTML = buckets.map(function(_, i){
+      var h = ((tNow.h - (23 - i)) % 24 + 24) % 24;
+      return '<span>' + (i % 4 === 3 ? pad2(h) : "") + '</span>';
+    }).join("");
+    meta.textContent = counted + " event(s) last 24h me" +
+      (events.length >= 250 ? " (250-event cap — busy hours undercount ho sakte)" : "");
+  };
+  setInterval(function(){ OFFICE.renderActivityChart(); }, 60000);
+
+  OFFICE.game = new Phaser.Game({
+    type: Phaser.AUTO,
+    parent: "stage",
+    width: 1200,
+    height: 820,
+    backgroundColor: "#f6f5fb",
+    pixelArt: true,
+    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH },
+    scene: {
+      preload: function(){
+        for (var i = 1; i <= OFFICE.CHAR_COUNT; i++){
+          var n = i < 10 ? "0" + i : "" + i;
+          this.load.image("char" + i, "/design-system/vendor/office-sprites/char_" + n + ".png");
+        }
+        ["floor_stone_grey", "floor_stone_cream", "rug_teal", "rug_orange", "rug_purple",
+         "rug_cyan", "desk_1", "desk_2", "desk_corner", "chair", "bookshelf", "cabinet",
+         "plant", "plant_flower", "painting", "door_arch"].forEach(function(name){
+          this.load.image(name, "/design-system/vendor/office-sprites/" + name + ".png");
+        }, this);
+      },
+      create: function(){
+        OFFICE.scene = this;
+        OFFICE.drawRooms();
+        OFFICE.setupCameraControls(this);
+        var loadingTxt = this.add.text(600, 410, "⏳ Loading agents…", {
+          fontSize: "18px", fontFamily: "sans-serif", color: "#1e1b2e",
+          backgroundColor: "#ffffff", padding: { x: 12, y: 8 }
+        }).setOrigin(0.5).setDepth(100);
+        OFFICE.refreshSnapshot().then(function(){
+          loadingTxt.destroy();
+          OFFICE.pollEvents(); // avatars must exist first (bubbles/tokens anchor to them)
+          OFFICE.renderActivityChart();
+        });
+      },
+      update: function(){
+        // Keep world-anchored DOM overlays glued during camera pan/zoom tweens
+        // (zoomTo/pan are async effects — one check per frame, only acts on change).
+        try {
+          var cam = this.cameras.main;
+          var sig = cam.scrollX + "," + cam.scrollY + "," + cam.zoom;
+          if (sig !== OFFICE._camSig) {
+            OFFICE._camSig = sig;
+            OFFICE.updateTickerBoxPos();
+          }
+        } catch (e) {}
+      }
+    }
+  });
+
+  setInterval(function(){ OFFICE.refreshSnapshot(); }, 15000);
+  setInterval(function(){ OFFICE.pollEvents(); }, 8000);
+
+  document.getElementById("manualRefreshBtn").onclick = function(){
+    var btn = document.getElementById("manualRefreshBtn");
+    btn.disabled = true; btn.textContent = "⏳ Refreshing…";
+    OFFICE.refreshSnapshot().finally(function(){
+      btn.disabled = false; btn.textContent = "🔄 Refresh now";
+    });
+  };
+
+  document.getElementById("dlqSweepBtn").onclick = async function(){
+    var btn = document.getElementById("dlqSweepBtn");
+    btn.disabled = true; btn.textContent = "⏳ Sweeping…";
+    try {
+      var r = await fetch("/api/growth/infra/dlq/sweep?limit=20", { method: "POST", headers: hdrs() });
+      var d = r.ok ? await r.json() : {};
+      var retried = (d.retried || []).length != null ? (d.retried || []).length : (d.retried || 0);
+      var dead = (d.dead || []).length != null ? (d.dead || []).length : (d.dead || 0);
+      btn.textContent = "✓ retried=" + retried + " dead=" + dead;
+    } catch (e) {
+      btn.textContent = "✕ sweep fail";
+    }
+    await OFFICE.renderFailureConsole();
+    setTimeout(function(){ btn.disabled = false; btn.textContent = "🔁 Retry sweep"; }, 3000);
+  };
+
+  document.getElementById("legendToggle").onclick = function(){
+    document.getElementById("legendPopover").style.display = "block";
+  };
+  document.getElementById("legendClose").onclick = function(){
+    document.getElementById("legendPopover").style.display = "none";
+  };
+</script>
+</body>
+</html>

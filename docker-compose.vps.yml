@@ -241,7 +241,7 @@ services:
     mem_reservation: 512m
     cpus: "1.5"
     user: "0:0"   # root — bind-mounted root-owned ./data writable (app jaisa)
-    command: celery -A app.worker worker --loglevel=info --concurrency=4
+    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training --loglevel=info --concurrency=4
     env_file: .env
     environment:
       # In-network URLs HARDCODED (app jaisa) — .env ke 127.0.0.1 URLs container

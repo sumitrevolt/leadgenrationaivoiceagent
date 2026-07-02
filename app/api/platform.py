@@ -311,7 +311,7 @@ async def list_client_agents(
 
 
 @router.get("/tenants/{tenant_id}")
-async def get_tenant(tenant_id: str):
+async def get_tenant(tenant_id: str, current_user: User = Depends(require_admin)):
     """
     Get tenant details
     """
@@ -348,7 +348,9 @@ async def get_tenant(tenant_id: str):
 
 
 @router.post("/tenants/{tenant_id}/upgrade")
-async def upgrade_tenant(tenant_id: str, request: UpgradeRequest):
+async def upgrade_tenant(
+    tenant_id: str, request: UpgradeRequest, current_user: User = Depends(require_admin)
+):
     """
     Upgrade tenant subscription
     """
@@ -374,7 +376,7 @@ async def upgrade_tenant(tenant_id: str, request: UpgradeRequest):
 
 
 @router.post("/tenants/{tenant_id}/pause")
-async def pause_tenant(tenant_id: str):
+async def pause_tenant(tenant_id: str, current_user: User = Depends(require_admin)):
     """
     Pause tenant's automation
     """
@@ -383,7 +385,7 @@ async def pause_tenant(tenant_id: str):
 
 
 @router.post("/tenants/{tenant_id}/resume")
-async def resume_tenant(tenant_id: str):
+async def resume_tenant(tenant_id: str, current_user: User = Depends(require_admin)):
     """
     Resume tenant's automation
     """
@@ -392,7 +394,7 @@ async def resume_tenant(tenant_id: str):
 
 
 @router.delete("/tenants/{tenant_id}")
-async def delete_tenant(tenant_id: str):
+async def delete_tenant(tenant_id: str, current_user: User = Depends(require_super_admin)):
     """
     Remove a tenant from the platform
     """
@@ -415,7 +417,9 @@ async def delete_tenant(tenant_id: str):
 
 
 @router.post("/scrape/platform")
-async def trigger_platform_scrape(background_tasks: BackgroundTasks):
+async def trigger_platform_scrape(
+    background_tasks: BackgroundTasks, current_user: User = Depends(require_admin)
+):
     """
     Manually trigger lead scraping for platform (finding new clients via niche prospector)
     """
@@ -429,7 +433,9 @@ async def trigger_platform_scrape(background_tasks: BackgroundTasks):
 
 
 @router.post("/scrape/tenant/{tenant_id}")
-async def trigger_tenant_scrape(tenant_id: str, background_tasks: BackgroundTasks):
+async def trigger_tenant_scrape(
+    tenant_id: str, background_tasks: BackgroundTasks, current_user: User = Depends(require_admin)
+):
     """
     Manually trigger lead scraping for a specific tenant
     """

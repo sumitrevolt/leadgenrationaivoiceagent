@@ -12,6 +12,13 @@ from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 
+def _enum_values(enum_cls):
+    """values_callable so the DB stores .value not .name — VARCHAR-backed
+    (native_enum=False), matching app/models/payment.py (production audit
+    2026-07-01, F-DB4)."""
+    return [member.value for member in enum_cls]
+
+
 class CreditTransactionType(enum.Enum):
     """Credit transaction types"""
 
@@ -111,14 +118,19 @@ class CreditTransaction(Base):
     client_id = Column(String(36), ForeignKey("clients.id"), nullable=False)
 
     # Transaction details
-    transaction_type = Column(Enum(CreditTransactionType), nullable=False)
+    transaction_type = Column(
+        Enum(CreditTransactionType, native_enum=False, values_callable=_enum_values),
+        nullable=False,
+    )
     amount = Column(Integer, nullable=False)  # Positive for add, negative for deduct
     balance_after = Column(Integer, nullable=False)
 
     # Metadata
     description = Column(String(500))
     reference_id = Column(String(100))  # Payment ID, usage ID, etc.
-    usage_type = Column(Enum(APIUsageType))  # For USAGE transactions
+    usage_type = Column(
+        Enum(APIUsageType, native_enum=False, values_callable=_enum_values)
+    )  # For USAGE transactions
 
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -144,7 +156,9 @@ class APIUsageLog(Base):
     api_key_id = Column(String(36), ForeignKey("api_keys.id"))
 
     # Usage details
-    usage_type = Column(Enum(APIUsageType), nullable=False)
+    usage_type = Column(
+        Enum(APIUsageType, native_enum=False, values_callable=_enum_values), nullable=False
+    )
     credits_consumed = Column(Integer, nullable=False)
 
     # Request details

@@ -144,3 +144,46 @@ async def test_retry_cross_tenant_rejected() -> None:
     out = await cw.retry_delivery(reg["id"], "client_b", "del_xfail")
     # client_b doesn't own the webhook -> get_one returns None -> webhook_not_found
     assert out.get("error") == "webhook_not_found"
+
+
+# --------------------------------------------------------------------------- #
+# SSRF TOCTOU regression (production audit 2026-07-01, security batch 2):
+# _is_url_safe() only ran at register() time. A customer could register a
+# webhook against a hostname resolving to a public IP, then repoint DNS to an
+# internal address (127.0.0.1 / 169.254.169.254 / docker service name) before
+# delivery or a later retry fires. Fixed by re-checking immediately before
+# each connect attempt inside _deliver_one().
+# --------------------------------------------------------------------------- #
+async def test_delivery_blocked_when_url_becomes_unsafe(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Even with a delivery row already queued, a URL that now resolves to a
+    private/internal address must be refused — httpx must never be called."""
+    monkeypatch.setenv("CUSTOMER_WEBHOOK_DENY_PRIVATE", "1")  # override the fixture's "0"
+
+    called = {"post": False}
+
+    class _Client:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return None
+
+        async def post(self, url, content, headers):  # noqa: ANN001
+            called["post"] = True
+            raise AssertionError("httpx.post must not be called for an unsafe URL")
+
+    import httpx as _httpx
+
+    monkeypatch.setattr(_httpx, "AsyncClient", lambda *a, **kw: _Client())
+
+    row = {
+        "id": "wh_rebind_test",
+        "client_id": "client_a",
+        "url": "http://127.0.0.1:9999/internal",  # simulates a rebound hostname
+        "secret": "whsec_test",
+    }
+    out = await cw._deliver_one(row, "lead.qualified", {"x": 1}, schedule=(0.0,))
+
+    assert out["delivered"] is False
+    assert called["post"] is False, "SSRF: request was sent to a private-IP URL"
+    assert "url_unsafe" in out["error"]

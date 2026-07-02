@@ -177,11 +177,33 @@ def _read_all() -> list[dict[str, Any]]:
     return rows
 
 
+def _file_lock(path: str):
+    """Best-effort cross-process lock for `path` (web + worker + scheduler share
+    `data/`). Falls back to a no-op contextmanager if `filelock` isn't installed
+    or the lock can't be acquired in time — module contract is "never raise",
+    so an unlocked write is preferred over a crash (production audit 2026-07-01,
+    F-DB5: closes the _append/_rewrite race, doesn't guarantee zero-race)."""
+    try:
+        from filelock import FileLock
+
+        return FileLock(path + ".lock", timeout=5)
+    except Exception:
+        import contextlib
+
+        return contextlib.nullcontext()
+
+
 def _append(rec: dict[str, Any]) -> None:
     path = _CLIENTS_FILE
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    with open(path, "a", encoding="utf-8") as f:
-        f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    try:
+        with _file_lock(path):
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    except Exception as e:  # lock timeout etc. — fall back to unlocked append
+        logger.debug(f"[clients_store] _append lock skip: {e}")
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
 def _rewrite(rows: list[dict[str, Any]]) -> None:
@@ -189,10 +211,19 @@ def _rewrite(rows: list[dict[str, Any]]) -> None:
     path = _CLIENTS_FILE
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     tmp = path + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as f:
-        for r in rows:
-            f.write(json.dumps(r, ensure_ascii=False) + "\n")
-    os.replace(tmp, path)
+
+    def _do_write() -> None:
+        with open(tmp, "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False) + "\n")
+        os.replace(tmp, path)
+
+    try:
+        with _file_lock(path):
+            _do_write()
+    except Exception as e:  # lock timeout etc. — fall back to unlocked rewrite
+        logger.debug(f"[clients_store] _rewrite lock skip: {e}")
+        _do_write()
 
 
 def add_client(

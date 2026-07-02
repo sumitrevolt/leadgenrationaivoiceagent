@@ -70,14 +70,17 @@ class User(Base):
     profile_picture_bucket = Column(String(255))  # GCS bucket name
     profile_picture_path = Column(String(500))  # Path in bucket
 
-    # Role and permissions - use values_callable to match PostgreSQL lowercase enum
+    # Role and permissions - values_callable matches PostgreSQL lowercase enum;
+    # native_enum=False added (production audit 2026-07-01, F-DB4) — was still a
+    # native Postgres ENUM type despite already storing correct lowercase values,
+    # confirmed via alembic/versions/010_enum_columns_to_varchar.py.
     role = Column(
-        Enum(UserRole, values_callable=lambda x: [e.value for e in x]),
+        Enum(UserRole, native_enum=False, values_callable=lambda x: [e.value for e in x]),
         default=UserRole.VIEWER,
         nullable=False,
     )
     status = Column(
-        Enum(UserStatus, values_callable=lambda x: [e.value for e in x]),
+        Enum(UserStatus, native_enum=False, values_callable=lambda x: [e.value for e in x]),
         default=UserStatus.PENDING,
         nullable=False,
     )

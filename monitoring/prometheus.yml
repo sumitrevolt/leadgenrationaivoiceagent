@@ -21,6 +21,16 @@ scrape_configs:
     static_configs:
       # container_name from docker-compose.vps.yml, reachable on the shared network
       - targets: ["leadgen_app:8080"]
+    # /metrics is open by default (no auth) — safe on this internal Docker network
+    # since Prometheus has no token configured below. If you arm METRICS_TOKEN in
+    # the app's .env (production audit 2026-07-01: locks down external exposure of
+    # real business/operational counts), this scrape needs the SAME value or it
+    # will start getting 401s. Prometheus doesn't support env-var substitution in
+    # this file, and the value must never be committed here (secrets = .env only)
+    # — use `bearer_token_file: /run/secrets/metrics_token` pointing at a file
+    # populated from METRICS_TOKEN at container start, or an untracked local
+    # override, not a literal value in this tracked file.
+    # bearer_token_file: /run/secrets/metrics_token
 
   - job_name: prometheus
     static_configs:

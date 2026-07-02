@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LeadsGenAI — Command Center</title>
+  <title>LeadGen AI — Command Center</title>
+  <link rel="stylesheet" href="/design-system/styles.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" integrity="sha384-jb8JQMbMoBUzgWatfe6COACi2ljcDdZQ2OxczGA3bGNeWe+6DChMTBJemed7ZnvJ" crossorigin="anonymous"></script>
   <style>
     :root {
@@ -108,10 +109,11 @@
 <body>
 <div class="hdr">
   <div class="hdr-left">
-    <div class="logo">⚡ LeadsGenAI</div>
+    <div class="logo">⚡ LeadGen AI</div>
     <div class="badge">Command Center</div>
   </div>
   <div class="hdr-right">
+    <span class="ao-topbar-status" style="margin-right:8px"><span class="dot"></span>AI Active</span>
     <span class="health-dot" id="healthDot"></span>
     <span class="last-update" id="lastUpdate">Loading...</span>
     <button class="refresh-btn" onclick="loadAll()">🔄 Refresh</button>
@@ -371,13 +373,27 @@ async function loadAll() {
   let stats={}, growth={}, llm={}, health={}, staff={}, flags={}, hotLeads={};
   const errors = [];
 
-  try { stats = await apiFetch('/api/admin/live-stats'); } catch(e){ errors.push('live-stats: '+e.message); }
-  try { growth = await apiFetch('/api/growth/overview/today'); } catch(e){ errors.push('growth: '+e.message); }
-  try { llm = await apiFetch('/api/growth/infra/llm'); } catch(e){ errors.push('llm: '+e.message); }
-  try { health = await apiFetch('/api/growth/infra/automation-health'); } catch(e){ errors.push('automation-health: '+e.message); }
-  try { staff = await apiFetch('/api/platform/team'); } catch(e){ errors.push('team: '+e.message); }
-  try { flags = await apiFetch('/api/growth/infra/flags'); } catch(e){ errors.push('flags: '+e.message); }
-  try { hotLeads = await apiFetch('/api/growth/leads/hot'); } catch(e){ errors.push('hot-leads: '+e.message); }
+  const [rStats, rGrowth, rLlm, rHealth, rStaff, rFlags, rHotLeads] = await Promise.allSettled([
+    apiFetch('/api/admin/live-stats'),
+    apiFetch('/api/growth/overview/today'),
+    apiFetch('/api/growth/infra/llm'),
+    apiFetch('/api/growth/infra/automation-health'),
+    apiFetch('/api/platform/team'),
+    apiFetch('/api/growth/infra/flags'),
+    apiFetch('/api/growth/leads/hot'),
+  ]);
+  const pick = (r, label) => {
+    if (r.status === 'fulfilled') return r.value;
+    errors.push(label + ': ' + r.reason.message);
+    return {};
+  };
+  stats = pick(rStats, 'live-stats');
+  growth = pick(rGrowth, 'growth');
+  llm = pick(rLlm, 'llm');
+  health = pick(rHealth, 'automation-health');
+  staff = pick(rStaff, 'team');
+  flags = pick(rFlags, 'flags');
+  hotLeads = pick(rHotLeads, 'hot-leads');
 
   // Render
   const gp = (growth&&growth.prospects)||{};

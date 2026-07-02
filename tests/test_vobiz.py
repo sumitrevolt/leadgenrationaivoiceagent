@@ -117,3 +117,62 @@ class TestStatus:
             assert data["balance"]["status_code"] == 200
         else:
             assert data["balance"] is None
+
+
+class TestStatusWebhookDurationClamp:
+    """Vobiz doesn't sign /vobiz/status, so a forged/replayed POST could claim an
+    inflated Duration to over-bill voice minutes (production audit 2026-07-01,
+    F-SEC1). Regression test for the clamp added in app/telephony/webhooks.py."""
+
+    def test_forged_duration_is_clamped_to_max_call_duration(self, client: TestClient, monkeypatch):
+        captured = {}
+
+        class _StubCallManager:
+            active_calls: dict = {}
+
+            async def handle_call_completed(self, call_id, duration, recording_url=None):
+                captured["duration"] = duration
+                return None
+
+        import app.telephony.webhooks as webhooks_module
+
+        monkeypatch.setattr(webhooks_module, "_get_call_manager", lambda: _StubCallManager())
+        monkeypatch.setattr(settings, "max_call_duration_seconds", 300, raising=False)
+
+        forged_duration = 999999  # far beyond any real call length
+        r = client.post(
+            "/api/webhooks/vobiz/status",
+            data={
+                "CallbackData": "test-call-clamp-1",
+                "Status": "completed",
+                "Duration": str(forged_duration),
+            },
+        )
+        assert r.status_code == 200
+        assert captured["duration"] == 300  # clamped, not the forged 999999
+
+    def test_normal_duration_passes_through_unclamped(self, client: TestClient, monkeypatch):
+        captured = {}
+
+        class _StubCallManager:
+            active_calls: dict = {}
+
+            async def handle_call_completed(self, call_id, duration, recording_url=None):
+                captured["duration"] = duration
+                return None
+
+        import app.telephony.webhooks as webhooks_module
+
+        monkeypatch.setattr(webhooks_module, "_get_call_manager", lambda: _StubCallManager())
+        monkeypatch.setattr(settings, "max_call_duration_seconds", 300, raising=False)
+
+        r = client.post(
+            "/api/webhooks/vobiz/status",
+            data={
+                "CallbackData": "test-call-clamp-2",
+                "Status": "completed",
+                "Duration": "45",
+            },
+        )
+        assert r.status_code == 200
+        assert captured["duration"] == 45

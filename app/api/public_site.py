@@ -148,7 +148,16 @@ def _append_jsonl(rec: dict[str, Any]) -> bool:
 
 
 def _save_lead_db(rec: dict[str, Any]) -> str | None:
-    """Lead model me best-effort save. Fail ho to None (jsonl me data hai hi)."""
+    """Lead model me best-effort save. Fail ho to None (jsonl me data hai hi).
+
+    Dedupe-by-phone (production audit 2026-07-01, F-DB2) — this was the one
+    real-DB Lead() write path with no dedup check; every other write path
+    (app/platform/prospector.py, app/tasks/sync.py) already looks up an
+    existing Lead by phone first. Matching that established convention: a
+    repeat inquiry from the same phone number appends to the existing lead's
+    notes (new inquiry text preserved, nothing lost) instead of creating a
+    fresh duplicate row.
+    """
     try:
         from app.models.lead import Lead, LeadSource, LeadStatus
 
@@ -171,6 +180,15 @@ def _save_lead_db(rec: dict[str, Any]) -> str | None:
                 notes_parts.append(f"[Mini-site: /b/{rec['source_slug']}]")
             else:
                 notes_parts.append("[Website inquiry form]")
+            new_notes = "\n".join(notes_parts)
+
+            existing = db.query(Lead).filter(Lead.phone == rec["phone"]).first()
+            if existing is not None:
+                stamp = datetime.utcnow().isoformat()
+                existing.notes = f"{existing.notes or ''}\n[Repeat inquiry {stamp}]\n{new_notes}".strip()
+                existing.updated_at = datetime.utcnow()
+                db.commit()
+                return existing.id
 
             lead = Lead(
                 id=str(uuid.uuid4()),
@@ -181,7 +199,7 @@ def _save_lead_db(rec: dict[str, Any]) -> str | None:
                 city=(rec.get("city") or None),
                 source=LeadSource.WEBSITE,
                 status=LeadStatus.NEW,
-                notes="\n".join(notes_parts),
+                notes=new_notes,
             )
             db.add(lead)
             db.commit()

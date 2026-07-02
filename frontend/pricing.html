@@ -96,6 +96,12 @@
   .x{float:right;border:0;background:transparent;color:var(--mut);font-size:20px;cursor:pointer;line-height:1}
   .spin{display:inline-block;width:15px;height:15px;border:2px solid #fff6;border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
   @keyframes s{to{transform:rotate(360deg)}}
+  @keyframes livePulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .eyebrow-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#31c27c;margin-right:6px;animation:livePulse 2s infinite}
+  .trial-featured{border-color:rgba(49,194,124,.4) !important;box-shadow:0 0 0 1px rgba(49,194,124,.15) !important}
+  .trial-title{font-size:17px}
+  .btn-cta-lg{font-size:16px !important;padding:16px 28px !important}
+  .btn-nowrap{white-space:nowrap;padding:14px 22px !important}
 </style>
 <script type="application/ld+json">
 {
@@ -127,21 +133,21 @@
   </header>
 
   <section class="hero">
-    <div class="eyebrow">2 clear plans. No bundle confusion.</div>
-    <h1>AI Marketing Automation + Voice Agent</h1>
-    <p>Marketing automation plan me content, leads, reviews aur CRM workflows. Voice plan alag hai aur sirf calls, qualification aur booking ke liye hai.</p>
+    <div class="eyebrow"><span class="eyebrow-dot"></span>AI team abhi kaam kar rahi hai — 24/7</div>
+    <h1>Apna AI Office shuru karo aaj</h1>
+    <p>Marketing AI aapka roz ka content, leads aur reviews sambhalta hai. Voice AI aapke liye calls, qualification aur bookings karta hai — aap sirf results dekho.</p>
     <div class="cta-row">
-      <a class="btn primary" href="#plans">Plans dekho</a>
-      <a class="btn ghost" href="/audit">Free GBP audit</a>
+      <a class="btn primary btn-cta-lg" href="#plans">Plans dekho →</a>
+      <a class="btn ghost" href="/audit">Free GBP Audit</a>
     </div>
   </section>
 
-  <div class="trial">
+  <div class="trial trial-featured">
     <div>
-      <b>7-Din FREE Trial</b>
-      <span>Bina card, bina payment. 5 AI posts + GBP audit + widget + mini-site preview + customer portal.</span>
+      <b class="trial-title">🎁 7-Din FREE Trial — bina card ke</b>
+      <span>5 AI posts + GBP audit + website widget + customer portal. Seedha shuru karo, baad me decide karo.</span>
     </div>
-    <button class="btn primary" onclick="startTrial()">Start FREE Trial</button>
+    <button class="btn primary btn-nowrap" onclick="startTrial()">FREE Trial shuru karo</button>
   </div>
 
   <div id="plans" class="grid"><div class="cmp" style="grid-column:1/-1">Plans load ho rahe hain…</div></div>

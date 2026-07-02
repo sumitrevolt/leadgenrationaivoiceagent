@@ -12,6 +12,13 @@ from sqlalchemy.orm import relationship
 from app.models.base import Base
 
 
+def _enum_values(enum_cls):
+    """values_callable so the DB stores .value not .name — VARCHAR-backed
+    (native_enum=False), matching app/models/payment.py (production audit
+    2026-07-01, F-DB4)."""
+    return [member.value for member in enum_cls]
+
+
 class CampaignStatus(enum.Enum):
     """Campaign status enum"""
 
@@ -42,8 +49,15 @@ class Campaign(Base):
     description = Column(Text)
 
     # Type and status
-    type = Column(Enum(CampaignType), default=CampaignType.COLD_OUTREACH)
-    status = Column(Enum(CampaignStatus), default=CampaignStatus.DRAFT, index=True)
+    type = Column(
+        Enum(CampaignType, native_enum=False, values_callable=_enum_values),
+        default=CampaignType.COLD_OUTREACH,
+    )
+    status = Column(
+        Enum(CampaignStatus, native_enum=False, values_callable=_enum_values),
+        default=CampaignStatus.DRAFT,
+        index=True,
+    )
 
     # Client association
     client_id = Column(String(36), ForeignKey("clients.id"))
