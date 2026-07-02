@@ -246,6 +246,8 @@
     <div style="margin-top:6px">🏗️ System Map — live architecture, click to expand</div>
     <div style="margin-top:6px">🔎 Map: Ctrl+scroll ya ➕/➖ = zoom · zoom me drag = pan · poora room clickable</div>
     <div style="margin-top:6px">🕒 Schedule — aaj kaunsa automation kab chalega/chala (green pulse ring = abhi working)</div>
+    <div style="margin-top:6px">💬 Bubble — agent ki recent activity (max 3 ek saath)</div>
+    <div style="margin-top:6px">🌙 19:00–07:00 IST — office night-mode (dim + desk lamps)</div>
     <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:#fff;
       border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer">Band karo</button>
   </div>
@@ -380,8 +382,9 @@
     if (json) h["Content-Type"] = "application/json";
     return h;
   }
-  function showBanner(msg){
-    document.getElementById("bannerMsg").textContent = msg;
+  function showBanner(msg, isHtml){
+    var el = document.getElementById("bannerMsg");
+    if (isHtml) el.innerHTML = msg; else el.textContent = msg;
     document.getElementById("banner").style.display = "block";
   }
   function hideBanner(){ document.getElementById("banner").style.display = "none"; }
@@ -402,15 +405,27 @@
   }
 
   // ---- Snapshot (rooms + agents + metrics + pipeline + approvals + health) --
+  // authExpired: 401/403 (JWT expire/rotate) pe true — auto-refresh loop ruk
+  // jata hai (endlessly retry karne ka koi matlab nahi), banner login-link
+  // dikhata. Manual "Retry"/"Refresh now" flag reset karke dobara try karta
+  // (dusre tab me re-login ke baad localStorage token fresh hota hai).
+  OFFICE.authExpired = false;
   OFFICE.fetchSnapshot = async function(){
     try {
       var r = await fetch("/api/platform/office/snapshot", { headers: hdrs() });
+      if (r.status === 401 || r.status === 403) {
+        OFFICE.authExpired = true;
+        showBanner('🔒 Session expire ho gaya — <a href="/app/admin-login" ' +
+          'style="color:#991b1b;font-weight:800;text-decoration:underline">dobara login karo</a>', true);
+        return null;
+      }
       if (!r.ok) throw new Error("HTTP " + r.status);
       var data = await r.json();
+      OFFICE.authExpired = false;
       hideBanner();
       return data;
     } catch (e) {
-      showBanner("HQ snapshot load nahi ho paya — 25s me retry hoga.");
+      if (!OFFICE.authExpired) showBanner("HQ snapshot load nahi ho paya — 15s me retry hoga.");
       return null;
     }
   };
@@ -527,6 +542,65 @@
     scene.add.image(ix + 14, iy + ih - 14, "plant").setScale(OFFICE.TILE_SCALE * 0.8);
   };
 
+  // ---- Ambience: IST day/night tint + desk lamps + server LEDs + coffee steam --
+  // 19:00–07:00 IST = subtle dark-blue overlay (depth 40, non-interactive so
+  // clicks pass through) + har room me ek warm desk-lamp glow. Lightweight:
+  // ek rect + 8 lamp circles + slow alpha tweens, koi particles nahi.
+  OFFICE.nightLayer = null;
+  OFFICE.applyDayNight = function(){
+    if (!OFFICE.scene) return;
+    var h = istTimeParts().h;
+    var night = (h >= 19 || h < 7);
+    if (night && !OFFICE.nightLayer) {
+      var scene = OFFICE.scene;
+      var layer = {
+        rect: scene.add.rectangle(600, 410, 1200, 820, 0x14204a, 0.16).setDepth(40),
+        lamps: [], tweens: []
+      };
+      OFFICE.ROOMS.forEach(function(room){
+        var lamp = scene.add.circle(room.x + 36, room.y + room.h - 36, 9, 0xffc966, 0.34).setDepth(41);
+        var tw = scene.tweens.add({ targets: lamp, alpha: 0.14, duration: 1700 + Math.random() * 900,
+          yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
+        layer.lamps.push(lamp); layer.tweens.push(tw);
+      });
+      OFFICE.nightLayer = layer;
+    } else if (!night && OFFICE.nightLayer) {
+      try {
+        OFFICE.nightLayer.tweens.forEach(function(t){ t.stop(); });
+        OFFICE.nightLayer.lamps.forEach(function(l){ l.destroy(); });
+        OFFICE.nightLayer.rect.destroy();
+      } catch (e) {}
+      OFFICE.nightLayer = null;
+    }
+  };
+
+  // One-time decor animations: blinking server-rack LEDs (Platform/Engineering
+  // corner) + coffee-cup steam (Coordinator Room). Kul 5 looping tweens — cheap.
+  OFFICE.drawAmbience = function(){
+    var scene = OFFICE.scene;
+    if (!scene) return;
+    var pe = OFFICE.roomById.platform_engineering;
+    if (pe) {
+      var rx = pe.x + pe.w - 44, ry = pe.y + pe.h - 66;
+      scene.add.rectangle(rx, ry, 26, 58, 0x1f2937).setDepth(5);
+      [0x22c55e, 0x3b82f6, 0xf59e0b].forEach(function(c, i){
+        var led = scene.add.circle(rx, ry - 18 + i * 15, 3, c, 0.9).setDepth(6);
+        scene.tweens.add({ targets: led, alpha: 0.12, duration: 430 + i * 270,
+          yoyo: true, repeat: -1, delay: i * 190 });
+      });
+    }
+    var co = OFFICE.roomById.coordinator;
+    if (co) {
+      var cx = co.x + 74, cy = co.y + co.h - 26;
+      scene.add.circle(cx, cy, 5, 0x8b5a2b).setDepth(5);   // coffee cup
+      [0, 1].forEach(function(i){
+        var puff = scene.add.circle(cx + (i ? 4 : -3), cy - 9, 2.5, 0xd1d5db, 0.55).setDepth(6);
+        scene.tweens.add({ targets: puff, y: cy - 28, alpha: 0, duration: 2000 + i * 650,
+          repeat: -1, delay: i * 850, ease: "Sine.easeOut" });
+      });
+    }
+  };
+
   OFFICE.showRoomTooltip = function(roomId, pointer){
     var room = OFFICE.roomStats && OFFICE.roomStats[roomId];
     var tip = document.getElementById("roomTooltip");
@@ -590,7 +664,7 @@
     return slots;
   };
 
-  OFFICE.drawAvatar = function(m, slot){
+  OFFICE.drawAvatar = function(m, slot, room){
     var scene = OFFICE.scene;
     var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
     var s = OFFICE.TILE_SCALE;
@@ -616,9 +690,16 @@
       fontSize: "10px", fontFamily: "sans-serif", color: "#1e293b"
     }).setOrigin(0.5, 0);
     var group = scene.add.container(slot.x, slot.y, [sprite, badge, label]);
+    // Subtle idle "breathing" bob (sprite y −4 → −7, yoyo forever) — offline
+    // agents ke liye setAvatarState ise pause karta (chup-chaap baithe rahen).
+    var bobTween = scene.tweens.add({
+      targets: sprite, y: -7, duration: 1150 + Math.random() * 500,
+      yoyo: true, repeat: -1, ease: "Sine.easeInOut"
+    });
     var av = {
       desk: desk, sprite: sprite, badge: badge, label: label, group: group,
-      homeX: slot.x, homeY: slot.y, wandering: false, pulse: null, pulseTween: null
+      homeX: slot.x, homeY: slot.y, wandering: false, pulse: null, pulseTween: null,
+      bobTween: bobTween, room: room || null, state: m.state
     };
     OFFICE.setAvatarState(av, m.state);
     OFFICE.scheduleWander(m.key);
@@ -630,8 +711,14 @@
   OFFICE.setAvatarState = function(av, state){
     var scene = OFFICE.scene;
     if (!av || !scene) return;
+    av.state = state;
     av.badge.setFillStyle(OFFICE.STATE_COLOR[state] || OFFICE.STATE_COLOR.offline);
     av.group.setAlpha(state === "offline" ? 0.55 : 1);
+    if (av.bobTween) {
+      // Offline = no breathing bob (dimmed + bilkul still).
+      if (state === "offline") { av.bobTween.pause(); av.sprite.y = -4; }
+      else if (av.bobTween.paused) av.bobTween.resume();
+    }
     if (state === "working" && !av.pulse) {
       av.pulse = scene.add.circle(0, -2, 16, 0x10b981, 0.22);
       av.group.addAt(av.pulse, 0);  // ring stays BEHIND the sprite
@@ -645,13 +732,56 @@
     }
   };
 
+  // State-aware movement: working = room ke andar chhota walk-path (waypoints),
+  // active = desk ke paas subtle wander, offline = bilkul still (dimmed).
   OFFICE.scheduleWander = function(key){
     setTimeout(function(){
       var av = OFFICE.avatars[key];
-      if (!av || !OFFICE.scene) return;
-      OFFICE.wanderOnce(av);
+      if (av && OFFICE.scene) {
+        if (av.state === "working") OFFICE.walkRoomPath(av);
+        else if (av.state !== "offline") OFFICE.wanderOnce(av);
+      }
       OFFICE.scheduleWander(key);
     }, 4000 + Math.random() * 10000);
+  };
+
+  // Working agent apne room ke ANDAR 2-3 waypoints tak chal ke wapas desk pe
+  // aata — "real office" feel. Light tween-chain only (no physics/pathfinding).
+  OFFICE.walkRoomPath = function(av){
+    if (av.wandering || !OFFICE.scene) return;
+    var room = av.room;
+    if (!room) { OFFICE.wanderOnce(av); return; }   // safety: room unknown -> old wander
+    av.wandering = true;
+    var pts = [];
+    var n = 2 + (Math.random() < 0.5 ? 0 : 1);      // 2-3 waypoints
+    for (var i = 0; i < n; i++) {
+      pts.push({
+        x: room.x + 34 + Math.random() * Math.max(20, room.w - 68),
+        y: room.y + 58 + Math.random() * Math.max(20, room.h - 92)
+      });
+    }
+    pts.push({ x: av.homeX, y: av.homeY });          // wapas apni desk
+    var idx = 0;
+    function step(){
+      var scene = OFFICE.scene;
+      if (!scene) { av.wandering = false; return; }
+      if (idx >= pts.length) {
+        av.group.setPosition(av.homeX, av.homeY);
+        av.sprite.setFlipX(false);
+        av.wandering = false;
+        return;
+      }
+      var p = pts[idx++];
+      var dist = Math.abs(p.x - av.group.x) + Math.abs(p.y - av.group.y);
+      av.sprite.setFlipX(p.x < av.group.x);
+      scene.tweens.add({
+        targets: av.group, x: p.x, y: p.y,
+        duration: Math.max(450, Math.min(2200, dist * 8)),
+        ease: "Sine.easeInOut",
+        onComplete: function(){ setTimeout(step, 300 + Math.random() * 700); }
+      });
+    }
+    step();
   };
 
   OFFICE.wanderOnce = function(av){
@@ -701,7 +831,7 @@
           if (existing) {
             OFFICE.setAvatarState(existing, m.state);
           } else {
-            OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, slots[i]);
+            OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, slots[i], room);
           }
         });
       });
@@ -1159,19 +1289,28 @@
     });
   };
 
-  // ---- Speech bubble + workflow token (unchanged behaviour) ------------------
+  // ---- Speech bubble (~6s, 40-char cap, max 3 on-screen) + workflow token ----
+  OFFICE.activeBubbles = 0;
   OFFICE.spawnBubble = function(memberKey, text){
     var av = OFFICE.avatars[memberKey];
     if (!av || !OFFICE.scene) return;
+    if (OFFICE.activeBubbles >= 3) return;   // clutter cap — max 3 bubbles ek saath
+    OFFICE.activeBubbles++;
     var scene = OFFICE.scene;
-    var short = String(text || "").slice(0, 36);
-    var t = scene.add.text(av.homeX, av.homeY - 26, short, {
+    var short = String(text || "").slice(0, 40);
+    // Anchor = current group position (agent walk pe ho sakta hai, sirf home nahi).
+    var bx = av.group ? av.group.x : av.homeX;
+    var by = (av.group ? av.group.y : av.homeY) - 26;
+    var t = scene.add.text(bx, by, short, {
       fontSize: "10px", fontFamily: "sans-serif", color: "#1e1b2e",
       backgroundColor: "#ffffff", padding: { x: 6, y: 3 }
     }).setOrigin(0.5, 1).setDepth(50);
     scene.tweens.add({
-      targets: t, alpha: 0, y: t.y - 14, duration: 1200, delay: 4200,
-      onComplete: function(){ t.destroy(); }
+      targets: t, alpha: 0, y: t.y - 14, duration: 1200, delay: 4800,
+      onComplete: function(){
+        t.destroy();
+        OFFICE.activeBubbles = Math.max(0, OFFICE.activeBubbles - 1);
+      }
     });
   };
 
@@ -1342,7 +1481,7 @@
   document.getElementById("panelClose").onclick = function(){
     document.getElementById("agentPanel").classList.add("panel-hidden");
   };
-  document.getElementById("bannerRetry").onclick = function(){ OFFICE.refreshSnapshot(); };
+  document.getElementById("bannerRetry").onclick = function(){ OFFICE.authExpired = false; OFFICE.refreshSnapshot(); };
 
   var systemMapLoaded = false;
   document.getElementById("systemMapToggle").onclick = function(){
@@ -1704,6 +1843,8 @@
       create: function(){
         OFFICE.scene = this;
         OFFICE.drawRooms();
+        OFFICE.drawAmbience();
+        OFFICE.applyDayNight();
         OFFICE.setupCameraControls(this);
         var loadingTxt = this.add.text(600, 410, "⏳ Loading agents…", {
           fontSize: "18px", fontFamily: "sans-serif", color: "#1e1b2e",
@@ -1730,12 +1871,28 @@
     }
   });
 
-  setInterval(function(){ OFFICE.refreshSnapshot(); }, 15000);
-  setInterval(function(){ OFFICE.pollEvents(); }, 8000);
+  setInterval(function(){ if (!OFFICE.authExpired) OFFICE.refreshSnapshot(); }, 15000);
+  setInterval(function(){ if (!OFFICE.authExpired) OFFICE.pollEvents(); }, 8000);
+  setInterval(function(){ OFFICE.applyDayNight(); }, 60000);
+  // Ambient bubble rotation — fresh events na aa rahe ho tab bhi office "zinda"
+  // dikhe: har 15s me ek recent event ki bubble (max 2 concurrent is path se).
+  OFFICE.bubbleRotateIdx = 0;
+  setInterval(function(){
+    if (!OFFICE.scene || OFFICE.authExpired || OFFICE.activeBubbles >= 2) return;
+    var evs = OFFICE.allEvents || [];
+    for (var tries = 0; tries < evs.length; tries++) {
+      var e = evs[OFFICE.bubbleRotateIdx++ % evs.length];
+      if (e && e.member && OFFICE.avatars[e.member] && (e.detail || e.action)) {
+        OFFICE.spawnBubble(e.member, e.detail || e.action);
+        break;
+      }
+    }
+  }, 15000);
 
   document.getElementById("manualRefreshBtn").onclick = function(){
     var btn = document.getElementById("manualRefreshBtn");
     btn.disabled = true; btn.textContent = "⏳ Refreshing…";
+    OFFICE.authExpired = false;  // manual retry = fresh chance (re-login ho chuka ho sakta)
     OFFICE.refreshSnapshot().finally(function(){
       btn.disabled = false; btn.textContent = "🔄 Refresh now";
     });
