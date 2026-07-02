@@ -227,14 +227,11 @@ async def test_build_metrics_accepts_prefetched_live_stats_without_refetching(mo
     assert calls["n"] == 0  # never called _safe_collect_live_stats — used the pre-fetched dict
 
 
-def test_snapshot_cache_ttl_exceeds_frontend_poll_interval():
-    """Regression 2026-07-01: TTL was 15s while office_map.html polls every
-    25s (setInterval(refreshSnapshot, 25000)) — every periodic auto-refresh
-    was ALWAYS a cache miss since the cache had already expired by the time
-    the next poll fired. TTL must stay strictly greater than the poll
-    interval for the periodic refresh itself to ever be fast."""
-    FRONTEND_POLL_INTERVAL_SEC = 25
-    assert office_hq._SNAPSHOT_CACHE_TTL > FRONTEND_POLL_INTERVAL_SEC
+# NOTE: the 2026-07-01 version of this guard (test_snapshot_cache_ttl_exceeds_
+# frontend_poll_interval, asserting TTL > poll against the then-25s poll) was
+# superseded 2026-07-02 by Task 8's deliberate retune to TTL=12s < poll=15s
+# (see test_snapshot_cache_ttl_tightened_for_realtime_view below) and removed
+# here rather than left alongside a contradictory assertion.
 
 
 class _FakeCache:
@@ -433,3 +430,18 @@ def test_ira_journey_hook_wiring_exists():
 
     src = inspect.getsource(inquiry_hooks)
     assert "journeys.emit_event" in src or "emit_event(" in src
+
+
+def test_snapshot_cache_ttl_tightened_for_realtime_view():
+    """Task 8 (2026-07-02) deliberately retunes cadence for freshness on this
+    real-time view: poll interval 25s->15s (frontend/office_map.html
+    setInterval) and cache TTL 35s->12s (this file). TTL still stays below
+    poll (12 < 15) rather than above it -- unlike the 2026-07-01 incident
+    (TTL 15s vs poll 25s, TTL expired before every poll), here the ~8-9s
+    snapshot-compute time means two *consecutive* polls can still land
+    inside one cache window (12 > 15 - 9), so the cache keeps helping without
+    letting data go stale for more than one poll cycle. This test just pins
+    the tightened value so it isn't silently loosened again."""
+    FRONTEND_POLL_INTERVAL_S = 15  # frontend/office_map.html setInterval(...,15000)
+    assert office_hq._SNAPSHOT_CACHE_TTL == 12
+    assert office_hq._SNAPSHOT_CACHE_TTL < FRONTEND_POLL_INTERVAL_S

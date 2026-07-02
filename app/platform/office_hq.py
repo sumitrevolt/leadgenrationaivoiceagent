@@ -180,14 +180,22 @@ PIPELINE_STAGE_META: list[dict[str, Any]] = [
 # in-process dict), invalidated early by any real mutation.
 #
 # BUG (2026-07-01, found same day): TTL was 15s while office_map.html's
-# auto-refresh polls every 25s (setInterval(refreshSnapshot, 25000)) — since
+# auto-refresh polled every 25s (setInterval(refreshSnapshot, 25000)) — since
 # 25 > 15, the cache had ALREADY expired before every single periodic poll,
 # so the auto-refresh never once hit the cache; only a rapid manual
-# double-refresh within 15s ever benefited. TTL must exceed the poll
-# interval for the periodic refresh itself to be fast. 35s comfortably
-# covers the 25s poll interval + the ~8-9s it takes to compute a fresh one.
+# double-refresh within 15s ever benefited. Fixed same day by raising TTL to
+# 35s (comfortably above the then-25s poll interval).
+#
+# RETUNE (2026-07-02, Task 8 "real-time tightening"): poll interval tightened
+# 25s -> 15s and TTL tightened 35s -> 12s, deliberately trading some cache-hit
+# rate for fresher data on this real-time view. TTL (12s) is now BELOW the
+# poll interval (15s), unlike the 2026-07-01 fix above — but build_snapshot()
+# still takes ~8-9s to compute, so two *consecutive* polls 15s apart can still
+# land inside one cache window (12s > 15s - 9s slack), meaning back-to-back
+# refreshes (e.g. manual-refresh-right-after-auto-poll) still often hit the
+# cache, while no single value can go stale for more than ~1 poll cycle.
 _SNAPSHOT_CACHE_KEY = "office_hq:snapshot"
-_SNAPSHOT_CACHE_TTL = 35
+_SNAPSHOT_CACHE_TTL = 12
 
 
 def _now() -> datetime:
