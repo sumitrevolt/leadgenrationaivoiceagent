@@ -56,6 +56,113 @@ async def test_scheduled_ops_weekly_marketing_skippable(monkeypatch):
     assert out.get("skipped")
 
 
+@pytest.mark.asyncio
+async def test_scheduled_ops_hygiene_trims_every_routed_queue(monkeypatch):
+    """2026-07-02: Saturday hygiene used to only ever check/trim the default
+    "celery" queue. leadgen_worker was fixed to actually consume
+    calling/scraping/reporting/sync/training/heavy (previously undrained,
+    silently accumulating) — hygiene must now watch all of them, not just
+    the one it always watched."""
+    from app.platform import scheduled_ops
+
+    class _FakeRedis:
+        def __init__(self):
+            self.store = {
+                "celery": 900,
+                "calling": 50,
+                "scraping": 1000,
+                "reporting": 0,
+                "sync": 799,
+                "training": 0,
+                "heavy": 5,
+                "dlq:failed_tasks": 2,
+            }
+            self.deleted: list[str] = []
+
+        def llen(self, key):
+            return self.store.get(key, 0)
+
+        def delete(self, key):
+            self.deleted.append(key)
+            self.store[key] = 0
+
+    fake = _FakeRedis()
+    monkeypatch.setattr("redis.Redis.from_url", lambda *a, **k: fake)
+    monkeypatch.setenv("CELERY_TRIM_MIN_DEPTH", "800")
+    monkeypatch.setattr("app.platform.team.log_event", lambda *a, **k: None)
+
+    out = await scheduled_ops.run_saturday_hygiene()
+
+    assert out["queue_depths"]["celery"] == 900
+    assert out["queue_depths"]["scraping"] == 1000
+    assert out["queue_depths"]["sync"] == 799
+    # only queues AT/OVER the threshold get trimmed
+    assert set(out["queues_trimmed"].keys()) == {"celery", "scraping"}
+    assert fake.store["celery"] == 0
+    assert fake.store["scraping"] == 0
+    # below-threshold queues untouched
+    assert fake.store["sync"] == 799
+    assert fake.store["calling"] == 50
+
+
+@pytest.mark.asyncio
+async def test_scheduled_ops_hygiene_never_auto_deletes_calling_queue(monkeypatch):
+    """"calling" carries run_campaign_task (admin-launched, never
+    beat-regenerated — deleting a queued one silently drops the campaign AND
+    leaks its launch lock since the delete skips the task's own `finally:
+    release_campaign_lock()`) and process_callbacks' make_call_task (only
+    re-enqueued inside a 1-hour window — past that, gone for good). Unlike
+    every other routed queue, it must be ALERT-ONLY here, never
+    auto-deleted, even when its depth blows past the trim threshold."""
+    from app.platform import scheduled_ops
+
+    class _FakeRedis:
+        def __init__(self):
+            self.store = {
+                "celery": 0,
+                "calling": 5000,  # way over threshold
+                "scraping": 0,
+                "reporting": 0,
+                "sync": 0,
+                "training": 0,
+                "heavy": 0,
+                "dlq:failed_tasks": 0,
+            }
+            self.deleted: list[str] = []
+
+        def llen(self, key):
+            return self.store.get(key, 0)
+
+        def delete(self, key):
+            self.deleted.append(key)
+            self.store[key] = 0
+
+    fake = _FakeRedis()
+    monkeypatch.setattr("redis.Redis.from_url", lambda *a, **k: fake)
+    monkeypatch.setenv("CELERY_TRIM_MIN_DEPTH", "800")
+    monkeypatch.setattr("app.platform.team.log_event", lambda *a, **k: None)
+
+    out = await scheduled_ops.run_saturday_hygiene()
+
+    assert "calling" not in fake.deleted
+    assert fake.store["calling"] == 5000
+    assert "calling" not in out.get("queues_trimmed", {})
+    assert out.get("queues_alerted") == {"calling": 5000}
+
+
+@pytest.mark.asyncio
+async def test_scheduled_ops_hygiene_never_raises_when_redis_down(monkeypatch):
+    from app.platform import scheduled_ops
+
+    def _boom(*a, **k):
+        raise RuntimeError("redis down")
+
+    monkeypatch.setattr("redis.Redis.from_url", _boom)
+    out = await scheduled_ops.run_saturday_hygiene()
+    assert out.get("ok") is True
+    assert "queue_depths" not in out
+
+
 # --- 2026-06-22: extra agent passes (afternoon_content + evening_prospect) ---
 
 

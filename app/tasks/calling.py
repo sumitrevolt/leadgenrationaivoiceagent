@@ -186,9 +186,16 @@ def process_callbacks():
                 make_call_task.delay(call_request_data)
                 callbacks_queued += 1
 
-                # Update lead to prevent re-queuing
+                # Update lead to prevent re-queuing. `or 0` guards a NULL
+                # call_attempts (reachable — see the coalesce fix on the
+                # campaign dial path above): a plain `+= 1` TypeErrors on
+                # None, which aborts this whole loop's db.commit() below —
+                # losing last_called_at for every lead already dispatched via
+                # make_call_task.delay() this run (already-fired side effect,
+                # never-committed dedup marker) and leaving them re-queuable
+                # on the next tick.
                 lead.last_called_at = now
-                lead.call_attempts += 1
+                lead.call_attempts = (lead.call_attempts or 0) + 1
 
             db.commit()
 
@@ -314,3 +321,267 @@ def cleanup_stale_calls():
 
     logger.info(f"Cleaned up {cleaned} stale calls")
     return {"status": "completed", "cleaned": cleaned}
+
+
+# --------------------------------------------------------------------------- #
+# Durable admin campaign launch (2026-07-02) — replaces the web-process
+# asyncio-subprocess path in app/api/admin_ops.py::launch_campaign (which ran
+# scripts/fire_calls.py as a child process INSIDE the 2-worker web process,
+# holding a worker for up to 320s per launch). Same compliance gates (shared
+# via app/telephony/campaign_compliance.py — one source of truth with the CLI
+# script) and same Vobiz call path (start_stream_call, unchanged) — this only
+# changes HOW the campaign is triggered/run, never what it does or how it's
+# gated. Status written to the SAME Redis key the admin UI already polls
+# (/api/admin/campaign/status), so the frontend needs zero changes.
+# --------------------------------------------------------------------------- #
+_CAMPAIGN_STATUS_KEY = "admin:campaign:last_run"
+_CAMPAIGN_LOCK_KEY = "admin:campaign:lock"
+
+
+def _campaign_redis():
+    try:
+        import os as _os
+
+        import redis as _redis_lib
+
+        url = (_os.environ.get("REDIS_URL") or "redis://127.0.0.1:6379/0").strip()
+        client = _redis_lib.Redis.from_url(url, socket_connect_timeout=2, decode_responses=True)
+        client.ping()
+        return client
+    except Exception:
+        return None
+
+
+def _campaign_status_set(data: dict) -> None:
+    try:
+        r = _campaign_redis()
+        if r:
+            import json as _json
+
+            r.setex(_CAMPAIGN_STATUS_KEY, 86400, _json.dumps(data))
+    except Exception:
+        pass
+
+
+def acquire_campaign_lock(ttl_s: int = 400) -> bool:
+    """True if this caller now holds the single-flight campaign lock (SET NX EX).
+    Never raises — a Redis outage fails OPEN (returns True) so a broken lock
+    can't permanently block campaign launches; the compliance gates below are
+    the real safety net, not this dedup."""
+    try:
+        r = _campaign_redis()
+        if not r:
+            return True
+        return bool(r.set(_CAMPAIGN_LOCK_KEY, "1", nx=True, ex=ttl_s))
+    except Exception:
+        return True
+
+
+def release_campaign_lock() -> None:
+    try:
+        r = _campaign_redis()
+        if r:
+            r.delete(_CAMPAIGN_LOCK_KEY)
+    except Exception:
+        pass
+
+
+def campaign_lock_held() -> bool:
+    try:
+        r = _campaign_redis()
+        if not r:
+            return False
+        return bool(r.exists(_CAMPAIGN_LOCK_KEY))
+    except Exception:
+        return False
+
+
+def _get_campaign_prospects(db, limit: int, niche: str) -> list:
+    """Uncontacted-with-phone leads — same WHERE/ORDER as scripts/fire_calls.py
+    get_prospects() and admin_ops.py _leads_ready(), via the ORM (provider-
+    agnostic, unlike the CLI script's raw psycopg2)."""
+    from sqlalchemy import func, or_
+
+    q = db.query(Lead).filter(Lead.phone.isnot(None), Lead.phone != "")
+    q = q.filter(or_(Lead.call_attempts.is_(None), Lead.call_attempts == 0))
+    if niche:
+        q = q.filter(func.lower(Lead.niche) == niche.strip().lower())
+    q = q.order_by(Lead.lead_score.desc(), Lead.created_at.desc())
+    return q.limit(max(1, min(limit, 200))).all()
+
+
+async def _dial_vobiz_campaign(
+    db, prospects: list, dry_run: bool, call_type: str, client_id: str, platform: bool
+) -> dict:
+    import re
+
+    from app.api.telephony_vobiz import start_stream_call
+    from app.telephony.vobiz_handler import VobizClient
+
+    client = VobizClient()
+    if not dry_run and not client.available():
+        return {"ok": 0, "skip": 0, "fail": 0, "placed_ids": [], "error": "vobiz_not_configured"}
+
+    ok = skip = fail = 0
+    placed_ids: list[str] = []
+    for p in prospects:
+        p10 = re.sub(r"\D", "", (p.phone or "").strip())[-10:]
+        niche = "ai_marketing" if platform else (p.niche or "general")
+        cid = "" if platform else client_id
+        if dry_run:
+            continue
+        if not p10 or len(p10) != 10:
+            skip += 1
+            continue
+        result = await start_stream_call(
+            to="+91" + p10, niche=niche, call_type=call_type, client_id=cid or None
+        )
+        if result.get("placed"):
+            ok += 1
+            placed_ids.append(p.id)
+            # mark_called INLINE, right after each placed call — same
+            # crash-safety as fire_calls.py's per-lead mark_called(). A
+            # batched-after-the-loop update would lose every already-dialed
+            # lead's call_attempts if the task is killed mid-run (e.g.
+            # campaign/stop's revoke(terminate=True) SIGTERM), so a relaunch
+            # would silently re-dial everyone already contacted this run.
+            try:
+                from sqlalchemy import func
+
+                # coalesce: the prospect query admits call_attempts IS NULL
+                # (fresh/never-called leads) — plain `Lead.call_attempts + 1`
+                # compiles to SQL `NULL + 1 = NULL`, silently no-op'ing the
+                # increment for exactly that common case and leaving the lead
+                # eligible to be re-selected (and re-dialed) next run.
+                db.query(Lead).filter(Lead.id == p.id).update(
+                    {
+                        Lead.call_attempts: func.coalesce(Lead.call_attempts, 0) + 1,
+                        Lead.last_called_at: datetime.utcnow(),
+                    },
+                    synchronize_session=False,
+                )
+                db.commit()
+            except Exception as e:
+                logger.warning(f"campaign mark_called failed for lead {p.id}: {e}")
+                db.rollback()
+        elif result.get("error") == "compliance_blocked":
+            skip += 1
+        else:
+            fail += 1
+        await asyncio.sleep(4)
+    return {"ok": ok, "skip": skip, "fail": fail, "placed_ids": placed_ids}
+
+
+@shared_task(bind=True)
+def run_campaign_task(
+    self,
+    limit: int = 10,
+    dry_run: bool = False,
+    niche: str = "",
+    client_id: str = "",
+    platform: bool = False,
+    transactional: bool = False,
+):
+    """Durable outbound-campaign launch — see module docstring above."""
+    from app.telephony.campaign_compliance import call_type_for, readiness_ok, trai_window_ok
+
+    call_type = call_type_for(transactional)
+    started_at = datetime.utcnow().timestamp()
+    _campaign_status_set(
+        {
+            "status": "running",
+            "limit": limit,
+            "dry_run": dry_run,
+            "niche": niche,
+            "platform": platform,
+            "started_at": started_at,
+            "via": "celery",
+            "task_id": self.request.id,
+            "output": "",
+        }
+    )
+    try:
+        if not dry_run:
+            ok, reason = trai_window_ok(transactional)
+            if not ok:
+                _campaign_status_set(
+                    {
+                        "status": "blocked",
+                        "reason": reason,
+                        "limit": limit,
+                        "finished_at": datetime.utcnow().timestamp(),
+                        "via": "celery",
+                    }
+                )
+                return {"status": "blocked", "reason": reason}
+
+            ready, score, actions = readiness_ok()
+            if not ready:
+                reason = f"Telephony readiness {score}/100 below threshold"
+                _campaign_status_set(
+                    {
+                        "status": "blocked",
+                        "reason": reason,
+                        "actions": actions,
+                        "limit": limit,
+                        "finished_at": datetime.utcnow().timestamp(),
+                        "via": "celery",
+                    }
+                )
+                return {"status": "blocked", "reason": reason}
+
+        with get_db_session() as db:
+            niche_filter = "ai_marketing" if platform else niche
+            prospects = _get_campaign_prospects(db, limit, niche_filter)
+
+            if not prospects:
+                _campaign_status_set(
+                    {
+                        "status": "done",
+                        "limit": limit,
+                        "dry_run": dry_run,
+                        "finished_at": datetime.utcnow().timestamp(),
+                        "output": "No uncontacted leads found.",
+                        "via": "celery",
+                    }
+                )
+                return {"status": "done", "ok": 0, "skip": 0, "fail": 0}
+
+            result = _run_async(
+                _dial_vobiz_campaign(db, prospects, dry_run, call_type, client_id, platform)
+            )
+            # mark_called already committed inline per-lead inside
+            # _dial_vobiz_campaign (crash-safe) — nothing to batch here.
+
+        output = (
+            f"placed/queued={result.get('ok', 0)} blocked/skipped={result.get('skip', 0)} "
+            f"failed={result.get('fail', 0)}"
+        )
+        if result.get("error"):
+            output = result["error"]
+        _campaign_status_set(
+            {
+                "status": "done",
+                "limit": limit,
+                "dry_run": dry_run,
+                "niche": niche,
+                "finished_at": datetime.utcnow().timestamp(),
+                "output": output,
+                "via": "celery",
+            }
+        )
+        return {"status": "done", **{k: v for k, v in result.items() if k != "placed_ids"}}
+    except Exception as e:
+        logger.error(f"run_campaign_task failed: {e}")
+        _campaign_status_set(
+            {
+                "status": "error",
+                "error": str(e),
+                "limit": limit,
+                "finished_at": datetime.utcnow().timestamp(),
+                "via": "celery",
+            }
+        )
+        return {"status": "error", "error": str(e)}
+    finally:
+        release_campaign_lock()

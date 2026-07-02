@@ -1,7 +1,9 @@
 """
 Admin Ops API
 =============
-POST /api/admin/campaign/launch  → outbound call campaign fire karo (fire_calls.py)
+POST /api/admin/campaign/launch  → outbound call campaign (durable Celery task,
+                                    app.tasks.calling.run_campaign_task; falls back
+                                    to asyncio-subprocess fire_calls.py if broker down)
 GET  /api/admin/campaign/status  → last run status (Redis)
 GET  /api/admin/system/summary   → activation readiness + system snapshot
 
@@ -22,7 +24,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.auth_deps import require_admin
+from app.utils.logger import setup_logger
 
+logger = setup_logger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["Admin Ops"])
 
 _BASE = (
@@ -229,15 +233,72 @@ async def calls_recent(_user=Depends(require_admin)):
 @router.post("/campaign/launch", summary="Launch outbound call campaign")
 async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
     """
-    Fires fire_calls.py in background (asyncio subprocess).
-    Returns immediately; poll /api/admin/campaign/status for result.
-    TRAI 10am-7pm gate is enforced inside fire_calls.py itself.
+    Prefers a durable Celery task (app.tasks.calling.run_campaign_task) — survives
+    web-process restarts and doesn't hold one of the 2 web workers for the full
+    campaign duration (the old asyncio-subprocess path could hold one for up to
+    320s per launch). Falls back to the asyncio-subprocess path only if the Celery
+    broker is unreachable. Same compliance gates either way — single source of
+    truth in app/telephony/campaign_compliance.py, shared with scripts/fire_calls.py.
+    Single-flight: a Redis lock refuses a second launch while one is already running
+    (idempotency — prevents double-dialing the same lead batch from concurrent
+    admin clicks). Returns immediately; poll /api/admin/campaign/status for result.
     """
     if not 1 <= req.limit <= 200:
         raise HTTPException(status_code=400, detail="limit must be 1–200")
 
+    from app.tasks.calling import (
+        acquire_campaign_lock,
+        campaign_lock_held,
+        release_campaign_lock,
+    )
+
+    if campaign_lock_held():
+        raise HTTPException(
+            status_code=409,
+            detail="Campaign already running — check /api/admin/campaign/status",
+        )
+    # TTL scaled to worst-case runtime (~6s/call incl. the dial loop's
+    # asyncio.sleep(4) pace-limiter) + buffer — a fixed 400s lock expires
+    # mid-run for limit>~55, letting a second launch start concurrently and
+    # re-dial leads the first run hasn't reached yet.
+    if not acquire_campaign_lock(ttl_s=max(400, req.limit * 8 + 120)):
+        raise HTTPException(status_code=409, detail="Campaign already running")
+
+    try:
+        from app.worker import celery_app
+
+        async_result = celery_app.send_task(
+            "app.tasks.calling.run_campaign_task",
+            kwargs={
+                "limit": req.limit,
+                "dry_run": req.dry_run,
+                "niche": req.niche or "",
+                "client_id": req.client_id or "",
+                "platform": req.platform,
+                "transactional": False,
+            },
+        )
+        # Lock release is the Celery task's own responsibility (its `finally`) once
+        # it actually runs — NOT released here, so a second launch is refused for
+        # the duration of this campaign even before the worker picks the task up.
+        return {
+            "queued": True,
+            "limit": req.limit,
+            "dry_run": req.dry_run,
+            "platform": req.platform,
+            "via": "celery",
+            "task_id": async_result.id,
+            "poll": "/api/admin/campaign/status",
+        }
+    except Exception as exc:
+        logger.warning(f"Celery campaign enqueue failed, falling back to subprocess: {exc}")
+        # Lock stays held — the subprocess path below releases it (its own finally).
+
+    # ---- Fallback: web-process subprocess (unchanged behaviour, only reached
+    # when the Celery broker itself is unreachable) ----
     script = os.path.join(_BASE, "scripts", "fire_calls.py")
     if not os.path.isfile(script):
+        release_campaign_lock()
         raise HTTPException(status_code=500, detail="fire_calls.py not found in container")
 
     cmd = [sys.executable, script, "--limit", str(req.limit)]
@@ -259,6 +320,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
             "niche": req.niche,
             "platform": req.platform,
             "started_at": time.time(),
+            "via": "subprocess_fallback",
             "output": "",
         },
     )
@@ -284,6 +346,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
                     "niche": req.niche,
                     "started_at": time.time(),
                     "finished_at": time.time(),
+                    "via": "subprocess_fallback",
                     "output": output[-4000:],
                 },
             )
@@ -295,6 +358,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
                     "limit": req.limit,
                     "dry_run": req.dry_run,
                     "finished_at": time.time(),
+                    "via": "subprocess_fallback",
                     "output": "Timed out after 320s",
                 },
             )
@@ -306,8 +370,11 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
                     "error": str(exc),
                     "limit": req.limit,
                     "dry_run": req.dry_run,
+                    "via": "subprocess_fallback",
                 },
             )
+        finally:
+            release_campaign_lock()
 
     asyncio.create_task(_run_bg())
 
@@ -316,6 +383,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
         "limit": req.limit,
         "dry_run": req.dry_run,
         "platform": req.platform,
+        "via": "subprocess_fallback",
         "poll": "/api/admin/campaign/status",
     }
 
@@ -329,20 +397,44 @@ async def campaign_status(_user=Depends(require_admin)):
 
 @router.post("/campaign/stop", summary="Stop the currently running campaign")
 async def campaign_stop(_user=Depends(require_admin)):
-    """Terminate the running fire_calls subprocess (stops placing NEW calls).
+    """Stop the currently-running campaign — either path (stops placing NEW calls;
+    an in-flight call already on the carrier completes, no new numbers dialed).
 
-    In-flight call already on the carrier completes; no new numbers dialed.
+    Celery path: revokes the tracked task_id (best-effort — terminates the worker's
+    current task run). Subprocess-fallback path: terminates the child process.
     """
-    proc = _CAMPAIGN_PROC.get("proc")
-    if proc is None or getattr(proc, "returncode", 0) is not None:
-        return {"stopped": False, "reason": "no_running_campaign"}
-    try:
-        proc.terminate()  # type: ignore[union-attr]
-    except ProcessLookupError:
-        return {"stopped": False, "reason": "already_exited"}
-    except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)[:200]) from exc
     st = _redis_get(_CAMPAIGN_KEY) or {}
+    stopped_any = False
+
+    task_id = st.get("task_id")
+    if task_id and st.get("via") == "celery" and st.get("status") == "running":
+        try:
+            from app.worker import celery_app
+
+            celery_app.control.revoke(task_id, terminate=True, signal="SIGTERM")
+            stopped_any = True
+        except Exception as exc:
+            logger.warning(f"campaign_stop celery revoke failed: {exc}")
+        try:
+            from app.tasks.calling import release_campaign_lock
+
+            release_campaign_lock()
+        except Exception:
+            pass
+
+    proc = _CAMPAIGN_PROC.get("proc")
+    if proc is not None and getattr(proc, "returncode", 0) is None:
+        try:
+            proc.terminate()  # type: ignore[union-attr]
+            stopped_any = True
+        except ProcessLookupError:
+            pass
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=str(exc)[:200]) from exc
+
+    if not stopped_any:
+        return {"stopped": False, "reason": "no_running_campaign"}
+
     st.update({"status": "stopped", "finished_at": time.time()})
     _redis_set(_CAMPAIGN_KEY, st)
     return {"stopped": True}

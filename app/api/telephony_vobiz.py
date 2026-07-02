@@ -306,6 +306,7 @@ async def place_stream_call(
             "call_placed",
             f"Conversational call → {request.to} (niche: {getattr(request, 'niche', '') or 'general'})",
             status="ok" if placed else "error",
+            meta={"client_id": str(getattr(request, "client_id", "") or "")},
         )
     except Exception:
         pass

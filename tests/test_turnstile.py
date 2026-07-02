@@ -166,3 +166,37 @@ def test_armed_cloudflare_exception_fails_open(monkeypatch: pytest.MonkeyPatch) 
 
     r = client.post("/probe", json={}, headers={"X-Turnstile-Token": "anything"})
     assert r.status_code == 200
+
+
+# --------------------------------------------------------------------------- #
+# Real-app wiring — /api/localseo/geo-check (2026-07-01 hardening: this fans out
+# multiple free-LLM calls per public request, same abuse class as /api/public/
+# ai-demo, but was previously rate-limit-only).
+# --------------------------------------------------------------------------- #
+def test_geo_check_inert_when_secret_unset(client, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Today's default (no Turnstile creds) — geo-check works with no token."""
+    monkeypatch.delenv("TURNSTILE_SECRET_KEY", raising=False)
+    from app.marketing import geo_visibility
+
+    async def _fake_check(*a, **k):
+        return {"ok": True, "score": 50, "verdict": "ok", "probes": [], "tips": []}
+
+    monkeypatch.setattr(geo_visibility, "check", _fake_check)
+    r = client.post(
+        "/api/localseo/geo-check",
+        json={"business_name": "Test Biz", "niche": "salon", "city": "Pune"},
+    )
+    assert r.status_code == 200
+    assert r.json()["ok"] is True
+
+
+def test_geo_check_armed_missing_token_returns_403(
+    client, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("TURNSTILE_SECRET_KEY", "sk_test_secret")
+    _patch_siteverify(monkeypatch)
+    r = client.post(
+        "/api/localseo/geo-check",
+        json={"business_name": "Test Biz", "niche": "salon", "city": "Pune"},
+    )
+    assert r.status_code == 403

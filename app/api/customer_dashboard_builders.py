@@ -403,29 +403,61 @@ def _build_from_files(client_id: str, campaign: str | None) -> DashboardResponse
 def _calls_from_events(client_id: str, client_rec: dict | None):
     """AI-staff (swara) call activity → CallRow list + connected + calls_today.
 
-    Per-client call mapping abhi nahi (calls platform-level log hote), isliye
-    detail rows skip — sirf KPI counts. Returns ([], count, today)."""
+    Client-scoped via meta_json.client_id (2026-07-02) — call events now carry
+    client_id at the source (vobiz_stream.py call_finished, telephony_vobiz.py
+    call_placed, public_site._auto_callback). Events logged BEFORE this fix have
+    no client_id in meta and are correctly excluded (honest zero, not counted
+    toward any client — the prior behaviour showed every customer the SAME
+    platform-wide total under their own name, which this replaces).
+
+    The client_id filter runs IN SQL (meta_json LIKE, matching log_event's
+    json.dumps `"client_id": "..."` serialization) before the row limit, not
+    after — a naive "fetch latest 2000 platform-wide, then filter in Python"
+    would silently undercount a client's calls to 0 once platform-wide call
+    volume outpaces the window. The `.limit()` here bounds THIS client's own
+    rows, which realistically never approaches it. Python still re-checks the
+    exact client_id post-parse (defense-in-depth against LIKE false-positives).
+    Detail rows intentionally empty (this is a fallback-KPI count, not a log)."""
     total = 0
     today = 0
+    if not client_id:
+        return [], 0, 0
     try:
+        import json as _json
+
         from app.models.agent_event import AgentEvent
         from app.models.base import get_db_session
 
+        needle = f'"client_id": "{client_id}"'
         with get_db_session() as db:
             try:
-                total = (
-                    db.query(AgentEvent)
+                rows = (
+                    db.query(AgentEvent.meta_json, AgentEvent.created_at)
                     .filter(AgentEvent.member == "swara")
                     .filter(
                         AgentEvent.action.in_(["call_placed", "call_finished", "auto_callback"])
                     )
-                    .count()
+                    .filter(AgentEvent.meta_json.contains(needle, autoescape=True))
+                    .order_by(AgentEvent.created_at.desc())
+                    .limit(5000)
+                    .all()
                 )
+                today_date = datetime.utcnow().date()
+                for meta_raw, created_at in rows:
+                    try:
+                        meta = _json.loads(meta_raw or "{}")
+                    except Exception:
+                        continue
+                    if str(meta.get("client_id") or "") != client_id:
+                        continue
+                    total += 1
+                    if created_at and created_at.date() == today_date:
+                        today += 1
             except Exception:
                 total = 0
     except Exception:
         total = 0
-    # connected ~ all placed (no per-call status here); detail rows intentionally empty
+    # connected ~ all matched (no per-call status here); detail rows intentionally empty
     return [], int(total), int(today)
 
 
@@ -805,6 +837,38 @@ def _office_activity(client_id: str, rec: dict | None, limit: int = 12) -> list[
     return items[:limit]
 
 
+def _office_call_stats(client_id: str) -> tuple[int, int]:
+    """Client-scoped (calls_completed, bookings) for the office summary.
+
+    Deliberately does NOT reuse ``_calls_from_events`` — that helper counts ALL
+    platform "swara" call events (call events don't carry client_id in meta_json
+    today), which would show every customer the same platform-wide number under
+    their own name. Uses CallLog.client_id (properly scoped, same source as the
+    DB-backed dashboard builder) instead. Never raises — (0, 0) on any failure,
+    including "no DB rows for this client" (honest zero, not someone else's data)."""
+    try:
+        from app.models.base import get_db_session
+        from app.models.call_log import CallLog
+        from app.models.lead import Lead, LeadStatus
+
+        with get_db_session() as db:
+            connected = (
+                db.query(CallLog)
+                .filter(CallLog.client_id == client_id)
+                .filter(CallLog.duration_seconds > 0)
+                .count()
+            )
+            bookings = (
+                db.query(Lead)
+                .filter(Lead.assigned_to == client_id)
+                .filter(Lead.status == LeadStatus.APPOINTMENT)
+                .count()
+            )
+            return int(connected), int(bookings)
+    except Exception:
+        return 0, 0
+
+
 def _build_office(client_id: str) -> dict:
     """Assemble the full "Aapka Office" payload (never raises). Product-aware."""
     try:
@@ -843,6 +907,7 @@ def _build_office(client_id: str) -> dict:
             routing_set = False
 
         hot_leads = sum(1 for r in inquiries if _lead_score_from_inquiry(r) == "Hot")
+        calls_completed, bookings = _office_call_stats(client_id)
 
         tasks = _office_tasks(
             rec, product, onboarding, approvals_pending, trial, routing_set, hot_leads
@@ -857,11 +922,18 @@ def _build_office(client_id: str) -> dict:
         else:
             headline = f"📋 {len(tasks)} chhota kaam baaki — baaki AI team sambhaal rahi"
 
+        next_best_action = (
+            {"title": tasks[0]["title"], "why": tasks[0]["why"], "cta_target": tasks[0]["cta_target"]}
+            if tasks
+            else {"title": "Abhi kuch nahi karna", "why": "Sab set hai — AI team kaam pe lagi hai", "cta_target": ""}
+        )
+
         return {
             "ok": True,
             "enabled": True,
             "product": product,
             "headline": headline,
+            "next_best_action": next_best_action,
             "your_tasks": tasks,
             "activity": activity,
             "summary": {
@@ -869,6 +941,8 @@ def _build_office(client_id: str) -> dict:
                 "approvals_pending": approvals_pending,
                 "new_leads": leads_count,
                 "hot_leads": hot_leads,
+                "calls_completed": calls_completed,
+                "bookings": bookings,
                 "onboarding_pct": float(getattr(onboarding, "pct", 0) or 0),
             },
             "generated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
@@ -880,6 +954,7 @@ def _build_office(client_id: str) -> dict:
             "enabled": True,
             "product": "marketing",
             "headline": "",
+            "next_best_action": None,
             "your_tasks": [],
             "activity": [],
             "summary": {},
