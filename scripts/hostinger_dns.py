@@ -20,8 +20,10 @@ import urllib.request
 DOMAIN = "leadsgenai.in"
 BASE = f"https://developers.hostinger.com/api/dns/v1/zones/{DOMAIN}"
 
-# Improvement: keep p=none (monitoring, no delivery impact) + add aggregate reporting.
-NEW_DMARC = "v=DMARC1; p=none; rua=mailto:admin@leadsgenai.in; fo=1"
+# 2026-07-02 upgrade: p=none -> p=quarantine. SPF + DKIM (hostingermail-a) dono
+# live/aligned verified, outbound volume chhota (cap 25/day) — direct quarantine safe.
+# Spoofed mail ab spam me jayegi; rua reports admin@ pe aate rahenge.
+NEW_DMARC = "v=DMARC1; p=quarantine; rua=mailto:admin@leadsgenai.in; fo=1"
 PAYLOAD = {
     "overwrite": False,
     "zone": [
