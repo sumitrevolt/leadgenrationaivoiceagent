@@ -242,6 +242,16 @@
         <div id="healthList"><div class="loading-note">⏳ Loading…</div></div>
       </div>
     </div>
+
+    <div id="failureConsoleCard" class="panel-box" style="margin-top:14px">
+      <h3 style="display:flex;align-items:center;gap:8px">
+        🚨 Reliability Console — failed jobs &amp; recovery
+        <button id="dlqSweepBtn" style="margin-left:auto;border:1px solid var(--line);background:#fff;
+          border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
+          title="Failed jobs ko backoff + attempt-cap ke saath dobara chalao">🔁 Retry sweep</button>
+      </h3>
+      <div id="failureConsoleList"><div class="loading-note">⏳ Loading…</div></div>
+    </div>
   </div>
 
   <div id="roomTooltip"></div>
@@ -880,6 +890,44 @@
     });
   };
 
+  // ---- Reliability Console: DLQ failed/dead jobs + one-click retry-sweep -----
+  // Real data from /api/growth/infra/dlq (failed + dead) + recovery via
+  // /api/growth/infra/dlq/sweep — both admin-gated. No mock: if empty, shows
+  // healthy state; if the endpoint errors, shows the error honestly.
+  OFFICE.renderFailureConsole = async function(){
+    var el = document.getElementById("failureConsoleList");
+    if (!el) return;
+    var failed = { count: 0, items: [] }, dead = { count: 0, items: [] };
+    try {
+      var rf = await fetch("/api/growth/infra/dlq?key=failed&limit=15", { headers: hdrs() });
+      if (rf.ok) failed = await rf.json();
+      var rd = await fetch("/api/growth/infra/dlq?key=dead&limit=15", { headers: hdrs() });
+      if (rd.ok) dead = await rd.json();
+    } catch (e) {
+      el.innerHTML = '<div class="empty-note">DLQ load nahi ho paya (Redis reachable?).</div>';
+      return;
+    }
+    var fc = failed.count || 0, dc = dead.count || 0;
+    var head = '<div class="health-row"><span class="health-dot" style="background:' +
+      (fc > 0 ? "#ef4444" : "#10b981") + '"></span>Failed (retry-able): <b>' + esc(fc) + '</b>' +
+      ' &nbsp;·&nbsp; <span class="health-dot" style="background:' + (dc > 0 ? "#f59e0b" : "#10b981") +
+      '"></span>Dead (exhausted): <b>' + esc(dc) + '</b></div>';
+    var items = (failed.items || []).concat(dead.items || []).slice(0, 12);
+    var rows = items.map(function(it){
+      var task = esc(it.task || it.name || it.job || "unknown task");
+      var err = esc(String(it.error || it.exc || it.reason || "").slice(0, 120));
+      var when = it.ts || it.at || it.failed_at;
+      return '<div class="item-row"><div class="ir-name">⚠️ ' + task + '</div>' +
+        (err ? '<div class="ir-meta">' + err + '</div>' : '') +
+        (when ? '<div class="ir-meta">' + esc(relTime(when)) + '</div>' : '') + '</div>';
+    }).join("");
+    if (fc === 0 && dc === 0) {
+      el.innerHTML = head + '<div class="empty-note">Koi failed/dead job nahi — automation healthy hai. 🎉</div>';
+    } else {
+      el.innerHTML = head + (rows || '<div class="empty-note">Counts hain par preview items abhi nahi mile.</div>');
+    }
+  };
+
   OFFICE.openHealthPanel = function(job){
     var panel = document.getElementById("agentPanel");
     var body = document.getElementById("panelBody");
@@ -1200,6 +1248,7 @@
     OFFICE.renderPipeline(data.pipeline);
     OFFICE.renderApprovals(data.approvals);
     OFFICE.renderSystemHealth(data.system_health);
+    OFFICE.renderFailureConsole();
   };
 
   OFFICE.game = new Phaser.Game({
@@ -1246,6 +1295,22 @@
     OFFICE.refreshSnapshot().finally(function(){
       btn.disabled = false; btn.textContent = "🔄 Refresh now";
     });
+  };
+
+  document.getElementById("dlqSweepBtn").onclick = async function(){
+    var btn = document.getElementById("dlqSweepBtn");
+    btn.disabled = true; btn.textContent = "⏳ Sweeping…";
+    try {
+      var r = await fetch("/api/growth/infra/dlq/sweep?limit=20", { method: "POST", headers: hdrs() });
+      var d = r.ok ? await r.json() : {};
+      var retried = (d.retried || []).length != null ? (d.retried || []).length : (d.retried || 0);
+      var dead = (d.dead || []).length != null ? (d.dead || []).length : (d.dead || 0);
+      btn.textContent = "✓ retried=" + retried + " dead=" + dead;
+    } catch (e) {
+      btn.textContent = "✕ sweep fail";
+    }
+    await OFFICE.renderFailureConsole();
+    setTimeout(function(){ btn.disabled = false; btn.textContent = "🔁 Retry sweep"; }, 3000);
   };
 
   document.getElementById("legendToggle").onclick = function(){
