@@ -909,6 +909,15 @@ async def build_approvals() -> dict[str, Any]:
         out["counts"]["total_pending"] = len(out["queue"])
     except Exception:
         pass
+    # Audit-trail strip — "who decided what, when" right under the panel that
+    # decides it, closing the loop visually (2026-07-03).
+    try:
+        from app.platform import approvals_bridge
+
+        out["recent_decisions"] = approvals_bridge.recent_decisions(limit=8)
+    except Exception as e:
+        logger.debug(f"[office_hq] recent_decisions skipped: {e}")
+        out["recent_decisions"] = []
     return out
 
 

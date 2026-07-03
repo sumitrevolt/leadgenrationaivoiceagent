@@ -317,3 +317,43 @@ def test_ts_to_iso_never_raises():
     assert ab._ts_to_iso("2026-01-01T00:00:00") == "2026-01-01T00:00:00"
     assert ab._ts_to_iso(1782984616).startswith("2026-")
     assert ab._ts_to_iso(-5) == "-5" or ab._ts_to_iso(-5) == ""  # weird input, no crash
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-03: recent_decisions() — audit-trail strip for the Approvals panel
+# --------------------------------------------------------------------------- #
+def test_recent_decisions_newest_first_with_titles(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr(ab, "_drafts_sales", lambda smap: [])
+    _write(
+        ab._COORD_RUNS,
+        [
+            {"run_id": "r1", "execute": False, "goal": "clear hot replies", "summary": "s1", "at": "t1"},
+            {"run_id": "r2", "execute": False, "goal": "audit outreach", "summary": "s2", "at": "t2"},
+        ],
+    )
+    ab.decide("coordinator", "r1", "approve", by="sumit")
+    ab.decide("coordinator", "r2", "reject", by="sumit")
+    out = ab.recent_decisions(limit=8)
+    assert [d["id"] for d in out] == ["r2", "r1"]  # newest decision first
+    assert out[0]["status"] == "rejected"
+    assert out[0]["by"] == "sumit"
+    assert out[0]["title"].startswith("Plan: audit outreach")  # resolved from coordinator draft
+    assert out[1]["status"] == "approved"
+
+
+def test_recent_decisions_collapses_to_latest_and_respects_limit(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr(ab, "_drafts_sales", lambda smap: [])
+    _write(ab._COORD_RUNS, [{"run_id": "r1", "execute": False, "goal": "g", "summary": "s", "at": "t1"}])
+    ab.decide("coordinator", "r1", "approve", by="a")
+    ab.decide("coordinator", "r1", "reject", by="b")  # noop (already decided) — status sidecar still append-only
+    out = ab.recent_decisions(limit=1)
+    assert len(out) == 1
+    assert out[0]["id"] == "r1"
+    assert out[0]["status"] == "approved"  # decide() no-ops once decided; latest row still reflects the first decision
+
+
+def test_recent_decisions_never_raises_on_missing_file(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    assert ab.recent_decisions() == []

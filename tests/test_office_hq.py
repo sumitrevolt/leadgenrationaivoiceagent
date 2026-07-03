@@ -393,6 +393,8 @@ async def test_build_approvals_keeps_legacy_shape_and_adds_queue():
     assert "drafts" in out and "counts" in out
     # Additive unified queue for the actionable Approvals panel.
     assert isinstance(out.get("queue"), list)
+    # 2026-07-03: audit-trail strip — always present (possibly empty), never raises.
+    assert isinstance(out.get("recent_decisions"), list)
 
 
 def test_parse_boss_reply_formats():
