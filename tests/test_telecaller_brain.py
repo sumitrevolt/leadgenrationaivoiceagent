@@ -303,3 +303,46 @@ def test_self_pitch_block_absent_for_client_niche() -> None:
     b = _system_prompt_brain("solar")
     prompt = TelecallerBrain._build_system_prompt(b)
     assert "SELF-PITCH MODE" not in prompt
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-03 — reply_stream_sentences() was missing the post-close-wrap and
+# buy/close-signal short-circuits that reply() already had. Since
+# USE_LLM_STREAM_TTS=1 routes every real phone call through the STREAM path
+# (not reply()), a real caller's explicit close signal never short-circuited
+# on a live call — confirmed with a real 2026-07-03 test-call transcript
+# ("प्री प्लान एक्टिवेट करो" got "Ji, zara dobara boliye?" instead of a
+# close-confirm). These tests lock in that the stream path now matches reply().
+# --------------------------------------------------------------------------- #
+async def test_stream_reply_close_signal_short_circuits_before_llm() -> None:
+    b = _brain("ai_marketing")
+    b.close_signal_fired = False
+    b.caller_phone = ""
+    out: list[str] = []
+    async for sent in TelecallerBrain.reply_stream_sentences(
+        b, [], "प्री प्लान एक्टिवेट करो।"
+    ):
+        out.append(sent)
+    text = " ".join(out)
+    assert "WhatsApp" in text
+    assert "shuru kar deti hoon" in text
+
+
+async def test_stream_reply_post_close_wrap_pivots_to_whatsapp() -> None:
+    b = _brain("ai_marketing")
+    b.close_signal_fired = False
+    b.caller_phone = ""
+    history = [
+        {
+            "role": "assistant",
+            "content": "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp number confirm kar dijiye.",
+        }
+    ]
+    out: list[str] = []
+    async for sent in TelecallerBrain.reply_stream_sentences(
+        b, history, "haan yahi number 9876543210"
+    ):
+        out.append(sent)
+    text = " ".join(out)
+    assert "WhatsApp" in text
+    assert "9 8 7 6 5 4 3 2 1 0" in text
