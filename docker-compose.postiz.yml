@@ -19,6 +19,10 @@ services:
       DATABASE_URL: "postgresql://postiz:${POSTIZ_DB_PASSWORD:?}@postiz-postgres:5432/postiz"
       REDIS_URL: "redis://postiz-redis:6379"
       BACKEND_INTERNAL_URL: "http://localhost:3000"
+      # v2.12+ backend requires Temporal (BullMQ replacement) — bina iske
+      # backend port 3000 pe start hi nahi hota (ECONNREFUSED ::1:7233) aur
+      # nginx andar 502 deta hai har /api call pe (register bhi). 2026-07-03 fix.
+      TEMPORAL_ADDRESS: "temporal:7233"
       IS_GENERAL: "true"
       # Pehla admin account banne ke baad "true" karo (open signup band).
       DISABLE_REGISTRATION: "${POSTIZ_DISABLE_REGISTRATION:-false}"
@@ -43,10 +47,13 @@ services:
       - "127.0.0.1:5000:5000"
     networks:
       - postiz-network
+      - temporal-network
     depends_on:
       postiz-postgres:
         condition: service_healthy
       postiz-redis:
+        condition: service_healthy
+      temporal:
         condition: service_healthy
 
   postiz-postgres:
@@ -81,11 +88,88 @@ services:
       timeout: 3s
       retries: 5
 
+  # -----------------------------------------------------------------------
+  # Temporal stack (postiz v2.12+ hard requirement — replaces old BullMQ
+  # queue). Minimal footprint (no temporal-ui/admin-tools, debug-only tools
+  # nahi chahiye). Isolated temporal-network, sirf postiz backend ise use
+  # karta. Official ref: gitroomhq/postiz-docker-compose.
+  # -----------------------------------------------------------------------
+  temporal-postgresql:
+    image: postgres:16-alpine
+    container_name: leadgen_temporal_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: temporal
+      POSTGRES_USER: temporal
+    volumes:
+      - temporal-db-data:/var/lib/postgresql/data
+    networks:
+      - temporal-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+  temporal-elasticsearch:
+    image: elasticsearch:7.17.27
+    container_name: leadgen_temporal_es
+    restart: unless-stopped
+    environment:
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+      - xpack.security.enabled=false
+    networks:
+      - temporal-network
+    expose:
+      - "9200"
+    volumes:
+      - temporal-es-data:/usr/share/elasticsearch/data
+
+  temporal:
+    image: temporalio/auto-setup:1.28.2
+    container_name: leadgen_temporal
+    restart: unless-stopped
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - POSTGRES_USER=temporal
+      - POSTGRES_PWD=temporal
+      - POSTGRES_SEEDS=temporal-postgresql
+      - DYNAMIC_CONFIG_FILE_PATH=config/dynamicconfig/development-sql.yaml
+      - ENABLE_ES=true
+      - ES_SEEDS=temporal-elasticsearch
+      - ES_VERSION=v7
+      - TEMPORAL_NAMESPACE=default
+    networks:
+      - temporal-network
+    volumes:
+      - ./deploy/postiz/dynamicconfig:/etc/temporal/config/dynamicconfig
+    depends_on:
+      temporal-postgresql:
+        condition: service_healthy
+      temporal-elasticsearch:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "7233"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 30s
+
 volumes:
   postiz-config:
   postiz-db-data:
   postiz-redis-data:
   postiz-uploads:
+  temporal-db-data:
+  temporal-es-data:
 
 networks:
   postiz-network:
+  temporal-network:
