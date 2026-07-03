@@ -245,3 +245,53 @@ async def test_close_signal_fired_resets_on_next_turn(monkeypatch):
         "mujhe thoda sochna hai",
     )
     assert brain.close_signal_fired is False
+
+
+@pytest.mark.asyncio
+async def test_send_close_whatsapp_personalizes_link_with_phone_and_niche(monkeypatch):
+    from app.integrations import whatsapp as wa
+
+    monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")
+    monkeypatch.setenv("VOICE_CLOSE_WHATSAPP", "1")
+
+    sent = {}
+
+    class FakeSender:
+        async def send_text_message(self, to_number, message):
+            sent["message"] = message
+            return {"ok": True}
+
+    monkeypatch.setattr(wa, "get_whatsapp_sender", lambda: FakeSender())
+    brain = TelecallerBrain(niche="salon", client_name="Glow Salon")
+    brain.set_caller_phone("9876543210")
+    await brain._send_close_whatsapp()
+    assert "phone=9876543210" in sent["message"]
+    assert "biz=Glow%20Salon" in sent["message"]
+    assert "niche=salon" in sent["message"]
+
+
+@pytest.mark.asyncio
+async def test_send_close_whatsapp_omits_biz_for_ai_marketing_niche(monkeypatch):
+    """ai_marketing persona pitches the platform itself -- client_name holds an
+    internal placeholder ("Demo Co"), not the prospect's real business, so the
+    personalized link must omit biz= (matches _on_close_signal's existing
+    business_name-blank rule for this niche, telecaller_brain.py:807)."""
+    from app.integrations import whatsapp as wa
+
+    monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")
+    monkeypatch.setenv("VOICE_CLOSE_WHATSAPP", "1")
+
+    sent = {}
+
+    class FakeSender:
+        async def send_text_message(self, to_number, message):
+            sent["message"] = message
+            return {"ok": True}
+
+    monkeypatch.setattr(wa, "get_whatsapp_sender", lambda: FakeSender())
+    brain = TelecallerBrain(niche="ai_marketing", client_name="Demo Co")
+    brain.set_caller_phone("9876543210")
+    await brain._send_close_whatsapp()
+    assert "biz=" not in sent["message"]
+    assert "phone=9876543210" in sent["message"]
+    assert "niche=ai_marketing" in sent["message"]
