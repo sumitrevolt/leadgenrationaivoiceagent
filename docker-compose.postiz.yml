@@ -5,6 +5,12 @@
 # Apna alag postgres/redis + alag network — main leadgen stack se fully isolated
 # (leadgen_db/redis ko touch nahi karta). Sirf 127.0.0.1:5000 pe exposed; public
 # access host-Caddy reverse-proxy (postiz.leadsgenai.in) se hota hai.
+#
+# name: EXPLICIT project name zaroori (2026-07-03 incident) — dono compose files
+# (yeh + docker-compose.vps.yml) same /opt/leadgen dir se chalte, bina naam ke
+# Compose dono ko ek hi "leadgen" project maan leta, aur --remove-orphans dusre
+# stack ko "orphan" samajh ke pura STOP+DELETE kar deta (prod outage hua tha).
+name: leadgen-postiz
 
 services:
   postiz:
