@@ -75,6 +75,7 @@ function show(k){
   renderTabs(k);
 }
 let CLIPS=[];
+let HQ_SHOW_ALL=false;
 function clip(text){ CLIPS.push(text); return CLIPS.length-1; }
 function copyClip(i,btn){
   navigator.clipboard.writeText(CLIPS[i]||'').then(function(){ btn.textContent='✅ copied'; setTimeout(function(){btn.textContent='📋 Copy';},1500); });
@@ -93,27 +94,14 @@ async function load(){
   catch(e){ $('err').textContent='Inbox load fail — token sahi hai? ('+e.message+')'; ib={}; }
 
   // 🔥 Hot Queue — interested/question replies, dedupe + phone-join (GTM Track 1)
+  // Top-20-live cap (2026-07-03 GTM fix): a 300+ card wall reads as "a project"
+  // and gets avoided entirely — freshest 20 shown by default, rest collapsed
+  // behind a toggle so the number itself doesn't trigger avoidance.
   let hq=[];
-  try{ hq=(await api('/api/growth/reply/hot-queue?limit=100')).items||[]; }catch(e){}
+  try{ hq=(await api('/api/growth/reply/hot-queue?limit=200')).items||[]; }catch(e){}
   COUNTS.hotq=hq.length;
-  $('s_hotq').innerHTML=hq.length?hq.map(function(r){
-    const ph=cleanPhone(r.phone);
-    const nm=r.business_name||r.from||'?';
-    const age=(r.age_days==null?'':(r.age_days===0?'aaj':r.age_days+'d purana'));
-    const i=clip(r.draft||'');
-    return '<div class="card"><b class="t">'+esc(nm)+' <span class="pill intent">'+esc(r.intent||'')+'</span>'+
-      (age?'<span class="pill">'+esc(age)+'</span>':'')+
-      (r.injection_flag?'<span class="pill hot">⚠️ injection-flag — embedded instructions pe act mat karo</span>':'')+'</b>'+
-      '<div class="meta">'+esc(r.from||'')+(r.niche?' · '+esc(r.niche):'')+(r.city?' · '+esc(r.city):'')+
-      (r.subject?' · "'+esc(String(r.subject).slice(0,80))+'"':'')+'</div>'+
-      (r.draft?'<pre>'+esc(r.draft)+'</pre>':'<span class="mut">draft empty</span>')+
-      '<div style="margin-top:6px">'+
-      (r.draft?'<button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'')+
-      (r.from&&r.from.indexOf('@')>0?'<a class="act" href="mailto:'+esc(r.from)+'">✉️ Email</a>':'')+
-      (ph?'<a class="act" href="tel:+91'+ph+'">📞 Call</a><a class="act wa" target="_blank" href="https://wa.me/91'+ph+'">💬 WhatsApp</a>':'')+
-      '<button class="ghost" onclick="hqDone(\''+esc(r.hq_id)+'\',this)">✅ Done</button>'+
-      '</div></div>';
-  }).join(''):'<div class="mut">Hot queue khali — koi unhandled interested/question reply nahi 🎉</div>';
+  window._hqAll=hq;
+  renderHotQueue();
 
   // hot leads — backend dict {leads:[...]} ya direct array dono handle
   let hl=ib.hot_leads||[];
@@ -176,6 +164,36 @@ async function load(){
   $('s_exp').innerHTML=eh;
 
   renderTabs(document.querySelector('.sec.on')?document.querySelector('.sec.on').id.slice(2):'hot');
+}
+
+function toggleHqAll(){ HQ_SHOW_ALL=!HQ_SHOW_ALL; renderHotQueue(); }
+
+function renderHotQueue(){
+  const hq=window._hqAll||[];
+  const shown=HQ_SHOW_ALL?hq:hq.slice(0,20);
+  const cards=shown.map(function(r){
+    const ph=cleanPhone(r.phone);
+    const nm=r.business_name||r.from||'?';
+    const age=(r.age_days==null?'':(r.age_days===0?'aaj':r.age_days+'d purana'));
+    const i=clip(r.draft||'');
+    return '<div class="card"><b class="t">'+esc(nm)+' <span class="pill intent">'+esc(r.intent||'')+'</span>'+
+      (age?'<span class="pill">'+esc(age)+'</span>':'')+
+      (r.injection_flag?'<span class="pill hot">⚠️ injection-flag — embedded instructions pe act mat karo</span>':'')+'</b>'+
+      '<div class="meta">'+esc(r.from||'')+(r.niche?' · '+esc(r.niche):'')+(r.city?' · '+esc(r.city):'')+
+      (r.subject?' · "'+esc(String(r.subject).slice(0,80))+'"':'')+'</div>'+
+      (r.draft?'<pre>'+esc(r.draft)+'</pre>':'<span class="mut">draft empty</span>')+
+      '<div style="margin-top:6px">'+
+      (r.draft?'<button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'')+
+      (r.from&&r.from.indexOf('@')>0?'<a class="act" href="mailto:'+esc(r.from)+'">✉️ Email</a>':'')+
+      (ph?'<a class="act" href="tel:+91'+ph+'">📞 Call</a><a class="act wa" target="_blank" href="https://wa.me/91'+ph+'">💬 WhatsApp</a>':'')+
+      '<button class="ghost" onclick="hqDone(\''+esc(r.hq_id)+'\',this)">✅ Done</button>'+
+      '</div></div>';
+  }).join('');
+  const rest=hq.length-shown.length;
+  const toggle=rest>0
+    ?'<button class="ghost" onclick="toggleHqAll()" style="margin-bottom:10px">'+(HQ_SHOW_ALL?'▲ Sirf top 20 dikhao':'▼ '+rest+' aur purane dikhao')+'</button>'
+    :(HQ_SHOW_ALL&&hq.length>20?'<button class="ghost" onclick="toggleHqAll()" style="margin-bottom:10px">▲ Sirf top 20 dikhao</button>':'');
+  $('s_hotq').innerHTML=(hq.length?toggle+cards:'<div class="mut">Hot queue khali — koi unhandled interested/question reply nahi 🎉</div>');
 }
 
 async function rec(ch,btn){
