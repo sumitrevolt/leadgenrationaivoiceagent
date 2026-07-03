@@ -1141,6 +1141,113 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
     return actions[:6]
 
 
+def build_enterprise_features(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Pure feature-readiness matrix for /app/office.
+
+    This is not a fake roadmap card. Every feature listed here is either backed
+    by a section already present in the same snapshot, or points to the exact
+    panel/action where the operator can use it. No IO, no side effects.
+    """
+    try:
+        metrics = snapshot.get("metrics") or {}
+        rooms = snapshot.get("rooms") or []
+        agents = snapshot.get("agents") or []
+        pipeline = snapshot.get("pipeline") or []
+        approvals = snapshot.get("approvals") or {}
+        health = snapshot.get("system_health") or {}
+        schedule = snapshot.get("schedule") or []
+        coordination = snapshot.get("coordination") or []
+        nba = snapshot.get("next_best_actions") or []
+
+        active_agents = len([a for a in agents if a.get("status") != "offline"])
+        room_issues = sum(
+            int(r.get("blockedTaskCount") or 0) + int(r.get("errorCount") or 0)
+            for r in rooms
+        )
+        pipeline_items = sum(int(s.get("count") or 0) for s in pipeline)
+        stuck_items = sum(int(s.get("stuckCount") or 0) for s in pipeline)
+        error_items = sum(int(s.get("errorCount") or 0) for s in pipeline)
+        pending_approvals = int((approvals.get("counts") or {}).get("total_pending")
+                                or (approvals.get("counts") or {}).get("pending") or 0)
+        health_jobs = health.get("jobs") or []
+        overdue_jobs = len(health.get("overdue") or [])
+        never_ran = len(health.get("never_ran") or [])
+        queue = health.get("queue") or {}
+        dlq_count = int(queue.get("dlq") or 0)
+
+        def status(warn: bool = False, ready: bool = True) -> str:
+            if not ready:
+                return "action_needed"
+            return "attention" if warn else "live"
+
+        features = [
+            {"id": "office_map", "name": "Interactive office map", "room": "Coordinator",
+             "status": status(ready=bool(rooms and agents)), "metric": f"{len(rooms)} rooms / {len(agents)} agents",
+             "cta_target": "stageWrap"},
+            {"id": "live_roster", "name": "Live AI staff roster", "room": "Team",
+             "status": status(warn=active_agents == 0, ready=bool(agents)),
+             "metric": f"{active_agents}/{len(agents)} active", "cta_target": "leaderboardPanel"},
+            {"id": "room_health", "name": "Room-level blocked/error signals", "room": "Ops",
+             "status": status(warn=room_issues > 0, ready=bool(rooms)),
+             "metric": f"{room_issues} room issues", "cta_target": "stageWrap"},
+            {"id": "kpi_board", "name": "Executive KPI board", "room": "Finance",
+             "status": "live", "metric": f"MRR Rs {int(metrics.get('mrr') or 0):,}", "cta_target": "kpiRow"},
+            {"id": "next_actions", "name": "Next-best-action command strip", "room": "Boss",
+             "status": status(warn=bool(nba)), "metric": f"{len(nba)} actions", "cta_target": "nbaCard"},
+            {"id": "lead_pipeline", "name": "12-stage lead-to-renewal pipeline", "room": "Sales",
+             "status": status(ready=bool(pipeline)), "metric": f"{pipeline_items} items", "cta_target": "pipelineBoard"},
+            {"id": "stage_drilldown", "name": "Pipeline drill-down + filters", "room": "Sales",
+             "status": status(ready=bool(pipeline)), "metric": "up to 50 items/stage", "cta_target": "pipelineBoard"},
+            {"id": "owner_assignment", "name": "Owner assignment sidecar", "room": "Sales",
+             "status": "live", "metric": "assign agent per item", "cta_target": "pipelineBoard"},
+            {"id": "sla_repair", "name": "SLA stuck-item repair", "room": "Ops",
+             "status": status(warn=stuck_items > 0), "metric": f"{stuck_items} stuck", "cta_target": "pipelineBoard"},
+            {"id": "approval_queue", "name": "Unified approvals queue", "room": "Admin",
+             "status": status(warn=pending_approvals > 0), "metric": f"{pending_approvals} pending",
+             "cta_target": "approvalsPanel"},
+            {"id": "boss_review", "name": "Boss review recommendations", "room": "Boss",
+             "status": "live", "metric": "recommend-only", "cta_target": "approvalsPanel"},
+            {"id": "system_health", "name": "Automation health monitor", "room": "Engineering",
+             "status": status(warn=(overdue_jobs + never_ran) > 0, ready=bool(health)),
+             "metric": f"{overdue_jobs} overdue / {never_ran} never", "cta_target": "systemHealthPanel"},
+            {"id": "dlq_console", "name": "DLQ retry and repair desk", "room": "Reliability",
+             "status": status(warn=dlq_count > 0), "metric": f"{dlq_count} dlq", "cta_target": "failureConsoleCard"},
+            {"id": "hot_queue", "name": "Reception hot-reply tray", "room": "Sales",
+             "status": "live", "metric": "reply_agent hot queue", "cta_target": "hotQueueCard"},
+            {"id": "schedule", "name": "IST automation day-plan", "room": "Ops",
+             "status": status(ready=bool(schedule)), "metric": f"{len(schedule)} jobs", "cta_target": "schedulePanel"},
+            {"id": "live_feed", "name": "Live automation event feed", "room": "Ops",
+             "status": "live", "metric": "8s event poll", "cta_target": "feedCard"},
+            {"id": "coordination_history", "name": "Coordinator/council run history", "room": "Boss",
+             "status": status(warn=not coordination), "metric": f"{len(coordination)} recent", "cta_target": "feedCard"},
+            {"id": "workflow_runs", "name": "Workflow run monitor", "room": "Automation",
+             "status": "live", "metric": "flow-run endpoint", "cta_target": "workflowRunsCard"},
+            {"id": "system_map", "name": "Expandable system architecture map", "room": "Engineering",
+             "status": "live", "metric": "control-center iframe", "cta_target": "systemMapCard"},
+            {"id": "briefing", "name": "Swara morning briefing", "room": "Voice",
+             "status": "live", "metric": "text + cached audio", "cta_target": "briefingBtn"},
+        ]
+
+        live_count = len([f for f in features if f["status"] == "live"])
+        attention_count = len([f for f in features if f["status"] == "attention"])
+        action_needed_count = len([f for f in features if f["status"] == "action_needed"])
+        return {
+            "title": "Advanced Virtual Office",
+            "summary": {
+                "total": len(features),
+                "live": live_count,
+                "attention": attention_count,
+                "action_needed": action_needed_count,
+                "pipeline_items": pipeline_items,
+                "pipeline_errors": error_items,
+            },
+            "features": features,
+        }
+    except Exception as e:
+        logger.debug(f"[office_hq] build_enterprise_features failed: {e}")
+        return {"title": "Advanced Virtual Office", "summary": {"total": 0}, "features": []}
+
+
 async def build_snapshot() -> dict[str, Any]:
     """Top-level composer — the ONE call the frontend needs. Never raises.
 
@@ -1194,6 +1301,7 @@ async def build_snapshot() -> dict[str, Any]:
         "cached": False,
     }
     snapshot["next_best_actions"] = next_best_actions(snapshot)
+    snapshot["enterprise_features"] = build_enterprise_features(snapshot)
 
     try:
         from app.cache import cache

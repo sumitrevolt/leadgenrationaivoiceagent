@@ -69,7 +69,10 @@ async def test_build_pipeline_always_returns_12_tagged_stages():
 async def test_build_snapshot_never_raises_and_has_all_sections():
     snap = await office_hq.build_snapshot()
     assert snap["ok"] is True
-    for key in ("rooms", "agents", "metrics", "pipeline", "approvals", "system_health", "next_best_actions"):
+    for key in (
+        "rooms", "agents", "metrics", "pipeline", "approvals", "system_health",
+        "next_best_actions", "enterprise_features",
+    ):
         assert key in snap
 
 
@@ -103,6 +106,28 @@ def test_next_best_actions_is_pure_and_deterministic():
 
 def test_next_best_actions_empty_snapshot_is_safe():
     assert office_hq.next_best_actions({}) == []
+
+
+def test_enterprise_features_contract_has_20_clickable_features():
+    snapshot = {
+        "rooms": [{"id": "coordinator", "blockedTaskCount": 0, "errorCount": 0}],
+        "agents": [{"id": "manager", "status": "working"}, {"id": "rohan", "status": "offline"}],
+        "metrics": {"mrr": 1999},
+        "pipeline": [{"id": "lead_source", "count": 2, "stuckCount": 1, "errorCount": 0}],
+        "approvals": {"counts": {"total_pending": 1}},
+        "system_health": {"jobs": [{"job": "ops", "status": "ok"}], "overdue": [], "never_ran": [], "queue": {"dlq": 0}},
+        "schedule": [{"job": "ops"}],
+        "coordination": [],
+        "next_best_actions": [{"label": "Review", "cta_target": "approvals"}],
+    }
+    out = office_hq.build_enterprise_features(snapshot)
+    assert out["summary"]["total"] == 20
+    assert len(out["features"]) == 20
+    assert len({f["id"] for f in out["features"]}) == 20
+    for f in out["features"]:
+        assert f["name"]
+        assert f["status"] in ("live", "attention", "action_needed")
+        assert f["cta_target"]
 
 
 def test_needs_approval_matches_pending_draft_title_substring():

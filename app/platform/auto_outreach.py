@@ -544,19 +544,33 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
 
         from app.platform import prospector
 
-        # Pick: status ready + email present + not already emailed.
-        # pending_for_outreach = ALL prospects me se reachable+unemailed (oldest-first),
-        # list_prospects(limit=500) ke bajaye — jiska 500-newest cap reachable backlog
-        # ko outreach se chhupa deta tha (470 emailable prospects kabhi email nahi hote).
+        # Pick: status ready + not already emailed (emailable hone ka baad `_valid_email`
+        # gate karta hai, jo `skipped_no_email` counter ko MEANINGFUL banata hai).
+        # `_read_all()` direct use — `list_prospects` 500-newest hard-cap reachable
+        # backlog ko chhupa deta tha (470 reachable prospects kabhi email nahi hote the).
+        # pending_for_outreach() ka email-filter YAHAAN deliberately nahi lagate — wo
+        # sirf caller-side "jo candidates mere paas aaye" semantics ke liye filter karta;
+        # yahan hum chahte hain ki NO-EMAIL ready prospects skip count me bhi aayein
+        # (product metric: "kitne ready leads ko email nahi mil saka?").
         candidates: list[dict[str, Any]] = []
-        for p in prospector.pending_for_outreach(limit=500):
+        try:
+            _ready_pool = list(prospector._read_all())
+        except Exception:
+            _ready_pool = []
+        # Oldest first (FIFO backlog drain — purana pehle email jaye).
+        _ready_pool.sort(key=lambda r: str(r.get("found_at") or ""))
+        for p in _ready_pool:
+            if (str(p.get("status") or "ready") != "ready"):
+                continue
+            if p.get("emailed_at"):
+                continue  # already emailed — never re-send (defensive)
             email = str(p.get("email") or "").strip()
             if not _valid_email(email):
                 result["skipped_no_email"] += 1
                 continue
-            if p.get("emailed_at"):
-                continue  # already emailed — never re-send (defensive; pre-filtered)
             candidates.append(p)
+            if len(candidates) >= 500:
+                break  # safety cap — pending_for_outreach jaisa behavior
 
         try:
             daily_cap = int(getattr(settings, "outreach_daily_cap", 25))

@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1038 operations)
+## Endpoint Index — auto-generated from OpenAPI (1044 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -957,7 +957,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (205)
+### Growth  (207)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
@@ -1089,6 +1089,8 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/growth/prospects/search` — Prospects Search
 - `POST  ` `/api/growth/reply/feedback` — Reply Feedback
 - `GET   ` `/api/growth/reply/feedback/stats` — Reply Feedback Stats
+- `GET   ` `/api/growth/reply/hot-queue` — Reply Hot Queue
+- `POST  ` `/api/growth/reply/hot-queue/done` — Reply Hot Queue Done
 - `GET   ` `/api/growth/research/search` — Research Search
 - `POST  ` `/api/growth/revenue/client-report` — Client Report Build
 - `POST  ` `/api/growth/revenue/client-reports/run` — Client Reports Run
@@ -1400,10 +1402,14 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/niche/stats` — Niche prospects stats
 - `GET   ` `/api/niche/voice-niches` — All voice niches list
 
-### Operating HQ  (8)
+### Operating HQ  (12)
 
 - `POST  ` `/api/platform/office/agents/{member}/pause` — Office Pause Agent
 - `POST  ` `/api/platform/office/agents/{member}/resume` — Office Resume Agent
+- `POST  ` `/api/platform/office/agents/{member}/task` — Office Agent Task
+- `POST  ` `/api/platform/office/boss-review` — Office Boss Review
+- `GET   ` `/api/platform/office/briefing` — Office Briefing
+- `GET   ` `/api/platform/office/briefing/audio` — Office Briefing Audio
 - `POST  ` `/api/platform/office/pipeline/item/{item_id}/assign` — Office Assign Owner
 - `POST  ` `/api/platform/office/pipeline/item/{item_id}/move` — Office Move Item
 - `POST  ` `/api/platform/office/pipeline/item/{item_id}/next-action` — Office Set Next Action
