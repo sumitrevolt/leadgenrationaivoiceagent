@@ -21,6 +21,7 @@ description: Secrets inventory + rotation cadence + leak-response runbook — .e
 | VPS SSH key (`id_rsa`) + GitHub deploy-key `VPS-LeadsGen` | yearly ya staff change | unknown (baseline 2026-07-02) | NAHI |
 | Customer webhook HMAC (H.1) | customer-initiated re-key | unknown (baseline 2026-07-02) | HAAN — customer portal |
 | `SENTRY_DSN`, `POLLINATIONS_API_KEY` (`pk_`=client-safe, `sk_`=server-only proxy!) | leak pe | unknown (baseline 2026-07-02) | NAHI |
+| `HOSTINGER_API_TOKEN` (DNS API — hPanel→Profile→API; EXPIRE hota hai!) | expiry pe (hPanel se naya) | **2026-07-02** (purana expired mila) | HAAN — sirf `.env` (VPS+local), scripts runtime read karte |
 
 > **Rotation evidence** = jab bhi koi key rotate ho, SESSION_LOG me 1-liner (key naam + date; VALUE kabhi nahi) + is table ka `Last-rotated` column update karo. `unknown (baseline 2026-07-02)` = honest starting state (koi verified rotation-date record nahi tha).
 

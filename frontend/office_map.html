@@ -49,6 +49,25 @@
   .nba-item:first-of-type{border-top:none}
   .nba-item:hover{text-decoration:underline}
 
+  /* ---- Advanced virtual-office feature cockpit ---- */
+  #enterpriseCard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .enterprise-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
+  .enterprise-title{font-size:14px;font-weight:800}
+  .enterprise-sub{font-size:12px;color:var(--muted);margin-top:2px}
+  .enterprise-score{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .score-chip{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:3px 9px;
+    font-size:11px;font-weight:800;white-space:nowrap}
+  .score-live{color:#047857}.score-attn{color:#b45309}.score-need{color:#b91c1c}
+  .feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px}
+  .feature-tile{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:9px 10px;
+    cursor:pointer;min-height:92px;display:flex;flex-direction:column;gap:5px}
+  .feature-tile:hover{border-color:var(--brand-2);background:#fff}
+  .feature-top{display:flex;align-items:center;gap:7px}
+  .feature-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .feature-name{font-size:12.5px;font-weight:800;line-height:1.25}
+  .feature-meta{font-size:11px;color:var(--muted);line-height:1.35}
+  .feature-room{margin-top:auto;font-size:10.5px;font-weight:800;color:#4b5563}
+
   /* ---- Office stage (Phaser) — desktop/tablet only ---- */
   #stageWrap{width:100%;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05)}
   #roomListCompact{display:none}
@@ -299,6 +318,7 @@
   <div id="page">
     <div id="quickNav">
       <button class="qn-chip" data-jump="stageWrap">🏢 Map</button>
+      <button class="qn-chip" data-jump="enterpriseCard">Advanced</button>
       <button class="qn-chip" data-jump="feedCard">📰 Feed</button>
       <button class="qn-chip" data-jump="leaderboardPanel">🏆 Team</button>
       <button class="qn-chip" data-jump="pipelineBoard">📈 Pipeline</button>
@@ -310,6 +330,18 @@
     <div id="statusSummary" style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px"></div>
     <div class="kpi-row" id="kpiRow"><div class="loading-note">⏳ HQ data load ho raha hai (pehli baar ~8-9s lag sakta hai)…</div></div>
     <div id="nbaCard"><div class="nba-head">🧭 Next best actions</div><div id="nbaList"></div></div>
+    <div id="enterpriseCard">
+      <div class="enterprise-head">
+        <div>
+          <div class="enterprise-title">Advanced Virtual Office</div>
+          <div class="enterprise-sub">20 enterprise-grade SaaS controls, live snapshot se wired.</div>
+        </div>
+        <div class="enterprise-score" id="enterpriseScore"></div>
+      </div>
+      <div class="feature-grid" id="enterpriseFeatureGrid">
+        <div class="loading-note">Loading advanced office features...</div>
+      </div>
+    </div>
 
     <div id="mapToolbar">
       <div id="agentSearchWrap">
@@ -1245,9 +1277,44 @@
   };
   OFFICE.jumpToCta = function(cta){
     if (!cta) return;
+    if (cta === "briefingBtn") { document.getElementById("briefingBtn").click(); return; }
     if (cta === "approvals") { document.getElementById("approvalsPanel").scrollIntoView({behavior:"smooth"}); return; }
     if (cta === "system_health") { document.getElementById("systemHealthPanel").scrollIntoView({behavior:"smooth"}); return; }
+    var direct = document.getElementById(cta);
+    if (direct) { direct.scrollIntoView({behavior:"smooth", block:"start"}); return; }
     OFFICE.openStagePanel(cta);
+  };
+
+  OFFICE.renderEnterpriseFeatures = function(data){
+    var score = document.getElementById("enterpriseScore");
+    var grid = document.getElementById("enterpriseFeatureGrid");
+    if (!score || !grid) return;
+    var ef = (data && data.enterprise_features) || {};
+    var s = ef.summary || {};
+    var features = ef.features || [];
+    score.innerHTML =
+      '<span class="score-chip score-live">' + esc(s.live || 0) + ' live</span>' +
+      '<span class="score-chip score-attn">' + esc(s.attention || 0) + ' attention</span>' +
+      '<span class="score-chip score-need">' + esc(s.action_needed || 0) + ' action needed</span>' +
+      '<span class="score-chip">' + esc(s.total || features.length || 0) + ' total</span>';
+    if (!features.length) {
+      grid.innerHTML = '<div class="empty-note">Advanced feature matrix load nahi hua.</div>';
+      return;
+    }
+    var color = { live: "#10b981", attention: "#f59e0b", action_needed: "#ef4444" };
+    var label = { live: "Live", attention: "Attention", action_needed: "Action needed" };
+    grid.innerHTML = features.map(function(f){
+      var st = f.status || "live";
+      return '<div class="feature-tile" data-cta="' + esc(f.cta_target || "") + '">' +
+        '<div class="feature-top"><span class="feature-dot" style="background:' + (color[st] || "#94a3b8") + '"></span>' +
+        '<div class="feature-name">' + esc(f.name || f.id) + '</div></div>' +
+        '<div class="feature-meta">' + esc(label[st] || st) + ' · ' + esc(f.metric || "") + '</div>' +
+        '<div class="feature-room">' + esc(f.room || "Office") + '</div>' +
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(grid.querySelectorAll(".feature-tile"), function(tile){
+      tile.onclick = function(){ OFFICE.jumpToCta(tile.getAttribute("data-cta")); };
+    });
   };
 
   // ---- Pipeline board --------------------------------------------------------
@@ -2411,6 +2478,7 @@
     }
     OFFICE.renderMetrics(data.metrics);
     OFFICE.renderNextActions(data.next_best_actions);
+    OFFICE.renderEnterpriseFeatures(data);
     OFFICE.renderPipeline(data.pipeline);
     OFFICE.renderApprovals(data.approvals);
     OFFICE.renderSystemHealth(data.system_health);
