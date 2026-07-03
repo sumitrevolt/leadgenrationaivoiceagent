@@ -180,6 +180,31 @@ def test_tts_fail_text_only(cache_dir, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
+# (e2) TTS HANGS -> asyncio.wait_for(_TTS_TIMEOUT_S) bounds it: has_audio False,
+# text still returned + cached (regression guard for the reviewer-confirmed
+# unbounded-EdgeTTS-on-request-hot-path defect — prod-down class).
+# --------------------------------------------------------------------------- #
+def test_tts_hang_is_bounded_text_only(cache_dir, monkeypatch):
+    async def _fake_chat(system, messages, **kw):
+        return ("11 naye leads aaye.", "mistral")
+
+    async def _hang_tts(text, path):
+        await asyncio.sleep(5)  # simulates an EdgeTTS network stall
+        return True
+
+    monkeypatch.setattr("app.voice_agent.free_ai.chat", _fake_chat)
+    monkeypatch.setattr(ob, "_tts_to_file", _hang_tts)
+    monkeypatch.setattr(ob, "_TTS_TIMEOUT_S", 0.05)
+
+    out = _run(ob.build_briefing(force=True))
+    assert out["ok"] is True
+    assert out["has_audio"] is False  # bounded, degraded to text-only
+    assert "11" in out["text"]
+    date = out["date"]
+    assert os.path.exists(os.path.join(str(cache_dir), f"{date}.json"))
+
+
+# --------------------------------------------------------------------------- #
 # (f) endpoints admin-gated. conftest globally overrides the admin dep — pop it
 # to exercise the real gate, then restore (documented "mocked-open" lesson).
 # --------------------------------------------------------------------------- #

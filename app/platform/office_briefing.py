@@ -35,6 +35,11 @@ _DIR = "data/office_briefing"
 # Swara — EdgeTTS hi-IN-SwaraNeural via the existing voice-stack TTS helper.
 _TTS_VOICE_PRESET = "hindi_female"
 
+# EdgeTTS has NO internal timeout (aiohttp default ~300s) — a stall would pin one
+# of only WEB_CONCURRENCY=2 workers (documented prod-down class). Module-level so
+# tests can shrink it.
+_TTS_TIMEOUT_S = 20.0
+
 _SYSTEM = (
     "Tu LeadGenAI ke Operating HQ ka subah ka radio-announcer hai. Tujhe aaj ke "
     "REAL business numbers diye jayenge. In numbers se ek chhota, energetic "
@@ -290,7 +295,8 @@ async def build_briefing(force: bool = False) -> dict[str, Any]:
 
     has_audio = False
     try:
-        has_audio = bool(await _tts_to_file(text, mpath))
+        # Bounded — same pattern as web_call.py TTS calls (see _TTS_TIMEOUT_S note).
+        has_audio = bool(await asyncio.wait_for(_tts_to_file(text, mpath), timeout=_TTS_TIMEOUT_S))
     except Exception as e:
         logger.debug(f"[office_briefing] TTS failed -> text-only: {e}")
         has_audio = False
