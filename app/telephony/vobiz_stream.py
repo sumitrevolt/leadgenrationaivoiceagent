@@ -643,6 +643,24 @@ class VobizStreamSession:
         self._media_frames: int = 0
         self._media_bytes: int = 0
         self._caller_rms_max: int = 0
+        # 2026-07-03: the counters above only fire once a "media" event's payload
+        # is truthy and base64-decodes — every failure mode upstream of that was
+        # a silent no-op (no counter, no log), so a frames=0 call could mean
+        # "Vobiz sent nothing" OR "Vobiz sent media events we silently dropped".
+        # These close that blind spot (raw WS frame-level capture, per the
+        # inbound-deaf investigation — see phone-agent-deaf-stt-zero memory):
+        #   media_events=0                          -> Vobiz never sent a
+        #     "media"-type event at all (carrier/route-level, our code never runs)
+        #   media_events>0, media_frames=0           -> Vobiz sent media events
+        #     but with an empty/unrecognized payload shape (parsing/encoding gap)
+        #   media_events==media_frames, decode_fail>0 -> payload present but not
+        #     valid base64 (encoding mismatch, still fixable on our side)
+        self._event_type_counts: dict[str, int] = {}
+        self._media_event_count: int = 0
+        self._media_empty_payload_count: int = 0
+        self._media_decode_fail_count: int = 0
+        self._nonjson_frame_count: int = 0
+        self._media_anomaly_logged: int = 0  # throttle: log raw shape only first 3x
 
         # instant-greeting state (pre-synthesized at WS open, before 'start')
         self._greet_pcm: bytes | None = None
@@ -745,10 +763,13 @@ class VobizStreamSession:
             data = json.loads(raw)
         except Exception:
             logger.warning(f"[vobiz-stream] non-JSON frame: {raw[:120]!r}")
+            self._nonjson_frame_count += 1
             return
         # Protocol visibility: pehle kuch raw events INFO me — Vobiz ke exact
         # field names/shape capture karne ke liye (media payload truncate).
         self._event_count = getattr(self, "_event_count", 0) + 1
+        _etype = str(data.get("event") or "unknown")
+        self._event_type_counts[_etype] = self._event_type_counts.get(_etype, 0) + 1
         if self._event_count <= 6 and data.get("event") != "media":
             logger.info(f"[vobiz-stream] raw#{self._event_count}: {str(data)[:300]}")
         elif self._event_count <= 3:
@@ -778,12 +799,23 @@ class VobizStreamSession:
             self.stream_sid = sid
 
         if event == "media":
-            payload = (data.get("media") or {}).get("payload") or data.get("payload")
+            self._media_event_count += 1
+            _msub = data.get("media") or {}
+            payload = (_msub.get("payload") if isinstance(_msub, dict) else None) or data.get("payload")
             if payload:
                 # Greet on first audio too (in case start was missed); NOT gated
                 # on sid — Vobiz playAudio carries no stream id.
                 await self._maybe_greet()
                 await self._on_media(payload)
+            else:
+                self._media_empty_payload_count += 1
+                if self._media_anomaly_logged < 3:
+                    self._media_anomaly_logged += 1
+                    logger.warning(
+                        f"[vobiz-stream] media event #{self._media_event_count} has NO payload "
+                        f"(nested={isinstance(_msub, dict) and list(_msub.keys())}, "
+                        f"top_keys={list(data.keys())}) raw={str(data)[:300]}"
+                    )
         elif event == "start":
             params = start.get("customParameters") or {}
             self.niche = (params.get("niche") or self.niche).strip() or "general"
@@ -834,7 +866,14 @@ class VobizStreamSession:
         # and NO 8k->16k resample. Decoded bytes go straight to VAD + STT buffer.
         try:
             pcm16 = base64.b64decode(payload)
-        except Exception:
+        except Exception as e:
+            self._media_decode_fail_count += 1
+            if self._media_anomaly_logged < 3:
+                self._media_anomaly_logged += 1
+                logger.warning(
+                    f"[vobiz-stream] media payload base64-decode failed: {e} "
+                    f"(payload_len={len(payload) if payload else 0}, sample={str(payload)[:40]!r})"
+                )
             return
         if not pcm16:
             return
@@ -2479,6 +2518,18 @@ class VobizStreamSession:
             f"msgs={len(self.hist)} stt={self._stt_counts} "
             f"inbound_frames={self._media_frames} inbound_audio={inbound_s}s "
             f"caller_rms_max={self._caller_rms_max} vad_thr={self._vad_rms}"
+        )
+        # 2026-07-03 raw WS frame-capture diagnostic — reads directly as the
+        # "inbound-deaf" decision tree from the phone-agent-deaf-stt-zero memory:
+        #   media_events=0                          -> Vobiz-side (never sent it)
+        #   media_events>0, inbound_frames=0, empty_payload>0 -> payload-shape gap
+        #   media_events>0, decode_fail>0            -> encoding mismatch
+        #   media_events==inbound_frames, frames>0, stt=0 -> VAD/STT bug (not audio delivery)
+        logger.info(
+            f"[vobiz-stream] frame diagnostic sid={self.stream_sid} "
+            f"event_types={self._event_type_counts} nonjson_frames={self._nonjson_frame_count} "
+            f"media_events={self._media_event_count} media_empty_payload={self._media_empty_payload_count} "
+            f"media_decode_fail={self._media_decode_fail_count}"
         )
         self._save_recording()
         self._persist_transcript(ended, dur, turns)
