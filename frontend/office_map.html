@@ -1835,8 +1835,14 @@
     }
     try {
       var r = await fetch(url, opts);
-      if (r.status === 403) showBanner("🔒 Code-patch decide SUPER_ADMIN only hai — is account se allowed nahi.");
-    } catch (e) { /* best-effort — snapshot refresh will show the true state */ }
+      if (r.status === 403) {
+        showBanner("🔒 Code-patch decide SUPER_ADMIN only hai — is account se allowed nahi.");
+      } else if (!r.ok) {
+        // Non-403 failure (400/404/500) was previously silent — click looked
+        // dead with the item just sitting back in the list on next refresh.
+        showBanner("⚠️ Decide fail hua (HTTP " + r.status + ") — dobara try karo.");
+      }
+    } catch (e) { showBanner("⚠️ Decide call network error — dobara try karo."); }
     OFFICE.refreshSnapshot();
   };
 
