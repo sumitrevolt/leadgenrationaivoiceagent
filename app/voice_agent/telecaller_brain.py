@@ -615,6 +615,11 @@ class TelecallerBrain:
         # entry, WhatsApp send). Deliberately separate from memory_subject (which
         # is AGENT_MEMORY-gated and prefixed differently per caller e.g. "web:...").
         self.caller_phone: str = ""
+        # True only for the turn in which _on_close_signal() actually performed
+        # its durable side-effects (deal write + WhatsApp) -- reset at the top of
+        # every reply() call. web_call.py reads this once per turn to decide
+        # whether to emit a close_signal WS event (inline trial-signup overlay).
+        self.close_signal_fired: bool = False
 
         # Multi-key rotation pool (free-AI resilience): STT + LLM share a Gemini
         # quota PER KEY, so we rotate to the next key on a quota/429 error. The
@@ -798,6 +803,7 @@ class TelecallerBrain:
         """
         if not self.caller_phone:
             return
+        self.close_signal_fired = True
         try:
             from app.marketing import sales_pipeline
 
@@ -1463,6 +1469,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         Groq -> OpenRouter; PRIMARY — free, fast, quota-proof; instant no-op jab
         koi free key set na ho) -> Gemini-direct (multi-key rotation; fallback).
         Repeated-answer guard: bot pichhli line dohraye to ek nudged retry."""
+        self.close_signal_fired = False
         try:
             ut = (user_text or "").strip()
             # POLITE-NO 2-strike de-escalation (D-8): caller ka 2nd soft refusal =>

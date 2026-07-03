@@ -211,3 +211,37 @@ async def test_web_call_learns_phone_from_post_close_reply(monkeypatch):
     assert len(spawned) == 1
     await spawned[0]
     assert sent.get("to") == "9876543210"
+
+
+def test_close_signal_fired_flag_set_when_phone_known():
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    brain.set_caller_phone("9876543210")
+    assert brain.close_signal_fired is False
+    brain._on_close_signal()
+    assert brain.close_signal_fired is True
+
+
+def test_close_signal_fired_flag_stays_false_without_phone():
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    assert brain.caller_phone == ""
+    brain._on_close_signal()
+    assert brain.close_signal_fired is False
+
+
+@pytest.mark.asyncio
+async def test_close_signal_fired_resets_on_next_turn(monkeypatch):
+    """close_signal_fired must reflect ONLY the just-completed reply() turn --
+    web_call.py checks it once per turn to decide whether to emit a WS
+    close_signal event; a stale True would re-fire the overlay forever."""
+    monkeypatch.setenv("CLOSE_DETECT", "1")
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    brain.set_caller_phone("9876543210")
+
+    await brain.reply([], "trial start karwa do")
+    assert brain.close_signal_fired is True
+
+    await brain.reply(
+        [{"role": "assistant", "content": "Bilkul sir! ... WhatsApp number confirm kar dijiye."}],
+        "mujhe thoda sochna hai",
+    )
+    assert brain.close_signal_fired is False
