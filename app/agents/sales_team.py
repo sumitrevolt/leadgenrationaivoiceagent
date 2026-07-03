@@ -475,6 +475,12 @@ async def run_auto(limit: int = 3) -> dict[str, Any]:
             if done >= max(1, min(limit, 5)):
                 break
             p = lead if isinstance(lead, dict) else {}
+            # Council 2026-07-03: nameless (phone-only) prospects -> BANT on "?" is
+            # hallucination fodder + ~6 wasted free-LLM calls each, and every one
+            # landed as C-grade junk in the approvals queue. AUTO path skips them;
+            # manual analyze(p) stays open as the explicit human override.
+            if not (p.get("name") or p.get("business_name")):
+                continue
             if _already_done(p.get("phone"), p.get("name") or p.get("business_name")):
                 continue
             r = await analyze(p)

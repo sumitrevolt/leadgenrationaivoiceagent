@@ -284,3 +284,36 @@ def test_list_drafts_pending_filter_and_counts(monkeypatch, tmp_path):
     assert out["counts"]["pending"] == 1
     assert {d["id"] for d in out["drafts"]} == {"r2"}
     assert len(ab.list_drafts(include_decided=True)["drafts"]) == 2
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-03 fixes: epoch-ts -> ISO at the bridge + dedupe dup pids (latest wins)
+# --------------------------------------------------------------------------- #
+def test_sales_adapter_epoch_ts_to_iso_and_dedupe(monkeypatch, tmp_path):
+    """(1) sales index stores ts as epoch-SECONDS; the UI got the raw int and JS
+    new Date(int) read it as ms -> every draft showed "20616 din pehle" (1970).
+    Bridge must emit ISO. (2) index has dup pids (re-analyzed) -> dedupe."""
+    _isolate(monkeypatch, tmp_path)
+    from app.agents import sales_team
+
+    rows = [  # list_analyses returns newest-first
+        {"pid": "111", "name": "", "grade": "C", "score": 53, "ts": 1782984616, "md": ""},
+        {"pid": "111", "name": "", "grade": "C", "score": 53, "ts": 1782900000, "md": ""},
+        {"pid": "222", "name": "Shop", "grade": "B", "score": 70, "ts": "2026-07-01T10:00:00", "md": ""},
+    ]
+    monkeypatch.setattr(sales_team, "list_analyses", lambda limit=20: rows)
+    out = ab._drafts_sales(ab._status_map())
+    ids = [d["id"] for d in out]
+    assert ids.count("111") == 1  # deduped, latest-first wins
+    d111 = next(d for d in out if d["id"] == "111")
+    assert d111["created_at"].startswith("2026-")  # ISO string, not raw epoch int
+    d222 = next(d for d in out if d["id"] == "222")
+    assert d222["created_at"] == "2026-07-01T10:00:00"  # strings pass through
+
+
+def test_ts_to_iso_never_raises():
+    assert ab._ts_to_iso(None) == ""
+    assert ab._ts_to_iso("") == ""
+    assert ab._ts_to_iso("2026-01-01T00:00:00") == "2026-01-01T00:00:00"
+    assert ab._ts_to_iso(1782984616).startswith("2026-")
+    assert ab._ts_to_iso(-5) == "-5" or ab._ts_to_iso(-5) == ""  # weird input, no crash
