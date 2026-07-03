@@ -49,6 +49,59 @@
   .nba-item:first-of-type{border-top:none}
   .nba-item:hover{text-decoration:underline}
 
+  /* ---- AI CEO command center first screen ---- */
+  #warRoom{padding:2px 0 0}
+  .command-head{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:12px}
+  .command-title{font-size:20px;font-weight:900;line-height:1.15}
+  .command-sub{font-size:12.5px;color:var(--muted);margin-top:4px;max-width:720px;line-height:1.45}
+  .command-row{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:8px;margin-top:10px}
+  #bossCommandInput{width:100%;border:1px solid var(--line);border-radius:9px;padding:10px 12px;
+    font-size:13px;background:var(--bg);color:var(--ink)}
+  .boss-command-btn{border:none;border-radius:9px;background:var(--brand-2);color:#fff;font-weight:850;
+    cursor:pointer;font-size:13px}
+  .boss-command-btn:disabled{background:#c7d2fe;cursor:not-allowed}
+  #bossCommandResult{min-height:34px;margin-top:8px;border:1px solid var(--line);background:var(--bg);
+    border-radius:9px;padding:8px 10px;font-size:12.5px;color:var(--ink);white-space:pre-wrap;line-height:1.45}
+  .war-grid{display:grid;grid-template-columns:1.05fr 1.05fr .9fr;gap:12px}
+  .war-card{border:1px solid var(--line);border-radius:10px;padding:11px;background:#fff}
+  .war-card h3{margin:0 0 8px;font-size:13px}
+  .brief-line{font-size:12.8px;line-height:1.5;border-top:1px dashed var(--line);padding:7px 0}
+  .brief-line:first-child{border-top:none;padding-top:0}
+  .brief-line a{color:var(--brand-2);font-weight:800;text-decoration:none}
+  .priority-stack{display:flex;flex-direction:column;gap:8px}
+  .priority-item{border:1px solid var(--line);border-radius:9px;background:var(--bg);padding:8px;cursor:pointer}
+  .priority-item:hover{border-color:var(--brand-2);background:#fff}
+  .priority-top{display:flex;align-items:center;gap:7px;font-size:12.8px;font-weight:850}
+  .priority-dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .priority-meta{font-size:11px;color:var(--muted);margin-top:4px;line-height:1.35}
+  .war-kpi-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  .war-kpi{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:9px}
+  .war-kpi b{display:block;font-size:18px;color:var(--ink);margin-top:2px;overflow-wrap:anywhere}
+  .war-kpi span{font-size:10.5px;color:var(--muted);font-weight:850;text-transform:uppercase}
+  .pulse-strip{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+  .pulse-pill{background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:8px;
+    font-size:12px;color:var(--muted)}
+  .pulse-pill b{color:var(--ink);font-size:15px}
+  .trust-strip{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .trust-chip{border:1px solid var(--line);border-radius:999px;padding:3px 8px;font-size:10.5px;
+    font-weight:850;background:var(--bg);color:var(--muted)}
+  .mode-toggle{display:inline-flex;gap:4px;align-self:flex-start;background:#fff;border:1px solid var(--line);
+    border-radius:8px;padding:3px}
+  .mode-btn{border:none;background:transparent;border-radius:6px;padding:6px 12px;font-size:12px;
+    font-weight:850;cursor:pointer;color:var(--muted)}
+  .mode-btn.active{background:var(--brand-2);color:#fff}
+  .replay-row{display:grid;grid-template-columns:86px 120px 1fr;gap:8px;border-top:1px solid var(--line);
+    padding:7px 0;font-size:12.5px;cursor:pointer}
+  .replay-row:first-child{border-top:none}
+  .replay-time{color:var(--muted);font-variant-numeric:tabular-nums}
+  .replay-actor{font-weight:850;color:#0f766e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .replay-title{font-weight:800}
+  .replay-detail{color:var(--muted);font-size:11.5px;margin-top:2px}
+  body.office-theatre #warRoom{order:2}
+  body.office-theatre #mapToolbar{order:1}
+  body.office-theatre #stageWrap{order:1}
+  body.office-theatre #replayPanel{order:3}
+
   /* ---- Advanced virtual-office feature cockpit ---- */
   #enterpriseCard{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
   .enterprise-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px}
@@ -236,6 +289,13 @@
 
   @media (max-width:900px){ .two-col{grid-template-columns:1fr} }
   @media (max-width:760px){
+    .command-head{flex-direction:column}
+    .command-row{grid-template-columns:1fr}
+    .boss-command-btn{height:42px}
+    .war-grid{grid-template-columns:1fr}
+    .war-kpi-grid,.pulse-strip{grid-template-columns:1fr}
+    .trust-strip{justify-content:flex-start}
+    .replay-row{grid-template-columns:1fr}
     #stageWrap{display:none}
     #mapToolbar{display:none}
     #quickNav{top:auto;position:static}
@@ -317,17 +377,47 @@
   <div id="banner"><div class="b"><span id="bannerMsg"></span><button id="bannerRetry">Retry</button></div></div>
   <div id="page">
     <div id="quickNav">
-      <button class="qn-chip" data-jump="stageWrap">🏢 Map</button>
-      <button class="qn-chip" data-jump="enterpriseCard">Advanced</button>
-      <button class="qn-chip" data-jump="feedCard">📰 Feed</button>
-      <button class="qn-chip" data-jump="leaderboardPanel">🏆 Team</button>
-      <button class="qn-chip" data-jump="pipelineBoard">📈 Pipeline</button>
-      <button class="qn-chip" data-jump="schedulePanel">🕒 Schedule</button>
-      <button class="qn-chip" data-jump="approvalsPanel">🗂️ Approvals</button>
-      <button class="qn-chip" data-jump="systemHealthPanel">🛠️ Health</button>
-      <button class="qn-chip" data-jump="failureConsoleCard">🚨 Reliability</button>
+      <button class="qn-chip" data-jump="warRoom">War Room</button>
+      <button class="qn-chip" data-jump="priorityActionStack">Priorities</button>
+      <button class="qn-chip" data-jump="stageWrap">Map</button>
+      <button class="qn-chip" data-jump="replayPanel">Replay</button>
+      <button class="qn-chip" data-jump="pipelineBoard">Pipeline</button>
+      <button class="qn-chip" data-jump="approvalsPanel">Approvals</button>
+      <button class="qn-chip" data-jump="systemHealthPanel">Health</button>
+      <button class="qn-chip" data-jump="failureConsoleCard">Reliability</button>
     </div>
     <div id="statusSummary" style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px"></div>
+    <section id="warRoom">
+      <div class="command-head">
+        <div>
+          <div class="command-title">AI CEO Command Center</div>
+          <div class="command-sub">Aaj ka decision surface: risk, opportunity, owner, aur next move.</div>
+        </div>
+        <div id="trustStrip" class="trust-strip">
+          <span class="trust-chip">loading</span>
+        </div>
+      </div>
+      <div class="command-row">
+        <input id="bossCommandInput" placeholder="Boss se poochho: aaj sabse important kya hai? Ya kaam do: Rohan ko hot leads follow-up karao" autocomplete="off" />
+        <button id="bossCommandBtn" class="boss-command-btn">Run</button>
+      </div>
+      <div id="bossCommandResult">Ready.</div>
+      <div class="war-grid" style="margin-top:12px">
+        <div class="war-card">
+          <h3>Boss brief</h3>
+          <div id="bossBriefBody" class="boss-brief-body"><div class="empty-note">Boss snapshot load ho raha hai...</div></div>
+        </div>
+        <div class="war-card">
+          <h3>Priority action stack</h3>
+          <div id="priorityActionStack" class="priority-stack"><div class="empty-note">Priorities load ho rahi hain...</div></div>
+        </div>
+        <div class="war-card">
+          <h3>Live pulse</h3>
+          <div id="warKpiGrid" class="war-kpi-grid"></div>
+          <div id="pulseStrip" class="pulse-strip"></div>
+        </div>
+      </div>
+    </section>
     <div class="kpi-row" id="kpiRow"><div class="loading-note">⏳ HQ data load ho raha hai (pehli baar ~8-9s lag sakta hai)…</div></div>
     <div id="nbaCard"><div class="nba-head">🧭 Next best actions</div><div id="nbaList"></div></div>
     <div id="enterpriseCard">
@@ -353,6 +443,10 @@
       <button class="map-btn" id="zoomResetBtn" title="Reset view">🔄 Reset</button>
       <span id="mapHint">Ctrl+scroll = zoom · zoom me drag = pan · room/agent pe click = detail</span>
     </div>
+    <div id="modeToggle" class="mode-toggle" aria-label="Office mode">
+      <button class="mode-btn active" data-mode="operator">Operator</button>
+      <button class="mode-btn" data-mode="theatre">Theatre</button>
+    </div>
     <div id="stageWrap"><div id="stage"></div>
       <div id="previewOverlay">
         <div class="pv-badge">👀 PREVIEW — demo roster, live data nahi<br>
@@ -362,6 +456,11 @@
       </div>
     </div>
     <div id="roomListCompact"><div class="loading-note">⏳ Loading rooms…</div></div>
+
+    <div id="replayPanel" class="panel-box">
+      <h3>Aaj ka replay <span style="font-weight:400;font-size:12px;color:var(--muted)">- last office moves</span></h3>
+      <div id="replayList"><div class="loading-note">Loading replay...</div></div>
+    </div>
 
     <div class="feed-card" id="feedCard">
       <div class="feed-head"><span class="ticker-dot"></span> Live automation feed — poora project ka feed</div>
@@ -1275,11 +1374,164 @@
       row.onclick = function(){ OFFICE.jumpToCta(row.getAttribute("data-cta")); };
     });
   };
+
+  OFFICE.renderBossBrief = function(brief){
+    var el = document.getElementById("bossBriefBody");
+    if (!el) return;
+    brief = brief || {};
+    var risk = brief.risk || {};
+    var opp = brief.opportunity || {};
+    var rec = brief.recommendation || {};
+    el.innerHTML =
+      '<div class="brief-line"><b>' + esc(brief.headline || "Snapshot partial hai") + '</b></div>' +
+      '<div class="brief-line">Risk: <a href="javascript:void(0)" data-cta="' + esc(risk.cta_target || "") + '">' + esc(risk.label || "No major risk") + '</a></div>' +
+      '<div class="brief-line">Opportunity: <a href="javascript:void(0)" data-cta="' + esc(opp.cta_target || "") + '">' + esc(opp.label || "No immediate opportunity") + '</a></div>' +
+      '<div class="brief-line">Next move: <a href="javascript:void(0)" data-cta="' + esc(rec.cta_target || "") + '">' + esc(rec.label || "Monitor office") + '</a></div>';
+    Array.prototype.forEach.call(el.querySelectorAll("[data-cta]"), function(a){
+      a.onclick = function(){ OFFICE.jumpToCta(a.getAttribute("data-cta")); };
+    });
+  };
+
+  OFFICE.renderPriorityActions = function(actions){
+    var el = document.getElementById("priorityActionStack");
+    if (!el) return;
+    actions = actions || [];
+    if (!actions.length) {
+      el.innerHTML = '<div class="empty-note">Koi urgent action nahi. Office normal chal raha hai.</div>';
+      return;
+    }
+    var colors = { critical:"#ef4444", high:"#f59e0b", medium:"#3b82f6", low:"#10b981" };
+    el.innerHTML = actions.map(function(a){
+      return '<div class="priority-item" data-cta="' + esc(a.cta_target || "") + '">' +
+        '<div class="priority-top"><span class="priority-dot" style="background:' + (colors[a.severity] || "#94a3b8") + '"></span>' +
+          esc(a.title || a.id) + '</div>' +
+        '<div class="priority-meta">' + esc(a.why || "") + '</div>' +
+        '<div class="priority-meta">Owner: ' + esc(a.owner || "manager") + ' · Room: ' + esc(a.room || "coordinator") +
+          ' · ' + esc(a.cta_label || "Open") + '</div>' +
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".priority-item"), function(row){
+      row.onclick = function(){ OFFICE.jumpToCta(row.getAttribute("data-cta")); };
+    });
+  };
+
+  OFFICE.renderWarKpis = function(data){
+    var el = document.getElementById("warKpiGrid");
+    if (!el) return;
+    var m = (data && data.metrics) || {};
+    var items = [
+      ["New leads", m.new_leads_today || 0],
+      ["Qualified", m.qualified_leads_today || 0],
+      ["Calls", m.calls_completed_today || 0],
+      ["MRR", "Rs " + (m.mrr || 0)]
+    ];
+    el.innerHTML = items.map(function(x){
+      return '<div class="war-kpi"><span>' + esc(x[0]) + '</span><b>' + esc(x[1]) + '</b></div>';
+    }).join("");
+  };
+
+  OFFICE.renderPulseStrip = function(data){
+    var el = document.getElementById("pulseStrip");
+    if (!el) return;
+    var agents = (data && data.agents) || [];
+    var active = agents.filter(function(a){ return a.status !== "offline"; }).length;
+    var health = (data && data.system_health) || {};
+    var q = health.queue || {};
+    var replay = ((data && data.replay) || {}).items || [];
+    el.innerHTML =
+      '<div class="pulse-pill"><b>' + active + '/' + agents.length + '</b><br>agents active</div>' +
+      '<div class="pulse-pill"><b>' + ((health.overdue || []).length) + '</b><br>overdue jobs</div>' +
+      '<div class="pulse-pill"><b>' + (q.dlq || 0) + '</b><br>DLQ</div>' +
+      '<div class="pulse-pill"><b>' + replay.length + '</b><br>replay events</div>';
+  };
+
+  OFFICE.renderTrustStrip = function(data){
+    var el = document.getElementById("trustStrip");
+    if (!el) return;
+    el.innerHTML =
+      '<span class="trust-chip">Admin gated</span>' +
+      '<span class="trust-chip">Draft-safe</span>' +
+      '<span class="trust-chip">' + esc(data && data.cached ? "cached" : "fresh") + '</span>' +
+      '<span class="trust-chip">' + esc(data && data.generated_at ? relTime(data.generated_at) : "loading") + '</span>';
+  };
+
+  OFFICE.renderCommandCenter = function(data){
+    OFFICE.renderBossBrief(data && data.boss_brief);
+    OFFICE.renderPriorityActions(data && data.priority_actions);
+    OFFICE.renderWarKpis(data);
+    OFFICE.renderPulseStrip(data);
+    OFFICE.renderTrustStrip(data);
+  };
+
+  OFFICE.renderReplay = function(data){
+    var el = document.getElementById("replayList");
+    if (!el) return;
+    var rows = (((data || {}).replay || {}).items || []);
+    if (!rows.length) {
+      el.innerHTML = '<div class="empty-note">Aaj replay ke liye enough activity nahi mili.</div>';
+      return;
+    }
+    el.innerHTML = rows.slice(0, 12).map(function(r){
+      return '<div class="replay-row" data-cta="' + esc(r.target || "") + '">' +
+        '<div class="replay-time">' + esc(relTime(r.at)) + '</div>' +
+        '<div class="replay-actor">' + esc(r.actor || "office") + '</div>' +
+        '<div><div class="replay-title">' + esc(r.title || "") + '</div>' +
+        '<div class="replay-detail">' + esc(r.detail || "") + '</div></div>' +
+      '</div>';
+    }).join("");
+    Array.prototype.forEach.call(el.querySelectorAll(".replay-row"), function(row){
+      row.onclick = function(){ OFFICE.jumpToCta(row.getAttribute("data-cta")); };
+    });
+  };
+
+  OFFICE.setOfficeMode = function(mode){
+    mode = mode === "theatre" ? "theatre" : "operator";
+    document.body.classList.toggle("office-theatre", mode === "theatre");
+    Array.prototype.forEach.call(document.querySelectorAll(".mode-btn"), function(btn){
+      btn.classList.toggle("active", btn.getAttribute("data-mode") === mode);
+    });
+    try { localStorage.setItem("officeMode", mode); } catch (e) {}
+  };
+
+  OFFICE.askBoss = async function(){
+    var input = document.getElementById("bossCommandInput");
+    var btn = document.getElementById("bossCommandBtn");
+    var out = document.getElementById("bossCommandResult");
+    if (!input || !btn || !out) return;
+    var q = input.value.trim();
+    if (!q) { out.textContent = "Message likho: Aaj kya priority hai?"; return; }
+    btn.disabled = true;
+    btn.textContent = "Running...";
+    out.textContent = "Boss soch raha hai...";
+    try {
+      var r = await fetch("/api/platform/office/ask", {
+        method: "POST",
+        headers: hdrs(true),
+        body: JSON.stringify({ q: q })
+      });
+      var d = r.ok ? await r.json() : null;
+      if (d && d.text) out.textContent = d.text;
+      else out.textContent = "Boss response nahi mila. Session/auth check karo.";
+      if (d && d.kind === "task") {
+        OFFICE.pollEvents();
+        OFFICE.refreshSnapshot();
+      }
+    } catch (e) {
+      out.textContent = "Network/auth issue. Dobara try karo.";
+    }
+    btn.disabled = false;
+    btn.textContent = "Run";
+  };
+
   OFFICE.jumpToCta = function(cta){
     if (!cta) return;
-    if (cta === "briefingBtn") { document.getElementById("briefingBtn").click(); return; }
-    if (cta === "approvals") { document.getElementById("approvalsPanel").scrollIntoView({behavior:"smooth"}); return; }
-    if (cta === "system_health") { document.getElementById("systemHealthPanel").scrollIntoView({behavior:"smooth"}); return; }
+    if (cta === "briefingBtn" || cta === "manualRefreshBtn") {
+      var btn = document.getElementById(cta);
+      if (btn) btn.click();
+      return;
+    }
+    if (cta === "approvals") cta = "approvalsPanel";
+    if (cta === "system_health") cta = "systemHealthPanel";
     var direct = document.getElementById(cta);
     if (direct) { direct.scrollIntoView({behavior:"smooth", block:"start"}); return; }
     OFFICE.openStagePanel(cta);
@@ -1483,6 +1735,14 @@
     panel.classList.remove("panel-hidden");
     var room = (OFFICE.roomStats || {})[roomId];
     if (!room) { body.innerHTML = "Room nahi mila."; return; }
+    var workload = ((OFFICE.lastSnapshot || {}).room_workloads || {})[roomId] || {};
+    var workRows = (workload.work_items || []).map(function(w){
+      return '<div class="item-row" data-cta="' + esc(w.cta_target || "") + '" style="cursor:pointer">' +
+        '<div class="ir-name">' + esc(w.title || w.id) + '</div>' +
+        '<div class="ir-meta">' + esc(w.why || "") + '</div>' +
+        '<div class="ir-meta">Owner: ' + esc(w.owner || "manager") + ' · ' + esc(w.cta_label || "Open") + '</div>' +
+      '</div>';
+    }).join("") || '<div class="empty-note">Is room ka live workload abhi clear hai.</div>';
     // Agent rows are clickable -> openAgentPanel (the Kaam-do drawer). This is
     // the DOM entry point that keeps every agent (hence F3 "Kaam do") reachable
     // at <=760px, where the Phaser canvas AND #mapToolbar (agent-search) are
@@ -1504,7 +1764,11 @@
         '<div class="panel-stat">Errors<br><b>' + esc(room.errorCount) + '</b></div>' +
         '<div class="panel-stat">Approvals<br><b>' + esc(room.approvalCount) + '</b></div>' +
       '</div>' +
-      '<div class="panel-events">' + agentsHtml + '</div>';
+      '<div class="panel-events"><div style="font-weight:800;margin:8px 0 4px">Room workload</div>' + workRows + '</div>' +
+      '<div class="panel-events"><div style="font-weight:800;margin:8px 0 4px">Agents</div>' + agentsHtml + '</div>';
+    Array.prototype.forEach.call(body.querySelectorAll(".item-row[data-cta]"), function(row){
+      row.onclick = function(){ OFFICE.jumpToCta(row.getAttribute("data-cta")); };
+    });
     Array.prototype.forEach.call(body.querySelectorAll(".item-row[data-agent]"), function(row){
       row.onclick = function(){ OFFICE.openAgentPanel(row.getAttribute("data-agent")); };
     });
@@ -2392,6 +2656,14 @@
     document.getElementById("agentPanel").classList.add("panel-hidden");
   };
   document.getElementById("bannerRetry").onclick = function(){ OFFICE.authExpired = false; OFFICE.refreshSnapshot(); };
+  document.getElementById("bossCommandBtn").onclick = OFFICE.askBoss;
+  document.getElementById("bossCommandInput").addEventListener("keydown", function(e){
+    if (e.key === "Enter") OFFICE.askBoss();
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".mode-btn"), function(btn){
+    btn.onclick = function(){ OFFICE.setOfficeMode(btn.getAttribute("data-mode")); };
+  });
+  try { OFFICE.setOfficeMode(localStorage.getItem("officeMode") || "operator"); } catch (e) { OFFICE.setOfficeMode("operator"); }
 
   var systemMapLoaded = false;
   document.getElementById("systemMapToggle").onclick = function(){
@@ -2476,10 +2748,12 @@
     if (data.approvals && data.approvals.counts && data.approvals.counts.total_pending != null) {
       data.metrics.approvals_needed = data.approvals.counts.total_pending;
     }
+    OFFICE.renderCommandCenter(data);
     OFFICE.renderMetrics(data.metrics);
     OFFICE.renderNextActions(data.next_best_actions);
     OFFICE.renderEnterpriseFeatures(data);
     OFFICE.renderPipeline(data.pipeline);
+    OFFICE.renderReplay(data);
     OFFICE.renderApprovals(data.approvals);
     OFFICE.renderSystemHealth(data.system_health);
     OFFICE.renderCoordination(data.coordination);
