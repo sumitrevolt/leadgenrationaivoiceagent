@@ -19,6 +19,8 @@ SKIP_HANDLERS = {
     "classList.toggle",
     "classList.remove",
     "classList.add",
+    "event.stopPropagation",
+    "var el=document.getElementById",
 }
 
 

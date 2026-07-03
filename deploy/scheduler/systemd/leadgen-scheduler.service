@@ -1,0 +1,17 @@
+[Unit]
+Description=LeadGen 15-minute scheduler
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/leadgen-scheduler
+EnvironmentFile=/opt/leadgen-scheduler/.env.scheduler
+ExecStart=/usr/bin/python3 /opt/leadgen-scheduler/leadgen_scheduler.py
+Restart=always
+RestartSec=10
+User=www-data
+Group=www-data
+
+[Install]
+WantedBy=multi-user.target

@@ -237,6 +237,21 @@
   .qn-chip{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;
     padding:4px 12px;font-size:11.5px;font-weight:700;cursor:pointer}
   .qn-chip:hover{border-color:var(--brand-2);color:var(--brand-2)}
+  /* ---- Simple/Pro view (user-friendly default): Simple = cockpit-only.
+     !important zaroori — kuch cards JS se inline display:block set karte. ---- */
+  body.simple-mode #enterpriseCard, body.simple-mode #mapToolbar, body.simple-mode #modeToggle,
+  body.simple-mode #stageWrap, body.simple-mode #roomListCompact, body.simple-mode #replayPanel,
+  body.simple-mode #feedCard, body.simple-mode #leaderboardPanel, body.simple-mode #activityPanel,
+  body.simple-mode #pipelineBoard, body.simple-mode #systemMapCard, body.simple-mode #workflowRunsCard,
+  body.simple-mode #activeCoordCard, body.simple-mode #failureConsoleCard,
+  body.simple-mode .qn-chip[data-jump="stageWrap"], body.simple-mode .qn-chip[data-jump="replayPanel"],
+  body.simple-mode .qn-chip[data-jump="pipelineBoard"], body.simple-mode .qn-chip[data-jump="failureConsoleCard"]{display:none !important}
+  /* Agent Scheduler mini-panel */
+  #schedList table{width:100%;font-size:12px;border-collapse:collapse}
+  #schedList td{padding:5px 6px;border-top:1px dashed var(--line);vertical-align:middle}
+  #schedList .sched-btn{border:1px solid var(--line);background:#fff;border-radius:7px;
+    padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer}
+  #schedList .sched-btn:hover{border-color:var(--brand-2);color:var(--brand-2)}
 
   /* ---- Map toolbar (search + zoom controls) ---- */
   #mapToolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -322,6 +337,9 @@
     <div class="spacer"></div>
     <span id="istClock" style="font-size:11.5px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums"></span>
     <span id="freshnessBadge" style="font-size:11.5px;color:var(--muted)"></span>
+    <button id="viewModeBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
+      padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
+      title="Simple = sirf zaroori cheezein (copilot, KPIs, approvals, hot queue). Pro = poora office map + saare panels.">🎛️ Pro view</button>
     <button id="briefingBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
       title="Aaj ki HQ briefing suno (Swara ki awaaz me)">📻 Briefing</button>
@@ -384,6 +402,7 @@
       <button class="qn-chip" data-jump="pipelineBoard">Pipeline</button>
       <button class="qn-chip" data-jump="approvalsPanel">Approvals</button>
       <button class="qn-chip" data-jump="systemHealthPanel">Health</button>
+      <button class="qn-chip" data-jump="schedulerPanel">Scheduler</button>
       <button class="qn-chip" data-jump="failureConsoleCard">Reliability</button>
     </div>
     <div id="statusSummary" style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px"></div>
@@ -536,6 +555,19 @@
         <h3>🛠️ System health</h3>
         <div id="healthList"><div class="loading-note">⏳ Loading…</div></div>
       </div>
+    </div>
+
+    <!-- Agent Scheduler mini-panel (2026-07-03): /api/platform/team/scheduler se
+         problem-first view — sirf overdue/failed/paused jobs dikhte, sab ok to ek
+         green line. Full control = /app/automation Schedule tab. -->
+    <div id="schedulerPanel" class="panel-box" style="margin-top:14px">
+      <h3 style="display:flex;align-items:center;gap:8px">
+        🗓️ Agent Scheduler
+        <span id="schedBadge" style="font-size:11.5px;font-weight:700;color:var(--muted)">…</span>
+        <a href="/app/automation#schedule" style="margin-left:auto;font-size:11.5px;font-weight:700"
+          title="Saare 37 jobs ka full control (toggle + run-now + cadence)">Full control →</a>
+      </h3>
+      <div id="schedList"><div class="loading-note">⏳ Loading…</div></div>
     </div>
 
     <div id="failureConsoleCard" class="panel-box" style="margin-top:14px">
@@ -3168,6 +3200,113 @@
 
   // F2: Hot Queue card (mobile-safe entry point) → reception hot-tray drawer.
   document.getElementById("hotQueueCard").onclick = function(){ OFFICE.openHotQueueDrawer(); };
+
+  // ---- Agent Scheduler mini-panel (problem-first): sirf overdue/failed/paused
+  // jobs dikhao + inline ▶/toggle; sab theek = ek green line. API wahi jo
+  // /app/automation Schedule tab use karta (/api/platform/team/scheduler). ----
+  OFFICE.renderScheduler = async function(){
+    var list = document.getElementById("schedList");
+    var badge = document.getElementById("schedBadge");
+    if (!list) return;
+    try {
+      var r = await fetch("/api/platform/team/scheduler", { headers: hdrs() });
+      if (r.status === 401 || r.status === 403) return;
+      var d = r.ok ? await r.json() : {};
+      var jobs = d.jobs || [];
+      if (!jobs.length) { list.innerHTML = '<div class="empty-note">⚠️ Scheduler data nahi mila.</div>'; return; }
+      var paused = [], problem = [];
+      jobs.forEach(function(j){
+        if (j.enabled === false) paused.push(j);
+        else if (["overdue", "last_failed", "never_ran"].indexOf(String(j.status)) >= 0) problem.push(j);
+      });
+      badge.textContent = jobs.length + " jobs · " + problem.length + " issue · " + paused.length + " paused";
+      badge.style.color = problem.length ? "#c0392b" : "var(--muted)";
+      var show = problem.concat(paused).slice(0, 8);
+      if (!show.length) {
+        list.innerHTML = '<div class="empty-note">✅ Sab ' + jobs.length + ' agent-jobs time pe chal rahe hain — koi action nahi chahiye.</div>';
+        return;
+      }
+      var h = "<table>";
+      show.forEach(function(j){
+        var en = j.enabled !== false;
+        var st = String(j.status || "");
+        var stCol = (st === "admin_paused") ? "var(--muted)" : (st === "ok" ? "#1a7f37" : "#c0392b");
+        h += "<tr><td style='font-weight:700'>" + esc(j.job) + "</td>"
+          + "<td style='color:var(--muted)'>" + esc(j.label || "") + "</td>"
+          + "<td style='color:var(--muted);white-space:nowrap'>" + esc(j.cadence || "") + "</td>"
+          + "<td style='color:" + stCol + ";font-weight:700;white-space:nowrap'>" + esc(st) + "</td>"
+          + "<td style='white-space:nowrap;text-align:right'>"
+          + "<button class='sched-btn' title='" + (en ? "Pause karo" : "Wapas ON karo") + "' "
+          + "onclick=\"OFFICE.schedToggle('" + esc(j.job) + "'," + (en ? "false" : "true") + ")\">" + (en ? "⏸" : "▶ ON karo") + "</button> "
+          + (en ? "<button class='sched-btn' title='Abhi chalao (background)' onclick=\"OFFICE.schedRun('" + esc(j.job) + "')\">▶ Run</button>" : "")
+          + "</td></tr>";
+      });
+      list.innerHTML = h + "</table>";
+    } catch (e) {
+      list.innerHTML = '<div class="empty-note">⚠️ Scheduler load nahi hua — /app/automation ke Schedule tab me dekho.</div>';
+    }
+  };
+  OFFICE.schedToggle = async function(job, en){
+    if (!en && !confirm(job + " ko PAUSE kare? Scheduler ise skip karega jab tak wapas ON nahi karte.")) return;
+    try {
+      var r = await fetch("/api/platform/team/scheduler/" + encodeURIComponent(job) + "/toggle",
+        { method: "POST", headers: hdrs(true), body: JSON.stringify({ enabled: !!en }) });
+      var d = r.ok ? await r.json() : {};
+      if (d && d.ok === false) throw new Error(d.error || "fail");
+    } catch (e) { alert("Toggle fail: " + e.message); }
+    OFFICE.renderScheduler();
+  };
+  OFFICE.schedRun = async function(job){
+    if (!confirm(job + " job ABHI chalaye? (background me chalega)")) return;
+    try {
+      var r = await fetch("/api/platform/team/scheduler/" + encodeURIComponent(job) + "/run",
+        { method: "POST", headers: hdrs() });
+      var d = r.ok ? await r.json() : {};
+      if (d && d.ok === false) throw new Error(d.error || "fail");
+    } catch (e) { alert("Run fail: " + e.message); }
+    setTimeout(OFFICE.renderScheduler, 4000);
+  };
+  OFFICE.renderScheduler();
+  setInterval(function(){ if (!OFFICE.authExpired && !document.hidden) OFFICE.renderScheduler(); }, 60000);
+
+  // ---- Simple/Pro view mode (user-friendly default = Simple cockpit) --------
+  // Simple: copilot + KPIs + priorities + approvals + health + scheduler + hot
+  // queue + DLQ. Pro: poora office map, feed, pipeline, replay, reliability.
+  // Choice localStorage me yaad rehti. Phaser Scale.FIT display:none ke baad
+  // stale ho sakta — pro pe wapas aate hi scale.refresh().
+  OFFICE.setViewMode = function(mode){
+    var m = (mode === "pro") ? "pro" : "simple";
+    document.body.classList.toggle("simple-mode", m === "simple");
+    try { localStorage.setItem("officeViewMode", m); } catch (e) {}
+    var btn = document.getElementById("viewModeBtn");
+    if (btn) {
+      btn.textContent = (m === "simple") ? "🎛️ Pro view" : "🧘 Simple view";
+      btn.title = (m === "simple")
+        ? "Pro view: poora office map + feed + pipeline + saare panels"
+        : "Simple view: sirf zaroori cheezein (copilot, KPIs, approvals, scheduler, hot queue)";
+    }
+    if (m === "pro") {
+      setTimeout(function(){
+        try { if (OFFICE.game && OFFICE.game.scale) OFFICE.game.scale.refresh(); } catch (e) {}
+      }, 60);
+    }
+  };
+  var _vm = "simple";
+  try { _vm = localStorage.getItem("officeViewMode") || "simple"; } catch (e) {}
+  OFFICE.setViewMode(_vm);
+  document.getElementById("viewModeBtn").onclick = function(){
+    OFFICE.setViewMode(document.body.classList.contains("simple-mode") ? "pro" : "simple");
+  };
+
+  // "/" = Boss copilot pe focus (kahin se bhi) — typing fields me ignore.
+  document.addEventListener("keydown", function(e){
+    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+    var t = e.target, tag = ((t && t.tagName) || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || (t && t.isContentEditable)) return;
+    e.preventDefault();
+    var inp = document.getElementById("bossCommandInput");
+    if (inp) { inp.focus(); try { inp.scrollIntoView({ block: "center" }); } catch (e2) {} }
+  });
 
   // ---- F4 Subah ki Briefing: modal + text + Swara audio (blob play) --------
   // build_briefing endpoint din me ek hi baar LLM+TTS chalata (cached); yaha se

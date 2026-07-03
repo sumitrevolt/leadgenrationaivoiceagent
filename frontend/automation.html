@@ -792,8 +792,8 @@ a{color:var(--acc)}
 <!-- ================= 12. SCHEDULE ================= -->
 <section class="tabsec" id="sec-schedule">
   <div class="card">
-    <h2>🗓️ Job Schedule + Heartbeats (dead-man)</h2>
-    <div class="mut">Scheduler ke saare automation jobs — last run, kitna time laga, overdue to red. 60s auto-refresh jab tab khula ho.</div>
+    <h2>🗓️ Agent Scheduler — jobs, toggle + run-now</h2>
+    <div class="mut">Saare agent automation jobs — kab chalte, last run, status. <b>Auto</b> column se koi bhi job PAUSE/ON karo (turant, no-restart) aur <b>▶</b> se abhi chalao. Overdue = red. 60s auto-refresh jab tab khula ho.</div>
     <button class="btn2" onclick="scLoad()">🔄 Refresh</button>
     <div id="scHealthOut" class="mut" style="margin-top:8px">Load ho raha...</div>
   </div>
@@ -2492,7 +2492,7 @@ var JOB_DESC={
 };
 async function scLoad(){
   try{
-    var d=await api('/api/growth/infra/automation-health');
+    var d=await api('/api/platform/team/scheduler');
     var q=d.queue||{};
     var ok=String(d.status||'')==='ok'||String(d.status||'')==='healthy';
     var ov=(d.overdue||[]);
@@ -2500,11 +2500,14 @@ async function scLoad(){
       ?'<div class="ok" style="font-size:15px;margin-bottom:8px">✅ Sab automations time pe chal rahe hain — koi action nahi chahiye.</div>'
       :'<div class="bad" style="font-size:15px;margin-bottom:8px">⚠️ Dhyan do: '+(ov.length?esc(ov.join(', '))+' job(s) time pe nahi chale.':'system status '+esc(d.status||'?'))+' Neeche table me red row dekho.</div>';
     var h='<div class="result">'+banner+pills({status:d.status,overdue:ov.join(', ')||'none',queue_celery:q.celery,dlq:q.dlq});
-    h+='<table><tr><th>Job</th><th>Kya karta hai</th><th>Last run (IST)</th><th>Took</th><th>Status</th></tr>';
+    h+='<table><tr><th>Job</th><th>Kya karta hai</th><th>Kab (IST)</th><th>Last run (IST)</th><th>Took</th><th>Status</th><th>Auto</th><th></th></tr>';
     (d.jobs||[]).forEach(function(j){
       var st=String(j.status||'');
-      var cls=st==='ok'?'ok':(st==='scheduled_off'?'mut':(st==='overdue'||st==='last_failed'?'bad':'warn'));
-      h+='<tr><td>'+esc(j.job)+'</td><td class="mut">'+esc(JOB_DESC[j.job]||'')+'</td><td class="mut">'+esc(fmtTime(j.last_run))+'</td><td class="mut">'+(j.duration_s!=null?esc(j.duration_s)+'s':'')+'</td><td class="'+cls+'">'+esc(st)+'</td></tr>';
+      var cls=st==='ok'?'ok':(st==='scheduled_off'||st==='admin_paused'?'mut':(st==='overdue'||st==='last_failed'||st==='never_ran'?'bad':'warn'));
+      var en=j.enabled!==false;
+      h+='<tr><td>'+esc(j.job)+'</td><td class="mut">'+esc(j.label||JOB_DESC[j.job]||'')+'</td><td class="mut">'+esc(j.cadence||'')+'</td><td class="mut">'+esc(fmtTime(j.last_run))+'</td><td class="mut">'+(j.duration_s!=null?esc(j.duration_s)+'s':'')+'</td><td class="'+cls+'">'+esc(st)+'</td>';
+      h+='<td><button class="btn2" title="'+(en?'Pause karo (scheduler is job ko skip karega)':'Wapas ON karo')+'" onclick="scJobToggle(\''+esc(j.job)+'\','+(en?'false':'true')+')">'+(en?'🟢 ON':'⏸ paused')+'</button></td>';
+      h+='<td><button class="btn2" title="Abhi chalao (background)" onclick="scJobRun(\''+esc(j.job)+'\')">▶</button></td></tr>';
     });
     $('scHealthOut').innerHTML=h+'</table></div>';
   }catch(e){warnBox('scHealthOut','Health fail: '+e.message)}
@@ -2559,6 +2562,27 @@ async function scRun(member){
     if(d&&d.error)throw new Error(d.error);
     toast(member+' done ✅');scLoad();
   }catch(e){toast(member+' fail: '+e.message,false)}
+}
+async function scJobToggle(job,en){
+  var on=(en==='true'||en===true);
+  if(!job)return;
+  if(!on&&!confirm(job+' ko PAUSE kare? Scheduler ise skip karega jab tak wapas ON nahi karte (compliance gates unaffected).'))return;
+  try{
+    var d=await api('/api/platform/team/scheduler/'+encodeURIComponent(job)+'/toggle',{method:'POST',body:JSON.stringify({enabled:on})});
+    if(d&&d.ok===false)throw new Error(d.error||'fail');
+    toast(job+(on?' ON ✅':' paused ⏸'));scLoad();
+  }catch(e){toast(job+' toggle fail: '+e.message,false)}
+}
+async function scJobRun(job){
+  if(!job)return;
+  if(!confirm(job+' job ABHI chalaye? (background me chalega, result heartbeat me dikhega)'))return;
+  toast('▶ '+job+' queued...');
+  try{
+    var d=await api('/api/platform/team/scheduler/'+encodeURIComponent(job)+'/run',{method:'POST'});
+    if(d&&d.ok===false)throw new Error(d.error||'fail');
+    toast(job+' started ('+(d.started_via||'?')+') ✅');
+    setTimeout(scLoad,4000);
+  }catch(e){toast(job+' run fail: '+e.message,false)}
 }
 var scTimer=null;
 function scAuto(on){if(scTimer){clearInterval(scTimer);scTimer=null}if(on){scTimer=setInterval(function(){if($('sec-schedule').style.display!=='none')scLoad()},60000)}}

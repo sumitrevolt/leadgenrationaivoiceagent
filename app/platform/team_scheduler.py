@@ -143,6 +143,22 @@ async def _run_job(job: str) -> None:
     dono path isi se guzarte. Wrapper KABHI behaviour change nahi karta."""
     import time as _time
 
+    # Admin scheduler toggle (scheduler_config, FAIL-OPEN): admin ne job PAUSE
+    # kiya ho to skip — heartbeat "admin_paused" note ke saath record hota
+    # taaki dead-man overdue alert na bajaye. Dono paths (in-process + Celery)
+    # isi choke-point se guzarte, isliye toggle universal hai.
+    try:
+        from app.platform import scheduler_config as _sc
+
+        if not _sc.is_enabled(job):
+            from app.platform import automation_health as _ah
+
+            _ah.record_run(job, True, 0.0, note="admin_paused")
+            logger.info(f"[team-scheduler] job '{job}' skipped — admin paused")
+            return
+    except Exception:
+        pass  # FAIL-OPEN — config error pe job normal chalega
+
     _t0 = _time.monotonic()
     _ok = True
     try:

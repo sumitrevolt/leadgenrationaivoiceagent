@@ -31,7 +31,7 @@ GROWTH = ROOT / "app" / "api" / "growth.py"
 
 _DROP = {"os", "json", "asyncio", "datetime", "timezone", "time", "random", "typing",
          "annotations", "contextlib", "io", "logging", "math", "uuid", "re",
-         "logger", "settings", "config", "models", "base"}
+         "logger", "settings", "config", "models", "base", "celery_app"}
 
 
 def _read(p: pathlib.Path) -> str:

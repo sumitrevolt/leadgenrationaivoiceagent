@@ -175,7 +175,7 @@ async def run_sweep(max_items: int = 20, r=None, force: bool = False) -> dict[st
                 continue
             attempts = int(r.hincrby(COUNTS_KEY, job, 1) or 1)
             r.expire(COUNTS_KEY, COUNTS_TTL_S)
-            if attempts > MAX_ATTEMPTS:
+            if attempts >= MAX_ATTEMPTS:
                 rec["dead_reason"] = f"max {MAX_ATTEMPTS} auto-retries exhausted"
                 r.lpush(DEAD_KEY, json.dumps(rec, ensure_ascii=False))
                 out["dead"].append(job)

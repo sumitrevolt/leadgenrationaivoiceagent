@@ -31,8 +31,10 @@ from app.main import app
 
 
 @pytest.fixture
-def c():
+def c(monkeypatch):
     """A TestClient that does NOT run lifespan (no team-scheduler thread per test)."""
+    from app.cache import RateLimiter
+    monkeypatch.setattr(RateLimiter, "is_allowed", lambda *a, **k: (True, 9999))
     return TestClient(app)
 
 

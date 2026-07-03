@@ -138,7 +138,7 @@ def test_stripe_webhook_checkout_completed_provisions(monkeypatch):
 
     captured = {}
 
-    def fake_provision(client_id, plan_id, period_end, sub_id, reset=True):
+    def fake_provision(client_id, plan_id, period_end, sub_id, reset=True, **kwargs):
         captured.update(client_id=client_id, plan_id=plan_id, sub_id=sub_id)
 
     class FakeSub:

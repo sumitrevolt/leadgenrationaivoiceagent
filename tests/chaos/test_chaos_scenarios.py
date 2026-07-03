@@ -33,19 +33,20 @@ def test_redis_down_celery_fallback(monkeypatch):
 # ---------------------------------------------------------------------------
 def test_db_slow_timeout_circuit_breaker(monkeypatch):
     """DB query > timeout → circuit breaker opens, fast-fail."""
+    monkeypatch.setenv("CIRCUIT_BREAKER", "1")
     from app.infrastructure import circuit_breaker
 
-    cb = circuit_breaker.CircuitBreaker("db_query", failure_threshold=3, recovery_timeout=30)
+    cb = circuit_breaker.CircuitBreaker("db_query", fail_threshold=3, reset_after_s=30)
 
     # Simulate 3 failures (threshold reached)
     for _ in range(3):
         cb.record_failure()
 
     # Circuit should now be OPEN
-    assert cb.is_open() is True
+    assert cb.state == "open"
 
     # Fast-fail without hitting DB
-    assert cb.can_execute() is False
+    assert cb.allow() is False
 
 
 # ---------------------------------------------------------------------------
@@ -54,21 +55,29 @@ def test_db_slow_timeout_circuit_breaker(monkeypatch):
 def test_worker_crash_dlq_retry(monkeypatch):
     """Task fails → goes to DLQ → retry on revive."""
     from app.platform import dlq_retry
+    from tests.test_infra_batch3 import FakeRedis
+    import json
+    import asyncio
 
-    failed_tasks = [
-        {"task_id": "t1", "error": "Worker crash", "retry_count": 2}
-    ]
-    monkeypatch.setattr(dlq_retry, "get_dlq_tasks", lambda: failed_tasks)
+    monkeypatch.setenv("DLQ_AUTO_RETRY", "1")
+    monkeypatch.setenv("RUN_IN_PROCESS_SCHEDULER", "1")
 
-    # DLQ retry process
-    retried = []
-    for task in dlq_retry.get_dlq_tasks():
-        task["retry_count"] += 1
-        task["status"] = "retrying"
-        retried.append(task)
+    dispatched = []
+    async def fake_run_job(job):
+        dispatched.append(job)
 
-    assert len(retried) == 1
-    assert retried[0]["retry_count"] == 3
+    from app.platform import team_scheduler
+    monkeypatch.setattr(team_scheduler, "_run_job", fake_run_job)
+
+    r = FakeRedis()
+    rec = {"task_id": "t1", "error": "Worker crash", "args": "('content',)", "kwargs": "{}"}
+    r.lpush(dlq_retry.DLQ_KEY, json.dumps(rec))
+
+    # Run sweep: should retry the job
+    out = asyncio.run(dlq_retry.run_sweep(r=r))
+    assert len(out["retried"]) == 1
+    assert out["retried"][0]["job"] == "content"
+    assert dispatched == ["content"]
 
 
 # ---------------------------------------------------------------------------
@@ -77,15 +86,17 @@ def test_worker_crash_dlq_retry(monkeypatch):
 def test_duplicate_webhook_idempotency(monkeypatch):
     """Same webhook received twice → idempotent, only one action."""
     from app.billing import idempotency
+    import asyncio
 
     webhook_id = "webhook-vobiz-12345"
 
+    asyncio.run(idempotency.forget(webhook_id))
+
     # First delivery: process
-    assert idempotency.seen_before(webhook_id) is False
-    idempotency.mark_seen(webhook_id)
+    assert asyncio.run(idempotency.seen_before(webhook_id)) is False
 
     # Second delivery (duplicate): skip
-    assert idempotency.seen_before(webhook_id) is True
+    assert asyncio.run(idempotency.seen_before(webhook_id)) is True
 
     # Only one side effect
     actions = 1  # counted from first delivery
@@ -98,22 +109,31 @@ def test_duplicate_webhook_idempotency(monkeypatch):
 def test_poison_message_isolation(monkeypatch):
     """Poison message kills worker → task isolated, alert fired."""
     from app.platform import dlq_retry
+    from tests.test_infra_batch3 import FakeRedis
+    import json
+    import asyncio
 
-    poison = {"task_id": "poison-1", "payload": " malformed", "error": "TypeError"}
+    monkeypatch.setenv("DLQ_AUTO_RETRY", "1")
+    monkeypatch.setenv("RUN_IN_PROCESS_SCHEDULER", "1")
+    monkeypatch.setenv("NOTIFY_EMAIL", "admin@leadsgenai.in")
 
-    # On failure, task goes to DLQ (not retried forever)
-    dlq_retry.record_failure(poison)
-
-    # Poison message should be in DLQ
-    dlq = dlq_retry.get_dlq_tasks()
-    poison_in_dlq = any(t["task_id"] == "poison-1" for t in dlq)
-    assert poison_in_dlq is True
-
-    # Alert should be fired (mocked)
     alerts = []
-    monkeypatch.setattr(dlq_retry, "fire_alert", lambda msg: alerts.append(msg))
-    dlq_retry.fire_alert(f"Poison message: {poison['task_id']}")
-    assert len(alerts) == 1
+    async def fake_send_email(to, subject, body):
+        alerts.append((to, subject))
+        return True
+
+    from app.integrations.email_sender import email_sender
+    monkeypatch.setattr(email_sender, "send_email", fake_send_email)
+
+    r = FakeRedis()
+    # Poison task: args are not a valid staff job, so parse_staff_job returns None (unknown/poison task)
+    poison = {"task_id": "poison-1", "args": "('not_a_valid_job',)", "error": "TypeError"}
+    r.lpush(dlq_retry.DLQ_KEY, json.dumps(poison))
+
+    # Run sweep: should isolate poison task directly to DEAD_KEY
+    out = asyncio.run(dlq_retry.run_sweep(r=r))
+    assert out["skipped"] == 1
+    assert r.llen(dlq_retry.DEAD_KEY) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -133,5 +153,5 @@ def test_llm_provider_chain_fallback(monkeypatch):
 
     # Circuit breaker should be engaged for failing providers
     from app.infrastructure import circuit_breaker
-    cb = circuit_breaker.CircuitBreaker("mistral", failure_threshold=5, recovery_timeout=300)
-    assert cb.failure_count >= 0
+    cb = circuit_breaker.CircuitBreaker("mistral", fail_threshold=5, reset_after_s=300)
+    assert cb.state == "closed"
