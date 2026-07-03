@@ -127,3 +127,42 @@ def test_persona_prefix_defensive():
     assert isinstance(out, str)
     if out:  # skill_pack ne match diya
         assert "playbook" in out.lower()
+
+
+# ----------------------------- run_auto guard ----------------------------- #
+def test_run_auto_skips_nameless_prospects(monkeypatch):
+    """Council 2026-07-03: phone-only (nameless) leads must NOT be auto-analyzed --
+    BANT on "?" = hallucination fodder + ~6 wasted LLM calls each. Manual analyze()
+    stays open as the explicit override; only the AUTO path filters."""
+    import asyncio as _aio
+
+    from app.agents import sales_team as st
+
+    monkeypatch.setenv("SALES_TEAM", "1")
+    analyzed = []
+
+    async def _fake_analyze(p):
+        analyzed.append(p.get("phone"))
+        return {"ok": True}
+
+    async def _fake_top(n):
+        return {
+            "leads": [
+                {"phone": "9111111111", "name": "", "business_name": ""},  # nameless -> skip
+                {"phone": "9222222222", "name": "Sharma Solar", "business_name": "Sharma Solar"},
+            ]
+        }
+
+    def _boom_session():
+        raise RuntimeError("no db in test")
+
+    monkeypatch.setattr("app.models.base.get_async_session", _boom_session)
+    from app.platform import lead_scoring
+
+    monkeypatch.setattr(lead_scoring, "top_hot_leads", _fake_top)
+    monkeypatch.setattr(st, "analyze", _fake_analyze)
+    monkeypatch.setattr(st, "_already_done", lambda *a, **k: False)
+
+    out = _aio.run(st.run_auto(limit=5))
+    assert out["ok"] is True
+    assert analyzed == ["9222222222"]

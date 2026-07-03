@@ -42,6 +42,18 @@ def _now_iso() -> str:
     return datetime.now().isoformat()
 
 
+def _ts_to_iso(ts: Any) -> str:
+    """sales index stores ts as epoch-SECONDS int; frontend JS `new Date(int)`
+    reads ints as MILLISECONDS -> every draft showed "20616 din pehle" (1970).
+    Normalize at this single choke point so every consumer gets ISO."""
+    try:
+        if isinstance(ts, (int, float)) and ts > 0:
+            return datetime.fromtimestamp(ts).isoformat()
+        return str(ts or "")
+    except Exception:
+        return ""
+
+
 def _read_jsonl(path: str) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
     try:
@@ -107,10 +119,12 @@ def _drafts_sales(smap: dict) -> list[dict[str, Any]]:
     try:
         from app.agents import sales_team
 
+        seen: set[str] = set()  # index has dup pids (re-analyzed) — latest-first wins
         for r in sales_team.list_analyses(limit=20):
             pid = str(r.get("pid") or "")
-            if not pid:
+            if not pid or pid in seen:
                 continue
+            seen.add(pid)
             body = ""
             md = r.get("md")
             if md:
@@ -127,7 +141,7 @@ def _drafts_sales(smap: dict) -> list[dict[str, Any]]:
                     "title": f"{r.get('name') or pid} — {r.get('grade') or '?'} ({r.get('score') or 0}/100)",
                     "body": body
                     or f"{r.get('niche') or ''} · {r.get('city') or ''} · {r.get('phone') or ''}",
-                    "created_at": r.get("ts") or "",
+                    "created_at": _ts_to_iso(r.get("ts")),
                     "status": _status_for("sales", pid, smap),
                     "meta": {
                         "phone": r.get("phone"),

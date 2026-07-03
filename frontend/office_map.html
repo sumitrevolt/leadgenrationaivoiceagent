@@ -481,6 +481,8 @@
   }
   function relTime(iso){
     if (!iso) return "";
+    // Defensive: raw epoch-SECONDS int (JS reads ints as ms -> "1970/20616 din pehle")
+    if (typeof iso === "number") iso = iso < 1e12 ? iso * 1000 : iso;
     var t = new Date(iso).getTime();
     if (isNaN(t)) return "";
     var s = Math.max(0, Math.floor((Date.now() - t) / 1000));
