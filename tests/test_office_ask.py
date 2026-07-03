@@ -127,7 +127,30 @@ def test_api_ask_endpoint(monkeypatch):
     r = _client().post("/api/platform/office/ask", json={"q": "sab theek?"})
     assert r.status_code == 200
     body = r.json()
-    assert body["ok"] is True and body["text"] == "sab set"
+    assert body["ok"] is True
+    assert body["kind"] == "question"
+    assert body["text"] == "sab set"
+
+
+def test_api_ask_task_shape_for_command_bar(monkeypatch):
+    async def fake_ask(q):
+        return {
+            "ok": True,
+            "kind": "task",
+            "member": "isha",
+            "scope": "solo",
+            "run_id": "run_1",
+            "text": "Isha ne kaam draft kar diya",
+        }
+
+    monkeypatch.setattr(hq, "hq_ask", fake_ask)
+    r = _client().post("/api/platform/office/ask", json={"q": "post banao"})
+    assert r.status_code == 200
+    body = r.json()
+    for key in ("ok", "kind", "text", "member", "scope", "run_id"):
+        assert key in body
+    assert body["kind"] == "task"
+    assert body["text"]
 
 
 def test_api_ask_validates_empty():
