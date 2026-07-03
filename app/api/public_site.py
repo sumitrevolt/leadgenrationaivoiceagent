@@ -548,12 +548,17 @@ async def public_signup(body: SignupIn, request: Request):
     try:
         from app.marketing.clients_store import add_client
 
+        plan_input = (body.plan or "starter").strip().lower()
+        if plan_input not in ("starter", "growth", "advanced", "trial"):
+            plan_input = "starter"
+        body.plan = plan_input
+
         client = add_client(
             business_name=biz,
             niche=(body.niche or "general"),
             city=(body.city or ""),
             phone=(body.phone or ""),
-            plan=(body.plan or "starter"),
+            plan=plan_input,
         )
         cid = str((client or {}).get("id") or "")
     except Exception as e:
@@ -682,6 +687,7 @@ async def public_signup(body: SignupIn, request: Request):
         "token_type": "bearer",
         "business_name": (client or {}).get("business_name"),
         "slug": (client or {}).get("slug"),
+        "plan": (client or {}).get("plan"),
     }
     if is_trial:
         out["trial"] = True

@@ -4,7 +4,7 @@ Team API — AI staff roster, live activity feed, manual job runs.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
@@ -197,6 +197,82 @@ async def run_growth_now(current_user: User = Depends(require_admin)):
     except Exception as e:
         logger.warning(f"[team-api] growth run failed: {e}")
         return {"error": str(e)}
+
+
+# ---------------------------------------------------------------------------
+# Agent Scheduler (scheduler_config) — admin toggle + per-job run-now + run-due.
+# run-due = external recovery tick (Bearer LEADGEN_SCHEDULER_SECRET, admin JWT
+# NAHI chahiye — host cron/systemd timer hit kar sake). Secret unset => 503
+# fail-CLOSED (webhook-signature pattern).
+# ---------------------------------------------------------------------------
+
+
+class SchedulerToggleIn(BaseModel):
+    enabled: bool
+    note: str = Field("", max_length=120)
+
+
+@router.post("/scheduler/run-due")
+async def scheduler_run_due(request: Request, max_jobs: int = 3):
+    """Overdue/never-ran jobs ko re-dispatch karo (bounded, idempotent-ish).
+    Backup dead-man ticker: Celery beat + in-process loop dono mar jayein to
+    external cron isse hit karke agents revive kar sakta hai."""
+    import hmac as _hmac
+    import os as _os
+
+    secret = _os.environ.get("LEADGEN_SCHEDULER_SECRET", "").strip()
+    if not secret:
+        raise HTTPException(status_code=503, detail="scheduler secret not configured")
+    auth = request.headers.get("authorization", "")
+    if not _hmac.compare_digest(auth, f"Bearer {secret}"):
+        raise HTTPException(status_code=401, detail="invalid scheduler token")
+    try:
+        from app.platform import scheduler_config
+
+        return scheduler_config.run_due(max_jobs=max_jobs)
+    except Exception as e:
+        logger.warning(f"[team-api] scheduler run-due failed: {e}")
+        return {"ok": False, "error": str(e)[:150]}
+
+
+@router.get("/scheduler")
+async def get_scheduler_jobs(current_user: User = Depends(require_admin)):
+    """Saare scheduled agent-jobs: label/cadence/owner + enabled + heartbeat health."""
+    try:
+        from app.platform import scheduler_config
+
+        return scheduler_config.list_jobs()
+    except Exception as e:
+        logger.warning(f"[team-api] scheduler list failed: {e}")
+        return {"jobs": [], "error": str(e)}
+
+
+@router.post("/scheduler/{job}/toggle")
+async def toggle_scheduler_job(
+    job: str, body: SchedulerToggleIn, current_user: User = Depends(require_admin)
+):
+    """Job ON/PAUSE karo — runtime, no-restart (data/scheduler_overrides.json)."""
+    try:
+        from app.platform import scheduler_config
+
+        by = getattr(current_user, "email", None) or getattr(current_user, "username", "admin")
+        return scheduler_config.set_enabled(job, body.enabled, by=str(by), note=body.note)
+    except Exception as e:
+        logger.warning(f"[team-api] scheduler toggle {job} failed: {e}")
+        return {"ok": False, "error": str(e)[:150]}
+
+
+@router.post("/scheduler/{job}/run")
+async def run_scheduler_job_now(job: str, current_user: User = Depends(require_admin)):
+    """Job ABHI chalao — background dispatch (Celery prefer; HTTP block nahi)."""
+    try:
+        from app.platform import scheduler_config
+
+        by = getattr(current_user, "email", None) or getattr(current_user, "username", "admin")
+        return scheduler_config.run_now(job, by=str(by))
+    except Exception as e:
+        logger.warning(f"[team-api] scheduler run {job} failed: {e}")
+        return {"ok": False, "error": str(e)[:150]}
 
 
 __all__ = ["router"]

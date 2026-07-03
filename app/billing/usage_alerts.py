@@ -71,12 +71,12 @@ def _append(rec: dict[str, Any]) -> None:
 
 
 def _already_alerted(client_id: str, threshold: int, period: str) -> bool:
+    enabled = _enabled()
     return any(
         r.get("client_id") == client_id
         and int(r.get("threshold") or 0) == threshold
         and r.get("period") == period
-        and bool(r.get("sent"))  # only a DELIVERED alert dedups — a recorded-but-unsent
-        # one (send failed, or recorded while the flag was OFF) must NOT suppress a real retry
+        and (bool(r.get("sent")) or not enabled)  # only a DELIVERED alert dedups when enabled — otherwise presence in log is enough to avoid log spam
         for r in _read()
     )
 

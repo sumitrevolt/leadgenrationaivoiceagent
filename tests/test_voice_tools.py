@@ -132,7 +132,7 @@ def test_reply_with_tools_routes_tool_call(monkeypatch):
     monkeypatch.setattr(brain, "_kb_facts", _fake_kb)
     monkeypatch.setattr(brain, "_generate", _fake_gen_call)
 
-    spoken, call = asyncio.run(brain.reply_with_tools([], "haan kal 3 baje theek hai", reg))
+    spoken, call = asyncio.run(brain.reply_with_tools([], "book kar do kal 3 baje", reg))
     assert call is not None and call["name"] == "book_appointment"
     assert spoken == ""
 

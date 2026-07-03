@@ -120,8 +120,25 @@ def test_qdrant_disabled_when_no_url(monkeypatch):
     assert idx._qdrant() is None
 
 
-def test_qdrant_code_index_normalizes():
+def test_qdrant_code_index_normalizes(monkeypatch):
     """QdrantCodeIndex.search_sync must normalize Qdrant points → {file,lines,snippet}."""
+    import sys
+
+    # Mock qdrant_client so the test works offline (no qdrant_client package needed)
+    fake_qmodels = type(
+        "QModels",
+        (),
+        {
+            "Filter": lambda **k: None,
+            "FieldCondition": lambda **k: None,
+            "MatchValue": lambda **k: None,
+            "PayloadSchemaType": type("PST", (), {"KEYWORD": "keyword"})(),
+            "VectorParams": lambda **k: None,
+            "Distance": type("D", (), {"COSINE": "cosine"})(),
+        },
+    )()
+    monkeypatch.setitem(sys.modules, "qdrant_client", type("M", (), {"models": fake_qmodels})())
+
     idx = codebase_indexer.QdrantCodeIndex()
 
     class FakePoint:

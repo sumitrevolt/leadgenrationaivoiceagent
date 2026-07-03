@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1047 operations)
+## Endpoint Index — auto-generated from OpenAPI (1051 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1504,7 +1504,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/segments/{segment_id}` — Get Segment
 - `GET   ` `/api/segments/{segment_id}/preview` — Preview Segment
 
-### Team  (14)
+### Team  (18)
 
 - `GET   ` `/api/platform/team` — Get Team Status
 - `POST  ` `/api/platform/team/email-followups/run` — Run Email Followups Now
@@ -1519,6 +1519,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/platform/team/prospects/{pid}/status` — Set Prospect Status
 - `POST  ` `/api/platform/team/reply-triage/run` — Run Reply Triage Now
 - `POST  ` `/api/platform/team/run/{member}` — Run Team Member
+- `GET   ` `/api/platform/team/scheduler` — Get Scheduler Jobs
+- `POST  ` `/api/platform/team/scheduler/run-due` — Scheduler Run Due
+- `POST  ` `/api/platform/team/scheduler/{job}/run` — Run Scheduler Job Now
+- `POST  ` `/api/platform/team/scheduler/{job}/toggle` — Toggle Scheduler Job
 - `GET   ` `/api/platform/team/stats` — Get Team Stats
 
 ### Team Access  (7)

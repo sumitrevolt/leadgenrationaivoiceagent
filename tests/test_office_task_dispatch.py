@@ -27,6 +27,14 @@ from app.platform import office_hq
 client = TestClient(app)
 
 
+def _run(coro):
+    try:
+        return asyncio.run(coro)
+    except RuntimeError:
+        return asyncio.get_event_loop().run_until_complete(coro)
+
+
+
 # --------------------------------------------------------------------------- #
 # HTTP: admin gate
 #
@@ -76,7 +84,7 @@ def test_task_endpoint_happy_path(monkeypatch):
 # Unit: run_agent_task validation + never-raise contract
 # --------------------------------------------------------------------------- #
 def test_empty_goal_rejected():
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run(
         office_hq.run_agent_task("isha", "   ", "solo")
     )
     assert out["ok"] is False
@@ -84,7 +92,7 @@ def test_empty_goal_rejected():
 
 
 def test_unknown_member_rejected():
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run(
         office_hq.run_agent_task("__nobody__", "kuch kaam karo", "solo")
     )
     assert out["ok"] is False
@@ -92,7 +100,7 @@ def test_unknown_member_rejected():
 
 
 def test_bad_scope_rejected():
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run(
         office_hq.run_agent_task("isha", "kuch kaam karo", "everyone")
     )
     assert out["ok"] is False
@@ -114,7 +122,7 @@ def test_solo_scope_calls_fanout_single_agent(monkeypatch):
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _fake_fanout)
     monkeypatch.setattr("app.agents.coordinator.coordinate", _boom_coordinate)
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run(
         office_hq.run_agent_task("rohan", "leads follow up karo", "solo")
     )
     assert out["ok"] is True
@@ -137,7 +145,7 @@ def test_team_scope_calls_coordinate_draft_safe(monkeypatch):
 
     monkeypatch.setattr("app.agents.coordinator.coordinate", _fake_coordinate)
     monkeypatch.setattr("app.agents.coordinator.fan_out", _boom_fanout)
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run(
         office_hq.run_agent_task("isha", "poori team se campaign", "team")
     )
     assert out["ok"] is True
@@ -154,7 +162,7 @@ def test_goal_over_500_chars_capped(monkeypatch):
         return {"ok": True, "summary": "ok"}
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _fake_fanout)
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run(
         office_hq.run_agent_task("isha", "x" * 900, "solo")
     )
     assert out["ok"] is True
@@ -167,7 +175,7 @@ def test_coordinator_raises_yields_ok_false(monkeypatch):
         raise RuntimeError("LLM chain down")
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _boom)
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run(
         office_hq.run_agent_task("isha", "kuch karo", "solo")
     )
     assert out["ok"] is False
@@ -181,7 +189,7 @@ def test_timeout_yields_honest_background_note(monkeypatch):
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _slow)
     monkeypatch.setattr(office_hq, "_TASK_TIMEOUT", 0.05)
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run(
         office_hq.run_agent_task("isha", "lamba kaam", "solo")
     )
     assert out["ok"] is True
@@ -195,7 +203,7 @@ def test_coordinator_ok_false_propagates(monkeypatch):
         return {"ok": False, "error": "goal bahut chhota hai"}
 
     monkeypatch.setattr("app.agents.coordinator.fan_out", _fake_fanout)
-    out = asyncio.get_event_loop().run_until_complete(
+    out = _run(
         office_hq.run_agent_task("isha", "abc", "solo")
     )
     assert out["ok"] is False

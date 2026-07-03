@@ -50,7 +50,10 @@ def cache_dir(tmp_path, monkeypatch):
 
 
 def _run(coro):
-    return asyncio.get_event_loop().run_until_complete(coro)
+    try:
+        return asyncio.run(coro)
+    except RuntimeError:
+        return asyncio.get_event_loop().run_until_complete(coro)
 
 
 # --------------------------------------------------------------------------- #

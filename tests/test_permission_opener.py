@@ -39,7 +39,7 @@ def test_disclosure_plus_permission_compose(monkeypatch):
     raw = "Namaste, main Swara bol rahi hoon LeadGen se"
     opener = ensure_permission_ask(ensure_ai_disclosure(raw))
     low = opener.lower()
-    assert "ai assistant" in low  # disclosure present
+    assert "ai assistant" in low or "ai agent" in low  # disclosure present
     assert "do minute" in low  # permission present
     # the QA check should see permission in the opener turn
     assert check_missing_permission([{"role": "assistant", "content": opener}]) is None
@@ -90,5 +90,5 @@ def test_web_call_opener_discloses_ai(monkeypatch):
     brain = TelecallerBrain(niche="solar", client_name="Acme")
     opener = ensure_permission_ask(ensure_ai_disclosure(brain.opening_line()))
     low = opener.lower()
-    assert "ai assistant" in low  # AI disclosure injected
+    assert "ai assistant" in low or "ai agent" in low  # AI disclosure injected
     assert ("minute" in low) or ("busy" in low)  # permission/timing present

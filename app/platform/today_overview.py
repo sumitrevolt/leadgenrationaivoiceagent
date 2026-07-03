@@ -212,6 +212,14 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Flow runner cron (har 5 min)",
         "kya": "Customer/admin flows ke due cron triggers scan karta hai (gated)",
     },
+    "call_kpi_digest": {
+        "label": "Call KPI digest (raat 02:30)",
+        "kya": "AI calls ke conversions/dispositions analysis",
+    },
+    "platform_dial": {
+        "label": "Platform auto-dialer (11:30)",
+        "kya": "Outbound campaign auto-dial loop",
+    },
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason).
