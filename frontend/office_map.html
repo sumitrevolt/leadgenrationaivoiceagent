@@ -385,6 +385,19 @@
       </h3>
       <div id="failureConsoleList"><div class="loading-note">⏳ Loading…</div></div>
     </div>
+
+    <!-- F1 DLQ Repair Desk — mobile-safe entry point (canvas ≤760px hidden hota
+         hai, isliye pile-sprite ke alaava yeh card zaroori). Count usi 15s poll
+         (renderFailureConsole) se aata hai; card khulne pe drawer full list. -->
+    <div id="dlqRepairCard" class="panel-box" style="margin-top:14px;cursor:pointer"
+      title="Hermes ke desk ka DLQ Repair — failed tasks dekho + retry/clear">
+      <h3 style="display:flex;align-items:center;gap:8px">
+        🗂️ DLQ Repair Desk
+        <span id="dlqRepairBadge" style="margin-left:auto;font-size:11.5px;font-weight:700;
+          color:var(--muted)">…</span>
+      </h3>
+      <div id="dlqRepairSummary" class="empty-note">⏳ Loading…</div>
+    </div>
   </div>
 
   <div id="roomTooltip"></div>
@@ -674,6 +687,60 @@
           repeat: -1, delay: i * 850, ease: "Sine.easeOut" });
       });
     }
+    OFFICE.drawDlqPile();  // Hermes desk crumpled-paper pile (count-driven)
+  };
+
+  // ---- F1: crumpled-paper pile on Hermes' desk (platform_engineering room) ----
+  // Size/visibility = live DLQ depth (OFFICE.dlqState). 0 items = saaf desk (no
+  // pile). Idempotent: har poll pe destroy+redraw. Desktop flourish only — mobile
+  // ka entry point dlqRepairCard hai (canvas ≤760px hidden). Click → drawer.
+  OFFICE.dlqPile = null;
+  OFFICE.dlqPileCount = -1;   // last-drawn count (-1 = never drawn; 0..n after)
+  OFFICE.drawDlqPile = function(){
+    var scene = OFFICE.scene;
+    if (!scene) return;
+    var pe = OFFICE.roomById && OFFICE.roomById.platform_engineering;
+    if (!pe) return;
+    var st = OFFICE.dlqState || { failed: 0, dead: 0 };
+    var n = (st.failed || 0) + (st.dead || 0);
+    // Count unchanged + pile already drawn (or already empty) → skip redraw. Warna
+    // har 15s poll pe Math.random() dobara chalta = wads visibly jitter karte +
+    // pointless Phaser object churn.
+    if (OFFICE.dlqPileCount === n) return;
+    OFFICE.dlqPileCount = n;
+    // teardown previous pile (count changed)
+    if (OFFICE.dlqPile) {
+      try { OFFICE.dlqPile.forEach(function(o){ o.destroy(); }); } catch (e) {}
+      OFFICE.dlqPile = null;
+    }
+    if (n <= 0) return;  // saaf desk — koi sprite nahi
+    // Desk corner (left of the server-rack at pe.x+pe.w-44). Pile grows with count.
+    var px = pe.x + 90, py = pe.y + pe.h - 40;
+    var wads = Math.min(6, Math.max(2, Math.ceil(n / 3)));  // 2..6 crumpled wads
+    var pile = [];
+    for (var i = 0; i < wads; i++) {
+      var wx = px + (i % 3) * 11 - 11 + (Math.random() * 4 - 2);
+      var wy = py - Math.floor(i / 3) * 8 + (Math.random() * 3 - 1.5);
+      var wad = scene.add.circle(wx, wy, 5 + Math.random() * 1.5, 0xe5e7eb, 0.95)
+        .setStrokeStyle(1, 0x9ca3af).setDepth(6);
+      pile.push(wad);
+    }
+    // count badge above the pile (red = has failed, amber = dead-only)
+    var badgeColor = (st.failed || 0) > 0 ? "#ef4444" : "#f59e0b";
+    var badgeY = py - (Math.ceil(wads / 3)) * 8 - 14;
+    var badge = scene.add.text(px, badgeY, "🗂️ " + n,
+      { fontFamily: "system-ui,Arial", fontSize: "13px", fontStyle: "bold",
+        color: "#ffffff", backgroundColor: badgeColor, padding: { x: 4, y: 1 } })
+      .setOrigin(0.5, 1).setDepth(7);
+    pile.push(badge);
+    // Single invisible click zone over pile+badge (Rectangle GameObject = reliable
+    // hit area; same pattern as room zones). Click → repair drawer.
+    var hit = scene.add.rectangle(px - 24, badgeY - 20, 68, py - badgeY + 34, 0xffffff, 0.001)
+      .setOrigin(0, 0).setDepth(8);
+    hit.setInteractive({ useHandCursor: true });
+    hit.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openDlqRepairDrawer(); });
+    pile.push(hit);
+    OFFICE.dlqPile = pile;
   };
 
   OFFICE.showRoomTooltip = function(roomId, pointer){
@@ -1454,9 +1521,25 @@
   // Real data from /api/growth/infra/dlq (failed + dead) + recovery via
   // /api/growth/infra/dlq/sweep — both admin-gated. No mock: if empty, shows
   // healthy state; if the endpoint errors, shows the error honestly.
+  // F1: DLQ record ka job-naam client-side derive karo. worker.py on_task_failure
+  // record me sirf {task_id, error, args(stringified tuple), kwargs, ts} hota hai —
+  // koi task/name/job key NAHI. dlq_retry.parse_staff_job ka first-quoted-token
+  // logic mirror: args string "('content',)" se pehla quoted token nikaalo.
+  OFFICE.dlqJobName = function(it){
+    if (!it) return "unknown task";
+    if (it.task || it.name || it.job) return it.task || it.name || it.job;
+    var args = String(it.args == null ? "" : it.args);
+    var m = args.match(/['"]([^'"]+)['"]/);
+    if (m && m[1]) return m[1];
+    return it.task_id ? ("task " + String(it.task_id).slice(0, 8)) : "unknown task";
+  };
+
+  // Live DLQ snapshot cache (pile-sprite + card + drawer sab isi se padhte). Yeh
+  // fn already 15s refreshSnapshot cycle me chalta hai — koi doosra poll nahi.
+  OFFICE.dlqState = { failed: 0, dead: 0, items: [], loaded: false, error: false };
+
   OFFICE.renderFailureConsole = async function(){
     var el = document.getElementById("failureConsoleList");
-    if (!el) return;
     var failed = { count: 0, items: [] }, dead = { count: 0, items: [] };
     try {
       var rf = await fetch("/api/growth/infra/dlq?key=failed&limit=15", { headers: hdrs() });
@@ -1464,17 +1547,27 @@
       var rd = await fetch("/api/growth/infra/dlq?key=dead&limit=15", { headers: hdrs() });
       if (rd.ok) dead = await rd.json();
     } catch (e) {
-      el.innerHTML = '<div class="empty-note">DLQ load nahi ho paya (Redis reachable?).</div>';
+      OFFICE.dlqState = { failed: 0, dead: 0, items: [], loaded: false, error: true };
+      if (el) el.innerHTML = '<div class="empty-note">DLQ load nahi ho paya (Redis reachable?).</div>';
+      OFFICE.renderDlqRepairCard();
+      OFFICE.drawDlqPile();
       return;
     }
     var fc = failed.count || 0, dc = dead.count || 0;
+    // Stash a merged, tagged list for the repair drawer + count for the sprite.
+    var merged = (failed.items || []).map(function(x){ return Object.assign({ _kind: "failed" }, x); })
+      .concat((dead.items || []).map(function(x){ return Object.assign({ _kind: "dead" }, x); }));
+    OFFICE.dlqState = { failed: fc, dead: dc, items: merged, loaded: true, error: false };
+    OFFICE.renderDlqRepairCard();
+    OFFICE.drawDlqPile();
+    if (!el) return;
     var head = '<div class="health-row"><span class="health-dot" style="background:' +
       (fc > 0 ? "#ef4444" : "#10b981") + '"></span>Failed (retry-able): <b>' + esc(fc) + '</b>' +
       ' &nbsp;·&nbsp; <span class="health-dot" style="background:' + (dc > 0 ? "#f59e0b" : "#10b981") +
       '"></span>Dead (exhausted): <b>' + esc(dc) + '</b></div>';
-    var items = (failed.items || []).concat(dead.items || []).slice(0, 12);
+    var items = merged.slice(0, 12);
     var rows = items.map(function(it){
-      var task = esc(it.task || it.name || it.job || "unknown task");
+      var task = esc(OFFICE.dlqJobName(it));
       var err = esc(String(it.error || it.exc || it.reason || "").slice(0, 120));
       var when = it.ts || it.at || it.failed_at;
       return '<div class="item-row"><div class="ir-name">⚠️ ' + task + '</div>' +
@@ -1486,6 +1579,128 @@
     } else {
       el.innerHTML = head + (rows || '<div class="empty-note">Counts hain par preview items abhi nahi mile.</div>');
     }
+  };
+
+  // ---- F1 DLQ Repair Desk: mobile-safe card + drawer -------------------------
+  // Per-item Retry/Discard JAAN-BOOJH kar NAHI diye: backend me koi per-item
+  // endpoint nahi (retry = rpop batch, discard = poora purge). Aisa mapping
+  // misleading/data-loss hota. Sirf collective actions, sahi label ke saath:
+  //   Retry-all → POST /infra/dlq/sweep (backoff + attempt-cap; unknown → dlq:dead)
+  //   Clear all → DELETE /infra/dlq (poora failed queue khali; wapas nahi aayega)
+  OFFICE.renderDlqRepairCard = function(){
+    var badge = document.getElementById("dlqRepairBadge");
+    var summ = document.getElementById("dlqRepairSummary");
+    if (!badge || !summ) return;
+    var st = OFFICE.dlqState;
+    if (st.error) {
+      badge.textContent = "⚠️";
+      summ.innerHTML = 'DLQ status load nahi hua — <a href="javascript:void(0)" id="dlqCardRetry" ' +
+        'style="color:var(--accent,#2563eb);font-weight:700">phir se try karo</a>';
+      var rl = document.getElementById("dlqCardRetry");
+      if (rl) rl.onclick = function(ev){ if (ev) ev.stopPropagation(); OFFICE.renderFailureConsole(); };
+      return;
+    }
+    if (!st.loaded) { badge.textContent = "…"; summ.textContent = "⏳ Loading…"; return; }
+    var total = (st.failed || 0) + (st.dead || 0);
+    if (total === 0) {
+      badge.textContent = "0";
+      badge.style.color = "#10b981";
+      summ.innerHTML = '🎉 Koi failed task nahi';
+    } else {
+      badge.textContent = total + " item" + (total === 1 ? "" : "s");
+      badge.style.color = st.failed > 0 ? "#ef4444" : "#f59e0b";
+      summ.innerHTML = '⚠️ Failed <b>' + esc(st.failed) + '</b> · Dead <b>' + esc(st.dead) +
+        '</b> — <span style="color:var(--accent,#2563eb);font-weight:700">kholo →</span>';
+    }
+  };
+
+  OFFICE.openDlqRepairDrawer = function(){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    if (!panel || !body) return;
+    panel.classList.remove("panel-hidden");
+    var st = OFFICE.dlqState;
+    var total = (st.failed || 0) + (st.dead || 0);
+    var rows;
+    if (st.error) {
+      rows = '<div class="empty-note">DLQ status load nahi hua (Redis reachable?). Card se phir try karo.</div>';
+    } else if (total === 0) {
+      rows = '<div class="empty-note">🎉 Koi failed task nahi — automation healthy hai.</div>';
+    } else {
+      rows = (st.items || []).slice(0, 30).map(function(it){
+        var task = esc(OFFICE.dlqJobName(it));
+        var tag = it._kind === "dead"
+          ? '<span style="color:#f59e0b;font-weight:700">dead</span>'
+          : '<span style="color:#ef4444;font-weight:700">failed</span>';
+        var err = esc(String(it.error || it.exc || it.reason || "").slice(0, 160));
+        var when = it.ts || it.at || it.failed_at;
+        return '<div class="item-row"><div class="ir-name">⚠️ ' + task + ' &nbsp;·&nbsp; ' + tag + '</div>' +
+          (err ? '<div class="ir-meta">' + err + '</div>' : '') +
+          (when ? '<div class="ir-meta">' + esc(relTime(when)) + '</div>' : '') + '</div>';
+      }).join("") || '<div class="empty-note">Counts hain par preview items abhi nahi mile.</div>';
+    }
+    // Actions (sweep + purge) sirf dlq:failed_tasks pe kaam karte — dlq:dead ko
+    // koi nahi chhuta. Isliye failed===0 pe buttons inert (dead-only pe enabled
+    // button jo kuch na kare = misleading, wahi galti jo per-item me avoid ki).
+    var actionsDisabled = (st.error || (st.failed || 0) === 0);
+    var btnStyle = 'border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:12.5px;' +
+      'font-weight:700;cursor:pointer;background:#fff';
+    body.innerHTML =
+      '<div class="panel-title">🗂️ DLQ Repair Desk</div>' +
+      '<div class="panel-sub">Hermes ka desk — failed Celery tasks (retry-able) + dead (retry exhausted). ' +
+      'Actions poore queue pe chalte hain (per-item backend nahi hai).</div>' +
+      '<div class="panel-stats">' +
+        '<div class="panel-stat">Failed<br><b>' + esc(st.failed || 0) + '</b></div>' +
+        '<div class="panel-stat">Dead<br><b>' + esc(st.dead || 0) + '</b></div>' +
+      '</div>' +
+      '<div style="display:flex;gap:8px;margin:12px 0 4px;flex-wrap:wrap">' +
+        '<button id="dlqDrawerRetryAll" style="' + btnStyle + (actionsDisabled ? ';opacity:.5;cursor:not-allowed' : '') + '"' +
+          (actionsDisabled ? " disabled" : "") + '>🔁 Retry all (sweep)</button>' +
+        '<button id="dlqDrawerClearAll" style="' + btnStyle + ';color:#991b1b' +
+          (actionsDisabled ? ';opacity:.5;cursor:not-allowed' : '') + '"' +
+          (actionsDisabled ? " disabled" : "") + '>🗑️ Clear all failed</button>' +
+      '</div>' +
+      '<div class="panel-events">' + rows + '</div>';
+    var retryBtn = document.getElementById("dlqDrawerRetryAll");
+    var clearBtn = document.getElementById("dlqDrawerClearAll");
+    if (retryBtn && !actionsDisabled) retryBtn.onclick = OFFICE.dlqRetryAll;
+    if (clearBtn && !actionsDisabled) clearBtn.onclick = OFFICE.dlqClearAll;
+  };
+
+  OFFICE.dlqRetryAll = async function(){
+    if (!confirm("Sabhi failed jobs ko backoff + attempt-cap ke saath dobara chalayein? " +
+      "(Jo parse na ho / exhausted ho — woh dead-queue me chale jayenge.)")) return;
+    var btn = document.getElementById("dlqDrawerRetryAll");
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ Sweeping…"; }
+    try {
+      var r = await fetch("/api/growth/infra/dlq/sweep?limit=50", { method: "POST", headers: hdrs() });
+      var d = r.ok ? await r.json() : {};
+      var retried = (d.retried && d.retried.length != null) ? d.retried.length : (d.retried || 0);
+      var dead = (d.dead && d.dead.length != null) ? d.dead.length : (d.dead || 0);
+      if (r.ok) showBanner("✓ DLQ sweep: retried=" + retried + " · dead=" + dead);
+      else showBanner("✕ DLQ sweep fail (HTTP " + r.status + ")");
+    } catch (e) {
+      showBanner("✕ DLQ sweep fail — network/Redis?");
+    }
+    await OFFICE.renderFailureConsole();
+    OFFICE.openDlqRepairDrawer();
+  };
+
+  OFFICE.dlqClearAll = async function(){
+    if (!confirm("Sabhi FAILED tasks queue se hata dein? Yeh wapas NAHI aayenge (dead-queue " +
+      "isse alag hai). Sirf tab karo jab tumhe pata ho ki yeh jobs ab chalane ki zaroorat nahi.")) return;
+    var btn = document.getElementById("dlqDrawerClearAll");
+    if (btn) { btn.disabled = true; btn.textContent = "⏳ Clearing…"; }
+    try {
+      var r = await fetch("/api/growth/infra/dlq", { method: "DELETE", headers: hdrs() });
+      var d = r.ok ? await r.json() : {};
+      if (r.ok) showBanner("✓ DLQ clear: " + (d.purged != null ? d.purged : 0) + " failed task(s) hata diye");
+      else showBanner("✕ DLQ clear fail (HTTP " + r.status + ")");
+    } catch (e) {
+      showBanner("✕ DLQ clear fail — network/Redis?");
+    }
+    await OFFICE.renderFailureConsole();
+    OFFICE.openDlqRepairDrawer();
   };
 
   OFFICE.openHealthPanel = function(job){
@@ -2236,6 +2451,9 @@
     await OFFICE.renderFailureConsole();
     setTimeout(function(){ btn.disabled = false; btn.textContent = "🔁 Retry sweep"; }, 3000);
   };
+
+  // F1: DLQ Repair card (mobile-safe entry point) → repair drawer.
+  document.getElementById("dlqRepairCard").onclick = function(){ OFFICE.openDlqRepairDrawer(); };
 
   document.getElementById("legendToggle").onclick = function(){
     document.getElementById("legendPopover").style.display = "block";
