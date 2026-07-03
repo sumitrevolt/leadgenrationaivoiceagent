@@ -841,9 +841,17 @@ class TelecallerBrain:
         if os.environ.get("WHATSAPP_AUTO_SEND", "0").strip().lower() not in ("1", "true", "yes"):
             return
         try:
+            from urllib.parse import quote
+
             from app.integrations.whatsapp import get_whatsapp_sender
 
-            link = "https://leadsgenai.in/start"
+            params = [f"phone={quote(self.caller_phone)}"]
+            biz = self.client_name if self.niche != "ai_marketing" else ""
+            if biz:
+                params.append(f"biz={quote(biz)}")
+            if self.niche:
+                params.append(f"niche={quote(self.niche)}")
+            link = "https://leadsgenai.in/start?" + "&".join(params)
             msg = (
                 "Namaste! LeadGen AI se Swara 🙂 Aapne call pe interest dikhaya — "
                 f"7-din FREE trial yahan shuru karein: {link}\n"
