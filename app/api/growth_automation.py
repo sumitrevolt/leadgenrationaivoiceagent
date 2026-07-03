@@ -168,7 +168,14 @@ async def upgrader_patch_status(
     """Hybrid gate: core-code patch approve/reject — SUPER_ADMIN only (RBAC design)."""
     from app.agents import code_upgrader
 
-    return code_upgrader.set_status(patch_id, body.status, body.note)
+    result = code_upgrader.set_status(patch_id, body.status, body.note)
+    try:  # office HQ Approvals-panel cache — see decide() sibling above
+        from app.platform import office_hq
+
+        await office_hq.invalidate_snapshot_cache()
+    except Exception:
+        pass
+    return result
 
 
 @router.get("/upgrader/code-search")
@@ -437,9 +444,22 @@ async def approvals_draft_decide(
     Risky real-send stays draft-only by design. Idempotent."""
     from app.platform import approvals_bridge
 
-    return approvals_bridge.decide(
+    result = approvals_bridge.decide(
         source, item_id, body.decision, by=getattr(_user, "email", "admin") or "admin"
     )
+    # Office HQ snapshot caches build_approvals() for 18s — without invalidating
+    # here, the very next Approvals-panel refresh (fired immediately after this
+    # click) re-serves the stale cache and the just-decided item looks stuck,
+    # i.e. "click nahi hora". Same fix already applied to every other office_hq
+    # mutation (pause/resume/assign/next-action/move) — this decide path used a
+    # pre-existing admin API outside office_hq's own router, so it was missed.
+    try:
+        from app.platform import office_hq
+
+        await office_hq.invalidate_snapshot_cache()
+    except Exception:
+        pass
+    return result
 
 
 # ----------------------------- Self-Improve Approval Gates (Phase 6) -------- #
@@ -488,6 +508,12 @@ async def approve_selfimprove_task(
             )
         except Exception:
             pass
+        try:  # office HQ Approvals-panel cache — see decide() sibling above
+            from app.platform import office_hq
+
+            await office_hq.invalidate_snapshot_cache()
+        except Exception:
+            pass
         return {"status": "approved", "task_id": task_id}
     return {"status": "error", "detail": f"task {task_id} not found"}
 
@@ -512,6 +538,12 @@ async def reject_selfimprove_task(
                 "selfimprove_rejected",
                 f"Task {task_id} rejected: {body.reason or 'no reason'} by {getattr(current_user, 'email', 'admin')}",
             )
+        except Exception:
+            pass
+        try:  # office HQ Approvals-panel cache — see decide() sibling above
+            from app.platform import office_hq
+
+            await office_hq.invalidate_snapshot_cache()
         except Exception:
             pass
         return {"status": "rejected", "task_id": task_id, "reason": body.reason}
