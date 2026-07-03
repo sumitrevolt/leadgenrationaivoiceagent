@@ -156,3 +156,56 @@ def test_api_ask_task_shape_for_command_bar(monkeypatch):
 def test_api_ask_validates_empty():
     r = _client().post("/api/platform/office/ask", json={"q": ""})
     assert r.status_code == 422  # pydantic min_length
+
+
+# --------------------------------------------------------------------------- #
+# Broadcast — "sabhi agents ko command" (2026-07-03 user-ask)
+# --------------------------------------------------------------------------- #
+def test_heuristic_route_broadcast():
+    assert hq._ask_heuristic_route("sabhi agents ko bolo apna status report do")["kind"] == "broadcast"
+    assert hq._ask_heuristic_route("puri team lag jao diwali campaign pe")["kind"] == "broadcast"
+
+
+async def test_hq_ask_broadcast_fans_out_to_runnables(monkeypatch):
+    async def fake_route(q):
+        return {"kind": "broadcast", "member": "", "scope": "team"}
+
+    seen = {}
+
+    async def fake_fan_out(goal, agents=None, max_agents=4):
+        seen.update(goal=goal, agents=list(agents or []), max_agents=max_agents)
+        return {"ok": True, "goal": goal, "agents": agents,
+                "results": [{"agent": "isha", "output": "post idea ready"},
+                            {"agent": "rohan", "output": "outreach list bana"}],
+                "summary": "sab lag gaye kaam pe", "at": "2026-07-03T12:00:00"}
+
+    monkeypatch.setattr(hq, "_ask_route", fake_route)
+    import app.agents.coordinator as coordinator
+
+    monkeypatch.setattr(coordinator, "fan_out", fake_fan_out)
+    res = await hq.hq_ask("sabhi agents ko bolo aaj revenue pe focus karo")
+    assert res["ok"] is True and res["kind"] == "broadcast"
+    assert set(seen["agents"]) == set(hq.RUNNABLE_MEMBERS)  # doer-set, capped
+    assert "Isha" in res["text"] and "Rohan" in res["text"]
+    assert "sab lag gaye" in res["text"]
+
+
+def test_boss_brief_headline_has_aaj_label_and_hot():
+    """Sync-perception fix: window-label 'Aaj' + hot count same headline me."""
+    brief = hq.build_boss_brief({
+        "metrics": {"new_leads_today": 0, "qualified_leads_today": 0, "mrr": 0},
+        "pipeline": [{"id": "scoring_qualification", "count": 11}],
+        "approvals": {"counts": {"total_pending": 21}},
+        "system_health": {},
+    })
+    assert brief["headline"].startswith("Aaj:")
+    assert "11 hot ready" in brief["headline"]
+    assert "21 approval" in brief["recommendation"]["label"]
+
+
+def test_ask_context_total_pending_first():
+    ctx = hq._ask_context_from_snapshot({
+        "approvals": {"counts": {"coordinator": 14, "sales": 7, "total_pending": 21}},
+    })
+    assert "TOTAL pending=21" in ctx
+    assert ctx.index("TOTAL pending=21") < ctx.index("coordinator=14")
