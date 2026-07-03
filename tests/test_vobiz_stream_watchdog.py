@@ -192,3 +192,25 @@ async def test_chat_stream_is_bounded_on_midstream_stall(monkeypatch):
     # The whole drain must complete fast (idle deadline ~0.2s), not hang on the stall.
     await asyncio.wait_for(_drain(), timeout=5)
     assert out == ["Hello"], "should yield the first token then stop on idle timeout"
+
+
+async def test_send_is_bounded_when_ws_write_hangs(monkeypatch):
+    """2026-07-03: _send() used to `await self.ws.send_text(...)` with no timeout.
+    _play_frames() calls _send() for every 20ms playAudio frame while
+    self._speaking=True; a single hung send would leave _speaking stuck True
+    forever, permanently blocking the ONLY code path that finalizes an
+    utterance (lives entirely under "not speaking") — the exact failure shape
+    seen on a real 2026-07-03 test call (clean decoded audio the whole call,
+    zero user_turns). Lock in that a hung ws.send_text() no longer hangs the
+    session forever: it times out and closes the session instead."""
+    monkeypatch.setattr(vs, "_SEND_TIMEOUT_S", 0.05)
+    sess = _session()
+
+    async def _hangs_forever(_text):
+        await asyncio.sleep(999)
+
+    monkeypatch.setattr(sess.ws, "send_text", _hangs_forever)
+
+    await asyncio.wait_for(sess._send({"event": "playAudio"}), timeout=1)
+
+    assert sess._closed is True

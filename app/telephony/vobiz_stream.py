@@ -144,6 +144,9 @@ STT_RATE = 16000  # STT models want 16 kHz PCM16 (== SAMPLE_RATE: no resample)
 FRAME_PCM = 640  # 20 ms of PCM16 @ 16 kHz (16000 * 0.02 * 2 bytes)
 _SIL_WIN_BYTES = 1024  # 512 samples @16k — Silero VAD min window (D-5 buffer floor)
 PCM_SILENCE = b"\x00"  # PCM16 silence == zero bytes
+# 2026-07-03: a normal playAudio frame send completes in low milliseconds; this
+# only trips on a genuine WS stall (see _send() comment for the failure mode).
+_SEND_TIMEOUT_S = 2.0
 
 
 def _env_num(name: str, default: float) -> float:
@@ -2497,7 +2500,15 @@ class VobizStreamSession:
         if self._closed:
             return
         try:
-            await self.ws.send_text(json.dumps(obj))
+            # 2026-07-03: was a bare unbounded await — the exact class of bug this
+            # file has hit before (unbounded await -> permanently stuck flag, see
+            # the 2026-06-22 dead-air fix). _play_frames() calls _send() for every
+            # 20ms playAudio frame while self._speaking=True; if a single send ever
+            # hangs (WS backpressure / a Vobiz-side stall), _speaking would never
+            # reset, which permanently blocks the ONLY code path that finalizes an
+            # utterance (that logic lives entirely under "not speaking"). Bounding
+            # this can only help — a normal send completes in low milliseconds.
+            await asyncio.wait_for(self.ws.send_text(json.dumps(obj)), timeout=_SEND_TIMEOUT_S)
         except Exception as e:
             logger.debug(f"[vobiz-stream] send failed: {e}")
             self._closed = True
@@ -2530,6 +2541,22 @@ class VobizStreamSession:
             f"event_types={self._event_type_counts} nonjson_frames={self._nonjson_frame_count} "
             f"media_events={self._media_event_count} media_empty_payload={self._media_empty_payload_count} "
             f"media_decode_fail={self._media_decode_fail_count}"
+        )
+        # 2026-07-03: the 2026-07-03 real test call proved audio delivery is fine
+        # (media_events==inbound_frames, caller_rms_max >> vad_thr, recording shows
+        # clean speech-shaped audio for the full call) yet user_turns=0 — so the
+        # remaining hypothesis is that speech got buffered (during _speaking=True /
+        # disclosure-locked) but never reached the finalize-check at all, or
+        # finalized-but-never-flushed. This state snapshot at teardown answers it
+        # directly on the NEXT test call: _had_speech=True + non-trivial
+        # unflushed_speech_ms here means real speech was captured and simply
+        # never finalized before the call ended.
+        logger.info(
+            f"[vobiz-stream] end-state sid={self.stream_sid} speaking={self._speaking} "
+            f"thinking={self._thinking} disclosure_active={self._disclosure_active} "
+            f"had_speech={self._had_speech} unflushed_speech_ms={self._speech_ms:.0f} "
+            f"unflushed_silence_ms={self._silence_ms:.0f} speech_segments={self._speech_segments} "
+            f"barge_count={self._interruptions}"
         )
         self._save_recording()
         self._persist_transcript(ended, dur, turns)
