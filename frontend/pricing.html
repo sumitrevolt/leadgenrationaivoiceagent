@@ -355,7 +355,7 @@ async function doSignupPay(){
       })
     });
     const d = await r.json();
-    if(!r.ok){ busy(false); return setMsg(d.detail || "Signup fail. <a href='/app/login'>Login</a>"); }
+    if(!r.ok){ busy(false); return setMsg((d.error && d.error.message) || d.detail || "Signup fail. <a href='/app/login'>Login</a>"); }
     cid = d.client_id || "";
     token = d.access_token || "";
     if(token) localStorage.setItem("accessToken", token);

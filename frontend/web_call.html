@@ -179,6 +179,35 @@
   .hist-turn b{color:var(--brand);font-size:10px;text-transform:uppercase}
   .hist-turn.user b{color:#334155}
   .hist-turn .ts{color:var(--muted);font-size:10px;margin-left:4px}
+
+  /* ---- Inline trial-signup overlay (voice close-signal) ---- */
+  .signup-overlay{
+    position:absolute;inset:0;z-index:50;background:rgba(30,27,46,.55);
+    display:flex;align-items:center;justify-content:center;padding:18px;
+  }
+  .signup-overlay.hidden{display:none}
+  .signup-card{
+    background:var(--card);border-radius:16px;box-shadow:var(--shadow);
+    padding:20px;width:100%;max-width:340px;max-height:88vh;overflow-y:auto;
+  }
+  .signup-title{font-size:17px;font-weight:800;color:var(--ink);margin-bottom:4px}
+  .signup-sub{font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.4}
+  .signup-card label{display:block;font-size:12px;font-weight:700;color:var(--ink);margin:10px 0 4px}
+  .signup-card input{
+    width:100%;border:1px solid var(--line);border-radius:9px;padding:9px 10px;
+    font-size:13.5px;font-family:inherit;color:var(--ink);
+  }
+  .signup-card input:focus{outline:none;border-color:var(--brand-2);box-shadow:0 0 0 3px rgba(79,70,229,.12)}
+  .signup-card input[readonly]{background:var(--bg);color:var(--muted)}
+  .signup-err{font-size:12px;color:var(--err);margin-top:8px}
+  .signup-err.hidden{display:none}
+  .signup-card button{
+    width:100%;border:none;border-radius:10px;padding:11px;font-size:14px;font-weight:800;
+    cursor:pointer;margin-top:14px;font-family:inherit;
+  }
+  #signupSubmit{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff}
+  #signupSubmit:disabled{opacity:.6;cursor:not-allowed}
+  .signup-dismiss{background:transparent;color:var(--muted);margin-top:6px !important}
 </style>
 </head>
 <body>
@@ -239,7 +268,7 @@
       <button id="sendBtn" disabled>Send</button>
     </div>
 
-    <div class="foot" id="foot"><b>TEST MODE</b> — koi real phone call / charge nahi. Browser me hi bot se baat ho rahi hai.</div>
+    <div class="foot" id="foot"><b>🔒 Free &amp; safe</b> — koi charge nahi, koi real phone call nahi. Browser me hi AI se baat karke apna free trial shuru karein.</div>
 
     <div class="history-panel" id="historyPanel">
       <div class="history-hd">
@@ -247,6 +276,27 @@
         <span id="histSummary">—</span>
       </div>
       <div id="historyList"><div class="hist-empty">Loading…</div></div>
+    </div>
+  </div>
+
+  <!-- Inline trial-signup overlay — shown on voice close-signal when
+       WEBCALL_INLINE_SIGNUP=1 (see close_signal WS message handling below). -->
+  <div class="signup-overlay hidden" id="signupOverlay">
+    <div class="signup-card">
+      <div class="signup-title">🎉 Trial shuru karein?</div>
+      <div class="signup-sub">Call ki details bhar di hain — bas email aur password confirm karein, 7-din FREE trial turant shuru ho jayega.</div>
+      <label for="suBiz">Business ka naam</label>
+      <input id="suBiz" type="text" placeholder="e.g. Sharma Solar" />
+      <label for="suPhone">Phone</label>
+      <input id="suPhone" type="text" readonly />
+      <label for="suEmail">Email</label>
+      <input id="suEmail" type="email" placeholder="aap@business.com" />
+      <label for="suPassword">Password</label>
+      <input id="suPassword" type="password" placeholder="min 6 characters" />
+      <div data-turnstile-host></div>
+      <div class="signup-err hidden" id="signupErr"></div>
+      <button id="signupSubmit">Free trial shuru karo</button>
+      <button id="signupDismiss" class="signup-dismiss">Baad me karunga</button>
     </div>
   </div>
 </div>
@@ -472,8 +522,8 @@
         if(data.session_id){ currentSessionId = data.session_id; }
         startTimer();
         if(data.responder){
-          foot.innerHTML = "<b>TEST MODE</b> · responder: " + data.responder +
-            " — koi real phone call / charge nahi.";
+          foot.innerHTML = "<b>🔒 Free &amp; safe</b> · " + data.responder +
+            " se baat ho rahi hai — koi charge nahi.";
         }
         // The agent greets first. If no greeting arrives, open the mic anyway.
         awaitingGreeting = true;
@@ -509,6 +559,9 @@
 
       } else if(data.type === "session_saved"){
         loadCallHistory();
+
+      } else if(data.type === "close_signal"){
+        showSignupOverlay(data.business_name, data.niche, data.phone);
 
       } else if(data.type === "error"){
         if(pendingBot){ pendingBot = false; clearTimeout(safetyTimer); }
@@ -574,7 +627,7 @@
       if(p && p.catch){
         p.catch(function(err){
           if(!audioUnlocked){
-            foot.innerHTML = "<b>Audio blocked</b> — browser ne awaaz roki. Green Call button dubara dabao (ya ⌨️ se type karo). <b>TEST MODE</b>";
+            foot.innerHTML = "<b>Audio blocked</b> — browser ne awaaz roki. Green Call button dubara dabao (ya ⌨️ se type karo). <b>🔒 Free &amp; safe</b>";
           }
           onFail();
         });
@@ -842,8 +895,8 @@
     typedRow.classList.remove("hidden");
     kbdToggle.classList.add("on");
     foot.innerHTML = noSR
-      ? "Is browser me voice support nahi — niche type karke baat karein. <b>TEST MODE</b>, no charge."
-      : "Mic permission chahiye — ya niche type karke baat karein. <b>TEST MODE</b>, no charge.";
+      ? "Is browser me voice support nahi — niche type karke baat karein. <b>🔒 Free</b>, no charge."
+      : "Mic permission chahiye — ya niche type karke baat karein. <b>🔒 Free</b>, no charge.";
   }
 
   // ---- User turn -------------------------------------------------------
@@ -1089,11 +1142,105 @@
       });
   }
 
+  // ---- Inline trial-signup overlay (voice close-signal, WEBCALL_INLINE_SIGNUP) ----
+  var signupOverlay = document.getElementById("signupOverlay");
+  var suBiz         = document.getElementById("suBiz");
+  var suPhone       = document.getElementById("suPhone");
+  var suEmail       = document.getElementById("suEmail");
+  var suPassword    = document.getElementById("suPassword");
+  var signupErr     = document.getElementById("signupErr");
+  var signupSubmit  = document.getElementById("signupSubmit");
+  var signupDismiss = document.getElementById("signupDismiss");
+
+  function showSignupOverlay(businessName, niche, phone){
+    if(!signupOverlay) return;
+    suBiz.value = businessName || "";
+    suPhone.value = phone || "";
+    signupErr.classList.add("hidden");
+    signupErr.textContent = "";
+    signupOverlay.dataset.niche = niche || "general";
+    signupOverlay.classList.remove("hidden");
+  }
+  if(signupDismiss){
+    signupDismiss.onclick = function(){ signupOverlay.classList.add("hidden"); };
+  }
+  if(signupSubmit){
+    signupSubmit.onclick = function(){
+      var biz = (suBiz.value || "").trim();
+      var email = (suEmail.value || "").trim();
+      var password = suPassword.value || "";
+      var phone = (suPhone.value || "").trim();
+      if(biz.length < 2){
+        signupErr.textContent = "Business ka naam likhein (kam se kam 2 characters).";
+        signupErr.classList.remove("hidden");
+        return;
+      }
+      if(email.indexOf("@") < 0){
+        signupErr.textContent = "Sahi email daalein.";
+        signupErr.classList.remove("hidden");
+        return;
+      }
+      if(password.length < 6){
+        signupErr.textContent = "Password kam se kam 6 characters ka ho.";
+        signupErr.classList.remove("hidden");
+        return;
+      }
+      signupErr.classList.add("hidden");
+      signupSubmit.disabled = true;
+      signupSubmit.textContent = "Shuru ho raha hai…";
+      (window.turnstileToken ? window.turnstileToken() : Promise.resolve(""))
+        .then(function(tok){
+          return fetch("/api/public/signup", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+              business_name: biz,
+              email: email,
+              password: password,
+              phone: phone,
+              plan: "trial",
+              niche: signupOverlay.dataset.niche || "general",
+              _turnstile_token: tok
+            })
+          });
+        })
+        .then(function(r){ return r.json().then(function(d){ return {ok: r.ok, body: d}; }); })
+        .then(function(res){
+          if(!res.ok){
+            var errMsg = res.body && ((res.body.error && res.body.error.message) || res.body.detail);
+            signupErr.textContent = errMsg || "Signup fail hua, dobara try karein.";
+            signupErr.classList.remove("hidden");
+            signupSubmit.disabled = false;
+            signupSubmit.textContent = "Free trial shuru karo";
+            return;
+          }
+          try{
+            if(res.body && res.body.access_token){
+              localStorage.setItem("accessToken", res.body.access_token);
+            }
+          }catch(e){}
+          signupOverlay.querySelector(".signup-card").innerHTML =
+            '<div class="signup-title">✅ Trial shuru ho gaya!</div>' +
+            '<div class="signup-sub">Aapka dashboard taiyaar hai.</div>' +
+            '<button id="signupGoDash">Dashboard kholein</button>';
+          var goBtn = document.getElementById("signupGoDash");
+          if(goBtn){ goBtn.onclick = function(){ location.href = "/app/customer"; }; }
+        })
+        .catch(function(){
+          signupErr.textContent = "Network error — dobara try karein.";
+          signupErr.classList.remove("hidden");
+          signupSubmit.disabled = false;
+          signupSubmit.textContent = "Free trial shuru karo";
+        });
+    };
+  }
+
   // ---- Boot ------------------------------------------------------------
   loadCallHistory();
   setControls(false);
   setState("idle");
 })();
 </script>
+<script src="/site/turnstile.js" defer></script>
 </body>
 </html>
