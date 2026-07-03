@@ -243,6 +243,9 @@
     <div class="spacer"></div>
     <span id="istClock" style="font-size:11.5px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums"></span>
     <span id="freshnessBadge" style="font-size:11.5px;color:var(--muted)"></span>
+    <button id="briefingBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
+      padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
+      title="Aaj ki HQ briefing suno (Swara ki awaaz me)">📻 Briefing</button>
     <button id="manualRefreshBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer">🔄 Refresh now</button>
   </div>
@@ -263,6 +266,34 @@
     <div style="margin-top:6px">👀 Bina login — preview mode (demo roster, grey/neutral, live data nahi)</div>
     <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:#fff;
       border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer">Band karo</button>
+  </div>
+  <!-- F4 Subah ki Briefing — modal (topbar button entry point; canvas-independent,
+       mobile-safe). Text bulletin + ▶ audio (Swara). Audio blob fetch with hdrs()
+       kyunki <audio> tag Authorization header nahi bhej sakta. -->
+  <div id="briefingModal" style="display:none;position:fixed;inset:0;z-index:40;
+    background:rgba(15,23,42,.45)">
+    <div style="position:absolute;top:60px;left:50%;transform:translateX(-50%);
+      width:min(440px,92vw);max-height:80vh;overflow:auto;background:#fff;
+      border:1px solid var(--line);border-radius:12px;padding:18px 20px;
+      box-shadow:0 12px 40px rgba(0,0,0,.22)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="font-weight:800;font-size:15px">📻 Subah ki Briefing</div>
+        <button id="briefingClose" aria-label="Band karo" style="margin-left:auto;
+          border:1px solid var(--line);background:#fff;border-radius:6px;
+          padding:2px 9px;font-size:13px;cursor:pointer">✕</button>
+      </div>
+      <div id="briefingDate" style="font-size:11.5px;color:var(--muted);margin-bottom:10px"></div>
+      <div id="briefingBody" style="font-size:13px;line-height:1.55;color:var(--ink);
+        white-space:pre-wrap">⏳ Briefing ban rahi hai… ~10s</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">
+        <button id="briefingPlay" style="border:1px solid var(--line);background:#fff;
+          border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;
+          display:none">▶ Suno</button>
+        <span id="briefingAudioNote" style="font-size:11.5px;color:var(--muted)"></span>
+        <a id="briefingRefresh" href="#" style="margin-left:auto;font-size:11.5px;
+          color:var(--muted);cursor:pointer">🔄 Nayi banao</a>
+      </div>
+    </div>
   </div>
   <div id="banner"><div class="b"><span id="bannerMsg"></span><button id="bannerRetry">Retry</button></div></div>
   <div id="page">
@@ -2793,6 +2824,102 @@
 
   // F2: Hot Queue card (mobile-safe entry point) → reception hot-tray drawer.
   document.getElementById("hotQueueCard").onclick = function(){ OFFICE.openHotQueueDrawer(); };
+
+  // ---- F4 Subah ki Briefing: modal + text + Swara audio (blob play) --------
+  // build_briefing endpoint din me ek hi baar LLM+TTS chalata (cached); yaha se
+  // force=1 pe "Nayi banao". Audio ek blob-objectURL me load hota (hdrs() auth),
+  // <audio> tag Authorization nahi bhej sakta isliye. Koi auto-play nahi.
+  OFFICE.briefing = { loading: false, audioUrl: null, audioEl: null };
+
+  OFFICE.closeBriefingAudio = function(){
+    var b = OFFICE.briefing;
+    try { if (b.audioEl) { b.audioEl.pause(); } } catch (e) {}
+    try { if (b.audioUrl) { URL.revokeObjectURL(b.audioUrl); } } catch (e) {}
+    b.audioEl = null; b.audioUrl = null;
+  };
+
+  OFFICE.openBriefing = function(force){
+    var modal = document.getElementById("briefingModal");
+    var body = document.getElementById("briefingBody");
+    var dateEl = document.getElementById("briefingDate");
+    var playBtn = document.getElementById("briefingPlay");
+    var note = document.getElementById("briefingAudioNote");
+    modal.style.display = "block";
+    OFFICE.closeBriefingAudio();
+    playBtn.style.display = "none";
+    note.textContent = "";
+    dateEl.textContent = "";
+    body.textContent = force ? "⏳ Nayi briefing ban rahi hai… ~10s" : "⏳ Briefing ban rahi hai… ~10s";
+    if (OFFICE.briefing.loading) return;
+    OFFICE.briefing.loading = true;
+    fetch("/api/platform/office/briefing?force=" + (force ? 1 : 0), { headers: hdrs() })
+      .then(function(r){
+        if (r.status === 401 || r.status === 403) { throw new Error("auth"); }
+        return r.ok ? r.json() : Promise.reject(new Error("http " + r.status));
+      })
+      .then(function(d){
+        if (!d || !d.ok || !d.text) {
+          body.textContent = "😕 Briefing abhi ban nahi payi — thodi der me phir try karo.";
+          return;
+        }
+        body.textContent = d.text;
+        if (d.date) dateEl.textContent = "🗓️ " + esc(d.date) + (d.cached ? " · cached" : " · fresh");
+        if (d.has_audio) {
+          playBtn.style.display = "inline-block";
+          playBtn.textContent = "▶ Suno";
+          note.textContent = "Swara ki awaaz me";
+        } else {
+          playBtn.style.display = "none";
+          note.textContent = "🔇 Audio abhi available nahi (text padho)";
+        }
+      })
+      .catch(function(e){
+        if (e && e.message === "auth") {
+          body.textContent = "🔑 Session expire ho gaya — dobara login karke Briefing kholo.";
+        } else {
+          body.textContent = "⚠️ Briefing load nahi hui (network?). 🔄 Nayi banao se retry karo.";
+        }
+      })
+      .finally(function(){ OFFICE.briefing.loading = false; });
+  };
+
+  OFFICE.toggleBriefingAudio = function(){
+    var b = OFFICE.briefing;
+    var playBtn = document.getElementById("briefingPlay");
+    // Already loaded → toggle play/pause.
+    if (b.audioEl) {
+      if (b.audioEl.paused) { b.audioEl.play(); playBtn.textContent = "⏸ Ruko"; }
+      else { b.audioEl.pause(); playBtn.textContent = "▶ Suno"; }
+      return;
+    }
+    playBtn.disabled = true; playBtn.textContent = "⏳ Audio…";
+    fetch("/api/platform/office/briefing/audio", { headers: hdrs() })
+      .then(function(r){ return r.ok ? r.blob() : Promise.reject(new Error("no audio")); })
+      .then(function(blob){
+        b.audioUrl = URL.createObjectURL(blob);
+        b.audioEl = new Audio(b.audioUrl);
+        b.audioEl.onended = function(){ playBtn.textContent = "▶ Suno"; };
+        playBtn.disabled = false; playBtn.textContent = "⏸ Ruko";
+        b.audioEl.play();
+      })
+      .catch(function(){
+        playBtn.disabled = false; playBtn.textContent = "▶ Suno";
+        document.getElementById("briefingAudioNote").textContent = "🔇 Audio play nahi hua";
+      });
+  };
+
+  document.getElementById("briefingBtn").onclick = function(){ OFFICE.openBriefing(false); };
+  document.getElementById("briefingClose").onclick = function(){
+    document.getElementById("briefingModal").style.display = "none";
+    OFFICE.closeBriefingAudio();
+  };
+  document.getElementById("briefingModal").addEventListener("click", function(e){
+    if (e.target === this) { this.style.display = "none"; OFFICE.closeBriefingAudio(); }
+  });
+  document.getElementById("briefingPlay").onclick = function(){ OFFICE.toggleBriefingAudio(); };
+  document.getElementById("briefingRefresh").onclick = function(e){
+    e.preventDefault(); OFFICE.openBriefing(true);
+  };
 
   document.getElementById("legendToggle").onclick = function(){
     document.getElementById("legendPopover").style.display = "block";

@@ -13,6 +13,7 @@ does and does not affect.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
@@ -166,3 +167,37 @@ async def office_move_item(item_id: str, body: MoveItemIn, current_user=Depends(
     )
     await office_hq.invalidate_snapshot_cache()
     return result
+
+
+# --------------------------------------------------------------------------- #
+# F4 — "Subah ki Briefing": daily Hinglish HQ bulletin (text + Swara audio).
+# JSON endpoint composes/caches (one LLM+TTS per IST-day; ?force=1 regens); the
+# audio endpoint serves ONLY the cached mp3 (never generates) — the frontend
+# calls /briefing first, then fetches /briefing/audio as a blob with hdrs()
+# because an <audio> tag cannot send the Authorization header. Both never-raise.
+# --------------------------------------------------------------------------- #
+@router.get("/briefing")
+async def office_briefing(force: int = 0, current_user=Depends(require_admin)):
+    """Today's HQ radio-bulletin: {ok, date, text, has_audio}. Cached once per
+    IST-day; force=1 regenerates. Never raises (degrades to text-only / ok:False)."""
+    from app.platform import office_briefing as ob
+
+    try:
+        return await ob.build_briefing(force=bool(force))
+    except Exception as e:  # pragma: no cover — builder never raises
+        return {"ok": False, "error": str(e), "date": "", "text": "", "has_audio": False}
+
+
+@router.get("/briefing/audio")
+async def office_briefing_audio(current_user=Depends(require_admin)):
+    """Serve today's cached bulletin mp3 (Swara's voice). 404-safe JSON when the
+    audio was never generated / TTS failed — never raises."""
+    from app.platform import office_briefing as ob
+
+    try:
+        path = ob.audio_path_for_today()
+        if not path:
+            return JSONResponse(status_code=404, content={"ok": False, "error": "audio not available"})
+        return FileResponse(path, media_type="audio/mpeg", filename="briefing.mp3")
+    except Exception as e:  # pragma: no cover
+        return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
