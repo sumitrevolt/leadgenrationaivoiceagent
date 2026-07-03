@@ -1268,3 +1268,84 @@ def move_item(item_id: str, item_type: str, next_stage: str, by: str = "admin") 
     if item_type == "lead":
         return admin_pipeline_overrides.set_status_override(item_id, next_stage, by)
     return {"ok": False, "error": f"unsupported item_type: {item_type}"}
+
+
+# --------------------------------------------------------------------------- #
+# F3 "Kaam Do" — map se task dispatch. Admin drawer se ek Hinglish goal + scope
+# ("solo" = sirf yeh agent / "team" = coordinator) le kar ek BOUNDED, DRAFT-SAFE
+# multi-agent run trigger karta hai — bilkul waise jaise POST /api/agents/council
+# live endpoint web process me bounded run karta (precedent). Hard rules:
+#   - DRAFT-SAFE ONLY: coordinator ko hamesha execute=False pe chalate — koi
+#     real side-effect nahi (no auto-send, no DB mutation). Sirf reasoning/draft.
+#   - BOUNDED: asyncio.wait_for(TASK_TIMEOUT) — web worker (WEB_CONCURRENCY=2)
+#     ko kabhi unbounded heavy job pe hang nahi hone dete. Timeout pe coroutine
+#     CANCEL hota (background me chalta NAHI) — isliye response wording HONEST:
+#     "time-limit tak complete nahi hua; jitne steps hue woh events me hain"
+#     (coordinate/fan_out dono per-step team.log_event karte, so cancel ke
+#     baad bhi jo steps complete hue woh agent_events feed/ticker me dikhte).
+#   - NEVER-RAISE: har failure -> {"ok": False, "error": ...} (200 OK), office_hq
+#     ke baaki functions jaisa.
+#   - Contract: helper HAMESHA {"ok", "summary", "run_id"?} shape lautaata hai
+#     chahe solo (fan_out) chale ya team (coordinate) — frontend ko guess nahi
+#     karna padta kaunsa field padhe.
+# --------------------------------------------------------------------------- #
+_TASK_TIMEOUT = 90.0  # seconds — bounded, mirrors the council-endpoint budget
+_TASK_GOAL_MAX = 500
+
+
+async def run_agent_task(member: str, goal: str, scope: str = "solo") -> dict[str, Any]:
+    """Dispatch a Hinglish goal to one agent (scope="solo") or the coordinator
+    team (scope="team"), draft-safe + bounded. Never raises."""
+    key = (member or "").strip().lower()
+    goal = (goal or "").strip()
+    scope = (scope or "solo").strip().lower()
+
+    if not goal:
+        return {"ok": False, "error": "goal khaali hai — kuch likho"}
+    if len(goal) > _TASK_GOAL_MAX:
+        goal = goal[:_TASK_GOAL_MAX]
+    if scope not in ("solo", "team"):
+        return {"ok": False, "error": f"scope 'solo' ya 'team' hona chahiye (mila: {scope})"}
+    if key not in STAFF:
+        return {"ok": False, "error": f"unknown agent: {member}"}
+
+    try:
+        from app.platform import team
+
+        team.log_event(
+            member=key, action="task_dispatched",
+            detail=f"[{scope}] {goal[:180]}", status="ok", meta={"scope": scope, "goal": goal[:400]},
+        )
+    except Exception as e:
+        logger.debug(f"[office_hq] run_agent_task log_event skipped: {e}")
+
+    try:
+        from app.agents import coordinator
+
+        if scope == "team":
+            coro = coordinator.coordinate(goal, execute=False, max_steps=3)
+        else:
+            coro = coordinator.fan_out(goal, agents=[key], max_agents=1)
+        result = await asyncio.wait_for(coro, timeout=_TASK_TIMEOUT)
+    except asyncio.TimeoutError:
+        logger.warning(f"[office_hq] run_agent_task({key},{scope}) hit {_TASK_TIMEOUT}s budget")
+        return {
+            "ok": True, "status": "timeout", "member": key, "scope": scope,
+            "summary": "",
+            "note": (f"Time-limit ({int(_TASK_TIMEOUT)}s) tak poora nahi hua — jitne step complete "
+                     "hue woh events/ticker me dikhenge. Halka goal ya solo scope try karo."),
+        }
+    except Exception as e:
+        logger.warning(f"[office_hq] run_agent_task({key},{scope}) failed: {e}")
+        return {"ok": False, "error": str(e)[:300], "member": key, "scope": scope}
+
+    result = result or {}
+    if not result.get("ok", True):
+        return {"ok": False, "error": str(result.get("error") or "coordinator run failed"),
+                "member": key, "scope": scope}
+    return {
+        "ok": True, "status": "done", "member": key, "scope": scope,
+        "run_id": result.get("run_id") or "",
+        "summary": str(result.get("summary") or "(summary abhi nahi bana)")[:1200],
+        "note": "Pura result agent_events/ticker me bhi aa gaya (draft-safe — koi auto-send nahi).",
+    }

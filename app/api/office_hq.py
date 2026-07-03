@@ -13,9 +13,10 @@ does and does not affect.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
+from app.api.ratelimit import rate_limit
 
 router = APIRouter(prefix="/platform/office", tags=["Operating HQ"])
 
@@ -85,6 +86,32 @@ async def office_resume_agent(member: str, current_user=Depends(require_admin)):
     result = agent_controls.resume(member, by=getattr(current_user, "email", "admin") or "admin")
     await office_hq.invalidate_snapshot_cache()
     return result
+
+
+# --------------------------------------------------------------------------- #
+# F3 "Kaam Do" — map se ek Hinglish goal dispatch. scope="solo" (sirf yeh agent,
+# coordinator.fan_out single-agent) ya "team" (coordinator.coordinate). BOTH
+# DRAFT-SAFE (execute=False) + BOUNDED (asyncio.wait_for inside office_hq) so a
+# 90s blocking call can never hang the HTTP worker; rate-limited exactly like
+# the POST /api/agents/council precedent (WEB_CONCURRENCY=2 — a double-click
+# spam of a heavy LLM run would otherwise be an outage). Never raises.
+# --------------------------------------------------------------------------- #
+class AgentTaskIn(BaseModel):
+    goal: str = Field(..., min_length=1, max_length=500)
+    scope: str = "solo"  # "solo" | "team"
+
+
+@router.post("/agents/{member}/task", dependencies=[Depends(rate_limit("agents", 5, 60))])
+async def office_agent_task(member: str, body: AgentTaskIn, current_user=Depends(require_admin)):
+    """Draft-safe bounded task dispatch to one agent (solo) or the coordinator
+    team. Returns {ok, summary, run_id?}; failures/timeouts degrade to an honest
+    {ok:False|status:"timeout"} (never raises)."""
+    from app.platform import office_hq
+
+    try:
+        return await office_hq.run_agent_task(member, body.goal, body.scope)
+    except Exception as e:  # pragma: no cover — helper never raises
+        return {"ok": False, "error": str(e), "member": member, "scope": body.scope}
 
 
 # --------------------------------------------------------------------------- #

@@ -1383,10 +1383,16 @@
     panel.classList.remove("panel-hidden");
     var room = (OFFICE.roomStats || {})[roomId];
     if (!room) { body.innerHTML = "Room nahi mila."; return; }
+    // Agent rows are clickable -> openAgentPanel (the Kaam-do drawer). This is
+    // the DOM entry point that keeps every agent (hence F3 "Kaam do") reachable
+    // at <=760px, where the Phaser canvas AND #mapToolbar (agent-search) are
+    // both display:none and the ONLY way into a room is the roomListCompact
+    // card -> this room panel.
     var agentsHtml = (room.agent_keys || []).map(function(k){
       var a = OFFICE.agentByKey[k];
       if (!a) return "";
-      return '<div class="item-row"><div class="ir-name">' + esc(a.emoji) + ' ' + esc(a.name) + ' — ' + esc(a.title) + '</div>' +
+      return '<div class="item-row" data-agent="' + esc(k) + '" style="cursor:pointer" title="Kaam do / detail">' +
+        '<div class="ir-name">' + esc(a.emoji) + ' ' + esc(a.name) + ' — ' + esc(a.title) + ' →</div>' +
         '<div class="ir-meta">' + esc(a.status) + ' · aaj ' + esc(a.todayActions) + ' actions, ' + esc(a.todayErrors) + ' errors</div></div>';
     }).join("") || '<div class="empty-note">Is room me koi agent nahi.</div>';
     body.innerHTML =
@@ -1399,6 +1405,9 @@
         '<div class="panel-stat">Approvals<br><b>' + esc(room.approvalCount) + '</b></div>' +
       '</div>' +
       '<div class="panel-events">' + agentsHtml + '</div>';
+    Array.prototype.forEach.call(body.querySelectorAll(".item-row[data-agent]"), function(row){
+      row.onclick = function(){ OFFICE.openAgentPanel(row.getAttribute("data-agent")); };
+    });
   };
 
   // ---- Approvals panel — UNIFIED actionable queue (bridge drafts + code
@@ -2146,6 +2155,58 @@
     });
   };
 
+  // ---- F3 "Kaam do": Hinglish goal → draft-safe bounded coordinator run ------
+  // Wired AFTER the panel innerHTML is set (same pattern as runNowBtn) so the
+  // events fetch already in the panel is preserved. Client timeout ~95s via
+  // AbortController — server budget is 90s, so we abort just after: on abort we
+  // show the honest "background me chal raha hai — ticker/events me dekho".
+  OFFICE.wireKaamDo = function(key){
+    var btn = document.getElementById("kaamRunBtn");
+    var out = document.getElementById("kaamResult");
+    if (!btn || !out) return;
+    btn.onclick = async function(){
+      var goalEl = document.getElementById("kaamGoal");
+      var goal = (goalEl && goalEl.value || "").trim();
+      if (!goal){ out.innerHTML = '<span style="color:#b91c1c">Goal likho pehle.</span>'; return; }
+      var scopeEl = document.querySelector('input[name="kaamScope"]:checked');
+      var scope = scopeEl ? scopeEl.value : "solo";
+      btn.disabled = true; btn.textContent = "Chal raha hai…";
+      out.innerHTML = '<span class="pe-when">' + (scope === "team" ? "Team lagayi ja rahi hai…" : "Agent kaam kar raha hai…") + '</span>';
+      var ctrl = new AbortController();
+      var timer = setTimeout(function(){ ctrl.abort(); }, 95000);
+      try {
+        var r = await fetch("/api/platform/office/agents/" + encodeURIComponent(key) + "/task", {
+          method: "POST", headers: hdrs(true), signal: ctrl.signal,
+          body: JSON.stringify({ goal: goal, scope: scope })
+        });
+        clearTimeout(timer);
+        var d = r.ok ? await r.json() : { ok: false, error: "HTTP " + r.status };
+        if (d.ok && d.status !== "timeout"){
+          OFFICE.spawnWorkflowToken("manager", key);
+          out.innerHTML =
+            '<div style="color:#166534;font-weight:700;margin-bottom:4px">✓ Ho gaya' + (d.run_id ? ' · run ' + esc(d.run_id) : '') + '</div>' +
+            '<div style="white-space:pre-wrap">' + esc(d.summary || "(summary abhi nahi bana)") + '</div>' +
+            (d.note ? '<div class="pe-when" style="margin-top:6px">' + esc(d.note) + '</div>' : '');
+          OFFICE.pollEvents();
+        } else if (d.ok && d.status === "timeout"){
+          out.innerHTML = '<div style="color:#92400e">⏳ ' + esc(d.note || "Time-limit tak poora nahi hua — events/ticker me dekho.") + '</div>';
+          OFFICE.pollEvents();
+        } else {
+          out.innerHTML = '<span style="color:#b91c1c">Fail: ' + esc(d.error || "unknown error") + '</span>';
+        }
+      } catch (e) {
+        clearTimeout(timer);
+        if (e && e.name === "AbortError"){
+          out.innerHTML = '<div style="color:#92400e">⏳ Background me chal raha hai — ticker/events me dekho.</div>';
+          OFFICE.pollEvents();
+        } else {
+          out.innerHTML = '<span style="color:#b91c1c">Network error — dobara try karo.</span>';
+        }
+      }
+      btn.disabled = false; btn.textContent = "🎯 Kaam do";
+    };
+  };
+
   // ---- Click-to-expand agent panel (incl. real "Run now" for wired agents) --
   OFFICE.openAgentPanel = async function(key){
     var panel = document.getElementById("agentPanel");
@@ -2183,7 +2244,23 @@
           '<button disabled title="Pause sirf manual-run-wired agents ke liye hai">⏸ Pause</button>') +
       '</div>' +
       (member.runnable ? '<div class="panel-sub">Pause = sirf "Run now" block karta hai (scheduled automation par asar nahi — scheduler alag path use karta hai).</div>' : '') +
+      // F3 "Kaam do": Hinglish goal + scope → draft-safe bounded coordinator run.
+      '<div class="panel-box" style="margin:12px 0" id="kaamBox">' +
+        '<h3>🎯 Kaam do</h3>' +
+        '<textarea id="kaamGoal" rows="2" maxlength="500" placeholder="Hinglish me goal likho — jaise: 3 hot restaurant leads ke liye follow-up plan banao" ' +
+          'style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical"></textarea>' +
+        '<div style="display:flex;gap:14px;margin:8px 0;font-size:12px">' +
+          '<label style="cursor:pointer"><input type="radio" name="kaamScope" value="solo" checked> Sirf yeh agent</label>' +
+          '<label style="cursor:pointer"><input type="radio" name="kaamScope" value="team"> Team lagao</label>' +
+        '</div>' +
+        '<div class="panel-actions" style="margin:4px 0 0">' +
+          '<button id="kaamRunBtn">🎯 Kaam do</button>' +
+        '</div>' +
+        '<div class="panel-sub" style="margin:6px 0 0">Draft-safe — koi auto-send nahi. Pura result ticker/events me bhi aayega.</div>' +
+        '<div id="kaamResult" style="margin-top:8px;font-size:12.5px"></div>' +
+      '</div>' +
       '<div class="panel-events">' + eventsHtml + '</div>';
+    OFFICE.wireKaamDo(key);
     var runBtn = document.getElementById("runNowBtn");
     if (runBtn && member.runnable && !member.paused) {
       runBtn.onclick = async function(){
