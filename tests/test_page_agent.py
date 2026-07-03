@@ -47,15 +47,33 @@ def test_config_disabled_by_default(monkeypatch):
     assert r.json() == {"enabled": False}
 
 
-def test_config_enabled_pinned_script_has_sri(monkeypatch):
+def test_config_enabled_prefers_vendored_script(monkeypatch):
+    """Vendor file repo me hai → self-hosted URL (ISP-block-proof), SRI unneeded."""
     monkeypatch.setenv("PAGE_AGENT", "1")
     monkeypatch.delenv("PAGE_AGENT_SCRIPT_URL", raising=False)
+    assert pa._VENDOR_FILE.exists()  # committed vendored bundle
     body = _client().get("/api/page-agent/config").json()
     assert body["enabled"] is True
+    assert body["script_url"] == "/api/page-agent/vendor.js?autoInit=false"
+    assert body["integrity"] == ""  # same-origin = SRI zaroori nahi
+    assert body["model"]
+
+
+def test_config_cdn_fallback_when_vendor_missing(monkeypatch, tmp_path):
+    monkeypatch.setenv("PAGE_AGENT", "1")
+    monkeypatch.delenv("PAGE_AGENT_SCRIPT_URL", raising=False)
+    monkeypatch.setattr(pa, "_VENDOR_FILE", tmp_path / "nahi-hai.js")
+    body = _client().get("/api/page-agent/config").json()
     assert body["script_url"].startswith("https://cdn.jsdelivr.net/npm/page-agent@")
     assert "autoInit=false" in body["script_url"]  # demo LLM auto-init kabhi nahi
     assert body["integrity"].startswith("sha256-")
-    assert body["model"]
+
+
+def test_vendor_js_served_publicly():
+    r = _client().get("/api/page-agent/vendor.js")
+    assert r.status_code == 200
+    assert "javascript" in r.headers["content-type"]
+    assert len(r.content) > 100_000  # 208KB pinned bundle
 
 
 def test_config_custom_script_url_skips_sri(monkeypatch):
