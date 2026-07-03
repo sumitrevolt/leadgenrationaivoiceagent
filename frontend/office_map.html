@@ -398,6 +398,19 @@
       </h3>
       <div id="dlqRepairSummary" class="empty-note">⏳ Loading…</div>
     </div>
+
+    <!-- F2 Reception Hot-Tray — mobile-safe entry point (canvas ≤760px hidden hota
+         hai, isliye reception tray-sprite ke alaava yeh card zaroori). Count usi
+         15s poll (renderHotQueue) se aata hai; card khulne pe drawer full list. -->
+    <div id="hotQueueCard" class="panel-box" style="margin-top:14px;cursor:pointer"
+      title="Reception ka Hot Queue — garam replies (interested/question) worked karo">
+      <h3 style="display:flex;align-items:center;gap:8px">
+        📥 Hot Queue
+        <span id="hotQueueBadge" style="margin-left:auto;font-size:11.5px;font-weight:700;
+          color:var(--muted)">…</span>
+      </h3>
+      <div id="hotQueueSummary" class="empty-note">⏳ Loading…</div>
+    </div>
   </div>
 
   <div id="roomTooltip"></div>
@@ -688,6 +701,7 @@
       });
     }
     OFFICE.drawDlqPile();  // Hermes desk crumpled-paper pile (count-driven)
+    OFFICE.drawReceptionTray();  // Coordinator front-desk hot-queue tray (count-driven)
   };
 
   // ---- F1: crumpled-paper pile on Hermes' desk (platform_engineering room) ----
@@ -741,6 +755,54 @@
     hit.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openDlqRepairDrawer(); });
     pile.push(hit);
     OFFICE.dlqPile = pile;
+  };
+
+  // ---- F2: reception hot-tray on the Coordinator front-desk -------------------
+  // Tray sprite + count badge = live Hot Queue depth (OFFICE.hotQueueState.count).
+  // 0 = empty tray (no badge). Idempotent: only redraw when count changes (same
+  // guard as drawDlqPile — warna 15s poll pe Phaser churn). Desktop flourish only;
+  // mobile ka entry point hotQueueCard hai (canvas ≤760px hidden). Click → drawer.
+  OFFICE.hotTray = null;
+  OFFICE.hotTrayCount = -1;   // last-drawn count (-1 = never drawn)
+  OFFICE.drawReceptionTray = function(){
+    var scene = OFFICE.scene;
+    if (!scene) return;
+    var co = OFFICE.roomById && OFFICE.roomById.coordinator;
+    if (!co) return;
+    var st = OFFICE.hotQueueState || { count: 0 };
+    var n = st.error ? 0 : (st.count || 0);
+    if (OFFICE.hotTrayCount === n) return;
+    OFFICE.hotTrayCount = n;
+    if (OFFICE.hotTray) {
+      try { OFFICE.hotTray.forEach(function(o){ o.destroy(); }); } catch (e) {}
+      OFFICE.hotTray = null;
+    }
+    // Front-desk: right side of coordinator room, clear of coffee cup (co.x+74)
+    // and the centered meeting table. Tray always visible (reception is staffed);
+    // badge only when count > 0.
+    var tx = co.x + 150, ty = co.y + co.h - 30;
+    var group = [];
+    // Tray: shallow tan in-tray with a paper stack.
+    var tray = scene.add.graphics();
+    tray.fillStyle(0x9ca3af, 1); tray.fillRoundedRect(tx - 18, ty - 4, 36, 12, 3);
+    tray.fillStyle(0xf3f4f6, 1); tray.fillRoundedRect(tx - 14, ty - 9, 28, 8, 2);
+    tray.lineStyle(1, 0x6b7280, 1); tray.strokeRoundedRect(tx - 18, ty - 4, 36, 12, 3);
+    tray.setDepth(6);
+    group.push(tray);
+    if (n > 0) {
+      var badge = scene.add.text(tx, ty - 16, "📥 " + n,
+        { fontFamily: "system-ui,Arial", fontSize: "13px", fontStyle: "bold",
+          color: "#ffffff", backgroundColor: "#ef4444", padding: { x: 4, y: 1 } })
+        .setOrigin(0.5, 1).setDepth(7);
+      group.push(badge);
+    }
+    // Single invisible click zone over tray+badge (same pattern as DLQ pile).
+    var hit = scene.add.rectangle(tx - 22, ty - 30, 44, 44, 0xffffff, 0.001)
+      .setOrigin(0, 0).setDepth(8);
+    hit.setInteractive({ useHandCursor: true });
+    hit.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openHotQueueDrawer(); });
+    group.push(hit);
+    OFFICE.hotTray = group;
   };
 
   OFFICE.showRoomTooltip = function(roomId, pointer){
@@ -1686,6 +1748,202 @@
     OFFICE.openDlqRepairDrawer();
   };
 
+  // ---- F2 Reception Hot-Tray: mobile-safe card + drawer ---------------------
+  // Hot Queue = interested/question replies (reply_agent hot_queue). Yeh card +
+  // tray-sprite dono isi state se padhte. Koi auto-send NAHI — sirf clipboard
+  // copy + mark-handled + /app/inbox deep-link. Count 15s poll pe refresh hota.
+  OFFICE.hotQueueState = { count: 0, items: [], loaded: false, error: false };
+  // Main plan (starter) monthly price — session-stable, ek hi baar fetch (billing-
+  // truth rule: kabhi hardcode nahi, packages endpoint se). null = ₹ hide.
+  OFFICE.starterPriceMonthly = null;
+
+  OFFICE.fetchStarterPrice = async function(){
+    if (OFFICE.starterPriceMonthly != null) return;  // already fetched
+    try {
+      var r = await fetch("/api/marketing/packages");  // PUBLIC — no auth
+      if (!r.ok) return;
+      var d = await r.json();
+      var pkgs = (d && d.packages) || [];
+      for (var i = 0; i < pkgs.length; i++) {
+        if (pkgs[i] && pkgs[i].key === "starter" && pkgs[i].price_inr_month != null) {
+          OFFICE.starterPriceMonthly = Number(pkgs[i].price_inr_month) || null;
+          return;
+        }
+      }
+    } catch (e) { /* graceful — ₹ hidden, count still shows */ }
+  };
+
+  OFFICE.hqPotentialText = function(count){
+    // "potential ₹X (estimate)" — count × Main plan monthly price. Price fetch
+    // fail → no ₹ (just count). NEVER a fabricated number.
+    if (!count || OFFICE.starterPriceMonthly == null) return "";
+    var amt = count * OFFICE.starterPriceMonthly;
+    return "potential ₹" + amt.toLocaleString("en-IN") + " (estimate)";
+  };
+
+  OFFICE.renderHotQueue = async function(){
+    await OFFICE.fetchStarterPrice();
+    try {
+      var r = await fetch("/api/growth/reply/hot-queue?limit=200", { headers: hdrs() });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      var d = await r.json();
+      OFFICE.hotQueueState = {
+        count: (d.count != null ? d.count : (d.items || []).length),
+        items: d.items || [], loaded: true, error: false
+      };
+    } catch (e) {
+      OFFICE.hotQueueState = { count: 0, items: [], loaded: false, error: true };
+    }
+    OFFICE.renderHotQueueCard();
+    OFFICE.drawReceptionTray();
+  };
+
+  OFFICE.renderHotQueueCard = function(){
+    var badge = document.getElementById("hotQueueBadge");
+    var summ = document.getElementById("hotQueueSummary");
+    if (!badge || !summ) return;
+    var st = OFFICE.hotQueueState;
+    if (st.error) {
+      badge.textContent = "⚠️";
+      badge.style.color = "var(--muted)";
+      summ.innerHTML = 'Hot Queue load nahi hua — <a href="javascript:void(0)" id="hqCardRetry" ' +
+        'style="color:var(--accent,#2563eb);font-weight:700">phir se try karo</a>';
+      var rl = document.getElementById("hqCardRetry");
+      if (rl) rl.onclick = function(ev){ if (ev) ev.stopPropagation(); OFFICE.renderHotQueue(); };
+      return;
+    }
+    if (!st.loaded) { badge.textContent = "…"; summ.textContent = "⏳ Loading…"; return; }
+    var n = st.count || 0;
+    if (n === 0) {
+      badge.textContent = "0";
+      badge.style.color = "#10b981";
+      summ.innerHTML = 'Hot queue khaali — sab replies worked ✅';
+    } else {
+      badge.textContent = n + " reply" + (n === 1 ? "" : "s");
+      badge.style.color = "#ef4444";
+      var pot = OFFICE.hqPotentialText(n);
+      summ.innerHTML = '🔥 <b>' + esc(n) + '</b> garam repl' + (n === 1 ? "y" : "ies") +
+        (pot ? ' · <span style="color:#059669;font-weight:700">' + esc(pot) + '</span>' : '') +
+        ' — <span style="color:var(--accent,#2563eb);font-weight:700">kholo →</span>';
+    }
+  };
+
+  OFFICE.openHotQueueDrawer = function(){
+    var panel = document.getElementById("agentPanel");
+    var body = document.getElementById("panelBody");
+    if (!panel || !body) return;
+    panel.classList.remove("panel-hidden");
+    var st = OFFICE.hotQueueState;
+    var n = st.count || 0;
+    var pot = OFFICE.hqPotentialText(n);
+    var rows;
+    if (st.error) {
+      rows = '<div class="empty-note">Hot Queue load nahi hua. Card se phir try karo.</div>';
+    } else if (n === 0) {
+      rows = '<div class="empty-note">Hot queue khaali — sab replies worked ✅</div>';
+    } else {
+      rows = (st.items || []).slice(0, 40).map(function(it, idx){
+        var from = esc(String(it.from || it.business_name || "— unknown —").slice(0, 80));
+        var meta = [it.business_name, it.city, it.niche, it.channel,
+          (it.age_days != null ? it.age_days + "d" : "")].filter(Boolean).map(esc).join(" · ");
+        var snip = esc(String(it.text || it.subject || "").slice(0, 220));
+        var draft = String(it.draft || "");
+        var hasDraft = draft.trim().length > 0;
+        var draftPrev = esc(draft.slice(0, 220));
+        var hqId = esc(String(it.hq_id || ""));
+        var btnStyle = 'border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;' +
+          'font-weight:700;cursor:pointer;background:#fff';
+        return '<div class="item-row" data-hqid="' + hqId + '">' +
+          '<div class="ir-name">📨 ' + from + '</div>' +
+          (meta ? '<div class="ir-meta">' + meta + '</div>' : '') +
+          (snip ? '<div class="ir-meta" style="color:var(--ink);margin-top:3px">' + snip + '</div>' : '') +
+          (hasDraft
+            ? '<div class="ir-meta" style="margin-top:4px"><b>AI draft:</b> ' + draftPrev + '</div>'
+            : '<div class="ir-meta" style="margin-top:4px;font-style:italic">Koi AI draft nahi</div>') +
+          '<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">' +
+            '<button class="hqCopyBtn" data-idx="' + idx + '" style="' + btnStyle +
+              (hasDraft ? '' : ';opacity:.5;cursor:not-allowed') + '"' + (hasDraft ? '' : ' disabled') +
+              '>📋 Draft copy karo</button>' +
+            '<button class="hqDoneBtn" data-hqid="' + hqId + '" style="' + btnStyle +
+              ';color:#065f46">✅ Ho gaya</button>' +
+          '</div></div>';
+      }).join("") || '<div class="empty-note">Count hai par preview items abhi nahi mile.</div>';
+    }
+    body.innerHTML =
+      '<div class="panel-title">📥 Reception Hot Queue</div>' +
+      '<div class="panel-sub">Garam replies (interested/question) — clipboard copy karke bhejo ' +
+      'ya "Ho gaya" se queue se hatao. Koi auto-send nahi.</div>' +
+      '<div class="panel-stats">' +
+        '<div class="panel-stat">Replies<br><b>' + esc(n) + '</b></div>' +
+        (pot ? '<div class="panel-stat">Potential<br><b>' + esc(pot) + '</b></div>' : '') +
+      '</div>' +
+      '<div style="margin:10px 0 4px">' +
+        '<a href="/app/inbox" style="color:var(--accent,#2563eb);font-weight:700;font-size:12.5px;' +
+        'text-decoration:none">📬 Pura inbox → /app/inbox</a></div>' +
+      '<div class="panel-events">' + rows + '</div>';
+    // Wire copy buttons (idx → item.draft) + done buttons (hq_id → mark-handled).
+    Array.prototype.forEach.call(body.querySelectorAll(".hqCopyBtn"), function(b){
+      if (b.disabled) return;
+      b.onclick = function(){
+        var it = (OFFICE.hotQueueState.items || [])[parseInt(b.getAttribute("data-idx"), 10)];
+        OFFICE.hqCopyDraft(it ? (it.draft || "") : "", b);
+      };
+    });
+    Array.prototype.forEach.call(body.querySelectorAll(".hqDoneBtn"), function(b){
+      b.onclick = function(){ OFFICE.hqMarkDone(b.getAttribute("data-hqid")); };
+    });
+  };
+
+  OFFICE.hqCopyDraft = function(text, btn){
+    text = String(text || "");
+    if (!text.trim()) { showBanner("Is reply ka koi AI draft nahi — copy karne ko kuch nahi."); return; }
+    var done = function(ok){
+      if (ok) {
+        if (btn) { var orig = btn.textContent; btn.textContent = "✓ Copied"; setTimeout(function(){ btn.textContent = orig; }, 1600); }
+        showBanner("✓ Draft clipboard me copy ho gaya — inbox/WhatsApp me paste karke bhejo.");
+      } else {
+        showBanner("✕ Copy nahi hua — draft manually select karke copy karo.");
+      }
+    };
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ done(OFFICE.hqCopyFallback(text)); });
+        return;
+      }
+    } catch (e) { /* fall through */ }
+    done(OFFICE.hqCopyFallback(text));
+  };
+
+  OFFICE.hqCopyFallback = function(text){
+    // execCommand fallback (older/insecure-context browsers where Clipboard API absent).
+    try {
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.top = "-9999px";
+      document.body.appendChild(ta); ta.focus(); ta.select();
+      var ok = document.execCommand("copy");
+      document.body.removeChild(ta);
+      return ok;
+    } catch (e) { return false; }
+  };
+
+  OFFICE.hqMarkDone = async function(hqId){
+    hqId = String(hqId || "");
+    if (!hqId) return;
+    if (!confirm("Is reply ko 'Ho gaya' mark karein? Yeh Hot Queue se hat jayegi (draft inbox me rahega).")) return;
+    try {
+      var r = await fetch("/api/growth/reply/hot-queue/done", {
+        method: "POST", headers: hdrs(true), body: JSON.stringify({ hq_id: hqId })
+      });
+      if (r.ok) showBanner("✓ Reply handled — queue se hata di.");
+      else if (r.status === 404) showBanner("Yeh reply already handled thi — queue refresh ho rahi hai.");
+      else showBanner("✕ Mark-handled fail (HTTP " + r.status + ")");
+    } catch (e) {
+      showBanner("✕ Mark-handled fail — network issue?");
+    }
+    await OFFICE.renderHotQueue();   // re-fetch → card + sprite refresh
+    OFFICE.openHotQueueDrawer();     // re-render drawer with updated list
+  };
+
   OFFICE.dlqClearAll = async function(){
     if (!confirm("Sabhi FAILED tasks queue se hata dein? Yeh wapas NAHI aayenge (dead-queue " +
       "isse alag hai). Sirf tab karo jab tumhe pata ho ki yeh jobs ab chalane ki zaroorat nahi.")) return;
@@ -2050,6 +2308,7 @@
     OFFICE.renderSchedule(data);
     OFFICE.renderLeaderboard(data);
     OFFICE.renderFailureConsole();
+    OFFICE.renderHotQueue();
   };
 
   // ---- IST clock + helpers ---------------------------------------------------
@@ -2454,6 +2713,9 @@
 
   // F1: DLQ Repair card (mobile-safe entry point) → repair drawer.
   document.getElementById("dlqRepairCard").onclick = function(){ OFFICE.openDlqRepairDrawer(); };
+
+  // F2: Hot Queue card (mobile-safe entry point) → reception hot-tray drawer.
+  document.getElementById("hotQueueCard").onclick = function(){ OFFICE.openHotQueueDrawer(); };
 
   document.getElementById("legendToggle").onclick = function(){
     document.getElementById("legendPopover").style.display = "block";
