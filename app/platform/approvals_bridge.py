@@ -250,6 +250,37 @@ def list_drafts(include_decided: bool = False) -> dict[str, Any]:
     return {"drafts": drafts, "counts": {"by_source": by_source, "pending": pending}}
 
 
+def recent_decisions(limit: int = 8) -> list[dict[str, Any]]:
+    """Audit-trail strip for the Office HQ Approvals panel — "who decided what,
+    when". Reads the same append-only sidecar `decide()` writes to; latest
+    (source, item_id) wins, newest-first. Draft titles are re-resolved from
+    `list_drafts(include_decided=True)` (source files are the title's source of
+    truth); patch/self-improve titles are left blank in this v1 — those kinds
+    keep their own status stores and aren't wired here yet. Never raises."""
+    out: list[dict[str, Any]] = []
+    try:
+        rows = _read_jsonl(_DECISIONS)
+        rows = [r for r in rows if r.get("source") in _SOURCES and r.get("item_id")]
+        latest: dict[tuple[str, str], dict[str, Any]] = {}
+        for r in rows:
+            latest[(str(r["source"]), str(r["item_id"]))] = r
+        titles = {(d["source"], d["id"]): d.get("title") for d in list_drafts(include_decided=True).get("drafts") or []}
+        decided = sorted(latest.values(), key=lambda r: r.get("at") or "", reverse=True)
+        for r in decided[: max(1, min(50, limit))]:
+            key = (str(r.get("source") or ""), str(r.get("item_id") or ""))
+            out.append({
+                "source": key[0],
+                "id": key[1],
+                "title": titles.get(key) or f"{key[0]} #{key[1]}",
+                "status": r.get("status") or "",
+                "by": r.get("by") or "admin",
+                "at": r.get("at") or "",
+            })
+    except Exception as e:
+        logger.debug(f"[approvals] recent_decisions skipped: {e}")
+    return out
+
+
 # --------------------------------------------------------------------------- #
 # Bounded SAFE next-actions on approve (risk-tiered; never an auto real-send)
 # --------------------------------------------------------------------------- #
