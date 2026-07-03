@@ -801,8 +801,10 @@ const VIEWS = {
       {id:'celery_app', type:'platform', badge:'AUTO', cx:'simple', title:'Celery App', desc:'Celery application context', files:'worker.py', x:340, y:2080, w:250, h:100},
       {id:'customer_autopilot', type:'platform', badge:'AUTO', cx:'simple', title:'Customer Autopilot', desc:'Automated customer follow-ups and management', files:'customer_autopilot.py', x:640, y:2080, w:250, h:100},
       {id:'platform_dial', type:'platform', badge:'AUTO', cx:'simple', title:'Platform Dial', desc:'Outbound dialing platform engine', files:'platform_dial.py', x:940, y:2080, w:250, h:100},
+      {id:'scheduler_config', type:'platform', badge:'AUTO', cx:'simple', sched:'live', title:'Agent Scheduler Config', desc:'Per-job runtime ON/PAUSE (data/scheduler_overrides.json, no-restart) + run-now + recovery run-due · gates team_scheduler._run_job (in-process+Celery dono paths)', files:'scheduler_config.py', x:1240, y:2080, w:270, h:100},
     ],
     edges: [
+      {f:'scheduler_config', t:'beat', lbl:'gates run', style:'sync'},
       {f:'beat', t:'worker', lbl:'cron fire', style:'async'},
       {f:'worker', t:'auto_trainer', lbl:'nightly', style:'async'},
       {f:'worker', t:'booking_reminders', lbl:'daily', style:'async'},
