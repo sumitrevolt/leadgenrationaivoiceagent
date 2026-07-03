@@ -319,6 +319,18 @@ function startTrial(){
 }
 function closeModal(){ document.getElementById("ov").classList.remove("on"); }
 
+(function prefillFromVoiceHandoff(){
+  try{
+    var qs = new URLSearchParams(location.search);
+    var phone = (qs.get("phone") || "").trim();
+    var biz = (qs.get("biz") || "").trim();
+    if(!phone && !biz) return;
+    startTrial();
+    if(biz) document.getElementById("f-biz").value = biz;
+    if(phone) document.getElementById("f-phone").value = phone;
+  }catch(e){}
+})();
+
 function setMsg(t, ok){
   const m = document.getElementById("m-msg");
   m.className = "msg " + (ok ? "ok" : "err");
