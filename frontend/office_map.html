@@ -122,7 +122,11 @@
   .feature-room{margin-top:auto;font-size:10.5px;font-weight:800;color:#4b5563}
 
   /* ---- Office stage (Phaser) — desktop/tablet only ---- */
-  #stageWrap{width:100%;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05)}
+  /* aspect-ratio (not just width) so height never collapses to 0 while the
+     wrap is display:none (Simple mode / pre-boot) — Phaser's Scale.FIT reads
+     the parent's live box size once at boot, and a 0-height parent bakes a
+     0x0 canvas that scale.refresh() alone cannot recover from later. */
+  #stageWrap{width:100%;aspect-ratio:1200/820;border-radius:14px;overflow:hidden;position:relative;box-shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05)}
   #roomListCompact{display:none}
   /* ---- Preview mode watermark (bina login demo roster ke upar) ---- */
   #previewOverlay{display:none;position:absolute;inset:0;z-index:5;pointer-events:none}
@@ -3269,11 +3273,12 @@
   OFFICE.renderScheduler();
   setInterval(function(){ if (!OFFICE.authExpired && !document.hidden) OFFICE.renderScheduler(); }, 60000);
 
-  // ---- Simple/Pro view mode (user-friendly default = Simple cockpit) --------
+  // ---- Simple/Pro view mode (default = Pro/advanced, full office map) -------
   // Simple: copilot + KPIs + priorities + approvals + health + scheduler + hot
   // queue + DLQ. Pro: poora office map, feed, pipeline, replay, reliability.
   // Choice localStorage me yaad rehti. Phaser Scale.FIT display:none ke baad
-  // stale ho sakta — pro pe wapas aate hi scale.refresh().
+  // stale ho sakta — pro pe wapas aate hi scale.refresh() (aspect-ratio CSS pe
+  // #stageWrap ab kabhi 0-height collapse nahi hota, refresh() safe hai).
   OFFICE.setViewMode = function(mode){
     var m = (mode === "pro") ? "pro" : "simple";
     document.body.classList.toggle("simple-mode", m === "simple");
@@ -3291,8 +3296,8 @@
       }, 60);
     }
   };
-  var _vm = "simple";
-  try { _vm = localStorage.getItem("officeViewMode") || "simple"; } catch (e) {}
+  var _vm = "pro";
+  try { _vm = localStorage.getItem("officeViewMode") || "pro"; } catch (e) {}
   OFFICE.setViewMode(_vm);
   document.getElementById("viewModeBtn").onclick = function(){
     OFFICE.setViewMode(document.body.classList.contains("simple-mode") ? "pro" : "simple");
