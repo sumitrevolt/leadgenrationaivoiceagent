@@ -46,6 +46,13 @@ _DEFAULT_SCRIPT_URL = (
 )
 _DEFAULT_SCRIPT_SRI = "sha256-noeu3GDBmE6HTbB1d/RHK3hKHPqbeKaOawqWEROWy0I="
 
+# SELF-HOSTED vendored copy (PREFERRED when present) — 2026-07-03 finding: user ke
+# ISP se cdn.jsdelivr.net BLOCKED tha (India me common). File = same pinned 1.10.0
+# build, sha256 == upar wala SRI (repo me commit se pehle verify kiya). Same-origin
+# serve = koi CDN/ISP dependency nahi, SRI zaroori nahi.
+_VENDOR_FILE = _FRONTEND_DIR / "vendor" / "page-agent.demo.js"
+_VENDOR_URL = "/api/page-agent/vendor.js?autoInit=false"
+
 # provider -> (settings attr, upstream chat URL, enforced model env-default)
 _PROVIDERS: list[tuple[str, str, str, str]] = [
     ("mistral", "mistral_api_key", "https://api.mistral.ai/v1/chat/completions", "mistral-small-latest"),
@@ -60,7 +67,12 @@ def _flag_on() -> bool:
 
 
 def _script_url() -> str:
-    return (os.environ.get("PAGE_AGENT_SCRIPT_URL") or "").strip() or _DEFAULT_SCRIPT_URL
+    env = (os.environ.get("PAGE_AGENT_SCRIPT_URL") or "").strip()
+    if env:
+        return env
+    if _VENDOR_FILE.exists():  # self-hosted first (ISP-block-proof)
+        return _VENDOR_URL
+    return _DEFAULT_SCRIPT_URL
 
 
 def _model_for(provider_default: str) -> str:
@@ -84,6 +96,19 @@ async def page_agent_boot_js():
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(
         str(p), media_type="application/javascript", headers={"Cache-Control": "no-cache"}
+    )
+
+
+@router.get("/vendor.js", include_in_schema=False)
+async def page_agent_vendor_js():
+    """Self-hosted page-agent bundle (pinned 1.10.0, sha256-verified) — public,
+    version-pinned isliye long cache theek hai."""
+    if not _VENDOR_FILE.exists():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(
+        str(_VENDOR_FILE),
+        media_type="application/javascript",
+        headers={"Cache-Control": "public, max-age=604800"},
     )
 
 

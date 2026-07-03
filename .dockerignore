@@ -42,6 +42,7 @@ frontend/*.js
 !frontend/manifest.json
 !frontend/sw.js
 !frontend/page_agent_boot.js
+!frontend/vendor/*.js
 frontend/.gitignore
 
 # Terraform/Infrastructure (not needed in container)
