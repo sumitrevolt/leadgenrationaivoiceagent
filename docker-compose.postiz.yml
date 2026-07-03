@@ -146,6 +146,10 @@ services:
       - ES_SEEDS=temporal-elasticsearch
       - ES_VERSION=v7
       - TEMPORAL_NAMESPACE=default
+      # Bina iske server sirf apne container-IP (172.16.x.x) pe bind hota,
+      # localhost:7233 pe nahi — isliye healthcheck (nc -z localhost 7233)
+      # hamesha fail hota aur postiz kabhi start hi nahi hota. 2026-07-03 fix.
+      - BIND_ON_IP=0.0.0.0
     networks:
       - temporal-network
     volumes:
