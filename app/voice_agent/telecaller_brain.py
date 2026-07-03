@@ -1954,6 +1954,62 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     return self._injection_deflection(history), None
             except Exception:
                 pass
+            # POST-CLOSE WRAP + BUY/CLOSE SIGNAL (pre-LLM) — 2026-07-03: THIRD
+            # parallel-brain gap. reply() had these since 2026-06-29, the stream
+            # path got them earlier today — but with VOICE_TOOLS=1 (live on VPS)
+            # _on_utterance routes EVERY turn through THIS method first, and it
+            # returned before either of the other two ever ran. Real 21:42 IST
+            # call: caller said "final karo, pre-plan start karo." (verified
+            # _is_close_intent=True in the live container) and still got a
+            # discovery question from the fast-path below. Same logic, tool-path
+            # return shape (spoken, None).
+            try:
+                if ut and _close_detect_enabled() and history:
+                    _last_bot = next(
+                        (
+                            str(m.get("content", ""))
+                            for m in reversed(history)
+                            if isinstance(m, dict) and m.get("role") == "assistant"
+                        ),
+                        "",
+                    )
+                    if "whatsapp number confirm" in _last_bot.lower() and _is_post_close_reply(ut):
+                        logger.info("[telecaller-brain] post-close wrap -> WhatsApp pivot (tools)")
+                        _num = _extract_phone(ut)
+                        if _num and not self.caller_phone:
+                            self.set_caller_phone(_num)
+                            self._on_close_signal()
+                        if _num:
+                            _spoken = " ".join(_num)
+                            return (
+                                self._clean(
+                                    f"Perfect sir! Aapka WhatsApp number {_spoken} — isi par abhi "
+                                    "saari detail aur setup bhej rahi hoon. Dhanyavaad, aapka din shubh ho!"
+                                ),
+                                None,
+                            )
+                        return (
+                            self._clean(
+                                "Perfect sir! Saari detail aur setup abhi WhatsApp pe bhej rahi "
+                                "hoon — wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
+                            ),
+                            None,
+                        )
+            except Exception:
+                pass
+            try:
+                if ut and _close_detect_enabled() and _is_close_intent(ut):
+                    logger.info("[telecaller-brain] buy/close signal -> confirm setup (pre-LLM, tools)")
+                    self._on_close_signal()
+                    return (
+                        self._clean(
+                            "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp "
+                            "number confirm kar dijiye, setup ki saari jaankari wahin bhej deti hoon."
+                        ),
+                        None,
+                    )
+            except Exception:
+                pass
             # ANSWER-FIRST SAFETY: deterministic fast-path (QA answers, objection
             # lines, dodge-guards from reply()) MUST still win on NON-action turns —
             # warna VOICE_TOOLS on hone pe "kitne features" jaisa sawaal tool-LLM pe

@@ -427,3 +427,42 @@ async def test_stream_repeat_ask_on_clear_sentence_falls_back_to_reply(monkeypat
     text = " ".join(out)
     assert "dobara boliye" not in text.lower()
     assert "leads" in text.lower()
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-03 — THIRD parallel-brain gap: with VOICE_TOOLS=1 (live on VPS),
+# _on_utterance routes every turn through reply_with_tools() FIRST, which was
+# "fully isolated" from reply()/reply_stream_sentences and had NO close-signal
+# guards. Real 21:42 IST call: "final karo, pre-plan start karo." (verified
+# _is_close_intent=True in the live container) still got a discovery question.
+# All THREE brains are now pinned on the close path.
+# --------------------------------------------------------------------------- #
+async def test_tools_path_close_signal_short_circuits_before_llm() -> None:
+    b = _brain("ai_marketing")
+    b.close_signal_fired = False
+    b.caller_phone = ""
+    spoken, tool_call = await TelecallerBrain.reply_with_tools(
+        b, [{"role": "assistant", "content": "Ek baar free me try karke dekhna chahenge?"}],
+        "final karo, pre-plan start karo.", registry=None
+    )
+    assert tool_call is None
+    assert "WhatsApp" in spoken
+    assert "shuru kar deti hoon" in spoken
+
+
+async def test_tools_path_post_close_wrap_pivots_to_whatsapp() -> None:
+    b = _brain("ai_marketing")
+    b.close_signal_fired = False
+    b.caller_phone = ""
+    history = [
+        {
+            "role": "assistant",
+            "content": "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp number confirm kar dijiye.",
+        }
+    ]
+    spoken, tool_call = await TelecallerBrain.reply_with_tools(
+        b, history, "haan yahi number 9876543210", registry=None
+    )
+    assert tool_call is None
+    assert "WhatsApp" in spoken
+    assert "9 8 7 6 5 4 3 2 1 0" in spoken
