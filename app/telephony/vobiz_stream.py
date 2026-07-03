@@ -2467,16 +2467,34 @@ class VobizStreamSession:
         """Play a single pre-synthesized clip (greeting / filler). On NORMAL
         completion clears _speaking; on cancellation the canceller owns the flag
         (barge-in already set it False), so we leave it untouched."""
+        # 2026-07-03: real test calls show _speaking stuck True for the ENTIRE
+        # call (73-83s) after only a one-line greeting, with the _send() timeout
+        # fix (previous commit) making no difference — so it's not a hung WS
+        # write. Log which of the 3 exit paths actually fires, and the intended
+        # clip size, to see whether _run_play ever returns at all for this niche.
+        t0 = _now_ms()
+        logger.info(f"[vobiz-stream] play START sid={self.stream_sid} pcm_bytes={len(pcm)}")
         try:
             if self._rec_enabled:
                 self._rec_begin_bot_playback()
             await self._play_frames(pcm)
             self._speaking = False
             self._disclosure_active = False  # D-6: opener finished -> unlock barge
+            logger.info(
+                f"[vobiz-stream] play DONE sid={self.stream_sid} elapsed_ms={_now_ms() - t0}"
+            )
         except asyncio.CancelledError:
-            pass  # barge-in / superseded — canceller owns _speaking
+            logger.info(
+                f"[vobiz-stream] play CANCELLED sid={self.stream_sid} "
+                f"elapsed_ms={_now_ms() - t0} speaking_left_as={self._speaking}"
+            )
+            # barge-in / superseded — canceller owns _speaking, so don't touch it
+            # here (unchanged behavior — logging only, no re-raise).
         except Exception as e:
-            logger.debug(f"[vobiz-stream] playback error: {e}")
+            logger.warning(
+                f"[vobiz-stream] play EXCEPTION sid={self.stream_sid} "
+                f"elapsed_ms={_now_ms() - t0} err={e!r}"
+            )
             self._speaking = False
             self._disclosure_active = False
 
