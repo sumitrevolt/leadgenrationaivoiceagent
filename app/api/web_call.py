@@ -23,6 +23,10 @@ Server -> Client (JSON):
     {"type": "bot",    "text": "...", "audio_b64": "<base64?>", "test_mode": true}
     {"type": "info",   "text": "..."}
     {"type": "error",  "text": "..."}
+    {"type": "close_signal", "business_name": "...", "niche": "...", "phone": "..."}
+        # WEBCALL_INLINE_SIGNUP=1 only -- caller wants to proceed and a phone is
+        # known; browser shows the inline trial-signup overlay (see
+        # frontend/web_call.html).
     {"type": "pong"}
 
 Import-safe: degrades gracefully if the VoicePipeline or providers are missing —
@@ -373,6 +377,32 @@ def _web_call_edge_enabled() -> bool:
 
     v = os.environ.get("WEB_CALL_EDGE_TTS", "1").strip().lower()
     return v not in ("0", "false", "no", "off")
+
+
+def _webcall_inline_signup_enabled() -> bool:
+    """Browser-native trial-signup overlay on a voice close-signal (landing-page
+    onboarding). Default OFF — new funnel-critical behavior, verify manually
+    before enabling in prod. WEBCALL_INLINE_SIGNUP=1 to turn on."""
+    import os
+
+    v = os.environ.get("WEBCALL_INLINE_SIGNUP", "0").strip().lower()
+    return v in ("1", "true", "yes")
+
+
+def _close_signal_payload(tcbrain: Any) -> dict[str, Any] | None:
+    """WS payload to tell the browser "show the inline trial-signup overlay
+    now" -- only when the flag is on AND this exact reply() turn is the one
+    that made _on_close_signal() fire for real (deal write + WhatsApp)."""
+    if not _webcall_inline_signup_enabled():
+        return None
+    if not getattr(tcbrain, "close_signal_fired", False):
+        return None
+    return {
+        "type": "close_signal",
+        "business_name": getattr(tcbrain, "client_name", "") or "",
+        "niche": getattr(tcbrain, "niche", "") or "",
+        "phone": getattr(tcbrain, "caller_phone", "") or "",
+    }
 
 
 async def _bot_audio_b64(text: str) -> str | None:
@@ -1449,6 +1479,12 @@ async def web_call_ws(websocket: WebSocket) -> None:
                             timing=_turn_timing,
                         )
                         _turn_timing["tts_ms"] = int((time.monotonic() - _t_tts) * 1000)
+                    signal_payload = _close_signal_payload(tcbrain)
+                    if signal_payload:
+                        try:
+                            await websocket.send_json(signal_payload)
+                        except Exception:
+                            pass
                     return tc_reply
 
                 async def _brain_turn_stream() -> str:
