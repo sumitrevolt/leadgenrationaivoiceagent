@@ -427,6 +427,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Public site router not mounted: {_e}")
 try:
+    from app.api.page_agent import router as page_agent_router
+
+    app.include_router(
+        page_agent_router, prefix="/api"
+    )  # /api/page-agent/* (admin copilot LLM proxy + boot.js; PAGE_AGENT gated)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Page-agent router not mounted: {_e}")
+try:
     from app.api.booking import router as booking_router
 
     app.include_router(booking_router, prefix="/api")  # /api/booking/* (Calendly-lite slots+book)

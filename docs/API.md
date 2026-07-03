@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1044 operations)
+## Endpoint Index — auto-generated from OpenAPI (1046 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1423,6 +1423,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/agents-ext/trajectories` — Trajectories Best
 - `POST  ` `/api/agents-ext/trajectory/export` — Trajectory Export
 - `POST  ` `/api/agents-ext/trajectory/record` — Trajectory Record
+
+### Page Agent  (2)
+
+- `GET   ` `/api/page-agent/config` — Page Agent Config
+- `POST  ` `/api/page-agent/v1/chat/completions` — Page Agent Chat
 
 ### Platform  (17)
 

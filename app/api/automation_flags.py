@@ -241,6 +241,9 @@ AUTOMATION_FLAGS = [
     # --- Admin DB Explorer (council 2026-06-25, Supabase-Studio alternative) ---
     "ADMIN_DB_EXPLORER",  # super-admin READ-ONLY DB browser + CSV export on OUR Postgres
     # (/api/admin/db/* + /app/admin/db); sensitive cols redacted, no edit. OFF default → 503.
+    # --- Page-Agent admin copilot (alibaba/page-agent, 2026-07-03) ---
+    "PAGE_AGENT",  # in-page NL GUI copilot on admin pages (automation/admin/growth-tools/
+    # marketing/office) — key-safe LLM proxy /api/page-agent/v1 (Mistral→Groq). OFF default → 503.
     # --- Voice STT + LLM flags (live on VPS, now visible in dashboard) ---
     "HINGLISH_STT",  # local Hinglish whisper model (baked, WEBCALL_STT_LOCAL_FIRST=1 saath)
     "WEBCALL_STT_LOCAL_FIRST",  # web-call STT uses local Hinglish model before Groq
