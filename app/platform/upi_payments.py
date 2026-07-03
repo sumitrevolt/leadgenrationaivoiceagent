@@ -221,6 +221,30 @@ def _trigger_onboarding() -> None:
         logger.debug("upi_payments onboarding enqueue skipped: %s", e)
 
 
+def _mark_deal_won(phone: str) -> None:
+    """A real payment just activated — if a sales_pipeline deal exists for this
+    phone (e.g. the AI voice agent closed it to "negotiating" on a call), mark
+    it won so the Sales dashboard reflects what actually happened instead of
+    showing it stuck forever. Best-effort/read-after-write on the jsonl store;
+    a missing/ambiguous match is a silent no-op — never affects the payment or
+    onboarding that already succeeded. Safe from double-onboard: voice-call
+    deals never carry a client_id, so run_pipeline's own "won -> onboard"
+    auto-action (which requires client_id) cannot fire a second time from this.
+    """
+    digits = "".join(c for c in str(phone or "") if c.isdigit())[-10:]
+    if not digits:
+        return
+    try:
+        from app.marketing import sales_pipeline
+
+        for d in sales_pipeline.list_deals(limit=500) or []:
+            if d.get("phone") == digits and d.get("stage") not in ("won", "lost"):
+                sales_pipeline.set_stage(d["id"], "won")
+                break
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments mark_deal_won skipped: %s", e)
+
+
 def submit_payment(
     client_id: str,
     plan: str,
@@ -276,6 +300,7 @@ def submit_payment(
                 _write_store(rows)
                 # Just activated → front-run onboarding so output lands in seconds.
                 _trigger_onboarding()
+                _mark_deal_won(record.get("payer_contact", ""))
 
         return {"ok": True, **record}
     except Exception as e:  # pragma: no cover - defensive
@@ -335,6 +360,7 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
                 # Activation succeeded → front-run onboarding (KB seed + first content
                 # pack) instead of waiting for the hourly sweep.
                 _trigger_onboarding()
+                _mark_deal_won(record.get("payer_contact", ""))
             else:
                 # Approved but activation did NOT succeed (unknown plan / activation
                 # error) → revenue-critical SILENT failure: alert ops (best-effort).

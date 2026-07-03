@@ -222,3 +222,72 @@ def test_auto_activate_accepts_real_amount(up, monkeypatch):
 
     out = up.submit_payment("cli_real", "advanced", "TXNREAL", amount=5999)
     assert out["status"] == "auto_activated"
+
+
+@pytest.fixture
+def sp(tmp_path, monkeypatch):
+    """sales_pipeline module with its deals store pointed at a tmp file."""
+    from app.marketing import sales_pipeline as mod
+
+    monkeypatch.setattr(mod, "_DEALS", str(tmp_path / "deals.jsonl"))
+    monkeypatch.setattr(mod, "_ACTIONS", str(tmp_path / "deal_actions.jsonl"))
+    return mod
+
+
+def test_auto_activate_marks_matching_voice_deal_won(up, monkeypatch, sp):
+    """A customer Swara closed on a call (deal at 'negotiating', keyed by the
+    WhatsApp number she learned) who then actually pays must have that SAME
+    deal flipped to 'won' — "finalize the deal" — not left stuck forever."""
+    from app.billing import usage
+
+    sp.upsert_deal({"phone": "9876543210", "business_name": "Voice Lead", "niche": "ai_marketing"},
+                   stage="negotiating")
+
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
+    monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
+
+    up.submit_payment("cli_voice", "advanced", "TXNVOICE", amount=5999, payer_contact="9876543210")
+
+    deal = sp.list_deals()[0]
+    assert deal["stage"] == "won"
+
+
+def test_decide_approve_marks_matching_voice_deal_won(up, monkeypatch, sp):
+    """Same finalization, via the admin-approve path (not just auto-activate)."""
+    sp.upsert_deal({"phone": "9123456780", "business_name": "Voice Lead 2"}, stage="negotiating")
+    monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0: True)
+
+    sub = up.submit_payment("cli_voice2", "advanced", "TXNVOICE2", payer_contact="9123456780")
+    up.decide(sub["id"], True)
+
+    deal = sp.list_deals()[0]
+    assert deal["stage"] == "won"
+
+
+def test_mark_deal_won_no_matching_deal_is_noop(up, sp):
+    """No deal for this phone (e.g. a customer who signed up without ever
+    talking to Swara) → silent no-op, never an error."""
+    up._mark_deal_won("9000000000")
+    assert sp.list_deals() == []
+
+
+def test_mark_deal_won_never_raises_on_storage_failure(up, monkeypatch):
+    from app.marketing import sales_pipeline as sp_mod
+
+    def boom(*a, **k):
+        raise RuntimeError("disk full")
+
+    monkeypatch.setattr(sp_mod, "list_deals", boom)
+    assert up._mark_deal_won("9876543210") is None
+
+
+def test_mark_deal_won_does_not_resurrect_lost_deal(up, sp):
+    """A deal already marked lost must stay lost — a coincidental phone reuse
+    (e.g. a different plan/signup) must not silently revive a churned deal."""
+    deal = sp.upsert_deal({"phone": "9111111111", "business_name": "Churned Co"}, stage="negotiating")
+    sp.set_stage(deal["id"], "lost")
+
+    up._mark_deal_won("9111111111")
+
+    assert sp.list_deals()[0]["stage"] == "lost"

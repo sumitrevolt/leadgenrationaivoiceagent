@@ -153,3 +153,61 @@ async def test_bare_haan_does_not_trigger_close_signal(monkeypatch):
 
     assert _is_close_intent("haan") is False
     assert triggered == []
+
+
+@pytest.mark.asyncio
+async def test_web_call_learns_phone_from_post_close_reply(monkeypatch):
+    """Web-test call (no dialed number, e.g. /app/test-call — the same page real
+    prospects get as a demo link): the close-signal turn alone must stay a
+    no-op (no caller_phone yet), but once the caller SPEAKS a WhatsApp number
+    on the very next turn, the brain must learn it and fire the same durable
+    actions (deal write + real WhatsApp send) a phone call gets immediately."""
+    from app.integrations import whatsapp as wa
+    from app.marketing import sales_pipeline
+
+    deals = []
+    monkeypatch.setattr(
+        sales_pipeline, "upsert_deal", lambda lead, stage="interested": deals.append((lead, stage))
+    )
+    monkeypatch.setenv("CLOSE_DETECT", "1")
+    monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")
+    monkeypatch.setenv("VOICE_CLOSE_WHATSAPP", "1")
+
+    sent = {}
+
+    class FakeSender:
+        async def send_text_message(self, to_number, message):
+            sent["to"] = to_number
+            return {"ok": True}
+
+    monkeypatch.setattr(wa, "get_whatsapp_sender", lambda: FakeSender())
+
+    spawned = []
+    orig_create_task = asyncio.create_task
+    monkeypatch.setattr(
+        asyncio, "create_task", lambda coro: spawned.append(coro) or orig_create_task(coro)
+    )
+
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    assert brain.caller_phone == ""  # web call: nothing dialed
+
+    # Turn 1: close-intent -> setup-confirm asked; no phone yet -> clean no-op.
+    reply1 = await brain.reply([], "trial start karwa do")
+    assert brain.caller_phone == ""
+    assert deals == []
+    assert spawned == []
+
+    # Turn 2: caller states their WhatsApp number.
+    history = [{"role": "assistant", "content": reply1}]
+    reply2 = await brain.reply(history, "9876543210")
+
+    assert brain.caller_phone == "9876543210"
+    assert len(deals) == 1
+    lead, stage = deals[0]
+    assert lead["phone"] == "9876543210"
+    assert stage == "negotiating"
+    assert "9876543210" in reply2 or "9 8 7 6 5 4 3 2 1 0" in reply2
+
+    assert len(spawned) == 1
+    await spawned[0]
+    assert sent.get("to") == "9876543210"

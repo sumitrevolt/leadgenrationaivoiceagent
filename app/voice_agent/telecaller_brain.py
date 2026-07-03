@@ -788,7 +788,16 @@ class TelecallerBrain:
            self.caller_phone — the number we ALREADY dialed (reliable), not an
            STT-transcribed digit string (fragile). Never raises, never blocks
            the voice reply (asyncio.create_task).
+
+        Requires a known phone (checked FIRST): on a web-test call there is no
+        dialed number yet at this point (see NaturalDialog/web_call.py — no
+        set_caller_phone() call), so this is a clean no-op here — the caller
+        may still state a WhatsApp number on the NEXT turn, at which point
+        reply()'s post-close-wrap block calls set_caller_phone() + re-invokes
+        this method to fire these same durable actions for real.
         """
+        if not self.caller_phone:
+            return
         try:
             from app.marketing import sales_pipeline
 
@@ -803,8 +812,6 @@ class TelecallerBrain:
             )
         except Exception as e:
             logger.debug(f"[telecaller-brain] close-signal sales_pipeline skip: {e}")
-        if not self.caller_phone:
-            return
         try:
             import asyncio
 
@@ -1498,6 +1505,16 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     if "whatsapp number confirm" in _last_bot.lower() and _is_post_close_reply(ut):
                         logger.info("[telecaller-brain] post-close wrap -> WhatsApp pivot")
                         _num = _extract_phone(ut)
+                        if _num and not self.caller_phone:
+                            # Web-test call (no dialed number) — the caller just
+                            # SPOKE their WhatsApp number, the only one we'll ever
+                            # have on this path. Use it now to fire the durable
+                            # close actions (deal write + real WhatsApp send)
+                            # that _on_close_signal() no-op'd earlier for lack
+                            # of a phone (fixes: web-call close-signal never
+                            # produced a deal or a WhatsApp send).
+                            self.set_caller_phone(_num)
+                            self._on_close_signal()
                         if _num:
                             # Read the number back digit-by-digit so the caller can
                             # catch any STT mistake before we send to WhatsApp.
