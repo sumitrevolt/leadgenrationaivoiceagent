@@ -359,6 +359,34 @@ def maybe_alert_smtp_disabled(detail: str = "") -> dict[str, Any]:
     return {"alerted": True}
 
 
+# --------------------------------------------------------------------------- #
+# Alert 7 — UPI auto-activated (spot-check nudge, not a failure signal)
+# --------------------------------------------------------------------------- #
+def maybe_alert_upi_auto_activated(payment_id: str, client_id: str, plan: str, amount: float) -> dict[str, Any]:
+    """Push a low-priority ntfy heads-up whenever UPI_AUTO_ACTIVATE instantly
+    activates a plan on a self-reported (unverified) payment claim, so a fake
+    claim gets a real founder glance instead of silently disappearing into a
+    JSONL file no one reads. Keyed per payment_id (not a shared key) — this is
+    NOT a failure/spam scenario like the other alerts, every distinct payment
+    should get its own nudge, so no cross-payment cooldown suppression.
+    OPS_ALERTS-gated + never raises; a missed/failed push never blocks or
+    delays the activation that already happened.
+    """
+    if not enabled():
+        return {"alerted": False, "reason": "disabled"}
+    key = f"upi_auto_activated:{payment_id}"
+    if _cooldown_active(key, "upi_auto_activated"):
+        return {"alerted": False, "reason": "cooldown"}
+    title = "⚡ UPI auto-activated — spot-check"
+    body = (
+        f"client={client_id} plan={plan} amount=₹{amount} auto-activated instantly "
+        f"(self-reported UPI ref, no bank verification). Glance at it when convenient."
+    )[:480]
+    _ntfy(title, body, priority="default", tags=["zap", "billing"])
+    _record_fire(key)
+    return {"alerted": True}
+
+
 __all__ = [
     "enabled",
     "maybe_alert_engineer_score",
