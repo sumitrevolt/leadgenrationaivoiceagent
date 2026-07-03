@@ -1779,6 +1779,56 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     return
             except Exception:
                 pass
+            # POST-CLOSE WRAP + BUY/CLOSE SIGNAL (pre-LLM) — 2026-07-03: these two
+            # guards existed ONLY in reply(), never ported here. Since
+            # USE_LLM_STREAM_TTS=1 routes every real phone call through THIS
+            # generator (not reply()), an explicit close-signal ("activate karo
+            # plan", "final karo direct") NEVER short-circuited on a live call —
+            # it fell straight to the streaming LLM, which (being a free-tier
+            # model on Devanagari input) often answered "Ji, zara dobara boliye?"
+            # instead of confirming the close. Same logic as reply(), single
+            # yield + return instead of return.
+            try:
+                if ut and _close_detect_enabled() and history:
+                    _last_bot = next(
+                        (
+                            str(m.get("content", ""))
+                            for m in reversed(history)
+                            if isinstance(m, dict) and m.get("role") == "assistant"
+                        ),
+                        "",
+                    )
+                    if "whatsapp number confirm" in _last_bot.lower() and _is_post_close_reply(ut):
+                        logger.info("[telecaller-brain] post-close wrap -> WhatsApp pivot (stream)")
+                        _num = _extract_phone(ut)
+                        if _num and not self.caller_phone:
+                            self.set_caller_phone(_num)
+                            self._on_close_signal()
+                        if _num:
+                            _spoken = " ".join(_num)
+                            yield self._clean(
+                                f"Perfect sir! Aapka WhatsApp number {_spoken} — isi par abhi "
+                                "saari detail aur setup bhej rahi hoon. Dhanyavaad, aapka din shubh ho!"
+                            )
+                            return
+                        yield self._clean(
+                            "Perfect sir! Saari detail aur setup abhi WhatsApp pe bhej rahi "
+                            "hoon — wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
+                        )
+                        return
+            except Exception:
+                pass
+            try:
+                if ut and _close_detect_enabled() and _is_close_intent(ut):
+                    logger.info("[telecaller-brain] buy/close signal -> confirm setup (pre-LLM, stream)")
+                    self._on_close_signal()
+                    yield self._clean(
+                        "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp "
+                        "number confirm kar dijiye, setup ki saari jaankari wahin bhej deti hoon."
+                    )
+                    return
+            except Exception:
+                pass
             fast = self._fast_path_reply(history, ut)
             if fast:
                 yield fast
