@@ -176,3 +176,35 @@ class TestStatusWebhookDurationClamp:
         )
         assert r.status_code == 200
         assert captured["duration"] == 45
+
+
+class TestLeadPhoneThreading:
+    """2026-07-03 — the dialed number must survive the full outbound chain
+    (start_stream_call -> answer_url -> WS session) so close-signal durable
+    actions (deal write + WhatsApp send) have a phone on OUTBOUND calls.
+    Vobiz's start event has NO customParameters (confirmed from raw#1 logs on
+    a real call), so before this the session's _lead_phone stayed None and
+    every close/onboard action silently no-op'd on real campaign calls."""
+
+    def test_answer_stream_qs_carries_lead_phone(self):
+        from app.api.telephony_vobiz import _answer_stream_qs
+
+        qs = _answer_stream_qs("ai_marketing", None, lead_phone="+919876543210")
+        assert "lead_phone=%2B919876543210" in qs
+
+    def test_session_accepts_lead_phone_kwarg(self):
+        from app.telephony.vobiz_stream import VobizStreamSession
+
+        s = VobizStreamSession.__new__(VobizStreamSession)
+        VobizStreamSession.__init__(
+            s, websocket=None, niche="ai_marketing", lead_phone="+919876543210"
+        )
+        assert s._lead_phone == "+919876543210"
+
+    def test_answer_stream_xml_passes_lead_phone_to_ws_url(self, client: TestClient):
+        r = client.get(
+            "/api/telephony/vobiz/answer-stream/testtok123"
+            "?niche=ai_marketing&lead_phone=%2B919876543210"
+        )
+        assert r.status_code == 200
+        assert "lead_phone=%2B919876543210" in r.text
