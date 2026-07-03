@@ -1240,6 +1240,25 @@ async def reply_hot_queue_done(
     return {"ok": True, "hq_id": body.hq_id}
 
 
+@router.post("/reply/hot-queue/quick-done/{token}")
+async def reply_hot_queue_quick_done(
+    token: str,
+    _rl=Depends(rate_limit("hq_quickdone", 30, 60)),
+):
+    """PUBLIC 1-tap Done — fired by the ntfy push-notification action button
+    (2026-07-03 GTM fix). No login: ntfy's http action can't do interactive
+    auth, so the HMAC-signed token (app.platform.reply_agent.make_hq_done_token)
+    scopes this call to exactly one hq_id — same trust model as the email
+    one-click-unsubscribe links. Same effect as the admin dashboard's Done button."""
+    from app.platform import reply_agent
+
+    hq_id = reply_agent.verify_hq_done_token(token)
+    if not hq_id:
+        raise HTTPException(400, "invalid or expired token")
+    ok = reply_agent.mark_handled(hq_id)
+    return {"ok": ok, "hq_id": hq_id}
+
+
 @router.get("/speed-to-lead/summary")
 async def speed_to_lead_summary(
     days: int = 7,

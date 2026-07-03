@@ -413,18 +413,6 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         )
                     except Exception:
                         pass
-                    # Phone push: HOT reply — sales moment, turant pata chale (gated ntfy).
-                    try:
-                        from app.integrations import ntfy
-
-                        await ntfy.push(
-                            "🔥 Hot reply!",
-                            f"{(p or {}).get('business_name') or frm}: {subj[:80]}",
-                            priority="high",
-                            tags=["fire"],
-                        )
-                    except Exception:
-                        pass
                     # Sales automation: interested reply -> deal — SIRF known prospect pe
                     # (unknown sender se junk deals bante the: PayU/Instamojo case).
                     if p:
@@ -487,6 +475,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     if draft:
                         res["drafted"] += 1
 
+                at = datetime.now(timezone.utc).isoformat()
                 _save_draft(
                     {
                         "from": frm,
@@ -494,9 +483,48 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                         "intent": intent,
                         "draft": draft,
                         "injection_flag": _inj,
-                        "at": datetime.now(timezone.utc).isoformat(),
+                        "at": at,
                     }
                 )
+
+                if intent in ("interested", "question"):
+                    # Phone push: HOT reply — sales moment, turant pata chale (gated ntfy).
+                    # Tap-to-act buttons IN the notification (GTM council 2026-07-03: 344
+                    # hot replies accumulated, 0 ever cleared, despite this push already
+                    # firing every time — root cause was cost-of-action, not visibility).
+                    # Reply = opens mailto prefilled (human's own client sends — same
+                    # ban-safe 1-click pattern as the dashboard, no server-side send).
+                    # Done = signed-token HTTP action (ntfy can't do interactive login).
+                    try:
+                        from urllib.parse import quote
+
+                        from app.integrations import ntfy
+
+                        hq_id = _hq_id({"from": frm, "at": at})
+                        actions: list[dict] = []
+                        if draft and not _inj:
+                            re_subj = subj if subj.lower().startswith("re:") else f"Re: {subj}"
+                            mailto = f"mailto:{frm}?subject={quote(re_subj)}&body={quote(draft)}"
+                            actions.append({"action": "view", "label": "💬 Reply", "url": mailto})
+                        actions.append(
+                            {
+                                "action": "http",
+                                "label": "✔ Done",
+                                "url": f"{_base_url()}/api/growth/reply/hot-queue/"
+                                f"quick-done/{make_hq_done_token(hq_id)}",
+                                "method": "POST",
+                                "clear": True,
+                            }
+                        )
+                        await ntfy.push(
+                            "🔥 Hot reply!",
+                            f"{(p or {}).get('business_name') or frm}: {subj[:80]}",
+                            priority="high",
+                            tags=["fire"],
+                            actions=actions,
+                        )
+                    except Exception:
+                        pass
 
                 try:
                     from app.platform import interaction_log, objection_extractor
@@ -605,6 +633,7 @@ async def whatsapp_reply(
             draft = await _draft(business_name or "", "WhatsApp inquiry", txt, intent)
         except Exception:  # pragma: no cover - defensive
             draft = ""
+    at = datetime.now(timezone.utc).isoformat()
     rec = {
         "channel": "whatsapp",
         "from": frm,
@@ -613,11 +642,51 @@ async def whatsapp_reply(
         "intent": intent,
         "draft": draft,
         "status": _STATUS.get(intent, "replied"),
-        "at": datetime.now(timezone.utc).isoformat(),
+        "at": at,
     }
     _save_draft(rec)
     member = "swara" if intent in ("interested", "question") else "rohan"
     _notify(member, f"wa_reply_{intent}", f"{frm}: {txt[:60]}")
+    if intent in ("interested", "question"):
+        # Phone push parity with the email path (2026-07-03 GTM fix) — WA hot
+        # replies previously never pushed at all. Reply = opens wa.me prefilled
+        # (human's own WhatsApp sends — ban-safe, no server-side send).
+        try:
+            from urllib.parse import quote
+
+            from app.integrations import ntfy
+
+            hq_id = _hq_id({"from": frm, "at": at})
+            digits = "".join(ch for ch in frm if ch.isdigit())
+            actions: list[dict] = []
+            if draft and digits:
+                wa_num = digits if len(digits) > 10 else "91" + digits[-10:]
+                actions.append(
+                    {
+                        "action": "view",
+                        "label": "💬 Reply",
+                        "url": f"https://wa.me/{wa_num}?text={quote(draft)}",
+                    }
+                )
+            actions.append(
+                {
+                    "action": "http",
+                    "label": "✔ Done",
+                    "url": f"{_base_url()}/api/growth/reply/hot-queue/"
+                    f"quick-done/{make_hq_done_token(hq_id)}",
+                    "method": "POST",
+                    "clear": True,
+                }
+            )
+            await ntfy.push(
+                "🔥 Hot WhatsApp reply!",
+                f"{business_name or frm}: {txt[:80]}",
+                priority="high",
+                tags=["fire"],
+                actions=actions,
+            )
+        except Exception:
+            pass
     return rec
 
 
@@ -644,6 +713,46 @@ def list_drafts(limit: int = 50) -> list[dict]:
 # karke ek workable daily queue banata hai (admin /app/inbox "Hot Queue" tab).
 
 _HOT_INTENTS = ("interested", "question")
+
+# --- Quick-action tokens (GTM council 2026-07-03): 344 hot replies accumulated,
+# 0 ever cleared, despite the ntfy push already firing every time — root cause
+# was cost-of-action (open dashboard, read, decide, click), not visibility. Fix:
+# put Reply/Done buttons IN the push notification itself. ntfy action buttons
+# can't do interactive login, so "Done" needs a stateless signed token scoped to
+# exactly one hq_id — same trust model as email_unsub's one-click tokens.
+_HQ_TOKEN_SECRET = (
+    os.environ.get("HQ_ACTION_SECRET") or os.environ.get("SECRET_KEY") or "leadsgenai-hq-v1"
+).encode()
+
+
+def _base_url() -> str:
+    return (os.environ.get("PUBLIC_BASE_URL") or "https://leadsgenai.in").rstrip("/")
+
+
+def make_hq_done_token(hq_id: str) -> str:
+    """Stateless HMAC token for a 1-tap 'Done' push-notification action. Never raises."""
+    import base64
+    import hashlib
+    import hmac
+
+    sig = hmac.new(_HQ_TOKEN_SECRET, hq_id.encode(), hashlib.sha256).hexdigest()[:24]
+    return base64.urlsafe_b64encode(f"{hq_id}|{sig}".encode()).decode().rstrip("=")
+
+
+def verify_hq_done_token(token: str) -> str | None:
+    """Return the hq_id if the token is authentic, else None. Never raises."""
+    import base64
+    import hashlib
+    import hmac
+
+    try:
+        pad = "=" * (-len(token or "") % 4)
+        raw = base64.urlsafe_b64decode((token + pad).encode()).decode()
+        hq_id, sig = raw.rsplit("|", 1)
+        good = hmac.new(_HQ_TOKEN_SECRET, hq_id.encode(), hashlib.sha256).hexdigest()[:24]
+        return hq_id if hmac.compare_digest(sig, good) else None
+    except Exception:
+        return None
 
 
 def _hq_id(row: dict) -> str:
@@ -751,4 +860,12 @@ def mark_handled(hq_id: str) -> bool:
         return False
 
 
-__all__ = ["run_reply_triage", "whatsapp_reply", "list_drafts", "hot_queue", "mark_handled"]
+__all__ = [
+    "run_reply_triage",
+    "whatsapp_reply",
+    "list_drafts",
+    "hot_queue",
+    "mark_handled",
+    "make_hq_done_token",
+    "verify_hq_done_token",
+]
