@@ -19,6 +19,14 @@
   var widgetId = null;
   var pendingResolvers = [];
   var ready = false;
+  // Set permanently true when the server reports Turnstile disabled (or the
+  // config fetch fails). Distinct from `ready`: `ready` also flips true the
+  // instant an ENABLED widget finishes rendering (before it's solved), so
+  // reusing it alone as the passthrough check made every turnstileToken()
+  // call AFTER boot() resolve hang for the full 30s wait-for-widget timeout
+  // in the disabled case (no widget ever renders, so nothing ever calls
+  // flushPending() again after boot()'s one-time flush).
+  var disabled = false;
 
   function flushPending(token) {
     while (pendingResolvers.length) {
@@ -28,7 +36,7 @@
 
   window.turnstileToken = function () {
     return new Promise(function (resolve) {
-      if (!ready) return resolve(""); // INERT — server-side will pass through too
+      if (disabled || !ready) return resolve(""); // INERT — server-side will pass through too
       try {
         var t = window.turnstile && widgetId != null
           ? window.turnstile.getResponse(widgetId) : "";
@@ -88,11 +96,11 @@
       .then(function (r) { return r.ok ? r.json() : { enabled: false }; })
       .then(function (cfg) {
         if (!cfg || !cfg.enabled || !cfg.site_key) {
-          ready = true; flushPending(""); return;
+          disabled = true; ready = true; flushPending(""); return;
         }
         loadScript(cfg.site_key);
       })
-      .catch(function () { ready = true; flushPending(""); });
+      .catch(function () { disabled = true; ready = true; flushPending(""); });
   }
 
   if (document.readyState === "loading") {

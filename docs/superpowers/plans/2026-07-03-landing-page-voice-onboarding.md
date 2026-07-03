@@ -830,30 +830,59 @@ import json
 import aiohttp
 
 
+def _is_last_bot_chunk(msg: dict) -> bool:
+    if msg.get("type") != "bot":
+        return False
+    chunk_total = msg.get("chunk_total")
+    chunk_index = msg.get("chunk_index")
+    if not chunk_total or chunk_index is None:
+        return True
+    return chunk_index >= chunk_total - 1
+
+
+async def _drain_turn(ws, label: str, max_messages: int = 12) -> bool:
+    """Read messages until the bot's final chunk for this turn, then peek for
+    ONE more message with a short timeout (close_signal is sent AFTER the
+    sentence chunks finish, so it arrives just after the last "bot" chunk --
+    breaking immediately on the last chunk misses it). Returns True if a
+    close_signal event was seen along the way."""
+    saw_close_signal = False
+    for _ in range(max_messages):
+        msg = json.loads((await asyncio.wait_for(ws.receive(), 30)).data)
+        mtype = msg.get("type")
+        if mtype == "bot":
+            print(f"{label}: bot", (msg.get("text") or "")[:100])
+        elif mtype == "close_signal":
+            print(f"{label}: CLOSE_SIGNAL", msg)
+            saw_close_signal = True
+        else:
+            print(f"{label}: {mtype}")
+        if _is_last_bot_chunk(msg):
+            try:
+                trailing = json.loads((await asyncio.wait_for(ws.receive(), 3)).data)
+                print(f"{label}: trailing", trailing.get("type"))
+                if trailing.get("type") == "close_signal":
+                    saw_close_signal = True
+            except asyncio.TimeoutError:
+                pass
+            break
+    return saw_close_signal
+
+
 async def probe() -> None:
     async with aiohttp.ClientSession() as s:
         async with s.ws_connect("http://127.0.0.1:8000/api/web-call/ws", timeout=30) as ws:
-            print("ready:", (await ws.receive()).data)
+            print("ready:", (await ws.receive()).data[:120])
             await ws.send_json({"type": "start", "niche": "ai_marketing", "flow": "qualify"})
-            print("start-ack:", (await ws.receive()).data)
+            await _drain_turn(ws, "opener")
 
             await ws.send_json({"type": "user", "text": "trial start karwa do"})
-            for _ in range(3):
-                msg = json.loads((await asyncio.wait_for(ws.receive(), 30)).data)
-                print("turn1:", msg.get("type"), msg.get("text", "")[:80])
-                if msg.get("type") == "bot":
-                    break
+            saw_1 = await _drain_turn(ws, "turn1")
 
             await ws.send_json({"type": "user", "text": "9876543210"})
-            saw_close_signal = False
-            for _ in range(4):
-                msg = json.loads((await asyncio.wait_for(ws.receive(), 30)).data)
-                print("turn2:", msg)
-                if msg.get("type") == "close_signal":
-                    saw_close_signal = True
-                if msg.get("type") == "bot":
-                    break
-            print("SAW close_signal:", saw_close_signal)
+            saw_2 = await _drain_turn(ws, "turn2")
+
+            print("SAW close_signal:", saw_1 or saw_2)
 
 
 if __name__ == "__main__":
@@ -870,11 +899,24 @@ if __name__ == "__main__":
 6. Fill Business/Email/Password, submit. Expect either a success card ("✅ Trial shuru ho gaya!") or a clear inline error (e.g. Turnstile not configured locally is fine — `TURNSTILE_SECRET_KEY` unset makes the server-side check a no-op per `app/security/turnstile.py:124`).
 7. Also run `python scripts/webcall_close_signal_probe.py` against the same running server and confirm `SAW close_signal: True` in the output.
 
+- [ ] **Step 8.5: Two real bugs found during Step 8 live verification, fixed same-scope**
+
+Live browser testing (not just the pytest suite) surfaced two pre-existing bugs outside this plan's original file list, both directly blocking the overlay's actual usability — fixed here rather than filed for later, since they'd otherwise make Task 4 look done while silently broken for any tester with Turnstile disabled (every local/dev environment) or any signup failure (every environment):
+
+1. **`frontend/website/turnstile.js` — `turnstileToken()` hung 30s when Turnstile is disabled.** The shared `ready` flag flips true both when disabled (via `boot()`'s early-exit) and when an enabled widget merely *renders* (before it's solved) — `turnstileToken()`'s fast-path only checked `!ready`, so once `ready` was true, EVERY subsequent call (after boot()'s one-time flush) fell through to the 30s wait-for-widget branch, which never resolves when no widget was ever rendered. Fixed by adding a dedicated `disabled` flag, set permanently true only in the disabled/error paths of `boot()`, checked first in `turnstileToken()`. This is pre-existing code already used identically by `pricing.html` — the fix benefits both.
+2. **`frontend/web_call.html` (and `frontend/pricing.html`, same pattern) — error responses always showed the generic fallback text, never the real reason.** `app/exceptions.py`'s global `http_exception_handler` wraps every `HTTPException` as `{"error": {"code", "message", "request_id"}}`, not FastAPI's default `{"detail": "..."}"`. Both files' signup-error handling read `.detail` (never present in this shape), so a live 409 "business already registered" always displayed "Signup fail hua, dobara try karein." Fixed both to read `(body.error && body.error.message) || body.detail || <fallback>`.
+
+Verified live (see Step 8 transcript): overlay renders prefilled → Turnstile resolves instantly (no hang) → duplicate-business submit shows the real 409 message → fresh-data submit returns 200, `localStorage.accessToken` set (225-char JWT), success card renders.
+
 - [ ] **Step 9: Commit**
 
 ```bash
-git add frontend/web_call.html scripts/webcall_close_signal_probe.py
-git commit -m "feat(web-call): inline trial-signup overlay on voice close-signal"
+git add frontend/web_call.html frontend/website/turnstile.js frontend/pricing.html scripts/webcall_close_signal_probe.py
+git commit -m "feat(web-call): inline trial-signup overlay on voice close-signal
+
+Also fixes two pre-existing bugs found during live verification: turnstile.js
+token-resolution hang when Turnstile is disabled, and signup error messages
+reading the wrong response-body field (both files)."
 ```
 
 ---
