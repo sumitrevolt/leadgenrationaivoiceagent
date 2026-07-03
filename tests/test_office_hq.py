@@ -71,7 +71,8 @@ async def test_build_snapshot_never_raises_and_has_all_sections():
     assert snap["ok"] is True
     for key in (
         "rooms", "agents", "metrics", "pipeline", "approvals", "system_health",
-        "next_best_actions", "enterprise_features",
+        "next_best_actions", "boss_brief", "priority_actions", "room_workloads",
+        "replay", "enterprise_features",
     ):
         assert key in snap
 
@@ -106,6 +107,156 @@ def test_next_best_actions_is_pure_and_deterministic():
 
 def test_next_best_actions_empty_snapshot_is_safe():
     assert office_hq.next_best_actions({}) == []
+
+
+def _command_center_snapshot():
+    return {
+        "metrics": {
+            "new_leads_today": 4,
+            "qualified_leads_today": 2,
+            "calls_completed_today": 3,
+            "emails_sent_today": 7,
+            "payments_pending": 1,
+            "approvals_needed": 2,
+            "system_issues": 1,
+            "mrr": 5999,
+        },
+        "rooms": [
+            {
+                "id": "sales_crm",
+                "name": "Sales / CRM Room",
+                "activeTaskCount": 1,
+                "blockedTaskCount": 2,
+                "errorCount": 0,
+                "approvalCount": 1,
+                "agent_keys": ["rohan"],
+            },
+            {
+                "id": "platform_engineering",
+                "name": "Platform / Engineering",
+                "activeTaskCount": 0,
+                "blockedTaskCount": 0,
+                "errorCount": 1,
+                "approvalCount": 0,
+                "agent_keys": ["kavya"],
+            },
+        ],
+        "agents": [
+            {"key": "rohan", "name": "Rohan", "status": "working", "room": "sales_crm",
+             "todayActions": 8, "todayErrors": 0},
+            {"key": "kavya", "name": "Kavya", "status": "active", "room": "platform_engineering",
+             "todayActions": 3, "todayErrors": 1},
+        ],
+        "pipeline": [
+            {
+                "id": "scoring_qualification",
+                "name": "Lead Scoring & Qualification",
+                "count": 5,
+                "stuckCount": 0,
+                "errorCount": 0,
+                "items": [
+                    {
+                        "id": "L1",
+                        "name": "Sharma Solar",
+                        "priority": "hot",
+                        "assignedAgentId": None,
+                        "slaRisk": False,
+                        "nextAction": "Call karo",
+                        "stageId": "scoring_qualification",
+                        "type": "lead",
+                    }
+                ],
+            },
+            {
+                "id": "conversation_followup",
+                "name": "Conversation / Follow-up",
+                "count": 2,
+                "stuckCount": 2,
+                "errorCount": 0,
+                "items": [
+                    {
+                        "id": "L2",
+                        "name": "Ravi Clinic",
+                        "priority": "normal",
+                        "assignedAgentId": "rohan",
+                        "slaRisk": True,
+                        "nextAction": "Follow-up",
+                        "stageId": "conversation_followup",
+                        "type": "lead",
+                    }
+                ],
+            },
+        ],
+        "approvals": {
+            "counts": {"pending": 2, "total_pending": 3},
+            "queue": [{"kind": "draft", "id": "d1", "title": "Sales draft", "source": "sales"}],
+        },
+        "system_health": {
+            "overdue": ["email_outreach"],
+            "never_ran": [],
+            "queue": {"dlq": 1},
+            "jobs": [
+                {"job": "email_outreach", "status": "overdue"},
+                {"job": "ops", "status": "ok"},
+            ],
+        },
+        "schedule": [{"job": "email_outreach", "label": "Email outreach", "type": "recurring",
+                      "cadence": "hourly"}],
+        "coordination": [
+            {
+                "goal": "clear hot replies",
+                "mode": "sequential",
+                "executed": False,
+                "outcome": "draft",
+                "at": "2026-07-03T05:00:00+00:00",
+            }
+        ],
+        "generated_at": "2026-07-03T05:00:00+00:00",
+        "cached": False,
+    }
+
+
+def test_build_boss_brief_is_pure_and_actionable():
+    out = office_hq.build_boss_brief(_command_center_snapshot())
+    assert out["headline"]
+    assert out["risk"]["label"]
+    assert out["opportunity"]["label"]
+    assert out["recommendation"]["cta_target"]
+    assert out["confidence"] in ("high", "medium", "low")
+
+
+def test_build_priority_actions_structured_and_ranked():
+    actions = office_hq.build_priority_actions(_command_center_snapshot())
+    assert actions
+    assert len(actions) <= 5
+    assert actions[0]["severity"] in ("critical", "high", "medium", "low")
+    for item in actions:
+        for key in ("id", "title", "why", "severity", "owner", "room", "cta_label", "cta_target"):
+            assert key in item
+    assert office_hq.build_priority_actions(_command_center_snapshot()) == actions
+
+
+def test_build_room_workloads_maps_items_to_rooms():
+    out = office_hq.build_room_workloads(_command_center_snapshot())
+    assert "sales_crm" in out
+    assert out["sales_crm"]["owner_count"] >= 1
+    assert out["sales_crm"]["work_items"]
+    assert out["platform_engineering"]["health"]["errors"] == 1
+
+
+def test_build_replay_returns_timeline_without_io():
+    out = office_hq.build_replay(_command_center_snapshot(), limit=10)
+    assert out["items"]
+    assert out["source"] == "snapshot"
+    assert len(out["items"]) <= 10
+    for row in out["items"]:
+        assert row["title"] and row["actor"] and row["at"]
+
+
+async def test_build_snapshot_includes_command_center_sections():
+    snap = await office_hq.build_snapshot()
+    for key in ("boss_brief", "priority_actions", "room_workloads", "replay"):
+        assert key in snap
 
 
 def test_enterprise_features_contract_has_20_clickable_features():
