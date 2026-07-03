@@ -52,6 +52,13 @@ _WORD_MAP: dict[str, str] = {
     "बिजी": "busy", "मीटिंग": "meeting", "टाइम": "time", "समय": "samay",
     "अभी": "abhi", "रोज": "roz", "फाइनल": "final", "बुक": "book",
     "कॉल": "call", "कॉलबैक": "callback",
+    # close / proceed intent (2026-07-03: missing from this map meant a caller
+    # saying e.g. "प्री प्लान एक्टिवेट करो" never matched telecaller_brain's
+    # roman-only _CLOSE_HARD_RE — the close-signal/WhatsApp-handoff path never
+    # fired even though the caller clearly said "activate")
+    "एक्टिवेट": "activate", "स्टार्ट": "start", "शुरू": "shuru", "चालू": "chalu",
+    "सेटअप": "setup", "साइन": "sign", "कन्फर्म": "confirm", "फिक्स": "fix",
+    "एक्टिव": "active", "एक्टिवेशन": "activation",
     # identity / channel
     "कौनहो": "kaun ho", "रोबोट": "robot", "मशीन": "machine",
     "वाट्सएप": "whatsapp", "व्हाट्सएप": "whatsapp", "भेजो": "bhejo", "भेज": "bhej",

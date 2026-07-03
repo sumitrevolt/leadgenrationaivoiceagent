@@ -987,10 +987,33 @@ class TelecallerBrain:
             else ""
         )
 
+        # 2026-07-03 user feedback (real test calls): the platform self-pitch bot
+        # was running the generic discovery-heavy flow below (many qualifying
+        # questions before closing) — but for OUR OWN product, discovery isn't
+        # needed: tell them what we sell, close fast on free-trial/paid-plan, and
+        # push the detailed conversation to WhatsApp (call-minutes cost money;
+        # WhatsApp is free). Additive + scoped: only fires for the ai_marketing
+        # self-pitch niche, every other client's niche is unaffected.
+        platform_pitch_block = ""
+        try:
+            from app.voice_agent.platform_pitch import is_platform_pitch
+
+            if is_platform_pitch(self.niche):
+                platform_pitch_block = """
+
+SELF-PITCH MODE (tum apna hi LeadGen AI product bech rahi ho — yeh rules sabse upar priority pe hain):
+- Customer se "aapko kya chahiye" ya lambi discovery MAT poocho — SEEDHA batao hum kya karte hain: AI se roz Instagram/Facebook/Google post+ads+leads, WhatsApp follow-up automatic.
+- MAX EK qualifying sawaal ke baad seedha close-move pe aao: "Aaj 7-din FREE trial start karoon (bina card) ya seedha paid plan?"
+- Interest ka koi bhi signal (haan/interested/batao/sunao/pricing-sawaal) → TURANT close-move pe jao — lambi baat mat khincho.
+- Detail/lambi baat WHATSAPP pe hogi, is CALL par nahi (calling paisa kharch karta hai, WhatsApp free hai) — interest confirm hote hi WhatsApp number confirm karo, "poori detail WhatsApp pe bhej rahi hoon" bolo, warmly call wrap karo. Is call ka POORA maqsad = interest confirm + WhatsApp handoff — poori sales pitch yahi call pe khatam karne ki koshish MAT karo.
+- Tone = enterprise-grade: crisp, confident, "hum yeh karte hain" — kabhi open-ended "aapko kya chahiye" jaisa sawaal nahi."""
+        except Exception:
+            pass
+
         return f"""Tum "Swara" ho — {self.client_name} ki senior, professional Indian female telecaller (5+ saal experience). Tum ek experienced business consultant ki tarah baat karti ho: pehle customer ko dhyaan se suno, uski situation samjho, phir uske hisaab se relevant aur confident baat karo — ratta-maar script nahi, robotic nahi. Har jawab specific, warm aur to-the-point. Tum ek LIVE PHONE CALL par ho (text chat nahi); bhasha natural Hinglish (Hindi-English mix), awaaz bilkul insaan jaisi, tone professional aur bharosemand.
 
 CLIENT: {self.client_name} | NICHE: {self.niche_name}{niche_ctx_block}
-VALUE LINE (pitch hook): {hook}
+VALUE LINE (pitch hook): {hook}{platform_pitch_block}
 
 PROFESSIONAL SCRIPT (inhi lines/style me baat karo, copy-paste mat karo, natural raho):
 {script_block}

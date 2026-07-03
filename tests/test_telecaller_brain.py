@@ -275,3 +275,31 @@ def test_fill_noop_without_brackets() -> None:
     b.client_name = "X"
     s = "Ji sir, bilkul — aaj setup kar doon?"
     assert TelecallerBrain._fill(b, s) == s
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-03 — self-pitch mode: assumptive sell + fast WhatsApp handoff,
+# scoped ONLY to the ai_marketing (self-marketing) niche.
+# --------------------------------------------------------------------------- #
+def _system_prompt_brain(niche: str) -> TelecallerBrain:
+    b = _brain(niche)
+    b.client_name = "LeadGen AI"
+    b.niche_name = niche
+    b.pitch_hook = "AI se naye customers dilana"
+    b.allowed_numbers = ""
+    b.niche_script_context = ""
+    b.questions = ["Aap exactly kis cheez ki talaash me hain?"]
+    return b
+
+
+def test_self_pitch_block_present_for_platform_niche() -> None:
+    b = _system_prompt_brain("ai_marketing")
+    prompt = TelecallerBrain._build_system_prompt(b)
+    assert "SELF-PITCH MODE" in prompt
+    assert "WHATSAPP" in prompt.upper()
+
+
+def test_self_pitch_block_absent_for_client_niche() -> None:
+    b = _system_prompt_brain("solar")
+    prompt = TelecallerBrain._build_system_prompt(b)
+    assert "SELF-PITCH MODE" not in prompt
