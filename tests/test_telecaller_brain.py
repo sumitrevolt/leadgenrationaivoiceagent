@@ -117,13 +117,43 @@ def test_fast_path_discloses_ai_identity() -> None:
     assert "swara" in ans.lower()
 
 
-def test_fast_path_whatsapp_gate_qualifies_first() -> None:
+def test_fast_path_whatsapp_is_a_handoff_not_a_qualify() -> None:
+    """2026-07-03 contract change (user mandate + all-transcript analysis): a
+    WhatsApp ask = channel handoff (wrap the paid call, details move to
+    WhatsApp) — NOT another qualify question. The old 'leads chahiye ya
+    content?' fired even right after an explicit commit in 3 real calls."""
+    # Web path (no dialed number): ask them to confirm the number — the line
+    # must contain 'whatsapp number confirm' so the next turn's post-close-wrap
+    # catches the spoken number.
     b = _brain("ai_marketing")
     b._interest_confirmed = False
+    b.caller_phone = ""
     ans = TelecallerBrain._fast_path_reply(b, [], "whatsapp pe bhej do")
+    assert "whatsapp number confirm" in ans.lower()
+    assert "leads chahiye ya content" not in ans.lower()
+
+
+def test_fast_path_whatsapp_phone_path_fires_close_and_wraps(monkeypatch) -> None:
+    # Phone path (caller_phone = the number we dialed): durable close actions
+    # fire NOW and the call wraps toward WhatsApp.
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    b.caller_phone = "+919876543210"
+    fired = []
+    monkeypatch.setattr(b, "_on_close_signal", lambda: fired.append(1), raising=False)
+    ans = TelecallerBrain._fast_path_reply(b, [], "whatsapp pe details bhej do")
+    assert fired, "_on_close_signal must fire on a phone-path WhatsApp handoff"
     assert "whatsapp" in ans.lower()
-    assert "leads" in ans.lower() or "content" in ans.lower()
-    assert "?" in ans
+    assert "leads chahiye ya content" not in ans.lower()
+
+
+def test_fast_path_whatsapp_negation_does_not_handoff() -> None:
+    # "WhatsApp pe mat bhejo" must NOT trigger the handoff.
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    b.caller_phone = ""
+    ans = TelecallerBrain._fast_path_reply(b, [], "whatsapp pe mat bhejo")
+    assert "whatsapp number confirm" not in ans.lower()
 
 
 # --------------------------------------------------------------------------- #
@@ -346,3 +376,54 @@ async def test_stream_reply_post_close_wrap_pivots_to_whatsapp() -> None:
     text = " ".join(out)
     assert "WhatsApp" in text
     assert "9 8 7 6 5 4 3 2 1 0" in text
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-03 — all-transcript learnings: repeat-ask hard cap (rule 12 was
+# prompt-only; 5 real calls had 2-4x "zara dobara boliye") + stream first-
+# sentence guards (the stream path yielded raw LLM output with none of
+# reply()'s post-LLM protections).
+# --------------------------------------------------------------------------- #
+def test_note_repeat_ask_allows_exactly_one_per_call() -> None:
+    b = _brain("general")
+    assert TelecallerBrain._note_repeat_ask(b) is True  # first: allowed
+    assert TelecallerBrain._note_repeat_ask(b) is False  # second: hard-blocked
+    assert TelecallerBrain._note_repeat_ask(b) is False
+
+
+async def test_stream_repeat_ask_on_clear_sentence_falls_back_to_reply(monkeypatch) -> None:
+    """LLM streams 'Ji, zara dobara boliye?' against a fully clear substantive
+    complaint (verbatim shape from a real 2026-07-03 call) — the stream must NOT
+    speak it; it abandons the stream and uses reply()'s guarded output."""
+    b = _brain("ai_marketing")
+    b.close_signal_fired = False
+    b.caller_phone = ""
+
+    async def _fake_kb(_ut):
+        return []
+
+    def _fake_prompt(_h, _u, _f):
+        return "prompt"
+
+    async def _fake_tokens(**_kw):
+        yield "Ji, zara dobara boliye?"
+
+    from app.voice_agent import free_ai
+
+    monkeypatch.setattr(b, "_kb_facts", _fake_kb, raising=False)
+    monkeypatch.setattr(b, "_build_prompt", _fake_prompt, raising=False)
+    monkeypatch.setattr(free_ai, "chat_stream", _fake_tokens)
+
+    async def _guarded_reply(_h, _u):
+        return "Aapko product marketing ke liye ready leads chahiye — Instagram ya Google se?"
+
+    monkeypatch.setattr(b, "reply", _guarded_reply, raising=False)
+
+    out: list[str] = []
+    async for sent in TelecallerBrain.reply_stream_sentences(
+        b, [], "मेरी बात का जवाब दो, मुझे product marketing के लिए leads chahiye aur aap दूसरी baat कर रही हो"
+    ):
+        out.append(sent)
+    text = " ".join(out)
+    assert "dobara boliye" not in text.lower()
+    assert "leads" in text.lower()

@@ -1457,9 +1457,28 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             return self._clean(self._who_am_i_line())
         if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
             return self._clean(self._ai_disclosure_qa_line())
-        if any(w in low for w in ("whatsapp", "send kar", "bhej do", "message kar")):
+        if any(w in low for w in ("whatsapp", "send kar", "bhej do", "message kar")) and not (
+            "mat" in low or "nahi" in low
+        ):
+            # 2026-07-03 (all-transcript analysis + user mandate): a WhatsApp ask is
+            # a CHANNEL HANDOFF, not a qualify moment. The old line here ("pehle
+            # bataiye aapko leads chahiye ya content?") kept the caller on the paid
+            # call answering questions AFTER they'd already asked to move to
+            # WhatsApp — 3 real calls show it firing right after an explicit
+            # commit ("plan final karo, WhatsApp pe baaki"). New behavior: commit
+            # the handoff and wrap. Phone path (caller_phone = the number we
+            # dialed) fires the durable close actions NOW; web path asks them to
+            # speak the number ("WhatsApp number confirm" -> next turn's
+            # post-close-wrap catches it).
+            if self.caller_phone:
+                self._on_close_signal()
+                return self._clean(
+                    "Bilkul sir! Isi number pe WhatsApp pe saari detail abhi bhej rahi hoon — "
+                    "wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
+                )
             return self._clean(
-                "Bilkul sir, WhatsApp pe bhej dungi — pehle bataiye aapko leads chahiye ya content?"
+                "Bilkul sir! Bas apna WhatsApp number confirm kar dijiye — "
+                "saari detail wahin bhej deti hoon."
             )
 
         # User ne discovery ka jawab diya → mirror + agla unasked sawaal (sawaal ho to skip).
@@ -1711,8 +1730,13 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 and (not text or self._asks_to_repeat(text))
                 and "repeat kar" not in (prev or "").lower()
             ):
-                logger.info("[telecaller-brain] unclear utterance -> clarify once")
-                return self._clean("Sir, thoda repeat karenge? Aapki baat clear nahi aayi.")
+                if self._note_repeat_ask():
+                    logger.info("[telecaller-brain] unclear utterance -> clarify once")
+                    return self._clean("Sir, thoda repeat karenge? Aapki baat clear nahi aayi.")
+                # Per-call repeat budget exhausted (rule 12, hard-enforced) —
+                # move FORWARD via the script fallback below instead of another
+                # "repeat karenge?" (5 real calls showed 2-4x repeat-asks).
+                text = ""
             # SCRIPT FALLBACK: LLM throttled/slow/empty/re-greet -> niche-script ka
             # agla PROFESSIONAL sawaal (instant, niche-specific, kabhi repeat nahi).
             if not text or _regreet or (prev and self._too_similar(text, prev)):
@@ -1848,11 +1872,54 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     yield t
 
             got = False
+            first_sentence = True
             async for sent in iter_sentences_from_tokens(_tokens()):
                 cleaned = self._fill(self._clean(sent))
-                if cleaned:
-                    got = True
-                    yield cleaned
+                if not cleaned:
+                    continue
+                if first_sentence:
+                    first_sentence = False
+                    # POST-LLM GUARDS on the first streamed sentence — 2026-07-03:
+                    # reply() has had these since 2026-06-28/29 but the stream path
+                    # yielded raw LLM output ungated. All-transcript analysis: 18
+                    # "zara dobara boliye" asks (up to 4x in one call, incl. on
+                    # fully clear substantive complaints) + re-greets came through
+                    # HERE. A bad first sentence abandons the stream (nothing
+                    # spoken yet) and falls to reply() below, which carries the
+                    # full clarify-once/script-fallback/anti-loop suite.
+                    _bad = False
+                    try:
+                        if self._asks_to_repeat(cleaned):
+                            if self._user_substantive(ut) or not self._note_repeat_ask():
+                                _bad = True
+                        if not _bad and _voice_guardrails_enabled() and _obeyed_injection(cleaned):
+                            logger.warning(
+                                "[telecaller-brain] stream reply obeyed injection — falling back"
+                            )
+                            _bad = True
+                        if not _bad and _voice_guardrails_enabled():
+                            from app.voice_agent import qa_checks as _qc3
+
+                            if _qc3.check_pii_leak([{"role": "assistant", "content": cleaned}]):
+                                logger.warning(
+                                    "[telecaller-brain] PII leak in stream reply — falling back"
+                                )
+                                _bad = True
+                        if not _bad:
+                            _spoken_n = sum(
+                                1 for m in (history or []) if (m.get("role") or "") == "assistant"
+                            )
+                            if _spoken_n >= 1 and self._looks_like_greeting(cleaned):
+                                _bad = True  # mid-call re-greet = parroted opener
+                    except Exception:
+                        _bad = False
+                    if _bad:
+                        logger.info(
+                            "[telecaller-brain] stream first sentence failed guards -> reply() fallback"
+                        )
+                        break  # got stays False -> one-shot reply() below
+                got = True
+                yield cleaned
             if got:
                 return
         except Exception as e:
@@ -1971,6 +2038,17 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             or "ek baar phir short" in t
             or "repeat kar" in t
         )
+
+    def _note_repeat_ask(self) -> bool:
+        """CODE-LEVEL enforcement of prompt rule 12 ('zara dobara boliye' MAX ek
+        baar poori call me) — 2026-07-03 all-transcript analysis: the rule was
+        prompt-only and the free-tier LLM violated it in 5 real calls (up to 4x
+        in one call). Returns True if a repeat-ask is still allowed (first one),
+        False after — callers then fall to the script/forward-moving fallback.
+        Always increments, so combined reply()/stream usage shares one budget."""
+        n = getattr(self, "_repeat_asks", 0)
+        self._repeat_asks = n + 1
+        return n == 0
 
     def _safe_fallback(self, history: list[dict[str, str]]) -> str:
         try:

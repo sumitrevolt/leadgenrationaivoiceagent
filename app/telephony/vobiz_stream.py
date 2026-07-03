@@ -573,15 +573,21 @@ class VobizStreamSession:
         client_id: str | None = None,
         client_name: str = "Demo Co",
         voice: str = "hi-IN-SwaraNeural",
+        lead_phone: str | None = None,
     ) -> None:
         self.ws = websocket
         self.niche = (niche or "general").strip() or "general"
         self.client_id = client_id
         self.client_name = client_name or "Demo Co"
         self.voice_role = "telecaller"
-        # Stable per-LEAD id for cross-session agent memory (customParameters se).
-        # None = memory INERT (safe). call_sid use NAHI karte (har call naya).
-        self._lead_phone: str | None = None
+        # Stable per-LEAD id for cross-session agent memory + close-signal durable
+        # actions (deal write / WhatsApp send need the dialed number). 2026-07-03:
+        # now threaded from start_stream_call's `to` via the answer-url/WS query
+        # params — Vobiz's start event has NO customParameters (confirmed from
+        # raw#1 logs on a real call), so the old customParameters-only path left
+        # this None on every outbound call and close-signal actions silently
+        # no-op'd. customParameters (if ever present) still win in _on_event.
+        self._lead_phone: str | None = (lead_phone or "").strip() or None
         self.voice = voice
 
         self.stream_sid: str | None = None
