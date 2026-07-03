@@ -301,6 +301,18 @@ def submit_payment(
                 # Just activated → front-run onboarding so output lands in seconds.
                 _trigger_onboarding()
                 _mark_deal_won(record.get("payer_contact", ""))
+                # No real bank/UPI verification backs this instant activation —
+                # nudge the founder to spot-check (council decision 2026-07-03:
+                # ship UPI_AUTO_ACTIVATE's speed, pair it with a reconciliation
+                # signal instead of a blocking review).
+                try:
+                    from app.platform import ops_alerts
+
+                    ops_alerts.maybe_alert_upi_auto_activated(
+                        record.get("id", ""), cid, plan_s, float(amount or 0)
+                    )
+                except Exception as e:  # pragma: no cover - defensive
+                    logger.debug("upi_payments auto-activate alert skipped: %s", e)
 
         return {"ok": True, **record}
     except Exception as e:  # pragma: no cover - defensive

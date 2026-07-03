@@ -111,3 +111,49 @@ def test_helpers_respect_cooldown(monkeypatch):
         "alerted": False,
         "reason": "cooldown",
     }
+
+
+# --------------------------------------------------------------------------- #
+# UPI auto-activate spot-check nudge (council decision 2026-07-03: ship
+# UPI_AUTO_ACTIVATE's speed, pair it with a reconciliation signal not a gate).
+# --------------------------------------------------------------------------- #
+def test_upi_auto_activated_noop_when_disabled(monkeypatch):
+    monkeypatch.delenv("OPS_ALERTS", raising=False)
+
+    def _boom(*_a, **_kw):  # pragma: no cover - asserts non-call
+        raise AssertionError("_ntfy must not be called when OPS_ALERTS is unset")
+
+    monkeypatch.setattr(ops_alerts, "_ntfy", _boom)
+
+    res = ops_alerts.maybe_alert_upi_auto_activated("upi_1", "cli_1", "advanced", 5999)
+    assert res == {"alerted": False, "reason": "disabled"}
+
+
+def test_upi_auto_activated_fires_ntfy_when_enabled(monkeypatch):
+    calls = _recorder(monkeypatch)
+
+    res = ops_alerts.maybe_alert_upi_auto_activated("upi_42", "cli_9", "advanced", 5999)
+
+    assert res == {"alerted": True}
+    assert len(calls) == 1
+    title, message, _kw = calls[0]
+    assert "auto-activated" in title.lower()
+    assert "cli_9" in message and "advanced" in message and "5999" in message
+
+
+def test_upi_auto_activated_keys_cooldown_per_payment(monkeypatch):
+    """Two DIFFERENT payments must both alert — this is per-event, not a
+    shared-key alert like payment_failed/smtp_disabled (real cooldown ledger,
+    not bypassed here, to prove the per-payment_id keying actually works)."""
+    monkeypatch.setenv("OPS_ALERTS", "1")
+    monkeypatch.setattr(ops_alerts, "_record_fire", lambda *a, **k: None)
+    monkeypatch.setattr(ops_alerts, "_read_state", lambda: {})  # empty ledger, real _cooldown_active logic
+    calls: list[tuple] = []
+    monkeypatch.setattr(ops_alerts, "_ntfy", lambda title, message, **kw: calls.append((title, message)))
+
+    r1 = ops_alerts.maybe_alert_upi_auto_activated("upi_a", "cli_a", "starter", 1999)
+    r2 = ops_alerts.maybe_alert_upi_auto_activated("upi_b", "cli_b", "starter", 1999)
+
+    assert r1 == {"alerted": True}
+    assert r2 == {"alerted": True}
+    assert len(calls) == 2

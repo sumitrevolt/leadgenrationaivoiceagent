@@ -148,6 +148,54 @@ def test_auto_activate_triggers_onboarding(up, monkeypatch):
     assert fired == [1]
 
 
+def test_auto_activate_nudges_founder_spot_check(up, monkeypatch):
+    """Council decision 2026-07-03: instant activation on an unverified
+    self-reported payment must fire the spot-check nudge (mitigates the
+    fraud-risk dissent without reintroducing the manual-approve wait)."""
+    from app.billing import usage
+    from app.platform import ops_alerts
+
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
+    monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
+    monkeypatch.setattr(up, "_mark_deal_won", lambda phone: None)
+
+    nudged: list[tuple] = []
+    monkeypatch.setattr(
+        ops_alerts,
+        "maybe_alert_upi_auto_activated",
+        lambda pid, cid, plan, amount: nudged.append((pid, cid, plan, amount)),
+    )
+
+    out = up.submit_payment("cli_nudge", "advanced", "TXNNUDGE", amount=5999, payer_contact="9999999999")
+
+    assert out["status"] == "auto_activated"
+    assert len(nudged) == 1
+    _pid, cid, plan, amount = nudged[0]
+    assert cid == "cli_nudge"
+    assert plan == "advanced"
+    assert amount == 5999
+
+
+def test_auto_activate_nudge_never_raises(up, monkeypatch):
+    """A broken/misconfigured ntfy must never undo an already-successful
+    activation — the customer's plan stays active even if the nudge fails."""
+    from app.billing import usage
+    from app.platform import ops_alerts
+
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
+    monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
+
+    def _boom(*a, **k):
+        raise RuntimeError("ntfy unreachable")
+
+    monkeypatch.setattr(ops_alerts, "maybe_alert_upi_auto_activated", _boom)
+
+    out = up.submit_payment("cli_nudge_fail", "advanced", "TXNNUDGEFAIL", amount=5999)
+    assert out["status"] == "auto_activated"
+
+
 def test_trigger_onboarding_never_raises(up, monkeypatch):
     """Broker/enqueue failure must be swallowed (hourly sweep is the fallback)."""
     import app.worker as w
