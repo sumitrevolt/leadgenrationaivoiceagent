@@ -102,6 +102,26 @@ class AgentTaskIn(BaseModel):
     scope: str = "solo"  # "solo" | "team"
 
 
+# --------------------------------------------------------------------------- #
+# HQ Ask — 🤖 copilot ka main entry: question -> grounded Boss answer; task ->
+# auto-route to the right staff member via the SAME draft-safe Kaam-Do path.
+# Rate-limited like council/kaam-do (LLM-heavy). Never raises.
+# --------------------------------------------------------------------------- #
+class AskIn(BaseModel):
+    q: str = Field(..., min_length=1, max_length=500)
+
+
+@router.post("/ask", dependencies=[Depends(rate_limit("hqask", 10, 60))])
+async def office_ask(body: AskIn, current_user=Depends(require_admin)):
+    """One box for everything: {ok, kind:"question"|"task", text, member?, run_id?}."""
+    from app.platform import office_hq
+
+    try:
+        return await office_hq.hq_ask(body.q)
+    except Exception as e:  # pragma: no cover — helper never raises
+        return {"ok": False, "kind": "question", "text": "", "error": str(e)[:300]}
+
+
 @router.post("/agents/{member}/task", dependencies=[Depends(rate_limit("agents", 5, 60))])
 async def office_agent_task(member: str, body: AgentTaskIn, current_user=Depends(require_admin)):
     """Draft-safe bounded task dispatch to one agent (solo) or the coordinator

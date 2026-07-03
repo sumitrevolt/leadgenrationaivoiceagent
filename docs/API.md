@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1046 operations)
+## Endpoint Index — auto-generated from OpenAPI (1047 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1402,11 +1402,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/niche/stats` — Niche prospects stats
 - `GET   ` `/api/niche/voice-niches` — All voice niches list
 
-### Operating HQ  (12)
+### Operating HQ  (13)
 
 - `POST  ` `/api/platform/office/agents/{member}/pause` — Office Pause Agent
 - `POST  ` `/api/platform/office/agents/{member}/resume` — Office Resume Agent
 - `POST  ` `/api/platform/office/agents/{member}/task` — Office Agent Task
+- `POST  ` `/api/platform/office/ask` — Office Ask
 - `POST  ` `/api/platform/office/boss-review` — Office Boss Review
 - `GET   ` `/api/platform/office/briefing` — Office Briefing
 - `GET   ` `/api/platform/office/briefing/audio` — Office Briefing Audio

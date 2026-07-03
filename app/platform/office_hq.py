@@ -1457,3 +1457,151 @@ async def run_agent_task(member: str, goal: str, scope: str = "solo") -> dict[st
         "summary": str(result.get("summary") or "(summary abhi nahi bana)")[:1200],
         "note": "Pura result agent_events/ticker me bhi aa gaya (draft-safe — koi auto-send nahi).",
     }
+
+
+# --------------------------------------------------------------------------- #
+# HQ Ask — 🤖 copilot ka MAIN entry point (2026-07-03, user: "yaha se jo puchna
+# sab coordinate kare"). Ek Hinglish message lo aur:
+#   question -> Boss-persona grounded answer (cached snapshot facts, free-LLM)
+#   task     -> auto-route: sahi staff member choose karke run_agent_task()
+#               (same draft-safe + bounded Kaam-Do path — koi naya side-effect
+#               surface NAHI, sirf routing sugar upar).
+# Rules (file-convention): NEVER-RAISE, har LLM call wait_for-bounded, numbers
+# sirf snapshot se (fabricate nahi). Router-LLM fail -> keyword heuristic.
+# --------------------------------------------------------------------------- #
+_ASK_Q_MAX = 500
+_ASK_ROUTE_TIMEOUT = 12.0
+_ASK_ANSWER_TIMEOUT = 25.0
+
+_TASK_VERB_HINTS = (
+    "karo", "kar do", "kardo", "banao", "bana do", "bhejo", "bhej do", "chalao",
+    "run kar", "dispatch", "draft", "likho", "likh do", "nikalo", "dhundo",
+    "harvest", "scrape", "post kar", "call kar", "schedule kar", "start kar",
+)
+
+
+def _ask_heuristic_route(q: str) -> dict[str, str]:
+    low = q.lower()
+    if any(v in low for v in _TASK_VERB_HINTS):
+        return {"kind": "task", "member": "manager", "scope": "team"}
+    return {"kind": "question", "member": "", "scope": ""}
+
+
+async def _ask_route(q: str) -> dict[str, str]:
+    """Free-LLM intent+staff router (strict-JSON) — fail/timeout = heuristic."""
+    roster = "\n".join(f"- {k}: {v.get('title','')} — {str(v.get('duties',''))[:90]}"
+                       for k, v in STAFF.items())
+    system = (
+        "Tum ek AI-office router ho. User (admin) ka message classify karo.\n"
+        "Roster:\n" + roster + "\n\n"
+        'STRICT JSON hi lautao: {"kind":"question"|"task","member":"<roster-key>","scope":"solo"|"team"}\n'
+        "task = user kuch KARWANA chahta hai (banao/bhejo/chalao...). member = sabse fit staff-key; "
+        'confuse ho to "manager" + scope "team". question = info/status poocha hai.'
+    )
+    try:
+        import json as _json
+
+        from app.voice_agent import free_ai
+
+        text, _p = await asyncio.wait_for(
+            free_ai.chat(system, [{"role": "user", "content": q}],
+                         max_tokens=80, temperature=0.0, scope="office_ask_route"),
+            timeout=_ASK_ROUTE_TIMEOUT,
+        )
+        raw = (text or "").strip()
+        raw = raw[raw.find("{"): raw.rfind("}") + 1]
+        parsed = _json.loads(raw)
+        kind = str(parsed.get("kind") or "").strip().lower()
+        member = str(parsed.get("member") or "").strip().lower()
+        scope = str(parsed.get("scope") or "solo").strip().lower()
+        if kind not in ("question", "task"):
+            return _ask_heuristic_route(q)
+        if kind == "task" and member not in STAFF:
+            member = "manager"
+        if scope not in ("solo", "team"):
+            scope = "solo"
+        return {"kind": kind, "member": member, "scope": scope}
+    except Exception as e:
+        logger.debug(f"[office_hq] _ask_route LLM fallback -> heuristic: {e}")
+        return _ask_heuristic_route(q)
+
+
+def _ask_context_from_snapshot(snap: dict[str, Any]) -> str:
+    """Cached snapshot -> compact REAL-numbers context (cap ~1400 chars)."""
+    try:
+        parts: list[str] = []
+        m = snap.get("metrics") or {}
+        if m:
+            parts.append("Metrics: " + "; ".join(f"{k}={v}" for k, v in list(m.items())[:12]))
+        ap = (snap.get("approvals") or {}).get("counts") or {}
+        if ap:
+            parts.append("Pending approvals: " + "; ".join(f"{k}={v}" for k, v in list(ap.items())[:8]))
+        nba = snap.get("next_best_actions") or []
+        if nba:
+            parts.append("Next-best-actions: " + " | ".join(str(x.get("title") or x)[:80] for x in nba[:3]))
+        sh = snap.get("system_health") or {}
+        if sh:
+            parts.append("System: " + "; ".join(f"{k}={v}" for k, v in list(sh.items())[:6]))
+        agents = snap.get("agents") or []
+        if agents:
+            active = [a.get("name") or a.get("key") for a in agents if a.get("status") in ("working", "active")]
+            parts.append(f"Staff active: {len(active)}/{len(agents)}" + (f" ({', '.join(map(str, active[:6]))})" if active else ""))
+        return "\n".join(parts)[:1400]
+    except Exception:
+        return ""
+
+
+async def hq_ask(q: str) -> dict[str, Any]:
+    """🤖 HQ Copilot brain — question ka grounded jawab ya task ka auto-dispatch.
+
+    Returns {ok, kind, text, member?, scope?, run_id?}. Never raises."""
+    q = (q or "").strip()
+    if not q:
+        return {"ok": False, "kind": "question", "text": "", "error": "message khaali hai"}
+    if len(q) > _ASK_Q_MAX:
+        q = q[:_ASK_Q_MAX]
+
+    route = await _ask_route(q)
+
+    if route["kind"] == "task":
+        res = await run_agent_task(route["member"], q, route["scope"])
+        name = STAFF.get(route["member"], {}).get("name") or route["member"]
+        if not res.get("ok"):
+            return {"ok": False, "kind": "task", "member": route["member"], "scope": route["scope"],
+                    "text": f"❌ {name} ko dispatch fail hua: {res.get('error','?')}", "error": res.get("error", "")}
+        if res.get("status") == "timeout":
+            text = f"⏳ {name} ko kaam de diya — time-limit me poora nahi hua, jitna hua woh events/ticker me hai."
+        else:
+            text = f"📨 {name} ({route['scope']}) ne kaam kiya:\n{res.get('summary','')}".strip()
+        return {"ok": True, "kind": "task", "member": route["member"], "scope": route["scope"],
+                "run_id": res.get("run_id", ""), "text": text[:1400]}
+
+    # question -> grounded Boss answer
+    try:
+        snap = await build_snapshot()
+    except Exception:  # pragma: no cover — build_snapshot khud never-raise hai
+        snap = {}
+    ctx = _ask_context_from_snapshot(snap or {})
+    system = (
+        "Tum 'Boss' ho — LeadsGenAI (leadsgenai.in) ke AI-staff office ke manager. "
+        "Admin ke sawaal ka Hinglish (Roman) me seedha, chhota jawab do (max 6 sentences). "
+        "SIRF neeche diye REAL facts use karo — number kabhi mat banao; jo data me nahi "
+        "hai uske liye bolo 'yeh data abhi mere paas nahi, <kaunsa page/agent> dekho'. "
+        "Kaam karwana ho to bata do ki 'X karo' likhne se main sahi agent ko de dunga.\n\n"
+        "AAJ KE FACTS:\n" + (ctx or "(snapshot unavailable)")
+    )
+    try:
+        from app.voice_agent import free_ai
+
+        text, _p = await asyncio.wait_for(
+            free_ai.chat(system, [{"role": "user", "content": q}],
+                         max_tokens=350, temperature=0.4, scope="office_ask"),
+            timeout=_ASK_ANSWER_TIMEOUT,
+        )
+        answer = (text or "").strip()
+    except Exception as e:
+        logger.warning(f"[office_hq] hq_ask answer LLM failed: {e}")
+        answer = ""
+    if not answer:
+        answer = ("LLM abhi jawab nahi de paya. Snapshot facts:\n" + (ctx or "(kuch nahi mila)"))[:900]
+    return {"ok": True, "kind": "question", "text": answer[:1400]}
