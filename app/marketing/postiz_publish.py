@@ -102,17 +102,27 @@ async def upload_media(path: str) -> dict[str, Any] | None:
 async def publish_video(
     client: dict[str, Any], caption: str, video_path: str
 ) -> dict[str, Any]:
-    """Video+caption ko client ke configured Postiz channels pe ABHI post karo.
-    Inert agar key/integration-ids missing. Returns {sent, channels, reason}."""
+    """Video+caption (ya text-only, video_path="" ho to) ko client ke configured
+    Postiz channels pe ABHI post karo. Inert agar key/integration-ids missing.
+    Returns {sent, channels, reason}.
+
+    2026-07-04 fix: pehle video_path na hone pe hard-fail karta tha ("media
+    upload fail") — isliye daily auto_content captions (jo text-only hote,
+    koi video file nahi) kabhi publish nahi hote the, sirf video_ad_cycle ke
+    actual rendered videos hi jaate. Ab video_path khali ho to text-only post
+    (Postiz API "image" field optional hai) bhejta hai."""
     if not enabled():
         return {"sent": False, "reason": "POSTIZ_API_KEY unset"}
     ids = _integration_ids(client)
     if not ids:
         return {"sent": False, "reason": "koi postiz_integrations id nahi (client/env)"}
-    media = await upload_media(video_path)
-    if media is None:
-        return {"sent": False, "reason": "media upload fail (ya file missing)"}
-    value = [{"content": (caption or "").strip()[:2000], "image": [media]}]
+    media_list: list[dict[str, Any]] = []
+    if video_path:
+        media = await upload_media(video_path)
+        if media is None:
+            return {"sent": False, "reason": "media upload fail (ya file missing)"}
+        media_list = [media]
+    value = [{"content": (caption or "").strip()[:2000], "image": media_list}]
     body = {
         "type": "now",
         "date": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
