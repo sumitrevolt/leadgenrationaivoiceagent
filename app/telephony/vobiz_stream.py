@@ -214,7 +214,7 @@ THINK_MAX_S = _env_num("VOBIZ_THINK_MAX_S", 16.0)
 # shared PHONE_TTS_* fall through, else the snappy default. EdgeTTS takes these
 # natively (rate/pitch/volume kwargs) — guarded so a build lacking a kwarg is
 # fine. e.g. VOBIZ_TTS_PITCH="+3Hz" warms the female voice; rate="+0%" slows it.
-TTS_RATE = (os.environ.get("VOBIZ_TTS_RATE") or os.environ.get("PHONE_TTS_RATE") or "+8%").strip()
+TTS_RATE = (os.environ.get("VOBIZ_TTS_RATE") or os.environ.get("PHONE_TTS_RATE") or "+26%").strip()
 TTS_PITCH = (os.environ.get("VOBIZ_TTS_PITCH") or os.environ.get("PHONE_TTS_PITCH") or "").strip()
 TTS_VOLUME = (os.environ.get("VOBIZ_TTS_VOLUME") or "").strip()
 
