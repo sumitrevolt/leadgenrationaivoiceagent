@@ -46,16 +46,35 @@ relay for `audioTrack="inbound"` streams?
 
 ---
 
-## Update 2026-07-03 — additional diagnostic now shipping our side
+## Update 2026-07-03 — frame-level diagnostic results (conclusive)
 
-We added raw WS frame-level counters (commit pending) that will tell us,
-on the next real call, whether:
-- We never receive a `"media"`-type event at all (points to your media relay
-  not forwarding inbound audio) — this is what we currently suspect, or
-- We receive `"media"` events but with an empty/different payload shape
-  than documented (would point to a payload-format change on your side), or
-- The payload arrives but isn't valid base64 (encoding mismatch).
+We added raw WS frame-level counters and ran controlled test calls the same
+day. Two fresh instances, both to our own number (+918261030181):
 
-Will share the exact breakdown from the next controlled test call once we
-have it, which should narrow this down conclusively on our end regardless
-of your investigation.
+**FAILED call — `call_uuid c76bc2b9-ad8f-491b-ad56-ce6539e581ce` (21:33 IST):**
+- Your CDR: `answer_time 21:33:13`, `end_time 21:33:53`, `bill_duration=40`,
+  **`hangup_source=Vobiz`**, `hangup_cause=NORMAL_CLEARING` — the call was
+  answered, billed 40s, and hung up BY VOBIZ.
+- Your WS start event arrived and ACKed `tracks: ["inbound"]`
+  (`streamId e7c67133-9a64-4f43-8fc7-324fa66c814b`).
+- Our frame-level counters for the ENTIRE call:
+  `event_types={'start': 1}  media_events=0  media_empty_payload=0
+  media_decode_fail=0  nonjson_frames=0`
+- i.e. after the start event, your relay sent us **zero WebSocket frames of
+  any kind** for the full 40 billed seconds, then terminated the call itself.
+
+**WORKING call ~3.5h earlier, same code, same config — `streamId
+6fdc02d9-9c64-4fa2-a65f-ad4d646da448`:** `media_events=7479`,
+`inbound_frames=7479`, clean 150s two-way conversation. Another earlier
+same-day call (`streamId 875fbe89-...`, 15:01 IST) failed identically to the
+21:33 one (`event_types={'start': 1}`, `media_events=0`, answered ~44s).
+
+This rules out anything on our side (payload parsing, decoding, VAD, STT) —
+on failing calls nothing ever reaches our socket after `start`. The failure
+is intermittent on your media relay for `audioTrack="inbound"` bidirectional
+streams: same endpoint, same code, minutes apart — one call streams
+perfectly, the next delivers nothing and is then hung up by Vobiz.
+
+**Ask (updated):** please investigate the media-relay path for the two failing
+call_uuids above (plus `bfe2df4f-...` from 2026-07-02). We can reproduce
+within a few calls and are happy to run a live test while you watch your side.
