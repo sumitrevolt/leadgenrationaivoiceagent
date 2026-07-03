@@ -1141,6 +1141,224 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
     return actions[:6]
 
 
+def _severity_rank(value: str) -> int:
+    return {"critical": 0, "high": 1, "medium": 2, "low": 3}.get(str(value or "low"), 3)
+
+
+def build_boss_brief(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Pure executive brief for the first viewport of /app/office."""
+    try:
+        metrics = snapshot.get("metrics") or {}
+        pipeline = {s.get("id"): s for s in (snapshot.get("pipeline") or [])}
+        approvals = snapshot.get("approvals") or {}
+        health = snapshot.get("system_health") or {}
+        pending = int((approvals.get("counts") or {}).get("total_pending")
+                      or (approvals.get("counts") or {}).get("pending") or 0)
+        overdue = len(health.get("overdue") or [])
+        dlq = int((health.get("queue") or {}).get("dlq") or 0)
+        stuck_followups = int((pipeline.get("conversation_followup") or {}).get("stuckCount") or 0)
+        hot = int((pipeline.get("scoring_qualification") or {}).get("count") or 0)
+
+        risk_label = "System healthy"
+        risk_target = "systemHealthPanel"
+        if dlq:
+            risk_label = f"{dlq} DLQ item(s) repair chahiye"
+            risk_target = "failureConsoleCard"
+        elif overdue:
+            risk_label = f"{overdue} automation job overdue"
+            risk_target = "systemHealthPanel"
+        elif stuck_followups:
+            risk_label = f"{stuck_followups} follow-up stuck"
+            risk_target = "pipelineBoard"
+
+        if pending:
+            recommendation = {"label": f"{pending} approval review karo", "cta_target": "approvalsPanel"}
+        elif stuck_followups:
+            recommendation = {"label": "Stuck follow-ups clear karo", "cta_target": "pipelineBoard"}
+        elif hot:
+            recommendation = {"label": "Hot leads pe Rohan ko lagao", "cta_target": "pipelineBoard"}
+        else:
+            recommendation = {"label": "Office feed monitor karo", "cta_target": "feedCard"}
+
+        headline = (
+            f"{int(metrics.get('new_leads_today') or 0)} new leads, "
+            f"{int(metrics.get('qualified_leads_today') or 0)} qualified, "
+            f"MRR Rs {int(metrics.get('mrr') or 0):,}"
+        )
+        return {
+            "headline": headline,
+            "risk": {"label": risk_label, "cta_target": risk_target},
+            "opportunity": {
+                "label": f"{hot} hot lead(s) ready" if hot else "Aaj ka pipeline calm hai",
+                "cta_target": "pipelineBoard",
+            },
+            "recommendation": recommendation,
+            "confidence": "high" if snapshot.get("generated_at") else "medium",
+            "source": "office_snapshot",
+        }
+    except Exception as e:
+        logger.debug(f"[office_hq] build_boss_brief failed: {e}")
+        return {
+            "headline": "Office snapshot partial hai",
+            "risk": {"label": "Data partial", "cta_target": "systemHealthPanel"},
+            "opportunity": {"label": "Snapshot reload karo", "cta_target": "manualRefreshBtn"},
+            "recommendation": {"label": "Refresh now", "cta_target": "manualRefreshBtn"},
+            "confidence": "low",
+            "source": "fallback",
+        }
+
+
+def build_priority_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
+    """Structured, ranked action stack for the CEO command center."""
+    actions: list[dict[str, Any]] = []
+    try:
+        approvals = snapshot.get("approvals") or {}
+        health = snapshot.get("system_health") or {}
+        pipeline = {s.get("id"): s for s in (snapshot.get("pipeline") or [])}
+        metrics = snapshot.get("metrics") or {}
+        pending = int((approvals.get("counts") or {}).get("total_pending")
+                      or (approvals.get("counts") or {}).get("pending") or 0)
+        dlq = int((health.get("queue") or {}).get("dlq") or 0)
+        overdue = len(health.get("overdue") or [])
+        stuck = int((pipeline.get("conversation_followup") or {}).get("stuckCount") or 0)
+        hot = int((pipeline.get("scoring_qualification") or {}).get("count") or 0)
+        retention_red = int((pipeline.get("retention_growth") or {}).get("errorCount") or 0)
+        payments = int(metrics.get("payments_pending") or 0)
+
+        if dlq:
+            actions.append({
+                "id": "dlq", "title": f"{dlq} failed job(s)",
+                "why": "Failed jobs automation trust block kar sakte hain.",
+                "severity": "critical", "owner": "hermes", "room": "platform_engineering",
+                "age": "", "cta_label": "Open Reliability", "cta_target": "failureConsoleCard",
+            })
+        if overdue:
+            actions.append({
+                "id": "overdue_jobs", "title": f"{overdue} overdue automation job(s)",
+                "why": "Scheduled loops heartbeat miss kar rahe hain.",
+                "severity": "high", "owner": "kavya", "room": "platform_engineering",
+                "age": "", "cta_label": "Open Health", "cta_target": "systemHealthPanel",
+            })
+        if pending:
+            actions.append({
+                "id": "approvals", "title": f"{pending} approval(s) pending",
+                "why": "Human approval output ko block kar raha hai.",
+                "severity": "high", "owner": "manager", "room": "coordinator",
+                "age": "", "cta_label": "Review Approvals", "cta_target": "approvalsPanel",
+            })
+        if stuck:
+            actions.append({
+                "id": "stuck_followups", "title": f"{stuck} follow-up(s) stuck",
+                "why": "Warm leads ki value late follow-up se girti hai.",
+                "severity": "high", "owner": "rohan", "room": "sales_crm",
+                "age": "", "cta_label": "Open Pipeline", "cta_target": "conversation_followup",
+            })
+        if retention_red:
+            actions.append({
+                "id": "retention", "title": f"{retention_red} client(s) churn-risk",
+                "why": "Retention risk direct revenue risk hai.",
+                "severity": "high", "owner": "nikhil", "room": "admin_finance",
+                "age": "", "cta_label": "Open Retention", "cta_target": "retention_growth",
+            })
+        if payments:
+            actions.append({
+                "id": "payments", "title": f"{payments} payment(s) pending",
+                "why": "Cash collection ko operator attention chahiye.",
+                "severity": "medium", "owner": "nikhil", "room": "admin_finance",
+                "age": "", "cta_label": "Open Billing", "cta_target": "billing_subscription",
+            })
+        if hot:
+            actions.append({
+                "id": "hot_leads", "title": f"{hot} hot lead(s) ready",
+                "why": "Yeh immediate sales opportunity hai.",
+                "severity": "medium", "owner": "rohan", "room": "sales_crm",
+                "age": "", "cta_label": "Open Hot Leads", "cta_target": "scoring_qualification",
+            })
+    except Exception as e:
+        logger.debug(f"[office_hq] build_priority_actions failed: {e}")
+    actions.sort(key=lambda a: (_severity_rank(a.get("severity", "low")), a.get("id", "")))
+    return actions[:5]
+
+
+def build_room_workloads(snapshot: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """Map action workload into the same room IDs used by the office map."""
+    out: dict[str, dict[str, Any]] = {}
+    try:
+        agents_by_room: dict[str, list[dict[str, Any]]] = {}
+        for agent in snapshot.get("agents") or []:
+            agents_by_room.setdefault(str(agent.get("room") or "platform_engineering"), []).append(agent)
+        for room in snapshot.get("rooms") or []:
+            rid = str(room.get("id") or "")
+            out[rid] = {
+                "room": rid,
+                "name": room.get("name") or rid,
+                "owner_count": len(agents_by_room.get(rid, [])),
+                "active_agents": [
+                    a.get("key") or a.get("id")
+                    for a in agents_by_room.get(rid, [])
+                    if a.get("status") != "offline"
+                ],
+                "health": {
+                    "active": int(room.get("activeTaskCount") or 0),
+                    "blocked": int(room.get("blockedTaskCount") or 0),
+                    "errors": int(room.get("errorCount") or 0),
+                    "approvals": int(room.get("approvalCount") or 0),
+                },
+                "work_items": [],
+                "source": "snapshot",
+            }
+        for item in build_priority_actions(snapshot):
+            rid = item.get("room") or "coordinator"
+            out.setdefault(rid, {
+                "room": rid, "name": rid, "owner_count": 0, "active_agents": [],
+                "health": {}, "work_items": [], "source": "snapshot",
+            })
+            out[rid]["work_items"].append(item)
+        for room in out.values():
+            room["work_items"] = room.get("work_items", [])[:3]
+    except Exception as e:
+        logger.debug(f"[office_hq] build_room_workloads failed: {e}")
+    return out
+
+
+def build_replay(snapshot: dict[str, Any], limit: int = 20) -> dict[str, Any]:
+    """Snapshot-derived timeline for the operator replay panel."""
+    items: list[dict[str, Any]] = []
+    try:
+        at = snapshot.get("generated_at") or _now().isoformat()
+        for action in build_priority_actions(snapshot):
+            items.append({
+                "at": at, "actor": action.get("owner") or "manager",
+                "title": action.get("title") or action.get("id"),
+                "detail": action.get("why") or "",
+                "target": action.get("cta_target") or "",
+                "kind": "priority",
+            })
+        for run in snapshot.get("coordination") or []:
+            items.append({
+                "at": run.get("at") or at,
+                "actor": "manager",
+                "title": str(run.get("goal") or "Coordination run")[:120],
+                "detail": str(run.get("outcome") or "")[:180],
+                "target": "feedCard",
+                "kind": "coordination",
+            })
+        for stage in snapshot.get("pipeline") or []:
+            if int(stage.get("count") or 0):
+                items.append({
+                    "at": at,
+                    "actor": "pipeline",
+                    "title": f"{stage.get('name') or stage.get('id')}: {stage.get('count')} item(s)",
+                    "detail": stage.get("note") or "",
+                    "target": stage.get("id") or "pipelineBoard",
+                    "kind": "pipeline",
+                })
+    except Exception as e:
+        logger.debug(f"[office_hq] build_replay failed: {e}")
+    capped = max(1, min(50, int(limit or 20)))
+    return {"source": "snapshot", "items": items[:capped]}
+
+
 def build_enterprise_features(snapshot: dict[str, Any]) -> dict[str, Any]:
     """Pure feature-readiness matrix for /app/office.
 
@@ -1301,6 +1519,10 @@ async def build_snapshot() -> dict[str, Any]:
         "cached": False,
     }
     snapshot["next_best_actions"] = next_best_actions(snapshot)
+    snapshot["boss_brief"] = build_boss_brief(snapshot)
+    snapshot["priority_actions"] = build_priority_actions(snapshot)
+    snapshot["room_workloads"] = build_room_workloads(snapshot)
+    snapshot["replay"] = build_replay(snapshot)
     snapshot["enterprise_features"] = build_enterprise_features(snapshot)
 
     try:
