@@ -1180,10 +1180,14 @@ def build_boss_brief(snapshot: dict[str, Any]) -> dict[str, Any]:
         else:
             recommendation = {"label": "Office feed monitor karo", "cta_target": "feedCard"}
 
+        # "Aaj" label explicit + hot-count same line — pehle "0 new leads" akela
+        # dikhta tha jabki pipeline me 11 hot the = admin ko "sync nahi" lagta tha
+        # (numbers sahi the, window-labels missing the). Fix 2026-07-03.
         headline = (
-            f"{int(metrics.get('new_leads_today') or 0)} new leads, "
-            f"{int(metrics.get('qualified_leads_today') or 0)} qualified, "
-            f"MRR Rs {int(metrics.get('mrr') or 0):,}"
+            f"Aaj: {int(metrics.get('new_leads_today') or 0)} naye leads, "
+            f"{int(metrics.get('qualified_leads_today') or 0)} qualified"
+            + (f" · {hot} hot ready" if hot else "")
+            + f" · MRR Rs {int(metrics.get('mrr') or 0):,}"
         )
         return {
             "headline": headline,
@@ -1701,9 +1705,18 @@ _TASK_VERB_HINTS = (
     "harvest", "scrape", "post kar", "call kar", "schedule kar", "start kar",
 )
 
+# "sabhi agents ko command" (user-ask 2026-07-03) — broadcast = parallel fan_out
+# to the doer-set (RUNNABLE_MEMBERS), capped, draft-safe.
+_BROADCAST_HINTS = (
+    "sabhi agent", "sab agent", "sabko", "sab ko", "all agent", "broadcast",
+    "puri team", "poori team", "saari team", "sari team", "everyone", "har agent",
+)
+
 
 def _ask_heuristic_route(q: str) -> dict[str, str]:
     low = q.lower()
+    if any(h in low for h in _BROADCAST_HINTS):
+        return {"kind": "broadcast", "member": "", "scope": "team"}
     if any(v in low for v in _TASK_VERB_HINTS):
         return {"kind": "task", "member": "manager", "scope": "team"}
     return {"kind": "question", "member": "", "scope": ""}
@@ -1716,9 +1729,10 @@ async def _ask_route(q: str) -> dict[str, str]:
     system = (
         "Tum ek AI-office router ho. User (admin) ka message classify karo.\n"
         "Roster:\n" + roster + "\n\n"
-        'STRICT JSON hi lautao: {"kind":"question"|"task","member":"<roster-key>","scope":"solo"|"team"}\n'
+        'STRICT JSON hi lautao: {"kind":"question"|"task"|"broadcast","member":"<roster-key>","scope":"solo"|"team"}\n'
         "task = user kuch KARWANA chahta hai (banao/bhejo/chalao...). member = sabse fit staff-key; "
-        'confuse ho to "manager" + scope "team". question = info/status poocha hai.'
+        'confuse ho to "manager" + scope "team". question = info/status poocha hai. '
+        'broadcast = user SABHI/puri team agents ko ek saath command dena chahta hai.'
     )
     try:
         import json as _json
@@ -1736,7 +1750,7 @@ async def _ask_route(q: str) -> dict[str, str]:
         kind = str(parsed.get("kind") or "").strip().lower()
         member = str(parsed.get("member") or "").strip().lower()
         scope = str(parsed.get("scope") or "solo").strip().lower()
-        if kind not in ("question", "task"):
+        if kind not in ("question", "task", "broadcast"):
             return _ask_heuristic_route(q)
         if kind == "task" and member not in STAFF:
             member = "manager"
@@ -1755,9 +1769,12 @@ def _ask_context_from_snapshot(snap: dict[str, Any]) -> str:
         m = snap.get("metrics") or {}
         if m:
             parts.append("Metrics: " + "; ".join(f"{k}={v}" for k, v in list(m.items())[:12]))
-        ap = (snap.get("approvals") or {}).get("counts") or {}
+        ap = dict((snap.get("approvals") or {}).get("counts") or {})
         if ap:
-            parts.append("Pending approvals: " + "; ".join(f"{k}={v}" for k, v in list(ap.items())[:8]))
+            # total pehle — taaki Boss ka jawab Priority-stack ke total se match kare
+            tot = ap.pop("total_pending", ap.pop("pending", None))
+            items = ([("TOTAL pending", tot)] if tot is not None else []) + list(ap.items())[:7]
+            parts.append("Pending approvals: " + "; ".join(f"{k}={v}" for k, v in items))
         nba = snap.get("next_best_actions") or []
         if nba:
             parts.append("Next-best-actions: " + " | ".join(str(x.get("title") or x)[:80] for x in nba[:3]))
@@ -1784,6 +1801,34 @@ async def hq_ask(q: str) -> dict[str, Any]:
         q = q[:_ASK_Q_MAX]
 
     route = await _ask_route(q)
+
+    if route["kind"] == "broadcast":
+        # 📢 sabhi (runnable) agents ko parallel — draft-safe fan_out, bounded.
+        agents = sorted(RUNNABLE_MEMBERS)
+        try:
+            from app.agents import coordinator
+
+            result = await asyncio.wait_for(
+                coordinator.fan_out(q, agents=agents, max_agents=len(agents)),
+                timeout=_TASK_TIMEOUT,
+            )
+        except asyncio.TimeoutError:
+            return {"ok": True, "kind": "broadcast", "member": "", "scope": "team",
+                    "text": f"⏳ Broadcast time-limit ({int(_TASK_TIMEOUT)}s) me poora nahi hua — "
+                            "jitne agents ne kaam kiya woh events/ticker me hai."}
+        except Exception as e:
+            return {"ok": False, "kind": "broadcast", "member": "", "scope": "team",
+                    "text": f"❌ Broadcast fail: {str(e)[:200]}", "error": str(e)[:300]}
+        result = result or {}
+        lines = [f"📢 {len(result.get('agents') or agents)} agents ko bheja:"]
+        for r in (result.get("results") or [])[:8]:
+            nm = STAFF.get(r.get("agent", ""), {}).get("name") or r.get("agent", "?")
+            out = str(r.get("output") or r.get("summary") or r.get("result") or "").strip()
+            lines.append(f"• {nm}: {out[:140]}" if out else f"• {nm}: (events me dekho)")
+        if result.get("summary"):
+            lines.append("\n🧑‍💼 Boss ka merge: " + str(result["summary"])[:400])
+        return {"ok": True, "kind": "broadcast", "member": "", "scope": "team",
+                "run_id": str(result.get("at") or ""), "text": "\n".join(lines)[:1400]}
 
     if route["kind"] == "task":
         res = await run_agent_task(route["member"], q, route["scope"])
