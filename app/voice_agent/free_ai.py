@@ -146,10 +146,13 @@ _GROQ_QWEN3_MODEL = "qwen/qwen3-32b"  # Groq free Qwen3-32B (strong multilingual
 _GROQ_LLAMA70B_MODEL = "llama-3.3-70b-versatile"  # Groq free Llama-3.3-70B (high quality)
 _CEREBRAS_QWEN3_MODEL = "qwen-3-32b"  # Cerebras free Qwen3-32B
 _GROQ_KIMI_K2_MODEL = "moonshotai/kimi-k2-instruct"  # Groq free Kimi K2 (strong multilingual)
-# OpenRouter free models — cascade (deepseek/deepseek-chat:free deprecated 2026-06 → 404)
-_OPENROUTER_LLM_MODEL = "meta-llama/llama-3.1-8b-instruct:free"  # primary (llama 8B free)
-_OPENROUTER_LLM_MODEL2 = "deepseek/deepseek-r1:free"  # deepseek R1 free
-_OPENROUTER_LLM_MODEL3 = "google/gemma-2-9b-it:free"  # gemma fallback
+# OpenRouter free models — cascade (deepseek/deepseek-chat:free deprecated 2026-06 → 404;
+# 2026-07-05: llama-3.1-8b-instruct:free / deepseek-r1:free / gemma-2-9b-it:free ALL
+# deprecated too → 404 on every openrouter_1..4 account, live-verified via
+# openrouter.ai/api/v1/models $0-pricing listing. Swapped to currently-live free ids.)
+_OPENROUTER_LLM_MODEL = "meta-llama/llama-3.3-70b-instruct:free"  # primary (llama 70B free)
+_OPENROUTER_LLM_MODEL2 = "openai/gpt-oss-20b:free"  # gpt-oss 20B free
+_OPENROUTER_LLM_MODEL3 = "google/gemma-4-31b-it:free"  # gemma-4 fallback (gemma-2 line retired)
 _XAI_LLM_MODEL = "grok-3-mini"  # credits-based — NOT in chain, kept for key compat
 
 
@@ -235,6 +238,23 @@ def _provider_down(p: str) -> bool:
     return _LLM_COOLDOWN_UNTIL.get(p, 0.0) > time.time()
 
 
+def _err_str(e: BaseException | str) -> str:
+    """str(exception) ko never-empty banao (dashboard/breaker dono ke liye).
+
+    httpx/openai-sdk kabhi bare ConnectTimeout/ConnectError raise karte jinka
+    str() khaali hota hai ("") — isse llm_metrics dashboard pe blank error
+    dikhta (2026-07-05 live: nvidia 0% ok, blank last_error) AND _trip_cooldown
+    ka koi keyword-branch match nahi karta (neither 429 na 403/404) => provider
+    KABHI cooldown nahi hota, har single chat() call pe dobara retry hota rehta
+    (silent latency tax). Fallback = exception class name, taaki hamesha kuch
+    meaningful record ho."""
+    if isinstance(e, str):
+        s = e.strip()
+        return s
+    s = str(e).strip()
+    return s if s else type(e).__name__
+
+
 def _trip_cooldown(p: str, err: str) -> None:
     e = (err or "").lower()
     # 403 = no credits/permission · 404 = model not found/deprecated (OpenRouter :free
@@ -264,12 +284,20 @@ def _trip_cooldown(p: str, err: str) -> None:
         _LLM_TRIP_STREAK[p] = 99  # force max cooldown
         _LLM_COOLDOWN_UNTIL[p] = time.time() + _LLM_COOLDOWN_MAX_S
         return
-    if not any(k in e for k in ("429", "rate", "quota", "queue", "too_many", "exhaust")):
+    is_rate_limit = any(k in e for k in ("429", "rate", "quota", "queue", "too_many", "exhaust"))
+    # CATCH-ALL (added 2026-07-05): connection errors ("Connection error.", DNS/refused,
+    # self-hosted Ollama down), timeouts, and blank/unrecognized exception strings (see
+    # _err_str) matched NEITHER branch above → this function returned silently, so a
+    # genuinely-broken provider (ollama connection-error, nvidia blank-error) got ZERO
+    # cooldown and was retried on every single chat() call forever (live: ollama 26% ok,
+    # nvidia 0% ok, both with no backoff). Any non-empty error now trips at least the
+    # short escalating cooldown so broken providers get sidelined like the others.
+    if not e:
         return
     streak = _LLM_TRIP_STREAK.get(p, 0) + 1
     _LLM_TRIP_STREAK[p] = streak
     cd = min(_LLM_COOLDOWN_S * (2 ** (streak - 1)), _LLM_COOLDOWN_MAX_S)
-    if any(
+    if is_rate_limit and any(
         k in e for k in ("per day", "daily", "tpd", "tokens per day", "limit reached for model")
     ):
         cd = _LLM_COOLDOWN_MAX_S
@@ -693,11 +721,12 @@ async def chat_provider(
                 pass
             return text, p
     except Exception as e:
-        _trip_cooldown(p, str(e))
+        _es = _err_str(e)
+        _trip_cooldown(p, _es)
         try:
             from app.platform import llm_metrics
 
-            llm_metrics.record(p, False, (time.monotonic() - _t0) * 1000, str(e))
+            llm_metrics.record(p, False, (time.monotonic() - _t0) * 1000, _es)
         except Exception:
             pass
         logger.warning(f"[free_ai] chat_provider {p}/{model} failed: {e}")
@@ -805,7 +834,7 @@ async def chat(
                         _llm_cache_put(_ck, (text, provider))
                     return text, provider
             except Exception as e:
-                _trip_cooldown(provider, str(e))
+                _trip_cooldown(provider, _err_str(e))
                 logger.warning(f"[free_ai] gemini_vertex chat failed: {e}")
             continue
 
@@ -867,11 +896,12 @@ async def chat(
                     _llm_cache_put(_ck, (text, provider))
                 return text, provider
         except Exception as e:
-            _trip_cooldown(provider, str(e))
+            _es = _err_str(e)
+            _trip_cooldown(provider, _es)
             try:
                 from app.platform import llm_metrics
 
-                llm_metrics.record(provider, False, (time.monotonic() - _t0) * 1000, str(e))
+                llm_metrics.record(provider, False, (time.monotonic() - _t0) * 1000, _es)
             except Exception:
                 pass
             logger.warning(f"[free_ai] {provider} chat failed: {e}")
@@ -968,7 +998,7 @@ async def chat_stream(
                     pass
                 return
         except Exception as e:
-            _trip_cooldown(provider, str(e))
+            _trip_cooldown(provider, _err_str(e))
             logger.debug("[free_ai] %s chat_stream failed/stalled: %s", provider, e)
             # Release the (possibly half-read) stream socket so it can't leak.
             if stream is not None:
