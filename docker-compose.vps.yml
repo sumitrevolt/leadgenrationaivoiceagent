@@ -78,7 +78,7 @@ services:
       redis-cache:
         condition: service_healthy
       pgbouncer:
-        condition: service_started
+        condition: service_healthy
       qdrant:
         condition: service_started
     volumes:
@@ -161,6 +161,15 @@ services:
     depends_on:
       db: { condition: service_healthy }
     restart: unless-stopped
+    # Audit 2026-07-04: pgbouncer itself was the only unmonitored link in the DB
+    # chain — a wedged/misconfigured pooler let app containers start and fail
+    # later on the first query. Image ships pg_isready + nc (verified live).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 6432 || nc -z 127.0.0.1 6432"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks: [leadgen_net]
 
   # ---------------------------------------------------------------------------
@@ -269,7 +278,7 @@ services:
       redis:
         condition: service_healthy
       pgbouncer:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
@@ -319,7 +328,7 @@ services:
       redis:
         condition: service_healthy
       pgbouncer:
-        condition: service_started
+        condition: service_healthy
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
