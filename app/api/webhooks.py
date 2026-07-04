@@ -766,12 +766,20 @@ async def whatsapp_webhook_inbound(request: Request):
                                 logger.info("wa flow response err: %s", e)
 
                     if text:
+                        handled = False
                         try:
-                            rec = await reply_agent.whatsapp_reply(frm, text, msg.get("id", ""))
-                            if rec:
-                                res["drafted"] += 1
+                            from app.marketing.onboarding import try_capture_onboarding_reply
+
+                            handled = await try_capture_onboarding_reply(frm, text)
                         except Exception as e:
-                            logger.info("whatsapp reply_agent err: %s", e)
+                            logger.debug("whatsapp onboarding-interview check err: %s", e)
+                        if not handled:
+                            try:
+                                rec = await reply_agent.whatsapp_reply(frm, text, msg.get("id", ""))
+                                if rec:
+                                    res["drafted"] += 1
+                            except Exception as e:
+                                logger.info("whatsapp reply_agent err: %s", e)
                 for st in value.get("statuses", []) or []:
                     res["statuses"] += 1
                     if st.get("status") == "failed" and _runner is not None:
