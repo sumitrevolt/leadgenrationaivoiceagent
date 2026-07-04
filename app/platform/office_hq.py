@@ -1881,3 +1881,112 @@ async def hq_ask(q: str) -> dict[str, Any]:
     if not answer:
         answer = ("LLM abhi jawab nahi de paya. Snapshot facts:\n" + (ctx or "(kuch nahi mila)"))[:900]
     return {"ok": True, "kind": "question", "text": answer[:1400]}
+
+
+# --------------------------------------------------------------------------- #
+# F6 "Team Improvement Council" (2026-07-05, user: "admin sabi agents se
+# discuss project relate for improvements") — a real multi-agent discussion,
+# grounded in TODAY'S snapshot facts (same context builder as HQ Ask), using
+# the EXISTING coordinator.coordinate_agentverse (dynamic expert recruit ->
+# each contributes -> solver synthesizes -> critic scores) — no new
+# coordination engine invented. ALWAYS execute=False here: this is a
+# discussion surface, not an action-runner (that stays run_agent_task/Kaam-Do).
+# Each contribution carries its recruited `staff` key so the admin can
+# 1-click dispatch it through the SAME draft-safe run_agent_task() path this
+# file already exposes — no new dispatch surface. Bounded + never-raise.
+# --------------------------------------------------------------------------- #
+_COUNCIL_TIMEOUT = 110.0
+_COUNCIL_TOPIC_MAX = 400
+_DEFAULT_COUNCIL_TOPIC = (
+    "LeadsGenAI platform (marketing automation + AI voice agent product) me is "
+    "hafte sabse zyada ROI wala improvement kya hoga — revenue, lead-conversion, "
+    "reliability, ya customer-retention?"
+)
+
+
+async def improvement_council(topic: str = "", team_size: int = 4, max_rounds: int = 1) -> dict[str, Any]:
+    """Snapshot-grounded AgentVerse discussion on what to improve next.
+
+    Always draft-only (execute=False — a discussion, not an action run).
+    Never raises; degrades to {ok:False, error} / {ok:True, status:"timeout"}."""
+    topic = (topic or "").strip()[:_COUNCIL_TOPIC_MAX] or _DEFAULT_COUNCIL_TOPIC
+    try:
+        team_size = max(2, min(4, int(team_size or 4)))
+    except Exception:
+        team_size = 4
+    try:
+        max_rounds = max(1, min(2, int(max_rounds or 1)))
+    except Exception:
+        max_rounds = 1
+
+    try:
+        snap = await build_snapshot()
+    except Exception:  # pragma: no cover — build_snapshot khud never-raise hai
+        snap = {}
+    ctx = _ask_context_from_snapshot(snap or {})
+    goal = topic + ("\n\nAAJ KE REAL FACTS (isi pe grounded raho, number mat banao):\n" + ctx if ctx else "")
+
+    try:
+        from app.platform import team
+
+        team.log_event(member="manager", action="improvement_council_start", detail=topic[:180], status="ok")
+    except Exception as e:
+        logger.debug(f"[office_hq] improvement_council log_event(start) skipped: {e}")
+
+    try:
+        from app.agents import coordinator
+
+        result = await asyncio.wait_for(
+            coordinator.coordinate_agentverse(goal, execute=False, max_rounds=max_rounds, team_size=team_size),
+            timeout=_COUNCIL_TIMEOUT,
+        )
+    except asyncio.TimeoutError:
+        logger.warning(f"[office_hq] improvement_council hit {_COUNCIL_TIMEOUT}s budget")
+        return {
+            "ok": True, "status": "timeout", "topic": topic,
+            "note": (f"Time-limit ({int(_COUNCIL_TIMEOUT)}s) me discussion poori nahi hui — "
+                     "chhota topic ya kam experts (team_size 2) try karo."),
+        }
+    except Exception as e:
+        logger.warning(f"[office_hq] improvement_council failed: {e}")
+        return {"ok": False, "error": str(e)[:300], "topic": topic}
+
+    result = result or {}
+    if not result.get("ok", True):
+        return {"ok": False, "error": str(result.get("error") or "council run failed"), "topic": topic}
+
+    contributions: list[dict[str, Any]] = []
+    for c in result.get("contributions") or []:
+        staff_key = str(c.get("staff") or "").strip().lower()
+        out_val = c.get("output")
+        contributions.append({
+            "role": str(c.get("role") or "")[:80],
+            "staff": staff_key,
+            "staff_name": (STAFF.get(staff_key, {}) or {}).get("name") or "",
+            "output": (out_val if isinstance(out_val, str) else str(out_val or ""))[:800],
+            "dispatchable": staff_key in STAFF,
+        })
+
+    try:
+        from app.platform import team
+
+        team.log_event(
+            member="manager", action="improvement_council_done",
+            detail=f"score={result.get('final_score')} experts={len(contributions)}", status="ok",
+        )
+    except Exception:
+        pass
+
+    return {
+        "ok": True, "topic": topic,
+        "experts": [
+            {"role": e.get("role", ""), "expertise": e.get("expertise", ""), "staff": e.get("staff", "")}
+            for e in (result.get("experts") or [])
+        ],
+        "contributions": contributions,
+        "solution": str(result.get("solution") or "")[:1600],
+        "summary": str(result.get("summary") or "")[:600],
+        "score": result.get("final_score", 0),
+        "run_id": result.get("run_id", ""),
+        "at": result.get("at", ""),
+    }

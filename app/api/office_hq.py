@@ -196,6 +196,30 @@ async def office_move_item(item_id: str, body: MoveItemIn, current_user=Depends(
 # calls /briefing first, then fetches /briefing/audio as a blob with hdrs()
 # because an <audio> tag cannot send the Authorization header. Both never-raise.
 # --------------------------------------------------------------------------- #
+class ImprovementCouncilIn(BaseModel):
+    topic: str = Field("", max_length=400)
+    team_size: int = Field(4, ge=2, le=4)
+    max_rounds: int = Field(1, ge=1, le=2)
+
+
+# --------------------------------------------------------------------------- #
+# F6 "Team Improvement Council" — snapshot-grounded AgentVerse discussion on
+# what to improve next (dynamic expert recruit -> contribute -> synthesize ->
+# critic score). Always draft-only. Distinct rate bucket from /ask (heavier,
+# multi-round LLM run) so the two features don't share one IP budget.
+# --------------------------------------------------------------------------- #
+@router.post("/improve", dependencies=[Depends(rate_limit("hqcouncil", 4, 120))])
+async def office_improvement_council(body: ImprovementCouncilIn, current_user=Depends(require_admin)):
+    """Team Improvement Council: {ok, topic, experts, contributions, solution,
+    summary, score}. Never raises (degrades to ok:False / status:timeout)."""
+    from app.platform import office_hq
+
+    try:
+        return await office_hq.improvement_council(body.topic, body.team_size, body.max_rounds)
+    except Exception as e:  # pragma: no cover — helper never raises
+        return {"ok": False, "error": str(e)[:300], "topic": body.topic}
+
+
 @router.get("/briefing")
 async def office_briefing(force: int = 0, current_user=Depends(require_admin)):
     """Today's HQ radio-bulletin: {ok, date, text, has_audio}. Cached once per

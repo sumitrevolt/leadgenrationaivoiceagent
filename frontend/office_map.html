@@ -425,6 +425,7 @@
       <button class="qn-chip" data-jump="replayPanel">Replay</button>
       <button class="qn-chip" data-jump="pipelineBoard">Pipeline</button>
       <button class="qn-chip" data-jump="approvalsPanel">Approvals</button>
+      <button class="qn-chip" data-jump="councilPanel">Improve</button>
       <button class="qn-chip" data-jump="systemHealthPanel">Health</button>
       <button class="qn-chip" data-jump="schedulerPanel">Scheduler</button>
       <button class="qn-chip" data-jump="failureConsoleCard">Reliability</button>
@@ -461,6 +462,18 @@
         </div>
       </div>
     </section>
+    <div id="councilPanel" class="panel-box">
+      <h3>💡 Team Improvement Council
+        <span style="font-weight:400;font-size:12px;color:var(--muted)">— pura staff discuss karke project-improvement suggest karta hai (aaj ke real data pe grounded, draft-safe)</span>
+      </h3>
+      <textarea id="councilTopic" rows="2" maxlength="400" placeholder="Khaali chhodo default topic ke liye, ya apna sawaal likho — jaise: is mahine churn kam karne ke liye kya karein?"
+        style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical"></textarea>
+      <div class="panel-actions" style="margin:8px 0">
+        <button id="councilRunBtn">💡 Team se discuss karao</button>
+        <label style="font-size:12px;margin-left:10px;cursor:pointer"><input type="checkbox" id="councilDeeper"> Deeper (2 rounds, thoda slow)</label>
+      </div>
+      <div id="councilResult"><div class="empty-note">Discussion abhi shuru nahi hui.</div></div>
+    </div>
     <details id="capabilitiesPanel" class="capabilities-panel">
       <summary>📊 Full metrics + legacy priorities + capabilities proof (20 controls)</summary>
       <div class="kpi-row" id="kpiRow"><div class="loading-note">⏳ HQ data load ho raha hai (pehli baar ~8-9s lag sakta hai)…</div></div>
@@ -1581,6 +1594,84 @@
     }
     btn.disabled = false;
     btn.textContent = "Run";
+  };
+
+  // ---- F6 "Team Improvement Council" — snapshot-grounded AgentVerse discussion ----
+  OFFICE.renderCouncil = function(d){
+    var out = document.getElementById("councilResult");
+    if (!out) return;
+    if (!d || d.ok === false) {
+      out.innerHTML = '<div class="empty-note">Discussion fail hui: ' + esc((d && d.error) || "unknown error") + '</div>';
+      return;
+    }
+    if (d.status === "timeout") {
+      out.innerHTML = '<div class="empty-note">' + esc(d.note || "Time-limit me poora nahi hua.") + '</div>';
+      return;
+    }
+    var contribs = d.contributions || [];
+    var h = '<div style="margin-bottom:8px"><b>Topic:</b> ' + esc(d.topic || "") + '</div>';
+    if (d.solution) {
+      h += '<div class="panel-sub" style="background:var(--panel-alt,#f8fafc);border-radius:8px;padding:8px;margin-bottom:8px"><b>🧑‍💼 Solution:</b> ' + esc(d.solution) + '</div>';
+    }
+    if (d.summary) {
+      h += '<div class="panel-sub" style="margin-bottom:8px">' + esc(d.summary) + (d.score ? ' <span style="color:var(--muted)">(score ' + esc(d.score) + ')</span>' : '') + '</div>';
+    }
+    h += contribs.map(function(c, i){
+      var who = esc(c.staff_name || c.role || "Expert");
+      var dispatch = c.dispatchable
+        ? '<button class="council-dispatch" data-staff="' + esc(c.staff) + '" data-idx="' + i + '">🎯 ' + esc(c.staff_name || c.staff) + ' ko assign karo</button>'
+        : '';
+      return '<div class="panel-event" style="margin-bottom:6px">' +
+        '<div><b>' + who + '</b> <span style="color:var(--muted);font-size:11px">(' + esc(c.role || "") + ')</span></div>' +
+        '<div style="font-size:12.5px;margin:4px 0">' + esc(c.output || "") + '</div>' +
+        dispatch +
+        '</div>';
+    }).join("");
+    out.innerHTML = h || '<div class="empty-note">Team se koi contribution nahi mila.</div>';
+    var outputs = contribs.map(function(c){ return c.output || ""; });
+    Array.prototype.forEach.call(out.querySelectorAll(".council-dispatch"), function(btn){
+      btn.onclick = async function(){
+        var idx = parseInt(btn.getAttribute("data-idx"), 10);
+        var staff = btn.getAttribute("data-staff");
+        var goal = "Team Improvement Council ka suggestion implement karo: " + (outputs[idx] || "").slice(0, 450);
+        btn.disabled = true; btn.textContent = "Dispatch ho raha...";
+        try {
+          var r = await fetch("/api/platform/office/agents/" + encodeURIComponent(staff) + "/task", {
+            method: "POST", headers: hdrs(true),
+            body: JSON.stringify({ goal: goal, scope: "solo" })
+          });
+          var rd = r.ok ? await r.json() : null;
+          btn.textContent = (rd && rd.ok) ? "✓ Bheja gaya" : "Fail — dobara try karo";
+        } catch (e) {
+          btn.textContent = "Fail — dobara try karo";
+        }
+        OFFICE.pollEvents();
+      };
+    });
+  };
+
+  OFFICE.runCouncil = async function(){
+    var btn = document.getElementById("councilRunBtn");
+    var out = document.getElementById("councilResult");
+    if (!btn || !out) return;
+    var topic = (document.getElementById("councilTopic") || {}).value || "";
+    var deeper = !!(document.getElementById("councilDeeper") || {}).checked;
+    btn.disabled = true;
+    btn.textContent = "Team discuss kar rahi hai (~30-90s)...";
+    out.innerHTML = '<div class="loading-note">⏳ Recruiting experts, discussing, synthesizing...</div>';
+    try {
+      var r = await fetch("/api/platform/office/improve", {
+        method: "POST",
+        headers: hdrs(true),
+        body: JSON.stringify({ topic: topic.trim(), team_size: 4, max_rounds: deeper ? 2 : 1 })
+      });
+      var d = r.ok ? await r.json() : { ok: false, error: "HTTP " + r.status };
+      OFFICE.renderCouncil(d);
+    } catch (e) {
+      OFFICE.renderCouncil({ ok: false, error: "Network/auth issue." });
+    }
+    btn.disabled = false;
+    btn.textContent = "💡 Team se discuss karao";
   };
 
   OFFICE.jumpToCta = function(cta){
@@ -2745,6 +2836,7 @@
   document.getElementById("bossCommandInput").addEventListener("keydown", function(e){
     if (e.key === "Enter") OFFICE.askBoss();
   });
+  document.getElementById("councilRunBtn").onclick = OFFICE.runCouncil;
   Array.prototype.forEach.call(document.querySelectorAll(".mode-btn"), function(btn){
     btn.onclick = function(){ OFFICE.setOfficeMode(btn.getAttribute("data-mode")); };
   });
