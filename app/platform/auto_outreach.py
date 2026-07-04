@@ -1002,6 +1002,8 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
             "sent_today": 0,
             "opens": 0,
             "clicks": 0,
+            "bounce_rate_7d_pct": 0.0,
+            "bounced_7d": 0,
         },
         "headline": "",
         "recent_sent": [],
@@ -1079,11 +1081,25 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
         out["summary"]["clicks"] = int(ts.get("clicks") or 0)
     except Exception:
         pass
+    # 3b) Bounce-rate visibility (2026-07-04: reply_agent ab bounce/NDR mail auto
+    # detect + record_bounce() karta hai — is se pehle yeh counter hamesha ~0 read
+    # hota tha kyunki koi automatic feed nahi tha). Deliverability ka REAL signal
+    # yahan dikhta hai — 0-reply funnel diagnose karne ke liye zaroori.
+    try:
+        from app.platform import email_warmup
+
+        rate, sent_7d, bounced_7d = email_warmup.bounce_rate_7d()
+        out["summary"]["bounce_rate_7d_pct"] = rate
+        out["summary"]["bounced_7d"] = bounced_7d
+        out["summary"]["sent_7d"] = sent_7d
+    except Exception:
+        pass
     # 4) Plain-Hinglish headline
     s = out["summary"]
     out["headline"] = (
         f"📧 Aaj {s['sent_today']} email bheje · ab tak {s['emailed']} total · "
-        f"{len(out['recent_replies'])} reply aaye · {s['pending']} abhi bhejne baaki"
+        f"{len(out['recent_replies'])} reply aaye · {s['pending']} abhi bhejne baaki · "
+        f"bounce rate (7d) {s['bounce_rate_7d_pct']}%"
     )
     return out
 

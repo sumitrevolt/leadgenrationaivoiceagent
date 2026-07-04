@@ -14,6 +14,8 @@ Public API (sab never-raise, pure stdlib):
   - stats()                                 -> per-variant sends/replies/reply_rate + Laplace winner
   - apply_ab(prospect, subject, text, html) -> auto_outreach hook (GATED caller-side
         `OUTREACH_AB=1`): 2-variant subject pick + spintax render + record_send.
+        Staged rollout: `OUTREACH_AB_PCT` (0-100, default 100) — set to a small
+        slice (e.g. 5) to canary-test before widening (council rec 2026-07-04).
   - next_mailbox() / rotate_sender(sender)  -> MAILBOX ROTATION: env
         `OUTREACH_MAILBOXES` = JSON list [{email,password,host?,port?}] ho to
         round-robin SMTP creds (cursor data/mailbox_cursor.json); absent = None
@@ -167,16 +169,53 @@ def stats() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# Staged rollout gate (2026-07-04, LLM-council recommendation): OUTREACH_AB=1
+# pehle sabko A/B karta tha (0 -> 100% overnight). Council-verdict: naya content
+# variation ko turant 100% pe mat daalo — pehle chhoti slice (e.g. 5%) pe test
+# karo, bounce_rate_7d/reply-rate dekho, phir widen karo. OUTREACH_AB_PCT env
+# (0-100, default 100 = purana behavior unchanged) yeh enforce karta hai.
+# --------------------------------------------------------------------------- #
+def _ab_rollout_pct() -> int:
+    """% of recipients that get the A/B variant when OUTREACH_AB=1. Default 100
+    (apply to everyone, backward-compatible). Set lower (e.g. OUTREACH_AB_PCT=5)
+    for a staged canary. Never raises."""
+    try:
+        v = int(os.environ.get("OUTREACH_AB_PCT", "100") or 100)
+        return max(0, min(100, v))
+    except Exception:
+        return 100
+
+
+def _in_rollout(key: str, pct: int) -> bool:
+    """Stable per-recipient bucket (md5 % 100) < pct -> True. Same recipient
+    always lands in the same bucket (no flip-flopping across follow-ups)."""
+    try:
+        if pct >= 100:
+            return True
+        if pct <= 0:
+            return False
+        bucket = int(hashlib.md5((key or "").encode("utf-8")).hexdigest(), 16) % 100
+        return bucket < pct
+    except Exception:
+        return True
+
+
+# --------------------------------------------------------------------------- #
 # auto_outreach hook — A/B subject (caller gate: OUTREACH_AB=1)
 # --------------------------------------------------------------------------- #
 def apply_ab(
     prospect: dict[str, Any], subject: str, text: str, html_body: str
 ) -> tuple[str, str, str]:
     """Cold-email subject pe 2-variant A/B: recipient-stable pick + spintax render
-    + record_send. Body untouched (safe). Fail = original tuple. Never raises."""
+    + record_send. Body untouched (safe). Fail = original tuple. Never raises.
+
+    Staged rollout: OUTREACH_AB_PCT (default 100) se kam bucket wale recipients
+    original subject hi paate — A/B sirf rollout-% slice pe apply hota."""
     try:
         email = str((prospect or {}).get("email") or "").strip().lower()
         name = str((prospect or {}).get("business_name") or "").strip() or "aapke business"
+        if not _in_rollout(email or name, _ab_rollout_pct()):
+            return subject, text, html_body
         picked = pick_variant(DEFAULT_SUBJECT_VARIANTS, email or name)
         tpl = render(str(picked.get("variant") or ""), seed=email or name)
         new_subject = tpl.replace("{name}", name).strip()

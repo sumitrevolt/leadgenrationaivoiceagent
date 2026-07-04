@@ -23,6 +23,7 @@ import imaplib
 import json
 import logging
 import os
+import re
 from datetime import datetime, timezone
 from email.header import decode_header
 from typing import Any
@@ -67,6 +68,53 @@ _BULK_LOCALPARTS = {
     "feedback",
     "survey",
 }
+
+
+_BOUNCE_LOCALPARTS = {"mailer-daemon", "postmaster", "bounce", "bounces"}
+_BOUNCE_SUBJECT_RE = re.compile(
+    r"undeliver|delivery status notification|delivery has failed|"
+    r"returned mail|mail delivery failed|failure notice|"
+    r"delivery.{0,10}fail|couldn.t be delivered|permanent.{0,10}error",
+    re.IGNORECASE,
+)
+_EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
+
+
+def _is_bounce_message(frm: str, msg: Any, subj: str) -> bool:
+    """Detect bounce/NDR (Non-Delivery-Report) mail. GAP THIS CLOSES: bounce mail
+    was previously caught by `_is_bulk_sender` (mailer-daemon/postmaster are junk
+    localparts) and silently skipped — so `email_warmup.record_bounce()` was NEVER
+    called automatically, meaning bounce_rate_7d always read ~0% no matter how many
+    real bounces happened, warmup ramp kept climbing on a false-healthy signal, and
+    the outreach_quality funnel (0 replies / 1875 sends) had zero visibility into
+    whether mail was actually landing. Never raises."""
+    try:
+        local = (frm.split("@", 1)[0] if "@" in frm else frm).lower()
+        if local in _BOUNCE_LOCALPARTS:
+            return True
+        ctype = str(msg.get_content_type() or "").lower()
+        if "report" in ctype and "delivery-status" in str(msg.get_payload() or "").lower()[:2000]:
+            return True
+        if _BOUNCE_SUBJECT_RE.search(subj or ""):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def _extract_bounced_email(body: str, subj: str, pmap: dict) -> str:
+    """Bounce body/subject se ORIGINAL recipient (jo bounce hua) nikalo — jo bhi
+    embedded email hamare known-prospect pool (pmap) se match kare wahi lo (bounce
+    reports me apna hi mailbox bhi mention hota hai, isliye blind first-match nahi,
+    pmap-membership match). Never raises."""
+    try:
+        for m in _EMAIL_RE.findall(f"{subj}\n{body}"):
+            e = m.lower()
+            if e in pmap:
+                return e
+    except Exception:
+        pass
+    return ""
 
 
 def _is_bulk_sender(frm: str, msg: Any) -> bool:
@@ -345,13 +393,49 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 frm = email.utils.parseaddr(msg.get("From", ""))[1].lower()
                 subj = _decode(msg.get("Subject", ""))
                 p = pmap.get(frm)
+                body = _body(msg)
+                # BOUNCE/NDR GUARD (2026-07-04): mailer-daemon/postmaster bounce mail
+                # was previously falling into the junk-guard below (unknown sender +
+                # bulk localpart) and got silently discarded — email_warmup never
+                # learned about it, so bounce_rate_7d stayed ~0% regardless of real
+                # deliverability. Detect it FIRST, feed the warmup tracker, then skip
+                # (a bounce is not a reply to classify/draft).
+                if _is_bounce_message(frm, msg, subj):
+                    res["skipped"] += 1
+                    res["bounced"] = res.get("bounced", 0) + 1
+                    try:
+                        from app.platform import email_warmup
+
+                        bounced_email = _extract_bounced_email(body, subj, pmap)
+                        wr = email_warmup.record_bounce(bounced_email, subj[:120])
+                        bp = pmap.get(bounced_email) if bounced_email else None
+                        if bp and (bp.get("id") or bp.get("pid")):
+                            from app.platform import prospector
+
+                            _bpid = bp.get("id") or bp.get("pid")
+                            prospector.mark_prospect(_bpid, "dead")
+                            prospector.set_prospect_fields(
+                                _bpid,
+                                {
+                                    "bounce_reason": subj[:160],
+                                    "bounced_at": datetime.now(timezone.utc).isoformat(),
+                                },
+                            )
+                        if wr.get("paused"):
+                            _notify(
+                                "rohan",
+                                "bounce_autopause",
+                                f"Bounce rate {wr.get('rate_pct')}% — outreach auto-paused 24h",
+                            )
+                    except Exception:
+                        pass
+                    continue
                 # JUNK GUARD (2026-06-12): unknown sender + bulk/marketing mail = skip.
                 # Pehle PayU/Instamojo newsletters "interested" classify hoke FAKE deals
                 # bana rahe the + har newsletter pe LLM classify/draft tokens jalte the.
                 if p is None and _is_bulk_sender(frm, msg):
                     res["skipped"] += 1
                     continue
-                body = _body(msg)
                 intent = await _classify(subj, body)
                 # LLM-guard (IFC, observe-only): scan UNTRUSTED inbound for prompt-injection.
                 # Never blocks — flags the draft so the human reviewer does NOT act on
