@@ -143,6 +143,12 @@ async def publish_video(
     ids = _integration_ids(client)
     if not ids:
         return {"sent": False, "reason": "koi postiz_integrations id nahi (client/env)"}
+    # Platform map (id -> identifier e.g. "youtube") — needed both to skip
+    # media-required platforms on text-only posts AND to build YouTube's own
+    # required settings below. Best-effort; empty dict on failure (fine, just
+    # means no per-platform special-casing happens, same as before either fix
+    # existed).
+    platform_map = await _fetch_integration_platforms()
     media_list: list[dict[str, Any]] = []
     if video_path:
         media = await upload_media(video_path)
@@ -157,7 +163,6 @@ async def publish_video(
         # even platforms like Facebook/X that would've succeeded on their
         # own. Drop media-required platforms up front for text-only posts
         # instead of letting one bad apple block everyone else.
-        platform_map = await _fetch_integration_platforms()
         if platform_map:
             skipped = [i for i in ids if platform_map.get(i) in _MEDIA_REQUIRED_PLATFORMS]
             ids = [i for i in ids if i not in skipped]
@@ -165,19 +170,37 @@ async def publish_video(
                 logger.info(f"[postiz] text-only post: skipping media-required channels {skipped}")
         if not ids:
             return {"sent": False, "reason": "sirf media-required channels the (text-only post)"}
-    value = [{"content": (caption or "").strip()[:2000], "image": media_list}]
+    caption_clean = (caption or "").strip()
+    value = [{"content": caption_clean[:2000], "image": media_list}]
     # 2026-07-04 fix: Postiz public API rejects posts without settings.post_type
     # ("should not be null or undefined") — every platform needs this. X also
     # requires settings.who_can_reply_post; harmless extra field on other
     # platforms (ignored), so send both unconditionally rather than branching
     # per-platform (keeps this additive and simple).
-    settings = {"post_type": "post", "who_can_reply_post": "everyone"}
+    base_settings = {"post_type": "post", "who_can_reply_post": "everyone"}
+    # 2026-07-04 fix: YouTube's own settings DTO additionally REQUIRES
+    # "title" (2-100 chars) and "type" (public/private/unlisted) — missing
+    # either 400s with "settings.title should not be null or undefined".
+    # Derive title from the caption's first line (YouTube video titles are
+    # short) rather than making callers pass a separate title everywhere.
+    youtube_title = (caption_clean.splitlines()[0] if caption_clean else "").strip()[:100]
+    if len(youtube_title) < 2:
+        youtube_title = "LeadsGenAI Update"
+
+    def _settings_for(integration_id: str) -> dict[str, Any]:
+        if platform_map.get(integration_id) == "youtube":
+            return {**base_settings, "title": youtube_title, "type": "public"}
+        return base_settings
+
     body = {
         "type": "now",
         "date": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "shortLink": False,
         "tags": [],
-        "posts": [{"integration": {"id": i}, "value": value, "settings": settings} for i in ids],
+        "posts": [
+            {"integration": {"id": i}, "value": value, "settings": _settings_for(i)}
+            for i in ids
+        ],
     }
     try:
         import httpx
