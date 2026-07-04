@@ -797,7 +797,9 @@ async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
 
         if not clients_store.get_client(cid):
             raise HTTPException(status_code=404, detail="client not found")
-        usage_mod.activate_plan(cid, plan)
+        # Manual UPI payment verified by admin — ensure the Subscription row too
+        # (portal /billing/subscription 404s without one; audit 2026-07-04).
+        usage_mod.activate_plan(cid, plan, ensure_subscription=True)
         upd = {"plan": plan, "status": "active"}
         if body.clear_trial:
             upd["trial"] = False

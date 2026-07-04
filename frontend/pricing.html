@@ -182,6 +182,7 @@
     <div class="field"><label for="f-biz">Business ka naam</label><input id="f-biz" autocomplete="organization" placeholder="e.g. Sharma Solar" /></div>
     <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" autocomplete="email" placeholder="you@business.com" /></div>
     <div class="field"><label for="f-phone">WhatsApp / Phone</label><input id="f-phone" type="tel" autocomplete="tel" placeholder="+91..." /></div>
+    <div class="field"><label for="f-site">Website <span style="opacity:.6">(optional — AI isse aapka business samjhega)</span></label><input id="f-site" type="url" autocomplete="url" placeholder="https://aapkibusiness.com" /></div>
     <div class="field"><label for="f-pass">Password</label><input id="f-pass" type="password" autocomplete="new-password" placeholder="min 6 chars" /></div>
     <div data-turnstile-host></div>
     <button class="btn primary" id="m-go" onclick="doSignupPay()" style="width:100%">Sign up & Pay</button>
@@ -346,6 +347,7 @@ async function doSignupPay(){
   const biz = document.getElementById("f-biz").value.trim();
   const email = document.getElementById("f-email").value.trim();
   const phone = document.getElementById("f-phone").value.trim();
+  const site = (document.getElementById("f-site") || {value:""}).value.trim();
   const pass = document.getElementById("f-pass").value;
   if(biz.length < 2) return setMsg("Business naam do.");
   if(!email.includes("@")) return setMsg("Valid email do.");
@@ -362,6 +364,7 @@ async function doSignupPay(){
         email,
         password: pass,
         phone,
+        business_website: site,
         plan: (SELECTED && SELECTED.id) || "starter",
         _turnstile_token: tok
       })

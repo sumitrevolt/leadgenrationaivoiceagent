@@ -150,3 +150,39 @@ def test_public_signup_skips_provision_on_trial(client, monkeypatch):
     )
     assert r.status_code == 200, r.text
     assert "called" not in activated, "trial should not activate a paid plan"
+
+
+def test_public_signup_captures_business_website(client, monkeypatch):
+    """Audit 2026-07-04: the honeypot squatted the `website` field name, so the
+    self-serve funnel never captured a real site and AUTO_ONBOARD's website→KB
+    seed was dead. business_website must land in clients_store, scheme added."""
+    import app.billing.usage as usage
+    import app.marketing.clients_store as cs
+
+    _stub_signup_side_effects(monkeypatch, cid="c_site")
+    monkeypatch.setattr(usage, "activate_plan", lambda *a, **k: True)
+    monkeypatch.setattr(usage, "reset_usage_period", lambda c: True)
+    saved: dict = {}
+    monkeypatch.setattr(cs, "update_client", lambda cid, **kw: saved.update(cid=cid, **kw))
+
+    r = client.post(
+        "/api/public/signup",
+        json={"business_name": "Site Biz", "email": "site@example.com",
+              "password": "secret123", "plan": "starter",
+              "business_website": "sharmasolar.in"},
+    )
+    assert r.status_code == 200, r.text
+    assert saved.get("cid") == "c_site"
+    assert saved.get("website") == "https://sharmasolar.in"
+
+
+def test_public_signup_honeypot_still_rejects(client, monkeypatch):
+    """The bot-trap `website` field must keep rejecting — the new REAL field is
+    business_website, the honeypot is untouched."""
+    _stub_signup_side_effects(monkeypatch)
+    r = client.post(
+        "/api/public/signup",
+        json={"business_name": "Bot Biz", "email": "bot@example.com",
+              "password": "secret123", "website": "http://spam.example"},
+    )
+    assert r.status_code == 400

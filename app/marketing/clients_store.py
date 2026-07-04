@@ -366,6 +366,7 @@ _ALLOWED_FIELDS = {
     "setup_done",  # bool — onboarding complete (idempotency guard for AUTO_ONBOARD sweep)
     "setup_at",  # ISO timestamp — onboarding kab hua
     "crm",  # dict — per-client Zoho/HubSpot config (crm_sync.save_client_config)
+    "website",  # business site URL — AUTO_ONBOARD website→KB seed (audit 2026-07-04: was whitelist-blocked)
 }
 
 

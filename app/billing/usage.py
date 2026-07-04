@@ -15,7 +15,7 @@ import json
 import math
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.utils.logger import setup_logger
 
@@ -345,17 +345,132 @@ def _usage_period_start(client_id: str):
         return None
 
 
+def _plan_price_inr(plan_k: str) -> float:
+    """Monthly-equivalent INR price for any plan key (marketing/voice/combo).
+    0.0 for unknown/free — informational (base_price on the Subscription row)."""
+    try:
+        from app.marketing.packages import get_packages
+
+        for p in get_packages(include_trial=True) or []:
+            if str((p or {}).get("key") or "").strip().lower() == plan_k:
+                return float(p.get("price_inr_month") or 0)
+    except Exception:  # pragma: no cover - defensive
+        pass
+    try:
+        from app.marketing.voice_packages import voice_plan_price
+
+        v = voice_plan_price(plan_k)
+        if v:
+            return float(v)
+    except Exception:  # pragma: no cover - defensive
+        pass
+    try:
+        from app.marketing.combo_packages import combo_plan_price
+
+        v = combo_plan_price(plan_k)
+        if v:
+            return float(v)
+    except Exception:  # pragma: no cover - defensive
+        pass
+    return 0.0
+
+
+def _ensure_db_client(db, cid: str) -> bool:
+    """Ensure a DB Client row exists for `cid` (FK target for Subscription).
+
+    Self-serve signup clients live only in clients_store jsonl — mirror the
+    minimum NOT-NULL fields into Postgres. Returns True when the row exists
+    (already or created); False when it can't be safely created (e.g. the
+    contact email is already taken by a DIFFERENT client id — fail-open,
+    caller skips subscription creation rather than corrupt tenancy)."""
+    from app.models.client import Client, ClientStatus
+
+    if db.query(Client).filter(Client.id == cid).first() is not None:
+        return True
+    rec = None
+    try:
+        from app.marketing.clients_store import get_client
+
+        rec = get_client(cid)
+    except Exception:  # pragma: no cover - defensive
+        rec = None
+    if not rec:
+        return False
+    email = str(rec.get("email") or rec.get("contact_email") or "").strip().lower()
+    if not email:
+        email = f"{cid}@upi.local"  # unique synthetic — FK/NOT-NULL integrity only
+    other = db.query(Client).filter(Client.contact_email == email).first()
+    if other is not None:
+        logger.warning(
+            "activate_plan: email %s already on DB client %s (wanted %s) — skip row create",
+            email,
+            other.id,
+            cid,
+        )
+        return False
+    name = str(rec.get("business_name") or "Client").strip()[:255] or "Client"
+    db.add(
+        Client(
+            id=cid,
+            business_name=name,
+            contact_name=str(rec.get("contact_name") or name)[:255],
+            contact_email=email,
+            contact_phone=str(rec.get("phone") or "")[:20],
+            industry=str(rec.get("niche") or "")[:100] or None,
+            city=str(rec.get("city") or "")[:100] or None,
+            status=ClientStatus.ACTIVE,
+        )
+    )
+    db.flush()
+    return True
+
+
+def _create_subscription_row(db, cid: str, plan_k: str, period_end: datetime | None):
+    """Fresh ACTIVE Subscription row for a manual/UPI payment — parity with the
+    Stripe webhook's _activate_subscription_row (which the UPI path never hits).
+    Returns the row or None. Caller owns commit + never-raise wrapper."""
+    from app.models.payment import BillingCycle, Subscription, SubscriptionStatus
+
+    if not _ensure_db_client(db, cid):
+        return None
+    yearly = "annual" in plan_k or "yearly" in plan_k
+    now = datetime.utcnow()
+    price = _plan_price_inr(plan_k)
+    sub = Subscription(
+        client_id=cid,
+        plan_id=plan_k,
+        plan_name=plan_k,
+        status=SubscriptionStatus.ACTIVE,
+        billing_cycle=BillingCycle.YEARLY if yearly else BillingCycle.MONTHLY,
+        payment_gateway="upi",
+        currency="INR",
+        base_price=(price * 10) if yearly else price,
+        current_period_start=now,
+        current_period_end=period_end or (now + timedelta(days=365 if yearly else 30)),
+    )
+    db.add(sub)
+    db.flush()
+    return sub
+
+
 def activate_plan(
     client_id: str,
     plan: str,
     subscription_id: str | None = None,
     period_end: datetime | None = None,
+    ensure_subscription: bool = False,
 ) -> bool:
     """Provision a client's plan after a successful subscription pay/renew. Best-effort.
 
     - Sets the client's `plan` in clients_store so the minute cap is correct.
     - Stashes the gateway subscription id + period_end on the latest Subscription row's
       extra_data (no schema change) for traceability.
+    - ``ensure_subscription=True`` (UPI/manual-payment paths ONLY — audit 2026-07-04):
+      creates an ACTIVE Subscription row when none exists and flips the latest row to
+      ACTIVE. Without it the portal /billing/subscription 404s after a UPI approval
+      (pay-box shows forever) and reset_usage_period() has no row for its watermark.
+      Stripe/webhook callers keep the default False — they manage their own row —
+      and the signup pre-payment provisioning path must NEVER create one.
     Returns True if the plan was applied to clients_store, else False (never raises).
     """
     cid = (client_id or "").strip()
@@ -373,13 +488,21 @@ def activate_plan(
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("activate_plan clients_store skipped: %s", e)
 
-    # Best-effort: annotate the latest Subscription row (traceability only).
+    # Best-effort: annotate (and, for manual/UPI payments, ensure) the Subscription row.
     try:
         from app.models.base import get_db_session
 
         with get_db_session() as db:
             sub = _latest_subscription(db, cid)
+            if sub is None and ensure_subscription and applied:
+                sub = _create_subscription_row(db, cid, plan_k, period_end)
             if sub is not None:
+                if ensure_subscription:
+                    from app.models.payment import SubscriptionStatus as _SS
+
+                    sub.status = _SS.ACTIVE
+                    sub.plan_id = plan_k
+                    sub.payment_gateway = "upi"
                 meta = dict(sub.extra_data or {})
                 meta["provisioned_plan"] = plan_k
                 if subscription_id:

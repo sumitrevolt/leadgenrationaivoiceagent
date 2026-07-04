@@ -201,7 +201,9 @@ def _try_activate(
     try:
         from app.billing import usage
 
-        if not bool(usage.activate_plan(cid, plan)):
+        # ensure_subscription: real UPI payment — create/activate the Subscription
+        # row too (portal /billing/subscription 404s without one; audit 2026-07-04).
+        if not bool(usage.activate_plan(cid, plan, ensure_subscription=True)):
             return False
         # Parity with Stripe path: reset the metered-usage watermark on activation so a
         # renewal/upgrade zeroes the minute counter. Best-effort — never raises.
