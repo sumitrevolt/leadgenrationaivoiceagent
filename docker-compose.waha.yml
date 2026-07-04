@@ -16,18 +16,31 @@
 #   3) In app .env:  WHATSAPP_PROVIDER=waha  WAHA_BASE_URL=http://waha:3000
 #                    WAHA_SESSION=default  WHATSAPP_BUSINESS_NUMBER=918261030181
 #      (WAHA_API_KEY / WAHA_WEBHOOK_TOKEN same as step 1) -> recreate app container.
-#   4) Open /app/whatsapp -> Self-host card -> "Start session" -> scan the QR on the
-#      phone holding 8261030181 (WhatsApp -> Linked devices -> Link a device).
+#   4) BEFORE clicking Start: open the COMPANY phone's WhatsApp -> Linked
+#      devices -> Link a device, so its scanner is ALREADY live and waiting.
+#      ONLY THEN click "Start session" -> "Show QR" and scan within seconds —
+#      NOWEB gives a HARD ~40s window total, no config extends it (see below).
 #   5) Status flips to WORKING. Leave WHATSAPP_AUTO_SEND=0 until you want auto-send.
-# RAM: WEBJS engine ~400-700MB (headless Chromium via Puppeteer). 16GB VPS = trivial.
+# RAM: NOWEB engine ~150-300MB (no headless Chromium). 16GB VPS = trivial.
 #
-# ENGINE (2026-07-04): WEBJS, not NOWEB. NOWEB (Baileys) gives a HARD ~40s QR
-# window (2 refresh cycles) then force-fails the session with no Core-tier
-# config to extend it — real users kept missing it navigating to the QR page.
-# WEBJS drives an actual headless-Chromium WhatsApp Web tab, so the QR just
-# keeps auto-refreshing (like normal web.whatsapp.com) with no give-up cutoff.
-# Verified via waha.devlike.pro/docs/how-to/engines/ — same image, engine is
-# purely an env-var choice (WHATSAPP_DEFAULT_ENGINE), no image change needed.
+# ENGINE HISTORY (2026-07-04) — both real engines tried, NOWEB is the answer:
+#  1. NOWEB (Baileys, direct multi-device protocol): hard ~40s QR-scan window
+#     (2 refresh cycles) then force-fails, no Core-tier config extends it —
+#     real users missed it navigating dashboard->phone->WhatsApp->Linked
+#     Devices. FIX = procedure, not code: pre-stage the phone's scanner BEFORE
+#     clicking Start, so the whole flow takes <5s once triggered.
+#  2. WEBJS (Chromium+Puppeteer scraping WhatsApp Web's own frontend): QR
+#     never expires, BUT hit a confirmed unresolved upstream bug —
+#     "TypeError: window.require(...).Cmd.refreshQR is not a function" on
+#     every refresh cycle (WhatsApp changed an internal JS API, whatsapp-web.js
+#     hasn't patched it yet as of this image's build date 2026-06-27 — a fresh
+#     `docker pull` got the SAME image, confirming no upstream fix exists yet).
+#     Scanning never actually links while this is broken. REVERTED to NOWEB.
+#  Verdict: NOWEB's problem is a solvable timing/procedure issue; WEBJS's is
+#  an unpatched upstream bug we can't fix locally. NOWEB wins until WAHA ships
+#  a whatsapp-web.js update (re-try WEBJS then if NOWEB's window is ever a
+#  real blocker again — check `docker inspect devlikeapro/waha:latest
+#  --format '{{.Created}}'` for a newer build date first).
 # =============================================================================
 
 name: leadgen-waha
@@ -40,10 +53,12 @@ services:
     environment:
       # --- API auth: app sends this as X-Api-Key on every call ---
       WHATSAPP_API_KEY: "${WAHA_API_KEY:-change-me-strong-key}"
-      # --- Browser-based engine: real WhatsApp Web session, indefinite QR refresh
-      #     (no hard timeout like NOWEB/Baileys). Slightly heavier (Chromium) but
-      #     16GB VPS has plenty of headroom (audit 2026-07-04 QR-timing incident). ---
-      WHATSAPP_DEFAULT_ENGINE: "WEBJS"
+      # --- Lightest engine: Baileys-based, no Chromium. Text + webhook + QR all
+      #     work. Reverted from WEBJS 2026-07-04 (see history above) — WEBJS
+      #     hit an unresolved upstream Cmd.refreshQR crash, QR never actually
+      #     linked. NOWEB's only downside (~40s scan window) is a procedure
+      #     fix: pre-stage the phone's scanner BEFORE clicking Start. ---
+      WHATSAPP_DEFAULT_ENGINE: "NOWEB"
       # --- Auto-start the saved session on boot (-> SCAN_QR_CODE / WORKING) ---
       WHATSAPP_RESTART_ALL_SESSIONS: "True"
       # --- Inbound -> app webhook (in-network; token-gated). 'message' = inbound texts. ---
