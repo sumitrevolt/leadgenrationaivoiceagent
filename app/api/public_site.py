@@ -640,6 +640,46 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception:
         pass
 
+    # 6.9) Welcome WhatsApp to the customer who just signed up (audit 2026-07-04
+    #      user-ask). Consented/transactional (they gave their number + created an
+    #      account this instant) — NOT bulk marketing. Best-effort, never blocks
+    #      signup; no-ops gracefully until the WhatsApp engine is armed (WAHA QR
+    #      scan / Cloud creds). Gated WHATSAPP_WELCOME (default ON).
+    if (os.environ.get("WHATSAPP_WELCOME", "1") or "1").strip().lower() not in ("0", "false", "no"):
+        _wa_to = (body.phone or "").strip()
+        if _wa_to:
+            try:
+                import asyncio as _aio
+
+                from app.integrations.whatsapp import get_whatsapp_sender
+
+                if is_trial:
+                    _wa_msg = (
+                        f"Namaste {biz}! 🎉 Aapka LeadGen AI FREE trial shuru ho gaya.\n\n"
+                        "Login: https://leadsgenai.in/app/login\n"
+                        f"Email: {email}\n\n"
+                        "Roz ki AI marketing posts, Google par upar aana, aur leads — "
+                        "sab automatic. Koi dikkat ho to isi number pe reply karein."
+                    )
+                else:
+                    _wa_msg = (
+                        f"Namaste {biz}! ✅ Aapka LeadGen AI account ban gaya "
+                        f"({body.plan or 'starter'} plan).\n\n"
+                        "Login: https://leadsgenai.in/app/login\n"
+                        f"Email: {email}\n\n"
+                        "Payment confirm hote hi sab AI marketing features chalu ho jayenge."
+                    )
+                _sender = get_whatsapp_sender()
+                if _sender is not None:
+                    _coro = _sender.send_text_message(_wa_to, _wa_msg)
+                    try:
+                        _loop = _aio.get_running_loop()
+                        _loop.create_task(_coro)  # fire-and-forget; signup never waits
+                    except RuntimeError:
+                        _aio.run(_coro)
+            except Exception as e:
+                logger.debug(f"[signup] welcome WhatsApp skip (account still ok): {e}")
+
     # 7) Team activity (best-effort) — Rohan ko self-signup dikhe
     try:
         from app.platform.team import log_event
