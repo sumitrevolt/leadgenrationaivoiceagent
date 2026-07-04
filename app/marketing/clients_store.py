@@ -367,6 +367,8 @@ _ALLOWED_FIELDS = {
     "setup_at",  # ISO timestamp — onboarding kab hua
     "crm",  # dict — per-client Zoho/HubSpot config (crm_sync.save_client_config)
     "website",  # business site URL — AUTO_ONBOARD website→KB seed (audit 2026-07-04: was whitelist-blocked)
+    "awaiting_kb_interview",  # bool — no website at onboarding; WhatsApp business-info
+    # reply still pending (onboarding.py welcome message + wa selfhost webhook capture)
 }
 
 
@@ -400,6 +402,8 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
                 found["trial"] = bool(v)
             elif k == "setup_done":
                 found["setup_done"] = bool(v)  # bool, NOT str("True") — idempotency guard
+            elif k == "awaiting_kb_interview":
+                found["awaiting_kb_interview"] = bool(v)
             elif k == "crm":
                 # per-client CRM config dict — store as-is (generic else would str() it)
                 found["crm"] = dict(v) if isinstance(v, dict) else found.get("crm", {})

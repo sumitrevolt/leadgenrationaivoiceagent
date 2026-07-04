@@ -439,13 +439,21 @@ async def selfhost_webhook(request: Request) -> dict[str, Any]:
             runner.suppress(frm, reason="opt_out_inbound")
             res["suppressed"] += 1
         elif text:
+            handled = False
             try:
-                from app.platform import reply_agent
+                from app.marketing.onboarding import try_capture_onboarding_reply
 
-                await reply_agent.whatsapp_reply(frm, text, mid)
-                res["drafted"] += 1
+                handled = await try_capture_onboarding_reply(frm, text)
             except Exception as _e:
-                logger.info("wa selfhost reply_agent err: %s", _e)
+                logger.debug("wa selfhost onboarding-interview check err: %s", _e)
+            if not handled:
+                try:
+                    from app.platform import reply_agent
+
+                    await reply_agent.whatsapp_reply(frm, text, mid)
+                    res["drafted"] += 1
+                except Exception as _e:
+                    logger.info("wa selfhost reply_agent err: %s", _e)
     except Exception as e:
         logger.info("wa selfhost webhook parse err: %s", e)
     return res

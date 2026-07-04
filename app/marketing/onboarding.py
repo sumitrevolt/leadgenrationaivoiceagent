@@ -131,6 +131,96 @@ def _log(kind: str, detail: str) -> None:
         pass
 
 
+async def _send_welcome_whatsapp(client: dict[str, Any], kb_seeded: bool) -> dict[str, Any]:
+    """Welcome message right after onboarding; if the website-KB-seed step found
+    nothing (no website / thin site), ask for business info in the same message —
+    the WhatsApp reply becomes the KB source instead (see try_capture_onboarding_reply).
+    Best-effort, never raises; no-op without a phone or a configured WA sender."""
+    out: dict[str, Any] = {"sent": False}
+    phone = str(client.get("phone") or "").strip()
+    if not phone:
+        return out
+    biz = client.get("business_name") or "aapka business"
+    if kb_seeded:
+        msg = (
+            f"Namaste! 🎉 {biz} ka LeadGen AI onboarding complete ho gaya. Aapki website se "
+            "business details AI agent ko de diye gaye hain — ab woh aapke customers ke "
+            "sawalon ka jawab de sakta hai."
+        )
+    else:
+        msg = (
+            f"Namaste! 🎉 {biz} ka LeadGen AI onboarding complete ho gaya.\n\n"
+            "Bas ek chhoti si madad chahiye — isi message ka reply karke bata do:\n"
+            "1) Aap kya services dete hain?\n"
+            "2) Konsa area/city cover karte hain?\n"
+            "3) Ek line jo aapko khaas banati hai\n\n"
+            "Isse aapka AI agent customers ko aapke business ke hisaab se jawab de payega."
+        )
+    try:
+        from app.integrations.whatsapp import get_whatsapp_sender
+
+        sender = get_whatsapp_sender()
+        res = await sender.send_text_message(phone, msg)
+        out["sent"] = bool(res) and not (isinstance(res, dict) and res.get("error"))
+    except Exception as exc:
+        logger.debug("onboard welcome whatsapp err: %s", exc)
+    return out
+
+
+async def try_capture_onboarding_reply(from_number: str, text: str) -> bool:
+    """Inbound WhatsApp reply -> if `from_number` matches a client still awaiting the
+    onboarding business-info interview, feed the reply into that client's KB namespace
+    (closes the KB gap for clients without a website) and clear the flag.
+
+    Called from BOTH whatsapp webhook handlers (selfhost + Meta Cloud) before they hand
+    the message to reply_agent — returns True when handled, so the caller skips the
+    normal prospect-reply draft for this message. Never raises; False = not our message."""
+    txt = (text or "").strip()
+    digits = "".join(ch for ch in str(from_number or "") if ch.isdigit())[-10:]
+    if not digits or len(txt) < 5:
+        return False
+    try:
+        from app.marketing import clients_store
+
+        for c in clients_store.list_clients(status="active"):
+            if not c.get("awaiting_kb_interview"):
+                continue
+            cph = "".join(ch for ch in str(c.get("phone") or "") if ch.isdigit())[-10:]
+            if cph and cph == digits:
+                return await _capture_business_interview(c, txt)
+    except Exception as exc:
+        logger.debug("try_capture_onboarding_reply err: %s", exc)
+    return False
+
+
+async def _capture_business_interview(client: dict[str, Any], text: str) -> bool:
+    """Add the WhatsApp business-info reply to the client's KB + clear the pending flag."""
+    cid = str(client.get("id") or "")
+    if not cid:
+        return False
+    try:
+        from app.marketing import clients_store
+
+        ns = _namespace(cid)
+        try:
+            from app.voice_agent.knowledge_base import get_knowledge_base
+
+            get_knowledge_base().add_documents(
+                [text[:4000]], source="whatsapp:onboarding_interview", namespace=ns
+            )
+        except Exception as exc:
+            logger.debug("onboard interview kb seed err: %s", exc)
+        clients_store.update_client(cid, awaiting_kb_interview=False)
+        _log(
+            "client_interview_captured",
+            f"{client.get('business_name','')}: WhatsApp se business-info mila (KB seeded)",
+        )
+        return True
+    except Exception as exc:
+        logger.info("_capture_business_interview err: %s", exc)
+        return False
+
+
 async def auto_onboard(cid: str) -> dict[str, Any]:
     """Run the full auto-setup for one client. Never raises."""
     report: dict[str, Any] = {"client_id": cid, "steps": {}}
@@ -174,6 +264,20 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
             pass
 
         kb = report["steps"]["kb_website"].get("kb_chunks", 0)
+        kb_seeded = bool(kb)
+        if not kb_seeded:
+            # No usable website -> mark pending so the WhatsApp reply (below) becomes
+            # the KB source (see try_capture_onboarding_reply / _capture_business_interview).
+            try:
+                clients_store.update_client(cid, awaiting_kb_interview=True)
+            except Exception:
+                pass
+        try:
+            report["steps"]["welcome_whatsapp"] = await _send_welcome_whatsapp(client, kb_seeded)
+        except Exception as exc:
+            logger.debug("onboard welcome whatsapp step err: %s", exc)
+            report["steps"]["welcome_whatsapp"] = {"sent": False}
+
         _log("client_onboarded", f"{biz}: auto-setup done (website KB {kb} chunks + content pack)")
         # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
         try:
@@ -211,4 +315,4 @@ async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
     return res
 
 
-__all__ = ["auto_onboard", "run_onboarding_sweep"]
+__all__ = ["auto_onboard", "run_onboarding_sweep", "try_capture_onboarding_reply"]
