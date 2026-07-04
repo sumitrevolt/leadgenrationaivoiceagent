@@ -630,6 +630,14 @@ async def public_signup(body: SignupIn, request: Request):
         except Exception as e:
             logger.debug(f"[signup] plan provisioning skip (account still ok): {e}")
 
+    # 6.8) Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
+    try:
+        from app.analytics import posthog_client as _ph
+
+        _ph.capture(cid, "signup", {"plan": body.plan, "trial": is_trial, "via": "pricing_page"})
+    except Exception:
+        pass
+
     # 7) Team activity (best-effort) — Rohan ko self-signup dikhe
     try:
         from app.platform.team import log_event

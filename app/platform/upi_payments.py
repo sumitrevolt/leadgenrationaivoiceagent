@@ -211,6 +211,17 @@ def _try_activate(
             usage.reset_usage_period(cid)
         except Exception as e:  # pragma: no cover - defensive
             logger.debug("upi_payments reset_usage_period skipped: %s", e)
+        # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
+        try:
+            from app.analytics import posthog_client as _ph
+
+            _ph.capture(
+                cid,
+                "payment_activated",
+                {"plan": plan_k, "amount": float(amount or 0), "gateway": "upi"},
+            )
+        except Exception:
+            pass
         return True
     except Exception as e:
         logger.debug("upi_payments activate skipped: %s", e)

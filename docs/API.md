@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1052 operations)
+## Endpoint Index — auto-generated from OpenAPI (1049 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -599,12 +599,6 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/clients/{cid}/content/run` — Run Client Content
 - `POST  ` `/api/clients/{cid}/content/{item_id}/status` — Set Content Item Status
 - `PATCH ` `/api/clients/{cid}/status` — Set Client Status
-
-### Combo Product  (3)
-
-- `GET   ` `/api/combo/niches` — Combo Niches
-- `GET   ` `/api/combo/packages` — Combo Packages
-- `GET   ` `/api/combo/plans` — Combo Plans
 
 ### ContentAuto  (10)
 

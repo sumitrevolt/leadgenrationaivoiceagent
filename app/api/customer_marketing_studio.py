@@ -54,8 +54,67 @@ _GEN_LIMIT = rate_limit("cust_studio", 60, 60)  # 60 generations / minute / IP (
 # --------------------------------------------------------------------------- #
 # Client context — niche/business/city ALWAYS from the authed client's record  #
 # --------------------------------------------------------------------------- #
+def _entitlement_gate(client_id: str, rec: dict) -> None:
+    """STUDIO_ENTITLEMENT_GATE=1 (default OFF = zero behavior change): block
+    (a) expired free trials and (b) paid-plan signups that never actually paid,
+    after a 7-day grace (signup provisions the plan pre-payment — audit
+    2026-07-04 P2: without this, a free signup keeps generating forever).
+    Payment proof = an ACTIVE/TRIAL/PAUSED Subscription row (UPI/Stripe
+    activation creates one). Every lookup failure = ALLOW (fail-open — a DB
+    hiccup must never lock a paying customer out of their studio)."""
+    import os as _os
+
+    if (_os.environ.get("STUDIO_ENTITLEMENT_GATE", "0") or "0").strip().lower() not in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return
+    if not rec:
+        return
+    from datetime import datetime, timedelta
+
+    def _parse(ts: str):
+        try:
+            return datetime.fromisoformat(str(ts).replace("Z", "").split("+")[0])
+        except Exception:
+            return None
+
+    pay_cta = "Plan active nahi hai — /pricing se payment karke unlock karo."
+    # (a) Trial path: expired trial => 402.
+    if rec.get("trial") or str(rec.get("plan") or "").strip().lower() == "trial":
+        exp = _parse(rec.get("trial_expires") or "")
+        if exp is not None and exp < datetime.utcnow():
+            raise HTTPException(status_code=402, detail=f"FREE trial khatam. {pay_cta}")
+        return
+    # (b) Paid-plan record: allow if a real subscription exists; else 7-day grace.
+    try:
+        from app.billing.usage import _latest_subscription
+        from app.models.base import get_db_session
+        from app.models.payment import SubscriptionStatus
+
+        with get_db_session() as db:
+            sub = _latest_subscription(db, client_id)
+            if sub is not None and sub.status in (
+                SubscriptionStatus.ACTIVE,
+                SubscriptionStatus.TRIAL,
+                SubscriptionStatus.PAUSED,
+            ):
+                return
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("entitlement gate sub-lookup skipped (fail-open): %s", e)
+        return
+    created = _parse(rec.get("created_at") or "")
+    if created is None:
+        return  # unknown age — fail-open
+    if datetime.utcnow() - created > timedelta(days=7):
+        raise HTTPException(status_code=402, detail=pay_cta)
+
+
 def _ctx(client_id: str) -> dict:
     rec = _client_record(client_id) or {}
+    _entitlement_gate(client_id, rec)
     return {
         "business_name": str(rec.get("business_name") or rec.get("name") or "Aapka Business").strip(),
         "niche": str(rec.get("niche") or "general").strip().lower() or "general",
