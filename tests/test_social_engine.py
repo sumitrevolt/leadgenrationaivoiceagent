@@ -87,3 +87,10 @@ def test_idempotent_second_drain(iso):
     asyncio.run(engine.process_queue())
     out2 = asyncio.run(engine.process_queue())
     assert out2["claimed"] == 0
+
+
+def test_celery_worker_registers_social_drain_task():
+    from app.worker import celery_app
+
+    assert "app.social_engine.tasks" in set(celery_app.conf.include or ())
+    assert "social_engine.drain" in celery_app.tasks
