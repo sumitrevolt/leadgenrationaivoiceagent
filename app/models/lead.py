@@ -409,5 +409,42 @@ class Lead(Base):
         # Cannot call if not interested (unless explicitly re-activated)
         if self.status == LeadStatus.NOT_INTERESTED:
             return False
-
         return True
+
+
+def phone_format_variants(phone: str) -> list[str]:
+    """All plausible raw storage formats for the SAME Indian number.
+
+    Root cause (2026-07-04 dialer-sprint audit): three separate ingestion paths
+    (scraping.py, sync.py, prospector.py) each dedupe with an EXACT-STRING
+    ``Lead.phone == candidate`` check. Every path normalizes its OWN candidate
+    before comparing, but none accounts for the DB already holding the SAME
+    number in a DIFFERENT raw format from another path (prospector.py stores
+    digits-only "919967993679", the CRM/sheet import path stores "+919967993679")
+    — so the exact-match silently misses it and the same business gets
+    inserted twice. Returns every format variant worth matching against;
+    callers do ``Lead.phone.in_(phone_format_variants(candidate))``.
+    Never raises — unparseable input just yields an empty list (no match).
+    """
+    import re
+
+    digits = re.sub(r"\D", "", str(phone or ""))
+    if len(digits) < 10:
+        return []
+    suffix = digits[-10:]
+    return [suffix, "91" + suffix, "+91" + suffix, "0" + suffix]
+
+
+def lead_exists_for_phone(db, phone: str) -> bool:
+    """True if a Lead with this phone (any known raw-format variant) already
+    exists. Sync-session helper — use directly with ``db.query(...)`` sessions
+    (scraping.py/sync.py/prospector.py all use the sync ``get_db_session``).
+    Never raises; unparseable phone -> False (caller's own len-check already
+    guards this in practice, kept defensive here too)."""
+    variants = phone_format_variants(phone)
+    if not variants:
+        return False
+    try:
+        return db.query(Lead.id).filter(Lead.phone.in_(variants)).first() is not None
+    except Exception:
+        return False

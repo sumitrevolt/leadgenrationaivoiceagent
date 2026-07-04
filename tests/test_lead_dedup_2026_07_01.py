@@ -69,3 +69,80 @@ def test_different_phones_create_separate_leads(monkeypatch):
         assert s.query(Lead).count() == 2
     finally:
         s.close()
+
+
+# --------------------------------------------------------------------------- #
+# Format-variant-aware dedupe (2026-07-04 dialer-sprint audit follow-on)
+#
+# The dedup checks above (prospector.py, sync.py, scraping.py) all did an
+# EXACT-STRING `Lead.phone == candidate` comparison. Every path normalizes its
+# OWN candidate before comparing, but none accounts for the DB already holding
+# the SAME number in a DIFFERENT raw format from another path — e.g.
+# prospector.py stores digits-only "919967993679" while the CRM/sheet import
+# path stores "+919967993679". Exact-match silently misses this, so a live
+# scan (2026-07-04) found REAL businesses duplicated across sources: same
+# company_name/phone, one row from "import" (with "+"), one from
+# "google_maps" (without) — polluting dialer lists with double-dials.
+# --------------------------------------------------------------------------- #
+from app.models.lead import lead_exists_for_phone, phone_format_variants
+
+
+def test_phone_format_variants_covers_common_indian_formats():
+    variants = phone_format_variants("+91 99679-93679")
+    assert "9967993679" in variants
+    assert "919967993679" in variants
+    assert "+919967993679" in variants
+    assert "09967993679" in variants
+
+
+def test_phone_format_variants_empty_for_unparseable():
+    assert phone_format_variants("") == []
+    assert phone_format_variants("12345") == []  # < 10 digits
+    assert phone_format_variants(None) == []
+
+
+def test_lead_exists_for_phone_matches_across_raw_formats(monkeypatch):
+    """The actual production bug: a lead stored WITH '+91' must be found when
+    the candidate arrives WITHOUT it (and vice versa)."""
+    session_factory = _isolated_db(monkeypatch)
+    s = session_factory()
+    try:
+        s.add(Lead(id="l1", company_name="Test Co", phone="+919967993679"))
+        s.commit()
+        # Candidate arrives digits-only (as prospector.py always stores) —
+        # must still be recognised as the SAME number.
+        assert lead_exists_for_phone(s, "919967993679") is True
+        assert lead_exists_for_phone(s, "9967993679") is True
+        assert lead_exists_for_phone(s, "09967993679") is True
+        # A genuinely different number must NOT match.
+        assert lead_exists_for_phone(s, "9111111111") is False
+    finally:
+        s.close()
+
+
+def test_prospector_persist_dedupes_across_raw_formats(monkeypatch):
+    """End-to-end regression: prospector._persist_prospect_to_db must not
+    create a second Lead row when the same business already exists under a
+    different raw phone format (the exact real-world scenario found live)."""
+    session_factory = _isolated_db(monkeypatch)
+    from app.platform import prospector
+
+    # Simulate the CRM/sheet-import path's format: leading "+".
+    s = session_factory()
+    try:
+        s.add(Lead(id="seed1", company_name="Passport Office Solapur", phone="+916019377936"))
+        s.commit()
+    finally:
+        s.close()
+
+    # prospector's own ingestion (digits-only) rediscovers the SAME business.
+    created = prospector._persist_prospect_to_db(
+        {"phone": "+916019377936", "business_name": "Passport Office Solapur"}
+    )
+    assert created is False, "must dedupe, not insert a second row"
+
+    s = session_factory()
+    try:
+        assert s.query(Lead).count() == 1
+    finally:
+        s.close()

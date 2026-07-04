@@ -196,9 +196,15 @@ def import_from_crm(source: str, config: dict):
                         )
                     )
 
+                    from app.models.lead import lead_exists_for_phone
+
                     for contact in contacts:
-                        # Check if lead already exists
-                        existing = db.query(Lead).filter(Lead.phone == contact.get("phone")).first()
+                        # Check if lead already exists (format-variant-aware —
+                        # audit 2026-07-04: exact-string match missed
+                        # cross-source duplicates).
+                        existing = contact.get("phone") and lead_exists_for_phone(
+                            db, contact.get("phone")
+                        )
 
                         if not existing and contact.get("phone"):
                             new_lead = Lead(
@@ -235,13 +241,15 @@ def import_from_crm(source: str, config: dict):
                         sheets.get_leads(spreadsheet_id, config.get("sheet_name", "Leads"))
                     )
 
+                    from app.models.lead import lead_exists_for_phone
+
                     for row in rows:
                         phone = row.get("phone") or row.get("Phone") or row.get("mobile")
                         if not phone:
                             continue
 
-                        # Check if lead already exists
-                        existing = db.query(Lead).filter(Lead.phone == phone).first()
+                        # Check if lead already exists (format-variant-aware)
+                        existing = lead_exists_for_phone(db, phone)
 
                         if not existing:
                             new_lead = Lead(
