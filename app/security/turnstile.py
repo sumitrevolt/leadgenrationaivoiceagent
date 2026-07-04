@@ -131,10 +131,23 @@ async def verify_turnstile(request: Request) -> None:
         return
     token = await _extract_token(request)
     if not token:
-        raise HTTPException(
-            status_code=403,
-            detail="Bot-check token missing. Page refresh karke dobara try karo.",
-        )
+        # MISSING token = the Cloudflare widget didn't load/render for this
+        # client (broken site-key/domain config, blocked CDN, unsupported
+        # mobile browser). The client-side loader ALREADY fails-OPEN in this
+        # case (turnstile.js resolves "" on render/script error), so hard-403
+        # here blocked 100% of REAL customers whenever the widget was down —
+        # a revenue outage worse than the spam it prevents (2026-07-04 launch
+        # incident: every free-trial signup 403'd). Fail-OPEN on MISSING to
+        # match the client + the other funnel guards (honeypot + rate-limit +
+        # email-dedupe); still fail-CLOSED on a PRESENT-but-INVALID token,
+        # which is the only signal of an actual bot that reached the widget.
+        if (os.getenv("TURNSTILE_STRICT_MISSING", "0").strip().lower() in ("1", "true", "yes")):
+            raise HTTPException(
+                status_code=403,
+                detail="Bot-check token missing. Page refresh karke dobara try karo.",
+            )
+        logger.info("turnstile: missing token → fail-OPEN (widget likely not rendering)")
+        return
     ok = await _siteverify(token, _client_ip(request))
     if not ok:
         raise HTTPException(

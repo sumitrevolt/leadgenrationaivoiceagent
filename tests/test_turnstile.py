@@ -104,15 +104,34 @@ def test_site_key_helper_reads_env(monkeypatch: pytest.MonkeyPatch) -> None:
 # --------------------------------------------------------------------------- #
 # ARMED mode — secret set
 # --------------------------------------------------------------------------- #
-def test_armed_missing_token_returns_403(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_armed_missing_token_fails_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """MISSING token = widget didn't render for this client (broken site-key/
+    domain, blocked CDN, mobile browser). Client-side loader already fails-OPEN,
+    so the server must too — hard-403 blocked 100% of real customers whenever
+    the widget was down (2026-07-04 launch incident). Fail-OPEN on missing;
+    fail-CLOSED stays for PRESENT-but-INVALID tokens (real caught bots)."""
     monkeypatch.setenv("TURNSTILE_SECRET_KEY", "sk_test_secret")
+    monkeypatch.delenv("TURNSTILE_STRICT_MISSING", raising=False)
+    captured = _patch_siteverify(monkeypatch)
+    client = TestClient(_build_app())
+
+    r = client.post("/probe", json={})
+    assert r.status_code == 200
+    # Did NOT call Cloudflare — no token to verify
+    assert captured == {}
+
+
+def test_armed_missing_token_strict_mode_returns_403(monkeypatch: pytest.MonkeyPatch) -> None:
+    """TURNSTILE_STRICT_MISSING=1 restores the old hard-403 for operators who
+    have verified the widget renders and want zero-token-tolerance."""
+    monkeypatch.setenv("TURNSTILE_SECRET_KEY", "sk_test_secret")
+    monkeypatch.setenv("TURNSTILE_STRICT_MISSING", "1")
     captured = _patch_siteverify(monkeypatch)
     client = TestClient(_build_app())
 
     r = client.post("/probe", json={})
     assert r.status_code == 403
     assert "Bot-check" in r.json()["detail"]
-    # Did NOT call Cloudflare — short-circuit on missing token
     assert captured == {}
 
 
@@ -190,10 +209,12 @@ def test_geo_check_inert_when_secret_unset(client, monkeypatch: pytest.MonkeyPat
     assert r.json()["ok"] is True
 
 
-def test_geo_check_armed_missing_token_returns_403(
+def test_geo_check_armed_missing_token_strict_returns_403(
     client, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    """Strict mode (operator verified widget) still fail-CLOSED on missing."""
     monkeypatch.setenv("TURNSTILE_SECRET_KEY", "sk_test_secret")
+    monkeypatch.setenv("TURNSTILE_STRICT_MISSING", "1")
     _patch_siteverify(monkeypatch)
     r = client.post(
         "/api/localseo/geo-check",
