@@ -113,7 +113,7 @@ def test_auto_activate_skipped_without_client(up, monkeypatch):
 
 def test_decide_approve_triggers_onboarding(up, monkeypatch):
     """Admin approve → plan activates → onboarding is front-run (no <=1h wait)."""
-    monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0: True)
+    monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0, **kw: True)
     fired: list[int] = []
     monkeypatch.setattr(up, "_trigger_onboarding", lambda: fired.append(1))
 
@@ -124,7 +124,7 @@ def test_decide_approve_triggers_onboarding(up, monkeypatch):
 
 def test_decide_reject_no_onboarding(up, monkeypatch):
     """Reject must NOT trigger onboarding."""
-    monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0: True)
+    monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0, **kw: True)
     fired: list[int] = []
     monkeypatch.setattr(up, "_trigger_onboarding", lambda: fired.append(1))
 
@@ -272,6 +272,65 @@ def test_auto_activate_accepts_real_amount(up, monkeypatch):
     assert out["status"] == "auto_activated"
 
 
+def test_decide_approve_activates_amount_zero_submission(up, monkeypatch):
+    """P0 audit 2026-07-04: every frontend submit records amount=0 (no amount
+    field in the UPI modals), and decide() re-ran the price floor against that
+    recorded amount — so the admin Approve button NEVER activated a real-world
+    submission. Human approval = payment verified out-of-band in the UPI app;
+    the floor must only gate UNattended auto-activation."""
+    from app.billing import usage
+
+    calls: list[tuple] = []
+    monkeypatch.setattr(
+        usage, "activate_plan", lambda cid, plan, **kw: calls.append((cid, plan)) or True
+    )
+    monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
+
+    sub = up.submit_payment("cli_zero", "advanced", "TXN0", amount=0)
+    assert sub["status"] == "pending"
+    rec = up.decide(sub["id"], True, decided_by="admin")
+    assert rec["status"] == "approved"
+    assert rec.get("activated") is True
+    assert calls == [("cli_zero", "advanced")]
+
+
+def test_min_plan_price_resolves_voice_and_combo_plans(up):
+    """Missing-work audit 2026-07-04: the floor lookup scraped
+    get_voice_packages() (single-band payload — voice_b/voice_c never found)
+    and get_combo_packages()["plans"] (real key is "tiers" — combo never
+    found), so the price floor silently never applied to the most expensive
+    plans. Must resolve every paid voice band + combo tier."""
+    from app.marketing.combo_packages import COMBO_TIERS
+    from app.marketing.voice_packages import BANDS
+
+    for band, info in BANDS.items():
+        expected = float(info["price_month"])
+        assert up._min_plan_price(info["plan_monthly"].lower()) == expected, band
+        assert up._min_plan_price(info["plan_annual"].lower()) == expected, band
+    for tier, info in COMBO_TIERS.items():
+        expected = float(info["price_month"])
+        assert up._min_plan_price(info["plan_monthly"].lower()) == expected, tier
+        assert up._min_plan_price(info["plan_annual"].lower()) == expected, tier
+
+
+def test_auto_activate_rejects_low_amount_for_voice_and_combo(up, monkeypatch):
+    """amount:0 self-serve submit must stay pending for voice B/C and combo
+    plans too — not just the marketing plans covered by the 2026-07-01 fix."""
+    from app.billing import usage
+
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    calls: list[tuple] = []
+    monkeypatch.setattr(
+        usage, "activate_plan", lambda cid, plan, **kw: calls.append((cid, plan)) or True
+    )
+
+    for plan in ("voice_b_monthly", "voice_c_monthly", "combo_growth_monthly"):
+        out = up.submit_payment(f"cli_{plan}", plan, f"TXN_{plan}", amount=0)
+        assert out["status"] == "pending", plan
+        assert out["auto_activated"] is False, plan
+    assert calls == [], "no below-floor voice/combo submission may activate"
+
+
 @pytest.fixture
 def sp(tmp_path, monkeypatch):
     """sales_pipeline module with its deals store pointed at a tmp file."""
@@ -304,7 +363,7 @@ def test_auto_activate_marks_matching_voice_deal_won(up, monkeypatch, sp):
 def test_decide_approve_marks_matching_voice_deal_won(up, monkeypatch, sp):
     """Same finalization, via the admin-approve path (not just auto-activate)."""
     sp.upsert_deal({"phone": "9123456780", "business_name": "Voice Lead 2"}, stage="negotiating")
-    monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0: True)
+    monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0, **kw: True)
 
     sub = up.submit_payment("cli_voice2", "advanced", "TXNVOICE2", payer_contact="9123456780")
     up.decide(sub["id"], True)

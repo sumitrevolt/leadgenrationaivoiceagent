@@ -126,28 +126,33 @@ def _min_plan_price(plan_key: str) -> float | None:
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("upi_payments min-price packages skipped: %s", e)
     try:
-        from app.marketing.voice_packages import get_voice_packages
+        # Band-aware helper — get_voice_packages() only returns ONE band's
+        # payload, so scraping it missed voice_b_*/voice_c_* entirely and the
+        # price floor silently never applied to the most expensive voice plans.
+        from app.marketing.voice_packages import voice_plan_price
 
-        for band_plans in (get_voice_packages() or {}).values():
-            if not isinstance(band_plans, list):
-                continue
-            for p in band_plans:
-                if str((p or {}).get("key") or "").strip().lower() == plan_key:
-                    return float(p.get("price_inr_month") or 0)
+        price = voice_plan_price(plan_key)
+        if price:
+            return float(price)
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("upi_payments min-price voice skipped: %s", e)
     try:
-        from app.marketing.combo_packages import get_combo_packages
+        # get_combo_packages() payload keys plans under "tiers" (not "plans"),
+        # so the old scrape resolved None for every combo plan — use the
+        # dedicated price helper instead.
+        from app.marketing.combo_packages import combo_plan_price
 
-        for p in (get_combo_packages() or {}).get("plans", []) or []:
-            if str((p or {}).get("key") or "").strip().lower() == plan_key:
-                return float(p.get("price_inr_month") or 0)
+        price = combo_plan_price(plan_key)
+        if price:
+            return float(price)
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("upi_payments min-price combo skipped: %s", e)
     return None
 
 
-def _try_activate(client_id: str, plan: str, amount: float = 0) -> bool:
+def _try_activate(
+    client_id: str, plan: str, amount: float = 0, enforce_floor: bool = True
+) -> bool:
     """Best-effort plan activation. Never raises — returns activation success bool.
 
     Validates the plan against the canonical activatable set BEFORE provisioning so a
@@ -158,6 +163,13 @@ def _try_activate(client_id: str, plan: str, amount: float = 0) -> bool:
     highest paid tier for free). On a successful activation also drops the renewal
     usage watermark (parity with the Stripe webhook path) so a renew/upgrade zeroes
     the minute counter for the period.
+
+    ``enforce_floor=False`` is for the ADMIN approve path only (missing-work audit
+    2026-07-04): every frontend submit records ``amount: 0`` (no amount field), so
+    enforcing the floor on ``decide()`` made the admin "Approve" button silently
+    fail to activate ANY real submission. A human approving has already verified
+    the payment in the bank/UPI app — the floor exists to stop UNattended
+    auto-activation, not attended approval.
     """
     cid = (client_id or "").strip()
     if not cid:
@@ -175,7 +187,7 @@ def _try_activate(client_id: str, plan: str, amount: float = 0) -> bool:
             len(valid),
         )
         return False
-    min_price = _min_plan_price(plan_k)
+    min_price = _min_plan_price(plan_k) if enforce_floor else None
     # Only enforce when we actually resolved a real price — same fail-open-on-missing-
     # data posture as the plan-key check above (never block on our own lookup failure).
     if min_price and float(amount or 0) < min_price:
@@ -366,7 +378,13 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
             and record.get("client_id")
         ):
             if _try_activate(
-                record.get("client_id", ""), record.get("plan", ""), record.get("amount", 0)
+                record.get("client_id", ""),
+                record.get("plan", ""),
+                record.get("amount", 0),
+                # Human admin approving = payment already verified in the UPI app;
+                # frontends record amount:0, so enforcing the floor here made every
+                # real approval silently fail to activate (audit 2026-07-04).
+                enforce_floor=False,
             ):
                 record["activated"] = True
                 # Activation succeeded → front-run onboarding (KB seed + first content
