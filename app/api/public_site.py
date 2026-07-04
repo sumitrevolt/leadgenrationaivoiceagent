@@ -277,7 +277,9 @@ async def _auto_callback(phone: str, niche: str, business: str, client_id: str =
         except Exception:
             pass
         if not placed:
-            logger.info(f"[public] auto-callback not placed for {phone}: {result.get('error')}")
+            logger.info(
+                f"[public] auto-callback not placed for ***{str(phone)[-4:]}: {result.get('error')}"
+            )
         else:
             try:
                 from app.platform.speed_to_lead import log_callback_touch
@@ -286,7 +288,7 @@ async def _auto_callback(phone: str, niche: str, business: str, client_id: str =
             except Exception:
                 pass
     except Exception as e:  # absolute guard — task me unhandled exception nahi
-        logger.warning(f"[public] auto-callback failed for {phone}: {e}")
+        logger.warning(f"[public] auto-callback failed for ***{str(phone)[-4:]}: {e}")
         try:
             from app.platform.team import log_event
 

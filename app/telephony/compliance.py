@@ -279,7 +279,7 @@ class ComplianceGate:
                 return False if _fail_open else None
             return bool(getattr(res, "is_dnd", False))
         except Exception as e:
-            logger.debug(f"compliance: DND check failed for {phone} ({e}).")
+            logger.debug(f"compliance: DND check failed for ***{str(phone)[-4:]} ({e}).")
             return False if _fail_open else None
 
     # ----------------------------- check ------------------------------ #

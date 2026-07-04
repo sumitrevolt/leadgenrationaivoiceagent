@@ -145,7 +145,7 @@ async def handle_flow_response(response: dict[str, Any], from_number: str = "") 
         if lead_id:
             rec["lead_id"] = lead_id
         await run_after_inquiry(rec, lead_id=lead_id)
-        logger.info(f"[wa_flows] flow lead captured: {name} {phone}")
+        logger.info(f"[wa_flows] flow lead captured: {name} ***{str(phone)[-4:]}")
         return {"ok": True, "lead_id": lead_id}
     except Exception as e:
         logger.warning(f"[wa_flows] flow lead save failed: {e}")

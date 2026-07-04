@@ -350,7 +350,7 @@ class LeadGenPipeline:
             try:
                 is_dnd = await self._is_dnd(phone)
             except Exception as e:
-                logger.debug(f"DND check error for {phone}: {e}")
+                logger.debug(f"DND check error for ***{str(phone)[-4:]}: {e}")
                 is_dnd = False  # fail-open for business continuity
             if is_dnd:
                 result.skipped_dnd += 1
@@ -405,7 +405,7 @@ class LeadGenPipeline:
                     await self.whatsapp.send_text_message(phone, msg)
                     sent += 1
             except Exception as e:
-                logger.debug(f"WhatsApp warm-up failed for {phone}: {e}")
+                logger.debug(f"WhatsApp warm-up failed for ***{str(phone)[-4:]}: {e}")
 
         logger.info(f"Stage 5 WhatsApp warm-up: {sent} messages sent")
 
@@ -431,8 +431,8 @@ class LeadGenPipeline:
                 result.called += 1
                 result.cost_estimate += DEFAULT_CALL_COST
             except Exception as e:
-                logger.debug(f"Voice call failed for {phone}: {e}")
-                result.errors.append(f"voice:{phone}: {e}")
+                logger.debug(f"Voice call failed for ***{str(phone)[-4:]}: {e}")
+                result.errors.append(f"voice:***{str(phone)[-4:]}: {e}")
 
             score, tier = self._score_lead(lead, qualification, intent)
             # Attach scoring back onto the lead's raw_data so downstream
@@ -480,7 +480,7 @@ class LeadGenPipeline:
                     # Phone did not connect — no qualification possible.
                     return {}, "no_answer"
             except Exception as e:
-                logger.debug(f"Telephony place_call failed for {phone}: {e}")
+                logger.debug(f"Telephony place_call failed for ***{str(phone)[-4:]}: {e}")
 
         if not self.voice_agent:
             return {}, "no_answer"

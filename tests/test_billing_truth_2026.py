@@ -59,6 +59,27 @@ def test_topup_pack_helpers():
     assert topup_pack("nope") == {}
     # effective rate included-rate (₹12/min) se upar (upsell math)
     assert p100["price_inr"] / p100["minutes"] >= 12.0
+    # LITERAL pins (audit 2026-07-04): pehle sirf ≥₹12/min tha — ek silent
+    # price edit CI pe pass ho jata. Change = packages.py + yahan SAATH.
+    by_key = {p["key"]: p for p in packs}
+    assert by_key["topup_100"]["price_inr"] == 1499
+    assert by_key["topup_250"]["price_inr"] == 3499
+    assert by_key["topup_500"]["price_inr"] == 5999
+
+
+def test_combo_tier_price_literals():
+    """Combo billing-sync ab bhi active hai (router gated hai, module nahi) —
+    tier prices pin karo taaki silent edit CI pe pakda jaye (audit 2026-07-04)."""
+    from app.marketing.combo_packages import COMBO_TIERS, combo_plan_price
+
+    assert COMBO_TIERS["starter"]["price_month"] == 4999
+    assert COMBO_TIERS["growth"]["price_month"] == 9999
+    assert COMBO_TIERS["pro"]["price_month"] == 21999
+    for t in COMBO_TIERS.values():
+        assert t["price_year"] == t["price_month"] * 10  # 2 mahine free
+    assert combo_plan_price("combo_pro_monthly") == 21999
+    assert combo_plan_price("combo_pilot") == 0
+    assert combo_plan_price("unknown_plan") == 0
 
 
 def test_usage_topup_guards():
