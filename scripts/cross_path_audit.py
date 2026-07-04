@@ -78,6 +78,68 @@ def audit_qualified_lead_idempotency() -> None:
         )
 
 
+def _fn_body(text: str, name: str) -> str:
+    m = re.search(
+        rf"async def {name}\(.*?\n(.*?)(?=\n    (?:async )?def |\Z)", text, re.S
+    )
+    return m.group(1) if m else ""
+
+
+def audit_brain_guard_parity() -> None:
+    """2da6239 lesson (2026-07-03): EVERY guard in reply() must be mirrored in
+    reply_stream_sentences() — close-signals silently never fired on live calls
+    because the stream fn lacked reply()'s guards. Encode it so a regression
+    fails CI instead of shipping."""
+    text = _read("app/voice_agent/telecaller_brain.py")
+    if not text:
+        return
+    reply_body = _fn_body(text, "reply")
+    stream_body = _fn_body(text, "reply_stream_sentences")
+    if not reply_body or not stream_body:
+        PROBLEMS.append("VOICE: telecaller_brain reply()/reply_stream_sentences() not found")
+        return
+    for marker, why in (
+        ("deflect", "pre/post-LLM injection guard"),
+        ("close_signal", "close-signal detection"),
+        ("caller_phone", "caller-phone capture (deal-writes)"),
+    ):
+        if marker in reply_body and marker not in stream_body:
+            PROBLEMS.append(
+                f"VOICE: guard '{marker}' ({why}) in reply() but MISSING in "
+                "reply_stream_sentences() — stream-path parity regression (2da6239 lesson)"
+            )
+
+
+def audit_stream_opt_out() -> None:
+    """TCCCPR (audit 2026-07-04): LIVE stream calls must persist press-9 +
+    verbal opt-out to the consent ledger — the legacy answer_url handler alone
+    doesn't cover <Stream> calls."""
+    text = _read("app/telephony/vobiz_stream.py")
+    if not text:
+        return
+    if "_persist_opt_out" not in text or "record_opt_out" not in text:
+        PROBLEMS.append(
+            "COMPLIANCE: vobiz_stream missing _persist_opt_out/record_opt_out "
+            "(stream-path opt-out never reaches the consent ledger)"
+        )
+    if "_is_opt_out" not in text:
+        PROBLEMS.append(
+            "COMPLIANCE: vobiz_stream missing verbal opt-out detection (_is_opt_out)"
+        )
+
+
+def audit_disclosure_enforcement() -> None:
+    """AI-disclosure-at-start must be enforced on every spoken-opener surface."""
+    for rel, why in (
+        ("app/telephony/vobiz_stream.py", "LIVE stream greeting"),
+        ("app/api/web_call.py", "web test-call greeting"),
+        ("app/api/telephony_vobiz.py", "admin test-call message"),
+    ):
+        text = _read(rel)
+        if text and "ensure_ai_disclosure" not in text:
+            PROBLEMS.append(f"COMPLIANCE: {rel} missing ensure_ai_disclosure ({why})")
+
+
 def audit_automation_parity() -> None:
     try:
         from scripts import automation_wiring_audit as awa
@@ -97,6 +159,9 @@ def main() -> int:
     audit_vobiz_stream_lifecycle()
     audit_call_insights_transcripts()
     audit_qualified_lead_idempotency()
+    audit_brain_guard_parity()
+    audit_stream_opt_out()
+    audit_disclosure_enforcement()
     audit_automation_parity()
     print("-" * 48)
     if PROBLEMS:

@@ -80,7 +80,10 @@ class TestTestCall:
         assert r.status_code == 200
         data = r.json()
         assert data["placed"] is True
-        assert data["message_used"] == "Namaste, yeh ek demo call hai."
+        # TRAI AI-disclosure enforced on custom messages too (audit 2026-07-04):
+        # original text preserved, disclosure prepended when missing.
+        assert data["message_used"].endswith("Namaste, yeh ek demo call hai.")
+        assert "AI" in data["message_used"]
         assert data["vobiz_response"]["status_code"] == 201
         assert "/api/telephony/vobiz/answer/" in data["answer_url"]
         assert captured["to"] == "+919876543210"

@@ -46,9 +46,20 @@ echo "[deploy] recreating app container (no-deps)..."
 $COMPOSE up -d --no-deps app
 echo "[deploy] boot-grace 16s..."
 sleep 16
-echo "[deploy] health check ->"
-if curl -fsS http://127.0.0.1:8000/health; then
-  echo ""
+# 12x5s retry loop (audit 2026-07-04) — CLAUDE.md deploy-loop + CI health-gate
+# parity; a single check flaked on slow cold-boots and failed a good deploy.
+echo "[deploy] health check (12x5s) ->"
+ok=0
+for i in $(seq 1 12); do
+  if curl -fsS http://127.0.0.1:8000/health; then
+    echo ""
+    ok=1
+    break
+  fi
+  echo "[deploy] health attempt $i/12 failed — retry in 5s"
+  sleep 5
+done
+if [ "$ok" = "1" ]; then
   echo "[deploy] HEALTH OK"
 else
   echo "[deploy] HEALTH FAIL — logs: docker logs --tail 80 leadgen_app"

@@ -165,6 +165,15 @@ async def place_test_call(
         )
 
     message = (request.message or "").strip() or await _generate_message(request.niche)
+    # TRAI AI-disclosure: admin-supplied custom text was spoken verbatim (LLM
+    # path + fallback already disclose) — enforce on every spoken message
+    # (audit 2026-07-04). No-op if the text already discloses; never raises.
+    try:
+        from app.voice_agent.niche_scripts import ensure_ai_disclosure
+
+        message = ensure_ai_disclosure(message)
+    except Exception:
+        pass
 
     token = uuid.uuid4().hex[:10]
     if len(_PENDING_MESSAGES) >= _MAX_PENDING:  # bounded memory

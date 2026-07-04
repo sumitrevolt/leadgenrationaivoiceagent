@@ -530,7 +530,7 @@ class CalendarBooking:
             "duration_min": duration_min,
         }
         self._taken.add(iso)
-        logger.info(f"📅 [internal] Booked {booking_id} @ {iso} for {name}/{phone}")
+        logger.info(f"📅 [internal] Booked {booking_id} @ {iso} for {name}/***{str(phone)[-4:]}")
         return BookingResult(
             ok=True,
             booking_id=booking_id,

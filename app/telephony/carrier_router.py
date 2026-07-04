@@ -124,8 +124,11 @@ class _VobizAdapter:
                 to=to,
                 answer_url=answer_url,
                 from_=from_ or None,
-                call_type=kw.get("call_type", "transactional"),
-                skip_compliance=kw.get("skip_compliance", False),
+                # promotional default (audit 2026-07-04) — lenient txn treatment
+                # must be an explicit caller choice, never the fallback. The
+                # router gate above has already run; VobizClient re-checks
+                # (defense in depth), and skip_compliance is never forwarded.
+                call_type=kw.get("call_type", "promotional"),
             )
             if result.get("status_code", 0) in (200, 201, 202):
                 return {"ok": True, "result": result, "provider": "vobiz"}
@@ -279,6 +282,31 @@ class CarrierRouter:
         Never raises. Always returns a dict with at minimum {"ok": bool}.
         """
         try:
+            # Compliance gate at ROUTER level (audit 2026-07-04): the Twilio
+            # adapter dialed with no gate at all, and the Vobiz adapter used to
+            # forward a caller-supplied skip_compliance — if this failover path
+            # is ever wired, promotional traffic must not escape the gate.
+            # Gate once here; adapters below are delivery-only.
+            try:
+                from app.telephony.compliance import CallType, get_compliance_gate
+
+                ct_raw = str(kw.get("call_type", "promotional")).lower()
+                ct = (
+                    CallType.TRANSACTIONAL
+                    if ct_raw == "transactional"
+                    else CallType.PROMOTIONAL
+                )
+                decision = await get_compliance_gate().check(to, ct)
+                if not getattr(decision, "allowed", False):
+                    return {
+                        "ok": False,
+                        "reason": "blocked by compliance gate",
+                        "compliance": getattr(decision, "reasons", None),
+                    }
+            except ImportError:  # pragma: no cover - defensive
+                pass
+            # Adapters must never receive a compliance bypass from callers.
+            kw.pop("skip_compliance", None)
             if not _multi_carrier_enabled():
                 return await self._single_provider_call(to, from_, **kw)
             return await self._failover_call(to, from_, **kw)

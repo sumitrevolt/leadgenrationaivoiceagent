@@ -2237,7 +2237,7 @@ var ONB_NICHES = [
 ];
 var ONB_VOICE_BANDS = {A:{m:4999,y:49990}, B:{m:9999,y:99990}, C:{m:19999,y:199990}};
 var ONB_COMBO_TIERS = {A:{key:"starter",m:4999,y:49990}, B:{key:"growth",m:9999,y:99990}, C:{key:"pro",m:21999,y:219990}};
-var ONB_MKT_PLANS = [["trial","Trial — free"],["starter","AI Marketing Automation — ₹1,999/mo"],["growth","Growth — ₹2,999/mo"],["advanced","Advanced Voice Agent — ₹5,999/mo"]];
+var ONB_MKT_PLANS = [["trial","Trial — free"],["starter","AI Marketing Automation — ₹1,999/mo"],["growth","Growth — ₹2,999/mo (LEGACY — naye customer ko mat becho)"],["advanced","Advanced Voice Agent — ₹5,999/mo"]];
 function onbInr(n){ return n ? ("₹"+Number(n).toLocaleString("en-IN")) : "Free"; }
 function onbCurProduct(){ var e=document.getElementById("onbProduct"); return e ? e.value : "marketing"; }
 async function onbLoadNiches(){

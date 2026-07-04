@@ -113,7 +113,7 @@ class DNDChecker:
 
             for phone, result in zip(uncached, batch_results, strict=False):
                 if isinstance(result, Exception):
-                    logger.error(f"DND check failed for {phone}: {result}")
+                    logger.error(f"DND check failed for ***{str(phone)[-4:]}: {result}")
                     # Assume not DND on error (fail open for business continuity)
                     result = DNDCheckResult(
                         phone=phone,
@@ -228,13 +228,13 @@ class DNDChecker:
             phone=phone, is_dnd=True, checked_at=datetime.now(), source="local", category=category
         )
 
-        logger.info(f"Added {phone} to local DND list: {category}")
+        logger.info(f"Added ***{str(phone)[-4:]} to local DND list: {category}")
 
     def remove_from_local_dnd(self, phone: str):
         """Remove a number from local DND list"""
         if phone in self._cache:
             del self._cache[phone]
-            logger.info(f"Removed {phone} from local DND list")
+            logger.info(f"Removed ***{str(phone)[-4:]} from local DND list")
 
     def export_local_dnd(self) -> list[dict]:
         """Export local DND list for backup"""
