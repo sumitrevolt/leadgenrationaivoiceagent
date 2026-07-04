@@ -716,11 +716,21 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Voice Product router not mounted: {_e}")
 try:
-    from app.api.combo_product import router as combo_product_router
+    # Product-3 combo surface — GATED default-OFF (audit 2026-07-04): the public
+    # /api/combo payload leaked the hidden legacy `growth` plan (name + ₹2,999)
+    # and a "marketing+voice bundle" USP that contradicts the ADR-009 two-product
+    # truth. No public page consumes it (admin onboard wizards hardcode tiers).
+    # Re-enable with COMBO_PRODUCT=1 once an ADR settles the combo product's
+    # framing. Billing plan-sync + UPI activation of existing combo plan keys are
+    # module-level and stay untouched.
+    if (os.environ.get("COMBO_PRODUCT", "0") or "0").strip().lower() in ("1", "true", "yes", "on"):
+        from app.api.combo_product import router as combo_product_router
 
-    app.include_router(
-        combo_product_router, prefix="/api"
-    )  # /api/combo/* (Product 3: AI Growth Suite combo)
+        app.include_router(
+            combo_product_router, prefix="/api"
+        )  # /api/combo/* (Product 3: AI Growth Suite combo)
+    else:
+        logger.info("Combo Product router NOT mounted (COMBO_PRODUCT unset — ADR-009 gate)")
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Combo Product router not mounted: {_e}")
 try:

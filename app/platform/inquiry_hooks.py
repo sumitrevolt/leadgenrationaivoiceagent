@@ -93,6 +93,15 @@ async def run_after_inquiry(
             _spawn(_cw.emit(cid, "lead.created", payload))
         except Exception:
             pass
+        # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
+        try:
+            from app.analytics import posthog_client as _ph
+
+            _ph.capture(
+                cid, "lead_captured", {"source": rec.get("source"), "niche": rec.get("niche")}
+            )
+        except Exception:
+            pass
 
     try:
         from app.platform.team import log_event

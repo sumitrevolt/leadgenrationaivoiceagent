@@ -117,6 +117,8 @@ AUTOMATION_FLAGS = [
     "OWNER_BRIEF_DAILY",  # roz-subah per-client owner-brief auto-prepare (scheduled studio owner-brief)
     "SKILL_PACK",
     "OBSIDIAN_SYNC",  # second-brain markdown staging + daily obsidian_push job (audit 2026-07-04: was registry-invisible)
+    "COMBO_PRODUCT",  # Product-3 combo public router mount — OFF default (ADR-009 two-product truth; audit 2026-07-04)
+    "STUDIO_ENTITLEMENT_GATE",  # customer studio: block expired trials + never-paid signups after 7-day grace — OFF default
     "CODE_UPGRADER",
     "RECORDING_RETENTION",
     "VOICE_EVAL_AUTO",  # daily voice persona eval suite (qa job) + self-improve voice_eval action — OFF default

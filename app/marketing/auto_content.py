@@ -277,6 +277,19 @@ async def generate_for_client(
     except Exception as e:
         logger.warning(f"[auto_content] generate_for_client failed: {e}")
 
+    if items:
+        # Funnel event (audit 2026-07-04: content-generated was metric-dark).
+        # posthog capture = silent no-op without POSTHOG_API_KEY.
+        try:
+            from app.analytics import posthog_client as _ph
+
+            _ph.capture(
+                str(client.get("id") or ""),
+                "content_generated",
+                {"items": len(items), "types": [i.get("type") for i in items]},
+            )
+        except Exception:
+            pass
     return items
 
 

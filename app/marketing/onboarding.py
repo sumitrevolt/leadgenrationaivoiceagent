@@ -175,6 +175,13 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
 
         kb = report["steps"]["kb_website"].get("kb_chunks", 0)
         _log("client_onboarded", f"{biz}: auto-setup done (website KB {kb} chunks + content pack)")
+        # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
+        try:
+            from app.analytics import posthog_client as _ph
+
+            _ph.capture(cid, "onboarding_completed", {"kb_chunks": kb})
+        except Exception:
+            pass
         report["ok"] = True
         return report
     except Exception as exc:
