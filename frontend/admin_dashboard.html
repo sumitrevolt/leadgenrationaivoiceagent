@@ -2862,6 +2862,20 @@ function renderGodMode(sys, camp){
     <div style="font-size:10px;color:#94a3b8">Cloudflare dashboard se free keys — PostHog Cloud free tier; bina container restart (Sentry worker ke liye restart recommended).</div>
   </div>`;
 
+  // — WhatsApp connection (WAHA self-host — link/re-scan) ────────────
+  html += `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.25);border-radius:8px">
+    <div style="font-size:11px;font-weight:700;color:#25D366;margin-bottom:8px;text-transform:uppercase">💬 WhatsApp Connection</div>
+    <div id="waConnStatus" style="font-size:11px;color:#cbd5e1;margin-bottom:8px">Status: <span class="muted">load ho raha…</span></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn" onclick="waRefreshStatus()" style="font-size:10px;padding:5px 10px;background:#334155">🔄 Status</button>
+      <button class="btn" onclick="waShowQr()" style="font-size:10px;padding:5px 10px;background:#25D366">📷 Show QR (re-scan)</button>
+      <button class="btn" onclick="waStartSession()" style="font-size:10px;padding:5px 10px;background:#0ea5e9">▶ Start session</button>
+    </div>
+    <div id="waQrBox" style="min-height:8px"></div>
+    <div style="font-size:10px;color:#94a3b8;margin-top:6px">Number badalna ho: "Start session" → "Show QR" → <b>COMPANY phone</b> (WhatsApp → Linked devices → Link a device) se scan. Company number se match na ho to sends block rehte hain.</div>
+  </div>`;
+  setTimeout(waRefreshStatus, 300);
+
   // — Manual UPI activate (search any client) ───────────────────────
   html += `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(234,179,8,.08);border:1px solid rgba(234,179,8,.25);border-radius:8px">
     <div style="font-size:11px;font-weight:700;color:#fde047;margin-bottom:8px;text-transform:uppercase">⚡ Quick Activate (manual)</div>
@@ -3072,6 +3086,43 @@ async function upiManualActivate(){
     if(r.ok&&d.ok){ alert('✅ Activated'); loadGodMode(); }
     else alert('Fail: '+(d.detail||d.error||r.status));
   }catch(e){ alert('Error: '+e.message); }
+}
+
+async function waRefreshStatus(){
+  const el=document.getElementById('waConnStatus'); if(!el) return;
+  try{
+    const r=await fetch('/api/wa/selfhost/status',{headers:abAuthHdr(),cache:'no-store'});
+    const s=await r.json();
+    if(!s||s.configured===false){ el.innerHTML='Status: <b>not configured</b> — VPS pe WAHA_BASE_URL set karo.'; return; }
+    const st=s.status||'UNKNOWN';
+    const em = st==='WORKING'?'✅':(st==='SCAN_QR_CODE'?'📷':(st==='UNREACHABLE'?'⚠️':'⏳'));
+    const linked = s.me_number || ((s.me&&s.me.id)?String(s.me.id).split('@')[0]:'');
+    const biz = (s.business_number||'').replace(/\D/g,'');
+    let line='Status: '+em+' <b>'+st+'</b>';
+    if(linked){
+      const ok = biz && linked.slice(-10)===biz.slice(-10);
+      line += ' · linked: <b style="color:'+(ok?'#25D366':'#f87171')+'">'+linked+'</b>'+(ok?' ✅ company':(biz?' ⚠️ company '+biz+' NAHI — re-scan':''));
+    } else if(biz){ line+=' · target: '+biz; }
+    el.innerHTML=line;
+  }catch(e){ el.innerHTML='Status: <span class="muted">error</span>'; }
+}
+async function waShowQr(){
+  const box=document.getElementById('waQrBox'); if(!box) return;
+  box.innerHTML='<span class="muted">QR load ho raha…</span>';
+  try{
+    const r=await fetch('/api/wa/selfhost/qr',{headers:abAuthHdr()});
+    if(!r.ok){ box.innerHTML='<span class="muted">QR abhi nahi — pehle "Start session" dabao, thoda ruko, phir "Show QR".</span>'; return; }
+    const b=await r.blob(); const u=URL.createObjectURL(b);
+    box.innerHTML='<img alt="WhatsApp link QR" src="'+u+'" style="width:220px;max-width:100%;border-radius:8px;background:#fff;padding:6px"/><div class="muted" style="font-size:10px;margin-top:4px">COMPANY phone: WhatsApp → Linked devices → Link a device → scan</div>';
+  }catch(e){ box.innerHTML='<span class="muted">QR load error</span>'; }
+}
+async function waStartSession(){
+  const box=document.getElementById('waQrBox'); if(box) box.innerHTML='<span class="muted">session start ho rahi…</span>';
+  try{
+    const r=await fetch('/api/wa/selfhost/start',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr())});
+    if(!r.ok){ if(box) box.innerHTML='<span class="muted">Start failed — config check karo.</span>'; return; }
+    setTimeout(function(){ waRefreshStatus(); waShowQr(); }, 1800);
+  }catch(e){ if(box) box.innerHTML='<span class="muted">Start error</span>'; }
 }
 
 async function saveTurnstile(){

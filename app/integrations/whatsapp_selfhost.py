@@ -269,12 +269,19 @@ async def session_status() -> dict[str, Any]:
             resp.raise_for_status()
             data = resp.json() if resp.content else {}
             status = str((data or {}).get("status", "")).upper() or "UNKNOWN"
-            return {
+            me = (data or {}).get("me") or {}
+            out = {
                 "configured": True,
                 "session": sess,
                 "status": status,
                 "working": status == "WORKING",
             }
+            # Expose the LINKED number so admin UIs can verify it's the company
+            # WhatsApp, not an admin's personal one (2026-07-04). me.id = "<num>@c.us".
+            if isinstance(me, dict) and me.get("id"):
+                out["me"] = {"id": me.get("id"), "pushName": me.get("pushName")}
+                out["me_number"] = str(me.get("id")).split("@")[0]
+            return out
     except Exception as e:
         logger.warning("waha session_status err: %s", e)
         return {"configured": True, "session": sess, "status": "UNREACHABLE", "error": str(e)[:120]}
