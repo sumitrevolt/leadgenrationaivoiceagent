@@ -77,6 +77,33 @@ def _integration_ids(client: dict[str, Any] | None) -> list[str]:
     return [x for x in ids if x][:20]
 
 
+# Platforms that reject text-only posts (Postiz "Should have at least one
+# media" error) — media-required, unlike FB/X/LinkedIn which accept text.
+_MEDIA_REQUIRED_PLATFORMS = {"instagram", "tiktok", "pinterest", "youtube"}
+
+
+async def _fetch_integration_platforms() -> dict[str, str]:
+    """id -> identifier (e.g. "instagram") map from Postiz's own integrations
+    list. Best-effort, never raises — empty dict on any failure (caller then
+    sends to all ids unfiltered, same as before this existed)."""
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=15) as cx:
+            r = await cx.get(f"{_base()}/public/v1/integrations", headers=_headers())
+        if r.status_code // 100 == 2:
+            data = r.json()
+            if isinstance(data, list):
+                return {
+                    str(it.get("id")): str(it.get("identifier") or "").lower()
+                    for it in data
+                    if isinstance(it, dict) and it.get("id")
+                }
+    except Exception as e:
+        logger.debug(f"[postiz] fetch integrations skip: {e}")
+    return {}
+
+
 async def upload_media(path: str) -> dict[str, Any] | None:
     """Local file Postiz pe upload (IG/YT/TikTok verified-URL maangte) → media obj."""
     if not enabled() or not path or not os.path.isfile(path):
@@ -122,6 +149,22 @@ async def publish_video(
         if media is None:
             return {"sent": False, "reason": "media upload fail (ya file missing)"}
         media_list = [media]
+    else:
+        # 2026-07-04 fix: Postiz batches all ids into ONE API call — if any
+        # single platform in that batch requires media (Instagram/TikTok/
+        # Pinterest/YouTube all reject text-only posts with "Should have at
+        # least one media"), the WHOLE call failed and NOTHING published,
+        # even platforms like Facebook/X that would've succeeded on their
+        # own. Drop media-required platforms up front for text-only posts
+        # instead of letting one bad apple block everyone else.
+        platform_map = await _fetch_integration_platforms()
+        if platform_map:
+            skipped = [i for i in ids if platform_map.get(i) in _MEDIA_REQUIRED_PLATFORMS]
+            ids = [i for i in ids if i not in skipped]
+            if skipped:
+                logger.info(f"[postiz] text-only post: skipping media-required channels {skipped}")
+        if not ids:
+            return {"sent": False, "reason": "sirf media-required channels the (text-only post)"}
     value = [{"content": (caption or "").strip()[:2000], "image": media_list}]
     # 2026-07-04 fix: Postiz public API rejects posts without settings.post_type
     # ("should not be null or undefined") — every platform needs this. X also
