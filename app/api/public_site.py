@@ -499,6 +499,10 @@ class SignupIn(BaseModel):
     plan: str | None = Field("starter", max_length=40)
     ref_code: str | None = Field("", max_length=80)  # affiliate referral code (optional, from ?ref= URL param)
     website: str | None = Field("", max_length=200)  # honeypot — insaan kabhi nahi bharta
+    # REAL website field (audit 2026-07-04): honeypot ne `website` naam le liya tha,
+    # isliye self-serve signup se kabhi site capture nahi hoti thi -> AUTO_ONBOARD ka
+    # website->KB seed is funnel ke liye dead tha. Optional; SSRF guard fetch-time pe.
+    business_website: str | None = Field("", max_length=200)
 
 
 @router.post("/signup", dependencies=[Depends(rate_limit("signup", 10, 60)), Depends(verify_turnstile)])
@@ -573,6 +577,19 @@ async def public_signup(body: SignupIn, request: Request):
             status_code=409,
             detail="Yeh business already registered lag raha — login karo ya alag naam/phone do.",
         )
+
+    # 4.5) Business website (optional) — AUTO_ONBOARD sweep isse KB seed karta hai.
+    #      Best-effort: bina scheme wale input pe https:// laga do; junk (no dot) skip.
+    try:
+        site = (body.business_website or "").strip()[:200]
+        if site and "." in site:
+            if not site.lower().startswith(("http://", "https://")):
+                site = "https://" + site
+            from app.marketing.clients_store import update_client as _upd
+
+            _upd(cid, website=site)
+    except Exception as e:
+        logger.debug(f"[signup] website save skip (account still ok): {e}")
 
     # 5.5) FREE TRIAL plan — payment ke BINA account (₹0, 7 din, marketing-lite).
     #      Sirf plan="trial" pe client record me trial fields set hote; paid flow
