@@ -62,6 +62,7 @@ a{color:var(--acc)}
   <button id="tab-launch" onclick="show('launch')">🚀 Launch</button>
   <button id="tab-schedule" onclick="show('schedule')">🗓️ Schedule</button>
   <button id="tab-agents" onclick="show('agents')">🤖 Agents</button>
+  <button id="tab-training" onclick="show('training')">🧪 Training</button>
   <button id="tab-scraping" onclick="show('scraping')">🕷️ Scraping</button>
   <button id="tab-approvals" onclick="show('approvals')">📥 Approvals</button>
   <button id="tab-events" onclick="show('events')">📜 Events</button>
@@ -842,6 +843,20 @@ a{color:var(--acc)}
     <label style="margin-top:10px"><input type="checkbox" id="agExec" style="width:auto;max-width:none"> Execute mode (real SAFE tools)</label>
     <button class="btn" id="agRunBtn" onclick="agRun()">🚀 Assign + Run</button>
     <div id="agRunOut"></div>
+  </div>
+</section>
+
+<!-- ================= 13b. TRAINING ================= -->
+<section class="tabsec" id="sec-training">
+  <div class="card">
+    <h2>🧪 Agent Improvement Loop</h2>
+    <div class="mut">"All agents training" ko practical production loop me rakha gaya: RAG → eval → prompt/tool tuning → LoRA later. Ye read-only status hai; koi training job ya paid provider call nahi chalta.</div>
+    <button class="btn2" onclick="trLoad()">🔄 Refresh</button>
+    <div id="trPlanOut" class="mut" style="margin-top:8px">Load ho raha...</div>
+  </div>
+  <div class="card">
+    <h2>Free GPU policy</h2>
+    <div id="trGpuOut" class="mut">Lightning/Kaggle/Colab sirf experiments ke liye.</div>
   </div>
 </section>
 
@@ -2622,6 +2637,46 @@ async function agRun(){
   busy('agRunBtn',0);
 }
 
+/* ---------------- 13b. Training / Agent Improvement Loop ---------------- */
+function trStatusClass(st){
+  st=String(st||'').toLowerCase();
+  if(st==='ready'||st==='active')return 'ok';
+  if(st==='partial'||st==='needs_flag'||st==='wait_for_data')return 'warn';
+  return 'mut';
+}
+async function trLoad(){
+  try{
+    var d=await api('/api/ml/improvement-plan');
+    var counts=d.counts||{}, stack=d.current_stack||{};
+    var h='<div class="result"><div style="font-weight:700;margin-bottom:8px">'+esc(d.name||'Agent Improvement Loop')+'</div>';
+    h+='<div class="mut" style="margin-bottom:8px">'+esc(d.production_rule||'RAG + eval first, LoRA later.')+'</div>';
+    h+='<div>'+pills({
+      qdrant:stack.qdrant_configured?'configured':'fallback',
+      eval_gate:stack.eval_gate_enabled?'ON':'OFF',
+      hard_mode:stack.eval_gate_hard_mode?'ON':'OFF',
+      self_improve:stack.self_improve_enabled?'ON':'OFF',
+      voice_eval:stack.voice_eval_auto?'ON':'OFF',
+      eval_records:counts.eval_records||0,
+      trajectories:counts.trajectory_rows||0
+    })+'</div>';
+    h+='<table><tr><th>Phase</th><th>Status</th><th>Why</th><th>Next action</th></tr>';
+    (d.phases||[]).forEach(function(p){
+      h+='<tr><td><b>'+esc(p.title||p.key)+'</b></td><td class="'+trStatusClass(p.status)+'">'+esc(p.status||'')+'</td><td class="mut">'+esc(p.why||'')+'</td><td>'+esc(p.next_action||'')+'</td></tr>';
+    });
+    h+='</table>';
+    if(d.loop&&d.loop.length){
+      h+='<div style="margin-top:10px" class="mut"><b>Loop:</b> '+d.loop.map(esc).join(' → ')+'</div>';
+    }
+    h+='</div>';
+    $('trPlanOut').innerHTML=h;
+    var gp=d.free_gpu_policy||{};
+    var gh='<div class="result"><div>'+pills({recommended_order:(gp.recommended_order||[]).join(' > ')||'Lightning > Kaggle > Colab'})+'</div>';
+    gh+='<h3>Use for</h3><div class="mut">'+(gp.use_for||[]).map(esc).join(' · ')+'</div>';
+    gh+='<h3>Do not use for</h3><div class="warn">'+(gp.do_not_use_for||[]).map(esc).join(' · ')+'</div></div>';
+    $('trGpuOut').innerHTML=gh;
+  }catch(e){warnBox('trPlanOut','Training plan fail: '+e.message)}
+}
+
 /* ---------------- 14. Scraping ---------------- */
 async function srNiche(){
   if(!confirm('Niche-rotation scrape chalaye? (Places API quota use hota)'))return;
@@ -3345,11 +3400,11 @@ async function ffDel(key){
   }catch(e){toast('Delete fail (super-admin needed?): '+e.message);}
 }
 
-var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList,cadence:function(){cdLoad();inboxLoad();},fflags:ffLoad,postcall:pcLoad};
+var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agLoad,training:trLoad,scraping:srFlags,approvals:function(){apCostStatus();apSelfImprovePending();apLoad();},events:function(){evLoad();evStartSSE();},loyalty:lyStats,nps:npsStats,webhooks:whList,cadence:function(){cdLoad();inboxLoad();},fflags:ffLoad,postcall:pcLoad};
 var _origShow=show;
 show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
 var start=(location.hash||'').replace('#','');
-var valid=['today','schedule','agents','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','lifecycle','contentauto','fde','telephony','postcall','loyalty','nps','webhooks','reviewmon','clientrep','fflags'];
+var valid=['today','schedule','agents','training','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','lifecycle','contentauto','fde','telephony','postcall','loyalty','nps','webhooks','reviewmon','clientrep','fflags'];
 show(valid.indexOf(start)>=0?start:'today');
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>

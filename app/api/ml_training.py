@@ -3,6 +3,9 @@ ML Training API Endpoints
 Manage and monitor ML training for the voice agent
 """
 
+import os
+from pathlib import Path
+
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
 
@@ -16,6 +19,8 @@ from app.ml.feedback_loop import FeedbackLoop
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+DATA_DIR = Path(os.environ.get("DATA_DIR", "data"))
 
 # Whole router is admin-only: every route controls or feeds the voice-agent
 # training pipeline (Vertex/brain train-now, scheduler start/stop, feedback
@@ -204,6 +209,137 @@ async def get_data_statistics():
     except Exception as e:
         logger.warning(f"Data stats not available yet: {e}")
         return {"success": True, "stats": {}, "note": "No training data yet."}
+
+
+def _file_count(pattern: str) -> int:
+    try:
+        return len(list(DATA_DIR.glob(pattern)))
+    except Exception:
+        return 0
+
+
+def _jsonl_count(path: Path, limit: int = 5000) -> int:
+    try:
+        if not path.exists():
+            return 0
+        lines = path.read_text(encoding="utf-8", errors="ignore").splitlines()
+        return len([line for line in lines[-limit:] if line.strip()])
+    except Exception:
+        return 0
+
+
+def _flag_on(name: str) -> bool:
+    return os.environ.get(name, "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+@router.get("/improvement-plan")
+async def get_agent_improvement_plan():
+    """Practical project plan for improving agents without paid training dependency.
+
+    This endpoint is intentionally read-only and local-only: no network probes, no
+    Celery enqueue, no Vertex/paid provider call. It turns the vague "train all
+    agents" idea into the production-safe loop this repo should actually follow:
+    RAG -> eval gate -> prompt/tool fixes -> LoRA export only after enough data.
+    """
+    try:
+        from app.agents import eval_gate
+        from app.config import settings
+    except Exception as e:
+        logger.warning("Improvement plan degraded: %s", e)
+        eval_gate = None  # type: ignore[assignment]
+        settings = None  # type: ignore[assignment]
+
+    eval_summary = {}
+    try:
+        eval_summary = eval_gate.summary() if eval_gate else {}
+    except Exception:
+        eval_summary = {}
+
+    qdrant_configured = bool((getattr(settings, "qdrant_url", "") or "").strip())
+    counts = {
+        "eval_records": int(eval_summary.get("total_records") or 0),
+        "self_improve_runs": _jsonl_count(DATA_DIR / "self_improve_runs.jsonl"),
+        "self_improve_queue": _jsonl_count(DATA_DIR / "self_improve_queue.jsonl"),
+        "trajectory_rows": _jsonl_count(DATA_DIR / "agent_trajectories.jsonl"),
+        "brain_training_reports": _file_count("brain_training/latest_*.json"),
+    }
+    enough_for_lora = (
+        counts["eval_records"] + counts["self_improve_runs"] + counts["trajectory_rows"] >= 500
+    )
+
+    phases = [
+        {
+            "key": "rag_first",
+            "title": "RAG first",
+            "status": "ready" if qdrant_configured else "partial",
+            "why": "Client/niche KB, pricing, objections, scripts aur FAQs ko retrieval se ground karo.",
+            "next_action": (
+                "Qdrant configured hai; next KB coverage aur retrieval eval badhao."
+                if qdrant_configured
+                else "QDRANT_URL set nahi; local fallback chalega, production semantic KB ke liye Qdrant arm karo."
+            ),
+        },
+        {
+            "key": "eval_loop",
+            "title": "Evaluation loop",
+            "status": "ready" if (eval_gate and eval_gate.enabled()) else "needs_flag",
+            "why": "Har change ko scorecard se judge karo: voice quality, RAG faithfulness, lead quality, latency.",
+            "next_action": (
+                "Eval gate ON hai; baselines build hone do."
+                if (eval_gate and eval_gate.enabled())
+                else "EVAL_GATE=1 se observability mode ON karo; hard mode baad me."
+            ),
+        },
+        {
+            "key": "prompt_tool_tuning",
+            "title": "Prompt + tool tuning",
+            "status": "active",
+            "why": "Is project me fastest gain prompts, fallback chain, tool routing, retry/cooldown aur guardrails se aayega.",
+            "next_action": "Rejected eval/self-improve cases ko golden examples me convert karo.",
+        },
+        {
+            "key": "lora_later",
+            "title": "LoRA later",
+            "status": "ready" if enough_for_lora else "wait_for_data",
+            "why": "Fine-tuning tabhi useful jab 500-2000 high-quality accepted examples ho.",
+            "next_action": (
+                "Dataset export experiment Colab/Kaggle/Lightning pe chala sakte ho."
+                if enough_for_lora
+                else "Abhi LoRA mat chalao; pehle accepted examples aur eval history collect karo."
+            ),
+        },
+    ]
+
+    free_gpu_policy = {
+        "use_for": ["LoRA experiments", "batch eval", "model comparison", "dataset cleanup"],
+        "do_not_use_for": ["production runtime dependency", "paid Vertex-first training", "ungated all-agent retraining"],
+        "recommended_order": ["Lightning AI", "Kaggle", "Colab"],
+    }
+
+    return {
+        "success": True,
+        "name": "Agent Improvement Loop",
+        "production_rule": "RAG + eval + prompt/tool fixes first; LoRA only after enough good examples.",
+        "current_stack": {
+            "qdrant_configured": qdrant_configured,
+            "eval_gate_enabled": bool(eval_gate and eval_gate.enabled()),
+            "eval_gate_hard_mode": bool(eval_gate and eval_gate.hard_mode()),
+            "self_improve_enabled": _flag_on("SELF_IMPROVE_LOOP"),
+            "voice_eval_auto": _flag_on("VOICE_EVAL_AUTO"),
+        },
+        "counts": counts,
+        "phases": phases,
+        "free_gpu_policy": free_gpu_policy,
+        "loop": [
+            "real interactions/logs",
+            "AI/human scoring",
+            "golden examples",
+            "RAG update",
+            "prompt/tool fix",
+            "eval gate",
+            "optional LoRA export",
+        ],
+    }
 
 
 @router.post("/ab-test")
