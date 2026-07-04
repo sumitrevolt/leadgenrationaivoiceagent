@@ -49,9 +49,9 @@ EXPECTED_GAP_MIN = {
     "content": 30 * 60,
     "digest": 30 * 60,
     "prospect": 30 * 60,
-    "email_outreach": 90 * 60,  # hourly 9am-7pm
+    "email_outreach": 24 * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace (90h was a dead-man blind spot)
     "pipeline": 30 * 60,
-    "email_followup": 90 * 60,  # hourly 9am-7pm
+    "email_followup": 24 * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace
     "kb_refresh": 8 * 24 * 60,  # weekly Sun
     "midday_prospect": 30 * 60,  # daily 14:30
     "evening_wrap": 30 * 60,
@@ -66,6 +66,7 @@ EXPECTED_GAP_MIN = {
     "evening_prospect": 30 * 60,  # daily 17:00 IST: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
     "self_improve": 30,  # ~20-min tick; 30-min grace — watchdog now flags stale loop (dead-man trio complete)
     "platform_dial": 30 * 60,  # daily 11:30 IST: self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
+    "call_kpi_digest": 30 * 60,  # daily 19:30 IST: Lekha call-KPI digest
 }
 
 

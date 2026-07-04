@@ -112,6 +112,15 @@ class GoogleMapsScraper:
                     resp = await client.post(url, headers=headers, json=body, timeout=30.0)
                     if resp.status_code != 200:
                         logger.warning(f"Places(New) HTTP {resp.status_code}: {resp.text[:160]}")
+                        # "places" is in integration_health.KNOWN but was never
+                        # instrumented — a dead/expired key was invisible on the
+                        # integrations dashboard (audit 2026-07-04).
+                        try:
+                            from app.platform.integration_health import record_failure
+
+                            record_failure("places", f"http_{resp.status_code}")
+                        except Exception:
+                            pass
                         break
                     data = resp.json()
                     places = data.get("places", []) or []
@@ -147,7 +156,19 @@ class GoogleMapsScraper:
                     await asyncio.sleep(2)  # token activation delay
         except Exception as e:
             logger.warning(f"Places(New) search failed: {e}")
+            try:
+                from app.platform.integration_health import record_failure
+
+                record_failure("places", str(e)[:80])
+            except Exception:
+                pass
             return []
+        try:
+            from app.platform.integration_health import record_success
+
+            record_success("places")
+        except Exception:
+            pass
         logger.info(f"Found {len(leads)} businesses via Places API (New)")
         return leads[:max_results]
 

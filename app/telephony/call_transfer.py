@@ -237,12 +237,14 @@ async def request_transfer(call_context: dict[str, Any], owner_phone: str) -> di
         }
         _log(rec)
 
-        # AI staff feed (best-effort — Swara dashboard me dikhe)
+        # AI staff feed (best-effort). Attributed to Raksha — transfer is HER
+        # role (team.py roster); logging as swara left raksha with zero events
+        # ever, indistinguishable from a broken agent (audit 2026-07-04).
         try:
             from app.platform import team
 
             team.log_event(
-                "swara",
+                "raksha",
                 "call_transfer",
                 f"Live transfer → owner {owner10} ({'connected' if leg.get('initiated') else 'draft'})",
             )

@@ -207,13 +207,15 @@ class MLTrainingScheduler:
             # 4. Prompt optimization
             # 5. Agent Brain self-training
 
-            # Full intent classifier training
-            intent_result = await self.auto_trainer.train_intent_classifier(force=True)
+            # Full intent classifier training (no force kwarg — method
+            # signature takes none; passing one raised TypeError and made
+            # every weekly deep-training run fail silently)
+            intent_result = await self.auto_trainer.train_intent_classifier()
             report.models_trained.append("intent_classifier")
             report.metrics["intent_classifier"] = intent_result
 
             # Full lead scorer training
-            scorer_result = await self.auto_trainer.train_lead_scorer(force=True)
+            scorer_result = await self.auto_trainer.train_lead_scorer()
             report.models_trained.append("lead_scorer")
             report.metrics["lead_scorer"] = scorer_result
 

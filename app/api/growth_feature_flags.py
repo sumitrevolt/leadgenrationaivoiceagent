@@ -63,8 +63,28 @@ async def upsert_feature_flag(body: FeatureFlagIn, _user=Depends(require_super_a
         enabled_tenants=[str(t).strip() for t in (body.enabled_tenants or []) if str(t).strip()],
         metadata=body.metadata or {},
     )
+    # Audit trail (audit 2026-07-04): a super-admin action that changes runtime
+    # behavior previously left ZERO who/when/old-state trail (Redis-only write).
+    old = None
+    try:
+        prev = await feature_flags.get_flag(key)
+        old = prev.to_dict() if prev else None
+    except Exception:
+        pass
     if not await feature_flags.set_flag(flag):
         raise HTTPException(status_code=503, detail="could not persist flag (storage unavailable)")
+    try:
+        from app.platform.team import log_event
+
+        log_event(
+            "kavya",
+            "feature_flag_upsert",
+            f"Runtime flag '{key}' -> {body.state}"
+            + (f" (was {old.get('state')})" if old else " (new)"),
+            meta={"key": key, "old": old, "new": flag.to_dict()},
+        )
+    except Exception:
+        pass
     return {"status": "saved", "flag": flag.to_dict()}
 
 
@@ -98,8 +118,25 @@ async def get_feature_flag(key: str, _user=Depends(require_admin)):
 async def delete_feature_flag(key: str, _user=Depends(require_super_admin)):
     from app.infrastructure.feature_flags import feature_flags
 
+    old = None
+    try:
+        prev = await feature_flags.get_flag(key)
+        old = prev.to_dict() if prev else None
+    except Exception:
+        pass
     if not await feature_flags.delete_flag(key):
         raise HTTPException(status_code=404, detail="flag not found or storage unavailable")
+    try:
+        from app.platform.team import log_event
+
+        log_event(
+            "kavya",
+            "feature_flag_delete",
+            f"Runtime flag '{key}' deleted",
+            meta={"key": key, "old": old},
+        )
+    except Exception:
+        pass
     return {"status": "deleted", "key": key}
 
 

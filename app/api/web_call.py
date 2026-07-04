@@ -1079,6 +1079,16 @@ async def web_call_ws(websocket: WebSocket) -> None:
         except Exception:
             pass
 
+    # Abuse cap (audit 2026-07-04): the per-IP limiter only throttles NEW
+    # connections — one open socket could pump unlimited turns through the
+    # free LLM/STT chain. One message ≈ one turn (audio arrives as a single
+    # base64 blob per utterance), so 300 is generous for any real demo.
+    try:
+        _max_msgs = int(os.environ.get("WEBCALL_MAX_MSGS", "300") or 300)
+    except Exception:
+        _max_msgs = 300
+    _msg_count = 0
+
     try:
         while True:
             try:
@@ -1101,6 +1111,24 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 continue
 
             mtype = data.get("type", "user")
+
+            if mtype not in ("ping", "end"):
+                _msg_count += 1
+                if _msg_count > _max_msgs:
+                    logger.warning(
+                        "web-call: session message cap (%d) reached — closing.", _max_msgs
+                    )
+                    _persist_session(session)
+                    try:
+                        await websocket.send_json(
+                            {
+                                "type": "error",
+                                "text": "Test session limit ho gayi — nayi session shuru karein.",
+                            }
+                        )
+                    except Exception:
+                        pass
+                    break
 
             # Update session context from any message that carries it.
             if data.get("niche"):

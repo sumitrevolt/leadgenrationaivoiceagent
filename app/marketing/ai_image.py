@@ -125,6 +125,12 @@ async def fetch_image_bytes(
         if r.status_code == 200 and len(r.content) > 500:
             _br.record_success()
             try:
+                from app.platform.integration_health import record_success
+
+                record_success("pollinations")
+            except Exception:
+                pass
+            try:
                 os.makedirs(_CACHE_DIR, exist_ok=True)
                 with open(path, "wb") as f:
                     f.write(r.content)
@@ -132,11 +138,25 @@ async def fetch_image_bytes(
                 pass
             return r.content
         _br.record_failure()
+        _record_ih_failure(f"http_{r.status_code}")
         logger.warning(f"pollinations image {r.status_code}: {r.text[:120]}")
     except Exception as e:
         _br.record_failure()
+        _record_ih_failure(str(e)[:80])
         logger.warning(f"pollinations fetch failed: {e}")
     return None
+
+
+def _record_ih_failure(note: str) -> None:
+    """Mirror breaker failures onto the integrations dashboard — "pollinations"
+    was in integration_health.KNOWN but never instrumented (audit 2026-07-04).
+    Never raises."""
+    try:
+        from app.platform.integration_health import record_failure
+
+        record_failure("pollinations", note)
+    except Exception:
+        pass
 
 
 async def upload_media(data: bytes, filename: str = "photo.jpg") -> str | None:

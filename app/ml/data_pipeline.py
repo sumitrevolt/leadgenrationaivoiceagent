@@ -12,7 +12,8 @@ Features:
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field
+import re
+from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
@@ -21,6 +22,20 @@ from typing import Any
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+# PII scrubbing for training exports (DPDP: never ship raw phone/email into
+# fine-tune datasets — transcripts often contain spoken numbers).
+_PII_EMAIL_RE = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+_PII_PHONE_RE = re.compile(r"(?:\+?91[\s-]?)?[6-9]\d{4}[\s-]?\d{5}|\b\d{10,12}\b")
+
+
+def scrub_pii(text: str) -> str:
+    """Mask emails and Indian phone numbers in free text (best-effort regex)."""
+    if not text:
+        return text
+    text = _PII_EMAIL_RE.sub("[email]", text)
+    text = _PII_PHONE_RE.sub("[phone]", text)
+    return text
 
 
 class ConversationOutcome(Enum):
@@ -425,7 +440,38 @@ class ConversationDataPipeline:
                 if len(data.get("turns", [])) < min_turns:
                     continue
 
-                # Reconstruct record (simplified)
+                # Reconstruct turns + features too — trainers consume
+                # record.turns (intent classifier) and record.features
+                # (lead scorer); dropping them silently starves training.
+                turns = []
+                for t in data.get("turns", []):
+                    try:
+                        ts = t.get("timestamp")
+                        turns.append(
+                            ConversationTurn(
+                                role=t.get("role", ""),
+                                content=t.get("content", ""),
+                                timestamp=(
+                                    datetime.fromisoformat(ts) if ts else datetime.now()
+                                ),
+                                intent=t.get("intent"),
+                                confidence=t.get("confidence", 0.0),
+                                entities=t.get("entities") or {},
+                                response_time_ms=t.get("response_time_ms", 0),
+                            )
+                        )
+                    except Exception:
+                        continue
+
+                feat_raw = data.get("features") or {}
+                known_fields = {f.name for f in fields(ConversationFeatures)}
+                try:
+                    features = ConversationFeatures(
+                        **{k: v for k, v in feat_raw.items() if k in known_fields}
+                    )
+                except Exception:
+                    features = ConversationFeatures()
+
                 record = ConversationRecord(
                     conversation_id=data["conversation_id"],
                     call_id=data["call_id"],
@@ -435,7 +481,10 @@ class ConversationDataPipeline:
                     lead_company=data["lead_company"],
                     lead_industry=data["lead_industry"],
                     lead_city=data["lead_city"],
+                    turns=turns,
+                    features=features,
                     outcome=ConversationOutcome(data["outcome"]),
+                    outcome_details=data.get("outcome_details") or {},
                     conversation_embedding=data.get("conversation_embedding", []),
                 )
 
@@ -481,8 +530,14 @@ class ConversationDataPipeline:
                         if i + 1 < len(record.turns):
                             entry = {
                                 "messages": [
-                                    {"role": "user", "content": record.turns[i].content},
-                                    {"role": "assistant", "content": record.turns[i + 1].content},
+                                    {
+                                        "role": "user",
+                                        "content": scrub_pii(record.turns[i].content),
+                                    },
+                                    {
+                                        "role": "assistant",
+                                        "content": scrub_pii(record.turns[i + 1].content),
+                                    },
                                 ]
                             }
                             f.write(json.dumps(entry, ensure_ascii=False) + "\n")

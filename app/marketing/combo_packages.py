@@ -7,7 +7,7 @@ Product 3 = AI Automated Marketing + AI Voice Calling Agent — ek subscription 
 PRICING MODEL:
   - Combo Starter : Mktg Starter  + Voice Band A = ₹6,998 alag-alag → ₹4,999/mo  (save ₹1,999)
   - Combo Growth  : Mktg Growth   + Voice Band B = ₹12,998 alag-alag → ₹9,999/mo  (save ₹2,999)
-  - Combo Pro     : Mktg Advanced + Voice Band C = ₹26,998 alag-alag → ₹21,999/mo (save ₹4,999)
+  - Combo Pro     : Mktg Advanced + Voice Band C = ₹25,998 alag-alag → ₹21,999/mo (save ₹3,999)
   - Annual        : 10× monthly (2 mahine FREE)
   - Free Pilot    : 7 din / 50 voice calls (marketing features full, zero payment)
 

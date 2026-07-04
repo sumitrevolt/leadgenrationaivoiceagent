@@ -76,7 +76,9 @@ JOB_META: dict[str, dict[str, str]] = {
 
 # Jobs jinhe run-due recovery kabhi auto-enqueue NAHI karega (side-effect heavy:
 # outbound calls/emails apni window ke bahar dobara nahi bhejne chahiye).
-RUN_DUE_EXCLUDE = {"platform_dial", "email_outreach", "email_followup"}
+# "digest" bhi: uske summary-email step me per-day dedupe nahi hai — recovery
+# double-fire = duplicate internal digest email (audit 2026-07-04).
+RUN_DUE_EXCLUDE = {"platform_dial", "email_outreach", "email_followup", "digest"}
 
 
 def _now_iso() -> str:

@@ -71,15 +71,49 @@ async def _via_crawl4ai(url: str) -> dict[str, Any] | None:
         return None
 
 
+def _url_is_public(url: str) -> bool:
+    """SSRF guard (audit 2026-07-04): client['website'] can originate from
+    scraped external sources (Maps/OSM), and this fetch runs unattended in the
+    AUTO_ONBOARD/kb_refresh sweeps — so block non-http schemes and any host
+    resolving to private/loopback/metadata IPs, same as every sibling fetcher."""
+    try:
+        from urllib.parse import urlparse
+
+        from app.marketing.website_auditor import _resolve_is_public
+
+        p = urlparse((url or "").strip())
+        if p.scheme not in ("http", "https") or not p.hostname:
+            return False
+        return _resolve_is_public(p.hostname)
+    except Exception:
+        return False
+
+
 async def _via_trafilatura(url: str) -> dict[str, Any]:
     try:
         import httpx
 
         from app.lead_scraper.web_extract import clean_text, find_contacts
 
-        async with httpx.AsyncClient(follow_redirects=True, timeout=20.0) as client:
-            resp = await client.get(url, headers={"User-Agent": _UA})
-        if resp.status_code != 200:
+        # follow_redirects=False + manual hop revalidation — a public host
+        # 302'ing to an internal target must not be followed blindly.
+        resp = None
+        cur = url
+        async with httpx.AsyncClient(follow_redirects=False, timeout=20.0) as client:
+            for _hop in range(4):
+                resp = await client.get(cur, headers={"User-Agent": _UA})
+                if resp.status_code not in (301, 302, 303, 307, 308):
+                    break
+                nxt = resp.headers.get("location", "")
+                if not nxt:
+                    break
+                from urllib.parse import urljoin
+
+                cur = urljoin(cur, nxt)
+                if not _url_is_public(cur):
+                    logger.info("deep_extract redirect to non-public target blocked: %s", cur)
+                    return _empty(url)
+        if resp is None or resp.status_code != 200:
             return _empty(url)
         html = resp.text
         text = clean_text(html)
@@ -101,6 +135,9 @@ async def _via_trafilatura(url: str) -> dict[str, Any]:
 async def extract_url(url: str) -> dict[str, Any]:
     """Deep-extract a page → markdown + contacts. Crawl4AI if present, else trafilatura."""
     if not (url or "").strip():
+        return _empty(url)
+    if not _url_is_public(url):
+        logger.info("deep_extract blocked non-public/invalid url: %s", (url or "")[:120])
         return _empty(url)
     via = await _via_crawl4ai(url)
     if via and via.get("ok"):

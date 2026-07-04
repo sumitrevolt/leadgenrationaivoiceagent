@@ -54,7 +54,7 @@ can_restart() {
 note_restart() { echo "$now" >> "$STATE/rl_$1"; }
 
 # --- 1) container guard (rate-limited) ---
-for name in leadgen_app leadgen_worker leadgen_scheduler leadgen_db leadgen_redis leadgen_pgbouncer; do
+for name in leadgen_app leadgen_worker leadgen_worker_heavy leadgen_scheduler leadgen_db leadgen_redis leadgen_redis_cache leadgen_pgbouncer leadgen_qdrant; do
   status=$(docker inspect -f '{{.State.Status}}' "$name" 2>/dev/null)
   health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$name" 2>/dev/null)
   [ -z "$status" ] && continue
