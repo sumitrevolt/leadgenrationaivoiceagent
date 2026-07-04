@@ -156,6 +156,32 @@ async def apply_qualified_downstream(
             )
     except Exception:
         pass
+    # Post-call WhatsApp to the interested lead (audit 2026-07-04 owner-ask:
+    # "agar customer interested hai to uske WhatsApp pe message bhejo call ke
+    # baad"). The lead just spoke with our AI and showed interest, so a follow-up
+    # to their number with the trial link is consented/transactional, not bulk.
+    # Best-effort, no-ops until the WA engine is armed. Gated POST_CALL_WHATSAPP
+    # (default ON). Never raises.
+    if (
+        (phone or "").strip()
+        and os.environ.get("POST_CALL_WHATSAPP", "1").strip().lower() not in ("0", "false", "no")
+    ):
+        try:
+            from app.integrations.whatsapp import get_whatsapp_sender
+
+            _biz = client_name or "aapke business"
+            _msg = (
+                f"Namaste! Abhi humari AI se aapki baat hui — dhanyavaad. 🙏\n\n"
+                f"{_biz} ke liye LeadGen AI: roz ki marketing posts, Google par upar "
+                "aana, aur leads — sab automatic.\n\n"
+                "FREE 7-din trial (koi card nahi): https://leadsgenai.in/start\n"
+                "Koi sawaal ho to isi number pe reply karein."
+            )
+            _sender = get_whatsapp_sender()
+            if _sender is not None:
+                await _sender.send_text_message(phone, _msg)
+        except Exception:
+            pass
 
 
 def emit_call_report(

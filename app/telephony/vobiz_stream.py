@@ -2926,8 +2926,52 @@ class VobizStreamSession:
                     )
                 except Exception:
                     pass
+            # Swara self-improve cadence (audit 2026-07-04 owner-ask: "har 10 call
+            # ke baad Swara self-improve ho"). Increment a durable counter; every
+            # Nth REAL conversation (user actually spoke) enqueue the existing
+            # voice trainer job on the worker (Meera: agent_tester scorecard +
+            # eval_gate + tuning suggestions). Never trains inline; never raises.
+            try:
+                if len([m for m in self.hist if m.get("role") == "user"]) > 0:
+                    self._bump_selfimprove_counter()
+            except Exception as e:
+                logger.debug(f"[vobiz-stream] self-improve counter skip: {e}")
         except Exception as e:
             logger.debug(f"[vobiz-stream] auto-qualify skip: {e}")
+
+    def _bump_selfimprove_counter(self) -> None:
+        """Every VOICE_SELFIMPROVE_EVERY (default 10) real calls, enqueue the
+        voice trainer staff job. Durable counter in data/ so it survives
+        restarts. Best-effort — a broker hiccup just delays the next cycle."""
+        every = 10
+        try:
+            every = max(1, int(os.environ.get("VOICE_SELFIMPROVE_EVERY", "10")))
+        except Exception:
+            every = 10
+        path = os.path.join("data", "voice_selfimprove_counter.json")
+        try:
+            n = 0
+            if os.path.exists(path):
+                with open(path, encoding="utf-8") as f:
+                    n = int((json.load(f) or {}).get("calls", 0))
+            n += 1
+            os.makedirs("data", exist_ok=True)
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"calls": n}, f)
+            if n % every == 0:
+                logger.info(f"[vobiz-stream] self-improve trigger — {n} calls, enqueuing trainer")
+                try:
+                    from app.worker import celery_app
+
+                    celery_app.send_task(
+                        "app.tasks.staff_jobs.run_staff_job",
+                        args=("trainer",),
+                        ignore_result=True,
+                    )
+                except Exception as e:
+                    logger.debug(f"[vobiz-stream] trainer enqueue skip: {e}")
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] self-improve counter io skip: {e}")
 
     def _save_recording(self) -> None:
         """Mixed conversation WAV on hangup (VOBIZ_CALL_RECORD=1).
