@@ -2653,6 +2653,25 @@ class VobizStreamSession:
             f"unflushed_silence_ms={self._silence_ms:.0f} speech_segments={self._speech_segments} "
             f"barge_count={self._interruptions}"
         )
+        # 2026-07-04 test call: Vobiz's relay sent the start event then ZERO
+        # media for 49s (their auth-service 401'd minutes earlier) — the caller
+        # heard the bot but the bot was deaf, and no-input politely closed the
+        # call. That's a WASTED dial that pattern-matches "no answer" unless
+        # someone is told. Alert loudly so a Vobiz-outage day is visible before
+        # a 200-call batch burns through leads. Never raises.
+        if self._media_event_count == 0 and dur > 10:
+            try:
+                from app.platform import integration_health, ops_alerts
+
+                integration_health.record_failure("vobiz", "zero_media_call")
+                ops_alerts._ntfy(
+                    "Vobiz zero-media call",
+                    f"Call {self.stream_sid} connected {dur:.0f}s but Vobiz relayed ZERO "
+                    "inbound audio (provider-side). Agar aaj campaign chal raha hai to "
+                    "pause karke Vobiz status check karo — yeh dials waste ho rahe hain.",
+                )
+            except Exception as e:
+                logger.debug(f"[vobiz-stream] zero-media alert skip: {e}")
         self._save_recording()
         self._persist_transcript(ended, dur, turns)
         # Minute metering + call.completed webhook (stream path has no CallManager ctx).

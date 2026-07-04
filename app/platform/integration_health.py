@@ -37,6 +37,7 @@ KNOWN = (
     "imap",
     "exotel",
     "twilio",
+    "vobiz",  # active telephony provider — zero-media relay flakes (audit 2026-07-04)
     "places",
     "whatsapp",
     "pollinations",
