@@ -470,24 +470,30 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
         return _pick_spintax(subject), text, text
 
 
-def _valid_email(addr: str) -> bool:
+def _valid_email(addr: str, check_mx: bool = True) -> bool:
     a = (addr or "").strip()
     if not ("@" in a and "." in a.split("@")[-1] and len(a) >= 6):
         return False
     # Deliverability gate (syntax + MX) — keeps bounce rate <2% so Gmail/Outlook don't
     # reject our bulk mail and the sending domain stays clean. Defensive: if
     # email-validator isn't installed, the basic check above is enough.
+    # check_mx=False (dashboard/stats callers) skips the real DNS MX lookup — a
+    # per-prospect network round-trip that made outreach_stats() take 151s across
+    # ~2k prospects (admin_dashboard 0-clients incident, 2026-07-04: this call runs
+    # on EVERY dashboard load, not just at send-time). Send-decision call sites keep
+    # the default True.
     try:
         import os
 
         from app.lead_scraper.email_verify import verify
 
-        check_mx = os.getenv("OUTREACH_VERIFY_MX", "1").strip().lower() not in {
-            "0",
-            "false",
-            "no",
-            "off",
-        }
+        if check_mx:
+            check_mx = os.getenv("OUTREACH_VERIFY_MX", "1").strip().lower() not in {
+                "0",
+                "false",
+                "no",
+                "off",
+            }
         r = verify(a, check_mx=check_mx)
         if "absent" not in r.get("reason", ""):  # verifier actually ran -> trust it
             return bool(r.get("ok"))
@@ -947,7 +953,9 @@ def outreach_stats() -> dict[str, Any]:
             rows = prospector.list_prospects(limit=500)
         stats["total"] = len(rows)
         for r in rows:
-            has_email = _valid_email(str(r.get("email") or ""))
+            # check_mx=False — this is a dashboard COUNT, not a send decision; the
+            # real MX gate still runs at actual send-time (line ~568 above).
+            has_email = _valid_email(str(r.get("email") or ""), check_mx=False)
             if has_email:
                 stats["with_email"] += 1
             if r.get("emailed_at"):
@@ -1014,7 +1022,8 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
             rows = prospector.list_prospects(limit=1000)
         emailed_rows = []
         for r in rows:
-            has_email = _valid_email(str(r.get("email") or ""))
+            # check_mx=False — dashboard COUNT, not a send decision (see outreach_stats).
+            has_email = _valid_email(str(r.get("email") or ""), check_mx=False)
             if has_email:
                 out["summary"]["with_email"] += 1
             ea = str(r.get("emailed_at") or "")
