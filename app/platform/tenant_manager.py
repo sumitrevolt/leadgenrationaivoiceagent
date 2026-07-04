@@ -83,9 +83,6 @@ class TenantManager:
     def __init__(self):
         self.tenants: dict[str, Tenant] = {}
         self.campaign_managers: dict[str, CampaignManager] = {}
-
-        # Initialize platform's own lead generation
-        self.platform_campaign = CampaignManager()
         self.scraper = LeadScraperManager()
         self.whatsapp = get_whatsapp_sender()  # dual-engine: self-host (WAHA) or Cloud API
         self.email = EmailSender()

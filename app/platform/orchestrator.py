@@ -13,7 +13,6 @@ import asyncio
 from dataclasses import dataclass
 from datetime import datetime
 
-from app.automation.campaign_manager import CampaignManager
 from app.automation.scheduler import CallScheduler
 from app.integrations.email_sender import EmailSender
 from app.integrations.whatsapp import get_whatsapp_sender
@@ -91,7 +90,6 @@ class PlatformOrchestrator:
     def __init__(self):
         # Core components
         self.tenant_manager = TenantManager()
-        self.platform_campaign = CampaignManager()
         self.scheduler = CallScheduler()
         self.scraper = LeadScraperManager()
         self.call_manager = CallManager()
