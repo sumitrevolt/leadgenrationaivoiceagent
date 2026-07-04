@@ -287,23 +287,72 @@ async def session_status() -> dict[str, Any]:
         return {"configured": True, "session": sess, "status": "UNREACHABLE", "error": str(e)[:120]}
 
 
-async def start_session() -> dict[str, Any]:
-    """Best-effort start/relink of the session. Never raises.
+def _default_config() -> dict[str, Any]:
+    """Session config used on (re)create — mirrors the container's own
+    WHATSAPP_HOOK_URL/EVENTS env so a manually re-created session still wires
+    to our inbound webhook."""
+    token = (
+        os.getenv("WAHA_WEBHOOK_TOKEN", "") or getattr(settings, "waha_webhook_token", "") or ""
+    ).strip()
+    base = (getattr(settings, "public_base_url", "") or "https://leadsgenai.in").rstrip("/")
+    return {
+        "webhooks": [
+            {"url": f"{base}/api/wa/selfhost/webhook?token={token}", "events": ["message"]}
+        ]
+    }
 
-    After this the session goes to SCAN_QR_CODE — fetch the QR and scan it on the phone
-    holding the business number to link it.
+
+async def start_session() -> dict[str, Any]:
+    """Idempotent, self-healing start/relink of the session. Never raises.
+
+    2026-07-04: the previous implementation always POSTed the deprecated
+    singular ``/api/sessions/start`` — if the session was ALREADY running
+    (e.g. someone linked it directly via the WAHA API, or a second dashboard
+    click), WAHA replies 422 "Session 'default' is already started" and the
+    dashboard showed a scary "Start failed". Now:
+      - already WORKING/SCAN_QR_CODE/STARTING -> success no-op (nothing to do)
+      - missing/NOT_CREATED -> create (with our webhook config) then start
+      - FAILED -> WAHA's own guidance ("restart, if that doesn't help logout
+        + start again") -> logout + delete + recreate + start
+      - STOPPED -> start directly
+
+    After this the session should be in SCAN_QR_CODE (or WORKING if already
+    linked) — fetch the QR and scan it on the phone holding the business number.
     """
     base = _base_url()
     if not base:
         return {"ok": False, "error": "selfhost_not_configured"}
     sess = _session()
+    cur = await session_status()
+    st = str(cur.get("status") or "").upper()
+    if st in ("WORKING", "SCAN_QR_CODE", "STARTING"):
+        return {"ok": True, "status": st, "already_running": True}
     try:
         async with httpx.AsyncClient() as client:
+            if st in ("", "UNKNOWN", "NOT_CREATED"):
+                await client.post(
+                    f"{base}/api/sessions",
+                    headers=_headers(),
+                    json={"name": sess, "config": _default_config()},
+                    timeout=15.0,
+                )
+            elif st == "FAILED":
+                for path, method in (
+                    (f"/api/sessions/{sess}/logout", "post"),
+                    (f"/api/sessions/{sess}", "delete"),
+                ):
+                    try:
+                        await getattr(client, method)(f"{base}{path}", headers=_headers(), timeout=10.0)
+                    except Exception:
+                        pass
+                await client.post(
+                    f"{base}/api/sessions",
+                    headers=_headers(),
+                    json={"name": sess, "config": _default_config()},
+                    timeout=15.0,
+                )
             resp = await client.post(
-                f"{base}/api/sessions/start",
-                headers=_headers(),
-                json={"name": sess},
-                timeout=20.0,
+                f"{base}/api/sessions/{sess}/start", headers=_headers(), timeout=20.0
             )
             ok = resp.status_code < 400
             return {"ok": ok, "session": sess, "status_code": resp.status_code}

@@ -3120,9 +3120,10 @@ async function waStartSession(){
   const box=document.getElementById('waQrBox'); if(box) box.innerHTML='<span class="muted">session start ho rahi…</span>';
   try{
     const r=await fetch('/api/wa/selfhost/start',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr())});
-    if(!r.ok){ if(box) box.innerHTML='<span class="muted">Start failed — config check karo.</span>'; return; }
+    if(r.status===401||r.status===403){ if(box) box.innerHTML='<span class="muted">Admin session expire ho gaya — page refresh karke dobara login karo.</span>'; return; }
+    if(!r.ok){ if(box) box.innerHTML='<span class="muted">Start failed (HTTP '+r.status+') — Status button dabao ya console check karo.</span>'; return; }
     setTimeout(function(){ waRefreshStatus(); waShowQr(); }, 1800);
-  }catch(e){ if(box) box.innerHTML='<span class="muted">Start error</span>'; }
+  }catch(e){ if(box) box.innerHTML='<span class="muted">Start error — network/CORS check karo.</span>'; }
 }
 
 async function saveTurnstile(){
