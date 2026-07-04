@@ -23,6 +23,7 @@ is_sample_data is ALWAYS False — we show the truth, even if everything is zero
 Import-safe: heavy imports are local + guarded so this module always mounts.
 """
 
+import asyncio
 import json
 import logging
 import os
@@ -39,6 +40,22 @@ router = APIRouter(prefix="/api/admin", tags=["Admin Dashboard"])
 
 # Inquiries store (jsonl-first; same path public_site.py writes to).
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
+
+
+async def _safe_collect_live_stats(timeout: float = 8.0) -> dict:
+    """`_collect_live_stats()` is SYNC (prospector scan + per-client content-
+    queue file reads) and confirmed 45s+ under real prod data (2026-07-01
+    office_hq incident, same underlying call). Calling it directly inside an
+    async route blocks this event-loop worker for that long — which races
+    past the admin dashboard's 8s client-side AbortController and falls back
+    to the zero-filled DEMO payload (clients showing 0 despite real rows,
+    2026-07-04). Run off-loop with a hard deadline; degrade to {} on
+    timeout/failure rather than blocking or 500ing."""
+    try:
+        return await asyncio.wait_for(asyncio.to_thread(_collect_live_stats), timeout=timeout)
+    except Exception as e:
+        logger.warning("admin_dashboard: _collect_live_stats timed out/failed (%ss budget): %s", timeout, e)
+        return {}
 
 
 # ----------------------------------------------------------------------------
@@ -107,7 +124,15 @@ async def get_admin_dashboard(
     is merged in on top of the real aggregates.
     """
     try:
-        resp = _build_real()
+        # _build_real() is SYNC (prospector scan + per-client content-queue file
+        # reads inside _collect_live_stats) — confirmed 45s+ under real prod data
+        # (2026-07-01 office_hq incident, same underlying call). Calling it
+        # directly here blocked THIS event-loop worker for the same duration,
+        # which raced past the frontend's 8s AbortController and fell back to
+        # the zero-filled DEMO payload — clients showing 0 even though
+        # clients_store had real rows (2026-07-04). Run off-loop with a hard
+        # deadline, same guard as office_hq._safe_collect_live_stats.
+        resp = await asyncio.wait_for(asyncio.to_thread(_build_real), timeout=8.0)
     except Exception as e:  # absolute guard — never 500
         logger.warning("admin_dashboard: build_real failed (%s)", e)
         return DashboardResponse(
@@ -447,7 +472,7 @@ async def get_live_stats(_user=Depends(require_admin)) -> dict:
     """Lightweight REAL aggregates dict (prospects, inquiries, clients, emails,
     blog, content, staff actions, calls). Best-effort — never 500."""
     try:
-        stats = _collect_live_stats()
+        stats = await _safe_collect_live_stats()
         stats["generated_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
         stats["is_sample_data"] = False
         return stats
@@ -606,7 +631,7 @@ class CeleryTrimIn(BaseModel):
 @router.get("/ops-snapshot")
 async def get_ops_snapshot(_user=Depends(require_admin)) -> dict:
     """Single admin ops payload — live stats + today overview + recent agent events."""
-    live = _collect_live_stats()
+    live = await _safe_collect_live_stats()
     live["generated_at"] = datetime.utcnow().replace(tzinfo=timezone.utc).isoformat()
     try:
         from app.platform.team import recent_events
