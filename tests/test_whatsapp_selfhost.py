@@ -205,3 +205,125 @@ def test_webhook_dedupe(monkeypatch, tmp_path):
     assert wa_api._seen_message("msg-1") is False  # first time
     assert wa_api._seen_message("msg-1") is True  # redelivery
     assert wa_api._seen_message("") is False  # empty id never "seen"
+
+
+# --------------------------------------------------------------------------- #
+# start_session() idempotency + self-healing (2026-07-04 dashboard-441 bug)
+#
+# Before: start_session() always POSTed the deprecated singular
+# /api/sessions/start. If the session was ALREADY running (linked directly
+# via the WAHA API, or a second dashboard click), WAHA replies 422 "Session
+# 'default' is already started" and the admin dashboard showed a scary
+# "Start failed". Now it checks current status first and behaves per-state.
+# --------------------------------------------------------------------------- #
+class _RecordingClient:
+    """Fake httpx.AsyncClient that records (method, path) calls and returns a
+    configurable status for the initial GET (session_status) probe."""
+
+    def __init__(self, status_for_get="STOPPED"):
+        self.calls: list[tuple[str, str]] = []
+        self._status_for_get = status_for_get
+
+    def __call__(self, *a, **k):
+        return self
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *a):
+        return False
+
+    async def get(self, url, **k):
+        self.calls.append(("get", url))
+        return _FakeResp(
+            {"status": self._status_for_get},
+            content=b'{"status":"' + self._status_for_get.encode() + b'"}',
+        )
+
+    async def post(self, url, **k):
+        self.calls.append(("post", url))
+        return _FakeResp({"ok": True}, status=201)
+
+    async def delete(self, url, **k):
+        self.calls.append(("delete", url))
+        return _FakeResp({"ok": True}, status=200)
+
+
+def _paths(calls):
+    return [c[1].rsplit("/", 1)[-1] if "start" in c[1] or "logout" in c[1] else c[1] for c in calls]
+
+
+def test_start_session_noop_when_already_scan_qr_code(monkeypatch):
+    """Already SCAN_QR_CODE -> success no-op, must NOT call create/start again
+    (that extra call is exactly what produced the 422 'already started')."""
+    monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    client = _RecordingClient(status_for_get="SCAN_QR_CODE")
+    monkeypatch.setattr(wahost.httpx, "AsyncClient", client)
+
+    out = asyncio.run(wahost.start_session())
+    assert out["ok"] is True
+    assert out["status"] == "SCAN_QR_CODE"
+    assert out["already_running"] is True
+    # only the status-check GET happened — no POST at all
+    assert all(m == "get" for m, _ in client.calls)
+
+
+def test_start_session_noop_when_already_working(monkeypatch):
+    monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    client = _RecordingClient(status_for_get="WORKING")
+    monkeypatch.setattr(wahost.httpx, "AsyncClient", client)
+
+    out = asyncio.run(wahost.start_session())
+    assert out["ok"] is True
+    assert out["already_running"] is True
+    assert all(m == "get" for m, _ in client.calls)
+
+
+def test_start_session_creates_when_not_created(monkeypatch):
+    monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    client = _RecordingClient(status_for_get="NOT_CREATED")
+    monkeypatch.setattr(wahost.httpx, "AsyncClient", client)
+
+    out = asyncio.run(wahost.start_session())
+    assert out["ok"] is True
+    methods = [m for m, _ in client.calls]
+    assert methods == ["get", "post", "post"]  # status check, create, start
+    assert client.calls[1][1].endswith("/api/sessions")  # create (no session-name suffix)
+    assert client.calls[2][1].endswith("/start")
+
+
+def test_start_session_starts_directly_when_stopped(monkeypatch):
+    monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    client = _RecordingClient(status_for_get="STOPPED")
+    monkeypatch.setattr(wahost.httpx, "AsyncClient", client)
+
+    out = asyncio.run(wahost.start_session())
+    assert out["ok"] is True
+    methods = [m for m, _ in client.calls]
+    assert methods == ["get", "post"]  # status check, start (no create — already exists)
+    assert client.calls[1][1].endswith("/start")
+
+
+def test_start_session_logout_delete_recreate_when_failed(monkeypatch):
+    """WAHA's own guidance: 'restart, if that doesn't help logout + start
+    again' -- FAILED must self-heal via logout+delete+recreate, not just retry
+    start (which is what got stuck looping 422s in production)."""
+    monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    client = _RecordingClient(status_for_get="FAILED")
+    monkeypatch.setattr(wahost.httpx, "AsyncClient", client)
+
+    out = asyncio.run(wahost.start_session())
+    assert out["ok"] is True
+    methods = [m for m, _ in client.calls]
+    assert methods == ["get", "post", "delete", "post", "post"]
+    assert client.calls[1][1].endswith("/logout")
+    assert client.calls[2][1].endswith("/default") or client.calls[2][1].endswith("default")
+    assert client.calls[3][1].endswith("/api/sessions")  # recreate
+    assert client.calls[4][1].endswith("/start")
+
+
+def test_default_config_includes_webhook_token(monkeypatch):
+    monkeypatch.setenv("WAHA_WEBHOOK_TOKEN", "tok123")
+    cfg = wahost._default_config()
+    assert cfg["webhooks"][0]["url"].endswith("token=tok123")
+    assert cfg["webhooks"][0]["events"] == ["message"]
