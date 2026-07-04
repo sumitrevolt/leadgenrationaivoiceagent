@@ -199,8 +199,30 @@ async def rescore_db(limit: int = 500) -> dict[str, Any]:
         return {"ok": False, "reason": str(e)[:200]}
 
 
+# Hard ceiling on how many rows a single top_hot_leads() call will live-score —
+# not a "first N leads" window (2026-07-04 audit: the old `.limit(2000)` had NO
+# ordering, so it silently only ever considered the first ~2000 rows by DB/PK
+# order, permanently excluding thousands of newer leads from "hot" ranking).
+# 20000 covers today's ~5.5k leads with room to grow; raise if the DB does.
+_SCAN_CAP = 20000
+
+
+def _phone_key(d: dict[str, Any]) -> str:
+    import re
+
+    digits = re.sub(r"\D", "", str(d.get("phone") or ""))
+    return digits[-10:] if len(digits) >= 10 else ""
+
+
 async def top_hot_leads(limit: int = 25) -> dict[str, Any]:
-    """DB leads ko live-score karke top (hottest) lautao (read-only, best-effort)."""
+    """DB leads ko live-score karke top (hottest) lautao (read-only, best-effort).
+
+    Dedupes by phone (last-10-digit normalized) before ranking — separate
+    ingestion paths store the same Indian number in different raw formats
+    (with/without +91), so the SAME business can otherwise appear twice in a
+    "who to call next" list (2026-07-04 dialer-sprint audit). Keeps whichever
+    duplicate has the higher live score.
+    """
     try:
         from sqlalchemy import select
 
@@ -211,7 +233,7 @@ async def top_hot_leads(limit: int = 25) -> dict[str, Any]:
         return {"ok": False, "reason": "db unavailable", "leads": []}
     try:
         async with get_async_session() as session:  # type: ignore
-            res = await session.execute(select(Lead).limit(2000))
+            res = await session.execute(select(Lead).limit(_SCAN_CAP))
             dicts = []
             for lead in res.scalars().all():
                 try:
@@ -219,13 +241,23 @@ async def top_hot_leads(limit: int = 25) -> dict[str, Any]:
                 except Exception:
                     pass
             ranked = rank(dicts)
-            hot = [x for x in ranked if x.get("is_hot_lead")]
+            deduped: list[dict[str, Any]] = []
+            seen_phones: set[str] = set()
+            for x in ranked:
+                key = _phone_key(x)
+                if key and key in seen_phones:
+                    continue
+                if key:
+                    seen_phones.add(key)
+                deduped.append(x)
+            hot = [x for x in deduped if x.get("is_hot_lead")]
             return {
                 "ok": True,
                 "count": len(dicts),
+                "unique_count": len(deduped),
                 "hot_count": len(hot),
                 "threshold": HOT_THRESHOLD,
-                "leads": ranked[: max(1, min(int(limit), 100))],
+                "leads": deduped[: max(1, min(int(limit), 100))],
             }
     except Exception as e:
         logger.warning(f"[lead_scoring] top_hot_leads failed: {e}")

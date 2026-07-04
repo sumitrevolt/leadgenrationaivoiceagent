@@ -377,10 +377,14 @@ def _persist_prospect_to_db(rec: dict[str, Any]) -> bool:
         import uuid as _uuid
 
         from app.models.base import get_db_session
-        from app.models.lead import Lead, LeadSource, LeadStatus
+        from app.models.lead import Lead, LeadSource, LeadStatus, lead_exists_for_phone
 
         with get_db_session() as db:
-            if db.query(Lead).filter(Lead.phone == phone).first():
+            # Format-variant-aware dedupe (audit 2026-07-04): this path always
+            # stored digits-only, but the CRM/sheet import path stores "+91..."
+            # — an exact-string check missed those, doubling every business
+            # that both paths independently found.
+            if lead_exists_for_phone(db, phone):
                 return False  # dedupe
             db.add(
                 Lead(

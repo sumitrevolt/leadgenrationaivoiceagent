@@ -137,10 +137,12 @@ def scrape_for_campaign(self, campaign_id: str, niche: str, cities: list, max_le
                 return {"status": "failed", "error": "Campaign not found"}
 
             for lead_data in scraped_leads:
-                # Check for duplicate by phone
-                existing = db.query(Lead).filter(Lead.phone == lead_data.get("phone")).first()
+                # Check for duplicate by phone (format-variant-aware — audit
+                # 2026-07-04: exact-string match missed cross-source duplicates
+                # where one path stores "+91..." and another "91...").
+                from app.models.lead import lead_exists_for_phone
 
-                if existing:
+                if lead_exists_for_phone(db, lead_data.get("phone")):
                     continue
 
                 # Create new lead
