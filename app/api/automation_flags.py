@@ -116,6 +116,7 @@ AUTOMATION_FLAGS = [
     "STALE_INQUIRY_NUDGE",  # untouched >24h inquiry -> follow-up nudge DRAFT
     "OWNER_BRIEF_DAILY",  # roz-subah per-client owner-brief auto-prepare (scheduled studio owner-brief)
     "SKILL_PACK",
+    "OBSIDIAN_SYNC",  # second-brain markdown staging + daily obsidian_push job (audit 2026-07-04: was registry-invisible)
     "CODE_UPGRADER",
     "RECORDING_RETENTION",
     "VOICE_EVAL_AUTO",  # daily voice persona eval suite (qa job) + self-improve voice_eval action — OFF default

@@ -208,3 +208,64 @@ class TestLeadPhoneThreading:
         )
         assert r.status_code == 200
         assert "lead_phone=%2B919876543210" in r.text
+
+
+class TestStreamOptOut:
+    """TCCCPR stream-path opt-out (audit 2026-07-04): press-9/verbal revocation
+    on LIVE stream calls must persist to the consent ledger — previously only
+    the legacy answer_url path did."""
+
+    def _session(self, phone="+919876543210"):
+        from app.telephony.vobiz_stream import VobizStreamSession
+
+        s = VobizStreamSession.__new__(VobizStreamSession)
+        VobizStreamSession.__init__(
+            s, websocket=None, niche="ai_marketing", lead_phone=phone
+        )
+        return s
+
+    def test_opt_out_regex_matches_revocations(self):
+        s = self._session()
+        for txt in (
+            "stop calling me",
+            "don't call again",
+            "dobara call mat karna",
+            "call mat karo mujhe",
+            "mera number hatao",
+            "unsubscribe karo",
+        ):
+            assert s._is_opt_out(txt), txt
+
+    def test_opt_out_regex_ignores_callback_asks(self):
+        s = self._session()
+        for txt in (
+            "abhi busy hoon, baad me call karna",  # callback ask, NOT revocation
+            "haan interested hoon",
+            "kal call karna theek rahega",
+            "",
+        ):
+            assert not s._is_opt_out(txt), txt
+
+    def test_persist_opt_out_records_to_ledger(self, monkeypatch):
+        import app.telephony.consent_ledger as cl
+
+        calls = []
+        monkeypatch.setattr(
+            cl, "record_opt_out", lambda phone, **kw: calls.append((phone, kw))
+        )
+        s = self._session()
+        s._persist_opt_out("verbal_request")
+        assert len(calls) == 1
+        assert calls[0][0] == "+919876543210"
+        assert calls[0][1]["reason"] == "verbal_request"
+
+    def test_persist_opt_out_no_phone_is_noop(self, monkeypatch):
+        import app.telephony.consent_ledger as cl
+
+        calls = []
+        monkeypatch.setattr(
+            cl, "record_opt_out", lambda phone, **kw: calls.append(phone)
+        )
+        s = self._session(phone="")
+        s._persist_opt_out("ivr_press9")
+        assert calls == []

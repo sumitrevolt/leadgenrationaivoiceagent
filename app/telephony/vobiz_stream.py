@@ -849,6 +849,24 @@ class VobizStreamSession:
         elif event == "dtmf":
             digit = (data.get("dtmf") or {}).get("digit")
             logger.info(f"[vobiz-stream] dtmf={digit}")
+            # TCCCPR press-9 opt-out parity (audit 2026-07-04): the signed
+            # answer_url handler persists this, but live <Stream> calls never
+            # hit that path — DTMF only surfaces here. _lead_phone comes from
+            # OUR OWN signed start params, not caller input.
+            if str(digit) == "9":
+                self._persist_opt_out("ivr_press9")
+                try:
+                    await self._say_and_wait(
+                        "Aapka number hamari calling list se hata diya gaya hai. Dhanyavaad."
+                    )
+                except Exception:
+                    pass
+                self._closed = True
+                self._stop_play()
+                try:
+                    await self.ws.close()
+                except Exception:
+                    pass
         elif event == "stop":
             logger.info(f"[vobiz-stream] stop sid={self.stream_sid}")
             self._closed = True
@@ -1182,6 +1200,40 @@ class VobizStreamSession:
             "₹1,999 se shuru. Callback ke liye leadsgenai.in ya is number par reply kijiye. Dhanyavaad."
         )
 
+    # TCCCPR verbal opt-out (stream-path parity, audit 2026-07-04). Narrow,
+    # call-anchored phrases only — a soft "abhi mat karo, baad me call karna"
+    # (callback ask) must NOT suppress the lead permanently.
+    _OPT_OUT_RE = re.compile(
+        r"stop\s+call(ing|s)?|do\s*n[o']?t\s+call|never\s+call|unsubscribe"
+        r"|remove\s+(my|this)\s+number"
+        r"|call\s+mat\s+(karo|karna|kijiye)|(dobara|phir|kabhi)\s+call\s+mat"
+        r"|number\s+(hatao|hata\s+do|delete)|list\s+se\s+(hatao|nikaal)",
+        re.IGNORECASE,
+    )
+
+    def _is_opt_out(self, text: str) -> bool:
+        try:
+            return bool(self._OPT_OUT_RE.search(text or ""))
+        except Exception:
+            return False
+
+    def _persist_opt_out(self, reason: str) -> None:
+        """Instant cross-channel suppression via consent_ledger. Best-effort,
+        never raises — a ledger failure must not break the live call."""
+        phone = (getattr(self, "_lead_phone", "") or "").strip()
+        if not phone:
+            logger.warning("[vobiz-stream] opt-out detected but no lead_phone to suppress")
+            return
+        try:
+            from app.telephony.consent_ledger import record_opt_out
+
+            record_opt_out(
+                phone, reason=reason, channel="voice", call_id=str(self.stream_sid or "")
+            )
+            logger.info(f"[vobiz-stream] opt-out persisted ...{phone[-4:]} ({reason})")
+        except Exception as e:
+            logger.error(f"[vobiz-stream] opt-out persist FAILED: {e}")
+
     async def _on_utterance(self, pcm16: bytes) -> None:
         if self._thinking:
             return
@@ -1288,6 +1340,25 @@ class VobizStreamSession:
                 except Exception as e:
                     logger.debug(f"[vobiz-stream] AMD check skip: {e}")
             self.hist.append({"role": "user", "content": text})
+            # TCCCPR verbal opt-out — suppress + polite goodbye + end call.
+            # Checked BEFORE the LLM so the model can't talk past a revocation.
+            if self._is_opt_out(text):
+                reply = (
+                    "Theek hai, aapka number hamari calling list se hata diya gaya hai. "
+                    "Aapka time dene ke liye dhanyavaad."
+                )
+                self.hist.append({"role": "assistant", "content": reply})
+                self._persist_opt_out("verbal_request")
+                _outcome = "opt_out"
+                _reply_text = reply
+                await self._say_and_wait(reply)
+                self._closed = True
+                self._stop_play()
+                try:
+                    await self.ws.close()
+                except Exception:
+                    pass
+                return
             # SPONTANEITY: LLM+TTS se pehle turant cached "Hmm/Achha" filler
             # bajao — 1-3s ki think-window me line dead na lage. Inline await
             # (~0.5s, acceptable); _run_play har frame pe _speaking check karta

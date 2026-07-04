@@ -71,6 +71,7 @@ STAFF_JOBS = (
     "evening_prospect",  # 3rd daily free lead-harvest pass (gated EVENING_PROSPECT)
     "obsidian_push",  # second-brain compact + push; safe no-op if OBSIDIAN_SYNC/git unavailable
     "platform_dial",  # daily 11:30 IST self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
+    "call_kpi_digest",  # daily 19:30 IST Lekha call-KPI digest (was in-process-only → dead on Celery topology, audit 2026-07-04)
 )
 
 
