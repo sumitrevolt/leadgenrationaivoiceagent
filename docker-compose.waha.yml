@@ -19,7 +19,15 @@
 #   4) Open /app/whatsapp -> Self-host card -> "Start session" -> scan the QR on the
 #      phone holding 8261030181 (WhatsApp -> Linked devices -> Link a device).
 #   5) Status flips to WORKING. Leave WHATSAPP_AUTO_SEND=0 until you want auto-send.
-# RAM: NOWEB engine ~150-300MB (no headless Chromium). 16GB VPS = trivial.
+# RAM: WEBJS engine ~400-700MB (headless Chromium via Puppeteer). 16GB VPS = trivial.
+#
+# ENGINE (2026-07-04): WEBJS, not NOWEB. NOWEB (Baileys) gives a HARD ~40s QR
+# window (2 refresh cycles) then force-fails the session with no Core-tier
+# config to extend it — real users kept missing it navigating to the QR page.
+# WEBJS drives an actual headless-Chromium WhatsApp Web tab, so the QR just
+# keeps auto-refreshing (like normal web.whatsapp.com) with no give-up cutoff.
+# Verified via waha.devlike.pro/docs/how-to/engines/ — same image, engine is
+# purely an env-var choice (WHATSAPP_DEFAULT_ENGINE), no image change needed.
 # =============================================================================
 
 name: leadgen-waha
@@ -32,8 +40,10 @@ services:
     environment:
       # --- API auth: app sends this as X-Api-Key on every call ---
       WHATSAPP_API_KEY: "${WAHA_API_KEY:-change-me-strong-key}"
-      # --- Lightest engine: Baileys-based, no Chromium. Text + webhook + QR all work. ---
-      WHATSAPP_DEFAULT_ENGINE: "NOWEB"
+      # --- Browser-based engine: real WhatsApp Web session, indefinite QR refresh
+      #     (no hard timeout like NOWEB/Baileys). Slightly heavier (Chromium) but
+      #     16GB VPS has plenty of headroom (audit 2026-07-04 QR-timing incident). ---
+      WHATSAPP_DEFAULT_ENGINE: "WEBJS"
       # --- Auto-start the saved session on boot (-> SCAN_QR_CODE / WORKING) ---
       WHATSAPP_RESTART_ALL_SESSIONS: "True"
       # --- Inbound -> app webhook (in-network; token-gated). 'message' = inbound texts. ---
