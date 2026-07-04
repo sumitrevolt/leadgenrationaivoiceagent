@@ -123,12 +123,18 @@ async def publish_video(
             return {"sent": False, "reason": "media upload fail (ya file missing)"}
         media_list = [media]
     value = [{"content": (caption or "").strip()[:2000], "image": media_list}]
+    # 2026-07-04 fix: Postiz public API rejects posts without settings.post_type
+    # ("should not be null or undefined") — every platform needs this. X also
+    # requires settings.who_can_reply_post; harmless extra field on other
+    # platforms (ignored), so send both unconditionally rather than branching
+    # per-platform (keeps this additive and simple).
+    settings = {"post_type": "post", "who_can_reply_post": "everyone"}
     body = {
         "type": "now",
         "date": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "shortLink": False,
         "tags": [],
-        "posts": [{"integration": {"id": i}, "value": value, "settings": {}} for i in ids],
+        "posts": [{"integration": {"id": i}, "value": value, "settings": settings} for i in ids],
     }
     try:
         import httpx
