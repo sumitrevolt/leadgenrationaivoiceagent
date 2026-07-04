@@ -218,7 +218,10 @@ def voice_plan_price(plan_id: str | None) -> int:
     key, band = voice_plan_parts(plan_id)
     if key == "voice_pilot":
         return 0
-    if not band or band not in BANDS:
+    # voice_plan_parts() returns ('', 'A') for UNKNOWN ids — band alone is
+    # always truthy, so without the key-check every unknown string priced as
+    # Band-A ₹4,999 (audit 2026-07-04: broke UPI floor lookups for combo ids).
+    if not key or not band or band not in BANDS:
         return 0
     return BANDS[band]["price_month"]
 
