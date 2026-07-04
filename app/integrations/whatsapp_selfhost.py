@@ -70,6 +70,41 @@ def is_configured() -> bool:
     return bool(_base_url())
 
 
+def _business_number_digits() -> str:
+    """Configured company WhatsApp number, digits only (WHATSAPP_BUSINESS_NUMBER)."""
+    raw = (
+        os.getenv("WHATSAPP_BUSINESS_NUMBER", "")
+        or getattr(settings, "whatsapp_business_number", "")
+        or ""
+    )
+    return "".join(c for c in str(raw) if c.isdigit())
+
+
+# Cache the WAHA session's linked number so we don't status-probe on every send.
+_LINKED_CACHE: dict[str, Any] = {"digits": None, "at": 0.0}
+_LINKED_TTL_S = 300.0
+
+
+async def linked_number_digits() -> str | None:
+    """Digits of the number the WAHA session is currently logged into (me.id),
+    cached for 5 min. None if unknown (status hiccup / not linked). Never raises."""
+    import time as _t
+
+    now = _t.monotonic()
+    if _LINKED_CACHE["digits"] is not None and (now - _LINKED_CACHE["at"]) < _LINKED_TTL_S:
+        return _LINKED_CACHE["digits"] or None
+    try:
+        st = await session_status()
+        me = (st or {}).get("me") or {}
+        raw = str(me.get("id") or "").split("@")[0]
+        digits = "".join(c for c in raw if c.isdigit())
+        _LINKED_CACHE["digits"] = digits
+        _LINKED_CACHE["at"] = now
+        return digits or None
+    except Exception:
+        return None
+
+
 def is_active_provider() -> bool:
     """True if the operator selected the self-host stack as the active WhatsApp provider."""
     prov = (
@@ -121,9 +156,32 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
         self.session = _session()
 
     async def send_text_message(self, to_number: str, message: str) -> dict[str, Any]:
-        """Send a plain text message via the self-hosted session. Never raises."""
+        """Send a plain text message via the self-hosted session. Never raises.
+
+        Business-number guard (2026-07-04 owner-ask "messages company number se
+        jaayein"): if WHATSAPP_BUSINESS_NUMBER is configured and the WAHA session
+        is linked to a DIFFERENT number (e.g. an admin's personal WhatsApp got
+        scanned by mistake), REFUSE the send instead of leaking a wrong sender to
+        a customer. Fail-OPEN only when the linked number can't be determined
+        (status hiccup) so a transient probe error never silently drops sends.
+        Kill-switch: WHATSAPP_ENFORCE_BUSINESS_NUMBER=0."""
         if not self.base_url:
             return {"error": "selfhost_not_configured"}
+        if (
+            os.getenv("WHATSAPP_ENFORCE_BUSINESS_NUMBER", "1").strip().lower()
+            not in ("0", "false", "no")
+        ):
+            want = _business_number_digits()
+            if want:
+                linked = await linked_number_digits()
+                if linked and linked[-10:] != want[-10:]:
+                    logger.error(
+                        "waha send BLOCKED — session linked to ***%s but business "
+                        "number is ***%s. Re-scan WAHA QR with the company phone.",
+                        linked[-4:],
+                        want[-4:],
+                    )
+                    return {"error": "wrong_linked_number", "linked": linked[-4:], "want": want[-4:]}
         payload = {
             "session": self.session,
             "chatId": _chat_id(to_number),
