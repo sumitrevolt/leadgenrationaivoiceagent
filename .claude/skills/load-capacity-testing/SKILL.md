@@ -5,11 +5,11 @@ description: Load testing + capacity headroom on single-VPS free stack — API r
 
 # Load & Capacity Testing (ceiling JANO, guess mat karo)
 
-> Enterprise audit skill. Single VPS (Mumbai, ~13+ containers) = shared everything. **Enterprise bar = numbers: X rps sustained, Y concurrent calls, Z% headroom.** Pehle `context-first`.
+> Enterprise audit skill. Single VPS (Mumbai, ~11 containers) = shared everything. **Enterprise bar = numbers: X rps sustained, Y concurrent calls, Z% headroom.** Pehle `context-first`.
 
 ## Repo truth (capacity-relevant knobs)
 - **Web**: uvicorn `WEB_CONCURRENCY=2` HTTP-only (heavy jobs KABHI web process me — 3 prod-downs ka sabak). Public endpoint me KB/ML = thread + hard timeout.
-- **Workers**: `leadgen_worker` concurrency=4 + beat. Queue depth rule: **worker recreate ke baad `redis-cli llen celery`; >500 = `del celery`** (transient, beat re-schedules).
+- **Workers**: `leadgen_worker` concurrency=4; beat = alag `leadgen_scheduler` container (2026-07-05). Queue depth rule: **worker recreate ke baad `redis-cli llen celery`; >500 = `del celery`** (transient, beat re-schedules).
 - **DB**: Postgres via PgBouncer :6432 (pool = real ceiling, direct conn count nahi).
 - **Rate limits**: `PlanTierRateLimitMiddleware` 60/200/500 rpm per tier (`PLAN_RATE_LIMIT=1`) — capacity SHIELD hai, load test isse bypass karke raw ceiling bhi napo.
 - **Voice**: per concurrent call = WS + STT (Groq) + LLM + EdgeTTS streams — ceiling CPU/network se pehle PROVIDER rate-limits pe aayega (Groq rpm, Gemini pool 9 keys). Breaker cooldowns = degraded, down nahi.

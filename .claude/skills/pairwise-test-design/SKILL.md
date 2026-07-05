@@ -5,7 +5,7 @@ description: Combinatorial (pairwise / PICT) test-case design for LeadGen AI's h
 # Pairwise Test Design (PICT)
 
 **Kyun:** LeadGen ka config-space combinatorial hai —
-`niche(39) × band(A/B/C) × tier(Starter/Growth/Advanced) × channel × call_type(promo/transactional) × gst(on/off)`.
+`niche(39) × band(A/B/C) × tier(starter/advanced + legacy-hidden growth[public:False]) × channel × call_type(promo/transactional) × gst(on/off)`.
 Full cartesian = hazaaron cases. **Pairwise** har input-PAIR ko cover karta hai ~10-20 rows me (research: ~zyaadatar bugs 2-input interaction se).
 
 ## Kab use karo

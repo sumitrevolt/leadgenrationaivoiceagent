@@ -26,6 +26,6 @@ Pipeline: scrape -> clean/DND-scrub -> 9am-7pm promo gate -> WhatsApp warm-up ->
 
 3. Many clients at once -> use app/automation/agent_pool.py (AgentWorkerPool) for concurrent campaigns.
 
-4. Compliance: real calls only 9am-9pm, DND-scrubbed, DLT-registered number. Without telephony keys it runs in simulation mode (safe to test).
+4. Compliance: real calls only 9am-7pm (TRAI window, fail-CLOSED; fix 2026-07-05), DND-scrubbed, DLT-registered number. Without telephony keys it runs in simulation mode (safe to test).
 
 5. Report: scraped vs qualified vs delivered + estimated cost (INR), and where leads landed (Sheet/HubSpot/WhatsApp).

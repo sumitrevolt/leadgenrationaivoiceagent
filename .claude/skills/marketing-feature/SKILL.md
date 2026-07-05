@@ -18,7 +18,7 @@ Yeh wahi pattern hai jisse marketing.html ke 28 tabs bane. Har naya feature isi 
 2. **API**: `app/api/marketing.py` (ya wahi router file) me endpoint `POST/GET /api/marketing/<feature>` — admin auth, Isha event log (`log_event`). Public chahiye to `app/api/public_site.py` (rate-limit + honeypot pattern).
 3. **Frontend tab**: `frontend/marketing.html` — naya tab button + panel. Niche dropdown dynamic `/api/data/niches` se. Poster/SVG inline + client-side canvas PNG download (existing tabs copy karo).
 4. **Test**: `tests/` me `free_ai` mocked, function output assert (keys, char-limits, never-empty). `scripts\run_tests.bat` → `pytest_run.log` Read (~80+ green).
-5. **Ship + smoke**: skill `leadgen-ops` loop (push → VPS pull+restart). Smoke ek `.py` file me likho (SSH inline quoting todta) → `python scripts/<smoke>.py` VPS pe → page 200 + function output verify.
+5. **Ship + smoke**: skill `leadgen-ops` loop (push → VPS `docker compose build app` + `up -d --no-deps app` — code image me BAKED, pull+restart akela kuch deploy NAHI karta) (fix 2026-07-05). Smoke ek `.py` file me likho (SSH inline quoting todta) → `python scripts/<smoke>.py` VPS pe → page 200 + function output verify.
 
 ## Gotchas
 - SVG me user text **XML-escape** karo (`&`, `<`, `>`).

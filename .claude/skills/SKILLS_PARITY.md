@@ -2,7 +2,7 @@
 
 > **Goal:** Claude Code is **PRIMARY** for this repo — skills encode Cursor's parallel context-first edge explicitly.
 > **Start every code task:** `context-first` → `leadgen-composer` → one domain skill.
-> **Project skills:** ~103 folders in `.claude/skills/` + ~181 in `data/skills_extra/`.
+> **Project skills:** ~184 folders (2026-07-05) in `.claude/skills/` + ~181 in `data/skills_extra/`.
 
 ## Claude loading protocol (MANDATORY)
 

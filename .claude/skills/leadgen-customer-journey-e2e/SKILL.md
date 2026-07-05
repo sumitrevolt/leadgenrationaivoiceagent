@@ -23,7 +23,7 @@ Public lead-magnet pages bhi cover karo: `/audit` (#1), `/site-audit` (#2, SSRF-
 5. Har fixed route/form/redirect/gate pe test add.
 
 ## Enterprise checks
-- Naya `@app.get` page-route add hua → deploy ke baad HARD RELOAD (stale `.pyc` = 404). Diagnostic `scripts/check_route.py`.
+- Naya `@app.get` page-route → image REBUILD + recreate (`build app` + `up -d --no-deps app`) zaroori; post-deploy curl-verify 200 (stale-.pyc Docker me moot; 2026-07-05). Diagnostic `scripts/check_route.py`.
 - Buttons → real endpoints; auth-redirect correct page; forms validate+persist.
 - Paid-only features server-side gated (`_authed_client_id` dep).
 - Empty / loading / error states visible.

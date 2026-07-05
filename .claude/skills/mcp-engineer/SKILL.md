@@ -1,3 +1,8 @@
+---
+name: mcp-engineer
+description: Anything MCP — /mcp endpoint, MCP-as-product /api/mcp-product/v1/*, A2A Agent Card, mcp_keys, Arya staff agent, MCP auth/key-rotation/quota debugging.
+---
+
 # mcp-engineer (skill)
 
 **Use when**: anything MCP — `/mcp` endpoint, MCP-as-product (`/api/mcp-product/v1/*`), A2A Agent Card, mcp_keys, Arya VPS staff agent, Claude Desktop MCP config for leadsgenai.in, MCP auth failures / key rotation / quota debugging, adding a new MCP capability.
