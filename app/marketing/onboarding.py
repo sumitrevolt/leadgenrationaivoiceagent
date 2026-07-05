@@ -326,7 +326,10 @@ async def try_capture_onboarding_reply(from_number: str, text: str) -> bool:
             if cph and cph == digits:
                 return await _capture_business_interview(c, txt)
     except Exception as exc:
-        logger.debug("try_capture_onboarding_reply err: %s", exc)
+        # FAIL-LOUD (2026-07-05): pehle yeh logger.debug tha — ek paying customer
+        # (jiya makeover) ka reply isi silent swallow me gaya, woh awaiting_kb_interview
+        # me forever stuck rahi + ghost ho gayi. Ab WARNING (silent loss banned).
+        logger.warning("try_capture_onboarding_reply err (reply may be LOST): %s", exc)
     return False
 
 
@@ -443,6 +446,16 @@ async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
     except Exception as exc:
         logger.info("onboarding sweep renudge err: %s", exc)
         res["renudge"] = {"error": str(exc)}
+    # DELIVERY GUARANTEE (2026-07-05, council): dead-man sweep — koi bhi PAID customer
+    # jise value deliver nahi hui woh visible + (AUTO_DELIVER_VALUE on ho to) auto-deliver
+    # ho. Runs INDEPENDENTLY of AUTO_ONBOARD (delivery != onboarding). Never raises.
+    try:
+        from app.marketing import customer_delivery
+
+        res["delivery"] = await customer_delivery.run_delivery_sweep()
+    except Exception as exc:
+        logger.info("onboarding sweep delivery err: %s", exc)
+        res["delivery"] = {"error": str(exc)}
     if not _flag("AUTO_ONBOARD"):
         res["skipped"] = "AUTO_ONBOARD off"
         return res
