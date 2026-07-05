@@ -1086,6 +1086,21 @@
     return "char" + ((h % OFFICE.CHAR_COUNT) + 1);
   };
 
+  // ---- BUGFIX: 31 staff / sirf 10 sprites → clones. Har agent (aur uski desk)
+  // ka apna deterministic pastel color — golden-angle hue, roster order pe stable.
+  OFFICE.AGENT_COLORS = {};
+  OFFICE._colorSeq = 0;
+  OFFICE.colorForKey = function(key){
+    if (OFFICE.AGENT_COLORS[key] != null) return OFFICE.AGENT_COLORS[key];
+    var hue = (OFFICE._colorSeq++ * 137.508) % 360;
+    var c = Phaser.Display.Color.HSLToColor(hue / 360, 0.62, 0.72).color;
+    OFFICE.AGENT_COLORS[key] = c;
+    return c;
+  };
+  OFFICE.colorCssForKey = function(key){
+    return "#" + ("00000" + OFFICE.colorForKey(key).toString(16)).slice(-6);
+  };
+
   OFFICE.layoutSlots = function(room, count){
     var padX = 20, padTop = 46, padBottom = 16;
     var usableW = room.w - padX * 2;
@@ -1093,7 +1108,11 @@
     var cols = Math.max(1, Math.min(count, Math.floor(usableW / 62)));
     var rows = Math.max(1, Math.ceil(count / cols));
     var pitchX = usableW / cols;
-    var pitchY = Math.min(74, usableH / rows);
+    var pitchY = usableH / rows;
+    // BUGFIX: room bhar jaye to avatars overlap hote the — ab pitch comfort-box
+    // (62x74) se chhota hone par avatars gracefully shrink ho ke fit hote hain.
+    var scale = Math.max(0.55, Math.min(1, pitchX / 62, pitchY / 74));
+    pitchY = Math.min(74, pitchY);
     var slots = [];
     for (var i = 0; i < count; i++){
       var r = Math.floor(i / cols), c = i % cols;
@@ -1102,21 +1121,24 @@
         y: room.y + padTop + pitchY * r + pitchY / 2
       });
     }
-    return slots;
+    return { slots: slots, scale: scale };
   };
 
-  OFFICE.drawAvatar = function(m, slot, room){
+  OFFICE.drawAvatar = function(m, slot, room, sizeScale){
     var scene = OFFICE.scene;
     var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
-    var s = OFFICE.TILE_SCALE;
+    var f = sizeScale || 1;                    // room-density shrink factor
+    var s = OFFICE.TILE_SCALE * f;
     // PHASE-2 desk-set: chair (avatar ke peeche) + desk + monitor with blue
     // glow — created BEFORE the avatar container so creation-order keeps them
     // underneath (same convention as room decor). Refs in av.extras for teardown.
-    var chair = scene.add.circle(slot.x, slot.y - 13, 6.5, 0x64748b).setStrokeStyle(1.5, 0x334155);
-    var desk = scene.add.image(slot.x, slot.y + 13, "desk_1").setScale(s);
-    var monitor = scene.add.rectangle(slot.x, slot.y + 9, 11, 8, 0x0f172a).setStrokeStyle(1, 0x334155);
-    var monitorGlow = scene.add.rectangle(slot.x, slot.y + 9, 8, 5, 0x38bdf8, 0.95);
-    var sprite = scene.add.image(0, -4, OFFICE.charKeyFor(m.key)).setScale(s);
+    var chair = scene.add.circle(slot.x, slot.y - 13 * f, 6.5 * f, 0x64748b).setStrokeStyle(1.5, 0x334155);
+    var desk = scene.add.image(slot.x, slot.y + 13 * f, "desk_1").setScale(s);
+    desk.setTint(OFFICE.colorForKey(m.key));   // desk bhi agent ke identity-color me
+    var monitor = scene.add.rectangle(slot.x, slot.y + 9 * f, 11 * f, 8 * f, 0x0f172a).setStrokeStyle(1, 0x334155);
+    var monitorGlow = scene.add.rectangle(slot.x, slot.y + 9 * f, 8 * f, 5 * f, 0x38bdf8, 0.95);
+    var sprite = scene.add.image(0, -4 * f, OFFICE.charKeyFor(m.key)).setScale(s);
+    sprite.setTint(OFFICE.colorForKey(m.key)); // 10 sprites, 31 staff — tint = unique pehchaan
     sprite.setInteractive({ useHandCursor: true });
     sprite.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openAgentPanel(m.key); });
     sprite.on("pointerover", function(p){
@@ -1126,29 +1148,39 @@
       var extra = (a.state || a.status) === "offline" && reason
         ? esc(OFFICE.offlineReasonText(reason))
         : "Aaj " + esc(a.todayActions != null ? a.todayActions : "?") + " action(s)";
+      if (m.unmapped) extra = "⚠ Room map nahi mila — default room me dikh raha hai<br>" + extra;
       tip.innerHTML = "<b>" + esc(a.name || m.name) + " — " + esc(a.state || a.status || "?") + "</b><br>" + extra;
       tip.style.display = "block";
       OFFICE.moveRoomTooltip(p);
     });
     sprite.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
     sprite.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
-    var badge = scene.add.circle(12, 6, 5.5, color).setStrokeStyle(2, 0xffffff);
+    var badge = scene.add.circle(12 * f, 6 * f, 5.5 * f, color).setStrokeStyle(2, 0xffffff);
     // Always-visible name label (10-char cap, cluttered rooms me overflow na ho).
-    var label = scene.add.text(0, 30, String(m.name || "").slice(0, 10), {
-      fontSize: "10px", fontFamily: "sans-serif", color: "#1e293b"
-    }).setOrigin(0.5, 0);
-    var group = scene.add.container(slot.x, slot.y, [sprite, badge, label]);
+    var label = scene.add.text(0, 30 * f, String(m.name || "").slice(0, 10), {
+      fontSize: "10px", fontFamily: "sans-serif", color: OFFICE.colorCssForKey(m.key), fontStyle: "bold"
+    }).setOrigin(0.5, 0).setShadow(0, 1, "#1e293b", 2, false, true);
+    var parts = [sprite, badge, label];
+    // BUGFIX: naya staff jiska room map nahi — pehle chupchaap galat room me
+    // chala jata tha. Ab orange "?" badge se turant dikhta hai.
+    if (m.unmapped) {
+      parts.push(scene.add.text(-14 * f, -22 * f, "?", {
+        fontSize: "11px", fontFamily: "sans-serif", fontStyle: "bold",
+        color: "#ffffff", backgroundColor: "#f97316", padding: { x: 3, y: 1 }
+      }).setOrigin(0.5));
+    }
+    var group = scene.add.container(slot.x, slot.y, parts);
     // Subtle idle "breathing" bob (sprite y −4 → −7, yoyo forever) — offline
     // agents ke liye setAvatarState ise pause karta (chup-chaap baithe rahen).
     var bobTween = scene.tweens.add({
-      targets: sprite, y: -7, duration: 1150 + Math.random() * 500,
+      targets: sprite, y: -7 * f, duration: 1150 + Math.random() * 500,
       yoyo: true, repeat: -1, ease: "Sine.easeInOut"
     });
     var av = {
       desk: desk, sprite: sprite, badge: badge, label: label, group: group,
       extras: [chair, monitor, monitorGlow],
       homeX: slot.x, homeY: slot.y, wandering: false, pulse: null, pulseTween: null,
-      bobTween: bobTween, room: room || null, state: m.state
+      bobTween: bobTween, room: room || null, state: m.state, sizeScale: f
     };
     OFFICE.setAvatarState(av, m.state);
     OFFICE.scheduleWander(m.key);
@@ -1161,12 +1193,20 @@
     var scene = OFFICE.scene;
     if (!av || !scene) return;
     av.state = state;
+    // BUGFIX: offline hote hi turant desk pe wapas — pehle chalu walk-tween
+    // 2-3s tak chalta rehta tha (group tweens kill + position reset).
+    if (state === "offline") {
+      try { scene.tweens.killTweensOf(av.group); } catch (e) {}
+      av.group.setPosition(av.homeX, av.homeY);
+      try { av.sprite.setFlipX(false); } catch (e) {}
+      av.wandering = false;
+    }
     av.badge.setFillStyle(OFFICE.STATE_COLOR[state] || OFFICE.STATE_COLOR.offline);
     av.group.setAlpha(state === "offline" ? 0.55 : 1);
     if (av.label) av.label.setAlpha(state === "offline" ? 0.65 : 1);  // name label offline = extra dim
     if (av.bobTween) {
       // Offline = no breathing bob (dimmed + bilkul still).
-      if (state === "offline") { av.bobTween.pause(); av.sprite.y = -4; }
+      if (state === "offline") { av.bobTween.pause(); av.sprite.y = -4 * (av.sizeScale || 1); }
       else if (av.bobTween.paused) av.bobTween.resume();
     }
     if (state === "working" && !av.pulse) {
@@ -1304,13 +1344,13 @@
     OFFICE.DEMO_ROSTER.forEach(function(d){ (byRoom[d.room] = byRoom[d.room] || []).push(d); });
     OFFICE.ROOMS.forEach(function(room){
       var members = byRoom[room.id] || [];
-      var slots = OFFICE.layoutSlots(room, members.length);
+      var layout = OFFICE.layoutSlots(room, members.length);
       members.forEach(function(d, i){
         var m = { key: d.key, name: d.name, emoji: d.emoji, title: d.title, duties: "(preview)", state: "preview" };
         OFFICE.agentByKey[d.key] = { key: d.key, name: d.name, emoji: d.emoji, title: d.title,
           duties: "(preview — live data ke liye login karo)", status: "preview",
           todayActions: "—", todayErrors: "—" };
-        OFFICE.avatars[d.key] = OFFICE.drawAvatar(m, slots[i], room);
+        OFFICE.avatars[d.key] = OFFICE.drawAvatar(m, layout.slots[i], room, layout.scale);
       });
     });
   };
@@ -1348,18 +1388,20 @@
       var byRoom = {};
       OFFICE.ROOMS.forEach(function(r){ byRoom[r.id] = []; });
       snapshot.agents.forEach(function(a){
-        var m = { key: a.key, name: a.name, emoji: a.emoji, title: a.title, duties: a.duties, state: a.status, offlineReason: a.offline_reason };
+        var m = { key: a.key, name: a.name, emoji: a.emoji, title: a.title, duties: a.duties,
+                  state: a.status, offlineReason: a.offline_reason, unmapped: !byRoom[a.room] };
+        a.unmapped = m.unmapped;   // tooltip/drawer ke liye bhi yaad rakho
         (byRoom[a.room] || byRoom.platform_engineering).push(m);
       });
       OFFICE.ROOMS.forEach(function(room){
         var members = byRoom[room.id];
-        var slots = OFFICE.layoutSlots(room, members.length);
+        var layout = OFFICE.layoutSlots(room, members.length);
         members.forEach(function(m, i){
           var existing = OFFICE.avatars[m.key];
           if (existing) {
             OFFICE.setAvatarState(existing, m.state);
           } else {
-            OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, slots[i], room);
+            OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, layout.slots[i], room, layout.scale);
           }
         });
       });
