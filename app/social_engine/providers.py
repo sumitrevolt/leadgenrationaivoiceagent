@@ -263,6 +263,86 @@ class YouTubeProvider(SocialProvider):
 
 
 # --------------------------------------------------------------------------- #
+# WhatsApp — 1-to-1 delivery of approved posts to the CLIENT's OWN number. LIVE
+# (self-host WAHA ya Meta Cloud, jo bhi active). Approval: none (self-host stack).
+#
+# ⚠️ BAN-SAFE INVARIANT: yeh provider SIRF business-owner ke ek number pe warm 1-to-1
+# message bhejta (approved content ready-to-forward). Kabhi bulk/broadcast NAHI — ek
+# recipient (client ka apna phone). account_ref = recipient phone (engine client-record
+# se resolve karta). Sender = get_whatsapp_sender() (self-host active to WAHA, warna Cloud).
+# Image/video ka public URL caption me append hota (self-host me native media-send method
+# nahi) — client apne WhatsApp pe post dekh ke aage forward kar sakti.
+# --------------------------------------------------------------------------- #
+class WhatsAppProvider(SocialProvider):
+    name = "whatsapp"
+    needs_public_url = False
+
+    @staticmethod
+    def _sender_configured() -> bool:
+        """True agar koi WA backend bhej sakta (self-host WAHA base-url YA Cloud token)."""
+        try:
+            from app.integrations import whatsapp_selfhost
+
+            if whatsapp_selfhost.is_active_provider():
+                return True
+        except Exception:
+            pass
+        try:
+            from app.config import settings
+
+            return bool(getattr(settings, "whatsapp_business_token", "") or "")
+        except Exception:
+            return False
+
+    @staticmethod
+    def _recipient(req_ref: str, account: dict[str, Any] | None) -> str:
+        """Single recipient phone. account_ref (engine ne client-phone se bhara) priority,
+        warna account meta. Digits-only, ek hi number — kabhi list nahi (bulk impossible)."""
+        cand = (req_ref or (account or {}).get("account_ref") or "").strip()
+        if not cand:
+            return ""
+        # Ek hi recipient enforce: agar galti se comma/space-separated aa gaya to PEHLA hi lo.
+        cand = cand.replace(";", ",").split(",")[0].strip()
+        return cand
+
+    def configured(self, account: dict[str, Any] | None = None) -> bool:
+        # Inert jab tak koi WA backend na ho AUR ek recipient phone na ho.
+        return bool(self._sender_configured() and self._recipient("", account))
+
+    async def publish(self, req: PublishRequest, account: dict[str, Any]) -> PublishResult:
+        to = self._recipient(req.account_ref, account)
+        if not to:
+            return PublishResult(ok=False, platform=self.name, error="recipient phone unset")
+        if not self._sender_configured():
+            return PublishResult(ok=False, platform=self.name, error="WhatsApp sender unconfigured")
+        # Text body = caption (+ media public URL append; self-host me native image-send nahi).
+        body = (req.caption or "").strip()
+        if req.media_url:
+            body = (body + ("\n\n" if body else "") + str(req.media_url)).strip()
+        if not body:
+            return PublishResult(ok=False, platform=self.name, error="empty caption (nothing to send)")
+        try:
+            from app.integrations.whatsapp import get_whatsapp_sender
+
+            sender = get_whatsapp_sender()
+            res = await sender.send_text_message(to, body)  # NEVER raises (dict on error)
+            res = res if isinstance(res, dict) else {}
+            err = str(res.get("error") or "")
+            if err:
+                return PublishResult(ok=False, platform=self.name, error=err[:160], raw=res)
+            mid = ""
+            try:
+                msgs = res.get("messages") or []
+                if msgs:
+                    mid = str((msgs[0] or {}).get("id") or "")
+            except Exception:
+                mid = ""
+            return PublishResult(ok=True, platform=self.name, post_id=mid, raw=res)
+        except Exception as e:
+            return PublishResult(ok=False, platform=self.name, error=str(e)[:150])
+
+
+# --------------------------------------------------------------------------- #
 # Postiz — existing integration wrap (agar POSTIZ_API_KEY set). Multi-channel fallback.
 # --------------------------------------------------------------------------- #
 class PostizProvider(SocialProvider):
@@ -293,6 +373,7 @@ def default_providers() -> dict[str, SocialProvider]:
     """Registry: platform-key -> provider instance."""
     return {
         # telegram REMOVED 2026-06-28 (ban-risk; TelegramProvider class kept dead/unreferenced)
+        "whatsapp": WhatsAppProvider(),  # 1-to-1 owner delivery of approved posts (ban-safe)
         "facebook": MetaProvider("facebook"),
         "instagram": MetaProvider("instagram"),
         "gbp": GBPProvider(),

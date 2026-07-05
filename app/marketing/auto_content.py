@@ -348,6 +348,29 @@ _SELF_CLIENT_ID = "leadgenai-self"
 AUTO_SEED_SELF = True
 
 
+def _content_priority_rank(client: dict[str, Any]) -> int:
+    """Sort-key: PAYING real client = 0 (pehle process ho), LeadGen AI self /
+    no-plan filler = 1 (last). Isse subah content-ready ka promise paying
+    customers ko sabse jaldi milta hai. Kabhi raise nahi karta."""
+    try:
+        if not isinstance(client, dict):
+            return 1
+        cid = str(client.get("id") or "").strip()
+        niche = str(client.get("niche") or "").strip().lower()
+        name = str(client.get("business_name") or "").strip().lower()
+        # Self-brand (LeadGen AI) = hamesha last.
+        if cid == _SELF_CLIENT_ID or niche == "ai_marketing" or name == "leadgen ai":
+            return 1
+        # Koi bhi real plan (starter/growth/advanced/combo/voice_* etc.) = paying → pehle.
+        plan = str(client.get("plan") or "").strip().lower()
+        if plan and plan not in ("", "free", "none", "trial"):
+            return 0
+        # Plan-less real client = self ke baad, par test-friendly stable.
+        return 1
+    except Exception:  # pragma: no cover
+        return 1
+
+
 def _ensure_self_client() -> str | None:
     """LeadGen AI ka apna marketing-client record ensure karo (idempotent by id).
 
@@ -440,6 +463,10 @@ async def run_daily_content() -> dict[str, Any]:
             self_id = _ensure_self_client()
 
         active = clients_store.list_clients("active")
+        # PAYING clients pehle (subah content ready ka promise customers ko sabse
+        # jaldi mile), LeadGen AI apna self-brand sabse LAST. Stable sort:
+        # rank 0 = paying real client, rank 1 = self / no-plan filler.
+        active = sorted(active, key=lambda c: _content_priority_rank(c))
         for client in active:
             cid = str(client.get("id") or "")
             if not cid:

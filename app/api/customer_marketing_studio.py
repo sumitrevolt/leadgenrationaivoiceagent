@@ -115,11 +115,18 @@ def _entitlement_gate(client_id: str, rec: dict) -> None:
 def _ctx(client_id: str) -> dict:
     rec = _client_record(client_id) or {}
     _entitlement_gate(client_id, rec)
+    _brand = rec.get("brand") if isinstance(rec.get("brand"), dict) else {}
     return {
         "business_name": str(rec.get("business_name") or rec.get("name") or "Aapka Business").strip(),
         "niche": str(rec.get("niche") or "general").strip().lower() or "general",
         "city": str(rec.get("city") or rec.get("location") or "").strip(),
         "website": str(rec.get("website") or "").strip(),
+        # Client-scoped branding/CTA (carousel/referral etc. — customer output me
+        # LeadGen ka apna CTA/default-violet nahi, CLIENT ki mini-site/brand jaani chahiye).
+        "slug": str(rec.get("slug") or "").strip(),
+        "phone": str(rec.get("phone") or "").strip(),
+        "brand_primary": str(_brand.get("primary") or "").strip(),
+        "brand_accent": str(_brand.get("accent") or "").strip(),
         "has_record": bool(rec),
     }
 
@@ -548,10 +555,32 @@ class WinbackReq(BaseModel):
 
 
 class QuoteReq(BaseModel):
-    city: str = Field("", max_length=80)
-    plan: str = Field("growth", max_length=30)
-    avg_deal_value: float = Field(20000, ge=0, le=100000000)
-    missed_per_day: float = Field(5, ge=0, le=1000)
+    inquiry: str = Field("", max_length=1200, description="Customer ne kya poocha / kaunsa kaam chahiye")
+    service: str = Field("", max_length=200, description="Service/kaam ka naam (optional)")
+    budget_hint: str = Field("", max_length=120, description="Approx budget / price-range hint (optional)")
+    customer_name: str = Field("", max_length=80, description="Jis customer ke liye quote hai (optional)")
+
+
+class UpiQrReq(BaseModel):
+    vpa: str = Field("", max_length=100, description="Apna UPI ID (naam@bank) — ek baar set, save ho jata")
+    amount: float | None = Field(None, ge=0, le=100000000, description="Fixed amount (optional; khali = any-amount QR)")
+    note: str = Field("", max_length=100, description="Payment note (optional)")
+
+
+class StudioImageReq(BaseModel):
+    occasion: str = Field("", max_length=120, description="Festival / theme / topic")
+    offer: str = Field("", max_length=200, description="Discount / offer line")
+    style: str = Field("vibrant professional", max_length=80)
+    width: int = Field(1024, ge=256, le=1536)
+    height: int = Field(1024, ge=256, le=1536)
+
+
+class CompletePostStudioReq(BaseModel):
+    occasion: str = Field("", max_length=120)
+    offer: str = Field("", max_length=200)
+    language: str = Field("hinglish", max_length=40)
+    width: int = Field(1024, ge=256, le=1536)
+    height: int = Field(1024, ge=256, le=1536)
 
 
 @router.post("/festival-post", dependencies=[Depends(_GEN_LIMIT)])
@@ -657,18 +686,148 @@ async def studio_win_back(req: WinbackReq = Body(default=WinbackReq()), client_i
 
 @router.post("/quote-draft", dependencies=[Depends(_GEN_LIMIT)])
 async def studio_quote_draft(req: QuoteReq = Body(default=QuoteReq()), client_id: str = Depends(require_customer)) -> dict:
-    """Personalized proposal / estimate draft with ROI (customer can send to a lead)."""
+    """Customer-scoped price-quote draft — CLIENT ke apne END-customer ke liye ek
+    professional Hinglish quotation (business_name/niche/brand + inquiry text se).
+
+    Pehle ye ``proposal.generate_proposal`` call karta tha jo LEADGEN ka apna sales
+    pitch banata (Growth ₹2,999 tak mention karta) — ye customer ke portal me galat
+    output tha (audit 2026-07-05). Ab ye us salon/shop ka quote banata JO WO apne
+    customer ko bhej sake. free_ai.chat pattern (proposal.py jaisa) + never-empty
+    template fallback — UI kabhi blank nahi."""
+    c = _ctx(client_id)
+    rec = _client_record(client_id) or {}
+    biz = c["business_name"]
+    niche_h = (c["niche"] or "general").replace("_", " ")
+    brand = rec.get("brand") if isinstance(rec.get("brand"), dict) else {}
+    tagline = str((brand or {}).get("tagline") or "").strip()
+    who = (req.customer_name or "").strip()
+    greet_name = f" {who}" if who else ""
+    service = (req.service or "").strip()
+    inquiry = (req.inquiry or "").strip()
+    budget = (req.budget_hint or "").strip()
+    phone = str(rec.get("phone") or "").strip()
+
+    # Never-empty template quote (LLM output isko replace kar sakta, warna yahi jaata).
+    _svc_line = f"Aapki requirement: {service or inquiry or 'aapke kaam'}"
+    quote_text = (
+        f"*{biz} — Quotation*\n\n"
+        f"Namaste{greet_name} 🙏 Aapki inquiry ke liye dhanyawad.\n"
+        f"{_svc_line}.\n\n"
+        f"Hum {niche_h} me quality kaam + time pe delivery dete hain. "
+        f"{('Budget ' + budget + ' ke hisaab se ') if budget else ''}best rate + options aapko "
+        f"bhej rahe hain — final price kaam ke scope pe depend karega.\n\n"
+        f"Aage badhne ke liye reply karein ya call karein"
+        f"{(' — ' + phone) if phone else ''}. Hum aaj hi confirm kar denge. 👍\n\n"
+        f"— {biz}" + (f"\n{tagline}" if tagline else "")
+    )
+
+    try:
+        from app.voice_agent import free_ai
+
+        sys = (
+            "Tum ek local Indian business (salon/shop/service) ke liye price-QUOTATION "
+            "writer ho. Ek SHORT (6-9 line) professional Hinglish quote likho JO YE BUSINESS "
+            "apne CUSTOMER ko bheje: greeting → customer ki requirement → hum kya denge (quality/"
+            "delivery) → indicative pricing/options (koi fixed number invent mat karo agar diya "
+            "nahi) → next step (reply/call/book). SIRF is business ka naam use karo. Kisi platform/"
+            "software/vendor ('LeadGen', 'AI agent', SaaS plan/₹pricing) ka ZIKR bilkul mat karo. "
+            "Sirf quotation text return karo."
+        )
+        prompt = (
+            f"Business: {biz}. Niche: {niche_h}. City: {c['city'] or '-'}. "
+            + (f"Brand tagline: {tagline}. " if tagline else "")
+            + (f"Customer ka naam: {who}. " if who else "")
+            + (f"Service/kaam: {service}. " if service else "")
+            + (f"Customer ki inquiry: {inquiry}. " if inquiry else "")
+            + (f"Budget hint: {budget}. " if budget else "")
+            + (f"Contact number: {phone}. " if phone else "")
+        )
+        txt, _ = await free_ai.chat(
+            sys, [{"role": "user", "content": prompt}], max_tokens=320, temperature=0.6
+        )
+        if txt and txt.strip():
+            quote_text = txt.strip()
+    except Exception as e:
+        logger.debug("studio quote-draft llm skip: %s", e)
+
+    return {
+        "ok": True,
+        "tool": "quote-draft",
+        "result": {
+            "business_name": biz,
+            "customer_name": who,
+            "quote": quote_text,
+            "note": "Ye quote aap apne customer ko WhatsApp/email pe bhej sakte ho. Final price kaam ke scope pe adjust karo.",
+        },
+        "context": c,
+    }
+
+
+@router.post("/upi-qr", dependencies=[Depends(_GEN_LIMIT)])
+def studio_upi_qr(req: UpiQrReq = Body(default=UpiQrReq()), client_id: str = Depends(require_customer)) -> dict:
+    """Apna UPI payment QR pack — customer ka customer seedha UPI se pay kare (koi
+    gateway nahi). VPA ek baar daalo, client record me save ho jata (agli baar auto).
+    upi_qr.payment_qr_pack ka customer-facing wrapper (engage/upi-qr admin-only tha).
+
+    IDOR-safe: client_id HAMESHA auth dependency se — request body me client_id nahi."""
+    c = _ctx(client_id)
+    from app.marketing import clients_store, upi_qr
+
+    # New VPA diya to persist (whitelisted field) — warna record ka purana use hota.
+    vpa = (req.vpa or "").strip()
+    if vpa:
+        try:
+            clients_store.update_client(client_id, upi_vpa=vpa)
+        except Exception as e:
+            logger.debug("studio upi-qr vpa persist skip: %s", e)
+    pack = upi_qr.payment_qr_pack(client_id, amount=req.amount, note=(req.note or ""))
+    if not pack.get("ok"):
+        # VPA missing/invalid → actionable message, not a 5xx (pack never raises).
+        return {"ok": False, "tool": "upi-qr", "error": pack.get("error") or "UPI ID (naam@bank) daalo.", "context": c}
+    return {"ok": True, "tool": "upi-qr", "result": pack, "context": c}
+
+
+@router.post("/ai-image", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_ai_image(req: StudioImageReq = Body(default=StudioImageReq()), client_id: str = Depends(require_customer)) -> dict:
+    """AI marketing-image (Pollinations Flux, FREE) — customer ke apne business/niche
+    ke liye real image URL. Admin-only /api/marketing/ai-image ka customer wrapper
+    (business_name/niche client record se — IDOR-safe)."""
     c = _ctx(client_id)
     try:
-        from app.marketing import proposal
+        from app.marketing import ai_image
 
-        out = await proposal.generate_proposal(
-            business_name=c["business_name"], niche=c["niche"], city=(req.city or c["city"]),
-            plan=req.plan, missed_per_day=req.missed_per_day, avg_deal_value=req.avg_deal_value,
+        out = await ai_image.marketing_image(
+            c["business_name"], c["niche"], req.occasion, req.offer, req.style, req.width, req.height,
         )
     except Exception as e:
-        _fail("Quote Draft", e)
-    return {"ok": True, "tool": "quote-draft", "result": out, "context": c}
+        _fail("AI Image", e)
+    return {"ok": True, "tool": "ai-image", "result": out, "context": c}
+
+
+@router.post("/complete-post", dependencies=[Depends(_GEN_LIMIT)])
+async def studio_complete_post(req: CompletePostStudioReq = Body(default=CompletePostStudioReq()), client_id: str = Depends(require_customer)) -> dict:
+    """COMPLETE post ek shot me — caption + hashtags + asli AI image (free). Admin-only
+    /api/marketing/complete-post ka customer wrapper (business/niche client record se)."""
+    import asyncio
+
+    c = _ctx(client_id)
+    try:
+        from app.marketing import ai_image, post_generator
+
+        post, img = await asyncio.gather(
+            post_generator.generate_post(
+                business_name=c["business_name"], niche=c["niche"],
+                occasion=req.occasion, offer=req.offer, language=req.language,
+            ),
+            ai_image.marketing_image(
+                c["business_name"], c["niche"], req.occasion, req.offer,
+                width=req.width, height=req.height,
+            ),
+        )
+    except Exception as e:
+        _fail("Complete Post", e)
+    result = {**post, "image_url": img.get("url", ""), "image_prompt": img.get("prompt", "")}
+    return {"ok": True, "tool": "complete-post", "result": result, "context": c}
 
 
 @router.get("/next-best-action")
@@ -812,7 +971,15 @@ async def studio_carousel(req: CarouselReq = Body(default=CarouselReq()), client
     try:
         from app.marketing import carousel
 
-        out = await carousel.generate_carousel(business_name=c["business_name"], niche=c["niche"], topic=req.topic, slides=req.slides)
+        out = await carousel.generate_carousel(
+            business_name=c["business_name"],
+            niche=c["niche"],
+            topic=req.topic,
+            slides=req.slides,
+            slug=c.get("slug", ""),
+            phone=c.get("phone", ""),
+            brand_primary=c.get("brand_primary", ""),
+        )
     except Exception as e:
         _fail("Carousel", e)
     return {"ok": True, "tool": "carousel", "result": out, "context": c}
@@ -1105,7 +1272,13 @@ def studio_referral(req: ReferralReq = Body(default=ReferralReq()), client_id: s
     try:
         from app.marketing import referral_kit
 
-        out = referral_kit.make_referral(business_name=c["business_name"], reward=req.reward)
+        out = referral_kit.make_referral(
+            business_name=c["business_name"],
+            reward=req.reward,
+            brand_primary=c.get("brand_primary", ""),
+            brand_accent=c.get("brand_accent", ""),
+            slug=c.get("slug", ""),
+        )
     except Exception as e:
         _fail("Referral", e)
     return {"ok": True, "tool": "referral", "result": out, "context": c}
@@ -1733,6 +1906,9 @@ async def studio_service_menu(req: ServiceMenuReq = Body(default=ServiceMenuReq(
 # --------------------------------------------------------------------------- #
 _TOOLS = [
     {"key": "post", "icon": "📝", "title": "AI Social Post", "desc": "Ready caption + hashtags + image idea", "method": "POST", "path": "/api/customer/studio/post", "fields": ["occasion", "offer"]},
+    {"key": "complete-post", "icon": "🖼️", "title": "Complete Post (+ AI Image)", "desc": "Caption + hashtags + asli AI image", "method": "POST", "path": "/api/customer/studio/complete-post", "fields": ["occasion", "offer"]},
+    {"key": "ai-image", "icon": "🎨", "title": "AI Image", "desc": "Business ke liye marketing image (free)", "method": "POST", "path": "/api/customer/studio/ai-image", "fields": ["occasion", "offer", "style"]},
+    {"key": "upi-qr", "icon": "💳", "title": "UPI Payment QR", "desc": "Apna scan-&-pay QR + poster", "method": "POST", "path": "/api/customer/studio/upi-qr", "fields": ["vpa", "amount", "note"]},
     {"key": "calendar", "icon": "🗓️", "title": "Content Calendar", "desc": "7-din ka post plan", "method": "POST", "path": "/api/customer/studio/calendar", "fields": ["days"]},
     {"key": "whatsapp", "icon": "💬", "title": "WhatsApp Pack", "desc": "Broadcast + status + reply lines", "method": "POST", "path": "/api/customer/studio/whatsapp", "fields": ["occasion", "offer"]},
     {"key": "review-reply", "icon": "⭐", "title": "Review Reply", "desc": "Google review ka 3-style reply", "method": "POST", "path": "/api/customer/studio/review-reply", "fields": ["review_text", "rating"]},
@@ -1747,7 +1923,7 @@ _TOOLS = [
     {"key": "speed-followup", "icon": "⚡", "title": "Speed-to-Lead Reply", "desc": "Naye lead ka instant message", "method": "POST", "path": "/api/customer/studio/speed-followup", "fields": []},
     {"key": "reel-script", "icon": "🎬", "title": "Reel Script", "desc": "Instagram reel ka 15-30s script", "method": "POST", "path": "/api/customer/studio/reel-script", "fields": ["topic", "n"]},
     {"key": "win-back", "icon": "💌", "title": "Win-back Campaign", "desc": "Purane customers ko offer", "method": "POST", "path": "/api/customer/studio/win-back", "fields": ["offer"]},
-    {"key": "quote-draft", "icon": "🧾", "title": "Quote / Estimate", "desc": "Inquiry se price quote draft", "method": "POST", "path": "/api/customer/studio/quote-draft", "fields": ["avg_deal_value"]},
+    {"key": "quote-draft", "icon": "🧾", "title": "Quote / Estimate", "desc": "Customer ke liye price-quote draft", "method": "POST", "path": "/api/customer/studio/quote-draft", "fields": ["inquiry", "service", "budget_hint", "customer_name"]},
     {"key": "next-best-action", "icon": "🎯", "title": "Next Best Action", "desc": "Aaj kya karna hai — task list", "method": "GET", "path": "/api/customer/studio/next-best-action", "fields": []},
     {"key": "competitor", "icon": "🔍", "title": "Competitor Tracker", "desc": "Strengths copy + gaps exploit", "method": "POST", "path": "/api/customer/studio/competitor", "fields": ["competitor_notes"]},
     {"key": "faq-reply", "icon": "🤖", "title": "FAQ / Reply Assistant", "desc": "Customer sawaal ka smart answer", "method": "POST", "path": "/api/customer/studio/faq-reply", "fields": ["question"]},

@@ -135,10 +135,10 @@
   .mobile-app-nav{display:none}
   .mobile-fab{display:none}
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
-  .prod-marketing #callsCard,.prod-marketing #routingCard{display:none !important}
+  .prod-marketing #callsCard{display:none !important}
   .prod-voice #contentCard,.prod-voice #approvalCard,.prod-voice #webToolsCard{display:none !important}
   .prod-voice .actions .action-card[onclick*="contentCard"],.prod-voice .actions .action-card[onclick*="approvalCard"],.prod-voice .actions .action-card[onclick*="webToolsCard"],
-  .prod-marketing .actions .action-card[onclick*="callsCard"],.prod-marketing .actions .action-card[onclick*="routingCard"]{display:none !important}
+  .prod-marketing .actions .action-card[onclick*="callsCard"]{display:none !important}
   @media(max-width:980px){.owner-hero{grid-template-columns:1fr}.owner-actions{justify-content:flex-start}.priority-list{grid-template-columns:1fr}.owner-title{font-size:21px}}
   /* ===== Virtual AI Team office (agentic dashboard) ===== */
   .team-office{position:relative;border-radius:16px;padding:16px 16px 18px;margin:0 0 16px;overflow:hidden;
@@ -426,11 +426,11 @@
   /* ===== Per-product view — body.prod-marketing / body.prod-voice; no class = combo (both) =====
      Served as: /app/customer (combo) · /app/customer/marketing · /app/customer/voice.
      Hides the other product's sections/nav/quick-actions by id, class & onclick target. */
-  .prod-marketing #routingCard, .prod-marketing #leadsCard, .prod-marketing #callsCard,
+  .prod-marketing #leadsCard, .prod-marketing #callsCard,
   .prod-marketing .hero-leads, .prod-marketing .kpis:not(.marketing-only), .prod-marketing .grid-2, .prod-marketing .grid-3,
   .prod-marketing .voice-only,
-  .prod-marketing .navlink[href="#routingCard"], .prod-marketing .navlink[href="#leadsCard"], .prod-marketing .navlink[href="#callsCard"],
-  .prod-marketing .action-card[onclick*="routingCard"], .prod-marketing .action-card[onclick*="leadsCard"], .prod-marketing .action-card[onclick*="callsCard"]
+  .prod-marketing .navlink[href="#leadsCard"], .prod-marketing .navlink[href="#callsCard"],
+  .prod-marketing .action-card[onclick*="leadsCard"], .prod-marketing .action-card[onclick*="callsCard"]
     { display:none !important; }
   .prod-voice #contentCard, .prod-voice #approvalCard, .prod-voice #webToolsCard,
   .prod-voice .marketing-only,
@@ -2180,8 +2180,32 @@ async function loadBilling(){
   try{ const r=await fetch("/api/billing/usage?client_id="+encodeURIComponent(BILL.cid),{headers:billAuthHdr()});
        if(r.ok) usage=await r.json(); }catch(e){}
   try{ const r=await fetch("/api/billing/invoices?client_id="+encodeURIComponent(BILL.cid)+"&limit=20",{headers:billAuthHdr()});
-       if(r.ok) invoices=await r.json(); }catch(e){}
+       if(r.ok){ const j=await r.json(); if(Array.isArray(j)) invoices=j; } }catch(e){}
+  // GST invoices (data/invoices.jsonl) alag store me hain — /api/billing/invoices
+  // (DB Invoice rows) me nahi aate. UPI/Stripe pay pe gst_invoice inhe likhta hai,
+  // isliye customer ko GST bill dikhane ke liye portal endpoint bhi merge karo.
+  try{ const r=await fetch("/api/customer/auth/portal/invoices",{headers:billAuthHdr()});
+       if(r.ok){ const d=await r.json();
+         (d.invoices||[]).forEach(function(g){ invoices.push({
+           invoice_number:g.number, invoice_date:g.date, total:g.gross_inr,
+           currency:"INR", status:"paid", _gst:true }); }); }
+  }catch(e){}
   renderBilling(sub,usage,invoices);
+}
+
+// GST invoice (INV/2026-27/xxxx) ka printable HTML kholo. Portal endpoint Bearer
+// auth maangta hai (plain anchor 401 deta), isliye fetch-with-auth → blob → nayi tab.
+async function openGstInvoice(numEnc){
+  try{
+    const r=await fetch("/api/customer/auth/portal/invoice-html?number="+numEnc,{headers:billAuthHdr()});
+    if(!r.ok){ toast("Invoice", "Invoice abhi available nahi."); return; }
+    const html=await r.text();
+    if(!html || html.indexOf("not found")>-1 && html.length<80){ toast("Invoice","Invoice nahi mila."); return; }
+    const blob=new Blob([html],{type:"text/html"});
+    const u=URL.createObjectURL(blob);
+    window.open(u,"_blank","noopener");
+    setTimeout(function(){ URL.revokeObjectURL(u); }, 60000);
+  }catch(e){ toast("Invoice", "Kholne me dikkat — thodi der baad."); }
 }
 
 function renderBilling(sub,usage,invoices){
@@ -2216,13 +2240,19 @@ function renderBilling(sub,usage,invoices){
   document.getElementById("billInvCount").textContent=(invoices.length||0)+" bills";
   if(invoices&&invoices.length){
     body.innerHTML=invoices.map(inv=>{
+      // Hosted/PDF url ho to wo; warna GST invoice (INV/2026-27/xxxx) ko portal
+      // invoice-html endpoint se kholo. Wo endpoint auth header maangta (Bearer),
+      // isliye plain anchor nahi — openGstInvoice() fetch-with-auth + blob me kholta.
+      const num=inv.invoice_number||inv.number||"";
       const url=inv.hosted_url||inv.pdf_url;
+      const link=url?`<a href="${url}" target="_blank" rel="noopener">Kholo ↗</a>`
+                  :(num?`<a href="#" onclick="openGstInvoice('${encodeURIComponent(num)}');return false;">GST Invoice ↓</a>`:"—");
       return `<tr>
-        <td class="sm">${inv.invoice_number||inv.id||"—"}</td>
+        <td class="sm">${num||inv.id||"—"}</td>
         <td class="sm">${fmtDate(inv.invoice_date)}</td>
         <td class="sm">${fmtMoney(inv.total,inv.currency)}</td>
         <td><span class="tag ${inv.status==='paid'?'connected':'no-answer'}">${inv.status||"—"}</span></td>
-        <td class="sm">${url?`<a href="${url}" target="_blank" rel="noopener">Kholo ↗</a>`:"—"}</td>
+        <td class="sm">${link}</td>
       </tr>`;}).join("");
   }else{
     body.innerHTML=`<tr><td colspan="5" class="empty-row">Abhi koi bill nahi bana.</td></tr>`;
