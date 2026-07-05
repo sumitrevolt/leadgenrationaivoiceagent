@@ -804,6 +804,17 @@ async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
         if body.clear_trial:
             upd["trial"] = False
         clients_store.update_client(cid, **upd)
+        # DELIVERY GUARANTEE (2026-07-05, council): paisa aate hi value-FIRST delivery
+        # trigger karo (mini-site link + content) — customer ko "kuch nahi mila" na ho
+        # (jiya makeover incident fix). Gated AUTO_DELIVER_VALUE: OFF = sirf detect+record
+        # (dead-man sweep pakdega), ON = auto-send. Best-effort, never blocks activation.
+        try:
+            from app.marketing import customer_delivery
+
+            fresh = clients_store.get_client(cid) or {}
+            await customer_delivery.deliver_client_value(fresh)
+        except Exception:
+            pass
         try:
             from app.platform import customer_webhooks
 
