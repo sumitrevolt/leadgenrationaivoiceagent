@@ -15,6 +15,10 @@ def test_is_paid_client():
     assert cd.is_paid_client({"status": "active", "plan": "trial"}) is False
     assert cd.is_paid_client({"status": "active", "plan": ""}) is False
     assert cd.is_paid_client({"status": "paused", "plan": "starter"}) is False
+    # self-brand entries are NOT delivery targets (company's own record)
+    assert cd.is_paid_client({"status": "active", "plan": "starter", "id": "leadgenai-self"}) is False
+    assert cd.is_paid_client({"status": "active", "plan": "growth", "business_name": "LeadGen AI"}) is False
+    assert cd.is_paid_client({"status": "active", "plan": "starter", "niche": "ai_marketing"}) is False
 
 
 def test_mini_site_url():
