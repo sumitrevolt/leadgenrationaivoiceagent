@@ -560,10 +560,20 @@ class Guardrails:
     # ----------------------- internal helpers ----------------------- #
     @staticmethod
     def _first_match(low_text: str, phrases: list[str]) -> str | None:
-        """Pehla phrase jo low_text me mile (substring). None agar koi nahi."""
+        """Pehla phrase jo low_text me WHOLE-WORD mile. None agar koi nahi.
+        BUGFIX (2026-07-05): substring match legit turns ko injection samajh ke
+        block kar deta tha ("exact assessment" me "act as" -> allowed=False ->
+        NaturalDialogManager deflect). Word-boundary lookarounds se fix (trailing
+        ':' wale phrase "new instructions:" ke liye \\b ki jagah (?<!\\w)/(?!\\w))."""
         for p in phrases:
-            if p and p in low_text:
-                return p
+            if not p:
+                continue
+            try:
+                if re.search(r"(?<!\w)" + re.escape(p) + r"(?!\w)", low_text):
+                    return p
+            except Exception:
+                if p in low_text:  # regex edge-case → safe substring fallback
+                    return p
         return None
 
     def _profanity_hit(self, low_text: str) -> str | None:

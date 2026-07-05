@@ -9,6 +9,7 @@ from enum import Enum
 from typing import Any
 
 from app.utils.logger import setup_logger
+from app.voice_agent.hinglish_normalize import to_roman
 
 logger = setup_logger(__name__)
 
@@ -150,9 +151,14 @@ class IntentDetector:
         Returns:
             DetectedIntent with type, confidence, and entities
         """
-        text_lower = text.lower().strip()
+        # BUGFIX (2026-07-05): Whisper(hi) Devanagari deta hai (जैसे "बंद करो" /
+        # "मत करो कॉल") — patterns romanized hain, isliye opt-out/not-interested
+        # KABHI match nahi hote the (DND/opt-out = fail-CLOSED compliance). Ab
+        # roman-normalize karke match karo. Raw `text` language-detect/entities
+        # ke liye untouched rehta hai.
+        text_lower = to_roman(text).lower().strip()
 
-        # Detect language
+        # Detect language (raw text — Devanagari chars chahiye)
         language = self._detect_language(text)
 
         # Pattern-based detection first (fast)
