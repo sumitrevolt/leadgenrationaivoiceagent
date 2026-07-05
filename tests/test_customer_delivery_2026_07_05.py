@@ -1,0 +1,105 @@
+"""Tests for the P0 customer value-delivery guarantee (2026-07-05 council fix):
+value-first delivery, paid detection, mini-site URL, dead-man detector, and the
+AUTO_DELIVER_VALUE gate. Offline (no WhatsApp send).
+"""
+import os
+
+import pytest
+
+from app.marketing import customer_delivery as cd
+
+
+def test_is_paid_client():
+    assert cd.is_paid_client({"status": "active", "plan": "starter"}) is True
+    assert cd.is_paid_client({"status": "active", "plan": "advanced"}) is True
+    assert cd.is_paid_client({"status": "active", "plan": "trial"}) is False
+    assert cd.is_paid_client({"status": "active", "plan": ""}) is False
+    assert cd.is_paid_client({"status": "paused", "plan": "starter"}) is False
+
+
+def test_mini_site_url():
+    assert cd.mini_site_url({"slug": "jiya-makeover-d79d"}).endswith("/b/jiya-makeover-d79d")
+    assert cd.mini_site_url({"slug": ""}) == ""
+    assert cd.mini_site_url({}) == ""
+
+
+def test_is_delivered():
+    assert cd.is_delivered({"delivery_state": "delivered"}) is True
+    assert cd.is_delivered({"delivery_state": "acknowledged"}) is True
+    assert cd.is_delivered({"delivery_state": "paid"}) is False
+    assert cd.is_delivered({}) is False
+
+
+def test_build_delivery_message_is_value_first():
+    """Message must hand over the LIVE mini-site link — value-first, not an info-ask."""
+    msg = cd.build_delivery_message({"business_name": "jiya makeover", "slug": "jiya-makeover-d79d"})
+    assert "jiya makeover" in msg
+    assert "/b/jiya-makeover-d79d" in msg
+    # must NOT be the old "describe your business first" gate
+    assert "kya services dete hain" not in msg.lower()
+
+
+@pytest.mark.asyncio
+async def test_deliver_gated_off_by_default(monkeypatch):
+    """With AUTO_DELIVER_VALUE unset, deliver must NOT send (records stuck instead)."""
+    monkeypatch.delenv("AUTO_DELIVER_VALUE", raising=False)
+    sent = {"called": False}
+
+    class _FakeSender:
+        async def send_text_message(self, to, msg):
+            sent["called"] = True
+            return {"ok": True}
+
+    monkeypatch.setattr(
+        "app.integrations.whatsapp.get_whatsapp_sender", lambda: _FakeSender(), raising=False
+    )
+    r = await cd.deliver_client_value(
+        {"id": "x1", "status": "active", "plan": "starter", "slug": "s", "phone": "9812345678"}
+    )
+    assert r["delivered"] is False
+    assert r.get("skipped") == "AUTO_DELIVER_VALUE off"
+    assert sent["called"] is False  # gate held — no customer message sent
+
+
+@pytest.mark.asyncio
+async def test_deliver_force_sends_and_marks(monkeypatch):
+    """force=True (operator single-send) sends + marks delivered."""
+    marked = {}
+
+    class _FakeSender:
+        async def send_text_message(self, to, msg):
+            return {"ok": True}
+
+    monkeypatch.setattr(
+        "app.integrations.whatsapp.get_whatsapp_sender", lambda: _FakeSender(), raising=False
+    )
+    monkeypatch.setattr(
+        "app.marketing.clients_store.update_client",
+        lambda cid, **kw: marked.update({"cid": cid, **kw}),
+        raising=False,
+    )
+    r = await cd.deliver_client_value(
+        {"id": "x2", "status": "active", "plan": "starter", "slug": "s", "phone": "9812345678"},
+        force=True,
+    )
+    assert r["delivered"] is True
+    assert marked.get("delivery_state") == "delivered"
+    assert marked.get("delivered_at")
+
+
+@pytest.mark.asyncio
+async def test_find_undelivered_paid_clients(monkeypatch):
+    clients = [
+        {"id": "a", "status": "active", "plan": "starter"},  # undelivered paid -> included
+        {"id": "b", "status": "active", "plan": "starter", "delivery_state": "delivered"},  # done
+        {"id": "c", "status": "active", "plan": "trial"},  # not paid
+        {"id": "d", "status": "paused", "plan": "starter"},  # not active
+    ]
+    monkeypatch.setattr(
+        "app.marketing.clients_store.list_clients",
+        lambda status=None: [c for c in clients if (status is None or c["status"] == status)],
+        raising=False,
+    )
+    out = cd.find_undelivered_paid_clients()
+    ids = {c["id"] for c in out}
+    assert ids == {"a"}
