@@ -566,70 +566,30 @@ class CallManager:
                                 _lead_usage.record_qualified_lead(_cid, ref=str(call_id))
                         except Exception:
                             pass
-                        # Native CRM sync (Zoho/HubSpot) — qualified lead client ke
-                        # apne CRM me. GATED CRM_SYNC=1, best-effort, never blocks.
-                        try:
-                            from app.platform import crm_sync as _crm
+                    # CRM sync + sales pipeline + cadence: was an inline copy of the
+                    # vobiz-stream qualify block (classic drift setup — the two paths
+                    # had already diverged on POST_CALL_WHATSAPP). Both paths now share
+                    # post_call_hooks.apply_qualified_downstream; the helper self-guards
+                    # on q["qualified"] and never raises. Parity note: this path now
+                    # also sends the post-call WhatsApp (default ON, POST_CALL_WHATSAPP=0
+                    # kills it; no double-send — a call finishes via exactly one path).
+                    try:
+                        from app.telephony.post_call_hooks import apply_qualified_downstream
 
-                            if _crm.auto_enabled():
-                                await _crm.push_lead(
-                                    {
-                                        "business_name": getattr(context, "client_name", "") or "",
-                                        "phone": context.phone_number,
-                                        "source": "AI Voice Agent",
-                                        "score": _q.get("interest_score") or 0,
-                                    },
-                                    client_id=getattr(context, "client_id", "") or "",
-                                    note=(
-                                        f"Qualified by AI voice agent (call {call_id}).\n"
-                                        f"Score: {_q.get('interest_score')}/100\n"
-                                        f"Summary: {_q.get('summary', '')}\n"
-                                        f"Next action: {_q.get('next_action', '')}"
-                                    ),
-                                )
-                        except Exception:
-                            pass
-                        # Sales pipeline: qualified voice call = "interested" deal stage.
-                        # Prospect ek baar call me qualified hua = warm deal. Best-effort.
-                        try:
-                            from app.marketing import sales_pipeline as _sp
-
-                            _sp.upsert_deal(
-                                {
-                                    "phone": context.phone_number,
-                                    "business_name": getattr(context, "client_name", "") or "",
-                                    "source": "AI Voice Call",
-                                    "score": _q.get("interest_score") or 0,
-                                    "summary": _q.get("summary") or "",
-                                },
-                                stage="interested",
-                            )
-                        except Exception:
-                            pass
-                        # Cadence enroll: qualified voice lead = omnichannel follow-up
-                        # sequence me daalo (email→sms→wa→linkedin). Gated CADENCE_ENGINE=1.
-                        try:
-                            import os as _os2
-
-                            if _os2.environ.get("CADENCE_ENGINE", "").strip() in (
-                                "1",
-                                "true",
-                                "yes",
-                            ):
-                                from app.marketing import cadence as _cad
-
-                                _cad.enroll(
-                                    {
-                                        "phone": context.phone_number,
-                                        "business_name": getattr(context, "client_name", "") or "",
-                                        "niche": getattr(context, "niche", "") or "",
-                                        "city": getattr(context, "city", "") or "",
-                                        "email": "",
-                                        "source": "AI Voice Call",
-                                    }
-                                )
-                        except Exception:
-                            pass
+                        await apply_qualified_downstream(
+                            _q,
+                            client_id=getattr(context, "client_id", "") or "",
+                            phone=context.phone_number,
+                            client_name=getattr(context, "client_name", "") or "",
+                            call_id=str(call_id),
+                            niche=getattr(context, "niche", "") or "",
+                            city=getattr(context, "city", "") or "",
+                            campaign_variant_id=str(
+                                getattr(context, "campaign_variant_id", "") or ""
+                            ),
+                        )
+                    except Exception:
+                        pass
         except Exception as _qe:
             logger.debug(f"[call_qualifier] auto-qualify skip: {_qe}")
 

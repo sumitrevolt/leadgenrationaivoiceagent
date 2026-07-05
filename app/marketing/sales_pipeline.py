@@ -124,6 +124,7 @@ def upsert_deal(lead: dict[str, Any], stage: str = "interested") -> dict[str, An
     phone = "".join(c for c in str(lead.get("phone") or "") if c.isdigit())[-10:]
     email = (lead.get("email") or "").strip().lower()
     rows = _read(_DEALS)
+    _vid = str(lead.get("campaign_variant_id") or "").strip()
     for r in rows:
         if (phone and r.get("phone") == phone) or (email and r.get("email") == email):
             # Forward-only: never let a re-upsert (e.g. a re-classified "interested"
@@ -131,6 +132,10 @@ def upsert_deal(lead: dict[str, Any], stage: str = "interested") -> dict[str, An
             if stage and stage in STAGES and not _is_downgrade(r.get("stage"), stage):
                 r["stage"] = stage
                 r["updated_at"] = _now()
+            # Variant attribution backfill only — never overwrite an existing stamp
+            # (first-touch attribution; re-upserts from later calls keep the original).
+            if _vid and not r.get("campaign_variant_id"):
+                r["campaign_variant_id"] = _vid
             _write_all(_DEALS, rows)
             return r
     rec = {
@@ -150,6 +155,11 @@ def upsert_deal(lead: dict[str, Any], stage: str = "interested") -> dict[str, An
     _cid = str(lead.get("client_id") or "").strip()
     if _cid:
         rec["client_id"] = _cid
+    # Voice-opening A/B attribution — CONDITIONAL stamp (same byte-identical
+    # contract as client_id above) so qualified→deal conversion per variant
+    # is measurable in voice_opening_variants analytics.
+    if _vid:
+        rec["campaign_variant_id"] = _vid
     rows.append(rec)
     _write_all(_DEALS, rows)
     return rec

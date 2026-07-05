@@ -74,3 +74,34 @@ def test_stage_forward_and_lateral_still_move(monkeypatch, tmp_path):
     # Invalid stage rejected; unknown deal not found — both False (unchanged contract).
     assert sp.set_stage(deal_id, "not-a-stage") is False
     assert sp.set_stage("no-such-deal", "won") is False
+
+
+def test_upsert_deal_variant_stamp_first_touch(monkeypatch, tmp_path):
+    """campaign_variant_id: stamped on create, backfilled if missing, but NEVER
+    overwritten (first-touch attribution). No-variant deals stay byte-identical."""
+    from app.marketing import sales_pipeline as sp
+
+    monkeypatch.setattr(sp, "_DEALS", str(tmp_path / "deals.jsonl"))
+    monkeypatch.setattr(sp, "_ACTIONS", str(tmp_path / "deal_actions.jsonl"))
+
+    # No variant → key absent entirely (byte-identical contract, like client_id).
+    plain = sp.upsert_deal({"business_name": "NoVar Shop", "phone": "9000000003"})
+    assert "campaign_variant_id" not in plain
+
+    # Create with variant → stamped.
+    deal = sp.upsert_deal(
+        {"business_name": "Var Shop", "phone": "9000000004", "campaign_variant_id": "var_A"}
+    )
+    assert deal["campaign_variant_id"] == "var_A"
+
+    # Re-upsert with a DIFFERENT variant → original stamp preserved (first-touch).
+    again = sp.upsert_deal(
+        {"business_name": "Var Shop", "phone": "9000000004", "campaign_variant_id": "var_B"}
+    )
+    assert again["campaign_variant_id"] == "var_A"
+
+    # Backfill: plain deal later re-upserted WITH a variant → stamp appears.
+    filled = sp.upsert_deal(
+        {"business_name": "NoVar Shop", "phone": "9000000003", "campaign_variant_id": "var_C"}
+    )
+    assert filled["campaign_variant_id"] == "var_C"

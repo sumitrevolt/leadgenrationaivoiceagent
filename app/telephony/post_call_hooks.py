@@ -123,7 +123,9 @@ async def apply_qualified_downstream(
             )
     except Exception:
         pass
-    # Sales pipeline: qualified voice call → interested stage
+    # Sales pipeline: qualified voice call → interested stage. campaign_variant_id
+    # (voice-opening A/B) rides along so qualified→deal conversion is attributable
+    # per variant — the param existed but was dormant until 2026-07-05.
     try:
         from app.marketing import sales_pipeline as _sp
 
@@ -134,6 +136,7 @@ async def apply_qualified_downstream(
                 "source": "AI Voice Call",
                 "score": q.get("interest_score") or 0,
                 "summary": q.get("summary") or "",
+                "campaign_variant_id": campaign_variant_id or "",
             },
             stage="interested",
         )
@@ -279,6 +282,7 @@ async def auto_qualify_and_downstream(
     niche: str = "",
     city: str = "",
     ended_at: datetime | None = None,
+    campaign_variant_id: str = "",
 ) -> dict[str, Any] | None:
     """Post-call qualify + report webhook + billing + CRM/cadence (stream paths)."""
     try:
@@ -341,6 +345,7 @@ async def auto_qualify_and_downstream(
             call_id=str(call_id or ""),
             niche=niche or "",
             city=city or "",
+            campaign_variant_id=campaign_variant_id or "",
         )
         return q
     except Exception as e:
@@ -593,6 +598,7 @@ async def finalize_stream_session(
         phone=phone or "",
         niche=niche or "",
         ended_at=ended,
+        campaign_variant_id=campaign_variant_id or "",
     )
     # DB-backed call analytics row (mirrors JSONL into the structured call_logs
     # table the analytics dashboard reads). Covers phone_stream cleanup path.

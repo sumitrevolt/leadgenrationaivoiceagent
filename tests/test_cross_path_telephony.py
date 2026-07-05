@@ -119,3 +119,85 @@ def test_vobiz_cleanup_logs_no_answer_for_dead_call(monkeypatch):
 
     assert recorded and recorded[-1]["outcome"] == "no_answer"
     assert emitted and emitted[-1][1]["outcome"] == "no_answer"
+
+
+# --------------------------------------------------------------------------- #
+# Cross-path parity guard (2026-07-05) — call_manager.handle_call_completed
+# used to carry an INLINE copy of the CRM/pipeline/cadence qualify block while
+# vobiz_stream used the shared helper. They had already drifted once
+# (POST_CALL_WHATSAPP existed on one path only). Pin: call_manager must go
+# through apply_qualified_downstream and must NOT re-inline the downstream.
+# --------------------------------------------------------------------------- #
+def test_call_manager_uses_shared_qualify_helper() -> None:
+    import ast
+    from pathlib import Path
+
+    src = (
+        Path(__file__).resolve().parent.parent / "app" / "telephony" / "call_manager.py"
+    ).read_text(encoding="utf-8")
+    assert "apply_qualified_downstream" in src, "call_manager lost the shared helper"
+    tree = ast.parse(src)
+    inline_calls = [
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr in ("upsert_deal", "push_lead", "enroll")
+    ]
+    assert not inline_calls, (
+        f"call_manager re-inlined downstream calls {inline_calls} — "
+        "use post_call_hooks.apply_qualified_downstream instead (drift guard)."
+    )
+
+
+def test_apply_qualified_downstream_stamps_variant_on_deal(monkeypatch):
+    """campaign_variant_id (voice-opening A/B) must reach the sales deal so
+    qualified→deal conversion is attributable per variant."""
+    enrolled: list[dict] = []
+    monkeypatch.setattr(
+        "app.marketing.sales_pipeline.upsert_deal",
+        lambda data, stage="interested": enrolled.append({"data": data, "stage": stage}),
+    )
+    monkeypatch.setenv("CADENCE_ENGINE", "0")
+    monkeypatch.setenv("POST_CALL_WHATSAPP", "0")
+    q = {"qualified": True, "interest_score": 77, "summary": "warm", "next_action": "demo"}
+    _run(
+        apply_qualified_downstream(
+            q,
+            client_id="c1",
+            phone="+919999999988",
+            client_name="Acme",
+            call_id="sid-2",
+            niche="solar",
+            campaign_variant_id="var_abc123",
+        )
+    )
+    assert len(enrolled) == 1
+    assert enrolled[0]["data"]["campaign_variant_id"] == "var_abc123"
+
+
+def test_post_call_whatsapp_kill_switch(monkeypatch):
+    """POST_CALL_WHATSAPP=0 must suppress the post-call WA send on BOTH paths
+    (env kill-switch for the parity-added call_manager behaviour)."""
+    sent: list[tuple] = []
+
+    class _FakeSender:
+        async def send_text_message(self, phone, msg):
+            sent.append((phone, msg))
+
+    monkeypatch.setattr(
+        "app.integrations.whatsapp.get_whatsapp_sender", lambda: _FakeSender()
+    )
+    monkeypatch.setattr(
+        "app.marketing.sales_pipeline.upsert_deal", lambda data, stage="interested": None
+    )
+    monkeypatch.setenv("CADENCE_ENGINE", "0")
+    q = {"qualified": True, "interest_score": 90, "summary": "hot", "next_action": "close"}
+
+    monkeypatch.setenv("POST_CALL_WHATSAPP", "0")
+    _run(apply_qualified_downstream(q, client_id="c1", phone="+919999999977"))
+    assert sent == []
+
+    monkeypatch.setenv("POST_CALL_WHATSAPP", "1")
+    _run(apply_qualified_downstream(q, client_id="c1", phone="+919999999977"))
+    assert len(sent) == 1

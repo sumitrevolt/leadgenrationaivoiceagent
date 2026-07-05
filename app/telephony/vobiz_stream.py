@@ -2910,6 +2910,7 @@ class VobizStreamSession:
                     client_name=self.client_name or "",
                     call_id=str(self.stream_sid or ""),
                     niche=self.niche or "",
+                    campaign_variant_id=str(getattr(self, "_voice_variant_id", "") or ""),
                 )
             except Exception:
                 pass
