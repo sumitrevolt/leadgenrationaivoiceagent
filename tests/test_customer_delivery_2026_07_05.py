@@ -91,6 +91,42 @@ async def test_deliver_force_sends_and_marks(monkeypatch):
     assert marked.get("delivered_at")
 
 
+def test_activation_and_acknowledgment(monkeypatch):
+    """A delivered paid customer's inbound reply flips delivery_state->acknowledged
+    (council: 'delivered = acknowledged'); non-delivered/non-paid unaffected."""
+    marked = {}
+    clients = [
+        {"id": "j", "status": "active", "plan": "starter", "phone": "918712928847",
+         "delivery_state": "delivered"},  # delivered paid -> should ack
+        {"id": "t", "status": "active", "plan": "trial", "phone": "9800000000",
+         "delivery_state": "delivered"},  # not paid -> ignore
+    ]
+    monkeypatch.setattr(
+        "app.marketing.clients_store.list_clients",
+        lambda status=None: clients, raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.clients_store.update_client",
+        lambda cid, **kw: marked.update({"cid": cid, **kw}), raising=False,
+    )
+    # reply from jiya's number (with country code) — last-10 match
+    assert cd.try_mark_acknowledged("918712928847@c.us") is True
+    assert marked.get("cid") == "j"
+    assert marked.get("delivery_state") == "acknowledged"
+    assert cd.is_activated({"delivery_state": "acknowledged"}) is True
+    assert cd.is_activated({"delivery_state": "delivered"}) is False
+
+
+def test_ack_ignores_unknown_number(monkeypatch):
+    monkeypatch.setattr(
+        "app.marketing.clients_store.list_clients",
+        lambda status=None: [{"id": "j", "status": "active", "plan": "starter",
+                              "phone": "918712928847", "delivery_state": "delivered"}],
+        raising=False,
+    )
+    assert cd.try_mark_acknowledged("919999999999") is False
+
+
 def test_build_weekly_digest_honest(monkeypatch):
     """Digest includes the REAL fresh_count + mini-site link; never invents views/leads."""
     c = {"business_name": "jiya makeover", "slug": "jiya-makeover-d79d"}

@@ -766,6 +766,14 @@ async def whatsapp_webhook_inbound(request: Request):
                                 logger.info("wa flow response err: %s", e)
 
                     if text:
+                        # Delivered paid customer ka reply = acknowledgment (council:
+                        # 'delivered = acknowledged'). Read-side, message consume nahi karta.
+                        try:
+                            from app.marketing import customer_delivery
+
+                            customer_delivery.try_mark_acknowledged(frm)
+                        except Exception as e:
+                            logger.debug("whatsapp ack-mark err: %s", e)
                         handled = False
                         try:
                             from app.marketing.onboarding import try_capture_onboarding_reply

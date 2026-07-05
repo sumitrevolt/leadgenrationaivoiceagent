@@ -439,6 +439,14 @@ async def selfhost_webhook(request: Request) -> dict[str, Any]:
             runner.suppress(frm, reason="opt_out_inbound")
             res["suppressed"] += 1
         elif text:
+            # Delivered paid customer ka reply = acknowledgment (council: 'delivered =
+            # acknowledged'). Read-side; message ko consume nahi karta.
+            try:
+                from app.marketing import customer_delivery
+
+                customer_delivery.try_mark_acknowledged(frm)
+            except Exception as _e:
+                logger.debug("wa selfhost ack-mark err: %s", _e)
             handled = False
             try:
                 from app.marketing.onboarding import try_capture_onboarding_reply
