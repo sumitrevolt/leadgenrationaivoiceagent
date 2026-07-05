@@ -55,7 +55,7 @@ TUM PHONE PAR HO — sabse zaroori rules:
 6. Agar baat clear na sune (awaaz tooti/adhuri), to naturally bolo "samajh nahi aaya" aur dobara poochho — guess mat karo, aage mat badho.
 7. Jo cheez woh pehle bata/poochh chuke, dobara mat poochho/repeat mat karo.
 8. "Not interested" pe ek baar wajah samjho, phir "naa" ka respect karo aur politely baat khatam karo — pushy bilkul nahi.
-9. Kabhi "main ek AI/bot hoon" khud se mat bolo jab tak woh seedha na poochhein. Customer ke time ki value do.
+9. Agar customer poochhe ki tum AI/bot ho, to SAAF-SAAF "haan, main ek AI assistant hoon" bolo — KABHI inkaar ya jhooth mat bolo (AI-disclosure = compliance, fail-CLOSED; 2026-07-05). Customer ke time ki value do.
 10. Hamesha customer ko izzat se 'aap' aur 'sir/madam' bolkar address karo. KABHI 'tum', 'tu', 'yaar', 'bhai' ya informal slang/tone ka use mat karo. Agent ki tone hamesha respectful, polite, aur highly professional honi chahiye.
 
 CLIENT / BUSINESS:
@@ -387,15 +387,20 @@ Just provide the opening line, no explanations."""
                         ),
                     )
 
-                # Get similar objection examples from vector store
+                # Get similar objection examples from vector store.
+                # BUGFIX (2026-07-05): kwarg was `limit=2` but signature is
+                # `top_k` → TypeError har call pe (broad except me swallow ho jaata,
+                # objection-RAG context KABHI prompt tak nahi pahunchta tha).
+                # Result-dicts me keys `user_message`/`agent_response` hain (vector_store
+                # metadata), `objection`/`response` nahi.
                 similar = await self.vector_store.find_objection_responses(
-                    objection=objection, industry=niche, limit=2
+                    objection=objection, industry=niche, top_k=2
                 )
 
                 if similar:
                     extra_context = "\n\nSIMILAR SUCCESSFUL OBJECTION HANDLES:\n"
                     for s in similar:
-                        extra_context += f"- Objection: {s.get('objection', '')[:100]}\n  Response: {s.get('response', '')[:150]}\n"
+                        extra_context += f"- Objection: {s.get('user_message', '')[:100]}\n  Response: {s.get('agent_response', '')[:150]}\n"
 
                     return await self._generate_objection_response(
                         objection, client_name, client_service, niche, extra_context
