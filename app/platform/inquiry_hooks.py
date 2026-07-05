@@ -294,6 +294,10 @@ async def run_after_inquiry(
                 "niche": rec.get("niche") or "",
                 "city": rec.get("city") or "",
                 "source": rec.get("source") or "inquiry",
+                # Client-owned inquiry ka deal client_id se stamp karo taaki
+                # LeadGen ki sales-pipeline (run_pipeline) ise skip kare — yeh
+                # client ke apne funnel ka lead hai, LeadGen ke sales-funnel ka nahi.
+                "client_id": cid or "",
             },
             stage="new",
         )
@@ -325,21 +329,25 @@ async def run_after_inquiry(
     except Exception as e:
         logger.debug(f"[inquiry_hooks] crm_sync spawn skip: {e}")
 
-    try:
-        from app.marketing import cadence as _cadence
+    # LeadGen's OWN sales cadence — SIRF platform leads ke liye. Agar inquiry kisi
+    # CLIENT ka hai (cid set), toh woh lead client ke apne funnel ka hai — usko
+    # LeadGen ke "Rs 1999 plan lo" cadence me KABHI enroll nahi karna (isolation).
+    if not cid:
+        try:
+            from app.marketing import cadence as _cadence
 
-        _cadence.enroll(
-            {
-                "phone": rec.get("phone") or "",
-                "email": rec.get("email") or "",
-                "name": rec.get("business_name") or rec.get("name") or "",
-                "niche": rec.get("niche") or "",
-                "city": rec.get("city") or "",
-                "source": rec.get("source") or "inquiry",
-            },
-        )
-    except Exception:
-        pass
+            _cadence.enroll(
+                {
+                    "phone": rec.get("phone") or "",
+                    "email": rec.get("email") or "",
+                    "name": rec.get("business_name") or rec.get("name") or "",
+                    "niche": rec.get("niche") or "",
+                    "city": rec.get("city") or "",
+                    "source": rec.get("source") or "inquiry",
+                },
+            )
+        except Exception:
+            pass
 
 
 __all__ = ["run_after_inquiry"]

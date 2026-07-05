@@ -563,11 +563,19 @@ def _booking_js(slug: str) -> str:
     )
 
 
-def _calendar_js() -> str:
+def _calendar_js(slug: str = "") -> str:
     """Booking-calendar widget: next-7-day strip → GET /api/booking/slots per day
-    → pick slot → POST /api/booking/book. Pure vanilla JS, reuses existing API."""
+    → pick slot → POST /api/booking/book. Pure vanilla JS, reuses existing API.
+
+    `slug` is threaded into both API calls so availability + booking are scoped to
+    THIS business (per-client slot pool — no cross-client slot blocking)."""
+    import json
+
+    slug_js = json.dumps(str(slug or ""))
     return (
         "<script>(function(){"
+        "var SLUG=" + slug_js + ";"
+        "var SLUGQ=SLUG?('&slug='+encodeURIComponent(SLUG)):'';"
         "var daysEl=document.getElementById('calDays');"
         "var slotsEl=document.getElementById('calSlots');"
         "var bookEl=document.getElementById('calBook');"
@@ -592,7 +600,7 @@ def _calendar_js() -> str:
         "if(nodes[0])nodes[0].click();}"
         "function loadSlots(day){slotsEl.innerHTML='';selSlot=null;bookEl.style.display='none';"
         "msg.className='calmsg';msg.textContent='Slots dekh rahe hain…';"
-        "fetch('/api/booking/slots?date='+encodeURIComponent(day)+'&duration_min=30')"
+        "fetch('/api/booking/slots?date='+encodeURIComponent(day)+'&duration_min=30'+SLUGQ)"
         ".then(function(r){return r.json();}).then(function(d){"
         "var arr=(d&&d.slots)?d.slots:[];"
         "if(!arr.length){msg.textContent='Is din koi slot free nahi — doosra din chuniye.';return;}"
@@ -616,7 +624,7 @@ def _calendar_js() -> str:
         "msg.textContent='Naam aur sahi 10-digit phone daaliye.';return;}"
         "cb.disabled=true;cb.textContent='Book ho raha hai…';"
         "fetch('/api/booking/book',{method:'POST',headers:{'Content-Type':'application/json'},"
-        "body:JSON.stringify({slot:selSlot,name:nm,phone:ph,notes:'Mini-site booking'})})"
+        "body:JSON.stringify({slot:selSlot,name:nm,phone:ph,notes:'Mini-site booking',slug:SLUG})})"
         ".then(function(r){return r.json().catch(function(){return{};});}).then(function(d){"
         "if(d&&d.ok){msg.className='calmsg ok';"
         "msg.textContent=d.confirmation_text||'Aapki appointment book ho gayi!';"
@@ -785,7 +793,7 @@ def render_site(client: dict[str, Any] | None) -> str:
             + (f',"address":{{"@type":"PostalAddress","addressLocality":"{_e(city)}","addressCountry":"IN"}}' if city else "")
             + '}</script>'
             "</head><body>"
-            f"{body}{_booking_js(slug)}{_calendar_js()}{_reviews_js(slug)}</body></html>"
+            f"{body}{_booking_js(slug)}{_calendar_js(slug)}{_reviews_js(slug)}</body></html>"
         )
     except Exception as e:  # absolute guard — page kabhi 500 na de
         logger.warning(f"[mini_site] render failed, minimal fallback: {e}")

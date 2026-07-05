@@ -109,6 +109,20 @@ def _digits(s: str) -> str:
     return "".join(ch for ch in (s or "") if ch.isdigit())
 
 
+def _slot_key(client_id: str, when_iso: str) -> str:
+    """Per-client slot key for the `_taken` set — scope availability/booking PER
+    business (jiya's slot must NOT block trending-tattoos' same slot).
+
+    - Per-client -> "jiya|<iso>".
+    - No-client / legacy -> the BARE "<iso>" (byte-identical to the pre-scoping
+      format), so old ledger rows + the global pool self-guard exactly as before.
+
+    ISO strings never contain '|', so a bare iso can never collide with a
+    "cid|iso" key. Minimal, backward-compatible."""
+    cid = (client_id or "").strip()
+    return f"{cid}|{when_iso or ''}" if cid else (when_iso or "")
+
+
 class CalendarBooking:
     """
     Calendar service facade for the voice agent.
@@ -195,6 +209,7 @@ class CalendarBooking:
         self,
         date_str: str,
         duration_min: int = DEFAULT_DURATION_MIN,
+        client_id: str = "",
     ) -> list[str]:
         """
         Return a list of free slot start-times (ISO 8601) for the given date.
@@ -203,6 +218,8 @@ class CalendarBooking:
             date_str:     "YYYY-MM-DD" (e.g. "2026-06-10"). Invalid/empty ->
                           next business day.
             duration_min: meeting length in minutes (grid step).
+            client_id:    scope availability PER business — a slot taken by another
+                          client (or globally/legacy) does NOT hide it here.
 
         Never raises — on any failure returns the simulated free slots so the
         agent can still offer something.
@@ -212,11 +229,11 @@ class CalendarBooking:
 
         if self.provider == "google" and self._gcal is not None:
             try:
-                return await self._google_free_slots(day, duration_min)
+                return await self._google_free_slots(day, duration_min, client_id)
             except Exception as e:
                 logger.error(f"Google availability failed ({e}); simulating.")
 
-        return self._sim_free_slots(day, duration_min)
+        return self._sim_free_slots(day, duration_min, client_id)
 
     async def book_slot(
         self,
@@ -251,17 +268,17 @@ class CalendarBooking:
         result: BookingResult | None = None
         if self.provider == "calcom":
             try:
-                result = await self._calcom_book(when, name, phone, notes, duration_min)
+                result = await self._calcom_book(when, name, phone, notes, duration_min, client_id)
             except Exception as e:
                 logger.error(f"Cal.com booking failed ({e}); using internal ledger.")
         elif self.provider == "google" and self._gcal is not None:
             try:
-                result = await self._google_book(when, name, phone, notes, duration_min)
+                result = await self._google_book(when, name, phone, notes, duration_min, client_id)
             except Exception as e:
                 logger.error(f"Google booking failed ({e}); using internal ledger.")
 
         if result is None:
-            result = self._internal_book(when, name, phone, notes, duration_min)
+            result = self._internal_book(when, name, phone, notes, duration_min, client_id)
 
         # Durable record + owner notification on success (every provider).
         if result and result.ok:
@@ -299,7 +316,9 @@ class CalendarBooking:
                 logger.error(f"Google cancel failed ({e}); removing local mirror.")
 
         if record:
-            self._taken.discard(record.get("when"))
+            self._taken.discard(
+                _slot_key(str(record.get("client_id") or ""), record.get("when") or "")
+            )
             self._bookings.pop(booking_id, None)
             logger.info(f"📅 Cancelled booking {booking_id}")
             return True
@@ -346,7 +365,11 @@ class CalendarBooking:
         if old:
             old_when = old.get("when")
             if old_when:
-                self._taken.discard(old_when)  # free the old slot
+                # free the old slot in its own client's bucket (falls back to the
+                # rescheduled client_id if the ledger row predates client scoping)
+                self._taken.discard(
+                    _slot_key(str(old.get("client_id") or client_id or ""), old_when)
+                )
             old_bid = old.get("booking_id") or booking_id
             if old_bid and old_bid in self._bookings:
                 try:
@@ -407,7 +430,9 @@ class CalendarBooking:
     # ------------------------------------------------------------------ #
     # Google Calendar backend
     # ------------------------------------------------------------------ #
-    async def _google_free_slots(self, day: datetime, duration_min: int) -> list[str]:
+    async def _google_free_slots(
+        self, day: datetime, duration_min: int, client_id: str = ""
+    ) -> list[str]:
         """Use freebusy to subtract busy intervals from the business-hours grid."""
         cal_id = getattr(self, "_calendar_id", "primary")
         start = datetime.combine(day.date(), BUSINESS_START)
@@ -421,7 +446,7 @@ class CalendarBooking:
         resp = await asyncio.to_thread(self._gcal.freebusy().query(body=body).execute)
         busy = resp.get("calendars", {}).get(cal_id, {}).get("busy", [])
 
-        candidate = self._sim_free_slots(day, duration_min)
+        candidate = self._sim_free_slots(day, duration_min, client_id)
         free: list[str] = []
         for slot in candidate:
             slot_start = datetime.fromisoformat(slot)
@@ -446,7 +471,8 @@ class CalendarBooking:
         return False
 
     async def _google_book(
-        self, when: datetime, name: str, phone: str, notes: str, duration_min: int
+        self, when: datetime, name: str, phone: str, notes: str, duration_min: int,
+        client_id: str = "",
     ) -> BookingResult:
         cal_id = getattr(self, "_calendar_id", "primary")
         end = when + timedelta(minutes=duration_min)
@@ -469,8 +495,9 @@ class CalendarBooking:
             "name": name,
             "phone": phone,
             "notes": notes,
+            "client_id": str(client_id or ""),
         }
-        self._taken.add(when.isoformat())
+        self._taken.add(_slot_key(client_id, when.isoformat()))
         return BookingResult(
             ok=True,
             booking_id=booking_id,
@@ -483,8 +510,9 @@ class CalendarBooking:
     # ------------------------------------------------------------------ #
     # In-memory simulation backend
     # ------------------------------------------------------------------ #
-    def _sim_free_slots(self, day: datetime, duration_min: int) -> list[str]:
-        """Generate business-hours slots for `day`, minus already-taken ones."""
+    def _sim_free_slots(self, day: datetime, duration_min: int, client_id: str = "") -> list[str]:
+        """Generate business-hours slots for `day`, minus THIS client's taken ones
+        (per-client scoping — another business's booking never hides a slot here)."""
         slots: list[str] = []
         cursor = datetime.combine(day.date(), BUSINESS_START)
         end = datetime.combine(day.date(), BUSINESS_END)
@@ -492,25 +520,28 @@ class CalendarBooking:
 
         # Closed on Sundays -> roll to next business day.
         if day.weekday() not in BUSINESS_DAYS:
-            return self._sim_free_slots(self._next_business_day(day), duration_min)
+            return self._sim_free_slots(self._next_business_day(day), duration_min, client_id)
 
         now = datetime.now()
         while cursor + timedelta(minutes=duration_min) <= end:
             iso = cursor.isoformat()
-            # Skip past slots (if booking for today) and already-taken slots.
-            if cursor > now and iso not in self._taken:
+            # Skip past slots (if booking for today) and this client's taken slots.
+            if cursor > now and _slot_key(client_id, iso) not in self._taken:
                 slots.append(iso)
             cursor += step
         return slots
 
     def _internal_book(
-        self, when: datetime, name: str, phone: str, notes: str, duration_min: int
+        self, when: datetime, name: str, phone: str, notes: str, duration_min: int,
+        client_id: str = "",
     ) -> BookingResult:
         """Durable internal booking (no external calendar). The record is PERSISTED
         by book_slot's _record_booking, so it survives a restart (the old in-memory
-        'simulation' did not)."""
+        'simulation' did not). Double-book is guarded PER client (scoped key), so
+        two different businesses can hold the same wall-clock slot."""
         iso = when.isoformat()
-        if iso in self._taken:
+        key = _slot_key(client_id, iso)
+        if key in self._taken:
             return BookingResult(
                 ok=False,
                 provider="internal",
@@ -528,8 +559,9 @@ class CalendarBooking:
             "phone": phone,
             "notes": notes,
             "duration_min": duration_min,
+            "client_id": str(client_id or ""),
         }
-        self._taken.add(iso)
+        self._taken.add(key)
         logger.info(f"📅 [internal] Booked {booking_id} @ {iso} for {name}/***{str(phone)[-4:]}")
         return BookingResult(
             ok=True,
@@ -546,7 +578,8 @@ class CalendarBooking:
     # only the booking is pushed to Cal.com (its availability API is heavier).
     # ------------------------------------------------------------------ #
     async def _calcom_book(
-        self, when: datetime, name: str, phone: str, notes: str, duration_min: int
+        self, when: datetime, name: str, phone: str, notes: str, duration_min: int,
+        client_id: str = "",
     ) -> BookingResult:
         api_key = _setting("CALCOM_API_KEY")
         event_type_id = _setting("CALCOM_EVENT_TYPE_ID")
@@ -585,8 +618,9 @@ class CalendarBooking:
             "name": name,
             "phone": phone,
             "notes": notes,
+            "client_id": str(client_id or ""),
         }
-        self._taken.add(when.isoformat())
+        self._taken.add(_slot_key(client_id, when.isoformat()))
         logger.info(f"📅 [calcom] Booked {booking_id} @ {when.isoformat()}")
         return BookingResult(
             ok=True,
@@ -704,7 +738,8 @@ class CalendarBooking:
                 for rec in self.list_bookings(limit=0, date_str=day):
                     w = rec.get("when")
                     if w:
-                        self._taken.add(w)
+                        # backward-compat: legacy rows have no client_id -> global "" bucket
+                        self._taken.add(_slot_key(str(rec.get("client_id") or ""), w))
         except Exception:  # pragma: no cover - defensive
             pass
 
