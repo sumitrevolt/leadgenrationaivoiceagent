@@ -144,6 +144,12 @@ def upsert_deal(lead: dict[str, Any], stage: str = "interested") -> dict[str, An
         "created_at": _now(),
         "updated_at": _now(),
     }
+    # Client-owned deal ko client_id se stamp karo (isolation): run_pipeline in
+    # deals ko LeadGen ki apni sales cadence/actions se skip karta hai. CONDITIONAL
+    # rakha hai taaki platform (no-client) deal ka record byte-identical rahe.
+    _cid = str(lead.get("client_id") or "").strip()
+    if _cid:
+        rec["client_id"] = _cid
     rows.append(rec)
     _write_all(_DEALS, rows)
     return rec
@@ -240,6 +246,11 @@ async def run_pipeline(limit: int = 100) -> dict[str, Any]:
     executed = 0
     for d in rows[:limit]:
         if d.get("stage") in ("won", "lost"):
+            continue
+        # Isolation: client-owned deal (client_id stamped) LeadGen ke apne
+        # sales-funnel ka nahi hai — usko LeadGen cadence enroll / sales actions
+        # se SKIP karo (warna client ka end-customer LeadGen ka "plan lo" draft paata).
+        if str(d.get("client_id") or "").strip():
             continue
         act = await next_action(d)
         _append(

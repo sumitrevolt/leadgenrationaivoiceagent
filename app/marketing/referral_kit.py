@@ -143,11 +143,17 @@ def make_referral(
     referrer_name: str = "",
     brand_primary: str = "",
     brand_accent: str = "",
+    slug: str = "",
 ) -> dict[str, Any]:
     """Referral kit banao: code + WA message + link + 1080x1080 card SVG.
 
     KABHI raise nahi karta, never-empty. brand_primary/accent (#RRGGBB, optional)
     card gradient set karte hain; invalid/khali = default violet.
+
+    `slug` = client record ka REAL mini-site slug (e.g. "jiya-makeover-d79d").
+    Diya ho to referral link isi se banta hai (/b/<slug>); warna business naam
+    se derive hota hai (backward-compat — standalone/agency use). REAL slug pass
+    karna zaroori hai warna link 404 deta (derived slug != stored slug).
 
     Returns: {"code","reward","referrer_name","business_name","link","slug",
               "wa_message","sms_line","card_svg"}.
@@ -156,7 +162,8 @@ def make_referral(
     reward_s = (reward or "").strip() or "ek special discount"
     referrer = (referrer_name or "").strip()
 
-    slug = _slug(name)
+    # REAL client slug prefer karo (stored /b/<slug>); na ho to naam se derive.
+    slug = (slug or "").strip() or _slug(name)
     code = _code(name)
     link = _referral_link(slug, code)
 

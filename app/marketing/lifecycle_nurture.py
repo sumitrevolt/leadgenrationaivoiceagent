@@ -89,6 +89,37 @@ def _append(path: str, rec: dict[str, Any]) -> None:
         pass
 
 
+def _plan_lines() -> str:
+    """Upgrade-email ke liye PUBLIC pricing plans ki bullet-lines.
+
+    Source-of-truth = packages.get_public_packages() (billing-truth) — sirf
+    public plans (Starter ₹1,999 + Combo/Advanced ₹5,999); legacy hidden Growth
+    ₹2,999 KABHI nahi (public:False). packages import fail ho to safe 2-line
+    fallback (dono public prices, hardcoded Growth nahi). KABHI raise nahi.
+    """
+    try:
+        from app.marketing.packages import get_public_packages
+
+        lines: list[str] = []
+        for p in get_public_packages():
+            name = str(p.get("name") or "").strip()
+            price = p.get("price_inr_month")
+            tag = str(p.get("price_note") or p.get("tagline") or "").strip()
+            if not name or not price:
+                continue
+            suffix = f" — {tag}" if tag else ""
+            lines.append(f"• {name} ₹{int(price):,}/mo{suffix}")
+        if lines:
+            return "\n".join(lines) + "\n"
+    except Exception as e:  # pragma: no cover - packages import-safe hai
+        logger.debug(f"[lifecycle] plan lines fallback: {e}")
+    # Fallback = public prices only (koi hidden Growth ₹2,999 nahi).
+    return (
+        "• AI Marketing Automation ₹1,999/mo — daily posts, GBP, reviews, posters\n"
+        "• Combo — Marketing + AI Voice ₹5,999/mo — + AI voice calling feature (2-min inquiry callback)\n"
+    )
+
+
 def build_message(step_key: str, business_name: str, niche: str = "") -> dict[str, str]:
     """Hinglish nurture email (pure function — testable)."""
     biz = (business_name or "Aapka business").strip()
@@ -120,9 +151,7 @@ def build_message(step_key: str, business_name: str, niche: str = "") -> dict[st
         subject = f"{biz} — plan choose karo, aaj se marketing autopilot pe"
         body = (
             f"Namaste,\n\nAapka trial setup ready hai. Ab plan activate karo:\n\n"
-            f"• AI Marketing Automation ₹1,999/mo — daily posts, GBP, reviews, posters\n"
-            f"• Growth ₹2,999/mo — + unlimited posters, calendar, lead-form, reports\n"
-            f"• Advanced Voice Agent ₹5,999/mo — + AI voice calling feature (2-min inquiry callback)\n\n"
+            f"{_plan_lines()}\n"
             f"Activate: {PRICING_URL}\n\nUPI/card — 2 minute. Sawal ho to reply karo.\n"
         )
     else:  # last_call
