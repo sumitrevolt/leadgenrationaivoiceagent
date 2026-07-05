@@ -21,6 +21,23 @@ logger = setup_logger(__name__)
 router = APIRouter(prefix="/booking", tags=["Booking"])
 
 
+def _resolve_client_id(slug: str) -> str:
+    """Mini-site slug → owning client_id so slot availability/booking is scoped PER
+    business (jiya's booked slot must NOT block another studio's same slot). Cheap
+    sync lookup; slug fallback still isolates mini-sites if the client isn't found
+    (that fallback alone fixes the shared-singleton bug). Never raises."""
+    slug = (slug or "").strip()
+    if not slug:
+        return ""
+    try:
+        from app.marketing.clients_store import get_by_slug
+
+        c = get_by_slug(slug) or {}
+        return str(c.get("id") or "").strip() or slug
+    except Exception:
+        return slug
+
+
 def _ser(obj: Any) -> Any:
     """Best-effort serialize a slot / BookingResult (dataclass / .as_dict / dict / str)."""
     try:
@@ -41,14 +58,18 @@ def _ser(obj: Any) -> Any:
 async def get_slots(
     date: str = Query("", max_length=10),
     duration_min: int = Query(15, ge=5, le=120),
+    slug: str = Query("", max_length=80),
 ):
-    """Free appointment slots for a date (YYYY-MM-DD; empty = next working day)."""
+    """Free appointment slots for a date (YYYY-MM-DD; empty = next working day).
+
+    `slug` scopes availability to the mini-site's owning business — a slot taken by
+    ANOTHER client (or the global/legacy pool) does not hide it here."""
     try:
         from app.integrations.calendar_booking import get_calendar
 
         cal = get_calendar()
         slots = await cal.check_availability(
-            date or None, duration_min=duration_min
+            date or None, duration_min=duration_min, client_id=_resolve_client_id(slug)
         )
         return {"date": date, "slots": [_ser(s) for s in (slots or [])]}
     except Exception as e:
@@ -61,16 +82,23 @@ class BookIn(BaseModel):
     name: str = Field(..., min_length=1, max_length=120)
     phone: str = Field(..., min_length=6, max_length=20)
     notes: str = Field("", max_length=400)
+    slug: str = Field("", max_length=80)  # mini-site slug → scope booking per business
 
 
 @router.post("/book", dependencies=[Depends(rate_limit("booking_book", 10, 60))])
 async def book_slot(req: BookIn):
-    """Book a slot returned by /slots. Returns the booking confirmation."""
+    """Book a slot returned by /slots. Returns the booking confirmation.
+
+    `slug` scopes the double-book guard PER business — two different clients can hold
+    the same wall-clock slot; the same client can't double-book it."""
     try:
         from app.integrations.calendar_booking import get_calendar
 
         cal = get_calendar()
-        res = await cal.book_slot(req.slot, name=req.name, phone=req.phone, notes=req.notes)
+        client_id = _resolve_client_id(req.slug)
+        res = await cal.book_slot(
+            req.slot, name=req.name, phone=req.phone, notes=req.notes, client_id=client_id
+        )
         # Persistent record + reminder pipeline (best-effort — booking kabhi na ruke)
         try:
             from app.platform import booking_reminders

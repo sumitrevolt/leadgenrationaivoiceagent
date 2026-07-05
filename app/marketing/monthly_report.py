@@ -48,8 +48,28 @@ _BUCKET_LABELS = {
 }
 
 
+def _zero_stats() -> dict[str, Any]:
+    """Empty stats block — client-scoped report jahan global team numbers galat
+    honge (agent_events me client_id column nahi → platform-wide counts kisi ek
+    client ke naam dikhana MISLEADING). Zeros = "Numbers" section honestly
+    'abhi per-client tracking nahi' path pe chala jaata hai."""
+    return {
+        "total_actions": 0,
+        "by_member": {},
+        "by_action": {},
+        "member_names": {},
+        "highlights": dict.fromkeys(_ACTION_BUCKETS, 0),
+        "events_analyzed": 0,
+        "scoped": True,
+    }
+
+
 def _collect_stats() -> dict[str, Any]:
-    """team.recent_events(300) → counts. DB na ho to zeros (kabhi raise nahi)."""
+    """team.recent_events(300) → counts. DB na ho to zeros (kabhi raise nahi).
+
+    NOTE: yeh PLATFORM-WIDE team events hain (sab staff/clients ka mila-jula).
+    Ek specific client ki report ke liye yeh numbers GALAT hain — isliye
+    build_report(client_id=...) diya ho to _zero_stats() use hoti hai."""
     events: list[dict[str, Any]] = []
     staff: dict[str, Any] = {}
     try:
@@ -182,26 +202,31 @@ def _build_html(
     )
 
 
-async def build_report(client_name: str = "", month: str | None = None) -> dict[str, Any]:
+async def build_report(
+    client_name: str = "", month: str | None = None, client_id: str = ""
+) -> dict[str, Any]:
     """Monthly marketing report (HTML + stats). KABHI empty nahi, KABHI raise nahi.
 
-    Returns: {"html", "stats", "summary"[3], "plan", "month", "client_name", "provider"}.
+    client_id diya ho (ek SPECIFIC paying client ki report) to global team-event
+    numbers OMIT hote hain — agent_events store me client_id column nahi, isliye
+    platform-wide counts kisi ek client ke naam dikhana galat/misleading hai
+    (billing-truth jaisa hi honesty issue). Un cases me "Numbers" section zeros
+    dikhata + honest starter-guidance summary. client_id KHALI (agency/platform
+    overview) = purana behavior byte-identical (global team numbers dikhte).
+
+    Returns: {"html", "stats", "summary"[3], "plan", "month", "client_name",
+              "provider", "scoped"}.
     """
     client = (client_name or "").strip() or "Aapka Business"
     month_label = (str(month).strip() if month else "") or datetime.now(_IST).strftime("%B %Y")
+    scoped = bool(str(client_id or "").strip())
 
     try:
-        stats = _collect_stats()
+        # Scoped (per-client) report: global team numbers galat honge → omit.
+        stats = _zero_stats() if scoped else _collect_stats()
     except Exception as e:  # pragma: no cover - _collect_stats khud guarded hai
         logger.warning(f"build_report stats failed: {e}")
-        stats = {
-            "total_actions": 0,
-            "by_member": {},
-            "by_action": {},
-            "member_names": {},
-            "highlights": dict.fromkeys(_ACTION_BUCKETS, 0),
-            "events_analyzed": 0,
-        }
+        stats = _zero_stats()
 
     summary: list[str] = []
     provider = "template"
@@ -242,6 +267,7 @@ async def build_report(client_name: str = "", month: str | None = None) -> dict[
     stats_out = dict(stats)
     stats_out["month"] = month_label
     stats_out["client_name"] = client
+    stats_out["scoped"] = scoped
     return {
         "html": _build_html(client, month_label, stats, summary, plan),
         "stats": stats_out,
@@ -250,4 +276,5 @@ async def build_report(client_name: str = "", month: str | None = None) -> dict[
         "month": month_label,
         "client_name": client,
         "provider": provider,
+        "scoped": scoped,
     }
