@@ -23,6 +23,26 @@ os.environ.setdefault("KB_PREWARM", "0")
 os.environ["REDIS_URL"] = "redis://127.0.0.1:6399/0"
 os.environ.setdefault("QDRANT_URL", "")
 
+# --- httpx>=0.28 + starlette 0.35 TestClient compat shim (R-35, 2026-07-05) ---
+# requirements.lock.txt ka pair internally incompatible hai: starlette 0.35.1 ka
+# TestClient httpx.Client ko REDUNDANT app= kwarg deta hai (apna transport= bhi
+# deta hai), aur httpx 0.28 ne app kwarg REMOVE kar diya -> lock se bane HAR env
+# me 16 TestClient test-files collection pe hi TypeError se girti thin (CI incl).
+# Test-scope fix: app kwarg swallow karo; transport na ho to ASGITransport bana do.
+# Prod runtime TestClient use nahi karta — shim sirf tests me load hota hai.
+import httpx as _httpx
+
+if not getattr(_httpx.Client.__init__, "_app_kwarg_shim", False):
+    _orig_client_init = _httpx.Client.__init__
+
+    def _client_init(self, *args, app=None, **kwargs):
+        if app is not None and kwargs.get("transport") is None:
+            kwargs["transport"] = _httpx.ASGITransport(app=app)
+        _orig_client_init(self, *args, **kwargs)
+
+    _client_init._app_kwarg_shim = True  # type: ignore[attr-defined]
+    _httpx.Client.__init__ = _client_init  # type: ignore[method-assign]
+
 # SAFETY NET: koi bhi test agar galti se asli network (LLM/Exotel/Maps/Redis) hit
 # kare to wo HANG na ho — har raw socket op max 10s me fail ho jaye. pytest-timeout
 # ka thread-method blocking socket ko interrupt nahi kar pata (Windows pe signal-
