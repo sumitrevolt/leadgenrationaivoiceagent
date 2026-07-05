@@ -269,7 +269,8 @@
   body.simple-mode #pipelineBoard, body.simple-mode #systemMapCard, body.simple-mode #workflowRunsCard,
   body.simple-mode #activeCoordCard, body.simple-mode #failureConsoleCard,
   body.simple-mode .qn-chip[data-jump="stageWrap"], body.simple-mode .qn-chip[data-jump="replayPanel"],
-  body.simple-mode .qn-chip[data-jump="pipelineBoard"], body.simple-mode .qn-chip[data-jump="failureConsoleCard"]{display:none !important}
+  body.simple-mode .qn-chip[data-jump="pipelineBoard"], body.simple-mode .qn-chip[data-jump="failureConsoleCard"],
+  body.simple-mode #coordinatorTickerBox{display:none !important}
   /* Agent Scheduler mini-panel */
   #schedList table{width:100%;font-size:12px;border-collapse:collapse}
   #schedList td{padding:5px 6px;border-top:1px dashed var(--line);vertical-align:middle}
@@ -337,6 +338,9 @@
     .replay-row{grid-template-columns:1fr}
     #stageWrap{display:none}
     #mapToolbar{display:none}
+    /* BUGFIX: mobile me canvas hidden — world-anchored ticker box page ke
+       neeche float karta tha */
+    #coordinatorTickerBox{display:none !important}
     #quickNav{top:auto;position:static}
     #roomListCompact{display:flex;flex-direction:column;gap:8px}
     .board-row{flex-direction:column}
@@ -780,6 +784,8 @@
   OFFICE.updateTickerBoxPos = function(){
     var tickerBox = document.getElementById("coordinatorTickerBox");
     if (!tickerBox || tickerBox.style.display === "none") return;
+    var wrap = document.getElementById("stageWrap");
+    if (!wrap || wrap.clientWidth === 0) return;  // map hidden (simple/mobile) — position mat karo
     var room = OFFICE.roomById.coordinator;
     var pagePos = OFFICE.worldToPage(room.x + room.w - 290, room.y + 30);
     tickerBox.style.left = pagePos.x + "px";
@@ -3241,7 +3247,7 @@
   };
   setInterval(function(){ OFFICE.renderActivityChart(); }, 60000);
 
-  OFFICE.game = new Phaser.Game({
+  OFFICE.GAME_CONFIG = {
     type: Phaser.AUTO,
     parent: "stage",
     width: 1200,
@@ -3291,7 +3297,19 @@
         } catch (e) {}
       }
     }
-  });
+  };
+
+  // BUGFIX (sabse bada): Simple→Pro pe map BLANK. Root cause: game yahan
+  // (script order me) boot hota tha, par simple-mode class neeche lagti thi —
+  // 0-width parent pe Scale.FIT 0x0 canvas bake karta jo refresh() se recover
+  // nahi hota. Fix: Phaser sirf tab boot karo jab #stageWrap sach me visible ho
+  // (call site view-mode init ke BAAD hai, neeche).
+  OFFICE.bootGame = function(){
+    if (OFFICE.game) return;
+    var wrap = document.getElementById("stageWrap");
+    if (!wrap || wrap.clientWidth === 0) return;   // simple mode / mobile — abhi nahi
+    OFFICE.game = new Phaser.Game(OFFICE.GAME_CONFIG);
+  };
 
   setInterval(function(){ if (!OFFICE.authExpired) OFFICE.refreshSnapshot(); }, 15000);
   setInterval(function(){ if (!OFFICE.authExpired) OFFICE.pollEvents(); }, 8000);
@@ -3476,6 +3494,7 @@
     }
     if (m === "pro") {
       setTimeout(function(){
+        OFFICE.bootGame();   // pehli baar simple me load hua tha to game ab banega
         try { if (OFFICE.game && OFFICE.game.scale) OFFICE.game.scale.refresh(); } catch (e) {}
       }, 60);
     }
@@ -3483,6 +3502,14 @@
   var _vm = "pro";
   try { _vm = localStorage.getItem("officeViewMode") || "pro"; } catch (e) {}
   OFFICE.setViewMode(_vm);
+  OFFICE.bootGame();   // pro + desktop = turant boot; warna Pro-switch pe hoga
+  // Game na bane (simple mode / mobile) to bhi DOM panels ko data chahiye —
+  // create() wala initial load nahi chalega, isliye yahan se seed karo.
+  if (!OFFICE.game) {
+    OFFICE.refreshSnapshot();
+    OFFICE.pollEvents();
+    OFFICE.renderActivityChart();
+  }
   document.getElementById("viewModeBtn").onclick = function(){
     OFFICE.setViewMode(document.body.classList.contains("simple-mode") ? "pro" : "simple");
   };

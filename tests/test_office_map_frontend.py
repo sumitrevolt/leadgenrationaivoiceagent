@@ -85,3 +85,14 @@ def test_bugfix_offline_snapback():
 def test_bugfix_unmapped_room_badge():
     assert "unmapped" in SRC
     assert "#f97316" in SRC                              # orange ? badge
+
+
+def test_bugfix_ticker_box_hidden_on_mobile_and_simple():
+    assert "#coordinatorTickerBox{display:none!important}" in SRC.replace(" ", "")
+
+
+def test_bugfix_lazy_phaser_boot():
+    assert "OFFICE.bootGame" in SRC
+    assert "OFFICE.GAME_CONFIG" in SRC
+    # game creation must be guarded, not unconditional
+    assert "OFFICE.game = new Phaser.Game(OFFICE.GAME_CONFIG)" in SRC
