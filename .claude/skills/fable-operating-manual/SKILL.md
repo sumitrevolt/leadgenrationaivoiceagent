@@ -21,7 +21,7 @@ Har non-trivial task isi 5-phase loop se chalao (CLAUDE.md gate #7 ka enforce-ab
 2. **Contract:** edit se pehle likho — kaun si files + kya change + kaun se test/evidence cover karenge + rollback kya hai. Change-risk tier (§0.6) decide karke uske gates lock karo. Bada/multi-file → `plan-then-build`.
 3. **Execute:** Windows-side edit, har Edit se theek pehle file Read (stale-mount safety). Same file pe parallel multi-edit mat do (truncation hazard). Additive > rewrite. Naya loop/integration = never-raise + flag-gated + inert-without-creds.
 4. **Self-review:** ship se pehle apna diff `self-code-review` lens se padho (bug / security / signature-drift / hot-path / test-gap). High-risk change (§0.6) → `security-review` bhi.
-5. **Evidence (done ki definition):** `/verify` (prod_check + targeted tests + import) green + jo claim kiya uska artifact (test log / `/health`=production / cross_path_audit / metric/heartbeat). Bina evidence done KABHI mat bolo; warna `systematic-debugging`.
+5. **Evidence (done ki definition):** `/verify` (prod_check + targeted tests + import) green + jo claim kiya uska artifact (test log / `/health`=production / cross_path_audit / metric/heartbeat). Bina evidence done KABHI mat bolo; warna `systematic-debugging`. Frontend/page change ka evidence = live-browser verification bhi: `cd frontend && python -m http.server 8123` se statically serve karke claude-in-chrome se drive karo (API-less preview path me bhi map/UI boot verify hota hai — 2026-07-05 office-upgrade pattern).
 
 ## 0.6 Change-risk tiering (pehle classify, phir gates lock)
 Blast-radius se tier decide karo — over-process bhi waste hai, under-process bhi prod-down.
