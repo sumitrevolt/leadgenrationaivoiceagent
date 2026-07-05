@@ -508,8 +508,12 @@ async def run_daily_content() -> dict[str, Any]:
             from app.marketing import customer_delivery
 
             await customer_delivery.run_weekly_digest_sweep()
+            # P2 (2026-07-05): monthly ROI receipt (28-day) + testimonial ask (gated
+            # AUTO_TESTIMONIAL) — dono self-throttling, daily call safe.
+            await customer_delivery.run_monthly_receipt_sweep()
+            await customer_delivery.run_testimonial_sweep()
         except Exception as e:
-            logger.debug(f"[auto_content] weekly digest skip: {e}")
+            logger.debug(f"[auto_content] delivery growth sweeps skip: {e}")
     except Exception as e:
         logger.warning(f"[auto_content] run_daily_content failed: {e}")
         _log_isha("auto_content", f"auto-content crash: {e}", status="error")

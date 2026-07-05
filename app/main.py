@@ -1777,6 +1777,13 @@ async def mini_site_page(slug: str):
     except Exception as e:  # render_site khud never-raise hai, par double-guard
         logger.warning(f"mini-site render failed for {slug!r}: {e}")
         return RedirectResponse(url="/", status_code=302)
+    # P2 #20: honest ROI ke liye site view record karo (best-effort, never blocks page).
+    try:
+        from app.marketing import customer_delivery
+
+        customer_delivery.record_site_view(str(client.get("id") or ""))
+    except Exception:
+        pass
     return HTMLResponse(content=html)
 
 
