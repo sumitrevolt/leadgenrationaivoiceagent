@@ -1,4 +1,6 @@
 ---
+name: ecc-rules-python-fastapi
+description: ECC python rule — FastAPI patterns for app/**.
 paths:
   - "**/app/**/*.py"
   - "**/fastapi/**/*.py"

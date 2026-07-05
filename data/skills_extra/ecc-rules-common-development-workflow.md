@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-development-workflow
+description: ECC common rule — development workflow.
+---
+
 # Development Workflow
 
 > This file extends [common/git-workflow.md](./git-workflow.md) with the full feature development process that happens before git operations.

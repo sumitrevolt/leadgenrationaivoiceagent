@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-coding-style
+description: ECC common rule — coding style.
+---
+
 # Coding Style
 
 ## Immutability (CRITICAL)

@@ -1,3 +1,8 @@
+---
+name: agency-strategy-phase-2-foundation
+description: Phase 2 foundation & scaffolding playbook — CI/CD, design system, API scaffold.
+---
+
 # ⚙️ Phase 2 Playbook — Foundation & Scaffolding
 
 > **Duration**: 3-5 days | **Agents**: 6 | **Gate Keepers**: DevOps Automator + Evidence Collector

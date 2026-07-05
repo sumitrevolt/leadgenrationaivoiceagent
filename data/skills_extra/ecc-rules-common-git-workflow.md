@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-git-workflow
+description: ECC common rule — git workflow conventions.
+---
+
 # Git Workflow
 
 ## Commit Message Format
