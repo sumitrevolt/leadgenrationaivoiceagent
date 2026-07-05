@@ -203,3 +203,7 @@ scripts/_mcp_*
 /gemini_vertex
 /55-min
 .codex/config.toml 
+
+# Lead/PII exports KABHI commit nahi (R-06, 2026-07-05 — 238KB lead CSV root pe committed mila)
+*_leads_export.csv
+prospect_leads_export.csv
