@@ -17,7 +17,7 @@ description: LeadGen AI ka roles + module-grants access-control + admin-side aut
 ## Module map (`rbac.MODULES`, 8 modules → path-prefixes)
 `marketing`(/api/marketing,/creative,/contentauto,/widgets) · `growth`(/api/growth,/seoops,/localseo,/brand) · `leads`(/api/leads,/data) · `agents`(/api/agents,/ai) · `clients`(/api/clientcrm,/conversion,/lifecycle,/minisite,/journeys,/clientops) · `billing`(/api/billing) · `telephony`(/api/voiceai,/calls,/booking) · `analytics`(/api/analytics,/memory). Naya admin router banao to `rbac.MODULES` me prefix add karo, warna module-limited members ke liye wo 403 (fail-closed by design — unmapped surface bhi deny).
 
-## Enforcement (central; ~700+ routes untouched)
+## Enforcement (central; ~1030 routes untouched)
 `auth_deps.require_admin(request, user)` — Request inject hota hai: super/admin → pass; warna `rbac.module_for_path(path)` (longest-prefix match) grants me ho to pass (`rbac.member_can_access`). Sensitive endpoint = `require_super_admin` use karo (upgrader approve, user delete, settings).
 
 ## Onboarding flow (temp password)

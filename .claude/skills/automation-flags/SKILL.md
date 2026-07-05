@@ -14,7 +14,7 @@ Har engine ek env-flag pe gated. Set in `.env` (VPS `/opt/leadgen/.env`, gitigno
 ## Safe to enable (free, ban-safe)
 | Flag | Engine | Notes |
 |---|---|---|
-| `NICHE_ROTATION=1` | all-42-niche scrape rotation | warna 4-niche |
+| `NICHE_ROTATION=1` | all-39-builtin-niche scrape rotation | warna 4-niche |
 | `AUTO_EMAIL_OUTREACH=true` | Rohan daily cold-email | cap 25/day, MX-verified, SPF/DKIM/DMARC set |
 | `REPLY_AGENT=1` | inbox reply triage (draft-only) | IMAP creds reuse SMTP |
 | `JOURNEY_ENGINE=1` | event→rule→action drafts | inquiry/signup triggers |

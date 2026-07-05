@@ -85,7 +85,7 @@ Author: Claude + Sumit
 - [What number changes when this works?]
 
 ## Deploy Notes
-- Hard reload needed? [yes/no — agar naya page route hai]
+- Image rebuild needed? [yes — naya route/code = `docker compose build app` + `up -d --no-deps app`; code image me BAKED] (2026-07-05)
 - Env flag enable karna hai? [yes/no]
 ```
 

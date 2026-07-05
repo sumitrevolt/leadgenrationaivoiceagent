@@ -15,7 +15,7 @@ App = FastAPI (`Dockerfile.lock`), LIVE at **https://leadsgenai.in** on a single
 - systemd `leadgen` service = DISABLED (rollback path only).
 
 ## Deploy loop (the real flow)
-1. **Windows = source of truth** (sandbox mount stale ho jata hai). `python scripts/prod_check.py` → `scripts\run_tests.bat` (pytest_run.log Read karo).
+1. **Windows = source of truth** (sandbox mount stale ho jata hai). `python scripts/prod_check.py` → TARGETED pytest (`.venv\Scripts\python -m pytest tests\test_<area>.py -q` — full run_tests.bat offline HANG hota hai; 2026-07-05).
 2. Windows git push: `C:\PROGRA~1\Git\cmd\git.exe` (ek `.bat` ke andar).
 3. VPS pe pull + rebuild (Git ka ssh — Windows OpenSSH broken):
    ```

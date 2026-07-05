@@ -10,8 +10,8 @@ Combines `.claude/commands/verify.md` + `ship.md`. **"Ho gaya" tabhi jab green.*
 
 Order (exact):
 1. `.venv\Scripts\python.exe scripts\prod_check.py` — FAIL → stop
-2. `scripts\run_tests.bat` → **Read `pytest_run.log`** (not console)
-   - OR targeted: `pytest tests\test_<area>.py -q` (faster)
+2. TARGETED pytest DEFAULT: `pytest tests\test_<area>.py -q` (output log file me, console truncate hota)
+   - Full `scripts\run_tests.bat` = online/CI-only (offline HANG — LLM/network tests; 2026-07-05)
 3. `.venv\Scripts\python.exe -c "import app.main; print('IMPORT_OK')"`
 4. `.venv\Scripts\python.exe scripts\check_secrets.py` (changed files)
 

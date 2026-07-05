@@ -12,7 +12,7 @@
   2. **AI Voice Calling Agent** = ALAG standalone product — flat monthly per niche-band: A ₹4,999 / B ₹9,999 / C ₹19,999.
   - ⚠️ "Marketing + voice bundle" USP framing GALAT hai — do alag products bolo.
 - **LIVE**: https://leadsgenai.in (Hostinger VPS, Mumbai). Repo: `github.com/sumitrevolt/leadgenrationaivoiceagent` (branch `main`).
-- **Pricing source-of-truth = code**: `app/marketing/packages.py` + `app/billing/voice_packages.py` — numbers docs me KABHI copy mat karo; change = `test_billing_truth_2026.py` saath green.
+- **Pricing source-of-truth = code**: `app/marketing/packages.py` + `app/marketing/voice_packages.py` — numbers docs me KABHI copy mat karo; change = `test_billing_truth_2026.py` saath green.
 - Stack: FastAPI (~1030 routes) + Celery/Redis + Postgres(PgBouncer) + Qdrant, Docker Compose (`docker-compose.vps.yml`). Sab FREE LLM/STT/TTS stack (user decision — koi paid AI nahi).
 
 ## 2. Teen-directory layout (Windows PC — confuse mat hona)
