@@ -32,6 +32,7 @@ AUTOMATION_FLAGS = [
     "USE_LANGGRAPH_SUPERVISOR",
     "USE_LANGGRAPH_HIGH_STAKES",
     "AGENT_STANDUP",
+    "LLM_COUNCIL",  # multi-LLM advancement council /api/agents/council+debate+fanout (llm_council.py) — ON default; =0 disables (audit 2026-07-05: was registry-invisible)
     "SALES_ENGINE",
     "CADENCE_ENGINE",
     "DUNNING_ENGINE",
@@ -63,6 +64,7 @@ AUTOMATION_FLAGS = [
     "USE_SMART_TURN",
     "USE_LIGHTRAG",
     "ENABLE_OTEL",
+    "PROMETHEUS_HTTP_METRICS",  # per-route HTTP latency/error Prometheus middleware (http_metrics.py) — OFF default, additive rollout (audit 2026-07-05: was registry-invisible)
     "ENABLE_LEGACY_BEAT",
     "FESTIVALS_LIVE_HOLIDAYS",
     "VIDEO_AD_CYCLE",  # har 5 din per-client AI video ad -> approval -> social publish (default OFF)
@@ -72,6 +74,8 @@ AUTOMATION_FLAGS = [
     "RANK_TRACKER",
     "MEMORY_VAULT",
     "LIVE_NOTES",
+    "CUSTOMER_OFFICE",  # customer-dashboard Office tab aggregator /api/customer/office (customer_dashboard.py) — ON default; =0 disables (audit 2026-07-05: was registry-invisible)
+    "ADMIN_OFFICE",  # admin Office approval-queues aggregator /api/admin/office (admin_ops.py) — ON default; =0 disables (audit 2026-07-05: was registry-invisible)
     "DLQ_AUTO_RETRY",
     "INTEGRATION_ALERTS",
     "INFRA_HANDLER",
@@ -99,6 +103,7 @@ AUTOMATION_FLAGS = [
     "CELERY_TRIM_MIN_DEPTH",
     "SEMANTIC_CACHE",  # semantic LLM response cache (Qdrant+Redis, off-loop) — OFF default, fail-open
     "AGENT_MEMORY",  # cross-session per-lead/client memory (Qdrant+free LLM, off-loop) — OFF default, fail-open
+    "SESSION_MEMORY",  # in-call session memory, separate from AGENT_MEMORY durable store (voice_agent/agent_memory.py) — OFF default (audit 2026-07-05: was registry-invisible)
     "LLM_BUDGET_GUARD",  # per-scope LLM daily cost/usage cap + kill-switch — OFF default, fail-open
     "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
     "MAGIC_LINK",  # passwordless customer login (single-use email link) — OFF default
@@ -196,6 +201,7 @@ AUTOMATION_FLAGS = [
     # Docs: docs/HOSTINGER_HERMES_SETUP.md
     # Voice DLT unlock ke baad build — spec: voice-consent-confirm skill
     "CONSENT_CONFIRM",  # in-call "press 1 to confirm consent" gate (TRAI DLT required) — OFF until DLT unlock
+    "DLT_APPROVED",  # DLT principal-entity approval live-marker — promotional-outbound gate reads this (compliance.py + setup_status.py) — OFF until DLT unlock (audit 2026-07-05: was registry-invisible)
     # --- Parallel automation batch 2026-06-19 (all default OFF / inert) ---
     "METER_ALERTS",  # SP1: billing meter-failure watcher (reads Redis billing:meter_failures, ntfy)
     "METER_ALERT_GROWTH_THRESHOLD",  # default 5 (new failures per check before paging)
