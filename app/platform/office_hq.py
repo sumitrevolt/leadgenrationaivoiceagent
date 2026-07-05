@@ -597,6 +597,8 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         rejected = [r for r in rows if _enum_value(r, "status") in rejected_st]
         s3 = stages["scoring_qualification"]
         s3["count"] = len(hot) + len(warm)
+        s3["hot_count"] = len(hot)   # score>=70 (asli hot)
+        s3["warm_count"] = len(warm)  # 40-69 (warm — "hot" NAHI)
         s3["stuckCount"] = 0
         s3["source"] = "real"
         s3["note"] = f"{len(hot)} hot (score>=70) · {len(warm)} warm (40-69) · {len(rejected)} rejected."
@@ -1166,13 +1168,24 @@ def build_boss_brief(snapshot: dict[str, Any]) -> dict[str, Any]:
         overdue = len(health.get("overdue") or [])
         dlq = int((health.get("queue") or {}).get("dlq") or 0)
         stuck_followups = int((pipeline.get("conversation_followup") or {}).get("stuckCount") or 0)
-        hot = int((pipeline.get("scoring_qualification") or {}).get("count") or 0)
+        s3 = pipeline.get("scoring_qualification") or {}
+        hot = int(s3.get("hot_count", s3.get("count") or 0) or 0)   # asli hot (score>=70)
+        warm = int(s3.get("warm_count") or 0)                       # warm (40-69)
+        new_today = int(metrics.get("new_leads_today") or 0)
+        qualified_today = int(metrics.get("qualified_leads_today") or 0)
+        # Mid-funnel stall: aaj kaafi naye leads aaye par ek bhi qualify nahi hua
+        # = qualification/outreach ruka hai (money-funnel band). Pehle yeh "System
+        # healthy" ke neeche chhup jaata tha; ab honestly risk me surface hota hai.
+        midfunnel_stall = new_today >= 20 and qualified_today == 0
 
         risk_label = "System healthy"
         risk_target = "systemHealthPanel"
         if dlq:
             risk_label = f"{dlq} DLQ item(s) repair chahiye"
             risk_target = "failureConsoleCard"
+        elif midfunnel_stall:
+            risk_label = f"Mid-funnel ruka: {new_today} leads aaye, 0 qualified"
+            risk_target = "pipelineBoard"
         elif overdue:
             risk_label = f"{overdue} automation job overdue"
             risk_target = "systemHealthPanel"
@@ -1182,29 +1195,37 @@ def build_boss_brief(snapshot: dict[str, Any]) -> dict[str, Any]:
 
         if pending:
             recommendation = {"label": f"{pending} approval review karo", "cta_target": "approvalsPanel"}
+        elif midfunnel_stall:
+            recommendation = {"label": "Mid-funnel dekho: qualify + outreach chalu karo", "cta_target": "pipelineBoard"}
         elif stuck_followups:
             recommendation = {"label": "Stuck follow-ups clear karo", "cta_target": "pipelineBoard"}
         elif hot:
             recommendation = {"label": "Hot leads pe Rohan ko lagao", "cta_target": "pipelineBoard"}
+        elif warm:
+            recommendation = {"label": f"{warm} warm lead(s) pe outreach/nurture lagao", "cta_target": "pipelineBoard"}
         else:
             recommendation = {"label": "Office feed monitor karo", "cta_target": "feedCard"}
 
-        # "Aaj" label explicit + hot-count same line — pehle "0 new leads" akela
-        # dikhta tha jabki pipeline me 11 hot the = admin ko "sync nahi" lagta tha
-        # (numbers sahi the, window-labels missing the). Fix 2026-07-03.
+        # Opportunity honestly: hot (score>=70) aur warm (40-69) alag — pehle dono
+        # ko "hot" bola jaa raha tha (0 hot hone par bhi "53 hot ready"). Fix 2026-07-05.
+        if hot:
+            opp_label = f"{hot} hot lead(s) ready"
+        elif warm:
+            opp_label = f"{warm} warm lead(s) — nurture/outreach karo"
+        else:
+            opp_label = "Aaj ka pipeline calm hai"
+
+        # "Aaj" label explicit; hot/warm sahi label ke saath (numbers sahi the,
+        # par warm ko "hot" bolna galat tha). Fix 2026-07-05.
         headline = (
-            f"Aaj: {int(metrics.get('new_leads_today') or 0)} naye leads, "
-            f"{int(metrics.get('qualified_leads_today') or 0)} qualified"
-            + (f" · {hot} hot ready" if hot else "")
+            f"Aaj: {new_today} naye leads, {qualified_today} qualified"
+            + (f" · {hot} hot ready" if hot else (f" · {warm} warm" if warm else ""))
             + f" · MRR Rs {int(metrics.get('mrr') or 0):,}"
         )
         return {
             "headline": headline,
             "risk": {"label": risk_label, "cta_target": risk_target},
-            "opportunity": {
-                "label": f"{hot} hot lead(s) ready" if hot else "Aaj ka pipeline calm hai",
-                "cta_target": "pipelineBoard",
-            },
+            "opportunity": {"label": opp_label, "cta_target": "pipelineBoard"},
             "recommendation": recommendation,
             "confidence": "high" if snapshot.get("generated_at") else "medium",
             "source": "office_snapshot",
@@ -1234,10 +1255,21 @@ def build_priority_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         dlq = int((health.get("queue") or {}).get("dlq") or 0)
         overdue = len(health.get("overdue") or [])
         stuck = int((pipeline.get("conversation_followup") or {}).get("stuckCount") or 0)
-        hot = int((pipeline.get("scoring_qualification") or {}).get("count") or 0)
+        _s3 = pipeline.get("scoring_qualification") or {}
+        hot = int(_s3.get("hot_count", _s3.get("count") or 0) or 0)
+        warm = int(_s3.get("warm_count") or 0)
+        new_today = int(metrics.get("new_leads_today") or 0)
+        qualified_today = int(metrics.get("qualified_leads_today") or 0)
         retention_red = int((pipeline.get("retention_growth") or {}).get("errorCount") or 0)
         payments = int(metrics.get("payments_pending") or 0)
 
+        if new_today >= 20 and qualified_today == 0:
+            actions.append({
+                "id": "midfunnel_stall", "title": f"Mid-funnel ruka: {new_today} leads, 0 qualified",
+                "why": "Qualification/outreach ruka hai — money-funnel band, revenue rok raha.",
+                "severity": "critical", "owner": "rohan", "room": "sales_crm",
+                "age": "", "cta_label": "Open Pipeline", "cta_target": "pipelineBoard",
+            })
         if dlq:
             actions.append({
                 "id": "dlq", "title": f"{dlq} failed job(s)",
@@ -1286,6 +1318,13 @@ def build_priority_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
                 "why": "Yeh immediate sales opportunity hai.",
                 "severity": "medium", "owner": "rohan", "room": "sales_crm",
                 "age": "", "cta_label": "Open Hot Leads", "cta_target": "scoring_qualification",
+            })
+        elif warm:
+            actions.append({
+                "id": "warm_leads", "title": f"{warm} warm lead(s) — nurture/outreach",
+                "why": "Warm leads ko outreach/nurture chahiye warna thande ho jayenge.",
+                "severity": "medium", "owner": "rohan", "room": "sales_crm",
+                "age": "", "cta_label": "Open Pipeline", "cta_target": "scoring_qualification",
             })
     except Exception as e:
         logger.debug(f"[office_hq] build_priority_actions failed: {e}")

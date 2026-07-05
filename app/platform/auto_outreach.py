@@ -565,13 +565,20 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             _ready_pool = []
         # Oldest first (FIFO backlog drain — purana pehle email jaye).
         _ready_pool.sort(key=lambda r: str(r.get("found_at") or ""))
+        # Selection me MX lookup SKIP (default ON) — pehle har candidate (up to 500)
+        # pe blocking DNS MX round-trip hota tha (~151s across ~2k prospects, code me
+        # already documented) = email_outreach TimeLimitExceeded(600). Asli MX verify
+        # ab sirf final chhote batch (<=cap<=25) pe hota hai (send loop me). Flag off
+        # (OUTREACH_SELECT_SKIP_MX=0) = purana per-candidate MX behavior wapas.
+        import os as _os_sel
+        _skip_sel_mx = (_os_sel.getenv("OUTREACH_SELECT_SKIP_MX", "1") or "").strip().lower() not in {"0", "false", "no", "off"}
         for p in _ready_pool:
             if (str(p.get("status") or "ready") != "ready"):
                 continue
             if p.get("emailed_at"):
                 continue  # already emailed — never re-send (defensive)
             email = str(p.get("email") or "").strip()
-            if not _valid_email(email):
+            if not _valid_email(email, check_mx=not _skip_sel_mx):
                 result["skipped_no_email"] += 1
                 continue
             candidates.append(p)
@@ -602,6 +609,13 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
 
         sender = EmailSender()
 
+        # Bulk-mark (default ON): emailed_at markers jama karke har 10 pe + end me
+        # ek saath likho — pehle har send poora prospects file rewrite karta tha
+        # (O(N²) → OOM/SIGKILL). Flag off (OUTREACH_BULK_MARK=0) = purana per-send.
+        import os as _os_mark
+        _bulk_mark = (_os_mark.getenv("OUTREACH_BULK_MARK", "1") or "").strip().lower() not in {"0", "false", "no", "off"}
+        _pending_marks: dict[str, dict[str, Any]] = {}
+
         for idx, p in enumerate(batch):
             pid = p.get("id")
             to_addr = str(p.get("email") or "").strip()
@@ -618,6 +632,12 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                 _unsub_hdrs = _eu.headers_for(to_addr)
             except Exception:
                 pass
+            # Selection me MX skip hua tha (perf) — ab is chhote batch pe asli MX
+            # verify karo (bounded: <=cap<=25 DNS calls) taaki dead-domain pe send
+            # na ho. Flag off tha to selection me hi MX ho chuka — yahan double na karo.
+            if _skip_sel_mx and to_addr and not _valid_email(to_addr):
+                result["skipped_no_email"] += 1
+                continue
             try:
                 subject, text, html_body = _email_subject_body(p)
                 variant_id = ""
@@ -692,7 +712,13 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                             }
                             if variant_id:
                                 fields["campaign_variant_id"] = variant_id
-                            prospector.set_prospect_fields(pid, fields)
+                            if _bulk_mark:
+                                _pending_marks[pid] = fields
+                                if len(_pending_marks) >= 10:  # periodic flush (crash pe ≤10 markers ka risk)
+                                    prospector.set_prospect_fields_bulk(_pending_marks)
+                                    _pending_marks = {}
+                            else:
+                                prospector.set_prospect_fields(pid, fields)
                     except Exception:
                         pass
                     if variant_id:
@@ -730,6 +756,14 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                     await asyncio.sleep(random.uniform(_SLEEP_MIN_S, _SLEEP_MAX_S))
                 except Exception:
                     pass
+
+        # Bache hue bulk markers flush (loop normal-end / break dono ke baad chalta).
+        if _bulk_mark and _pending_marks:
+            try:
+                prospector.set_prospect_fields_bulk(_pending_marks)
+            except Exception:
+                pass
+            _pending_marks = {}
 
         try:  # warmup stats (flag-independent — bounce-rate denominator)
             from app.platform import email_warmup

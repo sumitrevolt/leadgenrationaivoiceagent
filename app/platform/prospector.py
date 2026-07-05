@@ -548,6 +548,39 @@ def set_prospect_fields(pid: str, fields: dict[str, Any]) -> bool:
         return False
 
 
+def set_prospect_fields_bulk(updates: dict[str, dict[str, Any]]) -> int:
+    """Kai prospects par fields set karo EK hi file read+write me. Per-send
+    `set_prospect_fields` har baar poora file read+rewrite karta tha = O(N²)
+    (25 send × ~2k rows = OOM/SIGKILL). Yeh O(N): ek read, ek atomic write.
+
+    `updates` = {pid: {field: value, ...}}. Returns kitne prospects match+update
+    hue. Empty updates ya koi match nahi = 0 (koi write nahi). KABHI raise nahi."""
+    try:
+        if not isinstance(updates, dict) or not updates:
+            return 0
+        rows = _read_all()
+        now = datetime.utcnow().isoformat() + "Z"
+        n = 0
+        for r in rows:
+            f = updates.get(r.get("id"))
+            if isinstance(f, dict) and f:
+                r.update(f)
+                r["updated_at"] = now
+                n += 1
+        if n == 0:
+            return 0
+        os.makedirs(os.path.dirname(_PROSPECTS_FILE) or ".", exist_ok=True)
+        tmp = _PROSPECTS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
+        os.replace(tmp, _PROSPECTS_FILE)
+        return n
+    except Exception as e:
+        logger.warning(f"[prospector] set_prospect_fields_bulk failed: {e}")
+        return 0
+
+
 def mark_prospect(pid: str, status: str) -> bool:
     """Ek prospect ka status update karo (poora file rewrite — chhota file hai).
 
