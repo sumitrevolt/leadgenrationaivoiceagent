@@ -11,7 +11,7 @@ description: Enterprise observability — logs, metrics, traces, dashboards, ale
 Failures customer-report se PEHLE dikhao. Sirf useful signals — revenue, automation, infra, customer-journey debug me help karein.
 
 ## Repo truth
-- **6 obs containers**: prometheus + grafana + alertmanager + loki + tempo + uptime/gatus. Grafana auto-provision `monitoring/grafana/provisioning/` + `dashboards/celery_tasks.json`.
+- **Obs stack**: docker-compose.observability.yml me DEFINED (12 services) par 2026-07-05 live container list me NOT RUNNING — dashboards/alerts pe bharosa karne se pehle deployment verify karo. Grafana auto-provision `monitoring/grafana/provisioning/` + `dashboards/celery_tasks.json`.
 - **Sentry ARMED** (`SENTRY_DSN` set on VPS, errors capturing; FastApiIntegration global).
 - **OTel** GenAI traces: Tempo raw-support ready → `ENABLE_OTEL=1` + attributes (see `genai-observability`).
 - **Addons** (`docker-compose.addons.yml`): celery-exporter :9808 + flower :5555 task-UI.

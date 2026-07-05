@@ -1,13 +1,13 @@
 ---
 name: llm-council-decision
-description: Codex (session agent) ko Council-style faisla lene ka protocol — multi-agent opinions → peer review → Chairman decision. Use jab user strategy/go-no-go/architecture/priority maange, "decision lo", "council jaisa", ya ambiguous high-stakes sawal ho. LIVE engine bhi hai POST /api/agents/council.
+description: Claude (session agent) ko Council-style faisla lene ka protocol — multi-agent opinions → peer review → Chairman decision. Use jab user strategy/go-no-go/architecture/priority maange, "decision lo", "council jaisa", ya ambiguous high-stakes sawal ho. LIVE engine bhi hai POST /api/agents/council.
 ---
 
-# LLM Council Decision — Codex ka kaam ka tareeka
+# LLM Council Decision — Claude ka kaam ka tareeka
 
 > **Core idea (Karpathy):** ek LLM se seedha jawab mat do jab faisla ambiguous/high-stakes ho. Pehle **alag-alag perspectives** (multi-agent / multi-model), phir **peer rank** (bias kam), phir **Chairman ek clear decision**.
 
-Yeh skill **Codex / Cursor session** ke liye hai — tum (Codex) user ke liye council jaisa kaam karoge. Runtime engine: `app/agents/llm_council.py` + `POST /api/agents/council` (LIVE `/app/agents`).
+Yeh skill **Claude Code / Cursor session** ke liye hai — tum (Claude) user ke liye council jaisa kaam karoge. Runtime engine: `app/agents/llm_council.py` + `POST /api/agents/council` (LIVE `/app/agents`).
 
 ---
 
@@ -27,7 +27,7 @@ In triggers pe **single-shot answer band** — council protocol chalao:
 
 ---
 
-## Codex session — 4-step protocol (tum Chairman ho)
+## Claude session — 4-step protocol (tum Chairman ho)
 
 ```text
 [1 RECRUIT]  →  [2 OPINIONS]  →  [3 PEER REVIEW]  →  [4 CHAIRMAN DECISION]
@@ -53,7 +53,7 @@ Question ke hisaab se **2–4 tailored experts** — fixed roster blind mat laga
 
 Har expert ko **same question**, alag system prompt. Output chhota rakho (5–8 line each).
 
-- **Codex session:** parallel Task subagents YA ek message me alag sections ("Mistral lens", "Ops lens"…) jab subagents overkill hon
+- **Claude session:** parallel Task subagents YA ek message me alag sections ("Mistral lens", "Ops lens"…) jab subagents overkill hon
 - **LIVE product:** `POST /api/agents/council` — Stage 1 multi-model (Mistral/Groq/Cerebras/Gemini)
 - **Staff fanout:** `POST /api/agents/fanout` — same goal, alag STAFF personas
 
@@ -65,7 +65,7 @@ Reviewer se maango:
 1. Har response ke pros/cons (1 line each)
 2. `FINAL RANKING:` numbered list (best → worst)
 
-**Codex session:** khud alag "Reviewer" persona se rank karwao — apna Step-2 output mat prefer karo.
+**Claude session:** khud alag "Reviewer" persona se rank karwao — apna Step-2 output mat prefer karo.
 
 **LIVE:** Council Stage 2 automatic (`llm_council.py`).
 
@@ -91,7 +91,7 @@ User ko pehle individual opinions dikha sakte ho (tabs/sections), phir final —
 
 ---
 
-## Kaunsa engine kab (Codex choose kare)
+## Kaunsa engine kab (Claude choose kare)
 
 | Situation | Engine |
 |-----------|--------|
@@ -107,7 +107,7 @@ Rule: **Council = opinion quality** · **Process engine = side-effect execute**.
 
 ---
 
-## Codex ke liye hard rules
+## Claude ke liye hard rules
 
 1. **High-stakes = council mandatory** — ek model se turant verdict mat do.
 2. **Recruit tailored** — har sawal pe same 4 agents mat lagao.

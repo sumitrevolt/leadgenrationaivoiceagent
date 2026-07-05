@@ -34,7 +34,7 @@ grep -rn "KEYWORD" app/ --include="*.py" | head -10
 ls app/marketing/ app/platform/ app/billing/
 ```
 
-**RULE (AGENTS.md gotcha):** Naya feature add karne se pehle existing routes dekho — duplicate banane se pehle yeh step MANDATORY hai.
+**RULE (CLAUDE.md gotcha):** Naya feature add karne se pehle existing routes dekho — duplicate banane se pehle yeh step MANDATORY hai.
 
 ---
 
@@ -53,7 +53,7 @@ ls app/marketing/ app/platform/ app/billing/
 ```markdown
 # Spec: [FEATURE NAME]
 Date: YYYY-MM-DD
-Author: Codex + Sumit
+Author: Claude + Sumit
 
 ## Problem
 [1-2 sentences: kaun, kya problem, kya consequences]
@@ -85,7 +85,7 @@ Author: Codex + Sumit
 - [What number changes when this works?]
 
 ## Deploy Notes
-- Hard reload needed? [yes/no — agar naya page route hai]
+- Image rebuild needed? [yes — naya route/code = `docker compose build app` + `up -d --no-deps app`; code image me BAKED] (2026-07-05)
 - Env flag enable karna hai? [yes/no]
 ```
 

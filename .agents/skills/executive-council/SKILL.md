@@ -17,7 +17,7 @@ description: LeadGen Executive Advancement Council — revenue/conversion/retent
 
 ## Invoke checklist (5 steps)
 
-1. **Read** mandatory doc order in council prompt (handoff → SOP → Codex → SESSION_LOG tail → Competitor doc).
+1. **Read** mandatory doc order in council prompt (handoff → SOP → CLAUDE → SESSION_LOG tail → Competitor doc).
 2. **Assume GREEN** gates from prompt — do NOT re-audit explorer/cross-path/lifecycle unless regression proved.
 3. **Grep `app/`** before claiming any gap — cite file paths in deliverables.
 4. Run **Phases 1–6** — default = analysis only; **Phase 5 implement** only if user asks.

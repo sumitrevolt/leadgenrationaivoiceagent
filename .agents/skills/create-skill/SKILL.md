@@ -1,6 +1,6 @@
 ---
 name: create-skill
-description: Create Agent Skills for Codex and Cursor. Use when authoring SKILL.md, skill structure, or migrating workflows to .Codex/skills/.
+description: Create Agent Skills for Claude Code and Cursor. Use when authoring SKILL.md, skill structure, or migrating workflows to .claude/skills/.
 ---
 # Create Skill (LeadGen repo)
 
@@ -8,7 +8,7 @@ description: Create Agent Skills for Codex and Cursor. Use when authoring SKILL.
 
 | Scope | Path |
 |-------|------|
-| **Project (preferred)** | `.Codex/skills/<name>/SKILL.md` |
+| **Project (preferred)** | `.claude/skills/<name>/SKILL.md` |
 | Cursor-only duplicate | `.cursor/skills/<name>/SKILL.md` (optional mirror) |
 | Packed extras | `data/skills_extra/<name>.md` (no rebuild) |
 

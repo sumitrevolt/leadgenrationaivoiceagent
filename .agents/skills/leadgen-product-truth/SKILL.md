@@ -12,12 +12,12 @@ Plans, limits, products, customer-promises ka EK canonical source rakho. Value k
 
 ## Workflow
 1. Saare product/pricing sources dhoondo: backend constants, templates, frontend config, DB seed, tests, docs, admin pages.
-2. Canonical identify karo — yahan = **`app/marketing/packages.py`** (`subscription._sync_plans_from_packages`). Voice = `app/voice_packages.py` (`subscription._sync_voice_plans`, 7 ids).
+2. Canonical identify karo — yahan = **`app/marketing/packages.py`** (`subscription._sync_plans_from_packages`). Voice = `app/marketing/voice_packages.py` (2026-07-05) (`subscription._sync_voice_plans`, 7 ids).
 3. Public pages · backend validation · billing activation · customer portal · admin UI — sab compare.
 4. Mismatch / stale plan / hidden legacy / unguarded P2 feature flag karo.
 5. Canonical se read karke fix; naya source mat banao.
 
-## Repo truth (AGENTS.md verified 2026-06-27)
+## Repo truth (CLAUDE.md verified 2026-06-27)
 - **Marketing public**: sirf 2 → `starter` ₹1,999 + `advanced` ₹5,999 (voice FEATURE 500 min). Yearly 19990/59990. `growth` ₹2,999 = LEGACY `public:False` — public pricing me KABHI nahi. **`get_public_packages()`** mandatory.
 - **Voice**: flat monthly per band — A ₹4,999 · B ₹9,999 · C ₹19,999 (UNLIMITED calls, no per-lead). Pilot ₹0 7din/50calls. Niche→band = `app/niches.py` `lead_band`.
 - **GST**: sirf `GST_GSTIN` set pe charge (unregistered = no tax). Invoice Rule-46 sequential `INV/2026-27/0001`, SAC 998313.

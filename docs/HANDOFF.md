@@ -72,6 +72,7 @@
 8. **Brain-vault nightly sync** — `leadsgenai-brain` me manual additions bot overwrite kar sakta hai; pehle `git fetch`, aur bot-source allowlist ke bina naye folders mat banao.
 9. **pydantic `.env` trap** — `/opt/leadgen/.env` me inline comments (`KEY=val # note`) ValidationError dete hain → app boot-crash.
 10. **Compliance gates fail-CLOSED** — TRAI 9am–7pm calling window / DND scrub / AI-disclosure / DPDP KABHI disable nahi (CLAUDE.md user-mandate; conversation me DLT-paperwork recurring topic mat banao, par gates INTACT).
+11. **Skills-tree JUNCTIONS (2026-07-05)** — `.claude/skills/` ke 61 dirs Windows junctions hain jo `.agents/skills/` ko point karte hain (same physical files — edit ek taraf, dono "badalte"). **Skills trees me KABHI `rmtree`/recursive-delete/`robocopy /MIR` mat chalao** — junction ke aar-paar asli content delete hota hai. Edit hamesha `.claude` side se; detail `.claude/skills/SKILLS_PARITY.md`.
 
 ## 9. Access & secrets (sirf LOCATIONS — values kahin nahi)
 

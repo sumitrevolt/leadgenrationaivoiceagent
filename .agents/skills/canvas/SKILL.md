@@ -1,6 +1,6 @@
 ---
 name: canvas
-description: Produce standalone visual analytical artifacts. In Cursor IDE use .canvas.tsx; in Codex use structured markdown, HTML in docs/, or suggest opening Cursor canvas for rich React layouts.
+description: Produce standalone visual analytical artifacts. In Cursor IDE use .canvas.tsx; in Claude Code use structured markdown, HTML in docs/, or suggest opening Cursor canvas for rich React layouts.
 ---
 # Canvas / Visual Artifacts
 
@@ -12,7 +12,7 @@ When user is in **Cursor** with canvas support:
 - No fetch — inline data only
 - Read Cursor `canvas` skill for full rules
 
-## Codex (this repo)
+## Claude Code (this repo)
 
 When canvas runtime **not** available:
 

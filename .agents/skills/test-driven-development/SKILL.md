@@ -369,3 +369,5 @@ Otherwise → not TDD
 ```
 
 No exceptions without your human partner's permission.
+
+> Cross-link (2026-07-05): is repo ka authoritative TDD = `tdd-contract-first` (billing/pricing contract-test gates included) — project kaam ke liye wahi use karo.

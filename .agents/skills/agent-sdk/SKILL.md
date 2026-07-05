@@ -1,6 +1,6 @@
 ---
 name: agent-sdk
-description: Build and verify Python or TypeScript Agent SDK applications. Use when creating agent apps with Codex/OpenAI SDK patterns in this repo.
+description: Build and verify Python or TypeScript Agent SDK applications. Use when creating agent apps with Claude/OpenAI SDK patterns in this repo.
 ---
 # Agent SDK (LeadGen context)
 

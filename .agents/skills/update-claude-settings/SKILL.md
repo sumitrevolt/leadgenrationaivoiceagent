@@ -1,17 +1,17 @@
 ---
-name: update-Codex-settings
-description: Update project memory and agent settings — AGENTS.md, AGENTS.md, .cursor/rules. Use when user wants to persist preferences, gotchas, or current-state facts across sessions.
+name: update-claude-settings
+description: Update project memory and agent settings — CLAUDE.md, AGENTS.md, .cursor/rules. Use when user wants to persist preferences, gotchas, or current-state facts across sessions.
 ---
-# Update Codex / Project Settings
+# Update Claude / Project Settings
 
 ## Source of truth hierarchy
 
-1. **`AGENTS.md`** — lean auto-loaded memory (current state, blockers, gotchas)
+1. **`CLAUDE.md`** — lean auto-loaded memory (current state, blockers, gotchas)
 2. **`AGENTS.md`** — duplicate lean memory (some tools load both)
 3. **`docs/SESSION_LOG.md`** — dated history (NOT auto-load)
 4. **`.cursor/rules/*.mdc`** — Cursor IDE rules
 
-## AGENTS.md rules
+## CLAUDE.md rules
 
 - Token discipline: facts only, 1-2 line milestone max
 - **Never** bash-append (corruption risk) — use Edit tool
@@ -29,4 +29,4 @@ description: Update project memory and agent settings — AGENTS.md, AGENTS.md, 
 
 User-level IDE prefs → `update-cursor-settings` in Cursor; project prefs → `create-rule` skill.
 
-After major infra change: update AGENTS.md + optional SESSION_LOG append.
+After major infra change: update CLAUDE.md + optional SESSION_LOG append.

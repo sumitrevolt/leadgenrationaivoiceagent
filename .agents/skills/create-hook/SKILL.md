@@ -21,8 +21,8 @@ Hooks = JSON stdin/stdout scripts on agent events.
 2. Write hook script (bash/powershell) + register in hooks.json.
 3. Test with minimal payload.
 
-## Codex note
+## Claude Code note
 
-Codex CLI may not run Cursor hooks — document hook for Cursor users; equivalent guardrails in code (rate limits, `scripts/check_secrets.py`, pre-commit).
+Claude Code CLI may not run Cursor hooks — document hook for Cursor users; equivalent guardrails in code (rate limits, `scripts/check_secrets.py`, pre-commit).
 
 LeadGen example: session hook reminding `prod_check` before ship.

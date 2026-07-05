@@ -2,7 +2,7 @@
 name: create-subagent
 description: Launch Task subagents for parallel or isolated work. Use when exploring codebase, shell tasks, or Bugbot-style review needs a separate context.
 ---
-# Create Subagent (Codex Task tool)
+# Create Subagent (Claude Code Task tool)
 
 ## When
 

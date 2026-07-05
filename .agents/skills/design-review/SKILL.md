@@ -41,4 +41,4 @@ marketing.html ↔ mini-sites ↔ admin ek family lagein (same palette/logo/tone
 ## Output
 `## Critical (toota/trust-risk)` · `## High (craft/conversion)` · `## Consider (polish)` — har item `frontend/file:line + issue + fix`. Critical+High fix → re-screenshot proof → ship via `leadgen-ops`. Pure UX/funnel strategy chahiye to `conversion-optimization`.
 
-Adapted from garrytan/gstack `design-review` / `design-shotgun` methodology (MIT) — ported as a LeadGen markdown skill (no Bun/TS dep; uses LeadGen's own Codex Preview tools).
+Adapted from garrytan/gstack `design-review` / `design-shotgun` methodology (MIT) — ported as a LeadGen markdown skill (no Bun/TS dep; uses LeadGen's own Claude Preview tools).

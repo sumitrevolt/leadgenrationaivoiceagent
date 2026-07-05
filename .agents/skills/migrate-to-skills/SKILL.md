@@ -1,6 +1,6 @@
 ---
 name: migrate-to-skills
-description: Convert Cursor rules (.mdc) and slash commands (.md) to Agent Skills (SKILL.md). Use when consolidating rules/commands into .Codex/skills/.
+description: Convert Cursor rules (.mdc) and slash commands (.md) to Agent Skills (SKILL.md). Use when consolidating rules/commands into .claude/skills/.
 disable-model-invocation: true
 ---
 # Migrate to Skills
@@ -11,9 +11,9 @@ disable-model-invocation: true
 
 | Source | Destination |
 |--------|-------------|
-| `.cursor/rules/*.mdc` (has `description`, NOT alwaysApply) | `.Codex/skills/<name>/SKILL.md` |
-| `.cursor/commands/*.md` | `.Codex/skills/<name>/SKILL.md` |
-| `.Codex/commands/*.md` | same name skill optional |
+| `.cursor/rules/*.mdc` (has `description`, NOT alwaysApply) | `.claude/skills/<name>/SKILL.md` |
+| `.cursor/commands/*.md` | `.claude/skills/<name>/SKILL.md` |
+| `.claude/commands/*.md` | same name skill optional |
 
 Skip: rules with only `globs` + no description. Ignore `~/.cursor/worktrees`, `skills-cursor/`.
 
@@ -32,7 +32,7 @@ disable-model-invocation: true
 
 ## LeadGen already migrated
 
-- `/verify` → see `.Codex/commands/verify.md` + `leadgen-ops` skill
-- Project rules → `AGENTS.md` + `.cursor/rules/leadgen-composer.mdc`
+- `/verify` → see `.claude/commands/verify.md` + `leadgen-ops` skill
+- Project rules → `CLAUDE.md` + `.cursor/rules/leadgen-composer.mdc`
 
 After migrate: update `SKILLS_PARITY.md`.
