@@ -12,7 +12,7 @@ Manual UPI billing ko safe rakho jab tak full gateway integrate na ho. Entitleme
 
 ## Repo truth
 - **UPI config**: `app/platform/upi_config.py` — env → settings → data-file fallback. Admin no-restart set: `POST /api/admin/upi/configure`. Public: `GET /api/public/pay-info` (`enabled:true`).
-- **Plan source**: `app/marketing/packages.py` only (`_sync_plans_from_packages`). Approval sirf VALID public plan activate kare; retired/legacy (`growth public:False`) nahi.
+- **Plan source**: `app/marketing/packages.py` (marketing) + `app/marketing/voice_packages.py` (voice bands) — dono canonical (2026-07-05). Approval sirf VALID public plan activate kare; retired/legacy (`growth public:False`) nahi.
 - **Entitlement**: har billing mutation pe `_authed_client_id` dep (C1 IDOR closed). Server-side check, client-trust nahi.
 - **Invoice**: Rule-46 sequential `INV/2026-27/0001` (atomic numbering, H7), SAC 998313, GST sirf `GST_GSTIN` set pe.
 - **Stripe** = international only; unconfigured India checkout → clean 503 → UPI fallback.

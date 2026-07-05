@@ -12,7 +12,7 @@ Plans, limits, products, customer-promises ka EK canonical source rakho. Value k
 
 ## Workflow
 1. Saare product/pricing sources dhoondo: backend constants, templates, frontend config, DB seed, tests, docs, admin pages.
-2. Canonical identify karo — yahan = **`app/marketing/packages.py`** (`subscription._sync_plans_from_packages`). Voice = `app/voice_packages.py` (`subscription._sync_voice_plans`, 7 ids).
+2. Canonical identify karo — yahan = **`app/marketing/packages.py`** (`subscription._sync_plans_from_packages`). Voice = `app/marketing/voice_packages.py` (2026-07-05) (`subscription._sync_voice_plans`, 7 ids).
 3. Public pages · backend validation · billing activation · customer portal · admin UI — sab compare.
 4. Mismatch / stale plan / hidden legacy / unguarded P2 feature flag karo.
 5. Canonical se read karke fix; naya source mat banao.

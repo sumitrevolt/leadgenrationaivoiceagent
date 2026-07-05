@@ -82,7 +82,7 @@ python -c "import app.main; print('OK')"
 python -c "from app.api.<new_module> import router"
 ```
 
-- Naya route add kiya? → `grep '@router' app/api/<file>.py` se shadow check (FastAPI first-route-wins, ~761 decorators already). Page-route `@app.get` = **HARD RELOAD zaroori** (stale .pyc 404).
+- Naya route add kiya? → `grep '@router' app/api/<file>.py` se shadow check (FastAPI first-route-wins, ~1030 routes already). Page-route `@app.get` = **HARD RELOAD zaroori** (stale .pyc 404).
 - New env flag? → `app/api/growth.py` ke `AUTOMATION_FLAGS` list mein add kiya?
 - New scheduler job? → boot-grace skip logic + Celery worker me chale (web process nahi).
 - Price/plan change? → `app/marketing/packages.py`(ya `voice_packages.py`) + `tests/test_billing_truth_2026.py` SAATH?
@@ -117,3 +117,5 @@ python -c "from app.api.<new_module> import router"
 ```
 
 Har AUTO-FIX atomic commit mein karo: `git commit -m "fix: [description]"`
+
+> Cross-link (2026-07-05): project security/billing lens checklists ka authoritative source = `self-code-review` (5 passes) — drift se bachne ke liye wahan update karo, yahan copy nahi.

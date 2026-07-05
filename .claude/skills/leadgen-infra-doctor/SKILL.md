@@ -15,7 +15,7 @@ Cloud/VPS deployment local se kyun alag — pata karo. Code-bug ko config/resour
 - **App** = Docker container `leadgen_app` :8000 (`docker-compose.vps.yml`, restart:unless-stopped). systemd `leadgen` DISABLED (rollback only). **Caddy** host-proxy `127.0.0.1:8000` (Traefik conflict — dhyaan).
 - **Data**: Postgres `leadgen_db` via **PgBouncer `pgbouncer:6432`** + Redis `leadgen_redis:6379`. SQLite = rollback-backup only. Qdrant `127.0.0.1:6333`.
 - **Image** (`Dockerfile.lock`): code (`app/`+`frontend/`+`.claude/skills/`) BAKED → code change = `docker compose build app` + `up -d --no-deps app` recreate (data-only `./data`/`./logs` bind-mount change ko NAHI).
-- **~13 containers**: app+db+redis+pgbouncer+worker+scheduler+freeswitch+6 obs. Self-heal cron `scripts/vps_selfheal.sh` */10. fail2ban + unattended-upgrades.
+- **Containers (2026-07-05 verified)**: app · worker · worker_heavy · scheduler · redis · redis-cache · db · pgbouncer · qdrant · postiz · waha (+ obs agar deployed). Self-heal cron `scripts/vps_selfheal.sh` */10. fail2ban + unattended-upgrades.
 - **Health**: `https://leadsgenai.in/health` → `environment:production` + 200 (sleep 16 boot-grace + 2x check).
 
 ## Workflow
