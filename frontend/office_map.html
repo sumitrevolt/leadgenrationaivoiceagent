@@ -154,12 +154,29 @@
   #roomListCompact{display:none}
   /* ---- Preview mode watermark (bina login demo roster ke upar) ---- */
   #previewOverlay{display:none;position:absolute;inset:0;z-index:5;pointer-events:none}
-  #previewOverlay .pv-badge{position:absolute;left:50%;top:44%;transform:translate(-50%,-50%);
-    pointer-events:auto;background:rgba(255,255,255,.93);border:2px dashed var(--brand);
-    border-radius:14px;padding:14px 22px;text-align:center;font-weight:800;font-size:14.5px;
-    box-shadow:0 8px 28px rgba(24,16,55,.18);line-height:1.7}
+  #previewOverlay .pv-badge{position:absolute;right:14px;bottom:14px;left:auto;top:auto;transform:none;
+    pointer-events:auto;box-sizing:border-box;max-width:min(330px,calc(100% - 28px));
+    background:rgba(255,255,255,.94);border:1px solid rgba(99,102,241,.28);border-left:4px solid var(--brand);
+    border-radius:10px;padding:10px 12px;text-align:left;font-weight:800;font-size:12.5px;
+    box-shadow:0 8px 24px rgba(24,16,55,.14);line-height:1.45}
   #previewOverlay .pv-badge a{color:var(--brand);text-decoration:underline;font-size:13px}
   #previewOverlay .pv-sub{font-weight:600;font-size:11.5px;color:var(--muted)}
+  #coordinationHint{position:absolute;left:16px;top:14px;z-index:4;display:flex;align-items:center;gap:8px;
+    max-width:min(430px,calc(100% - 32px));padding:7px 10px;border:1px solid rgba(14,165,233,.4);
+    border-left:4px solid #0ea5e9;border-radius:10px;background:rgba(255,255,255,.9);
+    box-shadow:0 6px 18px rgba(15,23,42,.12);backdrop-filter:blur(8px);pointer-events:none;color:#1f2937}
+  #coordinationHint strong{font-size:11.5px;white-space:nowrap}
+  #coordinationHint .coord-flow{position:relative;padding-left:20px;font-size:11px;font-weight:700;color:#475569;line-height:1.25}
+  #coordinationHint .coord-flow:before{content:"";position:absolute;left:3px;top:50%;width:12px;height:2px;background:#0ea5e9;border-radius:2px}
+  #coordinationHint:after{content:"";position:absolute;left:22px;top:100%;width:2px;height:52px;
+    background:linear-gradient(180deg,rgba(14,165,233,.85),rgba(14,165,233,0));border-radius:2px}
+  #coordinationRail{position:absolute;left:34px;right:34px;top:78px;z-index:4;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+    gap:8px;align-items:center;pointer-events:none}
+  #coordinationRail:before{content:"";position:absolute;left:5%;right:5%;top:50%;border-top:2px dashed rgba(14,165,233,.62)}
+  #coordinationRail span{position:relative;justify-self:center;padding:4px 8px;border-radius:999px;background:rgba(240,249,255,.94);
+    border:1px solid rgba(14,165,233,.38);box-shadow:0 2px 8px rgba(15,23,42,.08);font-size:10px;font-weight:800;color:#0369a1;
+    white-space:nowrap}
+  #stageWrap.preview-active #coordinationHint{background:rgba(239,246,255,.94);border-color:rgba(14,165,233,.58)}
 
   /* ---- Filterable live feed ---- */
   .feed-card{background:#111827;color:#e5e7eb;border-radius:12px;padding:10px 14px}
@@ -559,6 +576,16 @@
       <button class="mode-btn" data-mode="theatre">Theatre</button>
     </div>
     <div id="stageWrap"><div id="stage"></div>
+      <div id="coordinationHint" aria-hidden="true">
+        <strong>Coordinator Room</strong>
+        <span class="coord-flow">Routes work to Lead Lab, Sales, Voice, Marketing and Engineering.</span>
+      </div>
+      <div id="coordinationRail" aria-hidden="true">
+        <span>Lead Lab</span>
+        <span>Sales</span>
+        <span>Voice</span>
+        <span>Marketing</span>
+      </div>
       <div id="previewOverlay">
         <div class="pv-badge">👀 PREVIEW — demo roster, live data nahi<br>
           <span class="pv-sub">Statuses neutral hain (grey) — koi live activity nahi dikh rahi</span><br>
@@ -1420,6 +1447,8 @@
     if (OFFICE.previewMode || !OFFICE.scene) return;
     if (Object.keys(OFFICE.avatars).length) return;   // live avatars already on map — untouched
     OFFICE.previewMode = true;
+    var wrap = document.getElementById("stageWrap");
+    if (wrap) wrap.classList.add("preview-active");
     var ov = document.getElementById("previewOverlay");
     if (ov) ov.style.display = "block";
     var rc = document.getElementById("roomListCompact");
@@ -1441,6 +1470,8 @@
   OFFICE.exitPreviewMode = function(){
     if (!OFFICE.previewMode) return;
     OFFICE.previewMode = false;
+    var wrap = document.getElementById("stageWrap");
+    if (wrap) wrap.classList.remove("preview-active");
     var ov = document.getElementById("previewOverlay");
     if (ov) ov.style.display = "none";
     Object.keys(OFFICE.avatars).forEach(function(k){
@@ -1555,7 +1586,17 @@
     var metrics = snapshot.metrics || {};
     var pending = metrics.approvals_needed || 0;
     var issues = metrics.system_issues || 0;
-    var healthLine = issues > 0 ? issues + " automation issue(s)" : "sab automation healthy";
+    // Honest banner: sirf snapshot ke system_issues nahi — dead (exhausted) tasks
+    // aur mid-funnel stall bhi count hote hain. Pehle 27 dead tasks + 0-qualified
+    // hone par bhi "sab healthy" dikhta tha (jhooth). dlqState reliability-poll se
+    // aata hai; jab tak load na ho tab tak 0 (agla poll me sach dikhega).
+    var dead = (OFFICE.dlqState && OFFICE.dlqState.dead) || 0;
+    var newT = metrics.new_leads_today || 0, qualT = metrics.qualified_leads_today || 0;
+    var probs = [];
+    if (issues > 0) probs.push(issues + " automation issue(s)");
+    if (dead > 0) probs.push(dead + " dead task(s)");
+    if (newT >= 20 && qualT === 0) probs.push("mid-funnel ruka (0 qualified)");
+    var healthLine = probs.length ? "⚠️ " + probs.join(" · ") : "sab automation healthy";
     el.textContent = activeCount + "/" + agents.length + " agents active · " +
       pending + " approvals pending · " + healthLine;
   };
@@ -1595,13 +1636,32 @@
     var el = document.getElementById("priorityActionStack");
     if (!el) return;
     actions = actions || [];
-    if (!actions.length) {
+    OFFICE.lastPriorityActions = actions;   // raw (bina hot-queue tile) — re-merge safe
+    // Paisa sabse upar: agar Hot Queue me unworked hot replies hain to woh #1
+    // action ban jaati hai (₹ estimate ke saath). Pehle yeh choti card me neeche
+    // dabi rehti thi. hotQueueState 15s poll se update hota → renderHotQueue end
+    // me yeh function dobara call hota hai (merge idempotent).
+    var merged = actions.slice();
+    var hq = OFFICE.hotQueueState || {};
+    if (hq.loaded && (hq.count || 0) > 0) {
+      var pot = OFFICE.hqPotentialText(hq.count);
+      merged.unshift({
+        severity: "critical",
+        title: "🔥 " + hq.count + " hot reply — abhi jawab do" + (pot ? " · " + pot : ""),
+        why: "Interested customers ne reply kiya hai — jaldi jawab = deal. Sabse pehle yeh.",
+        owner: "rohan", room: "sales_crm", cta_label: "Open Hot Queue", cta_target: "hotQueueCard"
+      });
+    }
+    if (!merged.length) {
       el.innerHTML = '<div class="empty-note">Koi urgent action nahi. Office normal chal raha hai.</div>';
       return;
     }
     var colors = { critical:"#ef4444", high:"#f59e0b", medium:"#3b82f6", low:"#10b981" };
-    el.innerHTML = actions.map(function(a){
-      return '<div class="priority-item" data-cta="' + esc(a.cta_target || "") + '">' +
+    el.innerHTML = merged.map(function(a, i){
+      var top1 = (i === 0);   // #1 = "abhi sabse pehle" emphasis (user-friendly focus)
+      return '<div class="priority-item" data-cta="' + esc(a.cta_target || "") + '"' +
+          (top1 ? ' style="border-left:4px solid ' + (colors[a.severity] || "#ef4444") + ';padding-left:9px"' : '') + '>' +
+        (top1 ? '<div style="font-size:11px;font-weight:800;color:#b45309;margin-bottom:3px">👉 Abhi sabse pehle</div>' : '') +
         '<div class="priority-top"><span class="priority-dot" style="background:' + (colors[a.severity] || "#94a3b8") + '"></span>' +
           esc(a.title || a.id) + '</div>' +
         '<div class="priority-meta">' + esc(a.why || "") + '</div>' +
@@ -2297,6 +2357,9 @@
     OFFICE.dlqState = { failed: fc, dead: dc, items: merged, loaded: true, error: false };
     OFFICE.renderDlqRepairCard();
     OFFICE.drawDlqPile();
+    // Dead-task count ab pata hai — top status banner honest re-render (renderStatusSummary
+    // pehle chal chuka tha jab dead abhi load nahi hua tha, isliye "healthy" dikha tha).
+    if (OFFICE.lastSnapshot) OFFICE.renderStatusSummary(OFFICE.lastSnapshot);
     if (!el) return;
     var head = '<div class="health-row"><span class="health-dot" style="background:' +
       (fc > 0 ? "#ef4444" : "#10b981") + '"></span>Failed (retry-able): <b>' + esc(fc) + '</b>' +
@@ -2471,6 +2534,9 @@
     }
     OFFICE.renderHotQueueCard();
     OFFICE.drawReceptionTray();
+    // Hot-queue count update hua → priority stack ko dobara render karo taaki
+    // "🔥 N hot reply — abhi jawab do" #1 action refresh ho (raw actions se merge).
+    if (OFFICE.lastPriorityActions) OFFICE.renderPriorityActions(OFFICE.lastPriorityActions);
   };
 
   OFFICE.renderHotQueueCard = function(){

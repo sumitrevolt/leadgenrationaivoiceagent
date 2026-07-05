@@ -137,6 +137,14 @@ class EmailSender:
             msg.attach(MIMEText(html_body, "html"))
 
         try:
+            # SMTP send ko timeout se bound karo — pehle koi timeout nahi tha, ek
+            # stalled connection poora Celery task budget (600s) kha jaati thi =
+            # email_outreach TimeLimitExceeded/OOM. Default 30s (EMAIL_SEND_TIMEOUT_S).
+            import os as _os_smtp
+            try:
+                _smtp_to = float(_os_smtp.getenv("EMAIL_SEND_TIMEOUT_S", "30") or "30")
+            except Exception:
+                _smtp_to = 30.0
             await aiosmtplib.send(
                 msg,
                 hostname=self.host,
@@ -144,6 +152,7 @@ class EmailSender:
                 username=self.user,
                 password=self.password,
                 use_tls=True,
+                timeout=_smtp_to,
             )
 
             logger.info(f"Email sent to {', '.join(to_emails)}")
