@@ -5,7 +5,7 @@ description: Test the AI voice agent before going live — run the persona eval 
 
 # Test the Voice Agent
 
-The agent (app/voice_agent/natural_dialog.py) listens, understands, gives grounded answers, books appointments, detects voicemail, and is guarded against PII leaks + prompt injection. With a Gemini key it talks naturally in Hinglish; without, it uses rule-based fallbacks.
+The agent (live brain `app/voice_agent/telecaller_brain.py`; full orchestrator + eval harness `natural_dialog.py`) listens, understands, gives grounded answers, books appointments, detects voicemail, and is guarded against PII leaks + prompt injection. It talks naturally in Hinglish on the FREE `free_ai.py` chain (Mistral primary → Groq → Cerebras → … → Gemini — no paid key needed); if the whole chain is down it degrades to rule-based fallbacks.
 
 ## Options
 
@@ -28,6 +28,6 @@ The agent (app/voice_agent/natural_dialog.py) listens, understands, gives ground
    asyncio.run(go())
    ```
 
-3. Browser web-call (no telephony cost): start server (`uvicorn app.main:app --port 8000`) then open `/app/test-call`.
+3. Browser web-call (no telephony cost): start server (`uvicorn app.main:app --port 8000`) then open `/app/test-call`. Mic allow karo — server Groq whisper-large-v3 STT chalega (phone-parity).
 
-4. Quality tips: set GEMINI_API_KEY + DEFAULT_LLM=gemini-2.5-flash in .env for natural responses. Add SARVAM_API_KEY + STT_PROVIDER=sarvam for best Hindi voice.
+4. Voice change ke baad: `python scripts/agent_tester.py` (scorecard: double/empty/repeat/long/slow). Quality already free chain pe (Gemini key ki zaroorat nahi). Best Hindi voice (optional): SARVAM_API_KEY + STT_PROVIDER=sarvam.

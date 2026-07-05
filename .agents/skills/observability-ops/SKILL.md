@@ -7,6 +7,8 @@ description: Operate and extend the LeadGen AI monitoring stack — Prometheus, 
 
 `docker-compose.observability.yml` — 6 containers: Prometheus (:9090), Grafana (:3000), Alertmanager (:9093, email), Loki (:3100), Tempo (:4317 traces), Uptime Kuma (:3001). App side: `/metrics` (Prometheus) + Sentry (errors, gated `SENTRY_DSN`) + `/health` `/health/ready` + `ops_watchdog` (app-level email). Bring up: `docker compose -f docker-compose.observability.yml up -d`.
 
+> **KYA measure + kab freeze →** `slo-error-budget` (SLO table, burn-rate rules, error-budget policy). Yeh skill = stack HOW; woh = targets WHAT.
+
 ## Celery observability (addons — `docker-compose.addons.yml`)
 Scheduler = Celery durable (LIVE), so Celery visibility zaroori hai:
 - **celery-exporter** (`leadgen_celery_exporter` :9808) — Prometheus Celery metrics (task counts/states/runtimes, `celery_workers_online`, `celery_queue_length` incl. DLQ watch). Bina iske 14 AI-staff tasks Grafana me DARK the.

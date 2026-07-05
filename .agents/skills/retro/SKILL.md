@@ -39,7 +39,7 @@ Calculate karo:
 - **Features shipped:** commits with feat/add/live/deploy prefix
 - **Bugs fixed:** commits with fix/hotfix/prod-down
 - **Files changed:** unique file count
-- **Prod-downs:** grep AGENTS.md for PROD-DOWN this week
+- **Prod-downs:** grep CLAUDE.md for PROD-DOWN this week
 
 ---
 
@@ -52,7 +52,7 @@ List karo top 3-5 achievements (features shipped, bugs fixed, infra improvements
 Agar koi prod-down tha: root cause + fix + prevention rule.
 
 ### Gotchas Learned
-Koi nayi learning jo AGENTS.md mein add honi chahiye.
+Koi nayi learning jo CLAUDE.md mein add honi chahiye.
 
 ---
 
@@ -86,6 +86,15 @@ git log --format="%ad" --date=short | sort -u | tail -14
 ```
 
 Kitne consecutive days commit kiya? Streak track karo — momentum matter karta hai.
+
+---
+
+## Step 7: RL dev-reward review (Loop B, optional)
+
+Agar `data/claude_feedback.jsonl` exist kare to last week ki rows Read karo. Reward = `app.agents.rl.reward.dev_reward` (single source of truth — yahan recompute mat karo). Average dev-reward trend dekho:
+- **Up / high** → jo dev-patterns kaam kar rahe (verify+tests+deploy green) unhe reinforce (memory/skill).
+- **Down / negative** (user_correction, verify fail dohraye) → recurring anti-pattern ko ek `guard.py`/`skill_reminder.py` guardrail ya CLAUDE.md gotcha-line me convert karo.
+Ye Claude (dev-time agent) ke self-improvement ka closed loop hai — naya dashboard NAHI, existing machinery hi.
 
 ---
 

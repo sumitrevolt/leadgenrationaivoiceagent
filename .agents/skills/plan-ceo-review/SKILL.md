@@ -25,7 +25,7 @@ Pehle poochho user se: **"Ab hum kahan hain?"**
 | **HOLD** | Revenue pressure, consolidate karo | Feature freeze, tech debt, reliability |
 | **REDUCTION** | Survival mode | Cut everything non-essential |
 
-**Current reality check (run karo):** real pipeline numbers `/app/admin` dashboard ya admin APIs se lo — AGENTS.md me ab live counts nahi rehte (woh lean working-memory hai).
+**Current reality check (run karo):** real pipeline numbers `/app/admin` dashboard ya admin APIs se lo — CLAUDE.md me ab live counts nahi rehte (woh lean working-memory hai).
 ```bash
 # Prospect/client stores (paths verify): clients = app/marketing/clients_store.py
 grep -rln "def get_all_clients\|def list_clients\|class .*Store" app/marketing/ app/platform/ | head

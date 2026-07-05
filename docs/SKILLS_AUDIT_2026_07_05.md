@@ -39,11 +39,12 @@
 
 `saas-pricing-strategy` ko flag kiya gaya tha ki wo `app/marketing/voice_packages.py` bolta hai jabki truth-sheet `app/billing/voice_packages.py` kehti thi. **Audit-agent ne git-history + filesystem se prove kiya ki truth-sheet hi galat thi** — `app/billing/voice_packages.py` kabhi exist nahi kiya. Skill sahi tha, edit NAHI hua; `docs/HANDOFF.md` ki wahi galti fix hui (+ `product-split-adr` bhi correct nikla).
 
-## Mirror drift (.claude vs .agents) — DECISION NEEDED (fix nahi kiya)
+## Mirror drift (.claude vs .agents) — ✅ RESOLVED (2026-07-05, same din)
 
-- `SKILLS_PARITY.md` rule: **`.claude/skills` = PRIMARY**.
-- `.agents/skills` me 52 shared files PURANE hain (aaj ke SOP upgrades + ye audit-fixes bhi sirf `.claude` me hain), 12 skills `.claude`-only (enterprise-hardening set kabhi mirror nahi hua), 23 `.agents`-only (generic vendored — intentional).
-- **Recommendation**: ya to ek sync-script banao (`.claude` → `.agents` one-way, `.agents`-only 23 ko chhod ke), ya `.agents` ke shared copies ko delete karke Dockerfile me sirf `.claude` COPY rakho (runtime `skill_pack.py` dono padhta hai — duplication ka koi faida nahi). Alag task.
+- **Root-cause discovery**: "automation sync-loop" jaisa jo dikh raha tha wo asal me **61 Windows JUNCTIONS** the — `.claude/skills/` ke 61 dirs `.agents/skills/` ko point karte hain (same physical files). Drift sirf REAL duplicate dirs me thi.
+- **Reconcile hua**: 76 drifted files `.claude` → `.agents` file-level sync (zero deletions), 9 enterprise-hardening skills (`data-retention-dpdp`, `db-migration-safety`, `dr-restore-drill`, `enterprise-readiness-audit`, `load-capacity-testing`, `secrets-rotation`, `slo-error-budget`, `supply-chain-security`, `tenant-isolation-audit`) pehli baar mirror hue. Post-sync verification: **0 mismatch** (har `.claude` file ka `.agents` counterpart byte-identical).
+- **Naya safety rule** (SKILLS_PARITY me): skills trees me KABHI recursive delete nahi — junction ke aar-paar asli content udta hai (aaj `ab-testing` aise hi gaya tha, git-restore hua; incident isi audit me pakda gaya).
+- Runtime pe koi risk tha hi nahi: `skill_pack.py` `.claude` PEHLE load karta hai + name-dedupe — stale `.agents` copies hamesha shadowed thin.
 
 ---
 

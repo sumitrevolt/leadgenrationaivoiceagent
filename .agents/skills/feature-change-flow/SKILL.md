@@ -5,7 +5,7 @@ description: Kisi bhi EXISTING feature me change karne ka production-safe flow �
 
 # Feature-change flow (production-safe, is repo ka proven loop)
 
-## 1. LOCATE (rebuild mat karo — ~761 route decorators already hain)
+## 1. LOCATE (rebuild mat karo — ~1030 routes already hain)
 - `grep '@router' app/api/<area>.py` + CLAUDE.md section padho — feature PEHLE se ho sakta hai (festivals-duplicate lesson). FastAPI first-route-wins = duplicate prod ko silently shadow karta.
 - Module map: marketing=`app/marketing/*`+`api/marketing.py` · growth/infra=`api/growth.py` · agents=`app/agents/*` · billing=`app/billing/*` (`app/marketing/packages.py` = marketing-pricing TRUTH, `app/marketing/voice_packages.py` = voice-pricing TRUTH) · voice=`app/voice_agent/*` · scheduler (Celery LIVE)=`worker.py`+beat, rollback APScheduler=`platform/team_scheduler.py`.
 

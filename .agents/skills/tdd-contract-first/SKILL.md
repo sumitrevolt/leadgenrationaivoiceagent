@@ -12,11 +12,11 @@ description: Red-green-refactor + "contract tests PEHLE" discipline — naya fea
 1. **RED** — `tests/test_<feature>.py` me EK minimal test (ek behavior, clear naam, pure-python — no network/DB, parallel-batch rule). Chalao: `python -m pytest tests/test_x.py -x -q` → **fail hote dekho**, aur sahi reason se fail ho (feature missing, typo nahi).
 2. **GREEN** — minimal code jo pass kare. Over-engineering nahi (YAGNI) — options/knobs tab jodo jab test maange.
 3. **REFACTOR** — green rehte hue cleanup. Behavior add nahi.
-4. **Full gate** — `scripts\run_tests.bat` chalao, fir **pytest_run.log Read karo** (console truncate hota hai — log = truth). Fir `python scripts/prod_check.py`.
+4. **Full gate** — TARGETED suites chalao (`python -m pytest tests\test_<feature>.py tests\test_billing_truth_2026.py -q`) — full run_tests.bat offline HANG hota hai (2026-07-05) (console truncate hota hai — log = truth). Fir `python scripts/prod_check.py`.
 
 ## CONTRACT tests pehle (billing-truth lesson 🚨)
 /pricing checkout legacy Cloud-Run plans se ₹15k+18% GST charge karta tha jabki page advertised price dikhata — legacy plans ne `packages.py` ko shadow kar diya, 'advanced' checkout 404 + unregistered hote hue illegal GST. `tests/test_billing_truth_2026.py` ab ye LOCK karta hai. **Naya feature jisme paisa/plan/public promise hai → pehla test = contract assert:**
-- Price/plan (REAL keys, `app/marketing/packages.py`): `assert float(PRICING_PLANS[pkg["key"]].monthly_price) == float(pkg["price_inr_month"])` har pkg pe; advanced = ₹6,999 + `calls_per_month == 500`; starter monthly ₹1,199 / yearly ₹11,990; packages keys `== ["starter","growth","advanced"]`. SOURCE of truth vs har surface (API, page, checkout).
+- Price/plan (REAL keys, `app/marketing/packages.py`): `assert float(PRICING_PLANS[pkg["key"]].monthly_price) == float(pkg["price_inr_month"])` har pkg pe; advanced = ₹5,999 + `calls_per_month == 500`; starter monthly ₹1,999 / yearly ₹19,990; packages keys `== ["starter","growth","advanced"]` (growth = `public:False` legacy-hidden). SOURCE of truth vs har surface (API, page, checkout).
 - GST contract: `GST_GSTIN` unset → total == advertised, tax == 0; set → ×1.18, tax_rate 18 (`test_calculate_price_unregistered_flat`/`_registered_gst`).
 - Voice pricing alag source: `app/marketing/voice_packages.py` (flat band A/B/C ₹4,999/9,999/19,999).
 - Public API shape: response keys/status codes assert karo (`/api/public/*` backward-compat).

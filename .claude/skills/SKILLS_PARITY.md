@@ -4,6 +4,13 @@
 > **Start every code task:** `context-first` → `leadgen-composer` → one domain skill.
 > **Project skills:** ~184 folders (2026-07-05) in `.claude/skills/` + ~181 in `data/skills_extra/`.
 
+## ⚠️ Mirror topology (.claude ↔ .agents) — 2026-07-05 discovery, DHYAN SE
+
+- **61 dirs in `.claude/skills/` are Windows JUNCTIONS** pointing into `.agents/skills/` (same physical files — edit either side, both "change"). Baaki real dirs hain.
+- **KABHI `rmtree`/`robocopy /MIR`/recursive-delete in skills trees mat chalao** — junction ke aar-paar asli content delete ho jata hai (2026-07-05 me `ab-testing` aise hi uda tha, git se restore hua).
+- **Edit rule: `.claude/skills/` me edit karo** (PRIMARY). Junction dirs auto-reflect hote; REAL shared dirs ke liye file-level sync (2026-07-05 me full reconcile hua — 76 files, 9 naye mirrors). Runtime `skill_pack.py` `.claude` pehle load karta hai (name-dedupe) — drift runtime pe shadow hoti thi, ab reconciled.
+- `.agents/skills/`-only 23 dirs = generic vendored (npx skills) — unhe `.claude` me mat kheencho.
+
 ## Claude loading protocol (MANDATORY)
 
 1. `CLAUDE.md` auto-loads each turn (lean memory).

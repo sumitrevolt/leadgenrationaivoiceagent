@@ -1,11 +1,11 @@
 ---
 name: statusline
-description: Cursor IDE statusline customization reference. Codex has no statusline — use for Cursor-only setup or skip.
+description: Cursor IDE statusline customization reference. Claude Code has no statusline — use for Cursor-only setup or skip.
 disable-model-invocation: true
 ---
 # Statusline (Cursor IDE only)
 
-Cursor can show custom statusline via settings. **Codex CLI has no equivalent.**
+Cursor can show custom statusline via settings. **Claude Code CLI has no equivalent.**
 
 ## Cursor users
 

@@ -39,7 +39,7 @@ grep -n "@router\." app/api/[file].py
 cat tests/test_[feature].py | head -50
 
 # Related skill agar hai
-ls .Codex/skills/ | grep -i "KEYWORD"
+ls .claude/skills/ | grep -i "KEYWORD"
 ```
 
 ---
@@ -158,7 +158,7 @@ docker logs leadgen_app --tail=100 | grep -i "FEATURE"
 # Save to right location
 docs/API.md          # API reference
 docs/[FEATURE].md    # Feature-specific
-.Codex/skills/[name]/SKILL.md  # If it's a workflow skill
+.claude/skills/[name]/SKILL.md  # If it's a workflow skill
 
 git add docs/
 git commit -m "docs: add [feature] documentation"
