@@ -81,6 +81,40 @@ def is_delivered(client: dict[str, Any]) -> bool:
     return str((client or {}).get("delivery_state") or "").lower() in ("delivered", "acknowledged")
 
 
+def is_activated(client: dict[str, Any]) -> bool:
+    """Council's true North-Star: 'activated' = customer ne value RECEIVE + ACKNOWLEDGE
+    ki (delivery message ka reply / engage), sirf 'sent' nahi. Instrumentation signal."""
+    return str((client or {}).get("delivery_state") or "").lower() == "acknowledged"
+
+
+def try_mark_acknowledged(from_number: str) -> bool:
+    """Inbound message from a DELIVERED paid customer = acknowledgment (council:
+    'delivered = acknowledged'). delivery_state delivered->acknowledged flip karo.
+    READ-side (koi outbound nahi). True agar mark hua. Never raises. Message ko
+    CONSUME nahi karta — caller normal reply-handling jaari rakhe."""
+    digits = "".join(ch for ch in str(from_number or "") if ch.isdigit())[-10:]
+    if not digits:
+        return False
+    try:
+        from app.marketing import clients_store
+
+        for c in clients_store.list_clients(status="active"):
+            if not is_paid_client(c):
+                continue
+            cph = "".join(ch for ch in str(c.get("phone") or "") if ch.isdigit())[-10:]
+            if cph and cph == digits and str(c.get("delivery_state") or "").lower() == "delivered":
+                clients_store.update_client(
+                    str(c.get("id") or ""),
+                    delivery_state="acknowledged",
+                    acknowledged_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                )
+                logger.info("✅ customer acknowledged delivery: %s", c.get("business_name"))
+                return True
+    except Exception as exc:
+        logger.warning("try_mark_acknowledged err: %s", exc)
+    return False
+
+
 def build_delivery_message(client: dict[str, Any]) -> str:
     """The WhatsApp value-delivery text: live mini-site link + what they got + next
     step. Pure (no side effects) so it is unit-testable. Value-first — no info-ask."""
@@ -351,6 +385,8 @@ __all__ = [
     "is_paid_client",
     "mini_site_url",
     "is_delivered",
+    "is_activated",
+    "try_mark_acknowledged",
     "build_delivery_message",
     "find_undelivered_paid_clients",
     "deliver_client_value",

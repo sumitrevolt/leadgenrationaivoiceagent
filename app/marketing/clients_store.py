@@ -372,6 +372,7 @@ _ALLOWED_FIELDS = {
     "delivery_state",  # str — value-delivery state machine (paid/assets_built/delivered/
     # acknowledged); customer_delivery.py. Whitelist-block = re-send spam (2026-07-05).
     "delivered_at",  # ISO timestamp — value delivered to customer kab
+    "acknowledged_at",  # ISO timestamp — customer ne reply/engage karke acknowledge kiya
 }
 
 
