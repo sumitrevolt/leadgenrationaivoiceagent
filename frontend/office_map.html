@@ -16,6 +16,20 @@
     --ink:#1e1b2e; --muted:#6b7280; --line:#e9e7f2; --bg:#f6f5fb; --card:#ffffff;
     --ok:#10b981; --warn:#f59e0b; --err:#ef4444; --info:#3b82f6;
   }
+  /* ---- Dark mode: system (auto) + manual toggle — surfaces CSS vars pe ---- */
+  :root[data-theme="dark"]{
+    --brand-soft:#312e58; --ink:#e7e5f4; --muted:#9ca3af; --line:#2b2b40;
+    --bg:#12121c; --card:#1c1c2c;
+  }
+  :root[data-theme="dark"] .topbar{background:var(--card)}
+  :root[data-theme="dark"] .war-card, :root[data-theme="dark"] .mode-toggle,
+  :root[data-theme="dark"] #agentSearchResults, :root[data-theme="dark"] .panel-card,
+  :root[data-theme="dark"] #legendPopover, :root[data-theme="dark"] .map-btn,
+  :root[data-theme="dark"] .ia-btn, :root[data-theme="dark"] #schedList .sched-btn,
+  :root[data-theme="dark"] .qn-chip{background:var(--card);color:var(--ink)}
+  :root[data-theme="dark"] .priority-item:hover, :root[data-theme="dark"] .feature-tile:hover{background:#262640}
+  :root[data-theme="dark"] .lb-name{color:var(--ink)}
+  :root[data-theme="dark"] #agentSearch, :root[data-theme="dark"] .stage-search{background:var(--card);color:var(--ink)}
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
@@ -242,7 +256,7 @@
     padding:3px 10px;font-size:10.5px;font-weight:700;cursor:pointer}
   .sf-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
   .item-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
-  .ia-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:2px 7px;font-size:10.5px;cursor:pointer}
+  .ia-btn{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:2px 7px;font-size:10.5px;cursor:pointer}
   .ia-btn:hover{border-color:var(--brand-2)}
   .appr-row{cursor:pointer}
   .health-row.clickable{cursor:pointer}
@@ -258,7 +272,7 @@
   /* ---- Quick-nav chips (sticky section jumper) ---- */
   #quickNav{position:sticky;top:57px;z-index:19;background:var(--bg);padding:6px 0 2px;
     display:flex;gap:6px;flex-wrap:wrap}
-  .qn-chip{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;
+  .qn-chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;
     padding:4px 12px;font-size:11.5px;font-weight:700;cursor:pointer}
   .qn-chip:hover{border-color:var(--brand-2);color:var(--brand-2)}
   /* ---- Simple/Pro view (user-friendly default): Simple = cockpit-only.
@@ -274,7 +288,7 @@
   /* Agent Scheduler mini-panel */
   #schedList table{width:100%;font-size:12px;border-collapse:collapse}
   #schedList td{padding:5px 6px;border-top:1px dashed var(--line);vertical-align:middle}
-  #schedList .sched-btn{border:1px solid var(--line);background:#fff;border-radius:7px;
+  #schedList .sched-btn{border:1px solid var(--line);background:var(--card);border-radius:7px;
     padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer}
   #schedList .sched-btn:hover{border-color:var(--brand-2);color:var(--brand-2)}
 
@@ -288,7 +302,7 @@
   .asr-row{padding:7px 10px;font-size:12.5px;cursor:pointer;display:flex;gap:7px;align-items:center}
   .asr-row:hover{background:var(--brand-soft)}
   .asr-row .asr-title{color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .map-btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 10px;
+  .map-btn{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:4px 10px;
     font-size:12.5px;font-weight:700;cursor:pointer}
   .map-btn:hover{border-color:var(--brand-2)}
   #mapHint{font-size:11px;color:var(--muted)}
@@ -365,16 +379,19 @@
     <div class="spacer"></div>
     <span id="istClock" style="font-size:11.5px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums"></span>
     <span id="freshnessBadge" style="font-size:11.5px;color:var(--muted)"></span>
-    <button id="viewModeBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
+    <button id="themeBtn" style="border:1px solid var(--line);background:var(--card);border-radius:7px;
+      padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
+      title="Theme: Auto (system) → Dark → Light">🌗 Auto</button>
+    <button id="viewModeBtn" style="border:1px solid var(--line);background:var(--card);border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
       title="Simple = sirf zaroori cheezein (copilot, KPIs, approvals, hot queue). Pro = poora office map + saare panels.">🎛️ Pro view</button>
-    <button id="briefingBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
+    <button id="briefingBtn" style="border:1px solid var(--line);background:var(--card);border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
       title="Aaj ki HQ briefing suno (Swara ki awaaz me)">📻 Briefing</button>
-    <button id="manualRefreshBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
+    <button id="manualRefreshBtn" style="border:1px solid var(--line);background:var(--card);border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer">🔄 Refresh now</button>
   </div>
-  <div id="legendPopover" style="display:none;position:fixed;top:50px;left:16px;background:#fff;
+  <div id="legendPopover" style="display:none;position:fixed;top:50px;left:16px;background:var(--card);
     border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:12.5px;
     box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;max-width:320px">
     <div style="font-weight:800;margin-bottom:8px">Kaise padhein</div>
@@ -389,7 +406,7 @@
     <div style="margin-top:6px">🌙 19:00–07:00 IST — office night-mode (dim + desk lamps)</div>
     <div style="margin-top:6px">🧍 Har ghante minute 0-2 — standup (sab Coordinator Room tak walk)</div>
     <div style="margin-top:6px">👀 Bina login — preview mode (demo roster, grey/neutral, live data nahi)</div>
-    <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:#fff;
+    <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:var(--card);
       border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer">Band karo</button>
   </div>
   <!-- F4 Subah ki Briefing — modal (topbar button entry point; canvas-independent,
@@ -398,20 +415,20 @@
   <div id="briefingModal" style="display:none;position:fixed;inset:0;z-index:40;
     background:rgba(15,23,42,.45)">
     <div style="position:absolute;top:60px;left:50%;transform:translateX(-50%);
-      width:min(440px,92vw);max-height:80vh;overflow:auto;background:#fff;
+      width:min(440px,92vw);max-height:80vh;overflow:auto;background:var(--card);
       border:1px solid var(--line);border-radius:12px;padding:18px 20px;
       box-shadow:0 12px 40px rgba(0,0,0,.22)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <div style="font-weight:800;font-size:15px">📻 Subah ki Briefing</div>
         <button id="briefingClose" aria-label="Band karo" style="margin-left:auto;
-          border:1px solid var(--line);background:#fff;border-radius:6px;
+          border:1px solid var(--line);background:var(--card);border-radius:6px;
           padding:2px 9px;font-size:13px;cursor:pointer">✕</button>
       </div>
       <div id="briefingDate" style="font-size:11.5px;color:var(--muted);margin-bottom:10px"></div>
       <div id="briefingBody" style="font-size:13px;line-height:1.55;color:var(--ink);
         white-space:pre-wrap">⏳ Briefing ban rahi hai… ~10s</div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">
-        <button id="briefingPlay" style="border:1px solid var(--line);background:#fff;
+        <button id="briefingPlay" style="border:1px solid var(--line);background:var(--card);
           border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;
           display:none">▶ Suno</button>
         <span id="briefingAudioNote" style="font-size:11.5px;color:var(--muted)"></span>
@@ -471,7 +488,7 @@
         <span style="font-weight:400;font-size:12px;color:var(--muted)">— pura staff discuss karke project-improvement suggest karta hai (aaj ke real data pe grounded, draft-safe)</span>
       </h3>
       <textarea id="councilTopic" rows="2" maxlength="400" placeholder="Khaali chhodo default topic ke liye, ya apna sawaal likho — jaise: is mahine churn kam karne ke liye kya karein?"
-        style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical"></textarea>
+        style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical;background:var(--card);color:var(--ink)"></textarea>
       <div class="panel-actions" style="margin:8px 0">
         <button id="councilRunBtn">💡 Team se discuss karao</button>
         <label style="font-size:12px;margin-left:10px;cursor:pointer"><input type="checkbox" id="councilDeeper"> Deeper (2 rounds, thoda slow)</label>
@@ -588,7 +605,7 @@
     <div class="two-col">
       <div class="panel-box" id="approvalsPanel">
         <h3 style="display:flex;align-items:center;gap:8px">🗂️ Approvals needed
-          <button id="bossReviewBtn" style="margin-left:auto;border:1px solid var(--line);background:#fff;
+          <button id="bossReviewBtn" style="margin-left:auto;border:1px solid var(--line);background:var(--card);
             border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
             title="Boss (manager agent) har pending item par recommend karega — final click aapka">🧠 Boss se review karao</button>
         </h3>
@@ -618,7 +635,7 @@
     <div id="failureConsoleCard" class="panel-box" style="margin-top:14px">
       <h3 style="display:flex;align-items:center;gap:8px">
         🚨 Reliability Console — failed jobs &amp; recovery
-        <button id="dlqSweepBtn" style="margin-left:auto;border:1px solid var(--line);background:#fff;
+        <button id="dlqSweepBtn" style="margin-left:auto;border:1px solid var(--line);background:var(--card);
           border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
           title="Failed jobs ko backoff + attempt-cap ke saath dobara chalao">🔁 Retry sweep</button>
       </h3>
@@ -653,7 +670,7 @@
   </div>
 
   <div id="roomTooltip"></div>
-  <div id="coordinatorTickerBox" style="position:absolute;display:none;background:#fff;border:1px solid var(--line);
+  <div id="coordinatorTickerBox" style="position:absolute;display:none;background:var(--card);border:1px solid var(--line);
     border-radius:8px;padding:6px 10px;max-width:280px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.08);z-index:15">
     <div style="font-weight:700;margin-bottom:3px">🧑‍💼 Coordinator log</div>
     <div id="coordinatorTicker"></div>
@@ -2303,7 +2320,7 @@
     // button jo kuch na kare = misleading, wahi galti jo per-item me avoid ki).
     var actionsDisabled = (st.error || (st.failed || 0) === 0);
     var btnStyle = 'border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:12.5px;' +
-      'font-weight:700;cursor:pointer;background:#fff';
+      'font-weight:700;cursor:pointer;background:var(--card);color:var(--ink)';
     body.innerHTML =
       '<div class="panel-title">🗂️ DLQ Repair Desk</div>' +
       '<div class="panel-sub">Hermes ka desk — failed Celery tasks (retry-able) + dead (retry exhausted). ' +
@@ -2449,7 +2466,7 @@
         var draftPrev = esc(draft.slice(0, 220));
         var hqId = esc(String(it.hq_id || ""));
         var btnStyle = 'border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;' +
-          'font-weight:700;cursor:pointer;background:#fff';
+          'font-weight:700;cursor:pointer;background:var(--card);color:var(--ink)';
         return '<div class="item-row" data-hqid="' + hqId + '">' +
           '<div class="ir-name">📨 ' + from + '</div>' +
           (meta ? '<div class="ir-meta">' + meta + '</div>' : '') +
@@ -2836,7 +2853,7 @@
       '<div class="panel-box" style="margin:12px 0" id="kaamBox">' +
         '<h3>🎯 Kaam do</h3>' +
         '<textarea id="kaamGoal" rows="2" maxlength="500" placeholder="Hinglish me goal likho — jaise: 3 hot restaurant leads ke liye follow-up plan banao" ' +
-          'style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical"></textarea>' +
+          'style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical;background:var(--card);color:var(--ink)"></textarea>' +
         '<div style="display:flex;gap:14px;margin:8px 0;font-size:12px">' +
           '<label style="cursor:pointer"><input type="radio" name="kaamScope" value="solo" checked> Sirf yeh agent</label>' +
           '<label style="cursor:pointer"><input type="radio" name="kaamScope" value="team"> Team lagao</label>' +
@@ -3499,6 +3516,32 @@
       }, 60);
     }
   };
+  // ---- Dark mode: system (auto) + manual toggle, localStorage me yaad -------
+  OFFICE.themePref = "auto";
+  OFFICE.applyTheme = function(pref){
+    OFFICE.themePref = pref;
+    var dark = pref === "dark" || (pref === "auto" && window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    var btn = document.getElementById("themeBtn");
+    if (btn) btn.textContent = pref === "auto" ? "🌗 Auto" : (dark ? "🌙 Dark" : "☀️ Light");
+    try { localStorage.setItem("officeTheme", pref); } catch (e) {}
+  };
+  OFFICE.cycleTheme = function(){
+    var next = { auto: "dark", dark: "light", light: "auto" }[OFFICE.themePref] || "auto";
+    OFFICE.applyTheme(next);
+  };
+  try { OFFICE.applyTheme(localStorage.getItem("officeTheme") || "auto"); }
+  catch (e) { OFFICE.applyTheme("auto"); }
+  document.getElementById("themeBtn").onclick = OFFICE.cycleTheme;
+  if (window.matchMedia) {
+    try {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){
+        if (OFFICE.themePref === "auto") OFFICE.applyTheme("auto");
+      });
+    } catch (e) {}
+  }
+
   var _vm = "pro";
   try { _vm = localStorage.getItem("officeViewMode") || "pro"; } catch (e) {}
   OFFICE.setViewMode(_vm);
