@@ -103,3 +103,14 @@ def test_dark_mode():
     assert 'id="themeBtn"' in SRC
     assert "prefers-color-scheme" in SRC
     assert "OFFICE.cycleTheme" in SRC
+
+
+def test_six_labelled_sections():
+    for sec in ("secCommand", "secMap", "secActivity", "secPipeline", "secApprovals", "secReliability"):
+        assert f'id="{sec}"' in SRC, sec
+    assert "hq-sec-label" in SRC
+
+
+def test_scrollspy():
+    assert "IntersectionObserver" in SRC
+    assert "qn-active" in SRC
