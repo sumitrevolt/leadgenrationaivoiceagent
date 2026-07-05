@@ -19,4 +19,5 @@ Schema: `[DATE parked] Idea — WHY it matters | what unblocks it`
 [2026-07-04] **STUDIO_ENTITLEMENT_GATE flip** — studio tools entitlement enforcement | user go-ahead.
 [2026-07-05] **`.env.example` + `pyproject.toml` drift cleanup** — both advertise paid/stale stack (Deepgram/ElevenLabs/gemini-1.5/DEFAULT_STT=deepgram) vs real free stack; onboarding-misleading (found in enterprise-docs audit) | small PR; keep requirements.lock.txt authoritative.
 [2026-07-05] **Make full pytest CI-blocking** — currently continue-on-error; regressions can reach main | fix team_pulse-area hang first, then flip gate in `deploy-vps.yml`.
+[2026-07-05] **Prospect-store purge + harvester ingest gating** — ~94 SERP-junk records (page-titles as names, bank helplines as phones, home_loans niche mostly garbage) pollute "ready" pool; root-enabler of the platform_dial IVR disaster | small fix: ingest validation (GMB fields OR valid mobile + junk-title regex) + one-time purge script; sprint extraction filter in `data/dialer_sprint_20260705.csv` as reference.
 [2026-07-04] **POSTHOG_API_KEY + .codex key rotate** — analytics wired-but-off; old stitch key revoke provider-side | user actions.

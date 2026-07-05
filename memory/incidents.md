@@ -32,4 +32,6 @@ Schema per entry: `[DATE] What broke | Root cause | Fix | Prevention rule added`
 
 [2026-07-05] platform_dial marked IVR/bots as "interested" (7 fake leads) + real call-money burn | No bot/IVR detection — any completed call with keywords counted; agent talked to answering machines | HARD OFF 3-layer kill (see ADR-019) | RULE: outbound autonomy needs min-user-turns gate + allowlist testing before ramp; human-verify recordings before trusting agent-labeled outcomes.
 
+[2026-07-05] Prospect store "ready" pool polluted with SERP junk | Lead-harvester websearch path stored search-result PAGE TITLES as businesses ("Contact Us | HDFC...", bank helplines as phones) — ~94 junk records, whole home_loans niche garbage; explains WHY platform_dial dialed IVRs and marked them "interested" | Sprint extraction filtered by GMB-discriminator (rating/reviews_count present + valid 6-9 mobile) → 354 real SMBs; purge + harvester gating parked in backlog | RULE: prospect ingest must validate (GMB fields OR valid mobile) + brand/junk-title filter; dial lists ONLY from validated records.
+
 [2026-06-2X] Security tests gave false confidence | Batch-1 security tests ran against mocked-OPEN auth | Fixed `tests/security/conftest.py` to exercise real auth (a2d2464) | RULE: security tests must run against real auth wiring, never mocks.
