@@ -362,6 +362,10 @@ def _map_call_outcome(stream_outcome: str, q: dict[str, Any] | None, user_turns:
         # 2026-07-02 me hua); column nullable hai, analytics phone='unknown' +
         # null-outcome se filter kare. Yeh check appointment/qualified se PEHLE.
         return None
+    if q and q.get("bot_suspected"):
+        # IVR/answering-bot suspect (2026-07-05 lesson) — na interested na
+        # not_interested gadho; NULL = "unknown/unverified", analytics filter kare.
+        return None
     if q and q.get("appointment_requested"):
         return CallOutcome.APPOINTMENT
     if q and q.get("qualified"):
@@ -427,6 +431,18 @@ def build_call_log(
         )
     except Exception:
         qual_json = None
+    # Cost metering (2026-07-05 gap: call_cost hamesha 0 tha — spend invisible).
+    # Paise me, per-minute ceil billing — env VOBIZ_COST_PAISE_PER_MIN (default 45
+    # = Vobiz ₹0.45/min ladder). Sirf real dials (phone + >0s) pe.
+    cost_paise = 0
+    try:
+        if (phone or "").strip() and float(duration_s or 0) > 0:
+            import math
+
+            rate = int(os.environ.get("VOBIZ_COST_PAISE_PER_MIN", "45") or 45)
+            cost_paise = int(math.ceil(float(duration_s) / 60.0)) * max(0, rate)
+    except Exception:
+        cost_paise = 0
     return CallLog(
         id=uuid.uuid4().hex,
         call_sid=(str(call_id or "").strip() or None),
@@ -450,6 +466,8 @@ def build_call_log(
         qualification_data=qual_json,
         summary=(summary or None),
         appointment_scheduled=appt,
+        call_cost=cost_paise,
+        detected_intent=("bot_suspected" if (q or {}).get("bot_suspected") else None),
     )
 
 
