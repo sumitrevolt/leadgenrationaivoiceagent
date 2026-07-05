@@ -37,7 +37,7 @@ except Exception:  # pragma: no cover
 
 # ============================================================================ #
 # Festival calendar — {date, name, type, marketing_angle}
-# type: national | hindu | muslim | sikh | christian | regional
+# type values: national | hindu | muslim | sikh | christian | regional
 # ============================================================================ #
 
 FESTIVALS_2026_27: list[dict[str, str]] = [

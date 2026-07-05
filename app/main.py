@@ -188,12 +188,15 @@ async def lifespan(app: FastAPI):
 
                 # Also warm Qdrant connection + do a throwaway search so first real call
                 # doesn't pay the connection-setup + index-load cost (~6-8s on cold VPS).
+                # (2026-07-05 mypy-audit fix: pehle yahan non-existent
+                # `search_knowledge_base` import tha -> ImportError har boot pe
+                # silently swallow hota tha aur warm-up KABHI nahi chala.)
                 try:
-                    from app.voice_agent.knowledge_base import search_knowledge_base
+                    from app.voice_agent.knowledge_base import get_knowledge_base
 
                     await _aio.get_running_loop().run_in_executor(
                         None,
-                        lambda: search_knowledge_base("hello", niche="general", top_k=1),
+                        lambda: get_knowledge_base().search("hello", k=1),
                     )
                     logger.info("✅ KB Qdrant connection warmed (14s cold-start eliminated)")
                 except Exception as _e:
