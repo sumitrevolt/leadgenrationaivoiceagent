@@ -4,68 +4,72 @@
 > Status YAHAN update hota hai (audit doc frozen snapshot hai). Har fix apne phase ki approval pe.
 > Rules: surgical-only (additive/flag-gated), har item = alag commit, verify gates green
 > (`prod_check.py` + `check_secrets.py` + targeted pytest), full pytest KABHI nahi (team_pulse hang).
+> **2026-07-05 shaam:** user "sab karo" → Phase 2 + Phase 3 safe-items same-day executed (PR #28).
 
 **Status values:** `OPEN` · `IN-PROGRESS` · `DONE (sha)` · `USER-CONFIRM` (owner decision chahiye) · `WONT-FIX (reason)`
 
-## Phase 1 — zero-behaviour-change hygiene (approved 2026-07-05)
+## Phase 1 — zero-behaviour-change hygiene ✅ (2026-07-05)
 
-| ID | Gap | Files | Risk | Status |
-|---|---|---|---|---|
-| R-01 | 6 registry-invisible flags flags-UI me untoggleable (`LLM_COUNCIL`, `CUSTOMER_OFFICE`, `ADMIN_OFFICE`, `SESSION_MEMORY`, `DLT_APPROVED`, `PROMETHEUS_HTTP_METRICS`) | `app/api/automation_flags.py` | LOW (list-append only) | IN-PROGRESS |
-| R-02 | Duplicate-route runtime check flag-OFF mounts nahi dekh sakta — static guard missing | NEW `scripts/route_collision_audit.py` + `scripts/prod_check.py` wiring | LOW (FAIL sirf exact static dup pe; prefix overlap = INFO) | IN-PROGRESS |
-| R-03 | `.env.example`: ~45 dead removed-stack keys + critical keys (`ADMIN_API_KEY`, `ADMIN_TOTP_SECRET`, …) undocumented | `.env.example` | LOW (example file; compose `.env` use karta hai) | IN-PROGRESS |
-| R-04 | 3 competing doc indexes; HANDOFF.md = single master banana | `docs/ENTERPRISE_DOC_INDEX.md` + `docs/RESEARCH_DOCS_INDEX.md` banners; `docs/archive/` | LOW (banners additive) | IN-PROGRESS |
-| R-05 | Root stale reports (`FIX_PLAN.md`, `PRODUCTION_AUDIT_REPORT.md`, `TEST_RESULTS.md`) | `git mv` → `docs/archive/` (grep-gated) | LOW | IN-PROGRESS |
-
-## USER-CONFIRM — owner ka decision chahiye (koi action nahi hua)
-
-| ID | Gap | Options | Status |
+| ID | Gap | Risk | Status |
 |---|---|---|---|
-| R-06 | **`prospect_leads_export.csv` 238KB lead-PII git-tracked (history me bhi)** | (A) `git rm` + .gitignore — HEAD saaf, history me PII rahega · (B) `git filter-repo` history purge + force-push — POORA saaf par har clone + VPS coordinate karna padega | USER-CONFIRM |
-| R-07 | Root `.xlsx` ×2 (`LeadGen_Costing_Model`, `Niche_Pricing_Research`) — business assets repo me | (A) rehne do · (B) Drive me le jao + `git rm` | USER-CONFIRM |
-| R-08 | `debug_signup.py`, `test_phase7_inline.py` root pe | Phase-2 attic list me propose honge — abhi untouched | USER-CONFIRM |
-| R-09 | `TASKS.md` root pe — agent-workflow surface ho sakta hai | Verify kiya (2026-07-05): `.claude/skills/plan-then-build` + `retro` skills isse REFERENCE karti hain → root pe hi rahega. Archive tabhi jab skills bhi update hon | WONT-FIX (active workflow surface) |
+| R-01 | 6 registry-invisible flags (`LLM_COUNCIL`, `CUSTOMER_OFFICE`, `ADMIN_OFFICE`, `SESSION_MEMORY`, `DLT_APPROVED`, `PROMETHEUS_HTTP_METRICS`) | LOW | DONE (e30e6f8) |
+| R-02 | Static route-collision guard (flag-OFF mounts CI-invisible the) | LOW | DONE (7404918 — `scripts/route_collision_audit.py`, 1062 static vs 1030 runtime, prod_check-wired) |
+| R-03 | `.env.example` dead keys + critical undocumented | LOW | DONE (41e2e11) |
+| R-04 | 3 competing doc indexes → HANDOFF.md master | LOW | DONE (188cced) |
+| R-05 | Root stale reports → `docs/archive/` | LOW | DONE (188cced/7566920; TASKS.md WONT-FIX — active skill-workflow surface) |
 
-## Phase 2 — guards + consolidation (approval pending)
+## Phase 2 — guards + consolidation ✅ mostly (2026-07-05 "sab karo")
 
-| ID | Gap | Approach | Status |
-|---|---|---|---|
-| R-10 | 305 undocumented env keys — koi ENV reference nahi | `scripts/env_reference_sync.py` → autogen `docs/ENV_REFERENCE.md` (template: `sync_api_docs.py` AUTO-markers + `--check`; INFO-drift line prod_check me `check_api_docs_drift` `:261-277` pattern se) | OPEN |
-| R-11 | `tests.yml` overlap (10-file narrow gate push/PR pe abhi bhi fire hota hai) | Demote to `workflow_dispatch`-only (`test.yml` ke "Legacy" comment precedent se) — **PEHLE owner GitHub branch-protection required-checks verify kare** warna merges block | OPEN |
-| R-12 | Deploy test-gated nahi (`deploy-vps.yml` pytest `continue-on-error`) | Hard-gate flip — separate owner decision (team_pulse hang resolve hone ke baad safest) | OPEN |
-| R-13 | `scripts/` 278-file junk drawer | Categorized attic move-list generate (reference-grep column ke saath); execute SIRF owner list-approval pe. Exclusions: prod_check-imported (`deep_wiring_audit`, `automation_wiring_audit`, `cross_path_audit`, `explorer_sync`, `sync_api_docs`), `run_tests.bat`, `graphify_refresh.*` | OPEN |
-| R-14 | 7 misplaced test files (6 `scripts/`, 1 root) — pytest collect nahi hote | Per-file: real tests → `network`/`timeout` markers + `tests/` me; live-key probes (`test_gemini_key.py`, `test_nvidia_key.py`, `test_gemini_paid.py`) → attic. Bulk `mv` KABHI nahi (CI blocking suite me add hota hai) | OPEN |
-| R-15 | `app/config_production.py` — imported-nowhere dead file (DEEPGRAM refs samet) | Attic candidate (Phase-2 list me) | OPEN |
-| R-16 | 38 stale-stack docs; active-ops offenders mislead karti hain (`PRD.md`, `API.md`, `PROJECT_SOP.md`, `PROJECT_HANDOFF.md`, `OPERATIONAL_RUNBOOKS.md`, billing runbook/workflow, `AGENT_SYSTEM_PROMPTS.md`) | Active-ops docs me removed-stack refs fix; historical docs (SESSION_LOG/ADR/CHANGELOG) untouched; zero-reference stale docs → `docs/archive/` (per-file grep gate). ⚠️ `SESSION_ACTIVATION_RUNBOOK_2026_06_16.md` move-PROHIBITED (`runbook_drift.py:24` hardcode) | OPEN |
-| R-17 | 164 jsonl data-stores ka koi registry/schema inventory nahi (PII/auth stores samet) | Data-store inventory doc (path, owner module, PII?, retention, backup) — migration NAHI (policy: when-volume) | OPEN |
-| R-18 | `ruff` lint non-gating (`\|\| true` in ci.yml) | Baseline-fix + gate flip = separate decision (bade diff ka risk) | OPEN |
-| R-35 | **requirements.lock pair internally incompatible for tests**: `httpx==0.28.1` + `starlette==0.35.1` — TestClient `app=` kwarg httpx 0.28 me removed → lock se bane HAR env me 16 test-files collection-error (ci.yml tests job MAIN pe bhi isi se red; Windows dev venv drift ki wajah se wahan chhupa raha) | FIXED test-scope shim `tests/conftest.py` (app→ASGITransport convert); LONG-TERM = lock upgrade (starlette/fastapi pair bump) = alag decision | DONE (see PR #28) |
-| R-34 | **ci.yml quality job MAIN pe pehle se RED** (discovered PR #28 CI, 2026-07-05): `queue_idempotency_audit.py` exit 1 — 29/43 Celery tasks bina idempotency pattern (origin/main worktree pe verify kiya, identical fail). `security_scan.py` bhi red tha (3 false-positives — torch `.eval()` + template CORS) = FIXED `ef862ef` | Options: (A) 29 tasks me idempotency add (bada, behaviour-affecting — per-queue batches me) (B) audit step ko advisory/threshold-based karo (CI-gate change = owner decision, R-11/R-12 jaisa) (C) as-is red (har PR red dikhega — gate useless). Owner decide kare | USER-CONFIRM |
+| ID | Gap | Status |
+|---|---|---|
+| R-10 | ENV reference autogen | DONE (7b90624 — `scripts/env_reference_sync.py` + `docs/ENV_REFERENCE.md` 582 keys + prod_check INFO line) |
+| R-11 | `tests.yml` overlap demote | **OPEN — owner-blocked:** pehle GitHub → Settings → Branches me required status-checks verify karo; `test` job required nikla to demote merges block karega. (Note: tests.yml apna httpx-pin rakhta hai aur 10-file fast-signal deta hai — demote optional hai) |
+| R-12 | deploy-vps pytest `continue-on-error` → hard gate | OPEN — ci.yml tests job PR #28 pe GREEN hone ke BAAD flip (conftest shim R-35 ne root-cause fix kiya; ek green run evidence chahiye). timeout-minutes bhi 15→30 karna hoga |
+| R-13 | `scripts/` junk drawer | TIER-1 DONE (31f3cbb — 23 grep-gated files → `scripts/attic/`); TIER-2 (~110 vps_*/.bat) = `docs/SCRIPTS_ATTIC_PLAN.md`, owner list-approval pe |
+| R-14 | 7 misplaced test files | DONE (31f3cbb) — phase7_inline atticked; phase6/phase7/ws_test/key-probes KEPT (live refs — plan doc me detail) |
+| R-15 | dead `app/config_production.py` | DONE (31f3cbb — atticked, zero imports verified) |
+| R-16 | Stale-stack refs in active-ops docs | DONE (bcee216 — API.md Exotel→Vobiz, route-counts→1030, RB-003/007 strike-notes, Tara prompt Vobiz) |
+| R-17 | Data-store registry | DONE (31f3cbb — `scripts/data_store_inventory.py` + `docs/DATA_STORES.md`: 209 stores, 20 PII-flagged) |
+| R-18 | ruff non-gating | PARTIAL DONE (34e1322 — E9/F63/F7/F82 error-classes ab BLOCKING, clean verified; full-lint gate = baseline cleanup ke baad) |
 
-## Phase 3 — feature completeness (per-item approval)
+## Phase 3 — feature completeness (safe items DONE 2026-07-05; UI items owner-input pe)
 
-| ID | Gap | Approach | Status |
-|---|---|---|---|
-| R-19 | `app/api/leads.py` — no UI (growth se superseded?) | Decision table: UI tab YA deprecation note. Pehle VPS pe `scripts/route_usage_audit.py --access-log` (≥30 din) | OPEN |
-| R-20 | `app/api/campaigns.py` — no UI (admin_ops se superseded?) | same as R-19 | OPEN |
-| R-21 | `app/api/niche_db.py` — **no UI + no tests** | same + import-smoke tests | OPEN |
-| R-22 | `app/api/widgets.py` 13 endpoints — admin config tab nahi | UI tab (automation-control-center tab pattern) | OPEN |
-| R-23 | `app/api/conversion.py` admin widget-form builder — no UI | UI tab | OPEN |
-| R-24 | `app/api/booking.py` — admin tab nahi | UI tab ya calendar-page wiring | OPEN |
-| R-25 | Customer webhook `payment.received`/`subscription.*` emits documented-not-wired | Additive emit calls behind existing `CUSTOMER_WEBHOOKS` flag (billing-webhook stabilization ke baad) | OPEN |
-| R-26 | `lead_scraper/linkedin.py` placeholder | **ToS-REFUSED tombstone** (no-callers verify karke) — KABHI implement nahi | OPEN |
-| R-27 | Plivo stub (`carrier_router.py:149-179`) + ARI stub (`sip_handler.py:339`) | Explicit tombstone docstrings | OPEN |
-| R-28 | `zoho_crm.py` vs `hubspot.py` duplicate `ZohoCRMIntegration` | Canonical pick + re-export shim (no file moves) | OPEN |
-| R-29 | 5 untested dormant engines (`gtm_targeting`, `udyam_pipeline`, `gap_analyzer`, `icp_generator`, `niche_db`) | Import-smoke + flag-OFF-inertness tests minimum | OPEN |
+| ID | Gap | Status |
+|---|---|---|
+| R-19..R-21 | `leads.py`/`campaigns.py`/`niche_db.py` — UI ya deprecate | OPEN — decision ko VPS access-log data chahiye (`scripts/route_usage_audit.py --access-log`, ≥30 din) — is env se possible nahi; niche_db ke tests ab hain (R-29) |
+| R-22..R-24 | `widgets.py` config tab / `conversion.py` builder / `booking.py` admin tab | OPEN — UI builds, alag scoped session (automation-control-center tab pattern) |
+| R-25 | Customer webhook `payment.received`/`subscription.*` emits | OPEN — owner-set precondition kaayam: "wire after billing webhook handlers stabilize" (backlog 2026-06-16) |
+| R-26 | LinkedIn scraper ToS tombstone | DONE (47f6f4f — scraping code REMOVED, surface preserved, kabhi implement nahi) |
+| R-27 | Plivo/ARI stub tombstone docstrings | DONE (47f6f4f) |
+| R-28 | Zoho duplicate integration | DONE (47f6f4f — hubspot.py ka copy DEAD tha (zero importers); zoho_crm.py canonical + shim) |
+| R-29 | 5 untested dormant engines | DONE (9724ebe — 35 tests; niche_db 401/403 real-auth pinned) |
 
-## Phase 4 — deferred structural (EXPLICIT opt-in only — risk notes ke bina start nahi)
+## USER-CONFIRM — owner decision pending
+
+| ID | Gap | Status |
+|---|---|---|
+| R-06 | PII csv | PARTIAL DONE (46c1854 — HEAD se `git rm` + gitignore guard). **HISTORY me PII abhi bhi hai** — purge = `git filter-repo` + force-push + har clone/VPS re-clone coordinate; owner bole to alag operation |
+| R-07 | Root `.xlsx` ×2 business files | USER-CONFIRM (untouched) |
+| R-09 | `TASKS.md` | WONT-FIX (plan-then-build + retro skills reference karti hain) |
+| R-34 | queue idempotency — 19 legacy tasks baseline me | RATCHET DONE (aee7b13 — NAYE gap pe hi CI red; baseline `scripts/queue_idempotency_baseline.json`). Legacy 19 ko idempotent banana = per-queue batches, alag sessions |
+
+## CI-truth findings (PR #28 investigation, 2026-07-05)
+
+| ID | Finding | Status |
+|---|---|---|
+| R-35 | Lock pair `httpx==0.28.1`+`starlette==0.35.1` tests ke liye incompatible — 16 files collection-error (main pe bhi) | DONE (48ab802 conftest shim; + ci.yml pehle se nahi, tests.yml/deploy-vps pin karte the). LONG-TERM: lock upgrade (fastapi/starlette pair bump) = alag decision |
+| R-36 | mypy "MUST-PASS" step CI me kabhi REACH nahi hota tha; asli count = 1502 errors | ADVISORY kiya (34e1322) + 2 real bugs fix (fdfd2f1: dead KB warm-up main.py + festivals type-comment). Baseline cleanup ke baad wapas blocking |
+| R-37 | `gap_analyzer._feature_detected` — hyphenated synonym keys `_normalise` se pass nahi hote → "Real-time notifications center" jaise features KABHI detected nahi = false-positive gaps admin backlog me | OPEN (R-29 tests ne pakda; fix = synonym keys ko bhi normalise karo — chhota, Phase 3 next batch) |
+| R-38 | `niche_db.py` docstring auth-claim drift (bolti hai "sirf write ops pe admin", code 6/8 GETs pe bhi admin — code SAFER hai) | OPEN (docstring fix, trivial) |
+
+## Phase 4 — deferred structural (EXPLICIT opt-in only)
 
 | ID | Gap | Risk note | Status |
 |---|---|---|---|
-| R-30 | `main.py` 78 inline frontend routes → pages-router extraction | Route-registration ORDER change = first-route-wins landmine; before/after route-snapshot diff harness mandatory | PARKED |
-| R-31 | 672 `os.getenv` → `settings` migration | 232-file blast radius; getenv=live vs settings=boot-frozen — VPS flag-flip-without-redeploy workflow tod sakta hai | PARKED |
-| R-32 | Godfile splits (`vobiz_stream.py` 3023, `telecaller_brain.py` 2811) | Voice-unsafe per existing ADR — deferred hi rahega | PARKED |
-| R-33 | jsonl → Postgres (164 stores incl PII/auth) | Policy = migrate-when-volume; R-17 inventory pehle | PARKED |
+| R-30 | `main.py` 78 inline frontend routes → pages-router | route-ORDER change = first-route-wins landmine; snapshot-diff harness mandatory | PARKED |
+| R-31 | 672 `os.getenv` → `settings` | getenv=live vs settings=boot-frozen — VPS flag-flip workflow risk | PARKED |
+| R-32 | Godfile splits (vobiz_stream/telecaller_brain) | voice-unsafe per ADR | PARKED |
+| R-33 | jsonl → Postgres (209 stores) | when-volume policy; R-17 registry DONE | PARKED |
 
 ---
-*Seeded: 2026-07-05 session (3-audit consolidation). Update protocol: status change = is file me edit + jis commit se fix hua uska sha.*
+*Seeded: 2026-07-05 (3-audit consolidation). Bulk execution: same-day "sab karo" (PR #28). Update protocol: status change = is file me edit + commit sha.*
