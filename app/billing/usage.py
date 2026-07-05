@@ -375,6 +375,30 @@ def _plan_price_inr(plan_k: str) -> float:
     return 0.0
 
 
+def plan_charge_inr(plan_k: str) -> float | None:
+    """Actual charge (INR) for a plan key — the number a payment webhook should carry.
+
+    Follows the same yearly convention as ``_create_subscription_row`` /
+    packages.py: yearly keys pay 10x monthly (2 months free). Returns ``None``
+    for unknown/free plans so callers can distinguish "no price known" from ₹0.
+    Never raises."""
+    k = (plan_k or "").strip().lower()
+    if not k:
+        return None
+    yearly = "annual" in k or "yearly" in k
+    base_key = k
+    for suf in ("_yearly", "-yearly", "_annual", "-annual"):
+        if base_key.endswith(suf):
+            base_key = base_key[: -len(suf)]
+            break
+    price = _plan_price_inr(base_key)
+    if not price and base_key != k:
+        price = _plan_price_inr(k)
+    if not price:
+        return None
+    return price * 10 if yearly else price
+
+
 def _ensure_db_client(db, cid: str) -> bool:
     """Ensure a DB Client row exists for `cid` (FK target for Subscription).
 

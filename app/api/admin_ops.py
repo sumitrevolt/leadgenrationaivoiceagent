@@ -814,7 +814,16 @@ async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
                 "currency": "INR",
                 "activated_at": datetime.now(timezone.utc).isoformat(),
             }
-            customer_webhooks.fire_emit(cid, "payment.received", {**_payload, "amount_inr": None})
+            # amount_inr was hardcoded None — on the ONLY live revenue path (manual
+            # UPI) every payment.received went out amount-less. Resolve the real
+            # charge from packages (yearly = 10x monthly convention).
+            try:
+                _amount_inr = usage_mod.plan_charge_inr(plan)
+            except Exception:
+                _amount_inr = None
+            customer_webhooks.fire_emit(
+                cid, "payment.received", {**_payload, "amount_inr": _amount_inr}
+            )
             customer_webhooks.fire_emit(cid, "subscription.activated", _payload)
         except Exception:
             pass

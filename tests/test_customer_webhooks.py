@@ -336,3 +336,97 @@ def test_emit_call_report_noop_without_client(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setattr(cw, "fire_emit", lambda *a, **k: calls.append(a))
     pch.emit_call_report({"qualified": True}, client_id="")
     assert calls == []
+
+
+# --------------------------------------------------------------------------- #
+# CONTRACT PIN — every literal event name emitted anywhere in app/ MUST be in
+# SUPPORTED_EVENTS. fire_emit() drops unknown names SILENTLY (by design, never
+# raises), which is how Stripe's "subscription.created"/"subscription.updated"
+# went to /dev/null for weeks. This test turns that silent drop into a loud
+# test failure at the moment someone types a bad event name.
+# --------------------------------------------------------------------------- #
+def _collect_emitted_event_literals() -> list[tuple[str, str]]:
+    """(file, event_name) for every string-literal event passed to an emit call."""
+    import ast
+
+    app_dir = Path(__file__).resolve().parent.parent / "app"
+    emit_funcs = {"fire_emit", "_emit_billing_customer_webhook"}
+    emit_attrs = {"fire_emit", "emit"}
+    emit_owners = {"cw", "_cw", "customer_webhooks"}
+    found: list[tuple[str, str]] = []
+
+    def _literals(node: ast.expr) -> list[str]:
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return [node.value]
+        if isinstance(node, ast.IfExp):  # ("a.b" if cond else "c.d")
+            return _literals(node.body) + _literals(node.orelse)
+        return []  # dynamic (variable) — wrapper internals, skip
+
+    for py in sorted(app_dir.rglob("*.py")):
+        try:
+            tree = ast.parse(py.read_text(encoding="utf-8", errors="replace"))
+        except SyntaxError:  # pragma: no cover - unparseable file is not this test's job
+            continue
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or len(node.args) < 2:
+                continue
+            fn = node.func
+            is_emit = (isinstance(fn, ast.Name) and fn.id in emit_funcs) or (
+                isinstance(fn, ast.Attribute)
+                and fn.attr in emit_attrs
+                and isinstance(fn.value, ast.Name)
+                and fn.value.id in emit_owners
+            )
+            if not is_emit:
+                continue
+            for name in _literals(node.args[1]):
+                found.append((str(py.relative_to(app_dir)), name))
+    return found
+
+
+def test_every_emitted_event_name_is_supported() -> None:
+    emitted = _collect_emitted_event_literals()
+    # Sanity: the scanner must actually find the known emit sites — a refactor
+    # that breaks collection would otherwise green-wash this contract.
+    assert len(emitted) >= 8, f"emit-scan looks broken, only found: {emitted}"
+    bad = [(f, e) for f, e in emitted if e not in cw.SUPPORTED_EVENTS]
+    assert not bad, (
+        f"Unsupported event names emitted (fire_emit will drop them SILENTLY): {bad}. "
+        f"Either fix the name or append it to SUPPORTED_EVENTS."
+    )
+
+
+def test_supported_events_is_append_only_superset() -> None:
+    """The original seven names are a public contract with customer verifiers —
+    they may never be renamed or removed, only appended to."""
+    original = {
+        "lead.created",
+        "lead.qualified",
+        "call.completed",
+        "call.report.ready",
+        "payment.received",
+        "subscription.activated",
+        "subscription.cancelled",
+    }
+    assert original.issubset(set(cw.SUPPORTED_EVENTS))
+    assert "subscription.updated" in cw.SUPPORTED_EVENTS
+
+
+# --------------------------------------------------------------------------- #
+# plan_charge_inr — the amount a payment.received webhook carries (UPI path)
+# --------------------------------------------------------------------------- #
+def test_plan_charge_inr_monthly_and_yearly() -> None:
+    from app.billing.usage import plan_charge_inr
+
+    assert plan_charge_inr("starter") == 1999
+    assert plan_charge_inr("advanced") == 5999
+    # yearly = 10x monthly (2 months free) — packages.py convention
+    assert plan_charge_inr("starter_yearly") == 19990
+    assert plan_charge_inr("advanced_annual") == 59990
+
+
+def test_plan_charge_inr_unknown_is_none() -> None:
+    from app.billing.usage import plan_charge_inr
+
+    assert plan_charge_inr("") is None
+    assert plan_charge_inr("no_such_plan") is None

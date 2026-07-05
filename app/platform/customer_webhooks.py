@@ -77,6 +77,9 @@ SUPPORTED_EVENTS = (
     "payment.received",
     "subscription.activated",
     "subscription.cancelled",
+    # Appended 2026-07-05 — Stripe path emitted this name but it was missing here,
+    # so fire_emit() silently dropped every plan-change/pause/renewal notification.
+    "subscription.updated",
 )
 
 

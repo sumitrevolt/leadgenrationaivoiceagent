@@ -534,6 +534,21 @@ async def cancel_subscription(
 
         await db.commit()
 
+        # Customer-webhook parity: the Stripe-webhook path notifies on cancel, but a
+        # portal-initiated cancel never fired anything (Stripe echo only covers
+        # gateway subs; UPI/manual subs got NO signal at all). Emit here so every
+        # cancel path tells the customer's systems exactly once from our side.
+        _emit_billing_customer_webhook(
+            client_id,
+            "subscription.cancelled",
+            {
+                "plan_id": subscription.plan_id,
+                "status": "cancelled",
+                "cancel_immediately": bool(request.cancel_immediately),
+                "reason": (request.reason or "")[:200],
+            },
+        )
+
         return {
             "success": True,
             "subscription_id": subscription.id,
@@ -1192,9 +1207,12 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                         "currency": get("currency"),
                     },
                 )
+                # "subscription.created" was NOT in SUPPORTED_EVENTS — fire_emit dropped
+                # it silently. Checkout completing = the subscription going live, which is
+                # exactly what "subscription.activated" means to a customer verifier.
                 _emit_billing_customer_webhook(
                     _cid,
-                    "subscription.created",
+                    "subscription.activated",
                     {
                         "plan_id": plan_id or (sub.plan_id if sub else None),
                         "status": "active",
@@ -1297,9 +1315,16 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                     sub.ended_at = datetime.utcnow()
                 sub.updated_at = datetime.utcnow()
                 await db.commit()
+                # deleted = the subscription is GONE — customers care about exactly this
+                # signal, so it maps to "subscription.cancelled". paused keeps
+                # "subscription.updated" (status carries "paused").
                 _emit_billing_customer_webhook(
                     sub.client_id,
-                    "subscription.updated",
+                    (
+                        "subscription.cancelled"
+                        if event_type.endswith("deleted")
+                        else "subscription.updated"
+                    ),
                     {
                         "plan_id": sub.plan_id,
                         "status": sub.status.value if sub.status else "",
