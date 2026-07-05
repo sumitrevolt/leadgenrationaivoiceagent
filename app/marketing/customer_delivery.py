@@ -39,9 +39,22 @@ def _flag_on(name: str, default: str = "0") -> bool:
     return os.environ.get(name, default).strip().lower() in ("1", "true", "yes", "on")
 
 
+def _is_self_brand(client: dict[str, Any]) -> bool:
+    """LeadGen AI ka apna self-brand record (delivery target NAHI — ye company khud hai).
+    Markers mirror auto_content._ensure_self_client."""
+    if str(client.get("id") or "") == "leadgenai-self":
+        return True
+    if str(client.get("niche") or "").strip().lower() == "ai_marketing":
+        return True
+    return str(client.get("business_name") or "").strip().lower() in ("leadgen ai", "leadsgenai")
+
+
 def is_paid_client(client: dict[str, Any]) -> bool:
-    """Active client on a real (non-free/trial) plan = someone who paid."""
+    """Active client on a real (non-free/trial) plan = someone who paid. Self-brand
+    (LeadGen AI apna record) delivery target nahi — exclude."""
     if not isinstance(client, dict):
+        return False
+    if _is_self_brand(client):
         return False
     if str(client.get("status") or "").lower() != "active":
         return False

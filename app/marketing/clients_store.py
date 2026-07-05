@@ -369,6 +369,9 @@ _ALLOWED_FIELDS = {
     "website",  # business site URL — AUTO_ONBOARD website→KB seed (audit 2026-07-04: was whitelist-blocked)
     "awaiting_kb_interview",  # bool — no website at onboarding; WhatsApp business-info
     # reply still pending (onboarding.py welcome message + wa selfhost webhook capture)
+    "delivery_state",  # str — value-delivery state machine (paid/assets_built/delivered/
+    # acknowledged); customer_delivery.py. Whitelist-block = re-send spam (2026-07-05).
+    "delivered_at",  # ISO timestamp — value delivered to customer kab
 }
 
 
