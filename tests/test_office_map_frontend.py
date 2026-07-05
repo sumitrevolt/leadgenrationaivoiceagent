@@ -63,3 +63,25 @@ def test_inline_js_syntax_ok(tmp_path):
 def test_no_pre_existing_id_removed():
     missing = [i for i in PRE_EXISTING_IDS if f'id="{i}"' not in SRC]
     assert not missing, f"pre-upgrade IDs vanished: {missing}"
+
+
+def test_bugfix_unique_agent_colors():
+    assert "OFFICE.colorForKey" in SRC
+    assert "colorCssForKey" in SRC
+    assert "setTint(OFFICE.colorForKey" in SRC          # sprite + desk tinted
+
+
+def test_bugfix_room_overflow_shrink():
+    assert "return { slots: slots, scale:" in SRC        # layoutSlots new shape
+    assert "sizeScale" in SRC                            # drawAvatar consumes it
+
+
+def test_bugfix_offline_snapback():
+    # setAvatarState must kill walk-tweens + reset position the moment an
+    # agent goes offline (marker = the fix's own comment).
+    assert "offline hote hi turant desk pe wapas" in SRC
+
+
+def test_bugfix_unmapped_room_badge():
+    assert "unmapped" in SRC
+    assert "#f97316" in SRC                              # orange ? badge
