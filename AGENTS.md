@@ -1,6 +1,7 @@
 # CLAUDE.md — LeadGen AI Platform (enterprise onboarding + lean working memory)
 
 > **Token discipline:** Yeh file har turn load hoti hai — lean rakho. Dated history → `docs/SESSION_LOG.md` (auto-load NAHI). Deep knowledge → `memory/` (section 9). Build/incident logs YAHAN mat likho. **Code vs memory conflict = code wins — phir memory fix karo.**
+> Naya session / cold-start? **`docs/HANDOFF.md`** = master handoff (infra map, sharp edges, SOP pointers). (2026-07-05)
 
 ## 1. PROJECT CHARTER
 
@@ -84,14 +85,14 @@ Change safe = **(1)** context-grep pehle (callers/routes/tests) **(2)** targeted
 
 **Last 3 significant decisions:**
 - 2026-07-05: **platform_dial HARD OFF** (user mandate — IVR false-positives + paisa burn; ramp-to-200 cancelled). Enforcement **dial_gate LIVE in prod** (`ea36df4`+deploy: promotional = allowlist-only fail-closed, bot/IVR + min-user-turns qualify gate) — re-enable ki 3 me se 2 conditions met, bachi sirf user go-ahead. **Fix SHIPPED `ea36df4` (LIVE):** `app/telephony/dial_gate.py` promotional test-allowlist (DEFAULT ON, config `data/dial_test_mode.json` — allowlist 8261030181/8308009815) + `call_qualifier` bot/IVR gate (`QUALIFY_BOT_GATE=1` default, `MIN_QUALIFY_USER_TURNS=3`) + `call_cost` metering (`VOBIZ_COST_PAISE_PER_MIN=45`); 05-Jul ke 7 fake "interested" call_logs UNVERIFIED + deals.jsonl/cadence cleanup done.
+- 2026-07-05: **Systematization roadmap adopted (ADR-023)** — 3-audit sweep + Phase 0+1 SHIPPED (branch `claude/peaceful-ride-3phk9t`): `docs/GAP_REGISTER_2026_07_05.md` = living tracker (R-01..R-33), 6 registry-invisible flags fixed, NEW static route-collision guard in prod_check (flag-OFF mounts covered), .env.example surgical fix, HANDOFF=master-index. Phase 2/3/4 = per-phase user approval; PII csv (R-06) USER-CONFIRM pending.
 - 2026-07-03: Scheduler admin (per-job ON/PAUSE + run-now, `65b57c2`) + Office HQ Simple/Pro cockpit LIVE; Vobiz confirmed WORKING (4 real calls); USE_SILERO_VAD=0 (deaf-bug).
-- 2026-06-25: Voice = Gemini-primary (voice-scoped) + 9-key rotation pool; global chain wapas Mistral-primary.
 
 **Blockers / USER-action pending (env-unset = dormant, graceful skip):**
 - DLT cold-outbound: Udyam re-apply user-side pending (transactional/test calls work fine).
 - Pending user keys/actions: `POSTHOG_API_KEY` · WAHA QR scan · `.codex` key rotate · `STUDIO_ENTITLEMENT_GATE` flip · `LEADGEN_SCHEDULER_SECRET` (unset = recovery endpoint dormant).
 - EXTERNAL-blocked (token mat jalao): missed-call DID webhook, GBP API approval, Meta app-review, HA 2nd server.
 
-**Next action:** Office HQ improvement panel commit `2421c47` VPS pe deploy pending (user consent pe). Enable-everything Tier 3+4 = user go-ahead pending.
+**Next action:** Office HQ improvement panel commit `2421c47` VPS pe deploy pending (user consent pe). Enable-everything Tier 3+4 = user go-ahead pending. Systematization Phase-2 (R-10..R-18, `docs/GAP_REGISTER_2026_07_05.md`) = user approval pending; PII csv R-06 decision pending.
 
 **Ops facts (hot):** Scheduler = Celery durable (`RUN_IN_PROCESS_SCHEDULER=0`, rollback = `=1`+`WEB_CONCURRENCY=1`) · 24 staff jobs + dead-man trio alive · UPI ARMED (`/api/public/pay-info` enabled:true) · NOTIFY_EMAIL set · Sentry ARMED · offsite backup LIVE (restore proven) · MCP `/mcp` gated (`FASTAPI_MCP_TOKEN`/allowlist) · 250 skills in skill_pack · Slash commands: `/verify` `/ship` `/checkpoint` `/learn` `/compact-check` `/optimize` `/test-expand`.
