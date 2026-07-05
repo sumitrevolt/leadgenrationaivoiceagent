@@ -80,6 +80,30 @@ class VobizClient:
         kwargs are merged into the JSON body (future-proofing for field-name
         changes). Never raises.
         """
+        # Test-mode allowlist (USER-MANDATE 2026-07-05): promotional calls sirf
+        # approved numbers pe jab tak owner test-mode off na kare. Compliance
+        # gate se PEHLE — blocked dial pe DND-lookup/API cost bhi nahi lagti.
+        # skip_compliance isse bypass NAHI karta (paisa-burn gate hai, compliance
+        # convenience nahi).
+        try:
+            from app.telephony import dial_gate
+
+            allowed, reason = dial_gate.check(to, call_type)
+            if not allowed:
+                logger.warning(f"Vobiz place_call blocked by dial_gate: {reason} (to={to[-4:]:>4})")
+                return {
+                    "status_code": 0,
+                    "blocked": True,
+                    "body": {"error": "blocked_by_dial_test_mode", "reason": reason},
+                }
+        except Exception as e:
+            if (call_type or "").lower() == "promotional":
+                logger.error(f"Vobiz place_call: dial_gate error on promo call ({e}) — blocking.")
+                return {
+                    "status_code": 0,
+                    "blocked": True,
+                    "body": {"error": "dial_gate_error", "detail": str(e)},
+                }
         if not skip_compliance:
             try:
                 from app.telephony.compliance import CallType, get_compliance_gate
