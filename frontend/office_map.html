@@ -111,10 +111,9 @@
   .replay-actor{font-weight:850;color:#0f766e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .replay-title{font-weight:800}
   .replay-detail{color:var(--muted);font-size:11.5px;margin-top:2px}
-  body.office-theatre #warRoom{order:2}
-  body.office-theatre #mapToolbar{order:1}
-  body.office-theatre #stageWrap{order:1}
-  body.office-theatre #replayPanel{order:3}
+  /* Theatre mode: ab section-level reorder (panels sections me wrapped hain,
+     #page ke direct flex-children sections hi hain) — map section sabse pehle. */
+  body.office-theatre #secMap{order:-1}
 
   /* ---- Capabilities proof drawer (collapsed by default — full metrics/legacy
      next-actions/20-feature matrix moved out of the first viewport so the
@@ -275,6 +274,18 @@
   .qn-chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;
     padding:4px 12px;font-size:11.5px;font-weight:700;cursor:pointer}
   .qn-chip:hover{border-color:var(--brand-2);color:var(--brand-2)}
+  .qn-chip.qn-active{background:var(--brand-2);color:#fff;border-color:var(--brand-2)}
+  /* ---- 6 labelled sections + card polish ---- */
+  .hq-sec{display:flex;flex-direction:column;gap:16px}
+  .hq-sec-label{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px;margin-top:6px}
+  body.simple-mode #secMap, body.simple-mode #secActivity{display:none !important}
+  .panel-box, .kpi, #enterpriseCard, #pipelineBoard, .rc-card{
+    box-shadow:0 1px 2px rgba(24,16,55,.05);transition:box-shadow .18s ease}
+  .panel-box:hover, .rc-card:hover{box-shadow:0 4px 14px rgba(24,16,55,.10)}
+  .panel-box{position:relative;overflow:hidden}
+  .panel-box::before{content:"";position:absolute;top:0;left:0;right:0;height:2.5px;
+    background:linear-gradient(90deg,var(--brand),var(--brand-2),transparent);opacity:.45}
   /* ---- Simple/Pro view (user-friendly default): Simple = cockpit-only.
      !important zaroori — kuch cards JS se inline display:block set karte. ---- */
   body.simple-mode #capabilitiesPanel, body.simple-mode #mapToolbar, body.simple-mode #modeToggle,
@@ -452,6 +463,7 @@
       <button class="qn-chip" data-jump="failureConsoleCard">Reliability</button>
     </div>
     <div id="statusSummary" style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px"></div>
+    <section class="hq-sec" id="secCommand"><div class="hq-sec-label">🎯 Command Center</div>
     <section id="warRoom">
       <div class="command-head">
         <div>
@@ -512,7 +524,9 @@
         </div>
       </div>
     </details>
+    </section>
 
+    <section class="hq-sec" id="secMap"><div class="hq-sec-label">🗺️ Live Office</div>
     <div id="mapToolbar">
       <div id="agentSearchWrap">
         <input id="agentSearch" placeholder="🔎 Agent dhundo (naam/role)…" autocomplete="off" />
@@ -541,7 +555,9 @@
       <h3>Aaj ka replay <span style="font-weight:400;font-size:12px;color:var(--muted)">- last office moves</span></h3>
       <div id="replayList"><div class="loading-note">Loading replay...</div></div>
     </div>
+    </section>
 
+    <section class="hq-sec" id="secActivity"><div class="hq-sec-label">📡 Team Activity</div>
     <div class="feed-card" id="feedCard">
       <div class="feed-head"><span class="ticker-dot"></span> Live automation feed — poora project ka feed</div>
       <div class="filter-row" id="filterRow"></div>
@@ -564,7 +580,9 @@
         <div id="activityMeta" class="empty-note"></div>
       </div>
     </div>
+    </section>
 
+    <section class="hq-sec" id="secPipeline"><div class="hq-sec-label">📈 Pipeline &amp; Schedule</div>
     <div id="pipelineBoard">
       <div class="board-head"><div class="board-title">📈 Lead → Renewal Pipeline</div></div>
       <div class="board-row" id="boardRow"><div class="loading-note">⏳ Loading pipeline…</div></div>
@@ -591,7 +609,9 @@
         </div>
       </div>
     </div>
+    </section>
 
+    <section class="hq-sec" id="secApprovals"><div class="hq-sec-label">🗂️ Approvals &amp; Coordination</div>
     <div id="workflowRunsCard" class="panel-box" style="margin-top:14px;display:none">
       <h3>⚙️ Recent Workflow Runs</h3>
       <div id="workflowRunsList"><div class="loading-note">⏳ Loading…</div></div>
@@ -618,7 +638,9 @@
         <div id="healthList"><div class="loading-note">⏳ Loading…</div></div>
       </div>
     </div>
+    </section>
 
+    <section class="hq-sec" id="secReliability"><div class="hq-sec-label">🚨 Reliability &amp; Queues</div>
     <!-- Agent Scheduler mini-panel (2026-07-03): /api/platform/team/scheduler se
          problem-first view — sirf overdue/failed/paused jobs dikhte, sab ok to ek
          green line. Full control = /app/automation Schedule tab. -->
@@ -667,6 +689,7 @@
       </h3>
       <div id="hotQueueSummary" class="empty-note">⏳ Loading…</div>
     </div>
+    </section>
   </div>
 
   <div id="roomTooltip"></div>
@@ -3035,6 +3058,29 @@
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     };
   });
+
+  // ---- Scroll-spy: viewport me jo section hai uska nav-chip highlight -------
+  (function(){
+    if (!("IntersectionObserver" in window)) return;
+    var chips = document.querySelectorAll(".qn-chip");
+    var vis = {};
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ vis[en.target.id] = en.isIntersecting; });
+      var current = null;
+      Array.prototype.some.call(chips, function(c){
+        var id = c.getAttribute("data-jump");
+        if (vis[id]) { current = id; return true; }
+        return false;
+      });
+      Array.prototype.forEach.call(chips, function(c){
+        c.classList.toggle("qn-active", c.getAttribute("data-jump") === current);
+      });
+    }, { rootMargin: "-60px 0px -55% 0px" });
+    Array.prototype.forEach.call(chips, function(c){
+      var el = document.getElementById(c.getAttribute("data-jump"));
+      if (el) io.observe(el);
+    });
+  })();
 
   // ---- Map camera: zoom / drag-pan / focus ----------------------------------
   OFFICE.dragMoved = false;
