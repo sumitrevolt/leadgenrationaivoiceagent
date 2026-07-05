@@ -1,22 +1,57 @@
 """Queue idempotency audit — scan all Celery tasks for idempotency patterns.
 
 Usage:
-    python scripts/queue_idempotency_audit.py
+    python scripts/queue_idempotency_audit.py                 # ratchet mode (CI gate)
+    python scripts/queue_idempotency_audit.py --rebaseline    # accept current gaps as baseline
 
 Outputs a markdown report to stdout listing:
 - Tasks WITH explicit idempotency
 - Tasks WITHOUT explicit idempotency (gap)
 - Recommendations
 
+RATCHET MODE (R-34, 2026-07-05): pehle yeh script KISI bhi without-idempotency
+task pe exit 1 deta tha — 29 legacy tasks ki wajah se ci.yml quality job MAIN pe
+bhi hamesha RED thi (gate useless). Ab known legacy gaps
+`scripts/queue_idempotency_baseline.json` me frozen hain; FAIL sirf NAYE
+(baseline ke bahar) gap pe hota hai. Legacy 29 ko idempotent banate jao aur
+--rebaseline se baseline ghatate jao — ratchet sirf tighten hota hai.
+
 Playbook ref: Queue System — every queue must have idempotency key.
 """
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+BASELINE_FILE = Path(__file__).resolve().parent / "queue_idempotency_baseline.json"
+
+
+def _load_baseline() -> set[str]:
+    """Known legacy gaps ("file::func" keys). Missing/corrupt file = empty (strictest)."""
+    try:
+        data = json.loads(BASELINE_FILE.read_text(encoding="utf-8"))
+        return set(data.get("allowed_gaps", []))
+    except Exception:
+        return set()
+
+
+def _save_baseline(keys: list[str]) -> None:
+    BASELINE_FILE.write_text(
+        json.dumps(
+            {
+                "_note": "R-34 ratchet — legacy Celery tasks WITHOUT idempotency. "
+                "In list ko sirf GHATANA hai (task fix karo -> --rebaseline). "
+                "Naya task list me add karna = regression, PR me justify karo.",
+                "allowed_gaps": sorted(keys),
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
 # Celery task patterns
 TASK_PATTERNS = [
@@ -165,9 +200,28 @@ def main() -> int:
     print("3. **Add replay-safe checkpoints for long-running tasks.**")
     print("4. **Add queue-depth alerts** for tasks that lack idempotency.")
 
+    # --- R-34 ratchet gate ---
+    # unique keys — same file::func kai decorators se repeat ho sakta hai (<unknown> incl.)
+    gap_keys = sorted({f"{fp}::{fn}" for fp, fn, _dec in without_idem})
+    if "--rebaseline" in sys.argv:
+        _save_baseline(gap_keys)
+        print(f"\n[rebaseline] {len(gap_keys)} legacy gaps written to {BASELINE_FILE.name}")
+        return 0
+    baseline = _load_baseline()
+    new_gaps = [k for k in gap_keys if k not in baseline]
+    fixed = sorted(baseline - set(gap_keys))
+    print(f"\n## Ratchet (R-34)\n")
+    print(f"- Baseline legacy gaps: {len(baseline)}")
+    print(f"- Current unique gaps: {len(gap_keys)}")
+    if fixed:
+        print(f"- 🎉 FIXED since baseline ({len(fixed)}): {', '.join(fixed)}")
+        print("  -> run `--rebaseline` to tighten the ratchet.")
+    if new_gaps:
+        print(f"- ❌ NEW gaps (not in baseline — FIX or justify): {', '.join(new_gaps)}")
+
     print(f"\n---\n")
-    print(f"**Exit code:** {1 if without_idem else 0}")
-    return 1 if without_idem else 0
+    print(f"**Exit code:** {1 if new_gaps else 0} (ratchet: fail only on NEW gaps)")
+    return 1 if new_gaps else 0
 
 
 if __name__ == "__main__":
