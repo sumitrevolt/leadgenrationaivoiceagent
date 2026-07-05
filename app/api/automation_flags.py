@@ -80,6 +80,7 @@ AUTOMATION_FLAGS = [
     "SALES_TEAM",
     "SELF_IMPROVE_LOOP",
     "LEAD_HARVESTER",
+    "HARVEST_INGEST_VALIDATION",  # SERP-junk ingest gate (junk-title regex + websearch contact requirement) — ON default; =0 rollback (backlog 2026-07-05, platform_dial IVR root-enabler fix)
     "GTM_TARGETING",  # systematic City x Niche coverage matrix for the lead-harvester (gtm_targeting.py) — OFF default
     "UDYAM_PIPELINE",  # Udyam-primary acquisition: data.gov.in seed -> Maps+website enrich (udyam_pipeline.py) — OFF default
     "OPENCORPORATES_API_TOKEN",  # company-registry enrich (CIN/status) — inert without token

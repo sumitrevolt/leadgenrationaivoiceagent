@@ -599,8 +599,10 @@ Generate fine-tuning instructions to improve the brain:
             try:
                 with open(learnings_file) as f:
                     existing = json.load(f)
-            except:
-                pass
+            except Exception as e:
+                # Corrupt/unreadable learnings file = purani learnings overwrite ho
+                # jaati thi CHUP-CHAAP (silent-loss audit 2026-07-05) — ab visible.
+                logger.warning(f"[auto_trainer] learnings file unreadable, resetting: {e}")
 
         # Add new improvements
         for improvement in improvements:
