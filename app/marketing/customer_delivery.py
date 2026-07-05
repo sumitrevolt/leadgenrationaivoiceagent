@@ -211,6 +211,142 @@ async def run_delivery_sweep(limit: int = 20) -> dict[str, Any]:
     return res
 
 
+# --------------------------------------------------------------------------- #
+# P1 #12 — Weekly "aapki marketing chal rahi hai" digest.
+# The delivery message promises "har hafte naya content milega" — this backs that
+# promise with a real weekly WhatsApp. HONEST metrics only (fable rule: no
+# fabricated numbers) — fresh-content count is sourced from the content queue;
+# mini-site views/leads are NOT tracked yet so they are omitted, never invented.
+# Idempotent: max one digest per customer per 6 days (state file). Gated on the
+# SAME AUTO_DELIVER_VALUE consent as delivery. Never raises; fail-loud on stuck.
+# --------------------------------------------------------------------------- #
+_DIGEST_STATE = os.path.join("data", "weekly_digest_state.json")
+_DIGEST_MIN_DAYS = 6
+
+
+def count_fresh_content(cid: str, days: int = 7) -> int:
+    """How many content items were generated for this client in the last `days`.
+    Real, sourced from data/content_queue/<cid>.jsonl. 0 on any error."""
+    path = os.path.join("data", "content_queue", f"{cid}.jsonl")
+    if not cid or not os.path.exists(path):
+        return 0
+    cutoff = datetime.now(timezone.utc).timestamp() - days * 86400
+    n = 0
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    it = json.loads(line)
+                except Exception:
+                    continue
+                ts = str(it.get("created_at") or it.get("date") or "")
+                try:
+                    d = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                    if d.tzinfo is None:
+                        d = d.replace(tzinfo=timezone.utc)
+                    if d.timestamp() >= cutoff:
+                        n += 1
+                except Exception:
+                    # date-only "YYYY-MM-DD" without time — count if within window
+                    if ts[:10] >= datetime.fromtimestamp(cutoff, timezone.utc).strftime("%Y-%m-%d"):
+                        n += 1
+    except Exception as exc:
+        logger.warning("count_fresh_content err: %s", exc)
+    return n
+
+
+def build_weekly_digest_message(client: dict[str, Any], fresh_count: int) -> str:
+    """Weekly value WhatsApp — fresh content + mini-site reminder + share nudge.
+    Pure (testable). Honest: only the real fresh_count, no invented views/leads."""
+    biz = str((client or {}).get("business_name") or "aapka business").strip() or "aapka business"
+    url = mini_site_url(client)
+    lines = [f"Namaste! 📅 {biz} ki is hafte ki marketing update —"]
+    if fresh_count > 0:
+        lines.append(f"📸 {fresh_count} naye ready-to-post content pieces taiyaar hain.")
+    else:
+        lines.append("📸 Aapka content agent kaam kar raha hai — naye posts jald.")
+    if url:
+        lines.append(f"👉 Aapki site: {url} — ise WhatsApp/Instagram status pe share karein, zyada enquiry milegi.")
+    lines.append("Koi badlaav ya nayi service add karni ho? Isi message ka reply kar dijiye. 🙏")
+    return "\n".join(lines)
+
+
+def _load_digest_state() -> dict[str, str]:
+    try:
+        if os.path.exists(_DIGEST_STATE):
+            with open(_DIGEST_STATE, encoding="utf-8") as f:
+                return json.load(f) or {}
+    except Exception:
+        pass
+    return {}
+
+
+def _save_digest_state(state: dict[str, str]) -> None:
+    try:
+        os.makedirs("data", exist_ok=True)
+        with open(_DIGEST_STATE, "w", encoding="utf-8") as f:
+            json.dump(state, f)
+    except Exception as exc:
+        logger.warning("_save_digest_state err: %s", exc)
+
+
+def _digest_due(cid: str, state: dict[str, str], now: datetime) -> bool:
+    last = state.get(cid)
+    if not last:
+        return True
+    try:
+        d = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
+        if d.tzinfo is None:
+            d = d.replace(tzinfo=timezone.utc)
+        return (now - d).days >= _DIGEST_MIN_DAYS
+    except Exception:
+        return True
+
+
+async def run_weekly_digest_sweep(limit: int = 50) -> dict[str, Any]:
+    """Weekly value digest to DELIVERED paid customers (once per >=6 days each).
+    Called daily but self-throttling. Gated AUTO_DELIVER_VALUE (same consent as
+    delivery). Never raises."""
+    res: dict[str, Any] = {"due": 0, "sent": 0}
+    if not _flag_on("AUTO_DELIVER_VALUE"):
+        res["skipped"] = "AUTO_DELIVER_VALUE off"
+        return res
+    try:
+        from app.integrations.whatsapp import get_whatsapp_sender
+        from app.marketing import clients_store
+
+        state = _load_digest_state()
+        now = datetime.now(timezone.utc)
+        sender = get_whatsapp_sender()
+        sent = 0
+        for c in clients_store.list_clients(status="active"):
+            if not is_paid_client(c) or not is_delivered(c):
+                continue  # only already-delivered real customers
+            cid = str(c.get("id") or "")
+            phone = str(c.get("phone") or "").strip()
+            if not cid or not phone or not _digest_due(cid, state, now):
+                continue
+            res["due"] += 1
+            msg = build_weekly_digest_message(c, count_fresh_content(cid))
+            try:
+                r = await sender.send_text_message(phone, msg)
+                if bool(r) and not (isinstance(r, dict) and r.get("error")):
+                    state[cid] = now.isoformat(timespec="seconds")
+                    sent += 1
+                else:
+                    _record_stuck(c, "weekly_digest_send_failed")
+            except Exception as exc:
+                _record_stuck(c, f"weekly_digest_err:{type(exc).__name__}")
+            if sent >= max(1, limit):
+                break
+        _save_digest_state(state)
+        res["sent"] = sent
+    except Exception as exc:
+        logger.warning("run_weekly_digest_sweep err: %s", exc)
+        res["error"] = str(exc)
+    return res
+
+
 __all__ = [
     "is_paid_client",
     "mini_site_url",
@@ -219,4 +355,7 @@ __all__ = [
     "find_undelivered_paid_clients",
     "deliver_client_value",
     "run_delivery_sweep",
+    "count_fresh_content",
+    "build_weekly_digest_message",
+    "run_weekly_digest_sweep",
 ]

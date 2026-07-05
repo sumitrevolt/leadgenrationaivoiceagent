@@ -91,6 +91,37 @@ async def test_deliver_force_sends_and_marks(monkeypatch):
     assert marked.get("delivered_at")
 
 
+def test_build_weekly_digest_honest(monkeypatch):
+    """Digest includes the REAL fresh_count + mini-site link; never invents views/leads."""
+    c = {"business_name": "jiya makeover", "slug": "jiya-makeover-d79d"}
+    msg = cd.build_weekly_digest_message(c, 5)
+    assert "5 naye" in msg
+    assert "/b/jiya-makeover-d79d" in msg
+    # honesty: no fabricated view/lead numbers
+    assert "views" not in msg.lower()
+    # zero fresh content -> graceful, no "0 naye"
+    msg0 = cd.build_weekly_digest_message(c, 0)
+    assert "0 naye" not in msg0
+
+
+def test_digest_due_cadence():
+    from datetime import datetime, timedelta, timezone
+
+    now = datetime.now(timezone.utc)
+    assert cd._digest_due("new", {}, now) is True  # never sent -> due
+    recent = {"x": (now - timedelta(days=2)).isoformat()}
+    assert cd._digest_due("x", recent, now) is False  # 2 days ago -> not due
+    old = {"x": (now - timedelta(days=8)).isoformat()}
+    assert cd._digest_due("x", old, now) is True  # 8 days ago -> due
+
+
+@pytest.mark.asyncio
+async def test_weekly_digest_gated_off(monkeypatch):
+    monkeypatch.delenv("AUTO_DELIVER_VALUE", raising=False)
+    r = await cd.run_weekly_digest_sweep()
+    assert r.get("skipped") == "AUTO_DELIVER_VALUE off"
+
+
 @pytest.mark.asyncio
 async def test_find_undelivered_paid_clients(monkeypatch):
     clients = [

@@ -501,6 +501,15 @@ async def run_daily_content() -> dict[str, Any]:
                 logger.debug(f"[auto_content] client {cid} skip: {e}")
 
         _log_isha("auto_content", f"{n_clients} clients, {total_items} items generated")
+        # P1 #12 (2026-07-05): weekly value digest to delivered paid customers —
+        # backs the "har hafte naya content milega" promise. Self-throttling
+        # (once/6days per customer) + gated AUTO_DELIVER_VALUE, so daily call is safe.
+        try:
+            from app.marketing import customer_delivery
+
+            await customer_delivery.run_weekly_digest_sweep()
+        except Exception as e:
+            logger.debug(f"[auto_content] weekly digest skip: {e}")
     except Exception as e:
         logger.warning(f"[auto_content] run_daily_content failed: {e}")
         _log_isha("auto_content", f"auto-content crash: {e}", status="error")
