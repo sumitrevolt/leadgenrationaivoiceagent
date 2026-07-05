@@ -131,3 +131,8 @@ def test_session_expiry_honesty():
     assert "OFFICE.markSessionExpired" in SRC
     # scheduler 401 must not silently freeze anymore
     assert SRC.count("Session expire") >= 3
+
+
+def test_battery_friendly_polling():
+    assert SRC.count("document.hidden") >= 4
+    assert "visibilitychange" in SRC

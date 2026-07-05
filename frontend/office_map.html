@@ -3379,7 +3379,7 @@
     meta.textContent = counted + " event(s) last 24h me" +
       (events.length >= 250 ? " (250-event cap — busy hours undercount ho sakte)" : "");
   };
-  setInterval(function(){ OFFICE.renderActivityChart(); }, 60000);
+  setInterval(function(){ if (!document.hidden) OFFICE.renderActivityChart(); }, 60000);
 
   OFFICE.GAME_CONFIG = {
     type: Phaser.AUTO,
@@ -3445,9 +3445,16 @@
     OFFICE.game = new Phaser.Game(OFFICE.GAME_CONFIG);
   };
 
-  setInterval(function(){ if (!OFFICE.authExpired) OFFICE.refreshSnapshot(); }, 15000);
-  setInterval(function(){ if (!OFFICE.authExpired) OFFICE.pollEvents(); }, 8000);
-  setInterval(function(){ OFFICE.applyDayNight(); }, 60000);
+  setInterval(function(){ if (!OFFICE.authExpired && !document.hidden) OFFICE.refreshSnapshot(); }, 15000);
+  setInterval(function(){ if (!OFFICE.authExpired && !document.hidden) OFFICE.pollEvents(); }, 8000);
+  setInterval(function(){ if (!document.hidden) OFFICE.applyDayNight(); }, 60000);
+  // Background tab = battery-friendly: polling paused; wapas aate hi fresh data.
+  document.addEventListener("visibilitychange", function(){
+    if (!document.hidden && !OFFICE.authExpired) {
+      OFFICE.refreshSnapshot();
+      OFFICE.pollEvents();
+    }
+  });
 
   // ---- PHASE-2 standup moment: har ghante minute 0-2 (IST) pe sab non-offline
   // agents Coordinator Room border tak walk karke ~20s me wapas desk pe. Sirf
