@@ -84,4 +84,5 @@
 - **Office-enterprise-upgrade LIVE** (`c2b7328`): 6 map bug fixes (unique agent tints, overflow shrink, offline snap-back, unmapped "?" badge, ticker-box mobile fix, Simple→Pro blank-map root-fix = lazy Phaser boot) + dark mode + Ctrl+K palette + toast alerts + 6 sections + scroll-spy + battery-friendly polling. Guard: `tests/test_office_map_frontend.py`.
 - **free_ai.py provider fix** (dead OpenRouter free-model ids + circuit-breaker gap) isi deploy me SHIP hua — SESSION_LOG 2026-07-05 ka "VPS deploy PENDING" resolved.
 - **Known pending**: MCP mount refused (`FASTAPI_MCP_TOKEN` `.env` me unset) — Arya (MCP-Engineer agent) alert karta rahega jab tak set na ho.
+- **Systematization audit + gap tracker**: `docs/SYSTEMATIZATION_AUDIT_2026_07_05.md` (frozen findings) + `docs/GAP_REGISTER_2026_07_05.md` (living status, R-01…R-33) — repo-mess/missing-feature ka single source; naya gap mile to register me add karo.
 - **Launch status**: marketing tiers + inbound callbacks = live-ready (DLT nahi chahiye); sirf voice cold-calling DLT pe blocked.
