@@ -50,6 +50,17 @@ def enabled() -> bool:
         return False
 
 
+def _client_phone(client_id: str) -> str:
+    """Client record ka apna business phone (digits/formatted jaise stored). Never raises."""
+    try:
+        from app.marketing import clients_store
+
+        c = clients_store.get_client(client_id) or {}
+        return str(c.get("phone") or "").strip()
+    except Exception:
+        return ""
+
+
 def _resolve_account(client_id: str, platform: str, account_ref: str) -> dict[str, Any]:
     acct = vault.get(client_id, platform, account_ref) or {}
     if platform == "telegram" and not (acct.get("account_ref") or account_ref):
@@ -62,15 +73,29 @@ def _resolve_account(client_id: str, platform: str, account_ref: str) -> dict[st
                 acct = {"token": "", "account_ref": chat, "meta": {}}
         except Exception:
             pass
+    elif platform == "whatsapp" and not (acct.get("account_ref") or account_ref):
+        # WhatsApp delivery = client ke APNE business phone pe 1-to-1 (ban-safe). Vault me
+        # koi WA account_ref na ho to client-record phone use karo (jaise telegram chat_id).
+        phone = _client_phone(client_id)
+        if phone:
+            acct = {"token": "", "account_ref": phone, "meta": {}}
     return acct
 
 
 def _default_platforms(client_id: str) -> list[str]:
-    """Sirf configured providers (telegram token / postiz / vault me jo accounts hain)."""
+    """Sirf configured providers (whatsapp agar client-phone + WA backend / postiz /
+    vault me jo accounts hain). Empty-socials wale client (jaise jiya) ke liye whatsapp
+    default candidate ban jaata hai — approved post uske apne number pe 1-to-1 deliver hota."""
     out: list[str] = []
     reg = registry()
     try:
         # telegram REMOVED 2026-06-28 (ban-risk) — no longer a default platform
+        # WhatsApp = default candidate jab client ka apna phone ho + WA backend configured ho.
+        wa = reg.get("whatsapp")
+        if wa is not None and _client_phone(client_id):
+            acct = {"account_ref": _client_phone(client_id)}
+            if wa.configured(acct):
+                out.append("whatsapp")
         if reg.get("postiz") and reg["postiz"].configured():
             out.append("postiz")
         for a in vault.list_accounts(client_id):
@@ -91,10 +116,30 @@ def enqueue_publish(
     platforms: list[str] | None = None,
     account_refs: dict[str, str] | None = None,
 ) -> list[str]:
-    """Ek post ko target platforms ke liye queue karo (1 job/platform). Returns job-ids."""
+    """Ek post ko target platforms ke liye queue karo (1 job/platform). Returns job-ids.
+
+    Zero channel + koi phone bhi nahi (empty-socials client): silent success ki jagah
+    "koi channel connected nahi" ko logs + team-feed pe SURFACE karta hai (approve path
+    ko pata chale ki post kahin deliver nahi hoga), aur khali list return karta."""
     try:
         plats = platforms or _default_platforms(client_id)
         refs = account_refs or {}
+        if not plats:
+            # Kuch bhi target nahi — na koi social account, na WA phone. Non-silent.
+            reason = "koi channel connected nahi (na social account, na WhatsApp phone)"
+            logger.warning(f"[engine] enqueue_publish client={client_id}: {reason}")
+            try:
+                from app.platform import team
+
+                team.log_event(
+                    "zara",
+                    "social_no_channel",
+                    f"{client_id}: {reason} — approved post deliver nahi hoga",
+                    status="warn",
+                )
+            except Exception:
+                pass
+            return []
         ids: list[str] = []
         for p in plats:
             jid = store.enqueue(

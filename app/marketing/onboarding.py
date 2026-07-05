@@ -28,9 +28,60 @@ logger = logging.getLogger(__name__)
 
 _PACK_DIR = os.path.join("data", "client_packs")
 
+# Re-nudge state — WhatsApp business-info interview ek hi baar bhejta tha; agar us
+# din WA infra down ho (jaise jiya makeover ke saath hua — WAHA baad me linka), to
+# client silently awaiting_kb_interview=true reh jata tha forever. Yahan per-client
+# sent-at timestamps + count persist karte (clients_store untouched rehta).
+_NUDGE_STATE_FILE = os.path.join("data", "kb_interview_nudges.json")
+_RENUDGE_MAX = 3  # max total re-nudges per client (initial welcome message ke upar)
+_RENUDGE_MIN_HOURS = 24  # min gap between re-nudges
+
 
 def _flag(name: str) -> bool:
     return os.getenv(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _flag_on(name: str) -> bool:
+    """Default-ON flag (unset = enabled). Bug-fix of promised behaviour, isliye ON."""
+    return os.getenv(name, "1").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _load_nudge_state() -> dict[str, Any]:
+    """Read the per-client re-nudge state file. Never raises (missing/corrupt = {})."""
+    try:
+        with open(_NUDGE_STATE_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _save_nudge_state(state: dict[str, Any]) -> None:
+    """Persist the re-nudge state. Best-effort, never raises."""
+    try:
+        os.makedirs(os.path.dirname(_NUDGE_STATE_FILE) or ".", exist_ok=True)
+        with open(_NUDGE_STATE_FILE, "w", encoding="utf-8") as f:
+            json.dump(state, f, ensure_ascii=False, indent=0)
+    except Exception as exc:
+        logger.debug("kb_interview nudge state save err: %s", exc)
+
+
+def _clear_nudge_state(cid: str) -> None:
+    """Drop a client's re-nudge record once the interview is captured (keeps the
+    state file from growing + resets the counter if they ever re-enter awaiting).
+    Best-effort, never raises."""
+    try:
+        state = _load_nudge_state()
+        if cid in state:
+            state.pop(cid, None)
+            _save_nudge_state(state)
+    except Exception:
+        pass
+
+
+def _now_utc() -> datetime:
+    """Wrapper so tests can freeze time by monkeypatching this one call site."""
+    return datetime.now(timezone.utc)
 
 
 def _website(client: dict) -> str:
@@ -131,6 +182,41 @@ def _log(kind: str, detail: str) -> None:
         pass
 
 
+def _interview_message(biz: str, renudge: bool = False) -> str:
+    """The business-info interview ask (WhatsApp). `renudge=True` softens the intro
+    for a follow-up so a re-nudge doesn't repeat "onboarding complete" verbatim."""
+    if renudge:
+        head = (
+            f"Namaste! {biz} ka AI agent ab bhi aapke business ki details ka intezaar "
+            "kar raha hai. Ek chhoti si madad chahiye — isi message ka reply karke bata do:\n"
+        )
+    else:
+        head = (
+            f"Namaste! 🎉 {biz} ka LeadGen AI onboarding complete ho gaya.\n\n"
+            "Bas ek chhoti si madad chahiye — isi message ka reply karke bata do:\n"
+        )
+    return (
+        head + "1) Aap kya services dete hain?\n"
+        "2) Konsa area/city cover karte hain?\n"
+        "3) Ek line jo aapko khaas banati hai\n\n"
+        "Isse aapka AI agent customers ko aapke business ke hisaab se jawab de payega."
+    )
+
+
+async def _send_whatsapp(phone: str, msg: str) -> bool:
+    """Send one WhatsApp text; True on delivered-ish. Never raises; no-op without a
+    configured sender. Shared by welcome + re-nudge paths."""
+    try:
+        from app.integrations.whatsapp import get_whatsapp_sender
+
+        sender = get_whatsapp_sender()
+        res = await sender.send_text_message(phone, msg)
+        return bool(res) and not (isinstance(res, dict) and res.get("error"))
+    except Exception as exc:
+        logger.debug("onboard whatsapp send err: %s", exc)
+        return False
+
+
 async def _send_welcome_whatsapp(client: dict[str, Any], kb_seeded: bool) -> dict[str, Any]:
     """Welcome message right after onboarding; if the website-KB-seed step found
     nothing (no website / thin site), ask for business info in the same message —
@@ -148,23 +234,74 @@ async def _send_welcome_whatsapp(client: dict[str, Any], kb_seeded: bool) -> dic
             "sawalon ka jawab de sakta hai."
         )
     else:
-        msg = (
-            f"Namaste! 🎉 {biz} ka LeadGen AI onboarding complete ho gaya.\n\n"
-            "Bas ek chhoti si madad chahiye — isi message ka reply karke bata do:\n"
-            "1) Aap kya services dete hain?\n"
-            "2) Konsa area/city cover karte hain?\n"
-            "3) Ek line jo aapko khaas banati hai\n\n"
-            "Isse aapka AI agent customers ko aapke business ke hisaab se jawab de payega."
-        )
-    try:
-        from app.integrations.whatsapp import get_whatsapp_sender
-
-        sender = get_whatsapp_sender()
-        res = await sender.send_text_message(phone, msg)
-        out["sent"] = bool(res) and not (isinstance(res, dict) and res.get("error"))
-    except Exception as exc:
-        logger.debug("onboard welcome whatsapp err: %s", exc)
+        msg = _interview_message(biz, renudge=False)
+    out["sent"] = await _send_whatsapp(phone, msg)
     return out
+
+
+async def _renudge_awaiting_interviews(limit: int = 25) -> dict[str, Any]:
+    """Re-send the business-info interview to active clients still stuck on
+    awaiting_kb_interview=True (the WhatsApp interview is sent only ONCE at
+    onboarding — if WA infra was down that day the client stays awaiting forever).
+
+    Caps: max `_RENUDGE_MAX` (3) re-nudges per client, min `_RENUDGE_MIN_HOURS`
+    (24h) apart. Gated `KB_INTERVIEW_RENUDGE` (default ON — bug-fix of promised
+    behaviour). Never raises."""
+    res: dict[str, Any] = {"renudged": 0, "pending": 0, "capped": 0}
+    if not _flag_on("KB_INTERVIEW_RENUDGE"):
+        res["skipped"] = "KB_INTERVIEW_RENUDGE off"
+        return res
+    try:
+        from app.marketing import clients_store
+
+        state = _load_nudge_state()
+        now = _now_utc()
+        dirty = False
+        for c in clients_store.list_clients(status="active"):
+            if not c.get("awaiting_kb_interview"):
+                continue
+            phone = str(c.get("phone") or "").strip()
+            if not phone:
+                continue
+            res["pending"] += 1
+            cid = str(c.get("id") or "")
+            if not cid:
+                continue
+            rec = state.get(cid) or {}
+            count = int(rec.get("count") or 0)
+            if count >= _RENUDGE_MAX:
+                res["capped"] += 1
+                continue
+            last = rec.get("last_at")
+            if last:
+                try:
+                    last_dt = datetime.fromisoformat(last)
+                    if last_dt.tzinfo is None:
+                        last_dt = last_dt.replace(tzinfo=timezone.utc)
+                    if (now - last_dt).total_seconds() < _RENUDGE_MIN_HOURS * 3600:
+                        continue  # too soon — 24h gap not elapsed
+                except Exception:
+                    pass
+            biz = c.get("business_name") or "aapka business"
+            sent = await _send_whatsapp(phone, _interview_message(biz, renudge=True))
+            if sent:
+                rec["count"] = count + 1
+                rec["last_at"] = now.isoformat()
+                state[cid] = rec
+                dirty = True
+                res["renudged"] += 1
+                _log(
+                    "client_interview_renudged",
+                    f"{biz}: KB-interview re-nudge #{rec['count']} bheja (WhatsApp)",
+                )
+                if res["renudged"] >= max(1, limit):
+                    break
+        if dirty:
+            _save_nudge_state(state)
+    except Exception as exc:
+        logger.info("kb_interview re-nudge sweep err: %s", exc)
+        res["error"] = str(exc)
+    return res
 
 
 async def try_capture_onboarding_reply(from_number: str, text: str) -> bool:
@@ -211,6 +348,7 @@ async def _capture_business_interview(client: dict[str, Any], text: str) -> bool
         except Exception as exc:
             logger.debug("onboard interview kb seed err: %s", exc)
         clients_store.update_client(cid, awaiting_kb_interview=False)
+        _clear_nudge_state(cid)  # captured -> re-nudge record ki zaroorat nahi
         _log(
             "client_interview_captured",
             f"{client.get('business_name','')}: WhatsApp se business-info mila (KB seeded)",
@@ -294,10 +432,20 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
 
 
 async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
-    """Find active clients without setup_done and auto-onboard them. Never raises."""
+    """Find active clients without setup_done and auto-onboard them. Also re-nudges
+    clients still stuck on the business-info interview (own flag). Never raises."""
+    res: dict[str, Any] = {"onboarded": 0, "checked": 0}
+    # Re-nudge pass runs INDEPENDENTLY of AUTO_ONBOARD (own flag KB_INTERVIEW_RENUDGE)
+    # — a client can be stuck awaiting the interview even after AUTO_ONBOARD is turned
+    # off, and this is a bug-fix for already-promised behaviour. Never raises.
+    try:
+        res["renudge"] = await _renudge_awaiting_interviews()
+    except Exception as exc:
+        logger.info("onboarding sweep renudge err: %s", exc)
+        res["renudge"] = {"error": str(exc)}
     if not _flag("AUTO_ONBOARD"):
-        return {"skipped": "AUTO_ONBOARD off"}
-    res = {"onboarded": 0, "checked": 0}
+        res["skipped"] = "AUTO_ONBOARD off"
+        return res
     try:
         from app.marketing import clients_store
 
@@ -315,4 +463,9 @@ async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
     return res
 
 
-__all__ = ["auto_onboard", "run_onboarding_sweep", "try_capture_onboarding_reply"]
+__all__ = [
+    "auto_onboard",
+    "run_onboarding_sweep",
+    "try_capture_onboarding_reply",
+    "_renudge_awaiting_interviews",
+]

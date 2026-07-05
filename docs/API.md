@@ -349,7 +349,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1051 operations)
+## Endpoint Index — auto-generated from OpenAPI (1055 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -663,7 +663,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (16)
+### Customer Dashboard  (17)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/decide` — Customer Decide Approval
@@ -674,6 +674,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/gbp/questions` — Customer Gbp Questions
 - `POST  ` `/api/customer/gbp/score` — Customer Gbp Score
 - `GET   ` `/api/customer/health` — Customer Dashboard Health
+- `POST  ` `/api/customer/kb-info` — Customer Kb Info
 - `PATCH ` `/api/customer/leads/{lead_id}` — Patch Lead Status
 - `GET   ` `/api/customer/office` — Get Customer Office
 - `GET   ` `/api/customer/report` — Customer Monthly Report
@@ -695,10 +696,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
 - `GET   ` `/api/customer/flows` — Cf List
 
-### Customer Marketing Studio  (88)
+### Customer Marketing Studio  (91)
 
 - `POST  ` `/api/customer/studio/ads` — Studio Ads
 - `GET   ` `/api/customer/studio/aeo-checklist` — Studio Aeo Checklist
+- `POST  ` `/api/customer/studio/ai-image` — Studio Ai Image
 - `GET   ` `/api/customer/studio/ai-inbox` — Studio Ai Inbox
 - `POST  ` `/api/customer/studio/appointment-assistant` — Studio Appointment Assistant
 - `GET   ` `/api/customer/studio/best-time` — Studio Best Time
@@ -717,6 +719,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/studio/community-content` — Studio Community Content
 - `POST  ` `/api/customer/studio/competitor` — Studio Competitor
 - `GET   ` `/api/customer/studio/complaint-recovery` — Studio Complaint Recovery
+- `POST  ` `/api/customer/studio/complete-post` — Studio Complete Post
 - `GET   ` `/api/customer/studio/conversion-tracking` — Studio Conversion Tracking
 - `POST  ` `/api/customer/studio/coupon` — Studio Coupon
 - `GET   ` `/api/customer/studio/customer-avatar` — Studio Customer Avatar
@@ -778,6 +781,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/studio/tools` — Studio Tools
 - `GET   ` `/api/customer/studio/trends` — Studio Trends
 - `GET   ` `/api/customer/studio/ugc-request` — Studio Ugc Request
+- `POST  ` `/api/customer/studio/upi-qr` — Studio Upi Qr
 - `POST  ` `/api/customer/studio/variations` — Studio Variations
 - `POST  ` `/api/customer/studio/voiceover` — Studio Voiceover
 - `GET   ` `/api/customer/studio/website-widget` — Studio Website Widget

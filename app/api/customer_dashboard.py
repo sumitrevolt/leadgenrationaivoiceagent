@@ -530,7 +530,9 @@ async def customer_monthly_report(
     try:
         from app.marketing import monthly_report
 
-        result = await monthly_report.build_report(client_name=client_name, month=month or None)
+        result = await monthly_report.build_report(
+            client_name=client_name, month=month or None, client_id=client_id
+        )
     except Exception as e:
         logger.error("customer_monthly_report failed: %s", e)
         raise HTTPException(status_code=500, detail="Report abhi available nahi.")
@@ -764,6 +766,58 @@ class RoutingConfigIn(BaseModel):
 class ApprovalDecideIn(BaseModel):
     action: str = Field(default="approve", pattern="^(approve|reject)$")
     note: str = Field(default="", max_length=300)
+
+
+class KbInfoIn(BaseModel):
+    text: str = Field(..., min_length=5, max_length=4000)
+
+
+def _kb_namespace(cid: str) -> str:
+    """client:<id> namespace (same helper onboarding uses)."""
+    try:
+        from app.platform.agent_provisioner import _client_namespace
+
+        return _client_namespace(cid)
+    except Exception:
+        return f"client:{cid}"
+
+
+@router.post("/kb-info")
+def customer_kb_info(
+    body: KbInfoIn,
+    client_id: str = Depends(require_customer),
+):
+    """Portal self-serve business-info entry.
+
+    Aaj tak customer sirf onboarding wale EK WhatsApp reply se apni business-info
+    de sakta tha — agar woh miss ho gaya to AI agent ko client ke business ka pata
+    hi nahi chalta. Yeh route customer ko portal se hi text daal ke apni KB
+    (namespace client:<id>) seed karne deta hai + awaiting_kb_interview clear.
+
+    client_id JWT (require_customer) se aata hai => customer sirf apni hi KB likhta
+    (IDOR-safe). Never-500."""
+    text = (body.text or "").strip()[:4000]
+    if len(text) < 5:
+        raise HTTPException(status_code=400, detail="Kuch business-info text bhejo")
+    ns = _kb_namespace(client_id)
+    chunks = 0
+    try:
+        from app.voice_agent.knowledge_base import get_knowledge_base
+
+        chunks = get_knowledge_base().add_documents(
+            [text], source="portal:kb_info", namespace=ns
+        )
+    except Exception as e:
+        logger.debug("customer kb-info add_documents failed: %s", e)
+        raise HTTPException(status_code=503, detail="KB abhi available nahi, thodi der me try karo")
+    # Interview pending flag clear — portal se info aa gayi (best-effort).
+    try:
+        from app.marketing import clients_store
+
+        clients_store.update_client(client_id, awaiting_kb_interview=False)
+    except Exception as e:
+        logger.debug("customer kb-info flag clear failed: %s", e)
+    return {"ok": True, "chunks_added": int(chunks or 0), "namespace": ns}
 
 
 @router.get("/branded-feed")
