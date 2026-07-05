@@ -1846,7 +1846,18 @@ async def _respond(pipeline, brain, history, session, user_text):
                     )
                 )
                 if text:
-                    return str(text), None
+                    # COMPLIANCE PARITY (2026-07-05): LLMBrain fallback ko bhi
+                    # post-output safety+PII-redact se guzaaro (web↔vobiz parity —
+                    # pipeline/TelecallerBrain path already guarded). Never-raise.
+                    safe = str(text)
+                    try:
+                        from app.voice_agent.guardrails import get_guardrails
+
+                        gout = get_guardrails().check_output(safe)
+                        safe = (gout.text or safe)
+                    except Exception:
+                        pass
+                    return safe, None
                 logger.warning("web-call llm responder returned empty text — falling back to echo.")
             except Exception as e:
                 logger.warning(
