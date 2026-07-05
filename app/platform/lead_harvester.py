@@ -60,6 +60,56 @@ _BLOCKED_DOMAINS = (
 
 _PHONE_RE = re.compile(r"(?:\+91[\-\s]?|0)?([6-9]\d{9})")
 
+# ── Ingest validation (2026-07-05) ───────────────────────────────────────────
+# Backlog fix: websearch SERP page-titles ("Top 10 Home Loan ... 2026",
+# "XYZ | Justdial") business_name ban jaate the + page ke kisi bhi 10-digit
+# (bank helpline) ko phone maan lete the → junk "ready" pool → platform_dial
+# IVR-disaster ka root-enabler. Gate DEFAULT ON; HARVEST_INGEST_VALIDATION=0
+# = kill-switch (dial_gate test-mode jaisa default-ON precedent).
+_JUNK_NAME_RE = re.compile(
+    r"(?:"
+    r"\b(?:top|best)\s+\d{1,3}\b"  # "Top 10 ...", "Best 5 ..."
+    r"|^\d{1,3}\s+(?:best|top)\b"  # "10 Best ..."
+    r"|\b(?:near me|price list|interest rates?|apply online|customer care"
+    r"|toll[- ]?free|helpline|list of|how to|what is|contact numbers?"
+    r"|phone numbers?)\b"
+    r"|\b20\d{2}\b"  # listicle year ("... in Pune 2026")
+    r"|https?://|www\."
+    r"|\.(?:com|in|co|org|net)\b"  # domain in name = page title
+    r"|\|"  # pipe = SERP title separator
+    r")",
+    re.IGNORECASE,
+)
+_MAX_NAME_LEN = 90  # real business names itne lambe nahi hote; page titles hote hain
+
+
+def ingest_validation_enabled() -> bool:
+    """Default ON. HARVEST_INGEST_VALIDATION=0 = disable (rollback switch)."""
+    return os.environ.get("HARVEST_INGEST_VALIDATION", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+    )
+
+
+def ingest_reject_reason(name: str, phone10: str, email: str, source: str) -> str:
+    """'' = accept; warna reject-reason. Pure function (unit-testable, no env).
+
+    Rules (backlog 2026-07-05): junk-title regex sab par; websearch (unstructured
+    SERP) leads ko valid mobile YA verified email chahiye. Structured sources
+    (osm/opendata/GMB) ke naam real hote hain — sirf junk-regex + length check.
+    """
+    n = (name or "").strip()
+    if not n:
+        return ""  # empty-name handling existing dedupe/persist logic par chhodo
+    if len(n) > _MAX_NAME_LEN:
+        return "name_too_long"
+    if _JUNK_NAME_RE.search(n):
+        return "junk_title"
+    if (source or "") == "websearch" and not phone10 and not email:
+        return "websearch_no_contact"
+    return ""
+
 
 def enabled() -> bool:
     return os.environ.get("LEAD_HARVESTER", "0").strip().lower() in ("1", "true", "yes")
@@ -456,7 +506,9 @@ async def run_harvest(
 
         new = 0
         skipped = 0
+        junk_skipped = 0
         per_source: dict[str, Any] = {}
+        _validate = ingest_validation_enabled()
         from app.platform import prospector
 
         # Per-niche lock: dedupe+persist under lock so concurrent harvests
@@ -481,6 +533,17 @@ async def run_harvest(
                         skipped += 1
                         continue
                     name = str(lead.get("business_name") or "Unknown")[:200]
+                    # Ingest gate (2026-07-05): SERP-junk titles / contact-less
+                    # websearch rows "ready" pool me kabhi na aayein.
+                    if _validate:
+                        _rej = ingest_reject_reason(name, p10, email, str(lead.get("source") or ""))
+                        if _rej:
+                            junk_skipped += 1
+                            per_source[src]["junk"] = int(per_source[src].get("junk") or 0) + 1
+                            logger.debug(
+                                f"[harvester] ingest reject ({_rej}): {name[:60]!r} src={src}"
+                            )
+                            continue
                     rec = {
                         "id": str(uuid.uuid4()),
                         "found_at": _now(),
@@ -550,6 +613,7 @@ async def run_harvest(
             "sources": per_source,
             "new_leads": new,
             "deduped": skipped,
+            "junk_skipped": junk_skipped,
             "enrich": enr,
             "cadence_enrolled": cadence_enrolled,
             "at": _now(),
@@ -664,5 +728,7 @@ __all__ = [
     "recent_runs",
     "source_status",
     "enabled",
+    "ingest_reject_reason",
+    "ingest_validation_enabled",
     "SOURCES",
 ]

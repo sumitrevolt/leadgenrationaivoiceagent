@@ -11,7 +11,7 @@ Live server facts (memorize):
 - App dir on VPS: **/opt/leadgen**. **App = Docker container `leadgen_app` :8000** (`docker compose -f docker-compose.vps.yml`, restart:unless-stopped). systemd service `leadgen` is **DISABLED** (installed for rollback only — do NOT `systemctl restart leadgen` as the deploy step anymore).
 - Reverse proxy: **Caddy** (host-level, auto-HTTPS via Let's Encrypt) → proxies to 127.0.0.1:8000. Config `/etc/caddy/Caddyfile`.
 - DB: **Postgres `leadgen_db` via PgBouncer (`pgbouncer:6432`) + Redis `leadgen_redis`** (containers). SQLite `/opt/leadgen/leadgen.db` = rollback-backup only. Repo: github.com/sumitrevolt/leadgenrationaivoiceagent (main).
-- Scheduler = **Celery durable (LIVE)**: `leadgen_worker` + `leadgen_scheduler` containers (`--profile celery`). ~13+ containers total (app+db+redis+pgbouncer+worker+scheduler+freeswitch+6 obs).
+- Scheduler = **Celery durable (LIVE)**: `leadgen_worker` + `leadgen_worker_heavy` + `leadgen_scheduler` containers (`--profile celery`). (2026-07-05 verified) Full set: app · worker · worker_heavy · scheduler · redis · redis-cache · db · pgbouncer · qdrant · **postiz** (social publisher) · **waha** (WhatsApp HTTP API) + obs containers.
 
 ## ⚠️ CRITICAL gotchas (these broke deploys — avoid!)
 
