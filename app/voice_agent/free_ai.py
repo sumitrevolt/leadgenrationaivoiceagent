@@ -601,7 +601,11 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     ]
     
     if not gemini_primary:
-        chain.append(("gemini", _GEMINI_LLM_MODEL))
+        # BUGFIX (2026-07-05): yahan hardcoded _GEMINI_LLM_MODEL (paid 2.5-flash) tha
+        # jo GEMINI_LLM_MODEL/DEFAULT_LLM override ko IGNORE karta — free keys pe paid
+        # model = 429/quota burn. Ab wahi overridable `gemini_model` (line ~544) use karo
+        # jo gemini_primary path bhi use karta.
+        chain.append(("gemini", gemini_model))
         
     chain += [
         ("sambanova", _SAMBANOVA_LLM_MODEL),
