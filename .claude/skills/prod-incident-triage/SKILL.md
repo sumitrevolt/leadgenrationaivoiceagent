@@ -18,6 +18,7 @@ description: leadsgenai.in down/unhealthy/freeze — health 000, workers stuck, 
 | Model download at runtime | image rebuild ke baad first hit hang (~250MB HF) | model BAKE in Dockerfile.lock (model-asset-bake skill) + disable-switch |
 | Boot-storm heavy job | deploy qa/trainer window me → boot pe job fire → HTTP starve | (live = Celery durable, dedicated worker → HTTP starve non-issue. Rollback in-process path me boot-grace skip) |
 | Stuck/backed-up Celery worker | "automations broken" but web OK; jobs not firing | `docker logs leadgen_worker` + flower :5555 (tunnel); `redis-cli llen celery` >500 = `del celery` (beat re-schedules); worker recreate |
+| Office map blank (Simple→Pro) | /app/office Pro-switch pe canvas khali; JS console clean | RESOLVED 2026-07-05 (lazy Phaser boot — `OFFICE.bootGame`); regression dikhe to frontend/office_map.html me bootGame guard + `tests/test_office_map_frontend.py` dekho |
 
 **RULE: har ML asset = image-bake + off-loop load + deadline + disable-switch.**
 
