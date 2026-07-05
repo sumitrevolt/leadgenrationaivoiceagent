@@ -1,0 +1,65 @@
+"""Static assertions on frontend/office_map.html (office-enterprise-upgrade).
+
+HTML is a single self-contained page (inline CSS+JS), so tests are
+(1) a node --check syntax gate on the inline script,
+(2) a no-removal guard: every pre-upgrade element ID must still exist,
+(3) per-feature markers added task-by-task by the upgrade plan
+    (docs/superpowers/plans/2026-07-05-office-enterprise-upgrade.md).
+"""
+import re
+import shutil
+import subprocess
+from pathlib import Path
+
+import pytest
+
+HTML_PATH = Path(__file__).resolve().parents[1] / "frontend" / "office_map.html"
+SRC = HTML_PATH.read_text(encoding="utf-8")
+
+# Every interactive/panel ID that existed BEFORE the upgrade — none may vanish.
+PRE_EXISTING_IDS = [
+    "banner", "bannerRetry", "page", "quickNav", "statusSummary", "warRoom",
+    "bossCommandInput", "bossCommandBtn", "bossCommandResult", "trustStrip",
+    "bossBriefBody", "priorityActionStack", "warKpiGrid", "pulseStrip",
+    "councilPanel", "councilTopic", "councilRunBtn", "councilDeeper", "councilResult",
+    "capabilitiesPanel", "kpiRow", "nbaCard", "nbaList", "enterpriseCard",
+    "enterpriseScore", "enterpriseFeatureGrid", "mapToolbar", "agentSearch",
+    "agentSearchResults", "zoomInBtn", "zoomOutBtn", "zoomResetBtn", "mapHint",
+    "modeToggle", "stageWrap", "stage", "previewOverlay", "roomListCompact",
+    "replayPanel", "replayList", "feedCard", "filterRow", "tickerList",
+    "coordHistoryWrap", "coordHistoryList", "leaderboardPanel", "leaderboardList",
+    "activityPanel", "activityChart", "activityHours", "activityMeta",
+    "pipelineBoard", "boardRow", "schedulePanel", "scheduleList", "recurringStrip",
+    "systemMapCard", "systemMapToggle", "systemMapBody", "systemMapFrame",
+    "workflowRunsCard", "workflowRunsList", "activeCoordCard", "activeCoordList",
+    "approvalsPanel", "bossReviewBtn", "bossReviewNote", "approvalsList",
+    "decisionTrail", "systemHealthPanel", "healthList", "schedulerPanel",
+    "schedBadge", "schedList", "failureConsoleCard", "dlqSweepBtn",
+    "failureConsoleList", "dlqRepairCard", "dlqRepairBadge", "dlqRepairSummary",
+    "hotQueueCard", "hotQueueBadge", "hotQueueSummary", "roomTooltip",
+    "coordinatorTickerBox", "coordinatorTicker", "agentPanel", "panelClose",
+    "panelBody", "legendToggle", "legendPopover", "legendClose", "briefingBtn",
+    "briefingModal", "briefingClose", "briefingDate", "briefingBody",
+    "briefingPlay", "briefingAudioNote", "briefingRefresh", "istClock",
+    "freshnessBadge", "viewModeBtn", "manualRefreshBtn",
+]
+
+
+def _inline_js() -> str:
+    blocks = re.findall(r"<script>(.*?)</script>", SRC, re.S)
+    assert blocks, "no inline <script> block found"
+    return "\n;\n".join(blocks)
+
+
+def test_inline_js_syntax_ok(tmp_path):
+    if not shutil.which("node"):
+        pytest.skip("node not on PATH")
+    f = tmp_path / "office_inline.js"
+    f.write_text(_inline_js(), encoding="utf-8")
+    r = subprocess.run(["node", "--check", str(f)], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+
+
+def test_no_pre_existing_id_removed():
+    missing = [i for i in PRE_EXISTING_IDS if f'id="{i}"' not in SRC]
+    assert not missing, f"pre-upgrade IDs vanished: {missing}"
