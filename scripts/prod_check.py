@@ -206,6 +206,28 @@ def _automation_wiring_gaps() -> list[str]:
     return gaps
 
 
+def check_static_route_collisions() -> None:
+    """Static duplicate-route guard — catches flag-OFF mounts the runtime check
+    in check_routes() can't see (include_router inside env-gated if-blocks; CI
+    me flag off = mount hi nahi hota, collision invisible). FAIL only on exact
+    (method, path) duplicates; shared prefixes = INFO. Defensive: audit toot
+    jaye to deploy block nahi hota. Detail: scripts/route_collision_audit.py."""
+    try:
+        from scripts import route_collision_audit as rca
+
+        rep = rca.audit()
+        for d in rep["duplicates"]:
+            PROBLEMS.append(f"STATIC DUPLICATE ROUTE: {d}")
+        print(
+            f"[i] static route scan: {rep['n_routes']} resolved, "
+            f"{len(rep['duplicates'])} duplicate, "
+            f"{len(rep['shared_prefixes'])} shared-prefix surfaces (INFO), "
+            f"{rep['skipped']} unresolvable skipped"
+        )
+    except Exception as e:
+        print(f"[i] static route-collision audit skipped ({type(e).__name__}: {e})")
+
+
 def check_production_config() -> None:
     """Sanity-check settings for production deploys."""
     try:
@@ -285,6 +307,7 @@ def main() -> int:
     check_stale_pycache()
     check_app_imports()
     check_routes()
+    check_static_route_collisions()
     check_production_config()
     check_frontend_wiring()
     check_explorer_drift()
