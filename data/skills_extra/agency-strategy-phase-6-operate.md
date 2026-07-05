@@ -1,3 +1,8 @@
+---
+name: agency-strategy-phase-6-operate
+description: Phase 6 operate & evolve playbook — ongoing operations and continuous improvement.
+---
+
 # 🔄 Phase 6 Playbook — Operate & Evolve
 
 > **Duration**: Ongoing | **Agents**: 12+ (rotating) | **Governance**: Studio Producer

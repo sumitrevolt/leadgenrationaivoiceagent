@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-testing
+description: ECC common rule — TDD workflow and coverage requirements.
+---
+
 # Testing Requirements
 
 ## Minimum Test Coverage: 80%

@@ -1,3 +1,8 @@
+---
+name: agency-strategy-phase-1-strategy
+description: Phase 1 strategy & architecture playbook — framing, brand, budget, technical/ML architecture, RICE-prioritized sprint plan.
+---
+
 # 🏗️ Phase 1 Playbook — Strategy & Architecture
 
 > **Duration**: 5-10 days | **Agents**: 8 | **Gate Keepers**: Studio Producer + Reality Checker

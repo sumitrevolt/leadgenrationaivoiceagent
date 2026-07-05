@@ -1,3 +1,8 @@
+---
+name: agency-strategy-scenario-enterprise-feature
+description: Runbook: enterprise feature development scenario, end to end.
+---
+
 # 🏢 Runbook: Enterprise Feature Development
 
 > **Mode**: NEXUS-Sprint | **Duration**: 6-12 weeks | **Agents**: 20-30

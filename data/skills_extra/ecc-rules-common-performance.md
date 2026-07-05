@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-performance
+description: ECC common rule — performance: model selection, context budget.
+---
+
 # Performance Optimization
 
 ## Model Selection Strategy

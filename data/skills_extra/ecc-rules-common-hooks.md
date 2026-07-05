@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-hooks
+description: ECC common rule — hooks system (PreToolUse etc.).
+---
+
 # Hooks System
 
 ## Hook Types

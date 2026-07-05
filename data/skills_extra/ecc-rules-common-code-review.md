@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-code-review
+description: ECC common rule — code review standards.
+---
+
 # Code Review Standards
 
 ## Purpose

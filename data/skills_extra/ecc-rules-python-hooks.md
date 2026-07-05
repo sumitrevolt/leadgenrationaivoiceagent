@@ -1,4 +1,6 @@
 ---
+name: ecc-rules-python-hooks
+description: ECC python rule — python hooks patterns.
 paths:
   - "**/*.py"
   - "**/*.pyi"
