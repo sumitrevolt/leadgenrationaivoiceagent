@@ -1,6 +1,6 @@
 ---
 name: saas-pricing-strategy
-description: Pricing/packaging/discount decisions for LeadGen AI ke DO products — Marketing (Starter ₹1,199 / Growth ₹2,999 / Advanced ₹6,999, annual 2-mahine-free, min top-ups, ₹0 7-din trial) aur Voice Agent (flat-monthly band A/B/C ₹4,999/9,999/19,999, free pilot). Use jab "pricing change", "naya plan", "discount doon?", "price badhao", "kitna charge karu", "annual offer", "topup", "voice pricing", packaging ya tier-mix ki baat ho.
+description: Pricing/packaging/discount decisions for LeadGen AI ke DO products — Marketing (PUBLIC 2 plans — Main ₹1,999 / Combo-Advanced ₹5,999; Growth ₹2,999 legacy-hidden; annual 2-mahine-free, top-ups, ₹0 7-din trial) aur Voice Agent (flat-monthly band A/B/C ₹4,999/9,999/19,999, free pilot). Use jab "pricing change", "naya plan", "discount doon?", "price badhao", "kitna charge karu", "annual offer", "topup", "voice pricing", packaging ya tier-mix ki baat ho.
 ---
 
 # SaaS Pricing Strategy (LeadGen AI — 2 products)
@@ -17,10 +17,10 @@ description: Pricing/packaging/discount decisions for LeadGen AI ke DO products 
 
 ## Decision frameworks (distilled)
 1. **Value-based, cost-based nahi.** Floor = next-best alternative, ceiling = perceived value. Anchors: marketing → Dhanda ₹7,999/yr, Predis Lite ~₹2,700/mo · voice → human telecaller ₹10k+/agent/mo. Advanced/voice ko "aadhe daam me AI staff" frame me bech do — pricing page pe yeh contrast = anchoring.
-2. **India price-sensitivity**: SMB owner monthly cash-flow sochta hai. ₹1,199 entry = mental accounting frame "₹40/din — ek chai se kam me marketing staff". Starter left-digit pe khelo.
+2. **India price-sensitivity**: SMB owner monthly cash-flow sochta hai. ₹1,999 (Main) entry = mental accounting frame "₹66/din — ek chai-samose se kam me marketing staff". Starter left-digit pe khelo.
 3. **Value metric** = marketing me posts/features gating + voice minutes (Advanced); voice product me niche-band (premium niche = premium price). Naya gate sochte waqt: "zyada use = zyada value?" nahi to galat metric.
-4. **Good-Better-Best discipline**: marketing 3 tiers, voice 3 cards (pilot + monthly + annual). Growth/voice-monthly highlighted recommended. Naya tier add karne se pehle: existing tier me limit-gate se kaam chalega?
-5. **Discounts**: 20-30% / 2-3 mahine max, time-bound, reason-bound (festival/save-offer). 50%+ KABHI nahi — customers cancel-for-deal seekh jaate. Rule of 100: ₹1,199 pe "% off" bolo, ₹6,999/₹19,999 pe "₹X bachao".
+4. **Good-Better-Best discipline**: marketing public = 2 tiers (Main + Combo/Advanced; Growth legacy-hidden), voice 3 cards (pilot + monthly + annual). Combo/Advanced (+ voice-monthly) highlighted recommended. Naya tier add karne se pehle: existing tier me limit-gate se kaam chalega?
+5. **Discounts**: 20-30% / 2-3 mahine max, time-bound, reason-bound (festival/save-offer). 50%+ KABHI nahi — customers cancel-for-deal seekh jaate. Rule of 100: ₹1,999 pe "% off" bolo, ₹5,999/₹19,999 pe "₹X bachao".
 6. **Voice flat-model ka USP**: "koi lead-counting nahi, koi surprise invoice nahi" — yeh trust-anchor hai, dispute-free billing bech.
 7. **Price increase kab**: prospects bina flinch ke haan bole / "itna sasta?!" feedback / churn <2% — tab grandfather-existing + new-price-new-customers.
 

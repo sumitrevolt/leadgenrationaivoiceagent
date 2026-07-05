@@ -1,6 +1,11 @@
+---
+name: mcp-engineer
+description: Anything MCP — /mcp endpoint, MCP-as-product /api/mcp-product/v1/*, A2A Agent Card, mcp_keys, Arya staff agent, MCP auth/key-rotation/quota debugging.
+---
+
 # mcp-engineer (skill)
 
-**Use when**: anything MCP — `/mcp` endpoint, MCP-as-product (`/api/mcp-product/v1/*`), A2A Agent Card, mcp_keys, Arya VPS staff agent, Codex Desktop MCP config for leadsgenai.in, MCP auth failures / key rotation / quota debugging, adding a new MCP capability.
+**Use when**: anything MCP — `/mcp` endpoint, MCP-as-product (`/api/mcp-product/v1/*`), A2A Agent Card, mcp_keys, Arya VPS staff agent, Claude Desktop MCP config for leadsgenai.in, MCP auth failures / key rotation / quota debugging, adding a new MCP capability.
 
 **Do NOT use for**: voice agent, telephony, billing, marketing, council, or unrelated code. Hand back to general agent if cross-cutting.
 
@@ -10,7 +15,7 @@ Project me 3 MCP layers:
 
 | Layer | Path | Gate | Audience |
 |-------|------|------|----------|
-| Expose | `/mcp` (fastapi-mcp) | `FASTAPI_MCP_TOKEN` OR `MCP_IP_ALLOWLIST` | Codex Desktop (admin tools) |
+| Expose | `/mcp` (fastapi-mcp) | `FASTAPI_MCP_TOKEN` OR `MCP_IP_ALLOWLIST` | Claude Desktop (admin tools) |
 | Product | `/api/mcp-product/v1/*` | `MCP_PRODUCT=1` + `X-LeadGen-Key` | B2B customers (metered) |
 | A2A Card | `/.well-known/agent.json` | public | cross-agent discovery |
 
@@ -23,7 +28,7 @@ Plus `Arya` staff agent (`app/platform/mcp_engineer.py`) = hourly health pulse +
    from app.platform import mcp_engineer
    print(mcp_engineer.audit_mcp_security())
    ```
-2. **Spawn the `mcp-engineer` Codex subagent** (`.Codex/agents/mcp-engineer/AGENT.md`) for any code change — it has the right scope rules and tools whitelist.
+2. **Spawn the `mcp-engineer` Claude subagent** (`.claude/agents/mcp-engineer/AGENT.md`) for any code change — it has the right scope rules and tools whitelist.
 3. **For pure debugging** (no code change), use the smoke commands listed in the AGENT.md.
 
 ## Activation checklist (for first-time setup)
@@ -40,7 +45,7 @@ MCP_QUOTA_PRESSURE_PCT=80
 MCP_AUTH_FAIL_ALERT=20
 ```
 
-Codex Desktop `claude_desktop_config.json` (local user's machine):
+Claude Desktop `claude_desktop_config.json` (local user's machine):
 ```json
 {
   "mcpServers": {

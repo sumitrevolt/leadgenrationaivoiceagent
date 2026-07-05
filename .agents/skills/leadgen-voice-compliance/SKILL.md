@@ -15,7 +15,7 @@ P2 ko code-ready rakho par compliance/provider dependency ke bina dial na hone d
 - **Provider**: Vobiz (`TELEPHONY_PROVIDER=vobiz`, `vobiz_handler.py` + `vobiz_stream.py` WS L16/16k). **Exotel DELETED** (2026-06-18). Twilio = international fallback only (India-domestic foreign-trunk ILLEGAL).
 - **Compliance gates (INTACT)**: 140-series + DLT + DND-scrub + calling-window (TRAI 9am–9pm; code default promo **9am–7pm** conservative) + AI-disclosure-at-start ("ek AI assistant"). **DND FAIL-CLOSED** (lookup-fail = promotional BLOCK `dnd_lookup_failed`).
 - **Consent**: `consent_ledger.py` — opt-out INSTANT cross-channel suppression + 90-din recording retention. `CallRequest.call_type` promotional default (transactional looser).
-- **Brain**: `telecaller_brain.py` (KB-grounded, ≤2 sentences/1 question) + `niche_scripts.py`. Voice primary LLM Gemini 2.5-flash-lite (`VOICE_GEMINI_PRIMARY=1`, 9-key pool) → free_ai chain fallback.
+- **Brain**: `telecaller_brain.py` (KB-grounded, ≤2 sentences/1 question) + `niche_scripts.py`. Voice LLM = free_ai chain (Mistral primary, Gemini late fallback); `VOICE_GEMINI_PRIMARY=1` = optional opt-in override, default OFF (2026-07-05).
 - **External blockers** (user paperwork — token mat jalao): DLT (Udyam re-apply pending), Vobiz DID + recharge, missed-call callback webhook.
 
 ## Workflow

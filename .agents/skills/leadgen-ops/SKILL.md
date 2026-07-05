@@ -17,10 +17,10 @@ Yeh exact cycle har deploy pe follow karo — **gated**: har step ka ek PASS-bar
 
 1. **Pre-flight check** — `python scripts/prod_check.py` (parse/pycache/import/route/config). **Route count note karo** (deploy ke baad match karne ke liye). 
    → **GATE**: koi fail = fix karo, aage NAHI. Green = next.
-2. **Tests** — `scripts\run_tests.bat`, phir **`pytest_run.log` Read karo** (console truncate hota — log = truth). ~80+ green expected. Full pytest `team_pulse` area pe hang ho sakta → targeted suite: `.venv\Scripts\python.exe -m pytest tests\test_X.py -q`. Billing/pricing/route touch hua → `test_billing_truth_2026.py` zaroor.
+2. **Tests** — `scripts\run_tests.bat`, phir **`pytest_run.log` Read karo** (console truncate hota — log = truth). ~80+ green expected. Full pytest `team_pulse` area pe hang ho sakta → targeted suite: `.venv\Scripts\python.exe -m pytest tests\test_X.py -q`. Billing/pricing/route touch hua → `test_billing_truth_2026.py` zaroor. Frontend office map touch hua → `tests\test_office_map_frontend.py` (JS syntax gate + no-removal guard, 2026-07-05) zaroor.
    → **GATE**: red test = root-cause (`systematic-debugging`), fix, re-run. Skip-with-reason sirf agar pre-existing-unrelated (log me note).
 3. **Git push** — Windows git hi: `C:\PROGRA~1\Git\cmd\git.exe`, hamesha ek `.bat` ke andar (DC one-liner quoting mangle; sandbox git index unreadable). Reference: `scripts/fix_push_redeploy.bat`. Secrets kabhi committed file me nahi (`scripts/check_secrets.py`).
-   → **GATE**: push success (remote SHA match) confirm karo.
+   → **GATE**: push success (remote SHA match) confirm karo. **+ (2026-07-05) Foreign-commit check**: push se pehle `git log origin/main..HEAD --format="%h %s"` — background automation checked-out branch pe apne commits banati hai; unhe pehchano (inspect, intentionally include/exclude) — anjaane me automation ka unreviewed kaam push mat karo.
 4. **VPS pull + rebuild + recreate** — Git ka ssh.exe (Windows OpenSSH is PC pe broken). Image me code BAKED → **rebuild lazmi** (git-pull-restart kaafi NAHI). Build pipe `| tail` exit-code maskta → `set -o pipefail`. Compose service naam galat (`worker-heavy` hyphen) = poora `up` ABORT → pehle `docker compose ... config --services`.
    ```
    C:\PROGRA~1\Git\usr\bin\ssh.exe -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204 \
@@ -29,6 +29,8 @@ Yeh exact cycle har deploy pe follow karo — **gated**: har step ka ek PASS-bar
       docker compose -f docker-compose.vps.yml up -d --no-deps app"
    ```
    SSH command me `&`/`<` quoting todta (EXIT_9009) → complex logic `.py` me likho, `ssh ... python scripts/x.py` se chalao.
+   - **(2026-07-05) DRIFT-CHECK pehle**: upar wala one-liner blind `reset --hard` karta hai — VPS tree chronically dirty rehta hai (live hotfixes); pehle `hostinger-deploy` skill ka Step-0 drift-check (`git status --porcelain` + `docker diff leadgen_app`) chalao, drift dikhe to PRESERVE karo.
+   - **(2026-07-05) Deploy target = user-confirmed**: host/IP user ke message se confirm hona chahiye (docs se uthaya hua target user ko bata ke haan lo) — permission classifier bhi yahi enforce karta hai.
    - **Automation/worker code badla** (`team_scheduler.py` · `self_improve.py` · `worker.py` · `staff_jobs.py` · scheduled engines) → sirf `app` recreate KAAFI NAHI — `worker`/`scheduler` purana code chalate rehte. Build + recreate **app + worker + worker-heavy + scheduler** (`--profile celery up -d --no-deps app worker worker-heavy scheduler`). Pure frontend/page change = sirf `app`.
    - **Repeated worker recreate (ek session me 3-5×) = celery flood risk**: `self_improve_tick` self-requeue chain multiply ho sakti (`acks_late` redelivery + revive). Recreate ke baad `docker exec leadgen_redis redis-cli llen celery` check — >800 = `redis-cli del celery` (beat re-schedules, revive 1 chain re-seed). `saturday_hygiene` job auto-trims.
 

@@ -31,3 +31,5 @@ Rohan roz 10:30 IST max 25 MX-verified emails bhejta (`app/platform/auto_outreac
 Template change ke baad: `pytest tests/ -k outreach` green · spam-smell check (caps/emoji/links ≤1) · `OUTREACH_AB` variant count balanced · live me reply-rate `reply_agent` triage se dekho.
 
 Adapted from coreyhaines31/marketingskills (via VoltAgent/awesome-agent-skills)
+
+> Cross-link (2026-07-05): generic copy-craft rules ka authoritative source = `cold-email` skill — yahan sirf India/project-specific deltas rakho.

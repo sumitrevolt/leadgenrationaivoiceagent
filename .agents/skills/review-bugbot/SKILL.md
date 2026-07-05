@@ -2,7 +2,7 @@
 name: review-bugbot
 description: Bug-focused code review of local changes (Bugbot-style). Use when user asks for /review-bugbot, bug review, or pre-merge defect scan.
 ---
-# Review Bugbot (Codex)
+# Review Bugbot (Claude Code)
 
 ## Option A — Task subagent (Cursor parity)
 
@@ -18,7 +18,7 @@ Custom Instructions: <user extras>
 
 Default `Diff: branch changes`. Don't compute diff yourself — subagent does.
 
-## Option B — No subagent (Codex CLI)
+## Option B — No subagent (Claude Code CLI)
 
 1. `git diff` / `git diff main...HEAD`
 2. Follow `self-code-review` + `systematic-debugging` checklists

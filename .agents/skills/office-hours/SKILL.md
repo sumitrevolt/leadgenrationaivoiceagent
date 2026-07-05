@@ -21,7 +21,7 @@ Jab user bole:
 ```bash
 git branch --show-current
 git log --oneline -10
-cat AGENTS.md | head -50
+cat CLAUDE.md | head -50
 ```
 
 User ka current product context pado: Marketing SaaS + Voice Agent, 39 builtin niches, FastAPI/Python, live at leadsgenai.in.
@@ -100,4 +100,4 @@ Include: Problem, User (specific), Solution, MVP scope, Success metric.
 - Sab questions Hinglish mein poochho
 - Generic "local businesses ke liye helpful hoga" = push back karo
 - Revenue impact of each decision frame karo (₹ terms mein)
-- Context yaad rakho: DO alag products (Marketing = main, Voice = standalone — koi bundle framing NAHI), 39 builtin niches, live pipeline numbers `/app/admin` se lo (AGENTS.md me count nahi)
+- Context yaad rakho: DO alag products (Marketing = main, Voice = standalone — koi bundle framing NAHI), 39 builtin niches, live pipeline numbers `/app/admin` se lo (CLAUDE.md me count nahi)

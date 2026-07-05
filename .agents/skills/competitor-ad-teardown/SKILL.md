@@ -14,7 +14,7 @@ Product-1 (AI Marketing) ke liye: competitor ki **live ads + landing copy** se h
 | **LinkedIn Ads** | company Page → "Ads" tab | B2B ad copy |
 | Landing pages | competitor URL → `/site-audit` (apna lead-magnet) | offer, CTA, proof, pricing framing |
 
-> **Apni ToS rule:** justdial/indiamart/linkedin auto-SCRAPE blocked (AGENTS.md). Yahan = **manual/public-API read** of ad libraries (these are PUBLIC by design) — scraping pipeline mat banao, browse + extract.
+> **Apni ToS rule:** justdial/indiamart/linkedin auto-SCRAPE blocked (CLAUDE.md). Yahan = **manual/public-API read** of ad libraries (these are PUBLIC by design) — scraping pipeline mat banao, browse + extract.
 
 ## Teardown checklist (har ad pe)
 1. **Hook** — pehli line / thumbnail text (scroll-stopper).
