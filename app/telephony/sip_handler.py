@@ -316,11 +316,21 @@ class SIPHandler:
         on_answer: OnAnswerCallback | None,
     ) -> CallResult:
         """
-        STUB: originate via self-hosted Asterisk ARI.
+        TOMBSTONE — self-hosted Asterisk ARI originate was never implemented.
 
-        To enable the truly-cheapest path, run Asterisk with PJSIP registered to
-        your SIP trunk and the ARI HTTP interface enabled, then implement an
-        originate here, e.g.:
+        STATUS: intentionally inert; always returns a ``not_configured``
+        CallResult (behaviour unchanged — no dial, no crash).
+        WHY KEPT: API-surface compat — the self-hosted "cheapest SIP" path is
+        documented and `place_call` references this method's shape, so the stub
+        stays as a clearly-labelled extension point rather than a silent gap.
+        REAL PATH: Vobiz is the primary (and only live) telephony provider
+        (ADR-005, 2026-06-18; Exotel deleted). SIP/ARI is a future
+        cost-optimisation option, not a wired path.
+        Ref: docs/GAP_REGISTER_2026_07_05.md R-27.
+
+        To enable the truly-cheapest path some day, run Asterisk with PJSIP
+        registered to your SIP trunk and the ARI HTTP interface enabled, then
+        implement an originate here, e.g.:
 
             POST {SIP_HOST}/ari/channels
                 ?endpoint=PJSIP/{to_number}@trunk

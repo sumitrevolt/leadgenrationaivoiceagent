@@ -146,10 +146,17 @@ class _VobizAdapter:
 
 
 class _PlivoAdapter:
-    """Plivo stub — no existing handler yet.
+    """Plivo adapter — TOMBSTONE (never implemented, intentionally inert).
 
-    The adapter is registered so the abstraction is ready when creds and a
-    handler are added. Until then it always reports unavailable.
+    STATUS: no Plivo handler was ever written; this adapter always reports
+    unavailable and its place_call() always returns a not-implemented result.
+    WHY KEPT: API-surface compat — it is registered in ``_ADAPTERS`` so the
+    multi-carrier abstraction stays uniform and the priority list can reference
+    "plivo" without a KeyError; ready to flip if a real handler is ever added.
+    REAL PATH: Vobiz is the primary (and only live) telephony provider
+    (ADR-005, 2026-06-18; Exotel deleted, Twilio = intl-only fallback). Do not
+    wire Plivo without an explicit decision.
+    Ref: docs/GAP_REGISTER_2026_07_05.md R-27.
     """
 
     name = "plivo"
@@ -174,6 +181,10 @@ class _PlivoAdapter:
             return False
 
     async def place_call(self, to: str, from_: str, **kw: Any) -> dict:
+        """TOMBSTONE — never dials. Returns a not-implemented result (behaviour
+        unchanged). Plivo has no handler; Vobiz is the real path (ADR-005).
+        Ref: GAP_REGISTER R-27.
+        """
         return {
             "ok": False,
             "reason": "plivo: not implemented — add app/telephony/plivo_handler.py to activate",

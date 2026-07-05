@@ -1,8 +1,9 @@
 """Zoho CRM integration — Indian SMB ka #1 CRM (native sync, FREE tier friendly).
 
 OAuth2 refresh-token flow, **India DC default** (accounts.zoho.in / zohoapis.in).
-hubspot.py ke ZohoCRMIntegration placeholder ka REAL implementation (alag module —
-placeholder untouched, ye use karo).
+Canonical `ZohoCRMIntegration` (legacy import-name) BHI isi module me rehta hai
+(R-28, 2026-07-05) — hubspot.py sirf usse re-export karta hai (backward-compat).
+Naya CRM logic yahan hi likho; hubspot.py me duplicate mat banao.
 
 GATED: creds bina = inert (enabled False, sab methods None/False). NEVER raises.
 Creds: per-client override (client record `crm` dict) YA global settings/env
@@ -198,4 +199,73 @@ class ZohoCRM:
             return False
 
 
-__all__ = ["ZohoCRM"]
+class ZohoCRMIntegration:
+    """Canonical legacy-name wrapper around :class:`ZohoCRM` (R-28, 2026-07-05).
+
+    Yeh pehle hubspot.py me ek duplicate placeholder tha; ab single source of
+    truth yahan hai aur hubspot.py isse re-export karta hai (purane
+    `from app.integrations.hubspot import ZohoCRMIntegration` imports ke liye).
+    Real usage generally `crm_sync.push_lead()` / lead_delivery hai jo ZohoCRM
+    ko direct use karte hain — yeh wrapper sirf import-name compat ke liye.
+
+    GATED: creds bina inert (create_lead None, update_lead/log_call False). NEVER
+    raises.
+    """
+
+    def __init__(self):
+        from app.config import settings
+
+        self.client_id = getattr(settings, "zoho_client_id", "") or ""
+        self.client_secret = getattr(settings, "zoho_client_secret", "") or ""
+        self.refresh_token = getattr(settings, "zoho_refresh_token", "") or ""
+        self._zoho: ZohoCRM | None = None
+        if all([self.client_id, self.client_secret, self.refresh_token]):
+            try:
+                self._zoho = ZohoCRM(
+                    client_id=self.client_id,
+                    client_secret=self.client_secret,
+                    refresh_token=self.refresh_token,
+                )
+                logger.info("🔵 Zoho CRM Integration initialized (via zoho_crm)")
+            except Exception as e:  # pragma: no cover - defensive
+                logger.warning("Zoho CRM init failed: %s", e)
+        else:
+            logger.warning("Zoho CRM credentials not configured")
+
+    async def create_lead(self, lead_data: dict[str, Any]) -> str | None:
+        """Create/upsert a lead in Zoho CRM. Returns record ID or None."""
+        if not self._zoho or not self._zoho.enabled:
+            return None
+        try:
+            return await self._zoho.upsert_lead(lead_data)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("Zoho create_lead failed: %s", e)
+            return None
+
+    async def update_lead(self, lead_id: str, data: dict[str, Any]) -> bool:
+        """Update a lead record in Zoho."""
+        if not self._zoho or not self._zoho.enabled:
+            return False
+        try:
+            # upsert with explicit Id field for update
+            payload = {**data, "Id": lead_id}
+            result = await self._zoho.upsert_lead(payload)
+            return bool(result)
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("Zoho update_lead failed: %s", e)
+            return False
+
+    async def log_call(self, lead_id: str, call_data: dict[str, Any]) -> bool:
+        """Log a call activity note in Zoho against a lead."""
+        if not self._zoho or not self._zoho.enabled:
+            return False
+        try:
+            note = call_data.get("summary") or call_data.get("notes") or str(call_data)[:500]
+            await self._zoho.add_note(lead_id, "LeadGen AI — Call Log", note)
+            return True
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("Zoho log_call failed: %s", e)
+            return False
+
+
+__all__ = ["ZohoCRM", "ZohoCRMIntegration"]
