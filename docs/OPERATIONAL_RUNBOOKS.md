@@ -167,6 +167,8 @@ docker compose -f /opt/leadgen/docker-compose.vps.yml up -d app
 
 ## RB-003: Payment Webhook Failing
 
+> ⚠️ STALE (2026-07-05): Razorpay removed 2026-06-18 — current payment path = manual UPI primary (`UPI_VPA`, `app/platform/upi_config.py`, `GET /api/public/pay-info`) + Stripe international-only. The Razorpay-specific steps below are kept for history; for live UPI/billing incidents use `docs/runbooks/RUNBOOK_BILLING_INCIDENT.md`.
+
 **Indicators**: Dunning emails not sent, subscriptions stuck "pending_payment"  
 **Time-to-fix**: 5 minutes
 
@@ -471,6 +473,8 @@ docker logs leadgen_scheduler | grep "scheduled" | tail -10
 ---
 
 ## RB-007: Call Stream Dropout
+
+> ⚠️ STALE (2026-07-05): Exotel DELETED 2026-06-18 — current telephony = Vobiz primary (India SIP; `/api/webhooks/vobiz/*`, status `GET /api/telephony/vobiz/status`) + Twilio international-only. The Exotel-specific commands below are kept for history; substitute Vobiz status/creds checks.
 
 **Indicators**: Calls disconnect mid-stream, transcription cuts off  
 **Time-to-fix**: 5 minutes
@@ -844,7 +848,7 @@ docker compose -f /opt/leadgen/docker-compose.vps.yml restart app
 ## RB-013: Go-Live / Production Launch Verification
 
 **When**: Major release, first-paid-customer cutover, or post-recovery re-launch.
-**Time-to-fix**: 30 min. **Consolidates** the former `GO_LIVE_CHECKLIST.md` + `DEPLOY_VERIFICATION_CHECKLIST.md` (de-staled — payments are UPI, not Razorpay; roster is 15+ staff; ~840 routes).
+**Time-to-fix**: 30 min. **Consolidates** the former `GO_LIVE_CHECKLIST.md` + `DEPLOY_VERIFICATION_CHECKLIST.md` (de-staled — payments are UPI, not Razorpay; roster is 15+ staff; ~1030 routes, live-verified 2026-07-05; exact = prod_check).
 
 ### STEP 1: Pre-deploy gates (Windows = source of truth)
 ```bash

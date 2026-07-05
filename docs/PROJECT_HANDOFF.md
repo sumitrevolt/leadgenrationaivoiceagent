@@ -15,7 +15,7 @@ LeadGenAI = **do alag SaaS products** chhote Indian local businesses ke liye, ek
 
 - **LIVE:** https://leadsgenai.in (Hostinger VPS Mumbai, Docker).
 - **Repo:** github.com/sumitrevolt/leadgenrationaivoiceagent (`main` branch).
-- **Stack:** FastAPI · Postgres+PgBouncer+Redis · Qdrant · Celery · ~464 Python files · ~753 routes (prod_check) · 50 HTML pages.
+- **Stack:** FastAPI · Postgres+PgBouncer+Redis · Qdrant · Celery · ~464 Python files · ~1030 routes (live-verified 2026-07-05; exact = prod_check) · 50 HTML pages.
 - **AI = 100% FREE stack** (koi paid STT/TTS/LLM nahi — hard user decision).
 - **Status:** Platform live + **marketing tiers sellable + UPI payments LIVE** (`ready_for_first_paid_customer`=true). Voice cold-calling **DLT + Vobiz recharge pe blocked** (neeche dekho).
 - **Visual map:** Architecture Explorer `/app/explorer` (4 views) + product-wise companion `docs/PRODUCT_HANDOFF_SOP.md`.
@@ -158,7 +158,7 @@ FREE pilot: 7 din / 50 calls (`voice_pilot`, ₹0). Niche→band mapping = `app/
 | Container | Docker Compose (`docker-compose.vps.yml` + profiles) |
 | MCP | `/mcp` server mounted (MCP-as-product `/api/mcp-product/v1/*` + A2A card `/.well-known/agent.json`) |
 
-**Route layout (~753 routes; FastAPI first-route-wins):**
+**Route layout (~1030 routes, live-verified 2026-07-05; FastAPI first-route-wins):**
 - Naya marketing feature add karne se pehle: `grep '@router' app/api/marketing.py` — **FastAPI first-route-wins**, duplicate route silently shadow karta. **Godfile-split (06-20):** routes ab `growth_revenue`/`growth_crm`/`growth_deliverability`/`growth_feature_flags` + `marketing_tools`/`marketing_models` + `admin_dashboard_models`/`customer_dashboard_builders` me bhi — duplicate-route grep IN SAB karo.
 - `marketing.html` = 28 tabs · `/app/automation` Mission Control = 28 tabs (Growth Lab = optimizer+experiments) · `/app/growth-tools` = 18 tabs.
 - **RULE:** naya admin feature = UI tab SAATH banao. API-only = adhoora.
@@ -419,7 +419,7 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sab AI free-stack pe — taaki industry-grade features competitor se sasta diye ja sakein (Dhanda/EZO · AdBanao · MyOperator · Vodex · GoHighLevel). Do products: Marketing automation + AI voice telecaller.
 
 ### Current standing (honest assessment)
-- **Platform LIVE + stable:** leadsgenai.in, ~753 routes (prod_check), ~464 py files, 50 pages, Postgres+Celery+Qdrant, 13+ containers, monitoring + self-heal + backups.
+- **Platform LIVE + stable:** leadsgenai.in, ~1030 routes (live-verified 2026-07-05; exact = prod_check), ~464 py files, 50 pages, Postgres+Celery+Qdrant, 13+ containers, monitoring + self-heal + backups.
 - **"Sab free-buildable features DONE"** — SESSION_LOG repeated audits ka verdict (06-20 audit: NO HIGH security defects; speed-to-lead, lead round-robin, revenue analytics MRR/churn/LTV **already built+wired**). Jo bacha = external-blocked (paperwork/approval) YA polish.
 - **Recent (06-20):** **UPI payments LIVE** (admin-config shipped+committed, `ready_for_first_paid_customer`=true) · godfile refactor wave-1 main me merged · Stripe webhook fail-CLOSED + 3 HIGH audit gaps closed · Architecture Explorer + enterprise doc-pack added.
 - **Product 1 (Marketing): sellable + payable ABHI.** UPI live; ab sirf customer-acquisition baaki. Sab content/social/mini-site/lead-capture/AI-image engines live.

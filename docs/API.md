@@ -237,8 +237,8 @@ Upgrade tenant subscription.
 #### POST /api/webhooks/twilio/incoming
 Twilio call webhook endpoint.
 
-#### POST /api/webhooks/exotel/incoming
-Exotel call webhook endpoint.
+#### POST /api/webhooks/vobiz/inbound
+Vobiz inbound call webhook endpoint (India SIP primary; Exotel removed 2026-06-18).
 
 ---
 
