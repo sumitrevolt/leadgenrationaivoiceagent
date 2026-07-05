@@ -134,8 +134,12 @@ def _sanitize_utterance(ut: str) -> str:
     low = ut.lower()
     for marker in _INJECTION_MARKERS:
         if marker in low:
-            # Case-insensitive replacement preserving surrounding text
-            pattern = re.compile(re.escape(marker), re.IGNORECASE)
+            # BUGFIX (2026-07-05): bare-substring match legit shabd garble kar deta
+            # tha ("exact assessment" me "act as" -> "ex[...]sessment"). Word-boundary
+            # se sirf poore words/phrases match hote (same pattern as _ROLE_INJECTION_RE).
+            pattern = re.compile(
+                r"\b" + re.escape(marker) + r"\b", re.IGNORECASE
+            )
             ut = pattern.sub("[...]", ut)
             low = ut.lower()  # re-check on updated string
     return ut
@@ -343,6 +347,13 @@ _POST_CLOSE_AFFIRM_RE = re.compile(
     r"\b(haan|han|ha|ji|ok|okay|theek|thik|yahi|yhi|isi|wahi|same|confirm|kar\s*do|done|bilkul|sahi)\b",
     re.IGNORECASE,
 )
+# BUGFIX (2026-07-05): affirm ke saath sawaal/price-detail signal — caller pehle
+# jawab chahta hai, deal-done nahi. In signals pe post-close skip (jab tak number
+# na ho) taaki bot pehle sawaal ka jawab de, phir wrap kare.
+_POST_CLOSE_QUERY_RE = re.compile(
+    r"(\?|\bkya\b|\bkyu|\bkaise\b|\bkitn|\bprice\b|\bpaisa\b|\brupay|\bcost\b|\bcharge\b|\bbatao\b|\bbata\s*d|\bpehle\b|\bdetail)",
+    re.IGNORECASE,
+)
 
 
 def _is_post_close_reply(ut: str) -> bool:
@@ -351,7 +362,12 @@ def _is_post_close_reply(ut: str) -> bool:
         t = (to_roman(ut or "") or ut or "")[:_MAX_UTTERANCE_CHARS].lower()
         if not t:
             return False
-        return bool(_POST_CLOSE_NUM_RE.search(t) or _POST_CLOSE_AFFIRM_RE.search(t))
+        has_num = bool(_POST_CLOSE_NUM_RE.search(t))
+        # affirm + sawaal par NUMBER nahi → pehle sawaal ka jawab do (wrap mat karo).
+        # Number diya = strong close-signal (contact mila), tab wrap sahi hai.
+        if not has_num and _POST_CLOSE_QUERY_RE.search(t):
+            return False
+        return bool(has_num or _POST_CLOSE_AFFIRM_RE.search(t))
     except Exception:
         return False
 
@@ -1482,13 +1498,17 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             )
 
         # User ne discovery ka jawab diya → mirror + agla unasked sawaal (sawaal ho to skip).
-        # LLM-first nudge (council): auto-advance discovery sirf CHHOTE direct jawab pe;
-        # lambe/rich turn LLM ko do (woh acknowledge + naturally weave kare) — robotic
-        # script-march ka fix.
+        # LLM-first nudge (council): auto-advance discovery sirf BARE-ACK pe;
+        # koi bhi info-carrying jawab LLM ko do (woh acknowledge + naturally weave kare) —
+        # robotic script-march ka fix.
+        # BUGFIX (2026-07-05): threshold <=7 words tha → 4-7 word ke real-info jawab
+        # ("solar panel lagwana hai ghar pe") bhi deterministic canned-ack + scripted
+        # question se intercept ho jaate, LLM tak KABHI nahi pahunchte = noob/robotic.
+        # Ab sirf <=3 word (bare acks: "haan", "theek hai ji", "ok") auto-advance.
         if (
             self._user_substantive(ut)
             and not self._looks_like_question(ut)
-            and len(low.split()) <= 7
+            and len(low.split()) <= 3
         ):
             nxt = self._next_discovery_line(history)
             last = self._last_bot_line(history)
@@ -2576,11 +2596,22 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         if vl:
             lines.append(vl)
         if facts:
-            # KB facts as ONE short line (phone hot path — no paragraphs). Use
-            # only if relevant; never invent numbers/claims beyond these.
-            joined = " | ".join(f.strip() for f in facts if f and f.strip())
+            # KB facts as short line(s) (phone hot path — no paragraphs). Use only
+            # if relevant; never invent numbers/claims beyond these.
+            # BUGFIX (2026-07-05): pehle 2 facts join karke 220 chars pe mid-word
+            # CHOP hote the → aksar ek hi fact ka tukda dikhta (pricing/service
+            # adhoora/vague). Ab har fact word-boundary pe alag trim, combined ~450.
+            trimmed_facts: list[str] = []
+            for f in facts:
+                fs = (f or "").strip()
+                if not fs:
+                    continue
+                if len(fs) > 200:
+                    fs = fs[:200].rsplit(" ", 1)[0] + "…"
+                trimmed_facts.append(fs)
+            joined = " | ".join(trimmed_facts)
             if joined:
-                lines.append(f"FACTS (relevant ho to hi use karo): {joined[:220]}")
+                lines.append(f"FACTS (relevant ho to hi use karo): {joined[:450]}")
         agent = getattr(self, "agent_name", None) or "Swara"
         lines += ["", "CALL ABHI TAK:"]
         for m in turns:
@@ -2642,11 +2673,21 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         except Exception:
             return []
 
-        # gate weak/empty, dedupe, keep top-2 by score
+        # gate weak/empty, dedupe, keep top-2 by score.
+        # BUGFIX (2026-07-05): flat 0.35 gate keyword/TF-IDF fallback backend ke
+        # low-scale cosine scores ko (jinke liye KB ka apna grounding-gate 0.04 hai)
+        # sabko discard kar deta tha → FACTS line prompt tak KABHI nahi pahunchti,
+        # bot generic/ungrounded jawab deta. Ab gate backend-aware: sirf pure-qdrant
+        # namespaces pe 0.35, warna low threshold taaki fallback grounding na starve.
+        try:
+            _backends = {kb.backend(ns) for ns in namespaces}
+        except Exception:
+            _backends = {"keyword"}
+        min_score = _KB_MIN_SCORE if _backends == {"qdrant"} else 0.05
         hits = [
             h
             for h in (hits or [])
-            if (h.get("score") or 0.0) >= _KB_MIN_SCORE and str(h.get("text") or "").strip()
+            if (h.get("score") or 0.0) >= min_score and str(h.get("text") or "").strip()
         ]
         hits.sort(key=lambda h: h.get("score", 0.0), reverse=True)
         facts: list[str] = []
