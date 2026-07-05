@@ -10,12 +10,12 @@
 
 <!-- AUTO-ENV:START -->
 
-## Env Key Index — auto-generated (584 keys)
+## Env Key Index — auto-generated (582 keys)
 
 > Regenerate: `python scripts/env_reference_sync.py` · Drift-check: `--check`. Edits between the AUTO markers are overwritten. **NAMES only — koi value yahan nahi.**
 
-- **Total keys:** 584
-- **Undocumented in `.env.example`** (code me read, example me nahi): 350
+- **Total keys:** 582
+- **Undocumented in `.env.example`** (code me read, example me nahi): 348
 - **Example-only** (`.env.example` me hai, code me kahin read nahi — possibly dead): 25
 
 | KEY | read-via | in .env.example? | in flags registry? | source files |
@@ -48,7 +48,7 @@
 | `AMD_LEAVE_VOICEMAIL` | getenv | no | no | app/telephony/webhooks.py |
 | `ANTHROPIC_API_KEY` | settings | yes | no | app/config.py |
 | `ANTI_LOOP` | getenv | no | no | app/voice_agent/telecaller_brain.py |
-| `APP_ENV` | both | yes | no | app/config.py, app/config_production.py |
+| `APP_ENV` | settings | yes | no | app/config.py |
 | `APP_NAME` | settings | yes | no | app/config.py |
 | `APP_VERSION` | getenv | no | no | app/api/health.py, app/main.py |
 | `AUTOMATION_HEALTH_ALERTS` | getenv | no | yes | app/platform/automation_health.py |
@@ -183,11 +183,9 @@
 | `FLOW_AUTO_TRIGGERS` | - | yes | yes | - |
 | `FLOW_RUNNER` | getenv | yes | yes | app/agents/flow_dispatch.py, app/agents/process_library.py, app/api/admin_ops.py |
 | `FLOW_RUNNER_CUSTOMER` | getenv | no | yes | app/api/customer_flows.py |
-| `FUNCTION_NAME` | getenv | no | no | app/config_production.py |
 | `FWHISPER_LANG` | getenv | no | no | app/api/web_call.py, app/telephony/vobiz_stream.py |
 | `FWHISPER_MODEL` | getenv | no | no | app/telephony/vobiz_stream.py |
 | `FWHISPER_PROMPT` | getenv | no | no | app/api/web_call.py, app/telephony/vobiz_stream.py |
-| `GAE_APPLICATION` | getenv | no | no | app/config_production.py |
 | `GCS_BUCKET_NAME` | settings | yes | no | app/config.py |
 | `GCS_PROFILE_PICTURES_BUCKET` | settings | yes | no | app/config.py |
 | `GEMINI_API_KEY` | both | yes | no | app/config.py, app/telephony/vobiz_stream.py, app/voice_agent/gemini_keys.py |
@@ -199,7 +197,7 @@
 | `GEMINI_TTS_VOICE` | getenv | no | no | app/voice_agent/gemini_tts.py |
 | `GOOGLE_APPLICATION_CREDENTIALS` | getenv | no | no | app/utils/logger.py |
 | `GOOGLE_CLOUD_LOCATION` | both | yes | no | app/config.py, app/voice_agent/free_ai.py |
-| `GOOGLE_CLOUD_PROJECT` | getenv | no | no | app/config_production.py, app/voice_agent/free_ai.py |
+| `GOOGLE_CLOUD_PROJECT` | getenv | no | no | app/voice_agent/free_ai.py |
 | `GOOGLE_CLOUD_PROJECT_ID` | both | yes | no | app/config.py, app/voice_agent/free_ai.py |
 | `GOOGLE_MAPS_API_KEY` | both | yes | no | app/config.py, app/marketing/review_monitor.py, app/platform/grid_rank.py |
 | `GOOGLE_SHEETS_CREDENTIALS` | settings | yes | no | app/config.py |
@@ -248,7 +246,7 @@
 | `KB_WEEKLY_REFRESH` | getenv | no | yes | app/platform/kb_refresh.py |
 | `KOKORO_LANG` | getenv | no | no | app/voice_agent/kokoro_tts.py |
 | `KOKORO_VOICE` | getenv | no | no | app/voice_agent/kokoro_tts.py |
-| `K_SERVICE` | getenv | no | no | app/config_production.py, app/utils/logger.py |
+| `K_SERVICE` | getenv | no | no | app/utils/logger.py |
 | `LEADGEN_API_URL` | getenv | no | no | app/cli.py |
 | `LEADGEN_SCHEDULER_SECRET` | getenv | yes | no | app/api/team.py |
 | `LEAD_HARVESTER` | getenv | yes | yes | app/platform/lead_harvester.py |
