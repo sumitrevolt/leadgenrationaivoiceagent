@@ -228,6 +228,49 @@ def _try_activate(
         return False
 
 
+def _fire_gst_invoice(client_id: str, plan: str, amount: float = 0) -> None:
+    """Best-effort GST invoice on a successful UPI activation — parity with the
+    Stripe path (``billing._provision_usage`` → ``gst_invoice.on_payment_success``).
+    Without this a UPI-paying customer got NO invoice record (audit 2026-07-05:
+    real paying client had a live plan but zero downloadable bill). Record hamesha
+    banta; email sirf ``AUTO_INVOICE=1`` pe (that gate lives inside on_payment_success).
+
+    ``payment_ref`` = client + plan + month so monthly renewals each get one invoice
+    and a double-approve/re-activate of the SAME month dedupes (``_already_invoiced``).
+
+    on_payment_success is ``async``; this helper runs from SYNC callers (submit auto-
+    activate + admin decide), so we prefer scheduling on a running loop when one
+    exists and otherwise run it to completion. NEVER raises — a billing hiccup must
+    never break the activation/onboarding that already succeeded.
+    """
+    try:
+        cid = (client_id or "").strip()
+        plan_k = (plan or "").strip()
+        if not cid or not plan_k:
+            return
+        import asyncio as _aio
+
+        from app.billing import gst_invoice
+
+        _ref = f"upi:{cid}:{plan_k}:{datetime.now(timezone.utc):%Y-%m}"
+        _amt = float(amount or 0) or None
+        coro = gst_invoice.on_payment_success(
+            cid, plan_k, payment_ref=_ref, gateway="upi", amount_inr=_amt
+        )
+        try:
+            _loop = _aio.get_running_loop()
+        except RuntimeError:
+            _loop = None
+        if _loop is not None:
+            # Async context (called from within a request coroutine) — schedule it.
+            _loop.create_task(coro)
+        else:
+            # Pure-sync caller (Celery worker / admin CLI) — run to completion.
+            _aio.run(coro)
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("upi_payments gst invoice hook skipped: %s", e)
+
+
 def _trigger_onboarding() -> None:
     """Front-run the hourly onboarding sweep so a just-activated client gets their
     KB seed + first content pack in seconds, not up to an hour. Best-effort: enqueues
@@ -326,6 +369,8 @@ def submit_payment(
                 # Just activated → front-run onboarding so output lands in seconds.
                 _trigger_onboarding()
                 _mark_deal_won(record.get("payer_contact", ""))
+                # GST invoice parity with Stripe path (best-effort, never-raise).
+                _fire_gst_invoice(cid, plan_s, amount)
                 # No real bank/UPI verification backs this instant activation —
                 # nudge the founder to spot-check (council decision 2026-07-03:
                 # ship UPI_AUTO_ACTIVATE's speed, pair it with a reconciliation
@@ -404,6 +449,12 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
                 # pack) instead of waiting for the hourly sweep.
                 _trigger_onboarding()
                 _mark_deal_won(record.get("payer_contact", ""))
+                # GST invoice parity with Stripe path (best-effort, never-raise).
+                _fire_gst_invoice(
+                    record.get("client_id", ""),
+                    record.get("plan", ""),
+                    record.get("amount", 0),
+                )
             else:
                 # Approved but activation did NOT succeed (unknown plan / activation
                 # error) → revenue-critical SILENT failure: alert ops (best-effort).
