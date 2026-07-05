@@ -1,5 +1,8 @@
 # Research & Knowledge Docs Index (2026-06-19)
 
+> ⚠️ **MASTER ENTRY-POINT = `docs/HANDOFF.md`** (2026-07-05 docs-index consolidation, R-04) —
+> ye index SIRF research/knowledge docs ka scope rakhta hai, project ka master index nahi hai.
+
 Active research docs (web-sourced, cross-check with `CLAUDE.md` + code before trusting):
 
 | Doc | Use |

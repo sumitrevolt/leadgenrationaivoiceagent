@@ -1,5 +1,10 @@
 # Enterprise Documentation Index — LeadGenAI
 
+> ⚠️ **MASTER ENTRY-POINT = `docs/HANDOFF.md`** (2026-07-05 docs-index consolidation, R-04) —
+> naya operator/session WAHI se start kare, ye doc nahi. Ye index SIRF enterprise-pack
+> (minimum-10) ka map hai. Facts conflict karein (route count, stack) to HANDOFF.md + code
+> wins — is doc ke numbers stale ho sakte hain. Repo-mess/gaps tracker = `GAP_REGISTER_2026_07_05.md`.
+
 > **Purpose:** Single map of the **minimum 10-doc enterprise pack** + supporting docs. Naya owner / investor / enterprise client ko yahi se start karo.
 > **Live:** https://leadsgenai.in · **Repo:** github.com/sumitrevolt/leadgenrationaivoiceagent
 > **Updated:** 2026-06-21 (SWARA handoff sync + marketing tier features)
