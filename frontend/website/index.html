@@ -78,6 +78,7 @@
   .nav-links a.link:hover{color:var(--ink)}
   .nav-cta{display:flex;align-items:center;gap:12px}
   .nav-cta a.login{font-size:.95rem;font-weight:600;color:var(--ink)}
+  .nav-links .login-menu-item{display:none} /* sirf mobile menu me dikhta hai */
   .menu-btn{display:none;background:none;border:none;cursor:pointer;flex-direction:column;gap:5px;padding:8px}
   .menu-btn span{width:24px;height:2px;background:var(--ink);border-radius:2px;transition:.3s}
 
@@ -281,10 +282,14 @@
   }
   @media(max-width:720px){
     .nav-links{display:none}
-    .nav-cta .login{display:none}
+    /* Mobile: Login VISIBLE rakho (customer login nahi dhundh pa raha tha) — header CTA hide, hero me same CTA hai */
+    .nav-cta .btn-primary{display:none}
+    .nav-cta{gap:8px}
+    .nav-cta a.login{display:inline-flex;align-items:center;font-size:.92rem;padding:8px 14px;border:1.5px solid var(--line);border-radius:10px;color:var(--indigo)}
     .menu-btn{display:flex}
     .nav-links.open{display:flex;position:absolute;top:72px;left:0;right:0;flex-direction:column;background:#fff;padding:18px 22px;gap:14px;border-bottom:1px solid var(--line);box-shadow:var(--shadow-sm)}
     .nav-links.open a.link{color:var(--ink)}
+    .nav-links.open a.login-menu-item{display:block;font-weight:700;color:var(--indigo);border-top:1px solid var(--line);padding-top:14px}
     .features,.tcards,.pricing-grid,.steps{grid-template-columns:1fr}
     .foot-grid{grid-template-columns:1fr 1fr}
     section.block{padding:60px 0}
@@ -311,6 +316,7 @@
       <a class="link" href="#niches">Niches</a>
       <a class="link" href="#pricing">Pricing</a>
       <a class="link" href="#faq">FAQ</a>
+      <a class="link login-menu-item" href="/app/login">👤 Login — apna dashboard kholo</a>
     </nav>
     <div class="nav-cta">
       <a class="login" href="/app/login">Login</a>
