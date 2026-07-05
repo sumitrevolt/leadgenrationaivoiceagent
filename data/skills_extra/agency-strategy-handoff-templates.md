@@ -1,3 +1,8 @@
+---
+name: agency-strategy-handoff-templates
+description: Standardized agent-to-agent handoff templates — standard handoff, QA pass/fail loops, escalation, phase gate, sprint, incident.
+---
+
 # 📋 NEXUS Handoff Templates
 
 > Standardized templates for every type of agent-to-agent handoff in the NEXUS pipeline. Consistent handoffs prevent context loss — the #1 cause of multi-agent coordination failure.

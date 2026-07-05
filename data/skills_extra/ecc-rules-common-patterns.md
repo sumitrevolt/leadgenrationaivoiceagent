@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-patterns
+description: ECC common rule — skeleton/common patterns.
+---
+
 # Common Patterns
 
 ## Skeleton Projects

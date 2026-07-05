@@ -1,3 +1,8 @@
+---
+name: agency-strategy-agent-activation-prompts
+description: Ready-to-use prompt templates for activating agents in the NEXUS pipeline (orchestrator, engineering, design, testing, product, support).
+---
+
 # 🎯 NEXUS Agent Activation Prompts
 
 > Ready-to-use prompt templates for activating any agent within the NEXUS pipeline. Copy, customize the `[PLACEHOLDERS]`, and deploy.

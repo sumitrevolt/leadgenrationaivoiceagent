@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-agents
+description: ECC common rule — agent orchestration patterns.
+---
+
 # Agent Orchestration
 
 ## Available Agents

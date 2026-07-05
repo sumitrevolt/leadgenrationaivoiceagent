@@ -1,3 +1,8 @@
+---
+name: agency-strategy-scenario-incident-response
+description: Runbook: production incident response scenario.
+---
+
 # 🚨 Runbook: Incident Response
 
 > **Mode**: NEXUS-Micro | **Duration**: Minutes to hours | **Agents**: 3-8

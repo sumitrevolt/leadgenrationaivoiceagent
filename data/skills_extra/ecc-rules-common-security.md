@@ -1,3 +1,8 @@
+---
+name: ecc-rules-common-security
+description: ECC common rule — mandatory pre-commit security checks.
+---
+
 # Security Guidelines
 
 ## Mandatory Security Checks

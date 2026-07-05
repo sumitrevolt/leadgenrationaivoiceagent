@@ -1,4 +1,6 @@
 ---
+name: ecc-rules-python-patterns
+description: ECC python rule — common python patterns.
 paths:
   - "**/*.py"
   - "**/*.pyi"

@@ -1,4 +1,6 @@
 ---
+name: ecc-rules-python-testing
+description: ECC python rule — python testing rules.
 paths:
   - "**/*.py"
   - "**/*.pyi"

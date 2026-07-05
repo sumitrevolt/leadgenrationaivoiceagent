@@ -45,8 +45,27 @@
 - `.agents/skills` me 52 shared files PURANE hain (aaj ke SOP upgrades + ye audit-fixes bhi sirf `.claude` me hain), 12 skills `.claude`-only (enterprise-hardening set kabhi mirror nahi hua), 23 `.agents`-only (generic vendored — intentional).
 - **Recommendation**: ya to ek sync-script banao (`.claude` → `.agents` one-way, `.agents`-only 23 ko chhod ke), ya `.agents` ke shared copies ko delete karke Dockerfile me sirf `.claude` COPY rakho (runtime `skill_pack.py` dono padhta hai — duplication ka koi faida nahi). Alag task.
 
-## Out of scope (is pass me nahi — silent skip nahi hai)
+---
 
-- `data/skills_extra/` ke 181 flat files (content-review nahi hua; format-wise skill_pack inhe padhta hai).
-- `.agents/skills` ke 23 generic vendored skills (project-facts nahi rakhte — staleness risk low).
+# Part 2 — `data/skills_extra/` (181 flat files) — same din, dusra pass
+
+**Method:** wahi (14 audit-agents, corrected truth-sheet — voice_packages path fix ke saath, adversarial verify). ~1.25M subagent tokens.
+
+| Metric | Count |
+|---|---|
+| Files audited | 181 |
+| Clean | 150 |
+| High | **0** (koi operational-risk staleness nahi — expected: zyada tar generic personas/rules) |
+| Findings fixed | 30 (29 frontmatter + 1 dead-reference) |
+
+**Kya mila/fixa:**
+- **29 files me frontmatter missing/incomplete** — 13 NEXUS strategy playbooks (`agency-strategy-*`: bina `---` block ke shuru hoti thin) + 10 `ecc-rules-common-*` (koi frontmatter nahi) + 6 `ecc-rules-python-*` (sirf `paths:` tha, `name:`/`description:` nahi). In sab me `skill_pack.py` discovery ke liye name+description add hua. Post-fix verify: **saare 181 valid**.
+- **`agency-engineering-senior-developer`** — 4 dead `ai/system/...`/`ai/agents/...` references (kisi aur Laravel/FluxUI template se aaye the; wo files is repo me kabhi nahi thin) — hata diye, note ke saath.
+- Project-fact staleness: **zero** — extras me pricing/deploy/container claims the hi nahi (generic content), isliye Part-1 jaisi factual drift yahan nahi mili.
+
+**Deploy note:** `data/` bind-mounted hai — ye fixes VPS pe sirf `git reset` se LIVE ho jate hain, rebuild nahi chahiye.
+
+## Out of scope (poore audit ke baad bhi)
+
+- `.agents/skills` ke 23 generic vendored skills (project-facts nahi rakhte — staleness risk low) + mirror-drift decision (upar).
 - Brain-vault (`leadsgenai-brain/Skills/`) — nightly-bot territory.
