@@ -147,6 +147,101 @@ async def _send_email(subject: str, body: str) -> bool:
         return False
 
 
+def _client_alert_enabled() -> bool:
+    """CLIENT_HOT_LEAD_ALERT default ON (=1). '0'/'false'/'no' se OFF."""
+    return os.environ.get("CLIENT_HOT_LEAD_ALERT", "1").strip().lower() not in ("0", "false", "no")
+
+
+def _client_dedupe_key(rec: dict[str, Any], client: dict[str, Any]) -> str:
+    """Per-(client|lead) dedupe key — same lead ke liye client ko double WA na jaye.
+    lead id na ho to phone pe fall back (admin dedupe wala hi phone digits)."""
+    cid = str(client.get("id") or rec.get("client_id") or "").strip()
+    lead_marker = str(
+        rec.get("lead_id") or rec.get("id") or _digits(rec.get("phone") or "")
+    ).strip()
+    return f"client:{cid}:{lead_marker}"
+
+
+def _client_recently_alerted(key: str) -> bool:
+    """Is client-lead marker ka WA alert pichhle 1 ghante me gaya? (same store scan)."""
+    try:
+        if not key or not os.path.isfile(_PATH):
+            return False
+        cutoff = time.time() - _DEDUPE_SECONDS
+        with open(_PATH, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                if r.get("client_key") == key and float(r.get("epoch") or 0) >= cutoff:
+                    return True
+        return False
+    except Exception:
+        return False
+
+
+def _client_owner_text(rec: dict[str, Any], client: dict[str, Any]) -> str:
+    """Client-owner ke liye chhota Hinglish WA alert (naam/phone/wa.me)."""
+    name = str(rec.get("name") or "Naya lead").strip()[:80]
+    phone_d = _digits(rec.get("phone") or "")
+    source = str(
+        rec.get("source") or rec.get("source_slug") or rec.get("utm_source") or "website"
+    ).strip()[:60]
+    msg = str(rec.get("message") or "").strip()[:200]
+    wa = f"https://wa.me/91{phone_d[-10:]}" if len(phone_d) >= 10 else ""
+    lines = [
+        "🔥 Naya lead aaya hai — 5 min me call/WhatsApp = 9x conversion!",
+        f"👤 {name}",
+        f"📞 {phone_d or 'nahi mila'}",
+        f"📍 Source: {source}",
+    ]
+    if msg:
+        lines.append(f"💬 {msg}")
+    if wa:
+        lines.append(f"➡️ {wa}")
+    return "\n".join(lines)
+
+
+async def _notify_client_owner(rec: dict[str, Any], client: dict[str, Any]) -> bool:
+    """Lead ka client_id ho to us CLIENT ke owner ko bhi WA alert bhejo (promised
+    'Hot-lead instant alert'). Gated CLIENT_HOT_LEAD_ALERT (default ON), 1 msg/lead
+    (per-client-lead dedupe), client-phone na ho to no-op. KABHI raise nahi karta."""
+    try:
+        if not _client_alert_enabled():
+            return False
+        if not isinstance(client, dict) or not client:
+            return False
+        owner_phone = str(client.get("phone") or "").strip()
+        if not owner_phone:
+            return False
+        key = _client_dedupe_key(rec, client)
+        if _client_recently_alerted(key):
+            return False
+        # pehle log (double-send window chhota), fir send.
+        _log_alert(
+            {
+                "ts": _now_iso(),
+                "epoch": time.time(),
+                "client_key": key,
+                "channel": "client_whatsapp",
+            }
+        )
+        from app.integrations.whatsapp import get_whatsapp_sender
+
+        sender = get_whatsapp_sender()  # dual-engine: self-host (WAHA) ya Cloud API
+        if sender is None:
+            return False
+        res = await sender.send_text_message(owner_phone, _client_owner_text(rec, client))
+        return not (isinstance(res, dict) and res.get("error"))
+    except Exception as e:
+        logger.debug(f"lead_alerts client owner notify skipped: {e}")
+        return False
+
+
 async def _do_notify(rec: dict[str, Any]) -> dict[str, Any]:
     client = _lookup_client(rec)
     subject, body = _alert_text(rec, client)
@@ -154,9 +249,16 @@ async def _do_notify(rec: dict[str, Any]) -> dict[str, Any]:
         em = await _send_email(subject, body)
     except Exception:
         em = False
+    # Lead record me client_id ho to us client ke owner ko bhi turant WA ping
+    # (platform admin ke alawa). Never-raise, gated CLIENT_HOT_LEAD_ALERT.
+    try:
+        client_wa = await _notify_client_owner(rec, client)
+    except Exception:
+        client_wa = False
     return {
         "ok": True,
         "email_sent": em is True,
+        "client_notified": client_wa is True,
         "deduped": False,
     }
 

@@ -229,7 +229,8 @@ def _hashtags_for(niche: str, seed_tags: list[str] | None = None) -> list[str]:
         if not t.startswith("#"):
             t = "#" + re.sub(r"\s+", "", t)
         low = t.lower()
-        if low not in seen and len(t) > 1:
+        # len>=3 => '#' + kam-se-kam 2 chars (truncated "#H" jaise tags drop).
+        if low not in seen and len(t) >= 3:
             seen.add(low)
             out.append(t)
 
@@ -350,22 +351,39 @@ def _template_post(business_name: str, niche: str, occasion: str, offer: str) ->
 # LLM output parsing (lenient — free models format bhatka dete hain)
 # ============================================================================ #
 
-_TAG_RE = r"#[\wऀ-ॿ]+"
+# Tag must have >=2 chars after '#' (total len>=3) — kills truncated "#H" leaks.
+_TAG_RE = r"#[\wऀ-ॿ]{2,}"
+
+# Markdown decoration (`**`, `_`, `#`) LLMs keyword ke aas-paas daal dete hain
+# (e.g. "**HASHTAGS:**") — markers tolerant + caption/image edges se * _ " strip.
+_DECOR = r"[*_#\s]*"
+_EDGE_STRIP = re.compile(r'^[\s*_"]+|[\s*_"]+$')
 
 
 def _parse_llm_post(text: str) -> tuple[str, list[str], str]:
-    """CAPTION:/HASHTAGS:/IMAGE: markers parse karo; na milein to lenient mode."""
+    """CAPTION:/HASHTAGS:/IMAGE: markers parse karo; na milein to lenient mode.
+
+    Markdown-bold markers (`**HASHTAGS:**`) bhi handle hote hain — warna caption
+    lookahead fail ho ke poora hashtag-block caption me leak karta (real bug)."""
     caption, hashtags, image_idea = "", [], ""
     try:
-        m = re.search(r"CAPTION\s*:\s*(.+?)(?=\n\s*(?:HASHTAGS?|IMAGE)\s*:|\Z)", text, re.S | re.I)
+        m = re.search(
+            rf"CAPTION{_DECOR}:\s*(.+?)(?=\n\s*{_DECOR}(?:HASHTAGS?|IMAGE){_DECOR}:|\Z)",
+            text,
+            re.S | re.I,
+        )
         if m:
-            caption = m.group(1).strip().strip('"').strip()
-        m = re.search(r"HASHTAGS?\s*:\s*(.+?)(?=\n\s*IMAGE\s*:|\Z)", text, re.S | re.I)
+            caption = _EDGE_STRIP.sub("", m.group(1).strip())
+        m = re.search(
+            rf"HASHTAGS?{_DECOR}:\s*(.+?)(?=\n\s*{_DECOR}IMAGE{_DECOR}:|\Z)",
+            text,
+            re.S | re.I,
+        )
         if m:
             hashtags = re.findall(_TAG_RE, m.group(1))
-        m = re.search(r"IMAGE\s*:\s*(.+)", text, re.I)
+        m = re.search(rf"IMAGE{_DECOR}:\s*(.+)", text, re.I)
         if m:
-            image_idea = m.group(1).strip().splitlines()[0].strip()
+            image_idea = _EDGE_STRIP.sub("", m.group(1).strip().splitlines()[0].strip())
 
         if not caption:
             # Markers nahi mile — hashtags hata ke bacha text hi caption hai.
@@ -477,7 +495,7 @@ async def generate_post(
             text, provider = await free_ai.chat(
                 system,
                 [{"role": "user", "content": user}],
-                max_tokens=350,
+                max_tokens=500,  # 350->500: truncation ("CAP") kam karo
                 temperature=0.85,
             )
             if text and text.strip():
@@ -485,7 +503,8 @@ async def generate_post(
         except Exception as e:  # free_ai.chat khud nahi raise karta, par safety
             logger.warning(f"generate_post LLM step failed, using template: {e}")
 
-    if not caption.strip():
+    # Truncated fragment ("CAP") = usable caption nahi — template pe fall back.
+    if len(caption.strip()) < 20:
         return _template_post(business_name, niche, occasion, offer)
 
     # LLM chala — missing pieces template stock se top-up karo.
