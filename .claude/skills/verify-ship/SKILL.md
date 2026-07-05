@@ -44,9 +44,11 @@ Ready to ship: YES/NO
 
 1. Verify full PASS
 2. Commit (user asked) — simple message, no secrets
+2b. (2026-07-05) `git log origin/main..HEAD` — foreign/automation commits inspect karo (background automation branch pe commit karti hai)
 3. Push: `C:\PROGRA~1\Git\cmd\git.exe`
 4. VPS:
 ```bash
+# DRIFT-CHECK pehle (hostinger-deploy Step-0) — VPS tree dirty ho sakta hai
 ssh -i ~/.ssh/id_rsa root@72.61.245.204
 cd /opt/leadgen && git reset --hard origin/main -q
 docker compose -f docker-compose.vps.yml build app

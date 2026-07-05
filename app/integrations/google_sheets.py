@@ -147,7 +147,7 @@ class GoogleSheetsIntegration:
             # Create or get Leads sheet
             try:
                 sheet = await asyncio.to_thread(spreadsheet.worksheet, "Leads")
-            except:
+            except Exception:  # worksheet missing -> create (intentional fallback)
                 sheet = await asyncio.to_thread(
                     spreadsheet.add_worksheet, title="Leads", rows=1000, cols=len(self.LEAD_HEADERS)
                 )
@@ -327,7 +327,7 @@ class GoogleSheetsIntegration:
 
             try:
                 sheet = await asyncio.to_thread(spreadsheet.worksheet, "Call Logs")
-            except:
+            except Exception:  # worksheet missing -> create (intentional fallback)
                 sheet = await asyncio.to_thread(
                     spreadsheet.add_worksheet,
                     title="Call Logs",

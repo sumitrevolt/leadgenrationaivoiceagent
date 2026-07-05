@@ -7,7 +7,7 @@ templates.
 
 ## Standing facts (every runbook assumes these)
 - **App** = Docker container `leadgen_app` :8000 (`docker compose -f docker-compose.vps.yml`).
-- **Workers** = `leadgen_worker` (Celery, concurrency=4) + `leadgen_scheduler` (beat) — `--profile celery`.
+- **Workers** = `leadgen_worker` + `leadgen_worker_heavy` (Celery) + `leadgen_scheduler` (beat) — `--profile celery`. Sahayak: `leadgen_postiz` (social) + `leadgen_waha` (WhatsApp). (2026-07-05)
 - **Data** = Postgres `leadgen_db` via PgBouncer `pgbouncer:6432` + Redis `leadgen_redis` :6379 + Qdrant :6333.
 - **SSH** (from Windows): `C:\PROGRA~1\Git\usr\bin\ssh.exe -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204`
 - **Health gate:** `GET /health` must return `environment:production`. `GET /health/ready` checks DB+Redis pool.
@@ -24,6 +24,8 @@ templates.
 | 5 | [Duplicate Outreach](RUNBOOK_DUPLICATE_OUTREACH.md) | lead contacted twice / opted-out contacted |
 | 6 | [Security Incident](RUNBOOK_SECURITY_INCIDENT.md) | leaked secret, intrusion, DSAR, abuse |
 | 7 | [Production Deploy Failure](RUNBOOK_PRODUCTION_DEPLOY_FAILURE.md) | deploy breaks health / 404 / 502 |
+
+> Naye operator ke liye entry-point: [docs/HANDOFF.md](../HANDOFF.md)
 
 ## Incident process (all runbooks)
 1. **Detect** (alert / probe / report).  2. **Declare** if customer impact — assign one owner.
