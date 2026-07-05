@@ -1820,19 +1820,40 @@ class VobizStreamSession:
                 logger.warning(f"[vobiz-stream] TelecallerBrain failed: {e}")
 
         # 2) LLMBrain — heavier generic brain (ML/RAG path).
+        # COMPLIANCE PARITY (2026-07-05): TelecallerBrain (step 1) aur NDM (step 3)
+        # guarded hain, par LLMBrain fallback ZERO guards pe chalta tha — injection
+        # deflect + PII-leak/disclosure post-check koi nahi (web↔vobiz parity gap).
+        # Ab: PRE-input injection check (block -> skip LLMBrain, NDM pe girao jo safe
+        # deflect karta), POST-output safety+PII-redact (check_output).
         brain = self._get_brain()
         if brain is not None:
             try:
-                reply = await brain.generate_response(
-                    conversation_history=self.hist,
-                    niche=self.niche,
-                    client_name=self.client_name,
-                    client_service=self.niche,
-                )
-                if reply and str(reply).strip():
-                    return str(reply).strip()
-            except Exception as e:
-                logger.warning(f"[vobiz-stream] LLM failed: {e}")
+                from app.voice_agent.guardrails import get_guardrails
+
+                _g = get_guardrails()
+                gin = _g.check_input(text or "")
+            except Exception:
+                _g, gin = None, None
+            if _g is None or gin is None or gin.allowed:
+                try:
+                    reply = await brain.generate_response(
+                        conversation_history=self.hist,
+                        niche=self.niche,
+                        client_name=self.client_name,
+                        client_service=self.niche,
+                    )
+                    if reply and str(reply).strip():
+                        safe = str(reply).strip()
+                        if _g is not None:
+                            try:
+                                gout = _g.check_output(safe)
+                                safe = (gout.text or safe).strip()
+                            except Exception:
+                                pass
+                        if safe:
+                            return safe
+                except Exception as e:
+                    logger.warning(f"[vobiz-stream] LLM failed: {e}")
 
         # 3) Fallback: NaturalDialogManager (rule-based reply, degrades w/o LLM).
         ndm = self._get_ndm()
@@ -2802,6 +2823,26 @@ class VobizStreamSession:
         if not self.hist:
             return
         try:
+            # DPDP compliance (2026-07-05): transcript = training-fuel (STT/prompt
+            # tuning, few-shot, QA) — raw caller PII (phone/WhatsApp/UPI/ids) ki
+            # zaroorat NAHI + at-rest liability (har call pe disk pe). Persist se
+            # pehle har turn ka content redact_for_logs se maskk karo. Structured
+            # lead-capture (CRM / call_qualifications lead_id) alag path hai, business-
+            # necessity ke saath rehta. Never-raise: redact fail -> original hist.
+            try:
+                from app.voice_agent.guardrails import get_guardrails
+
+                _g = get_guardrails()
+                redacted_msgs = []
+                for m in self.hist:
+                    if isinstance(m, dict) and m.get("content"):
+                        mm = dict(m)
+                        mm["content"] = _g.redact_for_logs(str(m.get("content") or ""))
+                        redacted_msgs.append(mm)
+                    else:
+                        redacted_msgs.append(m)
+            except Exception:
+                redacted_msgs = self.hist
             rec = {
                 "ts": ended.isoformat(timespec="seconds"),
                 "started_at": self._started_at.isoformat(timespec="seconds"),
@@ -2814,7 +2855,7 @@ class VobizStreamSession:
                 "user_turns": user_turns,
                 "stt_counts": dict(self._stt_counts),
                 "barge_count": self._interruptions,  # P4-3 interruption tracking
-                "messages": self.hist,
+                "messages": redacted_msgs,
             }
             # P1 observability: per-turn latency + call-level P50/P95 rollup so the
             # transcript itself is tunable without joining a separate file.
