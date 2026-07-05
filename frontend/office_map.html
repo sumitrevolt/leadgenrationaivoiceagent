@@ -372,6 +372,15 @@
     .stage-card{flex:1 1 auto}
     .panel-card{width:100vw;max-width:100vw}
   }
+  /* ---- Ctrl+K command palette ---- */
+  .cp-box{width:min(560px,92vw);margin:80px auto 0;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden}
+  #cpInput{width:100%;border:none;outline:none;padding:14px 16px;font-size:14px;background:transparent;
+    color:var(--ink);box-sizing:border-box;border-bottom:1px solid var(--line)}
+  #cpResults{max-height:320px;overflow-y:auto}
+  .cp-row{padding:9px 14px;font-size:13px;cursor:pointer;display:flex;gap:8px;align-items:center;color:var(--ink)}
+  .cp-row.cp-sel{background:var(--brand-soft)}
+  .cp-kind{margin-left:auto;font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase}
   .rc-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
   .rc-head{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13px}
   .rc-status{width:8px;height:8px;border-radius:50%;margin-left:auto}
@@ -692,6 +701,12 @@
     </section>
   </div>
 
+  <div id="cmdPalette" style="display:none;position:fixed;inset:0;z-index:80;background:rgba(15,17,35,.45)">
+    <div class="cp-box">
+      <input id="cpInput" placeholder="⌨️ Kahin bhi jump karo / action chalao… (Esc = band)" autocomplete="off" />
+      <div id="cpResults"></div>
+    </div>
+  </div>
   <div id="roomTooltip"></div>
   <div id="coordinatorTickerBox" style="position:absolute;display:none;background:var(--card);border:1px solid var(--line);
     border-radius:8px;padding:6px 10px;max-width:280px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.08);z-index:15">
@@ -3562,6 +3577,105 @@
       }, 60);
     }
   };
+  // ---- Ctrl+K command palette: sections + agents + quick actions ------------
+  OFFICE.paletteStatic = [
+    { label: "War Room / Command Center", kind: "section", run: function(){ OFFICE.jumpToCta("warRoom"); } },
+    { label: "Priorities (action stack)", kind: "section", run: function(){ OFFICE.jumpToCta("priorityActionStack"); } },
+    { label: "Office Map", kind: "section", run: function(){ OFFICE.jumpToCta("stageWrap"); } },
+    { label: "Replay", kind: "section", run: function(){ OFFICE.jumpToCta("replayPanel"); } },
+    { label: "Live feed", kind: "section", run: function(){ OFFICE.jumpToCta("feedCard"); } },
+    { label: "Pipeline board", kind: "section", run: function(){ OFFICE.jumpToCta("pipelineBoard"); } },
+    { label: "Aaj ka Schedule", kind: "section", run: function(){ OFFICE.jumpToCta("schedulePanel"); } },
+    { label: "Approvals", kind: "section", run: function(){ OFFICE.jumpToCta("approvalsPanel"); } },
+    { label: "Team Improvement Council", kind: "section", run: function(){ OFFICE.jumpToCta("councilPanel"); } },
+    { label: "System health", kind: "section", run: function(){ OFFICE.jumpToCta("systemHealthPanel"); } },
+    { label: "Agent Scheduler", kind: "section", run: function(){ OFFICE.jumpToCta("schedulerPanel"); } },
+    { label: "Reliability Console", kind: "section", run: function(){ OFFICE.jumpToCta("failureConsoleCard"); } },
+    { label: "DLQ Repair Desk", kind: "section", run: function(){ OFFICE.openDlqRepairDrawer(); } },
+    { label: "Hot Queue", kind: "section", run: function(){ OFFICE.openHotQueueDrawer(); } },
+    { label: "Refresh now", kind: "action", run: function(){ document.getElementById("manualRefreshBtn").click(); } },
+    { label: "Subah ki Briefing", kind: "action", run: function(){ OFFICE.openBriefing(false); } },
+    { label: "Theme badlo (auto/dark/light)", kind: "action", run: function(){ OFFICE.cycleTheme(); } },
+    { label: "Simple/Pro view toggle", kind: "action", run: function(){
+        OFFICE.setViewMode(document.body.classList.contains("simple-mode") ? "pro" : "simple"); } },
+    { label: "Inbox kholo", kind: "action", run: function(){ window.open("/app/inbox", "_blank"); } },
+    { label: "Automation / Schedule tab", kind: "action", run: function(){ window.open("/app/automation#schedule", "_blank"); } }
+  ];
+  OFFICE.paletteItems = function(){
+    var items = OFFICE.paletteStatic.slice();
+    Object.keys(OFFICE.agentByKey).forEach(function(k){
+      var a = OFFICE.agentByKey[k];
+      items.push({ label: (a.emoji || "🤖") + " " + (a.name || k) + " — " + (a.title || ""), kind: "agent",
+        run: function(){ OFFICE.focusAgent(k); OFFICE.openAgentPanel(k); } });
+    });
+    return items;
+  };
+  // Subsequence fuzzy score: har query-char order me mile to match; consecutive
+  // hits ko bonus. 0 = no match.
+  OFFICE.fuzzyScore = function(q, s){
+    q = q.toLowerCase(); s = s.toLowerCase();
+    var si = 0, score = 0, streak = 0;
+    for (var qi = 0; qi < q.length; qi++) {
+      var idx = s.indexOf(q[qi], si);
+      if (idx < 0) return 0;
+      streak = (idx === si) ? streak + 1 : 1;
+      score += 1 + streak;
+      si = idx + 1;
+    }
+    return score + Math.max(0, 20 - s.length / 4);
+  };
+  OFFICE._cpSel = 0;
+  OFFICE._cpMatches = [];
+  OFFICE.renderPalette = function(){
+    var q = document.getElementById("cpInput").value.trim();
+    var items = OFFICE.paletteItems();
+    var matches = !q ? items.slice(0, 12) :
+      items.map(function(it){ return { it: it, sc: OFFICE.fuzzyScore(q, it.label) }; })
+        .filter(function(x){ return x.sc > 0; })
+        .sort(function(a, b){ return b.sc - a.sc; })
+        .slice(0, 12).map(function(x){ return x.it; });
+    OFFICE._cpMatches = matches;
+    OFFICE._cpSel = Math.min(OFFICE._cpSel, Math.max(0, matches.length - 1));
+    document.getElementById("cpResults").innerHTML = matches.map(function(it, i){
+      return '<div class="cp-row' + (i === OFFICE._cpSel ? " cp-sel" : "") + '" data-i="' + i + '">' +
+        esc(it.label) + '<span class="cp-kind">' + esc(it.kind) + '</span></div>';
+    }).join("") || '<div class="cp-row">Kuch nahi mila.</div>';
+    Array.prototype.forEach.call(document.querySelectorAll("#cpResults .cp-row[data-i]"), function(row){
+      row.onclick = function(){ OFFICE.runPaletteItem(parseInt(row.getAttribute("data-i"), 10)); };
+      row.onmouseenter = function(){ OFFICE._cpSel = parseInt(row.getAttribute("data-i"), 10); OFFICE.renderPalette(); };
+    });
+  };
+  OFFICE.runPaletteItem = function(i){
+    var it = OFFICE._cpMatches[i];
+    OFFICE.closePalette();
+    if (it && it.run) it.run();
+  };
+  OFFICE.openPalette = function(){
+    document.getElementById("cmdPalette").style.display = "block";
+    var inp = document.getElementById("cpInput");
+    inp.value = ""; OFFICE._cpSel = 0;
+    OFFICE.renderPalette();
+    inp.focus();
+  };
+  OFFICE.closePalette = function(){ document.getElementById("cmdPalette").style.display = "none"; };
+  document.getElementById("cmdPalette").addEventListener("click", function(e){
+    if (e.target === this) OFFICE.closePalette();
+  });
+  document.getElementById("cpInput").addEventListener("input", function(){ OFFICE._cpSel = 0; OFFICE.renderPalette(); });
+  document.getElementById("cpInput").addEventListener("keydown", function(e){
+    if (e.key === "Escape") { OFFICE.closePalette(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); OFFICE._cpSel = Math.min(OFFICE._cpSel + 1, OFFICE._cpMatches.length - 1); OFFICE.renderPalette(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); OFFICE._cpSel = Math.max(OFFICE._cpSel - 1, 0); OFFICE.renderPalette(); }
+    else if (e.key === "Enter") { OFFICE.runPaletteItem(OFFICE._cpSel); }
+  });
+  document.addEventListener("keydown", function(e){
+    if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+      e.preventDefault();
+      var open = document.getElementById("cmdPalette").style.display !== "none";
+      if (open) OFFICE.closePalette(); else OFFICE.openPalette();
+    }
+  });
+
   // ---- Dark mode: system (auto) + manual toggle, localStorage me yaad -------
   OFFICE.themePref = "auto";
   OFFICE.applyTheme = function(pref){

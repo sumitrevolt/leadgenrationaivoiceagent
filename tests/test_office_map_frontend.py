@@ -114,3 +114,9 @@ def test_six_labelled_sections():
 def test_scrollspy():
     assert "IntersectionObserver" in SRC
     assert "qn-active" in SRC
+
+
+def test_command_palette():
+    assert 'id="cmdPalette"' in SRC
+    assert "OFFICE.openPalette" in SRC
+    assert '(e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")' in SRC
