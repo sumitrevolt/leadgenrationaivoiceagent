@@ -66,7 +66,7 @@ User "haan" bole tab hi proceed karo.
 
 ### Hostinger SSH:
 - `git push --force` = `main` branch ka history rewrite = CI/deploy broken
-- `pkill -9 uvicorn` = 30s downtime (HTTP blip normal hai, service restart karta hai)
+- `pkill -9 uvicorn` = leadgen_app container process down — systemd DISABLED hai, KOI service auto-restart nahi karega; recover = `docker compose -f docker-compose.vps.yml up -d --no-deps app` (2026-07-05)
 
 ### Data files:
 - `data/*.jsonl` = production data. Delete = leads/invoices gone forever.

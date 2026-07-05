@@ -10,8 +10,8 @@ Combines `.claude/commands/verify.md` + `ship.md`. **"Ho gaya" tabhi jab green.*
 
 Order (exact):
 1. `.venv\Scripts\python.exe scripts\prod_check.py` — FAIL → stop
-2. `scripts\run_tests.bat` → **Read `pytest_run.log`** (not console)
-   - OR targeted: `pytest tests\test_<area>.py -q` (faster)
+2. TARGETED pytest DEFAULT: `pytest tests\test_<area>.py -q` (output log file me, console truncate hota)
+   - Full `scripts\run_tests.bat` = online/CI-only (offline HANG — LLM/network tests; 2026-07-05)
 3. `.venv\Scripts\python.exe -c "import app.main; print('IMPORT_OK')"`
 4. `.venv\Scripts\python.exe scripts\check_secrets.py` (changed files)
 
@@ -44,9 +44,11 @@ Ready to ship: YES/NO
 
 1. Verify full PASS
 2. Commit (user asked) — simple message, no secrets
+2b. (2026-07-05) `git log origin/main..HEAD` — foreign/automation commits inspect karo (background automation branch pe commit karti hai)
 3. Push: `C:\PROGRA~1\Git\cmd\git.exe`
 4. VPS:
 ```bash
+# DRIFT-CHECK pehle (hostinger-deploy Step-0) — VPS tree dirty ho sakta hai
 ssh -i ~/.ssh/id_rsa root@72.61.245.204
 cd /opt/leadgen && git reset --hard origin/main -q
 docker compose -f docker-compose.vps.yml build app

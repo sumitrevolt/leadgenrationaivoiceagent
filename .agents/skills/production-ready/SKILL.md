@@ -7,6 +7,8 @@ description: LeadGen production readiness gate — live activation summary, prod
 
 **Verdict:** Product-1 (Marketing) = **GO**. Product-2 (Voice standalone) = code GO, **commercial blocked** (Vobiz/DLT).
 
+> **Enterprise bar (launch se aage):** yeh = LAUNCH gate. Bade customer / due-diligence / quarterly deep-review → `enterprise-readiness-audit` (12-domain scored matrix: DR-restore, tenant-isolation, SLO, secrets-rotation, DPDP, capacity, migration-safety, supply-chain + yeh gate).
+
 Full audit: `docs/PRODUCTION_READINESS_AUDIT_2026_06_21.md`
 
 ## Live probes (no auth)

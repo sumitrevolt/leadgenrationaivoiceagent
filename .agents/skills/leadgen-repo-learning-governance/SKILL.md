@@ -34,7 +34,7 @@ Repos se pattern/data-model/test-strategy seekho; license-safe rakho; LeadGenAI-
 - Research docs: `docs/Automation_Marketing_Repos.md` · `docs/Architecture_Research_RAG_Agents_MCP.md` · `docs/RAG_KnowledgeGraph_Agentic.md`.
 - **skill_pack** (`platform/skill_pack.py`, `SKILL_PACK=1`): 241 skills, `data/skills_extra/*.md` (data-only = git-pull pe live, NO rebuild).
 - **code_upgrader** (Vikram, `CODE_UPGRADER=1`): signals → free-LLM patch PROPOSALS (`data/code_patches.jsonl` + admin approve) — core code KABHI auto-apply nahi.
-- Memory: `AGENTS.md` lean working-memory + `docs/SESSION_LOG.md` dated history. New learning → SESSION_LOG append, AGENTS.md 1-2 line.
+- Memory: `CLAUDE.md` lean working-memory + `docs/SESSION_LOG.md` dated history. New learning → SESSION_LOG append, CLAUDE.md 1-2 line.
 
 ## Output
 Pattern extraction note · license risk note · LeadGenAI gap mapping · native implementation plan + tests.

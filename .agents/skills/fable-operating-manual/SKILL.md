@@ -15,13 +15,13 @@ Yeh is project pe kaam karne ka distilled, enterprise-grade tareeka hai — jiss
 5. **Done = evidence.** "Ho gaya" sirf jab proof ho (§0.5 phase 5). Bina artifact done KABHI mat bolo.
 
 ## 0.5 The operating loop — Discover → Contract → Execute → Self-review → Evidence
-Har non-trivial task isi 5-phase loop se chalao (AGENTS.md gate #7 ka enforce-able roop). Cursor accha isliye karta hai ki woh pura codebase index karke relevant files khud uthata hai — yahi **manually** har phase me karo.
+Har non-trivial task isi 5-phase loop se chalao (CLAUDE.md gate #7 ka enforce-able roop). Cursor accha isliye karta hai ki woh pura codebase index karke relevant files khud uthata hai — yahi **manually** har phase me karo.
 
-1. **Discover (context-first — edit se PEHLE):** `Grep`/`Glob` se feature/function ke SAARE touch-points dhoondo — definition, callers, routes (`@router`/`@app`), templates/JS, related tests. Ek bhi miss = regression. Jo files chhooni hain unhe PURA padho (imports, padosi fns, error handling, naming convention). Aadha-padha context = galat edit ka #1 reason. "Ye toota hai" assume mat karo — git log / AGENTS.md / test se intent confirm karo (42→39 niche = intentional, regression nahi).
+1. **Discover (context-first — edit se PEHLE):** `Grep`/`Glob` se feature/function ke SAARE touch-points dhoondo — definition, callers, routes (`@router`/`@app`), templates/JS, related tests. Ek bhi miss = regression. Jo files chhooni hain unhe PURA padho (imports, padosi fns, error handling, naming convention). Aadha-padha context = galat edit ka #1 reason. "Ye toota hai" assume mat karo — git log / CLAUDE.md / test se intent confirm karo (42→39 niche = intentional, regression nahi).
 2. **Contract:** edit se pehle likho — kaun si files + kya change + kaun se test/evidence cover karenge + rollback kya hai. Change-risk tier (§0.6) decide karke uske gates lock karo. Bada/multi-file → `plan-then-build`.
 3. **Execute:** Windows-side edit, har Edit se theek pehle file Read (stale-mount safety). Same file pe parallel multi-edit mat do (truncation hazard). Additive > rewrite. Naya loop/integration = never-raise + flag-gated + inert-without-creds.
 4. **Self-review:** ship se pehle apna diff `self-code-review` lens se padho (bug / security / signature-drift / hot-path / test-gap). High-risk change (§0.6) → `security-review` bhi.
-5. **Evidence (done ki definition):** `/verify` (prod_check + targeted tests + import) green + jo claim kiya uska artifact (test log / `/health`=production / cross_path_audit / metric/heartbeat). Bina evidence done KABHI mat bolo; warna `systematic-debugging`.
+5. **Evidence (done ki definition):** `/verify` (prod_check + targeted tests + import) green + jo claim kiya uska artifact (test log / `/health`=production / cross_path_audit / metric/heartbeat). Bina evidence done KABHI mat bolo; warna `systematic-debugging`. Frontend/page change ka evidence = live-browser verification bhi: `cd frontend && python -m http.server 8123` se statically serve karke claude-in-chrome se drive karo (API-less preview path me bhi map/UI boot verify hota hai — 2026-07-05 office-upgrade pattern).
 
 ## 0.6 Change-risk tiering (pehle classify, phir gates lock)
 Blast-radius se tier decide karo — over-process bhi waste hai, under-process bhi prod-down.
@@ -36,7 +36,7 @@ Blast-radius se tier decide karo — over-process bhi waste hai, under-process b
 - **Billing/pricing** → `packages.py`/`voice_packages.py` = single source-of-truth; `test_billing_truth_2026` SAATH green.
 - **Public route** → SSRF/auth/rate-limit check; deploy pe **hard-reload** (container recreate, warna stale .pyc 404).
 - **Telephony/outbound** → TRAI/DND fail-CLOSED · 9am–7pm window · AI-disclosure-at-start · consent-ledger; bypass KABHI nahi.
-- **Secrets** → sirf `.env` (gitignored); `scripts/check_secrets.py` (/verify step). Committed file/AGENTS.md/script me KABHI nahi.
+- **Secrets** → sirf `.env` (gitignored); `scripts/check_secrets.py` (/verify step). Committed file/CLAUDE.md/script me KABHI nahi.
 - **Automation loop** → idempotency + DLQ + retry + `automation_health` parity + flag-gated default-OFF (§9).
 - **DB migration** → forward + rollback dono; data-repair path likha ho.
 
@@ -83,7 +83,7 @@ App = **Docker container `leadgen_app`** (`docker-compose.vps.yml`); systemd `le
 ## 8. Decision-making (jab "best kya hai" poocha jaye)
 - Revenue-blocking + user-action (payments/DLT/KYC) = highest priority flag karo, par wo user ke haath me hai.
 - Code-level: incomplete loops complete karo, hidden bugs (truncation/wiring) fix karo, tests green rakho.
-- Ambiguous product decision (niche count, pricing) = git history/AGENTS.md se intent confirm karo; nahi to user se 1 focused sawaal. Ambiguous strategy/go-no-go → `llm-council-decision` (asking nahi).
+- Ambiguous product decision (niche count, pricing) = git history/CLAUDE.md se intent confirm karo; nahi to user se 1 focused sawaal. Ambiguous strategy/go-no-go → `llm-council-decision` (asking nahi).
 - "Improvement ≠ broken": prod_check PASS ka matlab "kuch banana nahi" NAHI — cross-path wiring gaps, untested fixes, dormant-but-wireable loops dhoondo + SHIP karo (decide-and-ship, AskUserQuestion pe mat atko jab real wireable value ho).
 - Har session ke end pe: prod_check + targeted tests + commit + user ko deploy step yaad dilao.
 

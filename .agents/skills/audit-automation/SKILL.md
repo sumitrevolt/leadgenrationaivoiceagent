@@ -81,7 +81,7 @@ Cost spike? Low success rates? Stuck approvals?
 - 🟡 Yellow (`40–80%`): Approaching limit. Check provider degradation.
 - 🔴 Red (`>80%` or capped): Budget exhausted, loop paused or throttled.
 
-**Note**: stack 100% FREE hai (Cerebras/Groq/Gemini free tiers) — "cost" yahaan CostTracker ka NOTIONAL internal estimate hai (LLM-heavy action ≈ $2.5, light ≈ $0.5) jo budget/ROI gates drive karta. Real paisa nahi katta; cap = velocity-throttle proxy.
+**Note**: stack 100% FREE hai (free multi-provider — Mistral primary, Cerebras/Groq bulk/voice, Gemini late fallback; 2026-07-05) — "cost" yahaan CostTracker ka NOTIONAL internal estimate hai (LLM-heavy action ≈ $2.5, light ≈ $0.5) jo budget/ROI gates drive karta. Real paisa nahi katta; cap = velocity-throttle proxy.
 
 **Common reasons for high notional spend**:
 - Zyada LLM-heavy actions/day (sales_deepdive, content_pack, seo_pages, optimizer)

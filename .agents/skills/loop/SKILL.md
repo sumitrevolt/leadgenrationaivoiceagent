@@ -1,10 +1,10 @@
 ---
 name: loop
-description: Run a prompt or skill on a recurring interval (e.g. check deploy every 5m). Use when the user asks for periodic monitoring, /loop, or self-pacing repeated tasks. Codex uses shell background loops with output notifications.
+description: Run a prompt or skill on a recurring interval (e.g. check deploy every 5m). Use when the user asks for periodic monitoring, /loop, or self-pacing repeated tasks. Claude Code uses shell background loops with output notifications.
 ---
-# Loop (Codex)
+# Loop (Claude Code)
 
-Recurring local work — Cursor `/loop` ka Codex equivalent.
+Recurring local work — Cursor `/loop` ka Claude equivalent.
 
 ## Parse
 

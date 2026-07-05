@@ -16,7 +16,7 @@ Customer accounts, admin actions, lead data, payments, voice-compliance-state pr
 - **Webhook sigs FAIL-CLOSED in prod**: Twilio/Vobiz/WhatsApp → 503 jab secret unset (C2/C3 idempotent).
 - **2FA**: customer TOTP (H.2). Admin login `/app/admin-login`.
 - **SSRF (C4)**: `/site-audit` private-IP block.
-- **Secrets**: sirf `.env` (gitignored); `scripts/check_secrets.py` (`/verify` step-4 wired; false-positive = line `nosecret`). AGENTS.md/scripts/committed-file me KABHI nahi.
+- **Secrets**: sirf `.env` (gitignored); `scripts/check_secrets.py` (`/verify` step-4 wired; false-positive = line `nosecret`). CLAUDE.md/scripts/committed-file me KABHI nahi.
 - **MCP**: `/mcp` gated (`FASTAPI_MCP_TOKEN` OR `MCP_IP_ALLOWLIST`; prod me bina ek ke mount REFUSED).
 - **Tenant**: `middleware/tenant.py` FAIL-OPEN (subdomain + custom_domain).
 
@@ -39,4 +39,4 @@ Customer accounts, admin actions, lead data, payments, voice-compliance-state pr
 Security/RBAC gap report · critical-route risk table · access-control test cases · secret+PII remediation · readiness /100.
 
 ## Related repo skills (duplicate mat banao)
-`backend-rbac` (roles/grants model) · `team-access-ops` (RBAC ops) · `llm-security` (prompt/LLM security) · `security-review` + `self-code-review` (code-level) · `leadgen-billing-upi` (entitlement) · `leadgen-voice-compliance` (consent/PII).
+`backend-rbac` (roles/grants model) · `team-access-ops` (RBAC ops) · `llm-security` (prompt/LLM security) · `security-review` + `self-code-review` (code-level) · `leadgen-billing-upi` (entitlement) · `leadgen-voice-compliance` (consent/PII) · `tenant-isolation-audit` (tenant-boundary deep-dive) · `secrets-rotation` (key inventory/rotation) · `data-retention-dpdp` (PII retention/delete).

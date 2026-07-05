@@ -1,6 +1,6 @@
 ---
 name: find-skills
-description: Discover skills — FIRST LeadGen's own ~247 skills (66 in .Codex/skills + 181 in data/skills_extra via skill_pack), then the open `npx skills` ecosystem. Use when the user asks "how do I do X", "find a skill for X", "is there a skill that can...", "koi skill hai iske liye", or wants to extend capabilities / look up an existing workflow.
+description: Discover skills — FIRST LeadGen's own ~284 skills (~103 in .claude/skills + 181 in data/skills_extra via skill_pack), then the open `npx skills` ecosystem. Use when the user asks "how do I do X", "find a skill for X", "is there a skill that can...", "koi skill hai iske liye", or wants to extend capabilities / look up an existing workflow.
 ---
 
 # Find Skills
@@ -10,13 +10,13 @@ This skill helps you discover skills — FIRST the LeadGen project's own skill l
 ## FIRST: check LeadGen's OWN skills (this repo)
 
 Iss project ke paas pehle se **~270+ skills** hain — public ecosystem reach karne se pehle YAHAN dekho:
-- **~94 project skills** → `.Codex/skills/<name>/SKILL.md` (context-first + executive-council + domain)
-- **Cursor parity map** → `.Codex/skills/SKILLS_PARITY.md`
+- **~103 project skills** → `.claude/skills/<name>/SKILL.md` (context-first + executive-council + enterprise-readiness-audit + domain)
+- **Cursor parity map** → `.claude/skills/SKILLS_PARITY.md`
 - **181 packed skills** → `data/skills_extra/*.md` (agency-agents + ECC — git pull pe live)
 
 In-repo discovery:
-- Browse `.Codex/skills/` directory ya `data/skills_extra/`.
-- VPS agents ke liye programmatic: `app/platform/skill_pack.py` (`SKILL_PACK=1` ON) — `find(query, k)` keyword-overlap search + `snippet_for(topic, max_chars)` prompt-injectable text, dono `.Codex/skills` + `data/skills_extra` pe. KB "skills" namespace me bhi ingest hota.
+- Browse `.claude/skills/` directory ya `data/skills_extra/`.
+- VPS agents ke liye programmatic: `app/platform/skill_pack.py` (`SKILL_PACK=1` ON) — `find(query, k)` keyword-overlap search + `snippet_for(topic, max_chars)` prompt-injectable text, dono `.claude/skills` + `data/skills_extra` pe. KB "skills" namespace me bhi ingest hota.
 - Naya project skill banana ho → `skill-creator` skill use karo (frontmatter `name`=dir + `description` triggering ke liye).
 
 Agar LeadGen skill mil gaya → wahi follow karo, niche public CLI tak mat jao.
@@ -141,7 +141,7 @@ When searching, consider these common categories:
 
 1. **Use specific keywords**: "react testing" is better than just "testing"
 2. **Try alternative terms**: If "deploy" doesn't work, try "deployment" or "ci-cd"
-3. **Check popular sources**: Many skills come from `vercel-labs/agent-skills` or `ComposioHQ/awesome-Codex-skills`
+3. **Check popular sources**: Many skills come from `vercel-labs/agent-skills` or `ComposioHQ/awesome-claude-skills`
 
 ## When No Skills Are Found
 

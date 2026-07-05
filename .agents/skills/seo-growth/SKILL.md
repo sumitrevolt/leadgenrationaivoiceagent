@@ -13,7 +13,7 @@ Writing/optimizing blog (`/blog` programmatic SEO), landing/pricing copy, GBP co
 ## Process
 
 1. **Keyword intent (Indian SMB).** Target what your customers actually search: "[niche] marketing services [city]", "Google business profile setup [city]", "AI calling for [niche]", "[niche] lead generation". Long-tail + local = winnable.
-2. **Programmatic SEO (already have `/blog`).** Generate one page per (niche × city × intent) with genuinely useful content (not thin spam — Google penalizes). 42 niches × top cities = hundreds of indexable pages. Each: H1 with keyword, 600+ useful words, internal links to `/audit` + `/pricing`, FAQ schema.
+2. **Programmatic SEO (already have `/blog`).** Generate one page per (niche × city × intent) with genuinely useful content (not thin spam — Google penalizes). 39 builtin niches × top cities = hundreds of indexable pages. Each: H1 with keyword, 600+ useful words, internal links to `/audit` + `/pricing`, FAQ schema.
 3. **Technical SEO (verify):** dynamic `sitemap.xml` + `robots.txt` (exist) submitted to Google Search Console; canonical tags; fast + mobile (see web-performance); `JSON-LD` schema (Organization, Product/Offer for pricing, LocalBusiness, FAQ).
 4. **Local SEO + GBP.** The audit tool IS a lead magnet — promote it. Help clients' (and your own) Google Business Profile: complete profile, posts, reviews (review_engine). Reviews = 20% of local ranking.
 5. **Lead magnets → capture.** Every organic visitor → push to `/audit` (free GBP audit) or pricing. The embed widget + inquiry form capture them.

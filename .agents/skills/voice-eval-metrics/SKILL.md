@@ -43,7 +43,7 @@ def roundtrip_wer(text):
 ## Wire-in
 - `scripts/agent_tester.py` me objective block add karo (heuristic ke saath) → scorecard me WER + P95-latency + roundtrip-WER.
 - Provider/brain/prompt change ke baad **pehle-baad** diff karo; regression → `eval_gate` se gate.
-- Tuning FREE web-call (`/app/test-call`) pe; phone = final verify (AGENTS.md).
+- Tuning FREE web-call (`/app/test-call`) pe; phone = final verify (CLAUDE.md).
 
 ## Pairs with
 `test-agent` (heuristic scorecard) · `voice-humanization` · `web-call-triage` · `prompt-engineering`.

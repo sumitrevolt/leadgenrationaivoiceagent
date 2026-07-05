@@ -185,3 +185,5 @@ When recommending experiments, consider tests for:
 ## Form Optimization
 
 For detailed form CRO guidance — including field optimization, multi-step forms, error handling, and form-specific experiments — see [references/form.md](references/form.md).
+
+> Cross-link (2026-07-05): LeadGen funnel + LIVE pricing rules ke liye `conversion-optimization` skill dekho — pricing-page CRO waha se shuru karo.

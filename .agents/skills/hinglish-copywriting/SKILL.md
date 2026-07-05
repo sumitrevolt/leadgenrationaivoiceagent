@@ -10,13 +10,13 @@ Do jagah lagti hai: (1) **apna funnel** — landing/`pricing.html`/`audit`/`demo
 ## Frameworks (Hinglish idiom me)
 - **AIDA**: Attention ("Bijli ka bill ₹0?") → Interest (specific fayda) → Desire (proof/social) → Action (1 CTA). Posts/landing ka default.
 - **PAS**: Problem ("Customer call karta hai, aap miss kar dete ho") → Agitate ("woh seedha competitor ko call karta hai") → Solve ("AI 2-min me callback karta hai"). Cold/proposal ka default — Indian SMB pain-first sunta hai.
-- **4U headlines**: Useful + Urgent + Unique + Ultra-specific. "Marketing improve karein" ❌ → "7 din me Google se pehli inquiry — ₹0 trial, phir ₹1,199/mo" ✓.
+- **4U headlines**: Useful + Urgent + Unique + Ultra-specific. "Marketing improve karein" ❌ → "7 din me Google se pehli inquiry — ₹0 trial, phir ₹1,999/mo" ✓.
 - **Style**: chhote sentences, active voice, numbers specific ("4 ghante → 15 min"), customer ki bhasha (jo woh WhatsApp pe bolta hai), ek section = ek idea, exclamation marks hatao.
 
 ## Psychology principles (ethically, India-tuned)
 - **Loss aversion**: "Roz ke 5 missed calls = mahine ke ~₹15,000 ka dhandha gaya" (lead_tools calculator se REAL number) > "zyada kamao".
 - **Social proof**: review stars, "X businesses", client testimonial Hinglish me — Indian SMB pehle bharosa, baad me payment. Proof fabricate KABHI nahi.
-- **Anchoring**: "Human telecaller ₹10,000+/mahina — AI marketing ₹1,199 se" (voice product: "AI telecaller ₹4,999/mo, unlimited calls") · Growth tier highlighted (decoy-free 3-tier).
+- **Anchoring**: "Human telecaller ₹10,000+/mahina — AI marketing ₹1,999 se" (voice product: "AI telecaller ₹4,999/mo, unlimited calls") · Combo/Advanced (₹5,999) highlighted (public = 2-tier; Growth ₹2,999 legacy-hidden).
 - **Mental accounting**: "₹33/din — ek chai se kam". **Reciprocity**: free audit/demo pehle do, phir maango.
 - **Risk-reversal**: "₹0 me 7 din try karo, cancel anytime" — regret-fear khatam.
 

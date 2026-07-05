@@ -77,7 +77,7 @@ pip list --outdated | grep -E "fastapi|uvicorn|sqlalchemy|pydantic" | head -10
 ### TRAI Compliance
 - [ ] AI disclosure greeting in voice calls? (`vobiz_stream.py`)
 - [ ] DND check fail-CLOSED? (compliance.py)
-- [ ] Call timing 10am-7pm enforced?
+- [ ] Call timing 9am-7pm enforced? (promo code-default; TRAI actual 9am-9pm)
 - [ ] DLT registration pending? (kab tak manage without DLT?)
 - [ ] 140-series number for promotional SMS?
 

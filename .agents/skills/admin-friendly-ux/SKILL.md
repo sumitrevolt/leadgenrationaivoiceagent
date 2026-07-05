@@ -19,7 +19,7 @@ Dashboards me data hota hai par TECHNICAL shape me (heartbeat tables, flag names
 - **Unified admin overview** (H.5): `/app/dashboards` ek jagah saare admin dashboards. Naya overview/health UI yahin pe surface karo.
 
 ## Rules
-- Har naya admin feature = UI tab SAATH hi (API-only = adhoora) — AGENTS.md rule.
+- Har naya admin feature = UI tab SAATH hi (API-only = adhoora) — CLAUDE.md rule.
 - Status emoji-first: ✅/⚠️/❌/⏳ + chhota Hinglish sentence. Raw JSON sirf "details" me.
 - Problem item shape: `{kya: "...", fix: "..."}` — fix hamesha actionable.
 - Mobile: sidebar hide mat karo — horizontal scroll quick-nav banao (customer_dashboard @820px pattern).
