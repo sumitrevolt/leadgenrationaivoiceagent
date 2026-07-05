@@ -1,3 +1,8 @@
+---
+name: agency-strategy-phase-0-discovery
+description: Phase 0 intelligence & discovery playbook — parallel market/user/data/compliance/tech validation ending in GO/NO-GO/PIVOT gate.
+---
+
 # 🔍 Phase 0 Playbook — Intelligence & Discovery
 
 > **Duration**: 3-7 days | **Agents**: 6 | **Gate Keeper**: Executive Summary Generator

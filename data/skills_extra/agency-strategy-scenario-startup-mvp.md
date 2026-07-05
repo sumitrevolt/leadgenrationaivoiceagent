@@ -1,3 +1,8 @@
+---
+name: agency-strategy-scenario-startup-mvp
+description: Runbook: startup MVP build scenario.
+---
+
 # 🚀 Runbook: Startup MVP Build
 
 > **Mode**: NEXUS-Sprint | **Duration**: 4-6 weeks | **Agents**: 18-22

@@ -1,3 +1,8 @@
+---
+name: agency-strategy-scenario-marketing-campaign
+description: Runbook: multi-channel marketing campaign scenario.
+---
+
 # 📢 Runbook: Multi-Channel Marketing Campaign
 
 > **Mode**: NEXUS-Micro to NEXUS-Sprint | **Duration**: 2-4 weeks | **Agents**: 10-15

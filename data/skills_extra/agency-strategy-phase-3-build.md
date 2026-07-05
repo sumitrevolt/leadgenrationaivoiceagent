@@ -1,3 +1,8 @@
+---
+name: agency-strategy-phase-3-build
+description: Phase 3 build & iterate playbook — Dev-QA loop, sprint execution.
+---
+
 # 🔨 Phase 3 Playbook — Build & Iterate
 
 > **Duration**: 2-12 weeks (varies by scope) | **Agents**: 15-30+ | **Gate Keeper**: Agents Orchestrator
