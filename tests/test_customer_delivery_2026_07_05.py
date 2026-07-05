@@ -140,6 +140,44 @@ def test_build_weekly_digest_honest(monkeypatch):
     assert "0 naye" not in msg0
 
 
+def test_monthly_receipt_honest_metrics():
+    """Monthly receipt shows only REAL views + content; no fabricated numbers."""
+    c = {"business_name": "jiya makeover", "slug": "jiya-makeover-d79d"}
+    msg = cd.build_monthly_receipt_message(c, views=12, content=8)
+    assert "12 baar" in msg and "8 naye" in msg
+    assert "/b/jiya-makeover-d79d" in msg
+    # zero-data path is graceful (no "0 baar")
+    msg0 = cd.build_monthly_receipt_message(c, views=0, content=0)
+    assert "0 baar" not in msg0
+
+
+def test_referral_line_only_when_configured(monkeypatch):
+    c = {"business_name": "x", "slug": "s"}
+    monkeypatch.delenv("REFERRAL_REWARD", raising=False)
+    assert "refer" not in cd.build_monthly_receipt_message(c, 5, 5).lower()
+    monkeypatch.setenv("REFERRAL_REWARD", "1 mahina free")
+    assert "1 mahina free" in cd.build_monthly_receipt_message(c, 5, 5)
+
+
+def test_case_study_is_honest(monkeypatch):
+    """Case study uses REAL assets; testimonial only if actually present."""
+    cs1 = cd.build_case_study({"id": "j", "business_name": "jiya makeover",
+                               "slug": "jiya-makeover-d79d", "niche": "beauty"})
+    assert cs1["has_testimonial"] is False
+    assert any("/b/jiya-makeover-d79d" in p for p in cs1["proof_points"])
+    cs2 = cd.build_case_study({"id": "j", "business_name": "jiya", "slug": "s",
+                               "testimonial": "Bahut accha kaam!"})
+    assert cs2["has_testimonial"] is True
+    assert any("Bahut accha" in p for p in cs2["proof_points"])
+
+
+@pytest.mark.asyncio
+async def test_growth_sweeps_gated_off(monkeypatch):
+    monkeypatch.delenv("AUTO_DELIVER_VALUE", raising=False)
+    assert (await cd.run_monthly_receipt_sweep()).get("skipped") == "AUTO_DELIVER_VALUE off"
+    assert (await cd.run_testimonial_sweep()).get("skipped") == "flag off"
+
+
 def test_digest_due_cadence():
     from datetime import datetime, timedelta, timezone
 

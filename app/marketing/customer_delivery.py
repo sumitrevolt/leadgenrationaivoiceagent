@@ -381,6 +381,229 @@ async def run_weekly_digest_sweep(limit: int = 50) -> dict[str, Any]:
     return res
 
 
+# --------------------------------------------------------------------------- #
+# P2 growth loop — mini-site view tracking (#20), monthly ROI receipt (#20),
+# case study generator (#18), testimonial ask (#17). All HONEST (real data only,
+# no fabricated metrics) + gated + config-driven (no unilateral financial offer).
+# --------------------------------------------------------------------------- #
+_VIEWS_LOG = os.path.join("data", "site_views.jsonl")
+_MONTHLY_STATE = os.path.join("data", "monthly_receipt_state.json")
+_TESTIMONIAL_STATE = os.path.join("data", "testimonial_state.json")
+
+
+def record_site_view(client_id: str) -> None:
+    """Append a mini-site view (real, for honest ROI receipts). Never raises."""
+    cid = str(client_id or "").strip()
+    if not cid:
+        return
+    try:
+        os.makedirs("data", exist_ok=True)
+        with open(_VIEWS_LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps({"cid": cid, "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}) + "\n")
+    except Exception as exc:
+        logger.debug("record_site_view err: %s", exc)
+
+
+def site_view_count(cid: str, days: int = 30) -> int:
+    """Real mini-site view count for a client over `days`. 0 on error."""
+    if not cid or not os.path.exists(_VIEWS_LOG):
+        return 0
+    cutoff = datetime.now(timezone.utc).timestamp() - days * 86400
+    n = 0
+    try:
+        with open(_VIEWS_LOG, encoding="utf-8") as f:
+            for line in f:
+                try:
+                    r = json.loads(line)
+                except Exception:
+                    continue
+                if str(r.get("cid")) != str(cid):
+                    continue
+                try:
+                    d = datetime.fromisoformat(str(r.get("at") or "").replace("Z", "+00:00"))
+                    if d.tzinfo is None:
+                        d = d.replace(tzinfo=timezone.utc)
+                    if d.timestamp() >= cutoff:
+                        n += 1
+                except Exception:
+                    n += 1
+    except Exception as exc:
+        logger.warning("site_view_count err: %s", exc)
+    return n
+
+
+def build_monthly_receipt_message(client: dict[str, Any], views: int, content: int) -> str:
+    """Monthly ROI receipt — REAL numbers only (site views + content made). Pure.
+    Referral line sirf REFERRAL_REWARD env set ho tab (koi unilateral offer nahi)."""
+    biz = str((client or {}).get("business_name") or "aapka business").strip() or "aapka business"
+    url = mini_site_url(client)
+    lines = [f"Namaste! 📊 {biz} ki is mahine ki report —"]
+    if views > 0:
+        lines.append(f"👀 Aapki site {views} baar dekhi gayi.")
+    if content > 0:
+        lines.append(f"📸 {content} naye content pieces bane.")
+    if views == 0 and content == 0:
+        lines.append("Aapka marketing agent kaam kar raha hai — site share karte rahiye zyada reach ke liye.")
+    if url:
+        lines.append(f"👉 {url} — WhatsApp status/Instagram pe share = zyada enquiry.")
+    reward = os.environ.get("REFERRAL_REWARD", "").strip()
+    if reward:
+        lines.append(f"🎁 Kisi dost (shop owner) ko refer karein — {reward}. Bas unka number reply me bhejein.")
+    return "\n".join(lines)
+
+
+def build_case_study(client: dict[str, Any]) -> dict[str, Any]:
+    """HONEST case study from REAL delivered assets (live site + what was built).
+    Founder tool (koi customer send nahi) — 338 warm leads pe attach karne ke liye.
+    Testimonial tabhi include hota hai jab client record me actually ho."""
+    biz = str((client or {}).get("business_name") or "").strip()
+    niche = str((client or {}).get("niche") or "").strip()
+    url = mini_site_url(client)
+    cid = str((client or {}).get("id") or "")
+    testimonial = str((client or {}).get("testimonial") or "").strip()
+    headline = f"{biz or 'Ek local business'} ke liye 5 minute me poora AI marketing setup"
+    proof: list[str] = []
+    if url:
+        proof.append(f"Live business site: {url}")
+    fresh = count_fresh_content(cid, days=90)
+    if fresh:
+        proof.append(f"{fresh}+ ready-to-post content pieces")
+    if testimonial:
+        proof.append(f'Customer: "{testimonial[:200]}"')
+    return {
+        "client_id": cid,
+        "business_name": biz,
+        "niche": niche,
+        "headline": headline,
+        "proof_points": proof,
+        "has_testimonial": bool(testimonial),
+        "site_url": url,
+    }
+
+
+def _load_json_state(path: str) -> dict[str, str]:
+    try:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as f:
+                return json.load(f) or {}
+    except Exception:
+        pass
+    return {}
+
+
+def _save_json_state(path: str, state: dict[str, str]) -> None:
+    try:
+        os.makedirs("data", exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(state, f)
+    except Exception as exc:
+        logger.warning("_save_json_state err: %s", exc)
+
+
+async def run_monthly_receipt_sweep(limit: int = 50) -> dict[str, Any]:
+    """Monthly ROI receipt to delivered paid customers (once per >=28 days). Called
+    from the daily content run (self-throttling). Gated AUTO_DELIVER_VALUE. Honest
+    numbers only. Never raises."""
+    res: dict[str, Any] = {"due": 0, "sent": 0}
+    if not _flag_on("AUTO_DELIVER_VALUE"):
+        res["skipped"] = "AUTO_DELIVER_VALUE off"
+        return res
+    try:
+        from app.integrations.whatsapp import get_whatsapp_sender
+        from app.marketing import clients_store
+
+        state = _load_json_state(_MONTHLY_STATE)
+        now = datetime.now(timezone.utc)
+        sender = get_whatsapp_sender()
+        sent = 0
+        for c in clients_store.list_clients(status="active"):
+            if not is_paid_client(c) or not is_delivered(c):
+                continue
+            cid = str(c.get("id") or "")
+            phone = str(c.get("phone") or "").strip()
+            if not cid or not phone:
+                continue
+            last = state.get(cid)
+            if last:
+                try:
+                    d = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
+                    if d.tzinfo is None:
+                        d = d.replace(tzinfo=timezone.utc)
+                    if (now - d).days < 28:
+                        continue
+                except Exception:
+                    pass
+            res["due"] += 1
+            msg = build_monthly_receipt_message(c, site_view_count(cid), count_fresh_content(cid, days=30))
+            try:
+                r = await sender.send_text_message(phone, msg)
+                if bool(r) and not (isinstance(r, dict) and r.get("error")):
+                    state[cid] = now.isoformat(timespec="seconds")
+                    sent += 1
+            except Exception as exc:
+                _record_stuck(c, f"monthly_receipt_err:{type(exc).__name__}")
+            if sent >= max(1, limit):
+                break
+        _save_json_state(_MONTHLY_STATE, state)
+        res["sent"] = sent
+    except Exception as exc:
+        logger.warning("run_monthly_receipt_sweep err: %s", exc)
+        res["error"] = str(exc)
+    return res
+
+
+async def run_testimonial_sweep(limit: int = 20, min_days: int = 5) -> dict[str, Any]:
+    """Ask ACTIVATED (acknowledged) customers for a testimonial, once each, only
+    after >=min_days since delivery (so they've had time to see value). Gated
+    AUTO_DELIVER_VALUE + AUTO_TESTIMONIAL. Never raises."""
+    res: dict[str, Any] = {"asked": 0}
+    if not (_flag_on("AUTO_DELIVER_VALUE") and _flag_on("AUTO_TESTIMONIAL")):
+        res["skipped"] = "flag off"
+        return res
+    try:
+        from app.integrations.whatsapp import get_whatsapp_sender
+        from app.marketing import clients_store
+
+        state = _load_json_state(_TESTIMONIAL_STATE)
+        now = datetime.now(timezone.utc)
+        sender = get_whatsapp_sender()
+        asked = 0
+        for c in clients_store.list_clients(status="active"):
+            cid = str(c.get("id") or "")
+            phone = str(c.get("phone") or "").strip()
+            if not is_paid_client(c) or not is_activated(c) or not cid or not phone or state.get(cid):
+                continue
+            da = c.get("delivered_at")
+            if da:
+                try:
+                    d = datetime.fromisoformat(str(da).replace("Z", "+00:00"))
+                    if d.tzinfo is None:
+                        d = d.replace(tzinfo=timezone.utc)
+                    if (now - d).days < min_days:
+                        continue
+                except Exception:
+                    pass
+            biz = str(c.get("business_name") or "aapka business")
+            msg = (f"Namaste! 🙏 {biz} ke saath aapka experience kaisa raha? Ek chhoti si line "
+                   "feedback dijiye — aur agar accha laga to hum aapki success doosron ko dikha sakein? "
+                   "(Aapki permission ke bina naam public nahi karenge.)")
+            try:
+                r = await sender.send_text_message(phone, msg)
+                if bool(r) and not (isinstance(r, dict) and r.get("error")):
+                    state[cid] = now.isoformat(timespec="seconds")
+                    asked += 1
+            except Exception:
+                pass
+            if asked >= max(1, limit):
+                break
+        _save_json_state(_TESTIMONIAL_STATE, state)
+        res["asked"] = asked
+    except Exception as exc:
+        logger.warning("run_testimonial_sweep err: %s", exc)
+        res["error"] = str(exc)
+    return res
+
+
 __all__ = [
     "is_paid_client",
     "mini_site_url",
@@ -394,4 +617,10 @@ __all__ = [
     "count_fresh_content",
     "build_weekly_digest_message",
     "run_weekly_digest_sweep",
+    "record_site_view",
+    "site_view_count",
+    "build_monthly_receipt_message",
+    "build_case_study",
+    "run_monthly_receipt_sweep",
+    "run_testimonial_sweep",
 ]
