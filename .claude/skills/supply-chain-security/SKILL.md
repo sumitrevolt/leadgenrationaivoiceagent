@@ -14,7 +14,7 @@ description: Dependency + build supply-chain hygiene — requirements.lock.txt d
 
 ## Quarterly hygiene loop
 1. **CVE scan**: sandbox me `pip install pip-audit --break-system-packages` → `pip-audit -r requirements.lock.txt` → CRITICAL/HIGH triage (exploitable in OUR usage? internet-facing path?).
-2. **Base image**: `docker inspect leadgen_app | grep -i created` — 90d+ purana = rebuild (`docker compose build --pull app`) for base-layer patches. Same for postgres/redis/caddy images (`docker images` dates).
+2. **Base image**: `docker inspect leadgen_app | grep -i created` — 90d+ purana = rebuild (`docker compose build --pull app`) for base-layer patches. Same for postgres/redis images (`docker images` dates); Caddy = HOST-level (container nahi) — OS packages/unattended-upgrades se patch hota (2026-07-05).
 3. **Upgrade batch**: sirf CVE-driven ya need-driven bumps (blanket "sab latest" = free-stack breakage; e.g. `edge-tts>=7.2.0` pin ka 403 lesson). Bump → local test → `vps_freeze.sh` → lock commit → deploy loop.
 4. **Actions pinning**: `.github/workflows/*.yml` me third-party actions SHA-pinned ya at least major-version — `@main` floating = supply-chain hole.
 5. **npm side** (agar frontend build ho): lockfile committed + `npm audit` — same triage.
