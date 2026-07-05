@@ -15,7 +15,6 @@ Schema: `[DATE parked] Idea — WHY it matters | what unblocks it`
 [2026-06-20] **vobiz_stream refactor** — last god-file, deferred as voice-unsafe | needs live-call regression harness first.
 [2026-06-21] **P4-3 eval_gate-live + ear-test** — last SWARA roadmap item | manual listening session.
 [2026-07-04] **WAHA QR scan** — self-host WhatsApp engine ready, session dormant | user scans QR once.
-[2026-06-16] **payment.received / subscription.* webhook emits** — customer-webhook hooks documented, not wired | wire after billing webhook handlers stabilize.
 [2026-07-04] **STUDIO_ENTITLEMENT_GATE flip** — studio tools entitlement enforcement | user go-ahead.
 [2026-07-05] **`.env.example` + `pyproject.toml` drift cleanup** — both advertise paid/stale stack (Deepgram/ElevenLabs/gemini-1.5/DEFAULT_STT=deepgram) vs real free stack; onboarding-misleading (found in enterprise-docs audit) | small PR; keep requirements.lock.txt authoritative.
 [2026-07-05] **Make full pytest CI-blocking** — currently continue-on-error; regressions can reach main | fix team_pulse-area hang first, then flip gate in `deploy-vps.yml`.
