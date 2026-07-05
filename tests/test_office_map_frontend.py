@@ -96,3 +96,10 @@ def test_bugfix_lazy_phaser_boot():
     assert "OFFICE.GAME_CONFIG" in SRC
     # game creation must be guarded, not unconditional
     assert "OFFICE.game = new Phaser.Game(OFFICE.GAME_CONFIG)" in SRC
+
+
+def test_dark_mode():
+    assert 'data-theme' in SRC
+    assert 'id="themeBtn"' in SRC
+    assert "prefers-color-scheme" in SRC
+    assert "OFFICE.cycleTheme" in SRC
