@@ -1,6 +1,6 @@
 // LeadGen AI — Service Worker
 // Public marketing shell = cache-first. /app/* dashboards = network-only (never stale).
-const CACHE_NAME = "leadgen-ai-v2";
+const CACHE_NAME = "leadgen-ai-v3"; // v3: mobile login fix (2026-07-05) — bump taaki purana cached homepage purge ho
 
 const SHELL_ASSETS = ["/", "/index.html", "/manifest.json", "/icons/icon.svg"];
 
