@@ -16,6 +16,20 @@
     --ink:#1e1b2e; --muted:#6b7280; --line:#e9e7f2; --bg:#f6f5fb; --card:#ffffff;
     --ok:#10b981; --warn:#f59e0b; --err:#ef4444; --info:#3b82f6;
   }
+  /* ---- Dark mode: system (auto) + manual toggle — surfaces CSS vars pe ---- */
+  :root[data-theme="dark"]{
+    --brand-soft:#312e58; --ink:#e7e5f4; --muted:#9ca3af; --line:#2b2b40;
+    --bg:#12121c; --card:#1c1c2c;
+  }
+  :root[data-theme="dark"] .topbar{background:var(--card)}
+  :root[data-theme="dark"] .war-card, :root[data-theme="dark"] .mode-toggle,
+  :root[data-theme="dark"] #agentSearchResults, :root[data-theme="dark"] .panel-card,
+  :root[data-theme="dark"] #legendPopover, :root[data-theme="dark"] .map-btn,
+  :root[data-theme="dark"] .ia-btn, :root[data-theme="dark"] #schedList .sched-btn,
+  :root[data-theme="dark"] .qn-chip{background:var(--card);color:var(--ink)}
+  :root[data-theme="dark"] .priority-item:hover, :root[data-theme="dark"] .feature-tile:hover{background:#262640}
+  :root[data-theme="dark"] .lb-name{color:var(--ink)}
+  :root[data-theme="dark"] #agentSearch, :root[data-theme="dark"] .stage-search{background:var(--card);color:var(--ink)}
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
@@ -97,10 +111,9 @@
   .replay-actor{font-weight:850;color:#0f766e;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .replay-title{font-weight:800}
   .replay-detail{color:var(--muted);font-size:11.5px;margin-top:2px}
-  body.office-theatre #warRoom{order:2}
-  body.office-theatre #mapToolbar{order:1}
-  body.office-theatre #stageWrap{order:1}
-  body.office-theatre #replayPanel{order:3}
+  /* Theatre mode: ab section-level reorder (panels sections me wrapped hain,
+     #page ke direct flex-children sections hi hain) — map section sabse pehle. */
+  body.office-theatre #secMap{order:-1}
 
   /* ---- Capabilities proof drawer (collapsed by default — full metrics/legacy
      next-actions/20-feature matrix moved out of the first viewport so the
@@ -242,7 +255,7 @@
     padding:3px 10px;font-size:10.5px;font-weight:700;cursor:pointer}
   .sf-btn.active{background:var(--brand);color:#fff;border-color:var(--brand)}
   .item-actions{display:flex;gap:5px;flex-wrap:wrap;margin-top:5px}
-  .ia-btn{border:1px solid var(--line);background:#fff;border-radius:6px;padding:2px 7px;font-size:10.5px;cursor:pointer}
+  .ia-btn{border:1px solid var(--line);background:var(--card);border-radius:6px;padding:2px 7px;font-size:10.5px;cursor:pointer}
   .ia-btn:hover{border-color:var(--brand-2)}
   .appr-row{cursor:pointer}
   .health-row.clickable{cursor:pointer}
@@ -258,9 +271,21 @@
   /* ---- Quick-nav chips (sticky section jumper) ---- */
   #quickNav{position:sticky;top:57px;z-index:19;background:var(--bg);padding:6px 0 2px;
     display:flex;gap:6px;flex-wrap:wrap}
-  .qn-chip{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:999px;
+  .qn-chip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;
     padding:4px 12px;font-size:11.5px;font-weight:700;cursor:pointer}
   .qn-chip:hover{border-color:var(--brand-2);color:var(--brand-2)}
+  .qn-chip.qn-active{background:var(--brand-2);color:#fff;border-color:var(--brand-2)}
+  /* ---- 6 labelled sections + card polish ---- */
+  .hq-sec{display:flex;flex-direction:column;gap:16px}
+  .hq-sec-label{font-size:11px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;
+    color:var(--muted);border-bottom:1px solid var(--line);padding-bottom:4px;margin-top:6px}
+  body.simple-mode #secMap, body.simple-mode #secActivity{display:none !important}
+  .panel-box, .kpi, #enterpriseCard, #pipelineBoard, .rc-card{
+    box-shadow:0 1px 2px rgba(24,16,55,.05);transition:box-shadow .18s ease}
+  .panel-box:hover, .rc-card:hover{box-shadow:0 4px 14px rgba(24,16,55,.10)}
+  .panel-box{position:relative;overflow:hidden}
+  .panel-box::before{content:"";position:absolute;top:0;left:0;right:0;height:2.5px;
+    background:linear-gradient(90deg,var(--brand),var(--brand-2),transparent);opacity:.45}
   /* ---- Simple/Pro view (user-friendly default): Simple = cockpit-only.
      !important zaroori — kuch cards JS se inline display:block set karte. ---- */
   body.simple-mode #capabilitiesPanel, body.simple-mode #mapToolbar, body.simple-mode #modeToggle,
@@ -269,11 +294,12 @@
   body.simple-mode #pipelineBoard, body.simple-mode #systemMapCard, body.simple-mode #workflowRunsCard,
   body.simple-mode #activeCoordCard, body.simple-mode #failureConsoleCard,
   body.simple-mode .qn-chip[data-jump="stageWrap"], body.simple-mode .qn-chip[data-jump="replayPanel"],
-  body.simple-mode .qn-chip[data-jump="pipelineBoard"], body.simple-mode .qn-chip[data-jump="failureConsoleCard"]{display:none !important}
+  body.simple-mode .qn-chip[data-jump="pipelineBoard"], body.simple-mode .qn-chip[data-jump="failureConsoleCard"],
+  body.simple-mode #coordinatorTickerBox{display:none !important}
   /* Agent Scheduler mini-panel */
   #schedList table{width:100%;font-size:12px;border-collapse:collapse}
   #schedList td{padding:5px 6px;border-top:1px dashed var(--line);vertical-align:middle}
-  #schedList .sched-btn{border:1px solid var(--line);background:#fff;border-radius:7px;
+  #schedList .sched-btn{border:1px solid var(--line);background:var(--card);border-radius:7px;
     padding:2px 8px;font-size:11px;font-weight:700;cursor:pointer}
   #schedList .sched-btn:hover{border-color:var(--brand-2);color:var(--brand-2)}
 
@@ -287,7 +313,7 @@
   .asr-row{padding:7px 10px;font-size:12.5px;cursor:pointer;display:flex;gap:7px;align-items:center}
   .asr-row:hover{background:var(--brand-soft)}
   .asr-row .asr-title{color:var(--muted);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .map-btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:4px 10px;
+  .map-btn{border:1px solid var(--line);background:var(--card);border-radius:7px;padding:4px 10px;
     font-size:12.5px;font-weight:700;cursor:pointer}
   .map-btn:hover{border-color:var(--brand-2)}
   #mapHint{font-size:11px;color:var(--muted)}
@@ -337,12 +363,32 @@
     .replay-row{grid-template-columns:1fr}
     #stageWrap{display:none}
     #mapToolbar{display:none}
+    /* BUGFIX: mobile me canvas hidden — world-anchored ticker box page ke
+       neeche float karta tha */
+    #coordinatorTickerBox{display:none !important}
     #quickNav{top:auto;position:static}
     #roomListCompact{display:flex;flex-direction:column;gap:8px}
     .board-row{flex-direction:column}
     .stage-card{flex:1 1 auto}
     .panel-card{width:100vw;max-width:100vw}
   }
+  /* ---- Toast alerts (corner notifications) ---- */
+  #toastStack{position:fixed;right:14px;bottom:14px;z-index:90;display:flex;flex-direction:column;
+    gap:8px;max-width:340px}
+  .toast{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--info);
+    border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--ink);
+    box-shadow:0 8px 24px rgba(0,0,0,.18);animation:toastIn .25s ease-out;cursor:pointer}
+  .toast.t-err{border-left-color:var(--err)} .toast.t-warn{border-left-color:var(--warn)}
+  @keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+  /* ---- Ctrl+K command palette ---- */
+  .cp-box{width:min(560px,92vw);margin:80px auto 0;background:var(--card);border:1px solid var(--line);
+    border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden}
+  #cpInput{width:100%;border:none;outline:none;padding:14px 16px;font-size:14px;background:transparent;
+    color:var(--ink);box-sizing:border-box;border-bottom:1px solid var(--line)}
+  #cpResults{max-height:320px;overflow-y:auto}
+  .cp-row{padding:9px 14px;font-size:13px;cursor:pointer;display:flex;gap:8px;align-items:center;color:var(--ink)}
+  .cp-row.cp-sel{background:var(--brand-soft)}
+  .cp-kind{margin-left:auto;font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase}
   .rc-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
   .rc-head{display:flex;align-items:center;gap:7px;font-weight:800;font-size:13px}
   .rc-status{width:8px;height:8px;border-radius:50%;margin-left:auto}
@@ -361,16 +407,19 @@
     <div class="spacer"></div>
     <span id="istClock" style="font-size:11.5px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums"></span>
     <span id="freshnessBadge" style="font-size:11.5px;color:var(--muted)"></span>
-    <button id="viewModeBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
+    <button id="themeBtn" style="border:1px solid var(--line);background:var(--card);border-radius:7px;
+      padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
+      title="Theme: Auto (system) → Dark → Light">🌗 Auto</button>
+    <button id="viewModeBtn" style="border:1px solid var(--line);background:var(--card);border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
       title="Simple = sirf zaroori cheezein (copilot, KPIs, approvals, hot queue). Pro = poora office map + saare panels.">🎛️ Pro view</button>
-    <button id="briefingBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
+    <button id="briefingBtn" style="border:1px solid var(--line);background:var(--card);border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
       title="Aaj ki HQ briefing suno (Swara ki awaaz me)">📻 Briefing</button>
-    <button id="manualRefreshBtn" style="border:1px solid var(--line);background:#fff;border-radius:7px;
+    <button id="manualRefreshBtn" style="border:1px solid var(--line);background:var(--card);border-radius:7px;
       padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer">🔄 Refresh now</button>
   </div>
-  <div id="legendPopover" style="display:none;position:fixed;top:50px;left:16px;background:#fff;
+  <div id="legendPopover" style="display:none;position:fixed;top:50px;left:16px;background:var(--card);
     border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:12.5px;
     box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:30;max-width:320px">
     <div style="font-weight:800;margin-bottom:8px">Kaise padhein</div>
@@ -385,7 +434,7 @@
     <div style="margin-top:6px">🌙 19:00–07:00 IST — office night-mode (dim + desk lamps)</div>
     <div style="margin-top:6px">🧍 Har ghante minute 0-2 — standup (sab Coordinator Room tak walk)</div>
     <div style="margin-top:6px">👀 Bina login — preview mode (demo roster, grey/neutral, live data nahi)</div>
-    <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:#fff;
+    <button id="legendClose" style="margin-top:10px;border:1px solid var(--line);background:var(--card);
       border-radius:6px;padding:3px 10px;font-size:11.5px;cursor:pointer">Band karo</button>
   </div>
   <!-- F4 Subah ki Briefing — modal (topbar button entry point; canvas-independent,
@@ -394,20 +443,20 @@
   <div id="briefingModal" style="display:none;position:fixed;inset:0;z-index:40;
     background:rgba(15,23,42,.45)">
     <div style="position:absolute;top:60px;left:50%;transform:translateX(-50%);
-      width:min(440px,92vw);max-height:80vh;overflow:auto;background:#fff;
+      width:min(440px,92vw);max-height:80vh;overflow:auto;background:var(--card);
       border:1px solid var(--line);border-radius:12px;padding:18px 20px;
       box-shadow:0 12px 40px rgba(0,0,0,.22)">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
         <div style="font-weight:800;font-size:15px">📻 Subah ki Briefing</div>
         <button id="briefingClose" aria-label="Band karo" style="margin-left:auto;
-          border:1px solid var(--line);background:#fff;border-radius:6px;
+          border:1px solid var(--line);background:var(--card);border-radius:6px;
           padding:2px 9px;font-size:13px;cursor:pointer">✕</button>
       </div>
       <div id="briefingDate" style="font-size:11.5px;color:var(--muted);margin-bottom:10px"></div>
       <div id="briefingBody" style="font-size:13px;line-height:1.55;color:var(--ink);
         white-space:pre-wrap">⏳ Briefing ban rahi hai… ~10s</div>
       <div style="display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap">
-        <button id="briefingPlay" style="border:1px solid var(--line);background:#fff;
+        <button id="briefingPlay" style="border:1px solid var(--line);background:var(--card);
           border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;
           display:none">▶ Suno</button>
         <span id="briefingAudioNote" style="font-size:11.5px;color:var(--muted)"></span>
@@ -431,6 +480,7 @@
       <button class="qn-chip" data-jump="failureConsoleCard">Reliability</button>
     </div>
     <div id="statusSummary" style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px"></div>
+    <section class="hq-sec" id="secCommand"><div class="hq-sec-label">🎯 Command Center</div>
     <section id="warRoom">
       <div class="command-head">
         <div>
@@ -467,7 +517,7 @@
         <span style="font-weight:400;font-size:12px;color:var(--muted)">— pura staff discuss karke project-improvement suggest karta hai (aaj ke real data pe grounded, draft-safe)</span>
       </h3>
       <textarea id="councilTopic" rows="2" maxlength="400" placeholder="Khaali chhodo default topic ke liye, ya apna sawaal likho — jaise: is mahine churn kam karne ke liye kya karein?"
-        style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical"></textarea>
+        style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical;background:var(--card);color:var(--ink)"></textarea>
       <div class="panel-actions" style="margin:8px 0">
         <button id="councilRunBtn">💡 Team se discuss karao</button>
         <label style="font-size:12px;margin-left:10px;cursor:pointer"><input type="checkbox" id="councilDeeper"> Deeper (2 rounds, thoda slow)</label>
@@ -491,7 +541,9 @@
         </div>
       </div>
     </details>
+    </section>
 
+    <section class="hq-sec" id="secMap"><div class="hq-sec-label">🗺️ Live Office</div>
     <div id="mapToolbar">
       <div id="agentSearchWrap">
         <input id="agentSearch" placeholder="🔎 Agent dhundo (naam/role)…" autocomplete="off" />
@@ -520,7 +572,9 @@
       <h3>Aaj ka replay <span style="font-weight:400;font-size:12px;color:var(--muted)">- last office moves</span></h3>
       <div id="replayList"><div class="loading-note">Loading replay...</div></div>
     </div>
+    </section>
 
+    <section class="hq-sec" id="secActivity"><div class="hq-sec-label">📡 Team Activity</div>
     <div class="feed-card" id="feedCard">
       <div class="feed-head"><span class="ticker-dot"></span> Live automation feed — poora project ka feed</div>
       <div class="filter-row" id="filterRow"></div>
@@ -543,7 +597,9 @@
         <div id="activityMeta" class="empty-note"></div>
       </div>
     </div>
+    </section>
 
+    <section class="hq-sec" id="secPipeline"><div class="hq-sec-label">📈 Pipeline &amp; Schedule</div>
     <div id="pipelineBoard">
       <div class="board-head"><div class="board-title">📈 Lead → Renewal Pipeline</div></div>
       <div class="board-row" id="boardRow"><div class="loading-note">⏳ Loading pipeline…</div></div>
@@ -570,7 +626,9 @@
         </div>
       </div>
     </div>
+    </section>
 
+    <section class="hq-sec" id="secApprovals"><div class="hq-sec-label">🗂️ Approvals &amp; Coordination</div>
     <div id="workflowRunsCard" class="panel-box" style="margin-top:14px;display:none">
       <h3>⚙️ Recent Workflow Runs</h3>
       <div id="workflowRunsList"><div class="loading-note">⏳ Loading…</div></div>
@@ -584,7 +642,7 @@
     <div class="two-col">
       <div class="panel-box" id="approvalsPanel">
         <h3 style="display:flex;align-items:center;gap:8px">🗂️ Approvals needed
-          <button id="bossReviewBtn" style="margin-left:auto;border:1px solid var(--line);background:#fff;
+          <button id="bossReviewBtn" style="margin-left:auto;border:1px solid var(--line);background:var(--card);
             border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
             title="Boss (manager agent) har pending item par recommend karega — final click aapka">🧠 Boss se review karao</button>
         </h3>
@@ -597,7 +655,9 @@
         <div id="healthList"><div class="loading-note">⏳ Loading…</div></div>
       </div>
     </div>
+    </section>
 
+    <section class="hq-sec" id="secReliability"><div class="hq-sec-label">🚨 Reliability &amp; Queues</div>
     <!-- Agent Scheduler mini-panel (2026-07-03): /api/platform/team/scheduler se
          problem-first view — sirf overdue/failed/paused jobs dikhte, sab ok to ek
          green line. Full control = /app/automation Schedule tab. -->
@@ -614,7 +674,7 @@
     <div id="failureConsoleCard" class="panel-box" style="margin-top:14px">
       <h3 style="display:flex;align-items:center;gap:8px">
         🚨 Reliability Console — failed jobs &amp; recovery
-        <button id="dlqSweepBtn" style="margin-left:auto;border:1px solid var(--line);background:#fff;
+        <button id="dlqSweepBtn" style="margin-left:auto;border:1px solid var(--line);background:var(--card);
           border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:700;cursor:pointer"
           title="Failed jobs ko backoff + attempt-cap ke saath dobara chalao">🔁 Retry sweep</button>
       </h3>
@@ -646,10 +706,18 @@
       </h3>
       <div id="hotQueueSummary" class="empty-note">⏳ Loading…</div>
     </div>
+    </section>
   </div>
 
+  <div id="toastStack"></div>
+  <div id="cmdPalette" style="display:none;position:fixed;inset:0;z-index:80;background:rgba(15,17,35,.45)">
+    <div class="cp-box">
+      <input id="cpInput" placeholder="⌨️ Kahin bhi jump karo / action chalao… (Esc = band)" autocomplete="off" />
+      <div id="cpResults"></div>
+    </div>
+  </div>
   <div id="roomTooltip"></div>
-  <div id="coordinatorTickerBox" style="position:absolute;display:none;background:#fff;border:1px solid var(--line);
+  <div id="coordinatorTickerBox" style="position:absolute;display:none;background:var(--card);border:1px solid var(--line);
     border-radius:8px;padding:6px 10px;max-width:280px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.08);z-index:15">
     <div style="font-weight:700;margin-bottom:3px">🧑‍💼 Coordinator log</div>
     <div id="coordinatorTicker"></div>
@@ -702,13 +770,27 @@
   // dikhata. Manual "Retry"/"Refresh now" flag reset karke dobara try karta
   // (dusre tab me re-login ke baad localStorage token fresh hota hai).
   OFFICE.authExpired = false;
+  // Session expire pe har data-panel me honest note — pehle 3+ panels chupchaap
+  // stale "Loading…"/purane data pe freeze ho jate the.
+  OFFICE.markSessionExpired = function(){
+    var note = '<div class="empty-note">🔒 Session expire — <a href="/app/admin-login">dobara login karo</a>, phir 🔄 Refresh now.</div>';
+    ["tickerList", "approvalsList", "healthList", "leaderboardList", "scheduleList",
+     "failureConsoleList", "schedList", "replayList", "boardRow", "kpiRow",
+     "priorityActionStack", "bossBriefBody", "dlqRepairSummary", "hotQueueSummary",
+     "activityMeta"].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = note;
+    });
+  };
   OFFICE.fetchSnapshot = async function(){
     try {
       var r = await fetch("/api/platform/office/snapshot", { headers: hdrs() });
       if (r.status === 401 || r.status === 403) {
+        var was = OFFICE.authExpired;
         OFFICE.authExpired = true;
         showBanner('🔒 Session expire ho gaya — <a href="/app/admin-login" ' +
           'style="color:#991b1b;font-weight:800;text-decoration:underline">dobara login karo</a>', true);
+        if (!was) OFFICE.markSessionExpired();
         return null;
       }
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -780,6 +862,8 @@
   OFFICE.updateTickerBoxPos = function(){
     var tickerBox = document.getElementById("coordinatorTickerBox");
     if (!tickerBox || tickerBox.style.display === "none") return;
+    var wrap = document.getElementById("stageWrap");
+    if (!wrap || wrap.clientWidth === 0) return;  // map hidden (simple/mobile) — position mat karo
     var room = OFFICE.roomById.coordinator;
     var pagePos = OFFICE.worldToPage(room.x + room.w - 290, room.y + 30);
     tickerBox.style.left = pagePos.x + "px";
@@ -1086,6 +1170,21 @@
     return "char" + ((h % OFFICE.CHAR_COUNT) + 1);
   };
 
+  // ---- BUGFIX: 31 staff / sirf 10 sprites → clones. Har agent (aur uski desk)
+  // ka apna deterministic pastel color — golden-angle hue, roster order pe stable.
+  OFFICE.AGENT_COLORS = {};
+  OFFICE._colorSeq = 0;
+  OFFICE.colorForKey = function(key){
+    if (OFFICE.AGENT_COLORS[key] != null) return OFFICE.AGENT_COLORS[key];
+    var hue = (OFFICE._colorSeq++ * 137.508) % 360;
+    var c = Phaser.Display.Color.HSLToColor(hue / 360, 0.62, 0.72).color;
+    OFFICE.AGENT_COLORS[key] = c;
+    return c;
+  };
+  OFFICE.colorCssForKey = function(key){
+    return "#" + ("00000" + OFFICE.colorForKey(key).toString(16)).slice(-6);
+  };
+
   OFFICE.layoutSlots = function(room, count){
     var padX = 20, padTop = 46, padBottom = 16;
     var usableW = room.w - padX * 2;
@@ -1093,7 +1192,11 @@
     var cols = Math.max(1, Math.min(count, Math.floor(usableW / 62)));
     var rows = Math.max(1, Math.ceil(count / cols));
     var pitchX = usableW / cols;
-    var pitchY = Math.min(74, usableH / rows);
+    var pitchY = usableH / rows;
+    // BUGFIX: room bhar jaye to avatars overlap hote the — ab pitch comfort-box
+    // (62x74) se chhota hone par avatars gracefully shrink ho ke fit hote hain.
+    var scale = Math.max(0.55, Math.min(1, pitchX / 62, pitchY / 74));
+    pitchY = Math.min(74, pitchY);
     var slots = [];
     for (var i = 0; i < count; i++){
       var r = Math.floor(i / cols), c = i % cols;
@@ -1102,21 +1205,24 @@
         y: room.y + padTop + pitchY * r + pitchY / 2
       });
     }
-    return slots;
+    return { slots: slots, scale: scale };
   };
 
-  OFFICE.drawAvatar = function(m, slot, room){
+  OFFICE.drawAvatar = function(m, slot, room, sizeScale){
     var scene = OFFICE.scene;
     var color = OFFICE.STATE_COLOR[m.state] || OFFICE.STATE_COLOR.offline;
-    var s = OFFICE.TILE_SCALE;
+    var f = sizeScale || 1;                    // room-density shrink factor
+    var s = OFFICE.TILE_SCALE * f;
     // PHASE-2 desk-set: chair (avatar ke peeche) + desk + monitor with blue
     // glow — created BEFORE the avatar container so creation-order keeps them
     // underneath (same convention as room decor). Refs in av.extras for teardown.
-    var chair = scene.add.circle(slot.x, slot.y - 13, 6.5, 0x64748b).setStrokeStyle(1.5, 0x334155);
-    var desk = scene.add.image(slot.x, slot.y + 13, "desk_1").setScale(s);
-    var monitor = scene.add.rectangle(slot.x, slot.y + 9, 11, 8, 0x0f172a).setStrokeStyle(1, 0x334155);
-    var monitorGlow = scene.add.rectangle(slot.x, slot.y + 9, 8, 5, 0x38bdf8, 0.95);
-    var sprite = scene.add.image(0, -4, OFFICE.charKeyFor(m.key)).setScale(s);
+    var chair = scene.add.circle(slot.x, slot.y - 13 * f, 6.5 * f, 0x64748b).setStrokeStyle(1.5, 0x334155);
+    var desk = scene.add.image(slot.x, slot.y + 13 * f, "desk_1").setScale(s);
+    desk.setTint(OFFICE.colorForKey(m.key));   // desk bhi agent ke identity-color me
+    var monitor = scene.add.rectangle(slot.x, slot.y + 9 * f, 11 * f, 8 * f, 0x0f172a).setStrokeStyle(1, 0x334155);
+    var monitorGlow = scene.add.rectangle(slot.x, slot.y + 9 * f, 8 * f, 5 * f, 0x38bdf8, 0.95);
+    var sprite = scene.add.image(0, -4 * f, OFFICE.charKeyFor(m.key)).setScale(s);
+    sprite.setTint(OFFICE.colorForKey(m.key)); // 10 sprites, 31 staff — tint = unique pehchaan
     sprite.setInteractive({ useHandCursor: true });
     sprite.on("pointerup", function(){ if (!OFFICE.dragMoved) OFFICE.openAgentPanel(m.key); });
     sprite.on("pointerover", function(p){
@@ -1126,29 +1232,39 @@
       var extra = (a.state || a.status) === "offline" && reason
         ? esc(OFFICE.offlineReasonText(reason))
         : "Aaj " + esc(a.todayActions != null ? a.todayActions : "?") + " action(s)";
+      if (m.unmapped) extra = "⚠ Room map nahi mila — default room me dikh raha hai<br>" + extra;
       tip.innerHTML = "<b>" + esc(a.name || m.name) + " — " + esc(a.state || a.status || "?") + "</b><br>" + extra;
       tip.style.display = "block";
       OFFICE.moveRoomTooltip(p);
     });
     sprite.on("pointermove", function(p){ OFFICE.moveRoomTooltip(p); });
     sprite.on("pointerout", function(){ OFFICE.hideRoomTooltip(); });
-    var badge = scene.add.circle(12, 6, 5.5, color).setStrokeStyle(2, 0xffffff);
+    var badge = scene.add.circle(12 * f, 6 * f, 5.5 * f, color).setStrokeStyle(2, 0xffffff);
     // Always-visible name label (10-char cap, cluttered rooms me overflow na ho).
-    var label = scene.add.text(0, 30, String(m.name || "").slice(0, 10), {
-      fontSize: "10px", fontFamily: "sans-serif", color: "#1e293b"
-    }).setOrigin(0.5, 0);
-    var group = scene.add.container(slot.x, slot.y, [sprite, badge, label]);
+    var label = scene.add.text(0, 30 * f, String(m.name || "").slice(0, 10), {
+      fontSize: "10px", fontFamily: "sans-serif", color: OFFICE.colorCssForKey(m.key), fontStyle: "bold"
+    }).setOrigin(0.5, 0).setShadow(0, 1, "#1e293b", 2, false, true);
+    var parts = [sprite, badge, label];
+    // BUGFIX: naya staff jiska room map nahi — pehle chupchaap galat room me
+    // chala jata tha. Ab orange "?" badge se turant dikhta hai.
+    if (m.unmapped) {
+      parts.push(scene.add.text(-14 * f, -22 * f, "?", {
+        fontSize: "11px", fontFamily: "sans-serif", fontStyle: "bold",
+        color: "#ffffff", backgroundColor: "#f97316", padding: { x: 3, y: 1 }
+      }).setOrigin(0.5));
+    }
+    var group = scene.add.container(slot.x, slot.y, parts);
     // Subtle idle "breathing" bob (sprite y −4 → −7, yoyo forever) — offline
     // agents ke liye setAvatarState ise pause karta (chup-chaap baithe rahen).
     var bobTween = scene.tweens.add({
-      targets: sprite, y: -7, duration: 1150 + Math.random() * 500,
+      targets: sprite, y: -7 * f, duration: 1150 + Math.random() * 500,
       yoyo: true, repeat: -1, ease: "Sine.easeInOut"
     });
     var av = {
       desk: desk, sprite: sprite, badge: badge, label: label, group: group,
       extras: [chair, monitor, monitorGlow],
       homeX: slot.x, homeY: slot.y, wandering: false, pulse: null, pulseTween: null,
-      bobTween: bobTween, room: room || null, state: m.state
+      bobTween: bobTween, room: room || null, state: m.state, sizeScale: f
     };
     OFFICE.setAvatarState(av, m.state);
     OFFICE.scheduleWander(m.key);
@@ -1161,12 +1277,20 @@
     var scene = OFFICE.scene;
     if (!av || !scene) return;
     av.state = state;
+    // BUGFIX: offline hote hi turant desk pe wapas — pehle chalu walk-tween
+    // 2-3s tak chalta rehta tha (group tweens kill + position reset).
+    if (state === "offline") {
+      try { scene.tweens.killTweensOf(av.group); } catch (e) {}
+      av.group.setPosition(av.homeX, av.homeY);
+      try { av.sprite.setFlipX(false); } catch (e) {}
+      av.wandering = false;
+    }
     av.badge.setFillStyle(OFFICE.STATE_COLOR[state] || OFFICE.STATE_COLOR.offline);
     av.group.setAlpha(state === "offline" ? 0.55 : 1);
     if (av.label) av.label.setAlpha(state === "offline" ? 0.65 : 1);  // name label offline = extra dim
     if (av.bobTween) {
       // Offline = no breathing bob (dimmed + bilkul still).
-      if (state === "offline") { av.bobTween.pause(); av.sprite.y = -4; }
+      if (state === "offline") { av.bobTween.pause(); av.sprite.y = -4 * (av.sizeScale || 1); }
       else if (av.bobTween.paused) av.bobTween.resume();
     }
     if (state === "working" && !av.pulse) {
@@ -1304,13 +1428,13 @@
     OFFICE.DEMO_ROSTER.forEach(function(d){ (byRoom[d.room] = byRoom[d.room] || []).push(d); });
     OFFICE.ROOMS.forEach(function(room){
       var members = byRoom[room.id] || [];
-      var slots = OFFICE.layoutSlots(room, members.length);
+      var layout = OFFICE.layoutSlots(room, members.length);
       members.forEach(function(d, i){
         var m = { key: d.key, name: d.name, emoji: d.emoji, title: d.title, duties: "(preview)", state: "preview" };
         OFFICE.agentByKey[d.key] = { key: d.key, name: d.name, emoji: d.emoji, title: d.title,
           duties: "(preview — live data ke liye login karo)", status: "preview",
           todayActions: "—", todayErrors: "—" };
-        OFFICE.avatars[d.key] = OFFICE.drawAvatar(m, slots[i], room);
+        OFFICE.avatars[d.key] = OFFICE.drawAvatar(m, layout.slots[i], room, layout.scale);
       });
     });
   };
@@ -1348,18 +1472,20 @@
       var byRoom = {};
       OFFICE.ROOMS.forEach(function(r){ byRoom[r.id] = []; });
       snapshot.agents.forEach(function(a){
-        var m = { key: a.key, name: a.name, emoji: a.emoji, title: a.title, duties: a.duties, state: a.status, offlineReason: a.offline_reason };
+        var m = { key: a.key, name: a.name, emoji: a.emoji, title: a.title, duties: a.duties,
+                  state: a.status, offlineReason: a.offline_reason, unmapped: !byRoom[a.room] };
+        a.unmapped = m.unmapped;   // tooltip/drawer ke liye bhi yaad rakho
         (byRoom[a.room] || byRoom.platform_engineering).push(m);
       });
       OFFICE.ROOMS.forEach(function(room){
         var members = byRoom[room.id];
-        var slots = OFFICE.layoutSlots(room, members.length);
+        var layout = OFFICE.layoutSlots(room, members.length);
         members.forEach(function(m, i){
           var existing = OFFICE.avatars[m.key];
           if (existing) {
             OFFICE.setAvatarState(existing, m.state);
           } else {
-            OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, slots[i], room);
+            OFFICE.avatars[m.key] = OFFICE.drawAvatar(m, layout.slots[i], room, layout.scale);
           }
         });
       });
@@ -2255,7 +2381,7 @@
     // button jo kuch na kare = misleading, wahi galti jo per-item me avoid ki).
     var actionsDisabled = (st.error || (st.failed || 0) === 0);
     var btnStyle = 'border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-size:12.5px;' +
-      'font-weight:700;cursor:pointer;background:#fff';
+      'font-weight:700;cursor:pointer;background:var(--card);color:var(--ink)';
     body.innerHTML =
       '<div class="panel-title">🗂️ DLQ Repair Desk</div>' +
       '<div class="panel-sub">Hermes ka desk — failed Celery tasks (retry-able) + dead (retry exhausted). ' +
@@ -2401,7 +2527,7 @@
         var draftPrev = esc(draft.slice(0, 220));
         var hqId = esc(String(it.hq_id || ""));
         var btnStyle = 'border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;' +
-          'font-weight:700;cursor:pointer;background:#fff';
+          'font-weight:700;cursor:pointer;background:var(--card);color:var(--ink)';
         return '<div class="item-row" data-hqid="' + hqId + '">' +
           '<div class="ir-name">📨 ' + from + '</div>' +
           (meta ? '<div class="ir-meta">' + meta + '</div>' : '') +
@@ -2788,7 +2914,7 @@
       '<div class="panel-box" style="margin:12px 0" id="kaamBox">' +
         '<h3>🎯 Kaam do</h3>' +
         '<textarea id="kaamGoal" rows="2" maxlength="500" placeholder="Hinglish me goal likho — jaise: 3 hot restaurant leads ke liye follow-up plan banao" ' +
-          'style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical"></textarea>' +
+          'style="width:100%;box-sizing:border-box;border:1px solid var(--line);border-radius:8px;padding:8px;font-size:12.5px;font-family:inherit;resize:vertical;background:var(--card);color:var(--ink)"></textarea>' +
         '<div style="display:flex;gap:14px;margin:8px 0;font-size:12px">' +
           '<label style="cursor:pointer"><input type="radio" name="kaamScope" value="solo" checked> Sirf yeh agent</label>' +
           '<label style="cursor:pointer"><input type="radio" name="kaamScope" value="team"> Team lagao</label>' +
@@ -2892,6 +3018,38 @@
     });
   };
 
+  // ---- Toast alerts: naya failed job / overdue / approval aate hi corner me --
+  OFFICE.toast = function(msg, kind, jump){
+    var stack = document.getElementById("toastStack");
+    if (!stack) return;
+    while (stack.children.length >= 4) stack.removeChild(stack.firstChild);
+    var t = document.createElement("div");
+    t.className = "toast" + (kind ? " " + kind : "");
+    t.textContent = msg;
+    t.onclick = function(){ if (jump) OFFICE.jumpToCta(jump); t.remove(); };
+    stack.appendChild(t);
+    setTimeout(function(){ try { t.remove(); } catch (e) {} }, 7000);
+  };
+  OFFICE._prevAlerts = null;
+  OFFICE.checkAlerts = function(data){
+    var m = (data && data.metrics) || {};
+    var cur = {
+      failed: m.failed_automations || 0,
+      approvals: m.approvals_needed || 0,
+      overdue: ((((data || {}).system_health || {}).overdue) || []).length
+    };
+    var prev = OFFICE._prevAlerts;
+    if (prev) {
+      if (cur.failed > prev.failed)
+        OFFICE.toast("🚨 " + (cur.failed - prev.failed) + " naya failed automation — Reliability Console dekho", "t-err", "failureConsoleCard");
+      if (cur.overdue > prev.overdue)
+        OFFICE.toast("⏰ Job overdue ho gaya — System health dekho", "t-warn", "systemHealthPanel");
+      if (cur.approvals > prev.approvals)
+        OFFICE.toast("🗂️ Nayi approval pending aayi — decide karo", "t-warn", "approvalsPanel");
+    }
+    OFFICE._prevAlerts = cur;
+  };
+
   OFFICE.lastSnapshot = null;
   OFFICE.lastRefreshAt = null;
   OFFICE.updateFreshnessBadge = function(){
@@ -2926,6 +3084,7 @@
       data.metrics.approvals_needed = data.approvals.counts.total_pending;
     }
     OFFICE.renderCommandCenter(data);
+    OFFICE.checkAlerts(data);
     OFFICE.renderMetrics(data.metrics);
     OFFICE.renderNextActions(data.next_best_actions);
     OFFICE.renderEnterpriseFeatures(data);
@@ -2970,6 +3129,29 @@
       if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     };
   });
+
+  // ---- Scroll-spy: viewport me jo section hai uska nav-chip highlight -------
+  (function(){
+    if (!("IntersectionObserver" in window)) return;
+    var chips = document.querySelectorAll(".qn-chip");
+    var vis = {};
+    var io = new IntersectionObserver(function(entries){
+      entries.forEach(function(en){ vis[en.target.id] = en.isIntersecting; });
+      var current = null;
+      Array.prototype.some.call(chips, function(c){
+        var id = c.getAttribute("data-jump");
+        if (vis[id]) { current = id; return true; }
+        return false;
+      });
+      Array.prototype.forEach.call(chips, function(c){
+        c.classList.toggle("qn-active", c.getAttribute("data-jump") === current);
+      });
+    }, { rootMargin: "-60px 0px -55% 0px" });
+    Array.prototype.forEach.call(chips, function(c){
+      var el = document.getElementById(c.getAttribute("data-jump"));
+      if (el) io.observe(el);
+    });
+  })();
 
   // ---- Map camera: zoom / drag-pan / focus ----------------------------------
   OFFICE.dragMoved = false;
@@ -3197,9 +3379,9 @@
     meta.textContent = counted + " event(s) last 24h me" +
       (events.length >= 250 ? " (250-event cap — busy hours undercount ho sakte)" : "");
   };
-  setInterval(function(){ OFFICE.renderActivityChart(); }, 60000);
+  setInterval(function(){ if (!document.hidden) OFFICE.renderActivityChart(); }, 60000);
 
-  OFFICE.game = new Phaser.Game({
+  OFFICE.GAME_CONFIG = {
     type: Phaser.AUTO,
     parent: "stage",
     width: 1200,
@@ -3249,11 +3431,30 @@
         } catch (e) {}
       }
     }
-  });
+  };
 
-  setInterval(function(){ if (!OFFICE.authExpired) OFFICE.refreshSnapshot(); }, 15000);
-  setInterval(function(){ if (!OFFICE.authExpired) OFFICE.pollEvents(); }, 8000);
-  setInterval(function(){ OFFICE.applyDayNight(); }, 60000);
+  // BUGFIX (sabse bada): Simple→Pro pe map BLANK. Root cause: game yahan
+  // (script order me) boot hota tha, par simple-mode class neeche lagti thi —
+  // 0-width parent pe Scale.FIT 0x0 canvas bake karta jo refresh() se recover
+  // nahi hota. Fix: Phaser sirf tab boot karo jab #stageWrap sach me visible ho
+  // (call site view-mode init ke BAAD hai, neeche).
+  OFFICE.bootGame = function(){
+    if (OFFICE.game) return;
+    var wrap = document.getElementById("stageWrap");
+    if (!wrap || wrap.clientWidth === 0) return;   // simple mode / mobile — abhi nahi
+    OFFICE.game = new Phaser.Game(OFFICE.GAME_CONFIG);
+  };
+
+  setInterval(function(){ if (!OFFICE.authExpired && !document.hidden) OFFICE.refreshSnapshot(); }, 15000);
+  setInterval(function(){ if (!OFFICE.authExpired && !document.hidden) OFFICE.pollEvents(); }, 8000);
+  setInterval(function(){ if (!document.hidden) OFFICE.applyDayNight(); }, 60000);
+  // Background tab = battery-friendly: polling paused; wapas aate hi fresh data.
+  document.addEventListener("visibilitychange", function(){
+    if (!document.hidden && !OFFICE.authExpired) {
+      OFFICE.refreshSnapshot();
+      OFFICE.pollEvents();
+    }
+  });
 
   // ---- PHASE-2 standup moment: har ghante minute 0-2 (IST) pe sab non-offline
   // agents Coordinator Room border tak walk karke ~20s me wapas desk pe. Sirf
@@ -3356,7 +3557,10 @@
     if (!list) return;
     try {
       var r = await fetch("/api/platform/team/scheduler", { headers: hdrs() });
-      if (r.status === 401 || r.status === 403) return;
+      if (r.status === 401 || r.status === 403) {
+        list.innerHTML = '<div class="empty-note">🔒 Session expire — <a href="/app/admin-login">dobara login karo</a>.</div>';
+        return;
+      }
       var d = r.ok ? await r.json() : {};
       var jobs = d.jobs || [];
       if (!jobs.length) { list.innerHTML = '<div class="empty-note">⚠️ Scheduler data nahi mila.</div>'; return; }
@@ -3434,13 +3638,147 @@
     }
     if (m === "pro") {
       setTimeout(function(){
+        OFFICE.bootGame();   // pehli baar simple me load hua tha to game ab banega
         try { if (OFFICE.game && OFFICE.game.scale) OFFICE.game.scale.refresh(); } catch (e) {}
       }, 60);
     }
   };
+  // ---- Ctrl+K command palette: sections + agents + quick actions ------------
+  OFFICE.paletteStatic = [
+    { label: "War Room / Command Center", kind: "section", run: function(){ OFFICE.jumpToCta("warRoom"); } },
+    { label: "Priorities (action stack)", kind: "section", run: function(){ OFFICE.jumpToCta("priorityActionStack"); } },
+    { label: "Office Map", kind: "section", run: function(){ OFFICE.jumpToCta("stageWrap"); } },
+    { label: "Replay", kind: "section", run: function(){ OFFICE.jumpToCta("replayPanel"); } },
+    { label: "Live feed", kind: "section", run: function(){ OFFICE.jumpToCta("feedCard"); } },
+    { label: "Pipeline board", kind: "section", run: function(){ OFFICE.jumpToCta("pipelineBoard"); } },
+    { label: "Aaj ka Schedule", kind: "section", run: function(){ OFFICE.jumpToCta("schedulePanel"); } },
+    { label: "Approvals", kind: "section", run: function(){ OFFICE.jumpToCta("approvalsPanel"); } },
+    { label: "Team Improvement Council", kind: "section", run: function(){ OFFICE.jumpToCta("councilPanel"); } },
+    { label: "System health", kind: "section", run: function(){ OFFICE.jumpToCta("systemHealthPanel"); } },
+    { label: "Agent Scheduler", kind: "section", run: function(){ OFFICE.jumpToCta("schedulerPanel"); } },
+    { label: "Reliability Console", kind: "section", run: function(){ OFFICE.jumpToCta("failureConsoleCard"); } },
+    { label: "DLQ Repair Desk", kind: "section", run: function(){ OFFICE.openDlqRepairDrawer(); } },
+    { label: "Hot Queue", kind: "section", run: function(){ OFFICE.openHotQueueDrawer(); } },
+    { label: "Refresh now", kind: "action", run: function(){ document.getElementById("manualRefreshBtn").click(); } },
+    { label: "Subah ki Briefing", kind: "action", run: function(){ OFFICE.openBriefing(false); } },
+    { label: "Theme badlo (auto/dark/light)", kind: "action", run: function(){ OFFICE.cycleTheme(); } },
+    { label: "Simple/Pro view toggle", kind: "action", run: function(){
+        OFFICE.setViewMode(document.body.classList.contains("simple-mode") ? "pro" : "simple"); } },
+    { label: "Inbox kholo", kind: "action", run: function(){ window.open("/app/inbox", "_blank"); } },
+    { label: "Automation / Schedule tab", kind: "action", run: function(){ window.open("/app/automation#schedule", "_blank"); } }
+  ];
+  OFFICE.paletteItems = function(){
+    var items = OFFICE.paletteStatic.slice();
+    Object.keys(OFFICE.agentByKey).forEach(function(k){
+      var a = OFFICE.agentByKey[k];
+      items.push({ label: (a.emoji || "🤖") + " " + (a.name || k) + " — " + (a.title || ""), kind: "agent",
+        run: function(){ OFFICE.focusAgent(k); OFFICE.openAgentPanel(k); } });
+    });
+    return items;
+  };
+  // Subsequence fuzzy score: har query-char order me mile to match; consecutive
+  // hits ko bonus. 0 = no match.
+  OFFICE.fuzzyScore = function(q, s){
+    q = q.toLowerCase(); s = s.toLowerCase();
+    var si = 0, score = 0, streak = 0;
+    for (var qi = 0; qi < q.length; qi++) {
+      var idx = s.indexOf(q[qi], si);
+      if (idx < 0) return 0;
+      streak = (idx === si) ? streak + 1 : 1;
+      score += 1 + streak;
+      si = idx + 1;
+    }
+    return score + Math.max(0, 20 - s.length / 4);
+  };
+  OFFICE._cpSel = 0;
+  OFFICE._cpMatches = [];
+  OFFICE.renderPalette = function(){
+    var q = document.getElementById("cpInput").value.trim();
+    var items = OFFICE.paletteItems();
+    var matches = !q ? items.slice(0, 12) :
+      items.map(function(it){ return { it: it, sc: OFFICE.fuzzyScore(q, it.label) }; })
+        .filter(function(x){ return x.sc > 0; })
+        .sort(function(a, b){ return b.sc - a.sc; })
+        .slice(0, 12).map(function(x){ return x.it; });
+    OFFICE._cpMatches = matches;
+    OFFICE._cpSel = Math.min(OFFICE._cpSel, Math.max(0, matches.length - 1));
+    document.getElementById("cpResults").innerHTML = matches.map(function(it, i){
+      return '<div class="cp-row' + (i === OFFICE._cpSel ? " cp-sel" : "") + '" data-i="' + i + '">' +
+        esc(it.label) + '<span class="cp-kind">' + esc(it.kind) + '</span></div>';
+    }).join("") || '<div class="cp-row">Kuch nahi mila.</div>';
+    Array.prototype.forEach.call(document.querySelectorAll("#cpResults .cp-row[data-i]"), function(row){
+      row.onclick = function(){ OFFICE.runPaletteItem(parseInt(row.getAttribute("data-i"), 10)); };
+      row.onmouseenter = function(){ OFFICE._cpSel = parseInt(row.getAttribute("data-i"), 10); OFFICE.renderPalette(); };
+    });
+  };
+  OFFICE.runPaletteItem = function(i){
+    var it = OFFICE._cpMatches[i];
+    OFFICE.closePalette();
+    if (it && it.run) it.run();
+  };
+  OFFICE.openPalette = function(){
+    document.getElementById("cmdPalette").style.display = "block";
+    var inp = document.getElementById("cpInput");
+    inp.value = ""; OFFICE._cpSel = 0;
+    OFFICE.renderPalette();
+    inp.focus();
+  };
+  OFFICE.closePalette = function(){ document.getElementById("cmdPalette").style.display = "none"; };
+  document.getElementById("cmdPalette").addEventListener("click", function(e){
+    if (e.target === this) OFFICE.closePalette();
+  });
+  document.getElementById("cpInput").addEventListener("input", function(){ OFFICE._cpSel = 0; OFFICE.renderPalette(); });
+  document.getElementById("cpInput").addEventListener("keydown", function(e){
+    if (e.key === "Escape") { OFFICE.closePalette(); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); OFFICE._cpSel = Math.min(OFFICE._cpSel + 1, OFFICE._cpMatches.length - 1); OFFICE.renderPalette(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); OFFICE._cpSel = Math.max(OFFICE._cpSel - 1, 0); OFFICE.renderPalette(); }
+    else if (e.key === "Enter") { OFFICE.runPaletteItem(OFFICE._cpSel); }
+  });
+  document.addEventListener("keydown", function(e){
+    if ((e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")) {
+      e.preventDefault();
+      var open = document.getElementById("cmdPalette").style.display !== "none";
+      if (open) OFFICE.closePalette(); else OFFICE.openPalette();
+    }
+  });
+
+  // ---- Dark mode: system (auto) + manual toggle, localStorage me yaad -------
+  OFFICE.themePref = "auto";
+  OFFICE.applyTheme = function(pref){
+    OFFICE.themePref = pref;
+    var dark = pref === "dark" || (pref === "auto" && window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches);
+    document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
+    var btn = document.getElementById("themeBtn");
+    if (btn) btn.textContent = pref === "auto" ? "🌗 Auto" : (dark ? "🌙 Dark" : "☀️ Light");
+    try { localStorage.setItem("officeTheme", pref); } catch (e) {}
+  };
+  OFFICE.cycleTheme = function(){
+    var next = { auto: "dark", dark: "light", light: "auto" }[OFFICE.themePref] || "auto";
+    OFFICE.applyTheme(next);
+  };
+  try { OFFICE.applyTheme(localStorage.getItem("officeTheme") || "auto"); }
+  catch (e) { OFFICE.applyTheme("auto"); }
+  document.getElementById("themeBtn").onclick = OFFICE.cycleTheme;
+  if (window.matchMedia) {
+    try {
+      window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){
+        if (OFFICE.themePref === "auto") OFFICE.applyTheme("auto");
+      });
+    } catch (e) {}
+  }
+
   var _vm = "pro";
   try { _vm = localStorage.getItem("officeViewMode") || "pro"; } catch (e) {}
   OFFICE.setViewMode(_vm);
+  OFFICE.bootGame();   // pro + desktop = turant boot; warna Pro-switch pe hoga
+  // Game na bane (simple mode / mobile) to bhi DOM panels ko data chahiye —
+  // create() wala initial load nahi chalega, isliye yahan se seed karo.
+  if (!OFFICE.game) {
+    OFFICE.refreshSnapshot();
+    OFFICE.pollEvents();
+    OFFICE.renderActivityChart();
+  }
   document.getElementById("viewModeBtn").onclick = function(){
     OFFICE.setViewMode(document.body.classList.contains("simple-mode") ? "pro" : "simple");
   };
