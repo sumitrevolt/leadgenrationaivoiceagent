@@ -79,7 +79,10 @@ async def seen_before(key: str, ttl_s: int | None = None) -> bool:
         logger.warning("[idempotency] redis check failed (%s) — fail-open via memory", e)
         try:
             return _mem_seen(key, ttl)
-        except Exception:
+        except Exception as e2:
+            # Billing-visible (was a silent False): BOTH stores down means duplicate
+            # suppression is OFF — a replayed payment webhook could double-provision.
+            logger.error("[idempotency] memory fallback ALSO failed (%s) — dedupe OFF", e2)
             return False
 
 
@@ -134,7 +137,10 @@ def seen_before_sync(key: str, ttl_s: int | None = None) -> bool:
         logger.warning("[idempotency] sync redis check failed (%s) — fail-open via memory", e)
         try:
             return _mem_seen(key, ttl)
-        except Exception:
+        except Exception as e2:
+            # Billing-visible (was a silent False): BOTH stores down means duplicate
+            # suppression is OFF — a replayed payment webhook could double-provision.
+            logger.error("[idempotency] sync memory fallback ALSO failed (%s) — dedupe OFF", e2)
             return False
 
 

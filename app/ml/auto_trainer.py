@@ -345,10 +345,16 @@ class AutoTrainer:
             training_time_seconds=time.time() - start_time,
         )
 
-        # Save model
+        # Save model (+ HMAC sidecar — inert without MODEL_SIGNING_KEY, ADR-002)
         model_path = self.models_dir / f"{model_name}_latest.pkl"
         with open(model_path, "wb") as f:
             pickle.dump(pipeline, f)
+        try:
+            from app.ml.model_signing import sign_file
+
+            sign_file(model_path)
+        except Exception:
+            pass
 
         logger.info(
             f"📈 {model_name} trained: "
@@ -446,10 +452,16 @@ class AutoTrainer:
             training_time_seconds=time.time() - start_time,
         )
 
-        # Save model
+        # Save model (+ HMAC sidecar — inert without MODEL_SIGNING_KEY, ADR-002)
         model_path = self.models_dir / f"{model_name}_latest.pkl"
         with open(model_path, "wb") as f:
             pickle.dump(model, f)
+        try:
+            from app.ml.model_signing import sign_file
+
+            sign_file(model_path)
+        except Exception:
+            pass
 
         return metrics
 
@@ -572,10 +584,19 @@ class AutoTrainer:
             return None
 
         try:
+            # ADR-002 (closed 2026-07-05): HMAC-SHA256 sidecar verification before
+            # unpickling. Unset key / missing sidecar = fail-OPEN (legacy models keep
+            # working); signature MISMATCH = fail-CLOSED (tampered pickle = RCE).
+            from app.ml.model_signing import verify_file
+
+            if not verify_file(active_version.file_path):
+                logger.error(
+                    f"Model {model_type.value} REFUSED: signature mismatch on "
+                    f"{active_version.file_path}"
+                )
+                return None
             with open(active_version.file_path, "rb") as f:
-                model = pickle.load(f)  # nosecurity: model-load-from-disk-see-ADR-002
-            # SECURITY: pickle.load from disk — verify file integrity if hash available
-            # TODO: add HMAC signature verification for model files (ADR-002)
+                model = pickle.load(f)  # nosecurity: model-load-hmac-verified-ADR-002
             self.active_models[model_type] = model
             return model
 

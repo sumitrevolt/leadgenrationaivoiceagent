@@ -147,7 +147,11 @@ async def page_agent_chat(request: Request, user=Depends(require_admin)):
         import json
 
         payload: dict[str, Any] = json.loads(raw or b"{}")
-        assert isinstance(payload, dict)
+        # NOT an assert: python -O strips asserts, which would let a JSON array/
+        # scalar body slide past validation on an optimized runtime. Explicit
+        # raise keeps the 400 contract under every interpreter mode.
+        if not isinstance(payload, dict):
+            raise ValueError("body must be a JSON object")
     except Exception:
         raise HTTPException(status_code=400, detail="invalid JSON body")
 

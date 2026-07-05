@@ -110,6 +110,20 @@ def test_chat_400_on_invalid_json(monkeypatch):
     assert r.status_code == 400
 
 
+def test_chat_400_on_non_dict_json_body(monkeypatch):
+    """Valid JSON that is NOT an object (array/scalar) must 400 too. This was
+    guarded by a bare `assert` — stripped under `python -O`, letting a list
+    body reach provider code. Now an explicit raise (interpreter-mode-proof)."""
+    monkeypatch.setenv("PAGE_AGENT", "1")
+    for bad in (b"[1,2,3]", b'"just-a-string"', b"42"):
+        r = _client().post(
+            "/api/page-agent/v1/chat/completions",
+            content=bad,
+            headers={"Content-Type": "application/json"},
+        )
+        assert r.status_code == 400, bad
+
+
 def test_chat_413_on_oversize_body(monkeypatch):
     monkeypatch.setenv("PAGE_AGENT", "1")
     big = b'{"messages": "' + b"x" * (pa._MAX_BODY_BYTES + 10) + b'"}'

@@ -353,8 +353,11 @@ def record_opt_out(
         from app.marketing import wa_campaign_runner
 
         wa_campaign_runner.suppress(k, reason=f"{channel}_opt_out")
-    except Exception:
-        pass
+    except Exception as e:
+        # Compliance-visible (was a silent pass): a failed WA propagate means the
+        # opt-out did NOT reach every channel — ops must see this, TCCCPR requires
+        # instant cross-channel suppression. Behaviour unchanged (never raises).
+        logger.error(f"opt-out cross-channel WA propagate FAILED for ***{k[-4:]}: {e}")
     # F.4 bridge — DPDP "right to be forgotten": purge any stored agent memory
     # for this phone too. Fire-and-forget; never blocks the opt-out write. The
     # voice agent stores cross-session lead facts in Qdrant (agent_memory.py);
@@ -373,10 +376,12 @@ def record_opt_out(
             # Wrapped so a missing dep / disabled flag still never breaks opt-out.
             try:
                 _asyncio.run(_agm.purge_subject(k, scope="lead"))
-            except Exception:
-                pass
-    except Exception:
-        pass
+            except Exception as e:
+                logger.error(f"DPDP agent-memory purge FAILED for ***{k[-4:]} (sync): {e}")
+    except Exception as e:
+        # Compliance-visible (was a silent pass): purge failure = personal data
+        # retained after opt-out (DPDP s.12). Behaviour unchanged (never raises).
+        logger.error(f"DPDP agent-memory purge FAILED for ***{k[-4:]}: {e}")
     logger.info(f"🔕 opt-out recorded ***{k[-4:]} ({channel}/{rec['reason']})")
     return {"phone": k, "suppressed": suppressed, **rec}
 
@@ -541,8 +546,10 @@ def opt_back_in(
                     "at": _now(),
                 },
             )
-        except Exception:
-            pass
+        except Exception as e:
+            # Compliance-visible (was a silent pass): a re-consent override with NO
+            # audit trail is indefensible in a TRAI/DPDP dispute — ops must know.
+            logger.error(f"reconsent_override audit write FAILED for ***{k[-4:]}: {e}")
     return {"phone": k, "suppressed": False, "reconsent_blocked": False, "consent": rec}
 
 

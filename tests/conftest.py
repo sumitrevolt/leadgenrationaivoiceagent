@@ -401,6 +401,31 @@ def cleanup_test_files():
             pass  # File might still be in use
 
 
+@pytest.fixture(autouse=True)
+def _repair_mainthread_event_loop():
+    """FLAKE FIX (2026-07-05): several PROD sync paths legitimately call
+    ``asyncio.run()`` (consent_ledger opt-out purge, customer_webhooks.fire_emit
+    no-loop branch, lead_usage sync emit). ``asyncio.run()`` closes its loop AND
+    unbinds the MainThread's current-loop slot on exit — so any LATER test that
+    relies on the thread's default loop finds it closed/missing and fails purely
+    depending on FILE ORDER (reproduced on a clean base; the full suite went
+    red/green by reordering). After every test: if the MainThread loop binding
+    is closed/broken, install a fresh loop. Never raises, zero effect when the
+    loop is healthy."""
+    yield
+    try:
+        policy = asyncio.get_event_loop_policy()
+        try:
+            loop = policy.get_event_loop()
+            broken = loop.is_closed()
+        except Exception:
+            broken = True
+        if broken:
+            policy.set_event_loop(asyncio.new_event_loop())
+    except Exception:
+        pass
+
+
 @pytest.fixture(scope="session", autouse=True)
 def netguard_session():
     """
