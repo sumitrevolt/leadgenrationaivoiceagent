@@ -1962,20 +1962,23 @@ async def pwa_service_worker():
 @app.get("/api/status")
 async def api_status():
     """Platform status (JSON) — root ab marketing website serve karta hai."""
+    # Copy updated 2026-07-05 — the old "B2B Intelligence Platform" text was
+    # pre-pivot; this JSON is public and gets scraped/quoted, so it must match
+    # the real products (AI Automated Marketing + AI Voice Calling Agent).
     return {
         "status": "healthy",
         "app": settings.app_name,
         "version": "1.0.0",
         "platform": {
-            "type": "B2B Intelligence Platform",
+            "type": "AI Marketing Automation & AI Voice Agent SaaS",
             "features": [
-                "Company Search API",
-                "Data Enrichment",
-                "Market Reports",
-                "Lead Scoring",
+                "AI Automated Marketing (content, GBP, reviews, leads, CRM)",
+                "AI Voice Calling Agent (TRAI-compliant, Hindi/Hinglish)",
+                "Free growth audit & site audit lead magnets",
+                "WhatsApp & email follow-up automation",
             ],
         },
-        "message": "🚀 B2B Intelligence Platform - Data that drives revenue!",
+        "message": "🚀 LeadGen AI — small business marketing on autopilot!",
     }
 
 

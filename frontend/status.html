@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="LeadGen AI live system status — app, database aur cache ka real-time health check har page-load pe.">
 <link rel="manifest" href="/manifest.json">
 <title>LeadGen AI — System Status</title>
 <link rel="stylesheet" href="/design-system/styles.css" />
@@ -28,9 +29,13 @@ function set(id, ok, label){document.getElementById(id).innerHTML = ok?'<span cl
 document.getElementById('ts').textContent = new Date().toLocaleString('en-IN');
 fetch('/health').then(r=>{set('s-app', r.ok);return r.json()}).catch(()=>set('s-app',false));
 fetch('/health/ready').then(r=>r.json()).then(j=>{
+  // /health/ready returns OBJECTS per check ({status:"healthy",...}) — the old
+  // string check saw "[object Object]" and showed Degraded forever; worse,
+  // .includes('health') also matched "unhealthy". Strict === 'healthy' only.
   const c=(j&&(j.checks||j))||{};
-  const db=(c.database||c.db||'').toString().includes('health')||c.database==='healthy';
-  const rd=(c.redis||'').toString().includes('health')||c.redis==='healthy';
+  const st=v=>((v&&typeof v==='object')?(v.status||''):(v||'')).toString().trim().toLowerCase();
+  const db=st(c.database||c.db)==='healthy';
+  const rd=st(c.redis)==='healthy';
   set('s-db', db, 'Degraded'); set('s-redis', rd, 'Degraded');
 }).catch(()=>{set('s-db',false);set('s-redis',false);});
 if('serviceWorker' in navigator) navigator.serviceWorker.register('/sw.js').catch(()=>{});
