@@ -372,6 +372,14 @@
     .stage-card{flex:1 1 auto}
     .panel-card{width:100vw;max-width:100vw}
   }
+  /* ---- Toast alerts (corner notifications) ---- */
+  #toastStack{position:fixed;right:14px;bottom:14px;z-index:90;display:flex;flex-direction:column;
+    gap:8px;max-width:340px}
+  .toast{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--info);
+    border-radius:10px;padding:10px 12px;font-size:12.5px;color:var(--ink);
+    box-shadow:0 8px 24px rgba(0,0,0,.18);animation:toastIn .25s ease-out;cursor:pointer}
+  .toast.t-err{border-left-color:var(--err)} .toast.t-warn{border-left-color:var(--warn)}
+  @keyframes toastIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
   /* ---- Ctrl+K command palette ---- */
   .cp-box{width:min(560px,92vw);margin:80px auto 0;background:var(--card);border:1px solid var(--line);
     border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden}
@@ -701,6 +709,7 @@
     </section>
   </div>
 
+  <div id="toastStack"></div>
   <div id="cmdPalette" style="display:none;position:fixed;inset:0;z-index:80;background:rgba(15,17,35,.45)">
     <div class="cp-box">
       <input id="cpInput" placeholder="⌨️ Kahin bhi jump karo / action chalao… (Esc = band)" autocomplete="off" />
@@ -761,13 +770,27 @@
   // dikhata. Manual "Retry"/"Refresh now" flag reset karke dobara try karta
   // (dusre tab me re-login ke baad localStorage token fresh hota hai).
   OFFICE.authExpired = false;
+  // Session expire pe har data-panel me honest note — pehle 3+ panels chupchaap
+  // stale "Loading…"/purane data pe freeze ho jate the.
+  OFFICE.markSessionExpired = function(){
+    var note = '<div class="empty-note">🔒 Session expire — <a href="/app/admin-login">dobara login karo</a>, phir 🔄 Refresh now.</div>';
+    ["tickerList", "approvalsList", "healthList", "leaderboardList", "scheduleList",
+     "failureConsoleList", "schedList", "replayList", "boardRow", "kpiRow",
+     "priorityActionStack", "bossBriefBody", "dlqRepairSummary", "hotQueueSummary",
+     "activityMeta"].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = note;
+    });
+  };
   OFFICE.fetchSnapshot = async function(){
     try {
       var r = await fetch("/api/platform/office/snapshot", { headers: hdrs() });
       if (r.status === 401 || r.status === 403) {
+        var was = OFFICE.authExpired;
         OFFICE.authExpired = true;
         showBanner('🔒 Session expire ho gaya — <a href="/app/admin-login" ' +
           'style="color:#991b1b;font-weight:800;text-decoration:underline">dobara login karo</a>', true);
+        if (!was) OFFICE.markSessionExpired();
         return null;
       }
       if (!r.ok) throw new Error("HTTP " + r.status);
@@ -2995,6 +3018,38 @@
     });
   };
 
+  // ---- Toast alerts: naya failed job / overdue / approval aate hi corner me --
+  OFFICE.toast = function(msg, kind, jump){
+    var stack = document.getElementById("toastStack");
+    if (!stack) return;
+    while (stack.children.length >= 4) stack.removeChild(stack.firstChild);
+    var t = document.createElement("div");
+    t.className = "toast" + (kind ? " " + kind : "");
+    t.textContent = msg;
+    t.onclick = function(){ if (jump) OFFICE.jumpToCta(jump); t.remove(); };
+    stack.appendChild(t);
+    setTimeout(function(){ try { t.remove(); } catch (e) {} }, 7000);
+  };
+  OFFICE._prevAlerts = null;
+  OFFICE.checkAlerts = function(data){
+    var m = (data && data.metrics) || {};
+    var cur = {
+      failed: m.failed_automations || 0,
+      approvals: m.approvals_needed || 0,
+      overdue: ((((data || {}).system_health || {}).overdue) || []).length
+    };
+    var prev = OFFICE._prevAlerts;
+    if (prev) {
+      if (cur.failed > prev.failed)
+        OFFICE.toast("🚨 " + (cur.failed - prev.failed) + " naya failed automation — Reliability Console dekho", "t-err", "failureConsoleCard");
+      if (cur.overdue > prev.overdue)
+        OFFICE.toast("⏰ Job overdue ho gaya — System health dekho", "t-warn", "systemHealthPanel");
+      if (cur.approvals > prev.approvals)
+        OFFICE.toast("🗂️ Nayi approval pending aayi — decide karo", "t-warn", "approvalsPanel");
+    }
+    OFFICE._prevAlerts = cur;
+  };
+
   OFFICE.lastSnapshot = null;
   OFFICE.lastRefreshAt = null;
   OFFICE.updateFreshnessBadge = function(){
@@ -3029,6 +3084,7 @@
       data.metrics.approvals_needed = data.approvals.counts.total_pending;
     }
     OFFICE.renderCommandCenter(data);
+    OFFICE.checkAlerts(data);
     OFFICE.renderMetrics(data.metrics);
     OFFICE.renderNextActions(data.next_best_actions);
     OFFICE.renderEnterpriseFeatures(data);
@@ -3494,7 +3550,10 @@
     if (!list) return;
     try {
       var r = await fetch("/api/platform/team/scheduler", { headers: hdrs() });
-      if (r.status === 401 || r.status === 403) return;
+      if (r.status === 401 || r.status === 403) {
+        list.innerHTML = '<div class="empty-note">🔒 Session expire — <a href="/app/admin-login">dobara login karo</a>.</div>';
+        return;
+      }
       var d = r.ok ? await r.json() : {};
       var jobs = d.jobs || [];
       if (!jobs.length) { list.innerHTML = '<div class="empty-note">⚠️ Scheduler data nahi mila.</div>'; return; }
