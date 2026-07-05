@@ -51,3 +51,24 @@ A paying customer who silently got nothing churns, disputes (Razorpay chargeback
 
 ## Build order
 P0 items 1-4 first (delivery guarantee + fail-loud) — this is the buildable fix that stops the bug class. Then P1 experience, then P2 growth loop. Customer-facing auto-send is flag-gated (`AUTO_DELIVER_VALUE`, default OFF) + founder-alert first, so delivery is reviewed before it goes live to real customers.
+
+## ✅ FINAL STATUS (2026-07-05, all shipped/accounted)
+
+| # | Item | Status |
+|---|------|--------|
+| 1-6 | P0 delivery guarantee (value-first, state machine, dead-man, fail-loud, stuck-surface) | ✅ built + deployed |
+| 7-9 | value-first delivery / deliver-on-activation | ✅ built (wired into UPI activate) |
+| 10 | mini-site call/WhatsApp button | ✅ already existed (verified) |
+| 11 | delivery→acknowledged loop | ✅ built (inbound reply = ack) |
+| 12 | weekly value digest | ✅ built (honest metrics, 6d) |
+| 13 | voice-note walkthrough | ⏸ DEFERRED — needs WAHA audio/media-send capability (not verified); lowest value, higher complexity. Text delivery already walks the customer through. |
+| 14 | subscription reconcile | ✅ non-bug (plan resolves = starter) |
+| 15 | "activated" event | ✅ `is_activated` = acknowledged |
+| 16 | first-inbound alert | ✅ already existed (CLIENT_HOT_LEAD_ALERT) |
+| 17 | testimonial capture | ✅ built (gated AUTO_TESTIMONIAL, default OFF) |
+| 18 | case study → 338 leads | ✅ generator built (honest, real assets); attach step = founder action |
+| 19 | referral loop | ✅ built (config-driven REFERRAL_REWARD; no unilateral offer) |
+| 20 | monthly ROI receipt + view tracking | ✅ built (real mini-site view tracking + 28d honest receipt) |
+
+**Flags:** `AUTO_DELIVER_VALUE=1` ON (delivery + weekly + monthly live). `AUTO_TESTIMONIAL`, `REFERRAL_REWARD` = opt-in (default OFF/unset) so no customer testimonial-ask or financial offer fires until the founder sets them.
+**Delivered:** jiya makeover + trending tattoos (value delivered, tracked). Dead-man ensures no future paid customer is silently ghosted.
