@@ -85,10 +85,21 @@ jobs:
           fi
           # torch CPU (Dockerfile.lock jaisa) + test tooling (lock me na ho to).
           pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu || true
-          pip install pytest pytest-asyncio pytest-timeout
+          # -U + EXACT pins ZAROORI (R-39, 2026-07-05): pehle yahan unpinned
+          # `pip install pytest pytest-asyncio` tha -> lock ke purane pytest-asyncio
+          # "already satisfied" reh jata -> ~30 async tests "no current event loop"
+          # se girti thin. tests.yml/deploy-vps ki proven recipe mirror karo.
+          # (Ye job pehle collection-crash pe marta tha (httpx 0.28), isliye ye
+          # ~40 failures kabhi REACH hi nahi hote the — conftest shim ne unmask kiya.)
+          pip install -U "pytest==9.0.2" "pytest-asyncio==1.3.0" "pytest-timeout==2.4.0" "httpx==0.27.2" pytest-github-actions-annotate-failures
       - name: Production readiness check
         run: python scripts/prod_check.py
       - name: Pytest (skip network/LLM-key tests)
         env:
           APP_ENV: test
+          # Dummy provider key (R-39): kuch voice tests TelecallerBrain construct
+          # karte hain jo sirf key-PRESENCE check karta (network call nahi) — bina
+          # key ValueError se girte the. `-m "not network"` actual LLM calls skip
+          # karta hi hai; ye key sirf construction ke liye. Real key NAHI (fake).
+          GROQ_API_KEY: ci-dummy-not-a-real-key
         run: pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60

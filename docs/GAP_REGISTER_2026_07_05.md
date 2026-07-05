@@ -61,6 +61,7 @@
 | R-36 | mypy "MUST-PASS" step CI me kabhi REACH nahi hota tha; asli count = 1502 errors | ADVISORY kiya (34e1322) + 2 real bugs fix (fdfd2f1: dead KB warm-up main.py + festivals type-comment). Baseline cleanup ke baad wapas blocking |
 | R-37 | `gap_analyzer._feature_detected` — hyphenated synonym keys `_normalise` se pass nahi hote → "Real-time notifications center" jaise features KABHI detected nahi = false-positive gaps admin backlog me | OPEN (R-29 tests ne pakda; fix = synonym keys ko bhi normalise karo — chhota, Phase 3 next batch) |
 | R-38 | `niche_db.py` docstring auth-claim drift (bolti hai "sirf write ops pe admin", code 6/8 GETs pe bhi admin — code SAFER hai) | OPEN (docstring fix, trivial) |
+| R-39 | **ci.yml `tests` job ~40 pre-existing voice/async failures** — R-35 collection-fix ne unmask kiye (pehle collection-crash pe 0 test chalte the). 2 causes: (a) ~30 "no event loop" = unpinned `pytest-asyncio` (lock ka purana reh jata); (b) ~10 "TelecallerBrain needs key" = voice tests bina key construct + `network`-unmarked | FIXED (ci.yml tests-job: tests.yml ki exact pin recipe `pytest==9.0.2 pytest-asyncio==1.3.0 httpx==0.27.2` + `GROQ_API_KEY: ci-dummy` env). Local verify: 51 previously-failing tests → all pass with pins+key. Full-suite re-run confirm pending |
 
 ## Phase 4 — deferred structural (EXPLICIT opt-in only)
 
