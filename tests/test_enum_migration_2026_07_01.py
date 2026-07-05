@@ -8,7 +8,7 @@ CI/dev default), the migration must be a clean no-op, never raise, and never
 touch the column type is meaningless here — SQLite has no native enum type to
 begin with. The Postgres-specific behavior (real type conversion + the
 NAME->value casing fix) was verified end-to-end this session against a real
-local Postgres 16 instance — see TEST_RESULTS.md for the full command +
+local Postgres 16 instance — see docs/archive/TEST_RESULTS.md for the full command +
 output; that verification is not repeated here as a permanent CI dependency
 since the migration only ever needs to run once against real prod/staging.
 

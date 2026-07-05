@@ -24,7 +24,7 @@
 | R-06 | **`prospect_leads_export.csv` 238KB lead-PII git-tracked (history me bhi)** | (A) `git rm` + .gitignore — HEAD saaf, history me PII rahega · (B) `git filter-repo` history purge + force-push — POORA saaf par har clone + VPS coordinate karna padega | USER-CONFIRM |
 | R-07 | Root `.xlsx` ×2 (`LeadGen_Costing_Model`, `Niche_Pricing_Research`) — business assets repo me | (A) rehne do · (B) Drive me le jao + `git rm` | USER-CONFIRM |
 | R-08 | `debug_signup.py`, `test_phase7_inline.py` root pe | Phase-2 attic list me propose honge — abhi untouched | USER-CONFIRM |
-| R-09 | `TASKS.md` root pe — agent-workflow surface ho sakta hai | Verify-first; grep-gate ke baad hi archive propose | USER-CONFIRM |
+| R-09 | `TASKS.md` root pe — agent-workflow surface ho sakta hai | Verify kiya (2026-07-05): `.claude/skills/plan-then-build` + `retro` skills isse REFERENCE karti hain → root pe hi rahega. Archive tabhi jab skills bhi update hon | WONT-FIX (active workflow surface) |
 
 ## Phase 2 — guards + consolidation (approval pending)
 
