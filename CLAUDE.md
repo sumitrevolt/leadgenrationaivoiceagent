@@ -1,6 +1,7 @@
 # CLAUDE.md — LeadGen AI Platform (enterprise onboarding + lean working memory)
 
 > **Token discipline:** Yeh file har turn load hoti hai — lean rakho. Dated history → `docs/SESSION_LOG.md` (auto-load NAHI). Deep knowledge → `memory/` (section 9). Build/incident logs YAHAN mat likho. **Code vs memory conflict = code wins — phir memory fix karo.**
+> Naya session / cold-start? **`docs/HANDOFF.md`** = master handoff (infra map, sharp edges, SOP pointers). (2026-07-05)
 
 ## 1. PROJECT CHARTER
 
