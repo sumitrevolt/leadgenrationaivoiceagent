@@ -120,3 +120,14 @@ def test_command_palette():
     assert 'id="cmdPalette"' in SRC
     assert "OFFICE.openPalette" in SRC
     assert '(e.ctrlKey || e.metaKey) && (e.key === "k" || e.key === "K")' in SRC
+
+
+def test_toast_alerts():
+    assert 'id="toastStack"' in SRC
+    assert "OFFICE.checkAlerts" in SRC
+
+
+def test_session_expiry_honesty():
+    assert "OFFICE.markSessionExpired" in SRC
+    # scheduler 401 must not silently freeze anymore
+    assert SRC.count("Session expire") >= 3
