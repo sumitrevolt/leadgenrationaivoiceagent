@@ -299,6 +299,24 @@ def check_api_docs_drift() -> None:
         print(f"[i] API docs drift check skipped ({type(e).__name__})")
 
 
+def check_env_reference_drift() -> None:
+    """INFO only (never fails): is docs/ENV_REFERENCE.md env-key index in sync
+    with code (os.getenv scan + Settings fields + AUTOMATION_FLAGS + .env.example)?
+    Regenerate: scripts/env_reference_sync.py. Locks env-docs↔code (R-10)."""
+    try:
+        from scripts import env_reference_sync as ers
+
+        block = ers.build_block()
+        current = ers.ENV_MD.read_text(encoding="utf-8") if ers.ENV_MD.exists() else ""
+        if current.strip() != ers._splice(current, block).strip():
+            print("[i] ENV_REFERENCE.md env key index OUT OF DATE — run scripts/env_reference_sync.py")
+        else:
+            n = current.count("\n| `")
+            print(f"[i] ENV_REFERENCE.md env key index in sync ({n} keys)")
+    except Exception as e:
+        print(f"[i] env reference drift check skipped ({type(e).__name__})")
+
+
 def main() -> int:
     print("=" * 56)
     print("PRODUCTION READINESS CHECK")
@@ -312,6 +330,7 @@ def main() -> int:
     check_frontend_wiring()
     check_explorer_drift()
     check_api_docs_drift()
+    check_env_reference_drift()
     print("-" * 56)
     if PROBLEMS:
         print(f"[FAIL] {len(PROBLEMS)} problem(s):")
