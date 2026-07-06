@@ -823,6 +823,7 @@ async def run_content() -> dict[str, Any]:
         return await auto_content.run_daily_content()
     except Exception as e:
         logger.warning(f"[staff] run_content failed: {e}")
+        _staff_job_failed("content", str(e))  # W1.14 parity: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -838,6 +839,7 @@ async def run_blog(n: int = 3) -> dict[str, Any]:
         return await seo_blog.run_daily_blog(n)
     except Exception as e:
         logger.warning(f"[staff] run_blog failed: {e}")
+        _staff_job_failed("blog", str(e))  # W1.14 parity: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -853,6 +855,7 @@ async def run_email_outreach() -> dict[str, Any]:
         return await auto_outreach.run_email_outreach()
     except Exception as e:
         logger.warning(f"[staff] run_email_outreach failed: {e}")
+        _staff_job_failed("email_outreach", str(e))  # W1.14 parity: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -868,6 +871,7 @@ async def run_growth() -> dict[str, Any]:
         return await growth_engine.pulse()
     except Exception as e:
         logger.warning(f"[staff] run_growth failed: {e}")
+        _staff_job_failed("growth", str(e))  # W1.14 parity: fail metric + ntfy alert
         return {"error": str(e)}
 
 
