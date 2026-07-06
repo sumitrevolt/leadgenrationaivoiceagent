@@ -134,6 +134,8 @@
   .ai-command .btn{background:#fff;color:#0f172a;border:none;justify-content:center;white-space:nowrap}
   .mobile-app-nav{display:none}
   .mobile-fab{display:none}
+  /* --- view engine: one view visible at a time; product gating (!important) still wins --- */
+  [data-view]:not(.v-on){display:none}
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
   .prod-marketing #callsCard,.prod-marketing #routingCard{display:none !important}
   .prod-voice #contentCard,.prod-voice #approvalCard,.prod-voice #webToolsCard{display:none !important}
@@ -1449,7 +1451,43 @@ function sendToCRM(){
     }
   })();
 }
-function scrollToId(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});}
+function viewForHash(h){
+  var map={leadsCard:"leads",routingCard:"leads",callsCard:"leads",
+           contentCard:"content",approvalCard:"content",webToolsCard:"content",
+           billingCard:"account",webhookCard:"account",secCard:"account"};
+  h=(h||"").replace(/^#/,"").replace(/^view-/,"");
+  if(map[h])return map[h];
+  return ["home","leads","content","account"].indexOf(h)>=0 ? h : "home";
+}
+function showView(name){
+  name=["home","leads","content","account"].indexOf(name)>=0?name:"home";
+  document.querySelectorAll("[data-view]").forEach(function(el){
+    el.classList.toggle("v-on", el.getAttribute("data-view")===name);
+  });
+  document.querySelectorAll("[data-nav]").forEach(function(n){
+    n.classList.toggle("active", n.getAttribute("data-nav")===name);
+  });
+  // Chart.js canvases rendered while their view was hidden are sized 0x0 —
+  // resize any that are now visible.
+  try{
+    document.querySelectorAll("[data-view].v-on canvas").forEach(function(c){
+      var ch=(window.Chart && Chart.getChart) ? Chart.getChart(c) : null;
+      if(ch)ch.resize();
+    });
+  }catch(e){}
+  try{history.replaceState(null,"","#view-"+name);}catch(e){}
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function scrollToId(id){
+  showView(viewForHash(id));
+  var el=document.getElementById(id);
+  if(el)setTimeout(function(){el.scrollIntoView({behavior:"smooth",block:"start"});},60);
+}
+(function initView(){
+  function go(){ showView(viewForHash(location.hash)); }
+  if(document.readyState!=="loading")go();
+  else document.addEventListener("DOMContentLoaded",go);
+})();
 
 let _tt;
 function toast(t,m){
