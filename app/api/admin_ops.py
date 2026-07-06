@@ -847,6 +847,33 @@ async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
         raise HTTPException(status_code=500, detail=str(exc)[:200]) from exc
 
 
+@router.post("/clients/{client_id}/deliver-now", summary="Human-clicked single-customer delivery unstick")
+async def deliver_now(client_id: str, _user=Depends(require_admin)) -> dict:
+    """Admin clicks this for one stuck paid customer — calls the existing
+    deliver_client_value(force=True) bypass. Never touches AUTO_DELIVER_VALUE;
+    always logs admin_manual_action either way so the reason is visible even
+    on failure (no phone / send error / already delivered)."""
+    from app.marketing import clients_store, customer_delivery
+    from app.platform import delivery_ledger
+
+    client = clients_store.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="client not found")
+
+    result = await customer_delivery.deliver_client_value(client, force=True)
+    reason = result.get("skipped") or result.get("error")
+    try:
+        delivery_ledger.log_event(
+            client_id,
+            "admin_manual_action",
+            detail=(reason or "delivered"),
+            status="ok" if result.get("delivered") else "warn",
+        )
+    except Exception as le:  # pragma: no cover
+        logger.debug("deliver_now ledger log skip: %s", le)
+    return {"ok": True, "delivered": bool(result.get("delivered")), "reason": reason}
+
+
 @router.get("/upi/clients", summary="Search clients for manual UPI activate")
 async def upi_clients_search(q: str = "", limit: int = 20, _user=Depends(require_admin)):
     """God Mode — client id / naam / phone se dhoondo."""
