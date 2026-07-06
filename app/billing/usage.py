@@ -530,6 +530,21 @@ def activate_plan(
             )
         except Exception:
             pass
+        # W3.5: customer webhook emits (documented but unwired) — fire-and-forget,
+        # CUSTOMER_WEBHOOKS-gated inside emit + never-raises. Plan provisioned = subscriber notify.
+        try:
+            from app.platform import customer_webhooks
+
+            _wh_payload = {
+                "client_id": cid,
+                "plan": plan_k,
+                "subscription_id": subscription_id,
+                "period_end": period_end.isoformat() if period_end else None,
+            }
+            customer_webhooks.fire_emit(cid, "subscription.activated", _wh_payload)
+            customer_webhooks.fire_emit(cid, "payment.received", _wh_payload)
+        except Exception:
+            pass
     return applied
 
 

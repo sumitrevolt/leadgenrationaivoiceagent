@@ -96,7 +96,10 @@ def acquire_tick_slot() -> str:
     token = uuid.uuid4().hex
     r = _redis_client()
     if r is None:
-        return token  # fail-open: Redis unavailable ho to old behavior
+        # W1.5: FAIL-CLOSED — Redis client unavailable = koi slot NAHI (guard ke bina
+        # duplicate self-requeue chains ban jate the). Caller "" ko clean-skip karta.
+        logger.debug("[self-improve] tick-slot: Redis client unavailable — fail-closed skip")
+        return ""
     try:
         next_allowed = float(_redis_value(r.get(_TICK_NEXT_ALLOWED_KEY)) or 0)
         if next_allowed and time.time() < next_allowed:
@@ -105,8 +108,11 @@ def acquire_tick_slot() -> str:
         if not r.set(_TICK_RUNNING_KEY, token, nx=True, ex=ttl):
             return ""
         return token
-    except Exception:
-        return token
+    except Exception as e:
+        # W1.5: FAIL-CLOSED — Redis error (down) pe slot mat do; ek missed tick
+        # duplicate chains se behtar. No per-tick stack-trace (debug-log only).
+        logger.debug("[self-improve] tick-slot: Redis error — fail-closed skip: %s", e)
+        return ""
 
 
 def release_tick_slot(token: str) -> None:

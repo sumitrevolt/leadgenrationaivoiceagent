@@ -12,6 +12,7 @@ from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
+from app.api.auth_deps import require_admin
 from app.config import settings
 from app.utils.logger import setup_logger
 
@@ -308,10 +309,14 @@ async def _check_celery_workers() -> dict[str, Any]:
         return {"status": "unknown", "error": str(e)[:50]}
 
 
-@router.get("/api/v1/status")
+@router.get("/api/v1/status", dependencies=[Depends(require_admin)])
 async def api_status() -> dict[str, Any]:
     """
-    Detailed API status with metrics
+    Detailed API status with metrics (admin-only).
+
+    Leaks stack/version + LLM/TTS/STT/telephony config + llm_usage — recon for an
+    attacker. Was anonymously reachable; gated 2026-07-06 (sec sweep). No repo
+    consumer relied on it (the public probe is `/health`).
     """
     llm_stats = {"status": "not_initialized"}
 
@@ -632,6 +637,15 @@ async def prometheus_metrics():
         from app.middleware.http_metrics import render_http_metrics
 
         metrics.extend(render_http_metrics())
+    except Exception:
+        pass
+
+    # Per-job metrics (W1.13) — job success/fail counts + duration.
+    # Empty unless PROMETHEUS_JOB_METRICS=1.
+    try:
+        from app.platform.job_metrics import render_job_metrics
+
+        metrics.extend(render_job_metrics())
     except Exception:
         pass
 
