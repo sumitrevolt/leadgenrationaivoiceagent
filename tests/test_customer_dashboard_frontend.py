@@ -82,3 +82,32 @@ def test_scrolltoid_is_view_aware():
     # scrollToId must call showView so old anchor links land on the right view
     m = re.search(r"function scrollToId\([^)]*\)\s*\{(.*?)\}", SRC, re.S)
     assert m and "showView" in m.group(1), "scrollToId must route through showView"
+
+
+# ---- Task 3: block tagging ----
+def _tag_of(_id):
+    m = re.search(r"<[^>]*id=\"" + re.escape(_id) + r"\"[^>]*>", SRC)
+    assert m, f"no opening tag for {_id}"
+    return m.group(0)
+
+
+def test_all_blocks_tagged():
+    for v in ("home", "leads", "content", "account"):
+        assert f'data-view="{v}"' in SRC, f"no block tagged {v}"
+    # every content-level block (incl. sec-title headers) must be tagged or it
+    # leaks into all views; there are ~29 such blocks.
+    assert SRC.count('data-view="') >= 27, "too few tagged blocks — some will leak"
+
+
+def test_key_cards_in_expected_view():
+    assert 'data-view="leads"' in _tag_of("leadsCard")
+    assert 'data-view="leads"' in _tag_of("callsCard")
+    assert 'data-view="leads"' in _tag_of("routingCard")
+    assert 'data-view="content"' in _tag_of("contentCard")
+    assert 'data-view="content"' in _tag_of("approvalCard")
+    assert 'data-view="account"' in _tag_of("billingCard")
+    assert 'data-view="account"' in _tag_of("secCard")
+    # #mktKpis is a .kpis instance but belongs to Home (not the leads charts)
+    assert 'data-view="home"' in _tag_of("mktKpis")
+    assert 'data-view="home"' in _tag_of("aiCommand")
+    assert 'data-view="home"' in _tag_of("teamCard")
