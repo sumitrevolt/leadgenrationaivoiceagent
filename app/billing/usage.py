@@ -485,6 +485,12 @@ def activate_plan(
         if get_client(cid):
             update_client(cid, plan=plan_k)
             applied = True
+            try:
+                from app.platform import delivery_ledger
+
+                delivery_ledger.log_event(cid, "plan_activated", detail=plan_k)
+            except Exception as le:  # pragma: no cover
+                logger.debug("activate_plan ledger log skip: %s", le)
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("activate_plan clients_store skipped: %s", e)
 
