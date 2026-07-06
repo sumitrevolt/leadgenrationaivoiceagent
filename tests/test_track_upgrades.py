@@ -34,18 +34,16 @@ from app.main import app
 def c(monkeypatch):
     """A TestClient that does NOT run lifespan (no team-scheduler thread per test)."""
     from app.cache import RateLimiter
-    monkeypatch.setattr(RateLimiter, "is_allowed", lambda *a, **k: (True, 9999))
 
-    # Hermetic (CI): global RateLimitMiddleware ka IN-MEMORY fallback upar wale
-    # class-patch se bach jata (await-on-tuple → except → local counter) → full-suite
-    # burst me 429s. Middleware dispatch passthrough — dependency-level limiters ke
-    # apne dedicated tests hain (test_auth_ratelimit).
-    from app.middleware import RateLimitMiddleware
+    # ASYNC patch zaroori: callers `await limiter.is_allowed(ip)` karte hain — purana
+    # SYNC lambda await pe TypeError deta → RateLimitMiddleware apne IN-MEMORY
+    # fallback counter pe girta → CI full-suite burst me yahi 429s de raha tha.
+    # (Class-level dispatch patch kaam nahi karta — BaseHTTPMiddleware dispatch_func
+    # ko __init__ me bind karta hai.)
+    async def _allow(self, ident):
+        return True, 9999
 
-    async def _pass(self, request, call_next):
-        return await call_next(request)
-
-    monkeypatch.setattr(RateLimitMiddleware, "dispatch", _pass)
+    monkeypatch.setattr(RateLimiter, "is_allowed", _allow)
     return TestClient(app)
 
 
