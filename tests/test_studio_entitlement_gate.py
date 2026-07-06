@@ -61,9 +61,21 @@ def test_paid_plan_with_active_subscription_allowed(monkeypatch):
 
 def test_never_paid_signup_blocked_after_grace(monkeypatch):
     monkeypatch.setenv("STUDIO_ENTITLEMENT_GATE", "1")
+    from contextlib import contextmanager
+
     import app.billing.usage as usage
+    import app.models.base as models_base
 
     monkeypatch.setattr(usage, "_latest_subscription", lambda db, cid: None)
+
+    # Hermetic: gate DB-error pe FAIL-OPEN hai (design) — CI me DB na hone se
+    # get_db_session raise → allow → DID-NOT-RAISE. Working session-stub do taaki
+    # test gate-LOGIC test kare, DB-availability nahi.
+    @contextmanager
+    def _fake_db_session():
+        yield None
+
+    monkeypatch.setattr(models_base, "get_db_session", _fake_db_session)
     with pytest.raises(HTTPException) as ei:
         _entitlement_gate(
             "c1",

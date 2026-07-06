@@ -66,6 +66,10 @@ jobs:
           # TelecallerBrain __init__ me key-PRESENCE check hai (CI me real keys
           # nahi rakhte); saare LLM calls conftest me stubbed — koi network nahi.
           GROQ_API_KEY: ci-dummy-key-not-real
+          # local-dev parity: bina in ke config PROD-defaults leta (global
+          # RateLimitMiddleware arm → suite ke burst pe 429s, turnstile-class gates).
+          APP_ENV: test
+          ENVIRONMENT: development
         run: pytest -q -m "not network" --ignore=tests/integration
 
   build:
