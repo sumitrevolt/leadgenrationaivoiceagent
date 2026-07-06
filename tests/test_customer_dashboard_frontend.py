@@ -69,8 +69,9 @@ def test_view_engine_present():
 
 def test_showview_resizes_charts():
     # charts render at 0x0 while their view is hidden; showView must resize them
+    # (delegated to the shared resizeCharts() helper — see Task 6 test).
     m = re.search(r"function showView\([^)]*\)\s*\{(.*?)\n\}", SRC, re.S)
-    assert m and "getChart" in m.group(1), "showView must resize now-visible charts"
+    assert m and "resizeCharts()" in m.group(1), "showView must resize now-visible charts"
 
 
 def test_init_on_dom_ready_not_postfetch():
@@ -133,3 +134,20 @@ def test_home_money_above_decoration():
     # the hot-leads money hero must sit above the AI-command decoration on Home
     assert SRC.index('class="hero-leads"') < SRC.index('id="aiCommand"'), \
         "hero-leads (money action) must precede #aiCommand on Home"
+
+
+# ---- Task 6: browser-verified fixes ----
+def test_view_hide_rule_uses_important():
+    # !important is required so the hide rule beats block styles like
+    # .sec-title{display:flex}; without it, sec-titles leak across views.
+    assert 'data-view="account"]){display:none !important}' in SRC
+
+
+def test_charts_resized_on_show_and_details():
+    # a shared resizeCharts() fixes 0x0 Chart.js canvases; both the view switch
+    # and the "Pura hisaab" details toggle must call it.
+    assert "function resizeCharts" in SRC
+    sv = re.search(r"function showView\([^)]*\)\s*\{(.*?)\n\}", SRC, re.S)
+    assert sv and "resizeCharts()" in sv.group(1), "showView must call resizeCharts"
+    td = re.search(r"function toggleDetails\([^)]*\)\s*\{(.*?)\n\}", SRC, re.S)
+    assert td and "resizeCharts()" in td.group(1), "toggleDetails must call resizeCharts"
