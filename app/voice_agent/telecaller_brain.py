@@ -6,7 +6,7 @@ WHY THIS EXISTS (vs llm_brain.LLMBrain)
 ---------------------------------------
 LLMBrain carries ML/RAG/feedback machinery — great for web, too heavy and too
 verbose for a live PSTN turn where every token = latency = dead air. This brain
-is ONE system prompt + direct google.generativeai call (same _init_gemini
+is ONE system prompt + direct google.genai call (same _init_gemini
 pattern as llm_brain), tuned with telecaller research (2025-26):
 
   * Gong (300M+ calls): permission-based openers hit ~11% success vs 2.3% avg.
@@ -745,11 +745,10 @@ class TelecallerBrain:
         self.model = _voice_model
         if first_key:
             try:
-                # Same pattern as llm_brain._init_gemini — direct google.generativeai.
-                import google.generativeai as genai
+                # Same pattern as llm_brain._init_gemini — new google.genai SDK.
+                from google import genai as _genai_mod
 
-                genai.configure(api_key=first_key)
-                self._genai = genai
+                self._genai = _genai_mod.Client(api_key=first_key)
                 model = (settings.default_llm or "").strip()
                 if "gemini" not in model.lower() or "vertex" in model.lower():
                     model = _voice_model  # env VOICE_LLM_MODEL; flash-lite = highest free quota
@@ -2861,18 +2860,28 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         except Exception as e:
             logger.warning(f"[telecaller-brain] Gemini Vertex failed: {e}")
 
-        # --- 2) API-key path (google.generativeai, multi-key rotation) ---
+        # --- 2) API-key path (google.genai new SDK, multi-key rotation) ---
         if self._genai is None:
             return ""
         for attempt in range(2):
             key = self._active_key() or (settings.gemini_api_key or "").strip()
             try:
-                if key:
-                    self._genai.configure(api_key=key)
-                model = self._genai.GenerativeModel(self.model)
+                # Re-init client with rotated key on retry (new SDK: Client per key).
+                from google import genai as _genai_mod
+                from google.genai import types as _genai_types
+
+                client = _genai_mod.Client(api_key=key) if key else self._genai
+                _cfg = _genai_types.GenerateContentConfig(
+                    temperature=float(_GEN_CONFIG["temperature"]),
+                    max_output_tokens=int(_GEN_CONFIG["max_output_tokens"]),
+                )
                 # Hard latency cap: phone par 6s+ ka silence = dead call.
                 response = await asyncio.wait_for(
-                    model.generate_content_async(prompt, generation_config=dict(_GEN_CONFIG)),
+                    client.aio.models.generate_content(
+                        model=self.model,
+                        contents=prompt,
+                        config=_cfg,
+                    ),
                     timeout=_REPLY_TIMEOUT_S,
                 )
                 return self._clean((getattr(response, "text", "") or "").strip())
