@@ -40,3 +40,43 @@ def test_activate_plan_logs_plan_activated(monkeypatch):
     )
     usage.activate_plan("client_abc", "starter")
     assert ("client_abc", "plan_activated") in events
+
+
+@pytest.mark.asyncio
+async def test_auto_onboard_logs_started_and_completed(monkeypatch):
+    from app.marketing import onboarding
+
+    client = {"id": "c1", "business_name": "Test Biz"}
+    monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: client, raising=False)
+    monkeypatch.setattr("app.marketing.clients_store.update_client", lambda cid, **kw: None, raising=False)
+
+    async def _fake_seed_kb(cid, website):
+        return {"kb_chunks": 0}
+
+    async def _fake_content_pack(client):
+        return {"ok": True}
+
+    async def _fake_welcome(client, kb_seeded):
+        return {"sent": False}
+
+    monkeypatch.setattr(onboarding, "_seed_kb_from_website", _fake_seed_kb)
+    monkeypatch.setattr(onboarding, "_first_content_pack", _fake_content_pack)
+    monkeypatch.setattr(onboarding, "_send_welcome_whatsapp", _fake_welcome)
+    monkeypatch.setattr("app.marketing.auto_content.seed_client_content", lambda client: _async_zero(), raising=False)
+    monkeypatch.setattr("app.platform.client_snapshots.apply_niche_to_client", lambda cid: {"ok": True}, raising=False)
+
+    events = []
+    monkeypatch.setattr(
+        "app.platform.delivery_ledger.log_event",
+        lambda client_id, event_type, **kw: events.append((client_id, event_type)),
+    )
+
+    await onboarding.auto_onboard("c1")
+    kinds = [e[1] for e in events if e[0] == "c1"]
+    assert "onboarding_started" in kinds
+    assert "onboarding_completed" in kinds
+    assert kinds.index("onboarding_started") < kinds.index("onboarding_completed")
+
+
+async def _async_zero():
+    return 0
