@@ -1101,6 +1101,10 @@ class CostTracker:
                 round(100 * self.today_cost / self.daily_cap, 1) if self.daily_cap > 0 else 0
             ),
             "tasks": self.tasks_today,
+            # Honesty label (audit §2): cost constants ($2.5/$0.5) are estimates, not
+            # measured tokens. This counter is in-memory per-process and resets on restart.
+            # The durable real guard is max_per_day() run-count (file-state).
+            "note": "estimated_per_process",
         }
 
     def _reset_if_new_day(self) -> None:
