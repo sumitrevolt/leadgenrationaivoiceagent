@@ -62,7 +62,9 @@ def test_hero_blocks_present():
 def test_view_engine_present():
     assert "function showView" in SRC
     assert "function viewForHash" in SRC
-    assert "[data-view]:not(.v-on)" in SRC
+    # active-view scheme: #mainContent carries data-active-view; CSS hides the rest
+    assert 'data-active-view="home"' in SRC
+    assert '[data-active-view=' in SRC
 
 
 def test_showview_resizes_charts():
