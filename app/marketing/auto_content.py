@@ -535,6 +535,16 @@ async def seed_client_content(client: dict[str, Any]) -> int:
         added = _append_items(cid, items)
         if not added:
             added = await _recycle_fallback(client)
+        if added:
+            try:
+                from app.platform import delivery_ledger
+
+                delivery_ledger.log_event(cid, "marketing_calendar_generated")
+                delivery_ledger.log_event(
+                    cid, "post_draft_created", detail=f"{added} drafts", meta={"count": added}
+                )
+            except Exception as le:  # pragma: no cover
+                logger.debug(f"[auto_content] ledger log skip: {le}")
         return added
     except Exception as e:  # pragma: no cover
         logger.debug(f"[auto_content] seed_client_content skip: {e}")
