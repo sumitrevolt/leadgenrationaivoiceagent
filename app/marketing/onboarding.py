@@ -373,6 +373,13 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
             return {"error": "client not found", "client_id": cid}
         biz = client.get("business_name", "")
 
+        try:
+            from app.platform import delivery_ledger
+
+            delivery_ledger.log_event(cid, "onboarding_started", detail=biz)
+        except Exception as le:  # pragma: no cover
+            logger.debug("onboard ledger log skip (started): %s", le)
+
         report["steps"]["kb_website"] = await _seed_kb_from_website(cid, _website(client))
         report["steps"]["content_pack"] = await _first_content_pack(client)
 
@@ -403,6 +410,12 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
             )
         except Exception:
             pass
+        try:
+            from app.platform import delivery_ledger
+
+            delivery_ledger.log_event(cid, "onboarding_completed", detail=biz)
+        except Exception as le:  # pragma: no cover
+            logger.debug("onboard ledger log skip (completed): %s", le)
 
         kb = report["steps"]["kb_website"].get("kb_chunks", 0)
         kb_seeded = bool(kb)
