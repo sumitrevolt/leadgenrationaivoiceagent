@@ -549,3 +549,17 @@
 - **Result:** SHIPPED (UNCOMMITTED — §8, test-only). Suite ab deployed reality se aligned. **W3.4 ka "full-suite genuinely-green proof" blocker is sweep se resolve ho raha** — re-run green aaye to CI full-pytest blocking-flip (user-gated YAML change) ready.
 - **Failures found + fixed:** 7 drift (upar). Pattern-lesson: behaviour-change ship karte waqt sirf CHANGED-file tests nahi, us behaviour ke SAB asserting tests grep karo (`grep -r "<old-symbol/assumption>" tests/`).
 - **Next Loop:** full-suite re-run result verify (green = record + CI-flip user ko offer).
+
+## Loop Run — FULL SUITE GREEN + LIVE VPS AUDIT + FIX + DEPLOY
+- **Date:** 2026-07-06
+- **Goal:** (user: "keep looping... VPS direct changes... sab automation work nahi kar re... enterprise grade banao") Full-suite proof + LIVE prod audit (assume nahi, measure) + jo genuinely toota use fix + deploy.
+- **FULL SUITE = GREEN (`PYTEST_EXIT_0`, 2 by-design skips)** — drift-fixes ke baad clean re-run. **W3.4 CI blocking-flip ka proof ab EXISTS** (flip = user-gated YAML).
+- **Live audit (SSH, read-only):** automation ACTUALLY HEALTHY tha — dead-man `bad_jobs=[]`, `never_ran=[]`, celery=0, DLQ=0, followups 20/20 sent, prospector +8 new, saare 27 automation flags (autopilot/engineer-agents/reply/DLQ_AUTO_RETRY/OPS_ALERTS...) pehle se ON. User ka "sab kaam nahi kar raha" dar evidence se GALAT — asli faults 4 the:
+  1. **ntfy alert-drop (REAL bug):** emoji-title ascii-strip → leading space → httpx `Illegal header value` → founder ko boot-grace/ops alerts silently DROP. Fix: header-safe whitespace-collapse (`ntfy.py`).
+  2. **Geocode fail (Thane/Aurangabad):** bare-city ZERO_RESULTS → poori city ke prospects skip. Fix: `", India"` bias-retry + non-OK status log (`google_maps.py`).
+  3. **Vobiz blank error:** `str(e)`="" → "get_balance failed: " undiagnosable. Fix: `type(e).__name__` in log+body (`vobiz_handler.py`).
+  4. **`/metrics` + `/health/deep` EXTERNALLY anon 200** (2nd-sweep [M] confirm) — fix DENIED by permission layer (Caddy = shared prod networking; .env bhi) → USER-action block diya.
+- **Tests:** RED-first 4/4 (live blank-error symptom test me reproduce) → GREEN 11 (fixes + ntfy consumers) · prod_check ALL PASSED · secrets clean.
+- **DEPLOYED (user-authorized "VPS direct"):** commits `d2e9257` (session work) + `96fe590` (ops fixes) → origin/main → VPS ff-pull → build → recreate app+worker+worker-heavy+scheduler → `/health`=production ×2, celery/DLQ 0, activation ready, **naye symbols live-verified in-container** (record_cache/by_niche/_real_transcript_turns/ntfy-sanitize/proof-based-lock sab True), ntfy errors post-restart = ZERO.
+- **DENIED (permission classifier, correctly) → USER-action:** (a) `.env` me 5 naye flags (PROMETHEUS_JOB_METRICS/DIGEST_NTFY/DIGEST_LLM/WARM_SLA_NUDGE/QA_REAL_TRANSCRIPTS=1) + recreate; (b) Caddy `/metrics`+`/health/deep` external 403 block (sed+validate+reload commands session-response me diye; gatus/prometheus internal scrape verified unaffected — prometheus target = `leadgen_app:8080` container-network).
+- **Next:** user flags+Caddy apply kare; W3.4 CI-flip offer; baaki = GO_LIVE runbook items.
