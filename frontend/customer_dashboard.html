@@ -135,12 +135,13 @@
   .mobile-app-nav{display:none}
   .mobile-fab{display:none}
   /* --- view engine: #mainContent[data-active-view] shows one view at a time.
-     Hidden blocks get display:none (no !important) so product gating still wins,
-     and shown blocks keep their own class display (grid/flex/etc). --- */
+     !important is required to beat block styles like .sec-title{display:flex}.
+     This only hides blocks of NON-active views, so product gating
+     (#card{display:none !important}) still wins on cards inside the active view. --- */
   [data-active-view="home"]    [data-view]:not([data-view="home"]),
   [data-active-view="leads"]   [data-view]:not([data-view="leads"]),
   [data-active-view="content"] [data-view]:not([data-view="content"]),
-  [data-active-view="account"] [data-view]:not([data-view="account"]){display:none}
+  [data-active-view="account"] [data-view]:not([data-view="account"]){display:none !important}
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
   .prod-marketing #callsCard,.prod-marketing #routingCard{display:none !important}
   .prod-voice #contentCard,.prod-voice #approvalCard,.prod-voice #webToolsCard{display:none !important}
@@ -1189,6 +1190,7 @@ function initFriendlyShell(){
 function toggleDetails(){
   const on = document.body.classList.toggle("details-hidden");
   setText("detailsBtn", on ? "Pura hisaab" : "Hisaab hide karo");
+  if(!on) resizeCharts();   // details just expanded — size the charts
 }
 function firstPhone(raw){
   const d = String(raw||"").replace(/\D/g,"");
@@ -1457,6 +1459,18 @@ function viewForHash(h){
   if(map[h])return map[h];
   return ["home","leads","content","account"].indexOf(h)>=0 ? h : "home";
 }
+function resizeCharts(){
+  // Chart.js canvases first drawn while their container was hidden (an inactive
+  // view, or "Pura hisaab" collapsed) stay 0x0 — resize() doesn't reliably
+  // recover, so redraw them from the current filtered view once visible.
+  // Deferred to the next tick so the just-shown container has been reflowed.
+  setTimeout(function(){
+    try{
+      var v = window._VIEW || (typeof DATA !== "undefined" ? DATA : null);
+      if(v && typeof renderCharts === "function") renderCharts(v);
+    }catch(e){}
+  }, 0);
+}
 function showView(name){
   name=["home","leads","content","account"].indexOf(name)>=0?name:"home";
   var mc=document.getElementById("mainContent");
@@ -1464,14 +1478,7 @@ function showView(name){
   document.querySelectorAll("[data-nav]").forEach(function(n){
     n.classList.toggle("active", n.getAttribute("data-nav")===name);
   });
-  // Chart.js canvases rendered while their view was hidden are sized 0x0 —
-  // resize any that are now visible.
-  try{
-    document.querySelectorAll('[data-view="'+name+'"] canvas').forEach(function(c){
-      var ch=(window.Chart && Chart.getChart) ? Chart.getChart(c) : null;
-      if(ch)ch.resize();
-    });
-  }catch(e){}
+  resizeCharts();
   try{history.replaceState(null,"","#view-"+name);}catch(e){}
   window.scrollTo({top:0,behavior:"smooth"});
 }
