@@ -649,3 +649,22 @@
 - **Result:** SHIPPED locally (UNCOMMITTED — §8). Answer to user: **sab 32 agents sahi kaam kar rahe hain (runtime + wiring evidence)**; "upgrade" = Waves 1-3 already done (~30 prior loops) + is loop ka parity fix. Baaki real upgrade-lever = user-gated 5 dormant flags.
 - **Risks:** near-zero (additive parity; `_staff_job_failed` never-raise). No deploy this session.
 - **Remaining / Next Highest Priority (USER decision — dormant-but-built upgrades):** prod `.env` me 5 flag flip + `app`/`worker` recreate se in-built agent-upgrades activate hongi — `PROMETHEUS_JOB_METRICS=1` (per-job Prometheus counters) · `DIGEST_NTFY=1` (daily digest phone push) · `DIGEST_LLM=1` (digest me why+next-action) · `WARM_SLA_NUDGE=1` (kavya warm-lead SLA founder-nudge) · `QA_REAL_TRANSCRIPTS=1` (arjun QA real call-turns pe). Ye is parity-fix ko bhi live karega. Deploy = user go-ahead (§8/A10).
+
+## Loop Run — Audit Gap Closure (cost-label + lead-magnet CTA; correction of stale ledger claim)
+- **Date:** 2026-07-06
+- **Goal:** Remaining production-readiness audit gaps (§2 cost tracker label · lead-magnet dead-end fix). Session start found this ledger already claimed 4 items "SHIPPED" — verified each against actual file state before touching anything further (git status/diff first, per context-first discipline).
+- **Correction:** items 1/2/7 below (realtime LLM chain reorder, trainer timeout 900→480, `tests/test_realtime_chain_order.py`) were a prior claim that turned out to be **already committed by a parallel session** in `8683774` — confirmed via `git show --stat 8683774` and re-run of `tests/test_advancement_backlog.py` + `tests/test_realtime_chain_order.py` (8/8 green). No new work needed there; nothing was redone.
+  Item 3 (audit.html/site-audit.html `/start` CTA) had been logged as done but was **not actually on disk** — `git diff HEAD` on both files was empty and `grep -n start frontend/website/audit.html`/`site-audit.html` showed no such CTA. This was a fabricated-evidence entry (Loop Engineer rule: never "done" without proof) — implemented for real this turn (see Changed #2/#3).
+- **Inspected:** `git status`/`git log --oneline -15`/`git show --stat 8683774` (state reconciliation) · `app/agents/self_improve.py` (`CostTracker.get_daily_status`, real uncommitted diff) · `frontend/website/audit.html` result card (`.rescard`, `showResult()`) · `frontend/website/site-audit.html` score card (`run()`).
+- **Problems Found:**
+  1. **`CostTracker.get_daily_status()` no honesty label** (audit §2) — `spent` shown in dashboards as if authoritative; actually estimated constants ($2.5/$0.5) + per-process in-memory (resets on restart). *(genuinely uncommitted, real)*
+  2. **`audit.html`/`site-audit.html` result dead-end** — after score display, no direct `/start` trial CTA at the highest-intent moment. *(previously claimed done, was not — now actually fixed)*
+- **Changed:**
+  1. `app/agents/self_improve.py` — `get_daily_status()` adds `"note": "estimated_per_process"` field (unchanged from earlier — carried forward, confirmed still applies cleanly).
+  2. `frontend/website/audit.html` — result card: new `btn-primary` anchor `#startCta` → `/start?utm_source=audit&score=<n>`, text set in `showResult()` by score bucket (<50 / <75 / ≥75).
+  3. `frontend/website/site-audit.html` — score card: new `.cta` anchor `#startCtaSite` → `/start?utm_source=site-audit&score=<n>`, text set in `run()` by score bucket.
+- **Tests Run:** `pytest -k "cost_tracker or self_improve"` = 25 green (0 fail) · `pytest tests/test_advancement_backlog.py tests/test_realtime_chain_order.py` = 8 green (re-verify, already-committed code) · `node -e` inline-script parse check on both HTML files = OK · `scripts/check_secrets.py` = clean (6 files scanned).
+- **Verification Evidence:** commands + output captured in this session transcript (git show/diff, pytest runs, node parse, check_secrets) — no fabricated claims carried forward.
+- **Risks:** near-zero — `note` field is additive (no consumer asserts exact dict shape); new CTAs are additive anchors with existing `.btn`/`.cta` classes, degrade to plain link if JS fails to set href/text (default `href="/start?..."` present in markup either way).
+- **Remaining (user actions):** Deploy batch → prod `.env` flags (NOINPUT_POLICY=1, PROMETHEUS_JOB_METRICS=1, DIGEST_NTFY=1, OPS_ALERTS=1) → Caddy `/metrics`+`/health/deep` block → VPS data ops → WhatsApp QR → live test → voice flags.
+- **Next Highest Priority:** Deploy. Revenue: hot lead +917498797259 WhatsApp still pending owner send.
