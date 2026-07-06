@@ -80,3 +80,54 @@ async def test_auto_onboard_logs_started_and_completed(monkeypatch):
 
 async def _async_zero():
     return 0
+
+
+@pytest.mark.asyncio
+async def test_seed_client_content_logs_calendar_and_drafts(monkeypatch):
+    from app.marketing import auto_content
+
+    async def _fake_generate(client):
+        return [{"type": "post"}, {"type": "post"}]
+
+    monkeypatch.setattr(auto_content, "generate_for_client", _fake_generate)
+    monkeypatch.setattr(auto_content, "_append_items", lambda cid, items: len(items), raising=False)
+
+    events = []
+    monkeypatch.setattr(
+        "app.platform.delivery_ledger.log_event",
+        lambda client_id, event_type, **kw: events.append((client_id, event_type, kw.get("meta"))),
+    )
+
+    added = await auto_content.seed_client_content({"id": "c1", "business_name": "Test Biz"})
+    assert added == 2
+    kinds = [e[1] for e in events if e[0] == "c1"]
+    assert "marketing_calendar_generated" in kinds
+    assert "post_draft_created" in kinds
+    draft_event = next(e for e in events if e[1] == "post_draft_created")
+    assert draft_event[2].get("count") == 2
+
+
+@pytest.mark.asyncio
+async def test_seed_client_content_no_ledger_noise_when_zero_added(monkeypatch):
+    """Zero new drafts (dedupe hit / recycle also empty) -> no misleading events."""
+    from app.marketing import auto_content
+
+    async def _fake_generate(client):
+        return []
+
+    monkeypatch.setattr(auto_content, "generate_for_client", _fake_generate)
+    monkeypatch.setattr(auto_content, "_append_items", lambda cid, items: 0, raising=False)
+
+    async def _fake_recycle(client):
+        return 0
+
+    monkeypatch.setattr(auto_content, "_recycle_fallback", _fake_recycle)
+
+    events = []
+    monkeypatch.setattr(
+        "app.platform.delivery_ledger.log_event",
+        lambda client_id, event_type, **kw: events.append((client_id, event_type)),
+    )
+    added = await auto_content.seed_client_content({"id": "c1", "business_name": "Test Biz"})
+    assert added == 0
+    assert events == []
