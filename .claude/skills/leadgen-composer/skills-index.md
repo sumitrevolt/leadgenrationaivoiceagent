@@ -93,7 +93,11 @@ Relevant row **Read** karo task match pe. **Claude rule:** code edit se pehle `c
 | run-campaign | `.claude/skills/run-campaign/SKILL.md` | outreach campaign |
 | cold-email-craft | `.claude/skills/cold-email-craft/SKILL.md` | email copy |
 | pipeline-hygiene | `.claude/skills/pipeline-hygiene/SKILL.md` | leads cleanup |
-| competitor-ad-teardown | `.claude/skills/competitor-ad-teardown/SKILL.md` | competitor ad swipe file |
+| competitor-ad-teardown | `.claude/skills/competitor-ad-teardown/SKILL.md` | competitor ad swipe file — ad-creative se PEHLE |
+| **lead-magnets** | `.claude/skills/lead-magnets/SKILL.md` | /audit /site-audit /demo strategy — `docs/LEAD_MAGNET_PLAYBOOK.md` pehle |
+| **design-review** | `.claude/skills/design-review/SKILL.md` | HAR visible frontend change ship se pehle — 6-lens + AI-slop |
+| **web-performance** | `.claude/skills/web-performance/SKILL.md` | public page slow/edit — measure-first (baseline 2026-07-06: homepage uncompressed+TTFB 1.46s) |
+| site-architecture | `.claude/skills/site-architecture/SKILL.md` | nav/URL/internal-linking, programmatic-SEO cluster design |
 
 ## Voice · telephony
 
