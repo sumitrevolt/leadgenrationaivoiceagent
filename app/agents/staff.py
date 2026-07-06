@@ -108,6 +108,47 @@ def _qa_default_niches() -> list[str]:
     return list(SCRIPTS.keys())
 
 
+def _real_transcript_turns(max_per_niche: int = 6, files_n: int = 2) -> dict[str, list[str]]:
+    """W2.2-half2: recent REAL call transcripts (data/call_transcripts/*.jsonl) se
+    per-niche USER turns — QA canned scripts ke bajaye asli utterances (Hinglish-STT
+    quirks samet) replay kar sake (run_qa me gated QA_REAL_TRANSCRIPTS). Junk-STT
+    skip + dedupe + bounded. Never-raise → {}."""
+    out: dict[str, list[str]] = {}
+    try:
+        d = os.path.join("data", "call_transcripts")
+        try:
+            files = [os.path.join(d, f) for f in os.listdir(d) if f.endswith(".jsonl")]
+        except Exception:
+            return {}
+        files.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        for path in files[:files_n]:
+            try:
+                with open(path, encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except Exception:
+                            continue
+                        niche = str(rec.get("niche") or "general").strip() or "general"
+                        turns = out.setdefault(niche, [])
+                        for m in rec.get("messages") or []:
+                            if (m.get("role") or "").lower() != "user":
+                                continue
+                            t = str(m.get("content") or "").strip()
+                            if not t or _is_junk_stt(t) or t in turns:
+                                continue
+                            if len(turns) < max_per_niche:
+                                turns.append(t)
+            except Exception:
+                continue
+    except Exception:
+        return {}
+    return {k: v for k, v in out.items() if v}
+
+
 async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
     """Scripted convos se TelecallerBrain ko test karo; issues collect + log.
 
@@ -120,11 +161,18 @@ async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
         from app.voice_agent.telecaller_brain import TelecallerBrain
 
         targets = [n for n in (niches or _qa_default_niches()) if n]
+        # W2.2-half2 (gated, default OFF = inert): real transcript user-turns replay
+        # + transcript ke niches QA targets me (bounded +3) — QA wahi test kare jo
+        # asli calls pe hota hai.
+        real_turns: dict[str, list[str]] = {}
+        if os.getenv("QA_REAL_TRANSCRIPTS", "").strip().lower() in ("1", "true", "yes", "on"):
+            real_turns = _real_transcript_turns()
+            targets = targets + [n for n in real_turns if n not in targets][:3]
         issues: list[str] = []
         total_turns = 0
 
         for niche in targets:
-            turns = SCRIPTS.get(niche, _GENERIC_TURNS)
+            turns = real_turns.get(niche) or SCRIPTS.get(niche, _GENERIC_TURNS)
             try:
                 brain = TelecallerBrain(niche=niche)
                 history: list[dict[str, str]] = []
@@ -207,6 +255,11 @@ def _trainer_thresholds() -> tuple[int, float, int]:
     )
 
 
+# W2.3-half2: per-niche signal ke liye minimum user-turns — 1-2 turn wali niche
+# ka junk-ratio noise hota, us par targeted suggestion nahi banate.
+_NICHE_MIN_TURNS = 3
+
+
 async def run_trainer() -> dict[str, Any]:
     """Newest 2 transcript files (data/call_transcripts/*.jsonl) analyse karo:
     calls/turns/stt-providers/avg-reply-length/repeats/junk-ratio + 2-3 short
@@ -238,6 +291,9 @@ async def run_trainer() -> dict[str, Any]:
         repeats = 0
         junk_user = 0
         user_msgs = 0
+        # W2.3-half2: per-niche accumulation — aggregate ek noisy niche ko mask
+        # kar deta tha (global junk threshold ke niche, ek niche 100% junk).
+        niche_stats: dict[str, dict[str, Any]] = {}
 
         for path in files:
             try:
@@ -251,6 +307,12 @@ async def run_trainer() -> dict[str, Any]:
                         except Exception:
                             continue
                         calls += 1
+                        niche = str(rec.get("niche") or "general").strip() or "general"
+                        ns = niche_stats.setdefault(
+                            niche,
+                            {"calls": 0, "user_msgs": 0, "junk_user": 0, "reply_words": [], "repeats": 0},
+                        )
+                        ns["calls"] += 1
                         for k, v in (rec.get("stt_counts") or {}).items():
                             try:
                                 stt_counts[k] = stt_counts.get(k, 0) + int(v)
@@ -264,13 +326,17 @@ async def run_trainer() -> dict[str, Any]:
                             content = str(m.get("content") or "").strip()
                             if role == "user":
                                 user_msgs += 1
+                                ns["user_msgs"] += 1
                                 if _is_junk_stt(content):
                                     junk_user += 1
+                                    ns["junk_user"] += 1
                             else:  # assistant/bot
                                 if content:
                                     reply_word_counts.append(len(content.split()))
+                                    ns["reply_words"].append(len(content.split()))
                                     if last_bot is not None and content == last_bot:
                                         repeats += 1
+                                        ns["repeats"] += 1
                                     last_bot = content
             except Exception as e:
                 logger.debug(f"[staff] trainer: file {path} skip: {e}")
@@ -279,6 +345,19 @@ async def run_trainer() -> dict[str, Any]:
             round(sum(reply_word_counts) / len(reply_word_counts), 1) if reply_word_counts else 0.0
         )
         junk_ratio = round(junk_user / user_msgs, 2) if user_msgs else 0.0
+
+        by_niche: dict[str, dict[str, Any]] = {}
+        for n, ns in niche_stats.items():
+            rw = ns["reply_words"]
+            by_niche[n] = {
+                "calls": ns["calls"],
+                "user_turns": ns["user_msgs"],
+                "junk_stt_ratio": round(ns["junk_user"] / ns["user_msgs"], 2)
+                if ns["user_msgs"]
+                else 0.0,
+                "avg_reply_words": round(sum(rw) / len(rw), 1) if rw else 0.0,
+                "repeats": ns["repeats"],
+            }
 
         # ---- rule-based Hinglish suggestions (W2.3: env-tunable thresholds) ----
         _rep_max, _junk_max, _words_max = _trainer_thresholds()
@@ -301,6 +380,19 @@ async def run_trainer() -> dict[str, Any]:
             suggestions.append(
                 "Groq STT primary nahi chal raha (fallback zyada use hua) — GROQ_API_KEY / quota check karo."
             )
+        # W2.3-half2: aggregate ke piche chhupi noisy-STT niche flag karo — global
+        # junk threshold ke NICHE ho tab bhi ek niche cross kar sakti hai (masked).
+        if junk_ratio <= _junk_max and len(by_niche) >= 2:
+            _sig = [
+                (n, d) for n, d in by_niche.items() if d["user_turns"] >= _NICHE_MIN_TURNS
+            ]
+            if _sig:
+                worst_n, worst_d = max(_sig, key=lambda x: x[1]["junk_stt_ratio"])
+                if worst_d["junk_stt_ratio"] > _junk_max:
+                    suggestions.append(
+                        f"Niche '{worst_n}' me STT junk {int(worst_d['junk_stt_ratio'] * 100)}% hai "
+                        "(baaki niches theek) — us niche ke calls/VAD/mic-path check karo."
+                    )
         if not suggestions:
             suggestions.append(
                 "Calls healthy lag rahi hain — koi major issue nahi, aise hi monitor karte raho."
@@ -314,6 +406,7 @@ async def run_trainer() -> dict[str, Any]:
             "avg_reply_words": avg_reply_len,
             "repeats": repeats,
             "junk_stt_ratio": junk_ratio,
+            "by_niche": by_niche,
             "files": [os.path.basename(p) for p in files],
             "suggestions": suggestions,
         }

@@ -43,9 +43,11 @@ def test_run_daily_content_orders_paying_before_self(tmp_path, monkeypatch):
     async def fake_generate(client, day=None):
         processed_order.append(str(client.get("id")))
         # one deterministic item so it counts as "added"
+        # W2.1 caption validator: <10 chars reject hota — valid-length caption do.
         return [{
             "id": "x", "client_id": str(client.get("id")), "date": "2026-07-05",
-            "type": "post", "title": "t", "caption": "c", "status": "draft",
+            "type": "post", "title": "t",
+            "caption": "aaj ka special offer — abhi call karke jaano", "status": "draft",
         }]
 
     monkeypatch.setattr(auto_content, "generate_for_client", fake_generate)

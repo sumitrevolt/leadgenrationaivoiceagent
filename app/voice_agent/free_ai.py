@@ -796,6 +796,14 @@ async def chat(
     _ck = _llm_cache_key(system, msgs, max_tokens, temperature) if _llm_cache_on(prof) else ""
     if _ck:
         _hit = _llm_cache_get(_ck)
+        try:
+            # Cache hit-rate observability (W1.12 revisit-trigger prereq) — sirf jab
+            # cache ON ho tab record; never-raise, file-append ultra-light.
+            from app.platform import llm_metrics
+
+            llm_metrics.record_cache(_hit is not None)
+        except Exception:
+            pass
         if _hit is not None:
             return _hit
 
