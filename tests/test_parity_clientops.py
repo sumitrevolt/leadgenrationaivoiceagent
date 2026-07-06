@@ -32,6 +32,9 @@ def test_speed_to_lead_summary(tmp_path, monkeypatch):
     monkeypatch.setattr(stl, "_INQUIRIES_FILE", inq)
     monkeypatch.setattr(stl, "_ALERTS_FILE", alerts)
     monkeypatch.setattr(stl, "_DIALER_FILE", dialer)
+    # Hermetic: callback-file bhi isolate karo — real data/ai_callbacks.jsonl me
+    # test-phone (9876543210) ka record avg ko pollute karta tha (CI: avg 0.0).
+    monkeypatch.setattr(stl, "_CALLBACK_FILE", str(tmp_path / "callbacks.jsonl"))
 
     now = datetime.now(timezone.utc)
     now_ep = now.timestamp()
@@ -61,6 +64,7 @@ def test_speed_to_lead_empty_store(tmp_path, monkeypatch):
     monkeypatch.setattr(stl, "_INQUIRIES_FILE", str(tmp_path / "none1.jsonl"))
     monkeypatch.setattr(stl, "_ALERTS_FILE", str(tmp_path / "none2.jsonl"))
     monkeypatch.setattr(stl, "_DIALER_FILE", str(tmp_path / "none3.jsonl"))
+    monkeypatch.setattr(stl, "_CALLBACK_FILE", str(tmp_path / "none4.jsonl"))
     s = stl.summary()
     assert s["ok"] is True and s["total_inquiries"] == 0
     assert "2 min" in s["verdict"] or "2 minute" in s["verdict"]

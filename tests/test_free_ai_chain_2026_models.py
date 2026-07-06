@@ -66,8 +66,10 @@ def test_new_models_are_low_priority_after_primaries():
         for np in new_positions:
             assert np > last_primary, f"new model at {np} not after primaries ({last_primary})"
 
-        # and BEFORE the weaker tail (gemini)
-        gemini_pos = idx[("gemini", free_ai._GEMINI_LLM_MODEL)]
+        # and BEFORE the weaker tail (gemini) — first gemini entry of ANY model:
+        # chain ka gemini-model env/settings (GEMINI_LLM_MODEL/DEFAULT_LLM) se
+        # resolve hota, isliye exact-model lookup env-dependent tha (CI KeyError).
+        gemini_pos = min(i for i, (p, _m) in enumerate(chain) if p == "gemini")
         for np in new_positions:
             assert np < gemini_pos, f"new model at {np} should precede gemini ({gemini_pos})"
 

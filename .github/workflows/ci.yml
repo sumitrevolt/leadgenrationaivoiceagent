@@ -88,6 +88,7 @@ jobs:
       - name: Pytest (skip network/LLM-key tests)
         env:
           APP_ENV: test
+          ENVIRONMENT: development  # local-dev parity (prod-default middleware OFF)
           # TelecallerBrain __init__ key-presence check — dummy kaafi (LLM calls
           # conftest-stubbed, no network).
           GROQ_API_KEY: ci-dummy-key-not-real
