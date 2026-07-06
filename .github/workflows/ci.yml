@@ -80,10 +80,15 @@ jobs:
           fi
           # torch CPU (Dockerfile.lock jaisa) + test tooling (lock me na ho to).
           pip install torch torchaudio --index-url https://download.pytorch.org/whl/cpu || true
-          pip install pytest pytest-asyncio pytest-timeout
+          # PINS (tests.yml gotcha): unpinned pytest-family + newer httpx (0.28
+          # removed Client(app=...)) collection-errors dete the.
+          pip install -U "pytest==9.0.2" "pytest-asyncio==1.3.0" "pytest-timeout==2.4.0" "httpx==0.27.2"
       - name: Production readiness check
         run: python scripts/prod_check.py
       - name: Pytest (skip network/LLM-key tests)
         env:
           APP_ENV: test
+          # TelecallerBrain __init__ key-presence check — dummy kaafi (LLM calls
+          # conftest-stubbed, no network).
+          GROQ_API_KEY: ci-dummy-key-not-real
         run: pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60
