@@ -71,13 +71,16 @@ async def push(
                 }
                 r = await client.post(url + "/", json=payload, headers=headers)
             else:
-                headers = {
-                    "Title": (title or "LeadGen AI").encode("ascii", "ignore").decode()
-                    or "LeadGen AI",
-                    "Priority": pr,
-                }
+                # Header-safe title: emoji ascii-strip ke baad bacha LEADING SPACE
+                # ya newline httpx "Illegal header value" deta tha → alert silently
+                # DROP (live 2026-07-06: " Boot-grace skip:..."). Whitespace collapse.
+                _t = (title or "LeadGen AI").encode("ascii", "ignore").decode()
+                _t = " ".join(_t.split()) or "LeadGen AI"
+                headers = {"Title": _t, "Priority": pr}
                 if tags:
-                    headers["Tags"] = ",".join(str(t) for t in tags[:5])
+                    _tg = ",".join(" ".join(str(t).split()) for t in tags[:5]).strip(", ")
+                    if _tg:
+                        headers["Tags"] = _tg
                 if token:
                     headers["Authorization"] = f"Bearer {token}"
                 r = await client.post(
