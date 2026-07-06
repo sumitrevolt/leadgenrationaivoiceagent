@@ -56,3 +56,27 @@ def test_gating_tokens_present():
 def test_hero_blocks_present():
     for c in HERO_CLASS_TOKENS:
         assert re.search(r'class="[^"]*' + re.escape(c), SRC), f"{c} DOM block missing"
+
+
+# ---- Task 2: view engine ----
+def test_view_engine_present():
+    assert "function showView" in SRC
+    assert "function viewForHash" in SRC
+    assert "[data-view]:not(.v-on)" in SRC
+
+
+def test_showview_resizes_charts():
+    # charts render at 0x0 while their view is hidden; showView must resize them
+    m = re.search(r"function showView\([^)]*\)\s*\{(.*?)\n\}", SRC, re.S)
+    assert m and "getChart" in m.group(1), "showView must resize now-visible charts"
+
+
+def test_init_on_dom_ready_not_postfetch():
+    # default view must paint on DOM ready, independent of the API fetch
+    assert "DOMContentLoaded" in SRC or "readyState" in SRC
+
+
+def test_scrolltoid_is_view_aware():
+    # scrollToId must call showView so old anchor links land on the right view
+    m = re.search(r"function scrollToId\([^)]*\)\s*\{(.*?)\}", SRC, re.S)
+    assert m and "showView" in m.group(1), "scrollToId must route through showView"
