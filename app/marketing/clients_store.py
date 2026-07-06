@@ -275,6 +275,13 @@ def add_client(
         }
         _append(rec)
 
+        try:
+            from app.platform import delivery_ledger
+
+            delivery_ledger.log_event(cid, "customer_created", detail=name)
+        except Exception as e:  # pragma: no cover
+            logger.debug(f"[clients_store] ledger log skip: {e}")
+
         # Brand ko brand_kit me bhi mirror karo (posters/content-pack auto-brand).
         if brand_kit is not None:
             try:
