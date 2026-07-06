@@ -54,11 +54,12 @@ jobs:
       - name: Contract tests (billing/pricing truth — BLOCKING)
         # Deterministic, no-network. Pricing/plan/route regression => deploy blocked.
         run: pytest -q tests/test_billing_truth_2026.py
-      - name: Tests (full suite — reported, non-blocking)
-        # continue-on-error keeps deploy unblocked, but failures now show RED in CI
-        # (removed the `|| true` mask). Flip to hard gate once the test env is stable.
-        continue-on-error: true
-        run: pytest -q --ignore=tests/integration
+      - name: Tests (full suite — BLOCKING, network-free)
+        # 2026-07-06: HARD GATE. Full suite proven green (local exit 0) after the
+        # drift-sweep fixed 8 stale tests. Network-marked tests excluded — CI has
+        # no provider keys (same policy as ci.yml/tests.yml). Revert = re-add
+        # `continue-on-error: true` on this step.
+        run: pytest -q -m "not network" --ignore=tests/integration
 
   build:
     name: Build & push image (GHCR)
