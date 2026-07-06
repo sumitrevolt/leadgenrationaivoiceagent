@@ -793,6 +793,19 @@
         </div>
       </div>
 
+      <!-- ===== 7) Delivery Timeline ===== -->
+      <div data-view="account" class="card" id="deliveryTimelineCard">
+        <div class="card-h">
+          <h2 style="font-size:13px">🤖 AI ne aapke liye kya kiya</h2>
+          <span class="grow"></span>
+          <button class="btn" onclick="toggleTimelineCard()" id="timelineToggleBtn">▾</button>
+        </div>
+        <div id="timelineBody" class="card-b">
+          <div id="timelineEmpty" class="sm" style="color:var(--muted);display:none">Abhi tak koi activity nahi — jaise hi kuch hota hai, yahan dikhega.</div>
+          <ul id="timelineList" style="list-style:none;padding:0;margin:0;"></ul>
+        </div>
+      </div>
+
       <!-- ===== 8) Customer Webhooks (J.1 — H.1 UI) ===== -->
       <div data-view="account" class="sec-title advanced-area">📡 Advanced: Webhooks</div>
       <div data-view="account" class="card advanced-area" id="webhookCard" style="margin-bottom:18px">
@@ -1475,6 +1488,38 @@ const BILL = { cid: "demo", token: "" };
 function billToken(){ return localStorage.getItem("lgai_token") || ""; }
 function billAuthHdr(){ const t=billToken(); return t ? {"Authorization":"Bearer "+t} : {}; }
 function qparam(k){ try{ return new URLSearchParams(location.search).get(k)||""; }catch(e){ return ""; } }
+
+/* ============================================================
+   DELIVERY TIMELINE — shows AI activities for the customer.
+   ============================================================ */
+function toggleTimelineCard() {
+  const body = document.getElementById('timelineBody');
+  body.style.display = body.style.display === 'none' ? 'block' : 'none';
+}
+
+async function loadDeliveryTimeline() {
+  try {
+    const res = await fetch('/api/customer/timeline', { headers: billAuthHdr() });
+    const data = await res.json();
+    const list = document.getElementById('timelineList');
+    const empty = document.getElementById('timelineEmpty');
+    list.innerHTML = '';
+    if (!data.events || data.events.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+    data.events.forEach(function (ev) {
+      const li = document.createElement('li');
+      li.style.padding = '6px 0';
+      li.textContent = (ev.icon || '') + ' ' + ev.label + ' — ' + new Date(ev.ts).toLocaleDateString('en-IN');
+      list.appendChild(li);
+    });
+  } catch (e) {
+    console.debug('timeline load failed', e);
+  }
+}
+document.addEventListener('DOMContentLoaded', loadDeliveryTimeline);
 
 async function resolveClientId(){
   BILL.token = billToken();
