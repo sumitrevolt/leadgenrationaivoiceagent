@@ -44,7 +44,23 @@ def c(monkeypatch):
         return True, 9999
 
     monkeypatch.setattr(RateLimiter, "is_allowed", _allow)
-    return TestClient(app)
+
+    # CI me RateLimiter INIT hi fail hota (redis absent) → middleware ka INLINE
+    # in-memory fallback poore suite ka traffic count karta → yahan tak aate-aate
+    # minute-window full → 429. Fallback inline hai (koi helper method nahi) aur
+    # dispatch_func __init__-bound hai — isliye INSTANCE patch: stack force-build
+    # (skip-path /health = kabhi 429 nahi) → chain walk → ceiling raise + counter clear.
+    client = TestClient(app)
+    client.get("/health")
+    from app.middleware import RateLimitMiddleware
+
+    node = app.middleware_stack
+    while node is not None:
+        if isinstance(node, RateLimitMiddleware):
+            monkeypatch.setattr(node, "requests_per_minute", 10_000_000)
+            node._fallback_counts.clear()
+        node = getattr(node, "app", None)
+    return client
 
 
 # =============================================================================
