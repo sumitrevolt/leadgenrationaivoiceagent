@@ -291,7 +291,18 @@ class GoogleMapsScraper:
             return data.get("result", {})
 
     async def _geocode_location(self, location: str) -> dict[str, float] | None:
-        """Convert location name to coordinates"""
+        """Convert location name to coordinates.
+
+        Bare city names ("Thane", "Aurangabad") ambiguous/ZERO_RESULTS de sakte
+        (live 2026-07-06 — poori city ke prospects silently skip) → miss pe
+        ", India" bias ke saath ek retry.
+        """
+        coords = await self._geocode_once(location)
+        if coords is None and location and "india" not in location.lower():
+            coords = await self._geocode_once(f"{location}, India")
+        return coords
+
+    async def _geocode_once(self, location: str) -> dict[str, float] | None:
         async with httpx.AsyncClient() as client:
             response = await client.get(
                 "https://maps.googleapis.com/maps/api/geocode/json",
@@ -301,6 +312,12 @@ class GoogleMapsScraper:
             response.raise_for_status()
             data = response.json()
 
+            if data.get("status") != "OK":
+                # status log = triage-able (ZERO_RESULTS vs OVER_QUERY_LIMIT vs
+                # REQUEST_DENIED alag-alag fix maangte)
+                logger.warning(
+                    f"Geocode non-OK for {location!r}: {data.get('status')}"
+                )
             if data.get("status") == "OK" and data.get("results"):
                 geometry = data["results"][0].get("geometry", {})
                 location_data = geometry.get("location", {})
