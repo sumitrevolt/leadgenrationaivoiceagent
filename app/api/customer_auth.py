@@ -250,20 +250,32 @@ async def customer_login(req: LoginIn):
         raise HTTPException(status_code=401, detail="Invalid email or password")
     cid = str(rec["client_id"])
     # 2FA gate — if armed, do NOT issue the JWT here; force the verify step.
+    _twofa = False
     try:
         from app.platform import customer_totp
 
-        if customer_totp.is_enabled(cid):
+        _twofa = bool(customer_totp.is_enabled(cid))
+    except Exception as e:
+        # 2FA STATE unreadable (module/infra error) — documented fail-open so an
+        # infra problem doesn't lock the (no-2FA) majority out. LOUD log — pehle
+        # yeh silent tha aur enabled-account bypass bhi isi except me chhup jata tha.
+        logger.error("[customer-auth] 2FA state check failed for %s: %s", cid, e)
+    if _twofa:
+        try:
             return {
                 "needs_2fa": True,
                 "challenge_token": customer_totp.create_challenge(cid),
                 "client_id": cid,
                 "business_name": _biz_name(cid),
             }
-    except Exception:
-        # If the TOTP module errors, fall through to normal login (fail-open
-        # so an infra problem doesn't lock customers out of their accounts).
-        pass
+        except Exception as e:
+            # Account KNOWN 2FA-enabled — yahan fall-through = password-only
+            # bypass of 2FA (security hole). Fail-CLOSED: login temporarily block.
+            logger.error("[customer-auth] 2FA challenge failed for %s: %s", cid, e)
+            raise HTTPException(
+                status_code=503,
+                detail="2FA verification temporarily unavailable — thodi der me try karein",
+            )
 
     from app.api.admin import create_access_token
 
