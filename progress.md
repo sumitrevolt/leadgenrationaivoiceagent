@@ -488,3 +488,14 @@
 - **Result:** SHIPPED (UNCOMMITTED — §8). Product-2 GAP-1 closed SAFELY: customer can now SEE calling status (read-only, always) + trigger it (gated-OFF, compliant-path, IDOR-safe). Enable = `CUSTOMER_VOICE_SELFSERVE=1` AFTER a live outbound test call (voice = phone-final-verify). Bypasses NO compliance gate.
 - **Failures found + fixed:** the 2 bugs above (both caught by the test — verify-before-ship working).
 - **Next Loop / remaining = USER only:** enable+live-test the gated voice flags (`CUSTOMER_VOICE_SELFSERVE`, `VOBIZ_STREAM_REQUIRE_TOKEN`) + deploy + prod `.env` flags + WhatsApp. Recording-AUDIO route = deferred (SSRF/mapping). See `docs/GO_LIVE_TODAY_2026-07-06.md`.
+
+## Loop Run — DEPLOY (LIVE)
+- **Date:** 2026-07-06
+- **Goal:** (user: "sabhi changes ship karo") Ship the whole session's work to prod (leadsgenai.in).
+- **Committed:** my 36 files → `b76b1f2` (explicit `git add` list, NOT -A). Branch was `chore/loop-engineer-program-waves1-4` (parallel wave program); `origin/main` had already advanced (PR #32/#33 wave work merged). Merged `origin/main` into my commit — **ZERO conflicts** (code files disjoint) → `c5761b4` → pushed to `origin/main` (ff).
+- **Deploy:** VPS was 29 commits behind (PR#29); drift-check clean (only untracked `backups/`/`tmp_deploy/`); no new Alembic migrations (both at `010`). `git reset --hard origin/main` → `build app` → recreate **app+worker+worker-heavy+scheduler** (staff_jobs/scheduler/self_improve changed). Migrations: N/A (010=head).
+- **Verified LIVE (done-gate):** 2× `https://leadsgenai.in/health` = **200 `environment:production`** · all 4 containers healthy · smoke: `/api/activation/summary` trimmed (no `blockers`/`warns` arrays, blocker_count:0) · `/api/customer/voice/queue-status` anon=**403** (new route live+gated) · `/api/platform/health` anon=**401** + `/api/v1/status` anon=**401** (anon-leak gates shipped) · `redis-cli llen celery`=**0** (no flood).
+- **SHIP report:** ok · push `c5761b4` · build ok · health 200 production 2/2 · routes 1058.
+- **Result:** **DEPLOYED + VERIFIED.** Product-1 (day-1 seed default-ON, autopilot surface) + Product-2 (transcript surface, self-serve calling gated-OFF) + enterprise audit fixes + security gates + KB integrity + observability caps — all LIVE. Gated features (CUSTOMER_VOICE_SELFSERVE, VOBIZ_STREAM_REQUIRE_TOKEN, autopilot draft-gen flags) stay OFF until user enables + live-tests.
+- **Failures found + fixed:** SSH echo `(` parse error (removed special chars, re-ran). Otherwise clean.
+- **Next = USER:** enable draft-safe autopilot flags + `AUTO_DELIVER_VALUE` in prod `.env` (day-1 seed already live) · arm WhatsApp (WAHA QR) · live-test then enable `CUSTOMER_VOICE_SELFSERVE`/`VOBIZ_STREAM_REQUIRE_TOKEN` · `METRICS_TOKEN` · one-time KB purge/reseed. Runbook: `docs/GO_LIVE_TODAY_2026-07-06.md`.
