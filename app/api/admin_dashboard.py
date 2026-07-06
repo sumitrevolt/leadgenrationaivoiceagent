@@ -233,8 +233,8 @@ async def get_revenue_trend(days: int = 90, _user=Depends(require_admin)) -> dic
         return {"enabled": True, "points": [], "note": str(e)[:160]}
 
 
-def _build_client_timeline(client_id, agent_events, inquiries, audit, limit=50):
-    """Pure merge+sort of per-client events from 3 sources. Newest first."""
+def _build_client_timeline(client_id, agent_events, inquiries, audit, delivery_events=None, limit=50):
+    """Pure merge+sort of per-client events from 4 sources. Newest first."""
     items: list[dict] = []
     for ev in agent_events or []:
         meta = ev.get("meta") or {}
@@ -269,6 +269,15 @@ def _build_client_timeline(client_id, agent_events, inquiries, audit, limit=50):
                 "kind": "audit",
                 "source": "audit",
                 "summary": str(a.get("action") or "audit"),
+            }
+        )
+    for d in delivery_events or []:
+        items.append(
+            {
+                "ts": str(d.get("ts") or ""),
+                "kind": "delivery",
+                "source": "delivery_ledger",
+                "summary": f"{d.get('icon', '')} {d.get('label', '')}".strip(),
             }
         )
     items.sort(key=lambda x: x["ts"], reverse=True)
@@ -316,12 +325,13 @@ def _fetch_client_audit(client_id: str, limit: int = 100) -> list[dict]:
 async def get_client_timeline(
     client_id: str, limit: int = 50, _user=Depends(require_admin)
 ) -> dict:
-    """B2: unified per-client event trail (agent_events + inquiries + audit)."""
+    """B2: unified per-client event trail (agent_events + inquiries + audit + delivery ledger)."""
     if os.getenv("CLIENT_TIMELINE", "0").strip().lower() not in ("1", "true", "yes"):
         return {"enabled": False, "client_id": client_id, "events": []}
     agent_events: list = []
     inquiries: list = []
     audit: list = []
+    delivery_events: list = []
     try:
         from app.platform.team import recent_events
 
@@ -336,7 +346,13 @@ async def get_client_timeline(
         audit = _fetch_client_audit(client_id)
     except Exception:
         audit = []
-    events = _build_client_timeline(client_id, agent_events, inquiries, audit, limit)
+    try:
+        from app.platform import delivery_ledger
+
+        delivery_events = delivery_ledger.get_timeline(client_id, limit=100, audience="admin")
+    except Exception:
+        delivery_events = []
+    events = _build_client_timeline(client_id, agent_events, inquiries, audit, delivery_events, limit)
     return {"enabled": True, "client_id": client_id, "events": events}
 
 
