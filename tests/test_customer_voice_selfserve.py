@@ -118,3 +118,72 @@ def test_queue_status_counts_scoped(monkeypatch):
     assert res["already_called"] == 1  # lead_a1
     assert res["remaining_to_call"] == 1
     assert res["self_serve_enabled"] in (True, False)
+
+
+class _FakeRedis:
+    """Minimal async Redis for the in-flight-dedup + daily-cap path."""
+
+    def __init__(self, inflight=None, dcount=0):
+        self._inflight = set(inflight or [])
+        self._d = int(dcount)
+
+    async def smembers(self, k):
+        return set(self._inflight)
+
+    async def get(self, k):
+        return str(self._d).encode() if self._d else None
+
+    async def sadd(self, k, *v):
+        self._inflight.update(v)
+
+    async def expire(self, k, t):
+        return True
+
+    async def incr(self, k):
+        self._d += 1
+        return self._d
+
+
+async def test_call_queue_skips_inflight_leads(monkeypatch):
+    # TOCTOU fix (sec-audit): a lead queued-but-not-yet-CallLog'd (in-flight) must NOT
+    # be re-queued — else the same person gets re-dialled in the queue->log window.
+    monkeypatch.setenv("CUSTOMER_VOICE_SELFSERVE", "1")
+    Session = _iso_db(monkeypatch)
+    _seed(Session)
+    fake = _FakeMgr()
+    monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: fake)
+    monkeypatch.setattr(
+        "app.api.customer_dashboard._client_record", lambda cid: {"business_name": "A", "niche": "salon"}
+    )
+    fr = _FakeRedis(inflight={"lead_a2"})  # a2 already in-flight
+
+    async def _getr():
+        return fr
+
+    monkeypatch.setattr("app.cache.get_redis_client", _getr, raising=False)
+    from app.api.customer_dashboard import customer_voice_call_queue
+
+    res = await customer_voice_call_queue(limit=20, client_id="client_a")
+    assert res["queued"] == 0  # a1 already-called, a2 in-flight -> nothing re-dialled
+    assert len(fake.seen) == 0
+
+
+async def test_call_queue_daily_cap(monkeypatch):
+    monkeypatch.setenv("CUSTOMER_VOICE_SELFSERVE", "1")
+    monkeypatch.setenv("VOICE_SELFSERVE_DAILY_CAP", "1")
+    Session = _iso_db(monkeypatch)
+    _seed(Session)
+    fake = _FakeMgr()
+    monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: fake)
+    monkeypatch.setattr("app.api.customer_dashboard._client_record", lambda cid: {})
+    fr = _FakeRedis(dcount=1)  # already used 1 today, cap=1 -> reached immediately
+
+    async def _getr():
+        return fr
+
+    monkeypatch.setattr("app.cache.get_redis_client", _getr, raising=False)
+    from app.api.customer_dashboard import customer_voice_call_queue
+
+    res = await customer_voice_call_queue(limit=20, client_id="client_a")
+    assert res["daily_cap_reached"] is True
+    assert res["queued"] == 0
