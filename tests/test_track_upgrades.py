@@ -60,6 +60,16 @@ def c(monkeypatch):
             monkeypatch.setattr(node, "requests_per_minute", 10_000_000)
             node._fallback_counts.clear()
         node = getattr(node, "app", None)
+
+    # TEESRI layer (the actual CI killer): public_signup ka apna INLINE per-IP
+    # throttle (`public_site._rate_limited`, module-level _RL dict, 5/min) —
+    # customer_auth signup canonical public_signup ko call karta hai, aur poora
+    # suite ek hi "testclient" IP share karta → CI me bucket full → 429
+    # "Thoda ruk ke dobara try karo". Route call-time pe module-fn read karta →
+    # monkeypatch clean lagti hai.
+    from app.api import public_site as ps
+
+    monkeypatch.setattr(ps, "_rate_limited", lambda ip, store=None: False)
     return client
 
 
