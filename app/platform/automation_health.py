@@ -80,6 +80,12 @@ def _alerts_enabled() -> bool:
 
 def record_run(job: str, ok: bool = True, seconds: float = 0.0, note: str = "") -> None:
     """Job-run heartbeat (scheduler wrapper se). KABHI raise nahi, fast."""
+    try:  # W1.13: per-job Prometheus counters (independent try — heartbeat pe asar na ho)
+        from app.platform import job_metrics
+
+        job_metrics.record(job, ok, seconds)
+    except Exception:
+        pass
     try:
         rec = {
             "job": (job or "?")[:30],

@@ -107,8 +107,24 @@ def _pick_spintax(text: str) -> str:
     return out
 
 
-_AUDIT_URL_TRACKED = _track_url(_AUDIT_URL)
-_SITE_URL_TRACKED = _track_url(_SITE_URL, "site_footer")
+# W1.6: is.gd/tracked-link network call ab MODULE-IMPORT pe nahi (import slow/hang
+# side-effect hataya) — lazy + cached: first email-build pe compute, phir memoized.
+_AUDIT_TRACKED_CACHE: str | None = None
+_SITE_TRACKED_CACHE: str | None = None
+
+
+def _audit_url_tracked() -> str:
+    global _AUDIT_TRACKED_CACHE
+    if _AUDIT_TRACKED_CACHE is None:
+        _AUDIT_TRACKED_CACHE = _track_url(_AUDIT_URL)
+    return _AUDIT_TRACKED_CACHE
+
+
+def _site_url_tracked() -> str:
+    global _SITE_TRACKED_CACHE
+    if _SITE_TRACKED_CACHE is None:
+        _SITE_TRACKED_CACHE = _track_url(_SITE_URL, "site_footer")
+    return _SITE_TRACKED_CACHE
 
 
 def _flywheel_variants_on() -> bool:
@@ -316,7 +332,7 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             f"{opener} Ek sawaal — {hook}?",
             "",
             f"Maine {city or 'aapke area'} ke businesses ke liye kuch ideas nikali hain — "
-            f"2 min me free audit: {_AUDIT_URL_TRACKED}",
+            f"2 min me free audit: {_audit_url_tracked()}",
             "",
             f"Ya seedha WhatsApp karein: {_WA_LINK}",
             "",
@@ -334,12 +350,12 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             "<p>Namaste,</p>"
             f"<p>{e(opener)} Ek sawaal — {e(hook)}?</p>"
             f"<p>Maine {e(city or 'aapke area')} ke businesses ke liye kuch ideas nikali hain — "
-            f'<a href="{e(_AUDIT_URL_TRACKED)}" style="color:#4f46e5;font-weight:600;">'
+            f'<a href="{e(_audit_url_tracked())}" style="color:#4f46e5;font-weight:600;">'
             "2 min free audit yahan lo</a>.</p>"
             f'<p>Ya seedha WhatsApp: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
             f'<p style="color:#999;font-size:12px;margin-top:24px;">{e(_UNSUB_LINE)}</p>'
             f'<p style="color:#555;font-size:13px;">— {e(from_name)}, '
-            f'<a href="{e(_SITE_URL_TRACKED)}" style="color:#4f46e5;">LeadGen AI</a></p>'
+            f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5;">LeadGen AI</a></p>'
             "</body></html>"
         )
         return _pick_spintax(subject), text, html_body
@@ -352,8 +368,8 @@ def _email_subject_body(prospect: dict[str, Any]) -> tuple[str, str, str]:
             "Namaste,\n\n"
             f"Main {from_name} se hoon. Hum chhote businesses ka online marketing "
             "sambhalte hain. Free Google profile audit + 3 sample posters bhej "
-            f"sakta hoon. Yahan le lijiye: {_AUDIT_URL_TRACKED}\n\n"
-            f"{_UNSUB_LINE}\n\nShukriya,\n{from_name}\nLeadGen AI — {_SITE_URL_TRACKED}"
+            f"sakta hoon. Yahan le lijiye: {_audit_url_tracked()}\n\n"
+            f"{_UNSUB_LINE}\n\nShukriya,\n{from_name}\nLeadGen AI — {_site_url_tracked()}"
         )
         return _pick_spintax(subject), text, text
 
@@ -388,7 +404,7 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
                 "",
                 sp_line,
                 "",
-                f"2 min audit: {_AUDIT_URL_TRACKED}  ·  WhatsApp: {_WA_LINK}",
+                f"2 min audit: {_audit_url_tracked()}  ·  WhatsApp: {_WA_LINK}",
                 "",
                 _UNSUB_LINE,
                 f"— {from_name}, LeadGen AI",
@@ -401,12 +417,12 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
                 f"<p>Pichle email ka follow-up — {e(name)} ke liye {e(niche_hook)}?</p>"
                 f'<p style="background:#f0f4ff;border-left:3px solid #4f46e5;padding:12px 16px;'
                 f'border-radius:0 6px 6px 0;">{e(sp_line)}</p>'
-                f'<p><a href="{e(_AUDIT_URL_TRACKED)}" style="color:#4f46e5;font-weight:600;">'
+                f'<p><a href="{e(_audit_url_tracked())}" style="color:#4f46e5;font-weight:600;">'
                 f"2 min audit yahan lo</a> &nbsp;·&nbsp; "
                 f'<a href="{e(_WA_LINK)}" style="color:#4f46e5;">WhatsApp</a></p>'
                 f'<p style="color:#999;font-size:12px;margin-top:24px;">{e(_UNSUB_LINE)}</p>'
                 f'<p style="color:#555;font-size:13px;">— {e(from_name)}, '
-                f'<a href="{e(_SITE_URL_TRACKED)}" style="color:#4f46e5;">LeadGen AI</a></p>'
+                f'<a href="{e(_site_url_tracked())}" style="color:#4f46e5;">LeadGen AI</a></p>'
                 "</body></html>"
             )
             return _pick_spintax(subject), text, html_body
@@ -425,14 +441,14 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
             "Ek chhota idea jo aapke kaam aa sakta hai:",
             idea,
             "",
-            "Aisa free sample + Google profile audit dekhna ho to 2 minute lagenge: " + _AUDIT_URL_TRACKED,
+            "Aisa free sample + Google profile audit dekhna ho to 2 minute lagenge: " + _audit_url_tracked(),
             "Ya seedha WhatsApp: " + _WA_LINK,
             "",
             _UNSUB_LINE,
             "",
             "Shukriya,",
             from_name,
-            "LeadGen AI — " + _SITE_URL_TRACKED,
+            "LeadGen AI — " + _site_url_tracked(),
         ]
         text = "\n".join(text_lines)
         html_body = (
@@ -444,14 +460,14 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
             "<p>Ek chhota idea jo aapke kaam aa sakta hai:</p>"
             f'<p style="background:#f4f4ff;border-left:3px solid #4f46e5;'
             f'padding:10px 14px;border-radius:4px;">{e(idea)}</p>'
-            f'<p><a href="{e(_AUDIT_URL_TRACKED)}" '
+            f'<p><a href="{e(_audit_url_tracked())}" '
             'style="background:#4f46e5;color:#fff;padding:10px 18px;'
             'border-radius:6px;text-decoration:none;display:inline-block;">'
             "Free sample + audit dekhein</a></p>"
             f'<p>Ya seedha WhatsApp: <a href="{e(_WA_LINK)}">{e(_WA_LINK)}</a></p>'
             f'<p style="color:#888;font-size:12px;">{e(_UNSUB_LINE)}</p>'
             f"<p>Shukriya,<br>{e(from_name)}<br>"
-            f'LeadGen AI — <a href="{e(_SITE_URL_TRACKED)}">{e(_SITE_URL_TRACKED)}</a></p>'
+            f'LeadGen AI — <a href="{e(_site_url_tracked())}">{e(_site_url_tracked())}</a></p>'
             "</body></html>"
         )
         return _pick_spintax(subject), text, html_body
@@ -464,8 +480,8 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
             "Namaste,\n\n"
             f"{fb_name} ji, pichle email ka reminder — free Google profile audit "
             f"+ 3 sample posters ka offer abhi bhi khula hai. Yahan le lijiye: "
-            f"{_AUDIT_URL_TRACKED}\n\n{_UNSUB_LINE}\n\nShukriya,\n{from_name}\n"
-            f"LeadGen AI — {_SITE_URL_TRACKED}"
+            f"{_audit_url_tracked()}\n\n{_UNSUB_LINE}\n\nShukriya,\n{from_name}\n"
+            f"LeadGen AI — {_site_url_tracked()}"
         )
         return _pick_spintax(subject), text, text
 
@@ -886,6 +902,14 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
 
         sender = EmailSender()
 
+        # W1.4: bulk-mark (default ON) — followup markers jama karke har 10 pe + end me
+        # ek saath likho; pehle har followup send poora prospects file rewrite karta tha
+        # (O(N²) → OOM). Same pattern jaisa run_email_outreach. Flag OUTREACH_BULK_MARK=0 = per-send.
+        import os as _os_mark
+
+        _bulk_mark = (_os_mark.getenv("OUTREACH_BULK_MARK", "1") or "").strip().lower() not in {"0", "false", "no", "off"}
+        _pending_marks: dict[str, dict[str, Any]] = {}
+
         for idx, (p, step) in enumerate(batch):
             pid = p.get("id")
             to_addr = str(p.get("email") or "").strip()
@@ -927,13 +951,17 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                 if ok:
                     try:
                         if pid:
-                            prospector.set_prospect_fields(
-                                pid,
-                                {
-                                    "followup_count": step,
-                                    "emailed_at": datetime.utcnow().isoformat() + "Z",
-                                },
-                            )
+                            _fields = {
+                                "followup_count": step,
+                                "emailed_at": datetime.utcnow().isoformat() + "Z",
+                            }
+                            if _bulk_mark:
+                                _pending_marks[pid] = _fields
+                                if len(_pending_marks) >= 10:  # periodic flush (crash pe ≤10 markers ka risk)
+                                    prospector.set_prospect_fields_bulk(_pending_marks)
+                                    _pending_marks = {}
+                            else:
+                                prospector.set_prospect_fields(pid, _fields)
                     except Exception:
                         pass
                     result["sent"] += 1
@@ -950,6 +978,14 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                     await asyncio.sleep(random.uniform(_SLEEP_MIN_S, _SLEEP_MAX_S))
                 except Exception:
                     pass
+
+        # W1.4: bache hue bulk markers flush (loop normal-end / break dono ke baad).
+        if _bulk_mark and _pending_marks:
+            try:
+                prospector.set_prospect_fields_bulk(_pending_marks)
+            except Exception:
+                pass
+            _pending_marks = {}
 
         try:  # warmup stats (flag-independent)
             from app.platform import email_warmup
