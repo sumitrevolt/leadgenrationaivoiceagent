@@ -34,6 +34,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.customer_auth import require_customer
+from app.api.ratelimit import rate_limit
 
 logger = logging.getLogger(__name__)
 
@@ -616,7 +617,10 @@ def customer_voice_queue_status(client_id: str = Depends(require_customer)) -> d
     }
 
 
-@router.post("/voice/call-queue")
+@router.post(
+    "/voice/call-queue",
+    dependencies=[Depends(rate_limit("voice_call_queue", 6, 60))],
+)
 async def customer_voice_call_queue(
     limit: int = Body(20, embed=True),
     client_id: str = Depends(require_customer),
@@ -625,8 +629,11 @@ async def customer_voice_call_queue(
 
     Every call goes through `queue_call` (the sole compliance chokepoint), so a
     non-compliant number (DND / outside 9am-7pm / no DLT / out of minutes/quota) is
-    simply NOT queued — this route bypasses nothing. Anti-joins CallLog so a lead is
-    never re-dialled. client_id forced from JWT (IDOR-safe). Gated
+    simply NOT queued — this route bypasses nothing. NO REPEAT-DIAL: skips leads that
+    have a CallLog row AND an in-flight Redis set (`voice_inflight:{cid}`, TTL) so the
+    same person isn't re-queued in the queue→dial→log window (2026-07-06 sec-audit
+    fix); plus a per-client daily cap (`VOICE_SELFSERVE_DAILY_CAP`, default 200) and a
+    per-IP rate limit. client_id forced from JWT (IDOR-safe). Gated
     CUSTOMER_VOICE_SELFSERVE (default OFF => 503). Enable only after a live test call."""
     if not _voice_selfserve_enabled():
         raise HTTPException(
@@ -681,13 +688,46 @@ async def customer_voice_call_queue(
 
     from app.telephony.call_manager import CallRequest
 
+    # In-flight dedup + per-client daily cap (2026-07-06 sec-audit fix): queue_call
+    # only Redis-enqueues; the CallLog row lands POST-call, so `called_ids` alone
+    # leaves a TOCTOU window where the SAME lead (a real person's phone) could be
+    # re-queued/re-dialled before its call logs. A short-TTL Redis SET of in-flight
+    # lead_ids + a per-client daily counter close it. Best-effort / fail-open — the
+    # per-call compliance gate in queue_call stays the hard control regardless.
+    _redis = None
+    _inflight: set[str] = set()
+    _ikey = f"voice_inflight:{client_id}"
+    _dcap = int(os.getenv("VOICE_SELFSERVE_DAILY_CAP", "200") or "200")
+    _dused = 0
+    _dkey = ""
+    try:
+        from datetime import datetime as _dt
+        from datetime import timezone as _tz
+
+        from app.cache import get_redis_client
+
+        _redis = await get_redis_client()
+        _dkey = f"voice_dcap:{client_id}:{_dt.now(_tz.utc):%Y%m%d}"
+        _inflight = {
+            (m.decode() if isinstance(m, bytes) else str(m))
+            for m in (await _redis.smembers(_ikey) or set())
+        }
+        _dv = await _redis.get(_dkey)
+        _dused = int(_dv) if _dv else 0
+    except Exception as e:
+        logger.debug("voice call-queue: redis dedup unavailable, degrading (%s)", e)
+        _redis = None
+
     mgr = _voice_call_manager()
-    queued, blocked, no_phone = 0, 0, 0
+    queued, blocked, no_phone, capped = 0, 0, 0, False
     reasons: dict[str, int] = {}
     for lead in leads:
         if queued >= lim:
             break
-        if lead["id"] in called_ids:
+        if _dcap and (_dused + queued) >= _dcap:
+            capped = True  # per-client daily cap reached
+            break
+        if lead["id"] in called_ids or lead["id"] in _inflight:
             continue
         phone = str(lead["phone"] or "").strip()
         if not phone:
@@ -733,6 +773,17 @@ async def customer_voice_call_queue(
                 reasons[_block_key] = reasons.get(_block_key, 0) + 1
             else:
                 queued += 1
+                if _redis is not None:  # mark in-flight (no re-dial) + count vs daily cap
+                    try:
+                        await _redis.sadd(_ikey, lead["id"])
+                        await _redis.expire(
+                            _ikey, int(os.getenv("VOICE_INFLIGHT_TTL_S", "1800") or 1800)
+                        )
+                        if _dkey:
+                            await _redis.incr(_dkey)
+                            await _redis.expire(_dkey, 90000)
+                    except Exception:
+                        pass
         except Exception as e:
             logger.debug("voice call-queue: queue_call skip (%s)", e)
             blocked += 1
@@ -741,6 +792,7 @@ async def customer_voice_call_queue(
         "queued": queued,
         "blocked": blocked,
         "skipped_no_phone": no_phone,
+        "daily_cap_reached": capped,
         "reasons": reasons,
         "note": "Sirf compliant leads (DND-clear, 9am-7pm window, DLT) queue hue — AI team inhe call karegi.",
     }
