@@ -111,3 +111,18 @@ def test_key_cards_in_expected_view():
     assert 'data-view="home"' in _tag_of("mktKpis")
     assert 'data-view="home"' in _tag_of("aiCommand")
     assert 'data-view="home"' in _tag_of("teamCard")
+
+
+# ---- Task 4: nav wiring ----
+def test_sidebar_wired_to_views():
+    # sidebar carries data-nav for all 4 views (active-state) and calls showView
+    for v in ("home", "leads", "content", "account"):
+        assert f'data-nav="{v}"' in SRC, f"sidebar missing data-nav={v}"
+    assert "showView('leads')" in SRC and "showView('account')" in SRC
+
+
+def test_mobile_nav_switches_views():
+    # mobile bottom nav switches views via the (now view-aware) scrollToId,
+    # reconfigured per fork by JS — must still exist and use scrollToId.
+    nav = re.search(r'<nav class="mobile-app-nav".*?</nav>', SRC, re.S)
+    assert nav and "scrollToId(" in nav.group(0)
