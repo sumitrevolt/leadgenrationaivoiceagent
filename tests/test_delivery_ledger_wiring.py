@@ -82,6 +82,19 @@ async def _async_zero():
     return 0
 
 
+def test_record_stuck_logs_automation_failed(monkeypatch, tmp_path):
+    from app.marketing import customer_delivery as cd
+
+    monkeypatch.setattr(cd, "_STUCK_LOG", str(tmp_path / "stuck.jsonl"))
+    events = []
+    monkeypatch.setattr(
+        "app.platform.delivery_ledger.log_event",
+        lambda client_id, event_type, **kw: events.append((client_id, event_type, kw.get("status"))),
+    )
+    cd._record_stuck({"id": "c1", "business_name": "Test Biz", "phone": "9812345678"}, "no_phone")
+    assert ("c1", "automation_failed", "warn") in events
+
+
 @pytest.mark.asyncio
 async def test_seed_client_content_logs_calendar_and_drafts(monkeypatch):
     from app.marketing import auto_content
