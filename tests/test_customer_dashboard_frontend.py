@@ -126,3 +126,10 @@ def test_mobile_nav_switches_views():
     # reconfigured per fork by JS — must still exist and use scrollToId.
     nav = re.search(r'<nav class="mobile-app-nav".*?</nav>', SRC, re.S)
     assert nav and "scrollToId(" in nav.group(0)
+
+
+# ---- Task 5: focused Home ----
+def test_home_money_above_decoration():
+    # the hot-leads money hero must sit above the AI-command decoration on Home
+    assert SRC.index('class="hero-leads"') < SRC.index('id="aiCommand"'), \
+        "hero-leads (money action) must precede #aiCommand on Home"
