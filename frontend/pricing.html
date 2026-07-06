@@ -381,7 +381,8 @@ async function doSignupPay(){
 
   if(SELECTED && SELECTED.id === "trial"){
     setMsg("FREE trial active ✓ redirect…", true);
-    setTimeout(() => location.href = "/app/customer", 900);
+    // token na mila (rare) to seedha login pe — dashboard ka blind bounce nahi
+    setTimeout(() => location.href = token ? "/app/customer" : "/app/login", 900);
     return;
   }
 

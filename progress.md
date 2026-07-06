@@ -572,3 +572,12 @@
 - **C · Orphan delete:** `app/platform/client_journey.py` (broken import `whatsapp_handler` — module exist hi nahi; zero live callers) `git rm`; `prod_check` = ALL PASSED after deletion (0 orphans, import clean). Revive-path (WhatsApp auto-send) §5 ban-risk tha — delete hi sahi disposition.
 - **Checks:** prod_check ALL PASSED · check_secrets clean · 35 auth tests green.
 - **Next:** push → CI gate ka pehla BLOCKING run watch karo (green = flip proven); VPS app recreate (2FA fix live karne); user-action items (flags/Caddy) pending.
+
+## Loop Run — deploy-verify + signup-token guard + Wave-4 already-done discovery
+- **Date:** 2026-07-06
+- **Goal:** ("keep looping") Pichle deploy ka verify complete (SSH mid-way reset hua tha) + audit-item "signup access_token:null silent-success" close + Wave-4 reply-intent scope-check.
+- **Deploy verified LIVE:** health ×2 production · app/worker/worker-heavy/scheduler healthy · celery/DLQ 0 · **2FA fail-closed in-container True** · client_journey orphan gone · ntfy Illegal-header errors post-fix = **0**.
+- **Signup null-token (onboarding-audit #3):** frontend VERIFIED already-graceful (`d.access_token || ""`, `if(token)` — koi crash nahi); ek blind spot tha: trial-path bina token `/app/customer` redirect → login-bounce confusion. Fix: `token ? "/app/customer" : "/app/login"` one-liner (`pricing.html`). Inline-JS `node --check` OK (8851 chars) · prod_check ALL PASSED. Item CLOSED.
+- **Wave-4 "reply-agent intent classifier" = ALREADY BUILT (code wins):** `app/platform/reply_agent.py` — 7-intent LLM classify + few-shot feedback-corrections + prospect-status map + draft; REPLY_AGENT=1 worker me live. Plan-item stale tha. Kuch build NAHI kiya — re-verify hi kaafi.
+- **Wave-4 remainder audit:** cold-email personalization (send-path policy) · UTM auto-ingest (POSTHOG key pending) · campaign_optimizer auto-apply (policy) · STUDIO_ENTITLEMENT_GATE (env) — SAB user-gated. Safe-autonomous backlog ab genuinely EMPTY.
+- **Next:** pricing.html bake ke liye app rebuild-deploy; CI gate result check; user-action items (flags/Caddy/CI-green confirm).
