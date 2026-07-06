@@ -122,6 +122,17 @@ def test_view_engine_present():
     assert "[data-view]:not(.v-on)" in SRC
 
 
+def test_showview_resizes_charts():
+    # charts render at 0x0 while their view is hidden; showView must resize them
+    m = re.search(r"function showView\([^)]*\)\s*\{(.*?)\n\}", SRC, re.S)
+    assert m and "getChart" in m.group(1), "showView must resize now-visible charts"
+
+
+def test_init_on_dom_ready_not_postfetch():
+    # default view must paint on DOM ready, independent of the API fetch
+    assert "DOMContentLoaded" in SRC or "readyState" in SRC
+
+
 def test_scrolltoid_is_view_aware():
     # scrollToId must call showView so old anchor links land on the right view
     m = re.search(r"function scrollToId\([^)]*\)\s*\{(.*?)\}", SRC, re.S)
@@ -159,6 +170,14 @@ function showView(name){
   document.querySelectorAll("[data-nav]").forEach(function(n){
     n.classList.toggle("active", n.getAttribute("data-nav")===name);
   });
+  // Chart.js canvases rendered while their view was hidden are sized 0x0 —
+  // resize any that are now visible.
+  try{
+    document.querySelectorAll("[data-view].v-on canvas").forEach(function(c){
+      var ch=(window.Chart && Chart.getChart) ? Chart.getChart(c) : null;
+      if(ch)ch.resize();
+    });
+  }catch(e){}
   try{history.replaceState(null,"","#view-"+name);}catch(e){}
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -169,11 +188,17 @@ function scrollToId(id){
 }
 ```
 
-- [ ] **Step 5: Initialise the default view on load** (append inside the existing DOM-ready / after `renderAll()` path, e.g. right after the `renderAll()` call at ~line 1466, or in the load handler)
+- [ ] **Step 5: Initialise the default view on DOM ready** (NOT in the fetch-success path — the page must paint even if the API is slow/down). Add near the end of the inline script:
 
 ```js
-  showView(viewForHash(location.hash));
+(function initView(){
+  function go(){ showView(viewForHash(location.hash)); }
+  if(document.readyState!=="loading")go();
+  else document.addEventListener("DOMContentLoaded",go);
+})();
 ```
+
+Note: this is belt-and-suspenders — Task 3 also hard-codes `v-on` on the Home blocks so Home is visible from the very first paint, before any JS runs.
 
 - [ ] **Step 6: Run tests + node check — expect PASS**
 
@@ -230,6 +255,13 @@ def test_key_cards_in_expected_view():
     assert 'data-view="content"' in tag_of("contentCard")
     assert 'data-view="account"' in tag_of("billingCard")
     assert 'data-view="account"' in tag_of("secCard")
+    # #mktKpis is a .kpis instance but belongs to Home (not the leads charts)
+    assert 'data-view="home"' in tag_of("mktKpis")
+
+def test_home_paints_before_js():
+    # Home blocks carry static v-on so the page is not blank before showView runs
+    assert 'class="owner-hero v-on"' in SRC, "owner-hero must ship with v-on"
+    assert 'class="status-strip v-on"' in SRC, "status-strip must ship with v-on"
 ```
 
 - [ ] **Step 3: Run — expect FAIL**
@@ -249,9 +281,14 @@ Expected: FAIL.
 <!-- was: <div class="card" id="billingCard"> -->
 <div class="card" data-view="account" id="billingCard">
 
+<!-- HOME blocks also get static `v-on` so Home paints before JS runs -->
 <!-- was: <div class="owner-hero" aria-label="Aapka dashboard"> -->
-<div class="owner-hero" data-view="home" aria-label="Aapka dashboard">
+<div class="owner-hero v-on" data-view="home" aria-label="Aapka dashboard">
+<!-- was: <div class="status-strip" aria-label="..."> -->
+<div class="status-strip v-on" data-view="home" aria-label="...">
 ```
+
+**All six Home blocks** (`.owner-hero`, `.status-strip`, `#aiCommand`, `#teamCard`, `.hero-leads`, `#mktKpis`) get **both** `data-view="home"` **and** `v-on` in their class. The other three views' blocks get only `data-view` (no `v-on`) so they start hidden. Tag `#mktKpis` (the `.kpis` at ~597) as `home`; tag the *other* `.kpis` (~727) as `leads` — never tag by the bare `.kpis` class.
 
 - [ ] **Step 5: Run full suite — expect PASS**
 
@@ -387,7 +424,7 @@ Automated guards can't prove the three product modes render correctly or that mo
 
 - [ ] **Step 3: Marketing mode** — load with `document.body.classList.add('prod-marketing')` (or the marketing route param the app uses). Confirm the Leads/Calls/Routing cards + `.hero-leads` stay hidden even inside their views (gating `!important` wins), and Content view shows Post/Approvals/Website Tools.
 
-- [ ] **Step 4: Voice mode** — `prod-voice`. Confirm Content/Approvals/WebTools hidden; Leads + Calls + charts show inside the Leads view.
+- [ ] **Step 4: Voice mode** — `prod-voice`. Confirm Content/Approvals/WebTools hidden; Leads + Calls + charts show inside the Leads view. **Chart sizing check (critical):** the 3 charts render while Home is default (Leads hidden ⇒ canvas 0×0). Switch to Leads and confirm each chart is drawn at its *correct size* (fills its card), not collapsed/tiny. If collapsed, the `showView` resize hook (Task 2) isn't firing — debug there. Presence ≠ correct sizing.
 
 - [ ] **Step 5: Mobile** — narrow viewport to 390px. Confirm one screen at a time, bottom tab bar switches views (not scroll), no horizontal overflow, charts live only in Leads.
 
