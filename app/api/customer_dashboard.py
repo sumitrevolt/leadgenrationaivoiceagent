@@ -835,6 +835,21 @@ async def customer_branded_feed(client_id: str = Depends(require_customer)):
         return {"ok": False, "error": "feed load nahi hua", "posts": []}
 
 
+@router.get("/timeline")
+def customer_delivery_timeline(client_id: str = Depends(require_customer), limit: int = 30) -> dict:
+    """'AI ne aapke liye kya kiya' — customer's own delivery-ledger timeline.
+    client_id JWT (require_customer) se aata hai => customer sirf apni hi
+    timeline dekhta hai. Never raises; empty list on any error."""
+    try:
+        from app.platform.delivery_ledger import get_timeline
+
+        events = get_timeline(client_id, limit=limit, audience="customer")
+        return {"ok": True, "events": events}
+    except Exception as e:
+        logger.debug("customer timeline failed: %s", e)
+        return {"ok": False, "events": []}
+
+
 @router.get("/approvals/pending")
 def customer_pending_approvals(client_id: str = Depends(require_customer)):
     """Posts jo client approval ka wait kar rahe hain."""
