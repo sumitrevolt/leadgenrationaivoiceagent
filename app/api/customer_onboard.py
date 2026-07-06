@@ -152,6 +152,26 @@ async def onboard_customer(body: OnboardIn, _user=Depends(require_admin)) -> dic
                 detail=f"profile created but login wire failed: {e}",
             )
 
+    # 2.5) DAY-1 VALUE — enqueue the done-for-you auto-onboard (website→KB seed +
+    #      first content pack + customer-visible content QUEUE + niche snapshot) to
+    #      the WORKER so the customer's portal has real content from minute one,
+    #      not an empty shell until the next-day sweep. send_welcome=True (this admin
+    #      path sends no welcome of its own). Gated SIGNUP_AUTO_ONBOARD (default ON);
+    #      never blocks the onboard response (heavy scrape/LLM stays in Celery).
+    if (__import__("os").environ.get("SIGNUP_AUTO_ONBOARD", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+    ):
+        try:
+            from app.tasks.staff_jobs import onboard_client
+
+            onboard_client.delay(client_id, True)
+        except Exception as e:
+            from app.utils.logger import setup_logger
+
+            setup_logger(__name__).debug(f"[onboard] day-1 seed enqueue skip: {e}")
+
     # 3) Best-effort: log the onboarding event in the audit table (rohan = leads manager).
     try:
         from app.platform.team import log_event
