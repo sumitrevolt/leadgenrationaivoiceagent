@@ -3,7 +3,7 @@
 > Naya AI session ya naya developer? **YE doc pehle padho** — 15 minute me poora project
 > operate karne layak ho jaoge. Ye doc POINT karta hai, duplicate nahi karta
 > (`.claude/skills/SKILLS_PARITY.md` rule) — detail hamesha linked skill/doc me hai.
-> Last full-verify: **2026-07-05** (live deploy + container list + route count is din verify hue).
+> Last full-verify: **2026-07-06** (live deploy ×3 + SSH automation-audit + CI all-green is din verify hue).
 
 ## 1. Ye project kya hai
 
@@ -53,6 +53,7 @@
 - **VPS-level gotchas** = `.claude/skills/hostinger-deploy` — khaas **DRIFT-CHECK Step 0** (VPS tree chronically dirty; blind `reset --hard` ne kaam khoya hai).
 - Quick-reference = `.claude/skills/verify-ship` (/verify + /ship) · tiering = `.claude/skills/ship-checklist`.
 - **Live-VPS deploy = explicit user-auth, HAMESHA.** Deploy target (host/IP) user ke message se confirmed hona chahiye.
+- **CI (2026-07-06 se): `deploy-vps` gate ka FULL pytest ab BLOCKING hard-gate hai** (network-marked tests excluded) — chaaron workflows main pe green. Gate ko wapas `continue-on-error` karna = user-decision only. `DEPLOY_ENABLED` ab bhi unset = CI gate-only, asli deploy manual SOP se. Idempotency-audit = ratchet (`IDEM_AUDIT_MAX_GAPS=117` — naya Celery task bina dedup ke CI RED karega).
 
 ## 7. Incident (pointer)
 
@@ -73,6 +74,9 @@
 9. **pydantic `.env` trap** — `/opt/leadgen/.env` me inline comments (`KEY=val # note`) ValidationError dete hain → app boot-crash.
 10. **Compliance gates fail-CLOSED** — TRAI 9am–7pm calling window / DND scrub / AI-disclosure / DPDP KABHI disable nahi (CLAUDE.md user-mandate; conversation me DLT-paperwork recurring topic mat banao, par gates INTACT).
 11. **Skills-tree JUNCTIONS (2026-07-05)** — `.claude/skills/` ke 61 dirs Windows junctions hain jo `.agents/skills/` ko point karte hain (same physical files — edit ek taraf, dono "badalte"). **Skills trees me KABHI `rmtree`/recursive-delete/`robocopy /MIR` mat chalao** — junction ke aar-paar asli content delete hota hai. Edit hamesha `.claude` side se; detail `.claude/skills/SKILLS_PARITY.md`.
+12. **Staged-sweep hazard (2026-07-06 observed)** — parallel session apni files STAGE karke chhod sakti hai; `git add X; git commit -m` unhe bhi sweep kar leta hai. **Hamesha pathspec-commit**: `git commit <files> -m ...`. Aur dirty-tree ke saath push karna ho to temp-worktree cherry-pick pattern (progress.md 2026-07-06 entries) — kabhi stash/reset se parallel kaam mat chhedo.
+13. **SSH mid-deploy reset + container rename-fallback (2026-07-06)** — flaky SSH build/recreate ke beech kate to (a) reconnect pe PEHLE `ps aux | grep docker.*build` (race-guard — dusra build mat chalao), (b) recreate-interrupt se container `xxxx_leadgen_app` naam se ban sakta hai (compose rename-fallback) → tooling/rollback tootta hai → zero-downtime fix: `docker rename xxxx_leadgen_app leadgen_app`.
+14. **Test-hermeticity + CI-env parity (2026-07-06 saga)** — tests jo developer-`.env`/data-files/test-order inherit karte hain sirf CI me phootte; naya test apna env PIN kare. CI pytest steps me `APP_ENV=test` + `ENVIRONMENT=development` + dummy `GROQ_API_KEY` zaroori (warna prod-default middleware 429s + TelecallerBrain key-check raise). Signup pe TEEN stacked rate-limit layers hain (dependency + middleware inline-fallback + `public_site._rate_limited`) — test-client fixture teeno neutralize kare (`tests/test_track_upgrades.py` ka `c` fixture = reference).
 
 ## 9. Access & secrets (sirf LOCATIONS — values kahin nahi)
 
@@ -80,9 +84,10 @@
 - **SSH key**: `C:\Users\Ratanshila\.ssh\id_rsa` (VPS root; passphrase-free). Admin UI auth: browser localStorage `accessToken`.
 - Values is doc me, committed files me, `.bat` me, ya CLAUDE.md me **KABHI nahi** — `scripts/check_secrets.py` verify-gate hai.
 
-## 10. Current state (2026-07-05)
+## 10. Current state (2026-07-06)
 
-- **Office-enterprise-upgrade LIVE** (`c2b7328`): 6 map bug fixes (unique agent tints, overflow shrink, offline snap-back, unmapped "?" badge, ticker-box mobile fix, Simple→Pro blank-map root-fix = lazy Phaser boot) + dark mode + Ctrl+K palette + toast alerts + 6 sections + scroll-spy + battery-friendly polling. Guard: `tests/test_office_map_frontend.py`.
-- **free_ai.py provider fix** (dead OpenRouter free-model ids + circuit-breaker gap) isi deploy me SHIP hua — SESSION_LOG 2026-07-05 ka "VPS deploy PENDING" resolved.
-- **Known pending**: MCP mount refused (`FASTAPI_MCP_TOKEN` `.env` me unset) — Arya (MCP-Engineer agent) alert karta rahega jab tak set na ho.
-- **Launch status**: marketing tiers + inbound callbacks = live-ready (DLT nahi chahiye); sirf voice cold-calling DLT pe blocked.
+- **LIVE on VPS (3 deploys aaj, sab health-verified):** Product-1 delivery (day-1 seed `SIGNUP_AUTO_ONBOARD` default-ON + `/api/customer/autopilot` + 3-fork frontend cards) · Product-2 delivery (customer transcript/AI-report surface; self-serve calling `CUSTOMER_VOICE_SELFSERVE` gated-OFF) · enterprise-audit fixes (KB wipe/dedup/delete-before-reseed, prompt-sanitize, obs mem-limits) · security gates (anon-leak routes 401, booking possession, browser SSRF, **2FA fail-closed**) · scheduler hardening (lock proof-based reclaim, dead-man real-status) · ops fixes (ntfy illegal-header alert-drop, geocode India-retry, vobiz error-type) · LLM cache/429 metrics · trainer per-niche + QA real-transcript replay (gated).
+- **CI ALL-GREEN milestone**: chaaron workflows green on main; full-suite BLOCKING hard-gate LIVE (§6). Full pytest local bhi green (`PYTEST_EXIT_0`).
+- **Live automation audit (SSH, 2026-07-06):** dead-man 0 bad-jobs/0 never-ran · celery/DLQ 0 · followups 20/20 · prospector chal raha · ~27 automation flags pehle se ON. "Automation kaam nahi kar raha" ka root = ntfy alert-drop tha (fixed) — kaam ho raha tha, khabar nahi aa rahi thi.
+- **USER-pending (commands progress.md 2026-07-06 entries me):** `.env` me 5 naye flags (`PROMETHEUS_JOB_METRICS/DIGEST_NTFY/DIGEST_LLM/WARM_SLA_NUDGE/QA_REAL_TRANSCRIPTS`) + recreate · Caddy `/metrics`+`/health/deep` external 403 block (abhi anon 200!) · `METRICS_TOKEN` · WAHA QR · live-call test ke baad `CUSTOMER_VOICE_SELFSERVE`/`VOBIZ_STREAM_REQUIRE_TOKEN` · **parallel-session voice-batch (ADR-025/ADR-027, commits main pe: `03dad80`,`8b55886`...) ka VPS deploy** · MCP mount (`FASTAPI_MCP_TOKEN` unset) pending hi hai.
+- **Launch status**: marketing tiers + inbound callbacks = live-ready (DLT nahi chahiye); sirf voice cold-calling DLT pe blocked. Loop-ledger = `progress.md` (is din ke ~15 Loop Run entries).
