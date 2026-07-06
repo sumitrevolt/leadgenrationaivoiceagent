@@ -185,9 +185,11 @@ def test_llm_cooldown_escalates_and_resets(monkeypatch):
     # daily-quota wording = seedha max cooldown (Groq TPD lesson)
     fa._trip_cooldown("groq", "429 Rate limit reached for model x tokens per day")
     assert fa._LLM_COOLDOWN_UNTIL["groq"] == now + fa._LLM_COOLDOWN_MAX_S
-    # non-rate error = no trip
+    # CATCH-ALL (2026-07-05, deployed): non-rate error bhi SHORT escalating cooldown
+    # trip karta — broken provider (connection-reset/blank) har chat() pe retry na ho
+    # (live: ollama 26% ok, nvidia 0% ok, zero backoff).
     fa._trip_cooldown("xai", "boom connection reset")
-    assert "xai" not in fa._LLM_COOLDOWN_UNTIL
+    assert fa._LLM_COOLDOWN_UNTIL["xai"] == now + base
     # success = streak reset → agla trip wapas base
     fa._reset_cooldown_streak("cerebras")
     fa._trip_cooldown("cerebras", "429")

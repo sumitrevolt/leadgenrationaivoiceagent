@@ -65,13 +65,35 @@ def _acquire_lock() -> bool:
             _have_lock = True
             return True
         except FileExistsError:
-            # exists — stale ya dead-pid ho to steal karo
+            # exists — steal SIRF proven-stale (mtime purana = heartbeat nahi) ya
+            # proven-dead owner pe. Unreadable/empty lock proof NAHI hai — empty
+            # file dusre worker ke os.open→os.write ke beech ki race-window hai;
+            # wahan steal = dono worker scheduler chalate (double emails/content).
+            # Crashed-mid-write owner ka reclaim mtime-staleness se ho jata hai
+            # (heartbeat _refresh_lock har tick mtime update karta hai).
+            stale = False
             try:
-                age = datetime.now().timestamp() - os.path.getmtime(_LOCK_PATH)
-                pid = int((open(_LOCK_PATH).read().strip() or "0") or 0)
-            except Exception:
-                age, pid = 9999, 0
-            if age > _LOCK_STALE_S or (pid and not _pid_alive(pid)) or pid == 0:
+                stale = (
+                    datetime.now().timestamp() - os.path.getmtime(_LOCK_PATH)
+                ) > _LOCK_STALE_S
+            except Exception as le:
+                stale = False  # mtime unreadable → stale PROVE nahi hua
+                logger.warning(
+                    "[team-scheduler] lock mtime unreadable — fail-closed skip "
+                    "(no steal without proof): %s", le,
+                )
+            dead = False
+            if not stale:
+                try:
+                    pid = int(open(_LOCK_PATH).read().strip() or "0")
+                    dead = pid > 0 and not _pid_alive(pid)
+                except Exception as le:
+                    dead = False  # pid unreadable → dead PROVE nahi hua
+                    logger.warning(
+                        "[team-scheduler] lock pid unreadable — fail-closed skip "
+                        "(no steal without proof): %s", le,
+                    )
+            if stale or dead:
                 try:
                     with open(_LOCK_PATH, "w") as f:
                         f.write(str(os.getpid()))

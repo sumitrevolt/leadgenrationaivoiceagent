@@ -145,6 +145,9 @@ def test_browser_enabled_but_no_playwright_is_graceful(monkeypatch):
     from app.agents import browser_tools
 
     monkeypatch.setenv("BROWSER_TOOLS", "1")
+    # SSRF guard offline DNS-fail pe fail-closed block karta — is test ka target
+    # playwright-missing path hai; guard ka apna suite hai (test_browser_tools_ssrf).
+    monkeypatch.setattr(browser_tools, "_url_is_safe", lambda url: True)
     real_import = builtins.__import__
 
     def _no_playwright(name, *args, **kwargs):

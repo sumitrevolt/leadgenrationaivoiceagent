@@ -126,7 +126,7 @@ class TestAuditLedSubjectBody:
         assert "3.2" in text
         assert "3.2" in html
         # additive guarantees: link + unsubscribe + footer still present
-        assert auto_outreach._AUDIT_URL_TRACKED in text  # audit CTA (tracked/shortened link)
+        assert auto_outreach._audit_url_tracked() in text  # W1.6 lazy accessor (tracked link)
         assert "REMOVE" in text
         assert "LeadGen AI" in text
         assert "Sharma Solar" in subject
@@ -140,7 +140,7 @@ class TestAuditLedSubjectBody:
         # gap fragment must NOT appear in the subject
         assert "3.2" not in subject
         # mandatory pieces still present (unchanged path)
-        assert auto_outreach._AUDIT_URL_TRACKED in text  # audit CTA (tracked/shortened link)
+        assert auto_outreach._audit_url_tracked() in text  # W1.6 lazy accessor (tracked link)
         assert "REMOVE" in text
 
     def test_flag_on_but_no_gap_is_generic(self, monkeypatch):

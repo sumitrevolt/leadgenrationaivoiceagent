@@ -46,6 +46,19 @@ def record(provider: str, ok: bool, ms: float, error: str = "", kind: str = "cha
         pass
 
 
+def record_cache(hit: bool) -> None:
+    """LLM response-cache lookup record (hit/miss) — W1.12 revisit-trigger prereq:
+    cache hit-rate ke data ke bina L2/Redis-cache decision hunch hota. kind="cache"
+    rows stats() me provider aggregation se ALAG rehti hain (fallback-rate/capacity
+    -alert skew nahi). record() reuse = same never-raise + trim. Ultra-light."""
+    record("cache", bool(hit), 0.0, "" if hit else "miss", kind="cache")
+
+
+# Rate-limit-class error keywords — free_ai._trip_cooldown ke is_rate_limit jaisa
+# (429/quota/TPD family). stats() me per-provider explicit count ke liye.
+_RL_KEYS = ("429", "rate", "quota", "queue", "too_many", "exhaust")
+
+
 def _trim() -> None:
     # READ-MODIFY-WRITE — multi-worker me lock zaroori (do process ek saath
     # trim karein to file truncate ho sakti thi). Lock + atomic os.replace.
@@ -81,18 +94,24 @@ def _read_tail(n: int = 2000) -> list[dict[str, Any]]:
 
 
 def stats(window: int = 2000) -> dict[str, Any]:
-    """Per-provider health + overall fallback rate. Kabhi raise nahi."""
-    rows = _read_tail(window)
+    """Per-provider health + overall fallback rate + cache hit-rate. Kabhi raise nahi."""
+    all_rows = _read_tail(window)
+    # kind="cache" rows alag — provider health/fallback-rate (capacity-alert input)
+    # ko cache lookups pollute na karein.
+    rows = [r for r in all_rows if r.get("k") != "cache"]
+    cache_rows = [r for r in all_rows if r.get("k") == "cache"]
     by: dict[str, dict[str, Any]] = {}
     for r in rows:
         p = r.get("p", "?")
-        d = by.setdefault(p, {"calls": 0, "ok": 0, "ms_sum": 0.0, "last_error": ""})
+        d = by.setdefault(p, {"calls": 0, "ok": 0, "ms_sum": 0.0, "last_error": "", "rl": 0})
         d["calls"] += 1
         if r.get("ok"):
             d["ok"] += 1
             d["ms_sum"] += float(r.get("ms", 0) or 0)
         elif r.get("e"):
             d["last_error"] = r["e"]
+        if not r.get("ok") and any(k in str(r.get("e") or "").lower() for k in _RL_KEYS):
+            d["rl"] += 1
     out: dict[str, Any] = {"providers": {}, "total_calls": len(rows)}
     for p, d in by.items():
         ok = d["ok"]
@@ -101,9 +120,17 @@ def stats(window: int = 2000) -> dict[str, Any]:
             "ok_rate": round(ok / max(d["calls"], 1), 3),
             "avg_ms": round(d["ms_sum"] / max(ok, 1), 1),
             "last_error": d["last_error"],
+            "rate_limited": d["rl"],
         }
     fails = sum(1 for r in rows if not r.get("ok"))
     out["fallback_or_fail_rate"] = round(fails / max(len(rows), 1), 3)
+    if cache_rows:
+        hits = sum(1 for r in cache_rows if r.get("ok"))
+        out["cache"] = {
+            "lookups": len(cache_rows),
+            "hits": hits,
+            "hit_rate": round(hits / max(len(cache_rows), 1), 3),
+        }
     return out
 
 
