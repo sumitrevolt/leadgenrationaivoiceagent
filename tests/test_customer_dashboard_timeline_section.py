@@ -16,3 +16,13 @@ def test_combo_dashboard_has_timeline_section_in_account_view():
     assert not (home_hero_pos < timeline_pos < home_hero_pos + 2000), (
         "timeline card must not be crammed into the Home hero area"
     )
+
+
+def test_marketing_fork_has_timeline_section():
+    html = open("frontend/customer_marketing.html", encoding="utf-8").read()
+    assert 'id="deliveryTimelineCard"' in html
+
+
+def test_voice_fork_has_timeline_section():
+    html = open("frontend/customer_voice.html", encoding="utf-8").read()
+    assert 'id="deliveryTimelineCard"' in html
