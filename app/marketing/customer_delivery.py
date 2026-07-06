@@ -169,6 +169,14 @@ def _record_stuck(client: dict[str, Any], reason: str) -> None:
         client.get("id"),
         reason,
     )
+    try:
+        from app.platform import delivery_ledger
+
+        delivery_ledger.log_event(
+            str(client.get("id") or ""), "automation_failed", detail=reason, status="warn"
+        )
+    except Exception as le:  # pragma: no cover
+        logger.debug("delivery _record_stuck ledger log skip: %s", le)
 
 
 async def deliver_client_value(client: dict[str, Any], force: bool = False) -> dict[str, Any]:
