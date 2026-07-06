@@ -390,7 +390,8 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 # Dev/Meera: nightly ML training (intent classifier + lead scorer +
                 # prompt-opt + A/B variants) — dormant engine wire, gated
-                # ML_NIGHTLY_TRAINING. Internally try/excepted; hard deadline 900s.
+                # ML_NIGHTLY_TRAINING. Internally try/excepted; hard deadline 480s
+                # (safely below Celery task_soft_time_limit=540s / hard=600s).
                 if os.environ.get("ML_NIGHTLY_TRAINING", "0").strip().lower() in (
                     "1",
                     "true",
@@ -399,7 +400,7 @@ async def _run_job_inner(job: str) -> bool:
                     from app.ml.auto_trainer import auto_trainer
                     from app.platform import team
 
-                    _ml = await asyncio.wait_for(auto_trainer.run_nightly_training(), timeout=900)
+                    _ml = await asyncio.wait_for(auto_trainer.run_nightly_training(), timeout=480)
                     team.log_event(
                         "dev",
                         "ml_training",

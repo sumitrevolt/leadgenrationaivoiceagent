@@ -96,3 +96,93 @@ The customer can now **see** their calling status (read-only `GET /api/customer/
 
 Not "everything automated, you do nothing." The true, deliverable promise is:
 **"Done-for-you day-1 setup + 86 on-demand AI marketing tools + daily content drafts + your AI team's hands-free drafts in the portal — 1-click to send."**
+
+---
+
+## PRODUCTION-READY SESSION UPDATE (2026-07-06 continuation)
+
+### Changes shipped this session (all UNCOMMITTED — commit + deploy as per §8):
+
+**1. Gemini SDK migration (telecaller_brain.py)**
+- Migrated from deprecated `google.generativeai` → new `google.genai` SDK (matching `llm_brain.py` pattern).
+- `GenerativeModel.generate_content_async()` → `client.aio.models.generate_content()` with `GenerateContentConfig`.
+- Key rotation: fresh `Client(api_key=key)` per retry attempt (new SDK pattern).
+- FutureWarning eliminated. `google.generativeai` no longer imported at module level.
+- Tests: `test_call_learning_2026_07_06.py` 34 + `test_prompt_content_sanitize.py` 6 = 40 green.
+
+**2. `.env.example` production flags added**
+- New voice quality flags: `IVR_HANGUP`, `NOINPUT_POLICY`, `ACK_TRIAL_CLOSE`, `PHONE_TYPE_GATE`, `CALL_FEEDBACK_LOOP`, `VOBIZ_STREAM_SECRET`, `VOBIZ_STREAM_REQUIRE_TOKEN`.
+- New observability flags: `PROMETHEUS_JOB_METRICS`, `DIGEST_NTFY`, `DIGEST_LLM`, `WARM_SLA_NUDGE`, `QA_REAL_TRANSCRIPTS`.
+- New delivery flags: `SIGNUP_AUTO_ONBOARD`, `CUSTOMER_VOICE_SELFSERVE`, `AUTO_DELIVER_VALUE`.
+- `test_env_example_free_stack.py` still passes.
+
+### STEP 7 — Caddy: block `/metrics` + `/health/deep` from external access
+
+These endpoints currently return **200 to anonymous external requests** (business counts, Celery/Redis/LLM stats leak). Two paths to fix:
+
+**Path A — METRICS_TOKEN (recommended, no Caddy change):**
+```bash
+# 1. Add to /opt/leadgen/.env:
+METRICS_TOKEN=<generate: python -c "import secrets; print(secrets.token_urlsafe(32))">
+
+# 2. Add bearer_token_file support to monitoring/prometheus.yml (or use Path B
+#    so Prometheus scrapes internally without auth — simpler):
+#    If METRICS_TOKEN is set, Prometheus internal scrape will start 401-ing.
+#    Fix: set bearer_token_file in prometheus.yml pointing to a secrets file,
+#    OR keep Prometheus scraping via internal Docker network + Caddy blocks external.
+
+# 3. Recreate app container:
+docker compose -f docker-compose.vps.yml up -d --no-deps app
+```
+
+**Path B — Caddy reverse-proxy block (external only, internal Prometheus unaffected):**
+```bash
+# SSH to VPS, then:
+cp /etc/caddy/Caddyfile /etc/caddy/Caddyfile.bak-$(date +%Y%m%d_%H%M%S)
+
+# Add these respond blocks INSIDE the leadsgenai.in site block, BEFORE the reverse_proxy:
+# respond /metrics 403
+# respond /health/deep 403
+
+# Then validate + reload:
+caddy validate --config /etc/caddy/Caddyfile && caddy reload --config /etc/caddy/Caddyfile
+
+# Verify:
+curl -s -o /dev/null -w "%{http_code}" https://leadsgenai.in/metrics     # expect 403
+curl -s -o /dev/null -w "%{http_code}" https://leadsgenai.in/health/deep # expect 403
+# Internal Prometheus scrape (container-to-container, bypasses Caddy) = unaffected.
+```
+
+### STEP 8 — Prod .env flags to set NOW (all new, safe defaults already in code)
+
+```bash
+# Voice quality (arm immediately — these are already default-ON in code, confirm in .env):
+NOINPUT_POLICY=1           # 0-turn dead-air → reprompt → graceful close
+IVR_HANGUP=1               # IVR/voicemail strike → hangup (saves Vobiz paisa)
+PHONE_TYPE_GATE=1          # fixed-line/IVR/toll-free dial = BLOCK
+CALL_FEEDBACK_LOOP=1       # IVR call → auto-blocklist learning
+
+# Observability (founder visibility — low risk):
+PROMETHEUS_JOB_METRICS=1   # /metrics: per-job success/fail/duration (Grafana)
+DIGEST_NTFY=1              # daily digest → phone ntfy push
+OPS_ALERTS=1               # staff-job crash → phone ntfy alert (NTFY_URL needed)
+
+# Delivery (arm after WhatsApp armed):
+# AUTO_DELIVER_VALUE=1     # hands-free draft → WhatsApp send (AFTER WAHA QR)
+```
+
+### STEP 9 — VPS one-time data ops (after deploy)
+
+```bash
+# SSH into app container:
+docker exec -it leadgen_app bash
+
+# 1. Backfill phone types on existing prospects (ADR-027):
+python scripts/backfill_phone_type.py --apply
+
+# 2. Purge junk prospects from home_loans niche (ADR-022):
+python scripts/purge_junk_prospects.py --niche home_loans --apply
+
+# 3. Verify counts:
+python -c "from app.platform.prospector import _count_by_status; print(_count_by_status())"
+```

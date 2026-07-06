@@ -592,10 +592,13 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
             ("mistral", _MISTRAL_LLM_MODEL),
         ]
     else:
+        # realtime = latency-first: Groq fastest free inference, Cerebras ~instant,
+        # Mistral = reliable but p50 latency higher → bulk primary, not realtime.
+        # (audit §10 [LOW] 2026-07-06: old order was mistral→groq→cerebras)
         core = [
-            ("mistral", _MISTRAL_LLM_MODEL),
             ("groq", _GROQ_LLM_MODEL),
             ("cerebras", _CEREBRAS_LLM_MODEL),
+            ("mistral", _MISTRAL_LLM_MODEL),
         ]
     chain: list[tuple[str, str]] = []
 
