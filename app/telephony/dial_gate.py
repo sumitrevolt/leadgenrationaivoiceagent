@@ -74,20 +74,145 @@ def allowlist() -> set[str]:
     return nums
 
 
+# --------------------------------------------------------------------------- #
+# Phone-type gate + learned DID blocklist (COUNCIL DECISION 2026-07-06, ADR-027)
+# KYUN: prospect store me 649 FIXED_LINE cloud-IVR DIDs (Livspace/HDFC blocks)
+# "ready" the — 05-Jul batch ne unhe dial karke IVR-machines ko pitch kiya.
+# MOBILE + FIXED_LINE_OR_MOBILE dialable (real hot lead FLOM type ka tha —
+# hard-block nahi); FIXED_LINE/TOLL_FREE promotional-dial BLOCK (email-only
+# route, prospect delete nahi hota). Learned blocklist = self-improving loop:
+# call me IVR confirm hua -> call_feedback.py yahan likhta hai; prefix
+# auto-block SIRF >= threshold (3) DISTINCT confirmed numbers pe (over-block
+# guard, audit-trail file me). Sab env-gated + file-reversible. Never raises.
+# --------------------------------------------------------------------------- #
+
+
+def _blocklist_path() -> Path:
+    return Path(os.environ.get("DIAL_BLOCKLIST_FILE", "data/dial_blocklist.json"))
+
+
+def _blocklist() -> dict:
+    try:
+        data = json.loads(_blocklist_path().read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+def _phone_type_gate_on() -> bool:
+    """PHONE_TYPE_GATE (default ON) — promotional dial pe FIXED_LINE/TOLL_FREE block."""
+    return (os.environ.get("PHONE_TYPE_GATE", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+def _learned_blocklist_on() -> bool:
+    """LEARNED_DID_BLOCKLIST (default ON) — IVR-confirmed numbers/prefixes block."""
+    return (os.environ.get("LEARNED_DID_BLOCKLIST", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+def _prefix_threshold() -> int:
+    """Kitne DISTINCT confirmed-IVR numbers ke baad poora 6-digit prefix block
+    ho (default 3 — council/risk guard: over-fit se genuine mobiles na maren)."""
+    try:
+        return max(2, int(os.environ.get("LEARNED_BLOCK_THRESHOLD", "3")))
+    except Exception:
+        return 3
+
+
+def phone_quality(number: str) -> str:
+    """'mobile' | 'flom' | 'fixed' | 'tollfree' | 'invalid' | 'unknown'.
+
+    libphonenumber (IN numbering plan) se; lib absent/error => 'unknown'
+    (dialing ko lib-failure par brick mat karo — allowlist/test-mode gates
+    apni jagah hain)."""
+    try:
+        import phonenumbers
+
+        n = _last10(number)
+        if len(n) != 10:
+            return "invalid"
+        num = phonenumbers.parse("+91" + n, "IN")
+        if not phonenumbers.is_valid_number(num):
+            return "invalid"
+        t = phonenumbers.number_type(num)
+        if t == phonenumbers.PhoneNumberType.MOBILE:
+            return "mobile"
+        if t == phonenumbers.PhoneNumberType.FIXED_LINE_OR_MOBILE:
+            return "flom"
+        if t == phonenumbers.PhoneNumberType.TOLL_FREE:
+            return "tollfree"
+        if t == phonenumbers.PhoneNumberType.FIXED_LINE:
+            return "fixed"
+        return "fixed"  # premium/VOIP/pager etc — promotional-dial ke liye NOT a person
+    except Exception:
+        return "unknown"
+
+
+def learned_block_reason(number: str) -> str:
+    """'' = clear; warna block-reason. data/dial_blocklist.json consult karta —
+    exact IVR-confirmed number, ya prefix jiske >= threshold distinct hits."""
+    try:
+        if not _learned_blocklist_on():
+            return ""
+        n = _last10(number)
+        if len(n) != 10:
+            return ""
+        bl = _blocklist()
+        nums = bl.get("numbers") or {}
+        if n in nums:
+            return f"learned_block:number:{(nums[n] or {}).get('reason', 'ivr_confirmed')}"
+        prefixes = bl.get("prefixes") or {}
+        p = n[:6]
+        rec = prefixes.get(p) or {}
+        distinct = rec.get("numbers") or []
+        if len(set(distinct)) >= _prefix_threshold():
+            return f"learned_block:prefix:{p}({len(set(distinct))} confirmed IVR)"
+        return ""
+    except Exception:
+        return ""
+
+
 def check(to: str, call_type: str = "transactional") -> tuple[bool, str]:
-    """(allowed, reason). Promotional + test-mode + not-allowlisted => blocked."""
+    """(allowed, reason). Promotional gate-chain:
+    allowlisted -> allow (owner override) · test-mode ON -> block ·
+    learned IVR blocklist -> block · phone-type fixed/tollfree/invalid -> block."""
     try:
         if (call_type or "").strip().lower() != "promotional":
             return True, "non_promotional"
-        if not test_mode():
-            return True, "test_mode_off"
         n = _last10(to)
         if n and n in allowlist():
             return True, "allowlisted"
-        return False, "dial_test_mode: promotional calls sirf allowlist numbers pe (owner mandate 2026-07-05)"
+        if test_mode():
+            return False, "dial_test_mode: promotional calls sirf allowlist numbers pe (owner mandate 2026-07-05)"
+        lb = learned_block_reason(to)
+        if lb:
+            return False, f"dial_blocklist: {lb} (self-learned from call outcomes)"
+        if _phone_type_gate_on():
+            q = phone_quality(to)
+            if q in ("fixed", "tollfree", "invalid"):
+                return False, (
+                    f"phone_type_gate: {q} number promotional-dial ke liye blocked "
+                    "(IVR/DID — email-only route; council 2026-07-06)"
+                )
+        return True, "gates_passed"
     except Exception as e:  # pragma: no cover — never block transactional on error
         logger.warning(f"[dial_gate] check error ({e}) — promotional=block, else allow")
         return (call_type or "").strip().lower() != "promotional", f"gate_error:{e}"
 
 
-__all__ = ["test_mode", "allowlist", "check"]
+__all__ = [
+    "test_mode",
+    "allowlist",
+    "check",
+    "phone_quality",
+    "learned_block_reason",
+]

@@ -335,6 +335,26 @@ def _anti_loop_enabled() -> bool:
     )
 
 
+# ACK->TRIAL-CLOSE (2026-07-06, 05-Jul call-batch learning): value-statement ke
+# baad bare affirmative ack = close moment. Sirf PURE affirmatives — "nahi"/mixed
+# jawab kabhi match nahi hote (fail-open to old flow).
+def _ack_trial_close_enabled() -> bool:
+    """ACK_TRIAL_CLOSE gate (default ON). Set 0 to keep pre-2026-07-06 behavior."""
+    return (os.environ.get("ACK_TRIAL_CLOSE", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+_BARE_ACK_RE = re.compile(
+    r"^(?:ok(?:ay)?|haa?n|ji|yes|yeah|theek(?:\s+hai)?(?:\s+ji)?|thik(?:\s+hai)?"
+    r"|achh?a|sahi\s+hai|bilkul|hmm+|hm+|right|correct)[.!,\s]*$",
+    re.IGNORECASE,
+)
+
+
 # High-precision: require a proceed VERB so a question ("kaise kar do?") or a bare
 # "haan" never trips it. `_KAR` = the many ways to say "do it" (karo / kar do /
 # karwa do / kar dijiye / kar lo). Matched on to_roman-normalised, lowercased text.
@@ -1555,6 +1575,26 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         # ("solar panel lagwana hai ghar pe") bhi deterministic canned-ack + scripted
         # question se intercept ho jaate, LLM tak KABHI nahi pahunchte = noob/robotic.
         # Ab sirf <=3 word (bare acks: "haan", "theek hai ji", "ok") auto-advance.
+        # ACK->TRIAL-CLOSE (2026-07-06, 05-Jul good-call learning): interest
+        # confirm ho chuka hai aur bot ki LAST line ek VALUE-STATEMENT thi
+        # (sawaal nahi — e.g. "agency ₹15-25K leti hai, hum ₹1,999 se") aur
+        # customer ne bare AFFIRMATIVE ack ("Okay"/"haan"/"theek hai") diya =>
+        # yeh CLOSE moment hai, agla discovery-sawaal nahi. Real call f452cce6
+        # me "Okay." ke baad bot ne "Google pe upar dikhta hai kya?" puchha aur
+        # call cut ho gayi — hot lead bina next-step ke chala gaya. Line me
+        # "WhatsApp number confirm" hai jo agle turn ke POST-CLOSE WRAP ko arm
+        # karti hai. Gated ACK_TRIAL_CLOSE (default ON); sawaal ke jawab wala
+        # ack (last bot line me "?") purane discovery flow par hi rehta hai.
+        if self._interest_confirmed and _ack_trial_close_enabled() and _BARE_ACK_RE.match(low):
+            _last_stmt = self._last_bot_line(history)
+            if _last_stmt and "?" not in _last_stmt:
+                # NOTE: single sentence <=28 words — _clean() ka word-cap 2nd
+                # sentence gira deta hai, isliye "WhatsApp number confirm" ISI
+                # sentence me hai (post-close wrap armer).
+                return self._clean(
+                    "Toh sir, 7 din ka FREE trial abhi shuru kar deti hoon — bas "
+                    "apna WhatsApp number confirm kar dijiye, link wahin bhejti hoon."
+                )
         if (
             self._user_substantive(ut)
             and not self._looks_like_question(ut)
@@ -1641,6 +1681,13 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                             # of a phone (fixes: web-call close-signal never
                             # produced a deal or a WhatsApp send).
                             self.set_caller_phone(_num)
+                            self._on_close_signal()
+                        elif self.caller_phone and not self.close_signal_fired:
+                            # 2026-07-06: DIALED path — caller ne sirf affirm kiya
+                            # ("haan yahi number"); number pehle se hai, durable
+                            # close (deal-write) AB fire karo. Pehle yeh sirf web
+                            # path (spoken number) me hota tha => phone calls par
+                            # close-affirm ka deal record hi nahi banta tha.
                             self._on_close_signal()
                         if _num:
                             # Read the number back digit-by-digit so the caller can
@@ -1898,6 +1945,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                         if _num and not self.caller_phone:
                             self.set_caller_phone(_num)
                             self._on_close_signal()
+                        elif self.caller_phone and not self.close_signal_fired:
+                            # 2026-07-06: dialed-path affirm => durable close (reply() parity).
+                            self._on_close_signal()
                         if _num:
                             _spoken = " ".join(_num)
                             yield self._clean(
@@ -2048,6 +2098,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                         _num = _extract_phone(ut)
                         if _num and not self.caller_phone:
                             self.set_caller_phone(_num)
+                            self._on_close_signal()
+                        elif self.caller_phone and not self.close_signal_fired:
+                            # 2026-07-06: dialed-path affirm => durable close (reply() parity).
                             self._on_close_signal()
                         if _num:
                             _spoken = " ".join(_num)
