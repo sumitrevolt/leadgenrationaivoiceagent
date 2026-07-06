@@ -5,6 +5,9 @@
 > Append a `## Loop Run` block after every loop. Deep knowledge → `memory/`;
 > dated narrative → `docs/SESSION_LOG.md`. Newest loop at the bottom.
 
+## Active Program (multi-loop)
+**AI-Marketing agents — 40+ improvements** → `docs/superpowers/plans/2026-07-06-agents-marketing-improvement-loops.md`. Run Wave 1 (Reliability + Cost + Observability) first; ~25 safe loops autonomous, PAUSE & ask on Wave-4 gated items. Merge per wave to `main`; user deploys via `leadgen-ops`.
+
 ---
 
 ## Loop Run
