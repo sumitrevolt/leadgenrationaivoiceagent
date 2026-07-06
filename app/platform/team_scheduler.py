@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -79,10 +80,20 @@ def _acquire_lock() -> bool:
                 except Exception:
                     return False
             return False
-    except Exception:
-        # lock-fs issue — fail-open (chalne do; single-worker dev me theek)
-        _have_lock = True
-        return True
+    except Exception as e:
+        # lock-fs issue — FAIL-CLOSED (W1.1): is worker ko lock NAHI dena. Purana
+        # fail-open dono uvicorn workers ko same FS-error pe scheduler start karwa
+        # deta tha → har job double-fire (double emails/content/spend + ban-risk).
+        # NOTE: _acquire_lock() boot-once hai (sirf start_scheduler) — yahan skip ka
+        # matlab is worker pe scheduler process-restart tak DOWN (koi next-tick retry
+        # nahi). Isiliye loud warn = ops ke liye recovery signal.
+        logger.warning(
+            "[team-scheduler] lock acquire failed — FAIL-CLOSED, scheduler NOT "
+            "starting on this worker (avoids double-fire): %s",
+            e,
+        )
+        _have_lock = False
+        return False
 
 
 def _refresh_lock() -> None:
@@ -137,6 +148,45 @@ _last_ran: dict[str, str | None] = {
 }
 
 
+# W1.7: _last_ran ko disk pe persist karo — in-memory dict restart pe reset ho jata tha,
+# jisse hourly/slot jobs (ops/growth/flow_cron) same window me RE-FIRE karte the. File
+# data/ me (already gitignored via `data/*`, .scheduler.lock jaisa runtime-state). Sirf
+# in-process/rollback scheduler ke liye (prod = Celery beat). Load boot pe, save har
+# badle-hue tick pe. (Behaviour-change: ek failed period-job ab restart pe us window me
+# retry NAHI hoga — durable marker; dead-man switch (W1.2) failure surface karta hai.)
+_LAST_RAN_PATH = os.path.join("data", "scheduler_last_ran.json")
+
+
+def _save_last_ran() -> None:
+    """_last_ran atomic-write (tmp + os.replace) — corrupt file se bacho. Fail-safe."""
+    try:
+        os.makedirs(os.path.dirname(_LAST_RAN_PATH) or ".", exist_ok=True)
+        tmp = _LAST_RAN_PATH + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(_last_ran, f)
+        os.replace(tmp, _LAST_RAN_PATH)
+    except Exception as e:
+        logger.debug("[team-scheduler] last_ran persist failed: %s", e)
+
+
+def _load_last_ran() -> None:
+    """Boot pe persisted markers load karo — sirf known keys + str values merge
+    (unknown/garbage ignore). File na ho ya corrupt ho to defaults (all-None) rahein."""
+    try:
+        with open(_LAST_RAN_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+    except FileNotFoundError:
+        return
+    except Exception as e:
+        logger.debug("[team-scheduler] last_ran load failed: %s", e)
+        return
+    if isinstance(data, dict):
+        for k in _last_ran:
+            v = data.get(k)
+            if isinstance(v, str):
+                _last_ran[k] = v
+
+
 async def _run_job(job: str) -> None:
     """Heartbeat wrapper — har run automation_health me record hota (dead-man
     switch: job chupchaap band ho jaye to overdue-alert). In-process + Celery
@@ -162,10 +212,17 @@ async def _run_job(job: str) -> None:
     _t0 = _time.monotonic()
     _ok = True
     try:
-        await _run_job_inner(job)
+        # W1.2: _run_job_inner ab bool deta — False = job-level fail (dead-man
+        # switch ko real status jaana chahiye). Re-raise NAHI: scheduler_loop poore
+        # tick ko ek hi try me chalata hai, to yahan raise = is tick ke baaki jobs skip.
+        _res = await _run_job_inner(job)
+        _ok = _res is not False
     except Exception:
+        # inner apna Exception khud pakadta hai (return False) — yahan aana truly
+        # unexpected. Fail record karo, par tick crash mat karo (BaseException/
+        # Cancelled propagate hote — woh yahan catch nahi).
         _ok = False
-        raise
+        logger.warning(f"[team-scheduler] job '{job}' raised unexpectedly", exc_info=True)
     finally:
         try:
             from app.platform import automation_health
@@ -175,7 +232,23 @@ async def _run_job(job: str) -> None:
             pass
 
 
-async def _run_job_inner(job: str) -> None:
+async def _run_content_engine(name: str, coro) -> bool:
+    """W1.3: `content` mega-job ke har engine ko isolate karo. Pehle 12 engines ek
+    hi try me chain the — pehla throw (e.g. auto_content) baaki engines ko silently
+    skip kar deta tha. Ab har engine ka failure logged + contained; cycle aage chalta."""
+    try:
+        await coro
+        return True
+    except Exception as e:
+        logger.warning(
+            "[team-scheduler] content engine '%s' failed (isolated, cycle continues): %s",
+            name,
+            e,
+        )
+        return False
+
+
+async def _run_job_inner(job: str) -> bool:
     try:
         from app.agents import staff
 
@@ -389,47 +462,65 @@ async def _run_job_inner(job: str) -> None:
         elif job == "content":
             from app.marketing import auto_content
 
-            await auto_content.run_daily_content()
+            # W1.3: har engine _run_content_engine se guzarta hai — ek engine ka throw
+            # baaki engines ko skip nahi karta (pehle poora chain ek hi try me tha).
+            await _run_content_engine("auto_content", auto_content.run_daily_content())
             from app.marketing import video_ad_cycle
 
             # AI video-ad cycle: har 5 din naya video (build_reel) -> client approval ->
             # multi-channel publish. run_cycle khud interval/publish/regen handle karta
             # (gated VIDEO_AD_CYCLE; off = inert). Scheduler/worker context = heavy OK.
-            await video_ad_cycle.run_cycle()
+            await _run_content_engine("video_ad_cycle", video_ad_cycle.run_cycle())
             from app.marketing import content_schedule
 
-            await content_schedule.run_due()  # date-scheduled posts auto-prepare
+            await _run_content_engine(
+                "content_schedule", content_schedule.run_due()
+            )  # date-scheduled posts auto-prepare
             from app.tasks.reporting import run_social_autopost
 
             # Publish 'ready' posts to connected Meta accounts (MOCK unless
             # SOCIAL_AUTOPOST=1 + a Page/IG token — inert/safe otherwise).
-            await run_social_autopost()
+            await _run_content_engine("social_autopost", run_social_autopost())
             from app.marketing import wa_campaign_runner
 
-            await wa_campaign_runner.run_due()  # WhatsApp drip/reactivation (inert without creds)
+            await _run_content_engine(
+                "wa_campaign_runner", wa_campaign_runner.run_due()
+            )  # WhatsApp drip/reactivation (inert without creds)
             from app.marketing import cadence
 
-            await cadence.run_due()  # omnichannel cadence advance (gated CADENCE_ENGINE; inert off)
+            await _run_content_engine(
+                "cadence", cadence.run_due()
+            )  # omnichannel cadence advance (gated CADENCE_ENGINE; inert off)
             from app.marketing import sales_pipeline
 
-            await sales_pipeline.run_pipeline()  # sales deals auto next-action (gated SALES_ENGINE)
+            await _run_content_engine(
+                "sales_pipeline", sales_pipeline.run_pipeline()
+            )  # sales deals auto next-action (gated SALES_ENGINE)
             from app.billing import dunning
 
-            await dunning.run_due()  # payment-recovery sweep (gated DUNNING_ENGINE; inert off)
+            await _run_content_engine(
+                "dunning", dunning.run_due()
+            )  # payment-recovery sweep (gated DUNNING_ENGINE; inert off)
             from app.marketing import lifecycle_nurture
 
-            await lifecycle_nurture.run_due()  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
+            await _run_content_engine(
+                "lifecycle_nurture", lifecycle_nurture.run_due()
+            )  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
             from app.marketing import channel_experiments
 
-            await channel_experiments.run_daily(
-                3
+            await _run_content_engine(
+                "channel_experiments", channel_experiments.run_daily(3)
             )  # naye approach-channel experiments (gated CHANNEL_EXPERIMENTS)
             from app.platform import booking_reminders
 
-            await booking_reminders.run_due()  # kal ki bookings ke reminders (gated BOOKING_REMINDERS)
+            await _run_content_engine(
+                "booking_reminders", booking_reminders.run_due()
+            )  # kal ki bookings ke reminders (gated BOOKING_REMINDERS)
             from app.marketing import review_monitor
 
-            await review_monitor.run_check()  # naye Google reviews -> AI reply drafts (gated REVIEW_MONITOR)
+            await _run_content_engine(
+                "review_monitor", review_monitor.run_check()
+            )  # naye Google reviews -> AI reply drafts (gated REVIEW_MONITOR)
             try:
                 from app.marketing import customer_crm
 
@@ -860,13 +951,23 @@ async def _run_job_inner(job: str) -> None:
                         status="ok",
                     )
     except Exception as e:
+        # W1.2: job-level failure ko SWALLOW mat karo — return False taaki caller
+        # (_run_job) dead-man switch me real status (ok=False) record kare. Warna
+        # har run "success" record hota raha aur overdue-alert kabhi fire nahi karta.
         logger.warning(f"[team-scheduler] job {job} failed: {e}")
+        return False
+    return True
 
 
 async def scheduler_loop() -> None:
     logger.info("[team-scheduler] loop started (growth 15min + dailies)")
+    # W1.7: persisted last-run markers boot pe load — MUST boot-grace se PEHLE chale
+    # (warna load boot-grace ke in-window skip-marks ko stale values se overwrite karke
+    # heavy job ko boot pe chala dega = prod-000 boot-storm). Reorder mat karo.
+    _load_last_ran()
     _boot_seeded = False
     while True:
+        _snap = dict(_last_ran)  # W1.7: tick ke baad koi marker badla to persist karenge
         try:
             _refresh_lock()  # heartbeat — owner zinda hai
             now = datetime.now(_IST)
@@ -1080,6 +1181,8 @@ async def scheduler_loop() -> None:
             raise
         except Exception as e:
             logger.warning(f"[team-scheduler] tick failed: {e}")
+        if _last_ran != _snap:  # W1.7: is tick me koi marker badla → disk pe persist
+            _save_last_ran()
         await asyncio.sleep(_TICK_S)
 
 

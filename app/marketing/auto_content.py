@@ -304,6 +304,36 @@ def _existing_keys(client_id: str) -> set:
     return keys
 
 
+_CAPTION_MIN_LEN = 10
+_CAPTION_MAX_LEN = 2200  # Instagram caption hard limit
+
+
+def _caption_ok(item: dict[str, Any]) -> tuple[bool, str]:
+    """W2.1: content draft-queue me jaane se pehle caption validate — banned-phrase
+    (staff.BANNED reuse) ya bad-length wale items queue me na aayein. Poster/SVG items
+    (no caption) always ok. Fail-open (validate error = allow) — content flow never break."""
+    try:
+        cap = str(item.get("caption") or "").strip()
+        if not cap:
+            return True, ""  # poster/svg — koi caption nahi, validate karne ko kuch nahi
+        n = len(cap)
+        if n < _CAPTION_MIN_LEN:
+            return False, f"caption too short ({n} chars)"
+        if n > _CAPTION_MAX_LEN:
+            return False, f"caption too long ({n} chars)"
+        low = cap.lower()
+        try:
+            from app.agents.staff import BANNED  # lazy — circular import avoid
+        except Exception:
+            BANNED = []
+        for b in BANNED:
+            if b and str(b).lower() in low:
+                return False, f"banned phrase '{b}'"
+        return True, ""
+    except Exception:
+        return True, ""
+
+
 def _append_items(client_id: str, items: list[dict[str, Any]]) -> int:
     """Items queue file me append karo (date+type DEDUPE). Added count return."""
     if not items:
@@ -317,6 +347,10 @@ def _append_items(client_id: str, items: list[dict[str, Any]]) -> int:
             for it in items:
                 k = f"{it.get('date')}|{it.get('type')}"
                 if k in seen:
+                    continue
+                _ok, _why = _caption_ok(it)  # W2.1: output-validation gate
+                if not _ok:
+                    logger.warning(f"[auto_content] content rejected (not queued): {_why}")
                     continue
                 seen.add(k)
                 f.write(json.dumps(it, ensure_ascii=False) + "\n")
