@@ -134,8 +134,13 @@
   .ai-command .btn{background:#fff;color:#0f172a;border:none;justify-content:center;white-space:nowrap}
   .mobile-app-nav{display:none}
   .mobile-fab{display:none}
-  /* --- view engine: one view visible at a time; product gating (!important) still wins --- */
-  [data-view]:not(.v-on){display:none}
+  /* --- view engine: #mainContent[data-active-view] shows one view at a time.
+     Hidden blocks get display:none (no !important) so product gating still wins,
+     and shown blocks keep their own class display (grid/flex/etc). --- */
+  [data-active-view="home"]    [data-view]:not([data-view="home"]),
+  [data-active-view="leads"]   [data-view]:not([data-view="leads"]),
+  [data-active-view="content"] [data-view]:not([data-view="content"]),
+  [data-active-view="account"] [data-view]:not([data-view="account"]){display:none}
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
   .prod-marketing #callsCard,.prod-marketing #routingCard{display:none !important}
   .prod-voice #contentCard,.prod-voice #approvalCard,.prod-voice #webToolsCard{display:none !important}
@@ -503,7 +508,7 @@
       <button type="button" class="btn-pay" id="trialBannerPay" onclick="scrollToId('billingCard')">💳 Ab pay karo</button>
     </div>
 
-    <div class="content" role="main" id="mainContent">
+    <div class="content" role="main" id="mainContent" data-active-view="home">
 
       <!-- ===== 0) Owner hero — non-technical intro ===== -->
       <div class="owner-hero" aria-label="Aapka dashboard">
@@ -1461,16 +1466,15 @@ function viewForHash(h){
 }
 function showView(name){
   name=["home","leads","content","account"].indexOf(name)>=0?name:"home";
-  document.querySelectorAll("[data-view]").forEach(function(el){
-    el.classList.toggle("v-on", el.getAttribute("data-view")===name);
-  });
+  var mc=document.getElementById("mainContent");
+  if(mc)mc.setAttribute("data-active-view",name);
   document.querySelectorAll("[data-nav]").forEach(function(n){
     n.classList.toggle("active", n.getAttribute("data-nav")===name);
   });
   // Chart.js canvases rendered while their view was hidden are sized 0x0 —
   // resize any that are now visible.
   try{
-    document.querySelectorAll("[data-view].v-on canvas").forEach(function(c){
+    document.querySelectorAll('[data-view="'+name+'"] canvas').forEach(function(c){
       var ch=(window.Chart && Chart.getChart) ? Chart.getChart(c) : null;
       if(ch)ch.resize();
     });
