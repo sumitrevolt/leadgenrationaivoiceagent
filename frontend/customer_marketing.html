@@ -134,6 +134,14 @@
   .ai-command .btn{background:#fff;color:#0f172a;border:none;justify-content:center;white-space:nowrap}
   .mobile-app-nav{display:none}
   .mobile-fab{display:none}
+  /* --- view engine: #mainContent[data-active-view] shows one view at a time.
+     !important is required to beat block styles like .sec-title{display:flex}.
+     This only hides blocks of NON-active views, so product gating
+     (#card{display:none !important}) still wins on cards inside the active view. --- */
+  [data-active-view="home"]    [data-view]:not([data-view="home"]),
+  [data-active-view="leads"]   [data-view]:not([data-view="leads"]),
+  [data-active-view="content"] [data-view]:not([data-view="content"]),
+  [data-active-view="account"] [data-view]:not([data-view="account"]){display:none !important}
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
   .prod-marketing #callsCard{display:none !important}
   .prod-voice #contentCard,.prod-voice #approvalCard,.prod-voice #webToolsCard{display:none !important}
@@ -487,19 +495,12 @@
   <!-- Sidebar -->
   <aside class="sidebar" role="navigation" aria-label="Main navigation">
     <div class="brand" aria-label="LeadGen AI"><img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="34" height="34" /> LeadGen AI</div>
-    <div class="nav-group">Overview</div>
-    <a class="navlink active" href="#" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home</a>
-    <div class="nav-group">Content & Studio</div>
-    <a class="navlink" href="#contentCard" onclick="scrollToId('contentCard');return false;" aria-label="Aaj ka Post section"><span class="ic" aria-hidden="true">📣</span> Aaj ka Post</a>
-    <a class="navlink" href="#studioCard" onclick="scrollToId('studioCard');return false;" aria-label="AI Marketing Studio"><span class="ic" aria-hidden="true">🎨</span> AI Studio</a>
-    <a class="navlink" href="#mediaStudioCard" onclick="scrollToId('mediaStudioCard');return false;" aria-label="Media Studio"><span class="ic" aria-hidden="true">🖼️</span> Media</a>
-    <a class="navlink" href="#approvalCard" onclick="scrollToId('approvalCard');return false;" aria-label="Post approvals"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
-    <a class="navlink" href="#webToolsCard" onclick="scrollToId('webToolsCard');return false;" aria-label="Website tools mini-site widget"><span class="ic" aria-hidden="true">🌐</span> Website Tools</a>
-    <div class="nav-group">Leads</div>
-    <a class="navlink" href="#leadsCard" onclick="scrollToId('leadsCard');return false;" aria-label="Naye Leads section"><span class="ic" aria-hidden="true">🔥</span> Naye Leads</a>
+    <div class="nav-group">Menu</div>
+    <a class="navlink active" data-nav="home" href="#" onclick="showView('home');return false;" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home</a>
+    <a class="navlink" data-nav="content" href="#" onclick="showView('content');return false;" aria-label="Aaj ka Post, AI Studio, Media, approvals, website tools"><span class="ic" aria-hidden="true">📣</span> Content &amp; Studio</a>
+    <a class="navlink" data-nav="leads" href="#" onclick="showView('leads');return false;" aria-label="Sales team routing"><span class="ic" aria-hidden="true">👥</span> Sales Team</a>
     <a class="navlink" href="/app/customer/pipeline" aria-label="Lead Pipeline Kanban board"><span class="ic" aria-hidden="true">📋</span> Pipeline</a>
-    <div class="nav-group">Account</div>
-    <a class="navlink" href="#billingCard" onclick="scrollToId('billingCard');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
+    <a class="navlink" data-nav="account" href="#" onclick="showView('account');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
     <a class="navlink" href="#secCard" onclick="openAdvancedSettings();return false;" aria-label="Security aur advanced settings"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
     <a class="navlink" id="navAutomations" href="/app/customer/flows" style="display:none" aria-label="My Automations flow builder"><span class="ic" aria-hidden="true">🧩</span> Automations</a>
     <div class="ao-sb-live"><span class="dot"></span>AI team kaam kar rahi hai</div>
@@ -553,11 +554,11 @@
       <button type="button" class="btn-pay" id="trialBannerPay" onclick="scrollToId('billingCard')">💳 Ab pay karo</button>
     </div>
 
-    <div class="content" role="main" id="mainContent">
+    <div class="content" role="main" id="mainContent" data-active-view="home">
 
       <!-- ===== 0) Owner hero — non-technical intro FIRST (parity with combo/voice:
            human prompt + primary CTA before the small data cards) ===== -->
-      <div class="owner-hero" aria-label="Aapka dashboard">
+      <div data-view="home" class="owner-hero" aria-label="Aapka dashboard">
         <div>
           <span class="owner-pill" id="ownerPill">✦ AI Marketing Office</span>
           <h1 class="owner-title" id="ownerTitle">Aapki AI marketing team tayaar hai</h1>
@@ -572,11 +573,11 @@
       <!-- ===== 🏢 Aapka Office — virtual-office home (shared widget). Replaces old
            Priority/Simple-note/Next-step clutter; /design-system/customer_office.js
            → /api/customer/office (product=marketing). ===== -->
-      <div id="aapkaOffice"></div>
+      <div data-view="home" id="aapkaOffice"></div>
 
       <!-- ===== 1) AAJ KE LIYE — owner-hero ke baad short summary cards ===== -->
-      <div class="sec-title">☀️ Aaj ke liye</div>
-      <div class="status-strip" aria-label="Aaj ka short summary">
+      <div data-view="home" class="sec-title">☀️ Aaj ke liye</div>
+      <div data-view="home" class="status-strip" aria-label="Aaj ka short summary">
         <div class="status-card">
           <div class="lab">Abhi status</div>
           <div class="val" id="uxStatus">Load ho raha...</div>
@@ -593,7 +594,16 @@
           <div class="hint" id="uxTeamHint">Content, leads aur calls yahan update honge.</div>
         </div>
       </div>
-      <div class="ai-command" id="aiCommand" aria-label="AI command center">
+        <div data-view="home" class="hero-leads">
+          <div class="lab">🔥 Naye Leads</div>
+          <div class="big" id="todayLeads">—</div>
+          <div class="sub" id="todayHot">Pakke customers jo baat karne ko taiyaar hain.</div>
+          <div class="stl-badge" id="stlBadge" style="display:none" aria-live="polite" aria-label="Speed to lead SLA">
+            ⚡ <span id="stlText">2-min jawab</span>
+          </div>
+          <button class="btn" onclick="scrollToId('leadsCard')">Leads dekho ↓</button>
+        </div>
+      <div data-view="home" class="ai-command" id="aiCommand" aria-label="AI command center">
         <div>
           <div class="eyebrow">AI Marketing Command</div>
           <div class="decision" id="aiDecision">Aaj ka best marketing action choose ho raha hai.</div>
@@ -609,7 +619,7 @@
       <!-- (Next-step card folded into 🏢 Aapka Office — JS setters stay null-safe) -->
 
       <!-- ===== Virtual AI Marketing Team — agentic live office ===== -->
-      <div class="team-office marketing-only" id="teamCard" aria-label="Aapki AI Marketing Team — live">
+      <div data-view="home" class="team-office marketing-only" id="teamCard" aria-label="Aapki AI Marketing Team — live">
         <div class="team-head">
           <div style="flex:1;min-width:180px">
             <div class="tt">👥 Aapki AI Marketing Team <span class="team-live"><span class="dot"></span> Live</span></div>
@@ -621,7 +631,7 @@
 
       <div class="today-grid">
         <!-- Aaj ka post (AI-generated, 1-click copy/share) -->
-        <div class="card" id="contentCard">
+        <div data-view="content" class="card" id="contentCard">
           <div class="card-h">
             <h2>📣 Aaj ka Post — copy karke WhatsApp/Insta pe daalo</h2>
             <span class="pill" id="contentCount">—</span>
@@ -633,20 +643,11 @@
           </div>
         </div>
         <!-- Naye leads ka bada number -->
-        <div class="hero-leads">
-          <div class="lab">🔥 Naye Leads</div>
-          <div class="big" id="todayLeads">—</div>
-          <div class="sub" id="todayHot">Pakke customers jo baat karne ko taiyaar hain.</div>
-          <div class="stl-badge" id="stlBadge" style="display:none" aria-live="polite" aria-label="Speed to lead SLA">
-            ⚡ <span id="stlText">2-min jawab</span>
-          </div>
-          <button class="btn" onclick="scrollToId('leadsCard')">Leads dekho ↓</button>
-        </div>
       </div>
 
       <!-- Marketing KPIs — marketing + combo only (hidden on voice) -->
-      <div class="sec-title marketing-only">📣 Marketing — ek nazar</div>
-      <div class="kpis marketing-only" id="mktKpis">
+      <div data-view="home" class="sec-title marketing-only">📣 Marketing — ek nazar</div>
+      <div data-view="home" class="kpis marketing-only" id="mktKpis">
         <div class="kpi"><div class="lab">📣 Posts Taiyaar</div><div class="val" id="mkPosts">—</div><div class="sub">Ready-to-share content</div></div>
         <div class="kpi"><div class="lab">✅ Approval Pending</div><div class="val" id="mkApprovals">—</div><div class="sub">Publish se pehle aapki OK</div></div>
         <div class="kpi"><div class="lab">🔥 Naye Enquiries</div><div class="val" id="mkLeads">—</div><div class="sub">Website / mini-site se aaye</div></div>
@@ -654,7 +655,7 @@
       </div>
 
       <!-- Onboarding checklist (hidden when complete) -->
-      <div id="onboardWrap" style="display:none;margin-bottom:14px">
+      <div data-view="home" id="onboardWrap" style="display:none;margin-bottom:14px">
         <div class="onboard-card" role="region" aria-label="Getting started checklist">
           <h3>🚀 Shuru karne ke steps <span id="onboardPct" style="font-weight:600;color:var(--muted);font-size:12px"></span></h3>
           <div class="onboard-steps" id="onboardSteps"></div>
@@ -662,7 +663,7 @@
       </div>
 
       <!-- Content approval (agency-grade — Dhanda se aage) -->
-      <div class="card" id="approvalCard" style="margin-bottom:14px">
+      <div data-view="content" class="card" id="approvalCard" style="margin-bottom:14px">
         <div class="card-h">
           <h2>✅ Post Approval — publish se pehle aapki OK</h2>
           <span class="pill" id="approvalCount">0 pending</span>
@@ -671,7 +672,7 @@
       </div>
 
       <!-- Website tools — mini-site, widget, booking -->
-      <div class="card" id="webToolsCard" style="margin-bottom:14px">
+      <div data-view="content" class="card" id="webToolsCard" style="margin-bottom:14px">
         <div class="card-h">
           <h2>🌐 Aapki Website Tools</h2>
           <span class="pill" id="webToolsSlug">—</span>
@@ -682,8 +683,8 @@
       </div>
 
       <!-- ===== Phase-1 self-serve marketing tools (council 2026-06-26) ===== -->
-      <div class="sec-title marketing-only">🚀 Aapke Marketing Tools</div>
-      <div class="mtools-grid marketing-only">
+      <div data-view="content" class="sec-title marketing-only">🚀 Aapke Marketing Tools</div>
+      <div data-view="content" class="mtools-grid marketing-only">
         <!-- 1) GBP Audit -->
         <div class="card" id="gbpCard">
           <div class="card-h">
@@ -718,7 +719,7 @@
       </div>
 
       <!-- Lead round-robin team (NeoDove/TeleCRM parity) -->
-      <div class="card" id="routingCard" style="margin-bottom:14px">
+      <div data-view="leads" class="card" id="routingCard" style="margin-bottom:14px">
         <div class="card-h">
           <h2>👥 Sales Team — leads auto baant-te hain</h2>
           <span class="pill" id="routingSummary">Round-robin</span>
@@ -736,8 +737,8 @@
       </div>
 
       <!-- ===== 2) Quick actions ===== -->
-      <div class="sec-title">⚡ Jaldi se</div>
-      <div class="actions">
+      <div data-view="home" class="sec-title">⚡ Jaldi se</div>
+      <div data-view="home" class="actions">
         <button class="action-card" onclick="scrollToId('contentCard')">
           <span class="ic">📣</span>
           <span><span class="t">Aaj ka post</span><br><span class="s">Copy + WhatsApp share — 1-click</span></span>
@@ -773,8 +774,8 @@
       </div>
 
       <!-- ===== 2b) AI Marketing Studio — self-serve AI marketing assets ===== -->
-      <div class="sec-title">🎨 AI Marketing Studio</div>
-      <div class="card" id="studioCard">
+      <div data-view="content" class="sec-title">🎨 AI Marketing Studio</div>
+      <div data-view="content" class="card" id="studioCard">
         <div class="card-h">
           <h2>AI se marketing material — apne business ke liye</h2>
           <span class="pill" id="studioNiche" aria-live="polite">…</span>
@@ -791,8 +792,8 @@
       </div>
 
       <!-- ===== 2c) Media Studio — image tools (upload/generate) ===== -->
-      <div class="sec-title">🖼️ Media Studio</div>
-      <div class="card" id="mediaStudioCard">
+      <div data-view="content" class="sec-title">🖼️ Media Studio</div>
+      <div data-view="content" class="card" id="mediaStudioCard">
         <div class="card-h">
           <h2>Image tools — GIF, stickers, resize, background remove</h2>
           <div class="grow"></div>
@@ -803,8 +804,8 @@
       </div>
 
       <!-- ===== 3) Aapke Leads — paisa yahin hai ===== -->
-      <div class="sec-title voice-only">🔥 Aapke Leads</div>
-      <div class="card" id="leadsCard">
+      <div data-view="leads" class="sec-title voice-only">🔥 Aapke Leads</div>
+      <div data-view="leads" class="card" id="leadsCard">
         <div class="card-h">
           <h2 id="leadsHeading">Naye Leads — inko call karo</h2>
           <span class="pill" id="leadsCount" aria-live="polite" aria-atomic="true">0 leads</span>
@@ -845,8 +846,8 @@
       </div>
 
       <!-- ===== 4) Pura hisaab (KPIs + charts) ===== -->
-      <div class="sec-title voice-only">📊 Pura Hisaab</div>
-      <div class="kpis">
+      <div data-view="leads" class="sec-title voice-only">📊 Pura Hisaab</div>
+      <div data-view="leads" class="kpis">
         <div class="kpi k1"><div class="lab">Calls Hui</div><div class="val" id="kCalls">—</div><div class="sub">AI ne itni baar phone lagaya</div></div>
         <div class="kpi k2"><div class="lab">Baat Hui</div><div class="val" id="kConn">—</div><div class="sub" id="kConnSub">— logon ne phone uthaya</div></div>
         <div class="kpi k3"><div class="lab">Pakke Leads</div><div class="val" id="kQual">—</div><div class="sub">Baat karne ko taiyaar log</div></div>
@@ -854,7 +855,7 @@
         <div class="kpi k5"><div class="lab">Approx. Kharcha</div><div class="val" id="kCost">—</div><div class="sub">Calling ka andaaza</div></div>
       </div>
 
-      <div class="grid-2" style="margin-top:14px">
+      <div data-view="leads" class="grid-2" style="margin-top:14px">
         <div class="card">
           <div class="card-h"><h2>Roz Kitni Calls</h2><span class="pill">Pichhle 7 din</span></div>
           <div class="card-b"><div class="chart-wrap"><canvas id="chCalls"></canvas></div></div>
@@ -865,7 +866,7 @@
         </div>
       </div>
 
-      <div class="grid-3">
+      <div data-view="leads" class="grid-3">
         <div class="card">
           <div class="card-h"><h2>Sheher ke Hisaab se Leads</h2></div>
           <div class="card-b"><div class="chart-wrap"><canvas id="chCity"></canvas></div></div>
@@ -877,7 +878,7 @@
       </div>
 
       <!-- ===== 5) Calls table ===== -->
-      <div class="card" id="callsCard" style="margin-bottom:18px">
+      <div data-view="leads" class="card" id="callsCard" style="margin-bottom:18px">
         <div class="card-h">
           <h2 id="callsHeading">📞 Calls ka Hisaab</h2>
           <span class="pill" id="callsCount" aria-live="polite" aria-atomic="true">0 calls</span>
@@ -912,8 +913,8 @@
       </div>
 
       <!-- ===== 6) Bill / Plan ===== -->
-      <div class="sec-title">💳 Bill / Plan</div>
-      <div class="card" id="billingCard">
+      <div data-view="account" class="sec-title">💳 Bill / Plan</div>
+      <div data-view="account" class="card" id="billingCard">
         <div class="card-h">
           <h2>Aapka Plan</h2>
           <span class="pill" id="billStatus">—</span>
@@ -963,8 +964,8 @@
       </div>
 
       <!-- ===== 8) Customer Webhooks (J.1 — H.1 UI) ===== -->
-      <div class="sec-title advanced-area">📡 Advanced: Webhooks</div>
-      <div class="card advanced-area" id="webhookCard" style="margin-bottom:18px">
+      <div data-view="account" class="sec-title advanced-area">📡 Advanced: Webhooks</div>
+      <div data-view="account" class="card advanced-area" id="webhookCard" style="margin-bottom:18px">
         <div class="card-h">
           <h2>Your event subscriptions</h2>
           <span class="pill" id="whFlagPill">Loading…</span>
@@ -988,8 +989,8 @@
       </div>
 
       <!-- ===== 7) Security (2FA — H.2) ===== -->
-      <div class="sec-title advanced-area">🔒 Security</div>
-      <div class="card advanced-area" id="secCard" style="margin-bottom:18px">
+      <div data-view="account" class="sec-title advanced-area">🔒 Security</div>
+      <div data-view="account" class="card advanced-area" id="secCard" style="margin-bottom:18px">
         <div class="card-h">
           <h2>Two-Factor Authentication (2FA)</h2>
           <span class="pill" id="sec2faStatus">Loading…</span>
@@ -1284,6 +1285,7 @@ function initFriendlyShell(){
 function toggleDetails(){
   const on = document.body.classList.toggle("details-hidden");
   setText("detailsBtn", on ? "Pura hisaab" : "Hisaab hide karo");
+  if(!on) resizeCharts();   // details just expanded — size the charts
 }
 function firstPhone(raw){
   const d = String(raw||"").replace(/\D/g,"");
@@ -1329,7 +1331,7 @@ function updateCommandCenter(meta){
   if(meter) meter.style.width = score + "%";
   const appNav = document.querySelector(".mobile-app-nav");
   if(appNav){
-    const items = [["mainContent","H","Home"],["contentCard","P","Post"],["approvalCard","OK","Approve"],["webToolsCard","W","Tools"]];
+    const items = [["mainContent","H","Home"],["contentCard","P","Post"],["routingCard","T","Team"],["billingCard","Rs","Plan"]];
     appNav.querySelectorAll("button").forEach(function(b,i){
       const it = items[i] || items[0];
       b.classList.remove("active");
@@ -1692,7 +1694,48 @@ function sendToCRM(){
     }
   })();
 }
-function scrollToId(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:"smooth",block:"start"});}
+function resizeCharts(){
+  // Chart.js canvases first drawn while their container was hidden (an inactive
+  // view, or "Pura hisaab" collapsed) stay 0x0 — resize() doesn't reliably
+  // recover, so redraw them from the current filtered view once visible.
+  // Deferred to the next tick so the just-shown container has been reflowed.
+  setTimeout(function(){
+    try{
+      var v = window._VIEW || (typeof DATA !== "undefined" ? DATA : null);
+      if(v && typeof renderCharts === "function") renderCharts(v);
+    }catch(e){}
+  }, 0);
+}
+function viewForHash(h){
+  var map={leadsCard:"leads",routingCard:"leads",callsCard:"leads",
+           contentCard:"content",approvalCard:"content",webToolsCard:"content",
+           studioCard:"content",mediaStudioCard:"content",
+           billingCard:"account",webhookCard:"account",secCard:"account"};
+  h=(h||"").replace(/^#/,"").replace(/^view-/,"");
+  if(map[h])return map[h];
+  return ["home","leads","content","account"].indexOf(h)>=0 ? h : "home";
+}
+function showView(name){
+  name=["home","leads","content","account"].indexOf(name)>=0?name:"home";
+  var mc=document.getElementById("mainContent");
+  if(mc)mc.setAttribute("data-active-view",name);
+  document.querySelectorAll("[data-nav]").forEach(function(n){
+    n.classList.toggle("active", n.getAttribute("data-nav")===name);
+  });
+  resizeCharts();
+  try{history.replaceState(null,"","#view-"+name);}catch(e){}
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function scrollToId(id){
+  showView(viewForHash(id));
+  var el=document.getElementById(id);
+  if(el)setTimeout(function(){el.scrollIntoView({behavior:"smooth",block:"start"});},60);
+}
+(function initView(){
+  function go(){ showView(viewForHash(location.hash)); }
+  if(document.readyState!=="loading")go();
+  else document.addEventListener("DOMContentLoaded",go);
+})();
 
 let _tt;
 function toast(t,m){
