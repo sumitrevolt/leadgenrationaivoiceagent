@@ -54,13 +54,13 @@ def _load_models() -> None:
     if _stt is None:
         _stt = AutoModel.from_pretrained(STT_REPO, trust_remote_code=True)
         try:
-            _stt = _stt.to(DEVICE).eval()
+            _stt = _stt.to(DEVICE).eval()  # nosecurity — torch eval-MODE, not Python eval()
         except Exception:
             pass
     if _tts is None:
         _tts = AutoModel.from_pretrained(TTS_REPO, trust_remote_code=True)
         try:
-            _tts = _tts.to(DEVICE).eval()
+            _tts = _tts.to(DEVICE).eval()  # nosecurity — torch eval-MODE, not Python eval()
         except Exception:
             pass
 
