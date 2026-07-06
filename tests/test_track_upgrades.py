@@ -35,6 +35,17 @@ def c(monkeypatch):
     """A TestClient that does NOT run lifespan (no team-scheduler thread per test)."""
     from app.cache import RateLimiter
     monkeypatch.setattr(RateLimiter, "is_allowed", lambda *a, **k: (True, 9999))
+
+    # Hermetic (CI): global RateLimitMiddleware ka IN-MEMORY fallback upar wale
+    # class-patch se bach jata (await-on-tuple → except → local counter) → full-suite
+    # burst me 429s. Middleware dispatch passthrough — dependency-level limiters ke
+    # apne dedicated tests hain (test_auth_ratelimit).
+    from app.middleware import RateLimitMiddleware
+
+    async def _pass(self, request, call_next):
+        return await call_next(request)
+
+    monkeypatch.setattr(RateLimitMiddleware, "dispatch", _pass)
     return TestClient(app)
 
 
