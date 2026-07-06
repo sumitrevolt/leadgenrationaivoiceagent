@@ -2,8 +2,11 @@
 
 > Per-loop memory for Loop Engineer mode (see `CLAUDE.md §0` + `docs/LOOP_ENGINEER.md`).
 > **Read this + CLAUDE.md before starting any loop** — continue, don't repeat.
-> Append a `## Loop Run` block after every loop. Deep knowledge → `memory/`;
-> dated narrative → `docs/SESSION_LOG.md`. Newest loop at the bottom.
+> Append a `## Loop Run` block after every loop, using the **canonical 9-field format**
+> (`docs/LOOP_ENGINEER.md`): Date / Goal / Inspected / Problems Found / Changed /
+> Tests Run / Verification Evidence / Risks / Remaining / Next Highest Priority.
+> (Older entries below predate this format — don't rewrite them.) Deep knowledge →
+> `memory/`; dated narrative → `docs/SESSION_LOG.md`. Newest loop at the bottom.
 
 ## Active Program (multi-loop)
 **AI-Marketing agents — 40+ improvements** → `docs/superpowers/plans/2026-07-06-agents-marketing-improvement-loops.md`. Run Wave 1 (Reliability + Cost + Observability) first; ~25 safe loops autonomous, PAUSE & ask on Wave-4 gated items. Merge per wave to `main`; user deploys via `leadgen-ops`.
@@ -602,3 +605,13 @@
 - **Also (local gotcha):** PS5.1 me `git commit -m @'...'@` here-string ke andar embedded `"` native-arg quoting todta — message quote-free.
 - **Verify:** cfb9b04 CI runs background-poll pe — conclusions is entry ke niche update honge. NOTE: parallel session ke voice upgrades (upar wala entry) UNCOMMITTED hain — mere commits explicit-path the, unka kaam untouched.
 - **Next:** CI conclusions record; safe-autonomous backlog empty — user-gated hi bacha.
+
+## Loop Run — CI green-chase round-2: env-parity + 6 hermetic test fixes
+- **Date:** 2026-07-06
+- **Goal:** cfb9b04 pin-fixes ke baad bhi deploy-vps + CI laal — bache 8 failures ka root-cause + fix.
+- **Diagnosis (sab env/order coupling, koi code-bug nahi):** (1) **gates prod-default env me chal rahe the** — `ENVIRONMENT` unset → global `RateLimitMiddleware` armed → suite ke request-burst pe 429s (track_upgrades signups; unka apna DEPENDENCY-level bypass tha par MIDDLEWARE wala nahi); (2) activation tests developer ki UPI-arming inherit karte (`payments_ready/deferred` CI me ulat); (3) entitlement-gate test LIVE DB maangta (gate DB-error pe by-design fail-OPEN → CI me DID-NOT-RAISE); (4) office snapshot once-test 18s-TTL warm-cache inherit karta (order-dependent → 0 calls); (5) speed_to_lead tests real `data/ai_callbacks.jsonl` unmocked (test-phone pollution → avg 0.0); (6) chain-test env-resolved gemini-model hardcode (`settings.default_llm` CI me alag → KeyError).
+- **Fixes (`34a1874`):** dono gates `APP_ENV=test` + `ENVIRONMENT=development` (local-dev parity); activation ×2 `upi_config.is_armed` stub; entitlement `get_db_session` context-stub; office `invalidate_snapshot_cache()` first; parity ×2 `_CALLBACK_FILE` tmp-isolate; chain first-gemini-entry lookup. SAB test/CI-config only — zero app-code change.
+- **Tests/checks:** 6 files local = **120 green** · prod_check ALL PASSED · check_secrets clean (22 files).
+- **Lesson:** developer-`.env`/data-files/test-ORDER inherit karne wale tests CI me hi phootte — har test apna env PIN kare; gate-env ko local-dev PARITY do warna prod-default middleware test-traffic rate-limit karta.
+- **Verify pending:** 34a1874 CI poll background — verdict niche record hoga.
+- **Next:** CI green → full-suite hard-gate PROVEN; phir user-gated hi bacha (flags/Caddy/voice-review).
