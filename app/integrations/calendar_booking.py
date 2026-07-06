@@ -296,12 +296,25 @@ class CalendarBooking:
                 logger.debug(f"calendar: record/notify skipped ({e})")
         return result
 
-    async def cancel(self, booking_id: str) -> bool:
-        """Cancel a booking. Never raises; returns True if cancelled."""
+    async def cancel(self, booking_id: str, phone: str | None = None) -> bool:
+        """Cancel a booking. Never raises; returns True if cancelled.
+
+        `phone`: optional possession factor. When provided AND the booking has a
+        phone on record, the last-10 digits MUST match or the cancel is refused
+        (returns False) — stops a leaked/guessed booking_id ALONE from cancelling
+        someone else's appointment. Internal callers (reschedule) pass no phone
+        and are unaffected."""
         if not booking_id:
             return False
 
         record = self._bookings.get(booking_id)
+        # Possession check (public /booking/cancel passes the caller's phone).
+        if phone and record:
+            _stored = _digits(str(record.get("phone") or ""))
+            _supplied = _digits(str(phone))
+            if _stored and _supplied[-10:] != _stored[-10:]:
+                logger.warning(f"Cancel refused: phone mismatch for booking {booking_id}.")
+                return False
         if self.provider == "google" and self._gcal is not None and record:
             try:
                 await asyncio.to_thread(

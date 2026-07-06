@@ -709,7 +709,12 @@ async def activation_wizard(_user=Depends(require_admin)) -> dict[str, Any]:
 
 @router.get("/summary")
 async def activation_summary_public() -> dict[str, Any]:
-    """Public launch snapshot for explorer + status widgets (no secrets, no auth)."""
+    """Public launch snapshot for explorer + status widgets (no secrets, no auth).
+
+    Counts + booleans ONLY. The NAMED `blockers`/`warns` (which specific controls
+    are unarmed, e.g. turnstile/sentry) are ADMIN-only via `/readiness` — exposing
+    them publicly hands an attacker a recon list of weak defenses (2026-07-06 sec
+    sweep). Frontend consumers guard with `|| []` so count-only degrades cleanly."""
     items = [p() for p in _PROBES]
     blockers = [it["key"] for it in items if it["status"] == _BLOCKER]
     warns = [it["key"] for it in items if it["status"] == _WARN]
@@ -723,8 +728,6 @@ async def activation_summary_public() -> dict[str, Any]:
         "payments_deferred": not payments_ready,
         "blocker_count": len(blockers),
         "warn_count": len(warns),
-        "blockers": blockers,
-        "warns": warns,
         "graph_version": "2026-06-17-v3",
     }
 

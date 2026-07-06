@@ -506,6 +506,246 @@ def customer_creatives(client_id: str = Depends(require_customer)) -> dict:
     }
 
 
+@router.get("/autopilot")
+def customer_autopilot_drafts(client_id: str = Depends(require_customer)) -> dict:
+    """"Aapki AI team ne ye taiyaar kiya" — the hands-free autopilot drafts
+    (owner-brief / feedback survey / stale-inquiry nudge / evergreen post) the AI
+    prepared for THIS business. Draft-only: 1-click send stays the customer's
+    choice (no bulk auto-send — ban-safe). client_id from the JWT (require_customer)
+    => customer sees ONLY its own drafts. GAP-1 fix (2026-07-06): these drafts had
+    no customer-facing route before. Empty until the autopilot flags are armed and
+    drafts accumulate (see docs — SIGNUP_AUTO_ONBOARD / OWNER_BRIEF_DAILY / etc.)."""
+    slug = ""
+    try:
+        rec = _client_record(client_id) or {}
+        slug = str(rec.get("slug") or "").strip()
+    except Exception:
+        pass
+    drafts: list = []
+    try:
+        from app.platform import customer_autopilot
+
+        drafts = customer_autopilot.drafts_for_client(client_id, slug=slug)
+    except Exception as e:
+        logger.debug("customer_autopilot_drafts failed (%s)", e)
+    return {"ok": True, "client_id": client_id, "count": len(drafts), "drafts": drafts}
+
+
+# --------------------------------------------------------------------------- #
+# Product-2 (Voice) self-serve calling — GAP-1 fix (council decision 2026-07-06)
+# ---------------------------------------------------------------------------
+# The flat-fee "AI calls your leads" value was admin-only (campaigns.py require_admin)
+# — a paying voice customer had no way to trigger, or even SEE, calling. These two
+# routes close it SAFELY: every call is routed through call_manager.queue_call() — the
+# SINGLE compliance chokepoint (DND fail-closed + 9am-7pm TRAI window + DLT/140 +
+# prepaid-minutes + voice-quota + lead-score) — so this route CANNOT bypass any gate.
+# client_id is forced from the JWT (IDOR-safe). POST is gated CUSTOMER_VOICE_SELFSERVE
+# (default OFF => 503) and NEVER auto-schedules — one explicit customer action per
+# batch. Enable only after a live outbound test call (voice = phone-final-verify).
+
+
+def _voice_selfserve_enabled() -> bool:
+    import os as _os
+
+    return (_os.getenv("CUSTOMER_VOICE_SELFSERVE", "0") or "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+_VOICE_CALL_MGR = None
+
+
+def _voice_call_manager():
+    """Lazy CallManager (enqueues to the shared Redis queue the prod call-processor
+    drains). Cached module-level. Import-safe."""
+    global _VOICE_CALL_MGR
+    if _VOICE_CALL_MGR is None:
+        from app.telephony.call_manager import CallManager
+
+        _VOICE_CALL_MGR = CallManager()
+    return _VOICE_CALL_MGR
+
+
+@router.get("/voice/queue-status")
+def customer_voice_queue_status(client_id: str = Depends(require_customer)) -> dict:
+    """Read-only voice activity for THIS client (no calls placed) — so the customer
+    can SEE calling even before self-serve is enabled. client_id from the JWT."""
+    total, called, today_calls = 0, 0, 0
+    try:
+        from datetime import datetime, timezone
+
+        from app.models.base import get_db_session
+        from app.models.call_log import CallLog
+        from app.models.lead import Lead
+
+        with get_db_session() as db:
+            total = (
+                db.query(Lead)
+                .filter(Lead.assigned_to == client_id, Lead.phone.isnot(None))
+                .count()
+            )
+            called = len(
+                {
+                    r[0]
+                    for r in db.query(CallLog.lead_id)
+                    .filter(CallLog.client_id == client_id)
+                    .all()
+                    if r[0]
+                }
+            )
+            _today = datetime.now(timezone.utc).date()
+            today_calls = sum(
+                1
+                for c in db.query(CallLog.initiated_at)
+                .filter(CallLog.client_id == client_id)
+                .all()
+                if c[0] and c[0].date() == _today
+            )
+    except Exception as e:
+        logger.debug("voice queue-status: %s", e)
+    return {
+        "ok": True,
+        "leads_with_phone": total,
+        "already_called": called,
+        "remaining_to_call": max(0, total - called),
+        "calls_today": today_calls,
+        "self_serve_enabled": _voice_selfserve_enabled(),
+    }
+
+
+@router.post("/voice/call-queue")
+async def customer_voice_call_queue(
+    limit: int = Body(20, embed=True),
+    client_id: str = Depends(require_customer),
+) -> dict:
+    """Self-serve: queue THIS client's un-called leads for the AI voice agent.
+
+    Every call goes through `queue_call` (the sole compliance chokepoint), so a
+    non-compliant number (DND / outside 9am-7pm / no DLT / out of minutes/quota) is
+    simply NOT queued — this route bypasses nothing. Anti-joins CallLog so a lead is
+    never re-dialled. client_id forced from JWT (IDOR-safe). Gated
+    CUSTOMER_VOICE_SELFSERVE (default OFF => 503). Enable only after a live test call."""
+    if not _voice_selfserve_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="Voice self-serve calling abhi enable nahi hai — admin se activate karwayein.",
+        )
+    lim = max(1, min(int(limit or 20), 50))
+    rec = _client_record(client_id) or {}
+    client_name = str(rec.get("business_name") or "Aapka business")
+    niche_default = str(rec.get("niche") or "general")
+
+    try:
+        from app.models.base import get_db_session
+        from app.models.call_log import CallLog
+        from app.models.lead import Lead
+
+        with get_db_session() as db:
+            called_ids = {
+                r[0]
+                for r in db.query(CallLog.lead_id).filter(CallLog.client_id == client_id).all()
+                if r[0]
+            }
+            # Materialize plain column rows INSIDE the session — building CallRequests
+            # after the `with` closes on ORM objects would raise DetachedInstanceError.
+            leads = [
+                {
+                    "id": r[0],
+                    "phone": r[1],
+                    "niche": r[2],
+                    "company_name": r[3],
+                    "city": r[4],
+                    "lead_score": r[5],
+                    "is_hot_lead": r[6],
+                }
+                for r in db.query(
+                    Lead.id,
+                    Lead.phone,
+                    Lead.niche,
+                    Lead.company_name,
+                    Lead.city,
+                    Lead.lead_score,
+                    Lead.is_hot_lead,
+                )
+                .filter(Lead.assigned_to == client_id)
+                .order_by(Lead.lead_score.desc())
+                .limit(500)
+                .all()
+            ]
+    except Exception as e:
+        logger.warning("voice call-queue: lead fetch failed (%s)", e)
+        raise HTTPException(status_code=503, detail="Leads abhi load nahi ho paaye — baad me.")
+
+    from app.telephony.call_manager import CallRequest
+
+    mgr = _voice_call_manager()
+    queued, blocked, no_phone = 0, 0, 0
+    reasons: dict[str, int] = {}
+    for lead in leads:
+        if queued >= lim:
+            break
+        if lead["id"] in called_ids:
+            continue
+        phone = str(lead["phone"] or "").strip()
+        if not phone:
+            no_phone += 1
+            continue
+        try:
+            req = CallRequest(
+                lead_id=str(lead["id"]),
+                phone_number=phone,
+                campaign_id="",
+                niche=(lead["niche"] or niche_default),
+                client_name=client_name,
+                client_service=niche_default,
+                script_name="",
+                lead_data={
+                    "company_name": lead["company_name"],
+                    "city": lead["city"],
+                    "score": lead["lead_score"],
+                },
+                client_id=client_id,  # IDOR + metering/quota scoped to the caller
+                call_type="promotional",  # queue_call applies DND + DLT + 9-7 window
+                priority=3 if lead["is_hot_lead"] else 5,
+            )
+            res = await mgr.queue_call(req)
+            # queue_call returns "<reason>_<uuid>" when a gate refused, else a plain
+            # call-id (queued). Match the KNOWN reason prefixes (robust to the suffix).
+            _block_key = next(
+                (
+                    k
+                    for k in (
+                        "compliance_blocked",
+                        "compliance_error",
+                        "out_of_minutes",
+                        "out_of_lead_quota",
+                        "below_min_score",
+                    )
+                    if isinstance(res, str) and res.startswith(k)
+                ),
+                None,
+            )
+            if _block_key:
+                blocked += 1
+                reasons[_block_key] = reasons.get(_block_key, 0) + 1
+            else:
+                queued += 1
+        except Exception as e:
+            logger.debug("voice call-queue: queue_call skip (%s)", e)
+            blocked += 1
+    return {
+        "ok": True,
+        "queued": queued,
+        "blocked": blocked,
+        "skipped_no_phone": no_phone,
+        "reasons": reasons,
+        "note": "Sirf compliant leads (DND-clear, 9am-7pm window, DLT) queue hue — AI team inhe call karegi.",
+    }
+
+
 # tiny per-process cache so the monthly report (1 LLM call) isn't rebuilt on
 # every poll/refresh; keyed by client_id+month, short TTL.
 _REPORT_CACHE: dict[str, tuple[float, dict]] = {}

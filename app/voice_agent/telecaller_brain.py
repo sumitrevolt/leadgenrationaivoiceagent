@@ -145,6 +145,51 @@ def _sanitize_utterance(ut: str) -> str:
     return ut
 
 
+# High-signal injection directives that must never survive from SEMI-TRUSTED
+# learning-loop / KB content into the SYSTEM prompt (2nd-order injection). Kept
+# CONSERVATIVE vs _INJECTION_MARKERS — omits ambiguous phrases ("act as", "new
+# instructions", "reveal your", "you are now") that legitimately appear in
+# business KB/website copy, so grounding is never mangled; the post-LLM
+# _obeyed_injection check backstops anything subtler.
+_PROMPT_CONTENT_INJECTION_MARKERS = (
+    "ignore previous",
+    "ignore all instructions",
+    "disregard previous",
+    "forget previous",
+    "forget all previous",
+    "system prompt",
+    "your instructions",
+    "developer mode",
+    "jailbreak",
+    "override your",
+    "bypass your",
+    "purane instructions bhul",
+)
+
+
+def _sanitize_prompt_content(text: str) -> str:
+    """Strip high-signal prompt-injection directives from SEMI-TRUSTED content
+    (trainer notes, admin-promoted learned replies, obsidian brain, KB facts)
+    BEFORE it is appended to the system prompt. Closes the 2nd-order injection
+    path: a poisoned KB doc / learned row carrying "ignore your instructions"
+    would otherwise enter ABOVE the caller-utterance guard. Word-boundary +
+    conservative marker set = legit business content is never mangled. Returns
+    the input unchanged on empty/error (fail-open — post-LLM check backstops)."""
+    if not text:
+        return text
+    try:
+        out = text
+        low = out.lower()
+        for marker in _PROMPT_CONTENT_INJECTION_MARKERS:
+            if marker in low:
+                pattern = re.compile(r"\b" + re.escape(marker) + r"\b", re.IGNORECASE)
+                out = pattern.sub("[...]", out)
+                low = out.lower()
+        return out
+    except Exception:
+        return text
+
+
 # ---------------------------------------------------------------------------
 # Role-injection guardrail (defensive, flag-gated VOICE_GUARDRAILS — default ON)
 # ---------------------------------------------------------------------------
@@ -748,7 +793,9 @@ class TelecallerBrain:
             if os.environ.get("TRAINER_FEEDBACK", "1").strip().lower() not in ("0", "false", "no"):
                 hint = _latest_trainer_hint()
                 if hint:
-                    self.system_prompt += f"\n\nTRAINER NOTE (Meera):\n{hint}"
+                    self.system_prompt += (
+                        f"\n\nTRAINER NOTE (Meera):\n{_sanitize_prompt_content(hint)}"
+                    )
         except Exception:
             pass
         # Component 3 (close-the-loop): inject admin-PROMOTED learned good-replies for
@@ -761,7 +808,8 @@ class TelecallerBrain:
             if _lh:
                 self.system_prompt += (
                     "\n\nLEARNED GOOD REPLIES (is niche ke real calls se, admin-approved) — "
-                    "inhe accha-jawab reference ki tarah follow karo:\n" + _lh
+                    "inhe accha-jawab reference ki tarah follow karo:\n"
+                    + _sanitize_prompt_content(_lh)
                 )
         except Exception:
             pass
@@ -771,7 +819,9 @@ class TelecallerBrain:
 
             _niche_ctx = _obs.brain_context(f"{self.niche or ''} voice call qualification", k=2)
             if _niche_ctx:
-                self.system_prompt = self.system_prompt + "\n\n" + _niche_ctx
+                self.system_prompt = (
+                    self.system_prompt + "\n\n" + _sanitize_prompt_content(_niche_ctx)
+                )
         except Exception:
             pass
         logger.info(
@@ -2571,7 +2621,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             if not snip.strip():
                 snip = lessons_snippet("voice_general", k=2)
             if snip.strip():
-                return f"PAST CALL LESSONS (in galtiyan mat dobara karo):\n{snip}"
+                # skill_library lessons = semi-trusted (learned from past live calls);
+                # strip 2nd-order injection before it enters the system prompt.
+                return (
+                    "PAST CALL LESSONS (in galtiyan mat dobara karo):\n"
+                    + _sanitize_prompt_content(snip)
+                )
         except Exception:
             pass
         return ""
@@ -2611,6 +2666,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 trimmed_facts.append(fs)
             joined = " | ".join(trimmed_facts)
             if joined:
+                # KB facts are semi-trusted (scraped site / seeded docs) — strip any
+                # high-signal injection directive before it enters the system prompt.
+                joined = _sanitize_prompt_content(joined)
                 lines.append(f"FACTS (relevant ho to hi use karo): {joined[:450]}")
         agent = getattr(self, "agent_name", None) or "Swara"
         lines += ["", "CALL ABHI TAK:"]

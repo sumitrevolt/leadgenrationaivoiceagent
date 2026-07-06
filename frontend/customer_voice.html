@@ -168,6 +168,12 @@
   .card-h h2{font-size:14.5px;margin:0;font-weight:700}
   .card-h .pill{font-size:11px;color:var(--muted);background:#f3f1fa;padding:3px 9px;border-radius:999px;font-weight:600}
   .card-h .grow{flex:1}
+  /* Autopilot drafts card ("AI team ne ye taiyaar kiya") — ported from customer_marketing.html for parity */
+  .creative-item{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px;background:#fafafa}
+  .creative-item .ct{font-size:12.5px;font-weight:800;display:flex;align-items:center;gap:6px}
+  .creative-item .cc{font-size:12px;color:var(--ink);line-height:1.4;margin:5px 0;white-space:pre-wrap}
+  .creative-item .row{display:flex;gap:6px;flex-wrap:wrap}
+  .creative-item .row button{min-height:32px;padding:6px 10px;font-size:11.5px}
   .card-b{padding:16px 18px}
   .chart-wrap{position:relative;height:240px}
 
@@ -508,6 +514,22 @@
       </div>
       <!-- (Next-step card folded into 🏢 Aapka Office above — JS setters stay null-safe) -->
 
+      <!-- Hands-free autopilot drafts, surfaced from GET /api/customer/autopilot
+           (ported from customer_marketing.html for parity). Hidden until the AI team
+           has prepared drafts; voice-only customers usually have none — harmless. -->
+      <div data-view="home" class="card" id="autopilotCard" style="display:none;margin-top:14px" aria-label="Aapki AI team ne ye taiyaar kiya">
+        <div class="sec-title" style="margin:0 0 6px">🤖 Aapki AI team ne ye taiyaar kiya</div>
+        <div class="sm" style="color:var(--muted);font-size:11px;margin-bottom:8px">Bhejne ke liye taiyaar — ek click me WhatsApp karo ya copy karo (aap decide karo, auto-send nahi).</div>
+        <div id="autopilotBody"></div>
+      </div>
+      <!-- Product-2 self-serve calling (GAP-1, council 2026-07-06). Shows queue
+           visibility always; the "call my leads" button appears only when the flag
+           is armed. The POST is compliance-gated server-side (DND/9-7/DLT). -->
+      <div data-view="home" class="card" id="voiceCallCard" style="display:none;margin-top:14px" aria-label="AI voice calling">
+        <div class="sec-title" style="margin:0 0 6px">📞 AI se apne leads ko call karwao</div>
+        <div class="sm" id="voiceQueueStats" style="color:var(--muted);font-size:12px;margin-bottom:8px">Load ho raha…</div>
+        <div id="voiceCallActions"></div>
+      </div>
       <!-- ===== Virtual AI Voice Team — agentic live office (voice product) ===== -->
         <div data-view="home" class="hero-leads">
           <div class="lab">🔥 Naye Leads</div>
@@ -1444,6 +1466,64 @@ renderTeam(null);   // instant virtual-team office (demo) until live data arrive
 /* Billing state — declared before tryLive (which reads BILL.cid). */
 const BILL = { cid: "demo", token: "" };
 
+/* Autopilot drafts — hands-free content the AI team prepared (owner-brief / feedback
+   survey / follow-up nudge / evergreen), surfaced from GET /api/customer/autopilot.
+   Ported from customer_marketing.html for parity. Hidden when 0 drafts, so a
+   logged-out/demo view or an un-armed autopilot shows nothing (no empty clutter).
+   Draft-only: 1-click WhatsApp/Copy — never auto-sends. */
+async function loadAutopilot(){
+  const card=document.getElementById('autopilotCard'); const body=document.getElementById('autopilotBody');
+  if(!card||!body) return;
+  try{
+    const r=await fetch('/api/customer/autopilot',{headers:Object.assign({Accept:'application/json'},billAuthHdr())});
+    if(!r.ok) throw new Error('bad '+r.status);
+    const d=await r.json(); const drafts=(d&&d.drafts)||[];
+    if(!drafts.length){ card.style.display='none'; return; }
+    window._AUTOPILOT=drafts;
+    body.innerHTML=drafts.slice(0,8).map(function(x,i){
+      const txt=(x.text||'').slice(0,300)+((x.text||'').length>300?'…':'');
+      const wa=x.wa_link?'<a class="btn primary" href="'+escH(x.wa_link)+'" target="_blank" rel="noopener">📲 WhatsApp bhejo</a>':'<button class="btn primary" onclick="copyAutopilot('+i+')">📋 Copy</button>';
+      return '<div class="creative-item"><div class="ct">'+escH(x.title||'Draft')+' <span class="pill" style="font-size:9px">'+escH(x.status||'draft')+'</span></div><div class="cc">'+escH(txt)+'</div><div class="row">'+wa+'</div></div>';
+    }).join('');
+    card.style.display='';
+  }catch(e){ card.style.display='none'; }
+}
+function copyAutopilot(i){ const x=(window._AUTOPILOT||[])[i]; if(!x) return; navigator.clipboard.writeText(x.text||'').then(function(){ toast('Copy ho gaya 📋','WhatsApp pe paste karke bhejo.'); }); }
+
+/* Product-2 self-serve calling (GAP-1). Read-only queue visibility is always shown;
+   the trigger button appears only when CUSTOMER_VOICE_SELFSERVE is armed server-side.
+   The POST is compliance-gated in queue_call (DND fail-closed / 9-7 / DLT) — the UI
+   never bypasses anything. */
+async function loadVoiceQueue(){
+  const card=document.getElementById('voiceCallCard'), stats=document.getElementById('voiceQueueStats'), act=document.getElementById('voiceCallActions');
+  if(!card||!stats||!act) return;
+  try{
+    const r=await fetch('/api/customer/voice/queue-status',{headers:Object.assign({Accept:'application/json'},billAuthHdr())});
+    if(!r.ok) throw new Error('bad '+r.status);
+    const d=await r.json();
+    stats.innerHTML='Callable leads: <b>'+(d.leads_with_phone||0)+'</b> · Call ho chuke: <b>'+(d.already_called||0)+'</b> · Baaki: <b>'+(d.remaining_to_call||0)+'</b> · Aaj: <b>'+(d.calls_today||0)+'</b>';
+    const rem=d.remaining_to_call||0;
+    if(d.self_serve_enabled && rem>0){
+      act.innerHTML='<button class="btn primary" id="voiceCallBtn" onclick="triggerVoiceCalls()">📞 '+Math.min(20,rem)+' leads ko abhi call karwao</button>';
+    } else if(!d.self_serve_enabled){
+      act.innerHTML='<div class="sm" style="color:var(--muted)">Self-serve calling abhi off hai — activate ke liye support se baat karein.</div>';
+    } else {
+      act.innerHTML='<div class="sm" style="color:var(--muted)">Sab callable leads call ho chuke ✅</div>';
+    }
+    card.style.display='';
+  }catch(e){ card.style.display='none'; }
+}
+async function triggerVoiceCalls(){
+  const btn=document.getElementById('voiceCallBtn'); if(btn){ btn.disabled=true; btn.textContent='Queue ho raha…'; }
+  try{
+    const r=await fetch('/api/customer/voice/call-queue',{method:'POST',headers:Object.assign({'Content-Type':'application/json',Accept:'application/json'},billAuthHdr()),body:JSON.stringify({limit:20})});
+    const d=await r.json().catch(function(){return {};});
+    if(r.ok){ toast('📞 '+(d.queued||0)+' calls queue ho gayi', 'AI team inhe call karegi'+((d.blocked||0)?(' · '+d.blocked+' skip (DND/window/quota)'):'')); }
+    else { toast('Abhi call nahi ho paaya', (d.detail||'Baad me try karein')); }
+  }catch(e){ toast('Error','Baad me try karein'); }
+  loadVoiceQueue();
+}
+
 (async function tryLive(){
   try{
     /* BUGFIX 2026-06-12: pehle client_id resolve karo (login token -> /me),
@@ -1458,6 +1538,8 @@ const BILL = { cid: "demo", token: "" };
       boot(live);
       loadSpeedToLead();
       loadTeam();
+      loadAutopilot();  // hands-free drafts ("AI team ne ye taiyaar kiya") — real client only
+      loadVoiceQueue();  // Product-2 self-serve calling — queue visibility + gated trigger
       if(window._teamPoll) clearInterval(window._teamPoll);
       window._teamPoll = setInterval(loadTeam, 25000);  // keep the office "live"
       if(!live.is_sample_data) toast("Live data ✅","Server se aapka asli data load ho gaya.");
@@ -2135,17 +2217,32 @@ function _renderCallsFiltered(){
     body.innerHTML='<tr><td colspan="7" class="empty-row">'+(q||st?'🔍 Filter mein koi call nahi — filter hatao.':'Abhi koi call nahi hui — AI team jald shuru karegi. 📞')+'</td></tr>';
     return;
   }
-  body.innerHTML=rows.map(c=>`
-    <tr>
+  body.innerHTML=rows.map((c,i)=>{
+    // Product-2 delivery (2026-07-06): surface the AI value the customer paid for —
+    // Hinglish transcript + AI summary + qualification + sentiment (was admin-only).
+    const hasDetail=((c.summary||"")+(c.transcript||"")+(c.qualification||"")).trim().length>0;
+    const btn=hasDetail?` <button class="btn" style="padding:2px 8px;font-size:11px" onclick="toggleCallDetail(${i})">📝 AI report</button>`:"";
+    let detail="";
+    if(hasDetail){
+      const parts=[];
+      if(c.summary) parts.push('<div><b>AI summary:</b> '+escH(c.summary)+'</div>');
+      if(c.qualification) parts.push('<div><b>Qualification:</b> '+escH(c.qualification)+'</div>');
+      if(c.sentiment) parts.push('<div><b>Sentiment:</b> '+escH(c.sentiment)+'</div>');
+      if(c.transcript) parts.push('<div style="margin-top:6px"><b>Transcript:</b><br><span class="sm" style="white-space:pre-wrap">'+escH(c.transcript)+'</span></div>');
+      detail='<tr class="call-detail" id="callDetail'+i+'" style="display:none"><td colspan="7" class="sm" style="background:rgba(148,163,184,.08);padding:10px 14px;line-height:1.5">'+parts.join("")+'</td></tr>';
+    }
+    return `<tr>
       <td class="sm">${escH(c.time)}</td>
       <td><span class="biz">${escH(c.business)}</span></td>
       <td class="sm">${escH(c.phone_masked)}</td>
       <td>${escH(c.city)}</td>
       <td class="sm">${escH(c.duration)}</td>
       <td><span class="tag ${escH(c.status)}" aria-label="Call status: ${escH(c.status)}">${escH(c.status)}</span></td>
-      <td class="sm">${escH(c.outcome)}</td>
-    </tr>`).join("");
+      <td class="sm">${escH(c.outcome)}${btn}</td>
+    </tr>`+detail;
+  }).join("");
 }
+function toggleCallDetail(i){ const el=document.getElementById("callDetail"+i); if(el) el.style.display = el.style.display==="none" ? "" : "none"; }
 
 function filterCalls(){ _renderCallsFiltered(); }
 function clearCallFilters(){

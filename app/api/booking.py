@@ -139,6 +139,9 @@ async def book_slot(req: BookIn):
 
 class CancelIn(BaseModel):
     booking_id: str = Field(..., min_length=1, max_length=80)
+    # Possession factor — must match the phone the booking was made with. Stops a
+    # leaked/guessed booking_id alone from cancelling someone else's appointment.
+    phone: str = Field(..., min_length=6, max_length=20)
 
 
 @router.post("/cancel", dependencies=[Depends(rate_limit("booking_cancel", 10, 60))])
@@ -147,7 +150,9 @@ async def cancel_booking(req: CancelIn):
         from app.integrations.calendar_booking import get_calendar
 
         cal = get_calendar()
-        ok = await cal.cancel(req.booking_id)
+        # Mismatch => cancel() returns False (same shape as not-found — no oracle
+        # revealing whether the booking_id exists).
+        ok = await cal.cancel(req.booking_id, phone=req.phone)
         return {"ok": bool(ok), "booking_id": req.booking_id}
     except HTTPException:
         raise
