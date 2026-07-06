@@ -3,6 +3,16 @@
 > **Token discipline:** Yeh file har turn load hoti hai — lean rakho. Dated history → `docs/SESSION_LOG.md` (auto-load NAHI). Deep knowledge → `memory/` (section 9). Build/incident logs YAHAN mat likho. **Code vs memory conflict = code wins — phir memory fix karo.**
 > Naya session / cold-start? **`docs/HANDOFF.md`** = master handoff (infra map, sharp edges, SOP pointers). (2026-07-05)
 
+## 0. LOOP ENGINEER MODE (triggers: /loop /audit /fix /harden /production-ready /scheduler /agent-loop)
+
+On any trigger above — or auto when tests/build/lint/a-page/workflow/scheduler break — enter **Loop Engineer mode**: inspect state → one focused change → verify → record → fix → repeat until a stop rule is *proven*. **Never "done" without evidence; never stop at planning/audit — implement + verify.**
+- **Read first:** `progress.md` (loop ledger) + this file, before touching anything.
+- **After every loop:** append a `## Loop Run` block to `progress.md` (Goal / Inspected / Changed / Verified / Result / Failures / Fix / Next).
+- **Verify checkpoint each loop:** targeted pytest + `prod_check.py` + `/health`=`environment:production` (§6 Definition of Done). Reply in the loop format: Goal / Inspected / Changed / Verified / Remaining / Next Loop.
+- **Highest-impact order** = `docs/LOOP_ENGINEER.md`, BUT `## Current State` sprint goal wins when it conflicts.
+- **Stays inside the gates:** §5 compliance + secrets, §6 DoD, §8 no commit/push/deploy without the user asking. A "fix" that weakens a compliance gate = **ABORT**, not a fix.
+- **Full spec** (loop anatomy · agent-loop specialists · priorities · production-ready checklist): `docs/LOOP_ENGINEER.md`.
+
 ## 1. PROJECT CHARTER
 
 FastAPI SaaS (**LIVE: https://leadsgenai.in**, single Hostinger VPS Mumbai) that sells **DO alag products** to small Indian local businesses: (1) **AI Automated Marketing** = MAIN product — Main ₹1,999/mo + Combo/Advanced ₹5,999/mo (voice callback sirf ek FEATURE, 500 min); (2) **AI Voice Calling Agent** = standalone full AI telecaller, flat per niche-band ₹4,999/₹9,999/₹19,999/mo (DLT-gated for cold outbound). Money path: free lead magnets (`/audit`, `/site-audit`, `/demo`) + programmatic SEO + auto email-outreach → inquiry → `/pricing` → `/start` → **manual UPI (primary)** / Stripe (international only) → subscription + top-up minute packs. Entire AI stack = **FREE providers only** (user mandate — koi paid STT/TTS/LLM nahi). "Marketing + voice bundle" USP framing GALAT hai — use mat karo. Repo: github.com/sumitrevolt/leadgenrationaivoiceagent (main). Currently 1 real paying customer (jiya makeover); first invoice INV/2026-27/0001.
@@ -84,15 +94,15 @@ Change safe = **(1)** context-grep pehle (callers/routes/tests) **(2)** targeted
 **Sprint goal:** GTM 0→1 — pehle paid customers on Marketing product (jiya makeover = only real paying customer); mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint), 1st paid target ≤7d from 2026-07-02.
 
 **Last 3 significant decisions:**
+- 2026-07-05: **Office HQ honesty + outreach engine hardening DEPLOYED** (`9e18ef3`, app+worker recreate LIVE, health=production, celery queue=0). Brief/banner ab SACH (real `hot_count` vs `warm_count`, mid-funnel-stall + dead-tasks = risk, "sab healthy" jhooth hataya); hot-reply money = priority stack #1. Outreach: MX lookup send-batch(≤25) tak defer (`OUTREACH_SELECT_SKIP_MX`, TimeLimitExceeded(600) fix) + SMTP 30s timeout (`EMAIL_SEND_TIMEOUT_S`) + bulk `emailed_at` mark (`OUTREACH_BULK_MARK`, `set_prospect_fields_bulk`, OOM fix). ADR-024. Guide `docs/OFFICE_GUIDE.md`. Fix D DONE (`REPLY_AGENT=1` live in worker + IMAP login OK imap.hostinger.com); SPF/DKIM/DMARC teeno verified present+valid.
+- 2026-07-05: **WhatsApp auto-send HARD OFF in prod** after Office feed warning (`WHATSAPP_AUTO_SEND=1` + `VOICE_CLOSE_WHATSAPP=1` was live). Surgical prod fix: backed up `/opt/leadgen/.env` to `.env.bak_20260705_131628_wa_autosend_off`, set both flags `0`, recreated `app/worker/worker-heavy/scheduler`; verified `/health` production + runtime `wa_auto_ready:false`; Office Today problems cleared.
 - 2026-07-05: **platform_dial HARD OFF** (user mandate — IVR false-positives + paisa burn; ramp-to-200 cancelled). Enforcement **dial_gate LIVE in prod** (`ea36df4`+deploy: promotional = allowlist-only fail-closed, bot/IVR + min-user-turns qualify gate) — re-enable ki 3 me se 2 conditions met, bachi sirf user go-ahead. **Fix SHIPPED `ea36df4` (LIVE):** `app/telephony/dial_gate.py` promotional test-allowlist (DEFAULT ON, config `data/dial_test_mode.json` — allowlist 8261030181/8308009815) + `call_qualifier` bot/IVR gate (`QUALIFY_BOT_GATE=1` default, `MIN_QUALIFY_USER_TURNS=3`) + `call_cost` metering (`VOBIZ_COST_PAISE_PER_MIN=45`); 05-Jul ke 7 fake "interested" call_logs UNVERIFIED + deals.jsonl/cadence cleanup done.
-- 2026-07-03: Scheduler admin (per-job ON/PAUSE + run-now, `65b57c2`) + Office HQ Simple/Pro cockpit LIVE; Vobiz confirmed WORKING (4 real calls); USE_SILERO_VAD=0 (deaf-bug).
-- 2026-06-25: Voice = Gemini-primary (voice-scoped) + 9-key rotation pool; global chain wapas Mistral-primary.
 
 **Blockers / USER-action pending (env-unset = dormant, graceful skip):**
 - DLT cold-outbound: Udyam re-apply user-side pending (transactional/test calls work fine).
 - Pending user keys/actions: `POSTHOG_API_KEY` · WAHA QR scan · `.codex` key rotate · `STUDIO_ENTITLEMENT_GATE` flip · `LEADGEN_SCHEDULER_SECRET` (unset = recovery endpoint dormant).
 - EXTERNAL-blocked (token mat jalao): missed-call DID webhook, GBP API approval, Meta app-review, HA 2nd server.
 
-**Next action:** Office HQ improvement panel commit `2421c47` VPS pe deploy pending (user consent pe). Enable-everything Tier 3+4 = user go-ahead pending.
+**Next action:** Fix D DONE (`REPLY_AGENT=1` live in worker + IMAP login OK imap.hostinger.com; replies ab prospects se auto-link). Deliverability: **SPF+DKIM+DMARC teeno already present+valid** (verified via dig — koi DNS gap NAHI); ~2000-email/0-reply ka asli root = ops-level (warmup pacing, cold-content anti-spam, list hygiene, single-mailbox volume) — alag content/ops sprint. Office HQ improvement panel `2421c47` deploy alag pending. NOTE: memory/ + CLAUDE.md is-session edits UNCOMMITTED chhode (parallel Cursor edits ke saath user review kare).
 
-**Ops facts (hot):** Scheduler = Celery durable (`RUN_IN_PROCESS_SCHEDULER=0`, rollback = `=1`+`WEB_CONCURRENCY=1`) · 24 staff jobs + dead-man trio alive · UPI ARMED (`/api/public/pay-info` enabled:true) · NOTIFY_EMAIL set · Sentry ARMED · offsite backup LIVE (restore proven) · MCP `/mcp` gated (`FASTAPI_MCP_TOKEN`/allowlist) · 250 skills in skill_pack · Slash commands: `/verify` `/ship` `/checkpoint` `/learn` `/compact-check` `/optimize` `/test-expand`.
+**Ops facts (hot):** Scheduler = Celery durable (`RUN_IN_PROCESS_SCHEDULER=0`, rollback = `=1`+`WEB_CONCURRENCY=1`) · 24 staff jobs + dead-man trio alive · WhatsApp auto-send OFF (`WHATSAPP_AUTO_SEND=0`, `VOICE_CLOSE_WHATSAPP=0`; 1-click only) · UPI ARMED (`/api/public/pay-info` enabled:true) · NOTIFY_EMAIL set · Sentry ARMED · offsite backup LIVE (restore proven) · MCP `/mcp` gated (`FASTAPI_MCP_TOKEN`/allowlist) · 250 skills in skill_pack · Slash commands: `/verify` `/ship` `/checkpoint` `/learn` `/compact-check` `/optimize` `/test-expand`.
