@@ -142,6 +142,36 @@ def test_reply_with_tools_routes_tool_call(monkeypatch):
     assert spoken == ""
 
 
+def test_reply_with_tools_books_on_slot_confirmation(monkeypatch):
+    """Bare confirmation ("haan theek hai", NO time/keyword) right after the bot
+    proposed a slot must reach the tool-LLM (-> book), not the discovery fast-path.
+
+    Robust by design: _fast_path_reply is forced to a sentinel, so `call` can only
+    be non-None if the _action_intent gate correctly bypassed it (the prev-slot +
+    confirmation branch). If the gate regresses, the sentinel returns (call=None)."""
+    from app.voice_agent.function_calling import build_default_registry
+
+    brain = _make_brain()
+    reg = build_default_registry({"niche": "solar_residential"})
+
+    async def _fake_kb(_ut):
+        return []
+
+    async def _fake_gen_call(_prompt):
+        return ('CALL book_appointment {"when_iso": "2026-07-01T15:00"}', "test")
+
+    monkeypatch.setattr(brain, "_fast_path_reply", lambda *_a, **_k: "FAST_PATH_SHOULD_NOT_WIN")
+    monkeypatch.setattr(brain, "_kb_facts", _fake_kb)
+    monkeypatch.setattr(brain, "_generate", _fake_gen_call)
+
+    history = [
+        {"role": "assistant", "content": "Perfect sir — kal subah gyarah baje slot fix kar doon?"},
+    ]
+    spoken, call = asyncio.run(brain.reply_with_tools(history, "haan theek hai", reg))
+    assert call is not None and call["name"] == "book_appointment"
+    assert spoken == ""
+
+
 def test_reply_with_tools_routes_spoken(monkeypatch):
     from app.voice_agent.function_calling import build_default_registry
 
