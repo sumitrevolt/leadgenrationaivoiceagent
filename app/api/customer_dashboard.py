@@ -1427,8 +1427,12 @@ def customer_delivery_timeline(client_id: str = Depends(require_customer), limit
     client_id JWT (require_customer) se aata hai => customer sirf apni hi
     timeline dekhta hai. Never raises; empty list on any error."""
     try:
-        from app.marketing.delivery_ledger import timeline
+        from app.marketing.delivery_ledger import ensure_backfilled, timeline
 
+        # Pre-ledger (purane paid) customers ka historical timeline pehli read pe
+        # lazily backfill karo — warna jiya jaise existing customer ko "AI ne kya
+        # kiya" blank dikhta. Idempotent (marker file), never-raises.
+        ensure_backfilled(client_id)
         events = timeline(client_id, limit=limit, customer_only=True)
         return {"ok": True, "events": events}
     except Exception as e:

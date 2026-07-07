@@ -179,6 +179,9 @@ def _build_command_center() -> dict[str, Any]:
             stuck_in_setup += 1
 
         try:
+            # Pre-ledger customers ka history backfill (idempotent, one-time per
+            # customer via marker) taaki "receiving value" count sach bole.
+            delivery_ledger.ensure_backfilled(cid)
             s = delivery_ledger.summary(cid)
         except Exception as e:
             logger.debug("command_center: ledger summary failed for %s: %s", cid, e)
