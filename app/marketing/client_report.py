@@ -119,6 +119,12 @@ async def build_report(client_id: str, month: str = "", send: bool | None = None
                 )
             except Exception as e:
                 logger.warning(f"report email failed: {e}")
+        try:
+            from app.marketing import delivery_ledger
+
+            delivery_ledger.log_event(client_id, "weekly_report_generated", detail=month)
+        except Exception:
+            pass
         return {"ok": True, "path": path, "stats": s, "emailed": emailed}
     except Exception as e:
         logger.warning(f"build_report failed: {e}")
