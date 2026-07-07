@@ -199,6 +199,17 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
                 )
             except Exception:
                 pass
+            # Delivery ledger — this path creates a fresh queue item (not a
+            # mark_item mutation), so it needs its own post_approved log;
+            # auto_content.mark_item() covers the admin manual-approve path.
+            try:
+                from app.marketing import delivery_ledger
+
+                content = merged.get("content") or {}
+                title = str(content.get("title") or content.get("occasion") or "")
+                delivery_ledger.log_event(str(merged.get("client_id") or ""), "post_approved", detail=title)
+            except Exception as le:
+                logger.debug(f"[content_approval] ledger log skip: {le}")
             # Video-ad approve -> publish-queue mark (scheduler hi publish karta; web light).
             try:
                 if (merged.get("content") or {}).get("type") == "video_ad":

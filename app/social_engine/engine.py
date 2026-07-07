@@ -205,6 +205,21 @@ async def _dispatch_one(job: dict[str, Any]) -> PublishResult:
     return await prov.publish(req, acct)
 
 
+def _log_delivery(client_id: str, event: str, job: dict[str, Any], detail: str = "") -> None:
+    """Best-effort delivery_ledger log for an automated publish outcome. Never
+    raises; no-op if client_id is blank (job data malformed)."""
+    if not client_id:
+        return
+    try:
+        from app.marketing import delivery_ledger
+
+        delivery_ledger.log_event(
+            client_id, event, detail=detail or str(job.get("caption") or "")[:200]
+        )
+    except Exception as e:
+        logger.debug(f"[engine] delivery ledger log skip: {e}")
+
+
 async def process_queue(limit: int = 20) -> dict[str, Any]:
     """Queued jobs drain karo. Scheduler/worker se. Flag off = inert."""
     if not enabled():
@@ -218,9 +233,11 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                 res = await _dispatch_one(job)
             except Exception as e:
                 res = PublishResult(ok=False, platform=str(job.get("platform") or ""), error=str(e)[:150])
+            cid = str(job.get("client_id") or "")
             if res.ok:
                 store.mark(jid, "published", post_id=res.post_id, post_url=res.url)
                 published += 1
+                _log_delivery(cid, "post_published", job)
             elif res.error == "__inert__":
                 store.mark(jid, "skipped", last_error="provider not configured")
                 skipped += 1
@@ -229,6 +246,7 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                 if attempts >= store.max_attempts():
                     store.mark(jid, "dead", attempts=attempts, last_error=res.error)
                     dead += 1
+                    _log_delivery(cid, "post_failed", job, detail=str(res.error or "")[:200])
                 else:
                     store.mark(jid, "retry", attempts=attempts, last_error=res.error)
                     retried += 1
