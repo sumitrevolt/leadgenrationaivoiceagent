@@ -104,7 +104,7 @@ Change safe = **(1)** context-grep pehle (callers/routes/tests) **(2)** targeted
 - DLT cold-outbound: Udyam re-apply user-side pending (transactional/test calls work fine).
 - Pending user keys/actions: `POSTHOG_API_KEY` · WAHA QR scan · `.codex` key rotate · `STUDIO_ENTITLEMENT_GATE` flip · `LEADGEN_SCHEDULER_SECRET` (unset = recovery endpoint dormant).
 - EXTERNAL-blocked (token mat jalao): missed-call DID webhook, GBP API approval, Meta app-review, HA 2nd server.
-- `gh` CLI auth broken in the dev environment (`GITHUB_TOKEN` env var invalid, shadows a valid keyring login) — blocks `gh pr create`/PR-based workflow until fixed; not blocking anything else, plain git push/merge works fine.
+- ~~`gh` CLI auth broken~~ — WORKAROUND FOUND 2026-07-07: `GITHUB_TOKEN`+`GITHUB_PAT` env vars invalid, injected fresh per-shell (not in any dotfile, can't unset permanently) — prefix `env -u GITHUB_TOKEN -u GITHUB_PAT` on any `gh` command to fall back to the valid `sumitrevolt` keyring login (verified with a real API call).
 
 **Next action:** Customer Delivery OS is fully shipped — nothing left to build or land. Hot lead **+917498797259** — 1-click WhatsApp still pending (mid-funnel money moment). Separately backlogged, not blocking: admin-nav sprawl (13 orphaned pages, overlapping cockpit clusters) — dedicated IA-consolidation pass on request only. Deliverability SPF/DKIM/DMARC all valid — ~2000-email/0-reply root is ops-level, separate sprint.
 
