@@ -537,7 +537,7 @@ async def seed_client_content(client: dict[str, Any]) -> int:
             added = await _recycle_fallback(client)
         if added:
             try:
-                from app.platform import delivery_ledger
+                from app.marketing import delivery_ledger
 
                 delivery_ledger.log_event(cid, "marketing_calendar_generated")
                 delivery_ledger.log_event(

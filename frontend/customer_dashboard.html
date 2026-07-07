@@ -1649,7 +1649,7 @@ async function loadDeliveryTimeline() {
     data.events.forEach(function (ev) {
       const li = document.createElement('li');
       li.style.padding = '6px 0';
-      li.textContent = (ev.icon || '') + ' ' + ev.label + ' — ' + new Date(ev.ts).toLocaleDateString('en-IN');
+      li.textContent = (ev.icon || '') + ' ' + ev.label + ' — ' + new Date(ev.at).toLocaleDateString('en-IN');
       list.appendChild(li);
     });
   } catch (e) {

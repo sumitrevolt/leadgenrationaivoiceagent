@@ -853,8 +853,7 @@ async def deliver_now(client_id: str, _user=Depends(require_admin)) -> dict:
     deliver_client_value(force=True) bypass. Never touches AUTO_DELIVER_VALUE;
     always logs admin_manual_action either way so the reason is visible even
     on failure (no phone / send error / already delivered)."""
-    from app.marketing import clients_store, customer_delivery
-    from app.platform import delivery_ledger
+    from app.marketing import clients_store, customer_delivery, delivery_ledger
 
     client = clients_store.get_client(client_id)
     if not client:
@@ -867,7 +866,7 @@ async def deliver_now(client_id: str, _user=Depends(require_admin)) -> dict:
             client_id,
             "admin_manual_action",
             detail=(reason or "delivered"),
-            status="ok" if result.get("delivered") else "warn",
+            actor="admin",
         )
     except Exception as le:  # pragma: no cover
         logger.debug("deliver_now ledger log skip: %s", le)

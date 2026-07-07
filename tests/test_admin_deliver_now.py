@@ -27,8 +27,8 @@ def test_deliver_now_success(monkeypatch):
 
     events = []
     monkeypatch.setattr(
-        "app.platform.delivery_ledger.log_event",
-        lambda client_id, event_type, **kw: events.append((client_id, event_type)),
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: events.append((client_id, event)),
     )
 
     with TestClient(app) as c:
@@ -55,8 +55,8 @@ def test_deliver_now_failure_still_logs_reason(monkeypatch):
 
     events = []
     monkeypatch.setattr(
-        "app.platform.delivery_ledger.log_event",
-        lambda client_id, event_type, **kw: events.append((client_id, event_type, kw.get("detail"))),
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: events.append((client_id, event, kw.get("detail"))),
     )
 
     with TestClient(app) as c:
