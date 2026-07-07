@@ -230,7 +230,7 @@ def load_from_website(
 
     # 3) chunk + add
     chunks = chunk_text(text)
-    added = kb.add_documents(chunks, source=f"website:{url}", namespace=namespace)
+    added = kb.add_documents(chunks, source=f"website:{url}", namespace=namespace, replace_source=True)
     logger.info(f"KB '{namespace}': synced {added} chunk(s) from {url}.")
     return added
 

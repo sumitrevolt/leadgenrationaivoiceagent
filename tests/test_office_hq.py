@@ -552,6 +552,10 @@ async def test_build_snapshot_works_when_cache_backend_is_broken(monkeypatch):
 
 
 async def test_build_snapshot_calls_collect_live_stats_only_once(monkeypatch):
+    # Hermetic: pichle tests ka snapshot 18s-TTL cache me warm ho sakta (test-order/
+    # timing dependent — CI me `-m "not network"` selection se badalta) →
+    # build_snapshot cache-hit = 0 collect calls. Pehle cache saaf karo.
+    await office_hq.invalidate_snapshot_cache()
     calls = {"n": 0}
     orig = office_hq._safe_collect_live_stats
 

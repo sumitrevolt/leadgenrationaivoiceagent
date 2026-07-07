@@ -277,6 +277,22 @@ class _KeywordIndex:
         scored.sort(key=lambda x: x["score"], reverse=True)
         return scored[:k]
 
+    def delete_source(self, source: str) -> int:
+        """Drop this (namespace-scoped) index's docs with the given source —
+        used by delete-before-reseed so a website re-ingest replaces its old
+        chunks instead of appending. Rebuilds document-frequency from survivors."""
+        if not source:
+            return 0
+        before = len(self._docs)
+        self._docs = [d for d in self._docs if d.source != source]
+        removed = before - len(self._docs)
+        if removed:
+            self._df = Counter()
+            for d in self._docs:
+                for t in set(d.tokens):
+                    self._df[t] += 1
+        return removed
+
 
 # --------------------------------------------------------------------------- #
 # Chroma-backed retriever (reuses app.ml.vector_store embeddings)
@@ -328,6 +344,18 @@ class _ChromaIndex:
             metadatas=[{"source": source, "namespace": self._namespace}],
             documents=[text],
         )
+
+    def delete_source(self, source: str) -> int:
+        """Delete this namespace-collection's points with the given source
+        (delete-before-reseed). Namespace is already isolated by collection."""
+        if not source:
+            return 0
+        try:
+            self._store.collection.delete(where={"source": source})
+        except Exception as e:  # pragma: no cover
+            logger.debug(f"chroma delete_source failed: {e}")
+            return 0
+        return 1
 
     def search(self, query: str, k: int = 3) -> list[dict[str, Any]]:
         q_emb = self._store._generate_embedding(query)
@@ -486,12 +514,29 @@ def _get_qdrant_client():
                 client.get_collections()
                 _exists = client.collection_exists(_QDRANT_COLLECTION)
                 if _exists:
-                    # dim mismatch (embedding model changed) -> recreate fresh
+                    # dim mismatch (embedding model changed) -> PRESERVE, don't wipe.
+                    # OLD behaviour silently delete_collection()'d kb_main here on ANY
+                    # dim drift — wiping EVERY client's KB / niche scripts with no log.
+                    # fastembed can fall through _EMBED_CANDIDATES to a different-dim
+                    # model on a transient load, so a single bad restart could nuke all
+                    # tenants' RAG. Default now = PRESERVE + loud alert; destructive
+                    # recreate only if an operator explicitly opts in (KB_ALLOW_DIM_WIPE=1).
                     try:
                         _cur = client.get_collection(_QDRANT_COLLECTION).config.params.vectors.size
                         if _cur != _QDRANT_VECTOR_SIZE:
-                            client.delete_collection(_QDRANT_COLLECTION)
-                            _exists = False
+                            logger.error(
+                                "kb_main vector-dim mismatch: collection=%s model=%s (%s). "
+                                "Data PRESERVED; semantic writes fall back to keyword until "
+                                "fixed. Set KB_ALLOW_DIM_WIPE=1 to recreate (DESTRUCTIVE — "
+                                "drops ALL namespaces) or re-seed manually.",
+                                _cur, _QDRANT_VECTOR_SIZE, _E5_MODEL_NAME,
+                            )
+                            if os.getenv("KB_ALLOW_DIM_WIPE", "0").strip().lower() in ("1", "true", "yes"):
+                                logger.warning(
+                                    "KB_ALLOW_DIM_WIPE set — recreating kb_main (destructive wipe)."
+                                )
+                                client.delete_collection(_QDRANT_COLLECTION)
+                                _exists = False
                     except Exception:
                         pass
                 if not _exists:
@@ -515,6 +560,19 @@ def _get_qdrant_client():
                     pass  # index already exists — ignore (idempotent)
                 _QDRANT_CLIENT = client
     return _QDRANT_CLIENT
+
+
+def _kb_point_id(namespace: str, text: str) -> str:
+    """Deterministic Qdrant point id from (namespace, text).
+
+    Re-ingesting the SAME chunk (e.g. the weekly KB_WEEKLY_REFRESH re-seed)
+    produces the SAME id, so the upsert OVERWRITES the point instead of appending
+    a fresh random one. This bounds kb_main growth and stops stale duplicates
+    (old vs changed website content) both surviving in top-k — the agent would
+    otherwise quote either at random (e.g. old pricing). uuid5 hashes the full
+    text (SHA-1) so distinct chunks never collide. Mirrors agent_memory.py.
+    """
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{namespace or 'default'}|{text or ''}"))
 
 
 class _QdrantIndex:
@@ -572,7 +630,11 @@ class _QdrantIndex:
             collection_name=_QDRANT_COLLECTION,
             points=[
                 qmodels.PointStruct(
-                    id=str(uuid.uuid4()),
+                    # Deterministic id (namespace+text) -> re-ingesting the SAME chunk
+                    # OVERWRITES the same point instead of minting a new random one.
+                    # Bounds kb_main growth on the weekly re-seed and stops the agent
+                    # quoting a stale duplicate of changed content. See _kb_point_id.
+                    id=_kb_point_id(self._namespace, text),
                     # e5 requirement: documents ko "passage: " prefix
                     vector=self._embed(f"passage: {passage}"),
                     payload={
@@ -583,6 +645,37 @@ class _QdrantIndex:
                 )
             ],
         )
+
+    def delete_source(self, source: str) -> int:
+        """Delete this namespace's points with the given source from the shared
+        kb_main collection (delete-before-reseed). Scoped by BOTH namespace and
+        source so other sources / other tenants in kb_main are untouched."""
+        if not source:
+            return 0
+        from qdrant_client import models as qmodels
+
+        try:
+            self._client.delete(
+                collection_name=_QDRANT_COLLECTION,
+                points_selector=qmodels.FilterSelector(
+                    filter=qmodels.Filter(
+                        must=[
+                            qmodels.FieldCondition(
+                                key="namespace",
+                                match=qmodels.MatchValue(value=self._namespace),
+                            ),
+                            qmodels.FieldCondition(
+                                key="source",
+                                match=qmodels.MatchValue(value=source),
+                            ),
+                        ]
+                    )
+                ),
+            )
+        except Exception as e:  # pragma: no cover
+            logger.debug(f"qdrant delete_source failed: {e}")
+            return 0
+        return 1
 
     def search(self, query: str, k: int = 3) -> list[dict[str, Any]]:
         try:
@@ -773,6 +866,7 @@ class KnowledgeBase:
         docs: list[str | dict[str, Any]],
         source: str | None = None,
         namespace: str = "default",
+        replace_source: bool = False,
     ) -> int:
         """
         Documents ko chunk + store karo.
@@ -782,6 +876,11 @@ class KnowledgeBase:
                   optional 'source' (per-doc source override).
             source: default source label (dict ka 'source' isko override karta hai).
             namespace: client/niche scope.
+            replace_source: True + a truthy `source` => delete-before-reseed. Drops
+                THIS (namespace, source)'s existing chunks first, so re-ingesting a
+                client's website replaces its old content instead of leaving stale
+                duplicates behind (deterministic point-ids only collapse identical
+                re-ingests). Kill-switch: KB_REPLACE_ON_RESEED=0. Best-effort.
 
         Returns:
             Number of chunks added.
@@ -789,6 +888,22 @@ class KnowledgeBase:
         if not docs:
             return 0
         index = self._get_index(namespace)
+        if (
+            replace_source
+            and source
+            and os.getenv("KB_REPLACE_ON_RESEED", "1").strip().lower() not in ("0", "false", "no")
+        ):
+            try:
+                _removed = index.delete_source(source)
+                if _removed:
+                    logger.info(
+                        f"KB '{namespace}': cleared old source='{source}' before reseed"
+                    )
+                _hkw = self._hybrid_kw.get(namespace or "default")
+                if _hkw is not None:
+                    _hkw.delete_source(source)
+            except Exception as e:
+                logger.debug(f"KB delete-before-reseed skip: {e}")
         added = 0
         ctx_on = _env_flag("USE_CONTEXTUAL_INGEST") or _env_flag("USE_CONTEXTUAL_INGEST_LLM")
         with self._lock:

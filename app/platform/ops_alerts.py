@@ -134,6 +134,40 @@ def _ntfy(title: str, message: str, priority: str = "high", tags: list[str] | No
         logger.debug("ops_alerts ntfy swallowed: %s", exc)
 
 
+def alert_staff_failure(job: str, detail: str = "") -> dict[str, Any]:
+    """W1.14: ek staff job crash (result ki jagah error return) — ops ko page karo
+    (OPS_ALERTS-gated + per-job cooldown'd). Pehle failure sirf {"error"} me silent tha."""
+    if not enabled():
+        return {"alerted": False, "reason": "disabled"}
+    key = f"staff_fail:{job}"
+    if _cooldown_active(key, "staff_fail"):
+        return {"alerted": False, "reason": "cooldown"}
+    _ntfy(
+        f"⚠️ staff job '{job}' failed",
+        (f"'{job}' returned an error: {detail}")[:480],
+        priority="high",
+        tags=["warning", "staff"],
+    )
+    _record_fire(key)
+    return {"alerted": True}
+
+
+def alert_warm_sla(stuck: int, warm: int) -> dict[str, Any]:
+    """W4.1: warm/stuck leads SLA nudge — FOUNDER ko ntfy (cooldown'd). Caller (office_hq)
+    WARM_SLA_NUDGE se gate karta; yahan sirf cooldown + send. Founder-only, koi customer send NAHI."""
+    key = "warm_sla_nudge"
+    if _cooldown_active(key, "warm_sla"):
+        return {"alerted": False, "reason": "cooldown"}
+    _ntfy(
+        f"⏰ {stuck} leads pending >SLA · {warm} warm",
+        f"Hot Queue /app/inbox: {stuck} stuck (>24h) + {warm} warm (40-69) — aaj action lo.",
+        priority="default",
+        tags=["hourglass_flowing_sand", "leads"],
+    )
+    _record_fire(key)
+    return {"alerted": True}
+
+
 # --------------------------------------------------------------------------- #
 # Alert 0 — ComplianceGate kill-switch active (legal liability) [D-1 / P0-3]
 # --------------------------------------------------------------------------- #

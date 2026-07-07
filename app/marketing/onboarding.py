@@ -135,7 +135,7 @@ async def _seed_kb_from_website(cid: str, website: str) -> dict:
             from app.voice_agent.knowledge_base import get_knowledge_base
 
             out["kb_chunks"] = get_knowledge_base().add_documents(
-                [text[:8000]], source=f"website:{website}", namespace=ns
+                [text[:8000]], source=f"website:{website}", namespace=ns, replace_source=True
             )
         except Exception as exc:
             logger.info("onboard kb seed err: %s", exc)
@@ -362,8 +362,19 @@ async def _capture_business_interview(client: dict[str, Any], text: str) -> bool
         return False
 
 
-async def auto_onboard(cid: str) -> dict[str, Any]:
-    """Run the full auto-setup for one client. Never raises."""
+async def auto_onboard(cid: str, send_welcome: bool = True, force: bool = False) -> dict[str, Any]:
+    """Run the full auto-setup for one client. Never raises.
+
+    send_welcome=False skips the welcome-WhatsApp step (used when the caller —
+    e.g. the /signup handler — already sent its own welcome, so the customer
+    doesn't get two messages).
+
+    IDEMPOTENT: if the client is already `setup_done`, skip the whole heavy path
+    (KB re-seed / content / welcome) unless force=True. Protects the direct callers
+    (onboard_client task from signup/admin-onboard) — the admin onboard endpoint is
+    deliberately re-callable for password resets, and without this guard each retry
+    would re-scrape + regenerate + re-welcome an existing customer. The hourly sweep
+    already filters setup_done, so this is a no-op there."""
     report: dict[str, Any] = {"client_id": cid, "steps": {}}
     try:
         from app.marketing import clients_store
@@ -371,6 +382,8 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
         client = clients_store.get_client(cid)
         if not client:
             return {"error": "client not found", "client_id": cid}
+        if client.get("setup_done") and not force:
+            return {"ok": True, "client_id": cid, "skipped": "already_setup"}
         biz = client.get("business_name", "")
 
         try:
@@ -427,7 +440,10 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
             except Exception:
                 pass
         try:
-            report["steps"]["welcome_whatsapp"] = await _send_welcome_whatsapp(client, kb_seeded)
+            if send_welcome:
+                report["steps"]["welcome_whatsapp"] = await _send_welcome_whatsapp(client, kb_seeded)
+            else:
+                report["steps"]["welcome_whatsapp"] = {"skipped": "caller_sends_own_welcome"}
         except Exception as exc:
             logger.debug("onboard welcome whatsapp step err: %s", exc)
             report["steps"]["welcome_whatsapp"] = {"sent": False}

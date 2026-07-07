@@ -37,7 +37,9 @@ except Exception:  # pragma: no cover
 
 # ============================================================================ #
 # Festival calendar — {date, name, type, marketing_angle}
-# type: national | hindu | muslim | sikh | christian | regional
+# "type" values: national | hindu | muslim | sikh | christian | regional
+# (NOTE: comment "type:" se shuru nahi ho sakta — mypy use PEP-484 type-comment
+# samajh ke "Invalid syntax" deta hai.)
 # ============================================================================ #
 
 FESTIVALS_2026_27: list[dict[str, str]] = [

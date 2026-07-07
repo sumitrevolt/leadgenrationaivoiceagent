@@ -34,8 +34,43 @@ from app.main import app
 def c(monkeypatch):
     """A TestClient that does NOT run lifespan (no team-scheduler thread per test)."""
     from app.cache import RateLimiter
-    monkeypatch.setattr(RateLimiter, "is_allowed", lambda *a, **k: (True, 9999))
-    return TestClient(app)
+
+    # ASYNC patch zaroori: callers `await limiter.is_allowed(ip)` karte hain — purana
+    # SYNC lambda await pe TypeError deta → RateLimitMiddleware apne IN-MEMORY
+    # fallback counter pe girta → CI full-suite burst me yahi 429s de raha tha.
+    # (Class-level dispatch patch kaam nahi karta — BaseHTTPMiddleware dispatch_func
+    # ko __init__ me bind karta hai.)
+    async def _allow(self, ident):
+        return True, 9999
+
+    monkeypatch.setattr(RateLimiter, "is_allowed", _allow)
+
+    # CI me RateLimiter INIT hi fail hota (redis absent) → middleware ka INLINE
+    # in-memory fallback poore suite ka traffic count karta → yahan tak aate-aate
+    # minute-window full → 429. Fallback inline hai (koi helper method nahi) aur
+    # dispatch_func __init__-bound hai — isliye INSTANCE patch: stack force-build
+    # (skip-path /health = kabhi 429 nahi) → chain walk → ceiling raise + counter clear.
+    client = TestClient(app)
+    client.get("/health")
+    from app.middleware import RateLimitMiddleware
+
+    node = app.middleware_stack
+    while node is not None:
+        if isinstance(node, RateLimitMiddleware):
+            monkeypatch.setattr(node, "requests_per_minute", 10_000_000)
+            node._fallback_counts.clear()
+        node = getattr(node, "app", None)
+
+    # TEESRI layer (the actual CI killer): public_signup ka apna INLINE per-IP
+    # throttle (`public_site._rate_limited`, module-level _RL dict, 5/min) —
+    # customer_auth signup canonical public_signup ko call karta hai, aur poora
+    # suite ek hi "testclient" IP share karta → CI me bucket full → 429
+    # "Thoda ruk ke dobara try karo". Route call-time pe module-fn read karta →
+    # monkeypatch clean lagti hai.
+    from app.api import public_site as ps
+
+    monkeypatch.setattr(ps, "_rate_limited", lambda ip, store=None: False)
+    return client
 
 
 # =============================================================================

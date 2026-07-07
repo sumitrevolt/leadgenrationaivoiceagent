@@ -151,8 +151,11 @@ class VobizClient:
                 )
             return {"status_code": resp.status_code, "body": self._safe_body(resp)}
         except Exception as e:
-            logger.error(f"Vobiz place_call failed: {e}")
-            return {"status_code": 0, "body": {"error": str(e)}}
+            # type(e).__name__ zaroori — kai httpx exceptions ka str() blank hota
+            # (live: "Vobiz get_balance failed: " undiagnosable tha)
+            _err = f"{type(e).__name__}: {e}".rstrip(": ")
+            logger.error(f"Vobiz place_call failed: {_err}")
+            return {"status_code": 0, "body": {"error": _err}}
 
     async def get_balance(self) -> dict[str, Any]:
         """GET {base}/ — account details (incl. balance). Never raises."""
@@ -163,8 +166,9 @@ class VobizClient:
                 resp = await client.get(f"{self.base_url}/", headers=self._headers())
             return {"status_code": resp.status_code, "body": self._safe_body(resp)}
         except Exception as e:
-            logger.error(f"Vobiz get_balance failed: {e}")
-            return {"status_code": 0, "body": {"error": str(e)}}
+            _err = f"{type(e).__name__}: {e}".rstrip(": ")
+            logger.error(f"Vobiz get_balance failed: {_err}")
+            return {"status_code": 0, "body": {"error": _err}}
 
 
 def build_speak_xml(text: str, voice: str = "female", language: str = "en-IN") -> str:

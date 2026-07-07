@@ -107,9 +107,13 @@ def test_cloudflare_tunnel_armed_is_ok(monkeypatch: pytest.MonkeyPatch) -> None:
 # --------------------------------------------------------------------------- #
 # Aggregate readiness — the single number that matters
 # --------------------------------------------------------------------------- #
-async def test_activation_summary_public() -> None:
+async def test_activation_summary_public(monkeypatch: pytest.MonkeyPatch) -> None:
     from app.api.activation import activation_summary_public
+    from app.platform import upi_config as uc
 
+    # Hermetic: payments-state UPI-arming se derive hota — developer/CI env pe
+    # depend nahi karna (CI me UPI_VPA unset → payments_deferred True ho jata tha).
+    monkeypatch.setattr(uc, "is_armed", lambda: True)
     out = await activation_summary_public()
     assert out["ready_for_launch"] is True
     assert (
@@ -121,6 +125,11 @@ async def test_activation_summary_public() -> None:
 async def test_readiness_launch_ready_default_env(monkeypatch: pytest.MonkeyPatch) -> None:
     """Default empty env -> no BLOCKERs; marketing launch OK. Razorpay removed
     2026-06-18 — payments via manual UPI, so payments_ready is always True."""
+    from app.platform import upi_config as uc
+
+    # Hermetic (CI me UPI unarmed → payments_ready False ho jata tha; unarmed-case
+    # ka apna dedicated test niche hai).
+    monkeypatch.setattr(uc, "is_armed", lambda: True)
     out = await ax.activation_readiness(_user=None)  # type: ignore[arg-type]
     assert out["ready_for_launch"] is True
     assert out["payments_ready"] is True

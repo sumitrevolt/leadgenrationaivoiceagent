@@ -1,107 +1,148 @@
 ---
 name: fable-operating-manual
-description: Is project ka proven operating playbook — kaise audit karo, root-cause pakdo, kaha verify karo (Windows = truth vs sandbox = stale), change ko risk-tier karo, loops complete karo, test karo, evidence ke saath commit/deploy karo. Use when koi bhi non-trivial change/debug/audit/automation karna ho, "ye theek se wired hai?" check karna ho, ya jab "best kya hai project ke liye" decide karna ho. Agents iss manual ko default operating-discipline ki tarah follow karein.
+description: Fable-class agent ka ACTUAL operating model — parallel context-gathering, subagent fan-out, task-ledger, ask-vs-decide, evidence-only done — is project ke proven gates (Windows=truth, risk-tiering, TRAI/DPDP/billing fail-closed, deploy loop) + billionaire operator lens (loop-portfolio P&L, constraint-first, automate-the-proven, kill-fast) ke saath merged. Use when koi bhi non-trivial change/debug/audit/automation karna ho, "ye theek se wired hai?" check karna ho, ya "best kya hai project ke liye" decide karna ho. Agents iss manual ko default operating-discipline ki tarah follow karein.
 ---
 
-# Fable Operating Manual (project ke liye)
+# Fable Operating Manual v2 — jaise Fable khud operate karta hai (project-tuned)
 
-Yeh is project pe kaam karne ka distilled, enterprise-grade tareeka hai — jisse changes safe, root-caused, risk-tiered, aur evidence-backed rehte hain. Naya kaam shuru karne se pehle relevant section padho.
+Teen parts: **Part A = Fable model ka real operating style** (context kaise uthata hai, kaam kaise baant-ta hai, kab poochhta hai, kaise verify/report karta hai) · **Part B = is project ki proven ground-truth** (gotchas, gates, deploy, pricing) · **Part C = billionaire operator lens** (automation loops ko business/capital-allocation ki tarah chalana). Naya kaam shuru karne se pehle relevant section padho.
 
-## 0. Golden rules (sabse upar)
-1. **Audit pehle, edit baad me.** Koi cheez "incomplete/broken" lagti hai to pehle MEASURE karo (scan/grep/test), assume mat karo. Ek working system ko bina evidence ke mat chhedo.
-2. **Root cause, not symptom.** Symptom fix karne se pehle "kyun" 1 baar zaroor pakdo. Galat fix asli bug chhupa deta hai (e.g., niche count test ko 39 karne se pehle git dekha ki 42→39 intentional tha — regression nahi).
-3. **Never-raise + gated + inert-without-creds.** Har naya loop/integration: try/except (kabhi crash na kare), env-flag se gated (default OFF = zero behaviour change), creds/flag bina inert.
-4. **Additive > destructive.** Purane working code ko replace karne se pehle confirm. Naya feature add karna safe hai; rewrite risky.
-5. **Done = evidence.** "Ho gaya" sirf jab proof ho (§0.5 phase 5). Bina artifact done KABHI mat bolo.
+## PART A — FABLE CORE (model ka actual operating style)
 
-## 0.5 The operating loop — Discover → Contract → Execute → Self-review → Evidence
-Har non-trivial task isi 5-phase loop se chalao (CLAUDE.md gate #7 ka enforce-able roop). Cursor accha isliye karta hai ki woh pura codebase index karke relevant files khud uthata hai — yahi **manually** har phase me karo.
+### A1. Parallel-first tool use
+- Independent calls (Grep + Glob + Read alag files) = EK hi block me parallel; sequential SIRF jab agla call pichle ke output pe depend kare.
+- Discovery = 3–6 parallel searches ek saath (definition + callers + routes + tests + templates/JS), one-by-one nahi. One-by-one search = wasted round-trips.
 
-1. **Discover (context-first — edit se PEHLE):** `Grep`/`Glob` se feature/function ke SAARE touch-points dhoondo — definition, callers, routes (`@router`/`@app`), templates/JS, related tests. Ek bhi miss = regression. Jo files chhooni hain unhe PURA padho (imports, padosi fns, error handling, naming convention). Aadha-padha context = galat edit ka #1 reason. "Ye toota hai" assume mat karo — git log / CLAUDE.md / test se intent confirm karo (42→39 niche = intentional, regression nahi).
-2. **Contract:** edit se pehle likho — kaun si files + kya change + kaun se test/evidence cover karenge + rollback kya hai. Change-risk tier (§0.6) decide karke uske gates lock karo. Bada/multi-file → `plan-then-build`.
-3. **Execute:** Windows-side edit, har Edit se theek pehle file Read (stale-mount safety). Same file pe parallel multi-edit mat do (truncation hazard). Additive > rewrite. Naya loop/integration = never-raise + flag-gated + inert-without-creds.
-4. **Self-review:** ship se pehle apna diff `self-code-review` lens se padho (bug / security / signature-drift / hot-path / test-gap). High-risk change (§0.6) → `security-review` bhi.
-5. **Evidence (done ki definition):** `/verify` (prod_check + targeted tests + import) green + jo claim kiya uska artifact (test log / `/health`=production / cross_path_audit / metric/heartbeat). Bina evidence done KABHI mat bolo; warna `systematic-debugging`. Frontend/page change ka evidence = live-browser verification bhi: `cd frontend && python -m http.server 8123` se statically serve karke claude-in-chrome se drive karo (API-less preview path me bhi map/UI boot verify hota hai — 2026-07-05 office-upgrade pattern).
+### A2. Delegate breadth, keep conclusions (subagent fan-out)
+- Broad sweep ("kahan-kahan use hota hai", multi-dir audit, naming-convention hunt) → **Explore/general-purpose subagent**. Woh files padhta hai, main thread sirf CONCLUSION rakhta hai — apna context file-dumps se mat bharo.
+- Multi-file strategy → **Plan agent**; independent workstreams → parallel agents ek hi message me.
+- **High-stakes verification = ALAG fresh-context subagent** — apna kaam khud verify karne me confirmation-bias hota hai. Search delegate ki to khud duplicate mat chalao; result ka wait karo.
 
-## 0.6 Change-risk tiering (pehle classify, phir gates lock)
-Blast-radius se tier decide karo — over-process bhi waste hai, under-process bhi prod-down.
+### A3. Task ledger — har multi-step kaam trackable
+- ≥3 steps = task list (Cowork: TaskCreate/TaskUpdate · repo loop-mode: `progress.md` ka `## Loop Run` block). in_progress kaam shuru hone se PEHLE; completed sirf FULLY done pe.
+- **Aakhri task hamesha = verification** (targeted pytest + prod_check + claim-ka-artifact). Error/partial/blocked = completed mat mark karo — blocker ka naya task banao.
 
-| Tier | Kya | Extra gates (Discover→Evidence ke upar) |
+### A4. Ask vs decide (over-ask = waste, under-ask = risk)
+- User se SIRF tab poochho jab decision genuinely uska hai: pricing/plan change · live deploy auth · destructive op · ambiguous product-intent jo git-history/CLAUDE.md se resolve na ho. Ek focused sawaal, concrete options ke saath.
+- Baaki = sensible default + **decide-and-ship**, phir 1 line me batao kya assume kiya. Dormant-but-wireable gap mila to SHIP karo — permission-loop me mat atko.
+
+### A5. Read discipline
+- Har Edit se theek pehle Read (stale content pe edit = fail). Bade file me sirf needed section (offset/limit) — par jis function ko chhoo rahe ho uska PURA context padho (imports, padosi fns, error-handling, convention). Aadha-padha context = galat edit ka #1 reason.
+- Edit ke baad re-read-verify mat karo (fail hota to tool error deta) — verification TESTS se hoti hai, re-reads se nahi.
+
+### A6. Evidence-only done
+- "Done" = artifact: green test log · `/health`=production · diff · metric/heartbeat · live-browser screenshot. Bina evidence "ho gaya" = FORBIDDEN. Fail ho raha hai → `systematic-debugging`, "shayad theek hai" nahi.
+
+### A7. Concise reporting
+- Progress update = 1–2 line outcome; step-recap nahi (ledger dikh raha hai). Loop mode = Goal/Inspected/Changed/Verified/Remaining/Next. Hinglish, minimal formatting, zero fluff. Har reply ke end me canary `🐦 pelican`.
+
+### A8. Fresh facts = search, priors nahi
+- Present-day facts (provider limits/pricing, lib versions, API docs) = web-search/docs pehle — training-data confidence excuse nahi. Deliverable banate waqt: research PEHLE, output-format skill (docx/pptx/xlsx) BAAD me.
+
+### A9. Context hygiene
+- `memory/INDEX.md` pehle, phir SIRF task-relevant memory files. File-dumps subagent me, conclusions main thread me. Code vs memory conflict = code wins, phir memory fix. Architecture change = same session me CLAUDE.md `## Current State` + memory write-back.
+
+### A10. Safety rails (hard-stops)
+- Bina explicit user ke KABHI nahi: commit/push/deploy · destructive migration/`DROP`/`reset --hard` · `.env` values touch · `git add -A`. Secrets kisi file me kabhi nahi. Compliance gate weaken karne wala "fix" = ABORT, fix nahi.
+
+## PART B — PROJECT GROUND-TRUTH (proven playbook)
+
+### B0. Golden rules
+1. **Audit pehle, edit baad me.** "Incomplete/broken" lagta hai to pehle MEASURE karo (scan/grep/test), assume nahi. Working system bina evidence mat chhedo.
+2. **Root cause, not symptom.** Fix se pehle "kyun" pakdo (e.g., niche count 42→39 git me intentional nikla — regression nahi).
+3. **Never-raise + gated + inert-without-creds.** Har naya loop/integration: try/except, env-flag gated (default OFF), creds bina inert.
+4. **Additive > destructive.** Working code replace se pehle confirm; naya add safe, rewrite risky.
+5. **Done = evidence** (A6 + B0.5 phase 5).
+
+### B0.5 Operating loop — Discover → Contract → Execute → Self-review → Evidence
+1. **Discover (A1/A2 style):** parallel Grep/Glob se SAARE touch-points — definition, callers, routes (`@router`/`@app`), templates/JS, tests. Ek miss = regression. Intent confirm karo (git log/CLAUDE.md/tests) — "toota hai" assume nahi.
+2. **Contract:** likho — files + change + covering test/evidence + rollback. Risk-tier (B0.6) lock karo. Bada/multi-file → `plan-then-build` + Plan agent.
+3. **Execute:** Windows-side edit; Edit se theek pehle Read; same file pe parallel multi-edit NAHI (truncation hazard). Additive > rewrite; naya loop = never-raise + flag-gated + inert.
+4. **Self-review:** diff ko `self-code-review` lens se (bug/security/signature-drift/hot-path/test-gap). High-risk → `security-review` + fresh-context verifier subagent (A2).
+5. **Evidence:** `/verify` green (prod_check + targeted tests + import) + claim-ka-artifact. Frontend/page change = live-browser bhi: `cd frontend && python -m http.server 8123` + claude-in-chrome se drive (2026-07-05 office-upgrade pattern).
+
+### B0.6 Change-risk tiering (pehle classify, phir gates lock)
+
+| Tier | Kya | Extra gates (loop ke upar) |
 |------|-----|------|
 | **Trivial** | docs/copy/comment, single non-hot-path fn | Read-before-Edit + 1 targeted test |
 | **Standard** | naya endpoint/feature, non-billing logic, UI tab | `duplicate-route-guard` grep + flag-gate + changed-file tests + prod_check |
-| **High-risk** | billing/pricing · public route · telephony/outbound · secrets/auth · automation loop · DB migration | per-domain gate (neeche) + §9 ka pura bar + named rollback + self+security review |
+| **High-risk** | billing/pricing · public route · telephony/outbound · secrets/auth · automation loop · DB migration | per-domain gate (neeche) + B9 pura bar + named rollback + self+security review |
 
 **High-risk per-domain gate:**
-- **Billing/pricing** → `packages.py`/`voice_packages.py` = single source-of-truth; `test_billing_truth_2026` SAATH green.
+- **Billing/pricing** → `packages.py`/`voice_packages.py` = single source; `test_billing_truth_2026` SAATH green.
 - **Public route** → SSRF/auth/rate-limit check; deploy pe **hard-reload** (container recreate, warna stale .pyc 404).
-- **Telephony/outbound** → TRAI/DND fail-CLOSED · 9am–7pm window · AI-disclosure-at-start · consent-ledger; bypass KABHI nahi.
-- **Secrets** → sirf `.env` (gitignored); `scripts/check_secrets.py` (/verify step). Committed file/CLAUDE.md/script me KABHI nahi.
-- **Automation loop** → idempotency + DLQ + retry + `automation_health` parity + flag-gated default-OFF (§9).
+- **Telephony/outbound** → TRAI/DND fail-CLOSED · 9am–7pm window · AI-disclosure-at-start · consent-ledger · dial_gate/bot-IVR qualify; bypass KABHI nahi. platform_dial = HARD OFF (user-mandate) — re-enable sirf user go-ahead pe.
+- **Secrets** → sirf `.env` (gitignored); `scripts/check_secrets.py` clean.
+- **Automation loop** → idempotency + DLQ + retry + `automation_health` parity + flag default-OFF (B9).
 - **DB migration** → forward + rollback dono; data-repair path likha ho.
 
-## 1. Kaha verify karo — Windows = truth, sandbox = STALE
-**Sabse important gotcha.** Sandbox/Linux mount file-tool edits ke baad STALE ho jaata hai — wo TRUNCATED/purani file content serve karta hai. Isse jhoothe "syntax error / unterminated string / incomplete function" dikhte hain jabki Windows pe file bilkul sahi hai.
-- **File content padhne/verify ka source-of-truth = Windows** (Read tool, Desktop Commander, Windows `git`/`python`).
-- Sandbox bash sirf cheap exploration ke liye; koi bhi "ye file toot gayi" conclusion Windows pe confirm kiye bina mat do.
-- App import/run/test KABHI sandbox python se mat karo (version + stale mount) — `.venv\Scripts\python.exe` Windows pe chalao.
-- AST/scan scripts bhi Windows venv se chalao (warna 30 false-positive "syntax errors" milenge — saare stale-mount artifacts).
+### B1. Kaha verify karo — Windows = truth, sandbox = STALE
+Sandbox/Linux mount file-tool edits ke baad STALE/truncated content serve karta hai → jhoothe "syntax error/unterminated string". **Verify ka source-of-truth = Windows** (Read tool, Desktop Commander, Windows git/python). App import/run/test = `.venv\Scripts\python.exe` Windows pe; AST/scan scripts bhi. Sandbox bash sirf cheap exploration.
 
-## 2. Loops / backend completeness audit (kaise check karo "sab wired hai")
-- **Orphan loops**: har `run_*/run_due/run_if_enabled/*_sweep/pulse/optimize/tick` function ka koi call-site hona chahiye. AST/grep se defs vs call-sites compare karo — 0 orphans = wired.
-- **Scheduler ↔ Celery parity**: `team_scheduler._run_job` ke jobs aur `worker.py` beat_schedule mirror hone chahiye. `automation_health.EXPECTED_GAP_MIN` me har job registered ho (dead-man switch).
-- **Scheduler reality**: LIVE = **Celery durable** (`leadgen_worker` + `leadgen_scheduler` beat containers, `RUN_IN_PROCESS_SCHEDULER=0`). In-process APScheduler (`team_scheduler`, `main.py` lifespan `start_scheduler()`, gated `RUN_IN_PROCESS_SCHEDULER=1`) = **rollback path**, default nahi. DLQ → Redis `dlq:failed_tasks`.
-- **Truncation guard**: AST se aise functions dhoondo jinka body sirf docstring ho ya last statement ek bare `Name`/`Attribute` ho (jaise `refresh_custom_nic` — `lead_band()` truncation bug). Ye "file truncate" hazard (bade multi-edit me file kat-ti hai) ka signature hai.
+### B2. Loops / backend completeness audit
+- **Orphan loops:** har `run_*/run_due/run_if_enabled/*_sweep/pulse/optimize/tick` ka call-site ho — AST/grep defs vs call-sites, 0 orphans = wired.
+- **Scheduler ↔ Celery parity:** `team_scheduler._run_job` jobs = `worker.py` beat_schedule mirror; har job `automation_health.EXPECTED_GAP_MIN` me (dead-man).
+- **Scheduler reality:** LIVE = Celery durable (`RUN_IN_PROCESS_SCHEDULER=0`); in-process APScheduler = rollback path only. DLQ = Redis `dlq:failed_tasks`.
+- **Truncation guard:** AST se docstring-only bodies / bare trailing `Name`/`Attribute` dhoondo (`lead_band()` truncation-bug signature).
 
-## 3. Naya loop / engine add karne ka pattern
-1. Engine module me `async def run_due()/run_check()` likho — gated env-flag, daily/period dedupe (state file, success pe hi mark → fail pe next-tick retry), never-raise.
-2. `team_scheduler._run_job` ke sahi job (content/digest/watchdog/prospect) me try/except ke saath wire karo.
-3. Agar durable chahiye to `worker.py` beat me bhi mirror karo + `automation_health` gap registry me daalo.
-4. Flag ko `AUTOMATION_FLAGS` registry (growth.py) me add karo taaki `/api/growth/infra/flags` pe dikhe.
-5. **Admin feature = UI tab saath hi** (`/app/automation` me) — API-only = adhoora.
+### B3. Naya loop / engine pattern
+1. Engine me `async def run_due()/run_check()` — env-flag gated, daily dedupe (state file, success pe hi mark), never-raise.
+2. `team_scheduler._run_job` ke sahi job me try/except ke saath wire.
+3. Durable chahiye → `worker.py` beat mirror + `automation_health` gap registry.
+4. Flag → `AUTOMATION_FLAGS` registry (growth.py) → `/api/growth/infra/flags` pe dikhe.
+5. **Admin feature = UI tab SAATH hi** (`/app/automation`) — API-only = adhoora.
 
-## 4. Testing — TARGETED suites, full suite offline-hangs
-- **Full `pytest` offline-clean NAHI hai**: kai tests (test_agent_stack, test_2026_features, growth_engine self-heal) real LLM/embedder/network call karte hain → offline HANG. `socket.setdefaulttimeout` async httpx ko cover NAHI karta.
-- **Isliye CHANGED files + relevant regression suites chalao**, poora suite nahi. `conftest` me `RUN_IN_PROCESS_SCHEDULER=0` + `TEAM_AUTOMATION=0` + socket timeout already set.
-- Test isolation: jo test "empty → zeros" assert karta hai, usko saare data sources (jsonl + DB `get_db_session` + clients_store/seo_blog/auto_content) stub karne padte hain — warna shared test-DB ke leftover rows se fail.
-- Pricing/contract changes ke baad `test_billing_truth_2026` zaroor green rakho.
+### B4. Testing — TARGETED suites, full suite offline-hangs
+- Full `pytest` offline-clean NAHI (test_agent_stack / test_2026_features / growth_engine real network → HANG). **Changed files + relevant regression suites hi chalao.**
+- Test isolation: "empty → zeros" assert = SAARE data sources stub karo (jsonl + DB + clients_store/seo_blog/auto_content).
+- Pricing/contract touch = `test_billing_truth_2026` green FIRST (`tdd-contract-first`).
 
-## 5. Deploy loop (detail: leadgen-ops + hostinger-deploy skills)
-App = **Docker container `leadgen_app`** (`docker-compose.vps.yml`); systemd `leadgen` DISABLED (rollback only). Loop: `python scripts/prod_check.py` → changed-file tests → Windows git push → VPS pull + `docker compose build app` + `up -d --no-deps app` (= **hard reload**, stale .pyc se naya `@app.get` page-route 404 deta — container recreate isko clear karta) → `/health` = `environment:production` verify (sleep 16 + 2x check). `app/`+`frontend/`+`.claude/skills/` image me BAKED (rebuild chahiye); `data/`+`logs/` bind-mount (no rebuild). CI deploy-gated (`DEPLOY_ENABLED`) — push se auto-deploy nahi hota. **Live-VPS deploy = explicit user-auth chahiye, infer mat karo.**
+### B5. Deploy loop (detail: `leadgen-ops` + `hostinger-deploy`)
+App = Docker `leadgen_app` (`docker-compose.vps.yml`); systemd DISABLED (rollback only). Loop: prod_check → changed-file tests → Windows git push → VPS pull + `docker compose build app` + `up -d --no-deps app` (= hard reload; stale .pyc clear) → `/health` = `environment:production` (sleep 16 + 2x). `app/`+`frontend/`+`.claude/skills/` image me BAKED (rebuild); `data/`+`logs/` bind-mount. CI gate-only (`DEPLOY_ENABLED` unset). **Live deploy = explicit user-auth, infer mat karo (A10).**
 
-## 6. Commit discipline
-- Ek commit = ek coherent change-set. Critical bug-fix ko bade frontend chunk ke saath bundle mat karo.
-- Secrets KABHI committed file me nahi — sirf `.env` (gitignored).
-- Untracked unrelated files (e.g. `vps_*.sh`) ko apne commit me mat ghaseeto — explicit `git add <files>` karo.
-- Parallel-Cursor hazard: shared files commit se pehle `git status`/`diff` dekho; `git add -A` mat karo.
+### B6. Commit discipline
+Ek commit = ek coherent change-set; critical fix ko bade frontend chunk se bundle nahi. Secrets kabhi nahi. Explicit `git add <files>` — `git add -A` BAN (parallel Cursor edits; shared files pehle `git status`/diff).
 
-## 7. Pricing / niche model (current truth — galat assume mat karo)
-- Niches: **39 curated builtin** (S=8, A=14, B=17). Purane real_estate/wedding_venues REMOVED (intentional rebuild). `lead_band(key)` → A/B/C.
-- Voice product: **FLAT MONTHLY per band** (A ₹4,999 / B ₹9,999 / C ₹19,999; annual=10×; free pilot). `voice_packages.BANDS` + `VOICE_PLAN_IDS`. Per-lead/per-10-lead system HATA diya gaya — `VOICE_TIERS`/`PACK_SIZE=10` ab nahi. Quota flat = UNLIMITED_QUOTA.
-- Marketing product (PUBLIC = 2 plans): **Main** (`starter`) ₹1,999/mo · **Combo/Advanced** (`advanced`, +500 voice min) ₹5,999/mo (annual 10× = 19,990/59,990). **Growth ₹2,999 (`growth`) = legacy HIDDEN (`public:False`) — public pricing me kabhi nahi → `get_public_packages()`.** `app/marketing/packages.py` = single source of truth; pricing change = packages.py + `test_billing_truth_2026` SAATH. (Number duplicate mat karo — source = packages.py.)
+### B7. Pricing / niche model (current truth)
+- Niches: **39 curated builtin** (S=8, A=14, B=17); `lead_band(key)` → A/B/C.
+- Voice: **FLAT MONTHLY per band** (A ₹4,999 / B ₹9,999 / C ₹19,999; annual=10×) — `voice_packages.BANDS`; per-lead/pack system REMOVED; quota = UNLIMITED_QUOTA.
+- Marketing (PUBLIC = 2): **Main** `starter` ₹1,999/mo · **Combo/Advanced** `advanced` (+500 voice min) ₹5,999/mo (annual 10×). **Growth ₹2,999 = legacy HIDDEN → `get_public_packages()`.** Source = `app/marketing/packages.py` — numbers duplicate mat karo; change = packages.py + `test_billing_truth_2026` SAATH.
 
-## 8. Decision-making (jab "best kya hai" poocha jaye)
-- Revenue-blocking + user-action (payments/DLT/KYC) = highest priority flag karo, par wo user ke haath me hai.
-- Code-level: incomplete loops complete karo, hidden bugs (truncation/wiring) fix karo, tests green rakho.
-- Ambiguous product decision (niche count, pricing) = git history/CLAUDE.md se intent confirm karo; nahi to user se 1 focused sawaal. Ambiguous strategy/go-no-go → `llm-council-decision` (asking nahi).
-- "Improvement ≠ broken": prod_check PASS ka matlab "kuch banana nahi" NAHI — cross-path wiring gaps, untested fixes, dormant-but-wireable loops dhoondo + SHIP karo (decide-and-ship, AskUserQuestion pe mat atko jab real wireable value ho).
-- Har session ke end pe: prod_check + targeted tests + commit + user ko deploy step yaad dilao.
+### B8. Decision-making ("best kya hai" pe)
+- Revenue-blocking user-actions (payments/DLT/KYC) = flag highest, par user ke haath.
+- Code-level: incomplete loops complete, hidden bugs (truncation/wiring) fix, tests green.
+- Ambiguous product decision → git/CLAUDE.md intent → warna 1 focused sawaal (A4). Ambiguous strategy/go-no-go → `llm-council-decision`.
+- "Improvement ≠ broken": prod_check PASS ≠ kuch mat banao — wiring gaps + dormant-wireable loops dhoondo aur SHIP karo (A4 decide-and-ship).
+- Session end: prod_check + targeted tests + (user kahe to) commit + deploy reminder.
 
-## 9. Enterprise gates — automation, runtime & compliance
-Har automation, agent loop, scheduler job, webhook, integration, billing/outbound flow, ya production-runtime change pe yeh higher bar:
+### B9. Enterprise gates — automation/runtime/compliance (10-point bar)
+1. Outcome, owner, trigger, output, failure-behavior explicit. 2. Env-flag/kill-switch; default safe + inert-without-creds. 3. Idempotency/dedupe (duplicate email/call/bill/post na ho). 4. Timeout + bounded retry + DLQ + never-raise. 5. Durable job → scheduler/Celery/`automation_health` parity. 6. Log/metric/heartbeat + operator surface. 7. Rollback NAMED (flag OFF · container recreate · migration rollback · data repair). 8. Quota/cost fallback free-stack graceful. 9. Auth/RBAC · TRAI/DND/AI-disclosure · DPDP · billing-truth · secrets — **fail-CLOSED** jahan required. 10. Test = happy + 1 failure + idempotency.
 
-**Automation bar (10):**
-1. Product outcome, owner, trigger, output, failure-behavior explicit.
-2. Env flag/kill-switch; default safe + inert-without-creds.
-3. Idempotency key/dedupe → duplicate email/call/bill/post/CRM-write na ho.
-4. Provider/network work: timeout + bounded retry + DLQ/fail-record + never-raise wrapper.
-5. Durable job → Scheduler/Celery/`automation_health` parity update.
-6. Event/log/metric/heartbeat + admin/operator surface jahan useful.
-7. Rollback path NAMED: flag OFF · container recreate · migration rollback · data repair.
-8. Quota/cost fallback free-stack + graceful.
-9. Auth/RBAC, TRAI/DND/AI-disclosure, DPDP, billing-truth, secret-safety — **fail-CLOSED** jahan required.
-10. Test/smoke = happy path + 1 failure path + idempotency/dedupe.
+**Fail-CLOSED non-negotiables:** TRAI window 9am–7pm · DND scrub (lookup-fail = block) · AI-disclosure-at-start · DPDP consent/retention · GST sirf `GST_GSTIN` pe · secrets `.env`-only.
 
-**Fail-CLOSED non-negotiables** (bypass = legal/financial risk): TRAI calling-window 9am–7pm · DND scrub (lookup-fail = block) · AI-disclosure-at-start · DPDP consent/retention · billing GST-on-`GST_GSTIN`-only · secrets `.env`-only.
+**Incident:** prod down/freeze → `prod-incident-triage` (detect → py-spy → recover → root-cause). Rollback pehle, root-cause zaroor baad me.
 
-**Incident:** prod down/freeze/unhealthy → `prod-incident-triage` skill (detect → py-spy → recover → root-cause). Rollback pehle, root-cause baad me — par root-cause zaroor pakdo (symptom-only fix ban).
+## PART C — BILLIONAIRE OPERATOR LENS (loop portfolio = business, not code)
+
+Har automation loop ek chhota business hai — uska cost, revenue-attribution, risk aur owner hota hai. Loops ka portfolio waise manage karo jaise operator capital allocate karta hai.
+
+### C1. Capital-allocation rules
+1. **Constraint-first (Theory of Constraints):** system ka throughput = bottleneck ka throughput. Current bottleneck = mid-funnel (reply→deal, Hot Queue `/app/inbox`) — jab tak constraint wahi hai, naya top-funnel loop banana = waste. Engineering hamesha constraint pe lagao, comfortable jagah pe nahi.
+2. **Automate the proven, not the hoped:** jo manual me karke PROVE ho chuka (conversion dikha) wahi automate karo. Unproven automation = paisa + reputation burn — platform_dial lesson: IVR/bots "interested" mark + real ₹ burn. Pehle 10 baar haath se, phir machine se.
+3. **Har loop ka P&L:** ₹cost-meter (pattern: `call_cost`, `VOBIZ_COST_PAISE_PER_MIN`) + revenue-attribution (kis loop se inquiry/payment aayi). Loop jo apna cost justify nahi karta = OFF. Vanity metrics (emails sent, calls made, pages generated) = BAN; north-star = paying-customer distance (~2000 emails / 0 reply = activity, business nahi).
+4. **Leverage ladder:** ek baar banao, saare clients pe chale — multi-tenant, config-driven, niche-parameterized. Per-client custom code = liability; config = asset.
+5. **Compounding assets > activity:** loops jo durable asset banate hain (SEO pages, domain/sender reputation, consent ledger, KB embeddings, reviews/testimonials) > loops jo sirf activity karte hain. Compounding asset ko KABHI short-term volume ke liye risk mat karo — domain-rep kharab = mahino ka loss (email 25/day cap isi math se hai).
+6. **Risk-adjusted EV:** ek WhatsApp ban / TRAI violation / spam-blacklist = channel ka PERMANENT loss. "Thoda aur volume" ka upside chhota, ban ka downside fatal — tail-risk ko EV me weight do. Fail-CLOSED compliance gates isi math ka code-roop hain, friction nahi.
+7. **Kill fast, no sunk cost:** loop 2 hafte me signal nahi deta → flag OFF + `memory/backlog.md` me park + 1-line postmortem `incidents.md`/`decisions.md` me. Zombie loops quota/attention/risk hamesha kha rahe hote hain.
+8. **Buy back founder time:** automation ka job = user ke manual kaam KAM karna (sirf high-value human actions bachein: UPI confirm, DLT, QR-scan, 1-click sends). Jo loop naya review-kaam paida kare bina revenue ke = negative automation — reject.
+9. **Sequencing > parallel bets (0→1 phase):** 1 customer → 10 → repeatable playbook → TAB scale-automation. Abhi depth (ek channel ko convert karana) > breadth (5 naye channels kholna).
+
+### C2. Enterprise loop patterns (B9 ke upar — scale-grade)
+- **Loop passport (mandatory metadata):** har durable loop ke paas — flag (`AUTOMATION_FLAGS`) + owner + SLO (max-gap `EXPECTED_GAP_MIN`, success-rate) + cost-meter + named rollback + runbook pointer. Koi bhi missing = loop adhoora, ship nahi.
+- **Budgets + backpressure:** har external-provider loop pe hard daily/period budget (email 25/day, `PROSPECT_MAX_LOOKUPS=60`, LLM key-rotation/circuit-breaker) — budget khatam = graceful SKIP + metric emit; burst/queue-pileup KABHI nahi. Cache TTL > poll interval.
+- **Canary rollout:** naya risky loop pehle allowlist/single-client mode (`dial_test_mode` pattern) → evidence (scorecard/conversion) → phir sab pe. Big-bang enable = ban.
+- **Human-in-the-loop for money/reputation:** payment confirm, WhatsApp send, outbound-call enable, contract — automation PREPARE kare, human FIRE kare (1-click pattern). Full-auto sirf proven + low-risk + reversible pe.
+- **Tenant isolation in every loop:** har query/write client-scoped; cross-client data touch = DPDP breach + trust-kill. Loop ke tests me 1 isolation case mandatory.
+- **DLQ = revenue recovery, not garbage:** `dlq:failed_tasks` weekly inspect + replay runbook — har dropped task potentially ek dropped lead/₹ hai.
+- **Weekly loop-review ritual (khud ek loop):** automation_health gaps + cost meters + per-loop conversion → har loop pe explicit decision: **KEEP / KILL / SCALE / FIX** — Office HQ brief me surface ho, decision `decisions.md` me.

@@ -287,6 +287,79 @@ async def run_all() -> dict[str, Any]:
     return out
 
 
+# ── Customer-facing read (GAP-1 fix 2026-07-06) ───────────────────────────────
+# The hands-free drafts above used to die in data/autopilot_*.jsonl with NO
+# require_customer route reading them — so the advertised "hands-free" layer was
+# invisible to the buyer. This is the read the customer dashboard surfaces.
+_KIND_LABELS = {
+    "owner_brief": "☀️ Aaj ka owner brief",
+    "nps_survey": "⭐ Customer feedback survey (bhejne ke liye taiyaar)",
+    "stale_inquiry_nudge": "🔔 Purani inquiry ka follow-up (taiyaar)",
+    "evergreen_recycle": "♻️ Top post dobara share karein",
+}
+
+
+def _draft_title(rec: dict[str, Any]) -> str:
+    kind = str(rec.get("kind") or "").strip()
+    return _KIND_LABELS.get(kind, (kind or "AI draft").replace("_", " ").title())
+
+
+def drafts_for_client(
+    client_id: str, slug: str = "", days: int = 14, limit: int = 50
+) -> list[dict[str, Any]]:
+    """All hands-free autopilot drafts (owner-brief / feedback survey / stale-inquiry
+    nudge / evergreen) prepared for ONE client, newest first — the customer-facing
+    read of "what your AI team got ready". Matches on client_id OR slug (the nps
+    store keys by slug, not client_id). Draft-only; never auto-sends. Never raises."""
+    cid = str(client_id or "").strip()
+    sl = str(slug or "").strip().lower()
+    if not cid and not sl:
+        return []
+    import glob
+    from datetime import timedelta
+
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=max(1, days))).strftime("%Y-%m-%d")
+    out: list[dict[str, Any]] = []
+    try:
+        for path in sorted(glob.glob(os.path.join(_DATA_DIR, "autopilot_*.jsonl"))):
+            try:
+                with open(path, encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except Exception:
+                            continue
+                        rc = str(rec.get("client_id") or "").strip()
+                        rslug = str(rec.get("slug") or rec.get("client") or "").strip().lower()
+                        if not ((cid and rc == cid) or (sl and rslug == sl)):
+                            continue  # not this customer's draft (tenant isolation)
+                        if str(rec.get("date") or "") < cutoff:
+                            continue
+                        out.append(
+                            {
+                                "kind": rec.get("kind") or "draft",
+                                "title": _draft_title(rec),
+                                "text": rec.get("brief")
+                                or rec.get("message")
+                                or rec.get("text")
+                                or "",
+                                "wa_link": rec.get("wa_link") or "",
+                                "status": rec.get("status") or "draft",
+                                "date": rec.get("date") or "",
+                                "created_at": rec.get("created_at") or "",
+                            }
+                        )
+            except Exception:  # pragma: no cover — one bad file must not sink the rest
+                continue
+    except Exception:  # pragma: no cover
+        return []
+    out.sort(key=lambda r: (r.get("created_at") or r.get("date") or ""), reverse=True)
+    return out[: max(1, limit)]
+
+
 __all__ = [
     "evergreen_recycle_all",
     "nps_survey_drafts",

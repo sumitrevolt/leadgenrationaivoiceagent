@@ -447,10 +447,14 @@ async def trigger_tenant_scrape(
     return {"status": "started", "message": f"Scraping started for {tenant.company_name}"}
 
 
-@router.get("/health")
+@router.get("/health", dependencies=[Depends(require_admin)])
 async def health_check():
     """
-    Platform health check
+    Platform health check (admin-only — leaks tenant count + scheduler state).
+
+    NOTE: the PUBLIC liveness probe is the top-level `/health` route (uptime/Caddy);
+    this `/api/platform/health` is internal operator state and was anonymously
+    reachable (2026-07-06 sec sweep — the "one ungated route in a gated file" trap).
     """
     return {
         "status": "healthy",

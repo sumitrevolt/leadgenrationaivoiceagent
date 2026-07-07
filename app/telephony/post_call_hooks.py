@@ -333,6 +333,21 @@ async def auto_qualify_and_downstream(
                 _lead_usage.record_qualified_lead(client_id, ref=str(call_id))
             except Exception:
                 pass
+        # ADR-027 self-improve loop: qualifier ne bot/IVR CONFIRM kiya -> number+
+        # prefix dial_blocklist me seekho + prospect dial_block tag (in-call
+        # IVR-strike hook ka post-call parity — ADR-006 cross-path rule).
+        try:
+            if q.get("bot_suspected") and str(q.get("bot_reason") or "").startswith("ivr_phrase"):
+                from app.telephony import call_feedback
+
+                call_feedback.record_ivr_confirmed(
+                    phone or "",
+                    source="post_call_bot",
+                    call_sid=str(call_id or ""),
+                    detail=str(q.get("bot_reason") or "")[:80],
+                )
+        except Exception:
+            pass
         await apply_qualified_downstream(
             q,
             client_id=str(client_id or ""),

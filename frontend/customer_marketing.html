@@ -594,6 +594,14 @@
           <div class="hint" id="uxTeamHint">Content, leads aur calls yahan update honge.</div>
         </div>
       </div>
+      <!-- Hands-free autopilot drafts — customer surface for /api/customer/autopilot
+           (GAP-1 delivery fix 2026-07-06). Hidden until the AI team has prepared
+           drafts (owner-brief / feedback survey / follow-up nudge / evergreen). -->
+      <div data-view="home" class="card" id="autopilotCard" style="display:none;margin-top:14px" aria-label="Aapki AI team ne ye taiyaar kiya">
+        <div class="sec-title" style="margin:0 0 6px">🤖 Aapki AI team ne ye taiyaar kiya</div>
+        <div class="sm" style="color:var(--muted);font-size:11px;margin-bottom:8px">Bhejne ke liye taiyaar — ek click me WhatsApp karo ya copy karo (aap decide karo, auto-send nahi).</div>
+        <div id="autopilotBody"></div>
+      </div>
         <div data-view="home" class="hero-leads">
           <div class="lab">🔥 Naye Leads</div>
           <div class="big" id="todayLeads">—</div>
@@ -1619,6 +1627,29 @@ function renderCreatives(d){
 function copyCreative(i){ const p=(window._CREATIVES||[])[i]; if(!p) return; const tags=(p.hashtags||[]).map(h=>'#'+String(h).replace(/^#/,'')).join(' '); const txt=(p.caption||'')+(tags?'\n\n'+tags:''); navigator.clipboard.writeText(txt).then(function(){ toast('Copy ho gaya 📋','WhatsApp/Insta pe paste karo.'); }); }
 function dlPoster(i){ const p=(window._CREATIVES||[])[i]; if(!p||!p.svg) return; const blob=new Blob([p.svg],{type:'image/svg+xml'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=(p.title||'poster').replace(/[^a-z0-9]+/gi,'_').slice(0,40)+'.svg'; a.click(); URL.revokeObjectURL(a.href); }
 
+/* Hands-free autopilot drafts — "Aapki AI team ne ye taiyaar kiya" (GAP-1 2026-07-06).
+   Reads /api/customer/autopilot (require_customer). Card stays HIDDEN when there are
+   no drafts, so a logged-out/demo view or an un-armed autopilot shows nothing (no
+   empty clutter). Draft-only: 1-click WhatsApp/Copy — never auto-sends. */
+async function loadAutopilot(){
+  const card=document.getElementById('autopilotCard'); const body=document.getElementById('autopilotBody');
+  if(!card||!body) return;
+  try{
+    const r=await fetch('/api/customer/autopilot',{headers:Object.assign({Accept:'application/json'},billAuthHdr())});
+    if(!r.ok) throw new Error('bad '+r.status);
+    const d=await r.json(); const drafts=(d&&d.drafts)||[];
+    if(!drafts.length){ card.style.display='none'; return; }
+    window._AUTOPILOT=drafts;
+    body.innerHTML=drafts.slice(0,8).map(function(x,i){
+      const txt=(x.text||'').slice(0,300)+((x.text||'').length>300?'…':'');
+      const wa=x.wa_link?'<a class="btn primary" href="'+escH(x.wa_link)+'" target="_blank" rel="noopener">📲 WhatsApp bhejo</a>':'<button class="btn primary" onclick="copyAutopilot('+i+')">📋 Copy</button>';
+      return '<div class="creative-item"><div class="ct">'+escH(x.title||'Draft')+' <span class="pill" style="font-size:9px">'+escH(x.status||'draft')+'</span></div><div class="cc">'+escH(txt)+'</div><div class="row">'+wa+'</div></div>';
+    }).join('');
+    card.style.display='';
+  }catch(e){ card.style.display='none'; }
+}
+function copyAutopilot(i){ const x=(window._AUTOPILOT||[])[i]; if(!x) return; navigator.clipboard.writeText(x.text||'').then(function(){ toast('Copy ho gaya 📋','WhatsApp pe paste karke bhejo.'); }); }
+
 async function loadReport(){
   const body=document.getElementById('reportBody'); if(!body) return;
   body.innerHTML='<span class="sm" style="color:var(--muted)">Report ban rahi hai… ⏳ (~10 sec)</span>';
@@ -1799,6 +1830,7 @@ const BILL = { cid: "demo", token: "" };
       loadSpeedToLead();
       loadTeam();
       loadGbp(); loadCreatives();  // reload self-serve tools with real client data
+      loadAutopilot();  // hands-free drafts ("AI team ne ye taiyaar kiya") — real client only
       if(window._teamPoll) clearInterval(window._teamPoll);
       window._teamPoll = setInterval(loadTeam, 25000);  // keep the office "live"
       if(!live.is_sample_data) toast("Live data ✅","Server se aapka asli data load ho gaya.");

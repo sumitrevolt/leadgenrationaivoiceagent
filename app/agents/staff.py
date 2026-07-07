@@ -79,6 +79,76 @@ _SLOW_S = 9.0
 # --------------------------------------------------------------------------- #
 # arjun — QA run (text mode, brain direct)
 # --------------------------------------------------------------------------- #
+def _staff_job_failed(job: str, err: str) -> None:
+    """W1.14: staff job ne {"error":...} return kiya (raise nahi → record_run ise
+    ok=True samajhta). Dedicated fail metric + ntfy alert. Best-effort, never-raise."""
+    try:
+        from app.platform import job_metrics
+
+        job_metrics.record_error(job)
+    except Exception:
+        pass
+    try:
+        from app.platform import ops_alerts
+
+        ops_alerts.alert_staff_failure(job, err)
+    except Exception:
+        pass
+
+
+def _qa_default_niches() -> list[str]:
+    """W2.2: QA niche set parametrized — env `QA_NICHES` (comma-sep) se override,
+    warna SCRIPTS ke 3 default. Bina-script niche = `_GENERIC_TURNS` (already handled),
+    to koi bhi niche testable. Additive: QA_NICHES unset = purana 3-niche default."""
+    raw = os.getenv("QA_NICHES", "").strip()
+    if raw:
+        got = [n.strip() for n in raw.split(",") if n.strip()]
+        if got:
+            return got
+    return list(SCRIPTS.keys())
+
+
+def _real_transcript_turns(max_per_niche: int = 6, files_n: int = 2) -> dict[str, list[str]]:
+    """W2.2-half2: recent REAL call transcripts (data/call_transcripts/*.jsonl) se
+    per-niche USER turns — QA canned scripts ke bajaye asli utterances (Hinglish-STT
+    quirks samet) replay kar sake (run_qa me gated QA_REAL_TRANSCRIPTS). Junk-STT
+    skip + dedupe + bounded. Never-raise → {}."""
+    out: dict[str, list[str]] = {}
+    try:
+        d = os.path.join("data", "call_transcripts")
+        try:
+            files = [os.path.join(d, f) for f in os.listdir(d) if f.endswith(".jsonl")]
+        except Exception:
+            return {}
+        files.sort(key=lambda p: os.path.getmtime(p), reverse=True)
+        for path in files[:files_n]:
+            try:
+                with open(path, encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except Exception:
+                            continue
+                        niche = str(rec.get("niche") or "general").strip() or "general"
+                        turns = out.setdefault(niche, [])
+                        for m in rec.get("messages") or []:
+                            if (m.get("role") or "").lower() != "user":
+                                continue
+                            t = str(m.get("content") or "").strip()
+                            if not t or _is_junk_stt(t) or t in turns:
+                                continue
+                            if len(turns) < max_per_niche:
+                                turns.append(t)
+            except Exception:
+                continue
+    except Exception:
+        return {}
+    return {k: v for k, v in out.items() if v}
+
+
 async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
     """Scripted convos se TelecallerBrain ko test karo; issues collect + log.
 
@@ -90,12 +160,19 @@ async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
     try:
         from app.voice_agent.telecaller_brain import TelecallerBrain
 
-        targets = [n for n in (niches or list(SCRIPTS.keys())) if n]
+        targets = [n for n in (niches or _qa_default_niches()) if n]
+        # W2.2-half2 (gated, default OFF = inert): real transcript user-turns replay
+        # + transcript ke niches QA targets me (bounded +3) — QA wahi test kare jo
+        # asli calls pe hota hai.
+        real_turns: dict[str, list[str]] = {}
+        if os.getenv("QA_REAL_TRANSCRIPTS", "").strip().lower() in ("1", "true", "yes", "on"):
+            real_turns = _real_transcript_turns()
+            targets = targets + [n for n in real_turns if n not in targets][:3]
         issues: list[str] = []
         total_turns = 0
 
         for niche in targets:
-            turns = SCRIPTS.get(niche, _GENERIC_TURNS)
+            turns = real_turns.get(niche) or SCRIPTS.get(niche, _GENERIC_TURNS)
             try:
                 brain = TelecallerBrain(niche=niche)
                 history: list[dict[str, str]] = []
@@ -145,6 +222,7 @@ async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
             team.log_event("arjun", "qa_run", f"QA crash: {e}", status="error")
         except Exception:
             pass
+        _staff_job_failed("qa", str(e))  # W1.14: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -157,6 +235,29 @@ def _is_junk_stt(text: str) -> bool:
     if len(t) < 3:
         return True
     return not any(ch.isalnum() for ch in t)
+
+
+def _trainer_thresholds() -> tuple[int, float, int]:
+    """W2.3: trainer suggestion thresholds env-tunable (pehle hardcoded 2 / 0.3 / 28) —
+    deployment apne call-profile ke hisaab se retune kar sake. Garbage env = default."""
+
+    def _num(env: str, default, cast):
+        try:
+            raw = os.getenv(env, "").strip()
+            return cast(raw) if raw else default
+        except Exception:
+            return default
+
+    return (
+        _num("TRAINER_REPEAT_MAX", 2, int),
+        _num("TRAINER_JUNK_RATIO", 0.3, float),
+        _num("TRAINER_REPLY_WORDS", 28, int),
+    )
+
+
+# W2.3-half2: per-niche signal ke liye minimum user-turns — 1-2 turn wali niche
+# ka junk-ratio noise hota, us par targeted suggestion nahi banate.
+_NICHE_MIN_TURNS = 3
 
 
 async def run_trainer() -> dict[str, Any]:
@@ -190,6 +291,9 @@ async def run_trainer() -> dict[str, Any]:
         repeats = 0
         junk_user = 0
         user_msgs = 0
+        # W2.3-half2: per-niche accumulation — aggregate ek noisy niche ko mask
+        # kar deta tha (global junk threshold ke niche, ek niche 100% junk).
+        niche_stats: dict[str, dict[str, Any]] = {}
 
         for path in files:
             try:
@@ -203,6 +307,12 @@ async def run_trainer() -> dict[str, Any]:
                         except Exception:
                             continue
                         calls += 1
+                        niche = str(rec.get("niche") or "general").strip() or "general"
+                        ns = niche_stats.setdefault(
+                            niche,
+                            {"calls": 0, "user_msgs": 0, "junk_user": 0, "reply_words": [], "repeats": 0},
+                        )
+                        ns["calls"] += 1
                         for k, v in (rec.get("stt_counts") or {}).items():
                             try:
                                 stt_counts[k] = stt_counts.get(k, 0) + int(v)
@@ -216,13 +326,17 @@ async def run_trainer() -> dict[str, Any]:
                             content = str(m.get("content") or "").strip()
                             if role == "user":
                                 user_msgs += 1
+                                ns["user_msgs"] += 1
                                 if _is_junk_stt(content):
                                     junk_user += 1
+                                    ns["junk_user"] += 1
                             else:  # assistant/bot
                                 if content:
                                     reply_word_counts.append(len(content.split()))
+                                    ns["reply_words"].append(len(content.split()))
                                     if last_bot is not None and content == last_bot:
                                         repeats += 1
+                                        ns["repeats"] += 1
                                     last_bot = content
             except Exception as e:
                 logger.debug(f"[staff] trainer: file {path} skip: {e}")
@@ -232,17 +346,31 @@ async def run_trainer() -> dict[str, Any]:
         )
         junk_ratio = round(junk_user / user_msgs, 2) if user_msgs else 0.0
 
-        # ---- simple rule-based Hinglish suggestions ----
+        by_niche: dict[str, dict[str, Any]] = {}
+        for n, ns in niche_stats.items():
+            rw = ns["reply_words"]
+            by_niche[n] = {
+                "calls": ns["calls"],
+                "user_turns": ns["user_msgs"],
+                "junk_stt_ratio": round(ns["junk_user"] / ns["user_msgs"], 2)
+                if ns["user_msgs"]
+                else 0.0,
+                "avg_reply_words": round(sum(rw) / len(rw), 1) if rw else 0.0,
+                "repeats": ns["repeats"],
+            }
+
+        # ---- rule-based Hinglish suggestions (W2.3: env-tunable thresholds) ----
+        _rep_max, _junk_max, _words_max = _trainer_thresholds()
         suggestions: list[str] = []
-        if repeats > 2:
+        if repeats > _rep_max:
             suggestions.append(
                 "Bot replies repeat ho rahi hain — script fallback rotate ho raha hai, prompts vary karo ya flow aage badhao."
             )
-        if junk_ratio > 0.3:
+        if junk_ratio > _junk_max:
             suggestions.append(
                 f"STT junk zyada hai ({int(junk_ratio*100)}% user turns garbage) — VAD/SILENCE_MS tune karo, Groq STT key check karo."
             )
-        if avg_reply_len > 28:
+        if avg_reply_len > _words_max:
             suggestions.append(
                 f"Replies lambi hain (avg {avg_reply_len} words) — brevity cap aur tight karo (target <=25w)."
             )
@@ -252,6 +380,19 @@ async def run_trainer() -> dict[str, Any]:
             suggestions.append(
                 "Groq STT primary nahi chal raha (fallback zyada use hua) — GROQ_API_KEY / quota check karo."
             )
+        # W2.3-half2: aggregate ke piche chhupi noisy-STT niche flag karo — global
+        # junk threshold ke NICHE ho tab bhi ek niche cross kar sakti hai (masked).
+        if junk_ratio <= _junk_max and len(by_niche) >= 2:
+            _sig = [
+                (n, d) for n, d in by_niche.items() if d["user_turns"] >= _NICHE_MIN_TURNS
+            ]
+            if _sig:
+                worst_n, worst_d = max(_sig, key=lambda x: x[1]["junk_stt_ratio"])
+                if worst_d["junk_stt_ratio"] > _junk_max:
+                    suggestions.append(
+                        f"Niche '{worst_n}' me STT junk {int(worst_d['junk_stt_ratio'] * 100)}% hai "
+                        "(baaki niches theek) — us niche ke calls/VAD/mic-path check karo."
+                    )
         if not suggestions:
             suggestions.append(
                 "Calls healthy lag rahi hain — koi major issue nahi, aise hi monitor karte raho."
@@ -265,6 +406,7 @@ async def run_trainer() -> dict[str, Any]:
             "avg_reply_words": avg_reply_len,
             "repeats": repeats,
             "junk_stt_ratio": junk_ratio,
+            "by_niche": by_niche,
             "files": [os.path.basename(p) for p in files],
             "suggestions": suggestions,
         }
@@ -299,6 +441,7 @@ async def run_trainer() -> dict[str, Any]:
             team.log_event("meera", "training_analysis", f"trainer crash: {e}", status="error")
         except Exception:
             pass
+        _staff_job_failed("trainer", str(e))  # W1.14: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -308,6 +451,19 @@ async def run_trainer() -> dict[str, Any]:
 _TRANSCRIPTS_DIR = os.path.join("data", "call_transcripts")
 _EVENT_RETENTION_DAYS = 60
 _TRANSCRIPT_RETENTION_DAYS = 90
+
+# W1.8: unbounded JSONL stores — append-only, koi prune nahi tha → disk unbounded grow.
+# Line-cap rotation (newest rakho). Cap env-overridable; garbage env = default 20000.
+try:
+    _JSONL_MAX_LINES = max(1000, int(os.getenv("JSONL_ROTATE_MAX_LINES", "20000")))
+except Exception:
+    _JSONL_MAX_LINES = 20000
+_JSONL_ROTATE_FILES = [
+    os.path.join("data", "self_improve_runs.jsonl"),
+    os.path.join("data", "content_feedback.jsonl"),
+    os.path.join("data", "reply_drafts.jsonl"),
+]
+_JSONL_ROTATE_DIR = os.path.join("data", "content_queue")  # per-client <id>.jsonl
 
 
 def _prune_old_events(days: int = _EVENT_RETENTION_DAYS) -> int:
@@ -362,6 +518,43 @@ def _prune_old_transcripts(days: int = _TRANSCRIPT_RETENTION_DAYS) -> int:
     return removed
 
 
+def _trim_jsonl(path: str, max_lines: int = _JSONL_MAX_LINES) -> int:
+    """W1.8: append-only JSONL ko last `max_lines` tak trim (newest rakho) — unbounded
+    growth rok. Atomic tmp+os.replace, best-effort (site_beacon pattern). Removed count."""
+    try:
+        if not os.path.isfile(path):
+            return 0
+        with open(path, encoding="utf-8") as f:
+            lines = f.readlines()
+        if len(lines) <= max_lines:
+            return 0
+        keep = lines[-max_lines:]
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.writelines(keep)
+        os.replace(tmp, path)
+        return len(lines) - len(keep)
+    except Exception as e:
+        logger.debug(f"[staff] jsonl trim skipped ({path}): {e}")
+        return 0
+
+
+def _prune_jsonl_stores(max_lines: int = _JSONL_MAX_LINES) -> int:
+    """W1.8: kavya hygiene — unbounded JSONL stores (self_improve_runs, content_feedback,
+    reply_drafts, + content_queue/<id>.jsonl) ko cap pe trim. Total removed rows."""
+    total = 0
+    for _p in _JSONL_ROTATE_FILES:
+        total += _trim_jsonl(_p, max_lines)
+    try:
+        if os.path.isdir(_JSONL_ROTATE_DIR):
+            for _fn in os.listdir(_JSONL_ROTATE_DIR):
+                if _fn.endswith(".jsonl"):
+                    total += _trim_jsonl(os.path.join(_JSONL_ROTATE_DIR, _fn), max_lines)
+    except Exception as e:
+        logger.debug(f"[staff] content_queue prune skipped: {e}")
+    return total
+
+
 async def run_ops() -> dict[str, Any]:
     """Health snapshot: free-AI provider flags + DB reachability + disk free %.
     status="warn" agar koi provider off, DB down ya disk <10% free.
@@ -401,6 +594,13 @@ async def run_ops() -> dict[str, Any]:
         # Data retention (best-effort pruning — har piece apne andar guarded)
         pruned_events = _prune_old_events()
         pruned_transcripts = _prune_old_transcripts()
+        pruned_jsonl = _prune_jsonl_stores()  # W1.8: unbounded JSONL rotation
+        try:  # W4.1: warm-lead SLA founder nudge (gated WARM_SLA_NUDGE, inert default)
+            from app.platform import office_hq as _ohq
+
+            await _ohq.warm_lead_sla_nudge()
+        except Exception:
+            pass
 
         providers_on = sum(1 for v in providers.values() if v)
         warn = (
@@ -414,9 +614,11 @@ async def run_ops() -> dict[str, Any]:
             f"providers {providers_on}/{len(providers)} on, "
             f"db {'ok' if db_ok else 'DOWN'}, disk {disk_txt}"
         )
-        if pruned_events or pruned_transcripts:
+        if pruned_events or pruned_transcripts or pruned_jsonl:
             summary += (
-                f", pruned {pruned_events} old events" f" + {pruned_transcripts} old transcripts"
+                f", pruned {pruned_events} old events"
+                f" + {pruned_transcripts} old transcripts"
+                f" + {pruned_jsonl} jsonl rows"
             )
 
         result: dict[str, Any] = {
@@ -427,6 +629,7 @@ async def run_ops() -> dict[str, Any]:
             "uptime": "n/a",
             "pruned_events_60d": pruned_events,
             "pruned_transcripts_90d": pruned_transcripts,
+            "pruned_jsonl_rows": pruned_jsonl,
         }
         team.log_event("kavya", "health_check", summary, status=status, meta=result)
         return result
@@ -436,6 +639,7 @@ async def run_ops() -> dict[str, Any]:
             team.log_event("kavya", "health_check", f"ops crash: {e}", status="error")
         except Exception:
             pass
+        _staff_job_failed("ops", str(e))  # W1.14: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -531,6 +735,30 @@ async def run_digest() -> dict[str, Any]:
         ]
         text = "\n".join(lines)
 
+        # ---- W2.4: optional cheap-LLM synthesis (why + next action) — gated DIGEST_LLM
+        # (default OFF → pure rule-based). Free bulk profile (W1.10 cached). Fail-open. ----
+        try:
+            if os.getenv("DIGEST_LLM", "").strip().lower() in ("1", "true", "yes", "on"):
+                from app.voice_agent import free_ai
+
+                _synth, _ = await free_ai.chat(
+                    system=(
+                        "Tu ek SaaS founder ka short ops-analyst hai. Neeche aaj ke daily "
+                        "metrics hain. SIRF 2 chhoti Hinglish lines de: (1) sabse bada 'why' "
+                        "(kis cheez pe dhyan), (2) aaj ka #1 next action. Koi preamble nahi."
+                    ),
+                    messages=[{"role": "user", "content": text}],
+                    max_tokens=120,
+                    temperature=0.4,
+                    scope="digest",
+                    profile="bulk",
+                )
+                _synth = (_synth or "").strip()
+                if _synth:
+                    text = f"{text}\n\n🧠 {_synth}"
+        except Exception as e:
+            logger.debug(f"[staff] digest: LLM synth skipped: {e}")
+
         # ---- persist to data/daily_digest.txt (best-effort) ----
         try:
             os.makedirs("data", exist_ok=True)
@@ -560,6 +788,18 @@ async def run_digest() -> dict[str, Any]:
         except Exception as e:
             logger.debug(f"[staff] digest: email skipped: {e}")
 
+        # ---- W1.15: best-effort phone push (ntfy) — daily digest founder ke phone pe.
+        # Gated DIGEST_NTFY (default OFF, additive/inert); ntfy khud config-gate karta.
+        try:
+            if os.getenv("DIGEST_NTFY", "").strip().lower() in ("1", "true", "yes", "on"):
+                from app.integrations import ntfy as _ntfy_mod
+
+                await _ntfy_mod.push(
+                    f"📊 Daily Digest — {today}", text, priority="default", tags=["bar_chart"]
+                )
+        except Exception as e:
+            logger.debug(f"[staff] digest: ntfy push skipped: {e}")
+
         return summary
     except Exception as e:
         logger.warning(f"[staff] run_digest failed: {e}")
@@ -567,6 +807,7 @@ async def run_digest() -> dict[str, Any]:
             team.log_event("manager", "daily_digest", f"digest crash: {e}", status="error")
         except Exception:
             pass
+        _staff_job_failed("digest", str(e))  # W1.14: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -582,6 +823,7 @@ async def run_content() -> dict[str, Any]:
         return await auto_content.run_daily_content()
     except Exception as e:
         logger.warning(f"[staff] run_content failed: {e}")
+        _staff_job_failed("content", str(e))  # W1.14 parity: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -597,6 +839,7 @@ async def run_blog(n: int = 3) -> dict[str, Any]:
         return await seo_blog.run_daily_blog(n)
     except Exception as e:
         logger.warning(f"[staff] run_blog failed: {e}")
+        _staff_job_failed("blog", str(e))  # W1.14 parity: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -612,6 +855,7 @@ async def run_email_outreach() -> dict[str, Any]:
         return await auto_outreach.run_email_outreach()
     except Exception as e:
         logger.warning(f"[staff] run_email_outreach failed: {e}")
+        _staff_job_failed("email_outreach", str(e))  # W1.14 parity: fail metric + ntfy alert
         return {"error": str(e)}
 
 
@@ -627,6 +871,7 @@ async def run_growth() -> dict[str, Any]:
         return await growth_engine.pulse()
     except Exception as e:
         logger.warning(f"[staff] run_growth failed: {e}")
+        _staff_job_failed("growth", str(e))  # W1.14 parity: fail metric + ntfy alert
         return {"error": str(e)}
 
 

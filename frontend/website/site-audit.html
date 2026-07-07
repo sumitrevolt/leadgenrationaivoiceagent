@@ -51,6 +51,7 @@ a{color:var(--acc)}
     <div class="score" id="score">—</div>
     <div class="grade" id="grade"></div>
     <div id="checks"></div>
+    <a class="cta" id="startCtaSite" href="/start?utm_source=site-audit">🚀 FREE trial shuru karo</a>
   </div>
   <div class="card" id="leadCard">
     <h3 style="margin-bottom:4px">📋 Poora fix-list + done-for-you chahiye?</h3>
@@ -88,6 +89,11 @@ async function run(){
     $('score').textContent=d.score+'/100';$('score').style.color=d.score>=70?'#059669':(d.score>=40?'#d97706':'#dc2626');
     $('grade').textContent='Grade '+d.grade+' — '+d.url;
     $('checks').innerHTML=Object.entries(d.checks).map(([k,ok])=>`<div class="chk"><span>${NAMES[k]||k}</span><b>${ok?'✅':'❌'}</b></div>`).join('');
+    const startCta=$('startCtaSite');
+    if(startCta){
+      startCta.href='/start?utm_source=site-audit&score='+d.score;
+      startCta.textContent=d.score<50?'🚀 Abhi fix karo — FREE trial shuru karo':(d.score<70?'🚀 Score badhao — FREE trial shuru karo':'🚀 Autopilot par lo — FREE trial shuru karo');
+    }
     $('tips').innerHTML=(d.tips||[]).map(t=>`<div class="tip">💡 ${t}</div>`).join('');
     window.scrollTo({top:200,behavior:'smooth'});
   }catch(e){$('err').textContent='Network issue — dobara try karo'}

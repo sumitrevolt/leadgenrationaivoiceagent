@@ -6,7 +6,7 @@ WHY THIS EXISTS (vs llm_brain.LLMBrain)
 ---------------------------------------
 LLMBrain carries ML/RAG/feedback machinery — great for web, too heavy and too
 verbose for a live PSTN turn where every token = latency = dead air. This brain
-is ONE system prompt + direct google.generativeai call (same _init_gemini
+is ONE system prompt + direct google.genai call (same _init_gemini
 pattern as llm_brain), tuned with telecaller research (2025-26):
 
   * Gong (300M+ calls): permission-based openers hit ~11% success vs 2.3% avg.
@@ -143,6 +143,51 @@ def _sanitize_utterance(ut: str) -> str:
             ut = pattern.sub("[...]", ut)
             low = ut.lower()  # re-check on updated string
     return ut
+
+
+# High-signal injection directives that must never survive from SEMI-TRUSTED
+# learning-loop / KB content into the SYSTEM prompt (2nd-order injection). Kept
+# CONSERVATIVE vs _INJECTION_MARKERS — omits ambiguous phrases ("act as", "new
+# instructions", "reveal your", "you are now") that legitimately appear in
+# business KB/website copy, so grounding is never mangled; the post-LLM
+# _obeyed_injection check backstops anything subtler.
+_PROMPT_CONTENT_INJECTION_MARKERS = (
+    "ignore previous",
+    "ignore all instructions",
+    "disregard previous",
+    "forget previous",
+    "forget all previous",
+    "system prompt",
+    "your instructions",
+    "developer mode",
+    "jailbreak",
+    "override your",
+    "bypass your",
+    "purane instructions bhul",
+)
+
+
+def _sanitize_prompt_content(text: str) -> str:
+    """Strip high-signal prompt-injection directives from SEMI-TRUSTED content
+    (trainer notes, admin-promoted learned replies, obsidian brain, KB facts)
+    BEFORE it is appended to the system prompt. Closes the 2nd-order injection
+    path: a poisoned KB doc / learned row carrying "ignore your instructions"
+    would otherwise enter ABOVE the caller-utterance guard. Word-boundary +
+    conservative marker set = legit business content is never mangled. Returns
+    the input unchanged on empty/error (fail-open — post-LLM check backstops)."""
+    if not text:
+        return text
+    try:
+        out = text
+        low = out.lower()
+        for marker in _PROMPT_CONTENT_INJECTION_MARKERS:
+            if marker in low:
+                pattern = re.compile(r"\b" + re.escape(marker) + r"\b", re.IGNORECASE)
+                out = pattern.sub("[...]", out)
+                low = out.lower()
+        return out
+    except Exception:
+        return text
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +333,26 @@ def _anti_loop_enabled() -> bool:
         "no",
         "off",
     )
+
+
+# ACK->TRIAL-CLOSE (2026-07-06, 05-Jul call-batch learning): value-statement ke
+# baad bare affirmative ack = close moment. Sirf PURE affirmatives — "nahi"/mixed
+# jawab kabhi match nahi hote (fail-open to old flow).
+def _ack_trial_close_enabled() -> bool:
+    """ACK_TRIAL_CLOSE gate (default ON). Set 0 to keep pre-2026-07-06 behavior."""
+    return (os.environ.get("ACK_TRIAL_CLOSE", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+        "off",
+    )
+
+
+_BARE_ACK_RE = re.compile(
+    r"^(?:ok(?:ay)?|haa?n|ji|yes|yeah|theek(?:\s+hai)?(?:\s+ji)?|thik(?:\s+hai)?"
+    r"|achh?a|sahi\s+hai|bilkul|hmm+|hm+|right|correct)[.!,\s]*$",
+    re.IGNORECASE,
+)
 
 
 # High-precision: require a proceed VERB so a question ("kaise kar do?") or a bare
@@ -680,11 +745,10 @@ class TelecallerBrain:
         self.model = _voice_model
         if first_key:
             try:
-                # Same pattern as llm_brain._init_gemini — direct google.generativeai.
-                import google.generativeai as genai
+                # Same pattern as llm_brain._init_gemini — new google.genai SDK.
+                from google import genai as _genai_mod
 
-                genai.configure(api_key=first_key)
-                self._genai = genai
+                self._genai = _genai_mod.Client(api_key=first_key)
                 model = (settings.default_llm or "").strip()
                 if "gemini" not in model.lower() or "vertex" in model.lower():
                     model = _voice_model  # env VOICE_LLM_MODEL; flash-lite = highest free quota
@@ -748,7 +812,9 @@ class TelecallerBrain:
             if os.environ.get("TRAINER_FEEDBACK", "1").strip().lower() not in ("0", "false", "no"):
                 hint = _latest_trainer_hint()
                 if hint:
-                    self.system_prompt += f"\n\nTRAINER NOTE (Meera):\n{hint}"
+                    self.system_prompt += (
+                        f"\n\nTRAINER NOTE (Meera):\n{_sanitize_prompt_content(hint)}"
+                    )
         except Exception:
             pass
         # Component 3 (close-the-loop): inject admin-PROMOTED learned good-replies for
@@ -761,7 +827,8 @@ class TelecallerBrain:
             if _lh:
                 self.system_prompt += (
                     "\n\nLEARNED GOOD REPLIES (is niche ke real calls se, admin-approved) — "
-                    "inhe accha-jawab reference ki tarah follow karo:\n" + _lh
+                    "inhe accha-jawab reference ki tarah follow karo:\n"
+                    + _sanitize_prompt_content(_lh)
                 )
         except Exception:
             pass
@@ -771,7 +838,9 @@ class TelecallerBrain:
 
             _niche_ctx = _obs.brain_context(f"{self.niche or ''} voice call qualification", k=2)
             if _niche_ctx:
-                self.system_prompt = self.system_prompt + "\n\n" + _niche_ctx
+                self.system_prompt = (
+                    self.system_prompt + "\n\n" + _sanitize_prompt_content(_niche_ctx)
+                )
         except Exception:
             pass
         logger.info(
@@ -1505,6 +1574,26 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         # ("solar panel lagwana hai ghar pe") bhi deterministic canned-ack + scripted
         # question se intercept ho jaate, LLM tak KABHI nahi pahunchte = noob/robotic.
         # Ab sirf <=3 word (bare acks: "haan", "theek hai ji", "ok") auto-advance.
+        # ACK->TRIAL-CLOSE (2026-07-06, 05-Jul good-call learning): interest
+        # confirm ho chuka hai aur bot ki LAST line ek VALUE-STATEMENT thi
+        # (sawaal nahi — e.g. "agency ₹15-25K leti hai, hum ₹1,999 se") aur
+        # customer ne bare AFFIRMATIVE ack ("Okay"/"haan"/"theek hai") diya =>
+        # yeh CLOSE moment hai, agla discovery-sawaal nahi. Real call f452cce6
+        # me "Okay." ke baad bot ne "Google pe upar dikhta hai kya?" puchha aur
+        # call cut ho gayi — hot lead bina next-step ke chala gaya. Line me
+        # "WhatsApp number confirm" hai jo agle turn ke POST-CLOSE WRAP ko arm
+        # karti hai. Gated ACK_TRIAL_CLOSE (default ON); sawaal ke jawab wala
+        # ack (last bot line me "?") purane discovery flow par hi rehta hai.
+        if self._interest_confirmed and _ack_trial_close_enabled() and _BARE_ACK_RE.match(low):
+            _last_stmt = self._last_bot_line(history)
+            if _last_stmt and "?" not in _last_stmt:
+                # NOTE: single sentence <=28 words — _clean() ka word-cap 2nd
+                # sentence gira deta hai, isliye "WhatsApp number confirm" ISI
+                # sentence me hai (post-close wrap armer).
+                return self._clean(
+                    "Toh sir, 7 din ka FREE trial abhi shuru kar deti hoon — bas "
+                    "apna WhatsApp number confirm kar dijiye, link wahin bhejti hoon."
+                )
         if (
             self._user_substantive(ut)
             and not self._looks_like_question(ut)
@@ -1591,6 +1680,13 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                             # of a phone (fixes: web-call close-signal never
                             # produced a deal or a WhatsApp send).
                             self.set_caller_phone(_num)
+                            self._on_close_signal()
+                        elif self.caller_phone and not self.close_signal_fired:
+                            # 2026-07-06: DIALED path — caller ne sirf affirm kiya
+                            # ("haan yahi number"); number pehle se hai, durable
+                            # close (deal-write) AB fire karo. Pehle yeh sirf web
+                            # path (spoken number) me hota tha => phone calls par
+                            # close-affirm ka deal record hi nahi banta tha.
                             self._on_close_signal()
                         if _num:
                             # Read the number back digit-by-digit so the caller can
@@ -1848,6 +1944,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                         if _num and not self.caller_phone:
                             self.set_caller_phone(_num)
                             self._on_close_signal()
+                        elif self.caller_phone and not self.close_signal_fired:
+                            # 2026-07-06: dialed-path affirm => durable close (reply() parity).
+                            self._on_close_signal()
                         if _num:
                             _spoken = " ".join(_num)
                             yield self._clean(
@@ -1998,6 +2097,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                         _num = _extract_phone(ut)
                         if _num and not self.caller_phone:
                             self.set_caller_phone(_num)
+                            self._on_close_signal()
+                        elif self.caller_phone and not self.close_signal_fired:
+                            # 2026-07-06: dialed-path affirm => durable close (reply() parity).
                             self._on_close_signal()
                         if _num:
                             _spoken = " ".join(_num)
@@ -2571,7 +2673,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             if not snip.strip():
                 snip = lessons_snippet("voice_general", k=2)
             if snip.strip():
-                return f"PAST CALL LESSONS (in galtiyan mat dobara karo):\n{snip}"
+                # skill_library lessons = semi-trusted (learned from past live calls);
+                # strip 2nd-order injection before it enters the system prompt.
+                return (
+                    "PAST CALL LESSONS (in galtiyan mat dobara karo):\n"
+                    + _sanitize_prompt_content(snip)
+                )
         except Exception:
             pass
         return ""
@@ -2611,6 +2718,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 trimmed_facts.append(fs)
             joined = " | ".join(trimmed_facts)
             if joined:
+                # KB facts are semi-trusted (scraped site / seeded docs) — strip any
+                # high-signal injection directive before it enters the system prompt.
+                joined = _sanitize_prompt_content(joined)
                 lines.append(f"FACTS (relevant ho to hi use karo): {joined[:450]}")
         agent = getattr(self, "agent_name", None) or "Swara"
         lines += ["", "CALL ABHI TAK:"]
@@ -2750,18 +2860,28 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         except Exception as e:
             logger.warning(f"[telecaller-brain] Gemini Vertex failed: {e}")
 
-        # --- 2) API-key path (google.generativeai, multi-key rotation) ---
+        # --- 2) API-key path (google.genai new SDK, multi-key rotation) ---
         if self._genai is None:
             return ""
         for attempt in range(2):
             key = self._active_key() or (settings.gemini_api_key or "").strip()
             try:
-                if key:
-                    self._genai.configure(api_key=key)
-                model = self._genai.GenerativeModel(self.model)
+                # Re-init client with rotated key on retry (new SDK: Client per key).
+                from google import genai as _genai_mod
+                from google.genai import types as _genai_types
+
+                client = _genai_mod.Client(api_key=key) if key else self._genai
+                _cfg = _genai_types.GenerateContentConfig(
+                    temperature=float(_GEN_CONFIG["temperature"]),
+                    max_output_tokens=int(_GEN_CONFIG["max_output_tokens"]),
+                )
                 # Hard latency cap: phone par 6s+ ka silence = dead call.
                 response = await asyncio.wait_for(
-                    model.generate_content_async(prompt, generation_config=dict(_GEN_CONFIG)),
+                    client.aio.models.generate_content(
+                        model=self.model,
+                        contents=prompt,
+                        config=_cfg,
+                    ),
                     timeout=_REPLY_TIMEOUT_S,
                 )
                 return self._clean((getattr(response, "text", "") or "").strip())

@@ -101,6 +101,11 @@ def test_self_improve_tick_records_automation_heartbeat(tmp_path, monkeypatch):
     queued: list[dict] = []
     monkeypatch.setattr(si, "run_once", fake_run_once)
     monkeypatch.setattr(si, "enabled", lambda: True)
+    # W1.5: acquire_tick_slot Redis-down pe fail-CLOSED ("" = skip) hai — is test ka
+    # intent heartbeat-recording hai, slot-gating nahi (uska apna test hai:
+    # test_self_improve_failclosed.py). Slot grant stub karo taaki tick aage chale.
+    monkeypatch.setattr(si, "acquire_tick_slot", lambda: "test-slot-token")
+    monkeypatch.setattr(si, "release_tick_slot", lambda tok: None)
     monkeypatch.setattr(staff_jobs.self_improve_tick, "apply_async", lambda **kw: queued.append(kw))
 
     out = staff_jobs.self_improve_tick.run()

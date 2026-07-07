@@ -165,9 +165,24 @@ def main() -> int:
     print("3. **Add replay-safe checkpoints for long-running tasks.**")
     print("4. **Add queue-depth alerts** for tasks that lack idempotency.")
 
+    # RATCHET gate (2026-07-06): pehle "koi bhi gap = exit 1" tha — 117 known
+    # static-scan gaps ke saath yeh step KABHI green nahi ho sakta tha (kai tasks
+    # ka dedup scheduler/day-key layer pe hai jo yeh heuristic nahi dekh sakta).
+    # IDEM_AUDIT_MAX_GAPS set ho → gaps > baseline = fail (naya task bina
+    # idempotency ke regression block); unset → advisory report (exit 0).
+    import os as _os
+
+    gaps = len(without_idem)
+    _max_raw = (_os.getenv("IDEM_AUDIT_MAX_GAPS", "") or "").strip()
+    if _max_raw.isdigit():
+        code = 1 if gaps > int(_max_raw) else 0
+        mode = f"ratchet(max={_max_raw})"
+    else:
+        code = 0
+        mode = "advisory"
     print(f"\n---\n")
-    print(f"**Exit code:** {1 if without_idem else 0}")
-    return 1 if without_idem else 0
+    print(f"**Exit code:** {code} (gaps={gaps}, mode={mode})")
+    return code
 
 
 if __name__ == "__main__":

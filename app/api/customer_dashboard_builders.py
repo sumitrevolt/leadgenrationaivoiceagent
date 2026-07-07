@@ -549,6 +549,21 @@ def _build_from_db(client_id: str, campaign: str | None) -> DashboardResponse | 
                 if status == "connected":
                     connected += 1
                 when = c.initiated_at or c.created_at or datetime.utcnow()
+                # Per-call AI qualification report (JSON text -> short readable line).
+                _qtext = ""
+                try:
+                    import json as _json
+
+                    _qd = c.qualification_data
+                    _qd = (
+                        _json.loads(_qd)
+                        if isinstance(_qd, str) and _qd.strip()
+                        else (_qd if isinstance(_qd, dict) else {})
+                    )
+                    if isinstance(_qd, dict) and _qd:
+                        _qtext = " · ".join(f"{k}: {v}" for k, v in list(_qd.items())[:4])
+                except Exception:
+                    _qtext = ""
                 calls.append(
                     CallRow(
                         time=when.strftime("%Y-%m-%d %H:%M"),
@@ -560,6 +575,11 @@ def _build_from_db(client_id: str, campaign: str | None) -> DashboardResponse | 
                         outcome=(
                             outcome_val.replace("_", " ").title() if outcome_val else "Pending"
                         ),
+                        # Product-2 delivery: surface the AI value (was CallLog-only).
+                        transcript=(c.transcription or "")[:4000],
+                        summary=(c.summary or "")[:1500],
+                        qualification=_qtext[:600],
+                        sentiment=(c.sentiment or ""),
                     )
                 )
 
