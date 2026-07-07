@@ -30,8 +30,11 @@ def _admin_html():
         return f.read()
 
 
-def _ops_cc_html():
-    with open("frontend/command_center.html", encoding="utf-8") as f:
+import os
+
+
+def _main_py():
+    with open("app/main.py", encoding="utf-8") as f:
         return f.read()
 
 
@@ -43,27 +46,18 @@ def _delivery_cc_html():
 # ---------------------------------------------------------------------------
 # 1. Distinct titles/badges for the two Command Center pages
 # ---------------------------------------------------------------------------
-def test_ops_and_delivery_command_center_titles_are_distinct():
-    ops_html = _ops_cc_html()
-    delivery_html = _delivery_cc_html()
-
-    import re
-
-    ops_title = re.search(r"<title>(.*?)</title>", ops_html).group(1)
-    delivery_title = re.search(r"<title>(.*?)</title>", delivery_html).group(1)
-
-    assert ops_title != delivery_title
-    assert "Ops" in ops_title
+def test_ops_command_center_merged_and_deleted():
+    # ADR-034 follow-up (2026-07-07, LLM-council decision): the old Ops Command
+    # Center duplicated /app/control-center + /app/ops. It was MERGED (route now
+    # redirects) and the template DELETED (merge-before-delete). File must be gone.
+    assert not os.path.exists("frontend/command_center.html")
 
 
-def test_ops_command_center_badge_also_disambiguated():
-    """The <title> isn't the only user-visible label — the page header shows
-    a .badge div with the same text. Both must be updated for the fix to be
-    real (a title-only fix would still show "Command Center" on the page
-    itself, defeating the disambiguation)."""
-    html = _ops_cc_html()
-    assert '<div class="badge">Ops Command Center</div>' in html
-    assert '<div class="badge">Command Center</div>' not in html
+def test_command_center_route_redirects_to_control_center():
+    # The /app/command-center route is kept as a permanent redirect so old
+    # bookmarks still resolve to the canonical ops cockpit instead of 404-ing.
+    main = _main_py()
+    assert 'RedirectResponse(url="/app/control-center"' in main
 
 
 def test_delivery_command_center_title_unchanged():
@@ -103,18 +97,20 @@ def test_agent_tools_link_still_present_exactly_once():
 
 
 def test_agent_tools_moved_out_of_operations_into_advanced_group():
+    # Updated for ADR-034 (6-group IA): the old Operations/Business/Advanced/Account
+    # groups were merged; agent-tools now lives in the final "Advanced & Account"
+    # group, after the "System (Internal)" group and out of every primary group.
     html = _admin_html()
-    advanced_idx = html.index('<div class="sec nav-group" role="presentation">Advanced</div>')
-    account_idx = html.index('<div class="sec nav-group" role="presentation">Account</div>')
-    operations_idx = html.index('<div class="sec nav-group" role="presentation">Operations</div>')
-    business_idx = html.index('<div class="sec nav-group" role="presentation">Business</div>')
+    system_idx = html.index('<div class="sec nav-group" role="presentation">System (Internal)</div>')
+    advanced_idx = html.index(
+        '<div class="sec nav-group" role="presentation">Advanced &amp; Account</div>'
+    )
     agent_tools_idx = html.index('href="/app/agent-tools"')
 
-    # Advanced group sits between Business and Account (the last two groups).
-    assert business_idx < advanced_idx < account_idx
-    # The agent-tools link is inside the Advanced group, not Operations/Business.
-    assert advanced_idx < agent_tools_idx < account_idx
-    assert not (operations_idx < agent_tools_idx < business_idx)
+    # Advanced & Account is the last group (comes after System (Internal)).
+    assert system_idx < advanced_idx
+    # The agent-tools link is inside the Advanced & Account group (after its header).
+    assert advanced_idx < agent_tools_idx
 
 
 def test_agent_tools_label_signals_dev_only():
