@@ -2138,6 +2138,18 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             # ja ke dodge ho jaata (P1 regression). Sirf booking/action-intent turns
             # ko tool-LLM pe bhejo (woh CALL book_appointment/check_availability kare).
             _low = to_roman(ut).lower()
+            # A clock-time mention ("3 baje", "teen baje", "5 pm", "11:30") is ITSELF a
+            # scheduling signal. Real-call: after Swara offers a slot (fast-path ~line
+            # 1006: "shaam paanch baje ya kal subah gyarah, kab theek?"), the caller
+            # replies "haan kal 3 baje theek hai" with NO book/appointment keyword — woh
+            # confirmation tool-LLM (-> CALL book_appointment) tak pohanchni chahiye, NA
+            # ki discovery auto-advance fast-path pe. (gated path only; reply() untouched.)
+            _time_signal = (
+                "baje" in _low
+                or "bje" in _low
+                or bool(re.search(r"\b\d{1,2}\s*(?::\d{2})?\s*[ap]m\b", _low))
+                or bool(re.search(r"\b\d{1,2}:\d{2}\b", _low))
+            )
             _action_intent = any(
                 w in _low
                 for w in (
@@ -2145,7 +2157,22 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "schedule", "milne", "milunga", "kab mil", "demo fix",
                     "reschedule", "postpone", "time badal", "din badal", "aage badha",
                 )
-            ) or any(w in ut for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल"))
+            ) or _time_signal or any(
+                w in ut for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "बजे")
+            )
+            # Bare confirmation ("theek hai"/"chalega"/"ok"/"haan") bina time-word ke tabhi
+            # action-intent counts jab bot ke LAST turn ne actually slot/time propose kiya
+            # ho — warna generic ack QA/objection fast-path ko galat se skip kar dega.
+            if not _action_intent and history:
+                _prev_low = to_roman(self._prev_assistant(history)).lower()
+                if any(
+                    w in _prev_low
+                    for w in ("baje", "slot", "kab theek", "kab mil", "kab milun", "fix kar doon", "fix kar du")
+                ) and (
+                    any(c in _low for c in ("theek hai", "thik hai", "chalega", "sahi hai", "pakka", "kar do", "kar lo"))
+                    or bool(re.search(r"\b(?:ok|okay|done|yes|haan)\b", _low))
+                ):
+                    _action_intent = True
             if not _action_intent:
                 fast = self._fast_path_reply(history, ut)
                 if fast:
