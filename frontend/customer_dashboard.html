@@ -429,13 +429,18 @@
 </head>
 <body>
 <script>
-/* Per-product routing — marketing -> /app/customer/marketing · voice -> /app/customer/voice · combo -> /app/customer (both). */
+/* Per-product routing — marketing -> /app/customer/marketing · voice -> /app/customer/voice · combo -> /app/customer (both).
+   Same file is served (FileResponse, no templating) at all 3 routes — the body carries no class by
+   default, so the page's own product must be derived from the URL path, not read off the DOM. */
 (function(){
   try{
+    var path = location.pathname;
+    var pageProduct = path.indexOf("/customer/marketing")>-1 ? "marketing"
+                     : path.indexOf("/customer/voice")>-1 ? "voice" : "combo";
+    if(pageProduct==="marketing") document.body.classList.add("prod-marketing");
+    else if(pageProduct==="voice") document.body.classList.add("prod-voice");
     var token = localStorage.getItem("lgai_token");
-    if(!token) return; // not logged in — existing flow handles auth
-    var pageProduct = document.body.classList.contains("prod-marketing") ? "marketing"
-                    : document.body.classList.contains("prod-voice") ? "voice" : "combo";
+    if(!token) return; // not logged in — class already set above for demo view; auth redirect-check needs a token
     fetch("/api/customer/auth/me",{headers:{"Authorization":"Bearer "+token}})
       .then(function(r){ return r.ok ? r.json() : null; })
       .then(function(j){
