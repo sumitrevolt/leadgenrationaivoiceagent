@@ -230,8 +230,13 @@ def check_anomalies() -> dict[str, Any]:
             if d["rate"] < 0.5 and d["uses"] >= 3
         ]
 
-        dlq = _read_jsonl("data/dlq_failed_tasks.jsonl") if os.path.exists("data/dlq_failed_tasks.jsonl") else []
-        dlq_depth = len(dlq)
+        # Real DLQ depth (Redis dlq:failed_tasks + dlq:dead), same source as
+        # `--dlq-status`. `data/dlq_failed_tasks.jsonl` is legacy/dev-only and
+        # is never written in prod (DLQ lives in Redis) — reading it here
+        # always reported 0 and masked a real backlog.
+        dlq_status = check_dlq_status()
+        depths = dlq_status.get("depths", {})
+        dlq_depth = sum(v for v in (depths.get("dlq", -1), depths.get("dead", -1)) if v > 0)
 
         status = "green"
         if dlq_depth > 10:
@@ -365,11 +370,26 @@ def check_dlq_status() -> dict[str, Any]:
     }
 
 
+def _optout_ledger_writable() -> bool:
+    """Real opt-out enforcement is app.telephony.consent_ledger (JSONL +
+    optional Postgres dual-write), wired into ComplianceGate.check() step 2.5
+    — NOT a `data/dnd_cache.json` file (no code path ever writes that file,
+    so an mtime-freshness check on it always reported "stale"). A quiet day
+    with zero new opt-outs is healthy, not stale — so check the real store
+    is reachable/writable instead of guessing from file age."""
+    try:
+        from app.telephony.consent_ledger import SUPPRESSION_FILE
+
+        d = SUPPRESSION_FILE.parent
+        return os.path.isdir(d) and os.access(d, os.W_OK)
+    except Exception:
+        return False
+
+
 def check_compliance() -> dict[str, Any]:
     """DLT, opt-out, recording, approvals."""
     dlt_enabled = _flag("DLT_APPROVED", False) or _flag("ENABLE_DLT", False)
-    opt_out_sync = os.path.getmtime("data/dnd_cache.json") if os.path.exists("data/dnd_cache.json") else 0
-    opt_out_recent = (datetime.now().timestamp() - opt_out_sync) < (24 * 3600) if opt_out_sync else False
+    opt_out_recent = _optout_ledger_writable()
 
     retention_enabled = _flag("RECORDING_RETENTION", False)
     approval_mode = _flag("SELF_IMPROVE_APPROVAL", False)
@@ -388,7 +408,7 @@ def check_compliance() -> dict[str, Any]:
         status = "yellow"
 
     if outbound_scope and not opt_out_recent:
-        issues.append("Opt-out list stale (>24h)")
+        issues.append("Opt-out ledger (consent_ledger) store not writable")
         status = "yellow"
 
     if telephony_configured and not retention_enabled:

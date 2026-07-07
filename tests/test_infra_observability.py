@@ -225,3 +225,61 @@ def test_automation_health_audit_dlq_uses_queue_depth(monkeypatch):
     out = aha.check_dlq_status()
     assert out["status"] == "yellow"
     assert out["depths"]["dlq"] == 3
+
+
+def test_automation_health_audit_anomalies_uses_real_dlq_depth(tmp_path, monkeypatch):
+    """check_anomalies() (used by --daily-check) must reflect the real
+    Redis-backed DLQ depth (check_dlq_status), not the legacy
+    data/dlq_failed_tasks.jsonl file — that file is never written in
+    production (DLQ lives in Redis dlq:failed_tasks/dlq:dead) so reading it
+    always reported 0 and masked a real backlog."""
+    aha = _load_automation_health_audit()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    # Stale legacy file present with zero rows — must NOT be the source read.
+    (data_dir / "dlq_failed_tasks.jsonl").write_text("", encoding="utf-8")
+
+    monkeypatch.setattr(aha, "check_dlq_status", lambda: {"depths": {"dlq": 2, "dead": 27}})
+
+    out = aha.check_anomalies()
+    assert out["dlq_depth"] == 29
+    assert out["status"] == "red"
+
+
+def test_automation_health_audit_optout_check_uses_real_ledger_not_dead_file(tmp_path, monkeypatch):
+    """The old check watched data/dnd_cache.json — a file no code path ever
+    writes — so it always false-flagged opt-out enforcement as stale. It must
+    now check the real store (app.telephony.consent_ledger.SUPPRESSION_FILE)
+    is writable; a quiet day with zero new opt-outs is healthy, not stale."""
+    aha = _load_automation_health_audit()
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AUTO_EMAIL_OUTREACH", "1")  # outbound_scope = True
+
+    from app.telephony import consent_ledger
+
+    monkeypatch.setattr(consent_ledger, "SUPPRESSION_FILE", data_dir / "voice_suppression.jsonl")
+
+    out = aha.check_compliance()
+    assert out["optout_enforced"] is True
+    assert not any("Opt-out" in issue for issue in out["issues"])
+
+
+def test_automation_health_audit_optout_check_flags_unwritable_store(tmp_path, monkeypatch):
+    aha = _load_automation_health_audit()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("AUTO_EMAIL_OUTREACH", "1")  # outbound_scope = True
+
+    from app.telephony import consent_ledger
+
+    # Parent dir does not exist -> not writable -> unhealthy.
+    monkeypatch.setattr(
+        consent_ledger, "SUPPRESSION_FILE", tmp_path / "does_not_exist" / "voice_suppression.jsonl"
+    )
+
+    out = aha.check_compliance()
+    assert out["optout_enforced"] is False
+    assert any("consent_ledger" in issue for issue in out["issues"])
+    assert out["status"] == "yellow"
