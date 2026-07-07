@@ -184,8 +184,8 @@ def check_env_vars(report: ValidationReport, env: str):
     # At least one LLM required
     llm_vars = ["GEMINI_API_KEY", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"]
     
-    # At least one telephony required
-    telephony_vars = ["TWILIO_ACCOUNT_SID", "EXOTEL_API_KEY"]
+    # Telephony required (Vobiz-only)
+    telephony_vars = ["VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN"]
     
     # Production-specific
     production_vars = ["SENTRY_DSN", "DEEPGRAM_API_KEY"]
@@ -200,8 +200,8 @@ def check_env_vars(report: ValidationReport, env: str):
         missing.append("(at least one LLM: GEMINI/OPENAI/ANTHROPIC)")
     
     # Check telephony
-    if not any(os.environ.get(v) for v in telephony_vars):
-        missing.append("(at least one telephony: TWILIO/EXOTEL)")
+    if not all(os.environ.get(v) for v in telephony_vars):
+        missing.append("(telephony: VOBIZ_AUTH_ID/VOBIZ_AUTH_TOKEN)")
     
     # Production checks
     if env == "production":

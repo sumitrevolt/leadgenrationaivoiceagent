@@ -251,7 +251,7 @@ OUTPUT (JSON):
 
 CONSTRAINTS:
 • Checks:
-  - Exotel creds valid? (test API call)
+  - Vobiz creds valid? (test API call)
   - Caller ID set? (DID configured?)
   - STT chain active? (Groq OK? Fallback working?)
   - TTS operational? (EdgeTTS hindi-IN-SwaraNeural?)
@@ -265,7 +265,7 @@ OUTPUT (JSON):
   "timestamp": "2026-06-14T14:30:00Z",
   "readiness_score": 0-100,
   "components": {
-    "exotel_api": {"status": "healthy|unavailable", "balance": 422.62, "balance_alert": false},
+    "vobiz_api": {"status": "healthy|unavailable", "balance": 422.62, "balance_alert": false},
     "stt_chain": {"status": "healthy|degraded", "primary": "groq", "fallback_active": false},
     "tts": {"status": "healthy|unavailable"},
     "webhook_auth": {"status": "healthy|unverified"}

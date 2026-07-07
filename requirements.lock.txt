@@ -246,7 +246,6 @@ tomli==2.4.1
 tqdm==4.68.1
 trafilatura==2.1.0
 traitlets==5.15.1
-twilio==8.10.0
 Twisted==26.4.0
 twython==3.9.1
 typer==0.25.1

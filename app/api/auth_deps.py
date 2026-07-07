@@ -144,6 +144,7 @@ def require_permission(permission: str):
     return permission_checker
 
 
-# NOTE: Webhook signature verification lives in app.api.webhooks
-# (verify_twilio_signature with real HMAC checks). The always-True stubs that
-# used to live here were removed so nobody accidentally imports a no-op verifier.
+# NOTE: Webhook signature verification (Stripe) lives in app.api.webhooks with
+# real HMAC checks. The always-True stubs that used to live here were removed
+# so nobody accidentally imports a no-op verifier. (Twilio verifier removed
+# 2026-07-07 — telephony provider is Vobiz-only, which doesn't sign callbacks.)

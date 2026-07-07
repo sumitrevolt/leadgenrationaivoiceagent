@@ -155,9 +155,9 @@ def test_finops_flags_litellm_inactive(monkeypatch: pytest.MonkeyPatch) -> None:
 # --------------------------------------------------------------------------- #
 def test_security_unarmed_secrets_flagged(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECURITY_AGENT", "1")
-    # All webhook secrets unset (Razorpay removed 2026-06-18 — twilio+whatsapp only)
+    # All webhook secrets unset (Razorpay + Twilio removed — whatsapp only now;
+    # Vobiz doesn't sign its callbacks so there's nothing to arm for it)
     for k in (
-        "TWILIO_AUTH_TOKEN",
         "WHATSAPP_APP_SECRET",
         "TURNSTILE_SECRET_KEY",
         "GRIEVANCE_OFFICER_EMAIL",
@@ -165,18 +165,15 @@ def test_security_unarmed_secrets_flagged(monkeypatch: pytest.MonkeyPatch) -> No
         monkeypatch.delenv(k, raising=False)
     out = ea.run_security()
     assert out["kpis"]["webhook_secrets_armed"] == {
-        "twilio": False,
         "whatsapp": False,
     }
     actions = " ".join(out["actions"]).lower()
-    assert "twilio" in actions
     assert "turnstile" in actions
 
 
 def test_security_armed_secrets_lift_score(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SECURITY_AGENT", "1")
     base = ea.run_security()["score"]
-    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "x")
     monkeypatch.setenv("WHATSAPP_APP_SECRET", "x")
     monkeypatch.setenv("TURNSTILE_SECRET_KEY", "x")
     monkeypatch.setenv("GRIEVANCE_OFFICER_EMAIL", "office@leadsgenai.in")

@@ -415,7 +415,7 @@ async def voice_niches_list(
 
 
 # ---------------------------------------------------------------------------
-# POST /niche/queue-call — niche DB prospects ko Exotel call queue me push karo
+# POST /niche/queue-call — niche DB prospects ko Vobiz call queue me push karo
 # ---------------------------------------------------------------------------
 
 
@@ -435,7 +435,7 @@ async def queue_call_batch(
     _rl=Depends(rate_limit("niche_queue_call", 10, 60)),
     _user=Depends(require_admin),
 ):
-    """Niche DB se next-to-call prospects uthao aur Exotel CallManager queue me push karo.
+    """Niche DB se next-to-call prospects uthao aur Vobiz CallManager queue me push karo.
 
     Flow:
       1. call_queue_next(client_id, niche, limit) — priority-ordered prospects

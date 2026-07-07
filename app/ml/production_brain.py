@@ -430,7 +430,7 @@ class ProductionBrain:
             return HealthCheck(
                 component="telephony",
                 status=HealthStatus.HEALTHY,
-                message="Twilio/Exotel connected",
+                message="Vobiz connected",
             )
         except Exception as e:
             return HealthCheck(
@@ -472,7 +472,7 @@ class ProductionBrain:
             "redis": "Check Memorystore status, verify network connectivity",
             "celery": "Restart workers, check Redis broker connection",
             "llm": "Check Vertex AI quotas, verify API key, check fallback providers",
-            "telephony": "Check Twilio/Exotel dashboard, verify webhook URLs",
+            "telephony": "Check Vobiz dashboard, verify webhook URLs",
         }
         return actions.get(component, "Investigate component logs")
 

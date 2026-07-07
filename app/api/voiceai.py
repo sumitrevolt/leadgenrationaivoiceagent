@@ -58,7 +58,7 @@ class AskIn(BaseModel):
 # --------------------------------------------------------------------------- #
 @router.post("/transfer")
 async def transfer_call(body: TransferIn, _user: User = Depends(require_admin)):
-    """AI call → owner live-transfer: Hinglish summary + Exotel connect-leg
+    """AI call → owner live-transfer: Hinglish summary + Vobiz connect-leg
     (creds pe) + WA 1-click link + email draft. Flag OFF = inert."""
     if not (body.owner_phone or "").strip():
         raise HTTPException(status_code=422, detail="owner_phone chahiye (10-digit).")

@@ -38,7 +38,7 @@ def _env(name: str) -> str:
 
 
 def _active_provider() -> str:
-    """Live telephony provider — vobiz (outbound stream) or twilio (international)."""
+    """Live telephony provider — vobiz (outbound stream)."""
     return (_env("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
 
 

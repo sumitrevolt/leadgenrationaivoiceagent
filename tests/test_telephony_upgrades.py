@@ -10,7 +10,6 @@ from datetime import datetime
 
 # --- module imports double as a circular-reference / import-health check --------
 from app.api.health import prometheus_metrics  # noqa: F401
-from app.api.webhooks import verify_twilio_signature  # exotel removed 2026-06-18
 from app.tasks.scraping import enrich_lead_data  # noqa: F401
 from app.telephony.call_manager import CallManager, CallRequest
 from app.telephony.call_state import RedisCallStore
@@ -28,14 +27,13 @@ def test_app_imports_and_mounts_telephony_webhooks():
     from app.main import app
 
     paths = {getattr(r, "path", "") for r in app.routes}
-    assert "/api/webhooks/twilio/voice/{call_id}" in paths
-    assert "/api/webhooks/twilio/status/{call_id}" in paths
-    # exotel webhook routes removed 2026-06-18 (provider deleted) - Vobiz uses /api/telephony/vobiz/*
+    # twilio/exotel webhook routes removed (provider deleted) - Vobiz uses /api/telephony/vobiz/*
+    assert "/api/webhooks/vobiz/answer" in paths
     assert "/api/webhooks/health" in paths
 
 
 def test_dnd_result_has_verified_flag():
-    r = DNDCheckResult(phone="x", is_dnd=False, checked_at=datetime.now(), source="exotel")
+    r = DNDCheckResult(phone="x", is_dnd=False, checked_at=datetime.now(), source="vobiz")
     assert r.verified is True  # default = verified
     r2 = DNDCheckResult(
         phone="x", is_dnd=False, checked_at=datetime.now(), source="fallback", verified=False
@@ -118,14 +116,3 @@ def test_amd_decision_and_voicemail():
     d = AnsweringMachineDetector()
     msg = d.voicemail_message(client_name="Acme", callback_number="+919876543210")
     assert isinstance(msg, str) and len(msg) > 10
-
-    from app.telephony.webhooks import _MACHINE_ANSWERS, _amd_twiml
-
-    assert "machine_start" in _MACHINE_ANSWERS and "fax" in _MACHINE_ANSWERS
-    twiml = _amd_twiml("call1", "machine_start")
-    assert "<Hangup/>" in twiml  # default AMD_LEAVE_VOICEMAIL off -> hang up
-
-
-def test_verify_signature_deps_callable():
-    # Exotel signature verifier removed 2026-06-18 (provider is Vobiz).
-    assert callable(verify_twilio_signature)

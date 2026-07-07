@@ -366,13 +366,6 @@ def mock_redis(mocker):
 
 
 @pytest.fixture
-def mock_twilio(mocker):
-    """Mock Twilio client for tests"""
-    mock = mocker.patch("app.telephony.twilio_handler.TwilioHandler")
-    return mock
-
-
-@pytest.fixture
 def mock_llm(mocker):
     """Mock LLM Brain for tests"""
     mock = mocker.patch("app.voice_agent.llm_brain.LLMBrain")

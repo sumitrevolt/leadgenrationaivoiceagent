@@ -113,8 +113,7 @@ AGENT_KNOWLEDGE_MAP: dict[AgentRole, dict] = {
     AgentRole.VOICE_AI: {
         "file_patterns": ["app/voice_agent/**", "app/telephony/**", "app/llm/**"],
         "domain_keywords": [
-            "twilio",
-            "exotel",
+            "vobiz",
             "websocket",
             "asr",
             "tts",
