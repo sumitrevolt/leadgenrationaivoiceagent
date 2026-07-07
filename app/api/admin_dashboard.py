@@ -350,6 +350,8 @@ async def get_client_timeline(
     try:
         from app.marketing import delivery_ledger
 
+        # Existing customers ka pre-ledger history lazily backfill (idempotent).
+        delivery_ledger.ensure_backfilled(client_id)
         delivery_events = delivery_ledger.timeline(client_id, limit=100, customer_only=False)
     except Exception:
         delivery_events = []
