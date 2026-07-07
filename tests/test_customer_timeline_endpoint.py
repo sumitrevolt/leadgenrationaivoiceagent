@@ -10,13 +10,14 @@ def test_customer_timeline_returns_own_events_only(monkeypatch):
 
     app.dependency_overrides[require_customer] = lambda: "client_A"
 
-    def _fake_get_timeline(client_id, limit=30, audience="customer"):
+    def _fake_timeline(client_id, limit=30, customer_only=False):
         assert client_id == "client_A"  # never leaks another client's id
-        assert audience == "customer"
-        return [{"ts": "2026-07-06T09:00:00", "event_type": "plan_activated",
-                 "label": "Aapka plan activate ho gaya", "icon": "✅", "detail": "", "status": "ok"}]
+        assert customer_only is True
+        return [{"at": "2026-07-06T09:00:00", "event": "plan_activated",
+                 "label": "Aapka plan activate ho gaya", "icon": "✅", "detail": "", "actor": "system",
+                 "customer_visible": True, "meta": {}}]
 
-    monkeypatch.setattr("app.platform.delivery_ledger.get_timeline", _fake_get_timeline, raising=False)
+    monkeypatch.setattr("app.marketing.delivery_ledger.timeline", _fake_timeline, raising=False)
 
     with TestClient(app) as c:
         resp = c.get("/api/customer/timeline")
@@ -35,7 +36,7 @@ def test_customer_timeline_empty_state_is_graceful(monkeypatch):
     from app.api.customer_auth import require_customer
 
     app.dependency_overrides[require_customer] = lambda: "client_B"
-    monkeypatch.setattr("app.platform.delivery_ledger.get_timeline", lambda *a, **k: [], raising=False)
+    monkeypatch.setattr("app.marketing.delivery_ledger.timeline", lambda *a, **k: [], raising=False)
 
     with TestClient(app) as c:
         resp = c.get("/api/customer/timeline")

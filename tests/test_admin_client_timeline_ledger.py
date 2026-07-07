@@ -14,10 +14,11 @@ def test_client_timeline_includes_ledger_events(monkeypatch):
     monkeypatch.setattr("app.api.admin_dashboard._read_inquiries", lambda: [], raising=False)
     monkeypatch.setattr("app.api.admin_dashboard._fetch_client_audit", lambda client_id, limit=100: [], raising=False)
     monkeypatch.setattr(
-        "app.platform.delivery_ledger.get_timeline",
-        lambda client_id, limit=100, audience="admin": [
-            {"ts": "2026-07-06T09:00:00", "event_type": "plan_activated",
-             "label": "Aapka plan activate ho gaya (plan_activated)", "icon": "✅", "detail": "starter", "status": "ok"}
+        "app.marketing.delivery_ledger.timeline",
+        lambda client_id, limit=100, customer_only=False: [
+            {"at": "2026-07-06T09:00:00", "event": "plan_activated",
+             "label": "Plan activated", "icon": "✅", "detail": "starter", "actor": "system",
+             "customer_visible": True, "meta": {}}
         ],
         raising=False,
     )

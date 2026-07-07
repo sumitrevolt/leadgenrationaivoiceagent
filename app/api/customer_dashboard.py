@@ -841,9 +841,9 @@ def customer_delivery_timeline(client_id: str = Depends(require_customer), limit
     client_id JWT (require_customer) se aata hai => customer sirf apni hi
     timeline dekhta hai. Never raises; empty list on any error."""
     try:
-        from app.platform.delivery_ledger import get_timeline
+        from app.marketing.delivery_ledger import timeline
 
-        events = get_timeline(client_id, limit=limit, audience="customer")
+        events = timeline(client_id, limit=limit, customer_only=True)
         return {"ok": True, "events": events}
     except Exception as e:
         logger.debug("customer timeline failed: %s", e)

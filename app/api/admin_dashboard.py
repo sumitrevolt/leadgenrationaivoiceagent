@@ -274,7 +274,7 @@ def _build_client_timeline(client_id, agent_events, inquiries, audit, delivery_e
     for d in delivery_events or []:
         items.append(
             {
-                "ts": str(d.get("ts") or ""),
+                "ts": str(d.get("at") or ""),
                 "kind": "delivery",
                 "source": "delivery_ledger",
                 "summary": f"{d.get('icon', '')} {d.get('label', '')}".strip(),
@@ -347,9 +347,9 @@ async def get_client_timeline(
     except Exception:
         audit = []
     try:
-        from app.platform import delivery_ledger
+        from app.marketing import delivery_ledger
 
-        delivery_events = delivery_ledger.get_timeline(client_id, limit=100, audience="admin")
+        delivery_events = delivery_ledger.timeline(client_id, limit=100, customer_only=False)
     except Exception:
         delivery_events = []
     events = _build_client_timeline(client_id, agent_events, inquiries, audit, delivery_events, limit)

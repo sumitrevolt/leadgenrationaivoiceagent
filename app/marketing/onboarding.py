@@ -374,7 +374,7 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
         biz = client.get("business_name", "")
 
         try:
-            from app.platform import delivery_ledger
+            from app.marketing import delivery_ledger
 
             delivery_ledger.log_event(cid, "onboarding_started", detail=biz)
         except Exception as le:  # pragma: no cover
@@ -411,9 +411,9 @@ async def auto_onboard(cid: str) -> dict[str, Any]:
         except Exception:
             pass
         try:
-            from app.platform import delivery_ledger
+            from app.marketing import delivery_ledger
 
-            delivery_ledger.log_event(cid, "onboarding_completed", detail=biz)
+            delivery_ledger.log_event(cid, "onboarding_completed", detail=biz, key="lc:onboarded")
         except Exception as le:  # pragma: no cover
             logger.debug("onboard ledger log skip (completed): %s", le)
 

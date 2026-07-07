@@ -1,7 +1,13 @@
-"""Each of these tests monkeypatches app.platform.delivery_ledger.log_event at
-the call site and asserts it fires with the right event_type/client_id — the
+"""Each of these tests monkeypatches app.marketing.delivery_ledger.log_event at
+the call site and asserts it fires with the right event/client_id — the
 same style already used in tests/test_call_event_client_id.py for
-app.platform.team.log_event."""
+app.platform.team.log_event.
+
+NOTE (2026-07-07 reconciliation): the ledger implementation these wiring points
+call into is app.marketing.delivery_ledger (jsonl-based, already reviewed on
+tmp-deploy-main) — NOT app.platform.delivery_ledger, which was a duplicate
+Postgres-table implementation built independently in this worktree and dropped
+in favor of the existing one. See memory/decisions.md ADR-023 addendum."""
 
 import pytest
 
@@ -12,12 +18,12 @@ def test_add_client_logs_customer_created(monkeypatch, tmp_path):
     monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
     events = []
     monkeypatch.setattr(
-        "app.platform.delivery_ledger.log_event",
-        lambda client_id, event_type, **kw: events.append((client_id, event_type)),
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: events.append((client_id, event, kw.get("key"))),
     )
     rec = clients_store.add_client(business_name="Test Biz", niche="solar", phone="9812345678")
     assert rec.get("id")
-    assert (rec["id"], "customer_created") in events
+    assert (rec["id"], "customer_created", "lc:created") in events
 
 
 def test_activate_plan_logs_plan_activated(monkeypatch):
@@ -35,11 +41,11 @@ def test_activate_plan_logs_plan_activated(monkeypatch):
 
     events = []
     monkeypatch.setattr(
-        "app.platform.delivery_ledger.log_event",
-        lambda client_id, event_type, **kw: events.append((client_id, event_type)),
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: events.append((client_id, event, kw.get("key"))),
     )
     usage.activate_plan("client_abc", "starter")
-    assert ("client_abc", "plan_activated") in events
+    assert ("client_abc", "plan_activated", "lc:activated") in events
 
 
 @pytest.mark.asyncio
@@ -67,8 +73,8 @@ async def test_auto_onboard_logs_started_and_completed(monkeypatch):
 
     events = []
     monkeypatch.setattr(
-        "app.platform.delivery_ledger.log_event",
-        lambda client_id, event_type, **kw: events.append((client_id, event_type)),
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: events.append((client_id, event)),
     )
 
     await onboarding.auto_onboard("c1")
@@ -88,11 +94,11 @@ def test_record_stuck_logs_automation_failed(monkeypatch, tmp_path):
     monkeypatch.setattr(cd, "_STUCK_LOG", str(tmp_path / "stuck.jsonl"))
     events = []
     monkeypatch.setattr(
-        "app.platform.delivery_ledger.log_event",
-        lambda client_id, event_type, **kw: events.append((client_id, event_type, kw.get("status"))),
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: events.append((client_id, event)),
     )
     cd._record_stuck({"id": "c1", "business_name": "Test Biz", "phone": "9812345678"}, "no_phone")
-    assert ("c1", "automation_failed", "warn") in events
+    assert ("c1", "automation_failed") in events
 
 
 @pytest.mark.asyncio
@@ -107,8 +113,8 @@ async def test_seed_client_content_logs_calendar_and_drafts(monkeypatch):
 
     events = []
     monkeypatch.setattr(
-        "app.platform.delivery_ledger.log_event",
-        lambda client_id, event_type, **kw: events.append((client_id, event_type, kw.get("meta"))),
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: events.append((client_id, event, kw.get("meta"))),
     )
 
     added = await auto_content.seed_client_content({"id": "c1", "business_name": "Test Biz"})
@@ -138,8 +144,8 @@ async def test_seed_client_content_no_ledger_noise_when_zero_added(monkeypatch):
 
     events = []
     monkeypatch.setattr(
-        "app.platform.delivery_ledger.log_event",
-        lambda client_id, event_type, **kw: events.append((client_id, event_type)),
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: events.append((client_id, event)),
     )
     added = await auto_content.seed_client_content({"id": "c1", "business_name": "Test Biz"})
     assert added == 0

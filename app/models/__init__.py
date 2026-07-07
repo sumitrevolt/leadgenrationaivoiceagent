@@ -8,7 +8,6 @@ from app.models.agent import Agent, AgentStatus
 from app.models.agent_event import AgentEvent
 from app.models.campaign_variant import CampaignVariant
 from app.models.contact import Contact
-from app.models.delivery_event import DeliveryEvent
 from app.models.interaction import Interaction
 from app.models.base import (
     Base,
@@ -82,8 +81,6 @@ __all__ = [
     "Client",
     "ClientStatus",
     "SubscriptionPlan",
-    # Delivery ledger
-    "DeliveryEvent",
     # Agent / worker models
     "Agent",
     "AgentStatus",
