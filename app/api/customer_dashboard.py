@@ -1112,6 +1112,109 @@ def customer_kb_info(
     return {"ok": True, "chunks_added": int(chunks or 0), "namespace": ns}
 
 
+class ProfileUpdateIn(BaseModel):
+    """Setup Wizard write path. Deliberately NO plan/status/trial/niche field —
+    those stay admin-only via clients_store.update_client's own whitelist AND
+    this schema's absence of them (defense in depth, not either/or)."""
+
+    business_name: str = Field("", max_length=120)
+    city: str = Field("", max_length=80)
+    phone: str = Field("", max_length=40)
+    instagram: str = Field("", max_length=200)
+    facebook: str = Field("", max_length=200)
+    gbp: str = Field("", max_length=300)
+    tagline: str = Field("", max_length=160)
+    primary_color: str = Field("", max_length=9)
+    accent_color: str = Field("", max_length=9)
+    logo_text: str = Field("", max_length=40)
+    tone: str = Field("", max_length=40)
+
+
+@router.get("/profile")
+def customer_get_profile(client_id: str = Depends(require_customer)) -> dict:
+    """Setup Wizard read path — current business profile/socials/brand-tone so
+    the portal form can pre-fill instead of showing blank fields. Never raises."""
+    try:
+        from app.marketing import brand_kit, clients_store
+
+        c = clients_store.get_client(client_id) or {}
+        brand = c.get("brand") or {}
+        socials = c.get("socials") or {}
+        tone = ""
+        try:
+            tone = str((brand_kit.get_brand(client_id) or {}).get("tone") or "")
+        except Exception:
+            pass
+        return {
+            "ok": True,
+            "business_name": c.get("business_name", ""),
+            "city": c.get("city", ""),
+            "phone": c.get("phone", ""),
+            "instagram": socials.get("instagram", ""),
+            "facebook": socials.get("facebook", ""),
+            "gbp": socials.get("gbp", ""),
+            "tagline": brand.get("tagline", ""),
+            "primary_color": brand.get("primary", ""),
+            "accent_color": brand.get("accent", ""),
+            "logo_text": brand.get("logo_text", ""),
+            "tone": tone,
+        }
+    except Exception as e:
+        logger.debug("customer get profile failed: %s", e)
+        return {"ok": False, "error": "profile load nahi hua"}
+
+
+@router.post("/profile")
+def customer_update_profile(body: ProfileUpdateIn, client_id: str = Depends(require_customer)) -> dict:
+    """Setup Wizard write path — business profile/social/WhatsApp/brand-tone,
+    Customer Delivery OS mission's 4 wizard dimensions. IDOR-safe (client_id
+    from JWT); only the fields named on ProfileUpdateIn can ever be set — no
+    plan/status/trial/niche path exists here even though clients_store.update_client
+    itself would allow them. Never-500."""
+    try:
+        from app.marketing import brand_kit, clients_store
+
+        fields: dict = {}
+        if body.business_name.strip():
+            fields["business_name"] = body.business_name.strip()
+        if body.city.strip():
+            fields["city"] = body.city.strip()
+        if body.phone.strip():
+            fields["phone"] = body.phone.strip()
+        socials = {k: v.strip() for k, v in {
+            "instagram": body.instagram, "facebook": body.facebook, "gbp": body.gbp,
+        }.items() if v.strip()}
+        if socials:
+            fields["socials"] = socials
+        brand = {k: v.strip() for k, v in {
+            "tagline": body.tagline, "primary": body.primary_color,
+            "accent": body.accent_color, "logo_text": body.logo_text,
+        }.items() if v.strip()}
+        if brand:
+            fields["brand"] = brand
+
+        updated = clients_store.update_client(client_id, **fields) if fields else clients_store.get_client(client_id)
+        if updated is None:
+            raise HTTPException(status_code=404, detail="Client not found")
+
+        # tone isn't part of update_client's brand->brand_kit mirror (it only
+        # carries tagline/colors/logo_text) — read-modify-write so we add tone
+        # without clobbering whatever the mirror above just wrote.
+        if body.tone.strip():
+            try:
+                current = brand_kit.get_brand(client_id) or {}
+                brand_kit.save_brand(client_id, {**current, "tone": body.tone.strip()})
+            except Exception as e:
+                logger.debug("customer profile tone save skip: %s", e)
+
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("customer profile update failed: %s", e)
+        return {"ok": False, "error": str(e)[:160]}
+
+
 @router.get("/branded-feed")
 async def customer_branded_feed(client_id: str = Depends(require_customer)):
     """AdBanao-style aaj ke 3 branded posts (logo+naam frame) — customer scoped."""
