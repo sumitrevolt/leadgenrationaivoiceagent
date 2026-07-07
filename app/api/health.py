@@ -227,8 +227,6 @@ def _check_llm_config() -> dict[str, Any]:
 def _check_telephony_config() -> dict[str, Any]:
     """Check telephony configuration"""
     providers = []
-    if settings.twilio_account_sid and settings.twilio_auth_token:
-        providers.append("twilio")
     if settings.vobiz_auth_id and settings.vobiz_auth_token:
         providers.append("vobiz")
 
