@@ -93,7 +93,12 @@ def _tag_of(_id):
 
 
 def test_all_blocks_tagged():
-    for v in ("home", "leads", "content", "account"):
+    # View taxonomy renamed 2026-07-07 (commit 8359d1c): content/approval cards
+    # consolidated onto Home (no separate Content tab) and "account" renamed to
+    # "billing"; "setup"/"calendar"/"reports" views added. See
+    # tests/test_customer_dashboard_product_routing.py for the routing side of
+    # that same commit's changes.
+    for v in ("home", "leads", "billing"):
         assert f'data-view="{v}"' in SRC, f"no block tagged {v}"
     # every content-level block (incl. sec-title headers) must be tagged or it
     # leaks into all views; there are ~29 such blocks.
@@ -104,22 +109,23 @@ def test_key_cards_in_expected_view():
     assert 'data-view="leads"' in _tag_of("leadsCard")
     assert 'data-view="leads"' in _tag_of("callsCard")
     assert 'data-view="leads"' in _tag_of("routingCard")
-    assert 'data-view="content"' in _tag_of("contentCard")
-    assert 'data-view="content"' in _tag_of("approvalCard")
-    assert 'data-view="account"' in _tag_of("billingCard")
-    assert 'data-view="account"' in _tag_of("secCard")
-    # #mktKpis is a .kpis instance but belongs to Home (not the leads charts)
-    assert 'data-view="home"' in _tag_of("mktKpis")
+    # content/approval cards live on Home directly (no separate Content tab)
+    assert 'data-view="home"' in _tag_of("contentCard")
+    assert 'data-view="home"' in _tag_of("approvalCard")
+    assert 'data-view="billing"' in _tag_of("billingCard")
+    assert 'data-view="billing"' in _tag_of("secCard")
+    # #mktKpis is a .kpis instance but belongs to Reports (not the leads charts)
+    assert 'data-view="reports"' in _tag_of("mktKpis")
     assert 'data-view="home"' in _tag_of("aiCommand")
     assert 'data-view="home"' in _tag_of("teamCard")
 
 
 # ---- Task 4: nav wiring ----
 def test_sidebar_wired_to_views():
-    # sidebar carries data-nav for all 4 views (active-state) and calls showView
-    for v in ("home", "leads", "content", "account"):
+    # sidebar carries data-nav for each view (active-state) and calls showView
+    for v in ("home", "leads", "billing"):
         assert f'data-nav="{v}"' in SRC, f"sidebar missing data-nav={v}"
-    assert "showView('leads')" in SRC and "showView('account')" in SRC
+    assert "showView('leads')" in SRC and "showView('billing')" in SRC
 
 
 def test_mobile_nav_switches_views():
@@ -140,7 +146,7 @@ def test_home_money_above_decoration():
 def test_view_hide_rule_uses_important():
     # !important is required so the hide rule beats block styles like
     # .sec-title{display:flex}; without it, sec-titles leak across views.
-    assert 'data-view="account"]){display:none !important}' in SRC
+    assert 'data-view="billing"]){display:none !important}' in SRC
 
 
 def test_charts_resized_on_show_and_details():

@@ -1055,7 +1055,7 @@ async def deals_page():
 @app.get("/app/customer/pipeline", tags=["Frontend"])
 async def customer_pipeline_page():
     """Customer lead Pipeline Kanban — drag-drop board of this client's own leads by status."""
-    return FileResponse(str(FRONTEND_DIR / "customer_dashboard.html"))
+    return FileResponse(str(FRONTEND_DIR / "customer_pipeline.html"))
 
 
 
