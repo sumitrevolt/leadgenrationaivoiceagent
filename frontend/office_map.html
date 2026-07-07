@@ -526,6 +526,7 @@
           <h3>Live pulse</h3>
           <div id="warKpiGrid" class="war-kpi-grid"></div>
           <div id="pulseStrip" class="pulse-strip"></div>
+          <div id="momentumStrip" class="pulse-strip"></div>
         </div>
       </div>
     </section>
@@ -1704,6 +1705,29 @@
       '<div class="pulse-pill"><b>' + replay.length + '</b><br>replay events</div>';
   };
 
+  OFFICE.renderMomentum = function(data){
+    // W4.4: day-over-day pipeline momentum (W4.2 trends) + momentum alerts (W4.3),
+    // surfaced in the Office. Reuses pulse-pill CSS + esc(). Empty-safe.
+    var el = document.getElementById("momentumStrip");
+    if (!el) return;
+    var dod = (((data || {}).trends || {}).day_over_day) || {};
+    var alerts = ((data || {}).trend_alerts) || [];
+    function arrow(d){ d = d || 0; return d > 0 ? "▲" + d : (d < 0 ? "▼" + Math.abs(d) : "•"); }
+    function pill(label, m){
+      m = m || {};
+      return '<div class="pulse-pill"><b>' + (m.now || 0) + '</b> ' + arrow(m.delta) +
+             '<br>' + label + ' <span style="opacity:.6">vs kal</span></div>';
+    }
+    var html = pill("hot", dod.hot) + pill("warm", dod.warm) + pill("stuck", dod.stuck);
+    if (alerts.length){
+      html += alerts.map(function(a){
+        return '<div class="pulse-pill" style="border-left:3px solid #f59e0b">⚠️ ' +
+               esc((a && a.msg) || "") + '</div>';
+      }).join("");
+    }
+    el.innerHTML = html;
+  };
+
   OFFICE.renderTrustStrip = function(data){
     var el = document.getElementById("trustStrip");
     if (!el) return;
@@ -1719,6 +1743,7 @@
     OFFICE.renderPriorityActions(data && data.priority_actions);
     OFFICE.renderWarKpis(data);
     OFFICE.renderPulseStrip(data);
+    OFFICE.renderMomentum(data);
     OFFICE.renderTrustStrip(data);
   };
 

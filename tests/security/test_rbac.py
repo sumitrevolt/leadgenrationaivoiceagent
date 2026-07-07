@@ -35,6 +35,8 @@ ADMIN_API_PATHS = [
     "/api/admin/billing",
     "/api/admin/agents",
     "/api/admin/workflows",
+    "/api/platform/health",  # sec sweep 2026-07-06: was anon (tenant count + scheduler state leak)
+    "/api/v1/status",  # sec sweep 2026-07-06: was anon (env/version/LLM-TTS-STT config + llm_usage leak)
 ]
 
 
@@ -248,6 +250,18 @@ def test_public_endpoints_remain_open(path: str):
     assert resp.status_code in (200, 307, 308, 404), (
         f"Public endpoint {path} got {resp.status_code} — should be open"
     )
+
+
+def test_activation_summary_omits_named_blockers():
+    """Public /summary exposes counts + booleans ONLY — never the named
+    blockers/warns arrays (a recon list of which controls are unarmed).
+    Sec sweep 2026-07-06."""
+    resp = client.get("/api/activation/summary")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "blocker_count" in body and "ready_for_launch" in body  # counts/booleans stay
+    assert "blockers" not in body  # named controls no longer leaked
+    assert "warns" not in body
 
 
 # ---------------------------------------------------------------------------

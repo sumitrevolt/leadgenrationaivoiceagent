@@ -231,6 +231,7 @@
         <div class="lockover"><span class="pill">🔒 Aur <span id="lockedCount">2</span> fixes + poora 30-din action plan — niche form bharo, <b>FREE</b> me milega</span></div>
       </div>
 
+      <a class="btn btn-primary" id="startCta" href="/start?utm_source=audit" style="width:100%;margin-top:20px">🚀 FREE trial shuru karo</a>
       <span class="redo"><a href="#" onclick="restartQuiz(); return false;">↻ Audit dobara karo</a></span>
     </div>
   </div>
@@ -426,6 +427,13 @@
     document.getElementById('ctaHead').textContent = locked > 0
       ? 'Baaki ' + locked + ' fixes + poora action plan FREE me chahiye?'
       : 'Score aur upar le jaana hai? FREE plan lo';
+
+    // score-contextual /start trial CTA — highest-intent moment
+    const startCta = document.getElementById('startCta');
+    startCta.href = '/start?utm_source=audit&score=' + score;
+    startCta.textContent = score < 50
+      ? '🚀 Abhi fix karo — FREE trial shuru karo'
+      : (score < 75 ? '🚀 Score badhao — FREE trial shuru karo' : '🚀 Autopilot par lo — FREE trial shuru karo');
 
     // WhatsApp prefill with score
     const waMsg = 'Mera GBP score ' + score + ' aaya, poora plan chahiye';

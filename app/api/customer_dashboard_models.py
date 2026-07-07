@@ -25,6 +25,15 @@ class CallRow(BaseModel):
     duration: str  # "2m 14s"
     status: str  # connected | no-answer | busy
     outcome: str  # "Interested - qualified" etc.
+    # Product-2 delivery fix (2026-07-06): the AI value the voice customer PAID for
+    # — Hinglish transcript + AI summary + per-call qualification report + sentiment.
+    # These live on CallLog but were dropped from CallRow, so the promised "call
+    # transcripts + AI summary aapke dashboard me" reached NO customer surface.
+    # Optional (older rows / calls with no transcript => "").
+    transcript: str = ""
+    summary: str = ""
+    qualification: str = ""
+    sentiment: str = ""
 
 
 class LeadRow(BaseModel):

@@ -699,6 +699,9 @@ class VobizStreamSession:
         # Flag OFF (default) = zero behavior change.
         self._amd_checked = False
         self._amd_machine = False
+        # IVR strike counter (2026-07-06): _is_ivr_prompt hits; threshold par
+        # hangup (IVR_HANGUP default ON) — machine se baat karne ka paisa band.
+        self._ivr_hits = 0
 
         # Kiran flywheel voice_opening (VOICE_CAMPAIGN_VARIANTS=1)
         self._flywheel_opening_override: str | None = None
@@ -1168,17 +1171,30 @@ class VobizStreamSession:
 
     @staticmethod
     def _is_junk(text: str) -> bool:
-        """True if STT text is junk — too short (<3 chars) or no alphanumeric/
-        Devanagari word char (punctuation/noise only). Dropped before any LLM
-        call so we never think (or spend) on garbage."""
+        """True if STT text is junk — too short (<3 chars), no alphanumeric/
+        Devanagari word char (punctuation/noise only), or a Whisper noise-
+        hallucination (same 1-2 words looped: 05-Jul live batch me "Aam shabd,
+        Aam Shabd, ..." x6 LLM tak pahunch ke turns kharab kar raha tha).
+        Dropped before any LLM call so we never think (or spend) on garbage."""
         t = (text or "").strip()
         if len(t) < 3:
             return True
-        return re.search(r"[0-9A-Za-zऀ-ॿ]", t) is None
+        if re.search(r"[0-9A-Za-zऀ-ॿ]", t) is None:
+            return True
+        # Repetition hallucination: >=4 tokens but <=40% unique => looped noise.
+        # Conservative on purpose — 2-3 token acks ("haan haan", "ok ok ji")
+        # kabhi is branch me nahi girte (threshold >=4 tokens).
+        toks = re.findall(r"[0-9A-Za-zऀ-ॿ']+", t.lower())
+        if len(toks) >= 4 and (len(set(toks)) / len(toks)) <= 0.4:
+            return True
+        return False
 
     @staticmethod
     def _is_ivr_prompt(text: str) -> bool:
-        """US/IN office IVR — record name / leave message (not a live human)."""
+        """US/IN office IVR — record name / leave message (not a live human).
+        2026-07-06: call_qualifier ke shared _IVR_RE se bhi match karo (single
+        source of truth — 05-Jul batch me "Welcome to LiveSpace"/"प्रेस वन" yahan
+        ke narrow markers se nikal jaata tha, agent IVR se discovery karta raha)."""
         low = (text or "").lower()
         markers = (
             "record your name",
@@ -1193,7 +1209,33 @@ class VobizStreamSession:
             "extension",
             "mailbox",
         )
-        return any(m in low for m in markers)
+        if any(m in low for m in markers):
+            return True
+        try:
+            from app.voice_agent.call_qualifier import _IVR_RE
+
+            return bool(_IVR_RE.search(text or ""))
+        except Exception:
+            return False
+
+    @staticmethod
+    def _ivr_hangup_on() -> bool:
+        """IVR_HANGUP gate (default ON) — machine detect hone par call end."""
+        return (os.environ.get("IVR_HANGUP", "1") or "1").strip().lower() not in (
+            "0",
+            "false",
+            "no",
+            "off",
+        )
+
+    @staticmethod
+    def _ivr_max_hits() -> int:
+        """Kitne IVR strikes ke baad hangup (default 2: pehla = voicemail msg,
+        doosra = cut). Min 1."""
+        try:
+            return max(1, int(os.environ.get("IVR_MAX_HITS", "2")))
+        except Exception:
+            return 2
 
     @staticmethod
     def _ivr_voicemail_reply() -> str:
@@ -1320,9 +1362,28 @@ class VobizStreamSession:
             except Exception as e:
                 logger.debug(f"[vobiz-stream] backchannel guard skip: {e}")
             # IVR / voicemail gate — structured message, "dobara boliye" mat bolo.
+            # 2026-07-06 (05-Jul paisa-burn learning): strike counter + hangup.
+            # Pehle yeh sirf voicemail-reply bolta tha aur call CHALTI rehti thi —
+            # HDFC Ergo IVR ke saath 167s tak discovery hui. Ab IVR_MAX_HITS
+            # (default 2) strikes ke baad message chhod ke call KHATAM (gated
+            # IVR_HANGUP, default ON; =0 => purana behavior).
             if self._is_ivr_prompt(text):
-                reply = self._ivr_voicemail_reply()
+                self._ivr_hits += 1
                 self.hist.append({"role": "user", "content": text})
+                if self._ivr_hangup_on() and self._ivr_hits >= self._ivr_max_hits():
+                    logger.info(
+                        f"[vobiz-stream {self.stream_sid}] IVR strike "
+                        f"{self._ivr_hits} — hanging up (machine, not a human)"
+                    )
+                    _outcome = "ivr_hangup"
+                    self._closed = True
+                    self._stop_play()
+                    try:
+                        await self.ws.close()
+                    except Exception:
+                        pass
+                    return
+                reply = self._ivr_voicemail_reply()
                 self.hist.append({"role": "assistant", "content": reply})
                 logger.info(f"[vobiz-stream {self.stream_sid}] bot(ivr): {reply[:80]}...")
                 _outcome = "ivr"
@@ -2726,6 +2787,22 @@ class VobizStreamSession:
             )
         except Exception:
             stream_outcome = "completed" if turns > 0 else "no_answer"
+        # ADR-027 self-improve loop: is call me IVR CONFIRM hua (strike counter) ->
+        # number+prefix dial_blocklist me seekho + prospect dial_block tag. Gated
+        # CALL_FEEDBACK_LOOP (default ON). Best-effort, teardown kabhi nahi todta.
+        try:
+            _fb_phone = (getattr(self, "_lead_phone", "") or "").strip()
+            if self._ivr_hits > 0 and _fb_phone:
+                from app.telephony import call_feedback
+
+                call_feedback.record_ivr_confirmed(
+                    _fb_phone,
+                    source="in_call_ivr",
+                    call_sid=str(self.stream_sid or ""),
+                    detail=f"ivr_hits={self._ivr_hits} turns={turns}",
+                )
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] call_feedback skip: {e}")
         try:
             from app.platform import outbound_webhooks as _ow
 

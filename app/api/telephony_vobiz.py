@@ -14,6 +14,7 @@ promo cold-calls 140-DID + DLT ke baad hi.
 """
 
 import json
+import os
 import uuid
 from typing import Any
 from urllib.parse import urlencode
@@ -24,6 +25,8 @@ from pydantic import BaseModel, Field
 from app.api.auth_deps import require_admin
 from app.config import settings
 from app.models.user import User
+from app.telephony.stream_token import sign as _sign_stream_token
+from app.telephony.stream_token import verify as _verify_stream_token
 from app.telephony.vobiz_handler import VobizClient, build_speak_xml, build_stream_xml
 from app.utils.logger import setup_logger
 
@@ -254,7 +257,10 @@ async def start_stream_call(
         if not client.available():
             return {"placed": False, "error": "vobiz_not_configured"}
 
-        token = uuid.uuid4().hex[:10]
+        # Signed token (INERT unless VOBIZ_STREAM_SECRET set) — stable across a
+        # mid-call WS reconnect so it still verifies AFTER _pop_pending removed
+        # the pending state. Same string is the pending KEY and the URL token.
+        token = _sign_stream_token(uuid.uuid4().hex[:10])
         niche_key = (niche or "general").strip() or "general"
         await _store_pending(
             token, {"niche": niche_key, "client_id": client_id, "lead_phone": to}
@@ -294,7 +300,8 @@ async def place_stream_call(
             detail="Vobiz not configured (VOBIZ_AUTH_ID / VOBIZ_AUTH_TOKEN missing)",
         )
 
-    token = uuid.uuid4().hex[:10]
+    # Signed token (INERT unless VOBIZ_STREAM_SECRET set) — see start_stream_call.
+    token = _sign_stream_token(uuid.uuid4().hex[:10])
     niche_key = (request.niche or "general").strip() or "general"
     await _store_pending(
         token, {"niche": niche_key, "client_id": request.client_id, "lead_phone": request.to}
@@ -372,6 +379,32 @@ async def vobiz_stream_ws(
     from app.telephony.vobiz_stream import VobizStreamSession
 
     pend = await _pop_pending(token)
+
+    # Anti-abuse gate (INERT by default). "known" = pending existed (our just-
+    # placed / mid-race call) OR the token carries a valid HMAC signature (our
+    # outbound token surviving a _pop_pending reconnect). We reject ONLY when the
+    # operator has BOTH set a secret AND opted into enforcement — otherwise this
+    # is a no-op and unknown tokens run exactly as before (the unknown-token
+    # fallback is load-bearing: mid-call reconnects look "unknown" post-pop).
+    known = bool(pend) or _verify_stream_token(token)
+    _require = os.getenv("VOBIZ_STREAM_REQUIRE_TOKEN", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    if _require and not known and (os.getenv("VOBIZ_STREAM_SECRET") or "").strip():
+        logger.warning(
+            "vobiz stream WS rejected: unsigned/unknown token (VOBIZ_STREAM_REQUIRE_TOKEN on) "
+            "token=***%s",
+            str(token)[-4:],
+        )
+        try:
+            await websocket.close(code=1008)
+        except Exception:
+            pass
+        return
+
     if pend:
         niche = pend.get("niche") or niche
         client_id = pend.get("client_id") or client_id

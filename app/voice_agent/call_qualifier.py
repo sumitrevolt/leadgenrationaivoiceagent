@@ -59,6 +59,23 @@ _IVR_PATTERNS = [
     # Marathi IVR
     r"आपले\s+(?:हार्दिक\s+)?स्वागत",
     r"कृपया.{0,20}दाबा",
+    # 2026-07-06 (05-Jul transcript audit): phrases the live batch ACTUALLY said
+    # that the list above missed — HDFC Ergo / LiveSpace IVRs + voicemail scripts.
+    r"connect(?:ing)?\s+your\s+call",
+    r"(?:is|are)\s*n[o']?t\s+available",
+    r"trying\s+to\s+reach",
+    r"you\s+have\s+not\s+entered",
+    r"if\s+you\s+are\s+an?\s+existing",
+    r"record\s+your\s+message",
+    r"finished\s+recording",
+    r"forwarded\s+to\s+voice",
+    r"(?:quality|training)\s+(?:and\s+\w+\s+)?purposes",
+    r"stay\s+on\s+the\s+line",
+    r"please\s+wait\s+while",
+    # Devanagari STT renders English IVR phonetically ("प्रेस वन", "वेट वाल वी")
+    r"प्रेस\s*(?:वन|टू|थ्री|फोर|फाइव|जीरो|स्टार|हैश|\d)",
+    r"रिक्वायर्मेंट|कस्टमर\s*केयर|एक्सपीजियंस\s*सेंटर",
+    r"क्?नेक्ट\s*योर\s*कोल|प्लीज\s*वेट|होल्ड\s*(?:करें|कीजिए|प्लीज)",
 ]
 _IVR_RE = re.compile("|".join(_IVR_PATTERNS), re.IGNORECASE)
 

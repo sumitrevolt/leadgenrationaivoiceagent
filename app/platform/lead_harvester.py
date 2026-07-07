@@ -156,13 +156,19 @@ def _existing_keys() -> tuple[set[str], set[str]]:
 
 
 def _valid_phone(raw: str) -> str:
-    """E.164 IN mobile ya empty. phonenumbers ho to use, warna regex fallback."""
+    """E.164 IN mobile ya empty. phonenumbers ho to use, warna regex fallback.
+
+    ADR-027 (council 2026-07-06): docstring hamesha se "mobile" kehta tha par
+    is_mobile IGNORE hota tha — FIXED_LINE cloud-IVR DIDs (Livspace/HDFC type)
+    pass ho ke "ready" prospects bante the. Ab valid-but-NON-mobile => reject
+    ('' return, regex fallback me NAHI girta). Lib-absent par regex [6-9] hi
+    guard hai (purana behavior)."""
     try:
         from app.lead_scraper import phone_validate
 
         v = phone_validate.validate_in(raw)
         if v.get("ok") and v.get("e164"):
-            return str(v["e164"])
+            return str(v["e164"]) if v.get("is_mobile") else ""
     except Exception:
         pass
     m = _PHONE_RE.search(raw or "")

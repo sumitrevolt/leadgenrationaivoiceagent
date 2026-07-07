@@ -103,6 +103,22 @@ def _phone_digits(raw: str | None) -> str:
     return ""
 
 
+def _phone_type(phone10: str) -> str:
+    """ADR-027 quality tag: 'mobile'/'flom'/'fixed'/'tollfree'/'invalid'/'unknown'/''.
+
+    dial_gate.phone_quality (libphonenumber IN plan) se — FIXED_LINE cloud-IVR
+    DIDs record me hi visible ho jate (dial_gate inhe promotional-dial pe waise
+    bhi block karta; yeh tag dashboards/backfill/email-routing ke liye)."""
+    if not phone10:
+        return ""
+    try:
+        from app.telephony.dial_gate import phone_quality
+
+        return phone_quality(phone10)
+    except Exception:
+        return "unknown"
+
+
 # --------------------------------------------------------------------------- #
 # Pitch builder (template — NO LLM, instant + deterministic)
 # --------------------------------------------------------------------------- #
@@ -823,6 +839,7 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
                         "found_at": datetime.utcnow().isoformat() + "Z",
                         "business_name": name[:200],
                         "phone": ("+91" + phone10) if phone10 else "",
+                        "phone_type": _phone_type(phone10),  # ADR-027 quality tag
                         "address": str(biz.get("address") or "")[:300],
                         "city": city,
                         "niche": niche,

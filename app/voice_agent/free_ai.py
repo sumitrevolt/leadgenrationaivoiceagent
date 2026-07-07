@@ -486,8 +486,17 @@ _LLM_CACHE_TTL_S = float(_os.environ.get("LLM_CACHE_TTL_S", "300") or 300)
 _LLM_CACHE_MAX = 500
 
 
-def _llm_cache_on() -> bool:
-    return _os.environ.get("LLM_CACHE", "0").strip().lower() in ("1", "true", "yes")
+def _llm_cache_on(prof: str = "") -> bool:
+    """W1.10: bulk/content profile DEFAULT-ON (identical content/blog/SEO prompts cache
+    → duplicate free-provider API calls + 429 bacho); realtime/voice OFF (dynamic replies
+    pe asar na ho). Global `LLM_CACHE` env override: =1 force-on (saare profiles), =0
+    force-off (sab). Unset → profile-based default."""
+    env = _os.environ.get("LLM_CACHE", "").strip().lower()
+    if env in ("1", "true", "yes", "on"):
+        return True
+    if env in ("0", "false", "no", "off"):
+        return False
+    return prof == "bulk"
 
 
 def _llm_cache_key(system: Any, msgs: Any, max_tokens: Any, temperature: Any) -> str:
@@ -514,12 +523,25 @@ def _llm_cache_get(key: str):
         return None
 
 
+def _llm_cache_evict() -> None:
+    """W1.11: bound pe poora `.clear()` (saara cache nuke, hit-rate→0) ki jagah
+    TTL+LRU-ish — pehle expired entries drop; phir bhi full ho to oldest-by-timestamp
+    ~20% nikalo. Hot entries survive. Never-raise (caller guarded bhi hai)."""
+    now = time.time()
+    for k in [k for k, (ts, _) in list(_LLM_CACHE.items()) if now - ts > _LLM_CACHE_TTL_S]:
+        _LLM_CACHE.pop(k, None)
+    if len(_LLM_CACHE) >= _LLM_CACHE_MAX:
+        n_evict = max(1, _LLM_CACHE_MAX // 5)
+        for k, _v in sorted(_LLM_CACHE.items(), key=lambda kv: kv[1][0])[:n_evict]:
+            _LLM_CACHE.pop(k, None)
+
+
 def _llm_cache_put(key: str, val: tuple[str, str]) -> None:
     try:
         if not key:
             return
         if len(_LLM_CACHE) >= _LLM_CACHE_MAX:
-            _LLM_CACHE.clear()  # simple bound
+            _llm_cache_evict()  # W1.11: partial evict (expired + oldest), full clear nahi
         _LLM_CACHE[key] = (time.time(), val)
     except Exception:
         pass
@@ -570,10 +592,13 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
             ("mistral", _MISTRAL_LLM_MODEL),
         ]
     else:
+        # realtime = latency-first: Groq fastest free inference, Cerebras ~instant,
+        # Mistral = reliable but p50 latency higher → bulk primary, not realtime.
+        # (audit §10 [LOW] 2026-07-06: old order was mistral→groq→cerebras)
         core = [
-            ("mistral", _MISTRAL_LLM_MODEL),
             ("groq", _GROQ_LLM_MODEL),
             ("cerebras", _CEREBRAS_LLM_MODEL),
+            ("mistral", _MISTRAL_LLM_MODEL),
         ]
     chain: list[tuple[str, str]] = []
 
@@ -767,12 +792,21 @@ async def chat(
     if not msgs:
         return "", ""
 
-    # Response cache (gated LLM_CACHE) — identical prompt -> reuse, API call bachao.
+    # Response cache — bulk/content profile DEFAULT cached (W1.10), realtime nahi.
     # Budget guard ke PEHLE: cached reply ka zero real LLM cost hai, isliye over-budget
     # hone par bhi cache-hit serve hona chahiye (review finding #5).
-    _ck = _llm_cache_key(system, msgs, max_tokens, temperature) if _llm_cache_on() else ""
+    prof = _resolve_llm_profile(profile, max_tokens)
+    _ck = _llm_cache_key(system, msgs, max_tokens, temperature) if _llm_cache_on(prof) else ""
     if _ck:
         _hit = _llm_cache_get(_ck)
+        try:
+            # Cache hit-rate observability (W1.12 revisit-trigger prereq) — sirf jab
+            # cache ON ho tab record; never-raise, file-append ultra-light.
+            from app.platform import llm_metrics
+
+            llm_metrics.record_cache(_hit is not None)
+        except Exception:
+            pass
         if _hit is not None:
             return _hit
 
@@ -792,7 +826,6 @@ async def chat(
     except Exception:
         pass  # guard error = proceed normally (fail-open)
 
-    prof = _resolve_llm_profile(profile, max_tokens)
     chain = _build_llm_chain(prof)
     for provider, model in chain:
         if _provider_down(provider):

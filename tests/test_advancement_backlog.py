@@ -12,7 +12,9 @@ def test_llm_profile_bulk_vs_realtime():
     bulk = [p for p, _ in fa._build_llm_chain("bulk")]
     rt = [p for p, _ in fa._build_llm_chain("realtime")]
     assert bulk.index("cerebras") < bulk.index("mistral")
-    assert rt.index("mistral") < rt.index("cerebras")
+    # realtime = latency-first: groq (fastest) → cerebras → mistral
+    assert rt.index("groq") < rt.index("cerebras")
+    assert rt.index("cerebras") < rt.index("mistral")
 
 
 def test_hybrid_rrf_merge():

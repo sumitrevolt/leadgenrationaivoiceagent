@@ -40,6 +40,42 @@ def _timeout_ms(timeout_s: int) -> int:
         return 20000
 
 
+def _url_is_safe(url: str) -> bool:
+    """SSRF guard — block a headless nav to internal/private/metadata hosts before
+    launching the browser (defense-in-depth; these tools are super-admin +
+    BROWSER_TOOLS-gated, but a compromised admin could otherwise pivot to
+    127.0.0.1:6333 Qdrant / 169.254.169.254 metadata / the Docker net). http(s)
+    only; hostname MUST resolve to a PUBLIC IP. Fail-CLOSED (unresolvable/unknown
+    => unsafe). NOTE: a headless browser can still follow a REDIRECT to a private
+    IP — full coverage needs route interception; this closes the direct case."""
+    try:
+        import ipaddress
+        import socket
+        from urllib.parse import urlparse
+
+        p = urlparse(url)
+        if p.scheme not in ("http", "https") or not p.hostname:
+            return False
+        port = p.port or (443 if p.scheme == "https" else 80)
+        infos = socket.getaddrinfo(p.hostname, port, proto=socket.IPPROTO_TCP)
+        if not infos:
+            return False
+        for info in infos:
+            ip = ipaddress.ip_address(info[4][0])
+            if (
+                ip.is_private
+                or ip.is_loopback
+                or ip.is_link_local
+                or ip.is_reserved
+                or ip.is_multicast
+                or ip.is_unspecified
+            ):
+                return False
+        return True
+    except Exception:
+        return False  # fail-closed: unresolvable / parse error => treat as unsafe
+
+
 async def fetch_rendered(url: str, timeout_s: int = 20) -> dict[str, Any]:
     """JS-rendered page fetch → {ok, url, title, text}.
 
@@ -52,6 +88,8 @@ async def fetch_rendered(url: str, timeout_s: int = 20) -> dict[str, Any]:
         return {"ok": False, "error": "disabled"}
     if not url:
         return {"ok": False, "error": "empty_url"}
+    if not _url_is_safe(url):
+        return {"ok": False, "error": "blocked_unsafe_url"}
     try:
         from playwright.async_api import async_playwright  # lazy optional dep
     except ImportError:
@@ -101,6 +139,8 @@ async def extract(url: str, selector: str, timeout_s: int = 20) -> dict[str, Any
         return {"ok": False, "error": "disabled"}
     if not url or not selector:
         return {"ok": False, "error": "empty_url_or_selector"}
+    if not _url_is_safe(url):
+        return {"ok": False, "error": "blocked_unsafe_url"}
     try:
         from playwright.async_api import async_playwright  # lazy optional dep
     except ImportError:

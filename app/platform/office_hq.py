@@ -21,6 +21,7 @@ Hard rules followed here (per user spec + advisor review):
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -766,6 +767,34 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         logger.debug(f"[office_hq] retention_growth skipped: {e}")
 
     return [stages[m["id"]] for m in PIPELINE_STAGE_META]
+
+
+async def warm_lead_sla_nudge() -> dict[str, Any]:
+    """W4.1: pipeline me stuck (>24h — build_pipeline ke existing per-stage stuckCount) +
+    warm (40-69) leads → FOUNDER ko ntfy nudge (founder-only, koi customer-send NAHI =
+    zero §5 ban/deliverability surface). Gated WARM_SLA_NUDGE (default OFF); threshold
+    WARM_SLA_MIN (default 3). build_pipeline modify nahi karta — sirf uske counts reuse."""
+    import os as _os
+
+    if _os.getenv("WARM_SLA_NUDGE", "").strip().lower() not in ("1", "true", "yes", "on"):
+        return {"nudged": False, "reason": "disabled"}
+    try:
+        stages = await build_pipeline(items_limit=1)
+        stuck = sum(int((st or {}).get("stuckCount") or 0) for st in (stages or []))
+        warm = sum(int((st or {}).get("warm_count") or 0) for st in (stages or []))
+        try:
+            thresh = max(1, int(_os.getenv("WARM_SLA_MIN", "3") or 3))
+        except Exception:
+            thresh = 3
+        if stuck >= thresh:
+            from app.platform import ops_alerts
+
+            ops_alerts.alert_warm_sla(stuck, warm)
+            return {"nudged": True, "stuck": stuck, "warm": warm}
+        return {"nudged": False, "stuck": stuck, "warm": warm, "reason": "below_threshold"}
+    except Exception as e:
+        logger.debug(f"[office_hq] warm_lead_sla_nudge skipped: {e}")
+        return {"error": str(e)}
 
 
 def _apply_override(item: dict[str, Any], overrides: dict[str, dict[str, Any]]) -> dict[str, Any]:
@@ -1518,6 +1547,91 @@ def build_enterprise_features(snapshot: dict[str, Any]) -> dict[str, Any]:
         return {"title": "Advanced Virtual Office", "summary": {"total": 0}, "features": []}
 
 
+_TRENDS_PATH = os.path.join("data", "office_trends.json")
+
+
+def build_trends(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """W4.2 (advanced Office): pipeline momentum — hot/warm/stuck ka day-over-day delta
+    (sabse recent prior-din se aaj). Point-in-time snapshot ko trend-aware banata.
+    Derived-metrics history `data/office_trends.json` me (~7 din; revenue_snapshots jaisa
+    precedent — koi business-data mutation nahi). FULLY fail-open: kisi bhi error pe {} —
+    page kabhi blank nahi (module ka never-raise contract)."""
+    try:
+        pipeline = (snapshot or {}).get("pipeline") or []
+        hot = sum(int((s or {}).get("hot_count") or 0) for s in pipeline)
+        warm = sum(int((s or {}).get("warm_count") or 0) for s in pipeline)
+        stuck = sum(int((s or {}).get("stuckCount") or 0) for s in pipeline)
+        today_vals = {"hot": hot, "warm": warm, "stuck": stuck}
+        today = _now().strftime("%Y-%m-%d")
+
+        hist: dict[str, Any] = {}
+        try:
+            if os.path.isfile(_TRENDS_PATH):
+                with open(_TRENDS_PATH, encoding="utf-8") as f:
+                    hist = json.load(f) or {}
+        except Exception:
+            hist = {}
+
+        prior_days = sorted(d for d in hist if isinstance(d, str) and d < today)
+        prev = (hist.get(prior_days[-1]) if prior_days else {}) or {}
+        day_over_day = {
+            k: {"now": v, "prev": int(prev.get(k) or 0), "delta": v - int(prev.get(k) or 0)}
+            for k, v in today_vals.items()
+        }
+
+        # persist today's latest + prune to last 7 days (best-effort, atomic tmp+replace)
+        try:
+            hist[today] = today_vals
+            for d in sorted(hist)[:-7]:
+                hist.pop(d, None)
+            os.makedirs(os.path.dirname(_TRENDS_PATH) or ".", exist_ok=True)
+            tmp = _TRENDS_PATH + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(hist, f)
+            os.replace(tmp, _TRENDS_PATH)
+        except Exception as e:
+            logger.debug(f"[office_hq] trends persist skipped: {e}")
+
+        return {"day_over_day": day_over_day, "asof": today}
+    except Exception as e:
+        logger.debug(f"[office_hq] build_trends skipped: {e}")
+        return {}
+
+
+def build_trend_alerts(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
+    """W4.3 (advanced Office): W4.2 trends ke day-over-day deltas se momentum alerts —
+    stuck badhna (mid-funnel jam) / hot girna (top-funnel slow) founder ko flag karo.
+    Read-only, deterministic, thresholds env-tunable (OFFICE_STUCK_ALERT_DELTA /
+    OFFICE_HOT_ALERT_DROP, default 3), never-raise."""
+    try:
+        def _thr(name: str, default: int) -> int:
+            try:
+                return int(os.getenv(name, "").strip() or default)
+            except Exception:
+                return default
+
+        dod = ((snapshot or {}).get("trends") or {}).get("day_over_day") or {}
+        alerts: list[dict[str, Any]] = []
+        stuck = dod.get("stuck") or {}
+        hot = dod.get("hot") or {}
+        if int(stuck.get("delta") or 0) >= _thr("OFFICE_STUCK_ALERT_DELTA", 3):
+            alerts.append({
+                "level": "warn",
+                "signal": "stuck_rising",
+                "msg": f"⚠️ Stuck leads +{stuck.get('delta')} vs kal ({stuck.get('now')}) — mid-funnel jam, aaj clear karo.",
+            })
+        if int(hot.get("delta") or 0) <= -_thr("OFFICE_HOT_ALERT_DROP", 3):
+            alerts.append({
+                "level": "warn",
+                "signal": "hot_falling",
+                "msg": f"📉 Hot leads {hot.get('delta')} vs kal ({hot.get('now')}) — top-funnel dheema, prospecting/outreach push.",
+            })
+        return alerts
+    except Exception as e:
+        logger.debug(f"[office_hq] build_trend_alerts skipped: {e}")
+        return []
+
+
 async def build_snapshot() -> dict[str, Any]:
     """Top-level composer — the ONE call the frontend needs. Never raises.
 
@@ -1576,6 +1690,8 @@ async def build_snapshot() -> dict[str, Any]:
     snapshot["room_workloads"] = build_room_workloads(snapshot)
     snapshot["replay"] = build_replay(snapshot)
     snapshot["enterprise_features"] = build_enterprise_features(snapshot)
+    snapshot["trends"] = build_trends(snapshot)  # W4.2: day-over-day pipeline momentum
+    snapshot["trend_alerts"] = build_trend_alerts(snapshot)  # W4.3: momentum alerts
 
     try:
         from app.cache import cache

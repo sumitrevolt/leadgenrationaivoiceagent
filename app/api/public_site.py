@@ -680,6 +680,22 @@ async def public_signup(body: SignupIn, request: Request):
             except Exception as e:
                 logger.debug(f"[signup] welcome WhatsApp skip (account still ok): {e}")
 
+    # 6.95) DAY-1 VALUE — enqueue the done-for-you auto-onboard (website→KB seed +
+    #       first content pack + customer-visible content QUEUE + niche snapshot) to
+    #       the WORKER, so the new customer's portal isn't empty until the next-day
+    #       content job. Runs regardless of the AUTO_ONBOARD hourly-sweep flag; the
+    #       sweep stays the backstop (auto_onboard marks setup_done → idempotent).
+    #       send_welcome=False — signup already sent its welcome above. Heavy work
+    #       stays in Celery (web process never scrapes/LLMs). Gated SIGNUP_AUTO_ONBOARD
+    #       (default ON); never blocks signup.
+    if (os.environ.get("SIGNUP_AUTO_ONBOARD", "1") or "1").strip().lower() not in ("0", "false", "no"):
+        try:
+            from app.tasks.staff_jobs import onboard_client
+
+            onboard_client.delay(cid, False)
+        except Exception as e:
+            logger.debug(f"[signup] onboard enqueue skip (hourly sweep is backstop): {e}")
+
     # 7) Team activity (best-effort) — Rohan ko self-signup dikhe
     try:
         from app.platform.team import log_event

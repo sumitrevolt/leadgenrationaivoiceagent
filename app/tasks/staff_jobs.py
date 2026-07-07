@@ -175,6 +175,31 @@ def self_improve_tick(self):
 
 @shared_task(
     bind=True,
+    name="app.tasks.staff_jobs.onboard_client",
+    max_retries=0,
+    acks_late=False,
+)
+def onboard_client(self, cid: str, send_welcome: bool = True):
+    """One-shot per-client auto-onboard, fired on signup / admin-onboard so a NEW
+    customer gets day-1 value IMMEDIATELY (website→KB seed + first content pack +
+    customer-visible content queue + niche snapshot) instead of an empty portal
+    until the AUTO_ONBOARD-gated hourly sweep. Runs in the WORKER (heavy scrape/LLM
+    — never the web process, per CLAUDE.md). Idempotent: auto_onboard marks
+    setup_done so the hourly sweep skips it. send_welcome=False when the caller
+    already sent its own welcome (no double WhatsApp on /signup). Event-driven
+    (not a periodic job) so it is NOT dead-man tracked. Never raises."""
+    try:
+        from app.marketing import onboarding
+
+        res = _run_async(onboarding.auto_onboard(str(cid), send_welcome=bool(send_welcome))) or {}
+        return {"ok": bool(res.get("ok")), "client_id": str(cid)}
+    except Exception as e:
+        logger.warning(f"[onboard_client] {cid}: {e}")
+        return {"ok": False, "client_id": str(cid), "error": str(e)[:200]}
+
+
+@shared_task(
+    bind=True,
     name="app.tasks.staff_jobs.process_tick",
     max_retries=0,
     acks_late=True,
