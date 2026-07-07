@@ -78,8 +78,28 @@ def _alerts_enabled() -> bool:
     return os.environ.get("AUTOMATION_HEALTH_ALERTS", "0").strip().lower() in ("1", "true", "yes")
 
 
-def record_run(job: str, ok: bool = True, seconds: float = 0.0, note: str = "") -> None:
-    """Job-run heartbeat (scheduler wrapper se). KABHI raise nahi, fast."""
+def record_run(
+    job: str,
+    ok: bool = True,
+    seconds: float = 0.0,
+    note: str = "",
+    *,
+    error_class: str = "",
+    error_message: str = "",
+    trigger: str = "",
+    started_at: str = "",
+) -> None:
+    """Job-run heartbeat (scheduler wrapper se). KABHI raise nahi, fast.
+
+    Enriched fields (additive, keyword-only) — sirf non-empty pe jsonl record me
+    likhe jaate hain taaki PURANE records (bina in fields ke) readable rahein aur
+    old positional callers (`record_run(job, ok, sec, note)`) unchanged chalein:
+      - error_class    : exception ka type-name (ya "job_reported_failure" jab inner
+                         ne sirf False diya, detail bina)
+      - error_message  : str(exception), ~300 char cap
+      - trigger        : run ka source ("scheduler" etc.)
+      - started_at     : run start ISO-UTC (duration `s` ke saath timeline reconstruct)
+    """
     try:  # W1.13: per-job Prometheus counters (independent try — heartbeat pe asar na ho)
         from app.platform import job_metrics
 
@@ -94,6 +114,15 @@ def record_run(job: str, ok: bool = True, seconds: float = 0.0, note: str = "") 
             "note": (note or "")[:120],
             "at": _now().isoformat(timespec="seconds"),
         }
+        # additive fields — sirf non-empty pe (purane records + snapshot readable rahein)
+        if error_class:
+            rec["error_class"] = str(error_class)[:60]
+        if error_message:
+            rec["error_message"] = str(error_message)[:300]
+        if trigger:
+            rec["trigger"] = str(trigger)[:20]
+        if started_at:
+            rec["started_at"] = str(started_at)[:40]
         os.makedirs(os.path.dirname(_RUNS) or ".", exist_ok=True)
         with open(_RUNS, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -117,6 +146,82 @@ def record_run(job: str, ok: bool = True, seconds: float = 0.0, note: str = "") 
             os.replace(tmp, _BEATS)
     except Exception:
         pass
+
+
+def _tail_lines(path: str, max_lines: int) -> list[str]:
+    """File ke END se ~max_lines lines — bounded read (chunk-wise backward), file
+    kitni bhi badi ho poora load NAHI karta. Kabhi raise nahi, fail = []."""
+    try:
+        with open(path, "rb") as f:
+            f.seek(0, os.SEEK_END)
+            pos = f.tell()
+            block = 65536
+            data = b""
+            while pos > 0 and data.count(b"\n") <= max_lines:
+                read_size = min(block, pos)
+                pos -= read_size
+                f.seek(pos)
+                data = f.read(read_size) + data
+                if len(data) > 4 * 1024 * 1024:  # 4MB hard cap — runaway se bacho
+                    break
+        return data.decode("utf-8", errors="replace").splitlines()[-max_lines:]
+    except Exception:
+        return []
+
+
+def run_history(
+    job: str = "",
+    status: str = "",
+    limit: int = 100,
+    failures_first: bool = False,
+) -> list[dict[str, Any]]:
+    """Per-run history (data/job_runs.jsonl) — NEWEST-FIRST, filtered. Read-side of
+    record_run (jsonl pehle write-only tha, koi padhta hi nahi tha).
+
+    - job     : substring match (case-insensitive) on job name ("" = all)
+    - status  : "ok" | "failed" (aur "fail") | "" = all
+    - limit   : max records (1..500 cap)
+    - failures_first : failed runs ko top pe le aao (stable — group ke andar newest-first)
+    File na ho / corrupt line = gracefully skip. Kabhi raise nahi."""
+    try:
+        limit = max(1, min(int(limit or 100), 500))
+    except Exception:
+        limit = 100
+    if not os.path.exists(_RUNS):
+        return []
+    job_f = (job or "").strip().lower()
+    status_f = (status or "").strip().lower()
+    # tail se limit ka multiple padho (bounded) taaki filter ke baad bhi kaafi bache
+    hard = max(limit * 5, 500) if failures_first else max(limit * 3, limit)
+    raw = _tail_lines(_RUNS, min(hard, 5000))
+    out: list[dict[str, Any]] = []
+    for line in reversed(raw):  # file chronological => reversed = newest-first
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except Exception:
+            continue
+        if not isinstance(rec, dict):
+            continue
+        if job_f and job_f not in str(rec.get("job", "")).lower():
+            continue
+        if status_f == "ok" and not rec.get("ok"):
+            continue
+        if status_f in ("failed", "fail") and rec.get("ok"):
+            continue
+        out.append(rec)
+        # failures_first ke liye thoda extra chahiye (sort ke baad top-limit); warna
+        # newest-first me pehle limit hi kaafi hai.
+        if not failures_first and len(out) >= limit:
+            break
+        if failures_first and len(out) >= max(limit * 3, 300):
+            break
+    if failures_first:
+        # stable sort: failed (0) pehle, ok (1) baad — group ke andar newest-first bana rahe
+        out.sort(key=lambda r: 0 if not r.get("ok") else 1)
+    return out[:limit]
 
 
 def queue_depth() -> dict[str, Any]:

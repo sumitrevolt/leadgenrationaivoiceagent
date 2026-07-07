@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -70,6 +70,9 @@ EVENT_TYPES: frozenset[str] = frozenset(LABELS.keys())
 
 # Events that represent published/real marketing OUTPUT (for "value delivered").
 _VALUE_EVENTS = {"onboarding_completed", "post_published", "lead_captured", "followup_sent"}
+
+# Events that mean "something broke and needs attention" (for at-risk / failures).
+_FAILURE_EVENTS = {"post_failed", "automation_failed"}
 
 
 # --------------------------------------------------------------------------- #
@@ -119,6 +122,25 @@ def _read_events(cid: str) -> list[dict[str, Any]]:
 
 def _existing_keys(cid: str) -> set[str]:
     return {str(r.get("key")) for r in _read_events(cid) if r.get("key")}
+
+
+def _parse_at(at: Any) -> datetime | None:
+    """Parse a ledger event `at` ISO timestamp to an aware-UTC datetime.
+
+    Handles both the module's own `+00:00` isoformat and a trailing-`Z` form,
+    and coerces naive stamps to UTC. Never raises (returns None on garbage)."""
+    s = str(at or "").strip()
+    if not s:
+        return None
+    try:
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        return None
 
 
 # --------------------------------------------------------------------------- #
@@ -249,6 +271,50 @@ def summary(client_id: str) -> dict[str, Any]:
     }
 
 
+def recent_counts(client_id: str, hours: int = 168) -> dict[str, Any]:
+    """Time-WINDOWED event roll-up (additive to summary(), which is all-time).
+
+    Drives the admin Command Center's delivery-health / at-risk detection:
+      - `events_in_window` / `counts` — events whose `at` falls in the last
+        `hours` (default 168h = 7 days).
+      - `value_events_in_window` — True if any _VALUE_EVENTS landed in that
+        window ("value delivered in last 7d").
+      - `failures_24h` — count of post_failed/automation_failed in the last 24h
+        (fixed 24h regardless of `hours` — this is the at-risk failure signal).
+
+    Never raises — summary()'s existing fields are untouched; this is purely
+    additive so callers can ask "recently" instead of "ever"."""
+    cid = str(client_id or "").strip()
+    now = datetime.now(timezone.utc)
+    win_start = now - timedelta(hours=max(1, int(hours or 168)))
+    day_start = now - timedelta(hours=24)
+    counts: dict[str, int] = {}
+    value_in_window = False
+    failures_24h = 0
+    try:
+        for r in _read_events(cid):
+            ev = str(r.get("event") or "")
+            dt = _parse_at(r.get("at"))
+            if dt is None:
+                continue
+            if dt >= win_start:
+                counts[ev] = counts.get(ev, 0) + 1
+                if ev in _VALUE_EVENTS:
+                    value_in_window = True
+            if dt >= day_start and ev in _FAILURE_EVENTS:
+                failures_24h += 1
+    except Exception as exc:  # pragma: no cover
+        logger.warning("delivery_ledger recent_counts err (%s): %s", cid, exc)
+    return {
+        "client_id": cid,
+        "window_hours": int(hours or 168),
+        "events_in_window": sum(counts.values()),
+        "counts": counts,
+        "value_events_in_window": value_in_window,
+        "failures_24h": failures_24h,
+    }
+
+
 def customer_view(client_id: str, limit: int = 30) -> dict[str, Any]:
     """"AI ne aapke liye kya kiya" — customer-safe timeline + summary. Never raises."""
     return {
@@ -373,6 +439,7 @@ __all__ = [
     "log_event",
     "timeline",
     "summary",
+    "recent_counts",
     "customer_view",
     "admin_view",
     "backfill_from_sources",

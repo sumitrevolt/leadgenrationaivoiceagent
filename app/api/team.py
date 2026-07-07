@@ -247,6 +247,30 @@ async def get_scheduler_jobs(current_user: User = Depends(require_admin)):
         return {"jobs": [], "error": str(e)}
 
 
+@router.get("/scheduler/runs")
+async def get_scheduler_runs(
+    job: str = "",
+    status: str = "",
+    limit: int = 100,
+    failures_first: bool = True,
+    current_user: User = Depends(require_admin),
+):
+    """Per-run history (data/job_runs.jsonl) — kaunsa job kab chala, pass/fail +
+    fail hone ki wajah (error_class/message). Pehle yeh jsonl write-only tha (koi
+    padhta hi nahi) — ab admin run-history + failure-reason dekh sakta.
+    Default failures_first=true (jo toota wo pehle). Never raises."""
+    try:
+        from app.platform import automation_health
+
+        runs = automation_health.run_history(
+            job=job, status=status, limit=limit, failures_first=failures_first
+        )
+        return {"runs": runs, "total_returned": len(runs)}
+    except Exception as e:
+        logger.warning(f"[team-api] scheduler runs failed: {e}")
+        return {"runs": [], "total_returned": 0, "error": str(e)}
+
+
 @router.post("/scheduler/{job}/toggle")
 async def toggle_scheduler_job(
     job: str, body: SchedulerToggleIn, current_user: User = Depends(require_admin)

@@ -799,6 +799,20 @@ a{color:var(--acc)}
     <div id="scHealthOut" class="mut" style="margin-top:8px">Load ho raha...</div>
   </div>
   <div class="card">
+    <details id="srhBox">
+      <summary style="cursor:pointer;font-size:17px;font-weight:600">🧾 Run History — kaunsa job kab chala + fail hone ki wajah</summary>
+      <div class="mut" style="margin-top:6px">Per-run log (pass/fail + error reason). Pehle yeh sirf likha jaata tha, koi padhta hi nahi tha — ab yahan dikhta. Default: <b>jo toota wo pehle</b>.</div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="srhJob" placeholder="job filter (e.g. content)" style="max-width:200px">
+        <select id="srhStatus"><option value="">— koi bhi status —</option><option value="failed">sirf failed</option><option value="ok">sirf ok</option></select>
+        <label style="display:flex;align-items:center;gap:4px"><input id="srhFailFirst" type="checkbox" checked style="width:auto"> failures first</label>
+        <input id="srhLimit" type="number" value="100" style="max-width:90px" title="max rows (1-500)">
+        <button class="btn2" id="srhBtn" onclick="srhLoad()">🔄 Load history</button>
+      </div>
+      <div id="srhOut" class="mut" style="margin-top:8px">Load button dabao.</div>
+    </details>
+  </div>
+  <div class="card">
     <h2>👥 AI Staff — live state + manual run</h2>
     <div class="mut">Har staff abhi kya kar raha (working/active/offline) + [▶ Run now] se uska job turant chalao.</div>
     <div id="scTeamOut" class="mut" style="margin-top:8px">Load ho raha...</div>
@@ -2601,6 +2615,31 @@ async function scJobRun(job){
 }
 var scTimer=null;
 function scAuto(on){if(scTimer){clearInterval(scTimer);scTimer=null}if(on){scTimer=setInterval(function(){if($('sec-schedule').style.display!=='none')scLoad()},60000)}}
+/* 🧾 Run History — jsonl run-log ka read-view (job_runs.jsonl, pehle write-only tha) */
+async function srhLoad(){
+  busy('srhBtn',1,'⏳ load...');
+  try{
+    var job=($('srhJob').value||'').trim();
+    var status=$('srhStatus').value||'';
+    var ff=$('srhFailFirst').checked?'true':'false';
+    var lim=parseInt($('srhLimit').value||'100',10)||100;
+    var qs='?failures_first='+ff+'&limit='+lim+(status?'&status='+encodeURIComponent(status):'')+(job?'&job='+encodeURIComponent(job):'');
+    var d=await api('/api/platform/team/scheduler/runs'+qs);
+    var runs=(d&&d.runs)||[];
+    if(!runs.length){$('srhOut').innerHTML='<div class="mut">Koi run history nahi mili (filter dheela karo ya jobs abhi tak chale nahi).</div>';busy('srhBtn',0);return}
+    var h='<div class="result">'+pills({total:d.total_returned,failures_first:ff})+'<table><tr><th>Job</th><th>Status</th><th>Started (IST)</th><th>At (IST)</th><th>Took</th><th>Error</th><th>Note</th></tr>';
+    runs.forEach(function(r){
+      var ok=r.ok!==false;
+      var badge=ok?'<span class="ok">✅ ok</span>':'<span class="bad">❌ fail</span>';
+      var em=String(r.error_message||'');
+      if(em.length>80)em=em.slice(0,80)+'…';
+      var errCell=r.error_class?('<span class="bad">'+esc(r.error_class)+'</span>'+(em?'<br><span class="mut">'+esc(em)+'</span>':'')):'';
+      h+='<tr><td>'+esc(r.job||'')+'</td><td>'+badge+'</td><td class="mut">'+esc(fmtTime(r.started_at))+'</td><td class="mut">'+esc(fmtTime(r.at))+'</td><td class="mut">'+(r.s!=null?esc(r.s)+'s':'')+'</td><td>'+errCell+'</td><td class="mut">'+esc(r.note||'')+'</td></tr>';
+    });
+    $('srhOut').innerHTML=h+'</table></div>';
+  }catch(e){warnBox('srhOut','Run history fail: '+e.message)}
+  busy('srhBtn',0);
+}
 
 /* ---------------- 13. Agents ---------------- */
 async function agLoad(){
