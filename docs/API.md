@@ -13,7 +13,7 @@ RESTful API for the LeadGen AI Voice Agent platform. All endpoints return JSON r
 Include the API key in the `X-API-Key` header:
 
 ```bash
-curl -H "X-API-Key: your-api-key" https://leadsgenai.in/api/leads/
+curl -H "X-API-Key: your-api-key" https://leadsgenai.in/api/campaigns/
 ```
 
 ### Rate Limits
@@ -59,71 +59,10 @@ Liveness check (returns 200 if process is running).
 
 ### Leads
 
-#### GET /api/leads/
-List all leads with optional filtering.
-
-**Query Parameters**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| status | string | Filter by status (new, contacted, qualified, etc.) |
-| city | string | Filter by city |
-| niche | string | Filter by industry niche |
-| is_hot_lead | boolean | Filter hot leads only |
-| limit | integer | Max results (default: 100) |
-| offset | integer | Pagination offset |
-
-**Response**
-```json
-[
-  {
-    "id": "lead_abc123",
-    "company_name": "ABC Solutions",
-    "contact_name": "Rahul Sharma",
-    "phone": "+919876543210",
-    "email": "rahul@abc.com",
-    "city": "Mumbai",
-    "status": "new",
-    "lead_score": 75,
-    "is_hot_lead": true,
-    "created_at": "2024-01-01T00:00:00Z"
-  }
-]
-```
-
-#### POST /api/leads/
-Create a new lead.
-
-**Request Body**
-```json
-{
-  "company_name": "ABC Solutions",
-  "contact_name": "Rahul Sharma",
-  "phone": "+919876543210",
-  "email": "rahul@abc.com",
-  "city": "Mumbai",
-  "category": "Real Estate",
-  "niche": "real_estate"
-}
-```
-
-**Response**: `201 Created`
-```json
-{
-  "id": "lead_abc123",
-  "status": "new",
-  "lead_score": 0,
-  "created_at": "2024-01-01T00:00:00Z"
-}
-```
-
-#### GET /api/leads/{lead_id}
-Get a specific lead.
-
-#### PUT /api/leads/{lead_id}
-Update a lead.
-
-#### DELETE /api/leads/{lead_id}
-Delete a lead.
+Lead scraping only — `POST /api/leads/scrape` (background scrape job) and
+`GET /api/leads/stats/summary`. There is no CRUD here; real leads live in the
+`Lead` DB model and are created via `/api/public/inquiry`, the lead harvester,
+or campaign scraping (see `/api/campaigns` below).
 
 ---
 
@@ -303,10 +242,10 @@ client = httpx.Client(
     headers={"X-API-Key": "your-api-key"}
 )
 
-# Create a lead
-lead = client.post("/api/leads/", json={
-    "company_name": "Test Company",
-    "phone": "+919876543210"
+# Create a campaign
+campaign = client.post("/api/campaigns/", json={
+    "name": "Mumbai Real Estate Q1",
+    "niche": "real_estate"
 }).json()
 
 # List campaigns
@@ -315,28 +254,28 @@ campaigns = client.get("/api/campaigns/").json()
 
 ### JavaScript
 ```javascript
-const response = await fetch('https://leadsgenai.in/api/leads/', {
+const response = await fetch('https://leadsgenai.in/api/campaigns/', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
     'X-API-Key': 'your-api-key'
   },
   body: JSON.stringify({
-    company_name: 'Test Company',
-    phone: '+919876543210'
+    name: 'Mumbai Real Estate Q1',
+    niche: 'real_estate'
   })
 });
 
-const lead = await response.json();
+const campaign = await response.json();
 ```
 
 ### cURL
 ```bash
-# Create a lead
-curl -X POST https://leadsgenai.in/api/leads/ \
+# Create a campaign
+curl -X POST https://leadsgenai.in/api/campaigns/ \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key" \
-  -d '{"company_name": "Test", "phone": "+919876543210"}'
+  -d '{"name": "Mumbai Real Estate Q1", "niche": "real_estate"}'
 ```
 
 ---
@@ -349,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1058 operations)
+## Endpoint Index — auto-generated from OpenAPI (1059 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -394,7 +333,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/db/table/{name}/export.csv` — Export one table to CSV (read-only, capped, redacted)
 - `GET   ` `/api/admin/db/tables` — List all DB tables (read-only explorer)
 
-### Admin Dashboard  (15)
+### Admin Dashboard  (16)
 
 - `GET   ` `/api/admin/activity-feed` — Get Activity Feed
 - `GET   ` `/api/admin/agents` — Admin Agents
@@ -402,6 +341,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/clients/dedupe` — Admin Dedupe Clients
 - `POST  ` `/api/admin/clients/{client_id}/delete` — Admin Delete Client
 - `GET   ` `/api/admin/clients/{client_id}/timeline` — Get Client Timeline
+- `GET   ` `/api/admin/command-center` — Admin Command Center
 - `GET   ` `/api/admin/dashboard` — Get Admin Dashboard
 - `GET   ` `/api/admin/hourly-activity` — Get Hourly Activity
 - `GET   ` `/api/admin/live-stats` — Get Live Stats
@@ -412,12 +352,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/revenue-trend` — Get Revenue Trend
 - `GET   ` `/api/admin/sync-health` — Admin Sync Health
 
-### Admin Ops  (21)
+### Admin Ops  (22)
 
 - `GET   ` `/api/admin/calls/recent` — Recent call outcomes / qualified summary
 - `POST  ` `/api/admin/campaign/launch` — Launch outbound call campaign
 - `GET   ` `/api/admin/campaign/status` — Last campaign run status
 - `POST  ` `/api/admin/campaign/stop` — Stop the currently running campaign
+- `POST  ` `/api/admin/clients/{client_id}/deliver-now` — Human-clicked single-customer delivery unstick
 - `POST  ` `/api/admin/flow/seed-templates` — Apply all Flow Runner starter templates (FLOW_RUNNER=1)
 - `GET   ` `/api/admin/leads/ready` — Uncontacted leads ready to call (campaign pre-flight)
 - `GET   ` `/api/admin/office` — Admin Office — consolidated 'Sumit ke kaam' pending actions
@@ -663,7 +604,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (20)
+### Customer Dashboard  (23)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/decide` — Customer Decide Approval
@@ -678,11 +619,14 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/kb-info` — Customer Kb Info
 - `PATCH ` `/api/customer/leads/{lead_id}` — Patch Lead Status
 - `GET   ` `/api/customer/office` — Get Customer Office
+- `GET   ` `/api/customer/profile` — Customer Get Profile
+- `POST  ` `/api/customer/profile` — Customer Update Profile
 - `GET   ` `/api/customer/report` — Customer Monthly Report
 - `GET   ` `/api/customer/routing` — Customer Routing Get
 - `POST  ` `/api/customer/routing` — Customer Routing Set
 - `GET   ` `/api/customer/speed-to-lead` — Customer Speed To Lead
 - `GET   ` `/api/customer/team` — Get Customer Team
+- `GET   ` `/api/customer/timeline` — Customer Delivery Timeline
 - `POST  ` `/api/customer/voice/call-queue` — Customer Voice Call Queue
 - `GET   ` `/api/customer/voice/queue-status` — Customer Voice Queue Status
 
@@ -897,7 +841,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (58)
+### Frontend  (59)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -922,6 +866,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/customer/voice` — Customer Voice Page
 - `GET   ` `/app/dashboards` — Dashboards Page
 - `GET   ` `/app/deals` — Deals Page
+- `GET   ` `/app/delivery-command-center` — Delivery Command Center Page
 - `GET   ` `/app/dialer` — Dialer Page
 - `GET   ` `/app/explorer` — Architecture Explorer Page
 - `GET   ` `/app/growth-tools` — Growth Tools Page
@@ -1221,16 +1166,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `DELETE` `/api/journeys/{jid}` — Delete Journey
 - `POST  ` `/api/journeys/{jid}/toggle` — Toggle Journey
 
-### Leads  (8)
+### Leads  (3)
 
-- `GET   ` `/api/leads/` — List Leads
-- `POST  ` `/api/leads/` — Create Lead
 - `POST  ` `/api/leads/scrape` — Scrape Leads
 - `GET   ` `/api/leads/scrape/{task_id}` — Get Scrape Status
 - `GET   ` `/api/leads/stats/summary` — Get Leads Summary
-- `DELETE` `/api/leads/{lead_id}` — Delete Lead
-- `GET   ` `/api/leads/{lead_id}` — Get Lead
-- `PUT   ` `/api/leads/{lead_id}` — Update Lead
 
 ### Lifecycle  (14)
 
