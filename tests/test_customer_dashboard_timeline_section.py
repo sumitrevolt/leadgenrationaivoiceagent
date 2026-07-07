@@ -17,12 +17,6 @@ def test_combo_dashboard_has_timeline_section_in_account_view():
         "timeline card must not be crammed into the Home hero area"
     )
 
-
-def test_marketing_fork_has_timeline_section():
-    html = open("frontend/customer_marketing.html", encoding="utf-8").read()
-    assert 'id="deliveryTimelineCard"' in html
-
-
-def test_voice_fork_has_timeline_section():
-    html = open("frontend/customer_voice.html", encoding="utf-8").read()
-    assert 'id="deliveryTimelineCard"' in html
+# customer_marketing.html/customer_voice.html (separate per-product fork checks
+# used to live here) were confirmed unreachable duplicates of this single file
+# and deleted 2026-07-07 — see tests/test_customer_dashboard_product_routing.py.

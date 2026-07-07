@@ -1,12 +1,14 @@
-"""frontend/customer_marketing.html — Setup Wizard card (business profile/
+"""frontend/customer_dashboard.html — Setup Wizard card (business profile/
 social/WhatsApp/brand-tone). Static-HTML guard, mirrors the established pattern
-(tests/test_admin_clients_delivery_panel.py) — confirms the new card/functions
+(tests/test_admin_clients_delivery_panel.py) — confirms the card/functions
 exist and call the real endpoints, without needing a live authenticated
-browser session. Pilot fork; ported to customer_dashboard/customer_voice next."""
+browser session. Originally piloted on customer_marketing.html/customer_voice.html
+(deleted 2026-07-07 — both were unreachable duplicates of this consolidated file,
+see tests/test_customer_dashboard_product_routing.py)."""
 
 
 def _html():
-    with open("frontend/customer_marketing.html", encoding="utf-8") as f:
+    with open("frontend/customer_dashboard.html", encoding="utf-8") as f:
         return f.read()
 
 
@@ -18,7 +20,8 @@ def test_setup_wizard_card_exists():
 
 def test_setup_wizard_loaded_on_page_init():
     html = _html()
-    assert "loadApprovals();\nloadSetupWizard();\nloadRouting();" in html
+    idx = html.index("loadBilling();\nloadContent();")
+    assert "loadSetupWizard();" in html[idx : idx + 200]
 
 
 def test_load_setup_wizard_calls_real_profile_get_endpoint():
@@ -32,7 +35,7 @@ def test_load_setup_wizard_calls_real_profile_get_endpoint():
 def test_save_setup_wizard_calls_real_profile_post_endpoint():
     html = _html()
     idx = html.index("async function saveSetupWizard")
-    snippet = html[idx : idx + 1400]
+    snippet = html[idx : idx + 1500]
     assert '"/api/customer/profile"' in snippet
     assert 'method:"POST"' in snippet
     assert "billAuthHdr()" in snippet
@@ -57,7 +60,7 @@ def test_social_and_brand_sections_are_marketing_only():
     kb-info textarea stay universal (the AI voice agent uses the same KB)."""
     html = _html()
     idx = html.index("function renderSetupWizard")
-    snippet = html[idx : idx + 2200]
+    snippet = html[idx : idx + 3500]
     marketing_only_idx = snippet.index('class="marketing-only"')
     assert "Social Links" in snippet[marketing_only_idx : marketing_only_idx + 400]
     assert "swTone" in snippet[marketing_only_idx : marketing_only_idx + 900]
@@ -76,6 +79,6 @@ def test_setup_wizard_reuses_real_helpers_not_invented_ones():
     assert 'class="card-b"' in card_snippet
 
     idx2 = html.index("function _swField")
-    fn_snippet = html[idx2 : idx2 + 4500]
+    fn_snippet = html[idx2 : idx2 + 5500]
     assert "escH(" in fn_snippet
     assert "toast(" in fn_snippet
