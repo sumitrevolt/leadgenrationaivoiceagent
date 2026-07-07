@@ -407,3 +407,74 @@ def test_bandit_includes_new_channels():
         assert ch in ce._SOCIAL_V2
     # stats sab channels cover karta
     assert set(ce.stats().keys()) == set(ce.CHANNELS)
+
+
+# ------------------------- ApprovalQueue (cross-process) ------------------------- #
+def test_approval_queue_visible_across_separate_instances(tmp_path):
+    """Prod runs ticks in the Celery worker container and serves the approve/
+    reject API + Office HQ UI from the app container — two different
+    processes. An in-memory queue is invisible across that boundary; state
+    must flow through the shared approvals file instead. Simulate that split
+    with two independent ApprovalQueue instances pointed at the same file."""
+    from app.agents.self_improve import ApprovalQueue
+
+    shared_file = str(tmp_path / "approvals.jsonl")
+    worker_side = ApprovalQueue(approval_required=True)
+    worker_side._approval_file = shared_file
+    app_side = ApprovalQueue(approval_required=True)
+    app_side._approval_file = shared_file
+
+    assert worker_side.queue_task("social_drafts", "test reason", 2.5) == ""
+
+    pending = app_side.get_pending()
+    assert len(pending) == 1
+    task_id = pending[0]["id"]
+
+    assert app_side.approve(task_id) is True
+    assert worker_side.get_pending() == []
+    assert app_side.get_pending() == []
+
+
+def test_approval_queue_consumes_approval_to_actually_run(tmp_path):
+    """is_approved() used to be dead code -- nothing ever re-ran an approved
+    task, so approving one had zero effect. queue_task() must now consume a
+    previously-approved request for the same action and signal the caller
+    to execute it, without re-queuing or duplicating."""
+    from app.agents.self_improve import ApprovalQueue
+
+    aq = ApprovalQueue(approval_required=True)
+    aq._approval_file = str(tmp_path / "approvals.jsonl")
+
+    assert aq.queue_task("seo_pages", "reason", 1.0) == ""
+    task_id = aq.get_pending()[0]["id"]
+
+    # Same action ticked again while still waiting -- must not duplicate.
+    assert aq.queue_task("seo_pages", "reason", 1.0) == ""
+    assert len(aq.get_pending()) == 1
+
+    assert aq.approve(task_id) is True
+    assert aq.get_pending() == []
+
+    # Next tick for the same action: consumed -> truthy id, caller runs it now.
+    assert aq.queue_task("seo_pages", "reason", 1.0) == task_id
+    assert aq.is_approved(task_id) is False  # consumed, not still "approved"
+
+    # A further tick must queue a fresh request, not resurrect the consumed one.
+    assert aq.queue_task("seo_pages", "reason", 1.0) == ""
+
+
+def test_approval_queue_reject_does_not_resurrect_as_approved(tmp_path):
+    from app.agents.self_improve import ApprovalQueue
+
+    aq = ApprovalQueue(approval_required=True)
+    aq._approval_file = str(tmp_path / "approvals.jsonl")
+
+    aq.queue_task("content_pack", "reason", 1.0)
+    task_id = aq.get_pending()[0]["id"]
+    assert aq.reject(task_id, reason="not now") is True
+    assert aq.get_pending() == []
+    assert aq.is_approved(task_id) is False
+
+    # Rejected action queues a brand-new request on the next tick.
+    assert aq.queue_task("content_pack", "reason", 1.0) == ""
+    assert len(aq.get_pending()) == 1

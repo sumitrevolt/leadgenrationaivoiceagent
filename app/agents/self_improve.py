@@ -1161,18 +1161,63 @@ def should_skip_task(
 
 
 class ApprovalQueue:
-    """Human approval gates for high-risk self-improve actions (Phase 6)."""
+    """Human approval gates for high-risk self-improve actions (Phase 6).
+
+    Cross-process by design: self-improve ticks run in the Celery worker
+    container (RUN_IN_PROCESS_SCHEDULER=0 in prod) while the approve/reject
+    API + Office HQ UI run in the app container — an in-memory list is
+    invisible across that boundary (a task queued by the worker would never
+    be visible to, or approvable from, the app process). `data/self_improve_
+    approvals.jsonl` (bind-mounted, shared by both containers) is the single
+    source of truth; state is folded to the latest record per task id, same
+    reconciliation pattern already used by app/marketing/content_approval.py.
+    """
 
     def __init__(self, approval_required: bool = False):
         self.approval_required = approval_required
-        self.pending: list[dict[str, Any]] = []
-        self.approved: list[dict[str, Any]] = []
         self._approval_file = os.path.join("data", "self_improve_approvals.jsonl")
 
-    def queue_task(self, task_name: str, reason: str, cost_estimate: float) -> bool:
-        """Queue task for approval. Return True if auto-approved, False if waiting."""
+    def _latest(self) -> dict[str, dict[str, Any]]:
+        latest: dict[str, dict[str, Any]] = {}
+        for rec in _read_jsonl(self._approval_file):
+            tid = rec.get("id")
+            if tid:
+                latest[tid] = rec
+        return latest
+
+    def _log(self, action: str, detail: str, meta: dict[str, Any]) -> None:
+        try:
+            from app.platform.team import log_event
+
+            log_event("system", action, detail, meta=meta)
+        except Exception:
+            pass
+
+    def queue_task(self, task_name: str, reason: str, cost_estimate: float) -> str:
+        """Queue task for approval (or consume an already-approved one).
+
+        Returns a truthy value (an id) if the caller should execute the
+        action NOW — either auto-approved, or a previously-approved request
+        for this same action is being consumed — else "" if it's still
+        waiting/newly queued. `is_approved()` used to be dead code (nothing
+        ever re-ran an approved task); consuming here is what makes approval
+        actually resume execution.
+        """
         if not self.approval_required:
-            return True
+            return "auto"
+
+        existing = [r for r in self._latest().values() if r.get("task") == task_name]
+        for rec in existing:
+            if rec.get("status") == "approved":
+                self._append_decision(rec, "consumed")
+                self._log(
+                    "selfimprove_approval_consumed",
+                    f"{task_name} approved earlier — running now",
+                    {"id": rec.get("id"), "task": task_name},
+                )
+                return str(rec.get("id") or "auto")
+            if rec.get("status") == "waiting":
+                return ""  # already queued for this action — don't duplicate
 
         # Risk-scored auto-approve (gated RISK_AUTO_APPROVE): clearly low-risk + cheap
         # actions skip the human gate by policy; risky/ban-sensitive ones still queue.
@@ -1183,7 +1228,7 @@ class ApprovalQueue:
             if risk_approve.enabled() and risk_approve.should_auto_approve(
                 task_name, cost_estimate, reason
             ):
-                return True
+                return "auto"
         except Exception:
             pass
 
@@ -1195,41 +1240,49 @@ class ApprovalQueue:
             "timestamp": _now().isoformat(),
             "status": "waiting",
         }
-        self.pending.append(rec)
         _append(self._approval_file, rec)
-        return False
+        self._log(
+            "selfimprove_approval_queued",
+            f"{task_name} needs approval — {reason[:160]}",
+            {"id": rec["id"], "task": task_name, "cost": rec["cost"]},
+        )
+        return ""
+
+    def _append_decision(self, rec: dict[str, Any], status: str, **extra: Any) -> None:
+        _append(self._approval_file, {**rec, "status": status, **extra})
 
     def get_pending(self) -> list[dict[str, Any]]:
         """Return list of pending approvals."""
-        return self.pending.copy()
+        if not self.approval_required:
+            return []
+        return [r for r in self._latest().values() if r.get("status") == "waiting"]
 
     def approve(self, task_id: str) -> bool:
         """Admin approves a pending task. Return True if found."""
-        for task in self.pending:
-            if task.get("id") == task_id:
-                task["status"] = "approved"
-                task["approved_at"] = _now().isoformat()
-                self.approved.append(task)
-                _append(self._approval_file, task)
-                self.pending.remove(task)
-                return True
-        return False
+        rec = self._latest().get(task_id)
+        if not rec or rec.get("status") != "waiting":
+            return False
+        self._append_decision(rec, "approved", approved_at=_now().isoformat())
+        return True
 
     def reject(self, task_id: str, reason: str = "") -> bool:
         """Admin rejects a pending task. Return True if found."""
-        for task in self.pending:
-            if task.get("id") == task_id:
-                task["status"] = "rejected"
-                task["rejection_reason"] = reason[:200]
-                task["rejected_at"] = _now().isoformat()
-                _append(self._approval_file, task)
-                self.pending.remove(task)
-                return True
-        return False
+        rec = self._latest().get(task_id)
+        if not rec or rec.get("status") != "waiting":
+            return False
+        self._append_decision(
+            rec, "rejected", rejection_reason=reason[:200], rejected_at=_now().isoformat()
+        )
+        return True
 
     def is_approved(self, task_id: str) -> bool:
         """Check if a specific task is approved."""
-        return any(t.get("id") == task_id and t.get("status") == "approved" for t in self.approved)
+        rec = self._latest().get(task_id)
+        return bool(rec and rec.get("status") == "approved")
+
+    @property
+    def approved(self) -> list[dict[str, Any]]:
+        return [r for r in self._latest().values() if r.get("status") in ("approved", "consumed")]
 
 
 # Global instances (persist across run_once calls)
