@@ -1,64 +1,27 @@
 """
 Leads API
-Endpoints for lead management
+Endpoints for lead scraping + a lightweight in-memory scrape/summary view.
+
+CRUD (create/list/get/update/delete a single lead) was removed 2026-07-01: it
+wrote to an in-memory `leads_storage` dict with zero real callers (no frontend
+page, no other API module, only its own test suite) and was silently lost on
+every process restart. The real, DB-backed lead path is the SQLAlchemy `Lead`
+model (app/models/lead.py) via app/platform/prospector.py, app/tasks/sync.py,
+and app/api/public_site.py — use those instead of adding new CRUD here.
 """
 
 from datetime import datetime
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
-from app.api.auth_deps import get_current_user, require_agent, require_manager
+from app.api.auth_deps import get_current_user, require_manager
 from app.lead_scraper.scraper_manager import LeadScraperManager
 from app.models.user import User
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 router = APIRouter()  # No prefix - main.py adds /api/leads
-
-
-# Pydantic Models
-class LeadCreate(BaseModel):
-    """Create lead request"""
-
-    company_name: str
-    contact_name: str | None = None
-    phone: str
-    email: str | None = None
-    website: str | None = None
-    city: str
-    category: str
-    source: str = "manual"
-    notes: str | None = None
-
-
-class LeadUpdate(BaseModel):
-    """Update lead request"""
-
-    status: str | None = None
-    lead_score: int | None = None
-    notes: str | None = None
-    assigned_to: str | None = None
-    website: str | None = None
-
-
-class LeadResponse(BaseModel):
-    """Lead response"""
-
-    id: str
-    company_name: str
-    contact_name: str | None
-    phone: str
-    email: str | None
-    website: str | None
-    city: str
-    category: str
-    source: str
-    status: str
-    lead_score: int
-    verified: bool
-    created_at: datetime
-    updated_at: datetime
 
 
 class ScrapeRequest(BaseModel):
@@ -77,157 +40,10 @@ class ScrapeResponse(BaseModel):
     message: str
 
 
-# In-memory storage (replace with database in production)
+# In-memory only — holds scrape results for /stats/summary, not a durable lead store.
 leads_storage: dict = {}
 scrape_tasks: dict = {}
 scraper = LeadScraperManager()
-
-
-def load_growth_engine_leads():
-    """Load leads from Growth Engine CSVs"""
-    import csv
-    import glob
-
-    try:
-        # Find all master_leads csv files
-        list_of_files = glob.glob("revenue_pipeline/master_leads_*.csv")
-        if not list_of_files:
-            return
-
-        # Load all of them or just the latest? Let's load the latest for now to avoid duplicates if running multiple times
-        # actually, let's load all unique phone numbers
-
-        for csv_file in list_of_files:
-            with open(csv_file, encoding="utf-8") as f:
-                reader = csv.DictReader(f)
-                for row in reader:
-                    # Use phone or name as unique key to prevent duplicates
-                    lead_id = f"csv_{row.get('Phone', row.get('Name'))}".replace(" ", "_")
-
-                    if lead_id not in leads_storage:
-                        leads_storage[lead_id] = {
-                            "id": lead_id,
-                            "company_name": row.get("Name"),
-                            "phone": row.get("Phone"),
-                            "city": row.get("City", "Unknown"),
-                            "category": row.get("Niche", "Unknown"),
-                            "website": row.get("Website"),
-                            "source": "Growth Engine",
-                            "status": "new",
-                            "lead_score": int(row.get("Lead Score", 0) or 0),
-                            "verified": False,
-                            "created_at": datetime.now(),
-                            "updated_at": datetime.now(),
-                            "notes": row.get("Efficiency Report"),
-                            "email": None,
-                            "contact_name": None,
-                        }
-        logger.info(f"Loaded {len(leads_storage)} leads from revenue_pipeline")
-    except Exception as e:
-        logger.error(f"Error loading CSV leads: {e}")
-
-
-@router.get("/", response_model=list[LeadResponse])
-async def list_leads(
-    status: str | None = None,
-    city: str | None = None,
-    category: str | None = None,
-    min_score: int | None = None,
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=500),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    List all leads with optional filters (requires authentication)
-    """
-    # Auto-load leads if empty
-    if not leads_storage:
-        load_growth_engine_leads()
-
-    filtered = list(leads_storage.values())
-
-    if status:
-        filtered = [l for l in filtered if l.get("status") == status]
-    if city:
-        filtered = [l for l in filtered if l.get("city", "").lower() == city.lower()]
-    if category:
-        filtered = [l for l in filtered if l.get("category", "").lower() == category.lower()]
-    if min_score:
-        filtered = [l for l in filtered if l.get("lead_score", 0) >= min_score]
-
-    return filtered[skip : skip + limit]
-
-
-@router.get("/{lead_id}", response_model=LeadResponse)
-async def get_lead(lead_id: str, current_user: User = Depends(get_current_user)):
-    """
-    Get a specific lead by ID (requires authentication)
-    """
-    lead = leads_storage.get(lead_id)
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
-    return lead
-
-
-@router.post("/", response_model=LeadResponse)
-async def create_lead(lead: LeadCreate, current_user: User = Depends(require_agent)):
-    """
-    Create a new lead manually (requires agent role)
-    """
-    import uuid
-
-    lead_id = str(uuid.uuid4())
-    now = datetime.now()
-
-    lead_data = {
-        "id": lead_id,
-        **lead.model_dump(),
-        "status": "new",
-        "lead_score": 0,
-        "verified": False,
-        "created_at": now,
-        "updated_at": now,
-    }
-
-    leads_storage[lead_id] = lead_data
-    logger.info(f"Lead created: {lead_id}")
-
-    return lead_data
-
-
-@router.put("/{lead_id}", response_model=LeadResponse)
-async def update_lead(
-    lead_id: str, update: LeadUpdate, current_user: User = Depends(require_agent)
-):
-    """
-    Update an existing lead (requires agent role)
-    """
-    lead = leads_storage.get(lead_id)
-    if not lead:
-        raise HTTPException(status_code=404, detail="Lead not found")
-
-    update_data = update.model_dump(exclude_unset=True)
-    update_data["updated_at"] = datetime.now()
-
-    lead.update(update_data)
-    leads_storage[lead_id] = lead
-
-    logger.info(f"Lead updated: {lead_id}")
-    return lead
-
-
-@router.delete("/{lead_id}")
-async def delete_lead(lead_id: str, current_user: User = Depends(require_manager)):
-    """
-    Delete a lead (requires manager role)
-    """
-    if lead_id not in leads_storage:
-        raise HTTPException(status_code=404, detail="Lead not found")
-
-    del leads_storage[lead_id]
-    logger.info(f"Lead deleted: {lead_id}")
-
-    return {"message": "Lead deleted successfully"}
 
 
 @router.post("/scrape", response_model=ScrapeResponse)
