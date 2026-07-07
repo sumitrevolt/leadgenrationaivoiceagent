@@ -231,25 +231,51 @@ async def _run_job(job: str) -> None:
     except Exception:
         pass  # FAIL-OPEN — config error pe job normal chalega
 
+    from datetime import datetime as _dt, timezone as _tz
+
     _t0 = _time.monotonic()
+    _started_at = _dt.now(_tz.utc).isoformat(timespec="seconds")  # run start (ISO-UTC)
     _ok = True
+    _err_class = ""
+    _err_msg = ""
     try:
         # W1.2: _run_job_inner ab bool deta — False = job-level fail (dead-man
         # switch ko real status jaana chahiye). Re-raise NAHI: scheduler_loop poore
         # tick ko ek hi try me chalata hai, to yahan raise = is tick ke baaki jobs skip.
         _res = await _run_job_inner(job)
         _ok = _res is not False
-    except Exception:
+        if _res is False:
+            # inner ne apna exception khud pakad ke sirf False diya — yahan detail
+            # nahi milti (inner ke internals refactor nahi karte), isliye generic marker.
+            _err_class = "job_reported_failure"
+    except Exception as _e:
         # inner apna Exception khud pakadta hai (return False) — yahan aana truly
         # unexpected. Fail record karo, par tick crash mat karo (BaseException/
         # Cancelled propagate hote — woh yahan catch nahi).
         _ok = False
+        _err_class = type(_e).__name__
+        _err_msg = str(_e)
         logger.warning(f"[team-scheduler] job '{job}' raised unexpectedly", exc_info=True)
     finally:
         try:
             from app.platform import automation_health
 
-            automation_health.record_run(job, _ok, _time.monotonic() - _t0)
+            try:
+                automation_health.record_run(
+                    job,
+                    _ok,
+                    _time.monotonic() - _t0,
+                    error_class=_err_class,
+                    error_message=_err_msg,
+                    trigger="scheduler",
+                    started_at=_started_at,
+                )
+            except TypeError:
+                # record_run ka narrow/legacy signature (sirf test-mocks) — enriched
+                # kwargs reject karega. record_run KHUD kabhi raise nahi karta (poora
+                # body try/except me), isliye TypeError = purani signature. Basic call
+                # se degrade karo (heartbeat na chhoote). Prod me yeh branch DEAD hai.
+                automation_health.record_run(job, _ok, _time.monotonic() - _t0)
         except Exception:
             pass
 

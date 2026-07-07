@@ -200,6 +200,37 @@ def onboard_client(self, cid: str, send_welcome: bool = True):
 
 @shared_task(
     bind=True,
+    name="app.tasks.staff_jobs.seed_first_week",
+    max_retries=0,
+    acks_late=False,
+)
+def seed_first_week(self, cid: str):
+    """Customer-clicked "mera pehla 7-din ka plan banao" (Setup Wizard) — SIRF
+    content seed (7-din calendar + WhatsApp promo + campaign suggestion), full
+    auto_onboard NAHI (KB re-scrape/welcome jaise side-effects nahi chahiye).
+    Worker me chalta hai (multi LLM-call — web process kabhi nahi, CLAUDE.md).
+    Idempotent: upcoming items pehle se hon to seed skip (re-seed content_approval
+    me dupes banata — auto_content.upcoming_item_count hi single-source guard).
+    Event-driven (periodic nahi) — dead-man tracked nahi. Never raises."""
+    try:
+        from app.marketing import auto_content, clients_store
+
+        cid = str(cid or "")
+        client = clients_store.get_client(cid)
+        if not client:
+            return {"ok": False, "client_id": cid, "error": "client not found"}
+        pending = auto_content.upcoming_item_count(cid)
+        if pending > 0:
+            return {"ok": True, "client_id": cid, "skipped": "already_has_upcoming", "upcoming": pending}
+        added = _run_async(auto_content.seed_client_content(client)) or 0
+        return {"ok": True, "client_id": cid, "items_created": int(added)}
+    except Exception as e:
+        logger.warning(f"[seed_first_week] {cid}: {e}")
+        return {"ok": False, "client_id": str(cid), "error": str(e)[:200]}
+
+
+@shared_task(
+    bind=True,
     name="app.tasks.staff_jobs.process_tick",
     max_retries=0,
     acks_late=True,
