@@ -287,6 +287,13 @@ async def _auto_callback(phone: str, niche: str, business: str, client_id: str =
                 log_callback_touch(phone, placed=True)
             except Exception:
                 pass
+            if client_id:
+                try:
+                    from app.marketing import delivery_ledger
+
+                    delivery_ledger.log_event(client_id, "followup_sent", detail=f"AI callback → {business}")
+                except Exception:
+                    pass
     except Exception as e:  # absolute guard — task me unhandled exception nahi
         logger.warning(f"[public] auto-callback failed for ***{str(phone)[-4:]}: {e}")
         try:

@@ -300,6 +300,14 @@
         Left se koi client choose karo — uska auto-content yahan dikhega.
       </div>
     </div>
+
+    <h2 class="col-title" style="margin-top:18px">🤖 Delivery Timeline</h2>
+    <div id="deliveryPanel">
+      <div class="ph-empty">
+        <div class="big">👈</div>
+        Client choose karo — uska delivery timeline yahan dikhega.
+      </div>
+    </div>
   </div>
 </div>
 
@@ -604,6 +612,7 @@
     contentFilter = "";
     renderClients();
     loadContent();
+    loadDeliveryPanel();
   }
 
   function selectedClient(){
@@ -675,6 +684,72 @@
     }catch(e){
       if(e.message !== "auth") toast("Content nahi bana: " + e.message, "err");
       setBusy(btn, false, "▶ Aaj ka content banao");
+    }
+  }
+
+  // ---- Delivery timeline + manual "Deliver Now" (Customer 360-lite) --------
+  function kindIcon(kind){
+    var m = {lead:"📥", audit:"🛠️", delivery:"🤖"};
+    return m[kind] || "•";
+  }
+  async function loadDeliveryPanel(){
+    var c = selectedClient();
+    var panel = document.getElementById("deliveryPanel");
+    if(!c){ return; }
+    panel.innerHTML = '<div class="card"><div class="empty"><span class="spin dark"></span> Timeline load ho raha hai…</div></div>';
+    try{
+      var data = await callApi("/api/admin/clients/" + encodeURIComponent(c.id) + "/timeline", {headers: hdrs()});
+      renderDeliveryPanel(c, data);
+    }catch(e){
+      if(e.message === "auth") return;
+      panel.innerHTML = '<div class="card"><div class="empty">Timeline load nahi hua: ' + esc(e.message) + '</div></div>';
+    }
+  }
+  function renderDeliveryPanel(c, data){
+    var panel = document.getElementById("deliveryPanel");
+    var events = (data && data.events) || [];
+    var body;
+    if(data && data.enabled === false){
+      body = '<div class="hint">Client timeline abhi band hai — <code>CLIENT_TIMELINE=1</code> set karke on karo (.env).</div>';
+    }else if(!events.length){
+      body = '<div class="empty">Is client ke liye abhi koi activity record nahi hui.</div>';
+    }else{
+      body = '<div class="citems">' + events.slice(0, 30).map(function(ev){
+        return '<div style="padding:8px 0;border-bottom:1px solid var(--line)"><b>' + kindIcon(ev.kind) + ' ' + esc(ev.kind || "event") + '</b>' +
+          '<div class="hint" style="margin:2px 0 0">' + esc(ev.summary || "") + ' — ' + esc(String(ev.ts || "").slice(0, 19)) + '</div></div>';
+      }).join("") + '</div>';
+    }
+    panel.innerHTML = '<div class="card">' +
+      '<div class="panhead">' +
+        '<span class="nm">🤖 ' + esc(c.business_name) + '</span>' +
+        '<span class="pill">' + esc(c.plan || "starter") + '</span>' +
+        '<span style="flex:1"></span>' +
+      '</div>' +
+      '<div class="hint" style="margin:8px 0 0">Human-clicked unstick — flags nahi badalta, force-send sirf is client ke liye.</div>' +
+      '<div class="btns" style="margin-top:10px">' +
+        '<button class="btn" id="btnDeliverNow" data-busy="Deliver ho raha hai…">🚀 Deliver Now</button>' +
+      '</div>' +
+      body +
+    '</div>';
+    var btn = document.getElementById("btnDeliverNow");
+    if(btn) btn.onclick = function(){ deliverNow(c); };
+  }
+  async function deliverNow(c){
+    var btn = document.getElementById("btnDeliverNow");
+    setBusy(btn, true);
+    try{
+      var res = await callApi("/api/admin/clients/" + encodeURIComponent(c.id) + "/deliver-now", {
+        method: "POST", headers: hdrs(),
+      });
+      if(res && res.delivered){
+        toast("✓ Delivered to " + c.business_name, "ok");
+      }else{
+        toast("Deliver nahi hua: " + ((res && res.reason) || "unknown reason"), "err");
+      }
+      await loadDeliveryPanel();
+    }catch(e){
+      if(e.message !== "auth") toast("Deliver-now fail: " + e.message, "err");
+      setBusy(btn, false, "🚀 Deliver Now");
     }
   }
 

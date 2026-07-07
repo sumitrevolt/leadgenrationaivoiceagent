@@ -583,6 +583,19 @@
         </div>
       </div>
 
+      <!-- Setup Wizard — business profile/social/WhatsApp/brand-tone self-serve
+           (Customer Delivery OS). Always visible (not tied to onboarding %) —
+           useful for editing details anytime, not just at signup. -->
+      <div data-view="home" class="card" id="setupWizardCard" style="margin-bottom:14px">
+        <div class="card-h">
+          <h2>🧙 Setup Wizard — apni details update karo</h2>
+          <span class="grow"></span>
+        </div>
+        <div class="card-b" id="setupWizardBody">
+          <span class="sm" style="color:var(--muted)">Load ho raha hai…</span>
+        </div>
+      </div>
+
       <!-- Content approval (agency-grade — Dhanda se aage) -->
       <div data-view="content" class="card" id="approvalCard" style="margin-bottom:14px">
         <div class="card-h">
@@ -1966,6 +1979,102 @@ async function decideApproval(id, action){
   }catch(e){ toast("Error", e.message); }
 }
 
+/* ============================================================
+   SETUP WIZARD — business profile/social/WhatsApp/brand-tone
+   ============================================================ */
+async function loadSetupWizard(){
+  const body=document.getElementById("setupWizardBody");
+  if(!body) return;
+  if(!billToken()){
+    body.innerHTML='<span class="sm" style="color:var(--muted)">Login karo — phir yahan apni business details edit kar sakte ho.</span>';
+    return;
+  }
+  try{
+    const r=await fetch("/api/customer/profile",{headers:billAuthHdr()});
+    const d=r.ok?await r.json():{};
+    renderSetupWizard(d.ok?d:{});
+  }catch(e){
+    body.innerHTML='<span class="sm" style="color:var(--muted)">Load nahi hua — thodi der me refresh karo.</span>';
+  }
+}
+function _swField(id,label,val,ph,type){
+  return '<label class="sm" style="display:block;margin-top:8px">'+escH(label)
+    +'<input id="'+id+'" type="'+(type||"text")+'" value="'+escH(val||"")+'" placeholder="'+escH(ph||"")
+    +'" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit"></label>';
+}
+function renderSetupWizard(d){
+  const body=document.getElementById("setupWizardBody");
+  body.innerHTML=
+    '<div style="font-weight:700;margin-bottom:2px">🏪 Business Profile</div>'
+    +_swField("swBizName","Business ka naam",d.business_name,"e.g. Sharma Solar Solutions")
+    +_swField("swCity","City",d.city,"e.g. Pune")
+    +_swField("swPhone","WhatsApp / Contact number",d.phone,"98765 43210")
+    +'<div class="marketing-only">'
+    +'<div style="font-weight:700;margin:16px 0 2px">🔗 Social Links</div>'
+    +_swField("swInsta","Instagram",d.instagram,"@handle ya link")
+    +_swField("swFb","Facebook",d.facebook,"Page link")
+    +_swField("swGbp","Google Business Profile",d.gbp,"Profile link")
+    +'<div style="font-weight:700;margin:16px 0 2px">🎨 Brand</div>'
+    +_swField("swTagline","Tagline",d.tagline,"e.g. Roshni bhi, bachat bhi")
+    +_swField("swLogo","Logo text (short)",d.logo_text,"e.g. SSS")
+    +_swField("swTone","Brand tone — kaisi awaaz chahiye",d.tone,"e.g. Friendly, professional, fun")
+    +'<div style="display:flex;gap:16px;margin-top:8px;align-items:center">'
+    +'<label class="sm">Primary <input id="swPrimary" type="color" value="'+escH(d.primary_color||"#6d28d9")+'" style="vertical-align:middle;margin-left:6px"></label>'
+    +'<label class="sm">Accent <input id="swAccent" type="color" value="'+escH(d.accent_color||"#f59e0b")+'" style="vertical-align:middle;margin-left:6px"></label>'
+    +'</div>'
+    +'</div>'
+    +'<button class="btn primary" type="button" style="margin-top:14px;width:100%;justify-content:center" id="swSaveBtn" onclick="saveSetupWizard()">💾 Save Profile</button>'
+    +'<div style="border-top:1px dashed var(--line);margin:18px 0 0;padding-top:14px">'
+    +'<div style="font-weight:700;margin-bottom:2px">🤖 AI ko business ke baare me aur batao</div>'
+    +'<div class="sm" style="color:var(--muted);margin:2px 0 6px">Jitni zyada info doge, AI utna hi behtar reply karega customers ko — yeh setup "complete" karne ke liye zaroori nahi, bas AI ko sharper banata hai.</div>'
+    +'<textarea id="swKbText" rows="3" placeholder="e.g. Hum 10 saal se solar panels install karte hain, EMI available hai, free site visit dete hain..." style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit"></textarea>'
+    +'<button class="btn" type="button" style="margin-top:8px" onclick="sendKbInfo()">📤 Bhejo</button>'
+    +'</div>';
+}
+async function saveSetupWizard(){
+  const btn=document.getElementById("swSaveBtn");
+  if(!btn) return;
+  btn.disabled=true; const orig=btn.textContent; btn.textContent="Save ho raha hai…";
+  try{
+    const payload={
+      business_name:(document.getElementById("swBizName")||{}).value||"",
+      city:(document.getElementById("swCity")||{}).value||"",
+      phone:(document.getElementById("swPhone")||{}).value||"",
+      instagram:(document.getElementById("swInsta")||{}).value||"",
+      facebook:(document.getElementById("swFb")||{}).value||"",
+      gbp:(document.getElementById("swGbp")||{}).value||"",
+      tagline:(document.getElementById("swTagline")||{}).value||"",
+      logo_text:(document.getElementById("swLogo")||{}).value||"",
+      tone:(document.getElementById("swTone")||{}).value||"",
+      primary_color:(document.getElementById("swPrimary")||{}).value||"",
+      accent_color:(document.getElementById("swAccent")||{}).value||"",
+    };
+    const r=await fetch("/api/customer/profile",{
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify(payload)
+    });
+    const d=await r.json();
+    if(r.ok&&d.ok){ toast("✓ Profile saved","Aapki details update ho gayin."); }
+    else{ toast("Save nahi hua",(d&&d.error)||"Dobara try karo"); }
+  }catch(e){ toast("Error", e.message); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
+async function sendKbInfo(){
+  const ta=document.getElementById("swKbText");
+  if(!ta) return;
+  const text=(ta.value||"").trim();
+  if(text.length<5){ toast("Thoda aur likho","Kam se kam 5 characters chahiye."); return; }
+  try{
+    const r=await fetch("/api/customer/kb-info",{
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify({text:text})
+    });
+    const d=await r.json().catch(function(){return {};});
+    if(r.ok&&d.ok){ toast("✓ Bhej diya","AI ko "+(d.chunks_added||0)+" naye chunks mile."); ta.value=""; }
+    else{ toast("Nahi bheja",(d&&d.detail)||"Dobara try karo"); }
+  }catch(e){ toast("Error", e.message); }
+}
+
 let _routingRows=[{name:"",phone:""}];
 function routingAddRow(){ _routingRows.push({name:"",phone:""}); renderRoutingForm(); }
 function renderRoutingForm(){
@@ -2153,6 +2262,7 @@ loadBilling();
 loadContent();
 loadWebTools();
 loadApprovals();
+loadSetupWizard();
 loadRouting();
 sec2faLoad();
 whLoad();

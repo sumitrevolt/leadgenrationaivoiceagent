@@ -1273,6 +1273,14 @@ async def command_center_page():
     return FileResponse(str(FRONTEND_DIR / "command_center.html"))
 
 
+@app.get("/app/delivery-command-center", tags=["Frontend"])
+async def delivery_command_center_page():
+    """Customer Delivery OS admin front door — total/paying/stuck/receiving-value/
+    failed-automation customers, pending approvals, revenue. Business-outcome view;
+    distinct from /app/command-center (infra/ops KPI cockpit)."""
+    return FileResponse(str(FRONTEND_DIR / "delivery_command_center.html"))
+
+
 @app.get("/app/automation", tags=["Frontend"])
 async def automation_page():
     """Automation Mission Control — API-only features ka UI: harvester, prospects,
