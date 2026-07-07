@@ -11,6 +11,7 @@ import json
 import logging
 import os
 from datetime import date, datetime, timezone
+from typing import Any
 
 from app.api.admin_dashboard_models import (
     Agent,
@@ -70,16 +71,21 @@ def _is_today_iso(ts: object) -> bool:
 
 
 def _plan_price(plan: str) -> int:
-    """Marketing plan key → monthly ₹ from packages (fallback Starter ₹1,999)."""
+    """Marketing plan key → monthly ₹ from packages (fallback Starter ₹1,999).
+
+    include_trial=True so plan="trial" resolves to its real ₹0 price instead
+    of falling through to the "unknown plan" min-nonzero-price fallback (found
+    2026-07-07 building Command Center — was silently attributing ₹1,999 MRR
+    to every free-trial signup in revenue-trend/revenue-analytics too)."""
     try:
         from app.marketing.packages import get_packages
 
         key = (plan or "starter").strip().lower()
-        for p in get_packages():
+        for p in get_packages(include_trial=True):
             if str(p.get("key", "")).lower() == key:
                 return int(p.get("price_inr_month") or 0)
         # default to the cheapest tier price
-        prices = [int(p.get("price_inr_month") or 0) for p in get_packages()]
+        prices = [int(p.get("price_inr_month") or 0) for p in get_packages(include_trial=True)]
         return min([x for x in prices if x > 0] or [1999])
     except Exception:
         return 999
@@ -126,6 +132,107 @@ def _clients_by_product(clients: list[dict]) -> dict[str, int]:
         key = _client_product(c)
         out[key] = out.get(key, 0) + 1
     return out
+
+
+def _build_command_center() -> dict[str, Any]:
+    """Business-outcome front door for admin (Customer Delivery OS Phase 2) —
+    total/paying/stuck-in-setup/receiving-value/failed-automation customers +
+    pending approvals + revenue. Composes list_clients + delivery_ledger.summary
+    + content_approval.pending + _client_mrr — deliberately NOT a new
+    independent aggregator (2026-07-07 backlog flagged 3 duplicate ones
+    already; this reuses, it doesn't add a 4th). Never raises."""
+    from app.marketing import clients_store, content_approval, delivery_ledger
+
+    try:
+        clients = clients_store.list_clients(status="active")
+    except Exception as e:
+        logger.warning("command_center: list_clients failed: %s", e)
+        clients = []
+
+    # Fetched ONCE and bucketed in-memory below — per-client
+    # content_approval.pending(cid) calls would be a second per-customer file
+    # scan stacked on the ledger-summary scan in the loop below.
+    approvals_by_client: dict[str, int] = {}
+    try:
+        for a in content_approval.pending():
+            cid = str(a.get("client_id") or "")
+            if cid:
+                approvals_by_client[cid] = approvals_by_client.get(cid, 0) + 1
+    except Exception as e:
+        logger.debug("command_center: pending approvals failed: %s", e)
+
+    paying = 0
+    stuck_in_setup = 0
+    receiving_value = 0
+    failed_automation = 0
+    mrr_total = 0
+    by_plan: dict[str, dict[str, int]] = {}
+    by_product = {"marketing": 0, "voice": 0, "combo": 0}
+    per_customer: list[dict[str, Any]] = []
+
+    for c in clients:
+        cid = str(c.get("id") or "")
+        plan = str(c.get("plan") or "starter").strip().lower()
+        if plan != "trial":
+            paying += 1
+        if not bool(c.get("setup_done")):
+            stuck_in_setup += 1
+
+        try:
+            s = delivery_ledger.summary(cid)
+        except Exception as e:
+            logger.debug("command_center: ledger summary failed for %s: %s", cid, e)
+            s = {}
+        value_delivered = bool(s.get("value_delivered"))
+        # automation_failed (account/setup stuck) + post_failed (one publish
+        # attempt failed) are both real "something needs attention" signals —
+        # summed so a customer whose ONLY issue is a failed post still surfaces
+        # here (found while wiring post_failed in the Marketing Calendar loop).
+        automation_failures = int(s.get("automation_failures") or 0) + int(s.get("posts_failed") or 0)
+        if value_delivered:
+            receiving_value += 1
+        if automation_failures > 0:
+            failed_automation += 1
+
+        mrr = _client_mrr(c)
+        mrr_total += mrr
+        bucket = by_plan.setdefault(plan, {"count": 0, "mrr": 0})
+        bucket["count"] += 1
+        bucket["mrr"] += mrr
+
+        prod = _client_product(c)
+        if prod in by_product:
+            by_product[prod] += 1
+
+        per_customer.append(
+            {
+                "id": cid,
+                "business_name": c.get("business_name") or "",
+                "plan": plan,
+                "product": prod,
+                "mrr": mrr,
+                "setup_done": bool(c.get("setup_done")),
+                "value_delivered": value_delivered,
+                "automation_failures": automation_failures,
+                "pending_approvals": approvals_by_client.get(cid, 0),
+            }
+        )
+
+    return {
+        "ok": True,
+        "generated_at": datetime.utcnow().replace(tzinfo=timezone.utc).isoformat(),
+        "summary": {
+            "total_customers": len(clients),
+            "paying_customers": paying,
+            "stuck_in_setup": stuck_in_setup,
+            "receiving_value": receiving_value,
+            "failed_automation_count": failed_automation,
+            "pending_approvals_total": sum(approvals_by_client.values()),
+        },
+        "revenue": {"mrr_total": mrr_total, "by_plan": by_plan},
+        "by_product": by_product,
+        "per_customer": per_customer,
+    }
 
 
 def _sync_db():

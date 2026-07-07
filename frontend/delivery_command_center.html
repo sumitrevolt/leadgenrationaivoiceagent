@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
+<title>LeadGen AI — Command Center</title>
+<link rel="stylesheet" href="/design-system/styles.css" />
+<style>
+  :root{
+    --brand:#6d28d9; --brand-2:#4f46e5; --brand-soft:#ede9fe;
+    --ink:#1e1b2e; --muted:#6b7280; --line:#e9e7f2; --bg:#f6f5fb; --card:#ffffff;
+    --ok:#16a34a; --warn:#f59e0b; --err:#ef4444;
+    --shadow:0 1px 3px rgba(24,16,55,.06),0 8px 24px rgba(24,16,55,.05);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Arial,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+
+  .topbar{position:sticky;top:0;z-index:30;background:#fff;border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px}
+  .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#a78bfa,#6366f1);
+    display:grid;place-items:center;font-size:16px;color:#fff;box-shadow:0 4px 12px rgba(99,102,241,.45)}
+  .spacer{flex:1}
+  .chip{display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--line);
+    border-radius:999px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--muted);white-space:nowrap}
+  .chip b{color:var(--ink);font-size:13px}
+  .kbd{border:1px solid var(--line);background:#fff;border-radius:9px;width:34px;height:34px;
+    display:grid;place-items:center;font-size:15px;cursor:pointer;color:var(--muted)}
+  .kbd.on{background:var(--brand-soft);color:var(--brand);border-color:var(--brand-soft)}
+  .tokrow{display:none;width:100%;gap:8px;padding-top:8px}
+  .tokrow.show{display:flex}
+  .tokrow input{flex:1;border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit}
+  .tokrow button{border:none;border-radius:9px;background:linear-gradient(135deg,#6d28d9,#4f46e5);
+    color:#fff;font-weight:700;padding:0 14px;cursor:pointer;font-size:12.5px}
+  .refresh-btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 13px;
+    cursor:pointer;font-size:12.5px;font-weight:700;color:var(--brand)}
+  .refresh-btn:hover{background:var(--brand-soft)}
+
+  .wrap{max-width:1180px;margin:0 auto;padding:16px}
+  .col-title{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.6px;margin:18px 2px 10px;display:flex;align-items:center;gap:7px}
+
+  .kpi-row{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);
+    padding:15px}
+  .kpi .lbl{font-size:11.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .kpi .val{font-size:27px;font-weight:800;margin-top:5px;line-height:1}
+  .kpi .sub{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .kpi.warn .val{color:var(--warn)}
+  .kpi.err .val{color:var(--err)}
+  .kpi.ok .val{color:var(--ok)}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    box-shadow:var(--shadow);padding:16px;margin-top:14px}
+  .card h3{margin:0 0 10px;font-size:14.5px;font-weight:800;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .hint{font-size:12px;color:var(--muted);margin:-4px 0 12px}
+
+  .plan-row{display:flex;gap:10px;flex-wrap:wrap}
+  .plan-pill{background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:8px 13px;font-size:12.5px}
+  .plan-pill b{display:block;font-size:15px;color:var(--ink)}
+
+  .tbl{width:100%;border-collapse:collapse;font-size:13px}
+  .tbl th{text-align:left;color:var(--muted);font-weight:700;padding:8px 10px;border-bottom:1px solid var(--line);
+    font-size:11px;text-transform:uppercase;white-space:nowrap}
+  .tbl td{padding:10px;border-bottom:1px solid var(--line);vertical-align:top}
+  .tbl tr:last-child td{border-bottom:none}
+  .nm{font-weight:800}
+  .pill{font-size:10.5px;font-weight:700;border-radius:999px;padding:3px 9px;background:var(--brand-soft);
+    color:var(--brand);white-space:nowrap;display:inline-block}
+  .pill.plan{background:#eef2ff;color:var(--brand-2);text-transform:capitalize}
+  .nextaction{font-size:12px;font-weight:700}
+  .nextaction.ok{color:var(--ok)}
+  .nextaction.warn{color:var(--warn)}
+  .nextaction.err{color:var(--err)}
+  .nextaction.muted{color:var(--muted)}
+
+  .empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:13px}
+  .empty .spin{vertical-align:-2px;margin-right:7px;width:13px;height:13px;border:2px solid rgba(109,40,217,.25);
+    border-top-color:var(--brand);border-radius:50%;display:inline-block;animation:rot .7s linear infinite}
+  @keyframes rot{to{transform:rotate(360deg)}}
+  .honest{font-size:11px;color:var(--muted);margin-top:12px;text-align:center}
+
+  #toasts{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
+    display:flex;flex-direction:column;gap:8px;width:min(92vw,420px)}
+  .toast{background:#1e293b;color:#fff;border-radius:12px;padding:11px 14px;font-size:12.5px;
+    box-shadow:0 10px 26px rgba(0,0,0,.25);animation:up .25s ease}
+  .toast.err{background:#b91c1c}
+  .toast.ok{background:#15803d}
+  @keyframes up{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  @media(max-width:700px){
+    .tbl thead{display:none}
+    .tbl tr{display:block;border-bottom:1px solid var(--line);padding:8px 0}
+    .tbl td{display:block;padding:3px 10px;border-bottom:none}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand"><span class="logo">🚀</span><span>Command Center</span></div>
+  <div class="spacer"></div>
+  <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
+  <span class="chip">🕐 <b id="lastUpdate">Loading…</b></span>
+  <button class="refresh-btn" id="btnRefresh">🔄 Refresh</button>
+  <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
+  <div class="tokrow" id="tokRow">
+    <input id="tokInput" type="password" placeholder="Admin token paste karo (Bearer)" />
+    <button id="tokSave">Save</button>
+  </div>
+</div>
+
+<div class="wrap">
+  <h2 class="col-title">📊 Customers — ek nazar me</h2>
+  <div class="kpi-row" id="kpiRow">
+    <div class="kpi"><div class="lbl">Total Customers</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Paying</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Stuck in Setup</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Receiving Value</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Automation Issues</div><div class="val">–</div></div>
+    <div class="kpi"><div class="lbl">Pending Approvals</div><div class="val">–</div></div>
+  </div>
+
+  <div class="card">
+    <h3>💰 Revenue</h3>
+    <div class="hint">Active customers ka monthly recurring revenue, plan-wise.</div>
+    <div id="revenueBody"><div class="empty"><span class="spin"></span> Load ho raha hai…</div></div>
+  </div>
+
+  <h2 class="col-title">👥 Har customer — kya ho raha hai</h2>
+  <div class="card" style="padding:0">
+    <div id="customerTableWrap">
+      <div class="empty"><span class="spin"></span> Customers load ho rahe hain…</div>
+    </div>
+  </div>
+  <div class="honest">Read-only front door — koi bhi button state nahi badalta. Client detail/action ke liye <a href="/app/clients">Clients</a> kholo.</div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Auth: Bearer token from localStorage (same key as main app) --------
+  function token(){ return localStorage.getItem("accessToken") || ""; }
+  function hdrs(extra){
+    var h = extra || {};
+    var t = token();
+    if(t) h["Authorization"] = "Bearer " + t;
+    return h;
+  }
+  var tokRow = document.getElementById("tokRow");
+  document.getElementById("tokToggle").onclick = function(){
+    tokRow.classList.toggle("show");
+    this.classList.toggle("on");
+    document.getElementById("tokInput").value = token();
+  };
+  document.getElementById("tokSave").onclick = function(){
+    var v = document.getElementById("tokInput").value.trim();
+    if(v) localStorage.setItem("accessToken", v); else localStorage.removeItem("accessToken");
+    toast(v ? "Token saved ✓" : "Token cleared", "ok");
+    tokRow.classList.remove("show");
+    document.getElementById("tokToggle").classList.remove("on");
+    loadAll();
+  };
+  function needAuth(){
+    tokRow.classList.add("show");
+    document.getElementById("tokToggle").classList.add("on");
+  }
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function toast(msg, kind){
+    var el = document.createElement("div");
+    el.className = "toast" + (kind ? " " + kind : "");
+    el.textContent = msg;
+    document.getElementById("toasts").appendChild(el);
+    setTimeout(function(){ el.style.opacity = "0"; el.style.transition = "opacity .4s"; }, 4200);
+    setTimeout(function(){ el.remove(); }, 4700);
+  }
+  async function callApi(url, opts){
+    var r = await fetch(url, opts);
+    if(r.status === 401 || r.status === 403){ needAuth(); throw new Error("auth"); }
+    var data = null;
+    try{ data = await r.json(); }catch(_e){}
+    if(!r.ok){ throw new Error((data && (data.detail || data.error)) || ("HTTP " + r.status)); }
+    return data;
+  }
+  function inr(n){
+    return "₹" + Number(n || 0).toLocaleString("en-IN");
+  }
+
+  // ---- Next-action hint per customer — mirrors the mission's admin framing:
+  // "value mil rahi hai ya nahi, kya stuck hai, kaunsa button dabana hai." ----
+  function nextAction(c){
+    if(!c.setup_done) return {cls: "warn", text: "⚠️ Setup adhoora"};
+    if(c.automation_failures > 0) return {cls: "err", text: "🔴 Automation fail hui"};
+    if(c.pending_approvals > 0) return {cls: "warn", text: "📝 " + c.pending_approvals + " approval ka wait"};
+    if(c.value_delivered) return {cls: "ok", text: "✅ Value mil rahi hai"};
+    return {cls: "muted", text: "⏳ Abhi koi delivery nahi"};
+  }
+
+  function renderKpis(s){
+    var row = document.getElementById("kpiRow");
+    var cards = [
+      {lbl: "Total Customers", val: s.total_customers, sub: "active"},
+      {lbl: "Paying", val: s.paying_customers, sub: "trial nahi"},
+      {lbl: "Stuck in Setup", val: s.stuck_in_setup, cls: s.stuck_in_setup > 0 ? "warn" : "ok", sub: "onboarding adhoora"},
+      {lbl: "Receiving Value", val: s.receiving_value, cls: "ok", sub: "kam se kam 1 delivery event"},
+      {lbl: "Automation Issues", val: s.failed_automation_count, cls: s.failed_automation_count > 0 ? "err" : "ok", sub: "kisi automation me fail"},
+      {lbl: "Pending Approvals", val: s.pending_approvals_total, cls: s.pending_approvals_total > 0 ? "warn" : "ok", sub: "customer se wait"},
+    ];
+    row.innerHTML = cards.map(function(c){
+      return '<div class="kpi' + (c.cls ? " " + c.cls : "") + '"><div class="lbl">' + esc(c.lbl) + '</div>' +
+        '<div class="val">' + esc(c.val == null ? "–" : String(c.val)) + '</div>' +
+        '<div class="sub">' + esc(c.sub) + '</div></div>';
+    }).join("");
+  }
+
+  function renderRevenue(rev){
+    var body = document.getElementById("revenueBody");
+    var byPlan = (rev && rev.by_plan) || {};
+    var plans = Object.keys(byPlan);
+    var head = '<div class="kpi" style="margin-bottom:12px"><div class="lbl">MRR Total</div>' +
+      '<div class="val">' + inr(rev && rev.mrr_total) + '</div><div class="sub">active customers, monthly</div></div>';
+    if(!plans.length){
+      body.innerHTML = head + '<div class="empty">Abhi koi paying plan nahi.</div>';
+      return;
+    }
+    body.innerHTML = head + '<div class="plan-row">' + plans.map(function(p){
+      var b = byPlan[p];
+      return '<div class="plan-pill"><b>' + inr(b.mrr) + '</b>' + esc(p) + ' · ' + esc(b.count) + ' customer' + (b.count === 1 ? "" : "s") + '</div>';
+    }).join("") + '</div>';
+  }
+
+  function renderCustomers(list){
+    var wrap = document.getElementById("customerTableWrap");
+    if(!list || !list.length){
+      wrap.innerHTML = '<div class="empty">Abhi koi active customer nahi — <a href="/app/clients">Clients</a> se pehla client add karo.</div>';
+      return;
+    }
+    var rows = list.map(function(c){
+      var na = nextAction(c);
+      return '<tr>' +
+        '<td class="nm">' + esc(c.business_name || "(no name)") + '</td>' +
+        '<td><span class="pill plan">' + esc(c.plan || "starter") + '</span></td>' +
+        '<td>' + inr(c.mrr) + '</td>' +
+        '<td><span class="nextaction ' + na.cls + '">' + na.text + '</span></td>' +
+      '</tr>';
+    }).join("");
+    wrap.innerHTML = '<table class="tbl"><thead><tr>' +
+      '<th>Business</th><th>Plan</th><th>MRR</th><th>Kya ho raha hai</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  async function loadAll(){
+    document.getElementById("lastUpdate").textContent = "Loading…";
+    try{
+      var data = await callApi("/api/admin/command-center", {headers: hdrs()});
+      if(data && data.ok === false){
+        toast("Command Center data partial/fail — dobara try karo", "err");
+      }
+      renderKpis((data && data.summary) || {});
+      renderRevenue((data && data.revenue) || {});
+      renderCustomers((data && data.per_customer) || []);
+      document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("en-IN");
+    }catch(e){
+      document.getElementById("lastUpdate").textContent = "Fail";
+      if(e.message === "auth"){
+        document.getElementById("customerTableWrap").innerHTML = '<div class="empty">🔒 Admin token chahiye — upar 🔑 se add karo.</div>';
+      }else{
+        toast("Load nahi hua: " + e.message, "err");
+      }
+    }
+  }
+
+  document.getElementById("btnRefresh").onclick = loadAll;
+  loadAll();
+})();
+</script>
+</body>
+</html>
