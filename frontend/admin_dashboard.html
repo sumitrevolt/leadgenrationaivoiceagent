@@ -217,11 +217,13 @@
     </div>
     <nav class="nav" role="menubar" aria-label="Main menu">
       <div class="sec nav-group" role="presentation">Overview</div>
+      <a href="/app/delivery-command-center" role="menuitem" aria-label="Command Center customer delivery overview"><span class="ic" aria-hidden="true">🚀</span> Command Center <span class="badge" style="background:#22c55e">NEW</span></a>
       <a href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
       <a href="/app/onboard" role="menuitem" aria-label="Onboarding Wizard"><span class="ic" aria-hidden="true">✦</span> Onboarding Wizard</a>
       <a class="active" href="#top" role="menuitem" aria-current="page" aria-label="Dashboard overview"><span class="ic" aria-hidden="true">▦</span> Dashboard</a>
       <a href="#sec-today-biz" role="menuitem" aria-label="Aaj ka business summary"><span class="ic" aria-hidden="true">🏠</span> Aaj ka business</a>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">10</span></a>
+      <a href="/app/clients" role="menuitem" aria-label="Client actions - deliver now and delivery timeline"><span class="ic" aria-hidden="true">📋</span> Client Actions</a>
       <a href="#sec-ops2026" role="menuitem" aria-label="Deliverability and eval"><span class="ic" aria-hidden="true">📬</span> Deliverability & Eval</a>
       <a href="#sec-godmode" onclick="expandAdvTech()" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode <span class="badge" style="background:#ef4444">NEW</span></a>
       <a href="#sec-automation" role="menuitem" aria-label="Automation workflows hub"><span class="ic" aria-hidden="true">🎛</span> Automation Hub <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
@@ -238,7 +240,6 @@
       <a href="/app/team-access" role="menuitem" aria-label="Team RBAC"><span class="ic" aria-hidden="true">🔐</span> Team &amp; RBAC</a>
       <a href="/app/control-center" role="menuitem" aria-label="Control Center system observability"><span class="ic" aria-hidden="true">🖥</span> Control Center <span class="badge" style="background:#22c55e">NEW</span></a>
       <a href="/app/automation" role="menuitem" aria-label="Mission Control automation"><span class="ic" aria-hidden="true">🎛</span> Automation</a>
-      <a href="/app/agent-tools" role="menuitem" aria-label="Agent Tools admin cockpit"><span class="ic" aria-hidden="true">🛠</span> Agent Tools</a>
       <a href="/app/brain" role="menuitem" aria-label="Second Brain agent memory search"><span class="ic" aria-hidden="true">🧠</span> Second Brain</a>
       <a href="/app/team" role="menuitem" aria-label="AI staff team"><span class="ic" aria-hidden="true">👥</span> AI Staff Team</a>
       <a href="/app/office" role="menuitem" aria-label="Virtual office map"><span class="ic" aria-hidden="true">🏢</span> Virtual Office</a>
@@ -257,6 +258,8 @@
       <a href="/app/dashboards" role="menuitem" aria-label="Activation and integrations status"><span class="ic" aria-hidden="true">🔌</span> Activation &amp; Integrations</a>
       <a href="#sec-health" role="menuitem" aria-label="System Health"><span class="ic" aria-hidden="true">◐</span> System Health</a>
       <a href="/app/ops" role="menuitem" aria-label="Ops mission control"><span class="ic" aria-hidden="true">🛠</span> Ops Control</a>
+      <div class="sec nav-group" role="presentation">Advanced</div>
+      <a href="/app/agent-tools" role="menuitem" aria-label="Agent Tools developer cockpit"><span class="ic" aria-hidden="true">🛠</span> Agent Tools (Dev)</a>
       <div class="sec nav-group" role="presentation">Account</div>
       <a href="/app/admin-login" id="navAdminLogin" role="menuitem" aria-label="Admin login"><span class="ic" aria-hidden="true">🔑</span> Admin Login</a>
     </nav>
