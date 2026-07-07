@@ -89,3 +89,26 @@ def test_score_asr_aggregate():
     assert out["n"] == 2
     assert out["wer"] == 0.25  # (0 + 0.5) / 2
     assert out["worst"][0]["wer"] == 0.5
+
+
+def test_vaqi_summary_missed_response_rate():
+    out = vm.vaqi_summary(latencies_ms=[100, 200, 300], turns_total=4, missed_count=1)
+    assert out["missed_response_rate"] == 0.25
+    assert out["missed_count"] == 1
+    assert out["turns_total"] == 4
+    assert out["latency"]["n"] == 3
+
+
+def test_vaqi_summary_no_turns_gives_none_rate():
+    out = vm.vaqi_summary(latencies_ms=[], turns_total=0, missed_count=0)
+    assert out["missed_response_rate"] is None
+    assert out["latency"]["n"] == 0
+
+
+def test_vaqi_summary_interruption_rate_optional():
+    # not supplied -> None, not misleadingly 0.0
+    out = vm.vaqi_summary(turns_total=5, missed_count=0)
+    assert out["interruption_rate"] is None
+    # supplied -> computed
+    out2 = vm.vaqi_summary(turns_total=5, missed_count=0, interruptions_total=4, premature_interruptions=1)
+    assert out2["interruption_rate"] == 0.25

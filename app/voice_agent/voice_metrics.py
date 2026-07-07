@@ -104,6 +104,38 @@ def latency_summary(samples_ms: Sequence[float]) -> dict:
     }
 
 
+def vaqi_summary(
+    *,
+    latencies_ms: Sequence[float] = (),
+    turns_total: int = 0,
+    missed_count: int = 0,
+    interruptions_total: int | None = None,
+    premature_interruptions: int | None = None,
+) -> dict:
+    """VAQI (Voice Agent Quality Index) — Deepgram's 3-leg conversational
+    responsiveness score: Interruptions / Missed responses / Latency.
+
+    ``missed_count`` = turns where the agent produced zero reply (NO_REPLY).
+    Interruption fields are optional and stay ``None`` until a caller has real
+    barge-in telemetry (our text-mode self-test harness has no overlapping
+    audio, so it can only ever report latency + missed-response; live-call
+    telemetry — once wired via Tracer.record_interruption — fills these in)."""
+    latency = latency_summary(latencies_ms)
+    missed_rate = round(missed_count / turns_total, 3) if turns_total else None
+    interruption_rate = None
+    if interruptions_total:
+        interruption_rate = round((premature_interruptions or 0) / interruptions_total, 3)
+    return {
+        "latency": latency,
+        "turns_total": turns_total,
+        "missed_count": missed_count,
+        "missed_response_rate": missed_rate,
+        "interruptions_total": interruptions_total,
+        "premature_interruptions": premature_interruptions,
+        "interruption_rate": interruption_rate,
+    }
+
+
 def roundtrip_wer(
     texts: Iterable[str],
     synth_fn: Callable[[str], object],

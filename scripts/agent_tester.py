@@ -137,6 +137,8 @@ async def run_scenario(session, scenario, ws_url, *, collect_audio=False, verbos
         "mechanical": [],
         "latencies": [],
         "audio_pairs": [],
+        "turns_attempted": 0,
+        "missed": 0,
     }
     transcript: list[dict] = res["transcript"]
     mech: list[str] = res["mechanical"]
@@ -178,16 +180,20 @@ async def run_scenario(session, scenario, ws_url, *, collect_audio=False, verbos
             for turn in scenario.turns:
                 await ws.send_json({"type": "user", "text": turn, "niche": scenario.niche})
                 transcript.append({"role": "user", "content": turn})
+                res["turns_attempted"] += 1
                 t0 = time.time()
                 replies, closed = await _collect_replies(ws, first_timeout=12.0, settle=2.5)
                 if closed:
                     mech.append(f"SERVER_CLOSED: closed mid-turn for {turn!r}")
+                    res["missed"] += 1
                     break
                 dt = time.time() - t0
                 bots = [r["text"] for r in replies]
                 n = len(bots)
                 if n > 0:
                     lat.append(dt * 1000.0)
+                else:
+                    res["missed"] += 1
                 reply = (bots[0] if bots else "").strip()
                 if reply:
                     transcript.append({"role": "assistant", "content": reply})
@@ -284,6 +290,8 @@ def build_report(results, *, strict=False) -> dict:
     findings: list[dict] = []
     scenario_scores: list[dict] = []
     latencies: list[float] = []
+    turns_total = 0
+    missed_total = 0
     ran = [r for r in results if r["status"] == "ran"]
     skipped = [r for r in results if r["status"] == "skip"]
     skipped_all = bool(results) and not ran
@@ -300,10 +308,21 @@ def build_report(results, *, strict=False) -> dict:
             scenario_scores.append(sc)
             findings.extend(sc["goal_findings"])
         latencies.extend(res["latencies"])
+        turns_total += res.get("turns_attempted", 0)
+        missed_total += res.get("missed", 0)
 
     agg = vs.aggregate(scenario_scores)
     gateinfo = vs.gate(findings, strict=strict, skipped=skipped_all)
     latency = _vm.latency_summary(latencies) if (_vm and latencies) else None
+    # VAQI (Deepgram-style): Interruptions / Missed responses / Latency. Our
+    # text-mode WS harness has no overlapping audio, so interruption legs stay
+    # None here — only real telephony calls can populate those (see
+    # observability.Tracer.record_interruption for the live-call counterpart).
+    vaqi = (
+        _vm.vaqi_summary(latencies_ms=latencies, turns_total=turns_total, missed_count=missed_total)
+        if (_vm and turns_total)
+        else None
+    )
     return {
         "ran": [r["name"] for r in ran],
         "skipped": [{"name": r["name"], "reason": r["skip_reason"]} for r in skipped],
@@ -311,6 +330,7 @@ def build_report(results, *, strict=False) -> dict:
         "scenario_scores": scenario_scores,
         "aggregate": agg,
         "latency": latency,
+        "vaqi": vaqi,
         "gate": gateinfo,
     }
 
@@ -356,6 +376,14 @@ def print_human(report, roundtrip, gate_verdict, strict):
         print(
             f"  ⏱  latency ms  n={lat['n']}  p50={lat['p50']}  p95={lat['p95']}  "
             f"p99={lat['p99']}  max={lat['max']}"
+        )
+    vaqi = report.get("vaqi")
+    if vaqi:
+        mr = vaqi.get("missed_response_rate")
+        print(
+            f"  📶 VAQI  missed_response_rate={mr if mr is not None else 'n/a'} "
+            f"({vaqi['missed_count']}/{vaqi['turns_total']} turns)  "
+            f"interruption_rate={vaqi.get('interruption_rate') or 'n/a (text-mode, no audio)'}"
         )
     if roundtrip and roundtrip.get("available"):
         print(
