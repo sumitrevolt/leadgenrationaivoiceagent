@@ -210,6 +210,11 @@ def health() -> dict[str, Any]:
         "status": (
             "degraded" if (overdue or backlogged) else ("warming_up" if never_ran else "healthy")
         ),
+        # Explicit boolean truth for consumers — pehle sirf `status` string tha, jisse
+        # `h.get("ok")` KABHI None deta tha (team_pulse._kavya `h.get("ok", True)` = hamesha
+        # "OK" bolta tha even jab jobs overdue/queue-backlogged the → false-healthy). Ab
+        # additive `ok` = degraded ka inverse (warming_up abhi-boot = ok, alarm nahi).
+        "ok": not (overdue or backlogged),
         "overdue": overdue,
         "never_ran": never_ran,
         "queue": q,

@@ -73,13 +73,9 @@ class Settings(BaseSettings):
     # fallback otherwise. Env knobs: GEMINI_TTS / GEMINI_TTS_VOICE / GEMINI_TTS_MODEL.
 
     # Telephony
-    twilio_account_sid: str = ""
-    twilio_auth_token: str = ""
-    twilio_phone_number: str = ""
-    twilio_webhook_url: str = ""
-
-    # Exotel removed 2026-06-18 — provider is now Vobiz (see vobiz_* below).
-    default_telephony: str = "vobiz"  # vobiz, twilio
+    # Exotel removed 2026-06-18, Twilio removed 2026-07-07 — provider is now
+    # Vobiz-only (see vobiz_* below).
+    default_telephony: str = "vobiz"  # vobiz
 
     # Vobiz (India-native SIP trunk + voice API — primary trunk for P3)
     vobiz_auth_id: str = ""

@@ -47,8 +47,18 @@ def _build_onboarding_checklist(
         def client_has_login(_cid: str) -> bool:  # type: ignore[misc]
             return False
 
-    rec = client_rec or _client_record(client_id)
-    slug = str((rec or {}).get("slug") or "").strip()
+    rec = client_rec or _client_record(client_id) or {}
+    slug = str(rec.get("slug") or "").strip()
+    socials = rec.get("socials") or {}
+    
+    # Retrieve tone
+    tone = ""
+    try:
+        from app.marketing import brand_kit
+        tone = str((brand_kit.get_brand(client_id) or {}).get("tone") or "").strip()
+    except Exception:
+        pass
+
     steps = [
         OnboardingStep(
             id="login",
@@ -58,34 +68,39 @@ def _build_onboarding_checklist(
         ),
         OnboardingStep(
             id="profile",
-            label="Business profile complete",
-            done=bool(rec and rec.get("business_name") and rec.get("phone")),
-            hint="Business naam + phone add karo",
+            label="Business Profile complete",
+            done=bool(rec.get("business_name") and rec.get("phone") and rec.get("city")),
+            hint="Business name, phone and city/address update karein",
         ),
         OnboardingStep(
-            id="setup",
-            label="AI setup (website → knowledge base)",
-            done=bool(rec and rec.get("setup_done")),
-            hint="Website URL do — hum KB auto-seed karenge",
+            id="wizard_details",
+            label="Services & Target Area set",
+            done=bool(rec.get("services") and rec.get("target_area")),
+            hint="Services details aur target areas update karein",
         ),
         OnboardingStep(
-            id="minisite",
-            label="Mini-site live",
-            done=bool(slug),
-            hint="Aapka /b/slug page customer ko dikhega",
-            link=f"/b/{slug}" if slug else None,
+            id="socials",
+            label="Social Accounts checklist complete",
+            done=bool(socials.get("facebook") or socials.get("instagram") or socials.get("gbp")),
+            hint="Social accounts connect checklist update karein",
         ),
         OnboardingStep(
-            id="content",
-            label="Pehla marketing post ready",
+            id="whatsapp",
+            label="WhatsApp Details connected",
+            done=bool(rec.get("whatsapp_phone")),
+            hint="WhatsApp connectivity phone details fill karein",
+        ),
+        OnboardingStep(
+            id="preferences",
+            label="Brand Tone & Approvals set",
+            done=bool(tone and rec.get("approval_preference")),
+            hint="Brand voice tone aur approvals choice set karein",
+        ),
+        OnboardingStep(
+            id="value",
+            label="Day-1 Value generated",
             done=content_count > 0,
-            hint="Roz ka post yahan dikhega jab content queue bharegi",
-        ),
-        OnboardingStep(
-            id="leads",
-            label="Pehli lead / enquiry aayi",
-            done=leads_count > 0,
-            hint="Mini-site ya widget se enquiry bhej kar test karo",
+            hint="Day-1 calendar drafts auto-create ho chuki hain",
         ),
     ]
     done = sum(1 for s in steps if s.done)
@@ -161,8 +176,14 @@ def _enrich_dashboard(resp: DashboardResponse, client_id: str) -> DashboardRespo
     plan = str((client_rec or {}).get("plan") or "").lower()
     has_paid = plan not in ("", "trial", "free")
     trial = _trial_banner(client_rec, has_paid_plan=has_paid)
+    social_err = str((client_rec or {}).get("social_error") or "").strip() or None
     return resp.model_copy(
-        update={"client_id": client_id, "onboarding": onboarding, "trial_banner": trial}
+        update={
+            "client_id": client_id,
+            "onboarding": onboarding,
+            "trial_banner": trial,
+            "social_error": social_err,
+        }
     )
 
 

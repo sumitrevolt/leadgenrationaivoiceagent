@@ -138,10 +138,13 @@
      !important is required to beat block styles like .sec-title{display:flex}.
      This only hides blocks of NON-active views, so product gating
      (#card{display:none !important}) still wins on cards inside the active view. --- */
-  [data-active-view="home"]    [data-view]:not([data-view="home"]),
-  [data-active-view="leads"]   [data-view]:not([data-view="leads"]),
-  [data-active-view="content"] [data-view]:not([data-view="content"]),
-  [data-active-view="account"] [data-view]:not([data-view="account"]){display:none !important}
+  [data-active-view="home"]     [data-view]:not([data-view="home"]),
+  [data-active-view="setup"]    [data-view]:not([data-view="setup"]),
+  [data-active-view="calendar"] [data-view]:not([data-view="calendar"]),
+  [data-active-view="leads"]    [data-view]:not([data-view="leads"]),
+  [data-active-view="reports"]  [data-view]:not([data-view="reports"]),
+  [data-active-view="billing"]  [data-view]:not([data-view="billing"]){display:none !important}
+
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
   .prod-marketing #callsCard,.prod-marketing #routingCard{display:none !important}
   .prod-voice #contentCard,.prod-voice #approvalCard,.prod-voice #webToolsCard{display:none !important}
@@ -451,16 +454,16 @@
     <div class="brand" aria-label="LeadGen AI"><img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="34" height="34" /> LeadGen AI</div>
     <div class="nav-group">Menu</div>
     <a class="navlink active" data-nav="home" href="#" onclick="showView('home');return false;" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home</a>
-    <a class="navlink voice-only" data-nav="leads" href="#" onclick="showView('leads');return false;" aria-label="Leads, team routing aur calls"><span class="ic" aria-hidden="true">🔥</span> Leads &amp; Calls</a>
-    <a class="navlink marketing-only" data-nav="content" href="#" onclick="showView('content');return false;" aria-label="Aaj ka Post, approvals aur website tools"><span class="ic" aria-hidden="true">📣</span> Aaj ka Post</a>
-    <a class="navlink" href="/app/customer/pipeline" aria-label="Lead Pipeline Kanban board"><span class="ic" aria-hidden="true">📋</span> Pipeline</a>
-    <a class="navlink" data-nav="account" href="#" onclick="showView('account');return false;" aria-label="Bill aur Plan section"><span class="ic" aria-hidden="true">💳</span> Bill / Plan</a>
-    <a class="navlink" href="#secCard" onclick="openAdvancedSettings();return false;" aria-label="Security aur advanced settings"><span class="ic" aria-hidden="true">⚙️</span> Settings</a>
-    <a class="navlink" id="navAutomations" href="/app/customer/flows" style="display:none" aria-label="My Automations flow builder"><span class="ic" aria-hidden="true">🧩</span> Automations</a>
-    <div class="ao-sb-live"><span class="dot"></span>AI team kaam kar rahi hai</div>
+    <a class="navlink" data-nav="setup" href="#" onclick="showView('setup');return false;" aria-label="Setup Wizard self-serve"><span class="ic" aria-hidden="true">🧙</span> Setup Wizard</a>
+    <a class="navlink marketing-only" data-nav="calendar" href="#" onclick="showView('calendar');return false;" aria-label="Marketing Calendar"><span class="ic" aria-hidden="true">📅</span> Calendar</a>
+    <a class="navlink voice-only" data-nav="leads" href="#" onclick="showView('leads');return false;" aria-label="Leads and Calls"><span class="ic" aria-hidden="true">🔥</span> Leads Inbox</a>
+    <a class="navlink" data-nav="reports" href="#" onclick="showView('reports');return false;" aria-label="Reports and statistics"><span class="ic" aria-hidden="true">📊</span> Reports</a>
+    <a class="navlink" data-nav="billing" href="#" onclick="showView('billing');return false;" aria-label="Billing, webhooks, and security"><span class="ic" aria-hidden="true">💳</span> Billing/Plan</a>
+    <div class="ao-sb-live"><span class="dot"></span>AI team active</div>
     <div class="side-foot" aria-label="Account info" style="padding-top:8px">
       <span id="sideClient">Client: demo</span>
     </div>
+
   </aside>
 
   <!-- Main -->
@@ -593,7 +596,7 @@
 
       <div class="today-grid">
         <!-- Aaj ka post (AI-generated, 1-click copy/share) -->
-        <div data-view="content" class="card" id="contentCard">
+        <div data-view="home" class="card" id="contentCard">
           <div class="card-h">
             <h2>📣 Aaj ka Post — copy karke WhatsApp/Insta pe daalo</h2>
             <span class="pill" id="contentCount">—</span>
@@ -604,12 +607,11 @@
             <span class="sm" style="color:var(--muted)">Load ho raha hai... ⏳</span>
           </div>
         </div>
-        <!-- Naye leads ka bada number -->
       </div>
 
       <!-- Marketing KPIs — marketing + combo only (hidden on voice) -->
-      <div data-view="home" class="sec-title marketing-only">📣 Marketing — ek nazar</div>
-      <div data-view="home" class="kpis marketing-only" id="mktKpis">
+      <div data-view="reports" class="sec-title marketing-only">📣 Marketing — ek nazar</div>
+      <div data-view="reports" class="kpis marketing-only" id="mktKpis">
         <div class="kpi"><div class="lab">📣 Posts Taiyaar</div><div class="val" id="mkPosts">—</div><div class="sub">Ready-to-share content</div></div>
         <div class="kpi"><div class="lab">✅ Approval Pending</div><div class="val" id="mkApprovals">—</div><div class="sub">Publish se pehle aapki OK</div></div>
         <div class="kpi"><div class="lab">🔥 Naye Enquiries</div><div class="val" id="mkLeads">—</div><div class="sub">Website / mini-site se aaye</div></div>
@@ -624,10 +626,8 @@
         </div>
       </div>
 
-      <!-- Setup Wizard — business profile/social/WhatsApp/brand-tone self-serve
-           (Customer Delivery OS). Always visible (not tied to onboarding %) —
-           useful for editing details anytime, not just at signup. -->
-      <div data-view="home" class="card" id="setupWizardCard" style="margin-bottom:14px">
+      <!-- Setup Wizard — business profile/social/WhatsApp/brand-tone self-serve -->
+      <div data-view="setup" class="card" id="setupWizardCard" style="margin-bottom:14px">
         <div class="card-h">
           <h2>🧙 Setup Wizard — apni details update karo</h2>
           <span class="grow"></span>
@@ -637,8 +637,45 @@
         </div>
       </div>
 
+      <!-- Social Networking Setup Wizard — apne social channels connect + posting
+           cadence/approval. marketing-only (voice fork post-specific fields hide).
+           Auto-posting INERT default: sirf preferences; real publish admin
+           SOCIAL_ENGINE gate + configured provider ke peeche. -->
+      <div data-view="setup" class="card marketing-only" id="socialSetupCard" style="margin-bottom:14px">
+        <div class="card-h">
+          <h2>🌐 Social Networking Setup — apne channels connect karo</h2>
+          <span class="grow"></span>
+        </div>
+        <div class="card-b" id="socialSetupBody">
+          <span class="sm" style="color:var(--muted)">Load ho raha hai…</span>
+        </div>
+      </div>
+
+      <!-- Marketing Calendar Month View (Customer Delivery OS) -->
+      <div data-view="calendar" class="card" id="marketingCalendarCard" style="margin-bottom:14px">
+        <div class="card-h">
+          <h2>📅 Marketing Calendar — scheduled & published posts</h2>
+          <span class="grow"></span>
+        </div>
+        <div class="card-b">
+          <div class="cal-nav" style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">
+            <button class="btn" type="button" onclick="shiftMon(-1)">◀ Prev</button>
+            <b id="monLabel" style="font-size:15px;min-width:140px;text-align:center">Mon</b>
+            <button class="btn" type="button" onclick="shiftMon(1)">Next ▶</button>
+            <button class="btn" type="button" onclick="goTodayMon()">Aaj</button>
+            <span style="margin-left:auto;font-size:11px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap">
+              <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#fbbf24;margin-right:3px"></span>draft</span>
+              <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#34d399;margin-right:3px"></span>approved</span>
+              <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#60a5fa;margin-right:3px"></span>published</span>
+              <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f87171;margin-right:3px"></span>failed</span>
+            </span>
+          </div>
+          <div class="calendar-grid" id="calendarGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px"></div>
+        </div>
+      </div>
+
       <!-- Content approval (agency-grade — Dhanda se aage) -->
-      <div data-view="content" class="card" id="approvalCard" style="margin-bottom:14px">
+      <div data-view="home" class="card" id="approvalCard" style="margin-bottom:14px">
         <div class="card-h">
           <h2>✅ Post Approval — publish se pehle aapki OK</h2>
           <span class="pill" id="approvalCount">0 pending</span>
@@ -647,7 +684,7 @@
       </div>
 
       <!-- Website tools — mini-site, widget, booking -->
-      <div data-view="content" class="card" id="webToolsCard" style="margin-bottom:14px">
+      <div data-view="home" class="card" id="webToolsCard" style="margin-bottom:14px">
         <div class="card-h">
           <h2>🌐 Aapki Website Tools</h2>
           <span class="pill" id="webToolsSlug">—</span>
@@ -656,6 +693,7 @@
           <span class="sm" style="color:var(--muted)">Mini-site, enquiry widget aur booking links load ho rahe hain…</span>
         </div>
       </div>
+
 
       <!-- Lead round-robin team (NeoDove/TeleCRM parity) -->
       <div data-view="leads" class="card" id="routingCard" style="margin-bottom:14px">
@@ -818,8 +856,9 @@
       </div>
 
       <!-- ===== 6) Bill / Plan ===== -->
-      <div data-view="account" class="sec-title">💳 Bill / Plan</div>
-      <div data-view="account" class="card" id="billingCard">
+      <!-- ===== 6) Bill / Plan ===== -->
+      <div data-view="billing" class="sec-title">💳 Bill / Plan</div>
+      <div data-view="billing" class="card" id="billingCard">
         <div class="card-h">
           <h2>Aapka Plan</h2>
           <span class="pill" id="billStatus">—</span>
@@ -871,8 +910,8 @@
         </div>
       </div>
 
-      <!-- ===== 7.5) Customer Delivery Timeline (Task 11 UI) ===== -->
-      <div data-view="account" class="card" id="deliveryTimelineCard">
+      <!-- ===== 7) Customer Delivery Timeline (Task 11 UI) ===== -->
+      <div data-view="home" class="card" id="deliveryTimelineCard">
         <div class="card-h">
           <h2 style="font-size:13px">🤖 AI ne aapke liye kya kiya</h2>
           <span class="grow"></span>
@@ -885,8 +924,8 @@
       </div>
 
       <!-- ===== 8) Customer Webhooks (J.1 — H.1 UI) ===== -->
-      <div data-view="account" class="sec-title advanced-area">📡 Advanced: Webhooks</div>
-      <div data-view="account" class="card advanced-area" id="webhookCard" style="margin-bottom:18px">
+      <div data-view="billing" class="sec-title advanced-area">📡 Advanced: Webhooks</div>
+      <div data-view="billing" class="card advanced-area" id="webhookCard" style="margin-bottom:18px">
         <div class="card-h">
           <h2>Your event subscriptions</h2>
           <span class="pill" id="whFlagPill">Loading…</span>
@@ -909,9 +948,10 @@
         </div>
       </div>
 
+
       <!-- ===== 7) Security (2FA — H.2) ===== -->
-      <div data-view="account" class="sec-title advanced-area">🔒 Security</div>
-      <div data-view="account" class="card advanced-area" id="secCard" style="margin-bottom:18px">
+      <div data-view="billing" class="sec-title advanced-area">🔒 Security</div>
+      <div data-view="billing" class="card advanced-area" id="secCard" style="margin-bottom:18px">
         <div class="card-h">
           <h2>Two-Factor Authentication (2FA)</h2>
           <span class="pill" id="sec2faStatus">Loading…</span>
@@ -1944,7 +1984,10 @@ async function loadContent(){
     if(!r.ok && !brandedPosts.length){ cnt.textContent="—"; body.innerHTML='<span class="sm" style="color:var(--muted)">Content load nahi hua — thodi der me page refresh karo.</span>'; return; }
     const d=r.ok?await r.json():{items:[],links:{}};
     const items=d.items||[];
+    window._CALENDAR_ITEMS = items;
+    if(typeof drawCalendarGrid === "function") drawCalendarGrid();
     if(d.links&&d.links.mini_site){
+
       lk.innerHTML='<a class="btn" href="'+escH(d.links.mini_site)+'" target="_blank">🌐 Mini-Site</a> '
         +'<a class="btn" href="'+escH(d.links.bio_link)+'" target="_blank">🔗 Bio Link</a> '
         +'<a class="btn" href="'+escH(d.links.digital_card)+'" target="_blank">💳 Digital Card</a>';
@@ -2085,30 +2128,46 @@ function _swField(id,label,val,ph,type){
 }
 function renderSetupWizard(d){
   const body=document.getElementById("setupWizardBody");
+  const pref = d.approval_preference || "manual";
+  const prefSelect = '<label class="sm" style="display:block;margin-top:8px">Post Approval Preference'
+    +'<select id="swApprovalPref" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--txt)">'
+    +'<option value="manual"'+(pref==="manual"?' selected':'')+'>Manual Approval (Pehle check karenge)</option>'
+    +'<option value="auto"'+(pref==="auto"?' selected':'')+'>Auto Publish (Puchhe bina post karein)</option>'
+    +'</select></label>';
+
   body.innerHTML=
     '<div style="font-weight:700;margin-bottom:2px">🏪 Business Profile</div>'
-    +_swField("swBizName","Business ka naam",d.business_name,"e.g. Sharma Solar Solutions")
-    +_swField("swCity","City",d.city,"e.g. Pune")
-    +_swField("swPhone","WhatsApp / Contact number",d.phone,"98765 43210")
+    +_swField("swBizName","Business ka naam",d.business_name,"e.g. Jiya Makeover")
+    +_swField("swCity","City",d.city,"e.g. Mumbai")
+    +_swField("swPhone","Contact number",d.phone,"e.g. 98765 43210")
+    
+    +'<div style="font-weight:700;margin:16px 0 2px">🎯 Services & Target Area</div>'
+    +_swField("swServices","Kya services/products dete hain?",d.services,"e.g. Hair makeup, facials, bridal packages")
+    +_swField("swTargetArea","Target local areas / neighborhood",d.target_area,"e.g. Andheri West, Bandra")
+
+    +'<div style="font-weight:700;margin:16px 0 2px">💬 WhatsApp Connectivity</div>'
+    +_swField("swWhatsAppPhone","WhatsApp business number",d.whatsapp_phone,"e.g. 919876543210 (country code ke sath)")
+
     +'<div class="marketing-only">'
-    +'<div style="font-weight:700;margin:16px 0 2px">🔗 Social Links</div>'
-    +_swField("swInsta","Instagram",d.instagram,"@handle ya link")
-    +_swField("swFb","Facebook",d.facebook,"Page link")
-    +_swField("swGbp","Google Business Profile",d.gbp,"Profile link")
-    +'<div style="font-weight:700;margin:16px 0 2px">🎨 Brand</div>'
-    +_swField("swTagline","Tagline",d.tagline,"e.g. Roshni bhi, bachat bhi")
-    +_swField("swLogo","Logo text (short)",d.logo_text,"e.g. SSS")
-    +_swField("swTone","Brand tone — kaisi awaaz chahiye",d.tone,"e.g. Friendly, professional, fun")
+    +'<div style="font-weight:700;margin:16px 0 2px">🔗 Social Links Checklist</div>'
+    +_swField("swInsta","Instagram Link",d.instagram,"Page link ya handle")
+    +_swField("swFb","Facebook Link",d.facebook,"Page link")
+    +_swField("swGbp","Google Business Profile Link",d.gbp,"GBP location link")
+    +'<div style="font-weight:700;margin:16px 0 2px">🎨 Brand Settings</div>'
+    +_swField("swTagline","Tagline / Offer tagline",d.tagline,"e.g. Beautiful makeup, affordable price")
+    +_swField("swLogo","Logo text (short)",d.logo_text,"e.g. Jiya")
+    +_swField("swTone","Brand tone (AI Voice/Writing)",d.tone,"e.g. Friendly, polite, energetic")
+    +prefSelect
     +'<div style="display:flex;gap:16px;margin-top:8px;align-items:center">'
-    +'<label class="sm">Primary <input id="swPrimary" type="color" value="'+escH(d.primary_color||"#6d28d9")+'" style="vertical-align:middle;margin-left:6px"></label>'
-    +'<label class="sm">Accent <input id="swAccent" type="color" value="'+escH(d.accent_color||"#f59e0b")+'" style="vertical-align:middle;margin-left:6px"></label>'
+    +'<label class="sm">Primary Color <input id="swPrimary" type="color" value="'+escH(d.primary_color||"#6d28d9")+'" style="vertical-align:middle;margin-left:6px"></label>'
+    +'<label class="sm">Accent Color <input id="swAccent" type="color" value="'+escH(d.accent_color||"#f59e0b")+'" style="vertical-align:middle;margin-left:6px"></label>'
     +'</div>'
     +'</div>'
     +'<button class="btn primary" type="button" style="margin-top:14px;width:100%;justify-content:center" id="swSaveBtn" onclick="saveSetupWizard()">💾 Save Profile</button>'
     +'<div style="border-top:1px dashed var(--line);margin:18px 0 0;padding-top:14px">'
-    +'<div style="font-weight:700;margin-bottom:2px">🤖 AI ko business ke baare me aur batao</div>'
-    +'<div class="sm" style="color:var(--muted);margin:2px 0 6px">Jitni zyada info doge, AI utna hi behtar reply karega customers ko — yeh setup "complete" karne ke liye zaroori nahi, bas AI ko sharper banata hai.</div>'
-    +'<textarea id="swKbText" rows="3" placeholder="e.g. Hum 10 saal se solar panels install karte hain, EMI available hai, free site visit dete hain..." style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit"></textarea>'
+    +'<div style="font-weight:700;margin-bottom:2px">🤖 AI ko business ke baare me aur batao (Knowledge Base)</div>'
+    +'<div class="sm" style="color:var(--muted);margin:2px 0 6px">AI ko behtar reply karne me help karega.</div>'
+    +'<textarea id="swKbText" rows="3" placeholder="Hum 5 saal se business run kar rahe hain, special discounts are available..." style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--txt)"></textarea>'
     +'<button class="btn" type="button" style="margin-top:8px" onclick="sendKbInfo()">📤 Bhejo</button>'
     +'</div>';
 }
@@ -2129,13 +2188,20 @@ async function saveSetupWizard(){
       tone:(document.getElementById("swTone")||{}).value||"",
       primary_color:(document.getElementById("swPrimary")||{}).value||"",
       accent_color:(document.getElementById("swAccent")||{}).value||"",
+      services:(document.getElementById("swServices")||{}).value||"",
+      target_area:(document.getElementById("swTargetArea")||{}).value||"",
+      whatsapp_phone:(document.getElementById("swWhatsAppPhone")||{}).value||"",
+      approval_preference:(document.getElementById("swApprovalPref")||{}).value||"manual",
     };
     const r=await fetch("/api/customer/profile",{
       method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
       body:JSON.stringify(payload)
     });
     const d=await r.json();
-    if(r.ok&&d.ok){ toast("✓ Profile saved","Aapki details update ho gayin."); }
+    if(r.ok&&d.ok){
+      toast("✓ Profile saved","Aapki details update ho gayin.");
+      if(typeof loadAll === "function") loadAll();
+    }
     else{ toast("Save nahi hua",(d&&d.error)||"Dobara try karo"); }
   }catch(e){ toast("Error", e.message); }
   finally{ btn.disabled=false; btn.textContent=orig; }
@@ -2154,6 +2220,96 @@ async function sendKbInfo(){
     if(r.ok&&d.ok){ toast("✓ Bhej diya","AI ko "+(d.chunks_added||0)+" naye chunks mile."); ta.value=""; }
     else{ toast("Nahi bheja",(d&&d.detail)||"Dobara try karo"); }
   }catch(e){ toast("Error", e.message); }
+}
+
+/* ============================================================
+   SOCIAL NETWORKING SETUP WIZARD — social channels connect +
+   posting cadence/approval. Auto-posting INERT: sirf preferences,
+   real publish admin SOCIAL_ENGINE gate ke peeche. Voice fork:
+   card hidden (marketing-only) + JS early-return.
+   ============================================================ */
+var SS_CHANNELS=[["instagram","Instagram"],["facebook","Facebook"],["gbp","Google Business"],["youtube","YouTube"],["linkedin","LinkedIn"],["whatsapp","WhatsApp"]];
+async function loadSocialSetup(){
+  if(document.body.classList.contains("prod-voice")) return;
+  var body=document.getElementById("socialSetupBody"); if(!body) return;
+  if(!billToken()){ body.innerHTML='<span class="sm" style="color:var(--muted)">Login karo — phir apne social channels connect kar sakte ho.</span>'; return; }
+  try{
+    var r=await fetch("/api/customer/social/config",{headers:billAuthHdr()});
+    var d=r.ok?await r.json():{};
+    renderSocialSetup((d&&d.ok)?d:{handles:{},status:{channels:[]}});
+  }catch(e){
+    body.innerHTML='<span class="sm" style="color:var(--muted)">Load nahi hua — thodi der me refresh karo.</span>';
+  }
+}
+function _ssBadge(s){
+  var m={ready:["#16a34a","Ready"],need_phone:["#d97706","Number chahiye"],soon:["#64748b","Jald aa raha"],manual:["#d97706","Manual"]}[s]||["#64748b",s];
+  return '<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:'+m[0]+';color:#fff;white-space:nowrap">'+escH(m[1])+'</span>';
+}
+function renderSocialSetup(d){
+  var body=document.getElementById("socialSetupBody"); if(!body) return;
+  var st=d.status||{}; var chans=st.channels||[]; var sel=d.channels||[]; var h=d.handles||{};
+  var statusRows=chans.map(function(c){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)">'
+      +'<div style="flex:1;min-width:0"><div style="font-weight:600">'+escH(c.label||"")+'</div>'
+      +'<div class="sm" style="color:var(--muted)">'+escH(c.note||"")+'</div></div>'+_ssBadge(c.state||"")+'</div>';
+  }).join("");
+  var autoNote=st.auto_posting_active
+    ?'<div class="sm" style="color:#16a34a;margin-top:8px">✅ Auto-publish ON — approved posts aapke connected accounts pe jaate hain.</div>'
+    :'<div class="sm" style="color:var(--muted);margin-top:8px">ℹ️ Auto-publish abhi OFF hai — AI content banata + draft karta hai, aap approve/1-click share karte ho. (Ban-safe.)</div>';
+  var checks=SS_CHANNELS.map(function(p){
+    var on=(sel.indexOf(p[0])>=0)?" checked":"";
+    return '<label class="sm" style="display:inline-flex;align-items:center;gap:5px;margin:3px 12px 3px 0"><input type="checkbox" class="ssChan" value="'+escH(p[0])+'"'+on+'> '+escH(p[1])+'</label>';
+  }).join("");
+  var cad=d.cadence||"weekly";
+  var cadOpts=[["daily","Roz"],["3x_week","Hafte me 3 baar"],["weekly","Hafte me 1 baar"],["off","Abhi band rakho"]];
+  var cadSel='<select id="ssCadence" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +cadOpts.map(function(o){return '<option value="'+o[0]+'"'+(cad===o[0]?" selected":"")+'>'+escH(o[1])+'</option>';}).join("")+'</select>';
+  var ap=d.approval_mode||"review";
+  var apr='<label class="sm" style="display:block;margin-top:4px"><input type="radio" name="ssAppr" value="review"'+(ap==="review"?" checked":"")+'> Main pehle dekhun, phir post (recommended)</label>'
+    +'<label class="sm" style="display:block;margin-top:2px"><input type="radio" name="ssAppr" value="draft"'+(ap==="draft"?" checked":"")+'> Sirf draft ready rakho — main khud post karunga</label>';
+  body.innerHTML=
+    '<div class="sm" style="color:var(--muted);margin-bottom:10px">Apne social channels connect karo — AI inke liye content banayega, aap approve karke ya 1-click post karoge.</div>'
+    +'<div style="font-weight:700;margin-bottom:2px">📡 Connection status</div>'+statusRows+autoNote
+    +'<div style="font-weight:700;margin:16px 0 2px">🔗 Aapke social channels (jahan aap online ho)</div>'
+    +_swField("ssInsta","Instagram",h.instagram,"@handle ya link")
+    +_swField("ssFb","Facebook",h.facebook,"Page link")
+    +_swField("ssGbp","Google Business Profile",h.gbp,"Profile link")
+    +_swField("ssYt","YouTube",h.youtube,"Channel link")
+    +_swField("ssLi","LinkedIn",h.linkedin,"Profile/Page link")
+    +_swField("ssTw","Twitter / X",h.twitter,"@handle ya link")
+    +'<div style="font-weight:700;margin:16px 0 4px">🎯 AI kin channels ke liye content banaye?</div><div>'+checks+'</div>'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">📅 Kitni baar content taiyaar ho?</label>'+cadSel
+    +'<div style="font-weight:700;margin:16px 0 4px">✅ Post karne se pehle?</div>'+apr
+    +'<button class="btn primary" type="button" id="ssSaveBtn" style="margin-top:14px;width:100%;justify-content:center" onclick="saveSocialSetup()">💾 Save Social Setup</button>';
+}
+async function saveSocialSetup(){
+  var btn=document.getElementById("ssSaveBtn"); if(!btn) return;
+  btn.disabled=true; var orig=btn.textContent; btn.textContent="Save ho raha hai…";
+  try{
+    var chans=[]; var boxes=Array.prototype.slice.call(document.querySelectorAll(".ssChan"));
+    boxes.forEach(function(el){ if(el.checked) chans.push(el.value); });
+    var apEl=document.querySelector('input[name="ssAppr"]:checked');
+    var payload={
+      instagram:(document.getElementById("ssInsta")||{}).value||"",
+      facebook:(document.getElementById("ssFb")||{}).value||"",
+      gbp:(document.getElementById("ssGbp")||{}).value||"",
+      youtube:(document.getElementById("ssYt")||{}).value||"",
+      linkedin:(document.getElementById("ssLi")||{}).value||"",
+      twitter:(document.getElementById("ssTw")||{}).value||"",
+      channels:chans,
+      cadence:(document.getElementById("ssCadence")||{}).value||"",
+      approval_mode:apEl?apEl.value:"review",
+      postiz_integrations:[]
+    };
+    var r=await fetch("/api/customer/social/config",{
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify(payload)
+    });
+    var d=await r.json();
+    if(r.ok&&d.ok){ toast("✓ Social setup saved","Channel preferences save ho gaye."); loadSocialSetup(); }
+    else{ toast("Save nahi hua",(d&&d.error)||"Dobara try karo"); }
+  }catch(e){ toast("Error", e.message); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
 }
 
 let _routingRows=[{name:"",phone:""}];
@@ -2344,6 +2500,7 @@ loadContent();
 loadWebTools();
 loadApprovals();
 loadSetupWizard();
+loadSocialSetup();
 loadRouting();
 sec2faLoad();
 whLoad();
@@ -2568,6 +2725,145 @@ setTimeout(()=>{
 
 /* ====== Task 11: load delivery timeline on page load ====== */
 document.addEventListener('DOMContentLoaded', loadDeliveryTimeline);
+</script>
+<script>
+let _calYear = new Date().getFullYear();
+let _calMonth = new Date().getMonth();
+
+function shiftMon(dir) {
+  _calMonth += dir;
+  if (_calMonth > 11) {
+    _calMonth = 0;
+    _calYear++;
+  } else if (_calMonth < 0) {
+    _calMonth = 11;
+    _calYear--;
+  }
+  drawCalendarGrid();
+}
+
+function goTodayMon() {
+  _calYear = new Date().getFullYear();
+  _calMonth = new Date().getMonth();
+  drawCalendarGrid();
+}
+
+function drawCalendarGrid() {
+  const grid = document.getElementById("calendarGrid");
+  const label = document.getElementById("monLabel");
+  if (!grid || !label) return;
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+  label.textContent = monthNames[_calMonth] + " " + _calYear;
+  grid.innerHTML = "";
+
+  const dows = ["Rav", "Som", "Man", "Bud", "Gur", "Shu", "Sha"];
+  dows.forEach(d => {
+    const el = document.createElement("div");
+    el.style.textAlign = "center";
+    el.style.fontWeight = "700";
+    el.style.fontSize = "11px";
+    el.style.color = "var(--muted)";
+    el.style.padding = "4px 0";
+    el.textContent = d;
+    grid.appendChild(el);
+  });
+
+  const firstDay = new Date(_calYear, _calMonth, 1);
+  const startDow = firstDay.getDay();
+  const lastDay = new Date(_calYear, _calMonth + 1, 0);
+  const daysInMonth = lastDay.getDate();
+
+  const prevLastDay = new Date(_calYear, _calMonth, 0).getDate();
+  for (let i = startDow - 1; i >= 0; i--) {
+    const el = document.createElement("div");
+    el.style.background = "rgba(0,0,0,0.02)";
+    el.style.border = "1px solid var(--line)";
+    el.style.borderRadius = "8px";
+    el.style.minHeight = "80px";
+    el.style.padding = "4px";
+    el.style.opacity = "0.35";
+    el.innerHTML = '<div style="color:var(--muted);font-weight:600;font-size:10px">' + (prevLastDay - i) + '</div>';
+    grid.appendChild(el);
+  }
+
+  const items = window._CALENDAR_ITEMS || [];
+
+  for (let i = 1; i <= daysInMonth; i++) {
+    const pad = n => n < 10 ? '0' + n : n;
+    const dStr = _calYear + '-' + pad(_calMonth + 1) + '-' + pad(i);
+    const isToday = new Date().toDateString() === new Date(_calYear, _calMonth, i).toDateString();
+
+    const el = document.createElement("div");
+    el.style.background = isToday ? "rgba(139, 92, 246, 0.05)" : "var(--bg)";
+    el.style.border = isToday ? "2px solid var(--brand)" : "1px solid var(--line)";
+    el.style.borderRadius = "8px";
+    el.style.minHeight = "80px";
+    el.style.padding = "6px 4px";
+    el.style.display = "flex";
+    el.style.flexDirection = "column";
+    el.style.gap = "4px";
+
+    el.innerHTML = '<div style="font-weight:700;font-size:10px;color:' + (isToday ? 'var(--brand)' : 'var(--txt)') + '">' + i + '</div>';
+
+    const dayItems = items.filter(it => it.date === dStr);
+    dayItems.forEach(it => {
+      const chip = document.createElement("div");
+      chip.style.fontSize = "9px";
+      chip.style.padding = "2px 4px";
+      chip.style.borderRadius = "4px";
+      chip.style.cursor = "pointer";
+      chip.style.whiteSpace = "nowrap";
+      chip.style.overflow = "hidden";
+      chip.style.textOverflow = "ellipsis";
+      chip.style.fontWeight = "600";
+
+      const status = (it.status || "draft").toLowerCase();
+      if (status === "published") {
+        chip.style.background = "#dbeafe";
+        chip.style.color = "#1e40af";
+      } else if (status === "approved") {
+        chip.style.background = "#d1fae5";
+        chip.style.color = "#065f46";
+      } else if (status === "failed" || status === "rejected") {
+        chip.style.background = "#fee2e2";
+        chip.style.color = "#991b1b";
+      } else {
+        chip.style.background = "#fef3c7";
+        chip.style.color = "#92400e";
+      }
+
+      chip.textContent = '[' + (it.type || 'post') + '] ' + (it.title || 'Post');
+      chip.title = it.title + ": " + it.caption;
+      
+      chip.onclick = function(e) {
+        e.stopPropagation();
+        alert("📌 " + it.title + " (" + (it.type || 'post') + " - " + status + ")\n\n" + it.caption + "\n\n" + (it.hashtags || []).join(" "));
+      };
+
+      el.appendChild(chip);
+    });
+
+    grid.appendChild(el);
+  }
+
+  const totalCells = dows.length + startDow + daysInMonth;
+  const remaining = 42 - totalCells;
+  for (let i = 1; i <= remaining; i++) {
+    const el = document.createElement("div");
+    el.style.background = "rgba(0,0,0,0.02)";
+    el.style.border = "1px solid var(--line)";
+    el.style.borderRadius = "8px";
+    el.style.minHeight = "80px";
+    el.style.padding = "4px";
+    el.style.opacity = "0.35";
+    el.innerHTML = '<div style="color:var(--muted);font-weight:600;font-size:10px">' + i + '</div>';
+    grid.appendChild(el);
+  }
+}
 </script>
 <!-- 🏢 Aapka Office virtual-office widget (shared across all 3 customer dashboards) -->
 <script src="/design-system/customer_office.js" defer></script>

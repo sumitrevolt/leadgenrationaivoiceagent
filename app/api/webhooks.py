@@ -1,11 +1,10 @@
 """
 Webhooks API
-Secure webhook endpoints for Twilio + Stripe.
-(Exotel + Razorpay removed 2026-06-18 — provider is Vobiz; payments via manual UPI.)
+Secure webhook endpoints for Stripe.
+(Exotel + Razorpay removed 2026-06-18, Twilio removed 2026-07-07 — provider is
+Vobiz; payments via manual UPI.)
 """
 
-import hashlib
-import hmac
 import json
 import os
 from datetime import datetime
@@ -60,101 +59,9 @@ def _provision_minutes(
         logger.warning(f"webhook usage provisioning skipped for {client_id}: {e}")
 
 
-async def verify_twilio_signature(
-    request: Request, x_twilio_signature: str | None = Header(None, alias="X-Twilio-Signature")
-) -> bool:
-    """Verify Twilio webhook signature"""
-    auth_token = os.environ.get("TWILIO_AUTH_TOKEN", "")
-
-    if not auth_token:
-        if settings.is_production:
-            logger.error("TWILIO_AUTH_TOKEN not set in production — refusing unverified webhook")
-            raise HTTPException(status_code=503, detail="Webhook verification not configured")
-        logger.warning("TWILIO_AUTH_TOKEN not set - skipping signature verification (dev only)")
-        return True
-
-    if not x_twilio_signature:
-        raise HTTPException(status_code=401, detail="Missing Twilio signature")
-
-    # Behind a reverse proxy (Caddy -> 127.0.0.1:8000) request.url carries the INTERNAL
-    # scheme/host, but Twilio signed the PUBLIC url. Reconstruct from public_base_url,
-    # else every genuine Twilio webhook would 401 (self-DoS).
-    public_url = settings.public_base_url.rstrip("/") + request.url.path
-    if request.url.query:
-        public_url += "?" + request.url.query
-    form_data = await request.form()
-    params = {k: str(v) for k, v in form_data.items()}
-
-    try:
-        from twilio.request_validator import RequestValidator
-
-        valid = RequestValidator(auth_token).validate(public_url, params, x_twilio_signature)
-    except ImportError:
-        # Fallback: Twilio's documented algorithm (URL + sorted concatenated params),
-        # HMAC-SHA1 -> base64 — using the PUBLIC url (not request.url).
-        import base64
-
-        data_string = public_url
-        for key in sorted(params.keys()):
-            data_string += key + params[key]
-        digest = hmac.new(
-            auth_token.encode("utf-8"), data_string.encode("utf-8"), hashlib.sha1
-        ).digest()
-        valid = hmac.compare_digest(base64.b64encode(digest).decode("utf-8"), x_twilio_signature)
-
-    if not valid:
-        logger.warning("Invalid Twilio signature received")
-        raise HTTPException(status_code=401, detail="Invalid Twilio signature")
-
-    return True
-
-
-@router.post("/twilio/incoming")
-async def twilio_webhook(request: Request):
-    """
-    Twilio incoming call/SMS webhook
-    Verifies signature in production
-    """
-    # Verify signature
-    await verify_twilio_signature(request)
-
-    form_data = await request.form()
-    logger.info(f"Twilio webhook received: {dict(form_data)}")
-
-    # Process the webhook
-    call_sid = form_data.get("CallSid")
-    form_data.get("From")
-    form_data.get("To")
-    form_data.get("CallStatus")
-
-    # NOTE: inbound Twilio voice is handled via the telephony stream / voicebot path
-    # and the /twilio/voice/{call_id} + /twilio/status/{call_id} routes in
-    # app/telephony/webhooks.py — NOT here. A prior inline call_manager call used wrong
-    # signatures (queue_call/handle_call_completed) and TypeError'd on every request
-    # (silently swallowed) while also constructing a heavy CallManager per request. Ack only.
-    logger.info(
-        f"Twilio incoming: sid={call_sid} status={form_data.get('CallStatus')} "
-        f"from={form_data.get('From')}"
-    )
-
-    return {"status": "received", "call_sid": call_sid}
-
-
-@router.post("/twilio/status")
-async def twilio_status_webhook(request: Request):
-    """
-    Twilio call status callback
-    """
-    await verify_twilio_signature(request)
-
-    form_data = await request.form()
-    logger.info(f"Twilio status webhook: {dict(form_data)}")
-
-    return {"status": "received"}
-
-
-# NOTE: Exotel webhooks removed 2026-06-18 (provider is now Vobiz). The Vobiz
-# answer/status callbacks live in app/telephony/webhooks.py (/vobiz/*).
+# NOTE: Exotel webhooks removed 2026-06-18, Twilio webhooks removed 2026-07-07
+# (provider is now Vobiz). The Vobiz answer/status callbacks live in
+# app/telephony/webhooks.py (/vobiz/*).
 
 
 # =============================================================================

@@ -74,8 +74,28 @@
   .boss-command-btn{border:none;border-radius:9px;background:var(--brand-2);color:#fff;font-weight:850;
     cursor:pointer;font-size:13px}
   .boss-command-btn:disabled{background:#c7d2fe;cursor:not-allowed}
-  #bossCommandResult{min-height:34px;margin-top:8px;border:1px solid var(--line);background:var(--bg);
-    border-radius:9px;padding:8px 10px;font-size:12.5px;color:var(--ink);white-space:pre-wrap;line-height:1.45}
+  /* Copilot conversation thread — admin<->agent back-and-forth (attributed +
+     persistent). #bossCommandResult ab sirf ek slim status/error line hai;
+     asli baat-cheet #bossThread me bubbles ke roop me dikhti hai. */
+  #bossThread{margin-top:8px;display:flex;flex-direction:column;gap:9px;max-height:340px;overflow-y:auto;padding-right:2px}
+  #bossThread:empty{display:none}
+  .bt-turn{display:flex;flex-direction:column;gap:5px}
+  .bt-ask{align-self:flex-end;max-width:88%;background:var(--brand-2);color:#fff;border-radius:12px 12px 3px 12px;
+    padding:7px 11px;font-size:12.5px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+  .bt-reply{align-self:flex-start;max-width:93%;background:var(--card);border:1px solid var(--line);
+    border-radius:12px 12px 12px 3px;padding:8px 11px;font-size:12.5px;line-height:1.5;color:var(--ink);
+    white-space:pre-wrap;word-break:break-word}
+  .bt-reply.bt-pending{color:var(--muted);font-style:italic}
+  .bt-reply.bt-error{border-color:#fca5a5;background:#fef2f2;color:#b91c1c}
+  .bt-who{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;margin-bottom:4px;color:#0f766e}
+  .bt-kind{font-weight:700;font-size:9.5px;text-transform:uppercase;letter-spacing:.3px;border:1px solid var(--line);
+    border-radius:999px;padding:1px 6px;color:var(--muted)}
+  .bt-time{margin-left:auto;font-size:10px;color:var(--muted);font-weight:600}
+  .bt-runid{font-size:10px;color:var(--muted);margin-top:5px;font-variant-numeric:tabular-nums}
+  .boss-thread-foot{display:flex;align-items:center;gap:12px;margin-top:6px}
+  #bossCommandResult{flex:1;min-height:16px;font-size:11.5px;color:var(--muted);white-space:pre-wrap;line-height:1.4}
+  .boss-thread-clear{font-size:11px;color:var(--muted);text-decoration:none;font-weight:700;white-space:nowrap}
+  .boss-thread-clear:hover{color:var(--brand-2)}
   .war-grid{display:grid;grid-template-columns:1.05fr 1.05fr .9fr;gap:12px}
   .war-card{border:1px solid var(--line);border-radius:10px;padding:11px;background:#fff}
   .war-card h3{margin:0 0 8px;font-size:13px}
@@ -512,7 +532,11 @@
         <input id="bossCommandInput" placeholder="Boss se poochho: aaj sabse important kya hai? Ya kaam do: Rohan ko hot leads follow-up karao" autocomplete="off" />
         <button id="bossCommandBtn" class="boss-command-btn">Run</button>
       </div>
-      <div id="bossCommandResult">Ready.</div>
+      <div id="bossThread" aria-live="polite" aria-label="Boss se baat-cheet"></div>
+      <div class="boss-thread-foot">
+        <span id="bossCommandResult">Ready. — sawaal poochho ya kaam do; agent ka jawab yahin thread me aayega.</span>
+        <a href="#" id="bossThreadClear" class="boss-thread-clear" style="display:none">🧹 Baat-cheet clear karo</a>
+      </div>
       <div class="war-grid" style="margin-top:12px">
         <div class="war-card">
           <h3>Boss brief</h3>
@@ -1777,16 +1801,75 @@
     try { localStorage.setItem("officeMode", mode); } catch (e) {}
   };
 
+  // ---- Boss copilot = admin<->agent CONVERSATION thread (not a single-shot box).
+  // Pehle har naya sawaal purana jawab overwrite kar deta tha → "agent proper
+  // reply nahi de raha" feel hota tha. Ab har turn (admin ka sawaal + agent ka
+  // attributed jawab) thread me rehta hai, WHO/kind/time ke saath, aur last ~20
+  // turns localStorage me persist hote hain (reload pe bhi baat-cheet dikhe).
+  OFFICE.BOSS_THREAD_KEY = "officeBossThread";
+  OFFICE.bossThread = [];
+  OFFICE.loadBossThread = function(){
+    try { OFFICE.bossThread = JSON.parse(localStorage.getItem(OFFICE.BOSS_THREAD_KEY) || "[]"); }
+    catch (e) { OFFICE.bossThread = []; }
+    if (!Array.isArray(OFFICE.bossThread)) OFFICE.bossThread = [];
+    OFFICE.renderBossThread();
+  };
+  OFFICE.saveBossThread = function(){
+    try { localStorage.setItem(OFFICE.BOSS_THREAD_KEY, JSON.stringify(OFFICE.bossThread.slice(-20))); } catch (e) {}
+  };
+  OFFICE.bossWho = function(t){
+    if (t.kind === "task") {
+      var nm = t.member ? (t.member.charAt(0).toUpperCase() + t.member.slice(1)) : "Agent";
+      return "📨 " + nm + (t.scope ? " (" + t.scope + ")" : "");
+    }
+    if (t.kind === "broadcast") return "📢 Puri Team";
+    return "🤖 Boss";
+  };
+  OFFICE.renderBossThread = function(){
+    var el = document.getElementById("bossThread");
+    var clear = document.getElementById("bossThreadClear");
+    if (!el) return;
+    var turns = OFFICE.bossThread.slice(-20);
+    el.innerHTML = turns.map(function(t){
+      var reply;
+      if (t.pending) {
+        reply = '<div class="bt-reply bt-pending">⏳ Boss soch raha hai…</div>';
+      } else {
+        var kindBadge = t.kind ? '<span class="bt-kind">' + esc(t.kind) + '</span>' : '';
+        reply = '<div class="bt-reply' + (t.error ? ' bt-error' : '') + '">' +
+          '<div class="bt-who">' + esc(OFFICE.bossWho(t)) + kindBadge +
+            '<span class="bt-time">' + esc(t.at ? relTime(t.at) : "") + '</span></div>' +
+          esc(t.reply || "(koi jawab nahi aaya — events/ticker me dekho)") +
+          (t.run_id ? '<div class="bt-runid">run: ' + esc(t.run_id) + '</div>' : '') +
+        '</div>';
+      }
+      return '<div class="bt-turn"><div class="bt-ask">' + esc(t.q) + '</div>' + reply + '</div>';
+    }).join("");
+    el.scrollTop = el.scrollHeight;
+    if (clear) clear.style.display = turns.length ? "inline" : "none";
+  };
+  OFFICE.clearBossThread = function(){
+    OFFICE.bossThread = [];
+    OFFICE.saveBossThread();
+    OFFICE.renderBossThread();
+    var out = document.getElementById("bossCommandResult");
+    if (out) out.textContent = "Baat-cheet clear ho gayi. Naya sawaal poochho.";
+  };
+
   OFFICE.askBoss = async function(){
     var input = document.getElementById("bossCommandInput");
     var btn = document.getElementById("bossCommandBtn");
     var out = document.getElementById("bossCommandResult");
-    if (!input || !btn || !out) return;
+    if (!input || !btn) return;
     var q = input.value.trim();
-    if (!q) { out.textContent = "Message likho: Aaj kya priority hai?"; return; }
+    if (!q) { if (out) out.textContent = "Message likho: aaj kya priority hai? Ya kaam do: Rohan ko follow-up karao."; input.focus(); return; }
+    var turn = { q: q, pending: true, at: new Date().toISOString() };
+    OFFICE.bossThread.push(turn);
+    OFFICE.renderBossThread();
+    input.value = "";
     btn.disabled = true;
-    btn.textContent = "Running...";
-    out.textContent = "Boss soch raha hai...";
+    btn.textContent = "…";
+    if (out) out.textContent = "Boss soch raha hai…";
     try {
       var r = await fetch("/api/platform/office/ask", {
         method: "POST",
@@ -1794,17 +1877,33 @@
         body: JSON.stringify({ q: q })
       });
       var d = r.ok ? await r.json() : null;
-      if (d && d.text) out.textContent = d.text;
-      else out.textContent = "Boss response nahi mila. Session/auth check karo.";
-      if (d && d.kind === "task") {
-        OFFICE.pollEvents();
-        OFFICE.refreshSnapshot();
+      turn.pending = false;
+      turn.at = new Date().toISOString();
+      if (d && (d.text || d.ok)) {
+        turn.reply = d.text || "(kaam ho gaya — detail events/ticker me hai)";
+        turn.kind = d.kind || "question";
+        turn.member = d.member || "";
+        turn.scope = d.scope || "";
+        turn.run_id = d.run_id || "";
+        if (out) out.textContent = "Ready.";
+        if (d.kind === "task" || d.kind === "broadcast") { OFFICE.pollEvents(); OFFICE.refreshSnapshot(); }
+      } else {
+        turn.reply = "❌ Boss se jawab nahi mila (HTTP " + (r ? r.status : "?") + ") — session/auth check karke dobara try karo.";
+        turn.error = true;
+        if (out) out.textContent = "Response nahi mila.";
       }
     } catch (e) {
-      out.textContent = "Network/auth issue. Dobara try karo.";
+      turn.pending = false;
+      turn.at = new Date().toISOString();
+      turn.reply = "⚠️ Network/auth issue — dobara try karo.";
+      turn.error = true;
+      if (out) out.textContent = "Network error.";
     }
+    OFFICE.saveBossThread();
+    OFFICE.renderBossThread();
     btn.disabled = false;
     btn.textContent = "Run";
+    input.focus();
   };
 
   // ---- F6 "Team Improvement Council" — snapshot-grounded AgentVerse discussion ----
@@ -3053,6 +3152,11 @@
   document.getElementById("bossCommandInput").addEventListener("keydown", function(e){
     if (e.key === "Enter") OFFICE.askBoss();
   });
+  (function(){
+    var clr = document.getElementById("bossThreadClear");
+    if (clr) clr.onclick = function(e){ if (e) e.preventDefault(); OFFICE.clearBossThread(); };
+    OFFICE.loadBossThread();  // reload pe purani baat-cheet wapas dikha do
+  })();
   document.getElementById("councilRunBtn").onclick = OFFICE.runCouncil;
   Array.prototype.forEach.call(document.querySelectorAll(".mode-btn"), function(btn){
     btn.onclick = function(){ OFFICE.setOfficeMode(btn.getAttribute("data-mode")); };

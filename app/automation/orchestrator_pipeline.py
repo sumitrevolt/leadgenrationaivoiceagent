@@ -338,9 +338,20 @@ class LeadGenPipeline:
     # Stage 3: DND / NCPR scrub
     # ------------------------------------------------------------------ #
     async def _stage_dnd_scrub(self, leads: list[Any], result) -> list[Any]:
+        # COMPLIANCE (CLAUDE.md §5): DND scrub FAIL-CLOSED — lookup fail ya checker
+        # unavailable = promotional contact BLOCK (pehle yahan fail-OPEN tha:
+        # checker missing par poori list pass, per-lead error par number allow —
+        # jo §5 TRAI invariant todta tha). Cold outbound bina proven-non-DND number
+        # ILLEGAL hai; jab DND verify nahi ho sakta to woh number is promotional
+        # pipeline se HATA do. (Yeh sirf is qualify+call harness pe; asli prod
+        # calling path VobizClient + tasks/calling me apna DND/window gate rakhta.)
         if not self.dnd_checker:
-            logger.warning("DND checker unavailable; skipping scrub (fail-open).")
-            return leads
+            logger.warning(
+                "DND checker unavailable — FAIL-CLOSED: promotional contact BLOCKED "
+                "for this run (§5, cannot prove non-DND)."
+            )
+            result.skipped_dnd += len([1 for l in leads if getattr(l, "phone", None)])
+            return []
 
         kept: list[Any] = []
         for lead in leads:
@@ -351,7 +362,7 @@ class LeadGenPipeline:
                 is_dnd = await self._is_dnd(phone)
             except Exception as e:
                 logger.debug(f"DND check error for ***{str(phone)[-4:]}: {e}")
-                is_dnd = False  # fail-open for business continuity
+                is_dnd = True  # FAIL-CLOSED (§5): lookup fail = promotional BLOCK
             if is_dnd:
                 result.skipped_dnd += 1
                 continue
@@ -378,7 +389,17 @@ class LeadGenPipeline:
     # ------------------------------------------------------------------ #
     @staticmethod
     def _within_calling_window(now: datetime | None = None) -> bool:
-        now = now or datetime.now()
+        # COMPLIANCE (§5 TRAI window): time-of-day IST me hona chahiye. Pehle naive
+        # datetime.now() tha — agar container TZ=UTC hoti to 09:00-21:00 UTC = 14:30-
+        # 02:30 IST, jo raat 2 baje IST call ALLOW karta (illegal) + subah 9 baje IST
+        # BLOCK. Ab explicit Asia/Kolkata. Test/caller ne `now` diya ho to as-is.
+        if now is None:
+            try:
+                from zoneinfo import ZoneInfo
+
+                now = datetime.now(ZoneInfo("Asia/Kolkata"))
+            except Exception:
+                now = datetime.now()
         return CALL_WINDOW_START <= now.time() <= CALL_WINDOW_END
 
     # ------------------------------------------------------------------ #

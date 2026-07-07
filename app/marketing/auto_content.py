@@ -555,34 +555,137 @@ async def run_daily_content() -> dict[str, Any]:
 
 
 async def seed_client_content(client: dict[str, Any]) -> int:
-    """EK client ka aaj ka content ABHI generate + queue me append (onboarding pe
-    instant day-1 value — daily 07:00 sweep ka wait nahi). Same generate→append→
-    recycle pattern as run_daily_content; date+type DEDUPE = daily job ke saath
-    idempotent (double content nahi banega). Added-count return. KABHI raise nahi."""
+    """EK client ka naya Day-1 Value Delivery Packet generate + queue me append
+    (7-din calendar + 1 WhatsApp promo + 1 local campaign suggestion),
+    aur inhein automatic content_approval queue me submit karta hai.
+    KABHI raise nahi karta."""
     try:
         if not isinstance(client, dict):
             return 0
         cid = str(client.get("id") or "")
         if not cid:
             return 0
-        items = await generate_for_client(client)
-        added = _append_items(cid, items)
+
+        from datetime import date, timedelta
+        import uuid
+        from app.marketing import content_approval, delivery_ledger
+        from app.marketing.whatsapp_pack import broadcast_pack
+        try:
+            from app.voice_agent import free_ai
+        except Exception:
+            free_ai = None
+
+        # 1. Generate 7-day marketing calendar (today + next 6 days)
+        all_items = []
+        for i in range(7):
+            d = date.today() + timedelta(days=i)
+            day_items = await generate_for_client(client, day=d)
+            if day_items:
+                all_items.extend(day_items)
+
+        # 2. Generate 1 WhatsApp promo message
+        try:
+            pack = await broadcast_pack(
+                business_name=client.get("business_name") or "Aapka Business",
+                niche=client.get("niche") or "general",
+                offer=client.get("services") or ""
+            )
+            broadcast_msg = pack["broadcast"][0] if pack.get("broadcast") else ""
+        except Exception as we:
+            logger.debug(f"[auto_content] WhatsApp pack generation skip: {we}")
+            broadcast_msg = ""
+
+        if not broadcast_msg:
+            biz_name = client.get("business_name") or "Aapka Business"
+            services = client.get("services") or "Special Offer"
+            broadcast_msg = f"Namaste! 🎉 *{biz_name}* laya hai aapke liye special services: {services}. Abhi reply karein aur exciting details payein! 📞"
+
+        whatsapp_item = {
+            "id": uuid.uuid4().hex[:12],
+            "client_id": cid,
+            "date": date.today().strftime("%Y-%m-%d"),
+            "type": "whatsapp",
+            "title": "WhatsApp Promo Message",
+            "caption": broadcast_msg,
+            "hashtags": [],
+            "status": "draft",
+            "created_at": _now(),
+        }
+        all_items.append(whatsapp_item)
+
+        # 3. Generate 1 Local Campaign Suggestion
+        campaign_suggestion = ""
+        if free_ai is not None:
+            try:
+                sys_prompt = (
+                    "Tu local business growth expert hai. Small businesses ke liye unique, "
+                    "actionable marketing campaigns suggest karta hai. Ek specific local campaign suggestion de "
+                    "(like refer-a-friend, festival discount, local partnership). Hinglish me likh, "
+                    "concise, 2-3 lines max. Format: Title: <title>\\nSuggestion: <details>"
+                )
+                usr_prompt = (
+                    f"Business: {client.get('business_name')}\n"
+                    f"Niche: {client.get('niche')}\n"
+                    f"City: {client.get('city')}\n"
+                    f"Services: {client.get('services') or 'services'}"
+                )
+                text, _ = await free_ai.chat(
+                    sys_prompt, [{"role": "user", "content": usr_prompt}], max_tokens=200, temperature=0.7
+                )
+                campaign_suggestion = text.strip()
+            except Exception as ce:
+                logger.debug(f"[auto_content] campaign generation fail: {ce}")
+
+        if not campaign_suggestion:
+            campaign_suggestion = (
+                "Title: Refer a Friend Campaign\n"
+                "Suggestion: Apne existing customers ko WhatsApp par message bhejein: "
+                "'Apne kisi friend ko humare yahan refer karein, aur aap dono ko milega 20% off next service par!' "
+                "Isse local area me word-of-mouth marketing badhegi."
+            )
+
+        campaign_item = {
+            "id": uuid.uuid4().hex[:12],
+            "client_id": cid,
+            "date": date.today().strftime("%Y-%m-%d"),
+            "type": "campaign",
+            "title": "Local Offer Campaign Suggestion",
+            "caption": campaign_suggestion,
+            "hashtags": [],
+            "status": "draft",
+            "created_at": _now(),
+        }
+        all_items.append(campaign_item)
+
+        # 4. Append to content queue (idempotent via date+type dedupe)
+        added = _append_items(cid, all_items)
         if not added:
+            # Fallback recycle
             added = await _recycle_fallback(client)
+
+        # 5. Automatically submit generated items to the approvals queue
+        if all_items:
+            try:
+                for it in all_items:
+                    content_approval.submit(cid, it)
+            except Exception as ae:
+                logger.debug(f"[auto_content] Day-1 approvals submission fail: {ae}")
+
+        # 6. Log to delivery ledger
         if added:
             try:
-                from app.marketing import delivery_ledger
-
                 delivery_ledger.log_event(cid, "marketing_calendar_generated")
                 delivery_ledger.log_event(
-                    cid, "post_draft_created", detail=f"{added} drafts", meta={"count": added}
+                    cid, "post_draft_created", detail=f"{added} drafts/suggestions setup kiya", meta={"count": added}
                 )
             except Exception as le:  # pragma: no cover
                 logger.debug(f"[auto_content] ledger log skip: {le}")
+
         return added
     except Exception as e:  # pragma: no cover
         logger.debug(f"[auto_content] seed_client_content skip: {e}")
         return 0
+
 
 
 def list_queue(client_id: str, status: str | None = None, limit: int = 60) -> list[dict[str, Any]]:

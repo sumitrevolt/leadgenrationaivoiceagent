@@ -596,6 +596,19 @@
         </div>
       </div>
 
+      <!-- Social Networking Setup Wizard — marketing-only (voice fork me hidden:
+           voice-only customer social-posting nahi karta). Card DOM me hai par
+           .prod-voice .marketing-only CSS se hide + loadSocialSetup() early-return. -->
+      <div data-view="home" class="card marketing-only" id="socialSetupCard" style="margin-bottom:14px">
+        <div class="card-h">
+          <h2>🌐 Social Networking Setup — apne channels connect karo</h2>
+          <span class="grow"></span>
+        </div>
+        <div class="card-b" id="socialSetupBody">
+          <span class="sm" style="color:var(--muted)">Load ho raha hai…</span>
+        </div>
+      </div>
+
       <!-- Content approval (agency-grade — Dhanda se aage) -->
       <div data-view="content" class="card" id="approvalCard" style="margin-bottom:14px">
         <div class="card-h">
@@ -2075,6 +2088,96 @@ async function sendKbInfo(){
   }catch(e){ toast("Error", e.message); }
 }
 
+/* ============================================================
+   SOCIAL NETWORKING SETUP WIZARD — social channels connect +
+   posting cadence/approval. Auto-posting INERT: sirf preferences,
+   real publish admin SOCIAL_ENGINE gate ke peeche. Voice fork:
+   card hidden (marketing-only) + JS early-return.
+   ============================================================ */
+var SS_CHANNELS=[["instagram","Instagram"],["facebook","Facebook"],["gbp","Google Business"],["youtube","YouTube"],["linkedin","LinkedIn"],["whatsapp","WhatsApp"]];
+async function loadSocialSetup(){
+  if(document.body.classList.contains("prod-voice")) return;
+  var body=document.getElementById("socialSetupBody"); if(!body) return;
+  if(!billToken()){ body.innerHTML='<span class="sm" style="color:var(--muted)">Login karo — phir apne social channels connect kar sakte ho.</span>'; return; }
+  try{
+    var r=await fetch("/api/customer/social/config",{headers:billAuthHdr()});
+    var d=r.ok?await r.json():{};
+    renderSocialSetup((d&&d.ok)?d:{handles:{},status:{channels:[]}});
+  }catch(e){
+    body.innerHTML='<span class="sm" style="color:var(--muted)">Load nahi hua — thodi der me refresh karo.</span>';
+  }
+}
+function _ssBadge(s){
+  var m={ready:["#16a34a","Ready"],need_phone:["#d97706","Number chahiye"],soon:["#64748b","Jald aa raha"],manual:["#d97706","Manual"]}[s]||["#64748b",s];
+  return '<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:'+m[0]+';color:#fff;white-space:nowrap">'+escH(m[1])+'</span>';
+}
+function renderSocialSetup(d){
+  var body=document.getElementById("socialSetupBody"); if(!body) return;
+  var st=d.status||{}; var chans=st.channels||[]; var sel=d.channels||[]; var h=d.handles||{};
+  var statusRows=chans.map(function(c){
+    return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)">'
+      +'<div style="flex:1;min-width:0"><div style="font-weight:600">'+escH(c.label||"")+'</div>'
+      +'<div class="sm" style="color:var(--muted)">'+escH(c.note||"")+'</div></div>'+_ssBadge(c.state||"")+'</div>';
+  }).join("");
+  var autoNote=st.auto_posting_active
+    ?'<div class="sm" style="color:#16a34a;margin-top:8px">✅ Auto-publish ON — approved posts aapke connected accounts pe jaate hain.</div>'
+    :'<div class="sm" style="color:var(--muted);margin-top:8px">ℹ️ Auto-publish abhi OFF hai — AI content banata + draft karta hai, aap approve/1-click share karte ho. (Ban-safe.)</div>';
+  var checks=SS_CHANNELS.map(function(p){
+    var on=(sel.indexOf(p[0])>=0)?" checked":"";
+    return '<label class="sm" style="display:inline-flex;align-items:center;gap:5px;margin:3px 12px 3px 0"><input type="checkbox" class="ssChan" value="'+escH(p[0])+'"'+on+'> '+escH(p[1])+'</label>';
+  }).join("");
+  var cad=d.cadence||"weekly";
+  var cadOpts=[["daily","Roz"],["3x_week","Hafte me 3 baar"],["weekly","Hafte me 1 baar"],["off","Abhi band rakho"]];
+  var cadSel='<select id="ssCadence" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +cadOpts.map(function(o){return '<option value="'+o[0]+'"'+(cad===o[0]?" selected":"")+'>'+escH(o[1])+'</option>';}).join("")+'</select>';
+  var ap=d.approval_mode||"review";
+  var apr='<label class="sm" style="display:block;margin-top:4px"><input type="radio" name="ssAppr" value="review"'+(ap==="review"?" checked":"")+'> Main pehle dekhun, phir post (recommended)</label>'
+    +'<label class="sm" style="display:block;margin-top:2px"><input type="radio" name="ssAppr" value="draft"'+(ap==="draft"?" checked":"")+'> Sirf draft ready rakho — main khud post karunga</label>';
+  body.innerHTML=
+    '<div class="sm" style="color:var(--muted);margin-bottom:10px">Apne social channels connect karo — AI inke liye content banayega, aap approve karke ya 1-click post karoge.</div>'
+    +'<div style="font-weight:700;margin-bottom:2px">📡 Connection status</div>'+statusRows+autoNote
+    +'<div style="font-weight:700;margin:16px 0 2px">🔗 Aapke social channels (jahan aap online ho)</div>'
+    +_swField("ssInsta","Instagram",h.instagram,"@handle ya link")
+    +_swField("ssFb","Facebook",h.facebook,"Page link")
+    +_swField("ssGbp","Google Business Profile",h.gbp,"Profile link")
+    +_swField("ssYt","YouTube",h.youtube,"Channel link")
+    +_swField("ssLi","LinkedIn",h.linkedin,"Profile/Page link")
+    +_swField("ssTw","Twitter / X",h.twitter,"@handle ya link")
+    +'<div style="font-weight:700;margin:16px 0 4px">🎯 AI kin channels ke liye content banaye?</div><div>'+checks+'</div>'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">📅 Kitni baar content taiyaar ho?</label>'+cadSel
+    +'<div style="font-weight:700;margin:16px 0 4px">✅ Post karne se pehle?</div>'+apr
+    +'<button class="btn primary" type="button" id="ssSaveBtn" style="margin-top:14px;width:100%;justify-content:center" onclick="saveSocialSetup()">💾 Save Social Setup</button>';
+}
+async function saveSocialSetup(){
+  var btn=document.getElementById("ssSaveBtn"); if(!btn) return;
+  btn.disabled=true; var orig=btn.textContent; btn.textContent="Save ho raha hai…";
+  try{
+    var chans=[]; var boxes=Array.prototype.slice.call(document.querySelectorAll(".ssChan"));
+    boxes.forEach(function(el){ if(el.checked) chans.push(el.value); });
+    var apEl=document.querySelector('input[name="ssAppr"]:checked');
+    var payload={
+      instagram:(document.getElementById("ssInsta")||{}).value||"",
+      facebook:(document.getElementById("ssFb")||{}).value||"",
+      gbp:(document.getElementById("ssGbp")||{}).value||"",
+      youtube:(document.getElementById("ssYt")||{}).value||"",
+      linkedin:(document.getElementById("ssLi")||{}).value||"",
+      twitter:(document.getElementById("ssTw")||{}).value||"",
+      channels:chans,
+      cadence:(document.getElementById("ssCadence")||{}).value||"",
+      approval_mode:apEl?apEl.value:"review",
+      postiz_integrations:[]
+    };
+    var r=await fetch("/api/customer/social/config",{
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify(payload)
+    });
+    var d=await r.json();
+    if(r.ok&&d.ok){ toast("✓ Social setup saved","Channel preferences save ho gaye."); loadSocialSetup(); }
+    else{ toast("Save nahi hua",(d&&d.error)||"Dobara try karo"); }
+  }catch(e){ toast("Error", e.message); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
+
 let _routingRows=[{name:"",phone:""}];
 function routingAddRow(){ _routingRows.push({name:"",phone:""}); renderRoutingForm(); }
 function renderRoutingForm(){
@@ -2263,6 +2366,7 @@ loadContent();
 loadWebTools();
 loadApprovals();
 loadSetupWizard();
+loadSocialSetup();
 loadRouting();
 sec2faLoad();
 whLoad();

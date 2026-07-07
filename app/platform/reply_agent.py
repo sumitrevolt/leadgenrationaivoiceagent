@@ -237,8 +237,10 @@ def _load_feedback_examples(max_n: int = 8) -> str:
     return "\nRecent corrections (sikhne ke liye):\n" + "\n".join(examples)
 
 
-async def _classify(subject: str, body: str) -> str:
-    """Classify email reply intent. Uses few-shot feedback examples to reduce 'other' rate."""
+async def _classify(subject: str, body: str, history: str = "") -> str:
+    """Classify email/chat reply intent. Uses few-shot feedback examples to reduce 'other'
+    rate. ``history`` (optional): pichli baat-cheet transcript — jab diya jaaye to classifier
+    samajhta hai ki message ek pichle sawaal ka JAWAAB ho sakta (chat continuity)."""
     try:
         from app.voice_agent import free_ai
 
@@ -253,11 +255,22 @@ async def _classify(subject: str, body: str) -> str:
             "  ooo         = out of office auto-reply\n"
             "  other       = baaki sab (generic ack, spam, irrelevant)\n"
             + examples
+            + (
+                "\nNOTE: message pichle sawaal ka JAWAAB bhi ho sakta — context dekh ke "
+                "intent decide karo (jaise naam/area/service ka jawab = 'question'/'interested', "
+                "'other' nahi)." if history else ""
+            )
             + "\nSIRF ek label reply karo, kuch aur nahi."
         )
+        user_content = f"Subject: {subject}\n\n{body[:1500]}"
+        if history:
+            user_content = (
+                f"Pichli baat-cheet (context):\n{history[:1500]}\n\n---\n"
+                f"Ab ka message:\n{body[:1500]}"
+            )
         reply, _ = await free_ai.chat(
             system=system,
-            messages=[{"role": "user", "content": f"Subject: {subject}\n\n{body[:1500]}"}],
+            messages=[{"role": "user", "content": user_content}],
             max_tokens=8,
             temperature=0.0,
         )
@@ -271,7 +284,13 @@ async def _classify(subject: str, body: str) -> str:
 
 
 async def _draft(
-    biz: str, subject: str, body: str, intent: str, *, niche: str = "general"
+    biz: str,
+    subject: str,
+    body: str,
+    intent: str,
+    *,
+    niche: str = "general",
+    history_msgs: list[dict[str, str]] | None = None,
 ) -> str:
     try:
         from app.voice_agent import free_ai
@@ -310,19 +329,30 @@ async def _draft(
         except Exception:
             brain_ctx = ""
 
+        # Chat continuity: pichli baat-cheet (WhatsApp thread) ko conversation ke
+        # roop me feed karo taaki jawab context-aware ho — same sawaal repeat na ho.
+        draft_msgs: list[dict[str, str]] = []
+        for _m in history_msgs or []:
+            _role = _m.get("role")
+            _c = str(_m.get("content") or "").strip()
+            if _role in ("user", "assistant") and _c:
+                draft_msgs.append({"role": _role, "content": _c[:600]})
+        draft_msgs.append(
+            {
+                "role": "user",
+                "content": (
+                    f"Business: {biz}\nNiche: {niche}\nIntent: {intent}\n"
+                    f"Subject: {subject}\n\n{body[:1200]}{objection_ctx}{brain_ctx}"
+                ),
+            }
+        )
         reply, _ = await free_ai.chat(
             system="Tu LeadGen AI ka helpful sales rep hai. Is reply ka chhota, warm, "
             "professional Hinglish jawab likh (max 4 lines). Free Google audit + demo offer "
-            "kar; pushy mat ban. Objection ho to empathetic + specific jawab do. Sirf reply text de.",
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"Business: {biz}\nNiche: {niche}\nIntent: {intent}\n"
-                        f"Subject: {subject}\n\n{body[:1200]}{objection_ctx}{brain_ctx}"
-                    ),
-                }
-            ],
+            "kar; pushy mat ban. Objection ho to empathetic + specific jawab do. Agar upar "
+            "pichli baat-cheet hai to usko dhyaan me rakh — wahi sawaal dobara mat poochh, "
+            "aage badha. Sirf reply text de.",
+            messages=draft_msgs,
             max_tokens=160,
             temperature=0.5,
         )
@@ -698,26 +728,75 @@ async def whatsapp_reply(
     """Classify an inbound WhatsApp message + draft a Hinglish reply (1-click human send).
 
     Same brain as the email triage (free_ai classify + draft) but adapted for chat:
-    no subject, body = the message text. Writes a draft to ``reply_drafts.jsonl`` with
+    no subject, body = the message text. Uses ``wa_conversation`` per-number thread so
+    classify + draft are CONTEXT-aware (samajhta hai reply kis sawaal ka jawab hai —
+    wahi baat repeat nahi karta). Writes a draft to ``reply_drafts.jsonl`` with
     ``channel="whatsapp"`` and notifies the team. NEVER raises; returns the saved record
-    (``{}`` on empty text). Auto-send OFF (ban-safe) — human sends in 1 click.
+    (``{}`` on empty text). Auto-send OFF by DEFAULT (ban-safe, 1-click human send);
+    set ``WHATSAPP_AI_AUTOREPLY=1`` to actually send the contextual reply back (opt-in;
+    §5 bulk ``WHATSAPP_AUTO_SEND`` gate is separate + untouched).
     """
     txt = (text or "").strip()
     frm = (from_number or "").strip()
     if not txt:
         return {}
+
+    # Conversation memory (2026-07-07): pichli baat-cheet nikaalo (current message record
+    # hone se PEHLE, taaki yeh sirf PRIOR turns ho), phir current inbound turn record karo.
+    # Isse classify + draft context-aware ban jaate hain — AI reply ka matlab samajhta hai
+    # aur wahi sawaal repeat nahi karta ("samajh nahi pa raha / phir se poochh raha hai" fix).
+    prior_msgs: list[dict[str, str]] = []
+    ctx = ""
     try:
-        intent = await _classify("WhatsApp inbound", txt)
+        from app.platform import wa_conversation
+
+        prior_msgs = wa_conversation.history_messages(frm)
+        ctx = wa_conversation.as_context_text(prior_msgs)
+        wa_conversation.record(frm, txt, "in", message_id)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("wa_conversation context err: %s", exc)
+
+    try:
+        intent = await _classify("WhatsApp inbound", txt, history=ctx)
     except Exception as exc:  # pragma: no cover - defensive
         logger.debug("wa classify err: %s", exc)
         intent = "other"
+
+    # Auto-reply (INERT default — OFF). Ban-safe: yeh sirf INBOUND (customer-initiated)
+    # 1-to-1 conversation ka reactive jawab hai, NOT bulk cold auto-send (§5 ka
+    # WHATSAPP_AUTO_SEND gate alag hai + untouched). WAHA doc bhi "inbound auto-reply +
+    # warm 1-to-1" ko safe use bataata hai. Enable: WHATSAPP_AI_AUTOREPLY=1.
+    _auto = os.environ.get("WHATSAPP_AI_AUTOREPLY", "").strip().lower() in {"1", "true", "yes", "on"}
+    _draft_intents = ("interested", "question", "objection") + (("other",) if _auto else ())
     draft = ""
-    if intent in ("interested", "question", "objection"):
+    if intent in _draft_intents:
         try:
-            draft = await _draft(business_name or "", "WhatsApp inquiry", txt, intent)
+            draft = await _draft(
+                business_name or "", "WhatsApp inquiry", txt, intent, history_msgs=prior_msgs
+            )
         except Exception:  # pragma: no cover - defensive
             draft = ""
     at = datetime.now(timezone.utc).isoformat()
+
+    # Gated auto-send: customer ko turant conversational jawab (default OFF). Never raises.
+    auto_sent = False
+    if _auto and draft and intent not in ("unsubscribe", "not_interested", "ooo"):
+        try:
+            from app.integrations.whatsapp import get_whatsapp_sender
+
+            _res = await get_whatsapp_sender().send_text_message(frm, draft)
+            auto_sent = bool(_res) and not (isinstance(_res, dict) and _res.get("error"))
+            if auto_sent:
+                try:
+                    from app.platform import wa_conversation
+
+                    wa_conversation.record(frm, draft, "out")
+                except Exception:
+                    pass
+                logger.info("[reply_agent] WA auto-reply sent to %s (intent=%s)", frm, intent)
+        except Exception as _ae:  # pragma: no cover - defensive
+            logger.info("[reply_agent] WA auto-reply send failed: %s", _ae)
+
     rec = {
         "channel": "whatsapp",
         "from": frm,
@@ -725,6 +804,7 @@ async def whatsapp_reply(
         "text": txt[:2000],
         "intent": intent,
         "draft": draft,
+        "auto_sent": auto_sent,
         "status": _STATUS.get(intent, "replied"),
         "at": at,
     }

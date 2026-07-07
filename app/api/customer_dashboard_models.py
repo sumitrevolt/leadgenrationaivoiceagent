@@ -110,6 +110,8 @@ class DashboardResponse(BaseModel):
     branding: dict | None = None  # reseller white-label (set from Host on subdomains)
     onboarding: OnboardingChecklist | None = None
     trial_banner: TrialBanner | None = None
+    social_error: str | None = None
+
 
 
 class CrmSyncLeadResult(BaseModel):

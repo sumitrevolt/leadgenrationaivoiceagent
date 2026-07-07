@@ -534,6 +534,19 @@ async def cancel_subscription(
 
         await db.commit()
 
+        # Customer webhook / flow-trigger fan-out (audit 2026-07-07: this was the
+        # only SUPPORTED_EVENTS type with zero emit call-sites — a customer who
+        # registered a "subscription.cancelled" webhook never received it).
+        _emit_billing_customer_webhook(
+            client_id,
+            "subscription.cancelled",
+            {
+                "subscription_id": subscription.id,
+                "reason": request.reason,
+                "cancel_immediately": request.cancel_immediately,
+            },
+        )
+
         return {
             "success": True,
             "subscription_id": subscription.id,

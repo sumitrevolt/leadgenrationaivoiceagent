@@ -429,18 +429,30 @@ async def _run_job_inner(job: str) -> bool:
                 _obs.append_note("Sessions", _date, f"[digest] {_digest_text[:300]}", member="team_scheduler")
             except Exception:
                 pass
+            # HARDENING (audit 2026-07-07): ye 4 revenue-relevant engines pehle unguarded
+            # chain the — pehla throw (e.g. revenue_digest) baaki 3 (client_health churn-scan,
+            # usage_alerts billing upsell, growth_optimizer profit-loop) ko skip kar deta tha.
+            # Ab har engine `_run_content_engine` se isolated (content-job W1.3 pattern jaisa).
             from app.platform import revenue_digest
 
-            await revenue_digest.maybe_run_weekly()  # Monday-only weekly MRR digest (gated REVENUE_DIGEST)
+            await _run_content_engine(
+                "revenue_digest", revenue_digest.maybe_run_weekly()
+            )  # Monday-only weekly MRR digest (gated REVENUE_DIGEST)
             from app.platform import client_health
 
-            await client_health.run_check()  # churn-risk scan (alert gated CLIENT_HEALTH_ALERTS)
+            await _run_content_engine(
+                "client_health", client_health.run_check()
+            )  # churn-risk scan (alert gated CLIENT_HEALTH_ALERTS)
             from app.billing import usage_alerts
 
-            await usage_alerts.run_check()  # 80%/100% minute upsell triggers (gated USAGE_ALERTS)
+            await _run_content_engine(
+                "usage_alerts", usage_alerts.run_check()
+            )  # 80%/100% minute upsell triggers (gated USAGE_ALERTS)
             from app.agents import growth_optimizer
 
-            await growth_optimizer.optimize()  # daily self-healing profit loop (gated GROWTH_OPTIMIZER)
+            await _run_content_engine(
+                "growth_optimizer", growth_optimizer.optimize()
+            )  # daily self-healing profit loop (gated GROWTH_OPTIMIZER)
             try:
                 from app.agents import campaign_optimizer
 
@@ -712,33 +724,60 @@ async def _run_job_inner(job: str) -> bool:
 
             await reply_agent.run_reply_triage()
         elif job == "watchdog":
+            # HARDENING (audit 2026-07-07): pehle ye 9 critical safety-net checks EK
+            # unguarded chain me the — pehla throw (e.g. ops_watchdog network hiccup)
+            # baaki SAB skip kar deta tha, INCLUDING dead-man alert (automation_health.
+            # run_watch), self_improve revive aur dlq_retry. Matlab ek asambandhit
+            # sub-check failure poore safety-net ko us ghante ke liye chup kar sakta tha.
+            # Ab har async check `_run_content_engine` se ISOLATED (W1.3 pattern) — ek
+            # fail hone par logged + contained, baaki checks (khaas kar dead-man + revive)
+            # phir bhi chalte. Order preserve — behaviour same, resilience upgrade.
             from app.platform import ops_watchdog
 
-            await ops_watchdog.run_watchdog()
+            await _run_content_engine("ops_watchdog", ops_watchdog.run_watchdog())
             from app.platform import deliverability_monitor
 
-            await deliverability_monitor.run_check()  # SPF/DMARC + blacklist (alert gated DELIVERABILITY_MONITOR)
+            await _run_content_engine(
+                "deliverability_monitor", deliverability_monitor.run_check()
+            )  # SPF/DMARC + blacklist (alert gated DELIVERABILITY_MONITOR)
             from app.platform import automation_health
 
-            await automation_health.run_watch()  # dead-man switch: overdue jobs alert (gated AUTOMATION_HEALTH_ALERTS)
+            await _run_content_engine(
+                "automation_health_watch", automation_health.run_watch()
+            )  # dead-man switch: overdue jobs alert (gated AUTOMATION_HEALTH_ALERTS)
             from app.telephony import telephony_readiness
 
-            await telephony_readiness.run_watch()  # Tara: calling-launch readiness score (alert gated TELEPHONY_READY_ALERTS)
+            await _run_content_engine(
+                "telephony_readiness_watch", telephony_readiness.run_watch()
+            )  # Tara: calling-launch readiness score (alert gated TELEPHONY_READY_ALERTS)
             from app.platform import infra_handler
 
-            await infra_handler.run_watch()  # Hermes: full infra score+actions (alert gated INFRA_HANDLER; off = no-op)
+            await _run_content_engine(
+                "infra_handler_watch", infra_handler.run_watch()
+            )  # Hermes: full infra score+actions (alert gated INFRA_HANDLER; off = no-op)
             from app.platform import llm_metrics
 
-            await llm_metrics.run_capacity_watch()  # LLM gateway capacity/fallback alert (gated LLM_CAPACITY_ALERTS; #1 bottleneck self-flag)
+            await _run_content_engine(
+                "llm_capacity_watch", llm_metrics.run_capacity_watch()
+            )  # LLM gateway capacity/fallback alert (gated LLM_CAPACITY_ALERTS; #1 bottleneck self-flag)
             from app.platform import dlq_retry
 
-            await dlq_retry.run_sweep()  # failed staff-jobs auto-retry+backoff (gated DLQ_AUTO_RETRY; off = no-op)
+            await _run_content_engine(
+                "dlq_retry_sweep", dlq_retry.run_sweep()
+            )  # failed staff-jobs auto-retry+backoff (gated DLQ_AUTO_RETRY; off = no-op)
             from app.platform import integration_health
 
-            await integration_health.run_watch()  # integration silent-failure alert (gated INTEGRATION_ALERTS; off = sirf counters)
-            from app.agents import self_improve
+            await _run_content_engine(
+                "integration_health_watch", integration_health.run_watch()
+            )  # integration silent-failure alert (gated INTEGRATION_ALERTS; off = sirf counters)
+            try:
+                from app.agents import self_improve
 
-            self_improve.ensure_alive()  # continuous-loop dead-man revive (gated SELF_IMPROVE_LOOP; sirf Celery enqueue, inline kabhi nahi)
+                self_improve.ensure_alive()  # continuous-loop dead-man revive (gated SELF_IMPROVE_LOOP; sirf Celery enqueue, inline kabhi nahi)
+            except Exception as _si_e:
+                # SYNC call — _run_content_engine (await) nahi chalega. Loud warn (pass NAHI):
+                # revive safety-net ka failure chhupana nahi chahiye.
+                logger.warning(f"[team-scheduler] watchdog self_improve.ensure_alive failed: {_si_e}")
             try:
                 from app.agents import process_engine
 
