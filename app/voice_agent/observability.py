@@ -269,6 +269,54 @@ class Tracer:
             }
         )
 
+    # ----------------------- VAQI (Deepgram-style reliability legs) ------ #
+    # Dormant until call code (turn_detector.py / vobiz_stream.py) calls these
+    # at its existing barge-in / no-reply decision points — additive only, no
+    # telephony code is touched by shipping these methods. Once wired, they
+    # feed `vaqi_summary()` below the same way `latencies`/`missed` already
+    # feed the self-test harness's own VAQI number (scripts/agent_tester.py).
+    def record_interruption(self, trace: CallTrace, *, premature: bool = False, **data: Any) -> None:
+        """Log a barge-in/interruption occurrence. ``premature=True`` means the
+        agent was still speaking when genuine user speech started (Deepgram's
+        VAQI 'Interruptions' leg) — as opposed to a clean, expected barge-in."""
+        self.event(trace, "interruption", {"premature": bool(premature), **data})
+
+    def record_missed_response(self, trace: CallTrace, **data: Any) -> None:
+        """Log a turn where the agent failed to respond within the expected
+        window after the caller finished speaking (Deepgram's VAQI 'Missed
+        responses' leg)."""
+        self.event(trace, "missed_response", data or {})
+
+    def vaqi_summary(self, n: int = 50) -> dict[str, Any]:
+        """VAQI (Voice Agent Quality Index) over the last ``n`` traces:
+        Interruptions / Missed responses / Latency — the same 3-leg
+        reliability score Deepgram's guide recommends for production voice
+        agents. Interruption/missed-response legs read as ``None`` (not 0,
+        which would misleadingly read as "perfect") until call code starts
+        calling `record_interruption`/`record_missed_response`."""
+        traces = self.recent(n)
+        completed = [t for t in traces if t.ended_at is not None]
+        latencies_ms = [t.totals.get("total_ms", 0.0) for t in completed]
+        try:
+            from app.voice_agent.voice_metrics import latency_summary
+        except Exception:  # pragma: no cover
+            latency_summary = None  # type: ignore[assignment]
+        latency = latency_summary(latencies_ms) if latency_summary else None
+
+        interruptions = [e for t in traces for e in t.events if e.get("name") == "interruption"]
+        missed = [e for t in traces for e in t.events if e.get("name") == "missed_response"]
+        premature = sum(1 for e in interruptions if (e.get("data") or {}).get("premature"))
+
+        return {
+            "calls_sampled": len(traces),
+            "latency": latency,
+            "interruptions_total": len(interruptions) or None,
+            "premature_interruptions": premature if interruptions else None,
+            "interruption_rate": round(premature / len(interruptions), 3) if interruptions else None,
+            "missed_responses_total": len(missed),
+            "missed_response_rate": round(len(missed) / len(traces), 3) if traces else None,
+        }
+
     # ----------------------- serialization ----------------------- #
     def to_dict(self, trace: CallTrace) -> dict[str, Any]:
         return trace.to_dict()
