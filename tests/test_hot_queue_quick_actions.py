@@ -99,10 +99,12 @@ def test_whatsapp_reply_attaches_reply_and_done_actions(monkeypatch, tmp_path):
     from app.integrations import ntfy
     from app.platform import reply_agent
 
-    async def fake_classify(subject, body):
+    # NOTE (2026-07-07): _classify/_draft ab history/history_msgs kwarg lete hain
+    # (wa_conversation chat-continuity) — fakes signature-sync warna TypeError→"other".
+    async def fake_classify(subject, body, history=""):
         return "interested"
 
-    async def fake_draft(biz, subject, body, intent):
+    async def fake_draft(biz, subject, body, intent, history_msgs=None):
         return "Namaste! Free demo set karein?"
 
     calls = []
@@ -137,7 +139,7 @@ def test_whatsapp_reply_no_push_for_non_hot_intent(monkeypatch, tmp_path):
     from app.integrations import ntfy
     from app.platform import reply_agent
 
-    async def fake_classify(subject, body):
+    async def fake_classify(subject, body, history=""):
         return "not_interested"
 
     def _boom(*_a, **_kw):  # pragma: no cover - asserts non-call

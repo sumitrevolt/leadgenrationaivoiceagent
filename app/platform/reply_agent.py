@@ -142,6 +142,76 @@ def _is_bulk_sender(frm: str, msg: Any) -> bool:
     return False
 
 
+# AUTO-ACK GUARD (2026-07-07): "Thank you for your interest in X" / "We have
+# received your enquiry" type auto-acknowledgements were LLM-classifying as
+# "interested" and flooding reply_drafts + Hot Queue with fake-hot rows (312
+# rows from ONE adityabirla.com auto-responder alone — deliverability audit).
+# _is_bulk_sender can't catch these: it only runs for UNKNOWN senders (known
+# prospects bypass it) and many auto-acks carry no bulk headers. This guard
+# runs for EVERYONE — an auto-ack is not a human reply regardless of sender.
+_AUTO_ACK_RE = re.compile(
+    r"thank(s| you) for (your (interest|enquiry|inquiry|email|message)|contacting|reaching out|writing)|"
+    r"we (have )?received your|your (enquiry|inquiry|request|message) (has been|was) received|"
+    r"auto[- ]?(reply|response|acknowledg)|automatic reply|acknowledge?ment",
+    re.IGNORECASE,
+)
+
+
+def _is_auto_ack(msg: Any, subj: str) -> bool:
+    """Auto-acknowledgement detect (subject pattern ya Auto-Submitted header).
+    Known-prospect pe BHI lagta — auto-ack kisi se bhi aaye, human reply nahi.
+    Never raises."""
+    try:
+        if _AUTO_ACK_RE.search(subj or ""):
+            return True
+        v = str((msg.get("Auto-Submitted") if msg is not None else "") or "").strip().lower()
+        if v and v != "no":
+            return True
+    except Exception:
+        pass
+    return False
+
+
+# SENDER FLOOD CAP (2026-07-07): ek hi sender se repeat-mail cap — auto-responder
+# ping-pong (312x adityabirla loop) har mail pe LLM classify+draft tokens jalata
+# tha aur drafts/Hot-Queue ko noise se bhar deta tha. Cap ke baad wale skip
+# (pehli `cap` rows hot queue me surface ho hi chuki hoti hain; genuine engaged
+# prospect ke liye cap kaafi upar hai). REPLY_SENDER_FLOOD_CAP=0 disables.
+def _flood_cap() -> int:
+    try:
+        return max(0, int(os.getenv("REPLY_SENDER_FLOOD_CAP", "6") or 6))
+    except Exception:
+        return 6
+
+
+def _sender_counts(rows: list[dict]) -> dict[str, int]:
+    """Recent draft rows -> per-sender row count (flood detect). Never raises."""
+    out: dict[str, int] = {}
+    try:
+        for r in rows:
+            f = str((r or {}).get("from") or "").strip().lower()
+            if f:
+                out[f] = out.get(f, 0) + 1
+    except Exception:
+        pass
+    return out
+
+
+def _is_blocklisted(frm: str) -> bool:
+    """Operator blocklist: REPLY_SENDER_BLOCKLIST env (CSV — full address ya
+    domain). Unset = koi block nahi. Never raises."""
+    try:
+        raw = os.getenv("REPLY_SENDER_BLOCKLIST", "") or ""
+        bl = {t.strip().lower() for t in raw.split(",") if t.strip()}
+        if not bl:
+            return False
+        f = (frm or "").strip().lower()
+        dom = f.rsplit("@", 1)[1] if "@" in f else f
+        return f in bl or dom in bl
+    except Exception:
+        return False
+
+
 # intent -> prospect status. NOTE: must use only prospector.VALID_STATUSES
 # ("ready","sent","replied","client","dead") — a value outside that set (was
 # "replied_hot") makes mark_prospect() silently no-op, so the lead stays "ready"
@@ -416,6 +486,10 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
         typ, data = M.search(None, "UNSEEN")
         ids = (data[0].split() if data and data[0] else [])[: max(1, limit)]
         pmap = _prospect_map()
+        # SENDER FLOOD CAP (2026-07-07): recent drafts se per-sender counts ek
+        # baar build (per-mail file-read nahi) — loop-sender cap ke liye.
+        flood_cap = _flood_cap()
+        seen_counts = _sender_counts(list_drafts(limit=4000)) if flood_cap else {}
         for i in ids:
             try:
                 typ, md = M.fetch(i, "(RFC822)")
@@ -460,12 +534,31 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     except Exception:
                         pass
                     continue
+                # AUTO-ACK GUARD (2026-07-07): auto-acknowledgement ≠ human reply —
+                # LLM classify se PEHLE drop (fake-"interested" + token-burn fix;
+                # known-prospect pe bhi lagta, junk-guard ke ulat).
+                if _is_auto_ack(msg, subj):
+                    res["skipped"] += 1
+                    res["auto_ack"] = res.get("auto_ack", 0) + 1
+                    continue
+                # Operator blocklist (REPLY_SENDER_BLOCKLIST env CSV) — hard skip.
+                if _is_blocklisted(frm):
+                    res["skipped"] += 1
+                    res["blocklisted"] = res.get("blocklisted", 0) + 1
+                    continue
                 # JUNK GUARD (2026-06-12): unknown sender + bulk/marketing mail = skip.
                 # Pehle PayU/Instamojo newsletters "interested" classify hoke FAKE deals
                 # bana rahe the + har newsletter pe LLM classify/draft tokens jalte the.
                 if p is None and _is_bulk_sender(frm, msg):
                     res["skipped"] += 1
                     continue
+                # SENDER FLOOD CAP (2026-07-07): same sender already `cap`+ draft-rows
+                # = auto-responder loop; is run ke repeats bhi count hote (increment niche).
+                if flood_cap and seen_counts.get(frm, 0) >= flood_cap:
+                    res["skipped"] += 1
+                    res["flooded"] = res.get("flooded", 0) + 1
+                    continue
+                seen_counts[frm] = seen_counts.get(frm, 0) + 1
                 intent = await _classify(subj, body)
                 # LLM-guard (IFC, observe-only): scan UNTRUSTED inbound for prompt-injection.
                 # Never blocks — flags the draft so the human reviewer does NOT act on
@@ -739,6 +832,12 @@ async def whatsapp_reply(
     txt = (text or "").strip()
     frm = (from_number or "").strip()
     if not txt:
+        return {}
+    # STATUS/BROADCAST GUARD (2026-07-07): WhatsApp status updates + broadcast
+    # channels webhook se aa ke "interested" tak classify ho rahe the (fake-hot
+    # noise in reply_drafts/Hot-Queue — deliverability audit). Ye human 1-1
+    # reply nahi hai — drop before classify. Operator blocklist bhi yahin.
+    if frm.lower() == "status" or "@broadcast" in frm.lower() or _is_blocklisted(frm):
         return {}
 
     # Conversation memory (2026-07-07): pichli baat-cheet nikaalo (current message record
