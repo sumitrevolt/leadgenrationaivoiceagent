@@ -30,9 +30,10 @@ DENY = [
     (_B + r"git\s+add\s+(-A\b|--all\b|\.(\s|$))",
      "`git add -A/./--all` is blocked (parallel-Cursor truncation hazard — "
      "shared files get clobbered). Stage explicit paths: `git add <path1> <path2>`."),
-    (_B + r"git\s+push\b[^\n]*?(--force(?!-with-lease)|\s-f\b)",
-     "Plain force-push is blocked (history-rewrite risk on shared main). "
-     "Use `--force-with-lease` if you truly must, after confirming with the user (`careful` skill)."),
+    (_B + r"git\s+push\b[^\n]*?(--force(?!-with-lease)|\s-f\b|\s\+[\w/])",
+     "Force-push is blocked (history-rewrite risk on shared main) — incl the "
+     "`git push origin +main` plus-refspec form. Use `--force-with-lease` if you "
+     "truly must, after confirming with the user (`careful` skill)."),
     (_B + r"(sudo\s+)?rm\s+-[a-z]*[rf][a-z]*\s+(/|~|\$HOME|/\*)(\s|$|/)",
      "Recursive delete of `/`, `~`, or `$HOME` is blocked (catastrophic). "
      "Narrow the path to the exact target dir (`careful` skill)."),
@@ -48,6 +49,9 @@ ASK = [
      "Confirm intent + prefer surgical `git checkout <ref> -- <paths>` (`careful` skill)."),
     (_B + r"git\s+(checkout\s+--\s|clean\s+-[a-z]*f)",
      "`git checkout -- <path>` / `git clean -f` discards uncommitted changes. Confirm first (`careful`)."),
+    (_B + r"git\s+(commit|push)\b[^\n]*--no-verify\b",
+     "`--no-verify` skips the pre-commit/pre-push hooks (secrets scan, lint). "
+     "CLAUDE.md §8: never skip hooks unless the user explicitly asked. Confirm intent."),
     (_B + r"docker\s+(system\s+)?\w*prune\b",
      "`docker prune` can delete the ollama/observability/data volumes & images. "
      "Confirm scope; never `prune -a --volumes` on the live VPS (`careful` skill)."),
