@@ -72,10 +72,10 @@ class StartupChecker:
         if not any(os.environ.get(v) for v in llm_vars):
             self.warnings.append("No LLM API key configured (GEMINI_API_KEY, OPENAI_API_KEY, etc.)")
         
-        # Check at least one telephony is configured
-        telephony_vars = ["TWILIO_ACCOUNT_SID", "EXOTEL_API_KEY"]
-        if not any(os.environ.get(v) for v in telephony_vars):
-            self.warnings.append("No telephony provider configured (TWILIO or EXOTEL)")
+        # Check telephony is configured
+        telephony_vars = ["VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN"]
+        if not all(os.environ.get(v) for v in telephony_vars):
+            self.warnings.append("No telephony provider configured (VOBIZ_AUTH_ID/VOBIZ_AUTH_TOKEN)")
         
         return len(self.errors) == 0
     

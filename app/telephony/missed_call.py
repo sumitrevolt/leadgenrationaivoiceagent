@@ -43,7 +43,7 @@ async def handle_missed_call(
 ) -> dict[str, Any]:
     """Missed inbound call -> lead capture + (gated) instant AI callback. Kabhi raise nahi.
 
-    Inbound webhook (Vobiz/Exotel "no-answer"/"missed") isse call kare.
+    Inbound webhook (Vobiz "no-answer"/"missed") isse call kare.
     """
     num = (from_number or "").strip()
     if not num:

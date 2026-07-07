@@ -357,14 +357,12 @@ def run_security() -> dict[str, Any]:
         sub_scores.append(40.0)
         actions.append("Consent ledger missing — verify telephony opt-out path")
 
-    # 2) Webhook signing secrets armed (fail-CLOSED only protects when set)
-    twilio = bool(os.environ.get("TWILIO_AUTH_TOKEN", "").strip())
+    # 2) Webhook signing secrets armed (fail-CLOSED only protects when set).
+    # Vobiz doesn't sign callbacks (no per-provider secret to arm) — WhatsApp is
+    # the only externally-signed webhook since Twilio was removed 2026-07-07.
     whatsapp = bool(os.environ.get("WHATSAPP_APP_SECRET", "").strip())
-    armed = sum([twilio, whatsapp])
-    kpis["webhook_secrets_armed"] = {"twilio": twilio, "whatsapp": whatsapp}
-    sub_scores.append(armed / 2 * 100.0)
-    if not twilio:
-        actions.append("TWILIO_AUTH_TOKEN unset — telephony webhooks unauthenticated in prod")
+    kpis["webhook_secrets_armed"] = {"whatsapp": whatsapp}
+    sub_scores.append(100.0 if whatsapp else 0.0)
 
     # 3) Bot protection (F.1) active
     turnstile = bool(os.environ.get("TURNSTILE_SECRET_KEY", "").strip())
@@ -387,14 +385,14 @@ def run_security() -> dict[str, Any]:
         "score": round(score, 1) if score is not None else None,
         "status": "ok",
         "summary": (
-            f"Compliance posture {score:.0f}/100 · {armed}/2 webhook secrets armed · "
-            f"turnstile {'on' if turnstile else 'off'}"
+            f"Compliance posture {score:.0f}/100 · webhook secrets "
+            f"{'armed' if whatsapp else 'unarmed'} · turnstile {'on' if turnstile else 'off'}"
         ),
         "kpis": kpis,
         "actions": actions,
         "ts": int(time.time()),
     }
-    _try_log("arnav", "security_posture", json.dumps({"score": score, "armed": armed}))
+    _try_log("arnav", "security_posture", json.dumps({"score": score, "armed": whatsapp}))
     _maybe_alert(result)
     return result
 

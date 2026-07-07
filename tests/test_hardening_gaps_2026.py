@@ -1,14 +1,14 @@
 """Hardening gap-closure tests (2026-06-20) — production guarantees that were
 BUILT but UNVERIFIED. Audit-flagged HIGH gaps:
 
-  1. Twilio webhook signature verify fail-CLOSED in production (503), open in dev.
+  1. Stripe webhook signature verify fail-CLOSED in production (503), open in dev.
   2. Vobiz status-webhook idempotency — completion metering/billing runs once.
   3. Customer-portal invoice reads are tenant-scoped (cross-tenant IDOR filter).
   4. Voice annual + marketing top-up EXACT price literals (a ratio-preserving
      typo would slip past the existing relation-only checks).
 
 Pure-python contract tests — koi network/DB/live-provider nahi. Never raises a
-real Twilio/Vobiz call. Async handlers are driven via asyncio.run so the suite
+real Stripe/Vobiz call. Async handlers are driven via asyncio.run so the suite
 does not depend on pytest-asyncio mode.
 """
 
@@ -21,8 +21,7 @@ import pytest
 
 class _Req:
     """Minimal stand-in for starlette Request. Only `.form()` is exercised by the
-    code paths under test; the Twilio guards under test return BEFORE touching
-    `.url`, so this is sufficient."""
+    code paths under test."""
 
     def __init__(self, form: dict | None = None) -> None:
         self._form = form or {}
@@ -32,51 +31,13 @@ class _Req:
 
 
 # --------------------------------------------------------------------------- #
-# 1. Twilio webhook signature — fail-CLOSED in prod, open in dev
+# 1. Stripe webhook signature — fail-CLOSED in prod, open in dev
 # --------------------------------------------------------------------------- #
-def test_twilio_verify_503_in_production_without_token(monkeypatch):
-    """No TWILIO_AUTH_TOKEN + production = refuse the unverified webhook (503).
-    This is the TRAI/security gate; only `callable(...)` was asserted before."""
-    from fastapi import HTTPException
-
-    from app.api import webhooks
-
-    monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
-    monkeypatch.setattr(webhooks.settings, "app_env", "production", raising=False)
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(webhooks.verify_twilio_signature(_Req(), x_twilio_signature=None))
-    assert exc.value.status_code == 503
-
-
-def test_twilio_verify_open_in_dev_without_token(monkeypatch):
-    """Dev (non-prod) + no token = skip verification (returns True) so local
-    testing isn't blocked — the documented dev-only escape hatch."""
-    from app.api import webhooks
-
-    monkeypatch.delenv("TWILIO_AUTH_TOKEN", raising=False)
-    monkeypatch.setattr(webhooks.settings, "app_env", "development", raising=False)
-    assert (
-        asyncio.run(webhooks.verify_twilio_signature(_Req(), x_twilio_signature=None)) is True
-    )
-
-
-def test_twilio_verify_401_missing_signature(monkeypatch):
-    """Token set but no X-Twilio-Signature header = 401 (webhook can't be unsigned)."""
-    from fastapi import HTTPException
-
-    from app.api import webhooks
-
-    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "fake_token_for_test")
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(webhooks.verify_twilio_signature(_Req(), x_twilio_signature=None))
-    assert exc.value.status_code == 401
-
-
 def test_stripe_webhook_503_in_production_without_secret(monkeypatch):
     """No STRIPE_WEBHOOK_SECRET + production = refuse unverified payment webhook
-    (503), mirroring Twilio — a forged event could otherwise grant balance/plan.
-    Dev still returns the graceful 200 skip (asserted indirectly: default app_env
-    is development, so existing webhook tests are unaffected)."""
+    (503) — a forged event could otherwise grant balance/plan. Dev still returns
+    the graceful 200 skip (asserted indirectly: default app_env is development,
+    so existing webhook tests are unaffected)."""
     from fastapi import HTTPException
 
     from app.api import webhooks

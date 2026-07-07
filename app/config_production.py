@@ -184,15 +184,8 @@ class ProductionConfig:
     def elevenlabs_api_key(self) -> str:
         return get_secret_or_env(f"{self._prefix}elevenlabs-api-key", "ELEVENLABS_API_KEY")
 
-    @property
-    def twilio_account_sid(self) -> str:
-        return get_secret_or_env(f"{self._prefix}twilio-account-sid", "TWILIO_ACCOUNT_SID")
-
-    @property
-    def twilio_auth_token(self) -> str:
-        return get_secret_or_env(f"{self._prefix}twilio-auth-token", "TWILIO_AUTH_TOKEN")
-
-    # Exotel removed 2026-06-18 — telephony provider is Vobiz (VOBIZ_* env).
+    # Exotel removed 2026-06-18, Twilio removed 2026-07-07 — telephony provider
+    # is Vobiz-only (VOBIZ_* env).
 
     def get_all_config(self) -> dict[str, Any]:
         """Get all configuration as dict"""
@@ -203,7 +196,6 @@ class ProductionConfig:
             "redis_url": "***" if self.redis_url else None,
             "openai_configured": bool(self.openai_api_key),
             "gemini_configured": bool(self.gemini_api_key),
-            "twilio_configured": bool(self.twilio_account_sid),
             "vobiz_configured": bool(
                 get_secret_or_env(f"{self._prefix}vobiz-auth-id", "VOBIZ_AUTH_ID")
             ),
