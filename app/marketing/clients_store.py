@@ -380,7 +380,14 @@ _ALLOWED_FIELDS = {
     # acknowledged); customer_delivery.py. Whitelist-block = re-send spam (2026-07-05).
     "delivered_at",  # ISO timestamp — value delivered to customer kab
     "acknowledged_at",  # ISO timestamp — customer ne reply/engage karke acknowledge kiya
+    "services",  # description of services/products
+    "target_area",  # local target areas/neighborhoods
+    "whatsapp_phone",  # WhatsApp connection phone
+    "approval_preference",  # "auto" or "manual" post approvals
+    "social_error",  # customer-facing connection status / error text
+    "blocked_reason",  # admin-facing tech error / reason blocked
 }
+
 
 
 def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:

@@ -233,7 +233,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("✅ Startup complete - application ready")
 
-    # Outbound call queue processor (Vobiz/Twilio) — polls Redis queue and dials.
+    # Outbound call queue processor (Vobiz) — polls Redis queue and dials.
     # Gated CALL_PROCESSOR=1 (default ON when telephony provider configured).
     _call_processor_task = None
     if os.environ.get("CALL_PROCESSOR", "1").strip().lower() in ("1", "true", "yes"):
@@ -243,7 +243,7 @@ async def lifespan(app: FastAPI):
                 .strip()
                 .lower()
             )
-            if provider in ("vobiz", "twilio"):
+            if provider == "vobiz":
                 from app.telephony.call_manager import CallManager
 
                 _cm = CallManager(provider=provider)
@@ -388,8 +388,8 @@ app.include_router(
     analytics.router, prefix="/api", tags=["Analytics"]
 )  # router self-prefixes /analytics
 app.include_router(webhooks.router, prefix="/api/webhooks", tags=["Webhooks"])
-# Telephony provider callbacks (Twilio/Exotel voice + status). Routes are
-# signature-verified; Sentry's FastApiIntegration auto-captures their errors.
+# Telephony provider callbacks (Vobiz voice + status). Sentry's FastApiIntegration
+# auto-captures their errors.
 try:
     from app.telephony.webhooks import router as telephony_webhooks_router
 
@@ -1055,7 +1055,8 @@ async def deals_page():
 @app.get("/app/customer/pipeline", tags=["Frontend"])
 async def customer_pipeline_page():
     """Customer lead Pipeline Kanban — drag-drop board of this client's own leads by status."""
-    return FileResponse(str(FRONTEND_DIR / "customer_pipeline.html"))
+    return FileResponse(str(FRONTEND_DIR / "customer_dashboard.html"))
+
 
 
 @app.get("/app/segments", tags=["Frontend"])
@@ -1134,7 +1135,7 @@ async def customer_dashboard_page():
 @app.get("/app/customer/marketing", tags=["Frontend"])
 async def customer_marketing_page():
     """AI Marketing customer dashboard — content, approvals, website tools (voice sections hidden)."""
-    return FileResponse(str(FRONTEND_DIR / "customer_marketing.html"))
+    return FileResponse(str(FRONTEND_DIR / "customer_dashboard.html"))
 
 
 @app.get("/app/customer/flows", tags=["Frontend"])
@@ -1146,7 +1147,8 @@ async def customer_flows_page():
 @app.get("/app/customer/voice", tags=["Frontend"])
 async def customer_voice_page():
     """AI Voice Agent customer dashboard — leads, calls, transcripts, routing (marketing sections hidden)."""
-    return FileResponse(str(FRONTEND_DIR / "customer_voice.html"))
+    return FileResponse(str(FRONTEND_DIR / "customer_dashboard.html"))
+
 
 
 @app.get("/app/admin", tags=["Frontend"])
@@ -1908,42 +1910,6 @@ async def mini_site_widget_js(slug: str):
     except Exception as e:
         logger.warning(f"widget.js failed for {slug!r}: {e}")
     return Response(content=js, media_type="application/javascript")
-
-
-@app.websocket("/telephony/twilio/media-stream")
-async def twilio_media_stream(websocket: WebSocket):
-    """Twilio Media Streams websocket → live audio bridge to the voice pipeline."""
-    try:
-        from app.telephony.media_stream import TwilioMediaStreamBridge
-
-        bridge = TwilioMediaStreamBridge()
-        await bridge.handle(websocket)
-    except Exception as e:
-        logger.warning("Media-stream bridge error: %s", e)
-        try:
-            await websocket.close()
-        except Exception as _ws_e:
-            logger.debug("Media-stream websocket close error: %s", _ws_e)
-
-
-@app.websocket("/ws/exotel-voicebot")
-async def exotel_voicebot_ws(websocket: WebSocket):
-    """DEPRECATED — Exotel removed 2026-06-18. Provider is now Vobiz.
-
-    The live conversational voice WS is now the Vobiz stream at
-    ``/api/telephony/vobiz/stream/{token}`` (VobizStreamSession). This legacy
-    Exotel applet endpoint is retained only as an import-safe graceful-close so
-    any stale Exotel applet config doesn't 500 — it accepts then closes cleanly.
-    """
-    try:
-        await websocket.accept()
-    except Exception as _acc_e:
-        logger.debug("exotel-voicebot ws accept failed: %s", _acc_e)
-        return
-    try:
-        await websocket.close(code=1000, reason="exotel-voicebot retired; use Vobiz stream")
-    except Exception as _cls_e:
-        logger.debug("exotel-voicebot ws close failed: %s", _cls_e)
 
 
 @app.get("/manifest.json", tags=["Frontend"])

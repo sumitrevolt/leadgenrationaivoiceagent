@@ -129,6 +129,38 @@ async def cf_get(flow_id: str, cid: str = Depends(require_customer)):
             "steps": (proc or {}).get("steps", [])}
 
 
+@router.get("/flow/{flow_id}/versions")
+async def cf_versions(flow_id: str, cid: str = Depends(require_customer)):
+    g = _gate()
+    if g:
+        return g
+    from app.automation import flow_store
+
+    if not flow_store.owned_by(flow_id, cid):
+        return _not_found()
+    return {"versions": flow_store.list_versions(flow_id)}
+
+
+class RollbackIn(BaseModel):
+    version: int
+
+
+@router.post("/flow/{flow_id}/rollback")
+async def cf_rollback(flow_id: str, body: RollbackIn, cid: str = Depends(require_customer)):
+    g = _gate()
+    if g:
+        return g
+    from app.automation import flow_compiler, flow_store
+
+    if not flow_store.owned_by(flow_id, cid):
+        return _not_found()
+    saved = flow_store.rollback_flow(flow_id, body.version, by=f"customer:{cid}")
+    if not saved.get("ok"):
+        return saved
+    _proc, errs, kind = flow_compiler.compile_flow(saved["flow"], customer_safe=True)
+    return {"ok": True, "flow": saved["flow"], "compile_errors": errs, "runnable": not errs, "kind": kind}
+
+
 @router.delete("/flow/{flow_id}")
 async def cf_delete(flow_id: str, cid: str = Depends(require_customer)):
     g = _gate()

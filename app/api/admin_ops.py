@@ -20,7 +20,7 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 
 from app.api.auth_deps import require_admin
@@ -871,6 +871,38 @@ async def deliver_now(client_id: str, _user=Depends(require_admin)) -> dict:
     except Exception as le:  # pragma: no cover
         logger.debug("deliver_now ledger log skip: %s", le)
     return {"ok": True, "delivered": bool(result.get("delivered")), "reason": reason}
+
+
+@router.post("/clients/{client_id}/password-reset", summary="Admin-clicked customer password reset")
+async def client_password_reset(client_id: str, body: dict, _user=Depends(require_admin)) -> dict:
+    password = body.get("password")
+    if not password or len(password) < 4:
+        raise HTTPException(status_code=400, detail="Invalid password")
+    
+    from app.marketing import clients_store
+    client = clients_store.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+        
+    email = client.get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Client email not set, cannot reset login credentials")
+        
+    from app.api import customer_auth
+    customer_auth.register_login(email, password, client_id)
+    return {"ok": True}
+
+
+@router.post("/clients/{client_id}/onboard/scrape", summary="Admin-clicked customer website re-scrape")
+async def client_onboard_scrape(client_id: str, background_tasks: BackgroundTasks, _user=Depends(require_admin)) -> dict:
+    from app.marketing import clients_store
+    client = clients_store.get_client(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Client not found")
+    
+    from app.marketing import onboarding
+    background_tasks.add_task(onboarding.auto_onboard, client_id, send_welcome=False, force=True)
+    return {"ok": True}
 
 
 @router.get("/upi/clients", summary="Search clients for manual UPI activate")

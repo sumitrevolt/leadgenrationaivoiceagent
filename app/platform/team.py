@@ -684,7 +684,14 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
             from app.platform import automation_health
 
             h = automation_health.health()
-            return f"system {('OK' if h.get('ok', True) else 'degraded')} · overdue {len(h.get('overdue') or [])}"
+            # BUGFIX: pehle `h.get('ok', True)` — health() me `ok` key hi nahi tha, to
+            # default True → pulse HAMESHA "system OK" dikhata (overdue/backlog masked).
+            # Ab automation_health.health() additive `ok` deta hai; fallback me status se
+            # derive (healthy/warming_up = ok, degraded = nahi) taaki robust rahe.
+            _ok = h.get("ok")
+            if _ok is None:
+                _ok = h.get("status") in ("healthy", "warming_up")
+            return f"system {('OK' if _ok else 'degraded')} · overdue {len(h.get('overdue') or [])}"
         except Exception:
             return "ops watch"
 

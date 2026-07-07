@@ -8,9 +8,9 @@ provider keys.
 
 Provider selection (in priority order):
     1. TELEPHONY_PROVIDER env / setting, if explicitly set to one of:
-       "twilio" | "vobiz" | "sip" | "none" | "simulation".
+       "vobiz" | "sip" | "none" | "simulation".
     2. Auto-detect: pick whichever provider's keys actually exist
-       (sip -> vobiz -> twilio).
+       (sip -> vobiz).
     3. Else -> "simulation" mode (no keys needed).
 
 Usage:
@@ -52,7 +52,7 @@ class CallResult:
     call_id: str
     status: str  # initiated, connected, no_answer, busy, failed, not_configured, simulated
     duration: int  # seconds
-    provider: str  # twilio | vobiz | sip:* | simulation
+    provider: str  # vobiz | sip:* | simulation
     error: str | None = None
 
 
@@ -72,7 +72,7 @@ class TelephonyService:
     runs. Use validate_config() to inspect the active provider and gaps.
     """
 
-    VALID_PROVIDERS = ("twilio", "vobiz", "sip", "none", "simulation")
+    VALID_PROVIDERS = ("vobiz", "sip", "none", "simulation")
 
     def __init__(self, provider: str | None = None):
         self.provider = (provider or self._detect_provider()).lower()
@@ -80,7 +80,7 @@ class TelephonyService:
 
         # Try to construct the chosen real handler; on ANY failure, fall back to
         # simulation so we never crash.
-        if self.provider in ("twilio", "vobiz", "sip"):
+        if self.provider in ("vobiz", "sip"):
             try:
                 self._handler = self._build_handler(self.provider)
             except Exception as e:
@@ -113,23 +113,17 @@ class TelephonyService:
                 f"Valid: {self.VALID_PROVIDERS}. Auto-detecting instead."
             )
 
-        # Auto-detect: cheapest-first (sip), then vobiz (India), then twilio.
+        # Auto-detect: cheapest-first (sip), then vobiz (India).
         if _env("SIP_HOST") and _env("SIP_USERNAME") and _env("SIP_PASSWORD"):
             return "sip"
         if _env("VOBIZ_AUTH_ID") and _env("VOBIZ_AUTH_TOKEN"):
             return "vobiz"
-        if _env("TWILIO_ACCOUNT_SID") and _env("TWILIO_AUTH_TOKEN"):
-            return "twilio"
 
         return "simulation"
 
     def _build_handler(self, provider: str):
         """Construct the underlying provider handler. Imports are local so a
         missing module for one provider never breaks the others."""
-        if provider == "twilio":
-            from app.telephony.twilio_handler import TwilioHandler
-
-            return TwilioHandler()
         if provider == "vobiz":
             from app.telephony.vobiz_handler import VobizClient
 
@@ -160,7 +154,7 @@ class TelephonyService:
             from_number:     Optional caller-id override.
             script_callback: Optional async callback to drive the conversation
                              once answered (passed through to SIP; for
-                             Twilio/Exotel the conversation is webhook-driven).
+                             Vobiz the conversation is webhook-driven).
             call_type:       'promotional' (strict TCCCPR gate) or 'transactional'
                              (consented/known — lenient). REAL provider calls pass
                              the ComplianceGate; simulation is exempt (dev).
@@ -252,28 +246,6 @@ class TelephonyService:
                     error=str((result.get("body") or {}).get("error") or "vobiz: no call id"),
                 )
 
-            if self.provider == "twilio":
-                call_id = str(uuid.uuid4())
-                call_sid = await self._handler.make_call(
-                    to_number=to_number,
-                    call_id=call_id,
-                )
-                if call_sid:
-                    return CallResult(
-                        call_id=str(call_sid),
-                        status="initiated",
-                        duration=0,
-                        provider=self.provider,
-                        error=None,
-                    )
-                return CallResult(
-                    call_id=call_id,
-                    status="failed",
-                    duration=0,
-                    provider=self.provider,
-                    error="Provider returned no call SID.",
-                )
-
         except Exception as e:
             logger.error(f"place_call failed on provider '{self.provider}': {e}")
             return CallResult(
@@ -348,16 +320,11 @@ class TelephonyService:
 
         # Per-provider key presence (for diagnostics / dashboard).
         available = {
-            "twilio": bool(_env("TWILIO_ACCOUNT_SID") and _env("TWILIO_AUTH_TOKEN")),
             "vobiz": bool(_env("VOBIZ_AUTH_ID") and _env("VOBIZ_AUTH_TOKEN")),
             "sip": bool(_env("SIP_HOST") and _env("SIP_USERNAME") and _env("SIP_PASSWORD")),
         }
 
-        if self.provider == "twilio":
-            for k in ("TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_PHONE_NUMBER"):
-                if not _env(k):
-                    missing.append(k)
-        elif self.provider == "vobiz":
+        if self.provider == "vobiz":
             for k in ("VOBIZ_AUTH_ID", "VOBIZ_AUTH_TOKEN", "VOBIZ_CALLER_ID"):
                 if not _env(k):
                     missing.append(k)

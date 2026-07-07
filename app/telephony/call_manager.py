@@ -1,6 +1,6 @@
 """
 Call Manager
-Unified call orchestration for Twilio and Vobiz
+Unified call orchestration for Vobiz
 """
 
 import asyncio
@@ -13,7 +13,6 @@ from typing import Any
 
 from app.config import settings
 from app.telephony.call_state import get_call_store
-from app.telephony.twilio_handler import TwilioHandler
 from app.utils.dnd_checker import DNDChecker
 from app.utils.logger import setup_logger
 from app.voice_agent.agent import CallContext, CallStatus, VoiceAgent
@@ -24,7 +23,6 @@ logger = setup_logger(__name__)
 class TelephonyProvider(Enum):
     """Supported telephony providers"""
 
-    TWILIO = "twilio"
     VOBIZ = "vobiz"
 
 
@@ -72,7 +70,6 @@ class CallManager:
 
     Handles:
     - Call queue management (Redis-backed for multi-worker scaling)
-    - Provider selection (Twilio/Vobiz)
     - Concurrent call limiting
     - DND checking
     - Retry logic
@@ -82,19 +79,16 @@ class CallManager:
     def __init__(self, provider: str | None = None):
         provider = (provider or settings.default_telephony or "vobiz").strip().lower()
 
-        # Defensive: an unknown/stale provider (e.g. legacy "exotel" still sitting in
-        # .env) must NEVER crash the whole app — fall back to Vobiz (active India
-        # provider) with a warning. Removing Exotel must not become a foot-gun.
-        if provider not in ("twilio", "vobiz"):
+        # Defensive: an unknown/stale provider (e.g. legacy "exotel"/"twilio" still
+        # sitting in .env) must NEVER crash the whole app — fall back to Vobiz (the
+        # only supported provider) with a warning.
+        if provider != "vobiz":
             logger.warning(f"Unknown telephony provider '{provider}' — falling back to vobiz.")
             provider = "vobiz"
 
-        if provider == "twilio":
-            self.handler = TwilioHandler()
-        else:  # vobiz
-            from app.telephony.vobiz_handler import VobizClient
+        from app.telephony.vobiz_handler import VobizClient
 
-            self.handler = VobizClient()
+        self.handler = VobizClient()
 
         self.provider = TelephonyProvider(provider)
         self.voice_agent = VoiceAgent()
@@ -352,30 +346,25 @@ class CallManager:
                     },
                 )
 
-                # Make the actual call
-                if self.provider == TelephonyProvider.TWILIO:
-                    call_sid = await self.handler.make_call(
-                        to_number=request.phone_number, call_id=call_id
-                    )
-                else:  # Vobiz — place_call(to, answer_url, ...). VobizClient never
-                    # raises; success = status_code in 200/201/202, sid = body["id"].
-                    # The compliance gate already ran in queue_call(), so skip the
-                    # duplicate gate here (skip_compliance=True).
-                    answer_url = (
-                        self._answer_url(to=request.phone_number)
-                        or self._status_webhook_url()
-                        or ""
-                    )
-                    result = await self.handler.place_call(
-                        to=request.phone_number,
-                        answer_url=answer_url,
-                        call_type=str(getattr(request, "call_type", "") or "promotional"),
-                        skip_compliance=True,
-                    )
-                    if result.get("status_code") in (200, 201, 202):
-                        call_sid = str((result.get("body") or {}).get("id") or call_id)
-                    else:
-                        call_sid = None
+                # Make the actual call — Vobiz: place_call(to, answer_url, ...).
+                # VobizClient never raises; success = status_code in 200/201/202,
+                # sid = body["id"]. The compliance gate already ran in queue_call(),
+                # so skip the duplicate gate here (skip_compliance=True).
+                answer_url = (
+                    self._answer_url(to=request.phone_number)
+                    or self._status_webhook_url()
+                    or ""
+                )
+                result = await self.handler.place_call(
+                    to=request.phone_number,
+                    answer_url=answer_url,
+                    call_type=str(getattr(request, "call_type", "") or "promotional"),
+                    skip_compliance=True,
+                )
+                if result.get("status_code") in (200, 201, 202):
+                    call_sid = str((result.get("body") or {}).get("id") or call_id)
+                else:
+                    call_sid = None
 
                 if call_sid:
                     context.status = CallStatus.RINGING

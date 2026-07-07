@@ -35,15 +35,12 @@ KNOWN = (
     "smtp",
     "email_api",
     "imap",
-    "exotel",
-    "twilio",
     "vobiz",  # active telephony provider — zero-media relay flakes (audit 2026-07-04)
     "places",
     "whatsapp",
     "pollinations",
     "qdrant",
-    "razorpay",
-    "stripe",
+    "stripe",  # Razorpay removed 2026-06-18, Exotel/Twilio removed — Vobiz+Stripe+UPI only
 )
 
 

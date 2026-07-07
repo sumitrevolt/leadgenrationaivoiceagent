@@ -1128,6 +1128,10 @@ class ProfileUpdateIn(BaseModel):
     accent_color: str = Field("", max_length=9)
     logo_text: str = Field("", max_length=40)
     tone: str = Field("", max_length=40)
+    services: str = Field("", max_length=500)
+    target_area: str = Field("", max_length=200)
+    whatsapp_phone: str = Field("", max_length=40)
+    approval_preference: str = Field("", max_length=40)
 
 
 @router.get("/profile")
@@ -1158,6 +1162,10 @@ def customer_get_profile(client_id: str = Depends(require_customer)) -> dict:
             "accent_color": brand.get("accent", ""),
             "logo_text": brand.get("logo_text", ""),
             "tone": tone,
+            "services": c.get("services", ""),
+            "target_area": c.get("target_area", ""),
+            "whatsapp_phone": c.get("whatsapp_phone", ""),
+            "approval_preference": c.get("approval_preference", "manual"),
         }
     except Exception as e:
         logger.debug("customer get profile failed: %s", e)
@@ -1181,6 +1189,15 @@ def customer_update_profile(body: ProfileUpdateIn, client_id: str = Depends(requ
             fields["city"] = body.city.strip()
         if body.phone.strip():
             fields["phone"] = body.phone.strip()
+        if body.services.strip():
+            fields["services"] = body.services.strip()
+        if body.target_area.strip():
+            fields["target_area"] = body.target_area.strip()
+        if body.whatsapp_phone.strip():
+            fields["whatsapp_phone"] = body.whatsapp_phone.strip()
+        if body.approval_preference.strip():
+            fields["approval_preference"] = body.approval_preference.strip()
+
         socials = {k: v.strip() for k, v in {
             "instagram": body.instagram, "facebook": body.facebook, "gbp": body.gbp,
         }.items() if v.strip()}
@@ -1212,6 +1229,180 @@ def customer_update_profile(body: ProfileUpdateIn, client_id: str = Depends(requ
         raise
     except Exception as e:
         logger.warning("customer profile update failed: %s", e)
+        return {"ok": False, "error": str(e)[:160]}
+
+
+# --------------------------------------------------------------------------- #
+# Social Networking Setup Wizard — "apne social channels connect/configure karo" #
+# for the AI to prepare + (when admin-enabled) publish content. This is the     #
+# missing piece over the profile wizard (ADR-030), which only captured link     #
+# URLs + brand tone. Here the customer picks WHICH channels + cadence +          #
+# approval-mode. Auto-posting stays gated/INERT: saving config never posts —     #
+# real publish still needs SOCIAL_ENGINE master gate + a configured provider.    #
+# IDOR-safe: client_id from JWT only, never from the body.                       #
+# --------------------------------------------------------------------------- #
+class SocialConfigIn(BaseModel):
+    """Social wizard write path. Handles (links) + posting preferences only —
+    NO plan/status/niche path (defense-in-depth, same as ProfileUpdateIn)."""
+
+    instagram: str = Field("", max_length=200)
+    facebook: str = Field("", max_length=200)
+    gbp: str = Field("", max_length=300)
+    youtube: str = Field("", max_length=200)
+    linkedin: str = Field("", max_length=200)
+    twitter: str = Field("", max_length=200)
+    channels: list[str] = Field(default_factory=list, max_length=12)
+    cadence: str = Field("", max_length=16)
+    approval_mode: str = Field("", max_length=16)
+    postiz_integrations: list[str] = Field(default_factory=list, max_length=20)
+
+
+def _social_status(client_rec: dict | None) -> dict:
+    """Honest per-capability connection status for the wizard's status board.
+    Never raises. States: ready | manual | soon | need_phone."""
+    rec = client_rec or {}
+    engine_on = False
+    postiz_on = False
+    wa_ready = False
+    try:
+        from app.social_engine import enabled as _engine_enabled
+
+        engine_on = bool(_engine_enabled())
+    except Exception:
+        pass
+    try:
+        from app.marketing import postiz_publish
+
+        postiz_on = bool(postiz_publish.enabled())
+    except Exception:
+        pass
+    try:
+        from app.social_engine.providers import WhatsAppProvider
+
+        wa_ready = bool(str(rec.get("phone") or "").strip()) and bool(
+            WhatsAppProvider._sender_configured()
+        )
+    except Exception:
+        wa_ready = bool(str(rec.get("phone") or "").strip())
+
+    channels = [
+        {
+            "key": "content",
+            "label": "Roz ka content + captions",
+            "state": "ready",
+            "note": "Aapke branded posts aur Hinglish captions AI roz taiyaar karta hai.",
+        },
+        {
+            "key": "whatsapp",
+            "label": "WhatsApp delivery (aapke number pe)",
+            "state": "ready" if wa_ready else "need_phone",
+            "note": (
+                "Approved post aapke apne WhatsApp pe aayega — 1-click forward. (Ban-safe, koi bulk nahi.)"
+                if wa_ready
+                else "Pehle apna WhatsApp/contact number add karo — phir yahan delivery start."
+            ),
+        },
+        {
+            "key": "autopublish",
+            "label": "Auto-publish (Instagram/Facebook/YouTube via Postiz)",
+            "state": "ready" if postiz_on else "soon",
+            "note": (
+                "Aapke connected accounts pe seedha publish ho sakta hai."
+                if postiz_on
+                else "Setup chal raha hai — abhi tak content approve karke manual/1-click post karo."
+            ),
+        },
+        {
+            "key": "direct",
+            "label": "Direct API posting (Google Business / LinkedIn)",
+            "state": "soon",
+            "note": "Platform approval process me — tab tak draft + manual post.",
+        },
+    ]
+    return {
+        "engine_on": engine_on,
+        "postiz_on": postiz_on,
+        # auto_posting_active = kya koi bhi channel abhi actually auto-publish karega
+        "auto_posting_active": bool(engine_on and postiz_on),
+        "channels": channels,
+    }
+
+
+@router.get("/social/config")
+def customer_social_get(client_id: str = Depends(require_customer)) -> dict:
+    """Social Setup Wizard read path — current handles + posting prefs + honest
+    connection status so the portal can pre-fill. Never raises."""
+    try:
+        from app.marketing import clients_store
+        from app.social_engine import client_config
+
+        rec = clients_store.get_client(client_id) or {}
+        socials = rec.get("socials") or {}
+        cfg = client_config.get(client_id)
+        handles = cfg.get("handles") or {}
+        # instagram/facebook/gbp = clients_store.socials authoritative (profile
+        # wizard bhi wahi likhta); config-store extended-handles overlay karta.
+        merged_handles = {
+            "instagram": socials.get("instagram", "") or handles.get("instagram", ""),
+            "facebook": socials.get("facebook", "") or handles.get("facebook", ""),
+            "gbp": socials.get("gbp", "") or handles.get("gbp", ""),
+            "youtube": handles.get("youtube", ""),
+            "linkedin": handles.get("linkedin", ""),
+            "twitter": handles.get("twitter", ""),
+        }
+        return {
+            "ok": True,
+            "handles": merged_handles,
+            "channels": cfg.get("channels") or [],
+            "cadence": cfg.get("cadence") or "weekly",
+            "approval_mode": cfg.get("approval_mode") or "review",
+            "postiz_integrations": cfg.get("postiz_integrations") or [],
+            "configured": bool(cfg.get("configured")),
+            "status": _social_status(rec),
+        }
+    except Exception as e:
+        logger.debug("customer social get failed: %s", e)
+        return {"ok": False, "error": "social config load nahi hua"}
+
+
+@router.post("/social/config")
+def customer_social_save(body: SocialConfigIn, client_id: str = Depends(require_customer)) -> dict:
+    """Social Setup Wizard write path — handles + posting preferences. IDOR-safe
+    (client_id from JWT). Saving NEVER auto-posts: it only records preferences;
+    real publish stays behind SOCIAL_ENGINE + a configured provider. Never-500."""
+    try:
+        from app.marketing import clients_store
+        from app.social_engine import client_config
+
+        handles = {
+            "instagram": body.instagram.strip(),
+            "facebook": body.facebook.strip(),
+            "gbp": body.gbp.strip(),
+            "youtube": body.youtube.strip(),
+            "linkedin": body.linkedin.strip(),
+            "twitter": body.twitter.strip(),
+        }
+        cfg = client_config.save(
+            client_id,
+            handles=handles,
+            channels=body.channels,
+            cadence=body.cadence,
+            approval_mode=body.approval_mode,
+            postiz_integrations=body.postiz_integrations,
+        )
+        # Mirror the 3 legacy handles into clients_store.socials so the mini-site /
+        # page-kit (jo `socials` padhta) in-sync rahe — profile wizard jaisi hi
+        # replace-semantics (khali value = clear). Best-effort, never raises.
+        legacy = {k: handles[k] for k in ("instagram", "facebook", "gbp")}
+        try:
+            clients_store.update_client(client_id, socials=legacy)
+        except Exception as e:
+            logger.debug("customer social socials-mirror skip: %s", e)
+        if not cfg:
+            return {"ok": False, "error": "save nahi hua, dobara try karo"}
+        return {"ok": True, "config": cfg}
+    except Exception as e:
+        logger.warning("customer social save failed: %s", e)
         return {"ok": False, "error": str(e)[:160]}
 
 
