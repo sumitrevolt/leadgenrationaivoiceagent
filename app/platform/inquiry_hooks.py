@@ -102,6 +102,17 @@ async def run_after_inquiry(
             )
         except Exception:
             pass
+        # Customer Delivery OS ledger event — same "lead_captured" name as the
+        # PostHog analytics capture above but a distinct system (delivery_ledger
+        # drives the customer timeline/Command Center, not product analytics).
+        try:
+            from app.marketing import delivery_ledger
+
+            delivery_ledger.log_event(
+                cid, "lead_captured", detail=str(rec.get("business_name") or rec.get("phone") or "")
+            )
+        except Exception:
+            pass
 
     try:
         from app.platform.team import log_event

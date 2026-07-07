@@ -64,6 +64,7 @@ async def _safe_collect_live_stats(timeout: float = 8.0) -> dict:
 # ----------------------------------------------------------------------------
 from app.api.admin_dashboard_builders import (  # noqa: F401  (helpers extracted 2026-06-20)
     _automation_snapshot,
+    _build_command_center,
     _build_from_db,
     _build_real,
     _client_mrr,
@@ -354,6 +355,24 @@ async def get_client_timeline(
         delivery_events = []
     events = _build_client_timeline(client_id, agent_events, inquiries, audit, delivery_events, limit)
     return {"enabled": True, "client_id": client_id, "events": events}
+
+
+@router.get("/command-center")
+async def admin_command_center(_user=Depends(require_admin)) -> dict:
+    """Customer Delivery OS Phase 2 — business-outcome admin front door: total/
+    paying/stuck-in-setup/receiving-value/failed-automation customers, pending
+    approvals, revenue. Read-only rollup; never mutates state."""
+    try:
+        return await asyncio.to_thread(_build_command_center)
+    except Exception as e:
+        logger.warning("admin_command_center failed: %s", e)
+        return {
+            "ok": False,
+            "summary": {},
+            "revenue": {"mrr_total": 0, "by_plan": {}},
+            "by_product": {},
+            "per_customer": [],
+        }
 
 
 @router.get("/activity-feed")

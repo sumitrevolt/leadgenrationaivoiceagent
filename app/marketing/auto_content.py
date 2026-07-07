@@ -676,6 +676,7 @@ def mark_item(client_id: str, item_id: str, status: str) -> bool:
             return False
         rows: list[dict[str, Any]] = []
         found = False
+        matched_title = ""
         with open(path, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
@@ -689,6 +690,7 @@ def mark_item(client_id: str, item_id: str, status: str) -> bool:
                     rec["status"] = st
                     rec["updated_at"] = _now()
                     found = True
+                    matched_title = str(rec.get("title") or "")
                 rows.append(rec)
         if not found:
             return False
@@ -697,6 +699,17 @@ def mark_item(client_id: str, item_id: str, status: str) -> bool:
             for r in rows:
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
         os.replace(tmp, path)
+        # Delivery ledger — post_approved/post_published for Command Center +
+        # customer "what AI did for you" timeline (draft/skip intentionally
+        # not logged as separate events; drafts already fire post_draft_created).
+        if st in ("approved", "posted"):
+            try:
+                from app.marketing import delivery_ledger
+
+                event = "post_approved" if st == "approved" else "post_published"
+                delivery_ledger.log_event(str(client_id), event, detail=matched_title)
+            except Exception as le:
+                logger.debug(f"[auto_content] mark_item ledger log skip: {le}")
         return True
     except Exception as e:  # pragma: no cover
         logger.warning(f"[auto_content] mark_item failed: {e}")
