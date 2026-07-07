@@ -57,7 +57,7 @@ _STARTER_CORE: list[str] = [
     "Appointment booking page — customer khud calendar slot book kare, aapko auto-confirmation",
     "AI image generation + Complete Post one-shot — caption + hashtags + AI image ek click me",
     "AI video ads (Reels/Shorts) — har ~5 din naya video ready, SAB niches ke liye, 1-click share (koi extra charge nahi)",
-    "1-click publish to your channels — approved content seedha WhatsApp + social pe share (WhatsApp self-host pe auto-send bhi; bulk-spam nahi)",
+    "Har post pe 1-click WhatsApp/copy share — approve karke seedha bhejo (aap control me; auto-post/bulk-send nahi, ban-safe)",
     "Content calendar + scheduler — mahine bhar ka plan + festival auto-schedule",
     "Post variations A/B — ek idea se 2–4 alag versions, jo chale wo chuno",
     "Review kit — khush customer ko Google review, naraz ko private feedback (rating bachao)",
