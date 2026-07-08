@@ -143,7 +143,8 @@
   [data-active-view="calendar"] [data-view]:not([data-view="calendar"]),
   [data-active-view="leads"]    [data-view]:not([data-view="leads"]),
   [data-active-view="reports"]  [data-view]:not([data-view="reports"]),
-  [data-active-view="billing"]  [data-view]:not([data-view="billing"]){display:none !important}
+  [data-active-view="billing"]  [data-view]:not([data-view="billing"]),
+  [data-active-view="support"]  [data-view]:not([data-view="support"]){display:none !important}
 
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
   .prod-marketing #callsCard,.prod-marketing #routingCard{display:none !important}
@@ -458,12 +459,13 @@
   <aside class="sidebar" role="navigation" aria-label="Main navigation">
     <div class="brand" aria-label="LeadGen AI"><img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="34" height="34" /> LeadGen AI</div>
     <div class="nav-group">Menu</div>
-    <a class="navlink active" data-nav="home" href="#" onclick="showView('home');return false;" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home</a>
+    <a class="navlink active" data-nav="home" href="#" onclick="showView('home');return false;" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home / This Month</a>
     <a class="navlink" data-nav="setup" href="#" onclick="showView('setup');return false;" aria-label="Setup Wizard self-serve"><span class="ic" aria-hidden="true">🧙</span> Setup Wizard</a>
-    <a class="navlink marketing-only" data-nav="calendar" href="#" onclick="showView('calendar');return false;" aria-label="Marketing Calendar"><span class="ic" aria-hidden="true">📅</span> Calendar</a>
+    <a class="navlink marketing-only" data-nav="calendar" href="#" onclick="showView('calendar');return false;" aria-label="Marketing Calendar"><span class="ic" aria-hidden="true">📅</span> Content &amp; Approvals</a>
     <a class="navlink voice-only" data-nav="leads" href="#" onclick="showView('leads');return false;" aria-label="Leads and Calls"><span class="ic" aria-hidden="true">🔥</span> Leads Inbox</a>
     <a class="navlink" data-nav="reports" href="#" onclick="showView('reports');return false;" aria-label="Reports and statistics"><span class="ic" aria-hidden="true">📊</span> Reports</a>
-    <a class="navlink" data-nav="billing" href="#" onclick="showView('billing');return false;" aria-label="Billing, webhooks, and security"><span class="ic" aria-hidden="true">💳</span> Billing/Plan</a>
+    <a class="navlink" data-nav="billing" href="#" onclick="showView('billing');return false;" aria-label="Billing, webhooks, and security"><span class="ic" aria-hidden="true">💳</span> Billing</a>
+    <a class="navlink" data-nav="support" href="#" onclick="showView('support');return false;" aria-label="Support &amp; Help"><span class="ic" aria-hidden="true">💬</span> Support</a>
     <div class="ao-sb-live"><span class="dot"></span>AI team active</div>
     <div class="side-foot" aria-label="Account info" style="padding-top:8px">
       <span id="sideClient">Client: demo</span>
@@ -621,6 +623,17 @@
         <div class="kpi"><div class="lab">✅ Approval Pending</div><div class="val" id="mkApprovals">—</div><div class="sub">Publish se pehle aapki OK</div></div>
         <div class="kpi"><div class="lab">🔥 Naye Enquiries</div><div class="val" id="mkLeads">—</div><div class="sub">Website / mini-site se aaye</div></div>
         <div class="kpi"><div class="lab">📊 Campaigns</div><div class="val" id="mkCampaigns">—</div><div class="sub">Chal rahe campaigns</div></div>
+      </div>
+
+      <!-- ===== Is Mahine ki Delivery (This Month's Progress) ===== -->
+      <div data-view="home" class="card marketing-only" id="deliveryProofCard" style="margin-bottom:14px;border:1px solid var(--ok);background:#faf5ff">
+        <div class="card-h" style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px">
+          <h2 style="font-size:14px;margin:0">📊 Is Mahine ki Delivery (This Month's Progress)</h2>
+          <span class="pill" id="deliveryProofPct" style="background:rgba(16,185,129,.15);color:var(--ok);font-weight:700;padding:4px 10px;border-radius:99px;font-size:12px">0% complete</span>
+        </div>
+        <div class="card-b" id="deliveryProofBody" style="padding-top:14px">
+          <span class="sm" style="color:var(--muted)">Report load ho raha hai...</span>
+        </div>
       </div>
 
       <!-- Onboarding checklist (hidden when complete) -->
@@ -987,6 +1000,29 @@
             <button class="btn" onclick="sec2faDisable()" style="background:var(--bad);color:#fff;margin-left:8px">Disable 2FA</button>
             <div id="sec2faDisErr" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
           </div>
+        </div>
+      </div>
+      
+      <!-- Support view -->
+      <div data-view="support" class="sec-title">💬 Support &amp; Help</div>
+      <div data-view="support" class="card" id="supportCard" style="margin-bottom:18px;background:linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);border:1px solid #10b981">
+        <div class="hd" style="border-bottom:1px solid rgba(16,185,129,.2)">
+          <h3 style="color:#065f46;margin:0">💬 Need Help or Changes?</h3>
+        </div>
+        <div class="bd" style="padding-top:16px">
+          <p style="margin-bottom:16px;line-height:1.6;color:#1e293b">
+            Agar aapko plan me koi change chahiye, naya content generate karwana hai, voice call set up karna hai ya koi issue face ho raha hai, toh hamari support team se directly WhatsApp pe contact karein.
+          </p>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px">
+            <a href="https://wa.me/917498797259" target="_blank" rel="noopener" class="btn primary" style="background:#25d366;border-color:#25d366;color:#fff;display:inline-flex;align-items:center;gap:6px;font-weight:700;text-decoration:none;padding:10px 16px;border-radius:8px">
+              <span>💬</span> Message Support on WhatsApp
+            </a>
+            <span style="color:var(--muted)">Ya call karein: <b style="color:var(--txt)">+91 7498797259</b></span>
+          </div>
+          <p class="sm" style="color:var(--muted);border-top:1px dashed var(--line);padding-top:12px;margin:0">
+            📧 Support Email: <b style="color:var(--txt)">admin@leadsgenai.in</b><br>
+            Aapki query ka response 2-4 hours me mil jayega.
+          </p>
         </div>
       </div>
 
@@ -1538,11 +1574,12 @@ function sendToCRM(){
 }
 function viewForHash(h){
   var map={leadsCard:"leads",routingCard:"leads",callsCard:"leads",
-           contentCard:"content",approvalCard:"content",webToolsCard:"content",
-           billingCard:"account",webhookCard:"account",secCard:"account"};
+           contentCard:"calendar",approvalCard:"home",webToolsCard:"home",
+           billingCard:"billing",webhookCard:"billing",secCard:"billing",
+           setupWizardCard:"setup",supportCard:"support"};
   h=(h||"").replace(/^#/,"").replace(/^view-/,"");
   if(map[h])return map[h];
-  return ["home","leads","content","account"].indexOf(h)>=0 ? h : "home";
+  return ["home","setup","calendar","leads","reports","billing","support"].indexOf(h)>=0 ? h : "home";
 }
 function resizeCharts(){
   // Chart.js canvases first drawn while their container was hidden (an inactive
@@ -1557,7 +1594,7 @@ function resizeCharts(){
   }, 0);
 }
 function showView(name){
-  name=["home","leads","content","account"].indexOf(name)>=0?name:"home";
+  name=["home","setup","calendar","leads","reports","billing","support"].indexOf(name)>=0?name:"home";
   var mc=document.getElementById("mainContent");
   if(mc)mc.setAttribute("data-active-view",name);
   document.querySelectorAll("[data-nav]").forEach(function(n){
@@ -1694,10 +1731,17 @@ function copyAutopilot(i){ const x=(window._AUTOPILOT||[])[i]; if(!x) return; na
       boot(live);
       loadSpeedToLead();
       loadTeam();
-      loadAutopilot();  // hands-free drafts ("AI team ne ye taiyaar kiya") — real client only
+      loadAutopilot();
+      loadDeliveryProof();
       if(window._teamPoll) clearInterval(window._teamPoll);
-      window._teamPoll = setInterval(loadTeam, 25000);  // keep the office "live"
-      if(!live.is_sample_data) toast("Live data ✅","Server se aapka asli data load ho gaya.");
+      window._teamPoll = setInterval(loadTeam, 25000);
+      
+      if (live.onboarding && !live.onboarding.complete) {
+        showView('setup');
+        toast("Setup Incomplete", "Apna setup complete karein taaki hum delivery start kar sakein.");
+      } else {
+        if(!live.is_sample_data) toast("Live data ✅","Server se aapka asli data load ho gaya.");
+      }
     }
   }catch(e){
     /* offline / file:// — silently keep demo data */
@@ -1751,6 +1795,105 @@ async function loadDeliveryTimeline() {
     });
   } catch (e) {
     console.debug('timeline load failed', e);
+  }
+}
+
+async function loadDeliveryProof() {
+  const box = document.getElementById("deliveryProofBody");
+  const pct = document.getElementById("deliveryProofPct");
+  if (!box) return;
+  try {
+    const r = await fetch("/api/customer/delivery-proof", { headers: billAuthHdr() });
+    if (!r.ok) {
+      box.innerHTML = '<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai.</div>';
+      return;
+    }
+    const d = await r.json();
+    if (!d.ok) {
+      box.innerHTML = '<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai.</div>';
+      return;
+    }
+    if (pct) pct.textContent = (d.deliverable_completion_pct || 0) + "% complete";
+    
+    const notes = (d.customer_status_notes || []).map(function(n) {
+      return '<div class="simple-note" style="margin:8px 0;background:var(--bg);padding:8px 12px;border-radius:8px;border-left:4px solid var(--accent)">' +
+             '<b>' + escH(n.title || "Update") + '</b>' +
+             '<div class="sm" style="color:var(--muted);margin-top:2px">' + escH(n.message || "") + '</div>' +
+             '</div>';
+    }).join("");
+    
+    function getStatusMeta(status) {
+      var map = {
+        "delivered": { label: "Delivered", icon: "✓", color: "var(--ok)", bg: "rgba(16,185,129,.1)" },
+        "done": { label: "Delivered", icon: "✓", color: "var(--ok)", bg: "rgba(16,185,129,.1)" },
+        "approved": { label: "Approved", icon: "✓", color: "var(--ok)", bg: "rgba(16,185,129,.1)" },
+        "scheduled": { label: "Scheduled", icon: "📅", color: "var(--ok)", bg: "rgba(16,185,129,.1)" },
+        "pending_approval": { label: "Approval Pending", icon: "⏳", color: "#b45309", bg: "rgba(217,119,6,.1)" },
+        "waiting_customer": { label: "Waiting on You", icon: "👤", color: "#d97706", bg: "rgba(217,119,6,.1)" },
+        "generating": { label: "Generating", icon: "⚙️", color: "#2563eb", bg: "rgba(37,99,235,.1)" },
+        "ready_to_generate": { label: "Ready to Generate", icon: "⚙️", color: "#2563eb", bg: "rgba(37,99,235,.1)" },
+        "failed": { label: "Failed (Fixing)", icon: "❌", color: "var(--err)", bg: "rgba(239,68,68,.1)" },
+        "skipped": { label: "Skipped", icon: "⊘", color: "var(--muted)", bg: "rgba(100,116,139,.1)" },
+        "not_started": { label: "Pending", icon: "○", color: "var(--muted)", bg: "rgba(100,116,139,.05)" }
+      };
+      return map[status] || { label: "Pending", icon: "○", color: "var(--muted)", bg: "rgba(100,116,139,.05)" };
+    }
+
+    const items = (d.deliverables || []).map(function(it) {
+      const st = String(it.status || "not_started").toLowerCase();
+      const meta = getStatusMeta(st);
+      
+      var evidenceLink = "";
+      if (it.evidence_url) {
+        evidenceLink = '<div style="margin-top:6px"><a href="' + escH(it.evidence_url) + '" target="_blank" class="btn" style="padding:4px 8px;font-size:11px;display:inline-flex;align-items:center;gap:4px">📂 View proof / file</a></div>';
+      }
+      
+      var nextActionMsg = "";
+      if (it.next_action) {
+        nextActionMsg = '<div class="sm" style="color:#475569;margin-top:4px"><b>Next step:</b> ' + escH(it.next_action) + '</div>';
+      }
+
+      var badge = '<span style="background:' + meta.bg + ';color:' + meta.color + ';padding:2px 8px;font-size:10px;font-weight:700;border-radius:4px;margin-left:8px;border:1px solid ' + meta.color + '">' + meta.label + '</span>';
+
+      return '<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)">' +
+        '<span style="font-size:16px;font-weight:900;color:' + meta.color + ';width:20px;text-align:center">' + meta.icon + '</span>' +
+        '<div style="flex:1">' +
+          '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><b>' + escH(it.title || "Deliverable") + '</b>' + badge + '</div>' +
+          '<div class="sm" style="color:var(--muted);margin-top:2px">' + escH(it.description || "") + '</div>' +
+          nextActionMsg +
+          evidenceLink +
+        '</div>' +
+      '</div>';
+    }).join("");
+
+    const monthly = d.monthly_summary || {};
+    const summaryHtml = 
+      '<div class="status-strip" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px;gap:8px">' +
+        '<div class="status-card" style="padding:10px">' +
+          '<div class="lab">Plan Active</div>' +
+          '<div class="val" style="color:var(--ok)">✓ Yes</div>' +
+          '<div class="hint">Starter Rs.1999/mo</div>' +
+        '</div>' +
+        '<div class="status-card" style="padding:10px">' +
+          '<div class="lab">Completed / Promised</div>' +
+          '<div class="val">' + escH(monthly.completed_count || 0) + ' / ' + escH(d.deliverables ? d.deliverables.length : 10) + '</div>' +
+          '<div class="hint">Is billing cycle ka</div>' +
+        '</div>' +
+        '<div class="status-card" style="padding:10px">' +
+          '<div class="lab">SLA / Next Action</div>' +
+          '<div class="val" style="font-size:12px;white-space:normal;line-height:1.2;margin-top:4px">' + escH(d.next_action || "On track") + '</div>' +
+          '<div class="hint">Next Delivery Goal</div>' +
+        '</div>' +
+      '</div>';
+
+    box.innerHTML = 
+      '<div class="simple-note" style="margin-bottom:12px;line-height:1.5">📢 <b>Status:</b> ' + escH(d.customer_message || "Aapki weekly and local marketing content queue active hai.") + '</div>' +
+      summaryHtml +
+      notes +
+      '<div style="font-weight:700;margin:16px 0 8px">📋 Deliverables Checklist</div>' +
+      '<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:0 16px">' + items + '</div>';
+  } catch (e) {
+    box.innerHTML = '<div class="sm" style="color:var(--muted)">Report load nahi hua. Thodi der baad try karein.</div>';
   }
 }
 
@@ -2729,7 +2872,10 @@ setTimeout(()=>{
 })();
 
 /* ====== Task 11: load delivery timeline on page load ====== */
-document.addEventListener('DOMContentLoaded', loadDeliveryTimeline);
+document.addEventListener('DOMContentLoaded', function() {
+  loadDeliveryTimeline();
+  loadDeliveryProof();
+});
 </script>
 <script>
 let _calYear = new Date().getFullYear();

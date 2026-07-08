@@ -490,6 +490,18 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=55),
         "args": ("meter_watch",),
     },
+    # Product 1 Customer Deliverability layer (2026-07-08): Customer Health +
+    # Approval Reminder + SLA Recovery sweep. Light/read-mostly — stays on the
+    # default queue like "onboard" (whose hourly sweep already calls the same
+    # auto_content.seed_client_content() directly, also NOT in HEAVY_STAFF_JOBS)
+    # so the health/reminder signal is never delayed behind the heavy content
+    # queue. The rare recovery path (paid customer, zero content, 24h+) follows
+    # that same existing precedent rather than introducing a new routing rule.
+    "staff-product-one-health-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=20),
+        "args": ("product_one_health",),
+    },
     "staff-process-autostart-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=11, minute=30),  # 11:30 IST (timezone=Asia/Kolkata set in celery config)

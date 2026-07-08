@@ -210,7 +210,8 @@ def test_page_route_registered_and_distinct_from_ops_command_center():
 
 def test_page_calls_real_endpoint_and_reuses_localstorage_auth_pattern():
     html = _page_html()
-    assert '"/api/admin/command-center"' in html
+    assert '"/api/admin/delivery-cockpit"' in html
+    assert '"/api/admin/delivery-logs"' in html
     assert 'localStorage.getItem("accessToken")' in html
     assert "hdrs()" in html
 

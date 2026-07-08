@@ -142,6 +142,7 @@ def _build_command_center() -> dict[str, Any]:
     independent aggregator (2026-07-07 backlog flagged 3 duplicate ones
     already; this reuses, it doesn't add a 4th). Never raises."""
     from app.marketing import clients_store, content_approval, delivery_ledger
+    from app.marketing import product_one_delivery
 
     try:
         clients = clients_store.list_clients(status="active")
@@ -218,6 +219,7 @@ def _build_command_center() -> dict[str, Any]:
                 "value_delivered": value_delivered,
                 "automation_failures": automation_failures,
                 "pending_approvals": approvals_by_client.get(cid, 0),
+                **product_one_delivery.admin_customer_card(c),
             }
         )
 

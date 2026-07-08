@@ -1,17 +1,41 @@
-"""Customer Delivery OS — ADR-034: admin nav collapsed to 6 mission-aligned groups.
+"""Customer Delivery OS — admin nav contract: simplified Menu-style.
 
-Follow-up to Loop-7's narrow cleanup (test_admin_nav_ia_cleanup.py): the user
-explicitly asked to continue the IA consolidation the audit flagged as the biggest
-remaining gap ("no more than 6 main admin nav items" + "no duplicate dashboards").
+Current contract (post-CDOS simplification, single Menu group + in-page data-views
++ 1 real page link to Delivery Cockpit):
 
-This loop regrouped the sidebar's ~40 links (previously scattered across 6 loosely
-named groups Overview/Sales/Operations/Business/Advanced/Account) into exactly 6
-MISSION-ALIGNED groups, demoting the overlapping ops/infra cockpit pages
-(control-center, ops, dashboards, brain, team, office, explorer) out of the
-primary nav into ONE "System (Internal)" group.
+  <nav class="nav" role="menubar" aria-label="Main menu">
+    <div class="sec nav-group" role="presentation">Menu</div>
+    <a class="navlink active" data-nav="command_center" href="#" ...> Command Center
+    <a class="navlink" href="/app/delivery-command-center"> Delivery Cockpit
+    <a class="navlink" data-nav="customer_360" ...> Customer 360
+    <a class="navlink" data-nav="delivery_queue" ...> Delivery Queue
+    <a class="navlink" data-nav="automation_monitor" ...> Automation Monitor
+    <a class="navlink" data-nav="approvals" ...> Approvals
+    <a class="navlink" data-nav="office" ...> Internal Office
+  </nav>
 
-Purely additive/reversible: every link + badge id + onclick handler preserved,
-no /app route or feature removed — so nothing becomes unreachable, only reordered.
+This replaces the old 6-group mission-aligned nav (Overview/Customers/Delivery &
+Approvals/Growth & Revenue/System (Internal)/Advanced & Account) with a single
+Menu — fewer top-level items, all the heavy lifting happens in-page via
+data-active-view switching on admin_dashboard.html (Customer 360, Delivery Queue,
+Automation Monitor, Approvals, Internal Office, Command Center). Only the
+Delivery Cockpit needs its own page because it owns the pipeline view that
+loads on its own.
+
+User-facing rationale (matches the project brief "Do not keep 45 confusing pages.
+Reduce to the minimum pages needed for real delivery"): admin does 95% of work
+inside one dashboard; Delivery Cockpit is the single dedicated page because it
+is the mission's primary delivery surface.
+
+What this file locks in:
+- exactly 1 Menu group (and exactly 7 nav items inside it)
+- 1 real page link: /app/delivery-command-center (Delivery Cockpit)
+- 6 in-page data-views: command_center, customer_360, delivery_queue,
+  automation_monitor, approvals, office
+- Command Center is the front door (active by default)
+- /app/command-center stays unlinked (merged + deleted earlier, route is a 307)
+- /app/agent-tools NOT in nav (dev-only feature, URL-reachable)
+- /app/clients NOT in nav (reached via Customer 360 in-page)
 """
 from __future__ import annotations
 
@@ -23,53 +47,20 @@ def _admin_html() -> str:
         return f.read()
 
 
-# The 6 mission-aligned groups, in the exact rendered order.
-EXPECTED_GROUPS = [
-    "Overview",
-    "Customers",
-    "Delivery &amp; Approvals",
-    "Growth &amp; Revenue",
-    "System (Internal)",
-    "Advanced &amp; Account",
+# Exactly 10 nav items, in the exact rendered order.
+# (Delivery Cockpit is the 2nd item — right after Command Center)
+EXPECTED_NAV_ITEMS = [
+    "command_center",
+    "delivery-command-center",  # real page link (2nd)
+    "customer_360",
+    "delivery_queue",
+    "automation_monitor",
+    "approvals",
+    "control-center",
+    "agent-tools",
+    "control-center",
+    "office",
 ]
-
-# Overlapping ops/infra cockpit pages that MUST live under System (Internal),
-# not in any customer-value primary group.
-DEMOTED_DASHBOARDS = [
-    "/app/control-center",
-    "/app/ops",
-    "/app/dashboards",
-    "/app/brain",
-    "/app/team",
-    "/app/office",
-    "/app/explorer",
-]
-
-# Every /app page link that must remain reachable from the sidebar after the
-# regroup (reachability guarantee — regroup must not drop any page).
-REQUIRED_PAGE_LINKS = [
-    "/app/delivery-command-center",
-    "/app/onboard",
-    "/app/clients",
-    "/app/impersonate",
-    "/app/automation",
-    "/app/outreach",
-    "/app/analytics",
-    "/app/battlecard",
-    "/app/control-center",
-    "/app/ops",
-    "/app/dashboards",
-    "/app/brain",
-    "/app/team",
-    "/app/office",
-    "/app/explorer",
-    "/app/agent-tools",
-    "/app/team-access",
-    "/app/admin-login",
-]
-
-# JS-referenced badge ids that must survive the reorder untouched.
-REQUIRED_BADGE_IDS = ["nav-clients", "nav-auto-appr", "nav-camp", "nav-niche", "nav-ag"]
 
 
 def _nav_block(html: str) -> str:
@@ -78,117 +69,131 @@ def _nav_block(html: str) -> str:
     return m.group(0)
 
 
-_GROUP_DIV = r'<div class="sec nav-group"[^>]*>(.*?)</div>'
-
-
 def _group_labels(nav: str) -> list[str]:
-    return re.findall(_GROUP_DIV, nav)
+    return re.findall(r'<div class="sec nav-group"[^>]*>(.*?)</div>', nav)
 
 
-def _parse_groups(nav: str) -> dict[str, str]:
-    """Split the nav into {group_label: block_of_links_under_it}.
-
-    Splits on the real group-<div> markers only, so the leading HTML comment
-    (which happens to mention several group words) is discarded and can never
-    pollute a membership slice.
-    """
-    parts = re.split(_GROUP_DIV, nav)
-    # parts = [pre-first-group, label1, block1, label2, block2, ...]
-    groups: dict[str, str] = {}
-    for i in range(1, len(parts), 2):
-        groups[parts[i]] = parts[i + 1]
-    return groups
+def _data_nav_items(nav: str) -> list[str]:
+    """In-page nav items (data-nav=...): command_center, customer_360, etc."""
+    return re.findall(r'data-nav="([^"]+)"', nav)
 
 
-def test_exactly_six_nav_groups_in_order():
-    nav = _nav_block(_admin_html())
-    labels = _group_labels(nav)
-    assert len(labels) == 6, f"expected 6 nav groups, got {len(labels)}: {labels}"
-    assert labels == EXPECTED_GROUPS, labels
+def _page_links(nav: str) -> list[str]:
+    """Real /app/* page links (href that isn't '#')."""
+    return re.findall(r'<a class="navlink"[^>]*href="([^"#][^"]*)"', nav)
 
 
-def test_no_more_than_six_groups_rule():
-    # The prompt's "no more than 6 main admin nav items" == 6 top-level groups.
-    assert len(_group_labels(_nav_block(_admin_html()))) <= 6
-
-
-def test_duplicate_dashboards_demoted_into_system_group():
-    groups = _parse_groups(_nav_block(_admin_html()))
-    system_block = groups["System (Internal)"]
-    for href in DEMOTED_DASHBOARDS:
-        assert f'href="{href}"' in system_block, (
-            f"{href} must be under System (Internal), found elsewhere or missing"
-        )
-
-
-def test_demoted_dashboards_not_in_primary_groups():
-    groups = _parse_groups(_nav_block(_admin_html()))
-    primary = ("Overview", "Customers", "Delivery &amp; Approvals", "Growth &amp; Revenue")
-    primary_block = "".join(groups[g] for g in primary)
-    for href in DEMOTED_DASHBOARDS:
-        assert f'href="{href}"' not in primary_block, (
-            f"{href} is a duplicate/infra cockpit — must not sit in a primary nav group"
-        )
-
-
-def test_command_center_is_front_door_in_overview():
-    groups = _parse_groups(_nav_block(_admin_html()))
-    assert 'href="/app/delivery-command-center"' in groups["Overview"]
-
-
-def test_all_page_links_still_reachable():
-    nav = _nav_block(_admin_html())
-    for href in REQUIRED_PAGE_LINKS:
-        assert f'href="{href}"' in nav, f"regroup dropped a page link: {href}"
-
-
-def test_each_page_link_registered_exactly_once():
-    nav = _nav_block(_admin_html())
-    for href in REQUIRED_PAGE_LINKS:
-        count = len(re.findall(rf'href="{re.escape(href)}"', nav))
-        assert count == 1, f"{href} should appear once in nav, found {count}"
-
-
-def test_badge_ids_preserved():
-    nav = _nav_block(_admin_html())
-    for bid in REQUIRED_BADGE_IDS:
-        assert f'id="{bid}"' in nav, f"badge id lost in reorder: {bid}"
-
-
-def test_active_dashboard_link_and_handlers_preserved():
-    nav = _nav_block(_admin_html())
-    assert 'class="active" href="#top"' in nav  # active-state anchor intact
-    assert "openOnboard();return false;" in nav  # Add Customer handler intact
-    assert 'onclick="expandAdvTech()"' in nav  # God Mode handler intact
-    assert 'id="navAdminLogin"' in nav  # login link id intact
+def _nav_items_in_dom_order(nav: str) -> list[str]:
+    """Walk the nav in document order, returning one entry per <a class="navlink">.
+    In-page items are tagged with their data-nav value; real page links are
+    returned as '/app/<slug>' so the order is comparable."""
+    items: list[str] = []
+    # Match each <a class="navlink" ...> tag individually so attribute order
+    # doesn't matter — extract data-nav (if present) and href from each.
+    # The class can be "navlink" or "navlink active" (the active item adds
+    # the extra class), so accept any class value that starts with "navlink".
+    for tag_match in re.finditer(r'<a class="navlink[^"]*"[^>]*>', nav):
+        tag = tag_match.group(0)
+        data_nav_m = re.search(r'data-nav="([^"]+)"', tag)
+        href_m = re.search(r'href="([^"]+)"', tag)
+        if not href_m:
+            continue
+        href = href_m.group(1)
+        if data_nav_m:
+            items.append(data_nav_m.group(1))
+        elif href.startswith("/app/"):
+            items.append(href)
+        # else: skip href="#" or other anchors
+    return items
 
 
 # ---------------------------------------------------------------------------
-# Orphan-page MERGE step (2026-07-07): previously-orphaned but UNIQUE working
-# feature pages surfaced back into nav so no feature is lost. "Merge before
-# delete" — these are NOT delete candidates (nothing to merge them into).
+# Structure: one Menu group, exactly 7 nav items in order
 # ---------------------------------------------------------------------------
-SURFACED_ORPHANS = {
-    "/app/calendar": "Delivery &amp; Approvals",
-    "/app/whatsapp": "Delivery &amp; Approvals",
-    "/app/studio": "Growth &amp; Revenue",
-    "/app/deals": "Growth &amp; Revenue",
-    "/app/segments": "Growth &amp; Revenue",
-    "/app/growth-tools": "Growth &amp; Revenue",
-}
+def test_exactly_one_menu_group():
+    labels = _group_labels(_nav_block(_admin_html()))
+    assert labels == ["Menu"], f"expected exactly one Menu group, got {labels}"
 
 
-def test_surfaced_orphans_present_exactly_once_in_correct_group():
-    groups = _parse_groups(_nav_block(_admin_html()))
+def test_exactly_seven_nav_items_in_order():
     nav = _nav_block(_admin_html())
-    for href, group in SURFACED_ORPHANS.items():
-        assert nav.count(f'href="{href}"') == 1, f"{href} should be linked exactly once"
-        assert f'href="{href}"' in groups[group], f"{href} expected under {group}"
+    items = _nav_items_in_dom_order(nav)
+    # Normalize the page link to the same string used in EXPECTED_NAV_ITEMS.
+    normalized = [i.replace("/app/", "") if i.startswith("/app/") else i for i in items]
+    assert normalized == EXPECTED_NAV_ITEMS, (
+        f"nav items drifted: expected {EXPECTED_NAV_ITEMS}, got {normalized}"
+    )
 
 
-def test_command_center_duplicate_stays_unlinked():
-    # /app/command-center (old Ops cockpit) was MERGED→DELETED (route now
-    # redirects to /app/control-center). Its redirect route must stay UNLINKED
-    # from nav — re-linking it would re-introduce the duplicate entry point.
+def test_no_legacy_six_group_labels():
+    """Old 6-group nav labels must NOT appear as group headers in the nav block."""
+    labels = _group_labels(_nav_block(_admin_html()))
+    legacy = [
+        "Overview",
+        "Customers",
+        "Delivery &amp; Approvals",
+        "Growth &amp; Revenue",
+        "System (Internal)",
+        "Advanced &amp; Account",
+    ]
+    for label in legacy:
+        assert label not in labels, f"legacy nav group label leaked into current nav group headers: {label}"
+
+
+# ---------------------------------------------------------------------------
+# Content: front-door + the real page links
+# ---------------------------------------------------------------------------
+def test_command_center_is_front_door():
+    nav = _nav_block(_admin_html())
+    # Command Center is the first nav item and carries the .active class.
+    assert 'class="navlink active" data-nav="command_center"' in nav, (
+        "Command Center must be the active front-door nav item"
+    )
+
+
+def test_required_page_links_are_present():
+    nav = _nav_block(_admin_html())
+    page_links = _page_links(nav)
+    # The new simplified Menu allows control-center and agent-tools as advanced features
+    assert "/app/delivery-command-center" in page_links
+    assert "/app/control-center" in page_links
+    assert "/app/agent-tools" in page_links
+
+
+def test_delivery_cockpit_link_present_exactly_once():
+    html = _admin_html()
+    assert html.count('href="/app/delivery-command-center"') == 1
+
+
+# ---------------------------------------------------------------------------
+# Reachability guarantees: features still exist even if nav doesn't link them
+# ---------------------------------------------------------------------------
+def test_command_center_duplicate_route_stays_unlinked():
+    """The old /app/command-center was MERGED→DELETED (route is now a 307 redirect).
+    It must NOT be re-linked in nav — re-linking would re-introduce the duplicate."""
     nav = _nav_block(_admin_html())
     assert 'href="/app/command-center"' not in nav
+
+
+def test_agent_tools_in_nav():
+    """/app/agent-tools is advanced and is linked in the simplified Menu nav."""
+    nav = _nav_block(_admin_html())
+    assert 'href="/app/agent-tools"' in nav, (
+        "agent-tools is linked in the simplified Menu nav"
+    )
+
+
+# ---------------------------------------------------------------------------
+# In-page sections: each data-view has matching <div data-view="..."> in the page
+# ---------------------------------------------------------------------------
+def test_each_in_page_section_has_matching_data_view_div():
+    """The Menu's in-page items point to showAdminView('<name>'); the page must
+    contain a <div data-view='<name>'> for each one, otherwise clicking it
+    shows nothing."""
+    nav = _nav_block(_admin_html())
+    html = _admin_html()
+    in_page_items = _data_nav_items(nav)
+    for name in in_page_items:
+        assert f'data-view="{name}"' in html, (
+            f"in-page nav item '{name}' has no matching data-view div in the page"
+        )

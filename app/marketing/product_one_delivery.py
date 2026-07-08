@@ -67,6 +67,148 @@ ACTION_LABELS = {
     "assign_owner": "Owner assigned",
 }
 
+ProductOnePlanDeliverables = {
+    "starter": [
+        {
+            "deliverable_type": "onboarding_profile",
+            "title": "Business profile setup",
+            "description": "Customer details + local offer captured",
+            "channel": "dashboard",
+            "owner": "Customer",
+        },
+        {
+            "deliverable_type": "brand_kit",
+            "title": "Brand kit",
+            "description": "Logo text, colors, tone, and basic brand identity",
+            "channel": "dashboard",
+            "owner": "Customer + AI",
+        },
+        {
+            "deliverable_type": "monthly_content_calendar",
+            "title": "1 monthly content calendar",
+            "description": "Monthly social content schedule and topic themes",
+            "channel": "dashboard",
+            "owner": "AI",
+        },
+        {
+            "deliverable_type": "branded_poster",
+            "title": "4 branded posters",
+            "description": "At least 4 poster/festival creative drafts",
+            "channel": "poster",
+            "owner": "AI",
+        },
+        {
+            "deliverable_type": "social_post_draft",
+            "title": "8 social captions/posts",
+            "description": "Monthly social content captions and draft bank",
+            "channel": "dashboard",
+            "owner": "AI",
+        },
+        {
+            "deliverable_type": "whatsapp_content_pack",
+            "title": "WhatsApp marketing content pack",
+            "description": "Ready-to-send WhatsApp promo copy",
+            "channel": "whatsapp_manual",
+            "owner": "AI",
+        },
+        {
+            "deliverable_type": "google_business_profile_suggestion",
+            "title": "Google Business Profile content suggestions",
+            "description": "GBP/update ideas ready",
+            "channel": "gbp",
+            "owner": "AI",
+        },
+        {
+            "deliverable_type": "review_reply_draft",
+            "title": "Review reply drafts",
+            "description": "Reusable review response drafts",
+            "channel": "dashboard",
+            "owner": "AI",
+        },
+        {
+            "deliverable_type": "monthly_performance_snapshot",
+            "title": "Monthly performance snapshot",
+            "description": "Monthly proof/report generated",
+            "channel": "report",
+            "owner": "System",
+        },
+        {
+            "deliverable_type": "invoice",
+            "title": "Invoice",
+            "description": "Plan payment invoice with GST detail",
+            "channel": "invoice",
+            "owner": "System",
+        },
+    ]
+}
+
+
+def initialize_deliverables_for_client(db, client_id: str, plan_code: str | None, billing_cycle_month: str) -> None:
+    """Create initial customer deliverables for the billing cycle month from the plan template if missing.
+    Idempotent, never duplicates.
+    """
+    from app.models.customer_deliverable import CustomerDeliverable, DeliverableStatus, DeliverableChannel
+
+    plan_code = (plan_code or "starter").strip().lower()
+    template_key = "starter" if plan_code in ("starter", "marketing", "growth", "combo", "advanced") else "starter"
+
+    template = ProductOnePlanDeliverables.get(template_key, ProductOnePlanDeliverables["starter"])
+
+    # Check existing deliverables for this cycle
+    existing_types = {
+        row.deliverable_type
+        for row in db.query(CustomerDeliverable)
+        .filter(
+            CustomerDeliverable.client_id == client_id,
+            CustomerDeliverable.billing_cycle_month == billing_cycle_month,
+        )
+        .all()
+    }
+
+    for item in template:
+        dtype = item["deliverable_type"]
+        if dtype not in existing_types:
+            due_date = datetime.utcnow() + timedelta(days=30)
+            if dtype == "onboarding_profile":
+                due_date = datetime.utcnow() + timedelta(days=1)
+            elif dtype == "brand_kit":
+                due_date = datetime.utcnow() + timedelta(days=3)
+            elif dtype == "monthly_content_calendar":
+                due_date = datetime.utcnow() + timedelta(days=7)
+
+            status_val = DeliverableStatus.NOT_STARTED
+            if dtype == "onboarding_profile":
+                status_val = DeliverableStatus.WAITING_CUSTOMER
+
+            # For invoice, mark it delivered
+            delivered_at_val = None
+            evidence_url_val = None
+            if dtype == "invoice":
+                status_val = DeliverableStatus.DELIVERED
+                delivered_at_val = datetime.utcnow()
+                evidence_url_val = "/api/customer/auth/portal/invoices"
+
+            row = CustomerDeliverable(
+                id=str(uuid.uuid4()),
+                client_id=client_id,
+                plan_code=plan_code,
+                billing_cycle_month=billing_cycle_month,
+                deliverable_type=dtype,
+                title=item["title"],
+                description=item["description"],
+                status=status_val,
+                channel=DeliverableChannel(item["channel"]),
+                due_date=due_date,
+                delivered_at=delivered_at_val,
+                evidence_url=evidence_url_val,
+                owner=item["owner"],
+                created_at=datetime.utcnow(),
+                updated_at=datetime.utcnow(),
+            )
+            db.add(row)
+    db.commit()
+
+
 WORKFLOWS = [
     {
         "id": "after_payment_customer_creation",
@@ -514,6 +656,31 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
         report_action = _manual_done(actions, "monthly_report")
         proof_action = _manual_done(actions, "proof")
         publish_action = _manual_done(actions, "publish_manual")
+
+        # Database-backed CustomerDeliverable sync (2026-07-08, parallel track).
+        # This is real forward progress toward a proper per-billing-cycle
+        # deliverable ledger and is kept running as a best-effort SIDE EFFECT
+        # (record-keeping for future reporting/queries) — but its rows are NOT
+        # what gets returned below. Reasons: (1) its deliverable_type taxonomy
+        # and row-id (a UUID) don't match the semantic ids every existing
+        # consumer keys on (frontend customer_dashboard.html, admin_customer_
+        # card, this module's own _customer_status_notes/_monthly_summary, and
+        # every acceptance test) — swapping the return shape here would silently
+        # break all of them; (2) it depends on a DB session + a migration
+        # (011_add_customer_deliverable) that may not be applied everywhere yet,
+        # and this function must NEVER let a DB hiccup blank a customer's
+        # delivery view (CLAUDE.md: paid customer dashboard must never go
+        # empty). Once the DB taxonomy is reconciled with the ids below, this
+        # can become the source of truth for `deliverables` in one deliberate
+        # change with its own migration/test pass — not a silent swap.
+        try:
+            from app.models.base import get_db_session
+
+            current_month = datetime.now(timezone.utc).strftime("%Y-%m")
+            with get_db_session() as db:
+                initialize_deliverables_for_client(db, cid, client.get("plan"), current_month)
+        except Exception as exc:
+            logger.debug("product_one_delivery DB deliverable sync skipped (%s): %s", cid, exc)
 
         deliverables = [
             _deliverable(*DELIVERABLES[0], "done" if setup["business"] else "pending", owner="Customer"),

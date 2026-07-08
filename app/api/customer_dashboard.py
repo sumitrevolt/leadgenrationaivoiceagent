@@ -1453,6 +1453,58 @@ def customer_delivery_timeline(client_id: str = Depends(require_customer), limit
         return {"ok": False, "events": []}
 
 
+@router.get("/delivery-proof")
+def customer_delivery_proof(client_id: str = Depends(require_customer)) -> dict:
+    """Customer-safe Product One proof/report.
+
+    No cron/API/worker jargon. Shows what they bought, what is complete, what is
+    pending, and proof notes for monthly renewal conversations.
+    """
+    try:
+        from app.marketing import product_one_delivery
+
+        state = product_one_delivery.customer_delivery_status(client_id)
+        deliverables = [
+            d
+            for d in state.get("deliverables", [])
+            if d.get("customer_visible", True)
+        ]
+        return {
+            "ok": True,
+            "customer_name": state.get("customer_name"),
+            "plan": state.get("plan"),
+            "stage": state.get("stage"),
+            "stage_label": state.get("stage_label"),
+            "setup_completion_pct": state.get("setup_completion_pct"),
+            "deliverable_completion_pct": state.get("deliverable_completion_pct"),
+            "next_action": state.get("next_action"),
+            "deliverables": deliverables,
+            "proof_summary": {
+                "content_ready": state.get("content_generated", 0),
+                "approval_pending": state.get("posts_waiting_for_approval", 0),
+                "scheduled": state.get("posts_scheduled", 0),
+                "published": state.get("posts_published", 0),
+            },
+            "customer_status_notes": state.get("customer_status_notes") or [],
+            "monthly_summary": state.get("monthly_summary") or {},
+            "customer_message": _customer_delivery_message(state),
+        }
+    except Exception as e:
+        logger.debug("customer delivery-proof failed: %s", e)
+        return {"ok": False, "deliverables": [], "customer_message": "Report abhi load nahi hua."}
+
+
+def _customer_delivery_message(state: dict) -> str:
+    stage = str(state.get("stage") or "")
+    if state.get("risk_flag") == "customer_blocked":
+        return "Aapke kuch setup details pending hain. Ye complete hote hi content delivery tez ho jayegi."
+    if stage in ("content_ready", "approval_pending"):
+        return "Aapke posts ready hain. Approval ke baad publish/manual delivery ho jayegi."
+    if stage in ("published", "report_sent", "renewal_ready"):
+        return "Aapke liye delivery proof ready hai. Neeche completed items dekh sakte hain."
+    return "Setup aur content delivery progress yahan live update hoti rahegi."
+
+
 @router.get("/approvals/pending")
 def customer_pending_approvals(client_id: str = Depends(require_customer)):
     """Posts jo client approval ka wait kar rahe hain."""

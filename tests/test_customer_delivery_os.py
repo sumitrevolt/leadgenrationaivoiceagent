@@ -90,13 +90,9 @@ def test_starter_plan_day1_value_generation(monkeypatch):
     monkeypatch.setattr("app.marketing.delivery_ledger.log_event", fake_log_event, raising=False)
 
     from app.marketing import auto_content
-    result = pytest.run_async(auto_content.seed_client_content(fake_client)) if hasattr(pytest, "run_async") else None
-    
-    # Run async function if pytest.run_async isn't available
-    if not result:
-        import asyncio
-        loop = asyncio.get_event_loop()
-        result = loop.run_until_complete(auto_content.seed_client_content(fake_client))
+    import asyncio
+
+    result = asyncio.run(auto_content.seed_client_content(fake_client))
 
     assert result >= 9  # 7 days posts + 1 whatsapp promo + 1 suggestion
     assert len(submitted_drafts) >= 9

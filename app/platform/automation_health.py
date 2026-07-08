@@ -67,6 +67,7 @@ EXPECTED_GAP_MIN = {
     "self_improve": 30,  # ~20-min tick; 30-min grace — watchdog now flags stale loop (dead-man trio complete)
     "platform_dial": 30 * 60,  # daily 11:30 IST: self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
     "call_kpi_digest": 30 * 60,  # daily 19:30 IST: Lekha call-KPI digest
+    "product_one_health": 180,  # hourly :20 (2026-07-08): Product 1 Customer Health/Approval Reminder/SLA Recovery sweep, 3h grace like meter_watch
 }
 
 
