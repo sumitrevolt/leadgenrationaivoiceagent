@@ -29,6 +29,7 @@ import asyncio
 import html as _html
 import random
 import re
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
 
@@ -1140,6 +1141,91 @@ def _rel_time(iso: str) -> str:
         return ""
 
 
+_HIGH_INTENT_LOCAL_NICHES = {
+    "ayurveda_wellness",
+    "automobile_service",
+    "beauty_makeover",
+    "dental_implants",
+    "furniture_decor",
+    "hair_transplant",
+    "interior_designers",
+    "kirana_supermarket",
+    "makeup_artist",
+    "modular_kitchen",
+    "photography_studio",
+    "skin_dermatology",
+    "solar_residential",
+}
+_MANUAL_REVIEW_NICHES = {
+    "b2b_suppliers",
+    "ecommerce_d2c",
+    "finance_advisory",
+    "home_loans",
+    "hospital_appointments",
+    "insurance",
+    "ivf_clinics",
+    "recruitment",
+    "travel_agency",
+    "travel_packages",
+    "upskilling",
+}
+_LOW_FIT_NICHES = {"ai_marketing", "digital_marketing"}
+_LOW_FIT_TERMS = (
+    "ad agency",
+    "advertising",
+    "branding agency",
+    "digital marketing",
+    "lead generation",
+    "marketing agency",
+    "performance marketing",
+    "seo",
+    "social media agency",
+    "web design",
+    "website design",
+)
+_CHAIN_REVIEW_TERMS = (
+    "group",
+    "hospital",
+    "limited",
+    "ltd",
+    "private limited",
+    "pvt ltd",
+    "university",
+)
+
+
+def _pending_review_bucket(prospect: dict[str, Any]) -> dict[str, str]:
+    """Human-review bucket for pending recipients. Informational only; never blocks."""
+    p = prospect or {}
+    niche = str(p.get("niche") or p.get("category") or "").strip().lower()
+    text = " ".join(
+        str(p.get(k) or "") for k in ("business_name", "name", "category", "niche", "website", "email")
+    ).lower()
+    if niche in _LOW_FIT_NICHES or any(t in text for t in _LOW_FIT_TERMS):
+        return {
+            "key": "review_low_fit_vendor",
+            "label": "Review: vendor/competitor",
+            "reason": "marketing/agency/software-like prospect",
+        }
+    if niche in _MANUAL_REVIEW_NICHES or any(t in text for t in _CHAIN_REVIEW_TERMS):
+        return {
+            "key": "review_enterprise_or_edge",
+            "label": "Review: enterprise/edge",
+            "reason": "chain, enterprise, finance, travel, B2B, or regulated niche",
+        }
+    if niche in _HIGH_INTENT_LOCAL_NICHES:
+        return {
+            "key": "priority_local_smb",
+            "label": "Priority: local SMB",
+            "reason": "local service niche fits Product 1 GTM",
+        }
+    return {
+        "key": "review_unknown_fit",
+        "label": "Review: unknown fit",
+        "reason": "niche/source not confidently classified",
+    }
+
+
 def outreach_activity(limit: int = 20) -> dict[str, Any]:
     """Admin-friendly outreach activity — kisko bheja, kitne, kya reply aaya.
     Plain-Hinglish counts + recent sent recipients + recent replies. KABHI raise nahi
@@ -1169,6 +1255,7 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
             "paused_reason": "",
         },
         "headline": "",
+        "pending_review": {"buckets": [], "samples": []},
         "recent_sent": [],
         "recent_replies": [],
     }
@@ -1188,6 +1275,9 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
         emailed_rows = []
         suppressed = _suppressed_email_set()
         seen_pending: set[str] = set()
+        pending_buckets: Counter[str] = Counter()
+        pending_bucket_meta: dict[str, dict[str, str]] = {}
+        pending_samples: list[dict[str, str]] = []
         for r in rows:
             # check_mx=False — dashboard COUNT, not a send decision (see outreach_stats).
             email = str(r.get("email") or "")
@@ -1212,9 +1302,37 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
                     else:
                         seen_pending.add(recipient)
                         out["summary"]["pending_sendable"] += 1
+                        bucket = _pending_review_bucket(r)
+                        key = bucket["key"]
+                        pending_buckets[key] += 1
+                        pending_bucket_meta[key] = bucket
+                        if len(pending_samples) < max(5, min(limit, 20)):
+                            pending_samples.append(
+                                {
+                                    "business": str(r.get("business_name") or r.get("name") or "—")[:80],
+                                    "email": recipient[:90],
+                                    "city": str(r.get("city") or "")[:40],
+                                    "niche": str(r.get("niche") or r.get("category") or "")[:50],
+                                    "bucket": key,
+                                    "label": bucket["label"],
+                                    "reason": bucket["reason"],
+                                }
+                            )
             if (r.get("status") or "") == "replied":
                 out["summary"]["replied"] += 1
         out["summary"]["total"] = len(rows)
+        out["pending_review"] = {
+            "buckets": [
+                {
+                    "key": key,
+                    "label": pending_bucket_meta[key]["label"],
+                    "count": count,
+                    "reason": pending_bucket_meta[key]["reason"],
+                }
+                for key, count in pending_buckets.most_common()
+            ],
+            "samples": pending_samples,
+        }
         emailed_rows.sort(key=lambda x: str(x.get("emailed_at") or ""), reverse=True)
         for r in emailed_rows[:limit]:
             out["recent_sent"].append(
