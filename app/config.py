@@ -145,6 +145,13 @@ class Settings(BaseSettings):
     resend_api_key: str = ""  # env RESEND_API_KEY
     brevo_api_key: str = ""  # env BREVO_API_KEY
 
+    # Hot/warm lead-score thresholds, SINGLE source of truth (2026-07-08 pipeline-
+    # automation audit found this hardcoded inconsistently: 60 in lead_scoring.py's
+    # env default vs 70 in models/lead.py/call_manager.py/campaign.py. 70 chosen as
+    # canonical (3 of 4 call sites + TASKS.md's own "70+" convention already used it).
+    lead_hot_threshold: int = 70
+    lead_warm_threshold: int = 40
+
     # Compliance
     dnd_api_url: str = ""
     dnd_api_key: str = ""
