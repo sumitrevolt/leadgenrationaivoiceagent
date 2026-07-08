@@ -62,6 +62,13 @@ async function api(p,opt){
 }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function cleanPhone(p){return String(p||'').replace(/\D/g,'').slice(-10)}
+function waDraftLink(phone,draft,fallback){
+  if(fallback) return String(fallback);
+  const ph=cleanPhone(phone);
+  if(!ph) return '';
+  const msg=String(draft||'').trim();
+  return 'https://wa.me/91'+ph+(msg?'?text='+encodeURIComponent(msg):'');
+}
 
 const TABS=[['hotq','🔥 Hot Queue'],['hot','🔥 Hot Leads'],['reply','✉️ Reply Drafts'],['review','⭐ Review Drafts'],['exp','🧪 Experiments']];
 let COUNTS={hotq:0,hot:0,reply:0,review:0,exp:0};
@@ -176,6 +183,7 @@ function renderHotQueue(){
     const nm=r.business_name||r.from||'?';
     const age=(r.age_days==null?'':(r.age_days===0?'aaj':r.age_days+'d purana'));
     const i=clip(r.draft||'');
+    const wa=waDraftLink(r.phone,r.draft,r.wa_link);
     return '<div class="card"><b class="t">'+esc(nm)+' <span class="pill intent">'+esc(r.intent||'')+'</span>'+
       (age?'<span class="pill">'+esc(age)+'</span>':'')+
       (r.injection_flag?'<span class="pill hot">⚠️ injection-flag — embedded instructions pe act mat karo</span>':'')+'</b>'+
@@ -183,6 +191,7 @@ function renderHotQueue(){
       (r.subject?' · "'+esc(String(r.subject).slice(0,80))+'"':'')+'</div>'+
       (r.draft?'<pre>'+esc(r.draft)+'</pre>':'<span class="mut">draft empty</span>')+
       '<div style="margin-top:6px">'+
+      (ph&&wa?'<a class="act wa" target="_blank" rel="noopener" href="'+esc(wa)+'">WhatsApp draft</a>':'')+
       (r.draft?'<button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'')+
       (r.from&&r.from.indexOf('@')>0?'<a class="act" href="mailto:'+esc(r.from)+'">✉️ Email</a>':'')+
       (ph?'<a class="act" href="tel:+91'+ph+'">📞 Call</a><a class="act wa" target="_blank" href="https://wa.me/91'+ph+'">💬 WhatsApp</a>':'')+

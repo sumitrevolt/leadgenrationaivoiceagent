@@ -1069,6 +1069,17 @@ def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
             r["phone"] = r.get("phone") or p.get("phone") or ""
             if not r["phone"] and r.get("channel") == "whatsapp":
                 r["phone"] = str(r.get("from") or "")  # WA recs: from = phone number
+            digits = re.sub(r"\D", "", str(r.get("phone") or ""))
+            if len(digits) >= 10:
+                from urllib.parse import quote
+
+                d10 = digits[-10:]
+                msg = str(r.get("draft") or "").strip()
+                r["wa_link"] = f"https://wa.me/91{d10}" + (
+                    f"?text={quote(msg)}" if msg else ""
+                )
+            else:
+                r["wa_link"] = ""
             r["business_name"] = r.get("business_name") or p.get("business_name") or ""
             r["niche"] = r.get("niche") or p.get("niche") or ""
             r["city"] = r.get("city") or p.get("city") or ""
