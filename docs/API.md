@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1065 operations)
+## Endpoint Index — auto-generated from OpenAPI (1067 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -609,12 +609,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (26)
+### Customer Dashboard  (27)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/decide` — Customer Decide Approval
 - `GET   ` `/api/customer/autopilot` — Customer Autopilot Drafts
 - `GET   ` `/api/customer/branded-feed` — Customer Branded Feed
+- `POST  ` `/api/customer/campaigns/generate-first-week` — Customer Generate First Week
 - `GET   ` `/api/customer/creatives` — Customer Creatives
 - `GET   ` `/api/customer/dashboard` — Get Customer Dashboard
 - `POST  ` `/api/customer/dashboard/send-to-crm` — Send Dashboard Leads To Crm
@@ -1458,7 +1459,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/segments/{segment_id}` — Get Segment
 - `GET   ` `/api/segments/{segment_id}/preview` — Preview Segment
 
-### Team  (18)
+### Team  (19)
 
 - `GET   ` `/api/platform/team` — Get Team Status
 - `POST  ` `/api/platform/team/email-followups/run` — Run Email Followups Now
@@ -1475,6 +1476,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/platform/team/run/{member}` — Run Team Member
 - `GET   ` `/api/platform/team/scheduler` — Get Scheduler Jobs
 - `POST  ` `/api/platform/team/scheduler/run-due` — Scheduler Run Due
+- `GET   ` `/api/platform/team/scheduler/runs` — Get Scheduler Runs
 - `POST  ` `/api/platform/team/scheduler/{job}/run` — Run Scheduler Job Now
 - `POST  ` `/api/platform/team/scheduler/{job}/toggle` — Toggle Scheduler Job
 - `GET   ` `/api/platform/team/stats` — Get Team Stats
