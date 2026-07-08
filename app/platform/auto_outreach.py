@@ -583,6 +583,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         "failed": 0,
         "cap": 0,
         "suppressed": 0,
+        "duplicate_recipients": 0,
     }
     try:
         from app.config import settings
@@ -627,6 +628,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         import os as _os_sel
         _skip_sel_mx = (_os_sel.getenv("OUTREACH_SELECT_SKIP_MX", "1") or "").strip().lower() not in {"0", "false", "no", "off"}
         _suppressed = _suppressed_email_set()
+        _seen_recipients: set[str] = set()
         for p in _ready_pool:
             if (str(p.get("status") or "ready") != "ready"):
                 continue
@@ -639,6 +641,11 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             if _is_suppressed_email(email, _suppressed):
                 result["suppressed"] = result.get("suppressed", 0) + 1
                 continue
+            recipient = email.lower()
+            if recipient in _seen_recipients:
+                result["duplicate_recipients"] = result.get("duplicate_recipients", 0) + 1
+                continue
+            _seen_recipients.add(recipient)
             candidates.append(p)
             if len(candidates) >= 500:
                 break  # safety cap — pending_for_outreach jaisa behavior
@@ -869,6 +876,7 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
         "cap": 0,
         "candidates": 0,
         "suppressed": 0,
+        "duplicate_recipients": 0,
         "by_step": {"1": 0, "2": 0},
     }
     try:
@@ -896,6 +904,7 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
         # not just the newest 500 (list_prospects hard-caps + sorts newest-first,
         # so old emailed leads were never seen by this function).
         _suppressed = _suppressed_email_set()
+        _seen_recipients: set[str] = set()
         for p in prospector._read_all():
             try:
                 if str(p.get("status") or "ready").lower() in _DONE:
@@ -908,6 +917,11 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                 if _is_suppressed_email(to_addr, _suppressed):
                     result["suppressed"] = result.get("suppressed", 0) + 1
                     continue
+                recipient = to_addr.lower()
+                if recipient in _seen_recipients:
+                    result["duplicate_recipients"] = result.get("duplicate_recipients", 0) + 1
+                    continue
+                _seen_recipients.add(recipient)
                 try:
                     fc = int(p.get("followup_count") or 0)
                 except Exception:
@@ -1065,6 +1079,7 @@ def outreach_stats() -> dict[str, Any]:
         "pending": 0,
         "pending_total": 0,
         "pending_sendable": 0,
+        "duplicate_pending_recipients": 0,
         "suppressed": 0,
     }
     try:
@@ -1078,6 +1093,7 @@ def outreach_stats() -> dict[str, Any]:
             rows = prospector.list_prospects(limit=500)
         stats["total"] = len(rows)
         suppressed = _suppressed_email_set()
+        seen_pending: set[str] = set()
         for r in rows:
             # check_mx=False — this is a dashboard COUNT, not a send decision; the
             # real MX gate still runs at actual send-time (line ~568 above).
@@ -1093,7 +1109,12 @@ def outreach_stats() -> dict[str, Any]:
             elif has_email and (r.get("status") or "ready") == "ready":
                 stats["pending_total"] += 1
                 if not is_suppressed:
-                    stats["pending_sendable"] += 1
+                    recipient = email.strip().lower()
+                    if recipient in seen_pending:
+                        stats["duplicate_pending_recipients"] += 1
+                    else:
+                        seen_pending.add(recipient)
+                        stats["pending_sendable"] += 1
         stats["pending"] = stats["pending_sendable"]
     except Exception as e:
         logger.debug(f"[auto_outreach] outreach_stats failed: {e}")
@@ -1133,6 +1154,7 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
             "pending": 0,
             "pending_total": 0,
             "pending_sendable": 0,
+            "duplicate_pending_recipients": 0,
             "suppressed": 0,
             "replied": 0,
             "sent_today": 0,
@@ -1165,6 +1187,7 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
             rows = prospector.list_prospects(limit=1000)
         emailed_rows = []
         suppressed = _suppressed_email_set()
+        seen_pending: set[str] = set()
         for r in rows:
             # check_mx=False — dashboard COUNT, not a send decision (see outreach_stats).
             email = str(r.get("email") or "")
@@ -1183,7 +1206,12 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
             elif has_email and (r.get("status") or "ready") == "ready":
                 out["summary"]["pending_total"] += 1
                 if not is_suppressed:
-                    out["summary"]["pending_sendable"] += 1
+                    recipient = email.strip().lower()
+                    if recipient in seen_pending:
+                        out["summary"]["duplicate_pending_recipients"] += 1
+                    else:
+                        seen_pending.add(recipient)
+                        out["summary"]["pending_sendable"] += 1
             if (r.get("status") or "") == "replied":
                 out["summary"]["replied"] += 1
         out["summary"]["total"] = len(rows)
