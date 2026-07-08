@@ -51,7 +51,9 @@ _STATIC_URLS: list[tuple[str, str, str]] = [
     ("/compare", "weekly", "0.9"),
     ("/geo-check", "weekly", "0.8"),
     ("/pricing", "weekly", "0.8"),
-    ("/start", "weekly", "0.8"),
+    # /start deliberately excluded — it's a pure alias serving the same file as
+    # /pricing (its own canonical points to /pricing), sitemaps should only
+    # list canonical/self-referencing URLs.
     ("/voice-agent", "weekly", "0.8"),
     ("/blog", "daily", "0.7"),
     ("/app/test-call", "monthly", "0.6"),
