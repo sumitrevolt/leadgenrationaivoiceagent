@@ -29,6 +29,26 @@ logger = setup_logger(__name__)
 GRAPH_API_VERSION = os.getenv("WHATSAPP_GRAPH_VERSION", "v18.0").strip() or "v18.0"
 
 
+def _record_whatsapp_failure(note: str = "") -> None:
+    """Best-effort Integration Health signal. Never raise on a send path."""
+    try:
+        from app.platform import integration_health
+
+        integration_health.record_failure("whatsapp", note)
+    except Exception:
+        pass
+
+
+def _record_whatsapp_success() -> None:
+    """Best-effort Integration Health signal. Never raise on a send path."""
+    try:
+        from app.platform import integration_health
+
+        integration_health.record_success("whatsapp")
+    except Exception:
+        pass
+
+
 def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool:
     """Verify a Meta webhook payload using the App Secret (X-Hub-Signature-256).
 
@@ -181,6 +201,7 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
             message: Message text
         """
         if not self.token:
+            _record_whatsapp_failure("cloud_not_configured")
             return {"error": "whatsapp_not_configured"}
 
         to_number = self._normalize_number(to_number)
@@ -204,6 +225,7 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
         Template messages are required for initiating conversations
         """
         if not self.token:
+            _record_whatsapp_failure("cloud_not_configured")
             return {"error": "whatsapp_not_configured"}
 
         to_number = self._normalize_number(to_number)
@@ -247,6 +269,7 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
 
                 result = response.json()
                 logger.info(f"WhatsApp message sent: {result.get('messages', [{}])[0].get('id')}")
+                _record_whatsapp_success()
                 return result
 
             except httpx.HTTPStatusError as e:
@@ -256,6 +279,7 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
                 except Exception:
                     pass
                 logger.error(f"WhatsApp API error: {body}")
+                _record_whatsapp_failure(f"http_{getattr(e.response, 'status_code', 0)}")
                 return {
                     "error": "http_error",
                     "status": getattr(e.response, "status_code", 0),
@@ -263,6 +287,7 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
                 }
             except Exception as e:
                 logger.error(f"WhatsApp error: {e}")
+                _record_whatsapp_failure(str(e)[:80])
                 return {"error": "request_failed", "detail": str(e)[:300]}
 
     def _normalize_number(self, number: str) -> str:

@@ -40,7 +40,7 @@ from typing import Any
 import httpx
 
 from app.config import settings
-from app.integrations.whatsapp import WhatsAppMessageMixin
+from app.integrations.whatsapp import WhatsAppMessageMixin, _record_whatsapp_failure, _record_whatsapp_success
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -166,6 +166,7 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
         (status hiccup) so a transient probe error never silently drops sends.
         Kill-switch: WHATSAPP_ENFORCE_BUSINESS_NUMBER=0."""
         if not self.base_url:
+            _record_whatsapp_failure("selfhost_not_configured")
             return {"error": "selfhost_not_configured"}
         if (
             os.getenv("WHATSAPP_ENFORCE_BUSINESS_NUMBER", "1").strip().lower()
@@ -181,6 +182,7 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
                         linked[-4:],
                         want[-4:],
                     )
+                    _record_whatsapp_failure("wrong_linked_number")
                     return {"error": "wrong_linked_number", "linked": linked[-4:], "want": want[-4:]}
         payload = {
             "session": self.session,
@@ -203,6 +205,7 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
         template name if no body is on record.
         """
         if not self.base_url:
+            _record_whatsapp_failure("selfhost_not_configured")
             return {"error": "selfhost_not_configured"}
         body = ""
         try:
@@ -230,6 +233,7 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
                 if isinstance(data, dict):
                     mid = str(data.get("id") or (data.get("_data") or {}).get("id") or "")
                 logger.info("waha send ok (%s) id=%s", self.session, mid[:40])
+                _record_whatsapp_success()
                 return {"messages": [{"id": mid}] if mid else [], "raw": data}
         except httpx.HTTPStatusError as e:
             body = ""
@@ -238,6 +242,7 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
             except Exception:
                 pass
             logger.error("waha API error: %s", body[:300])
+            _record_whatsapp_failure(f"waha_http_{getattr(e.response, 'status_code', 0)}")
             return {
                 "error": "http_error",
                 "status": getattr(e.response, "status_code", 0),
@@ -245,6 +250,7 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
             }
         except Exception as e:  # network / timeout / DNS
             logger.warning("waha request failed: %s", e)
+            _record_whatsapp_failure(str(e)[:80])
             return {"error": "request_failed", "detail": str(e)[:200]}
 
 

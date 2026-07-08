@@ -15,6 +15,26 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+def _record_stripe_failure(note: str = "") -> None:
+    """Best-effort Integration Health signal. Never raise on billing paths."""
+    try:
+        from app.platform import integration_health
+
+        integration_health.record_failure("stripe", note)
+    except Exception:
+        pass
+
+
+def _record_stripe_success() -> None:
+    """Best-effort Integration Health signal. Never raise on billing paths."""
+    try:
+        from app.platform import integration_health
+
+        integration_health.record_success("stripe")
+    except Exception:
+        pass
+
+
 class PaymentGatewayBase(ABC):
     """Abstract base class for payment gateways"""
 
@@ -116,6 +136,7 @@ class StripeGateway(PaymentGatewayBase):
                 logger.info("? Stripe client initialized")
             except ImportError:
                 logger.error("stripe package not installed")
+                _record_stripe_failure("package_not_installed")
                 raise ImportError("stripe package required: pip install stripe")
         return self._client
 
@@ -132,6 +153,7 @@ class StripeGateway(PaymentGatewayBase):
                 email=email, name=name, phone=phone, metadata=metadata or {}
             )
             logger.info(f"Created Stripe customer: {customer.id}")
+            _record_stripe_success()
             return {
                 "customer_id": customer.id,
                 "email": customer.email,
@@ -139,6 +161,7 @@ class StripeGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to create Stripe customer: {e}")
+            _record_stripe_failure("create_customer")
             raise
 
     async def create_checkout_session(
@@ -178,6 +201,7 @@ class StripeGateway(PaymentGatewayBase):
             )
 
             logger.info(f"Created Stripe checkout session: {session.id}")
+            _record_stripe_success()
             return {
                 "session_id": session.id,
                 "checkout_url": session.url,
@@ -185,6 +209,7 @@ class StripeGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to create Stripe checkout session: {e}")
+            _record_stripe_failure("create_checkout_session")
             raise
 
     async def create_subscription(
@@ -212,6 +237,7 @@ class StripeGateway(PaymentGatewayBase):
             subscription = self.client.Subscription.create(**params)
 
             logger.info(f"Created Stripe subscription: {subscription.id}")
+            _record_stripe_success()
             return {
                 "subscription_id": subscription.id,
                 "status": subscription.status,
@@ -226,6 +252,7 @@ class StripeGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to create Stripe subscription: {e}")
+            _record_stripe_failure("create_subscription")
             raise
 
     async def cancel_subscription(
@@ -241,6 +268,7 @@ class StripeGateway(PaymentGatewayBase):
                 subscription = self.client.Subscription.delete(subscription_id)
 
             logger.info(f"Cancelled Stripe subscription: {subscription_id}")
+            _record_stripe_success()
             return {
                 "subscription_id": subscription.id,
                 "status": subscription.status,
@@ -254,6 +282,7 @@ class StripeGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to cancel Stripe subscription: {e}")
+            _record_stripe_failure("cancel_subscription")
             raise
 
     async def pause_subscription(self, subscription_id: str) -> dict[str, Any]:
@@ -263,6 +292,7 @@ class StripeGateway(PaymentGatewayBase):
                 subscription_id, pause_collection={"behavior": "void"}
             )
             logger.info(f"Paused Stripe subscription: {subscription_id}")
+            _record_stripe_success()
             return {
                 "subscription_id": subscription.id,
                 "status": subscription.status,
@@ -271,6 +301,7 @@ class StripeGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to pause Stripe subscription: {e}")
+            _record_stripe_failure("pause_subscription")
             raise
 
     async def resume_subscription(self, subscription_id: str) -> dict[str, Any]:
@@ -278,6 +309,7 @@ class StripeGateway(PaymentGatewayBase):
         try:
             subscription = self.client.Subscription.modify(subscription_id, pause_collection="")
             logger.info(f"Resumed Stripe subscription: {subscription_id}")
+            _record_stripe_success()
             return {
                 "subscription_id": subscription.id,
                 "status": subscription.status,
@@ -286,6 +318,7 @@ class StripeGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to resume Stripe subscription: {e}")
+            _record_stripe_failure("resume_subscription")
             raise
 
     async def create_billing_portal_session(
@@ -297,18 +330,21 @@ class StripeGateway(PaymentGatewayBase):
                 customer=customer_id, return_url=return_url
             )
             logger.info(f"Created Stripe billing portal session for {customer_id}")
+            _record_stripe_success()
             return {
                 "portal_url": session.url,
                 "gateway": self.gateway_type.value,
             }
         except Exception as e:
             logger.error(f"Failed to create Stripe billing portal session: {e}")
+            _record_stripe_failure("create_billing_portal_session")
             raise
 
     async def get_subscription(self, subscription_id: str) -> dict[str, Any]:
         """Get Stripe subscription details"""
         try:
             subscription = self.client.Subscription.retrieve(subscription_id)
+            _record_stripe_success()
             return {
                 "subscription_id": subscription.id,
                 "status": subscription.status,
@@ -319,6 +355,7 @@ class StripeGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to get Stripe subscription: {e}")
+            _record_stripe_failure("get_subscription")
             raise
 
     async def create_payment_intent(
@@ -348,6 +385,7 @@ class StripeGateway(PaymentGatewayBase):
             intent = self.client.PaymentIntent.create(**params)
 
             logger.info(f"Created Stripe PaymentIntent: {intent.id}")
+            _record_stripe_success()
             return {
                 "payment_intent_id": intent.id,
                 "client_secret": intent.client_secret,
@@ -358,6 +396,7 @@ class StripeGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to create Stripe PaymentIntent: {e}")
+            _record_stripe_failure("create_payment_intent")
             raise
 
     async def verify_webhook(self, payload: bytes, signature: str) -> dict[str, Any]:
@@ -368,6 +407,7 @@ class StripeGateway(PaymentGatewayBase):
             )
 
             logger.info(f"Verified Stripe webhook: {event.type}")
+            _record_stripe_success()
             return {
                 "event_id": event.id,
                 "event_type": event.type,
@@ -382,6 +422,7 @@ class StripeGateway(PaymentGatewayBase):
         """Get Stripe invoices for a customer"""
         try:
             invoices = self.client.Invoice.list(customer=customer_id, limit=limit)
+            _record_stripe_success()
 
             return [
                 {
@@ -400,6 +441,7 @@ class StripeGateway(PaymentGatewayBase):
             ]
         except Exception as e:
             logger.error(f"Failed to get Stripe invoices: {e}")
+            _record_stripe_failure("get_invoices")
             raise
 
     async def refund_payment(
@@ -417,6 +459,7 @@ class StripeGateway(PaymentGatewayBase):
             refund = self.client.Refund.create(**params)
 
             logger.info(f"Created Stripe refund: {refund.id}")
+            _record_stripe_success()
             return {
                 "refund_id": refund.id,
                 "status": refund.status,
@@ -425,6 +468,7 @@ class StripeGateway(PaymentGatewayBase):
             }
         except Exception as e:
             logger.error(f"Failed to create Stripe refund: {e}")
+            _record_stripe_failure("refund_payment")
             raise
 
 
