@@ -983,12 +983,27 @@
       <!-- Call Recordings -->
       <div data-view="office" class="card" id="sec-recordings" style="scroll-margin-top:80px">
         <div class="hd">
-          <h3>🎙 Call Recordings</h3>
-          <span class="right" id="rec-summary">—</span>
-          <button class="btn" onclick="loadRecordings()" style="margin-left:10px;padding:6px 12px;font-size:12px">↺ Refresh</button>
+          <h3 id="recHeading">🎙 Call Recordings</h3>
+          <span class="right" id="rec-summary" aria-live="polite">—</span>
+          <button class="btn" onclick="loadRecordings()" aria-label="Refresh call recordings" style="margin-left:10px;padding:6px 12px;font-size:12px">↺ Refresh</button>
         </div>
-        <div class="bd" id="rec-body">
-          <div style="color:var(--muted);font-size:13px">Loading recordings…</div>
+        <div class="filter-bar" role="search" aria-label="Recording search and filter">
+          <input type="search" id="recSearch" placeholder="Call ID (SID) dhundho…" aria-label="Search recordings by call ID" oninput="filterRecordings()" autocomplete="off">
+          <select id="recDateFilter" aria-label="Filter by date" onchange="filterRecordings()">
+            <option value="">Sab dates</option>
+          </select>
+          <label class="fc" style="display:flex;align-items:center;gap:5px;cursor:pointer">
+            <input type="checkbox" id="recLegacyOnly" aria-label="Show legacy split recordings only" onchange="filterRecordings()"> Legacy split only
+          </label>
+          <span class="fc" id="recFilterCount" aria-live="polite" aria-atomic="true"></span>
+          <button class="btn" onclick="clearRecordingFilters()" aria-label="Clear recording filters" style="padding:6px 10px;font-size:11px">✕ Clear</button>
+        </div>
+        <div class="bd" id="rec-body" role="region" aria-labelledby="recHeading">
+          <div style="display:flex;flex-direction:column;gap:10px">
+            <span class="skeleton" style="height:16px;width:140px;display:block"></span>
+            <span class="skeleton" style="height:52px;width:100%;border-radius:10px;display:block"></span>
+            <span class="skeleton" style="height:52px;width:100%;border-radius:10px;display:block"></span>
+          </div>
         </div>
       </div>
 
@@ -3750,58 +3765,130 @@ async function _pollCampaign(){
 }
 
 /* ====== Call Recordings ====== */
+let _allRecDates = [];
+let _recNowPlaying = null;
+
+function fmtKb(kb){
+  kb = kb||0;
+  return kb>=1024 ? (kb/1024).toFixed(1)+" MB" : kb+" KB";
+}
+
 async function loadRecordings(){
   const body=$("rec-body"), summ=$("rec-summary");
-  if(body) body.innerHTML='<div style="color:var(--muted);font-size:13px">Loading…</div>';
+  if(body) body.innerHTML='<div style="display:flex;flex-direction:column;gap:10px"><span class="skeleton" style="height:16px;width:140px;display:block"></span><span class="skeleton" style="height:52px;width:100%;border-radius:10px;display:block"></span><span class="skeleton" style="height:52px;width:100%;border-radius:10px;display:block"></span></div>';
   try{
     const r=await fetch("/api/admin/call-recordings",{headers:abAuthHdr(),cache:"no-store"});
-    if(!r.ok){ if(body) body.innerHTML='<div style="color:var(--red)">Error '+r.status+'</div>'; return; }
-    const d=await r.json();
-    if(summ) summ.textContent=(d.total_sessions||0)+" sessions";
-    if(!d.dates||!d.dates.length){
-      if(body) body.innerHTML='<div style="color:var(--muted);padding:8px 0">Abhi koi recording nahi — VOBIZ_CALL_RECORD=1 set karo aur call karo.</div>';
+    if(!r.ok){
+      if(body) body.innerHTML='<div style="color:var(--red);font-size:13px">Error '+r.status+' — <a href="#" onclick="loadRecordings();return false" style="color:var(--indigo)">Retry</a></div>';
       return;
     }
-    let html="";
-    for(const day of d.dates){
-      html+=`<div style="margin-bottom:22px">
-        <div style="font-weight:700;font-size:13px;margin-bottom:10px;color:var(--ink)">📅 ${escH(day.date)} <span style="color:var(--muted);font-weight:400">(${day.count} calls)</span></div>
-        <div style="display:flex;flex-direction:column;gap:14px">`;
-      for(const s of day.sessions){
-        const base="/api/admin/call-recordings/"+encodeURIComponent(day.date)+"/";
-        html+=`<div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:13px 16px">
-          <div style="font-size:12px;color:var(--muted);margin-bottom:8px;font-family:monospace">${s.time?'🕐 '+escH(s.time)+' &nbsp;·&nbsp; ':''}SID: ${escH(s.sid)} &nbsp;·&nbsp; ${s.size_kb}KB${s.legacy_split?' &nbsp;·&nbsp; <span style="color:var(--amber)">legacy split</span>':''}</div>`;
-        if(s.wav){
+    const d=await r.json();
+    _allRecDates = d.dates||[];
+    const dsel=$("recDateFilter");
+    if(dsel){
+      const cur=dsel.value;
+      dsel.innerHTML='<option value="">Sab dates</option>'+_allRecDates.map(day=>`<option value="${escH(day.date)}">${escH(day.date)} (${day.count})</option>`).join("");
+      dsel.value = (cur && _allRecDates.some(x=>x.date===cur)) ? cur : "";
+    }
+    const totalKb=_allRecDates.reduce((s,day)=>s+day.sessions.reduce((s2,ses)=>s2+(ses.size_kb||0),0),0);
+    if(summ) summ.textContent=(d.total_sessions||0)+" sessions · "+fmtKb(totalKb);
+    _renderRecordingsFiltered();
+  }catch(e){
+    if(body) body.innerHTML='<div style="color:var(--red);font-size:13px">Network error — '+escH(String(e))+' — <a href="#" onclick="loadRecordings();return false" style="color:var(--indigo)">Retry</a></div>';
+  }
+}
+
+function _renderRecordingsFiltered(){
+  const body=$("rec-body");
+  if(!body) return;
+  const fc=$("recFilterCount");
+  if(!_allRecDates.length){
+    body.innerHTML='<div style="color:var(--muted);padding:8px 0;font-size:13px">Abhi koi recording nahi — VOBIZ_CALL_RECORD=1 set karo aur call karo.</div>';
+    if(fc) fc.textContent="";
+    return;
+  }
+  const q=(($("recSearch")||{}).value||"").toLowerCase().trim();
+  const df=(($("recDateFilter")||{}).value)||"";
+  const legacyOnly=(($("recLegacyOnly")||{}).checked)||false;
+
+  const filtersActive = !!(q || df || legacyOnly);
+  let totalSessions=0, shownSessions=0, html="";
+  _allRecDates.forEach((day, idx)=>{
+    totalSessions += day.sessions.length;
+    if(df && day.date!==df) return;
+    const sessions=day.sessions.filter(s=>{
+      const mq = !q || (s.sid||"").toLowerCase().includes(q);
+      const ml = !legacyOnly || s.legacy_split;
+      return mq&&ml;
+    });
+    if(!sessions.length) return;
+    shownSessions += sessions.length;
+    // Default view: only the newest day auto-expands (compact). Once a filter
+    // narrows the list, every matching day opens — otherwise a match on a non-first
+    // day would render fully collapsed and look like "no results".
+    const openAttr = (filtersActive || idx===0) ? " open" : "";
+    html+=`<details${openAttr} style="margin-bottom:10px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;overflow:hidden">
+      <summary style="cursor:pointer;padding:9px 14px;font-weight:700;font-size:13px;color:var(--ink)">📅 ${escH(day.date)} <span style="color:var(--muted);font-weight:400">(${sessions.length}${sessions.length!==day.sessions.length?" / "+day.sessions.length:""} calls)</span></summary>
+      <div style="padding:0 12px 12px;display:flex;flex-direction:column;gap:8px">`;
+    for(const s of sessions){
+      const base="/api/admin/call-recordings/"+encodeURIComponent(day.date)+"/";
+      html+=`<div style="background:#fff;border:1px solid var(--line);border-radius:9px;padding:9px 12px">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-family:monospace">${s.time?'🕐 '+escH(s.time)+' &nbsp;·&nbsp; ':''}SID: ${escH(s.sid)} &nbsp;·&nbsp; ${fmtKb(s.size_kb)}${s.legacy_split?' &nbsp;·&nbsp; <span style="color:var(--amber)">legacy split</span>':''}</div>`;
+      if(s.wav){
+        const url=base+encodeURIComponent(s.wav);
+        html+=`<div>
+          <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">🎙 Full conversation (caller + Swara)</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn recload" onclick="loadRecAudio(this)" data-url="${url}" data-name="${escH(s.wav)}" aria-label="Play recording for call ${escH(s.sid)}" style="flex:1;height:32px;font-size:12px;cursor:pointer">▶ Play recording</button>
+            <button class="btn btn-ghost recdl" onclick="downloadRecAudio(this)" data-url="${url}" data-name="${escH(s.wav)}" aria-label="Download recording for call ${escH(s.sid)}" title="Download" style="padding:6px 12px;font-size:14px;cursor:pointer">⬇</button>
+          </div>
+        </div>`;
+      } else if(s.legacy_split){
+        html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">`;
+        if(s.caller_wav){
+          const url=base+encodeURIComponent(s.caller_wav);
           html+=`<div>
-            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">🎙 Full conversation (caller + Swara)</div>
-            <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Play recording</button>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">👤 Caller</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn recload" onclick="loadRecAudio(this)" data-url="${url}" data-name="${escH(s.caller_wav)}" aria-label="Play caller audio for call ${escH(s.sid)}" style="flex:1;height:32px;font-size:12px;cursor:pointer">▶ Caller</button>
+              <button class="btn btn-ghost recdl" onclick="downloadRecAudio(this)" data-url="${url}" data-name="${escH(s.caller_wav)}" aria-label="Download caller audio for call ${escH(s.sid)}" title="Download" style="padding:6px 12px;font-size:14px;cursor:pointer">⬇</button>
+            </div>
           </div>`;
-        } else if(s.legacy_split){
-          html+=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">`;
-          if(s.caller_wav){
-            html+=`<div>
-              <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">👤 Caller</div>
-              <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.caller_wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Caller</button>
-            </div>`;
-          }
-          if(s.bot_wav){
-            html+=`<div>
-              <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em">🤖 Swara</div>
-              <button class="btn recload" onclick="loadRecAudio(this)" data-url="${base+encodeURIComponent(s.bot_wav)}" style="width:100%;height:36px;font-size:12px;cursor:pointer">▶ Swara</button>
-            </div>`;
-          }
-          html+=`</div>`;
-        } else {
-          html+=`<div style="color:var(--muted);font-size:12px">No audio file</div>`;
+        }
+        if(s.bot_wav){
+          const url=base+encodeURIComponent(s.bot_wav);
+          html+=`<div>
+            <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em">🤖 Swara</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn recload" onclick="loadRecAudio(this)" data-url="${url}" data-name="${escH(s.bot_wav)}" aria-label="Play Swara audio for call ${escH(s.sid)}" style="flex:1;height:32px;font-size:12px;cursor:pointer">▶ Swara</button>
+              <button class="btn btn-ghost recdl" onclick="downloadRecAudio(this)" data-url="${url}" data-name="${escH(s.bot_wav)}" aria-label="Download Swara audio for call ${escH(s.sid)}" title="Download" style="padding:6px 12px;font-size:14px;cursor:pointer">⬇</button>
+            </div>
+          </div>`;
         }
         html+=`</div>`;
+      } else {
+        html+=`<div style="color:var(--muted);font-size:12px">No audio file</div>`;
       }
-      html+=`</div></div>`;
+      html+=`</div>`;
     }
-    if(body) body.innerHTML=html;
-  }catch(e){
-    if(body) body.innerHTML='<div style="color:var(--red)">Network error — '+escH(String(e))+'</div>';
+    html+=`</div></details>`;
+  });
+
+  if(!html){
+    body.innerHTML='<div style="color:var(--muted);padding:8px 0;font-size:13px">Koi recording match nahi hua — <a href="#" onclick="clearRecordingFilters();return false" style="color:var(--indigo)">filters clear karo</a>.</div>';
+    if(fc) fc.textContent="0 / "+totalSessions;
+    return;
   }
+  body.innerHTML=html;
+  if(fc) fc.textContent = shownSessions<totalSessions ? `${shownSessions} / ${totalSessions}` : "";
+}
+
+function filterRecordings(){ _renderRecordingsFiltered(); }
+function clearRecordingFilters(){
+  if($("recSearch")) $("recSearch").value="";
+  if($("recDateFilter")) $("recDateFilter").value="";
+  if($("recLegacyOnly")) $("recLegacyOnly").checked=false;
+  _renderRecordingsFiltered();
 }
 
 // Recordings playback: <audio src> browser request Bearer header nahi bhej sakta,
@@ -3815,13 +3902,37 @@ async function loadRecAudio(btn){
     const r = await fetch(url, {headers: abAuthHdr(), cache: 'no-store'});
     if(!r.ok){ btn.disabled = false; btn.textContent = 'Error '+r.status+' (re-login?)'; return; }
     const blob = await r.blob();
+    if(_recNowPlaying && !_recNowPlaying.paused) _recNowPlaying.pause();
     const a = document.createElement('audio');
     a.controls = true; a.autoplay = true; a.preload = 'auto';
-    a.style.width = '100%'; a.style.height = '36px';
+    a.style.width = '100%'; a.style.height = '32px'; a.style.flex = '1';
     a.src = URL.createObjectURL(blob);
+    a.addEventListener('play', function(){ _recNowPlaying = a; });
     a.addEventListener('error', function(){ btn.disabled = false; btn.textContent = 'Playback error'; });
     btn.replaceWith(a);
   }catch(e){ btn.disabled = false; btn.textContent = 'Network error'; }
+}
+
+// Download reuses the same auth-blob workaround — endpoint is require_admin,
+// so a bare <a href download> would 401 with no Bearer header attached.
+async function downloadRecAudio(btn){
+  const url = btn && btn.getAttribute('data-url');
+  const name = (btn && btn.getAttribute('data-name')) || 'recording.wav';
+  if(!url) return;
+  const prevTxt = btn.textContent;
+  btn.disabled = true; btn.textContent = '…';
+  try{
+    const r = await fetch(url, {headers: abAuthHdr(), cache: 'no-store'});
+    if(!r.ok){ btn.disabled=false; btn.textContent='Err '+r.status; setTimeout(()=>{btn.textContent=prevTxt;},2500); return; }
+    const blob = await r.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = objUrl; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(objUrl), 4000);
+  }catch(e){ btn.textContent='Net err'; setTimeout(()=>{btn.textContent=prevTxt;},2500); }
+  btn.disabled = false;
+  if(btn.textContent==='…') btn.textContent = prevTxt;
 }
 
 /* ====== Web Test Calls (transcripts — no audio, /app/test-call) ====== */
@@ -3851,10 +3962,10 @@ function wcLatSummary(turns){
 }
 async function loadWebCalls(){
   const body=$("wc-body"), summ=$("wc-summary");
-  if(body) body.innerHTML='<div style="color:var(--muted);font-size:13px">Loading…</div>';
+  if(body) body.innerHTML='<div style="display:flex;flex-direction:column;gap:10px"><span class="skeleton" style="height:16px;width:140px;display:block"></span><span class="skeleton" style="height:44px;width:100%;border-radius:10px;display:block"></span></div>';
   try{
     const r=await fetch("/api/admin/web-calls?limit=50&include_turns=1",{headers:abAuthHdr(),cache:"no-store"});
-    if(!r.ok){ if(body) body.innerHTML='<div style="color:var(--red)">Error '+r.status+' (admin login check karo)</div>'; return; }
+    if(!r.ok){ if(body) body.innerHTML='<div style="color:var(--red);font-size:13px">Error '+r.status+' (admin login check karo) — <a href="#" onclick="loadWebCalls();return false" style="color:var(--indigo)">Retry</a></div>'; return; }
     const d=await r.json();
     const list=(d&&d.sessions)?d.sessions:[];
     if(summ) summ.textContent=(d.total||list.length)+" calls";
@@ -3897,7 +4008,7 @@ async function loadWebCalls(){
     html+='</div>';
     if(body) body.innerHTML=html;
   }catch(e){
-    if(body) body.innerHTML='<div style="color:var(--red)">Network error — '+escWC(String(e))+'</div>';
+    if(body) body.innerHTML='<div style="color:var(--red);font-size:13px">Network error — '+escWC(String(e))+' — <a href="#" onclick="loadWebCalls();return false" style="color:var(--indigo)">Retry</a></div>';
   }
 }
 </script>
