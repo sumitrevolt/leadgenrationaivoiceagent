@@ -40,6 +40,20 @@ def _hermetic_email_verify(monkeypatch):
     monkeypatch.setattr(email_verify, "verify", _fake_verify)
 
 
+@pytest.fixture(autouse=True)
+def _isolated_email_suppression(monkeypatch, tmp_path):
+    from app.platform import email_unsub
+
+    monkeypatch.setattr(email_unsub, "_STORE", tmp_path / "email_suppression.jsonl")
+
+
+@pytest.fixture(autouse=True)
+def _no_warmup_side_effect(monkeypatch):
+    from app.platform import email_warmup
+
+    monkeypatch.setattr(email_warmup, "record_complaint", lambda *a, **k: {"recorded": True})
+
+
 @pytest.fixture
 def tmp_prospects(monkeypatch, tmp_path):
     """prospects.jsonl ko tmp_path pe le jao."""
@@ -207,6 +221,40 @@ class TestRun:
         assert out["cap"] == 2
         assert out["sent"] == 2  # capped
 
+    @pytest.mark.asyncio
+    async def test_skips_suppressed_before_candidate_batch(
+        self, monkeypatch, tmp_prospects, no_sleep
+    ):
+        monkeypatch.setattr(app_settings, "auto_email_outreach", True, raising=False)
+        monkeypatch.setattr(app_settings, "smtp_user", "user@leadsgenai.in", raising=False)
+        monkeypatch.setattr(app_settings, "smtp_password", "x", raising=False)
+
+        sent_to = []
+
+        async def _fake_send(self, to_emails, *a, **k):
+            sent_to.extend(to_emails)
+            return True
+
+        from app.integrations import email_sender
+        from app.platform import email_unsub
+
+        monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
+        email_unsub.suppress("blocked@site.in", "one_click")
+        _seed(
+            tmp_prospects,
+            {"id": "blocked", "business_name": "Blocked", "email": "blocked@site.in", "status": "ready"},
+        )
+        _seed(
+            tmp_prospects,
+            {"id": "ok", "business_name": "Okay", "email": "ok@site.in", "status": "ready"},
+        )
+
+        out = await auto_outreach.run_email_outreach()
+        assert out["sent"] == 1
+        assert out["suppressed"] == 1
+        assert out["candidates"] == 1
+        assert sent_to == ["ok@site.in"]
+
 
 # --------------------------------------------------------------------------- #
 # outreach_stats
@@ -232,6 +280,55 @@ class TestStats:
         assert stats["with_email"] == 2  # a + c
         assert stats["emailed"] == 1  # c
         assert stats["pending"] == 1  # a (has email, ready, not emailed)
+
+    def test_counts_suppression_aware_pending(self, tmp_prospects):
+        from app.platform import email_unsub
+
+        email_unsub.suppress("blocked@x.in", "one_click")
+        _seed(
+            tmp_prospects,
+            {"id": "a", "business_name": "A", "email": "a@x.in", "status": "ready"},
+        )
+        _seed(
+            tmp_prospects,
+            {"id": "blocked", "business_name": "Blocked", "email": "blocked@x.in", "status": "ready"},
+        )
+        stats = auto_outreach.outreach_stats()
+        assert stats["pending_total"] == 2
+        assert stats["pending_sendable"] == 1
+        assert stats["pending"] == 1
+        assert stats["suppressed"] == 1
+
+    def test_activity_surfaces_pause_and_suppression(self, monkeypatch, tmp_prospects):
+        from app.platform import email_unsub, email_warmup
+
+        email_unsub.suppress("blocked@x.in", "one_click")
+        _seed(
+            tmp_prospects,
+            {"id": "a", "business_name": "A", "email": "a@x.in", "status": "ready"},
+        )
+        _seed(
+            tmp_prospects,
+            {"id": "blocked", "business_name": "Blocked", "email": "blocked@x.in", "status": "ready"},
+        )
+        monkeypatch.setattr(email_warmup, "bounce_rate_7d", lambda: (0.5, 100, 1))
+        monkeypatch.setattr(
+            email_warmup,
+            "status",
+            lambda: {
+                "paused": True,
+                "paused_reason": "complaint rate 0.5% >= 0.25%",
+                "complaint_rate_7d_pct": 0.5,
+                "complaints_7d": 2,
+            },
+        )
+        out = auto_outreach.outreach_activity()
+        assert out["summary"]["pending_total"] == 2
+        assert out["summary"]["pending"] == 1
+        assert out["summary"]["suppressed"] == 1
+        assert out["summary"]["warmup_paused"] is True
+        assert "PAUSED" in out["headline"]
+        assert "complaint rate" in out["headline"]
 
 
 def _iso_days_ago(days: float) -> str:
@@ -412,3 +509,41 @@ class TestFollowupRun:
         assert out["by_step"]["1"] == 0
         s2 = next(p for p in prospector.list_prospects(limit=10) if p["id"] == "step2")
         assert int(s2.get("followup_count")) == 2
+
+    @pytest.mark.asyncio
+    async def test_skips_suppressed_followup_candidates(
+        self, monkeypatch, tmp_prospects, no_sleep
+    ):
+        monkeypatch.setattr(app_settings, "auto_email_outreach", True, raising=False)
+        monkeypatch.setattr(app_settings, "smtp_user", "user@leadsgenai.in", raising=False)
+        monkeypatch.setattr(app_settings, "smtp_password", "x", raising=False)
+
+        sent_to = []
+
+        async def _fake_send(self, to_emails, *a, **k):
+            sent_to.extend(to_emails)
+            return True
+
+        from app.integrations import email_sender
+        from app.platform import email_unsub
+
+        monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
+        email_unsub.suppress("blocked@x.in", "one_click")
+        for pid, email in (("blocked", "blocked@x.in"), ("ok", "ok@x.in")):
+            _seed(
+                tmp_prospects,
+                {
+                    "id": pid,
+                    "business_name": pid,
+                    "email": email,
+                    "status": "ready",
+                    "emailed_at": _iso_days_ago(4),
+                    "followup_count": 0,
+                },
+            )
+
+        out = await auto_outreach.run_email_followups()
+        assert out["sent"] == 1
+        assert out["suppressed"] == 1
+        assert out["candidates"] == 1
+        assert sent_to == ["ok@x.in"]
