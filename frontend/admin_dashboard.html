@@ -628,7 +628,7 @@
         </div>
         <div style="margin:10px 18px;padding:12px;background:rgba(99,102,241,0.08);border-radius:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <b>🎯 Direct Client Lookup:</b>
-          <select id="c360ClientSelect" onchange="if(this.value) viewCustomer360(this.value)" style="padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;background:var(--card);color:var(--txt)">
+          <select id="c360ClientSelect" onchange="if(this.value) viewCustomer360(this.value)" aria-label="Client select karo — seedha Customer 360 dekhne ke liye" style="padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-family:inherit;background:var(--card);color:var(--txt)">
             <option value="">Client chuno...</option>
           </select>
         </div>
@@ -1479,6 +1479,7 @@ function bulkResume(){ bulkBillingAction("resume"); }
 function bulkImpersonate(){
   const sel=_getSelectedRows().filter(c=>c.client_id);
   if(!sel.length){adminToast("Client ID chahiye — dashboard reload karo","error");return;}
+  if(!confirm("Login as "+sel.length+" client(s)? Ye unki active session khol dega.")) return;
   if(sel.length===1){
     window.open("/app/impersonate?cid="+encodeURIComponent(sel[0].client_id),"_blank");
     return;
@@ -2260,15 +2261,18 @@ function populateC360Dropdown(list) {
 async function viewCustomer360(cid) {
   if (!cid) return;
   _currentC360Id = cid;
-  
+
   const sel = document.getElementById("c360ClientSelect");
   if (sel) sel.value = cid;
 
+  const clientObj = _allClients.find(c => c.client_id === cid);
+  if (!clientObj) {
+    adminToast("Client data nahi mila — dashboard reload karo", "error");
+    return;
+  }
+
   const card = document.getElementById("sec-customer-360-details");
   if (card) card.style.display = "block";
-
-  const clientObj = _allClients.find(c => c.client_id === cid);
-  if (!clientObj) return;
 
   document.getElementById("c360Name").innerHTML = `👤 Customer 360 Details — <b>${escH(clientObj.company)}</b>`;
   
@@ -2321,9 +2325,10 @@ function closeCustomer360() {
 async function loadC360Timeline(cid) {
   const box = document.getElementById("c360Timeline");
   if (!box) return;
-  box.innerHTML = '<span style="color:var(--muted)">Loading history...</span>';
+  box.innerHTML = '<span class="skeleton" style="height:13px;width:60%;display:block"></span>';
   try {
     const r = await fetch("/api/admin/clients/" + encodeURIComponent(cid) + "/timeline?limit=30", { headers: abAuthHdr(), cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
     const d = await r.json();
     const evs = d.events || [];
     if (!evs.length) {
@@ -2337,7 +2342,7 @@ async function loadC360Timeline(cid) {
       </div>
     `).join("");
   } catch (e) {
-    box.innerHTML = '<span style="color:var(--bad)">Timeline load fail</span>';
+    box.innerHTML = '<span style="color:var(--red);font-size:13px">Timeline load fail — <a href="#" onclick="loadC360Timeline(\'' + escH(cid) + '\');return false" style="color:var(--indigo)">Retry</a></span>';
   }
 }
 
@@ -2421,13 +2426,13 @@ async function loadDeliveryQueue() {
   const tbody = document.getElementById("deliveryQueueBody");
   const summary = document.getElementById("dq-summary");
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6" class="empty"><span class="spin"></span>Loading queue…</td></tr>';
-  
+  tbody.innerHTML = '<tr><td colspan="6"><span class="skeleton" style="height:14px;width:60%;display:block"></span></td></tr><tr><td colspan="6"><span class="skeleton" style="height:14px;width:45%;display:block"></span></td></tr>';
+
   try {
     const r = await fetch("/api/admin/command-center", { headers: abAuthHdr(), cache: "no-store" });
     const d = await r.json();
     if (!d.ok) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty" style="color:var(--err)">Command center data not loaded.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="6" class="empty" style="color:var(--red);font-size:13px">Command center data not loaded — <a href="#" onclick="loadDeliveryQueue();return false" style="color:var(--indigo)">Retry</a></td></tr>';
       return;
     }
 
@@ -2471,7 +2476,7 @@ async function loadDeliveryQueue() {
       `;
     }).join("");
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty" style="color:var(--err)">Queue load error: ${escH(e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty" style="color:var(--red);font-size:13px">Queue load error: ${escH(e.message)} — <a href="#" onclick="loadDeliveryQueue();return false" style="color:var(--indigo)">Retry</a></td></tr>`;
   }
 }
 
