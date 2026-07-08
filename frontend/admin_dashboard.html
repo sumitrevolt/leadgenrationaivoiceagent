@@ -819,6 +819,7 @@
       <!-- Outreach Activity — kisko email bheja · kya reply aaya -->
       <div data-view="office" class="card" id="sec-outreach-activity">
         <div class="hd"><h3>📧 Outreach Activity</h3><span class="right" id="oa-headline">—</span>
+          <button class="btn" onclick="exportOutreachReviewCSV('priority_local_smb')" style="margin-left:8px;padding:6px 12px;font-size:12px">⬇ Priority CSV</button>
           <button class="btn" onclick="loadOutreachActivity()" style="margin-left:8px;padding:6px 12px;font-size:12px">↻ Refresh</button>
         </div>
         <div class="bd">
@@ -1695,6 +1696,22 @@ async function loadOutreachActivity(){
       : `<span style="color:var(--muted)">Abhi koi reply nahi aaya.</span>`;
   }catch(e){
     const sb=$("oaSentBody"); if(sb) sb.innerHTML=`<tr><td colspan="5" style="color:var(--red);font-size:13px">Outreach activity load fail — <a href="#" onclick="loadOutreachActivity();return false" style="color:var(--indigo)">Retry</a></td></tr>`;
+  }
+}
+
+async function exportOutreachReviewCSV(bucket){
+  try{
+    const b=encodeURIComponent(bucket||"priority_local_smb");
+    const r=await fetch(`/api/platform/team/outreach-pending-review?bucket=${b}&limit=100`,{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok) throw new Error("bad status");
+    const d=await r.json();
+    const rows=d.candidates||[];
+    if(!rows.length){ alert("Is bucket me export ke liye recipients nahi mile."); return; }
+    _downloadCSV(_toCSV(["Business","Email","Phone","City","Niche","Website","Bucket","Reason"],
+      rows.map(x=>[x.business,x.email,x.phone,x.city,x.niche,x.website,x.label||x.bucket,x.reason])),
+      `outreach_${bucket||"priority_local_smb"}.csv`);
+  }catch(e){
+    alert("Outreach CSV export fail hua — admin login/connection check karo.");
   }
 }
 

@@ -1226,6 +1226,61 @@ def _pending_review_bucket(prospect: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def pending_review_candidates(bucket: str = "", limit: int = 100) -> dict[str, Any]:
+    """Deduped pending recipients for admin review/export. Informational only."""
+    wanted = str(bucket or "").strip()
+    try:
+        limit = max(1, min(int(limit or 100), 500))
+    except Exception:
+        limit = 100
+    out: dict[str, Any] = {"bucket": wanted, "count": 0, "candidates": []}
+    try:
+        from app.platform import prospector
+
+        try:
+            rows = list(prospector._read_all())
+        except Exception:
+            rows = list(prospector.list_prospects(limit=1000))
+        rows.sort(key=lambda r: str(r.get("found_at") or ""))
+        suppressed = _suppressed_email_set()
+        seen: set[str] = set()
+        candidates: list[dict[str, str]] = []
+        for r in rows:
+            email = str(r.get("email") or "").strip().lower()
+            if str(r.get("status") or "ready") != "ready" or r.get("emailed_at"):
+                continue
+            if not _valid_email(email, check_mx=False) or _is_suppressed_email(email, suppressed):
+                continue
+            if email in seen:
+                continue
+            seen.add(email)
+            b = _pending_review_bucket(r)
+            if wanted and b["key"] != wanted:
+                continue
+            candidates.append(
+                {
+                    "id": str(r.get("id") or "")[:80],
+                    "business": str(r.get("business_name") or r.get("name") or "")[:120],
+                    "email": email[:120],
+                    "phone": str(r.get("phone") or "")[:40],
+                    "city": str(r.get("city") or "")[:60],
+                    "niche": str(r.get("niche") or r.get("category") or "")[:80],
+                    "website": str(r.get("website") or "")[:180],
+                    "bucket": b["key"],
+                    "label": b["label"],
+                    "reason": b["reason"],
+                }
+            )
+            if len(candidates) >= limit:
+                break
+        out["count"] = len(candidates)
+        out["candidates"] = candidates
+    except Exception as e:
+        logger.debug(f"[auto_outreach] pending_review_candidates failed: {e}")
+        out["error"] = str(e)
+    return out
+
+
 def outreach_activity(limit: int = 20) -> dict[str, Any]:
     """Admin-friendly outreach activity — kisko bheja, kitne, kya reply aaya.
     Plain-Hinglish counts + recent sent recipients + recent replies. KABHI raise nahi
@@ -1433,6 +1488,7 @@ __all__ = [
     "run_email_followups",
     "outreach_stats",
     "outreach_activity",
+    "pending_review_candidates",
     "_email_subject_body",
     "_followup_subject_body",
 ]

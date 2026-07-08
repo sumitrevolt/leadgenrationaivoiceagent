@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1067 operations)
+## Endpoint Index — auto-generated from OpenAPI (1068 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1459,7 +1459,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/segments/{segment_id}` — Get Segment
 - `GET   ` `/api/segments/{segment_id}/preview` — Preview Segment
 
-### Team  (19)
+### Team  (20)
 
 - `GET   ` `/api/platform/team` — Get Team Status
 - `POST  ` `/api/platform/team/email-followups/run` — Run Email Followups Now
@@ -1469,6 +1469,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/platform/team/growth` — Get Growth
 - `POST  ` `/api/platform/team/growth/run` — Run Growth Now
 - `GET   ` `/api/platform/team/outreach-activity` — Get Outreach Activity
+- `GET   ` `/api/platform/team/outreach-pending-review` — Get Outreach Pending Review
 - `GET   ` `/api/platform/team/prospects` — Get Prospects
 - `POST  ` `/api/platform/team/prospects/run` — Run Prospecting Now
 - `POST  ` `/api/platform/team/prospects/{pid}/status` — Set Prospect Status
