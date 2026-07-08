@@ -134,6 +134,35 @@ def test_whatsapp_reply_attaches_reply_and_done_actions(monkeypatch, tmp_path):
     assert "/api/growth/reply/hot-queue/quick-done/" in done_action["url"]
 
 
+def test_whatsapp_reply_does_not_make_reply_action_for_meta_id(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    from app.integrations import ntfy
+    from app.platform import reply_agent
+
+    async def fake_classify(subject, body, history=""):
+        return "interested"
+
+    async def fake_draft(biz, subject, body, intent, history_msgs=None):
+        return "Namaste! Free demo set karein?"
+
+    calls = []
+
+    async def fake_push(title, message, priority="default", tags=None, actions=None):
+        calls.append({"title": title, "actions": actions})
+        return True
+
+    monkeypatch.setattr(reply_agent, "_classify", fake_classify)
+    monkeypatch.setattr(reply_agent, "_draft", fake_draft)
+    monkeypatch.setattr(ntfy, "push", fake_push)
+
+    rec = asyncio.run(reply_agent.whatsapp_reply("103723644784777", "price batao"))
+    assert rec["channel"] == "whatsapp"
+
+    actions = calls[0]["actions"]
+    assert any(a["action"] == "http" for a in actions)
+    assert not any(a["action"] == "view" and "wa.me/" in a.get("url", "") for a in actions)
+
+
 def test_whatsapp_reply_no_push_for_non_hot_intent(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     from app.integrations import ntfy

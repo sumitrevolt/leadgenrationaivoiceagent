@@ -54,6 +54,41 @@ def test_hot_queue_filters_dedupes_and_joins(tmp_path, monkeypatch):
     assert b["phone"] == ""  # prospect map me nahi — graceful empty
 
 
+def test_hot_queue_does_not_turn_meta_ids_into_whatsapp_links(tmp_path, monkeypatch):
+    from app.platform import reply_agent as ra
+
+    f = tmp_path / "reply_drafts.jsonl"
+    f.write_text(
+        json.dumps(
+            {
+                "from": "103723644784777",
+                "channel": "whatsapp",
+                "intent": "interested",
+                "draft": "reply draft",
+                "at": "2026-07-08T10:00:00+00:00",
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "from": "919876543210",
+                "channel": "whatsapp",
+                "intent": "interested",
+                "draft": "real phone draft",
+                "at": "2026-07-08T11:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ra, "_DRAFTS_FILE", str(f))
+    monkeypatch.setattr(ra, "_full_prospect_map", lambda: {})
+
+    rows = {r["from"]: r for r in ra.hot_queue(limit=10)}
+    assert rows["103723644784777"]["wa_link"] == ""
+    assert rows["919876543210"]["wa_link"].startswith("https://wa.me/919876543210?text=")
+
+
 def test_mark_handled_hides_row_and_is_idempotent(tmp_path, monkeypatch):
     ra = _seed(tmp_path, monkeypatch)
     q = ra.hot_queue()

@@ -920,10 +920,9 @@ async def whatsapp_reply(
             from app.integrations import ntfy
 
             hq_id = _hq_id({"from": frm, "at": at})
-            digits = "".join(ch for ch in frm if ch.isdigit())
+            wa_num = _india_wa_number(frm)
             actions: list[dict] = []
-            if draft and digits:
-                wa_num = digits if len(digits) > 10 else "91" + digits[-10:]
+            if draft and wa_num:
                 actions.append(
                     {
                         "action": "view",
@@ -1026,6 +1025,28 @@ def _hq_id(row: dict) -> str:
     return hashlib.sha1(key.encode("utf-8", "ignore")).hexdigest()[:12]
 
 
+def _india_wa_number(raw: Any) -> str:
+    """Return 91XXXXXXXXXX only for plausible Indian mobile numbers.
+
+    Meta/WA webhooks sometimes surface account/status ids as long numeric strings;
+    using their last 10 digits creates bogus wa.me links. Keep this deliberately
+    conservative: 10-digit mobile, 91+mobile, or 0+mobile only.
+    """
+    digits = re.sub(r"\D", "", str(raw or ""))
+    d10 = ""
+    if len(digits) == 10:
+        d10 = digits
+    elif len(digits) == 11 and digits.startswith("0"):
+        d10 = digits[1:]
+    elif len(digits) == 12 and digits.startswith("91"):
+        d10 = digits[2:]
+    elif len(digits) == 13 and digits.startswith("091"):
+        d10 = digits[3:]
+    if len(d10) == 10 and d10[0] in "6789":
+        return f"91{d10}"
+    return ""
+
+
 def _full_prospect_map() -> dict[str, dict]:
     """email -> prospect over the FULL store (list_prospects newest-cap hides
     old rows — same lesson as auto_outreach pending backlog)."""
@@ -1069,13 +1090,12 @@ def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
             r["phone"] = r.get("phone") or p.get("phone") or ""
             if not r["phone"] and r.get("channel") == "whatsapp":
                 r["phone"] = str(r.get("from") or "")  # WA recs: from = phone number
-            digits = re.sub(r"\D", "", str(r.get("phone") or ""))
-            if len(digits) >= 10:
+            wa_num = _india_wa_number(r.get("phone") or "")
+            if wa_num:
                 from urllib.parse import quote
 
-                d10 = digits[-10:]
                 msg = str(r.get("draft") or "").strip()
-                r["wa_link"] = f"https://wa.me/91{d10}" + (
+                r["wa_link"] = f"https://wa.me/{wa_num}" + (
                     f"?text={quote(msg)}" if msg else ""
                 )
             else:

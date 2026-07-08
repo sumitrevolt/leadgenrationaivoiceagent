@@ -61,7 +61,15 @@ async function api(p,opt){
   return r.json();
 }
 function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
-function cleanPhone(p){return String(p||'').replace(/\D/g,'').slice(-10)}
+function cleanPhone(p){
+  const d=String(p||'').replace(/\D/g,'');
+  let ph='';
+  if(d.length===10) ph=d;
+  else if(d.length===11&&d[0]==='0') ph=d.slice(1);
+  else if(d.length===12&&d.slice(0,2)==='91') ph=d.slice(2);
+  else if(d.length===13&&d.slice(0,3)==='091') ph=d.slice(3);
+  return (/^[6-9]\d{9}$/.test(ph))?ph:'';
+}
 function waDraftLink(phone,draft,fallback){
   if(fallback) return String(fallback);
   const ph=cleanPhone(phone);
