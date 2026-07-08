@@ -849,8 +849,11 @@
 
       <!-- Speed-to-Lead SLA -->
       <div data-view="command_center" class="card" id="sec-speed">
-        <div class="hd"><h3>Speed-to-Lead SLA</h3><span class="right" id="stl-summary">2-min target</span></div>
-        <div class="bd" id="stlBody"><span style="color:var(--muted)">Loading…</span></div>
+        <div class="hd">
+          <h3>Speed-to-Lead SLA</h3><span class="right" id="stl-summary">2-min target</span>
+          <button class="btn" onclick="loadSpeedToLead()" aria-label="Refresh speed-to-lead SLA" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="stlBody"><span class="skeleton" style="height:14px;width:200px;display:block"></span></div>
       </div>
 
       <!-- API usage & infra flags -->
@@ -1715,6 +1718,7 @@ async function loadActivityFeed(){
 /* ====== Speed-to-lead ====== */
 async function loadSpeedToLead(){
   const body=$("stlBody"), sum=$("stl-summary");
+  if(body) body.innerHTML='<span class="skeleton" style="height:14px;width:200px;display:block"></span>';
   try{
     const r=await fetch("/api/growth/speed-to-lead/summary?days=30",{headers:abAuthHdr(),cache:"no-store"});
     if(!r.ok) throw new Error("bad");
@@ -1726,7 +1730,7 @@ async function loadSpeedToLead(){
       <div class="rev-kpi"><div class="rk-lbl">Touched</div><div class="rk-val">${d.touched||0}</div></div>
     </div><p style="font-size:13px;color:var(--muted);margin-top:8px">${escH(d.verdict||"")}</p>`;
     if(sum) sum.textContent=(d.under_2min_pct||0)+"% under 2 min";
-  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--muted)">Speed-to-lead data nahi mila</span>`; }
+  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--red)">Speed-to-lead data nahi mila — <a href="#" onclick="loadSpeedToLead();return false" style="color:var(--indigo)">Retry</a></span>`; }
 }
 
 /* ====== Infra flags / API usage ====== */
@@ -2967,14 +2971,23 @@ async function adminLoadBilling(){
   if(!cid){ $("bill-summary").textContent="Enter a client ID first."; return; }
   AB_CID=cid;
   $("bill-summary").textContent="Loading "+cid+"…";
-  let sub=null, usage=null, invoices=[];
-  try{ const r=await fetch("/api/billing/subscription?client_id="+encodeURIComponent(cid),{headers:abAuthHdr()}); if(r.ok) sub=await r.json(); }catch(e){}
-  try{ const r=await fetch("/api/billing/usage?client_id="+encodeURIComponent(cid),{headers:abAuthHdr()}); if(r.ok) usage=await r.json(); }catch(e){}
-  try{ const r=await fetch("/api/billing/invoices?client_id="+encodeURIComponent(cid)+"&limit=25",{headers:abAuthHdr()}); if(r.ok) invoices=await r.json(); }catch(e){}
-  adminRenderBilling(sub,usage,invoices);
+  let sub=null, usage=null, invoices=[], failed=false;
+  // 404 on /billing/subscription is a legitimate "no active subscription" state
+  // (trial/never-subscribed client), not a failure — only flag genuine errors so
+  // an API hiccup can't silently look identical to "this client has nothing".
+  try{ const r=await fetch("/api/billing/subscription?client_id="+encodeURIComponent(cid),{headers:abAuthHdr()}); if(r.ok) sub=await r.json(); else if(r.status!==404) failed=true; }catch(e){ failed=true; }
+  try{ const r=await fetch("/api/billing/usage?client_id="+encodeURIComponent(cid),{headers:abAuthHdr()}); if(r.ok) usage=await r.json(); else if(r.status!==404) failed=true; }catch(e){ failed=true; }
+  try{ const r=await fetch("/api/billing/invoices?client_id="+encodeURIComponent(cid)+"&limit=25",{headers:abAuthHdr()}); if(r.ok) invoices=await r.json(); else failed=true; }catch(e){ failed=true; }
+  adminRenderBilling(sub,usage,invoices,failed);
 }
 
-function adminRenderBilling(sub,usage,invoices){
+function adminRenderBilling(sub,usage,invoices,failed){
+  if(failed){
+    $("billCards").innerHTML="";
+    $("billInvoices").innerHTML='<tr><td colspan="5" style="color:var(--red);font-size:13px">Billing data load fail — <a href="#" onclick="adminLoadBilling();return false" style="color:var(--indigo)">Retry</a></td></tr>';
+    $("bill-summary").innerHTML='Billing data load fail — <a href="#" onclick="adminLoadBilling();return false" style="color:var(--indigo)">Retry</a>';
+    return;
+  }
   const cards=[];
   if(sub&&sub.plan_id){
     cards.push({lbl:"Plan", val:sub.plan_name||sub.plan_id, chg:abMoney(sub.base_price,sub.currency)+"/mo", cls:"rev"});
