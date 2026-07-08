@@ -1079,11 +1079,10 @@ def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
         for r in sorted(rows, key=lambda x: str(x.get("at") or "")):
             sender = str(r.get("from") or "").strip().lower() or _hq_id(r)
             latest[sender] = r
-        out = sorted(latest.values(), key=lambda x: str(x.get("at") or ""), reverse=True)[
-            : max(1, limit)
-        ]
+        out = sorted(latest.values(), key=lambda x: str(x.get("at") or ""), reverse=True)
         pmap = _full_prospect_map()
         now = datetime.now(timezone.utc)
+        final: list[dict] = []
         for r in out:
             r["hq_id"] = _hq_id(r)
             p = pmap.get(str(r.get("from") or "").strip().lower()) or {}
@@ -1100,6 +1099,8 @@ def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
                 )
             else:
                 r["wa_link"] = ""
+            if r.get("channel") == "whatsapp" and not r["wa_link"]:
+                continue
             r["business_name"] = r.get("business_name") or p.get("business_name") or ""
             r["niche"] = r.get("niche") or p.get("niche") or ""
             r["city"] = r.get("city") or p.get("city") or ""
@@ -1110,7 +1111,10 @@ def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
                 r["age_days"] = max(0, (now - at).days)
             except Exception:
                 r["age_days"] = None
-        return out
+            final.append(r)
+            if len(final) >= max(1, limit):
+                break
+        return final
     except Exception as exc:
         logger.debug("hot_queue err: %s", exc)
         return []

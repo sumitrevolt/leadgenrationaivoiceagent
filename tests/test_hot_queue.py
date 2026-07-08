@@ -85,7 +85,7 @@ def test_hot_queue_does_not_turn_meta_ids_into_whatsapp_links(tmp_path, monkeypa
     monkeypatch.setattr(ra, "_full_prospect_map", lambda: {})
 
     rows = {r["from"]: r for r in ra.hot_queue(limit=10)}
-    assert rows["103723644784777"]["wa_link"] == ""
+    assert "103723644784777" not in rows
     assert rows["919876543210"]["wa_link"].startswith("https://wa.me/919876543210?text=")
 
 
