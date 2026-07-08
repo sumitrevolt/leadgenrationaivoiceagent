@@ -240,3 +240,17 @@ def test_admin_dashboard_links_to_command_center():
     with open("frontend/admin_dashboard.html", encoding="utf-8") as f:
         html = f.read()
     assert 'href="/app/delivery-command-center"' in html
+
+
+def test_admin_dashboard_never_calls_undefined_toast():
+    """Regression guard: toast() was called in c360DeliverNow/c360ScrapeWebsite/
+    c360ResetPassword/dqDeliverNow but only adminToast(msg,type) is defined —
+    every click threw an uncaught ReferenceError with zero admin feedback on
+    real customer-facing actions (Deliver Value Now, Reset Password, etc.)."""
+    import re
+
+    with open("frontend/admin_dashboard.html", encoding="utf-8") as f:
+        html = f.read()
+    assert "function adminToast(" in html
+    bare_toast_calls = re.findall(r"[^a-zA-Z]toast\(", html)
+    assert not bare_toast_calls, f"found {len(bare_toast_calls)} bare toast(...) call(s) — use adminToast(msg, 'success'|'error') instead"
