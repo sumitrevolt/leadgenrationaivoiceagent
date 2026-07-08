@@ -77,6 +77,22 @@ def _seed(pfile, rec):
         f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
+def test_valid_email_rejects_scraped_asset_and_placeholder_false_positives():
+    bad = [
+        "flags@2x.webp",
+        "group-1000001686@2x.webp",
+        "ecom-swiper@11.0.5.js",
+        "info@domainname.com",
+        "example@mysite.com",
+        "john@company.com",
+    ]
+    for addr in bad:
+        assert auto_outreach._valid_email(addr, check_mx=False) is False
+
+    assert auto_outreach._valid_email("admin@leadsgenai.in", check_mx=False) is True
+    assert auto_outreach._valid_email("sunny@leadsgenai.in", check_mx=False) is True
+
+
 # --------------------------------------------------------------------------- #
 # _email_subject_body
 # --------------------------------------------------------------------------- #

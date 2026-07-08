@@ -68,6 +68,26 @@ def test_phone_email_validation(monkeypatch):
     assert asyncio.run(lh._valid_email("notanemail")) == ""
 
 
+def test_email_verify_rejects_asset_and_placeholder_false_positives():
+    from app.lead_scraper import email_verify
+
+    bad = [
+        "flags@2x.webp",
+        "group-1000001686@2x.webp",
+        "ecom-swiper@11.0.5.js",
+        "info@domainname.com",
+        "example@mysite.com",
+        "john@company.com",
+    ]
+    for addr in bad:
+        out = email_verify.verify(addr, check_mx=False)
+        assert out["ok"] is False
+        assert "placeholder" in out["reason"]
+
+    assert email_verify.verify("admin@leadsgenai.in", check_mx=False)["ok"] is True
+    assert email_verify.verify("sunny@leadsgenai.in", check_mx=False)["ok"] is True
+
+
 def test_run_harvest_dedupe_and_persist(tmp_path, monkeypatch):
     from app.platform import lead_harvester as lh
     from app.platform import prospector
