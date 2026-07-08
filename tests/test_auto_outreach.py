@@ -271,6 +271,38 @@ class TestRun:
         assert out["candidates"] == 1
         assert sent_to == ["ok@site.in"]
 
+    @pytest.mark.asyncio
+    async def test_dedupes_same_recipient_within_one_run(
+        self, monkeypatch, tmp_prospects, no_sleep
+    ):
+        monkeypatch.setattr(app_settings, "auto_email_outreach", True, raising=False)
+        monkeypatch.setattr(app_settings, "smtp_user", "user@leadsgenai.in", raising=False)
+        monkeypatch.setattr(app_settings, "smtp_password", "x", raising=False)
+
+        sent_to = []
+
+        async def _fake_send(self, to_emails, *a, **k):
+            sent_to.extend(to_emails)
+            return True
+
+        from app.integrations import email_sender
+
+        monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
+        _seed(
+            tmp_prospects,
+            {"id": "a", "business_name": "A", "email": "same@site.in", "status": "ready"},
+        )
+        _seed(
+            tmp_prospects,
+            {"id": "b", "business_name": "B", "email": "same@site.in", "status": "ready"},
+        )
+
+        out = await auto_outreach.run_email_outreach()
+        assert out["sent"] == 1
+        assert out["candidates"] == 1
+        assert out["duplicate_recipients"] == 1
+        assert sent_to == ["same@site.in"]
+
 
 # --------------------------------------------------------------------------- #
 # outreach_stats
@@ -314,6 +346,26 @@ class TestStats:
         assert stats["pending_sendable"] == 1
         assert stats["pending"] == 1
         assert stats["suppressed"] == 1
+
+    def test_counts_unique_sendable_pending_and_duplicate_rows(self, tmp_prospects):
+        _seed(
+            tmp_prospects,
+            {"id": "a", "business_name": "A", "email": "same@x.in", "status": "ready"},
+        )
+        _seed(
+            tmp_prospects,
+            {"id": "b", "business_name": "B", "email": "same@x.in", "status": "ready"},
+        )
+        _seed(
+            tmp_prospects,
+            {"id": "c", "business_name": "C", "email": "other@x.in", "status": "ready"},
+        )
+
+        stats = auto_outreach.outreach_stats()
+        assert stats["pending_total"] == 3
+        assert stats["pending_sendable"] == 2
+        assert stats["pending"] == 2
+        assert stats["duplicate_pending_recipients"] == 1
 
     def test_activity_surfaces_pause_and_suppression(self, monkeypatch, tmp_prospects):
         from app.platform import email_unsub, email_warmup
@@ -563,3 +615,39 @@ class TestFollowupRun:
         assert out["suppressed"] == 1
         assert out["candidates"] == 1
         assert sent_to == ["ok@x.in"]
+
+    @pytest.mark.asyncio
+    async def test_dedupes_same_recipient_followup_candidates(
+        self, monkeypatch, tmp_prospects, no_sleep
+    ):
+        monkeypatch.setattr(app_settings, "auto_email_outreach", True, raising=False)
+        monkeypatch.setattr(app_settings, "smtp_user", "user@leadsgenai.in", raising=False)
+        monkeypatch.setattr(app_settings, "smtp_password", "x", raising=False)
+
+        sent_to = []
+
+        async def _fake_send(self, to_emails, *a, **k):
+            sent_to.extend(to_emails)
+            return True
+
+        from app.integrations import email_sender
+
+        monkeypatch.setattr(email_sender.EmailSender, "send_email", _fake_send)
+        for pid in ("a", "b"):
+            _seed(
+                tmp_prospects,
+                {
+                    "id": pid,
+                    "business_name": pid,
+                    "email": "same@x.in",
+                    "status": "ready",
+                    "emailed_at": _iso_days_ago(4),
+                    "followup_count": 0,
+                },
+            )
+
+        out = await auto_outreach.run_email_followups()
+        assert out["sent"] == 1
+        assert out["candidates"] == 1
+        assert out["duplicate_recipients"] == 1
+        assert sent_to == ["same@x.in"]
