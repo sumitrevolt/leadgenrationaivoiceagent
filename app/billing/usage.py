@@ -435,6 +435,17 @@ def _create_subscription_row(db, cid: str, plan_k: str, period_end: datetime | N
         return None
     yearly = "annual" in plan_k or "yearly" in plan_k
     now = datetime.utcnow()
+    # Best-effort: seed this cycle's CustomerDeliverable rows now that the DB
+    # Client row is guaranteed to exist (FK target) — doing this here instead
+    # of on every dashboard/cockpit read avoids a per-request DB round-trip
+    # that silently FK-violated for clients without a DB Client row (database-
+    # architect audit, 2026-07-08). Idempotent; never blocks activation.
+    try:
+        from app.marketing.product_one_delivery import initialize_deliverables_for_client
+
+        initialize_deliverables_for_client(db, cid, plan_k, now.strftime("%Y-%m"))
+    except Exception as exc:
+        logger.debug("deliverable init skipped for %s: %s", cid, exc)
     price = _plan_price_inr(plan_k)
     sub = Subscription(
         client_id=cid,
