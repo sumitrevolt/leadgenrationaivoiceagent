@@ -70,7 +70,7 @@ ACTION_LABELS = {
 ProductOnePlanDeliverables = {
     "starter": [
         {
-            "deliverable_type": "onboarding_profile",
+            "deliverable_type": "business_profile",
             "title": "Business profile setup",
             "description": "Customer details + local offer captured",
             "channel": "dashboard",
@@ -84,62 +84,73 @@ ProductOnePlanDeliverables = {
             "owner": "Customer + AI",
         },
         {
-            "deliverable_type": "monthly_content_calendar",
-            "title": "1 monthly content calendar",
-            "description": "Monthly social content schedule and topic themes",
-            "channel": "dashboard",
-            "owner": "AI",
-        },
-        {
-            "deliverable_type": "branded_poster",
+            "deliverable_type": "branded_posters",
             "title": "4 branded posters",
             "description": "At least 4 poster/festival creative drafts",
             "channel": "poster",
             "owner": "AI",
         },
         {
-            "deliverable_type": "social_post_draft",
-            "title": "8 social captions/posts",
-            "description": "Monthly social content captions and draft bank",
+            "deliverable_type": "social_posts",
+            "title": "12 social captions or posts",
+            "description": "Monthly social content draft bank",
             "channel": "dashboard",
             "owner": "AI",
         },
         {
-            "deliverable_type": "whatsapp_content_pack",
-            "title": "WhatsApp marketing content pack",
-            "description": "Ready-to-send WhatsApp promo copy",
-            "channel": "whatsapp_manual",
+            "deliverable_type": "festival_ideas",
+            "title": "Festival/local post suggestions",
+            "description": "Local/festival campaign ideas",
+            "channel": "dashboard",
             "owner": "AI",
         },
         {
-            "deliverable_type": "google_business_profile_suggestion",
+            "deliverable_type": "gbp_suggestions",
             "title": "Google Business Profile content suggestions",
             "description": "GBP/update ideas ready",
             "channel": "gbp",
             "owner": "AI",
         },
         {
-            "deliverable_type": "review_reply_draft",
+            "deliverable_type": "whatsapp_pack",
+            "title": "WhatsApp marketing content pack",
+            "description": "Ready-to-send WhatsApp promo copy",
+            "channel": "whatsapp_manual",
+            "owner": "AI",
+        },
+        {
+            "deliverable_type": "review_replies",
             "title": "Review reply drafts",
             "description": "Reusable review response drafts",
             "channel": "dashboard",
             "owner": "AI",
         },
         {
-            "deliverable_type": "monthly_performance_snapshot",
+            "deliverable_type": "monthly_report",
             "title": "Monthly performance snapshot",
             "description": "Monthly proof/report generated",
             "channel": "report",
             "owner": "System",
         },
         {
-            "deliverable_type": "invoice",
-            "title": "Invoice",
-            "description": "Plan payment invoice with GST detail",
-            "channel": "invoice",
+            "deliverable_type": "proof",
+            "title": "Proof of published/scheduled work",
+            "description": "Published, scheduled, or manual proof note exists",
+            "channel": "dashboard",
             "owner": "System",
         },
     ]
+}
+
+_LEGACY_DB_DELIVERABLE_TYPES = {
+    "onboarding_profile": "business_profile",
+    "branded_poster": "branded_posters",
+    "monthly_content_calendar": "social_posts",
+    "social_post_draft": "social_posts",
+    "whatsapp_content_pack": "whatsapp_pack",
+    "google_business_profile_suggestion": "gbp_suggestions",
+    "review_reply_draft": "review_replies",
+    "monthly_performance_snapshot": "monthly_report",
 }
 
 
@@ -154,39 +165,41 @@ def initialize_deliverables_for_client(db, client_id: str, plan_code: str | None
 
     template = ProductOnePlanDeliverables.get(template_key, ProductOnePlanDeliverables["starter"])
 
-    # Check existing deliverables for this cycle
-    existing_types = {
-        row.deliverable_type
-        for row in db.query(CustomerDeliverable)
+    existing_rows = (
+        db.query(CustomerDeliverable)
         .filter(
             CustomerDeliverable.client_id == client_id,
             CustomerDeliverable.billing_cycle_month == billing_cycle_month,
         )
         .all()
-    }
+    )
+    existing_types: set[str] = set()
+    for row in existing_rows:
+        dtype = str(row.deliverable_type or "")
+        mapped = _LEGACY_DB_DELIVERABLE_TYPES.get(dtype, dtype)
+        # One-time in-place taxonomy reconciliation. No destructive delete:
+        # if a legacy row maps to an existing semantic row, leave it as audit
+        # history; otherwise rename it so future reports can key on the same
+        # ids as the frontend/jsonl status (`DELIVERABLES`).
+        if mapped != dtype and mapped not in existing_types:
+            row.deliverable_type = mapped
+            dtype = mapped
+        existing_types.add(dtype)
 
     for item in template:
         dtype = item["deliverable_type"]
         if dtype not in existing_types:
             due_date = datetime.utcnow() + timedelta(days=30)
-            if dtype == "onboarding_profile":
+            if dtype == "business_profile":
                 due_date = datetime.utcnow() + timedelta(days=1)
             elif dtype == "brand_kit":
                 due_date = datetime.utcnow() + timedelta(days=3)
-            elif dtype == "monthly_content_calendar":
+            elif dtype == "social_posts":
                 due_date = datetime.utcnow() + timedelta(days=7)
 
             status_val = DeliverableStatus.NOT_STARTED
-            if dtype == "onboarding_profile":
+            if dtype == "business_profile":
                 status_val = DeliverableStatus.WAITING_CUSTOMER
-
-            # For invoice, mark it delivered
-            delivered_at_val = None
-            evidence_url_val = None
-            if dtype == "invoice":
-                status_val = DeliverableStatus.DELIVERED
-                delivered_at_val = datetime.utcnow()
-                evidence_url_val = "/api/customer/auth/portal/invoices"
 
             row = CustomerDeliverable(
                 id=str(uuid.uuid4()),
@@ -199,8 +212,8 @@ def initialize_deliverables_for_client(db, client_id: str, plan_code: str | None
                 status=status_val,
                 channel=DeliverableChannel(item["channel"]),
                 due_date=due_date,
-                delivered_at=delivered_at_val,
-                evidence_url=evidence_url_val,
+                delivered_at=None,
+                evidence_url=None,
                 owner=item["owner"],
                 created_at=datetime.utcnow(),
                 updated_at=datetime.utcnow(),

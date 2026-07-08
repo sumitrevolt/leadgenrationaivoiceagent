@@ -4,7 +4,7 @@ import pytest
 from app.main import app
 from app.api.customer_auth import require_customer
 from app.models.customer_deliverable import CustomerDeliverable, DeliverableStatus, DeliverableChannel
-from app.marketing.product_one_delivery import initialize_deliverables_for_client, customer_delivery_status
+from app.marketing.product_one_delivery import DELIVERABLES, initialize_deliverables_for_client, customer_delivery_status
 
 
 def _iso_db(monkeypatch):
@@ -35,19 +35,21 @@ def test_initialize_and_sync_deliverables(monkeypatch):
         session.commit()
 
         rows = session.query(CustomerDeliverable).filter(CustomerDeliverable.client_id == client_id).all()
-        assert len(rows) > 0
+        assert len(rows) == len(DELIVERABLES)
+        assert {r.deliverable_type for r in rows} == {d[0] for d in DELIVERABLES}
         assert any(r.channel == DeliverableChannel.DASHBOARD for r in rows)
         assert any(r.channel == DeliverableChannel.POSTER for r in rows)
         assert any(r.channel == DeliverableChannel.REPORT for r in rows)
 
-        # Real initial-status contract (see initialize_deliverables_for_client):
-        # ONLY `invoice` defaults to DELIVERED; `onboarding_profile` waits on the
-        # customer; every other row starts NOT_STARTED. (Earlier draft of this test
-        # assumed onboarding+brand-kit+invoice all auto-complete = 30% — the code
-        # defaults only invoice, and the customer-facing % is jsonl-derived below.)
+        # Real initial-status contract: business_profile waits on the customer;
+        # every other semantic deliverable starts NOT_STARTED.
         by_type = {r.deliverable_type: r for r in rows}
-        assert by_type["invoice"].status == DeliverableStatus.DELIVERED
-        assert by_type["onboarding_profile"].status == DeliverableStatus.WAITING_CUSTOMER
+        assert by_type["business_profile"].status == DeliverableStatus.WAITING_CUSTOMER
+        assert all(
+            r.status == DeliverableStatus.NOT_STARTED
+            for dtype, r in by_type.items()
+            if dtype != "business_profile"
+        )
 
         # 2. customer_delivery_status() is the CUSTOMER-FACING source of truth and is
         # jsonl-derived, NOT computed from the DB rows above (those are a best-effort
@@ -84,6 +86,35 @@ def test_initialize_and_sync_deliverables(monkeypatch):
         # DB rows as a side effect; it does not update their status. Re-add a
         # DB-status-sync assertion here once the DB deliverable taxonomy is reconciled
         # with the semantic ids the frontend/admin key on.
+    finally:
+        session.close()
+
+
+def test_initialize_normalizes_legacy_deliverable_types(monkeypatch):
+    Session = _iso_db(monkeypatch)
+    client_id = "legacy-client-123"
+
+    session = Session()
+    try:
+        session.add(
+            CustomerDeliverable(
+                id="legacy-1",
+                client_id=client_id,
+                plan_code="starter",
+                billing_cycle_month="2026-07",
+                deliverable_type="onboarding_profile",
+                title="Legacy onboarding",
+                status=DeliverableStatus.WAITING_CUSTOMER,
+                channel=DeliverableChannel.DASHBOARD,
+            )
+        )
+        session.commit()
+
+        initialize_deliverables_for_client(session, client_id, "starter", "2026-07")
+
+        rows = session.query(CustomerDeliverable).filter(CustomerDeliverable.client_id == client_id).all()
+        assert any(r.id == "legacy-1" and r.deliverable_type == "business_profile" for r in rows)
+        assert {r.deliverable_type for r in rows} == {d[0] for d in DELIVERABLES}
     finally:
         session.close()
 
