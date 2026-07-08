@@ -505,9 +505,9 @@
            scans trial clients waiting for a WhatsApp screenshot. This queue is the
            customer-typed self-serve submissions from /api/upi/submit — public pay
            modal + customer portal both write here via POST /api/upi/submit.) -->
-      <div class="card" id="sec-upi-selfserve" style="border:1px solid rgba(99,102,241,.3);margin-bottom:14px;scroll-margin-top:80px">
-        <div class="hd">
-          <h3 style="font-size:15px">📥 UPI Self-Serve Submissions <span style="font-weight:400;color:#94a3b8;font-size:11px">(customer ne ref bheja)</span></h3>
+      <div class="card" id="sec-upi-selfserve" style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%);border:1px solid rgba(99,102,241,.3);margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(255,255,255,.1)">
+          <h3 style="font-size:15px;color:#e0e7ff">📥 UPI Self-Serve Submissions <span style="font-weight:400;color:#94a3b8;font-size:11px">(customer ne ref bheja)</span></h3>
           <button class="btn" onclick="loadUpiSelfServe()" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
         </div>
         <div class="bd" id="upiSelfServeBody" style="color:#e2e8f0">
@@ -518,9 +518,9 @@
       <!-- MCP Server Status — /mcp mount is gate-refused in prod without
            FASTAPI_MCP_TOKEN/MCP_IP_ALLOWLIST (app/main.py). Previously only a
            log-line warning + hourly Arya pulse file; no admin UI visibility. -->
-      <div class="card" id="sec-mcp-status" style="border:1px solid rgba(99,102,241,.3);margin-bottom:14px;scroll-margin-top:80px">
-        <div class="hd">
-          <h3 style="font-size:15px">🔌 MCP Server Status</h3>
+      <div class="card" id="sec-mcp-status" style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%);border:1px solid rgba(99,102,241,.3);margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(255,255,255,.1)">
+          <h3 style="font-size:15px;color:#e0e7ff">🔌 MCP Server Status</h3>
           <button class="btn" onclick="mcpHealthRun()" style="margin-left:10px;padding:6px 12px;font-size:12px">▶ Health check chalao</button>
           <button class="btn" onclick="loadMcpStatus()" style="margin-left:6px;padding:6px 12px;font-size:12px">↻ Refresh</button>
         </div>
@@ -709,7 +709,7 @@
         <div class="bd flush tbl-scroll">
           <table aria-label="Campaigns table">
             <thead><tr><th scope="col">Campaign</th><th scope="col">Client</th><th scope="col">Niche</th><th scope="col">Sources</th><th scope="col">Progress</th><th scope="col">Leads</th><th scope="col">Status</th></tr></thead>
-            <tbody id="campaigns"></tbody>
+            <tbody id="campaigns"><tr><td colspan="7"><span class="skeleton sk-text"></span></td></tr><tr><td colspan="7"><span class="skeleton sk-text" style="width:60%"></span></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -781,7 +781,7 @@
         <div class="bd flush tbl-scroll">
           <table aria-label="Niches and pricing table">
             <thead><tr><th scope="col">Niche</th><th scope="col">Tier</th><th scope="col">Audience</th><th scope="col">Avg Ticket</th><th scope="col">Per Qualified Lead (₹)</th></tr></thead>
-            <tbody id="niches"></tbody>
+            <tbody id="niches"><tr><td colspan="5"><span class="skeleton sk-text"></span></td></tr><tr><td colspan="5"><span class="skeleton sk-text" style="width:60%"></span></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1929,7 +1929,7 @@ function renderAgents(list){
 }
 
 function renderCampaigns(list){
-  $("campaigns").innerHTML = list.map(c=>{
+  $("campaigns").innerHTML = list.length ? list.map(c=>{
     const pct = Math.min(100, Math.round(c.calls_done/c.calls_target*100));
     return `
     <tr>
@@ -1940,7 +1940,7 @@ function renderCampaigns(list){
       <td><div class="pwrap"><div class="pbar"><i style="width:${pct}%"></i></div><small>${pct}%</small></div></td>
       <td class="num">${c.leads}</td>
       <td><span class="st ${c.status}"><span class="d"></span>${c.status}</span></td>
-    </tr>`;}).join("");
+    </tr>`;}).join("") : '<tr><td colspan="7" style="color:var(--muted);text-align:center;padding:16px">Abhi koi campaign nahi.</td></tr>';
   const active = list.filter(c=>c.status==='active').length;
   $("cm-summary").textContent = `${active} active · ${list.length} total`;
   $("nav-camp").textContent = list.length;
@@ -2003,7 +2003,7 @@ function renderCharts(c){
 /* ----------------------------- niches ----------------------------- */
 function renderNiches(list){
   const tc = {S:"#16a34a", A:"#2563eb", B:"#7c3aed", C:"#64748b"};
-  $("niches").innerHTML = list.map(n=>{
+  $("niches").innerHTML = list.length ? list.map(n=>{
     const ql = n.pricing_inr && n.pricing_inr.qualified_lead;
     const price = (ql && ql.length===2) ? `₹${ql[0]}–${ql[1]}` : "—";
     const aud = (n.target_type||"-").toUpperCase();
@@ -2015,7 +2015,7 @@ function renderNiches(list){
       <td>${n.avg_ticket_inr || "—"}</td>
       <td class="num">${price}</td>
     </tr>`;
-  }).join("");
+  }).join("") : '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:16px">Abhi koi niche nahi.</td></tr>';
   $("ni-summary").textContent = `${list.length} niches`;
   const nb = $("nav-niche"); if(nb) nb.textContent = list.length;
 }
