@@ -2716,6 +2716,7 @@
         var hasDraft = draft.trim().length > 0;
         var draftPrev = esc(draft.slice(0, 220));
         var hqId = esc(String(it.hq_id || ""));
+        var waLink = String(it.wa_link || "");
         var btnStyle = 'border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;' +
           'font-weight:700;cursor:pointer;background:var(--card);color:var(--ink)';
         return '<div class="item-row" data-hqid="' + hqId + '">' +
@@ -2726,6 +2727,8 @@
             ? '<div class="ir-meta" style="margin-top:4px"><b>AI draft:</b> ' + draftPrev + '</div>'
             : '<div class="ir-meta" style="margin-top:4px;font-style:italic">Koi AI draft nahi</div>') +
           '<div style="display:flex;gap:8px;margin-top:6px;flex-wrap:wrap">' +
+            (waLink ? '<a href="' + esc(waLink) + '" target="_blank" rel="noopener" style="' +
+              btnStyle + ';text-decoration:none;color:#047857">WhatsApp draft</a>' : '') +
             '<button class="hqCopyBtn" data-idx="' + idx + '" style="' + btnStyle +
               (hasDraft ? '' : ';opacity:.5;cursor:not-allowed') + '"' + (hasDraft ? '' : ' disabled') +
               '>📋 Draft copy karo</button>' +

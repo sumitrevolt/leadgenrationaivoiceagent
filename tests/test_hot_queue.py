@@ -1,6 +1,7 @@
 """Hot Queue (GTM Track 1) — interested/question replies ki workable daily queue."""
 
 import json
+from urllib.parse import parse_qs, urlparse
 
 from fastapi.testclient import TestClient
 
@@ -46,7 +47,10 @@ def test_hot_queue_filters_dedupes_and_joins(tmp_path, monkeypatch):
     assert a["subject"] == "price batao"  # latest wins in dedupe
     assert a["phone"] == "9876543210" and a["business_name"] == "Test Gym"
     assert a["hq_id"] and a["age_days"] is not None
+    assert a["wa_link"].startswith("https://wa.me/919876543210?text=")
+    assert parse_qs(urlparse(a["wa_link"]).query)["text"] == ["naya draft"]
     b = q[0]
+    assert b["wa_link"] == ""
     assert b["phone"] == ""  # prospect map me nahi — graceful empty
 
 
