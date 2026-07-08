@@ -467,6 +467,62 @@ class TestStats:
         assert out["summary"]["pending_sendable"] == 3
         assert out["summary"]["duplicate_pending_recipients"] == 1
 
+    def test_pending_review_candidates_filters_bucket_and_dedupes(self, tmp_prospects):
+        from app.platform import email_unsub
+
+        email_unsub.suppress("blocked@x.in", "one_click")
+        _seed(
+            tmp_prospects,
+            {
+                "id": "local",
+                "business_name": "Smile Dental",
+                "email": "local@x.in",
+                "status": "ready",
+                "niche": "dental_implants",
+                "city": "Pune",
+            },
+        )
+        _seed(
+            tmp_prospects,
+            {
+                "id": "dup",
+                "business_name": "Duplicate Dental",
+                "email": "local@x.in",
+                "status": "ready",
+                "niche": "dental_implants",
+            },
+        )
+        _seed(
+            tmp_prospects,
+            {
+                "id": "vendor",
+                "business_name": "SEO Marketing Agency",
+                "email": "vendor@x.in",
+                "status": "ready",
+                "niche": "digital_marketing",
+            },
+        )
+        _seed(
+            tmp_prospects,
+            {"id": "blocked", "business_name": "Blocked", "email": "blocked@x.in", "status": "ready"},
+        )
+        _seed(
+            tmp_prospects,
+            {"id": "bad", "business_name": "Bad", "email": "flags@2x.webp", "status": "ready"},
+        )
+
+        out = auto_outreach.pending_review_candidates(bucket="priority_local_smb", limit=100)
+        assert out["count"] == 1
+        assert out["candidates"][0]["email"] == "local@x.in"
+        assert out["candidates"][0]["bucket"] == "priority_local_smb"
+
+        all_rows = auto_outreach.pending_review_candidates(limit=100)
+        assert all_rows["count"] == 2
+        assert {r["bucket"] for r in all_rows["candidates"]} == {
+            "priority_local_smb",
+            "review_low_fit_vendor",
+        }
+
 
 def _iso_days_ago(days: float) -> str:
     return (datetime.utcnow() - timedelta(days=days)).isoformat() + "Z"
