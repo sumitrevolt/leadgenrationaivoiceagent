@@ -71,6 +71,43 @@ async def test_call_queue_503_when_flag_off(monkeypatch):
     assert ei.value.status_code == 503  # inert by default — no calls, no side effects
 
 
+async def test_call_queue_403_for_marketing_only_plan(monkeypatch):
+    """Regression guard (2026-07-07 audit finding): a Marketing-only ("starter")
+    customer must NOT get free AI voice calls just because CUSTOMER_VOICE_SELFSERVE
+    happens to be on — AI Voice is a separate standalone product. queue_call()'s
+    own minute/lead-quota checks fail-OPEN for non-metered plans, so this
+    route-level product check is the only real gate for entitlement."""
+    monkeypatch.setenv("CUSTOMER_VOICE_SELFSERVE", "1")
+    from fastapi import HTTPException
+
+    from app.api.customer_dashboard import customer_voice_call_queue
+
+    monkeypatch.setattr(
+        "app.api.customer_dashboard._client_record",
+        lambda cid: {"business_name": "A", "niche": "salon", "product": "marketing"},
+    )
+    with pytest.raises(HTTPException) as ei:
+        await customer_voice_call_queue(limit=20, client_id="client_a")
+    assert ei.value.status_code == 403
+
+
+async def test_call_queue_allowed_for_combo_plan(monkeypatch):
+    """Combo-plan customers (both products) must still be allowed through the gate."""
+    monkeypatch.setenv("CUSTOMER_VOICE_SELFSERVE", "1")
+    Session = _iso_db(monkeypatch)
+    _seed(Session)
+    fake = _FakeMgr()
+    monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: fake)
+    monkeypatch.setattr(
+        "app.api.customer_dashboard._client_record",
+        lambda cid: {"business_name": "A", "niche": "salon", "product": "combo"},
+    )
+    from app.api.customer_dashboard import customer_voice_call_queue
+
+    res = await customer_voice_call_queue(limit=20, client_id="client_a")
+    assert res["ok"]
+
+
 async def test_call_queue_scopes_to_own_client_and_skips_called(monkeypatch):
     monkeypatch.setenv("CUSTOMER_VOICE_SELFSERVE", "1")
     Session = _iso_db(monkeypatch)
@@ -78,7 +115,7 @@ async def test_call_queue_scopes_to_own_client_and_skips_called(monkeypatch):
     fake = _FakeMgr()
     monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: fake)
     monkeypatch.setattr(
-        "app.api.customer_dashboard._client_record", lambda cid: {"business_name": "A", "niche": "salon"}
+        "app.api.customer_dashboard._client_record", lambda cid: {"business_name": "A", "niche": "salon", "product": "voice"}
     )
     from app.api.customer_dashboard import customer_voice_call_queue
 
@@ -100,7 +137,7 @@ async def test_call_queue_honors_compliance_block(monkeypatch):
             return "compliance_blocked_" + req.lead_id  # gate refused
 
     monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: _Blocker())
-    monkeypatch.setattr("app.api.customer_dashboard._client_record", lambda cid: {})
+    monkeypatch.setattr("app.api.customer_dashboard._client_record", lambda cid: {"product": "voice"})
     from app.api.customer_dashboard import customer_voice_call_queue
 
     res = await customer_voice_call_queue(limit=20, client_id="client_a")
@@ -153,7 +190,7 @@ async def test_call_queue_skips_inflight_leads(monkeypatch):
     fake = _FakeMgr()
     monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: fake)
     monkeypatch.setattr(
-        "app.api.customer_dashboard._client_record", lambda cid: {"business_name": "A", "niche": "salon"}
+        "app.api.customer_dashboard._client_record", lambda cid: {"business_name": "A", "niche": "salon", "product": "voice"}
     )
     fr = _FakeRedis(inflight={"lead_a2"})  # a2 already in-flight
 
@@ -175,7 +212,7 @@ async def test_call_queue_daily_cap(monkeypatch):
     _seed(Session)
     fake = _FakeMgr()
     monkeypatch.setattr("app.api.customer_dashboard._voice_call_manager", lambda: fake)
-    monkeypatch.setattr("app.api.customer_dashboard._client_record", lambda cid: {})
+    monkeypatch.setattr("app.api.customer_dashboard._client_record", lambda cid: {"product": "voice"})
     fr = _FakeRedis(dcount=1)  # already used 1 today, cap=1 -> reached immediately
 
     async def _getr():

@@ -175,6 +175,18 @@ def _record_stuck(client: dict[str, Any], reason: str) -> None:
         delivery_ledger.log_event(str(client.get("id") or ""), "automation_failed", detail=reason)
     except Exception as le:  # pragma: no cover
         logger.debug("delivery _record_stuck ledger log skip: %s", le)
+    # Fail-LOUD, for real: a jsonl line + a log WARNING is what let the original
+    # jiya-makeover ghosting sit undiscovered for days. Page the founder's phone
+    # directly (OPS_ALERTS-gated + per-client cooldown'd inside the helper — never
+    # raises, never blocks this function even if ntfy itself is unconfigured).
+    try:
+        from app.platform import ops_alerts
+
+        ops_alerts.alert_paid_customer_stuck(
+            str(client.get("id") or ""), str(client.get("business_name") or ""), reason
+        )
+    except Exception as ae:  # pragma: no cover
+        logger.debug("delivery _record_stuck ops_alerts skip: %s", ae)
 
 
 async def deliver_client_value(client: dict[str, Any], force: bool = False) -> dict[str, Any]:

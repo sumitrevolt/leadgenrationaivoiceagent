@@ -50,6 +50,7 @@ _COOLDOWN = {
     "compliance_disabled": 1 * 3600,  # legal kill-switch page, at most one per 1h
     "payment_failed": 1 * 3600,  # payment-failure page, at most one per 1h
     "smtp_disabled": 2 * 3600,  # SMTP account-block page, at most one per 2h
+    "paid_customer_stuck": 3 * 3600,  # jiya-class ghosting bug — page founder, at most one per client per 3h
 }
 
 # Thresholds — override via env if the operator wants tighter/looser.
@@ -147,6 +148,35 @@ def alert_staff_failure(job: str, detail: str = "") -> dict[str, Any]:
         (f"'{job}' returned an error: {detail}")[:480],
         priority="high",
         tags=["warning", "staff"],
+    )
+    _record_fire(key)
+    return {"alerted": True}
+
+
+
+def alert_paid_customer_stuck(client_id: str, business_name: str, reason: str) -> dict[str, Any]:
+    """The jiya-makeover-class bug, closed: a PAID customer's value-delivery got
+    stuck (WhatsApp send failed, no phone on file, AUTO_DELIVER_VALUE off, etc.)
+    and — until this — the only trace was a jsonl line + a log WARNING nobody
+    was watching. This pages the founder's phone directly via ntfy, same as
+    every other real page in this module. OPS_ALERTS-gated + per-client
+    cooldown'd (won't spam every scheduler tick while the same customer stays
+    stuck) — but WILL re-fire every 3h until the underlying cause is fixed, by
+    design (a paid customer left undelivered is not a one-time nudge).
+    """
+    if not enabled():
+        return {"alerted": False, "reason": "disabled"}
+    key = f"paid_customer_stuck:{client_id}"
+    if _cooldown_active(key, "paid_customer_stuck"):
+        return {"alerted": False, "reason": "cooldown"}
+    _ntfy(
+        f"\U0001f6a8 PAID customer undelivered: {business_name or client_id}",
+        (
+            f"client={client_id} reason={reason} \u2014 this customer PAID and has not "
+            f"received their value yet. Check /app/clients delivery panel now."
+        )[:480],
+        priority="urgent",
+        tags=["rotating_light", "money"],
     )
     _record_fire(key)
     return {"alerted": True}

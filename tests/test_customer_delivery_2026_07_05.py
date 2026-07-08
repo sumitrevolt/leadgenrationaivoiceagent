@@ -66,6 +66,36 @@ async def test_deliver_gated_off_by_default(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_stuck_customer_pages_founder_not_just_a_logfile(monkeypatch):
+    """The jiya-makeover-class ghosting bug: a stuck paid customer must page the
+    founder via ops_alerts, not just append a jsonl line nobody is watching.
+    Regression guard for the 2026-07 fix wiring _record_stuck -> ops_alerts."""
+    monkeypatch.delenv("AUTO_DELIVER_VALUE", raising=False)
+    paged: list[tuple] = []
+    monkeypatch.setattr(
+        "app.platform.ops_alerts.alert_paid_customer_stuck",
+        lambda cid, name, reason: paged.append((cid, name, reason)),
+        raising=False,
+    )
+    r = await cd.deliver_client_value(
+        {
+            "id": "x1",
+            "status": "active",
+            "plan": "starter",
+            "slug": "s",
+            "phone": "9812345678",
+            "business_name": "jiya makeover",
+        }
+    )
+    assert r["delivered"] is False
+    assert len(paged) == 1
+    cid, name, reason = paged[0]
+    assert cid == "x1"
+    assert name == "jiya makeover"
+    assert reason == "auto_delivery_off"
+
+
+@pytest.mark.asyncio
 async def test_deliver_force_sends_and_marks(monkeypatch):
     """force=True (operator single-send) sends + marks delivered."""
     marked = {}

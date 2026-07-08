@@ -14,11 +14,14 @@ Sab admin-auth (marketing.py jaisa pattern). Generators kabhi raise nahi karte;
 phir bhi unexpected par 500 + detail. Har action team-log (isha) — best-effort.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.admin import log_audit
 from app.api.auth_deps import require_admin
 from app.marketing import auto_content, clients_store
+from app.models.base import get_async_db
 from app.models.user import User
 from app.utils.logger import setup_logger
 
@@ -152,7 +155,9 @@ async def get_one_client(
 async def set_client_status(
     cid: str,
     req: StatusRequest,
+    request: Request,
     current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_async_db),
 ):
     """Client ka status badlo (active/paused/dead)."""
     try:
@@ -163,6 +168,23 @@ async def set_client_status(
     if not ok:
         raise HTTPException(status_code=404, detail="Client not found")
     _log_isha("client_status", f"{cid} -> {req.status}")
+    # AUDIT — pausing a customer's automation is a sensitive admin action; the
+    # team-log above is informal/ephemeral, this is the formal tamper-record
+    # /api/admin/audit-logs reads (best-effort — audit failure never blocks
+    # the actual status change, mirrors impersonation.py's pattern).
+    try:
+        await log_audit(
+            db,
+            user_id=str(getattr(current_user, "id", "")),
+            action="client.status_change",
+            resource_type="client",
+            resource_id=cid,
+            new_value={"status": req.status.strip().lower()},
+            ip_address=request.client.host if request.client else None,
+            severity="warning",
+        )
+    except Exception as e:
+        logger.warning(f"Audit log failed for client status change {cid}: {e}")
     return {"updated": True, "status": req.status.strip().lower()}
 
 

@@ -233,23 +233,31 @@ async def _run_job(job: str) -> None:
 
     _t0 = _time.monotonic()
     _ok = True
+    _err_class = ""
+    _err_note = ""
     try:
         # W1.2: _run_job_inner ab bool deta — False = job-level fail (dead-man
         # switch ko real status jaana chahiye). Re-raise NAHI: scheduler_loop poore
         # tick ko ek hi try me chalata hai, to yahan raise = is tick ke baaki jobs skip.
         _res = await _run_job_inner(job)
         _ok = _res is not False
-    except Exception:
+    except Exception as e:
         # inner apna Exception khud pakadta hai (return False) — yahan aana truly
         # unexpected. Fail record karo, par tick crash mat karo (BaseException/
-        # Cancelled propagate hote — woh yahan catch nahi).
+        # Cancelled propagate hote — woh yahan catch nahi). 2026-07-07: capture
+        # error_class/message instead of discarding — job-log schema audit found
+        # this was caught, logged, then thrown away right before record_run().
         _ok = False
+        _err_class = type(e).__name__
+        _err_note = str(e)[:120]
         logger.warning(f"[team-scheduler] job '{job}' raised unexpectedly", exc_info=True)
     finally:
         try:
             from app.platform import automation_health
 
-            automation_health.record_run(job, _ok, _time.monotonic() - _t0)
+            automation_health.record_run(
+                job, _ok, _time.monotonic() - _t0, note=_err_note, error_class=_err_class
+            )
         except Exception:
             pass
 
