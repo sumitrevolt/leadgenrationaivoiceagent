@@ -1101,6 +1101,9 @@ def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
                 r["wa_link"] = ""
             if r.get("channel") == "whatsapp" and not r["wa_link"]:
                 continue
+            subj_body = f"{r.get('subject') or ''}\n{r.get('text') or r.get('body_snippet') or ''}"
+            if _AUTO_ACK_RE.search(subj_body):
+                continue
             r["business_name"] = r.get("business_name") or p.get("business_name") or ""
             r["niche"] = r.get("niche") or p.get("niche") or ""
             r["city"] = r.get("city") or p.get("city") or ""

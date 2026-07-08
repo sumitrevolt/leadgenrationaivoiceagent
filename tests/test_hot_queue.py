@@ -89,6 +89,41 @@ def test_hot_queue_does_not_turn_meta_ids_into_whatsapp_links(tmp_path, monkeypa
     assert rows["919876543210"]["wa_link"].startswith("https://wa.me/919876543210?text=")
 
 
+def test_hot_queue_hides_saved_auto_ack_rows(tmp_path, monkeypatch):
+    from app.platform import reply_agent as ra
+
+    f = tmp_path / "reply_drafts.jsonl"
+    f.write_text(
+        json.dumps(
+            {
+                "from": "auto@example.com",
+                "subject": "Thank you for your interest in Example",
+                "intent": "interested",
+                "draft": "fake hot draft",
+                "at": "2026-07-08T10:00:00+00:00",
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "from": "real@example.com",
+                "subject": "price batao",
+                "intent": "interested",
+                "draft": "real hot draft",
+                "at": "2026-07-08T11:00:00+00:00",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(ra, "_DRAFTS_FILE", str(f))
+    monkeypatch.setattr(ra, "_full_prospect_map", lambda: {})
+
+    rows = {r["from"]: r for r in ra.hot_queue(limit=10)}
+    assert "auto@example.com" not in rows
+    assert "real@example.com" in rows
+
+
 def test_mark_handled_hides_row_and_is_idempotent(tmp_path, monkeypatch):
     ra = _seed(tmp_path, monkeypatch)
     q = ra.hot_queue()
