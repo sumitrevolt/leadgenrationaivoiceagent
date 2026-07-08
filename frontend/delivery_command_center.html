@@ -90,6 +90,13 @@
   .mini{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:800;cursor:pointer}
   .mini.primary{background:var(--brand);border-color:var(--brand);color:#fff}
   .mini.warn{background:#fff7ed;color:#9a3412}
+  /* Delivery-health state badge — tone (ok/warn/err/muted) from server health.tone */
+  .hbadge{font-size:10.5px;font-weight:800;border-radius:999px;padding:3px 9px;white-space:nowrap;
+    display:inline-block;border:1px solid transparent}
+  .hbadge.ok{background:#dcfce7;color:#166534;border-color:#bbf7d0}
+  .hbadge.warn{background:#fef3c7;color:#92400e;border-color:#fde68a}
+  .hbadge.err{background:#fee2e2;color:#991b1b;border-color:#fecaca}
+  .hbadge.muted{background:var(--bg);color:var(--muted);border-color:var(--line)}
 
   .empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:13px}
   .empty .spin{vertical-align:-2px;margin-right:7px;width:13px;height:13px;border:2px solid rgba(109,40,217,.25);
@@ -239,13 +246,27 @@
   }
 
   // ---- Next-action hint per customer — mirrors the mission's admin framing:
-  // "value mil rahi hai ya nahi, kya stuck hai, kaunsa button dabana hai." ----
+  // "value mil rahi hai ya nahi, kya stuck hai, kaunsa button dabana hai."
+  // Prefers the server-computed `health` (7-state delivery-health); the older
+  // ad-hoc rules stay as a fallback for responses without the health field. ----
   function nextAction(c){
-    if(Number(c.setup_completion_pct || 0) < 100) return {cls: "warn", text: "⚠️ Setup adhoora"};
-    if(Number(c.failed_automations || c.automation_failures || 0) > 0) return {cls: "err", text: "🔴 Automation fail hui"};
-    if(Number(c.posts_waiting_for_approval || c.pending_approvals || 0) > 0) return {cls: "warn", text: "📝 " + (c.posts_waiting_for_approval || c.pending_approvals) + " approval ka wait"};
+    var h = c.health;
+    if(h && h.state){
+      return {cls: h.tone || "muted", text: h.next_action_hint || h.reason || "—"};
+    }
+    if(!c.setup_done) return {cls: "warn", text: "⚠️ Setup adhoora"};
+    if(c.automation_failures > 0) return {cls: "err", text: "🔴 Automation fail hui"};
+    if(c.pending_approvals > 0) return {cls: "warn", text: "📝 " + c.pending_approvals + " approval ka wait"};
     if(c.value_delivered) return {cls: "ok", text: "✅ Value mil rahi hai"};
     return {cls: "muted", text: "⏳ Abhi koi delivery nahi"};
+  }
+
+  // Colored delivery-health state badge (state + short Hinglish label_hi).
+  function healthBadge(c){
+    var h = c.health;
+    if(!h || !h.state) return "";
+    return '<span class="hbadge ' + esc(h.tone || "muted") + '" title="' + esc(h.reason || "") + '">' +
+      esc(h.label_hi || h.state) + '</span>';
   }
 
   function renderKpis(s){
@@ -257,6 +278,8 @@
       {lbl: "Receiving Value", val: s.receiving_value, cls: "ok", sub: "kam se kam 1 delivery event"},
       {lbl: "Automation Issues", val: s.failed_automation_count, cls: s.failed_automation_count > 0 ? "err" : "ok", sub: "kisi automation me fail"},
       {lbl: "Pending Approvals", val: s.pending_approvals_total, cls: s.pending_approvals_total > 0 ? "warn" : "ok", sub: "customer se wait"},
+      {lbl: "At Risk", val: s.at_risk_count, cls: s.at_risk_count > 0 ? "err" : "ok", sub: "value ruki / fail hui"},
+      {lbl: "Benefit This Week", val: s.benefit_this_week, cls: "ok", sub: "is hafte value mili"},
     ];
     row.innerHTML = cards.map(function(c){
       return '<div class="kpi' + (c.cls ? " " + c.cls : "") + '"><div class="lbl">' + esc(c.lbl) + '</div>' +

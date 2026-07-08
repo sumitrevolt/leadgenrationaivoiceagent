@@ -1573,10 +1573,15 @@ function sendToCRM(){
   })();
 }
 function viewForHash(h){
+  // Card-id → view map. View names MUST match the data-view values + the CSS
+  // view-engine whitelist (home/setup/calendar/leads/reports/billing) — purani
+  // content/account taxonomy ke hash bookmarks neeche alias se map hote hain.
   var map={leadsCard:"leads",routingCard:"leads",callsCard:"leads",
            contentCard:"calendar",approvalCard:"home",webToolsCard:"home",
            billingCard:"billing",webhookCard:"billing",secCard:"billing",
-           setupWizardCard:"setup",supportCard:"support"};
+           setupWizardCard:"setup",supportCard:"support",socialSetupCard:"setup",
+           marketingCalendarCard:"calendar",mktKpis:"reports",
+           content:"home",account:"billing"};
   h=(h||"").replace(/^#/,"").replace(/^view-/,"");
   if(map[h])return map[h];
   return ["home","setup","calendar","leads","reports","billing","support"].indexOf(h)>=0 ? h : "home";
@@ -2312,6 +2317,11 @@ function renderSetupWizard(d){
     +'</div>'
     +'</div>'
     +'<button class="btn primary" type="button" style="margin-top:14px;width:100%;justify-content:center" id="swSaveBtn" onclick="saveSetupWizard()">💾 Save Profile</button>'
+    +'<div class="marketing-only" style="border-top:1px dashed var(--line);margin:18px 0 0;padding-top:14px">'
+    +'<div style="font-weight:700;margin-bottom:2px">🚀 Pehla 7-din ka marketing plan</div>'
+    +'<div class="sm" style="color:var(--muted);margin:2px 0 6px">AI se agle hafte ke posts + WhatsApp promo turant banwao — approve karke 1-click share.</div>'
+    +'<button class="btn" type="button" id="swSeedBtn" onclick="generateFirstWeek()">🚀 Mera 7-din ka plan banao</button>'
+    +'</div>'
     +'<div style="border-top:1px dashed var(--line);margin:18px 0 0;padding-top:14px">'
     +'<div style="font-weight:700;margin-bottom:2px">🤖 AI ko business ke baare me aur batao (Knowledge Base)</div>'
     +'<div class="sm" style="color:var(--muted);margin:2px 0 6px">AI ko behtar reply karne me help karega.</div>'
@@ -2351,6 +2361,21 @@ async function saveSetupWizard(){
       if(typeof loadAll === "function") loadAll();
     }
     else{ toast("Save nahi hua",(d&&d.error)||"Dobara try karo"); }
+  }catch(e){ toast("Error", e.message); }
+  finally{ btn.disabled=false; btn.textContent=orig; }
+}
+async function generateFirstWeek(){
+  const btn=document.getElementById("swSeedBtn");
+  if(!btn) return;
+  btn.disabled=true; const orig=btn.textContent; btn.textContent="Plan ban raha hai…";
+  try{
+    const r=await fetch("/api/customer/campaigns/generate-first-week",{method:"POST",headers:billAuthHdr()});
+    const d=await r.json().catch(function(){return {};});
+    if(r.ok&&d.ok){
+      toast(d.already?"📅 Plan pehle se ready":"🎉 Plan ban raha hai", d.message||"");
+      if(!d.already) setTimeout(function(){ if(typeof loadAll==="function") loadAll(); },4000);
+    }
+    else{ toast("Nahi hua",(d&&(d.error||d.detail))||"Dobara try karo"); }
   }catch(e){ toast("Error", e.message); }
   finally{ btn.disabled=false; btn.textContent=orig; }
 }
@@ -2973,7 +2998,10 @@ function drawCalendarGrid() {
       chip.style.fontWeight = "600";
 
       const status = (it.status || "draft").toLowerCase();
-      if (status === "published") {
+      // Queue ka asli success-status "posted" hai (mark_item) — "published" sirf
+      // forward-compat ke liye rakha hai. Pehle yahan sirf "published" check tha
+      // jo kabhi occur nahi hota → posted items amber "draft" jaise dikhte the.
+      if (status === "published" || status === "posted") {
         chip.style.background = "#dbeafe";
         chip.style.color = "#1e40af";
       } else if (status === "approved") {
@@ -2982,6 +3010,9 @@ function drawCalendarGrid() {
       } else if (status === "failed" || status === "rejected") {
         chip.style.background = "#fee2e2";
         chip.style.color = "#991b1b";
+      } else if (status === "skipped") {
+        chip.style.background = "var(--line)";
+        chip.style.color = "var(--muted)";
       } else {
         chip.style.background = "#fef3c7";
         chip.style.color = "#92400e";

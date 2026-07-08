@@ -134,6 +134,149 @@ def _clients_by_product(clients: list[dict]) -> dict[str, int]:
     return out
 
 
+def _age_hours(created_at: object) -> float | None:
+    """Hours since an ISO `created_at` (handles `Z` and `+00:00`; naive → UTC).
+    Returns None when missing/unparseable — callers then SKIP age-based states
+    (so command-center fixtures without created_at don't break). Never raises."""
+    s = str(created_at or "").strip()
+    if not s:
+        return None
+    try:
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        delta = datetime.now(timezone.utc) - dt.astimezone(timezone.utc)
+        return delta.total_seconds() / 3600.0
+    except Exception:
+        return None
+
+
+# next_action enum (exactly one of these per customer) → Hinglish UI hint.
+_NEXT_ACTION_HINTS: dict[str, str] = {
+    "open_setup": "Setup kholo — onboarding poora karwao",
+    "generate_campaign": "Pehla campaign generate karwao",
+    "approve_content": "Pending content approve karwao",
+    "investigate_failure": "Delivery ruk gayi — turant dekho",
+    "none": "Sab theek — koi action nahi",
+}
+
+
+def delivery_health(
+    client: dict[str, Any],
+    summary: dict[str, Any],
+    pending_approvals: int,
+    recent: dict[str, Any],
+) -> dict[str, Any]:
+    """Compute a single delivery-health STATE for one customer. Pure + never-raises
+    (any error → safe "unknown" dict).
+
+    Precedence (first match wins) — TUNED for reachability (see below):
+      1. at_risk        — active & paid & setup_done & posts_created>0 AND
+                          (no value event in last 7d  OR  any failure in last 24h)
+      2. not_started    — not setup_done AND zero ledger events
+      3. blocked        — not setup_done AND created_at older than 24h (setup stuck)
+      4. not_started    — (remaining not-setup-done: <24h / has events → still early)
+      5. setup_ready    — setup_done but posts_created == 0 (first campaign pending)
+      6. pending_approval — pending approvals > 0
+      7. live           — posts_approved > posts_published (approved/queued, unpublished)
+      8. delivered      — a value event within the last 7 days
+      fallback          — "unknown" (never fires for real records)
+
+    Two deliberate deviations from the raw spec, both to keep every state REACHABLE:
+      * at_risk is scoped to `setup_done AND posts_created>0`. The literal
+        "active+paid AND no-value-7d" would swallow not_started/blocked/setup_ready
+        (they all lack recent value) since at_risk trumps everything below.
+      * `live` uses ONLY `posts_approved > posts_published`; the spec's
+        "OR value in 7d" alternative is dropped because it is identical to
+        `delivered` and, checked first, would make `delivered` unreachable.
+      Consequence: for a setup_done+posts>0 customer, "not at_risk" implies value
+      landed in the 7d window, so `delivered` is the correct terminal state.
+    """
+    try:
+        setup_done = bool(client.get("setup_done"))
+        plan = str(client.get("plan") or "starter").strip().lower()
+        status = str(client.get("status") or "active").strip().lower()
+        paid = plan != "trial"
+        active = status == "active"
+
+        events_total = int(summary.get("events_total") or 0)
+        posts_created = int(summary.get("posts_created") or 0)
+        posts_approved = int(summary.get("posts_approved") or 0)
+        posts_published = int(summary.get("posts_published") or 0)
+        pending = int(pending_approvals or 0)
+
+        value_7d = bool(recent.get("value_events_in_window"))
+        failures_24h = int(recent.get("failures_24h") or 0)
+
+        def _out(state: str, label_hi: str, reason: str, action: str, tone: str) -> dict[str, Any]:
+            return {
+                "state": state,
+                "label_hi": label_hi,
+                "reason": reason,
+                "next_action": action,
+                "next_action_hint": _NEXT_ACTION_HINTS.get(action, ""),
+                "tone": tone,
+            }
+
+        # 1. AT RISK — established (set-up, producing) account that went quiet/broke.
+        if active and paid and setup_done and posts_created > 0 and (not value_7d or failures_24h > 0):
+            if failures_24h > 0:
+                reason = f"{failures_24h} delivery failure(s) pichhle 24h me"
+            else:
+                reason = "7 din se koi value-event nahi (delivery ruki)"
+            return _out("at_risk", "Risk pe", reason, "investigate_failure", "err")
+
+        # 2. NOT STARTED — nothing has happened yet at all.
+        if not setup_done and events_total == 0:
+            return _out("not_started", "Shuru nahi hua", "Abhi tak koi activity nahi — setup baaki",
+                        "open_setup", "warn")
+
+        # 3. BLOCKED — setup incomplete and it's been stuck >24h.
+        age = _age_hours(client.get("created_at"))
+        if not setup_done and age is not None and age > 24:
+            return _out("blocked", "Setup ruka", "Setup 24h+ se adhoora — investigate",
+                        "open_setup", "err")
+
+        # 4. NOT STARTED (early) — still not set up, but recent / has some events.
+        if not setup_done:
+            return _out("not_started", "Shuru nahi hua", "Setup chal raha — abhi poora nahi hua",
+                        "open_setup", "warn")
+
+        # 5. SETUP READY — onboarded but first campaign not generated.
+        if posts_created == 0:
+            return _out("setup_ready", "Campaign baaki", "Setup ho gaya — pehla campaign generate karo",
+                        "generate_campaign", "warn")
+
+        # 6. PENDING APPROVAL — waiting on the customer to approve drafts.
+        if pending > 0:
+            return _out("pending_approval", "Approval baaki", f"{pending} content approval pending",
+                        "approve_content", "warn")
+
+        # 7. LIVE — approved/queued content not yet published (rollout in flight).
+        if posts_approved > posts_published:
+            return _out("live", "Live chal raha", "Content approve/queue ho gaya — publish hone waala",
+                        "none", "ok")
+
+        # 8. DELIVERED — value landed within the last 7 days.
+        if value_7d:
+            return _out("delivered", "Value mil rahi", "Pichhle 7 din me value deliver hui",
+                        "none", "ok")
+
+        return _out("unknown", "—", "State compute nahi ho paayi", "none", "muted")
+    except Exception as e:  # pragma: no cover — defensive, never break the rollup
+        logger.debug("delivery_health failed: %s", e)
+        return {
+            "state": "unknown",
+            "label_hi": "—",
+            "reason": "",
+            "next_action": "none",
+            "next_action_hint": "",
+            "tone": "muted",
+        }
+
+
 def _build_command_center() -> dict[str, Any]:
     """Business-outcome front door for admin (Customer Delivery OS Phase 2) —
     total/paying/stuck-in-setup/receiving-value/failed-automation customers +
@@ -166,6 +309,8 @@ def _build_command_center() -> dict[str, Any]:
     stuck_in_setup = 0
     receiving_value = 0
     failed_automation = 0
+    at_risk_count = 0
+    benefit_this_week = 0
     mrr_total = 0
     by_plan: dict[str, dict[str, int]] = {}
     by_product = {"marketing": 0, "voice": 0, "combo": 0}
@@ -187,6 +332,13 @@ def _build_command_center() -> dict[str, Any]:
         except Exception as e:
             logger.debug("command_center: ledger summary failed for %s: %s", cid, e)
             s = {}
+        # Time-WINDOWED counts (last 7d / 24h) for delivery-health + at-risk — a
+        # separate additive read (summary() is all-time only). Never raises.
+        try:
+            recent = delivery_ledger.recent_counts(cid)
+        except Exception as e:
+            logger.debug("command_center: recent_counts failed for %s: %s", cid, e)
+            recent = {}
         value_delivered = bool(s.get("value_delivered"))
         # automation_failed (account/setup stuck) + post_failed (one publish
         # attempt failed) are both real "something needs attention" signals —
@@ -197,6 +349,14 @@ def _build_command_center() -> dict[str, Any]:
             receiving_value += 1
         if automation_failures > 0:
             failed_automation += 1
+
+        # Computed delivery-health STATE (7-state, precedence-ordered) + at-risk +
+        # this-week-benefit rollups. Additive — existing scalars above unchanged.
+        health = delivery_health(c, s, approvals_by_client.get(cid, 0), recent)
+        if health.get("state") == "at_risk":
+            at_risk_count += 1
+        if bool(recent.get("value_events_in_window")):
+            benefit_this_week += 1  # clients are already status="active"
 
         mrr = _client_mrr(c)
         mrr_total += mrr
@@ -220,6 +380,7 @@ def _build_command_center() -> dict[str, Any]:
                 "automation_failures": automation_failures,
                 "pending_approvals": approvals_by_client.get(cid, 0),
                 **product_one_delivery.admin_customer_card(c),
+                "health": health,
             }
         )
 
@@ -233,6 +394,8 @@ def _build_command_center() -> dict[str, Any]:
             "receiving_value": receiving_value,
             "failed_automation_count": failed_automation,
             "pending_approvals_total": sum(approvals_by_client.values()),
+            "at_risk_count": at_risk_count,
+            "benefit_this_week": benefit_this_week,
         },
         "revenue": {"mrr_total": mrr_total, "by_plan": by_plan},
         "by_product": by_product,

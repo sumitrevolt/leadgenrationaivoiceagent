@@ -722,6 +722,23 @@ def list_queue(client_id: str, status: str | None = None, limit: int = 60) -> li
     return rows[:limit]
 
 
+def upcoming_item_count(client_id: str) -> int:
+    """Aaj ya aage ki date ke kitne non-skipped items queue me hain — customer ke
+    "pehla 7-din plan banao" trigger ka idempotency guard (upcoming plan hote hue
+    seed dubara chalana = content_approval me duplicate submissions, isliye guard
+    yahan single-source hai: endpoint + worker task dono isi se poochhte).
+    KABHI raise nahi karta."""
+    try:
+        today_s = date.today().strftime("%Y-%m-%d")
+        n = 0
+        for it in list_queue(client_id, limit=500):
+            if str(it.get("date") or "") >= today_s and str(it.get("status") or "") != "skipped":
+                n += 1
+        return n
+    except Exception:  # pragma: no cover
+        return 0
+
+
 _VALID_STATUS = {"draft", "approved", "posted", "skipped"}
 
 
@@ -792,6 +809,11 @@ def mark_item(client_id: str, item_id: str, status: str) -> bool:
                 if isinstance(rec, dict) and str(rec.get("id")) == str(item_id):
                     rec["status"] = st
                     rec["updated_at"] = _now()
+                    # Publish-outcome item pe hi land ho (CDOS spec: published_at)
+                    # — pehle yeh sirf delivery_ledger event me tha, item record
+                    # khud kabhi nahi batata tha ki post kab gaya.
+                    if st == "posted" and not rec.get("published_at"):
+                        rec["published_at"] = rec["updated_at"]
                     found = True
                     matched_title = str(rec.get("title") or "")
                 rows.append(rec)

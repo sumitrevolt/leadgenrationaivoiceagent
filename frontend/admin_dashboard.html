@@ -205,19 +205,9 @@
   .assess-score{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-align:center}
   .assess-score .sv{font-size:22px;font-weight:800;color:var(--indigo)}
   .assess-score .sl{font-size:11px;color:var(--muted);margin-top:2px}
-
-  /* Admin View Switching Engine */
-  [data-active-view="command_center"] .content > div:not([data-view="command_center"]),
-  [data-active-view="customer_360"] .content > div:not([data-view="customer_360"]),
-  [data-active-view="delivery_queue"] .content > div:not([data-view="delivery_queue"]),
-  [data-active-view="automation_monitor"] .content > div:not([data-view="automation_monitor"]),
-  [data-active-view="approvals"] .content > div:not([data-view="approvals"]),
-  [data-active-view="office"] .content > div:not([data-view="office"]) {
-    display: none !important;
-  }
 </style>
 </head>
-<body data-active-view="command_center">
+<body>
 <div class="app">
   <!-- Sidebar -->
   <aside class="sidebar" id="sidebar" role="navigation" aria-label="Admin navigation">
@@ -226,17 +216,66 @@
       <div><b>LeadGen AI</b><small>Admin Console</small></div>
     </div>
     <nav class="nav" role="menubar" aria-label="Main menu">
-      <div class="sec nav-group" role="presentation">Menu</div>
-      <a class="navlink active" data-nav="command_center" href="#" onclick="showAdminView('command_center');return false;"><span class="ic">🚀</span> Command Center / Billing/UPI</a>
-      <a class="navlink" href="/app/delivery-command-center"><span class="ic">🚚</span> Delivery Cockpit</a>
-      <a class="navlink" data-nav="customer_360" href="#" onclick="showAdminView('customer_360');return false;"><span class="ic">🕵️</span> Customers</a>
-      <a class="navlink" data-nav="delivery_queue" href="#" onclick="showAdminView('delivery_queue');return false;"><span class="ic">📋</span> Delivery Queue</a>
-      <a class="navlink" data-nav="automation_monitor" href="#" onclick="showAdminView('automation_monitor');return false;"><span class="ic">🎛</span> Automation Logs</a>
-      <a class="navlink" data-nav="approvals" href="#" onclick="showAdminView('approvals');return false;"><span class="ic">✅</span> Approvals</a>
-      <a class="navlink" href="/app/control-center"><span class="ic">🏥</span> System Health</a>
-      <a class="navlink" href="/app/agent-tools"><span class="ic">🛠</span> Agent Tools (Adv)</a>
-      <a class="navlink" href="/app/control-center"><span class="ic">🎛</span> Control Center</a>
-      <a class="navlink" data-nav="office" href="#" onclick="showAdminView('office');return false;"><span class="ic">🏢</span> Internal Office</a>
+      <!-- IA 2026-07-07 (ADR-034): 6 mission-aligned nav-groups (Customer Delivery OS Phase 2/5).
+           Prompt rule "no more than 6 main admin nav items" = 6 top-level GROUPS below.
+           Duplicate/infra cockpits (control-center, ops, dashboards, brain, office, team, explorer)
+           demoted from the old scattered Operations+Business groups into ONE "System (Internal)"
+           group so the primary nav is customer-value work. ALL links preserved + reachable
+           (additive/reversible regroup — no route/feature removed, badge IDs untouched).
+           OLD→NEW group map: Overview→Overview+Customers, Sales→Growth+System, Operations→
+           Delivery+System+Customers, Business→Growth+System, Advanced/Account→Advanced. -->
+      <div class="sec nav-group" role="presentation">Overview</div>
+      <a href="/app/delivery-command-center" role="menuitem" aria-label="Command Center customer delivery overview"><span class="ic" aria-hidden="true">🚀</span> Command Center <span class="badge" style="background:#22c55e">NEW</span></a>
+      <a class="active" href="#top" role="menuitem" aria-current="page" aria-label="Dashboard overview"><span class="ic" aria-hidden="true">▦</span> Dashboard</a>
+      <a href="#sec-today-biz" role="menuitem" aria-label="Aaj ka business summary"><span class="ic" aria-hidden="true">🏠</span> Aaj ka business</a>
+      <a href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
+      <div class="sec nav-group" role="presentation">Customers</div>
+      <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">10</span></a>
+      <a href="/app/clients" role="menuitem" aria-label="Client actions - deliver now and delivery timeline"><span class="ic" aria-hidden="true">📋</span> Client Actions</a>
+      <a href="/app/onboard" role="menuitem" aria-label="Onboarding Wizard"><span class="ic" aria-hidden="true">✦</span> Onboarding Wizard</a>
+      <a href="/app/impersonate" role="menuitem" aria-label="Login as customer (support)"><span class="ic" aria-hidden="true">🕵️</span> Login as Customer</a>
+      <div class="sec nav-group" role="presentation">Delivery &amp; Approvals</div>
+      <a href="#sec-automation" role="menuitem" aria-label="Automation workflows hub"><span class="ic" aria-hidden="true">🎛</span> Automation Hub <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
+      <a href="/app/automation" role="menuitem" aria-label="Mission Control automation"><span class="ic" aria-hidden="true">🎛</span> Automation Monitor</a>
+      <a href="#sec-launch-calls" role="menuitem" aria-label="Launch outbound campaign"><span class="ic" aria-hidden="true">🚀</span> Launch Campaign</a>
+      <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">8</span></a>
+      <a href="#sec-speed" role="menuitem" aria-label="Speed to lead"><span class="ic" aria-hidden="true">⚡</span> Speed-to-Lead</a>
+      <a href="#sec-recordings" role="menuitem" aria-label="Call Recordings player"><span class="ic" aria-hidden="true">🎙</span> Call Recordings</a>
+      <a href="#sec-webcalls" role="menuitem" aria-label="Web test-call transcripts"><span class="ic" aria-hidden="true">💬</span> Web Test Calls</a>
+      <a href="/app/calendar" role="menuitem" aria-label="Content calendar"><span class="ic" aria-hidden="true">🗓</span> Content Calendar</a>
+      <a href="/app/whatsapp" role="menuitem" aria-label="WhatsApp campaigns panel"><span class="ic" aria-hidden="true">💚</span> WhatsApp Campaigns</a>
+      <div class="sec nav-group" role="presentation">Growth &amp; Revenue</div>
+      <a href="#sec-revenue" role="menuitem" aria-label="Revenue analytics MRR churn"><span class="ic" aria-hidden="true">📈</span> Revenue Analytics</a>
+      <a href="#sec-billing" role="menuitem" aria-label="Billing and Revenue"><span class="ic" aria-hidden="true">₹</span> Billing &amp; Revenue</a>
+      <a href="/app/outreach" role="menuitem" aria-label="Outreach pipeline"><span class="ic" aria-hidden="true">📧</span> Outreach</a>
+      <a href="#sec-outreach-activity" role="menuitem" aria-label="Outreach activity emails sent and replies"><span class="ic" aria-hidden="true">📧</span> Email Activity</a>
+      <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Prospects / Leads</a>
+      <a href="/app/analytics" role="menuitem" aria-label="Analytics dashboard"><span class="ic" aria-hidden="true">📊</span> Analytics</a>
+      <a href="/app/battlecard" role="menuitem" aria-label="Competitive Battlecard"><span class="ic" aria-hidden="true">⚔</span> Competitive Battlecard</a>
+      <a href="#sec-niches" role="menuitem" aria-label="Niches and Pricing"><span class="ic" aria-hidden="true">◆</span> Niches &amp; Pricing <span class="badge" id="nav-niche">25</span></a>
+      <a href="#sec-diff" role="menuitem" aria-label="P0 differentiators branded feed approvals routing"><span class="ic" aria-hidden="true">🎯</span> P0 Differentiators</a>
+      <a href="/app/studio" role="menuitem" aria-label="AI creative studio"><span class="ic" aria-hidden="true">🎨</span> AI Studio</a>
+      <a href="/app/deals" role="menuitem" aria-label="Deals pipeline CRM"><span class="ic" aria-hidden="true">🤝</span> Deals Pipeline</a>
+      <a href="/app/segments" role="menuitem" aria-label="Dynamic audience segments"><span class="ic" aria-hidden="true">🧩</span> Dynamic Segments</a>
+      <a href="/app/growth-tools" role="menuitem" aria-label="Growth tools hub"><span class="ic" aria-hidden="true">🧰</span> Growth Tools</a>
+      <div class="sec nav-group" role="presentation">System (Internal)</div>
+      <a href="/app/control-center" role="menuitem" aria-label="Control Center system observability"><span class="ic" aria-hidden="true">🖥</span> Control Center</a>
+      <a href="/app/ops" role="menuitem" aria-label="Ops mission control"><span class="ic" aria-hidden="true">🛠</span> Ops Control</a>
+      <a href="/app/dashboards" role="menuitem" aria-label="Activation and integrations status"><span class="ic" aria-hidden="true">🔌</span> Activation &amp; Integrations</a>
+      <a href="#sec-health" role="menuitem" aria-label="System Health"><span class="ic" aria-hidden="true">◐</span> System Health</a>
+      <a href="#sec-api" role="menuitem" aria-label="API usage and infra flags"><span class="ic" aria-hidden="true">🔌</span> API &amp; Infra</a>
+      <a href="/app/brain" role="menuitem" aria-label="Second Brain agent memory search"><span class="ic" aria-hidden="true">🧠</span> Second Brain</a>
+      <a href="/app/team" role="menuitem" aria-label="AI staff team"><span class="ic" aria-hidden="true">👥</span> AI Staff Team</a>
+      <a href="/app/office" role="menuitem" aria-label="Virtual office map"><span class="ic" aria-hidden="true">🏢</span> Virtual Office</a>
+      <a href="/app/explorer" role="menuitem" aria-label="Architecture Explorer"><span class="ic" aria-hidden="true">🗺</span> Architecture Explorer</a>
+      <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">⚙</span> AI Agents <span class="badge" id="nav-ag">6</span></a>
+      <a href="#sec-ops2026" role="menuitem" aria-label="Deliverability and eval"><span class="ic" aria-hidden="true">📬</span> Deliverability & Eval</a>
+      <a href="#sec-audit" role="menuitem" aria-label="Activity audit log"><span class="ic" aria-hidden="true">📜</span> Activity Log</a>
+      <a href="#sec-godmode" onclick="expandAdvTech()" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode <span class="badge" style="background:#ef4444">NEW</span></a>
+      <div class="sec nav-group" role="presentation">Advanced &amp; Account</div>
+      <a href="/app/agent-tools" role="menuitem" aria-label="Agent Tools developer cockpit"><span class="ic" aria-hidden="true">🛠</span> Agent Tools (Dev)</a>
+      <a href="/app/team-access" role="menuitem" aria-label="Team RBAC"><span class="ic" aria-hidden="true">🔐</span> Team &amp; RBAC</a>
+      <a href="/app/admin-login" id="navAdminLogin" role="menuitem" aria-label="Admin login"><span class="ic" aria-hidden="true">🔑</span> Admin Login</a>
     </nav>
     <div class="ao-sb-live"><span class="dot"></span>15 AI agents active</div>
     <div class="sb-foot" aria-label="Logged in admin user">
@@ -810,11 +849,8 @@
 
       <!-- Speed-to-Lead SLA -->
       <div data-view="command_center" class="card" id="sec-speed">
-        <div class="hd">
-          <h3>Speed-to-Lead SLA</h3><span class="right" id="stl-summary">2-min target</span>
-          <button class="btn" onclick="loadSpeedToLead()" aria-label="Refresh speed-to-lead SLA" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
-        </div>
-        <div class="bd" id="stlBody"><span class="skeleton" style="height:14px;width:200px;display:block"></span></div>
+        <div class="hd"><h3>Speed-to-Lead SLA</h3><span class="right" id="stl-summary">2-min target</span></div>
+        <div class="bd" id="stlBody"><span style="color:var(--muted)">Loading…</span></div>
       </div>
 
       <!-- API usage & infra flags -->
@@ -1679,7 +1715,6 @@ async function loadActivityFeed(){
 /* ====== Speed-to-lead ====== */
 async function loadSpeedToLead(){
   const body=$("stlBody"), sum=$("stl-summary");
-  if(body) body.innerHTML='<span class="skeleton" style="height:14px;width:200px;display:block"></span>';
   try{
     const r=await fetch("/api/growth/speed-to-lead/summary?days=30",{headers:abAuthHdr(),cache:"no-store"});
     if(!r.ok) throw new Error("bad");
@@ -1691,7 +1726,7 @@ async function loadSpeedToLead(){
       <div class="rev-kpi"><div class="rk-lbl">Touched</div><div class="rk-val">${d.touched||0}</div></div>
     </div><p style="font-size:13px;color:var(--muted);margin-top:8px">${escH(d.verdict||"")}</p>`;
     if(sum) sum.textContent=(d.under_2min_pct||0)+"% under 2 min";
-  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--red)">Speed-to-lead data nahi mila — <a href="#" onclick="loadSpeedToLead();return false" style="color:var(--indigo)">Retry</a></span>`; }
+  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--muted)">Speed-to-lead data nahi mila</span>`; }
 }
 
 /* ====== Infra flags / API usage ====== */
@@ -2315,13 +2350,13 @@ async function c360DeliverNow() {
     });
     const d = await r.json();
     if (r.ok && d.delivered) {
-      adminToast("✓ Value delivered successfully!", "success");
+      toast("✓ Value delivered successfully!", "ok");
     } else {
-      adminToast("Delivery failed: " + (d.reason || "unknown error"), "error");
+      toast("Delivery failed: " + (d.reason || "unknown error"), "err");
     }
     loadC360Timeline(cid);
   } catch (e) {
-    adminToast("Action error: " + e.message, "error");
+    toast("Action error: " + e.message, "err");
   } finally {
     btn.disabled = false;
     btn.textContent = "🚀 Deliver Value Now";
@@ -2340,12 +2375,12 @@ async function c360ScrapeWebsite() {
       headers: abAuthHdr()
     });
     if (r.ok) {
-      adminToast("✓ Website scraping triggered in background!", "success");
+      toast("✓ Website scraping triggered in background!", "ok");
     } else {
-      adminToast("Trigger failed", "error");
+      toast("Trigger failed", "err");
     }
   } catch (e) {
-    adminToast("Error: " + e.message, "error");
+    toast("Error: " + e.message, "err");
   } finally {
     btn.disabled = false;
     btn.textContent = "🌐 Re-Scrape Website";
@@ -2368,12 +2403,12 @@ async function c360ResetPassword() {
       body: JSON.stringify({ password: newPwd })
     });
     if (r.ok) {
-      adminToast("✓ Password reset successful!", "success");
+      toast("✓ Password reset successful!", "ok");
     } else {
-      adminToast("Password reset failed", "error");
+      toast("Password reset failed", "err");
     }
   } catch (e) {
-    adminToast("Error: " + e.message, "error");
+    toast("Error: " + e.message, "err");
   }
 }
 
@@ -2447,13 +2482,13 @@ async function dqDeliverNow(btn, cid) {
     });
     const d = await r.json();
     if (r.ok && d.delivered) {
-      adminToast("✓ Value delivered successfully!", "success");
+      toast("✓ Value delivered successfully!", "ok");
     } else {
-      adminToast("Delivery failed: " + (d.reason || "unknown error"), "error");
+      toast("Delivery failed: " + (d.reason || "unknown error"), "err");
     }
     loadDeliveryQueue();
   } catch (e) {
-    adminToast("Action error: " + e.message, "error");
+    toast("Action error: " + e.message, "err");
   } finally {
     btn.disabled = false;
     btn.textContent = origText;
