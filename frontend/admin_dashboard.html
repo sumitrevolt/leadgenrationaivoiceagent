@@ -557,7 +557,10 @@
           <div class="bd"><div class="chart-wrap"><canvas id="chCalls"></canvas></div></div>
         </div>
         <div class="card" id="sec-health">
-          <div class="hd"><h3>System Health</h3><span class="right" id="health-time">—</span></div>
+          <div class="hd" aria-expanded="false">
+            <h3>System Health</h3><span class="right" id="health-time">—</span>
+            <button class="btn card-collapse-btn" onclick="toggleCardCollapse('sec-health')" aria-label="Toggle System Health section" style="margin-left:10px;padding:6px 12px;font-size:12px">Dikhao ▾</button>
+          </div>
           <div class="bd" id="health"></div>
           <div class="bd" id="sysHealthDetail" style="padding-top:0"></div>
         </div>
@@ -565,7 +568,10 @@
 
       <!-- Agents -->
       <div data-view="office" class="card" id="sec-agents">
-        <div class="hd"><h3>AI Agents / Workers</h3><span class="right" id="ag-summary">—</span></div>
+        <div class="hd" aria-expanded="false">
+          <h3>AI Agents / Workers</h3><span class="right" id="ag-summary">—</span>
+          <button class="btn card-collapse-btn" onclick="toggleCardCollapse('sec-agents')" aria-label="Toggle AI Agents section" style="margin-left:10px;padding:6px 12px;font-size:12px">Dikhao ▾</button>
+        </div>
         <div class="bd"><div class="agents" id="agents"></div></div>
       </div>
 
@@ -940,10 +946,11 @@
 
       <!-- Call Recordings -->
       <div data-view="office" class="card" id="sec-recordings" style="scroll-margin-top:80px">
-        <div class="hd">
+        <div class="hd" aria-expanded="false">
           <h3 id="recHeading">🎙 Call Recordings</h3>
           <span class="right" id="rec-summary" aria-live="polite">—</span>
           <button class="btn" onclick="loadRecordings()" aria-label="Refresh call recordings" style="margin-left:10px;padding:6px 12px;font-size:12px">↺ Refresh</button>
+          <button class="btn card-collapse-btn" onclick="toggleCardCollapse('sec-recordings')" aria-label="Toggle Call Recordings section" style="margin-left:6px;padding:6px 12px;font-size:12px">Dikhao ▾</button>
         </div>
         <div class="filter-bar" role="search" aria-label="Recording search and filter">
           <input type="search" id="recSearch" placeholder="Call ID (SID) dhundho…" aria-label="Search recordings by call ID" oninput="filterRecordings()" autocomplete="off">
@@ -967,10 +974,11 @@
 
       <!-- Web Test Calls (transcripts) -->
       <div data-view="office" class="card" id="sec-webcalls" style="scroll-margin-top:80px">
-        <div class="hd">
+        <div class="hd" aria-expanded="false">
           <h3>💬 Web Test Calls</h3>
           <span class="right" id="wc-summary">—</span>
           <button class="btn" onclick="loadWebCalls()" style="margin-left:10px;padding:6px 12px;font-size:12px">↺ Refresh</button>
+          <button class="btn card-collapse-btn" onclick="toggleCardCollapse('sec-webcalls')" aria-label="Toggle Web Test Calls section" style="margin-left:6px;padding:6px 12px;font-size:12px">Dikhao ▾</button>
         </div>
         <div class="bd" id="wc-body">
           <div style="color:var(--muted);font-size:13px">Loading…</div>
@@ -2471,6 +2479,7 @@ function loadAdminTasks(){
 document.addEventListener("DOMContentLoaded", ()=>{
   showAdminView("command_center");
   try{ if(localStorage.getItem("admin_advTechOpen") === "1") _advTechSetOpen(true); }catch(e){}
+  _restoreCollapsibleCards();
   loadOfficeTeaser();
   adminAuthBoot();
   loadTodayBiz();
@@ -2608,6 +2617,36 @@ function expandAdvTech(){
   const sb = document.getElementById("sidebar");
   if(sb) sb.classList.remove("open");   // mobile: menu band karo
   setTimeout(()=>{ const el = document.getElementById("sec-godmode"); if(el) el.scrollIntoView({behavior:"smooth", block:"start"}); }, 50);
+}
+
+/* Collapsible Office-view cards (System Health/AI Agents/Recordings/Web Test
+   Calls) — same pattern as the AdvTech wrapper above: collapsed by default so
+   the Office view isn't one long scroll, state persists per-browser via
+   localStorage, load*() calls still run in the background (display:none is
+   purely visual — data stays fresh so the card is populated the moment it's
+   expanded). */
+function _cardSetOpen(cardId, open){
+  const card = document.getElementById(cardId);
+  if(!card) return;
+  card.querySelectorAll(".bd, .filter-bar").forEach(el=>{ el.style.display = open ? "" : "none"; });
+  const btn = card.querySelector(".card-collapse-btn");
+  const hd = card.querySelector(".hd");
+  if(btn) btn.textContent = open ? "Chhupao ▲" : "Dikhao ▾";
+  if(hd) hd.setAttribute("aria-expanded", open ? "true" : "false");
+  try{ localStorage.setItem("admin_cardOpen:"+cardId, open ? "1" : "0"); }catch(e){}
+}
+function toggleCardCollapse(cardId){
+  const card = document.getElementById(cardId);
+  if(!card) return;
+  const probe = card.querySelector(".bd, .filter-bar");
+  _cardSetOpen(cardId, probe ? probe.style.display === "none" : true);
+}
+function _restoreCollapsibleCards(){
+  ["sec-health","sec-agents","sec-recordings","sec-webcalls"].forEach(id=>{
+    let open = false;
+    try{ open = localStorage.getItem("admin_cardOpen:"+id) === "1"; }catch(e){}
+    _cardSetOpen(id, open);
+  });
 }
 
 /* ---- product -> niche -> plan wiring (prices mirror voice_packages.py / combo_packages.py) ---- */
@@ -3786,7 +3825,7 @@ function _renderRecordingsFiltered(){
     // day would render fully collapsed and look like "no results".
     const openAttr = (filtersActive || idx===0) ? " open" : "";
     html+=`<details${openAttr} style="margin-bottom:10px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;overflow:hidden">
-      <summary style="cursor:pointer;padding:9px 14px;font-weight:700;font-size:13px;color:var(--ink)">📅 ${escH(day.date)} <span style="color:var(--muted);font-weight:400">(${sessions.length}${sessions.length!==day.sessions.length?" / "+day.sessions.length:""} calls)</span></summary>
+      <summary style="cursor:pointer;padding:9px 14px;font-weight:700;font-size:13px;color:var(--ink)">📁 ${escH(day.date)} <span style="color:var(--muted);font-weight:400">(${sessions.length}${sessions.length!==day.sessions.length?" / "+day.sessions.length:""} calls)</span></summary>
       <div style="padding:0 12px 12px;display:flex;flex-direction:column;gap:8px">`;
     for(const s of sessions){
       const base="/api/admin/call-recordings/"+encodeURIComponent(day.date)+"/";
