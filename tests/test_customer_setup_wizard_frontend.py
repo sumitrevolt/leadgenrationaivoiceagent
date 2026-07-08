@@ -78,7 +78,9 @@ def test_setup_wizard_reuses_real_helpers_not_invented_ones():
     assert 'class="card-h"' in card_snippet
     assert 'class="card-b"' in card_snippet
 
+    # window renderSetupWizard + saveSetupWizard dono cover kare (2026-07-07:
+    # first-week-plan button add hone se 5500 chhota pad gaya tha)
     idx2 = html.index("function _swField")
-    fn_snippet = html[idx2 : idx2 + 5500]
+    fn_snippet = html[idx2 : idx2 + 7000]
     assert "escH(" in fn_snippet
     assert "toast(" in fn_snippet

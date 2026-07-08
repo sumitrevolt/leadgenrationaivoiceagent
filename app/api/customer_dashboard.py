@@ -1245,6 +1245,48 @@ def customer_update_profile(body: ProfileUpdateIn, client_id: str = Depends(requ
         return {"ok": False, "error": str(e)[:160]}
 
 
+@router.post("/campaigns/generate-first-week")
+def customer_generate_first_week(client_id: str = Depends(require_customer)) -> dict:
+    """Setup Wizard ka "pehla 7-din ka plan banao" button — seed ko WORKER me
+    enqueue karta hai (seed = multi LLM-call, web process me kabhi heavy job
+    nahi, CLAUDE.md). Idempotent: upcoming non-skipped items pehle se hon to
+    enqueue hi nahi hota (seed re-run content_approval me duplicates banata —
+    guard auto_content.upcoming_item_count single-source, worker task bhi wahi
+    re-check karta hai). IDOR-safe: client_id JWT se. Never-500."""
+    try:
+        from app.marketing import auto_content, clients_store
+
+        if not clients_store.get_client(client_id):
+            raise HTTPException(status_code=404, detail="Client not found")
+        upcoming = auto_content.upcoming_item_count(client_id)
+        if upcoming > 0:
+            return {
+                "ok": True,
+                "queued": False,
+                "already": True,
+                "upcoming_items": upcoming,
+                "message": "Aapke aane wale dino ka plan pehle se taiyaar hai — 📅 Calendar me dekhein.",
+            }
+        try:
+            from app.tasks.staff_jobs import seed_first_week
+
+            seed_first_week.delay(client_id)
+        except Exception as qe:
+            logger.warning("first-week seed enqueue failed for %s: %s", client_id, qe)
+            return {"ok": False, "queued": False, "error": "Abhi generate nahi ho paya — thodi der baad try karein."}
+        return {
+            "ok": True,
+            "queued": True,
+            "already": False,
+            "message": "🎉 AI aapka 7-din ka plan bana rahi hai — 1-2 minute me 📅 Calendar aur approvals me dikhega.",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.debug("customer generate-first-week failed: %s", e)
+        return {"ok": False, "error": "Campaign generate nahi hua — baad me try karein."}
+
+
 # --------------------------------------------------------------------------- #
 # Social Networking Setup Wizard — "apne social channels connect/configure karo" #
 # for the AI to prepare + (when admin-enabled) publish content. This is the     #
