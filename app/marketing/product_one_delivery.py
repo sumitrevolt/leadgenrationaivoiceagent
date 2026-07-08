@@ -222,6 +222,79 @@ def initialize_deliverables_for_client(db, client_id: str, plan_code: str | None
     db.commit()
 
 
+def sync_customer_deliverable_status(
+    client_id: str,
+    deliverable_id: str,
+    status: str,
+    *,
+    billing_cycle_month: str | None = None,
+    evidence_url: str = "",
+    evidence_payload: dict[str, Any] | str | None = None,
+    note: str = "",
+    owner: str = "",
+    error_message: str = "",
+) -> bool:
+    """Best-effort DB row sync for real delivery actions.
+
+    This intentionally updates existing rows only. Plan activation owns row
+    creation because that path guarantees a DB Client row exists; generation/
+    publish paths may still be serving jsonl-only customers and must never fail
+    or create FK errors while doing delivery work.
+    """
+    cid = str(client_id or "").strip()
+    did = str(deliverable_id or "").strip()
+    if not cid or not did:
+        return False
+
+    def _apply(db) -> bool:
+        from app.models.customer_deliverable import CustomerDeliverable, DeliverableStatus
+
+        q = db.query(CustomerDeliverable).filter(
+            CustomerDeliverable.client_id == cid,
+            CustomerDeliverable.deliverable_type == did,
+        )
+        if billing_cycle_month:
+            q = q.filter(CustomerDeliverable.billing_cycle_month == billing_cycle_month)
+        row = q.order_by(CustomerDeliverable.billing_cycle_month.desc(), CustomerDeliverable.created_at.desc()).first()
+        if row is None:
+            return False
+
+        try:
+            status_val = DeliverableStatus(str(status or "").strip().lower())
+        except Exception:
+            return False
+
+        row.status = status_val
+        row.updated_at = datetime.utcnow()
+        if status_val == DeliverableStatus.DELIVERED and row.delivered_at is None:
+            row.delivered_at = row.updated_at
+        if evidence_url:
+            row.evidence_url = str(evidence_url)[:500]
+        if evidence_payload is not None or note:
+            payload = evidence_payload
+            if payload is None:
+                payload = {"note": note}
+            elif isinstance(payload, dict) and note and "note" not in payload:
+                payload = {**payload, "note": note}
+            row.evidence_payload = json.dumps(payload, ensure_ascii=False, default=str)[:4000]
+        if owner:
+            row.owner = str(owner)[:50]
+        if error_message:
+            row.error_message = str(error_message)[:2000]
+        elif status_val != DeliverableStatus.FAILED:
+            row.error_message = None
+        return True
+
+    try:
+        from app.models.base import get_db_session
+
+        with get_db_session() as db:
+            return _apply(db)
+    except Exception as exc:
+        logger.debug("customer deliverable status sync skipped (%s/%s): %s", cid, did, exc)
+        return False
+
+
 WORKFLOWS = [
     {
         "id": "after_payment_customer_creation",
@@ -1240,6 +1313,35 @@ async def record_manual_action(
         )
     except Exception:
         pass
+    try:
+        db_status = ""
+        if status == "failed" or act == "retry_failed":
+            db_status = "failed"
+        elif act == "generate_content":
+            db_status = "pending_approval"
+        elif act == "approve_pending":
+            db_status = "approved"
+        elif act in ("publish_manual", "manual_task_done", "monthly_report"):
+            db_status = "delivered"
+        elif act in ("send_reminder", "assign_owner"):
+            db_status = "waiting_customer"
+        if db_status and deliverable_id:
+            sync_customer_deliverable_status(
+                cid,
+                deliverable_id,
+                db_status,
+                evidence_payload={
+                    "action": act,
+                    "workflow_id": rec["workflow_id"],
+                    "status": status,
+                    "result": result,
+                },
+                note=note,
+                owner=owner or rec["owner"],
+                error_message=err,
+            )
+    except Exception:
+        pass
     return {**result, "event": rec}
 
 
@@ -1555,6 +1657,7 @@ __all__ = [
     "DELIVERABLES",
     "WORKFLOWS",
     "customer_delivery_status",
+    "sync_customer_deliverable_status",
     "admin_customer_card",
     "delivery_cockpit",
     "automation_events",

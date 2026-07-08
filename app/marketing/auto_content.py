@@ -680,6 +680,27 @@ async def seed_client_content(client: dict[str, Any]) -> int:
                 )
             except Exception as le:  # pragma: no cover
                 logger.debug(f"[auto_content] ledger log skip: {le}")
+            try:
+                from app.marketing import product_one_delivery
+
+                product_one_delivery.sync_customer_deliverable_status(
+                    cid,
+                    "social_posts",
+                    "pending_approval",
+                    evidence_payload={"generated_count": added},
+                    note=f"{added} drafts/suggestions setup kiya",
+                    owner="AI",
+                )
+                product_one_delivery.sync_customer_deliverable_status(
+                    cid,
+                    "branded_posters",
+                    "pending_approval",
+                    evidence_payload={"generated_count": added},
+                    note="Creative drafts generated with the monthly content pack.",
+                    owner="AI",
+                )
+            except Exception as de:  # pragma: no cover
+                logger.debug(f"[auto_content] deliverable db sync skip: {de}")
 
         return added
     except Exception as e:  # pragma: no cover
@@ -835,6 +856,29 @@ def mark_item(client_id: str, item_id: str, status: str) -> bool:
                 delivery_ledger.log_event(str(client_id), event, detail=matched_title)
             except Exception as le:
                 logger.debug(f"[auto_content] mark_item ledger log skip: {le}")
+            try:
+                from app.marketing import product_one_delivery
+
+                if st == "approved":
+                    product_one_delivery.sync_customer_deliverable_status(
+                        str(client_id),
+                        "social_posts",
+                        "approved",
+                        evidence_payload={"item_id": item_id, "title": matched_title},
+                        note=matched_title,
+                        owner="Customer/Admin",
+                    )
+                else:
+                    product_one_delivery.sync_customer_deliverable_status(
+                        str(client_id),
+                        "proof",
+                        "delivered",
+                        evidence_payload={"item_id": item_id, "title": matched_title, "status": st},
+                        note=matched_title,
+                        owner="Ops",
+                    )
+            except Exception as de:
+                logger.debug(f"[auto_content] mark_item deliverable db sync skip: {de}")
         return True
     except Exception as e:  # pragma: no cover
         logger.warning(f"[auto_content] mark_item failed: {e}")
