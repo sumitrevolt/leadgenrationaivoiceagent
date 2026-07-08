@@ -28,9 +28,10 @@ def test_run_job_records_failure_when_job_raises(monkeypatch):
 
     captured: dict = {}
 
-    def _fake_record(job, ok, dur, note=None):
+    def _fake_record(job, ok, dur, note=None, error_class=None, correlation_id=None):
         captured["job"] = job
         captured["ok"] = ok
+        captured["error_class"] = error_class
 
     async def _boom(*a, **k):
         raise RuntimeError("simulated job failure")
@@ -58,3 +59,33 @@ def test_run_job_inner_returns_false_on_failure(monkeypatch):
     monkeypatch.setattr(ge, "pulse", _boom)
     res = _run(ts._run_job_inner("growth"))
     assert res is False, "_run_job_inner must return False when its outer except catches"
+
+
+def test_run_job_captures_error_class_on_truly_unexpected_exception(monkeypatch):
+    """Job-log schema audit (2026-07-07): when an exception genuinely escapes
+    `_run_job_inner` (bypassing its own internal catch-and-return-False — the
+    "truly unexpected" case per _run_job's own comment), `_run_job` used to
+    catch it, log it, and then discard it right before `record_run()` — the
+    exact class/message that WOULD explain the failure was thrown away. Now
+    it must be threaded through as `error_class`."""
+    import app.platform.automation_health as ah
+    import app.platform.team_scheduler as ts
+
+    captured: dict = {}
+
+    def _fake_record(job, ok, dur, note=None, error_class=None, correlation_id=None):
+        captured["ok"] = ok
+        captured["error_class"] = error_class
+        captured["note"] = note
+
+    async def _boom_inner(job):
+        raise ValueError("dispatch table itself is broken")
+
+    monkeypatch.setattr(ah, "record_run", _fake_record)
+    monkeypatch.setattr(ts, "_run_job_inner", _boom_inner)
+
+    _run(ts._run_job("growth"))
+
+    assert captured.get("ok") is False
+    assert captured.get("error_class") == "ValueError"
+    assert "dispatch table itself is broken" in (captured.get("note") or "")

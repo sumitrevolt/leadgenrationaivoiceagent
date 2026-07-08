@@ -18,7 +18,11 @@ from app.platform import ops_alerts
 # --------------------------------------------------------------------------- #
 @pytest.mark.parametrize(
     "helper",
-    [ops_alerts.maybe_alert_payment_failed, ops_alerts.maybe_alert_smtp_disabled],
+    [
+        ops_alerts.maybe_alert_payment_failed,
+        ops_alerts.maybe_alert_smtp_disabled,
+        lambda detail: ops_alerts.alert_paid_customer_stuck("c1", "jiya makeover", detail),
+    ],
 )
 def test_helper_noop_when_unconfigured(helper, monkeypatch):
     # OPS_ALERTS unset -> enabled() is False -> inert.
@@ -111,6 +115,10 @@ def test_helpers_respect_cooldown(monkeypatch):
         "alerted": False,
         "reason": "cooldown",
     }
+    assert ops_alerts.alert_paid_customer_stuck("c1", "jiya makeover", "x") == {
+        "alerted": False,
+        "reason": "cooldown",
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -157,3 +165,44 @@ def test_upi_auto_activated_keys_cooldown_per_payment(monkeypatch):
     assert r1 == {"alerted": True}
     assert r2 == {"alerted": True}
     assert len(calls) == 2
+
+
+# --------------------------------------------------------------------------- #
+# Paid-customer-stuck page (the jiya-makeover-class ghosting bug, closed) —
+# this is the alert that was MISSING when customer_delivery._record_stuck only
+# wrote a jsonl line + a log WARNING nobody was watching.
+# --------------------------------------------------------------------------- #
+def test_paid_customer_stuck_fires_urgent_ntfy_when_enabled(monkeypatch):
+    calls = _recorder(monkeypatch)
+
+    res = ops_alerts.alert_paid_customer_stuck("c1", "jiya makeover", "send_failed")
+
+    assert res == {"alerted": True}
+    assert len(calls) == 1
+    title, message, kw = calls[0]
+    assert "jiya makeover" in title
+    assert "c1" in message and "send_failed" in message
+    assert kw.get("priority") == "urgent"
+
+
+def test_paid_customer_stuck_keyed_per_client_not_shared(monkeypatch):
+    """Two different stuck customers must each get their own cooldown key —
+    one ghosted customer's alert must never suppress another's."""
+    monkeypatch.setenv("OPS_ALERTS", "1")
+    monkeypatch.setattr(ops_alerts, "_record_fire", lambda *a, **k: None)
+    fired_keys: list[str] = []
+
+    def _spy(key, kind):
+        fired_keys.append(key)
+        return False  # never suppress in this test
+
+    monkeypatch.setattr(ops_alerts, "_cooldown_active", _spy)
+    monkeypatch.setattr(ops_alerts, "_ntfy", lambda *a, **k: None)
+
+    ops_alerts.alert_paid_customer_stuck("client-a", "biz a", "no_phone")
+    ops_alerts.alert_paid_customer_stuck("client-b", "biz b", "no_phone")
+
+    assert fired_keys == [
+        "paid_customer_stuck:client-a",
+        "paid_customer_stuck:client-b",
+    ]

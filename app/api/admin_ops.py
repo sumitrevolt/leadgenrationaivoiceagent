@@ -20,10 +20,13 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
 from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.admin import log_audit
 from app.api.auth_deps import require_admin
+from app.models.base import get_async_db
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -785,7 +788,12 @@ async def voice_self_test(
 
 
 @router.post("/upi/activate", summary="Activate plan after UPI screenshot verified")
-async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
+async def upi_activate(
+    body: UpiActivateReq,
+    request: Request,
+    _user=Depends(require_admin),
+    db: AsyncSession = Depends(get_async_db),
+):
     """Admin ne WA screenshot dekha → plan activate."""
     cid = (body.client_id or "").strip()
     plan = (body.plan or "starter").strip().lower()
@@ -840,6 +848,23 @@ async def upi_activate(body: UpiActivateReq, _user=Depends(require_admin)):
             )
         except Exception:
             pass
+        # AUDIT — approving a payment is a money-path admin action; the team-log
+        # above is informal/ephemeral, this is the formal tamper-record
+        # /api/admin/audit-logs reads (best-effort — audit failure never blocks
+        # the actual activation, mirrors impersonation.py's pattern).
+        try:
+            await log_audit(
+                db,
+                user_id=str(getattr(_user, "id", "")),
+                action="payment.approve",
+                resource_type="client",
+                resource_id=cid,
+                new_value={"plan": plan, "via": "upi_screenshot", "clear_trial": bool(body.clear_trial)},
+                ip_address=request.client.host if request.client else None,
+                severity="warning",
+            )
+        except Exception as e:
+            logger.warning(f"Audit log failed for UPI activation {cid}: {e}")
         return {"ok": True, "client_id": cid, "plan": plan}
     except HTTPException:
         raise

@@ -78,8 +78,23 @@ def _alerts_enabled() -> bool:
     return os.environ.get("AUTOMATION_HEALTH_ALERTS", "0").strip().lower() in ("1", "true", "yes")
 
 
-def record_run(job: str, ok: bool = True, seconds: float = 0.0, note: str = "") -> None:
-    """Job-run heartbeat (scheduler wrapper se). KABHI raise nahi, fast."""
+def record_run(
+    job: str,
+    ok: bool = True,
+    seconds: float = 0.0,
+    note: str = "",
+    error_class: str = "",
+    correlation_id: str = "",
+) -> None:
+    """Job-run heartbeat (scheduler wrapper se). KABHI raise nahi, fast.
+
+    `error_class`/`correlation_id` additive 2026-07-07 (job-log schema audit
+    finding) — optional, existing callers untouched. `error_class` = the
+    exception TYPE name when `ok=False` and the caller actually has an
+    exception object at this level (most jobs swallow+return False internally
+    per sub-engine, so this stays "" for those — same honest partial coverage
+    the audit found, just no longer silently discarded when the outer
+    wrapper genuinely does have one)."""
     try:  # W1.13: per-job Prometheus counters (independent try — heartbeat pe asar na ho)
         from app.platform import job_metrics
 
@@ -91,7 +106,10 @@ def record_run(job: str, ok: bool = True, seconds: float = 0.0, note: str = "") 
             "job": (job or "?")[:30],
             "ok": bool(ok),
             "s": round(float(seconds), 2),
+            "duration_ms": round(float(seconds) * 1000),
             "note": (note or "")[:120],
+            "error_class": (error_class or "")[:60],
+            "correlation_id": (correlation_id or "")[:60],
             "at": _now().isoformat(timespec="seconds"),
         }
         os.makedirs(os.path.dirname(_RUNS) or ".", exist_ok=True)

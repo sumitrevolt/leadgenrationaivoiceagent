@@ -642,6 +642,19 @@ async def customer_voice_call_queue(
         )
     lim = max(1, min(int(limit or 20), 50))
     rec = _client_record(client_id) or {}
+    # PLAN/PRODUCT GATE (2026-07-07 audit fix): AI voice calling is a separate
+    # standalone product (₹4,999-19,999/mo) — a Marketing-only ("starter")
+    # customer must not get free AI calls just because this flag+DLT happen to
+    # both be armed one day. queue_call()'s minute/lead-quota checks fail-OPEN
+    # for non-metered plans (no cap = not blocked), so this route-level check
+    # is the only gate for product entitlement specifically.
+    from app.marketing import clients_store as _clients_store
+
+    if _clients_store.resolve_product(rec) not in ("voice", "combo"):
+        raise HTTPException(
+            status_code=403,
+            detail="AI Voice Calling aapke plan me included nahi hai — Voice ya Combo product chahiye.",
+        )
     client_name = str(rec.get("business_name") or "Aapka business")
     niche_default = str(rec.get("niche") or "general")
 
