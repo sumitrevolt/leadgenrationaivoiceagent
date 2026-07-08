@@ -27,6 +27,29 @@ logger = logging.getLogger(__name__)
 _SYNTAX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 # obvious non-deliverable / role / placeholder locals worth skipping for cold outreach
 _SKIP_LOCAL = {"noreply", "no-reply", "donotreply", "mailer-daemon", "postmaster"}
+_ASSET_TLDS = {
+    "avif",
+    "css",
+    "gif",
+    "ico",
+    "jpeg",
+    "jpg",
+    "js",
+    "png",
+    "svg",
+    "webp",
+    "woff",
+    "woff2",
+}
+_PLACEHOLDER_DOMAINS = {
+    "company.com",
+    "domain.com",
+    "domainname.com",
+    "example.com",
+    "example.org",
+    "mysite.com",
+}
+_PLACEHOLDER_LOCALS = {"abc", "example", "flags"}
 
 
 def available() -> bool:
@@ -38,6 +61,19 @@ def available() -> bool:
         return False
 
 
+def is_obvious_false_positive(email: str) -> bool:
+    """True for scraper asset/placeholder strings that merely look email-shaped."""
+    raw = (email or "").strip()
+    try:
+        local, domain = raw.rsplit("@", 1)
+        local = local.strip().lower()
+        domain = domain.strip().lower()
+        tld = domain.rsplit(".", 1)[1]
+        return domain in _PLACEHOLDER_DOMAINS or tld in _ASSET_TLDS or local in _PLACEHOLDER_LOCALS
+    except Exception:
+        return True
+
+
 def verify(email: str, check_mx: bool = True) -> dict:
     """Return {"ok": bool, "email": normalized, "reason": str}. Never raises."""
     raw = (email or "").strip()
@@ -47,6 +83,12 @@ def verify(email: str, check_mx: bool = True) -> dict:
     local = raw.split("@", 1)[0].lower()
     if local in _SKIP_LOCAL:
         return {"ok": False, "email": raw, "reason": f"role/placeholder local '{local}'"}
+    if is_obvious_false_positive(raw):
+        return {"ok": False, "email": raw, "reason": "placeholder/asset false-positive"}
+    try:
+        raw.rsplit("@", 1)[1].strip().lower().rsplit(".", 1)[1]
+    except Exception:
+        return {"ok": False, "email": raw, "reason": "bad syntax"}
 
     try:
         from email_validator import EmailNotValidError, validate_email
@@ -71,4 +113,4 @@ def is_sendable(email: str) -> bool:
     return verify(email).get("ok", False)
 
 
-__all__ = ["available", "verify", "is_sendable"]
+__all__ = ["available", "verify", "is_sendable", "is_obvious_false_positive"]

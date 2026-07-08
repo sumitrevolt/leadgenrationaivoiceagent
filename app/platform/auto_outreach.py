@@ -490,6 +490,13 @@ def _valid_email(addr: str, check_mx: bool = True) -> bool:
     a = (addr or "").strip()
     if not ("@" in a and "." in a.split("@")[-1] and len(a) >= 6):
         return False
+    try:
+        from app.lead_scraper.email_verify import is_obvious_false_positive
+
+        if is_obvious_false_positive(a):
+            return False
+    except Exception:
+        pass
     # Deliverability gate (syntax + MX) — keeps bounce rate <2% so Gmail/Outlook don't
     # reject our bulk mail and the sending domain stays clean. Defensive: if
     # email-validator isn't installed, the basic check above is enough.
