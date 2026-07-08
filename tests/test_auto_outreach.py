@@ -367,6 +367,25 @@ class TestStats:
         assert stats["pending"] == 2
         assert stats["duplicate_pending_recipients"] == 1
 
+    def test_counts_exclude_scraped_garbage_email_false_positives(self, tmp_prospects):
+        _seed(
+            tmp_prospects,
+            {"id": "a", "business_name": "A", "email": "good@x.in", "status": "ready"},
+        )
+        for i, email in enumerate(
+            ["support@pw.lie", "id@r93.ful", "a5%@bfe0r.vl", "%20tkiblr1@site.in"], start=1
+        ):
+            _seed(
+                tmp_prospects,
+                {"id": f"bad{i}", "business_name": "Bad", "email": email, "status": "ready"},
+            )
+
+        stats = auto_outreach.outreach_stats()
+        assert stats["with_email"] == 1
+        assert stats["pending_total"] == 1
+        assert stats["pending_sendable"] == 1
+        assert stats["pending"] == 1
+
     def test_activity_surfaces_pause_and_suppression(self, monkeypatch, tmp_prospects):
         from app.platform import email_unsub, email_warmup
 

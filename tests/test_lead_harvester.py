@@ -78,6 +78,10 @@ def test_email_verify_rejects_asset_and_placeholder_false_positives():
         "info@domainname.com",
         "example@mysite.com",
         "john@company.com",
+        "support@pw.lie",
+        "id@r93.ful",
+        "a5%@bfe0r.vl",
+        "%20tkiblr1@taiyokagakuindia.com",
     ]
     for addr in bad:
         out = email_verify.verify(addr, check_mx=False)

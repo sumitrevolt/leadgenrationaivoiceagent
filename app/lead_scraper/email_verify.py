@@ -41,6 +41,12 @@ _ASSET_TLDS = {
     "woff",
     "woff2",
 }
+_SCRAPER_GARBAGE_TLDS = {
+    # Observed from truncated web/URL text, not real outreach recipients.
+    "ful",
+    "lie",
+    "vl",
+}
 _PLACEHOLDER_DOMAINS = {
     "company.com",
     "domain.com",
@@ -69,7 +75,13 @@ def is_obvious_false_positive(email: str) -> bool:
         local = local.strip().lower()
         domain = domain.strip().lower()
         tld = domain.rsplit(".", 1)[1]
-        return domain in _PLACEHOLDER_DOMAINS or tld in _ASSET_TLDS or local in _PLACEHOLDER_LOCALS
+        return (
+            "%" in raw
+            or domain in _PLACEHOLDER_DOMAINS
+            or tld in _ASSET_TLDS
+            or tld in _SCRAPER_GARBAGE_TLDS
+            or local in _PLACEHOLDER_LOCALS
+        )
     except Exception:
         return True
 
