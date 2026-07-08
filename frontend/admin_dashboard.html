@@ -455,7 +455,7 @@
           <h3>🕐 Pending Niches — Admin Review <span id="pendingNicheCount" style="font-size:11px;background:#f59e0b;color:#000;border-radius:999px;padding:2px 8px;margin-left:6px"></span></h3>
           <button class="btn" onclick="loadPendingNiches()" style="padding:5px 12px;font-size:11px">↻ Refresh</button>
         </div>
-        <div class="bd" id="pendingNichesList" style="font-size:13px;color:var(--muted)">Loading…</div>
+        <div class="bd" id="pendingNichesList" style="font-size:13px"><span class="skeleton sk-text"></span></div>
       </div>
 
       <!-- Assessment Scores Widget (hidden until API responds) -->
@@ -844,7 +844,7 @@
         <div class="hd"><h3>Activity &amp; Audit Log</h3><span class="right" id="audit-summary">Agent events + admin audit</span>
           <button class="btn" onclick="loadActivityFeed()" style="margin-left:8px;padding:6px 12px;font-size:12px">↻ Refresh</button>
         </div>
-        <div class="bd"><div class="timeline" id="auditTimeline" aria-live="polite">Loading…</div></div>
+        <div class="bd"><div class="timeline" id="auditTimeline" aria-live="polite"><span class="skeleton sk-text"></span></div></div>
       </div>
 
       <!-- Speed-to-Lead SLA -->
@@ -858,8 +858,10 @@
 
       <!-- API usage & infra flags -->
       <div data-view="office" class="card" id="sec-api">
-        <div class="hd"><h3>API Usage &amp; Infra Flags</h3><span class="right" id="api-summary">Automation + rate limits</span></div>
-        <div class="bd" id="apiBody"><span style="color:var(--muted)">Loading…</span></div>
+        <div class="hd"><h3>API Usage &amp; Infra Flags</h3><span class="right" id="api-summary">Automation + rate limits</span>
+          <button class="btn" onclick="loadInfraFlags()" aria-label="Refresh API usage and infra flags" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="apiBody"><span class="skeleton sk-text"></span></div>
       </div>
 
       <!-- System Sync — recently-shipped backend surfaced (deliverability/eval/approvals) -->
@@ -868,7 +870,7 @@
           <span class="right" id="sync-summary">—</span>
           <button class="btn" onclick="loadSyncHealth()" style="margin-left:8px;padding:6px 12px;font-size:12px">↻ Refresh</button>
         </div>
-        <div class="bd" id="syncBody"><span style="color:var(--muted)">Loading…</span></div>
+        <div class="bd" id="syncBody"><span class="skeleton sk-text"></span></div>
       </div>
 
       <!-- Automation Workflows Hub (Mission Control inline) -->
@@ -1713,7 +1715,7 @@ async function loadActivityFeed(){
       }
     }catch(e){}
   }
-  if(tl) tl.innerHTML=html||`<div style="color:var(--muted)">Activity load nahi hui — admin login check karo</div>`;
+  if(tl) tl.innerHTML=html||`<div style="color:var(--red);font-size:13px">Activity load nahi hui — admin login check karo — <a href="#" onclick="loadActivityFeed();return false" style="color:var(--indigo)">Retry</a></div>`;
 }
 
 /* ====== Speed-to-lead ====== */
@@ -1751,7 +1753,7 @@ async function loadInfraFlags(){
       <p style="font-size:12px;color:var(--muted);margin-top:8px">DB: ${escH(ready.database||"?")} · Redis: ${escH(ready.redis||"?")} · ${on.length} flags ON / ${off.length} OFF</p>
       <p style="font-size:12px;margin-top:6px"><a href="/app/automation" style="color:var(--indigo)">Mission Control →</a> sab flags toggle karne ke liye</p>`;
     if(sum) sum.textContent=on.length+" automation flags ON";
-  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--muted)">Infra flags load fail</span>`; }
+  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--red)">Infra flags load fail — <a href="#" onclick="loadInfraFlags();return false" style="color:var(--indigo)">Retry</a></span>`; }
 }
 
 async function loadDiffPanel(){
@@ -2054,7 +2056,7 @@ async function loadSyncHealth(){
       +'</div>';
     $("syncBody").innerHTML=h;
     $("sync-summary").textContent='DKIM '+(dl.dkim_ok?'✓':'✗')+' · complaint '+cr+'%';
-  }catch(e){ if($("syncBody"))$("syncBody").innerHTML='<span style="color:var(--muted)">sync-health unavailable</span>'; if($("sync-summary"))$("sync-summary").textContent='—'; }
+  }catch(e){ if($("syncBody"))$("syncBody").innerHTML='<span style="color:var(--red)">sync-health unavailable — <a href="#" onclick="loadSyncHealth();return false" style="color:var(--indigo)">Retry</a></span>'; if($("sync-summary"))$("sync-summary").textContent='—'; }
 }
 async function loadAgents(){
   // Standalone real-team fetch — keeps the agents panel showing the FULL 18-member
@@ -2950,7 +2952,7 @@ async function loadPendingNiches(){
         </div>
       </div>`;
     }).join("");
-  }catch(e){ if(list) list.innerHTML='<span style="color:#f87171;font-size:12px">Error: '+escH(String(e))+'</span>'; }
+  }catch(e){ if(list) list.innerHTML='<span style="color:#f87171;font-size:12px">Error: '+escH(String(e))+' — <a href="#" onclick="loadPendingNiches();return false" style="color:#818cf8">Retry</a></span>'; }
 }
 async function approvePendingNiche(id, name){
   if(!confirm('Approve niche "'+name+'" — permanent list me add kar do?')) return;
