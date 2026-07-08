@@ -285,6 +285,8 @@
   .team-live{display:inline-flex;align-items:center;gap:6px;background:rgba(16,185,129,.16);border:1px solid rgba(52,211,153,.5);
     color:#6ee7b7;border-radius:999px;padding:4px 10px;font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.5px}
   .team-live .dot{width:8px;height:8px;border-radius:50%;background:#34d399;box-shadow:0 0 0 0 rgba(52,211,153,.7);animation:teamPulse 1.8s infinite}
+  .team-live.demo{background:rgba(148,163,184,.16);border-color:rgba(148,163,184,.4);color:#cbd5e1}
+  .team-live.demo .dot{background:#94a3b8;animation:none;box-shadow:none}
   .team-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
   .agent{position:relative;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:14px;
     padding:14px;backdrop-filter:blur(6px);transition:transform .18s ease,border-color .18s ease,background .18s ease;min-height:172px;display:flex;flex-direction:column}
@@ -594,7 +596,7 @@
       <div data-view="home" class="team-office" id="teamCard" aria-label="Aapki AI Team — live">
         <div class="team-head">
           <div style="flex:1;min-width:180px">
-            <div class="tt">👥 Aapki AI Team <span class="team-live"><span class="dot"></span> Live</span></div>
+            <div class="tt">👥 Aapki AI Team <span class="team-live" id="teamLiveBadge"><span class="dot"></span> Live</span></div>
             <div class="ts" id="teamSummary">Team ka kaam load ho raha hai…</div>
           </div>
         </div>
@@ -1653,6 +1655,11 @@ function renderTeam(d){
   const grid=document.getElementById("teamAgents");
   if(!grid) return;
   const data=d||teamDemo();
+  const badge=document.getElementById("teamLiveBadge");
+  if(badge){
+    badge.classList.toggle("demo", !!data.is_sample_data);
+    badge.innerHTML=data.is_sample_data?"Demo":'<span class="dot"></span> Live';
+  }
   const sub=document.getElementById("teamSummary");
   if(sub) sub.textContent=data.summary||"Team aapke marketing pe kaam kar rahi hai.";
   const agents=Array.isArray(data.agents)?data.agents:[];
@@ -1781,13 +1788,16 @@ function toggleTimelineCard() {
 }
 
 async function loadDeliveryTimeline() {
+  const list = document.getElementById('timelineList');
+  const empty = document.getElementById('timelineEmpty');
   try {
     const res = await fetch('/api/customer/timeline', { headers: billAuthHdr() });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
     const data = await res.json();
-    const list = document.getElementById('timelineList');
-    const empty = document.getElementById('timelineEmpty');
     list.innerHTML = '';
     if (!data.events || data.events.length === 0) {
+      empty.textContent = 'Abhi tak koi activity nahi — jaise hi kuch hota hai, yahan dikhega.';
+      empty.style.color = 'var(--muted)';
       empty.style.display = 'block';
       return;
     }
@@ -1800,6 +1810,10 @@ async function loadDeliveryTimeline() {
     });
   } catch (e) {
     console.debug('timeline load failed', e);
+    list.innerHTML = '';
+    empty.innerHTML = 'Timeline load nahi hua — <a href="#" onclick="loadDeliveryTimeline();return false">refresh karo</a>.';
+    empty.style.color = 'var(--bad)';
+    empty.style.display = 'block';
   }
 }
 
@@ -2534,24 +2548,40 @@ async function routingSave(){
 async function loadBilling(){
   BILL.cid = await resolveClientId();
   document.getElementById("sideClient").textContent="Client: "+BILL.cid;
-  let sub=null, usage=null, invoices=[];
-  // subscription (404 = no active sub -> free/trial state)
+  let sub=null, usage=null, invoices=[], failed=false;
+  // subscription: 404 IS the genuine "no active sub -> free/trial" signal, but
+  // any OTHER failure (network/5xx/expired token) must not be treated the same
+  // way — otherwise a transient error looks identical to "you have no plan"
+  // and re-prompts a real paying customer to pay again.
   try{ const r=await fetch("/api/billing/subscription?client_id="+encodeURIComponent(BILL.cid),{headers:billAuthHdr()});
-       if(r.ok) sub=await r.json(); }catch(e){}
+       if(r.ok) sub=await r.json(); else if(r.status!==404) failed=true; }catch(e){ failed=true; }
   try{ const r=await fetch("/api/billing/usage?client_id="+encodeURIComponent(BILL.cid),{headers:billAuthHdr()});
-       if(r.ok) usage=await r.json(); }catch(e){}
+       if(r.ok) usage=await r.json(); else if(r.status!==404) failed=true; }catch(e){ failed=true; }
   try{ const r=await fetch("/api/billing/invoices?client_id="+encodeURIComponent(BILL.cid)+"&limit=20",{headers:billAuthHdr()});
-       if(r.ok) invoices=await r.json(); }catch(e){}
-  renderBilling(sub,usage,invoices);
+       if(r.ok) invoices=await r.json(); else failed=true; }catch(e){ failed=true; }
+  renderBilling(sub,usage,invoices,failed);
 }
 
-function renderBilling(sub,usage,invoices){
+function renderBilling(sub,usage,invoices,failed){
   const statusEl=document.getElementById("billStatus");
   const planEl=document.getElementById("billPlan");
   const periodEl=document.getElementById("billPeriod");
   const usedEl=document.getElementById("billMinUsed");
   const leftEl=document.getElementById("billMinLeft");
   const noteEl=document.getElementById("billNote");
+
+  if(failed){
+    planEl.textContent="—";
+    statusEl.textContent="LOAD FAILED";
+    periodEl.textContent="—";
+    noteEl.innerHTML='Billing status load nahi hua — <a href="#" onclick="loadBilling();return false">refresh karo</a>. (Aapka plan safe hai, sirf yeh page abhi load nahi ho paya.)';
+    usedEl.textContent="—"; leftEl.textContent="—";
+    document.getElementById("billInvCount").textContent="—";
+    document.getElementById("billInvBody").innerHTML='<tr><td colspan="5" class="empty-row">Load fail — refresh karo.</td></tr>';
+    show("billManageBtn",false); show("billPauseBtn",false); show("billResumeBtn",false); show("billCancelBtn",false);
+    loadUpiPayBox(false);  // never re-prompt payment off a load failure
+    return;
+  }
 
   if(sub&&sub.plan_id){
     planEl.textContent=sub.plan_name||sub.plan_id;
