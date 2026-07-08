@@ -227,12 +227,15 @@
     </div>
     <nav class="nav" role="menubar" aria-label="Main menu">
       <div class="sec nav-group" role="presentation">Menu</div>
-      <a class="navlink active" data-nav="command_center" href="#" onclick="showAdminView('command_center');return false;"><span class="ic">🚀</span> Command Center</a>
+      <a class="navlink active" data-nav="command_center" href="#" onclick="showAdminView('command_center');return false;"><span class="ic">🚀</span> Command Center / Billing/UPI</a>
       <a class="navlink" href="/app/delivery-command-center"><span class="ic">🚚</span> Delivery Cockpit</a>
-      <a class="navlink" data-nav="customer_360" href="#" onclick="showAdminView('customer_360');return false;"><span class="ic">🕵️</span> Customer 360</a>
+      <a class="navlink" data-nav="customer_360" href="#" onclick="showAdminView('customer_360');return false;"><span class="ic">🕵️</span> Customers</a>
       <a class="navlink" data-nav="delivery_queue" href="#" onclick="showAdminView('delivery_queue');return false;"><span class="ic">📋</span> Delivery Queue</a>
-      <a class="navlink" data-nav="automation_monitor" href="#" onclick="showAdminView('automation_monitor');return false;"><span class="ic">🎛</span> Automation Monitor</a>
+      <a class="navlink" data-nav="automation_monitor" href="#" onclick="showAdminView('automation_monitor');return false;"><span class="ic">🎛</span> Automation Logs</a>
       <a class="navlink" data-nav="approvals" href="#" onclick="showAdminView('approvals');return false;"><span class="ic">✅</span> Approvals</a>
+      <a class="navlink" href="/app/control-center"><span class="ic">🏥</span> System Health</a>
+      <a class="navlink" href="/app/agent-tools"><span class="ic">🛠</span> Agent Tools (Adv)</a>
+      <a class="navlink" href="/app/control-center"><span class="ic">🎛</span> Control Center</a>
       <a class="navlink" data-nav="office" href="#" onclick="showAdminView('office');return false;"><span class="ic">🏢</span> Internal Office</a>
     </nav>
     <div class="ao-sb-live"><span class="dot"></span>15 AI agents active</div>
@@ -807,8 +810,11 @@
 
       <!-- Speed-to-Lead SLA -->
       <div data-view="command_center" class="card" id="sec-speed">
-        <div class="hd"><h3>Speed-to-Lead SLA</h3><span class="right" id="stl-summary">2-min target</span></div>
-        <div class="bd" id="stlBody"><span style="color:var(--muted)">Loading…</span></div>
+        <div class="hd">
+          <h3>Speed-to-Lead SLA</h3><span class="right" id="stl-summary">2-min target</span>
+          <button class="btn" onclick="loadSpeedToLead()" aria-label="Refresh speed-to-lead SLA" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="stlBody"><span class="skeleton" style="height:14px;width:200px;display:block"></span></div>
       </div>
 
       <!-- API usage & infra flags -->
@@ -1673,6 +1679,7 @@ async function loadActivityFeed(){
 /* ====== Speed-to-lead ====== */
 async function loadSpeedToLead(){
   const body=$("stlBody"), sum=$("stl-summary");
+  if(body) body.innerHTML='<span class="skeleton" style="height:14px;width:200px;display:block"></span>';
   try{
     const r=await fetch("/api/growth/speed-to-lead/summary?days=30",{headers:abAuthHdr(),cache:"no-store"});
     if(!r.ok) throw new Error("bad");
@@ -1684,7 +1691,7 @@ async function loadSpeedToLead(){
       <div class="rev-kpi"><div class="rk-lbl">Touched</div><div class="rk-val">${d.touched||0}</div></div>
     </div><p style="font-size:13px;color:var(--muted);margin-top:8px">${escH(d.verdict||"")}</p>`;
     if(sum) sum.textContent=(d.under_2min_pct||0)+"% under 2 min";
-  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--muted)">Speed-to-lead data nahi mila</span>`; }
+  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--red)">Speed-to-lead data nahi mila — <a href="#" onclick="loadSpeedToLead();return false" style="color:var(--indigo)">Retry</a></span>`; }
 }
 
 /* ====== Infra flags / API usage ====== */
@@ -2308,13 +2315,13 @@ async function c360DeliverNow() {
     });
     const d = await r.json();
     if (r.ok && d.delivered) {
-      toast("✓ Value delivered successfully!", "ok");
+      adminToast("✓ Value delivered successfully!", "success");
     } else {
-      toast("Delivery failed: " + (d.reason || "unknown error"), "err");
+      adminToast("Delivery failed: " + (d.reason || "unknown error"), "error");
     }
     loadC360Timeline(cid);
   } catch (e) {
-    toast("Action error: " + e.message, "err");
+    adminToast("Action error: " + e.message, "error");
   } finally {
     btn.disabled = false;
     btn.textContent = "🚀 Deliver Value Now";
@@ -2333,12 +2340,12 @@ async function c360ScrapeWebsite() {
       headers: abAuthHdr()
     });
     if (r.ok) {
-      toast("✓ Website scraping triggered in background!", "ok");
+      adminToast("✓ Website scraping triggered in background!", "success");
     } else {
-      toast("Trigger failed", "err");
+      adminToast("Trigger failed", "error");
     }
   } catch (e) {
-    toast("Error: " + e.message, "err");
+    adminToast("Error: " + e.message, "error");
   } finally {
     btn.disabled = false;
     btn.textContent = "🌐 Re-Scrape Website";
@@ -2361,12 +2368,12 @@ async function c360ResetPassword() {
       body: JSON.stringify({ password: newPwd })
     });
     if (r.ok) {
-      toast("✓ Password reset successful!", "ok");
+      adminToast("✓ Password reset successful!", "success");
     } else {
-      toast("Password reset failed", "err");
+      adminToast("Password reset failed", "error");
     }
   } catch (e) {
-    toast("Error: " + e.message, "err");
+    adminToast("Error: " + e.message, "error");
   }
 }
 
@@ -2440,13 +2447,13 @@ async function dqDeliverNow(btn, cid) {
     });
     const d = await r.json();
     if (r.ok && d.delivered) {
-      toast("✓ Value delivered successfully!", "ok");
+      adminToast("✓ Value delivered successfully!", "success");
     } else {
-      toast("Delivery failed: " + (d.reason || "unknown error"), "err");
+      adminToast("Delivery failed: " + (d.reason || "unknown error"), "error");
     }
     loadDeliveryQueue();
   } catch (e) {
-    toast("Action error: " + e.message, "err");
+    adminToast("Action error: " + e.message, "error");
   } finally {
     btn.disabled = false;
     btn.textContent = origText;

@@ -167,6 +167,7 @@ _last_ran: dict[str, str | None] = {
     "evening_prospect": None,  # daily 17:00: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
     "obsidian_push": None,  # daily 02:15 IST: compact + git push to Obsidian vault (gated OBSIDIAN_SYNC)
     "platform_dial": None,  # daily 11:30 IST: LeadGen AI self-sale outbound calls (gated PLATFORM_DIAL_DAILY)
+    "product_one_health": None,  # hourly :20: Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (ungated safety-net, mirrors watchdog/onboard)
 }
 
 
@@ -779,6 +780,18 @@ async def _run_job_inner(job: str) -> bool:
                 "integration_health_watch", integration_health.run_watch()
             )  # integration silent-failure alert (gated INTEGRATION_ALERTS; off = sirf counters)
             try:
+                # Product 1 Integration Health Agent (2026-07-08): maps the SAME
+                # integration failures + automation_health.health()'s overdue-job/
+                # queue-backlog signal to the SPECIFIC paid customers affected +
+                # logs an internal `integration_failed` ledger event per affected
+                # customer. Sync + never-raises by design, but isolated anyway
+                # (W1.3 pattern) so it can never block the rest of the watchdog.
+                from app.marketing import product_one_delivery
+
+                product_one_delivery.integration_readiness()
+            except Exception as _ih_e:
+                logger.warning(f"[team-scheduler] watchdog integration_readiness failed: {_ih_e}")
+            try:
                 from app.agents import self_improve
 
                 self_improve.ensure_alive()  # continuous-loop dead-man revive (gated SELF_IMPROVE_LOOP; sirf Celery enqueue, inline kabhi nahi)
@@ -961,6 +974,15 @@ async def _run_job_inner(job: str) -> bool:
             from app.billing import meter_watch
 
             meter_watch.check_meter_failures()  # sync, never raises; gated METER_ALERTS
+        elif job == "product_one_health":
+            from app.marketing import product_one_delivery
+
+            # Product 1 Customer Deliverability layer (2026-07-08): Customer
+            # Health + Approval Reminder + SLA Recovery combined sweep — read
+            # from delivery_ledger/content/approval stores, idempotent
+            # ledger writes only, never sends WhatsApp/email. Ungated
+            # safety-net (same convention as watchdog/onboard).
+            await product_one_delivery.run_health_and_recovery_sweep()
         elif job == "obsidian_push":
             from app.platform import obsidian_sync as _obs
 
@@ -1200,6 +1222,10 @@ async def scheduler_loop() -> None:
             if now.minute >= 55 and _last_ran.get("meter_watch") != hour_key:
                 _last_ran["meter_watch"] = hour_key
                 await _run_job("meter_watch")
+            # Product 1 Customer Health + Approval Reminder + SLA Recovery sweep — hourly :20.
+            if now.minute >= 20 and _last_ran.get("product_one_health") != hour_key:
+                _last_ran["product_one_health"] = hour_key
+                await _run_job("product_one_health")
             # D V1.1 process-engine auto-start — daily 11:30–13:00 IST (INERT unless PROCESS_AUTOSTART=1).
             if (11, 30) <= hm < (13, 0) and _last_ran.get("process_autostart") != day_key:
                 _last_ran["process_autostart"] = day_key

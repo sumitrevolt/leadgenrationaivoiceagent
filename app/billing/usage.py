@@ -523,6 +523,16 @@ def activate_plan(
     logger.info("activate_plan: client=%s plan=%s (applied=%s)", cid, plan_k, applied)
     if applied:
         try:
+            from app.marketing.product_one_delivery import initialize_deliverables_for_client
+            from app.models.base import get_db_session
+
+            with get_db_session() as db:
+                current_month = datetime.utcnow().strftime("%Y-%m")
+                initialize_deliverables_for_client(db, cid, plan_k, current_month)
+        except Exception as de:
+            logger.debug("activate_plan deliverables init skipped: %s", de)
+
+        try:
             from app.marketing.packages import get_packages
             from app.platform import revenue_attribution
 

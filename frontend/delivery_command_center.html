@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
-<title>LeadGen AI — Command Center</title>
+<title>LeadGen AI — Delivery Cockpit</title>
 <link rel="stylesheet" href="/design-system/styles.css" />
 <style>
   :root{
@@ -76,6 +76,20 @@
   .nextaction.warn{color:var(--warn)}
   .nextaction.err{color:var(--err)}
   .nextaction.muted{color:var(--muted)}
+  .pipeline{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+  .stage{border:1px solid var(--line);border-radius:12px;padding:10px;background:#fff}
+  .stage .n{font-size:20px;font-weight:900}
+  .stage .l{font-size:11px;color:var(--muted);font-weight:800;text-transform:uppercase}
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+  .filter{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 12px;font-weight:800;font-size:11px;cursor:pointer}
+  .filter.on{background:var(--brand-soft);color:var(--brand);border-color:#c4b5fd}
+  .bar{height:8px;background:#eef2ff;border-radius:999px;overflow:hidden;margin-top:5px}
+  .bar span{display:block;height:100%;background:linear-gradient(90deg,#7c3aed,#22c55e);border-radius:inherit}
+  .sub{font-size:11px;color:var(--muted);margin-top:3px}
+  .actions{display:flex;gap:6px;flex-wrap:wrap}
+  .mini{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:800;cursor:pointer}
+  .mini.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+  .mini.warn{background:#fff7ed;color:#9a3412}
 
   .empty{padding:26px 16px;text-align:center;color:var(--muted);font-size:13px}
   .empty .spin{vertical-align:-2px;margin-right:7px;width:13px;height:13px;border:2px solid rgba(109,40,217,.25);
@@ -101,7 +115,7 @@
 <body>
 
 <div class="topbar">
-  <div class="brand"><span class="logo">🚀</span><span>Command Center</span></div>
+  <div class="brand"><span class="logo">🚀</span><span>Delivery Cockpit</span></div>
   <div class="spacer"></div>
   <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
   <span class="chip">🕐 <b id="lastUpdate">Loading…</b></span>
@@ -130,13 +144,40 @@
     <div id="revenueBody"><div class="empty"><span class="spin"></span> Load ho raha hai…</div></div>
   </div>
 
+  <div class="card">
+    <h3>Delivery Pipeline</h3>
+    <div class="hint">Payment se renewal tak har paid customer ka current stage.</div>
+    <div class="pipeline" id="pipelineRow"><div class="empty"><span class="spin"></span> Pipeline load ho raha hai...</div></div>
+  </div>
+
   <h2 class="col-title">👥 Har customer — kya ho raha hai</h2>
   <div class="card" style="padding:0">
+    <div class="filters" style="padding:14px 14px 0">
+      <button class="filter on" data-filter="all">All</button>
+      <button class="filter" data-filter="risk">At Risk</button>
+      <button class="filter" data-filter="approval">Approval Pending</button>
+      <button class="filter" data-filter="renewal">Renewal Ready</button>
+      <button class="filter" data-filter="setup">Setup Incomplete</button>
+    </div>
     <div id="customerTableWrap">
       <div class="empty"><span class="spin"></span> Customers load ho rahe hain…</div>
     </div>
   </div>
-  <div class="honest">Read-only front door — koi bhi button state nahi badalta. Client detail/action ke liye <a href="/app/clients">Clients</a> kholo.</div>
+
+  <h2 class="col-title">Automation Logs — delivery se linked</h2>
+  <div class="card">
+    <div class="filters">
+      <button class="filter log-filter on" data-log-filter="">All</button>
+      <button class="filter log-filter" data-log-filter="failed_today">Failed Today</button>
+      <button class="filter log-filter" data-log-filter="manual_required">Manual Required</button>
+      <button class="filter log-filter" data-log-filter="customer_blocked">Customer Blocked</button>
+      <button class="filter log-filter" data-log-filter="ready_to_publish">Ready To Publish</button>
+      <button class="filter log-filter" data-log-filter="report_pending">Report Pending</button>
+      <button class="filter log-filter" data-log-filter="payment_received_setup_incomplete">Setup Incomplete</button>
+    </div>
+    <div id="logsBody"><div class="empty"><span class="spin"></span> Logs load ho rahe hain...</div></div>
+  </div>
+  <div class="honest">Manual fallback first-class hai: API missing ho to bhi admin proof note, manual publish, report, aur reminder record kar sakta hai.</div>
 </div>
 
 <div id="toasts"></div>
@@ -200,9 +241,9 @@
   // ---- Next-action hint per customer — mirrors the mission's admin framing:
   // "value mil rahi hai ya nahi, kya stuck hai, kaunsa button dabana hai." ----
   function nextAction(c){
-    if(!c.setup_done) return {cls: "warn", text: "⚠️ Setup adhoora"};
-    if(c.automation_failures > 0) return {cls: "err", text: "🔴 Automation fail hui"};
-    if(c.pending_approvals > 0) return {cls: "warn", text: "📝 " + c.pending_approvals + " approval ka wait"};
+    if(Number(c.setup_completion_pct || 0) < 100) return {cls: "warn", text: "⚠️ Setup adhoora"};
+    if(Number(c.failed_automations || c.automation_failures || 0) > 0) return {cls: "err", text: "🔴 Automation fail hui"};
+    if(Number(c.posts_waiting_for_approval || c.pending_approvals || 0) > 0) return {cls: "warn", text: "📝 " + (c.posts_waiting_for_approval || c.pending_approvals) + " approval ka wait"};
     if(c.value_delivered) return {cls: "ok", text: "✅ Value mil rahi hai"};
     return {cls: "muted", text: "⏳ Abhi koi delivery nahi"};
   }
@@ -240,36 +281,120 @@
     }).join("") + '</div>';
   }
 
+  var ALL_CUSTOMERS = [];
+  var CURRENT_FILTER = "all";
+
+  function renderPipeline(rows){
+    var box = document.getElementById("pipelineRow");
+    if(!rows || !rows.length){ box.innerHTML = '<div class="empty">Pipeline data nahi mila.</div>'; return; }
+    box.innerHTML = rows.map(function(p){
+      return '<div class="stage"><div class="n">' + esc(p.count || 0) + '</div><div class="l">' + esc(p.label || p.key) + '</div></div>';
+    }).join("");
+  }
+
+  function matchesCustomerFilter(c){
+    if(CURRENT_FILTER === "risk") return c.risk_flag && c.risk_flag !== "ok";
+    if(CURRENT_FILTER === "approval") return Number(c.posts_waiting_for_approval || c.pending_approvals || 0) > 0;
+    if(CURRENT_FILTER === "renewal") return c.current_delivery_stage === "renewal_ready";
+    if(CURRENT_FILTER === "setup") return Number(c.setup_completion_pct || 0) < 100;
+    return true;
+  }
+
   function renderCustomers(list){
     var wrap = document.getElementById("customerTableWrap");
-    if(!list || !list.length){
+    var filtered = (list || []).filter(matchesCustomerFilter);
+    if(!filtered.length){
       wrap.innerHTML = '<div class="empty">Abhi koi active customer nahi — <a href="/app/clients">Clients</a> se pehla client add karo.</div>';
       return;
     }
-    var rows = list.map(function(c){
+    var rows = filtered.map(function(c){
       var na = nextAction(c);
+      var setup = Number(c.setup_completion_pct || 0);
+      var deliv = Number(c.deliverable_completion_pct || 0);
       return '<tr>' +
-        '<td class="nm">' + esc(c.business_name || "(no name)") + '</td>' +
+        '<td class="nm">' + esc(c.customer_name || c.business_name || "(no name)") + '<div class="sub">' + esc(c.risk_flag || "ok") + '</div></td>' +
         '<td><span class="pill plan">' + esc(c.plan || "starter") + '</span></td>' +
-        '<td>' + inr(c.mrr) + '</td>' +
-        '<td><span class="nextaction ' + na.cls + '">' + na.text + '</span></td>' +
+        '<td><span class="pill">' + esc(c.stage_label || c.current_delivery_stage || "-") + '</span></td>' +
+        '<td><b>' + setup + '%</b><div class="bar"><span style="width:' + setup + '%"></span></div></td>' +
+        '<td><b>' + deliv + '%</b><div class="bar"><span style="width:' + deliv + '%"></span></div></td>' +
+        '<td><span class="nextaction ' + na.cls + '">' + esc(c.next_action || na.text) + '</span><div class="sub">Owner: ' + esc(c.owner || "Sumit") + ' · Due: ' + esc(c.due_date || "-") + '</div></td>' +
+        '<td class="actions">' +
+          '<button class="mini primary" onclick="deliveryAction(\'' + esc(c.id) + '\',\'generate_content\')">Generate</button>' +
+          '<button class="mini" onclick="deliveryAction(\'' + esc(c.id) + '\',\'approve_pending\')">Approve</button>' +
+          '<button class="mini warn" onclick="deliveryAction(\'' + esc(c.id) + '\',\'publish_manual\')">Manual proof</button>' +
+          '<button class="mini" onclick="deliveryAction(\'' + esc(c.id) + '\',\'monthly_report\')">Report</button>' +
+        '</td>' +
       '</tr>';
     }).join("");
     wrap.innerHTML = '<table class="tbl"><thead><tr>' +
-      '<th>Business</th><th>Plan</th><th>MRR</th><th>Kya ho raha hai</th>' +
+      '<th>Customer</th><th>Plan</th><th>Stage</th><th>Setup</th><th>Deliverables</th><th>Next Action</th><th>Actions</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
   }
+
+  function renderLogs(rows){
+    var box = document.getElementById("logsBody");
+    if(!rows || !rows.length){ box.innerHTML = '<div class="empty">Is filter me koi delivery log nahi.</div>'; return; }
+    box.innerHTML = '<table class="tbl"><thead><tr><th>Customer</th><th>Workflow</th><th>Status</th><th>Next Action</th><th>When</th></tr></thead><tbody>' +
+      rows.slice(0,80).map(function(r){
+        var cls = r.status === "failed" ? "err" : (r.status === "manual_required" ? "warn" : "ok");
+        return '<tr><td class="nm">' + esc(r.customer_name || r.customer_id) + '</td>' +
+          '<td>' + esc(r.workflow_name || r.workflow_id) + '<div class="sub">' + esc(r.trigger_source || "") + '</div></td>' +
+          '<td><span class="nextaction ' + cls + '">' + esc(r.status || "") + '</span></td>' +
+          '<td>' + esc(r.next_action || "") + (r.error_message ? '<div class="sub">' + esc(r.error_message) + '</div>' : '') + '</td>' +
+          '<td class="sub">' + esc(r.started_at || r.completed_at || "") + '</td></tr>';
+      }).join("") + '</tbody></table>';
+  }
+
+  async function loadLogs(filter){
+    try{
+      var url = "/api/admin/delivery-logs" + (filter ? "?filter=" + encodeURIComponent(filter) : "");
+      var data = await callApi(url, {headers: hdrs()});
+      renderLogs((data && data.events) || []);
+    }catch(e){
+      document.getElementById("logsBody").innerHTML = '<div class="empty">Logs load nahi hue: ' + esc(e.message) + '</div>';
+    }
+  }
+
+  async function deliveryAction(cid, action){
+    var note = "";
+    if(action === "publish_manual"){
+      note = prompt("Manual proof note (e.g. Instagram upload done, screenshot/Drive link):") || "";
+      if(!note.trim()) return;
+    }
+    try{
+      var d = await callApi("/api/admin/clients/" + encodeURIComponent(cid) + "/delivery-action", {
+        method:"POST",
+        headers: hdrs({"Content-Type":"application/json"}),
+        body: JSON.stringify({action:action, note:note, owner:"Sumit"})
+      });
+      toast(d.ok === false ? (d.error || "Action failed") : "Action recorded", d.ok === false ? "err" : "ok");
+      loadAll();
+      loadLogs("");
+    }catch(e){ toast("Action fail: " + e.message, "err"); }
+  }
+  window.deliveryAction = deliveryAction;
 
   async function loadAll(){
     document.getElementById("lastUpdate").textContent = "Loading…";
     try{
-      var data = await callApi("/api/admin/command-center", {headers: hdrs()});
+      var data = await callApi("/api/admin/delivery-cockpit", {headers: hdrs()});
       if(data && data.ok === false){
-        toast("Command Center data partial/fail — dobara try karo", "err");
+        toast("Delivery Cockpit data partial/fail — dobara try karo", "err");
       }
-      renderKpis((data && data.summary) || {});
-      renderRevenue((data && data.revenue) || {});
-      renderCustomers((data && data.per_customer) || []);
+      var customers = (data && data.customers) || [];
+      renderKpis({
+        total_customers: customers.length,
+        paying_customers: customers.filter(function(c){ return c.plan !== "trial"; }).length,
+        stuck_in_setup: (data.summary || {}).pending_customer_inputs,
+        receiving_value: customers.filter(function(c){ return Number(c.deliverable_completion_pct || 0) > 0; }).length,
+        failed_automation_count: (data.summary || {}).failed_automations,
+        pending_approvals_total: (data.summary || {}).posts_waiting_for_approval
+      });
+      renderPipeline((data && data.pipeline) || []);
+      renderRevenue({mrr_total:0, by_plan:{}});
+      ALL_CUSTOMERS = customers;
+      renderCustomers(ALL_CUSTOMERS);
+      loadLogs("");
       document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("en-IN");
     }catch(e){
       document.getElementById("lastUpdate").textContent = "Fail";
@@ -282,6 +407,21 @@
   }
 
   document.getElementById("btnRefresh").onclick = loadAll;
+  Array.prototype.forEach.call(document.querySelectorAll(".filter[data-filter]"), function(btn){
+    btn.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll(".filter[data-filter]"), function(b){ b.classList.remove("on"); });
+      btn.classList.add("on");
+      CURRENT_FILTER = btn.getAttribute("data-filter") || "all";
+      renderCustomers(ALL_CUSTOMERS);
+    };
+  });
+  Array.prototype.forEach.call(document.querySelectorAll(".log-filter"), function(btn){
+    btn.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll(".log-filter"), function(b){ b.classList.remove("on"); });
+      btn.classList.add("on");
+      loadLogs(btn.getAttribute("data-log-filter") || "");
+    };
+  });
   loadAll();
 })();
 </script>

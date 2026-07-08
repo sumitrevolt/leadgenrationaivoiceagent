@@ -65,6 +65,18 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     "weekly_report_generated": ("📊", "Is hafte ki report taiyaar", "Weekly report generated", True),
     "automation_failed": ("🚨", "Ek background kaam ruk gaya — team dekh rahi hai", "Automation failed", False),
     "admin_manual_action": ("🛠️", "", "Admin manual action", False),
+    # Product 1 Customer Deliverability layer (2026-07-08) — Customer Health +
+    # Approval Reminder + SLA Recovery agents log through these. Additive only;
+    # existing 13 event types + their behaviour are unchanged.
+    "approval_reminded": ("⏰", "Aapka post approval ka wait kar raha hai", "Approval reminder raised", True),
+    "sla_breached": ("🔴", "Delivery me deri ho rahi — team ko notify kar diya gaya", "Customer delivery SLA breached", False),
+    "sla_recovered": ("🟢", "Delivery wapas track pe aa gayi", "Customer delivery SLA recovered", False),
+    # Integration Health Agent (2026-07-08) — a PLATFORM integration (SMTP/
+    # WhatsApp/Vobiz/Pollinations/scheduler queue) failing enough to impact this
+    # specific customer's delivery. Internal-only (customer sees the existing
+    # generic "team is on it" note via customer_status_notes, never the raw
+    # integration name/error).
+    "integration_failed": ("🔌", "", "Platform integration failing — impacts this customer's delivery", False),
 }
 EVENT_TYPES: frozenset[str] = frozenset(LABELS.keys())
 

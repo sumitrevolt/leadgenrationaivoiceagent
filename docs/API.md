@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1059 operations)
+## Endpoint Index — auto-generated from OpenAPI (1065 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -333,16 +333,19 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/db/table/{name}/export.csv` — Export one table to CSV (read-only, capped, redacted)
 - `GET   ` `/api/admin/db/tables` — List all DB tables (read-only explorer)
 
-### Admin Dashboard  (16)
+### Admin Dashboard  (19)
 
 - `GET   ` `/api/admin/activity-feed` — Get Activity Feed
 - `GET   ` `/api/admin/agents` — Admin Agents
 - `POST  ` `/api/admin/clients/bulk-email` — Bulk Email Clients
 - `POST  ` `/api/admin/clients/dedupe` — Admin Dedupe Clients
 - `POST  ` `/api/admin/clients/{client_id}/delete` — Admin Delete Client
+- `POST  ` `/api/admin/clients/{client_id}/delivery-action` — Admin Delivery Action
 - `GET   ` `/api/admin/clients/{client_id}/timeline` — Get Client Timeline
 - `GET   ` `/api/admin/command-center` — Admin Command Center
 - `GET   ` `/api/admin/dashboard` — Get Admin Dashboard
+- `GET   ` `/api/admin/delivery-cockpit` — Admin Delivery Cockpit
+- `GET   ` `/api/admin/delivery-logs` — Admin Delivery Logs
 - `GET   ` `/api/admin/hourly-activity` — Get Hourly Activity
 - `GET   ` `/api/admin/live-stats` — Get Live Stats
 - `GET   ` `/api/admin/ops-snapshot` — Get Ops Snapshot
@@ -352,13 +355,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/revenue-trend` — Get Revenue Trend
 - `GET   ` `/api/admin/sync-health` — Admin Sync Health
 
-### Admin Ops  (22)
+### Admin Ops  (24)
 
 - `GET   ` `/api/admin/calls/recent` — Recent call outcomes / qualified summary
 - `POST  ` `/api/admin/campaign/launch` — Launch outbound call campaign
 - `GET   ` `/api/admin/campaign/status` — Last campaign run status
 - `POST  ` `/api/admin/campaign/stop` — Stop the currently running campaign
 - `POST  ` `/api/admin/clients/{client_id}/deliver-now` — Human-clicked single-customer delivery unstick
+- `POST  ` `/api/admin/clients/{client_id}/onboard/scrape` — Admin-clicked customer website re-scrape
+- `POST  ` `/api/admin/clients/{client_id}/password-reset` — Admin-clicked customer password reset
 - `POST  ` `/api/admin/flow/seed-templates` — Apply all Flow Runner starter templates (FLOW_RUNNER=1)
 - `GET   ` `/api/admin/leads/ready` — Uncontacted leads ready to call (campaign pre-flight)
 - `GET   ` `/api/admin/office` — Admin Office — consolidated 'Sumit ke kaam' pending actions
@@ -604,7 +609,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (23)
+### Customer Dashboard  (26)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/decide` — Customer Decide Approval
@@ -613,6 +618,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/creatives` — Customer Creatives
 - `GET   ` `/api/customer/dashboard` — Get Customer Dashboard
 - `POST  ` `/api/customer/dashboard/send-to-crm` — Send Dashboard Leads To Crm
+- `GET   ` `/api/customer/delivery-proof` — Customer Delivery Proof
 - `GET   ` `/api/customer/gbp/questions` — Customer Gbp Questions
 - `POST  ` `/api/customer/gbp/score` — Customer Gbp Score
 - `GET   ` `/api/customer/health` — Customer Dashboard Health
@@ -624,13 +630,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/report` — Customer Monthly Report
 - `GET   ` `/api/customer/routing` — Customer Routing Get
 - `POST  ` `/api/customer/routing` — Customer Routing Set
+- `GET   ` `/api/customer/social/config` — Customer Social Get
+- `POST  ` `/api/customer/social/config` — Customer Social Save
 - `GET   ` `/api/customer/speed-to-lead` — Customer Speed To Lead
 - `GET   ` `/api/customer/team` — Get Customer Team
 - `GET   ` `/api/customer/timeline` — Customer Delivery Timeline
 - `POST  ` `/api/customer/voice/call-queue` — Customer Voice Call Queue
 - `GET   ` `/api/customer/voice/queue-status` — Customer Voice Queue Status
 
-### Customer Flows  (10)
+### Customer Flows  (12)
 
 - `POST  ` `/api/customer/flow` — Cf Save
 - `GET   ` `/api/customer/flow-templates` — Cf Templates
@@ -640,7 +648,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/customer/flow/run/{run_id}/reject` — Cf Reject
 - `DELETE` `/api/customer/flow/{flow_id}` — Cf Delete
 - `GET   ` `/api/customer/flow/{flow_id}` — Cf Get
+- `POST  ` `/api/customer/flow/{flow_id}/rollback` — Cf Rollback
 - `POST  ` `/api/customer/flow/{flow_id}/run` — Cf Run
+- `GET   ` `/api/customer/flow/{flow_id}/versions` — Cf Versions
 - `GET   ` `/api/customer/flows` — Cf List
 
 ### Customer Marketing Studio  (91)
@@ -1485,11 +1495,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/telephony/vobiz/stream-call` — Place Stream Call
 - `POST  ` `/api/telephony/vobiz/test-call` — Place Test Call
 
-### Telephony Webhooks  (6)
+### Telephony Webhooks  (4)
 
 - `GET   ` `/api/webhooks/health` — Telephony Health
-- `POST  ` `/api/webhooks/twilio/status/{call_id}` — Twilio Status Webhook
-- `POST  ` `/api/webhooks/twilio/voice/{call_id}` — Twilio Voice Webhook
 - `POST  ` `/api/webhooks/vobiz/answer` — Vobiz Answer Webhook
 - `POST  ` `/api/webhooks/vobiz/inbound` — Vobiz Inbound Webhook
 - `POST  ` `/api/webhooks/vobiz/status` — Vobiz Status Webhook
@@ -1540,11 +1548,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/web-calls/proposals/{proposal_id}/reject` — Reject a proposal
 - `GET   ` `/api/admin/web-calls/{session_id}` — One web test-call + full transcript
 
-### Webhooks  (5)
+### Webhooks  (3)
 
 - `POST  ` `/api/webhooks/stripe` — Stripe Webhook
-- `POST  ` `/api/webhooks/twilio/incoming` — Twilio Webhook
-- `POST  ` `/api/webhooks/twilio/status` — Twilio Status Webhook
 - `GET   ` `/api/webhooks/whatsapp` — Whatsapp Webhook Verify
 - `POST  ` `/api/webhooks/whatsapp` — Whatsapp Webhook Inbound
 

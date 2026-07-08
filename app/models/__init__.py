@@ -52,6 +52,11 @@ from app.models.payment import (
     UsageRecord,
 )
 from app.models.user import AuditLog, User, UserRole, UserSession, UserStatus
+from app.models.customer_deliverable import (
+    CustomerDeliverable,
+    DeliverableStatus,
+    DeliverableChannel,
+)
 
 __all__ = [
     # Base
@@ -115,4 +120,8 @@ __all__ = [
     "APIUsageType",
     "APIKey",
     "CREDIT_COSTS",
+    # Customer Deliverables models
+    "CustomerDeliverable",
+    "DeliverableStatus",
+    "DeliverableChannel",
 ]

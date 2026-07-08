@@ -377,6 +377,74 @@ async def admin_command_center(_user=Depends(require_admin)) -> dict:
         }
 
 
+@router.get("/delivery-cockpit")
+async def admin_delivery_cockpit(_user=Depends(require_admin)) -> dict:
+    """Delivery-first cockpit for Product One operations.
+
+    Shows pipeline, per-customer next action, deliverable completion, failures,
+    approvals, and renewal readiness. Reuses existing delivery stores; never
+    creates a new disconnected dashboard data source."""
+    try:
+        from app.marketing import product_one_delivery
+
+        return await asyncio.to_thread(product_one_delivery.delivery_cockpit)
+    except Exception as e:
+        logger.warning("admin_delivery_cockpit failed: %s", e)
+        return {"ok": False, "summary": {}, "pipeline": [], "customers": [], "error": str(e)[:160]}
+
+
+@router.get("/delivery-logs")
+async def admin_delivery_logs(
+    filter: str = Query("", max_length=80),
+    client_id: str = Query("", max_length=80),
+    _user=Depends(require_admin),
+) -> dict:
+    """Admin-friendly automation logs tied to customer delivery."""
+    try:
+        from app.marketing import product_one_delivery
+
+        rows = await asyncio.to_thread(product_one_delivery.automation_events, filter, client_id)
+        return {"ok": True, "filter": filter, "count": len(rows), "events": rows}
+    except Exception as e:
+        logger.warning("admin_delivery_logs failed: %s", e)
+        return {"ok": False, "events": [], "error": str(e)[:160]}
+
+
+class DeliveryActionIn(BaseModel):
+    action: str = Field(..., max_length=60)
+    deliverable_id: str = Field("", max_length=80)
+    note: str = Field("", max_length=500)
+    owner: str = Field("", max_length=80)
+    status: str = Field("success", max_length=40)
+
+
+@router.post("/clients/{client_id}/delivery-action")
+async def admin_delivery_action(
+    client_id: str,
+    body: DeliveryActionIn,
+    _user=Depends(require_admin),
+) -> dict:
+    """Action buttons for Delivery Cockpit.
+
+    Buttons call real existing operations where available (content generation,
+    approval, monthly report) or create an explicit manual task/proof record.
+    """
+    try:
+        from app.marketing import product_one_delivery
+
+        return await product_one_delivery.record_manual_action(
+            client_id,
+            body.action,
+            deliverable_id=body.deliverable_id,
+            note=body.note,
+            owner=body.owner,
+            status=body.status,
+        )
+    except Exception as e:
+        logger.warning("admin_delivery_action failed: %s", e)
+        return {"ok": False, "error": str(e)[:160]}
+
+
 @router.get("/activity-feed")
 def get_activity_feed(
     limit: int = Query(40, ge=1, le=100),
