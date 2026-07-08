@@ -10,6 +10,7 @@ from app.models.customer_deliverable import CustomerDeliverable, DeliverableStat
 from app.marketing.product_one_delivery import (
     DELIVERABLES,
     customer_delivery_status,
+    customer_deliverable_db_audit,
     initialize_deliverables_for_client,
     record_manual_action,
     sync_customer_deliverable_status,
@@ -244,6 +245,89 @@ def test_content_mark_item_syncs_social_and_proof_rows(monkeypatch, tmp_path):
         assert "July Offer" in (rows["proof"].evidence_payload or "")
     finally:
         session.close()
+
+
+def test_customer_deliverable_db_audit_flags_and_clears_drift(monkeypatch):
+    Session = _iso_db(monkeypatch)
+    client_id = "audit-client-123"
+
+    session = Session()
+    try:
+        initialize_deliverables_for_client(session, client_id, "starter", "2026-07")
+        cards = [
+            {
+                "id": client_id,
+                "customer_name": "Audit Client",
+                "deliverables": [
+                    {"id": "business_profile", "status": "done"},
+                    {"id": "monthly_report", "status": "pending"},
+                ],
+            }
+        ]
+
+        audit = customer_deliverable_db_audit(cards)
+        assert audit["ok"] is True
+        assert audit["checked_deliverables"] == 2
+        assert audit["stale_db_rows"] == 1
+        assert audit["read_path_ready"] is False
+        assert audit["mismatches"][0]["kind"] == "db_behind"
+        assert audit["mismatches"][0]["deliverable_id"] == "business_profile"
+
+        assert sync_customer_deliverable_status(
+            client_id,
+            "business_profile",
+            "delivered",
+            billing_cycle_month="2026-07",
+            note="Business profile captured",
+        )
+
+        audit = customer_deliverable_db_audit(cards)
+        assert audit["read_path_ready"] is True
+        assert audit["stale_db_rows"] == 0
+        assert audit["mismatches"] == []
+    finally:
+        session.close()
+
+
+def test_delivery_cockpit_includes_db_audit(monkeypatch):
+    Session = _iso_db(monkeypatch)
+    client_id = "cockpit-db-audit"
+
+    session = Session()
+    try:
+        initialize_deliverables_for_client(session, client_id, "starter", "2026-07")
+    finally:
+        session.close()
+
+    fake_client = {
+        "id": client_id,
+        "business_name": "Cockpit Audit",
+        "city": "Mumbai",
+        "phone": "917498797259",
+        "status": "active",
+        "plan": "starter",
+        "product": "marketing",
+        "whatsapp_phone": "917498797259",
+        "approval_preference": "manual",
+        "brand": {"primary": "#111111", "logo_text": "Audit"},
+        "socials": {"instagram": "audit"},
+    }
+    monkeypatch.setattr("app.marketing.clients_store.list_clients", lambda status=None, product=None: [fake_client], raising=False)
+    monkeypatch.setattr("app.marketing.delivery_ledger.timeline", lambda cid, **kwargs: [], raising=False)
+    monkeypatch.setattr("app.marketing.delivery_ledger.summary", lambda cid: {}, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.product_one_delivery.integration_readiness",
+        lambda: {"ok": True, "integrations": [], "scheduler": {}, "affected_customers_total": 0},
+        raising=False,
+    )
+
+    from app.marketing import product_one_delivery
+
+    cockpit = product_one_delivery.delivery_cockpit()
+    assert "db_audit" in cockpit
+    assert cockpit["db_audit"]["ok"] is True
+    assert cockpit["db_audit"]["checked_customers"] == 1
+    assert cockpit["db_audit"]["checked_deliverables"] == len(DELIVERABLES)
 
 
 def test_api_customer_delivery_proof_endpoint(monkeypatch):

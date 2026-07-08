@@ -295,6 +295,122 @@ def sync_customer_deliverable_status(
         return False
 
 
+def _db_progress_from_status(status: Any) -> str:
+    raw = getattr(status, "value", status)
+    s = str(raw or "").strip().lower()
+    if s == "delivered":
+        return "done"
+    if s in ("ready_to_generate", "generating", "pending_approval", "approved", "scheduled"):
+        return "in_progress"
+    if s in ("failed", "skipped"):
+        return s
+    return "pending"
+
+
+def customer_deliverable_db_audit(cards: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+    """Compare DB sidecar rows with current customer-facing derived state.
+
+    This is an admin/operator migration-safety signal, not the customer read
+    path. It lets us prove whether `customer_deliverables` is ready to become a
+    source of truth later without silently changing the UI today.
+    """
+    cards = list(cards or [])
+    out: dict[str, Any] = {
+        "ok": True,
+        "checked_customers": len(cards),
+        "checked_deliverables": 0,
+        "missing_rows": 0,
+        "stale_db_rows": 0,
+        "ahead_db_rows": 0,
+        "mismatches": [],
+        "read_path_ready": False,
+    }
+    client_ids = [str(c.get("id") or "").strip() for c in cards if str(c.get("id") or "").strip()]
+    if not client_ids:
+        out["read_path_ready"] = True
+        return out
+
+    try:
+        from app.models.base import get_db_session
+        from app.models.customer_deliverable import CustomerDeliverable
+
+        with get_db_session() as db:
+            rows = (
+                db.query(CustomerDeliverable)
+                .filter(CustomerDeliverable.client_id.in_(client_ids))
+                .order_by(CustomerDeliverable.billing_cycle_month.desc(), CustomerDeliverable.created_at.desc())
+                .all()
+            )
+            db_by_client: dict[str, dict[str, Any]] = {}
+            for row in rows:
+                cid = str(row.client_id or "")
+                dtype = str(row.deliverable_type or "")
+                if cid and dtype and dtype not in db_by_client.setdefault(cid, {}):
+                    db_by_client[cid][dtype] = {
+                        "status": getattr(row.status, "value", row.status),
+                        "billing_cycle_month": row.billing_cycle_month,
+                    }
+    except Exception as exc:
+        out.update({"ok": False, "error": str(exc)[:180], "read_path_ready": False})
+        return out
+
+    mismatches: list[dict[str, Any]] = []
+    for card in cards:
+        cid = str(card.get("id") or "")
+        customer_name = str(card.get("customer_name") or card.get("business_name") or cid)
+        db_rows = db_by_client.get(cid, {})
+        for deliverable in card.get("deliverables") or []:
+            did = str(deliverable.get("id") or "")
+            if not did:
+                continue
+            out["checked_deliverables"] += 1
+            derived = str(deliverable.get("status") or "pending").lower()
+            row = db_rows.get(did)
+            if row is None:
+                out["missing_rows"] += 1
+                mismatches.append(
+                    {
+                        "client_id": cid,
+                        "customer_name": customer_name,
+                        "deliverable_id": did,
+                        "derived_status": derived,
+                        "db_status": "missing",
+                        "kind": "missing_row",
+                    }
+                )
+                continue
+            db_status = row.get("status")
+            db_progress = _db_progress_from_status(db_status)
+            if derived == "done" and db_progress != "done":
+                out["stale_db_rows"] += 1
+                mismatches.append(
+                    {
+                        "client_id": cid,
+                        "customer_name": customer_name,
+                        "deliverable_id": did,
+                        "derived_status": derived,
+                        "db_status": str(db_status or ""),
+                        "kind": "db_behind",
+                    }
+                )
+            elif db_progress == "done" and derived != "done":
+                out["ahead_db_rows"] += 1
+                mismatches.append(
+                    {
+                        "client_id": cid,
+                        "customer_name": customer_name,
+                        "deliverable_id": did,
+                        "derived_status": derived,
+                        "db_status": str(db_status or ""),
+                        "kind": "db_ahead",
+                    }
+                )
+
+    out["mismatches"] = mismatches[:50]
+    out["read_path_ready"] = not (out["missing_rows"] or out["stale_db_rows"] or out["ahead_db_rows"])
+    return out
+
+
 WORKFLOWS = [
     {
         "id": "after_payment_customer_creation",
@@ -1165,7 +1281,25 @@ def delivery_cockpit() -> dict[str, Any]:
         },
         "customers": cards,
         "integration_health": _safe_integration_readiness(),
+        "db_audit": _safe_customer_deliverable_db_audit(cards),
     }
+
+
+def _safe_customer_deliverable_db_audit(cards: list[dict[str, Any]]) -> dict[str, Any]:
+    try:
+        return customer_deliverable_db_audit(cards)
+    except Exception as exc:
+        return {
+            "ok": False,
+            "checked_customers": 0,
+            "checked_deliverables": 0,
+            "missing_rows": 0,
+            "stale_db_rows": 0,
+            "ahead_db_rows": 0,
+            "mismatches": [],
+            "read_path_ready": False,
+            "error": str(exc)[:150],
+        }
 
 
 def _safe_integration_readiness() -> dict[str, Any]:
@@ -1658,6 +1792,7 @@ __all__ = [
     "WORKFLOWS",
     "customer_delivery_status",
     "sync_customer_deliverable_status",
+    "customer_deliverable_db_audit",
     "admin_customer_card",
     "delivery_cockpit",
     "automation_events",
