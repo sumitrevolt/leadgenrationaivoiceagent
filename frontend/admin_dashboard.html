@@ -455,7 +455,7 @@
           <h3>🕐 Pending Niches — Admin Review <span id="pendingNicheCount" style="font-size:11px;background:#f59e0b;color:#000;border-radius:999px;padding:2px 8px;margin-left:6px"></span></h3>
           <button class="btn" onclick="loadPendingNiches()" style="padding:5px 12px;font-size:11px">↻ Refresh</button>
         </div>
-        <div class="bd" id="pendingNichesList" style="font-size:13px;color:var(--muted)">Loading…</div>
+        <div class="bd" id="pendingNichesList" style="font-size:13px"><span class="skeleton sk-text"></span></div>
       </div>
 
       <!-- Assessment Scores Widget (hidden until API responds) -->
@@ -798,7 +798,7 @@
           <div class="tbl-scroll" style="border:1px solid var(--line);border-radius:10px;overflow:hidden">
             <table aria-label="Churn risk clients">
               <thead><tr><th>Client</th><th>Score</th><th>Band</th><th>Action</th></tr></thead>
-              <tbody id="revRiskBody"><tr><td colspan="4" style="color:var(--muted)">Loading…</td></tr></tbody>
+              <tbody id="revRiskBody"><tr><td colspan="4"><span class="skeleton sk-text"></span></td></tr></tbody>
             </table>
           </div>
         </div>
@@ -811,7 +811,7 @@
           <div class="chip-row" id="prosChips" style="padding:12px 18px 0"></div>
           <table aria-label="Prospects table">
             <thead><tr><th>Business</th><th>City</th><th>Niche</th><th>Status</th><th>Phone</th><th>Email</th></tr></thead>
-            <tbody id="prospectsBody"><tr><td colspan="6" style="color:var(--muted);padding:16px">Loading…</td></tr></tbody>
+            <tbody id="prospectsBody"><tr><td colspan="6" style="padding:16px"><span class="skeleton sk-text"></span></td></tr></tbody>
           </table>
         </div>
       </div>
@@ -828,12 +828,12 @@
               <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted)">Kisko bheja (recent)</h4>
               <div class="tbl-scroll"><table aria-label="Sent emails">
                 <thead><tr><th>Business</th><th>Email</th><th>Kab</th><th>Status</th><th>Follow-up</th></tr></thead>
-                <tbody id="oaSentBody"><tr><td colspan="5" style="color:var(--muted);padding:12px">Loading…</td></tr></tbody>
+                <tbody id="oaSentBody"><tr><td colspan="5" style="padding:12px"><span class="skeleton sk-text"></span></td></tr></tbody>
               </table></div>
             </div>
             <div>
               <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted)">Kya reply aaya (recent)</h4>
-              <div id="oaReplies" style="display:flex;flex-direction:column;gap:8px"><span style="color:var(--muted)">Loading…</span></div>
+              <div id="oaReplies" style="display:flex;flex-direction:column;gap:8px"><span class="skeleton sk-text"></span></div>
             </div>
           </div>
         </div>
@@ -844,7 +844,7 @@
         <div class="hd"><h3>Activity &amp; Audit Log</h3><span class="right" id="audit-summary">Agent events + admin audit</span>
           <button class="btn" onclick="loadActivityFeed()" style="margin-left:8px;padding:6px 12px;font-size:12px">↻ Refresh</button>
         </div>
-        <div class="bd"><div class="timeline" id="auditTimeline" aria-live="polite">Loading…</div></div>
+        <div class="bd"><div class="timeline" id="auditTimeline" aria-live="polite"><span class="skeleton sk-text"></span></div></div>
       </div>
 
       <!-- Speed-to-Lead SLA -->
@@ -858,8 +858,10 @@
 
       <!-- API usage & infra flags -->
       <div data-view="office" class="card" id="sec-api">
-        <div class="hd"><h3>API Usage &amp; Infra Flags</h3><span class="right" id="api-summary">Automation + rate limits</span></div>
-        <div class="bd" id="apiBody"><span style="color:var(--muted)">Loading…</span></div>
+        <div class="hd"><h3>API Usage &amp; Infra Flags</h3><span class="right" id="api-summary">Automation + rate limits</span>
+          <button class="btn" onclick="loadInfraFlags()" aria-label="Refresh API usage and infra flags" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="apiBody"><span class="skeleton sk-text"></span></div>
       </div>
 
       <!-- System Sync — recently-shipped backend surfaced (deliverability/eval/approvals) -->
@@ -868,7 +870,7 @@
           <span class="right" id="sync-summary">—</span>
           <button class="btn" onclick="loadSyncHealth()" style="margin-left:8px;padding:6px 12px;font-size:12px">↻ Refresh</button>
         </div>
-        <div class="bd" id="syncBody"><span style="color:var(--muted)">Loading…</span></div>
+        <div class="bd" id="syncBody"><span class="skeleton sk-text"></span></div>
       </div>
 
       <!-- Automation Workflows Hub (Mission Control inline) -->
@@ -1226,7 +1228,7 @@ async function loadHourlyActivity(){
         +'<div style="padding:8px 10px">'+(chips?'<div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px">'+chips+'</div>':'')+(samples||'<span class="mut">—</span>')+'</div>'
         +'</details>';
     }).join("");
-  }catch(e){ el.innerHTML='<span class="mut">Activity load error</span>'; }
+  }catch(e){ el.innerHTML='<span class="mut">Activity load error — <a href="#" onclick="loadHourlyActivity();return false" style="color:var(--indigo)">Retry</a></span>'; }
 }
 
 async function loadLlmHealth(){
@@ -1265,7 +1267,7 @@ async function loadLlmHealth(){
     }
     el.innerHTML=banner+table;
     if(ts){ try{ ts.textContent="updated "+new Date().toLocaleTimeString("en-IN"); }catch(e){} }
-  }catch(e){ el.innerHTML='<span class="mut">Brain health load error</span>'; }
+  }catch(e){ el.innerHTML='<span class="mut">Brain health load error — <a href="#" onclick="loadLlmHealth();return false" style="color:var(--indigo)">Retry</a></span>'; }
 }
 
 async function opsCeleryTrim(){
@@ -1496,7 +1498,7 @@ function exportClientsCSV(){
 async function loadOps2026(){
   const el=$("ops2026Panel"), st=$("ops2026-status");
   if(!el) return;
-  el.innerHTML='<p style="color:var(--muted)">Loading…</p>';
+  el.innerHTML='<span class="skeleton" style="height:14px;width:220px;display:block"></span>';
   const hdr=abAuthHdr();
   let html='';
   try{
@@ -1534,7 +1536,7 @@ async function loadOps2026(){
     html+=`<pre id="ragAbOut" style="margin-top:10px;font-size:11px;max-height:220px;overflow:auto;background:#0f172a;color:#e2e8f0;padding:10px;border-radius:8px;display:none"></pre>`;
     el.innerHTML=html;
   }catch(e){
-    el.innerHTML='<p style="color:var(--red)">Load fail: '+escH(e.message)+'</p>';
+    el.innerHTML='<p style="color:var(--red)">Load fail: '+escH(e.message)+' — <a href="#" onclick="loadOps2026();return false" style="color:var(--indigo)">Retry</a></p>';
     if(st) st.textContent='error';
   }
 }
@@ -1626,7 +1628,7 @@ async function loadRevenueAnalytics(){
     </tr>`).join("") : `<tr><td colspan="4" style="color:var(--muted)">Sab clients healthy 🎉</td></tr>`;
     const rs=$("rev-summary"); if(rs) rs.textContent="MRR "+inrShort(d.mrr||0)+" · churn risk "+(d.churn_risk_pct||0)+"%";
   }catch(e){
-    const body=$("revRiskBody"); if(body) body.innerHTML=`<tr><td colspan="4" style="color:var(--muted)">Revenue data load nahi hua</td></tr>`;
+    const body=$("revRiskBody"); if(body) body.innerHTML=`<tr><td colspan="4" style="color:var(--red);font-size:13px">Revenue data load nahi hua — <a href="#" onclick="loadRevenueAnalytics();return false" style="color:var(--indigo)">Retry</a></td></tr>`;
   }
 }
 
@@ -1650,7 +1652,7 @@ async function loadProspectsPanel(){
       <td class="sm">${escH(p.phone||"-")}</td><td class="sm">${escH(p.email||"-")}</td>
     </tr>`).join("") : `<tr><td colspan="6" style="color:var(--muted);padding:16px">Abhi koi prospect nahi — scraper chalao.</td></tr>`;
   }catch(e){
-    const tb=$("prospectsBody"); if(tb) tb.innerHTML=`<tr><td colspan="6" style="color:var(--muted)">Prospects load fail</td></tr>`;
+    const tb=$("prospectsBody"); if(tb) tb.innerHTML=`<tr><td colspan="6" style="color:var(--red);font-size:13px">Prospects load fail — <a href="#" onclick="loadProspectsPanel();return false" style="color:var(--indigo)">Retry</a></td></tr>`;
   }
 }
 
@@ -1682,7 +1684,7 @@ async function loadOutreachActivity(){
       <div class="sm" style="margin-top:4px;color:var(--muted)">${escH(x.snippet||"")}</div></div>`).join("")
       : `<span style="color:var(--muted)">Abhi koi reply nahi aaya.</span>`;
   }catch(e){
-    const sb=$("oaSentBody"); if(sb) sb.innerHTML=`<tr><td colspan="5" style="color:var(--muted)">Outreach activity load fail</td></tr>`;
+    const sb=$("oaSentBody"); if(sb) sb.innerHTML=`<tr><td colspan="5" style="color:var(--red);font-size:13px">Outreach activity load fail — <a href="#" onclick="loadOutreachActivity();return false" style="color:var(--indigo)">Retry</a></td></tr>`;
   }
 }
 
@@ -1713,7 +1715,7 @@ async function loadActivityFeed(){
       }
     }catch(e){}
   }
-  if(tl) tl.innerHTML=html||`<div style="color:var(--muted)">Activity load nahi hui — admin login check karo</div>`;
+  if(tl) tl.innerHTML=html||`<div style="color:var(--red);font-size:13px">Activity load nahi hui — admin login check karo — <a href="#" onclick="loadActivityFeed();return false" style="color:var(--indigo)">Retry</a></div>`;
 }
 
 /* ====== Speed-to-lead ====== */
@@ -1751,7 +1753,7 @@ async function loadInfraFlags(){
       <p style="font-size:12px;color:var(--muted);margin-top:8px">DB: ${escH(ready.database||"?")} · Redis: ${escH(ready.redis||"?")} · ${on.length} flags ON / ${off.length} OFF</p>
       <p style="font-size:12px;margin-top:6px"><a href="/app/automation" style="color:var(--indigo)">Mission Control →</a> sab flags toggle karne ke liye</p>`;
     if(sum) sum.textContent=on.length+" automation flags ON";
-  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--muted)">Infra flags load fail</span>`; }
+  }catch(e){ if(body) body.innerHTML=`<span style="color:var(--red)">Infra flags load fail — <a href="#" onclick="loadInfraFlags();return false" style="color:var(--indigo)">Retry</a></span>`; }
 }
 
 async function loadDiffPanel(){
@@ -2054,7 +2056,7 @@ async function loadSyncHealth(){
       +'</div>';
     $("syncBody").innerHTML=h;
     $("sync-summary").textContent='DKIM '+(dl.dkim_ok?'✓':'✗')+' · complaint '+cr+'%';
-  }catch(e){ if($("syncBody"))$("syncBody").innerHTML='<span style="color:var(--muted)">sync-health unavailable</span>'; if($("sync-summary"))$("sync-summary").textContent='—'; }
+  }catch(e){ if($("syncBody"))$("syncBody").innerHTML='<span style="color:var(--red)">sync-health unavailable — <a href="#" onclick="loadSyncHealth();return false" style="color:var(--indigo)">Retry</a></span>'; if($("sync-summary"))$("sync-summary").textContent='—'; }
 }
 async function loadAgents(){
   // Standalone real-team fetch — keeps the agents panel showing the FULL 18-member
@@ -2950,7 +2952,7 @@ async function loadPendingNiches(){
         </div>
       </div>`;
     }).join("");
-  }catch(e){ if(list) list.innerHTML='<span style="color:#f87171;font-size:12px">Error: '+escH(String(e))+'</span>'; }
+  }catch(e){ if(list) list.innerHTML='<span style="color:#f87171;font-size:12px">Error: '+escH(String(e))+' — <a href="#" onclick="loadPendingNiches();return false" style="color:#818cf8">Retry</a></span>'; }
 }
 async function approvePendingNiche(id, name){
   if(!confirm('Approve niche "'+name+'" — permanent list me add kar do?')) return;

@@ -659,28 +659,28 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
 
         # Database-backed CustomerDeliverable sync (2026-07-08, parallel track).
         # This is real forward progress toward a proper per-billing-cycle
-        # deliverable ledger and is kept running as a best-effort SIDE EFFECT
-        # (record-keeping for future reporting/queries) — but its rows are NOT
-        # what gets returned below. Reasons: (1) its deliverable_type taxonomy
-        # and row-id (a UUID) don't match the semantic ids every existing
-        # consumer keys on (frontend customer_dashboard.html, admin_customer_
-        # card, this module's own _customer_status_notes/_monthly_summary, and
-        # every acceptance test) — swapping the return shape here would silently
-        # break all of them; (2) it depends on a DB session + a migration
-        # (011_add_customer_deliverable) that may not be applied everywhere yet,
-        # and this function must NEVER let a DB hiccup blank a customer's
-        # delivery view (CLAUDE.md: paid customer dashboard must never go
-        # empty). Once the DB taxonomy is reconciled with the ids below, this
-        # can become the source of truth for `deliverables` in one deliberate
+        # deliverable ledger — but its rows are NOT what gets returned below.
+        # Reasons: (1) its deliverable_type taxonomy and row-id (a UUID) don't
+        # match the semantic ids every existing consumer keys on (frontend
+        # customer_dashboard.html, admin_customer_card, this module's own
+        # _customer_status_notes/_monthly_summary, and every acceptance test)
+        # — swapping the return shape here would silently break all of them;
+        # (2) initializing it here used to run on every call to this function
+        # (every dashboard load, every admin cockpit render, every hourly
+        # sweep) — a mandatory DB round-trip through the sync engine's small
+        # background-only pool (app/models/base.py, pool_size=3) that FK-
+        # violated for every client without a DB `Client` row (self-serve
+        # signups + Stripe customers live jsonl-only until they hit the UPI/
+        # admin `ensure_subscription=True` path — see app/billing/usage.py's
+        # _ensure_db_client), silently failing on every single request for
+        # most customers with zero benefit since the rows were never read
+        # back anyway (database-architect audit, 2026-07-08). Initialization
+        # now happens once, at plan-activation time, in
+        # app.billing.usage._create_subscription_row — right after the DB
+        # Client row is guaranteed to exist — instead of on every read here.
+        # Once the DB taxonomy is reconciled with the ids below, this can
+        # become the source of truth for `deliverables` in one deliberate
         # change with its own migration/test pass — not a silent swap.
-        try:
-            from app.models.base import get_db_session
-
-            current_month = datetime.now(timezone.utc).strftime("%Y-%m")
-            with get_db_session() as db:
-                initialize_deliverables_for_client(db, cid, client.get("plan"), current_month)
-        except Exception as exc:
-            logger.debug("product_one_delivery DB deliverable sync skipped (%s): %s", cid, exc)
 
         deliverables = [
             _deliverable(*DELIVERABLES[0], "done" if setup["business"] else "pending", owner="Customer"),
