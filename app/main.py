@@ -1715,7 +1715,10 @@ async def niche_landing(slug: str):
     if not _re_slug.match(r'^[a-z0-9\-]{1,120}$', slug.lower()):
         from fastapi.responses import HTMLResponse as _HR
         return _HR(content="<h1>Not Found</h1>", status_code=404)
-    canonical = f"/for/{_h(slug)}"
+    # Absolute + lowercase-normalized: a raw/relative canonical would let mixed-case
+    # slug variants (e.g. /for/Dental-in-Mumbai) each self-canonicalize, splitting
+    # ranking signal across duplicates instead of consolidating onto one URL.
+    canonical = f"https://leadsgenai.in/for/{_h(slug.lower())}"
 
     html = (
         '<!DOCTYPE html><html lang="en-IN"><head><meta charset="UTF-8">'
@@ -1726,7 +1729,7 @@ async def niche_landing(slug: str):
         f'<meta property="og:title" content="{_h(title)}">'
         f'<meta property="og:description" content="{_h(desc)}">'
         '<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage",'
-        f'"name":"{_h(title)}","description":"{_h(desc)}","url":"https://leadsgenai.in{canonical}"}}'
+        f'"name":"{_h(title)}","description":"{_h(desc)}","url":"{canonical}"}}'
         "</script>"
         '<style>body{font-family:system-ui,sans-serif;margin:0;color:#1a1a2e}'
         '.hero{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:72px 24px;text-align:center}'
