@@ -105,6 +105,55 @@ def footer_html(email: str) -> str:
     )
 
 
+def _iter_suppression_rows() -> list[dict[str, object]]:
+    """Best-effort JSONL reader for ops/dashboard use. Never raises."""
+    rows: list[dict[str, object]] = []
+    try:
+        if not _STORE.is_file():
+            return rows
+        with open(_STORE, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    row = json.loads(line)
+                    email = str(row.get("email") or "").strip().lower()
+                    if not email:
+                        continue
+                    rows.append(
+                        {
+                            "email": email,
+                            "reason": str(row.get("reason") or ""),
+                            "ts": int(row.get("ts") or 0),
+                        }
+                    )
+                except Exception:
+                    continue
+    except Exception:  # pragma: no cover
+        return []
+    return rows
+
+
+def suppressed_emails() -> set[str]:
+    """Return normalized suppressed emails for bulk send filtering. Never raises."""
+    try:
+        return {str(r.get("email") or "").strip().lower() for r in _iter_suppression_rows()}
+    except Exception:  # pragma: no cover
+        return set()
+
+
+def list_suppressed(limit: int = 500) -> list[dict[str, object]]:
+    """Recent suppression rows, newest first, for ops/audit surfaces. Never raises."""
+    try:
+        n = max(1, min(int(limit or 500), 5000))
+    except Exception:
+        n = 500
+    rows = _iter_suppression_rows()
+    rows.sort(key=lambda r: int(r.get("ts") or 0), reverse=True)
+    return rows[:n]
+
+
 def suppress(email: str, reason: str = "one_click") -> bool:
     """Append to the email suppression list. Idempotent-enough (dup lines ok)."""
     e = (email or "").strip().lower()
@@ -135,21 +184,9 @@ def is_suppressed(email: str) -> bool:
     if not e:
         return False
     try:
-        if not _STORE.is_file():
-            return False
-        with open(_STORE, encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
-                try:
-                    if json.loads(line).get("email") == e:
-                        return True
-                except Exception:
-                    continue
+        return e in suppressed_emails()
     except Exception:  # pragma: no cover
-        pass
-    return False
+        return False
 
 
 __all__ = [
@@ -161,4 +198,6 @@ __all__ = [
     "footer_html",
     "suppress",
     "is_suppressed",
+    "suppressed_emails",
+    "list_suppressed",
 ]

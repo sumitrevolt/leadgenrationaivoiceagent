@@ -518,6 +518,31 @@ def _valid_email(addr: str, check_mx: bool = True) -> bool:
     return True
 
 
+def _suppressed_email_set() -> set[str]:
+    """Bulk-load opt-out emails once per run/dashboard count. Never raises."""
+    try:
+        from app.platform import email_unsub
+
+        return email_unsub.suppressed_emails()
+    except Exception:
+        return set()
+
+
+def _is_suppressed_email(addr: str, suppressed: set[str] | None = None) -> bool:
+    """True when a recipient has opted out. Optional set keeps loops O(N)."""
+    e = (addr or "").strip().lower()
+    if not e:
+        return False
+    try:
+        if suppressed is not None:
+            return e in suppressed
+        from app.platform import email_unsub
+
+        return bool(email_unsub.is_suppressed(e))
+    except Exception:
+        return False
+
+
 # Follow-up timing: din-gaps + max touches.
 _FOLLOWUP_MAX = 2
 _FOLLOWUP_GAP_DAYS = {0: 3, 1: 7}  # followup_count -> days since last email before next touch
@@ -545,7 +570,13 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
     Returns: {"sent": n, "skipped_no_email": x, "failed": y, "cap": c, ...}
     ya {"skipped": "<reason>"} jab flag/SMTP off ho.
     """
-    result: dict[str, Any] = {"sent": 0, "skipped_no_email": 0, "failed": 0, "cap": 0}
+    result: dict[str, Any] = {
+        "sent": 0,
+        "skipped_no_email": 0,
+        "failed": 0,
+        "cap": 0,
+        "suppressed": 0,
+    }
     try:
         from app.config import settings
 
@@ -588,6 +619,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         # (OUTREACH_SELECT_SKIP_MX=0) = purana per-candidate MX behavior wapas.
         import os as _os_sel
         _skip_sel_mx = (_os_sel.getenv("OUTREACH_SELECT_SKIP_MX", "1") or "").strip().lower() not in {"0", "false", "no", "off"}
+        _suppressed = _suppressed_email_set()
         for p in _ready_pool:
             if (str(p.get("status") or "ready") != "ready"):
                 continue
@@ -596,6 +628,9 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             email = str(p.get("email") or "").strip()
             if not _valid_email(email, check_mx=not _skip_sel_mx):
                 result["skipped_no_email"] += 1
+                continue
+            if _is_suppressed_email(email, _suppressed):
+                result["suppressed"] = result.get("suppressed", 0) + 1
                 continue
             candidates.append(p)
             if len(candidates) >= 500:
@@ -614,9 +649,9 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             pass
         cap = daily_cap if limit is None else max(0, min(int(limit), daily_cap or int(limit)))
         result["cap"] = cap
+        result["candidates"] = len(candidates)
 
         if cap <= 0 or not candidates:
-            result["candidates"] = len(candidates)
             return result
 
         batch = candidates[:cap]
@@ -642,7 +677,7 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
             try:
                 from app.platform import email_unsub as _eu
 
-                if to_addr and _eu.is_suppressed(to_addr):
+                if to_addr and _is_suppressed_email(to_addr, _suppressed):
                     result["suppressed"] = result.get("suppressed", 0) + 1
                     continue
                 _unsub_hdrs = _eu.headers_for(to_addr)
@@ -826,6 +861,7 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
         "failed": 0,
         "cap": 0,
         "candidates": 0,
+        "suppressed": 0,
         "by_step": {"1": 0, "2": 0},
     }
     try:
@@ -852,6 +888,7 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
         # _read_all() instead of list_prospects: followup needs ALL emailed leads,
         # not just the newest 500 (list_prospects hard-caps + sorts newest-first,
         # so old emailed leads were never seen by this function).
+        _suppressed = _suppressed_email_set()
         for p in prospector._read_all():
             try:
                 if str(p.get("status") or "ready").lower() in _DONE:
@@ -860,6 +897,9 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                     continue  # initial outreach hi nahi gaya
                 to_addr = str(p.get("email") or "").strip()
                 if not _valid_email(to_addr):
+                    continue
+                if _is_suppressed_email(to_addr, _suppressed):
+                    result["suppressed"] = result.get("suppressed", 0) + 1
                     continue
                 try:
                     fc = int(p.get("followup_count") or 0)
@@ -919,7 +959,7 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
             try:
                 from app.platform import email_unsub as _eu
 
-                if to_addr and _eu.is_suppressed(to_addr):
+                if to_addr and _is_suppressed_email(to_addr, _suppressed):
                     result["suppressed"] = result.get("suppressed", 0) + 1
                     continue
                 _unsub_hdrs = _eu.headers_for(to_addr)
@@ -1011,7 +1051,15 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
 def outreach_stats() -> dict[str, Any]:
     """Email-outreach counts: total prospects / with_email / emailed / pending.
     KABHI raise nahi karta (failure pe zeros)."""
-    stats = {"total": 0, "with_email": 0, "emailed": 0, "pending": 0}
+    stats = {
+        "total": 0,
+        "with_email": 0,
+        "emailed": 0,
+        "pending": 0,
+        "pending_total": 0,
+        "pending_sendable": 0,
+        "suppressed": 0,
+    }
     try:
         from app.platform import prospector
 
@@ -1022,16 +1070,24 @@ def outreach_stats() -> dict[str, Any]:
         except Exception:
             rows = prospector.list_prospects(limit=500)
         stats["total"] = len(rows)
+        suppressed = _suppressed_email_set()
         for r in rows:
             # check_mx=False — this is a dashboard COUNT, not a send decision; the
             # real MX gate still runs at actual send-time (line ~568 above).
-            has_email = _valid_email(str(r.get("email") or ""), check_mx=False)
+            email = str(r.get("email") or "")
+            has_email = _valid_email(email, check_mx=False)
+            is_suppressed = has_email and _is_suppressed_email(email, suppressed)
             if has_email:
                 stats["with_email"] += 1
+            if is_suppressed:
+                stats["suppressed"] += 1
             if r.get("emailed_at"):
                 stats["emailed"] += 1
             elif has_email and (r.get("status") or "ready") == "ready":
-                stats["pending"] += 1
+                stats["pending_total"] += 1
+                if not is_suppressed:
+                    stats["pending_sendable"] += 1
+        stats["pending"] = stats["pending_sendable"]
     except Exception as e:
         logger.debug(f"[auto_outreach] outreach_stats failed: {e}")
     return stats
@@ -1068,12 +1124,20 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
             "with_email": 0,
             "emailed": 0,
             "pending": 0,
+            "pending_total": 0,
+            "pending_sendable": 0,
+            "suppressed": 0,
             "replied": 0,
             "sent_today": 0,
             "opens": 0,
             "clicks": 0,
             "bounce_rate_7d_pct": 0.0,
             "bounced_7d": 0,
+            "complaint_rate_7d_pct": 0.0,
+            "complaints_7d": 0,
+            "warmup_paused": False,
+            "warmup_attention": False,
+            "paused_reason": "",
         },
         "headline": "",
         "recent_sent": [],
@@ -1093,11 +1157,16 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
         except Exception:
             rows = prospector.list_prospects(limit=1000)
         emailed_rows = []
+        suppressed = _suppressed_email_set()
         for r in rows:
             # check_mx=False — dashboard COUNT, not a send decision (see outreach_stats).
-            has_email = _valid_email(str(r.get("email") or ""), check_mx=False)
+            email = str(r.get("email") or "")
+            has_email = _valid_email(email, check_mx=False)
+            is_suppressed = has_email and _is_suppressed_email(email, suppressed)
             if has_email:
                 out["summary"]["with_email"] += 1
+            if is_suppressed:
+                out["summary"]["suppressed"] += 1
             ea = str(r.get("emailed_at") or "")
             if ea:
                 out["summary"]["emailed"] += 1
@@ -1105,7 +1174,9 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
                 if today and ea[:10] == today:
                     out["summary"]["sent_today"] += 1
             elif has_email and (r.get("status") or "ready") == "ready":
-                out["summary"]["pending"] += 1
+                out["summary"]["pending_total"] += 1
+                if not is_suppressed:
+                    out["summary"]["pending_sendable"] += 1
             if (r.get("status") or "") == "replied":
                 out["summary"]["replied"] += 1
         out["summary"]["total"] = len(rows)
@@ -1162,15 +1233,33 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
         out["summary"]["bounce_rate_7d_pct"] = rate
         out["summary"]["bounced_7d"] = bounced_7d
         out["summary"]["sent_7d"] = sent_7d
+        st = email_warmup.status()
+        out["summary"]["complaint_rate_7d_pct"] = st.get("complaint_rate_7d_pct", 0.0)
+        out["summary"]["complaints_7d"] = st.get("complaints_7d", 0)
+        paused_reason = str(st.get("paused_reason") or "")
+        out["summary"]["warmup_paused"] = bool(st.get("paused"))
+        out["summary"]["warmup_attention"] = bool(st.get("paused") or paused_reason)
+        out["summary"]["paused_reason"] = paused_reason
     except Exception:
         pass
     # 4) Plain-Hinglish headline
     s = out["summary"]
-    out["headline"] = (
-        f"📧 Aaj {s['sent_today']} email bheje · ab tak {s['emailed']} total · "
-        f"{len(out['recent_replies'])} reply aaye · {s['pending']} abhi bhejne baaki · "
-        f"bounce rate (7d) {s['bounce_rate_7d_pct']}%"
-    )
+    s["pending"] = s.get("pending_sendable", s.get("pending", 0))
+    if s.get("warmup_attention"):
+        state = "PAUSED" if s.get("warmup_paused") else "ATTENTION"
+        out["headline"] = (
+            f"Email warmup {state}: {s.get('paused_reason') or 'deliverability gate red'}; "
+            f"complaint rate (7d) {s.get('complaint_rate_7d_pct', 0.0)}% "
+            f"({s.get('complaints_7d', 0)} complaints), "
+            f"{s.get('pending', 0)} sendable pending, {s.get('suppressed', 0)} suppressed"
+        )
+    else:
+        out["headline"] = (
+            f"Email: aaj {s['sent_today']} bheje, ab tak {s['emailed']} total, "
+            f"{len(out['recent_replies'])} reply aaye, {s['pending']} sendable pending, "
+            f"bounce rate (7d) {s['bounce_rate_7d_pct']}%, "
+            f"complaint rate (7d) {s.get('complaint_rate_7d_pct', 0.0)}%"
+        )
     return out
 
 
