@@ -1202,3 +1202,15 @@
 - **Risks:** Low. Classification is heuristic and intentionally not used as a compliance or suppression gate. Operators should treat buckets as review hints.
 - **Remaining:** Warmup remains paused: complaint rate 0.449% >= 0.25%. The 71 priority local SMBs need manual review/export or a gated one-by-one send workflow before any warmup resume.
 - **Next Highest Priority:** Add an operator action/export for the 71 priority local SMB candidates, or manually work them from Admin Email Activity while warmup remains paused.
+
+## Loop Run
+- **Date:** 2026-07-09
+- **Goal:** Turn the ADR-058 review buckets into a safe operator action: export the 71 priority local SMB candidates without sending more cold email.
+- **Inspected:** `app/api/team.py` admin route patterns, existing Admin CSV helpers in `frontend/admin_dashboard.html`, `auto_outreach` pending-review logic, `tests/test_auto_outreach.py`, `docs/API.md` drift after adding a route, and live VPS health/logs.
+- **Problems Found:** Bucket visibility alone still required manual copy/paste from a tiny sample list. Operators needed a full deduped export of the 71 priority candidates. Because warmup remains paused by complaint guard, the action must be review/export only, not bulk-send.
+- **Changed:** Added `auto_outreach.pending_review_candidates(bucket, limit)`; added admin-only `GET /api/platform/team/outreach-pending-review`; added “Priority CSV” button to Admin Email Activity that fetches with admin auth and downloads CSV client-side. Synced `docs/API.md`.
+- **Tests Run:** `.venv\Scripts\python.exe -m pytest tests\test_auto_outreach.py -q`; `.venv\Scripts\python.exe -m ruff check app\platform\auto_outreach.py app\api\team.py tests\test_auto_outreach.py`; Node syntax check over `frontend/admin_dashboard.html`; `.venv\Scripts\python.exe scripts\sync_api_docs.py`; `.venv\Scripts\python.exe scripts\prod_check.py`; `.venv\Scripts\python.exe scripts\check_secrets.py`; VPS `scripts/migration_preflight.sh`; public health, admin marker, auth-gate, queue, export count, and log smoke.
+- **Verification Evidence:** Targeted tests `24 passed`; ruff clean; admin JS syntax OK (4 script blocks); API docs synced to 1068 ops; `prod_check.py` ALL CHECKS PASSED (1042 routes, 44 pages, 0 gaps); secrets clean. Commit `4d4a622` pushed/deployed: VPS at `4d4a622`, public `/health` production, `/app/admin` has export marker, unauthenticated export endpoint returns 401, live helper returns `COUNT 71`, Redis queue `0`, no fresh real app errors.
+- **Risks:** Low. Export contains prospect PII but is admin-auth-gated and generated on demand. It does not alter sending, suppression, or warmup state.
+- **Remaining:** Human/operator should review the exported 71 before any send. Warmup remains paused; do not bulk resume.
+- **Next Highest Priority:** Use the CSV to work highest-fit prospects one by one, or add a one-by-one “mark reviewed / send later” workflow if manual review becomes repetitive.
