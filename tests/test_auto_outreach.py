@@ -417,6 +417,56 @@ class TestStats:
         assert "PAUSED" in out["headline"]
         assert "complaint rate" in out["headline"]
 
+    def test_activity_surfaces_pending_review_buckets(self, tmp_prospects):
+        _seed(
+            tmp_prospects,
+            {
+                "id": "local",
+                "business_name": "Smile Dental",
+                "email": "local@x.in",
+                "status": "ready",
+                "niche": "dental_implants",
+            },
+        )
+        _seed(
+            tmp_prospects,
+            {
+                "id": "vendor",
+                "business_name": "SEO Marketing Agency",
+                "email": "vendor@x.in",
+                "status": "ready",
+                "niche": "digital_marketing",
+            },
+        )
+        _seed(
+            tmp_prospects,
+            {
+                "id": "chain",
+                "business_name": "City Hospital Pvt Ltd",
+                "email": "chain@x.in",
+                "status": "ready",
+                "niche": "hospital_appointments",
+            },
+        )
+        _seed(
+            tmp_prospects,
+            {
+                "id": "dup",
+                "business_name": "Duplicate Dental",
+                "email": "local@x.in",
+                "status": "ready",
+                "niche": "dental_implants",
+            },
+        )
+
+        out = auto_outreach.outreach_activity()
+        buckets = {b["key"]: b["count"] for b in out["pending_review"]["buckets"]}
+        assert buckets["priority_local_smb"] == 1
+        assert buckets["review_low_fit_vendor"] == 1
+        assert buckets["review_enterprise_or_edge"] == 1
+        assert out["summary"]["pending_sendable"] == 3
+        assert out["summary"]["duplicate_pending_recipients"] == 1
+
 
 def _iso_days_ago(days: float) -> str:
     return (datetime.utcnow() - timedelta(days=days)).isoformat() + "Z"

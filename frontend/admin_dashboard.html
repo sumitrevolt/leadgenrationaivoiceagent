@@ -823,6 +823,7 @@
         </div>
         <div class="bd">
           <div class="chip-row" id="oaChips" style="margin-bottom:12px"></div>
+          <div id="oaPendingReview" style="margin-bottom:12px"></div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
             <div>
               <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted)">Kisko bheja (recent)</h4>
@@ -1670,6 +1671,15 @@ async function loadOutreachActivity(){
       ["Reply aaye",(d.recent_replies||[]).length],["Pending",s.pending||0],
       ["Khule",s.opens||0],["Click",s.clicks||0]
     ].map(x=>`<span class="chip">${x[0]}: <b>${x[1]}</b></span>`).join("");
+    const pr=$("oaPendingReview");
+    if(pr){
+      const review=d.pending_review||{};
+      const buckets=review.buckets||[];
+      const samples=review.samples||[];
+      const bucketHtml=buckets.length ? buckets.map(b=>`<span class="chip" title="${escH(b.reason||'')}">${escH(b.label||b.key)}: <b>${b.count||0}</b></span>`).join("") : `<span class="chip">Pending review: <b>0</b></span>`;
+      const sampleHtml=samples.length ? `<div class="sm" style="margin-top:8px;color:var(--muted)">Samples: ${samples.slice(0,4).map(x=>`${escH(x.business||'-')} <span class="tag">${escH(x.label||x.bucket||'')}</span>`).join(" · ")}</div>` : "";
+      pr.innerHTML=`<div class="chip-row">${bucketHtml}</div>${sampleHtml}`;
+    }
     const sb=$("oaSentBody");
     const sent=d.recent_sent||[];
     if(sb) sb.innerHTML= sent.length ? sent.map(p=>`<tr>
