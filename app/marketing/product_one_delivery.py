@@ -811,6 +811,8 @@ def _deliverable(
     proof_note: str = "",
     owner: str = "AI Team",
     customer_visible: bool = True,
+    next_action: str = "",
+    integration_required: str = "",
 ) -> dict[str, Any]:
     return {
         "id": did,
@@ -824,6 +826,8 @@ def _deliverable(
         "proof_note": proof_note,
         "owner": owner,
         "customer_visible": bool(customer_visible),
+        "next_action": next_action,
+        "integration_required": integration_required,
     }
 
 
@@ -888,17 +892,55 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
         # become the source of truth for `deliverables` in one deliberate
         # change with its own migration/test pass — not a silent swap.
 
+        # Integration readiness — so customer/admin know if real posting is blocked
+        _social_engine_on = os.environ.get("SOCIAL_ENGINE", "0").strip().lower() in ("1", "true", "yes")
+        _social_autopost_on = os.environ.get("SOCIAL_AUTOPOST", "0").strip().lower() in ("1", "true", "yes")
+        _postiz_key_set = bool((os.environ.get("POSTIZ_API_KEY") or "").strip())
+        _wa_auto_send = os.environ.get("WHATSAPP_AUTO_SEND", "0").strip().lower() in ("1", "true", "yes")
+
+        def _missing_social_integration() -> str:
+            if not _social_engine_on:
+                return "SOCIAL_ENGINE flag OFF — posts generated but auto-publishing nahi ho raha. Admin ko flag ON karna hoga."
+            if not _social_autopost_on:
+                return "SOCIAL_AUTOPOST OFF — Meta Graph posting MOCK hai. Meta app review + token ke baad ON karo."
+            if not _postiz_key_set:
+                return "Postiz API key set nahi hai. Multi-channel auto-publish ke liye POSTIZ_API_KEY set karo."
+            return ""
+
+        _whatsapp_blocked = "WhatsApp auto-send OFF hai (WHATSAPP_AUTO_SEND=0). 1-click manual send only." if not _wa_auto_send else ""
+
+        # Per-deliverable next actions + integration labels
         deliverables = [
-            _deliverable(*DELIVERABLES[0], "done" if setup["business"] else "pending", owner="Customer"),
-            _deliverable(*DELIVERABLES[1], "done" if setup["brand"] else "pending", owner="Customer + AI"),
-            _deliverable(*DELIVERABLES[2], "done" if len(posters) >= 4 else ("in_progress" if posters else "pending"), proof_note=f"{len(posters)}/4 creatives ready"),
-            _deliverable(*DELIVERABLES[3], "done" if len(post_like) >= 12 else ("in_progress" if post_like else "pending"), proof_note=f"{len(post_like)}/12 posts ready"),
-            _deliverable(*DELIVERABLES[4], "done" if has_content_type("festival", "campaign") or _manual_done(actions, "festival_ideas") else "pending"),
-            _deliverable(*DELIVERABLES[5], "done" if client.get("gbp") or (client.get("socials") or {}).get("gbp") or _manual_done(actions, "gbp_suggestions") else "pending"),
-            _deliverable(*DELIVERABLES[6], "done" if has_content_type("whatsapp") or _manual_done(actions, "whatsapp_pack") else "pending"),
-            _deliverable(*DELIVERABLES[7], "done" if has_content_type("review_reply") or _manual_done(actions, "review_replies") else "pending"),
-            _deliverable(*DELIVERABLES[8], "done" if int(ledger.get("reports") or 0) > 0 or report_action else "pending", proof_note=str((report_action or {}).get("note") or "")),
-            _deliverable(*DELIVERABLES[9], "done" if published or proof_action or publish_action else ("in_progress" if approved else "pending"), proof_note=str((proof_action or publish_action or {}).get("note") or "")),
+            _deliverable(*DELIVERABLES[0], "done" if setup["business"] else "pending",
+                owner="Customer", next_action="Setup Wizard me business details complete karo" if not setup["business"] else ""),
+            _deliverable(*DELIVERABLES[1], "done" if setup["brand"] else "pending",
+                owner="Customer + AI", next_action="Logo text/colors/photo daalo" if not setup["brand"] else ""),
+            _deliverable(*DELIVERABLES[2], "done" if len(posters) >= 4 else ("in_progress" if posters else "pending"),
+                proof_note=f"{len(posters)}/4 creatives ready",
+                next_action="Admin → Generate Content dabao" if not posters else "",
+                owner="AI"),
+            _deliverable(*DELIVERABLES[3], "done" if len(post_like) >= 12 else ("in_progress" if post_like else "pending"),
+                proof_note=f"{len(post_like)}/12 posts ready",
+                next_action="Daily content job automated hai — abhi " + ("kuch posts ready" if post_like else "generate hone ka wait") if post_like else "",
+                owner="AI"),
+            _deliverable(*DELIVERABLES[4], "done" if has_content_type("festival", "campaign") or _manual_done(actions, "festival_ideas") else "pending",
+                next_action="Festival calendar ke hisaab se AI auto-generate karega" if _client_plan_paid(client) else "",
+                owner="AI"),
+            _deliverable(*DELIVERABLES[5], "done" if client.get("gbp") or (client.get("socials") or {}).get("gbp") or _manual_done(actions, "gbp_suggestions") else "pending",
+                next_action="GBP link Setup Wizard me daalo — fir AI suggestions generate honge" if not client.get("gbp") and not (client.get("socials") or {}).get("gbp") else ""),
+            _deliverable(*DELIVERABLES[6], "done" if has_content_type("whatsapp") or _manual_done(actions, "whatsapp_pack") else "pending",
+                next_action="Content generate hone ke baad WhatsApp pack ready hoga" if _client_plan_paid(client) and not has_content_type("whatsapp") else "",
+                integration_required=_whatsapp_blocked),
+            _deliverable(*DELIVERABLES[7], "done" if has_content_type("review_reply") or _manual_done(actions, "review_replies") else "pending",
+                next_action="AI review reply templates auto-generate honge" if _client_plan_paid(client) else "",
+                owner="AI"),
+            _deliverable(*DELIVERABLES[8], "done" if int(ledger.get("reports") or 0) > 0 or report_action else "pending",
+                proof_note=str((report_action or {}).get("note") or ""),
+                next_action="Mahine ke end me auto-generate hoga — Admin Monthly Report button se bhi bana sakta hai" if not report_action else ""),
+            _deliverable(*DELIVERABLES[9], "done" if published or proof_action or publish_action else ("in_progress" if approved else "pending"),
+                proof_note=str((proof_action or publish_action or {}).get("note") or ""),
+                integration_required=_missing_social_integration(),
+                next_action="Admin manual-proof/publish kare ya SOCIAL_ENGINE ON karo" if not published and not proof_action and not publish_action else ""),
         ]
         complete = sum(1 for d in deliverables if d["status"] == "done")
         deliverable_pct = int(round(complete / max(1, len(deliverables)) * 100))
