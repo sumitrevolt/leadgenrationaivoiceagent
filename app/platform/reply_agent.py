@@ -1068,13 +1068,30 @@ def _full_prospect_map() -> dict[str, dict]:
     return out
 
 
+def _is_noise_row(r: dict) -> bool:
+    """Historic draft read-path noise guard. Never raises."""
+    try:
+        frm = str((r or {}).get("from") or "").strip().lower()
+        if frm == "status" or "@broadcast" in frm:
+            return True
+        if _is_blocklisted(frm):
+            return True
+        subj_body = f"{(r or {}).get('subject') or ''}\n{(r or {}).get('text') or (r or {}).get('body_snippet') or ''}"
+        if _AUTO_ACK_RE.search(subj_body):
+            return True
+    except Exception:
+        pass
+    return False
+
+
 def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
-    """Prioritized reply queue: filter hot intents, drop handled, dedupe by
-    sender (latest wins), newest-first, prospect phone/business joined in.
+    """Prioritized reply queue: filter hot intents, drop handled/noise, dedupe
+    by sender (latest wins), newest-first, prospect phone/business joined in.
     NEVER raises — [] on any failure."""
     try:
         rows = [r for r in list_drafts(limit=100000) if r.get("intent") in intents]
         rows = [r for r in rows if (r.get("hq_status") or "") != "done"]
+        rows = [r for r in rows if not _is_noise_row(r)]
         latest: dict[str, dict] = {}
         for r in sorted(rows, key=lambda x: str(x.get("at") or "")):
             sender = str(r.get("from") or "").strip().lower() or _hq_id(r)
@@ -1100,9 +1117,6 @@ def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
             else:
                 r["wa_link"] = ""
             if r.get("channel") == "whatsapp" and not r["wa_link"]:
-                continue
-            subj_body = f"{r.get('subject') or ''}\n{r.get('text') or r.get('body_snippet') or ''}"
-            if _AUTO_ACK_RE.search(subj_body):
                 continue
             r["business_name"] = r.get("business_name") or p.get("business_name") or ""
             r["niche"] = r.get("niche") or p.get("niche") or ""

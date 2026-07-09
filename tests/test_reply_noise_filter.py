@@ -104,6 +104,38 @@ def test_wa_blocklisted_number_skipped(monkeypatch):
     assert asyncio.run(reply_agent.whatsapp_reply("120363174051639404", "spam")) == {}
 
 
+# --------------------------------------------------------------- Hot Queue read-path
+def test_noise_row_detection(monkeypatch):
+    monkeypatch.delenv("REPLY_SENDER_BLOCKLIST", raising=False)
+    assert reply_agent._is_noise_row({"from": "status", "text": "wa status"})
+    assert reply_agent._is_noise_row({"from": "false_status@broadcast_x", "text": "yo"})
+    assert reply_agent._is_noise_row(
+        {"from": "care@adityabirla.com", "subject": "Thank you for your interest"}
+    )
+    assert not reply_agent._is_noise_row({"from": "owner@localbiz.in", "subject": "Re: pricing"})
+    assert reply_agent._is_noise_row(None) in (True, False)
+
+
+def test_hot_queue_drops_historic_noise_and_blocklist(tmp_path, monkeypatch):
+    import json as _json
+
+    monkeypatch.setenv("REPLY_SENDER_BLOCKLIST", "blocked.example")
+    f = tmp_path / "drafts.jsonl"
+    rows = [
+        {"from": "status", "intent": "interested", "text": "wa status", "at": "2026-07-07T10:00:00+00:00", "channel": "whatsapp"},
+        {"from": "ack@blocked.example", "intent": "interested", "subject": "real-ish but operator-blocked", "at": "2026-07-07T10:01:00+00:00"},
+        {"from": "ack@example.com", "intent": "interested", "subject": "Thank you for your interest in Example", "at": "2026-07-07T10:02:00+00:00"},
+        {"from": "919876543210", "intent": "interested", "text": "haan demo chahiye", "at": "2026-07-07T10:03:00+00:00", "channel": "whatsapp"},
+        {"from": "owner@localbiz.in", "intent": "question", "subject": "Re: pricing?", "at": "2026-07-07T10:04:00+00:00"},
+    ]
+    f.write_text("\n".join(_json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(f))
+    monkeypatch.setattr(reply_agent, "_full_prospect_map", lambda: {})
+
+    senders = {r.get("from") for r in reply_agent.hot_queue(limit=50)}
+    assert senders == {"919876543210", "owner@localbiz.in"}
+
+
 def test_wa_real_number_still_processed(tmp_path, monkeypatch):
     # Over-filtering guard: a genuine 1-1 WhatsApp message must still flow.
     monkeypatch.delenv("REPLY_SENDER_BLOCKLIST", raising=False)
