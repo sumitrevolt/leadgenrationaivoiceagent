@@ -825,6 +825,7 @@
         <div class="bd">
           <div class="chip-row" id="oaChips" style="margin-bottom:12px"></div>
           <div id="oaPendingReview" style="margin-bottom:12px"></div>
+          <div id="oaReviewDecisions" style="margin-bottom:12px"></div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
             <div>
               <h4 style="margin:0 0 8px;font-size:13px;color:var(--muted)">Kisko bheja (recent)</h4>
@@ -1681,6 +1682,7 @@ async function loadOutreachActivity(){
       const sampleHtml=samples.length ? `<div class="sm" style="margin-top:8px;color:var(--muted)">Samples: ${samples.slice(0,4).map(x=>`${escH(x.business||'-')} <span class="tag">${escH(x.label||x.bucket||'')}</span>`).join(" · ")}</div>` : "";
       pr.innerHTML=`<div class="chip-row">${bucketHtml}</div>${sampleHtml}`;
     }
+    loadOutreachReviewDecisions();
     const sb=$("oaSentBody");
     const sent=d.recent_sent||[];
     if(sb) sb.innerHTML= sent.length ? sent.map(p=>`<tr>
@@ -1696,6 +1698,43 @@ async function loadOutreachActivity(){
       : `<span style="color:var(--muted)">Abhi koi reply nahi aaya.</span>`;
   }catch(e){
     const sb=$("oaSentBody"); if(sb) sb.innerHTML=`<tr><td colspan="5" style="color:var(--red);font-size:13px">Outreach activity load fail — <a href="#" onclick="loadOutreachActivity();return false" style="color:var(--indigo)">Retry</a></td></tr>`;
+  }
+}
+
+async function loadOutreachReviewDecisions(){
+  const el=$("oaReviewDecisions");
+  if(!el) return;
+  try{
+    const r=await fetch("/api/platform/team/outreach-review-decisions?limit=8",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok) throw new Error("bad status");
+    const d=await r.json();
+    const c=d.counts||{};
+    const rows=d.decisions||[];
+    const chips=["unique_recipients","reviewed_sent","reviewed_skip","reviewed_schedule","reviewed_suppress"].map(k=>`<span class="chip">${escH(k.replace("reviewed_",""))}: <b>${c[k]||0}</b></span>`).join("");
+    const recent=rows.length ? `<div class="sm" style="margin-top:8px;color:var(--muted)">Recent decisions: ${rows.slice(0,4).map(x=>`${escH(x.email||'-')} <span class="tag">${escH(x.decision||'')}</span>`).join(" | ")}</div>` : `<div class="sm" style="margin-top:8px;color:var(--muted)">No review decisions recorded yet.</div>`;
+    el.innerHTML=`<div class="chip-row">${chips}<button class="btn" onclick="recordOutreachReviewDecision()" style="padding:4px 10px;font-size:12px">Record decision</button></div>${recent}`;
+  }catch(e){
+    el.innerHTML=`<div class="sm" style="color:var(--muted)">Review decisions unavailable.</div>`;
+  }
+}
+
+async function recordOutreachReviewDecision(){
+  const email=(prompt("Recipient email")||"").trim().toLowerCase();
+  if(!email) return;
+  const decision=(prompt("Decision: reviewed_sent / reviewed_skip / reviewed_schedule / reviewed_suppress / reviewed_unsuppress","reviewed_skip")||"").trim().toLowerCase();
+  if(!decision) return;
+  const note=prompt("Review note (optional)","")||"";
+  try{
+    const r=await fetch("/api/platform/team/outreach-review-decision",{
+      method:"POST",
+      headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
+      body:JSON.stringify({email,decision,note,bucket:"priority_local_smb"})
+    });
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok || d.ok===false) throw new Error(d.error||"save failed");
+    await loadOutreachReviewDecisions();
+  }catch(e){
+    alert("Review decision save fail hua.");
   }
 }
 

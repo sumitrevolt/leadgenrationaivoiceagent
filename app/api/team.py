@@ -78,6 +78,13 @@ class ProspectStatusIn(BaseModel):
     status: str = Field(..., max_length=20, description="ready|sent|replied|client|dead")
 
 
+class OutreachReviewDecisionIn(BaseModel):
+    email: str = Field(..., min_length=3, max_length=160)
+    decision: str = Field(..., min_length=3, max_length=40)
+    note: str = Field("", max_length=300)
+    bucket: str = Field("", max_length=60)
+
+
 @router.get("/prospects")
 async def get_prospects(
     status: str | None = None, limit: int = 100, current_user: User = Depends(require_admin)
@@ -167,6 +174,58 @@ async def get_outreach_pending_review(
         logger.warning(f"[team-api] outreach-pending-review failed: {e}")
         return {"error": str(e), "bucket": bucket or "", "count": 0, "candidates": []}
 
+
+@router.post("/outreach-review-decision")
+async def post_outreach_review_decision(
+    payload: OutreachReviewDecisionIn, current_user: User = Depends(require_admin)
+):
+    """Operator bookmark: admin records a review decision for a pending recipient
+    (reviewed_sent / reviewed_skip / reviewed_schedule / reviewed_suppress / reviewed_unsuppress).
+    Append-only jsonl; never auto-sends, never touches warmup state."""
+    try:
+        from app.platform import auto_outreach
+
+        return auto_outreach.record_review_decision(
+            email=payload.email,
+            decision=payload.decision,
+            note=payload.note or "",
+            bucket=payload.bucket or "",
+            reviewer=(current_user.email if getattr(current_user, "email", None) else ""),
+        )
+    except Exception as e:
+        logger.warning(f"[team-api] outreach-review-decision failed: {e}")
+        return {"ok": False, "error": str(e)}
+
+
+@router.get("/outreach-review-decisions")
+async def get_outreach_review_decisions(
+    bucket: str = "", limit: int = 100, current_user: User = Depends(require_admin)
+):
+    """Latest decision per recipient (optionally filtered by bucket)."""
+    try:
+        from app.platform import auto_outreach
+
+        return {
+            "counts": auto_outreach.review_decision_counts(),
+            **auto_outreach.list_review_decisions(
+                bucket=str(bucket or ""), limit=max(1, min(int(limit or 100), 1000))
+            ),
+        }
+    except Exception as e:
+        logger.warning(f"[team-api] outreach-review-decisions failed: {e}")
+        return {"error": str(e), "bucket": bucket or "", "count": 0, "decisions": []}
+
+
+@router.get("/outreach-review-decision-counts")
+async def get_outreach_review_decision_counts(current_user: User = Depends(require_admin)):
+    """Counts by decision-kind (dashboard tile)."""
+    try:
+        from app.platform import auto_outreach
+
+        return auto_outreach.review_decision_counts()
+    except Exception as e:
+        logger.warning(f"[team-api] outreach-review-decision-counts failed: {e}")
+        return {"error": str(e), "unique_recipients": 0}
 
 @router.post("/email-followups/run")
 async def run_email_followups_now(current_user: User = Depends(require_admin)):
