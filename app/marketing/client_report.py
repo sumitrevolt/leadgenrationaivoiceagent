@@ -35,9 +35,8 @@ def collect_stats(client: dict[str, Any], month: str = "") -> dict[str, Any]:
     month = month or _month()
     cid = str(client.get("id") or "")
     slug = str(client.get("slug") or "")
-    in_month = lambda r, k="ts": str(r.get(k) or r.get("created_at") or "").startswith(
-        month
-    )  # noqa: E731
+    def in_month(r: dict[str, Any], k: str = "ts") -> bool:
+        return str(r.get(k) or r.get("created_at") or "").startswith(month)
     stats = {
         "month": month,
         "inquiries": _count_jsonl(
@@ -63,7 +62,76 @@ def collect_stats(client: dict[str, Any], month: str = "") -> dict[str, Any]:
     return stats
 
 
-def _render_html(client: dict[str, Any], s: dict[str, Any]) -> str:
+_LEDGER_EVENT_MAP: dict[str, str] = {
+    "post_draft_created": "posts_created",
+    "post_approved": "posts_approved",
+    "post_published": "posts_published",
+    "post_failed": "posts_failed",
+    "lead_captured": "leads_captured",
+    "followup_sent": "followups_sent",
+}
+
+
+def collect_delivery(client_id: str, month: str = "") -> dict[str, Any]:
+    """Month-windowed delivery proof from delivery_ledger. Pure read, never raises."""
+    month = month or _month()
+    d: dict[str, Any] = {
+        "month": month,
+        "posts_created": 0,
+        "posts_approved": 0,
+        "posts_published": 0,
+        "posts_failed": 0,
+        "leads_captured": 0,
+        "followups_sent": 0,
+    }
+    try:
+        from app.marketing import delivery_ledger
+
+        for e in delivery_ledger.timeline(client_id, limit=10000, customer_only=False):
+            if not str(e.get("at") or "").startswith(month):
+                continue
+            key = _LEDGER_EVENT_MAP.get(str(e.get("event") or ""))
+            if key:
+                d[key] = int(d[key]) + 1
+    except Exception as exc:
+        logger.warning(f"collect_delivery failed: {exc}")
+    d["summary_hi"] = (
+        f"Is mahine: {d['posts_created']} naye posts bane, "
+        f"{d['posts_published']} publish hue, "
+        f"{d['leads_captured']} naye leads aaye."
+    )
+    return d
+
+
+def _next_actions(delivery: dict[str, Any], client: dict[str, Any]) -> list[str]:
+    """Small Hinglish next-step list for the report. Never raises."""
+    actions: list[str] = []
+    try:
+        failed = int(delivery.get("posts_failed", 0) or 0)
+        created = int(delivery.get("posts_created", 0) or 0)
+        approved = int(delivery.get("posts_approved", 0) or 0)
+        pending = max(0, created - approved)
+        socials = client.get("socials") if isinstance(client.get("socials"), dict) else {}
+        has_channel = any(str(socials.get(k) or "").strip() for k in ("instagram", "facebook", "gbp"))
+        if failed > 0:
+            actions.append("Kuch posts publish nahi ho paaye - team ise theek kar rahi hai.")
+        if pending > 0:
+            actions.append(f"{pending} post approval ke intezaar me - approve karein taaki publish ho saken.")
+        if not has_channel:
+            actions.append("Instagram / Google Business profile link karein taaki publishing smooth ho.")
+        if not actions:
+            actions.append("Sab set hai - agle mahine festival posts aur review replies par focus rahega.")
+    except Exception as exc:
+        logger.warning(f"next_actions failed: {exc}")
+    return actions[:4]
+
+
+def _render_html(
+    client: dict[str, Any],
+    s: dict[str, Any],
+    delivery: dict[str, Any] | None = None,
+    next_actions: list[str] | None = None,
+) -> str:
     brand = client.get("brand") if isinstance(client.get("brand"), dict) else {}
     primary = brand.get("primary") or "#2563eb"
     name = client.get("business_name") or "Client"
@@ -79,11 +147,45 @@ def _render_html(client: dict[str, Any], s: dict[str, Any]) -> str:
         f"<td style='padding:10px 14px;border-bottom:1px solid #eee;font-weight:700;text-align:right'>{v}</td></tr>"
         for k, v in rows
     )
+    delivery = delivery or {}
+    next_actions = next_actions or []
+    d_rows = [
+        ("Naye posts bane", delivery.get("posts_created", 0)),
+        ("Posts approve hue", delivery.get("posts_approved", 0)),
+        ("Posts publish hue", delivery.get("posts_published", 0)),
+        ("Naye leads captured", delivery.get("leads_captured", 0)),
+        ("Follow-ups bheje", delivery.get("followups_sent", 0)),
+    ]
+    d_trs = "".join(
+        f"<tr><td style='padding:10px 14px;border-bottom:1px solid #eee'>{k}</td>"
+        f"<td style='padding:10px 14px;border-bottom:1px solid #eee;font-weight:700;text-align:right'>{v}</td></tr>"
+        for k, v in d_rows
+    )
+    summary_hi = str(delivery.get("summary_hi") or "")
+    summary_block = (
+        f"<div style='padding:14px 24px;background:#f0f7ff;color:#064e3b;font-size:14px;font-weight:600'>{summary_hi}</div>"
+        if summary_hi
+        else ""
+    )
+    delivery_block = (
+        "<div style='padding:14px 24px 4px;color:#333;font-weight:700;font-size:14px'>"
+        f"AI team ne is mahine kya kiya</div><table style='width:100%;border-collapse:collapse;font-size:15px'>{d_trs}</table>"
+    )
+    na_items = "".join(f"<li style='margin:4px 0'>{a}</li>" for a in next_actions)
+    next_block = (
+        "<div style='padding:14px 24px 4px;color:#333;font-weight:700;font-size:14px'>Agle steps</div>"
+        f"<ul style='margin:0 0 8px;padding:0 24px 0 40px;color:#444;font-size:14px'>{na_items}</ul>"
+        if na_items
+        else ""
+    )
     return f"""<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f6f7fb;margin:0;padding:24px">
 <div style="max-width:560px;margin:auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.07)">
 <div style="background:{primary};color:#fff;padding:22px 24px">
 <h2 style="margin:0">{name}</h2><div style="opacity:.9">Monthly Marketing Report — {s['month']}</div></div>
+{summary_block}
 <table style="width:100%;border-collapse:collapse;font-size:15px">{trs}</table>
+{delivery_block}
+{next_block}
 <div style="padding:18px 24px;color:#555;font-size:13px">Aapki AI marketing team ne yeh sab automate kiya 🤖 —
 posts, follow-ups, reviews aur leads. Sawal ho to reply karo.<br><br>— Team LeadsGenAI · leadsgenai.in</div>
 </div></body></html>"""
@@ -99,7 +201,9 @@ async def build_report(client_id: str, month: str = "", send: bool | None = None
             return {"ok": False, "error": "client not found"}
         month = month or _month()
         s = collect_stats(client, month)
-        html = _render_html(client, s)
+        delivery = collect_delivery(client_id, month)
+        next_actions_hi = _next_actions(delivery, client)
+        html = _render_html(client, s, delivery, next_actions_hi)
         os.makedirs(_OUT_DIR, exist_ok=True)
         path = os.path.join(_OUT_DIR, f"{client_id}_{month}.html")
         with open(path, "w", encoding="utf-8") as f:
@@ -125,7 +229,14 @@ async def build_report(client_id: str, month: str = "", send: bool | None = None
             delivery_ledger.log_event(client_id, "weekly_report_generated", detail=month)
         except Exception:
             pass
-        return {"ok": True, "path": path, "stats": s, "emailed": emailed}
+        return {
+            "ok": True,
+            "path": path,
+            "stats": s,
+            "delivery": delivery,
+            "next_actions_hi": next_actions_hi,
+            "emailed": emailed,
+        }
     except Exception as e:
         logger.warning(f"build_report failed: {e}")
         return {"ok": False, "error": str(e)[:150]}

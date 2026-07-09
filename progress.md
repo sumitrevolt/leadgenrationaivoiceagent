@@ -1262,3 +1262,15 @@
 - **Risks:** Low while `SOCIAL_PREFS_HONOR` stays default OFF. When enabled, risk is bounded to draft generation cadence/channels/approval queue volume; rollback is instant flag OFF plus app restart if env is changed.
 - **Remaining:** Commit/push/deploy this safe slice, then update hot-cache docs with the live commit id. The rest of `nervous-gould` and other broad worktrees remain review-required; do not merge blindly.
 - **Next Highest Priority:** After deploy, continue auditing remaining broad worktrees only for small isolated production value, or park them explicitly if they overlap current Product-One/customer-delivery work.
+
+## Loop Run
+- **Date:** 2026-07-09
+- **Goal:** Continue dirty-worktree audit; extract only the still-useful white-label report proof section from broad `funny-williamson` Product-One work.
+- **Inspected:** `funny-williamson` diff, current `product_one_delivery.customer_delivery_status()` proof engine, `client_report.py`, scheduler/admin report callers, delivery ledger read API, existing ledger/report tests, and current customer report route.
+- **Problems Found:** The branch's standalone `app/marketing/deliverables.py` checklist is now mostly superseded by main's mature Product-One proof engine, so merging it would create parallel deliverable truth. But `client_report.py` still generated a basic monthly HTML report without showing delivery-ledger proof counts for posts/leads/follow-ups.
+- **Changed:** Added pure-read `client_report.collect_delivery()` month-windowed ledger counts, `_next_actions()` report nudges, and an additive HTML section "AI team ne is mahine kya kiya". `build_report()` now includes `delivery` and `next_actions_hi` while preserving existing keys and the `weekly_report_generated` ledger event. No customer `/api/customer/report` change, no new table, no send/automation enablement.
+- **Tests Run:** `.venv\Scripts\python.exe -m pytest tests/test_client_report_delivery_section.py tests/test_lead_report_ledger_wiring.py tests/test_competitor_parity.py tests/test_flow_executors_phase5.py -q`; `.venv\Scripts\python.exe -m ruff check app/marketing/client_report.py tests/test_client_report_delivery_section.py`; `.venv\Scripts\python.exe scripts\prod_check.py`; `.venv\Scripts\python.exe scripts\check_secrets.py`; `git diff --check`.
+- **Verification Evidence:** Targeted tests `34 passed`; ruff clean; `prod_check.py` ALL CHECKS PASSED (1154 source files parsed, 1045 routes, API docs in sync, 44 pages 0 gaps); secrets clean; diff check clean except Git LF-to-CRLF working-copy warnings.
+- **Risks:** Low. It is read-only report enrichment. Existing report email sending remains behind `CLIENT_REPORTS`/explicit `send`; no new send path or scheduler cadence changed.
+- **Remaining:** Commit/push/deploy this safe slice, then update hot-cache docs with the live commit id. Broad `funny-williamson` deliverables/admin-stage work remains review-required; do not merge wholesale.
+- **Next Highest Priority:** Continue dirty-worktree audit for small isolated value, or explicitly park broad overlapping Product-One/admin cockpit diffs.
