@@ -1214,3 +1214,15 @@
 - **Risks:** Low. Export contains prospect PII but is admin-auth-gated and generated on demand. It does not alter sending, suppression, or warmup state.
 - **Remaining:** Human/operator should review the exported 71 before any send. Warmup remains paused; do not bulk resume.
 - **Next Highest Priority:** Use the CSV to work highest-fit prospects one by one, or add a one-by-one “mark reviewed / send later” workflow if manual review becomes repetitive.
+
+## Loop Run
+- **Date:** 2026-07-09
+- **Goal:** Continue pending-worktree audit; safely extract only the still-useful Hot Queue read-path noise guard from dirty `beautiful-dijkstra` worktree.
+- **Inspected:** Dirty worktree diff for `app/platform/reply_agent.py`, `tests/test_reply_noise_filter.py`, stale `docs/API.md`/requirements/backlog/progress edits, current main `reply_agent.hot_queue()`, existing hot queue and reply noise tests, and live VPS Hot Queue.
+- **Problems Found:** The worktree mixed real value with stale/superseded edits. Main already hid saved auto-ack rows, but historic drafts still bypassed `REPLY_SENDER_BLOCKLIST` and WA `status/@broadcast` filtering on the Hot Queue read path. Dependency/API-doc/backlog edits were stale and not merged.
+- **Changed:** Added `_is_noise_row()` to apply status/broadcast, env blocklist, and auto-ack subject/body checks before Hot Queue dedupe. Added regression tests proving historic noise/blocklisted rows drop while real WhatsApp/email leads survive. No data mutation, no env edits, no warmup resume.
+- **Tests Run:** `.venv\Scripts\python.exe -m pytest tests\test_reply_noise_filter.py tests\test_hot_queue.py tests\test_hot_queue_quick_actions.py tests\test_reply_junk_guard.py tests\test_wa_conversation.py -q`; `.venv\Scripts\python.exe -m ruff check app\platform\reply_agent.py tests\test_reply_noise_filter.py`; `.venv\Scripts\python.exe scripts\prod_check.py`; `.venv\Scripts\python.exe scripts\check_secrets.py`; VPS `scripts/migration_preflight.sh`; public health, queue, live Hot Queue samples, and log smoke.
+- **Verification Evidence:** Targeted tests `47 passed`; ruff clean; `prod_check.py` ALL CHECKS PASSED (1042 routes, 44 pages, 0 gaps, API docs in sync); secrets clean. Commit `40db6be` pushed/deployed: VPS at `40db6be`, public `/health` production, Redis queue `0`, live Hot Queue count `12`, `NOISE_STATUS=[]`, `AUTO_ACK_SUBJECTS=[]`, no fresh real app errors.
+- **Risks:** Low. Filter is read-only and uses existing operator blocklist env; one `adityabirla.com` deduped row remains because the env is unset and I did not touch `.env`.
+- **Remaining:** Several dirty Claude worktrees remain. Continue one-by-one audit; do not merge full worktrees blindly.
+- **Next Highest Priority:** Audit next small dirty worktree (`confident-hofstadter` voice tool diff or `relaxed-taussig` chaos test diff), preferring isolated production value.
