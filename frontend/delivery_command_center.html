@@ -414,7 +414,7 @@
         pending_approvals_total: (data.summary || {}).posts_waiting_for_approval
       });
       renderPipeline((data && data.pipeline) || []);
-      renderRevenue({mrr_total:0, by_plan:{}});
+      renderRevenue((data && data.revenue) || {mrr_total:0, by_plan:{}});
       ALL_CUSTOMERS = customers;
       renderCustomers(ALL_CUSTOMERS);
       loadLogs("");

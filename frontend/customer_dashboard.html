@@ -139,6 +139,7 @@
      This only hides blocks of NON-active views, so product gating
      (#card{display:none !important}) still wins on cards inside the active view. --- */
   [data-active-view="home"]     [data-view]:not([data-view="home"]),
+  [data-active-view="delivery"] [data-view]:not([data-view="delivery"]),
   [data-active-view="setup"]    [data-view]:not([data-view="setup"]),
   [data-active-view="calendar"] [data-view]:not([data-view="calendar"]),
   [data-active-view="leads"]    [data-view]:not([data-view="leads"]),
@@ -462,6 +463,7 @@
     <div class="brand" aria-label="LeadGen AI"><img class="logo" src="/design-system/assets/logo-mark.svg" alt="" aria-hidden="true" width="34" height="34" /> LeadGen AI</div>
     <div class="nav-group">Menu</div>
     <a class="navlink active" data-nav="home" href="#" onclick="showView('home');return false;" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home / This Month</a>
+    <a class="navlink" data-nav="delivery" href="#" onclick="showView('delivery');return false;" aria-label="My Delivery status"><span class="ic" aria-hidden="true">📦</span> My Delivery</a>
     <a class="navlink" data-nav="setup" href="#" onclick="showView('setup');return false;" aria-label="Setup Wizard self-serve"><span class="ic" aria-hidden="true">🧙</span> Setup Wizard</a>
     <a class="navlink marketing-only" data-nav="calendar" href="#" onclick="showView('calendar');return false;" aria-label="Marketing Calendar"><span class="ic" aria-hidden="true">📅</span> Content &amp; Approvals</a>
     <a class="navlink voice-only" data-nav="leads" href="#" onclick="showView('leads');return false;" aria-label="Leads and Calls"><span class="ic" aria-hidden="true">🔥</span> Leads Inbox</a>
@@ -1006,6 +1008,55 @@
       </div>
       
       <!-- Support view -->
+      <div data-view="delivery" class="owner-hero" aria-label="Aapki Product One Delivery">
+        <div>
+          <div class="owner-pill">📦 Product One Active</div>
+          <h1 class="owner-title" id="deliveryBizName">Aapki Digital Presence</h1>
+          <p class="owner-subtitle" id="deliveryNextAction">Loading your delivery status…</p>
+        </div>
+        <div class="owner-actions">
+          <button class="btn primary" onclick="loadDeliveryView()" style="padding:10px 16px;font-size:13px">🔄 Refresh Status</button>
+        </div>
+      </div>
+
+      <div data-view="delivery" class="sec-title">📋 Aapka Product One Setup</div>
+      <div data-view="delivery" id="deliveryProgressBar" style="margin-bottom:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <span style="font-weight:800;font-size:14px">Setup Progress</span>
+          <span style="font-weight:800;font-size:14px;color:var(--brand)" id="deliveryPct">0%</span>
+        </div>
+        <div style="background:#e9e7f2;border-radius:99px;height:10px;overflow:hidden">
+          <div id="deliveryProgressFill" style="background:linear-gradient(90deg,var(--brand-2),var(--brand));height:100%;width:0%;border-radius:99px;transition:width .6s ease"></div>
+        </div>
+      </div>
+
+      <div data-view="delivery" class="sec-title">📦 Is Mahine Ki Delivery</div>
+      <div data-view="delivery" id="deliveryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">
+        <div class="card" style="padding:14px;text-align:center;color:var(--muted)">Loading…</div>
+      </div>
+
+      <div data-view="delivery" class="sec-title" id="deliveryApprovalSection" style="display:none">✅ Approval Needed</div>
+      <div data-view="delivery" id="deliveryApprovals" style="margin-bottom:14px"></div>
+
+      <div data-view="delivery" class="sec-title">📊 Published / Scheduled Posts</div>
+      <div data-view="delivery" id="deliveryPublishedList" style="margin-bottom:14px">
+        <div class="simple-note">Abhi tak koi post publish nahi hui. Content generate hone ke baad yahan dikhega.</div>
+      </div>
+
+      <div data-view="delivery" class="sec-title">💬 Support</div>
+      <div data-view="delivery" class="card" id="deliverySupportCard" style="margin-bottom:18px;background:linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);border:1px solid #10b981">
+        <div class="hd" style="border-bottom:1px solid rgba(16,185,129,.2)">
+          <h3 style="color:#065f46;margin:0">💬 Need Help or Changes?</h3>
+        </div>
+        <div class="bd" style="padding-top:16px">
+          <p style="margin-bottom:16px;line-height:1.6;color:#1e293b">Agar aapko koi change chahiye, naya content generate karwana hai, ya koi issue aaya hai — WhatsApp pe bataye.</p>
+          <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px">
+            <a href="https://wa.me/917498797259" target="_blank" rel="noopener" class="btn primary" style="background:#25d366;border-color:#25d366;color:#fff;display:inline-flex;align-items:center;gap:6px;font-weight:700;text-decoration:none;padding:10px 16px;border-radius:8px"><span>💬</span> Message on WhatsApp</a>
+            <span style="color:var(--muted)">Ya call: <b style="color:var(--txt)">+91 7498797259</b></span>
+          </div>
+        </div>
+      </div>
+
       <div data-view="support" class="sec-title">💬 Support &amp; Help</div>
       <div data-view="support" class="card" id="supportCard" style="margin-bottom:18px;background:linear-gradient(135deg, #f0fdf4 0%, #eff6ff 100%);border:1px solid #10b981">
         <div class="hd" style="border-bottom:1px solid rgba(16,185,129,.2)">
@@ -1579,14 +1630,14 @@ function viewForHash(h){
   // view-engine whitelist (home/setup/calendar/leads/reports/billing) — purani
   // content/account taxonomy ke hash bookmarks neeche alias se map hote hain.
   var map={leadsCard:"leads",routingCard:"leads",callsCard:"leads",
-           contentCard:"calendar",approvalCard:"home",webToolsCard:"home",
+           contentCard:"home",approvalCard:"home",webToolsCard:"home",
            billingCard:"billing",webhookCard:"billing",secCard:"billing",
            setupWizardCard:"setup",supportCard:"support",socialSetupCard:"setup",
            marketingCalendarCard:"calendar",mktKpis:"reports",
            content:"home",account:"billing"};
   h=(h||"").replace(/^#/,"").replace(/^view-/,"");
   if(map[h])return map[h];
-  return ["home","setup","calendar","leads","reports","billing","support"].indexOf(h)>=0 ? h : "home";
+  return ["home","delivery","setup","calendar","leads","reports","billing","support"].indexOf(h)>=0 ? h : "home";
 }
 function resizeCharts(){
   // Chart.js canvases first drawn while their container was hidden (an inactive
@@ -1601,13 +1652,14 @@ function resizeCharts(){
   }, 0);
 }
 function showView(name){
-  name=["home","setup","calendar","leads","reports","billing","support"].indexOf(name)>=0?name:"home";
+  name=["home","delivery","setup","calendar","leads","reports","billing","support"].indexOf(name)>=0?name:"home";
   var mc=document.getElementById("mainContent");
   if(mc)mc.setAttribute("data-active-view",name);
   document.querySelectorAll("[data-nav]").forEach(function(n){
     n.classList.toggle("active", n.getAttribute("data-nav")===name);
   });
   resizeCharts();
+  if(name === "delivery" && typeof loadDeliveryView === "function") loadDeliveryView();
   try{history.replaceState(null,"","#view-"+name);}catch(e){}
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -1915,6 +1967,104 @@ async function loadDeliveryProof() {
     box.innerHTML = '<div class="sm" style="color:var(--muted)">Report load nahi hua. Thodi der baad try karein.</div>';
   }
 }
+
+/* ====== Delivery View — customer delivery status (ADR-064) ====== */
+async function loadDeliveryView() {
+  try {
+    const r = await fetch("/api/customer/delivery-proof", { headers: billAuthHdr() });
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d || !d.ok) return;
+
+    const biz = document.getElementById("deliveryBizName");
+    const nextAct = document.getElementById("deliveryNextAction");
+    const pctEl = document.getElementById("deliveryPct");
+    const fill = document.getElementById("deliveryProgressFill");
+    const cards = document.getElementById("deliveryCards");
+    const approvalsSec = document.getElementById("deliveryApprovalSection");
+    const approvalsBox = document.getElementById("deliveryApprovals");
+    const pubList = document.getElementById("deliveryPublishedList");
+
+    if (biz && d.business_name) biz.textContent = d.business_name;
+    if (nextAct) nextAct.textContent = d.next_action || d.customer_message || "Delivery tracking active hai";
+    if (pctEl) pctEl.textContent = (d.deliverable_completion_pct || 0) + "% Done";
+    if (fill) fill.style.width = (d.deliverable_completion_pct || 0) + "%";
+
+    const items = (d.deliverables || []);
+    if (cards && items.length) {
+      function statusBadge(st) {
+        var m = {
+          delivered:"✓ Delivered", done:"✓ Delivered", approved:"✓ Approved", scheduled:"📅 Scheduled",
+          pending_approval:"⏳ Needs Approval", waiting_customer:"👤 Waiting on You", generating:"⚙️ Generating",
+          ready_to_generate:"⚙️ Ready", failed:"❌ Failed", skipped:"⊘ Skipped", not_started:"○ Pending"
+        };
+        var colors = {
+          delivered:"var(--ok)", done:"var(--ok)", approved:"var(--ok)", scheduled:"var(--ok)",
+          pending_approval:"#b45309", waiting_customer:"#d97706", generating:"#2563eb",
+          ready_to_generate:"#2563eb", failed:"var(--err)", skipped:"var(--muted)", not_started:"var(--muted)"
+        };
+        var label = m[st] || "○ Pending";
+        return '<span style="color:' + (colors[st] || "var(--muted)") + ';font-weight:700;font-size:11px">' + label + '</span>';
+      }
+      cards.innerHTML = items.map(function(it) {
+        var s = String(it.status || "not_started").toLowerCase();
+        return '<div class="card" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><b>' + escH(it.title || "Deliverable") + '</b>' + statusBadge(s) + '</div><div class="sm" style="color:var(--muted)">' + escH(it.description || "") + '</div>' + (it.next_action ? '<div class="sm" style="color:#475569;margin-top:4px"><b>Next:</b> ' + escH(it.next_action) + '</div>' : '') + '</div>';
+      }).join("");
+    }
+
+    if (approvalsSec && approvalsBox) {
+      var pending = (d.approvals_pending || []);
+      if (pending.length) {
+        approvalsSec.style.display = "";
+        approvalsBox.innerHTML = pending.map(function(a) {
+          return '<div class="card" style="padding:12px;margin-bottom:8px"><div class="row" style="align-items:center;justify-content:space-between"><div><b>' + escH(a.title || "Post") + '</b><div class="sm" style="color:var(--muted)">' + escH(a.caption_preview || "") + '</div></div><div style="display:flex;gap:6px"><button class="btn" style="background:var(--ok);color:#fff;padding:6px 12px;font-size:11px" onclick="approvePost(\'' + escH(a.id || "") + '\')">✓ Approve</button><button class="btn" style="background:var(--err);color:#fff;padding:6px 12px;font-size:11px" onclick="rejectPost(\'' + escH(a.id || "") + '\')">✕ Reject</button></div></div></div>';
+        }).join("");
+      } else {
+        approvalsSec.style.display = "none";
+        approvalsBox.innerHTML = "";
+      }
+    }
+
+    var published = (d.posts_published || []);
+    if (pubList && published.length) {
+      pubList.innerHTML = published.map(function(p) {
+        return '<div class="card" style="padding:10px;margin-bottom:6px"><div class="row gap-sm"><span style="font-size:11px;color:var(--muted)">' + escH(p.date || "") + '</span><b>' + escH(p.title || "Post") + '</b><span class="pill sm" style="background:var(--ok);color:#fff">' + escH(p.status_label || "Published") + '</span></div></div>';
+      }).join("");
+    } else if (pubList && !published.length) {
+      pubList.innerHTML = '<div class="simple-note">Abhi tak koi post publish nahi hui. Content generate hone ke baad yahan dikhega.</div>';
+    }
+  } catch(e) {
+    /* silently stay showing previous state */
+  }
+}
+window.loadDeliveryView = loadDeliveryView;
+
+async function approvePost(id) {
+  try {
+    var r = await fetch("/api/customer/approvals/" + encodeURIComponent(id) + "/decide", {
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"}, billAuthHdr()),
+      body: JSON.stringify({action:"approve"})
+    });
+    var d = await r.json();
+    toast(d.ok ? "Post approved" : (d.error || "Action failed"), d.ok ? "ok" : "err");
+    if (d.ok) loadDeliveryView();
+  } catch(e) { toast("Approve nahi hua: " + e.message, "err"); }
+}
+window.approvePost = approvePost;
+
+async function rejectPost(id) {
+  var reason = prompt("Rejection reason (optional):") || "";
+  try {
+    var r = await fetch("/api/customer/approvals/" + encodeURIComponent(id) + "/decide", {
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"}, billAuthHdr()),
+      body: JSON.stringify({action:"reject", note:reason})
+    });
+    var d = await r.json();
+    toast(d.ok ? "Post rejected" : (d.error || "Action failed"), d.ok ? "ok" : "err");
+    if (d.ok) loadDeliveryView();
+  } catch(e) { toast("Reject nahi hua: " + e.message, "err"); }
+}
+window.rejectPost = rejectPost;
 
 /* ====== J.1: customer-side webhook management (H.1 UI) ====== */
 async function whLoad(){
