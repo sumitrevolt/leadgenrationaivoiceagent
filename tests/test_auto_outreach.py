@@ -48,6 +48,11 @@ def _isolated_email_suppression(monkeypatch, tmp_path):
 
 
 @pytest.fixture(autouse=True)
+def _isolated_review_decisions(monkeypatch, tmp_path):
+    monkeypatch.setattr(auto_outreach, "_REVIEW_DECISION_FILE", os.path.join(str(tmp_path), "review_decisions.jsonl"))
+
+
+@pytest.fixture(autouse=True)
 def _no_warmup_side_effect(monkeypatch):
     from app.platform import email_warmup
 
@@ -522,6 +527,43 @@ class TestStats:
             "priority_local_smb",
             "review_low_fit_vendor",
         }
+
+    def test_review_decisions_are_append_only_latest_state_and_counts(self):
+        first = auto_outreach.record_review_decision(
+            "Local@X.in", "reviewed_skip", note="bad fit", bucket="priority_local_smb", reviewer="admin"
+        )
+        second = auto_outreach.record_review_decision(
+            "local@x.in", "reviewed_sent", note="manual email sent", bucket="priority_local_smb", reviewer="sunny"
+        )
+        other = auto_outreach.record_review_decision(
+            "other@x.in", "reviewed_suppress", note="complaint risk", bucket="review_unknown_fit"
+        )
+
+        assert first["ok"] is True
+        assert second["ok"] is True
+        assert other["ok"] is True
+        out = auto_outreach.list_review_decisions(limit=10)
+        by_email = {r["email"]: r for r in out["decisions"]}
+        assert by_email["local@x.in"]["decision"] == "reviewed_sent"
+        assert by_email["local@x.in"]["reviewer"] == "sunny"
+        counts = auto_outreach.review_decision_counts()
+        assert counts["unique_recipients"] == 2
+        assert counts["reviewed_sent"] == 1
+        assert counts["reviewed_suppress"] == 1
+        assert counts["reviewed_skip"] == 0
+
+    def test_review_decisions_do_not_mutate_suppression_store(self):
+        from app.platform import email_unsub
+
+        bad = auto_outreach.record_review_decision("review@x.in", "not_a_decision")
+        saved = auto_outreach.record_review_decision(
+            "review@x.in", "reviewed_suppress", note="operator wants suppression"
+        )
+
+        assert bad["ok"] is False
+        assert bad["error"] == "invalid_decision"
+        assert saved["ok"] is True
+        assert "review@x.in" not in email_unsub.suppressed_emails()
 
 
 def _iso_days_ago(days: float) -> str:

@@ -27,6 +27,8 @@ from __future__ import annotations
 
 import asyncio
 import html as _html
+import json
+import os
 import random
 import re
 from collections import Counter
@@ -1281,6 +1283,162 @@ def pending_review_candidates(bucket: str = "", limit: int = 100) -> dict[str, A
     return out
 
 
+# --- Outreach review decisions (ADR-061) - operator bookkeeping after ADR-059 export
+# Append-only jsonl store of admin "what did I decide for this recipient" decisions
+# (reviewed_sent / reviewed_skip / reviewed_schedule / reviewed_suppress / reviewed_unsuppress).
+# Informational + auditable: does NOT auto-send, does NOT mutate warmup, does NOT touch
+# email_unsub.suppressed_emails() (proper complaint suppression lives there).
+_REVIEW_DECISION_FILE = os.path.join("data", "outreach_review_decisions.jsonl")
+_REVIEW_DECISION_KINDS = {
+    "reviewed_sent",
+    "reviewed_skip",
+    "reviewed_schedule",
+    "reviewed_suppress",
+    "reviewed_unsuppress",
+}
+
+
+def _normalise_decision_kind(kind: str) -> str:
+    k = str(kind or "").strip().lower()
+    if k in _REVIEW_DECISION_KINDS:
+        return k
+    return ""
+
+
+def record_review_decision(
+    email: str,
+    decision: str,
+    note: str = "",
+    bucket: str = "",
+    reviewer: str = "",
+) -> dict[str, Any]:
+    """Operator bookmark: "is recipient ke liye maine ye decide kiya." Append-only
+    jsonl under a file_lock (multi-process safe). Never-raise. Returns the saved
+    record on success, safe-empty on failure."""
+    out: dict[str, Any] = {"ok": False, "email": str(email or "").strip().lower()}
+    try:
+        addr = str(email or "").strip().lower()
+        if not addr or "@" not in addr:
+            out["error"] = "missing_email"
+            return out
+        kind = _normalise_decision_kind(decision)
+        if not kind:
+            out["error"] = "invalid_decision"
+            return out
+        try:
+            from app.utils.file_lock import file_lock
+        except Exception:  # pragma: no cover - import fail shouldn't crash caller
+            file_lock = None  # type: ignore[assignment]
+        rec = {
+            "email": addr[:120],
+            "decision": kind,
+            "note": str(note or "")[:300],
+            "bucket": str(bucket or "")[:40],
+            "reviewer": str(reviewer or "")[:60],
+            "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        os.makedirs(os.path.dirname(_REVIEW_DECISION_FILE) or ".", exist_ok=True)
+        line = json.dumps(rec, ensure_ascii=False) + "\n"
+        if file_lock is not None:
+            try:
+                with file_lock(_REVIEW_DECISION_FILE, timeout_s=2.0):
+                    with open(_REVIEW_DECISION_FILE, "a", encoding="utf-8") as f:
+                        f.write(line)
+            except Exception:
+                # fall through to unlocked append (still best-effort)
+                with open(_REVIEW_DECISION_FILE, "a", encoding="utf-8") as f:
+                    f.write(line)
+        else:
+            with open(_REVIEW_DECISION_FILE, "a", encoding="utf-8") as f:
+                f.write(line)
+        out["ok"] = True
+        out["record"] = rec
+    except Exception as e:
+        logger.debug(f"[auto_outreach] record_review_decision failed: {e}")
+        out["error"] = str(e)
+    return out
+
+
+def _read_review_decisions(bucket: str = "", limit: int = 500) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    try:
+        if not os.path.exists(_REVIEW_DECISION_FILE):
+            return rows
+        wanted = str(bucket or "").strip()
+        try:
+            limit = max(1, min(int(limit or 200), 5000))
+        except Exception:
+            limit = 200
+        with open(_REVIEW_DECISION_FILE, encoding="utf-8") as f:
+            for line in f:
+                line = (line or "").strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                except Exception:
+                    continue
+                if not isinstance(rec, dict):
+                    continue
+                if wanted and str(rec.get("bucket") or "") != wanted:
+                    continue
+                rows.append(rec)
+    except Exception as e:
+        logger.debug(f"[auto_outreach] read_review_decisions failed: {e}")
+    return rows[-limit:]
+
+
+def list_review_decisions(bucket: str = "", limit: int = 200) -> dict[str, Any]:
+    """Return latest decision per recipient (case-insensitive email key)."""
+    out: dict[str, Any] = {"bucket": str(bucket or ""), "count": 0, "decisions": []}
+    try:
+        rows = _read_review_decisions(bucket=bucket, limit=max(limit * 4, 500))
+        latest: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            em = str(r.get("email") or "").strip().lower()
+            if not em:
+                continue
+            prev = latest.get(em)
+            if (prev is None) or str(r.get("at") or "") >= str(prev.get("at") or ""):
+                latest[em] = r
+        try:
+            limit = max(1, min(int(limit or 200), 1000))
+        except Exception:
+            limit = 200
+        items = list(latest.values())
+        items.sort(key=lambda r: str(r.get("at") or ""), reverse=True)
+        items = items[:limit]
+        out["count"] = len(items)
+        out["decisions"] = items
+    except Exception as e:
+        logger.debug(f"[auto_outreach] list_review_decisions failed: {e}")
+        out["error"] = str(e)
+    return out
+
+
+def review_decision_counts() -> dict[str, int]:
+    """Counts by decision-kind across all buckets (dashboard tile)."""
+    counts: dict[str, int] = dict.fromkeys(sorted(_REVIEW_DECISION_KINDS), 0)
+    try:
+        rows = _read_review_decisions(bucket="", limit=5000)
+        latest: dict[str, dict[str, Any]] = {}
+        for r in rows:
+            em = str(r.get("email") or "").strip().lower()
+            if not em:
+                continue
+            prev = latest.get(em)
+            if (prev is None) or str(r.get("at") or "") >= str(prev.get("at") or ""):
+                latest[em] = r
+        for r in latest.values():
+            k = str(r.get("decision") or "").strip().lower()
+            if k in counts:
+                counts[k] += 1
+        counts["unique_recipients"] = len(latest)
+    except Exception as e:
+        logger.debug(f"[auto_outreach] review_decision_counts failed: {e}")
+    return counts
+
+
 def outreach_activity(limit: int = 20) -> dict[str, Any]:
     """Admin-friendly outreach activity — kisko bheja, kitne, kya reply aaya.
     Plain-Hinglish counts + recent sent recipients + recent replies. KABHI raise nahi
@@ -1313,6 +1471,7 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
         "pending_review": {"buckets": [], "samples": []},
         "recent_sent": [],
         "recent_replies": [],
+        "review_decisions": {},
     }
     today = ""
     try:
@@ -1453,6 +1612,12 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
     # 4) Plain-Hinglish headline
     s = out["summary"]
     s["pending"] = s.get("pending_sendable", s.get("pending", 0))
+    # 5) Operator review decisions (ADR-061) - best-effort, fail-OPEN
+    try:
+        out["review_decisions"] = review_decision_counts()
+    except Exception as e:
+        logger.debug(f"[auto_outreach] outreach_activity review_decisions failed: {e}")
+        out["review_decisions"] = {"unique_recipients": 0}
     if s.get("warmup_attention"):
         state = "PAUSED" if s.get("warmup_paused") else "ATTENTION"
         out["headline"] = (
@@ -1489,6 +1654,9 @@ __all__ = [
     "outreach_stats",
     "outreach_activity",
     "pending_review_candidates",
+    "record_review_decision",
+    "list_review_decisions",
+    "review_decision_counts",
     "_email_subject_body",
     "_followup_subject_body",
 ]
