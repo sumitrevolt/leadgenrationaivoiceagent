@@ -54,10 +54,11 @@ def test_db_slow_timeout_circuit_breaker(monkeypatch):
 # ---------------------------------------------------------------------------
 def test_worker_crash_dlq_retry(monkeypatch):
     """Task fails → goes to DLQ → retry on revive."""
+    import asyncio
+    import json
+
     from app.platform import dlq_retry
     from tests.test_infra_batch3 import FakeRedis
-    import json
-    import asyncio
 
     monkeypatch.setenv("DLQ_AUTO_RETRY", "1")
     monkeypatch.setenv("RUN_IN_PROCESS_SCHEDULER", "1")
@@ -86,17 +87,20 @@ def test_worker_crash_dlq_retry(monkeypatch):
 def test_duplicate_webhook_idempotency(monkeypatch):
     """Same webhook received twice → idempotent, only one action."""
     from app.billing import idempotency
-    import asyncio
+
+    def _redis_down():
+        raise RuntimeError("redis-down")
+
+    monkeypatch.setattr(idempotency, "_sync_redis", _redis_down)
+    idempotency._MEM.clear()
 
     webhook_id = "webhook-vobiz-12345"
 
-    asyncio.run(idempotency.forget(webhook_id))
+    # First delivery: new event -> process (claims the key)
+    assert idempotency.seen_before_sync(webhook_id) is False
 
-    # First delivery: process
-    assert asyncio.run(idempotency.seen_before(webhook_id)) is False
-
-    # Second delivery (duplicate): skip
-    assert asyncio.run(idempotency.seen_before(webhook_id)) is True
+    # Second delivery (duplicate): already claimed -> skip
+    assert idempotency.seen_before_sync(webhook_id) is True
 
     # Only one side effect
     actions = 1  # counted from first delivery
@@ -108,10 +112,11 @@ def test_duplicate_webhook_idempotency(monkeypatch):
 # ---------------------------------------------------------------------------
 def test_poison_message_isolation(monkeypatch):
     """Poison message kills worker → task isolated, alert fired."""
+    import asyncio
+    import json
+
     from app.platform import dlq_retry
     from tests.test_infra_batch3 import FakeRedis
-    import json
-    import asyncio
 
     monkeypatch.setenv("DLQ_AUTO_RETRY", "1")
     monkeypatch.setenv("RUN_IN_PROCESS_SCHEDULER", "1")
