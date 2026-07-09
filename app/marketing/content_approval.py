@@ -21,6 +21,7 @@ import os
 import secrets
 import time
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 from urllib.parse import quote
 
@@ -350,6 +351,26 @@ def decision_html(result: dict[str, Any], action: str) -> str:
     )
 
 
+def _content_title(rec: dict[str, Any]) -> str:
+    content = rec.get("content") or {}
+    return str(content.get("title") or content.get("occasion") or rec.get("id") or "content")[:200]
+
+
+def _publish_log_event(client_id: str, action: str, rec: dict[str, Any]) -> None:
+    """Best-effort staff activity log for admin surfaces. Never raises."""
+    try:
+        from app.platform.team import log_event
+
+        log_event(
+            "isha",
+            f"approval_{action}",
+            f"Client {client_id} content {action}: {_content_title(rec)}",
+            meta={"approval_id": rec.get("id"), "client_id": client_id, "status": rec.get("status")},
+        )
+    except Exception:
+        pass
+
+
 __all__ = [
     "submit",
     "approve",
@@ -358,7 +379,106 @@ __all__ = [
     "list_all",
     "get_by_token",
     "decide_for_client",
+    "decide_by_id",
+    "schedule",
+    "mark_published",
+    "mark_failed",
     "wa_share_text",
     "approval_url",
     "decision_html",
 ]
+
+
+def schedule(approval_id: str, scheduled_date: str) -> dict[str, Any]:
+    """Mark approved content as scheduled for a future date (ADR-064)."""
+    rec = _latest_states().get(str(approval_id or "").strip())
+    if not rec:
+        return {"ok": False, "error": "approval nahi mila"}
+    st = str(rec.get("status") or "").lower()
+    if st != "approved":
+        return {"ok": False, "error": f"sirf approved posts schedule ho sakte (current: {st})"}
+    rec["status"] = "scheduled"
+    rec["scheduled_date"] = str(scheduled_date)[:10]
+    rec["decided_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    _save("scheduled", rec["client_id"], rec["id"], rec, scheduled_date=scheduled_date)
+    _publish_log_event(rec["client_id"], "scheduled", rec)
+    return {"ok": True, "id": rec["id"], "status": "scheduled"}
+
+
+def mark_published(approval_id: str, channel: str = "", evidence_url: str = "") -> dict[str, Any]:
+    """Mark content as published (manual or auto) (ADR-064)."""
+    rec = _latest_states().get(str(approval_id or "").strip())
+    if not rec:
+        return {"ok": False, "error": "approval nahi mila"}
+    st = str(rec.get("status") or "").lower()
+    if st not in ("approved", "scheduled"):
+        return {"ok": False, "error": f"sirf approved/scheduled posts publish ho sakte (current: {st})"}
+    rec["status"] = "published"
+    rec["published_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    rec["publish_channel"] = str(channel)[:50] if channel else "manual"
+    if evidence_url:
+        rec["evidence_url"] = str(evidence_url)[:500]
+    _save("published", rec["client_id"], rec["id"], rec, channel=channel)
+    _publish_log_event(rec["client_id"], "published", rec)
+    return {"ok": True, "id": rec["id"], "status": "published"}
+
+
+def mark_failed(approval_id: str, error_message: str = "") -> dict[str, Any]:
+    """Mark publishing attempt as failed (ADR-064)."""
+    rec = _latest_states().get(str(approval_id or "").strip())
+    if not rec:
+        return {"ok": False, "error": "approval nahi mila"}
+    rec["status"] = "failed"
+    rec["failed_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    rec["error_message"] = str(error_message)[:500] if error_message else "publish failed"
+    _save("failed", rec["client_id"], rec["id"], rec)
+    _publish_log_event(rec["client_id"], "failed", rec)
+    return {"ok": True, "id": rec["id"], "status": "failed"}
+
+
+def _save(action: str, client_id: str, approval_id: str, rec: dict, **extra) -> None:
+    """Best-effort: log automation event + delivery ledger. Never raises."""
+    try:
+        update = dict(rec)
+        update["id"] = approval_id
+        update["client_id"] = client_id
+        update["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        _append(update)
+    except Exception:
+        pass
+    try:
+        from app.platform.automation_log_service import log_event
+
+        log_event(
+            client_id=client_id,
+            job_type=f"approval_{action}",
+            status="success",
+            input_summary=f"approval_id={approval_id}",
+            output_summary=str(rec.get("content", {}).get("title", ""))[:200],
+            triggered_by="system",
+        )
+    except Exception:
+        pass
+    try:
+        from app.marketing.delivery_ledger import log_event as _ledger
+
+        event = {
+            "scheduled": "post_approved",
+            "published": "post_published",
+            "failed": "post_failed",
+        }.get(action)
+        if event:
+            detail = _content_title(rec)
+            if action == "scheduled" and extra.get("scheduled_date"):
+                detail = f"{detail} scheduled for {str(extra.get('scheduled_date'))[:10]}"
+            if action == "failed" and rec.get("error_message"):
+                detail = str(rec.get("error_message") or "")[:400]
+            _ledger(
+                client_id,
+                event,
+                detail=detail,
+                actor="content_approval",
+                key=f"approval:{approval_id}:{action}",
+            )
+    except Exception:
+        pass

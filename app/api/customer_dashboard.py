@@ -1455,10 +1455,29 @@ def customer_social_save(body: SocialConfigIn, client_id: str = Depends(require_
             logger.debug("customer social socials-mirror skip: %s", e)
         if not cfg:
             return {"ok": False, "error": "save nahi hua, dobara try karo"}
+        # Sync delivery stage — social setup saved = advance to social_setup_completed
+        _sync_social_delivery_stage(client_id, cfg)
         return {"ok": True, "config": cfg}
     except Exception as e:
         logger.warning("customer social save failed: %s", e)
         return {"ok": False, "error": str(e)[:160]}
+
+
+def _sync_social_delivery_stage(client_id: str, cfg: dict) -> None:
+    """Best-effort: social config saved → advance delivery_stage. Never raises."""
+    try:
+        handles = cfg.get("handles", {})
+        has_social = any(
+            str(handles.get(k, "")).strip()
+            for k in ("instagram", "facebook", "gbp")
+        )
+        if not has_social:
+            return
+        from app.marketing.delivery_ledger import log_event
+
+        log_event(client_id, "social_setup_completed", customer_visible=True)
+    except Exception:
+        pass
 
 
 @router.get("/branded-feed")
@@ -1511,8 +1530,53 @@ def customer_delivery_proof(client_id: str = Depends(require_customer)) -> dict:
             for d in state.get("deliverables", [])
             if d.get("customer_visible", True)
         ]
+        # Fetch pending approvals + published posts for the new delivery view
+        approvals_pending = []
+        posts_published = []
+        business_name = ""
+        try:
+            import app.marketing.clients_store as cs
+            c = cs.get_client(client_id) or {}
+            business_name = c.get("business_name", "")
+        except Exception:
+            pass
+        try:
+            from app.marketing import content_approval
+
+            for row in content_approval.pending(client_id)[:10]:
+                content = row.get("content") or {}
+                caption = str(content.get("caption") or content.get("text") or "")
+                approvals_pending.append(
+                    {
+                        "id": row.get("id"),
+                        "status": row.get("status"),
+                        "created_at": row.get("created_at"),
+                        "title": content.get("title") or content.get("occasion") or "Post",
+                        "caption_preview": caption[:180],
+                        "content": content,
+                    }
+                )
+        except Exception:
+            approvals_pending = []
+        try:
+            from app.marketing.delivery_ledger import timeline
+            ledger = timeline(client_id, limit=100)
+            posts_published = [
+                {
+                    "date": e.get("at", "")[:10],
+                    "title": e.get("detail") or e.get("label") or e.get("event", "Post"),
+                    "detail": e.get("detail", ""),
+                    "status": "published" if e.get("event") == "post_published" else "approved",
+                    "status_label": "Published" if e.get("event") == "post_published" else "Approved",
+                }
+                for e in ledger
+                if e.get("event") in ("post_published", "post_approved")
+            ][:10]
+        except Exception:
+            posts_published = []
         return {
             "ok": True,
+            "business_name": business_name or state.get("customer_name"),
             "customer_name": state.get("customer_name"),
             "plan": state.get("plan"),
             "stage": state.get("stage"),
@@ -1521,6 +1585,8 @@ def customer_delivery_proof(client_id: str = Depends(require_customer)) -> dict:
             "deliverable_completion_pct": state.get("deliverable_completion_pct"),
             "next_action": state.get("next_action"),
             "deliverables": deliverables,
+            "approvals_pending": approvals_pending,
+            "posts_published": posts_published,
             "proof_summary": {
                 "content_ready": state.get("content_generated", 0),
                 "approval_pending": state.get("posts_waiting_for_approval", 0),
