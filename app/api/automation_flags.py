@@ -23,6 +23,7 @@ AUTOMATION_FLAGS = [
     "CALL_LOG_DB",  # write structured call_logs row per call -> DB-backed analytics dashboard (default ON)
     "OPS_WATCHDOG",
     "AUTO_ONBOARD",
+    "SOCIAL_PREFS_HONOR",
     "USE_STRUCTURED_CONTENT",
     "USE_AGENTIC_RAG",
     "USE_RERANKER",

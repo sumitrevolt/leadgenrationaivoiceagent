@@ -33,6 +33,32 @@ def _fake_item(client_id: str = "c1") -> dict[str, Any]:
     }
 
 
+def _stub_packet_deps(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
+    from app.marketing import content_approval, delivery_ledger, whatsapp_pack
+
+    async def _fake_pack(**kw: Any) -> dict:
+        return {"broadcast": ["Namaste! Special offer - abhi reply karein."]}
+
+    submitted: list[dict] = []
+    monkeypatch.setattr(whatsapp_pack, "broadcast_pack", _fake_pack)
+    monkeypatch.setattr(
+        content_approval,
+        "submit",
+        lambda cid, content: submitted.append({"cid": cid, "content": content}) or {"ok": True},
+    )
+    monkeypatch.setattr(delivery_ledger, "log_event", lambda *a, **k: True)
+    try:
+        from app.voice_agent import free_ai
+
+        async def _fake_chat(*a: Any, **kw: Any):
+            return "Title: Referral\nSuggestion: dosto ko batao", None
+
+        monkeypatch.setattr(free_ai, "chat", _fake_chat)
+    except Exception:
+        pass
+    return submitted
+
+
 @pytest.mark.asyncio
 async def test_seed_client_content_appends_to_queue(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -40,6 +66,7 @@ async def test_seed_client_content_appends_to_queue(
     from app.marketing import auto_content
 
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    submitted = _stub_packet_deps(monkeypatch)
 
     async def _gen(client: dict, day: Any = None) -> list[dict]:
         return [_fake_item(str(client.get("id", "c1")))]
@@ -47,12 +74,13 @@ async def test_seed_client_content_appends_to_queue(
     monkeypatch.setattr(auto_content, "generate_for_client", _gen)
 
     added = await auto_content.seed_client_content({"id": "c1", "business_name": "Sharma Solar"})
-    assert added == 1
+    assert added == 3
 
     # portal_content reads exactly this list_queue
-    q = auto_content.list_queue("c1", limit=10)
-    assert len(q) == 1
-    assert q[0]["type"] == "post"
+    q = auto_content.list_queue("c1", limit=20)
+    assert len(q) == 3
+    assert {it["type"] for it in q} == {"post", "whatsapp", "campaign"}
+    assert len(submitted) >= 3
 
 
 @pytest.mark.asyncio
@@ -63,6 +91,7 @@ async def test_seed_client_content_is_idempotent(
     from app.marketing import auto_content
 
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    _stub_packet_deps(monkeypatch)
 
     async def _gen(client: dict, day: Any = None) -> list[dict]:
         return [_fake_item(str(client.get("id", "c1")))]
@@ -72,9 +101,9 @@ async def test_seed_client_content_is_idempotent(
     client = {"id": "c1", "business_name": "Sharma Solar"}
     first = await auto_content.seed_client_content(client)
     second = await auto_content.seed_client_content(client)
-    assert first == 1
+    assert first == 3
     assert second == 0  # same date+type → deduped, not re-added
-    assert len(auto_content.list_queue("c1", limit=10)) == 1
+    assert len(auto_content.list_queue("c1", limit=20)) == 3
 
 
 @pytest.mark.asyncio
@@ -85,6 +114,7 @@ async def test_auto_onboard_populates_content_queue(
     from app.marketing import auto_content, clients_store, onboarding
 
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    _stub_packet_deps(monkeypatch)
 
     fake_client = {"id": "c9", "business_name": "Verma Tiffin", "niche": "tiffin", "phone": "9"}
     monkeypatch.setattr(clients_store, "get_client", lambda cid: fake_client)
@@ -106,7 +136,7 @@ async def test_auto_onboard_populates_content_queue(
 
     report = await onboarding.auto_onboard("c9")
     assert report.get("ok") is True
-    assert report["steps"]["content_queue"] == 1
+    assert report["steps"]["content_queue"] == 3
 
     # The customer portal would now see this content (was empty before the fix)
-    assert len(auto_content.list_queue("c9", limit=10)) == 1
+    assert len(auto_content.list_queue("c9", limit=20)) == 3

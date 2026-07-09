@@ -82,6 +82,35 @@ def _queue_path(client_id: Any) -> str:
     return os.path.join(_QUEUE_DIR, _safe_id(client_id) + ".jsonl")
 
 
+def _social_prefs(client_id: str) -> dict[str, Any]:
+    """Configured Social Setup Wizard prefs. Kill-switch: SOCIAL_PREFS_HONOR=0.
+
+    Empty dict means preserve old daily content behavior. Never raises.
+    """
+    try:
+        if os.environ.get("SOCIAL_PREFS_HONOR", "0").strip().lower() not in ("1", "true", "yes"):
+            return {}
+        from app.social_engine import client_config
+
+        cfg = client_config.get(str(client_id or ""))
+        return cfg if cfg.get("configured") else {}
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"[auto_content] social prefs skip: {e}")
+        return {}
+
+
+def _cadence_due(cadence: str, d: date) -> bool:
+    """Whether content should be generated on date d for a saved cadence."""
+    c = str(cadence or "").strip().lower()
+    if c == "off":
+        return False
+    if c == "weekly":
+        return d.weekday() == 0
+    if c == "3x_week":
+        return d.weekday() in (0, 2, 4)
+    return True
+
+
 # Weekday → (type, theme-label, occasion-for-LLM)
 _WEEKLY_PLAN = {
     0: ("post", "Tip / Gyaan", ""),  # Monday
@@ -278,6 +307,13 @@ async def generate_for_client(
         logger.warning(f"[auto_content] generate_for_client failed: {e}")
 
     if items:
+        try:
+            channels = _social_prefs(str(client.get("id") or "")).get("channels") or []
+            if channels:
+                for item in items:
+                    item["channels"] = list(channels)
+        except Exception as e:  # pragma: no cover
+            logger.debug(f"[auto_content] channel stamp skip: {e}")
         # Funnel event (audit 2026-07-04: content-generated was metric-dark).
         # posthog capture = silent no-op without POSTHOG_API_KEY.
         try:
@@ -505,13 +541,17 @@ async def run_daily_content() -> dict[str, Any]:
             cid = str(client.get("id") or "")
             if not cid:
                 continue
+            prefs = _social_prefs(cid)
+            if prefs and not _cadence_due(str(prefs.get("cadence") or ""), date.today()):
+                logger.debug(f"[auto_content] {cid} skip today (cadence={prefs.get('cadence')})")
+                continue
             try:
                 items = await generate_for_client(client)
                 added = _append_items(cid, items)
-                if added and os.environ.get("CONTENT_APPROVAL_AUTO", "0").strip().lower() in (
-                    "1",
-                    "true",
-                    "yes",
+                if added and (
+                    os.environ.get("CONTENT_APPROVAL_AUTO", "0").strip().lower()
+                    in ("1", "true", "yes")
+                    or str(prefs.get("approval_mode") or "") == "review"
                 ):
                     try:
                         from app.marketing import content_approval
@@ -566,8 +606,9 @@ async def seed_client_content(client: dict[str, Any]) -> int:
         if not cid:
             return 0
 
-        from datetime import date, timedelta
         import uuid
+        from datetime import date, timedelta
+
         from app.marketing import content_approval, delivery_ledger
         from app.marketing.whatsapp_pack import broadcast_pack
         try:

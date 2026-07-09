@@ -1409,7 +1409,7 @@ def customer_social_get(client_id: str = Depends(require_customer)) -> dict:
             "ok": True,
             "handles": merged_handles,
             "channels": cfg.get("channels") or [],
-            "cadence": cfg.get("cadence") or "weekly",
+            "cadence": cfg.get("cadence") or "daily",
             "approval_mode": cfg.get("approval_mode") or "review",
             "postiz_integrations": cfg.get("postiz_integrations") or [],
             "configured": bool(cfg.get("configured")),
