@@ -1240,6 +1240,62 @@ def admin_customer_card(client: dict[str, Any]) -> dict[str, Any]:
         "failed_automations": state.get("failed_automations") or 0,
         "open_customer_workspace_url": f"/app/clients?client_id={cid}",
         "deliverables": state.get("deliverables") or [],
+        # Rich health object the Delivery Cockpit frontend prefers over the flat
+        # health_status/score/reasons fallback.
+        "health": _admin_health(state),
+    }
+
+
+def _admin_health(state: dict[str, Any]) -> dict[str, Any]:
+    """Translate flat health status/score/reasons into the shape the admin
+    Delivery Cockpit frontend renders: state, tone, label_hi, reason,
+    next_action_hint."""
+    status = str(state.get("health_status") or "green").lower()
+    score = int(state.get("health_score") or 100)
+    reasons = list(state.get("health_reasons") or [])
+    next_action = str(state.get("next_action") or "")
+
+    label_hi = "On track"
+    if status == "red":
+        label_hi = "Immediate action"
+    elif status == "yellow":
+        label_hi = "Needs attention"
+    elif status == "green":
+        label_hi = "On track"
+
+    tone = status if status in ("red", "yellow", "green") else "muted"
+    reason_text = reasons[0] if reasons else ""
+
+    if reason_text == "automation_failed":
+        reason_text = "Automation fail hui — manual fallback chahiye"
+    elif reason_text == "blank_timeline":
+        reason_text = "Abhi koi customer-visible deliverable nahi bana"
+    elif reason_text == "no_deliverable_24h":
+        reason_text = "24h+ se koi delivery event nahi"
+    elif reason_text == "approval_critical_stale":
+        reason_text = "Approval 72h+ se pending"
+    elif reason_text == "setup_incomplete":
+        reason_text = "Setup details pending"
+    elif reason_text == "pending_approval":
+        reason_text = "Customer approval ka wait"
+    elif reason_text == "approval_stale":
+        reason_text = "Approval stale ho gaya"
+    elif reason_text == "manual_publish_mode":
+        reason_text = "Manual publish mode hai"
+
+    if not next_action and status == "red":
+        next_action = "Admin manual action lo — automation fail/block hai"
+    elif not next_action and status == "yellow":
+        next_action = "Customer ko follow-up karo ya approval push karo"
+
+    return {
+        "state": status,
+        "tone": tone,
+        "label_hi": label_hi,
+        "reason": reason_text,
+        "next_action_hint": next_action,
+        "score": score,
+        "reasons": reasons,
     }
 
 
