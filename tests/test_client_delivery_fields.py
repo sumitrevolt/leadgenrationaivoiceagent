@@ -62,8 +62,10 @@ def test_delivery_cockpit_revenue_from_clients(monkeypatch):
         _mock_mrr,
     )
     result = product_one_delivery.delivery_cockpit()
-    assert result["revenue"]["mrr_total"] >= 1999
-    assert result["revenue"]["paying_customers"] >= 1
+    assert result["revenue"]["mrr_total"] == 1999
+    assert result["revenue"]["paying_customers"] == 1
+    assert result["revenue"]["by_plan"]["Starter"] == {"count": 1, "mrr": 1999}
+    assert result["revenue"]["by_plan"]["Trial"] == {"count": 1, "mrr": 0}
 
 
 def test_delivery_ledger_has_social_setup_event():

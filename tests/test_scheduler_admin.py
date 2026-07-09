@@ -64,6 +64,7 @@ def test_run_job_gate_skips_paused(sc, monkeypatch):
 
     calls: list[str] = []
     beats: list[dict[str, Any]] = []
+    logs: list[dict[str, Any]] = []
 
     async def _fake_inner(job: str) -> None:
         calls.append(job)
@@ -71,17 +72,27 @@ def test_run_job_gate_skips_paused(sc, monkeypatch):
     def _fake_record(job, ok=True, seconds=0.0, note=""):
         beats.append({"job": job, "ok": ok, "note": note})
 
+    def _fake_log_event(**kw):
+        logs.append(kw)
+        return f"log-{len(logs)}"
+
     monkeypatch.setattr(team_scheduler, "_run_job_inner", _fake_inner)
     monkeypatch.setattr(automation_health, "record_run", _fake_record)
+    monkeypatch.setattr("app.platform.automation_log_service.log_event", _fake_log_event)
 
     sc.set_enabled("digest", False, by="tester")
     asyncio.run(team_scheduler._run_job("digest"))
     assert calls == []  # inner skip
     assert beats and beats[-1]["note"] == "admin_paused" and beats[-1]["ok"] is True
+    assert [l["status"] for l in logs] == ["skipped"]
+    assert logs[-1]["meta_json"] == {"phase": "skipped", "reason": "admin_paused"}
 
     # enabled job normal chalta hai
     asyncio.run(team_scheduler._run_job("growth"))
     assert calls == ["growth"]
+    assert [l["status"] for l in logs] == ["skipped", "running", "success"]
+    assert logs[-2]["meta_json"] == {"phase": "start"}
+    assert logs[-1]["meta_json"] == {"phase": "finish", "start_log_id": "log-2"}
 
 
 def test_run_due_excludes_outbound_and_disabled(sc, monkeypatch):

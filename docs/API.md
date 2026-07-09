@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1071 operations)
+## Endpoint Index — auto-generated from OpenAPI (1072 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -333,10 +333,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/db/table/{name}/export.csv` — Export one table to CSV (read-only, capped, redacted)
 - `GET   ` `/api/admin/db/tables` — List all DB tables (read-only explorer)
 
-### Admin Dashboard  (19)
+### Admin Dashboard  (20)
 
 - `GET   ` `/api/admin/activity-feed` — Get Activity Feed
 - `GET   ` `/api/admin/agents` — Admin Agents
+- `GET   ` `/api/admin/automation-logs` — Admin Automation Logs
 - `POST  ` `/api/admin/clients/bulk-email` — Bulk Email Clients
 - `POST  ` `/api/admin/clients/dedupe` — Admin Dedupe Clients
 - `POST  ` `/api/admin/clients/{client_id}/delete` — Admin Delete Client

@@ -2,18 +2,23 @@
 import asyncio
 import json
 
-from fastapi.testclient import TestClient
 import pytest
-from app.main import app
+from fastapi.testclient import TestClient
+
 from app.api.customer_auth import require_customer
-from app.models.customer_deliverable import CustomerDeliverable, DeliverableStatus, DeliverableChannel
+from app.main import app
 from app.marketing.product_one_delivery import (
     DELIVERABLES,
-    customer_delivery_status,
     customer_deliverable_db_audit,
+    customer_delivery_status,
     initialize_deliverables_for_client,
     record_manual_action,
     sync_customer_deliverable_status,
+)
+from app.models.customer_deliverable import (
+    CustomerDeliverable,
+    DeliverableChannel,
+    DeliverableStatus,
 )
 
 
@@ -21,6 +26,7 @@ def _iso_db(monkeypatch):
     """Wire app.models.base to a fresh in-memory SQLite so get_db_session() uses it."""
     from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
+
     import app.models.base as base_mod
 
     engine = create_engine(
@@ -353,7 +359,26 @@ def test_api_customer_delivery_proof_endpoint(monkeypatch):
         "product": "marketing",
     }
     monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: fake_client, raising=False)
-    monkeypatch.setattr("app.marketing.delivery_ledger.timeline", lambda cid, **kwargs: [], raising=False)
+    monkeypatch.setattr(
+        "app.marketing.delivery_ledger.timeline",
+        lambda cid, **kwargs: [
+            {"at": "2026-07-09T10:00:00+00:00", "event": "post_published", "label": "Post published", "detail": "Instagram offer post"},
+            {"at": "2026-07-08T10:00:00+00:00", "event": "post_approved", "label": "Post approved", "detail": "Monsoon makeup post"},
+        ],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.content_approval.pending",
+        lambda cid: [
+            {
+                "id": "appr123",
+                "status": "pending",
+                "created_at": "2026-07-09T09:00:00",
+                "content": {"title": "Bridal makeup offer", "caption": "Book your bridal look this week."},
+            }
+        ],
+        raising=False,
+    )
 
     with TestClient(app) as client:
         resp = client.get("/api/customer/delivery-proof")
@@ -361,5 +386,9 @@ def test_api_customer_delivery_proof_endpoint(monkeypatch):
     data = resp.json()
     assert data["ok"] is True
     assert "deliverables" in data
+    assert data["approvals_pending"][0]["title"] == "Bridal makeup offer"
+    assert data["approvals_pending"][0]["caption_preview"] == "Book your bridal look this week."
+    assert [p["status"] for p in data["posts_published"]] == ["published", "approved"]
+    assert data["posts_published"][0]["title"] == "Instagram offer post"
 
     app.dependency_overrides.clear()
