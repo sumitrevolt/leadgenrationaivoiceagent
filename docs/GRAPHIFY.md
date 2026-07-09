@@ -36,6 +36,43 @@ graphify label app --backend=ollama --model=qwen2.5:3b-instruct
 graphify-mcp                     # stdio MCP server over app/graphify-out/graph.json
 ```
 
+## Governance rule (repo-learning only)
+Graphify ko product feature mat samjho. Yeh customer/admin dashboard, automation engine, lead pipeline, voice agent, ya production delivery flow me directly run nahi hota.
+
+- `pyproject.toml`, `requirements*.txt`, aur `frontend/package.json` me `graphify`, `graphifyy`, ya `graphify-mcp` app dependency add mat karo.
+- `.mcp.json` + `graphify_refresh` scripts = AI coding assistant / repo-understanding layer.
+- Output ko source-of-truth nahi mano: graph hints ko code grep, tests, aur runtime docs se verify karo.
+- License-safe learning: Graphify/report se architecture patterns aur risk areas extract karo; unrelated external code copy mat karo.
+
+Recommended coding prompt:
+```
+Before coding, refresh/use Graphify on the repo and use the graph report to identify god nodes, broken flows, missing integrations, and customer-delivery bottlenecks. Then verify every finding against source code before editing.
+```
+
+## Handoff memory workflow
+Graphify structural memory deta hai; business decisions aur previous-session reasoning docs me likhne padte hain. Har major AI session ke start/end pe yeh workflow follow karo:
+
+Start:
+```
+scripts\graphify_refresh.bat
+graphify query "What is Product One customer delivery flow?" --graph app/graphify-out/graph.json --budget 1200
+graphify query "Which admin/customer dashboard flows are incomplete or disconnected?" --graph app/graphify-out/graph.json --budget 1200
+```
+
+Then read:
+- `app/graphify-out/GRAPH_REPORT.md`
+- `docs/AI_HANDOFF.md`
+- `docs/CURRENT_STATE.md`
+- `docs/NEXT_ACTIONS.md`
+
+End:
+1. Run changed-area tests + `prod_check.py` + `check_secrets.py`.
+2. Update `docs/AI_HANDOFF.md` with changed files, routes, DB/schema, env, tests, pending work, and next prompt.
+3. Update `docs/CURRENT_STATE.md` and `docs/NEXT_ACTIONS.md` if the active product state changed.
+4. Run `scripts\graphify_refresh.bat` again.
+
+Do not re-audit the full repo from zero unless Graphify/report freshness or the handoff docs are stale. Continue from the last known state and focus the current sprint on customer deliverability: onboarding, admin cockpit, automation logs, social setup wizard, delivery proof, and Product One fulfilment.
+
 ## IDE skill (`/graphify`) — MANUAL (self-modification, agent ne auto nahi kiya)
 `/graphify` slash-command chahiye to khud register karo (agent `.claude/` config khud modify nahi karta):
 ```

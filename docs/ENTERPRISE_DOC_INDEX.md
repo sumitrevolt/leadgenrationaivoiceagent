@@ -34,6 +34,9 @@
 | Change Log | [`CHANGELOG.md`](CHANGELOG.md) | Releases, features, fixes |
 | **Product Handoff + SOP** | [`PRODUCT_HANDOFF_SOP.md`](PRODUCT_HANDOFF_SOP.md) | Product-wise + automation map · mirrors [`/app/explorer`](https://leadsgenai.in/app/explorer) |
 | **Swara Voice SOP** | [`SWARA_HANDOFF_SOP.md`](SWARA_HANDOFF_SOP.md) | Deep handoff + tune SOP + voice roadmap (Product 2 / Swara) |
+| **AI Handoff** | [`AI_HANDOFF.md`](AI_HANDOFF.md) | Graphify-led session memory: changes, routes, DB/env, tests, pending |
+| **Current AI State** | [`CURRENT_STATE.md`](CURRENT_STATE.md) | Short active sprint state for next AI session |
+| **Next AI Actions** | [`NEXT_ACTIONS.md`](NEXT_ACTIONS.md) | Graphify-first task queue and end-of-session checklist |
 | Activation Runbook | [`SESSION_ACTIVATION_RUNBOOK_2026_06_16.md`](SESSION_ACTIVATION_RUNBOOK_2026_06_16.md) | Env keys + go-live phases |
 | **Executive Council prompt** | [`EXECUTIVE_ADVANCEMENT_COUNCIL_PROMPT.md`](EXECUTIVE_ADVANCEMENT_COUNCIL_PROMPT.md) | Strategic ROI roadmap · `/council-advancement` |
 | Knowledge / troubleshooting | [`OPERATIONAL_RUNBOOKS.md`](OPERATIONAL_RUNBOOKS.md) + [`SESSION_LOG.md`](SESSION_LOG.md) | Incidents + dated history |
@@ -47,6 +50,7 @@
 | Pricing ADR | `ADR_2026_06_11_Product_Split_Pricing.md` |
 | Automation decision tree | `AUTOMATION.md` |
 | RAG / agentic | `RAG_KnowledgeGraph_Agentic.md` |
+| Dev repo graph (AI coding assistant only) | `GRAPHIFY.md` |
 | Telephony plan (pending P3) | `superpowers/plans/PENDING_PLANS.md` |
 | Infra hardening | `INFRA_HARDENING_GUIDE.md` |
 | Production cutover | `PRODUCTION_CUTOVER.md` |
