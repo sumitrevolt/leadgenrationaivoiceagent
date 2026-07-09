@@ -561,6 +561,11 @@
           <div class="val" id="uxTeam">AI team active</div>
           <div class="hint" id="uxTeamHint">Content, leads aur calls yahan update honge.</div>
         </div>
+        <div class="status-card" id="deliveryStatusCard" style="display:none">
+          <div class="lab">Delivery Progress</div>
+          <div class="val" id="uxDelivery">-</div>
+          <div class="hint" id="uxDeliveryHint">Monthly plan me kya deliver hua.</div>
+        </div>
       </div>
       <!-- Hands-free autopilot drafts, surfaced from GET /api/customer/autopilot
            (ported from customer_marketing.html for parity). Hidden until the AI team
@@ -1885,6 +1890,14 @@ async function loadDeliveryProof() {
       return;
     }
     if (pct) pct.textContent = (d.deliverable_completion_pct || 0) + "% complete";
+    // Home "Aaj ke liye" delivery progress card
+    var dpct = d.deliverable_completion_pct || 0;
+    var done = d.deliverables ? d.deliverables.filter(function(it){ return it.status === "done"; }).length : 0;
+    var total = d.deliverables ? d.deliverables.length : 10;
+    var dc = document.getElementById("deliveryStatusCard");
+    setText("uxDelivery", done + "/" + total + " (" + dpct + "%)");
+    setText("uxDeliveryHint", dpct >= 80 ? "Lagbhag complete! Aakhri report baki." : dpct >= 40 ? "Content generate ho raha hai. Approval do ya setup complete karo." : "Setup complete karo taaki content generate ho.");
+    if (dc) dc.style.display = "";
     
     const notes = (d.customer_status_notes || []).map(function(n) {
       return '<div class="simple-note" style="margin:8px 0;background:var(--bg);padding:8px 12px;border-radius:8px;border-left:4px solid var(--accent)">' +
