@@ -320,6 +320,15 @@ async def _run_job(job: str) -> None:
                 status="success" if _ok else "failed",
                 started_at=_started_at,
                 duration_ms=int(_duration * 1000),
+                # output_summary column ADR-064 se hai par scheduler path isse kabhi
+                # bharta nahi tha → admin logs me har success row blank dikhta. inner
+                # sirf bool deta (internals refactor nahi karte), isliye concise
+                # human-readable status. Fail pe error_class jaata hai.
+                output_summary=(
+                    "success in %dms" % int(_duration * 1000)
+                    if _ok
+                    else (_err_class or "job_reported_failure")
+                ),
                 error_message=_err_msg[:2000] if _err_msg else "",
                 triggered_by="scheduler",
                 meta_json={"phase": "finish", "start_log_id": _log_id} if _log_id else {"phase": "finish"},

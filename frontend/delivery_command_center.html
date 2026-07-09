@@ -184,6 +184,29 @@
     </div>
     <div id="logsBody"><div class="empty"><span class="spin"></span> Logs load ho rahe hain...</div></div>
   </div>
+
+  <h2 class="col-title">⚙️ Automation Runs — saare background jobs</h2>
+  <div class="card">
+    <div class="hint">Har scheduled job/agent ka structured run-log (ADR-064): job type, status, time, error, retry. Isse dikhta hai 30+ automations me kaun chal raha / fail ho raha hai.</div>
+    <div class="filters">
+      <button class="filter run-filter on" data-run-status="">All</button>
+      <button class="filter run-filter" data-run-status="success">Success</button>
+      <button class="filter run-filter" data-run-status="failed">Failed</button>
+      <button class="filter run-filter" data-run-status="running">Running</button>
+      <button class="filter run-filter" data-run-status="skipped">Skipped</button>
+    </div>
+    <div class="filters" style="margin-top:8px">
+      <input id="runJobType" placeholder="Job type (e.g. content, prospect)" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit;min-width:200px" />
+      <input id="runClientId" placeholder="Customer id (optional)" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit;min-width:150px" />
+      <select id="runDays" style="border:1px solid var(--line);border-radius:9px;padding:8px 11px;font-size:12.5px;font-family:inherit">
+        <option value="1">Aaj</option>
+        <option value="7" selected>7 din</option>
+        <option value="30">30 din</option>
+      </select>
+      <button id="runApply" class="refresh-btn">Apply</button>
+    </div>
+    <div id="autoRunsBody"><div class="empty"><span class="spin"></span> Automation runs load ho rahe hain...</div></div>
+  </div>
   <div class="honest">Manual fallback first-class hai: API missing ho to bhi admin proof note, manual publish, report, aur reminder record kar sakta hai.</div>
 </div>
 
@@ -380,6 +403,49 @@
     }
   }
 
+  // ---- Automation Runs (ADR-064 DB-backed /api/admin/automation-logs) --------
+  function renderAutoRuns(rows){
+    var box = document.getElementById("autoRunsBody");
+    if(!rows || !rows.length){
+      box.innerHTML = '<div class="empty">Is filter me koi automation run nahi mila. (Jobs abhi chale nahi ya DB me log nahi.)</div>';
+      return;
+    }
+    box.innerHTML = '<table class="tbl"><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th>Time</th><th>Retries</th><th>When</th><th>Detail</th></tr></thead><tbody>' +
+      rows.slice(0,200).map(function(r){
+        var st = String(r.status || "");
+        var cls = st === "failed" ? "err" : (st === "running" ? "warn" : (st === "skipped" ? "muted" : "ok"));
+        var dur = (r.duration_ms == null) ? "—" : (Math.round(Number(r.duration_ms) / 100) / 10) + "s";
+        var detail = r.error_message ? esc(r.error_message) : esc(r.output_summary || "");
+        var when = String(r.created_at || r.finished_at || "").replace("T", " ").slice(0, 16);
+        var rc = (r.retry_count == null) ? 0 : r.retry_count;
+        return '<tr><td class="nm">' + esc(r.job_type || "") + '</td>' +
+          '<td>' + esc(r.client_id || "platform") + '</td>' +
+          '<td><span class="nextaction ' + cls + '">' + esc(st || "-") + '</span></td>' +
+          '<td class="sub">' + esc(dur) + '</td>' +
+          '<td class="sub">' + esc(rc) + (r.next_retry_at ? ' · retry queued' : '') + '</td>' +
+          '<td class="sub">' + esc(when) + '</td>' +
+          '<td class="sub">' + (detail || '—') + '</td></tr>';
+      }).join("") + '</tbody></table>';
+  }
+
+  var RUN_STATUS = "";
+  async function loadAutoRuns(){
+    var box = document.getElementById("autoRunsBody");
+    try{
+      var jt = (document.getElementById("runJobType").value || "").trim();
+      var cid = (document.getElementById("runClientId").value || "").trim();
+      var days = document.getElementById("runDays").value || "7";
+      var q = "?days=" + encodeURIComponent(days) + "&limit=200";
+      if(RUN_STATUS) q += "&status=" + encodeURIComponent(RUN_STATUS);
+      if(jt) q += "&job_type=" + encodeURIComponent(jt);
+      if(cid) q += "&client_id=" + encodeURIComponent(cid);
+      var data = await callApi("/api/admin/automation-logs" + q, {headers: hdrs()});
+      renderAutoRuns((data && data.logs) || []);
+    }catch(e){
+      box.innerHTML = '<div class="empty">Automation runs load nahi hue: ' + esc(e.message) + '</div>';
+    }
+  }
+
   async function deliveryAction(cid, action){
     var note = "";
     if(action === "publish_manual"){
@@ -420,6 +486,7 @@
       ALL_CUSTOMERS = customers;
       renderCustomers(ALL_CUSTOMERS);
       loadLogs("");
+      loadAutoRuns();
       document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("en-IN");
     }catch(e){
       document.getElementById("lastUpdate").textContent = "Fail";
@@ -447,6 +514,15 @@
       loadLogs(btn.getAttribute("data-log-filter") || "");
     };
   });
+  Array.prototype.forEach.call(document.querySelectorAll(".run-filter"), function(btn){
+    btn.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll(".run-filter"), function(b){ b.classList.remove("on"); });
+      btn.classList.add("on");
+      RUN_STATUS = btn.getAttribute("data-run-status") || "";
+      loadAutoRuns();
+    };
+  });
+  document.getElementById("runApply").onclick = loadAutoRuns;
   loadAll();
 })();
 </script>
