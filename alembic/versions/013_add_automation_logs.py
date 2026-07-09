@@ -26,23 +26,23 @@ def upgrade() -> None:
             sa.Column("id", sa.String(36), primary_key=True),
             sa.Column("client_id", sa.String(36), nullable=True),
             sa.Column("job_type", sa.String(100), nullable=False),
-            sa.Column("status", sa.String(20), nullable=False, server_default="queued"),
+            sa.Column("status", sa.String(20), nullable=False),
             sa.Column("started_at", sa.String(50)),
             sa.Column("finished_at", sa.String(50)),
             sa.Column("duration_ms", sa.Integer()),
             sa.Column("input_summary", sa.Text()),
             sa.Column("output_summary", sa.Text()),
             sa.Column("error_message", sa.Text()),
-            sa.Column("retry_count", sa.Integer(), server_default="0"),
+            sa.Column("retry_count", sa.Integer()),
             sa.Column("next_retry_at", sa.String(50)),
-            sa.Column("triggered_by", sa.String(50), server_default="system"),
+            sa.Column("triggered_by", sa.String(50)),
             sa.Column("meta_json", sa.Text()),
-            sa.Column("created_at", sa.DateTime(), nullable=False),
+            sa.Column("created_at", sa.DateTime()),
         )
-        op.create_index("ix_automation_logs_client", "automation_logs", ["client_id"])
-        op.create_index("ix_automation_logs_type", "automation_logs", ["job_type"])
+        op.create_index("ix_automation_logs_client_id", "automation_logs", ["client_id"])
+        op.create_index("ix_automation_logs_job_type", "automation_logs", ["job_type"])
         op.create_index("ix_automation_logs_status", "automation_logs", ["status"])
-        op.create_index("ix_automation_logs_created", "automation_logs", ["created_at"])
+        op.create_index("ix_automation_logs_created_at", "automation_logs", ["created_at"])
 
 
 def downgrade() -> None:

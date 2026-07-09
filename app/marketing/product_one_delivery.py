@@ -158,7 +158,11 @@ def initialize_deliverables_for_client(db, client_id: str, plan_code: str | None
     """Create initial customer deliverables for the billing cycle month from the plan template if missing.
     Idempotent, never duplicates.
     """
-    from app.models.customer_deliverable import CustomerDeliverable, DeliverableStatus, DeliverableChannel
+    from app.models.customer_deliverable import (
+        CustomerDeliverable,
+        DeliverableChannel,
+        DeliverableStatus,
+    )
 
     plan_code = (plan_code or "starter").strip().lower()
     template_key = "starter" if plan_code in ("starter", "marketing", "growth", "combo", "advanced") else "starter"
@@ -1261,7 +1265,7 @@ def delivery_cockpit() -> dict[str, Any]:
     except Exception:
         clients = []
     cards = [admin_customer_card(c) for c in clients]
-    by_stage: dict[str, int] = {k: 0 for k in PIPELINE}
+    by_stage: dict[str, int] = dict.fromkeys(PIPELINE, 0)
     for c in cards:
         st = str(c.get("current_delivery_stage") or "")
         by_stage[st] = by_stage.get(st, 0) + 1
@@ -1274,16 +1278,18 @@ def delivery_cockpit() -> dict[str, Any]:
 
     # Revenue MRR breakdown — fixes hardcoded ₹0 on Delivery Cockpit frontend
     mrr_total = 0
-    by_plan: dict[str, int] = {}
+    by_plan: dict[str, dict[str, int]] = {}
     paying = 0
     try:
         for c in clients:
             price = _cockpit_client_mrr(c)
             mrr_total += price
+            plan_name = str(c.get("plan") or "starter").title()
+            cur = by_plan.setdefault(plan_name, {"count": 0, "mrr": 0})
+            cur["count"] += 1
+            cur["mrr"] += price
             if price > 0:
                 paying += 1
-                plan_name = str(c.get("plan") or "starter").title()
-                by_plan[plan_name] = by_plan.get(plan_name, 0) + price
     except Exception as e:
         logger.debug("delivery_cockpit revenue compute failed: %s", e)
 
@@ -1294,7 +1300,7 @@ def delivery_cockpit() -> dict[str, Any]:
         "revenue": {
             "mrr_total": mrr_total,
             "paying_customers": paying,
-            "by_plan": {k: v for k, v in sorted(by_plan.items(), key=lambda x: -x[1])},
+            "by_plan": dict(sorted(by_plan.items(), key=lambda x: (-int(x[1].get("mrr") or 0), x[0]))),
         },
         "summary": {
             "new_paid_customers": sum(1 for c in cards if c.get("current_delivery_stage") in ("payment_received", "onboarding_pending")),

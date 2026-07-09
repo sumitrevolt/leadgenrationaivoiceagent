@@ -300,6 +300,8 @@
     }
     body.innerHTML = head + '<div class="plan-row">' + plans.map(function(p){
       var b = byPlan[p];
+      if(typeof b === "number") b = {mrr:b, count: b > 0 ? 1 : 0};
+      b = b || {mrr:0, count:0};
       return '<div class="plan-pill"><b>' + inr(b.mrr) + '</b>' + esc(p) + ' · ' + esc(b.count) + ' customer' + (b.count === 1 ? "" : "s") + '</div>';
     }).join("") + '</div>';
   }
