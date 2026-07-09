@@ -1407,3 +1407,15 @@ uff clean on touched files (only pre-existing repo-wide noise).
 - **Risks:** Low + additive. No migration, no new route, no secrets, no compliance gate, nothing auto-enabled. Per-client log calls try/except-wrapped (never break loop). UNCOMMITTED — tree also holds another session's `leads.py`/`product_one_delivery.py`/`test_api.py` (NOT touched, no `git add -A`).
 - **Remaining:** Deeper part 2 (retry_count/next_retry_at from Celery `run_staff_job`/DLQ), part 3 (evidence_url column = migration 014 down_revision 013 + `_apply_schema_upgrades` allowlist). Then selective commit + optional VPS deploy (explicit user go-ahead + target).
 - **Next Highest Priority:** User decision on commit/deploy of the two verified batches; then retry-wiring (part 2).
+
+## Loop Run
+- **Date:** 2026-07-09
+- **Goal:** (user: "han kardo") Deeper-logs part 2/3 — retry visibility + proof column. Ship the SAFE no-migration slice; consciously defer the `evidence_url` schema column after finding prod `DB_CREATE_ALL=0` (live Alembic-managed DB).
+- **Inspected (real Windows via Desktop Commander):** `base.py` `_apply_schema_upgrades`+`init_async_db` (DB_CREATE_ALL=0 → allowlist path doesn't run in prod), migration 013 style, `staff_jobs.run_staff_job` (max_retries=2, `self.retry`), `team_scheduler._run_job`. Prod probe: `.env` `DB_CREATE_ALL=0`, `python -m alembic` not runnable in-container.
+- **Problems Found:** retry_count + proof never surfaced. But `evidence_url` column = live-DB migration risk (DB_CREATE_ALL=0) for no NEW visible proof (artifact path already in meta_json/Detail).
+- **Changed:** `team_scheduler.py` (`_run_job` retry_count param + finish log), `staff_jobs.py` (thread `self.request.retries`), `frontend/delivery_command_center.html` (Proof column from meta_json.path/URL), `tests/test_automation_logs_retry_proof.py` (new, 4). No migration.
+- **Tests Run (REAL Windows `.venv`):** 10/10 targeted pass (retry_proof 4 + panel 4 + per_customer 2). `prod_check.py` ALL CHECKS PASSED (1046 routes, wiring 0 gaps). `check_secrets.py` no secrets (12 files).
+- **Verification Evidence:** prod_check green post-edit (imports + wiring audit clean incl. new Proof column JS). Read-verified all edits.
+- **Risks:** Low + additive. No migration, no new route, no secrets, no compliance gate. retry_count = 1 optional param + 1 call-site; Proof column = frontend-only from existing fields.
+- **Remaining:** `evidence_url` DB column (migration 014) as a separate vetted batch once in-container alembic deploy path confirmed. DLQ-sourced retry/next_retry visibility (larger).
+- **Next Highest Priority:** Commit + deploy this slice (no migration); then decide on the evidence_url migration batch.

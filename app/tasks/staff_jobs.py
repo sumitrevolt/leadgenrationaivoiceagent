@@ -312,7 +312,9 @@ def run_staff_job(self, job: str):
     try:
         from app.platform import team_scheduler
 
-        _run_async(team_scheduler._run_job(job))
+        _run_async(
+            team_scheduler._run_job(job, retry_count=int(getattr(self.request, "retries", 0) or 0))
+        )
         return {"ok": True, "job": job}
     except Exception as e:  # invoke-level failure -> retry, fir DLQ
         logger.warning(f"[staff_jobs] job '{job}' invoke failed: {e}")

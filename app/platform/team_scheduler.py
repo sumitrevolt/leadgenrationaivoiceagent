@@ -210,10 +210,12 @@ def _load_last_ran() -> None:
                 _last_ran[k] = v
 
 
-async def _run_job(job: str) -> None:
+async def _run_job(job: str, retry_count: int = 0) -> None:
     """Heartbeat wrapper — har run automation_health me record hota (dead-man
     switch: job chupchaap band ho jaye to overdue-alert). In-process + Celery
-    dono path isi se guzarte. Wrapper KABHI behaviour change nahi karta."""
+    dono path isi se guzarte. Wrapper KABHI behaviour change nahi karta.
+    `retry_count` = Celery `run_staff_job` se aata (in-process path = 0) taaki
+    admin Automation Runs panel me is run ka attempt-number dikhe (ADR-065 p2)."""
     import time as _time
 
     # Admin scheduler toggle (scheduler_config, FAIL-OPEN): admin ne job PAUSE
@@ -330,6 +332,7 @@ async def _run_job(job: str) -> None:
                     else (_err_class or "job_reported_failure")
                 ),
                 error_message=_err_msg[:2000] if _err_msg else "",
+                retry_count=int(retry_count or 0),
                 triggered_by="scheduler",
                 meta_json={"phase": "finish", "start_log_id": _log_id} if _log_id else {"phase": "finish"},
             )

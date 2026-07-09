@@ -410,7 +410,7 @@
       box.innerHTML = '<div class="empty">Is filter me koi automation run nahi mila. (Jobs abhi chale nahi ya DB me log nahi.)</div>';
       return;
     }
-    box.innerHTML = '<table class="tbl"><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th>Time</th><th>Retries</th><th>When</th><th>Detail</th></tr></thead><tbody>' +
+    box.innerHTML = '<table class="tbl"><thead><tr><th>Job</th><th>Customer</th><th>Status</th><th>Time</th><th>Retries</th><th>When</th><th>Detail</th><th>Proof</th></tr></thead><tbody>' +
       rows.slice(0,200).map(function(r){
         var st = String(r.status || "");
         var cls = st === "failed" ? "err" : (st === "running" ? "warn" : (st === "skipped" ? "muted" : "ok"));
@@ -418,13 +418,23 @@
         var detail = r.error_message ? esc(r.error_message) : esc(r.output_summary || "");
         var when = String(r.created_at || r.finished_at || "").replace("T", " ").slice(0, 16);
         var rc = (r.retry_count == null) ? 0 : r.retry_count;
+        // Proof artifact (ADR-065 p3): report file path lives in meta_json; a
+        // published-post URL may appear in output_summary. No DB column — sourced
+        // from existing fields so no migration on the live prod DB.
+        var proof = "";
+        try { var mj = r.meta_json ? (typeof r.meta_json === "string" ? JSON.parse(r.meta_json) : r.meta_json) : null; if (mj && mj.path) proof = String(mj.path); } catch(_e){}
+        if (!proof) { var mm = String(r.output_summary || "").match(/https?:\/\/\S+/); if (mm) proof = mm[0]; }
+        var proofCell = !proof ? '—' : (/^https?:\/\//.test(proof)
+          ? '<a href="' + esc(proof) + '" target="_blank" rel="noopener">open</a>'
+          : '<span title="' + esc(proof) + '">' + esc(proof.length > 36 ? proof.slice(0, 36) + '…' : proof) + '</span>');
         return '<tr><td class="nm">' + esc(r.job_type || "") + '</td>' +
           '<td>' + esc(r.client_id || "platform") + '</td>' +
           '<td><span class="nextaction ' + cls + '">' + esc(st || "-") + '</span></td>' +
           '<td class="sub">' + esc(dur) + '</td>' +
           '<td class="sub">' + esc(rc) + (r.next_retry_at ? ' · retry queued' : '') + '</td>' +
           '<td class="sub">' + esc(when) + '</td>' +
-          '<td class="sub">' + (detail || '—') + '</td></tr>';
+          '<td class="sub">' + (detail || '—') + '</td>' +
+          '<td class="sub">' + proofCell + '</td></tr>';
       }).join("") + '</tbody></table>';
   }
 
