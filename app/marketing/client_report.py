@@ -269,6 +269,7 @@ async def run_monthly(send: bool | None = None) -> dict[str, Any]:
                     if _ok
                     else str(r.get("error") or "report failed")[:200],
                     error_message="" if _ok else str(r.get("error") or "")[:500],
+                    evidence_url=_path if _ok else "",  # ADR-068: report file = proof artifact
                     triggered_by="scheduler",
                     meta_json={"emailed": bool(r.get("emailed")), "path": _path},
                 )

@@ -241,6 +241,7 @@ def _apply_schema_upgrades(sync_conn) -> None:
     # against any future code path that might add dynamic entries (CWE-89).
     _UPGRADES: dict[str, list[tuple[str, str]]] = {
         "agents": [("role", "VARCHAR(20) DEFAULT 'leads'")],
+        "automation_logs": [("evidence_url", "VARCHAR(500)")],
     }
     _SAFE_TABLES: frozenset[str] = frozenset(_UPGRADES.keys())
     _SAFE_COLS: frozenset[str] = frozenset(
