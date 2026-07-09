@@ -1419,3 +1419,13 @@ uff clean on touched files (only pre-existing repo-wide noise).
 - **Risks:** Low + additive. No migration, no new route, no secrets, no compliance gate. retry_count = 1 optional param + 1 call-site; Proof column = frontend-only from existing fields.
 - **Remaining:** `evidence_url` DB column (migration 014) as a separate vetted batch once in-container alembic deploy path confirmed. DLQ-sourced retry/next_retry visibility (larger).
 - **Next Highest Priority:** Commit + deploy this slice (no migration); then decide on the evidence_url migration batch.
+
+## Loop Run
+- **Date:** 2026-07-09
+- **Goal:** (user: "ok continue") Ship the deferred `evidence_url` proof column (migration 014) after PROVING the in-container alembic deploy path.
+- **Inspected (prod via Desktop Commander SSH):** alembic 1.13.1 present, `alembic.ini` at /app, entrypoint = uvicorn only (no auto-migrate), compose comment documents `run --rm app alembic upgrade head`; `alembic current` = `013` single linear head, Postgres transactional DDL.
+- **Changed:** `app/models/automation_log.py` (+evidence_url String(500)), `alembic/versions/014_add_automation_log_evidence.py` (new, idempotent), `app/models/base.py` (`_apply_schema_upgrades` allowlist), `app/platform/automation_log_service.py` (log_event/_row_to_dict/JSONL), `app/marketing/client_report.py` (evidence_url=report path), `frontend/delivery_command_center.html` (Proof prefers evidence_url), `tests/test_automation_log_evidence.py` (new, 6).
+- **Tests Run (REAL Windows `.venv`):** full 001→014 `alembic upgrade head` clean on fresh SQLite (proves chain + 014). 26/26 targeted pass (incl. existing automation_logs/service = no regression). `prod_check.py` ALL CHECKS PASSED. `check_secrets.py` no secrets (16 files).
+- **Risks:** Low. Additive nullable column (instant on Postgres; transactional DDL = atomic). Migration idempotent; service/reader defensive (JSONL fallback). No new route, no compliance gate.
+- **Remaining:** DLQ-sourced retry/next_retry visibility (larger, deferred).
+- **Next Highest Priority:** Deploy 014 (build → `run --rm app alembic upgrade head` → recreate → verify column) + done-gate.
