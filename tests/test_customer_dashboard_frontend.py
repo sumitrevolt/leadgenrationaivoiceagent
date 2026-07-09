@@ -146,7 +146,7 @@ def test_home_money_above_decoration():
 def test_view_hide_rule_uses_important():
     # !important is required so the hide rule beats block styles like
     # .sec-title{display:flex}; without it, sec-titles leak across views.
-    assert 'data-view="billing"]){display:none !important}' in SRC
+    assert 'data-view="support"]){display:none !important}' in SRC
 
 
 def test_charts_resized_on_show_and_details():
