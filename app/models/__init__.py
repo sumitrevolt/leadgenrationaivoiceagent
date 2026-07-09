@@ -57,6 +57,7 @@ from app.models.customer_deliverable import (
     DeliverableStatus,
     DeliverableChannel,
 )
+from app.models.automation_log import AutomationLog
 
 __all__ = [
     # Base
@@ -124,4 +125,6 @@ __all__ = [
     "CustomerDeliverable",
     "DeliverableStatus",
     "DeliverableChannel",
+    # Automation Log model
+    "AutomationLog",
 ]
