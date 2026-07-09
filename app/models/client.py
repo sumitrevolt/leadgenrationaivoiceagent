@@ -118,6 +118,21 @@ class Client(Base):
     daily_report_enabled = Column(Boolean, default=True)
     weekly_report_enabled = Column(Boolean, default=True)
 
+    # ---- Product One Delivery OS fields (ADR-064, 2026-07-09) ----
+    delivery_stage = Column(String(50))
+    onboarding_status = Column(String(50))
+    social_setup_status = Column(String(50))
+    content_generation_status = Column(String(50))
+    approval_status = Column(String(50))
+    posting_status = Column(String(50))
+    report_status = Column(String(50))
+    last_delivery_at = Column(String(50))
+    next_action = Column(String(255))
+    blocking_reason = Column(String(255))
+    assigned_agent = Column(String(100))
+    automation_health = Column(String(50))
+    setup_completed_at = Column(String(50))
+
     # Timestamps
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
