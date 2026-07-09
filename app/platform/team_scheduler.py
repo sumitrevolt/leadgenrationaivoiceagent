@@ -227,18 +227,46 @@ async def _run_job(job: str) -> None:
             from app.platform import automation_health as _ah
 
             _ah.record_run(job, True, 0.0, note="admin_paused")
+            try:
+                from app.platform.automation_log_service import log_event as _log_auto
+
+                _log_auto(
+                    client_id="",
+                    job_type=job,
+                    status="skipped",
+                    output_summary="admin_paused",
+                    triggered_by="scheduler",
+                    meta_json={"phase": "skipped", "reason": "admin_paused"},
+                )
+            except Exception:
+                pass
             logger.info(f"[team-scheduler] job '{job}' skipped — admin paused")
             return
     except Exception:
         pass  # FAIL-OPEN — config error pe job normal chalega
 
-    from datetime import datetime as _dt, timezone as _tz
+    from datetime import datetime as _dt
+    from datetime import timezone as _tz
 
     _t0 = _time.monotonic()
     _started_at = _dt.now(_tz.utc).isoformat(timespec="seconds")  # run start (ISO-UTC)
     _ok = True
     _err_class = ""
     _err_msg = ""
+    _log_id = ""
+    try:
+        from app.platform.automation_log_service import log_event as _log_auto
+
+        _log_id = _log_auto(
+            client_id="",
+            job_type=job,
+            status="running",
+            started_at=_started_at,
+            triggered_by="scheduler",
+            meta_json={"phase": "start"},
+        )
+    except Exception:
+        pass
     try:
         # W1.2: _run_job_inner ab bool deta — False = job-level fail (dead-man
         # switch ko real status jaana chahiye). Re-raise NAHI: scheduler_loop poore
@@ -260,6 +288,7 @@ async def _run_job(job: str) -> None:
         _err_msg = str(_e)
         logger.warning(f"[team-scheduler] job '{job}' raised unexpectedly", exc_info=True)
     finally:
+        _duration = _time.monotonic() - _t0
         try:
             from app.platform import automation_health
 
@@ -267,7 +296,7 @@ async def _run_job(job: str) -> None:
                 automation_health.record_run(
                     job,
                     _ok,
-                    _time.monotonic() - _t0,
+                    _duration,
                     error_class=_err_class,
                     error_message=_err_msg,
                     trigger="scheduler",
@@ -278,7 +307,23 @@ async def _run_job(job: str) -> None:
                 # kwargs reject karega. record_run KHUD kabhi raise nahi karta (poora
                 # body try/except me), isliye TypeError = purani signature. Basic call
                 # se degrade karo (heartbeat na chhoote). Prod me yeh branch DEAD hai.
-                automation_health.record_run(job, _ok, _time.monotonic() - _t0)
+                automation_health.record_run(job, _ok, _duration)
+        except Exception:
+            pass
+        # Update AutomationLog status (ADR-064)
+        try:
+            from app.platform.automation_log_service import log_event as _log_auto2
+
+            _log_auto2(
+                client_id="",
+                job_type=job,
+                status="success" if _ok else "failed",
+                started_at=_started_at,
+                duration_ms=int(_duration * 1000),
+                error_message=_err_msg[:2000] if _err_msg else "",
+                triggered_by="scheduler",
+                meta_json={"phase": "finish", "start_log_id": _log_id} if _log_id else {"phase": "finish"},
+            )
         except Exception:
             pass
 
@@ -442,8 +487,9 @@ async def _run_job_inner(job: str) -> bool:
             _digest_result = await staff.run_digest()
             # Obsidian — write daily session note with actual digest content.
             try:
-                from app.platform import obsidian_sync as _obs
                 import datetime as _dt
+
+                from app.platform import obsidian_sync as _obs
 
                 _date = _dt.datetime.utcnow().strftime("%Y-%m-%d")
                 _digest_text = (_digest_result or {}).get("text") or (
@@ -660,8 +706,9 @@ async def _run_job_inner(job: str) -> bool:
 
             _blog_result = await seo_blog.run_daily_blog(3)
             try:
-                from app.platform import obsidian_sync as _obs_blog
                 import datetime as _dt_obs_blog
+
+                from app.platform import obsidian_sync as _obs_blog
 
                 _blog_date = _dt_obs_blog.datetime.utcnow().strftime("%Y-%m-%d")
                 _blog_n = (_blog_result or {}).get("published", 0)
@@ -706,8 +753,9 @@ async def _run_job_inner(job: str) -> bool:
 
                 _prospect_result = await prospector.run_prospecting()
             try:
-                from app.platform import obsidian_sync as _obs_prospect
                 import datetime as _dt_obs_prospect
+
+                from app.platform import obsidian_sync as _obs_prospect
 
                 _prospect_date = _dt_obs_prospect.datetime.utcnow().strftime("%Y-%m-%d")
                 _pr = _prospect_result or {}
@@ -733,8 +781,9 @@ async def _run_job_inner(job: str) -> bool:
 
             _outreach_result = await auto_outreach.run_email_outreach()
             try:
-                from app.platform import obsidian_sync as _obs_outreach
                 import datetime as _dt_obs_outreach
+
+                from app.platform import obsidian_sync as _obs_outreach
 
                 _outreach_date = _dt_obs_outreach.datetime.utcnow().strftime("%Y-%m-%d")
                 _or = _outreach_result or {}

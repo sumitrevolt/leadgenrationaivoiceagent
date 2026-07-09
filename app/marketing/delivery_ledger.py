@@ -55,6 +55,7 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     "plan_activated": ("✅", "Aapka plan activate ho gaya", "Plan activated", True),
     "onboarding_started": ("⚙️", "AI ne aapka setup shuru kiya", "Onboarding started", True),
     "onboarding_completed": ("🎉", "Setup poora — business site + content taiyaar", "Onboarding completed", True),
+    "social_setup_completed": ("🌐", "Aapne social accounts connect kar diye", "Social setup completed", True),
     "marketing_calendar_generated": ("🗓️", "7-din ka marketing calendar ban gaya", "Marketing calendar generated", True),
     "post_draft_created": ("📝", "Naya post draft ready — approve karein", "Post draft created", True),
     "post_approved": ("👍", "Aapne post approve kiya", "Post approved", True),
@@ -81,7 +82,7 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
 EVENT_TYPES: frozenset[str] = frozenset(LABELS.keys())
 
 # Events that represent published/real marketing OUTPUT (for "value delivered").
-_VALUE_EVENTS = {"onboarding_completed", "post_published", "lead_captured", "followup_sent"}
+_VALUE_EVENTS = {"onboarding_completed", "social_setup_completed", "post_published", "lead_captured", "followup_sent"}
 
 # Events that mean "something broke and needs attention" (for at-risk / failures).
 _FAILURE_EVENTS = {"post_failed", "automation_failed"}

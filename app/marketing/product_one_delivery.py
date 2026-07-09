@@ -1239,6 +1239,20 @@ def admin_customer_card(client: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _cockpit_client_mrr(c: dict[str, Any]) -> int:
+    """Active client monthly ₹ — lightweight, never raises."""
+    try:
+        status = str(c.get("status") or "").strip().lower()
+        if status not in ("active", "trial"):
+            return 0
+        plan = str(c.get("plan") or "starter").strip().lower()
+        from app.api.admin_dashboard_builders import _client_mrr
+
+        return _client_mrr(c)
+    except Exception:
+        return 0
+
+
 def delivery_cockpit() -> dict[str, Any]:
     try:
         from app.marketing import clients_store
@@ -1258,10 +1272,30 @@ def delivery_cockpit() -> dict[str, Any]:
     _health_order = {"red": 0, "yellow": 1, "green": 2}
     cards.sort(key=lambda c: (_health_order.get(str(c.get("health_status") or "green"), 2), int(c.get("health_score") if c.get("health_score") is not None else 100)))
 
+    # Revenue MRR breakdown — fixes hardcoded ₹0 on Delivery Cockpit frontend
+    mrr_total = 0
+    by_plan: dict[str, int] = {}
+    paying = 0
+    try:
+        for c in clients:
+            price = _cockpit_client_mrr(c)
+            mrr_total += price
+            if price > 0:
+                paying += 1
+                plan_name = str(c.get("plan") or "starter").title()
+                by_plan[plan_name] = by_plan.get(plan_name, 0) + price
+    except Exception as e:
+        logger.debug("delivery_cockpit revenue compute failed: %s", e)
+
     return {
         "ok": True,
         "generated_at": _now(),
         "pipeline": [{"key": k, "label": STAGE_LABELS[k], "count": by_stage.get(k, 0)} for k in PIPELINE],
+        "revenue": {
+            "mrr_total": mrr_total,
+            "paying_customers": paying,
+            "by_plan": {k: v for k, v in sorted(by_plan.items(), key=lambda x: -x[1])},
+        },
         "summary": {
             "new_paid_customers": sum(1 for c in cards if c.get("current_delivery_stage") in ("payment_received", "onboarding_pending")),
             "pending_customer_inputs": sum(1 for c in cards if c.get("pending_customer_inputs")),

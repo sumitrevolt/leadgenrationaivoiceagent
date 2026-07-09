@@ -445,6 +445,32 @@ async def admin_delivery_action(
         return {"ok": False, "error": str(e)[:160]}
 
 
+@router.get("/automation-logs")
+async def admin_automation_logs(
+    client_id: str = Query("", max_length=80),
+    job_type: str = Query("", max_length=100),
+    status: str = Query("", max_length=20),
+    days: int = Query(7, ge=1, le=90),
+    limit: int = Query(200, ge=1, le=500),
+    _user=Depends(require_admin),
+) -> dict:
+    """DB-backed centralized automation logs (ADR-064)."""
+    try:
+        from app.platform.automation_log_service import get_logs
+
+        rows = get_logs(
+            client_id=client_id,
+            job_type=job_type,
+            status=status,
+            days=days,
+            limit=limit,
+        )
+        return {"ok": True, "count": len(rows), "logs": rows}
+    except Exception as e:
+        logger.warning("admin_automation_logs failed: %s", e)
+        return {"ok": False, "logs": [], "error": str(e)[:160]}
+
+
 @router.get("/activity-feed")
 def get_activity_feed(
     limit: int = Query(40, ge=1, le=100),
