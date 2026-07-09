@@ -249,8 +249,31 @@ async def run_monthly(send: bool | None = None) -> dict[str, Any]:
 
         out = []
         for c in clients_store.list_clients():
-            r = await build_report(str(c.get("id")), send=send)
+            cid = str(c.get("id") or "")
+            r = await build_report(cid, send=send)
             out.append({"client_id": c.get("id"), "ok": r.get("ok"), "emailed": r.get("emailed")})
+            # Per-customer automation-log row (ADR-065 deeper logs). Platform jobs
+            # log blank client_id, so the admin Automation Runs "customer" filter
+            # was useless. Attribute this report run to THIS client + surface the
+            # generated report file path as proof in output_summary. Never break loop.
+            try:
+                from app.platform.automation_log_service import log_event as _log_auto
+
+                _ok = bool(r.get("ok"))
+                _path = str(r.get("path") or "")
+                _log_auto(
+                    client_id=cid,
+                    job_type="client_report",
+                    status="success" if _ok else "failed",
+                    output_summary=(("report: " + _path) if _path else "report generated")
+                    if _ok
+                    else str(r.get("error") or "report failed")[:200],
+                    error_message="" if _ok else str(r.get("error") or "")[:500],
+                    triggered_by="scheduler",
+                    meta_json={"emailed": bool(r.get("emailed")), "path": _path},
+                )
+            except Exception:
+                pass
         return {"ok": True, "reports": out}
     except Exception as e:
         return {"ok": False, "error": str(e)[:150]}

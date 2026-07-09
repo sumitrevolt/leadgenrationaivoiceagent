@@ -1475,7 +1475,12 @@ def _sync_social_delivery_stage(client_id: str, cfg: dict) -> None:
             return
         from app.marketing.delivery_ledger import log_event
 
-        log_event(client_id, "social_setup_completed", customer_visible=True)
+        # log_event me `customer_visible` param hai hi nahi — visibility LABELS se
+        # derive hoti (social_setup_completed already customer_visible=True). Purana
+        # kwarg TypeError phenkta tha jo neeche `except: pass` swallow kar leta →
+        # milestone kabhi timeline me nahi aata tha. `key` = idempotency (re-save
+        # pe duplicate milestone nahi).
+        log_event(client_id, "social_setup_completed", key="social_setup:done")
     except Exception:
         pass
 

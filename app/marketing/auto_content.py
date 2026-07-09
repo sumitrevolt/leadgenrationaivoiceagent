@@ -567,12 +567,39 @@ async def run_daily_content() -> dict[str, Any]:
                 if added:
                     n_clients += 1
                     total_items += added
+                    # Per-customer automation-log row (ADR-065 deeper logs): attribute
+                    # today's content generation to THIS client so the admin Automation
+                    # Runs "customer" filter works. Never break the loop.
+                    try:
+                        from app.platform.automation_log_service import log_event as _log_auto
+
+                        _log_auto(
+                            client_id=cid,
+                            job_type="content",
+                            status="success",
+                            output_summary="%d content items generated" % int(added),
+                            triggered_by="scheduler",
+                        )
+                    except Exception:
+                        pass
                     if self_id and cid == self_id:
                         _log_isha(
                             "self_brand_content", f"LeadGen AI ka apna {added} content items banaye"
                         )
             except Exception as e:  # pragma: no cover
                 logger.debug(f"[auto_content] client {cid} skip: {e}")
+                try:
+                    from app.platform.automation_log_service import log_event as _log_auto
+
+                    _log_auto(
+                        client_id=cid,
+                        job_type="content",
+                        status="failed",
+                        error_message=str(e)[:500],
+                        triggered_by="scheduler",
+                    )
+                except Exception:
+                    pass
 
         _log_isha("auto_content", f"{n_clients} clients, {total_items} items generated")
         # P1 #12 (2026-07-05): weekly value digest to delivered paid customers —
