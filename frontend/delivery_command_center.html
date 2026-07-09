@@ -207,6 +207,16 @@
     </div>
     <div id="autoRunsBody"><div class="empty"><span class="spin"></span> Automation runs load ho rahe hain...</div></div>
   </div>
+
+  <h2 class="col-title">🧯 Failed Jobs — Dead-letter queue (DLQ)</h2>
+  <div class="card">
+    <div class="hint">Celery tasks jo fail hui. "Dead" = auto-retry exhausted (dlq_retry). Read-only view — sweep/retry ops <a href="/app/ops">/app/ops</a> se. Redis: dlq:failed_tasks / dlq:dead.</div>
+    <div class="filters">
+      <button class="filter dlq-filter on" data-dlq-key="failed">Failed</button>
+      <button class="filter dlq-filter" data-dlq-key="dead">Dead (exhausted)</button>
+    </div>
+    <div id="dlqBody"><div class="empty"><span class="spin"></span> DLQ load ho raha hai...</div></div>
+  </div>
   <div class="honest">Manual fallback first-class hai: API missing ho to bhi admin proof note, manual publish, report, aur reminder record kar sakta hai.</div>
 </div>
 
@@ -456,6 +466,39 @@
     }
   }
 
+  // ---- Failed Jobs / Dead-letter queue (read-only; existing /api/growth/infra/dlq) ----
+  var DLQ_KEY = "failed";
+  function renderDlq(data){
+    var box = document.getElementById("dlqBody");
+    var items = (data && data.items) || [];
+    var count = (data && data.count) || 0;
+    if(!items.length){
+      box.innerHTML = '<div class="empty">' + (count ? (esc(count) + ' items queue me (parse nahi hue).') : '✅ DLQ khaali — koi failed job nahi.') + '</div>';
+      return;
+    }
+    box.innerHTML = '<div class="hint">Total in queue: ' + esc(count) + '</div>' +
+      '<table class="tbl"><thead><tr><th>Job / Task</th><th>Error</th><th>Reason</th><th>When</th></tr></thead><tbody>' +
+      items.slice(0,80).map(function(it){
+        var job = (it && it.args && it.args.length) ? String(it.args[0]) : String(it.task_id || it.task || "?");
+        var err = String(it.error || it.exc || "");
+        var reason = String(it.dead_reason || "");
+        var when = String(it.ts || it.timestamp || "").replace("T", " ").slice(0, 16);
+        return '<tr><td class="nm">' + esc(job) + '</td>' +
+          '<td class="sub">' + (err ? esc(err.length > 80 ? err.slice(0, 80) + '…' : err) : '—') + '</td>' +
+          '<td class="sub">' + (reason ? esc(reason) : '—') + '</td>' +
+          '<td class="sub">' + esc(when) + '</td></tr>';
+      }).join("") + '</tbody></table>';
+  }
+  async function loadDlq(){
+    var box = document.getElementById("dlqBody");
+    try{
+      var data = await callApi("/api/growth/infra/dlq?key=" + encodeURIComponent(DLQ_KEY) + "&limit=50", {headers: hdrs()});
+      renderDlq(data);
+    }catch(e){
+      box.innerHTML = '<div class="empty">DLQ load nahi hua: ' + esc(e.message) + '</div>';
+    }
+  }
+
   async function deliveryAction(cid, action){
     var note = "";
     if(action === "publish_manual"){
@@ -497,6 +540,7 @@
       renderCustomers(ALL_CUSTOMERS);
       loadLogs("");
       loadAutoRuns();
+      loadDlq();
       document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString("en-IN");
     }catch(e){
       document.getElementById("lastUpdate").textContent = "Fail";
@@ -533,6 +577,14 @@
     };
   });
   document.getElementById("runApply").onclick = loadAutoRuns;
+  Array.prototype.forEach.call(document.querySelectorAll(".dlq-filter"), function(btn){
+    btn.onclick = function(){
+      Array.prototype.forEach.call(document.querySelectorAll(".dlq-filter"), function(b){ b.classList.remove("on"); });
+      btn.classList.add("on");
+      DLQ_KEY = btn.getAttribute("data-dlq-key") || "failed";
+      loadDlq();
+    };
+  });
   loadAll();
 })();
 </script>
