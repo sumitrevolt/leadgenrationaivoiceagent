@@ -1152,7 +1152,7 @@ def customer_get_profile(client_id: str = Depends(require_customer)) -> dict:
     """Setup Wizard read path — current business profile/socials/brand-tone so
     the portal form can pre-fill instead of showing blank fields. Never raises."""
     try:
-        from app.marketing import brand_kit, clients_store
+        from app.marketing import brand_kit, clients_store, product_one_delivery
 
         c = clients_store.get_client(client_id) or {}
         brand = c.get("brand") or {}
@@ -1162,6 +1162,10 @@ def customer_get_profile(client_id: str = Depends(require_customer)) -> dict:
             tone = str((brand_kit.get_brand(client_id) or {}).get("tone") or "")
         except Exception:
             pass
+        try:
+            setup_checks = product_one_delivery._setup_checks(c)
+        except Exception:
+            setup_checks = {}
         return {
             "ok": True,
             "business_name": c.get("business_name", ""),
@@ -1179,6 +1183,12 @@ def customer_get_profile(client_id: str = Depends(require_customer)) -> dict:
             "target_area": c.get("target_area", ""),
             "whatsapp_phone": c.get("whatsapp_phone", ""),
             "approval_preference": c.get("approval_preference", "manual"),
+            # read-only display — niche is intentionally NOT customer-editable via
+            # this endpoint (pricing-tier/content-targeting impact; admin-only write,
+            # see customer_update_profile docstring), but showing it helps the
+            # customer understand what category their AI content is tuned for.
+            "niche": c.get("niche", ""),
+            "setup_checks": setup_checks,
         }
     except Exception as e:
         logger.debug("customer get profile failed: %s", e)
@@ -1453,6 +1463,17 @@ def customer_social_save(body: SocialConfigIn, client_id: str = Depends(require_
             clients_store.update_client(client_id, socials=legacy)
         except Exception as e:
             logger.debug("customer social socials-mirror skip: %s", e)
+        # Mirror approval_mode into the legacy clients_store.approval_preference
+        # field so product_one_delivery._setup_checks()'s "approval" checklist
+        # item keeps working now that the Setup Wizard no longer asks this
+        # question separately (consolidated to one approval question here).
+        try:
+            mode = str(body.approval_mode or "").strip().lower()
+            if mode:
+                pref = "manual" if mode == "review" else "auto"
+                clients_store.update_client(client_id, approval_preference=pref)
+        except Exception as e:
+            logger.debug("customer social approval-mirror skip: %s", e)
         if not cfg:
             return {"ok": False, "error": "save nahi hua, dobara try karo"}
         # Sync delivery stage — social setup saved = advance to social_setup_completed
@@ -1605,6 +1626,38 @@ def customer_delivery_proof(client_id: str = Depends(require_customer)) -> dict:
     except Exception as e:
         logger.debug("customer delivery-proof failed: %s", e)
         return {"ok": False, "deliverables": [], "customer_message": "Report abhi load nahi hua."}
+
+
+_REPORT_NOT_READY_HTML = (
+    "<html><body style='font-family:sans-serif;padding:40px;text-align:center;color:#64748b'>"
+    "Report abhi ready nahi hai. Thodi der baad try karein, ya support ko WhatsApp karein."
+    "</body></html>"
+)
+
+
+@router.get("/report/branded")
+async def customer_report_branded(month: str = "", client_id: str = Depends(require_customer)):
+    """Customer's own white-label monthly report — reuses the SAME generator
+    the admin cockpit already uses (app.marketing.client_report.build_report),
+    IDOR-safe via require_customer (client_id never comes from the URL).
+    Previously this report was generated and stored but had no customer-facing
+    link at all (admin-only). Distinct from GET /report (app.marketing.
+    monthly_report — a separate JSON summary; both happen to be unwired to
+    any frontend UI, but they are not duplicates of each other)."""
+    from fastapi.responses import HTMLResponse
+
+    from app.marketing import client_report
+
+    try:
+        result = await client_report.build_report(client_id, month)
+        if not result.get("ok"):
+            return HTMLResponse(_REPORT_NOT_READY_HTML)
+        with open(result["path"], encoding="utf-8") as f:
+            html = f.read()
+        return HTMLResponse(html)
+    except Exception as e:
+        logger.debug("customer report failed: %s", e)
+        return HTMLResponse(_REPORT_NOT_READY_HTML)
 
 
 def _customer_delivery_message(state: dict) -> str:

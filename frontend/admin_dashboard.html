@@ -216,19 +216,23 @@
       <div><b>LeadGen AI</b><small>Admin Console</small></div>
     </div>
     <nav class="nav" role="menubar" aria-label="Main menu">
-      <!-- IA 2026-07-09 (ADR-064): 4 mission-aligned groups, 11 core links.
-           Delivery-first: admin landing = Delivery Cockpit. Baaki saare internal links
-           System me collapsed rakhe — kuch bhi delete/break nahi hua. -->
+      <!-- IA 2026-07-09 (ADR-064, promoted post-audit): 4 mission-aligned groups, 14 core links.
+           Delivery-first: admin landing = Delivery Cockpit. Agents/Failed Jobs/Plans & Billing
+           promoted from the collapsed section (were buried, data already existed).
+           Baaki saare internal links System me collapsed rakhe — kuch bhi delete/break nahi hua. -->
       <div class="sec nav-group" role="presentation">Delivery</div>
       <a class="active" href="/app/delivery-command-center" role="menuitem" aria-label="Delivery Cockpit — customer delivery overview"><span class="ic" aria-hidden="true">📦</span> Delivery Cockpit</a>
       <a href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
       <div class="sec nav-group" role="presentation">Automation</div>
       <a href="/app/automation" role="menuitem" aria-label="Mission Control automation"><span class="ic" aria-hidden="true">🎛</span> Automation Monitor <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
+      <a href="/app/automation#sec-jobs" role="menuitem" aria-label="Agents and scheduled jobs"><span class="ic" aria-hidden="true">🤖</span> Agents</a>
+      <a href="/app/automation#sec-failed-jobs" role="menuitem" aria-label="Failed jobs consolidated view"><span class="ic" aria-hidden="true">🔴</span> Failed Jobs</a>
       <a href="/app/calendar" role="menuitem" aria-label="Content calendar"><span class="ic" aria-hidden="true">🗓</span> Content Calendar</a>
       <a href="#sec-automation" role="menuitem" aria-label="Approvals and workflows"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
       <div class="sec nav-group" role="presentation">Customers</div>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">10</span></a>
       <a href="/app/clients" role="menuitem" aria-label="Client actions"><span class="ic" aria-hidden="true">📋</span> Client Actions</a>
+      <a href="#sec-billing" role="menuitem" aria-label="Plans and billing"><span class="ic" aria-hidden="true">₹</span> Plans &amp; Billing</a>
       <a href="/app/impersonate" role="menuitem" aria-label="Login as customer (support)"><span class="ic" aria-hidden="true">🕵️</span> Login as Customer</a>
       <div class="sec nav-group" role="presentation">System</div>
       <a href="#top" role="menuitem" aria-label="Full admin dashboard"><span class="ic" aria-hidden="true">▦</span> Full Console</a>

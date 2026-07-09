@@ -465,7 +465,7 @@
     <a class="navlink active" data-nav="home" href="#" onclick="showView('home');return false;" aria-current="page" aria-label="Home dashboard"><span class="ic" aria-hidden="true">🏠</span> Home / This Month</a>
     <a class="navlink" data-nav="delivery" href="#" onclick="showView('delivery');return false;" aria-label="My Delivery status"><span class="ic" aria-hidden="true">📦</span> My Delivery</a>
     <a class="navlink" data-nav="setup" href="#" onclick="showView('setup');return false;" aria-label="Setup Wizard self-serve"><span class="ic" aria-hidden="true">🧙</span> Setup Wizard</a>
-    <a class="navlink marketing-only" data-nav="calendar" href="#" onclick="showView('calendar');return false;" aria-label="Marketing Calendar"><span class="ic" aria-hidden="true">📅</span> Content &amp; Approvals</a>
+    <a class="navlink marketing-only" data-nav="calendar" href="#" onclick="showView('calendar');return false;" aria-label="Marketing Calendar"><span class="ic" aria-hidden="true">📅</span> Calendar</a>
     <a class="navlink voice-only" data-nav="leads" href="#" onclick="showView('leads');return false;" aria-label="Leads and Calls"><span class="ic" aria-hidden="true">🔥</span> Leads Inbox</a>
     <a class="navlink" data-nav="reports" href="#" onclick="showView('reports');return false;" aria-label="Reports and statistics"><span class="ic" aria-hidden="true">📊</span> Reports</a>
     <a class="navlink" data-nav="billing" href="#" onclick="showView('billing');return false;" aria-label="Billing, webhooks, and security"><span class="ic" aria-hidden="true">💳</span> Billing</a>
@@ -622,6 +622,13 @@
 
       <!-- Marketing KPIs — marketing + combo only (hidden on voice) -->
       <div data-view="reports" class="sec-title marketing-only">📣 Marketing — ek nazar</div>
+      <div data-view="reports" class="card marketing-only" style="margin-bottom:14px">
+        <div class="card-h"><h2>📊 Monthly Report — apna poora hisaab dekho</h2></div>
+        <div class="card-b">
+          <p class="sm" style="color:var(--muted);margin-bottom:10px">Is mahine kya generate hua, kya publish hua, aur next steps — ek branded report me.</p>
+          <button class="btn primary" onclick="viewMonthlyReport()" id="viewReportBtn">📂 Report Kholo</button>
+        </div>
+      </div>
       <div data-view="reports" class="kpis marketing-only" id="mktKpis">
         <div class="kpi"><div class="lab">📣 Posts Taiyaar</div><div class="val" id="mkPosts">—</div><div class="sub">Ready-to-share content</div></div>
         <div class="kpi"><div class="lab">✅ Approval Pending</div><div class="val" id="mkApprovals">—</div><div class="sub">Publish se pehle aapki OK</div></div>
@@ -1020,15 +1027,35 @@
       </div>
 
       <div data-view="delivery" class="sec-title">📋 Aapka Product One Setup</div>
-      <div data-view="delivery" id="deliveryProgressBar" style="margin-bottom:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="font-weight:800;font-size:14px">Setup Progress</span>
-          <span style="font-weight:800;font-size:14px;color:var(--brand)" id="deliveryPct">0%</span>
+      <div data-view="delivery" id="deliveryProgressBar" style="margin-bottom:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px;display:grid;gap:14px">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-weight:800;font-size:14px">Setup Progress</span>
+            <span style="font-weight:800;font-size:14px;color:var(--brand)" id="deliverySetupPct">0%</span>
+          </div>
+          <div style="background:#e9e7f2;border-radius:99px;height:10px;overflow:hidden">
+            <div id="deliverySetupFill" style="background:linear-gradient(90deg,var(--brand-2),var(--brand));height:100%;width:0%;border-radius:99px;transition:width .6s ease"></div>
+          </div>
         </div>
-        <div style="background:#e9e7f2;border-radius:99px;height:10px;overflow:hidden">
-          <div id="deliveryProgressFill" style="background:linear-gradient(90deg,var(--brand-2),var(--brand));height:100%;width:0%;border-radius:99px;transition:width .6s ease"></div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-weight:800;font-size:14px">Delivery Progress</span>
+            <span style="font-weight:800;font-size:14px;color:var(--ok)" id="deliveryPct">0%</span>
+          </div>
+          <div style="background:#e9e7f2;border-radius:99px;height:10px;overflow:hidden">
+            <div id="deliveryProgressFill" style="background:linear-gradient(90deg,#22c55e,var(--ok));height:100%;width:0%;border-radius:99px;transition:width .6s ease"></div>
+          </div>
         </div>
       </div>
+
+      <div data-view="delivery" class="sec-title">📡 Connected Channels</div>
+      <div data-view="delivery" id="deliveryChannels" style="margin-bottom:14px;display:flex;flex-wrap:wrap;gap:8px">
+        <span class="sm" style="color:var(--muted)">Load ho raha hai…</span>
+      </div>
+
+      <div data-view="delivery" id="deliveryReportSummary" style="margin-bottom:14px"></div>
+
+      <div data-view="delivery" id="deliveryStatusNotes"></div>
 
       <div data-view="delivery" class="sec-title">📦 Is Mahine Ki Delivery</div>
       <div data-view="delivery" id="deliveryCards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:14px">
@@ -1869,100 +1896,23 @@ async function loadDeliveryTimeline() {
   }
 }
 
+/* Home-tab thin summary — full detail (deliverables checklist, status notes,
+   report strip, proof links, approvals) lives on the My Delivery tab now
+   (loadDeliveryView) to remove the duplication this card used to have. */
 async function loadDeliveryProof() {
   const box = document.getElementById("deliveryProofBody");
   const pct = document.getElementById("deliveryProofPct");
   if (!box) return;
   try {
     const r = await fetch("/api/customer/delivery-proof", { headers: billAuthHdr() });
-    if (!r.ok) {
-      box.innerHTML = '<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai.</div>';
-      return;
-    }
+    if (!r.ok) { box.innerHTML = '<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai.</div>'; return; }
     const d = await r.json();
-    if (!d.ok) {
-      box.innerHTML = '<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai.</div>';
-      return;
-    }
+    if (!d.ok) { box.innerHTML = '<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai.</div>'; return; }
     if (pct) pct.textContent = (d.deliverable_completion_pct || 0) + "% complete";
-    
-    const notes = (d.customer_status_notes || []).map(function(n) {
-      return '<div class="simple-note" style="margin:8px 0;background:var(--bg);padding:8px 12px;border-radius:8px;border-left:4px solid var(--accent)">' +
-             '<b>' + escH(n.title || "Update") + '</b>' +
-             '<div class="sm" style="color:var(--muted);margin-top:2px">' + escH(n.message || "") + '</div>' +
-             '</div>';
-    }).join("");
-    
-    function getStatusMeta(status) {
-      var map = {
-        "delivered": { label: "Delivered", icon: "✓", color: "var(--ok)", bg: "rgba(16,185,129,.1)" },
-        "done": { label: "Delivered", icon: "✓", color: "var(--ok)", bg: "rgba(16,185,129,.1)" },
-        "approved": { label: "Approved", icon: "✓", color: "var(--ok)", bg: "rgba(16,185,129,.1)" },
-        "scheduled": { label: "Scheduled", icon: "📅", color: "var(--ok)", bg: "rgba(16,185,129,.1)" },
-        "pending_approval": { label: "Approval Pending", icon: "⏳", color: "#b45309", bg: "rgba(217,119,6,.1)" },
-        "waiting_customer": { label: "Waiting on You", icon: "👤", color: "#d97706", bg: "rgba(217,119,6,.1)" },
-        "generating": { label: "Generating", icon: "⚙️", color: "#2563eb", bg: "rgba(37,99,235,.1)" },
-        "ready_to_generate": { label: "Ready to Generate", icon: "⚙️", color: "#2563eb", bg: "rgba(37,99,235,.1)" },
-        "failed": { label: "Failed (Fixing)", icon: "❌", color: "var(--err)", bg: "rgba(239,68,68,.1)" },
-        "skipped": { label: "Skipped", icon: "⊘", color: "var(--muted)", bg: "rgba(100,116,139,.1)" },
-        "not_started": { label: "Pending", icon: "○", color: "var(--muted)", bg: "rgba(100,116,139,.05)" }
-      };
-      return map[status] || { label: "Pending", icon: "○", color: "var(--muted)", bg: "rgba(100,116,139,.05)" };
-    }
-
-    const items = (d.deliverables || []).map(function(it) {
-      const st = String(it.status || "not_started").toLowerCase();
-      const meta = getStatusMeta(st);
-      
-      var evidenceLink = "";
-      if (it.evidence_url) {
-        evidenceLink = '<div style="margin-top:6px"><a href="' + escH(it.evidence_url) + '" target="_blank" class="btn" style="padding:4px 8px;font-size:11px;display:inline-flex;align-items:center;gap:4px">📂 View proof / file</a></div>';
-      }
-      
-      var nextActionMsg = "";
-      if (it.next_action) {
-        nextActionMsg = '<div class="sm" style="color:#475569;margin-top:4px"><b>Next step:</b> ' + escH(it.next_action) + '</div>';
-      }
-
-      var badge = '<span style="background:' + meta.bg + ';color:' + meta.color + ';padding:2px 8px;font-size:10px;font-weight:700;border-radius:4px;margin-left:8px;border:1px solid ' + meta.color + '">' + meta.label + '</span>';
-
-      return '<div style="display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1px solid var(--line)">' +
-        '<span style="font-size:16px;font-weight:900;color:' + meta.color + ';width:20px;text-align:center">' + meta.icon + '</span>' +
-        '<div style="flex:1">' +
-          '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:4px"><b>' + escH(it.title || "Deliverable") + '</b>' + badge + '</div>' +
-          '<div class="sm" style="color:var(--muted);margin-top:2px">' + escH(it.description || "") + '</div>' +
-          nextActionMsg +
-          evidenceLink +
-        '</div>' +
-      '</div>';
-    }).join("");
-
-    const monthly = d.monthly_summary || {};
-    const summaryHtml = 
-      '<div class="status-strip" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px;gap:8px">' +
-        '<div class="status-card" style="padding:10px">' +
-          '<div class="lab">Plan Active</div>' +
-          '<div class="val" style="color:var(--ok)">✓ Yes</div>' +
-          '<div class="hint">Starter Rs.1999/mo</div>' +
-        '</div>' +
-        '<div class="status-card" style="padding:10px">' +
-          '<div class="lab">Completed / Promised</div>' +
-          '<div class="val">' + escH(monthly.completed_count || 0) + ' / ' + escH(d.deliverables ? d.deliverables.length : 10) + '</div>' +
-          '<div class="hint">Is billing cycle ka</div>' +
-        '</div>' +
-        '<div class="status-card" style="padding:10px">' +
-          '<div class="lab">SLA / Next Action</div>' +
-          '<div class="val" style="font-size:12px;white-space:normal;line-height:1.2;margin-top:4px">' + escH(d.next_action || "On track") + '</div>' +
-          '<div class="hint">Next Delivery Goal</div>' +
-        '</div>' +
-      '</div>';
-
-    box.innerHTML = 
-      '<div class="simple-note" style="margin-bottom:12px;line-height:1.5">📢 <b>Status:</b> ' + escH(d.customer_message || "Aapki weekly and local marketing content queue active hai.") + '</div>' +
-      summaryHtml +
-      notes +
-      '<div style="font-weight:700;margin:16px 0 8px">📋 Deliverables Checklist</div>' +
-      '<div style="background:#fff;border:1px solid var(--line);border-radius:10px;padding:0 16px">' + items + '</div>';
+    box.innerHTML =
+      '<div class="simple-note" style="margin-bottom:10px;line-height:1.5">📢 <b>Status:</b> ' + escH(d.customer_message || "Aapki weekly and local marketing content queue active hai.") + '</div>' +
+      '<div class="sm" style="color:var(--muted)">' + escH(d.next_action || "On track") + '</div>' +
+      '<a href="#" onclick="showView(\'delivery\');return false;" class="btn primary" style="margin-top:10px;display:inline-block;padding:8px 14px;font-size:12px">📦 Puri Delivery Report Dekho →</a>';
   } catch (e) {
     box.innerHTML = '<div class="sm" style="color:var(--muted)">Report load nahi hua. Thodi der baad try karein.</div>';
   }
@@ -1978,17 +1928,42 @@ async function loadDeliveryView() {
 
     const biz = document.getElementById("deliveryBizName");
     const nextAct = document.getElementById("deliveryNextAction");
+    const setupPctEl = document.getElementById("deliverySetupPct");
+    const setupFill = document.getElementById("deliverySetupFill");
     const pctEl = document.getElementById("deliveryPct");
     const fill = document.getElementById("deliveryProgressFill");
     const cards = document.getElementById("deliveryCards");
     const approvalsSec = document.getElementById("deliveryApprovalSection");
     const approvalsBox = document.getElementById("deliveryApprovals");
     const pubList = document.getElementById("deliveryPublishedList");
+    const reportBox = document.getElementById("deliveryReportSummary");
+    const notesBox = document.getElementById("deliveryStatusNotes");
 
     if (biz && d.business_name) biz.textContent = d.business_name;
     if (nextAct) nextAct.textContent = d.next_action || d.customer_message || "Delivery tracking active hai";
+    if (setupPctEl) setupPctEl.textContent = (d.setup_completion_pct || 0) + "%";
+    if (setupFill) setupFill.style.width = (d.setup_completion_pct || 0) + "%";
     if (pctEl) pctEl.textContent = (d.deliverable_completion_pct || 0) + "% Done";
     if (fill) fill.style.width = (d.deliverable_completion_pct || 0) + "%";
+
+    // Simple report strip (merged in from the Home tab's old duplicate card)
+    if (reportBox) {
+      var monthly = d.monthly_summary || {};
+      reportBox.innerHTML =
+        '<div class="status-strip" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">' +
+          '<div class="status-card" style="padding:10px"><div class="lab">Plan Active</div><div class="val" style="color:var(--ok)">✓ ' + escH(d.plan || "Starter") + '</div></div>' +
+          '<div class="status-card" style="padding:10px"><div class="lab">Completed / Promised</div><div class="val">' + escH(monthly.completed_count || 0) + ' / ' + escH(d.deliverables ? d.deliverables.length : 10) + '</div></div>' +
+          '<div class="status-card" style="padding:10px"><div class="lab">Next Action</div><div class="val" style="font-size:12px;white-space:normal;line-height:1.2">' + escH(d.next_action || "On track") + '</div></div>' +
+        '</div>';
+    }
+    if (notesBox) {
+      notesBox.innerHTML = (d.customer_status_notes || []).map(function(n) {
+        return '<div class="simple-note" style="margin:8px 0;background:var(--bg);padding:8px 12px;border-radius:8px;border-left:4px solid var(--accent)">' +
+               '<b>' + escH(n.title || "Update") + '</b>' +
+               '<div class="sm" style="color:var(--muted);margin-top:2px">' + escH(n.message || "") + '</div>' +
+               '</div>';
+      }).join("");
+    }
 
     const items = (d.deliverables || []);
     if (cards && items.length) {
@@ -2008,9 +1983,12 @@ async function loadDeliveryView() {
       }
       cards.innerHTML = items.map(function(it) {
         var s = String(it.status || "not_started").toLowerCase();
-        return '<div class="card" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><b>' + escH(it.title || "Deliverable") + '</b>' + statusBadge(s) + '</div><div class="sm" style="color:var(--muted)">' + escH(it.description || "") + '</div>' + (it.next_action ? '<div class="sm" style="color:#475569;margin-top:4px"><b>Next:</b> ' + escH(it.next_action) + '</div>' : '') + '</div>';
+        var evidenceLink = it.evidence_url ? ('<div style="margin-top:6px"><a href="' + escH(it.evidence_url) + '" target="_blank" class="btn" style="padding:4px 8px;font-size:11px;display:inline-flex;align-items:center;gap:4px">📂 View proof / file</a></div>') : "";
+        return '<div class="card" style="padding:14px"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px"><b>' + escH(it.title || "Deliverable") + '</b>' + statusBadge(s) + '</div><div class="sm" style="color:var(--muted)">' + escH(it.description || "") + '</div>' + (it.next_action ? '<div class="sm" style="color:#475569;margin-top:4px"><b>Next:</b> ' + escH(it.next_action) + '</div>' : '') + evidenceLink + '</div>';
       }).join("");
     }
+
+    loadDeliveryChannels();
 
     if (approvalsSec && approvalsBox) {
       var pending = (d.approvals_pending || []);
@@ -2038,6 +2016,57 @@ async function loadDeliveryView() {
   }
 }
 window.loadDeliveryView = loadDeliveryView;
+
+/* Monthly white-label report — GET /api/customer/report/branded needs the
+   Bearer auth header (no query-param token support), so a plain <a href>
+   can't work. Fetch with the header, open the returned HTML in a new tab via
+   Blob URL. (Route is /report/branded, not /report, to avoid shadowing the
+   pre-existing /api/customer/report JSON endpoint — app.marketing.monthly_report.) */
+async function viewMonthlyReport() {
+  const btn = document.getElementById("viewReportBtn");
+  if (!billToken()) { toast("Pehle login karo", "err"); return; }
+  if (btn) { btn.disabled = true; btn.textContent = "⏳ Report ban raha hai…"; }
+  try {
+    const r = await fetch("/api/customer/report/branded", { headers: billAuthHdr() });
+    const html = await r.text();
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank");
+  } catch (e) {
+    toast("Report open nahi hua: " + e.message, "err");
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = "📂 Report Kholo"; }
+  }
+}
+window.viewMonthlyReport = viewMonthlyReport;
+
+/* Connected-channels row — reuses the Social Setup Wizard's own read endpoint
+   (already computes honest per-platform status) instead of duplicating logic. */
+async function loadDeliveryChannels() {
+  const box = document.getElementById("deliveryChannels");
+  if (!box) return;
+  try {
+    const r = await fetch("/api/customer/social/config", { headers: billAuthHdr() });
+    const d = await r.json();
+    if (!d || !d.ok) { box.innerHTML = '<span class="sm" style="color:var(--muted)">Channel status load nahi hua.</span>'; return; }
+    const h = d.handles || {};
+    const chips = [
+      { key: "instagram", label: "📷 Instagram" },
+      { key: "facebook", label: "📘 Facebook" },
+      { key: "gbp", label: "📍 Google Business" },
+    ];
+    box.innerHTML = chips.map(function(c) {
+      var connected = !!(h[c.key] && String(h[c.key]).trim());
+      var style = connected
+        ? "background:rgba(16,185,129,.12);color:var(--ok);border:1px solid var(--ok)"
+        : "background:var(--bg);color:var(--muted);border:1px solid var(--line)";
+      return '<span class="pill" style="' + style + ';padding:6px 12px;border-radius:99px;font-size:12px;font-weight:700">' +
+        c.label + (connected ? " ✓" : " — not connected") + '</span>';
+    }).join("") + '<a href="#" onclick="showView(\'setup\');return false;" class="sm" style="margin-left:6px;align-self:center">Connect karo →</a>';
+  } catch(e) {
+    box.innerHTML = '<span class="sm" style="color:var(--muted)">Channel status load nahi hua.</span>';
+  }
+}
 
 async function approvePost(id) {
   try {
@@ -2381,6 +2410,10 @@ async function loadWebTools(){
   }catch(e){ body.innerHTML='<span class="sm" style="color:var(--muted)">Tools load error.</span>'; }
 }
 
+/* Home-tab approval summary — this used to render a full duplicate
+   approve/reject card list, same data + same actions as the My Delivery tab
+   (approvePost/rejectPost, reading approvals_pending from delivery-proof).
+   Consolidated to a count + link so there's one real place to act, not two. */
 async function loadApprovals(){
   const card=document.getElementById("approvalCard"), body=document.getElementById("approvalBody"), cnt=document.getElementById("approvalCount");
   if(!billToken()||!card) return;
@@ -2394,14 +2427,8 @@ async function loadApprovals(){
       body.innerHTML='<span class="sm" style="color:var(--muted)">Abhi koi post approval pending nahi — naya draft aane par yahan dikhega. ✅</span>';
       return;
     }
-    body.innerHTML=rows.map(function(a){
-      const c=a.content||{};
-      const cap=escH((c.caption||c.text||"").slice(0,180));
-      return '<div class="approve-card"><div style="font-weight:700">'+escH(c.title||c.occasion||"Naya post")+'</div>'
-        +'<div class="sm" style="margin-top:4px">'+cap+'</div>'
-        +'<div class="acts"><button class="btn primary" onclick="decideApproval(\''+escH(a.id)+'\',\'approve\')">✅ Approve</button>'
-        +'<button class="btn" onclick="decideApproval(\''+escH(a.id)+'\',\'reject\')">❌ Change chahiye</button></div></div>';
-    }).join("");
+    body.innerHTML='<span class="sm">' + rows.length + ' post(s) approval ka wait kar rahe hain.</span> ' +
+      '<a href="#" onclick="showView(\'delivery\');return false;" class="btn primary" style="margin-top:8px;display:inline-block;padding:8px 14px;font-size:12px">✅ Approve/Reject karo →</a>';
   }catch(e){ card.style.display="none"; }
 }
 
@@ -2443,21 +2470,31 @@ function _swField(id,label,val,ph,type){
     +'<input id="'+id+'" type="'+(type||"text")+'" value="'+escH(val||"")+'" placeholder="'+escH(ph||"")
     +'" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit"></label>';
 }
+function _swChecklist(checks){
+  checks=checks||{};
+  var labels={business:"Business profile",offer:"Services/offer",brand:"Brand settings",social:"Social channels",approval:"Approval preference"};
+  var keys=["business","offer","brand","social","approval"];
+  var done=keys.filter(function(k){return !!checks[k];}).length;
+  var rows=keys.map(function(k){
+    var ok=!!checks[k];
+    return '<span class="sm" style="display:inline-flex;align-items:center;gap:4px;margin:2px 10px 2px 0;color:'+(ok?"var(--ok)":"var(--muted)")+'">'+(ok?"✅":"⭘")+' '+escH(labels[k]||k)+'</span>';
+  }).join("");
+  return '<div class="card" style="padding:12px;margin-bottom:14px;background:var(--bg)">'
+    +'<div style="font-weight:700;margin-bottom:6px">📋 Setup Checklist — '+done+'/5 done</div>'
+    +'<div style="background:#e9e7f2;border-radius:99px;height:8px;overflow:hidden;margin-bottom:8px"><div style="background:linear-gradient(90deg,var(--brand-2),var(--brand));height:100%;width:'+(done*20)+'%;border-radius:99px"></div></div>'
+    +rows+'</div>';
+}
 function renderSetupWizard(d){
   const body=document.getElementById("setupWizardBody");
-  const pref = d.approval_preference || "manual";
-  const prefSelect = '<label class="sm" style="display:block;margin-top:8px">Post Approval Preference'
-    +'<select id="swApprovalPref" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--txt)">'
-    +'<option value="manual"'+(pref==="manual"?' selected':'')+'>Manual Approval (Pehle check karenge)</option>'
-    +'<option value="auto"'+(pref==="auto"?' selected':'')+'>Auto Publish (Puchhe bina post karein)</option>'
-    +'</select></label>';
 
   body.innerHTML=
-    '<div style="font-weight:700;margin-bottom:2px">🏪 Business Profile</div>'
+    _swChecklist(d.setup_checks)
+    +'<div style="font-weight:700;margin-bottom:2px">🏪 Business Profile</div>'
     +_swField("swBizName","Business ka naam",d.business_name,"e.g. Jiya Makeover")
     +_swField("swCity","City",d.city,"e.g. Mumbai")
     +_swField("swPhone","Contact number",d.phone,"e.g. 98765 43210")
-    
+    +(d.niche ? '<div class="sm" style="margin-top:8px;color:var(--muted)">🏷️ Category: <b style="color:var(--txt)">'+escH(d.niche)+'</b> (badalne ke liye support se contact karo)</div>' : '')
+
     +'<div style="font-weight:700;margin:16px 0 2px">🎯 Services & Target Area</div>'
     +_swField("swServices","Kya services/products dete hain?",d.services,"e.g. Hair makeup, facials, bridal packages")
     +_swField("swTargetArea","Target local areas / neighborhood",d.target_area,"e.g. Andheri West, Bandra")
@@ -2466,15 +2503,11 @@ function renderSetupWizard(d){
     +_swField("swWhatsAppPhone","WhatsApp business number",d.whatsapp_phone,"e.g. 919876543210 (country code ke sath)")
 
     +'<div class="marketing-only">'
-    +'<div style="font-weight:700;margin:16px 0 2px">🔗 Social Links Checklist</div>'
-    +_swField("swInsta","Instagram Link",d.instagram,"Page link ya handle")
-    +_swField("swFb","Facebook Link",d.facebook,"Page link")
-    +_swField("swGbp","Google Business Profile Link",d.gbp,"GBP location link")
+    +'<div class="sm" style="margin:16px 0 2px;color:var(--muted)">🔗 Social links (Instagram/Facebook/Google Business) ab <a href="#" onclick="showView(\'setup\');document.getElementById(\'socialSetupCard\').scrollIntoView({behavior:\'smooth\'});return false;">Social Networking Setup</a> me hain, neeche.</div>'
     +'<div style="font-weight:700;margin:16px 0 2px">🎨 Brand Settings</div>'
     +_swField("swTagline","Tagline / Offer tagline",d.tagline,"e.g. Beautiful makeup, affordable price")
     +_swField("swLogo","Logo text (short)",d.logo_text,"e.g. Jiya")
     +_swField("swTone","Brand tone (AI Voice/Writing)",d.tone,"e.g. Friendly, polite, energetic")
-    +prefSelect
     +'<div style="display:flex;gap:16px;margin-top:8px;align-items:center">'
     +'<label class="sm">Primary Color <input id="swPrimary" type="color" value="'+escH(d.primary_color||"#6d28d9")+'" style="vertical-align:middle;margin-left:6px"></label>'
     +'<label class="sm">Accent Color <input id="swAccent" type="color" value="'+escH(d.accent_color||"#f59e0b")+'" style="vertical-align:middle;margin-left:6px"></label>'
@@ -2502,9 +2535,6 @@ async function saveSetupWizard(){
       business_name:(document.getElementById("swBizName")||{}).value||"",
       city:(document.getElementById("swCity")||{}).value||"",
       phone:(document.getElementById("swPhone")||{}).value||"",
-      instagram:(document.getElementById("swInsta")||{}).value||"",
-      facebook:(document.getElementById("swFb")||{}).value||"",
-      gbp:(document.getElementById("swGbp")||{}).value||"",
       tagline:(document.getElementById("swTagline")||{}).value||"",
       logo_text:(document.getElementById("swLogo")||{}).value||"",
       tone:(document.getElementById("swTone")||{}).value||"",
@@ -2513,7 +2543,10 @@ async function saveSetupWizard(){
       services:(document.getElementById("swServices")||{}).value||"",
       target_area:(document.getElementById("swTargetArea")||{}).value||"",
       whatsapp_phone:(document.getElementById("swWhatsAppPhone")||{}).value||"",
-      approval_preference:(document.getElementById("swApprovalPref")||{}).value||"manual",
+      // instagram/facebook/gbp/approval_preference intentionally NOT sent from
+      // here anymore — Social Networking Setup Wizard (below) is now the sole
+      // owner of social handles + approval preference (was duplicated in both
+      // wizards with 2 different approval vocabularies before this consolidation).
     };
     const r=await fetch("/api/customer/profile",{
       method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),

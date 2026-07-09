@@ -270,26 +270,32 @@
 
   // ---- Next-action hint per customer — mirrors the mission's admin framing:
   // "value mil rahi hai ya nahi, kya stuck hai, kaunsa button dabana hai."
-  // Prefers the server-computed `health` (7-state delivery-health); the older
-  // ad-hoc rules stay as a fallback for responses without the health field. ----
+  // API returns flat health_status/health_score/health_reasons fields
+  // (product_one_delivery.py admin_customer_card) — no nested `health` object.
+  var HEALTH_TONE = {red: "err", yellow: "warn", green: "ok"};
   function nextAction(c){
-    var h = c.health;
-    if(h && h.state){
-      return {cls: h.tone || "muted", text: h.next_action_hint || h.reason || "—"};
+    var hs = c.health_status;
+    if(hs){
+      var reasons = c.health_reasons || [];
+      return {cls: HEALTH_TONE[hs] || "muted", text: c.next_action || reasons[0] || "—"};
     }
-    if(!c.setup_done) return {cls: "warn", text: "⚠️ Setup adhoora"};
-    if(c.automation_failures > 0) return {cls: "err", text: "🔴 Automation fail hui"};
-    if(c.pending_approvals > 0) return {cls: "warn", text: "📝 " + c.pending_approvals + " approval ka wait"};
-    if(c.value_delivered) return {cls: "ok", text: "✅ Value mil rahi hai"};
+    if(Number(c.setup_completion_pct || 0) < 100) return {cls: "warn", text: "⚠️ Setup adhoora"};
+    if(Number(c.failed_automations || 0) > 0) return {cls: "err", text: "🔴 Automation fail hui"};
+    if(Number(c.posts_waiting_for_approval || 0) > 0) return {cls: "warn", text: "📝 " + c.posts_waiting_for_approval + " approval ka wait"};
+    if(c.risk_flag === "ok") return {cls: "ok", text: "✅ Value mil rahi hai"};
     return {cls: "muted", text: "⏳ Abhi koi delivery nahi"};
   }
 
-  // Colored delivery-health state badge (state + short Hinglish label_hi).
+  // Colored delivery-health state badge (state + score) — reads the same
+  // flat fields as nextAction(); was previously dead code (never called +
+  // wrong field shape), leaving the server-computed health score invisible.
   function healthBadge(c){
-    var h = c.health;
-    if(!h || !h.state) return "";
-    return '<span class="hbadge ' + esc(h.tone || "muted") + '" title="' + esc(h.reason || "") + '">' +
-      esc(h.label_hi || h.state) + '</span>';
+    var hs = c.health_status;
+    if(!hs) return "";
+    var reasons = (c.health_reasons || []).join("; ");
+    var score = c.health_score;
+    return '<span class="hbadge ' + esc(HEALTH_TONE[hs] || "muted") + '" title="' + esc(reasons) + '">' +
+      esc(hs) + (score != null ? " " + esc(score) : "") + '</span>';
   }
 
   function renderKpis(s){
@@ -359,12 +365,16 @@
       var na = nextAction(c);
       var setup = Number(c.setup_completion_pct || 0);
       var deliv = Number(c.deliverable_completion_pct || 0);
+      var failed = Number(c.failed_automations || 0);
       return '<tr>' +
         '<td class="nm">' + esc(c.customer_name || c.business_name || "(no name)") + '<div class="sub">' + esc(c.risk_flag || "ok") + '</div></td>' +
-        '<td><span class="pill plan">' + esc(c.plan || "starter") + '</span></td>' +
+        '<td><span class="pill plan">' + esc(c.plan || "starter") + '</span>' + (c.plan_mrr ? '<div class="sub">' + inr(c.plan_mrr) + '/mo</div>' : '') + '</td>' +
+        '<td>' + healthBadge(c) + '</td>' +
         '<td><span class="pill">' + esc(c.stage_label || c.current_delivery_stage || "-") + '</span></td>' +
         '<td><b>' + setup + '%</b><div class="bar"><span style="width:' + setup + '%"></span></div></td>' +
-        '<td><b>' + deliv + '%</b><div class="bar"><span style="width:' + deliv + '%"></span></div></td>' +
+        '<td><b>' + deliv + '%</b><div class="bar"><span style="width:' + deliv + '%"></span></div>' +
+          '<div class="sub">📝' + esc(c.content_generated || 0) + ' · 📅' + esc(c.posts_scheduled || 0) + ' · ✅' + esc(c.posts_published || 0) +
+          (failed > 0 ? ' · <span class="nextaction err">❌' + esc(failed) + '</span>' : '') + '</div></td>' +
         '<td><span class="nextaction ' + na.cls + '">' + esc(c.next_action || na.text) + '</span><div class="sub">Owner: ' + esc(c.owner || "Sumit") + ' · Due: ' + esc(c.due_date || "-") + '</div></td>' +
         '<td class="actions">' +
           '<button class="mini primary" onclick="deliveryAction(\'' + esc(c.id) + '\',\'generate_content\')">Generate</button>' +
@@ -375,7 +385,7 @@
       '</tr>';
     }).join("");
     wrap.innerHTML = '<table class="tbl"><thead><tr>' +
-      '<th>Customer</th><th>Plan</th><th>Stage</th><th>Setup</th><th>Deliverables</th><th>Next Action</th><th>Actions</th>' +
+      '<th>Customer</th><th>Plan</th><th>Health</th><th>Stage</th><th>Setup</th><th>Delivery</th><th>Next Action</th><th>Actions</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
   }
 

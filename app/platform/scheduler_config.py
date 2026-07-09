@@ -44,6 +44,7 @@ JOB_META: dict[str, dict[str, str]] = {
     "mcp_engineer": {"label": "MCP health pulse (Arya)", "cadence": "hourly :40", "owner": "arya"},
     "engineer_sre": {"label": "Reliability score (Pranav SRE)", "cadence": "hourly :45", "owner": "pranav"},
     "meter_watch": {"label": "Billing meter-failure watcher", "cadence": "hourly :55", "owner": "platform"},
+    "product_one_health": {"label": "Customer Health + Approval Reminder + SLA Recovery sweep", "cadence": "hourly :20", "owner": "platform"},
     "email_outreach": {"label": "Cold emails + warmup (cap 25/din)", "cadence": "9am-7pm hourly :05", "owner": "rohan"},
     "email_followup": {"label": "Day-3/7 follow-ups", "cadence": "9am-7pm hourly :20", "owner": "rohan"},
     "revenue_snapshot": {"label": "MRR/churn snapshot", "cadence": "daily 00:15", "owner": "platform"},
@@ -151,11 +152,19 @@ def list_jobs() -> dict[str, Any]:
     except Exception as e:
         logger.warning(f"[scheduler-config] health merge failed: {e}")
     beats = {str(j.get("job")): j for j in (health.get("jobs") or []) if isinstance(j, dict)}
+    counts: dict[str, dict[str, int]] = {}
+    try:
+        from app.platform import automation_health as _ah
+
+        counts = _ah.run_counts(days=7)
+    except Exception as e:
+        logger.warning(f"[scheduler-config] run_counts merge failed: {e}")
     ov = _read_overrides()
     jobs: list[dict[str, Any]] = []
     for job, meta in JOB_META.items():
         b = beats.get(job) or {}
         o = ov.get(job) or {}
+        c = counts.get(job) or {"success": 0, "failed": 0}
         enabled = bool(o.get("enabled", True))
         jobs.append(
             {
@@ -168,6 +177,8 @@ def list_jobs() -> dict[str, Any]:
                 "last_run": b.get("last_run"),
                 "duration_s": b.get("duration_s"),
                 "status": ("admin_paused" if not enabled else b.get("status", "unknown")),
+                "success_count_7d": c["success"],
+                "failure_count_7d": c["failed"],
             }
         )
     return {

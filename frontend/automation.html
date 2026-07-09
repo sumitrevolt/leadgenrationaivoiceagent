@@ -792,7 +792,7 @@ a{color:var(--acc)}
 
 <!-- ================= 12. SCHEDULE ================= -->
 <section class="tabsec" id="sec-schedule">
-  <div class="card">
+  <div class="card" id="sec-jobs">
     <h2>🗓️ Agent Scheduler — jobs, toggle + run-now</h2>
     <div class="mut">Saare agent automation jobs — kab chalte, last run, status. <b>Auto</b> column se koi bhi job PAUSE/ON karo (turant, no-restart) aur <b>▶</b> se abhi chalao. Overdue = red. 60s auto-refresh jab tab khula ho.</div>
     <button class="btn2" onclick="scLoad()">🔄 Refresh</button>
@@ -813,6 +813,27 @@ a{color:var(--acc)}
     </details>
   </div>
   <div class="card">
+    <details id="almBox">
+      <summary style="cursor:pointer;font-size:17px;font-weight:600">📋 Automation Logs — DB-backed per-job proof (ADR-064)</summary>
+      <div class="mut" style="margin-top:6px">Har job/agent run ka structured proof: job id, customer, status, duration, error, retry. <b>Run History</b> (upar) sirf scheduler jobs ka pass/fail hai — yeh alag, DB-backed <code>automation_logs</code> table hai jisme customer-scoped runs bhi aate hain.</div>
+      <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <input id="almClient" placeholder="customer id" style="max-width:180px">
+        <input id="almJobType" placeholder="job type (e.g. content)" style="max-width:180px">
+        <select id="almStatus"><option value="">— koi bhi status —</option><option value="success">sirf success</option><option value="failed">sirf failed</option><option value="running">sirf running</option><option value="skipped">sirf skipped</option></select>
+        <input id="almDays" type="number" value="7" style="max-width:80px" title="pichle N din (1-90)">
+        <label style="display:flex;align-items:center;gap:4px"><input id="almRetry" type="checkbox" style="width:auto"> sirf retry-required</label>
+        <button class="btn2" id="almBtn" onclick="almLoad()">🔄 Load logs</button>
+      </div>
+      <div id="almOut" class="mut" style="margin-top:8px">Load button dabao.</div>
+    </details>
+  </div>
+  <div class="card" id="sec-failed-jobs">
+    <h2>🔴 Failed Jobs — consolidated (scheduler + DLQ + delivery)</h2>
+    <div class="mut">Teen jagah se failure data ek jagah: scheduler run-failures, dead/stuck Celery tasks (DLQ), aur aaj ki delivery-automation failures. Koi naya failure-tracking nahi — bas 3 existing endpoints ek view me.</div>
+    <button class="btn2" id="fjBtn" onclick="fjLoad()">🔄 Load failed jobs</button>
+    <div id="fjOut" class="mut" style="margin-top:8px">Load button dabao.</div>
+  </div>
+  <div class="card" id="sec-team">
     <h2>👥 AI Staff — live state + manual run</h2>
     <div class="mut">Har staff abhi kya kar raha (working/active/offline) + [▶ Run now] se uska job turant chalao.</div>
     <div id="scTeamOut" class="mut" style="margin-top:8px">Load ho raha...</div>
@@ -2529,12 +2550,15 @@ async function scLoad(){
       ?'<div class="ok" style="font-size:15px;margin-bottom:8px">✅ Sab automations time pe chal rahe hain — koi action nahi chahiye.</div>'
       :'<div class="bad" style="font-size:15px;margin-bottom:8px">⚠️ Dhyan do: '+(ov.length?esc(ov.join(', '))+' job(s) time pe nahi chale.':'system status '+esc(d.status||'?'))+' Neeche table me red row dekho.</div>';
     var h='<div class="result">'+banner+pills({status:d.status,overdue:ov.join(', ')||'none',queue_celery:q.celery,dlq:q.dlq});
-    h+='<table><tr><th>Job</th><th>Kya karta hai</th><th>Kab (IST)</th><th>Last run (IST)</th><th>Took</th><th>Status</th><th>Auto</th><th></th></tr>';
+    h+='<div class="mut" style="margin:4px 0 8px">Yeh 37+ scheduled AUTOMATION JOBS ka registry hai (cron-style, cadence pe chalte). Alag concept: <a href="#sec-team">👥 AI Staff</a> (neeche is hi page pe, ya <a href="/app/team">standalone</a>) — wahan 18 named "staff" personas dikhte (Rohan, Isha, etc.) jo inme se kai jobs ke peeche kaam karte hain. Aur alag: <a href="/app/agents">🧠 Multi-Agent Coordination</a> — Reflexion/debate/council fan-out tasks, scheduled jobs se related nahi.</div>';
+    h+='<table><tr><th>Job</th><th>Kya karta hai</th><th>Kab (IST)</th><th>Last run (IST)</th><th>Took</th><th>Status</th><th>7-din ✅/❌</th><th>Auto</th><th></th></tr>';
     (d.jobs||[]).forEach(function(j){
       var st=String(j.status||'');
       var cls=st==='ok'?'ok':(st==='scheduled_off'||st==='admin_paused'?'mut':(st==='overdue'||st==='last_failed'||st==='never_ran'?'bad':'warn'));
       var en=j.enabled!==false;
-      h+='<tr><td>'+esc(j.job)+'</td><td class="mut">'+esc(j.label||JOB_DESC[j.job]||'')+'</td><td class="mut">'+esc(j.cadence||'')+'</td><td class="mut">'+esc(fmtTime(j.last_run))+'</td><td class="mut">'+(j.duration_s!=null?esc(j.duration_s)+'s':'')+'</td><td class="'+cls+'">'+esc(st)+'</td>';
+      var sc=Number(j.success_count_7d||0), fc=Number(j.failure_count_7d||0);
+      var countsCell=(sc||fc)?('<span class="ok">✅'+sc+'</span> <span class="'+(fc>0?'bad':'mut')+'">❌'+fc+'</span>'):'<span class="mut">—</span>';
+      h+='<tr><td>'+esc(j.job)+'</td><td class="mut">'+esc(j.label||JOB_DESC[j.job]||'')+'</td><td class="mut">'+esc(j.cadence||'')+'</td><td class="mut">'+esc(fmtTime(j.last_run))+'</td><td class="mut">'+(j.duration_s!=null?esc(j.duration_s)+'s':'')+'</td><td class="'+cls+'">'+esc(st)+'</td><td>'+countsCell+'</td>';
       h+='<td><button class="btn2" title="'+(en?'Pause karo (scheduler is job ko skip karega)':'Wapas ON karo')+'" onclick="scJobToggle(\''+esc(j.job)+'\','+(en?'false':'true')+')">'+(en?'🟢 ON':'⏸ paused')+'</button></td>';
       h+='<td><button class="btn2" title="Abhi chalao (background)" onclick="scJobRun(\''+esc(j.job)+'\')">▶</button></td></tr>';
     });
@@ -2639,6 +2663,98 @@ async function srhLoad(){
     $('srhOut').innerHTML=h+'</table></div>';
   }catch(e){warnBox('srhOut','Run history fail: '+e.message)}
   busy('srhBtn',0);
+}
+
+/* 📋 Automation Logs — DB-backed automation_logs table (distinct from srhLoad's
+   scheduler-only Run History and from delivery_command_center's ledger-based
+   "Automation Logs — delivery se linked" panel; see docs/PRODUCT_ONE_DELIVERY_MAP.md) */
+async function almLoad(){
+  busy('almBtn',1,'⏳ load...');
+  try{
+    var client=($('almClient').value||'').trim();
+    var jobType=($('almJobType').value||'').trim();
+    var status=$('almStatus').value||'';
+    var days=parseInt($('almDays').value||'7',10)||7;
+    var retryOnly=$('almRetry').checked;
+    var qs='?days='+days+'&limit=200'+(client?'&client_id='+encodeURIComponent(client):'')+
+      (jobType?'&job_type='+encodeURIComponent(jobType):'')+(status?'&status='+encodeURIComponent(status):'');
+    var d=await api('/api/admin/automation-logs'+qs);
+    var rows=(d&&d.logs)||[];
+    if(retryOnly) rows=rows.filter(function(r){return Number(r.retry_count||0)>0});
+    if(!rows.length){$('almOut').innerHTML='<div class="mut">Is filter me koi automation log nahi mila.</div>';busy('almBtn',0);return}
+    var h='<div class="result">'+pills({total:rows.length,days:days})+'<table><tr><th>Job Type</th><th>Customer</th><th>Status</th><th>Started (IST)</th><th>Took</th><th>Retry</th><th>Error / Output</th></tr>';
+    rows.forEach(function(r){
+      var ok=r.status==='success'||r.status==='ok';
+      var failed=r.status==='failed';
+      var badge=ok?'<span class="ok">✅ '+esc(r.status)+'</span>':(failed?'<span class="bad">❌ failed</span>':'<span class="mut">'+esc(r.status||'?')+'</span>');
+      var took=r.duration_ms!=null?(Math.round(r.duration_ms/100)/10)+'s':'';
+      var retry=Number(r.retry_count||0);
+      var retryCell=retry>0?('<span class="bad">'+retry+(r.next_retry_at?' · next '+esc(fmtTime(r.next_retry_at)):'')+'</span>'):'';
+      var msg=r.error_message||r.output_summary||'';
+      if(msg.length>100)msg=msg.slice(0,100)+'…';
+      var proofUrl=null;
+      try{ var meta=r.meta_json?JSON.parse(r.meta_json):null; proofUrl=meta&&meta.proof_url; }catch(_e){}
+      var msgCell=esc(msg)+(proofUrl?' <a href="'+esc(proofUrl)+'" target="_blank" rel="noopener">📂 proof</a>':'');
+      h+='<tr><td>'+esc(r.job_type||'')+'</td><td class="mut">'+esc(r.client_id||'—')+'</td><td>'+badge+'</td>'+
+        '<td class="mut">'+esc(fmtTime(r.started_at||r.created_at))+'</td><td class="mut">'+took+'</td><td>'+retryCell+'</td>'+
+        '<td class="mut">'+msgCell+'</td></tr>';
+    });
+    $('almOut').innerHTML=h+'</table></div>';
+  }catch(e){warnBox('almOut','Automation logs fail: '+e.message)}
+  busy('almBtn',0);
+}
+
+/* 🔴 Failed Jobs — consolidates 3 already-working endpoints, no new failure
+   tracking (scheduler run-history, Celery DLQ, delivery-ledger failed-today) */
+async function fjLoad(){
+  busy('fjBtn',1,'⏳ load...');
+  var h='';
+  try{
+    var sr=await api('/api/platform/team/scheduler/runs?failures_first=true&status=failed&limit=50');
+    var srows=(sr&&sr.runs)||[];
+    h+='<h3>🗓️ Scheduler failures ('+srows.length+')</h3>';
+    if(!srows.length){h+='<div class="mut">Koi scheduler job fail nahi hui.</div>';}
+    else{
+      h+='<table><tr><th>Job</th><th>Started (IST)</th><th>Error</th></tr>';
+      srows.forEach(function(r){
+        var em=String(r.error_message||'');if(em.length>90)em=em.slice(0,90)+'…';
+        h+='<tr><td>'+esc(r.job||'')+'</td><td class="mut">'+esc(fmtTime(r.started_at))+'</td><td class="bad">'+esc(r.error_class||'')+(em?' '+esc(em):'')+'</td></tr>';
+      });
+      h+='</table>';
+    }
+  }catch(e){h+='<div class="mut">Scheduler failures load nahi hui: '+esc(e.message)+'</div>';}
+  try{
+    var dq=await api('/api/growth/infra/dlq?limit=50&key=failed');
+    var ditems=(dq&&dq.items)||[];
+    h+='<h3 style="margin-top:14px">📮 DLQ — dead/stuck Celery tasks ('+(dq&&dq.count||0)+')</h3>';
+    if(!ditems.length){h+='<div class="mut">DLQ khali hai.</div>';}
+    else{
+      h+='<table><tr><th>Task</th><th>Args</th><th>Error</th></tr>';
+      ditems.forEach(function(it){
+        var task=it.task||it.name||'?';
+        var args=String(it.args||'');if(args.length>60)args=args.slice(0,60)+'…';
+        var err=String(it.error||it.exc||'');if(err.length>90)err=err.slice(0,90)+'…';
+        h+='<tr><td>'+esc(task)+'</td><td class="mut">'+esc(args)+'</td><td class="bad">'+esc(err)+'</td></tr>';
+      });
+      h+='</table>';
+    }
+  }catch(e){h+='<div class="mut">DLQ load nahi hua: '+esc(e.message)+'</div>';}
+  try{
+    var dl=await api('/api/admin/delivery-logs?filter=failed_today');
+    var lrows=(dl&&dl.events)||[];
+    h+='<h3 style="margin-top:14px">📦 Delivery automation — aaj fail hui ('+lrows.length+')</h3>';
+    if(!lrows.length){h+='<div class="mut">Aaj koi delivery automation fail nahi hui.</div>';}
+    else{
+      h+='<table><tr><th>Customer</th><th>Workflow</th><th>Error</th></tr>';
+      lrows.forEach(function(r){
+        h+='<tr><td>'+esc(r.customer_name||r.customer_id||'')+'</td><td class="mut">'+esc(r.workflow_name||r.workflow_id||'')+'</td>'+
+          '<td class="bad">'+esc(r.error_message||r.next_action||'')+'</td></tr>';
+      });
+      h+='</table>';
+    }
+  }catch(e){h+='<div class="mut">Delivery failures load nahi hui: '+esc(e.message)+'</div>';}
+  $('fjOut').innerHTML='<div class="result">'+h+'</div>';
+  busy('fjBtn',0);
 }
 
 /* ---------------- 13. Agents ---------------- */

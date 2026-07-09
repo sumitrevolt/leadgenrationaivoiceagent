@@ -189,6 +189,35 @@ def test_run_job_records_exception_detail_on_raise(monkeypatch):
     assert last["error_message"] == "kaput"
 
 
+def test_run_job_writes_db_backed_automation_log_on_exception(monkeypatch, db):
+    """End-to-end: a real exception through team_scheduler._run_job must leave
+    a DB-backed AutomationLog row (status=failed + error_message) — not just a
+    JSONL heartbeat. Closes the audit gap: failed-job handling was covered at
+    the automation_health/JSONL layer but never asserted against the ADR-064
+    AutomationLog table that GET /api/admin/automation-logs actually reads."""
+    from app.platform import automation_log_service, scheduler_config, team_scheduler
+
+    # unique job name — other tests in this file also dispatch job "qa"/"growth"
+    # etc. through the SAME real automation_log_service.log_event() DB write
+    # (only automation_health.record_run is mocked there), so a shared name
+    # would pick up rows from prior tests.
+    job_name = "qa_db_log_test_unique"
+
+    async def _inner_boom(job):
+        raise RuntimeError("kaboom")
+
+    monkeypatch.setattr(scheduler_config, "is_enabled", lambda job: True)
+    monkeypatch.setattr(team_scheduler, "_run_job_inner", _inner_boom)
+
+    asyncio.run(team_scheduler._run_job(job_name))
+
+    rows = automation_log_service.get_logs(job_type=job_name, days=1)
+    assert rows, f"expected at least one AutomationLog row for job_type={job_name}"
+    failed = [r for r in rows if r["status"] == "failed"]
+    assert failed, f"expected a failed row, got statuses={[r['status'] for r in rows]}"
+    assert "kaboom" in failed[0]["error_message"]
+
+
 def test_run_job_success_records_no_error(monkeypatch):
     from app.platform import automation_health, scheduler_config, team_scheduler
 

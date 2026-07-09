@@ -1,130 +1,75 @@
-# Product One (AI Automated Marketing) — Delivery Map
+# Product One Delivery Map
 
-> Verified 2026-07-09 by read-only whole-repo audit (routes, wiring, DB, scheduler, agents, tests).
-> **Ground truth = code.** Customer-facing delivery data is JSONL-file-backed under `data/`
-> (delivery ledger, content queue, clients_store, approvals); `customer_deliverables` +
-> `automation_logs` DB tables are best-effort mirrors. Read-visibility features go against
-> `app/marketing/*` services, not raw DB queries.
+> Ground truth for what a real ₹1,999/₹5,999 Product One customer's delivery actually looks like end-to-end — feature by feature, verified against the live code (not assumed from page existence). Built from a 3-agent parallel audit on 2026-07-09, cross-checked with Graphify. Status legend: **Working** (backend+UI both real and connected) · **Partial** (backend real, UI missing/wrong/duplicated, or vice versa) · **Missing** (no UI at all) · **Broken** (wired but produces wrong output) · **Fake** (none found in this audit).
+>
+> Superseded/duplicate note: this document is the audit source-of-truth referenced from `docs/AI_HANDOFF.md`/`CURRENT_STATE.md`/`NEXT_ACTIONS.md`; update those three when this changes materially.
+>
+> **2026-07-09 reconciliation note:** this doc merges TWO independent, concurrent Product One delivery passes that were both done today on this same base (`ecbfc53`) without either session aware of the other until reconciliation: (a) this worktree's Phases 2-9 (admin cockpit surfacing, automation-logs filter panel in `automation.html`, Failed Jobs view, agents visibility, nav promotion, customer My Delivery tab consolidation, branded customer report, Social Setup Wizard dedup) and (b) `main`'s ADR-065/066/067/068 (social-setup ledger-event bugfix, a *second* automation-logs filter panel directly in `delivery_command_center.html`, retry_count threading, and a real `automation_logs.evidence_url` DB column + migration `014`). Both were committed independently; the overlap was caught before push. Status column below reflects the reconciled, POST-merge reality on branch `claude/product-one-delivery-v2`.
 
-## 0. TL;DR — the honest state
+## What changed in this pass (Phases 2-9, this worktree)
 
-Most of the "build it" ask **already exists and is wired**. The real problems are (a) one
-broken customer-milestone event, (b) the structured automation-log feed had **no UI**, and
-(c) most *push* delivery (auto-publish to social/WhatsApp/report-email) is **INERT by default**
-behind env flags — so a paying customer today sees generated **drafts + approvals + a pull
-timeline + a monthly report file**, but rarely an auto-"published" proof line until an operator
-connects Postiz/WhatsApp and flips flags.
+- **Admin cockpit**: fixed the `healthBadge()`/`nextAction()` data-shape bug (dead code reading a nonexistent `c.health.*` object), wired it in, surfaced creatives/scheduled/published/failed counts per customer, added ₹-priced plan (`plan_mrr`), backfilled `product_one_health` into the job registry.
+- **Automation Logs**: built an admin filter panel (`frontend/automation.html` `#almBox`, customer/job-type/status/date/retry filters) consuming the existing DB-backed endpoint. **Note**: `main` independently built a *second*, differently-shaped "Automation Runs" panel directly in `delivery_command_center.html` (ADR-065) — see row 2/3 below, both now exist.
+- **Failed Jobs**: consolidated view aggregating scheduler run-history + DLQ + delivery-log failures into one panel (`#sec-failed-jobs` in `automation.html`).
+- **Agents visibility**: added 7-day cumulative success/failure counts to the scheduler table; clarified the AI Staff / Multi-Agent Coordination / scheduler-registry distinction inline.
+- **Admin nav**: promoted Agents / Failed Jobs / Plans & Billing from the collapsed section to core links (11 → 14 core links).
+- **Customer My Delivery tab**: fixed the progress-bar bug (was showing `deliverable_completion_pct` under a "Setup Progress" label — now two correctly-bound bars), merged in the Home tab's duplicate content (report summary, status notes, proof links), added connected-channels display, consolidated approvals to one location, renamed "Content & Approvals" → "Calendar".
+- **Customer Reports**: new `GET /api/customer/report/branded` (IDOR-safe) surfaces the previously admin-only white-label monthly report; linked from the Reports tab. **New finding**: a second, unrelated report system (`app.marketing.monthly_report`, already wired to `GET /api/customer/report`) was also orphaned from the UI — see row 19.
+- **Social Setup Wizard**: removed the GBP/FB/Instagram field duplication (Social Wizard is now sole owner), unified the two approval-preference vocabularies into one (`approval_mode`, with a backend mirror into the legacy `approval_preference` field so the setup-checklist stays correct), added a read-only niche/category display (niche stays admin-only-write — deliberate existing guard, confirmed via docstring), added a 5-item setup checklist.
+- **Tests**: added cross-role negative auth tests, an empty-state test, a wizard→ledger-event end-to-end test, and a DB-backed failed-job test (44 total new/changed test assertions across the touched files).
 
-Pricing truth stays in `app/marketing/packages.py`. Product One = Main ₹1,999 / Advanced ₹5,999.
+## What `main` shipped concurrently (ADR-065/066/067/068, already deployed for 065/066)
 
-## 1. Delivery Map (per deliverable)
+- **Social milestone bugfix**: `social_setup_completed` ledger call was passing an invalid `customer_visible=` kwarg → `TypeError` silently swallowed by a bare `except: pass` → the milestone never recorded. Fixed + idempotency key added. Complementary to (not conflicting with) this worktree's separate `approval_mode`→`approval_preference` mirror in the same save path.
+- **A second Automation Runs panel**: `delivery_command_center.html` gained its own filterable admin panel (status/job-type/customer/date) consuming the same `GET /api/admin/automation-logs` endpoint this worktree's `automation.html` panel also consumes.
+- **`_run_job` finish log** now populates `output_summary` and threads `retry_count`.
+- **`automation_logs.evidence_url`** — real nullable `String(500)` column + migration `014_add_automation_log_evidence` (idempotent, additive), with actual writers in `client_report.py`/`automation_log_service.py`. This **replaces** this worktree's original Phase-3 decision to avoid a dedicated column in favor of a `meta_json.proof_url` convention — the column now exists for real, so that convention note has been removed from this doc and from `automation_log_service.py`'s docstring.
 
-| Deliverable | Backend endpoint | Frontend | Store / model | Worker/job | Status | Customer-visible proof today |
-|---|---|---|---|---|---|---|
-| **Social Setup Wizard** | `GET/POST /api/customer/profile`, `GET/POST /api/customer/social/config` (`customer_dashboard.py:1150/1188/1386/1423`) | in-page tabs `customer_dashboard.html` (~2574/2641) | `data/social_config.jsonl` via `social_engine/client_config.py` | sync save; seed → Celery `seed_first_week` | **working** (persistence real) | Checklist %, saved handles/prefs pre-filled, honest per-channel status board |
-| Social milestone (socials connected) | `_sync_social_delivery_stage` (`customer_dashboard.py:1466`) | timeline | `delivery_ledger` `social_setup_completed` | — | **FIXED this session** (was broken: TypeError swallowed → event never logged) | Timeline line "Aapne social accounts connect kar diye" |
-| **Content pipeline (draft→approval)** | draft via `auto_content.run_daily_content()` | Calendar + Approvals tabs | `data/content_queue/<cid>.jsonl` | scheduler `content` daily 07:00 | **working** | Drafts in Calendar; approvals queue |
-| Social publish (IG/FB) | `social_engine.enqueue_publish` / Postiz (`providers.py`) | — | `social_post_jobs` (lazy) | `content` job bridge | **partial (INERT)** — `SOCIAL_ENGINE`/`POSTIZ_API_KEY` unset → draft-only | Rare `post_published` until connected |
-| GBP posting | none (marked "soon"/manual) | wizard state | — | — | **missing** (external API approval blocked) | Manual only |
-| **Creatives / images** | `POST /api/customer/studio/ai-image`, `/complete-post` (`customer_marketing_studio.py:791/829`); proxy `/api/marketing/ai-image-proxy` | Studio | `data/ai_images/` (SHA1 cache); `brand_frames` SVG feed | daily branded-feed | **working** (gen+proxy) / partial: images not pinned as ledger proof | Studio image URL; `/branded-feed` 3 daily posters |
-| **WhatsApp (WAHA)** | `/api/wa/*` (`whatsapp.py:38`); `WhatsAppProvider.publish` | `whatsapp.html` + hot-queue reply links | `data/wa_*.jsonl` | hourly `wa_campaign_runner.run_due()` | **working** (ban-safe 1-click; auto real but `WHATSAPP_AUTO_SEND=0`) | Prefilled `wa.me` reply links |
-| **Approvals** | `GET /api/customer/approvals/pending`, `POST /api/customer/approvals/{id}/decide`; public token approve | approvals queue + public HTML page | `data/content_approvals.jsonl` | — | **working** | 1-click approve/reject queue |
-| **Customer Delivery Status** | `GET /api/customer/timeline`, `/api/customer/delivery-proof` (`customer_dashboard.py:1498/1517`) | in-page timeline | `delivery_ledger` + `product_one_delivery` | health/recovery sweep | **working** | "AI ne aapke liye kya kiya" timeline |
-| **White-label monthly report** | `client_report.build_report()` | HTML file | `data/client_reports/<id>_<YYYY-MM>.html` | scheduler `client_report.run_monthly()` | **working** (file always written; **email gated `CLIENT_REPORTS`**) | Monthly report incl. delivery-proof counts + "AI team ne kya kiya" + Hinglish next-steps |
-| **Admin Delivery Cockpit** | `GET /api/admin/delivery-cockpit`, `/delivery-logs`, `POST /clients/{id}/delivery-action` (`admin_dashboard.py:380/396/421`) | `/app/delivery-command-center` → `delivery_command_center.html` (admin landing) | reads `delivery_ledger` + `product_one_delivery` | health sweep | **working** | (admin) per-customer health, channels, approvals, failures, next-action |
-| **Automation Logs (structured, ADR-064)** | `GET /api/admin/automation-logs` (`admin_dashboard.py:448`) | **NEW this session**: "Automation Runs" panel in `delivery_command_center.html` | `automation_logs` DB table (JSONL fallback) | every job via `_run_job` choke-point | **was API-only → NOW wired to UI** | (admin) job/customer/status/time/retry/error feed with filters |
-| **Delivery ledger (events)** | `delivery_ledger.py` (19 event types) | timeline / cockpit | `data/delivery_ledger/<cid>.jsonl` | many callers | **working** (1 event fixed this session) | Underlying event stream for timeline + report |
-| **Agents page** | `/api/agents/roster` etc. | `/app/agents` (+`/app/agent-tools`) | `agents`/`agent_events` DB | — | **working** | (admin) roster + coordination |
+## Known duplication from the merge (flagged, not fixed in this pass)
 
-## 2. Automation & agent visibility
+- **Two separate admin "automation runs" filter UIs now exist** — `automation.html#almBox` (this worktree) and `delivery_command_center.html`'s "Automation Runs" panel (`main`, ADR-065) — both read the same `GET /api/admin/automation-logs` endpoint, just rendered on two different admin pages with slightly different filter sets. Not broken, not conflicting, just redundant. A follow-up should pick one home for this panel and link/remove the other rather than maintaining two.
 
-- **~38 scheduled jobs** all funnel through `team_scheduler._run_job` (`:213`) → dual-write: dead-man
-  heartbeat (`automation_health.record_run` → `data/job_runs.jsonl` + `job_heartbeats.json`) **and**
-  structured `AutomationLog` DB (ADR-064) at `status="running"` (start) + `success/failed` (finish).
-- **33-member agent roster** in `app/platform/team.py:41` (Boss, Swara, Isha, Nikhil, Arnav, …) →
-  events log to `agent_events` DB; surfaced on `/app/team`, `/app/office`, `/app/agents`.
-- **Structured-log field coverage (post-fix):** job id ✓, job_type ✓, status ✓, started/finished ✓,
-  duration ✓, error_message ✓, **output_summary NOW populated** (this session). Still dormant:
-  `retry_count`/`next_retry_at` (Celery retries not fed back), `client_id` (always platform-level for
-  the 38 jobs → no per-customer job trail yet), and **no proof/artifact column** (would need
-  migration `011`). Event-driven tasks (`onboard_client`, `seed_first_week`, `process_tick`) + the
-  ~14 watchdog sub-engines are outside the structured log.
+| # | Feature | Backend endpoint | Frontend page/component | DB table / store | Worker / automation job | Status | Required fix | Customer-visible proof |
+|---|---|---|---|---|---|---|---|---|
+| 1 | Admin Delivery Cockpit | `GET /api/admin/delivery-cockpit` — `app/api/admin_dashboard.py:380-393` → `product_one_delivery.delivery_cockpit()` `app/marketing/product_one_delivery.py:1260-1325` | `frontend/delivery_command_center.html`, `/app/delivery-command-center` | JSONL: `clients_store`, `content_approval`, `delivery_ledger` (not SQL, by design) | On-demand computed, no dedicated job | **Working (fixed)** | `healthBadge()` reads a `c.health.*` shape the API never returns (dead code) + 6 API fields (creatives/posts-scheduled/posts-published/failed-automations/health-score/per-platform social) computed but not rendered per-customer | Admin sees plan (₹-priced)/stage/setup%/health/next-action/content-counts per customer |
+| 2 | Automation Logs (DB-backed, ADR-064) — filter panel A | `GET /api/admin/automation-logs` — `admin_dashboard.py:448-471` → `automation_log_service.get_logs()` `app/platform/automation_log_service.py` | `frontend/automation.html` `#almBox` filter panel (this worktree) | `automation_logs` table, `AutomationLog` model `app/models/automation_log.py` (16 cols incl. `evidence_url`), migration `013_add_automation_logs` + `014_add_automation_log_evidence` | `team_scheduler._run_job()` writes start/finish rows | **Working (fixed)** | Built admin filter panel (customer/job-type/success-failed/date/retry) | Admin can filter/export real per-job-run proof |
+| 2b | Automation Logs (DB-backed, ADR-065) — filter panel B | Same endpoint as #2 | `delivery_command_center.html` "Automation Runs" panel (`main`, concurrent build) | Same table as #2 | Same writer as #2 | **Working (duplicate of #2)** | See "Known duplication" note above — pick one home | Admin sees the same data on a second page |
+| 3 | Automation Logs (legacy ledger view) | `GET /api/admin/delivery-logs` — `admin_dashboard.py:396-409` → `product_one_delivery.automation_events()` | `delivery_command_center.html` "Automation Logs — delivery se linked" | JSONL `delivery_ledger` | Fed by ledger writers across marketing/social modules | **Working** | Rename/relabel so it isn't confused with #2/#2b (same display name, different data source) | Admin sees delivery-scoped event feed today |
+| 4 | Customer Delivery Status ("My Delivery" tab) | `GET /api/customer/delivery-proof` — `app/api/customer_dashboard.py:1517-1602` → `product_one_delivery.customer_delivery_status()` | `frontend/customer_dashboard.html` `data-view="delivery"`, `loadDeliveryView()` | JSONL: `clients_store`, `content_approval`, `delivery_ledger` | Same as #1 | **Working (fixed)** | Progress bar bound to wrong field (labeled "Setup Progress", actually shows `deliverable_completion_pct`; real `setup_completion_pct` never shown to customer); missing today/connected-channels/simple-report/proof-link (exist only on Home tab, duplicated) | Customer sees two correctly-labeled progress bars, connected channels, report summary, status notes, proof links, approvals, published list — all in one tab |
+| 5 | Social Setup Wizard | `POST /api/customer/profile` + `POST /api/customer/social/config` | `customer_dashboard.html`: `setupWizardCard`/`renderSetupWizard` **and** `socialSetupCard`/`renderSocialSetup` — profile wizard no longer captures social handles | JSONL `data/marketing_clients.jsonl`, `data/social_config.jsonl`; SQL `Client.social_setup_status` column exists — still dead, deliberately not wired in this pass | N/A | **Working (fixed)** | Deduped GBP/FB/Insta fields, unified `approval_preference`/`approval_mode` into one question, added read-only niche display, added 5-item setup checklist. Ledger-event kwarg bug (separate root cause, `main`'s ADR-065) fixed concurrently. | Customer sees one social-handles form, one approval question, a live "X/5 done" checklist; `social_setup_completed` fires reliably |
+| 6 | Approvals | `GET /api/customer/approvals/pending`, `POST /api/customer/approvals/{id}/decide` | Consolidated to My Delivery tab; Home tab shows a count + link; "Content & Approvals" nav tab renamed to "Calendar" | JSONL `content_approvals` | N/A | **Working (fixed)** | Consolidated into one location; renamed nav tab (naming-mismatch bug) | Customer approves/rejects in exactly one place now |
+| 7 | Customer Reports tab | White-label: `GET /api/customer/report/branded` (IDOR-safe) reusing `app/marketing/client_report.py`. Separate/unrelated: `GET /api/customer/report` (`app.marketing.monthly_report`) — pre-existing, JSON, also unwired until now discovered | `customer_dashboard.html` `data-view="reports"` — "📊 Monthly Report" card + `viewMonthlyReport()` | `data/client_reports/<id>_<month>.html` files | `team_scheduler.py` monthly + `process_library.py` flow automation | **Working (fixed)** | Added customer-facing endpoint + link from Reports tab | Real white-label report is now viewable by the customer who owns it |
+| 8 | Scheduler job registry / Agents visibility | `GET /api/platform/team/scheduler` → `scheduler_config.list_jobs()` (adds `success_count_7d`/`failure_count_7d` from `automation_health.run_counts()`) | `frontend/automation.html`, `#sec-jobs`, `/app/automation` | In-memory + `automation_health` heartbeat/run-history file | `team_scheduler.py` dispatch | **Working (fixed)** | `product_one_health` backfilled into `JOB_META`; added 7-day cumulative success/fail counts; clarified AI Staff vs Multi-Agent Coordination vs scheduler registry | Admin sees job/cadence/last-run/status/7-day pass-fail counts |
+| 9 | Failed Jobs | 3 endpoints aggregated: scheduler runs, DLQ, delivery-logs failed | `frontend/automation.html` `#sec-failed-jobs` card, `fjLoad()` | Run-history file, Redis DLQ, JSONL ledger | N/A | **Working (fixed)** | One consolidated read-only view aggregating the 3 existing endpoints | Admin sees scheduler failures + DLQ + delivery failures in one card |
+| 10 | Admin navigation | — | `admin_dashboard.html` — 14 core links / 4 groups (Delivery, Automation, Customers, System) + collapsed "show all system pages" section | — | — | **Working (fixed)** | Promoted Agents / Failed Jobs / Plans & Billing into first-class core links | — |
+| 11 | Customer navigation | — | `customer_dashboard.html` — 7-8 tabs depending on fork; "Content & Approvals" renamed "Calendar"; Home's delivery/approval duplication reduced to summaries | — | — | **Working (fixed, not literally cut to 5)** | Deduped Home vs My Delivery overlap; kept Billing/Support/Leads-Inbox (real, non-duplicate features) | — |
+| 12 | Full page inventory | — | 44 `frontend/*.html` files, all confirmed wired to live routes in `app/main.py`, zero orphans | — | — | **Working** | None — "simplify pages" is a nav-grouping problem, not a dead-code problem | — |
+| 13 | Plan purchased / billing tie-in | Revenue aggregation: `_client_mrr()`; `admin_customer_card()` now also returns `plan_mrr` per customer | Cockpit table shows plan pill + ₹/mo under it per row, plus aggregate ₹ MRR-by-plan | — | — | **Working (fixed)** | Resolved ₹-price per customer row via existing price helpers | Admin sees ₹-priced plan per customer row, not just the raw key |
+| 14 | AutomationLog required fields | Model has 16 columns — job id, customer id, job type, status, started/finished_at, duration, output/input summary, error message, retry count, next retry time, triggered_by, meta_json, **evidence_url**, created_at | — | `automation_logs` table | — | **Working (fixed)** | Proof/artifact URL now has a real nullable column (`evidence_url`, migration `014`, `main`'s ADR-068) with real writers in `client_report.py`/`automation_log_service.py` — supersedes this worktree's original Phase-3 `meta_json.proof_url` convention note | — |
+| 15 | JSONL vs SQL delivery data | `product_one_delivery.py:866-889` documents the decision explicitly | — | Real read source = JSONL; a parallel SQL `CustomerDeliverable` model exists but is **intentionally not** the read source | — | **Working by design** | None — documented ADR decision, not a bug | — |
+| 16 | Test coverage | — | — | — | — | **Working (fixed)** | Added: 2 cross-role negative auth tests, 1 empty-state test, 2 wizard→ledger-event tests, 1 DB-backed failed-job test (this worktree) + `test_automation_logs_per_customer.py`/`test_automation_runs_panel.py`/`test_social_setup_ledger_fix.py`/`test_automation_logs_retry_proof.py`/`test_automation_log_evidence.py` (`main`, ADR-065-068) | — |
+| 17 | PII masking before external LLM calls | `anonymize_pii()` + mask helpers exist in `app/platform/data_privacy.py`, used only by DPDP subject-rights export/delete | — | — | 46 `app/marketing/*.py` modules call `free_ai.chat()` (external LLM) with **zero** masking applied | **Gap, flagged not fixed** | Separate follow-up pass — auditing what counts as PII per module across 46 call sites is out of scope for this delivery-cockpit pass | DPDP-adjacent compliance concern, independent of which LLM vendor is used |
+| 18 | `prod_check.py` production-readiness coverage | `scripts/prod_check.py` (323 lines) | — | — | — | **Partial** | Strong on route-duplicate/import/frontend-wiring checks; **migrations status is not checked at all** (zero Alembic awareness); secret-scanning is narrow (`check_secrets.py` is the real scanner); API-docs-sync check is advisory-only | — |
+| 19 | Customer monthly report (JSON variant) | `GET /api/customer/report` — `customer_dashboard.py:819-845` → `app.marketing.monthly_report.build_report()`, 15-min cached, `require_customer`-gated | **None** — discovered during Phase 8 that this pre-existing, already-authenticated JSON report endpoint has zero frontend consumers either | — | — | **Missing (UI), newly discovered** | Not fixed in this pass (out of scope — discovered while wiring row 7's *different* white-label report; flagged, not silently absorbed) | None today — two separate report systems exist, only one (the branded HTML one, row 7) is now customer-visible |
 
-## 3. Recommended navigation (Task 7 — proposal, NOT yet applied)
+---
 
-Applying page hides/merges is **deferred** (risky; working tree already dirty from another session).
-Proposed target once approved:
+## Verified NOT broken (confirm before "fixing")
 
-- **Customer:** Today (timeline/home) · Setup (wizard) · Approvals · Calendar · Reports.
-  (All exist as in-page tabs in `customer_dashboard.html` — this is a relabel/reorder, not new pages.)
-- **Admin:** Delivery Cockpit (landing) · Customers (`/app/clients`) · Automations (Mission Control
-  `/app/automation` + the new Automation Runs panel) · Agents (`/app/agents`) · Failed Jobs (Automation
-  Runs → "Failed" filter) · Plans/Billing.
-- **Hide/merge candidates (verify before touching):** `/app/battlecard` (static), `/app/explorer`
-  (mostly static), `/app/command-center` (already 307→control-center). Gated-dormant pages
-  (`journeys`, `flows`, `admin/db`, `impersonate`) stay behind their flags.
+- 44/44 frontend pages wired — do not treat any page as orphaned/dead without re-checking `app/main.py` routes first.
+- `013_add_automation_logs` + `014_add_automation_log_evidence` migrations already match the `AutomationLog` model exactly — this is not a gap.
+- JSONL-not-SQL for delivery data is an intentional prior decision, not an oversight.
+- `Client.niche` is intentionally NOT customer-editable (`customer_update_profile()`'s own docstring calls this out by name, same guard as plan/status/trial) — likely pricing-tier/content-targeting impact. Row 5's fix only added a *read-only* niche display, never a write path.
 
-## 4. Gaps / pending (prioritized)
+## Known, deliberately-not-fixed gaps (named, not silently dropped)
 
-1. **Publish proof** — connect Postiz + flip `SOCIAL_ENGINE` so `post_published` actually fires (biggest "customer sees nothing published" gap). External + operator action.
-2. **Report email** — `CLIENT_REPORTS=1` (or `send=True`) so the monthly report is delivered, not just written to disk.
-3. **Per-customer job trail** — set `client_id` on customer-scoped automation runs so the Automation Runs panel can filter by customer meaningfully (currently platform jobs log blank client_id).
-4. **Proof/artifact field** — add `evidence_url`/artifact id to `AutomationLog` (migration `011`, down_revision `010`) + pin creative image URLs to `post_published` events.
-5. **Retry visibility** — feed Celery `run_staff_job` retries + DLQ backoff into `retry_count`/`next_retry_at`.
-6. **Page simplification (Task 7)** — apply the nav above after explicit go-ahead.
+- `Client.social_setup_status` SQL column remains dead (nothing writes to it) — noted in row 5 but left alone; wiring it would add scope to the highest-risk phase of this pass for a column nothing currently reads either.
+- Row 19 (`GET /api/customer/report` / `monthly_report.py`) — a second, unrelated orphaned report system discovered by accident (route-name collision with row 7's fix). Real, but out of scope for this pass.
+- PII masking before external LLM calls (row 17) — confirmed gap, flagged for a separate follow-up, not fixed here.
+- Two duplicate "Automation Runs" admin panels (row 2/2b) — real, minor, harmless redundancy from the concurrent-session merge; pick one home in a follow-up.
+- Retry visibility from Celery/DLQ into `retry_count`/`next_retry_at` beyond what `main`'s ADR-067 already threads — not re-verified in this pass, take `main`'s implementation as current truth.
 
-## 5. This session's changes (uncommitted — review the diff)
+## AI model routing / PII note (from the brief)
 
-- `app/api/customer_dashboard.py` — removed invalid `customer_visible=True` kwarg on the
-  `social_setup_completed` ledger call (was throwing `TypeError`, swallowed by `except: pass`);
-  added idempotency `key`. **Milestone now records.**
-- `app/platform/team_scheduler.py` — `_run_job` finish log now populates `output_summary`
-  ("success in Nms" / error-class) so admin logs aren't blank.
-- `frontend/delivery_command_center.html` — new **"Automation Runs"** admin panel consuming the
-  ADR-064 `GET /api/admin/automation-logs` DB endpoint, with filters: status (All/Success/Failed/
-  Running/Skipped), job-type, customer id, date-range; columns Job/Customer/Status/Time/Retries/When/Detail.
-- `tests/test_social_setup_ledger_fix.py` (new, 3 tests — RED-first: fail on unfixed code).
-- `tests/test_automation_runs_panel.py` (new, 4 tests — node syntax + no-removal guard + markers).
-
-No new routes added (uses existing endpoint) → no duplicate-route risk. No secrets. No compliance
-gate touched. No auto-publish/auto-send enabled.
-
-## 6. How to verify (Windows `.venv`) + deploy
-
-```bat
-:: from repo root
-.venv\Scripts\python.exe -m pytest tests\test_social_setup_ledger_fix.py tests\test_automation_runs_panel.py ^
-  tests\test_delivery_ledger_wiring.py tests\test_automation_logs.py tests\test_social_setup_wizard.py -q
-.venv\Scripts\python.exe scripts\prod_check.py
-.venv\Scripts\python.exe scripts\check_secrets.py
-```
-All three must pass (prod_check runs the frontend wiring audit that checks every `fetch()` path
-resolves — the new panel calls the already-registered `/api/admin/automation-logs`). Then follow the
-`leadgen-ops` skill deploy SOP (git push → SSH rebuild+recreate → 2× `/health`=`environment:production`).
-**Deploy only on your explicit go-ahead.**
-
-## 7. Product One delivery checklist
-
-- [x] Customer can complete setup wizard (profile/offer/social/WhatsApp/brand+approvals) — persists
-- [x] "Socials connected" milestone shows on timeline — **fixed**
-- [x] Content drafts generate + land in approvals queue
-- [x] Customer can approve/reject (1-click)
-- [x] Customer sees a pull timeline of what the AI did
-- [x] Monthly white-label report generated (with delivery-proof counts)
-- [x] Admin Delivery Cockpit shows per-customer health + next action
-- [x] Admin can see structured automation-run logs with filters — **new panel**
-- [ ] Auto-publish to IG/FB (needs Postiz connect + `SOCIAL_ENGINE=1`)
-- [ ] GBP direct posting (external API approval)
-- [ ] Report auto-emailed (needs `CLIENT_REPORTS=1`)
-- [ ] Per-customer automation-run attribution (`client_id` on jobs)
-- [ ] Proof artifact IDs on published events (migration `011`)
-
-## 8. AI model routing / PII note (from the brief)
-
-- The **app's runtime** already uses a free-only LLM chain with fallback + 429 circuit-breaker
-  (`app/voice_agent/free_ai.py`) — no paid STT/TTS/LLM (user mandate). A separate *dev-time* model
-  router (cheap models for scan, GLM/Qwen for impl, Claude for review) is a workflow choice outside
-  the product code; if wanted, add it as tooling config, not app runtime.
-- **PII masking:** all work this session was local repo edits — **no customer PII was sent to any
-  external model.** If external LLMs are used for repo tasks, mask names/phones/emails/addresses/
-  keys/lead data first.
+- The **app's runtime** already uses a free-only LLM chain with fallback + 429 circuit-breaker (`app/voice_agent/free_ai.py`) — no paid STT/TTS/LLM (user mandate). A separate *dev-time* model router (cheap models for scan, GLM/Qwen for impl, Claude for review) is a workflow choice outside the product code; if wanted, add it as tooling config, not app runtime.
+- **PII masking:** all work this session was local repo edits — **no customer PII was sent to any external model.** If external LLMs are used for repo tasks, mask names/phones/emails/addresses/keys/lead data first.

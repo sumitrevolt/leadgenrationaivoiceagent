@@ -77,6 +77,56 @@ def test_delivery_ledger_has_social_setup_event():
     assert "social" in msg.lower()
 
 
+def test_social_wizard_save_fires_social_setup_completed_ledger_event(monkeypatch):
+    """End-to-end (was only asserted 'by code reading' per docs/NEXT_ACTIONS.md,
+    never by an actual test): saving the Social Networking Setup Wizard with a
+    real handle must produce the social_setup_completed ledger event. Also
+    locks in the ADR-064-audit consolidation — the profile wizard no longer
+    captures social handles at all (Social Wizard is now the sole owner), so
+    this is the one remaining save path that needs to fire the event."""
+    from app.api.customer_dashboard import SocialConfigIn, customer_social_save
+
+    logged_events = []
+    monkeypatch.setattr(
+        "app.social_engine.client_config.save",
+        lambda client_id, **kw: {"handles": kw.get("handles", {}), "ok": True},
+    )
+    monkeypatch.setattr("app.marketing.clients_store.update_client", lambda client_id, **kw: {"id": client_id})
+    monkeypatch.setattr(
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: logged_events.append((client_id, event)),
+    )
+
+    body = SocialConfigIn(instagram="myshop_insta", approval_mode="review")
+    result = customer_social_save(body, client_id="c1")
+
+    assert result["ok"] is True
+    assert ("c1", "social_setup_completed") in logged_events
+
+
+def test_social_wizard_save_skips_ledger_event_when_no_handles(monkeypatch):
+    """No social handle at all -> no social_setup_completed event (honest —
+    don't claim a customer connected channels they didn't)."""
+    from app.api.customer_dashboard import SocialConfigIn, customer_social_save
+
+    logged_events = []
+    monkeypatch.setattr(
+        "app.social_engine.client_config.save",
+        lambda client_id, **kw: {"handles": kw.get("handles", {}), "ok": True},
+    )
+    monkeypatch.setattr("app.marketing.clients_store.update_client", lambda client_id, **kw: {"id": client_id})
+    monkeypatch.setattr(
+        "app.marketing.delivery_ledger.log_event",
+        lambda client_id, event, **kw: logged_events.append((client_id, event)),
+    )
+
+    body = SocialConfigIn(cadence="daily", approval_mode="review")
+    result = customer_social_save(body, client_id="c1")
+
+    assert result["ok"] is True
+    assert ("c1", "social_setup_completed") not in logged_events
+
+
 def test_automation_log_model_exists():
     """AutomationLog model is importable."""
     from app.models.automation_log import AutomationLog

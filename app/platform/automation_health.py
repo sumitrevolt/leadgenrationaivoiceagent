@@ -226,6 +226,45 @@ def run_history(
     return out[:limit]
 
 
+def run_counts(days: int = 7) -> dict[str, dict[str, int]]:
+    """Per-job cumulative success/failure counts over the last N days
+    (data/job_runs.jsonl) — the scheduler table only showed last-run status
+    before this; admin had no way to see "how often does this job actually
+    fail" without reading raw logs. Bounded tail read, never raises."""
+    out: dict[str, dict[str, int]] = {}
+    if not os.path.exists(_RUNS):
+        return out
+    try:
+        cutoff = _now() - timedelta(days=max(1, min(int(days or 7), 90)))
+    except Exception:
+        cutoff = _now() - timedelta(days=7)
+    for line in _tail_lines(_RUNS, 5000):
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            rec = json.loads(line)
+        except Exception:
+            continue
+        if not isinstance(rec, dict):
+            continue
+        try:
+            at = datetime.fromisoformat(str(rec.get("at")))
+            if at.tzinfo is None:
+                at = at.replace(tzinfo=timezone.utc)
+            if at < cutoff:
+                continue
+        except Exception:
+            continue
+        job = str(rec.get("job") or "?")[:30]
+        c = out.setdefault(job, {"success": 0, "failed": 0})
+        if rec.get("ok"):
+            c["success"] += 1
+        else:
+            c["failed"] += 1
+    return out
+
+
 def queue_depth() -> dict[str, Any]:
     """Celery queue backlog (Redis llen). Backlog badhta jaye = worker mar gaya/slow.
     Redis na ho to {-1} (unknown). Kabhi raise nahi."""

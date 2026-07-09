@@ -183,6 +183,62 @@ def test_admin_and_customer_delivery_endpoints(monkeypatch, tmp_path):
     app.dependency_overrides.clear()
 
 
+def test_customer_session_rejected_on_admin_delivery_cockpit(monkeypatch, tmp_path):
+    """Cross-role negative test — the only prior coverage was a happy-path
+    parity check (both admin AND customer creds return 200); nothing proved a
+    customer-only session is rejected on an admin route. require_admin is
+    globally mocked open in conftest.py for the rest of the suite, so this
+    test must explicitly pop it to exercise the REAL dependency."""
+    _wire_tmp(monkeypatch, tmp_path)
+    from app.api.auth_deps import get_current_user, require_admin
+    from app.api.customer_auth import require_customer
+    from app.main import app
+
+    saved_admin = app.dependency_overrides.pop(require_admin, None)
+    saved_user = app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides[require_customer] = lambda: "c1"
+    try:
+        with TestClient(app) as client:
+            resp = client.get("/api/admin/delivery-cockpit")
+        assert resp.status_code in (401, 403)
+    finally:
+        app.dependency_overrides.pop(require_customer, None)
+        if saved_admin is not None:
+            app.dependency_overrides[require_admin] = saved_admin
+        if saved_user is not None:
+            app.dependency_overrides[get_current_user] = saved_user
+
+
+def test_delivery_cockpit_empty_state_is_honest_not_an_error(monkeypatch, tmp_path):
+    """Zero customers must render an honest empty state (ok=True, empty lists,
+    zeroed summary) — not a 500 and not fake sample data. Audit found no
+    dedicated empty-state test existed anywhere in the delivery/automation-log
+    test files."""
+    _wire_tmp(monkeypatch, tmp_path)
+    from app.marketing import product_one_delivery
+
+    out = product_one_delivery.delivery_cockpit()
+    assert out["ok"] is True
+    assert out["customers"] == []
+    assert out["revenue"]["mrr_total"] == 0
+    assert out["revenue"]["paying_customers"] == 0
+    assert out["summary"]["content_generated"] == 0
+    assert out["summary"]["customers_at_risk"] == 0
+
+
+def test_no_customer_session_rejected_on_customer_delivery_proof(monkeypatch, tmp_path):
+    """Symmetric direction — even with the suite's globally-mocked admin
+    session active, hitting a customer-scoped route without a customer
+    session (require_customer left real/unset) must still be rejected, not
+    silently fall through on the admin mock."""
+    _wire_tmp(monkeypatch, tmp_path)
+    from app.main import app
+
+    with TestClient(app) as client:
+        resp = client.get("/api/customer/delivery-proof")
+    assert resp.status_code in (401, 403)
+
+
 # ---------------------------------------------------------------------------
 # Acceptance Test 5 — Monthly proof round-trip (end-to-end via HTTP)
 # ---------------------------------------------------------------------------

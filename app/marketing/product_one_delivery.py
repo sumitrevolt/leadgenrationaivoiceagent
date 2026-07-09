@@ -1214,6 +1214,7 @@ def admin_customer_card(client: dict[str, Any]) -> dict[str, Any]:
         "id": cid,
         "customer_name": state.get("customer_name"),
         "plan": state.get("plan"),
+        "plan_mrr": _cockpit_client_mrr(client),
         "product": state.get("product"),
         "current_delivery_stage": state.get("stage"),
         "stage_label": state.get("stage_label"),
