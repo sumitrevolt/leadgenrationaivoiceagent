@@ -369,11 +369,16 @@
       var na = nextAction(c);
       var setup = Number(c.setup_completion_pct || 0);
       var deliv = Number(c.deliverable_completion_pct || 0);
+      var missingItems = (c.pending_customer_inputs || []).map(function(m){
+        var labels = {business:"Business details", offer:"Services/offers", brand:"Brand kit", social:"Social links", approval:"Approval pref"};
+        return labels[m] || m;
+      });
+      var missingHtml = missingItems.length ? '<div class="sub" style="color:#d97706;font-size:10px;margin-top:2px">⚠️ ' + missingItems.join(', ') + ' missing</div>' : '';
       return '<tr>' +
         '<td class="nm">' + esc(c.customer_name || c.business_name || "(no name)") + '<div class="sub">' + esc(c.risk_flag || "ok") + '</div></td>' +
         '<td><span class="pill plan">' + esc(c.plan || "starter") + '</span></td>' +
-        '<td><span class="pill">' + esc(c.stage_label || c.current_delivery_stage || "-") + '</span></td>' +
-        '<td><b>' + setup + '%</b><div class="bar"><span style="width:' + setup + '%"></span></div></td>' +
+        '<td>' + healthBadge(c) + '<div class="sub">' + esc(c.stage_label || c.current_delivery_stage || "-") + '</div></td>' +
+        '<td style="min-width:90px"><b>' + setup + '%</b><div class="bar"><span style="width:' + setup + '%"></span></div>' + missingHtml + '</td>' +
         '<td><b>' + deliv + '%</b><div class="bar"><span style="width:' + deliv + '%"></span></div></td>' +
         '<td><span class="nextaction ' + na.cls + '">' + esc(c.next_action || na.text) + '</span><div class="sub">Owner: ' + esc(c.owner || "Sumit") + ' · Due: ' + esc(c.due_date || "-") + '</div></td>' +
         '<td class="actions">' +
@@ -385,7 +390,7 @@
       '</tr>';
     }).join("");
     wrap.innerHTML = '<table class="tbl"><thead><tr>' +
-      '<th>Customer</th><th>Plan</th><th>Stage</th><th>Setup</th><th>Deliverables</th><th>Next Action</th><th>Actions</th>' +
+      '<th>Customer</th><th>Plan</th><th>Health</th><th>Setup</th><th>Deliverables</th><th>Next Action</th><th>Actions</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
   }
 
