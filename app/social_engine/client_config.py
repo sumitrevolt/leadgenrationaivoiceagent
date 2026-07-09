@@ -42,9 +42,9 @@ _VALID_CADENCE = ("daily", "3x_week", "weekly", "off")
 _VALID_APPROVAL = ("review", "draft")
 
 _DEFAULTS: dict[str, Any] = {
-    "handles": {k: "" for k in _HANDLE_KEYS},
+    "handles": dict.fromkeys(_HANDLE_KEYS, ""),
     "channels": [],
-    "cadence": "weekly",      # kitni baar content taiyaar ho (preference; INERT default)
+    "cadence": "daily",       # matches daily content engine; saved handles must not downgrade cadence
     "approval_mode": "review",  # review = post se pehle approve; draft = sirf draft ready
     "postiz_integrations": [],  # optional/advanced — Postiz channel ids (admin-assisted)
 }

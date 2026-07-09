@@ -2447,7 +2447,7 @@ function renderSocialSetup(d){
     var on=(sel.indexOf(p[0])>=0)?" checked":"";
     return '<label class="sm" style="display:inline-flex;align-items:center;gap:5px;margin:3px 12px 3px 0"><input type="checkbox" class="ssChan" value="'+escH(p[0])+'"'+on+'> '+escH(p[1])+'</label>';
   }).join("");
-  var cad=d.cadence||"weekly";
+  var cad=d.cadence||"daily";
   var cadOpts=[["daily","Roz"],["3x_week","Hafte me 3 baar"],["weekly","Hafte me 1 baar"],["off","Abhi band rakho"]];
   var cadSel='<select id="ssCadence" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
     +cadOpts.map(function(o){return '<option value="'+o[0]+'"'+(cad===o[0]?" selected":"")+'>'+escH(o[1])+'</option>';}).join("")+'</select>';
