@@ -61,3 +61,18 @@ def test_logo_temp_file_returns_none_for_empty():
     with tempfile.TemporaryDirectory() as tmp:
         assert video_pipeline._logo_temp_file("", tmp) is None
         assert video_pipeline._logo_temp_file("not-a-data-uri", tmp) is None
+
+
+def test_make_branded_frame_writes_png():
+    brand = {
+        "business_name": "Sharma Solar", "phone": "9876543210",
+        "primary": "#2563eb", "accent": "#f59e0b", "logo_data_uri": "",
+    }
+    with tempfile.TemporaryDirectory() as tmp:
+        path = video_pipeline._make_branded_frame("Aapka Business — Solar expert", 0, brand, tmp)
+        assert os.path.exists(path)
+        from PIL import Image
+
+        img = Image.open(path)
+        assert img.size == (720, 1280)
+        img.close()
