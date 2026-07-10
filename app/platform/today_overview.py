@@ -46,6 +46,7 @@ _DUE_AFTER_IST: dict[str, tuple[int, int]] = {
     "blog": (6, 30),
     "content": (7, 0),
     "standup": (8, 0),
+    "hot_queue_brief": (8, 15),
     "digest": (8, 30),
     "readiness_digest": (8, 30),
     "engineer_finops": (9, 0),
@@ -119,6 +120,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
     "content": {
         "label": "Isha — content (subah 7)",
         "kya": "Apne + clients ke social posts/captions banata hai",
+    },
+    "hot_queue_brief": {
+        "label": "Hot Queue revenue brief (subah 8:15)",
+        "kya": "Garam replies ka read-only brief banata hai; action /app/inbox me human karta hai",
     },
     "digest": {"label": "Daily digest (subah 8:30)", "kya": "Din ka summary email Sumit ko"},
     "prospect": {
