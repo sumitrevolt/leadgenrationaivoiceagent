@@ -27,6 +27,7 @@ def test_render_creative_video_success(monkeypatch, tmp_path):
     monkeypatch.setattr(reel_video, "_tts", _fake_tts)
     monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
 
     result = asyncio.run(
         video_pipeline.render_creative_video(
@@ -41,7 +42,7 @@ def test_render_creative_video_success(monkeypatch, tmp_path):
 def _write_dummy_output(args: list[str]) -> bool:
     out_path = args[-1]
     with open(out_path, "wb") as f:
-        f.write(b"x" * 500)
+        f.write(b"x" * 5000)
     return True
 
 
@@ -157,6 +158,7 @@ def test_render_creative_video_ships_without_music_on_mix_failure(monkeypatch, t
 
     monkeypatch.setattr(reel_video, "_ffmpeg", _fake_ffmpeg)
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
 
     result = asyncio.run(video_pipeline.render_creative_video(business_name="X", slides=["a"]))
     assert "error" not in result
@@ -182,6 +184,7 @@ def test_render_creative_video_music_mix_success_survives_remove_failure(monkeyp
     # Every ffmpeg call succeeds, including the music-mix call.
     monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
 
     def _raise_remove(path):
         raise OSError("simulated Windows file-lock on cleanup")
@@ -220,3 +223,57 @@ def test_music_bed_path_normal_niche_unaffected_by_sanitizer(monkeypatch, tmp_pa
     monkeypatch.setattr(video_pipeline, "_MUSIC_DIR", str(tmp_path))
     result = video_pipeline._music_bed_path("solar")
     assert result == os.path.join(str(tmp_path), "solar.mp3")
+
+
+def test_qa_check_missing_file():
+    assert video_pipeline._qa_check("does/not/exist.mp4", 3) is not None
+
+
+def test_qa_check_passes_on_valid_probe(monkeypatch, tmp_path):
+    p = tmp_path / "out.mp4"
+    p.write_bytes(b"x" * 5000)
+
+    def _fake_run(cmd, **kw):
+        class R:
+            returncode = 0
+            stdout = b'{"format": {"duration": "12.0"}, "streams": [{"width": 720, "height": 1280}]}'
+
+        return R()
+
+    monkeypatch.setattr(video_pipeline.subprocess, "run", _fake_run)
+    assert video_pipeline._qa_check(str(p), 3) is None
+
+
+def test_qa_check_fails_on_wrong_resolution(monkeypatch, tmp_path):
+    p = tmp_path / "out.mp4"
+    p.write_bytes(b"x" * 5000)
+
+    def _fake_run(cmd, **kw):
+        class R:
+            returncode = 0
+            stdout = b'{"format": {"duration": "12.0"}, "streams": [{"width": 1080, "height": 1080}]}'
+
+        return R()
+
+    monkeypatch.setattr(video_pipeline.subprocess, "run", _fake_run)
+    reason = video_pipeline._qa_check(str(p), 3)
+    assert reason is not None and "resolution" in reason
+
+
+def test_render_creative_video_qa_failure_returns_error(monkeypatch, tmp_path):
+    from app.marketing import reel_video
+
+    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+
+    async def _fake_tts(text, path):
+        with open(path, "wb") as f:
+            f.write(b"x" * 200)
+        return True
+
+    monkeypatch.setattr(reel_video, "_tts", _fake_tts)
+    monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: "forced failure for test")
+
+    result = asyncio.run(video_pipeline.render_creative_video(business_name="X", slides=["a"]))
+    assert result.get("error") == "qa_failed: forced failure for test"
