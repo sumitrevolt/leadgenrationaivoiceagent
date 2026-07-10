@@ -711,26 +711,12 @@ async def unified_payment_webhook(
     request: Request,
     db: AsyncSession = Depends(get_async_db),
 ):
-    """Unified payment webhook — Stripe events.
-
-    (Razorpay removed 2026-06-18 — no online India gateway; payments via manual
-    UPI.) Provider request header se detect hota hai:
-      - ``Stripe-Signature`` -> Stripe events (checkout / invoice / subscription.*)
-
-    Verification + event dispatch EXISTING handler (``app.api.webhooks.stripe_webhook``)
-    ko delegate hota hai. Bina valid Stripe-Signature header ke -> 400.
+    """Unified payment webhook — Stripe + Razorpay both removed.
+    Returns 400 for any unrecognized webhook header (UPI-only payments).
     """
-    from app.api import webhooks as _wh
-
-    headers = request.headers
-    stripe_sig = headers.get("Stripe-Signature") or headers.get("stripe-signature")
-
-    if stripe_sig:
-        return await _wh.stripe_webhook(request=request, stripe_signature=stripe_sig, db=db)
-
     raise HTTPException(
         status_code=400,
-        detail="Unrecognized payment webhook (Stripe-Signature header missing)",
+        detail="Payments via manual UPI only — no webhook gateway active (Stripe removed 2026-07-10).",
     )
 
 
