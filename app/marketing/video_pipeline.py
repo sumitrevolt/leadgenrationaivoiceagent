@@ -213,7 +213,11 @@ def _qa_check(path: str, expected_slide_count: int) -> str | None:
         streams = data.get("streams") or [{}]
         width = int(streams[0].get("width") or 0)
         height = int(streams[0].get("height") or 0)
-        min_expected = max(1, expected_slide_count) * 2.5
+        min_expected = 1.0  # flat floor: catches near-empty/corrupt output, not pacing —
+        # real per-slide duration depends on EdgeTTS output length (no enforced minimum
+        # when audio succeeds; only the no-audio fallback path is a fixed 4.0s), so a
+        # per-slide-scaled minimum can wrongly reject a valid, correctly-rendered short
+        # clip (see review finding on Task 6 fix pass, 2026-07-10).
         max_expected = max(1, expected_slide_count) * 10
         if not (min_expected <= duration <= max_expected):
             return f"duration {duration}s out of bounds [{min_expected},{max_expected}]"
