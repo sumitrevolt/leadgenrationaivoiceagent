@@ -48,7 +48,7 @@ def main() -> int:
     try:
         from sqlalchemy import func, select
 
-        from app.database import get_async_session
+        from app.models.base import get_async_session
         from app.models import Call
 
         async def _calls():
@@ -71,7 +71,7 @@ def main() -> int:
     try:
         from sqlalchemy import select
 
-        from app.database import get_async_session
+        from app.models.base import get_async_session
         from app.models import AgentEvent
 
         async def _events():
@@ -126,7 +126,7 @@ def main() -> int:
     try:
         from sqlalchemy import func, select
 
-        from app.database import get_async_session
+        from app.models.base import get_async_session
         from app.models import Lead
 
         async def _leads():
