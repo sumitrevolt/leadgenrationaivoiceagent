@@ -241,30 +241,37 @@ async def _render_generic(
         except Exception:
             pass
 
-    avail = reel_video.available()
-    if not avail.get("ok"):
-        if client_id:
-            try:
-                from app.marketing import delivery_ledger
-
-                delivery_ledger.log_event(client_id, "video_render_failed", detail="video deps missing")
-            except Exception:
-                pass
-        return {"error": "video deps missing", "available": avail}
-
-    brand = brand_frames.resolve_brand(client_id) if client_id else {}
-    if not brand.get("business_name"):
-        brand["business_name"] = business_name
-    brand.setdefault("primary", "#2563eb")
-
-    used_slides = slides or [
-        business_name,
-        offer or f"Aapke area ka bharosemand {niche} expert",
-        "Call ya WhatsApp karo — turant response milega",
-    ]
-
-    tmp = tempfile.mkdtemp(prefix="vidpipe_")
+    tmp = None
     try:
+        avail = reel_video.available()
+        if not avail.get("ok"):
+            if client_id:
+                try:
+                    from app.marketing import delivery_ledger
+
+                    delivery_ledger.log_event(client_id, "video_render_failed", detail="video deps missing")
+                except Exception:
+                    pass
+            return {"error": "video deps missing", "available": avail}
+
+        brand = brand_frames.resolve_brand(client_id) if client_id else {}
+        if not brand.get("business_name"):
+            brand["business_name"] = business_name
+        brand.setdefault("primary", "#2563eb")
+
+        used_slides = slides or [
+            business_name,
+            offer or f"Aapke area ka bharosemand {niche} expert",
+            "Call ya WhatsApp karo — turant response milega",
+        ]
+
+        # tempfile.mkdtemp itself can raise OSError (disk-full/permissions —
+        # same Windows file-lock/AV-scan failure class as the Task 5
+        # os.remove and Task 7 os.path.getsize findings), so it must be
+        # inside this try too — otherwise it's an uncaught exception out of
+        # the public entry point with "video_render_started" left dangling.
+        tmp = tempfile.mkdtemp(prefix="vidpipe_")
+
         segs: list[str] = []
         for i, text in enumerate(used_slides):
             frame = _make_branded_frame(text, i, brand, tmp)
@@ -370,7 +377,8 @@ async def _render_generic(
                 pass
         return {"error": str(e)[:200]}
     finally:
-        shutil.rmtree(tmp, ignore_errors=True)
+        if tmp:
+            shutil.rmtree(tmp, ignore_errors=True)
 
 
 async def render_creative_video(

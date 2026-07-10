@@ -448,3 +448,45 @@ def test_new_ledger_events_are_registered():
 
     for ev in ("video_render_started", "video_qa_failed", "video_render_failed", "video_ready"):
         assert ev in delivery_ledger.EVENT_TYPES, f"{ev} missing from delivery_ledger.LABELS"
+
+
+def test_render_creative_video_mkdtemp_failure_never_raises(monkeypatch, tmp_path):
+    """Review fix (Task 7, 2nd pass): tempfile.mkdtemp() sat OUTSIDE the
+    try/finally, alongside reel_video.available() and brand_frames.
+    resolve_brand() (both independently documented as never-raising, unlike
+    raw mkdtemp). If mkdtemp raises OSError (disk-full/permissions — same
+    Windows file-lock/AV-scan class as the Task 5 os.remove and Task 7
+    os.path.getsize findings), it must be caught by the SAME outer except
+    that logs video_render_failed — not propagate uncaught out of the
+    public entry point (docstring: "Never raises across the public entry
+    point"), and must not leave video_render_started dangling."""
+    from app.marketing import delivery_ledger, reel_video
+
+    # Must reach mkdtemp — if available() reports ok:False (e.g. ffmpeg
+    # missing on the test host), the deps-missing return fires BEFORE
+    # mkdtemp is ever called and this test would guard nothing.
+    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+
+    def _raise_mkdtemp(*a, **kw):
+        raise OSError("simulated disk-full/permissions failure on mkdtemp")
+
+    monkeypatch.setattr(video_pipeline.tempfile, "mkdtemp", _raise_mkdtemp)
+
+    logged: list[tuple[str, str]] = []
+
+    def _record_log_event(client_id, event, *, detail="", **kw):
+        logged.append((client_id, event))
+        return True
+
+    monkeypatch.setattr(delivery_ledger, "log_event", _record_log_event)
+
+    result = asyncio.run(
+        video_pipeline.render_creative_video(business_name="X", slides=["a"], client_id="c1")
+    )
+    assert "error" in result
+    # Exact order + count: started then failed, nothing else, nothing
+    # dangling, nothing double-logged.
+    assert logged == [("c1", "video_render_started"), ("c1", "video_render_failed")], (
+        f"expected exactly [started, failed] in order, got {logged}"
+    )
