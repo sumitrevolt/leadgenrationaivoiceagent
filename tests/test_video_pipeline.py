@@ -490,3 +490,10 @@ def test_render_creative_video_mkdtemp_failure_never_raises(monkeypatch, tmp_pat
     assert logged == [("c1", "video_render_started"), ("c1", "video_render_failed")], (
         f"expected exactly [started, failed] in order, got {logged}"
     )
+
+
+def test_build_creative_video_task_registered():
+    import app.tasks.video_jobs  # noqa: F401 — trigger task registration
+    from app.worker import celery_app
+
+    assert "app.tasks.video_jobs.build_creative_video_task" in celery_app.tasks
