@@ -395,6 +395,54 @@ def test_render_creative_video_unexpected_exception_logs_exactly_once(monkeypatc
     assert not ready_events, f"video_ready must never fire on an unexpected exception, got {logged}"
 
 
+def test_render_creative_video_getsize_failure_never_double_logs(monkeypatch, tmp_path):
+    """Review fix (Task 7) — locks in the EXACT subtlety the review flagged:
+    pre-fix, "video_ready" logged BEFORE the success dict (which calls
+    os.path.getsize) was fully built, so a getsize failure AFTER that log
+    would have produced a contradictory double-log (video_ready immediately
+    followed by video_render_failed for the same render). QA is mocked out
+    and _music_bed_path only uses os.path.exists (never getsize), so the
+    dict-build line is the ONLY reachable os.path.getsize call on this path
+    — this isolates the exact regression: if video_ready is ever moved back
+    above the dict build, video_ready fires (failing the ready_events
+    assertion) in addition to video_render_failed from the outer except."""
+    from app.marketing import delivery_ledger, reel_video
+
+    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+
+    async def _fake_tts(text, path):
+        with open(path, "wb") as f:
+            f.write(b"x" * 200)
+        return True
+
+    monkeypatch.setattr(reel_video, "_tts", _fake_tts)
+    monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
+
+    logged: list[tuple[str, str]] = []
+
+    def _record_log_event(client_id, event, *, detail="", **kw):
+        logged.append((client_id, event))
+        return True
+
+    monkeypatch.setattr(delivery_ledger, "log_event", _record_log_event)
+
+    def _raise_getsize(path):
+        raise OSError("simulated Windows file-lock/AV-scan race on getsize")
+
+    monkeypatch.setattr(os.path, "getsize", _raise_getsize)
+
+    result = asyncio.run(
+        video_pipeline.render_creative_video(business_name="X", slides=["a"], client_id="c1")
+    )
+    assert "error" in result
+    ready_events = [e for e in logged if e[1] == "video_ready"]
+    failed_events = [e for e in logged if e == ("c1", "video_render_failed")]
+    assert not ready_events, f"video_ready must never fire when getsize raises building the result dict, got {logged}"
+    assert len(failed_events) == 1, f"expected exactly one video_render_failed log, got {logged}"
+
+
 def test_new_ledger_events_are_registered():
     from app.marketing import delivery_ledger
 
