@@ -149,6 +149,38 @@ def _build_segment_args(
 
 
 _OUT_DIR = os.path.join("data", "reels")
+_MUSIC_DIR = os.path.join("data", "music_beds")
+
+
+def _music_bed_path(niche: str) -> str | None:
+    """data/music_beds/{niche}.mp3 if present, else generic.mp3, else None.
+    Directory ships empty — this is a no-op until someone manually drops
+    royalty-free tracks in (see spec §4 stage 8). Never raises."""
+    try:
+        niche_path = os.path.join(_MUSIC_DIR, f"{niche}.mp3")
+        if os.path.exists(niche_path):
+            return niche_path
+        generic_path = os.path.join(_MUSIC_DIR, "generic.mp3")
+        if os.path.exists(generic_path):
+            return generic_path
+        return None
+    except Exception:
+        return None
+
+
+def _mix_music_args(video_path: str, music_path: str, out_path: str) -> list[str]:
+    """Mix a low, CONSTANT-volume music bed under the video's existing audio.
+    Phase 1 simplification: constant-volume mix, not dynamic sidechain
+    ducking (real ducking is a Phase-2 polish item — see plan's Phase-2
+    backlog section)."""
+    return [
+        "-i", video_path,
+        "-i", music_path,
+        "-filter_complex", "[1:a]volume=0.12,aloop=loop=-1:size=2e9[bed];[0:a][bed]amix=inputs=2:duration=first[a]",
+        "-map", "0:v", "-map", "[a]",
+        "-c:v", "copy", "-c:a", "aac", "-shortest",
+        out_path,
+    ]
 
 
 async def _render_generic(
@@ -194,6 +226,15 @@ async def _render_generic(
         out_path = os.path.join(_OUT_DIR, f"reel_{uuid.uuid4().hex[:10]}.mp4")
         if not reel_video._ffmpeg(["-f", "concat", "-safe", "0", "-i", concat_list, "-c", "copy", out_path]):
             return {"error": "ffmpeg concat failed"}
+
+        # Optional music bed: fail-open (spec §9)
+        bed = _music_bed_path(niche)
+        if bed:
+            mixed_path = os.path.join(_OUT_DIR, f"reel_{uuid.uuid4().hex[:10]}_mix.mp4")
+            if reel_video._ffmpeg(_mix_music_args(out_path, bed, mixed_path)):
+                os.remove(out_path)
+                out_path = mixed_path
+            # else: music mix failed — ship without it (fail-open, spec §9)
 
         return {
             "path": out_path,
