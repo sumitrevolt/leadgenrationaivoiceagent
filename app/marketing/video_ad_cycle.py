@@ -188,13 +188,14 @@ async def generate_for_client(
     """1 video ad banao + client approval me daalo. HEAVY (build_reel) — scheduler/
     worker se call karo. Returns {ok, id, approval, wa_link} ya {ok:False,error}."""
     try:
-        from app.marketing import clients_store, content_approval, reel_video
+        from app.marketing import clients_store, content_approval, video_pipeline
 
         client = clients_store.get_client(client_id) or {}
         if not client:
             return {"ok": False, "error": "client nahi mila"}
         caption, slides = await _caption_slides(client, note)
-        built = await reel_video.build_reel(
+        built = await video_pipeline.render_creative_video(
+            recipe="generic",
             business_name=str(client.get("business_name") or "Aapka Business"),
             niche=str(client.get("niche") or "general"),
             slides=slides,

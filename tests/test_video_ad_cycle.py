@@ -56,7 +56,9 @@ def iso(monkeypatch, tmp_path):
         p.write_bytes(b"x")
         return {"path": str(p), "slides": kw.get("slides"), "size_kb": 1}
 
-    monkeypatch.setattr(reel_video, "build_reel", _fake_reel)
+    from app.marketing import video_pipeline
+
+    monkeypatch.setattr(video_pipeline, "render_creative_video", _fake_reel)
 
     async def _fake_post(b, niche="", offer=""):
         return {"caption": f"{b} {niche} ad"}
