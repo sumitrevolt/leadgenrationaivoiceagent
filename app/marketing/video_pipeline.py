@@ -10,6 +10,7 @@ content_approval, delivery_ledger. See docs/superpowers/specs/
 from __future__ import annotations
 
 import base64
+import json
 import os
 import re
 import shutil
@@ -190,6 +191,39 @@ def _mix_music_args(video_path: str, music_path: str, out_path: str) -> list[str
     ]
 
 
+def _qa_check(path: str, expected_slide_count: int) -> str | None:
+    """Deterministic checklist: file exists+non-trivial size, duration in a
+    generous bound for the slide count, resolution == 720x1280. Returns None
+    (pass) or a short failure reason. Never raises."""
+    try:
+        if not os.path.exists(path) or os.path.getsize(path) < 1000:
+            return "output file missing or too small"
+        r = subprocess.run(
+            [
+                "ffprobe", "-v", "error", "-show_entries", "format=duration:stream=width,height",
+                "-of", "json", path,
+            ],
+            capture_output=True,
+            timeout=30,
+        )
+        if r.returncode != 0:
+            return "ffprobe failed"
+        data = json.loads(r.stdout or b"{}")
+        duration = float((data.get("format") or {}).get("duration") or 0)
+        streams = data.get("streams") or [{}]
+        width = int(streams[0].get("width") or 0)
+        height = int(streams[0].get("height") or 0)
+        min_expected = max(1, expected_slide_count) * 2.5
+        max_expected = max(1, expected_slide_count) * 10
+        if not (min_expected <= duration <= max_expected):
+            return f"duration {duration}s out of bounds [{min_expected},{max_expected}]"
+        if (width, height) != (720, 1280):
+            return f"resolution {width}x{height} != 720x1280"
+        return None
+    except Exception as e:
+        return f"qa_check error: {str(e)[:120]}"
+
+
 async def _render_generic(
     business_name: str, niche: str, slides: list[str], offer: str, client_id: str
 ) -> dict[str, Any]:
@@ -256,6 +290,10 @@ async def _render_generic(
                         os.remove(mixed_path)
                 except Exception:
                     pass
+
+        qa_reason = _qa_check(out_path, len(used_slides))
+        if qa_reason:
+            return {"error": f"qa_failed: {qa_reason}"}
 
         return {
             "path": out_path,
