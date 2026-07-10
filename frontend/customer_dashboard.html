@@ -536,6 +536,30 @@
           <button class="btn" type="button" id="detailsBtn" onclick="toggleDetails()">Pura hisaab</button>
         </div>
       </div>
+      <!-- Loop 11 (2026-07-10): first-hour setup banner. Brand-new customer
+           (signed up ≤60 min ago, no content yet) sees Loop 9's server signal
+           rendered as "AI setup ho raha hai, X min me pehla content" instead of
+           bare empty zeros. Hidden by default; JS reveals when /me returns
+           first_hour_setup.active=true. -->
+      <div data-view="home" id="firstHourSetupBanner" class="card"
+           role="status" aria-live="polite"
+           style="display:none;margin:0 0 14px;
+                  background:linear-gradient(135deg,#eef2ff,#f5f3ff);
+                  border:1px solid #c7d2fe;padding:14px 16px;border-radius:12px;">
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <div style="font-size:26px" aria-hidden="true">🚀</div>
+          <div style="flex:1;min-width:200px">
+            <div style="font-weight:700;font-size:14px" id="firstHourSetupTitle">
+              Aapki AI team abhi setup ho rahi hai
+            </div>
+            <div style="color:#4b5563;font-size:12.5px;margin-top:2px" id="firstHourSetupMsg">
+              Kuch minutes me pehla content taiyaar hoga.
+            </div>
+          </div>
+          <span class="pill" id="firstHourSetupEta"
+                style="background:#e0e7ff;color:#3730a3;font-weight:700">--</span>
+        </div>
+      </div>
 
       <!-- ===== 🏢 Aapka Office — virtual-office home (shared widget). Replaces the
            old Priority-cards / Simple-note / Next-step clutter; self-mounts from
@@ -1009,8 +1033,67 @@
             <button class="btn" onclick="sec2faDisable()" style="background:var(--bad);color:#fff;margin-left:8px">Disable 2FA</button>
             <div id="sec2faDisErr" style="color:var(--bad);font-size:12px;margin-top:8px"></div>
           </div>
+
+          <!-- Loop 20 (2026-07-10): self-serve password change (Loop 19 endpoint). -->
+          <hr style="margin:18px 0;border:none;border-top:1px solid var(--line)">
+          <h3 style="font-size:14px;margin:0 0 8px">🔑 Password Change</h3>
+          <p style="font-size:12.5px;color:var(--muted);margin:0 0 10px">
+            Apna password badalne ke liye purana password + naya password daalein. Rate-limit: 5 attempts / 5 min.
+          </p>
+          <input id="pwOld" type="password" placeholder="Purana password" autocomplete="current-password"
+                 style="padding:8px 12px;border:1px solid var(--line);border-radius:6px;width:100%;max-width:280px;font-size:13px;margin-bottom:8px;display:block">
+          <input id="pwNew" type="password" placeholder="Naya password (min 6)" autocomplete="new-password" minlength="6"
+                 style="padding:8px 12px;border:1px solid var(--line);border-radius:6px;width:100%;max-width:280px;font-size:13px;margin-bottom:10px;display:block">
+          <button class="btn" onclick="pwChange()" id="pwChangeBtn"
+                  style="background:var(--accent);color:#fff">✓ Update Password</button>
+          <div id="pwChangeMsg" style="font-size:12.5px;margin-top:10px"></div>
         </div>
       </div>
+      <script>
+      // Loop 20: /api/customer/auth/change-password consumer. Reuses billAuthHdr
+      // for the customer JWT. Structured 429 (Loop 16) → countdown message.
+      async function pwChange(){
+        var oldPw = document.getElementById('pwOld').value;
+        var newPw = document.getElementById('pwNew').value;
+        var msg = document.getElementById('pwChangeMsg');
+        var btn = document.getElementById('pwChangeBtn');
+        msg.style.color = 'var(--muted)';
+        if(!oldPw){ msg.style.color = 'var(--bad)'; msg.textContent = 'Purana password daalein.'; return; }
+        if(!newPw || newPw.length < 6){ msg.style.color = 'var(--bad)'; msg.textContent = 'Naya password kam se kam 6 characters.'; return; }
+        btn.disabled = true; btn.textContent = 'Update ho raha…';
+        try{
+          var r = await fetch('/api/customer/auth/change-password', {
+            method: 'POST',
+            headers: Object.assign({'Content-Type':'application/json'}, billAuthHdr()),
+            body: JSON.stringify({old_password: oldPw, new_password: newPw})
+          });
+          var j = await r.json().catch(function(){ return {}; });
+          if(r.status === 429){
+            var rl = (j.detail && typeof j.detail === 'object') ? j.detail : {};
+            var wait = parseInt(rl.retry_after || r.headers.get('Retry-After') || '300', 10);
+            msg.style.color = 'var(--bad)';
+            msg.textContent = 'Bahut sari koshish — ' + wait + 's me phir try karo.';
+            return;
+          }
+          if(!r.ok){
+            var det = j.detail;
+            var em = (det && typeof det === 'object') ? (det.message || det.error) : (det || 'Password change fail hua.');
+            msg.style.color = 'var(--bad)';
+            msg.textContent = em;
+            return;
+          }
+          msg.style.color = 'var(--ok)';
+          msg.textContent = '✅ ' + (j.message || 'Password badal gaya. Agli baar naye password se login karo.');
+          document.getElementById('pwOld').value = '';
+          document.getElementById('pwNew').value = '';
+        }catch(e){
+          msg.style.color = 'var(--bad)';
+          msg.textContent = 'Network error, dobara try karo.';
+        }finally{
+          btn.disabled = false; btn.textContent = '✓ Update Password';
+        }
+      }
+      </script>
       
       <!-- Support view -->
       <div data-view="delivery" class="owner-hero" aria-label="Aapki Product One Delivery">
@@ -1832,7 +1915,27 @@ async function resolveClientId(){
   if(BILL.token){
     try{
       const r=await fetch("/api/customer/auth/me",{headers:billAuthHdr()});
-      if(r.ok){ const j=await r.json(); if(j&&j.client_id){ return String(j.client_id); } }
+      if(r.ok){
+        const j=await r.json();
+        // Loop 11 (2026-07-10): render first_hour_setup banner if server signals
+        // brand-new customer (created ≤60 min ago + no content). Never raises —
+        // banner stays hidden if the field is absent / active=false.
+        try{
+          const fhs = j && j.first_hour_setup;
+          if(fhs && fhs.active){
+            const el = document.getElementById("firstHourSetupBanner");
+            const msg = document.getElementById("firstHourSetupMsg");
+            const eta = document.getElementById("firstHourSetupEta");
+            if(el){ el.style.display = "block"; }
+            if(msg && fhs.message){ msg.textContent = fhs.message; }
+            if(eta){
+              const rem = parseInt(fhs.minutes_remaining || 0, 10);
+              eta.textContent = rem > 0 ? "~" + rem + " min" : "Almost done";
+            }
+          }
+        }catch(_e){/* banner is best-effort */}
+        if(j&&j.client_id){ return String(j.client_id); }
+      }
     }catch(e){/* fall through */}
   }
   return localStorage.getItem("lgai_cid") || qparam("client_id") || "demo";
@@ -2807,6 +2910,14 @@ async function loadUpiPayBox(showBox){
     const d=await r.json();
     if(!d.enabled){ box.style.display="none"; return; }
     box.style.display="";
+    const qplan = qparam("plan");
+    if(qplan){
+      const sel = document.getElementById("upiPlanSel");
+      if(sel && sel.querySelector(`option[value="${qplan}"]`)){
+        sel.value = qplan;
+      }
+      localStorage.setItem("lgai_signup_plan", qplan);
+    }
     const qr=document.getElementById("upiQrBox");
     const vpa=document.getElementById("upiVpaLbl");
     const wa=document.getElementById("upiWaBtn");
@@ -2829,7 +2940,7 @@ async function submitUpiRef(){
   try{
     const r=await fetch("/api/upi/submit",{method:"POST",
       headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
-      body:JSON.stringify({client_id:BILL.cid,plan:plan,upi_ref:ref})});
+      body:JSON.stringify({plan:plan,upi_ref:ref,client_id:BILL.cid})});
     const j=await r.json();
     if(j&&j.ok){ showMsg("var(--ok)","✅ "+(j.message||"Mil gaya! Verify ho raha hai, jaldi activate.")); const inp=document.getElementById("upiRefInp"); if(inp) inp.value=""; }
     else{ showMsg("#dc2626",(j&&j.message)||"Submit fail — dobara try karo."); }

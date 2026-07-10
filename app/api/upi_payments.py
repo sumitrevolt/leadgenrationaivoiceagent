@@ -6,8 +6,7 @@ review the pending queue and approve/reject. With ``UPI_AUTO_ACTIVATE=1`` the
 plan auto-activates instantly on submit.
 
 NO prefix here — the main app mounts this at ``/api`` (so routes become
-``/api/upi/...``). Auth is enforced PER-ROUTE via ``require_admin`` (not via a
-router-level dependency), so the public submit route stays open. Defensive:
+``/api/upi/...``). Auth is enforced PER-ROUTE. Defensive:
 import never fails, handlers never 500.
 """
 
@@ -15,10 +14,10 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException
 
 from app.api.auth_deps import require_admin
+from app.api.customer_auth import require_customer
 from app.api.ratelimit import rate_limit
 
 logger = logging.getLogger(__name__)
@@ -32,6 +31,7 @@ class UpiSubmitIn(BaseModel):
     amount: float = 0
     payer_name: str = ""
     payer_contact: str = ""
+    # client_id is derived from the customer's JWT — client CANNOT submit for someone else.
     client_id: str = ""
 
 
@@ -40,13 +40,17 @@ class UpiSubmitIn(BaseModel):
     summary="Customer self-serve: maine pay kiya (UPI ref submit)",
     dependencies=[Depends(rate_limit("upi_submit", 10, 60))],
 )
-async def upi_submit(body: UpiSubmitIn):
-    """Public — customer apna UPI payment report karta hai. Never 500."""
+async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(require_customer)):
+    """Customer apna UPI payment report karta hai. Never 500.
+
+    client_id is derived from the customer's JWT — a client CANNOT submit a
+    payment for someone else's account.
+    """
     try:
         from app.platform import upi_payments
 
         res = upi_payments.submit_payment(
-            client_id=body.client_id,
+            client_id=client_id,
             plan=body.plan,
             upi_ref=body.upi_ref,
             amount=body.amount,
