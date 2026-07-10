@@ -14,33 +14,44 @@ import tempfile
 from app.marketing import video_pipeline
 
 
-def test_render_creative_video_delegates_to_reel_video(monkeypatch):
-    async def _fake_build_reel(**kw):
-        return {"path": "data/reels/fake.mp4", "slides": kw.get("slides"), "size_kb": 1}
-
+def test_render_creative_video_success(monkeypatch, tmp_path):
     from app.marketing import reel_video
 
-    monkeypatch.setattr(reel_video, "build_reel", _fake_build_reel)
+    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+
+    async def _fake_tts(text, path):
+        with open(path, "wb") as f:
+            f.write(b"x" * 200)
+        return True
+
+    monkeypatch.setattr(reel_video, "_tts", _fake_tts)
+    monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
 
     result = asyncio.run(
         video_pipeline.render_creative_video(
             business_name="Sharma Solar", niche="solar", slides=["a", "b"], offer="20% off", client_id="c1"
         )
     )
-    assert result["path"] == "data/reels/fake.mp4"
-    assert result["slides"] == ["a", "b"]
+    assert "error" not in result
+    assert result["path"].endswith(".mp4")
+    assert os.path.exists(result["path"])
 
 
-def test_render_creative_video_propagates_error(monkeypatch):
-    async def _fake_build_reel(**kw):
-        return {"error": "ffmpeg missing"}
+def _write_dummy_output(args: list[str]) -> bool:
+    out_path = args[-1]
+    with open(out_path, "wb") as f:
+        f.write(b"x" * 500)
+    return True
 
+
+def test_render_creative_video_ffmpeg_missing(monkeypatch):
     from app.marketing import reel_video
 
-    monkeypatch.setattr(reel_video, "build_reel", _fake_build_reel)
+    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": False, "pillow": True, "edge_tts": True, "ok": False})
 
     result = asyncio.run(video_pipeline.render_creative_video(business_name="X"))
-    assert result["error"] == "ffmpeg missing"
+    assert "error" in result
 
 
 def test_logo_temp_file_decodes_data_uri():
@@ -76,3 +87,24 @@ def test_make_branded_frame_writes_png():
         img = Image.open(path)
         assert img.size == (720, 1280)
         img.close()
+
+
+def test_zoompan_filter_has_expected_shape():
+    f = video_pipeline._zoompan_filter(4.0, fps=24)
+    assert "zoompan" in f
+    assert "d=96" in f  # 4.0s * 24fps
+    assert "s=720x1280" in f
+
+
+def test_build_segment_args_with_audio():
+    args = video_pipeline._build_segment_args("frame.png", "audio.mp3", 5.0, "seg.mp4")
+    assert args[:4] == ["-loop", "1", "-i", "frame.png"]
+    assert "-i" in args and "audio.mp3" in args
+    assert "-shortest" in args
+    assert args[-1] == "seg.mp4"
+
+
+def test_build_segment_args_without_audio():
+    args = video_pipeline._build_segment_args("frame.png", None, 4.0, "seg.mp4")
+    assert "-shortest" not in args
+    assert args[-1] == "seg.mp4"
