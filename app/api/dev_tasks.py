@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import os
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -171,39 +171,50 @@ async def transition_task(task_id: str, body: TransitionRequest, db: AsyncSessio
     return {"task": _row(task)}
 
 
+@router.post("/claim-next")
+async def claim_next_task(worker: str = Query(..., min_length=2, max_length=120), db: AsyncSession = Depends(get_async_db), _user=Depends(require_admin)) -> dict[str, Any]:
+    """Atomically claim the highest-priority QUEUED task (worker poll surface)."""
+    _require_enabled()
+    from app.dev_control.claims import claim_next
+
+    won = await claim_next(db, worker)
+    if not won:
+        return {"task": None, "reason": "no_eligible_task"}
+    return {"task": _row(won["task"])}
+
+
 @router.post("/{task_id}/claim")
 async def claim_task(task_id: str, worker: str = Query(..., min_length=2, max_length=120), db: AsyncSession = Depends(get_async_db), _user=Depends(require_admin)) -> dict[str, Any]:
-    """Claim one queued task with a bounded lease; tmux is never the source of truth."""
+    """Claim one queued task with a bounded lease; tmux is never the source of truth.
+
+    The claim is a single conditional UPDATE (state must still be QUEUED), so two
+    workers racing on the same task get exactly one winner -- the loser gets 409.
+    """
     _require_enabled()
     task = await db.get(DevTask, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="task not found")
-    from app.dev_control.service import InvalidTransition, transition
-    record = {"state": task.state}
-    try:
-        transition(record, TaskState.CLAIMED)
-    except (InvalidTransition, ValueError) as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
-    task.state = record["state"]
-    task.lease_owner = worker
-    task.lease_until = datetime.utcnow() + timedelta(minutes=10)
-    task.updated_at = datetime.utcnow()
-    await db.commit()
+    from app.dev_control.claims import atomic_claim
+
+    if not await atomic_claim(db, task_id, worker):
+        raise HTTPException(status_code=409, detail=f"task not claimable from state '{task.state}' (already claimed or not queued)")
     await db.refresh(task)
     return {"task": _row(task)}
 
 
 @router.post("/{task_id}/heartbeat")
 async def heartbeat_task(task_id: str, worker: str = Query(..., min_length=2, max_length=120), db: AsyncSession = Depends(get_async_db), _user=Depends(require_admin)) -> dict[str, Any]:
+    """Extend a lease the caller owns; a non-owner heartbeat is refused (no lease steal)."""
     _require_enabled()
     task = await db.get(DevTask, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="task not found")
-    task.lease_owner = worker
-    task.lease_until = datetime.utcnow() + timedelta(minutes=10)
-    task.updated_at = datetime.utcnow()
-    await db.commit()
-    return {"task_id": task.id, "lease_owner": worker, "lease_until": task.lease_until.isoformat()}
+    from app.dev_control.claims import atomic_heartbeat
+
+    if not await atomic_heartbeat(db, task_id, worker):
+        raise HTTPException(status_code=409, detail="lease not owned by this worker (or task not in flight)")
+    await db.refresh(task)
+    return {"task_id": task.id, "lease_owner": task.lease_owner, "lease_until": task.lease_until.isoformat() if task.lease_until else None}
 
 
 @router.post("/{task_id}/report")
