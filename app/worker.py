@@ -41,7 +41,15 @@ celery_app = Celery(
 # NOTE: routing SEND-side evaluate hota hai (beat/app) — isliye flag compose
 # me scheduler+app+worker sab pe set hai, warna heavy task default me jayega.
 # ---------------------------------------------------------------------------
-HEAVY_STAFF_JOBS = {"qa", "trainer", "blog", "content", "digest", "prospect"}
+HEAVY_STAFF_JOBS = {
+    "qa",
+    "trainer",
+    "blog",
+    "content",
+    "hot_queue_brief",
+    "digest",
+    "prospect",
+}
 
 
 def _heavy_queue_enabled() -> bool:
@@ -362,6 +370,11 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=7, minute=0),
         "args": ("content",),
+    },
+    "staff-hot-queue-brief-daily": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(hour=8, minute=15),
+        "args": ("hot_queue_brief",),
     },
     "staff-digest-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
