@@ -38,6 +38,11 @@ from app.models.data_credits import (
     DataCredits,
 )
 from app.models.lead import Lead, LeadSource, LeadStatus
+from app.models.lead_pipeline import (
+    LeadPipelineBatch,
+    LeadPipelineQualityIssue,
+    LeadPipelineStageRun,
+)
 from app.models.payment import (
     BillingCycle,
     Invoice,
@@ -58,6 +63,8 @@ from app.models.customer_deliverable import (
     DeliverableChannel,
 )
 from app.models.automation_log import AutomationLog
+from app.models.dev_task import DevTask
+from app.models.dev_usage import DevTaskUsage
 
 __all__ = [
     # Base
@@ -127,4 +134,10 @@ __all__ = [
     "DeliverableChannel",
     # Automation Log model
     "AutomationLog",
+    "DevTask",
+    "DevTaskUsage",
+    # Lead-gen pipeline batch tracking models (2026-07-08)
+    "LeadPipelineBatch",
+    "LeadPipelineStageRun",
+    "LeadPipelineQualityIssue",
 ]

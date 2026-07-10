@@ -127,6 +127,11 @@ class Lead(Base):
     # Qualification data (JSON)
     qualification_data = Column(Text)
 
+    # Pipeline batch provenance (2026-07-08) — WHY this score, persisted not
+    # just computed on demand; which prospector.py batch produced this lead.
+    score_reason = Column(Text)
+    source_batch_id = Column(String(36), ForeignKey("lead_pipeline_batches.id"), nullable=True, index=True)
+
     # Status tracking
     status = Column(
         Enum(LeadStatus, native_enum=False, values_callable=_enum_values),
@@ -277,10 +282,19 @@ class Lead(Base):
         data[key] = value
         self.set_qualification_data(data)
 
-    def update_score(self, new_score: int) -> None:
-        """Update lead score and hot lead flag"""
+    def update_score(self, new_score: int, reason: str | None = None) -> None:
+        """Update lead score and hot lead flag. `reason` (optional, e.g. from
+        lead_scoring.score_components()) is persisted so admin/reporting can
+        see WHY a lead is hot, not just the number. Threshold centralized in
+        settings.lead_hot_threshold (2026-07-08 — previously hardcoded 70 here
+        while lead_scoring.py's own env default was 60; both now read the
+        same setting, see docs/superpowers/specs/2026-07-08-lead-gen-pipeline-automation-design.md)."""
+        from app.config import settings
+
         self.lead_score = max(0, min(100, new_score))  # Clamp between 0-100
-        self.is_hot_lead = self.lead_score >= 70
+        self.is_hot_lead = self.lead_score >= settings.lead_hot_threshold
+        if reason is not None:
+            self.score_reason = reason[:2000]
         self.updated_at = datetime.utcnow()
 
     def calculate_score(self) -> int:

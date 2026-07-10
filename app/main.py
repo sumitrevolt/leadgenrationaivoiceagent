@@ -23,6 +23,7 @@ from app.api import analytics, campaigns, leads, webhooks
 from app.api.admin import router as admin_router
 from app.api.admin_dashboard import router as admin_dashboard_router
 from app.api.agents import router as agents_router
+from app.api.dev_tasks import router as dev_tasks_router
 from app.api.ai import router as ai_router
 from app.api.billing import router as billing_router
 from app.api.customer_dashboard import router as customer_dashboard_router
@@ -880,6 +881,7 @@ app.include_router(web_call_router, prefix="/api", tags=["Web Call (Test Mode)"]
 app.include_router(
     agents_router, prefix="/api", tags=["Agents"]
 )  # /api/agents/* (LangGraph supervisor)
+app.include_router(dev_tasks_router, prefix="/api")  # /api/dev-tasks/* (draft-safe control plane)
 app.include_router(
     telephony_vobiz_router, prefix="/api", tags=["Telephony"]
 )  # /api/telephony/vobiz/*
@@ -1287,6 +1289,15 @@ async def delivery_command_center_page():
     failed-automation customers, pending approvals, revenue. Business-outcome view;
     distinct from /app/command-center (infra/ops KPI cockpit)."""
     return FileResponse(str(FRONTEND_DIR / "delivery_command_center.html"))
+
+
+@app.get("/app/dev-control", tags=["Frontend"])
+async def dev_control_page():
+    """Claude-managed engineering control-plane admin cockpit (dev-task ledger,
+    model catalog, deploy-approval gate). Draft-safe: the /api/dev-tasks endpoints
+    return 503 unless DEV_ORCHESTRATOR=1, so this page shows a dormant banner
+    until the operator enables the feature."""
+    return FileResponse(str(FRONTEND_DIR / "dev_control.html"))
 
 
 @app.get("/app/automation", tags=["Frontend"])

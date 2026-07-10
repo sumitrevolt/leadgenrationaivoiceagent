@@ -102,6 +102,11 @@ AUTOMATION_FLAGS = [
     "AGENT_MEMORY",  # cross-session per-lead/client memory (Qdrant+free LLM, off-loop) — OFF default, fail-open
     "LLM_BUDGET_GUARD",  # per-scope LLM daily cost/usage cap + kill-switch — OFF default, fail-open
     "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
+    "DEV_ORCHESTRATOR",  # Claude-managed engineering task ledger; draft-safe and OFF by default
+    "DEV_WORKER_ENABLED",  # arms the draft-only dev-task Celery runner (needs DEV_ORCHESTRATOR too) — OFF default
+    "AUTO_APPLY_PATCH",  # dev-control hard gate: patch application is REFUSED regardless; OFF default
+    "AUTO_DEPLOY",  # dev-control transparency flag: code NEVER auto-deploys (manual Hostinger runbook); OFF default
+    "DEV_DEPLOY_APPROVAL_TOKEN",  # fail-closed human production-approval token for dev-tasks (unset = no approval possible)
     "MAGIC_LINK",  # passwordless customer login (single-use email link) — OFF default
     "IMPERSONATION",  # super-admin "login as customer" support tool (audited) — OFF default
     "PUBLIC_GUARDRAILS",  # PII-redact + prompt-injection block on public chatbot/widget LLM — OFF default, fail-open

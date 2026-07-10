@@ -563,24 +563,30 @@ def _resolve_llm_profile(profile: str | None, max_tokens: int) -> str:
 
 def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     """Provider order — realtime favours latency; bulk favours Cerebras throughput."""
-    gemini_model = _GEMINI_LLM_MODEL
+    import os as _os
+
+    gemini_model = (_os.getenv("GEMINI_LLM_MODEL", "") or "").strip() or _GEMINI_LLM_MODEL
     try:
         from app.config import settings
         gemini_primary = getattr(settings, "gemini_primary", False)
         default_llm = (getattr(settings, "default_llm", "") or "").strip()
-        if default_llm.lower().startswith("gemini"):
+        if not _os.getenv("GEMINI_LLM_MODEL", "").strip() and default_llm.lower().startswith("gemini"):
             gemini_model = default_llm
     except Exception:
-        import os as _os
         gemini_primary = _os.getenv("GEMINI_PRIMARY", "0").strip().lower() in ("1", "true", "yes")
-        gemini_model = _os.getenv("GEMINI_LLM_MODEL", _os.getenv("DEFAULT_LLM", _GEMINI_LLM_MODEL))
+        gemini_model = (
+            (_os.getenv("GEMINI_LLM_MODEL", "") or "").strip()
+            or (
+                (_os.getenv("DEFAULT_LLM", "") or "").strip()
+                if (_os.getenv("DEFAULT_LLM", "") or "").strip().lower().startswith("gemini")
+                else ""
+            )
+            or _GEMINI_LLM_MODEL
+        )
 
     # NVIDIA NIM (free tier: 40 RPM + metered credits) — deep-tail FALLBACK by default.
     # Model env-overridable; NVIDIA_PRIMARY=1 promotes it to the chain HEAD (NOT
     # recommended: latency + 40 RPM + finite credits make it unfit for the hot path).
-    # Local re-import: the except branch above's `import os as _os` makes _os a function
-    # local, so it's unbound on the success path unless we (re)bind it here.
-    import os as _os
     nvidia_model = _os.getenv("NVIDIA_LLM_MODEL", _NVIDIA_LLM_MODEL)
     nvidia_primary = _os.getenv("NVIDIA_PRIMARY", "0").strip().lower() in ("1", "true", "yes")
 
@@ -698,6 +704,16 @@ async def chat_provider(
                 return "", p
     except Exception:
         pass
+    # PII masking — chat_provider bhi external providers use karta hai.
+    _msgs_original = msgs
+    try:
+        from app.platform.safe_ai_payload import mask_customer_data
+        msgs = mask_customer_data(msgs)
+        if msgs is None:
+            msgs = _msgs_original
+    except Exception:
+        msgs = _msgs_original
+
     tlim = timeout_s if timeout_s and timeout_s > 0 else max(_CALL_TIMEOUT_S, 30.0)
     _t0 = time.monotonic()
     try:
@@ -825,6 +841,17 @@ async def chat(
                 return "", ""
     except Exception:
         pass  # guard error = proceed normally (fail-open)
+
+    # PII masking — messages me customer data mask karo before any external provider call.
+    # fail-OPEN: masking crash = message bhej do raw (keep agent alive), but log the error.
+    _msgs_original = msgs
+    try:
+        from app.platform.safe_ai_payload import mask_customer_data
+        msgs = mask_customer_data(msgs)
+        if msgs is None:
+            msgs = _msgs_original
+    except Exception:
+        msgs = _msgs_original
 
     chain = _build_llm_chain(prof)
     for provider, model in chain:
@@ -980,6 +1007,16 @@ async def chat_stream(
                 return
     except Exception:
         pass
+
+    # PII masking — chat_stream bhi external providers use karta hai.
+    _msgs_original = msgs
+    try:
+        from app.platform.safe_ai_payload import mask_customer_data
+        msgs = mask_customer_data(msgs)
+        if msgs is None:
+            msgs = _msgs_original
+    except Exception:
+        msgs = _msgs_original
 
     prof = _resolve_llm_profile(profile, max_tokens)
     chain = _build_llm_chain(prof)
