@@ -26,6 +26,7 @@ logger = setup_logger(__name__)
 
 _QUEUE_KEY = "telephony:call_queue"
 _ACTIVE_KEY = "telephony:active_calls"
+_SID_KEY = "telephony:sid_to_call_id"  # reverse-lookup: Vobiz CallSid → our internal call_id
 
 
 class RedisCallStore:
@@ -128,6 +129,49 @@ class RedisCallStore:
             except Exception as e:
                 logger.warning(f"active hdel failed ({e}); local fallback.")
         self._local_active.pop(call_id, None)
+
+    # -- sid ↔ call_id reverse mapping (2026-07-10: Vobiz status webhook fix) -- #
+
+    async def _sid_map_set(self, sid: str, call_id: str) -> None:
+        """Map Vobiz CallSid → our internal call_id (so status webhooks resolve)."""
+        if not sid or not call_id:
+            return
+        r = await self._redis()
+        if r is not None:
+            try:
+                await r.hset(_SID_KEY, sid, call_id)
+                return
+            except Exception as e:
+                logger.warning(f"sid_map hset failed ({e}); local fallback.")
+        self._local_sid_map = getattr(self, "_local_sid_map", {}) or {}
+        self._local_sid_map[sid] = call_id
+
+    async def _sid_map_get(self, sid: str) -> str | None:
+        """Look up our internal call_id from a Vobiz CallSid."""
+        if not sid:
+            return None
+        r = await self._redis()
+        if r is not None:
+            try:
+                val = await r.hget(_SID_KEY, sid)
+                return val.decode() if isinstance(val, (bytes, bytearray)) else str(val) if val else None
+            except Exception as e:
+                logger.warning(f"sid_map hget failed ({e}); local fallback.")
+        lm = getattr(self, "_local_sid_map", {}) or {}
+        return lm.get(sid)
+
+    async def _sid_map_del(self, sid: str) -> None:
+        if not sid:
+            return
+        r = await self._redis()
+        if r is not None:
+            try:
+                await r.hdel(_SID_KEY, sid)
+                return
+            except Exception as e:
+                logger.warning(f"sid_map hdel failed ({e}); local fallback.")
+        lm = getattr(self, "_local_sid_map", {}) or {}
+        lm.pop(sid, None)
 
     async def active_count(self) -> int:
         r = await self._redis()

@@ -67,7 +67,12 @@ async def meter_call_completion(
             client_name=client_name or "",
         )
     except Exception as e:
-        logger.debug("[post_call] meter_call_completion skip: %s", e)
+        # ENTERPRISE FIX (2026-07-10): call-minute billing failure WAS debug-level —
+        # invisible in production. Ab WARNING so ops knows immediately (call completed
+        # but billing ledger never got the record = revenue leakage).
+        logger.warning("[post_call] meter_call_completion FAILED — billing record LOST for call_id=%s duration=%s (%s: %s)",
+                       cid_key, duration_seconds, type(e).__name__, e,
+                       )
         return False
 
     # Obsidian second-brain — append call summary (INERT if OBSIDIAN_SYNC unset).
@@ -266,7 +271,9 @@ def persist_transcript(
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
-        logger.debug("[post_call] persist_transcript skip: %s", e)
+        logger.warning("[post_call] persist_transcript FAILED for call_id=%s — transcript LOST (%s: %s)",
+                       str(call_id or "")[:40], type(e).__name__, e,
+                       )
 
 
 async def auto_qualify_and_downstream(

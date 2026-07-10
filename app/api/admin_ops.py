@@ -807,7 +807,12 @@ async def upi_activate(
             raise HTTPException(status_code=404, detail="client not found")
         # Manual UPI payment verified by admin — ensure the Subscription row too
         # (portal /billing/subscription 404s without one; audit 2026-07-04).
+        # ENTERPRISE FIX (2026-07-10): reset_usage_period ALSO call karo —
+        # activate_plan sirf plan set karta tha, watermark reset nahi ho raha tha,
+        # jisse minutes_used_this_period() pehle-wale-period ka lekar naya
+        # customer ka quota turant khatam kar deta tha.
         usage_mod.activate_plan(cid, plan, ensure_subscription=True)
+        usage_mod.reset_usage_period(cid)
         upd = {"plan": plan, "status": "active"}
         if body.clear_trial:
             upd["trial"] = False

@@ -355,10 +355,19 @@ class CallManager:
                     or self._status_webhook_url()
                     or ""
                 )
+                # ENTERPRISE FIX (2026-07-10): pehle call_id Vobiz ko bheja hi nahi
+                # jaata tha — status webhook me "CallbackData" field KHAALI aata tha,
+                # handle_call_completed hamesha "No context found for call X" debug-log
+                # karta tha, aur voice-minute billing, lead-qualification, aur CRM sync
+                # sab SILENTLY skip ho rahe the. Ab CallbackData bhej rahe hain taaki
+                # Vobiz status callback me wahi value echo ho aur active_calls se match
+                # ho sake. call_type aur CallbackData dono Vobiz API ke extra kwargs
+                # me forward hote hain (vobiz_handler.py:142 payload.update(extra)).
                 result = await self.handler.place_call(
                     to=request.phone_number,
                     answer_url=answer_url,
                     call_type=str(getattr(request, "call_type", "") or "promotional"),
+                    CallbackData=call_id,
                     skip_compliance=True,
                 )
                 if result.get("status_code") in (200, 201, 202):
@@ -368,6 +377,9 @@ class CallManager:
 
                 if call_sid:
                     context.status = CallStatus.RINGING
+                    # Reverse-map: Vobiz CallSid → internal call_id so webhook can
+                    # resolve even if CallbackData field is empty/truncated.
+                    await self.call_state._sid_map_set(call_sid, call_id)
                     self.calls_connected += 1
                     logger.info(f"Call {call_id} connected: {call_sid}")
                 else:

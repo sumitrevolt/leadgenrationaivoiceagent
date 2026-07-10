@@ -70,6 +70,22 @@ async def vobiz_status_webhook(request: Request):
     recording_url = form_data.get("RecordingUrl") or form_data.get("recording_url")
     call_id = form_data.get("CallbackData") or form_data.get("call_id") or call_sid
 
+    # ENTERPRISE FIX (2026-07-10): pre-fix, CallbackData was NEVER sent to Vobiz
+    # (call_manager.py:358), so this field was always empty and webhook resolved
+    # to CallSid (Vobiz's own opaque ID) — handle_call_completed() NEVER found
+    # a matching active_calls entry. Voice billing ran 0 times for ALL real calls.
+    # Now: (1) CallbackData is sent with push, (2) sid→call_id Redis fallback.
+    if not call_id or call_id == call_sid:
+        try:
+            from app.telephony.call_state import get_call_store
+
+            mapped = await get_call_store()._sid_map_get(call_sid or "")
+            if mapped:
+                logger.info(f"Vobiz status: resolved CallSid {call_sid} → internal {mapped}")
+                call_id = mapped
+        except Exception:
+            pass
+
     logger.info(f"Vobiz status webhook - SID: {call_sid}, Status: {status}")
 
     try:
@@ -110,6 +126,17 @@ async def vobiz_status_webhook(request: Request):
                 )
             if result:
                 logger.info(f"Vobiz call completed - Outcome: {result.outcome}")
+
+            # Clean up the sid→call_id reverse mapping (TTL: ~4h on the Redis key
+            # would be better, but for now explicit delete is safe — once the call
+            # is done we don't need to reverse-lookup again).
+            try:
+                from app.telephony.call_state import get_call_store
+
+                _store2 = get_call_store()
+                await _store2._sid_map_del(call_sid or "")
+            except Exception:
+                pass
 
         return {"status": "received"}
     except Exception as e:
