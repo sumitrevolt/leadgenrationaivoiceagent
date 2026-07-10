@@ -166,7 +166,7 @@ _LLM_WINDOW: dict[str, float] = {"start": 0.0, "count": 0.0}
 
 def _llm_rate_ok() -> bool:
     try:
-        cap = int(os.environ.get("COORDINATOR_LLM_CAP_PER_MIN", "0") or "0")
+        cap = int(os.environ.get("COORDINATOR_LLM_CAP_PER_MIN", "60") or "60")
     except Exception:
         cap = 0
     if cap <= 0:
