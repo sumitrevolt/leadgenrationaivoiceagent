@@ -27,6 +27,7 @@ celery_app = Celery(
         "app.tasks.brain_training",  # Brain training tasks
         "app.tasks.staff_jobs",  # Durable AI-staff jobs (dormant unless celery beat runs)
         "app.social_engine.tasks",  # Native social queue drain task
+        "app.tasks.dev_worker",  # Dev control-plane runner (INERT unless DEV_ORCHESTRATOR+DEV_WORKER_ENABLED)
     ],
 )
 
