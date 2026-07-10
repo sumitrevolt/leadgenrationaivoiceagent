@@ -87,6 +87,10 @@ jobs:
           # PINS (tests.yml gotcha): unpinned pytest-family + newer httpx (0.28
           # removed Client(app=...)) collection-errors dete the.
           pip install -U "pytest==9.0.2" "pytest-asyncio==1.3.0" "pytest-timeout==2.4.0" "httpx==0.27.2"
+          # Guard: torch + the -U pytest/httpx installs above re-resolve and can
+          # drift pydantic-core forward (2.47.0) past what pydantic 2.13.4 needs
+          # (==2.46.4), breaking app.main import in prod_check. Re-pin to the lock.
+          pip install --no-deps --force-reinstall "pydantic-core==2.46.4"
       - name: Production readiness check
         run: python scripts/prod_check.py
       - name: Pytest (skip network/LLM-key tests)
@@ -95,5 +99,4 @@ jobs:
           ENVIRONMENT: development  # local-dev parity (prod-default middleware OFF)
           # TelecallerBrain __init__ key-presence check — dummy kaafi (LLM calls
           # conftest-stubbed, no network).
-          GROQ_API_KEY: ci-dummy-key-not-real
-        run: pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60
+          GROQ_API_KEY: ci-dummy-k
