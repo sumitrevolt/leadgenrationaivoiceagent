@@ -104,7 +104,10 @@ def check_routes() -> None:
     except Exception:
         print("[4/6] skipped (app not importable)")
         return
-    paths = {getattr(r, "path", "") for r in app.routes}
+    from app.utils.route_inspection import iter_effective_routes
+
+    effective_routes = list(iter_effective_routes(app.routes))
+    paths = {getattr(r, "path", "") for r in effective_routes}
     expected = [
         "/health",
         "/api/leads",
@@ -127,7 +130,7 @@ def check_routes() -> None:
     # Duplicate (method, path) collisions — FastAPI first-route-wins silently
     # shadows the later registration; nothing else catches it (API-002).
     seen_mp: dict = {}
-    for r in app.routes:
+    for r in effective_routes:
         rp = getattr(r, "path", "")
         for m in getattr(r, "methods", None) or set():
             seen_mp[(m, rp)] = seen_mp.get((m, rp), 0) + 1
