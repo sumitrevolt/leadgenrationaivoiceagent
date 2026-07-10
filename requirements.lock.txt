@@ -50,7 +50,7 @@ dnspython==2.8.0
 docstring_parser==0.18.0
 ecdsa==0.19.2
 edge-tts==7.2.8
-elevenlabs==1.0.3
+elevenlabs==2.57.0
 email-validator==2.3.0
 executing==2.2.1
 fastapi==0.139.0

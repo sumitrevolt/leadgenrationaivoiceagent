@@ -51,7 +51,7 @@ faster-whisper>=1.0.0
 # audioop-lts>=0.2.1   # ONLY on Python 3.13+ (audioop stdlib se hata diya gaya); 3.12 me built-in hai
 
 # TTS
-elevenlabs==1.0.3
+elevenlabs==2.57.0
 azure-cognitiveservices-speech==1.50.0
 edge-tts>=7.2.0  # 6.1.9 gets HTTP 403 from MS endpoint (Sec-MS-GEC token) — must be 7.x
 
