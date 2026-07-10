@@ -1790,7 +1790,7 @@ _INTEGRATION_IMPACT: dict[str, tuple[str, str, str]] = {
     "pollinations": ("Aapke poster/creative images thoda delay ho sakte hain.", "Pollinations image-gen failing", "all_paid"),
     "qdrant": ("", "Qdrant RAG lookup failing (content quality degrade, not blocking)", "ops_only"),
     "places": ("", "Google Places prospecting failing (not a customer-delivery issue)", "ops_only"),
-    "stripe": ("", "Stripe payments failing (new signups/renewals, not existing delivery)", "ops_only"),
+    "stripe": ("", "Stripe removed 2026-07-10 — payments via UPI only", "ops_only"),
 }
 
 _RECOMMENDED_FIX: dict[str, str] = {
@@ -1802,7 +1802,7 @@ _RECOMMENDED_FIX: dict[str, str] = {
     "pollinations": "Pollinations API status check karo (free-tier rate-limit ho sakta).",
     "qdrant": "Qdrant container/connection check karo.",
     "places": "Google Places API key/quota check karo.",
-    "stripe": "Stripe API key/webhook check karo.",
+    "stripe": "Stripe removed 2026-07-10 — payments via UPI only.",
 }
 
 

@@ -34,8 +34,8 @@ def _enum_values(enum_cls):
 class PaymentGateway(enum.Enum):
     """Supported payment gateways"""
 
-    STRIPE = "stripe"
-    RAZORPAY = "razorpay"
+    # STRIPE removed 2026-07-10 — project me Stripe use nahi hota.
+    RAZORPAY = "razorpay"  # Legacy: Razorpay also removed 2026-06-18
 
 
 class SubscriptionStatus(enum.Enum):

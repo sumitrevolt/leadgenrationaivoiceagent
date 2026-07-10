@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.billing.payment_gateway import get_payment_gateway
+# Stripe payment_gateway deleted 2026-07-10
 from app.billing.subscription import PRICING_PLANS, billing_manager
 from app.config import settings
 from app.models.base import get_async_db
@@ -145,11 +145,13 @@ def _client_name(client_id: str) -> str:
 
 
 def _stripe_configured() -> bool:
-    return bool((settings.stripe_secret_key or "").strip())
+    # Stripe removed 2026-07-10 — always returns False.
+    return False
 
 
 def _stripe_webhook_configured() -> bool:
-    return bool((settings.stripe_webhook_secret or "").strip())
+    # Stripe removed 2026-07-10 — always returns False.
+    return False
 
 
 # Razorpay removed 2026-06-18 — no online India gateway (payments via manual UPI).
