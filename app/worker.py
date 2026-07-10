@@ -28,6 +28,7 @@ celery_app = Celery(
         "app.tasks.staff_jobs",  # Durable AI-staff jobs (dormant unless celery beat runs)
         "app.social_engine.tasks",  # Native social queue drain task
         "app.tasks.dev_worker",  # Dev control-plane runner (INERT unless DEV_ORCHESTRATOR+DEV_WORKER_ENABLED)
+        "app.tasks.video_jobs",  # Video creative-pipeline render task (queue INERT unless CELERY_VIDEO_QUEUE=1)
     ],
 )
 
@@ -63,6 +64,23 @@ def _route_staff_task(name, args, kwargs, options, task=None, **kw):
     return None
 
 
+def _video_queue_enabled() -> bool:
+    return os.environ.get("CELERY_VIDEO_QUEUE", "0").strip().lower() in ("1", "true", "yes")
+
+
+def _route_video_task(name, args, kwargs, options, task=None, **kw):
+    """Router fn: video-pipeline render task -> 'video' queue (sirf flag ON pe).
+    Mirrors _route_staff_task's heavy-queue pattern exactly — separate router
+    (not the static dict) so it's flag-gated with a safe unset->default-queue
+    fallback, matching this project's INERT-default feature convention."""
+    try:
+        if name == "app.tasks.video_jobs.build_creative_video_task" and _video_queue_enabled():
+            return {"queue": "video"}
+    except Exception as _e:
+        logger.debug("_route_video_task routing failed, using default queue: %s", _e)
+    return None
+
+
 # Production-ready configuration
 celery_app.conf.update(
     # Serialization
@@ -75,6 +93,7 @@ celery_app.conf.update(
     # Task routing by queue (router-fn pehle, fir static dict)
     task_routes=(
         _route_staff_task,
+        _route_video_task,
         {
             "app.tasks.scraping.*": {"queue": "scraping"},
             "app.tasks.calling.*": {"queue": "calling"},

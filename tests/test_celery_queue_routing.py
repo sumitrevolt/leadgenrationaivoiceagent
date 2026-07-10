@@ -24,11 +24,15 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 def _statically_routed_queues() -> set[str]:
     """Queue names from app/worker.py's static task_routes dict (the
-    router-fn's dynamic "heavy" route is checked separately below)."""
+    router-fns' dynamic "heavy"/"video" routes are checked separately below).
+    task_routes is (router_fn, router_fn, ..., static_dict) — N router
+    callables followed by exactly one trailing static dict, so unpack with a
+    star instead of a fixed arity (a new router fn is additive, not a reason
+    to touch this helper again)."""
     from app.worker import celery_app
 
-    router_fn, static_routes = celery_app.conf.task_routes
-    assert callable(router_fn)
+    *router_fns, static_routes = celery_app.conf.task_routes
+    assert router_fns and all(callable(fn) for fn in router_fns)
     return {v["queue"] for v in static_routes.values()}
 
 
@@ -88,3 +92,37 @@ def test_base_compose_worker_consumes_every_routed_queue_plus_heavy():
     consumed = _dash_q_queues(cmd)
     missing = (_statically_routed_queues() | {"heavy"}) - consumed
     assert not missing, f"docker-compose.yml worker never drains: {missing}"
+
+
+def test_video_router_routes_when_flag_on(monkeypatch):
+    from app import worker
+
+    monkeypatch.setenv("CELERY_VIDEO_QUEUE", "1")
+    route = worker._route_video_task(
+        "app.tasks.video_jobs.build_creative_video_task", (), {}, {}
+    )
+    assert route == {"queue": "video"}
+
+
+def test_video_router_none_when_flag_off(monkeypatch):
+    from app import worker
+
+    monkeypatch.delenv("CELERY_VIDEO_QUEUE", raising=False)
+    route = worker._route_video_task(
+        "app.tasks.video_jobs.build_creative_video_task", (), {}, {}
+    )
+    assert route is None
+
+
+def test_video_router_none_for_other_tasks(monkeypatch):
+    from app import worker
+
+    monkeypatch.setenv("CELERY_VIDEO_QUEUE", "1")
+    route = worker._route_video_task("app.tasks.scraping.scrape_leads", (), {}, {})
+    assert route is None
+
+
+def test_static_routes_unchanged_by_video_addition():
+    # video is router-fn based (like "heavy"), NOT added to the static dict —
+    # this assertion must stay exactly as it is today.
+    assert _statically_routed_queues() == {"scraping", "calling", "reporting", "sync", "training"}
