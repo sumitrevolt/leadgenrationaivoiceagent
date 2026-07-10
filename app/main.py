@@ -293,7 +293,13 @@ async def lifespan(app: FastAPI):
     # Critical path routes (billing, auth, signup, customer, UPI) ki dedicated check
     # with ntfy alert. Non-critical missing routes logged at WARNING only.
     try:
-        _registered = {getattr(r, "path", "") for r in app.routes if hasattr(r, "path")}
+        from app.utils.route_inspection import iter_effective_routes
+
+        _registered = {
+            getattr(r, "path", "")
+            for r in iter_effective_routes(app.routes)
+            if getattr(r, "path", "")
+        }
         # Revenue + customer-critical paths (must never go silently missing)
         _critical = [
             "/api/billing/plans", "/api/customer/auth/login",

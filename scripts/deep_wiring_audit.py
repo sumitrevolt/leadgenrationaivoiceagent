@@ -29,10 +29,11 @@ SKIP_HANDLERS = {
 def load_routes() -> set[str]:
     sys.path.insert(0, str(ROOT))
     from app.main import app
+    from app.utils.route_inspection import iter_effective_routes
 
     return {
         getattr(r, "path", "")
-        for r in app.routes
+        for r in iter_effective_routes(app.routes)
         if getattr(r, "path", "") and str(getattr(r, "path", "")).startswith("/")
     }
 
