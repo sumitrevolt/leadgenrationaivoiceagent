@@ -161,3 +161,62 @@ def test_render_creative_video_ships_without_music_on_mix_failure(monkeypatch, t
     result = asyncio.run(video_pipeline.render_creative_video(business_name="X", slides=["a"]))
     assert "error" not in result
     assert os.path.exists(result["path"])
+
+
+def test_render_creative_video_music_mix_success_survives_remove_failure(monkeypatch, tmp_path):
+    """Review fix #1: a successful music mix must still ship even if cleaning
+    up the pre-mix file raises (e.g. a Windows file-lock on the old output).
+    Pre-fix, the unguarded os.remove(out_path) propagates to the outer
+    try/except and turns a successful render into {"error": ...}."""
+    from app.marketing import reel_video
+
+    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+
+    async def _fake_tts(text, path):
+        with open(path, "wb") as f:
+            f.write(b"x" * 200)
+        return True
+
+    monkeypatch.setattr(reel_video, "_tts", _fake_tts)
+    monkeypatch.setattr(video_pipeline, "_music_bed_path", lambda niche: "data/music_beds/generic.mp3")
+    # Every ffmpeg call succeeds, including the music-mix call.
+    monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+
+    def _raise_remove(path):
+        raise OSError("simulated Windows file-lock on cleanup")
+
+    monkeypatch.setattr(os, "remove", _raise_remove)
+
+    result = asyncio.run(video_pipeline.render_creative_video(business_name="X", slides=["a"]))
+    assert "error" not in result
+    assert result["path"].endswith("_mix.mp4")
+    assert os.path.exists(result["path"])
+
+
+def test_music_bed_path_rejects_traversal_niche(monkeypatch, tmp_path):
+    """Review fix #2: a path-traversal niche must never resolve to a file
+    outside _MUSIC_DIR, even when a same-named file exists at the traversal
+    target (mirrors the reviewer's own probe: "../_review_probe/secret")."""
+    music_dir = tmp_path / "music_beds"
+    music_dir.mkdir()
+    monkeypatch.setattr(video_pipeline, "_MUSIC_DIR", str(music_dir))
+
+    # Plant a file at the traversal target that an unsanitized os.path.join
+    # WOULD resolve to and find.
+    outside = tmp_path / "_review_probe"
+    outside.mkdir()
+    (outside / "secret.mp3").write_bytes(b"secret-audio")
+
+    result = video_pipeline._music_bed_path("../_review_probe/secret")
+    assert result is None
+    assert result != str(outside / "secret.mp3")
+
+
+def test_music_bed_path_normal_niche_unaffected_by_sanitizer(monkeypatch, tmp_path):
+    """The safe-charset filter must be a no-op for ordinary niches like
+    "solar" — exact path match, not just precedence."""
+    (tmp_path / "solar.mp3").write_bytes(b"x")
+    monkeypatch.setattr(video_pipeline, "_MUSIC_DIR", str(tmp_path))
+    result = video_pipeline._music_bed_path("solar")
+    assert result == os.path.join(str(tmp_path), "solar.mp3")

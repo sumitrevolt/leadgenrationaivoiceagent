@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import base64
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -150,15 +151,21 @@ def _build_segment_args(
 
 _OUT_DIR = os.path.join("data", "reels")
 _MUSIC_DIR = os.path.join("data", "music_beds")
+_SAFE_NICHE_RE = re.compile(r"[^a-z0-9_-]")
 
 
 def _music_bed_path(niche: str) -> str | None:
     """data/music_beds/{niche}.mp3 if present, else generic.mp3, else None.
     Directory ships empty — this is a no-op until someone manually drops
-    royalty-free tracks in (see spec §4 stage 8). Never raises."""
+    royalty-free tracks in (see spec §4 stage 8). Never raises.
+
+    `niche` is customer-controlled (signup -> clients_store -> video_ad_cycle
+    -> here), so it's sanitized to a safe charset first — otherwise a niche
+    like "../../etc/passwd" could path-traverse outside _MUSIC_DIR."""
     try:
-        niche_path = os.path.join(_MUSIC_DIR, f"{niche}.mp3")
-        if os.path.exists(niche_path):
+        safe_niche = _SAFE_NICHE_RE.sub("", str(niche or "").strip().lower())
+        niche_path = os.path.join(_MUSIC_DIR, f"{safe_niche}.mp3") if safe_niche else ""
+        if safe_niche and os.path.exists(niche_path):
             return niche_path
         generic_path = os.path.join(_MUSIC_DIR, "generic.mp3")
         if os.path.exists(generic_path):
@@ -232,9 +239,23 @@ async def _render_generic(
         if bed:
             mixed_path = os.path.join(_OUT_DIR, f"reel_{uuid.uuid4().hex[:10]}_mix.mp4")
             if reel_video._ffmpeg(_mix_music_args(out_path, bed, mixed_path)):
-                os.remove(out_path)
+                # Mix succeeded — commit to it FIRST. Cleaning up the old
+                # pre-mix file is best-effort only: a lock/AV-scan failure on
+                # os.remove must never turn a successful render into {"error"}.
+                old_path = out_path
                 out_path = mixed_path
-            # else: music mix failed — ship without it (fail-open, spec §9)
+                try:
+                    os.remove(old_path)
+                except Exception as e:
+                    logger.warning(f"[video_pipeline] could not remove pre-mix file {old_path}: {e}")
+            else:
+                # music mix failed — ship without it (fail-open, spec §9);
+                # best-effort cleanup of any partial mixed_path ffmpeg left behind.
+                try:
+                    if os.path.exists(mixed_path):
+                        os.remove(mixed_path)
+                except Exception:
+                    pass
 
         return {
             "path": out_path,
