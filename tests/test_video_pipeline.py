@@ -244,6 +244,46 @@ def test_qa_check_passes_on_valid_probe(monkeypatch, tmp_path):
     assert video_pipeline._qa_check(str(p), 3) is None
 
 
+def test_qa_check_accepts_short_valid_render(monkeypatch, tmp_path):
+    """Review fix: a genuinely correct render with short slide text (e.g.
+    "20% off") can legitimately land well under the old `expected_slide_count
+    * 2.5` floor — EdgeTTS segments are built with -shortest and NO enforced
+    minimum duration when audio succeeds (only the no-audio fallback path is
+    a fixed 4.0s). duration=1.5 for 3 slides would have failed the OLD bound
+    (needed >=7.5) but must pass the new flat floor (1.0)."""
+    p = tmp_path / "out.mp4"
+    p.write_bytes(b"x" * 5000)
+
+    def _fake_run(cmd, **kw):
+        class R:
+            returncode = 0
+            stdout = b'{"format": {"duration": "1.5"}, "streams": [{"width": 720, "height": 1280}]}'
+
+        return R()
+
+    monkeypatch.setattr(video_pipeline.subprocess, "run", _fake_run)
+    assert video_pipeline._qa_check(str(p), 3) is None
+
+
+def test_qa_check_fails_on_near_zero_duration(monkeypatch, tmp_path):
+    """The flat floor must still catch catastrophically broken output (a
+    near-empty/corrupt file, a single frozen frame) — that's the actual
+    purpose of the duration check, not enforcing a pacing assumption."""
+    p = tmp_path / "out.mp4"
+    p.write_bytes(b"x" * 5000)
+
+    def _fake_run(cmd, **kw):
+        class R:
+            returncode = 0
+            stdout = b'{"format": {"duration": "0.1"}, "streams": [{"width": 720, "height": 1280}]}'
+
+        return R()
+
+    monkeypatch.setattr(video_pipeline.subprocess, "run", _fake_run)
+    reason = video_pipeline._qa_check(str(p), 3)
+    assert reason is not None and "duration" in reason
+
+
 def test_qa_check_fails_on_wrong_resolution(monkeypatch, tmp_path):
     p = tmp_path / "out.mp4"
     p.write_bytes(b"x" * 5000)
