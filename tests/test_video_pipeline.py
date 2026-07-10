@@ -497,3 +497,61 @@ def test_build_creative_video_task_registered():
     from app.worker import celery_app
 
     assert "app.tasks.video_jobs.build_creative_video_task" in celery_app.tasks
+
+
+def test_build_creative_video_task_success_path(monkeypatch):
+    """Test that build_creative_video_task forwards kwargs correctly to
+    render_creative_video and returns its result unmodified on success."""
+    import app.tasks.video_jobs
+    from app.marketing import video_pipeline
+
+    expected_result = {"path": "data/reels/test_123.mp4", "slides": ["a"], "size_bytes": 5000}
+    calls = []
+
+    async def _mock_render(**kwargs):
+        calls.append(kwargs)
+        return expected_result
+
+    monkeypatch.setattr(video_pipeline, "render_creative_video", _mock_render)
+
+    result = app.tasks.video_jobs.build_creative_video_task(
+        business_name="Sharma Solar",
+        slides=["slide1"],
+        niche="solar",
+        offer="20% off",
+        client_id="c1",
+    )
+
+    assert result == expected_result
+    assert "error" not in result
+    assert len(calls) == 1
+    assert calls[0]["business_name"] == "Sharma Solar"
+    assert calls[0]["slides"] == ["slide1"]
+    assert calls[0]["niche"] == "solar"
+    assert calls[0]["offer"] == "20% off"
+    assert calls[0]["client_id"] == "c1"
+    assert calls[0]["recipe"] == "generic"  # default value
+
+
+def test_build_creative_video_task_exception_handling(monkeypatch):
+    """Test that build_creative_video_task catches exceptions from
+    render_creative_video and returns them as {"error": ...} without
+    propagating, while ensuring render was actually called."""
+    import app.tasks.video_jobs
+    from app.marketing import video_pipeline
+
+    calls = []
+
+    async def _mock_render_raises(**kwargs):
+        calls.append(kwargs)
+        raise RuntimeError("Mocked ffmpeg crash: encoding failed")
+
+    monkeypatch.setattr(video_pipeline, "render_creative_video", _mock_render_raises)
+
+    result = app.tasks.video_jobs.build_creative_video_task(business_name="Test Business")
+
+    assert "error" in result
+    assert result["error"] == "Mocked ffmpeg crash: encoding failed"
+    assert len(result["error"]) <= 200  # verify truncation constraint holds
+    assert len(calls) == 1  # render was actually called
+    assert calls[0]["business_name"] == "Test Business"
