@@ -317,3 +317,10 @@ def test_render_creative_video_qa_failure_returns_error(monkeypatch, tmp_path):
 
     result = asyncio.run(video_pipeline.render_creative_video(business_name="X", slides=["a"]))
     assert result.get("error") == "qa_failed: forced failure for test"
+
+
+def test_new_ledger_events_are_registered():
+    from app.marketing import delivery_ledger
+
+    for ev in ("video_render_started", "video_qa_failed", "video_render_failed", "video_ready"):
+        assert ev in delivery_ledger.EVENT_TYPES, f"{ev} missing from delivery_ledger.LABELS"
