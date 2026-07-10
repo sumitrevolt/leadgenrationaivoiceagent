@@ -80,6 +80,38 @@ def _write_all(rows: list[dict]) -> None:
         with open(_STORE, "w", encoding="utf-8") as f:
             f.write(content)
 
+    # ENTERPRISE FIX (2026-07-10): JSONL store corruption = all customer logins
+    # break with zero recovery. Hourly gzip backup so worst-case loss is <1 hour.
+    # Keeps last 72 backups (~1.5 MB each * 72 = ~108 MB). Best-effort, never raises.
+    try:
+        import gzip
+        import shutil
+        import time as _backup_time
+
+        _bkp_dir = os.path.join("data", "backups")
+        os.makedirs(_bkp_dir, exist_ok=True)
+        _ts = datetime.now(timezone.utc).strftime("%Y-%m-%d-%H")
+        _bkp_path = os.path.join(_bkp_dir, f"customer_auth.{_ts}.jsonl.gz")
+
+        # Only backup once per hour (dedup by filename)
+        if not os.path.exists(_bkp_path):
+            with open(_STORE, "rb") as _src, gzip.open(_bkp_path + ".tmp", "wb") as _dst:
+                shutil.copyfileobj(_src, _dst)
+            os.replace(_bkp_path + ".tmp", _bkp_path)
+
+            # Prune: keep latest 72 backups
+            _all = sorted(
+                [f for f in os.listdir(_bkp_dir) if f.startswith("customer_auth.") and f.endswith(".jsonl.gz")],
+                reverse=True,
+            )
+            for _old in _all[72:]:
+                try:
+                    os.unlink(os.path.join(_bkp_dir, _old))
+                except OSError:
+                    pass
+    except Exception:
+        pass  # Backup failure must never block auth writes
+
 
 def _find(email: str) -> dict | None:
     e = (email or "").strip().lower()
