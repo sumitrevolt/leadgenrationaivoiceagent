@@ -743,12 +743,32 @@ async def public_signup(body: SignupIn, request: Request):
                     "(activate=%s reset=%s) — customer MUST get post-payment provisioning",
                     cid, plan_k, plan_ok, watermark_ok,
                 )
+                try:
+                    from app.platform import ops_alerts
+                    ops_alerts._ntfy(
+                        f"Signup provisioning PARTIAL — {cid}",
+                        f"plan={plan_k} activate={plan_ok} reset={watermark_ok}. "
+                        "Customer has zero quota until admin fixes.",
+                        tags=["rotating_light", "billing"],
+                    )
+                except Exception:
+                    pass
         except Exception as e:
             logger.warning(
                 "[signup] plan provisioning RAISED for cid=%s plan=%s — "
                 "customer will have ZERO quota until post-payment fix (%s: %s)",
                 cid, plan_k, type(e).__name__, e,
             )
+            try:
+                from app.platform import ops_alerts
+                ops_alerts._ntfy(
+                    f"Signup provisioning CRASHED — {cid}",
+                    f"plan={plan_k} error={type(e).__name__}: {e}. "
+                    "Customer has ZERO quota until admin fixes.",
+                    tags=["rotating_light", "billing"],
+                )
+            except Exception:
+                pass
 
     # 6.8) Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
     try:
