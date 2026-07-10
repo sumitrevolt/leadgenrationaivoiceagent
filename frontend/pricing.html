@@ -372,10 +372,51 @@ async function doSignupPay(){
       })
     });
     const d = await r.json();
-    if(!r.ok){ busy(false); return setMsg((d.error && d.error.message) || d.detail || "Signup fail. <a href='/app/login'>Login</a>"); }
+    if(!r.ok){
+      busy(false);
+      // Loop 10 (2026-07-10): Loop 6 ka structured 429 consume karo — countdown
+      // dikhao instead of an ambiguous error. Server ne `Retry-After` header +
+      // `detail: {error:"rate_limited", retry_after, message}` bhej diya hai.
+      if(r.status === 429){
+        const rl = (d && d.detail && typeof d.detail === "object") ? d.detail : {};
+        let wait = parseInt(rl.retry_after || r.headers.get("Retry-After") || "60", 10);
+        if(!(wait > 0)) wait = 60;
+        const tick = () => {
+          if(wait <= 0){ setMsg("Ab dobara try karo ↻"); return; }
+          setMsg(`Bahut sari requests — ${wait}s me phir try karo.`);
+          wait--;
+          setTimeout(tick, 1000);
+        };
+        tick();
+        return;
+      }
+      // Server ka HTTPException detail dict OR string dono handle karo — FastAPI
+      // detail dict bhejta hai to string coerce mat karo, message field piya karo.
+      const det = (d && d.detail);
+      let msg = "";
+      if(det && typeof det === "object"){ msg = det.message || det.error || ""; }
+      else if(typeof det === "string"){ msg = det; }
+      return setMsg(msg || (d.error && d.error.message) || "Signup fail. <a href='/app/login'>Login</a>");
+    }
     cid = d.client_id || "";
     token = d.access_token || "";
     if(token) localStorage.setItem("accessToken", token);
+    // Enterprise fix (2026-07-10): server ka explicit auto_login=false signal
+    // honor karo. Pre-fix `token || ""` PAID path pe empty Bearer bhejta tha aur
+    // billing checkout 401 pe user bina guidance ke atak jaata tha. Ab: account
+    // ban chuka hai (signup 200), FE seedha login page pe le jaata hai email
+    // prefill ke saath — koi silent-null-token dead-end nahi.
+    if(d.auto_login === false){
+      busy(false);
+      const nxt = d.next || {};
+      const q = new URLSearchParams({
+        e: nxt.email || email || "",
+        r: nxt.reason || "auto_login_unavailable",
+      }).toString();
+      setMsg("Account ban gaya ✓ Login page pe le ja rahe…", true);
+      setTimeout(() => location.href = (nxt.url || "/app/login") + "?" + q, 900);
+      return;
+    }
   }catch(e){
     busy(false);
     return setMsg("Network error, dobara try karo.");
@@ -405,7 +446,7 @@ async function doSignupPay(){
       })
     });
     const co = await r.json();
-    if(r.ok && co.gateway === "stripe" && co.checkout_url){
+    if(r.ok && co.gateway === "upi" && co.checkout_url){
       location.href = co.checkout_url;
       return;
     }

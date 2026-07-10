@@ -1,14 +1,8 @@
 """
 Billing Module
-Handles subscriptions, pricing, and payments
+Handles subscriptions, pricing, and payments (manual UPI only).
 """
 
-from app.billing.payment_gateway import (
-    PaymentGatewayFactory,
-    StripeGateway,
-    get_payment_gateway,
-    get_stripe_gateway,
-)
 from app.billing.subscription import (
     PRICING_PLANS,
     BillingCycle,
@@ -33,9 +27,4 @@ __all__ = [
     "BillingCycle",
     "SubscriptionStatus",
     "PaymentStatus",
-    # Payment Gateways (Stripe only — Razorpay removed 2026-06-18)
-    "PaymentGatewayFactory",
-    "StripeGateway",
-    "get_payment_gateway",
-    "get_stripe_gateway",
 ]

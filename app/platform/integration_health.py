@@ -40,7 +40,7 @@ KNOWN = (
     "whatsapp",
     "pollinations",
     "qdrant",
-    "stripe",  # Razorpay removed 2026-06-18, Exotel/Twilio removed — Vobiz+Stripe+UPI only
+    "stripe",  # Removed 2026-07-10 — integration provider entrypoint retained for graceful skip
 )
 
 

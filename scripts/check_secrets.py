@@ -27,7 +27,7 @@ PATTERNS: list[tuple[str, re.Pattern]] = [
      re.compile(r"(?i)\b\w*(api[_-]?key|secret|token|passwd|password)\w*\s*[=:]\s*['\"][A-Za-z0-9_\-/+\.]{12,}['\"]")),
     ("AWS access key", re.compile(r"AKIA[0-9A-Z]{16}")),
     ("private key block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
-    ("Stripe/Pollinations sk_ key", re.compile(r"\bsk_(?:live_|test_)?[A-Za-z0-9]{16,}")),
+    ("Pollinations sk_ key", re.compile(r"\bsk_(?:live_|test_)?[A-Za-z0-9]{16,}")),
     ("Razorpay live key", re.compile(r"\brzp_live_[A-Za-z0-9]{8,}")),
     ("GitHub token", re.compile(r"\bgh[pousr]_[A-Za-z0-9]{30,}")),
     ("Groq/OpenAI-style key", re.compile(r"\b(?:gsk|sk-proj|sk-ant)[-_][A-Za-z0-9_\-]{20,}")),

@@ -157,8 +157,8 @@ class Settings(BaseSettings):
     dnd_api_key: str = ""
     enable_dnd_check: bool = True
 
-    # Payment Gateways
-    # Stripe (International)
+    # Payment Gateways — Stripe removed 2026-07-10, Razorpay removed 2026-06-18.
+    # Kept as empty defaults for backward compat (no more runtime access to these keys).
     stripe_secret_key: str = ""
     stripe_publishable_key: str = ""
     stripe_webhook_secret: str = ""
