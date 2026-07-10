@@ -207,7 +207,12 @@ def _heartbeat(extra: dict[str, Any] | None = None) -> None:
         status = str(st.get("status") or "tick")
         last_action = str(st.get("last_action") or "")
         note = last_action if status == "ok" and last_action else status
-        automation_health.record_run("self_improve", ok=True, seconds=0.0, note=note)
+        # ENTERPRISE FIX (2026-07-10): pehle hamesha ok=True send hota tha —
+        # automation_health pe self_improve ka card kabhi red nahi hota chahe
+        # daily_cap / gate_skip / budget_cap / approval_pending ho. Ab sirf
+        # "ok" status hi ok=True — baaki sab WARNING ya ERROR (not OK).
+        is_ok = status == "ok"
+        automation_health.record_run("self_improve", ok=is_ok, seconds=0.0, note=note)
     except Exception:
         pass
 
