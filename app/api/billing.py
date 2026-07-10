@@ -516,15 +516,9 @@ async def cancel_subscription(
     try:
         # Cancel in payment gateway if applicable
         if subscription.stripe_subscription_id:
-            from app.billing.payment_gateway import get_stripe_gateway
-
-            gateway = get_stripe_gateway()
-            await gateway.cancel_subscription(
-                subscription.stripe_subscription_id,
-                cancel_at_period_end=not request.cancel_immediately,
-            )
-        # Razorpay removed 2026-06-18 — any legacy razorpay_subscription_id row is
-        # cancelled DB-side only (no online gateway call).
+            # Stripe removed 2026-07-10 — no online gateway to cancel.
+            pass
+        # Razorpay removed 2026-06-18 — any legacy gateway row cancelled DB-side only.
 
         # Update database
         subscription.status = SubscriptionStatus.CANCELLED
@@ -710,6 +704,11 @@ async def add_account_balance(
     """
     Add balance to account (for per-lead pricing model)
     """
+    if not _stripe_configured():
+        raise HTTPException(
+            status_code=503,
+            detail="Online payment abhi setup ho raha hai — UPI ya contact se pay karein.",
+        )
     gateway = get_payment_gateway(currency=request.currency)
 
     try:
@@ -905,13 +904,8 @@ async def create_billing_portal(
         if not _stripe_configured():
             raise HTTPException(status_code=503, detail="Stripe gateway not configured")
         try:
-            from app.billing.payment_gateway import get_stripe_gateway
-
-            gateway = get_stripe_gateway()
-            session = await gateway.create_billing_portal_session(
-                customer_id=subscription.stripe_customer_id, return_url=request.return_url
-            )
-            return {"portal_url": session["portal_url"], "gateway": "stripe"}
+            # Stripe removed 2026-07-10 — no billing portal available.
+            raise HTTPException(status_code=503, detail="Billing portal not available (UPI-only payments)")
         except Exception as e:
             logger.error(f"Failed to create billing portal: {e}")
             raise HTTPException(status_code=500, detail=str(e))
@@ -959,10 +953,9 @@ async def pause_subscription(
     subscription = await _get_active_or_paused_sub(db, client_id)
     try:
         if subscription.stripe_subscription_id and _stripe_configured():
-            from app.billing.payment_gateway import get_stripe_gateway
-
-            await get_stripe_gateway().pause_subscription(subscription.stripe_subscription_id)
-        # Razorpay removed 2026-06-18 — legacy razorpay rows pause DB-side only.
+            # Stripe removed 2026-07-10 — pause DB-side only.
+            pass
+        # Razorpay removed 2026-06-18 — legacy gateway rows pause DB-side only.
     except HTTPException:
         raise
     except Exception as e:
@@ -984,10 +977,9 @@ async def resume_subscription(
     subscription = await _get_active_or_paused_sub(db, client_id)
     try:
         if subscription.stripe_subscription_id and _stripe_configured():
-            from app.billing.payment_gateway import get_stripe_gateway
-
-            await get_stripe_gateway().resume_subscription(subscription.stripe_subscription_id)
-        # Razorpay removed 2026-06-18 — legacy razorpay rows resume DB-side only.
+            # Stripe removed 2026-07-10 — resume DB-side only.
+            pass
+        # Razorpay removed 2026-06-18 — legacy gateway rows resume DB-side only.
     except HTTPException:
         raise
     except Exception as e:
@@ -1143,12 +1135,8 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
     signature = request.headers.get("Stripe-Signature", "")
 
     try:
-        from app.billing.payment_gateway import get_stripe_gateway
-
-        event = await get_stripe_gateway().verify_webhook(payload, signature)
-    except Exception as e:
-        logger.warning(f"Stripe webhook verification failed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid signature")
+        # Stripe removed 2026-07-10 — webhook verification unavailable.
+        raise HTTPException(status_code=400, detail="Stripe gateway removed — UPI-only payments")
 
     event_type = event.get("event_type", "")
     obj = event.get("data") or {}
