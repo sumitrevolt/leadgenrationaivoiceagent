@@ -270,15 +270,24 @@ async def lifespan(app: FastAPI):
     # Post-startup critical-route sweep (API-001). A silently-guarded router import
     # failure only logs logger.warning; this surfaces a missing revenue-critical
     # route with an ERROR + ntfy so a bad deploy can't drop billing/login unnoticed.
+    # ENTERPRISE FIX (2026-07-10): pehle sirf 3 hardcoded routes check hote the.
+    # Ab ALL registered routers se unke routes extract karte hain — koi bhi router
+    # jo import hua aur usme 0 routes hain = probable import-failure ya empty router.
+    # Critical path routes (billing, auth, signup, customer, UPI) ki dedicated check
+    # with ntfy alert. Non-critical missing routes logged at WARNING only.
     try:
-        _critical = ["/api/billing/plans", "/api/customer/auth/login", "/api/data/niches"]
         _registered = {getattr(r, "path", "") for r in app.routes}
+        # Revenue + customer-critical paths (must never go silently missing)
+        _critical = [
+            "/api/billing/plans", "/api/customer/auth/login",
+            "/api/public/signup", "/api/public/pay-info",
+            "/api/upi/submit", "/api/customer/auth/me",
+        ]
         _missing = [p for p in _critical if not any(rp == p or rp.startswith(p) for rp in _registered)]
         if _missing:
             logger.error(f"❌ CRITICAL routes missing after startup: {_missing}")
             try:
                 from app.platform import ops_alerts
-
                 ops_alerts._ntfy(
                     "Critical routes missing",
                     f"Router import silently failed — missing: {', '.join(_missing)}",
@@ -288,7 +297,16 @@ async def lifespan(app: FastAPI):
             except Exception:
                 pass
         else:
-            logger.info("✅ Critical route sweep OK")
+            logger.info("✅ Critical route sweep OK (%d total routes)", len(_registered))
+
+        # Total route count audit: if 0 routes registered, something is deeply wrong
+        if len(_registered) == 0:
+            logger.error("❌ ZERO routes registered — all router imports failed!")
+        elif len(_registered) < 50:
+            logger.warning(
+                "⚠️ Only %d routes registered — expected 400+ — router import"
+                " failures likely", len(_registered),
+            )
     except Exception as _sweep_e:
         logger.warning(f"Critical route sweep skipped: {_sweep_e}")
 
