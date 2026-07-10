@@ -182,7 +182,7 @@ async def _places_search_at(
             },
         }
         out: list[dict[str, Any]] = []
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(_PLACES_URL, headers=headers, json=body, timeout=10.0)
             if resp.status_code != 200:
                 logger.warning(f"[grid] Places(New) HTTP {resp.status_code}: {resp.text[:160]}")

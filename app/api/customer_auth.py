@@ -179,24 +179,56 @@ def require_customer(creds: HTTPAuthorizationCredentials = Depends(_security)) -
 # --------------------------------------------------------------------------- #
 # endpoints
 # --------------------------------------------------------------------------- #
-def register_login(email: str, password: str, client_id: str) -> dict:
+def register_login(
+    email: str, password: str, client_id: str, *, allow_reassign: bool = True
+) -> dict:
     """Public-safe helper: ek email+password login banao/overwrite (client_id se link).
 
     Admin set-password AUR public self-serve signup (public_site.py) dono isko use karte —
     credential-store wiring ek hi jagah. Existing email overwrite hoti (idempotent).
+
+    Loop 23 (2026-07-10) race-safety: signup path checks `login_exists(email)` at
+    line ~550 then registers ~70 lines later. Under load, two concurrent submits
+    with the same email can BOTH pass the initial check, then BOTH call
+    register_login → last-writer-wins, leaving one orphan `client` row in
+    clients_store. `allow_reassign=False` (public signup path) refuses to overwrite
+    a row whose existing client_id differs — the second submit gets
+    `{ok: False, error: "email_claimed"}` and can be handled as a normal 409. Admin
+    set-password keeps the default `allow_reassign=True` (support scenarios need
+    to re-target an email to a different client_id manually).
     """
     e = (email or "").strip().lower()
-    rows = [r for r in _read() if r.get("email") != e]
+    cid = str(client_id).strip()
+    existing_rows = _read()
+    if not allow_reassign:
+        for r in existing_rows:
+            if r.get("email") == e:
+                existing_cid = str(r.get("client_id") or "").strip()
+                if existing_cid and existing_cid != cid:
+                    logger.warning(
+                        "[customer-auth] register_login refused cross-tenant overwrite "
+                        "for email=%s incoming_cid=%s existing_cid=%s",
+                        e, cid, existing_cid,
+                    )
+                    return {
+                        "ok": False,
+                        "error": "email_claimed",
+                        "email": e,
+                        "client_id": existing_cid,
+                    }
+                # Same client_id → idempotent overwrite is safe (real password rotation).
+                break
+    rows = [r for r in existing_rows if r.get("email") != e]
     rows.append(
         {
             "email": e,
-            "client_id": str(client_id).strip(),
+            "client_id": cid,
             "password_hash": _hash(password),
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
     )
     _write_all(rows)
-    return {"email": e, "client_id": str(client_id).strip()}
+    return {"ok": True, "email": e, "client_id": cid}
 
 
 def login_exists(email: str) -> bool:
@@ -247,6 +279,28 @@ async def customer_login(req: LoginIn):
     """
     rec = _find(req.email)
     if not rec or not _verify(req.password, rec.get("password_hash", "")):
+        # Loop 8 (2026-07-10): admin observability for credential-stuffing spikes.
+        # A single failure is boring; the ADR-064 automation-logs panel filter
+        # (job_type=login_failed) surfaces the RATE so ops sees brute-force early.
+        # Never leak WHICH factor failed (no user enumeration) — reason=invalid_creds
+        # covers both unknown-email and bad-password. Best-effort, never blocks 401.
+        try:
+            from app.platform import automation_log_service as _als
+
+            _als.log_event(
+                # No client_id (we don't want a fake attribution row on unknown email).
+                job_type="login_failed",
+                status="failed",
+                output_summary=f"Login attempt failed for {(req.email or '')[:120]}",
+                error_message="invalid_creds",
+                triggered_by="customer_login",
+                meta_json={
+                    "email": (req.email or "")[:200],
+                    "known_email": rec is not None,
+                },
+            )
+        except Exception as _log_err:
+            logger.debug(f"[customer-auth] login_failed log emit skip: {_log_err}")
         raise HTTPException(status_code=401, detail="Invalid email or password")
     cid = str(rec["client_id"])
     # 2FA gate — if armed, do NOT issue the JWT here; force the verify step.
@@ -342,19 +396,186 @@ async def customer_signup(req: SignupIn, request: Request):
     return await public_signup(body, request)
 
 
+def _first_hour_setup_state(client_rec: dict | None) -> dict:
+    """Loop 9 (2026-07-10) — new-customer first-hour anti-churn signal.
+
+    Brand-new customers (signed up in the last 60 min AND still zero content)
+    see "koi activity nahi" everywhere on their dashboard because the
+    auto_onboard Celery job takes 10-30 min to seed the KB + generate the
+    first content pack. Returns a self-describing dict the FE renders as
+    "🚀 Aapki AI team abhi setup ho rahi hai — X min me pehla content taiyaar"
+    instead of empty state. Never raises; missing timestamp = inactive.
+    """
+    out = {"active": False, "minutes_elapsed": 0, "minutes_remaining": 0, "message": ""}
+    if not client_rec:
+        return out
+    try:
+        from datetime import datetime, timezone
+
+        created_raw = client_rec.get("created_at") or client_rec.get("created")
+        if not created_raw:
+            return out
+        # Support ISO string OR datetime; tolerate trailing Z.
+        if isinstance(created_raw, str):
+            s = created_raw.rstrip("Z")
+            created = datetime.fromisoformat(s)
+            if created.tzinfo is None:
+                created = created.replace(tzinfo=timezone.utc)
+        else:
+            created = created_raw
+            if getattr(created, "tzinfo", None) is None:
+                created = created.replace(tzinfo=timezone.utc)
+        now = datetime.now(timezone.utc)
+        elapsed_min = int((now - created).total_seconds() // 60)
+        if elapsed_min < 0 or elapsed_min >= 60:
+            return out
+        # Optional: skip if the client already has content queued — no need for
+        # the empty-state banner once real activity exists.
+        try:
+            from app.marketing.auto_content import list_queue
+
+            cid = str(client_rec.get("id") or "").strip()
+            if cid and (list_queue(cid, limit=1) or []):
+                return out
+        except Exception:
+            pass
+        remaining = max(1, 30 - elapsed_min)  # tuned to auto_onboard's typical 10-30 min
+        out.update({
+            "active": True,
+            "minutes_elapsed": elapsed_min,
+            "minutes_remaining": remaining,
+            "message": (
+                f"🚀 Aapki AI team abhi setup ho rahi hai — "
+                f"~{remaining} min me pehla content taiyaar hoga."
+            ),
+        })
+    except Exception:
+        pass
+    return out
+
+
+class ChangePwIn(BaseModel):
+    old_password: str = Field(..., min_length=1, max_length=128)
+    new_password: str = Field(..., min_length=6, max_length=128)
+
+
+# Same block-list as Loop 13B (public_site.py) — keep centralized here so a
+# password rotation cannot land on a known-breached string post-signup either.
+_BREACHED_PASSWORDS = {
+    "password", "password1", "123456", "12345678", "123456789", "1234567890",
+    "qwerty", "abc123", "111111", "000000", "admin", "welcome", "letmein",
+    "iloveyou", "monkey", "dragon", "master", "shadow", "sunshine", "princess",
+}
+
+
+@router.post(
+    "/change-password",
+    dependencies=[Depends(rate_limit("cust_pw_change", 5, 300))],
+)
+async def customer_change_password(
+    req: ChangePwIn,
+    client_id: str = Depends(require_customer),
+):
+    """Loop 19 (2026-07-10) — customer self-serve password change.
+
+    Verifies the old password against the JSONL store, applies the same
+    Loop 13B breached-password block-list to the new value, then rewrites
+    the credential row via `register_login` (idempotent overwrite). Emits a
+    `password_changed` AutomationLog row for admin visibility (mirrors
+    Loops 2/3B/7/8 pattern). Never leaks whether the account exists — the
+    dependency injection layer already rejected an invalid JWT, so we're
+    guaranteed to have a legitimate `client_id` at this point.
+    """
+    # 1) Find this client's email from the store (client_id is authoritative).
+    #    NOTE: never take email from a request body — sub in the JWT is truth.
+    row = None
+    for r in _read():
+        if str(r.get("client_id") or "").strip() == client_id:
+            row = r
+            break
+    if row is None:
+        # Legitimate client_id but no credential row (edge case: legacy accounts
+        # created before customer_auth existed, or store corruption). Log for ops
+        # then return a 409 — customer can email support for a manual reset.
+        logger.warning("[customer-auth] change-password: no credential row for cid=%s", client_id)
+        raise HTTPException(status_code=409, detail="Account credentials nahi mile — support se contact karo.")
+
+    # 2) Verify old password (constant-time via _verify).
+    if not _verify(req.old_password, row.get("password_hash", "")):
+        # Emit a login_failed-style admin log so brute-force against change-password
+        # is caught by the same monitor Loop 8 wired.
+        try:
+            from app.platform import automation_log_service as _als
+
+            _als.log_event(
+                client_id=client_id,
+                job_type="password_change_failed",
+                status="failed",
+                error_message="invalid_old_password",
+                triggered_by="customer_change_password",
+                meta_json={"email": str(row.get("email") or "")[:200]},
+            )
+        except Exception as _e:
+            logger.debug(f"[customer-auth] change-password log emit skip: {_e}")
+        raise HTTPException(status_code=401, detail="Purana password galat hai.")
+
+    # 3) Reject known-breached new password (Loop 13B parity).
+    if (req.new_password or "").strip().lower() in _BREACHED_PASSWORDS:
+        raise HTTPException(
+            status_code=422,
+            detail="Yeh naya password bahut common hai — kuch alag choose karein.",
+        )
+    # 4) Reject no-op reset (old == new — hint at a mistake).
+    if req.old_password == req.new_password:
+        raise HTTPException(
+            status_code=422,
+            detail="Naya password purana wale se alag hona chahiye.",
+        )
+
+    # 5) Update credentials. register_login is idempotent (email match dedupe + overwrite).
+    email = str(row.get("email") or "").strip()
+    if not email:
+        raise HTTPException(status_code=500, detail="Account row corrupt — support se contact karo.")
+    register_login(email, req.new_password, client_id)
+
+    # 6) Emit admin AutomationLog for security audit trail.
+    try:
+        from app.platform import automation_log_service as _als
+
+        _als.log_event(
+            client_id=client_id,
+            job_type="password_changed",
+            status="success",
+            output_summary=f"Password rotated for {email}",
+            triggered_by="customer_change_password",
+            meta_json={"email": email},
+        )
+    except Exception as _e:
+        logger.debug(f"[customer-auth] change-password success log emit skip: {_e}")
+
+    return {"ok": True, "message": "Password badal gaya — agli baar naye password se login karo."}
+
+
 @router.get("/me")
 async def me(client_id: str = Depends(require_customer)):
     # product drives which customer dashboard the client lands on
     # (marketing | voice | combo). ADR-009 two-product split.
+    client_rec: dict | None = None
     try:
         from app.marketing.clients_store import get_client
 
-        product = str((get_client(client_id) or {}).get("product") or "marketing").strip().lower()
+        client_rec = get_client(client_id)
+        product = str((client_rec or {}).get("product") or "marketing").strip().lower()
     except Exception:
         product = "marketing"
     if product not in ("marketing", "voice", "combo"):
         product = "marketing"
-    return {"client_id": client_id, "business_name": _biz_name(client_id), "product": product}
+    return {
+        "client_id": client_id,
+        "business_name": _biz_name(client_id),
+        "product": product,
+        "first_hour_setup": _first_hour_setup_state(client_rec),
+    }
 
 
 @router.get("/portal/content")

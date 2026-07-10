@@ -61,9 +61,18 @@ def rate_limit(prefix: str, max_requests: int = 30, window_seconds: int = 60):
             logger.debug("rate_limit fail-open (%s): %s", prefix, exc)
             return
         if not allowed:
+            # Loop 16 (2026-07-10): structured 429 detail (Loop 6 pattern) so any
+            # FE can render a countdown / distinguish "rate_limited" from other
+            # 4xx across every endpoint that uses this dep. Backward-compat: a
+            # `message` field preserves the human string old callers displayed.
             raise HTTPException(
                 status_code=429,
-                detail="Bahut zyada requests — thodi der baad try karo.",
+                detail={
+                    "error": "rate_limited",
+                    "message": "Bahut zyada requests — thodi der baad try karo.",
+                    "retry_after": int(window_seconds),
+                    "scope": prefix,
+                },
                 headers={"Retry-After": str(window_seconds)},
             )
 
@@ -132,7 +141,13 @@ def tier_rate_limit(prefix: str, base_max: int = 20, window_seconds: int = 60):
         if not allowed:
             raise HTTPException(
                 status_code=429,
-                detail="Bahut zyada requests — thodi der baad try karo (ya plan upgrade).",
+                detail={
+                    "error": "rate_limited",
+                    "message": "Bahut zyada requests — thodi der baad try karo (ya plan upgrade).",
+                    "retry_after": int(window_seconds),
+                    "scope": prefix,
+                    "tier": tier,
+                },
                 headers={"Retry-After": str(window_seconds)},
             )
 

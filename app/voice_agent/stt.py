@@ -50,7 +50,7 @@ class DeepgramSTT(STTProvider):
             "utterances": "true",
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 self.base_url, headers=headers, params=params, content=audio_data, timeout=30.0
             )

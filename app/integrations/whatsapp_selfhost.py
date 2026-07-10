@@ -221,7 +221,7 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
     async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}{path}"
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 resp = await client.post(url, headers=_headers(), json=payload, timeout=30.0)
                 resp.raise_for_status()
                 try:
@@ -268,7 +268,7 @@ async def session_status() -> dict[str, Any]:
     sess = _session()
     url = f"{base}/api/sessions/{sess}"
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(url, headers=_headers(), timeout=15.0)
             if resp.status_code == 404:
                 return {"configured": True, "session": sess, "status": "NOT_CREATED"}
@@ -334,7 +334,7 @@ async def start_session() -> dict[str, Any]:
     if st in ("WORKING", "SCAN_QR_CODE", "STARTING"):
         return {"ok": True, "status": st, "already_running": True}
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             if st in ("", "UNKNOWN", "NOT_CREATED"):
                 await client.post(
                     f"{base}/api/sessions",
@@ -375,7 +375,7 @@ async def qr_image() -> tuple[bytes | None, str]:
     sess = _session()
     url = f"{base}/api/{sess}/auth/qr?format=image"
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(url, headers=_headers(), timeout=20.0)
             if resp.status_code >= 400:
                 return None, "application/json"

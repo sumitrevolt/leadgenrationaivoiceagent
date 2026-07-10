@@ -72,7 +72,7 @@ class ElevenLabsTTS(TTSProvider):
 
         url = f"{self.base_url}/text-to-speech/{voice}"
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, headers=headers, json=payload, timeout=30.0)
             response.raise_for_status()
 
@@ -127,7 +127,7 @@ class AzureTTS(TTSProvider):
             "X-Microsoft-OutputFormat": "audio-16khz-128kbitrate-mono-mp3",
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(url, headers=headers, content=ssml, timeout=30.0)
             response.raise_for_status()
 
@@ -295,7 +295,7 @@ class TextToSpeech:
                     "voice_settings": {"stability": 0.5, "similarity_boost": 0.8},
                 }
 
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(timeout=30.0) as client:
                     async with client.stream(
                         "POST", url, headers=headers, json=payload, timeout=30.0
                     ) as response:

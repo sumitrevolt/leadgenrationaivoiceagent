@@ -141,12 +141,38 @@
       var r = await fetch("/api/customer/auth/login",{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({email:document.getElementById("email").value.trim(), password:document.getElementById("password").value})});
       var j = await r.json().catch(function(){return{};});
-      if(!r.ok) throw new Error(j.detail||"Login failed");
+      if(!r.ok){
+        // Loop 17 (2026-07-10): Loop 16 ka structured 429 consume karo — countdown
+        // dikhao instead of a bare "too many requests". FastAPI HTTPException detail
+        // ab dict hai `{error, message, retry_after, scope}` — string coerce mat karo.
+        if(r.status === 429){
+          var rl = (j && j.detail && typeof j.detail === "object") ? j.detail : {};
+          var wait = parseInt(rl.retry_after || r.headers.get("Retry-After") || "60", 10);
+          if(!(wait > 0)) wait = 60;
+          btn.disabled = true;
+          btn.textContent = "Please wait…";
+          err.style.color = "#b91c1c";
+          var tick = function(){
+            if(wait <= 0){ err.textContent = "Ab try karo ↻"; btn.disabled = false; btn.textContent = "Login"; return; }
+            err.textContent = "Bahut sari koshish — " + wait + "s me phir try karo.";
+            wait--;
+            setTimeout(tick, 1000);
+          };
+          tick();
+          return;
+        }
+        // Non-429 error: honor structured detail dict OR string.
+        var det = (j && j.detail);
+        var msg = "";
+        if(det && typeof det === "object"){ msg = det.message || det.error || "Login failed"; }
+        else { msg = det || "Login failed"; }
+        throw new Error(msg);
+      }
       localStorage.setItem("lgai_token", j.access_token);
       localStorage.setItem("lgai_cid", j.client_id||"");
       await goToDashboard();
     }catch(e){ err.textContent = e.message; }
-    finally{ btn.disabled=false; btn.textContent="Login"; }
+    finally{ if(btn.textContent !== "Please wait…"){ btn.disabled=false; btn.textContent="Login"; } }
   });
 
   document.getElementById("logout").addEventListener("click", function(){

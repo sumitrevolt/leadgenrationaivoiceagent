@@ -84,7 +84,7 @@ async def fetch_reviews(business_name: str, city: str = "") -> list[dict[str, An
             "maxResultCount": 1,
             "regionCode": "IN",
         }
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
                 "https://places.googleapis.com/v1/places:searchText",
                 headers=headers,

@@ -99,7 +99,7 @@ class GoogleMapsScraper:
         }
         leads: list[BusinessLead] = []
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 page_token = None
                 while len(leads) < max_results:
                     body: dict[str, Any] = {
@@ -186,7 +186,7 @@ class GoogleMapsScraper:
         leads = []
         next_page_token = None
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             while len(leads) < max_results:
                 params = {
                     "query": f"{query} in {location}",
@@ -273,7 +273,7 @@ class GoogleMapsScraper:
         if not self.api_key:
             return {}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 f"{self.base_url}/details/json",
                 params={
@@ -303,7 +303,7 @@ class GoogleMapsScraper:
         return coords
 
     async def _geocode_once(self, location: str) -> dict[str, float] | None:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(
                 "https://maps.googleapis.com/maps/api/geocode/json",
                 params={"address": location, "key": self.api_key},
