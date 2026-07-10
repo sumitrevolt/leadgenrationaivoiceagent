@@ -1,9 +1,10 @@
 # ============================================================================
-# LeadGen AI Voice Agent - Test Workflow
-# Runs tests on every push and PR
+# ⛔ DEPRECATED — 2026-07-10. Use ci.yml (PR gate) + tests.yml (targeted).
+#    This workflow: manual-only, black/isort strict checks hamesha fail karte
+#    (codebase ruff-fied 2026-06, not black/isort), Dockerfile.production
+#    Cloud Run target stale. Kept reference-only — DELETE after 2026-08.
 # ============================================================================
-
-name: Tests
+name: Tests (legacy - deprecated)
 
 on:
   workflow_dispatch:

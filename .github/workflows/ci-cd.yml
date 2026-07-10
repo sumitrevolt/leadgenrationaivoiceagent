@@ -1,4 +1,7 @@
-name: CI/CD Pipeline
+# ⛔ DEPRECATED — 2026-07-10. Uses Dockerfile.production + Cloud Run (both dead).
+#    Live infra: Hostinger VPS via deploy-vps.yml. Kept reference-only.
+#    DELETE after 2026-08.
+name: CI/CD Pipeline (legacy - deprecated)
 
 on:
   # Auto-triggers DISABLED — deploys moved to deploy-vps.yml (Hostinger VPS, not Cloud Run).

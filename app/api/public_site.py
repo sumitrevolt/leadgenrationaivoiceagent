@@ -528,9 +528,39 @@ async def public_signup(body: SignupIn, request: Request):
         raise HTTPException(status_code=400, detail="Invalid request.")
 
     # 1) Rate limit (5/min/IP — same store as inquiry)
+    # Loop 6 (2026-07-10): 429 previously carried only a bare Hinglish string.
+    # FE couldn't render a countdown or distinguish "you're rate-limited" from
+    # a generic error. Return the standard `Retry-After` header (RFC 7231 §7.1.3)
+    # plus a structured detail so pricing.html can show "X seconds me phir try".
     ip = _client_ip(request)
     if _rate_limited(ip):
-        raise HTTPException(status_code=429, detail="Thoda ruk ke dobara try karo.")
+        wait_s = int(_RL_WINDOW_S)  # conservative — full window; can shrink later
+        # Loop 7 (2026-07-10): admin observability for abuse spikes. Emit a
+        # `signup_rate_limited` AutomationLog row (piggy-back on Loops 2/3B
+        # pattern) so ops sees the count in the Delivery Command Center
+        # without grepping app logs. Best-effort — never blocks the 429.
+        try:
+            from app.platform import automation_log_service as _als
+
+            _als.log_event(
+                job_type="signup_rate_limited",
+                status="failed",
+                output_summary=f"IP {ip} tripped signup bucket (5/min)",
+                triggered_by="signup",
+                meta_json={"ip": ip, "scope": "signup_ip"},
+            )
+        except Exception as _log_err:
+            logger.debug(f"[signup] rate_limited log emit skip: {_log_err}")
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "rate_limited",
+                "message": f"Thoda ruk ke dobara try karo ({wait_s}s).",
+                "retry_after": wait_s,
+                "scope": "signup_ip",
+            },
+            headers={"Retry-After": str(wait_s)},
+        )
 
     # 2) Validate
     biz = (body.business_name or "").strip()
@@ -617,27 +647,83 @@ async def public_signup(body: SignupIn, request: Request):
 
     # 6) Login banao + auto-login JWT
     register_login(email, pw, cid)
-    token = None
+    token: str | None = None
+    # ENTERPRISE FIX (2026-07-10 onboarding audit): pehle `token=None` silently
+    # respond kar diya jaata tha `access_token: null` ke saath — FE (pricing.html:377)
+    # `token = d.access_token || ""` karke PAID checkout pe empty Bearer bhejta,
+    # `/api/billing/checkout` 401 return karta, aur user ko fallback ka koi signal
+    # nahi milta. Ab explicit `auto_login: bool` + `next.url=/app/login` guidance
+    # response me daal ke FE explicitly branch kar sake. Account creation still
+    # succeeds (idempotent password login intact) — sirf auto-login ka signal honest.
+    auto_login = True
     try:
-        from app.api.admin import create_access_token
+        # Import via module (not `from app.api.admin import ...`) so tests can
+        # monkeypatch `app.api.admin.create_access_token` and see the effect here.
+        from app.api import admin as _admin_mod
 
-        token = create_access_token(cid, email, "customer")
+        token = _admin_mod.create_access_token(cid, email, "customer")
     except Exception as e:
-        logger.debug(f"[signup] token issue (login still works): {e}")
+        # Escalated DEBUG→WARNING so ops sees this the moment JWT config regresses
+        # (missing JWT_SECRET / bad key / jwt import shim etc.). If this ever fires
+        # in prod, login for ALL customers will also be broken — it's not a debug event.
+        auto_login = False
+        logger.warning(
+            "[signup] auto-login token mint FAILED for cid=%s email=%s — client will "
+            "need manual login (%s: %s)",
+            cid, email, type(e).__name__, e,
+        )
+        # Loop 2 (2026-07-10): surface this in the admin Delivery Command Center's
+        # Automation Runs panel (already live via /api/admin/automation-logs). Ops
+        # sees the failure count without grepping app logs. Best-effort — signup
+        # NEVER fails because of a downstream logging hiccup.
+        try:
+            from app.platform import automation_log_service as _als
+
+            _als.log_event(
+                client_id=cid,
+                job_type="signup_auto_login_failed",
+                status="failed",
+                error_message=f"{type(e).__name__}: {e}"[:500],
+                output_summary="Account created, JWT mint failed → customer must login manually",
+                triggered_by="signup",
+                meta_json={"email": email, "plan": (body.plan or "starter")},
+            )
+        except Exception as _log_err:
+            logger.debug(f"[signup] automation_log emit skip: {_log_err}")
 
     # 6.5) PLAN PROVISIONING (audit #7): paid plan ka usage-period + minutes provision karo
     #      (activate_plan + reset_usage_period). Pehle yeh sirf orphan customer_signup me tha
     #      (jiska koi caller nahi tha) — ab is CANONICAL path pe, taaki pricing-funnel se aaya
     #      paid customer ka quota signup pe hi set ho jaye. Trial pe SKIP (₹0; trial-fields upar
     #      already set hote). Best-effort — signup KABHI is wajah se fail nahi hota.
+    #
+    #      ENTERPRISE FIX (2026-07-10): pehle failure DEBUG pe silent hota tha — customer
+    #      pay karta, checkout 200, par plan quota ZERO (no minutes, no features).
+    #      Ab return values capture karo, WARNING log karo, aur response me
+    #      `plan_provisioned: bool` bhejo taaki FE + admin dashboard detect kar sake.
+    #      Payment ke BAAD (webhook ya admin UPI approval) phir se `_provision_usage`
+    #      call hota hai — yeh pre-payment safety-net hai, post-payment guarantee nahi.
+    plan_provisioned = False
     if not is_trial:
+        plan_k = (body.plan or "starter")
         try:
             from app.billing import usage as _usage
 
-            _usage.activate_plan(cid, (body.plan or "starter"))
-            _usage.reset_usage_period(cid)
+            plan_ok = _usage.activate_plan(cid, plan_k)
+            watermark_ok = _usage.reset_usage_period(cid)
+            plan_provisioned = bool(plan_ok and watermark_ok)
+            if not plan_provisioned:
+                logger.warning(
+                    "[signup] plan provisioning PARTIAL for cid=%s plan=%s "
+                    "(activate=%s reset=%s) — customer MUST get post-payment provisioning",
+                    cid, plan_k, plan_ok, watermark_ok,
+                )
         except Exception as e:
-            logger.debug(f"[signup] plan provisioning skip (account still ok): {e}")
+            logger.warning(
+                "[signup] plan provisioning RAISED for cid=%s plan=%s — "
+                "customer will have ZERO quota until post-payment fix (%s: %s)",
+                cid, plan_k, type(e).__name__, e,
+            )
 
     # 6.8) Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
     try:
@@ -770,15 +856,52 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception as e:
         logger.debug(f"[signup] outbound_webhook skip: {e}")
 
+    # Loop 3B (2026-07-10): admin GTM visibility — emit a `signup_completed` row
+    # for EVERY successful signup (trial + paid). The admin Delivery Command
+    # Center's Automation Runs panel filters by job_type so ops can count
+    # new customers per day/week without a separate CRM query. Best-effort
+    # (never blocks the response; failure row is already covered by Loop 2).
+    try:
+        from app.platform import automation_log_service as _als
+
+        _als.log_event(
+            client_id=cid,
+            job_type="signup_completed",
+            status="success",
+            output_summary=f"{biz} ({body.plan or 'starter'}){' [trial]' if is_trial else ''}",
+            triggered_by="signup",
+            meta_json={
+                "email": email,
+                "plan": (body.plan or "starter"),
+                "trial": is_trial,
+                "auto_login": auto_login,
+                "plan_provisioned": plan_provisioned,
+                "via": "pricing_page",
+            },
+        )
+    except Exception as _log_err:
+        logger.debug(f"[signup] automation_log signup_completed skip: {_log_err}")
+
     out: dict[str, Any] = {
         "ok": True,
         "client_id": cid,
         "access_token": token,
+        "auto_login": auto_login,
         "token_type": "bearer",
         "business_name": (client or {}).get("business_name"),
         "slug": (client or {}).get("slug"),
         "plan": (client or {}).get("plan"),
+        "plan_provisioned": plan_provisioned,
     }
+    # If auto-login couldn't be issued (rare — JWT config regression), hand the FE
+    # explicit fallback guidance so the paid checkout path doesn't 401 blind. Trial
+    # path already redirects on empty token; this keeps paid honest too.
+    if not auto_login:
+        out["next"] = {
+            "url": "/app/login",
+            "email": email,
+            "reason": "auto_login_unavailable",
+        }
     if is_trial:
         out["trial"] = True
         out["trial_expires"] = trial_expires
