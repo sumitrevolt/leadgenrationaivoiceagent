@@ -11,6 +11,11 @@ from __future__ import annotations
 
 import base64
 import os
+import shutil
+import subprocess
+import tempfile
+import time
+import uuid
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -116,6 +121,92 @@ def _make_branded_frame(text: str, idx: int, brand: dict[str, Any], tmp_dir: str
     return path
 
 
+def _zoompan_filter(duration_s: float, fps: int = 24) -> str:
+    """Slow Ken-Burns zoom (1.0 -> ~1.08) across the whole frame duration.
+    Applied to a single static PIL frame — creates real perceived motion
+    without needing photographic/AI-generated background content."""
+    d = max(1, int(round(duration_s * fps)))
+    return f"scale=720:1280,zoompan=z='min(zoom+0.0015,1.08)':d={d}:s=720x1280:fps={fps}"
+
+
+def _build_segment_args(
+    frame_path: str, audio_path: str | None, duration_s: float, out_path: str
+) -> list[str]:
+    """ffmpeg args (sans the ['ffmpeg','-y','-loglevel','error'] prefix reel_video._ffmpeg
+    already adds) to build one Ken-Burns video segment from a static frame,
+    optionally muxed with a voiceover track."""
+    vf = _zoompan_filter(duration_s)
+    args = ["-loop", "1", "-i", frame_path]
+    if audio_path:
+        args += ["-i", audio_path, "-shortest"]
+    else:
+        args += ["-t", str(duration_s)]
+    args += ["-vf", vf, "-c:v", "libx264", "-pix_fmt", "yuv420p", "-r", "24"]
+    if audio_path:
+        args += ["-c:a", "aac"]
+    args += [out_path]
+    return args
+
+
+_OUT_DIR = os.path.join("data", "reels")
+
+
+async def _render_generic(
+    business_name: str, niche: str, slides: list[str], offer: str, client_id: str
+) -> dict[str, Any]:
+    from app.marketing import brand_frames, reel_video
+
+    avail = reel_video.available()
+    if not avail.get("ok"):
+        return {"error": "video deps missing", "available": avail}
+
+    brand = brand_frames.resolve_brand(client_id) if client_id else {}
+    if not brand.get("business_name"):
+        brand["business_name"] = business_name
+    brand.setdefault("primary", "#2563eb")
+
+    used_slides = slides or [
+        business_name,
+        offer or f"Aapke area ka bharosemand {niche} expert",
+        "Call ya WhatsApp karo — turant response milega",
+    ]
+
+    tmp = tempfile.mkdtemp(prefix="vidpipe_")
+    try:
+        segs: list[str] = []
+        for i, text in enumerate(used_slides):
+            frame = _make_branded_frame(text, i, brand, tmp)
+            audio = os.path.join(tmp, f"audio{i:02d}.mp3")
+            has_audio = await reel_video._tts(text, audio)
+            seg = os.path.join(tmp, f"seg{i:02d}.mp4")
+            duration = 4.0
+            args = _build_segment_args(frame, audio if has_audio else None, duration, seg)
+            if not reel_video._ffmpeg(args):
+                return {"error": f"ffmpeg segment {i} failed"}
+            segs.append(seg)
+
+        concat_list = os.path.join(tmp, "list.txt")
+        with open(concat_list, "w", encoding="utf-8") as f:
+            for s in segs:
+                f.write(f"file '{s}'\n")
+
+        os.makedirs(_OUT_DIR, exist_ok=True)
+        out_path = os.path.join(_OUT_DIR, f"reel_{uuid.uuid4().hex[:10]}.mp4")
+        if not reel_video._ffmpeg(["-f", "concat", "-safe", "0", "-i", concat_list, "-c", "copy", out_path]):
+            return {"error": "ffmpeg concat failed"}
+
+        return {
+            "path": out_path,
+            "slides": used_slides,
+            "size_kb": os.path.getsize(out_path) // 1024,
+            "note": "Human upload karo (IG/FB/YT Shorts) — auto-publish nahi.",
+        }
+    except Exception as e:
+        return {"error": str(e)[:200]}
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 async def render_creative_video(
     recipe: str = "generic",
     *,
@@ -126,14 +217,10 @@ async def render_creative_video(
     client_id: str = "",
 ) -> dict[str, Any]:
     """1 branded creative video banao. Returns {path,...} ya {error}.
-    Phase 1: recipe is accepted but only "generic" has a real implementation;
-    delegates to reel_video.build_reel unchanged (walking skeleton)."""
-    from app.marketing import reel_video
-
-    return await reel_video.build_reel(
-        business_name=business_name,
-        niche=niche,
-        slides=slides,
-        offer=offer,
-        client_id=client_id,
-    )
+    Phase 1: only "generic" has a real implementation; other recipe names
+    currently fall back to generic (Phase 2 adds real per-recipe behavior)."""
+    t0 = time.time()
+    result = await _render_generic(business_name, niche, slides or [], offer, client_id)
+    if "error" not in result:
+        result["took_s"] = round(time.time() - t0, 1)
+    return result
