@@ -355,75 +355,24 @@ async def create_checkout_session(
 ):
     """
     Create a checkout session for subscription payment.
-    Returns a Stripe checkout URL. (Razorpay removed 2026-06-18 — India payments
-    via manual UPI; if Stripe is not configured the caller gets a clean 503 so
-    the frontend can show the UPI/contact fallback.)
+
+    Since Stripe was removed (2026-07-10), all payments are manual UPI.
+    Returns a clean response so the frontend can redirect to the customer
+    dashboard where the UPI QR + submit form live.
     """
-    # Get plan details
     plan = billing_manager.get_plan(request.plan_id)
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found")
 
-    # Calculate pricing
-    from app.billing.subscription import BillingCycle as BC
-
-    cycle_map = {"monthly": BC.MONTHLY, "quarterly": BC.QUARTERLY, "yearly": BC.YEARLY}
-    pricing = billing_manager.calculate_price(
-        request.plan_id, cycle_map.get(request.billing_cycle, BC.MONTHLY)
+    return CheckoutResponse(
+        checkout_url=f"/app/customer?plan={request.plan_id}",
+        order_id="",
+        session_id="",
+        key_id="",
+        amount=float(plan.monthly_price),
+        currency="INR",
+        gateway="upi",
     )
-
-    amount = pricing["total"]
-    currency = request.currency or settings.default_currency
-
-    # Stripe is the only online gateway now. If unconfigured -> clean 503 so the
-    # frontend can fall back to manual UPI / contact instead of a broken 500.
-    if not _stripe_configured():
-        raise HTTPException(
-            status_code=503,
-            detail="Online payment abhi setup ho raha hai — UPI ya contact se pay karein.",
-        )
-
-    # Get the gateway (always Stripe — Razorpay removed).
-    gateway = get_payment_gateway(currency=currency)
-
-    try:
-        # Check if customer exists, create if not
-        # Use the client's REAL email (clients_store / customer-auth store; fallback admin).
-        customer_result = await gateway.create_customer(
-            email=_client_email(client_id),
-            name=_client_name(client_id),
-            metadata={"client_id": client_id},
-        )
-
-        # Create checkout session
-        result = await gateway.create_checkout_session(
-            customer_id=customer_result["customer_id"],
-            plan_id=request.plan_id,
-            amount=amount,
-            currency=currency,
-            success_url=request.success_url,
-            cancel_url=request.cancel_url,
-            metadata={
-                "client_id": client_id,
-                "plan_id": request.plan_id,
-                "billing_cycle": request.billing_cycle,
-                "type": "subscription",
-            },
-        )
-
-        return CheckoutResponse(
-            checkout_url=result.get("checkout_url"),
-            order_id=result.get("order_id"),
-            session_id=result.get("session_id"),
-            key_id=result.get("key_id"),
-            amount=float(amount),
-            currency=currency,
-            gateway=result["gateway"],
-        )
-
-    except Exception as e:
-        logger.error(f"Failed to create checkout session: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 # /billing/verify-payment removed 2026-06-18 — Razorpay frontend signature
@@ -702,49 +651,13 @@ async def add_account_balance(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Add balance to account (for per-lead pricing model)
+    Add balance to account (for per-lead pricing model).
+    Stripe removed 2026-07-10 — returns clean 503.
     """
-    if not _stripe_configured():
-        raise HTTPException(
-            status_code=503,
-            detail="Online payment abhi setup ho raha hai — UPI ya contact se pay karein.",
-        )
-    gateway = get_payment_gateway(currency=request.currency)
-
-    try:
-        # Create customer if needed (REAL email — no fake example.com).
-        customer_result = await gateway.create_customer(
-            email=_client_email(client_id),
-            name=_client_name(client_id),
-            metadata={"client_id": client_id},
-        )
-
-        # Create checkout for balance top-up
-        result = await gateway.create_checkout_session(
-            customer_id=customer_result["customer_id"],
-            plan_id="balance_topup",
-            amount=Decimal(str(request.amount)),
-            currency=request.currency,
-            success_url=success_url,
-            cancel_url=cancel_url,
-            metadata={
-                "client_id": client_id,
-                "type": "balance_topup",
-                "amount": str(request.amount),
-            },
-        )
-
-        return {
-            "checkout_url": result.get("checkout_url"),
-            "order_id": result.get("order_id"),
-            "amount": request.amount,
-            "currency": request.currency,
-            "gateway": result["gateway"],
-        }
-
-    except Exception as e:
-        logger.error(f"Failed to create balance top-up: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    raise HTTPException(
+        status_code=503,
+        detail="Online payment abhi setup ho raha hai — UPI ya contact se pay karein.",
+    )
 
 
 @router.get("/billing/balance", tags=["Billing"])

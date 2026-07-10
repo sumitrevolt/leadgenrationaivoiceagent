@@ -458,8 +458,11 @@ async function doSignupPay(){
   // Pehle yahan static VPA-text dead-end tha ("login karo, hum activate kar denge") jisme na QR dikhta
   // na /api/upi/submit call hota — customer ko manually re-login karna padta. Ab seedha portal jahan
   // payment self-serve complete hota (trial path bhi yahi /app/customer redirect karta hai, line ~343).
+  // ENTERPRISE FIX (2026-07-10): pass selected plan as query param so dashboard can preselect it
+  // in the UPI payment dropdown. Customer doesn't have to re-choose what they already picked.
+  const planParam = (SELECTED && SELECTED.id) ? `?plan=${encodeURIComponent(SELECTED.id)}` : "";
   setMsg("Account ban gaya ✓ Ab portal me UPI se payment complete karo…", true);
-  setTimeout(() => location.href = "/app/customer", 1100);
+  setTimeout(() => location.href = "/app/customer" + planParam, 1100);
   return;
 }
 
