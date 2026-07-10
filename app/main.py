@@ -100,11 +100,28 @@ def _log_startup_banner():
     logger.info("   └── Tier 2: Unka AI marketing + (Advanced) voice-agent inquiry callbacks")
     logger.info("")
     logger.info("⚙️  CONFIGURATION:")
-    logger.info(f"   ├── Telephony: {settings.default_telephony}")
+    logger.info("   ├── Telephony: {settings.default_telephony}")
     logger.info(f"   ├── LLM: {settings.default_llm}")
     logger.info(f"   ├── STT: {settings.default_stt}")
     logger.info(f"   ├── TTS: {settings.default_tts}")
-    logger.info("   └── ML Auto-Learning: ENABLED")
+    logger.info("   ├── ML Auto-Learning: ENABLED")
+    # ENTERPRISE PROBE (2026-07-10): bina API key ke prospecting pipeline
+    # silently zero leads return karti — ab startup pe WARNING deta hai so ops
+    # knows immediately when GOOGLE_MAPS_API_KEY is unset/placeholder.
+    _gmaps_key = (getattr(settings, "google_maps_api_key", "") or "").strip()
+    if not _gmaps_key or _gmaps_key.lower().startswith("your-"):
+        logger.warning("⚠️  GOOGLE_MAPS_API_KEY not set or placeholder — prospecting pipeline will return zero leads!")
+        try:
+            from app.platform import ops_alerts
+            ops_alerts._ntfy(
+                "Prospecting blind — Google Maps API key missing",
+                "GOOGLE_MAPS_API_KEY not configured. Lead scraping silently returns zero results.",
+                tags=["warning"],
+            )
+        except Exception:
+            pass
+    else:
+        logger.info(f"   ├── Google Maps: KEY={_gmaps_key[:8]}... (prospecting enabled)")
     logger.info("")
     logger.info(f"🚀 AUTO-START: {'ENABLED' if settings.auto_start_platform else 'DISABLED'}")
     logger.info("🧠 ML TRAINING: Nightly at 2:00 AM, Weekly on Sunday")
