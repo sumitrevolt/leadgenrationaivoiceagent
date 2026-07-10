@@ -58,6 +58,8 @@ from app.models.customer_deliverable import (
     DeliverableChannel,
 )
 from app.models.automation_log import AutomationLog
+from app.models.dev_task import DevTask
+from app.models.dev_usage import DevTaskUsage
 
 __all__ = [
     # Base
@@ -127,4 +129,6 @@ __all__ = [
     "DeliverableChannel",
     # Automation Log model
     "AutomationLog",
+    "DevTask",
+    "DevTaskUsage",
 ]

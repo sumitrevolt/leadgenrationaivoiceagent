@@ -277,6 +277,18 @@ def check_api_docs_drift() -> None:
         print(f"[i] API docs drift check skipped ({type(e).__name__})")
 
 
+def check_dev_control_invariants() -> None:
+    """Hard invariants for the Claude-managed engineering control plane."""
+    try:
+        from scripts.dev_control_gate import invariants
+
+        for x in invariants():
+            PROBLEMS.append(f"DEV-CONTROL: {x}")
+        print("[+] dev-control invariants checked")
+    except Exception as e:  # never let the gate crash prod_check
+        print(f"[+] dev-control invariants skipped ({type(e).__name__}: {e})")
+
+
 def main() -> int:
     print("=" * 56)
     print("PRODUCTION READINESS CHECK")
@@ -289,6 +301,7 @@ def main() -> int:
     check_frontend_wiring()
     check_explorer_drift()
     check_api_docs_drift()
+    check_dev_control_invariants()
     print("-" * 56)
     if PROBLEMS:
         print(f"[FAIL] {len(PROBLEMS)} problem(s):")
