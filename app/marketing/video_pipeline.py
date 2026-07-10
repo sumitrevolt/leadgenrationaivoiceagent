@@ -335,6 +335,18 @@ async def _render_generic(
                     pass
             return {"error": f"qa_failed: {qa_reason}"}
 
+        # Build the full success payload FIRST (os.path.getsize can still
+        # raise — Windows file-lock/AV-scan race, same class as Task 5's
+        # os.remove finding) — log "video_ready" only once it's guaranteed
+        # to actually ship, so a late failure here falls through to the
+        # outer except's "video_render_failed" instead of double-logging.
+        result = {
+            "path": out_path,
+            "slides": used_slides,
+            "size_kb": os.path.getsize(out_path) // 1024,
+            "note": "Human upload karo (IG/FB/YT Shorts) — auto-publish nahi.",
+        }
+
         if client_id:
             try:
                 from app.marketing import delivery_ledger
@@ -343,13 +355,19 @@ async def _render_generic(
             except Exception:
                 pass
 
-        return {
-            "path": out_path,
-            "slides": used_slides,
-            "size_kb": os.path.getsize(out_path) // 1024,
-            "note": "Human upload karo (IG/FB/YT Shorts) — auto-publish nahi.",
-        }
+        return result
     except Exception as e:
+        # Catch-all for anything not covered by the explicit checks above
+        # (e.g. a _make_branded_frame PIL error, a concat-list file-write
+        # failure, os.makedirs failing) — without this, "video_render_started"
+        # (logged at function entry) is left dangling with no closing event.
+        if client_id:
+            try:
+                from app.marketing import delivery_ledger
+
+                delivery_ledger.log_event(client_id, "video_render_failed", detail=str(e)[:120])
+            except Exception:
+                pass
         return {"error": str(e)[:200]}
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

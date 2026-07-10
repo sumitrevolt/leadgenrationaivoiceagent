@@ -319,6 +319,82 @@ def test_render_creative_video_qa_failure_returns_error(monkeypatch, tmp_path):
     assert result.get("error") == "qa_failed: forced failure for test"
 
 
+def test_render_creative_video_survives_ledger_logging_failure(monkeypatch, tmp_path):
+    """Review fix (Task 7): delivery_ledger.log_event is best-effort only —
+    a logging failure must NEVER change the return value. Forces log_event
+    to raise on every call (video_render_started AND the now-reordered,
+    post-dict-build video_ready call) and asserts the render still returns
+    success with no "error" key."""
+    from app.marketing import delivery_ledger, reel_video
+
+    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+
+    async def _fake_tts(text, path):
+        with open(path, "wb") as f:
+            f.write(b"x" * 200)
+        return True
+
+    monkeypatch.setattr(reel_video, "_tts", _fake_tts)
+    monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
+
+    calls = {"n": 0}
+
+    def _raise_log_event(*a, **kw):
+        calls["n"] += 1
+        raise RuntimeError("simulated ledger write failure")
+
+    monkeypatch.setattr(delivery_ledger, "log_event", _raise_log_event)
+
+    result = asyncio.run(
+        video_pipeline.render_creative_video(
+            business_name="Sharma Solar", niche="solar", slides=["a", "b"], offer="20% off", client_id="c1"
+        )
+    )
+    assert "error" not in result
+    assert result["path"].endswith(".mp4")
+    assert os.path.exists(result["path"])
+    # video_render_started + video_ready both attempted (and both raised,
+    # harmlessly) — proves the raising log_event was actually exercised.
+    assert calls["n"] >= 2
+
+
+def test_render_creative_video_unexpected_exception_logs_exactly_once(monkeypatch, tmp_path):
+    """Review fix (Task 7): an exception NOT covered by the 4 explicit
+    checks (deps missing / segment fail / concat fail / QA fail) — e.g. a
+    _make_branded_frame PIL error — must fall into the outer except and
+    fire exactly ONE video_render_failed event: not zero (the dangling-
+    "started"-with-no-close bug this task fixes) and not two (the
+    video_ready-then-video_render_failed double-log this task also fixes)."""
+    from app.marketing import delivery_ledger, reel_video
+
+    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+
+    def _raise_frame(text, idx, brand, tmp_dir):
+        raise ValueError("simulated PIL frame-render error")
+
+    monkeypatch.setattr(video_pipeline, "_make_branded_frame", _raise_frame)
+
+    logged: list[tuple[str, str]] = []
+
+    def _record_log_event(client_id, event, *, detail="", **kw):
+        logged.append((client_id, event))
+        return True
+
+    monkeypatch.setattr(delivery_ledger, "log_event", _record_log_event)
+
+    result = asyncio.run(
+        video_pipeline.render_creative_video(business_name="X", slides=["a"], client_id="c1")
+    )
+    assert "error" in result
+    failed_events = [e for e in logged if e == ("c1", "video_render_failed")]
+    assert len(failed_events) == 1, f"expected exactly one video_render_failed log, got {logged}"
+    ready_events = [e for e in logged if e[1] == "video_ready"]
+    assert not ready_events, f"video_ready must never fire on an unexpected exception, got {logged}"
+
+
 def test_new_ledger_events_are_registered():
     from app.marketing import delivery_ledger
 
