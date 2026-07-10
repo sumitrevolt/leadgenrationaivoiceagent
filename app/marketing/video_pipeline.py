@@ -233,8 +233,23 @@ async def _render_generic(
 ) -> dict[str, Any]:
     from app.marketing import brand_frames, reel_video
 
+    if client_id:
+        try:
+            from app.marketing import delivery_ledger
+
+            delivery_ledger.log_event(client_id, "video_render_started", detail=business_name)
+        except Exception:
+            pass
+
     avail = reel_video.available()
     if not avail.get("ok"):
+        if client_id:
+            try:
+                from app.marketing import delivery_ledger
+
+                delivery_ledger.log_event(client_id, "video_render_failed", detail="video deps missing")
+            except Exception:
+                pass
         return {"error": "video deps missing", "available": avail}
 
     brand = brand_frames.resolve_brand(client_id) if client_id else {}
@@ -259,6 +274,13 @@ async def _render_generic(
             duration = 4.0
             args = _build_segment_args(frame, audio if has_audio else None, duration, seg)
             if not reel_video._ffmpeg(args):
+                if client_id:
+                    try:
+                        from app.marketing import delivery_ledger
+
+                        delivery_ledger.log_event(client_id, "video_render_failed", detail=f"ffmpeg segment {i} failed")
+                    except Exception:
+                        pass
                 return {"error": f"ffmpeg segment {i} failed"}
             segs.append(seg)
 
@@ -270,6 +292,13 @@ async def _render_generic(
         os.makedirs(_OUT_DIR, exist_ok=True)
         out_path = os.path.join(_OUT_DIR, f"reel_{uuid.uuid4().hex[:10]}.mp4")
         if not reel_video._ffmpeg(["-f", "concat", "-safe", "0", "-i", concat_list, "-c", "copy", out_path]):
+            if client_id:
+                try:
+                    from app.marketing import delivery_ledger
+
+                    delivery_ledger.log_event(client_id, "video_render_failed", detail="ffmpeg concat failed")
+                except Exception:
+                    pass
             return {"error": "ffmpeg concat failed"}
 
         # Optional music bed: fail-open (spec §9)
@@ -297,7 +326,22 @@ async def _render_generic(
 
         qa_reason = _qa_check(out_path, len(used_slides))
         if qa_reason:
+            if client_id:
+                try:
+                    from app.marketing import delivery_ledger
+
+                    delivery_ledger.log_event(client_id, "video_qa_failed", detail=qa_reason)
+                except Exception:
+                    pass
             return {"error": f"qa_failed: {qa_reason}"}
+
+        if client_id:
+            try:
+                from app.marketing import delivery_ledger
+
+                delivery_ledger.log_event(client_id, "video_ready", detail=business_name)
+            except Exception:
+                pass
 
         return {
             "path": out_path,

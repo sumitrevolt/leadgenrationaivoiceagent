@@ -78,6 +78,11 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     # generic "team is on it" note via customer_status_notes, never the raw
     # integration name/error).
     "integration_failed": ("🔌", "", "Platform integration failing — impacts this customer's delivery", False),
+    # Video Creative Pipeline (2026-07-10) — Phase 1, generic recipe only.
+    "video_render_started": ("🎬", "Aapka video ban raha hai", "Video render started", True),
+    "video_qa_failed": ("⚠️", "", "Video QA check failed — not published", False),
+    "video_render_failed": ("⚠️", "", "Video render failed", False),
+    "video_ready": ("🎥", "Naya video taiyaar — approve karein", "Video render succeeded, pending approval", True),
 }
 EVENT_TYPES: frozenset[str] = frozenset(LABELS.keys())
 
