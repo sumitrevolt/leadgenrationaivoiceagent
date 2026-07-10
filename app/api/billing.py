@@ -1051,6 +1051,12 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
         # Stripe removed 2026-07-10 — webhook verification unavailable.
         raise HTTPException(status_code=400, detail="Stripe gateway removed — UPI-only payments")
 
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning(f"Stripe webhook verification failed: {e}")
+        raise HTTPException(status_code=400, detail="Invalid signature")
+
     event_type = event.get("event_type", "")
     obj = event.get("data") or {}
     # event.data.object is a stripe object; coerce to plain dict access.
