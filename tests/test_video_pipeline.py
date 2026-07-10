@@ -7,6 +7,9 @@ Heavy ffmpeg/EdgeTTS stubbed in unit tests (matches test_video_ad_cycle.py's
 from __future__ import annotations
 
 import asyncio
+import base64
+import os
+import tempfile
 
 from app.marketing import video_pipeline
 
@@ -38,3 +41,23 @@ def test_render_creative_video_propagates_error(monkeypatch):
 
     result = asyncio.run(video_pipeline.render_creative_video(business_name="X"))
     assert result["error"] == "ffmpeg missing"
+
+
+def test_logo_temp_file_decodes_data_uri():
+    # 1x1 red PNG, base64-encoded
+    png_b64 = (
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFBQIA"
+        "X8jx0gAAAABJRU5ErkJggg=="
+    )
+    uri = f"data:image/png;base64,{png_b64}"
+    with tempfile.TemporaryDirectory() as tmp:
+        path = video_pipeline._logo_temp_file(uri, tmp)
+        assert path is not None
+        assert os.path.exists(path)
+        assert os.path.getsize(path) > 0
+
+
+def test_logo_temp_file_returns_none_for_empty():
+    with tempfile.TemporaryDirectory() as tmp:
+        assert video_pipeline._logo_temp_file("", tmp) is None
+        assert video_pipeline._logo_temp_file("not-a-data-uri", tmp) is None
