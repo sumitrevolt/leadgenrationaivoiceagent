@@ -1,4 +1,4 @@
-﻿# AI Voice Agent - B2B Lead Generation Platform
+# AI Voice Agent - B2B Lead Generation Platform
 # Production Dependencies
 
 # =============================================================================
