@@ -108,3 +108,56 @@ def test_build_segment_args_without_audio():
     args = video_pipeline._build_segment_args("frame.png", None, 4.0, "seg.mp4")
     assert "-shortest" not in args
     assert args[-1] == "seg.mp4"
+
+
+def test_music_bed_path_none_when_absent(monkeypatch, tmp_path):
+    monkeypatch.setattr(video_pipeline, "_MUSIC_DIR", str(tmp_path))
+    assert video_pipeline._music_bed_path("solar") is None
+
+
+def test_music_bed_path_prefers_niche_specific(monkeypatch, tmp_path):
+    (tmp_path / "generic.mp3").write_bytes(b"x")
+    (tmp_path / "solar.mp3").write_bytes(b"x")
+    monkeypatch.setattr(video_pipeline, "_MUSIC_DIR", str(tmp_path))
+    assert video_pipeline._music_bed_path("solar").endswith("solar.mp3")
+
+
+def test_music_bed_path_falls_back_to_generic(monkeypatch, tmp_path):
+    (tmp_path / "generic.mp3").write_bytes(b"x")
+    monkeypatch.setattr(video_pipeline, "_MUSIC_DIR", str(tmp_path))
+    assert video_pipeline._music_bed_path("solar").endswith("generic.mp3")
+
+
+def test_mix_music_args_shape():
+    args = video_pipeline._mix_music_args("video.mp4", "bed.mp3", "out.mp4")
+    assert "video.mp4" in args and "bed.mp3" in args
+    assert args[-1] == "out.mp4"
+
+
+def test_render_creative_video_ships_without_music_on_mix_failure(monkeypatch, tmp_path):
+    from app.marketing import reel_video
+
+    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+
+    async def _fake_tts(text, path):
+        with open(path, "wb") as f:
+            f.write(b"x" * 200)
+        return True
+
+    monkeypatch.setattr(reel_video, "_tts", _fake_tts)
+    monkeypatch.setattr(video_pipeline, "_music_bed_path", lambda niche: "data/music_beds/generic.mp3")
+
+    calls = {"n": 0}
+
+    def _fake_ffmpeg(args):
+        calls["n"] += 1
+        if "-filter_complex" in args:  # the music-mix call — force it to fail
+            return False
+        return _write_dummy_output(args)
+
+    monkeypatch.setattr(reel_video, "_ffmpeg", _fake_ffmpeg)
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+
+    result = asyncio.run(video_pipeline.render_creative_video(business_name="X", slides=["a"]))
+    assert "error" not in result
+    assert os.path.exists(result["path"])
