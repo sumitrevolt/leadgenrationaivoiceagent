@@ -262,7 +262,7 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
 
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(url, headers=headers, json=payload, timeout=30.0)
                 response.raise_for_status()

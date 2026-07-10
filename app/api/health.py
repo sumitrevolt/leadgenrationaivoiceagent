@@ -90,6 +90,80 @@ async def liveness_check(response: Response):
     return {"status": "alive"}
 
 
+@router.get("/health/signup")
+async def signup_health(response: Response) -> dict[str, Any]:
+    """Loop 14 (2026-07-10) — signup-path targeted health probe.
+
+    Validates the four dependencies signup actually needs (imports + JWT config
+    + clients_store readable + auth JSONL writable) without creating a real
+    account. Ops uptime monitors (Uptime/Gatus) can poll this instead of the
+    generic /health so a broken signup surface is caught the moment it breaks —
+    not after "why is nobody signing up" observation on the CRM. Returns 200 +
+    per-check status when all four probes pass; 503 with per-check failure
+    detail otherwise. Never raises.
+    """
+    checks: dict[str, Any] = {}
+    overall_healthy = True
+
+    # 1) JWT mint reachable (this is the Loop 1B `auto_login=False` root cause).
+    try:
+        from app.api import admin as _admin_mod
+
+        _tok = _admin_mod.create_access_token("probe", "probe@example.com", "customer")
+        checks["jwt_mint"] = {"status": "healthy" if _tok else "unhealthy"}
+        if not _tok:
+            overall_healthy = False
+    except Exception as e:
+        checks["jwt_mint"] = {"status": "unhealthy", "error": f"{type(e).__name__}: {e}"[:200]}
+        overall_healthy = False
+
+    # 2) clients_store importable + basic read (add_client reachable).
+    try:
+        from app.marketing import clients_store as _cs
+
+        # Just verifies the module + function exist; no write side-effect.
+        assert callable(getattr(_cs, "add_client", None)), "add_client missing"
+        checks["clients_store"] = {"status": "healthy"}
+    except Exception as e:
+        checks["clients_store"] = {"status": "unhealthy", "error": f"{type(e).__name__}: {e}"[:200]}
+        overall_healthy = False
+
+    # 3) Customer auth store (JSONL) readable + directory writable.
+    try:
+        from app.api import customer_auth as _ca
+
+        _ = _ca._read()  # returns [] on missing file — that's fine
+        # Directory must be writable — check without actually writing a real row.
+        _dir = os.path.dirname(_ca._STORE) or "."
+        os.makedirs(_dir, exist_ok=True)
+        checks["auth_store"] = {"status": "healthy" if os.access(_dir, os.W_OK) else "unhealthy"}
+        if not os.access(_dir, os.W_OK):
+            overall_healthy = False
+    except Exception as e:
+        checks["auth_store"] = {"status": "unhealthy", "error": f"{type(e).__name__}: {e}"[:200]}
+        overall_healthy = False
+
+    # 4) Automation-log service reachable (Loops 2/3B/7/8 depend on it).
+    try:
+        from app.platform import automation_log_service as _als
+
+        assert callable(getattr(_als, "log_event", None)), "log_event missing"
+        checks["automation_log"] = {"status": "healthy"}
+    except Exception as e:
+        checks["automation_log"] = {"status": "unhealthy", "error": f"{type(e).__name__}: {e}"[:200]}
+        overall_healthy = False
+
+    result = {
+        "status": "healthy" if overall_healthy else "unhealthy",
+        "surface": "signup",
+        "timestamp": datetime.utcnow().isoformat(),
+        "checks": checks,
+    }
+    if not overall_healthy:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+    return result
+
+
 @router.get("/health/ready")
 async def readiness_check(response: Response) -> dict[str, Any]:
     """

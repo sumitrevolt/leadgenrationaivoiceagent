@@ -337,6 +337,34 @@ def submit_payment(
 
         cid = (client_id or "").strip()
         rows = _read_store()
+
+        # Loop 5 (2026-07-10) idempotency: customer double-click / retry / offline
+        # resubmit shouldn't create duplicate rows or (worse, with UPI_AUTO_ACTIVATE=1)
+        # double-activate the plan. UPI refs are supposed to be unique per transaction;
+        # if we see the same ref for the same client+plan already recorded, return
+        # THAT record instead of appending a fresh one. `decide()` is already
+        # idempotent on the `activated` flag, so this closes the submit side.
+        try:
+            existing = next(
+                (
+                    r for r in rows
+                    if (r.get("upi_ref") or "").strip() == ref_s
+                    and (not cid or (r.get("client_id") or "").strip() == cid)
+                    and (r.get("plan") or "").strip() == plan_s
+                ),
+                None,
+            )
+        except Exception:
+            existing = None
+        if existing is not None:
+            logger.info(
+                "upi_payments duplicate submit ignored — ref=%s plan=%s cid=%s existing_id=%s",
+                ref_s, plan_s, cid or "-", existing.get("id"),
+            )
+            # Signal to caller that this is a replay so FE can show a friendlier
+            # "aapki payment already dekh liye" state instead of duplicate success.
+            return {"ok": True, "duplicate": True, **existing}
+
         record = {
             "id": _make_id(rows, ref_s),
             "client_id": cid,

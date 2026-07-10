@@ -161,7 +161,7 @@ async def emit(event: str, payload: dict[str, Any], client_id: str = "") -> int:
             _ft.add_done_callback(_FLUSH_TASKS.discard)
         except Exception:
             pass
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             for h in hooks:
                 try:
                     sig = hmac.new(
@@ -259,7 +259,7 @@ async def retry_pending(max_items: int = 50) -> dict[str, Any]:
         try:
             import httpx
 
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 for item in snapshot:
                     iid = item.get("id", "")
                     if processed >= max_items or float(item.get("next_at", 0)) > now:

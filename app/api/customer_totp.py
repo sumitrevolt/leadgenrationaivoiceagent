@@ -71,8 +71,39 @@ async def verify(body: VerifyIn) -> dict:
     return a real JWT on success."""
     cid = ct.consume_challenge(body.challenge_token)
     if not cid:
+        # Loop 21 (2026-07-10): admin observability parity with Loop 8's login_failed.
+        # A single invalid challenge is boring; the ADR-064 automation-logs panel
+        # filter surfaces the RATE so ops sees replay/CSRF attempts early.
+        try:
+            from app.platform import automation_log_service as _als
+
+            _als.log_event(
+                job_type="login_failed",
+                status="failed",
+                error_message="invalid_or_expired_2fa_challenge",
+                triggered_by="customer_2fa_verify",
+                meta_json={"stage": "challenge_consume"},
+            )
+        except Exception:
+            pass
         raise HTTPException(status_code=400, detail="challenge invalid or expired")
     if not ct.verify(cid, body.code):
+        # Loop 21: bad TOTP code — brute-force signal for admin panel. Include
+        # client_id attribution (challenge was legitimately consumed) so admins
+        # can spot targeted 2FA guessing on a specific account.
+        try:
+            from app.platform import automation_log_service as _als
+
+            _als.log_event(
+                client_id=cid,
+                job_type="login_failed",
+                status="failed",
+                error_message="bad_2fa_code",
+                triggered_by="customer_2fa_verify",
+                meta_json={"stage": "totp_verify"},
+            )
+        except Exception:
+            pass
         raise HTTPException(status_code=401, detail="bad code")
     # Look up the email for the JWT subject
     try:

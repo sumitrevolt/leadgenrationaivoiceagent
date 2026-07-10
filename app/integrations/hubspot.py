@@ -95,7 +95,7 @@ class HubSpotIntegration:
 
         payload = {"properties": properties}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(
                     f"{self.base_url}/crm/v3/objects/contacts",
@@ -129,7 +129,7 @@ class HubSpotIntegration:
 
         payload = {"properties": properties}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.patch(
                     f"{self.base_url}/crm/v3/objects/contacts/{contact_id}",
@@ -168,7 +168,7 @@ class HubSpotIntegration:
             ]
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(
                     f"{self.base_url}/crm/v3/objects/contacts/search",
@@ -201,7 +201,7 @@ class HubSpotIntegration:
 
         payload = {"properties": properties}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(
                     f"{self.base_url}/crm/v3/objects/companies",
@@ -238,7 +238,7 @@ class HubSpotIntegration:
 
         payload = {"properties": properties}
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(
                     f"{self.base_url}/crm/v3/objects/deals",
@@ -265,7 +265,7 @@ class HubSpotIntegration:
         if not self.headers:
             return False
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.put(
                     f"{self.base_url}/crm/v3/objects/deals/{deal_id}/associations/contacts/{contact_id}/deal_to_contact",
@@ -323,7 +323,7 @@ class HubSpotIntegration:
             ],
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(
                     f"{self.base_url}/crm/v3/objects/calls",
@@ -364,7 +364,7 @@ class HubSpotIntegration:
             ],
         }
 
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(
                     f"{self.base_url}/crm/v3/objects/notes",

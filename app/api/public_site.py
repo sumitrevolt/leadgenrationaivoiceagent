@@ -572,6 +572,21 @@ async def public_signup(body: SignupIn, request: Request):
         raise HTTPException(status_code=422, detail="Valid email do.")
     if len(pw) < 6:
         raise HTTPException(status_code=422, detail="Password kam se kam 6 characters.")
+    # Loop 13B (2026-07-10): block the most obvious credential-stuffing targets.
+    # Small conservative list — real customers with these passwords are indistinguishable
+    # from bot signups, and blocking here prevents an account whose first login attempt
+    # would tripwire our Loop 8 `login_failed` monitoring. Never leak the list to the
+    # attacker; return a generic "safer password" hint.
+    _BREACHED = {
+        "password", "password1", "123456", "12345678", "123456789", "1234567890",
+        "qwerty", "abc123", "111111", "000000", "admin", "welcome", "letmein",
+        "iloveyou", "monkey", "dragon", "master", "shadow", "sunshine", "princess",
+    }
+    if pw.strip().lower() in _BREACHED:
+        raise HTTPException(
+            status_code=422,
+            detail="Yeh password bahut common hai — kuch alag choose karein (kam se kam 8 char).",
+        )
 
     # 3) Email already registered? -> login karo
     try:
@@ -646,7 +661,17 @@ async def public_signup(body: SignupIn, request: Request):
             logger.warning(f"[signup] trial fields set failed (account still ok): {e}")
 
     # 6) Login banao + auto-login JWT
-    register_login(email, pw, cid)
+    # Loop 23 (2026-07-10): race-safe register. If another concurrent submit with
+    # the same email raced past the login_exists check above and already claimed
+    # this email for a different client_id, register_login refuses to overwrite
+    # and returns `email_claimed`. We then reject THIS submit with the same 409
+    # the initial dedupe check uses — no orphan credential row, no silent takeover.
+    _reg = register_login(email, pw, cid, allow_reassign=False)
+    if _reg.get("error") == "email_claimed":
+        raise HTTPException(
+            status_code=409,
+            detail="Yeh email already registered hai — login karo.",
+        )
     token: str | None = None
     # ENTERPRISE FIX (2026-07-10 onboarding audit): pehle `token=None` silently
     # respond kar diya jaata tha `access_token: null` ke saath — FE (pricing.html:377)
