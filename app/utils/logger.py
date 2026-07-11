@@ -148,6 +148,39 @@ def redact_message(message: str) -> str:
         return message
 
 
+def redact_url(url: str) -> str:
+    """Redact sensitive query-string params + userinfo from a URL / path.
+
+    Used by request-logging middleware — an INFO log like
+    ``GET /callback?token=abc123&user=x`` MUST NOT leak the token. Also
+    handles ``https://user:pass@host/`` userinfo form.
+
+    Fail-safe: on any parse/regex error the original url is returned unchanged
+    (never break request logging).
+    """
+    if not url:
+        return url
+    try:
+        s = str(url)
+        # 1) userinfo (scheme://user:pass@host) — redact both user and pass.
+        s = _re.sub(
+            r"(?P<scheme>[a-zA-Z][a-zA-Z0-9+.\-]*://)(?P<userinfo>[^/@\s]+)@",
+            lambda m: f"{m.group('scheme')}[REDACTED]@",
+            s,
+        )
+        # 2) query-string sensitive kv (?token=... or &api_key=...) — case-insensitive.
+        if "?" in s or "&" in s:
+            qs_re = _re.compile(
+                r"([?&])(" + _sensitive_name_re_alternation()
+                + r")(=)([^&#\s]{1,4096})",
+                _re.IGNORECASE,
+            )
+            s = qs_re.sub(lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}[REDACTED]", s)
+        return s
+    except Exception:
+        return url
+
+
 def _log_redact_enabled() -> bool:
     """Default ON. `LOG_REDACT_MESSAGES=0` (or false/no/off) disables for a
     debug window — never leave OFF permanently in production."""

@@ -54,6 +54,10 @@ AUTOMATION_FLAGS = [
     "BOOKING_REMINDERS",
     "DELIVERABILITY_MONITOR",
     "AUTOMATION_HEALTH_ALERTS",
+    "LLM_COMPARE_ENABLED",  # admin-only blind LLM arena (/api/llm/compare/ui) — Odysseus-inspired A/B for free-tier chain, INERT default
+    "MODEL_COOKBOOK_ENABLED",  # admin-only niche→LLM recipe catalog (/api/cookbook/ui) — Odysseus-inspired, INERT default
+    "DEEP_RESEARCH_ENABLED",  # admin-only multi-step cited web research (/api/research/deep/ui) — Odysseus-inspired, needs SEARXNG_URL, INERT default
+    "DOCS_AI_EDIT_ENABLED",  # admin-only writing editor with AI actions (/api/docs/edit/ui) — Odysseus-inspired, INERT default
     "WHATSAPP_AUTO_SEND",
     "VOICE_CLOSE_WHATSAPP",  # voice-call close-signal auto WhatsApp (needs WHATSAPP_AUTO_SEND too) — default OFF, separate opt-in
     "WHATSAPP_PROVIDER",  # "cloud" (Meta Cloud API, default) | "waha"/"selfhost" (own WAHA stack)

@@ -926,6 +926,30 @@ try:
     app.include_router(admin_db_router)  # /api/admin/db/* (read-only DB explorer, ADMIN_DB_EXPLORER gated)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Admin DB explorer router not mounted: {_e}")
+try:
+    from app.api.llm_compare import router as llm_compare_router
+
+    app.include_router(llm_compare_router)  # /api/llm/compare/* (blind arena, LLM_COMPARE_ENABLED gated, INERT default)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"LLM Compare router not mounted: {_e}")
+try:
+    from app.api.model_cookbook import router as model_cookbook_router
+
+    app.include_router(model_cookbook_router)  # /api/cookbook/* (niche→LLM recipes, MODEL_COOKBOOK_ENABLED gated, INERT default)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Model Cookbook router not mounted: {_e}")
+try:
+    from app.api.deep_research import router as deep_research_router
+
+    app.include_router(deep_research_router)  # /api/research/deep/* (multi-step cited research, DEEP_RESEARCH_ENABLED gated, INERT default)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Deep Research router not mounted: {_e}")
+try:
+    from app.api.docs_ai_edit import router as docs_ai_edit_router
+
+    app.include_router(docs_ai_edit_router)  # /api/docs/edit/* (AI writing surface, DOCS_AI_EDIT_ENABLED gated, INERT default)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Docs AI-Edit router not mounted: {_e}")
 app.include_router(web_call_router, prefix="/api", tags=["Web Call (Test Mode)"])  # /api/web-call/*
 app.include_router(
     agents_router, prefix="/api", tags=["Agents"]
