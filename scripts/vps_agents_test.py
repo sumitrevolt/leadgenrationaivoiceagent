@@ -1,5 +1,6 @@
 """VPS smoke: LangGraph supervisor run + Qdrant KB backend check."""
 import asyncio
+import os
 
 
 async def main() -> None:
@@ -26,7 +27,11 @@ async def main() -> None:
     hits = kb.retrieve("site survey booking", k=1, namespace="smoke_test")
     print("KB hit:", hits[0]["text"][:60] if hits else "NONE")
     import requests
-    cols = requests.get("http://127.0.0.1:6333/collections", timeout=5).json()
+
+    qdrant_url = (os.getenv("QDRANT_URL") or "").strip()
+    if not qdrant_url:
+        qdrant_url = "http://qdrant:6333" if os.path.exists("/.dockerenv") else "http://127.0.0.1:6333"
+    cols = requests.get(f"{qdrant_url.rstrip('/')}/collections", timeout=5).json()
     print("Qdrant collections:", [c["name"] for c in cols["result"]["collections"]])
 
 
