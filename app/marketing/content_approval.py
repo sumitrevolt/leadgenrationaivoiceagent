@@ -683,6 +683,105 @@ def mark_published(approval_id: str, channel: str = "", evidence_url: str = "") 
     return {"ok": True, "id": rec["id"], "status": "published"}
 
 
+def update_evidence_url(
+    approval_id: str,
+    new_url: str,
+    *,
+    actor_id: str | None = None,
+    reason: str | None = None,
+) -> dict[str, Any]:
+    """Amend `evidence_url` on an already-published approval WITHOUT re-firing
+    publication side effects (2026-07-11 P0 evidence-hygiene loop).
+
+    Rationale: `mark_published` was originally the only way to persist
+    `evidence_url`, but it can only run from `approved`/`scheduled` and it
+    triggers a fresh `post_published` ledger event + automation log — which
+    would (a) refuse to run on already-published records (see gate at line
+    674), (b) double-count publications on retry, (c) create a duplicate
+    customer-visible "Post publish ho gaya" event. This narrow method exists
+    precisely for the retroactive-PII-URL rewrite path where the publication
+    is already done and only the evidence pointer needs correction.
+
+    Invariants:
+      - only runs when the approval currently has status=='published'
+      - preserves `published_at`, `publish_channel`, `status`
+      - never increments any publication counter
+      - never appends a `post_published` event to delivery_ledger
+      - idempotent: same URL twice returns {"ok": True, "no_change": True}
+      - rejects blank/None (would erase evidence — refused)
+      - rejects malformed non-http(s) (defensive against local paths)
+      - writes an `evidence_amended` audit marker + `evidence_url_history`
+        entry so the original URL is preserved for audit
+    """
+    aid = str(approval_id or "").strip()
+    if not aid:
+        return {"ok": False, "error": "approval_id required"}
+    new_url = str(new_url or "").strip()
+    if not new_url:
+        return {"ok": False, "error": "new_url required (blank refused to prevent evidence erasure)"}
+    if not (new_url.startswith("http://") or new_url.startswith("https://")):
+        return {"ok": False, "error": "new_url must be http(s)"}
+    if len(new_url) > 500:
+        return {"ok": False, "error": "new_url too long (>500 chars)"}
+
+    rec = _latest_states().get(aid)
+    if not rec:
+        return {"ok": False, "error": "approval nahi mila"}
+    if str(rec.get("status") or "").lower() != "published":
+        return {"ok": False, "error": f"update_evidence_url runs only on published (current: {rec.get('status')})"}
+
+    old_url = str(rec.get("evidence_url") or "")
+    if old_url == new_url:
+        return {"ok": True, "no_change": True, "id": aid, "evidence_url": new_url}
+
+    # Preserve original URL(s) for audit. Append to a history list, capped
+    # at 5 entries so the JSONL row stays bounded.
+    history = list(rec.get("evidence_url_history") or [])
+    history.append({
+        "old_url": old_url,
+        "changed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "actor_id": str(actor_id or "system")[:80],
+        "reason": str(reason or "")[:200],
+    })
+    rec["evidence_url_history"] = history[-5:]
+    rec["evidence_url"] = new_url
+    rec["evidence_url_updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+    # Append to JSONL directly — do NOT call _save (which fires
+    # automation_log + delivery_ledger post_published event).
+    try:
+        update = dict(rec)
+        update["id"] = aid
+        update["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        _append(update)
+    except Exception as exc:
+        logger.warning(f"[content_approval.update_evidence_url] append failed for {aid}: {exc}")
+        return {"ok": False, "error": "persist failed"}
+
+    # Emit a separate audit marker (not a publication event) so this
+    # amendment is discoverable in the ledger without being counted as a
+    # new publication or triggering customer notifications.
+    try:
+        from app.marketing.delivery_ledger import log_event as _ledger
+
+        _ledger(
+            rec["client_id"],
+            "evidence_amended",
+            detail=f"evidence_url rewritten (reason: {reason or 'unspecified'})",
+            actor=str(actor_id or "admin")[:40],
+            key=f"evidence_amended:{aid}:{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S')}",
+        )
+    except Exception:
+        pass
+
+    return {
+        "ok": True,
+        "id": aid,
+        "evidence_url": new_url,
+        "previous_evidence_url_captured_in_history": bool(old_url),
+    }
+
+
 def mark_failed(approval_id: str, error_message: str = "") -> dict[str, Any]:
     """Mark publishing attempt as failed (ADR-064)."""
     rec = _latest_states().get(str(approval_id or "").strip())

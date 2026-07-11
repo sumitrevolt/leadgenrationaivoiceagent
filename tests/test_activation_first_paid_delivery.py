@@ -86,7 +86,7 @@ def _customer(cid, hours_ago, plan="starter"):
     return {"id": cid, "status": "active", "plan": plan, "created_at": _dt_iso(hours_ago)}
 
 
-def _state(*, setup=False, generated=0, waiting=0, scheduled=0, published=0, deliverables=None):
+def _state(*, setup=False, generated=0, waiting=0, scheduled=0, published=0, deliverables=None, deliverable_pct=0):
     """Compose a customer_delivery_status shape."""
     return {
         "setup_checks": {"business": setup, "brand": setup},
@@ -95,6 +95,7 @@ def _state(*, setup=False, generated=0, waiting=0, scheduled=0, published=0, del
         "posts_scheduled": scheduled,
         "posts_published": published,
         "deliverables": deliverables or [],
+        "deliverable_completion_pct": deliverable_pct,
     }
 
 
@@ -505,6 +506,76 @@ def test_wiring_probe_in_probes_tuple():
     assert "first_paid_delivery" in activation._PROBE_BY_KEY
     survival_keys = activation._PHASES[0][2]
     assert "first_paid_delivery" in survival_keys
+
+
+# --------------------------------------------------------------------------- #
+# Plan-level vs item-level accounting distinction (2026-07-11 P0)
+# --------------------------------------------------------------------------- #
+
+def test_19_item_level_delivery_does_not_imply_plan_complete(monkeypatch):
+    """Jiya-shape: 1 published item + 4/10 deliverables done (40%). ITEM-level
+    counter increments; PLAN-level counter does NOT."""
+    _install_stubs(
+        monkeypatch,
+        clients=[_customer("c1", hours_ago=96)],
+        state_by_id={"c1": _state(
+            setup=True, generated=1, waiting=1, published=1, deliverable_pct=40,
+        )},
+    )
+    r = activation._first_paid_delivery()
+    assert r["checks"]["with_evidence_backed_delivery"] == 1  # item-level: ≥1 published
+    assert r["checks"]["with_completed_plan"] == 0            # plan-level: NOT complete
+    assert r["checks"]["plan_completion_distribution"]["26-50%"] == 1
+    assert r["checks"]["plan_completion_distribution"]["100%"] == 0
+
+
+def test_20_full_plan_completion_counted_separately(monkeypatch):
+    """Customer with all 10 deliverables done (100%) increments both counters."""
+    _install_stubs(
+        monkeypatch,
+        clients=[_customer("c1", hours_ago=96)],
+        state_by_id={"c1": _state(
+            setup=True, generated=12, waiting=0, published=12, deliverable_pct=100,
+        )},
+    )
+    r = activation._first_paid_delivery()
+    assert r["checks"]["with_evidence_backed_delivery"] == 1
+    assert r["checks"]["with_completed_plan"] == 1
+    assert r["checks"]["plan_completion_distribution"]["100%"] == 1
+
+
+def test_21_plan_distribution_covers_all_paid_customers(monkeypatch):
+    """Multiple paid customers land in different buckets — no double-counting,
+    sum(distribution) == paid_customers."""
+    _install_stubs(
+        monkeypatch,
+        clients=[
+            _customer("c1", hours_ago=96),  # 0%
+            _customer("c2", hours_ago=96),  # 40%
+            _customer("c3", hours_ago=96),  # 100%
+        ],
+        state_by_id={
+            "c1": _state(deliverable_pct=0),
+            "c2": _state(setup=True, generated=1, waiting=1, published=1, deliverable_pct=40),
+            "c3": _state(setup=True, generated=12, waiting=0, published=12, deliverable_pct=100),
+        },
+    )
+    r = activation._first_paid_delivery()
+    dist = r["checks"]["plan_completion_distribution"]
+    assert sum(dist.values()) == r["checks"]["paid_customers"] == 3
+    assert dist["0%"] == 1
+    assert dist["26-50%"] == 1
+    assert dist["100%"] == 1
+    assert r["checks"]["with_completed_plan"] == 1  # only c3
+
+
+def test_22_result_shape_includes_new_plan_accounting_fields():
+    """Contract lock: downstream consumers can rely on these keys existing."""
+    empty = activation._EMPTY_CHECKS
+    for k in ("with_evidence_backed_delivery", "with_completed_plan", "plan_completion_distribution"):
+        assert k in empty, f"missing key: {k}"
+    dist = empty["plan_completion_distribution"]
+    assert set(dist.keys()) == {"0%", "1-25%", "26-50%", "51-75%", "76-99%", "100%"}
 
 
 def test_wiring_readiness_shape_stable(monkeypatch):
