@@ -11,6 +11,8 @@ import base64
 import os
 import tempfile
 
+import pytest
+
 from app.marketing import video_pipeline
 
 
@@ -555,3 +557,24 @@ def test_build_creative_video_task_exception_handling(monkeypatch):
     assert len(result["error"]) <= 200  # verify truncation constraint holds
     assert len(calls) == 1  # render was actually called
     assert calls[0]["business_name"] == "Test Business"
+
+
+def test_real_end_to_end_render_generic_recipe(tmp_path, monkeypatch):
+    """One REAL render (no mocks) — slow (network TTS + ffmpeg), keep the
+    slide count small so it stays CI-safe. Confirms the whole chain (brand
+    frame -> Ken-Burns segment -> concat -> QA -> optional music-skip)
+    actually produces a valid file, not just that the mocked seams agree."""
+    from app.marketing import reel_video
+
+    if not reel_video.available().get("ok"):
+        pytest.skip("ffmpeg/Pillow/edge-tts not installed")
+
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+    result = asyncio.run(
+        video_pipeline.render_creative_video(
+            business_name="Test Business", niche="general", slides=["Hello world"], offer="", client_id=""
+        )
+    )
+    assert "error" not in result, result.get("error")
+    assert os.path.exists(result["path"])
+    assert os.path.getsize(result["path"]) > 5000
