@@ -28,6 +28,7 @@ import time
 from celery import shared_task
 
 from app.utils.logger import setup_logger
+from app.platform import celery_async
 
 logger = setup_logger(__name__)
 
@@ -78,35 +79,17 @@ STAFF_JOBS = (
 
 
 def _run_async(coro):
-    """Async coroutine ko sync Celery task ke andar safely chalao (apna loop).
+    """Run one coroutine on the Celery process-local event loop.
 
-    Teardown = wahi sequence jo asyncio.run karta hai: pending tasks cancel +
-    asyncgens shutdown PHIR close. Bina iske leftover transports (httpx/aiohttp)
-    GC pe closed-loop pe call_soon karte → "Event loop is closed" log spam.
+    The loop intentionally stays alive between tasks so loop-bound DB pools and
+    HTTP transports remain valid. Explicit shutdown is reserved for worker
+    teardown/tests via ``_reset_worker_loop_for_tests``.
     """
-    loop = asyncio.new_event_loop()
-    try:
-        asyncio.set_event_loop(loop)
-        return loop.run_until_complete(coro)
-    finally:
-        try:
-            pending = asyncio.all_tasks(loop)
-            for t in pending:
-                t.cancel()
-            if pending:
-                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
-            loop.run_until_complete(loop.shutdown_asyncgens())
-        except Exception:
-            pass
-        finally:
-            try:
-                asyncio.set_event_loop(None)
-            except Exception:
-                pass
-            try:
-                loop.close()
-            except Exception:
-                pass
+    return celery_async.run(coro)
+
+
+def _reset_worker_loop_for_tests() -> None:
+    celery_async.reset_for_tests()
 
 
 @shared_task(

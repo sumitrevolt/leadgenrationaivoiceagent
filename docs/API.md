@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1072 operations)
+## Endpoint Index — auto-generated from OpenAPI (1122 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -610,7 +610,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (27)
+### Customer Dashboard  (31)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/decide` — Customer Decide Approval
@@ -632,8 +632,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/report` — Customer Monthly Report
 - `GET   ` `/api/customer/routing` — Customer Routing Get
 - `POST  ` `/api/customer/routing` — Customer Routing Set
+- `GET   ` `/api/customer/social/accounts` — Customer Social Accounts
+- `POST  ` `/api/customer/social/accounts/connect` — Customer Social Accounts Connect
+- `DELETE` `/api/customer/social/accounts/{platform}` — Customer Social Accounts Disconnect
 - `GET   ` `/api/customer/social/config` — Customer Social Get
 - `POST  ` `/api/customer/social/config` — Customer Social Save
+- `GET   ` `/api/customer/social/readiness` — Customer Social Readiness
 - `GET   ` `/api/customer/speed-to-lead` — Customer Speed To Lead
 - `GET   ` `/api/customer/team` — Get Customer Team
 - `GET   ` `/api/customer/timeline` — Customer Delivery Timeline
@@ -753,8 +757,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 - `GET   ` `/api/customer/pipeline` — Customer Pipeline
 
-### Customer Portal  (11)
+### Customer Portal  (12)
 
+- `POST  ` `/api/customer/auth/change-password` — Customer Change Password
 - `POST  ` `/api/customer/auth/login` — Customer Login
 - `GET   ` `/api/customer/auth/magic-link/config` — Magic Link Config
 - `POST  ` `/api/customer/auth/magic-link/request` — Magic Link Request
@@ -822,6 +827,38 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/data/reports` — Generate Report
 - `GET   ` `/api/data/usage` — Get Usage Stats
 
+### Deep Research  (2)
+
+- `POST  ` `/api/research/deep/run` — Run
+- `GET   ` `/api/research/deep/status` — Status
+
+### Dev Task Control Plane  (18)
+
+- `GET   ` `/api/dev-tasks` — List Tasks
+- `POST  ` `/api/dev-tasks` — Create Task
+- `POST  ` `/api/dev-tasks/claim-next` — Claim Next Task
+- `GET   ` `/api/dev-tasks/models` — List Models
+- `POST  ` `/api/dev-tasks/reconcile` — Reconcile
+- `POST  ` `/api/dev-tasks/route-preview` — Preview Route
+- `GET   ` `/api/dev-tasks/status` — Dev Status
+- `POST  ` `/api/dev-tasks/{task_id}/approve-production` — Approve Production
+- `POST  ` `/api/dev-tasks/{task_id}/claim` — Claim Task
+- `POST  ` `/api/dev-tasks/{task_id}/finalize-delivery` — Finalize Delivery
+- `POST  ` `/api/dev-tasks/{task_id}/heartbeat` — Heartbeat Task
+- `POST  ` `/api/dev-tasks/{task_id}/promote-staging` — Promote Staging
+- `POST  ` `/api/dev-tasks/{task_id}/reject-production` — Reject Production
+- `POST  ` `/api/dev-tasks/{task_id}/report` — Record Report
+- `POST  ` `/api/dev-tasks/{task_id}/request-approval` — Request Approval
+- `POST  ` `/api/dev-tasks/{task_id}/run` — Run Task
+- `POST  ` `/api/dev-tasks/{task_id}/transition` — Transition Task
+- `GET   ` `/api/dev-tasks/{task_id}/usage` — Task Usage
+
+### Docs AI Edit  (3)
+
+- `GET   ` `/api/docs/edit/actions` — List Actions
+- `POST  ` `/api/docs/edit/run` — Run Edit
+- `GET   ` `/api/docs/edit/status` — Status
+
 ### Email Tracking  (3)
 
 - `GET   ` `/api/admin/email-tracking/stats` — Email Tracking Stats
@@ -853,7 +890,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (59)
+### Frontend  (60)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -879,6 +916,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/dashboards` — Dashboards Page
 - `GET   ` `/app/deals` — Deals Page
 - `GET   ` `/app/delivery-command-center` — Delivery Command Center Page
+- `GET   ` `/app/dev-control` — Dev Control Page
 - `GET   ` `/app/dialer` — Dialer Page
 - `GET   ` `/app/explorer` — Architecture Explorer Page
 - `GET   ` `/app/growth-tools` — Growth Tools Page
@@ -915,7 +953,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (208)
+### Growth  (217)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
@@ -1105,8 +1143,17 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/social/batch` — Social Batch
 - `GET   ` `/api/growth/social/channels` — Social Channels List
 - `POST  ` `/api/growth/social/draft` — Social Draft
+- `GET   ` `/api/growth/social/jobs` — Admin Social Jobs
+- `POST  ` `/api/growth/social/jobs/{job_id}/cancel` — Admin Social Job Cancel
+- `POST  ` `/api/growth/social/jobs/{job_id}/retry` — Admin Social Job Retry
+- `POST  ` `/api/growth/social/jobs/{job_id}/run-now` — Admin Social Job Run Now
+- `GET   ` `/api/growth/social/latest-events` — Admin Social Latest Events
+- `GET   ` `/api/growth/social/pause` — Admin Social Pause Status
+- `POST  ` `/api/growth/social/pause` — Admin Social Pause Set
 - `POST  ` `/api/growth/social/postiz/configure` — Social Postiz Configure
 - `GET   ` `/api/growth/social/postiz/status` — Social Postiz Status
+- `POST  ` `/api/growth/social/recover-stale` — Admin Social Recover Stale
+- `GET   ` `/api/growth/social/token-health` — Admin Social Token Health
 - `GET   ` `/api/growth/speed-to-lead/breakdown` — Speed To Lead Breakdown
 - `GET   ` `/api/growth/speed-to-lead/summary` — Speed To Lead Summary
 - `POST  ` `/api/growth/tools/google-score` — Tool Google Score
@@ -1126,7 +1173,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `DELETE` `/api/growth/webhooks/{webhook_id}` — Webhooks Remove
 - `POST  ` `/api/growth/whatsapp/flow/send` — Whatsapp Flow Send
 
-### Health  (7)
+### Health  (8)
 
 - `GET   ` `/api/v1/status` — Api Status
 - `GET   ` `/health` — Health Check
@@ -1134,6 +1181,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/health/live` — Liveness Check
 - `GET   ` `/health/platform` — Platform Detailed Health
 - `GET   ` `/health/ready` — Readiness Check
+- `GET   ` `/health/signup` — Signup Health
 - `GET   ` `/metrics` — Prometheus Metrics
 
 ### Impersonation  (4)
@@ -1177,6 +1225,14 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/journeys/seed` — Seed Defaults
 - `DELETE` `/api/journeys/{jid}` — Delete Journey
 - `POST  ` `/api/journeys/{jid}/toggle` — Toggle Journey
+
+### LLM Compare  (5)
+
+- `GET   ` `/api/llm/compare/providers` — List Providers
+- `POST  ` `/api/llm/compare/run` — Run Compare
+- `GET   ` `/api/llm/compare/stats` — Stats
+- `GET   ` `/api/llm/compare/status` — Status
+- `POST  ` `/api/llm/compare/vote` — Vote
 
 ### Leads  (3)
 
@@ -1344,6 +1400,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/minisite/reviews/submit` — Public Submit Review
 - `GET   ` `/api/minisite/snippet` — Get Widget Snippet
 
+### Model Cookbook  (4)
+
+- `GET   ` `/api/cookbook/models` — List Models
+- `POST  ` `/api/cookbook/recommend` — Recommend
+- `GET   ` `/api/cookbook/status` — Status
+- `GET   ` `/api/cookbook/tasks` — List Tasks
+
 ### Niche Database  (10)
 
 - `GET   ` `/api/niche/prospects` — List prospects
@@ -1460,6 +1523,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/segments/{segment_id}` — Get Segment
 - `GET   ` `/api/segments/{segment_id}/preview` — Preview Segment
 
+### Social OAuth  (3)
+
+- `GET   ` `/api/social/oauth/state` — Oauth State All
+- `GET   ` `/api/social/oauth/{platform}/callback` — Oauth Callback
+- `GET   ` `/api/social/oauth/{platform}/start` — Oauth Start
+
 ### Team  (23)
 
 - `GET   ` `/api/platform/team` — Get Team Status
@@ -1555,9 +1624,8 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/web-calls/proposals/{proposal_id}/reject` — Reject a proposal
 - `GET   ` `/api/admin/web-calls/{session_id}` — One web test-call + full transcript
 
-### Webhooks  (3)
+### Webhooks  (2)
 
-- `POST  ` `/api/webhooks/stripe` — Stripe Webhook
 - `GET   ` `/api/webhooks/whatsapp` — Whatsapp Webhook Verify
 - `POST  ` `/api/webhooks/whatsapp` — Whatsapp Webhook Inbound
 

@@ -12,7 +12,6 @@ This module provides:
 BILLIONAIRE MODE: Trains brains to think and act like billionaires
 """
 
-import asyncio
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -20,6 +19,7 @@ from typing import Any
 
 from app.utils.logger import setup_logger
 from app.worker import celery_app
+from app.platform.celery_async import run as _run_async
 
 logger = setup_logger(__name__)
 
@@ -31,13 +31,8 @@ TRAINING_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def run_async(coro):
-    """Run async coroutine in sync context"""
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        return loop.run_until_complete(coro)
-    finally:
-        loop.close()
+    """Run async coroutine on the shared Celery process loop."""
+    return _run_async(coro)
 
 
 @celery_app.task(

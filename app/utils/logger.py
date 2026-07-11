@@ -172,7 +172,7 @@ def redact_url(url: str) -> str:
         if "?" in s or "&" in s:
             qs_re = _re.compile(
                 r"([?&])(" + _sensitive_name_re_alternation()
-                + r")(=)([^&#\s]{1,4096})",
+                + r")(=)([^&#\s]{0,4096})",
                 _re.IGNORECASE,
             )
             s = qs_re.sub(lambda m: f"{m.group(1)}{m.group(2)}{m.group(3)}[REDACTED]", s)

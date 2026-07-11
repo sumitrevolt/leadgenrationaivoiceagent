@@ -387,6 +387,7 @@ def log_event(
     # Real-time SSE broadcast — Redis publish (non-blocking, fail-open)
     try:
         import asyncio
+        import threading
 
         event_payload = {
             "id": ev_id,
@@ -402,11 +403,21 @@ def log_event(
 
             await publish_to_redis(event_payload)
 
-        try:
-            loop = asyncio.get_running_loop()
-            loop.create_task(_pub())  # fire-and-forget, never blocks caller
-        except RuntimeError:
-            pass  # no running loop (sync context) — SSE fallback polling handle karta hai
+        def _publish_in_isolated_loop() -> None:
+            try:
+                asyncio.run(_pub())
+            except Exception:
+                pass
+
+        # Do not attach Redis I/O to the caller's loop: scheduled jobs and tests
+        # may close that loop immediately after log_event returns. A daemon
+        # thread gives the short-lived Redis client its own clean loop and keeps
+        # the sync logging contract non-blocking/fail-open.
+        threading.Thread(
+            target=_publish_in_isolated_loop,
+            name="team-event-publish",
+            daemon=True,
+        ).start()
     except Exception:
         pass
 
