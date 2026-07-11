@@ -2092,3 +2092,15 @@ Verification Evidence: Windows combined test process no longer crashes and no pe
 Risks: Fixes are local only; VPS still runs pre-fix image. WAHA FAILED session, missing Postiz stack/502, Vobiz timeout, and 4 production dead-DLQ entries remain until live operations are authorized/executed.
 Remaining: Explicit live deploy authorization; deploy/recreate app + worker + worker-heavy + worker-video + scheduler; post-deploy 2x health and 12h log re-audit; user-side WAHA QR/session recovery; Postiz DNS/OAuth/API key/integration setup; Vobiz connectivity; DLQ triage.
 Next Highest Priority: Confirm live deployment to 72.61.245.204, then run post-deploy worker/scheduler verification before touching external social/WhatsApp credentials.
+
+## Loop Run
+Date: 2026-07-11
+Goal: Resolve remaining external integration blockers and keep live automation/KB paths healthy.
+Inspected: WAHA session/API, isolated Postiz stack, Vobiz error logs, Redis queues/DLQ, live agent/Qdrant smoke, FastEmbed cold-start path.
+Problems Found: WAHA `default` session is FAILED and API is auth-protected (QR/auth action required); Postiz stack was absent and OAuth/channel credentials were unset; Qdrant model was baked but a cold 90s load permanently disabled semantic KB for that process; four preserved QA `TimeLimitExceeded(600)` entries remain in `dlq:dead`; no fresh Vobiz timeout appeared after restart, but no credentialed live call was attempted.
+Changed: Started isolated Postiz + Temporal/Redis/DB stack without touching the main compose project; added baked FastEmbed model preference; changed KB timeout handling so cold model warming does not permanently disable Qdrant; added regression coverage. Commit `5c03d67` deployed to VPS.
+Tests Run: 21 focused KB/agent tests green; `prod_check.py` PASS (1098 routes, 0 wiring gaps, 80/80 engine coverage); `check_secrets.py` PASS; migration preflight PASS; two live production health checks PASS.
+Verification Evidence: Core app/worker/heavy/video/scheduler healthy; main and failed queues 0; Postiz public endpoint redirects to `/auth`; no event-loop/asyncpg errors in worker logs; baked FastEmbed loads at 384 dimensions; `dlq:dead=4` preserved for review.
+Risks: WAHA QR/session recovery and Postiz OAuth/API keys require operator credentials/browser action; deleting DLQ entries is destructive and requires exact confirmation; Vobiz remains externally dependent and outbound dialing gates stay enforced.
+Remaining: User scans/reconnects WAHA; user completes Postiz registration/OAuth channel setup and supplies API/integration credentials through the existing secret path; user confirms archive/delete of the four QA DLQ entries; credentialed read-only Vobiz balance/connectivity probe.
+Next Highest Priority: Complete WAHA QR recovery and Postiz channel OAuth, then run a controlled Vobiz read-only probe and archive the four QA DLQ records only after explicit confirmation.
