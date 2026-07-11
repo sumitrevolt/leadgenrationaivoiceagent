@@ -47,11 +47,16 @@ def next_ready_at(job: dict[str, Any]) -> float:
         att = int((job or {}).get("attempts") or 0)
         last = str((job or {}).get("updated_at") or (job or {}).get("created_at") or "")
         # Parse "YYYY-MM-DDTHH:MM:SS" (store format) → epoch. Best-effort.
+        # Store writes UTC ISO strings; treat parsed naive datetime as UTC so
+        # timestamp() doesn't apply local-timezone offset (IST = +5:30 = 19800s
+        # of drift that would make backoff misfire on non-UTC machines).
         import datetime as _dt
         try:
             t = _dt.datetime.fromisoformat(last)
         except Exception:
             return 0.0
+        if t.tzinfo is None:
+            t = t.replace(tzinfo=_dt.timezone.utc)
         return t.timestamp() + next_retry_delay(att)
     except Exception:
         return 0.0

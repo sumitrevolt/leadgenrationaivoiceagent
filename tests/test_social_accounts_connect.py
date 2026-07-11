@@ -129,6 +129,28 @@ def test_accounts_list_after_connect_shows_connected_state(client, iso, as_custo
 # --------------------------------------------------------------------------- #
 # Customer: POST /social/accounts/connect                                     #
 # --------------------------------------------------------------------------- #
+def _extract_error_code(body: dict) -> str | None:
+    """The app has a global exception middleware that wraps HTTPException.detail
+    into `{"error": {"code": "HTTP_400", "message": <detail>, "request_id": ...}}`.
+    Support both the wrapped shape and the raw FastAPI `{"detail": ...}` shape
+    (so tests remain robust if the middleware is disabled during isolated runs)."""
+    if not isinstance(body, dict):
+        return None
+    wrapped = body.get("error")
+    if isinstance(wrapped, dict):
+        msg = wrapped.get("message")
+        if isinstance(msg, dict):
+            code = msg.get("error")
+            if isinstance(code, str):
+                return code
+        if isinstance(msg, str):
+            return msg
+    detail = body.get("detail")
+    if isinstance(detail, dict):
+        return detail.get("error")
+    return None
+
+
 def test_connect_rejects_unknown_platform(client, iso, as_customer):
     r = client.post("/api/customer/social/accounts/connect", json={
         "platform": "myspace",
@@ -136,9 +158,7 @@ def test_connect_rejects_unknown_platform(client, iso, as_customer):
         "account_ref": "x",
     })
     assert r.status_code == 400
-    detail = r.json().get("detail") or {}
-    if isinstance(detail, dict):
-        assert detail.get("error") == "invalid_platform"
+    assert _extract_error_code(r.json()) == "invalid_platform"
 
 
 def test_connect_rejects_short_token(client, iso, as_customer):
@@ -147,9 +167,7 @@ def test_connect_rejects_short_token(client, iso, as_customer):
         "token": "abc",  # < 8
     })
     assert r.status_code == 400
-    detail = r.json().get("detail") or {}
-    if isinstance(detail, dict):
-        assert detail.get("error") == "invalid_token"
+    assert _extract_error_code(r.json()) == "invalid_token"
 
 
 @pytest.mark.parametrize("plat", ["facebook", "instagram", "gbp", "linkedin"])
@@ -160,9 +178,7 @@ def test_connect_requires_account_ref_for_direct_api_platforms(client, iso, as_c
         # No account_ref
     })
     assert r.status_code == 400
-    detail = r.json().get("detail") or {}
-    if isinstance(detail, dict):
-        assert detail.get("error") == "account_ref_required"
+    assert _extract_error_code(r.json()) == "account_ref_required"
 
 
 def test_connect_stores_token_encrypted_and_retrievable_via_vault(client, iso, as_customer):
