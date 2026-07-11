@@ -55,12 +55,38 @@ def _alert_n() -> int:
         return DEFAULT_ALERT_N
 
 
+def _redis_mode() -> str:
+    """Explicit test-mode policy. Prod default = enabled. Hermetic tests set
+    `INTEGRATION_HEALTH_REDIS_MODE=disabled` to make snapshot() perform zero
+    network I/O. Invalid values fail safe (treated as enabled — never silently
+    disabled in production)."""
+    v = os.environ.get("INTEGRATION_HEALTH_REDIS_MODE", "").strip().lower()
+    if v == "disabled":
+        return "disabled"
+    return "enabled"
+
+
 def _redis():
+    """Bounded Redis client. `socket_connect_timeout=1.0` + `socket_timeout=1.0`
+    caps both connect + read at 1s each (was: socket_timeout=2 but NO connect
+    timeout → blocked forever if Redis absent). No retry — a single fast-fail
+    is safer for the health-snapshot path than exponential backoff.
+
+    Fail-fast rationale (2026-07-11 hardening): the previous configuration
+    hung the full pytest suite because `sock.connect(socket_address)` had no
+    upper bound. Bounding it here lets a Redis outage degrade the snapshot to
+    a `"redis_unavailable"` diagnostic within seconds instead of hanging any
+    caller (customer dashboards / /health / test suite)."""
     import redis as _redis
 
     from app.config import settings
 
-    return _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+    return _redis.Redis.from_url(
+        str(settings.redis_url),
+        socket_connect_timeout=1.0,
+        socket_timeout=1.0,
+        retry_on_timeout=False,
+    )
 
 
 def _hour_key(dt: datetime | None = None, kind: str = "fail") -> str:
@@ -95,14 +121,48 @@ def record_success(integration: str) -> None:
 
 
 def snapshot(hours: int = 24) -> dict[str, Any]:
-    """Pichle N ghante ke per-integration fail/ok counts + last errors. Never raise."""
+    """Pichle N ghante ke per-integration fail/ok counts + last errors.
+
+    Never raises. Redis absent OR test-mode disabled → returns a
+    `redis_status: "unavailable" | "disabled"` diagnostic instead of blocking
+    or silently returning an empty-but-healthy-looking dict (2026-07-11
+    hardening — closes the full-suite hang from `r.hgetall` blocking on
+    `socket.connect` when Redis was not running).
+    """
+    import time as _time
+    _t0 = _time.monotonic()
     out: dict[str, Any] = {
         "hours": hours,
         "integrations": {},
         "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "redis_status": "healthy",
     }
+
+    # Explicit test-mode guard — production default is enabled.
+    if _redis_mode() == "disabled":
+        out["redis_status"] = "disabled"
+        out["degraded"] = True
+        out["reason"] = "INTEGRATION_HEALTH_REDIS_MODE=disabled"
+        out["elapsed_s"] = round(_time.monotonic() - _t0, 3)
+        return out
+
+    # Bounded acquisition. If the constructor OR the very first Redis command
+    # fails/times out, degrade the snapshot immediately — do NOT loop.
     try:
         r = _redis()
+        # Force a bounded ping so we know the connection is usable before
+        # entering the per-hour hgetall loop. If ping fails, we degrade
+        # gracefully instead of chasing 24 more failing hgetall calls.
+        try:
+            r.ping()
+        except Exception as _ping_exc:
+            out["redis_status"] = "unavailable"
+            out["degraded"] = True
+            out["reason"] = "connection_failed"
+            out["error_type"] = type(_ping_exc).__name__[:60]
+            out["elapsed_s"] = round(_time.monotonic() - _t0, 3)
+            logger.debug("integration_health: redis unavailable (%s)", type(_ping_exc).__name__)
+            return out
         now = datetime.now(timezone.utc)
         agg: dict[str, dict[str, int]] = {}
         for i in range(max(1, min(hours, 26))):
@@ -134,7 +194,14 @@ def snapshot(hours: int = 24) -> dict[str, Any]:
                 "last_error": last_err,
             }
     except Exception as e:
-        out["error"] = str(e)[:120]
+        # Sanitize: expose only exception TYPE, never the message (may contain
+        # Redis URL with credentials — logger.redact_message covers formatted
+        # log lines but not dict values placed into a JSON response).
+        out["redis_status"] = "unavailable"
+        out["degraded"] = True
+        out["reason"] = "acquisition_failed"
+        out["error_type"] = type(e).__name__[:60]
+    out["elapsed_s"] = round(_time.monotonic() - _t0, 3)
     return out
 
 
