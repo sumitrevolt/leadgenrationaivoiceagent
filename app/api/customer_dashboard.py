@@ -1599,9 +1599,22 @@ def customer_social_accounts(client_id: str = Depends(require_customer)) -> dict
             if plat not in accounts_by_plat:
                 continue
             meta = r.get("meta") or {}
+            # Loop 27 (2026-07-11): add opaque account_id (short sha1 of client+plat+ref)
+            # so the frontend Disconnect button can DELETE the exact record even though
+            # the customer never sees the full account_ref back. account_ref itself
+            # (e.g. FB Page ID) is not a secret but we keep it masked for display.
+            _raw_ref = str(r.get("account_ref") or "")
+            try:
+                import hashlib as _h
+                _acct_id = _h.sha1(
+                    (f"{client_id}|{plat}|{_raw_ref}").encode("utf-8")
+                ).hexdigest()[:16]
+            except Exception:
+                _acct_id = ""
             accounts_by_plat[plat].append({
                 "platform": plat,
-                "account_ref_masked": _mask_ref(str(r.get("account_ref") or "")),
+                "account_id": _acct_id,  # opaque, DELETE-safe (Loop 27)
+                "account_ref_masked": _mask_ref(_raw_ref),
                 "label": str(meta.get("label") or "")[:120],
                 "source": str(meta.get("source") or "manual_paste")[:32],
                 "updated_at": str(r.get("ts") or ""),
@@ -1731,23 +1744,52 @@ def customer_social_accounts_connect(
 def customer_social_accounts_disconnect(
     platform: str,
     account_ref: str = Query("", max_length=255),
+    account_id: str = Query("", max_length=32),
     client_id: str = Depends(require_customer),
 ) -> dict:
     """Soft-delete a stored social account (`vault.delete` → deleted marker in
-    JSONL, latest-wins). IDOR-safe (client_id from JWT). Never-500."""
+    JSONL, latest-wins). IDOR-safe (client_id from JWT). Never-500.
+
+    Loop 27 (2026-07-11): now accepts either `account_ref` (legacy — full ref)
+    OR `account_id` (opaque sha1 hash returned by GET /social/accounts). Frontend
+    only ever sees masked `…tail` for privacy, so `account_id` is the reliable
+    handle for DELETE; `account_ref` retained for backwards compat + admin tools.
+    """
     try:
         from app.social_engine import vault
 
         plat = str(platform or "").strip().lower()
         if plat not in _CONNECT_PLATFORMS:
             raise HTTPException(status_code=400, detail="invalid platform")
-        ok = bool(vault.delete(client_id, plat, account_ref=(account_ref or "").strip()[:255]))
+        resolved_ref = (account_ref or "").strip()[:255]
+        aid = (account_id or "").strip()[:32]
+        if aid and not resolved_ref:
+            # Resolve opaque id → full account_ref by rescanning the vault for
+            # a matching sha1(client|plat|ref)[:16]. Bounded by per-customer
+            # account count (small); safe to iterate.
+            try:
+                import hashlib as _h
+                rows = vault.list_accounts(client_id) or []
+                for _r in rows:
+                    _rp = str(_r.get("platform") or "").strip().lower()
+                    if _rp != plat:
+                        continue
+                    _rr = str(_r.get("account_ref") or "")
+                    _h1 = _h.sha1(
+                        (f"{client_id}|{plat}|{_rr}").encode("utf-8")
+                    ).hexdigest()[:16]
+                    if _h1 == aid:
+                        resolved_ref = _rr[:255]
+                        break
+            except Exception as _e:
+                logger.warning("customer social disconnect account_id resolve failed: %s", _e)
+        ok = bool(vault.delete(client_id, plat, account_ref=resolved_ref))
         try:
             from app.platform import team
 
             team.log_event(
                 "zara", "social_account_disconnected",
-                f"{client_id}: {plat} account_ref={_mask_ref(account_ref)}",
+                f"{client_id}: {plat} account_ref={_mask_ref(resolved_ref)}",
                 status="warn",
             )
         except Exception:
