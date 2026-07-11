@@ -69,6 +69,7 @@ def max_per_day() -> int:
 
 _TICK_RUNNING_KEY = "self_improve:tick_running"
 _TICK_NEXT_ALLOWED_KEY = "self_improve:tick_next_allowed"
+_TICK_ETA_SKEW_S = 2.0  # Celery ETA vs Redis timestamp sub-second drift allowance
 
 
 def _redis_client():
@@ -102,7 +103,10 @@ def acquire_tick_slot() -> str:
         return ""
     try:
         next_allowed = float(_redis_value(r.get(_TICK_NEXT_ALLOWED_KEY)) or 0)
-        if next_allowed and time.time() < next_allowed:
+        # `note_tick_requeue()` broker enqueue ke just baad timestamp likhta hai,
+        # isliye ETA task kuch milliseconds pehle land kar sakta hai. Far-future
+        # ticks ab bhi block; near-boundary tick ko NX running-lock safely dedupe karega.
+        if next_allowed and time.time() < (next_allowed - _TICK_ETA_SKEW_S):
             return ""
         ttl = max(300, _ITER_TIMEOUT_S + 120)
         if not r.set(_TICK_RUNNING_KEY, token, nx=True, ex=ttl):

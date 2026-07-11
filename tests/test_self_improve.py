@@ -159,6 +159,34 @@ def test_selfimprove_tick_slot_blocks_duplicate_chains(tmp_path, monkeypatch):
     assert float(fake.store["self_improve:tick_next_allowed"]) > time.time() + 3500
 
 
+def test_selfimprove_tick_slot_accepts_small_eta_clock_skew(tmp_path, monkeypatch):
+    """Celery ETA thoda early arrive ho sakta hai; NX running-lock still dedupes it."""
+    si = _patch_stores(monkeypatch, tmp_path)
+
+    class FakeRedis:
+        def __init__(self):
+            self.store = {
+                "self_improve:tick_next_allowed": str(time.time() + 0.5),
+            }
+
+        def get(self, key):
+            val = self.store.get(key)
+            return val.encode("utf-8") if isinstance(val, str) else val
+
+        def set(self, key, val, nx=False, ex=None):
+            if nx and key in self.store:
+                return False
+            self.store[key] = str(val)
+            return True
+
+    fake = FakeRedis()
+    monkeypatch.setattr(si, "_redis_client", lambda: fake)
+
+    token = si.acquire_tick_slot()
+    assert token, "sub-second Celery ETA skew must not kill the only requeue chain"
+    assert si.acquire_tick_slot() == "", "running-lock must still reject a duplicate"
+
+
 def test_selfimprove_execute_error_never_raises(tmp_path, monkeypatch):
     si = _patch_stores(monkeypatch, tmp_path)
     monkeypatch.setenv("SELF_IMPROVE_LOOP", "1")
