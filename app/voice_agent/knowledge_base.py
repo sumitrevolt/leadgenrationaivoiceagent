@@ -407,8 +407,8 @@ _QDRANT_VECTOR_SIZE = 384  # default; auto-updated to the chosen model's REAL di
 # fastembed versions drop/rename models — try several, first that initializes wins.
 # Prefer 384-dim multilingual (matches existing collection); e5-large is last resort.
 _EMBED_CANDIDATES = [
-    "intfloat/multilingual-e5-small",
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+    "intfloat/multilingual-e5-small",
     "BAAI/bge-small-en-v1.5",
     "intfloat/multilingual-e5-large",
     "BAAI/bge-base-en-v1.5",
