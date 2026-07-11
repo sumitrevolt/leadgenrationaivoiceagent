@@ -564,6 +564,161 @@ def _compliance_env() -> dict[str, Any]:
     }
 
 
+# --------------------------------------------------------------------------- #
+# Delivery-outcome probe (2026-07-11 loop): closes the "production_ready:true =
+# tautology" gap. Before this probe, no probe in _PROBES ever returned _BLOCKER
+# — every probe returned _OK/_WARN/_NEUTRAL — so `blockers = [...]` in
+# activation_readiness() was structurally guaranteed to be empty, and
+# `launch_ready = not blockers` was always True regardless of whether any real
+# paid customer had actually received anything. This probe asks the one
+# question the shape-check probes cannot: is there a paying customer whose
+# `deliverable_completion_pct` is stuck at 0 more than 24h post-payment? If
+# yes → _WARN with actionable next step (Admin → Delivery Cockpit → Generate
+# Content). Cached 60s to keep the public /api/activation/summary cheap.
+# Never raises: clients_store / customer_delivery_status are already defensive;
+# any unexpected error → _NEUTRAL (fail-open — never breaks the endpoint).
+_FIRST_PAID_TTL_S = 60
+_FIRST_PAID_CACHE: dict[str, Any] = {"at": 0.0, "result": None}
+
+
+def _first_paid_delivery() -> dict[str, Any]:
+    """Delivery-outcome probe: WARN when paid customers exist but no
+    deliverables have shipped 24h+ after activation.
+
+    PII discipline (2026-07-11 hardening):
+      - `checks` and `action` NEVER contain client_id, business name, phone,
+        email, or any other identifier — the /summary + /readiness endpoints
+        surface this probe's dict verbatim, and even the admin readiness
+        endpoint keeps PII-out for defense-in-depth (log-forwarding, screenshots
+        during screenshares, third-party log processors).
+      - Instead of naming a stale customer, we expose only aggregate counts and
+        an `oldest_pending_hours` bucket ("24-48h" / "48-72h" / "72h+"), so the
+        admin knows severity without knowing identity.
+      - On evaluation failure we return WARN (NOT NEUTRAL) with a generic
+        sanitized reason — a silent NEUTRAL would let a broken store hide the
+        exact "audit passed but not delivering" red flag this probe exists to
+        catch. The raw exception message is NEVER surfaced (would leak DB
+        connect strings / internal IPs / stack fragments); only the exception
+        type name (e.g. "OperationalError") goes into a bounded diagnostic.
+    """
+    import time
+    from datetime import datetime, timedelta, timezone
+
+    now = time.time()
+    cached = _FIRST_PAID_CACHE.get("result")
+    if cached is not None and now - float(_FIRST_PAID_CACHE.get("at") or 0.0) < _FIRST_PAID_TTL_S:
+        return cached
+
+    checks = {
+        "paid_customers": 0,
+        "with_progress": 0,
+        "with_zero_deliverables_24h_plus": 0,
+        "oldest_pending_hours": None,  # None | "24-48h" | "48-72h" | "72h+"
+    }
+    oldest_stale_hours: float = 0.0
+    try:
+        from app.marketing import clients_store, product_one_delivery
+
+        clients = clients_store.list_clients(status="active") or []
+        for c in clients:
+            try:
+                if not product_one_delivery._client_plan_paid(c):
+                    continue
+                checks["paid_customers"] += 1
+                cid = str(c.get("id") or "")
+                state = product_one_delivery.customer_delivery_status(cid, c) or {}
+                pct = int(state.get("deliverable_completion_pct") or 0)
+                if pct > 0:
+                    checks["with_progress"] += 1
+                    continue
+                raw = str(c.get("created_at") or "")
+                try:
+                    dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=timezone.utc)
+                    age_hours = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+                    if age_hours > 24:
+                        checks["with_zero_deliverables_24h_plus"] += 1
+                        if age_hours > oldest_stale_hours:
+                            oldest_stale_hours = age_hours
+                except Exception:
+                    # can't parse activation timestamp — do NOT count as stale
+                    # (would false-alarm on any client with malformed created_at)
+                    pass
+            except Exception:
+                # per-customer eval failure must not abort the whole probe.
+                # A single bad row does NOT flip the overall signal to WARN —
+                # the WARN is reserved for stale-paid or wholesale eval failure.
+                continue
+    except Exception as exc:
+        # Wholesale eval failure: store unavailable, or heavy import failure.
+        # WARN (not NEUTRAL) is intentional — a silent NEUTRAL would let a
+        # broken store hide the exact signal the probe exists to surface.
+        # Sanitize: expose only exception TYPE (`OperationalError`,
+        # `ConnectionRefusedError`, ...) — never the message (may contain host
+        # IP, DB path, or SQL fragment).
+        result = {
+            "key": "first_paid_delivery",
+            "label": "First paid customer delivery signal",
+            "category": "revenue",
+            "status": _WARN,
+            "env_vars": [],
+            "checks": {
+                "paid_customers": 0,
+                "with_progress": 0,
+                "with_zero_deliverables_24h_plus": 0,
+                "oldest_pending_hours": None,
+                "eval_error": True,
+                "eval_error_type": type(exc).__name__[:60],
+            },
+            "action": (
+                "Delivery evidence could not be evaluated (clients_store / "
+                "product_one_delivery raised). Admin → /app/admin → Delivery "
+                "Cockpit — verify store connectivity + retry."
+            ),
+            "doc": "app/marketing/product_one_delivery.py",
+        }
+        _FIRST_PAID_CACHE.update({"at": now, "result": result})
+        return result
+
+    # Bucketize oldest stale age (aggregate, no per-customer timestamp exposed)
+    if oldest_stale_hours >= 72:
+        checks["oldest_pending_hours"] = "72h+"
+    elif oldest_stale_hours >= 48:
+        checks["oldest_pending_hours"] = "48-72h"
+    elif oldest_stale_hours >= 24:
+        checks["oldest_pending_hours"] = "24-48h"
+
+    if checks["paid_customers"] == 0:
+        status_val = _NEUTRAL
+        action = ""
+    elif checks["with_zero_deliverables_24h_plus"] > 0:
+        status_val = _WARN
+        bucket = checks["oldest_pending_hours"] or "24h+"
+        action = (
+            f"{checks['with_zero_deliverables_24h_plus']} paid customer(s) have "
+            f"0/10 deliverables (oldest {bucket} post-activation). "
+            "Admin → /app/admin → Delivery Cockpit → Generate Content / Manual Proof. "
+            "This is the 'audit passed but not delivering' signal — fix now."
+        )
+    else:
+        status_val = _OK
+        action = ""
+
+    result = {
+        "key": "first_paid_delivery",
+        "label": "First paid customer delivery signal",
+        "category": "revenue",
+        "status": status_val,
+        "env_vars": [],
+        "checks": checks,
+        "action": action,
+        "doc": "app/marketing/product_one_delivery.py",
+    }
+    _FIRST_PAID_CACHE.update({"at": now, "result": result})
+    return result
+
+
 _PROBES = (
     # Phase 1: Survival (visibility + trust + edge) + first-revenue UPI. Razorpay removed 2026-06-18.
     _sentry,
@@ -571,6 +726,7 @@ _PROBES = (
     _turnstile,
     _cloudflare_tunnel,
     _upi,
+    _first_paid_delivery,
     _qdrant_rag,
     # Phase 2: AI safety + memory + admin UX
     _track_b_admin,
@@ -606,7 +762,9 @@ _PROBES = (
 #   4 Sellable   — customer_webhooks, mcp_product
 #   5 Margin     — litellm_costs, warm_dr
 _PHASES: tuple[tuple[int, str, tuple[str, ...]], ...] = (
-    (1, "Survival", ("sentry", "posthog", "turnstile", "cloudflare_tunnel", "upi", "qdrant_rag")),
+    # `first_paid_delivery` sits in Survival: no point chasing Visibility/Sellable
+    # levers if the very first paid customer's deliverables never shipped.
+    (1, "Survival", ("sentry", "posthog", "turnstile", "cloudflare_tunnel", "upi", "first_paid_delivery", "qdrant_rag")),
     (2, "Visibility", ("track_b_admin", "agent_memory", "eval_gate")),
     (3, "AI staff", ("engineer_agents", "ops_alerts")),
     (4, "Sellable", ("customer_webhooks", "mcp_product")),
@@ -621,6 +779,7 @@ _PROBE_BY_KEY = {
     "turnstile": _turnstile,
     "cloudflare_tunnel": _cloudflare_tunnel,
     "upi": _upi,
+    "first_paid_delivery": _first_paid_delivery,
     "qdrant_rag": _qdrant_rag,
     "track_b_admin": _track_b_admin,
     "agent_memory": _agent_memory,

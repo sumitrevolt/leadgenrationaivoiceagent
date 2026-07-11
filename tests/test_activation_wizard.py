@@ -17,7 +17,14 @@ from app.api import activation as ax
 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Strip every env key any probe might read so each test starts at zero."""
+    """Strip every env key any probe might read so each test starts at zero.
+
+    Also isolate the `first_paid_delivery` probe (2026-07-11 addition) from
+    real `data/clients.jsonl` — this test file exercises the wizard's
+    phase-ordering contract, not the delivery-outcome storage layer. Without
+    this isolation, a real paying customer sitting stale in production data
+    would flip Phase 1 to actionable and break every "all-done" assertion.
+    """
     for k in (
         "RAZORPAY_KEY_ID",
         "RAZORPAY_KEY_SECRET",
@@ -55,6 +62,13 @@ def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
         "SYS_HEALTH_DETAIL",
     ):
         monkeypatch.delenv(k, raising=False)
+
+    # Isolate first_paid_delivery from live clients_store — hermetic wizard test.
+    import app.marketing.clients_store as _clients_store
+    monkeypatch.setattr(_clients_store, "list_clients", lambda **kw: [])
+    # Bust the delivery probe cache so each test observes the isolated store.
+    ax._FIRST_PAID_CACHE.clear()
+    ax._FIRST_PAID_CACHE.update({"at": 0.0, "result": None})
 
 
 # --------------------------------------------------------------------------- #
