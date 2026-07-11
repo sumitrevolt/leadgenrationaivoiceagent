@@ -137,6 +137,16 @@ OBJECTION HANDLING:
                 self._init_gemini()
         elif "local" in self.model.lower() or "llama" in self.model.lower():
             self._init_local_llm()
+        elif any(
+            name in self.model.lower()
+            for name in ("mistral", "groq", "cerebras", "sambanova", "nvidia", "openrouter")
+        ):
+            # LeadGen's active stack is the free_ai provider chain. The legacy
+            # brain still powers supervisor smoke/voice flows, so accept the
+            # configured free model and route generation through the same
+            # guarded fallback chain instead of rejecting it as unknown.
+            self.client = None
+            self.provider = "free_ai"
         else:
             raise ValueError(f"Unknown LLM model: {self.model}")
 
@@ -564,6 +574,18 @@ Return ONLY valid JSON, no explanations."""
     async def _generate(self, prompt: str) -> str:
         """Generate text using configured LLM"""
 
+        if self.provider == "free_ai":
+            from app.voice_agent import free_ai
+
+            text, _provider = await free_ai.chat(
+                system="",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=500,
+                temperature=0.7,
+                profile="realtime",
+            )
+            return (text or "").strip()
+
         if self.provider == "openai":
             response = await self.client.chat.completions.create(
                 model=self.model,
@@ -614,6 +636,18 @@ Return ONLY valid JSON, no explanations."""
         self, system_prompt: str, conversation_history: list[dict[str, str]]
     ) -> str:
         """Generate response in chat context"""
+
+        if self.provider == "free_ai":
+            from app.voice_agent import free_ai
+
+            text, _provider = await free_ai.chat(
+                system=system_prompt,
+                messages=conversation_history,
+                max_tokens=300,
+                temperature=0.7,
+                profile="realtime",
+            )
+            return (text or "").strip()
 
         if self.provider == "openai":
             messages = [{"role": "system", "content": system_prompt}]
