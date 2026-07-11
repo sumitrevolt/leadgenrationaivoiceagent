@@ -27,7 +27,7 @@ def test_2fa_verify_invalid_challenge_emits_admin_log(client, monkeypatch):
 
     r = client.post(
         "/api/customer/2fa/verify",
-        json={"challenge_token": "expired-or-fake", "code": "123456"},
+        json={"challenge_token": "expired-or-fake-token-x1x2x3", "code": "123456"},
     )
     assert r.status_code == 400
     rows = [c for c in captured if c.get("job_type") == "login_failed"]
@@ -51,7 +51,7 @@ def test_2fa_verify_bad_code_emits_admin_log_with_client_id(client, monkeypatch)
 
     r = client.post(
         "/api/customer/2fa/verify",
-        json={"challenge_token": "good-challenge", "code": "999999"},
+        json={"challenge_token": "good-challenge-token-abcdef", "code": "999999"},
     )
     assert r.status_code == 401
     rows = [c for c in captured if c.get("job_type") == "login_failed"]
@@ -81,7 +81,7 @@ def test_2fa_verify_success_emits_no_failure_row(client, monkeypatch):
 
     r = client.post(
         "/api/customer/2fa/verify",
-        json={"challenge_token": "good", "code": "123456"},
+        json={"challenge_token": "good-verify-token-abcdefg1234", "code": "123456"},
     )
     assert r.status_code == 200
     assert r.json().get("access_token")
