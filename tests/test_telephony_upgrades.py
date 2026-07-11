@@ -26,10 +26,52 @@ def test_app_imports_and_mounts_telephony_webhooks():
     """App imports cleanly (no circular refs) and telephony routes are mounted."""
     from app.main import app
 
-    paths = {getattr(r, "path", "") for r in app.routes}
+    # FastAPI 0.139 stores included routers as lazy wrappers in app.routes;
+    # OpenAPI is the stable effective-route view across FastAPI versions.
+    paths = set(app.openapi().get("paths", {}))
     # twilio/exotel webhook routes removed (provider deleted) - Vobiz uses /api/telephony/vobiz/*
     assert "/api/webhooks/vobiz/answer" in paths
     assert "/api/webhooks/health" in paths
+
+
+def test_call_state_rebinds_redis_client_per_event_loop(monkeypatch):
+    """A Redis client created in one loop must never be reused in another."""
+    class _FakeRedis:
+        def __init__(self):
+            self.pings = 0
+
+        async def ping(self):
+            self.pings += 1
+
+        async def zadd(self, *_args, **_kwargs):
+            return 1
+
+        async def zpopmin(self, *_args, **_kwargs):
+            return []
+
+    clients = []
+
+    def _from_url(*_args, **_kwargs):
+        client = _FakeRedis()
+        clients.append(client)
+        return client
+
+    import redis.asyncio as aioredis
+
+    monkeypatch.setattr(aioredis, "from_url", _from_url)
+    store = RedisCallStore()
+
+    loop1 = asyncio.new_event_loop()
+    loop2 = asyncio.new_event_loop()
+    try:
+        first = loop1.run_until_complete(store._redis())
+        second = loop2.run_until_complete(store._redis())
+        assert first is clients[0]
+        assert second is clients[1]
+        assert first is not second
+    finally:
+        loop1.close()
+        loop2.close()
 
 
 def test_dnd_result_has_verified_flag():
