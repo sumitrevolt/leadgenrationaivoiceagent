@@ -196,11 +196,18 @@ def check_token_expiries(days: int = 7) -> dict[str, Any]:
                 expired.append(rec)
             elif is_expiring_soon(rec, days=days):
                 warning.append(rec)
+        # Import once outside loop so pytest monkeypatch.setattr on
+        # delivery_ledger.log_event is respected (per-iteration re-import would
+        # pick up the ORIGINAL not the patched one).
+        try:
+            from app.marketing import delivery_ledger as _dl
+        except Exception:
+            _dl = None  # type: ignore
         for row in expired:
+            if _dl is None:
+                break
             try:
-                from app.marketing import delivery_ledger
-
-                delivery_ledger.log_event(
+                _dl.log_event(
                     str(row.get("client_id") or ""),
                     "token_expired",
                     detail=f"{row.get('platform')} account {row.get('account_ref') or ''}"[:200],
@@ -264,6 +271,9 @@ def list_accounts(client_id: str = "") -> list[dict[str, Any]]:
                 "account_ref": rec.get("account_ref") or "",
                 "meta": rec.get("meta") or {},
                 "ts": rec.get("ts"),
+                # Loop-social-11 fix (2026-07-11): include expires_at so
+                # is_expired/is_expiring_soon/check_token_expiries work.
+                "expires_at": rec.get("expires_at") or "",
             }
         )
     return out

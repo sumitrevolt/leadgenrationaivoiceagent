@@ -31,8 +31,10 @@ def test_next_ready_at_for_retry_row():
         "status": "retry", "attempts": 2, "updated_at": ts,
     })
     # attempts=2 → 120s backoff — should be exactly 120s past parsed ts.
+    # Store writes UTC ISO; production parses naive-as-UTC so timestamp() is
+    # timezone-safe on IST machines (see scheduling.next_ready_at).
     import datetime as _dt
-    expected = _dt.datetime.fromisoformat(ts).timestamp() + 120
+    expected = _dt.datetime.fromisoformat(ts).replace(tzinfo=_dt.timezone.utc).timestamp() + 120
     assert when == pytest.approx(expected, abs=1)
 
 

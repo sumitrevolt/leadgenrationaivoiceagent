@@ -89,9 +89,11 @@ def paused_platforms() -> set[str]:
 
 
 def paused_clients() -> set[str]:
-    env = _env_csv("SOCIAL_PAUSED_CLIENTS")
-    if env:
-        return env
+    # Client IDs are case-sensitive (e.g. "c_A"), so DON'T route through _env_csv
+    # which lowercases everything. Only platforms need normalization.
+    raw_env = (os.getenv("SOCIAL_PAUSED_CLIENTS") or "").strip()
+    if raw_env:
+        return {x.strip() for x in raw_env.split(",") if x.strip()}
     cfg = _read_cfg()
     if cfg.get("_corrupt"):
         # Config corruption ≠ default-pause EVERY client (that's what emergency

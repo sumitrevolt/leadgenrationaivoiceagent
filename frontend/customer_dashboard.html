@@ -2844,6 +2844,27 @@ function renderSocialSetup(d,acct){
   var cadOpts=[["daily","Roz"],["3x_week","Hafte me 3 baar"],["weekly","Hafte me 1 baar"],["off","Abhi band rakho"]];
   var cadSel='<select id="ssCadence" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
     +cadOpts.map(function(o){return '<option value="'+o[0]+'"'+(cad===o[0]?" selected":"")+'>'+escH(o[1])+'</option>';}).join("")+'</select>';
+  /* Loop-social-23 (2026-07-11): Step-1 (business context) + Step-4 (posting
+     preferences) field UI. Server accepts these via SocialConfigIn — wizard
+     now exposes them so the AI can respect brand tone, posting windows,
+     content categories, and prohibited topics. All optional; defaults from
+     client_config._DEFAULTS. */
+  var langOpts=[["hinglish","Hinglish"],["hi","Hindi"],["en","English"],["gu","Gujarati"],["mr","Marathi"],["ta","Tamil"],["te","Telugu"],["kn","Kannada"],["ml","Malayalam"],["bn","Bengali"],["pa","Punjabi"]];
+  var curLang=d.preferred_language||"hinglish";
+  var langSel='<select id="ssLang" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +langOpts.map(function(o){return '<option value="'+o[0]+'"'+(curLang===o[0]?" selected":"")+'>'+escH(o[1])+'</option>';}).join("")+'</select>';
+  var dayOpts=[["mon","Mon"],["tue","Tue"],["wed","Wed"],["thu","Thu"],["fri","Fri"],["sat","Sat"],["sun","Sun"]];
+  var curDays=d.posting_days||[];
+  var dayChips=dayOpts.map(function(o){
+    var on=(curDays.indexOf(o[0])>=0);
+    return '<label class="sm" style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border:1px solid '
+      +(on?'var(--indigo)':'var(--line)')+';border-radius:999px;margin:2px;background:'+(on?'#eef2ff':'transparent')+';cursor:pointer">'
+      +'<input type="checkbox" class="ssDay" value="'+o[0]+'"'+(on?" checked":"")+' style="margin:0"> '+escH(o[1])+'</label>';
+  }).join("");
+  var brandTone=d.brand_tone||"";
+  var toneOpts=[["","(auto)"],["friendly","Friendly"],["professional","Professional"],["playful","Playful"],["educational","Educational"],["luxury","Luxury"]];
+  var toneSel='<select id="ssTone" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +toneOpts.map(function(o){return '<option value="'+o[0]+'"'+(brandTone===o[0]?" selected":"")+'>'+escH(o[1])+'</option>';}).join("")+'</select>';
   var ap=d.approval_mode||"review";
   var apr='<label class="sm" style="display:block;margin-top:4px"><input type="radio" name="ssAppr" value="review"'+(ap==="review"?" checked":"")+'> Main pehle dekhun, phir post (recommended)</label>'
     +'<label class="sm" style="display:block;margin-top:2px"><input type="radio" name="ssAppr" value="draft"'+(ap==="draft"?" checked":"")+'> Sirf draft ready rakho — main khud post karunga</label>';
@@ -2862,6 +2883,24 @@ function renderSocialSetup(d,acct){
     +_swField("ssTw","Twitter / X",h.twitter,"@handle ya link")
     +'<div style="font-weight:700;margin:16px 0 4px">🎯 AI kin channels ke liye content banaye?</div><div>'+checks+'</div>'
     +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">📅 Kitni baar content taiyaar ho?</label>'+cadSel
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🗓️ Kaun se din post kare? (blank = daily)</label>'
+    +'<div style="margin-top:4px">'+dayChips+'</div>'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">⏰ Post karne ke times (24h, blank = auto). Comma-separated e.g. 09:30, 18:00</label>'
+    +'<input id="ssTimes" type="text" value="'+escH((d.posting_times||[]).join(", "))+'" placeholder="09:30, 18:00" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🎭 Brand tone</label>'+toneSel
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🌐 Preferred language</label>'+langSel
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🌐 Website</label>'
+    +'<input id="ssWebsite" type="text" value="'+escH(d.website||"")+'" placeholder="https://yourshop.com" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">👥 Target audience (1 line)</label>'
+    +'<input id="ssAudience" type="text" value="'+escH(d.target_audience||"")+'" placeholder="Working women 25-40 in Mumbai" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🛍️ Products / services (comma-separated)</label>'
+    +'<input id="ssProducts" type="text" value="'+escH(d.products_or_services||"")+'" placeholder="makeup, hair care, bridal packages" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">📚 Content categories AI use kare (comma-separated)</label>'
+    +'<input id="ssCategories" type="text" value="'+escH((d.content_categories||[]).join(", "))+'" placeholder="promo, tips, testimonials, festivals" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🚫 Prohibited topics (AI mention nahi karega)</label>'
+    +'<input id="ssProhibited" type="text" value="'+escH((d.prohibited_topics||[]).join(", "))+'" placeholder="politics, competitors, medical claims" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🛡️ Brand safety instructions (freeform)</label>'
+    +'<textarea id="ssSafety" placeholder="Never mention competitor names by name. Keep tone respectful. No political humor." style="width:100%;min-height:60px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'+escH(d.brand_safety_instructions||"")+'</textarea>'
     +'<div style="font-weight:700;margin:16px 0 4px">✅ Post karne se pehle?</div>'+apr
     +'<button class="btn primary" type="button" id="ssSaveBtn" style="margin-top:14px;width:100%;justify-content:center" onclick="saveSocialSetup()">💾 Save Social Setup</button>';
 }
@@ -2872,6 +2911,9 @@ async function saveSocialSetup(){
     var chans=[]; var boxes=Array.prototype.slice.call(document.querySelectorAll(".ssChan"));
     boxes.forEach(function(el){ if(el.checked) chans.push(el.value); });
     var apEl=document.querySelector('input[name="ssAppr"]:checked');
+    /* Loop-social-23: collect Step-1/Step-4 field values (all optional). */
+    var days=[]; Array.prototype.slice.call(document.querySelectorAll(".ssDay")).forEach(function(el){ if(el.checked) days.push(el.value); });
+    var _csv=function(id){ var v=((document.getElementById(id)||{}).value||"").trim(); return v?v.split(",").map(function(x){return x.trim();}).filter(Boolean):[]; };
     var payload={
       instagram:(document.getElementById("ssInsta")||{}).value||"",
       facebook:(document.getElementById("ssFb")||{}).value||"",
@@ -2882,7 +2924,18 @@ async function saveSocialSetup(){
       channels:chans,
       cadence:(document.getElementById("ssCadence")||{}).value||"",
       approval_mode:apEl?apEl.value:"review",
-      postiz_integrations:[]
+      postiz_integrations:[],
+      /* Loop-social-23 Step-1 + Step-4 fields */
+      brand_tone:(document.getElementById("ssTone")||{}).value||"",
+      preferred_language:(document.getElementById("ssLang")||{}).value||"",
+      website:(document.getElementById("ssWebsite")||{}).value||"",
+      target_audience:(document.getElementById("ssAudience")||{}).value||"",
+      products_or_services:(document.getElementById("ssProducts")||{}).value||"",
+      posting_days:days,
+      posting_times:_csv("ssTimes"),
+      content_categories:_csv("ssCategories"),
+      prohibited_topics:_csv("ssProhibited"),
+      brand_safety_instructions:(document.getElementById("ssSafety")||{}).value||""
     };
     var r=await fetch("/api/customer/social/config",{
       method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
