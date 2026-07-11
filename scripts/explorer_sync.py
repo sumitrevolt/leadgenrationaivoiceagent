@@ -19,6 +19,7 @@ Never raises. Windows venv: .venv\\Scripts\\python.exe scripts/explorer_sync.py
 """
 from __future__ import annotations
 
+import os
 import pathlib
 import re
 import sys
@@ -77,17 +78,12 @@ SRC_EXT = (".py", ".html", ".js", ".yml", ".yaml", ".sh")
 def _real_filenames() -> set[str]:
     """All real source filenames in the repo (excl. venv/cache/git/worktrees)."""
     names: set[str] = set()
-    for p in ROOT.rglob("*"):
-        sp = p.parts
-        if any(seg in sp for seg in (".venv", "node_modules", "__pycache__", ".git")):
-            continue
-        if "worktrees" in sp:  # stale .claude/worktrees copies
-            continue
-        try:
-            if p.is_file():
-                names.add(p.name)
-        except OSError:
-            continue
+    excluded = {".venv", "node_modules", "__pycache__", ".git", "worktrees"}
+    for _base, dirs, files in os.walk(ROOT, topdown=True, onerror=lambda _e: None):
+        # Prune before descent: Path.rglob can enter a stale worktree junction
+        # before its path reaches the exclusion check and raise FileNotFoundError.
+        dirs[:] = [d for d in dirs if d not in excluded]
+        names.update(files)
     return names
 
 

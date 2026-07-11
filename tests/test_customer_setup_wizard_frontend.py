@@ -21,7 +21,7 @@ def test_setup_wizard_card_exists():
 def test_setup_wizard_loaded_on_page_init():
     html = _html()
     idx = html.index("loadBilling();\nloadContent();")
-    assert "loadSetupWizard();" in html[idx : idx + 200]
+    assert "loadGuidedSetup();" in html[idx : idx + 200]
 
 
 def test_load_setup_wizard_calls_real_profile_get_endpoint():
@@ -29,7 +29,9 @@ def test_load_setup_wizard_calls_real_profile_get_endpoint():
     idx = html.index("async function loadSetupWizard")
     snippet = html[idx : idx + 500]
     assert '"/api/customer/profile"' in snippet
-    assert "billAuthHdr()" in snippet
+    helper = html[html.index("async function fetchSetupJson") : idx]
+    assert "billAuthHdr()" in helper
+    assert "AbortController" in helper
 
 
 def test_save_setup_wizard_calls_real_profile_post_endpoint():
@@ -60,7 +62,7 @@ def test_social_and_brand_sections_are_marketing_only():
     kb-info textarea stay universal (the AI voice agent uses the same KB)."""
     html = _html()
     idx = html.index("function renderSetupWizard")
-    snippet = html[idx : idx + 3500]
+    snippet = html[idx : idx + 5200]
     marketing_only_idx = snippet.index('class="marketing-only"')
     assert "Social Links" in snippet[marketing_only_idx : marketing_only_idx + 400]
     assert "swTone" in snippet[marketing_only_idx : marketing_only_idx + 900]

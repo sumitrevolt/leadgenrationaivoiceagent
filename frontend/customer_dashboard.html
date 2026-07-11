@@ -134,6 +134,14 @@
   .ai-command .btn{background:#fff;color:#0f172a;border:none;justify-content:center;white-space:nowrap}
   .mobile-app-nav{display:none}
   .mobile-fab{display:none}
+  .setup-progress{background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:1px solid #c4b5fd}
+  .setup-meter{height:9px;background:#e2e8f0;border-radius:999px;overflow:hidden;margin:9px 0}
+  .setup-meter span{display:block;height:100%;background:linear-gradient(90deg,var(--brand),#22c55e);border-radius:inherit;transition:width .25s ease}
+  .setup-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:0 0 14px}
+  .setup-step{min-height:44px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--muted);font-weight:750;font-size:12px;cursor:pointer}
+  .setup-step.active{background:var(--brand);border-color:var(--brand);color:#fff}
+  .setup-advanced{margin-top:14px;border:1px dashed var(--line);border-radius:10px;padding:10px}
+  .setup-advanced summary{cursor:pointer;font-weight:750;min-height:44px;display:flex;align-items:center}
   /* --- view engine: #mainContent[data-active-view] shows one view at a time.
      !important is required to beat block styles like .sec-title{display:flex}.
      This only hides blocks of NON-active views, so product gating
@@ -261,6 +269,7 @@
     --bg:#0f0b1e;--card:#1a1530;--shadow:0 1px 3px rgba(0,0,0,.4);
   }
   body.dark .sidebar{background:linear-gradient(180deg,#0d0a1a,#1a103d)}
+  body.dark .hi h1{color:#f8fafc !important}
   body.dark thead th{background:#1a1530}
   body.dark select{background:#1a1530;color:var(--ink);border-color:var(--line)}
   body.dark .filter-bar{background:#150e2a}
@@ -375,6 +384,7 @@
     .app{flex-direction:column}
     .sidebar{width:100%;flex:none;height:auto;position:static;flex-direction:row;
       align-items:center;gap:4px;padding:10px 12px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+    .sidebar{scrollbar-width:none}.sidebar::-webkit-scrollbar{display:none}
     .sidebar .brand{margin-bottom:0;font-size:14px;flex:0 0 auto}
     .sidebar .navlink{flex:0 0 auto;padding:10px 12px;font-size:12px;white-space:nowrap}
     .side-foot{display:none}
@@ -388,17 +398,13 @@
     .next-step-card .btn{width:100%;justify-content:center}
     .ai-command{position:sticky;top:0;z-index:18;grid-template-columns:1fr;gap:10px;border-radius:13px;margin-left:-4px;margin-right:-4px}
     .ai-command .btn{width:100%}
-    .mobile-app-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(4,1fr);
+    .mobile-app-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(5,1fr);
       gap:2px;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.96);
       border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(15,23,42,.12);backdrop-filter:blur(10px)}
     .mobile-app-nav button,.mobile-app-nav a{min-height:52px;border:0;background:transparent;border-radius:10px;color:var(--muted);
       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;font-weight:800;text-decoration:none}
     .mobile-app-nav .mi{font-size:18px;line-height:1}
     .mobile-app-nav .active{background:var(--brand-soft);color:var(--brand)}
-    .mobile-fab{position:fixed;right:14px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:61;display:inline-flex;
-      border:none;background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border-radius:999px;
-      min-height:48px;max-width:calc(100vw - 28px);padding:0 16px;align-items:center;gap:8px;font-size:12px;font-weight:900;
-      box-shadow:0 12px 28px rgba(79,70,229,.35)}
   }
   @media (max-width:560px){
     .kpis{grid-template-columns:1fr 1fr}
@@ -486,7 +492,7 @@
       </div>
       <div class="spacer"></div>
       <span class="ao-topbar-status" id="aoTopStatus"><span class="dot"></span>AI Active</span>
-      <span class="badge-demo" id="demoBadge" aria-label="Ye demo data hai">Demo Data</span>
+      <span class="badge-demo" id="demoBadge" style="display:none" aria-label="Ye demo data hai">Demo Data</span>
       <!-- Date range filter -->
       <div class="date-range" role="group" aria-label="Date range filter">
         <label for="drFrom">Se:</label>
@@ -558,6 +564,15 @@
           </div>
           <span class="pill" id="firstHourSetupEta"
                 style="background:#e0e7ff;color:#3730a3;font-weight:700">--</span>
+        </div>
+      </div>
+
+      <div data-view="home" id="setupProgressCard" class="card setup-progress" style="display:none;margin-bottom:14px" aria-live="polite">
+        <div class="card-b">
+          <div style="display:flex;align-items:center;gap:10px"><strong id="setupProgressTitle" style="flex:1">Aapka setup 0% complete</strong><span class="pill">2 minute</span></div>
+          <div class="setup-meter" aria-hidden="true"><span id="setupProgressFill" style="width:0%"></span></div>
+          <div class="sm" id="setupProgressHint" style="color:var(--muted);margin-bottom:10px">Business details complete karein.</div>
+          <button class="btn primary" type="button" onclick="openSetupWizard()">Setup continue karein</button>
         </div>
       </div>
 
@@ -678,6 +693,12 @@
       </div>
 
       <!-- Setup Wizard — business profile/social/WhatsApp/brand-tone self-serve -->
+      <div data-view="setup" class="setup-steps" role="tablist" aria-label="Setup steps">
+        <button class="setup-step active" data-setup-step="1" type="button" onclick="showSetupStep(1)">1. Business</button>
+        <button class="setup-step" data-setup-step="2" type="button" onclick="showSetupStep(2)">2. Brand</button>
+        <button class="setup-step" data-setup-step="3" type="button" onclick="showSetupStep(3)">3. Social</button>
+        <button class="setup-step" data-setup-step="4" type="button" onclick="showSetupStep(4)">4. Review</button>
+      </div>
       <div data-view="setup" class="card" id="setupWizardCard" style="margin-bottom:14px">
         <div class="card-h">
           <h2>🧙 Setup Wizard — apni details update karo</h2>
@@ -700,6 +721,11 @@
         <div class="card-b" id="socialSetupBody">
           <span class="sm" style="color:var(--muted)">Load ho raha hai…</span>
         </div>
+      </div>
+
+      <div data-view="setup" class="card" id="setupReviewCard" style="display:none;margin-bottom:14px">
+        <div class="card-h"><h2>✅ Review — setup check karein</h2></div>
+        <div class="card-b" id="setupReviewBody"></div>
       </div>
 
       <!-- Marketing Calendar Month View (Customer Delivery OS) -->
@@ -1174,20 +1200,22 @@
 
 <div class="toast" id="toast" role="alert" aria-live="assertive" aria-atomic="true"><div class="t" id="toastT"></div><div id="toastM"></div></div>
 <nav class="mobile-app-nav" aria-label="Mobile app shortcuts">
-  <button type="button" class="active" onclick="scrollToId('mainContent')" aria-label="Home">
+  <button type="button" data-mobile-view="home" class="active" onclick="showView('home')" aria-label="Home">
     <span class="mi" aria-hidden="true">H</span><span>Home</span>
   </button>
-  <button type="button" onclick="scrollToId('contentCard')" aria-label="Posts">
-    <span class="mi" aria-hidden="true">P</span><span>Post</span>
+  <button type="button" data-mobile-view="setup" onclick="openSetupWizard()" aria-label="Setup">
+    <span class="mi" aria-hidden="true">✓</span><span>Setup</span>
   </button>
-  <button type="button" onclick="scrollToId('leadsCard')" aria-label="Leads">
+  <button type="button" data-mobile-view="calendar" onclick="showView('calendar')" aria-label="Posts">
+    <span class="mi" aria-hidden="true">P</span><span>Posts</span>
+  </button>
+  <button type="button" data-mobile-view="leads" onclick="showView('leads')" aria-label="Leads">
     <span class="mi" aria-hidden="true">L</span><span>Leads</span>
   </button>
-  <button type="button" onclick="scrollToId('billingCard')" aria-label="Billing">
+  <button type="button" data-mobile-view="billing" onclick="showView('billing')" aria-label="Billing">
     <span class="mi" aria-hidden="true">Rs</span><span>Plan</span>
   </button>
 </nav>
-<button class="mobile-fab" type="button" id="mobileFab" onclick="runNextStep()">Action kholo</button>
 
 <script>
 /* ============================================================
@@ -1494,31 +1522,8 @@ function updateCommandCenter(meta){
   setText("aiScore", score + "%");
   setText("aiMode", modeLabel);
   setText("aiCommandBtn", meta.label || "Action kholo");
-  setText("mobileFab", meta.label || "Action kholo");
   const meter = document.getElementById("aiMeter");
   if(meter) meter.style.width = score + "%";
-  const appNav = document.querySelector(".mobile-app-nav");
-  if(appNav){
-    const mode = productMode();
-    const items = mode==="voice"
-      ? [["mainContent","H","Home"],["leadsCard","L","Leads"],["callsCard","C","Calls"],["billingCard","Rs","Plan"]]
-      : mode==="marketing"
-        ? [["mainContent","H","Home"],["contentCard","P","Post"],["approvalCard","OK","Approve"],["webToolsCard","W","Tools"]]
-        : [["mainContent","H","Home"],["contentCard","P","Post"],["leadsCard","L","Leads"],["billingCard","Rs","Plan"]];
-    appNav.querySelectorAll("button").forEach(function(b,i){
-      const it = items[i] || items[0];
-      b.classList.remove("active");
-      b.onclick = function(){ scrollToId(it[0]); };
-      const icon = b.querySelector(".mi");
-      const labelEl = b.querySelector("span:last-child");
-      if(icon) icon.textContent = it[1];
-      if(labelEl) labelEl.textContent = it[2];
-      b.setAttribute("aria-label", it[2]);
-      b.dataset.target = it[0];
-    });
-    const btn = Array.from(appNav.querySelectorAll("button")).find(function(b){ return b.dataset.target === NEXT_STEP_TARGET; }) || appNav.querySelector("button");
-    if(btn) btn.classList.add("active");
-  }
 }
 function updateTodayGuide(view){
   const d = view || DATA || {};
@@ -1654,7 +1659,7 @@ async function loadSpeedToLead(){
 
 function setMeta(d){
   document.getElementById("genAt").textContent="Update hua: "+(d.generated_at||"—")+" · "+(d.is_sample_data?"Demo data":"Aapka asli data");
-  document.getElementById("demoBadge").style.display=d.is_sample_data?"inline-block":"none";
+  document.getElementById("demoBadge").style.display=d.is_sample_data === true?"inline-block":"none";
   document.getElementById("sideClient").textContent="Client: "+(d.client_id||"demo");
 }
 
@@ -1746,10 +1751,19 @@ function showView(name){
   document.querySelectorAll("[data-nav]").forEach(function(n){
     n.classList.toggle("active", n.getAttribute("data-nav")===name);
   });
+  document.querySelectorAll("[data-mobile-view]").forEach(function(n){
+    n.classList.toggle("active", n.getAttribute("data-mobile-view")===name);
+  });
   resizeCharts();
   if(name === "delivery" && typeof loadDeliveryView === "function") loadDeliveryView();
   try{history.replaceState(null,"","#view-"+name);}catch(e){}
   window.scrollTo({top:0,behavior:"smooth"});
+}
+function openSetupWizard(){
+  showView("setup");
+  showSetupStep((_SETUP_STATE && _SETUP_STATE.step) || 1);
+  var heading=document.querySelector('#setupWizardCard h2');
+  if(heading){ heading.setAttribute("tabindex","-1"); heading.focus({preventScroll:true}); }
 }
 function scrollToId(id){
   showView(viewForHash(id));
@@ -2544,6 +2558,73 @@ async function decideApproval(id, action){
 /* ============================================================
    SETUP WIZARD — business profile/social/WhatsApp/brand-tone
    ============================================================ */
+const SETUP_TIMEOUT_MS=8000;
+let _SETUP_STATE={profile:{},social:{},step:1,profileOk:false,socialOk:false};
+async function fetchSetupJson(url){
+  const ctl=new AbortController();
+  const timer=setTimeout(function(){ctl.abort();},SETUP_TIMEOUT_MS);
+  try{
+    const r=await fetch(url,{headers:billAuthHdr(),signal:ctl.signal});
+    const d=await r.json().catch(function(){return {};});
+    return {ok:!!(r.ok&&d.ok),data:d,error:r.status===401?"login":"load"};
+  }catch(e){ return {ok:false,data:{},error:e&&e.name==="AbortError"?"timeout":"network"}; }
+  finally{ clearTimeout(timer); }
+}
+function setupCompletion(){
+  const p=_SETUP_STATE.profile||{}, s=_SETUP_STATE.social||{}, h=s.handles||{};
+  const checks=[
+    ["Business name",p.business_name],["City",p.city],["Phone / WhatsApp",p.whatsapp_phone||p.phone],
+    ["Services",p.services||s.products_or_services],["Brand tone",p.tone||s.brand_tone]
+  ];
+  if(!document.body.classList.contains("prod-voice")){
+    checks.push(["Social channel",(s.channels||[]).length||(h.instagram||h.facebook||h.gbp||h.youtube||h.linkedin)]);
+    checks.push(["Post approval",p.approval_preference||s.approval_mode]);
+  }
+  const missing=checks.filter(function(x){return !x[1];}).map(function(x){return x[0];});
+  return {pct:Math.round(100*(checks.length-missing.length)/checks.length),missing:missing};
+}
+function updateSetupProgress(){
+  const c=setupCompletion(), card=document.getElementById("setupProgressCard");
+  if(!card)return;
+  card.style.display=c.pct>=100?"none":"block";
+  setText("setupProgressTitle","Aapka setup "+c.pct+"% complete");
+  setText("setupProgressHint",c.missing.length?(c.missing.slice(0,2).join(" aur ")+" complete karein."):"Setup complete hai.");
+  const fill=document.getElementById("setupProgressFill"); if(fill)fill.style.width=c.pct+"%";
+}
+function renderSetupLoadError(targetId,retry){
+  const body=document.getElementById(targetId); if(!body)return;
+  body.innerHTML='<div class="simple-note">Setup load nahi hua. Internet check karke dobara try karein.</div>'
+    +'<button class="btn primary" type="button" onclick="'+retry+'()">Dobara try karein</button>';
+}
+function showSetupStep(step){
+  step=Math.max(1,Math.min(4,Number(step)||1)); _SETUP_STATE.step=step;
+  document.querySelectorAll(".setup-step").forEach(function(b){b.classList.toggle("active",Number(b.dataset.setupStep)===step);});
+  const profile=document.getElementById("setupWizardCard"), social=document.getElementById("socialSetupCard"), review=document.getElementById("setupReviewCard");
+  if(profile){profile.style.display=(step===1||step===2)?"block":"none"; const h=profile.querySelector("h2"); if(h)h.textContent=step===1?"🏪 Step 1 — Business details":"🎨 Step 2 — Brand details";}
+  document.querySelectorAll("[data-profile-step]").forEach(function(el){el.style.display=Number(el.dataset.profileStep)===step?"block":"none";});
+  if(social)social.style.display=step===3?"block":"none";
+  if(review){review.style.display=step===4?"block":"none"; if(step===4)renderSetupReview();}
+}
+function renderSetupReview(){
+  const body=document.getElementById("setupReviewBody"); if(!body)return;
+  const c=setupCompletion();
+  body.innerHTML='<div style="font-size:24px;font-weight:850">'+c.pct+'% complete</div>'
+    +'<div class="setup-meter"><span style="width:'+c.pct+'%"></span></div>'
+    +(c.missing.length?'<div class="simple-note">Baaki: '+escH(c.missing.join(", "))+'</div>':'<div class="simple-note">✅ Setup complete — AI team kaam shuru kar sakti hai.</div>')
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="showSetupStep(3)">← Wapas</button>'
+    +'<button class="btn primary marketing-only" onclick="generateFirstWeek()">Mera 7-din ka plan banao</button>'
+    +'<button class="btn" onclick="showView(\'home\')">Home par jao</button></div>';
+}
+async function loadGuidedSetup(){
+  if(!billToken()){
+    const b=document.getElementById("setupWizardBody"); if(b)b.innerHTML='<a class="btn primary" href="/app/login">Login karke setup karein</a>';
+    const s=document.getElementById("socialSetupBody"); if(s)s.innerHTML='<div class="sm" style="color:var(--muted)">Login ke baad social setup khulega.</div>';
+    showSetupStep(1);
+    return;
+  }
+  await Promise.all([loadSetupWizard(),loadSocialSetup()]);
+  updateSetupProgress(); showSetupStep(_SETUP_STATE.step||1);
+}
 async function loadSetupWizard(){
   const body=document.getElementById("setupWizardBody");
   if(!body) return;
@@ -2552,11 +2633,12 @@ async function loadSetupWizard(){
     return;
   }
   try{
-    const r=await fetch("/api/customer/profile",{headers:billAuthHdr()});
-    const d=r.ok?await r.json():{};
-    renderSetupWizard(d.ok?d:{});
+    const out=await fetchSetupJson("/api/customer/profile");
+    if(!out.ok){renderSetupLoadError("setupWizardBody","loadSetupWizard");return;}
+    _SETUP_STATE.profile=out.data; _SETUP_STATE.profileOk=true;
+    renderSetupWizard(out.data);
   }catch(e){
-    body.innerHTML='<span class="sm" style="color:var(--muted)">Load nahi hua — thodi der me refresh karo.</span>';
+    renderSetupLoadError("setupWizardBody","loadSetupWizard");
   }
 }
 function _swField(id,label,val,ph,type){
@@ -2565,6 +2647,7 @@ function _swField(id,label,val,ph,type){
     +'" style="width:100%;margin-top:3px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit"></label>';
 }
 function renderSetupWizard(d){
+  _SETUP_STATE.profile=d||{}; updateSetupProgress();
   const body=document.getElementById("setupWizardBody");
   const pref = d.approval_preference || "manual";
   const prefSelect = '<label class="sm" style="display:block;margin-top:8px">Post Approval Preference'
@@ -2574,7 +2657,7 @@ function renderSetupWizard(d){
     +'</select></label>';
 
   body.innerHTML=
-    '<div style="font-weight:700;margin-bottom:2px">🏪 Business Profile</div>'
+    '<div data-profile-step="1"><div style="font-weight:700;margin-bottom:2px">🏪 Business Profile</div>'
     +_swField("swBizName","Business ka naam",d.business_name,"e.g. Jiya Makeover")
     +_swField("swCity","City",d.city,"e.g. Mumbai")
     +_swField("swPhone","Contact number",d.phone,"e.g. 98765 43210")
@@ -2586,7 +2669,9 @@ function renderSetupWizard(d){
     +'<div style="font-weight:700;margin:16px 0 2px">💬 WhatsApp Connectivity</div>'
     +_swField("swWhatsAppPhone","WhatsApp business number",d.whatsapp_phone,"e.g. 919876543210 (country code ke sath)")
 
-    +'<div class="marketing-only">'
+    +'<button class="btn primary" type="button" style="margin-top:14px;width:100%;justify-content:center" onclick="saveSetupWizard()">Save & Continue →</button></div>'
+
+    +'<div data-profile-step="2"><div class="marketing-only">'
     +'<div style="font-weight:700;margin:16px 0 2px">🔗 Social Links Checklist</div>'
     +_swField("swInsta","Instagram Link",d.instagram,"Page link ya handle")
     +_swField("swFb","Facebook Link",d.facebook,"Page link")
@@ -2602,6 +2687,7 @@ function renderSetupWizard(d){
     +'</div>'
     +'</div>'
     +'<button class="btn primary" type="button" style="margin-top:14px;width:100%;justify-content:center" id="swSaveBtn" onclick="saveSetupWizard()">💾 Save Profile</button>'
+    +'<button class="btn" type="button" style="margin-top:8px;width:100%;justify-content:center" onclick="showSetupStep(_SETUP_STATE.step===1?2:3)">Continue →</button>'
     +'<div class="marketing-only" style="border-top:1px dashed var(--line);margin:18px 0 0;padding-top:14px">'
     +'<div style="font-weight:700;margin-bottom:2px">🚀 Pehla 7-din ka marketing plan</div>'
     +'<div class="sm" style="color:var(--muted);margin:2px 0 6px">AI se agle hafte ke posts + WhatsApp promo turant banwao — approve karke 1-click share.</div>'
@@ -2612,7 +2698,7 @@ function renderSetupWizard(d){
     +'<div class="sm" style="color:var(--muted);margin:2px 0 6px">AI ko behtar reply karne me help karega.</div>'
     +'<textarea id="swKbText" rows="3" placeholder="Hum 5 saal se business run kar rahe hain, special discounts are available..." style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit;background:var(--card);color:var(--txt)"></textarea>'
     +'<button class="btn" type="button" style="margin-top:8px" onclick="sendKbInfo()">📤 Bhejo</button>'
-    +'</div>';
+    +'</div></div>';
 }
 async function saveSetupWizard(){
   const btn=document.getElementById("swSaveBtn");
@@ -2642,7 +2728,10 @@ async function saveSetupWizard(){
     });
     const d=await r.json();
     if(r.ok&&d.ok){
+      _SETUP_STATE.profile=Object.assign({},_SETUP_STATE.profile,payload);
+      updateSetupProgress();
       toast("✓ Profile saved","Aapki details update ho gayin.");
+      showSetupStep(_SETUP_STATE.step===1?2:3);
       if(typeof loadAll === "function") loadAll();
     }
     else{ toast("Save nahi hua",(d&&d.error)||"Dobara try karo"); }
@@ -2708,13 +2797,15 @@ async function loadSocialSetup(){
     /* Loop-social-2: fetch config + accounts in parallel so wizard renders
        both preference-form + direct per-platform connect surface. Accounts
        payload is best-effort — nothing breaks the wizard if it 500s. */
-    var cfgP=fetch("/api/customer/social/config",{headers:billAuthHdr()}).then(function(r){return r.ok?r.json():{};});
-    var acctP=fetch("/api/customer/social/accounts",{headers:billAuthHdr()}).then(function(r){return r.ok?r.json():{platforms:[],accounts:{}};}).catch(function(){return {platforms:[],accounts:{}};});
+    var cfgP=fetchSetupJson("/api/customer/social/config").then(function(o){return o.ok?o.data:{};});
+    var acctP=fetchSetupJson("/api/customer/social/accounts").then(function(o){return o.ok?o.data:{platforms:[],accounts:{}};});
     var res=await Promise.all([cfgP,acctP]);
     var d=res[0]||{}; var acct=res[1]||{platforms:[],accounts:{}};
-    renderSocialSetup((d&&d.ok)?d:{handles:{},status:{channels:[]}},acct);
+    if(!d||!d.ok){renderSetupLoadError("socialSetupBody","loadSocialSetup");return;}
+    _SETUP_STATE.social=d; _SETUP_STATE.socialOk=true;
+    renderSocialSetup(d,acct);
   }catch(e){
-    body.innerHTML='<span class="sm" style="color:var(--muted)">Load nahi hua — thodi der me refresh karo.</span>';
+    renderSetupLoadError("socialSetupBody","loadSocialSetup");
   }
 }
 function _ssBadge(s){
@@ -2818,6 +2909,7 @@ async function disconnectSocialAccount(plat,refMaskedEnc){
 }
 function renderSocialSetup(d,acct){
   var body=document.getElementById("socialSetupBody"); if(!body) return;
+  _SETUP_STATE.social=d||{}; updateSetupProgress();
   var st=d.status||{}; var chans=st.channels||[]; var sel=d.channels||[]; var h=d.handles||{};
   var accountsRes=acct||{platforms:[],accounts:{}};
   var platMap={}; (accountsRes.platforms||[]).forEach(function(p){platMap[p.platform]=p;});
@@ -2871,9 +2963,9 @@ function renderSocialSetup(d,acct){
   body.innerHTML=
     '<div class="sm" style="color:var(--muted);margin-bottom:10px">Apne social channels connect karo — AI inke liye content banayega, aap approve karke ya 1-click post karoge.</div>'
     +'<div style="font-weight:700;margin-bottom:2px">📡 Connection status</div>'+statusRows+autoNote
-    +'<div style="font-weight:700;margin:16px 0 4px">🔐 Direct account connect (advanced)</div>'
-    +'<div class="sm" style="color:var(--muted);margin-bottom:6px">Meta/LinkedIn/GBP app-review hone tak: aap apna Page/Org access token yahan paste kar sakte ho — encrypted-at-rest, kabhi wapas leak nahi hota. Actual publish tabhi shuru hoga jab admin engine ON kare.</div>'
-    +connectCards
+    +'<details class="setup-advanced"><summary>Advanced account connection</summary>'
+    +'<div class="sm" style="color:var(--muted);margin-bottom:6px">Sirf tab use karein jab aapke paas platform access token ho. Token encrypted-at-rest rahega; actual publish admin engine ON hone par hi hoga.</div>'
+    +connectCards+'</details>'
     +'<div style="font-weight:700;margin:16px 0 2px">🔗 Aapke social channels (jahan aap online ho)</div>'
     +_swField("ssInsta","Instagram",h.instagram,"@handle ya link")
     +_swField("ssFb","Facebook",h.facebook,"Page link")
@@ -2891,6 +2983,8 @@ function renderSocialSetup(d,acct){
     +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🌐 Preferred language</label>'+langSel
     +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🌐 Website</label>'
     +'<input id="ssWebsite" type="text" value="'+escH(d.website||"")+'" placeholder="https://yourshop.com" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🕐 Timezone</label>'
+    +'<input id="ssTimezone" type="text" value="'+escH(d.timezone||"Asia/Kolkata")+'" placeholder="Asia/Kolkata" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
     +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">👥 Target audience (1 line)</label>'
     +'<input id="ssAudience" type="text" value="'+escH(d.target_audience||"")+'" placeholder="Working women 25-40 in Mumbai" style="width:100%;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'
     +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🛍️ Products / services (comma-separated)</label>'
@@ -2902,7 +2996,8 @@ function renderSocialSetup(d,acct){
     +'<label class="sm" style="display:block;font-weight:700;margin:16px 0 2px">🛡️ Brand safety instructions (freeform)</label>'
     +'<textarea id="ssSafety" placeholder="Never mention competitor names by name. Keep tone respectful. No political humor." style="width:100%;min-height:60px;padding:8px;border:1px solid var(--line);border-radius:8px;font:inherit">'+escH(d.brand_safety_instructions||"")+'</textarea>'
     +'<div style="font-weight:700;margin:16px 0 4px">✅ Post karne se pehle?</div>'+apr
-    +'<button class="btn primary" type="button" id="ssSaveBtn" style="margin-top:14px;width:100%;justify-content:center" onclick="saveSocialSetup()">💾 Save Social Setup</button>';
+    +'<button class="btn primary" type="button" id="ssSaveBtn" style="margin-top:14px;width:100%;justify-content:center" onclick="saveSocialSetup()">💾 Save Social Setup</button>'
+    +'<button class="btn" type="button" style="margin-top:8px;width:100%;justify-content:center" onclick="showSetupStep(4)">Review setup →</button>';
 }
 async function saveSocialSetup(){
   var btn=document.getElementById("ssSaveBtn"); if(!btn) return;
@@ -2929,6 +3024,7 @@ async function saveSocialSetup(){
       brand_tone:(document.getElementById("ssTone")||{}).value||"",
       preferred_language:(document.getElementById("ssLang")||{}).value||"",
       website:(document.getElementById("ssWebsite")||{}).value||"",
+      timezone:(document.getElementById("ssTimezone")||{}).value||"Asia/Kolkata",
       target_audience:(document.getElementById("ssAudience")||{}).value||"",
       products_or_services:(document.getElementById("ssProducts")||{}).value||"",
       posting_days:days,
@@ -2942,7 +3038,11 @@ async function saveSocialSetup(){
       body:JSON.stringify(payload)
     });
     var d=await r.json();
-    if(r.ok&&d.ok){ toast("✓ Social setup saved","Channel preferences save ho gaye."); loadSocialSetup(); }
+    if(r.ok&&d.ok){
+      _SETUP_STATE.social=Object.assign({},_SETUP_STATE.social,payload,d.config||{});
+      updateSetupProgress(); toast("✓ Social setup saved","Channel preferences save ho gaye.");
+      showSetupStep(4); loadSocialSetup();
+    }
     else{ toast("Save nahi hua",(d&&d.error)||"Dobara try karo"); }
   }catch(e){ toast("Error", e.message); }
   finally{ btn.disabled=false; btn.textContent=orig; }
@@ -3159,8 +3259,7 @@ loadBilling();
 loadContent();
 loadWebTools();
 loadApprovals();
-loadSetupWizard();
-loadSocialSetup();
+loadGuidedSetup();
 loadRouting();
 sec2faLoad();
 whLoad();

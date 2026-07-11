@@ -25,7 +25,7 @@ def test_setup_wizard_card_and_functions_present(fork):
     assert "async function loadSetupWizard" in html
     assert "async function saveSetupWizard" in html
     assert "async function sendKbInfo" in html
-    assert "loadSetupWizard();" in html
+    assert "loadGuidedSetup();" in html
 
 
 @pytest.mark.parametrize("fork", FORKS)

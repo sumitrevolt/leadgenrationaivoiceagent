@@ -95,3 +95,25 @@ def test_router_exposes_social_endpoints():
     assert "/api/customer/social/config" in have
     methods = {m for p, ms in paths if p == "/api/customer/social/config" for m in ms}
     assert "GET" in methods and "POST" in methods
+
+
+def test_social_get_returns_extended_wizard_fields():
+    """Saved Step-1/Step-4 values must pre-fill after a dashboard refresh."""
+    import inspect
+
+    from app.api.customer_dashboard import customer_social_get
+
+    source = inspect.getsource(customer_social_get)
+    for field in (
+        "website",
+        "brand_tone",
+        "target_audience",
+        "products_or_services",
+        "preferred_language",
+        "posting_days",
+        "posting_times",
+        "content_categories",
+        "prohibited_topics",
+        "brand_safety_instructions",
+    ):
+        assert f'"{field}": cfg.get("{field}")' in source

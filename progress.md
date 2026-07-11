@@ -8,6 +8,30 @@
 > (Older entries below predate this format — don't rewrite them.) Deep knowledge →
 > `memory/`; dated narrative → `docs/SESSION_LOG.md`. Newest loop at the bottom.
 
+## Loop Run
+Date: 2026-07-11
+Goal: Production-readiness evidence refresh and readiness-gate repair.
+Inspected: `progress.md`, `memory/INDEX.md`, `docs/LOOP_ENGINEER.md`, live `/health`, live `/api/activation/summary`, `scripts/prod_check.py`, `scripts/cross_path_audit.py`, `scripts/explorer_sync.py`, `frontend/explorer.html`, and targeted readiness tests.
+Problems Found: Explorer audit crashed on a stale deleted worktree junction, masking 3 missing scheduler-module references and one obsolete `carrier_router.py` graph reference. API endpoint index remains out of date (non-blocking). Standalone Voice cold-outbound remains commercially blocked on DLT; Marketing has no launch blocker.
+Changed: `scripts/explorer_sync.py` now prunes excluded directories before filesystem descent and tolerates unreadable entries. `frontend/explorer.html` maps `automation_log_service.py`, `office_briefing.py`, and `product_one_delivery.py` to accurate nodes and replaces obsolete `carrier_router.py` with `sip_handler.py`.
+Tests Run: Explorer targeted pytest; complete 4-file readiness pytest; `prod_check.py`; `cross_path_audit.py`; `check_secrets.py`; `git diff --check`; live health and activation probes.
+Verification Evidence: Explorer 4/4 green; complete targeted readiness set 58/58 green; prod_check ALL CHECKS PASSED with 1080 routes, 45 pages/0 gaps, explorer 81/81 engines, 0 orphans and file refs OK; cross-path audit 226 flags/39 jobs/40 beat tasks with 0 gaps; secrets clean; live health=`production`/`healthy`; activation=`production_ready:true`, `ready_for_first_paid_customer:true`, blocker_count=0, warn_count=0.
+Risks: Local readiness fix is not committed or deployed. Existing untracked `.commandcode/` and four readiness-report docs were preserved as user work. API.md endpoint index is stale but does not affect runtime.
+Remaining: Commit/deploy the two readiness-gate files only if user authorizes; run a 24-hour launch canary and real customer journey smoke; keep standalone outbound Voice on hold until DLT. Sync API docs as maintenance.
+Next Highest Priority: Launch Marketing now via one-customer canary, with scheduler/error/payment monitoring for 24 hours; do not wait for Voice DLT.
+
+## Loop Run
+Date: 2026-07-11
+Goal: Customer mobile dashboard me visible, reliable, non-technical guided setup ship karna.
+Inspected: User mobile screenshot; `frontend/customer_dashboard.html`; profile/social setup APIs; existing frontend/profile/social tests; live unauth route; actual 380px light/dark browser previews.
+Problems Found: Mobile bottom nav me Setup absent tha; vague `Action kholo` FAB primary navigation ko compete karta tha; profile/social loaders unbounded the; session/API failure permanent loader chhod sakta tha; setup ek long technical form tha; advanced access-token controls default-open the; extended social fields save hote the par GET response me return nahi hote the; dark mobile greeting invisible thi.
+Changed: `frontend/customer_dashboard.html` me five-item mobile nav (Home/Setup/Posts/Leads/Plan), direct view state, four-step Business/Brand/Social/Review wizard, setup completion card, 8-second bounded fetch, retry/login/partial states, step-scoped save-and-continue, collapsed advanced connection, honest data-driven Demo badge, 52px mobile targets, no FAB, scrollbar polish, and dark heading contrast. `app/api/customer_dashboard.py` now round-trips all extended social wizard fields. Added `tests/test_customer_mobile_setup_ux.py` and updated existing contracts.
+Tests Run: 49 targeted customer/setup/social tests; `check_html_js.py`; `prod_check.py`; `explorer_sync.py --check`; `check_secrets.py`; `git diff --check`; 380px light/dark browser inspection.
+Verification Evidence: 49/49 tests green; JS_OK; prod_check PASS with 1080 routes and 45 pages/0 gaps; explorer 81/81 engines, 0 dangling/orphans, file refs OK; secrets clean. Browser: viewport=380 and document width=380, 5 bottom targets each 52px, active setup view, inactive social card hidden, dark greeting computed `rgb(248,250,252)`.
+Risks: Authenticated live save/reload was not executed because no customer credentials were used. Changes are local only, not committed/pushed/deployed. Existing unrelated working-tree changes were preserved.
+Remaining: User-authorized selective commit/deploy, then authenticated customer smoke: login -> Setup -> save Business/Brand/Social -> refresh -> Review persists; hard refresh/CDN cache check on real phone.
+Next Highest Priority: Selectively ship this setup UX batch and run the authenticated mobile smoke on production.
+
 ## Active Program (multi-loop)
 **AI-Marketing agents — 40+ improvements** → `docs/superpowers/plans/2026-07-06-agents-marketing-improvement-loops.md`. Run Wave 1 (Reliability + Cost + Observability) first; ~25 safe loops autonomous, PAUSE & ask on Wave-4 gated items. Merge per wave to `main`; user deploys via `leadgen-ops`.
 
