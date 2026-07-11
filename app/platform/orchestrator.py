@@ -52,7 +52,7 @@ def _get_memory_usage() -> str:
 def _get_db_health() -> str:
     """Quick DB ping — returns 'OK' or 'ERROR: <reason>'. Never raises."""
     try:
-        from app.database import engine
+        from app.models.base import engine
 
         with engine.connect() as conn:
             conn.execute(__import__("sqlalchemy").text("SELECT 1"))

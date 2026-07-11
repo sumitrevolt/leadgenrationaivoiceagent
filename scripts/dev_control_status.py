@@ -12,7 +12,12 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import pathlib
 import sys
+
+# Direct `python scripts/dev_control_status.py` run me repo-root sys.path pe nahi
+# hota -> `No module named 'app'`. prod_check.py jaisa root-bootstrap (2026-07-10).
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 
 
 def _worker_enabled() -> bool:

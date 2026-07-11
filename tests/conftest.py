@@ -60,6 +60,34 @@ import tempfile
 from collections.abc import AsyncGenerator, Generator
 from datetime import datetime, timezone
 
+# =============================================================================
+# HTTPX 0.28 COMPAT SHIM (2026-07-10, test-only — prod code untouched).
+# Lock pins httpx==0.28.1 (Client/AsyncClient ka `app=` kwarg REMOVED) ke saath
+# starlette==0.35.1, jiska TestClient ab bhi `app=` pass karta hai -> har direct
+# `TestClient(app)` construction `TypeError: unexpected keyword argument 'app'`
+# se girta tha (test_product_one_delivery / test_customer_delivery_os / 6 tests).
+# Starlette apna _TestClientTransport khud banakar transport= bhi bhejta hai,
+# isliye `app=` yahan sirf redundant hai: transport diya ho to drop karo, na diya
+# ho to old-httpx semantics wapas do (ASGITransport bana ke). Signature-guarded:
+# agar future httpx me `app=` wapas aata hai to shim khud NO-OP ho jata hai.
+# =============================================================================
+import inspect as _inspect
+
+import httpx as _httpx
+
+if "app" not in _inspect.signature(_httpx.Client.__init__).parameters:
+
+    def _make_compat(_orig_init):
+        def _compat_init(self, *args, app=None, **kwargs):
+            if app is not None and kwargs.get("transport") is None:
+                kwargs["transport"] = _httpx.ASGITransport(app=app)
+            return _orig_init(self, *args, **kwargs)
+
+        return _compat_init
+
+    _httpx.Client.__init__ = _make_compat(_httpx.Client.__init__)
+    _httpx.AsyncClient.__init__ = _make_compat(_httpx.AsyncClient.__init__)
+
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine

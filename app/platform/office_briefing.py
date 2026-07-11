@@ -39,6 +39,8 @@ _TTS_VOICE_PRESET = "hindi_female"
 # of only WEB_CONCURRENCY=2 workers (documented prod-down class). Module-level so
 # tests can shrink it.
 _TTS_TIMEOUT_S = 20.0
+_CLAIM_STALE_S = 120.0  # collect(10) + LLM(25) + TTS(20), with generous headroom
+_CLAIM_WAIT_S = 60.0
 
 _SYSTEM = (
     "Tu LeadGenAI ke Operating HQ ka subah ka radio-announcer hai. Tujhe aaj ke "
@@ -60,6 +62,77 @@ def _json_path(date: str) -> str:
 
 def _mp3_path(date: str) -> str:
     return os.path.join(_DIR, f"{date}.mp3")
+
+
+def _claim_path(date: str) -> str:
+    return os.path.join(_DIR, f"{date}.building")
+
+
+def _read_cached(date: str) -> dict[str, Any] | None:
+    try:
+        jpath = _json_path(date)
+        if not os.path.exists(jpath):
+            return None
+        with open(jpath, encoding="utf-8") as f:
+            cached = json.load(f) or {}
+        return {
+            "ok": True,
+            "date": date,
+            "text": cached.get("text") or "",
+            "has_audio": os.path.exists(_mp3_path(date)),
+            "cached": True,
+        }
+    except Exception as exc:
+        logger.debug("[office_briefing] cache read skipped: %s", exc)
+        return None
+
+
+def _try_generation_claim(date: str) -> bool:
+    """Cross-process one-writer claim; stale claims recover after bounded work."""
+    path = _claim_path(date)
+    for _attempt in range(2):
+        try:
+            fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            try:
+                os.write(fd, f"pid={os.getpid()} at={_now_iso()}".encode("utf-8"))
+            finally:
+                os.close(fd)
+            return True
+        except FileExistsError:
+            try:
+                if datetime.now(timezone.utc).timestamp() - os.path.getmtime(path) > _CLAIM_STALE_S:
+                    os.remove(path)
+                    continue
+            except FileNotFoundError:
+                continue
+            except Exception:
+                pass
+            return False
+        except Exception as exc:
+            logger.warning("[office_briefing] generation claim failed: %s", exc)
+            return False
+    return False
+
+
+def _release_generation_claim(date: str) -> None:
+    try:
+        os.remove(_claim_path(date))
+    except FileNotFoundError:
+        pass
+    except Exception as exc:
+        logger.debug("[office_briefing] generation claim release failed: %s", exc)
+
+
+async def _wait_for_cached(date: str) -> dict[str, Any] | None:
+    deadline = asyncio.get_running_loop().time() + _CLAIM_WAIT_S
+    while asyncio.get_running_loop().time() < deadline:
+        cached = _read_cached(date)
+        if cached is not None:
+            return cached
+        if not os.path.exists(_claim_path(date)):
+            return None
+        await asyncio.sleep(0.1)
+    return None
 
 
 # --------------------------------------------------------------------------- #
@@ -261,19 +334,28 @@ async def build_briefing(force: bool = False) -> dict[str, Any]:
     # Cache hit (before any LLM/TTS work). has_audio re-derived from disk so a
     # stale flag can't promise audio that isn't there.
     if not force:
-        try:
-            if os.path.exists(jpath):
-                with open(jpath, encoding="utf-8") as f:
-                    cached = json.load(f) or {}
-                return {
-                    "ok": True,
-                    "date": date,
-                    "text": cached.get("text") or "",
-                    "has_audio": os.path.exists(mpath),
-                    "cached": True,
-                }
-        except Exception as e:
-            logger.debug(f"[office_briefing] cache read skipped: {e}")
+        cached = _read_cached(date)
+        if cached is not None:
+            return cached
+
+    if not _try_generation_claim(date):
+        cached = await _wait_for_cached(date)
+        if cached is not None:
+            return cached
+        return {
+            "ok": False,
+            "date": date,
+            "text": "",
+            "has_audio": False,
+            "error": "briefing generation already in progress",
+        }
+
+    # Another process may have finished between our first cache read and claim.
+    if not force:
+        cached = _read_cached(date)
+        if cached is not None:
+            _release_generation_claim(date)
+            return cached
 
     # _collect_numbers is SYNC and touches the DB + every draft/agent-event —
     # run it OFF the event loop with a hard deadline (same rule + pattern as
@@ -290,6 +372,7 @@ async def build_briefing(force: bool = False) -> dict[str, Any]:
         text = await _compose_text(nums)
     except Exception as e:
         logger.warning(f"[office_briefing] compose failed: {e}")
+        _release_generation_claim(date)
         return {"ok": False, "date": date, "text": "", "has_audio": False,
                 "error": "briefing compose fail"}
 
@@ -306,13 +389,130 @@ async def build_briefing(force: bool = False) -> dict[str, Any]:
         except Exception:
             pass
 
+    cache_written = False
     try:
-        with open(jpath, "w", encoding="utf-8") as f:
-            json.dump({"date": date, "text": text, "generated_at": _now_iso()}, f, ensure_ascii=False)
+        from app.utils.file_lock import locked_rewrite
+
+        cache_written = locked_rewrite(
+            jpath,
+            json.dumps(
+                {"date": date, "text": text, "generated_at": _now_iso()},
+                ensure_ascii=False,
+            ),
+        )
     except Exception as e:
         logger.debug(f"[office_briefing] cache write skipped: {e}")
 
+    if not cache_written:
+        try:
+            if os.path.exists(mpath):
+                os.remove(mpath)
+        except Exception:
+            pass
+        _release_generation_claim(date)
+        return {
+            "ok": False,
+            "date": date,
+            "text": text,
+            "has_audio": False,
+            "error": "briefing cache write failed",
+        }
+
+    _release_generation_claim(date)
     return {"ok": True, "date": date, "text": text, "has_audio": has_audio, "cached": False}
+
+
+def _scheduler_health() -> dict[str, Any]:
+    """Read the automation control-plane status for the scheduled path.
+
+    Unknown health is deliberately unhealthy: the council-approved automation
+    must never spend an LLM/TTS call while its scheduler/queue state is unsafe.
+    """
+    try:
+        from app.platform import automation_health
+
+        health = automation_health.health() or {"ok": False, "status": "unknown"}
+        queue = health.get("queue") or {}
+        queue_unknown = any(int(queue.get(name, -1)) < 0 for name in ("celery", "heavy", "dlq", "dead"))
+        recent_failed = [
+            str(row.get("job") or "?")
+            for row in (health.get("jobs") or [])
+            if row.get("status") == "last_failed" and row.get("job") != "hot_queue_brief"
+        ]
+        if queue_unknown or recent_failed:
+            return {
+                **health,
+                "ok": False,
+                "queue_unknown": queue_unknown,
+                "recent_failed": recent_failed,
+            }
+        return health
+    except Exception as exc:
+        logger.warning("[office_briefing] scheduler health unavailable: %s", exc)
+        return {"ok": False, "status": "unknown", "error": str(exc)[:160]}
+
+
+def _log_scheduled_event(status: str, detail: str) -> None:
+    """Best-effort admin evidence; never sends email, WhatsApp, or calls."""
+    try:
+        from app.platform import team
+
+        team.log_event(
+            "rohan",
+            "hot_queue_brief",
+            str(detail)[:300],
+            status="ok" if status == "ok" else "warn",
+        )
+    except Exception:
+        pass
+
+
+async def run_scheduled() -> dict[str, Any]:
+    """Build today's draft-only revenue brief when the control plane is safe.
+
+    The existing daily cache is the idempotency ledger. Health collection runs
+    off-loop and is bounded; degraded/unknown health fails closed before any
+    LLM or TTS work. The result stays inside Office HQ and `/app/inbox` remains
+    the human-only action surface.
+    """
+    enabled = os.environ.get("HOT_QUEUE_BRIEF_DAILY", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
+    if not enabled:
+        return {"ok": True, "enabled": False, "skipped": "disabled"}
+
+    try:
+        health = await asyncio.wait_for(asyncio.to_thread(_scheduler_health), timeout=5.0)
+    except Exception as exc:
+        health = {"ok": False, "status": "unknown", "error": str(exc)[:160]}
+
+    if not health.get("ok"):
+        overdue = ",".join(str(j) for j in (health.get("overdue") or [])[:8]) or "none"
+        detail = (
+            f"skipped: health={health.get('status') or 'unknown'} "
+            f"overdue={overdue} queue_backlogged={bool(health.get('queue_backlogged'))}"
+        )
+        _log_scheduled_event("warn", detail)
+        return {
+            "ok": False,
+            "enabled": True,
+            "skipped": "automation_unhealthy",
+            "health_status": health.get("status") or "unknown",
+        }
+
+    result = await build_briefing(force=False)
+    if not result.get("ok"):
+        _log_scheduled_event("warn", f"generation_failed: {result.get('error') or 'unknown'}")
+        return {**result, "enabled": True}
+
+    _log_scheduled_event(
+        "ok",
+        f"ready: date={result.get('date') or _ist_date()} cached={bool(result.get('cached'))} "
+        "action=/app/inbox",
+    )
+    return {**result, "enabled": True}
 
 
 def audio_path_for_today() -> str | None:

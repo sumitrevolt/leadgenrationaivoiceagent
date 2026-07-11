@@ -142,6 +142,7 @@ _last_ran: dict[str, str | None] = {
     "watchdog": None,
     "onboard": None,
     "standup": None,
+    "hot_queue_brief": None,  # daily 08:15: health-gated Office HQ revenue brief
     # F.5 engineer agents — gated by per-role flag inside run_X() (INERT default).
     "engineer_sre": None,  # hourly: Pranav reliability score
     "engineer_finops": None,  # daily: Vidya margin score
@@ -210,7 +211,7 @@ def _load_last_ran() -> None:
                 _last_ran[k] = v
 
 
-async def _run_job(job: str, retry_count: int = 0) -> None:
+async def _run_job(job: str, retry_count: int = 0) -> bool:
     """Heartbeat wrapper — har run automation_health me record hota (dead-man
     switch: job chupchaap band ho jaye to overdue-alert). In-process + Celery
     dono path isi se guzarte. Wrapper KABHI behaviour change nahi karta.
@@ -243,7 +244,7 @@ async def _run_job(job: str, retry_count: int = 0) -> None:
             except Exception:
                 pass
             logger.info(f"[team-scheduler] job '{job}' skipped — admin paused")
-            return
+            return True
     except Exception:
         pass  # FAIL-OPEN — config error pe job normal chalega
 
@@ -338,6 +339,8 @@ async def _run_job(job: str, retry_count: int = 0) -> None:
             )
         except Exception:
             pass
+
+    return _ok
 
 
 async def _run_content_engine(name: str, coro) -> bool:
@@ -1087,6 +1090,12 @@ async def _run_job_inner(job: str) -> bool:
                     "Aaj ka team plan: growth (naye leads + outreach) aur ops (system health + QA) — "
                     "priorities aur next-actions nikalo"
                 )
+        elif job == "hot_queue_brief":
+            from app.platform import office_briefing
+
+            result = await office_briefing.run_scheduled()
+            if result.get("ok") is False:
+                return False
         elif job == "revenue_snapshot":
             # B1: daily MRR/churn/LTV snapshot for the admin revenue trend chart.
             if os.environ.get("REVENUE_TRENDS", "0").strip().lower() in ("1", "true", "yes"):
@@ -1160,6 +1169,7 @@ async def scheduler_loop() -> None:
                     "trainer": ((3, 0), (4, 30)),
                     "blog": ((6, 30), (8, 30)),
                     "content": ((7, 0), (9, 0)),
+                    "hot_queue_brief": ((8, 15), (9, 15)),
                     "digest": ((8, 30), (10, 30)),
                     "prospect": ((9, 30), (11, 30)),
                     "email_outreach": ((10, 30), (12, 30)),
@@ -1216,6 +1226,9 @@ async def scheduler_loop() -> None:
             if (3, 0) <= hm < (4, 30) and _last_ran["trainer"] != day_key:
                 _last_ran["trainer"] = day_key
                 await _run_job("trainer")
+            if (8, 15) <= hm < (9, 15) and _last_ran["hot_queue_brief"] != day_key:
+                _last_ran["hot_queue_brief"] = day_key
+                await _run_job("hot_queue_brief")
             if (8, 30) <= hm < (10, 30) and _last_ran["digest"] != day_key:
                 _last_ran["digest"] = day_key
                 await _run_job("digest")

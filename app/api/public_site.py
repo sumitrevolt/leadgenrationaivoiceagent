@@ -55,7 +55,7 @@ _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 _OK_MESSAGE = "Dhanyawad! 24 ghante me call aayega."
 
 # --------------------------------------------------------------------------- #
-# In-memory rate limit — max 5 inquiries / minute / IP (simple timestamp list)
+# Rate limit — Redis-first (multi-worker safe), in-memory fallback (single-worker).
 # --------------------------------------------------------------------------- #
 _RL: dict[str, list[float]] = {}
 _RL_AUDIT: dict[str, list[float]] = {}  # /audit/score ka alag bucket — inquiry quota nahi khaata
@@ -79,25 +79,42 @@ def _client_ip(request: Request | None) -> str:
     return "unknown"
 
 
-def _rate_limited(ip: str, store: dict[str, list[float]] | None = None) -> bool:
-    """True = is IP ne 1 min me 5+ requests bheji (block karo).
+async def _rate_check(ip: str, bucket: str = "inquiry") -> None:
+    """Redis-backed rate limit — raises HTTPException(429) if throttled.
 
-    `store` se alag bucket de sakte ho (audit vs inquiry) — default _RL.
+    Fail-open: Redis unavailable me in-memory fallback. Multi-worker safe
+    when Redis is available (shared counter across all uvicorn processes).
     """
-    rl = _RL if store is None else store
+    try:
+        from app.cache import get_redis_client
+
+        client = await get_redis_client()
+        if client is not None and hasattr(client, "incr"):
+            key = f"rl:{bucket}:{ip}"
+            count = await client.incr(key)
+            if count == 1:
+                await client.expire(key, int(_RL_WINDOW_S))
+            if count > _RL_MAX:
+                raise HTTPException(status_code=429, detail="Thoda ruk ke dobara try karo.")
+            return
+    except HTTPException:
+        raise
+    except Exception:
+        pass  # Redis fail → in-memory fallback
+
+    # In-memory fallback (per-worker, per-bucket)
+    store = _RL_AUDIT if bucket == "audit" else _RL
     now = time.time()
-    fresh = [t for t in rl.get(ip, []) if now - t < _RL_WINDOW_S]
+    fresh = [t for t in store.get(ip, []) if now - t < _RL_WINDOW_S]
     if len(fresh) >= _RL_MAX:
-        rl[ip] = fresh
-        return True
+        store[ip] = fresh
+        raise HTTPException(status_code=429, detail="Thoda ruk ke dobara try karo.")
     fresh.append(now)
-    rl[ip] = fresh
-    # Opportunistic cleanup taaki dict unbounded na badhe.
-    if len(rl) > 5000:
-        for k in list(rl.keys()):
-            if not any(now - t < _RL_WINDOW_S for t in rl[k]):
-                rl.pop(k, None)
-    return False
+    store[ip] = fresh
+    if len(store) > 5000:
+        for k in list(store.keys()):
+            if not any(now - t < _RL_WINDOW_S for t in store[k]):
+                store.pop(k, None)
 
 
 def _clean_phone(raw: str) -> str | None:
@@ -416,10 +433,9 @@ async def submit_inquiry(body: InquiryIn, request: Request):
     if (body.website or "").strip():
         return {"ok": True, "message": _OK_MESSAGE}
 
-    # 2) Rate limit (5/min/IP)
+    # 2) Rate limit (5/min/IP) — Redis-first, in-memory fallback
     ip = _client_ip(request)
-    if _rate_limited(ip):
-        raise HTTPException(status_code=429, detail="Thoda ruk ke dobara try karo.")
+    await _rate_check(ip, "inquiry")
 
     # 3) Validation
     name = (body.name or "").strip()
@@ -527,21 +543,16 @@ async def public_signup(body: SignupIn, request: Request):
     if (body.website or "").strip():
         raise HTTPException(status_code=400, detail="Invalid request.")
 
-    # 1) Rate limit (5/min/IP — same store as inquiry)
-    # Loop 6 (2026-07-10): 429 previously carried only a bare Hinglish string.
-    # FE couldn't render a countdown or distinguish "you're rate-limited" from
-    # a generic error. Return the standard `Retry-After` header (RFC 7231 §7.1.3)
-    # plus a structured detail so pricing.html can show "X seconds me phir try".
+    # 1) Rate limit (5/min/IP — Redis-first, in-memory fallback)
     ip = _client_ip(request)
-    if _rate_limited(ip):
-        wait_s = int(_RL_WINDOW_S)  # conservative — full window; can shrink later
-        # Loop 7 (2026-07-10): admin observability for abuse spikes. Emit a
-        # `signup_rate_limited` AutomationLog row (piggy-back on Loops 2/3B
-        # pattern) so ops sees the count in the Delivery Command Center
-        # without grepping app logs. Best-effort — never blocks the 429.
+    try:
+        await _rate_check(ip, "signup")
+    except HTTPException:
+        # Enhanced 429 response: Retry-After header + structured detail so
+        # pricing.html can show "X seconds me phir try" + ops audit log.
+        wait_s = int(_RL_WINDOW_S)
         try:
             from app.platform import automation_log_service as _als
-
             _als.log_event(
                 job_type="signup_rate_limited",
                 status="failed",
@@ -743,12 +754,32 @@ async def public_signup(body: SignupIn, request: Request):
                     "(activate=%s reset=%s) — customer MUST get post-payment provisioning",
                     cid, plan_k, plan_ok, watermark_ok,
                 )
+                try:
+                    from app.platform import ops_alerts
+                    ops_alerts._ntfy(
+                        f"Signup provisioning PARTIAL — {cid}",
+                        f"plan={plan_k} activate={plan_ok} reset={watermark_ok}. "
+                        "Customer has zero quota until admin fixes.",
+                        tags=["rotating_light", "billing"],
+                    )
+                except Exception:
+                    pass
         except Exception as e:
             logger.warning(
                 "[signup] plan provisioning RAISED for cid=%s plan=%s — "
                 "customer will have ZERO quota until post-payment fix (%s: %s)",
                 cid, plan_k, type(e).__name__, e,
             )
+            try:
+                from app.platform import ops_alerts
+                ops_alerts._ntfy(
+                    f"Signup provisioning CRASHED — {cid}",
+                    f"plan={plan_k} error={type(e).__name__}: {e}. "
+                    "Customer has ZERO quota until admin fixes.",
+                    tags=["rotating_light", "billing"],
+                )
+            except Exception:
+                pass
 
     # 6.8) Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
     try:
@@ -1016,8 +1047,7 @@ async def audit_score(body: AuditIn, request: Request):
     Rate-limit alag bucket me taaki audit ke baad inquiry block na ho.
     """
     ip = _client_ip(request)
-    if _rate_limited(ip, _RL_AUDIT):
-        raise HTTPException(status_code=429, detail="Thoda ruk ke dobara try karo.")
+    await _rate_check(ip, "audit")
 
     answers = body.answers if isinstance(body.answers, dict) else {}
     # Guard: max 32 answer keys (audit has 16 questions; 2x headroom for future)
