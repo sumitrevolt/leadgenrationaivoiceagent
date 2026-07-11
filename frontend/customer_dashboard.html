@@ -398,13 +398,34 @@
     .next-step-card .btn{width:100%;justify-content:center}
     .ai-command{position:sticky;top:0;z-index:18;grid-template-columns:1fr;gap:10px;border-radius:13px;margin-left:-4px;margin-right:-4px}
     .ai-command .btn{width:100%}
-    .mobile-app-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(5,1fr);
-      gap:2px;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.96);
+    /* Loop 28 (2026-07-11): mobile bottom nav expanded 5→6 columns to expose
+       "More" button. Round-2 audit HIGH-2: Reports/Delivery/Support were
+       unreachable on phones because they had no bottom-nav entry. */
+    .mobile-app-nav{position:fixed;left:0;right:0;bottom:0;z-index:60;display:grid;grid-template-columns:repeat(6,1fr);
+      gap:2px;padding:8px 6px calc(8px + env(safe-area-inset-bottom,0px));background:rgba(255,255,255,.96);
       border-top:1px solid var(--line);box-shadow:0 -8px 24px rgba(15,23,42,.12);backdrop-filter:blur(10px)}
     .mobile-app-nav button,.mobile-app-nav a{min-height:52px;border:0;background:transparent;border-radius:10px;color:var(--muted);
-      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10.5px;font-weight:800;text-decoration:none}
+      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:800;text-decoration:none;padding:2px}
     .mobile-app-nav .mi{font-size:18px;line-height:1}
     .mobile-app-nav .active{background:var(--brand-soft);color:var(--brand)}
+    /* Mobile "More" sheet — slides up from bottom over mobile-app-nav; provides
+       access to Reports, Delivery, Support without cluttering the 5-tab primary. */
+    .mobile-more-sheet{position:fixed;left:0;right:0;bottom:0;z-index:65;background:#fff;
+      border-top-left-radius:16px;border-top-right-radius:16px;box-shadow:0 -12px 40px rgba(15,23,42,.25);
+      padding:16px 16px calc(20px + env(safe-area-inset-bottom,0px));transform:translateY(110%);
+      transition:transform .22s ease-out;visibility:hidden;opacity:.98}
+    .mobile-more-sheet.open{transform:translateY(0);visibility:visible}
+    .mobile-more-sheet .mms-handle{width:44px;height:5px;background:#cbd5e1;border-radius:99px;margin:0 auto 12px}
+    .mobile-more-sheet .mms-title{font-size:13px;font-weight:800;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.04em}
+    .mobile-more-sheet .mms-links{display:grid;grid-template-columns:1fr;gap:8px}
+    .mobile-more-sheet .mms-links a{display:flex;align-items:center;gap:12px;padding:14px 12px;border-radius:12px;
+      background:var(--bg);color:var(--txt);text-decoration:none;font-weight:700;min-height:52px}
+    .mobile-more-sheet .mms-links a:active{background:var(--brand-soft)}
+    .mobile-more-sheet .mms-links .mi{font-size:20px;width:28px;text-align:center}
+    .mobile-more-backdrop{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:64;display:none}
+    .mobile-more-backdrop.open{display:block}
+    body.dark .mobile-more-sheet{background:var(--card)}
+    body.dark .mobile-more-sheet .mms-links a{background:var(--bg-elev);color:var(--txt)}
   }
   @media (max-width:560px){
     .kpis{grid-template-columns:1fr 1fr}
@@ -673,6 +694,39 @@
         <div class="kpi"><div class="lab">📊 Campaigns</div><div class="val" id="mkCampaigns">—</div><div class="sub">Chal rahe campaigns</div></div>
       </div>
 
+      <!-- Loop 27 (2026-07-11): Reports view was previously a bare 4-KPI strip —
+           user complaint "Reports empty". Adds this-month delivery summary +
+           quick-links to leads/calls/delivery CSVs. Data source: /api/customer/delivery-proof
+           (populated by loadDeliveryView). Logged-out state falls through to
+           reportsLoggedOutGate below. -->
+      <div data-view="reports" class="card" id="reportsLoggedOutGate" style="display:none;margin-bottom:14px">
+        <div class="card-b" style="text-align:center;padding:26px 20px">
+          <div style="font-size:30px;margin-bottom:6px">📊</div>
+          <div style="font-weight:800;font-size:16px;margin-bottom:6px">Reports login ke baad khulti hain</div>
+          <div class="sm" style="color:var(--muted);margin-bottom:12px">Delivery, leads, aur calls ka pura hisaab dekhne ke liye login karein.</div>
+          <a class="btn primary" href="/app/login" style="min-width:160px;justify-content:center;text-decoration:none">Login karein →</a>
+        </div>
+      </div>
+      <div data-view="reports" class="card" id="reportsDeliveryCard" style="margin-bottom:14px">
+        <div class="card-h">
+          <h2>📦 Is mahine ki delivery</h2>
+          <span class="grow"></span>
+          <button class="btn" type="button" onclick="loadReportsView()">↻ Refresh</button>
+        </div>
+        <div class="card-b" id="reportsDeliveryBody">
+          <span class="sm" style="color:var(--muted)">Report load ho raha hai...</span>
+        </div>
+      </div>
+      <div data-view="reports" class="card" id="reportsQuickLinksCard" style="margin-bottom:14px">
+        <div class="card-h"><h2>⬇️ Data downloads</h2></div>
+        <div class="card-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+          <button class="btn" type="button" onclick="downloadCSV()">⬇️ Leads CSV</button>
+          <button class="btn" type="button" onclick="downloadCallsCSV()">⬇️ Calls CSV</button>
+          <button class="btn" type="button" onclick="scrollToId('billingCard')">💳 Bills dekho</button>
+          <button class="btn" type="button" onclick="scrollToId('deliveryProofCard')">📦 Delivery status</button>
+        </div>
+      </div>
+
       <!-- ===== Is Mahine ki Delivery (This Month's Progress) ===== -->
       <div data-view="home" class="card marketing-only" id="deliveryProofCard" style="margin-bottom:14px;border:1px solid var(--ok);background:#faf5ff">
         <div class="card-h" style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding-bottom:10px">
@@ -693,7 +747,20 @@
       </div>
 
       <!-- Setup Wizard — business profile/social/WhatsApp/brand-tone self-serve -->
-      <div data-view="setup" class="setup-steps" role="tablist" aria-label="Setup steps">
+      <!-- Loop 27 (2026-07-11): Logged-out gate card. Without lgai_token the step
+           tabs (1..4) toggled between empty "Login karo" cards — appeared dead.
+           This centered CTA is shown by showSetupStep() when !billToken() and
+           hides the step tabs + all three body cards; login se sab wapas aa jate hain. -->
+      <div data-view="setup" class="card" id="setupLoggedOutGate" style="display:none;margin-bottom:14px">
+        <div class="card-b" style="text-align:center;padding:34px 20px">
+          <div style="font-size:34px;margin-bottom:8px">🔐</div>
+          <div style="font-weight:800;font-size:18px;margin-bottom:6px">Setup Wizard — pehle login karein</div>
+          <div class="sm" style="color:var(--muted);max-width:420px;margin:0 auto 16px">Aap apni business details, brand tone, aur social channels tab hi save kar payenge jab account login ho.</div>
+          <a class="btn primary" href="/app/login" style="min-width:180px;justify-content:center;text-decoration:none">Login karein →</a>
+          <div class="sm" style="color:var(--muted);margin-top:14px">Naya account? <a href="/pricing" style="color:var(--brand);font-weight:700">Plan chuno</a> — 2 minute me setup ho jayega.</div>
+        </div>
+      </div>
+      <div data-view="setup" class="setup-steps" role="tablist" aria-label="Setup steps" id="setupStepsBar">
         <button class="setup-step active" data-setup-step="1" type="button" onclick="showSetupStep(1)">1. Business</button>
         <button class="setup-step" data-setup-step="2" type="button" onclick="showSetupStep(2)">2. Brand</button>
         <button class="setup-step" data-setup-step="3" type="button" onclick="showSetupStep(3)">3. Social</button>
@@ -942,7 +1009,11 @@
           <div class="grow"></div>
           <button class="btn" id="billPauseBtn" onclick="billingAction('pause')" style="display:none">⏸ Plan Roko</button>
           <button class="btn" id="billResumeBtn" onclick="billingAction('resume')" style="display:none">▶️ Phir Shuru Karo</button>
-          <button class="btn" id="billManageBtn" onclick="openBillingPortal()" style="display:none">💳 Payment Manage</button>
+          <!-- Loop 27 (2026-07-11): "💳 Payment Manage" button removed. renderBilling()
+               forcibly hid it at line 3345, so the DOM node was permanently dead —
+               user complaint audit §E-#5. Stripe portal is intl-only per CLAUDE.md;
+               India customers use manual UPI. openBillingPortal() function preserved
+               for a future intl-Stripe rollout. -->
           <button class="btn" id="billCancelBtn" onclick="billingAction('cancel')" style="display:none">✖ Band Karo</button>
         </div>
         <div class="card-b">
@@ -1199,23 +1270,45 @@
 </div>
 
 <div class="toast" id="toast" role="alert" aria-live="assertive" aria-atomic="true"><div class="t" id="toastT"></div><div id="toastM"></div></div>
+<!-- Loop 28 (2026-07-11): 6-tab mobile bottom nav (was 5). "More" opens a bottom
+     sheet exposing Reports / Delivery / Support — Round-2 audit HIGH-2. -->
 <nav class="mobile-app-nav" aria-label="Mobile app shortcuts">
   <button type="button" data-mobile-view="home" class="active" onclick="showView('home')" aria-label="Home">
-    <span class="mi" aria-hidden="true">H</span><span>Home</span>
+    <span class="mi" aria-hidden="true">🏠</span><span>Home</span>
   </button>
   <button type="button" data-mobile-view="setup" onclick="openSetupWizard()" aria-label="Setup">
-    <span class="mi" aria-hidden="true">✓</span><span>Setup</span>
+    <span class="mi" aria-hidden="true">🧙</span><span>Setup</span>
   </button>
   <button type="button" data-mobile-view="calendar" onclick="showView('calendar')" aria-label="Posts">
-    <span class="mi" aria-hidden="true">P</span><span>Posts</span>
+    <span class="mi" aria-hidden="true">📅</span><span>Posts</span>
   </button>
   <button type="button" data-mobile-view="leads" onclick="showView('leads')" aria-label="Leads">
-    <span class="mi" aria-hidden="true">L</span><span>Leads</span>
+    <span class="mi" aria-hidden="true">🔥</span><span>Leads</span>
   </button>
   <button type="button" data-mobile-view="billing" onclick="showView('billing')" aria-label="Billing">
-    <span class="mi" aria-hidden="true">Rs</span><span>Plan</span>
+    <span class="mi" aria-hidden="true">💳</span><span>Plan</span>
+  </button>
+  <button type="button" data-mobile-view="more" onclick="openMoreSheet()" aria-label="More views" aria-haspopup="dialog" aria-controls="mobileMoreSheet">
+    <span class="mi" aria-hidden="true">⋯</span><span>More</span>
   </button>
 </nav>
+<div id="mobileMoreBackdrop" class="mobile-more-backdrop" onclick="closeMoreSheet()" aria-hidden="true"></div>
+<div id="mobileMoreSheet" class="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="mobileMoreTitle" aria-hidden="true">
+  <div class="mms-handle" aria-hidden="true"></div>
+  <div id="mobileMoreTitle" class="mms-title">Aur pages</div>
+  <div class="mms-links">
+    <a href="#" onclick="pickMoreSheet('delivery');return false" aria-label="My Delivery">
+      <span class="mi" aria-hidden="true">📦</span><span>My Delivery</span>
+    </a>
+    <a href="#" onclick="pickMoreSheet('reports');return false" aria-label="Reports">
+      <span class="mi" aria-hidden="true">📊</span><span>Reports</span>
+    </a>
+    <a href="#" onclick="pickMoreSheet('support');return false" aria-label="Support">
+      <span class="mi" aria-hidden="true">💬</span><span>Support</span>
+    </a>
+    <button type="button" class="btn" style="margin-top:6px;min-height:44px;justify-content:center" onclick="closeMoreSheet()" aria-label="Close menu">Band karo</button>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -1756,6 +1849,7 @@ function showView(name){
   });
   resizeCharts();
   if(name === "delivery" && typeof loadDeliveryView === "function") loadDeliveryView();
+  if(name === "reports"  && typeof loadReportsView  === "function") loadReportsView();
   try{history.replaceState(null,"","#view-"+name);}catch(e){}
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -1764,6 +1858,33 @@ function openSetupWizard(){
   showSetupStep((_SETUP_STATE && _SETUP_STATE.step) || 1);
   var heading=document.querySelector('#setupWizardCard h2');
   if(heading){ heading.setAttribute("tabindex","-1"); heading.focus({preventScroll:true}); }
+}
+/* Loop 28 (2026-07-11): Mobile "More" bottom sheet — surfaces Reports/Delivery/Support
+   which were unreachable on phones (Round-2 audit HIGH-2). Sheet is a real dialog
+   with focus management + backdrop close + Esc close. */
+var _moreSheetEsc=null;
+function openMoreSheet(){
+  var sheet=document.getElementById("mobileMoreSheet"), bd=document.getElementById("mobileMoreBackdrop");
+  if(!sheet||!bd) return;
+  sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false");
+  bd.classList.add("open"); bd.setAttribute("aria-hidden","false");
+  document.querySelectorAll('[data-mobile-view]').forEach(function(n){ n.classList.toggle("active", n.getAttribute("data-mobile-view")==="more"); });
+  _moreSheetEsc=function(e){ if(e.key==="Escape") closeMoreSheet(); };
+  document.addEventListener("keydown",_moreSheetEsc);
+  var firstLink=sheet.querySelector('.mms-links a'); if(firstLink) setTimeout(function(){ firstLink.focus(); },80);
+}
+function closeMoreSheet(){
+  var sheet=document.getElementById("mobileMoreSheet"), bd=document.getElementById("mobileMoreBackdrop");
+  if(sheet){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
+  if(bd){ bd.classList.remove("open"); bd.setAttribute("aria-hidden","true"); }
+  if(_moreSheetEsc){ document.removeEventListener("keydown",_moreSheetEsc); _moreSheetEsc=null; }
+  // Restore active-tab hint on the actual view we're now looking at
+  var cur=(document.getElementById("mainContent")||{}).getAttribute && document.getElementById("mainContent").getAttribute("data-active-view");
+  document.querySelectorAll('[data-mobile-view]').forEach(function(n){ n.classList.toggle("active", n.getAttribute("data-mobile-view")===cur); });
+}
+function pickMoreSheet(view){
+  closeMoreSheet();
+  showView(view);
 }
 function scrollToId(id){
   showView(viewForHash(id));
@@ -2098,6 +2219,64 @@ async function loadDeliveryProof() {
   }
 }
 
+/* ====== Reports View — this-month delivery summary + quick download links ======
+   Loop 27 (2026-07-11): Previously "Reports" nav opened just the 4-KPI strip
+   and nothing else. Now shows delivery-proof summary (reuses /api/customer/delivery-proof)
+   and CSV download shortcuts. Logged-out state shows the gate card. */
+async function loadReportsView(){
+  const gate=document.getElementById("reportsLoggedOutGate");
+  const body=document.getElementById("reportsDeliveryBody");
+  const delivCard=document.getElementById("reportsDeliveryCard");
+  const qlCard=document.getElementById("reportsQuickLinksCard");
+  if(!body) return;
+  if(!billToken()){
+    if(gate)gate.style.display="block";
+    if(delivCard)delivCard.style.display="none";
+    if(qlCard)qlCard.style.display="none";
+    return;
+  }
+  if(gate)gate.style.display="none";
+  if(delivCard)delivCard.style.display="";
+  if(qlCard)qlCard.style.display="";
+  body.innerHTML='<span class="sm" style="color:var(--muted)">Load ho raha hai... ⏳</span>';
+  try{
+    const r=await fetch("/api/customer/delivery-proof",{headers:billAuthHdr()});
+    if(!r.ok){body.innerHTML='<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai. Thodi der baad refresh karein.</div>'; return;}
+    const d=await r.json();
+    if(!d.ok){body.innerHTML='<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai.</div>'; return;}
+    const pct=d.deliverable_completion_pct||0;
+    const items=(d.deliverables||[]);
+    const done=items.filter(function(x){return x.status==="done";}).length;
+    const inprog=items.filter(function(x){return x.status==="in_progress"||x.status==="pending";}).length;
+    let h='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:14px">'
+      +'<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fbfaff"><div class="sm" style="color:var(--muted)">Complete</div><div style="font-weight:800;font-size:22px;color:var(--ok)">'+done+'</div></div>'
+      +'<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fbfaff"><div class="sm" style="color:var(--muted)">Chal raha hai</div><div style="font-weight:800;font-size:22px">'+inprog+'</div></div>'
+      +'<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fbfaff"><div class="sm" style="color:var(--muted)">Total items</div><div style="font-weight:800;font-size:22px">'+items.length+'</div></div>'
+      +'<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;background:#fbfaff"><div class="sm" style="color:var(--muted)">Progress</div><div style="font-weight:800;font-size:22px">'+pct+'%</div></div>'
+      +'</div>';
+    if(items.length){
+      h+='<div style="font-weight:700;margin:8px 0">📋 Checklist</div>';
+      h+='<div style="border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden">';
+      items.slice(0,20).forEach(function(it){
+        const ok=it.status==="done";
+        h+='<div style="display:flex;gap:10px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)">'
+          +'<span style="font-size:18px">'+(ok?"✅":"⏳")+'</span>'
+          +'<div style="flex:1"><div style="font-weight:600">'+escH(it.title||it.name||it.key||"—")+'</div>'
+          +(it.hint?'<div class="sm" style="color:var(--muted)">'+escH(it.hint)+'</div>':'')
+          +'</div>'
+          +'<span class="sm" style="color:var(--muted)">'+escH(it.status||"")+'</span>'
+          +'</div>';
+      });
+      h+='</div>';
+    }else{
+      h+='<div class="sm" style="color:var(--muted)">Abhi tak koi delivery item nahi bana. Setup complete karein.</div>';
+    }
+    body.innerHTML=h;
+  }catch(e){
+    body.innerHTML='<div class="sm" style="color:var(--muted)">Report load nahi hua ('+escH(e.message||"network")+').</div>';
+  }
+}
+
 /* ====== Delivery View — customer delivery status (ADR-064) ====== */
 async function loadDeliveryView() {
   try {
@@ -2413,7 +2592,21 @@ async function sec2faDisable(){
   }catch(e){ err.textContent = "disable error: "+e.message; }
 }
 
-function fmtMoney(n,cur){ const c=cur==="USD"?"$":(cur==="EUR"?"€":"₹"); return c+Number(n||0).toLocaleString("en-IN"); }
+// Loop 28 (2026-07-11): Round-2 audit MED-1 — Previously always applied en-IN
+// grouping. Now uses Intl.NumberFormat with the correct locale per currency.
+function fmtMoney(n, cur){
+  const amt = Number(n || 0);
+  const code = String(cur || "INR").toUpperCase();
+  try {
+    if (code === "USD") return new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:0}).format(amt);
+    if (code === "EUR") return new Intl.NumberFormat("de-DE", {style:"currency", currency:"EUR", maximumFractionDigits:0}).format(amt);
+    if (code === "GBP") return new Intl.NumberFormat("en-GB", {style:"currency", currency:"GBP", maximumFractionDigits:0}).format(amt);
+    return new Intl.NumberFormat("en-IN", {style:"currency", currency:"INR", maximumFractionDigits:0}).format(amt);
+  } catch (e) {
+    const sym = code === "USD" ? "$" : (code === "EUR" ? "€" : (code === "GBP" ? "£" : "₹"));
+    return sym + amt.toLocaleString(code === "INR" ? "en-IN" : "en-US");
+  }
+}
 function fmtDate(iso){ if(!iso) return "—"; try{ return new Date(iso).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ return iso; } }
 
 /* ---- 📣 Aaj ka Post (AI-generated daily posts, 1-click copy/share) ---- */
@@ -2598,8 +2791,23 @@ function renderSetupLoadError(targetId,retry){
 }
 function showSetupStep(step){
   step=Math.max(1,Math.min(4,Number(step)||1)); _SETUP_STATE.step=step;
-  document.querySelectorAll(".setup-step").forEach(function(b){b.classList.toggle("active",Number(b.dataset.setupStep)===step);});
+  // Loop 27 (2026-07-11): logged-out → show single centered gate + hide step-tabs
+  // + all body cards. Prevents the "buttons hain lekin kaam nahi karte" confusion
+  // where clicking tabs 1..4 only swapped empty login-CTA cards.
+  const gate=document.getElementById("setupLoggedOutGate"), stepsBar=document.getElementById("setupStepsBar");
+  const loggedIn=(typeof billToken==="function")&&!!billToken();
   const profile=document.getElementById("setupWizardCard"), social=document.getElementById("socialSetupCard"), review=document.getElementById("setupReviewCard");
+  if(!loggedIn){
+    if(gate)gate.style.display="block";
+    if(stepsBar)stepsBar.style.display="none";
+    if(profile)profile.style.display="none";
+    if(social)social.style.display="none";
+    if(review)review.style.display="none";
+    return;
+  }
+  if(gate)gate.style.display="none";
+  if(stepsBar)stepsBar.style.display="";
+  document.querySelectorAll(".setup-step").forEach(function(b){b.classList.toggle("active",Number(b.dataset.setupStep)===step);});
   if(profile){profile.style.display=(step===1||step===2)?"block":"none"; const h=profile.querySelector("h2"); if(h)h.textContent=step===1?"🏪 Step 1 — Business details":"🎨 Step 2 — Brand details";}
   document.querySelectorAll("[data-profile-step]").forEach(function(el){el.style.display=Number(el.dataset.profileStep)===step?"block":"none";});
   if(social)social.style.display=step===3?"block":"none";
@@ -2612,7 +2820,7 @@ function renderSetupReview(){
     +'<div class="setup-meter"><span style="width:'+c.pct+'%"></span></div>'
     +(c.missing.length?'<div class="simple-note">Baaki: '+escH(c.missing.join(", "))+'</div>':'<div class="simple-note">✅ Setup complete — AI team kaam shuru kar sakti hai.</div>')
     +'<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn" onclick="showSetupStep(3)">← Wapas</button>'
-    +'<button class="btn primary marketing-only" onclick="generateFirstWeek()">Mera 7-din ka plan banao</button>'
+    +'<button class="btn primary marketing-only" onclick="generateFirstWeek(this)">Mera 7-din ka plan banao</button>'
     +'<button class="btn" onclick="showView(\'home\')">Home par jao</button></div>';
 }
 async function loadGuidedSetup(){
@@ -2658,7 +2866,7 @@ function renderSetupWizard(d){
 
   body.innerHTML=
     '<div data-profile-step="1"><div style="font-weight:700;margin-bottom:2px">🏪 Business Profile</div>'
-    +_swField("swBizName","Business ka naam",d.business_name,"e.g. Jiya Makeover")
+    +_swField("swBizName","Business ka naam",d.business_name,"e.g. Aapka Business Name")
     +_swField("swCity","City",d.city,"e.g. Mumbai")
     +_swField("swPhone","Contact number",d.phone,"e.g. 98765 43210")
     
@@ -2678,7 +2886,7 @@ function renderSetupWizard(d){
     +_swField("swGbp","Google Business Profile Link",d.gbp,"GBP location link")
     +'<div style="font-weight:700;margin:16px 0 2px">🎨 Brand Settings</div>'
     +_swField("swTagline","Tagline / Offer tagline",d.tagline,"e.g. Beautiful makeup, affordable price")
-    +_swField("swLogo","Logo text (short)",d.logo_text,"e.g. Jiya")
+    +_swField("swLogo","Logo text (short)",d.logo_text,"e.g. Aapka short name")
     +_swField("swTone","Brand tone (AI Voice/Writing)",d.tone,"e.g. Friendly, polite, energetic")
     +prefSelect
     +'<div style="display:flex;gap:16px;margin-top:8px;align-items:center">'
@@ -2738,10 +2946,14 @@ async function saveSetupWizard(){
   }catch(e){ toast("Error", e.message); }
   finally{ btn.disabled=false; btn.textContent=orig; }
 }
-async function generateFirstWeek(){
-  const btn=document.getElementById("swSeedBtn");
-  if(!btn) return;
-  btn.disabled=true; const orig=btn.textContent; btn.textContent="Plan ban raha hai…";
+async function generateFirstWeek(btnEl){
+  // Loop 29 (2026-07-11): Round-3 R3-1 fix — Review-step "Mera 7-din ka plan"
+  // button had no id="swSeedBtn" so this fn silently no-op'd on the primary
+  // activation moment. Now accepts the clicked element via `this` fallback, and
+  // gracefully proceeds even if no button ref is available.
+  const btn = btnEl || document.getElementById("swSeedBtn");
+  let orig = "";
+  if (btn) { btn.disabled = true; orig = btn.textContent; btn.textContent = "Plan ban raha hai…"; }
   try{
     const r=await fetch("/api/customer/campaigns/generate-first-week",{method:"POST",headers:billAuthHdr()});
     const d=await r.json().catch(function(){return {};});
@@ -2751,7 +2963,7 @@ async function generateFirstWeek(){
     }
     else{ toast("Nahi hua",(d&&(d.error||d.detail))||"Dobara try karo"); }
   }catch(e){ toast("Error", e.message); }
-  finally{ btn.disabled=false; btn.textContent=orig; }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = orig; } }
 }
 async function sendKbInfo(){
   const ta=document.getElementById("swKbText");
@@ -2832,10 +3044,14 @@ function _ssConnectCard(plat,label,refHint,requiresRef,platData,accts){
   var badge=_ssBadge(st);
   var rows=(accts||[]).map(function(a){
     var lbl=a.label?escH(a.label):"";
+    // Loop 27 (2026-07-11): pass opaque account_id (sha1 hash from backend) so
+    // DELETE resolves the exact record. Previously we sent the …masked… ref
+    // which the vault couldn't match — DELETEs silently no-op'd.
+    var aid=escH(a.account_id||"");
     return '<div class="sm" style="display:flex;align-items:center;gap:8px;padding:4px 0;color:var(--muted)">'
       +'<span style="flex:1">'+escH(a.account_ref_masked||"—")+(lbl?' <span style="opacity:.7">('+lbl+')</span>':'')+'</span>'
       +'<span style="opacity:.7">'+escH(a.updated_at||"")+'</span>'
-      +'<button class="btn" type="button" style="padding:2px 8px;font-size:11px" onclick="disconnectSocialAccount('+"'"+plat+"','"+encodeURIComponent(a.account_ref_masked||"")+"'"+')">Disconnect</button>'
+      +'<button class="btn" type="button" style="padding:2px 8px;font-size:11px" onclick="disconnectSocialAccount('+"'"+plat+"','"+aid+"'"+')">Disconnect</button>'
       +'</div>';
   }).join("");
   var connectBtn=(plat==="postiz")
@@ -2854,18 +3070,66 @@ function _ssConnectCard(plat,label,refHint,requiresRef,platData,accts){
 /* Loop-social-2: token-paste dialog. Uses window.prompt (no modal library
    dep) — simple + accessible. Token never logged. account_ref REQUIRED for
    fb/ig/gbp/linkedin (matches provider dispatch node id). */
+/* Loop 27 (2026-07-11): openConnectDialog used a chain of THREE window.prompt()
+   calls (token → account_ref → optional label) — brutal UX, tokens visible in
+   native dialogs, easy to abandon. Replaced with an inline overlay modal that
+   uses the same .card styling; token entered as type=password with a show/hide
+   toggle, ref hint inline, cancel button, and disabled submit while inflight. */
+function _closeConnectModal(){ var m=document.getElementById("connectModalOverlay"); if(m&&m.parentNode) m.parentNode.removeChild(m); }
 async function openConnectDialog(plat,label,refHint,requiresRef){
-  var tok=(window.prompt("Paste your "+label+" access token (encrypted-at-rest, never leaked back):","")||"").trim();
-  if(!tok){ return; }
-  if(tok.length<8){ toast("Token too short","Kam se kam 8 char zaroori."); return; }
-  var ref="";
-  if(requiresRef){
-    ref=(window.prompt(refHint+"\n(Required for "+label+")","")||"").trim();
-    if(!ref){ toast("Account reference chahiye",refHint); return; }
-  } else {
-    ref=(window.prompt("(Optional) "+refHint+" — leave blank if unsure:","")||"").trim();
-  }
-  var acctLabel=(window.prompt("(Optional) short label for this account (e.g. 'Main Store IG'):","")||"").trim();
+  _closeConnectModal();
+  var overlay=document.createElement("div");
+  overlay.id="connectModalOverlay";
+  overlay.setAttribute("role","dialog");
+  overlay.setAttribute("aria-modal","true");
+  overlay.setAttribute("aria-label","Connect "+label);
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+  overlay.innerHTML=''
+    +'<div class="card" style="max-width:480px;width:100%;background:var(--card);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.35);margin:0">'
+    +'  <div class="card-h" style="display:flex;align-items:center;gap:10px">'
+    +'    <h2 style="margin:0;font-size:16px">🔐 '+escH(label)+' connect karo</h2>'
+    +'    <span class="grow"></span>'
+    +'    <button class="btn" type="button" aria-label="Close" onclick="_closeConnectModal()">✕</button>'
+    +'  </div>'
+    +'  <div class="card-b">'
+    +'    <div class="sm" style="color:var(--muted);margin-bottom:10px">Token encrypted-at-rest save hoga. Actual publish tab shuru hoga jab admin SOCIAL_ENGINE ON kare.</div>'
+    +'    <label class="sm" style="display:block;margin-top:8px">Access token'
+    +'      <div style="position:relative;margin-top:4px">'
+    +'        <input id="cmTok" type="password" autocomplete="off" spellcheck="false" placeholder="Paste your '+escH(label)+' access token" style="width:100%;padding:9px 44px 9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'        <button type="button" onclick="var i=document.getElementById(\'cmTok\'); if(i){ i.type=i.type===\'password\'?\'text\':\'password\'; this.textContent=i.type===\'password\'?\'👁\':\'🙈\'; }" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:0;cursor:pointer;font-size:15px" aria-label="Toggle token visibility">👁</button>'
+    +'      </div>'
+    +'    </label>'
+    +'    <label class="sm" style="display:block;margin-top:10px">Account reference'+(requiresRef?' <span style="color:var(--bad)">*</span>':' <span style="color:var(--muted)">(optional)</span>')
+    +'      <input id="cmRef" type="text" placeholder="'+escH(refHint||"")+'" style="width:100%;margin-top:4px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'      <span class="sm" style="color:var(--muted);display:block;margin-top:3px">'+escH(refHint||"")+'</span>'
+    +'    </label>'
+    +'    <label class="sm" style="display:block;margin-top:10px">Short label <span style="color:var(--muted)">(optional)</span>'
+    +'      <input id="cmLabel" type="text" placeholder="e.g. Main Store IG" style="width:100%;margin-top:4px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'    </label>'
+    +'    <div id="cmErr" class="sm" style="color:var(--bad);margin-top:10px;display:none"></div>'
+    +'    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">'
+    +'      <button class="btn" type="button" onclick="_closeConnectModal()">Cancel</button>'
+    +'      <button class="btn primary" id="cmSubmit" type="button" onclick="_submitConnectDialog('+"'"+escH(plat)+"','"+escH(label)+"',"+(requiresRef?"true":"false")+')">Connect →</button>'
+    +'    </div>'
+    +'  </div>'
+    +'</div>';
+  overlay.addEventListener("click",function(e){ if(e.target===overlay) _closeConnectModal(); });
+  document.body.appendChild(overlay);
+  var esc=function(e){ if(e.key==="Escape"){ _closeConnectModal(); document.removeEventListener("keydown",esc); } };
+  document.addEventListener("keydown",esc);
+  setTimeout(function(){ var i=document.getElementById("cmTok"); if(i) i.focus(); },50);
+}
+async function _submitConnectDialog(plat,label,requiresRef){
+  var tok=((document.getElementById("cmTok")||{}).value||"").trim();
+  var ref=((document.getElementById("cmRef")||{}).value||"").trim();
+  var acctLabel=((document.getElementById("cmLabel")||{}).value||"").trim();
+  var errEl=document.getElementById("cmErr");
+  var btn=document.getElementById("cmSubmit");
+  function showErr(m){ if(errEl){ errEl.textContent=m; errEl.style.display="block"; } }
+  if(!tok||tok.length<8){ showErr("Token kam se kam 8 char ka hona chahiye."); return; }
+  if(requiresRef&&!ref){ showErr("Account reference zaroori hai — hint check karein."); return; }
+  if(errEl) errEl.style.display="none";
+  if(btn){ btn.disabled=true; btn.textContent="Connect ho raha hai..."; }
   try{
     var r=await fetch("/api/customer/social/accounts/connect",{
       method:"POST",
@@ -2876,35 +3140,37 @@ async function openConnectDialog(plat,label,refHint,requiresRef){
     try{ d=await r.json(); }catch(e){ d={}; }
     if(r.status===429){
       var msg=(d.detail&&d.detail.message)||"Ruk ke dobara try karo.";
+      showErr(msg);
       toast("Rate limit",msg);
     } else if(r.ok&&d.ok){
+      _closeConnectModal();
       toast("✓ "+label+" connected","Actual publish SOCIAL_ENGINE ON hone par shuru hoga.");
       loadSocialSetup();
+      return;
     } else {
       var errMsg="Connect nahi hua";
-      if(d&&d.detail){
-        errMsg=(typeof d.detail==="object"?(d.detail.message||d.detail.error||errMsg):d.detail);
-      } else if(d&&d.message){ errMsg=d.message; }
-      toast("Connect failed",errMsg);
+      if(d&&d.detail){ errMsg=(typeof d.detail==="object"?(d.detail.message||d.detail.error||errMsg):d.detail); }
+      else if(d&&d.message){ errMsg=d.message; }
+      showErr(errMsg);
     }
-  }catch(e){ toast("Error",e.message); }
+  }catch(e){ showErr(e.message||"Network error"); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent="Connect →"; } }
 }
-async function disconnectSocialAccount(plat,refMaskedEnc){
-  /* Loop-social-2: refMaskedEnc is the SUFFIX-tail masked account_ref
-     (encoded). Since the vault delete API needs the full account_ref, we send
-     the masked value; store treats key mismatch as a no-op — for direct-API
-     platforms customer typically has ONE account_ref matching the last-6
-     tail, so the delete goes through. If it doesn't, the empty-ref delete
-     path clears the "latest" record. */
+async function disconnectSocialAccount(plat,accountId){
+  /* Loop 27 (2026-07-11): now uses opaque account_id (sha1 hash) from backend
+     instead of the …masked… ref suffix. Backend resolves account_id → full
+     account_ref, then vault.delete tombstones the exact record.
+     Fallback: if no account_id present (legacy card), pass empty ref which
+     silently no-ops rather than deleting an unintended record. */
   if(!window.confirm("Yeh account disconnect karna hai?")) return;
   try{
-    var ref=decodeURIComponent(refMaskedEnc||"").replace(/^…/,"");
-    var url="/api/customer/social/accounts/"+encodeURIComponent(plat)+(ref?"?account_ref="+encodeURIComponent(ref):"");
+    var aid=(accountId||"").trim();
+    var url="/api/customer/social/accounts/"+encodeURIComponent(plat)+(aid?"?account_id="+encodeURIComponent(aid):"");
     var r=await fetch(url,{method:"DELETE",headers:billAuthHdr()});
     var d={};
     try{ d=await r.json(); }catch(e){}
     if(r.ok&&d.ok){ toast("✓ Disconnected","Wapas connect karne ke liye 'Connect' click karo."); loadSocialSetup(); }
-    else{ toast("Disconnect nahi hua",(d&&(d.message||d.error))||"Dobara try karo"); }
+    else{ toast("Disconnect nahi hua",(d&&(d.message||d.error||d.detail))||"Dobara try karo"); }
   }catch(e){ toast("Error",e.message); }
 }
 function renderSocialSetup(d,acct){
@@ -2963,8 +3229,8 @@ function renderSocialSetup(d,acct){
   body.innerHTML=
     '<div class="sm" style="color:var(--muted);margin-bottom:10px">Apne social channels connect karo — AI inke liye content banayega, aap approve karke ya 1-click post karoge.</div>'
     +'<div style="font-weight:700;margin-bottom:2px">📡 Connection status</div>'+statusRows+autoNote
-    +'<details class="setup-advanced"><summary>Advanced account connection</summary>'
-    +'<div class="sm" style="color:var(--muted);margin-bottom:6px">Sirf tab use karein jab aapke paas platform access token ho. Token encrypted-at-rest rahega; actual publish admin engine ON hone par hi hoga.</div>'
+    +'<details class="setup-advanced" open><summary>Advanced — apne accounts connect karein</summary>'
+    +'<div class="sm" style="color:var(--muted);margin-bottom:6px">Har platform ke saamne "🔐 Connect" pe click karein aur apna access token daalein. Token encrypted-at-rest save hoga; actual publish admin engine ON hone ke baad hi hoga.</div>'
     +connectCards+'</details>'
     +'<div style="font-weight:700;margin:16px 0 2px">🔗 Aapke social channels (jahan aap online ho)</div>'
     +_swField("ssInsta","Instagram",h.instagram,"@handle ya link")

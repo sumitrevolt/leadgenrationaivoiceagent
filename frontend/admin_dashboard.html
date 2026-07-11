@@ -340,7 +340,7 @@
         </div>
         <div class="bd">
           <div style="display:grid;grid-template-columns:minmax(0,1fr) 110px;gap:8px">
-            <input id="agentAskInput" placeholder="Aaj sabse zaroori kya hai? · Ya: jiya makeover ke liye 2 Instagram post banao" autocomplete="off" aria-label="Agents se sawaal ya kaam"
+            <input id="agentAskInput" placeholder="Aaj sabse zaroori kya hai? · Ya: [client name] ke liye 2 Instagram post banao" autocomplete="off" aria-label="Agents se sawaal ya kaam"
               style="width:100%;padding:9px 12px;border:1px solid var(--line);border-radius:9px;font-size:13px">
             <button class="btn" id="agentAskBtn" onclick="agentAsk()" style="background:#6366f1;color:#fff;border:0;font-weight:700">Bhejo</button>
           </div>
@@ -391,13 +391,34 @@
           input.value=""; btn.disabled=true; var ot=btn.textContent; btn.textContent="…"; if(st) st.textContent="Agent soch raha hai…";
           try{
             var r=await fetch("/api/platform/office/ask",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},authHdr()),body:JSON.stringify({q:q})});
-            var d=r.ok?await r.json():null; turn.pending=false;
-            if(d&&(d.text||d.ok)){
+            // Loop 27 (2026-07-11): Previously non-2xx just said "HTTP ?"; user
+            // couldn't tell LLM quota vs auth vs rate-limit. Now parse backend
+            // error body (office_hq.py returns detail/error/message on non-200).
+            var d=null;
+            try{ d=await r.json(); }catch(e){ d=null; }
+            turn.pending=false;
+            if(r.ok&&d&&(d.text||d.ok)){
               turn.reply=d.text||"(kaam ho gaya — detail Automation Monitor me hai)"; turn.kind=d.kind||"question"; turn.member=d.member||""; turn.scope=d.scope||""; turn.run_id=d.run_id||"";
               if(st) st.textContent="Ready.";
               if(d.kind==="task"||d.kind==="broadcast"){ try{ if(window.loadAdminTasks) loadAdminTasks(); if(window.loadAutomationHub) loadAutomationHub(); }catch(e){} }
-            }else{ turn.reply="❌ Jawab nahi mila (HTTP "+(r?r.status:"?")+") — admin login/session check karke dobara try karo."; turn.error=true; if(st) st.textContent="Response nahi mila."; }
-          }catch(e){ turn.pending=false; turn.reply="⚠️ Network/auth issue — dobara try karo."; turn.error=true; if(st) st.textContent="Network error."; }
+            }else{
+              var reason="";
+              if(d){
+                if(typeof d.detail==="string") reason=d.detail;
+                else if(d.detail&&typeof d.detail==="object") reason=d.detail.message||d.detail.error||JSON.stringify(d.detail);
+                else if(d.error) reason=typeof d.error==="string"?d.error:JSON.stringify(d.error);
+                else if(d.message) reason=d.message;
+              }
+              var httpCode=(r?r.status:"?");
+              var hint="";
+              if(httpCode===401||httpCode===403) hint=" — admin login/session refresh karo";
+              else if(httpCode===429) hint=" — rate-limit; thodi der ruk ke try karo";
+              else if(httpCode>=500) hint=" — server error, LLM quota ya provider outage check karo";
+              turn.reply="❌ Jawab nahi mila (HTTP "+httpCode+")"+(reason?" — "+reason:"")+(hint||"");
+              turn.error=true;
+              if(st) st.textContent=reason?"Error: "+reason.slice(0,80):"Response nahi mila.";
+            }
+          }catch(e){ turn.pending=false; turn.reply="⚠️ Network/auth issue — "+(e&&e.message?e.message:"dobara try karo"); turn.error=true; if(st) st.textContent="Network error."; }
           save(); render(); btn.disabled=false; btn.textContent=ot||"Bhejo"; input.focus();
         }
         var ai=document.getElementById("agentAskInput"); if(ai) ai.addEventListener("keydown", function(e){ if(e.key==="Enter") agentAsk(); });
@@ -468,6 +489,21 @@
         </div>
       </div>
 
+      <!-- Loop 27 (2026-07-11): UPI Self-Serve Submissions hoisted OUT of the
+           "Technical / Ops Details" collapse (audit §E-#6). This queue is the
+           only active payment-collection channel — burying it one click deeper
+           was blocking payment acceptance. God Mode / MCP / hourly-jobs remain
+           inside the collapse below. -->
+      <div data-view="office" class="card" id="sec-upi-selfserve" style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%);border:1px solid rgba(99,102,241,.6);margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(255,255,255,.1)">
+          <h3 style="font-size:15px;color:#e0e7ff">📥 UPI Self-Serve Submissions <span style="font-weight:400;color:#94a3b8;font-size:11px">(customer ne "maine pay kiya" ref bheja — approve karo)</span></h3>
+          <button class="btn" onclick="loadUpiSelfServe()" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+        </div>
+        <div class="bd" id="upiSelfServeBody" style="color:#e2e8f0">
+          <span style="color:#818cf8;font-size:13px">Loading…</span>
+        </div>
+      </div>
+
       <!-- ══════════════════════════════════════════════════════
            TECHNICAL / OPS DETAILS — collapsed by default (2026-07-01
            admin-friendly-ux pass). God Mode / hourly-job-timeline / LLM-provider
@@ -476,6 +512,7 @@
            expandAdvTech() se auto-open + scroll hota hai; state localStorage me
            yaad rehta hai. Sab child load*() calls DOMContentLoaded me unchanged
            chalte hain (display:none sirf visual — data hamesha fresh rehta hai).
+           2026-07-11: UPI Self-Serve moved ABOVE this wrap (audit §E-#6).
            ══════════════════════════════════════════════════════ -->
       <div data-view="office" class="card" id="sec-advtech-wrap" style="margin-bottom:14px;border:1px dashed #cbd5e1;background:#f8fafc">
         <div class="hd" style="cursor:pointer" onclick="toggleAdvTech()" role="button" tabindex="0" aria-expanded="false" aria-controls="advTechBody" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleAdvTech();}">
@@ -493,21 +530,6 @@
         </div>
         <div class="bd" id="gm-body" style="color:#e2e8f0">
           <span style="color:#818cf8;font-size:13px">Loading system status…</span>
-        </div>
-      </div>
-
-      <!-- UPI Self-Serve Submissions — customer "maine pay kiya" ref queue (DISTINCT
-           from the God Mode "UPI Payment (screenshot → activate)" box above, which
-           scans trial clients waiting for a WhatsApp screenshot. This queue is the
-           customer-typed self-serve submissions from /api/upi/submit — public pay
-           modal + customer portal both write here via POST /api/upi/submit.) -->
-      <div class="card" id="sec-upi-selfserve" style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%);border:1px solid rgba(99,102,241,.3);margin-bottom:14px;scroll-margin-top:80px">
-        <div class="hd" style="border-bottom:1px solid rgba(255,255,255,.1)">
-          <h3 style="font-size:15px;color:#e0e7ff">📥 UPI Self-Serve Submissions <span style="font-weight:400;color:#94a3b8;font-size:11px">(customer ne ref bheja)</span></h3>
-          <button class="btn" onclick="loadUpiSelfServe()" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
-        </div>
-        <div class="bd" id="upiSelfServeBody" style="color:#e2e8f0">
-          <span style="color:#818cf8;font-size:13px">Loading…</span>
         </div>
       </div>
 
@@ -786,6 +808,19 @@
           <span class="right" id="camp-summary" style="color:#86efac;font-size:11px">—</span>
         </div>
         <div class="bd">
+          <!-- Loop 27 (2026-07-11): platform_dial HARD OFF banner. Per CLAUDE.md
+               §5 permanent rule (USER-MANDATE 2026-07-05), platform_dial is
+               kill-switched at 3 layers (PLATFORM_DIAL_DAILY=0, data/platform_dial.json
+               enabled:false, scheduler override paused). Firing this campaign
+               without re-enabling wastes admin's time. Banner clarifies + still
+               allows the button so ops can queue for post-re-enable. -->
+          <div id="platformDialBanner" style="background:#fef2f2;border:1.5px solid #ef4444;border-radius:10px;padding:12px 14px;margin-bottom:14px;display:flex;gap:10px;align-items:flex-start">
+            <span style="font-size:20px">⚠️</span>
+            <div style="flex:1;font-size:12px;color:#7f1d1d;line-height:1.5">
+              <div style="font-weight:800;margin-bottom:2px">Platform-dial HARD OFF (user-mandate 2026-07-05)</div>
+              Fire Campaign will accept your request but the backend blocks dispatch — bot/IVR detection missing tha, real paisa burn ho raha tha. Re-enable karna hai to God Mode → PLATFORM_DIAL_DAILY=1 <b>aur</b> <code style="background:#fee2e2;padding:1px 5px;border-radius:4px">data/platform_dial.json</code> me <code style="background:#fee2e2;padding:1px 5px;border-radius:4px">enabled:true</code> — dono karo, warna ye button silently no-op karega.
+            </div>
+          </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:16px">
             <div style="background:#f8fafc;border:1px solid var(--line);border-radius:10px;padding:14px">
               <div style="font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em">ℹ️ How it works</div>
@@ -1870,9 +1905,33 @@ function adminToast(msg,type){
     el.setAttribute("role","alert");el.setAttribute("aria-live","assertive");el.setAttribute("aria-atomic","true");
     document.body.appendChild(el);}
   el.textContent=msg;
-  el.style.background=type==="error"?"#991b1b":"#0f172a";
+  el.style.background=type==="error"?"#991b1b":(type==="warning"?"#b45309":(type==="success"?"#065f46":"#0f172a"));
   el.classList.add("show");
   clearTimeout(_atT); _atT=setTimeout(()=>el.classList.remove("show"),3500);
+}
+
+/* Loop 28 (2026-07-11): Round-2 audit HIGH-1 — social cockpit paths (retryJob,
+   cancelJob, emergency-stop, pause-platform, pause-clients) call toast(title,msg)
+   but `toast` was NEVER DEFINED in admin_dashboard.html — every call threw
+   ReferenceError, swallowed by outer try/catch → operator saw no feedback on
+   ANY of those 10 ops. This is a canonical wrapper (NOT a recursive alias):
+   it composes title+message into one string, infers type from title prefix,
+   and dispatches to adminToast(). Existing adminToast() callers unaffected. */
+function toast(title, message){
+  var t = String(title == null ? "" : title);
+  var m = String(message == null ? "" : message);
+  var combined = m ? (t + " — " + m) : t;
+  // Infer type from title emoji / prefix — matches conventions used in call sites
+  var type = "info";
+  if (/^(❌|⚠|Error|Failed|failed|Nahi hua|nahi hua|Cancel failed|Retry failed)/i.test(t)) type = "error";
+  else if (/^(⚠|Warning|warning)/i.test(t)) type = "warning";
+  else if (/^(✓|✅|Success|success|Re-queued|Cancelled|Paused|Resumed)/i.test(t)) type = "success";
+  try { adminToast(combined, type); }
+  catch (e) {
+    // Absolute-last-resort fallback so the operator sees SOMETHING even if
+    // adminToast itself throws (DOM not ready, etc.). Never no-ops silently.
+    try { if (typeof console !== "undefined" && console.warn) console.warn("[toast fallback]", combined, e); } catch (_){}
+  }
 }
 
 /* ====== Assessment Scores Widget ====== */
@@ -2767,29 +2826,127 @@ async function c360ScrapeWebsite() {
   }
 }
 
+// Loop 27 (2026-07-11): c360ResetPassword previously used native prompt() —
+// password visible in dialog, shoulder-surfable, no confirm-entry, no strength
+// meter. Replaced with inline overlay modal: password + confirm inputs,
+// live strength meter, generate-random button, and copy-to-clipboard after
+// success so admin can share with the customer.
+function _closeC360PwdModal(){ var m=document.getElementById("c360PwdModalOverlay"); if(m&&m.parentNode) m.parentNode.removeChild(m); }
+function _c360PwdStrength(p){
+  if(!p) return {label:"—",color:"#94a3b8",pct:0};
+  var score=0;
+  if(p.length>=8) score+=25;
+  if(p.length>=12) score+=15;
+  if(/[a-z]/.test(p)&&/[A-Z]/.test(p)) score+=20;
+  if(/\d/.test(p)) score+=20;
+  if(/[^a-zA-Z0-9]/.test(p)) score+=20;
+  score=Math.min(100,score);
+  if(score<40) return {label:"Weak",color:"#ef4444",pct:score};
+  if(score<70) return {label:"OK",color:"#f59e0b",pct:score};
+  return {label:"Strong",color:"#10b981",pct:score};
+}
+function _c360PwdGenerate(){
+  var alph="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+  var out="";
+  var arr=(typeof crypto!=="undefined"&&crypto.getRandomValues)?crypto.getRandomValues(new Uint32Array(14)):null;
+  for(var i=0;i<14;i++){ var idx=arr?arr[i]%alph.length:Math.floor(Math.random()*alph.length); out+=alph[idx]; }
+  var pw=document.getElementById("c360PwdInput"), cf=document.getElementById("c360PwdConfirm");
+  if(pw){ pw.type="text"; pw.value=out; }
+  if(cf){ cf.type="text"; cf.value=out; }
+  _c360PwdUpdate();
+}
+function _c360PwdUpdate(){
+  var pw=(document.getElementById("c360PwdInput")||{}).value||"";
+  var cf=(document.getElementById("c360PwdConfirm")||{}).value||"";
+  var s=_c360PwdStrength(pw);
+  var meter=document.getElementById("c360PwdMeter");
+  var lab=document.getElementById("c360PwdMeterLab");
+  var match=document.getElementById("c360PwdMatch");
+  if(meter){ meter.style.width=s.pct+"%"; meter.style.background=s.color; }
+  if(lab){ lab.textContent=s.label; lab.style.color=s.color; }
+  if(match){
+    if(!cf){ match.textContent=""; match.style.color=""; }
+    else if(cf===pw){ match.textContent="✓ Match"; match.style.color="#10b981"; }
+    else{ match.textContent="✕ Passwords don't match"; match.style.color="#ef4444"; }
+  }
+}
 async function c360ResetPassword() {
-  const cid = _currentC360Id;
-  if (!cid) return;
-  const newPwd = prompt("Enter new password for this customer:");
-  if (newPwd === null) return;
-  if (newPwd.length < 4) {
-    alert("Password too short!");
-    return;
-  }
-  try {
-    const r = await fetch(`/api/admin/clients/${encodeURIComponent(cid)}/password-reset`, {
-      method: "POST",
-      headers: Object.assign({ "Content-Type": "application/json" }, abAuthHdr()),
-      body: JSON.stringify({ password: newPwd })
+  var cid=_currentC360Id;
+  if(!cid) return;
+  _closeC360PwdModal();
+  var overlay=document.createElement("div");
+  overlay.id="c360PwdModalOverlay";
+  overlay.setAttribute("role","dialog");
+  overlay.setAttribute("aria-modal","true");
+  overlay.setAttribute("aria-label","Reset customer password");
+  overlay.style.cssText="position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+  overlay.innerHTML=''
+    +'<div class="card" style="max-width:460px;width:100%;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.4);margin:0">'
+    +'  <div class="hd" style="display:flex;align-items:center;gap:10px">'
+    +'    <h3 style="margin:0;font-size:15px">🔑 Reset password — <span style="color:#6366f1">'+String(cid).replace(/[<>&"]/g,"")+'</span></h3>'
+    +'    <span style="flex:1"></span>'
+    +'    <button class="btn" type="button" onclick="_closeC360PwdModal()" style="padding:4px 10px" aria-label="Close">✕</button>'
+    +'  </div>'
+    +'  <div class="bd">'
+    +'    <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Naya password set karo. Success ke baad "Copy" se customer ko WhatsApp/email pe bhejo.</div>'
+    +'    <label style="display:block;font-size:11px;font-weight:700;margin-bottom:4px">New password</label>'
+    +'    <div style="position:relative">'
+    +'      <input id="c360PwdInput" type="password" autocomplete="new-password" oninput="_c360PwdUpdate()" placeholder="Min 8 chars, use upper+lower+digit+symbol" style="width:100%;padding:9px 44px 9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'      <button type="button" onclick="var i=document.getElementById(\'c360PwdInput\'); if(i){i.type=i.type===\'password\'?\'text\':\'password\'; this.textContent=i.type===\'password\'?\'👁\':\'🙈\';}" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:0;cursor:pointer;font-size:15px" aria-label="Toggle password">👁</button>'
+    +'    </div>'
+    +'    <div style="display:flex;align-items:center;gap:8px;margin-top:6px">'
+    +'      <div style="flex:1;height:6px;background:#e2e8f0;border-radius:99px;overflow:hidden"><div id="c360PwdMeter" style="height:100%;width:0;background:#94a3b8;transition:width .18s,background .18s"></div></div>'
+    +'      <span id="c360PwdMeterLab" style="font-size:11px;font-weight:700;color:#94a3b8;min-width:52px;text-align:right">—</span>'
+    +'    </div>'
+    +'    <label style="display:block;font-size:11px;font-weight:700;margin:12px 0 4px">Confirm password</label>'
+    +'    <input id="c360PwdConfirm" type="password" autocomplete="new-password" oninput="_c360PwdUpdate()" placeholder="Wapas type karo" style="width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font:inherit">'
+    +'    <div id="c360PwdMatch" style="font-size:11px;font-weight:700;margin-top:5px;min-height:14px"></div>'
+    +'    <div id="c360PwdErr" style="font-size:12px;color:#ef4444;margin-top:8px;display:none"></div>'
+    +'    <div style="display:flex;gap:8px;justify-content:space-between;margin-top:14px;align-items:center">'
+    +'      <button class="btn" type="button" onclick="_c360PwdGenerate()" style="padding:8px 12px;font-size:12px">🎲 Generate</button>'
+    +'      <div style="display:flex;gap:8px">'
+    +'        <button class="btn" type="button" onclick="_closeC360PwdModal()" style="padding:8px 14px;font-size:12px">Cancel</button>'
+    +'        <button class="btn primary" id="c360PwdSubmit" type="button" onclick="_c360PwdSubmit()" style="padding:8px 16px;font-size:12px;background:#6366f1">Reset →</button>'
+    +'      </div>'
+    +'    </div>'
+    +'  </div>'
+    +'</div>';
+  overlay.addEventListener("click",function(e){ if(e.target===overlay) _closeC360PwdModal(); });
+  document.body.appendChild(overlay);
+  var esc=function(e){ if(e.key==="Escape"){ _closeC360PwdModal(); document.removeEventListener("keydown",esc); } };
+  document.addEventListener("keydown",esc);
+  setTimeout(function(){ var i=document.getElementById("c360PwdInput"); if(i) i.focus(); },50);
+}
+async function _c360PwdSubmit(){
+  var cid=_currentC360Id;
+  if(!cid) return;
+  var pw=((document.getElementById("c360PwdInput")||{}).value||"");
+  var cf=((document.getElementById("c360PwdConfirm")||{}).value||"");
+  var err=document.getElementById("c360PwdErr");
+  var btn=document.getElementById("c360PwdSubmit");
+  function showErr(m){ if(err){ err.textContent=m; err.style.display="block"; } }
+  if(pw.length<8){ showErr("Password kam se kam 8 char ka hona chahiye."); return; }
+  if(pw!==cf){ showErr("Passwords match nahi ho rahe."); return; }
+  if(err) err.style.display="none";
+  if(btn){ btn.disabled=true; btn.textContent="Saving..."; }
+  try{
+    var r=await fetch("/api/admin/clients/"+encodeURIComponent(cid)+"/password-reset",{
+      method:"POST",
+      headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
+      body:JSON.stringify({password:pw})
     });
-    if (r.ok) {
-      adminToast("✓ Password reset successful!", "success");
+    var d={}; try{ d=await r.json(); }catch(e){}
+    if(r.ok){
+      adminToast("✓ Password reset successful — copy karke customer ko bhejo","success");
+      try{ await navigator.clipboard.writeText(pw); }catch(e){}
+      _closeC360PwdModal();
     } else {
-      adminToast("Password reset failed", "error");
+      var msg=(d&&(d.detail||d.error||d.message))||"Password reset failed";
+      if(typeof msg==="object") msg=JSON.stringify(msg);
+      showErr(msg);
     }
-  } catch (e) {
-    adminToast("Error: " + e.message, "error");
-  }
+  }catch(e){ showErr(e.message||"Network error"); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent="Reset →"; } }
 }
 
 /* --- Delivery Queue Controller --- */
@@ -2899,7 +3056,10 @@ function loadAdminTasks(){
 }
 
 document.addEventListener("DOMContentLoaded", ()=>{
-  showAdminView("command_center");
+  // Loop 28 (2026-07-11): showAdminView("command_center") removed — it set
+  // body[data-active-view] but no CSS rule ever consumed the attribute, so it
+  // was a no-op except for the h1 title update. Round-2 audit HIGH-3.
+  // Kept the function definition for potential future view-switching wiring.
   try{ if(localStorage.getItem("admin_advTechOpen") === "1") _advTechSetOpen(true); }catch(e){}
   _restoreCollapsibleCards();
   loadOfficeTeaser();
@@ -3079,6 +3239,30 @@ function _restoreCollapsibleCards(){
   ["sec-health","sec-agents","sec-recordings","sec-webcalls"].forEach(id=>{
     let open = false;
     try{ open = localStorage.getItem("admin_cardOpen:"+id) === "1"; }catch(e){}
+    _cardSetOpen(id, open);
+  });
+  // Loop 28 (2026-07-11): Round-2 audit HIGH-3 — admin landing was a ~20-card
+  // scroll because there was no view-isolation CSS and every section rendered
+  // at once. Vestigial-by-default sections auto-collapse and get a Dikhao ▾
+  // toggle button injected into their .hd if none exists. State persists per
+  // browser. Users can re-open any card — nothing is permanently hidden.
+  var _vestigial = ["sec-ops2026","sec-audit","sec-api","sec-sync","sec-diff","sec-delivery-queue"];
+  _vestigial.forEach(function(id){
+    var card = document.getElementById(id);
+    if(!card) return;
+    var hd = card.querySelector(".hd");
+    if(hd && !hd.querySelector(".card-collapse-btn")){
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn card-collapse-btn";
+      btn.setAttribute("aria-label","Toggle "+id.replace(/^sec-/,"")+" section");
+      btn.style.cssText = "margin-left:auto;padding:6px 12px;font-size:12px";
+      btn.textContent = "Dikhao ▾";
+      btn.addEventListener("click", function(){ toggleCardCollapse(id); });
+      hd.appendChild(btn);
+    }
+    var open = false;
+    try{ var v = localStorage.getItem("admin_cardOpen:"+id); if(v!==null) open = v === "1"; }catch(e){}
     _cardSetOpen(id, open);
   });
 }
@@ -3305,7 +3489,24 @@ async function onbSubmit(){
 }
 function escH(s){return String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c])}
 function abDate(iso){ if(!iso) return "—"; try{ return new Date(iso).toLocaleDateString("en-IN",{day:"2-digit",month:"short",year:"numeric"}); }catch(e){ return iso; } }
-function abMoney(n,cur){ const c=cur==="USD"?"$":(cur==="EUR"?"€":"₹"); return c+Number(n||0).toLocaleString("en-IN"); }
+// Loop 28 (2026-07-11): Round-2 audit MED-1 — Previously always applied en-IN
+// grouping so $1,000,000 rendered as "$10,00,000" for USD/EUR customers. Now
+// uses proper Intl.NumberFormat per currency code with locale-appropriate
+// grouping (Indian for INR, en-US for USD, de-DE for EUR).
+function abMoney(n, cur){
+  const amt = Number(n || 0);
+  const code = String(cur || "INR").toUpperCase();
+  try {
+    if (code === "USD") return new Intl.NumberFormat("en-US", {style:"currency", currency:"USD", maximumFractionDigits:0}).format(amt);
+    if (code === "EUR") return new Intl.NumberFormat("de-DE", {style:"currency", currency:"EUR", maximumFractionDigits:0}).format(amt);
+    if (code === "GBP") return new Intl.NumberFormat("en-GB", {style:"currency", currency:"GBP", maximumFractionDigits:0}).format(amt);
+    return new Intl.NumberFormat("en-IN", {style:"currency", currency:"INR", maximumFractionDigits:0}).format(amt);
+  } catch (e) {
+    // Fallback for older browsers or unknown codes
+    const sym = code === "USD" ? "$" : (code === "EUR" ? "€" : (code === "GBP" ? "£" : "₹"));
+    return sym + amt.toLocaleString(code === "INR" ? "en-IN" : "en-US");
+  }
+}
 function abShow(id,on){ const el=$(id); if(el) el.style.display=on?"inline-flex":"none"; }
 
 async function loadPendingNiches(){
@@ -3728,7 +3929,7 @@ function renderGodMode(sys, camp){
         <select id="upiPlan_${escH(p.client_id)}" aria-label="Plan to activate for ${escH(p.business_name||p.client_id)}" style="font-size:10px;padding:3px 6px;border-radius:4px">
           <option value="starter">Starter</option><option value="growth">Growth</option><option value="advanced">Advanced</option>
         </select>
-        <button class="btn" onclick="upiActivate('${escH(p.client_id)}')" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Activate</button>
+        <button class="btn" onclick="upiActivate('${escH(p.client_id)}',this)" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Activate</button>
       </div>`;
     });
     html += '</div>';
@@ -3788,7 +3989,7 @@ function renderGodMode(sys, camp){
       <select id="upiManualPlan" aria-label="Plan" style="font-size:10px;padding:6px;border-radius:6px">
         <option value="starter">Starter</option><option value="growth">Growth</option><option value="advanced">Advanced</option>
       </select>
-      <button class="btn" onclick="upiManualActivate()" style="font-size:10px;padding:5px 10px;background:#10b981">✓ Activate</button>
+      <button class="btn" onclick="upiManualActivate(this)" style="font-size:10px;padding:5px 10px;background:#10b981">✓ Activate</button>
     </div>
     <div id="upiSearchHint" style="font-size:10px;color:#94a3b8;margin-top:6px">Screenshot verify ke baad yahan se turant activate — queue ke alawa bhi.</div>
   </div>`;
@@ -3862,8 +4063,8 @@ async function loadUpiSelfServe(){
         + (p.payer_contact?(' · '+escH(p.payer_contact)):'')
         + (hasClient?(' · client: '+escH(p.client_id)):' · client: none (lead only)')
         + '</span>'
-        + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',true)" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Approve</button>'
-        + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',false)" style="font-size:10px;padding:4px 8px;background:#dc2626">✕ Reject</button>'
+        + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',true,this)" style="font-size:10px;padding:4px 8px;background:#10b981">✓ Approve</button>'
+        + '<button class="btn" onclick="upiSelfServeDecide(\''+escH(p.id)+'\',false,this)" style="font-size:10px;padding:4px 8px;background:#dc2626">✕ Reject</button>'
         + '</div>' + noClientNote + '</div>';
     }).join('');
   }catch(e){
@@ -3871,17 +4072,31 @@ async function loadUpiSelfServe(){
   }
 }
 
-async function upiSelfServeDecide(pid, approve){
+// Loop 28 (2026-07-11): Round-2 audit MED-2 — UPI approve/reject/activate
+// used raw alert()/confirm() on the highest-revenue admin flow. Now uses
+// adminToast for success/failure; native confirm() retained ONLY for
+// destructive/reject operations per user directive. Button loading state
+// resets in finally; duplicate clicks blocked via btn.disabled.
+async function upiSelfServeDecide(pid, approve, btn){
   if(approve && !confirm('UPI ref verify ho gaya? Approve + activate karein (agar client account hai)?')) return;
-  if(!approve && !confirm('Yeh submission reject karein?')) return;
+  if(!approve && !confirm('Yeh submission reject karein? Wapas revert nahi hoga.')) return;
+  var origText;
+  if(btn){ btn.disabled=true; origText=btn.textContent; btn.textContent=approve?"Approving…":"Rejecting…"; }
   try{
     const r=await fetch('/api/upi/pending/'+encodeURIComponent(pid)+'/'+(approve?'approve':'reject'),{
       method:'POST', headers:abAuthHdr()
     });
-    const d=await r.json();
-    if(d && d.ok!==false){ loadUpiSelfServe(); }
-    else alert('Fail: '+(d.error||r.status));
-  }catch(e){ alert('Error: '+e.message); }
+    var d={}; try{ d=await r.json(); }catch(e){}
+    if(r.ok && d && d.ok!==false){
+      adminToast(approve?"✅ UPI approved & plan activated":"✕ Submission rejected","success");
+      loadUpiSelfServe();
+    } else {
+      var msg=(d&&(d.detail||d.error||d.message))||("HTTP "+r.status);
+      if(typeof msg==="object") msg=JSON.stringify(msg);
+      adminToast((approve?"Approve":"Reject")+" fail — "+msg,"error");
+    }
+  }catch(e){ adminToast("Network/error — "+(e.message||e),"error"); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=origText; } }
 }
 
 // — MCP server status (secure-off visibility) ──────────────────────
@@ -3939,20 +4154,27 @@ async function mcpHealthRun(){
   }
 }
 
-async function upiActivate(clientId){
+async function upiActivate(clientId, btn){
   const sel = document.getElementById('upiPlan_'+clientId);
   const plan = sel ? sel.value : 'starter';
   if(!confirm('UPI screenshot verify ho gaya? Plan '+plan+' activate karein?')) return;
+  var origText;
+  if(btn){ btn.disabled=true; origText=btn.textContent; btn.textContent="Activating…"; }
   try{
     const r = await fetch('/api/admin/upi/activate',{
       method:'POST',
       headers:Object.assign({'Content-Type':'application/json'}, abAuthHdr()),
       body:JSON.stringify({client_id:clientId, plan:plan, clear_trial:true})
     });
-    const d=await r.json();
-    if(r.ok && d.ok){ alert('✅ Activated: '+clientId+' → '+plan); loadGodMode(); }
-    else alert('Fail: '+(d.detail||d.error||r.status));
-  }catch(e){ alert('Error: '+e.message); }
+    var d={}; try{ d=await r.json(); }catch(e){}
+    if(r.ok && d && d.ok){ adminToast("✅ Activated: "+clientId+" → "+plan,"success"); loadGodMode(); }
+    else {
+      var msg=(d&&(d.detail||d.error))||("HTTP "+r.status);
+      if(typeof msg==="object") msg=JSON.stringify(msg);
+      adminToast("Activate fail — "+msg,"error");
+    }
+  }catch(e){ adminToast("Error — "+(e.message||e),"error"); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=origText; } }
 }
 
 async function upiSearchClients(){
@@ -3971,23 +4193,30 @@ async function upiSearchClients(){
   }catch(e){ if(hint) hint.textContent='Search fail: '+e.message; }
 }
 
-async function upiManualActivate(){
+async function upiManualActivate(btn){
   const sel=document.getElementById('upiManualClient');
   const planEl=document.getElementById('upiManualPlan');
   const cid=sel?sel.value:'';
   const plan=planEl?planEl.value:'starter';
-  if(!cid){ alert('Pehle client search karo'); return; }
+  if(!cid){ adminToast("Pehle client search karo","warning"); return; }
   if(!confirm('UPI verify ho gaya? '+cid+' → '+plan+' activate?')) return;
+  var origText;
+  if(btn){ btn.disabled=true; origText=btn.textContent; btn.textContent="Activating…"; }
   try{
     const r=await fetch('/api/admin/upi/activate',{
       method:'POST',
       headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),
       body:JSON.stringify({client_id:cid,plan:plan,clear_trial:true})
     });
-    const d=await r.json();
-    if(r.ok&&d.ok){ alert('✅ Activated'); loadGodMode(); }
-    else alert('Fail: '+(d.detail||d.error||r.status));
-  }catch(e){ alert('Error: '+e.message); }
+    var d={}; try{ d=await r.json(); }catch(e){}
+    if(r.ok&&d&&d.ok){ adminToast("✅ Activated: "+cid+" → "+plan,"success"); loadGodMode(); }
+    else {
+      var msg=(d&&(d.detail||d.error))||("HTTP "+r.status);
+      if(typeof msg==="object") msg=JSON.stringify(msg);
+      adminToast("Activate fail — "+msg,"error");
+    }
+  }catch(e){ adminToast("Error — "+(e.message||e),"error"); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent=origText; } }
 }
 
 async function waRefreshStatus(){
