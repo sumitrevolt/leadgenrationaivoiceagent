@@ -18,6 +18,7 @@ _HEAVY_WINDOWS: dict[str, tuple[tuple[int, int], tuple[int, int]]] = {
     "trainer": ((3, 0), (4, 30)),
     "blog": ((6, 30), (8, 30)),
     "content": ((7, 0), (9, 0)),
+    "hot_queue_brief": ((8, 15), (9, 15)),
     "digest": ((8, 30), (10, 30)),
     "prospect": ((9, 30), (11, 30)),
     "pipeline": ((11, 0), (12, 0)),

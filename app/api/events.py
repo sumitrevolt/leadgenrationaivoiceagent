@@ -39,7 +39,7 @@ async def _redis_pubsub_stream(request: Request) -> AsyncGenerator[str, None]:
     try:
         import redis.asyncio as aioredis
 
-        from app.core.config import settings
+        from app.config import settings
 
         r = aioredis.from_url(
             settings.redis_url,
@@ -187,7 +187,7 @@ async def publish_to_redis(event: dict) -> None:
     try:
         import redis.asyncio as aioredis
 
-        from app.core.config import settings
+        from app.config import settings
 
         r = aioredis.from_url(
             settings.redis_url,

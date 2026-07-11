@@ -153,6 +153,18 @@ async def signup_health(response: Response) -> dict[str, Any]:
         checks["automation_log"] = {"status": "unhealthy", "error": f"{type(e).__name__}: {e}"[:200]}
         overall_healthy = False
 
+    # 5) Billing usage (activate_plan) reachable — the plan provisioning path
+    #    that silently fails at signup when DB/clients_store is broken.
+    try:
+        from app.billing import usage as _usage
+
+        assert callable(getattr(_usage, "activate_plan", None)), "activate_plan missing"
+        assert callable(getattr(_usage, "reset_usage_period", None)), "reset_usage_period missing"
+        checks["billing_usage"] = {"status": "healthy"}
+    except Exception as e:
+        checks["billing_usage"] = {"status": "unhealthy", "error": f"{type(e).__name__}: {e}"[:200]}
+        overall_healthy = False
+
     result = {
         "status": "healthy" if overall_healthy else "unhealthy",
         "surface": "signup",

@@ -122,6 +122,7 @@ AUTOMATION_FLAGS = [
     "NPS_AUTO",  # periodic NPS/CSAT survey WhatsApp drafts (ban-safe, no auto-send)
     "STALE_INQUIRY_NUDGE",  # untouched >24h inquiry -> follow-up nudge DRAFT
     "OWNER_BRIEF_DAILY",  # roz-subah per-client owner-brief auto-prepare (scheduled studio owner-brief)
+    "HOT_QUEUE_BRIEF_DAILY",  # 08:15 admin revenue brief; health-gated, read-only, default OFF
     "SKILL_PACK",
     "OBSIDIAN_SYNC",  # second-brain markdown staging + daily obsidian_push job (audit 2026-07-04: was registry-invisible)
     "COMBO_PRODUCT",  # Product-3 combo public router mount — OFF default (ADR-009 two-product truth; audit 2026-07-04)

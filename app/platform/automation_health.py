@@ -47,6 +47,7 @@ EXPECTED_GAP_MIN = {
     "trainer": 30 * 60,
     "blog": 30 * 60,
     "content": 30 * 60,
+    "hot_queue_brief": 30 * 60,  # daily 08:15 IST, health-gated revenue brief
     "digest": 30 * 60,
     "prospect": 30 * 60,
     "email_outreach": 24 * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace (90h was a dead-man blind spot)

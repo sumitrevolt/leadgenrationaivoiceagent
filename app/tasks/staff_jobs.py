@@ -48,6 +48,7 @@ STAFF_JOBS = (
     "watchdog",
     "onboard",
     "standup",
+    "hot_queue_brief",
     "engineer_sre",
     "engineer_finops",
     "engineer_security",
@@ -312,9 +313,11 @@ def run_staff_job(self, job: str):
     try:
         from app.platform import team_scheduler
 
-        _run_async(
+        ok = _run_async(
             team_scheduler._run_job(job, retry_count=int(getattr(self.request, "retries", 0) or 0))
         )
+        if ok is False:
+            raise RuntimeError(f"staff job '{job}' reported failure")
         return {"ok": True, "job": job}
     except Exception as e:  # invoke-level failure -> retry, fir DLQ
         logger.warning(f"[staff_jobs] job '{job}' invoke failed: {e}")
