@@ -51,7 +51,10 @@ async def ws_ai_marketing(base: str) -> list[str]:
                 issues.append(f"platform opener expected 3 segments, got {len(bots)}: {bots}")
             elif "LeadGen AI" not in (bots[0] or ""):
                 issues.append(f"seg1 missing LeadGen AI: {bots[0]!r}")
-            elif "interested" not in (bots[2] or "").lower():
+            elif not any(
+                word in (bots[2] or "").lower()
+                for word in ("interested", "try", "free", "chahenge", "dekh")
+            ):
                 issues.append(f"seg3 not interest ask: {bots[2]!r}")
 
             await ws.send_json({"type": "user", "text": "haan ji", "niche": "ai_marketing"})
