@@ -1861,23 +1861,24 @@ function openSetupWizard(){
 }
 /* Loop 28 (2026-07-11): Mobile "More" bottom sheet — surfaces Reports/Delivery/Support
    which were unreachable on phones (Round-2 audit HIGH-2). Sheet is a real dialog
-   with focus management + backdrop close + Esc close. */
-var _moreSheetEsc=null;
+   with focus management + backdrop close + Esc close.
+   Loop 30 (2026-07-12): now uses _focusTrap so Tab wraps within the sheet
+   instead of escaping to the background page; focus restored on close. */
+var _moreSheetUntrap=null;
 function openMoreSheet(){
   var sheet=document.getElementById("mobileMoreSheet"), bd=document.getElementById("mobileMoreBackdrop");
   if(!sheet||!bd) return;
   sheet.classList.add("open"); sheet.setAttribute("aria-hidden","false");
   bd.classList.add("open"); bd.setAttribute("aria-hidden","false");
   document.querySelectorAll('[data-mobile-view]').forEach(function(n){ n.classList.toggle("active", n.getAttribute("data-mobile-view")==="more"); });
-  _moreSheetEsc=function(e){ if(e.key==="Escape") closeMoreSheet(); };
-  document.addEventListener("keydown",_moreSheetEsc);
+  _moreSheetUntrap = _focusTrap(sheet, closeMoreSheet);
   var firstLink=sheet.querySelector('.mms-links a'); if(firstLink) setTimeout(function(){ firstLink.focus(); },80);
 }
 function closeMoreSheet(){
   var sheet=document.getElementById("mobileMoreSheet"), bd=document.getElementById("mobileMoreBackdrop");
   if(sheet){ sheet.classList.remove("open"); sheet.setAttribute("aria-hidden","true"); }
   if(bd){ bd.classList.remove("open"); bd.setAttribute("aria-hidden","true"); }
-  if(_moreSheetEsc){ document.removeEventListener("keydown",_moreSheetEsc); _moreSheetEsc=null; }
+  if(typeof _moreSheetUntrap === "function"){ try{ _moreSheetUntrap(); }catch(_e){} _moreSheetUntrap = null; }
   // Restore active-tab hint on the actual view we're now looking at
   var cur=(document.getElementById("mainContent")||{}).getAttribute && document.getElementById("mainContent").getAttribute("data-active-view");
   document.querySelectorAll('[data-mobile-view]').forEach(function(n){ n.classList.toggle("active", n.getAttribute("data-mobile-view")===cur); });
@@ -3075,7 +3076,49 @@ function _ssConnectCard(plat,label,refHint,requiresRef,platData,accts){
    native dialogs, easy to abandon. Replaced with an inline overlay modal that
    uses the same .card styling; token entered as type=password with a show/hide
    toggle, ref hint inline, cancel button, and disabled submit while inflight. */
-function _closeConnectModal(){ var m=document.getElementById("connectModalOverlay"); if(m&&m.parentNode) m.parentNode.removeChild(m); }
+/* Loop 30 (2026-07-12): Round-3 HIGH-1 — a11y focus-trap helper for the 3
+   Loop-27/28 modals (connect, mobile more sheet, c360 password reset). Without
+   this, Tab focus escapes to the background page while a modal is open and
+   focus is not restored on close. Usage:
+     var untrap = _focusTrap(overlayEl, function(){ closeMe(); });
+     // on close: untrap();
+   Returns a cleanup fn that removes the keydown handler and restores focus
+   to the previously-focused element (usually the button that opened the modal). */
+function _focusTrap(container, onEscape){
+  var prev = document.activeElement;
+  function focusables(){
+    if(!container) return [];
+    var sel = 'a[href],button:not([disabled]),textarea:not([disabled]),input:not([type="hidden"]):not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
+    return Array.prototype.filter.call(container.querySelectorAll(sel), function(el){
+      return el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement;
+    });
+  }
+  function onKey(e){
+    if(e.key === "Escape"){ if(typeof onEscape === "function") onEscape(); return; }
+    if(e.key !== "Tab") return;
+    var f = focusables();
+    if(!f.length){ e.preventDefault(); return; }
+    var first = f[0], last = f[f.length - 1];
+    var active = document.activeElement;
+    if(e.shiftKey && (active === first || !container.contains(active))){
+      last.focus(); e.preventDefault();
+    } else if(!e.shiftKey && (active === last || !container.contains(active))){
+      first.focus(); e.preventDefault();
+    }
+  }
+  document.addEventListener("keydown", onKey, true);
+  return function untrap(){
+    document.removeEventListener("keydown", onKey, true);
+    if(prev && typeof prev.focus === "function"){
+      try{ prev.focus(); }catch(_e){}
+    }
+  };
+}
+var _connectModalUntrap = null;
+function _closeConnectModal(){
+  if(typeof _connectModalUntrap === "function"){ try{ _connectModalUntrap(); }catch(_e){} _connectModalUntrap = null; }
+  var m=document.getElementById("connectModalOverlay"); if(m&&m.parentNode) m.parentNode.removeChild(m);
+}
 async function openConnectDialog(plat,label,refHint,requiresRef){
   _closeConnectModal();
   var overlay=document.createElement("div");
@@ -3115,8 +3158,9 @@ async function openConnectDialog(plat,label,refHint,requiresRef){
     +'</div>';
   overlay.addEventListener("click",function(e){ if(e.target===overlay) _closeConnectModal(); });
   document.body.appendChild(overlay);
-  var esc=function(e){ if(e.key==="Escape"){ _closeConnectModal(); document.removeEventListener("keydown",esc); } };
-  document.addEventListener("keydown",esc);
+  // Loop 30 (2026-07-12): install focus-trap + Esc handler in one call;
+  // untrap runs on _closeConnectModal and restores focus to the "Connect" btn.
+  _connectModalUntrap = _focusTrap(overlay, _closeConnectModal);
   setTimeout(function(){ var i=document.getElementById("cmTok"); if(i) i.focus(); },50);
 }
 async function _submitConnectDialog(plat,label,requiresRef){

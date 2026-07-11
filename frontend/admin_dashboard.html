@@ -2831,7 +2831,45 @@ async function c360ScrapeWebsite() {
 // meter. Replaced with inline overlay modal: password + confirm inputs,
 // live strength meter, generate-random button, and copy-to-clipboard after
 // success so admin can share with the customer.
-function _closeC360PwdModal(){ var m=document.getElementById("c360PwdModalOverlay"); if(m&&m.parentNode) m.parentNode.removeChild(m); }
+/* Loop 30 (2026-07-12): Round-3 HIGH-1 a11y focus-trap helper. Same design as
+   customer_dashboard.html's _focusTrap — keeps Tab within the modal children,
+   restores focus to previously-focused element on close (usually the button
+   that opened the modal). Cleanup fn returned by _focusTrap runs on close. */
+function _focusTrap(container, onEscape){
+  var prev = document.activeElement;
+  function focusables(){
+    if(!container) return [];
+    var sel = 'a[href],button:not([disabled]),textarea:not([disabled]),input:not([type="hidden"]):not([disabled]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
+    return Array.prototype.filter.call(container.querySelectorAll(sel), function(el){
+      return el.offsetWidth > 0 || el.offsetHeight > 0 || el === document.activeElement;
+    });
+  }
+  function onKey(e){
+    if(e.key === "Escape"){ if(typeof onEscape === "function") onEscape(); return; }
+    if(e.key !== "Tab") return;
+    var f = focusables();
+    if(!f.length){ e.preventDefault(); return; }
+    var first = f[0], last = f[f.length - 1];
+    var active = document.activeElement;
+    if(e.shiftKey && (active === first || !container.contains(active))){
+      last.focus(); e.preventDefault();
+    } else if(!e.shiftKey && (active === last || !container.contains(active))){
+      first.focus(); e.preventDefault();
+    }
+  }
+  document.addEventListener("keydown", onKey, true);
+  return function untrap(){
+    document.removeEventListener("keydown", onKey, true);
+    if(prev && typeof prev.focus === "function"){
+      try{ prev.focus(); }catch(_e){}
+    }
+  };
+}
+var _c360PwdUntrap = null;
+function _closeC360PwdModal(){
+  if(typeof _c360PwdUntrap === "function"){ try{ _c360PwdUntrap(); }catch(_e){} _c360PwdUntrap = null; }
+  var m=document.getElementById("c360PwdModalOverlay"); if(m&&m.parentNode) m.parentNode.removeChild(m);
+}
 function _c360PwdStrength(p){
   if(!p) return {label:"—",color:"#94a3b8",pct:0};
   var score=0;
@@ -2913,8 +2951,8 @@ async function c360ResetPassword() {
     +'</div>';
   overlay.addEventListener("click",function(e){ if(e.target===overlay) _closeC360PwdModal(); });
   document.body.appendChild(overlay);
-  var esc=function(e){ if(e.key==="Escape"){ _closeC360PwdModal(); document.removeEventListener("keydown",esc); } };
-  document.addEventListener("keydown",esc);
+  // Loop 30 (2026-07-12): install focus-trap + Esc handler in one call.
+  _c360PwdUntrap = _focusTrap(overlay, _closeC360PwdModal);
   setTimeout(function(){ var i=document.getElementById("c360PwdInput"); if(i) i.focus(); },50);
 }
 async function _c360PwdSubmit(){
