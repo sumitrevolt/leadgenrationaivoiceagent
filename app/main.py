@@ -843,6 +843,14 @@ except Exception as _e:  # pragma: no cover
     logger.warning(f"Team-access router not mounted: {_e}")
 app.include_router(ai_router, prefix="/api", tags=["AI"])
 app.include_router(customer_dashboard_router, tags=["Customer Dashboard"])  # /api/customer/*
+# Loop-social-13 (2026-07-11): OAuth callback stubs — /api/social/oauth/*
+# Never crashes app boot; provider approval flip is env-only, no redeploy.
+try:
+    from app.api.social_oauth import router as social_oauth_router
+
+    app.include_router(social_oauth_router)  # /api/social/oauth/*
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Social OAuth stub router not mounted: {_e}")
 try:
     from app.api.customer_marketing_studio import router as customer_studio_router
 

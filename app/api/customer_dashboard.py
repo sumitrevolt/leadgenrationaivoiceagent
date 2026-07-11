@@ -1310,6 +1310,19 @@ class SocialConfigIn(BaseModel):
     cadence: str = Field("", max_length=16)
     approval_mode: str = Field("", max_length=16)
     postiz_integrations: list[str] = Field(default_factory=list, max_length=20)
+    # Loop-social-19 (2026-07-11): Phase-3 Step-1 + Step-4 fields — all optional
+    # so existing callers/UI stay backward-compat.
+    timezone: str = Field("", max_length=64)
+    website: str = Field("", max_length=300)
+    brand_tone: str = Field("", max_length=80)
+    target_audience: str = Field("", max_length=500)
+    products_or_services: str = Field("", max_length=500)
+    preferred_language: str = Field("", max_length=16)
+    posting_days: list[str] = Field(default_factory=list, max_length=7)
+    posting_times: list[str] = Field(default_factory=list, max_length=8)
+    content_categories: list[str] = Field(default_factory=list, max_length=20)
+    prohibited_topics: list[str] = Field(default_factory=list, max_length=20)
+    brand_safety_instructions: str = Field("", max_length=2000)
 
 
 def _social_status(client_rec: dict | None) -> dict:
@@ -1444,6 +1457,18 @@ def customer_social_save(body: SocialConfigIn, client_id: str = Depends(require_
             cadence=body.cadence,
             approval_mode=body.approval_mode,
             postiz_integrations=body.postiz_integrations,
+            # Loop-social-19: Step-1 + Step-4 field pass-through.
+            timezone=body.timezone or None,
+            website=body.website or None,
+            brand_tone=body.brand_tone or None,
+            target_audience=body.target_audience or None,
+            products_or_services=body.products_or_services or None,
+            preferred_language=body.preferred_language or None,
+            posting_days=body.posting_days or None,
+            posting_times=body.posting_times or None,
+            content_categories=body.content_categories or None,
+            prohibited_topics=body.prohibited_topics or None,
+            brand_safety_instructions=body.brand_safety_instructions or None,
         )
         # Mirror the 3 legacy handles into clients_store.socials so the mini-site /
         # page-kit (jo `socials` padhta) in-sync rahe — profile wizard jaisi hi
@@ -1483,6 +1508,333 @@ def _sync_social_delivery_stage(client_id: str, cfg: dict) -> None:
         log_event(client_id, "social_setup_completed", key="social_setup:done")
     except Exception:
         pass
+
+
+# --------------------------------------------------------------------------- #
+# Social Account CONNECT wizard — provider-mediated fallback (2026-07-11)      #
+#                                                                             #
+# WHY: The `/social/config` wizard above captures HANDLES (public URLs) + prefs.
+# It does NOT give the engine a way to actually publish, because every direct-  #
+# API provider (`MetaProvider`, `GBPProvider`, `LinkedInProvider`, `XProvider`,#
+# `YouTubeProvider`) needs a per-client **access token** in the encrypted vault#
+# (`social_engine.vault.put`). Meta/LinkedIn/GBP OAuth apps are still under    #
+# app-review — so the interim connect flow is a **provider-mediated fallback**:#
+# customer pastes a Page/Business token they obtained externally (Meta Graph   #
+# Explorer / LI Developer app / GBP-linked location owner), we encrypt-and-    #
+# store it via the existing Fernet vault, mark the account connected. Once the #
+# platform-specific OAuth round-trip ships, this route stays as the interim +  #
+# admin fallback path (`meta_pending`, `admin_paste`, `oauth_v1`... in `meta`).#
+#                                                                             #
+# GATED: `SOCIAL_ENGINE` still master-controls whether ANY publish actually    #
+# happens. Connecting an account here NEVER auto-posts. Wizard's approval mode #
+# still gates the "publish" step. Also: token never leaked back to the client. #
+# --------------------------------------------------------------------------- #
+_CONNECT_PLATFORMS = ("facebook", "instagram", "gbp", "linkedin", "x", "youtube", "postiz")
+
+
+def _mask_ref(ref: str) -> str:
+    """Show only tail so customer can distinguish accounts without leaking full id."""
+    r = str(ref or "").strip()
+    if not r:
+        return ""
+    if len(r) <= 6:
+        return "…" + r
+    return "…" + r[-6:]
+
+
+def _mask_token_present(present: bool) -> str:
+    return "✓ stored" if present else "—"
+
+
+class SocialConnectIn(BaseModel):
+    """Per-platform connect input. Token is Fernet-encrypted before it lands on disk.
+
+    account_ref semantics per platform (matches provider dispatch):
+      facebook  = Facebook Page ID
+      instagram = IG Business User ID
+      gbp       = accounts/{aid}/locations/{lid}
+      linkedin  = urn:li:organization:{id} OR urn:li:person:{id}
+      x         = "" (Bearer token is enough for basic tweet post)
+      youtube   = Channel ID
+      postiz    = "" (global admin cfg drives Postiz — customer route mainly declarative)
+    """
+
+    platform: str = Field(..., max_length=32)
+    token: str = Field("", max_length=4096)
+    account_ref: str = Field("", max_length=255)
+    label: str = Field("", max_length=120)
+    source: str = Field(
+        "manual_paste", max_length=32,
+        description="How this token was obtained (manual_paste, admin_paste, oauth_v1)",
+    )
+
+
+@router.get("/social/accounts")
+def customer_social_accounts(client_id: str = Depends(require_customer)) -> dict:
+    """List all social accounts stored for this customer. TOKEN NEVER LEAKED —
+    only presence + masked account_ref + updated_at + meta.source. IDOR-safe
+    (client_id from JWT). Never raises. States:
+        connected            → row exists + token stored + not deleted
+        provider_review_pending → platform requires app-review; will publish only
+                                  once SOCIAL_ENGINE + Meta app-review both pass
+        not_connected        → nothing stored for this platform yet"""
+    try:
+        from app.social_engine import vault
+
+        rows = vault.list_accounts(client_id) or []
+        accounts_by_plat: dict[str, list[dict]] = {p: [] for p in _CONNECT_PLATFORMS}
+        for r in rows:
+            plat = str(r.get("platform") or "").strip().lower()
+            if plat not in accounts_by_plat:
+                continue
+            meta = r.get("meta") or {}
+            accounts_by_plat[plat].append({
+                "platform": plat,
+                "account_ref_masked": _mask_ref(str(r.get("account_ref") or "")),
+                "label": str(meta.get("label") or "")[:120],
+                "source": str(meta.get("source") or "manual_paste")[:32],
+                "updated_at": str(r.get("ts") or ""),
+                "token_stored": _mask_token_present(True),  # list_accounts filters deleted
+            })
+
+        # Platform-level summary — customer wizard consumes this to render per-platform
+        # "Connect / Reconnect / Disconnect" buttons + honest state text.
+        _review_pending = {"facebook", "instagram", "gbp", "linkedin", "x", "youtube"}
+        platforms = []
+        for p in _CONNECT_PLATFORMS:
+            has = bool(accounts_by_plat[p])
+            state = "connected" if has else (
+                "provider_review_pending" if p in _review_pending else "not_connected"
+            )
+            platforms.append({
+                "platform": p,
+                "connected": has,
+                "state": state,
+                "account_count": len(accounts_by_plat[p]),
+                "requires_review": p in _review_pending and not has,
+            })
+
+        return {
+            "ok": True,
+            "platforms": platforms,
+            "accounts": accounts_by_plat,
+        }
+    except Exception as e:
+        logger.debug("customer social accounts list failed: %s", e)
+        return {"ok": False, "platforms": [], "accounts": {}, "error": "load nahi hua"}
+
+
+@router.post(
+    "/social/accounts/connect",
+    dependencies=[Depends(rate_limit("cust_social_connect", 12, 300))],
+)
+def customer_social_accounts_connect(
+    body: SocialConnectIn,
+    client_id: str = Depends(require_customer),
+) -> dict:
+    """Store an encrypted per-client per-platform access token. IDOR-safe: token
+    is stored under the JWT's client_id, NEVER a body-supplied client_id.
+
+    NEVER auto-posts. Just registers the account so `social_engine` can dispatch
+    once `SOCIAL_ENGINE` is enabled by the operator. Token is Fernet-encrypted
+    at rest (`vault._encrypt` — warns loudly if `SOCIAL_TOKEN_KEY`/`SECRET_KEY`
+    both unset). Never-500."""
+    try:
+        from app.social_engine import vault
+
+        plat = str(body.platform or "").strip().lower()
+        if plat not in _CONNECT_PLATFORMS:
+            raise HTTPException(status_code=400, detail={
+                "error": "invalid_platform",
+                "message": f"Sirf {', '.join(_CONNECT_PLATFORMS)} allowed hain",
+            })
+        tok = str(body.token or "").strip()
+        if not tok or len(tok) < 8:
+            raise HTTPException(status_code=400, detail={
+                "error": "invalid_token",
+                "message": "Access token kam se kam 8 char ka hona chahiye",
+            })
+        ref = str(body.account_ref or "").strip()[:255]
+        # Meta / GBP / LI ke liye account_ref MANDATORY (dispatch node id). X/YT
+        # ke liye optional — provider unhe token alone se resolve karta.
+        if plat in ("facebook", "instagram", "gbp", "linkedin") and not ref:
+            raise HTTPException(status_code=400, detail={
+                "error": "account_ref_required",
+                "message": {
+                    "facebook": "Facebook Page ID chahiye",
+                    "instagram": "Instagram Business User ID chahiye",
+                    "gbp": "GBP location resource (accounts/…/locations/…) chahiye",
+                    "linkedin": "LinkedIn organization/person urn chahiye",
+                }.get(plat, "account_ref chahiye"),
+            })
+
+        source = str(body.source or "manual_paste").strip().lower()
+        if source not in ("manual_paste", "admin_paste", "oauth_v1"):
+            source = "manual_paste"
+        meta = {
+            "label": str(body.label or "")[:120],
+            "source": source,
+        }
+        ok = bool(vault.put(client_id, plat, tok, account_ref=ref, meta=meta))
+        if not ok:
+            return {"ok": False, "error": "vault_put_failed",
+                    "message": "Token save nahi hua, dobara try karo"}
+
+        # Best-effort delivery-ledger + team-feed logging so ops/customer both see the
+        # connect event. Never-raise (best-effort per §4).
+        try:
+            from app.marketing import delivery_ledger
+
+            delivery_ledger.log_event(
+                client_id, "social_setup_completed",
+                detail=f"{plat} account connected", key=f"social_connect:{plat}:{ref}",
+            )
+        except Exception:
+            pass
+        try:
+            from app.platform import team
+
+            team.log_event(
+                "zara", "social_account_connected",
+                f"{client_id}: {plat} account connected (source={source})",
+                status="ok",
+            )
+        except Exception:
+            pass
+
+        return {
+            "ok": True,
+            "platform": plat,
+            "account_ref_masked": _mask_ref(ref),
+            "state": "connected",
+            "note": "Connect ho gaya. Actual publish `SOCIAL_ENGINE` on hone par shuru hoga.",
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("customer social connect failed: %s", e)
+        return {"ok": False, "error": "connect_failed", "message": str(e)[:160]}
+
+
+@router.delete("/social/accounts/{platform}")
+def customer_social_accounts_disconnect(
+    platform: str,
+    account_ref: str = Query("", max_length=255),
+    client_id: str = Depends(require_customer),
+) -> dict:
+    """Soft-delete a stored social account (`vault.delete` → deleted marker in
+    JSONL, latest-wins). IDOR-safe (client_id from JWT). Never-500."""
+    try:
+        from app.social_engine import vault
+
+        plat = str(platform or "").strip().lower()
+        if plat not in _CONNECT_PLATFORMS:
+            raise HTTPException(status_code=400, detail="invalid platform")
+        ok = bool(vault.delete(client_id, plat, account_ref=(account_ref or "").strip()[:255]))
+        try:
+            from app.platform import team
+
+            team.log_event(
+                "zara", "social_account_disconnected",
+                f"{client_id}: {plat} account_ref={_mask_ref(account_ref)}",
+                status="warn",
+            )
+        except Exception:
+            pass
+        return {"ok": ok, "platform": plat, "state": "disconnected"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.warning("customer social disconnect failed: %s", e)
+        return {"ok": False, "error": "disconnect_failed", "message": str(e)[:160]}
+
+
+@router.get("/social/readiness")
+def customer_social_readiness(client_id: str = Depends(require_customer)) -> dict:
+    """Loop-social-16 (2026-07-11): Phase-3 Step-5 readiness check. Aggregates
+    signals from business profile + brand assets + social accounts + prefs
+    into a single completeness score + missing-piece list so the wizard shows
+    "80% ready — 2 items pending" and the customer never leaves setup blindly.
+
+    Never raises; empty client → all-required."""
+    try:
+        from app.marketing import clients_store
+        from app.social_engine import client_config as _cc
+        from app.social_engine import vault as _vault
+
+        rec = clients_store.get_client(client_id) or {}
+        cfg = _cc.get(client_id) or {}
+        accts = _vault.list_accounts(client_id) or []
+        socials = rec.get("socials") or {}
+        assets = rec.get("brand_assets") or {}
+
+        checks = []
+
+        def _add(key: str, label: str, ok: bool, action: str) -> None:
+            checks.append({"key": key, "label": label, "ok": bool(ok),
+                           "action": "" if ok else action})
+
+        # Step 1: business profile
+        _add("business_name",  "Business ka naam",
+             bool(str(rec.get("business_name") or "").strip()),
+             "Business name add karo")
+        _add("niche",          "Niche / category",
+             bool(str(rec.get("niche") or "").strip()),
+             "Niche select karo")
+        _add("location",       "Location / city",
+             bool(str(rec.get("city") or rec.get("location") or "").strip()),
+             "Sheher select karo")
+        _add("phone",          "Contact number",
+             bool(str(rec.get("phone") or "").strip()),
+             "WhatsApp number add karo")
+        _add("email",          "Email",
+             bool(str(rec.get("email") or "").strip()),
+             "Email confirm karo")
+
+        # Step 2: brand assets
+        _add("brand_logo",     "Logo",
+             bool(assets.get("logo_url") or rec.get("logo_url")),
+             "Logo upload karo (Brand section)")
+        _add("brand_colors",   "Brand color",
+             bool(assets.get("primary_color") or rec.get("primary_color")),
+             "Ek brand color choose karo")
+
+        # Step 3: at least one social account connected OR a social handle
+        has_any_social = bool(accts) or any(
+            str(socials.get(k) or "").strip() for k in ("instagram", "facebook", "gbp")
+        )
+        _add("social_account", "Ek social account",
+             has_any_social,
+             "Kam se kam ek Instagram/Facebook/GBP connect karo")
+
+        # Step 4: content prefs
+        _add("channels_chosen", "AI kin channels ke liye content banaye",
+             bool(cfg.get("channels")),
+             "Wizard me channel select karo")
+        _add("cadence",        "Content cadence",
+             str(cfg.get("cadence") or "").strip() not in ("", "off"),
+             "Weekly cadence choose karo")
+        _add("approval_mode",  "Approval preference",
+             bool(str(cfg.get("approval_mode") or "").strip()),
+             "Approve-mode select karo (recommended: review)")
+
+        total = len(checks)
+        done = sum(1 for c in checks if c["ok"])
+        pending = [c for c in checks if not c["ok"]]
+        percent = int(round(100.0 * done / total)) if total else 0
+        return {
+            "ok": True,
+            "score": percent,
+            "done": done,
+            "total": total,
+            "checks": checks,
+            "pending": pending,
+            "ready_to_publish": percent >= 80 and any(c["key"] == "social_account" and c["ok"] for c in checks),
+        }
+    except Exception as e:
+        logger.debug("customer social readiness failed: %s", e)
+        return {"ok": False, "score": 0, "checks": [], "pending": [],
+                "ready_to_publish": False, "error": "readiness load nahi hua"}
 
 
 @router.get("/branded-feed")

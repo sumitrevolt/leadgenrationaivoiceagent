@@ -92,13 +92,29 @@ def put(
     token: str,
     account_ref: str = "",
     meta: dict[str, Any] | None = None,
+    expires_at: str = "",
 ) -> bool:
+    """Loop-social-11 (2026-07-11): expires_at (ISO string) tracked for FB/LI
+    60-day token rotation. Optional — empty means unknown/never-expires (e.g.
+    LinkedIn app tokens, Postiz gateway keys, WhatsApp self-host). Meta gains
+    `token_expiry_source` (`fb_60d_default` etc) so ops can distinguish computed
+    vs owner-provided expiry."""
     try:
         client_id = (client_id or "").strip()
         platform = (platform or "").strip().lower()
         if not client_id or not platform or not token:
             return False
         enc_val, enc = _encrypt(str(token))
+        meta = dict(meta or {})
+        # If caller didn't supply expiry, apply platform defaults for the two
+        # platforms with hard finite windows so the token-expiry watcher can
+        # warn ahead of time.
+        eff_expiry = (expires_at or "").strip()
+        if not eff_expiry:
+            _default = _default_expiry_for(platform)
+            if _default:
+                eff_expiry = _default
+                meta.setdefault("token_expiry_source", f"{platform}_default")
         rec = {
             "k": _key(client_id, platform, account_ref or ""),
             "client_id": client_id,
@@ -106,7 +122,8 @@ def put(
             "account_ref": account_ref or "",
             "tok": enc_val,
             "enc": enc,
-            "meta": meta or {},
+            "meta": meta,
+            "expires_at": eff_expiry,
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
         }
         os.makedirs(os.path.dirname(_PATH) or ".", exist_ok=True)
@@ -116,6 +133,85 @@ def put(
     except Exception as e:
         logger.warning(f"[vault] put failed: {e}")
         return False
+
+
+def _default_expiry_for(platform: str) -> str:
+    """Platform-typical expiry window. FB Page tokens ~60d, LI 60d. Others =
+    unknown/none. Returns ISO date string or ''."""
+    import datetime as _dt
+
+    windows = {"facebook": 60, "instagram": 60, "linkedin": 60}
+    days = windows.get(platform.lower())
+    if not days:
+        return ""
+    return (_dt.datetime.utcnow() + _dt.timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def is_expired(rec: dict[str, Any]) -> bool:
+    """True iff `expires_at` is set and in the past. Unknown expiry = never
+    expires (empty string). Never raises."""
+    try:
+        exp = str((rec or {}).get("expires_at") or "").strip()
+        if not exp:
+            return False
+        import datetime as _dt
+
+        # Accept both "YYYY-MM-DDTHH:MM:SS" and date-only.
+        try:
+            when = _dt.datetime.fromisoformat(exp)
+        except ValueError:
+            when = _dt.datetime.strptime(exp[:10], "%Y-%m-%d")
+        return when < _dt.datetime.utcnow()
+    except Exception:
+        return False
+
+
+def is_expiring_soon(rec: dict[str, Any], days: int = 7) -> bool:
+    """True iff token expires within `days` days (default 7). Includes
+    already-expired tokens for the admin cockpit summary."""
+    try:
+        exp = str((rec or {}).get("expires_at") or "").strip()
+        if not exp:
+            return False
+        import datetime as _dt
+
+        try:
+            when = _dt.datetime.fromisoformat(exp)
+        except ValueError:
+            when = _dt.datetime.strptime(exp[:10], "%Y-%m-%d")
+        delta = when - _dt.datetime.utcnow()
+        return delta.total_seconds() < days * 86400
+    except Exception:
+        return False
+
+
+def check_token_expiries(days: int = 7) -> dict[str, Any]:
+    """Scheduler-friendly sweep. Emits `token_expired` delivery-ledger event per
+    expired token + returns admin cockpit summary. Never raises."""
+    expired: list[dict[str, Any]] = []
+    warning: list[dict[str, Any]] = []
+    try:
+        for rec in list_accounts(""):
+            if is_expired(rec):
+                expired.append(rec)
+            elif is_expiring_soon(rec, days=days):
+                warning.append(rec)
+        for row in expired:
+            try:
+                from app.marketing import delivery_ledger
+
+                delivery_ledger.log_event(
+                    str(row.get("client_id") or ""),
+                    "token_expired",
+                    detail=f"{row.get('platform')} account {row.get('account_ref') or ''}"[:200],
+                    key=f"token_expired:{row.get('platform')}:{row.get('account_ref')}",
+                )
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning(f"[vault] check_token_expiries failed: {e}")
+    return {"expired": expired, "warning": warning,
+            "expired_count": len(expired), "warning_count": len(warning)}
 
 
 def _latest() -> dict[str, dict[str, Any]]:

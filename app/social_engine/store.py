@@ -149,7 +149,36 @@ def _latest() -> dict[str, dict[str, Any]]:
     return out
 
 
+def _norm_hashtags(raw: Any) -> list[str]:
+    """Loop-social-9 (2026-07-11): coerce hashtags into a clean lowercase list.
+    Accepts list, tuple, csv string, or space-separated string. Strips '#'."""
+    if raw is None:
+        return []
+    if isinstance(raw, str):
+        # Split on space / comma so both "#a #b" and "#a,#b" work.
+        parts = [p for p in raw.replace(",", " ").split() if p]
+    elif isinstance(raw, (list, tuple)):
+        parts = [str(p) for p in raw]
+    else:
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for p in parts:
+        p = p.strip().lstrip("#").lower()
+        if p and p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out[:60]  # sane upper bound; platform validators enforce per-platform
+
+
 def enqueue(job: dict[str, Any]) -> str:
+    """Loop-social-9 (2026-07-11): extended post metadata schema (Phase 6).
+    Additive — every new field defaults empty/zero so callers written for the
+    pre-Loop-9 API continue to work verbatim. New fields:
+      campaign_id, language, hashtags (list), cta, scheduled_time, timezone,
+      created_by, reviewed_by, delivery_event_id, content_type.
+    (retry_count is aliased to `attempts` — already tracked; last_error already
+    written by drain.)"""
     try:
         jid = uuid.uuid4().hex[:16]
         rec = {
@@ -165,6 +194,24 @@ def enqueue(job: dict[str, Any]) -> str:
             "status": "queued",
             "attempts": 0,
             "created_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            # Loop-social-9: canonical Phase-6 metadata (all optional).
+            "campaign_id": str(job.get("campaign_id") or ""),
+            "language": str(job.get("language") or ""),
+            "hashtags": _norm_hashtags(job.get("hashtags")),
+            "cta": str(job.get("cta") or ""),
+            "scheduled_time": str(job.get("scheduled_time") or ""),
+            "timezone": str(job.get("timezone") or ""),
+            "created_by": str(job.get("created_by") or "system"),
+            "reviewed_by": str(job.get("reviewed_by") or ""),
+            "delivery_event_id": str(job.get("delivery_event_id") or ""),
+            "content_type": str(job.get("content_type") or ""),
+            # Loop-social-21 (2026-07-11): media_assets multi-asset support +
+            # approval_status snapshot so the drain can honestly decline
+            # publishing an unapproved job. Additive over media_path/media_url.
+            "media_assets": (
+                job.get("media_assets") if isinstance(job.get("media_assets"), list) else []
+            ),
+            "approval_status": str(job.get("approval_status") or "").lower(),
         }
         _append(rec)
         _mirror(rec)

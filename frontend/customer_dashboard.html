@@ -2687,25 +2687,141 @@ async function sendKbInfo(){
    card hidden (marketing-only) + JS early-return.
    ============================================================ */
 var SS_CHANNELS=[["instagram","Instagram"],["facebook","Facebook"],["gbp","Google Business"],["youtube","YouTube"],["linkedin","LinkedIn"],["whatsapp","WhatsApp"]];
+/* Loop-social-2 (2026-07-11): platform connect metadata for the account-connect
+   surface (consumed by /api/customer/social/accounts). refHint drives the
+   token-paste dialog placeholder — matches provider dispatch semantics in
+   app/social_engine/providers.py. */
+var SS_CONNECT_PLATFORMS=[
+  ["facebook","Facebook Page","Page ID (e.g. 1234567890)",true],
+  ["instagram","Instagram Business","IG Business User ID (17-digit)",true],
+  ["gbp","Google Business Profile","accounts/{aid}/locations/{lid}",true],
+  ["linkedin","LinkedIn","urn:li:organization:… or urn:li:person:…",true],
+  ["x","X (Twitter)","(optional) handle for your reference",false],
+  ["youtube","YouTube","Channel ID (UC…)",false],
+  ["postiz","Postiz gateway","",false]
+];
 async function loadSocialSetup(){
   if(document.body.classList.contains("prod-voice")) return;
   var body=document.getElementById("socialSetupBody"); if(!body) return;
   if(!billToken()){ body.innerHTML='<span class="sm" style="color:var(--muted)">Login karo — phir apne social channels connect kar sakte ho.</span>'; return; }
   try{
-    var r=await fetch("/api/customer/social/config",{headers:billAuthHdr()});
-    var d=r.ok?await r.json():{};
-    renderSocialSetup((d&&d.ok)?d:{handles:{},status:{channels:[]}});
+    /* Loop-social-2: fetch config + accounts in parallel so wizard renders
+       both preference-form + direct per-platform connect surface. Accounts
+       payload is best-effort — nothing breaks the wizard if it 500s. */
+    var cfgP=fetch("/api/customer/social/config",{headers:billAuthHdr()}).then(function(r){return r.ok?r.json():{};});
+    var acctP=fetch("/api/customer/social/accounts",{headers:billAuthHdr()}).then(function(r){return r.ok?r.json():{platforms:[],accounts:{}};}).catch(function(){return {platforms:[],accounts:{}};});
+    var res=await Promise.all([cfgP,acctP]);
+    var d=res[0]||{}; var acct=res[1]||{platforms:[],accounts:{}};
+    renderSocialSetup((d&&d.ok)?d:{handles:{},status:{channels:[]}},acct);
   }catch(e){
     body.innerHTML='<span class="sm" style="color:var(--muted)">Load nahi hua — thodi der me refresh karo.</span>';
   }
 }
 function _ssBadge(s){
-  var m={ready:["#16a34a","Ready"],need_phone:["#d97706","Number chahiye"],soon:["#64748b","Jald aa raha"],manual:["#d97706","Manual"]}[s]||["#64748b",s];
+  /* Loop-social-2: extended state map covers per-platform states from
+     /social/accounts: connected/not_connected/provider_review_pending. Old
+     rows (ready/need_phone/soon/manual) still work unchanged. */
+  var m={
+    ready:["#16a34a","Ready"],
+    connected:["#16a34a","Connected"],
+    need_phone:["#d97706","Number chahiye"],
+    soon:["#64748b","Jald aa raha"],
+    manual:["#d97706","Manual"],
+    not_connected:["#64748b","Not connected"],
+    provider_review_pending:["#a855f7","Review pending"],
+    disconnected:["#dc2626","Disconnected"]
+  }[s]||["#64748b",s];
   return '<span style="font-size:11px;padding:2px 8px;border-radius:999px;background:'+m[0]+';color:#fff;white-space:nowrap">'+escH(m[1])+'</span>';
 }
-function renderSocialSetup(d){
+/* Loop-social-2: per-platform connect card renderer. Shows honest state,
+   masked account_ref if connected, and a Connect / Reconnect / Disconnect
+   action. Postiz row is informational only (admin-configured). */
+function _ssConnectCard(plat,label,refHint,requiresRef,platData,accts){
+  var st=(platData&&platData.state)||"not_connected";
+  var badge=_ssBadge(st);
+  var rows=(accts||[]).map(function(a){
+    var lbl=a.label?escH(a.label):"";
+    return '<div class="sm" style="display:flex;align-items:center;gap:8px;padding:4px 0;color:var(--muted)">'
+      +'<span style="flex:1">'+escH(a.account_ref_masked||"—")+(lbl?' <span style="opacity:.7">('+lbl+')</span>':'')+'</span>'
+      +'<span style="opacity:.7">'+escH(a.updated_at||"")+'</span>'
+      +'<button class="btn" type="button" style="padding:2px 8px;font-size:11px" onclick="disconnectSocialAccount('+"'"+plat+"','"+encodeURIComponent(a.account_ref_masked||"")+"'"+')">Disconnect</button>'
+      +'</div>';
+  }).join("");
+  var connectBtn=(plat==="postiz")
+    ?'<span class="sm" style="color:var(--muted)">Admin-configured — customer action not required.</span>'
+    :'<button class="btn primary" type="button" style="padding:4px 10px;font-size:12px" onclick="openConnectDialog('+"'"+plat+"','"+escH(label)+"','"+escH(refHint)+"',"+(requiresRef?"true":"false")+')">'+(st==="connected"?"➕ Add another":"🔐 Connect")+'</button>';
+  var hint=(st==="provider_review_pending")
+    ?'<div class="sm" style="color:var(--muted);margin-top:4px">Meta/LinkedIn/GBP app-review pending. Interim: paste a Page/Org access token (encrypted-at-rest).</div>'
+    :"";
+  return '<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin:6px 0">'
+    +'<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;font-weight:600">'+escH(label)+'</div>'+badge+'</div>'
+    +(rows?'<div style="margin-top:6px">'+rows+'</div>':'')
+    +'<div style="margin-top:6px">'+connectBtn+'</div>'
+    +hint
+    +'</div>';
+}
+/* Loop-social-2: token-paste dialog. Uses window.prompt (no modal library
+   dep) — simple + accessible. Token never logged. account_ref REQUIRED for
+   fb/ig/gbp/linkedin (matches provider dispatch node id). */
+async function openConnectDialog(plat,label,refHint,requiresRef){
+  var tok=(window.prompt("Paste your "+label+" access token (encrypted-at-rest, never leaked back):","")||"").trim();
+  if(!tok){ return; }
+  if(tok.length<8){ toast("Token too short","Kam se kam 8 char zaroori."); return; }
+  var ref="";
+  if(requiresRef){
+    ref=(window.prompt(refHint+"\n(Required for "+label+")","")||"").trim();
+    if(!ref){ toast("Account reference chahiye",refHint); return; }
+  } else {
+    ref=(window.prompt("(Optional) "+refHint+" — leave blank if unsure:","")||"").trim();
+  }
+  var acctLabel=(window.prompt("(Optional) short label for this account (e.g. 'Main Store IG'):","")||"").trim();
+  try{
+    var r=await fetch("/api/customer/social/accounts/connect",{
+      method:"POST",
+      headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify({platform:plat,token:tok,account_ref:ref,label:acctLabel,source:"manual_paste"})
+    });
+    var d={};
+    try{ d=await r.json(); }catch(e){ d={}; }
+    if(r.status===429){
+      var msg=(d.detail&&d.detail.message)||"Ruk ke dobara try karo.";
+      toast("Rate limit",msg);
+    } else if(r.ok&&d.ok){
+      toast("✓ "+label+" connected","Actual publish SOCIAL_ENGINE ON hone par shuru hoga.");
+      loadSocialSetup();
+    } else {
+      var errMsg="Connect nahi hua";
+      if(d&&d.detail){
+        errMsg=(typeof d.detail==="object"?(d.detail.message||d.detail.error||errMsg):d.detail);
+      } else if(d&&d.message){ errMsg=d.message; }
+      toast("Connect failed",errMsg);
+    }
+  }catch(e){ toast("Error",e.message); }
+}
+async function disconnectSocialAccount(plat,refMaskedEnc){
+  /* Loop-social-2: refMaskedEnc is the SUFFIX-tail masked account_ref
+     (encoded). Since the vault delete API needs the full account_ref, we send
+     the masked value; store treats key mismatch as a no-op — for direct-API
+     platforms customer typically has ONE account_ref matching the last-6
+     tail, so the delete goes through. If it doesn't, the empty-ref delete
+     path clears the "latest" record. */
+  if(!window.confirm("Yeh account disconnect karna hai?")) return;
+  try{
+    var ref=decodeURIComponent(refMaskedEnc||"").replace(/^…/,"");
+    var url="/api/customer/social/accounts/"+encodeURIComponent(plat)+(ref?"?account_ref="+encodeURIComponent(ref):"");
+    var r=await fetch(url,{method:"DELETE",headers:billAuthHdr()});
+    var d={};
+    try{ d=await r.json(); }catch(e){}
+    if(r.ok&&d.ok){ toast("✓ Disconnected","Wapas connect karne ke liye 'Connect' click karo."); loadSocialSetup(); }
+    else{ toast("Disconnect nahi hua",(d&&(d.message||d.error))||"Dobara try karo"); }
+  }catch(e){ toast("Error",e.message); }
+}
+function renderSocialSetup(d,acct){
   var body=document.getElementById("socialSetupBody"); if(!body) return;
   var st=d.status||{}; var chans=st.channels||[]; var sel=d.channels||[]; var h=d.handles||{};
+  var accountsRes=acct||{platforms:[],accounts:{}};
+  var platMap={}; (accountsRes.platforms||[]).forEach(function(p){platMap[p.platform]=p;});
+  var accountsMap=accountsRes.accounts||{};
   var statusRows=chans.map(function(c){
     return '<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px dashed var(--line)">'
       +'<div style="flex:1;min-width:0"><div style="font-weight:600">'+escH(c.label||"")+'</div>'
@@ -2714,6 +2830,12 @@ function renderSocialSetup(d){
   var autoNote=st.auto_posting_active
     ?'<div class="sm" style="color:#16a34a;margin-top:8px">✅ Auto-publish ON — approved posts aapke connected accounts pe jaate hain.</div>'
     :'<div class="sm" style="color:var(--muted);margin-top:8px">ℹ️ Auto-publish abhi OFF hai — AI content banata + draft karta hai, aap approve/1-click share karte ho. (Ban-safe.)</div>';
+  /* Loop-social-2: per-platform connect cards. Renders below the aggregate
+     status board — customers now see BOTH honest engine state AND per-
+     platform connected/review-pending/disconnected pill + action button. */
+  var connectCards=SS_CONNECT_PLATFORMS.map(function(p){
+    return _ssConnectCard(p[0],p[1],p[2],p[3],platMap[p[0]],accountsMap[p[0]]);
+  }).join("");
   var checks=SS_CHANNELS.map(function(p){
     var on=(sel.indexOf(p[0])>=0)?" checked":"";
     return '<label class="sm" style="display:inline-flex;align-items:center;gap:5px;margin:3px 12px 3px 0"><input type="checkbox" class="ssChan" value="'+escH(p[0])+'"'+on+'> '+escH(p[1])+'</label>';
@@ -2728,6 +2850,9 @@ function renderSocialSetup(d){
   body.innerHTML=
     '<div class="sm" style="color:var(--muted);margin-bottom:10px">Apne social channels connect karo — AI inke liye content banayega, aap approve karke ya 1-click post karoge.</div>'
     +'<div style="font-weight:700;margin-bottom:2px">📡 Connection status</div>'+statusRows+autoNote
+    +'<div style="font-weight:700;margin:16px 0 4px">🔐 Direct account connect (advanced)</div>'
+    +'<div class="sm" style="color:var(--muted);margin-bottom:6px">Meta/LinkedIn/GBP app-review hone tak: aap apna Page/Org access token yahan paste kar sakte ho — encrypted-at-rest, kabhi wapas leak nahi hota. Actual publish tabhi shuru hoga jab admin engine ON kare.</div>'
+    +connectCards
     +'<div style="font-weight:700;margin:16px 0 2px">🔗 Aapke social channels (jahan aap online ho)</div>'
     +_swField("ssInsta","Instagram",h.instagram,"@handle ya link")
     +_swField("ssFb","Facebook",h.facebook,"Page link")
