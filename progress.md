@@ -2128,3 +2128,15 @@ Verification Evidence: `deleted_key_result=1`, `dead_after=0`, `failed_dlq=0`, `
 Risks: Original dead entries are no longer in the live Redis key; recovery is available from the backup file if needed.
 Remaining: None for this DLQ cleanup.
 Next Highest Priority: Monitor new failed/dead task counts during the next scheduler cycle.
+
+## Loop Run
+Date: 2026-07-11
+Goal: Audit whether project automations are wired, enabled appropriately, and running in production.
+Inspected: Local automation health/anomaly audit, workflow gap probe, production readiness/wiring graph, VPS health, containers, Redis queues, Celery beat logs, worker errors, agent flow/events, flag snapshot.
+Problems Found: Local audit is development-only and reports stale heartbeat by design; workflow probe cannot use local Redis as production truth. Historical WAHA failures existed before the successful relink. Safety-gated automations are intentionally OFF, so “all flags ON” is neither expected nor compliant.
+Changed: No code or configuration mutation; read-only audit only.
+Tests Run: `automation_health_audit --daily-check` and `--anomalies`; `workflow_gap_probe`; `prod_check.py`; VPS 2x health and live queue/log checks.
+Verification Evidence: `prod_check` PASS (1098 routes, 0 wiring gaps, 80/80 engine coverage); app/worker/heavy/video/scheduler healthy; scheduler emitted due tasks at 20:05–20:30 IST; real agent events present through 20:00 IST; main queue, failed DLQ and dead DLQ all `0`; no worker error/async-loop/WAHA errors in the latest 30-minute window; production health 2/2 healthy.
+Risks: Individual provider/channel automations still depend on external credentials and consent; disabled safety flags must remain disabled until separately approved; a green scheduler proves dispatch, not every downstream business outcome.
+Remaining: Postiz OAuth/channel setup and authenticated Vobiz probe remain external; continue per-job outcome monitoring and delivery evidence for paid-customer actions.
+Next Highest Priority: Add outcome-level dashboards/alerts for each high-value automation, not just scheduler dispatch and queue health.
