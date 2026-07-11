@@ -63,6 +63,7 @@ class VectorStore:
         self._client = None
         self._collection = None
         self._embedder = None
+        self._embedder_kind = ""
 
         logger.info(f"📦 Vector store initialized: {persist_directory}")
 
@@ -116,18 +117,32 @@ class VectorStore:
 
                 # Multilingual model for Hindi/English
                 self._embedder = SentenceTransformer("paraphrase-multilingual-MiniLM-L12-v2")
+                self._embedder_kind = "sentence_transformers"
                 logger.info("🧠 Embedding model loaded")
             except ImportError:
                 logger.warning("sentence-transformers not installed")
-                self._embedder = MockEmbedder()
+                try:
+                    from fastembed import TextEmbedding
+
+                    self._embedder = TextEmbedding(
+                        model_name="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+                    )
+                    self._embedder_kind = "fastembed"
+                    logger.info("FastEmbed multilingual embedding model loaded")
+                except Exception as e:
+                    logger.warning(f"embedding model unavailable: {type(e).__name__}")
+                    self._embedder = MockEmbedder()
+                    self._embedder_kind = "mock"
 
         return self._embedder
 
     def _generate_embedding(self, text: str) -> list[float]:
         """Generate embedding for text"""
         try:
+            if self._embedder_kind == "fastembed":
+                return list(next(self.embedder.embed([text])))
             embedding = self.embedder.encode(text)
-            return embedding.tolist()
+            return embedding.tolist() if hasattr(embedding, "tolist") else list(embedding)
         except Exception as e:
             logger.error(f"Embedding generation failed: {e}")
             return [0.0] * 384  # Default dimension
