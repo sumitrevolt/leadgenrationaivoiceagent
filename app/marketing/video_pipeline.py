@@ -124,10 +124,21 @@ def _make_branded_frame(text: str, idx: int, brand: dict[str, Any], tmp_dir: str
 
 
 def _zoompan_filter(duration_s: float, fps: int = 24) -> str:
-    """Slow Ken-Burns zoom (1.0 -> ~1.08) across the whole frame duration.
-    Applied to a single static PIL frame — creates real perceived motion
-    without needing photographic/AI-generated background content."""
-    d = max(1, int(round(duration_s * fps)))
+    """Slow Ken-Burns zoom (1.0 -> ~1.08) that HOLDS at max zoom rather than
+    resetting. `d` is zoompan's hard cycle length — on a static-image input
+    (-loop 1), zoompan RESTARTS the zoom from 1.0 every `d` frames. The real
+    segment duration on the audio-present render path is TTS-driven via
+    -shortest (no -t cap), so it can exceed a duration_s-scaled `d`,
+    producing a visible zoom-reset sawtooth instead of a smooth pan. `d`
+    gets a generous 30-second floor (well beyond any realistic single-slide
+    TTS clip) so the visual cap (min(zoom+0.0015,1.08)) is what limits zoom,
+    not an early cycle restart. Found in final whole-branch review
+    (2026-07-11); fixed by reasoning about zoompan's documented semantics —
+    not empirically verified against real ffmpeg (unavailable in this dev
+    sandbox all session). MUST be visually confirmed against a real render
+    with a multi-word (>4s TTS) slide before this pipeline is considered
+    proven — see Task 11 Step 5's still-outstanding manual verification."""
+    d = max(int(round(duration_s * fps)), 30 * fps)
     return f"scale=720:1280,zoompan=z='min(zoom+0.0015,1.08)':d={d}:s=720x1280:fps={fps}"
 
 
