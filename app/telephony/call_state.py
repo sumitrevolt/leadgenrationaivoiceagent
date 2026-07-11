@@ -38,16 +38,35 @@ class RedisCallStore:
         self._client: Any = None
         self._is_redis = False
         self._checked = False
+        # redis.asyncio clients bind their connection pool to the event loop
+        # that first uses them.  Keep the loop object itself (not its id): loop
+        # ids can be reused after a loop is closed.
+        self._client_loop: asyncio.AbstractEventLoop | None = None
 
     async def _redis(self) -> Any:
         """Return a real Redis client (with sorted-set ops) or None for local fallback."""
-        if self._checked:
+        current_loop = asyncio.get_running_loop()
+        if self._is_redis and self._client_loop is not current_loop:
+            self._client = None
+            self._is_redis = False
+            self._checked = False
+        if self._checked and self._client_loop is current_loop:
             return self._client if self._is_redis else None
         self._checked = True
+        self._client_loop = current_loop
         try:
-            from app.cache import get_redis_client
+            import redis.asyncio as aioredis
+            from app.config import settings
 
-            client = await get_redis_client()
+            client = aioredis.from_url(
+                settings.redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+                max_connections=8,
+                socket_connect_timeout=2,
+                socket_timeout=2,
+            )
+            await client.ping()
             # A real redis client exposes zadd/zpopmin; the InMemoryCache fallback
             # in app/cache.py does not — in that case we stay fully local.
             if client is not None and hasattr(client, "zadd") and hasattr(client, "zpopmin"):

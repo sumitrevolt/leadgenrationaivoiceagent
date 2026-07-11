@@ -2152,3 +2152,15 @@ Verification Evidence: `/api/web-call/config` reports telecaller, natural voice,
 Risks: This is a Web Call test, not a paid PSTN call; real customer calling remains subject to the existing DND/consent/window/AI-disclosure gates and approved list. QA harness success does not guarantee every niche script outcome.
 Remaining: Run one owner-controlled Vobiz test call only after selecting an approved test number and confirming the call window; then monitor call transcript/disposition before any campaign batch.
 Next Highest Priority: Owner-controlled single Vobiz test call with recording/transcript review; keep platform dial bulk automation off until that evidence is accepted.
+
+## Loop Run
+Date: 2026-07-11
+Goal: Fix the remaining production call-state event-loop failure before the owner test call.
+Inspected: Live Vobiz health, blocked test-call evidence, production call-queue logs, FastAPI effective OpenAPI routes, RedisCallStore lifecycle, focused telephony tests.
+Problems Found: RedisCallStore reused a redis.asyncio client across short-lived event loops, producing `Future attached to a different loop` and `Event loop is closed` errors. The webhook route test inspected lazy FastAPI wrapper objects instead of effective routes; OpenAPI confirmed the Vobiz webhook routes are mounted.
+Changed: RedisCallStore now binds its Redis client to the current event-loop object and recreates it when the loop changes; added a regression test for cross-loop rebinding; made the webhook route test FastAPI-version-safe using OpenAPI paths.
+Tests Run: `tests/test_telephony_upgrades.py tests/test_vobiz.py tests/test_vobiz_stream_watchdog.py` — 30/30 green; `scripts/prod_check.py` PASS (1098 registered routes, 0 wiring gaps); `scripts/check_secrets.py` PASS; `git diff --check` PASS.
+Verification Evidence: OpenAPI exposes `/api/webhooks/vobiz/status`, `/api/webhooks/vobiz/answer`, `/api/webhooks/vobiz/inbound`, and `/api/webhooks/health`; no call was placed because the attempted admin test was outside the 09:00–21:00 IST compliance window; no call charge occurred.
+Risks: The fix is not live until deployed and the worker/web process is recreated. Vobiz authenticated balance probe still needs live verification; outbound dialing remains compliance-gated and bulk platform dial remains OFF.
+Remaining: Commit/deploy the isolated call-state fix, verify fresh production logs/queues, then run one owner-controlled test call during the allowed window and inspect its outcome.
+Next Highest Priority: Deploy with `git pull --ff-only`, verify health and absence of loop errors, then schedule the single admin test call for the next allowed window.
