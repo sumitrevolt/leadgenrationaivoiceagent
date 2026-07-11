@@ -88,7 +88,7 @@ services:
     # tasks would enqueue but never run. No separate heavy worker in this
     # compose file, so "heavy" is included here (unlike docker-compose.vps.yml,
     # which isolates it onto worker-heavy).
-    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training,heavy --loglevel=info --concurrency=8
+    command: celery -A app.worker worker -Q celery,calling,scraping,reporting,sync,training,heavy,video --loglevel=info --concurrency=8
     volumes:
       - leadgen_data:/app/data
     deploy:
