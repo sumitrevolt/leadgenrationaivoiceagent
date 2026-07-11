@@ -331,6 +331,265 @@ async def social_postiz_status(_user=Depends(require_admin)):
     }
 
 
+# --------------------------------------------------------------------------- #
+# Admin Social-Delivery COCKPIT (2026-07-11)                                  #
+#                                                                             #
+# Read-only triage surface over `social_engine.store.list_jobs()` — customer  #
+# social publish queue ka health/DLQ/retry view. `POST /jobs/{id}/retry` re-  #
+# marks a dead/failed row queued so the next drain picks it up (idempotent    #
+# under the store's latest-wins invariant). No creds ever leaked.             #
+# --------------------------------------------------------------------------- #
+_SOCIAL_JOB_STATUSES = ("queued", "retry", "processing", "published", "dead", "skipped", "failed")
+
+
+@router.get("/social/jobs")
+async def admin_social_jobs(
+    client_id: str = "",
+    platform: str = "",
+    status: str = "",
+    limit: int = 100,
+    _user=Depends(require_admin),
+):
+    """List social-engine publish jobs for admin triage. Filters (all optional):
+    `client_id` / `platform` / `status`. Never-500; empty on error."""
+    try:
+        from app.social_engine import store
+
+        st = (status or "").strip().lower()
+        if st and st not in _SOCIAL_JOB_STATUSES:
+            st = ""
+        rows = store.list_jobs(
+            client_id=(client_id or "").strip(),
+            status=st,
+            limit=max(1, min(int(limit or 100), 500)),
+        )
+        # Platform filter is post-fetch (store doesn't take it) — keeps store API stable.
+        plat = (platform or "").strip().lower()
+        if plat:
+            rows = [r for r in rows if str(r.get("platform") or "").lower() == plat]
+
+        # Rollup counts (per-status) for the cockpit header.
+        counts = dict.fromkeys(_SOCIAL_JOB_STATUSES, 0)
+        for r in rows:
+            s = str(r.get("status") or "").lower()
+            if s in counts:
+                counts[s] += 1
+
+        return {
+            "ok": True,
+            "count": len(rows),
+            "counts": counts,
+            "jobs": rows,
+            "filters": {"client_id": client_id, "platform": plat, "status": st},
+        }
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200], "count": 0, "jobs": [],
+                "counts": dict.fromkeys(_SOCIAL_JOB_STATUSES, 0)}
+
+
+class SocialPauseIn(BaseModel):
+    """Loop-social-8 (2026-07-11): pause + emergency-stop admin toggle."""
+    emergency_stop: bool | None = None
+    paused_platforms: list[str] | None = None
+    paused_clients: list[str] | None = None
+
+
+@router.get("/social/pause")
+async def admin_social_pause_status(_user=Depends(require_admin)):
+    """Read current pause state — env + config-file merged, corruption-safe."""
+    from app.social_engine import pause as _pause
+
+    return {
+        "ok": True,
+        "emergency_stop": _pause.emergency_stop_active(),
+        "paused_platforms": sorted(_pause.paused_platforms()),
+        "paused_clients": sorted(_pause.paused_clients()),
+    }
+
+
+@router.post("/social/pause")
+async def admin_social_pause_set(body: SocialPauseIn, _user=Depends(require_admin)):
+    """Runtime pause toggle — writes `data/social_engine.json`. Env vars still
+    take precedence (env explicit wins per pause module contract). Any field
+    left None preserves the current value."""
+    from app.social_engine import pause as _pause
+
+    partial: dict = {}
+    if body.emergency_stop is not None:
+        partial["emergency_stop"] = bool(body.emergency_stop)
+    if body.paused_platforms is not None:
+        partial["paused_platforms"] = [
+            str(x).strip().lower() for x in body.paused_platforms if str(x).strip()
+        ]
+    if body.paused_clients is not None:
+        partial["paused_clients"] = [
+            str(x).strip() for x in body.paused_clients if str(x).strip()
+        ]
+    cfg = _pause.set_config(**partial)
+    return {
+        "ok": True,
+        "written": partial,
+        "current": {
+            "emergency_stop": _pause.emergency_stop_active(),
+            "paused_platforms": sorted(_pause.paused_platforms()),
+            "paused_clients": sorted(_pause.paused_clients()),
+        },
+        "config_snapshot": {k: v for k, v in cfg.items() if not k.startswith("_")},
+    }
+
+
+@router.post("/social/jobs/{job_id}/run-now")
+async def admin_social_job_run_now(job_id: str, _user=Depends(require_admin)):
+    """Loop-social-14 (2026-07-11): admin run-now control (Phase 8). Marks any
+    non-terminal job as queued so the next drain picks it up immediately.
+    Bypasses backoff (last_error cleared). Idempotent — already-queued = no-op."""
+    try:
+        from app.social_engine import store
+
+        jid = str(job_id or "").strip()
+        cur = store.get(jid)
+        if cur is None:
+            return {"ok": False, "error": "not_found", "job_id": jid}
+        prev = str(cur.get("status") or "").lower()
+        if prev == "published":
+            return {"ok": False, "error": "terminal", "job_id": jid,
+                    "message": "Published — cannot re-run (use cancel + new post)"}
+        store.mark(jid, "queued", last_error="",
+                   admin_run_now_at=__import__("time").strftime("%Y-%m-%dT%H:%M:%S"))
+        return {"ok": True, "job_id": jid, "previous": prev, "status": "queued"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200]}
+
+
+@router.get("/social/token-health")
+async def admin_social_token_health(days: int = 7, _user=Depends(require_admin)):
+    """Loop-social-21 (2026-07-11): admin cockpit expiring-tokens surface.
+    Uses vault.check_token_expiries(). Ledger events already emitted per row."""
+    try:
+        from app.social_engine import vault
+
+        out = vault.check_token_expiries(days=max(1, min(int(days or 7), 60)))
+        # Redact tokens/refs before returning to admin UI.
+        for bucket in ("expired", "warning"):
+            for row in out.get(bucket, []):
+                row.pop("tok", None)
+                row["account_ref"] = str(row.get("account_ref") or "")[-6:]
+        return {"ok": True, **out}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200]}
+
+
+@router.get("/social/latest-events")
+async def admin_social_latest_events(limit: int = 50, _user=Depends(require_admin)):
+    """Loop-social-21: recent social delivery-ledger events across ALL clients
+    for admin cockpit 'latest delivery events' feed."""
+    try:
+        from app.marketing import delivery_ledger
+
+        social_evs = {
+            "post_scheduled", "post_publish_started", "post_published",
+            "post_failed", "post_partially_published", "post_retry_scheduled",
+            "post_cancelled", "customer_action_required",
+            "social_account_connected", "social_account_disconnected",
+            "social_account_connection_failed",
+            "token_expired", "token_refreshed",
+        }
+        # Ledger is per-client JSONL — walk the ledger dir.
+        import os as _os
+
+        rows: list[dict] = []
+        try:
+            ledger_dir = getattr(delivery_ledger, "_LEDGER_DIR", "data/delivery_ledger")
+            if _os.path.isdir(ledger_dir):
+                for fn in _os.listdir(ledger_dir):
+                    if not fn.endswith(".jsonl"):
+                        continue
+                    cid = fn[:-6]
+                    try:
+                        for ev in delivery_ledger.timeline(cid, limit=200, customer_only=False):
+                            if ev.get("event") in social_evs:
+                                ev["client_id"] = cid
+                                rows.append(ev)
+                    except Exception:
+                        continue
+        except Exception:
+            pass
+        rows.sort(key=lambda r: str(r.get("ts") or r.get("timestamp") or ""), reverse=True)
+        return {"ok": True, "events": rows[: max(1, min(int(limit or 50), 200))]}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200], "events": []}
+
+
+@router.post("/social/jobs/{job_id}/cancel")
+async def admin_social_job_cancel(job_id: str, _user=Depends(require_admin)):
+    """Loop-social-21: cancel a queued/retry/processing job. Idempotent.
+    Terminal states (published/dead/skipped) are refused."""
+    try:
+        from app.social_engine import store
+
+        jid = str(job_id or "").strip()
+        cur = store.get(jid)
+        if cur is None:
+            return {"ok": False, "error": "not_found", "job_id": jid}
+        prev = str(cur.get("status") or "").lower()
+        if prev in ("published", "dead", "skipped"):
+            return {"ok": False, "error": "terminal", "status": prev}
+        store.mark(jid, "skipped", last_error="admin_cancelled")
+        # Emit ledger cancel.
+        try:
+            from app.marketing import delivery_ledger
+
+            delivery_ledger.log_event(
+                str(cur.get("client_id") or ""),
+                "post_cancelled",
+                detail=f"admin cancel from {prev}",
+                key=f"admin_cancel:{jid}",
+            )
+        except Exception:
+            pass
+        return {"ok": True, "job_id": jid, "previous": prev, "status": "skipped"}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200]}
+
+
+@router.post("/social/recover-stale")
+async def admin_social_recover_stale(older_than_min: int = 15, _user=Depends(require_admin)):
+    """Loop-social-14: Phase 8 stale-job recovery. Any 'processing' row older
+    than N minutes → reset to queued (worker crash mid-publish assumed)."""
+    try:
+        from app.social_engine import scheduling, store
+
+        return {"ok": True, **scheduling.recover_stale_processing(store, older_than_min)}
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200]}
+
+
+@router.post("/social/jobs/{job_id}/retry")
+async def admin_social_job_retry(job_id: str, _user=Depends(require_admin)):
+    """Re-queue a dead/failed social job. Idempotent: append-latest-wins guarantees
+    the drain claims the same row again with `attempts` preserved (so max_attempts
+    still bounds runaway retries). No-op if job doesn't exist or is already queued."""
+    try:
+        from app.social_engine import store
+
+        jid = str(job_id or "").strip()
+        if not jid:
+            raise HTTPException(status_code=400, detail="job_id required")
+        cur = store.get(jid)
+        if cur is None:
+            return {"ok": False, "error": "not_found", "job_id": jid}
+        already = str(cur.get("status") or "").lower()
+        if already in ("queued", "retry", "processing"):
+            return {"ok": True, "job_id": jid, "status": already, "no_change": True}
+        # Reset last_error so admin sees a clean state next drain.
+        store.mark(jid, "queued", last_error="", admin_retry_at=__import__("time").strftime("%Y-%m-%dT%H:%M:%S"))
+        return {"ok": True, "job_id": jid, "status": "queued", "previous": already}
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"ok": False, "error": str(e)[:200], "job_id": job_id}
+
+
 # ------------- Lead harvester (multi-source, legal-only, automated loop) ------------- #
 class HarvestIn(BaseModel):
     niche: str = ""

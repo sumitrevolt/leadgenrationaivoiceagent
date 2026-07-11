@@ -185,6 +185,33 @@ def enqueue_publish(
         return []
 
 
+def _dry_run_enabled() -> bool:
+    """Loop-social-3 (2026-07-11): safe E2E validation gate. When SOCIAL_DRY_RUN=1
+    the engine drains queued jobs but NEVER hits a real provider — it fabricates
+    a `PublishResult(ok=True, post_id="dry-<uuid>", raw={"dry_run": True})` so
+    the full pipeline (queue → dispatch → ledger → customer timeline → admin
+    cockpit) can be verified without a live FB/IG/GBP/LinkedIn publish.
+
+    Semantics: identical to the master `enabled()` gate (env explicit wins,
+    then `data/social_engine.json {"dry_run": true}` fallback). Independent of
+    `SOCIAL_ENGINE` — you can enable dry_run without turning on the engine, but
+    dry_run only fires ONCE the engine drains (which needs `SOCIAL_ENGINE=1`).
+    Ban-safe: never sends a message, never calls a paid API, never violates a
+    provider ToS. Meant for staging + first-customer canary."""
+    v = os.getenv("SOCIAL_DRY_RUN", "").strip().lower()
+    if v in ("1", "true", "yes"):
+        return True
+    if v in ("0", "false", "no"):
+        return False
+    try:
+        import json as _json
+
+        with open(os.getenv("SOCIAL_ENGINE_CONFIG", "data/social_engine.json"), encoding="utf-8") as fh:
+            return bool((_json.load(fh) or {}).get("dry_run"))
+    except Exception:
+        return False
+
+
 async def _dispatch_one(job: dict[str, Any]) -> PublishResult:
     p = str(job.get("platform") or "")
     prov = registry().get(p)
@@ -193,6 +220,50 @@ async def _dispatch_one(job: dict[str, Any]) -> PublishResult:
     acct = _resolve_account(str(job.get("client_id") or ""), p, str(job.get("account_ref") or ""))
     if not prov.configured(acct):
         return PublishResult(ok=False, platform=p, error="__inert__")
+    # Loop-social-15 (2026-07-11): Phase-6 platform adaptation — transform
+    # caption/hashtags shape BEFORE validation so the validator sees the
+    # actually-published body. Adaptation is safe (URL strip → "link in bio",
+    # thread split for X, hashtag tail placement, ellipsis truncation) and
+    # non-lossy where possible. Adapted job feeds provider.publish().
+    try:
+        from . import adaptation as _adp
+
+        job = _adp.adapt_for_platform(job, p)
+    except Exception:
+        pass
+    # Loop-social-10 (2026-07-11): Phase-6 platform-adaptation validators.
+    # Blocking errors (caption > cap, unsupported media, missing disclaimer)
+    # fail-fast with a descriptive error — the drain will retry/dead per normal
+    # branching. Warns don't block publish. Lazy-import so tests without the
+    # module still drain.
+    try:
+        from . import validators as _vlz
+
+        issues = _vlz.validate_post(p, job, recent_captions=None)
+        if _vlz.has_blocking_error(issues):
+            first = next((i for i in issues if i.get("severity") == "error"), None)
+            msg = first.get("message") if first else "validation_error"
+            return PublishResult(
+                ok=False, platform=p,
+                error=f"validation:{first.get('rule','')}: {msg}"[:150],
+                raw={"validation_issues": issues},
+            )
+    except Exception:
+        # Fail-open on validator crash — a bad validator must not block real posts.
+        pass
+    # Loop-social-3: DRY-RUN short-circuit. Fires AFTER configured() so we still
+    # honestly report inert providers as skipped — dry-run just replaces the
+    # provider.publish() call itself. Post-id is deterministic-ish (job id +
+    # platform) so ledger + timeline reads look stable across drains.
+    if _dry_run_enabled():
+        jid = str(job.get("id") or "")[:12]
+        return PublishResult(
+            ok=True,
+            platform=p,
+            post_id=f"dry-{p}-{jid}",
+            url="",
+            raw={"dry_run": True, "job_id": jid, "account_ref": str(acct.get("account_ref") or "")},
+        )
     req = PublishRequest(
         client_id=str(job.get("client_id") or ""),
         caption=str(job.get("caption") or ""),
@@ -227,8 +298,53 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
     published = retried = dead = skipped = 0
     try:
         jobs = store.claim_pending(limit)
+        # Loop-social-8 (2026-07-11): Phase 8 pause + emergency-stop gates —
+        # lazy-import so tests without the module don't crash the drain.
+        try:
+            from . import pause as _pause
+        except Exception:
+            _pause = None  # type: ignore
+        # Loop-social-14 (2026-07-11): Phase 8 backoff + provider-aware QPM.
+        try:
+            from . import scheduling as _sched
+        except Exception:
+            _sched = None  # type: ignore
         for job in jobs:
             jid = str(job.get("id") or "")
+            cid_pre = str(job.get("client_id") or "")
+            # Pause gate BEFORE publish-started emit — a paused job never
+            # entered the "publishing" transition, so ledger stays honest.
+            if _pause is not None:
+                paused, reason = _pause.should_pause_job(job)
+                if paused:
+                    store.mark(jid, "skipped", last_error=f"paused:{reason}")
+                    skipped += 1
+                    _log_delivery(cid_pre, "customer_action_required", job,
+                                  detail=f"paused: {reason}")
+                    continue
+            # Loop-social-14: exponential backoff — a retry-status row still
+            # inside its backoff window is put back to 'retry' (no publish).
+            if _sched is not None and not _sched.is_ready_for_retry(job):
+                store.mark(jid, "retry", last_error="backoff_wait")
+                retried += 1
+                continue
+            # Loop-social-14: per-platform QPM guard. Over-cap = defer (mark
+            # retry with a bounded delay). Prevents provider-side 429 storms.
+            if _sched is not None:
+                plat = str(job.get("platform") or "").strip().lower()
+                allowed, used, cap = _sched.check_platform_qpm(plat)
+                if not allowed:
+                    store.mark(jid, "retry",
+                               last_error=f"rate_limit:{plat}:{used}/{cap}")
+                    retried += 1
+                    _log_delivery(cid_pre, "post_retry_scheduled", job,
+                                  detail=f"platform QPM guard: {used}/{cap}/min")
+                    continue
+            # Loop-social-6 (2026-07-11): emit publish-lifecycle event so the
+            # customer timeline + admin cockpit reflect the "publish is running"
+            # transition (previously invisible — customer only saw the terminal
+            # published/failed state). Never-raise (helper is guarded).
+            _log_delivery(cid_pre, "post_publish_started", job)
             try:
                 res = await _dispatch_one(job)
             except Exception as e:
@@ -241,6 +357,11 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
             elif res.error == "__inert__":
                 store.mark(jid, "skipped", last_error="provider not configured")
                 skipped += 1
+                # Loop-social-6: an unconfigured provider is customer_action —
+                # they need to reconnect the account. Emit the canonical event so
+                # the admin cockpit + customer setup checklist highlight it.
+                _log_delivery(cid, "customer_action_required", job,
+                              detail=f"{job.get('platform','')} account not connected")
             else:
                 attempts = int(job.get("attempts") or 0) + 1
                 if attempts >= store.max_attempts():
@@ -250,6 +371,10 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
                 else:
                     store.mark(jid, "retry", attempts=attempts, last_error=res.error)
                     retried += 1
+                    # Loop-social-6: emit canonical retry event (ops-visible only —
+                    # customer_visible=False in ledger LABELS, avoids timeline noise).
+                    _log_delivery(cid, "post_retry_scheduled", job,
+                                  detail=f"attempt {attempts}/{store.max_attempts()} — {str(res.error or '')[:120]}")
         if jobs:
             # Staff-visibility (2026-07-01): social posting ran completely invisibly on
             # /app/team today — attribute to "zara" (Social Media Manager).

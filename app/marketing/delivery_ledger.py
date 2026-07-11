@@ -83,6 +83,25 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     "video_qa_failed": ("⚠️", "", "Video QA check failed — not published", False),
     "video_render_failed": ("⚠️", "", "Video render failed", False),
     "video_ready": ("🎥", "Naya video taiyaar — approve karein", "Video render succeeded, pending approval", True),
+    # Loop-social-6 (2026-07-11) — canonical social-delivery event enum (Phase 9).
+    # Additive only: `social_setup_completed` (existing, per-customer aggregate)
+    # kept; `social_account_connected` is the finer-grained per-platform connect
+    # event that Loop-social-1's `/social/accounts/connect` route emits. Publish-
+    # lifecycle events cover the transitions the queue drain moves through
+    # (queued → processing → published/partial/retry/dead/cancelled). Token +
+    # customer-action events surface states the admin cockpit + customer
+    # timeline must act on. customer_visible=False for pure ops noise.
+    "social_account_connected": ("🔗", "Ek social account connect ho gaya", "Social account connected (per-platform)", True),
+    "social_account_disconnected": ("🔓", "Ek social account disconnect ho gaya", "Social account disconnected (per-platform)", True),
+    "social_account_connection_failed": ("🚫", "Social account connect nahi hua — dobara try karein", "Social account connection failed", True),
+    "token_refreshed": ("🔁", "", "Provider token refreshed", False),
+    "token_expired": ("🕓", "Ek social account ka access expire ho gaya — reconnect karein", "Provider token expired", True),
+    "post_scheduled": ("📅", "Post schedule ho gaya", "Post scheduled for publish", True),
+    "post_publish_started": ("🚀", "", "Post publish attempt started", False),
+    "post_partially_published": ("🟡", "Post kuch platforms pe gaya — kuch pending", "Post partially published across platforms", True),
+    "post_retry_scheduled": ("↩️", "", "Post publish retry scheduled", False),
+    "post_cancelled": ("🛑", "Aapne post cancel kar diya", "Post cancelled", True),
+    "customer_action_required": ("⚠️", "Ek kaam aapki attention chahiye", "Customer action required", True),
 }
 EVENT_TYPES: frozenset[str] = frozenset(LABELS.keys())
 

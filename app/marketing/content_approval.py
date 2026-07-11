@@ -33,6 +33,33 @@ _FILE = os.path.join("data", "content_approvals.jsonl")
 
 _STATUSES = {"pending", "approved", "rejected"}
 
+# Loop-social-7 (2026-07-11): extended state machine (Phase 7). Additive over
+# `_STATUSES` (kept for backward compat with `_decide`'s legacy 3-state path).
+# The extended machine tracks post lifecycle after approval — a caller can now
+# mark `SCHEDULED / PUBLISHING / PUBLISHED / PARTIALLY_PUBLISHED / CANCELLED`
+# on an approval id and the append-latest-wins JSONL keeps the audit trail.
+# Legal transitions (source → allowed destinations). Anything else is refused
+# with `{"ok": False, "error": "illegal_transition"}` — prevents e.g. a
+# published post being flipped back to pending, or a cancelled post reviving.
+_EXTENDED_STATUSES = {
+    "pending", "ready_for_review", "changes_requested",
+    "approved", "rejected",
+    "scheduled", "publishing", "published",
+    "partially_published", "cancelled",
+}
+_ALLOWED_TRANSITIONS: dict[str, set[str]] = {
+    "pending":              {"ready_for_review", "approved", "rejected", "changes_requested", "cancelled"},
+    "ready_for_review":     {"approved", "rejected", "changes_requested", "cancelled"},
+    "changes_requested":    {"pending", "ready_for_review", "approved", "cancelled"},
+    "approved":             {"scheduled", "publishing", "cancelled"},
+    "rejected":             {"pending", "cancelled"},
+    "scheduled":            {"publishing", "cancelled"},
+    "publishing":           {"published", "partially_published", "rejected", "cancelled"},
+    "published":            set(),                     # terminal
+    "partially_published":  {"publishing", "cancelled"},
+    "cancelled":            set(),                     # terminal
+}
+
 
 def _now() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S")
@@ -302,6 +329,239 @@ def decide_by_id(approval_id: str, action: str, note: str = "") -> dict[str, Any
     if action == "reject":
         return reject(token, note)
     return approve(token)
+
+
+def transition(
+    approval_id: str,
+    new_status: str,
+    actor: str = "system",
+    note: str = "",
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Loop-social-7 (2026-07-11): extended state-machine transition.
+
+    Validates (a) approval exists, (b) new_status ∈ _EXTENDED_STATUSES,
+    (c) transition allowed per _ALLOWED_TRANSITIONS. Appends a new JSONL row
+    (latest-wins) with the state, actor, note, optional per-transition metadata
+    (e.g. `{"scheduled_time": "2026-07-12T10:00"}` for `scheduled`, or
+    `{"platforms_pending": ["instagram"], "platforms_published": ["facebook"]}`
+    for `partially_published`).
+
+    Emits canonical delivery-ledger event (Loop-social-6) so customer timeline +
+    admin cockpit reflect the transition. Never raises."""
+    try:
+        aid = str(approval_id or "").strip()
+        if not aid:
+            return {"ok": False, "error": "approval_id_required"}
+        ns = str(new_status or "").strip().lower()
+        if ns not in _EXTENDED_STATUSES:
+            return {"ok": False, "error": "invalid_status", "status": ns,
+                    "allowed": sorted(_EXTENDED_STATUSES)}
+        rec = _latest_states().get(aid)
+        if rec is None:
+            return {"ok": False, "error": "approval_not_found"}
+        cur = str(rec.get("status") or "").strip().lower()
+        # Legacy 3-state values that lived before this loop are treated as their
+        # canonical extended equivalent for the transition check.
+        if cur not in _ALLOWED_TRANSITIONS:
+            cur = "pending"
+        allowed = _ALLOWED_TRANSITIONS.get(cur, set())
+        if ns == cur:
+            return {"ok": True, "no_change": True, "approval": rec}
+        if ns not in allowed:
+            return {"ok": False, "error": "illegal_transition",
+                    "from": cur, "to": ns, "allowed": sorted(allowed)}
+        row = {
+            "id": aid,
+            "token": rec.get("token"),
+            "client_id": rec.get("client_id"),
+            "status": ns,
+            "note": str(note or "").strip()[:300],
+            "actor": str(actor or "system")[:60],
+            "decided_at": _now(),
+        }
+        if isinstance(extra, dict):
+            for k, v in extra.items():
+                if k not in row and v is not None:
+                    row[k] = v
+        _append(row)
+        merged = {**rec, **row}
+        # Loop-social-6 wired: emit ledger event per transition (best-effort).
+        _EVENT_FOR_STATUS = {
+            "scheduled": "post_scheduled",
+            "publishing": "post_publish_started",
+            "published": "post_published",
+            "partially_published": "post_partially_published",
+            "cancelled": "post_cancelled",
+            "rejected": "post_failed",
+            "changes_requested": "post_draft_created",
+        }
+        ev = _EVENT_FOR_STATUS.get(ns)
+        if ev:
+            try:
+                from app.marketing import delivery_ledger
+
+                content = merged.get("content") or {}
+                title = str(content.get("title") or content.get("occasion") or "")
+                delivery_ledger.log_event(str(merged.get("client_id") or ""), ev, detail=title)
+            except Exception:
+                pass
+        return {"ok": True, "approval": merged, "from": cur, "to": ns}
+    except Exception as e:
+        logger.warning(f"[content_approval] transition failed: {e}")
+        return {"ok": False, "error": str(e)[:160]}
+
+
+def cancel(approval_id: str, actor: str = "customer", note: str = "") -> dict[str, Any]:
+    """Cancel a post at any non-terminal state. Terminal (published/cancelled)
+    transitions are rejected by the state machine. Never raises."""
+    return transition(approval_id, "cancelled", actor=actor, note=note)
+
+
+def request_changes(approval_id: str, note: str = "", actor: str = "customer") -> dict[str, Any]:
+    """Client asks for a revision (video_ad regen etc). Emits changes_requested
+    then downstream `on_changes_requested` hook fires via engine wiring (video
+    pipeline already listens for status=='rejected'; the extended semantic here
+    is that a targeted-note revision is not the same as an outright rejection)."""
+    return transition(approval_id, "changes_requested", actor=actor, note=note)
+
+
+# --------------------------------------------------------------------------- #
+# Loop-social-20 (2026-07-11): Phase-7 edit/replace/reschedule actions.       #
+#                                                                             #
+# Rule: an approval that has already dispatched (`publishing/published`) or   #
+# is cancelled is FROZEN — editing after dispatch would silently lie to the   #
+# provider (they already got the old body). Frontend must call `cancel()`     #
+# first and re-submit. Every edit appends a new JSONL row so the audit trail  #
+# preserves who changed what + when.                                          #
+# --------------------------------------------------------------------------- #
+_EDIT_LOCKED_STATES = {"publishing", "published", "partially_published", "cancelled"}
+
+
+def _edit_action(
+    approval_id: str,
+    field: str,
+    new_value: Any,
+    actor: str,
+    note: str,
+    event_label: str,
+) -> dict[str, Any]:
+    """Common edit helper — never raises, atomic append, emits audit event."""
+    try:
+        aid = str(approval_id or "").strip()
+        if not aid:
+            return {"ok": False, "error": "approval_id_required"}
+        rec = _latest_states().get(aid)
+        if rec is None:
+            return {"ok": False, "error": "approval_not_found"}
+        cur_status = str(rec.get("status") or "").strip().lower()
+        if cur_status in _EDIT_LOCKED_STATES:
+            return {"ok": False, "error": "edit_locked",
+                    "status": cur_status,
+                    "message": "Post is already dispatched — cancel + resubmit for changes"}
+        # Deep-copy content so we don't mutate the merged read view.
+        content = dict(rec.get("content") or {})
+        content[field] = new_value
+        row = {
+            "id": aid,
+            "token": rec.get("token"),
+            "client_id": rec.get("client_id"),
+            "status": cur_status or "pending",
+            "content": content,
+            "note": str(note or "").strip()[:300],
+            "actor": str(actor or "customer")[:60],
+            "edited_field": field,
+            "edited_at": _now(),
+        }
+        _append(row)
+        try:
+            from app.marketing import delivery_ledger
+
+            delivery_ledger.log_event(
+                str(rec.get("client_id") or ""),
+                event_label,
+                detail=f"{field} edited by {actor}",
+                key=f"edit:{aid}:{field}:{_now()}",
+            )
+        except Exception:
+            pass
+        return {"ok": True, "approval_id": aid, "field": field,
+                "actor": actor, "status": cur_status}
+    except Exception as e:
+        logger.warning(f"[content_approval] edit_action failed: {e}")
+        return {"ok": False, "error": str(e)[:160]}
+
+
+def edit_caption(
+    approval_id: str,
+    new_caption: str,
+    actor: str = "customer",
+    note: str = "",
+) -> dict[str, Any]:
+    """Replace the post caption. Locked if publishing/published/cancelled.
+    Emits `post_draft_created` ledger event (customer visible = "new version")."""
+    if not isinstance(new_caption, str):
+        return {"ok": False, "error": "invalid_caption"}
+    return _edit_action(
+        approval_id, "caption", new_caption.strip()[:8000],
+        actor, note, "post_draft_created",
+    )
+
+
+def replace_media(
+    approval_id: str,
+    media_url: str = "",
+    media_path: str = "",
+    media_type: str = "",
+    actor: str = "customer",
+    note: str = "",
+) -> dict[str, Any]:
+    """Swap the media asset. At least one of url/path required. media_type
+    optional (auto-inferred by provider adapter)."""
+    url = str(media_url or "").strip()[:1000]
+    path = str(media_path or "").strip()[:500]
+    if not url and not path:
+        return {"ok": False, "error": "media_required",
+                "message": "media_url or media_path required"}
+    mtype = str(media_type or "").strip().lower()[:16]
+    if mtype and mtype not in ("image", "video", "text"):
+        return {"ok": False, "error": "invalid_media_type"}
+    payload = {"url": url, "path": path, "type": mtype}
+    return _edit_action(
+        approval_id, "media", payload,
+        actor, note, "post_draft_created",
+    )
+
+
+def change_scheduled_time(
+    approval_id: str,
+    when_iso: str,
+    tz: str = "Asia/Kolkata",
+    actor: str = "customer",
+    note: str = "",
+) -> dict[str, Any]:
+    """Change the scheduled publish time. Rejects past times + malformed ISO.
+    Emits `post_scheduled` ledger event so timeline reflects the new plan."""
+    when = str(when_iso or "").strip()
+    if not when:
+        return {"ok": False, "error": "when_required"}
+    try:
+        import datetime as _dt
+
+        try:
+            parsed = _dt.datetime.fromisoformat(when)
+        except ValueError:
+            parsed = _dt.datetime.strptime(when[:19], "%Y-%m-%dT%H:%M:%S")
+        # Reject past times — a schedule-in-past is almost always a bug.
+        if parsed < _dt.datetime.utcnow() - _dt.timedelta(minutes=1):
+            return {"ok": False, "error": "past_time", "message": "Scheduled time is in the past"}
+    except Exception as e:
+        return {"ok": False, "error": "invalid_iso", "message": str(e)[:120]}
+    payload = {"scheduled_time": when, "timezone": str(tz or "Asia/Kolkata")[:64]}
+    return _edit_action(
+        approval_id, "schedule", payload,
+        actor, note, "post_scheduled",
+    )
 
 
 def list_all(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:

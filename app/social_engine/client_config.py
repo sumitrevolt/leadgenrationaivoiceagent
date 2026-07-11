@@ -41,12 +41,33 @@ _VALID_CHANNELS = ("instagram", "facebook", "gbp", "youtube", "linkedin", "whats
 _VALID_CADENCE = ("daily", "3x_week", "weekly", "off")
 _VALID_APPROVAL = ("review", "draft")
 
+# Loop-social-19 (2026-07-11): Phase-3 Step-1 + Step-4 field completeness.
+# Additive — every new field defaults empty/list so existing wizard save calls
+# don't break, and the readiness endpoint can score against them.
+_VALID_POSTING_DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+_VALID_LANGUAGES = ("hi", "en", "hinglish", "gu", "mr", "ta", "te", "kn", "ml", "bn", "pa")
+
 _DEFAULTS: dict[str, Any] = {
     "handles": dict.fromkeys(_HANDLE_KEYS, ""),
     "channels": [],
     "cadence": "daily",       # matches daily content engine; saved handles must not downgrade cadence
     "approval_mode": "review",  # review = post se pehle approve; draft = sirf draft ready
     "postiz_integrations": [],  # optional/advanced — Postiz channel ids (admin-assisted)
+    # Loop-social-19: Step-1 business profile fields — persisted alongside
+    # clients_store base profile. Wizard-level source of truth for the
+    # social-delivery loop specifically.
+    "timezone": "Asia/Kolkata",
+    "website": "",
+    "brand_tone": "",           # e.g. "friendly", "professional", "playful"
+    "target_audience": "",      # freeform 1-liner
+    "products_or_services": "",  # freeform, comma-separated
+    "preferred_language": "hinglish",
+    # Loop-social-19: Step-4 content preferences.
+    "posting_days": [],         # ["mon","wed","fri"] etc — empty = every day
+    "posting_times": [],        # ["09:00","18:00"] IST — empty = auto
+    "content_categories": [],   # ["promo","tips","festivals","testimonials"]
+    "prohibited_topics": [],    # ["politics","competitors","medical claims"]
+    "brand_safety_instructions": "",  # freeform — passed to LLM system prompt
 }
 
 
@@ -107,12 +128,72 @@ def _norm(raw: dict[str, Any] | None) -> dict[str, Any]:
                 pz.append(x)
     pz = pz[:20]
 
+    # Loop-social-19: normalize the extended profile + preference fields.
+    tz = str(r.get("timezone") or "").strip()[:64] or _DEFAULTS["timezone"]
+    website = str(r.get("website") or "").strip()[:300]
+    brand_tone = str(r.get("brand_tone") or "").strip()[:80]
+    target_audience = str(r.get("target_audience") or "").strip()[:500]
+    products_or_services = str(r.get("products_or_services") or "").strip()[:500]
+    preferred_language = str(r.get("preferred_language") or "").strip().lower()[:16]
+    if preferred_language and preferred_language not in _VALID_LANGUAGES:
+        preferred_language = _DEFAULTS["preferred_language"]
+    if not preferred_language:
+        preferred_language = _DEFAULTS["preferred_language"]
+
+    def _norm_str_list(raw: Any, cap: int, allowed: tuple | None = None) -> list[str]:
+        if isinstance(raw, str):
+            items = [x.strip() for x in raw.replace(",", " ").split() if x.strip()]
+        elif isinstance(raw, (list, tuple)):
+            items = [str(x).strip() for x in raw if str(x).strip()]
+        else:
+            return []
+        out: list[str] = []
+        for x in items:
+            x_l = x.lower()
+            if allowed is not None and x_l not in allowed:
+                continue
+            if x_l not in out:
+                out.append(x_l)
+            if len(out) >= cap:
+                break
+        return out
+
+    posting_days = _norm_str_list(r.get("posting_days"), cap=7, allowed=_VALID_POSTING_DAYS)
+
+    # Posting times: HH:MM (24h). Regex-lite validation.
+    import re as _re
+    _time_re = _re.compile(r"^([01]?\d|2[0-3]):[0-5]\d$")
+    pt_raw = r.get("posting_times")
+    if isinstance(pt_raw, str):
+        pt_items = [x.strip() for x in pt_raw.replace(",", " ").split() if x.strip()]
+    elif isinstance(pt_raw, (list, tuple)):
+        pt_items = [str(x).strip() for x in pt_raw if str(x).strip()]
+    else:
+        pt_items = []
+    posting_times = [t for t in pt_items if _time_re.match(t)][:8]
+
+    content_categories = _norm_str_list(r.get("content_categories"), cap=20)
+    prohibited_topics = _norm_str_list(r.get("prohibited_topics"), cap=20)
+    brand_safety_instructions = str(r.get("brand_safety_instructions") or "").strip()[:2000]
+
     return {
         "handles": handles,
         "channels": channels,
         "cadence": cadence,
         "approval_mode": approval,
         "postiz_integrations": pz,
+        # Loop-social-19: Step-1 + Step-4 fields.
+        "timezone": tz,
+        "website": website,
+        "brand_tone": brand_tone,
+        "target_audience": target_audience,
+        "products_or_services": products_or_services,
+        "preferred_language": preferred_language,
+        "posting_days": posting_days,
+        "posting_times": posting_times,
+        "content_categories": content_categories,
+        "prohibited_topics": prohibited_topics,
+        "brand_safety_instructions": brand_safety_instructions,
     }
 
 
@@ -143,7 +224,15 @@ def save(client_id: str, **partial: Any) -> dict[str, Any]:
         merged: dict[str, Any] = dict(current)
         if "handles" in partial and isinstance(partial["handles"], dict):
             merged["handles"] = {**current["handles"], **partial["handles"]}
-        for key in ("channels", "cadence", "approval_mode", "postiz_integrations"):
+        for key in (
+            "channels", "cadence", "approval_mode", "postiz_integrations",
+            # Loop-social-19: Step-1 + Step-4 keys.
+            "timezone", "website", "brand_tone", "target_audience",
+            "products_or_services", "preferred_language",
+            "posting_days", "posting_times",
+            "content_categories", "prohibited_topics",
+            "brand_safety_instructions",
+        ):
             if key in partial and partial[key] is not None:
                 merged[key] = partial[key]
         cfg = _norm(merged)

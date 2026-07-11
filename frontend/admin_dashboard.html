@@ -562,6 +562,73 @@
         <div class="bd" id="llmHealth" style="font-size:12px;color:var(--muted)">Loading brain health…</div>
       </div>
 
+      <!-- Loop-social-5 (2026-07-11): Social Delivery Cockpit — Phase 10 finish.
+           Consumes /api/growth/social/jobs (Loop-social-1 API). Per-status rollup,
+           failure list, one-click retry on dead rows. Filter by client/platform/
+           status. Ban-safe: engine still gated by SOCIAL_ENGINE. -->
+      <div class="card" id="sec-social-cockpit" style="margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd">
+          <h3>🌐 Social Delivery Cockpit — publish queue triage</h3>
+          <span class="right">
+            <span id="social-cockpit-time" style="font-size:11px;color:var(--muted)">—</span>
+            <button class="btn" onclick="loadSocialCockpit()" style="padding:4px 10px;font-size:11px;margin-left:6px">↻</button>
+          </span>
+        </div>
+        <div class="bd">
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <input id="scpClient" placeholder="client_id filter (blank = all)" style="flex:1;min-width:180px;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px" />
+            <select id="scpPlatform" style="padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px">
+              <option value="">All platforms</option>
+              <option value="facebook">Facebook</option>
+              <option value="instagram">Instagram</option>
+              <option value="gbp">Google Business</option>
+              <option value="linkedin">LinkedIn</option>
+              <option value="x">X (Twitter)</option>
+              <option value="youtube">YouTube</option>
+              <option value="whatsapp">WhatsApp</option>
+              <option value="postiz">Postiz</option>
+            </select>
+            <select id="scpStatus" style="padding:6px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px">
+              <option value="">All statuses</option>
+              <option value="queued">Queued</option>
+              <option value="retry">Retry</option>
+              <option value="processing">Processing</option>
+              <option value="published">Published</option>
+              <option value="dead">Dead (max retries)</option>
+              <option value="failed">Failed</option>
+              <option value="skipped">Skipped (inert)</option>
+            </select>
+            <button class="btn primary" onclick="loadSocialCockpit()" style="padding:6px 12px;font-size:12px">Filter</button>
+          </div>
+          <div id="socialCockpitCounts" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;font-size:12px"></div>
+          <!-- Loop-social-21 (2026-07-11): token health + latest events -->
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+            <div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fefce8">
+              <div style="font-weight:700;margin-bottom:4px">🕓 Token health</div>
+              <div id="socialTokenHealth" style="font-size:12px;color:var(--muted)">—</div>
+            </div>
+            <div style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#f0f9ff">
+              <div style="font-weight:700;margin-bottom:4px">📡 Latest delivery events</div>
+              <div id="socialLatestEvents" style="font-size:11px;color:var(--muted);max-height:120px;overflow-y:auto">—</div>
+            </div>
+          </div>
+          <!-- Loop-social-17 (2026-07-11): pause + emergency-stop controls
+               consume /api/growth/social/pause. Emergency Stop is the red brake;
+               per-platform chips let ops isolate a misbehaving provider. -->
+          <div id="socialPauseControls" style="border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin-bottom:10px;background:#fafafa">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="font-weight:700">🛑 Pause controls</div>
+              <button class="btn" id="btnEmergencyStop" onclick="toggleEmergencyStop()" style="padding:4px 10px;font-size:12px">Loading…</button>
+              <input id="pauseClientsInp" placeholder="paused clients (csv)" style="flex:1;min-width:180px;padding:4px 8px;border:1px solid var(--line);border-radius:6px;font-size:12px" />
+              <button class="btn" onclick="savePausedClients()" style="padding:4px 10px;font-size:12px">Save clients</button>
+            </div>
+            <div id="pausePlatformChips" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"></div>
+            <div id="pauseStatusLine" style="font-size:11px;color:var(--muted);margin-top:6px">—</div>
+          </div>
+          <div id="socialCockpitJobs" style="font-size:12px;color:var(--muted)">Loading social publish queue…</div>
+        </div>
+      </div>
+
         </div><!-- /advTechBody -->
       </div><!-- /sec-advtech-wrap -->
 
@@ -1267,6 +1334,246 @@ async function loadLlmHealth(){
     el.innerHTML=banner+table;
     if(ts){ try{ ts.textContent="updated "+new Date().toLocaleTimeString("en-IN"); }catch(e){} }
   }catch(e){ el.innerHTML='<span class="mut">Brain health load error — <a href="#" onclick="loadLlmHealth();return false" style="color:var(--indigo)">Retry</a></span>'; }
+}
+
+/* Loop-social-5 (2026-07-11): Social Delivery Cockpit — Phase 10 finish.
+   Consumes /api/growth/social/jobs (Loop-social-1 API). Renders per-status
+   counts + failure list + one-click retry on dead rows. Filters: client_id,
+   platform, status. Ban-safe: engine still gated by SOCIAL_ENGINE master flag. */
+var SCP_STATE_COLORS={
+  queued:"#2563eb", retry:"#a855f7", processing:"#0891b2",
+  published:"#16a34a", dead:"#dc2626", failed:"#dc2626",
+  skipped:"#64748b"
+};
+function _scpBadge(s,n){
+  var c=SCP_STATE_COLORS[s]||"#64748b";
+  return '<span style="padding:3px 10px;border-radius:999px;background:'+c+';color:#fff;font-weight:600">'+escH(s)+': '+Number(n||0)+'</span>';
+}
+async function loadSocialCockpit(){
+  var el=$("socialCockpitJobs"); if(!el) return;
+  var elC=$("socialCockpitCounts");
+  var ts=$("social-cockpit-time");
+  var cid=(($("scpClient")||{}).value||"").trim();
+  var plat=(($("scpPlatform")||{}).value||"").trim();
+  var st=(($("scpStatus")||{}).value||"").trim();
+  var qs=[];
+  if(cid) qs.push("client_id="+encodeURIComponent(cid));
+  if(plat) qs.push("platform="+encodeURIComponent(plat));
+  if(st) qs.push("status="+encodeURIComponent(st));
+  qs.push("limit=200");
+  el.innerHTML='<span class="mut">Loading…</span>';
+  try{
+    var r=await fetch("/api/growth/social/jobs?"+qs.join("&"),{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok){
+      el.innerHTML='<span class="mut">Cockpit load nahi hua — admin login check karo (status '+r.status+').</span>';
+      return;
+    }
+    var d=await r.json();
+    if(!d.ok){
+      el.innerHTML='<span class="mut">Cockpit error: '+escH(d.error||"unknown")+'</span>';
+      return;
+    }
+    var counts=d.counts||{};
+    if(elC){
+      elC.innerHTML=["queued","retry","processing","published","dead","failed","skipped"]
+        .map(function(k){return _scpBadge(k,counts[k]||0);}).join("");
+    }
+    var jobs=d.jobs||[];
+    if(!jobs.length){
+      el.innerHTML='<div class="mut">Koi jobs is filter me nahi (engine OFF ho ya queue empty).</div>';
+      if(ts){ try{ ts.textContent="updated "+new Date().toLocaleTimeString("en-IN"); }catch(e){} }
+      return;
+    }
+    var head='<table style="width:100%;font-size:12px;border-collapse:collapse"><thead><tr style="background:#f1f5f9">'
+      +'<th style="text-align:left;padding:6px 8px">Status</th>'
+      +'<th style="text-align:left;padding:6px 8px">Client</th>'
+      +'<th style="text-align:left;padding:6px 8px">Platform</th>'
+      +'<th style="text-align:left;padding:6px 8px">Caption</th>'
+      +'<th style="text-align:left;padding:6px 8px">Att</th>'
+      +'<th style="text-align:left;padding:6px 8px">Last error / post</th>'
+      +'<th style="text-align:left;padding:6px 8px">Updated</th>'
+      +'<th style="text-align:left;padding:6px 8px">Action</th>'
+      +'</tr></thead><tbody>';
+    var rows=jobs.map(function(j){
+      var s=String(j.status||"");
+      var c=SCP_STATE_COLORS[s]||"#64748b";
+      var pill='<span style="padding:2px 8px;border-radius:999px;background:'+c+';color:#fff;font-size:11px">'+escH(s)+'</span>';
+      var cap=String(j.caption||"").slice(0,80);
+      var err=String(j.last_error||"").slice(0,120);
+      var pubUrl=j.post_url||j.post_id||"";
+      var lastCell=(s==="published")?(pubUrl?'<a href="'+escH(pubUrl)+'" target="_blank" rel="noopener">'+escH(pubUrl)+'</a>':escH(pubUrl)):escH(err);
+      var canRetry=(s==="dead"||s==="failed");
+      var canCancel=(s==="queued"||s==="retry"||s==="processing");
+      var act='';
+      if(canRetry) act+='<button class="btn" onclick="retrySocialJob(\''+escH(j.id||"")+'\')" style="padding:2px 8px;font-size:11px">🔁</button> ';
+      if(canCancel) act+='<button class="btn" onclick="cancelSocialJob(\''+escH(j.id||"")+'\')" style="padding:2px 8px;font-size:11px">✖</button> ';
+      if(!act) act='<span class="mut">—</span>';
+      return '<tr style="border-bottom:1px solid #e5e7eb">'
+        +'<td style="padding:6px 8px">'+pill+'</td>'
+        +'<td style="padding:6px 8px">'+escH(String(j.client_id||""))+'</td>'
+        +'<td style="padding:6px 8px">'+escH(String(j.platform||""))+'</td>'
+        +'<td style="padding:6px 8px;max-width:260px;overflow:hidden;text-overflow:ellipsis">'+escH(cap)+'</td>'
+        +'<td style="padding:6px 8px">'+Number(j.attempts||0)+'</td>'
+        +'<td style="padding:6px 8px;max-width:260px;overflow:hidden;text-overflow:ellipsis">'+lastCell+'</td>'
+        +'<td style="padding:6px 8px">'+escH(String(j.updated_at||j.created_at||""))+'</td>'
+        +'<td style="padding:6px 8px">'+act+'</td>'
+        +'</tr>';
+    }).join("");
+    el.innerHTML=head+rows+'</tbody></table>';
+    if(ts){ try{ ts.textContent="updated "+new Date().toLocaleTimeString("en-IN")+" · "+d.count+" rows"; }catch(e){} }
+  }catch(e){
+    el.innerHTML='<span class="mut">Cockpit load error — <a href="#" onclick="loadSocialCockpit();return false" style="color:var(--indigo)">Retry</a></span>';
+  }
+}
+async function retrySocialJob(jid){
+  if(!jid) return;
+  if(!window.confirm("Yeh job re-queue karna hai?")) return;
+  try{
+    var r=await fetch("/api/growth/social/jobs/"+encodeURIComponent(jid)+"/retry",{
+      method:"POST", headers:abAuthHdr()
+    });
+    var d={};
+    try{ d=await r.json(); }catch(e){}
+    if(r.ok&&d.ok){
+      if(d.no_change){ toast("Already queued","Kuch nahi karna — next drain pick karega."); }
+      else{ toast("✓ Re-queued","Previous state: "+(d.previous||"?")); }
+      loadSocialCockpit();
+    } else {
+      toast("Retry failed",(d&&d.error)||"Dobara try karo");
+    }
+  }catch(e){ toast("Error",e.message); }
+}
+
+/* Loop-social-21 (2026-07-11): token health + latest events + cancel. */
+async function cancelSocialJob(jid){
+  if(!jid) return;
+  if(!window.confirm("Yeh job cancel karna hai?")) return;
+  try{
+    var r=await fetch("/api/growth/social/jobs/"+encodeURIComponent(jid)+"/cancel",{
+      method:"POST", headers:abAuthHdr()
+    });
+    var d={};
+    try{ d=await r.json(); }catch(e){}
+    if(r.ok&&d.ok){ toast("✓ Cancelled","Previous: "+(d.previous||"?")); loadSocialCockpit(); }
+    else { toast("Cancel failed",(d&&d.error)||"Dobara try karo"); }
+  }catch(e){ toast("Error",e.message); }
+}
+async function loadSocialTokenHealth(){
+  var el=$("socialTokenHealth"); if(!el) return;
+  try{
+    var r=await fetch("/api/growth/social/token-health?days=7",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok){ el.innerHTML='<span class="mut">Load nahi hua</span>'; return; }
+    var d=await r.json();
+    if(!d.ok){ el.innerHTML='<span class="mut">'+escH(d.error||"error")+'</span>'; return; }
+    var exp=d.expired_count||0, warn=d.warning_count||0;
+    if(!exp && !warn){
+      el.innerHTML='<span style="color:var(--green)">✓ Sab tokens healthy</span>';
+      return;
+    }
+    var html='';
+    if(exp) html+='<div style="color:var(--red);font-weight:600">🔴 '+exp+' expired</div>';
+    if(warn) html+='<div style="color:#d97706;font-weight:600">🟡 '+warn+' expiring in ≤7 days</div>';
+    var rows=(d.expired||[]).concat(d.warning||[]).slice(0,5);
+    html+=rows.map(function(r){
+      return '<div style="font-size:11px;color:var(--muted);margin-top:2px">'
+        +escH(r.platform||"")+' · '+escH(r.client_id||"")+' · ends '+escH(r.expires_at||"?")+'</div>';
+    }).join("");
+    el.innerHTML=html;
+  }catch(e){ el.innerHTML='<span class="mut">Error</span>'; }
+}
+async function loadSocialLatestEvents(){
+  var el=$("socialLatestEvents"); if(!el) return;
+  try{
+    var r=await fetch("/api/growth/social/latest-events?limit=20",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok){ el.innerHTML='<span class="mut">Load nahi hua</span>'; return; }
+    var d=await r.json();
+    var evs=(d.events)||[];
+    if(!evs.length){ el.innerHTML='<span class="mut">Abhi koi event nahi</span>'; return; }
+    el.innerHTML=evs.map(function(ev){
+      var when=String(ev.ts||ev.timestamp||"").slice(11,19);
+      return '<div style="border-bottom:1px dashed var(--line);padding:3px 0">'
+        +'<span style="opacity:.7">'+escH(when)+'</span> '
+        +'<b>'+escH(ev.event||"")+'</b> · '
+        +'<span style="color:var(--muted)">'+escH(ev.client_id||"")+'</span> '
+        +'<span style="color:var(--muted)">'+escH((ev.detail||"").slice(0,80))+'</span>'
+        +'</div>';
+    }).join("");
+  }catch(e){ el.innerHTML='<span class="mut">Error</span>'; }
+}
+
+/* Loop-social-17 (2026-07-11): pause + emergency-stop admin controls. */
+var SCP_PAUSE_PLATFORMS=["facebook","instagram","gbp","linkedin","x","youtube","whatsapp","postiz"];
+var _scpPauseState={emergency_stop:false,paused_platforms:[],paused_clients:[]};
+async function loadSocialPause(){
+  try{
+    var r=await fetch("/api/growth/social/pause",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok) return;
+    var d=await r.json();
+    if(!d||!d.ok) return;
+    _scpPauseState={
+      emergency_stop:!!d.emergency_stop,
+      paused_platforms:(d.paused_platforms||[]).slice(),
+      paused_clients:(d.paused_clients||[]).slice()
+    };
+    renderPauseControls();
+  }catch(e){}
+}
+function renderPauseControls(){
+  var btn=$("btnEmergencyStop"), chips=$("pausePlatformChips"),
+      line=$("pauseStatusLine"), inp=$("pauseClientsInp");
+  if(btn){
+    if(_scpPauseState.emergency_stop){
+      btn.textContent="🔴 EMERGENCY STOP ON — click to resume";
+      btn.style.background="#dc2626"; btn.style.color="#fff";
+    } else {
+      btn.textContent="⚫ Emergency stop"; btn.style.background=""; btn.style.color="";
+    }
+  }
+  if(chips){
+    chips.innerHTML=SCP_PAUSE_PLATFORMS.map(function(p){
+      var on=(_scpPauseState.paused_platforms.indexOf(p)>=0);
+      return '<button class="btn" type="button" onclick="togglePausePlatform(\''+p+'\')"'
+        +' style="padding:3px 10px;font-size:11px;background:'+(on?'#dc2626':'#f1f5f9')+';color:'+(on?'#fff':'var(--ink)')+'">'
+        +(on?'⏸ ':'')+escH(p)+'</button>';
+    }).join("");
+  }
+  if(inp){
+    if(document.activeElement!==inp) inp.value=(_scpPauseState.paused_clients||[]).join(", ");
+  }
+  if(line){
+    var pieces=[];
+    if(_scpPauseState.emergency_stop) pieces.push("emergency_stop=ON");
+    if(_scpPauseState.paused_platforms.length) pieces.push(_scpPauseState.paused_platforms.length+" platforms paused");
+    if(_scpPauseState.paused_clients.length) pieces.push(_scpPauseState.paused_clients.length+" clients paused");
+    line.textContent=pieces.length?pieces.join(" · "):"No pauses active";
+  }
+}
+async function toggleEmergencyStop(){
+  var next=!_scpPauseState.emergency_stop;
+  if(next && !window.confirm("Emergency stop ON karna hai? Sab jobs ruk jayenge (SOCIAL_ENGINE independent).")) return;
+  await _postPause({emergency_stop:next});
+}
+async function togglePausePlatform(plat){
+  var cur=_scpPauseState.paused_platforms.slice();
+  var i=cur.indexOf(plat);
+  if(i>=0) cur.splice(i,1); else cur.push(plat);
+  await _postPause({paused_platforms:cur});
+}
+async function savePausedClients(){
+  var val=($("pauseClientsInp")||{}).value||"";
+  var list=val.split(",").map(function(x){return x.trim();}).filter(Boolean);
+  await _postPause({paused_clients:list});
+}
+async function _postPause(body){
+  try{
+    var r=await fetch("/api/growth/social/pause",{
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
+      body:JSON.stringify(body)
+    });
+    var d=await r.json();
+    if(r.ok&&d.ok){ toast("✓ Pause updated","Ab drain waise hi chalega."); loadSocialPause(); loadSocialCockpit(); }
+    else { toast("Pause update failed",(d&&d.error)||"Dobara try karo"); }
+  }catch(e){ toast("Error",e.message); }
 }
 
 async function opsCeleryTrim(){
@@ -2600,7 +2907,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   loadTodayBiz();
   loadAdminTasks();
   loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026(); loadPendingNiches();
-  loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth();
+  loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadSocialCockpit(); loadSocialPause(); loadSocialTokenHealth(); loadSocialLatestEvents();
   loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail();
   loadSyncHealth(); loadAgents();
   loadAutomationHub();
