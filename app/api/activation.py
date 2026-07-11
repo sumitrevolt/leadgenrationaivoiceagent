@@ -621,13 +621,25 @@ _EMPTY_CHECKS: dict[str, Any] = {
     "with_setup_progress": 0,
     "with_generated_artifacts": 0,
     "with_customer_visible_artifacts": 0,
-    "with_evidence_backed_delivery": 0,
+    # NOTE: `with_evidence_backed_delivery` counts customers with ≥1 published
+    # item — this is ITEM-LEVEL only. It does NOT indicate the plan's contract
+    # entitlements are complete. See `plan_completion_by_customer` +
+    # `entitlement_progress_by_type` for plan/deliverable-level truth.
+    "with_evidence_backed_delivery": 0,   # item-level: ≥1 published item
+    "with_completed_plan": 0,             # plan-level: all 10 deliverables done
     "zero_generated_after_grace": 0,
     "zero_visible_after_sla": 0,
     "zero_completed_after_sla": 0,
     "oldest_zero_generated_bucket": None,
     "oldest_zero_visible_bucket": None,
     "oldest_zero_completed_bucket": None,
+    # Aggregate deliverable-completion distribution (per paid customer, no
+    # PII). Bucket customer's deliverable_completion into: 0 / 1-25% /
+    # 26-50% / 51-75% / 76-99% / 100%. Lets admins see plan-level progress
+    # distribution without exposing individual customer IDs or percentages.
+    "plan_completion_distribution": {
+        "0%": 0, "1-25%": 0, "26-50%": 0, "51-75%": 0, "76-99%": 0, "100%": 0,
+    },
 }
 
 
@@ -750,7 +762,8 @@ def _first_paid_delivery() -> dict[str, Any]:
     if cached is not None and now - float(_FIRST_PAID_CACHE.get("at") or 0.0) < _FIRST_PAID_TTL_S:
         return cached
 
-    checks: dict[str, Any] = dict(_EMPTY_CHECKS)
+    import copy
+    checks: dict[str, Any] = copy.deepcopy(_EMPTY_CHECKS)
 
     try:
         from app.marketing import clients_store, product_one_delivery
@@ -772,7 +785,33 @@ def _first_paid_delivery() -> dict[str, Any]:
                 if outcome["visible"]:
                     checks["with_customer_visible_artifacts"] += 1
                 if outcome["completed"]:
+                    # ITEM-level: at least one published item exists.
+                    # Deliberately NOT interpreted as "plan complete" —
+                    # see checks["with_completed_plan"] below.
                     checks["with_evidence_backed_delivery"] += 1
+
+                # Plan-level completion: aggregate customer's
+                # deliverable_completion_pct into distribution buckets so
+                # admins see plan-level truth (a customer with 1 published
+                # item but 4/10 deliverables done is NOT "plan complete").
+                try:
+                    state = product_one_delivery.customer_delivery_status(cid, c) or {}
+                    pct = int(state.get("deliverable_completion_pct") or 0)
+                    if pct >= 100:
+                        checks["plan_completion_distribution"]["100%"] += 1
+                        checks["with_completed_plan"] += 1
+                    elif pct >= 76:
+                        checks["plan_completion_distribution"]["76-99%"] += 1
+                    elif pct >= 51:
+                        checks["plan_completion_distribution"]["51-75%"] += 1
+                    elif pct >= 26:
+                        checks["plan_completion_distribution"]["26-50%"] += 1
+                    elif pct >= 1:
+                        checks["plan_completion_distribution"]["1-25%"] += 1
+                    else:
+                        checks["plan_completion_distribution"]["0%"] += 1
+                except Exception:
+                    pass
 
                 # Age-based SLA gates. Unparseable created_at → skip SLA
                 # (don't false-alarm on a legacy row with missing timestamp).
@@ -801,6 +840,7 @@ def _first_paid_delivery() -> dict[str, Any]:
                 continue
     except Exception as exc:
         # Wholesale eval failure — WARN with sanitized type-only diagnostic.
+        import copy as _copy
         result = {
             "key": "first_paid_delivery",
             "label": "First paid customer delivery signal",
@@ -808,7 +848,7 @@ def _first_paid_delivery() -> dict[str, Any]:
             "status": _WARN,
             "env_vars": [],
             "checks": {
-                **dict(_EMPTY_CHECKS),
+                **_copy.deepcopy(_EMPTY_CHECKS),
                 "eval_error": True,
                 "eval_error_type": type(exc).__name__[:60],
             },

@@ -102,6 +102,12 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     "post_retry_scheduled": ("↩️", "", "Post publish retry scheduled", False),
     "post_cancelled": ("🛑", "Aapne post cancel kar diya", "Post cancelled", True),
     "customer_action_required": ("⚠️", "Ek kaam aapki attention chahiye", "Customer action required", True),
+    # Evidence-hygiene loop (2026-07-11 P0). Non-publication audit marker for
+    # `content_approval.update_evidence_url` — records that an evidence URL
+    # was rewritten (typically retroactive PII cleanup) WITHOUT counting as a
+    # fresh publication. customer_visible=False: this is admin/audit-only;
+    # customer already saw the original `post_published` event.
+    "evidence_amended": ("🔧", "", "Evidence URL amended (audit-only, not a new publication)", False),
 }
 EVENT_TYPES: frozenset[str] = frozenset(LABELS.keys())
 
