@@ -1,0 +1,2 @@
+{"at": "2026-07-07T11:32:24+00:00", "client_id": "jiya-makeover", "event": "customer_created", "detail": "", "actor": "backfill", "key": "lc:created"}
+{"at": "2026-07-11T15:30:00+00:00", "client_id": "jiya-makeover", "event": "marketing_client_onboarded", "detail": "Added to marketing_clients.jsonl with starter plan (₹1,999/mo), niche=beauty_makeover, city=Mumbai", "actor": "production_operator", "key": "marketing:onboarded"}
