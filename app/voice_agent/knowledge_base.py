@@ -484,10 +484,14 @@ def _get_qdrant_embedder():
     threading.Thread(target=_load, name="kb-embed-load", daemon=True).start()
     done.wait(timeout_s)
     if _QDRANT_EMBEDDER is None:
-        _QDRANT_DISABLED = True
+        # Cold FastEmbed initialisation can legitimately outlive the request
+        # deadline even when the model is baked into the image (ONNX startup
+        # is CPU-heavy).  Do not permanently disable Qdrant: the daemon load
+        # thread may finish moments later and the next request can use the
+        # semantic backend.
         raise RuntimeError(
             f"fastembed model not ready within {timeout_s:.0f}s "
-            "(likely runtime HF download) — qdrant disabled for this process"
+            "(likely cold model initialisation) — qdrant is still warming"
         )
     return _QDRANT_EMBEDDER
 
@@ -828,8 +832,12 @@ class KnowledgeBase:
         try:
             return _QdrantIndex(namespace)
         except Exception as e:
-            # deps missing / server down — is process me dobara probe mat karo
-            _QDRANT_DISABLED = True
+            # A cold baked-model timeout is transient: keep probing while the
+            # daemon loader finishes.  Dependency/server failures remain
+            # sticky so a broken integration cannot slow every request.
+            _transient_warmup = "model not ready within" in str(e)
+            if not _transient_warmup:
+                _QDRANT_DISABLED = True
             try:
                 from app.platform.integration_health import record_failure
 
