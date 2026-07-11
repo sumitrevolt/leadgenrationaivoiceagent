@@ -346,6 +346,57 @@ services:
         max-file: "3"
     networks: [leadgen_net]
 
+  # ---------------------------------------------------------------------------
+  # VIDEO worker — video-creative pipeline (ffmpeg-heavy) isolated onto its own
+  # queue/process, same starve-prevention shape as worker-heavy above.
+  # CELERY_VIDEO_QUEUE flag SEND-side routing on karta (scheduler/app/worker
+  # pe bhi set — see app/worker.py _route_video_task). Default OFF (INERT) —
+  # unset means video tasks fall back to the default "celery" queue, so this
+  # ships safely before this service is ever started.
+  # ---------------------------------------------------------------------------
+  worker-video:
+    profiles: ["celery"]
+    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
+    build:
+      context: .
+      dockerfile: Dockerfile.lock
+    container_name: leadgen_worker_video
+    mem_limit: 2000m
+    mem_reservation: 512m
+    cpus: "1.5"
+    user: "0:0"
+    command: celery -A app.worker worker -Q video --loglevel=info --concurrency=1
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
+      REDIS_URL: redis://redis:6379/0
+      CACHE_REDIS_URL: redis://redis-cache:6379/0
+      RUN_IN_PROCESS_SCHEDULER: "0"
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.worker inspect ping -d celery@$$HOSTNAME -t 8 | grep -q pong || exit 1"]
+      interval: 60s
+      timeout: 15s
+      start_period: 90s
+      retries: 3
+    logging:
+      driver: json-file
+      options:
+        max-size: "20m"
+        max-file: "3"
+    networks: [leadgen_net]
+
   scheduler:
     profiles: ["celery"]
     image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
