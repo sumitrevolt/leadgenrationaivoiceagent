@@ -528,12 +528,6 @@ def social_autopost_task(limit: int = 20):
     # idempotency: run_social_autopost marks posted items 'posted' before returning;
     # duplicate runs skip already-posted items (status != 'ready') — safe to retry.
     """
-    try:
-        return asyncio.run(run_social_autopost(limit))
-    except RuntimeError:
-        # Already inside a running loop (rare in a worker) -> use a fresh loop.
-        loop = asyncio.new_event_loop()
-        try:
-            return loop.run_until_complete(run_social_autopost(limit))
-        finally:
-            loop.close()
+    from app.platform.celery_async import run as run_async
+
+    return run_async(run_social_autopost(limit))

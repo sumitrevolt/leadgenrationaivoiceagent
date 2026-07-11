@@ -1,4 +1,16 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
+ 
+## Loop Run
+Date: 2026-07-11
+Goal: Full read-only audit of connected tools, features, workflows, automations, schedules, hooks, agents, video and social paths.
+Inspected: local verification gates; git/workflow/static wiring; live HTTPS health; VPS containers, scheduler logs, Redis queues/DLQ, worker/app logs; LiveKit, FreeSWITCH, WAHA, Postiz, video/social task registration; hook paths and agent/workflow probes.
+Problems Found: `check_secrets.py` FAILS on token-shaped test literals; git tree dirty; self-improve heartbeat visibility stale/contradictory with 34 pending items and unknown next action; live worker `Event loop is closed` / `different loop` errors; Vobiz `ConnectTimeout`; WAHA session FAILED causing repeated send failures and paid-customer `send_failed`; `dlq:dead` has 4 preserved QA timeouts; Postiz absent and public endpoint 502; no `.cursor/hooks.json`; no recent video artifacts/success evidence; `agent_flow_check.py` cannot import `app`; workflow-gap probe cannot reach live Celery; API.md stale.
+Changed: No code, env, flag, data, restart, deploy, or external state changed. Ledger entry only.
+Tests Run: `scripts/prod_check.py` PASS (1098 routes, 0 wiring gaps, 80/80 engine coverage); `scripts/check_secrets.py` FAIL; automation daily/anomaly audits; live health 2/2; static workflow/hook/social/video checks; live container/log/queue checks.
+Verification Evidence: Live app/workers/scheduler/Redis/Postgres/PgBouncer/Qdrant/LiveKit/FreeSWITCH healthy/running; main queue and `dlq:failed_tasks` = 0; scheduler emitted due tasks continuously; Postiz absent/502; WAHA and async-loop errors present in last 12h logs.
+Risks: Paid-customer WhatsApp delivery unreliable; async jobs can silently degrade; social auto-publish/Postiz and video output are not live-proven; green audit verdict can mask stale heartbeat; dirty workspace unsafe for deploy.
+Remaining: Fix async loop lifecycle; restore WAHA via user-side QR/session action; bring up/validate Postiz or keep social engine OFF; investigate Vobiz; classify/retry 4 dead DLQ entries; resolve secret-scan literals; repair audit probes and regenerate API.md; run real agent/video/social smoke tests.
+Next Highest Priority: WAHA/Jiya delivery recovery, async-engine lifecycle, Postiz/social activation decision, Vobiz probe, secret-scan and audit-tool hygiene.
 
 > Per-loop memory for Loop Engineer mode (see `CLAUDE.md §0` + `docs/LOOP_ENGINEER.md`).
 > **Read this + CLAUDE.md before starting any loop** — continue, don't repeat.
@@ -2069,3 +2081,14 @@ Risks: (a) **§5 rule crossed** — `reset --hard` on VPS. If VPS had any local 
 Remaining: (1) Post-deploy manual verify via browser at `https://leadsgenai.in/api/{llm/compare,cookbook,research/deep,docs/edit}/ui` — should redirect to admin login (require_admin dep) then 503 (flag OFF). (2) When user wants to canary a feature: flip corresponding env flag in prod `.env` + `docker compose restart app`. Order: LLM_COMPARE_ENABLED (safest, no external burn) → MODEL_COOKBOOK_ENABLED (no external calls at all) → DOCS_AI_EDIT_ENABLED (LLM burn, admin-only cap) → DEEP_RESEARCH_ENABLED (biggest — LLM + SearXNG). (3) Follow-up polish: admin_dashboard.html nav-link additions to the 4 UIs (cosmetic, next loop). (4) Address the pre-existing pending redaction WIP (`app/middleware/__init__.py` M, `tests/test_logging_redaction.py` untracked, `scripts/harvest_safety_wrapper.py`+`inspect_dlq.py` untracked) — my commit did NOT touch those; user should decide when to land that batch.
 Next Highest Priority: **Canary flip** — pick ONE flag to enable in prod (recommend LLM_COMPARE_ENABLED first — pure admin diagnostic, no customer-visible surface, zero external burn since it fanouts on already-configured keys). Then hit `/api/llm/compare/ui` in browser to try the blind arena. Rollback if any: `docker compose restart app` after removing the env line — instant, no schema/migration. Commit `1229c031` is deploy-canonical; VPS image tag = `ghcr.io/sumitrevolt/leadgenrationaivoiceagent:latest` (rebuilt this loop).
 
+## Loop Run
+Date: 2026-07-11
+Goal: Implement verified system-health fixes from the full automation/agent/video/social audit.
+Inspected: Celery async wrappers, SQLAlchemy/asyncpg loop-bound resource path, Redis SSE event publishing, logging redaction, workflow/agent probes, scheduler/automation wiring, API index.
+Problems Found: Per-task event-loop creation existed across staff and other Celery wrappers; caller-loop Redis fire-and-forget tasks caused pending-task shutdown warnings/crash; secret-shaped redaction fixtures blocked secret scan; empty sensitive query values were not redacted; workflow probe self-generated a false cadence TypeError; agent flow probe lacked repo-root import path; API index stale.
+Changed: Added shared app/platform/celery_async.py process-local loop runner; migrated staff, reporting, dev-worker, brain-training and scraping wrappers; moved team SSE publish to isolated daemon loop; fixed empty query-value redaction; neutralized test fixtures; repaired agent/workflow probes; synchronized docs/API.md; added focused async regression tests and plan doc.
+Tests Run: Combined focused bundle 23/23 green, exit 0; redaction 14/14; automation wiring 39 jobs/40 beat tasks, 0 gaps; prod_check.py PASS (1098 registered routes, 0 wiring gaps, 80/80 engine coverage, 1122 API ops in sync); check_secrets.py PASS.
+Verification Evidence: Windows combined test process no longer crashes and no pending-task warnings remain in the bundle. Import smoke for all migrated task modules passed.
+Risks: Fixes are local only; VPS still runs pre-fix image. WAHA FAILED session, missing Postiz stack/502, Vobiz timeout, and 4 production dead-DLQ entries remain until live operations are authorized/executed.
+Remaining: Explicit live deploy authorization; deploy/recreate app + worker + worker-heavy + worker-video + scheduler; post-deploy 2x health and 12h log re-audit; user-side WAHA QR/session recovery; Postiz DNS/OAuth/API key/integration setup; Vobiz connectivity; DLQ triage.
+Next Highest Priority: Confirm live deployment to 72.61.245.204, then run post-deploy worker/scheduler verification before touching external social/WhatsApp credentials.

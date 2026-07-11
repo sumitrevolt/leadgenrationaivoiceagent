@@ -3,7 +3,6 @@ Scraping Tasks
 Background tasks for lead scraping
 """
 
-import asyncio
 import json
 
 from celery import shared_task
@@ -14,6 +13,7 @@ from app.models.base import get_db_session
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.lead import Lead, LeadSource, LeadStatus
 from app.utils.logger import setup_logger
+from app.platform.celery_async import run as run_async
 
 logger = setup_logger(__name__)
 
@@ -29,13 +29,7 @@ def scrape_leads_task(self, niche: str, cities: list, max_leads: int = 100):
         scraper = LeadScraperManager()
 
         # Run async scraping in sync context
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            leads = loop.run_until_complete(scraper.scrape_leads(niche, cities, max_leads))
-        finally:
-            loop.close()
+        leads = run_async(scraper.scrape_leads(niche, cities, max_leads))
 
         logger.info(f"Scrape completed: {len(leads)} leads found")
 
@@ -122,13 +116,7 @@ def scrape_for_campaign(self, campaign_id: str, niche: str, cities: list, max_le
         scraper = LeadScraperManager()
 
         # Run async scraping
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        try:
-            scraped_leads = loop.run_until_complete(scraper.scrape_leads(niche, cities, max_leads))
-        finally:
-            loop.close()
+        scraped_leads = run_async(scraper.scrape_leads(niche, cities, max_leads))
 
         # Save leads to database
         with get_db_session() as db:
@@ -294,12 +282,7 @@ def enrich_lead_data(lead_ids: list[str] = None, limit: int = 50):
 
                     return await asyncio.gather(*[_one(u) for _, u in targets])
 
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            try:
-                results = loop.run_until_complete(_fetch_all())
-            finally:
-                loop.close()
+            results = run_async(_fetch_all())
 
             for (lead, _url), email in zip(targets, results, strict=False):
                 if email:

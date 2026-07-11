@@ -6,8 +6,13 @@ Run (container me, live state):
   docker exec leadgen_app python /tmp/agent_flow_check.py
 """
 from __future__ import annotations
-import os, json, traceback
+import os, json, traceback, sys
 from datetime import datetime, timezone
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 def _sec(t): print("\n" + "=" * 64 + f"\n{t}\n" + "=" * 64)
 def _safe(label, fn):

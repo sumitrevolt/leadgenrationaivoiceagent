@@ -40,16 +40,8 @@ def probe_cadence_enroll_kwarg() -> None:
     """Hypothesis A: public_site passes invalid source= kwarg → enroll never runs."""
     from app.marketing import cadence
 
-    try:
-        cadence.enroll(lead={"phone": "9999999999", "name": "probe"}, source="inquiry")
-        _log("A", "probe:cadence", "enroll with source= kwarg succeeded (unexpected)", {"ok": True})
-    except TypeError as e:
-        _log("A", "probe:cadence", "enroll with source= kwarg FAILS TypeError", {"error": str(e)[:120]})
-    except Exception as e:
-        _log("A", "probe:cadence", "enroll other error", {"error": type(e).__name__, "msg": str(e)[:120]})
-
     r = cadence.enroll({"phone": "9999999998", "name": "probe-ok", "source": "inquiry"})
-    _log("A", "probe:cadence", "enroll correct signature", {"id": r.get("id"), "status": r.get("status")})
+    _log("A", "probe:cadence", "enroll supported signature", {"id": r.get("id"), "status": r.get("status")})
 
 
 def probe_journey_rules() -> None:

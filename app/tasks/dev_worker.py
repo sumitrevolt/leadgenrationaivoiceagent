@@ -8,11 +8,11 @@ which never applies a patch, commits, or deploys.
 
 from __future__ import annotations
 
-import asyncio
 import os
 
 from app.utils.logger import setup_logger
 from app.worker import celery_app
+from app.platform.celery_async import run as run_async
 
 logger = setup_logger(__name__)
 
@@ -38,7 +38,7 @@ def run_dev_task_task(self, task_id: str, worker_id: str = "celery-dev-worker"):
             )
 
     try:
-        return asyncio.run(_go())
+        return run_async(_go())
     except Exception as exc:  # noqa: BLE001 — bounded retry, DLQ records the failure
         logger.error("dev_worker run failed for %s: %s", task_id, exc)
         raise self.retry(exc=exc, countdown=30)
@@ -56,4 +56,4 @@ def reconcile_leases_task(self):
         async with get_async_session() as db:
             return await reconcile_leases(db)
 
-    return asyncio.run(_go())
+    return run_async(_go())
