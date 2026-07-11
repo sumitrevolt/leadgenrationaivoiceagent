@@ -22,7 +22,7 @@ def test_is_platform_pitch_only_ai_marketing():
 def test_opening_segments_three_parts():
     segs = opening_segments()
     assert len(segs) == 3
-    assert "Leads Generation AI" in segs[0]
+    assert "LeadGen AI" in segs[0]
     # segs[0] = mandatory TRAI AI-disclosure prefix ("Main ek AI agent hoon…")
     # + lean intro + permission-ask (2026-07-02). Compliance prefix legitimately
     # makes it longer than the bare intro — cap accommodates disclosure, still ~one

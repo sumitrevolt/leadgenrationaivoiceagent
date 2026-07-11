@@ -77,15 +77,24 @@ async def run() -> int:
                     await ws.send_json({"type": "user", "text": turn})
                     t_turn = time.monotonic()
                     msgs = await collect_bot_msgs(ws, window_s=8.0)
+                    # Sentence-streamed replies use multiple bot frames for one
+                    # spoken answer. Count only the first chunk as a logical reply;
+                    # chunk_total remains available for protocol-level checks.
                     latency = time.monotonic() - t_turn
-                    bot = [m for m in msgs if m.get("type") == "bot"]
+                    bot = [
+                        m for m in msgs
+                        if m.get("type") == "bot"
+                        and (m.get("chunk_index") in (None, 0))
+                    ]
 
                     if len(bot) == 0:
                         flag("NO_REPLY", f"turn={turn!r} -> 0 bot msgs")
                     elif len(bot) > 1:
                         flag("DOUBLE_REPLY", f"turn={turn!r} -> {len(bot)} bot msgs")
 
-                    text = " ".join((m.get("text") or "") for m in bot).strip()
+                    text = " ".join(
+                        (m.get("full_text") or m.get("text") or "") for m in bot
+                    ).strip()
                     if bot and not any(m.get("audio_b64") for m in bot):
                         flag("NO_AUDIO", f"turn={turn!r} -> no audio_b64 (robotic fallback)")
                     if len(text.split()) > 35:

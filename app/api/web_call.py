@@ -422,7 +422,9 @@ async def _send_bot_message(websocket: WebSocket, text: str, **extra: Any) -> No
     t = (text or "").strip()
     if not t:
         return
-    audio_b64 = await _bot_audio_b64(t)
+    # Callers that pre-synthesise a group of messages can pass the result here;
+    # this keeps ordered WS delivery while avoiding serial EdgeTTS waits.
+    audio_b64 = extra.pop("audio_b64", None) if "audio_b64" in extra else await _bot_audio_b64(t)
     payload: dict[str, Any] = {
         "type": "bot",
         "text": t,
@@ -1221,6 +1223,12 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         if niche == "ai_marketing":
                             session["client_name"] = "LeadGen AI"
                         segs = opening_segments()
+                        # The three-part platform opener is static text. Synthesize
+                        # all segments concurrently, then send them in order. The
+                        # old serial path made the browser wait for 3 EdgeTTS
+                        # round-trips before the opening felt complete.
+                        audio_tasks = [asyncio.create_task(_bot_audio_b64(seg)) for seg in segs]
+                        audio_results = await asyncio.gather(*audio_tasks, return_exceptions=True)
                         for i, seg in enumerate(segs):
                             history.append({"role": "assistant", "content": seg})
                             _log_turn(session, "assistant", seg)
@@ -1228,6 +1236,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
                             if len(segs) > 1:
                                 extra["chunk_index"] = i
                                 extra["chunk_total"] = len(segs)
+                            audio = audio_results[i]
+                            extra["audio_b64"] = audio if isinstance(audio, str) else None
                             await _send_bot_message(websocket, seg, **extra)
                         try:
                             await websocket.send_json(
