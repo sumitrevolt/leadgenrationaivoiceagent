@@ -69,8 +69,11 @@ async def ws_ai_marketing(base: str) -> list[str]:
                     break
             if not praise:
                 issues.append("no bot reply after 'haan ji'")
-            elif "decision" not in praise.lower() and "sahi" not in praise.lower():
-                issues.append(f"expected praise after yes, got: {praise!r}")
+            elif not any(
+                word in praise.lower()
+                for word in ("bahut achha", "sahi", "decision", "marketing")
+            ):
+                issues.append(f"expected acknowledgement/discovery after yes, got: {praise!r}")
     return issues
 
 

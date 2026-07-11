@@ -10,7 +10,7 @@ def test_universal_intro_has_identity_and_cta():
     # ab PITCH_SHORT segment me — yahan intro me unhe assert NAHI karte (warna bloat
     # wapas aa jaayega). Intro chhota rehna chahiye.
     t = UNIVERSAL_AGENT_INTRO.lower()
-    assert "leads generation ai" in t
+    assert "leadgen ai" in t
     assert any(w in t for w in ("instagram", "facebook", "google", "customers"))
     # 2026-07-02: +permission-ask ("do minute baat kar sakti hoon?") — cap 26->34
     # (still ~one breath / ~13 sec). Bloat guard stays.
@@ -43,7 +43,7 @@ def test_telecaller_platform_niche_opener_is_universal():
     brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
     opener = brain.opening_line()
     assert opener == opening_segments()[0]
-    assert "leads generation ai" in opener.lower()
+    assert "leadgen ai" in opener.lower()
 
 
 def test_telecaller_vertical_niche_opener_is_not_platform_pitch():

@@ -30,7 +30,7 @@ def _marketing_start_price() -> str:
 # caller ko control deta (kam pushy). Ek chhota timing-ask turn-1 me add — segment
 # lean rehta (telephony-cheap), qa_checks.has_permission_ask ab pass karta.
 UNIVERSAL_AGENT_INTRO = (
-    "Namaste! Main Leads Generation AI se bol rahi hoon — "
+    "Namaste! Main LeadGen AI se bol rahi hoon — "
     "hum aapke jaise business ko AI se naye customers dila dete hain, "
     "Instagram, Facebook aur Google se. Do minute baat kar sakti hoon?"
 )

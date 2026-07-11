@@ -180,7 +180,8 @@ NICHE_SCRIPTS: dict[str, dict] = {
         "pitch_short": PITCH_SHORT,
         "interest_ask": INTEREST_ASK,
         "yes_praise": (
-            "Theek sir — marketing abhi khud karte ho, staff se, ya agency?"
+            "Bahut achha sir — pehle aapki situation samajh leti hoon. "
+            "Marketing abhi khud karte ho, staff se, ya agency?"
         ),
         "no_convince_once": (
             "Samajh sakti hoon sir — 7 din ka FREE trial hai, pehle result dekho phir decide."
