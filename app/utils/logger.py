@@ -67,6 +67,97 @@ def setup_cloud_logging():
 
 
 # =============================================================================
+# CREDENTIAL REDACTION (2026-07-11 P0 loop-flagged: INFO HTTP logs were
+# suspected of exposing query-string credentials — Meta OAuth `code=`, Postiz
+# `api_key=`, webhook `signature=`, etc.). This module-level redactor runs on
+# EVERY emitted log message via the formatter classes below. Fail-safe: any
+# regex error returns the original message unchanged (safer than breaking
+# logs). Env opt-out `LOG_REDACT_MESSAGES=0` for debug windows only — never
+# leave OFF permanently in production.
+# =============================================================================
+
+import re as _re
+
+# Case-insensitive credential-like key names, ordered longest-first so
+# `client_secret` is not partially matched by `secret`. Covers OAuth
+# (code/access_token/refresh_token/id_token/client_secret), webhooks
+# (signature/verify_token/webhook_secret), transport auth (authorization/
+# bearer/jwt), and generic API keys (api_key/api-key/apikey/token/secret/
+# password). Hyphen/underscore variants collapsed via regex.
+_SENSITIVE_KEY_NAMES = (
+    "client_secret", "webhook_secret", "refresh_token", "access_token",
+    "verify_token", "auth_token", "oauth_token", "private_token",
+    "private_key", "id_token", "session_id", "api_key",
+    "apikey", "authorization", "password", "passwd", "signature",
+    "token", "secret", "bearer", "jwt", "code",
+)
+
+
+def _sensitive_name_re_alternation() -> str:
+    """Build a name alternation regex that tolerates `-` or `_` between
+    words (e.g. `api-key` == `api_key`)."""
+    return "|".join(
+        n.replace("-", "[-_]?").replace("_", "[-_]?")
+        for n in _SENSITIVE_KEY_NAMES
+    )
+
+
+_MESSAGE_KV_REDACT_RE = _re.compile(
+    r"\b(" + _sensitive_name_re_alternation()
+    + r')\s*[=:]\s*("[^"]{1,4096}"|\'[^\']{1,4096}\'|[^\s&,;\)\]\}"]{1,4096})',
+    _re.IGNORECASE,
+)
+
+_MESSAGE_JSON_REDACT_RE = _re.compile(
+    r"(['\"])(" + _sensitive_name_re_alternation()
+    + r")\1\s*:\s*(['\"])([^'\"]{1,4096})\3",
+    _re.IGNORECASE,
+)
+
+# `Bearer <token>`, `Basic <base64>`, `Token <hex>` — auth-header conventions.
+_MESSAGE_BEARER_RE = _re.compile(
+    r"\b(Bearer|Basic|Token)\s+[A-Za-z0-9._\-~+/=]{6,}",
+    _re.IGNORECASE,
+)
+
+
+def redact_message(message: str) -> str:
+    """Redact credential-like key=value / "key":"value" / `Bearer xxx`
+    fragments from an arbitrary log message string. Fail-safe: on any regex
+    error the original message is returned unchanged (safer than breaking
+    logs).
+
+    Pass order matters: `Authorization=Bearer <jwt>` must run the Bearer pass
+    FIRST — otherwise the KV pass consumes only the word "Bearer" (space-
+    terminated value) and leaves the JWT trailing after the [REDACTED] marker.
+    Order: JSON (highest-confidence structured) → Bearer (auth-header +
+    free-form `Bearer XXX` catch-all) → KV (remaining `key=value` /
+    `key: value`)."""
+    if not message:
+        return message
+    try:
+        s = str(message)
+        s = _MESSAGE_JSON_REDACT_RE.sub(
+            lambda m: f"{m.group(1)}{m.group(2)}{m.group(1)}: {m.group(3)}[REDACTED]{m.group(3)}",
+            s,
+        )
+        s = _MESSAGE_BEARER_RE.sub(lambda m: f"{m.group(1)} [REDACTED]", s)
+        s = _MESSAGE_KV_REDACT_RE.sub(lambda m: f"{m.group(1)}=[REDACTED]", s)
+        return s
+    except Exception:
+        return message
+
+
+def _log_redact_enabled() -> bool:
+    """Default ON. `LOG_REDACT_MESSAGES=0` (or false/no/off) disables for a
+    debug window — never leave OFF permanently in production."""
+    v = os.environ.get("LOG_REDACT_MESSAGES", "").strip().lower()
+    if v in ("0", "false", "no", "off"):
+        return False
+    return True
+
+
+# =============================================================================
 # FORMATTERS
 # =============================================================================
 
@@ -90,7 +181,13 @@ class ColoredFormatter(logging.Formatter):
         # Add color to level name
         record.levelname = f"{color}{record.levelname}{reset}"
 
-        return super().format(record)
+        formatted = super().format(record)
+        # Credential redaction on final formatted output (2026-07-11 P0 hardening).
+        # Post-format run catches everything the format string interpolated:
+        # message body, extra fields, and any KV/JSON/Bearer credential pair.
+        if _log_redact_enabled():
+            formatted = redact_message(formatted)
+        return formatted
 
 
 class JSONFormatter(logging.Formatter):
@@ -100,11 +197,17 @@ class JSONFormatter(logging.Formatter):
     """
 
     def format(self, record: logging.LogRecord) -> str:
+        # Credential redaction on the fully-interpolated message (2026-07-11
+        # P0 hardening). Runs BEFORE serialization so both the structured
+        # `message` field and any downstream JSON-log ingestor (Loki/Cloud
+        # Logging/Sentry breadcrumbs) see the sanitized text.
+        _raw_msg = record.getMessage()
+        _msg = redact_message(_raw_msg) if _log_redact_enabled() else _raw_msg
         log_data = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": _msg,
             "module": record.module,
             "function": record.funcName,
             "line": record.lineno,
