@@ -683,6 +683,54 @@ def mark_published(approval_id: str, channel: str = "", evidence_url: str = "") 
     return {"ok": True, "id": rec["id"], "status": "published"}
 
 
+def _fingerprint_url(url: str) -> str:
+    """Deterministic SHA-256 fingerprint of a URL (first 16 hex chars). Lets
+    forensic comparison across records without retaining raw PII."""
+    import hashlib as _hashlib
+
+    return _hashlib.sha256(str(url or "").encode("utf-8", errors="replace")).hexdigest()[:16]
+
+
+def _redact_url_for_audit(url: str) -> str:
+    """Return a customer-tenant-safe form of the URL suitable for audit
+    storage. Removes `client_id=`, `customer_id=`, `tenant=`, `slug=`,
+    `email=`, `phone=` query params by replacing their VALUES with
+    `[REDACTED]`. Preserves scheme/host/path so operators still see
+    approximate origin. Also strips the fragment (which may contain the
+    opaque delivery id — safe if kept, but stripped defensively so an
+    accidental fragment-based identifier can't leak here either)."""
+    if not url:
+        return ""
+    try:
+        from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
+        parts = urlsplit(str(url))
+        _REDACT_KEYS = {
+            "client_id", "clientid", "client-id",
+            "customer_id", "customerid", "customer-id",
+            "tenant", "tenant_id", "tenantid",
+            "slug", "user", "user_id",
+            "email", "phone", "mobile",
+            "token", "access_token", "api_key", "apikey", "key", "secret",
+        }
+        pairs = parse_qsl(parts.query, keep_blank_values=True)
+        # Build the query manually so the `[REDACTED]` sentinel stays literal
+        # (urlencode would percent-encode `[` and `]` making the audit form
+        # harder to visually scan).
+        query_parts = []
+        for k, v in pairs:
+            if k.strip().lower() in _REDACT_KEYS:
+                query_parts.append(f"{k}=[REDACTED]")
+            else:
+                query_parts.append(f"{k}={v}")
+        return urlunsplit((
+            parts.scheme, parts.netloc, parts.path,
+            "&".join(query_parts), "",  # drop fragment
+        ))
+    except Exception:
+        return "[REDACTED_URL]"
+
+
 def update_evidence_url(
     approval_id: str,
     new_url: str,
@@ -734,11 +782,15 @@ def update_evidence_url(
     if old_url == new_url:
         return {"ok": True, "no_change": True, "id": aid, "evidence_url": new_url}
 
-    # Preserve original URL(s) for audit. Append to a history list, capped
-    # at 5 entries so the JSONL row stays bounded.
+    # Preserve PROOF of change without retaining raw tenant-bearing URL.
+    # (2026-07-11 P0 evidence-history privacy loop.) Store a deterministic
+    # sha256 fingerprint for forensic comparison + a redacted URL form where
+    # sensitive query values (client_id/tenant/email/token) are stripped +
+    # the fragment removed. NEVER retain the raw `old_url` in audit history.
     history = list(rec.get("evidence_url_history") or [])
     history.append({
-        "old_url": old_url,
+        "old_url_fingerprint": _fingerprint_url(old_url),
+        "old_url_redacted": _redact_url_for_audit(old_url),
         "changed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         "actor_id": str(actor_id or "system")[:80],
         "reason": str(reason or "")[:200],
@@ -780,6 +832,144 @@ def update_evidence_url(
         "evidence_url": new_url,
         "previous_evidence_url_captured_in_history": bool(old_url),
     }
+
+
+_PII_URL_MARKERS = (
+    "client_id=", "customer_id=", "tenant=", "tenant_id=", "slug=", "email=",
+)
+
+
+def _url_contains_pii(url: str) -> bool:
+    if not url:
+        return False
+    lower = str(url).lower()
+    return any(m in lower for m in _PII_URL_MARKERS)
+
+
+def _opaque_dashboard_url(approval_id: str) -> str:
+    """Canonical opaque replacement — no tenant identifier."""
+    return f"https://leadsgenai.in/app/dashboard#delivery/{approval_id}"
+
+
+def migrate_evidence_urls(
+    *,
+    dry_run: bool = True,
+    client_id: str | None = None,
+    limit: int | None = None,
+    actor_id: str = "migration",
+) -> dict[str, Any]:
+    """Sweep all published approvals for PII-bearing evidence URLs.
+
+    Rewrites both the ACTIVE `evidence_url` (via update_evidence_url so all
+    invariants hold) AND redacts legacy `evidence_url_history` entries that
+    still contain a raw `old_url` field (pre-2026-07-11 schema).
+
+    Idempotent: re-running after a successful pass produces zero rewrites.
+    Never fires a fresh publication event. Never changes publication counts.
+    Never changes plan progress. Preserves published_at / status / channel.
+
+    dry_run=True (default): scan + count only, no mutations.
+    client_id=<cid>: restrict scope to one tenant.
+    limit=<N>: process at most N records (useful for staged rollout).
+    """
+    result = {
+        "dry_run": bool(dry_run),
+        "records_scanned": 0,
+        "active_urls_matched": 0,
+        "active_urls_rewritten": 0,
+        "history_entries_matched": 0,
+        "history_entries_redacted": 0,
+        "already_clean": 0,
+        "skipped": 0,
+        "failed": 0,
+        "sample_ids_active": [],  # first 5 IDs matched (for audit)
+        "sample_ids_history": [],
+    }
+
+    try:
+        latest = _latest_states()
+    except Exception as exc:
+        result["failed"] = -1
+        result["error"] = f"read_all_failed:{type(exc).__name__}"
+        return result
+
+    processed = 0
+    for aid, rec in latest.items():
+        if client_id and str(rec.get("client_id") or "") != client_id:
+            continue
+        if limit is not None and processed >= int(limit):
+            break
+        processed += 1
+        result["records_scanned"] += 1
+        if str(rec.get("status") or "").lower() != "published":
+            result["skipped"] += 1
+            continue
+
+        active_url = str(rec.get("evidence_url") or "")
+        active_has_pii = _url_contains_pii(active_url)
+        history = list(rec.get("evidence_url_history") or [])
+        legacy_history = [h for h in history if "old_url" in h and "old_url_fingerprint" not in h]
+
+        if not active_has_pii and not legacy_history:
+            result["already_clean"] += 1
+            continue
+
+        if active_has_pii:
+            result["active_urls_matched"] += 1
+            if len(result["sample_ids_active"]) < 5:
+                result["sample_ids_active"].append(aid)
+        if legacy_history:
+            result["history_entries_matched"] += len(legacy_history)
+            if len(result["sample_ids_history"]) < 5:
+                result["sample_ids_history"].append(aid)
+
+        if dry_run:
+            continue
+
+        try:
+            if active_has_pii:
+                # Route through the narrow amendment API so all invariants
+                # (status/timestamps unchanged, no duplicate publication)
+                # are enforced by the existing implementation + tests.
+                r = update_evidence_url(
+                    aid, _opaque_dashboard_url(aid),
+                    actor_id=str(actor_id)[:80],
+                    reason="migrate_evidence_urls_sweep",
+                )
+                if r.get("ok"):
+                    result["active_urls_rewritten"] += 1
+                else:
+                    result["failed"] += 1
+                    continue
+
+            if legacy_history:
+                # Re-read after possible amendment above.
+                rec2 = _latest_states().get(aid)
+                if rec2 is None:
+                    result["failed"] += 1
+                    continue
+                new_hist: list[dict[str, Any]] = []
+                redacted_count = 0
+                for entry in list(rec2.get("evidence_url_history") or []):
+                    if "old_url" in entry and "old_url_fingerprint" not in entry:
+                        raw = str(entry.pop("old_url"))
+                        entry["old_url_fingerprint"] = _fingerprint_url(raw)
+                        entry["old_url_redacted"] = _redact_url_for_audit(raw)
+                        entry.setdefault("migrated_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
+                        redacted_count += 1
+                    new_hist.append(entry)
+                if redacted_count:
+                    rec2["evidence_url_history"] = new_hist[-5:]
+                    rec2["updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
+                    try:
+                        _append(dict(rec2))
+                        result["history_entries_redacted"] += redacted_count
+                    except Exception:
+                        result["failed"] += 1
+        except Exception:
+            result["failed"] += 1
+
+    return result
 
 
 def mark_failed(approval_id: str, error_message: str = "") -> dict[str, Any]:
