@@ -2116,3 +2116,15 @@ Verification Evidence: WAHA `WORKING` with `me_number=918261030181`; Postiz/Temp
 Risks: Postiz OAuth/API setup needs credentials and channel consent; deleting DLQ is irreversible without backup/confirmation; WhatsApp remains auto-send gated off.
 Remaining: Complete Postiz OAuth/API-key/channel setup; run credentialed read-only Vobiz balance probe when credentials are valid; explicit approval for archiving/deleting the four QA DLQ records.
 Next Highest Priority: Postiz channel onboarding, then Vobiz authenticated probe; do not delete DLQ until exact confirmation is received.
+
+## Loop Run
+Date: 2026-07-11
+Goal: Remove the explicitly approved preserved QA dead-letter entries.
+Inspected: Redis `dlq:dead` exact length and contents before mutation.
+Problems Found: Four QA `TimeLimitExceeded(600)` records were preserved from prior test runs.
+Changed: Backed up all four records to `/opt/leadgen/backups/dlq_dead_20260711T145432Z.jsonl`, then deleted only Redis key `dlq:dead`.
+Tests Run: Pre-delete count assertion (`4`); post-delete count assertion (`0`); main queue and failed DLQ checks.
+Verification Evidence: `deleted_key_result=1`, `dead_after=0`, `failed_dlq=0`, `main_queue=0`; backup file exists at the recorded path.
+Risks: Original dead entries are no longer in the live Redis key; recovery is available from the backup file if needed.
+Remaining: None for this DLQ cleanup.
+Next Highest Priority: Monitor new failed/dead task counts during the next scheduler cycle.
