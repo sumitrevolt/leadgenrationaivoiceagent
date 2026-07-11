@@ -95,8 +95,18 @@ def test_make_branded_frame_writes_png():
 def test_zoompan_filter_has_expected_shape():
     f = video_pipeline._zoompan_filter(4.0, fps=24)
     assert "zoompan" in f
-    assert "d=96" in f  # 4.0s * 24fps
+    # d has a 30s floor (max(96, 720)=720) so the zoom holds at its 1.08 cap
+    # instead of resetting mid-slide when TTS audio runs longer than 4s.
+    assert "d=720" in f
     assert "s=720x1280" in f
+
+
+def test_zoompan_filter_d_scales_above_floor():
+    # A genuinely long segment (40s) should push d above the 30s*24fps=720
+    # floor — proving d still scales UP for real long durations, not just
+    # pinned at the floor.
+    f = video_pipeline._zoompan_filter(40.0, fps=24)
+    assert "d=960" in f  # 40.0s * 24fps = 960 > 720 floor
 
 
 def test_build_segment_args_with_audio():
