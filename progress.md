@@ -2104,3 +2104,15 @@ Verification Evidence: Core app/worker/heavy/video/scheduler healthy; main and f
 Risks: WAHA QR/session recovery and Postiz OAuth/API keys require operator credentials/browser action; deleting DLQ entries is destructive and requires exact confirmation; Vobiz remains externally dependent and outbound dialing gates stay enforced.
 Remaining: User scans/reconnects WAHA; user completes Postiz registration/OAuth channel setup and supplies API/integration credentials through the existing secret path; user confirms archive/delete of the four QA DLQ entries; credentialed read-only Vobiz balance/connectivity probe.
 Next Highest Priority: Complete WAHA QR recovery and Postiz channel OAuth, then run a controlled Vobiz read-only probe and archive the four QA DLQ records only after explicit confirmation.
+
+## Loop Run
+Date: 2026-07-11
+Goal: Verify the operator-linked WhatsApp session and close remaining live integration blockers.
+Inspected: WAHA NOWEB logs/session state, company-number identity, Postiz/Temporal stack, Vobiz endpoint reachability, Redis dead DLQ count.
+Problems Found: WAHA briefly emitted stream error 515 during relink, then completed initial sync; Postiz channel OAuth/API credentials are still operator-owned setup; Vobiz endpoint is reachable but unauthenticated probe returns 401; four QA DLQ entries remain intentionally preserved.
+Changed: No destructive data or outbound message action. Confirmed the linked WAHA session self-recovered to `WORKING` for `918261030181`; verified Postiz services healthy and `/auth` reachable; verified Vobiz network path responds in 0.3s rather than timing out.
+Tests Run: Live session/status probe, WAHA log inspection, Postiz HTTPS probe, Vobiz connectivity probe, Redis DLQ count.
+Verification Evidence: WAHA `WORKING` with `me_number=918261030181`; Postiz/Temporal/DB/Redis containers up; Vobiz `HTTP=401` with remote IP and no timeout; `dlq:dead=4`.
+Risks: Postiz OAuth/API setup needs credentials and channel consent; deleting DLQ is irreversible without backup/confirmation; WhatsApp remains auto-send gated off.
+Remaining: Complete Postiz OAuth/API-key/channel setup; run credentialed read-only Vobiz balance probe when credentials are valid; explicit approval for archiving/deleting the four QA DLQ records.
+Next Highest Priority: Postiz channel onboarding, then Vobiz authenticated probe; do not delete DLQ until exact confirmation is received.
