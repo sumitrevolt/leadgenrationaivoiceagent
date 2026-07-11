@@ -2140,3 +2140,15 @@ Verification Evidence: `prod_check` PASS (1098 routes, 0 wiring gaps, 80/80 engi
 Risks: Individual provider/channel automations still depend on external credentials and consent; disabled safety flags must remain disabled until separately approved; a green scheduler proves dispatch, not every downstream business outcome.
 Remaining: Postiz OAuth/channel setup and authenticated Vobiz probe remain external; continue per-job outcome monitoring and delivery evidence for paid-customer actions.
 Next Highest Priority: Add outcome-level dashboards/alerts for each high-value automation, not just scheduler dispatch and queue health.
+
+## Loop Run
+Date: 2026-07-11
+Goal: Finalize voice-agent onboarding quality and verify the free Web Call before any paid phone call.
+Inspected: Production Web Call config/WS, opener/pitch flow, TelecallerBrain responses, TTS path, QA harness, Vobiz configuration, cross-path parity.
+Problems Found: Platform opener synthesized three EdgeTTS segments serially; brand wording said “Leads Generation AI”; QA harness counted sentence chunks as duplicate replies and measured its full observation window as latency. Initial smoke assertions were stale for the Hinglish “free me try” CTA.
+Changed: Parallelized static opener TTS while preserving ordered delivery; made platform brand wording consistent; improved affirmative acknowledgement; made Web Call QA chunk-aware and first-reply-latency-aware; fixed smoke harness root-path and opener-drain checks.
+Tests Run: 22 focused pitch/web tests green; voice eval suite 7/7 pass; cross-path audit pass (39 jobs dispatchable, 40 beat tasks recognized); live smoke and webcall tester pass; live TTS WS smoke pass with first bot 1.8s.
+Verification Evidence: `/api/web-call/config` reports telecaller, natural voice, Vobiz configured; live opener/yes flow PASS; four-turn live QA has one logical reply per turn, audio present, no banned/meta-talk/repeat, first-response latencies 1.61–2.38s; production health was 2/2 healthy after deploy.
+Risks: This is a Web Call test, not a paid PSTN call; real customer calling remains subject to the existing DND/consent/window/AI-disclosure gates and approved list. QA harness success does not guarantee every niche script outcome.
+Remaining: Run one owner-controlled Vobiz test call only after selecting an approved test number and confirming the call window; then monitor call transcript/disposition before any campaign batch.
+Next Highest Priority: Owner-controlled single Vobiz test call with recording/transcript review; keep platform dial bulk automation off until that evidence is accepted.

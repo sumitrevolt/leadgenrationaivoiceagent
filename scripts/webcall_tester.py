@@ -40,11 +40,13 @@ def flag(kind: str, detail: str) -> None:
     issues.append({"kind": kind, "detail": detail})
 
 
-async def collect_bot_msgs(ws, window_s: float = 8.0) -> list:
+async def collect_bot_msgs(ws, window_s: float = 8.0) -> tuple[list, float | None]:
     """window ke andar jitne bhi bot/info/error msgs aaye, sab collect karo
     (double-reply pakadne ke liye pura window sunte hain, pehla msg aate hi
     nahi rukte)."""
     msgs = []
+    first_bot_latency = None
+    started = time.monotonic()
     end = time.monotonic() + window_s
     while time.monotonic() < end:
         try:
@@ -62,8 +64,10 @@ async def collect_bot_msgs(ws, window_s: float = 8.0) -> list:
         except Exception:
             continue
         if data.get("type") in ("bot", "info", "error"):
+            if data.get("type") == "bot" and first_bot_latency is None:
+                first_bot_latency = time.monotonic() - started
             msgs.append(data)
-    return msgs
+    return msgs, first_bot_latency
 
 
 async def run() -> int:
@@ -76,11 +80,11 @@ async def run() -> int:
                 for turn in TURNS:
                     await ws.send_json({"type": "user", "text": turn})
                     t_turn = time.monotonic()
-                    msgs = await collect_bot_msgs(ws, window_s=8.0)
+                    msgs, first_bot_latency = await collect_bot_msgs(ws, window_s=8.0)
                     # Sentence-streamed replies use multiple bot frames for one
                     # spoken answer. Count only the first chunk as a logical reply;
                     # chunk_total remains available for protocol-level checks.
-                    latency = time.monotonic() - t_turn
+                    latency = first_bot_latency if first_bot_latency is not None else time.monotonic() - t_turn
                     bot = [
                         m for m in msgs
                         if m.get("type") == "bot"

@@ -15,6 +15,10 @@ import os
 import sys
 import time
 
+# Bare script execution puts `scripts/` on sys.path, not the repository root.
+# Add the root so the unit checks exercise the same app package as the live WS.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 def _unit_checks() -> list[str]:
     issues: list[str] = []
@@ -75,8 +79,11 @@ async def _ws_check(base: str) -> list[str]:
                 if msg.type != aiohttp.WSMsgType.TEXT:
                     break
                 d = json.loads(msg.data)
-                if d.get("type") == "bot" and d.get("chunk_index", 0) == 0:
-                    pass
+                if d.get("type") == "bot":
+                    # Platform pitch sends exactly three ordered opener chunks;
+                    # do not wait for another frame after the final chunk.
+                    if not d.get("chunk_total") or d.get("chunk_index") == d.get("chunk_total") - 1:
+                        break
 
             t0 = time.perf_counter()
             await ws.send_json({"type": "user", "text": "haan ji budget 50000", "niche": "solar"})
