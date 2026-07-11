@@ -565,57 +565,193 @@ def _compliance_env() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
-# Delivery-outcome probe (2026-07-11 loop): closes the "production_ready:true =
-# tautology" gap. Before this probe, no probe in _PROBES ever returned _BLOCKER
-# — every probe returned _OK/_WARN/_NEUTRAL — so `blockers = [...]` in
-# activation_readiness() was structurally guaranteed to be empty, and
-# `launch_ready = not blockers` was always True regardless of whether any real
-# paid customer had actually received anything. This probe asks the one
-# question the shape-check probes cannot: is there a paying customer whose
-# `deliverable_completion_pct` is stuck at 0 more than 24h post-payment? If
-# yes → _WARN with actionable next step (Admin → Delivery Cockpit → Generate
-# Content). Cached 60s to keep the public /api/activation/summary cheap.
-# Never raises: clients_store / customer_delivery_status are already defensive;
-# any unexpected error → _NEUTRAL (fail-open — never breaks the endpoint).
+# Delivery-outcome probe (2026-07-11 refined semantics).
+#
+# BEFORE this refinement (commit c0b108f), the probe treated any
+# `deliverable_completion_pct > 0` as "with_progress" → _OK. That included
+# customers whose only completed items were `business_profile` + `brand_kit`
+# (both auto-derived from setup fields the customer filled at signup —
+# ZERO real AI-generated marketing value delivered). A paying customer 4 days
+# old with 0 posts_created, 0 posts_approved, 0 posts_published would silently
+# report _OK. That was the exact "audit passed but not delivering" gap in
+# disguise.
+#
+# The refined probe distinguishes FOUR outcome classes and applies AGE-BASED
+# SLA gates:
+#
+#   1. setup progress   — business_profile / brand_kit / onboarding fields
+#      (proves onboarding, not marketing value)
+#   2. generated        — a real artifact was produced by the pipeline
+#      (content_queue draft, poster, etc.) — proves the pipeline works
+#   3. customer-visible — the artifact is exposed to the correct tenant
+#      (approved / scheduled — the customer can see it in their dashboard)
+#   4. evidence-backed  — a completed delivery has real proof
+#      (posts_published / evidence_url in delivery_ledger)
+#
+# Age-based SLA:
+#   <24h  grace           → any state OK (setup or generation in progress)
+#   24-72h                → require ≥1 GENERATED artifact
+#   72h-7d                → require ≥1 CUSTOMER-VISIBLE artifact
+#   7d+                   → require ≥1 EVIDENCE-BACKED completion
+#
+# Result surfaces AGGREGATE counts + bucketed oldest-violation age only.
+# NEVER surfaces client_id / business name / email / phone / raw timestamp /
+# exception message. The `/api/activation/{summary,readiness}` endpoints
+# expose this probe verbatim; the buckets let admins triage severity without
+# knowing identity.
+#
+# Wholesale eval failure → _WARN with sanitized `eval_error_type` (exception
+# TYPE only, never MESSAGE — prevents DB connect string / IP / SQL leaks).
+# Per-customer eval failure → row skipped, does NOT flip probe state.
+#
+# Cached _FIRST_PAID_TTL_S so public /summary stays cheap.
+# --------------------------------------------------------------------------- #
 _FIRST_PAID_TTL_S = 60
 _FIRST_PAID_CACHE: dict[str, Any] = {"at": 0.0, "result": None}
 
+_GRACE_H = 24            # < 24h: no requirement
+_GEN_REQUIRED_H = 24     # ≥ 24h: require generated
+_VISIBLE_REQUIRED_H = 72  # ≥ 72h: require customer-visible
+_COMPLETED_REQUIRED_H = 24 * 7  # ≥ 7d: require evidence-backed
+
+# All aggregate fields the probe surfaces. Frozen shape so downstream
+# consumers (admin dashboard / tests / observability) never break on drift.
+_EMPTY_CHECKS: dict[str, Any] = {
+    "paid_customers": 0,
+    "with_setup_progress": 0,
+    "with_generated_artifacts": 0,
+    "with_customer_visible_artifacts": 0,
+    "with_evidence_backed_delivery": 0,
+    "zero_generated_after_grace": 0,
+    "zero_visible_after_sla": 0,
+    "zero_completed_after_sla": 0,
+    "oldest_zero_generated_bucket": None,
+    "oldest_zero_visible_bucket": None,
+    "oldest_zero_completed_bucket": None,
+}
+
+
+def _age_bucket(hours: float) -> str:
+    """Bounded age bucket — NEVER surfaces exact timestamps."""
+    if hours < 24:
+        return "<24h"
+    if hours < 48:
+        return "24-48h"
+    if hours < 72:
+        return "48-72h"
+    if hours < 24 * 7:
+        return "3-7d"
+    return "7d+"
+
+
+def _bucket_worse(a: str | None, b: str) -> str:
+    """Return the older/worse of two age buckets."""
+    order = ["<24h", "24-48h", "48-72h", "3-7d", "7d+"]
+    if a is None:
+        return b
+    return b if order.index(b) > order.index(a) else a
+
+
+def _customer_age_hours(client: dict[str, Any]) -> float | None:
+    """Hours since customer activation (created_at), or None if unparseable."""
+    from datetime import datetime, timezone
+
+    raw = str(client.get("created_at") or "")
+    try:
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
+    except Exception:
+        return None
+
+
+def _customer_outcome_class(cid: str, client: dict[str, Any]) -> dict[str, bool]:
+    """For one customer, compute which of the 4 outcome classes are satisfied.
+
+    Reads authoritative persisted sources (content_queue + delivery_ledger +
+    customer_delivery_status). NEVER counts setup-derived items as generated
+    (business_profile / brand_kit are onboarding, not delivery).
+    """
+    out = {"setup": False, "generated": False, "visible": False, "completed": False}
+
+    # customer_delivery_status is the canonical helper (2026-07-08 comment in
+    # product_one_delivery.py). It aggregates content_queue + approvals +
+    # ledger for us. Reuse; do not duplicate business logic.
+    try:
+        from app.marketing import product_one_delivery
+
+        state = product_one_delivery.customer_delivery_status(cid, client) or {}
+    except Exception:
+        return out  # never raise from per-customer path
+
+    # ── setup: any setup check is satisfied ──────────────────────────────
+    setup = state.get("setup_checks") or {}
+    if isinstance(setup, dict) and any(bool(v) for v in setup.values()):
+        out["setup"] = True
+
+    # ── generated: at least one real artifact from the pipeline exists ──
+    # `content_generated` counts content_queue items (posts/posters/etc).
+    # `posts_created` in delivery_ledger tracks the same class. Either > 0
+    # means the pipeline produced something for this tenant.
+    if int(state.get("content_generated") or 0) > 0:
+        out["generated"] = True
+    else:
+        # ledger may lag content_queue on some pipeline paths — check both
+        try:
+            from app.marketing import delivery_ledger
+
+            summary = delivery_ledger.summary(cid) or {}
+            if int(summary.get("posts_created") or 0) > 0:
+                out["generated"] = True
+        except Exception:
+            pass
+
+    # ── customer-visible: artifact is exposed to the customer ────────────
+    # `posts_waiting_for_approval` = pending items in customer's approval
+    # queue (visible in customer dashboard); `posts_scheduled` = approved/
+    # scheduled/posted (also visible). Either > 0 means the customer can
+    # see delivered marketing work in their own view.
+    if (
+        int(state.get("posts_waiting_for_approval") or 0) > 0
+        or int(state.get("posts_scheduled") or 0) > 0
+        or int(state.get("posts_published") or 0) > 0
+    ):
+        out["visible"] = True
+
+    # ── evidence-backed: a completed delivery has real proof ─────────────
+    # `posts_published` > 0 = real publication happened. Also count any
+    # deliverable that has a populated `evidence_url` (manual-publish
+    # fallback proof captured by admin).
+    if int(state.get("posts_published") or 0) > 0:
+        out["completed"] = True
+    else:
+        for d in state.get("deliverables") or []:
+            if str(d.get("status") or "") == "done" and (
+                d.get("evidence_url") or d.get("proof_url") or d.get("published_at")
+            ):
+                # Setup-derived items (business_profile, brand_kit) do NOT
+                # count — they're onboarding, not delivery evidence.
+                if str(d.get("id") or "") in ("business_profile", "brand_kit"):
+                    continue
+                out["completed"] = True
+                break
+
+    return out
+
 
 def _first_paid_delivery() -> dict[str, Any]:
-    """Delivery-outcome probe: WARN when paid customers exist but no
-    deliverables have shipped 24h+ after activation.
-
-    PII discipline (2026-07-11 hardening):
-      - `checks` and `action` NEVER contain client_id, business name, phone,
-        email, or any other identifier — the /summary + /readiness endpoints
-        surface this probe's dict verbatim, and even the admin readiness
-        endpoint keeps PII-out for defense-in-depth (log-forwarding, screenshots
-        during screenshares, third-party log processors).
-      - Instead of naming a stale customer, we expose only aggregate counts and
-        an `oldest_pending_hours` bucket ("24-48h" / "48-72h" / "72h+"), so the
-        admin knows severity without knowing identity.
-      - On evaluation failure we return WARN (NOT NEUTRAL) with a generic
-        sanitized reason — a silent NEUTRAL would let a broken store hide the
-        exact "audit passed but not delivering" red flag this probe exists to
-        catch. The raw exception message is NEVER surfaced (would leak DB
-        connect strings / internal IPs / stack fragments); only the exception
-        type name (e.g. "OperationalError") goes into a bounded diagnostic.
-    """
+    """Age-gated delivery-outcome probe. See module-level comment for the
+    4-tier semantics (setup / generated / visible / completed) and SLA."""
     import time
-    from datetime import datetime, timedelta, timezone
 
     now = time.time()
     cached = _FIRST_PAID_CACHE.get("result")
     if cached is not None and now - float(_FIRST_PAID_CACHE.get("at") or 0.0) < _FIRST_PAID_TTL_S:
         return cached
 
-    checks = {
-        "paid_customers": 0,
-        "with_progress": 0,
-        "with_zero_deliverables_24h_plus": 0,
-        "oldest_pending_hours": None,  # None | "24-48h" | "48-72h" | "72h+"
-    }
-    oldest_stale_hours: float = 0.0
+    checks: dict[str, Any] = dict(_EMPTY_CHECKS)
+
     try:
         from app.marketing import clients_store, product_one_delivery
 
@@ -626,37 +762,45 @@ def _first_paid_delivery() -> dict[str, Any]:
                     continue
                 checks["paid_customers"] += 1
                 cid = str(c.get("id") or "")
-                state = product_one_delivery.customer_delivery_status(cid, c) or {}
-                pct = int(state.get("deliverable_completion_pct") or 0)
-                if pct > 0:
-                    checks["with_progress"] += 1
+                age_h = _customer_age_hours(c)
+                outcome = _customer_outcome_class(cid, c)
+
+                if outcome["setup"]:
+                    checks["with_setup_progress"] += 1
+                if outcome["generated"]:
+                    checks["with_generated_artifacts"] += 1
+                if outcome["visible"]:
+                    checks["with_customer_visible_artifacts"] += 1
+                if outcome["completed"]:
+                    checks["with_evidence_backed_delivery"] += 1
+
+                # Age-based SLA gates. Unparseable created_at → skip SLA
+                # (don't false-alarm on a legacy row with missing timestamp).
+                if age_h is None:
                     continue
-                raw = str(c.get("created_at") or "")
-                try:
-                    dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=timezone.utc)
-                    age_hours = (datetime.now(timezone.utc) - dt).total_seconds() / 3600.0
-                    if age_hours > 24:
-                        checks["with_zero_deliverables_24h_plus"] += 1
-                        if age_hours > oldest_stale_hours:
-                            oldest_stale_hours = age_hours
-                except Exception:
-                    # can't parse activation timestamp — do NOT count as stale
-                    # (would false-alarm on any client with malformed created_at)
-                    pass
+
+                bucket = _age_bucket(age_h)
+
+                if age_h >= _GEN_REQUIRED_H and not outcome["generated"]:
+                    checks["zero_generated_after_grace"] += 1
+                    checks["oldest_zero_generated_bucket"] = _bucket_worse(
+                        checks["oldest_zero_generated_bucket"], bucket
+                    )
+                if age_h >= _VISIBLE_REQUIRED_H and not outcome["visible"]:
+                    checks["zero_visible_after_sla"] += 1
+                    checks["oldest_zero_visible_bucket"] = _bucket_worse(
+                        checks["oldest_zero_visible_bucket"], bucket
+                    )
+                if age_h >= _COMPLETED_REQUIRED_H and not outcome["completed"]:
+                    checks["zero_completed_after_sla"] += 1
+                    checks["oldest_zero_completed_bucket"] = _bucket_worse(
+                        checks["oldest_zero_completed_bucket"], bucket
+                    )
             except Exception:
-                # per-customer eval failure must not abort the whole probe.
-                # A single bad row does NOT flip the overall signal to WARN —
-                # the WARN is reserved for stale-paid or wholesale eval failure.
+                # per-customer eval failure must not abort the probe.
                 continue
     except Exception as exc:
-        # Wholesale eval failure: store unavailable, or heavy import failure.
-        # WARN (not NEUTRAL) is intentional — a silent NEUTRAL would let a
-        # broken store hide the exact signal the probe exists to surface.
-        # Sanitize: expose only exception TYPE (`OperationalError`,
-        # `ConnectionRefusedError`, ...) — never the message (may contain host
-        # IP, DB path, or SQL fragment).
+        # Wholesale eval failure — WARN with sanitized type-only diagnostic.
         result = {
             "key": "first_paid_delivery",
             "label": "First paid customer delivery signal",
@@ -664,10 +808,7 @@ def _first_paid_delivery() -> dict[str, Any]:
             "status": _WARN,
             "env_vars": [],
             "checks": {
-                "paid_customers": 0,
-                "with_progress": 0,
-                "with_zero_deliverables_24h_plus": 0,
-                "oldest_pending_hours": None,
+                **dict(_EMPTY_CHECKS),
                 "eval_error": True,
                 "eval_error_type": type(exc).__name__[:60],
             },
@@ -681,29 +822,41 @@ def _first_paid_delivery() -> dict[str, Any]:
         _FIRST_PAID_CACHE.update({"at": now, "result": result})
         return result
 
-    # Bucketize oldest stale age (aggregate, no per-customer timestamp exposed)
-    if oldest_stale_hours >= 72:
-        checks["oldest_pending_hours"] = "72h+"
-    elif oldest_stale_hours >= 48:
-        checks["oldest_pending_hours"] = "48-72h"
-    elif oldest_stale_hours >= 24:
-        checks["oldest_pending_hours"] = "24-48h"
-
+    # ── Status computation ──────────────────────────────────────────────
     if checks["paid_customers"] == 0:
         status_val = _NEUTRAL
         action = ""
-    elif checks["with_zero_deliverables_24h_plus"] > 0:
-        status_val = _WARN
-        bucket = checks["oldest_pending_hours"] or "24h+"
-        action = (
-            f"{checks['with_zero_deliverables_24h_plus']} paid customer(s) have "
-            f"0/10 deliverables (oldest {bucket} post-activation). "
-            "Admin → /app/admin → Delivery Cockpit → Generate Content / Manual Proof. "
-            "This is the 'audit passed but not delivering' signal — fix now."
-        )
     else:
-        status_val = _OK
-        action = ""
+        violations: list[str] = []
+        if checks["zero_generated_after_grace"] > 0:
+            violations.append(
+                f"{checks['zero_generated_after_grace']} paid customer(s) with 0 "
+                f"generated artifacts 24h+ post-activation "
+                f"(oldest {checks['oldest_zero_generated_bucket']})"
+            )
+        if checks["zero_visible_after_sla"] > 0:
+            violations.append(
+                f"{checks['zero_visible_after_sla']} paid customer(s) with 0 "
+                f"customer-visible artifacts 72h+ post-activation "
+                f"(oldest {checks['oldest_zero_visible_bucket']})"
+            )
+        if checks["zero_completed_after_sla"] > 0:
+            violations.append(
+                f"{checks['zero_completed_after_sla']} paid customer(s) with 0 "
+                f"evidence-backed completed deliveries 7d+ post-activation "
+                f"(oldest {checks['oldest_zero_completed_bucket']})"
+            )
+        if violations:
+            status_val = _WARN
+            action = (
+                "; ".join(violations)
+                + ". Admin → /app/admin → Delivery Cockpit → Generate Content / "
+                "Approve on Behalf / Manual Proof. Setup-derived items (business_profile, "
+                "brand_kit) do NOT count as marketing-value delivery."
+            )
+        else:
+            status_val = _OK
+            action = ""
 
     result = {
         "key": "first_paid_delivery",
