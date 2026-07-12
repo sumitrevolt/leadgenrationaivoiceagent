@@ -2,6 +2,18 @@
 
 ## Loop Run
 Date: 2026-07-12
+Goal: Continue the setup loop and remove the remaining runtime drift between WSL login Node versions and OmniRoute.
+Inspected: WSL profile/bash startup, Node/npm resolution, OmniRoute launcher path, tmux session, worktrees, local API, and live production health.
+Problems Found: Non-interactive WSL commands can still use Ubuntu's system Node 18, but interactive shells and the launcher now use pinned Node 22 LTS; no application or production defect was found.
+Changed: Added Node 22 LTS to the WSL login profile path and retained launcher-level Node 22 pinning as the authoritative OmniRoute runtime.
+Tests Run: Bash syntax PASS; interactive WSL `node --version` = v22.23.1; tmux session/windows PASS; `/v1/models` HTTP 200; worktree list PASS; production `/health` HTTP 200 with `environment=production`.
+Verification Evidence: Gateway logs show SQLite ready; `leadgen-omni` has three lanes plus gateway; live health returned version `ddc0fb7`.
+Risks: Direct non-interactive `wsl -- node` may still resolve system Node 18; use the launcher or interactive `wsl` shell for OmniRoute.
+Remaining: Sanitized benchmark requires an intentionally configured local provider credential; no production OmniRoute integration is permitted.
+Next Highest Priority: Attach with `tmux attach -t leadgen-omni` and run only sanitized development tasks.
+
+## Loop Run
+Date: 2026-07-12
 Goal: Make the OmniRoute/tmux setup one-command and idempotent for separate sessions.
 Inspected: `scripts/omniroute-tmux.sh`, WSL Node 22 path, current tmux session, worktrees, local gateway API, and production verification gates.
 Problems Found: Launcher previously created only the three panes; a missing gateway required manual recovery. The final remote health retry timed out after an earlier same-loop HTTP 200; no deploy or app change occurred.
