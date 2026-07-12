@@ -17,7 +17,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from app.config import settings
-from app.utils.logger import setup_logger
+from app.utils.logger import setup_logger, redact_url
 
 logger = setup_logger(__name__)
 
@@ -139,7 +139,7 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
             extra={
                 "request_id": request_id,
                 "method": request.method,
-                "path": request.url.path,
+                "path": redact_url(str(request.url.path) if request.url.path else ""),
                 "client_ip": request.client.host if request.client else "unknown",
             },
         )
@@ -780,6 +780,6 @@ def setup_middleware(app: FastAPI, production: bool = False):
     # default OFF. Only added to the stack when on at boot → zero overhead off.
     if os.getenv("ROUTE_HIT_COUNTER", "").strip().lower() in ("1", "true", "yes", "on"):
         app.add_middleware(RouteHitMiddleware)
-        logger.info("✅ RouteHitCounter enabled (route_hits:{YYYYMMDD} HINCRBY)")
+        logger.info("✅ RouteHitCounter enabled (route_hits: daily-key HINCRBY)")
 
     logger.info(f"✅ Middleware stack configured (production={production})")

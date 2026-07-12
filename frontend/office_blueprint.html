@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LeadGen AI — Blueprint Virtual Office</title>
+<!--
+  Unity Blueprint Virtual Office SHELL (Milestone C, 2026-07-12).
+  Served ONLY at /app/office?mode=3d when UNITY_VIRTUAL_OFFICE_ENABLED=1 (app/main.py).
+  - Existing 2D office (/app/office) remains the default + lightweight fallback.
+  - Unity WebGL build expected at /static/office-unity/Build/* (mounted only if dir exists).
+  - Shell owns: auth, capability detection, state fetch (token NEVER enters Unity),
+    HTML side panel with REAL snapshot data, SVG blueprint minimap, JS bridge allowlist.
+  Docs: docs/UNITY_VIRTUAL_OFFICE_ARCHITECTURE.md · UNITY_OFFICE_API_CONTRACT.md ·
+        UNITY_VIRTUAL_OFFICE_SECURITY.md · UNITY_BLUEPRINT_STYLE_GUIDE.md
+-->
+<style>
+  /* Dark blueprint tokens — canonical set from control_center.html:10-16 (keep 1:1) */
+  :root{
+    --bg:#0a0a0c; --panel:#111113; --panel2:#13141a; --card:#161618;
+    --bd:#1e2028; --bd2:#2d3748; --tx:#e2e8f0; --mut:#64748b; --mut2:#475569;
+    --amber:#f59e0b; --healthy:#22c55e; --processing:#3b82f6; --waiting:#eab308;
+    --retry:#f97316; --failed:#ef4444; --ai:#a855f7; --idle:#64748b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    background:var(--bg);
+    background-image:radial-gradient(circle,#1a1d26 1px,transparent 1px);
+    background-size:24px 24px;
+    color:var(--tx);font:14px/1.45 system-ui,Segoe UI,Roboto,sans-serif;
+    display:flex;flex-direction:column;overflow:hidden;
+  }
+  header{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--panel);
+    border-bottom:1px solid var(--bd);flex-wrap:wrap}
+  header .dot{width:10px;height:10px;border-radius:50%;background:var(--amber)}
+  header h1{font-size:15px;font-weight:600}
+  header .sp{flex:1}
+  .chip{font-size:12px;color:var(--mut);border:1px solid var(--bd);border-radius:999px;
+    padding:3px 10px;background:var(--panel2)}
+  .chip.ok{color:var(--healthy);border-color:var(--healthy)}
+  .chip.stale{color:var(--waiting);border-color:var(--waiting)}
+  .chip.err{color:var(--failed);border-color:var(--failed)}
+  a.btn,button.btn{cursor:pointer;font-size:12px;color:var(--tx);text-decoration:none;
+    background:var(--card);border:1px solid var(--bd2);border-radius:8px;padding:6px 12px}
+  a.btn:hover,button.btn:hover{border-color:var(--amber)}
+  main{flex:1;display:flex;min-height:0}
+  #stage{flex:1;position:relative;display:flex;align-items:center;justify-content:center;min-width:0}
+  #unityCanvas{width:100%;height:100%;display:none;background:var(--bg)}
+  #stageMsg{max-width:520px;text-align:center;padding:28px;background:var(--panel);
+    border:1px solid var(--bd);border-radius:14px}
+  #stageMsg h2{font-size:16px;margin-bottom:8px}
+  #stageMsg p{color:var(--mut);margin-bottom:14px}
+  #prog{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;margin:12px 0;display:none}
+  #progBar{height:100%;width:0%;background:var(--amber);transition:width .2s}
+  #inspector{width:360px;max-width:42vw;background:var(--panel);border-left:1px solid var(--bd);
+    overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:10px 12px}
+  .card h3{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin-bottom:8px}
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+  .kpi{background:var(--panel2);border:1px solid var(--bd);border-radius:8px;padding:8px}
+  .kpi b{display:block;font-size:17px}
+  .kpi span{font-size:11px;color:var(--mut)}
+  .row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd)}
+  .row:last-child{border-bottom:0}
+  .st{width:8px;height:8px;border-radius:50%;flex:none}
+  .st.working,.st.processing,.st.running{background:var(--processing)}
+  .st.healthy,.st.ok,.st.done{background:var(--healthy)}
+  .st.waiting,.st.blocked,.st.degraded,.st.partial{background:var(--waiting)}
+  .st.retry{background:var(--retry)}
+  .st.failed,.st.error,.st.critical{background:var(--failed)}
+  .st.offline,.st.idle,.st.mock{background:var(--idle)}
+  .row .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .sub{font-size:11px;color:var(--mut)}
+  #minimap{width:100%;display:block}
+  #minimap rect.room{fill:#111113;stroke-width:1.5;cursor:pointer}
+  #minimap rect.room:hover{stroke-width:2.5}
+  #minimap rect.room.sel{stroke:var(--amber);stroke-width:3}
+  #minimap text{fill:var(--mut);font-size:9px;pointer-events:none}
+  .muted{color:var(--mut);font-size:12px}
+  footer{padding:6px 14px;border-top:1px solid var(--bd);background:var(--panel);
+    font-size:11px;color:var(--mut2);display:flex;gap:14px;flex-wrap:wrap}
+  @media (max-width:900px){ #inspector{display:none} }
+</style>
+</head>
+<body>
+<header>
+  <div class="dot"></div><h1>Blueprint Virtual Office</h1>
+  <span class="chip" id="modeChip">3D mode</span>
+  <span class="chip" id="connChip">connecting…</span>
+  <span class="chip" id="updChip">updated —</span>
+  <div class="sp"></div>
+  <button class="btn" id="refreshBtn">↻ Refresh</button>
+  <a class="btn" href="/app/office?mode=map">2D Lightweight Map</a>
+  <a class="btn" href="/app/control-center">Command Center</a>
+  <a class="btn" href="/app/admin">Admin Dashboard</a>
+</header>
+<main>
+  <div id="stage">
+    <canvas id="unityCanvas" tabindex="-1"></canvas>
+    <div id="stageMsg">
+      <h2 id="msgTitle">Loading Blueprint Office…</h2>
+      <p id="msgBody">Checking your device and the office state.</p>
+      <div id="prog"><div id="progBar"></div></div>
+      <p><a class="btn" href="/app/office?mode=map">Open Lightweight Mode instead</a></p>
+    </div>
+  </div>
+  <aside id="inspector">
+    <div class="card"><h3>Blueprint Minimap</h3>
+      <svg id="minimap" viewBox="0 0 1200 820" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="muted" id="selInfo">Room select karo — detail yahan aayegi.</div>
+    </div>
+    <div class="card"><h3>System KPIs</h3><div class="kpis" id="kpis"><div class="muted">—</div></div></div>
+    <div class="card"><h3>Selected Detail</h3><div id="detail" class="muted">Nothing selected.</div></div>
+    <div class="card"><h3>Agents</h3><div id="agents" class="muted">—</div></div>
+    <div class="card"><h3>Alerts / Next Best Actions</h3><div id="alerts" class="muted">—</div></div>
+    <div class="card"><h3>Pipeline (provenance-honest)</h3><div id="pipeline" class="muted">—</div></div>
+  </aside>
+</main>
+<footer>
+  <span>Lightweight 2D office = <a href="/app/office?mode=map" style="color:var(--amber)">/app/office</a> (always available)</span>
+  <span>Data: /api/platform/office/snapshot (poll 15s)</span>
+  <span id="buildInfo">Unity build: probing…</span>
+</footer>
+
+<script>
+"use strict";
+/* ============ auth (same pattern as office_map.html) — token NEVER given to Unity ============ */
+const token = () => localStorage.getItem("accessToken") || "";
+const hdrs  = () => token() ? { "Authorization": "Bearer " + token() } : {};
+
+/* ============ canonical room geometry — 1:1 MIRROR of office_map.html OFFICE.ROOMS (873-881).
+   Drift-locked by tests/test_office_blueprint_shell.py. Do NOT invent rooms here. ============ */
+const ROOM_GEOM = [
+  {id:"coordinator",          label:"Coordinator",        x:0,   y:0,   w:1200,h:120, stroke:"#8b5cf6"},
+  {id:"lead_lab",             label:"Data / Lead Lab",    x:0,   y:120, w:300, h:350, stroke:"#0ea5e9"},
+  {id:"sales_crm",            label:"Sales / CRM",        x:300, y:120, w:300, h:350, stroke:"#f97316"},
+  {id:"voice_team",           label:"Voice Team",         x:600, y:120, w:300, h:350, stroke:"#3b82f6"},
+  {id:"marketing_team",       label:"Marketing Team",     x:900, y:120, w:300, h:350, stroke:"#ec4899"},
+  {id:"qa_audit",             label:"QA / Audit",         x:0,   y:470, w:250, h:350, stroke:"#eab308"},
+  {id:"platform_engineering", label:"Platform / Engg",    x:250, y:470, w:700, h:350, stroke:"#10b981"},
+  {id:"admin_finance",        label:"Admin / Finance",    x:950, y:470, w:250, h:350, stroke:"#64748b"},
+];
+
+/* ============ shared selection model (Phase 19) ============ */
+window.LG_OFFICE_SEL = { selectedRoom:null, selectedAgent:null, selectedCustomer:null, activeOfficeMode:"office" };
+
+/* ============ JS bridge — EXPLICIT allowlist (UNITY_OFFICE_API_CONTRACT.md §4).
+   Unity can ONLY call LG_BRIDGE.invoke with these actions. Routes are FIXED here;
+   Unity never supplies URLs or JS. ============ */
+const ID_RE = /^[a-zA-Z0-9_\-\.]{1,64}$/;
+const BRIDGE_ACTIONS = {
+  open_command_center: () => nav("/app/control-center"),
+  open_customer_360:   () => nav("/app/admin#customer_360"),
+  open_delivery_proof: () => nav("/app/delivery-command-center"),
+  open_approval:       () => nav("/app/admin#approvals"),
+  open_setup:          () => nav("/app/customer#setup"),
+  open_reports:        () => nav("/app/customer#reports"),
+  open_social_connect: () => nav("/app/customer#social"),
+  open_billing:        () => nav("/app/admin"),
+  open_support:        () => nav("/app/customer#support"),
+  open_agent_details:  (id) => selectAgent(id, "unity"),
+  refresh_office_state:() => refreshState(true),
+};
+function nav(route){ window.open(route, "_blank", "noopener"); }
+window.LG_BRIDGE = {
+  invoke(payloadJson){
+    let p = null;
+    try { p = JSON.parse(String(payloadJson || "{}")); } catch { p = null; }
+    if (!p || typeof p.action !== "string" || !(p.action in BRIDGE_ACTIONS)) {
+      console.warn("LG_BRIDGE: rejected non-allowlisted action", payloadJson); return false;
+    }
+    if (p.id !== undefined && !ID_RE.test(String(p.id))) {
+      console.warn("LG_BRIDGE: rejected malformed id"); return false;
+    }
+    if (p.action.startsWith("select") && p.origin === "host") return false; /* loop guard */
+    try { BRIDGE_ACTIONS[p.action](p.id); return true; }
+    catch (e) { console.warn("LG_BRIDGE: action failed", e); return false; }
+  },
+  /* Unity → host selection sync */
+  select(kind, id){
+    if (!ID_RE.test(String(id||""))) return;
+    if (kind === "room") selectRoom(String(id), "unity");
+    if (kind === "agent") selectAgent(String(id), "unity");
+  },
+};
+
+/* ============ state ============ */
+const $ = (id) => document.getElementById(id);
+let SNAP = null, lastOk = 0, unityInstance = null, pollTimer = null, refreshing = false;
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function setMsg(title, body, showProg){
+  $("stageMsg").style.display = "block";
+  $("msgTitle").textContent = title; $("msgBody").textContent = body;
+  $("prog").style.display = showProg ? "block" : "none";
+}
+function hideMsg(){ $("stageMsg").style.display = "none"; }
+
+async function refreshState(force){
+  if (refreshing) return; refreshing = true;
+  try {
+    const r = await fetch("/api/platform/office/snapshot", { headers: hdrs(), cache: "no-store" });
+    if (r.status === 401 || r.status === 403) {
+      $("connChip").className = "chip err"; $("connChip").textContent = "login required";
+      setMsg("Session expired", "Aapka admin session khatam ho gaya. Dubara login karke wapas aao.", false);
+      return;
+    }
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    SNAP = await r.json(); lastOk = Date.now();
+    $("connChip").className = "chip ok"; $("connChip").textContent = "live";
+    $("updChip").className = "chip"; $("updChip").textContent = "updated " + new Date(lastOk).toLocaleTimeString();
+    renderPanel(); pushStateToUnity();
+  } catch (e) {
+    $("connChip").className = "chip err"; $("connChip").textContent = "offline — retrying";
+  } finally { refreshing = false; }
+}
+/* stale watchdog (>45s without a good fetch) */
+setInterval(() => {
+  if (lastOk && Date.now() - lastOk > 45000) {
+    $("updChip").className = "chip stale";
+    $("updChip").textContent = "STALE " + Math.round((Date.now()-lastOk)/1000) + "s";
+  }
+}, 5000);
+
+/* ============ HTML panel rendering (REAL data only — no fabricated activity) ============ */
+function stClass(s){
+  s = String(s || "").toLowerCase();
+  for (const k of ["working","processing","running","healthy","ok","done","waiting","blocked",
+                   "degraded","partial","retry","failed","error","critical","offline","idle","mock"])
+    if (s.includes(k)) return k;
+  return "idle";
+}
+function renderPanel(){
+  if (!SNAP) return;
+  const m = SNAP.metrics || {};
+  const kpiKeys = Object.keys(m).slice(0, 6);
+  $("kpis").innerHTML = kpiKeys.length
+    ? kpiKeys.map(k => `<div class="kpi"><b>${esc(typeof m[k]==="object" ? (m[k].value ?? "—") : m[k])}</b><span>${esc(k)}</span></div>`).join("")
+    : '<div class="muted">No metrics in snapshot.</div>';
+  const agents = SNAP.agents || [];
+  $("agents").innerHTML = agents.length
+    ? agents.slice(0, 40).map(a => {
+        const key = esc(a.key || a.id || a.name || "");
+        return `<div class="row" data-agent="${key}"><span class="st ${stClass(a.status)}"></span>` +
+          `<span class="lbl">${esc(a.name || key)}</span><span class="sub">${esc(a.room || "")}</span></div>`;
+      }).join("")
+    : '<div class="muted">No agents reported.</div>';
+  $("agents").querySelectorAll("[data-agent]").forEach(el =>
+    el.addEventListener("click", () => selectAgent(el.getAttribute("data-agent"), "host")));
+  const nba = SNAP.next_best_actions || [];
+  $("alerts").innerHTML = nba.length
+    ? nba.slice(0, 8).map(n => `<div class="row"><span class="st waiting"></span><span class="lbl">${esc(n.title || n.text || n)}</span></div>`).join("")
+    : '<div class="muted">No alerts right now.</div>';
+  const pl = SNAP.pipeline || [];
+  $("pipeline").innerHTML = pl.length
+    ? pl.map(p => `<div class="row"><span class="st ${p.source === "real" ? "healthy" : (p.source === "partial" ? "partial" : "mock")}"></span>` +
+        `<span class="lbl">${esc(p.label || p.id)}</span><span class="sub">${esc(p.count ?? "—")}${p.source && p.source !== "real" ? " · " + esc(p.source) : ""}</span></div>`).join("")
+    : '<div class="muted">No pipeline data.</div>';
+  drawMinimapStatus();
+  renderDetail();
+}
+function roomAgentStats(roomId){
+  const list = (SNAP && SNAP.agents || []).filter(a => (a.room || "") === roomId);
+  const bad = list.filter(a => ["failed","error","blocked"].includes(stClass(a.status))).length;
+  const busy = list.filter(a => ["working","processing","running"].includes(stClass(a.status))).length;
+  return { total: list.length, bad, busy, list };
+}
+function renderDetail(){
+  const rid = window.LG_OFFICE_SEL.selectedRoom, aid = window.LG_OFFICE_SEL.selectedAgent;
+  if (aid && SNAP) {
+    const a = (SNAP.agents || []).find(x => (x.key || x.id || x.name) === aid);
+    $("detail").innerHTML = a
+      ? `<div class="row"><span class="st ${stClass(a.status)}"></span><b class="lbl">${esc(a.name || aid)}</b></div>` +
+        `<div class="muted">Room: ${esc(a.room || "—")} · Status: ${esc(a.status || "—")}</div>` +
+        `<div class="muted">Task: ${esc(a.task || a.current_task || "—")}</div>`
+      : '<span class="muted">Agent not in snapshot.</span>';
+    return;
+  }
+  if (rid) {
+    const g = ROOM_GEOM.find(r => r.id === rid), s = roomAgentStats(rid);
+    $("detail").innerHTML = `<b>${esc(g ? g.label : rid)}</b>` +
+      `<div class="muted">${s.total} agents · ${s.busy} working · ${s.bad} blocked/failed</div>` +
+      s.list.slice(0, 10).map(a => `<div class="row"><span class="st ${stClass(a.status)}"></span><span class="lbl">${esc(a.name || a.key)}</span></div>`).join("");
+    return;
+  }
+  $("detail").innerHTML = '<span class="muted">Nothing selected.</span>';
+}
+
+/* ============ SVG blueprint minimap ============ */
+function drawMinimap(){
+  $("minimap").innerHTML = ROOM_GEOM.map(r =>
+    `<g><rect class="room" data-room="${r.id}" x="${r.x+3}" y="${r.y+3}" width="${r.w-6}" height="${r.h-6}" rx="8" stroke="${r.stroke}"></rect>` +
+    `<text x="${r.x+12}" y="${r.y+22}">${esc(r.label)}</text>` +
+    `<circle class="roomdot" data-roomdot="${r.id}" cx="${r.x+r.w-16}" cy="${r.y+16}" r="5" fill="#64748b"></circle></g>`).join("");
+  $("minimap").querySelectorAll("rect.room").forEach(el =>
+    el.addEventListener("click", () => selectRoom(el.getAttribute("data-room"), "host")));
+}
+function drawMinimapStatus(){
+  ROOM_GEOM.forEach(r => {
+    const dot = document.querySelector(`[data-roomdot="${r.id}"]`); if (!dot) return;
+    const s = roomAgentStats(r.id);
+    dot.setAttribute("fill", s.bad ? "#ef4444" : (s.busy ? "#3b82f6" : (s.total ? "#22c55e" : "#64748b")));
+  });
+}
+function selectRoom(id, origin){
+  window.LG_OFFICE_SEL.selectedRoom = id; window.LG_OFFICE_SEL.selectedAgent = null;
+  document.querySelectorAll("#minimap rect.room").forEach(el =>
+    el.classList.toggle("sel", el.getAttribute("data-room") === id));
+  const g = ROOM_GEOM.find(r => r.id === id);
+  $("selInfo").textContent = g ? g.label + " selected" : "";
+  renderDetail();
+  if (origin !== "unity") sendToUnity({ type: "select", kind: "room", id, origin: "host" });
+}
+function selectAgent(id, origin){
+  window.LG_OFFICE_SEL.selectedAgent = id;
+  renderDetail();
+  if (origin !== "unity") sendToUnity({ type: "select", kind: "agent", id, origin: "host" });
+}
+
+/* ============ Unity loading (capability-gated, honest failure states) ============ */
+const BUILD_BASE = "/static/office-unity/Build";
+const BUILD_NAME = "LeadGenVirtualOffice";
+function sendToUnity(obj){
+  if (!unityInstance) return;
+  try { unityInstance.SendMessage("Bridge", "OnHostEvent", JSON.stringify(obj)); } catch {}
+}
+/* Whitelist DTO projection — ONLY these fields ever enter the Unity heap
+   (docs/UNITY_OFFICE_API_CONTRACT.md §1; Unity side: OfficeState.cs). */
+const SAFE_ID = (v) => String(v ?? "").replace(/[^a-zA-Z0-9_\-\.]/g, "").slice(0, 64);
+function projectSnapshotDto(s){
+  return {
+    type: "state", origin: "host",
+    snapshot: {
+      rooms: (s.rooms || []).slice(0, 24).map(r => ({
+        id: SAFE_ID(r.id), label: String(r.label || r.name || "").slice(0, 60),
+      })),
+      agents: (s.agents || []).slice(0, 64).map(a => ({
+        key: SAFE_ID(a.key || a.id || a.name), name: String(a.name || "").slice(0, 60),
+        room: SAFE_ID(a.room), status: String(a.status || "").slice(0, 30),
+        task: String(a.task || a.current_task || "").slice(0, 120),
+      })),
+      pipeline: (s.pipeline || []).slice(0, 16).map(p => ({
+        id: SAFE_ID(p.id), label: String(p.label || p.id || "").slice(0, 60),
+        count: Number(p.count) | 0, source: String(p.source || "").slice(0, 10),
+        note: String(p.note || "").slice(0, 120),
+      })),
+      next_best_actions: (s.next_best_actions || []).slice(0, 8).map(n => ({
+        title: String((n && (n.title || n.text)) || n || "").slice(0, 120), text: "",
+      })),
+    },
+  };
+}
+function pushStateToUnity(){
+  if (!unityInstance || !SNAP) return;
+  sendToUnity(projectSnapshotDto(SNAP));
+}
+function capabilityOk(){
+  try {
+    if (new URLSearchParams(location.search).get("force") === "1") return { ok: true };
+    const gl = document.createElement("canvas").getContext("webgl2");
+    if (!gl) return { ok: false, why: "WebGL2 is browser me available nahi hai." };
+    if (navigator.deviceMemory && navigator.deviceMemory < 4)
+      return { ok: false, why: "Device memory kam hai (" + navigator.deviceMemory + "GB) — Lightweight Mode better rahega." };
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches)
+      return { ok: false, why: "Reduced-motion preference detect hui — Lightweight Mode use karo." };
+    return { ok: true };
+  } catch { return { ok: false, why: "Capability check fail hua." }; }
+}
+async function bootUnity(){
+  const cap = capabilityOk();
+  if (!cap.ok) {
+    $("modeChip").textContent = "lightweight recommended";
+    setMsg("Your Virtual Office is available in Lightweight Mode.", cap.why, false);
+    $("buildInfo").textContent = "Unity: skipped (device capability)";
+    return;
+  }
+  let head;
+  try { head = await fetch(`${BUILD_BASE}/${BUILD_NAME}.loader.js`, { method: "HEAD", cache: "no-store" }); }
+  catch { head = null; }
+  if (!head || !head.ok) {
+    $("buildInfo").textContent = "Unity build: NOT DEPLOYED";
+    setMsg("Unity build not deployed yet",
+      "Blueprint 3D build abhi server par nahi hai. Live data side-panel + minimap me chal raha hai; " +
+      "full office ke liye Lightweight Mode kholo.", false);
+    return;
+  }
+  $("buildInfo").textContent = "Unity build: found";
+  setMsg("Loading Blueprint Office…", "Unity WebGL load ho raha hai.", true);
+  const s = document.createElement("script");
+  s.src = `${BUILD_BASE}/${BUILD_NAME}.loader.js`;
+  const timeout = setTimeout(() => {
+    if (!unityInstance) setMsg("Your Virtual Office is available in Lightweight Mode.",
+      "Unity load 20s me complete nahi hua — 2D map use karo, data panel live hai.", false);
+  }, 20000);
+  s.onload = () => {
+    /* global createUnityInstance provided by Unity loader */
+    createUnityInstance($("unityCanvas"), {
+      dataUrl: `${BUILD_BASE}/${BUILD_NAME}.data.br`,
+      frameworkUrl: `${BUILD_BASE}/${BUILD_NAME}.framework.js.br`,
+      codeUrl: `${BUILD_BASE}/${BUILD_NAME}.wasm.br`,
+      companyName: "LeadGen AI", productName: "Blueprint Virtual Office", productVersion: "0.1",
+    }, p => { $("progBar").style.width = Math.round(p * 100) + "%"; })
+    .then(inst => {
+      clearTimeout(timeout); unityInstance = inst;
+      hideMsg(); $("unityCanvas").style.display = "block";
+      pushStateToUnity();
+    })
+    .catch(err => {
+      clearTimeout(timeout); console.warn("Unity load failed", err);
+      setMsg("Your Virtual Office is available in Lightweight Mode.",
+        "Unity load fail hua (" + esc(err && err.message) + "). 2D map hamesha available hai.", false);
+    });
+  };
+  s.onerror = () => { clearTimeout(timeout); setMsg("Your Virtual Office is available in Lightweight Mode.", "Unity loader script fail hua.", false); };
+  document.body.appendChild(s);
+}
+
+/* ============ boot ============ */
+$("refreshBtn").addEventListener("click", () => refreshState(true));
+drawMinimap();
+if (!token()) {
+  setMsg("Login required", "Admin login ke baad hi Blueprint Office khulta hai. /app/admin se login karo.", false);
+  $("connChip").className = "chip err"; $("connChip").textContent = "no session";
+} else {
+  refreshState(true);
+  pollTimer = setInterval(refreshState, 15000); /* matches office_hq cache TTL 18s */
+  bootUnity();
+}
+</script>
+</body>
+</html>

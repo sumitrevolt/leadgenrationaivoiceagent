@@ -785,10 +785,11 @@ async def _run_job_inner(job: str) -> bool:
                 pass
             # Multi-source harvest sweep (websearch/opendata/enrich) — gated
             # LEAD_HARVESTER=1, gated sources bina key inert. Legal-only sources.
+            # Uses safety wrapper to prevent asyncpg pool cleanup issues (P1).
             try:
-                from app.platform import lead_harvester
+                from scripts import harvest_safety_wrapper
 
-                await lead_harvester.run_loop_sweep()
+                await harvest_safety_wrapper.run_harvest_loop_safe()
             except Exception:
                 pass
         elif job == "email_outreach":
@@ -979,10 +980,12 @@ async def _run_job_inner(job: str) -> bool:
             # 2nd daily lead-supply pass — FREE harvest (websearch/opendata/enrich),
             # different niche/city rotation than 09:30 prospect. Gated MIDDAY_PROSPECT
             # (default ON; no paid Places API — lead_harvester respects LEAD_HARVESTER).
+            # Uses safety wrapper for P1 pool cleanup (2026-07-11).
             if os.environ.get("MIDDAY_PROSPECT", "1").strip().lower() in ("1", "true", "yes"):
-                from app.platform import lead_harvester, team
+                from scripts import harvest_safety_wrapper
+                from app.platform import team
 
-                _h = await lead_harvester.run_harvest()
+                _h = await harvest_safety_wrapper.run_harvest_safe()
                 if _h.get("ok"):
                     team.log_event(
                         "rohan",
@@ -1121,10 +1124,12 @@ async def _run_job_inner(job: str) -> bool:
             # 3rd daily FREE lead-supply pass (evening) — extra niche/city rotation
             # via lead_harvester (websearch/opendata/enrich, no paid Places API).
             # Gated EVENING_PROSPECT (default OFF; LEAD_HARVESTER bhi on hona chahiye).
+            # Uses safety wrapper for P1 pool cleanup (2026-07-11).
             if os.environ.get("EVENING_PROSPECT", "0").strip().lower() in ("1", "true", "yes"):
-                from app.platform import lead_harvester, team
+                from scripts import harvest_safety_wrapper
+                from app.platform import team
 
-                _h = await lead_harvester.run_harvest()
+                _h = await harvest_safety_wrapper.run_harvest_safe()
                 if _h.get("ok"):
                     team.log_event(
                         "rohan",

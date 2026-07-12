@@ -280,4 +280,8 @@ AUTOMATION_FLAGS = [
     "RL_ENGINE",  # master gate for reward-log emission + Stop hook + /api/rl (default OFF = fully inert)
     "RL_SUCCESS_THRESHOLD",  # reward >= this counts as a "success" for Beta/Laplace arm stats (default 0.5)
     "RL_GRADUATION_N",  # per-domain samples before Phase-1 policy graduation (default 200; Phase-1 not built yet)
+    # --- Unity Blueprint Virtual Office (Milestone C shell, 2026-07-12) ---
+    "UNITY_VIRTUAL_OFFICE_ENABLED",  # /app/office?mode=3d serves office_blueprint.html shell (admin).
+    # OFF default → existing 2D Phaser office map (fully INERT). docs/UNITY_VIRTUAL_OFFICE_ARCHITECTURE.md
+    "UNITY_CUSTOMER_OFFICE_ENABLED",  # customer 3D office shell (Milestone E). OFF default (INERT).
 ]
