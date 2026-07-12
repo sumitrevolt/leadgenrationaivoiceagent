@@ -2,6 +2,10 @@
 
 Schema: `[DATE parked] Idea — WHY it matters | what unblocks it`
 
+[2026-07-12] **Unity WebGL runtime build + rollout** — Admin+Customer office C# scaffold, EditMode tests, WebGLBuild.cs all committed (ADR-076); only the runtime artifact is missing | needs Unity Hub + 2022.3 LTS + WebGL module (USER machine) → open project, run EditMode tests, CLI build to `frontend/office_unity/Build/`, then flip `UNITY_VIRTUAL_OFFICE_ENABLED` admin-read-only first. No Editor on this machine = hard block.
+[2026-07-12] **One canonical office-topology config (Py↔JS↔C#)** — rooms/agents live in `ROOM_DEFS` (office_hq.py) + `office_map.html` + `RoomLayout.cs`; drift-lock test enforces coherence today but a single generated JSON would remove the 3-place duplication | additive: emit `office_topology.json` from `ROOM_DEFS` (single source) consumed by shell+Unity + a validation test. Deferred as lower-risk-later, not sprint-critical.
+[2026-07-12] **Tenant-scoped customer office event stream** — customer office is 15s-poll only; admin has SSE (`/api/events/stream`) | wire a customer-scoped SSE/poll-cursor when real-time customer office is prioritized (contract §3 admits the gap).
+
 [2026-06-2X] **Own telephony stack (P3)** — cost ladder Plivo ₹0.60 → Vobiz ₹0.45 → operator-direct ₹0.30-0.40/min; at scale = biggest COGS lever | Plan in `docs/superpowers/plans/PENDING_PLANS.md`; needs volume + DLT.
 [2026-06-1X] **Missed-call auto-callback** — classic Indian lead-capture pattern, zero-DLT inbound | Vobiz DID + webhook (user paperwork).
 [2026-06-1X] **GBP API auto-post** — Google Business posts = highest-ROI local-marketing channel | Google ~60-din API approval (user applied?).
