@@ -4,13 +4,13 @@
 Date: 2026-07-12
 Goal: Finish local multi-session OmniRoute/tmux setup after Ubuntu installation.
 Inspected: WSL-native clone, three worktrees, OmniRoute version/startup, tmux session and native SQLite warnings.
-Problems Found: OmniRoute starts and reaches the local dashboard/API, but the installed package still reports missing `better-sqlite3` native binding during background health tasks; no production route is affected.
-Changed: Created `/root/src/leadgenrationaiagent-worktrees/{research,implement,review}` on `codex/omni-*` branches and started tmux session `leadgen-omni` with three panes. Local setup commits `9e39038` and `454af9b` contain the runbook/scripts.
-Tests Run: Worktree list PASS; tmux session/panes PASS; OmniRoute version `3.6.5` PASS; bounded doctor startup reached `Ready` and SQLite initialization.
-Verification Evidence: `tmux list-sessions` shows `leadgen-omni`; three panes are present; production files and VPS were not touched.
-Risks: Do not use OmniRoute for customer/voice/billing/production data; fix native binding before relying on persistent gateway state.
-Remaining: Resolve `better-sqlite3` binding or pin a known-good OmniRoute/Node install, then run the sanitized benchmark.
-Next Highest Priority: Attach with `tmux attach -t leadgen-omni`; keep the gateway loopback-only and benchmark before adoption.
+Problems Found: Initial interrupted install left the SQLite native binding incomplete.
+Changed: Reinstalled/rebuilt the local dependency under Node 22 LTS and started OmniRoute in tmux window `gateway` alongside the three worktree panes.
+Tests Run: Worktree list PASS; tmux session/windows PASS; OmniRoute `3.6.5` PASS; SQLite database ready; `/v1/models` HTTP 200; dashboard root HTTP 307.
+Verification Evidence: `leadgen-omni` contains research/implement/review panes plus gateway; production files and VPS were not touched.
+Risks: Do not use OmniRoute for customer/voice/billing/production data; loopback-only gateway is for sanitized development context.
+Remaining: Run the sanitized benchmark before enabling any coding-provider optimization.
+Next Highest Priority: Attach with `tmux attach -t leadgen-omni` and benchmark from the implement worktree.
 
 ## Loop Run
 Date: 2026-07-12
