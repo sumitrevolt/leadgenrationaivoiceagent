@@ -1671,8 +1671,11 @@ async def build_snapshot() -> dict[str, Any]:
         build_approvals(),
     )
     system_health = build_system_health()
+    from app.platform.office_schema import UNITY_OFFICE_SCHEMA_VERSION
+
     snapshot = {
         "ok": True,
+        "schema_version": UNITY_OFFICE_SCHEMA_VERSION,
         "rooms": rooms,
         "agents": agents,
         "metrics": metrics,

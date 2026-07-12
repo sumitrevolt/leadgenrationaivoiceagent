@@ -992,8 +992,11 @@ def _build_office(client_id: str) -> dict:
             else {"title": "Abhi kuch nahi karna", "why": "Sab set hai — AI team kaam pe lagi hai", "cta_target": ""}
         )
 
+        from app.platform.office_schema import UNITY_OFFICE_SCHEMA_VERSION
+
         return {
             "ok": True,
+            "schema_version": UNITY_OFFICE_SCHEMA_VERSION,
             "enabled": True,
             "product": product,
             "headline": headline,
@@ -1013,8 +1016,11 @@ def _build_office(client_id: str) -> dict:
         }
     except Exception as e:
         logger.debug("customer office build failed: %s", e)
+        from app.platform.office_schema import UNITY_OFFICE_SCHEMA_VERSION
+
         return {
             "ok": False,
+            "schema_version": UNITY_OFFICE_SCHEMA_VERSION,
             "enabled": True,
             "product": "marketing",
             "headline": "",

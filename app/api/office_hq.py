@@ -32,7 +32,10 @@ async def office_snapshot(current_user=Depends(require_admin)):
     try:
         return await office_hq.build_snapshot()
     except Exception as e:  # pragma: no cover — belt-and-suspenders, builder never raises
-        return {"ok": False, "error": str(e), "rooms": [], "agents": [], "metrics": {},
+        from app.platform.office_schema import UNITY_OFFICE_SCHEMA_VERSION
+
+        return {"ok": False, "schema_version": UNITY_OFFICE_SCHEMA_VERSION, "error": str(e),
+                "rooms": [], "agents": [], "metrics": {},
                 "pipeline": [], "approvals": {"drafts": [], "counts": {}},
                 "system_health": {}, "next_best_actions": []}
 
