@@ -1,5 +1,14 @@
 # Trainer timeout isolation
 
+## Follow-up: cold skill-KB ingest
+
+The first fix isolated synchronous telemetry, but live verification exposed a
+second timeout source: when `SKILL_PACK=1`, the trainer synchronously called
+`skill_pack.ingest_to_kb()`. FastEmbed cold initialization exceeded the Celery
+540-second soft / 600-second hard limit. `SKILL_PACK_KB_INGEST` now gates that
+expensive path separately and defaults OFF. Prompt lookup remains available;
+manual/API ingestion is unchanged.
+
 ## Goal
 
 Prevent the daily trainer analytics job from occupying a Celery worker for the full 600-second hard limit when staff-event persistence is slow or unavailable.

@@ -466,7 +466,15 @@ async def _run_job_inner(job: str) -> bool:
                 # Guru: project skills → KB ingest (semantic recall; gated SKILL_PACK)
                 from app.platform import skill_pack, team
 
-                if skill_pack.enabled():
+                # SKILL_PACK enables lightweight prompt lookup. KB ingestion builds
+                # embeddings and can cold-start for several minutes, so it gets a
+                # separate explicit gate and must never hold the daily trainer task
+                # hostage to Celery's 10-minute hard limit.
+                if skill_pack.enabled() and os.environ.get("SKILL_PACK_KB_INGEST", "0").strip().lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                ):
                     res = skill_pack.ingest_to_kb()
                     if res.get("ok"):
                         team.log_event(

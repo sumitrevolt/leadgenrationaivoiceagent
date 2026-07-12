@@ -2,6 +2,18 @@
 
 ## Loop Run
 Date: 2026-07-12
+Goal: Remove the second production trainer timeout caused by cold skill-KB embedding ingest.
+Inspected: Live `worker-heavy` task logs/process state, `team_scheduler._run_job_inner`, `skill_pack.ingest_to_kb`, Celery 540s soft/600s hard limits, and scheduler/skill-pack tests.
+Problems Found: The telemetry fix worked, but trainer continued into `skill_pack.ingest_to_kb()` whenever `SKILL_PACK=1`. That synchronous path initializes FastEmbed/KB and exceeded the 540s soft / 600s hard task limit, producing a new preserved `TimeLimitExceeded(600,)` event.
+Changed: Added explicit `SKILL_PACK_KB_INGEST` registry flag, default OFF, around expensive trainer-time skill KB ingestion. Lightweight skill lookup remains available; manual/API ingestion and explicit opt-in remain possible. Added a regression test proving `SKILL_PACK=1` alone cannot enter embedding ingest.
+Tests Run: `tests/test_skill_pack_upgrader.py tests/test_staff_jobs_smoke.py` passed. `prod_check.py` ALL PASSED (1253 source files, 1099 routes, 47 pages, 0 wiring gaps, 80/80 engines, API.md in sync). `check_secrets.py` clean. Changed-file diff check clean; unrelated pre-existing `docs/GRAPHIFY.md` EOF whitespace warning remains outside this change.
+Verification Evidence: Live task logs showed the prior run hit soft limit at 540s and hard limit at 600s inside embedding generation; the new default gate prevents that path from the daily trainer. Local contract test passes.
+Risks: Existing historical trainer DLQ item(s) are retained for audit and were not deleted/replayed. Explicitly enabling `SKILL_PACK_KB_INGEST` still requires a separately budgeted worker path; it is not enabled by this fix.
+Remaining: Commit/push/rebuild/recreate worker-heavy + scheduler, then run a fresh trainer smoke and confirm no new DLQ timeout. Human WhatsApp smoke and credential rotation remain user actions.
+Next Highest Priority: Deploy this trainer gate and verify the scheduled trainer completes under the Celery limit.
+
+## Loop Run
+Date: 2026-07-12
 Goal: Root-cause and fix the live `trainer` Celery timeout that created one DLQ dead item.
 Inspected: `app.agents.staff.run_trainer`, `team.log_event`, Celery async runner, trainer tests, worker task limits, and live `dlq:dead` payload/logs.
 Problems Found: `run_trainer()` was async but called synchronous `team.log_event()` directly. That telemetry path can open/commit DB state and publish side effects; when it stalls, the trainer coroutine can occupy the Celery task until the global 600s hard limit. The first bounded `asyncio.to_thread` attempt exposed a second lifecycle issue: `asyncio.run()` waits for its executor during shutdown, so the test still took 8s despite the 5s caller timeout.

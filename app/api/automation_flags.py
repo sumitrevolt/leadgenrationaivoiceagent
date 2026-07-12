@@ -128,6 +128,7 @@ AUTOMATION_FLAGS = [
     "OWNER_BRIEF_DAILY",  # roz-subah per-client owner-brief auto-prepare (scheduled studio owner-brief)
     "HOT_QUEUE_BRIEF_DAILY",  # 08:15 admin revenue brief; health-gated, read-only, default OFF
     "SKILL_PACK",
+    "SKILL_PACK_KB_INGEST",  # expensive embedding ingest from trainer; explicit opt-in, OFF default
     "OBSIDIAN_SYNC",  # second-brain markdown staging + daily obsidian_push job (audit 2026-07-04: was registry-invisible)
     "COMBO_PRODUCT",  # Product-3 combo public router mount — OFF default (ADR-009 two-product truth; audit 2026-07-04)
     "STUDIO_ENTITLEMENT_GATE",  # customer studio: block expired trials + never-paid signups after 7-day grace — OFF default
