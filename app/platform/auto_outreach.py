@@ -635,6 +635,9 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         for p in _ready_pool:
             if (str(p.get("status") or "ready") != "ready"):
                 continue
+            if not prospector.is_quality_approved(p):
+                result["skipped_quality"] = result.get("skipped_quality", 0) + 1
+                continue
             if p.get("emailed_at"):
                 continue  # already emailed — never re-send (defensive)
             email = str(p.get("email") or "").strip()

@@ -39,6 +39,77 @@ _PROSPECTS_FILE = os.path.join("data", "prospects.jsonl")
 # Allowed pipeline statuses.
 VALID_STATUSES = ("ready", "sent", "replied", "client", "dead")
 
+# Google/OSM can return infrastructure or public-service entities for broad
+# category queries. They are not local SMB prospects for LeadGen's marketing
+# product and frequently carry railway/bank helpline numbers.
+_NON_SMB_PLACE_TYPES = frozenset(
+    {
+        "airport",
+        "bus_station",
+        "government_office",
+        "local_government_office",
+        "police",
+        "police_station",
+        "post_office",
+        "railway_station",
+        "train_station",
+        "transit_station",
+    }
+)
+
+
+def _scraped_reject_reason(
+    name: str,
+    phone10: str,
+    email: str,
+    source: str,
+    primary_type: str = "",
+    types: tuple[str, ...] | list[str] = (),
+    business_status: str = "",
+) -> str:
+    """Hard quality gate shared by Google/OSM prospect ingestion."""
+    if str(business_status or "").upper() == "CLOSED_PERMANENTLY":
+        return "closed_business"
+    place_types = {str(t).strip().lower() for t in (types or ())}
+    if str(primary_type or "").strip().lower() in _NON_SMB_PLACE_TYPES:
+        return "non_smb_place_type"
+    if place_types & _NON_SMB_PLACE_TYPES:
+        return "non_smb_place_type"
+    try:
+        from app.platform.lead_harvester import ingest_reject_reason
+
+        return ingest_reject_reason(name, phone10, email, source)
+    except Exception:
+        # Name safety remains fail-closed if the shared gate cannot import.
+        lowered = str(name or "").lower()
+        return "official_or_helpline_name" if any(
+            token in lowered for token in ("irctc", "indian railways", "railway station", "helpline")
+        ) else ""
+
+
+def is_quality_approved(record: dict[str, Any] | None) -> bool:
+    """Return whether a stored prospect is safe to surface/send.
+
+    This re-checks historical JSONL rows too, so records ingested before the
+    current junk-title rules cannot leak into outreach after a deploy.
+    """
+    if not isinstance(record, dict):
+        return False
+    name = str(record.get("business_name") or record.get("name") or "").strip()
+    digits = "".join(c for c in str(record.get("phone") or "") if c.isdigit())
+    phone10 = digits[-10:] if len(digits) >= 10 else ""
+    source_query = str(record.get("source_query") or "")
+    source = source_query.split(":", 1)[-1] if source_query.startswith("harvest:") else "google_maps"
+    return not _scraped_reject_reason(
+        name,
+        phone10,
+        str(record.get("email") or "").strip(),
+        source,
+        primary_type=str(record.get("primary_type") or ""),
+        types=record.get("types") or (),
+        business_status=str(record.get("business_status") or ""),
+    )
+
 # --------------------------------------------------------------------------- #
 # Targets — kaunse niches ke businesses dhundhne hain (env-overridable).
 # Env PROSPECT_TARGETS = JSON list: [{"niche": "...", "query": "...",
@@ -497,7 +568,7 @@ def _append(rec: dict[str, Any]) -> bool:
 def list_prospects(status: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
     """Prospects newest-first; optional status filter. Kabhi raise nahi karta."""
     try:
-        rows = _read_all()
+        rows = [r for r in _read_all() if is_quality_approved(r)]
         if status:
             rows = [r for r in rows if (r.get("status") or "ready") == status]
         rows.sort(key=lambda r: str(r.get("found_at") or ""), reverse=True)
@@ -519,6 +590,8 @@ def pending_for_outreach(limit: int = 500) -> list[dict[str, Any]]:
     try:
         out: list[dict[str, Any]] = []
         for r in _read_all():
+            if not is_quality_approved(r):
+                continue
             if (r.get("status") or "ready") != "ready":
                 continue
             if r.get("emailed_at"):
@@ -646,6 +719,7 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
         "queries_run": 0,
         "queries_failed": 0,
         "queries_empty": 0,
+        "quality_rejected": 0,
         "by_niche": {},
         "scraper": "unavailable",
     }
@@ -736,7 +810,9 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
                     # warna pura event-loop block hota — run_prospecting async hai.
                     if idx > 0:
                         await asyncio.sleep(1)
-                    for r in _osm_search(query, city, max_per):
+                    # `_osm_search` uses sync urllib; keep it off the async
+                    # scheduler loop so prospecting cannot block other agents.
+                    for r in await asyncio.to_thread(_osm_search, query, city, max_per):
                         rows.append(
                             {
                                 "name": r.get("business_name", ""),
@@ -770,11 +846,40 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
                                 "rating": getattr(biz, "rating", None),
                                 "reviews_count": rc if rc is not None else 0,
                                 "website": str(getattr(biz, "website", "") or ""),
+                                "source_url": str(getattr(biz, "google_maps_url", "") or ""),
+                                "primary_type": str(getattr(biz, "primary_type", "") or ""),
+                                "types": tuple(getattr(biz, "types", ()) or ()),
+                                "business_status": str(getattr(biz, "business_status", "") or ""),
                                 # Scraper already may carry an email (Places details
                                 # path runs _extract_email_from_website internally).
                                 "email": str(getattr(biz, "email", "") or "").strip(),
                             }
                         )
+                    # A configured Maps key can still be denied, quota-limited,
+                    # or return an empty result. Fall back to free OSM per query
+                    # so a stale key cannot silently starve prospecting.
+                    if not rows:
+                        if idx > 0:
+                            await asyncio.sleep(1)
+                        osm_rows = await asyncio.to_thread(_osm_search, query, city, max_per)
+                        if osm_rows:
+                            summary["scraper"] = "google_maps_api+osm_fallback"
+                            for r in osm_rows:
+                                rows.append(
+                                    {
+                                        "name": r.get("business_name", ""),
+                                        "phone": r.get("phone", ""),
+                                        "address": r.get("address", ""),
+                                        "rating": None,
+                                        "reviews_count": None,
+                                        "website": r.get("website", ""),
+                                        "source_url": str(r.get("source_url") or ""),
+                                        "primary_type": str(r.get("primary_type") or ""),
+                                        "types": tuple(r.get("types") or ()),
+                                        "business_status": str(r.get("business_status") or ""),
+                                        "email": str(r.get("email") or "").strip(),
+                                    }
+                                )
                 summary["queries_run"] += 1
                 if not rows:
                     summary["queries_empty"] += 1
@@ -790,6 +895,19 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
                         continue
                     phone10 = _phone_digits(biz.get("phone"))
                     biz_key = f"{name.lower()}|{city.strip().lower()}"
+                    reject = _scraped_reject_reason(
+                        name,
+                        phone10,
+                        str(biz.get("email") or "").strip(),
+                        "google_maps" if not use_osm else "osm",
+                        primary_type=str(biz.get("primary_type") or ""),
+                        types=biz.get("types") or (),
+                        business_status=str(biz.get("business_status") or ""),
+                    )
+                    if reject:
+                        summary.setdefault("quality_rejected", 0)
+                        summary["quality_rejected"] += 1
+                        continue
                     # Dedupe: phone digits (agar ho) AUR name+city dono.
                     if (phone10 and phone10 in seen) or biz_key in seen:
                         summary["duplicates"] += 1
@@ -846,6 +964,7 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
                         "rating": rating,
                         "reviews_count": reviews_count,
                         "website": website[:300],
+                        "source_url": str(biz.get("source_url") or "")[:500],
                         "has_website": has_website,
                         "email": email[:200],
                         "source_query": query,
@@ -944,5 +1063,6 @@ __all__ = [
     "set_prospect_fields",
     "build_pitch",
     "build_personalized_pitch",
+    "is_quality_approved",
     "VALID_STATUSES",
 ]
