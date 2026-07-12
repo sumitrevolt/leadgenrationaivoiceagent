@@ -25,7 +25,10 @@ def test_setup_wizard_card_and_functions_present(fork):
     assert "async function loadSetupWizard" in html
     assert "async function saveSetupWizard" in html
     assert "async function sendKbInfo" in html
-    assert "loadGuidedSetup();" in html
+    # P0-2026-07-12: invoked via _safeBoot() now (see test_customer_setup_wizard_frontend.py
+    # for the dedicated regression test on that wrapper) so one broken loader can't
+    # block the others — the literal call-site changed, the wiring didn't.
+    assert '_safeBoot("loadGuidedSetup", loadGuidedSetup);' in html
 
 
 @pytest.mark.parametrize("fork", FORKS)

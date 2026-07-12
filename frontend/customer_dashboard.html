@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#4f46e5">
 <title>LeadGen AI — Aapka AI Office</title>
+<!-- P0-2026-07-12: non-sensitive build marker, populated client-side from the
+     already-existing /health endpoint's APP_VERSION (short git SHA, set at
+     deploy time — see scripts/deploy.sh / .github/workflows/deploy-vps.yml).
+     Lets support + browser automation assert which build is actually live,
+     without needing a template engine for this statically-served file. -->
+<meta name="ui-build" content="loading">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="/design-system/styles.css" />
 <style>
@@ -483,6 +489,28 @@
       }).catch(function(){});
   }catch(e){}
 })();
+
+/* P0-2026-07-12: UI_BUILD marker — fetches the already-existing public /health
+   endpoint (no auth needed) and exposes its APP_VERSION (short git SHA) in
+   three redundant, non-sensitive places so support + browser automation can
+   always confirm which build is actually live:
+     1. <meta name="ui-build" content="..."> (assertable without any fetch of its own)
+     2. document.documentElement.dataset.uiBuild (stable DOM attribute)
+     3. console.log("[UI_BUILD]", ...)
+   Also mirrored into the Support tab (#uiBuildValue) for human support tickets. */
+(function(){
+  try{
+    fetch("/health").then(function(r){ return r.ok ? r.json() : null; }).then(function(j){
+      var build = (j && j.version) ? String(j.version) : "unknown";
+      var meta = document.querySelector('meta[name="ui-build"]');
+      if(meta) meta.setAttribute("content", build);
+      document.documentElement.setAttribute("data-ui-build", build);
+      console.log("[UI_BUILD]", build);
+      var el = document.getElementById("uiBuildValue");
+      if(el) el.textContent = build;
+    }).catch(function(){});
+  }catch(e){}
+})();
 </script>
 <div class="app">
   <!-- Sidebar -->
@@ -554,6 +582,17 @@
       <div class="msg" id="approvalBannerMsg" style="color:#92400e"></div>
       <button type="button" class="btn-pay" id="approvalBannerAction"
               style="background:#d97706" onclick="scrollToId('approvalCard')">Approval dekhein</button>
+    </div>
+
+    <!-- P0-2026-07-12: Persistent (non-toast) error banner for a LOGGED-IN customer whose
+         live dashboard data failed to load (timeout / bad status / render exception).
+         Toasts auto-dismiss and are easy to miss; a customer left staring at "Demo Data"
+         with no visible explanation has no way to know something is wrong. Never auto-hides
+         except on a successful retry. See loadLiveDashboard() / retryLiveDashboard(). -->
+    <div id="liveDataErrorBanner" class="trial-banner expired" role="alert" aria-live="assertive" style="display:none">
+      <div class="msg" id="liveDataErrorMsg">Aapka live data load nahi ho paya — dobara try karein.</div>
+      <button type="button" class="btn-pay" style="background:#dc2626" onclick="retryLiveDashboard()">🔄 Dobara try karein</button>
+      <button type="button" class="btn" style="min-height:auto;padding:10px 14px" onclick="localStorage.removeItem('lgai_token');window.location.replace('/app/login?reason=retry_failed')">Logout</button>
     </div>
 
     <div class="content" role="main" id="mainContent" data-active-view="home">
@@ -1268,6 +1307,9 @@
             📧 Support Email: <b style="color:var(--txt)">admin@leadsgenai.in</b><br>
             Aapki query ka response 2-4 hours me mil jayega.
           </p>
+          <p class="sm" style="color:var(--muted);margin:8px 0 0" aria-label="App build version, for support reference">
+            Build: <span id="uiBuildValue">…</span>
+          </p>
         </div>
       </div>
 
@@ -1435,8 +1477,9 @@ function renderKPIs(d){
 }
 
 function renderSummary(d){
-  const hot=d.leads.filter(l=>l.score==="Hot").length;
-  const topCity=[...d.charts.leads_by_city].sort((a,b)=>b.value-a.value)[0];
+  const hot=(d.leads||[]).filter(l=>l.score==="Hot").length;
+  const cityData=Array.isArray(d.charts&&d.charts.leads_by_city)?d.charts.leads_by_city:[];
+  const topCity=[...cityData].sort((a,b)=>b.value-a.value)[0];
   const th=document.getElementById("todayHot");
   if(th) th.textContent = hot>0 ? (hot+" garam (Hot) leads — aaj hi call karo 📞") : "Pakke customers jo baat karne ko taiyaar hain.";
   const box=document.getElementById("summaryBox");
@@ -1514,30 +1557,44 @@ async function updateLeadStatus(sel){
 function renderCharts(d){
   const text="#6b7280", grid="rgba(109,40,217,.08)";
   Chart.defaults.font.family="inherit"; Chart.defaults.color=text;
+  const cd = d.charts || {};
+  // P0-2026-07-12: charts sub-fields defensively normalized (was a bare `d.charts.X.map`
+  // per chart — a single missing/malformed series, e.g. leads_by_city not an array,
+  // threw and silently aborted every render step queued after renderCharts() in
+  // renderAll(), which is how a real customer got stuck on demo data with no error).
+  const callsPerDay = Array.isArray(cd.calls_per_day) ? cd.calls_per_day : [];
+  const leadsByStatus = Array.isArray(cd.leads_by_status) ? cd.leads_by_status : [];
+  const leadsByCity = Array.isArray(cd.leads_by_city) ? cd.leads_by_city : [];
   // line
   drawChart("chCalls","line",{
-    labels:d.charts.calls_per_day.map(p=>p.label),
-    datasets:[{label:"Calls",data:d.charts.calls_per_day.map(p=>p.value),
+    labels:callsPerDay.map(p=>p.label),
+    datasets:[{label:"Calls",data:callsPerDay.map(p=>p.value),
       borderColor:"#6d28d9",backgroundColor:"rgba(109,40,217,.12)",fill:true,tension:.35,
       pointRadius:3,pointBackgroundColor:"#6d28d9",borderWidth:2.5}]
   },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid}},x:{grid:{display:false}}}});
   // doughnut
   drawChart("chStatus","doughnut",{
-    labels:d.charts.leads_by_status.map(p=>p.label),
-    datasets:[{data:d.charts.leads_by_status.map(p=>p.value),
+    labels:leadsByStatus.map(p=>p.label),
+    datasets:[{data:leadsByStatus.map(p=>p.value),
       backgroundColor:["#ef4444","#f59e0b","#3b82f6"],borderWidth:0}]
   },{cutout:"62%",plugins:{legend:{position:"bottom",labels:{usePointStyle:true,padding:14}}}});
   // bar
   drawChart("chCity","bar",{
-    labels:d.charts.leads_by_city.map(p=>p.label),
-    datasets:[{label:"Leads",data:d.charts.leads_by_city.map(p=>p.value),
+    labels:leadsByCity.map(p=>p.label),
+    datasets:[{label:"Leads",data:leadsByCity.map(p=>p.value),
       backgroundColor:"#6d28d9",borderRadius:7,maxBarThickness:46}]
   },{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:grid}},x:{grid:{display:false}}}});
 }
 function drawChart(id,type,data,opts){
-  if(charts[id]) charts[id].destroy();
-  charts[id]=new Chart(document.getElementById(id),{type,data,
-    options:Object.assign({responsive:true,maintainAspectRatio:false},opts)});
+  // P0-2026-07-12: each chart draws independently — one bad dataset/canvas must not
+  // stop the remaining two charts from rendering (invariant: independent card render).
+  try{
+    if(charts[id]) charts[id].destroy();
+    const el=document.getElementById(id);
+    if(!el) return;
+    charts[id]=new Chart(el,{type,data,
+      options:Object.assign({responsive:true,maintainAspectRatio:false},opts)});
+  }catch(e){ console.error("[drawChart] "+id+" failed:", e); }
 }
 
 function renderMarketingKPIs(){
@@ -1687,13 +1744,29 @@ function openAdvancedSettings(){
   setTimeout(function(){ scrollToId("secCard"); }, 30);
 }
 
+// P0-2026-07-12: each render step wrapped independently. Previously a single
+// throwing step (most commonly renderCharts() on an unexpected charts shape)
+// aborted every step after it in this list — including renderOnboarding()
+// (which drives the "setup incomplete -> jump to Setup Wizard" redirect) and
+// pushDataNotifications(). One bad card must never block the others.
+function _safeRenderStep(name, fn){
+  try{ fn(); }catch(e){ console.error("[renderAll] "+name+" failed:", e); }
+}
 function renderAll(){
   const camp=document.getElementById("campaign").value;
   const view=filterByCampaign(DATA,camp);
-  renderKPIs(view);renderSummary(view);renderCalls(view);renderLeads(view);renderCharts(view);updateTodayGuide(view);initFriendlyShell();renderPriorityCards(view);
-  renderOnboarding(DATA);
-  pushDataNotifications(view);
-  renderMarketingKPIs(); setTimeout(function(){ renderMarketingKPIs(); updateTodayGuide(window._VIEW || DATA); }, 1800);
+  _safeRenderStep("renderKPIs",function(){renderKPIs(view);});
+  _safeRenderStep("renderSummary",function(){renderSummary(view);});
+  _safeRenderStep("renderCalls",function(){renderCalls(view);});
+  _safeRenderStep("renderLeads",function(){renderLeads(view);});
+  _safeRenderStep("renderCharts",function(){renderCharts(view);});
+  _safeRenderStep("updateTodayGuide",function(){updateTodayGuide(view);});
+  _safeRenderStep("initFriendlyShell",function(){initFriendlyShell();});
+  _safeRenderStep("renderPriorityCards",function(){renderPriorityCards(view);});
+  _safeRenderStep("renderOnboarding",function(){renderOnboarding(DATA);});
+  _safeRenderStep("pushDataNotifications",function(){pushDataNotifications(view);});
+  _safeRenderStep("renderMarketingKPIs",function(){renderMarketingKPIs();});
+  setTimeout(function(){ _safeRenderStep("renderMarketingKPIs#2",function(){renderMarketingKPIs();}); _safeRenderStep("updateTodayGuide#2",function(){updateTodayGuide(window._VIEW || DATA);}); }, 1800);
   window._VIEW=view;
 }
 
@@ -1765,7 +1838,8 @@ function setMeta(d){
 
 function initCampaigns(){
   const sel=document.getElementById("campaign");
-  sel.innerHTML=DATA.campaigns.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
+  const campaigns=Array.isArray(DATA&&DATA.campaigns)?DATA.campaigns:[];
+  sel.innerHTML=campaigns.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");
   sel.onchange=renderAll;
 }
 
@@ -1917,7 +1991,12 @@ function toast(t,m){
    BOOT: render demo instantly, then try live fetch (fallback safe)
    ============================================================ */
 function boot(data){
-  DATA=data;setMeta(data);initCampaigns();renderAll();renderTrialBanner(data);renderApprovalBanner(data);
+  DATA=data;
+  _safeRenderStep("setMeta",function(){setMeta(data);});
+  _safeRenderStep("initCampaigns",function(){initCampaigns();});
+  renderAll(); // internally fault-tolerant per step — see _safeRenderStep
+  _safeRenderStep("renderTrialBanner",function(){renderTrialBanner(data);});
+  _safeRenderStep("renderApprovalBanner",function(){renderApprovalBanner(data);});
 }
 
 /* ============================================================
@@ -1998,7 +2077,7 @@ function renderApprovalBanner(data){
 boot(buildDemo());  // instant render, works offline
 renderTeam(null);   // instant virtual-team office (demo) until live data arrives
 
-/* Billing state — declared before tryLive (which reads BILL.cid). */
+/* Billing state — declared before loadLiveDashboard (which reads BILL.cid). */
 const BILL = { cid: "demo", token: "" };
 
 /* Autopilot drafts — hands-free content the AI team prepared (owner-brief / feedback
@@ -2025,47 +2104,100 @@ async function loadAutopilot(){
 }
 function copyAutopilot(i){ const x=(window._AUTOPILOT||[])[i]; if(!x) return; navigator.clipboard.writeText(x.text||'').then(function(){ toast('Copy ho gaya 📋','WhatsApp pe paste karke bhejo.'); }); }
 
-(async function tryLive(){
+// P0-2026-07-12 incident (jiya-makeover mobile dashboard stuck on Demo Data):
+// root-caused via jsdom execution replay against the live production bundle —
+// (1) this fetch had NO bounded timeout, unlike the Setup Wizard's fetchSetupJson
+//     (SETUP_TIMEOUT_MS/AbortController) — a slow/hung request left a logged-in
+//     customer on demo data forever with nothing but a transient toast, or nothing
+//     at all if the toast fired before they looked at the screen;
+// (2) a response that was res.ok===true but didn't satisfy the strict
+//     `live.kpis && Array.isArray(live.calls) && Array.isArray(live.leads)` guard
+//     fell through this if-block silently — no boot(), no error, no signal;
+// (3) boot(live) -> renderAll() -> renderCharts() threw on any single malformed
+//     chart series (reproduced: `d.charts.leads_by_city` not iterable) which,
+//     pre-fix, aborted every remaining renderAll step AND every post-boot call
+//     below it (team/autopilot/delivery-proof/onboarding-redirect) — see the
+//     _safeRenderStep hardening in renderAll()/boot() above, which now contains
+//     a single bad card instead of cascading.
+// Fix: named + retryable, bounded timeout, and a persistent (non-toast) banner
+// for any authenticated failure path so "stuck on Demo Data with zero signal"
+// can no longer happen silently.
+const DASHBOARD_TIMEOUT_MS = 15000;
+function _showLiveDataError(msg){
+  const el=document.getElementById("liveDataErrorBanner");
+  const m=document.getElementById("liveDataErrorMsg");
+  if(m) m.textContent = msg || "Aapka live data load nahi ho paya — dobara try karein.";
+  if(el) el.style.display = "flex";
+}
+function _hideLiveDataError(){
+  const el=document.getElementById("liveDataErrorBanner");
+  if(el) el.style.display = "none";
+}
+function retryLiveDashboard(){ _hideLiveDataError(); loadLiveDashboard(); }
+async function loadLiveDashboard(){
   /* AUTO-REDIRECT: agar token nahi hai to login page pe bhejo.
      Dashboard bina login ke confusing "Load ho raha hai" state dikhata tha. */
   if(!billToken()){
     window.location.replace("/app/login");
     return;
   }
+  const ctl=new AbortController();
+  const timer=setTimeout(function(){ctl.abort();},DASHBOARD_TIMEOUT_MS);
   try{
     /* BUGFIX 2026-06-12: pehle client_id resolve karo (login token -> /me),
        warna logged-in customer ko bhi hamesha "demo" sample data dikhta tha. */
     BILL.cid = await resolveClientId();
     const camp=(document.getElementById("campaign")||{}).value||"all";
     const qs = camp && camp!=="all" ? ("?campaign="+encodeURIComponent(camp)) : "";
-    const res=await fetch("/api/customer/dashboard"+qs,{headers:Object.assign({Accept:"application/json"},billAuthHdr())});
+    const res=await fetch("/api/customer/dashboard"+qs,{headers:Object.assign({Accept:"application/json"},billAuthHdr()),signal:ctl.signal});
+    if(res.status===401||res.status===403){
+      /* Invalid/expired token — never fall back to demo silently; clear state + redirect. */
+      localStorage.removeItem("lgai_token");
+      window.location.replace("/app/login?reason=expired");
+      return;
+    }
     if(!res.ok) throw new Error("bad status "+res.status);
     const live=await res.json();
     if(live&&live.kpis&&Array.isArray(live.calls)&&Array.isArray(live.leads)){
+      _hideLiveDataError();
       boot(live);
-      loadSpeedToLead();
+      _safeRenderStep("loadSpeedToLead",function(){loadSpeedToLead();});
       loadTeam();
       loadAutopilot();
       loadDeliveryProof();
       if(window._teamPoll) clearInterval(window._teamPoll);
       window._teamPoll = setInterval(loadTeam, 25000);
-      
+
       if (live.onboarding && !live.onboarding.complete) {
         showView('setup');
         toast("Setup Incomplete", "Apna setup complete karein taaki hum delivery start kar sakein.");
       } else {
         if(!live.is_sample_data) toast("Live data ✅","Server se aapka asli data load ho gaya.");
       }
+    } else {
+      /* res.ok===true but the payload didn't match the expected shape — this is
+         exactly the silent-fallthrough that left customers stuck on Demo Data
+         with zero signal. Surface it instead of doing nothing. */
+      console.error("[loadLiveDashboard] unexpected dashboard payload shape:", live);
+      _showLiveDataError("Server se data mila lekin format unexpected tha — hamari team ko notify kar diya gaya hai. Dobara try karein.");
     }
   }catch(e){
     /* Show error only if user is logged in (has token) — for logged-out / offline / file://
        silent demo fallback is correct. Logged-in users need to know something went wrong. */
     if(billToken()){
-      console.error("[tryLive] logged-in but live-load failed:", e);
-      toast("Data load error ⚠️", "Server se data nahi aa paya — page refresh karein. (" + (e.message||e) + ")");
+      const timedOut = e && e.name==="AbortError";
+      console.error("[loadLiveDashboard] logged-in but live-load failed:", e);
+      const msg = timedOut
+        ? "Server se jawaab nahi mila (timeout) — internet check karke dobara try karein."
+        : "Server se data nahi aa paya — dobara try karein. (" + (e.message||e) + ")";
+      toast("Data load error ⚠️", msg);
+      _showLiveDataError(msg);
     }
+  }finally{
+    clearTimeout(timer);
   }
-})();
+}
+loadLiveDashboard();
 
 /* ============================================================
    BILLING — live-binds to /api/billing/* using the customer JWT.
@@ -3596,14 +3728,24 @@ async function billingAction(action){
   }catch(e){ toast("Dikkat aayi","Internet issue lag raha hai — baad me try karein."); }
 }
 
-loadBilling();
-loadContent();
-loadWebTools();
-loadApprovals();
-loadGuidedSetup();
-loadRouting();
-sec2faLoad();
-whLoad();
+/* P0-2026-07-12: each of these boots an independent dashboard card off a
+   separate endpoint. Previously they ran as bare top-level calls — if ANY one
+   of them threw synchronously (not inside its own promise, e.g. a null DOM
+   read before the first await) it silently aborted every call listed after
+   it, which is how Setup Wizard / Social Networking Setup could get stuck on
+   "Load ho raha hai..." forever with no console signal reaching the user.
+   Wrapping each call means one broken card can never block a sibling card. */
+function _safeBoot(name, fn){
+  try{ fn(); }catch(e){ console.error("[boot] "+name+" failed to start:", e); }
+}
+_safeBoot("loadBilling", loadBilling);
+_safeBoot("loadContent", loadContent);
+_safeBoot("loadWebTools", loadWebTools);
+_safeBoot("loadApprovals", loadApprovals);
+_safeBoot("loadGuidedSetup", loadGuidedSetup);
+_safeBoot("loadRouting", loadRouting);
+_safeBoot("sec2faLoad", sec2faLoad);
+_safeBoot("whLoad", whLoad);
 
 /* ============================================================
    DARK MODE
