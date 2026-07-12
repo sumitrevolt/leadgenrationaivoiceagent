@@ -16,7 +16,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import analytics, campaigns, leads, webhooks
@@ -1062,6 +1062,13 @@ _ds_dir = FRONTEND_DIR / "design-system"
 if _ds_dir.is_dir():
     app.mount("/design-system", StaticFiles(directory=str(_ds_dir)), name="design_system")
 
+# Unity WebGL build artifacts (Blueprint Virtual Office). Mounted ONLY when a versioned
+# build directory exists — static files are flag-independent; the gated entry point is
+# /app/office?mode=3d (UNITY_VIRTUAL_OFFICE_ENABLED). Placed before the "/" catch-all.
+_unity_dir = FRONTEND_DIR / "office_unity"
+if _unity_dir.is_dir():
+    app.mount("/static/office-unity", StaticFiles(directory=str(_unity_dir)), name="office_unity")
+
 
 @app.get("/app/login", tags=["Frontend"])
 async def customer_login_page():
@@ -1261,9 +1268,45 @@ async def team_dashboard_page():
 
 
 @app.get("/app/office", tags=["Frontend"])
-async def office_map_page():
-    """Virtual office map — all AI staff grouped into rooms, live status + activity."""
+async def office_map_page(mode: str | None = None):
+    """Virtual office map — all AI staff grouped into rooms, live status + activity.
+
+    mode=3d + UNITY_VIRTUAL_OFFICE_ENABLED=1 → Unity Blueprint Office shell
+    (office_blueprint.html). Warna HAMESHA existing 2D Phaser map — flag OFF ya
+    mode=map par zero behavior change (INERT default). Docs:
+    docs/UNITY_VIRTUAL_OFFICE_ARCHITECTURE.md §2.
+    """
+    if mode == "3d" and os.getenv("UNITY_VIRTUAL_OFFICE_ENABLED", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        _shell = FRONTEND_DIR / "office_blueprint.html"
+        if _shell.is_file():
+            return FileResponse(str(_shell))
     return FileResponse(str(FRONTEND_DIR / "office_map.html"))
+
+
+@app.get("/app/customer/office", tags=["Frontend"])
+async def customer_office_page(mode: str | None = None):
+    """Customer Blueprint Office shell (Milestone E).
+
+    mode=3d + UNITY_CUSTOMER_OFFICE_ENABLED=1 → office_customer_blueprint.html
+    (tenant-scoped shell; data sirf /api/customer/* se). Flag OFF ya koi aur mode →
+    existing customer dashboard pe redirect (safe default, fully INERT).
+    Docs: docs/UNITY_VIRTUAL_OFFICE_ARCHITECTURE.md §2.
+    """
+    if mode == "3d" and os.getenv("UNITY_CUSTOMER_OFFICE_ENABLED", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        _shell = FRONTEND_DIR / "office_customer_blueprint.html"
+        if _shell.is_file():
+            return FileResponse(str(_shell))
+    return RedirectResponse("/app/customer", status_code=307)
 
 
 @app.get("/app/marketing", tags=["Frontend"])

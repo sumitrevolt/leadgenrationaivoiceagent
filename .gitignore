@@ -11,6 +11,9 @@ app/graphify-out/
 # Secrets (never commit) — Alertmanager SMTP password file, written on VPS from .env
 monitoring/alertmanager_smtp_pass
 
+# Unity office loop — local verification/UAT evidence logs (docs/UNITY_VIRTUAL_OFFICE_UAT.md)
+uat_evidence/
+
 # C extensions
 *.so
 

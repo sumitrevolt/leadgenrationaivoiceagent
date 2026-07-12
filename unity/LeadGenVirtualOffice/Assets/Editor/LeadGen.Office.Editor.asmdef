@@ -1,0 +1,14 @@
+{
+  "name": "LeadGen.Office.Editor",
+  "rootNamespace": "LeadGen.Office.Editor",
+  "references": ["LeadGen.Office", "UnityEngine.UI"],
+  "includePlatforms": ["Editor"],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

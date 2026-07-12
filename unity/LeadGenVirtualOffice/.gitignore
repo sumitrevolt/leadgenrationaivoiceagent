@@ -1,0 +1,15 @@
+# Unity generated (never commit)
+Library/
+Temp/
+Logs/
+obj/
+Build/
+Builds/
+UserSettings/
+MemoryCaptures/
+*.csproj
+*.sln
+*.pidb
+*.booproj
+*.unityproj
+.vs/
