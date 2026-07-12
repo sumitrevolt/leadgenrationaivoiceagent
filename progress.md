@@ -2,6 +2,30 @@
 
 ## Loop Run
 Date: 2026-07-12
+Goal: Make the OmniRoute/tmux setup one-command and idempotent for separate sessions.
+Inspected: `scripts/omniroute-tmux.sh`, WSL Node 22 path, current tmux session, worktrees, local gateway API, and production verification gates.
+Problems Found: Launcher previously created only the three panes; a missing gateway required manual recovery. The final remote health retry timed out after an earlier same-loop HTTP 200; no deploy or app change occurred.
+Changed: Launcher now prioritizes Node 22 LTS and creates/repairs a `gateway` window running OmniRoute; docs describe the gateway and idempotent rerun behavior.
+Tests Run: Bash syntax PASS; idempotent existing-session run PASS; temporary new-session create/cleanup PASS; local `/v1/models` HTTP 200; `prod_check.py` PASS; `check_secrets.py` PASS; targeted context/office tests 38 passed.
+Verification Evidence: `leadgen-omni` has research/implement/review panes plus gateway; all three WSL worktrees remain registered; prior same-loop production health was HTTP 200 with `environment=production`, later alternate retries timed out.
+Risks: WSL shutdown stops local tmux/gateway; production health is currently unconfirmed due transient network timeout and must be rechecked before any deploy action.
+Remaining: Commit the launcher/docs update; rerun production health when network responds; sanitized benchmark still requires an intentionally configured local provider credential.
+Next Highest Priority: `wsl` then `tmux attach -t leadgen-omni`; use the gateway only with sanitized context.
+
+## Loop Run
+Date: 2026-07-12
+Goal: Surgical commit + production deploy of ONLY the Unity-independent context-layer + office `schema_version` work (Unity runtime remains externally blocked; Unity flags stay OFF).
+Inspected: Real Windows checkout (Desktop Commander PowerShell). git status = exactly the 15 allowed files + prior-session strays (`jiya_js_syntax_check.js`, `scripts/deploy_login_fix.bat`, `scripts/install_unity_runtime.ps1`, `memory/incidents.md`) which were EXCLUDED. Confirmed `uat_evidence/` is NOT git-tracked (so TOOLCHAIN_BLOCKED.md not committed, per policy) and `.gitignore` has `app/graphify-out/` (context store auto-excluded).
+Problems Found: (1) `git push` writes progress to stderr → PowerShell surfaced a non-fatal RemoteException; verified success out-of-band (remote main == local). (2) Mid-deploy the first SSH session STALLED on the machine's known intermittent network right after the image build finished but before the container recreate — a second SSH connection also timed out briefly. Recovered: peeked via a fresh SSH once network returned (image `:ddc0fb7` already built), terminated the stalled session, and ran `up -d --no-deps app` cleanly. (3) `docker logs` over the SSH tunnel repeatedly killed the DC PowerShell session — worked around with curl-only + healthcheck evidence.
+Changed: Committed `ddc0fb7` = `feat(context): persist project context and version office contracts` — exactly 15 files (office_schema.py + 3 office builders + 5 context scripts + CONTEXT_MCP.md + 2 tests + decisions.md + backlog.md + progress.md), 1004 insertions / 2 deletions. Pushed to origin/main (fast-forward `6fd188f..ddc0fb7`). Deployed to VPS: git pull --ff-only → `docker compose build app` (APP_VERSION=ddc0fb7, SHA-tagged 1.94GB image) → `up -d --no-deps app` (app service only). No Unity flags set. (This ledger note itself is an uncommitted post-deploy memory record.)
+Tests Run: pre-commit on the real venv — pytest (test_project_context_sync + test_office_schema_version + test_office_blueprint_shell + test_customer_tenant_isolation_authenticated) exit 0 (52, 0 failed); check_secrets `[OK]` (19 files); prod_check `ALL CHECKS PASSED` (1099 routes, 47 pages 0 gaps, 80/80 engines); context_health HEALTHY; sync×2 both UNCHANGED. `git diff --cached --check` exit 0; exclusions proven (all 6 excluded paths staged=False, 0 unity/graphify-out/uat_evidence staged).
+Verification Evidence: local HEAD == origin/main == `ddc0fb71584ec8edab327bb72a646a0934667ca3`. VPS: container `..._leadgen_app` Up healthy on image `ghcr.io/…:ddc0fb7`; `curl localhost:8000/health` ×2 = `{"status":"healthy","version":"ddc0fb7","environment":"production"}`. Endpoint codes: /app/customer 200, /app/office 200 (2D fallback), /app/admin 200, /api/platform/office/snapshot 401 (admin gate), /api/customer/office 401 (tenant gate). `grep -ci UNITY /opt/leadgen/.env` = 0 → all Unity flags OFF. Docker healthcheck green = app imports OK (log-line grep not captured — docker-logs stream drops the SSH tunnel — but healthcheck + endpoint behaviour prove clean boot).
+Risks: schema_version is additive (tolerant JsonUtility ignores it) — no field removed/renamed, no auth/tenant boundary touched. Context JSON is DEV-only + gitignored + served by NO public route. Parallel local process re-touched progress.md (OmniRoute entry) — left untouched, not re-staged.
+Remaining: Unity WebGL runtime = externally blocked (Editor + WebGL module + Personal license). Editor+WebGL installers are downloaded (`%TEMP%\unity_dl`) + one-click `scripts/install_unity_runtime.ps1` ready; needs a UAC approval (secure-desktop, human-only) + Unity account sign-in.
+Next Highest Priority: install Unity 2022.3.62f3 + WebGL Support + activate a Personal license, then run the EditMode/PlayMode/WebGL/browser gate before enabling any `UNITY_*` flag.
+
+## Loop Run
+Date: 2026-07-12
 Goal: Restore and verify the local multi-session OmniRoute/tmux setup after WSL tmux server shutdown.
 Inspected: WSL worktree registry, tmux socket/session, gateway logs, SQLite initialization, and loopback API.
 Problems Found: WSL stopped its tmux server between sessions; no repository or production fault was found.
