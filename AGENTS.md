@@ -91,6 +91,16 @@ Change safe = **(1)** context-grep pehle (callers/routes/tests) **(2)** targeted
 
 **Read `memory/INDEX.md` first** before any non-trivial task — load ONLY task-relevant files (decisions/glossary/integrations/incidents/playbooks/backlog). **Write-back same session:** naya decision → `decisions.md` (append-only ADR), incident → `incidents.md`, procedure → `playbooks.md`, parked idea → `backlog.md`. No secrets ever (env var NAMES ok, values never). Every entry dated YYYY-MM-DD + atomic. Code vs memory disagree = code wins, phir memory fix. Tiers: `## Current State` niche (hot cache, ≤40 lines) · `memory/` (repo knowledge base) · `docs/SESSION_LOG.md` (dated history archive) · `~/.claude/.../memory/` (Claude session auto-memory).
 
+## 9.5 REPOSITORY CONTEXT RETRIEVAL PROTOCOL (token-saving — graph-first, source-verified)
+
+Poora repo har session dobara mat padho — ek **Graphify code knowledge-graph** already bana hai (`app/graphify-out/graph.json`, **`app/`-scoped**, DEV-only navigation layer, MCP-wired via `.mcp.json` → `graphify-mcp`; **product/VPS feature NAHI**). Non-trivial task pe:
+1. **Compact context:** task + `## Current State` + relevant `memory/` + landmines — pura repo nahi.
+2. **Graph query FIRST** (broad grep/recursive-read se PEHLE): `graphify` MCP tools (`query`/`explain`/`path`/`affected`) ya `graphify query "<subsystem>" --graph app/graphify-out/graph.json --budget 800` → entrypoints/callers/callees/tests.
+3. **Bounded working set:** ~3–8 impl + 1–4 test files. 6 me evidence hai to 30 mat kholo.
+4. **Raw source verify:** graph = navigation, PROOF nahi (~11% edges INFERRED) — exact file+lines Read karke hi edit.
+5. **Expand only if** call-path adhoora / test hidden-dep / runtime graph ko contradict kare / dynamic-import ya route-registration miss.
+6. Stale ho to `scripts\graphify_refresh.bat` (FREE, AST-only, 0 token). **Coverage honest:** backend (`app/`) strong; **`frontend/`, Docker-compose, `unity/`** = `app/` ke bahar → grep/Read hi kaam dega. Full protocol · task-packet · model-routing · benchmark = `docs/GRAPHIFY.md`; session handoff = `docs/AI_HANDOFF.md`.
+
 ## Current State (Tier-1 working memory — max 40 lines, monthly prune → decisions.md)
 
 **Sprint goal:** GTM 0→1 — pehle paid customers on Marketing product (jiya makeover = only real paying customer); mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint), 1st paid target ≤7d from 2026-07-02.
