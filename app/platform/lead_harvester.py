@@ -73,6 +73,8 @@ _JUNK_NAME_RE = re.compile(
     r"|\b(?:near me|price list|interest rates?|apply online|customer care"
     r"|toll[- ]?free|helpline|list of|how to|what is|contact numbers?"
     r"|phone numbers?)\b"
+    r"|\b(?:irctc|indian railways?|railway station|train station"
+    r"|government office|municipal corporation|police station|fire station)\b"
     r"|\b20\d{2}\b"  # listicle year ("... in Pune 2026")
     r"|https?://|www\."
     r"|\.(?:com|in|co|org|net)\b"  # domain in name = page title

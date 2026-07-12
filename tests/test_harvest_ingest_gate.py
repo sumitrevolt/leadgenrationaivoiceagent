@@ -29,6 +29,10 @@ class TestJunkTitles:
     def test_helpline_phrase_rejected(self):
         assert ingest_reject_reason("HDFC Bank Customer Care Helpline", P, "", "websearch")
 
+    def test_official_railway_entity_rejected(self):
+        assert ingest_reject_reason("IRCTC Customer Care", P, "", "google_maps")
+        assert ingest_reject_reason("Indian Railways Reservation Office", P, "", "osm")
+
     def test_interest_rate_page_rejected(self):
         assert ingest_reject_reason("Home Loan Interest Rates Comparison", P, "", "websearch")
 
@@ -45,6 +49,9 @@ class TestRealNamesAccepted:
 
     def test_single_dash_name_ok(self):
         assert ingest_reject_reason("Sai Solar - Pune", P, "", "osm") == ""
+
+    def test_airport_word_alone_is_not_junk(self):
+        assert ingest_reject_reason("Hotel Airport Centre Point", P, "", "osm") == ""
 
     def test_opendata_seed_no_contact_ok(self):
         # Udyam seeds phone-less hote hain — structured source, allow (needs_enrich path)

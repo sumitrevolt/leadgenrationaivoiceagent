@@ -2,6 +2,18 @@
 
 ## Loop Run
 Date: 2026-07-12
+Goal: Make active Rohan prospecting return qualified local businesses instead of IRCTC/helpline/infrastructure junk.
+Inspected: Live team status and worker logs, 9,947 production prospect records (read-only), `prospector.py`, Google Places New parser, OSM Overpass path, lead-harvester ingest gates, active-agent tests, and official Google/OSM API guidance.
+Problems Found: Live Rohan activity showed 16 Google Maps queries with 0 results. A configured key selected Google-only mode, so denied/empty Places responses never fell back to OSM. OSM urllib was synchronous inside an async job. Google records lacked business-status/place-type signals, and the prospect store/outreach path did not re-check historical junk rows; production read-only scan found 13 ready/needs-enrich records containing railway/airport/helpline/institutional title signals.
+Changed: Google Places records now carry `primaryType`, `types`, and `businessStatus`; closed/non-SMB place types are rejected. Empty Google queries fall back per-query to free OSM, with OSM network calls off-loop. Added hard junk-title rules for IRCTC/railway/helpline/public-service entities, while preserving legitimate names containing “airport”. Added `is_quality_approved()` historical re-check to prospect listing and email candidate selection. Added source lineage field for new Google-derived records and regression coverage.
+Tests Run: Prospector/harvester/growth/outreach bundle = 66 passed. Agent/scheduler/staff bundle = 64 passed. `prod_check.py` ALL PASSED (1254 source files, 1099 routes, 47 pages, 0 wiring gaps, 80/80 engines, API.md synced). `check_secrets.py` clean. `py_compile` clean.
+Verification Evidence: Live roster showed manager, Swara, Dev, Rohan, Arjun, Meera, Kavya, Hermes, Isha, Tara, engineer agents and Guru working with zero agent errors; fresh trainer succeeded in 0.97s. The code now has a deterministic empty-Google→OSM regression and historical IRCTC rejection regression.
+Risks: Existing junk records remain in the source JSONL/DB for audit; they are now hidden from prospect listing and blocked from email candidate selection. No production data deletion or deploy was performed in this loop. Human review remains required before any outreach.
+Remaining: Commit/deploy requires user authorization. After deploy, run one capped prospecting smoke and inspect `scraper`, `quality_rejected`, `new`, and `queries_empty`; do not run uncapped or auto-send outreach.
+Next Highest Priority: Deploy this quality gate only after review, then verify Rohan's next capped run and manually review the first 10 records.
+
+## Loop Run
+Date: 2026-07-12
 Goal: Remove the second production trainer timeout caused by cold skill-KB embedding ingest.
 Inspected: Live `worker-heavy` task logs/process state, `team_scheduler._run_job_inner`, `skill_pack.ingest_to_kb`, Celery 540s soft/600s hard limits, and scheduler/skill-pack tests.
 Problems Found: The telemetry fix worked, but trainer continued into `skill_pack.ingest_to_kb()` whenever `SKILL_PACK=1`. That synchronous path initializes FastEmbed/KB and exceeded the 540s soft / 600s hard task limit, producing a new preserved `TimeLimitExceeded(600,)` event.

@@ -2,6 +2,10 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-12 — ADR-078 prospect quality gate at source and send boundary
+
+Decision: Google Places remains primary, but an empty/denied response must fall back to free OSM per query. Store Places type/status evidence, reject closed/non-SMB/railway/helpline entities, and re-check historical rows before listing or email selection. This targets LeadGen's local-SMB ICP and prevents IRCTC-style phone pollution from reaching outreach. Existing records are not deleted automatically; quarantine/cleanup stays an operator-reviewed action. No ToS-blocked directory scraper is enabled.
+
 [2026-05-XX] [ADR-000] Free AI stack only — no paid STT/TTS/LLM | User mandate: phone-call paisa khaata hai, margins pehle | Paid Deepgram/ElevenLabs/OpenAI (pyproject me stale pins reh gaye) | Multi-provider free chain in `app/voice_agent/free_ai.py` + circuit breakers; tuning FREE web-call pe, phone = final verify only.
 
 [2026-06-10] [ADR-001] Durable Celery scheduler path on VPS | In-process scheduler web process ko block karta tha; restart pe jobs lost | Keep in-process (rollback fallback rakha `RUN_IN_PROCESS_SCHEDULER=1`) | `leadgen_worker` (conc=4) + `leadgen_scheduler` beat containers (`--profile celery`); web = HTTP-only (`WEB_CONCURRENCY=2`); DLQ → Redis `dlq:failed_tasks`.

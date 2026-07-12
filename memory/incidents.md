@@ -2,6 +2,8 @@
 
 Schema per entry: `[DATE] What broke | Root cause | Fix | Prevention rule added`
 
+[2026-07-12] **Rohan prospecting returned irrelevant railway/helpline/infrastructure records and empty Google runs.** Root cause: a configured Google key forced Google-only mode even when Places returned empty/denied results; OSM fallback was only selected when no key existed, and sync Overpass urllib ran inside the async job. The pipeline also lacked Places business-status/type capture and historical quality re-check at listing/outreach. Fix: per-query OSM fallback off-loop, Places type/status fields, hard non-SMB/junk-title gate (IRCTC/railway/helpline/public-service), source lineage, and `is_quality_approved()` filtering before listing/email candidates. Prevention: every scraper source must preserve evidence/type/status and re-run the quality gate immediately before any outreach action; review capped samples before enabling send.
+
 [2026-05/06] 3× production downs (site freeze/502) | KB/ML load (fastembed/torch) running ON the event loop inside public endpoints — one slow model load froze all requests | Off-loop `asyncio.to_thread` + hard deadline + disable-switch | RULE: har ML asset = image-bake + off-loop load + deadline + kill-switch; public endpoint me KB/ML = thread + hard timeout.
 
 [2026-06-XX] Restart-storm prod-down | App restart during a heavy daily job's window → job re-fired every boot, stacking load | boot-grace: window active AT boot = skip this boot | RULE: every heavy scheduled job checks boot-grace.

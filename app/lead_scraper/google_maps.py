@@ -35,6 +35,10 @@ class BusinessLead:
     latitude: float
     longitude: float
     source: str = "google_maps"
+    # Optional Places quality signals; legacy/browser constructors stay valid.
+    primary_type: str = ""
+    types: tuple[str, ...] = ()
+    business_status: str = ""
 
 
 class GoogleMapsScraper:
@@ -90,6 +94,7 @@ class GoogleMapsScraper:
             "places.displayName,places.nationalPhoneNumber,"
             "places.internationalPhoneNumber,places.rating,places.userRatingCount,"
             "places.formattedAddress,places.websiteUri,places.id,"
+            "places.primaryType,places.types,places.businessStatus,"
             "nextPageToken"  # MUST be in mask or Places API (New) omits it → pagination dead (capped at 20/query)
         )
         headers = {
@@ -146,6 +151,9 @@ class GoogleMapsScraper:
                                     place_id=p.get("id", ""),
                                     latitude=0.0,
                                     longitude=0.0,
+                                    primary_type=str(p.get("primaryType") or ""),
+                                    types=tuple(str(t) for t in (p.get("types") or [])),
+                                    business_status=str(p.get("businessStatus") or ""),
                                 )
                             )
                         except Exception:
@@ -263,6 +271,9 @@ class GoogleMapsScraper:
                 place_id=place_id,
                 latitude=place.get("geometry", {}).get("location", {}).get("lat", 0),
                 longitude=place.get("geometry", {}).get("location", {}).get("lng", 0),
+                primary_type=str(place.get("types", [""])[0] if place.get("types") else ""),
+                types=tuple(str(t) for t in (place.get("types") or [])),
+                business_status=str(place.get("business_status") or ""),
             )
         except Exception as e:
             logger.error(f"Error parsing place: {e}")
