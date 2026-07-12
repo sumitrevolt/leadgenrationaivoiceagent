@@ -2,7 +2,7 @@
   "mcpServers": {
     "graphify": {
       "command": "graphify-mcp",
-      "args": [],
+      "args": ["--graph", "app/graphify-out/graph.json"],
       "env": {}
     }
   }
