@@ -106,6 +106,7 @@
   function authHdr(){ return {"Authorization":"Bearer "+(localStorage.getItem("lgai_token")||"")}; }
 
   // After login, go straight to the client's product dashboard (no /app/customer hop).
+  // Exposed on window so onclick="goToDashboard()" in acctView also works.
   async function goToDashboard(){
     var product="marketing";
     try{ var r=await fetch("/api/customer/auth/me",{headers:authHdr()}); if(r.ok){ var j=await r.json(); product=(j.product||"marketing"); } }catch(e){}
@@ -113,6 +114,7 @@
                          : product==="combo" ? "/app/customer"
                          : "/app/customer/marketing";
   }
+  window.goToDashboard = goToDashboard;
 
   async function loadAccount(){
     try{

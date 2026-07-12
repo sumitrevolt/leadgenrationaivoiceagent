@@ -2052,7 +2052,12 @@ function copyAutopilot(i){ const x=(window._AUTOPILOT||[])[i]; if(!x) return; na
       }
     }
   }catch(e){
-    /* offline / file:// — silently keep demo data */
+    /* Show error only if user is logged in (has token) — for logged-out / offline / file://
+       silent demo fallback is correct. Logged-in users need to know something went wrong. */
+    if(billToken()){
+      console.error("[tryLive] logged-in but live-load failed:", e);
+      toast("Data load error ⚠️", "Server se data nahi aa paya — page refresh karein. (" + (e.message||e) + ")");
+    }
   }
 })();
 
