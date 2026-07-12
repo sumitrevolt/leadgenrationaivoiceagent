@@ -2,6 +2,10 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-12 — ADR-079 local OmniRoute boundary
+
+Decision: OmniRoute is approved only as a localhost development gateway behind WSL2/tmux. It must not enter `app/voice_agent/free_ai.py`, customer/lead/transcript/WhatsApp/billing flows, production Docker Compose, or the VPS `.env`. The initial setup has three isolated lanes (research/context, implementation, tests/review), one writable owner per file, compression off for sensitive/structured content, and a 25% quality-preserving benchmark gate. Existing Celery/Redis/Postgres task ownership remains authoritative; tmux is only process supervision. Rollback is endpoint unset + tmux session stop, with no production recreate.
+
 ## 2026-07-12 — ADR-078 prospect quality gate at source and send boundary
 
 Decision: Google Places remains primary, but an empty/denied response must fall back to free OSM per query. Store Places type/status evidence, reject closed/non-SMB/railway/helpline entities, and re-check historical rows before listing or email selection. This targets LeadGen's local-SMB ICP and prevents IRCTC-style phone pollution from reaching outreach. Existing records are not deleted automatically; quarantine/cleanup stays an operator-reviewed action. No ToS-blocked directory scraper is enabled.
