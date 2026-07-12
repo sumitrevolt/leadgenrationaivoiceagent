@@ -43,8 +43,8 @@ sudo apt-get install -y tmux curl git
 curl -fsSL https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
 export NVM_DIR="$HOME/.nvm"
 . "$NVM_DIR/nvm.sh"
-nvm install 24
-nvm alias default 24
+nvm install 22
+nvm alias default 22
 npm install -g omniroute
 omniroute doctor
 ```
@@ -81,6 +81,10 @@ export OMNI_IMPLEMENT_ROOT="$HOME/src/leadgenrationaiagent-worktrees/implement"
 export OMNI_REVIEW_ROOT="$HOME/src/leadgenrationaiagent-worktrees/review"
 bash "$(git rev-parse --show-toplevel)/scripts/omniroute-tmux.sh"
 ```
+
+Use Node 22 LTS for OmniRoute. Its SQLite native dependency is sensitive to
+Node ABI versions; if a fresh install was interrupted, reinstall OmniRoute
+with install scripts enabled before running `omniroute doctor`.
 
 The launcher creates one tmux session named `leadgen-omni` with three panes. It does not create branches, commit, push, deploy, or touch production.
 
