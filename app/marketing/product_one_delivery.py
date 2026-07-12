@@ -571,6 +571,19 @@ def _ledger_summary(cid: str) -> dict[str, Any]:
         return {}
 
 
+def _ledger_recent_failures(cid: str) -> int:
+    """24h rolling failure count — used for health score RED flag instead of
+    all-time `automation_failures`. Prevents historical failures from
+    permanently tanking the score once the root cause is fixed."""
+    try:
+        from app.marketing import delivery_ledger
+
+        rc = delivery_ledger.recent_counts(cid, hours=24) or {}
+        return int(rc.get("failures_24h") or 0)
+    except Exception:
+        return 0
+
+
 def _ledger_events(cid: str) -> list[dict[str, Any]]:
     try:
         from app.marketing import delivery_ledger
@@ -857,7 +870,9 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
         approved = [i for i in items if str(i.get("status") or "").lower() in ("approved", "scheduled", "posted", "published")]
         published = [i for i in items if str(i.get("status") or "").lower() in ("posted", "published")]
         pending_approvals = [a for a in approvals if str(a.get("status") or "") == "pending"]
-        failed_count = int(ledger.get("automation_failures") or 0) + int(ledger.get("posts_failed") or 0)
+        # 24h rolling window — historical failures don't permanently tank
+        # health score; once root cause is fixed, score recovers within a day.
+        failed_count = _ledger_recent_failures(cid)
 
         def has_content_type(*types: str) -> bool:
             want = {t.lower() for t in types}

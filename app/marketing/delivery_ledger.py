@@ -108,6 +108,10 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     # fresh publication. customer_visible=False: this is admin/audit-only;
     # customer already saw the original `post_published` event.
     "evidence_amended": ("🔧", "", "Evidence URL amended (audit-only, not a new publication)", False),
+    # Delivery gate (2026-07-12) — intentional hold, NOT a failure. Logged when
+    # AUTO_DELIVER_VALUE is OFF or phone missing — ops-only, doesn't count toward
+    # automation_failed or trigger RED health flags.
+    "delivery_gated": ("⏸️", "", "Delivery gated (intentional hold, not a failure)", False),
 }
 EVENT_TYPES: frozenset[str] = frozenset(LABELS.keys())
 
