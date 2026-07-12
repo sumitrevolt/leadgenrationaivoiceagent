@@ -2,6 +2,16 @@
 
 ## Loop Run
 Date: 2026-07-12
+Goal: Restore and verify the local multi-session OmniRoute/tmux setup after WSL tmux server shutdown.
+Inspected: WSL worktree registry, tmux socket/session, gateway logs, SQLite initialization, and loopback API.
+Problems Found: WSL stopped its tmux server between sessions; no repository or production fault was found.
+Changed: Recreated `leadgen-omni` with research/implement/review panes and restarted the `gateway` window using Node 22 LTS.
+Tests Run: Worktree list PASS; tmux windows PASS; SQLite ready; loopback `/v1/models` HTTP 200.
+Verification Evidence: `/root/src/leadgenrationaiagent-worktrees/{research,implement,review}` remain registered on `codex/omni-*`; gateway logs show `Ready` and `SQLite database ready`.
+Risks: WSL shutdown stops the local gateway; production remains independent and must never receive the OmniRoute endpoint.
+Remaining: Attach to tmux for work; run the sanitized benchmark only when a local development provider credential is intentionally configured.
+Next Highest Priority: `wsl` then `tmux attach -t leadgen-omni`; keep all prompts sanitized.
+Date: 2026-07-12
 Goal: Execute the Unity RUNTIME gate (install/verify Unity toolchain → EditMode+PlayMode → WebGL build → real-browser admin/customer/fallback proof) and ship ONLY if every gate passes.
 Inspected: Real Windows PowerShell (Desktop Commander) toolchain detection — Program Files, full-drive `Unity.exe` search (depth 6), PATH, HKLM/HKCU uninstall registry, winget, Unity Hub config (`%APPDATA%\UnityHub`), and the version folder `C:\Program Files\Unity\Hub\Editor\2022.3.62f3\`.
 Problems Found: The Unity install is a **Hub placeholder only** — `2022.3.62f3/` contains just `Editor/` (empty of the exe), `metadata.hub.json` (stub: `isLTS:null`, empty releaseStream), `modules.json`; **total size 0.00 GB**, NO `Unity.exe`, NO `PlaybackEngines\WebGLSupport`, and `Unity.exe` exists NOWHERE on `C:`. No Unity Hub.exe, no winget, no verifiable license. The Editor binaries + WebGL module were never downloaded, and a Personal license needs the user's Unity account. → the runtime gate CANNOT execute.
