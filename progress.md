@@ -9,8 +9,10 @@ Changed: Google Places records now carry `primaryType`, `types`, and `businessSt
 Tests Run: Prospector/harvester/growth/outreach bundle = 66 passed. Agent/scheduler/staff bundle = 64 passed. `prod_check.py` ALL PASSED (1254 source files, 1099 routes, 47 pages, 0 wiring gaps, 80/80 engines, API.md synced). `check_secrets.py` clean. `py_compile` clean.
 Verification Evidence: Live roster showed manager, Swara, Dev, Rohan, Arjun, Meera, Kavya, Hermes, Isha, Tara, engineer agents and Guru working with zero agent errors; fresh trainer succeeded in 0.97s. The code now has a deterministic empty-Google→OSM regression and historical IRCTC rejection regression.
 Risks: Existing junk records remain in the source JSONL/DB for audit; they are now hidden from prospect listing and blocked from email candidate selection. No production data deletion or deploy was performed in this loop. Human review remains required before any outreach.
-Remaining: Commit/deploy requires user authorization. After deploy, run one capped prospecting smoke and inspect `scraper`, `quality_rejected`, `new`, and `queries_empty`; do not run uncapped or auto-send outreach.
-Next Highest Priority: Deploy this quality gate only after review, then verify Rohan's next capped run and manually review the first 10 records.
+Remaining: Google Places quota/approval must be restored by the owner before Google can produce volume; OSM coverage for the tested Pune solar query was empty. Existing junk records remain audit-retained. Do not run uncapped or auto-send outreach until a human reviews samples.
+Next Highest Priority: Restore Google Places quota/API approval, then run a capped multi-city sample and manually review the first 10 records.
+
+Deployment follow-up: Commit `bb694d1` pushed and fast-forwarded to VPS; app, worker, worker-heavy, and scheduler rebuilt/recreated. Two `/health` checks returned production healthy. Capped one-query smoke returned `new=0`, `queries_empty=1`, `quality_rejected=0`; live logs showed Google Places HTTP 429 quota exceeded and geocode `REQUEST_DENIED`, with no send/outreach side effect.
 
 ## Loop Run
 Date: 2026-07-12
