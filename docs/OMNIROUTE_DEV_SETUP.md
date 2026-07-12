@@ -86,7 +86,7 @@ Use Node 22 LTS for OmniRoute. Its SQLite native dependency is sensitive to
 Node ABI versions; if a fresh install was interrupted, reinstall OmniRoute
 with install scripts enabled before running `omniroute doctor`.
 
-The launcher creates one tmux session named `leadgen-omni` with three panes. It does not create branches, commit, push, deploy, or touch production.
+The launcher creates one tmux session named `leadgen-omni` with three worktree panes plus a `gateway` window running OmniRoute under Node 22 LTS. It does not create branches, commit, push, deploy, or touch production. Re-running it repairs a missing gateway window.
 
 ```bash
 tmux attach -t leadgen-omni
