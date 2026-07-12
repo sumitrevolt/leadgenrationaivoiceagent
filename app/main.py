@@ -915,6 +915,12 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Admin ops router not mounted: {_e}")
 try:
+    from app.api.integration_health_api import router as integration_health_router
+
+    app.include_router(integration_health_router)  # /api/admin/integrations/health + /api/customer/integrations/health
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Integration health router not mounted: {_e}")
+try:
     from app.api.brain import router as brain_router
 
     app.include_router(brain_router)  # /api/admin/brain/* — operator second-brain search/browse
