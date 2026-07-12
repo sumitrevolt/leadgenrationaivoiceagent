@@ -873,6 +873,15 @@
         <div class="card-b" id="approvalBody"></div>
       </div>
 
+      <!-- Integration health — honest expiry / reconnect states (read-only) -->
+      <div data-view="home" class="card" id="integrationsHealthCard" style="margin-bottom:14px;display:none">
+        <div class="card-h">
+          <h2>🔌 Integrations</h2>
+          <span class="pill" id="integrationsHealthPill">—</span>
+        </div>
+        <div class="card-b" id="integrationsHealthBody"></div>
+      </div>
+
       <!-- Website tools — mini-site, widget, booking -->
       <div data-view="home" class="card" id="webToolsCard" style="margin-bottom:14px">
         <div class="card-h">
@@ -2922,6 +2931,29 @@ async function loadApprovals(){
   }catch(e){ card.style.display="none"; }
 }
 
+async function loadIntegrationsHealth(){
+  const card=document.getElementById("integrationsHealthCard"), body=document.getElementById("integrationsHealthBody"), pill=document.getElementById("integrationsHealthPill");
+  if(!billToken()||!card) return;
+  const COLOR={healthy:"#10b981",expiring_soon:"#f59e0b",expired:"#ef4444",revoked:"#ef4444",unauthorized:"#ef4444",transient_failure:"#64748b",unreachable:"#64748b",never_configured:"#64748b",unknown:"#64748b"};
+  try{
+    const r=await fetch("/api/customer/integrations/health",{headers:billAuthHdr()});
+    if(!r.ok){ card.style.display="none"; return; }
+    const d=await r.json(); const rows=(d&&d.integrations)||[];
+    if(!rows.length){ card.style.display="none"; return; }
+    card.style.display="block";
+    const bad=rows.filter(function(x){return x.action_required;}).length;
+    pill.textContent = bad ? (bad+" need action") : "all connected";
+    body.innerHTML=rows.map(function(x){
+      const c=COLOR[x.status]||"#64748b";
+      const act=x.action_required ? '<button class="btn primary" onclick="showView(\'calendar\')">Reconnect</button>' : '';
+      const help=escH(x.recommended_action||"");
+      return '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line)">'
+        +'<span><span style="font-weight:600">'+escH(x.integration)+'</span>'+(help?'<div class="sm" style="color:var(--muted)">'+help+'</div>':'')+'</span>'
+        +'<span style="display:flex;align-items:center;gap:8px;white-space:nowrap"><span class="sm" style="color:'+c+'">● '+escH(x.label||x.status)+'</span>'+act+'</span></div>';
+    }).join("");
+  }catch(e){ card.style.display="none"; }
+}
+
 async function decideApproval(id, action){
   if(!id) return;
   let note="";
@@ -3756,6 +3788,7 @@ _safeBoot("loadBilling", loadBilling);
 _safeBoot("loadContent", loadContent);
 _safeBoot("loadWebTools", loadWebTools);
 _safeBoot("loadApprovals", loadApprovals);
+_safeBoot("loadIntegrationsHealth", loadIntegrationsHealth);
 _safeBoot("loadGuidedSetup", loadGuidedSetup);
 _safeBoot("loadRouting", loadRouting);
 _safeBoot("sec2faLoad", sec2faLoad);
