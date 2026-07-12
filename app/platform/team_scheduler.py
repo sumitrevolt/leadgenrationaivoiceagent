@@ -169,6 +169,7 @@ _last_ran: dict[str, str | None] = {
     "obsidian_push": None,  # daily 02:15 IST: compact + git push to Obsidian vault (gated OBSIDIAN_SYNC)
     "platform_dial": None,  # daily 11:30 IST: LeadGen AI self-sale outbound calls (gated PLATFORM_DIAL_DAILY)
     "product_one_health": None,  # hourly :20: Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (ungated safety-net, mirrors watchdog/onboard)
+    "approval_email_sweep": None,  # hourly :40: bounded pending-approval EMAIL sweep (gated APPROVAL_EMAIL_NOTIFY, single-flight)
 }
 
 
@@ -1078,6 +1079,14 @@ async def _run_job_inner(job: str) -> bool:
             # ledger writes only, never sends WhatsApp/email. Ungated
             # safety-net (same convention as watchdog/onboard).
             await product_one_delivery.run_health_and_recovery_sweep()
+        elif job == "approval_email_sweep":
+            from app.platform import approval_notifier
+
+            # Bounded, single-flight pending-approval EMAIL sweep. INERT unless
+            # APPROVAL_EMAIL_NOTIFY=1 (run_approval_email_sweep no-ops when off).
+            # Never sends without customer consent + provider success; audit +
+            # DB idempotency key make repeated runs safe.
+            await approval_notifier.run_approval_email_sweep()
         elif job == "obsidian_push":
             from app.platform import obsidian_sync as _obs
 
@@ -1333,6 +1342,10 @@ async def scheduler_loop() -> None:
             if now.minute >= 20 and _last_ran.get("product_one_health") != hour_key:
                 _last_ran["product_one_health"] = hour_key
                 await _run_job("product_one_health")
+            # Bounded pending-approval EMAIL sweep — hourly :40 (INERT unless APPROVAL_EMAIL_NOTIFY=1).
+            if now.minute >= 40 and _last_ran.get("approval_email_sweep") != hour_key:
+                _last_ran["approval_email_sweep"] = hour_key
+                await _run_job("approval_email_sweep")
             # D V1.1 process-engine auto-start — daily 11:30–13:00 IST (INERT unless PROCESS_AUTOSTART=1).
             if (11, 30) <= hm < (13, 0) and _last_ran.get("process_autostart") != day_key:
                 _last_ran["process_autostart"] = day_key

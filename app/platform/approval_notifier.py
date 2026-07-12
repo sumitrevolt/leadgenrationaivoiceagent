@@ -16,6 +16,7 @@ Design (Phase-1 customer-delivery, 2026-07-12):
 """
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import os
@@ -252,13 +253,25 @@ async def notify_approval(
     return result
 
 
-async def notify_pending_approvals(*, limit: int = 200, session=None, **kw) -> dict:
+async def notify_pending_approvals(
+    *, limit: int = 200, session=None, per_item_timeout: float = 20.0, **kw
+) -> dict:
     """Env-gated sweep over all pending approvals. Inert unless APPROVAL_EMAIL_NOTIFY on.
 
-    Tenant isolation: each approval carries its own client_id and the recipient is
-    resolved from THAT client, so no cross-tenant delivery is possible.
+    - Bounded batch (``limit``) and bounded per-item timeout (``per_item_timeout``).
+    - One client's failure/timeout NEVER stops the sweep (each item is isolated).
+    - Tenant isolation: each approval carries its own client_id and the recipient is
+      resolved from THAT client, so no cross-tenant delivery is possible.
     """
-    counts = {"enabled": notify_enabled(), "seen": 0, "sent": 0, "skipped": 0, "failed": 0}
+    counts = {
+        "enabled": notify_enabled(),
+        "seen": 0,
+        "attempted": 0,
+        "sent": 0,
+        "skipped": 0,
+        "failed": 0,
+        "last_failure_category": None,
+    }
     if not counts["enabled"]:
         return counts
     try:
@@ -268,8 +281,146 @@ async def notify_pending_approvals(*, limit: int = 200, session=None, **kw) -> d
     except Exception:
         pending = []
     for approval in pending[: max(0, int(limit))]:
-        r = await notify_approval(approval, session=session, **kw)
+        try:
+            r = await asyncio.wait_for(
+                notify_approval(approval, session=session, **kw), timeout=per_item_timeout
+            )
+        except asyncio.TimeoutError:
+            r = {"status": "failed", "failure_category": "timeout"}
+        except Exception:
+            r = {"status": "failed", "failure_category": "internal_error"}
         counts["seen"] += 1
+        counts["attempted"] += 1
         st = r.get("status", "skipped")
         counts[st] = counts.get(st, 0) + 1
+        if st in ("failed", "skipped") and r.get("failure_category"):
+            counts["last_failure_category"] = r.get("failure_category")
     return counts
+
+
+# --- operational health -----------------------------------------------------
+_HEALTH: dict = {
+    "last_run": None,
+    "runs": 0,
+    "seen": 0,
+    "attempted": 0,
+    "sent": 0,
+    "skipped": 0,
+    "failed": 0,
+    "last_failure_category": None,
+    "locked_out": 0,
+}
+
+
+def get_health() -> dict:
+    """Admin-visible sweep health. Contains only aggregate counts + a sanitized
+    failure category — never email addresses, secrets or message bodies."""
+    h = dict(_HEALTH)
+    h["enabled"] = notify_enabled()
+    return h
+
+
+def _record_run(result: dict) -> None:
+    _HEALTH["runs"] += 1
+    _HEALTH["last_run"] = datetime.utcnow().isoformat()
+    _HEALTH["seen"] = result.get("seen", 0)
+    _HEALTH["attempted"] = result.get("attempted", result.get("seen", 0))
+    _HEALTH["sent"] = result.get("sent", 0)
+    _HEALTH["skipped"] = result.get("skipped", 0)
+    _HEALTH["failed"] = result.get("failed", 0)
+    _HEALTH["last_failure_category"] = result.get("last_failure_category")
+
+
+# --- single-flight lock (distributed via Redis, process-local fallback) -----
+_LOCAL_LOCK = {"held": False}
+
+
+class SweepLock:
+    """Non-blocking single-flight lock. Prefers Redis ``SET NX EX`` so overlapping
+    invocations across the celery worker AND the in-process scheduler are suppressed;
+    falls back to a process-local flag when Redis is unavailable. ``acquire()`` returns
+    False immediately if the lock is already held."""
+
+    def __init__(self, key: str = "approval_notify:sweep_lock", ttl: int = 300):
+        self.key = key
+        self.ttl = ttl
+        self._token: str | None = None
+        self._local = False
+
+    async def acquire(self) -> bool:
+        token = uuid4().hex
+        try:
+            from app.cache import get_redis_client
+
+            r = await get_redis_client()
+            if r is not None:
+                ok = await r.set(self.key, token, nx=True, ex=self.ttl)
+                if ok:
+                    self._token = token
+                    return True
+                return False
+        except Exception:
+            pass
+        if _LOCAL_LOCK["held"]:
+            return False
+        _LOCAL_LOCK["held"] = True
+        self._local = True
+        return True
+
+    async def release(self) -> None:
+        try:
+            if self._token is not None:
+                from app.cache import get_redis_client
+
+                r = await get_redis_client()
+                if r is not None:
+                    try:
+                        cur = await r.get(self.key)
+                        cur_s = cur.decode() if isinstance(cur, (bytes, bytearray)) else cur
+                        if cur_s == self._token:
+                            await r.delete(self.key)
+                    except Exception:
+                        pass
+        finally:
+            if self._local:
+                _LOCAL_LOCK["held"] = False
+            self._token = None
+            self._local = False
+
+
+async def run_approval_email_sweep(
+    *, batch_size: int = 100, per_item_timeout: float = 20.0, session=None, lock=None, **kw
+) -> dict:
+    """Scheduler entrypoint: single-flight, bounded pending-approval email sweep.
+
+    Inert unless APPROVAL_EMAIL_NOTIFY is on. Overlapping runs are suppressed by the
+    lock (``skipped_lock=True``). Never raises; records sanitized health.
+    """
+    if not notify_enabled():
+        out = {"enabled": False, "skipped_lock": False, "seen": 0, "sent": 0, "skipped": 0, "failed": 0}
+        return out
+    lock = lock if lock is not None else SweepLock()
+    try:
+        acquired = await lock.acquire()
+    except Exception:
+        acquired = True  # fail-open: better to run than to silently stall
+    if not acquired:
+        _HEALTH["locked_out"] += 1
+        out = {"skipped_lock": True}
+        out.update(get_health())
+        return out
+    try:
+        result = await notify_pending_approvals(
+            limit=batch_size, session=session, per_item_timeout=per_item_timeout, **kw
+        )
+        _record_run(result)
+        result["skipped_lock"] = False
+        return result
+    except Exception as e:
+        logger.warning(f"approval sweep error: {type(e).__name__}")
+        return {"enabled": True, "skipped_lock": False, "error": True}
+    finally:
+        try:
+            await lock.release()
+        except Exception:
+            pass
