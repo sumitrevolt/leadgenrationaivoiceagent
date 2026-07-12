@@ -14,6 +14,7 @@ namespace LeadGen.Office.Editor
 {
     public static class WebGLBuild
     {
+        [MenuItem("LeadGen/Build WebGL (Brotli)")]
         public static void Build()
         {
             GenerateOfficeScenes.Generate();

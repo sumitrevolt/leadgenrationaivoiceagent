@@ -1065,9 +1065,37 @@ if _ds_dir.is_dir():
 # Unity WebGL build artifacts (Blueprint Virtual Office). Mounted ONLY when a versioned
 # build directory exists — static files are flag-independent; the gated entry point is
 # /app/office?mode=3d (UNITY_VIRTUAL_OFFICE_ENABLED). Placed before the "/" catch-all.
+# Unity builds with decompressionFallback=false → the .br artifacts MUST be served with
+# `Content-Encoding: br` (plain StaticFiles sets Content-Type via mimetypes but omits the
+# encoding header, so the loader would receive raw brotli bytes and fail).
+class _PrecompressedStaticFiles(StaticFiles):
+    """StaticFiles that advertises Brotli precompression for Unity WebGL `.br` artifacts.
+
+    Only applied to 200 responses so 404/redirect bodies are never mislabelled as brotli.
+    """
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        if path.endswith(".br") and getattr(response, "status_code", None) == 200:
+            response.headers["Content-Encoding"] = "br"
+            _vary = response.headers.get("Vary")
+            response.headers["Vary"] = f"{_vary}, Accept-Encoding" if _vary else "Accept-Encoding"
+            if path.endswith(".wasm.br"):
+                response.headers["Content-Type"] = "application/wasm"
+            elif path.endswith(".js.br"):
+                response.headers["Content-Type"] = "text/javascript"
+            elif path.endswith((".data.br", ".symbols.json.br", ".mem.br")):
+                response.headers["Content-Type"] = "application/octet-stream"
+        return response
+
+
 _unity_dir = FRONTEND_DIR / "office_unity"
 if _unity_dir.is_dir():
-    app.mount("/static/office-unity", StaticFiles(directory=str(_unity_dir)), name="office_unity")
+    app.mount(
+        "/static/office-unity",
+        _PrecompressedStaticFiles(directory=str(_unity_dir)),
+        name="office_unity",
+    )
 
 
 @app.get("/app/login", tags=["Frontend"])
