@@ -2,6 +2,18 @@
 
 ## Loop Run
 Date: 2026-07-12
+Goal: Fix jiya-makeover health score SLA breach — stop automation_failed cascade, add 24h rolling window.
+Inspected: customer_delivery.py (_record_stuck), delivery_ledger.py (summary vs recent_counts), product_one_delivery.py (_customer_health + failed_count computation). Delivery ledger events on production for jiya-makeover.
+Problems Found: (1) _record_stuck logged `automation_failed` for ALL reasons including intentional gates (auto_delivery_off, sweep_auto_off, no_phone) — every hourly sweep piled up false failures. (2) failed_count used ALL-TIME automation_failures count — once failures accumulated, health score NEVER recovered even if root cause was fixed. (3) jiya-makeover health score permanently stuck at 29/100 (1 RED + 3 YELLOW).
+Changed: (a) customer_delivery.py: added _GATE_REASONS frozenset; _record_stuck now logs `delivery_gated` for gate reasons, `automation_failed` only for real failures. (b) delivery_ledger.py: added `delivery_gated` event type to LABELS/EVENT_TYPES vocabulary. (c) product_one_delivery.py: added `_ledger_recent_failures(cid)` helper using `recent_counts(cid, hours=24).failures_24h`; `failed_count` now uses 24h rolling window instead of all-time. (d) tests/test_health_score_rolling_window.py: 10 new tests. (e) tests/test_delivery_ledger_wiring.py: updated test_record_stuck to match gate-vs-failure behavior.
+Tests Run: 10/10 new tests passed, 15/15 targeted suite (health + delivery_ledger_wiring) passed, 73/75 full suite passed (2 pre-existing failures unrelated to change), prod_check ALL PASSED (1099 routes), check_secrets clean.
+Verification Evidence: Commit `17d305c`, deployed to VPS, `/health` = production/healthy/0 restarts. Production `admin_customer_card("jiya-makeover")` shows failed_automations=4 (24h rolling, down from 50+ all-time), score=29 (will improve to 64 within 24h as old events age out of window). Future sweeps will log delivery_gated, not automation_failed.
+Risks: Score recovery is time-delayed (24h window flush). WAHA WhatsApp still down — if AUTO_DELIVER_VALUE is turned ON, real send_failed events would still cause RED flag (correctly). 3 YELLOW reasons remain (setup_incomplete, pending_approval, manual_publish_mode) until customer action.
+Remaining: (1) WAHA WhatsApp QR scan (user action) to fix send path. (2) Customer notification for 18 pending approvals. (3) Social account linking for setup completion. (4) Pre-existing test_seed_client_content failure (auto_content mock mismatch).
+Next Highest Priority: Customer notification for pending approvals (email/dashboard banner) — 18 items stuck pending, customer has no way to know.
+
+## Loop Run
+Date: 2026-07-12
 Goal: Production cleanup — commit pending Unity work, delete all stale branches (local + remote), run gates, push, deploy.
 Inspected: Git state (28 local branches, 20+ remote branches, 5 stashes, 10 modified + 30+ untracked files from ADR-076 Unity scaffold, repo on recovery/loop27-loop28-20260711 not main).
 Problems Found: (1) Repo on recovery branch not main. (2) 27 stale local branches (claude/*, salvage/*, codex/*, feat/*, chore/*) accumulated from prior agent sessions. (3) 19 stale remote branches (dependabot/*, claude/*, feat/*, fix/*, flow-runner/*, etc). (4) 5 orphaned stashes. (5) Unity scaffold + go-live docs uncommitted. (6) .git/index.lock stale (removed). (7) API.md endpoint index out of date (non-blocking).
