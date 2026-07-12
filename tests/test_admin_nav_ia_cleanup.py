@@ -97,20 +97,14 @@ def test_agent_tools_link_still_present_exactly_once():
 
 
 def test_agent_tools_moved_out_of_operations_into_advanced_group():
-    # Updated for ADR-034 (6-group IA): the old Operations/Business/Advanced/Account
-    # groups were merged; agent-tools now lives in the final "Advanced & Account"
-    # group, after the "System (Internal)" group and out of every primary group.
+    # Current ADR-064 IA keeps developer tools inside the collapsed System
+    # expansion, away from the primary delivery/customer links.
     html = _admin_html()
-    system_idx = html.index('<div class="sec nav-group" role="presentation">System (Internal)</div>')
-    advanced_idx = html.index(
-        '<div class="sec nav-group" role="presentation">Advanced &amp; Account</div>'
-    )
+    system_idx = html.index('<div class="sec nav-group" role="presentation">System</div>')
+    extra_idx = html.index('id="nav-system-extra"')
     agent_tools_idx = html.index('href="/app/agent-tools"')
 
-    # Advanced & Account is the last group (comes after System (Internal)).
-    assert system_idx < advanced_idx
-    # The agent-tools link is inside the Advanced & Account group (after its header).
-    assert advanced_idx < agent_tools_idx
+    assert system_idx < extra_idx < agent_tools_idx
 
 
 def test_agent_tools_label_signals_dev_only():

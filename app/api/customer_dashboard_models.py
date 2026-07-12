@@ -96,6 +96,16 @@ class TrialBanner(BaseModel):
     message: str = ""
 
 
+class ApprovalBanner(BaseModel):
+    """Customer-safe nudge for content waiting on the owner's decision."""
+
+    show: bool = False
+    count: int = 0
+    urgency: str = "normal"
+    message: str = ""
+    target: str = "approvalCard"
+
+
 class DashboardResponse(BaseModel):
     is_sample_data: bool = Field(
         True, description="True => placeholder data, NOT real client results"
@@ -110,6 +120,7 @@ class DashboardResponse(BaseModel):
     branding: dict | None = None  # reseller white-label (set from Host on subdomains)
     onboarding: OnboardingChecklist | None = None
     trial_banner: TrialBanner | None = None
+    approval_banner: ApprovalBanner | None = None
     social_error: str | None = None
 
 

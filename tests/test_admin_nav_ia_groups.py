@@ -1,4 +1,4 @@
-"""Customer Delivery OS — ADR-034: admin nav collapsed to 6 mission-aligned groups.
+"""Admin navigation contract for the current 4-group delivery-first IA.
 
 Follow-up to Loop-7's narrow cleanup (test_admin_nav_ia_cleanup.py): the user
 explicitly asked to continue the IA consolidation the audit flagged as the biggest
@@ -23,14 +23,12 @@ def _admin_html() -> str:
         return f.read()
 
 
-# The 6 mission-aligned groups, in the exact rendered order.
+# The current 4 mission-aligned groups, in the exact rendered order.
 EXPECTED_GROUPS = [
-    "Overview",
+    "Delivery",
+    "Automation",
     "Customers",
-    "Delivery &amp; Approvals",
-    "Growth &amp; Revenue",
-    "System (Internal)",
-    "Advanced &amp; Account",
+    "System",
 ]
 
 # Overlapping ops/infra cockpit pages that MUST live under System (Internal),
@@ -103,18 +101,17 @@ def _parse_groups(nav: str) -> dict[str, str]:
 def test_exactly_six_nav_groups_in_order():
     nav = _nav_block(_admin_html())
     labels = _group_labels(nav)
-    assert len(labels) == 6, f"expected 6 nav groups, got {len(labels)}: {labels}"
+    assert len(labels) == 4, f"expected 4 nav groups, got {len(labels)}: {labels}"
     assert labels == EXPECTED_GROUPS, labels
 
 
 def test_no_more_than_six_groups_rule():
-    # The prompt's "no more than 6 main admin nav items" == 6 top-level groups.
-    assert len(_group_labels(_nav_block(_admin_html()))) <= 6
+    assert len(_group_labels(_nav_block(_admin_html()))) <= 4
 
 
 def test_duplicate_dashboards_demoted_into_system_group():
-    groups = _parse_groups(_nav_block(_admin_html()))
-    system_block = groups["System (Internal)"]
+    nav = _nav_block(_admin_html())
+    system_block = nav.split('>System</div>', 1)[1]
     for href in DEMOTED_DASHBOARDS:
         assert f'href="{href}"' in system_block, (
             f"{href} must be under System (Internal), found elsewhere or missing"
@@ -123,7 +120,7 @@ def test_duplicate_dashboards_demoted_into_system_group():
 
 def test_demoted_dashboards_not_in_primary_groups():
     groups = _parse_groups(_nav_block(_admin_html()))
-    primary = ("Overview", "Customers", "Delivery &amp; Approvals", "Growth &amp; Revenue")
+    primary = ("Delivery", "Automation", "Customers")
     primary_block = "".join(groups[g] for g in primary)
     for href in DEMOTED_DASHBOARDS:
         assert f'href="{href}"' not in primary_block, (
@@ -133,7 +130,7 @@ def test_demoted_dashboards_not_in_primary_groups():
 
 def test_command_center_is_front_door_in_overview():
     groups = _parse_groups(_nav_block(_admin_html()))
-    assert 'href="/app/delivery-command-center"' in groups["Overview"]
+    assert 'href="/app/delivery-command-center"' in groups["Delivery"]
 
 
 def test_all_page_links_still_reachable():
@@ -157,7 +154,7 @@ def test_badge_ids_preserved():
 
 def test_active_dashboard_link_and_handlers_preserved():
     nav = _nav_block(_admin_html())
-    assert 'class="active" href="#top"' in nav  # active-state anchor intact
+    assert 'class="active" href="/app/delivery-command-center"' in nav
     assert "openOnboard();return false;" in nav  # Add Customer handler intact
     assert 'onclick="expandAdvTech()"' in nav  # God Mode handler intact
     assert 'id="navAdminLogin"' in nav  # login link id intact
@@ -169,12 +166,12 @@ def test_active_dashboard_link_and_handlers_preserved():
 # delete" — these are NOT delete candidates (nothing to merge them into).
 # ---------------------------------------------------------------------------
 SURFACED_ORPHANS = {
-    "/app/calendar": "Delivery &amp; Approvals",
-    "/app/whatsapp": "Delivery &amp; Approvals",
-    "/app/studio": "Growth &amp; Revenue",
-    "/app/deals": "Growth &amp; Revenue",
-    "/app/segments": "Growth &amp; Revenue",
-    "/app/growth-tools": "Growth &amp; Revenue",
+    "/app/calendar": "Automation",
+    "/app/whatsapp": "System",
+    "/app/studio": "System",
+    "/app/deals": "System",
+    "/app/segments": "System",
+    "/app/growth-tools": "System",
 }
 
 
@@ -183,7 +180,10 @@ def test_surfaced_orphans_present_exactly_once_in_correct_group():
     nav = _nav_block(_admin_html())
     for href, group in SURFACED_ORPHANS.items():
         assert nav.count(f'href="{href}"') == 1, f"{href} should be linked exactly once"
-        assert f'href="{href}"' in groups[group], f"{href} expected under {group}"
+        block = groups[group]
+        if group == "System":
+            block = nav.split('id="nav-system-extra"', 1)[1]
+        assert f'href="{href}"' in block, f"{href} expected under {group}"
 
 
 def test_command_center_duplicate_stays_unlinked():

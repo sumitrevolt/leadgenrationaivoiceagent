@@ -549,6 +549,13 @@
       <button type="button" class="btn-pay" id="trialBannerPay" onclick="scrollToId('billingCard')">💳 Ab pay karo</button>
     </div>
 
+    <div id="approvalBanner" class="trial-banner" role="status" aria-live="polite"
+         style="display:none;border-color:#f59e0b;background:linear-gradient(90deg,#fff7ed,#fffbeb);">
+      <div class="msg" id="approvalBannerMsg" style="color:#92400e"></div>
+      <button type="button" class="btn-pay" id="approvalBannerAction"
+              style="background:#d97706" onclick="scrollToId('approvalCard')">Approval dekhein</button>
+    </div>
+
     <div class="content" role="main" id="mainContent" data-active-view="home">
 
       <!-- ===== 0) Owner hero — non-technical intro ===== -->
@@ -1910,7 +1917,7 @@ function toast(t,m){
    BOOT: render demo instantly, then try live fetch (fallback safe)
    ============================================================ */
 function boot(data){
-  DATA=data;setMeta(data);initCampaigns();renderAll();renderTrialBanner(data);
+  DATA=data;setMeta(data);initCampaigns();renderAll();renderTrialBanner(data);renderApprovalBanner(data);
 }
 
 /* ============================================================
@@ -1974,6 +1981,19 @@ function renderTrialBanner(data){
   msg.textContent=tb.message||"Trial khatam hone wala hai — plan upgrade karo.";
   el.classList.add("show");
   el.classList.toggle("expired",!!tb.expired);
+}
+function renderApprovalBanner(data){
+  const el=document.getElementById("approvalBanner");
+  const msg=document.getElementById("approvalBannerMsg");
+  if(!el||!msg) return;
+  const b=(data&&data.approval_banner)||null;
+  const count=Number(b&&b.count||0);
+  if(!b||!b.show||count<1||data.is_sample_data){
+    el.style.display="none";
+    return;
+  }
+  msg.textContent=b.message||("Aapke "+count+" posts approval ka wait kar rahe hain.");
+  el.style.display="flex";
 }
 boot(buildDemo());  // instant render, works offline
 renderTeam(null);   // instant virtual-team office (demo) until live data arrives

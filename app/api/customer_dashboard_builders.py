@@ -177,13 +177,36 @@ def _enrich_dashboard(resp: DashboardResponse, client_id: str) -> DashboardRespo
     has_paid = plan not in ("", "trial", "free")
     trial = _trial_banner(client_rec, has_paid_plan=has_paid)
     social_err = str((client_rec or {}).get("social_error") or "").strip() or None
+    approval_banner = _approval_banner(client_id)
     return resp.model_copy(
         update={
             "client_id": client_id,
             "onboarding": onboarding,
             "trial_banner": trial,
+            "approval_banner": approval_banner,
             "social_error": social_err,
         }
+    )
+
+
+def _approval_banner(client_id: str):
+    """Return a bounded, PII-free customer nudge for pending approvals."""
+    from app.api.customer_dashboard_models import ApprovalBanner
+
+    try:
+        from app.marketing import content_approval
+
+        count = len(content_approval.pending(client_id) or [])
+    except Exception:
+        count = 0
+    if count <= 0:
+        return ApprovalBanner()
+    noun = "post" if count == 1 else "posts"
+    return ApprovalBanner(
+        show=True,
+        count=count,
+        urgency="high" if count >= 3 else "normal",
+        message=f"Aapke {count} {noun} approval ka wait kar rahe hain — approve karte hi delivery aage badhegi.",
     )
 
 
