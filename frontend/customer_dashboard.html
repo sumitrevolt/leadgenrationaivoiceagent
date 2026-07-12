@@ -1266,6 +1266,7 @@
         <div class="card" style="padding:14px;text-align:center;color:var(--muted)">Loading…</div>
       </div>
 
+      <div data-view="delivery" id="approvalNotice" class="simple-note" style="display:none;margin-bottom:12px;background:#fff7ed;border-color:#fdba74;color:#9a3412" role="status" aria-live="polite"></div>
       <div data-view="delivery" class="sec-title" id="deliveryApprovalSection" style="display:none">✅ Approval Needed</div>
       <div data-view="delivery" id="deliveryApprovals" style="margin-bottom:14px"></div>
 
@@ -2201,8 +2202,9 @@ loadLiveDashboard();
 
 /* ============================================================
    BILLING — live-binds to /api/billing/* using the customer JWT.
-   client_id source: customer login token (lgai_token -> /api/customer/auth/me),
-   else stored lgai_cid, else ?client_id= query, else "demo".
+   client_id source: customer login token (lgai_token -> /api/customer/auth/me).
+   Missing/expired token goes to login; URL client_id and stale localStorage
+   identity are never accepted for authenticated dashboard work.
    ============================================================ */
 function billToken(){ return localStorage.getItem("lgai_token") || ""; }
 function billAuthHdr(){ const t=billToken(); return t ? {"Authorization":"Bearer "+t} : {}; }
@@ -2237,7 +2239,9 @@ async function resolveClientId(){
       }
     }catch(e){/* fall through */}
   }
-  return localStorage.getItem("lgai_cid") || qparam("client_id") || "demo";
+  const next = encodeURIComponent(location.pathname + location.search);
+  window.location.replace("/app/login?next=" + next);
+  return "";
 }
 
 /* ====== Task 11: customer delivery timeline (AI ne aapke liye kya kiya) ====== */
@@ -2492,12 +2496,18 @@ async function loadDeliveryView() {
 
     if (approvalsSec && approvalsBox) {
       var pending = (d.approvals_pending || []);
+      var approvalNotice = document.getElementById("approvalNotice");
       if (pending.length) {
+        if(approvalNotice){
+          approvalNotice.style.display = "";
+          approvalNotice.innerHTML = "⏳ <b>" + pending.length + " pending approvals</b> — posts ready hain. <button type=\"button\" class=\"btn\" style=\"margin-left:8px;padding:5px 10px;font-size:11px;background:#ea580c;color:#fff\" onclick=\"document.getElementById('deliveryApprovalSection').scrollIntoView({behavior:'smooth'})\">Review karo</button>";
+        }
         approvalsSec.style.display = "";
         approvalsBox.innerHTML = pending.map(function(a) {
           return '<div class="card" style="padding:12px;margin-bottom:8px"><div class="row" style="align-items:center;justify-content:space-between"><div><b>' + escH(a.title || "Post") + '</b><div class="sm" style="color:var(--muted)">' + escH(a.caption_preview || "") + '</div></div><div style="display:flex;gap:6px"><button class="btn" style="background:var(--ok);color:#fff;padding:6px 12px;font-size:11px" onclick="approvePost(\'' + escH(a.id || "") + '\')">✓ Approve</button><button class="btn" style="background:var(--err);color:#fff;padding:6px 12px;font-size:11px" onclick="rejectPost(\'' + escH(a.id || "") + '\')">✕ Reject</button></div></div></div>';
         }).join("");
       } else {
+        if(approvalNotice){ approvalNotice.style.display = "none"; approvalNotice.textContent = ""; }
         approvalsSec.style.display = "none";
         approvalsBox.innerHTML = "";
       }
@@ -2550,7 +2560,16 @@ async function whLoad(){
   const evtBox = document.getElementById("whEvents");
   const pill = document.getElementById("whFlagPill");
   try{
-    const meta = await fetch("/api/customer/webhooks/_meta").then(r=>r.json());
+    const metaRes = await fetch("/api/customer/webhooks/_meta", {headers: billAuthHdr()});
+    if(!metaRes.ok){
+      pill.textContent = metaRes.status===401||metaRes.status===403 ? "LOGIN" : "?";
+      pill.style.background = "rgba(239,68,68,.12)";
+      pill.style.color = "var(--bad)";
+      list.innerHTML = '<div style="color:var(--bad);font-size:12px">Session expired — dobara login karo.</div>';
+      evtBox.innerHTML = '<div style="color:var(--muted);font-size:12px">Login ke baad webhook events load honge.</div>';
+      return;
+    }
+    const meta = await metaRes.json();
     pill.textContent = meta.enabled ? "LIVE" : "OFF";
     pill.style.background = meta.enabled ? "rgba(16,185,129,.18)" : "rgba(100,116,139,.18)";
     pill.style.color = meta.enabled ? "#10b981" : "#64748b";
@@ -2624,6 +2643,8 @@ async function whTest(id){
   try{
     const r = await fetch("/api/customer/webhooks/"+encodeURIComponent(id)+"/test", {method:"POST", headers: billAuthHdr()});
     const d = await r.json();
+    if(r.status===401||r.status===403){ alert("Session expired — dobara login karo."); return; }
+    if(!r.ok){ alert("Test failed: HTTP "+r.status); return; }
     alert(d.delivered ? ("✓ Test delivered ("+d.status+")") : ("✗ Test failed: status="+(d.status||"n/a")+" error="+(d.error||"unknown")));
   }catch(e){ alert("Error: "+e.message); }
 }
@@ -2635,6 +2656,8 @@ async function whShowDeliveries(id){
   box.innerHTML = "Loading…";
   try{
     const r = await fetch("/api/customer/webhooks/"+encodeURIComponent(id)+"/deliveries?limit=20", {headers: billAuthHdr()});
+    if(r.status===401||r.status===403){ box.innerHTML="Session expired — dobara login karo."; return; }
+    if(!r.ok){ box.innerHTML="Deliveries load nahi hui (HTTP "+r.status+")."; return; }
     const d = await r.json();
     if(!d.deliveries || !d.deliveries.length){ box.innerHTML="No deliveries yet."; return; }
     box.innerHTML = d.deliveries.slice().reverse().map(x => {
@@ -2649,7 +2672,9 @@ async function whShowDeliveries(id){
 async function whRetry(webhookId, deliveryId){
   try{
     const r = await fetch("/api/customer/webhooks/"+encodeURIComponent(webhookId)+"/deliveries/"+encodeURIComponent(deliveryId)+"/retry", {method:"POST", headers: billAuthHdr()});
+    if(r.status===401||r.status===403){ alert("Session expired — dobara login karo."); return; }
     const d = await r.json();
+    if(!r.ok){ alert("Retry failed: HTTP "+r.status); return; }
     if(d.delivered){
       alert("✓ Retry succeeded (status "+d.status+")");
     } else {
@@ -3436,7 +3461,7 @@ function renderSocialSetup(d,acct){
   body.innerHTML=
     '<div class="sm" style="color:var(--muted);margin-bottom:10px">Apne social channels connect karo — AI inke liye content banayega, aap approve karke ya 1-click post karoge.</div>'
     +'<div style="font-weight:700;margin-bottom:2px">📡 Connection status</div>'+statusRows+autoNote
-    +'<details class="setup-advanced" open><summary>Advanced — apne accounts connect karein</summary>'
+    +'<details class="setup-advanced"><summary>Advanced account connection — apne accounts connect karein</summary>'
     +'<div class="sm" style="color:var(--muted);margin-bottom:6px">Har platform ke saamne "🔐 Connect" pe click karein aur apna access token daalein. Token encrypted-at-rest save hoga; actual publish admin engine ON hone ke baad hi hoga.</div>'
     +connectCards+'</details>'
     +'<div style="font-weight:700;margin:16px 0 2px">🔗 Aapke social channels (jahan aap online ho)</div>'
@@ -3699,17 +3724,6 @@ async function submitUpiRef(){
   finally{ if(btn){ btn.disabled=false; btn.textContent="✅ Maine Pay Kiya — Submit"; } }
 }
 function show(id,on){ const el=document.getElementById(id); if(el) el.style.display=on?"inline-flex":"none"; }
-
-async function openBillingPortal(){
-  try{
-    const r=await fetch("/api/billing/portal?client_id="+encodeURIComponent(BILL.cid),{
-      method:"POST",headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
-      body:JSON.stringify({return_url:location.href})});
-    const j=await r.json();
-    if(r.ok&&j.portal_url){ window.location.href=j.portal_url; }
-    else{ toast("Billing","Online portal abhi nahi khula. "+(j.message||"Pause/Band Karo button use karein.")); }
-  }catch(e){ toast("Billing","Portal kholne me dikkat. Baad me try karein."); }
-}
 
 async function billingAction(action){
   let url, opts={method:"POST",headers:Object.assign({"Content-Type":"application/json"},billAuthHdr())};

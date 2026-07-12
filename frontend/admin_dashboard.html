@@ -862,7 +862,7 @@
               <label for="campClient" style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Client ID (optional)</label>
               <select id="campClient" aria-label="Campaign client" style="padding:8px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;min-width:240px;background:#fff"><option value="">LeadGen AI brand (default)</option></select>
             </div>
-            <button class="btn" onclick="fireCampaign()" style="background:#10b981;padding:9px 20px;font-size:13px">🚀 Fire Campaign</button>
+            <button class="btn" id="campFireBtn" onclick="fireCampaign()" style="background:#10b981;padding:9px 20px;font-size:13px">🚀 Fire Campaign</button>
             <button class="btn" onclick="loadCampaignStatus()" style="background:#6366f1;padding:9px 14px;font-size:12px">↻ Status</button>
             <button class="btn" id="campStopBtn" onclick="stopCampaign()" style="background:#ef4444;padding:9px 14px;font-size:12px;display:none">⏹ Stop</button>
           </div>
@@ -2535,14 +2535,19 @@ async function bulkDelete(){
   const sel=_getSelectedRows();
   if(!sel.length){ adminToast("Koi client select nahi!","error"); return; }
   if(!confirm(sel.length+" client(s) PERMANENTLY delete? (irreversible)")) return;
-  let ok=0;
-  for(const c of sel){
+  let ok=0, failed=0;
+  for(let i=0;i<sel.length;i++){
+    const c=sel[i];
+    adminToast("Deleting "+(i+1)+"/"+sel.length+"…");
     try{
       const r=await fetch("/api/admin/clients/"+encodeURIComponent(c.client_id)+"/delete",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({confirm:true})});
-      const d=await r.json(); if(d&&d.deleted) ok++;
-    }catch(e){}
+      const d=await r.json().catch(()=>({}));
+      if(r.ok&&d&&d.deleted) ok++; else failed++;
+    }catch(e){ failed++; }
   }
-  adminToast(ok+" client(s) deleted"); clearBulkSelect(); loadDashboard();
+  adminToast(ok+" deleted · "+failed+" failed", failed ? "error" : "success");
+  if(!failed) clearBulkSelect();
+  loadDashboard();
 }
 
 /* ----------------------------- orchestration ----------------------------- */
@@ -4065,6 +4070,7 @@ function renderGodMode(sys, camp){
 
   // — Campaign prerequisites chip (shared panel) ────────────────────
   renderCampaignPrereq(sys);
+  renderPlatformDial(sys);
 
   body.innerHTML = html;
 }
@@ -4076,6 +4082,19 @@ function renderCampaignPrereq(sys){
   const prov = (sys.telephony_provider || 'vobiz').toLowerCase();
   el.innerHTML = `<div style="font-size:11px;color:#64748b;margin-bottom:6px">Phone campaigns optional — marketing launch alag se ready hai.</div>
     <div style="font-size:11px;color:#94a3b8">Telephony score: <b>${telScore}/100</b> · provider: ${escH(prov)}</div>`;
+}
+
+function renderPlatformDial(sys){
+  const banner=$("platformDialBanner"), btn=$("campFireBtn");
+  const state=(sys&&sys.platform_dial)||{};
+  const enabled=state.enabled===true;
+  if(banner) banner.style.display=enabled?"none":"flex";
+  if(btn){
+    btn.disabled=!enabled;
+    btn.title=enabled?"Start the compliant allowlisted campaign":"Platform dial hard-off — enable only after explicit owner approval and compliance checks";
+    btn.style.opacity=enabled?"1":".55";
+    btn.style.cursor=enabled?"pointer":"not-allowed";
+  }
 }
 
 async function loadUpiSelfServe(){
@@ -4322,9 +4341,9 @@ async function saveTurnstile(){
   try{
     const r=await fetch('/api/admin/trust/configure-turnstile',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({site_key:site,secret_key:secret})});
     const d=await r.json();
-    if(r.ok&&d.ok){ alert('✅ Turnstile armed'); loadGodMode(); }
-    else alert('Fail: '+(d.detail||r.status));
-  }catch(e){ alert('Error: '+e.message); }
+    if(r.ok&&d.ok){ adminToast('✅ Turnstile armed','success'); loadGodMode(); }
+    else adminToast('Fail: '+(d.detail||r.status),'error');
+  }catch(e){ adminToast('Error: '+e.message,'error'); }
 }
 
 async function saveSentry(){
@@ -4333,9 +4352,9 @@ async function saveSentry(){
   try{
     const r=await fetch('/api/admin/trust/configure-sentry',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({dsn:dsn})});
     const d=await r.json();
-    if(r.ok&&d.ok){ alert('✅ Sentry saved'+(d.restart_recommended?' — worker restart recommended':'')); loadGodMode(); }
-    else alert('Fail: '+(d.detail||r.status));
-  }catch(e){ alert('Error: '+e.message); }
+    if(r.ok&&d.ok){ adminToast('✅ Sentry saved'+(d.restart_recommended?' — worker restart recommended':''),'success'); loadGodMode(); }
+    else adminToast('Fail: '+(d.detail||r.status),'error');
+  }catch(e){ adminToast('Error: '+e.message,'error'); }
 }
 
 async function savePosthog(){
@@ -4345,9 +4364,9 @@ async function savePosthog(){
   try{
     const r=await fetch('/api/admin/trust/configure-posthog',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({api_key:key,host:host})});
     const d=await r.json();
-    if(r.ok&&d.ok){ alert('✅ PostHog saved'); loadGodMode(); }
-    else alert('Fail: '+(d.detail||r.status));
-  }catch(e){ alert('Error: '+e.message); }
+    if(r.ok&&d.ok){ adminToast('✅ PostHog saved','success'); loadGodMode(); }
+    else adminToast('Fail: '+(d.detail||r.status),'error');
+  }catch(e){ adminToast('Error: '+e.message,'error'); }
 }
 
 async function seedFlowTemplates(){
@@ -4358,12 +4377,12 @@ async function seedFlowTemplates(){
     const d=await r.json();
     if(r.ok&&d.ok){
       if(hint) hint.textContent='✅ '+d.count+' flows created';
-      alert('✅ '+d.count+' starter flows ready — /app/automation → Processes dekho');
+      adminToast('✅ '+d.count+' starter flows ready — /app/automation → Processes dekho','success');
     }else{
       if(hint) hint.textContent='Fail';
-      alert('Fail: '+(d.detail||d.error||r.status));
+      adminToast('Fail: '+(d.detail||d.error||r.status),'error');
     }
-  }catch(e){ if(hint) hint.textContent='Error'; alert('Error: '+e.message); }
+  }catch(e){ if(hint) hint.textContent='Error'; adminToast('Error: '+e.message,'error'); }
 }
 
 async function saveUpiVpa(){
@@ -4377,9 +4396,9 @@ async function saveUpiVpa(){
       body: JSON.stringify({vpa})
     });
     const d = await r.json();
-    if(r.ok && d.ok){ alert('✅ UPI VPA save — /pricing aur pay-info ab live'); loadGodMode(); }
-    else alert('Error: '+(d.detail||JSON.stringify(d)));
-  }catch(e){ alert('Network error'); }
+    if(r.ok && d.ok){ adminToast('✅ UPI VPA save — /pricing aur pay-info ab live','success'); loadGodMode(); }
+    else adminToast('Error: '+(d.detail||JSON.stringify(d)),'error');
+  }catch(e){ adminToast('Network error','error'); }
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -4422,6 +4441,8 @@ function renderCampaignStatus(d){
 
 let _campPolling = false;
 async function fireCampaign(){
+  const fireBtn=$("campFireBtn");
+  if(fireBtn && fireBtn.disabled){ adminToast("Platform dial hard-off hai — campaign dispatch blocked.","error"); return; }
   const limit = parseInt(($("campLimit")||{}).value||"10",10);
   const dry   = ($("campDry")||{}).checked;
   const platform = ($("campPlatform")||{}).checked;
