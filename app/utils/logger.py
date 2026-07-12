@@ -120,6 +120,20 @@ _MESSAGE_BEARER_RE = _re.compile(
     _re.IGNORECASE,
 )
 
+# Env-var-style secret names where the sensitive word is a PREFIX/mid-token (not a
+# standalone word), so the word-boundary KV/JSON passes above miss them — e.g.
+# `SMTP_PASS=`, `GROQ_API_KEY=`, `SECRET_KEY=`, `VOBIZ_SIP_PASS=`,
+# `TURNSTILE_SECRET_KEY=`, `VAPID_PRIVATE_KEY=`, `WAHA_API_KEY=`. Matches an
+# UPPERCASE env-style token that ENDS in a sensitive suffix (uppercase-only → never
+# touches lowercase words like `pass=42` / `result: pass=`). Optional trailing
+# quote handles the `"SECRET_KEY":"v"` JSON form too. 2026-07-12 gap-fix
+# (empirically confirmed: env-var names leaked past the word-boundary KV pass).
+_MESSAGE_ENVVAR_REDACT_RE = _re.compile(
+    r"\b([A-Z0-9]+(?:_[A-Z0-9]+)*_(?:PASS|PASSWORD|PWD|SECRET|TOKEN|KEY|APIKEY|CREDENTIAL|CREDENTIALS))"
+    r"""["']?\s*[=:]\s*"""
+    r"""("[^"]{1,4096}"|'[^']{1,4096}'|[^\s&,;\)\]\}"]{1,4096})""",
+)
+
 
 def redact_message(message: str) -> str:
     """Redact credential-like key=value / "key":"value" / `Bearer xxx`
@@ -143,6 +157,7 @@ def redact_message(message: str) -> str:
         )
         s = _MESSAGE_BEARER_RE.sub(lambda m: f"{m.group(1)} [REDACTED]", s)
         s = _MESSAGE_KV_REDACT_RE.sub(lambda m: f"{m.group(1)}=[REDACTED]", s)
+        s = _MESSAGE_ENVVAR_REDACT_RE.sub(lambda m: f"{m.group(1)}=[REDACTED]", s)
         return s
     except Exception:
         return message

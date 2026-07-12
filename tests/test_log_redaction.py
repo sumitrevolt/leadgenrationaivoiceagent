@@ -99,6 +99,50 @@ def test_redact_message_preserves_non_sensitive_context():
     assert "SECRET_KEY" not in out
 
 
+# --------------------------------------------------------------------------- #
+# 2026-07-12 gap-fix: env-var-style secret names (SMTP_PASS / GROQ_API_KEY /
+# SECRET_KEY / VOBIZ_SIP_PASS ...) leaked past the word-boundary KV pass because
+# the sensitive word is a prefix/mid-token, not a standalone word. Empirically
+# found this session; locked here so it can't regress.
+# --------------------------------------------------------------------------- #
+
+@pytest.mark.parametrize(
+    "raw,secret",
+    [
+        ("mailer config SMTP_PASS=SuperSecret123 for admin@leadsgenai.in", "SuperSecret123"),
+        ("env dump: GROQ_API_KEY=gsk_live_9f8e7d6c5b4a", "gsk_live_9f8e7d6c5b4a"),
+        ("boot SECRET_KEY=flask_session_signing_key_xyz", "flask_session_signing_key_xyz"),
+        ("sip creds VOBIZ_SIP_PASS=vs_pass_4455 host=x", "vs_pass_4455"),
+        ("REDIS_PASSWORD=rp_secret_00 connecting", "rp_secret_00"),
+        ("MISTRAL_API_KEY=ms_key_abc used for llm", "ms_key_abc"),
+        ('config {"TURNSTILE_SECRET_KEY":"ts_secret_zz"}', "ts_secret_zz"),
+        ("VAPID_PRIVATE_KEY=vapid_priv_9090 push", "vapid_priv_9090"),
+    ],
+)
+def test_redact_message_hides_envvar_style_credential(raw, secret):
+    """Env-var-style names (sensitive word inside the identifier) must redact —
+    2026-07-12 gap: these leaked past the word-boundary KV/JSON passes."""
+    out = log_mod.redact_message(raw)
+    assert secret not in out, f"env-var credential leaked: {secret!r} in {out!r}"
+    assert "[REDACTED]" in out
+
+
+@pytest.mark.parametrize(
+    "raw,preserved",
+    [
+        ("prod_check result: pass=42 fail=0 skip=1", "pass=42"),
+        ("tuning LLM_BULK_TOKEN_THRESHOLD=6000 applied", "LLM_BULK_TOKEN_THRESHOLD=6000"),
+        ("nav compass=north heading ok", "compass=north"),
+    ],
+)
+def test_redact_message_does_not_over_redact_non_secrets(raw, preserved):
+    """Uppercase-only + sensitive-suffix anchoring must NOT eat lowercase words
+    (`pass=42`) or non-secret env names ending in a non-sensitive suffix
+    (`..._THRESHOLD`)."""
+    out = log_mod.redact_message(raw)
+    assert preserved in out, f"over-redacted a non-secret: {preserved!r} missing from {out!r}"
+
+
 def test_redact_message_fail_safe_returns_original_on_error(monkeypatch):
     """Regex error must NOT break logging — return original (safer)."""
     class _EvilStr(str):
