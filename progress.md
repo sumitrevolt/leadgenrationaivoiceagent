@@ -9,8 +9,10 @@ Changed: Added explicit `SKILL_PACK_KB_INGEST` registry flag, default OFF, aroun
 Tests Run: `tests/test_skill_pack_upgrader.py tests/test_staff_jobs_smoke.py` passed. `prod_check.py` ALL PASSED (1253 source files, 1099 routes, 47 pages, 0 wiring gaps, 80/80 engines, API.md in sync). `check_secrets.py` clean. Changed-file diff check clean; unrelated pre-existing `docs/GRAPHIFY.md` EOF whitespace warning remains outside this change.
 Verification Evidence: Live task logs showed the prior run hit soft limit at 540s and hard limit at 600s inside embedding generation; the new default gate prevents that path from the daily trainer. Local contract test passes.
 Risks: Existing historical trainer DLQ item(s) are retained for audit and were not deleted/replayed. Explicitly enabling `SKILL_PACK_KB_INGEST` still requires a separately budgeted worker path; it is not enabled by this fix.
-Remaining: Commit/push/rebuild/recreate worker-heavy + scheduler, then run a fresh trainer smoke and confirm no new DLQ timeout. Human WhatsApp smoke and credential rotation remain user actions.
-Next Highest Priority: Deploy this trainer gate and verify the scheduled trainer completes under the Celery limit.
+Remaining: Human WhatsApp smoke and credential rotation remain user actions. Historical `dlq:failed_tasks=1` / `dlq:dead=1` are retained for audit and were not deleted/replayed.
+Next Highest Priority: Monitor the next natural trainer window; keep `SKILL_PACK_KB_INGEST` OFF unless a separately budgeted embedding worker path is introduced.
+
+Deployment follow-up: Commit `241164d` pushed to `origin/main`; VPS fast-forwarded, app image rebuilt, and `app`, `worker`, `worker-heavy`, and `scheduler` recreated. Two production health checks returned `healthy` with `environment=production`. Fresh Celery trainer smoke `2f7e3c76-1b0f-4f90-9855-0120ac5643b8` succeeded in `0.97s`; queues `heavy=0`, `celery=0`; no new timeout was created.
 
 ## Loop Run
 Date: 2026-07-12
