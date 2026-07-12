@@ -19,9 +19,19 @@ def test_setup_wizard_card_exists():
 
 
 def test_setup_wizard_loaded_on_page_init():
+    """P0-2026-07-12: the bottom-of-script boot sequence now calls each loader
+    through _safeBoot() so one throwing loader can never block a sibling card
+    (this is the exact mechanism that could leave Setup Wizard/Social Setup
+    permanently stuck on "Load ho raha hai..."). Confirms loadGuidedSetup is
+    still wired into that sequence, just via the safe wrapper."""
     html = _html()
-    idx = html.index("loadBilling();\nloadContent();")
-    assert "loadGuidedSetup();" in html[idx : idx + 200]
+    idx = html.index('_safeBoot("loadBilling", loadBilling);')
+    snippet = html[idx : idx + 500]
+    assert '_safeBoot("loadGuidedSetup", loadGuidedSetup);' in snippet
+    # the wrapper itself must actually invoke fn() inside a try/catch
+    helper_idx = html.index("function _safeBoot(name, fn)")
+    helper = html[helper_idx : helper_idx + 200]
+    assert "try{" in helper and "catch(e)" in helper and "fn()" in helper
 
 
 def test_load_setup_wizard_calls_real_profile_get_endpoint():
