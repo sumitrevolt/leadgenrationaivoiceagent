@@ -2026,6 +2026,12 @@ async function loadAutopilot(){
 function copyAutopilot(i){ const x=(window._AUTOPILOT||[])[i]; if(!x) return; navigator.clipboard.writeText(x.text||'').then(function(){ toast('Copy ho gaya 📋','WhatsApp pe paste karke bhejo.'); }); }
 
 (async function tryLive(){
+  /* AUTO-REDIRECT: agar token nahi hai to login page pe bhejo.
+     Dashboard bina login ke confusing "Load ho raha hai" state dikhata tha. */
+  if(!billToken()){
+    window.location.replace("/app/login");
+    return;
+  }
   try{
     /* BUGFIX 2026-06-12: pehle client_id resolve karo (login token -> /me),
        warna logged-in customer ko bhi hamesha "demo" sample data dikhta tha. */
