@@ -1,0 +1,275 @@
+"""Idempotent, consent-gated pending-approval email notifications + audit.
+
+Design (Phase-1 customer-delivery, 2026-07-12):
+- Env-gated by APPROVAL_EMAIL_NOTIFY (default OFF) so nothing sends by accident.
+- Every attempt writes/updates an ``ApprovalNotification`` audit row keyed by a
+  UNIQUE idempotency key = ``f"{channel}:{client_id}:{approval_id}:{version}"``.
+  The unique key prevents duplicate sends across task retries, worker restarts
+  and repeated scheduler runs (DB-backed — survives a Redis flush).
+- ``version`` is a hash of the approval's mutable state, so a CHANGED approval
+  produces a new key and is allowed to notify again.
+- A row is only marked ``sent`` when the email provider returns success; a failed
+  send stays retryable. Consent (promotional suppression) + a per-client email
+  setting are honoured before sending.
+- Recipient / consent / send are module-level seams so tests can inject them.
+- Never raises (matches repo convention).
+"""
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+from datetime import datetime
+from uuid import uuid4
+
+from sqlalchemy import select
+
+from app.models.approval_notification import ApprovalNotification
+from app.models.base import get_async_session
+
+try:
+    from app.utils.logger import setup_logger
+
+    logger = setup_logger(__name__)
+except Exception:  # pragma: no cover
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+CHANNEL = "email"
+_SUBJECT = "Action needed: approve your content"
+
+
+def notify_enabled() -> bool:
+    return os.getenv("APPROVAL_EMAIL_NOTIFY", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def deep_link(approval_id: str = "") -> str:
+    """Authenticated in-app deep link to the approvals card (customer must log in)."""
+    base = (os.getenv("SITE_BASE_URL") or "https://leadsgenai.in").rstrip("/")
+    return f"{base}/app/customer/marketing#approvalCard"
+
+
+def _approval_version(approval: dict) -> str:
+    basis = json.dumps(
+        {"status": approval.get("status"), "content": approval.get("content")},
+        sort_keys=True,
+        default=str,
+    )
+    return hashlib.sha256(basis.encode("utf-8")).hexdigest()[:16]
+
+
+def idem_key(client_id: str, approval_id: str, version: str) -> str:
+    return f"{CHANNEL}:{client_id}:{approval_id}:{version}"
+
+
+# --- injectable seams -------------------------------------------------------
+def _resolve_recipient(client_id: str) -> str | None:
+    """Best-effort customer email; never raises."""
+    try:
+        from app.marketing import clients_store
+
+        c = clients_store.get_client(client_id) or {}
+        email = (c.get("email") or c.get("contact_email") or "").strip()
+        return email or None
+    except Exception:
+        return None
+
+
+def _email_allowed(client_id: str, email: str) -> tuple[bool, str]:
+    """(allowed, failure_category). Honours promotional suppression + a per-client
+    email-notify setting. failure_category is '' when allowed."""
+    try:
+        from app.platform import email_unsub
+
+        if email_unsub.is_suppressed(email):
+            return False, "no_consent"
+    except Exception:
+        pass
+    try:
+        from app.marketing import clients_store
+
+        c = clients_store.get_client(client_id) or {}
+        if c.get("email_notifications") is False or c.get("approval_email_opt_out") is True:
+            return False, "email_disabled"
+    except Exception:
+        pass
+    return True, ""
+
+
+async def _do_send(to_email: str, subject: str, html: str, text: str) -> tuple[bool, str | None, str]:
+    """Returns (ok, provider_message_id, failure_category). Never raises."""
+    try:
+        from app.integrations.email_sender import email_sender
+
+        if email_sender is None:
+            return False, None, "sender_unavailable"
+        ok = await email_sender.send_email([to_email], subject, text, html_body=html)
+        if ok:
+            return True, None, ""  # sender returns bool, not a provider id
+        return False, None, "provider_error"
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning(f"approval email send error: {type(e).__name__}")
+        return False, None, "provider_exception"
+
+
+# --- audit helpers ----------------------------------------------------------
+def _audit(row: ApprovalNotification, note: str = "") -> dict:
+    return {
+        "id": row.id,
+        "client_id": row.client_id,
+        "approval_id": row.approval_id,
+        "approval_version": row.approval_version,
+        "channel": row.channel,
+        "idempotency_key": row.idempotency_key,
+        "status": row.status,
+        "failure_category": row.failure_category,
+        "provider_message_id": row.provider_message_id,
+        "attempts": row.attempts,
+        "attempted_at": row.attempted_at.isoformat() if row.attempted_at else None,
+        "note": note,
+    }
+
+
+def _finalize(row: ApprovalNotification, status: str, cat: str | None) -> dict:
+    row.status = status
+    row.failure_category = cat
+    row.completed_at = datetime.utcnow()
+    return _audit(row)
+
+
+async def notify_approval(
+    approval: dict,
+    *,
+    session=None,
+    send_fn=None,
+    resolve_recipient=None,
+    email_allowed=None,
+) -> dict:
+    """Idempotently notify ONE pending approval. Never raises; returns an audit dict.
+
+    Dedupe: a row with the same idempotency key already 'sent' short-circuits with
+    no send. 'failed'/'attempted' rows are retried. A changed approval version has a
+    different key and is treated as a new notification.
+    """
+    resolve_recipient = resolve_recipient or _resolve_recipient
+    email_allowed = email_allowed or _email_allowed
+    send_fn = send_fn or _do_send
+
+    client_id = str(approval.get("client_id") or "")
+    approval_id = str(approval.get("id") or "")
+    if not approval_id:
+        return {"status": "skipped", "failure_category": "no_approval_id"}
+    version = _approval_version(approval)
+    key = idem_key(client_id, approval_id, version)
+
+    async def _run(sess) -> dict:
+        existing = (
+            await sess.execute(
+                select(ApprovalNotification).where(ApprovalNotification.idempotency_key == key)
+            )
+        ).scalar_one_or_none()
+        if existing and existing.status == "sent":
+            return _audit(existing, note="duplicate_suppressed")
+
+        row = existing or ApprovalNotification(
+            id=uuid4().hex,
+            client_id=client_id,
+            approval_id=approval_id,
+            approval_version=version,
+            channel=CHANNEL,
+            idempotency_key=key,
+            status="attempted",
+            attempts=0,
+        )
+        row.attempts = (row.attempts or 0) + 1
+        row.attempted_at = datetime.utcnow()
+        row.status = "attempted"
+        row.completed_at = None
+        if existing is None:
+            sess.add(row)
+        try:
+            await sess.flush()  # reserve the unique key (dedupe vs concurrent runs)
+        except Exception:
+            # Unique-key race: another attempt won. Re-read and honour its result.
+            await sess.rollback()
+            other = (
+                await sess.execute(
+                    select(ApprovalNotification).where(ApprovalNotification.idempotency_key == key)
+                )
+            ).scalar_one_or_none()
+            if other is not None:
+                return _audit(other, note="dedupe_race")
+            raise
+
+        email = resolve_recipient(client_id)
+        if not email:
+            return _finalize(row, "skipped", "no_email")
+        allowed, cat = email_allowed(client_id, email)
+        if not allowed:
+            return _finalize(row, "skipped", cat or "no_consent")
+
+        link = deep_link(approval_id)
+        text = f"You have content awaiting your approval. Review and approve here: {link}"
+        html = (
+            "<p>You have content awaiting your approval.</p>"
+            f'<p><a href="{link}">Review &amp; approve</a></p>'
+        )
+        ok, pmid, fcat = await send_fn(email, _SUBJECT, html, text)
+        if ok:
+            row.provider_message_id = pmid
+            return _finalize(row, "sent", None)
+        return _finalize(row, "failed", fcat or "provider_error")
+
+    try:
+        if session is not None:
+            result = await _run(session)
+        else:
+            async with get_async_session() as sess:
+                result = await _run(sess)
+    except Exception as e:
+        logger.warning(f"notify_approval error: {type(e).__name__}")
+        return {"status": "failed", "failure_category": "internal_error", "approval_id": approval_id}
+
+    # Per-customer ledger mirror (best-effort, idempotent).
+    try:
+        from app.marketing import delivery_ledger
+
+        delivery_ledger.log_event(
+            client_id,
+            "approval_reminded",
+            detail=f"email:{result.get('status')}",
+            meta={
+                "approval_id": approval_id,
+                "channel": CHANNEL,
+                "result": result.get("status"),
+                "failure_category": result.get("failure_category"),
+            },
+            key=f"approval_email:{key}",
+        )
+    except Exception:
+        pass
+    return result
+
+
+async def notify_pending_approvals(*, limit: int = 200, session=None, **kw) -> dict:
+    """Env-gated sweep over all pending approvals. Inert unless APPROVAL_EMAIL_NOTIFY on.
+
+    Tenant isolation: each approval carries its own client_id and the recipient is
+    resolved from THAT client, so no cross-tenant delivery is possible.
+    """
+    counts = {"enabled": notify_enabled(), "seen": 0, "sent": 0, "skipped": 0, "failed": 0}
+    if not counts["enabled"]:
+        return counts
+    try:
+        from app.marketing import content_approval
+
+        pending = content_approval.pending("") or []
+    except Exception:
+        pending = []
+    for approval in pending[: max(0, int(limit))]:
+        r = await notify_approval(approval, session=session, **kw)
+        counts["seen"] += 1
+        st = r.get("status", "skipped")
+        counts[st] = counts.get(st, 0) + 1
+    return counts
