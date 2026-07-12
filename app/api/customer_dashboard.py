@@ -80,6 +80,7 @@ from app.api.customer_dashboard_models import (  # noqa: F401  (models extracted
     LeadRow,
     OnboardingChecklist,
     OnboardingStep,
+    ApprovalBanner,
     SeriesPoint,
     TeamAgentCard,
 )

@@ -46,8 +46,9 @@ def test_require_customer_enforces_role():
 
 def test_routes_mounted():
     from app.main import app
+    from app.utils.route_inspection import iter_effective_routes
 
-    paths = {getattr(r, "path", "") for r in app.routes}
+    paths = {getattr(r, "path", "") for r in iter_effective_routes(app.routes)}
     assert "/api/customer/auth/login" in paths
     assert "/api/customer/auth/set-password" in paths
     assert "/api/customer/auth/portal/dashboard" in paths
@@ -108,10 +109,10 @@ def test_onboarding_checklist_builder():
     from app.api.customer_dashboard import _build_onboarding_checklist
 
     ob = _build_onboarding_checklist("test-client", None, leads_count=0, content_count=0)
-    assert ob.total == 6
+    assert ob.total == 7
     assert ob.done == 0
     assert ob.complete is False
-    assert len(ob.steps) == 6
+    assert len(ob.steps) == 7
 
 
 def test_send_to_crm_requires_auth():

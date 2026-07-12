@@ -2,6 +2,42 @@
 
 ## Loop Run
 Date: 2026-07-12
+Goal: Root-cause and fix the live `trainer` Celery timeout that created one DLQ dead item.
+Inspected: `app.agents.staff.run_trainer`, `team.log_event`, Celery async runner, trainer tests, worker task limits, and live `dlq:dead` payload/logs.
+Problems Found: `run_trainer()` was async but called synchronous `team.log_event()` directly. That telemetry path can open/commit DB state and publish side effects; when it stalls, the trainer coroutine can occupy the Celery task until the global 600s hard limit. The first bounded `asyncio.to_thread` attempt exposed a second lifecycle issue: `asyncio.run()` waits for its executor during shutdown, so the test still took 8s despite the 5s caller timeout.
+Changed: Added `_log_trainer_event_bounded()` in `app/agents/staff.py`: telemetry runs in a daemon thread, completion is signalled to the active loop, and the trainer waits at most 5s; timeout is warning-only and analysis result is preserved. Replaced trainer success/empty/error telemetry call sites and added a blocking-telemetry regression test. Added plan `docs/plans/2026-07-12-trainer-timeout.md`.
+Tests Run: Trainer/staff/failure suites = 14/14 passed initially after lifecycle fix; combined WhatsApp + trainer + activation suite = 44/44 passed. `prod_check.py` ALL PASSED (1099 routes, 47 pages, 0 wiring gaps, 80/80 engines, API.md in sync). `check_secrets.py` clean. `git diff --check` clean.
+Verification Evidence: Blocking `team.log_event` test now returns within the bounded caller window instead of waiting for the 8s telemetry function; no live DLQ replay/delete was performed.
+Risks: Code remains local and not committed/deployed. Existing `dlq:dead` trainer record is historical; it will only clear after a post-deploy natural run or explicit operator replay. Daemon telemetry threads may finish later if the underlying DB call remains stuck, but they no longer hold the Celery task or event loop.
+Remaining: (1) Selective commit/deploy authorization. (2) After deployment, observe the next trainer run and confirm no new timeout/DLQ entry. (3) Human WhatsApp smoke to a known-good consenting recipient. (4) Credential rotation remains owner action.
+Next Highest Priority: Deploy the verified local batch with explicit authorization, then inspect `/health`, worker logs, WAHA accepted/blocked metrics, and trainer DLQ state.
+
+## Loop Run
+Date: 2026-07-12
+Goal: Re-check the reported WAHA QR blocker and fix the actual remaining WhatsApp failure.
+Inspected: Live WAHA/session state, linked number, WAHA and worker logs, `whatsapp_selfhost.py`, WAHA tests, and DLQ state.
+Problems Found: QR/session was not broken: live session is `WORKING` and linked to company number `918261030181`. The observed send failure was WAHA async `463 account restricted or missing tctoken` for a test recipient; the app had no recipient existence preflight and treated HTTP 201 as a generic success. One live `dlq:dead` item is the `trainer` job after three 600s timeouts; current worker logs show no active event-loop errors, so no speculative loop rewrite was made.
+Changed: Added WAHA `GET /api/contacts/check-exists` preflight. Explicit `numberExists=false` now records failure and blocks `sendText`; valid responses use canonical `chatId`; unknown/check-outage responses preserve backward-compatible graceful send behavior. WAHA response now includes `accepted=true` and `delivery_status=accepted` to distinguish provider acceptance from delivery confirmation. Added contract tests and plan `docs/plans/2026-07-12-waha-recipient-preflight.md`.
+Tests Run: `tests/test_whatsapp_selfhost.py tests/test_whatsapp_campaign.py tests/test_customer_activation_banner.py` = 36/36 passed. `prod_check.py` ALL PASSED (1099 routes, 47 pages, 0 wiring gaps, 80/80 engines, API.md in sync). `check_secrets.py` clean. `git diff --check` clean.
+Verification Evidence: Live `session_status()` returned `WORKING`, `me_number=918261030181`; no QR rescan or live send was performed. Explicit fake `numberExists=false` test proves zero `sendText` calls.
+Risks: Code is local and not committed/deployed. WAHA 463 can still occur for a real recipient that WhatsApp restricts after acceptance; actual delivery requires a user-side human smoke test to a known-good consenting number. `dlq:dead` trainer item needs a separate bounded-job root-cause loop or operator disposition; it was not deleted/replayed.
+Remaining: (1) Selective commit/deploy authorization. (2) Human smoke test with a known-good recipient. (3) Trainer timeout investigation. (4) Credential rotation remains owner action. (5) Historical async-loop issue is not currently reproducible in 48h worker/scheduler logs.
+Next Highest Priority: Deploy this WAHA preflight + activation batch after user authorization, then send one human-approved test to a known-good WhatsApp number and inspect the inbound/ack event.
+
+## Loop Run
+Date: 2026-07-12
+Goal: Recover the highest-impact customer activation path and close current verification drift.
+Inspected: Existing `/api/customer/dashboard` response/model/builders, customer dashboard approval UI, admin dashboard toast wrapper, current admin navigation, customer route inspection, and targeted regression suites.
+Problems Found: (1) Pending approvals existed in the delivery proof but were not surfaced in the primary customer dashboard response/banner. (2) Three customer tests asserted stale contracts: raw FastAPI route list, six onboarding steps, and old mobile `scrollToId` navigation. (3) Admin IA tests still described a superseded six-group layout, and the toast test treated the now-defined compatibility wrapper as undefined.
+Changed: Added a PII-free `approval_banner` model and builder with count/urgency/target, rendered an accessible approval banner linked to the existing `approvalCard`, added two backend contracts and frontend wiring coverage, and aligned stale tests to the current effective-route, seven-step onboarding, mobile view-engine, four-group admin IA, and defined toast-wrapper contracts. Added plan `docs/plans/2026-07-12-customer-activation-recovery.md`.
+Tests Run: Customer activation/dashboard/portal bundle 31/31 passed; admin command-center + IA bundle 34/34 passed. `scripts/prod_check.py` ALL PASSED (1099 routes, 47 pages, 0 wiring gaps, 80/80 engines, API.md in sync). `scripts/check_secrets.py` clean. `git diff --check` clean. Ruff unavailable in project venv (`No module named ruff`).
+Verification Evidence: New customer approval banner tests cover empty, normal, high-urgency, count, fixed target, and PII-safe message behavior. Dashboard contract remains auth-scoped and no new route/flag/data mutation was added.
+Risks: Changes are local and not committed, pushed, or deployed. Live customer rendering and email/WhatsApp notification delivery remain unverified until deployment and user-side WAHA QR action. Historical async-loop errors remain evidence-backed but not reproducible in this loop.
+Remaining: (1) User must scan WAHA QR with the company WhatsApp number. (2) Credential rotation remains owner action. (3) Async loop lifecycle needs a separate reproduced incident loop. (4) Full pytest remains broader than this targeted gate and may contain unrelated network/hang-sensitive suites.
+Next Highest Priority: User-authorized selective commit/deploy of this activation batch, then authenticated production smoke: customer login → approval banner → approval action → delivery proof refresh.
+
+## Loop Run
+Date: 2026-07-12
 Goal: Fix jiya-makeover health score SLA breach — stop automation_failed cascade, add 24h rolling window.
 Inspected: customer_delivery.py (_record_stuck), delivery_ledger.py (summary vs recent_counts), product_one_delivery.py (_customer_health + failed_count computation). Delivery ledger events on production for jiya-makeover.
 Problems Found: (1) _record_stuck logged `automation_failed` for ALL reasons including intentional gates (auto_delivery_off, sweep_auto_off, no_phone) — every hourly sweep piled up false failures. (2) failed_count used ALL-TIME automation_failures count — once failures accumulated, health score NEVER recovered even if root cause was fixed. (3) jiya-makeover health score permanently stuck at 29/100 (1 RED + 3 YELLOW).

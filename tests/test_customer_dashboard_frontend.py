@@ -58,6 +58,14 @@ def test_hero_blocks_present():
         assert re.search(r'class="[^"]*' + re.escape(c), SRC), f"{c} DOM block missing"
 
 
+def test_pending_approval_banner_is_wired_to_existing_approval_card():
+    assert 'id="approvalBanner"' in SRC
+    assert 'id="approvalBannerMsg"' in SRC
+    assert "function renderApprovalBanner" in SRC
+    assert "approval_banner" in SRC
+    assert "scrollToId('approvalCard')" in SRC
+
+
 # ---- Task 2: view engine ----
 def test_view_engine_present():
     assert "function showView" in SRC
@@ -129,10 +137,12 @@ def test_sidebar_wired_to_views():
 
 
 def test_mobile_nav_switches_views():
-    # mobile bottom nav switches views via the (now view-aware) scrollToId,
-    # reconfigured per fork by JS — must still exist and use scrollToId.
+    # Mobile bottom nav uses the view engine directly; More routes through the
+    # existing sheet and then showView().
     nav = re.search(r'<nav class="mobile-app-nav".*?</nav>', SRC, re.S)
-    assert nav and "scrollToId(" in nav.group(0)
+    assert nav and "showView('home')" in nav.group(0)
+    assert nav and "showView('leads')" in nav.group(0)
+    assert nav and "openMoreSheet()" in nav.group(0)
 
 
 # ---- Task 5: focused Home ----

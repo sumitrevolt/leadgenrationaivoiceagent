@@ -125,6 +125,31 @@ def test_send_text_happy_path(monkeypatch):
     monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
     res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("9876543210", "hello"))
     assert (res.get("messages") or [{}])[0].get("id") == "wamid.SELFHOST"
+    assert res.get("delivery_status") == "accepted"
+
+
+class _RecipientMissingClient(_FakeClient):
+    sends = 0
+
+    async def get(self, url, **k):
+        if "/contacts/check-exists" in url:
+            return _FakeResp({"numberExists": False}, content=b'{"numberExists":false}')
+        return await super().get(url, **k)
+
+    async def post(self, url, **k):
+        if "/api/sendText" in url:
+            self.sends += 1
+        return await super().post(url, **k)
+
+
+def test_unregistered_recipient_is_blocked_before_send(monkeypatch):
+    client = _RecipientMissingClient()
+    monkeypatch.setattr(wahost.httpx, "AsyncClient", lambda *a, **k: client)
+    monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("9876543210", "hello"))
+    assert res["error"] == "recipient_not_on_whatsapp"
+    assert res["status"] == "blocked"
+    assert client.sends == 0
 
 
 def test_chat_id_adds_india_cc():

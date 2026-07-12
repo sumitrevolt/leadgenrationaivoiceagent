@@ -32,3 +32,18 @@ def test_run_trainer_returns_dict(monkeypatch):
     assert isinstance(res, dict)
     # no transcripts in the test env → {"calls": 0}; otherwise a suggestions payload
     assert "calls" in res or "suggestions" in res
+
+
+def test_run_trainer_does_not_wait_for_blocking_telemetry(monkeypatch):
+    """A DB/telemetry stall must not turn the trainer into a 600s Celery task."""
+    import time
+
+    def _blocked(*_args, **_kwargs):
+        time.sleep(8)
+
+    monkeypatch.setattr(team, "log_event", _blocked)
+    started = time.monotonic()
+    res = asyncio.run(staff.run_trainer())
+    elapsed = time.monotonic() - started
+    assert isinstance(res, dict)
+    assert elapsed < 6.5

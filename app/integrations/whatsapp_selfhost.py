@@ -35,6 +35,7 @@ WAHA Core endpoints used (all free in Core):
 from __future__ import annotations
 
 import os
+from urllib.parse import urlencode
 from typing import Any
 
 import httpx
@@ -155,6 +156,44 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
         self.base_url = _base_url()
         self.session = _session()
 
+    async def _recipient_check(self, to_number: str) -> dict[str, Any]:
+        """Check recipient registration before WAHA accepts a send.
+
+        WAHA may return HTTP 201 before WhatsApp asynchronously rejects an
+        unregistered/restricted contact. An explicit ``numberExists=false`` is
+        therefore a hard block; older WAHA/fake responses without that field
+        stay backward-compatible and continue through the existing path.
+        """
+        digits = "".join(c for c in (to_number or "") if c.isdigit())
+        if len(digits) == 10:
+            digits = "91" + digits
+        elif digits.startswith("0"):
+            digits = "91" + digits[1:]
+        if not digits:
+            return {"known": True, "exists": False, "reason": "invalid_recipient"}
+        try:
+            query = urlencode({"phone": digits, "session": self.session})
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    f"{self.base_url}/api/contacts/check-exists?{query}",
+                    headers=_headers(),
+                    timeout=10.0,
+                )
+                if resp.status_code >= 400:
+                    return {"known": False, "reason": "check_http_error", "status": resp.status_code}
+                data = resp.json() if resp.content else {}
+                if not isinstance(data, dict) or "numberExists" not in data:
+                    return {"known": False, "reason": "check_shape_unknown"}
+                exists = bool(data.get("numberExists"))
+                return {
+                    "known": True,
+                    "exists": exists,
+                    "chat_id": str(data.get("chatId") or "").strip(),
+                }
+        except Exception as e:
+            logger.warning("waha recipient check failed: %s", e)
+            return {"known": False, "reason": "check_unreachable"}
+
     async def send_text_message(self, to_number: str, message: str) -> dict[str, Any]:
         """Send a plain text message via the self-hosted session. Never raises.
 
@@ -184,9 +223,14 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
                     )
                     _record_whatsapp_failure("wrong_linked_number")
                     return {"error": "wrong_linked_number", "linked": linked[-4:], "want": want[-4:]}
+        check = await self._recipient_check(to_number)
+        if check.get("known") and check.get("exists") is False:
+            reason = str(check.get("reason") or "recipient_not_on_whatsapp")
+            _record_whatsapp_failure(reason)
+            return {"error": "recipient_not_on_whatsapp", "status": "blocked", "reason": reason}
         payload = {
             "session": self.session,
-            "chatId": _chat_id(to_number),
+            "chatId": str(check.get("chat_id") or _chat_id(to_number)),
             "text": message or "",
         }
         return await self._post("/api/sendText", payload)
@@ -234,7 +278,12 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
                     mid = str(data.get("id") or (data.get("_data") or {}).get("id") or "")
                 logger.info("waha send ok (%s) id=%s", self.session, mid[:40])
                 _record_whatsapp_success()
-                return {"messages": [{"id": mid}] if mid else [], "raw": data}
+                return {
+                    "messages": [{"id": mid}] if mid else [],
+                    "raw": data,
+                    "accepted": True,
+                    "delivery_status": "accepted",
+                }
         except httpx.HTTPStatusError as e:
             body = ""
             try:

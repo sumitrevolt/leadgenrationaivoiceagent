@@ -19,9 +19,11 @@ Sab functions import-safe hain aur KABHI raise nahi karte — error pe
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import shutil
+import threading
 import time
 from typing import Any
 
@@ -74,6 +76,41 @@ BANNED: list[str] = [
 
 _TOO_LONG_WORDS = 35
 _SLOW_S = 9.0
+
+
+async def _log_trainer_event_bounded(
+    team: Any,
+    action: str,
+    detail: str,
+    *,
+    status: str = "ok",
+    meta: dict[str, Any] | None = None,
+) -> None:
+    """Telemetry must never hold the trainer job hostage.
+
+    ``team.log_event`` is intentionally sync for legacy callers, but it may
+    touch DB/Redis/Obsidian. Trainer analysis is still useful when telemetry
+    is degraded, so run the write off-loop and bound the caller's wait.
+    """
+    loop = asyncio.get_running_loop()
+    done = asyncio.Event()
+
+    def _write() -> None:
+        try:
+            team.log_event("meera", action, detail, status, meta)
+        finally:
+            try:
+                loop.call_soon_threadsafe(done.set)
+            except Exception:
+                pass
+
+    threading.Thread(target=_write, name="trainer-telemetry", daemon=True).start()
+    try:
+        await asyncio.wait_for(done.wait(), timeout=5.0)
+    except asyncio.TimeoutError:
+        logger.warning("[staff] trainer telemetry timed out; analysis preserved")
+    except Exception as e:
+        logger.debug("[staff] trainer telemetry skipped: %s", e)
 
 
 # --------------------------------------------------------------------------- #
@@ -277,8 +314,8 @@ async def run_trainer() -> dict[str, Any]:
         files = files[:2]
 
         if not files:
-            team.log_event(
-                "meera",
+            await _log_trainer_event_bounded(
+                team,
                 "training_analysis",
                 "koi call transcript nahi mila — analyse karne ko kuch nahi",
             )
@@ -410,8 +447,8 @@ async def run_trainer() -> dict[str, Any]:
             "files": [os.path.basename(p) for p in files],
             "suggestions": suggestions,
         }
-        team.log_event(
-            "meera",
+        await _log_trainer_event_bounded(
+            team,
             "training_analysis",
             f"{calls} calls analysed, {len(suggestions)} suggestions",
             meta=summary,
@@ -438,7 +475,9 @@ async def run_trainer() -> dict[str, Any]:
     except Exception as e:
         logger.warning(f"[staff] run_trainer failed: {e}")
         try:
-            team.log_event("meera", "training_analysis", f"trainer crash: {e}", status="error")
+            await _log_trainer_event_bounded(
+                team, "training_analysis", f"trainer crash: {e}", status="error"
+            )
         except Exception:
             pass
         _staff_job_failed("trainer", str(e))  # W1.14: fail metric + ntfy alert
