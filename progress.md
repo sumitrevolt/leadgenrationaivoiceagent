@@ -2,6 +2,18 @@
 
 ## Loop Run
 Date: 2026-07-12
+Goal: Set up the council-approved local OmniRoute + tmux development layer without changing production.
+Inspected: OmniRoute current quick-start/install surface, local Node/npm/WSL state, LeadGen dev-control and Celery architecture, and existing dirty-tree boundaries.
+Problems Found: WSL2 initially had no Linux distribution. After Ubuntu installation, the distro base Node package was v18 while OmniRoute requires a newer Node; Node 24 was installed with nvm. OmniRoute npm installation still hung/network-timed out and was stopped; no executable was claimed as installed. Worktree creation from `/mnt/c` exceeded the bounded window and produced no partial worktrees.
+Changed: Added `docs/OMNIROUTE_DEV_SETUP.md`, `scripts/omniroute-tmux.sh`, `scripts/omniroute-worktrees.sh`, `scripts/omniroute-check.ps1`, and `scripts/omniroute-benchmark.ps1`. The setup is local-only: three tmux lanes, loopback gateway, sanitized context, compression policy, benchmark gate, production boundary and rollback. No production `.env`, Docker Compose, `free_ai.py`, Celery configuration, customer data or VPS state changed.
+Tests Run: `git diff --check` PASS; `scripts/check_secrets.py` PASS; PowerShell parser PASS; Bash `-n` PASS. Ubuntu 24.04 WSL2 registered; tmux/git/curl and Node v24.18.0/npm v11.16.0 verified. OmniRoute install remains incomplete.
+Verification Evidence: `wsl.exe --list --verbose` reports Ubuntu-24.04, version 2, stopped. `command -v omniroute` returns no executable. `git worktree list` shows only the main worktree after the timed-out helper run.
+Risks: Do not put OmniRoute keys or `OMNIROUTE_*` variables in production. Do not use the three lanes on one writable tree. First-run Ubuntu setup remains a user/system action if the installer requires restart or elevation.
+Remaining: Complete OmniRoute npm installation or use its documented installation path, run `omniroute doctor`, then create three isolated worktrees from a Linux-native clone under `~/src` and run the sanitized benchmark. No production deploy is part of this setup.
+Next Highest Priority: Clone the repository into `~/src` inside WSL, run `bash scripts/omniroute-worktrees.sh`, then install/verify OmniRoute from that Linux-native path.
+
+## Loop Run
+Date: 2026-07-12
 Goal: Make active Rohan prospecting return qualified local businesses instead of IRCTC/helpline/infrastructure junk.
 Inspected: Live team status and worker logs, 9,947 production prospect records (read-only), `prospector.py`, Google Places New parser, OSM Overpass path, lead-harvester ingest gates, active-agent tests, and official Google/OSM API guidance.
 Problems Found: Live Rohan activity showed 16 Google Maps queries with 0 results. A configured key selected Google-only mode, so denied/empty Places responses never fell back to OSM. OSM urllib was synchronous inside an async job. Google records lacked business-status/place-type signals, and the prospect store/outreach path did not re-check historical junk rows; production read-only scan found 13 ready/needs-enrich records containing railway/airport/helpline/institutional title signals.
