@@ -473,6 +473,12 @@ async def system_summary(_user=Depends(require_admin)):
     except Exception:
         platform_dial_enabled = False
         platform_dial_limit = 0
+    try:
+        from app.platform import approval_notifier as _approval_notifier
+
+        approval_notify_health = _approval_notifier.get_health()
+    except Exception:
+        approval_notify_health = {"enabled": False, "error": True}
     vobiz_ok = bool(os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN"))
     flags = {
         "TELEPHONY_PROVIDER": provider,
@@ -519,6 +525,7 @@ async def system_summary(_user=Depends(require_admin)):
             "limit": platform_dial_limit,
             "hard_off": not platform_dial_enabled,
         },
+        "approval_notify": approval_notify_health,
         "vobiz_caller_id": os.environ.get("VOBIZ_CALLER_ID", "unset"),
         # Razorpay removed 2026-06-18 — manual UPI only; stub for JS compat.
         "razorpay": {"key_set": False, "live_key": False, "key_prefix": "removed"},

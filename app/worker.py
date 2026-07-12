@@ -535,6 +535,13 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=20),
         "args": ("product_one_health",),
     },
+    # Bounded pending-approval EMAIL sweep (single-flight). INERT unless
+    # APPROVAL_EMAIL_NOTIFY=1 — the job runs but the sweep no-ops when off.
+    "staff-approval-email-sweep-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=40),
+        "args": ("approval_email_sweep",),
+    },
     "staff-process-autostart-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=11, minute=30),  # 11:30 IST (timezone=Asia/Kolkata set in celery config)
