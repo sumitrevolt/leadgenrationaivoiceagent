@@ -465,6 +465,14 @@ async def system_summary(_user=Depends(require_admin)):
     last_campaign = _redis_get(_CAMPAIGN_KEY) or {"status": "never_run"}
 
     provider = (os.environ.get("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
+    try:
+        from app.platform import platform_dial as _platform_dial
+
+        platform_dial_enabled = bool(_platform_dial.enabled())
+        platform_dial_limit = int(_platform_dial.dial_limit())
+    except Exception:
+        platform_dial_enabled = False
+        platform_dial_limit = 0
     vobiz_ok = bool(os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN"))
     flags = {
         "TELEPHONY_PROVIDER": provider,
@@ -506,6 +514,11 @@ async def system_summary(_user=Depends(require_admin)):
             "ist_hour": ist_now.hour,
         },
         "telephony_provider": provider,
+        "platform_dial": {
+            "enabled": platform_dial_enabled,
+            "limit": platform_dial_limit,
+            "hard_off": not platform_dial_enabled,
+        },
         "vobiz_caller_id": os.environ.get("VOBIZ_CALLER_ID", "unset"),
         # Razorpay removed 2026-06-18 — manual UPI only; stub for JS compat.
         "razorpay": {"key_set": False, "live_key": False, "key_prefix": "removed"},
