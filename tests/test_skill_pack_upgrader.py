@@ -118,6 +118,25 @@ def test_skill_pack_flag_gate(monkeypatch):
     assert sp.enabled() is True
 
 
+def test_trainer_does_not_cold_start_skill_kb_by_default(monkeypatch):
+    """Daily trainer must not enter the multi-minute embedding ingest implicitly."""
+    import asyncio
+
+    from app.agents import staff
+    from app.platform import skill_pack, team_scheduler
+
+    monkeypatch.setenv("SKILL_PACK", "1")
+    monkeypatch.delenv("SKILL_PACK_KB_INGEST", raising=False)
+    monkeypatch.setattr(staff, "run_trainer", lambda: asyncio.sleep(0, result={"calls": 0}))
+    monkeypatch.setattr(
+        skill_pack,
+        "ingest_to_kb",
+        lambda: (_ for _ in ()).throw(AssertionError("implicit KB ingest")),
+    )
+
+    assert asyncio.run(team_scheduler._run_job_inner("trainer")) is True
+
+
 def test_upgrader_propose_and_status(tmp_path, monkeypatch):
     from app.agents import code_upgrader as cu
 
