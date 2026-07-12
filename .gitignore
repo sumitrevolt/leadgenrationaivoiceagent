@@ -14,6 +14,9 @@ monitoring/alertmanager_smtp_pass
 # Unity office loop — local verification/UAT evidence logs (docs/UNITY_VIRTUAL_OFFICE_UAT.md)
 uat_evidence/
 
+# Local tool directories
+.commandcode/
+
 # C extensions
 *.so
 
