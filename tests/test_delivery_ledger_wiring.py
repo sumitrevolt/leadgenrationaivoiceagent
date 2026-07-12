@@ -88,7 +88,8 @@ async def _async_zero():
     return 0
 
 
-def test_record_stuck_logs_automation_failed(monkeypatch, tmp_path):
+def test_record_stuck_logs_correct_event_type(monkeypatch, tmp_path):
+    """Gate reasons → delivery_gated; real failures → automation_failed."""
     from app.marketing import customer_delivery as cd
 
     monkeypatch.setattr(cd, "_STUCK_LOG", str(tmp_path / "stuck.jsonl"))
@@ -97,7 +98,13 @@ def test_record_stuck_logs_automation_failed(monkeypatch, tmp_path):
         "app.marketing.delivery_ledger.log_event",
         lambda client_id, event, **kw: events.append((client_id, event)),
     )
-    cd._record_stuck({"id": "c1", "business_name": "Test Biz", "phone": "9812345678"}, "no_phone")
+    client = {"id": "c1", "business_name": "Test Biz", "phone": "9812345678"}
+    # Gate reason → delivery_gated (NOT automation_failed)
+    cd._record_stuck(client, "no_phone")
+    assert ("c1", "delivery_gated") in events
+    # Real failure → automation_failed
+    events.clear()
+    cd._record_stuck(client, "send_failed")
     assert ("c1", "automation_failed") in events
 
 

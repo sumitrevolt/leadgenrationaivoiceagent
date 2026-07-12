@@ -146,6 +146,13 @@ def find_undelivered_paid_clients() -> list[dict[str, Any]]:
     return out
 
 
+# Reasons that mean "intentionally gated / data missing" — NOT a delivery failure.
+# These get logged as `delivery_gated` instead of `automation_failed` so they
+# don't count toward the RED health-score flag (-35 per occurrence). The stuck
+# record + ops_alerts + log WARNING are still emitted — fail-LOUD stays loud.
+_GATE_REASONS = frozenset({"auto_delivery_off", "sweep_auto_off", "no_phone"})
+
+
 def _record_stuck(client: dict[str, Any], reason: str) -> None:
     """Fail-LOUD: append a stuck-customer record (NOT a silent debug swallow) so a
     ghosted paying customer is always visible + alertable. Never raises."""
@@ -172,7 +179,10 @@ def _record_stuck(client: dict[str, Any], reason: str) -> None:
     try:
         from app.marketing import delivery_ledger
 
-        delivery_ledger.log_event(str(client.get("id") or ""), "automation_failed", detail=reason)
+        # Gate reasons → delivery_gated (no health-score penalty);
+        # real failures → automation_failed (RED flag, triggers SLA).
+        event_type = "delivery_gated" if reason in _GATE_REASONS else "automation_failed"
+        delivery_ledger.log_event(str(client.get("id") or ""), event_type, detail=reason)
     except Exception as le:  # pragma: no cover
         logger.debug("delivery _record_stuck ledger log skip: %s", le)
     # Fail-LOUD, for real: a jsonl line + a log WARNING is what let the original
