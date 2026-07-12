@@ -1,5 +1,17 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
- 
+
+## Loop Run
+Date: 2026-07-12
+Goal: Production cleanup — commit pending Unity work, delete all stale branches (local + remote), run gates, push, deploy.
+Inspected: Git state (28 local branches, 20+ remote branches, 5 stashes, 10 modified + 30+ untracked files from ADR-076 Unity scaffold, repo on recovery/loop27-loop28-20260711 not main).
+Problems Found: (1) Repo on recovery branch not main. (2) 27 stale local branches (claude/*, salvage/*, codex/*, feat/*, chore/*) accumulated from prior agent sessions. (3) 19 stale remote branches (dependabot/*, claude/*, feat/*, fix/*, flow-runner/*, etc). (4) 5 orphaned stashes. (5) Unity scaffold + go-live docs uncommitted. (6) .git/index.lock stale (removed). (7) API.md endpoint index out of date (non-blocking).
+Changed: Switched to main. Committed 53 files (Unity scaffold + go-live docs + scripts, all INERT flags OFF) as `5d764f8`. Deleted 27 local branches + 19 remote branches. Cleared 5 stashes. Pruned remote refs. Repo now: single branch `main`, zero stashes, clean working tree.
+Tests Run: `prod_check.py` ALL CHECKS PASSED (1099 routes, 1248 source files, 47 pages 0 gaps). `check_secrets.py` clean. `pytest tests/test_billing_truth_2026.py tests/test_office_blueprint_shell.py` — 36/36 passed.
+Verification Evidence: Push `7fac935..5d764f8 main -> main`. VPS git pull --ff-only `e7e34d2..5d764f8`. Docker build 27s. Container recreated. `/health` = `{"environment":"production","uptime":"0h 0m 20s"}` (localhost) + `{"environment":"production","uptime":"0h 1m 10s"}` (HTTPS leadsgenai.in). `docker ps` = `Up 40 seconds (healthy)`, restarts=0. `git branch -a` = `* main` + `remotes/origin/main` only.
+Risks: API.md out of date (run `scripts/sync_api_docs.py`). `.commandcode/` untracked local tool dir (harmless).
+Remaining: API.md sync. User-action blockers unchanged (Unity install, WAHA QR, DKIM, DLT, credential rotation).
+Next Highest Priority: API.md endpoint index refresh → then GTM sprint (Hot Queue / dialer for mid-funnel conversion).
+
 ## Loop Run
 Date: 2026-07-12
 Goal: Unity Blueprint Virtual Office master loop — reuse existing Blueprint Explorer/Command Center/Office/Map, deliver architecture + INERT web shell + Unity scaffold + tests (Milestones A-C of Phase-27 plan).
