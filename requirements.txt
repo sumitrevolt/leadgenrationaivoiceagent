@@ -120,7 +120,7 @@ psutil>=5.9.0
 # GCP Production
 # =============================================================================
 google-cloud-secret-manager>=2.18.0
-google-cloud-storage>=2.14.0
+google-cloud-storage>=3.13.0
 google-cloud-logging>=3.9.0
 # S3-compatible storage (MinIO addon ΓÇö app/storage/minio_client.py). Import-safe:
 # missing => local-disk fallback. Needed only if docker-compose.addons.yml minio used.
