@@ -10,7 +10,7 @@
 # Testing
 # =============================================================================
 pytest==7.4.4
-pytest-asyncio==0.23.4
+pytest-asyncio==1.4.0
 pytest-cov==4.1.0
 pytest-mock==3.15.1
 pytest-xdist==3.8.0  # Parallel test execution
