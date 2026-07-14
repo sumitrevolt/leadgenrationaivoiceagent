@@ -13,6 +13,7 @@ jobs must still run; scheduler_loop runs the whole tick under one try).
 from __future__ import annotations
 
 import asyncio
+import inspect
 
 
 def _run(coro):
@@ -58,3 +59,26 @@ def test_run_job_inner_returns_false_on_failure(monkeypatch):
     monkeypatch.setattr(ge, "pulse", _boom)
     res = _run(ts._run_job_inner("growth"))
     assert res is False, "_run_job_inner must return False when its outer except catches"
+
+
+def test_watchdog_wires_bounded_due_job_recovery(monkeypatch):
+    """A scheduler restart must recover safe overdue work, not merely alert.
+
+    ``run_due`` owns the side-effect exclusions (emails, digest, platform dial),
+    so this guard pins the watchdog call-site and the bounded dispatch cap.
+    """
+    import app.platform.scheduler_config as sc
+    import app.platform.team_scheduler as ts
+
+    calls: list[int] = []
+    monkeypatch.setattr(sc, "run_due", lambda *, max_jobs: calls.append(max_jobs) or {"ok": True})
+
+    assert ts._recover_due_jobs()["ok"] is True
+    assert calls == [3]
+    assert "_recover_due_jobs()" in inspect.getsource(ts._run_job_inner)
+
+    def _boom(*, max_jobs):
+        raise RuntimeError("redis unavailable")
+
+    monkeypatch.setattr(sc, "run_due", _boom)
+    assert ts._recover_due_jobs() == {"ok": False, "error": "RuntimeError"}
