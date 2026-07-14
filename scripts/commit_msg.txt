@@ -1,37 +1,27 @@
-feat(deploy): canonical deploy_vps.sh — make unversioned/skewed deploys impossible
+fix(deploy): image retention — every deploy added ~7GB with no cleanup
 
-Both production faults found in today's audit came out of the hand-typed deploy
-runbook, not out of application code:
+Live finding: the VPS root disk was at 92% (178G/193G, 16G free). Each app image
+is ~7.04GB and NOTHING ever reclaimed old ones, so the box was roughly two
+deploys away from a disk-full outage that would take Postgres and Docker down
+together. Twelve app image tags were resident; six were built today.
 
-  1. APP_VERSION forgotten -> compose fell back to ${APP_VERSION:-latest} -> prod
-     ran an image whose provenance nobody could establish (/health: "latest").
-  2. Only `app worker scheduler` were recreated -> worker_heavy/worker_video sat
-     on an older :latest for DAYS = live version skew across containers sharing
-     one image tag.
+A one-off reclaim (unused build cache + old app tags, keeping current+rollback,
+never `rmi -f`) took the disk 92% -> 61% (178G -> 118G used, 16G -> 76G free)
+with prod healthy throughout and images 40 -> 31.
 
-ADR-097's startup guard catches (1) at RUNTIME. This catches both at DEPLOY time,
-which is cheaper and earlier.
+This closes the cause rather than the symptom: deploy_vps.sh now runs retention
+AFTER a fully verified deploy (never before — a failed deploy must not also
+delete rollback targets):
+  - keeps the newest KEEP_IMAGES (default 3) app tags = current + rollbacks,
+  - never deletes the tag it just deployed,
+  - uses `docker rmi` WITHOUT -f, so docker itself refuses to remove any image a
+    container still references,
+  - `docker image prune -f` for untagged leftovers only; never touches volumes,
+    containers, or data (no `-a`, no `system prune`),
+  - prints resulting disk usage so the deploy log carries the evidence.
 
-scripts/deploy_vps.sh is now the canonical deploy:
-  - refuses to deploy with a provenance-less tag (''/latest/dev/1.0.0), so the
-    compose :-latest fallback can never silently decide the tag,
-  - deploys ALL 5 app-image services (app worker scheduler worker-heavy
-    worker-video) so skew cannot be reintroduced by omission,
-  - verifies /health.version == the sha it just deployed and exits non-zero if
-    not — a deploy that did not take effect can no longer be reported as success,
-  - verifies per-container APP_VERSION (explicit skew gate),
-  - smoke-tests revenue/auth paths + reports queues/DLQ,
-  - DRY_RUN=1 prints the plan and changes nothing.
+Build cache is deliberately left in place (~56GB, 48.89GB reclaimable via
+`docker builder prune -af`): at 61% we have headroom, and the cache is what keeps
+rebuilds fast. Reclaim it manually if disk climbs again.
 
-Landmines encoded deliberately (do not "simplify" away): set -o pipefail (a piped
-build otherwise masks a non-zero exit); build log to /tmp (verbose output over the
-SSH tunnel kills the session); worker-heavy/worker-video are HYPHENATED compose
-service names (a wrong name aborts the whole `up`); run detached so a dropped
-tunnel cannot SIGHUP-kill the build.
-
-Build failure restarts NOTHING (prod untouched).
-
-CLAUDE.md/AGENTS.md section 3 now points at the script instead of hand-typed
-docker commands.
-
-No app code touched. Verified by using this script to deploy itself.
+No app code touched.
