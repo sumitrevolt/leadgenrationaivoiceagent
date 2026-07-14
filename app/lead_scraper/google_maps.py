@@ -16,6 +16,10 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+class PlacesQuotaExhausted(Exception):
+    """Places API quota throttle hua; fallback paths run nahi karne hain."""
+
+
 @dataclass
 class BusinessLead:
     """Scraped business lead data"""
@@ -69,10 +73,22 @@ class GoogleMapsScraper:
         logger.info(f"Searching: '{query}' in '{location}'")
 
         if self.api_key:
+            try:
+                from app.platform.integration_health import places_quota_cooldown_remaining
+
+                remaining = places_quota_cooldown_remaining()
+            except Exception:
+                remaining = 0
+            if remaining:
+                logger.warning("Places quota cooldown active (%ss); search skipped", remaining)
+                return []
             # Places API (New) pehle — legacy textsearch ab REQUEST_DENIED deta hai
             # (Google ne naye projects pe legacy band kar di). New fail ho to
             # legacy try, phir scraping.
-            leads = await self._search_with_places_new(query, location, max_results)
+            try:
+                leads = await self._search_with_places_new(query, location, max_results)
+            except PlacesQuotaExhausted:
+                return []
             if leads:
                 return leads
             try:
@@ -103,6 +119,7 @@ class GoogleMapsScraper:
             "X-Goog-FieldMask": field_mask,
         }
         leads: list[BusinessLead] = []
+        had_successful_response = False
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 page_token = None
@@ -126,7 +143,16 @@ class GoogleMapsScraper:
                             record_failure("places", f"http_{resp.status_code}")
                         except Exception:
                             pass
+                        if resp.status_code == 429:
+                            try:
+                                from app.platform.integration_health import start_places_quota_cooldown
+
+                                start_places_quota_cooldown()
+                            except Exception:
+                                pass
+                            raise PlacesQuotaExhausted("Places API quota exhausted")
                         break
+                    had_successful_response = True
                     data = resp.json()
                     places = data.get("places", []) or []
                     for p in places:
@@ -162,6 +188,8 @@ class GoogleMapsScraper:
                     if not page_token:
                         break
                     await asyncio.sleep(2)  # token activation delay
+        except PlacesQuotaExhausted:
+            raise
         except Exception as e:
             logger.warning(f"Places(New) search failed: {e}")
             try:
@@ -171,12 +199,13 @@ class GoogleMapsScraper:
             except Exception:
                 pass
             return []
-        try:
-            from app.platform.integration_health import record_success
+        if had_successful_response:
+            try:
+                from app.platform.integration_health import record_success
 
-            record_success("places")
-        except Exception:
-            pass
+                record_success("places")
+            except Exception:
+                pass
         logger.info(f"Found {len(leads)} businesses via Places API (New)")
         return leads[:max_results]
 
