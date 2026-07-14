@@ -116,4 +116,6 @@ def test_signup_returns_409_on_race_claimed_email(client, monkeypatch):
         },
     )
     assert r.status_code == 409
-    assert "already registered" in (r.json().get("detail") or "").lower()
+    body = r.json()
+    message = body.get("detail") or (body.get("error") or {}).get("message") or ""
+    assert "already registered" in message.lower()

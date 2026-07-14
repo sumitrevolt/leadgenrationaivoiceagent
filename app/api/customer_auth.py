@@ -283,6 +283,27 @@ def client_has_login(client_id: str) -> bool:
         return False
 
 
+def client_login_email(client_id: str) -> str | None:
+    """Exact-client customer portal email, normalized; never raises.
+
+    This is first-party contact data created by admin onboarding or the
+    customer's own signup. Password hashes and any other auth fields never
+    leave this module.
+    """
+    cid = str(client_id or "").strip()
+    if not cid:
+        return None
+    try:
+        for row in _read():
+            if str(row.get("client_id") or "").strip() != cid:
+                continue
+            email = str(row.get("email") or "").strip().lower()
+            return email or None
+    except Exception:
+        pass
+    return None
+
+
 class SetPwIn(BaseModel):
     email: str = Field(..., min_length=3, max_length=200)
     password: str = Field(..., min_length=6, max_length=128)
