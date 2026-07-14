@@ -296,6 +296,20 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
     if not enabled():
         return {"ran": False, "reason": "SOCIAL_ENGINE off"}
     published = retried = dead = skipped = 0
+    # A dry-run drain marks jobs `published` on purpose (canary: verify
+    # queue→ledger→timeline→cockpit without a live post). The failure mode is
+    # that it is INDISTINGUISHABLE from real publishing: the 2026-07-11 canary
+    # gate sat on for 3 days, the cockpit showed 6 self-brand posts "published",
+    # and NOTHING ever reached social. Nobody noticed because nothing said so.
+    # Same fix as ADR-097: make the silent state LOUD, every drain. The returned
+    # dict also carries `dry_run` so callers/UI can badge it instead of guessing.
+    dry = _dry_run_enabled()
+    if dry:
+        logger.warning(
+            "🧪 SOCIAL DRY-RUN ACTIVE — jobs will be marked `published` but NOTHING "
+            "is posted to any provider. Turn off with SOCIAL_DRY_RUN=0 or "
+            'data/social_engine.json {"dry_run": false}.'
+        )
     try:
         jobs = store.claim_pending(limit)
         # Loop-social-8 (2026-07-11): Phase 8 pause + emergency-stop gates —
@@ -390,7 +404,10 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
             except Exception:
                 pass
         return {"ran": True, "claimed": len(jobs), "published": published,
-                "retried": retried, "dead": dead, "skipped": skipped}
+                "retried": retried, "dead": dead, "skipped": skipped,
+                # `published` above counts FABRICATED results when dry_run is on.
+                # Surface it so no caller/dashboard can read this as real posting.
+                "dry_run": dry}
     except Exception as e:
         logger.warning(f"[engine] process_queue failed: {e}")
         return {"ran": False, "reason": str(e)[:150]}
