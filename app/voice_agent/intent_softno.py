@@ -7,7 +7,7 @@ hain", "baad me", "abhi nahi"). Ek pushy bot ise "maybe" samajh ke push karta
 raha to woh rude lagta + trust-tod deta. Rule (Haptik/Gong India research):
 
   * 1st soft-no  → ONE value-anchored re-ask allowed (normal reply chalti rahe).
-  * 2nd soft-no  → push BAND. Graceful exit + async option (WhatsApp pe detail).
+  * 2nd soft-no  → push BAND. Graceful exit, with no new offer or channel CTA.
 
 Yeh module = PURE POLICY (no LLM, no network, never raises). Detection
 `qa_checks.is_soft_no` se reuse hota hai (single source of truth). Stateless:
@@ -30,14 +30,11 @@ except Exception:  # pragma: no cover - keep import-safe
         return False
 
 
-# Graceful de-escalation closers — warm, non-pushy, async-exit (WhatsApp/website).
+# Graceful de-escalation closers — warm, non-pushy, and CTA-free after strike two.
 DEESCALATION_TEMPLATES = [
-    "Bilkul ji, koi baat nahi. Chhoti jaankari WhatsApp par chhod deti hoon; "
-    "fursat mein dekh lijiyega.",
-    "Koi baat nahi ji, zabardasti nahi karungi. Zarurat ho to leadsgenai dot in "
-    "par mil jayenge.",
-    "Theek hai ji, aapka samay keemti hai. Detail WhatsApp par chhod deti hoon. "
-    "Shubh din!",
+    "Bilkul ji, koi baat nahi. Main yahin rukti hoon. Aapka din shubh ho.",
+    "Koi baat nahi ji, zabardasti nahi karungi. Samay dene ke liye dhanyavaad.",
+    "Theek hai ji, samajh gayi. Main aur disturb nahi karungi. Shubh din!",
 ]
 
 # Hard rule appended to the brain's system prompt (guides the LLM on edge cases).
@@ -45,7 +42,7 @@ SYSTEM_RULE = (
     "\n\nPOLITE-NO RULE (India-critical): Customer 'dekhte hain / baad me / abhi nahi / "
     "zarurat nahi / time nahi' jaisa SOFT refusal de to — pehli baar ek hi short, "
     "value-anchored re-ask karo; DOOSRI baar refusal aaye to push BILKUL band karo, "
-    "warmly samajhte hue gracefully exit karo (WhatsApp/website pe detail chhod do). "
+    "warmly samajhte hue gracefully exit karo; koi naya offer, sawaal ya channel CTA mat do. "
     "2 baar polite 'na' ke baad dobara pitch = rude + trust-tod, KABHI mat karo."
 )
 

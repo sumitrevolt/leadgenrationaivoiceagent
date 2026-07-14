@@ -61,8 +61,8 @@ def _strict_model(base_url: str) -> str | None:
     """Pick a STRICT-capable free model for native ``json_schema`` mode.
 
     Server-enforced ``response_format={'type':'json_schema', strict:true}`` only
-    works on models that honour the JSON-Schema grammar. ``gpt-oss-120b`` ignores
-    ``strict`` (per project notes), so it is deliberately NOT used here.
+    works on models that honour the JSON-Schema grammar. Cerebras documents
+    ``gpt-oss-120b`` as its production model with native strict JSON Schema.
 
     Returns a model id, or ``None`` when the provider has no strict-capable model
     (caller then skips straight to the existing ``Mode.JSON`` path).
@@ -70,8 +70,10 @@ def _strict_model(base_url: str) -> str | None:
     try:
         bu = (base_url or "").lower()
         if "cerebras" in bu:
-            # Cerebras strict-capable free model.
-            return os.getenv("STRUCTURED_STRICT_MODEL", "qwen-3-32b")
+            # qwen-3-32b was retired from the public endpoint. Ignore that stale
+            # historical override so old deployments do not hard-404 forever.
+            configured = os.getenv("STRUCTURED_STRICT_MODEL", "gpt-oss-120b").strip()
+            return "gpt-oss-120b" if configured == "qwen-3-32b" else configured
         if "groq" in bu:
             # Groq strict-capable free model.
             return os.getenv("STRUCTURED_STRICT_MODEL", "llama-3.3-70b-versatile")

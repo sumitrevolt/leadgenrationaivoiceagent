@@ -10,7 +10,7 @@ peeche (LLM) FREE, OpenAI-compatible providers ka chain lagata hai taaki quota
 khatam hone par bhi agent sunta + bolta rahe:
 
   STT chain (vobiz_stream._stt me): Groq whisper-large-v3 → Gemini audio → local faster-whisper
-  LLM chain (yahan chat() me):      Cerebras llama-3.3-70b → Groq llama-3.3-70b → OpenRouter deepseek:free
+  LLM chain (yahan chat() me):      Groq llama-3.1-8b → Cerebras gpt-oss-120b → Mistral/OpenRouter fallbacks
 
 Groq, Cerebras, OpenRouter — teeno OpenAI-compatible hain (sirf base_url + api_key
 badalta hai, wahi `openai` SDK seedha chalta hai). Keys env se:
@@ -144,7 +144,6 @@ _NVIDIA_LLM_MODEL = "meta/llama-3.3-70b-instruct"  # NVIDIA NIM free — quality
 # fallback dete. Widely-known FREE ids — galat/404 id ko breaker graceful sideline karta.
 _GROQ_QWEN3_MODEL = "qwen/qwen3-32b"  # Groq free Qwen3-32B (strong multilingual)
 _GROQ_LLAMA70B_MODEL = "llama-3.3-70b-versatile"  # Groq free Llama-3.3-70B (high quality)
-_CEREBRAS_QWEN3_MODEL = "qwen-3-32b"  # Cerebras free Qwen3-32B
 _GROQ_KIMI_K2_MODEL = "moonshotai/kimi-k2-instruct"  # Groq free Kimi K2 (strong multilingual)
 # OpenRouter free models — cascade (deepseek/deepseek-chat:free deprecated 2026-06 → 404;
 # 2026-07-05: llama-3.1-8b-instruct:free / deepseek-r1:free / gemma-2-9b-it:free ALL
@@ -627,7 +626,6 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     chain += [
         ("groq", _GROQ_LLAMA70B_MODEL),
         ("groq", _GROQ_QWEN3_MODEL),
-        ("cerebras", _CEREBRAS_QWEN3_MODEL),
         ("groq", _GROQ_KIMI_K2_MODEL),
     ]
     

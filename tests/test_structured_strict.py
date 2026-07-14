@@ -107,9 +107,9 @@ def test_strict_success_no_json_attempt(monkeypatch):
     assert out is rec.return_value
     modes = [m for (m, _model) in rec.attempts]
     assert modes == ["JSON_SCHEMA"]
-    # strict-capable model used, NOT gpt-oss-120b
+    # Cerebras' current production model supports native strict JSON Schema.
     strict_model = rec.attempts[0][1]
-    assert "gpt-oss" not in strict_model
+    assert strict_model == "gpt-oss-120b"
 
 
 def test_no_json_schema_mode_skips_strict(monkeypatch):
@@ -147,12 +147,17 @@ def test_no_provider_returns_none(monkeypatch):
 
 
 def test_strict_model_selection():
-    """_strict_model picks strict-capable model per provider, never gpt-oss."""
+    """_strict_model uses currently supported strict-capable provider models."""
     cb = S._strict_model("https://api.cerebras.ai/v1")
     gq = S._strict_model("https://api.groq.com/openai/v1")
-    assert cb and "gpt-oss" not in cb
+    assert cb == "gpt-oss-120b"
     assert gq and "gpt-oss" not in gq
     assert S._strict_model("https://example.com/v1") is None
+
+
+def test_retired_cerebras_override_falls_back_to_supported_model(monkeypatch):
+    monkeypatch.setenv("STRUCTURED_STRICT_MODEL", "qwen-3-32b")
+    assert S._strict_model("https://api.cerebras.ai/v1") == "gpt-oss-120b"
 
 
 def test_groq_provider_strict_order(monkeypatch):

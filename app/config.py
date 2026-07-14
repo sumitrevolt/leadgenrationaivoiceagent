@@ -39,9 +39,9 @@ class Settings(BaseSettings):
     # Groq (free, fast) — Whisper-large-v3 STT + LLM (OpenAI-compatible REST).
     # Primary STT when set; LLM fallback when Gemini quota is exhausted.
     groq_api_key: str = ""
-    # Cerebras (free, fastest llama-3.3-70b) + OpenRouter (free deepseek) —
+    # Cerebras (free, production gpt-oss-120b) + OpenRouter free fallbacks —
     # OpenAI-compatible LLM fallbacks in the free_ai chain. Both OPTIONAL.
-    cerebras_api_key: str = ""  # cloud.cerebras.ai — llama-3.3-70b
+    cerebras_api_key: str = ""  # cloud.cerebras.ai — gpt-oss-120b
     openrouter_api_key: str = ""  # openrouter.ai key 1 — deepseek/deepseek-chat:free
     openrouter_api_key_2: str = ""  # key 2 (rotation — 4x rate-limit headroom)
     openrouter_api_key_3: str = ""  # key 3

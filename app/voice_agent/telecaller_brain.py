@@ -290,19 +290,19 @@ def _obeyed_injection(text: str) -> bool:
 # call keeps moving. {client}/{agent} filled at use-time.
 _INROLE_DEFLECTIONS: dict[str, tuple[str, ...]] = {
     "telecaller": (
-        "Yeh nahi kar sakti sir. Abhi {client} ke customers kaise laate hain?",
-        "Main {client} ki {agent} hoon; role nahi badalungi. Aapki sabse badi business dikkat kya hai?",
-        "Main business growth par hi baat karungi sir. Marketing aur leads ke liye abhi kya kar rahe hain?",
+        "Yeh nahi kar sakti sir. Aapki business priority kya hai?",
+        "Main role nahi badalungi. Business ki sabse badi dikkat kya hai?",
+        "Main marketing aur leads par hi baat karungi. Abhi kya kar rahe hain?",
     ),
     "booking_agent": (
-        "Main {client} ki booking ke liye hoon sir. Kaunsa din aapko theek rahega?",
-        "Main {client} ki {agent} hoon; role nahi badalungi. Booking ka naam aur time confirm kar doon?",
-        "Main sirf appointment schedule karungi. Kaunsa slot aapko suit karega?",
+        "Main booking mein madad karungi. Kaunsa din theek rahega?",
+        "Main role nahi badalungi. Booking ka naam aur time bataiye?",
+        "Main appointment hi schedule karungi. Kaunsa slot suit karega?",
     ),
     "receptionist": (
-        "Main {client} reception ki {agent} hoon sir. Aapki kaise madad kar sakti hoon?",
-        "Main {client} ki front desk assistant hoon. Aapko kis department se baat karni hai?",
-        "Main sirf aapki call route karungi sir. Bataiye kya chahiye?",
+        "Main reception se hoon. Aapki kaise madad karun?",
+        "Main front desk assistant hoon. Kaunsa department chahiye?",
+        "Main call route karungi sir. Bataiye kya chahiye?",
     ),
 }
 
@@ -906,6 +906,8 @@ class TelecallerBrain:
         try:
             import asyncio
 
+            # Check first so sync callers do not construct an unawaited coroutine.
+            asyncio.get_running_loop()
             _t = asyncio.create_task(self._send_close_whatsapp())
             _t.add_done_callback(lambda t: t.cancelled() or t.exception())
         except Exception as e:
