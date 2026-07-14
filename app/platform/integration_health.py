@@ -29,6 +29,7 @@ _PREFIX = "integ"
 _BUCKET_TTL_S = 26 * 3600
 _DEDUPE_TTL_S = 6 * 3600
 DEFAULT_ALERT_N = 5
+DEFAULT_PLACES_QUOTA_COOLDOWN_S = 24 * 3600
 
 # Known integration names (free-form bhi chalta — yeh sirf docs/UI ordering)
 KNOWN = (
@@ -116,6 +117,29 @@ def record_success(integration: str) -> None:
         k = _hour_key(kind="ok")
         r.hincrby(k, (integration or "?")[:30], 1)
         r.expire(k, _BUCKET_TTL_S)
+    except Exception:
+        pass
+
+
+def places_quota_cooldown_remaining() -> int:
+    """Shared Places quota cooldown ka bacha hua time seconds me do."""
+    try:
+        ttl = int(_redis().ttl(f"{_PREFIX}:cooldown:places"))
+        return max(0, ttl)
+    except Exception:
+        return 0
+
+
+def start_places_quota_cooldown(seconds: int | None = None) -> None:
+    """Places 429 ke baad cross-worker retry storm rok do. Never raises."""
+    try:
+        configured = int(os.environ.get("PLACES_QUOTA_COOLDOWN_S", DEFAULT_PLACES_QUOTA_COOLDOWN_S))
+    except Exception:
+        configured = DEFAULT_PLACES_QUOTA_COOLDOWN_S
+    ttl = seconds if seconds is not None else configured
+    ttl = max(300, min(int(ttl), 24 * 3600))
+    try:
+        _redis().setex(f"{_PREFIX}:cooldown:places", ttl, "quota_exhausted")
     except Exception:
         pass
 
