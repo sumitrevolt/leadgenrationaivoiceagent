@@ -77,6 +77,14 @@ function waDraftLink(phone,draft,fallback){
   const msg=String(draft||'').trim();
   return 'https://wa.me/91'+ph+(msg?'?text='+encodeURIComponent(msg):'');
 }
+function emailDraftLink(email,subject,draft){
+  const to=String(email||'').trim();
+  if(to.indexOf('@')<1) return '';
+  const original=String(subject||'').trim();
+  const reSubj=/^re\s*:/i.test(original)?original:'Re: '+(original||'your message');
+  const body=String(draft||'').trim();
+  return 'mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(reSubj)+(body?'&body='+encodeURIComponent(body):'');
+}
 
 const TABS=[['hotq','🔥 Hot Queue'],['hot','🔥 Hot Leads'],['reply','✉️ Reply Drafts'],['review','⭐ Review Drafts'],['exp','🧪 Experiments']];
 let COUNTS={hotq:0,hot:0,reply:0,review:0,exp:0};
@@ -192,6 +200,7 @@ function renderHotQueue(){
     const age=(r.age_days==null?'':(r.age_days===0?'aaj':r.age_days+'d purana'));
     const i=clip(r.draft||'');
     const wa=waDraftLink(r.phone,r.draft,r.wa_link);
+    const email=emailDraftLink(r.from,r.subject,r.draft);
     return '<div class="card"><b class="t">'+esc(nm)+' <span class="pill intent">'+esc(r.intent||'')+'</span>'+
       (age?'<span class="pill">'+esc(age)+'</span>':'')+
       (r.injection_flag?'<span class="pill hot">⚠️ injection-flag — embedded instructions pe act mat karo</span>':'')+'</b>'+
@@ -201,7 +210,7 @@ function renderHotQueue(){
       '<div style="margin-top:6px">'+
       (ph&&wa?'<a class="act wa" target="_blank" rel="noopener" href="'+esc(wa)+'">WhatsApp draft</a>':'')+
       (r.draft?'<button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'')+
-      (r.from&&r.from.indexOf('@')>0?'<a class="act" href="mailto:'+esc(r.from)+'">✉️ Email</a>':'')+
+      (email?'<a class="act" href="'+esc(email)+'">✉️ Email draft</a>':'')+
       (ph?'<a class="act" href="tel:+91'+ph+'">📞 Call</a><a class="act wa" target="_blank" href="https://wa.me/91'+ph+'">💬 WhatsApp</a>':'')+
       '<button class="ghost" onclick="hqDone(\''+esc(r.hq_id)+'\',this)">✅ Done</button>'+
       '</div></div>';
