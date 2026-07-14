@@ -147,9 +147,10 @@ def test_automation_health_suppresses_future_scheduled_never_ran(tmp_path, monke
 
 def test_flags_registry_route():
     from app.api.growth import AUTOMATION_FLAGS, router
+    from app.utils.route_inspection import iter_effective_routes
 
     assert "DUNNING_ENGINE" in AUTOMATION_FLAGS and "GROWTH_OPTIMIZER" in AUTOMATION_FLAGS
-    paths = {r.path for r in router.routes}
+    paths = {getattr(r, "path", "") for r in iter_effective_routes(router.routes)}
     for p in (
         "/growth/infra/llm",
         "/growth/infra/automation-health",

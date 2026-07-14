@@ -416,7 +416,13 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
     if action == "harvest_leads":
         from app.platform import lead_harvester
 
-        res = await lead_harvester.run_harvest()
+        # `scrape_leads` already owns niche_prospector. Nesting that same
+        # multi-city workflow here repeatedly exhausted this iteration's 240s
+        # budget during Places cooldown. Keep harvest complementary and bounded.
+        res = await lead_harvester.run_harvest(
+            limit=4,
+            sources=["osm", "websearch", "opendata"],
+        )
         return {
             "ok": bool(res.get("ok")),
             "detail": f"+{res.get('new_leads', 0)} leads (dedup {res.get('deduped', 0)}, enrich {((res.get('enrich') or {}).get('found', 0))})",
