@@ -100,7 +100,7 @@ def _log_startup_banner():
     logger.info("   └── Tier 2: Unka AI marketing + (Advanced) voice-agent inquiry callbacks")
     logger.info("")
     logger.info("⚙️  CONFIGURATION:")
-    logger.info("   ├── Telephony: {settings.default_telephony}")
+    logger.info(f"   ├── Telephony: {settings.default_telephony}")
     logger.info(f"   ├── LLM: {settings.default_llm}")
     logger.info(f"   ├── STT: {settings.default_stt}")
     logger.info(f"   ├── TTS: {settings.default_tts}")
@@ -121,7 +121,8 @@ def _log_startup_banner():
         except Exception:
             pass
     else:
-        logger.info(f"   ├── Google Maps: KEY={_gmaps_key[:8]}... (prospecting enabled)")
+        # Capability status is operationally useful; secret fingerprints are not.
+        logger.info("   ├── Google Maps: CONFIGURED (prospecting enabled)")
     logger.info("")
     logger.info(f"🚀 AUTO-START: {'ENABLED' if settings.auto_start_platform else 'DISABLED'}")
     logger.info("🧠 ML TRAINING: Nightly at 2:00 AM, Weekly on Sunday")
