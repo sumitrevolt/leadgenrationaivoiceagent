@@ -3,12 +3,19 @@
 Marketing product (/api/marketing/*) se separate handling:
   - GET  /api/voice/packages        PUBLIC — /voice-agent page pricing fetch (band/niche resolved)
   - GET  /api/voice/niches          PUBLIC — voice-product niches (category leadgen/both)
-  - GET  /api/voice/quota           admin  — client ka qualified-lead quota status
+  - GET  /api/voice/quota           admin  — client ka lead quota status (flat plans = unlimited)
   - POST /api/voice/record-lead     admin  — manual qualified-lead record (dispute-fix/override)
-  - POST /api/voice/topup-link      admin  — 10-lead pack price (manual UPI collect)
+  - POST /api/voice/topup-link      admin  — RETIRED, band ka flat monthly fee batata hai
 
-Pricing model: per-NICHE per-10-qualified-leads (voice_packages.py) — PER-LEAD system removed.
+Pricing model: **FLAT MONTHLY per niche-band** (voice_packages.py = single source):
+Band A ₹4,999 / B ₹9,999 / C ₹19,999 per month, unlimited AI calls, koi lead-counting
+nahi. Purana per-10-qualified-leads / per-lead top-up system 2026-06-12 ko retire hua.
 Sab handlers defensive (kabhi 500 nahi on data issues), public endpoints rate-limited.
+
+⚠️ 2026-07-14: is module ne 7 din prod me 500 diya kyunki ye retired
+`lead_topup_price()` import kar raha tha. Pricing helper hatate waqt uske SAARE
+callers grep karo — module-level nahi, function-level import tha isliye startup pe
+nahi phata, sirf request pe. Contract: `tests/test_voice_product_contract.py`.
 """
 
 from __future__ import annotations
@@ -43,21 +50,30 @@ async def voice_packages(band: str | None = None, niche: str | None = None):
 
 @router.get("/niches", dependencies=[Depends(rate_limit("voice_niches", 30, 60))])
 async def voice_niches():
-    """Voice product ke niches (marketing product se ALAG set) + band/pricing info."""
-    from app.marketing.voice_packages import BANDS, lead_topup_price
+    """Voice product ke niches (marketing product se ALAG set) + band/pricing info.
+
+    PRICING NOTE (2026-07-14): pehle yahan `lead_topup_price(band)` se
+    `topup_pack_inr` nikalta tha. Wo function 2026-06-12 ke flat per-band pricing
+    switch me retire ho gaya ("Koi lead-counting nahi" — voice_packages.py), par
+    import yahan reh gaya -> har request pe ImportError -> **7 din tak prod 500**.
+    Ab band ka FLAT monthly price hi truth hai (§5: voice_packages = single source).
+    """
+    from app.marketing.voice_packages import BANDS, normalize_band
     from app.niches import niches_for_product
 
     out = []
     for key, cfg in niches_for_product("voice").items():
-        band = str(cfg.get("lead_band") or "A").upper()
+        band = normalize_band(cfg.get("lead_band"))
+        band_info = BANDS.get(band) or {}
         out.append(
             {
                 "id": key,
                 "name": cfg.get("name", key),
                 "tier": cfg.get("tier"),
                 "lead_band": band,
-                "band_name": (BANDS.get(band) or {}).get("name", ""),
-                "topup_pack_inr": lead_topup_price(band),
+                "band_name": band_info.get("name", ""),
+                "band_price_month_inr": band_info.get("price_month"),
+                "band_price_year_inr": band_info.get("price_year"),
                 "pitch_hook": cfg.get("pitch_hook", ""),
             }
         )
@@ -96,18 +112,25 @@ class TopupLinkIn(BaseModel):
 
 @router.post("/topup-link")
 async def lead_topup_link(body: TopupLinkIn, _user=Depends(require_admin)):
-    """10-lead top-up pack info (Band-priced).
+    """RETIRED (2026-07-14) — flat per-band pricing me lead top-up hota hi nahi.
 
-    Razorpay removed 2026-06-18 — automated payment links gone. Returns the pack
-    price so the operator can collect via manual UPI and credit leads manually.
+    History: ye 10-lead top-up pack ka price deta tha. 2026-06-12 ko voice pricing
+    lead-counting se FLAT per-niche-band ho gayi (unlimited calls), aur tab
+    `lead_topup_price()` hata diya gaya — par yahan import reh gaya, jo har call pe
+    ImportError deta tha. Route ko delete karne ke bajaye retain kiya (koi purana
+    caller 404 na khaye) par ab wo band ka SACH bolta hai: flat monthly fee.
     """
-    from app.marketing.voice_packages import lead_topup_price, niche_band, normalize_band
+    from app.marketing.voice_packages import BANDS, niche_band, normalize_band
 
     band = normalize_band(body.band) if body.band else niche_band(body.niche)
-    price = lead_topup_price(band)
+    band_info = BANDS.get(band) or {}
     return {
         "ok": False,
-        "error": "Online payment links band — manual UPI se collect karo, phir leads credit karo.",
+        "error": (
+            "Lead top-up retire ho chuka — voice plans FLAT per-band monthly hain "
+            "(unlimited calls). Band ka monthly fee manual UPI se collect karo."
+        ),
         "band": band,
-        "price_inr": price,
+        "band_price_month_inr": band_info.get("price_month"),
+        "band_price_year_inr": band_info.get("price_year"),
     }
