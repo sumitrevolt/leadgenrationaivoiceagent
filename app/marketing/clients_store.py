@@ -386,6 +386,7 @@ _ALLOWED_FIELDS = {
     "target_area",  # local target areas/neighborhoods
     "whatsapp_phone",  # WhatsApp connection phone
     "approval_preference",  # "auto" or "manual" post approvals
+    "billing_client_ids",  # legacy/recreated IDs that own immutable invoices
     "social_error",  # customer-facing connection status / error text
     "blocked_reason",  # admin-facing tech error / reason blocked
     "email_notifications",  # approval/report email delivery preference
@@ -431,6 +432,10 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
             elif k == "crm":
                 # per-client CRM config dict — store as-is (generic else would str() it)
                 found["crm"] = dict(v) if isinstance(v, dict) else found.get("crm", {})
+            elif k == "billing_client_ids":
+                vals = v if isinstance(v, (list, tuple, set)) else []
+                clean = (str(x or "").strip()[:120] for x in vals)
+                found[k] = list(dict.fromkeys(x for x in clean if x))[:10]
             elif k in ("email", "contact_email"):
                 found[k] = str(v or "").strip().lower()[:255]
             else:

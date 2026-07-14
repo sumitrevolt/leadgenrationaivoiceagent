@@ -752,6 +752,29 @@ def _customer_outcome_class(cid: str, client: dict[str, Any]) -> dict[str, bool]
     return out
 
 
+def _client_has_payment_evidence(client: dict[str, Any]) -> bool:
+    """Return whether an immutable invoice belongs to this customer identity.
+
+    A plan is selected before payment on public signup, so plan name alone is
+    not payment proof. Legacy IDs preserve ownership when a client row is
+    recreated without mutating its original Rule-46 invoice.
+    """
+    try:
+        ids = {str(client.get("id") or "").strip()}
+        aliases = client.get("billing_client_ids") or []
+        if isinstance(aliases, (list, tuple, set)):
+            ids.update(str(x or "").strip() for x in aliases)
+        ids.discard("")
+        if not ids:
+            return False
+
+        from app.billing import gst_invoice
+
+        return any(str(row.get("client_id") or "").strip() in ids for row in gst_invoice._read())
+    except Exception:
+        return False
+
+
 def _first_paid_delivery() -> dict[str, Any]:
     """Age-gated delivery-outcome probe. See module-level comment for the
     4-tier semantics (setup / generated / visible / completed) and SLA."""
@@ -772,6 +795,8 @@ def _first_paid_delivery() -> dict[str, Any]:
         for c in clients:
             try:
                 if not product_one_delivery._client_plan_paid(c):
+                    continue
+                if not _client_has_payment_evidence(c):
                     continue
                 checks["paid_customers"] += 1
                 cid = str(c.get("id") or "")

@@ -68,6 +68,7 @@ def _install_stubs(monkeypatch, clients, state_by_id, ledger_summary_by_id=None)
     monkeypatch.setattr(real_store, "list_clients", _list)
     monkeypatch.setattr(real_p1, "_client_plan_paid", _plan_paid)
     monkeypatch.setattr(real_p1, "customer_delivery_status", _status)
+    monkeypatch.setattr(activation, "_client_has_payment_evidence", _plan_paid, raising=False)
 
     # delivery_ledger is imported lazily inside _customer_outcome_class; stub it.
     try:
@@ -576,6 +577,45 @@ def test_22_result_shape_includes_new_plan_accounting_fields():
         assert k in empty, f"missing key: {k}"
     dist = empty["plan_completion_distribution"]
     assert set(dist.keys()) == {"0%", "1-25%", "26-50%", "51-75%", "76-99%", "100%"}
+
+
+def test_23_payment_evidence_accepts_current_or_legacy_invoice_identity(monkeypatch, tmp_path):
+    from app.billing import gst_invoice
+
+    store = tmp_path / "invoices.jsonl"
+    store.write_text(
+        '{"number":"INV/2026-27/0001","client_id":"old-client-id","gateway":"upi"}\n',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(gst_invoice, "_STORE", str(store))
+
+    assert activation._client_has_payment_evidence({"id": "old-client-id"}) is True
+    assert activation._client_has_payment_evidence(
+        {"id": "current-client-id", "billing_client_ids": ["old-client-id"]}
+    ) is True
+    assert activation._client_has_payment_evidence(
+        {"id": "plan-only", "plan": "starter"}
+    ) is False
+
+
+def test_24_probe_ignores_active_plan_without_payment_evidence(monkeypatch):
+    _install_stubs(
+        monkeypatch,
+        clients=[_customer("paid", hours_ago=96), _customer("test-only", hours_ago=96)],
+        state_by_id={
+            "paid": _state(setup=True, generated=1, waiting=1, published=1),
+            "test-only": _state(),
+        },
+    )
+    monkeypatch.setattr(
+        activation,
+        "_client_has_payment_evidence",
+        lambda c: c.get("id") == "paid",
+    )
+
+    r = activation._first_paid_delivery()
+    assert r["checks"]["paid_customers"] == 1
+    assert r["checks"]["zero_completed_after_sla"] == 0
 
 
 def test_wiring_readiness_shape_stable(monkeypatch):
