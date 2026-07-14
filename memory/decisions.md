@@ -2,6 +2,37 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-14 - ADR-092 Sweep counters me dedupe `sent` se ALAG (audit sach bole)
+
+Decision: `notify_pending_approvals` ab `note` (`duplicate_suppressed`/`dedupe_race`)
+dekh kar dedupe detect karta hai aur use naye `deduplicated` counter me ginta hai;
+`attempted`/`sent` nahi badhte. Real send ki ginti waisi hi.
+
+Context: `notify_approval` idempotency pe short-circuit karke
+`_audit(existing, note="duplicate_suppressed")` lautata hai — us dict ka `status`
+field PURANI persisted row ka status hai, yaani `"sent"`. Sweep ka counter seedha
+`counts[r["status"]] += 1` karta tha, isliye har dedupe `sent=1` + `attempted=1`
+report karta tha **jabki koi provider call hua hi nahi**. Live pakda: jiya-makeover
+ke 3 lagataar sweeps ne `sent: 1` dikhaya jabki DB row ka `attempted_at`
+`11:10:29.891065` pe FROZEN raha aur `count(*)` 1 hi raha = zero real sends.
+Khatra: "customer ko reminder gaya?" ka JHOOTHA HAAN — audit + `get_health()` dono
+jhooth bolte. Real cost bhi hua: is jhooth ki wajah se maine triage me maan liya ki
+customer ko duplicate spam ja raha hai aur ek doosre session ka canary flag
+(`approval_email_notify`) galat wajah se disable kar diya (baad me restore kiya).
+
+Alternatives rejected: (a) `_audit()` ko dedupe pe `status="deduplicated"` lautane
+dena — us dict ka kaam ROW ka sach batana hai (row genuinely sent hai); audit row
+ki truth ko sweep-counter ki suvidha ke liye todna galat. (b) Sirf docstring me
+likh dena — counter phir bhi jhooth bolta.
+
+Consequence: Sweep/health ab batate hain ki is run me kitne ASLI email gaye vs
+kitne dedupe hue. Jo bhi "kya customer ko bheja?" poochta hai use sach milega.
+RULE: jab koi function existing-state ka audit lautaye, to caller uske `status`
+ko "abhi kya hua" mat samjhe — action-marker (`note`) dekhe. Aur: counter pe
+bharosa karne se pehle usse independent evidence (DB `attempted_at`, provider
+logs) se cross-check karo.
+Rollback: revert `4e73c86`.
+
 ## 2026-07-14 - ADR-091 cadvisor ka asli fix = disk metrics OFF, mem_limit NAHI (ADR-089 ko SUPERSEDE karta hai)
 
 Decision: cadvisor ko `--disable_metrics=disk,diskIO` + `--housekeeping_interval=10s`
