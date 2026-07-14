@@ -19,6 +19,10 @@ def _hermetic(monkeypatch):
     import app.marketing.delivery_ledger as dl
 
     monkeypatch.setattr(dl, "log_event", lambda *a, **k: True)
+    monkeypatch.setenv(
+        "APPROVAL_EMAIL_CLIENT_ALLOWLIST",
+        ",".join(f"cli-{i}" for i in range(20)),
+    )
     an._LOCAL_LOCK["held"] = False
 
 
@@ -88,6 +92,43 @@ async def test_scheduler_flag_on_sends(async_db_session, monkeypatch):
     assert out["enabled"] is True and out["skipped_lock"] is False
     assert out["sent"] == 3 and out["seen"] == 3
     assert len(s.calls) == 3
+
+
+async def test_enabled_without_allowlist_sends_nothing(async_db_session, monkeypatch):
+    monkeypatch.setenv("APPROVAL_EMAIL_NOTIFY", "1")
+    monkeypatch.delenv("APPROVAL_EMAIL_CLIENT_ALLOWLIST", raising=False)
+    monkeypatch.setattr("app.marketing.content_approval.pending", lambda cid="": _pending(3))
+    s = Sender()
+
+    out = await an.run_approval_email_sweep(
+        session=async_db_session, lock=FreeLock(), send_fn=s,
+        resolve_recipient=_RESOLVE, email_allowed=_ALLOW,
+    )
+
+    assert out["enabled"] is True
+    assert out["seen"] == 0 and out["sent"] == 0
+    assert out["not_allowlisted"] == 3
+    assert s.calls == []
+
+
+async def test_multiple_pending_for_same_client_send_one_reminder(async_db_session, monkeypatch):
+    monkeypatch.setenv("APPROVAL_EMAIL_NOTIFY", "1")
+    monkeypatch.setenv("APPROVAL_EMAIL_CLIENT_ALLOWLIST", "jiya-makeover")
+    pending = [
+        {"id": f"j{i}", "client_id": "jiya-makeover", "status": "pending", "content": {"t": i}}
+        for i in range(22)
+    ]
+    monkeypatch.setattr("app.marketing.content_approval.pending", lambda cid="": pending)
+    s = Sender()
+
+    out = await an.run_approval_email_sweep(
+        session=async_db_session, lock=FreeLock(), send_fn=s,
+        resolve_recipient=lambda _cid: "jiya@example.com", email_allowed=_ALLOW,
+    )
+
+    assert out["seen"] == 1 and out["sent"] == 1
+    assert out["duplicate_client_suppressed"] == 21
+    assert len(s.calls) == 1
 
 
 async def test_overlapping_invocation_suppressed(async_db_session, monkeypatch):

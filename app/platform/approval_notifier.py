@@ -2,6 +2,10 @@
 
 Design (Phase-1 customer-delivery, 2026-07-12):
 - Env-gated by APPROVAL_EMAIL_NOTIFY (default OFF) so nothing sends by accident.
+- Client allowlist is mandatory (`APPROVAL_EMAIL_CLIENT_ALLOWLIST`); empty means
+  zero recipients even when the main flag is accidentally enabled.
+- A sweep selects at most one pending approval per client, so a backlog cannot
+  produce an email blast to one customer.
 - Every attempt writes/updates an ``ApprovalNotification`` audit row keyed by a
   UNIQUE idempotency key = ``f"{channel}:{client_id}:{approval_id}:{version}"``.
   The unique key prevents duplicate sends across task retries, worker restarts
@@ -43,6 +47,16 @@ _SUBJECT = "Action needed: approve your content"
 
 def notify_enabled() -> bool:
     return os.getenv("APPROVAL_EMAIL_NOTIFY", "0").strip().lower() in ("1", "true", "yes", "on")
+
+
+def approval_client_allowlist() -> set[str]:
+    """Explicit customer ids eligible for approval email. Empty = fail closed."""
+    raw = os.getenv("APPROVAL_EMAIL_CLIENT_ALLOWLIST", "")
+    return {
+        client_id
+        for item in raw.split(",")
+        if (client_id := item.strip()[:64])
+    }
 
 
 def deep_link(approval_id: str = "") -> str:
@@ -258,7 +272,9 @@ async def notify_pending_approvals(
 ) -> dict:
     """Env-gated sweep over all pending approvals. Inert unless APPROVAL_EMAIL_NOTIFY on.
 
-    - Bounded batch (``limit``) and bounded per-item timeout (``per_item_timeout``).
+    - Explicit client allowlist is mandatory; empty means no recipients.
+    - At most one reminder per client per sweep (newest pending item wins).
+    - Bounded client batch (``limit``) and bounded per-item timeout.
     - One client's failure/timeout NEVER stops the sweep (each item is isolated).
     - Tenant isolation: each approval carries its own client_id and the recipient is
       resolved from THAT client, so no cross-tenant delivery is possible.
@@ -270,6 +286,8 @@ async def notify_pending_approvals(
         "sent": 0,
         "skipped": 0,
         "failed": 0,
+        "not_allowlisted": 0,
+        "duplicate_client_suppressed": 0,
         "last_failure_category": None,
     }
     if not counts["enabled"]:
@@ -280,7 +298,24 @@ async def notify_pending_approvals(
         pending = content_approval.pending("") or []
     except Exception:
         pending = []
-    for approval in pending[: max(0, int(limit))]:
+
+    allowlist = approval_client_allowlist()
+    selected: list[dict] = []
+    seen_clients: set[str] = set()
+    max_clients = max(0, int(limit))
+    for approval in pending:
+        client_id = str(approval.get("client_id") or "").strip()
+        if client_id not in allowlist:
+            counts["not_allowlisted"] += 1
+            continue
+        if client_id in seen_clients:
+            counts["duplicate_client_suppressed"] += 1
+            continue
+        seen_clients.add(client_id)
+        if len(selected) < max_clients:
+            selected.append(approval)
+
+    for approval in selected:
         try:
             r = await asyncio.wait_for(
                 notify_approval(approval, session=session, **kw), timeout=per_item_timeout
