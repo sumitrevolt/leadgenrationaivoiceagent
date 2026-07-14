@@ -130,7 +130,15 @@ def test_hot_queue_drops_historic_noise_and_blocklist(tmp_path, monkeypatch):
     ]
     f.write_text("\n".join(_json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     monkeypatch.setattr(reply_agent, "_DRAFTS_FILE", str(f))
-    monkeypatch.setattr(reply_agent, "_full_prospect_map", lambda: {})
+    monkeypatch.setattr(
+        reply_agent,
+        "_full_prospect_map",
+        lambda: {
+            "ack@blocked.example": {"emailed_at": "2026-07-01T10:00:00Z"},
+            "ack@example.com": {"emailed_at": "2026-07-01T10:00:00Z"},
+            "owner@localbiz.in": {"emailed_at": "2026-07-01T10:00:00Z"},
+        },
+    )
 
     senders = {r.get("from") for r in reply_agent.hot_queue(limit=50)}
     assert senders == {"919876543210", "owner@localbiz.in"}

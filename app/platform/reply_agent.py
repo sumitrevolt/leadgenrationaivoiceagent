@@ -1085,19 +1085,34 @@ def _is_noise_row(r: dict) -> bool:
 
 
 def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
-    """Prioritized reply queue: filter hot intents, drop handled/noise, dedupe
-    by sender (latest wins), newest-first, prospect phone/business joined in.
-    NEVER raises — [] on any failure."""
+    """Prioritized outreach-reply queue: filter hot intents, drop handled/noise,
+    require email senders to match an actually-emailed prospect, dedupe by sender
+    (latest wins), then join prospect context. NEVER raises — [] on failure."""
     try:
         rows = [r for r in list_drafts(limit=100000) if r.get("intent") in intents]
         rows = [r for r in rows if (r.get("hq_status") or "") != "done"]
         rows = [r for r in rows if not _is_noise_row(r)]
+        pmap = _full_prospect_map()
+        # IMAP triage also sees vendor onboarding, billing and system alerts. An
+        # LLM may label those interested/question, but they are not replies to
+        # our outreach. Keep genuine 1:1 WhatsApp messages; email enters this
+        # revenue queue only when the sender maps to a prospect we actually
+        # emailed. Other drafts remain visible in the general Reply Drafts tab.
+        rows = [
+            r
+            for r in rows
+            if r.get("channel") == "whatsapp"
+            or bool(
+                (
+                    pmap.get(str(r.get("from") or "").strip().lower()) or {}
+                ).get("emailed_at")
+            )
+        ]
         latest: dict[str, dict] = {}
         for r in sorted(rows, key=lambda x: str(x.get("at") or "")):
             sender = str(r.get("from") or "").strip().lower() or _hq_id(r)
             latest[sender] = r
         out = sorted(latest.values(), key=lambda x: str(x.get("at") or ""), reverse=True)
-        pmap = _full_prospect_map()
         now = datetime.now(timezone.utc)
         final: list[dict] = []
         for r in out:

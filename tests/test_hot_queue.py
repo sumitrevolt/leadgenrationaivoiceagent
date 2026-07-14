@@ -32,8 +32,16 @@ def _seed(tmp_path, monkeypatch):
     monkeypatch.setattr(
         ra,
         "_full_prospect_map",
-        lambda: {"a@x.com": {"phone": "9876543210", "business_name": "Test Gym",
-                             "niche": "gym", "city": "Mumbai"}},
+        lambda: {
+            "a@x.com": {
+                "phone": "9876543210",
+                "business_name": "Test Gym",
+                "niche": "gym",
+                "city": "Mumbai",
+                "emailed_at": "2026-06-01T10:00:00Z",
+            },
+            "b@y.com": {"emailed_at": "2026-06-02T10:00:00Z"},
+        },
     )
     return ra
 
@@ -52,6 +60,48 @@ def test_hot_queue_filters_dedupes_and_joins(tmp_path, monkeypatch):
     b = q[0]
     assert b["wa_link"] == ""
     assert b["phone"] == ""  # prospect map me nahi — graceful empty
+
+
+def test_hot_queue_email_requires_confirmed_outreach_prospect(tmp_path, monkeypatch):
+    """Vendor/system inbox mail must not masquerade as a sales reply."""
+    from app.platform import reply_agent as ra
+
+    f = tmp_path / "reply_drafts.jsonl"
+    rows = [
+        {
+            "from": "real@prospect.in",
+            "subject": "Re: pricing?",
+            "intent": "question",
+            "draft": "Namaste, pricing yahan hai.",
+            "at": "2026-07-14T10:00:00+00:00",
+        },
+        {
+            "from": "known-but-unsent@vendor.in",
+            "subject": "Product onboarding complete",
+            "intent": "interested",
+            "draft": "Thanks.",
+            "at": "2026-07-14T11:00:00+00:00",
+        },
+        {
+            "from": "unknown@vendor.in",
+            "subject": "Welcome to our service",
+            "intent": "interested",
+            "draft": "Thanks.",
+            "at": "2026-07-14T12:00:00+00:00",
+        },
+    ]
+    f.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
+    monkeypatch.setattr(ra, "_DRAFTS_FILE", str(f))
+    monkeypatch.setattr(
+        ra,
+        "_full_prospect_map",
+        lambda: {
+            "real@prospect.in": {"emailed_at": "2026-07-10T09:00:00Z"},
+            "known-but-unsent@vendor.in": {"emailed_at": ""},
+        },
+    )
+
+    assert [r["from"] for r in ra.hot_queue(limit=20)] == ["real@prospect.in"]
 
 
 def test_hot_queue_does_not_turn_meta_ids_into_whatsapp_links(tmp_path, monkeypatch):
@@ -117,7 +167,14 @@ def test_hot_queue_hides_saved_auto_ack_rows(tmp_path, monkeypatch):
         encoding="utf-8",
     )
     monkeypatch.setattr(ra, "_DRAFTS_FILE", str(f))
-    monkeypatch.setattr(ra, "_full_prospect_map", lambda: {})
+    monkeypatch.setattr(
+        ra,
+        "_full_prospect_map",
+        lambda: {
+            "auto@example.com": {"emailed_at": "2026-07-01T10:00:00Z"},
+            "real@example.com": {"emailed_at": "2026-07-01T10:00:00Z"},
+        },
+    )
 
     rows = {r["from"]: r for r in ra.hot_queue(limit=10)}
     assert "auto@example.com" not in rows

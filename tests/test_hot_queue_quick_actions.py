@@ -65,7 +65,11 @@ def test_quick_done_endpoint_marks_handled(tmp_path, monkeypatch):
         encoding="utf-8",
     )
     monkeypatch.setattr(ra, "_DRAFTS_FILE", str(f))
-    monkeypatch.setattr(ra, "_full_prospect_map", lambda: {})
+    monkeypatch.setattr(
+        ra,
+        "_full_prospect_map",
+        lambda: {"a@x.com": {"emailed_at": "2026-06-28T10:00:00Z"}},
+    )
 
     hq_id = ra.hot_queue()[0]["hq_id"]
     token = ra.make_hq_done_token(hq_id)
