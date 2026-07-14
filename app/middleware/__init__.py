@@ -5,6 +5,7 @@ Rate limiting, security headers, API authentication, and request tracing
 
 import asyncio
 import os
+import threading
 import time
 import uuid
 from collections.abc import Callable
@@ -661,6 +662,30 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
 # (an un-referenced create_task() can be collected before it executes → low-traffic
 # routes would lose hits = the exact false "dead route" signal this feature avoids).
 _ROUTE_HIT_TASKS: set = set()
+_route_hit_sync_client = None
+_route_hit_sync_lock = threading.Lock()
+
+
+def _route_hit_hincrby(key: str, path: str) -> None:
+    """Increment telemetry with a process-local, thread-safe Redis client.
+
+    The shared async cache pool is bound to the event loop that created it.
+    Route-hit tasks may run on another uvicorn loop, so this best-effort counter
+    deliberately uses redis-py's synchronous pool inside ``asyncio.to_thread``.
+    """
+    global _route_hit_sync_client
+    if _route_hit_sync_client is None:
+        with _route_hit_sync_lock:
+            if _route_hit_sync_client is None:
+                import redis
+
+                _route_hit_sync_client = redis.Redis.from_url(
+                    str(settings.redis_url),
+                    socket_connect_timeout=2,
+                    socket_timeout=2,
+                    decode_responses=True,
+                )
+    _route_hit_sync_client.hincrby(key, path, 1)
 
 
 class RouteHitMiddleware(BaseHTTPMiddleware):
@@ -699,12 +724,11 @@ class RouteHitMiddleware(BaseHTTPMiddleware):
     async def _record(path: str) -> None:
         """Fire-and-forget Redis HINCRBY. Swallows ALL errors (best-effort)."""
         try:
-            from app.cache import get_redis_client
-
-            r = await get_redis_client()
             day = time.strftime("%Y%m%d", time.gmtime())
-            await r.hincrby(f"route_hits:{day}", path, 1)
-        except (ImportError, ConnectionError, OSError, ValueError) as _e:
+            await asyncio.to_thread(_route_hit_hincrby, f"route_hits:{day}", path)
+        except Exception as _e:
+            # Telemetry is explicitly fail-silent: it must never leak a task
+            # exception or affect the customer response when Redis is degraded.
             logger.debug("RouteHitMiddleware redis record failed: %s", _e)
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
