@@ -88,3 +88,23 @@ def test_run_qa_replays_real_turns_when_enabled(tmp_path, monkeypatch):
     res = asyncio.run(staff.run_qa(niches=["insurance"]))
     assert "gym" in res["niches"], "transcript niche must join the QA targets"
     assert res["turns"] == len(staff.SCRIPTS["insurance"]) + 2, "gym must replay its 2 REAL turns"
+
+
+def test_run_qa_bounds_a_stalled_reply(monkeypatch):
+    class _StalledBrain:
+        def __init__(self, niche=""):
+            self.niche = niche
+
+        async def reply(self, history, turn):
+            await asyncio.Event().wait()
+
+    monkeypatch.setattr("app.voice_agent.telecaller_brain.TelecallerBrain", _StalledBrain)
+    monkeypatch.setattr(team, "log_event", lambda *a, **k: None)
+    monkeypatch.setenv("QA_MAX_TURNS", "1")
+    monkeypatch.setenv("QA_REPLY_TIMEOUT_S", "0.05")
+
+    res = asyncio.run(staff.run_qa(niches=["insurance"]))
+
+    assert res["turns"] == 1
+    assert res["truncated"] is True
+    assert any("REPLY TIMEOUT" in issue for issue in res["issues"])

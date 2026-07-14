@@ -448,7 +448,10 @@ async def _run_job_inner(job: str) -> bool:
                     def _vfactory():
                         return NaturalDialogManager(niche="solar", brain=None)
 
-                    _rep = await asyncio.wait_for(run_suite(_vfactory), timeout=300)
+                    # QA's own LLM turns are bounded in ``staff.run_qa``. Keep this
+                    # optional suite bounded too, so their combined work remains
+                    # below Celery's 540s soft limit.
+                    _rep = await asyncio.wait_for(run_suite(_vfactory), timeout=120)
                     _tot = _rep.passed + _rep.failed
                     team.log_event(
                         "arjun",
@@ -504,8 +507,8 @@ async def _run_job_inner(job: str) -> bool:
             try:
                 # Dev/Meera: nightly ML training (intent classifier + lead scorer +
                 # prompt-opt + A/B variants) — dormant engine wire, gated
-                # ML_NIGHTLY_TRAINING. Internally try/excepted; hard deadline 480s
-                # (safely below Celery task_soft_time_limit=540s / hard=600s).
+                # ML_NIGHTLY_TRAINING. Internally try/excepted; leave headroom for
+                # transcript analysis and telemetry before Celery's 540s soft limit.
                 if os.environ.get("ML_NIGHTLY_TRAINING", "0").strip().lower() in (
                     "1",
                     "true",
@@ -514,7 +517,7 @@ async def _run_job_inner(job: str) -> bool:
                     from app.ml.auto_trainer import auto_trainer
                     from app.platform import team
 
-                    _ml = await asyncio.wait_for(auto_trainer.run_nightly_training(), timeout=480)
+                    _ml = await asyncio.wait_for(auto_trainer.run_nightly_training(), timeout=360)
                     team.log_event(
                         "dev",
                         "ml_training",
