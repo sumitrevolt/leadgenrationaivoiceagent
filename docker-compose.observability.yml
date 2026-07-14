@@ -158,6 +158,14 @@ services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
     container_name: leadgen_cadvisor
+    command:
+      # Prometheus bhi 10s pe scrape karta hai; 1s collection sirf CPU/IO waste thi.
+      - --housekeeping_interval=10s
+      # Host disk alerts node-exporter deta hai. cAdvisor disk scan Postiz ke bade
+      # overlay pe 20-48s leta tha aur reclaimable inode/dentry slab ko is cgroup
+      # me charge karke 768m limit tak bhar raha tha. Per-container CPU/mem/net
+      # metrics (jinpe alerts depend hain) enabled rehte hain.
+      - --disable_metrics=disk,diskIO
     privileged: true
     devices:
       - /dev/kmsg
@@ -168,13 +176,8 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     restart: unless-stopped
-    # MEM NOTE (2026-07-14): 384m me cadvisor apni ceiling chhoo raha tha —
-    # 6h max_over_time = 402,657,280 B vs limit 402,653,184 B -> RestartCount=25
-    # aur `ContainerNearMemLimit` (>0.90 for 10m) hamesha pending. cadvisor ka
-    # footprint container/image count ke saath badhta hai (yahan 39 containers /
-    # 34 images) aur ye /var/lib/docker scan karta hai (logs: "fs: disk usage and
-    # inodes count ... took 3-4s"). 768m = headroom (VPS pe ~5.4G available).
-    # Ye MONITORING sidecar hai — iske restart pe metric gaps aa rahe the.
+    # 768m safety ceiling hai; disk metrics disable karna actual slab-growth fix.
+    # Ye MONITORING sidecar hai — iske restart pe metric gaps nahi aane chahiye.
     mem_limit: 768m
     networks: [leadgen_net]
 
