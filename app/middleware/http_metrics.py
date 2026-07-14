@@ -28,9 +28,12 @@ from __future__ import annotations
 import os
 import time
 
-# Standard Prometheus latency buckets (seconds). +Inf is emitted separately.
+# Prometheus-style latency buckets (seconds). Keep exact buckets around the 2s
+# alert boundary: histogram_quantile linearly interpolates inside a bucket, so
+# the old 1.0 -> 2.5 gap could report p95 >2s when every real request was <2s.
+# +Inf is emitted separately.
 _BUCKETS: tuple[float, ...] = (
-    0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0,
+    0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 2.5, 5.0, 10.0,
 )
 
 # (method, status) -> request count
