@@ -1,27 +1,29 @@
-fix(deploy): image retention — every deploy added ~7GB with no cleanup
+fix(deploy): verify the end state, don't trust `docker compose up`'s exit code
 
-Live finding: the VPS root disk was at 92% (178G/193G, 16G free). Each app image
-is ~7.04GB and NOTHING ever reclaimed old ones, so the box was roughly two
-deploys away from a disk-full outage that would take Postgres and Docker down
-together. Twelve app image tags were resident; six were built today.
+Live incident (2026-07-14): deploy_vps.sh aborted with UP_RC=1 on
 
-A one-off reclaim (unused build cache + old app tags, keeping current+rollback,
-never `rmi -f`) took the disk 92% -> 61% (178G -> 118G used, 16G -> 76G free)
-with prod healthy throughout and images 40 -> 31.
+  Conflict. The container name "/0b2ef7814c97_leadgen_app" is already in use
 
-This closes the cause rather than the symptom: deploy_vps.sh now runs retention
-AFTER a fully verified deploy (never before — a failed deploy must not also
-delete rollback targets):
-  - keeps the newest KEEP_IMAGES (default 3) app tags = current + rollbacks,
-  - never deletes the tag it just deployed,
-  - uses `docker rmi` WITHOUT -f, so docker itself refuses to remove any image a
-    container still references,
-  - `docker image prune -f` for untagged leftovers only; never touches volumes,
-    containers, or data (no `-a`, no `system prune`),
-  - prints resulting disk usage so the deploy log carries the evidence.
+...but production was completely fine. Docker renames the old container before
+removing it during a recreate; a leftover/raced rename made compose return
+non-zero while it went on to recreate everything correctly. Verified end state
+after the "failure": https://leadsgenai.in/health 200, /health version c84b62a6,
+and app/worker/scheduler/worker_heavy/worker_video ALL on c84b62a6 healthy.
 
-Build cache is deliberately left in place (~56GB, 48.89GB reclaimable via
-`docker builder prune -af`): at 61% we have headroom, and the cache is what keeps
-rebuilds fast. Reclaim it manually if disk climbs again.
+So the script failed a deploy that had actually succeeded — and, worse, exited
+BEFORE verification and retention ran. It trusted an exit code (an inference)
+over the observed end state (evidence). That is the same mistake this session
+already had to retract once at the analysis level; it should not be baked into
+the tooling.
+
+Now: a non-zero `up` logs a loud WARN and dumps the tail, then continues to
+VERIFY. Verification decides, and it cannot pass on a genuinely broken deploy —
+it requires /health.version == the deployed sha, per-container APP_VERSION match
+(skew gate), and revenue/auth smoke. If verification fails, the deploy still
+exits non-zero and now also reports the up code. If it passes despite a non-zero
+up, the script says so explicitly rather than silently glossing over it.
+
+This does NOT weaken the gate: the strict checks are unchanged. It moves the
+verdict from "did the command exit 0" to "is production actually right".
 
 No app code touched.
