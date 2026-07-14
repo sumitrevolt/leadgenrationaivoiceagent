@@ -28,7 +28,7 @@ import json
 import os
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -244,12 +244,37 @@ def add_task(task: str, action: str = "", source: str = "manual") -> dict[str, A
         return {"ok": False, "error": str(e)}
 
 
+def queue_ttl_days() -> float:
+    """Pending work older than this is skipped, never deleted or auto-run.
+
+    Seven days keeps stale lead/revenue tasks from executing after a long pause while
+    allowing operators to extend the window explicitly for a planned backlog.
+    """
+    try:
+        return min(365.0, max(1.0, float(os.getenv("SELF_IMPROVE_QUEUE_TTL_DAYS", "7"))))
+    except Exception:
+        return 7.0
+
+
+def _is_stale_queue_row(row: dict[str, Any], now: datetime | None = None) -> bool:
+    if row.get("status") != "pending":
+        return False
+    try:
+        queued_at = datetime.fromisoformat(str(row.get("at", "")))
+        if queued_at.tzinfo is None:
+            queued_at = queued_at.replace(tzinfo=timezone.utc)
+        return (now or _now()) - queued_at > timedelta(days=queue_ttl_days())
+    except Exception:
+        # Malformed timestamps remain visible and are preserved for operator review.
+        return False
+
+
 def _next_queued() -> dict[str, Any] | None:
-    """Pehla pending queued task (done-markers ke against resolve)."""
+    """Pehla fresh pending task; stale work is preserved but never auto-run."""
     rows = _read_jsonl(_QUEUE)
     done = {r.get("id") for r in rows if r.get("status") == "done"}
     for r in rows:
-        if r.get("status") == "pending" and r.get("id") not in done:
+        if r.get("status") == "pending" and r.get("id") not in done and not _is_stale_queue_row(r):
             return r
     return None
 
@@ -999,6 +1024,8 @@ def status() -> dict[str, Any]:
             k: st.get(k) for k in ("day", "runs_today", "last_tick_at", "last_action", "status")
         },
         "queue_pending": 0,
+        "queue_stale": 0,
+        "queue_ttl_days": queue_ttl_days(),
         "recent_runs": _read_jsonl(_RUNS)[-10:][::-1],
     }
     try:
@@ -1006,7 +1033,16 @@ def status() -> dict[str, Any]:
         rows = _read_jsonl(_QUEUE)
         done = {r.get("id") for r in rows if r.get("status") == "done"}
         out["queue_pending"] = sum(
-            1 for r in rows if r.get("status") == "pending" and r.get("id") not in done
+            1
+            for r in rows
+            if r.get("status") == "pending"
+            and r.get("id") not in done
+            and not _is_stale_queue_row(r)
+        )
+        out["queue_stale"] = sum(
+            1
+            for r in rows
+            if r.get("status") == "pending" and r.get("id") not in done and _is_stale_queue_row(r)
         )
     except Exception:
         pass

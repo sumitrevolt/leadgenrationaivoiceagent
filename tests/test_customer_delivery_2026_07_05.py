@@ -21,6 +21,102 @@ def test_is_paid_client():
     assert cd.is_paid_client({"status": "active", "plan": "starter", "niche": "ai_marketing"}) is False
 
 
+def test_payment_evidence_is_tri_state(monkeypatch):
+    """Plan is chosen pre-payment, so only an immutable invoice proves payment.
+    An unreadable/empty ledger must stay UNKNOWN (None) -> callers fail-OPEN.
+    """
+    from app.billing import gst_invoice
+
+    # Ledger with real content = authoritative judgement.
+    monkeypatch.setattr(gst_invoice, "_read", lambda: [{"client_id": "d79d690f61b3"}])
+    assert cd._payment_evidence({"id": "d79d690f61b3"}) is True
+    assert cd._payment_evidence({"id": "1f89031d621a"}) is False
+    # Legacy/recreated identity keeps invoice ownership via billing_client_ids.
+    assert (
+        cd._payment_evidence({"id": "jiya-makeover", "billing_client_ids": ["d79d690f61b3"]}) is True
+    )
+
+    # Empty ledger = anomaly, NOT proof of non-payment -> UNKNOWN.
+    monkeypatch.setattr(gst_invoice, "_read", lambda: [])
+    assert cd._payment_evidence({"id": "d79d690f61b3"}) is None
+
+    # Unreadable ledger -> UNKNOWN (never raises).
+    def _boom():
+        raise RuntimeError("ledger unreadable")
+
+    monkeypatch.setattr(gst_invoice, "_read", _boom)
+    assert cd._payment_evidence({"id": "d79d690f61b3"}) is None
+    assert cd._payment_evidence({}) is None
+
+
+def test_has_paid_evidence_excludes_never_invoiced_tenant(monkeypatch):
+    """Regression: synthetic 'Test Biz' (plan=growth, zero invoices) was paging the
+    founder hourly as a ghosted PAID customer. Mirrors the real prod truth table
+    (invoice ledger holds exactly one row: jiya's d79d690f61b3).
+    """
+    from app.billing import gst_invoice
+
+    monkeypatch.setattr(gst_invoice, "_read", lambda: [{"client_id": "d79d690f61b3"}])
+
+    jiya = {
+        "id": "jiya-makeover",
+        "status": "active",
+        "plan": "starter",
+        "billing_client_ids": ["d79d690f61b3"],
+    }
+    test_biz = {"id": "1f89031d621a", "status": "active", "plan": "growth"}
+
+    # Eligibility (plan) is unchanged for both...
+    assert cd.is_paid_client(jiya) is True
+    assert cd.is_paid_client(test_biz) is True
+    # ...but only the invoiced identity has real payment evidence.
+    assert cd.has_paid_evidence(jiya) is True
+    assert cd.has_paid_evidence(test_biz) is False
+
+
+def test_has_paid_evidence_fails_open_when_ledger_unavailable(monkeypatch):
+    """A broken/empty invoice ledger must NEVER silently drop a real paying customer
+    from the dead-man detector — that is the ghosting incident this module prevents.
+    """
+    from app.billing import gst_invoice
+
+    monkeypatch.setattr(gst_invoice, "_read", lambda: [])
+    assert cd.has_paid_evidence({"id": "jiya-makeover", "status": "active", "plan": "starter"}) is True
+
+    def _boom():
+        raise RuntimeError("ledger unreadable")
+
+    monkeypatch.setattr(gst_invoice, "_read", _boom)
+    assert cd.has_paid_evidence({"id": "jiya-makeover", "status": "active", "plan": "starter"}) is True
+    # ...but a trial/placeholder plan is still never "paid".
+    assert cd.has_paid_evidence({"id": "x", "status": "active", "plan": "trial"}) is False
+
+
+def test_find_undelivered_paid_clients_ignores_never_invoiced_tenant(monkeypatch):
+    """End-to-end for the alert source: the dead-man detector must not surface a
+    never-invoiced tenant (this is what reached _record_stuck -> ops_alerts hourly).
+    """
+    from app.billing import gst_invoice
+
+    monkeypatch.setattr(gst_invoice, "_read", lambda: [{"client_id": "d79d690f61b3"}])
+    clients = [
+        {
+            "id": "jiya-makeover",
+            "status": "active",
+            "plan": "starter",
+            "billing_client_ids": ["d79d690f61b3"],
+        },
+        {"id": "1f89031d621a", "status": "active", "plan": "growth"},
+    ]
+    monkeypatch.setattr(
+        "app.marketing.clients_store.list_clients",
+        lambda status=None: [c for c in clients if (status is None or c["status"] == status)],
+        raising=False,
+    )
+    ids = {c["id"] for c in cd.find_undelivered_paid_clients()}
+    assert ids == {"jiya-makeover"}
+
+
 def test_mini_site_url():
     assert cd.mini_site_url({"slug": "jiya-makeover-d79d"}).endswith("/b/jiya-makeover-d79d")
     assert cd.mini_site_url({"slug": ""}) == ""
@@ -228,6 +324,12 @@ async def test_weekly_digest_gated_off(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_find_undelivered_paid_clients(monkeypatch):
+    # Pin the invoice ledger to UNKNOWN (fail-OPEN) so this case stays hermetic and
+    # keeps testing exactly what it means to: the plan/status/delivered filtering.
+    # Payment-evidence gating has its own dedicated cases above.
+    from app.billing import gst_invoice
+
+    monkeypatch.setattr(gst_invoice, "_read", lambda: [])
     clients = [
         {"id": "a", "status": "active", "plan": "starter"},  # undelivered paid -> included
         {"id": "b", "status": "active", "plan": "starter", "delivery_state": "delivered"},  # done

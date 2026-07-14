@@ -8,6 +8,7 @@ import asyncio
 import json
 import random
 import time
+from datetime import datetime, timedelta, timezone
 
 
 # ----------------------------- skill library ----------------------------- #
@@ -81,6 +82,24 @@ def test_selfimprove_queue_and_pick(tmp_path, monkeypatch):
 
     si._mark_done(r["task"]["id"], "done")
     assert si._next_queued() is None
+
+
+def test_selfimprove_stale_queue_is_visible_but_not_auto_run(tmp_path, monkeypatch):
+    si = _patch_stores(monkeypatch, tmp_path)
+    monkeypatch.setenv("SELF_IMPROVE_QUEUE_TTL_DAYS", "7")
+    stale = {
+        "id": "stale-1",
+        "task": "old lead follow-up",
+        "status": "pending",
+        "at": (datetime.now(timezone.utc) - timedelta(days=8)).isoformat(),
+    }
+    si._append(si._QUEUE, stale)
+
+    assert si._next_queued() is None
+    status = si.status()
+    assert status["queue_pending"] == 0
+    assert status["queue_stale"] == 1
+    assert status["queue_ttl_days"] == 7.0
 
 
 def test_selfimprove_run_once_learns_and_chains(tmp_path, monkeypatch):
