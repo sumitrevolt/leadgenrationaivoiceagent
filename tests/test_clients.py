@@ -113,6 +113,17 @@ class TestClientsStore:
         stored = clients_store.get_client(rec["id"])
         assert stored is not None and stored["contact_email"] == "owner@example.com"
 
+    def test_update_client_persists_billing_identity_aliases_as_a_list(self, tmp_store):
+        rec = clients_store.add_client("Recreated Customer", "beauty", phone="9000000004")
+        upd = clients_store.update_client(
+            rec["id"],
+            billing_client_ids=[" old-client-id ", "old-client-id", ""],
+        )
+
+        assert upd is not None
+        assert upd["billing_client_ids"] == ["old-client-id"]
+        assert clients_store.get_client(rec["id"])["billing_client_ids"] == ["old-client-id"]
+
 
 # --------------------------------------------------------------------------- #
 # auto_content.generate_for_client
