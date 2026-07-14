@@ -115,4 +115,31 @@ echo "=== QUEUES / DLQ ==="
 docker exec leadgen_redis redis-cli llen celery
 docker exec leadgen_redis redis-cli llen dlq:failed_tasks
 
+# ------------------------------------------------------------------ retention
+# Every deploy adds a ~7GB app image. With no retention the disk filled to 92%
+# (16G free = ~2 deploys from Postgres/Docker dying); a one-off cleanup freed
+# 60GB. Retention runs ONLY after a fully verified deploy, keeps the newest
+# $KEEP_IMAGES tags (current + rollbacks), and never uses `rmi -f` — docker
+# itself refuses to delete an image a container still references.
+KEEP_IMAGES="${KEEP_IMAGES:-3}"
+echo "=== RETENTION (keep newest $KEEP_IMAGES app image tags) ==="
+IMG=ghcr.io/sumitrevolt/leadgenrationaivoiceagent
+OLD_TAGS="$(docker images "$IMG" --format '{{.CreatedAt}}\t{{.Tag}}' \
+  | sort -r | tail -n +$((KEEP_IMAGES + 1)) | cut -f2)"
+if [ -z "$OLD_TAGS" ]; then
+  echo "  nothing to reclaim"
+else
+  for t in $OLD_TAGS; do
+    [ "$t" = "$VER" ] && continue          # never the tag we just deployed
+    [ "$t" = "<none>" ] && continue
+    if docker rmi "$IMG:$t" >/dev/null 2>&1; then
+      echo "  removed $t"
+    else
+      echo "  kept    $t (still referenced)"
+    fi
+  done
+fi
+docker image prune -f >/dev/null 2>&1     # untagged leftovers only
+echo "  disk now: $(df -h / | tail -1 | awk '{print $5" used, "$4" free"}')"
+
 echo "=== DEPLOYED $VER OK ==="
