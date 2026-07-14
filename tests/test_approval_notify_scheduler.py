@@ -111,6 +111,108 @@ async def test_enabled_without_allowlist_sends_nothing(async_db_session, monkeyp
     assert s.calls == []
 
 
+async def test_runtime_tenant_canary_selects_only_enabled_customer(
+    async_db_session, monkeypatch
+):
+    monkeypatch.delenv("APPROVAL_EMAIL_NOTIFY", raising=False)
+    pending = [
+        {"id": "j1", "client_id": "jiya-makeover", "status": "pending", "content": {"t": 1}},
+        {"id": "o1", "client_id": "other-client", "status": "pending", "content": {"t": 2}},
+    ]
+    monkeypatch.setattr("app.marketing.content_approval.pending", lambda cid="": pending)
+    s = Sender()
+
+    out = await an.notify_pending_approvals(
+        session=async_db_session,
+        notification_scope=(True, {"jiya-makeover"}),
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
+    )
+
+    assert out["enabled"] is True
+    assert out["seen"] == 1 and out["sent"] == 1 and out["not_allowlisted"] == 1
+    assert s.calls == ["jiya-makeover@x.com"]
+
+
+async def test_scheduler_entrypoint_honours_runtime_tenant_scope(
+    async_db_session, monkeypatch
+):
+    async def runtime_scope(_service=None):
+        return True, {"jiya-makeover"}
+
+    monkeypatch.delenv("APPROVAL_EMAIL_NOTIFY", raising=False)
+    monkeypatch.setattr(an, "_notification_scope", runtime_scope)
+    monkeypatch.setattr(
+        "app.marketing.content_approval.pending",
+        lambda cid="": [
+            {"id": "j1", "client_id": "jiya-makeover", "status": "pending", "content": {"t": 1}},
+            {"id": "o1", "client_id": "other-client", "status": "pending", "content": {"t": 2}},
+        ],
+    )
+    s = Sender()
+
+    out = await an.run_approval_email_sweep(
+        session=async_db_session,
+        lock=FreeLock(),
+        send_fn=s,
+        resolve_recipient=_RESOLVE,
+        email_allowed=_ALLOW,
+    )
+
+    assert out["enabled"] is True and out["sent"] == 1
+    assert out["not_allowlisted"] == 1 and out["skipped_lock"] is False
+    assert s.calls == ["jiya-makeover@x.com"]
+
+
+async def test_runtime_scope_uses_tenant_flag_and_hard_off_wins(monkeypatch):
+    from app.infrastructure.feature_flags import FeatureFlag, FeatureState
+
+    class Flags:
+        async def get_flag(self, _key):
+            return FeatureFlag(
+                key="approval_email_notify",
+                state=FeatureState.ENABLED_TENANTS,
+                enabled_tenants=["jiya-makeover"],
+            )
+
+        async def is_enabled(self, _key, tenant_id=None, user_id=None):
+            return tenant_id == "jiya-makeover"
+
+    monkeypatch.delenv("APPROVAL_EMAIL_NOTIFY", raising=False)
+    monkeypatch.delenv("APPROVAL_EMAIL_CLIENT_ALLOWLIST", raising=False)
+    monkeypatch.delenv("APPROVAL_EMAIL_NOTIFY_HARD_OFF", raising=False)
+
+    assert await an._notification_scope(feature_service=Flags()) == (
+        True,
+        {"jiya-makeover"},
+    )
+
+    monkeypatch.setenv("APPROVAL_EMAIL_NOTIFY_HARD_OFF", "1")
+    assert await an._notification_scope(feature_service=Flags()) == (False, set())
+
+
+async def test_runtime_percentage_rollout_fails_closed(monkeypatch):
+    from app.infrastructure.feature_flags import FeatureFlag, FeatureState
+
+    class Flags:
+        async def get_flag(self, _key):
+            return FeatureFlag(
+                key="approval_email_notify",
+                state=FeatureState.ENABLED_PERCENTAGE,
+                percentage=100,
+            )
+
+        async def is_enabled(self, _key, tenant_id=None, user_id=None):
+            return True
+
+    monkeypatch.delenv("APPROVAL_EMAIL_NOTIFY", raising=False)
+    monkeypatch.delenv("APPROVAL_EMAIL_CLIENT_ALLOWLIST", raising=False)
+    monkeypatch.delenv("APPROVAL_EMAIL_NOTIFY_HARD_OFF", raising=False)
+
+    assert await an._notification_scope(feature_service=Flags()) == (False, set())
+
+
 async def test_multiple_pending_for_same_client_send_one_reminder(async_db_session, monkeypatch):
     monkeypatch.setenv("APPROVAL_EMAIL_NOTIFY", "1")
     monkeypatch.setenv("APPROVAL_EMAIL_CLIENT_ALLOWLIST", "jiya-makeover")

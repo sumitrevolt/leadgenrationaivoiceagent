@@ -74,6 +74,45 @@ def test_synthetic_or_invalid_customer_email_is_blocked(email):
     assert an._email_allowed("cli-1", email) == (False, "invalid_email")
 
 
+def test_recipient_falls_back_to_same_customer_login_email(monkeypatch):
+    from app.api import customer_auth
+    from app.marketing import clients_store
+
+    monkeypatch.setattr(
+        clients_store,
+        "get_client",
+        lambda _cid: {"email": "old-placeholder@customer.local"},
+    )
+    monkeypatch.setattr(
+        customer_auth,
+        "_read",
+        lambda: [
+            {"client_id": "other-client", "email": "other@customer.in"},
+            {"client_id": "jiya-makeover", "email": "owner@jiya.in"},
+        ],
+    )
+
+    assert an._resolve_recipient("jiya-makeover") == "owner@jiya.in"
+
+
+def test_valid_marketing_contact_keeps_precedence(monkeypatch):
+    from app.api import customer_auth
+    from app.marketing import clients_store
+
+    monkeypatch.setattr(
+        clients_store,
+        "get_client",
+        lambda _cid: {"contact_email": "marketing@jiya.in"},
+    )
+    monkeypatch.setattr(
+        customer_auth,
+        "_read",
+        lambda: [{"client_id": "jiya-makeover", "email": "login@jiya.in"}],
+    )
+
+    assert an._resolve_recipient("jiya-makeover") == "marketing@jiya.in"
+
+
 async def test_first_send_records_sent_audit(async_db_session):
     s = Sender(ok=True)
     r = await an.notify_approval(

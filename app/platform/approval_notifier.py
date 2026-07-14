@@ -46,6 +46,13 @@ _SUBJECT = "Action needed: approve your content"
 
 
 def notify_enabled() -> bool:
+    if os.getenv("APPROVAL_EMAIL_NOTIFY_HARD_OFF", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return False
     return os.getenv("APPROVAL_EMAIL_NOTIFY", "0").strip().lower() in ("1", "true", "yes", "on")
 
 
@@ -57,6 +64,56 @@ def approval_client_allowlist() -> set[str]:
         for item in raw.split(",")
         if (client_id := item.strip()[:64])
     }
+
+
+async def _notification_scope(feature_service=None) -> tuple[bool, set[str]]:
+    """Return ``(enabled, exact_client_ids)`` with fail-closed precedence.
+
+    Legacy env flag + env allowlist remain compatible. Without that env flag,
+    the audited runtime feature flag may arm only ``enabled_tenants``. Broad
+    ``enabled_all`` still needs the legacy explicit allowlist; percentage mode
+    is refused because an email recipient set must be deterministic/auditable.
+    """
+    if os.getenv("APPROVAL_EMAIL_NOTIFY_HARD_OFF", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return False, set()
+    env_allowlist = approval_client_allowlist()
+    if notify_enabled():
+        return True, env_allowlist
+    try:
+        if feature_service is None:
+            from app.infrastructure.feature_flags import feature_flags
+
+            feature_service = feature_flags
+        flag = await feature_service.get_flag("approval_email_notify")
+        if flag is None:
+            return False, set()
+        state = str(getattr(flag.state, "value", flag.state) or "").strip().lower()
+        if state == "enabled_all":
+            enabled = bool(env_allowlist) and bool(
+                await feature_service.is_enabled("approval_email_notify")
+            )
+            return enabled, (env_allowlist if enabled else set())
+        if state != "enabled_tenants":
+            return False, set()
+        candidates = {
+            cid
+            for raw in (getattr(flag, "enabled_tenants", None) or [])
+            if (cid := str(raw or "").strip()[:64])
+        }
+        allowed: set[str] = set()
+        for client_id in candidates:
+            if await feature_service.is_enabled(
+                "approval_email_notify", tenant_id=client_id
+            ):
+                allowed.add(client_id)
+        return bool(allowed), allowed
+    except Exception:
+        return False, set()
 
 
 def deep_link(approval_id: str = "") -> str:
@@ -79,24 +136,10 @@ def idem_key(client_id: str, approval_id: str, version: str) -> str:
 
 
 # --- injectable seams -------------------------------------------------------
-def _resolve_recipient(client_id: str) -> str | None:
-    """Best-effort customer email; never raises."""
-    try:
-        from app.marketing import clients_store
-
-        c = clients_store.get_client(client_id) or {}
-        email = (c.get("email") or c.get("contact_email") or "").strip()
-        return email or None
-    except Exception:
-        return None
-
-
-def _email_allowed(client_id: str, email: str) -> tuple[bool, str]:
-    """(allowed, failure_category). Honours promotional suppression + a per-client
-    email-notify setting. failure_category is '' when allowed."""
+def _normalized_valid_email(email: str | None) -> str | None:
     normalized = str(email or "").strip().lower()
     if normalized.count("@") != 1:
-        return False, "invalid_email"
+        return None
     local, domain = normalized.rsplit("@", 1)
     blocked_domains = {"localhost", "example.com", "example.org", "example.net"}
     if (
@@ -105,6 +148,34 @@ def _email_allowed(client_id: str, email: str) -> tuple[bool, str]:
         or domain in blocked_domains
         or domain.endswith((".local", ".invalid", ".test"))
     ):
+        return None
+    return normalized
+
+
+def _resolve_recipient(client_id: str) -> str | None:
+    """Best-effort first-party customer email; exact-client and never raises."""
+    try:
+        from app.marketing import clients_store
+
+        c = clients_store.get_client(client_id) or {}
+        for candidate in (c.get("email"), c.get("contact_email")):
+            if email := _normalized_valid_email(candidate):
+                return email
+    except Exception:
+        pass
+    try:
+        from app.api.customer_auth import client_login_email
+
+        return _normalized_valid_email(client_login_email(client_id))
+    except Exception:
+        return None
+
+
+def _email_allowed(client_id: str, email: str) -> tuple[bool, str]:
+    """(allowed, failure_category). Honours promotional suppression + a per-client
+    email-notify setting. failure_category is '' when allowed."""
+    normalized = _normalized_valid_email(email)
+    if not normalized:
         return False, "invalid_email"
     try:
         from app.platform import email_unsub
@@ -280,9 +351,14 @@ async def notify_approval(
 
 
 async def notify_pending_approvals(
-    *, limit: int = 200, session=None, per_item_timeout: float = 20.0, **kw
+    *,
+    limit: int = 200,
+    session=None,
+    per_item_timeout: float = 20.0,
+    notification_scope: tuple[bool, set[str]] | None = None,
+    **kw,
 ) -> dict:
-    """Env-gated sweep over all pending approvals. Inert unless APPROVAL_EMAIL_NOTIFY on.
+    """Scoped sweep over pending approvals. Inert unless env/runtime gate is on.
 
     - Explicit client allowlist is mandatory; empty means no recipients.
     - At most one reminder per client per sweep (newest pending item wins).
@@ -291,8 +367,9 @@ async def notify_pending_approvals(
     - Tenant isolation: each approval carries its own client_id and the recipient is
       resolved from THAT client, so no cross-tenant delivery is possible.
     """
+    enabled, allowlist = notification_scope or await _notification_scope()
     counts = {
-        "enabled": notify_enabled(),
+        "enabled": enabled,
         "seen": 0,
         "attempted": 0,
         "sent": 0,
@@ -311,7 +388,6 @@ async def notify_pending_approvals(
     except Exception:
         pending = []
 
-    allowlist = approval_client_allowlist()
     selected: list[dict] = []
     seen_clients: set[str] = set()
     max_clients = max(0, int(limit))
@@ -363,11 +439,12 @@ def get_health() -> dict:
     """Admin-visible sweep health. Contains only aggregate counts + a sanitized
     failure category — never email addresses, secrets or message bodies."""
     h = dict(_HEALTH)
-    h["enabled"] = notify_enabled()
+    h["enabled"] = bool(h.get("enabled", notify_enabled()))
     return h
 
 
 def _record_run(result: dict) -> None:
+    _HEALTH["enabled"] = bool(result.get("enabled"))
     _HEALTH["runs"] += 1
     _HEALTH["last_run"] = datetime.utcnow().isoformat()
     _HEALTH["seen"] = result.get("seen", 0)
@@ -440,11 +517,13 @@ async def run_approval_email_sweep(
 ) -> dict:
     """Scheduler entrypoint: single-flight, bounded pending-approval email sweep.
 
-    Inert unless APPROVAL_EMAIL_NOTIFY is on. Overlapping runs are suppressed by the
-    lock (``skipped_lock=True``). Never raises; records sanitized health.
+    Inert unless legacy env or tenant-scoped runtime flag is on. Overlapping runs
+    are suppressed by the lock (``skipped_lock=True``). Never raises.
     """
-    if not notify_enabled():
+    scope = await _notification_scope()
+    if not scope[0]:
         out = {"enabled": False, "skipped_lock": False, "seen": 0, "sent": 0, "skipped": 0, "failed": 0}
+        _record_run(out)
         return out
     lock = lock if lock is not None else SweepLock()
     try:
@@ -458,7 +537,11 @@ async def run_approval_email_sweep(
         return out
     try:
         result = await notify_pending_approvals(
-            limit=batch_size, session=session, per_item_timeout=per_item_timeout, **kw
+            limit=batch_size,
+            session=session,
+            per_item_timeout=per_item_timeout,
+            notification_scope=scope,
+            **kw,
         )
         _record_run(result)
         result["skipped_lock"] = False
