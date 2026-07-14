@@ -1,38 +1,37 @@
-fix(main): unversioned production image is a LOUD startup failure (ADR-097)
+docs(adr-097): retract false root-cause claim + record causal-claim discipline
 
-ROOT CAUSE of ~1,170 Sentry events. docker-compose.vps.yml tags
-${APP_VERSION:-latest}, so a deploy that forgets APP_VERSION silently leaves prod
-on an UNVERSIONED :latest image. /health then reports version "latest" and nobody
-can tell what code is running. That is not cosmetic: production sat on stale code
-while fixes were merged to main and never reached it.
+RETRACTION. The first draft of ADR-097 claimed the unversioned :latest image was
+the root cause of ~1,170 Sentry events, and that rebuilding with a real SHA
+(91e7d37 -> 1feed53) drove them to zero. That causal claim was FALSE.
 
-What the stale image was actually costing (all live-verified):
-  - /api/voice/niches, a PAID Voice Agent revenue route (Rs 4,999-19,999/mo),
-    returned 500 for SIX DAYS -- PYTHON-G 379 + PYTHON-H 224 + PYTHON-M 179 +
-    PYTHON-R 90 = 872 events -- even though the real cause (a retired
-    lead_topup_price import) was ALREADY fixed in main.
-    The '_IncludedRouter' object has no attribute 'path' title was the exception
-    handler's own secondary crash masking the real ImportError.
-  - ~277 app.middleware._record event-loop errors (PYTHON-K/N/P).
-  - qdrant "fastembed model not ready within 90s" at fail_rate 1.0.
+Timestamps disprove it:
+  last /api/voice/niches error   2026-07-14T10:07:25Z
+  :latest image rebuilt          2026-07-14T12:00:48Z   (+1.9h)
+  first SHA-tagged deploy        2026-07-14T~12:45Z     (+2.6h)
 
-Rebuilding with a real SHA (91e7d37 -> 1feed53) took EVERY one of those to zero
-within 30 minutes: /api/voice/niches -> HTTP 200 with real band pricing, and
-"fastembed model loaded: paraphrase-multilingual-MiniLM-L12-v2 (dim=384)".
+The errors had already stopped ~2.6h before my first deploy. The actual fix was
+eb20ee5 ("fix(voice): repair /api/voice/niches 500 from retired
+lead_topup_price"), committed 09:57Z and deployed ~10:07Z by a prior session.
+The genuine root cause of those 872 events is the already-documented landmine: a
+FUNCTION-LEVEL import of a retired symbol that evaded startup gates (prod_check
+stayed green at 1102 routes) and failed only per-request. Same for PYTHON-K/N/P
+(last fired ~6h before the deploy) and qdrant, whose "fastembed model loaded"
+line appears on EVERY boot and proves nothing.
 
-The gap: prod_check and CI validate the SOURCE; nothing validated that the
-RUNNING IMAGE was built from that source. Silent drift lived in that gap.
+The error was inferential: "errors existed -> I deployed -> errors gone", without
+checking whether they had already stopped. Absence of errors is not evidence your
+fix worked.
 
-- add pure, testable is_unversioned_production_image(app_version, app_env).
-- lifespan guard (production only): logs ERROR + pages ntfy high-priority when
-  APP_VERSION is unset/latest/dev/1.0.0. Mirrors the existing "CRITICAL routes
-  missing after startup" sweep directly above it. INERT outside production.
-- settings.app_env is the real field; there is NO settings.environment (a getattr
-  on the wrong name would have silently no-opped the guard).
+ADR-097's guard is UNCHANGED and still justified, but now rests only on what is
+independently verified: ${APP_VERSION:-latest} makes image provenance unknowable,
+and 3 of 6 containers (worker_heavy, worker_video, app_staging) were observed
+live on :latest with APP_VERSION=latest while app/worker/scheduler ran a real
+SHA — real version skew.
 
-Rejected: compose ${APP_VERSION:?err}, which would hard-break unrelated
-`docker compose up <service>` ops across ~5 services for the same detection.
+- memory/decisions.md: ADR-097 consequence rewritten; retraction recorded inline
+  so the false claim cannot be re-trusted from the ledger.
+- CLAUDE.md/AGENTS.md: decision entry corrected + new landmine
+  "CAUSAL-CLAIM DISCIPLINE" — verify a fix by timestamping the END of the error
+  series (search_events + -timestamp, git log -S '<symbol>'), not by absence.
 
-Tests: 55 passed (new test_image_provenance_guard + voice_product_contract +
-customer_delivery + whatsapp_selfhost). prod_check ALL CHECKS PASSED (1102
-routes). check_secrets clean.
+No code change. No test change.
