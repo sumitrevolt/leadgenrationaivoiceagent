@@ -62,6 +62,8 @@ _WA_NUMBER_RE = re.compile(r'\+?\d{10,15}@(?:wa|whatsapp|s\.whatsapp)[a-z.]*', r
 # Providers where raw customer data CANNOT be sent
 _UNSAFE_PROVIDERS = {
     "glm", "qwen", "kimi", "deepseek",  # Chinese providers
+    # Opaque credential-free gateways are development-only and may not receive PII.
+    "opencode", "duckduckgo",
     "unknown", "custom",
 }
 

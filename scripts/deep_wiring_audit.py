@@ -2,6 +2,7 @@
 """Deep wiring audit — onclick handlers + api()/fetch paths vs FastAPI routes."""
 from __future__ import annotations
 
+from functools import lru_cache
 import pathlib
 import re
 import sys
@@ -38,14 +39,16 @@ def load_routes() -> set[str]:
     }
 
 
-def _route_to_regex(route: str) -> str:
+@lru_cache(maxsize=None)
+def _route_to_regex(route: str) -> re.Pattern[str]:
+    """Compile each FastAPI-style dynamic route once per audit run."""
     parts: list[str] = []
     for part in route.split("/"):
         if part.startswith("{") and part.endswith("}"):
             parts.append("[^/]+")
         elif part:
             parts.append(re.escape(part))
-    return "^" + "/".join(parts) + "$"
+    return re.compile("^" + "/".join(parts) + "$")
 
 
 def route_exists(path: str, routes: set[str]) -> bool:
@@ -55,7 +58,7 @@ def route_exists(path: str, routes: set[str]) -> bool:
     if base in routes:
         return True
     for r in routes:
-        if re.match(_route_to_regex(r), base):
+        if _route_to_regex(r).fullmatch(base):
             return True
     for r in routes:
         if "{" not in r:

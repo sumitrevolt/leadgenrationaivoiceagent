@@ -1,7 +1,7 @@
 param(
-    [string]$OmniRouteUrl = "http://127.0.0.1:20128/v1/chat/completions",
+    [string]$OmniRouteUrl = "http://127.0.0.1:20128/v1/responses",
     [string]$BaselineUrl = "",
-    [string]$Model = "auto/coding",
+    [string]$Model = "groq/llama-3.3-70b-versatile",
     [int]$Runs = 5
 )
 
@@ -18,15 +18,22 @@ the answer under 120 words.
 "@
 
 function Invoke-Model([string]$Url) {
-    $body = @{ model = $Model; messages = @(@{ role = "user"; content = $prompt }); max_tokens = 180 } | ConvertTo-Json -Depth 6
+    $body = @{
+        model = $Model
+        input = @(@{ role = "user"; content = $prompt })
+        max_output_tokens = 180
+    } | ConvertTo-Json -Depth 6
     $headers = @{ Authorization = "Bearer $env:OMNIROUTE_API_KEY"; "Content-Type" = "application/json" }
     $sw = [Diagnostics.Stopwatch]::StartNew()
     $response = Invoke-RestMethod -Uri $Url -Method Post -Headers $headers -Body $body -TimeoutSec 90
     $sw.Stop()
+    if (-not $response.output_text) {
+        throw "OmniRoute Responses API returned no output_text."
+    }
     [pscustomobject]@{
         elapsed_ms = $sw.ElapsedMilliseconds
-        prompt_tokens = $response.usage.prompt_tokens
-        completion_tokens = $response.usage.completion_tokens
+        input_tokens = $response.usage.input_tokens
+        output_tokens = $response.usage.output_tokens
         total_tokens = $response.usage.total_tokens
     }
 }

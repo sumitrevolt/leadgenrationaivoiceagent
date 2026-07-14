@@ -1,0 +1,264 @@
+"""OmniRoute dev-tooling gateway — optional additive AI-routing fallback.
+
+Audit 2026-07-12 (see docs/OMNIROUTE_ENGINEERING_RUNBOOK.md for full context).
+
+STATUS: INERT by default. `OMNIROUTE_ENABLED` unset/0 = this module is never called
+by anything in the request path. free_ai.py's existing provider chain is completely
+unmodified and unconditional — this file does NOT replace or wrap it.
+
+Why INERT: the local OmniRoute instance (WSL, v3.8.46, http://127.0.0.1:20128) has
+authenticated dashboard and data-plane access, but LeadGen intentionally does not
+inherit that access unless an operator explicitly enables this optional adapter in a
+local process. This module remains a ready-but-disabled integration point: it must
+never become a mandatory dependency or a production customer-data route.
+
+Once Sumit completes setup and an OMNIROUTE_API_KEY exists (Windows user env var,
+never committed), this module is the additive hook LeadGen code MAY optionally call
+— it must NOT become mandatory, and free_ai.py's existing fallback chain must keep
+working even if OmniRoute is fully down (degraded mode, not a hard dependency).
+
+Usage (only after a sanitized dev-only route is verified and explicitly enabled):
+    from app.platform.omniroute_client import generate, omniroute_available
+
+    if omniroute_available():
+        result = await generate("leadgen.coding_primary", messages, "INTERNAL_SANITIZED")
+"""
+from __future__ import annotations
+
+import asyncio
+import os
+import time
+from dataclasses import dataclass
+from typing import Any
+
+import httpx
+
+from app.platform.safe_ai_payload import SafePayloadError, mask_customer_data, validate_no_secrets
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
+_OMNIROUTE_BASE_URL = os.getenv("OMNIROUTE_BASE_URL", "http://127.0.0.1:20128/v1")
+_RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503}
+
+
+@dataclass(frozen=True)
+class OmniRouteRoute:
+    """One approved, sanitized local-development route."""
+
+    primary_model: str
+    fallback_model: str | None
+    privacy_class: str
+
+
+@dataclass(frozen=True)
+class OmniRouteResult:
+    """Sanitized result metadata. Raw request content is intentionally omitted."""
+
+    text: str
+    task_type: str
+    provider: str
+    model: str
+    latency_ms: int
+    input_tokens: int | None
+    output_tokens: int | None
+    fallback_reason: str | None = None
+
+
+# Only models proven by a real, sanitized Responses API call belong here. The
+# catalogued Gemini 2.5 Flash entry was rejected upstream as retired on 2026-07-14.
+_TASK_ROUTES: dict[str, OmniRouteRoute] = {
+    "leadgen.coding_primary": OmniRouteRoute(
+        primary_model="groq/llama-3.3-70b-versatile",
+        fallback_model="mistral/mistral-small-latest",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.coding_fast": OmniRouteRoute(
+        primary_model="groq/llama-3.3-70b-versatile",
+        fallback_model="mistral/mistral-small-latest",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.repo_analysis": OmniRouteRoute(
+        primary_model="mistral/mistral-small-latest",
+        fallback_model="groq/llama-3.3-70b-versatile",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.test_generation": OmniRouteRoute(
+        primary_model="groq/llama-3.3-70b-versatile",
+        fallback_model="mistral/mistral-small-latest",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+}
+
+
+def omniroute_enabled() -> bool:
+    """Master flag check — mirrors the AUTOMATION_FLAGS registry entry."""
+    return os.getenv("OMNIROUTE_ENABLED", "0").strip().lower() in ("1", "true", "yes")
+
+
+def omniroute_available() -> bool:
+    """True only if the flag is on AND an access token is present.
+
+    Deliberately conservative: an enabled-but-keyless config must not be treated as
+    available (would just 401 on every call and burn a retry budget for nothing).
+    """
+    if not omniroute_enabled():
+        return False
+    if not os.getenv("OMNIROUTE_API_KEY"):
+        logger.warning(
+            "[omniroute_client] OMNIROUTE_ENABLED=1 but OMNIROUTE_API_KEY is not set — "
+            "treating as unavailable (fail-open, existing free_ai chain handles the call)."
+        )
+        return False
+    return True
+
+
+def omniroute_client() -> Any | None:
+    """Return an AsyncOpenAI-compatible client pointed at OmniRoute, or None.
+
+    Never raises — callers should always have a fallback path if this returns None.
+    """
+    if not omniroute_available():
+        return None
+    try:
+        from openai import AsyncOpenAI
+
+        return AsyncOpenAI(
+            api_key=os.getenv("OMNIROUTE_API_KEY", ""),
+            base_url=_OMNIROUTE_BASE_URL,
+            timeout=30.0,
+        )
+    except Exception as e:  # pragma: no cover - defensive, matches free_ai.py pattern
+        logger.warning("[omniroute_client] client construction failed: %s", e)
+        return None
+
+
+def get_task_route(task_type: str, privacy_class: str) -> OmniRouteRoute:
+    """Return an explicitly approved route or reject external dispatch.
+
+    Customer, payment, compliance, voice, and destructive work deliberately have no
+    entry. Callers must use their existing deterministic/direct-provider flows.
+    """
+    route = _TASK_ROUTES.get(task_type)
+    if route is None or privacy_class != route.privacy_class:
+        raise SafePayloadError(
+            f"OmniRoute external dispatch is not approved for task={task_type!r} "
+            f"privacy_class={privacy_class!r}"
+        )
+    return route
+
+
+def _responses_url() -> str:
+    return f"{os.getenv('OMNIROUTE_BASE_URL', _OMNIROUTE_BASE_URL).rstrip('/')}/responses"
+
+
+def _timeout_seconds(requested: int | None) -> int:
+    configured = os.getenv("OMNIROUTE_TIMEOUT_SECONDS", "30")
+    try:
+        value = requested if requested is not None else int(configured)
+    except (TypeError, ValueError):
+        value = 30
+    return max(1, min(int(value), 90))
+
+
+def _response_matches_schema(text: str, response_schema: dict[str, Any] | None) -> bool:
+    """Small deterministic schema gate for callers that require JSON output."""
+    if response_schema is None:
+        return True
+    try:
+        import json
+
+        parsed = json.loads(text)
+    except (TypeError, ValueError):
+        return False
+    if response_schema.get("type") == "object" and not isinstance(parsed, dict):
+        return False
+    required = response_schema.get("required", [])
+    return isinstance(required, list) and all(key in parsed for key in required)
+
+
+async def _post_responses(
+    url: str, headers: dict[str, str], payload: dict[str, Any], timeout: int
+) -> httpx.Response:
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        return await client.post(url, headers=headers, json=payload)
+
+
+async def generate(
+    task_type: str,
+    messages: list[dict[str, Any]],
+    privacy_class: str,
+    response_schema: dict[str, Any] | None = None,
+    timeout_seconds: int | None = None,
+    metadata: dict[str, Any] | None = None,
+) -> OmniRouteResult | None:
+    """Run one explicit sanitized development task through OmniRoute.
+
+    The function remains fail-open for gateway/provider faults: callers receive None
+    and retain responsibility for their existing direct fallback. Privacy admission is
+    fail-closed and raises ``SafePayloadError`` before any network attempt.
+    """
+    del metadata  # Deliberately never log caller metadata or raw prompt content.
+    route = get_task_route(task_type, privacy_class)
+    if not omniroute_available():
+        return None
+
+    safe_messages = mask_customer_data(messages)
+    validate_no_secrets(safe_messages)
+    timeout = _timeout_seconds(timeout_seconds)
+    headers = {"Authorization": f"Bearer {os.getenv('OMNIROUTE_API_KEY', '')}"}
+    candidates = [route.primary_model]
+    if route.fallback_model:
+        candidates.append(route.fallback_model)
+    fallback_reason: str | None = None
+
+    for index, model in enumerate(candidates):
+        started = time.monotonic()
+        payload = {
+            "model": model,
+            "input": safe_messages,
+            "max_output_tokens": 1024,
+        }
+        try:
+            response = await _post_responses(_responses_url(), headers, payload, timeout)
+            if response.status_code >= 400:
+                if response.status_code in _RETRYABLE_STATUS_CODES and index + 1 < len(candidates):
+                    fallback_reason = f"http_{response.status_code}"
+                    await asyncio.sleep(0.1)
+                    continue
+                logger.warning(
+                    "[omniroute_client] request failed task=%s model=%s status=%s",
+                    task_type, model, response.status_code,
+                )
+                return None
+
+            body = response.json()
+            text = str(body.get("output_text") or "").strip()
+            if not text or not _response_matches_schema(text, response_schema):
+                if index + 1 < len(candidates):
+                    fallback_reason = "invalid_response_schema" if text else "empty_response"
+                    continue
+                return None
+
+            usage = body.get("usage") or {}
+            return OmniRouteResult(
+                text=text,
+                task_type=task_type,
+                provider=model.split("/", 1)[0],
+                model=str(body.get("model") or model),
+                latency_ms=round((time.monotonic() - started) * 1000),
+                input_tokens=usage.get("input_tokens"),
+                output_tokens=usage.get("output_tokens"),
+                fallback_reason=fallback_reason,
+            )
+        except (httpx.TimeoutException, httpx.TransportError, ValueError) as exc:
+            if index + 1 < len(candidates):
+                fallback_reason = type(exc).__name__.lower()
+                await asyncio.sleep(0.1)
+                continue
+            logger.warning(
+                "[omniroute_client] request unavailable task=%s model=%s error=%s",
+                task_type, model, type(exc).__name__,
+            )
+            return None
+    return None

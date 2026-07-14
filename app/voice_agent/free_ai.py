@@ -658,6 +658,30 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     return chain
 
 
+def _blocked_for_provider(msgs: Any, provider: str) -> bool:
+    """True if this (already-masked) payload must NOT be sent to this provider.
+
+    Defense-in-depth after mask_customer_data(): catches anything the regex-based
+    masker missed (e.g. a secret-looking token) before it reaches a free/unsafe
+    external provider. Fail-open on unrelated errors — never breaks the chat path.
+    """
+    # Never stringify arbitrary objects: their repr may contain a hexadecimal memory
+    # address that accidentally satisfies the phone-number matcher. Real call paths
+    # provide message strings/lists/dicts; malformed input stays fail-open by contract.
+    if not isinstance(msgs, (str, list, dict)):
+        return False
+    try:
+        from app.platform.safe_ai_payload import SafePayloadError, block_if_sensitive
+
+        block_if_sensitive(msgs, provider)
+        return False
+    except SafePayloadError as e:
+        logger.warning("[free_ai] blocked provider=%s reason=%s", provider, e)
+        return True
+    except Exception:
+        return False
+
+
 async def chat_provider(
     provider: str,
     model: str,
@@ -713,6 +737,8 @@ async def chat_provider(
             msgs = _msgs_original
     except Exception:
         msgs = _msgs_original
+    if _blocked_for_provider(msgs, p):
+        return "", p
 
     tlim = timeout_s if timeout_s and timeout_s > 0 else max(_CALL_TIMEOUT_S, 30.0)
     _t0 = time.monotonic()
@@ -862,6 +888,8 @@ async def chat(
         if provider == "gemini_vertex":
             if not _OPENAI_OK or not _vertex_available():
                 continue
+            if _blocked_for_provider(msgs, provider):
+                continue
             _t0 = time.monotonic()
             try:
                 token = await _vertex_bearer_token()
@@ -904,6 +932,8 @@ async def chat(
 
         client = _client(provider)
         if client is None:
+            continue
+        if _blocked_for_provider(msgs, provider):
             continue
         _t0 = time.monotonic()
         try:
@@ -1025,6 +1055,8 @@ async def chat_stream(
             continue
         client = _client(provider)
         if client is None:
+            continue
+        if _blocked_for_provider(msgs, provider):
             continue
         _t0 = time.monotonic()
         got = False
