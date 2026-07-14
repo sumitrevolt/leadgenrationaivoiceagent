@@ -97,6 +97,22 @@ class TestClientsStore:
         assert upd["niche"] == "real_estate"
         assert clients_store.update_client("nope", city="X") is None
 
+    def test_update_client_persists_approval_notification_contact_and_preferences(self, tmp_store):
+        rec = clients_store.add_client("Approval Client", "beauty", phone="9000000003")
+        upd = clients_store.update_client(
+            rec["id"],
+            contact_email="owner@example.com",
+            email_notifications=True,
+            approval_email_opt_out=False,
+        )
+
+        assert upd is not None
+        assert upd["contact_email"] == "owner@example.com"
+        assert upd["email_notifications"] is True
+        assert upd["approval_email_opt_out"] is False
+        stored = clients_store.get_client(rec["id"])
+        assert stored is not None and stored["contact_email"] == "owner@example.com"
+
 
 # --------------------------------------------------------------------------- #
 # auto_content.generate_for_client
