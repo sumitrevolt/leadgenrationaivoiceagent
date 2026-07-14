@@ -52,3 +52,36 @@ def test_smart_turn_disabled_returns_none():
 
     d = td.SmartTurnDetector()
     assert d.is_endpoint(b"\x00\x01" * 800) is None
+
+
+def test_kb_search_params_ef_covers_limit(monkeypatch):
+    """hnsw_ef must always be >= requested results (Qdrant anti-pattern guard).
+
+    Voice path (limit=3) stays at the 128 floor = no latency regression; a large
+    rerank/hybrid pool forces ef up so filtered-HNSW recall never silently drops.
+    """
+    import pytest
+
+    pytest.importorskip("qdrant_client")
+    monkeypatch.delenv("KB_HNSW_EF", raising=False)
+    monkeypatch.delenv("KB_EXACT_SEARCH", raising=False)
+    from app.voice_agent.knowledge_base import _kb_search_params
+
+    sp_small = _kb_search_params(3)
+    assert sp_small.hnsw_ef == 128  # default floor, voice path unchanged
+    assert sp_small.exact is False
+    sp_big = _kb_search_params(200)
+    assert sp_big.hnsw_ef >= 200  # ef never below the requested pool
+
+
+def test_kb_search_params_exact_and_custom_floor(monkeypatch):
+    import pytest
+
+    pytest.importorskip("qdrant_client")
+    monkeypatch.setenv("KB_HNSW_EF", "300")
+    monkeypatch.setenv("KB_EXACT_SEARCH", "1")
+    from app.voice_agent.knowledge_base import _kb_search_params
+
+    sp = _kb_search_params(3)
+    assert sp.hnsw_ef >= 300  # custom floor honored
+    assert sp.exact is True  # eval ground-truth toggle

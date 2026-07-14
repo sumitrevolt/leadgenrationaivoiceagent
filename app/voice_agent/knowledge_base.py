@@ -579,6 +579,34 @@ def _kb_point_id(namespace: str, text: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, f"{namespace or 'default'}|{text or ''}"))
 
 
+def _kb_search_params(limit: int):
+    """SearchParams for kb_main queries — guarantees hnsw_ef >= requested results.
+
+    Qdrant anti-pattern (search-quality skill): hnsw_ef < the number of results
+    requested = guaranteed poor recall. kb_main is namespace-FILTERED, where
+    filtered-HNSW recall is most fragile, and the reranker/hybrid stage enlarges
+    the candidate pool (RERANK_POOL_SIZE) — so we pin an explicit ef that always
+    covers the pool instead of relying on the server default.
+
+    Tunable (both INERT/no-op at defaults — behaviour unchanged for the voice
+    path where limit=3 -> ef stays 128):
+      KB_HNSW_EF        — floor for hnsw_ef (default 128). Raise for more recall.
+      KB_EXACT_SEARCH=1 — brute-force exact search (recall@k ground-truth
+                          baseline for scripts/rag_retrieval_ab.py; EVAL ONLY —
+                          bypasses the HNSW index, never leave on in prod).
+    """
+    from qdrant_client import models as qmodels
+
+    try:
+        floor = int(os.getenv("KB_HNSW_EF", "") or 0)
+    except Exception:
+        floor = 0
+    if floor <= 0:
+        floor = 128
+    ef = max(floor, int(max(1, limit)) * 2)  # ef >= limit always
+    return qmodels.SearchParams(hnsw_ef=ef, exact=_env_flag("KB_EXACT_SEARCH"))
+
+
 class _QdrantIndex:
     """
     Qdrant retriever — same internal interface as _ChromaIndex/_KeywordIndex
@@ -682,14 +710,17 @@ class _QdrantIndex:
         return 1
 
     def search(self, query: str, k: int = 3) -> list[dict[str, Any]]:
+        limit = max(1, k)
         try:
             res = self._client.query_points(
                 collection_name=_QDRANT_COLLECTION,
                 # e5 requirement: queries ko "query: " prefix
                 query=self._embed(f"query: {query}"),
                 query_filter=self._ns_filter(),
-                limit=max(1, k),
+                limit=limit,
                 with_payload=True,
+                # hnsw_ef >= limit (filtered-HNSW recall guard) + exact toggle
+                search_params=_kb_search_params(limit),
             )
             points = getattr(res, "points", None) or []
         except Exception as e:  # pragma: no cover
