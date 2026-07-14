@@ -27,3 +27,11 @@ def test_files_refs_resolve():
 
 def test_explorer_sync_check_exit_zero():
     assert es.main(["--check"]) == 0
+
+
+def test_live_sync_keeps_public_health_independent_from_admin_overlays():
+    """An optional admin fetch/render failure must not become 'API unreachable'."""
+    html = es.EXPLORER.read_text(encoding="utf-8")
+    assert "const [healthR, summaryR] = await Promise.all([" in html
+    assert "const adminRes = await Promise.allSettled([" in html
+    assert "try { renderNodes(); } catch(e) {}" in html
