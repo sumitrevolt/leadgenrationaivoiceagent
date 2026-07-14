@@ -58,3 +58,35 @@ def test_historical_official_or_helpline_record_is_not_quality_approved():
             "source_query": "solar installer",
         }
     )
+
+
+def test_query_budget_caps_slow_provider_fallback_chain(monkeypatch, tmp_path):
+    """Daily prospecting must stay below the heavy-worker task deadline."""
+    from app.platform import prospector, team
+
+    calls: list[tuple[str, str]] = []
+
+    def _osm(query, city, _limit):
+        calls.append((query, city))
+        return []
+
+    async def _no_sleep(*_args, **_kwargs):
+        return None
+
+    monkeypatch.setenv("PROSPECT_MAX_QUERIES", "2")
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "prospects.jsonl"))
+    monkeypatch.setattr(prospector, "_read_all", lambda: [])
+    monkeypatch.setattr(
+        prospector,
+        "_targets",
+        lambda: [{"niche": "solar_residential", "query": "solar installer", "cities": ["Pune", "Mumbai", "Nagpur"]}],
+    )
+    monkeypatch.setattr(prospector, "_osm_search", _osm)
+    monkeypatch.setattr(prospector.asyncio, "sleep", _no_sleep)
+    monkeypatch.setattr(team, "log_event", lambda *args, **kwargs: None)
+
+    result = asyncio.run(prospector.run_prospecting(limit_per_query=1))
+
+    assert result["queries_run"] == 2
+    assert result["queries_capped"] is True
+    assert calls == [("solar installer", "Pune"), ("solar installer", "Mumbai")]
