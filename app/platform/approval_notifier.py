@@ -94,10 +94,22 @@ def _resolve_recipient(client_id: str) -> str | None:
 def _email_allowed(client_id: str, email: str) -> tuple[bool, str]:
     """(allowed, failure_category). Honours promotional suppression + a per-client
     email-notify setting. failure_category is '' when allowed."""
+    normalized = str(email or "").strip().lower()
+    if normalized.count("@") != 1:
+        return False, "invalid_email"
+    local, domain = normalized.rsplit("@", 1)
+    blocked_domains = {"localhost", "example.com", "example.org", "example.net"}
+    if (
+        not local
+        or "." not in domain
+        or domain in blocked_domains
+        or domain.endswith((".local", ".invalid", ".test"))
+    ):
+        return False, "invalid_email"
     try:
         from app.platform import email_unsub
 
-        if email_unsub.is_suppressed(email):
+        if email_unsub.is_suppressed(normalized):
             return False, "no_consent"
     except Exception:
         pass

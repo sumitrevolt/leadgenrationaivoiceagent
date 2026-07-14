@@ -60,6 +60,20 @@ async def _rowcount(session):
 _ALLOW = lambda c, e: (True, "")  # noqa: E731
 
 
+@pytest.mark.parametrize(
+    "email",
+    (
+        "client@upi.local",
+        "client@localhost",
+        "client@example.com",
+        "missing-at-sign",
+        "client@invalid",
+    ),
+)
+def test_synthetic_or_invalid_customer_email_is_blocked(email):
+    assert an._email_allowed("cli-1", email) == (False, "invalid_email")
+
+
 async def test_first_send_records_sent_audit(async_db_session):
     s = Sender(ok=True)
     r = await an.notify_approval(
