@@ -89,6 +89,22 @@ if settings.sentry_dsn and settings.app_env == "production":
 ml_scheduler = None
 
 
+#: APP_VERSION values that carry NO commit provenance. `latest` is the compose
+#: default (`${APP_VERSION:-latest}`), the rest are library/dev defaults.
+_UNVERSIONED_APP_VERSIONS = frozenset({"", "latest", "dev", "1.0.0"})
+
+
+def is_unversioned_production_image(app_version: str | None, app_env: str | None) -> bool:
+    """True when a PRODUCTION image carries no commit provenance. Pure/testable.
+
+    See the ADR-097 guard in `lifespan` for why this is fail-LOUD rather than a
+    cosmetic nicety: an unversioned image means prod can silently run STALE code.
+    """
+    if str(app_env or "").strip().lower() != "production":
+        return False
+    return str(app_version or "").strip().lower() in _UNVERSIONED_APP_VERSIONS
+
+
 def _log_startup_banner():
     """Display configuration banner on startup."""
     logger.info("=" * 60)
@@ -333,6 +349,50 @@ async def lifespan(app: FastAPI):
             )
     except Exception as _sweep_e:
         logger.warning(f"Critical route sweep skipped: {_sweep_e}")
+
+    # ---------------------------------------------------------------------
+    # Image-provenance guard (2026-07-14, ADR-097). Mirrors the critical-route
+    # sweep above: a silent failure that only a LOUD startup check will surface.
+    #
+    # WHY: `docker-compose.vps.yml` tags `${APP_VERSION:-latest}`. A deploy that
+    # forgets APP_VERSION silently keeps/ships an UNVERSIONED `:latest` image, so
+    # /health reports version "latest" and nobody can tell what code is running.
+    # That is not cosmetic: prod sat on a stale `:latest` while fixes were merged
+    # to main and never reached production — `/api/voice/niches` (a paid Voice
+    # Agent revenue route) returned 500 for SIX DAYS (~872 Sentry events) even
+    # though the fix was in main, plus ~277 middleware loop errors and a qdrant
+    # fastembed failure that all vanished the moment the image was rebuilt with a
+    # real SHA. Silent drift is the single most expensive failure mode we have.
+    try:
+        _ver = (os.environ.get("APP_VERSION") or "").strip()
+        # settings.app_env is the real field (there is NO settings.environment —
+        # getattr on a wrong name would silently no-op this whole guard).
+        _app_env = str(getattr(settings, "app_env", "") or "")
+        _is_prod = _app_env.lower() == "production"
+        if is_unversioned_production_image(_ver, _app_env):
+            logger.error(
+                "❌ UNVERSIONED production image (APP_VERSION=%r) — /health cannot "
+                "prove which commit is running and prod may be silently STALE. "
+                "Deploy with: APP_VERSION=$(git rev-parse --short HEAD) docker compose "
+                "-f docker-compose.vps.yml build app",
+                _ver or "<unset>",
+            )
+            try:
+                from app.platform import ops_alerts
+
+                ops_alerts._ntfy(
+                    "Unversioned production image",
+                    f"APP_VERSION={_ver or '<unset>'} — prod may be running STALE code. "
+                    "Rebuild with APP_VERSION=<git sha>.",
+                    priority="high",
+                    tags=["rotating_light"],
+                )
+            except Exception:
+                pass
+        elif _is_prod:
+            logger.info("✅ Image provenance OK (APP_VERSION=%s)", _ver)
+    except Exception as _ver_e:
+        logger.warning(f"Image provenance guard skipped: {_ver_e}")
 
     yield
 

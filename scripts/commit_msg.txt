@@ -1,29 +1,38 @@
-fix(integrations): recipient-not-on-whatsapp is not an integration fault (ADR-096)
+fix(main): unversioned production image is a LOUD startup failure (ADR-097)
 
-WAHA replying "this number has no WhatsApp account" is a CORRECT API response,
-not an integration fault. Counting it as one let synthetic test tenants
-(Sharma Solar / Fresh Test Biz numbers 919123456780, 919876543299, 919876543211)
-drive the rolling-24h health snapshot to whatsapp fail=72 ok=2 fail_rate=0.973
-last_error=recipient_not_on_whatsapp, cross _INTEGRATION_FAIL_THRESHOLD=3, and
-write a DAILY false "integration_failed: WhatsApp integration failing" into the
-REAL paying customer jiya-makeover's delivery ledger (2026-07-11/12/13/14) while
-WhatsApp was verifiably working (GET waha:3000/api/sessions/default -> 200,
-worker ECONNREFUSED over 2h = 0).
+ROOT CAUSE of ~1,170 Sentry events. docker-compose.vps.yml tags
+${APP_VERSION:-latest}, so a deploy that forgets APP_VERSION silently leaves prod
+on an UNVERSIONED :latest image. /health then reports version "latest" and nobody
+can tell what code is running. That is not cosmetic: production sat on stale code
+while fixes were merged to main and never reached it.
 
-Same failure class as ADR-095: synthetic data polluting a real customer's
-status surface.
+What the stale image was actually costing (all live-verified):
+  - /api/voice/niches, a PAID Voice Agent revenue route (Rs 4,999-19,999/mo),
+    returned 500 for SIX DAYS -- PYTHON-G 379 + PYTHON-H 224 + PYTHON-M 179 +
+    PYTHON-R 90 = 872 events -- even though the real cause (a retired
+    lead_topup_price import) was ALREADY fixed in main.
+    The '_IncludedRouter' object has no attribute 'path' title was the exception
+    handler's own secondary crash masking the real ImportError.
+  - ~277 app.middleware._record event-loop errors (PYTHON-K/N/P).
+  - qdrant "fastembed model not ready within 90s" at fail_rate 1.0.
 
-- send_text_message() no longer records an integration failure for
-  numberExists=false; caller still gets {"error": "recipient_not_on_whatsapp",
-  "status": "blocked"}. Real faults (selfhost_not_configured,
-  wrong_linked_number, transport errors in _post) are still recorded.
-- infra_handler._check_ready() now tries http://app:8080/health/ready FIRST.
-  The app listens on 8080 in-network and is only published to 8000 on the HOST,
-  so every URL in the old list (SELF_HEALTH_URL=app:8000, hardcoded app:8000,
-  127.0.0.1:8000) failed from a worker container. Verified live from inside the
-  container: app:8000 -> 000, app:8080 -> 200.
+Rebuilding with a real SHA (91e7d37 -> 1feed53) took EVERY one of those to zero
+within 30 minutes: /api/voice/niches -> HTTP 200 with real band pricing, and
+"fastembed model loaded: paraphrase-multilingual-MiniLM-L12-v2 (dim=384)".
 
-Tests: 49 passed (whatsapp_selfhost + customer_delivery + selfhosted_tools),
-incl. 2 new cases pinning both the fix and its blast radius (real config faults
-must still be recorded). prod_check ALL CHECKS PASSED (1102 routes).
-check_secrets clean.
+The gap: prod_check and CI validate the SOURCE; nothing validated that the
+RUNNING IMAGE was built from that source. Silent drift lived in that gap.
+
+- add pure, testable is_unversioned_production_image(app_version, app_env).
+- lifespan guard (production only): logs ERROR + pages ntfy high-priority when
+  APP_VERSION is unset/latest/dev/1.0.0. Mirrors the existing "CRITICAL routes
+  missing after startup" sweep directly above it. INERT outside production.
+- settings.app_env is the real field; there is NO settings.environment (a getattr
+  on the wrong name would have silently no-opped the guard).
+
+Rejected: compose ${APP_VERSION:?err}, which would hard-break unrelated
+`docker compose up <service>` ops across ~5 services for the same detection.
+
+Tests: 55 passed (new test_image_provenance_guard + voice_product_contract +
+customer_delivery + whatsapp_selfhost). prod_check ALL CHECKS PASSED (1102
+routes). check_secrets clean.
