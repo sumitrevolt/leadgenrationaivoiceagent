@@ -27,6 +27,15 @@ Tune on FREE web-call (`/app/test-call`) → `scripts/agent_tester.py` scorecard
 ## Enable a gated automation flag (skill: `automation-flags`)
 Check `GET /api/growth/infra/flags` → read flag's ban/cost risk → enable in `.env` → app recreate → verify emit/log → monitor 24h → naya flag banaya to `AUTOMATION_FLAGS` registry me add.
 
+## WAHA secret rotation (P0 security — `scripts/activate_waha_vps.sh` had hardcoded values until 2026-07-14)
+1. **Rotate on the WAHA container:** generate two new strong random values for `WAHA_API_KEY` and `WAHA_WEBHOOK_TOKEN` (e.g. `openssl rand -base64 32`).
+2. SSH to VPS (`ssh -i ~/.ssh/id_rsa root@72.61.245.204`), `cd /opt/leadgen`.
+3. Export the new values in the SSH session only (never paste into a committed file): `export WAHA_API_KEY=... WAHA_WEBHOOK_TOKEN=... WHATSAPP_BUSINESS_NUMBER=91XXXXXXXXXX`.
+4. Run `./scripts/activate_waha_vps.sh` — it now requires these env vars (fails loudly if unset) and rewrites the `.env` WAHA block idempotently, then restarts `waha` + `app`.
+5. Verify: `/health`=`environment:production`, `docker logs --tail=5 leadgen_waha` shows the container came up clean, `curl -s -H "X-Api-Key: $WAHA_API_KEY" http://127.0.0.1:3111/api/sessions/default` returns a session status (not 401).
+6. Re-link WhatsApp if the session drops after rotation: `https://leadsgenai.in/app/whatsapp` → Self-host card → Start session → scan QR (phone: WhatsApp → Linked Devices → Link a Device).
+7. Treat the OLD key/token (committed in git history before 2026-07-14) as permanently burned — rotation (not history rewrite) is the fix; do not reuse those values anywhere.
+
 ## Prod incident (skill: `prod-incident-triage`)
 Health 000/502 → `docker ps` + logs → py-spy dump on stuck proc → recover (targeted restart, NOT blind) → root-cause → postmortem entry in `memory/incidents.md` + prevention rule. Self-heal cron `scripts/vps_selfheal.sh` */10 already running.
 

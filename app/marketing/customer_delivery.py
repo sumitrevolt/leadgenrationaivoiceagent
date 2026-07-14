@@ -49,9 +49,52 @@ def _is_self_brand(client: dict[str, Any]) -> bool:
     return str(client.get("business_name") or "").strip().lower() in ("leadgen ai", "leadsgenai")
 
 
+def _payment_evidence(client: dict[str, Any]) -> bool | None:
+    """Tri-state: does an immutable Rule-46 invoice belong to this customer identity?
+
+    True  = invoice found (real payment proof).
+    False = invoice ledger read cleanly AND has real content, but none for this id.
+    None  = ledger missing/empty/unreadable -> UNKNOWN, caller must fail-OPEN.
+
+    WHY tri-state: a plan is SELECTED at signup before any money moves, so plan name
+    alone is not payment proof (that is how synthetic "Test Biz" (plan=growth, zero
+    invoices) paged the founder hourly as a PAID customer). But a hard fail-CLOSED
+    here would silently STOP delivery for a real paying customer the moment the
+    ledger is unreadable — the exact ghosting incident this module exists to prevent.
+    So: only judge "not paid" when we have a FUNCTIONING ledger with real content;
+    otherwise return None and let the caller fall back to the plan check.
+
+    Identity mirrors `activation._client_has_payment_evidence`: legacy/recreated IDs
+    keep invoice ownership via `billing_client_ids` (never mutate the invoice).
+    """
+    try:
+        ids = {str(client.get("id") or "").strip()}
+        aliases = client.get("billing_client_ids") or []
+        if isinstance(aliases, (list, tuple, set)):
+            ids.update(str(x or "").strip() for x in aliases)
+        ids.discard("")
+        if not ids:
+            return None
+
+        from app.billing import gst_invoice
+
+        rows = gst_invoice._read()
+        if not rows:
+            # No ledger content = anomaly, NOT proof of non-payment. Fail-OPEN.
+            return None
+        return any(str(row.get("client_id") or "").strip() in ids for row in rows)
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("payment-evidence lookup failed (fail-open to plan): %s", exc)
+        return None
+
+
 def is_paid_client(client: dict[str, Any]) -> bool:
-    """Active client on a real (non-free/trial) plan = someone who paid. Self-brand
-    (LeadGen AI apna record) delivery target nahi — exclude."""
+    """Active client on a real (non-free/trial) plan = delivery-ELIGIBLE. Self-brand
+    (LeadGen AI apna record) delivery target nahi — exclude.
+
+    NOTE: plan is chosen at signup BEFORE money moves, so this is eligibility, not
+    payment proof. For "did they actually pay" use `has_paid_evidence()`.
+    """
     if not isinstance(client, dict):
         return False
     if _is_self_brand(client):
@@ -60,6 +103,20 @@ def is_paid_client(client: dict[str, Any]) -> bool:
         return False
     plan = str(client.get("plan") or "").strip().lower()
     return bool(plan) and plan not in _PAID_PLACEHOLDER_PLANS
+
+
+def has_paid_evidence(client: dict[str, Any]) -> bool:
+    """Delivery-eligible AND payment is not contradicted by a functioning invoice
+    ledger. Used to gate the founder-paging dead-man alert so a never-invoiced
+    tenant cannot masquerade as a paying customer.
+
+    Fail-OPEN by design: if the ledger is unknown (None) we keep the client in the
+    alert set — a real paying customer must NEVER be silently dropped from the
+    dead-man detector just because the ledger hiccuped.
+    """
+    if not is_paid_client(client):
+        return False
+    return _payment_evidence(client) is not False
 
 
 def mini_site_url(client: dict[str, Any]) -> str:
@@ -139,7 +196,10 @@ def find_undelivered_paid_clients() -> list[dict[str, Any]]:
         from app.marketing import clients_store
 
         for c in clients_store.list_clients(status="active"):
-            if is_paid_client(c) and not is_delivered(c):
+            # has_paid_evidence (not is_paid_client): a plan is selected pre-payment,
+            # so a never-invoiced synthetic tenant must not page the founder as a
+            # ghosted PAYING customer. Fail-OPEN when the ledger is unknown.
+            if has_paid_evidence(c) and not is_delivered(c):
                 out.append(c)
     except Exception as exc:
         logger.warning("find_undelivered_paid_clients err: %s", exc)
