@@ -1,5 +1,5 @@
 # start-leadgen-dev.ps1 — one-command local dev bring-up.
-# Brings up: WSL Redis broker + OmniRoute gateway/lanes (Node 24) + verifies Windows venv.
+# Brings up: WSL Redis broker + OmniRoute gateway/lanes (Node 22) + verifies Windows venv.
 # Dev-only, loopback-only, idempotent. Does NOT touch production, .env, or Docker.
 # Usage:  powershell -ExecutionPolicy Bypass -File scripts\start-leadgen-dev.ps1
 $ErrorActionPreference = 'Continue'

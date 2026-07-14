@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1123 operations)
+## Endpoint Index — auto-generated from OpenAPI (1125 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1216,6 +1216,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/rl/dev` — Rl Dev
 - `GET   ` `/api/rl/recent` — Rl Recent
 - `GET   ` `/api/rl/summary` — Rl Summary
+
+### Integrations  (2)
+
+- `GET   ` `/api/admin/integrations/health` — Admin Integrations Health
+- `GET   ` `/api/customer/integrations/health` — Customer Integrations Health
 
 ### Journeys  (7)
 

@@ -285,4 +285,11 @@ AUTOMATION_FLAGS = [
     "UNITY_VIRTUAL_OFFICE_ENABLED",  # /app/office?mode=3d serves office_blueprint.html shell (admin).
     # OFF default → existing 2D Phaser office map (fully INERT). docs/UNITY_VIRTUAL_OFFICE_ARCHITECTURE.md
     "UNITY_CUSTOMER_OFFICE_ENABLED",  # customer 3D office shell (Milestone E). OFF default (INERT).
+    # --- OmniRoute dev-tooling gateway integration (2026-07-12 audit) ---
+    "OMNIROUTE_ENABLED",  # optional additive fallback via app/platform/omniroute_client.py.
+    # OFF default (INERT) — local admin/data-plane and sanitized Groq/Mistral Responses
+    # calls are verified, but customer/production routing is deliberately not approved.
+    # Flip only in a sanitized local process using the explicit task registry.
+    # NOT in the production customer request path (LeadGen's existing free_ai.py chain
+    # is untouched/unconditional).
 ]

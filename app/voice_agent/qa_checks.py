@@ -175,10 +175,15 @@ def check_pushy_after_softno(transcript: list[dict]) -> list[str]:
     return findings
 
 
-def check_talk_listen_ratio(transcript: list[dict], max_ratio: float = 0.6) -> str | None:
-    """Bot ka word-share check — listen ≥ talk (agent never >~60% of words).
-    Returns a finding if the bot over-talked, else None. Needs ≥2 bot turns to
-    be meaningful (a single long answer is not a ratio)."""
+def check_talk_listen_ratio(
+    transcript: list[dict], max_ratio: float = 0.6, min_avg_bot_words: float = 24.0
+) -> str | None:
+    """Flag sustained over-talking, not concise replies to one-word answers.
+
+    Word share alone is unstable when the scripted/user side says only ``haan`` or
+    ``nahi``. Require both an excessive share and an excessive average bot-turn length.
+    Needs at least two bot turns so a single detailed answer is not mislabeled.
+    """
     bot_words = 0
     user_words = 0
     bot_turns = 0
@@ -193,8 +198,12 @@ def check_talk_listen_ratio(transcript: list[dict], max_ratio: float = 0.6) -> s
     if total == 0 or bot_turns < 2:
         return None
     ratio = bot_words / total
-    if ratio > max_ratio:
-        return f"TALK_LISTEN_RATIO: bot spoke {ratio:.0%} of words (>{max_ratio:.0%} cap)"
+    avg_bot_words = bot_words / bot_turns
+    if ratio > max_ratio and avg_bot_words > min_avg_bot_words:
+        return (
+            f"TALK_LISTEN_RATIO: bot spoke {ratio:.0%} of words "
+            f"(>{max_ratio:.0%} cap; {avg_bot_words:.0f} words/turn)"
+        )
     return None
 
 

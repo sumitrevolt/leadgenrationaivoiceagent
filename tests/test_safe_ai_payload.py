@@ -137,6 +137,12 @@ class TestBlockIfSensitive:
         with pytest.raises(SafePayloadError, match="Cannot send customer PII"):
             block_if_sensitive(payload, "deepseek")
 
+    @pytest.mark.parametrize("provider", ["opencode", "duckduckgo"])
+    def test_no_auth_provider_with_pii_blocks(self, provider):
+        """Opaque credential-free gateways must never receive customer PII."""
+        with pytest.raises(SafePayloadError, match="Cannot send customer PII"):
+            block_if_sensitive({"email": "customer@example.com"}, provider)
+
     def test_unsafe_provider_without_pii_passes(self):
         block_if_sensitive({"text": "generate a social media post"}, "qwen")
 

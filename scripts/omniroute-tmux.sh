@@ -13,6 +13,7 @@ NODE_BIN_DIR="${OMNI_NODE_BIN_DIR:-/root/.nvm/versions/node/v22.23.1/bin}"
 if [[ -d "$NODE_BIN_DIR" ]]; then
   export PATH="$NODE_BIN_DIR:$PATH"
 fi
+OMNI_CMD="export PATH='$NODE_BIN_DIR':\$PATH; export OMNIROUTE_MEMORY_MB=2048; omniroute"
 
 for dir in "$ROOT" "$RESEARCH" "$IMPLEMENT" "$REVIEW"; do
   [[ -d "$dir" ]] || { echo "Missing lane directory: $dir" >&2; exit 1; }
@@ -24,7 +25,7 @@ command -v omniroute >/dev/null 2>&1 || { echo "Install OmniRoute: npm install -
 if tmux has-session -t "$SESSION" 2>/dev/null; then
   if ! tmux has-session -t "$SESSION:gateway" 2>/dev/null; then
     tmux new-window -d -t "$SESSION" -n gateway
-    tmux send-keys -t "$SESSION:gateway" "omniroute" C-m
+    tmux send-keys -t "$SESSION:gateway" "$OMNI_CMD" C-m
     echo "Added missing gateway window to existing session: $SESSION"
   else
     echo "Session already exists: $SESSION"
@@ -41,7 +42,7 @@ tmux split-window -v -t "$SESSION:leadgen.1" -c "$REVIEW"
 tmux send-keys -t "$SESSION:leadgen.2" "echo 'Tests/review lane — verify, do not edit implementation files'; bash" C-m
 tmux select-pane -t "$SESSION:leadgen.0"
 tmux new-window -d -t "$SESSION" -n gateway
-tmux send-keys -t "$SESSION:gateway" "omniroute" C-m
+tmux send-keys -t "$SESSION:gateway" "$OMNI_CMD" C-m
 
 echo "Started tmux session: $SESSION"
 echo "Attach with: tmux attach -t $SESSION"

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# WSL-side local dev bring-up: Redis broker + OmniRoute gateway/lanes (Node 24).
+# WSL-side local dev bring-up: Redis broker + OmniRoute gateway/lanes (Node 22).
 # Called by scripts/start-leadgen-dev.ps1 (which strips CR + base64-pipes this in).
 # Dev-only, loopback-only. No production touch. Idempotent.
 set -uo pipefail
-NODE_BIN=/root/.nvm/versions/node/v24.18.0/bin
+NODE_BIN=/root/.nvm/versions/node/v22.23.1/bin
 export PATH="$NODE_BIN:$PATH"
+export OMNIROUTE_MEMORY_MB=2048
+OMNI_CMD="export PATH=$NODE_BIN:\$PATH; export OMNIROUTE_MEMORY_MB=2048; omniroute"
 SESSION=leadgen-omni
 WT=/root/src/leadgenrationaiagent-worktrees
 
@@ -18,7 +20,7 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
   echo "tmux session already running"
   if ! tmux list-windows -t "$SESSION" 2>/dev/null | grep -q gateway; then
     tmux new-window -d -t "$SESSION" -n gateway
-    tmux send-keys -t "$SESSION:gateway" "export PATH=$NODE_BIN:\$PATH; omniroute" C-m
+    tmux send-keys -t "$SESSION:gateway" "$OMNI_CMD" C-m
     echo "re-added gateway window"
   fi
 else
@@ -30,7 +32,7 @@ else
   tmux send-keys -t "$SESSION:leadgen.2" "echo review-lane (verify only)" C-m
   tmux select-pane -t "$SESSION:leadgen.0"
   tmux new-window -d -t "$SESSION" -n gateway
-  tmux send-keys -t "$SESSION:gateway" "export PATH=$NODE_BIN:\$PATH; omniroute" C-m
+  tmux send-keys -t "$SESSION:gateway" "$OMNI_CMD" C-m
   echo "tmux session started (gateway + 3 lanes)"
 fi
 

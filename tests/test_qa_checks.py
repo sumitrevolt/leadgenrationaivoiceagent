@@ -67,6 +67,19 @@ def test_talk_listen_ratio():
     assert qc.check_talk_listen_ratio([{"role": "assistant", "content": "a b c"}]) is None
 
 
+def test_talk_listen_ratio_does_not_flag_concise_answers_to_terse_user():
+    transcript = [
+        {"role": "assistant", "content": "Marketing abhi khud karte ho ya staff karta hai?"},
+        {"role": "user", "content": "khud"},
+        {"role": "assistant", "content": "Google search mein business upar dikhta hai kya?"},
+        {"role": "user", "content": "nahi"},
+        {"role": "assistant", "content": "Audit karke simple fix suggestions de sakte hain."},
+        {"role": "user", "content": "theek"},
+    ]
+
+    assert qc.check_talk_listen_ratio(transcript, max_ratio=0.6) is None
+
+
 def test_missing_permission():
     no_perm = [
         {"role": "assistant", "content": "Namaste, main Swara AI assistant hoon"},
