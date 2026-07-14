@@ -1,0 +1,29 @@
+fix(integrations): recipient-not-on-whatsapp is not an integration fault (ADR-096)
+
+WAHA replying "this number has no WhatsApp account" is a CORRECT API response,
+not an integration fault. Counting it as one let synthetic test tenants
+(Sharma Solar / Fresh Test Biz numbers 919123456780, 919876543299, 919876543211)
+drive the rolling-24h health snapshot to whatsapp fail=72 ok=2 fail_rate=0.973
+last_error=recipient_not_on_whatsapp, cross _INTEGRATION_FAIL_THRESHOLD=3, and
+write a DAILY false "integration_failed: WhatsApp integration failing" into the
+REAL paying customer jiya-makeover's delivery ledger (2026-07-11/12/13/14) while
+WhatsApp was verifiably working (GET waha:3000/api/sessions/default -> 200,
+worker ECONNREFUSED over 2h = 0).
+
+Same failure class as ADR-095: synthetic data polluting a real customer's
+status surface.
+
+- send_text_message() no longer records an integration failure for
+  numberExists=false; caller still gets {"error": "recipient_not_on_whatsapp",
+  "status": "blocked"}. Real faults (selfhost_not_configured,
+  wrong_linked_number, transport errors in _post) are still recorded.
+- infra_handler._check_ready() now tries http://app:8080/health/ready FIRST.
+  The app listens on 8080 in-network and is only published to 8000 on the HOST,
+  so every URL in the old list (SELF_HEALTH_URL=app:8000, hardcoded app:8000,
+  127.0.0.1:8000) failed from a worker container. Verified live from inside the
+  container: app:8000 -> 000, app:8080 -> 200.
+
+Tests: 49 passed (whatsapp_selfhost + customer_delivery + selfhosted_tools),
+incl. 2 new cases pinning both the fix and its blast radius (real config faults
+must still be recorded). prod_check ALL CHECKS PASSED (1102 routes).
+check_secrets clean.

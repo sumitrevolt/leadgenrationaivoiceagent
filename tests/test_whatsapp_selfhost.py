@@ -352,3 +352,44 @@ def test_default_config_includes_webhook_token(monkeypatch):
     cfg = wahost._default_config()
     assert cfg["webhooks"][0]["url"].endswith("token=tok123")
     assert cfg["webhooks"][0]["events"] == ["message"]
+
+
+def test_recipient_not_on_whatsapp_is_not_an_integration_failure(monkeypatch):
+    """A recipient with no WhatsApp account is a RECIPIENT outcome, not an
+    integration fault — WAHA answered correctly.
+
+    Regression: counting it as an integration failure let synthetic/test numbers
+    drive whatsapp to fail_rate 0.973 and write a DAILY false
+    "WhatsApp integration failing" into a real paying customer's delivery ledger
+    while WhatsApp was working (live snapshot: fail=72 ok=2
+    last_error=recipient_not_on_whatsapp).
+    """
+    recorded: list[str] = []
+    monkeypatch.setattr(wahost, "_record_whatsapp_failure", lambda note="": recorded.append(note))
+    monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    monkeypatch.setenv("WHATSAPP_ENFORCE_BUSINESS_NUMBER", "0")
+
+    async def _fake_check(_self, _to):
+        return {"known": True, "exists": False, "reason": "recipient_not_on_whatsapp"}
+
+    monkeypatch.setattr(wahost.SelfHostWhatsApp, "_recipient_check", _fake_check)
+
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("919123456780", "hi"))
+
+    # Caller still learns the send was blocked...
+    assert res.get("error") == "recipient_not_on_whatsapp"
+    assert res.get("status") == "blocked"
+    # ...but integration health is NOT poisoned by it.
+    assert recorded == []
+
+
+def test_real_integration_faults_are_still_recorded(monkeypatch):
+    """Guard the fix's blast radius: genuine config faults must STILL be recorded."""
+    recorded: list[str] = []
+    monkeypatch.setattr(wahost, "_record_whatsapp_failure", lambda note="": recorded.append(note))
+    monkeypatch.delenv("WAHA_BASE_URL", raising=False)
+
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("919999999999", "hi"))
+
+    assert res.get("error") == "selfhost_not_configured"
+    assert recorded == ["selfhost_not_configured"]
