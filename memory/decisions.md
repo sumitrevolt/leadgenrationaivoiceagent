@@ -627,3 +627,9 @@ Consequence: hourly Celery reply triage operates without a human send step while
 Decision: API/SMTP delivery logs record provider/status or exception class/coarse code plus recipient count only. Recipient addresses, raw provider response bodies, and raw exception text are excluded from application logs, integration-health notes, and SMTP-disabled alerts because provider errors can echo customer addresses. Delivery payloads and provider selection are unchanged.
 
 Consequence: operators retain success/failure, channel, count, and coarse failure code without storing customer email addresses in Loki/container logs. Regression contracts cover API success and SMTP 554 failure. Production canary proved `redaction probe (recipients=1)` with the unique input address absent. Rollback is code revert only; no data migration.
+
+## 2026-07-14 — ADR-093 Monitoring collectors preserve defaults and histogram buckets match the SLO
+
+Decision: cAdvisor's `--disable_metrics` is a replacement, not an additive flag, so the production command explicitly retains the v0.55 default deny-list while adding `disk,diskIO`. HTTP latency keeps exact 1.5s, 2.0s and 2.5s buckets around the unchanged 2-second alert boundary.
+
+Consequence: Postiz overlay scans and accidentally re-enabled `smaps` collection stay off while CPU/memory/network container alerts remain live. `histogram_quantile` no longer interpolates across the old 1.0–2.5s gap and falsely reports p95 above 2s when all observed requests are below the SLO. Rollback is code/compose revert; no data migration.
