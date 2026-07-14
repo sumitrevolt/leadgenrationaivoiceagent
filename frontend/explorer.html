@@ -2691,24 +2691,27 @@ async function fetchLiveHealth() {
 
   for(const base of getApiBases()) {
     try {
-      const reqs = [
+      const [healthR, summaryR] = await Promise.all([
         fetch(base+'/health', {mode:'cors', credentials:'omit'}),
         fetch(base+'/api/activation/summary', {mode:'cors', credentials:'omit'}),
-      ];
+      ]);
+      let flagsR = null, autoHealthR = null;
       if(token) {
-        reqs.push(fetch(base+'/api/growth/infra/flags', {
-          mode:'cors', credentials:'omit',
-          headers: {Authorization: 'Bearer '+token},
-        }));
-        reqs.push(fetch(base+'/api/growth/infra/automation-health', {
-          mode:'cors', credentials:'omit',
-          headers: {Authorization: 'Bearer '+token},
-        }));
+        // Optional admin overlays must never make healthy public probes look
+        // unreachable. A rejected/expired overlay simply stays unavailable.
+        const adminRes = await Promise.allSettled([
+          fetch(base+'/api/growth/infra/flags', {
+            mode:'cors', credentials:'omit',
+            headers: {Authorization: 'Bearer '+token},
+          }),
+          fetch(base+'/api/growth/infra/automation-health', {
+            mode:'cors', credentials:'omit',
+            headers: {Authorization: 'Bearer '+token},
+          }),
+        ]);
+        if(adminRes[0].status === 'fulfilled') flagsR = adminRes[0].value;
+        if(adminRes[1].status === 'fulfilled') autoHealthR = adminRes[1].value;
       }
-      const res = await Promise.all(reqs);
-      const healthR = res[0], summaryR = res[1];
-      const flagsR = token ? res[2] : null;
-      const autoHealthR = token ? res[3] : null;
       if(!healthR.ok && !summaryR.ok) continue;
 
       let health = {}, summary = {}, flags = {}, automationHealth = {};
@@ -2717,19 +2720,22 @@ async function fetchLiveHealth() {
       if(flagsR && flagsR.ok) { try { flags = await flagsR.json(); } catch(e) {} }
       if(autoHealthR && autoHealthR.ok) { try { automationHealth = await autoHealthR.json(); } catch(e) {} }
 
-      const flagMap = _parseFlagsPayload(flags);
-      if(flags && flags.flags && typeof flags.flags === 'object' && !Array.isArray(flags.flags)) {
-        Object.keys(flags.flags).forEach(k => {
-          const ent = flags.flags[k];
-          if(ent && typeof ent === 'object' && 'on' in ent) flagMap[k] = !!ent.on;
-        });
-      }
-      if(Object.keys(flagMap).length) _syncFlagsFromServer(flagMap);
+      let flagMap = {};
+      try {
+        flagMap = _parseFlagsPayload(flags);
+        if(flags && flags.flags && typeof flags.flags === 'object' && !Array.isArray(flags.flags)) {
+          Object.keys(flags.flags).forEach(k => {
+            const ent = flags.flags[k];
+            if(ent && typeof ent === 'object' && 'on' in ent) flagMap[k] = !!ent.on;
+          });
+        }
+        if(Object.keys(flagMap).length) _syncFlagsFromServer(flagMap);
+      } catch(e) {}
 
       prevLiveSnapshot = liveSnapshot;
       liveSnapshot = { base, health, summary, flags: flagMap, automationHealth, ts: Date.now() };
       liveHealth = liveSnapshot;
-      _detectLiveChanges(prevLiveSnapshot, liveSnapshot);
+      try { _detectLiveChanges(prevLiveSnapshot, liveSnapshot); } catch(e) {}
 
       const host = base.replace('https://','').replace('http://','');
       const launchOk = !!(summary.production_ready || summary.ready_for_launch);
@@ -2748,11 +2754,11 @@ async function fetchLiveHealth() {
       } else {
         txt.textContent = `Live · ${host}`;
       }
-      renderNodes();
-      updateStatusHud();  // F7 — live status chips
+      try { renderNodes(); } catch(e) {}
+      try { updateStatusHud(); } catch(e) {}  // F7 — live status chips
       if(token) _updateDriftHud(base, token);  // advanced: live graph<->code coverage
       if(selectedNode && (selectedNode === 'launch' || selectedNode === 'vps' || selectedNode === 'explorer' || selectedNode === 'beat' || selectedNode === 'worker' || selectedNode === 'ops')) {
-        showNodeDetail(nodeMap[selectedNode]);
+        try { showNodeDetail(nodeMap[selectedNode]); } catch(e) {}
       }
       return;
     } catch(e) { continue; }
