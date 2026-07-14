@@ -295,7 +295,7 @@ function render(){
         <div class="note">${isAdv ? "telephony usage included up to 500 min/mo" : "100% marketing-only — koi calling charge nahi"}</div>
         ${featuresHtml(p)}
         <div class="actions">
-          <button class="btn primary" onclick='openModal(${JSON.stringify(JSON.stringify(p))})'>Shuru karo</button>
+          <button class="btn primary" onclick="openModalByIndex(${i})">Shuru karo</button>
           <a class="btn ghost" href="#plans">Compare</a>
         </div>
       </div>
@@ -303,8 +303,14 @@ function render(){
   });
 }
 
-function openModal(pjson){
-  SELECTED = JSON.parse(pjson);
+function openModalByIndex(index){
+  const plan = PLANS[Number(index)];
+  if(!plan) return;
+  openModal(plan);
+}
+
+function openModal(plan){
+  SELECTED = plan;
   document.getElementById("m-title").textContent = `Sign up — ${SELECTED.name || SELECTED.id}`;
   document.getElementById("m-sub").textContent = `${inr(priceFor(SELECTED).amt)} ${priceFor(SELECTED).suf}`;
   document.getElementById("m-msg").textContent = "";
