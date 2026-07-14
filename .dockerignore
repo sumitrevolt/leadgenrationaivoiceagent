@@ -90,6 +90,7 @@ data/**/*.sqlite
 /models
 
 # Misc
+backups/
 .DS_Store
 *.log
 .mypy_cache

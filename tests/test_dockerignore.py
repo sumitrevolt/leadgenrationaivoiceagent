@@ -23,3 +23,14 @@ def test_dockerignore_excludes_runtime_data_after_data_include() -> None:
         "data/vectorstore",
     }
     assert required_excludes <= after_data_include
+
+
+def test_dockerignore_excludes_vps_runtime_backups_from_build_context() -> None:
+    """VPS root backups are multi-GB and must never enter an app image build."""
+    lines = {
+        line.strip().rstrip("/")
+        for line in Path(".dockerignore").read_text(encoding="utf-8").splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+
+    assert "backups" in lines
