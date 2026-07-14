@@ -1,14 +1,23 @@
-import re, subprocess, sys, tempfile, os, shutil
+import json, re, subprocess, sys, tempfile, os, shutil
 files = ["frontend/pricing.html","frontend/automation.html","frontend/ops.html"]
 node = shutil.which("node")
 allok = True
 for f in files:
     h = open(f, encoding="utf-8").read()
-    scripts = re.findall(r"<script[^>]*>(.*?)</script>", h, re.S)
+    scripts = re.findall(r"<script([^>]*)>(.*?)</script>", h, re.S | re.I)
     # skip external/src-only blocks (empty body)
-    bodies = [s for s in scripts if s.strip()]
+    bodies = [(attrs, body) for attrs, body in scripts if body.strip()]
     fok = True
-    for i, b in enumerate(bodies):
+    for i, (attrs, b) in enumerate(bodies):
+        # JSON-LD is data, not executable JavaScript. Validate it as JSON so a
+        # valid schema block does not become a false Node syntax failure.
+        if re.search(r"\btype\s*=\s*['\"]application/ld\+json['\"]", attrs, re.I):
+            try:
+                json.loads(b)
+            except json.JSONDecodeError as exc:
+                fok = False; allok = False
+                print(f"{f} script#{i} JSON_FAIL: {exc}")
+            continue
         if node:
             tf = tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8")
             tf.write(b); tf.close()

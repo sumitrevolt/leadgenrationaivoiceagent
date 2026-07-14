@@ -3049,7 +3049,13 @@ async function tdLoad(){
       fh+='<div style="margin-top:6px"><span class="pill">'+esc(f.flag)+'</span> <span class="mut">'+esc(f.matlab)+'</span></div>';
     });
     $('tdFlags').innerHTML=fh||'<div class="ok">Saare important automations ON hain ✅</div>';
-  }catch(e){warnBox('tdProblems','Load fail: '+e.message+' — token check karo (upar Save)')}
+  }catch(e){
+    $('tdHead').textContent='🏠 Aaj ka overview load nahi hua';
+    warnBox('tdProblems','Load fail: '+e.message+' — token check karo (upar Save), phir Refresh dabao');
+    $('tdStaff').innerHTML='<div class="mut">Team data abhi available nahi.</div>';
+    $('tdJobs').innerHTML='<div class="mut">Schedule data abhi available nahi.</div>';
+    $('tdFlags').innerHTML='<div class="mut">Automation flags abhi available nahi.</div>';
+  }
 }
 
 /* ---------------- Loyalty ---------------- */
