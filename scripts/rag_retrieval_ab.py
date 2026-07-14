@@ -44,11 +44,14 @@ DOCS = [
     "Marketing posts aur review replies AI se — yeh solar pricing doc nahi hai.",
 ]
 
+# KB_EXACT_SEARCH pinned "0" on every A/B config: the gate compares shippable
+# (approximate/HNSW) configs, so it must be immune to an ambient KB_EXACT_SEARCH.
+# Exact search is exercised separately by run_exact_recall_probe().
 MODES = {
-    "baseline": {"USE_RERANKER": "0", "USE_HYBRID_SEARCH": "0", "USE_CONTEXTUAL_INGEST": "0"},
-    "rerank": {"USE_RERANKER": "1", "USE_HYBRID_SEARCH": "0", "USE_CONTEXTUAL_INGEST": "0"},
-    "hybrid": {"USE_RERANKER": "0", "USE_HYBRID_SEARCH": "1", "USE_CONTEXTUAL_INGEST": "0"},
-    "full": {"USE_RERANKER": "1", "USE_HYBRID_SEARCH": "1", "USE_CONTEXTUAL_INGEST": "0"},
+    "baseline": {"USE_RERANKER": "0", "USE_HYBRID_SEARCH": "0", "USE_CONTEXTUAL_INGEST": "0", "KB_EXACT_SEARCH": "0"},
+    "rerank": {"USE_RERANKER": "1", "USE_HYBRID_SEARCH": "0", "USE_CONTEXTUAL_INGEST": "0", "KB_EXACT_SEARCH": "0"},
+    "hybrid": {"USE_RERANKER": "0", "USE_HYBRID_SEARCH": "1", "USE_CONTEXTUAL_INGEST": "0", "KB_EXACT_SEARCH": "0"},
+    "full": {"USE_RERANKER": "1", "USE_HYBRID_SEARCH": "1", "USE_CONTEXTUAL_INGEST": "0", "KB_EXACT_SEARCH": "0"},
 }
 
 
@@ -121,6 +124,12 @@ def main() -> int:
     except Exception as e:  # pragma: no cover - live KB optional
         print(f"\n[gate] skipped (KB unavailable): {e}")
         gate_rc = 0
+
+    # ANN-vs-exact recall diagnostic (isolates model vs HNSW; eval only).
+    try:
+        run_exact_recall_probe()
+    except Exception as e:  # pragma: no cover - live KB optional
+        print(f"[exact-probe] skipped (KB unavailable): {e}")
     return gate_rc
 
 
@@ -349,6 +358,46 @@ def run_gate(config_fns, labeled_set=None, k: int = GATE_K, margin: float = GATE
     report = compute_deltas(config_fns, labeled_set, k, margin)
     print("\n" + format_delta_table(report))
     return 0 if report["passed"] else 1
+
+
+def run_exact_recall_probe() -> None:
+    """ANN-vs-exact recall@k probe — the search-quality skill's core diagnostic.
+
+    Runs the SAME baseline retrieval twice (approximate HNSW vs brute-force
+    exact via KB_EXACT_SEARCH) over the labeled set and compares recall:
+      exact recall low       -> model/data problem (chunking/embedding), not HNSW.
+      exact good, ANN lagging -> tune HNSW (raise KB_HNSW_EF).
+      ANN tracking exact      -> filtered-HNSW recall is healthy.
+    Never leaves KB_EXACT_SEARCH on (it bypasses the index — eval only).
+    """
+    from app.voice_agent import knowledge_base as kb_mod
+
+    ns = "ab:exactprobe"
+    _apply({"USE_HYBRID_SEARCH": "1", "USE_CONTEXTUAL_INGEST": "0", "USE_RERANKER": "0", "KB_EXACT_SEARCH": "0"})
+    kb_mod.get_knowledge_base().add_documents(
+        list(LABELED_DOCS.values()), source="ab_exact", namespace=ns
+    )
+    base = {"USE_RERANKER": "0", "USE_HYBRID_SEARCH": "0", "USE_CONTEXTUAL_INGEST": "0"}
+
+    def _fn(exact_flag: str):
+        def _run(query: str, k: int):
+            _apply({**base, "KB_EXACT_SEARCH": exact_flag})
+            return kb_mod.get_knowledge_base().retrieve(query, k=k, namespace=ns, rerank=None)
+
+        return _run
+
+    ann = score_config(_fn("0"))
+    exact = score_config(_fn("1"))
+    _apply({"KB_EXACT_SEARCH": "0"})  # never leave exact on
+    gap = round(exact["recall"] - ann["recall"], 4)
+    print(f"\n=== ANN vs exact recall@{GATE_K} (namespace={ns}) ===")
+    print(f"  ann_recall={ann['recall']}  exact_recall={exact['recall']}  gap={gap}")
+    if exact["recall"] < 0.5:
+        print("  -> exact recall low: model/data problem (chunking or embedding), not HNSW.")
+    elif gap >= 0.05:
+        print("  -> exact good, ANN lagging: tune HNSW (raise KB_HNSW_EF).")
+    else:
+        print("  -> ANN tracking exact: filtered-HNSW recall healthy.")
 
 
 if __name__ == "__main__":
