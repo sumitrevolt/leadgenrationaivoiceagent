@@ -2,6 +2,36 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-14 - ADR-090 Voice niches API band ka FLAT price deta hai; lead-topup concept retired-and-guarded
+
+Decision: `/api/voice/niches` ab `topup_pack_inr` ki jagah `band_price_month_inr` +
+`band_price_year_inr` deta hai (source: `voice_packages.BANDS`). `/api/voice/topup-link`
+route retain hai par ab flat-band ka sach bolta hai. Naya contract
+`tests/test_voice_product_contract.py` `lead_topup_price` ki wapsi ko block karta hai.
+
+Context: `/api/voice/niches` **7 din prod me 500** de raha tha (Sentry first seen
+2026-07-07, live repro `GET /api/voice/niches = 500`). Root cause: voice pricing
+2026-06-12 ko lead-counting se FLAT per-niche-band ho gayi aur `lead_topup_price()`
+tab hata diya gaya, par `app/api/voice_product.py` use import karta raha. Import
+**function-level** tha isliye startup/`prod_check` pe nahi phata — sirf request pe.
+Ek root cause -> 854 Sentry events: 681x `'_IncludedRouter' object has no attribute
+'path'` (secondary — error handler lazy router pe `.path` padh raha tha) + 173x
+`PlanTierRateLimit call_next failed: ImportError(lead_topup_price)`. Module docstring
+bhi "per-10-qualified-leads" keh raha tha = drift ki jad.
+
+Alternatives rejected: (a) `lead_topup_price` wapas add karna — pricing model ko
+peeche le jata aur billing-truth (§5) todta; flat plans me "unlimited calls" hai,
+per-lead pack ka matlab hi nahi. (b) `/topup-link` route delete karna — purane
+caller ko 404; retain karke sach bolna behtar. (c) Sirf try/except laga dena —
+symptom chhupata, galat pricing field zinda rehta.
+
+Consequence: Voice product ka public niches endpoint 500 -> 200; har niche apne band
+ka asli flat price dikhata hai (`band_price_month_inr: 9999` = BANDS["B"]). 854
+event/week ka Sentry noise band. RULE (naya): koi bhi pricing helper retire karte
+waqt uske SAARE callers grep karo — function-level import startup pe nahi phata,
+isliye `prod_check` green rehte hue bhi route 500 de sakta hai; har public revenue
+route ka ek contract test hona chahiye. Rollback: revert `eb20ee5`.
+
 ## 2026-07-14 - ADR-089 cadvisor mem_limit 384m -> 768m (metric-gap fix)
 
 Decision: `docker-compose.observability.yml` me cadvisor ka `mem_limit` 384m se
