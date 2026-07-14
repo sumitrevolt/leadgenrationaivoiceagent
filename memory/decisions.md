@@ -633,3 +633,9 @@ Consequence: operators retain success/failure, channel, count, and coarse failur
 Decision: cAdvisor's `--disable_metrics` is a replacement, not an additive flag, so the production command explicitly retains the v0.55 default deny-list while adding `disk,diskIO`. HTTP latency keeps exact 1.5s, 2.0s and 2.5s buckets around the unchanged 2-second alert boundary.
 
 Consequence: Postiz overlay scans and accidentally re-enabled `smaps` collection stay off while CPU/memory/network container alerts remain live. `histogram_quantile` no longer interpolates across the old 1.0–2.5s gap and falsely reports p95 above 2s when all observed requests are below the SLO. Rollback is code/compose revert; no data migration.
+
+## 2026-07-14 — ADR-094 Approval reminders use exact first-party identity plus tenant-scoped runtime activation
+
+Decision: A pending-approval recipient first uses a structurally valid marketing-client email and otherwise may fall back only to the exact same `client_id` in the first-party customer-auth login store. Synthetic/example addresses, suppression and opt-out remain blocked. Runtime activation accepts only explicit Redis `enabled_tenants`; percentage and unknown states fail closed, while `enabled_all` still requires the legacy environment allowlist. `APPROVAL_EMAIL_NOTIFY_HARD_OFF=1` overrides every activation path.
+
+Consequence: Jiya can receive zero-manual hourly reminders without enabling the other 274 customers or copying contact data between stores. The existing durable Celery job, audit dedupe and one-client-per-sweep bound remain unchanged. Production canary sent one verified reminder; a repeat scheduler dispatch left the single sent audit row and attempt count unchanged. Rollback is feature state `disabled` or the hard-off flag; no data migration is required. This extends ADR-077's fail-closed recipient policy with an audited runtime tenant scope.
