@@ -363,6 +363,8 @@ _ALLOWED_FIELDS = {
     "niche",
     "city",
     "phone",
+    "email",
+    "contact_email",
     "plan",
     "status",
     "brand",
@@ -386,6 +388,8 @@ _ALLOWED_FIELDS = {
     "approval_preference",  # "auto" or "manual" post approvals
     "social_error",  # customer-facing connection status / error text
     "blocked_reason",  # admin-facing tech error / reason blocked
+    "email_notifications",  # approval/report email delivery preference
+    "approval_email_opt_out",  # explicit approval-reminder opt-out
 }
 
 
@@ -418,6 +422,8 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
                 found["niche"] = str(v or "").strip().lower()[:80] or found.get("niche", "general")
             elif k == "trial":
                 found["trial"] = bool(v)
+            elif k in ("email_notifications", "approval_email_opt_out"):
+                found[k] = bool(v)
             elif k == "setup_done":
                 found["setup_done"] = bool(v)  # bool, NOT str("True") — idempotency guard
             elif k == "awaiting_kb_interview":
@@ -425,6 +431,8 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
             elif k == "crm":
                 # per-client CRM config dict — store as-is (generic else would str() it)
                 found["crm"] = dict(v) if isinstance(v, dict) else found.get("crm", {})
+            elif k in ("email", "contact_email"):
+                found[k] = str(v or "").strip().lower()[:255]
             else:
                 found[k] = str(v or "").strip()[:120]
         found["updated_at"] = _now()
