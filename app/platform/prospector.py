@@ -719,6 +719,7 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
         "queries_run": 0,
         "queries_failed": 0,
         "queries_empty": 0,
+        "queries_capped": False,
         "quality_rejected": 0,
         "by_niche": {},
         "scraper": "unavailable",
@@ -786,6 +787,20 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
         pairs: list[tuple[dict[str, Any], str]] = [
             (t, city) for t in targets for city in (t.get("cities") or [])
         ]
+
+        # One query can walk Google New -> legacy -> scraping/OSM fallback; the
+        # old 12 default target/city pairs could therefore overrun Celery's
+        # 9-minute soft limit and pin the single heavy worker. Keep the daily
+        # harvest useful (5 x up to 10 results) but bounded by default. An
+        # operator can raise this deliberately after observing provider latency.
+        try:
+            max_queries = int(os.environ.get("PROSPECT_MAX_QUERIES", "5"))
+        except Exception:
+            max_queries = 5
+        max_queries = max(1, min(max_queries, 20))
+        if len(pairs) > max_queries:
+            pairs = pairs[:max_queries]
+            summary["queries_capped"] = True
 
         max_per = max(1, min(int(limit_per_query), 50))
         for idx, (target, city) in enumerate(pairs):
