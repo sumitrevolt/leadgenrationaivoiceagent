@@ -377,6 +377,11 @@ async def notify_pending_approvals(
         "failed": 0,
         "not_allowlisted": 0,
         "duplicate_client_suppressed": 0,
+        # Idempotency pe short-circuit hue items. `sent` se ALAG rakhna zaroori
+        # hai: `notify_approval` dedupe pe purani row ka audit lautata hai jiska
+        # `status` "sent" hota hai — use `sent` ginna matlab "customer ko email
+        # gaya" ka jhootha haan (2026-07-14 postmortem).
+        "deduplicated": 0,
         "last_failure_category": None,
     }
     if not counts["enabled"]:
@@ -413,6 +418,12 @@ async def notify_pending_approvals(
         except Exception:
             r = {"status": "failed", "failure_category": "internal_error"}
         counts["seen"] += 1
+        # Dedupe short-circuit: koi provider call NAHI hua. `notify_approval`
+        # is case me purani row ka audit lautata hai (status="sent"), isliye
+        # status pe bharosa mat karo — `note` hi sach batata hai.
+        if str(r.get("note") or "") in ("duplicate_suppressed", "dedupe_race"):
+            counts["deduplicated"] += 1
+            continue
         counts["attempted"] += 1
         st = r.get("status", "skipped")
         counts[st] = counts.get(st, 0) + 1
