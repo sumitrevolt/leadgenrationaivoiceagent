@@ -360,6 +360,22 @@ async def _run_content_engine(name: str, coro) -> bool:
         return False
 
 
+def _recover_due_jobs() -> dict[str, Any]:
+    """Bounded, safe scheduler recovery used by the hourly watchdog.
+
+    ``scheduler_config.run_due`` owns the eligibility and side-effect exclusion
+    policy; this wrapper only keeps a recovery-path fault from breaking the
+    rest of the watchdog safety checks.
+    """
+    try:
+        from app.platform import scheduler_config
+
+        return scheduler_config.run_due(max_jobs=3)
+    except Exception as exc:
+        logger.warning("[team-scheduler] watchdog due-job recovery failed: %s", exc)
+        return {"ok": False, "error": type(exc).__name__}
+
+
 async def _run_job_inner(job: str) -> bool:
     try:
         from app.agents import staff
@@ -848,6 +864,12 @@ async def _run_job_inner(job: str) -> bool:
             await _run_content_engine(
                 "automation_health_watch", automation_health.run_watch()
             )  # dead-man switch: overdue jobs alert (gated AUTOMATION_HEALTH_ALERTS)
+            # Alert ke saath recovery bhi zaroori hai: overdue/never-ran safe
+            # jobs bounded Celery dispatch se recover hote hain. Exclude-list
+            # email/digest/platform_dial jaise side-effectful jobs ko auto-replay
+            # nahi karne deta. Pehle helper bana hua tha par watchdog se wired nahi
+            # tha, isliye restart ke baad jobs sirf overdue alert hote the.
+            _recover_due_jobs()
             from app.telephony import telephony_readiness
 
             await _run_content_engine(
