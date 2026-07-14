@@ -93,9 +93,9 @@ def test_trainer_timeout_within_celery_limit():
                             timeouts.append(kw.value.value)
     assert timeouts, "Could not find wait_for(run_nightly_training, timeout=...) in scheduler"
     for t in timeouts:
-        assert t <= 540, (
-            f"trainer wait_for timeout {t}s exceeds Celery soft_time_limit 540s "
-            "(Celery hard-kills at 600s before the timeout fires)"
+        assert t <= 360, (
+            f"trainer wait_for timeout {t}s leaves no room for transcript analysis "
+            "before Celery's 540s soft_time_limit"
         )
 
 

@@ -76,6 +76,30 @@ BANNED: list[str] = [
 
 _TOO_LONG_WORDS = 35
 _SLOW_S = 9.0
+_QA_DEFAULT_MAX_TURNS = 18
+_QA_DEFAULT_REPLY_TIMEOUT_S = 15.0
+
+
+def _qa_run_limits() -> tuple[int, float]:
+    """Bound scheduled QA so one slow free-model/provider cannot exhaust Celery.
+
+    Real-transcript replay can add up to three niches on top of the twelve
+    scripted turns.  Keep the default run comfortably below the 540s worker
+    soft limit while leaving an explicit, bounded operator tuning path.
+    """
+
+    try:
+        max_turns = int(os.getenv("QA_MAX_TURNS", str(_QA_DEFAULT_MAX_TURNS)) or _QA_DEFAULT_MAX_TURNS)
+    except (TypeError, ValueError):
+        max_turns = _QA_DEFAULT_MAX_TURNS
+    try:
+        reply_timeout_s = float(
+            os.getenv("QA_REPLY_TIMEOUT_S", str(_QA_DEFAULT_REPLY_TIMEOUT_S))
+            or _QA_DEFAULT_REPLY_TIMEOUT_S
+        )
+    except (TypeError, ValueError):
+        reply_timeout_s = _QA_DEFAULT_REPLY_TIMEOUT_S
+    return max(1, min(max_turns, 30)), max(0.05, min(reply_timeout_s, 30.0))
 
 
 async def _log_trainer_event_bounded(
@@ -207,18 +231,33 @@ async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
             targets = targets + [n for n in real_turns if n not in targets][:3]
         issues: list[str] = []
         total_turns = 0
+        max_turns, reply_timeout_s = _qa_run_limits()
+        truncated = False
 
-        for niche in targets:
+        for niche_index, niche in enumerate(targets):
             turns = real_turns.get(niche) or SCRIPTS.get(niche, _GENERIC_TURNS)
             try:
                 brain = TelecallerBrain(niche=niche)
                 history: list[dict[str, str]] = []
                 last_reply = ""
-                for turn in turns:
+                for turn_index, turn in enumerate(turns):
+                    if total_turns >= max_turns:
+                        truncated = True
+                        break
                     total_turns += 1
                     t0 = time.monotonic()
                     try:
-                        reply = (await brain.reply(history, turn) or "").strip()
+                        reply = (
+                            await asyncio.wait_for(
+                                brain.reply(history, turn), timeout=reply_timeout_s
+                            )
+                            or ""
+                        ).strip()
+                    except asyncio.TimeoutError:
+                        issues.append(
+                            f"[{niche}] REPLY TIMEOUT after {reply_timeout_s:.1f}s for: {turn!r}"
+                        )
+                        reply = ""
                     except Exception as e:
                         issues.append(f"[{niche}] BRAIN ERROR for {turn!r}: {e}")
                         reply = ""
@@ -244,15 +283,33 @@ async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
                         last_reply = reply
             except Exception as e:
                 issues.append(f"[{niche}] TEST CRASHED: {e}")
+            if total_turns >= max_turns:
+                # Reaching the cap exactly on the final available turn is complete,
+                # not truncated.  Preserve that distinction for the admin record.
+                truncated = truncated or (turn_index + 1 < len(turns)) or (niche_index + 1 < len(targets))
+                break
 
         team.log_event(
             "arjun",
             "qa_run",
-            f"{len(issues)} issues across {len(targets)} niches ({total_turns} turns)",
+            f"{len(issues)} issues across {len(targets)} niches ({total_turns}/{max_turns} turns)",
             status="warn" if issues else "ok",
-            meta={"issues": issues[:20], "niches": targets, "turns": total_turns},
+            meta={
+                "issues": issues[:20],
+                "niches": targets,
+                "turns": total_turns,
+                "max_turns": max_turns,
+                "reply_timeout_s": reply_timeout_s,
+                "truncated": truncated,
+            },
         )
-        return {"issues": issues, "turns": total_turns, "niches": targets}
+        return {
+            "issues": issues,
+            "turns": total_turns,
+            "niches": targets,
+            "max_turns": max_turns,
+            "truncated": truncated,
+        }
     except Exception as e:
         logger.warning(f"[staff] run_qa failed: {e}")
         try:
