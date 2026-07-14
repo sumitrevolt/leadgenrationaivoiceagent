@@ -1,13 +1,13 @@
 // LeadGen AI — Service Worker
-// Public marketing shell = cache-first. /app/* dashboards = network-only (never stale).
-const CACHE_NAME = "leadgen-ai-v3"; // v3: mobile login fix (2026-07-05) — bump taaki purana cached homepage purge ho
+// Public marketing shell = cache-first. App + revenue pages = network-only (never stale).
+const CACHE_NAME = "leadgen-ai-v4"; // v4: pricing CTA cache bust (2026-07-14)
 
 const SHELL_ASSETS = ["/", "/index.html", "/manifest.json", "/icons/icon.svg"];
 
-function isAppPage(url) {
+function isAlwaysFreshPage(url) {
   try {
     const p = new URL(url).pathname;
-    return p.startsWith("/app/") || p === "/sw.js";
+    return p.startsWith("/app/") || p === "/pricing" || p === "/start" || p === "/sw.js";
   } catch (_) {
     return false;
   }
@@ -38,8 +38,8 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   if (request.url.includes("/api/")) return;
 
-  // Dashboards: always network — deploy/UI changes turant dikhein.
-  if (isAppPage(request.url)) {
+  // Dashboards + revenue funnel: always network — deploy/UI changes turant dikhein.
+  if (isAlwaysFreshPage(request.url)) {
     event.respondWith(fetch(request, { cache: "no-store" }));
     return;
   }

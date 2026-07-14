@@ -9,6 +9,8 @@ from pathlib import Path
 
 
 PRICING_HTML = Path("frontend/pricing.html")
+SERVICE_WORKER = Path("frontend/website/sw.js")
+SECURITY_MIDDLEWARE = Path("app/middleware/__init__.py")
 
 
 def _source() -> str:
@@ -30,3 +32,18 @@ def test_pricing_cta_resolves_plan_from_loaded_catalogue():
     assert "openModal(plan)" in source
     assert "function openModal(plan)" in source
     assert "SELECTED = plan" in source
+
+
+def test_service_worker_never_serves_cached_revenue_pages():
+    source = SERVICE_WORKER.read_text(encoding="utf-8")
+
+    assert 'p === "/pricing"' in source
+    assert 'p === "/start"' in source
+    assert 'fetch(request, { cache: "no-store" })' in source
+
+
+def test_security_headers_disable_browser_cache_for_revenue_pages():
+    source = SECURITY_MIDDLEWARE.read_text(encoding="utf-8")
+
+    assert 'path in ("/pricing", "/start", "/sw.js")' in source
+    assert 'response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"' in source
