@@ -1,7 +1,7 @@
 """
 test_free_ai_chain_2026_models.py — pure-python (no network/DB/LLM).
 
-Asserts the 2026 EXTRA free models (Qwen3-32B on Groq+Cerebras, Llama-3.3-70B,
+Asserts the supported 2026 EXTRA free models (Qwen3-32B on Groq, Llama-3.3-70B,
 Kimi K2) are present in the free-LLM fallback chain AS ADDITIONAL low-priority
 entries — i.e. AFTER the proven primaries (mistral/groq-8b/cerebras) so they only
 get hit when the primaries exhaust (the Groq-TPD case they help), and BEFORE the
@@ -24,18 +24,16 @@ def test_new_models_present_in_both_profiles():
         pairs = [(p, m) for (p, m) in chain]
         # Constants exist
         assert free_ai._GROQ_QWEN3_MODEL == "qwen/qwen3-32b"
-        assert free_ai._CEREBRAS_QWEN3_MODEL == "qwen-3-32b"
         assert free_ai._GROQ_LLAMA70B_MODEL == "llama-3.3-70b-versatile"
         assert free_ai._GROQ_KIMI_K2_MODEL == "moonshotai/kimi-k2-instruct"
-        # Qwen3 added on BOTH Groq and Cerebras free tier
+        # Qwen3 remains on Groq; retired Cerebras qwen-3-32b must never be called.
         assert ("groq", free_ai._GROQ_QWEN3_MODEL) in pairs
-        assert ("cerebras", free_ai._CEREBRAS_QWEN3_MODEL) in pairs
+        assert ("cerebras", "qwen-3-32b") not in pairs
         # One more strong free multilingual model (Kimi K2) + Llama-3.3-70B
         assert ("groq", free_ai._GROQ_KIMI_K2_MODEL) in pairs
         assert ("groq", free_ai._GROQ_LLAMA70B_MODEL) in pairs
         # Sanity: new ids actually in the model list
         assert free_ai._GROQ_QWEN3_MODEL in models
-        assert free_ai._CEREBRAS_QWEN3_MODEL in models
         assert free_ai._GROQ_KIMI_K2_MODEL in models
 
 
@@ -59,7 +57,6 @@ def test_new_models_are_low_priority_after_primaries():
         new_positions = [
             idx[("groq", free_ai._GROQ_LLAMA70B_MODEL)],
             idx[("groq", free_ai._GROQ_QWEN3_MODEL)],
-            idx[("cerebras", free_ai._CEREBRAS_QWEN3_MODEL)],
             idx[("groq", free_ai._GROQ_KIMI_K2_MODEL)],
         ]
         # every new model must come AFTER the last proven primary
@@ -75,7 +72,7 @@ def test_new_models_are_low_priority_after_primaries():
 
 
 def test_new_groq_entries_use_existing_provider_key():
-    """New Groq/Cerebras models reuse existing provider names so the per-provider
+    """New Groq models reuse existing provider names so the per-provider
     circuit-breaker + _client() lookup works unchanged."""
     for profile in ("realtime", "bulk"):
         for p, _m in _chain(profile):
@@ -87,7 +84,7 @@ def test_describe_lists_new_models():
     d = free_ai.describe()
     llm = d.get("llm_chain", [])
     assert f"groq:{free_ai._GROQ_QWEN3_MODEL}" in llm
-    assert f"cerebras:{free_ai._CEREBRAS_QWEN3_MODEL}" in llm
+    assert "cerebras:qwen-3-32b" not in llm
     assert f"groq:{free_ai._GROQ_KIMI_K2_MODEL}" in llm
     assert f"groq:{free_ai._GROQ_LLAMA70B_MODEL}" in llm
 

@@ -78,6 +78,14 @@ def test_all_deescalation_replies_fit_spoken_word_budget():
     assert all(len(line.split()) <= 22 for line in sn.DEESCALATION_TEMPLATES)
 
 
+def test_second_refusal_closers_do_not_offer_another_channel_or_pitch():
+    """Two polite refusals mean a clean stop, not a WhatsApp/website CTA."""
+    forbidden = ("whatsapp", "website", "leadsgenai", "demo", "detail", "jaankari")
+    for line in sn.DEESCALATION_TEMPLATES:
+        lowered = line.lower()
+        assert not any(marker in lowered for marker in forbidden)
+
+
 def test_never_raises_on_garbage():
     assert sn.should_deescalate(None, "") is False  # type: ignore[arg-type]
     assert sn.soft_no_count(None, None) == 0  # type: ignore[arg-type]

@@ -69,6 +69,21 @@ def test_on_close_signal_no_whatsapp_task_without_phone(monkeypatch):
     assert spawned == []
 
 
+def test_on_close_signal_without_running_loop_does_not_construct_coroutine(monkeypatch):
+    """Sync callers must not create an awaitable they cannot schedule."""
+    from app.marketing import sales_pipeline
+
+    monkeypatch.setattr(sales_pipeline, "upsert_deal", lambda *a, **k: None)
+    constructed = []
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    brain.set_caller_phone("9876543210")
+    monkeypatch.setattr(brain, "_send_close_whatsapp", lambda: constructed.append(True))
+
+    brain._on_close_signal()
+
+    assert constructed == []
+
+
 @pytest.mark.asyncio
 async def test_send_close_whatsapp_inert_when_flag_off(monkeypatch):
     """Neither flag set -> inert (default OFF, safe)."""
