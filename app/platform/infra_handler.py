@@ -80,10 +80,15 @@ def _check_memory() -> dict[str, Any]:
 
 async def _check_ready() -> dict[str, Any]:
     """App ki /health/ready (db+redis truth). Worker container se app host pe."""
+    # PORT TRAP: the app listens on 8080 INSIDE the container/network and is only
+    # published to 8000 on the HOST. From a worker container `app:8000` is a silent
+    # ECONNREFUSED (verified live: app:8000 -> 000, app:8080 -> 200), so every URL
+    # here used to fail and this check could never report ready. In-network = 8080.
     urls = [
         (os.getenv("SELF_HEALTH_URL") or "").strip(),
-        "http://app:8000/health/ready",
-        "http://127.0.0.1:8000/health/ready",
+        "http://app:8080/health/ready",
+        "http://app:8000/health/ready",  # legacy/host-published fallback
+        "http://127.0.0.1:8080/health/ready",
     ]
     try:
         import httpx

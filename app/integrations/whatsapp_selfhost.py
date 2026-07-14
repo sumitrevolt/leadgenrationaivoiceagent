@@ -226,7 +226,14 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
         check = await self._recipient_check(to_number)
         if check.get("known") and check.get("exists") is False:
             reason = str(check.get("reason") or "recipient_not_on_whatsapp")
-            _record_whatsapp_failure(reason)
+            # NOT an integration failure: WAHA answered correctly — this recipient
+            # simply has no WhatsApp account. Recording it as an integration fault
+            # let synthetic/test numbers (919123456780 etc.) drive whatsapp to
+            # fail_rate 0.973 and write a DAILY false "WhatsApp integration failing"
+            # into a real paying customer's delivery ledger while WhatsApp was fine.
+            # Real integration faults (not_configured / wrong_linked_number / transport
+            # errors in _post) are still recorded.
+            logger.info("waha send blocked — recipient not on WhatsApp (%s)", reason)
             return {"error": "recipient_not_on_whatsapp", "status": "blocked", "reason": reason}
         payload = {
             "session": self.session,
