@@ -47,6 +47,19 @@ def test_pushy_after_softno_clean_on_graceful_exit():
     assert qc.check_pushy_after_softno(transcript) == []
 
 
+def test_goodbye_word_does_not_hide_a_continued_whatsapp_pitch():
+    transcript = [
+        {"role": "user", "content": "abhi nahi"},
+        {"role": "assistant", "content": "ek baar dekh lijiye"},
+        {"role": "user", "content": "dekhte hain baad me"},
+        {
+            "role": "assistant",
+            "content": "Koi baat nahi ji, WhatsApp pe details bhej du?",
+        },
+    ]
+    assert qc.check_pushy_after_softno(transcript)
+
+
 def test_talk_listen_ratio():
     chatty = [
         {"role": "assistant", "content": " ".join(["word"] * 40)},
