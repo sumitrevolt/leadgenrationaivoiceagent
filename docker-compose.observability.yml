@@ -165,7 +165,9 @@ services:
       # overlay pe 20-48s leta tha aur reclaimable inode/dentry slab ko is cgroup
       # me charge karke 768m limit tak bhar raha tha. Per-container CPU/mem/net
       # metrics (jinpe alerts depend hain) enabled rehte hain.
-      - --disable_metrics=disk,diskIO
+      # Flag default deny-list ko replace karta hai (additive nahi), isliye
+      # cAdvisor v0.55 defaults ko preserve karke disk groups add karo.
+      - --disable_metrics=advtcp,cpu_topology,cpuset,disk,diskIO,hugetlb,memory_numa,process,referenced_memory,resctrl,sched,tcp,udp
     privileged: true
     devices:
       - /dev/kmsg

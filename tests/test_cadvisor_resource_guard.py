@@ -15,7 +15,25 @@ def _cadvisor_block() -> str:
 def test_cadvisor_skips_expensive_per_container_disk_scans() -> None:
     block = _cadvisor_block()
 
-    assert "--disable_metrics=disk,diskIO" in block
+    flag = next(line for line in block.splitlines() if "--disable_metrics=" in line)
+    disabled = set(flag.split("--disable_metrics=", 1)[1].split(","))
+
+    assert {"disk", "diskIO"} <= disabled
+    # Passing this flag replaces cAdvisor's defaults. Keep the expensive/noisy
+    # defaults disabled instead of accidentally re-enabling them.
+    assert {
+        "advtcp",
+        "cpu_topology",
+        "cpuset",
+        "hugetlb",
+        "memory_numa",
+        "process",
+        "referenced_memory",
+        "resctrl",
+        "sched",
+        "tcp",
+        "udp",
+    } <= disabled
 
 
 def test_cadvisor_collection_matches_its_prometheus_scrape_interval() -> None:
