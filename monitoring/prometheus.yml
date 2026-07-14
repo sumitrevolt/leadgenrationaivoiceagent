@@ -64,18 +64,20 @@ scrape_configs:
     static_configs:
       - targets: ["leadgen_redis_exporter_cache:9121"]
 
-  # --- Celery exporters (docker-compose.addons.yml) --------------------------
-  # celery-exporter: task counts/states/runtimes, worker count, queue lengths.
-  # docker-compose.addons.yml up hone ke baad hi active (graceful: missing target
-  # = Prometheus bas warn karta, scrape FAIL nahi hota).
-  - job_name: celery
-    scrape_interval: 15s
-    static_configs:
-      - targets: ["leadgen_celery_exporter:9808"]
-
-  # Flower bhi /metrics expose karta (task history, worker metrics).
-  - job_name: flower
-    metrics_path: /metrics
-    scrape_interval: 30s
-    static_configs:
-      - targets: ["leadgen_flower:5555"]
+  # --- Celery exporters (docker-compose.addons.yml) — DISABLED 2026-07-14 ------
+  # Purana comment ("graceful: missing target = Prometheus bas warn karta") GALAT
+  # tha: `alert_rules.yml` ka PrometheusTargetMissing `up == 0` pe fire karta hai,
+  # job exist kare ya na kare. `docker-compose.addons.yml` VPS pe deploy NAHI hai,
+  # isliye leadgen_celery_exporter/leadgen_flower kabhi up nahi hue -> 2 alert
+  # 2026-07-09 se PERMANENTLY firing -> alert fatigue (asli alert dab jata).
+  # Addons deploy karo tab in dono blocks ko wapas uncomment kar dena.
+  # - job_name: celery
+  #   scrape_interval: 15s
+  #   static_configs:
+  #     - targets: ["leadgen_celery_exporter:9808"]
+  #
+  # - job_name: flower
+  #   metrics_path: /metrics
+  #   scrape_interval: 30s
+  #   static_configs:
+  #     - targets: ["leadgen_flower:5555"]
