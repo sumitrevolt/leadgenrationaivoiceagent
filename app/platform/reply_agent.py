@@ -11,8 +11,10 @@ unsubscribe→dead), drafts a contextual Hinglish reply, saves it for 1-click hu
 and logs a team event so Rohan/Swara surface it.
 
 OFF by default + never-crash. Enable: `REPLY_AGENT=1` + SMTP/IMAP creds present
-(reuses the SMTP login). Auto-send is OFF (ban-safe, 1-click human send) EXCEPT
-unsubscribe which is always honoured. `IMAP_HOST` overrides (default derived from SMTP).
+(reuses the SMTP login). Safe email auto-reply can be armed with `REPLY_AUTO_SEND=1`
+or the runtime feature flag `reply_auto_send`; it remains known-prospect-only,
+suppression/injection gated, bounded and idempotency-claimed. `IMAP_HOST` overrides
+(default derived from SMTP).
 """
 
 from __future__ import annotations
@@ -24,7 +26,7 @@ import json
 import logging
 import os
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.header import decode_header
 from typing import Any
 
@@ -267,6 +269,57 @@ def _decode(raw: str) -> str:
         return (raw or "").strip()
 
 
+def _source_received_at(msg: Any, fetch_data: Any = None) -> str:
+    """Conservative source time from IMAP INTERNALDATE and bounded RFC Date."""
+    candidates: list[datetime] = []
+    try:
+        dt = email.utils.parsedate_to_datetime(str(msg.get("Date") or ""))
+        if dt is not None:
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            candidates.append(dt.astimezone(timezone.utc))
+    except Exception:
+        pass
+    try:
+        meta = fetch_data[0][0] if fetch_data and fetch_data[0] else b""
+        if isinstance(meta, bytes):
+            meta = meta.decode("ascii", "ignore")
+        match = re.search(r'INTERNALDATE "([^"\r\n]{1,80})"', str(meta))
+        if match:
+            candidates.append(
+                datetime.strptime(match.group(1), "%d-%b-%Y %H:%M:%S %z").astimezone(
+                    timezone.utc
+                )
+            )
+    except Exception:
+        pass
+    now = datetime.now(timezone.utc)
+    plausible = [dt for dt in candidates if dt <= now + timedelta(minutes=5)]
+    return min(plausible).isoformat() if plausible else ""
+
+
+def _safe_thread_headers(msg: Any) -> tuple[str, str]:
+    """Persist only bounded RFC-like message IDs, never arbitrary header text."""
+    try:
+        token_re = re.compile(r"<[^<>\r\n]{1,200}>")
+        message_ids = token_re.findall(str(msg.get("Message-ID") or ""))
+        references = token_re.findall(str(msg.get("References") or ""))[-5:]
+        return (message_ids[0] if message_ids else "", " ".join(references)[:1000])
+    except Exception:
+        return "", ""
+
+
+def _reply_delivery_key(sender: str, message_id: str) -> str:
+    """Stable, PII-minimized idempotency key for one inbound email message."""
+    import hashlib
+
+    sender = (sender or "").strip().lower()
+    message_id = (message_id or "").strip()
+    if not sender or not message_id:
+        return ""
+    return hashlib.sha256(f"{sender}|{message_id}".encode("utf-8", "ignore")).hexdigest()[:32]
+
+
 def _body(msg) -> str:
     try:
         if msg.is_multipart():
@@ -439,13 +492,48 @@ async def _draft(
         return ""
 
 
-def _save_draft(rec: dict[str, Any]) -> None:
+def _safe_hot_reply_fallback(intent: str) -> str:
+    """Deterministic acknowledgement when every free LLM provider is unavailable.
+
+    It deliberately makes no pricing, timing, or service promise. The normal
+    suppression, known-prospect, source-age, scan, claim, and cap gates still
+    apply before this text can leave the system.
+    """
+    if intent not in ("interested", "question"):
+        return ""
+    return (
+        "Namaste, aapke message ke liye dhanyavaad. Humne aapki enquiry receive kar li hai.\n\n"
+        "Aap LeadGen AI ka free audit aur demo yahan dekh sakte hain: "
+        "https://leadsgenai.in/demo\n\n"
+        "Agar aap apna preferred time ya main sawaal reply mein share kar dein, "
+        "hum next step email par bhej denge."
+    )
+
+
+def _save_draft(rec: dict[str, Any]) -> bool:
     try:
-        os.makedirs(os.path.dirname(_DRAFTS_FILE), exist_ok=True)
-        with open(_DRAFTS_FILE, "a", encoding="utf-8") as f:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        from app.utils.file_lock import file_lock
+
+        with file_lock(_DRAFTS_FILE) as locked:
+            if not locked:
+                logger.warning("save_draft skipped: strict lock unavailable")
+                return False
+            os.makedirs(os.path.dirname(_DRAFTS_FILE), exist_ok=True)
+            with open(_DRAFTS_FILE, "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            return True
     except Exception as exc:
         logger.debug("save_draft err: %s", exc)
+        return False
+
+
+def _mark_imap_seen(mailbox: Any, message_id: Any) -> bool:
+    """Mark handled mail seen only after its durable side effect succeeded."""
+    try:
+        mailbox.store(message_id, "+FLAGS", "\\Seen")
+        return True
+    except Exception:
+        return False
 
 
 def _notify(member: str, kind: str, detail: str) -> None:
@@ -480,6 +568,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
     if not (host and user and pw):
         return {"skipped": "imap_unconfigured"}
     try:
+        auto_mode = await _reply_auto_send_enabled()
         M = imaplib.IMAP4_SSL(host, 993, timeout=20)  # no timeout = worker hangs on a stalled IMAP read
         M.login(user, pw)
         M.select("INBOX")
@@ -492,7 +581,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
         seen_counts = _sender_counts(list_drafts(limit=4000)) if flood_cap else {}
         for i in ids:
             try:
-                typ, md = M.fetch(i, "(RFC822)")
+                typ, md = M.fetch(i, "(BODY.PEEK[] INTERNALDATE)")
                 msg = email.message_from_bytes(md[0][1])
                 frm = email.utils.parseaddr(msg.get("From", ""))[1].lower()
                 subj = _decode(msg.get("Subject", ""))
@@ -533,6 +622,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             )
                     except Exception:
                         pass
+                    _mark_imap_seen(M, i)
                     continue
                 # AUTO-ACK GUARD (2026-07-07): auto-acknowledgement ≠ human reply —
                 # LLM classify se PEHLE drop (fake-"interested" + token-burn fix;
@@ -540,23 +630,27 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 if _is_auto_ack(msg, subj):
                     res["skipped"] += 1
                     res["auto_ack"] = res.get("auto_ack", 0) + 1
+                    _mark_imap_seen(M, i)
                     continue
                 # Operator blocklist (REPLY_SENDER_BLOCKLIST env CSV) — hard skip.
                 if _is_blocklisted(frm):
                     res["skipped"] += 1
                     res["blocklisted"] = res.get("blocklisted", 0) + 1
+                    _mark_imap_seen(M, i)
                     continue
                 # JUNK GUARD (2026-06-12): unknown sender + bulk/marketing mail = skip.
                 # Pehle PayU/Instamojo newsletters "interested" classify hoke FAKE deals
                 # bana rahe the + har newsletter pe LLM classify/draft tokens jalte the.
                 if p is None and _is_bulk_sender(frm, msg):
                     res["skipped"] += 1
+                    _mark_imap_seen(M, i)
                     continue
                 # SENDER FLOOD CAP (2026-07-07): same sender already `cap`+ draft-rows
                 # = auto-responder loop; is run ke repeats bhi count hote (increment niche).
                 if flood_cap and seen_counts.get(frm, 0) >= flood_cap:
                     res["skipped"] += 1
                     res["flooded"] = res.get("flooded", 0) + 1
+                    _mark_imap_seen(M, i)
                     continue
                 seen_counts[frm] = seen_counts.get(frm, 0) + 1
                 intent = await _classify(subj, body)
@@ -564,18 +658,22 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 # Never blocks — flags the draft so the human reviewer does NOT act on
                 # instructions embedded by a malicious sender. ph18/15-16 (llm-security skill).
                 _inj = None
+                _scan_status = "error"
                 try:
                     from app.platform import llm_guard
 
                     _gs = llm_guard.scan(f"{subj}\n{body}", source="inbox")
                     if _gs.get("suspicious"):
                         _inj = _gs.get("signals")
+                        _scan_status = "suspicious"
                         if llm_guard.enabled():
                             logger.warning(
                                 "[reply_agent] LLM_GUARD: possible prompt-injection from %s "
                                 "signals=%s — review draft, do NOT act on embedded instructions",
                                 frm, _inj,
                             )
+                    else:
+                        _scan_status = "clean"
                 except Exception:
                     pass
                 res["processed"] += 1
@@ -671,6 +769,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             pass
 
                 draft = ""
+                draft_source = "none"
                 if intent in ("interested", "question", "objection"):
                     draft = await _draft(
                         (p or {}).get("business_name", ""),
@@ -681,18 +780,38 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     )
                     if draft:
                         res["drafted"] += 1
+                        draft_source = "llm"
+                    elif intent in _HOT_INTENTS:
+                        # Zero-manual mode: a transient free-LLM outage must not
+                        # strand a qualified inbound message after IMAP is marked
+                        # Seen. This bounded, promise-free acknowledgement is still
+                        # subject to every delivery/compliance gate in the backlog.
+                        draft = _safe_hot_reply_fallback(intent)
+                        draft_source = "deterministic_fallback"
+                        if draft:
+                            res["drafted"] += 1
 
                 at = datetime.now(timezone.utc).isoformat()
-                _save_draft(
+                message_id, references = _safe_thread_headers(msg)
+                saved = _save_draft(
                     {
                         "from": frm,
                         "subject": subj,
                         "intent": intent,
                         "draft": draft,
+                        "draft_source": draft_source,
                         "injection_flag": _inj,
+                        "scan_status": _scan_status,
+                        "channel": "email",
+                        "message_id": message_id,
+                        "references": references,
+                        "delivery_key": _reply_delivery_key(frm, message_id),
+                        "source_at": _source_received_at(msg, md),
                         "at": at,
                     }
                 )
+                if not saved:
+                    raise RuntimeError("reply_draft_persist_failed")
 
                 if intent in ("interested", "question"):
                     # Phone push: HOT reply — sales moment, turant pata chale (gated ntfy).
@@ -709,7 +828,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
 
                         hq_id = _hq_id({"from": frm, "at": at})
                         actions: list[dict] = []
-                        if draft and not _inj:
+                        if draft and not _inj and not auto_mode:
                             re_subj = subj if subj.lower().startswith("re:") else f"Re: {subj}"
                             mailto = f"mailto:{frm}?subject={quote(re_subj)}&body={quote(draft)}"
                             actions.append({"action": "view", "label": "💬 Reply", "url": mailto})
@@ -723,6 +842,8 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                                 "clear": True,
                             }
                         )
+                        if auto_mode:
+                            actions = []
                         await ntfy.push(
                             "🔥 Hot reply!",
                             f"{(p or {}).get('business_name') or frm}: {subj[:80]}",
@@ -773,31 +894,11 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 except Exception:
                     pass
 
-                # REPLY_AUTO_SEND=1 → interested/question replies auto-send (Smartlead-style)
-                # Only for known prospects (p is not None) — safety guard
-                _auto_send = os.environ.get("REPLY_AUTO_SEND", "").strip() == "1"
-                if _auto_send and draft and intent in ("interested", "question") and p is not None:
-                    try:
-                        from app.integrations.email_sender import EmailSender
-
-                        sender = EmailSender()
-                        re_subj = subj if subj.lower().startswith("re:") else f"Re: {subj}"
-                        ok = await sender.send_email(
-                            [frm],
-                            re_subj,
-                            draft,
-                            html_body=f"<p>{draft.replace(chr(10), '<br>')}</p>",
-                        )
-                        if ok:
-                            res["auto_sent"] = res.get("auto_sent", 0) + 1
-                            logger.info(
-                                "[reply_agent] auto-sent reply to %s (intent=%s)", frm, intent
-                            )
-                    except Exception as _ae:
-                        logger.info("[reply_agent] auto_send failed: %s", _ae)
-
+                # Safe auto-send runs after IMAP processing so fresh and persisted
+                # rows share one bounded, claimed, compliance-gated path.
                 member = "swara" if intent in ("interested", "question") else "rohan"
                 _notify(member, f"reply_{intent}", f"{frm}: {subj[:60]}")
+                _mark_imap_seen(M, i)
             except Exception as exc:
                 logger.info("reply item err: %s", exc)
                 res["skipped"] += 1
@@ -806,9 +907,18 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
             M.logout()
         except Exception:
             pass
+        auto_result = await run_auto_reply_backlog()
+        res["auto_send"] = auto_result
+        res["auto_sent"] = int(auto_result.get("sent") or 0)
         return res
     except Exception as exc:
         logger.info("run_reply_triage err: %s", exc)
+        try:
+            auto_result = await run_auto_reply_backlog()
+            res["auto_send"] = auto_result
+            res["auto_sent"] = int(auto_result.get("sent") or 0)
+        except Exception:
+            pass
         return {"error": str(exc), **res}
 
 
@@ -1068,6 +1178,322 @@ def _full_prospect_map() -> dict[str, dict]:
     return out
 
 
+async def _reply_auto_send_enabled() -> bool:
+    """Env kill-switch OR audited Redis runtime flag. Fail-closed on doubt."""
+    if _flag("REPLY_AUTO_SEND_HARD_OFF"):
+        return False
+    if _flag("REPLY_AUTO_SEND"):
+        return True
+    try:
+        from app.infrastructure.feature_flags import feature_flags
+
+        return bool(await feature_flags.is_enabled("reply_auto_send"))
+    except Exception:
+        return False
+
+
+async def _claim_reply_auto_send(key: str, daily_cap: int) -> int:
+    """Atomically reserve message + daily attempt slot on REAL Redis only.
+
+    Returns 1=claimed, 0=duplicate/unavailable, -1=daily cap reached.
+    """
+    try:
+        from app.cache import InMemoryCache, get_redis_client
+
+        redis = await get_redis_client()
+        if redis is None or isinstance(redis, InMemoryCache):
+            return 0
+        if not await redis.ping():
+            return 0
+        day = datetime.now(timezone.utc).date().isoformat()
+        script = """
+        if redis.call('EXISTS', KEYS[1]) == 1 then return 0 end
+        local used = tonumber(redis.call('GET', KEYS[2]) or '0')
+        if used >= tonumber(ARGV[1]) then return -1 end
+        redis.call('SET', KEYS[1], 'attempted', 'EX', ARGV[2], 'NX')
+        redis.call('INCR', KEYS[2])
+        redis.call('EXPIRE', KEYS[2], ARGV[3])
+        return 1
+        """
+        return int(
+            await redis.eval(
+                script,
+                2,
+                f"reply:auto-send:{key}",
+                f"reply:auto-send:attempts:{day}",
+                int(daily_cap),
+                7776000,
+                129600,
+            )
+        )
+    except Exception:
+        return 0
+
+
+async def _release_unattempted_reply_claim(key: str) -> bool:
+    """Undo reservation only before provider invocation (therefore definitely safe)."""
+    try:
+        from app.cache import InMemoryCache, get_redis_client
+
+        redis = await get_redis_client()
+        if redis is None or isinstance(redis, InMemoryCache) or not await redis.ping():
+            return False
+        day = datetime.now(timezone.utc).date().isoformat()
+        script = """
+        if redis.call('GET', KEYS[1]) ~= 'attempted' then return 0 end
+        redis.call('DEL', KEYS[1])
+        local used = tonumber(redis.call('GET', KEYS[2]) or '0')
+        if used > 0 then redis.call('DECR', KEYS[2]) end
+        return 1
+        """
+        return bool(
+            await redis.eval(
+                script,
+                2,
+                f"reply:auto-send:{key}",
+                f"reply:auto-send:attempts:{day}",
+            )
+        )
+    except Exception:
+        return False
+
+
+def _update_draft_fields(hq_id: str, updates: dict[str, Any]) -> bool:
+    """Lock + atomic targeted rewrite, preserving malformed/unknown JSONL lines."""
+    if not hq_id or not os.path.exists(_DRAFTS_FILE):
+        return False
+    try:
+        from app.utils.file_lock import file_lock
+
+        with file_lock(_DRAFTS_FILE) as locked:
+            if not locked:
+                return False
+            changed = False
+            lines: list[str] = []
+            with open(_DRAFTS_FILE, encoding="utf-8") as f:
+                for line in f:
+                    raw = line.rstrip("\n")
+                    if not raw.strip():
+                        continue
+                    try:
+                        row = json.loads(raw)
+                    except Exception:
+                        lines.append(raw)
+                        continue
+                    if _hq_id(row) == hq_id:
+                        row.update(updates)
+                        lines.append(json.dumps(row, ensure_ascii=False))
+                        changed = True
+                    else:
+                        lines.append(raw)
+            if not changed:
+                return False
+            tmp = f"{_DRAFTS_FILE}.tmp.{os.getpid()}"
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+            os.replace(tmp, _DRAFTS_FILE)
+            return True
+    except Exception as exc:
+        logger.debug("auto-send state update err: %s", exc)
+        return False
+
+
+def _reply_age_days(row: dict[str, Any]) -> int | None:
+    try:
+        raw = str(row.get("source_at") or row.get("at") or "")
+        at = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if at.tzinfo is None:
+            at = at.replace(tzinfo=timezone.utc)
+        return max(0, (datetime.now(timezone.utc) - at).days)
+    except Exception:
+        return None
+
+
+def _stale_reengagement_body() -> str:
+    return (
+        "Namaste, aapka reply time par pick nahi ho paya — delay ke liye sorry.\n\n"
+        "Agar AI marketing audit ya demo abhi bhi relevant hai, main details yahin share "
+        "kar sakta hoon. Agar ab relevant nahi hai, bas ‘no’ reply karein; hum aage "
+        "follow-up nahi karenge."
+    )
+
+
+async def _send_reply_email(
+    to_email: str, subject: str, body: str, headers: dict[str, str]
+) -> bool:
+    import html
+
+    from app.integrations.email_sender import EmailSender
+
+    safe_html = html.escape(body).replace("\n", "<br>")
+    return bool(
+        await EmailSender().send_email(
+            [to_email], subject, body, html_body=f"<p>{safe_html}</p>", extra_headers=headers
+        )
+    )
+
+
+async def run_auto_reply_backlog(
+    *, limit: int | None = None, send_fn=None, claim_fn=None, release_unattempted_fn=None,
+) -> dict[str, Any]:
+    """Send safe known-prospect email replies and close their Hot Queue rows."""
+    out: dict[str, Any] = {
+        "enabled": False, "seen": 0, "sent": 0, "failed": 0,
+        "claimed_elsewhere": 0, "blocked_injection": 0,
+        "blocked_suppressed": 0, "blocked_unverified": 0,
+        "skipped_unknown": 0, "expired": 0, "stale_reengagement": 0,
+    }
+    try:
+        is_enabled = await _reply_auto_send_enabled()
+        out["enabled"] = is_enabled
+        if not is_enabled:
+            return out
+        send_fn = send_fn or _send_reply_email
+        claim_fn = claim_fn or _claim_reply_auto_send
+        release_unattempted_fn = release_unattempted_fn or _release_unattempted_reply_claim
+        try:
+            cap = max(1, min(int(os.getenv("REPLY_AUTO_SEND_DAILY_CAP", "5") or 5), 25))
+            batch = max(1, min(int(limit or os.getenv("REPLY_AUTO_SEND_BATCH", "3") or 3), 5))
+        except Exception:
+            cap, batch = 5, 3
+        # list_drafts is newest-first; first row per sender is the only eligible one.
+        rows = list_drafts(limit=100000)
+        today = datetime.now(timezone.utc).date().isoformat()
+        sent_today = sum(1 for row in rows if str(row.get("auto_sent_at") or "").startswith(today))
+        remaining = batch
+        out.update({"daily_cap": cap, "sent_today": sent_today})
+        if remaining <= 0:
+            out["skipped"] = "daily_cap"
+            return out
+        pmap = _full_prospect_map()
+        handled_senders: set[str] = set()
+        for row in rows:
+            if remaining <= 0:
+                break
+            if not await _reply_auto_send_enabled():
+                out["skipped"] = "hard_off_or_disabled"
+                break
+            frm = str(row.get("from") or "").strip().lower()
+            if not frm or frm in handled_senders:
+                continue
+            handled_senders.add(frm)
+            if row.get("channel") not in (None, "", "email"):
+                continue
+            if row.get("intent") not in _HOT_INTENTS or not str(row.get("draft") or "").strip():
+                continue
+            if row.get("hq_status") == "done" or row.get("auto_send_status") in {
+                "sent", "blocked", "expired", "attempting", "ambiguous"
+            }:
+                continue
+            out["seen"] += 1
+            hq_id = _hq_id(row)
+            prospect = pmap.get(frm) or {}
+            if not prospect.get("emailed_at"):
+                out["skipped_unknown"] += 1
+                continue
+            if row.get("injection_flag"):
+                out["blocked_injection"] += 1
+                _update_draft_fields(hq_id, {"auto_send_status": "blocked", "auto_send_reason": "injection", "hq_status": "done"})
+                continue
+            try:
+                from app.platform import email_unsub
+
+                suppressed = bool(email_unsub.is_suppressed(frm))
+            except Exception:
+                suppressed = True
+            if suppressed:
+                out["blocked_suppressed"] += 1
+                _update_draft_fields(hq_id, {"auto_send_status": "blocked", "auto_send_reason": "suppressed", "hq_status": "done"})
+                continue
+            age_days = _reply_age_days(row)
+            if age_days is None or age_days > 30:
+                out["expired"] += 1
+                _update_draft_fields(hq_id, {"auto_send_status": "expired", "auto_send_reason": "age", "hq_status": "done"})
+                continue
+            stale = age_days >= 7
+            delivery_key = str(row.get("delivery_key") or "").strip()
+            if not delivery_key:
+                delivery_key = _reply_delivery_key(frm, str(row.get("message_id") or ""))
+            if stale and not delivery_key:
+                # Historic rows predate Message-ID persistence. Fixed-copy re-engagement
+                # is limited to one stable sender claim, never one claim per processing row.
+                delivery_key = _reply_delivery_key(frm, "<stale-reengagement>")
+            if not stale and (
+                not row.get("source_at")
+                or row.get("scan_status") != "clean"
+                or not delivery_key
+            ):
+                out["blocked_unverified"] += 1
+                _update_draft_fields(
+                    hq_id,
+                    {
+                        "auto_send_status": "blocked",
+                        "auto_send_reason": "unverified_source_or_scan",
+                        "hq_status": "done",
+                    },
+                )
+                continue
+            claim = int(await claim_fn(delivery_key, cap))
+            if claim == -1:
+                out["skipped"] = "daily_cap"
+                break
+            if claim != 1:
+                out["claimed_elsewhere"] += 1
+                continue
+            remaining -= 1
+            body = _stale_reengagement_body() if stale else str(row.get("draft") or "").strip()
+            subject = str(row.get("subject") or "Quick follow-up").strip()
+            if not subject.lower().startswith("re:"):
+                subject = f"Re: {subject}"
+            message_id = str(row.get("message_id") or "").strip()
+            references = str(row.get("references") or "").strip()
+            headers: dict[str, str] = {}
+            if message_id:
+                headers["In-Reply-To"] = message_id
+                headers["References"] = f"{references} {message_id}".strip()
+            headers["Message-ID"] = f"<reply-{delivery_key}@leadsgenai.in>"
+            attempts = int(row.get("auto_send_attempts") or 0) + 1
+            if not _update_draft_fields(
+                hq_id,
+                {
+                    "auto_send_status": "attempting",
+                    "auto_send_attempts": attempts,
+                    "auto_send_attempted_at": datetime.now(timezone.utc).isoformat(),
+                    "delivery_key": delivery_key,
+                },
+            ):
+                out["failed"] += 1
+                await release_unattempted_fn(delivery_key)
+                out["skipped"] = "state_lock"
+                break
+            try:
+                ok = bool(await send_fn(frm, subject, body, headers))
+            except Exception:
+                ok = False
+            if ok:
+                sent_at = datetime.now(timezone.utc).isoformat()
+                _update_draft_fields(hq_id, {
+                    "auto_send_status": "sent", "auto_sent_at": sent_at,
+                    "auto_send_attempts": attempts,
+                    "auto_send_reason": "stale_reengagement" if stale else "fresh_reply",
+                    "hq_status": "done", "hq_done_at": sent_at,
+                })
+                out["sent"] += 1
+                out["stale_reengagement"] += int(stale)
+                logger.info("[reply_agent] safe auto-reply sent (intent=%s)", row.get("intent"))
+            else:
+                _update_draft_fields(hq_id, {
+                    "auto_send_status": "ambiguous", "auto_send_attempts": attempts,
+                    "auto_send_last_failure_at": datetime.now(timezone.utc).isoformat(),
+                })
+                out["failed"] += 1
+        return out
+    except Exception as exc:
+        logger.info("auto reply backlog err: %s", exc)
+        out["error"] = type(exc).__name__
+        return out
+
+
 def _is_noise_row(r: dict) -> bool:
     """Historic draft read-path noise guard. Never raises."""
     try:
@@ -1159,32 +1585,23 @@ def mark_handled(hq_id: str) -> bool:
     if not hq_id or not os.path.exists(_DRAFTS_FILE):
         return False
     try:
-        found = False
-        lines: list[str] = []
-        with open(_DRAFTS_FILE, encoding="utf-8") as f:
-            for line in f:
-                raw = line.rstrip("\n")
-                if not raw.strip():
-                    continue
-                try:
-                    row = json.loads(raw)
-                except Exception:
-                    lines.append(raw)
-                    continue
-                if _hq_id(row) == hq_id and (row.get("hq_status") or "") != "done":
-                    row["hq_status"] = "done"
-                    row["hq_done_at"] = datetime.now(timezone.utc).isoformat()
-                    found = True
-                    lines.append(json.dumps(row, ensure_ascii=False))
-                else:
-                    lines.append(raw)
-        if not found:
+        row = next(
+            (
+                item
+                for item in list_drafts(limit=100000)
+                if _hq_id(item) == hq_id and (item.get("hq_status") or "") != "done"
+            ),
+            None,
+        )
+        if row is None:
             return False
-        tmp = _DRAFTS_FILE + ".hq_tmp"
-        with open(tmp, "w", encoding="utf-8") as f:
-            f.write("\n".join(lines) + "\n")
-        os.replace(tmp, _DRAFTS_FILE)
-        return True
+        return _update_draft_fields(
+            hq_id,
+            {
+                "hq_status": "done",
+                "hq_done_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
     except Exception as exc:
         logger.debug("mark_handled err: %s", exc)
         return False
@@ -1192,6 +1609,7 @@ def mark_handled(hq_id: str) -> bool:
 
 __all__ = [
     "run_reply_triage",
+    "run_auto_reply_backlog",
     "whatsapp_reply",
     "list_drafts",
     "hot_queue",

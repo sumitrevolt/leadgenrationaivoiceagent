@@ -147,7 +147,8 @@ AUTOMATION_FLAGS = [
     "SOCIAL_AUTOPOST",  # Meta Graph real publish (content job)
     "AUTO_CALLBACK_INQUIRY",  # inquiry submit pe instant AI callback
     "WHATSAPP_LEAD_FLOW_ID",  # Meta Flow in-chat lead capture (URL-valued = set hone pe ON)
-    "REPLY_AUTO_SEND",  # interested reply auto-send (ban-risk — default OFF)
+    "REPLY_AUTO_SEND",  # guarded known-prospect email auto-reply; default OFF
+    "REPLY_AUTO_SEND_HARD_OFF",  # emergency precedence override; 1 always blocks sends
     "SELF_IMPROVE_APPROVAL",  # LLM-heavy self-improve actions human approve gate
     "REQUEST_GUARD",  # per-request timeout + load-shed middleware
     "PLAN_RATE_LIMIT",  # tier-based API rpm limits
