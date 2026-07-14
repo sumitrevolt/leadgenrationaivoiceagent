@@ -27,6 +27,7 @@ pre{background:#11141d;border:1px solid var(--line);border-radius:8px;padding:9p
 a.act{color:var(--blue);text-decoration:none;margin-right:10px;font-size:.8rem}
 a.wa{color:var(--ok)}
 .mut{color:var(--mut);font-size:.78rem} .msg{font-size:.8rem;margin-left:8px}
+.stale-note{margin:6px 0;color:var(--warn);font-size:.78rem;font-weight:600}
 .outbtn{margin:2px;padding:4px 10px;font-size:.75rem;background:#222636}
 .sec{display:none} .sec.on{display:block}
 .star{color:var(--warn)}
@@ -84,6 +85,13 @@ function emailDraftLink(email,subject,draft){
   const reSubj=/^re\s*:/i.test(original)?original:'Re: '+(original||'your message');
   const body=String(draft||'').trim();
   return 'mailto:'+encodeURIComponent(to)+'?subject='+encodeURIComponent(reSubj)+(body?'&body='+encodeURIComponent(body):'');
+}
+function staleDraftWarning(ageDays,draft){
+  ageDays=Number(ageDays||0);
+  if(ageDays<7) return '';
+  const body=String(draft||'').toLowerCase();
+  const timing=/(?:^|[\s.,!?;:])(aaj|kal|abhi|today|tomorrow|right now)(?=$|[\s.,!?;:])/i.test(body);
+  return ageDays+'d purana draft — '+(timing?'aaj/kal/abhi timing update karo, phir bhejo.':'offer/date/context re-check karke bhejo.');
 }
 
 const TABS=[['hotq','🔥 Hot Queue'],['hot','🔥 Hot Leads'],['reply','✉️ Reply Drafts'],['review','⭐ Review Drafts'],['exp','🧪 Experiments']];
@@ -201,12 +209,14 @@ function renderHotQueue(){
     const i=clip(r.draft||'');
     const wa=waDraftLink(r.phone,r.draft,r.wa_link);
     const email=emailDraftLink(r.from,r.subject,r.draft);
+    const stale=staleDraftWarning(r.age_days,r.draft);
     return '<div class="card"><b class="t">'+esc(nm)+' <span class="pill intent">'+esc(r.intent||'')+'</span>'+
       (age?'<span class="pill">'+esc(age)+'</span>':'')+
       (r.injection_flag?'<span class="pill hot">⚠️ injection-flag — embedded instructions pe act mat karo</span>':'')+'</b>'+
       '<div class="meta">'+esc(r.from||'')+(r.niche?' · '+esc(r.niche):'')+(r.city?' · '+esc(r.city):'')+
       (r.subject?' · "'+esc(String(r.subject).slice(0,80))+'"':'')+'</div>'+
       (r.draft?'<pre>'+esc(r.draft)+'</pre>':'<span class="mut">draft empty</span>')+
+      (stale?'<div class="stale-note">⚠️ '+esc(stale)+'</div>':'')+
       '<div style="margin-top:6px">'+
       (ph&&wa?'<a class="act wa" target="_blank" rel="noopener" href="'+esc(wa)+'">WhatsApp draft</a>':'')+
       (r.draft?'<button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'')+
