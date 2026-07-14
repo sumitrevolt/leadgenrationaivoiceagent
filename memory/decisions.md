@@ -2,6 +2,32 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-14 - ADR-089 cadvisor mem_limit 384m -> 768m (metric-gap fix)
+
+Decision: `docker-compose.observability.yml` me cadvisor ka `mem_limit` 384m se
+768m kar diya. Baaki 384m services (tempo, grafana) untouched.
+
+Context: Alert-fatigue saaf karne ke turant baad `ContainerNearMemLimit` pending
+dikha — yehi to noise hatane ka fayda tha. Proof: cadvisor ka 6h
+`max_over_time(container_memory_usage_bytes)` = **402,657,280 B** vs
+`container_spec_memory_limit_bytes` = **402,653,184 B** — usage limit se 4 KB
+UPAR, yaani ceiling pe peg. Isi wajah se `RestartCount=25`. `OOMKilled=false`
+tha isliye pehli nazar me memory issue nahi lagta, par metrics ne prove kiya.
+cadvisor ka footprint container/image count ke saath scale karta hai (yahan 39
+containers / 34 images) aur wo `/var/lib/docker` scan karta hai — logs me
+"fs: disk usage and inodes count ... took 3.2-4.3s". Har restart pe metric gap
+aata tha, jisse monitoring khud hi bharosemand nahi rehta.
+
+Alternatives rejected: (a) `ContainerNearMemLimit` threshold 0.90 se upar karna —
+alert ko andha karna, root cause nahi (§5: gate weaken nahi). (b) cadvisor ko
+`--docker_only` / housekeeping flags dena — label-set badal sakta tha aur saare
+`name=~"leadgen_.+"` alerts todh sakta tha; launch se pehle wo risk nahi.
+(c) cadvisor hatana — poora container observability chala jata.
+
+Consequence: cadvisor ko headroom mil gaya (VPS pe ~5.4G available), restart-driven
+metric gaps band. Agar aage container count kaafi badhe to limit dobara dekhni
+hogi. Rollback: 768m -> 384m + `up -d --force-recreate cadvisor`.
+
 ## 2026-07-14 - ADR-087 In-network service URLs use app:8080; 8000 is HOST-only
 
 Decision: Har container-to-container URL jo `app` ko hit karta hai wo **`http://app:8080`**
