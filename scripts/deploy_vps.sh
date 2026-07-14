@@ -76,7 +76,17 @@ APP_VERSION="$VER" docker compose -f "$COMPOSE" --profile celery \
 UP_RC=$?
 echo "UP_RC=$UP_RC"
 if [ "$UP_RC" -ne 0 ]; then
-  echo "FATAL: up failed. Tail:"; tail -15 /tmp/deploy_up.log; exit 1
+  # Do NOT abort on the exit code alone. `docker compose up` can return non-zero
+  # on a TRANSIENT recreate race (observed 2026-07-14: 'Conflict. The container
+  # name "/<hash>_leadgen_app" is already in use' — docker renames the old
+  # container before removing it, and a retry inside compose then succeeded) while
+  # the END STATE is completely correct. The exit code is an inference; the
+  # verification below is evidence. Warn loudly, then let VERIFY decide — it is
+  # strict (health version + per-container skew + smoke) and cannot pass on a
+  # genuinely broken deploy.
+  echo "WARN: up returned $UP_RC — NOT trusting that alone. Tail:"
+  tail -12 /tmp/deploy_up.log
+  echo "WARN: continuing to VERIFY; the observed end state decides."
 fi
 
 sleep 22
@@ -89,7 +99,12 @@ LIVE_VER="$(printf '%s' "$HEALTH" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')"
 if [ "$LIVE_VER" != "$VER" ]; then
   echo "FATAL: /health version='$LIVE_VER' != deployed '$VER' — prod did NOT pick"
   echo "       up this build. Do NOT report this deploy as successful."
+  [ "$UP_RC" -ne 0 ] && echo "       (up also returned $UP_RC — see /tmp/deploy_up.log)"
   exit 3
+fi
+if [ "$UP_RC" -ne 0 ]; then
+  echo "NOTE: up returned $UP_RC but the end state VERIFIES — treating the compose"
+  echo "      error as transient. Evidence over exit codes."
 fi
 
 echo "=== SKEW CHECK — every container must report the same sha ==="
