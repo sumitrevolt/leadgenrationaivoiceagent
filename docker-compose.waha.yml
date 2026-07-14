@@ -52,7 +52,9 @@ services:
     restart: unless-stopped
     environment:
       # --- API auth: app sends this as X-Api-Key on every call ---
-      WHATSAPP_API_KEY: "${WAHA_API_KEY:-change-me-strong-key}"
+      # Fail closed: a predictable fallback would expose the local WAHA API if
+      # somebody starts this compose file before completing the secret setup.
+      WHATSAPP_API_KEY: "${WAHA_API_KEY:?WAHA_API_KEY must be set before starting WAHA}"
       # --- Lightest engine: Baileys-based, no Chromium. Text + webhook + QR all
       #     work. Reverted from WEBJS 2026-07-04 (see history above) — WEBJS
       #     hit an unresolved upstream Cmd.refreshQR crash, QR never actually
@@ -67,7 +69,7 @@ services:
       # hai. Isliye HOST se 8000 sahi hai par CONTAINER-to-container 8080 hi sahi hai.
       # Yahan 8000 tha -> har inbound message pe ECONNREFUSED retry storm (15/15) +
       # Jiya ke ledger me roz `integration_failed: whatsapp`. In-network = 8080.
-      WHATSAPP_HOOK_URL: "http://app:8080/api/wa/selfhost/webhook?token=${WAHA_WEBHOOK_TOKEN:-change-me-token}"
+      WHATSAPP_HOOK_URL: "http://app:8080/api/wa/selfhost/webhook?token=${WAHA_WEBHOOK_TOKEN:?WAHA_WEBHOOK_TOKEN must be set before starting WAHA}"
       WHATSAPP_HOOK_EVENTS: "message"
       # Keep session store on disk so a restart doesn't force a re-scan.
       WHATSAPP_FILES_FOLDER: "/app/.media"
