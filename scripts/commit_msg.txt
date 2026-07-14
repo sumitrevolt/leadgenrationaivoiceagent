@@ -1,37 +1,37 @@
-docs(adr-097): retract false root-cause claim + record causal-claim discipline
+feat(deploy): canonical deploy_vps.sh — make unversioned/skewed deploys impossible
 
-RETRACTION. The first draft of ADR-097 claimed the unversioned :latest image was
-the root cause of ~1,170 Sentry events, and that rebuilding with a real SHA
-(91e7d37 -> 1feed53) drove them to zero. That causal claim was FALSE.
+Both production faults found in today's audit came out of the hand-typed deploy
+runbook, not out of application code:
 
-Timestamps disprove it:
-  last /api/voice/niches error   2026-07-14T10:07:25Z
-  :latest image rebuilt          2026-07-14T12:00:48Z   (+1.9h)
-  first SHA-tagged deploy        2026-07-14T~12:45Z     (+2.6h)
+  1. APP_VERSION forgotten -> compose fell back to ${APP_VERSION:-latest} -> prod
+     ran an image whose provenance nobody could establish (/health: "latest").
+  2. Only `app worker scheduler` were recreated -> worker_heavy/worker_video sat
+     on an older :latest for DAYS = live version skew across containers sharing
+     one image tag.
 
-The errors had already stopped ~2.6h before my first deploy. The actual fix was
-eb20ee5 ("fix(voice): repair /api/voice/niches 500 from retired
-lead_topup_price"), committed 09:57Z and deployed ~10:07Z by a prior session.
-The genuine root cause of those 872 events is the already-documented landmine: a
-FUNCTION-LEVEL import of a retired symbol that evaded startup gates (prod_check
-stayed green at 1102 routes) and failed only per-request. Same for PYTHON-K/N/P
-(last fired ~6h before the deploy) and qdrant, whose "fastembed model loaded"
-line appears on EVERY boot and proves nothing.
+ADR-097's startup guard catches (1) at RUNTIME. This catches both at DEPLOY time,
+which is cheaper and earlier.
 
-The error was inferential: "errors existed -> I deployed -> errors gone", without
-checking whether they had already stopped. Absence of errors is not evidence your
-fix worked.
+scripts/deploy_vps.sh is now the canonical deploy:
+  - refuses to deploy with a provenance-less tag (''/latest/dev/1.0.0), so the
+    compose :-latest fallback can never silently decide the tag,
+  - deploys ALL 5 app-image services (app worker scheduler worker-heavy
+    worker-video) so skew cannot be reintroduced by omission,
+  - verifies /health.version == the sha it just deployed and exits non-zero if
+    not — a deploy that did not take effect can no longer be reported as success,
+  - verifies per-container APP_VERSION (explicit skew gate),
+  - smoke-tests revenue/auth paths + reports queues/DLQ,
+  - DRY_RUN=1 prints the plan and changes nothing.
 
-ADR-097's guard is UNCHANGED and still justified, but now rests only on what is
-independently verified: ${APP_VERSION:-latest} makes image provenance unknowable,
-and 3 of 6 containers (worker_heavy, worker_video, app_staging) were observed
-live on :latest with APP_VERSION=latest while app/worker/scheduler ran a real
-SHA — real version skew.
+Landmines encoded deliberately (do not "simplify" away): set -o pipefail (a piped
+build otherwise masks a non-zero exit); build log to /tmp (verbose output over the
+SSH tunnel kills the session); worker-heavy/worker-video are HYPHENATED compose
+service names (a wrong name aborts the whole `up`); run detached so a dropped
+tunnel cannot SIGHUP-kill the build.
 
-- memory/decisions.md: ADR-097 consequence rewritten; retraction recorded inline
-  so the false claim cannot be re-trusted from the ledger.
-- CLAUDE.md/AGENTS.md: decision entry corrected + new landmine
-  "CAUSAL-CLAIM DISCIPLINE" — verify a fix by timestamping the END of the error
-  series (search_events + -timestamp, git log -S '<symbol>'), not by absence.
+Build failure restarts NOTHING (prod untouched).
 
-No code change. No test change.
+CLAUDE.md/AGENTS.md section 3 now points at the script instead of hand-typed
+docker commands.
+
+No app code touched. Verified by using this script to deploy itself.
