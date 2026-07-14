@@ -2,6 +2,38 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-14 - ADR-091 cadvisor ka asli fix = disk metrics OFF, mem_limit NAHI (ADR-089 ko SUPERSEDE karta hai)
+
+Decision: cadvisor ko `--disable_metrics=disk,diskIO` + `--housekeeping_interval=10s`
+diya. `mem_limit` 768m rehta hai par ab wo sirf safety ceiling hai, fix nahi.
+**ADR-089 ka conclusion GALAT tha aur ye usse supersede karta hai.**
+
+Context: ADR-089 me maine 384m->768m kiya ye sochkar ki cadvisor ka footprint
+container-count ke saath scale karta hai (sizing problem). **Wo diagnosis galat
+thi.** Ek ghante baad live evidence: `container_memory_usage_bytes /
+container_spec_memory_limit_bytes` = **0.9998**, aur `max_over_time` 5m/15m/30m
+teeno = **805,306,368 B = bilkul naya limit**. Yaani cadvisor ne 402MB wala ceiling
+bhara, phir 768MB wala bhi ~1h me bhar diya. Jo cheez har ceiling bhar de wo LEAK
+hai, sizing issue nahi — zyada headroom = bas zyada bharne ko. Nateeja: jo
+`ContainerNearMemLimit` maine ADR-088 me saaf kiya tha wo **mere hi change se**
+dobara pending ho gaya (Alertmanager active 1). Asli cause: cadvisor ka disk-metrics
+collector Postiz ke bade overlay ko scan karta hai (20-48s) aur reclaimable
+inode/dentry slab is cgroup me charge hota hai. Host disk alerts waise bhi
+node-exporter (`HostDiskLow`) deta hai, cadvisor ke disk metrics kisi alert me use
+hi nahi ho rahe the.
+
+Alternatives rejected: (a) mem_limit aur badhana — ADR-089 ne prove kar diya ki ye
+sirf leak ko time deta hai. (b) Threshold 0.90 se upar karna — alert ko andha
+karna, §5. (c) cadvisor hatana — per-container CPU/mem/net metrics ke upar
+`ContainerNearMemLimit`/`ContainerHighMemory` alerts tike hain.
+
+Consequence: Slab growth ka source band; per-container CPU/mem/net metrics (jinpe
+alerts depend hain) zinda. 768m ab genuine headroom hai. LESSON: jab koi cheez
+naye limit ko bhi peg kar de to wo leak hai — limit mat badhao, source dhundo;
+aur apne "fix" ko ek cycle baad dobara verify karo (maine ADR-089 ko deploy ke
+20 min baad green dekha tha — leak ko bharne me 1h laga).
+Rollback: `command:` block hatao.
+
 ## 2026-07-14 - ADR-090 Voice niches API band ka FLAT price deta hai; lead-topup concept retired-and-guarded
 
 Decision: `/api/voice/niches` ab `topup_pack_inr` ki jagah `band_price_month_inr` +
@@ -583,3 +615,15 @@ Consequence: no production/customer runtime made dependent on Graphify (dev-only
 [2026-07-14] **ADR-079 — Hot Queue email eligibility requires proven outbound context.** `/app/inbox` Hot Queue is a revenue queue for replies to our outreach, not a generic IMAP priority inbox. Email rows now require a sender match in the prospect store with non-empty `emailed_at`; valid one-to-one WhatsApp remains eligible. Unmatched vendor/system drafts stay preserved and visible in the general Reply Drafts tab. Live effect: 13 LLM-hot rows became 3 actually-emailed-prospect replies, with no deletion or automated contact. Rollback: revert `9046c33`; no data repair needed.
 
 [2026-07-14] **ADR-080 — First-paid readiness requires immutable payment evidence, not a selected plan.** Public signup selects `starter`/`growth`/`advanced` before payment, so `plan` alone cannot prove revenue. The `first_paid_delivery` activation probe now counts only active non-free-plan records that own an entry in the append-only Rule-46 invoice ledger. Recreated client rows may carry bounded `billing_client_ids` aliases to the immutable invoice identity; the invoice itself is never rewritten. Live repair linked Jiya's current canonical record to its old invoice client ID after backing up `marketing_clients.jsonl`; invoice SHA remained unchanged. Effect: fake/internal plan records no longer create a false delivery WARN, live paid count is 1, completed count is 1, and activation warnings are 0. Rollback: restore the backed-up customer file and revert `bdbf683`; invoice data needs no rollback.
+
+## 2026-07-14 — ADR-091 Zero-manual email reply automation is fail-closed and at-most-once
+
+Decision: Replace the unsafe direct `REPLY_AUTO_SEND` send path with one bounded backlog path. A send requires a known prospect with proven `emailed_at`, hot intent, explicit clean injection scan, trustworthy inbound timestamp, valid stable Message-ID (or one fixed stale-sender re-engagement identity), no suppression, age at most 30 days, and a real-Redis atomic message claim plus UTC daily attempt cap. Batch defaults to 3 and daily attempts to 5 (hard caps 5/25). Ambiguous provider outcomes are quarantined and never blindly retried. IMAP uses PEEK and is marked Seen only after durable draft persistence. Free-LLM draft failure uses a deterministic promise-free acknowledgement so qualified work is not stranded. Runtime rollout uses audited feature flag `reply_auto_send`; `REPLY_AUTO_SEND_HARD_OFF=1` always wins.
+
+Consequence: hourly Celery reply triage operates without a human send step while WhatsApp bulk auto-send, `platform_dial`, suppression, and compliance gates remain unchanged. First production reconciliation sent 2 verified stale fixed-copy replies; immediate repeat sent 0, 6 unknown senders failed closed, and no `attempting` record exceeded 15 minutes. Rollback is immediate flag state `disabled` or precedence hard-off. True crash-after-claim/provider ambiguity intentionally prefers a missed message over a duplicate; monitor old `attempting` rows instead of blind resend.
+
+## 2026-07-14 — ADR-092 Email delivery logs retain operational evidence, not recipient PII
+
+Decision: API/SMTP delivery logs record provider/status or exception class/coarse code plus recipient count only. Recipient addresses, raw provider response bodies, and raw exception text are excluded from application logs, integration-health notes, and SMTP-disabled alerts because provider errors can echo customer addresses. Delivery payloads and provider selection are unchanged.
+
+Consequence: operators retain success/failure, channel, count, and coarse failure code without storing customer email addresses in Loki/container logs. Regression contracts cover API success and SMTP 554 failure. Production canary proved `redaction probe (recipients=1)` with the unique input address absent. Rollback is code revert only; no data migration.
