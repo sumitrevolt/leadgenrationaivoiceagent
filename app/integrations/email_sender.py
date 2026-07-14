@@ -5,6 +5,7 @@ Send notifications and reports via email
 
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import re
 from typing import Any
 
 import aiosmtplib
@@ -13,6 +14,24 @@ from app.config import settings
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
+
+
+def _delivery_log_meta(to_emails: list[str] | None) -> str:
+    """Operational delivery evidence without recipient PII."""
+    return f"recipients={len(to_emails or [])}"
+
+
+def _safe_error_label(exc: BaseException) -> str:
+    """Keep exception class + coarse status code; never retain provider text."""
+    raw = str(exc or "")
+    code = next(iter(re.findall(r"(?<!\d)([1-5]\d{2})(?!\d)", raw)), "")
+    label = type(exc).__name__
+    return f"{label}:code={code}" if code else label
+
+
+def _safe_provider_label(info: Any) -> str:
+    value = str(info or "").strip().lower()
+    return value if re.fullmatch(r"[a-z0-9_]{1,32}", value) else "provider"
 
 
 def _integ_fail(name: str, note: str = "") -> None:
@@ -96,14 +115,20 @@ class EmailSender:
                     extra_headers=extra_headers,  # List-Unsubscribe etc. were dropped on the API path
                 )
                 if ok:
-                    logger.info(f"Email sent via API ({info}) to {', '.join(to_emails)}")
+                    logger.info(
+                        "Email sent via API (%s; %s)",
+                        _safe_provider_label(info),
+                        _delivery_log_meta(to_emails),
+                    )
                     _integ_ok("email_api")
                     return True
-                logger.warning(f"Email API failed ({info}); trying SMTP fallback")
-                _integ_fail("email_api", str(info))
+                safe_info = _safe_provider_label(info)
+                logger.warning("Email API failed (%s); trying SMTP fallback", safe_info)
+                _integ_fail("email_api", safe_info)
         except Exception as e:
-            logger.warning(f"Email API path error ({e}); SMTP fallback")
-            _integ_fail("email_api", str(e))
+            safe_error = _safe_error_label(e)
+            logger.warning("Email API path error (%s); SMTP fallback", safe_error)
+            _integ_fail("email_api", safe_error)
 
         if not self.user or not self.password:
             logger.warning("Email not configured (no API key + no SMTP), skipping send")
@@ -155,21 +180,26 @@ class EmailSender:
                 timeout=_smtp_to,
             )
 
-            logger.info(f"Email sent to {', '.join(to_emails)}")
+            logger.info("Email sent via SMTP (%s)", _delivery_log_meta(to_emails))
             _integ_ok("smtp")
             return True
 
         except Exception as e:
             err_str = str(e)
-            logger.error(f"Failed to send email: {e}")
-            _integ_fail("smtp", err_str)
+            safe_error = _safe_error_label(e)
+            logger.error(
+                "Failed to send email (%s; %s)",
+                _delivery_log_meta(to_emails),
+                safe_error,
+            )
+            _integ_fail("smtp", safe_error)
             # Account-level block (554 Disabled): re-raise so callers can fail-fast.
             if "554" in err_str or "Disabled by user" in err_str:
                 # Best-effort ntfy page (additive; does NOT change fail-fast below).
                 try:
                     from app.platform import ops_alerts
 
-                    ops_alerts.maybe_alert_smtp_disabled(err_str)
+                    ops_alerts.maybe_alert_smtp_disabled(safe_error)
                 except Exception:
                     pass
                 raise

@@ -81,10 +81,12 @@ async def send_email_api(
                 )
             if 200 <= r.status_code < 300:
                 return True, "resend"
-            logger.warning(f"[email_api] Resend {r.status_code}: {r.text[:160]}")
+            # Provider bodies can echo rejected recipient addresses. Status is
+            # enough for operations; never retain response text in logs.
+            logger.warning("[email_api] Resend status=%s", r.status_code)
             return False, f"resend_{r.status_code}"
         except Exception as e:
-            logger.warning(f"[email_api] Resend failed: {e}")
+            logger.warning("[email_api] Resend failed: %s", type(e).__name__)
             # Brevo fallback if also set
             if not brevo:
                 return False, "resend_error"
@@ -115,10 +117,10 @@ async def send_email_api(
                 )
             if 200 <= r.status_code < 300:
                 return True, "brevo"
-            logger.warning(f"[email_api] Brevo {r.status_code}: {r.text[:160]}")
+            logger.warning("[email_api] Brevo status=%s", r.status_code)
             return False, f"brevo_{r.status_code}"
         except Exception as e:
-            logger.warning(f"[email_api] Brevo failed: {e}")
+            logger.warning("[email_api] Brevo failed: %s", type(e).__name__)
             return False, "brevo_error"
 
     return False, "no_api_key"
