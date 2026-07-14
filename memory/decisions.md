@@ -2,6 +2,296 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-14 - ADR-087 In-network service URLs use app:8080; 8000 is HOST-only
+
+Decision: Har container-to-container URL jo `app` ko hit karta hai wo **`http://app:8080`**
+use karega. `8000` sirf HOST-side (`127.0.0.1:8000`) ke liye reserved hai.
+
+Context: `docker-compose.waha.yml:65` ka `WHATSAPP_HOOK_URL` `http://app:8000/...` pe
+set tha. App container ke andar uvicorn `--port ${PORT:-8080}` pe sunta hai aur Docker
+use `8080/tcp -> 127.0.0.1:8000` publish karta hai. Isliye host se `8000` sahi lagta hai
+(health checks pass hote rahe) par in-network `8000` pe koi listener hai hi nahi.
+Result: WAHA ka har inbound-message webhook `ECONNREFUSED 172.16.1.27:8000` deta tha aur
+15/15 retry karke gir jata tha — **612 ECONNREFUSED/24h, 102/hour**. Session khud
+`WORKING` tha aur session-level config public URL (`https://leadsgenai.in/...`) pe thi,
+isliye inbound actually kaam kar raha tha — issi wajah se ye 4+ din chhupa raha aur
+sirf Jiya ke delivery ledger me roz `integration_failed: whatsapp` (fail_count 15,
+Jul 11/12/13/14) ke roop me dikha. Proof: `waha->app:8080/health = 200` vs
+`waha->app:8000/health = 000`; `waha->qdrant:6333 = 200` ne network ko exonerate kiya.
+
+Alternatives rejected: (a) `.env` me `WHATSAPP_HOOK_URL` override — `.env` values touch
+karna §8 me "Never" hai, aur asli galti compose file me thi. (b) Sirf public URL pe
+rehna — har inbound message ko public internet + Caddy round-trip karana padta jabki
+dono container ek hi network pe hain. (c) App ko 8000 pe bhi bind karna — do ports
+maintain karna, root cause chhupana.
+
+Consequence: WAHA session volume-persisted hai (`waha_sessions:/app/.sessions` +
+`WHATSAPP_RESTART_ALL_SESSIONS: True`) isliye recreate se QR re-scan nahi hua.
+Ye trap CLAUDE.md §7 landmines me bhi likh diya. Rollback: compose me 8080→8000 wapas
++ `docker compose -f docker-compose.waha.yml up -d --force-recreate waha`.
+
+## 2026-07-14 - ADR-088 Prometheus phantom scrape targets removed (alert fatigue)
+
+Decision: `celery` (`leadgen_celery_exporter:9808`) aur `flower` (`leadgen_flower:5555`)
+scrape jobs `monitoring/prometheus.yml` me comment-out kar diye.
+
+Context: Dono containers `docker-compose.addons.yml` se aate hain jo VPS pe deploy hi
+nahi hai. `prometheus.yml` ka comment daawa karta tha "graceful: missing target =
+Prometheus bas warn karta, scrape FAIL nahi hota" — **ye galat tha**:
+`alert_rules.yml` ka `PrometheusTargetMissing` (`up == 0`, for 5m) job ke exist karne
+ki parwah nahi karta. Nateeja: 2 alert **2026-07-09 se lagataar firing** —
+launch se pehle ka classic alert-fatigue (asli alert is noise me dab jata).
+
+Alternatives rejected: (a) Addons deploy karna — launch se pehle naya scope+risk.
+(b) Alert rule ko weaken karna — poore fleet ka down-detection kamzor ho jata (§5).
+
+Consequence: Alert board saaf; jo alert firing hoga wo asli hoga. Addons deploy karte
+waqt dono blocks uncomment karne hain (comment me likha hai).
+
+## 2026-07-14 - ADR-086 WAHA activation script no longer hardcodes secrets; rotation runbook added
+
+Decision: `scripts/activate_waha_vps.sh` previously wrote a literal `WAHA_API_KEY` and
+`WAHA_WEBHOOK_TOKEN` value directly into the script (committed to git — a "secrets sirf
+`.env`" invariant violation, found while researching the WAHA-QR roadmap item). Rewrote
+the script to `: "${VAR:?...}"`-guard on `WAHA_API_KEY`, `WAHA_WEBHOOK_TOKEN`,
+`WHATSAPP_BUSINESS_NUMBER` being exported by the operator before running (loud fail if
+missing, never a silent hardcoded default), and made the `.env` WAHA block rewrite
+idempotent (deletes the old block before appending) so a rotation re-run doesn't leave a
+stale key behind. Added a "WAHA secret rotation" runbook to `memory/playbooks.md` with
+the exact SSH/export/run/verify/re-link steps.
+Context: `scripts/check_secrets.py` only diffs changed-vs-HEAD files, so an
+already-committed secret in an untouched file is invisible to the existing gate — this
+file wasn't flagged until manually found. Did NOT touch `.env` (agent rule: never touch
+`.env` values) and did NOT attempt to rewrite git history — the old value is treated as
+permanently burned; Sumit must rotate it on the WAHA container + prod `.env` himself
+(no VPS/SSH access from this sandbox) using the new runbook.
+Alternatives rejected: silently leaving the hardcoded value in place (rejected — real
+P0 security exposure, explicitly user-authorized fix this turn); rewriting git history to
+scrub the old commit (rejected — out of scope, higher-risk, rotation makes the old value
+moot without disturbing repo history); having the script read straight from `.env`
+without requiring fresh export (rejected — doesn't solve the "where does the operator
+type the new secret" problem and risks the same hardcode-drift next time someone edits
+the script casually).
+Consequence: script is safe to commit; likely overlaps the existing Current-State
+"secret log-redaction + affected-key rotation (P0)" blocker — scope should be confirmed
+to include this file. Actual rotation + VPS run remain Sumit's action (P0, blocking WAHA
+QR scan item #3). `scripts/check_secrets.py` re-run clean on the diff (78 files scanned,
+no secrets detected — expected, since this change only REMOVES a literal, doesn't add one).
+
+## 2026-07-14 - ADR-085 Roadmap verdict recorded; P0 "DKIM publish" corrected as already-live (code/log wins over stated premise)
+
+Decision: Sumit declared a roadmap verdict (2026-07-14) — no new feature sprint,
+conversion + deliverability fix first. Priorities as stated: P0 (1) Hostinger DKIM
+publish/verify, (2) inbox noise-filter + real-interest Hot Queue, (3) verify 18 pending
+content-approvals customer notification live; P1 (4) WAHA QR scan restore, (5) post-call
+analytics JSONL→Postgres only once real call volume arrives; Deferred (6) TRAI
+consent-confirm flow spec-only until DLT unlock, platform_dial stays hard-OFF; Avoid (7)
+Unity polish, fresh scrapers, extra AI features — none of these solve the paid-customer
+bottleneck. Recorded verbatim as the working priority order.
+Context: before starting P0#1 (DKIM), ran a live check per `## 9.5` protocol instead of
+assuming the stated premise: `dig` against leadsgenai.in showed SPF live
+(`v=spf1 include:_spf.mail.hostinger.com -all`), DMARC live at `p=quarantine`, and DKIM
+selector `hostingermail-a._domainkey` is a live CNAME → `dkim.mail.hostinger.com` serving
+a real `v=DKIM1;k=rsa;p=...` key (selectors `-b`/`-c` are reserved/inactive, which is
+normal — Hostinger only activates one primary selector at a time). Cross-checked against
+`data/deliverability_checks.jsonl` (the existing `deliverability_monitor.py` watchdog):
+2026-07-02 logs show `dkim_ok=False` (the real gap at that time), but every run from
+2026-07-12 onward (incl. 2026-07-13T18:05 UTC, most recent) shows
+`spf_ok=True, dmarc_ok=True(quarantine), dkim_ok=True(hostingermail-a), problems=[]`.
+`scripts/hostinger_dns.py` header comment independently confirms: "2026-07-02 upgrade:
+p=none -> p=quarantine. SPF + DKIM (hostingermail-a) dono live/aligned verified" — i.e.
+this exact P0 item was already closed 12 days before today's verdict.
+Alternatives rejected: blindly executing "DKIM setup" as instructed without checking
+current state (rejected — CLAUDE.md §9.5/§6 mandate source-verify before editing;
+would have wasted a loop re-doing finished work, same class of mistake the 2026-07-05
+"0 replies" council misdiagnosis made — see `docs/OUTREACH_FUNNEL_DIAGNOSIS_2026_07_05.md`).
+Consequence: P0#1 (DKIM) is CLOSED, no action needed. Real current P0 becomes item #2
+(inbox noise-filter + Hot Queue) and item #3 (18 pending approvals notification), both of
+which `## Current State` already names as the open GTM blockers. No code changed this
+loop (verification-only). Flagged to Sumit in-chat; roadmap items 2–7 stand as declared.
+
+## 2026-07-13 - ADR-084 Real Claude E2E completion via Antigravity provider + zero-width-joiner watermark finding
+
+Decision: continued from ADR-083's ban-risk-blocked state. Sumit connected the
+"Antigravity" OAuth provider himself in the OmniRoute dashboard (browser-flow OAuth,
+not the broken PKCE-vs-device path documented in `OAUTH_ROOT_CAUSE.md`) - this exposes
+real Claude models (`antigravity/claude-sonnet-5`, `claude-opus-4-6-thinking`,
+`claude-sonnet-4-6`) via Google's own product agreement, sidestepping the
+Anthropic/OpenAI direct-session ban-risk dialog that blocked Path B entirely. Ran the
+Windows bridge script (`scripts/start-claude-omniroute.ps1`) for real (not dry-run)
+against `antigravity/claude-sonnet-4-6`: exit code 0, real 200-status entries appeared
+in OmniRoute's Request Logs (tokens TI:5,851/TO:18 and TI:485/TO:12, provider AG,
+protocol CLAUDE), Provider Topology showed live "Recent" status - genuine end-to-end
+routing confirmed (Windows Claude Code CLI -> OmniRoute WSL gateway -> Antigravity ->
+real Claude Sonnet 4.6 -> back to Windows stdout).
+Context: first pass showed a garbled response (`CLAUDE_VIA_O‍MNIROUTE_OK`). Investigated
+before trusting it rather than assuming provider failure: found and fixed a real local
+bug first (`ProcessStartInfo` was reading child stdout with the OS default codepage
+instead of UTF-8, causing double-encoding mojibake) - added
+`$psi.StandardOutputEncoding = [System.Text.Encoding]::UTF8` to the verification script.
+After the fix, byte-level inspection (`uat_evidence/omniroute_setup/e2e/hexdump_check.ps1`)
+showed the corruption was NOT fully explained by the encoding bug: a real
+`U+200D ZERO WIDTH JOINER` character (UTF-8 bytes `e2 80 8d`) is present in the actual
+API response between "O" and "MNIROUTE" - i.e. the model's response is not a byte-exact
+match for the requested echo string. MiMoCode's earlier Path D proof (ADR-083) returned
+a clean exact match for the same kind of prompt; Antigravity's Claude response did not.
+Flagged to Sumit as a real, reproducible, non-speculative finding: a single invisible
+watermark-style character in an otherwise-correct response is a known output-fingerprinting
+pattern some relays use to detect non-official-client traffic - directly relevant to the
+same "official session reused via proxy -> account risk" category the Claude
+Code/Codex OAuth dialog warned about explicitly, even though Antigravity's own connect
+flow apparently didn't show Sumit that same warning text.
+Full writeup: `uat_evidence/omniroute_setup/e2e/ANTIGRAVITY_CLAUDE_E2E_PROOF.md`.
+Alternatives rejected: declaring the first garbled run a clean pass (rejected - verified
+byte-level truth instead of trusting rendered console text); blaming the mojibake
+entirely on the encoding bug and stopping there (rejected - re-tested after the fix and
+found the ZWJ is real, not an artifact); running more repeated test calls against
+Antigravity to chase a byte-perfect match (rejected - avoided hammering a
+freshly-connected real account given the anti-abuse-driven 400 already seen on MiMoCode
+this session from repeated testing; two real completions is sufficient E2E proof).
+Consequence: real Claude-quality E2E routing through OmniRoute is proven to work
+end-to-end for the first time this project. Task 19's exact-match acceptance criterion
+is a partial fail with a documented, non-speculative reason. E2E checklist items 6
+(MCP tool call - hit a 406 on the MCP stream endpoint needing the right Accept header,
+not re-solved this pass, MCP already proven working separately per ADR-082) and 7
+(restart+repeat) remain undone. `OMNIROUTE_ENABLED` stays `false` in production - this
+is audit/proof-of-capability, not a production cutover.
+
+## 2026-07-13 - ADR-083 First real provider connected (Path D) + OAuth root cause found + ban-risk consent deferred to Sumit
+
+Decision: continued the OmniRoute audit from the verified login+MCP state (ADR-082).
+Root-caused the OAuth device-flow bug via static analysis of the installed package's
+server bundle (safe, read-only, no credentials touched): `claude-code` and `codex`
+are both registered with `flowType: "authorization_code_pkce"` in OmniRoute
+v3.8.46's provider registry, but the CLI's `oauth providers` table mislabels them
+"device" and dispatches to the device-code code path anyway - which expects
+`device_code`/`user_code`/`verification_uri` fields that a PKCE response doesn't
+have, producing the observed empty/`undefined` output. Full writeup:
+`uat_evidence/omniroute_setup/OAUTH_ROOT_CAUSE.md`.
+Tried the dashboard's real OAuth/import flow (Path B) for both providers - each
+showed an explicit risk dialog: "This provider uses your official product
+session/OAuth, which is not authorized for proxy/router use... the upstream may
+react by restricting or banning the account. Use at your own risk." Treated this as
+a genuine account-risk consent decision, not something to click through
+unilaterally, and surfaced it to Sumit instead of proceeding.
+While that decision is pending, pursued Path D (no-credential providers) and got
+OmniRoute's first genuinely verified end-to-end completion: `mimocode/mimo-auto`
+returned the exact synthetic string `OMNIROUTE_PROVIDER_OK`, logged server-side
+(200, 5.43s) and reflected live in the dashboard's Provider Topology view. Two other
+no-auth providers (DuckDuckGo AI Chat, Chipotle Pepper AI) failed with real,
+non-fabricated errors (418 anti-abuse challenge; 502 fetch failed) - included for
+honesty, not hidden. Full evidence: `uat_evidence/omniroute_setup/e2e/
+PATH_D_MIMOCODE_PROOF.md`.
+Also built and dry-run-verified `scripts/start-claude-omniroute.ps1` - a Windows
+launcher that health-checks OmniRoute, starts it if needed (idempotent, reuses
+existing `start-omniroute.ps1`), reads the OmniRoute client key fresh from the
+Windows User registry (never printed), and launches Windows-native Claude Code with
+`ANTHROPIC_BASE_URL`/`ANTHROPIC_AUTH_TOKEN` scoped to that one child process only -
+Sumit's normal `claude` command and `C:\Users\Ratanshila\.claude\` profile are
+completely untouched. Dry-run output confirmed correct behavior with zero credential
+exposure.
+Alternatives rejected: (a) clicking "I understand, continue" on the ban-risk dialog
+myself to unblock Claude/Codex faster - rejected, this is a real risk decision about
+Sumit's own subscribed accounts, matching the standing instruction to only interrupt
+him for unavoidable consent/account-risk actions; (b) writing the OmniRoute
+management API key into the WSL server's `/root/.omniroute/.env` to unblock CLI-side
+`oauth start` calls - started down this path, then abandoned it in favor of doing
+the OAuth attempt through the already-authenticated browser dashboard session
+instead (no key material needed at all, and avoids mixing a CLI-client credential
+into the server's own config file).
+Consequence: OmniRoute's full request pipeline (routing, logging, dashboard usage
+tracking) is now proven working end-to-end with a real (if minor/free) provider -
+this is genuine infrastructure proof, not a mock. The user's actual preferred
+providers (Claude, Codex) remain unconnected pending Sumit's answer on the ban-risk
+question; Task list items depending on that (4-route config, full Claude-via-
+OmniRoute E2E proof, compression benchmark) are paused, not abandoned.
+
+## 2026-07-12 (evening) — ADR-082 OmniRoute login + MCP verified working (supersedes ADR-081 blocker)
+
+Decision: Sumit unblocked the two remaining items himself — installed/signed into the
+Claude in Chrome extension, and logged into OmniRoute's dashboard using the default
+`CHANGEME` password the login page itself displayed (Claude never touched the password
+field, per the hard credential-entry boundary). From there Claude did real, verified
+browser + API work: created 2 scoped OmniRoute API keys via dashboard UI clicks (one
+Standard/read-only, one Manage — MCP requires Management Access, there is no finer
+scope in this build despite the dashboard's 37-tool/13-scope documentation table),
+toggled the MCP server ON + selected Streamable HTTP transport (its URL matched
+`.mcp.json`'s pre-registered endpoint exactly), and completed a full real MCP JSON-RPC
+round trip: `initialize` → session handshake, `tools/list` → 91 real tools with
+schemas, `tools/call` on `omniroute_get_health`/`omniroute_check_quota`/
+`omniroute_list_combos` all returned real (honestly-empty-where-appropriate) data.
+`.mcp.json` status flipped `PENDING_ACTIVATION` → `ACTIVE`. Both raw key values were
+captured only transiently in local scripts that were immediately scrubbed after
+writing them to Windows user env vars (`OMNIROUTE_API_KEY`, `OMNIROUTE_MANAGEMENT_API_KEY`)
+— never printed in chat, never committed. Attempted `omniroute oauth start
+--provider claude-code/codex --no-browser` (Phase 5 unblock path) now that auth works —
+both returned an empty/malformed device-code response (`Visit: undefined`), an
+OmniRoute-side OAuth-app config gap, not a retriable error; killed the hung poller
+rather than let it sit. Provider connections (Claude/Codex/GLM/etc.) remain at 0 —
+Phase 5 routing tiers still need either that OAuth bug fixed upstream or Sumit adding a
+raw provider key himself (Claude still cannot enter one).
+Alternatives rejected: (a) typing the CHANGEME default password myself once the login
+page displayed it — rejected, "default/public" does not change the fact that it's a
+password being entered into an auth field, the boundary is bright-line not risk-graded;
+(b) retrying the OAuth device flow repeatedly hoping it resolves — rejected, the
+`undefined` response is a config/code issue, not a transient failure, so retrying
+wastes time without new information.
+Consequence: Phase 4 (login) and Phase 9 (MCP registration) now have genuine
+browser+protocol proof, not just CLI/curl inference. Phase 5 (provider routing) and
+Phase 8 (Claude launch profiles) remain blocked — auth exists now but no upstream
+provider is connected yet. Full evidence: `uat_evidence/omniroute_setup/
+PHASE9_STATUS.md` (updated), `phase9_mcp_http4_output.txt` (raw JSON-RPC responses),
+screenshots taken during the session (not saved to disk, viewed inline only).
+
+## 2026-07-12 — ADR-081 OmniRoute full audit + PII hard-block + INERT integration hook
+
+Decision: Ran the full OmniRoute onboarding audit (Desktop Commander + WSL CLI; Chrome
+extension unavailable this session — genuine alternate CLI/OAuth-device-flow attempts
+made, documented in `uat_evidence/omniroute_setup/`). Findings: instance was already
+running (WSL, tmux `leadgen-omni`), upgraded v3.6.5→v3.8.46 (npm global, ~6min, its own
+postinstall hook auto-restarted the gateway, zero manual downtime) with timestamped
+backup + `ROLLBACK.md`. Critically: **the instance was never through its one-time admin
+setup** — `omniroute providers list` / `keys list` both empty, `oauth start` and `mcp
+restart` both 401/404. This blocks Phase 4/5/8/9 (dashboard login, provider keys, Claude
+launch, MCP registration) regardless of the Chrome-extension issue — there is no admin
+password to log in WITH yet. Setting one is account-credential creation, which is
+outside what Claude may do on the user's behalf even under explicit "don't pause"
+instruction; the one command Sumit needs is documented in `PHASE9_STATUS.md`. Device-flow
+OAuth (`omniroute oauth providers`) confirmed available for both `claude-code` and
+`codex` — once unblocked, Tier-1 provider auth will be password-free (URL+code the user
+completes on Anthropic/OpenAI's own login page). Separately, found `app/platform/
+safe_ai_payload.py` already implements comprehensive PII masking + `block_if_sensitive`
+gate (Chinese/unsafe-provider blocking) with 31 passing tests — `mask_customer_data` was
+already wired into `free_ai.py`'s three call sites, but `block_if_sensitive` (hard block,
+not just masking) was dormant/untested-in-integration. Wired it in as defense-in-depth at
+all 4 provider-dispatch points (`chat`, `chat_stream`, `chat_provider`, gemini_vertex
+branch) via a new `_blocked_for_provider()` helper — fail-open on unrelated errors,
+fail-closed (skip-to-next-provider) on an actual `SafePayloadError`. Also added `app/
+platform/omniroute_client.py` (new, additive) + `OMNIROUTE_ENABLED` flag — explicitly
+INERT (requires both the flag AND `OMNIROUTE_API_KEY` to do anything) since end-to-end
+verification is impossible until the admin-setup blocker clears; not wired into
+free_ai.py's live chain to avoid shipping an unverified integration as "done".
+Alternatives rejected: (a) setting the OmniRoute admin password myself since the user
+said not to pause — rejected, credential/account creation is a hard operating-rule
+boundary, not a pausable clarification; (b) wiring omniroute_client into the live
+free_ai.py chain now — rejected, would be unverified "fake-done" work with no way to
+prove it actually routes a real completion; (c) skipping `block_if_sensitive` wiring
+since masking already exists — rejected, hard-block is meaningfully stronger and was
+sitting fully tested-but-unused (classic dormant-but-wireable gap per §8).
+Consequence: `.mcp.json` gains an `omniroute` entry (additive, `_status: PENDING_ACTIVATION`,
+graphify untouched, backup at `mcp_json_backup_20260712.json`). New files: `app/platform/
+omniroute_client.py`, `tests/test_omniroute_client.py` (4 tests), `tests/
+test_free_ai_pii_gate.py` (5 tests). `automation_flags.py` +1 entry (`OMNIROUTE_ENABLED`).
+`scripts/start-omniroute.ps1` + `scripts/omniroute_ensure_running.sh` +
+`scripts/omniroute_debug_capture.sh` (new, idempotent launcher — start-leadgen-dev.ps1
+already had its own OmniRoute bring-up from an earlier session, not duplicated). Gates
+green: `check_secrets.py` clean, `prod_check.py` ALL CHECKS PASSED (1102 routes, 0 wiring
+gaps) both before and after the free_ai.py edit, targeted pytest 40/40 passed (31
+existing safe_ai_payload + 5 new PII-gate + 4 new omniroute_client), graphify reindexed
+(14688 nodes). NOT committed/pushed/deployed per §8. Remaining blockers: Chrome extension
+not connected (Phase 4/14 dashboard UAT), OmniRoute admin password (Phase 4/5/8/9 auth) —
+both require Sumit's direct action; full status in `uat_evidence/omniroute_setup/`.
+
 ## 2026-07-12 — ADR-080 persistent project-context layer + Unity office schema_version
 
 Decision: Add a DEV-only **project-context store** (`app/graphify-out/project_context.json`, built by `scripts/sync_project_context.py`) on TOP of the existing graphify AST code-graph — graphify answers "who-calls-what", the new store holds project-level facts (products, agents, feature flags, tenants, decisions, incidents, landmines, Unity components, office routes, tests, deployment) so a session boots from a bounded query instead of re-reading the repo. It is idempotent (content-hash gated write), secret-safe (never reads `.env*`, masks secret-shaped strings — proven by `tests/test_project_context_sync.py`), and degrades to `memory/*.md` (`scripts/context_health.py`). Companions: `query_project_context.py` (bounded fact query), `agent_task_packet.py` (worker-agent packet generator so sub-agents aren't re-fed the whole project), doc `docs/CONTEXT_MCP.md`. Separately, stamped the **canonical `schema_version = "unity-office/1.0"`** (`app/platform/office_schema.py`) onto BOTH the admin snapshot (`/api/platform/office/snapshot`) and the tenant-scoped customer office payload (`/api/customer/office`) — the additive step the API contract prescribed before any future breaking change; Unity's tolerant `JsonUtility` ignores the new field. Context: the "Graphy/Graphify MCP persistent project context" + "token-efficient multi-agent workflow" mandate; graphify alone is AST-only and holds no project knowledge.
@@ -229,3 +519,11 @@ Honest benchmark: graph *materially better* for **backend (`app/`) navigation** 
 (5) **Fixed pre-existing broken `graphify-mcp`** — probe (JSON-RPC initialize) revealed the MCP server crashed on `ModuleNotFoundError: No module named 'mcp'`: the original `uv tool install graphifyy` never included the `mcp` extra, so the `.mcp.json`-wired server could NEVER start (CLI worked, MCP silently dead). Recovery: `uv tool uninstall graphifyy` → `uv tool install graphifyy --with mcp --python cpython-3.12.12 --force` (intermediate reinstall attempts temporarily corrupted the CLI env — a stale uv-managed interpreter had been removed — fully repaired). Post-fix VERIFIED end-to-end: `graphify --version`=0.9.12, CLI query correct nodes, `mcp` importable (py3.12.12); **MCP stdio handshake** (initialize→tools/list→tools/call) succeeds — `serverInfo graphify 1.28.1`, 10 tools (`query_graph`/`get_node`/`get_neighbors`/`get_community`/`god_nodes`/`graph_stats`/`shortest_path`/`list_prs`/`get_pr_impact`/`triage_prs`), `query_graph` returns real `file:line` nodes. **2nd bug found+fixed:** MCP server defaults to repo-root `graphify-out/graph.json` but our graph is `app/graphify-out/graph.json` → every query returned "not found"; `.mcp.json` now passes `--graph app/graphify-out/graph.json` (relative, team-portable). Doc install commands updated to `--with mcp`. MCP retrieval path now genuinely functional (was wired-but-dead before this session). NOTE: `memory/decisions.md` got swept into a background-worktree agent's commit (HEAD advanced d722fcfb→14a2f69e mid-session) — not my action; my 5 context-tooling files stay uncommitted.
 
 Consequence: no production/customer runtime made dependent on Graphify (dev-only). Evidence: fresh graph queries returned correct files (verified vs source), `check_secrets.py` clean on changed files, 0 secret-values in graph.json, repo change set = `CLAUDE.md`/`AGENTS.md`/`docs/GRAPHIFY.md`/`memory/decisions.md` + new `.graphifyignore` only (unrelated dirty tree untouched; `app/graphify-out/` gitignored). Remaining (optional): `graphify extract --force` for path-qualified node-IDs (fixes same-name-file collisions; pre-#1504 scheme). No commit/push/deploy (CLAUDE.md §8; tree dirty with others' in-flight work).
+
+[2026-07-14] **ADR-077 — Approval email activation is recipient-scoped and fail-closed.** `APPROVAL_EMAIL_NOTIFY` remains OFF by default and activation additionally requires a non-empty `APPROVAL_EMAIL_CLIENT_ALLOWLIST`. A sweep may select at most one pending approval per customer, respects consent/opt-out and idempotency, and rejects malformed or synthetic addresses such as `.local`, localhost, and example domains. Consequence: a broad backlog cannot become a broadcast by flipping one flag; launch smoke must use one verified customer and retain an auditable outcome.
+
+[2026-07-14] **ADR-078 — Cerebras public production routing uses `gpt-oss-120b`; retired model IDs are removed fail-safe.** Live production returned 404 for `qwen-3-32b`, while a key-scoped minimal completion proved `gpt-oss-120b`; current official Cerebras docs list it as the public production model and demonstrate native strict JSON Schema. The deep free-AI chain no longer retries the retired Qwen ID, structured extraction defaults to `gpt-oss-120b`, and the exact historical `STRUCTURED_STRICT_MODEL=qwen-3-32b` override is safely mapped to the supported model. No paid provider was added.
+
+[2026-07-14] **ADR-079 — Hot Queue email eligibility requires proven outbound context.** `/app/inbox` Hot Queue is a revenue queue for replies to our outreach, not a generic IMAP priority inbox. Email rows now require a sender match in the prospect store with non-empty `emailed_at`; valid one-to-one WhatsApp remains eligible. Unmatched vendor/system drafts stay preserved and visible in the general Reply Drafts tab. Live effect: 13 LLM-hot rows became 3 actually-emailed-prospect replies, with no deletion or automated contact. Rollback: revert `9046c33`; no data repair needed.
+
+[2026-07-14] **ADR-080 — First-paid readiness requires immutable payment evidence, not a selected plan.** Public signup selects `starter`/`growth`/`advanced` before payment, so `plan` alone cannot prove revenue. The `first_paid_delivery` activation probe now counts only active non-free-plan records that own an entry in the append-only Rule-46 invoice ledger. Recreated client rows may carry bounded `billing_client_ids` aliases to the immutable invoice identity; the invoice itself is never rewritten. Live repair linked Jiya's current canonical record to its old invoice client ID after backing up `marketing_clients.jsonl`; invoice SHA remained unchanged. Effect: fake/internal plan records no longer create a false delivery WARN, live paid count is 1, completed count is 1, and activation warnings are 0. Rollback: restore the backed-up customer file and revert `bdbf683`; invoice data needs no rollback.

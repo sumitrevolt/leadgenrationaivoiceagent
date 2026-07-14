@@ -62,7 +62,12 @@ services:
       # --- Auto-start the saved session on boot (-> SCAN_QR_CODE / WORKING) ---
       WHATSAPP_RESTART_ALL_SESSIONS: "True"
       # --- Inbound -> app webhook (in-network; token-gated). 'message' = inbound texts. ---
-      WHATSAPP_HOOK_URL: "http://app:8000/api/wa/selfhost/webhook?token=${WAHA_WEBHOOK_TOKEN:-change-me-token}"
+      # PORT NOTE (2026-07-14): app ke ANDAR uvicorn 8080 pe sunta hai
+      # (`--port ${PORT:-8080}`); host pe wo `8080/tcp -> 127.0.0.1:8000` publish hota
+      # hai. Isliye HOST se 8000 sahi hai par CONTAINER-to-container 8080 hi sahi hai.
+      # Yahan 8000 tha -> har inbound message pe ECONNREFUSED retry storm (15/15) +
+      # Jiya ke ledger me roz `integration_failed: whatsapp`. In-network = 8080.
+      WHATSAPP_HOOK_URL: "http://app:8080/api/wa/selfhost/webhook?token=${WAHA_WEBHOOK_TOKEN:-change-me-token}"
       WHATSAPP_HOOK_EVENTS: "message"
       # Keep session store on disk so a restart doesn't force a re-scan.
       WHATSAPP_FILES_FOLDER: "/app/.media"
