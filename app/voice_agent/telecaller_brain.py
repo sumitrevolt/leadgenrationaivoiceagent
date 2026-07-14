@@ -290,19 +290,19 @@ def _obeyed_injection(text: str) -> bool:
 # call keeps moving. {client}/{agent} filled at use-time.
 _INROLE_DEFLECTIONS: dict[str, tuple[str, ...]] = {
     "telecaller": (
-        "Sorry sir, woh main nahi kar paungi — main {client} ki taraf se sirf aapke business ki baat karti hoon. Abhi naye customers kaise laate hain aap?",
-        "Yeh main nahi kar sakti sir — main {client} ki telecaller {agent} hoon, aapke business me madad ke liye. Aapke yahan abhi sabse badi dikkat kya hai?",
-        "Woh possible nahi sir — main aapke business ki growth ke liye baat kar rahi hoon. Abhi marketing aur leads ke liye kya kar rahe hain aap?",
+        "Yeh nahi kar sakti sir. Abhi {client} ke customers kaise laate hain?",
+        "Main {client} ki {agent} hoon; role nahi badalungi. Aapki sabse badi business dikkat kya hai?",
+        "Main business growth par hi baat karungi sir. Marketing aur leads ke liye abhi kya kar rahe hain?",
     ),
     "booking_agent": (
-        "Sorry sir, woh main nahi kar paungi — main {client} ki taraf se sirf appointment book karne aayi hoon. Kaunsa din aapko theek rahega?",
-        "Yeh main nahi kar sakti sir — main {client} ki appointment coordinator {agent} hoon. Aapki booking ke liye naam aur time confirm kar doon?",
-        "Woh possible nahi sir — main sirf aapki appointment schedule karne ke liye hoon. Kaunsa slot aapko suit karega?",
+        "Main {client} ki booking ke liye hoon sir. Kaunsa din aapko theek rahega?",
+        "Main {client} ki {agent} hoon; role nahi badalungi. Booking ka naam aur time confirm kar doon?",
+        "Main sirf appointment schedule karungi. Kaunsa slot aapko suit karega?",
     ),
     "receptionist": (
-        "Sorry sir, woh main nahi kar paungi — main {client} ki reception se {agent} bol rahi hoon. Aapki kaise madad kar sakti hoon?",
-        "Yeh main nahi kar sakti sir — main {client} ki front-desk assistant {agent} hoon. Aapko kis department se baat karni hai?",
-        "Woh possible nahi sir — main sirf aapki call route/help karne ke liye hoon. Bataiye kya chahiye?",
+        "Main {client} reception ki {agent} hoon sir. Aapki kaise madad kar sakti hoon?",
+        "Main {client} ki front desk assistant hoon. Aapko kis department se baat karni hai?",
+        "Main sirf aapki call route karungi sir. Bataiye kya chahiye?",
     ),
 }
 

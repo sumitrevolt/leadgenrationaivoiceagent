@@ -74,6 +74,10 @@ def test_deescalation_reply_deterministic_and_nonempty():
     assert a in sn.DEESCALATION_TEMPLATES
 
 
+def test_all_deescalation_replies_fit_spoken_word_budget():
+    assert all(len(line.split()) <= 22 for line in sn.DEESCALATION_TEMPLATES)
+
+
 def test_never_raises_on_garbage():
     assert sn.should_deescalate(None, "") is False  # type: ignore[arg-type]
     assert sn.soft_no_count(None, None) == 0  # type: ignore[arg-type]

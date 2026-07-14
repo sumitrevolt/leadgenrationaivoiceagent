@@ -32,12 +32,12 @@ except Exception:  # pragma: no cover - keep import-safe
 
 # Graceful de-escalation closers — warm, non-pushy, async-exit (WhatsApp/website).
 DEESCALATION_TEMPLATES = [
-    "Bilkul ji, samajh gayi — aap abhi busy hain, koi baat nahi. Ek choti si "
-    "jaankari WhatsApp pe bhej deti hoon, fursat mile to dekh lijiyega. Aapka din shubh rahe!",
-    "Koi baat nahi ji, main samajh sakti hoon — zabardasti bilkul nahi karungi. "
-    "Jab bhi zarurat lage, leadsgenai dot in pe hum mil jaayenge. Aapka din accha rahe!",
-    "Theek hai ji, aapka time kimti hai. Main poori detail WhatsApp pe chhod deti "
-    "hoon, aaram se dekh lijiyega. Dhanyavaad aur shubh din!",
+    "Bilkul ji, koi baat nahi. Chhoti jaankari WhatsApp par chhod deti hoon; "
+    "fursat mein dekh lijiyega.",
+    "Koi baat nahi ji, zabardasti nahi karungi. Zarurat ho to leadsgenai dot in "
+    "par mil jayenge.",
+    "Theek hai ji, aapka samay keemti hai. Detail WhatsApp par chhod deti hoon. "
+    "Shubh din!",
 ]
 
 # Hard rule appended to the brain's system prompt (guides the LLM on edge cases).

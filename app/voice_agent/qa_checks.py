@@ -57,6 +57,7 @@ _PERMISSION_RE = [re.compile(p) for p in _PERMISSION_PATTERNS]
 _PITCH_PATTERNS = [
     r"\?",                           # any question
     r"demo", r"book", r"slot", r"meeting", r"call\s+kar",
+    r"whats?\s*app",                 # async handoff offer is still a next-step pitch
     r"sirf\s+\d", r"₹\s*\d", r"offer", r"discount",
     r"ek\s+baar\s+(?:dekh|try|sun)",
 ]
@@ -145,9 +146,14 @@ def has_permission_ask(text: str) -> bool:
 
 def _is_pitch(text: str) -> bool:
     t = _norm(text)
-    if any(rx.search(t) for rx in _GOODBYE_RE):
-        return False  # a polite goodbye is never "pushy"
-    return any(rx.search(t) for rx in _PITCH_RE)
+    hits = [rx.pattern for rx in _PITCH_RE if rx.search(t)]
+    if not hits:
+        return False
+    # A goodbye followed by a concrete offer/question is still a pitch. Preserve
+    # the old exemption only for a polite rhetorical question with no offer marker.
+    if any(pattern != r"\?" for pattern in hits):
+        return True
+    return not any(rx.search(t) for rx in _GOODBYE_RE)
 
 
 def _turns(transcript: list[dict]) -> list[dict]:
