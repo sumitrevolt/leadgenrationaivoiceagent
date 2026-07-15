@@ -117,9 +117,16 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
 
         q = h.get("queue") or {}
         # Clamp redis-down sentinel (-1) to 0 so it never surfaces on the dashboard.
+        # ADR-104 Phase F (2026-07-15): "dead" was missing here entirely, so the
+        # L1 Executive Overview's QUEUE/DLQ tile and DLQ/Queue tab could show
+        # "DLQ 0 · Queue clean" while dlq:dead held retry-exhausted tasks
+        # needing manual attention (same family as the office_map.html /
+        # delivery_command_center.html fixes earlier this session, but here
+        # the API response itself dropped the field, not just the frontend).
         out["metrics"]["queue"] = {
             "depth": max(0, int(q.get("celery", 0) or 0)),
             "dlq": max(0, int(q.get("dlq", 0) or 0)),
+            "dead": max(0, int(q.get("dead", 0) or 0)),
         }
         # heartbeat: health() has no heartbeat object → derive. up = jobs that are
         # neither overdue nor never_ran (i.e. have a live recent beat).
@@ -426,6 +433,21 @@ async def control_center_rca(_user=Depends(require_admin)) -> dict[str, Any]:
                     "cause": "task repeatedly fail hua (retry exhaust)",
                     "fix": "Sat hygiene job DLQ trim karta; ya manually dlq:failed_tasks inspect karo",
                     "severity": "med" if dlq < 20 else "high",
+                }
+            )
+        # ADR-104 Phase F (2026-07-15): dlq:dead (retry-exhausted, dlq_retry.py)
+        # was never checked here, so "Koi problem nahi — sab theek" could show
+        # on this exact page while dead tasks sat unaddressed. Reuse the
+        # Phase B authoritative dead_tasks_present flag rather than
+        # re-deriving another ad hoc dead>0 check.
+        if h.get("dead_tasks_present"):
+            dead = max(0, int(q.get("dead", 0) or 0))
+            findings.append(
+                {
+                    "symptom": f"{dead} task(s) dead/exhausted (dlq:dead)",
+                    "cause": "retry budget exhausted (dlq_retry.py auto-retry sweep gave up)",
+                    "fix": "Reliability Console (/app/office#reliability) me inspect karo — manual retry ya root-cause fix chahiye",
+                    "severity": "high" if dead >= 5 else "med",
                 }
             )
     except Exception:

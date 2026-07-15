@@ -48,6 +48,58 @@ def test_new_jobs_labelled():
         assert info and info.get("label") and info.get("kya")
 
 
+# --------------------------------------------------------------------------- #
+# ADR-104 Phase F (2026-07-15): build()'s problems[] only ever checked
+# queue_backlogged (live celery/heavy depth) -- dead_tasks_present and
+# retryable_failed_present (Phase B authoritative fields off the SAME
+# automation_health.health() call already made a few lines above) were never
+# read. Live discovery: /app/control-center's Problems panel and
+# /app/automation's "Aaj" tab (both fed by this exact function) said "Koi
+# problem nahi mili" while 4 tasks sat dead/exhausted.
+# --------------------------------------------------------------------------- #
+def test_dead_tasks_present_surfaces_as_an_actionable_problem(monkeypatch):
+    import app.platform.automation_health as automation_health
+
+    def _health():
+        return {
+            "jobs": [],
+            "overdue": [],
+            "never_ran": [],
+            "queue": {"celery": 0, "heavy": 0, "dlq": 0, "dead": 4},
+            "queue_backlogged": False,
+            "dead_tasks_present": True,
+            "retryable_failed_present": False,
+        }
+
+    monkeypatch.setattr(automation_health, "health", _health)
+    d = today_overview.build()
+    dead_problems = [p for p in d["problems"] if "dead" in p["kya"] or "exhausted" in p["kya"]]
+    assert dead_problems, f"expected a dead/exhausted problem, got: {d['problems']}"
+    assert dead_problems[0]["fix"]
+
+
+def test_retryable_failed_present_surfaces_when_not_already_backlogged(monkeypatch):
+    """Avoid a duplicate/redundant entry when queue_backlogged already covers it --
+    only add the dedicated retry-failed problem when backlog isn't already flagged."""
+    import app.platform.automation_health as automation_health
+
+    def _health():
+        return {
+            "jobs": [],
+            "overdue": [],
+            "never_ran": [],
+            "queue": {"celery": 0, "heavy": 0, "dlq": 7, "dead": 0},
+            "queue_backlogged": False,
+            "dead_tasks_present": False,
+            "retryable_failed_present": True,
+        }
+
+    monkeypatch.setattr(automation_health, "health", _health)
+    d = today_overview.build()
+    retry_problems = [p for p in d["problems"] if "DLQ" in p["kya"] and "retry-able" in p["kya"]]
+    assert retry_problems, f"expected a retry-able DLQ problem, got: {d['problems']}"
+
+
 def test_future_scheduled_jobs_are_not_due_yet(monkeypatch):
     class FakeDateTime(real_datetime):
         @classmethod

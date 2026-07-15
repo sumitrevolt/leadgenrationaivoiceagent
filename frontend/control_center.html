@@ -526,8 +526,16 @@ function mapFallback(today, autoh, act, llm, evalg, runsR){
   o.metrics.heartbeat = { up: hbUp, total: jobs.length };
 
   // queue / dlq
+  // ADR-104 Phase F (2026-07-15): this adapter path dropped q.dead (retry-
+  // exhausted) even though autoh.queue (raw automation_health.health()
+  // queue dict) already carries it -- same fix as the server-side
+  // /api/control-center/overview path in app/api/control_center.py.
   var q = autoh.queue || {};
-  o.metrics.queue = { depth: num(q.celery, 0) < 0 ? 0 : num(q.celery, 0), dlq: num(q.dlq, 0) < 0 ? 0 : num(q.dlq, 0) };
+  o.metrics.queue = {
+    depth: num(q.celery, 0) < 0 ? 0 : num(q.celery, 0),
+    dlq: num(q.dlq, 0) < 0 ? 0 : num(q.dlq, 0),
+    dead: num(q.dead, 0) < 0 ? 0 : num(q.dead, 0),
+  };
 
   // llm — derive ok_rate from fallback-rate, primary from busiest provider
   var llmMetric = _deriveLlm(llm);
@@ -642,8 +650,12 @@ function renderMetrics(){
   }
 
   // Queue / DLQ
-  var qcls = m.queue.dlq > 0 ? 'bad' : (m.queue.depth > 200 ? 'warn' : 'ok');
-  setCard('m-queue', qcls, m.queue.depth, 'DLQ ' + m.queue.dlq);
+  // ADR-104 Phase F (2026-07-15): the tile's status class and subtext used
+  // to consider m.queue.dlq only, so it could show a green/ok tile with
+  // "DLQ 0" while m.queue.dead (retry-exhausted) was nonzero.
+  var qDead = m.queue.dead || 0;
+  var qcls = (m.queue.dlq > 0 || qDead > 0) ? 'bad' : (m.queue.depth > 200 ? 'warn' : 'ok');
+  setCard('m-queue', qcls, m.queue.depth, 'DLQ ' + m.queue.dlq + ' · dead ' + qDead);
   setBadge('m-queue', 'live', liveTxt);
 
   // Heartbeat
@@ -1500,11 +1512,21 @@ function renderBottom(){
     var o = STATE.overview;
     if (o && o.metrics) {
       var q = o.metrics.queue;
+      // ADR-104 Phase F (2026-07-15): q.dead (retry-exhausted, dlq:dead) was
+      // never read here -- this tab could say "Queue clean" while dead tasks
+      // sat unaddressed. /api/control-center/overview now includes q.dead
+      // (see app/api/control_center.py); "clean" now requires BOTH dlq and
+      // dead to be 0.
+      var deadCount = num(q.dead);
+      var dlqCount = num(q.dlq);
+      var anyBad = dlqCount > 0 || deadCount > 0;
       body.innerHTML = '<div class="run-row"><span class="rdot" style="background:' + (num(q.depth) > 200 ? '#eab308' : '#22c55e') + '"></span>'
         + '<span class="rproc">Celery queue depth</span><span class="rstat">' + num(q.depth) + '</span></div>'
-        + '<div class="run-row"><span class="rdot" style="background:' + (num(q.dlq) > 0 ? '#ef4444' : '#22c55e') + '"></span>'
-        + '<span class="rproc">DLQ (dlq:failed_tasks)</span><span class="rstat" style="color:' + (num(q.dlq) > 0 ? '#ef4444' : '#22c55e') + '">' + num(q.dlq) + '</span></div>'
-        + (num(q.dlq) > 0 ? '<div class="empty-line">⚠️ DLQ retry → Mission Control · Upgrader tab</div>' : '<div class="empty-line good">✅ Queue clean</div>');
+        + '<div class="run-row"><span class="rdot" style="background:' + (dlqCount > 0 ? '#ef4444' : '#22c55e') + '"></span>'
+        + '<span class="rproc">DLQ retry-able (dlq:failed_tasks)</span><span class="rstat" style="color:' + (dlqCount > 0 ? '#ef4444' : '#22c55e') + '">' + dlqCount + '</span></div>'
+        + '<div class="run-row"><span class="rdot" style="background:' + (deadCount > 0 ? '#ef4444' : '#22c55e') + '"></span>'
+        + '<span class="rproc">Dead/exhausted (dlq:dead)</span><span class="rstat" style="color:' + (deadCount > 0 ? '#ef4444' : '#22c55e') + '">' + deadCount + '</span></div>'
+        + (anyBad ? '<div class="empty-line">⚠️ DLQ/dead retry → Reliability Console (/app/office#reliability)</div>' : '<div class="empty-line good">✅ Queue clean</div>');
     } else {
       body.innerHTML = '<div class="empty-line">' + (STATE.token ? 'Queue data nahi mila' : 'login chahiye') + '</div>';
     }

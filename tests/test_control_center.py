@@ -294,3 +294,58 @@ def test_route_hits_contract_disabled_by_default():
     assert body["enabled"] is False
     assert "ROUTE_HIT_COUNTER" in body["note"]
     assert body["top"] == [] and body["total_paths"] == 0
+
+
+# --------------------------------------------------------------------------- #
+# ADR-104 Phase F (2026-07-15): overview.metrics.queue and rca.findings used to
+# drop dlq:dead (retry-exhausted) entirely -- a customer/admin could see
+# "DLQ 0 · Queue clean" / no findings on THIS exact page while the Reliability
+# Console (same automation_health.health() snapshot) correctly showed dead
+# tasks. Both fixed to read q.get("dead") / h.get("dead_tasks_present").
+# --------------------------------------------------------------------------- #
+def test_overview_queue_metrics_include_dead_count(monkeypatch):
+    import app.platform.automation_health as automation_health
+
+    def _health():
+        return {
+            "jobs": [],
+            "overdue": [],
+            "never_ran": [],
+            "queue": {"celery": 0, "heavy": 0, "dlq": 0, "dead": 4},
+            "queue_backlogged": False,
+            "dead_tasks_present": True,
+            "retryable_failed_present": False,
+        }
+
+    monkeypatch.setattr(automation_health, "health", _health)
+    c = _client()
+    r = c.get("/api/control-center/overview")
+    assert r.status_code == 200
+    q = r.json()["metrics"]["queue"]
+    assert "dead" in q, "metrics.queue must expose dead (retry-exhausted) count"
+    assert q["dead"] == 4
+    assert q["dlq"] == 0  # confirms this isn't just dlq renamed -- both present
+
+
+def test_rca_findings_surface_dead_tasks_even_when_dlq_is_zero(monkeypatch):
+    import app.platform.automation_health as automation_health
+
+    def _health():
+        return {
+            "jobs": [],
+            "overdue": [],
+            "never_ran": [],
+            "queue": {"celery": 0, "heavy": 0, "dlq": 0, "dead": 4},
+            "queue_backlogged": False,
+            "dead_tasks_present": True,
+            "retryable_failed_present": False,
+        }
+
+    monkeypatch.setattr(automation_health, "health", _health)
+    c = _client()
+    r = c.get("/api/control-center/rca")
+    assert r.status_code == 200
+    findings = r.json()["findings"]
+    dead_findings = [f for f in findings if "dead" in f["symptom"] or "exhausted" in f["symptom"]]
+    assert dead_findings, f"expected a dead/exhausted finding, got: {findings}"
+    assert dead_findings[0]["severity"] in ("high", "med")
