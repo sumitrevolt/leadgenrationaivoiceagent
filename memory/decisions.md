@@ -2,6 +2,49 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-15 - ADR-104 Phase F: 5th and 6th unconfirmed-action gaps found + fixed in frontend/clients.html (Deliver Now = highest severity this session)
+
+Context: continuing the same-session ADR-104 confirmation-modal work (native `confirm()`
+removal in `automation.html`/`delivery_command_center.html`, then the DLQ dead-count truth
+bug found in 3 more surfaces — `office_map.html`, then `control_center.py` +
+`today_overview.py` + `control_center.html`), a live Phase F walkthrough of `/app/clients`
+(while viewing Jiya Makeover Studio's real content, read-only) surfaced two more real gaps
+in the exact same family:
+
+1. Content-item Approve/Posted/Skip buttons (`markItem()`) called their status-change API
+   directly on click with **zero confirmation of any kind** — worse than a native
+   `confirm()`, since even that would have been *something*. `mark_item()`
+   (`app/marketing/auto_content.py`) only rewrites a local JSONL bookkeeping status, so the
+   fix's modal copy says "record", never "publish" — accuracy matters, own-brand/customer
+   auto-posting is still a separate manual copy/download step per this file's §1.
+2. **Deliver Now** (`deliverNow()` → `POST /api/admin/clients/{id}/deliver-now` →
+   `customer_delivery.deliver_client_value(client, force=True)`) — a REAL forced delivery to
+   a real paid customer bypassing normal delivery gating — also had zero confirmation. This
+   is the single highest-severity unconfirmed action found across this entire session's
+   audit (higher than the earlier native-`confirm()` gaps, since those at least paused).
+
+Alternatives rejected: writing a second, separate modal component for the dangerous
+Deliver-Now case — rejected in favour of extending the same `actionConfirmModal` already
+added to `clients.html` for the content-status fix with an `opts.dangerous` flag (red
+theme, accurate "WILL attempt to actually deliver/contact this real customer" copy),
+keeping one modal implementation per file instead of two.
+
+Consequence: commits `1b2a412` (content-status gate, 11 tests) and `5f65979` (Deliver Now
+gate, 3 more tests) — both deployed (`1b2a4128`, `5f65979c`), zero container skew, smoke
+green, queues/DLQ 0/0 both times. Browser-verified using Cancel only, and only on synthetic
+test clients (Fresh Test Biz 42, Sharma Solar) — Jiya Makeover Studio's real content/
+delivery buttons were never clicked this session, only viewed. Also found but NOT fixed
+this session (logged in `docs/ADMIN_OPERATING_GUIDE.md` §3.4 for follow-up):
+`app/api/admin_ops.py`'s `password-reset` and `onboard/scrape` admin endpoints were not
+found wired into `clients.html` — unclear if another admin page uses them or if they're
+currently unreachable from any UI; needs a grep across `frontend/*.html` before assuming
+either. First edition of `docs/ADMIN_OPERATING_GUIDE.md` written same session from only the
+screens actually browser-tested (Operating HQ, Control Center L1/L2/L4, Automation Mission
+Control Aaj/Approvals/Schedule, Customer Management) — explicitly lists un-walked screens
+(Agents/Training/Scraping/Events/Harvester/Prospects/Cadence/Sales Team AI/Processes/
+Self-Improve/Code Upgrader/RL Flywheel tabs, Social Setup, a dedicated Integration Health
+page, OmniRoute) so they are never mistaken for verified.
+
 ## 2026-07-15 - ADR-104 QA bounding fix DISPROVEN by production — config-loaded ≠ behaviour-fixed
 
 Context: 2026-07-14 loop ne `bada4169` (`fix(scheduler): bound QA and training runtime`)
