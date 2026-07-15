@@ -77,5 +77,13 @@ def test_automation_health_has_ok_key_inverting_degraded():
     ah = pytest.importorskip("app.platform.automation_health")
     h = ah.health()
     assert "ok" in h, "health() must expose additive `ok` boolean (false-healthy fix)"
-    degraded = bool(h.get("overdue")) or bool(h.get("queue_backlogged"))
+    # ADR-104 Phase B (2026-07-15): `ok` also inverts dead/retryable_failed now
+    # (previously only overdue/backlog — dead-letter tasks could sit unaddressed
+    # while this claimed "healthy"). See automation_health.health() docstring.
+    degraded = (
+        bool(h.get("overdue"))
+        or bool(h.get("queue_backlogged"))
+        or bool(h.get("dead_tasks_present"))
+        or bool(h.get("retryable_failed_present"))
+    )
     assert h["ok"] is (not degraded)
