@@ -1605,15 +1605,84 @@ async function coApList(){
     var h='<div class="result"><table><tr><th>Client</th><th>Content</th><th>When</th><th>Action</th></tr>';
     rows.forEach(function(r){
       var title=esc((r.content&&r.content.title)||(r.content&&r.content.caption)||'post').slice(0,50);
-      h+='<tr><td class="mut">'+esc(r.client_id||'')+'</td><td>'+title+'</td><td class="mut">'+esc(String(r.created_at||'').slice(0,16))+'</td><td>'
-        +'<button class="btn2" onclick="coApDecide(\''+esc(r.id||'')+'\',\'approve\')">✓</button> '
-        +'<button class="btnd" onclick="coApDecide(\''+esc(r.id||'')+'\',\'reject\')">✕</button></td></tr>';
+      var cid2=esc(r.client_id||'');
+      h+='<tr><td class="mut">'+cid2+'</td><td>'+title+'</td><td class="mut">'+esc(String(r.created_at||'').slice(0,16))+'</td><td>'
+        +'<button class="btn2" onclick="coApDecide(\''+esc(r.id||'')+'\',\'approve\',\''+cid2+'\',\''+title.replace(/'/g,"\\'")+'\')">✓</button> '
+        +'<button class="btnd" onclick="coApDecide(\''+esc(r.id||'')+'\',\'reject\',\''+cid2+'\',\''+title.replace(/'/g,"\\'")+'\')">✕</button></td></tr>';
     });
     $('coApOut').innerHTML=h+'</table></div>';
   }catch(e){toast('List fail: '+e.message,false)}
 }
-async function coApDecide(id,action){
-  if(!id||!confirm(action+' this approval?')) return;
+// ADR-104 (2026-07-15): in-page confirmation modal, replacing native confirm()
+// for approval/publish/schedule/delivery actions. A native confirm() dialog
+// was proven this session to auto-accept in a browser-automation context
+// BEFORE a permission interceptor could block it, silently approving real
+// customer content. This modal only ever resolves via an explicit click on
+// its own Cancel/Confirm buttons (or Escape/backdrop = cancel) -- never via
+// Enter keypress, automation default, or page load. Opening the modal alone
+// makes zero network requests; only the caller's own follow-up code (gated
+// on the resolved boolean) makes the actual API call.
+function actionConfirmModal(opts){
+  opts = opts || {};
+  return new Promise(function(resolve){
+    var isPublic = !!opts.isPublic;
+    var overlay = document.createElement('div');
+    overlay.setAttribute('data-testid','action-confirm-modal-overlay');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,15,25,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+    var box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:14px;max-width:480px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit;color:#111';
+    box.innerHTML =
+      '<div style="font-weight:800;font-size:16px;margin-bottom:10px">' + (isPublic ? '⚠️ Public publish confirmation' : 'Internal approval confirmation') + '</div>' +
+      '<div style="font-size:13.5px;line-height:1.7">' +
+        '<div><b>Customer:</b> ' + esc(opts.customer||'') + '</div>' +
+        '<div><b>Content:</b> ' + esc(opts.contentTitle||'') + '</div>' +
+        '<div><b>Action:</b> ' + esc(opts.action||'') + '</div>' +
+        '<div><b>Target channel:</b> ' + esc(opts.channel||'none') + '</div>' +
+        '<div><b>Channel connected:</b> ' + (opts.channelConnected ? 'Yes' : 'No / unknown') + '</div>' +
+        '<div style="margin-top:8px;padding:8px;border-radius:8px;background:' + (isPublic ? '#fef2f2' : '#f0fdf4') + ';color:' + (isPublic ? '#991b1b' : '#166534') + '">' +
+          (isPublic
+            ? 'This WILL post publicly on a live external channel. This cannot be silently undone once posted.'
+            : 'This only changes an internal status. It does NOT post publicly. No external channel will be contacted right now.') +
+        '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">' +
+        '<button data-testid="acm-cancel" style="padding:9px 16px;border-radius:9px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:700">Cancel</button>' +
+        '<button data-testid="acm-confirm" style="padding:9px 16px;border-radius:9px;border:none;cursor:pointer;font-weight:800;color:#fff;background:' + (isPublic ? '#dc2626' : '#4f46e5') + '">' + esc(opts.confirmLabel || 'Confirm') + '</button>' +
+      '</div>';
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    function cleanup(result){
+      if(overlay.parentNode) document.body.removeChild(overlay);
+      document.removeEventListener('keydown', onKey);
+      resolve(result);
+    }
+    function onKey(e){
+      // Explicitly: Enter must NOT confirm. Only Escape (=cancel) is handled.
+      if(e.key === 'Escape') cleanup(false);
+    }
+    document.addEventListener('keydown', onKey);
+    overlay.addEventListener('click', function(e){ if(e.target === overlay) cleanup(false); });
+    box.querySelector('[data-testid="acm-cancel"]').onclick = function(){ cleanup(false); };
+    box.querySelector('[data-testid="acm-confirm"]').onclick = function(){ cleanup(true); };
+  });
+}
+async function coApDecide(id,action,clientId,title){
+  if(!id) return;
+  // ADR-104 (2026-07-15): native confirm() replaced -- it was proven this
+  // session to auto-accept in a browser-automation context before a
+  // permission interceptor could block it, silently approving real customer
+  // content. This in-page modal requires an explicit click on a distinctly
+  // labeled button and is never resolved by Enter/automation/page-load.
+  var ok = await actionConfirmModal({
+    customer: clientId || '(unknown)',
+    contentTitle: title || ('approval ' + id),
+    action: action === 'reject' ? 'Reject content (request changes)' : 'Approve content',
+    channel: 'internal only -- no live publish from this button',
+    channelConnected: false,
+    isPublic: false,
+    confirmLabel: action === 'reject' ? 'Reject content' : 'Approve for internal review only'
+  });
+  if(!ok) return;
   try{
     var d=await api('/api/clientops/approvals/'+encodeURIComponent(id)+'/decide',{method:'POST',body:JSON.stringify({action:action,note:''})});
     if(d.ok===false) throw new Error(d.error||'fail');
@@ -2848,15 +2917,30 @@ async function apContentList(){
     var h='<table><tr><th>Client</th><th>Content</th><th>When</th><th>Action</th></tr>';
     rows.forEach(function(r){
       var title=esc((r.content&&r.content.title)||(r.content&&r.content.caption)||'post').slice(0,50);
-      h+='<tr><td class="mut">'+esc(r.client_id||'')+'</td><td>'+title+'</td><td class="mut">'+esc(String(r.created_at||'').slice(0,16))+'</td><td>'
-        +'<button class="btn2" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'approve\')">✓</button> '
-        +'<button class="btnd" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'reject\')">✕</button></td></tr>';
+      var cid2=esc(r.client_id||'');
+      h+='<tr><td class="mut">'+cid2+'</td><td>'+title+'</td><td class="mut">'+esc(String(r.created_at||'').slice(0,16))+'</td><td>'
+        +'<button class="btn2" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'approve\',\''+cid2+'\',\''+title.replace(/'/g,"\\'")+'\')">✓</button> '
+        +'<button class="btnd" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'reject\',\''+cid2+'\',\''+title.replace(/'/g,"\\'")+'\')">✕</button></td></tr>';
     });
     $('apContentOut').innerHTML=h+'</table>';
   }catch(e){warnBox('apContentOut','Content approvals fail: '+e.message)}
 }
-async function apContentDecide(id,action){
-  if(!id||!confirm(action+' this content approval?'))return;
+async function apContentDecide(id,action,clientId,title){
+  if(!id) return;
+  // ADR-104 (2026-07-15): native confirm() replaced -- see coApDecide comment.
+  // This is the exact function whose confirm() dialog auto-accepted this
+  // session and silently approved a real Jiya Makeover Studio post before a
+  // permission block could land. Never re-add a bare confirm() here.
+  var ok = await actionConfirmModal({
+    customer: clientId || '(unknown)',
+    contentTitle: title || ('approval ' + id),
+    action: action === 'reject' ? 'Reject content (request changes)' : 'Approve content',
+    channel: 'internal only -- no live publish from this button',
+    channelConnected: false,
+    isPublic: false,
+    confirmLabel: action === 'reject' ? 'Reject content' : 'Approve for internal review only'
+  });
+  if(!ok) return;
   try{
     var d=await api('/api/clientops/approvals/'+encodeURIComponent(id)+'/decide',{method:'POST',body:JSON.stringify({action:action,note:''})});
     if(d.ok===false)throw new Error(d.error||'fail');
