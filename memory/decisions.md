@@ -2,6 +2,499 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-15 - ADR-104 QA bounding fix DISPROVEN by production — config-loaded ≠ behaviour-fixed
+
+Context: 2026-07-14 loop ne `bada4169` (`fix(scheduler): bound QA and training runtime`)
+se QA ko 18 turns + 15s/reply pe bound kiya aur "no current scheduler/queue incident is
+open" bol ke close kar diya. Uska verification tha: *"runtime confirms QA limits
+(18, 15.0)"* — yaani CONFIG LOAD hui, ye prove kiya. Ye prove NAHI kiya ki ek QA job
+actually COMPLETE hua.
+
+Evidence (proven, not inferred): `dlq:dead` me NAYA record —
+`{"args": "['qa']", "error": "TimeLimitExceeded(600,)", "ts": "2026-07-15T00:19:16Z",
+"dead_reason": "max 3 auto-retries exhausted"}`. Ancestry check: `bada4169` (21:46 IST
+07-14) IS-ANCESTOR-OF `c84b62a6` (21:55 IST 07-14), jo 22:11 IST 07-14 pe deploy hua —
+yaani failure (05:49 IST 07-15) ke waqt fix LIVE tha. **Fix ne timeout roka nahi.**
+
+Root-cause hypothesis (code-read, ek culprit abhi isolate NAHI hua): bounded turn-loop ka
+worst case 18x15 = **270s** hai — 600s hard limit tak pahunch hi nahi sakta. Matlab overage
+loop ke BAHAR hai. `app/agents/staff.py` me 3 unbounded segments:
+(1) L230 `_real_transcript_turns()` — prod me `QA_REAL_TRANSCRIPTS=1` LIVE, koi timeout nahi,
+    targets +3 niches tak badhata hai;
+(2) L240 `TelecallerBrain(niche=niche)` — per-niche constructor (7 niches tak), koi deadline nahi;
+(3) L292 `team.log_event(...)` — sync DB/Redis/Obsidian write, **bilkul unbounded**.
+(3) sabse sharp hai: SAME FILE me trainer ke liye `_log_trainer_event_bounded()` (L105) exist
+karta hai jo isi call ko thread + 5s deadline me wrap karta hai, docstring ke saath:
+*"Telemetry must never hold the trainer job hostage."* Wahi hazard diagnose hua, trainer pe
+fix hua, **QA pe apply nahi hua**. Bonus trap: `asyncio.wait_for` sirf await-points pe cancel
+karta hai — agar `brain.reply` andar blocking sync I/O kare to 15s timeout kabhi fire nahi hoga.
+
+Decision: QA ko "fixed" mat maano. Next loop me (a) `team.log_event` ko QA path pe bhi
+`_log_trainer_event_bounded`-pattern se bound karo, (b) transcript-load + brain-ctor pe
+deadline lagao, (c) acceptance = ek REAL QA run jo `dlq:dead` me naya record na chhode —
+config-echo NAHI.
+
+Consequence: **Sabak = ADR-099 ka hi parivar.** ADR-099 me field ne jhoota FAILURE bola;
+yahan verification ne jhoota SUCCESS bola. Dono cases me claim ko measurement samajh liya
+gaya. Bounding fix ka acceptance criteria "limit variable sahi value pe hai" nahi, "job
+deadline ke andar khatam hua" hona chahiye.
+
+### ADR-104 ADDENDUM (same session, production timing probe — CORRECTS the root-cause above)
+
+**Upar wali root-cause hypothesis GALAT thi.** Maine 3 suspects name kiye the (transcript
+load / brain ctor / sync `team.log_event`). Production timing probe (`/tmp/qa_probe.py`,
+`docker exec -w /app leadgen_app`, redacted: sirf durations, koi transcript/PII/secret nahi)
+ne teeno ko DISPROVE kiya:
+
+```
+SEG _real_transcript_turns()      0.00s
+CTOR TOTAL                        2.72s   (4 niches)
+REPLY TOTAL   5.57s  n=6  avg=0.93s  ->  PROJECTED 18 turns = 16.72s
+SEG team.log_event (sync DB)      0.41s
+PROBE WALL TOTAL                  8.70s
+```
+
+Yaani poora QA kaam ~20s ka hai, 600s ka nahi. Meri "log_event unbounded" theory bhi galat —
+0.41s. (Ek aur theory pehle hi mar chuki thi: maine socha `brain.reply` blocking sync I/O
+karta hai isliye `asyncio.wait_for` fire nahi hota — par `free_ai.py` me ZERO `requests.post/get`
+hai, `reply()` sach me async hai, aur KB path already `wait_for(to_thread(...))` use karta hai.)
+
+**Asli signal — post-main() background work:** probe ka main() `03:31:53` pe "8.70s, done"
+bola, par USI process ki apni stdout `03:32:57` tak likhti rahi — **64+ second baad** —
+`KB '_global': added 9 chunk(s) from source='niche:studying_abroad'`, sab `taskName: null`
+(= background threads, main task nahi). Log file sirf us process ka stdout hai, isliye ye
+proof hai ki process main() khatam hone ke 64s baad bhi ZINDA tha aur KB likh raha tha.
+Note: `studying_abroad` QA ke 4 targets me hai hi nahi → KB seeding SAARE niches pe fan-out
+karti hai, sirf QA targets pe nahi.
+
+**Nayi (better-evidenced, par abhi CONFIRMED NAHI) hypothesis:** `brain.reply()` KB-seeding
+ko fire-and-forget `to_thread` me chhodta hai. `asyncio.wait_for` await cancel kar deta hai,
+par **thread ko kill nahi kar sakta** (Python me threads killable nahi). Phir `asyncio.run()`
+exit pe `loop.shutdown_default_executor()` call karta hai jo SAARE pending `to_thread` workers
+ka WAIT karta hai. Matlab QA ka apna kaam ~20s me safal ho jata hai, uske BAAD task executor
+shutdown me block ho jata hai leaked KB threads pe — aur Celery ka 600s hard limit usi wait ko
+maarta hai. Ye explain karta hai ki turns bound karne se kuch kyun nahi hua: **loop kabhi
+problem thi hi nahi.**
+
+**Ye abhi PROVEN nahi hai** — teesra probe run noisy tha (ctor 11.07s vs 2.72s, main() complete
+hi nahi hua, wall=20s). Free-provider latency + KB cold/warm + Qdrant ki wajah se environment
+non-deterministic hai. Confirm karne ka decisive test: `run_qa` ke return ke baad aur
+`asyncio.run` ke exit se pehle `threading.enumerate()` count + `shutdown_default_executor`
+ke around explicit timing log karo; agar gap wahin hai to `asyncio.run` ko
+`loop.shutdown_default_executor(timeout=...)` (3.12+) ya explicit bounded executor se replace karo.
+
+Sabak (mera apna): maine ADR-104 ka root cause CODE PADH KE likha tha, MEASURE karke nahi —
+aur teeno guess galat nikle. Yehi wahi galti hai jiska audit main kar raha tha, bas ek level
+upar. **Code-read se hypothesis banti hai, root cause nahi.** Fix likhne se pehle measure karo.
+
+### ADR-104 ADDENDUM #2 — ROOT CAUSE **CONFIRMED** by lifecycle diagnostic (runtime proof)
+
+Test: `qa_lifecycle.py` (temp, repo ke bahar, redacted) — manual event loop taaki
+`run_until_complete` / `shutdown_asyncgens` / `shutdown_default_executor` ALAG-ALAG time hon.
+REAL `run_qa()` use kiya. Production `leadgen_app` container, `timeout -s KILL 300` capped.
+
+Measured (decisive):
+```
+[  61.77s] run_until_complete(run_qa) = 60.95s   turns=18 issues=1   <- QA ka kaam KHATAM (success)
+[  61.79s] shutdown_asyncgens         =  0.00s
+[  61.79s] THREADS @ BEFORE shutdown_default_executor: count=11  rss=288MB
+           ... shutdown_default_executor ka result line KABHI nahi aaya ...
+[ 105.56s] WATCHDOG: threads=6 rss=1424MB names=[... 'Thread-1 (_do_shutdown)', 'asyncio_0' ...]
+```
+`run_qa` ke return ke baad zinda threads:
+`asyncio_0..asyncio_4` (**daemon=False**), `kb-embed-load` **x2** (native_id 136 AUR 152),
+`team-event-publish`, `langfuse-sender`; aur **1 pending asyncio task** bhi leak hua.
+
+**Smoking gun:** `Thread-1 (_do_shutdown)` — ye CPython ka wahi internal thread hai jo
+`loop.shutdown_default_executor()` spawn karta hai `executor.shutdown(wait=True)` chalane ke
+liye. 105s pe bhi zinda = **44+ second se executor-shutdown me BLOCKED**, jabki QA 61.77s pe
+khatam ho chuka tha. Saath me RSS **288MB → 1424MB** shutdown-wait ke DAURAN badha (KB embed
+background me 1.4GB kha raha hai — memory 67.1% wale VPS pe alag risk).
+
+**CONFIRMED MECHANISM:** `brain.reply()` KB-embedding kaam default executor me
+fire-and-forget chhodta hai (`asyncio_N` threads, **non-daemon**) + `kb-embed-load` threads.
+`asyncio.wait_for`/cancel sirf AWAIT chhodta hai — thread chalta rehta hai (Python me thread
+killable nahi). Phir `asyncio.run()` exit pe `shutdown_default_executor()` → `wait=True` →
+un threads ka intezaar. Celery task ka total = QA(61s) + executor-shutdown-wait(unbounded).
+Jab KB fan-out bada/cold ho (saare niches — `studying_abroad` bhi jo QA target hai hi nahi),
+wait 600s paar kar jata hai → `TimeLimitExceeded(600)`.
+
+**QA ka kaam FAIL nahi hota — task CLEANUP me marta hai.** (turns=18, issues=1 = successful run.)
+Isi se ADR-106 wala "✓ ho gaya · 05:49" bhi samajh aata hai: dashboard jhooth nahi bol raha ki
+QA complete hua — QA sach me complete hua tha; dashboard is baat se ANDHA hai ki task uske baad
+cleanup me mar gaya. Do alag bugs ek hi lakshan de rahe the.
+
+Confidence: **HIGH** (5/5 criteria met: QA coroutine fast-complete ✓ · threads survive ✓ ·
+stacks/names KB-embed point karte ✓ · `_do_shutdown` me blocked ✓ · leaked pending task ✓).
+
+Fix direction (measured, abhi IMPLEMENT nahi hua — budget khatam): KB warm-up ko `reply()`
+ke request-path se hatao; sirf REQUESTED niche seed karo (saare nahi); idempotent
+once-per-niche seed registry; optional warm-up alag Celery job me; required kaam explicit
+bounded await ke saath. **`task_time_limit` badhana FIX NAHI hai** — wo sirf leak ko chhupata hai.
+NOTE: Same leak har `reply()` caller pe lagta hai — real voice calls bhi. QA to sirf wo jagah
+hai jahan ye VISIBLE hua (kyunki Celery ke paas hard limit hai; web request path pe nahi).
+
+### ADR-104 ADDENDUM #3 — EXACT CALL CHAIN (Phase A3, code+runtime dono se confirmed)
+
+```
+run_qa()  ->  brain.reply()  ->  TelecallerBrain._kb_facts()   [telecaller_brain.py L2778]
+   L2790:  kb = await asyncio.wait_for(asyncio.to_thread(_get_kb), timeout=_KB_TIMEOUT_S)
+                                        |
+                                        +-> _get_kb() -> bootstrap_default_kb()
+                                              -> SEEDS **39 NICHES** (sync embed+upsert x100s)
+                                              -> knowledge_base.py L484:
+                                                 threading.Thread(name="kb-embed-load", daemon=True)
+   L2811:  hits = await asyncio.wait_for(loop.run_in_executor(None, _query), timeout=_KB_TIMEOUT_S)
+```
+Ownership table (yehi asli bug hai):
+| Operation | Executor | Future stored? | Awaited? | Cancel propagate? | Scope | Idempotent? |
+|---|---|---|---|---|---|---|
+| `to_thread(_get_kb)` L2790 | **default** (`asyncio_N`, **daemon=False**) | **NAHI** | timeout pe DISCARD | **NAHI** (thread chalta rehta) | **GLOBAL 39 niches** | `_KB_TRIED` bool, seed se PEHLE set |
+| `run_in_executor(None,_query)` L2811 | **default** | NAHI | timeout pe DISCARD | NAHI | per-niche | read-only |
+
+**Leak by design, aur comment me likha hai** (L2785-2788): *"the FIRST call runs
+bootstrap_default_kb (seeds 39 niches...) ... a timeout here just lets the seed finish on the
+bg thread; the next turn gets it."* Yaani `wait_for` ka timeout AWAIT chhodta hai, par
+**`asyncio_N` thread 39-niche seed chalata rehta hai — jaan-boojh ke.**
+
+**"4-niche QA ne `studying_abroad` kyun seed kiya?" — JAWAB:** `bootstrap_default_kb()`
+requested niche dekhta hi nahi; wo SAARE 39 niches seed karta hai. QA ne 4 maange, KB ne 39 seed kiye.
+
+Voice-call path ke liye ye design SAHI tha (spoken reply freeze na ho, seed bg me pura ho,
+agla turn use kare) — kyunki uvicorn ka loop kabhi shutdown nahi hota, to leak bas bg me chalta
+rehta hai. **Celery me wahi design ghaatak hai**: har task `asyncio.run()` karta hai →
+`shutdown_default_executor()` → un hi threads ka `wait=True` → 600s hard limit → task maara jata
+hai, jabki QA ka kaam (turns=18) already SAFAL ho chuka tha. RSS 288MB→1424MB = 39 niches ke
+embeddings. `_KB_TRIED` seed se PEHLE set hota hai = "partial init ko complete maanne wala global
+boolean" — isiliye runtime me DO `kb-embed-load` threads dikhe (native_id 136 aur 152), dedup leak-proof nahi.
+
+Architecture classification (fix ke liye):
+- `_query` (L2811) = **required request-path** → bounded await theek hai, par future owned hona chahiye.
+- `bootstrap_default_kb` 39-niche seed = **optional warm-up** → `reply()` se nikal ke apne
+  Celery job me jaana chahiye (own queue/limits/retry/terminal state/admin visibility).
+- Required part = sirf `ensure_niche_ready(<requested niche>)`, explicit timeout ke saath.
+
+Fix abhi IMPLEMENT nahi hua (session budget khatam) — par ab ye guess nahi, documented chain hai.
+`task_time_limit` badhana FIX NAHI (leak chhupta hai). Default executor ko untracked long-lived
+kaam ke liye use karna hi mool galti hai.
+
+### ADR-104 ADDENDUM #4 — Phase A4.1 implementation plan (exact minimal file set, code-verified)
+
+**Reuse survey (naya system mat banao):**
+- ⛔ **[2026-07-15 CORRECTION — ye line GALAT thi, neeche ADDENDUM #5 dekho]**
+  ~~**Warm-up job PEHLE SE HAI** — `kb_refresh` ... 39-niche warm-up ISKA kaam hai.~~
+  `kb_refresh` niche-seeder hai hi NAHI (usme `niche`/`NICHES` ka 0 reference hai).
+- ❌ **Niche-specific seed EXIST NAHI karta.** `kb_loader.py:85 load_niche_faqs(kb, namespace="_global")`
+  me koi niche filter nahi — wo `app.niches.NICHES` pe poora loop karta hai. `bootstrap_default_kb()`
+  (L270) sirf `load_niche_faqs(kb, "_global")` ka thin wrapper hai. Matlab niche-scoping ISI loader me
+  ADD karni hogi (`only:str|None` param), duplicate indexer nahi.
+
+**Blast radius — `bootstrap_default_kb()` ke 4 aur caller (voice path ke bahar):**
+`agents/supervisor.py:163` · `api/data.py:457` · `platform/agent_provisioner.py:76` · kb_loader docstring.
+Ye Celery `asyncio.run` hot path pe nahi hain → inke liye global bootstrap signature **as-is preserve karo**
+(additive change), warna blast radius bekaar me badhega.
+
+**Minimal file set (4 files):**
+1. `app/voice_agent/kb_loader.py` — `load_niche_faqs(kb, namespace="_global", only: str|None=None)`
+   (existing chunk-builder reuse) + naya `seed_niche(kb, niche)` thin wrapper. `bootstrap_default_kb()` unchanged.
+2. `app/voice_agent/telecaller_brain.py` — `_kb_facts()` L2790: `to_thread(_get_kb)` (39-niche bootstrap)
+   HATAO → `await ensure_niche_ready(self.niche)` bounded. L2811 `run_in_executor(None,_query)` ka future
+   OWN karo (timeout pe explicit cancel + await, discard nahi). `_KB_TRIED`/`_KB_SINGLETON` (L626-658) →
+   per-niche registry `{niche: not_started|initializing|ready|failed}` + per-niche `asyncio.Lock`;
+   state `ready` SIRF successful commit ke BAAD (abhi L649 pe seed se PEHLE set hota hai = ye hi bug).
+   L620-624 aur L2785-2788 ke comments (jo leak ko design batate hain) REWRITE karo.
+3. `app/platform/kb_refresh.py` — existing weekly job 39-niche warm-up own kare (terminal state + admin visibility).
+4. `tests/` — A5 matrix (old-behaviour repro with real blocking double · executor shutdown bounded ·
+   requested-niche isolation (`studying_abroad` NA ho) · concurrent same-niche dedupe · already-ready = 0 threads ·
+   init timeout = honest degraded, no false success · retry idempotency · thread/task count baseline pe wapas · RSS stable).
+
+**Risk jo implement karte waqt yaad rahe:** `reply()` = LIVE customer voice-call hot path. `_KB_TIMEOUT_S=1.5s`
+bahut tight hai — `ensure_niche_ready` ko us budget me fit karna hoga warna spoken reply slow hogi. Isliye
+cold-niche pe reply ko KB ke bina hi aage badhna chahiye (degraded, honest), seed warm-up job pe chhod ke.
+Ye behaviour aaj bhi wahi hai (timeout pe `kb=None` → `return []`), farq sirf itna ki thread leak nahi hoga.
+
+### ADR-104 ADDENDUM #5 — A4.2 SHIPPED (local, tested) + DO reuse-premise GALAT nikle
+
+**A4.2 DONE (local, uncommitted, 27/27 green):** `load_niche_faqs(kb, namespace, only=None)` —
+additive; filter NICHES-loop ke sabse upar (doc-gen/embed/upsert se pehle); `only=None` = legacy
+byte-identical (4 global callers safe, test se pinned). `seed_niche(kb, niche)` = bounded owned
+primitive + redacted structured result. `tests/test_kb_loader_scoped.py` = 12 tests + 15 existing
+KB regression = **27/27 PASS**.
+
+Tests ne mere DO galat assumption pakde (code sahi tha, expectations galat):
+1. **`real_estate` NICHES catalog me hai hi nahi** — par `_qa_default_niches()` use
+   `['solar_residential','real_estate','insurance']` me deta hai. Yaani QA ek aisa niche test karta
+   hai jiska KB kabhi seed ho hi nahi sakta. **Pre-existing drift** (is incident se alag) — test se
+   pin kiya, chupchaap remap NAHI kiya (koi verified alias policy nahi hai). Runtime impact: reply-path
+   ko non-catalog niche pe gracefully degrade karna hoga, `ValueError` raise NAHI — warna har live call
+   us niche pe crash karta.
+2. **`_global` scoped seed me bhi likha jaata hai** — har niche ke facts uske namespace AUR `_global`
+   dono me jaate hain (`source='niche:<key>'`). Ye expected hai, unrelated fan-out nahi.
+3. Bonus: `NICHES` == **theek 39** — ADR-104 ka "39 niches" ab comment nahi, test-pinned fact hai.
+
+**⛔ CORRECTION 1 — `kb_refresh` niche warm-up ka owner NAHI ban sakta.** Addendum #4 me maine likha
+tha "39-niche warm-up ISKA kaam hai" — **GALAT**. `kb_refresh.py` padha: wo `clients_store.list_clients()`
+pe chalta hai aur `onboarding._seed_kb_from_website(client_id, website)` karta hai = **CUSTOMER WEBSITE
+re-ingest**, niche-catalog seeding nahi. Proof: `grep -c "NICHES\|niche" app/platform/kb_refresh.py` = **0**.
+Wo default OFF bhi hai (`KB_WEEKLY_REFRESH`/`USE_CONTEXTUAL_INGEST`). Uska cursor/limit=5 batching accha
+model hai, par usme niche-seeding thoosna do alag domain ko ek job me mila dega. **A4.5 ko naya owned
+niche-refresh path chahiye (`seed_niche()` ke upar), `kb_refresh` ko extend karke nahi.**
+
+**⛔ CORRECTION 2 — `KnowledgeBase.stats(ns)` readiness ki AUTHORITY nahi hai.** L1056: wo
+`self._indexes` (process-local dict) padhta hai. Jis worker ne wo namespace load nahi kiya usko
+`chunks: 0` milega jabki Qdrant me data MAUJOOD hai → "not_ready" ka jhoota jawab → refresh storm.
+Authoritative readiness Qdrant collection count se aani chahiye (ya `_get_index(ns)` ke baad) — par
+`_get_index` khud lazy-load/seed trigger karta hai, yaani readiness-check hi wahi kaam kar dega jisko
+hum reply-path se hatana chahte hain. **A4.3 ko ye tension pehle solve karna hoga; `stats()` pe seedha
+readiness banana ek aur "field = claim, measurement nahi" bug hota.**
+
+**A4.3 ke verified inputs (design ban sakta hai, par ek measurement BAAKI hai):**
+- ✅ **Redis lease primitive PEHLE SE HAI** — `integration_health.py:267`:
+  `r.set(f"{_PREFIX}:alerted:{name}", "1", nx=True, ex=_DEDUPE_TTL_S)` = atomic SET NX EX.
+  Per-niche lease/dedupe isi pattern se banao, naya lock mat likho.
+- ✅ **Qdrant authoritative count PEHLE SE HAI** — `knowledge_base.py:1137` (`discard_staging` ke andar):
+  `client.count(collection_name=_QDRANT_COLLECTION, count_filter=<namespace filter>, exact=True)`.
+  Single collection `kb_main` (L405), point payload `{"namespace","text","source"}` (L399).
+  Ye cross-worker authoritative hai AUR embeddings process me load nahi karta — yaani `stats()` wale
+  process-local trap (CORRECTION 2) ka sahi jawab yehi hai. Readiness = Qdrant count (content exists)
+  + Redis (refresh lifecycle/lease). Reuse karo, doosra counter mat likho.
+- ✅ **[2026-07-15 MEASURED — ADDENDUM #6 dekho]** Latency naap li gayi. Nateeja: readiness `_get_qdrant_client()`
+  se KABHI mat lo — wo embedder force-load karta hai. Bare `QdrantClient` use karo.
+
+### ADR-104 ADDENDUM #6 — A4.3 MEASURED: `_get_qdrant_client()` voice path pe ISTEMAL HO HI NAHI SAKTA
+
+Test: `/tmp/qdrant_lat.py` (prod `leadgen_app`, `python -u`, file pe log, koi pipe nahi,
+`timeout -s KILL 240`, detached + polled). Sirf niche keys/counts/durations log hote hain.
+
+Measured:
+```
+[  0.00s] STAGE import knowledge_base ...
+[  0.74s] STAGE import DONE in 0.74s   collection='kb_main' disabled=False url_set=True
+[  0.74s] STAGE _get_qdrant_client() (1st call) ...
+          ... 240s pe KILL — kabhi RETURN HI NAHI HUA ...
+```
+Yaani: **import = 0.74s (fast). `_get_qdrant_client()` = >239s aur khatam nahi hua.**
+(Pichhla 90s wala probe isi jagah mara tha — buffering nahi, YEH asli wajah thi.)
+
+**Kyun:** `knowledge_base.py:512` — `_get_qdrant_client()` sabse pehle `_get_qdrant_embedder()`
+call karta hai (`# sets _QDRANT_VECTOR_SIZE to the real model dim`) — yaani **Qdrant ko chhune se
+PEHLE hi fastembed model load karta hai**. Wahi `kb-embed-load` kaam hai, aur wahi 1.4GB RSS wala.
+
+**DESIGN CONSEQUENCE (measurement se, preference se nahi):** `client.count()` ko embeddings ki
+zaroorat HAI HI NAHI — wo sirf payload filter pe points ginta hai. Par usko `_get_qdrant_client()`
+se lena poore embedder load ko drag kar lata hai. Isliye readiness ko **bare `QdrantClient(url=..., timeout=...)`**
+banana chahiye jo `_get_qdrant_embedder()` ko bilkul BYPASS kare. Ye ADR-104 ke mool bug ka hi chhota
+bhai hai: *"ek sasti cheez (count) ek mehengi cheez (embedder load) ke peeche chhupi hai."*
+Agar readiness `_get_qdrant_client()` se banata to maine wahi 39-niche-bootstrap wala hadsa
+readiness-check ke naam pe dobara bana diya hota — har voice turn pe.
+
+**Ab bhi UNMEASURED:** warm `count()` ki asli latency (client init hi khatam nahi hua to count tak
+pahuncha hi nahi). Agla probe: bare `QdrantClient(url, timeout=2)` banao → `client.count(kb_main,
+filter, exact=True)` × 10 reps → min/med/p95. Tabhi decide hoga ki count seedha voice path pe chalega
+ya short-TTL Redis cache ke peeche.
+
+**Filter design (abhi bhi decide karna hai, par evidence maujood):** prod logs dikhate hain
+`KB 'ai_marketing': added 9 chunk(s) from source='niche:ai_marketing'` AUR `KB '_global': added 9 ... source='niche:ai_marketing'`.
+Isliye readiness filter `namespace == <niche> AND source == "niche:<niche>"` hona chahiye — sirf
+namespace se ginna galat "ready" de sakta hai (namespace me doosre source ke points ho sakte hain).
+
+**Safety verify (kyunki ye path destructive ho sakta tha):** `KB_ALLOW_DIM_WIPE` prod me **UNSET** hai
+→ L520-545 ka default = **PRESERVE + loud alert**, `delete_collection` sirf explicit opt-in pe.
+Mere kisi probe ne `kb_main` ko koi khatra nahi diya.
+
+### ADR-104 ADDENDUM #7 — BARE count MEASURED = Case A (readiness voice-path pe safe) + NAYA BUG mila
+
+Test: `/tmp/bare_count.py` — `QdrantClient(url, api_key, timeout=2.0)` SEEDHA banaya; `_get_qdrant_client()`
+/ `_get_qdrant_embedder()` / `_get_kb()` ko HAATH NAHI lagaya. Sirf `_QDRANT_COLLECTION`/`_get_qdrant_url()`
+import kiye (0.77s, embedder load nahi hota). 10 reps/case. Diagnostic delete kar diya.
+
+```
+BARE QdrantClient ctor                 13.6 ms      <-- vs _get_qdrant_client() >239s (~17,000x)
+insurance          ns+source  count=1674  min=6.0  med=6.9  p95(first)=1539  ms
+solar_residential  ns+source  count=1674  min=6.0  med=7.7  ms
+ai_marketing       ns+source  count=1683  min=6.4  med=8.3  ms
+studying_abroad    ns+source  count=1674  min=6.6  med=8.2  ms
+real_estate (NOT in catalog)  count=   0  med=1.1  ms   <-- filter sahi
+impossible source             count=   0  med=5.9  ms   <-- filter sahi
+_global ns-only               count=64523 med=7.1  ms
+insurance ns-ONLY             count= 3970 med=2.1  ms
+```
+**DECISION = CASE A.** Bare filtered count warm me **~7ms** hai, voice budget 1500ms ke saamne kuch bhi
+nahi. Pehla call 0.5-1.5s (connection warm-up) — isliye client ko process-singleton rakho aur pehla
+call warm-up/maintenance path pe karao, voice turn pe nahi. Readiness = bare Qdrant filtered count
+(content existence) + Redis (lifecycle/lease/short-TTL cache). `_get_qdrant_client()` KABHI nahi.
+Filter `namespace==<niche> AND source=="niche:<niche>"` PROVEN sahi hai: catalog niches >0,
+`real_estate`=0, impossible-source=0. (`insurance` ns-ONLY=3970 vs ns+source=1674 → ns-only sach me
+false-ready deta, jaisa socha tha.)
+
+**🚨 NAYA PRODUCTION BUG (isi measurement ne pakda) — KB me ~185x DUPLICATE seeding:**
+Har niche 9 chunks seed karta hai (prod log: `KB 'ai_marketing': added 9 chunk(s)`), par count
+**1674** hai → `1674/9 ≈ 186`. `_global` me **64,523** points (39 niches x 9 = 351/bootstrap →
+`64523/351 ≈ 184`). Dono numbers agree: **kb_main ~185 baar re-seed ho chuka hai, har baar duplicate
+add karke.** Wajah: har naya process (`_KB_TRIED` process-local hai) bootstrap chalata hai, aur
+`add_documents` write pe dedupe nahi karta. `telecaller_brain.py` L624 ka comment ise MAANTA hai:
+*"Duplicate texts retrieve par dedupe ho jaate"* — yaani READ pe dedupe, WRITE pe infinite growth.
+Isi se: har bootstrap 1674+ points re-embed karta hai (9 nahi) → wahi 1.4GB RSS aur minutes-long seed.
+**A4.5 ka refresh task delete-before-reseed ya deterministic point-id use KARNA HI HOGA**, warna wo
+bhi duplicate banayega. NOTE: repo me `tests/test_kb_delete_before_reseed.py` aur `tests/test_kb_point_id.py`
+already hain → koi mechanism maujood hai; use karne se pehle CHECK karo ki wo `load_niche_faqs` path
+pe lagta hai ya nahi (evidence kehta hai NAHI lagta). Ye ADR-105 ka hi pattern hai: "har run X leak
+karta hai, kisi ne bound nahi kiya" — bas disk ki jagah vector-store me.
+
+**Bloat ka paimana (`GET /collections/kb_main`, prod):** `points_count = 217,169`,
+`indexed_vectors_count = 213,390`, status green, dim=384. Asli content ~1-2k points hona chahiye
+(39 niches x 9 chunks + FAQs + client data) → **~99% duplicate**.
+
+**🔗 YEHI EXECUTOR-LEAK KA AMPLIFIER HAI (ADR-104 ka missing link):** bootstrap 9 chunks/niche
+re-embed nahi karta — wo **1674+/niche** re-embed karta hai. Isi wajah se seed minutes leta hai,
+RSS 1.4GB jaata hai, aur `shutdown_default_executor()` itni der block rehta hai ki Celery ka 600s
+hard limit lag jaata hai. Do bug ek doosre ko khila rahe the: **leak** (unowned to_thread) +
+**bloat** (write-pe-dedupe-nahi). Sirf leak fix karne se seed cost wahi rahegi; sirf bloat fix karne
+se leak chhupa rahega. **Fix order: (1) reply-path se bootstrap hatao [A4.4] — wo turant blast radius
+band karta hai; (2) refresh task me delete-before-reseed/deterministic point-id [A4.5]; (3) uske BAAD
+hi purane 215k duplicate points ki cleanup alag se socho — wo DESTRUCTIVE hai, operator approval
+chahiye, aur is incident-fix ka hissa NAHI.**
+
+**Working-tree safety:** tree me PARALLEL (Cursor/doosre session ke) uncommitted edits hain —
+`app/api/growth_automation.py`, `app/marketing/postiz_publish.py`, `app/platform/email_warmup.py`,
+`app/platform/team.py` + 5 test files. **Commit SIRF `app/voice_agent/kb_loader.py` +
+`tests/test_kb_loader_scoped.py` pe hona chahiye** (CLAUDE.md: `git add -A` KABHI nahi). Sandbox mount
+STALE hai (landmine live confirm: `git status` me kb_loader.py dikha hi nahi, `rm` "Operation not
+permitted") → Windows git/file-tools hi truth hain.
+
+### ADR-104 ADDENDUM #8 — Phase A4.4/A4.5/A4.6 IMPLEMENTED + TEST-VERIFIED (code done, deploy NAHI — user-scope decision)
+
+**Scope note:** is session me commit/push/deploy NAHI kiya — user ne explicitly `AskUserQuestion` se
+bola "I implement + test only, you review before push" aur "I hand you exact commands to run yourself".
+Neeche jo likha hai woh sab LOCAL implementation + LOCAL test-verification hai; production deploy aur
+`git push` user khud karega (exact commands alag runbook me, commit ke saath).
+
+**A4.4 — `_kb_facts()` poora rewrite (`app/voice_agent/telecaller_brain.py`, ~2796-2983):** purana
+`_get_kb()` (→ `bootstrap_default_kb()`, global `_KB_SINGLETON`/`_KB_TRIED`/`_KB_LOADED_AT`) HATA diya —
+poore codebase me grep karke confirm kiya ki koi aur jagah use nahi hota. Naya flow: (1) `is_supported_niche`
+false → turant `[]`, koi Qdrant/Redis/Celery touch nahi; (2) `count_niche_catalog_points` (bare, ~7ms warm)
+se readiness; timeout/error → `[]`, future ko `add_done_callback` se "own" kiya (discard nahi — addendum
+#7 ka amplifier isi ka fix hai: purana `asyncio.wait_for` timeout pe thread ko orphan chhod deta tha);
+(3) cold-but-supported → `app.tasks.kb_niche_refresh.request_niche_refresh(niche)` — ek ownd, dedup
+refresh request, turn `[]` ke saath khatam; (4) ready → `get_knowledge_base()` (cheap singleton, ZERO
+seed/I/O) se retrieval, same bounded executor query jo pehle thi. Redacted state logging (`_kb_log_state`
+— niche/state/duration/count/error_class, kabhi text/prompt nahi) 8 typed states ke saath.
+
+**A4.5 — naya owned task (`app/tasks/kb_niche_refresh.py`, NAYA file, `app/worker.py` ke `include=[]`
+me registered, default queue pe — `task_routes` nahi chheda, isliye `test_celery_queue_routing.py` ka
+koi assertion break nahi hota):** Redis lease pattern (`SET NX EX` acquire, owner-token compare-and-delete
+release — `app/agents/self_improve.py`'s `acquire_tick_slot`/`release_tick_slot` se mirror kiya) taaki
+same niche ke liye do parallel refresh kabhi na chalein. `refresh_niche_task` (`bind=True`,
+`autoretry_for=(Exception,)`, `retry_backoff=30/300/jitter`, `max_retries=3`, `soft_time_limit=90`,
+`time_limit=120`) `seed_niche()` chalata hai PHIR `count_niche_catalog_points` SE VERIFY karta hai
+(seed ka apna "ok=True" kaafi nahi — "successful embed call jo actually persist nahi hua" ko catch
+karta hai). Lease sirf TERMINAL outcome pe release hoti hai (ready ya retries-exhausted), pending-retry
+pe nahi — warna ek hi logical attempt ke beech doosra worker same niche pe race kar sakta. Deliberately
+`app/platform/kb_refresh.py` se ALAG rakha (wo customer-website re-ingest hai, niche-catalog nahi — isi
+galti ko addendum #5 me pehle CORRECT kiya ja chuka tha, dobara nahi ki).
+
+**A4.6 — duplicate-vector-write fix (`app/voice_agent/kb_loader.py`, `load_niche_faqs`):** chaaron
+`add_documents(...)` call-site (`business_faq`, per-niche `niche:<key>` x2 namespace, `script:<key>`)
+pe `replace_source=True` add kiya — yeh mechanism PEHLE SE EXISTS karta tha (`_kb_point_id`
+deterministic uuid5 + `delete_source`, `tests/test_kb_point_id.py`/`tests/test_kb_delete_before_reseed.py`
+dono already green the) par `load_niche_faqs` isse KABHI invoke nahi karta tha — root cause addendum
+#7 me measure kiya gaya tha (~185x duplication, kb_main 217,169 points vs expected ~1-2k) exactly yehi
+tha. **Purane 215k duplicate points ki cleanup is fix ka hissa NAHI hai** (addendum #7 explicit — destructive,
+operator-approval chahiye, alag se).
+
+**Test verification (is sandbox ki bash-mount staleness ke saath — neeche note):** `tests/test_kb_facts_adr104_v3.py`
+(9 tests — unsupported-niche/cold-niche-refresh-dedup/ready-niche-retrieval/low-score-filter/readiness-
+timeout/readiness-error/short-utterance-shortcircuit/static-no-bootstrap-import-guard) aur
+`tests/test_kb_niche_refresh_task.py` (7 tests — dedup-lease/no-redis-fail-closed/dispatch-failure-releases-
+lease/token-mismatch-no-release/unsupported-defensive-path/seed-ok-but-not-actually-ready-must-raise) —
+**16/16 PASS**, real `app/voice_agent/kb_readiness.py` (unmodified, correctly synced) + real
+`app/tasks/kb_niche_refresh.py` (naya file, correctly synced) ke against, fakes sirf Qdrant/Redis/
+`knowledge_base`/`kb_loader` boundary pe.
+
+**🐛 SANDBOX-ONLY landmine mila (naya, is CLAUDE.md ke maujooda "sandbox mount stale" landmine ka EXTENSION):**
+pehle observation tha ki *pre-existing files edited via Windows tools* bash-view me stale reh jaate
+(`git status`/`rm` fail). Is session me EXTRA confirm hua: **koi bhi Write/Edit jo ek ALREADY-EXISTING
+path ko overwrite/modify karta hai** — chahe woh file isi session me pehle-hi bana ho — bash-mount view
+ko ek FIXED byte-offset pe mid-word truncate kar sakta hai (Windows Read tool full-correct content
+dikhata rehta hai; bash `wc -l`/`tail` ek chhota, sahi-lagta-hua-par-adhoora file dikhate hain, reliably
+reproduce hua). **Reliable workaround: sirf BRAND-NEW file paths (jo pehle exist nahi karte) consistently
+bash me poori tarah sync hote hain** — isliye `_verify_telecaller_brain.py` (naya path, telecaller_brain.py
+ka byte-copy) aur test files banaye taaki asli logic real dependencies ke against test ho sake bina asli
+edited files ko bash se chhue. Isse CLAUDE.md landmine ka scope thoda widen hota hai: "Windows file-tools
+= source of truth" sirf `git status`/`rm` ke liye nahi, kisi bhi bash-side re-read ke liye bhi lagu hai
+jab tak file is SESSION me kabhi edit/overwrite hui ho (chahe purani ho ya nayi).
+
+**Files touched (surgical, incident-scoped only):**
+`app/voice_agent/telecaller_brain.py` (rewrite `_kb_facts` + new state consts, remove `_get_kb`),
+`app/voice_agent/kb_loader.py` (4x `replace_source=True`), `app/worker.py` (1-line `include` addition),
+`app/tasks/kb_niche_refresh.py` (NEW), `tests/test_kb_facts_adr104_v3.py` (NEW),
+`tests/test_kb_niche_refresh_task.py` (NEW). Two dead intermediate test-file artifacts
+(`tests/test_kb_facts_adr104.py`, `tests/test_kb_facts_adr104_v2.py`) left as empty placeholder
+docstrings — see their own file headers; a future session/human should delete them outright.
+**NOT touched:** `app/platform/kb_refresh.py`, `app/voice_agent/kb_readiness.py`,
+`app/voice_agent/knowledge_base.py` — all read-only dependencies for this fix, confirmed correct as-is.
+
+**Remaining before this incident is CLOSED (handed to user, not done by this session):** review the
+diff, `git add` (surgical paths only — parallel Cursor/other-session uncommitted edits still present per
+addendum #7's working-tree-safety note, `git add -A` FORBIDDEN), commit, push, `deploy_vps.sh` with a
+real `APP_VERSION` SHA (ADR-097 gate), then two live Voice QA acceptance runs + `/health` version check.
+Exact commands prepared separately for the user to run.
+
+## 2026-07-15 - ADR-105 Image-retention fix ne images bound kiye, BUILD CACHE chhod diya (75% disk)
+
+Context: `c84b62a6` (`fix(deploy): image retention — every deploy added ~7GB with no cleanup`)
+ne image accumulation solve kiya — aaj live proof: Images 31 total, sirf 13.81GB reclaimable
+(retention kaam kar raha). Par usi deploy-byproduct family ka doosra half chhoot gaya:
+**Build Cache = 233 entries / 87.56GB, 66.44GB reclaimable** — images ke reclaimable se ~5x bada.
+
+Live evidence: `/dev/sda1 193G 144G-used 50G-avail 75%`. Trend: 123.89GB free (06-13 snapshot)
+→ 60.8GB (07-14 loop) → 49.43GB (07-15) = deploy-heavy din pe ~11GB/day. Single VPS pe disk
+exhaustion = Postgres/Redis/37 containers sab down. CLAUDE.md `## Current State` me "disk"
+RESOLVED list me tha — galat tha.
+
+Decision: `docker builder prune -f` chalaya (user-approved). Reclaimable cache regenerable hai,
+isliye rollback ki zaroorat nahi — next build khud rebuild kar leta hai (bas thoda slow).
+Images/containers/volumes/customer-data ko haath nahi lagaya.
+
+Evidence: BEFORE `144G used / 50G avail / 75%` → AFTER `82G used / 112G avail / 43%`.
+Build Cache 233/87.56GB → 55/21.12GB. Post-prune: app/worker/scheduler/worker_heavy sab
+`healthy`, **uptime unchanged 44 min (koi restart nahi)**, `restarts=0 oom=false`,
+rollback images (`c78b73da`/`685cffaa`/`b12d1e97`) intact, `celery=0`.
+
+Consequence: Prune ek one-shot manual remedy hai, FIX nahi — cache dobara badhega. Retention
+policy me build-cache ko include karna chahiye (`docker builder prune --keep-storage=<N>GB`
+deploy_vps.sh me, jaise image retention already hai). Sabak: jab koi "deploy har baar X leak
+karta hai" fix likho, poore byproduct set ko enumerate karo (images + build cache + volumes +
+dangling), sirf jo symptom dikha usko nahi.
+
+## 2026-07-15 - ADR-106 Admin health tiles `dlq:dead` count hi nahi karte — "sab healthy hai" jhooth
+
+Context: `/app/office` (Operating HQ) pe browser-verified, EK HI SCREEN pe contradiction:
+- Live pulse tile: **`DLQ 0`**
+- System health: **`Queue: celery=0 · dlq=0`** + **"Koi overdue/failed job nahi — sab healthy hai"**
+- Header: **"⚠️ 4 dead task(s)"**
+- Reliability Console: **"Failed (retry-able): 0 · Dead (exhausted): 4"** — chaaro records listed
+Redis truth: `llen dlq:failed_tasks` = 0, `llen dlq:dead` = **4**.
+
+Root cause: at-a-glance surfaces sirf `dlq:failed_tasks` (retry-able) padhte hain aur
+`dlq:dead` (exhausted) ignore karte hain. Admin jo Live pulse / System health dekh ke din
+shuru karta hai usse green dikhta hai jabki 4 job permanently mar chuke hain (ek AAJ ka).
+
+Sharper: schedule widget **"Voice QA (Arjun) ✓ ho gaya · 05:49"** dikhata hai — dead record ka
+ts `00:19:16Z` = **05:49 IST**, wahi minute. Yaani job ke MARNE ke moment ko "✓ ho gaya"
+(= done) render kiya jaa raha hai. (Inference: heartbeat outcome-blind hai; abhi code-verify
+nahi kiya.)
+
+Decision: koi code change is loop me NAHI (evidence record kiya, fix next loop). Fix direction:
+health/DLQ tiles ko `failed + dead` dono count karna chahiye, aur `dead > 0` pe "sab healthy hai"
+kabhi nahi bolna chahiye.
+
+Consequence: ADR-098 (fake success) / ADR-099 (fake failure) ka teesra bhai. Pattern ab
+undeniable hai: **is codebase me sabse mehenga bug-class "status surface jo reality se
+distinguishable nahi" hai.** Naya health/status field likhte waqt poocho: "ye MEASURE kar raha
+hai ya CLAIM kar raha hai?" Jo `dlq` bolta ho par sirf ek queue padhta ho, wo field jhooth hai.
+NOTE: `Hygiene sweep (DLQ+trim)` schedule me **sirf Sat** hai — dead records week bhar pade rehte hain.
+
 ## 2026-07-15 - ADR-100 `/health` cacheable tha — drift detector khud STALE bol sakta tha
 
 Decision: `_mark_no_store()` helper (`app/api/health.py`) ab `/health`, `/health/live`,
