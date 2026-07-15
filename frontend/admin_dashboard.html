@@ -2781,9 +2781,52 @@ async function loadC360Timeline(cid) {
   }
 }
 
-async function c360DeliverNow() {
+// ADR-104 (2026-07-15, Priority 6): this button fired
+// customer_delivery.deliver_client_value(force=True) -- a REAL WhatsApp
+// message to the customer's real phone number, bypassing the normal
+// AUTO_DELIVER_VALUE gate -- with zero confirmation of any kind. Same
+// backend endpoint (POST /api/admin/clients/{id}/deliver-now) as
+// clients.html's already-fixed "Deliver Now" button (ADR-104 Phase F,
+// commit 5f65979), but this second UI surface (Customer 360 panel) was
+// never covered by that fix. The backend already writes a
+// delivery_ledger "admin_manual_action" audit event on every call
+// (success or failure) -- that part needed no change. Only the missing
+// frontend confirmation is fixed here, same modal pattern as the
+// Re-Scrape button below.
+function _closeC360DeliverModal() {
+  var o = document.getElementById("c360DeliverModalOverlay");
+  if (o) o.remove();
+  if (typeof _c360DeliverUntrap === "function") { _c360DeliverUntrap(); _c360DeliverUntrap = null; }
+}
+function c360DeliverNow() {
   const cid = _currentC360Id;
   if (!cid) return;
+  _closeC360DeliverModal();
+  var overlay = document.createElement("div");
+  overlay.id = "c360DeliverModalOverlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Confirm force-deliver now");
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+  overlay.innerHTML = ''
+    + '<div class="card" style="max-width:440px;width:100%;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.4);margin:0">'
+    + '  <div class="hd"><h3 style="margin:0;font-size:15px;color:#dc2626">🚀 Force-deliver now — <span style="color:#6366f1">' + String(cid).replace(/[<>&"]/g, "") + '</span></h3></div>'
+    + '  <div class="bd">'
+    + '    <div style="font-size:13px;line-height:1.5;margin-bottom:12px">This sends a <b>real WhatsApp message</b> to this customer\'s real phone number right now, bypassing the normal delivery gate (<code>AUTO_DELIVER_VALUE</code>). Use only for a genuinely stuck paid customer.</div>'
+    + '    <div style="display:flex;gap:8px;justify-content:flex-end">'
+    + '      <button class="btn" type="button" onclick="_closeC360DeliverModal()" style="padding:8px 14px;font-size:12px">Cancel</button>'
+    + '      <button class="btn primary" id="c360DeliverConfirmBtn" type="button" onclick="_c360DeliverConfirmed()" style="padding:8px 16px;font-size:12px;background:#dc2626">Deliver now</button>'
+    + '    </div>'
+    + '  </div>'
+    + '</div>';
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) _closeC360DeliverModal(); });
+  document.body.appendChild(overlay);
+  _c360DeliverUntrap = _focusTrap(overlay, _closeC360DeliverModal);
+}
+async function _c360DeliverConfirmed() {
+  const cid = _currentC360Id;
+  if (!cid) return;
+  _closeC360DeliverModal();
   const btn = document.getElementById("c360DeliverBtn");
   btn.disabled = true;
   btn.textContent = "Processing...";
