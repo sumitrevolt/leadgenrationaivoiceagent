@@ -101,8 +101,43 @@ def _client_product(c: dict) -> str:
         return "marketing"
 
 
+def _has_paid_evidence(c: dict) -> bool:
+    """Does an immutable invoice actually back this client? (ADR-095 helper, reused.)
+
+    Thin seam over `customer_delivery.has_paid_evidence` so revenue aggregation and
+    the dead-man alert share ONE definition of "paid" instead of drifting apart —
+    drift is exactly what produced ADR-101. Fail-OPEN on error (keep the estimate;
+    never make real revenue vanish because a lookup hiccuped).
+    """
+    try:
+        from app.marketing.customer_delivery import has_paid_evidence
+
+        return bool(has_paid_evidence(c))
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.debug("mrr paid-evidence lookup failed (fail-open): %s", exc)
+        return True
+
+
+def _paid_mrr_total(clients: list[dict]) -> int:
+    """Sum of monthly ₹ across clients that have real payment evidence.
+
+    ADR-101: `estimated_mrr` used to sum every `status == "active"` client, so the
+    headline number counted the synthetic `Test Biz` (plan=growth, zero invoices)
+    and `leadgenai-self` (own internal tenant) as revenue — ₹8.0K reported vs ₹1,999
+    real, a 4x overstatement contradicted by the Revenue Analytics panel on the SAME
+    page. A plan is SELECTED at signup before money moves, so plan+status is
+    eligibility, NOT payment. `has_paid_evidence()` (ADR-095) is the existing,
+    invoice-backed, self-brand-excluding, fail-OPEN definition — reuse it here.
+    """
+    return sum(_client_mrr(c) for c in clients if _has_paid_evidence(c))
+
+
 def _client_mrr(c: dict) -> int:
-    """Active client monthly ₹ — product-aware (marketing / voice / combo plans)."""
+    """Active client monthly ₹ — product-aware (marketing / voice / combo plans).
+
+    NOTE: this is PRICE-of-plan, not proof-of-payment. Callers aggregating revenue
+    must gate on `_has_paid_evidence()` (see `_paid_mrr_total`) — ADR-101.
+    """
     if str(c.get("status") or "active").strip().lower() != "active":
         return 0
     plan = str(c.get("plan") or "starter")
@@ -595,8 +630,13 @@ def _collect_live_stats() -> dict:
         stats["marketing_clients_active"] = len(active)
         stats["clients_by_product"] = _clients_by_product(clients)
         stats["clients_active_by_product"] = _clients_by_product(active)
+        # ADR-101: revenue counts money, not intentions. Gate every lane on real
+        # invoice evidence so a synthetic/self-brand tenant cannot inflate MRR
+        # (was: ₹8.0K reported vs ₹1,999 real — Test Biz + leadgenai-self counted).
         mrr_by: dict[str, int] = {"marketing": 0, "voice": 0, "combo": 0}
         for c in active:
+            if not _has_paid_evidence(c):
+                continue
             lane = _client_product(c)
             mrr_by[lane] = mrr_by.get(lane, 0) + _client_mrr(c)
         stats["mrr_by_product"] = mrr_by

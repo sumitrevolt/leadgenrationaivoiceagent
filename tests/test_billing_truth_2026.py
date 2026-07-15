@@ -25,6 +25,89 @@ def test_pricing_plans_synced_to_packages():
     assert PRICING_PLANS["advanced"].calls_per_month == 500
 
 
+# ----------------- MRR truth: plan selected != money received (ADR-101) ------------ #
+def test_estimated_mrr_counts_only_clients_with_payment_evidence(monkeypatch):
+    """Headline `Est. MRR` must not count a tenant that never paid.
+
+    LIVE BUG (2026-07-15 admin audit): `/app/admin` showed `Est. MRR ₹8.0K` while the
+    Revenue Analytics panel on the SAME page showed `₹2.0K / Active: 1`. Cause:
+    `estimated_mrr` summed every client with `status == "active"` with no payment
+    gate, so it counted the synthetic `Test Biz` (plan=growth, ZERO invoices — the
+    very tenant ADR-095 flagged as synthetic) and `leadgenai-self` (the company's own
+    internal tenant). Real MRR was ₹1,999 (Jiya only).
+
+    This is the exact bug class ADR-095 already solved for the dead-man alert:
+    a plan is SELECTED at signup before any money moves. Gate = `has_paid_evidence()`.
+    """
+    from app.api import admin_dashboard_builders as b
+
+    paying = {"id": "jiya-makeover", "status": "active", "plan": "starter"}
+    never_paid = {"id": "1f89031d621a", "name": "Test Biz", "status": "active", "plan": "growth"}
+    self_brand = {"id": "leadgenai-self", "status": "active", "plan": "growth"}
+
+    # Only the real customer has invoice evidence.
+    monkeypatch.setattr(
+        b, "_has_paid_evidence", lambda c: str(c.get("id")) == "jiya-makeover", raising=False
+    )
+
+    mrr = b._paid_mrr_total([paying, never_paid, self_brand])
+    assert mrr == 1999, (
+        f"Est. MRR must count ONLY invoice-backed clients, got ₹{mrr}. "
+        "A never-invoiced or self-brand tenant must contribute ₹0."
+    )
+
+
+def test_collect_live_stats_estimated_mrr_excludes_unpaid_tenants(monkeypatch):
+    """Covers the REAL production path (`_collect_live_stats`), not just the helper.
+
+    Reproduces the exact live client set observed on /app/admin 2026-07-15:
+    Jiya (real, invoiced) + Test Biz (synthetic, 0 invoices) + leadgenai-self (own
+    tenant). Before the ADR-101 gate this produced ₹7,997 ("Est. MRR ₹8.0K").
+    """
+    from app.api import admin_dashboard_builders as b
+    from app.marketing import clients_store
+
+    live_set = [
+        {"id": "jiya-makeover", "status": "active", "plan": "starter"},
+        {"id": "1f89031d621a", "name": "Test Biz", "status": "active", "plan": "growth"},
+        {"id": "leadgenai-self", "status": "active", "plan": "growth"},
+    ]
+    monkeypatch.setattr(
+        clients_store,
+        "list_clients",
+        lambda status=None, **kw: (
+            [c for c in live_set if c["status"] == status] if status else list(live_set)
+        ),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        b, "_has_paid_evidence", lambda c: str(c.get("id")) == "jiya-makeover", raising=False
+    )
+
+    stats = b._collect_live_stats()
+    assert stats["estimated_mrr"] == 1999, (
+        f"real dashboard path reported ₹{stats['estimated_mrr']} — must be ₹1,999 "
+        "(only the invoice-backed client). ₹7,997 = the ADR-101 regression."
+    )
+    assert sum(stats["mrr_by_product"].values()) == stats["estimated_mrr"], (
+        "lane breakdown must reconcile with the headline total"
+    )
+
+
+def test_estimated_mrr_fails_open_when_ledger_unknown(monkeypatch):
+    """Ledger unreadable => keep the plan-based estimate, never report a false ₹0.
+
+    Mirrors ADR-095's fail-OPEN: a broken invoice ledger must not make real revenue
+    silently vanish from the founder's dashboard. `has_paid_evidence()` is already
+    fail-OPEN (tri-state None -> True), so this pins that we did not invert it.
+    """
+    from app.api import admin_dashboard_builders as b
+
+    paying = {"id": "jiya-makeover", "status": "active", "plan": "starter"}
+    monkeypatch.setattr(b, "_has_paid_evidence", lambda c: True, raising=False)
+    assert b._paid_mrr_total([paying]) == 1999
+
+
 def test_calculate_price_unregistered_flat(monkeypatch):
     """GST_GSTIN unset => advertised price hi total (koi illegal GST collection nahi)."""
     from app.billing.subscription import BillingCycle, billing_manager
