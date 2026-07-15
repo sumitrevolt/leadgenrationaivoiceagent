@@ -364,7 +364,14 @@ class PostizProvider(SocialProvider):
             client = clients_store.get_client(req.client_id) or {}
             res = await postiz_publish.publish_video(client, req.caption, req.media_path or req.media_url)
             ok = bool(res.get("sent"))
-            return PublishResult(ok=ok, platform=self.name, raw=res, error="" if ok else str(res.get("reason") or "")[:160])
+            return PublishResult(
+                ok=ok,
+                platform=self.name,
+                post_id=str(res.get("post_id") or ""),
+                url=str(res.get("post_url") or ""),
+                raw=res,
+                error="" if ok else str(res.get("reason") or "")[:160],
+            )
         except Exception as e:
             return PublishResult(ok=False, platform=self.name, error=str(e)[:150])
 
