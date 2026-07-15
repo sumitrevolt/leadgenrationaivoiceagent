@@ -185,12 +185,12 @@ client's Delivery Timeline) every time an admin uses them — never logging the 
 itself. Backend password minimum raised from 4 to 8 chars to match what the UI already
 enforced.
 
-**Found but NOT fixed (flagged for a follow-up session):** the same Customer 360 panel's
-🚀 **Deliver Value Now** button (`c360DeliverNow()`, same backend action as clients.html's
-already-fixed Deliver Now) still fires with **zero confirmation** — it hits the identical
-`POST /clients/{id}/deliver-now` endpoint that clients.html gates with the red "dangerous"
-confirmation modal (§7, fix #5), but this second UI surface was never covered by that fix.
-Treat this exactly like the other unconfirmed-action gaps in §7 until it's fixed.
+**Customer 360 Deliver Value Now is now fixed:** the second UI surface's
+`c360DeliverNow()` action opens a red, named-client confirmation modal before it can call
+`POST /clients/{id}/deliver-now`; Cancel, backdrop and Escape are safe, while the real
+request lives only in `_c360DeliverConfirmed()`. This shipped in the launch baseline
+deployed as `972bd74` on 2026-07-15. The older first-edition note that called this surface
+"not fixed" was stale and has been removed after source + deployed-SHA reconciliation.
 
 ## 4. Automation / task state — what each label means
 
