@@ -154,8 +154,21 @@ def request_niche_refresh(niche: str) -> bool:
     retry_backoff_max=300,
     retry_jitter=True,
     max_retries=3,
-    soft_time_limit=90,
-    time_limit=120,
+    # ADR-104 A10 (2026-07-15) — measured, not guessed. worker_heavy's first-use-
+    # per-process Qdrant/fastembed init is a reproducible ~97-99s cost (proven
+    # via a bare, non-Celery script -- independent of Celery's own soft-limit,
+    # which was previously just an incidental near-match, not the true bound).
+    # worker_process_init now warms this once per process (see app/worker.py's
+    # on_worker_process_init), so in the common case a task arrives long after
+    # boot and only pays the ~26s of real work. Worst case is a task racing a
+    # fresh pool-respawn's still-in-flight warm-up: it blocks on the SAME
+    # _QDRANT_LOCK the warm-up holds (correct -- prevents duplicate slow work),
+    # then does its own ~26s -> ~97+26=123s observed worst case. 90/120 left
+    # ZERO margin for that case (it would hard-kill mid-finalization, right
+    # when it's trying to release the lease). 180/240 gives ~45% margin above
+    # the measured 123s worst case while still bounding genuine runaway work.
+    soft_time_limit=180,
+    time_limit=240,
 )
 def refresh_niche_task(self, niche: str, _lease_token: str = "") -> dict[str, Any]:
     """Seed exactly ONE niche's catalog content, verify via the SAME
