@@ -52,8 +52,49 @@ esac
 echo "=== DEPLOY $VER (services: $SERVICES) ==="
 echo "REPO_SHA=$(git rev-parse --short HEAD)"
 
+# ---------------------------------------------------------------- disk guard
+# Phase C (2026-07-15): the existing image-retention step below (added after
+# a 92%-full/16G-free near-miss that put Postgres/Docker ~2 deploys from
+# dying) only prunes TAGGED app images. buildx's own build cache is a
+# SEPARATE, unbounded disk consumer (see BUILD CACHE section below) with no
+# relationship to image tags — and nothing checked disk BEFORE a build
+# started, so a critically-low-disk build could corrupt a layer or crash
+# dockerd mid-build instead of failing fast with a clear message. This guard
+# runs before build+DRY_RUN's exit so both a real deploy and a dry-run
+# report the same disk truth up front.
+DISK_WARN_PCT="${DISK_WARN_PCT:-80}"
+DISK_HARD_PCT="${DISK_HARD_PCT:-90}"
+DISK_USED_PCT="$(df -P / | tail -1 | awk '{gsub("%","",$5); print $5}')"
+DISK_FREE_H="$(df -h / | tail -1 | awk '{print $4}')"
+echo "=== DISK GUARD: ${DISK_USED_PCT}% used, ${DISK_FREE_H} free (warn>=${DISK_WARN_PCT}%, hard-stop>=${DISK_HARD_PCT}%) ==="
+if [ "$DISK_USED_PCT" -ge "$DISK_HARD_PCT" ]; then
+  echo "FATAL: disk ${DISK_USED_PCT}% >= hard-stop ${DISK_HARD_PCT}% — refusing to build."
+  echo "       Free space first (see BUILD CACHE preview below / docker builder prune / KEEP_IMAGES=2 rerun), then retry."
+  if [ "$DRY_RUN" != "1" ]; then
+    exit 5
+  fi
+  echo "DRY_RUN=1 — would have exited here for real; continuing to print the rest of the plan."
+elif [ "$DISK_USED_PCT" -ge "$DISK_WARN_PCT" ]; then
+  echo "WARN: disk ${DISK_USED_PCT}% >= warn ${DISK_WARN_PCT}% — proceeding, but this deploy's retention step matters more than usual."
+fi
+
 if [ "$DRY_RUN" = "1" ]; then
-  echo "DRY_RUN=1 -> would build+up the above and verify /health == $VER. Exiting."
+  echo "=== BUILD CACHE (current — read-only preview, nothing deleted) ==="
+  docker system df | grep -E "TYPE|Build Cache" || true
+  echo "=== IMAGE RETENTION preview (keep newest ${KEEP_IMAGES:-3} tags) ==="
+  _KEEP="${KEEP_IMAGES:-3}"
+  _IMG=ghcr.io/sumitrevolt/leadgenrationaivoiceagent
+  _OLD="$(docker images "$_IMG" --format '{{.CreatedAt}}\t{{.Tag}}' | sort -r | tail -n +$((_KEEP + 1)) | cut -f2)"
+  if [ -z "$_OLD" ]; then
+    echo "  nothing would be reclaimed"
+  else
+    for t in $_OLD; do
+      [ "$t" = "$VER" ] && continue
+      [ "$t" = "<none>" ] && continue
+      echo "  would remove $t (if not still referenced by a running container)"
+    done
+  fi
+  echo "DRY_RUN=1 -> would build+up the above, verify /health == $VER, then run the retention shown above. Exiting."
   exit 0
 fi
 
@@ -155,6 +196,32 @@ else
   done
 fi
 docker image prune -f >/dev/null 2>&1     # untagged leftovers only
+echo "  disk now: $(df -h / | tail -1 | awk '{print $5" used, "$4" free"}')"
+
+# ------------------------------------------------------- build-cache retention
+# Phase C (2026-07-15): buildx's build cache is a SEPARATE store from tagged
+# images (nothing above touches it) — it can grow unbounded across many
+# deploys with zero relationship to how many image tags are kept. Bounded by
+# BOTH age (a layer still reused every build never ages out — only genuinely
+# stale/orphaned cache is a target) AND a keep-storage floor (so this never
+# nukes cache that would just slow the NEXT build back down for no disk
+# benefit). Never touches running containers, the image just deployed,
+# rollback images, volumes, or app/customer data — `docker builder prune` is
+# scoped strictly to buildx's own cache namespace, disjoint from `docker
+# images`/`docker volume`. Runs only after the verified deploy above, same
+# as image retention.
+BUILD_CACHE_MAX_AGE="${BUILD_CACHE_MAX_AGE:-168h}"        # 7 days unused
+BUILD_CACHE_KEEP_STORAGE="${BUILD_CACHE_KEEP_STORAGE:-20GB}"
+echo "=== BUILD CACHE (before) ==="
+docker system df | grep -E "TYPE|Build Cache" || true
+if docker builder prune -f --filter "unused-for=$BUILD_CACHE_MAX_AGE" \
+    --keep-storage "$BUILD_CACHE_KEEP_STORAGE" > /tmp/deploy_buildcache_prune.log 2>&1; then
+  echo "=== BUILD CACHE (after, unused-for>=$BUILD_CACHE_MAX_AGE reclaimed above $BUILD_CACHE_KEEP_STORAGE floor) ==="
+  docker system df | grep -E "TYPE|Build Cache" || true
+else
+  echo "WARN: build-cache prune failed (non-fatal — deploy already verified). Tail:"
+  tail -8 /tmp/deploy_buildcache_prune.log
+fi
 echo "  disk now: $(df -h / | tail -1 | awk '{print $5" used, "$4" free"}')"
 
 echo "=== DEPLOYED $VER OK ==="
