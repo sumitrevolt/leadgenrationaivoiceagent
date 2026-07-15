@@ -72,6 +72,63 @@ Bacha hua kaam (backlog): pre-fix poisoned entries ke liye koi server-side evict
 nahi hai (`Clear-Site-Data` bahut aggressive hoga). Practical: operator ek baar cache
 clear kare, ya bas cache-buster SOP follow kare.
 
+## 2026-07-15 - ADR-103 (FINDING, fix NOT implemented) Email outreach 3 din se BAND hai — "spam-complaint" gate ne kabhi ek bhi spam complaint napi hi nahi
+
+Finding: `/app/admin` bolta hai `Email warmup PAUSED: complaint rate 0.585% >= 0.25%
+(5/854 in 7d) ... 143 sendable pending`. Yaani platform ka PRIMARY GTM channel (cold
+email) ruka hua hai. **Par wo 5 "complaints" ek bhi spam complaint nahi hai.**
+
+Live proof (`docker exec leadgen_app cat data/email_warmup.json`) — saare 5 events:
+```
+{"at":"2026-07-07...","email":"flanx...","reason":"unsub_one_click"}
+{"at":"2026-07-08...","reason":"unsub_one_click"}   x5, sab "unsub_one_click"
+```
+`paused_until: 2026-07-15T12:01:05Z` = aakhri unsub (07-14T12:01) + 24h.
+
+Code (`app/platform/email_warmup.py:212` `record_complaint`): reason dekhe BINA sab
+kuch `complaint_events` me daalta hai aur **spam-complaint threshold `COMPLAINT_PAUSE_PCT
+= 0.25%`** pe 24h auto-pause karta hai. Docstring khud maanti hai: *"Spam-complaint /
+**unsubscribe-as-complaint**"*, *"both = recipient-side negative signal"* — yaani dono ko
+jaan-boojh kar ek maana gaya.
+
+**Ye galat hai, aur mehenga hai.** Callers SIRF do hain, aur dono unsubscribe hain:
+- `app/platform/email_unsub.py:172` → `record_complaint(e, f"unsub_{reason}")` (one-click)
+- `app/platform/reply_agent.py:704` → `record_complaint(frm, "reply_unsubscribe")`
+Matlab **koi FBL / spam-report feed hai hi nahi** — ye gate aaj tak ek bhi ASLI spam
+complaint nahi naap saka; ye SIRF unsubscribes pe fire kar sakta hai.
+
+Kyun ye conflation galat hai: Google ka 0.30% "spammy" threshold **user-reported spam**
+("Report Spam" dabana) naapta hai — Postmaster Tools me. **Unsubscribe uska ULTA signal
+hai:** Gmail ke 2024 bulk-sender rules one-click list-unsubscribe ko **ANIVARY** karte hain
+aur usey aasan banane pe REWARD dete hain. Cold outreach me 0.2–2% unsub rate NORMAL hai;
+5/854 = 0.585% = **healthy**. Yaani channel isliye band hai kyunki 5 logon ne wahi kiya jo
+Gmail humein karne dena hi chahiye. Aur ye rolling hai: har naya unsub 24h ke liye dobara
+pause karta hai → 143 pending ke saath channel practically permanently throttled.
+
+Fix (agla session — ~20 lines): unsub ko complaint se ALAG karo.
+- `_UNSUB_REASONS` = `unsub_*` + `reply_unsubscribe` → naya `unsub_events` bucket +
+  `unsub_rate_7d()` + `UNSUB_PAUSE_PCT = 2.0` (mistargeted list pe tab bhi ruke).
+- `complaint_events` sirf ASLI spam reports ke liye reserve — `COMPLAINT_PAUSE_PCT = 0.25%`
+  **jyon ka tyon** (gate weaken NAHI karna, §5).
+- Migration ki zaroorat nahi: purane 5 unsub events 7d rolling window se khud nikal jaayenge.
+- ⚠️ `tests/test_email_warmup_complaints.py:50` abhi PURANE behaviour ko lock karta hai
+  (`record_complaint("x@example.com", "unsubscribe")` → 0.25% pe pause expect karta hai) —
+  wo test hi bug ko encode karta hai, use SAATH update karna padega.
+
+**Compliance NOTE:** ye gate weaken karna NAHI hai. Opt-out **suppression** (DPDP/consent
+ledger, instant cross-channel) bilkul alag code path hai aur CHHUNA NAHI — wo already kaam
+kar raha hai (`11 suppressed`). Yahan sirf ye theek ho raha hai ki unsubscribe ko *spam
+complaint* ke threshold pe mat naapo.
+
+Kyun implement nahi kiya: context budget khatam. Deliverability safety-gate + ek maujooda
+test ko badalna — 5% context me jaldbaazi me karna galat hota. Diagnosis pura hai, fix
+mechanical hai.
+
+**Meta-pattern (ADR-095/096/099/101 ka hi parivar, ab 5th):** field ka NAAM ek CLAIM hai,
+measurement nahi. "complaint_events" me kabhi koi complaint thi hi nahi. ADR-099 ka sabak
+literally yahi tha — *jab naam aur code-path bhide to code-path evaluate karo* — aur ye
+teen din se GTM band kiye baitha tha.
+
 ## 2026-07-15 - ADR-102 `growth` NAAM teen alag cheezon ka hai — "remove the ₹2,999 plan" ek naive grep se PROD TOD DEGA
 
 Decision (MAP ONLY — removal is NOT implemented; ye entry agla session bachane ke liye hai):
