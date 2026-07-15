@@ -389,8 +389,8 @@
         '<td><span class="nextaction ' + na.cls + '">' + esc(c.next_action || na.text) + '</span><div class="sub">Owner: ' + esc(c.owner || "Sumit") + ' · Due: ' + esc(c.due_date || "-") + '</div></td>' +
         '<td class="actions">' +
           '<button class="mini primary" onclick="deliveryAction(\'' + esc(c.id) + '\',\'generate_content\')">Generate</button>' +
-          '<button class="mini" onclick="deliveryAction(\'' + esc(c.id) + '\',\'approve_pending\')">Approve</button>' +
-          '<button class="mini warn" onclick="deliveryAction(\'' + esc(c.id) + '\',\'publish_manual\')">Manual proof</button>' +
+          '<button class="mini" onclick="deliveryAction(\'' + esc(c.id) + '\',\'approve_pending\',\'' + esc((c.customer_name || c.business_name || c.id || '')).replace(/'/g,"\\'") + '\')">Approve</button>' +
+          '<button class="mini warn" onclick="deliveryAction(\'' + esc(c.id) + '\',\'publish_manual\',\'' + esc((c.customer_name || c.business_name || c.id || '')).replace(/'/g,"\\'") + '\')">Manual proof</button>' +
           '<button class="mini" onclick="deliveryAction(\'' + esc(c.id) + '\',\'monthly_report\')">Report</button>' +
         '</td>' +
       '</tr>';
@@ -548,9 +548,91 @@
     }
   }
 
-  async function deliveryAction(cid, action){
+  // ADR-104 (2026-07-15): in-page confirmation modal, replacing native
+  // confirm()/prompt()-only gating for approval/publish/schedule/delivery
+  // actions. A native confirm() dialog was proven this session to auto-accept
+  // in a browser-automation context BEFORE a permission interceptor could
+  // block it, silently approving real customer content. This modal only ever
+  // resolves via an explicit click on its own Cancel/Confirm buttons (or
+  // Escape/backdrop = cancel) -- never via Enter keypress, automation
+  // default, or page load. Opening the modal alone makes zero network
+  // requests; only the caller's own follow-up code (gated on the resolved
+  // boolean) makes the actual API call.
+  function actionConfirmModal(opts){
+    opts = opts || {};
+    return new Promise(function(resolve){
+      var isPublic = !!opts.isPublic;
+      var overlay = document.createElement("div");
+      overlay.setAttribute("data-testid", "action-confirm-modal-overlay");
+      overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,15,25,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+      var box = document.createElement("div");
+      box.style.cssText = "background:#fff;border-radius:14px;max-width:480px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit;color:#111";
+      box.innerHTML =
+        '<div style="font-weight:800;font-size:16px;margin-bottom:10px">' + (isPublic ? "⚠️ Public publish confirmation" : "Internal action confirmation") + '</div>' +
+        '<div style="font-size:13.5px;line-height:1.7">' +
+          '<div><b>Customer:</b> ' + esc(opts.customer || "") + '</div>' +
+          '<div><b>Content:</b> ' + esc(opts.contentTitle || "") + '</div>' +
+          '<div><b>Action:</b> ' + esc(opts.action || "") + '</div>' +
+          '<div><b>Target channel:</b> ' + esc(opts.channel || "none") + '</div>' +
+          '<div><b>Channel connected:</b> ' + (opts.channelConnected ? "Yes" : "No / unknown") + '</div>' +
+          '<div style="margin-top:8px;padding:8px;border-radius:8px;background:' + (isPublic ? "#fef2f2" : "#f0fdf4") + ';color:' + (isPublic ? "#991b1b" : "#166534") + '">' +
+            (isPublic
+              ? "This WILL post publicly on a live external channel. This cannot be silently undone once posted."
+              : "This only changes an internal status. It does NOT post publicly. No external channel will be contacted right now.") +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">' +
+          '<button data-testid="acm-cancel" style="padding:9px 16px;border-radius:9px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:700">Cancel</button>' +
+          '<button data-testid="acm-confirm" style="padding:9px 16px;border-radius:9px;border:none;cursor:pointer;font-weight:800;color:#fff;background:' + (isPublic ? "#dc2626" : "#4f46e5") + '">' + esc(opts.confirmLabel || "Confirm") + '</button>' +
+        '</div>';
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      function cleanup(result){
+        if(overlay.parentNode) document.body.removeChild(overlay);
+        document.removeEventListener("keydown", onKey);
+        resolve(result);
+      }
+      function onKey(e){
+        // Explicitly: Enter must NOT confirm. Only Escape (=cancel) is handled.
+        if(e.key === "Escape") cleanup(false);
+      }
+      document.addEventListener("keydown", onKey);
+      overlay.addEventListener("click", function(e){ if(e.target === overlay) cleanup(false); });
+      box.querySelector('[data-testid="acm-cancel"]').onclick = function(){ cleanup(false); };
+      box.querySelector('[data-testid="acm-confirm"]').onclick = function(){ cleanup(true); };
+    });
+  }
+
+  async function deliveryAction(cid, action, customerName){
     var note = "";
+    if(action === "approve_pending"){
+      // Bulk-approves every pending content_approval row for this client --
+      // an internal status change only (no connected social channel is
+      // resolved/published from here). See app/marketing/product_one_delivery.py.
+      var okApprove = await actionConfirmModal({
+        customer: customerName || cid,
+        contentTitle: "all pending approvals for this customer",
+        action: "Approve pending content (bulk, internal)",
+        channel: "internal only -- no live publish from this button",
+        channelConnected: false,
+        isPublic: false,
+        confirmLabel: "Approve for internal review only"
+      });
+      if(!okApprove) return;
+    }
     if(action === "publish_manual"){
+      // This records proof that a human already published manually outside
+      // this app -- it does not itself call any external publish API.
+      var okPublish = await actionConfirmModal({
+        customer: customerName || cid,
+        contentTitle: "manual publish proof note",
+        action: "Record manual publish proof (does not itself post anywhere)",
+        channel: "manual / human-published outside this app",
+        channelConnected: false,
+        isPublic: false,
+        confirmLabel: "Record manual proof"
+      });
+      if(!okPublish) return;
       note = prompt("Manual proof note (e.g. Instagram upload done, screenshot/Drive link):") || "";
       if(!note.trim()) return;
     }
