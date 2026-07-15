@@ -72,7 +72,45 @@ Bacha hua kaam (backlog): pre-fix poisoned entries ke liye koi server-side evict
 nahi hai (`Clear-Site-Data` bahut aggressive hoga). Practical: operator ek baar cache
 clear kare, ya bas cache-buster SOP follow kare.
 
-## 2026-07-15 - ADR-101 (FINDING, fix pending) Headline `Est. MRR` 4x inflated — ADR-095 ka gate revenue metric pe laga hi nahi
+## 2026-07-15 - ADR-102 `growth` NAAM teen alag cheezon ka hai — "remove the ₹2,999 plan" ek naive grep se PROD TOD DEGA
+
+Decision (MAP ONLY — removal is NOT implemented; ye entry agla session bachane ke liye hai):
+User ne kaha "mere paas 2999 plan hai hi nahi, hata do" — sach hai (CLAUDE.md §1: real
+products = ₹1,999 Main + ₹5,999 Combo/Advanced; ₹2,999 Growth legacy artifact hai).
+Par `growth` string is repo me **teen ALAG cheezein** matlab rakhta hai:
+
+1. **Marketing billing plan ₹2,999** ← YEHI hatana hai. `app/marketing/packages.py:207`
+   (`public: False` already), `app/billing/subscription.py:134` (PricingPlan),
+   `app/billing/usage.py:52` (PLAN_MINUTES), `app/middleware/__init__.py:462` (rate limit),
+   `app/models/client.py:26` (enum, comment "25,000/month" = STALE), validation sets:
+   `app/api/customer_auth.py:398` `_VALID_PLANS`, `app/api/customer_onboard.py:30`
+   `_MKT_PLANS`, `app/api/public_site.py:621`.
+2. **Staff/agent team + 15-min scheduler job** ← HAATH MAT LAGAO. `app/agents/coordinator.py:665`
+   (`"growth": ["dev","rohan","isha"]`), `app/worker.py:336` (`args: ("growth",)`),
+   `app/agents/staff.py:1015` (`run_growth`), `app/platform/growth_engine.py`,
+   `app/platform/automation_health.py:32` (job SLA 60m), `app/ml/agent_brain.py:40`,
+   `app/ml/brain_orchestrator.py:40`. Ise hatana = growth pulse job + team DEAD.
+3. **COMBO tier "growth" @ ₹9,999** ← ALAG product. `app/marketing/combo_packages.py:76-81`
+   me `"growth": {..., "marketing_plan": "growth"}` — yaani combo tier (3) marketing plan
+   (1) ko REFER karta hai. Plan (1) hataya to ye reference DANGLE karega.
+   Test: `test_billing_truth_2026.py::test_combo_tier_price_literals` → `COMBO_TIERS["growth"]["price_month"] == 9999`.
+
+Sharp edge: `_plan_price()` (`admin_dashboard_builders.py:87-89`) unknown plan pe **chupke se
+SABSE SASTA tier** laga deta hai. Isliye sirf package delete karne se plan=growth clients
+₹2,999 → ₹1,999 ho jaate — galat hi rehta, bas alag number. (Yehi bug pehle trial pe hua tha,
+docstring me likha hai.) Aur `app/marketing/auto_content.py:468,487` + `app/api/growth.py:519`
+NAYE clients ko `plan="growth"` pe banate hain — pehle wo default `starter` karna padega.
+
+Live blast radius: sirf 2 clients plan=growth pe hain — `Test Biz` (synthetic) aur
+`leadgenai-self` (apna tenant). Koi ASLI customer growth pe nahi (Jiya = starter ₹1,999).
+
+Consequence: ADR-101 ka payment gate lag jaane ke baad **₹2,999 plan ab MRR me ₹0 contribute
+karta hai** (dono growth clients ke paas invoice hai hi nahi), yaani user ki ASLI shikayat
+(inflated revenue) already fix ho chuki hai. Plan ka *astitva* (selectable legacy option)
+abhi bhi hai — usko hatana = alag, careful session: contract test FIRST, defaults starter
+karo, combo tier (3) decouple karo, aur (2) ko chhuo mat.
+
+## 2026-07-15 - ADR-101 (RESOLVED — fix deployed `c78b73da`) Headline `Est. MRR` 4x inflated — ADR-095 ka gate revenue metric pe laga hi nahi
 
 Finding (implement NAHI kiya — billing-truth touch = contract test FIRST, §6):
 Admin dashboard EK HI PAGE pe DO alag MRR bolta hai:
