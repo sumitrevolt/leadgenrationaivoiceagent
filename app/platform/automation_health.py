@@ -299,6 +299,20 @@ def health() -> dict[str, Any]:
     backlogged = (
         q.get("celery", -1) > QUEUE_BACKLOG_ALERT or q.get("heavy", -1) > QUEUE_BACKLOG_ALERT
     )
+    # ADR-104 Phase B (2026-07-15): queue_depth() already tracks dlq/dead
+    # counts but NOTHING read them here — this function's overall status/ok
+    # could claim "healthy"/True even with dead=4 sitting in dlq:dead
+    # (retry-exhausted via dlq_retry.py, needs manual attention) or terminal
+    # failures sitting in dlq:failed_tasks (dlq_retry sweeps these, but a
+    # disabled flag / queue-flood-defer / missed sweep can leave them stuck).
+    # These are a DIFFERENT signal from `backlogged` (live-queue depth = worker
+    # slow/dead) — a dead/dlq item is a standing incident regardless of how
+    # fast the live queues are draining, and the admin's "green = dead=0,
+    # retryable_failed=0" expectation was silently unmet. -1 means "Redis
+    # unreachable, unknown" and must NOT read as "0 dead" (that would recreate
+    # the exact false-green bug this fixes) — only a positive count counts.
+    dead_present = q.get("dead", -1) > 0
+    retryable_failed_present = q.get("dlq", -1) > 0
     # Obsidian staging health
     _obs_ok = False
     _obs_detail = "OBSIDIAN_SYNC not enabled"
@@ -316,17 +330,23 @@ def health() -> dict[str, Any]:
         _obs_detail = str(e)[:100]
     return {
         "status": (
-            "degraded" if (overdue or backlogged) else ("warming_up" if never_ran else "healthy")
+            "degraded"
+            if (overdue or backlogged or dead_present or retryable_failed_present)
+            else ("warming_up" if never_ran else "healthy")
         ),
         # Explicit boolean truth for consumers — pehle sirf `status` string tha, jisse
         # `h.get("ok")` KABHI None deta tha (team_pulse._kavya `h.get("ok", True)` = hamesha
         # "OK" bolta tha even jab jobs overdue/queue-backlogged the → false-healthy). Ab
         # additive `ok` = degraded ka inverse (warming_up abhi-boot = ok, alarm nahi).
-        "ok": not (overdue or backlogged),
+        # Phase B (2026-07-15): dead/retryable_failed ab isi inverse me shaamil —
+        # dead tasks ya stuck DLQ failures ho to `ok` False hona CHAHIYE.
+        "ok": not (overdue or backlogged or dead_present or retryable_failed_present),
         "overdue": overdue,
         "never_ran": never_ran,
         "queue": q,
         "queue_backlogged": backlogged,
+        "dead_tasks_present": dead_present,
+        "retryable_failed_present": retryable_failed_present,
         "jobs": jobs,
         "obsidian_sync": {"ok": _obs_ok, "detail": _obs_detail},
         "at": _now().isoformat(timespec="seconds"),
