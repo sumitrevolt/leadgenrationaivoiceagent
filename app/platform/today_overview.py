@@ -225,6 +225,19 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Platform auto-dialer (11:30)",
         "kya": "Outbound campaign auto-dial loop",
     },
+    # ADR-104 Phase F (2026-07-15): these two jobs existed in team_scheduler's
+    # _last_ran (so they DO run) but had no JOB_INFO entry -- the Aaj tab
+    # would have shown a raw job-key instead of a Hinglish label the moment
+    # either job ran for the first time. Caught by the existing
+    # test_job_info_covers_every_scheduled_job parity guard.
+    "product_one_health": {
+        "label": "Product 1 customer health (hourly :20)",
+        "kya": "Paid customer health + approval-reminder + SLA-recovery safety-net sweep",
+    },
+    "approval_email_sweep": {
+        "label": "Approval email sweep (hourly :40)",
+        "kya": "Pending-approval email reminders bhejta hai (gated APPROVAL_EMAIL_NOTIFY, off by default)",
+    },
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason).
@@ -359,6 +372,27 @@ def build() -> dict[str, Any]:
                 {
                     "kya": f"Task queue me kaam atka hai (celery={q.get('celery')}, dlq={q.get('dlq')})",
                     "fix": "Worker container restart karo ya DLQ retry (Upgrader tab)",
+                }
+            )
+        # ADR-104 Phase F (2026-07-15): this function only ever checked
+        # queue_backlogged (live celery/heavy depth) -- dead_tasks_present and
+        # retryable_failed_present (Phase B authoritative fields, same
+        # automation_health.health() call above) were never read, so this
+        # "Aaj" snapshot (feeds BOTH /app/control-center's Problems panel AND
+        # /app/automation's Aaj tab) could say "Koi problem nahi mili" while
+        # dlq:dead held retry-exhausted tasks.
+        if h.get("dead_tasks_present"):
+            problems.append(
+                {
+                    "kya": f"{q.get('dead')} task(s) dead/exhausted (dlq:dead, retry budget khatam)",
+                    "fix": "Reliability Console (/app/office#reliability) me inspect karo — manual retry ya root-cause fix chahiye",
+                }
+            )
+        if h.get("retryable_failed_present") and not h.get("queue_backlogged"):
+            problems.append(
+                {
+                    "kya": f"{q.get('dlq')} task DLQ me (dlq:failed_tasks, retry-able)",
+                    "fix": "dlq_retry sweep ka wait karo ya Reliability Console se manual retry karo",
                 }
             )
     except Exception as e:
