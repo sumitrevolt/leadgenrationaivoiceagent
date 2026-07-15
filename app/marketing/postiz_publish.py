@@ -131,7 +131,10 @@ async def publish_video(
 ) -> dict[str, Any]:
     """Video+caption (ya text-only, video_path="" ho to) ko client ke configured
     Postiz channels pe ABHI post karo. Inert agar key/integration-ids missing.
-    Returns {sent, channels, reason}.
+    Returns {sent, channels, post_id, post_ids, post_url, reason}.  Postiz's
+    create-post API returns one ``postId`` per integration; preserving those
+    ids is mandatory launch evidence (``sent=True`` alone only proves that the
+    request was accepted, not which provider records were created).
 
     2026-07-04 fix: pehle video_path na hone pe hard-fail karta tha ("media
     upload fail") — isliye daily auto_content captions (jo text-only hote,
@@ -188,9 +191,14 @@ async def publish_video(
         youtube_title = "LeadsGenAI Update"
 
     def _settings_for(integration_id: str) -> dict[str, Any]:
+        # Current Postiz public API requires ``__type`` to identify the
+        # provider-specific settings schema.  Keep the older fields too: the
+        # self-hosted image validates them for X/Instagram/YouTube.
+        provider_type = platform_map.get(integration_id) or ""
+        typed = {**base_settings, **({"__type": provider_type} if provider_type else {})}
         if platform_map.get(integration_id) == "youtube":
-            return {**base_settings, "title": youtube_title, "type": "public"}
-        return base_settings
+            return {**typed, "title": youtube_title, "type": "public"}
+        return typed
 
     body = {
         "type": "now",
@@ -210,9 +218,36 @@ async def publish_video(
         ok = r.status_code // 100 == 2
         if not ok:
             logger.warning(f"[postiz] create {r.status_code}: {r.text[:160]}")
+        payload: Any = None
+        if ok:
+            try:
+                payload = r.json()
+            except Exception:
+                payload = None
+        entries = payload if isinstance(payload, list) else []
+        if isinstance(payload, dict):
+            nested = payload.get("posts")
+            entries = nested if isinstance(nested, list) else [payload]
+        post_ids = [
+            str(item.get("postId") or item.get("post_id") or item.get("id") or "")
+            for item in entries
+            if isinstance(item, dict)
+            and (item.get("postId") or item.get("post_id") or item.get("id"))
+        ]
+        post_urls = [
+            str(item.get("releaseURL") or item.get("postUrl") or item.get("url") or "")
+            for item in entries
+            if isinstance(item, dict)
+            and (item.get("releaseURL") or item.get("postUrl") or item.get("url"))
+        ]
+        if ok and not post_ids:
+            logger.warning("[postiz] create succeeded but response had no postId evidence")
         return {
             "sent": ok,
             "channels": ids,
+            "post_id": post_ids[0] if post_ids else "",
+            "post_ids": post_ids,
+            "post_url": post_urls[0] if post_urls else "",
             **({} if ok else {"reason": f"{r.status_code}: {r.text[:160]}"}),
         }
     except Exception as e:
