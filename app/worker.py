@@ -90,6 +90,28 @@ def _route_video_task(name, args, kwargs, options, task=None, **kw):
     return None
 
 
+def _route_kb_refresh_task(name, args, kwargs, options, task=None, **kw):
+    """Router fn: ADR-104 kb_niche_refresh -> 'heavy' queue (sirf flag ON pe).
+    2026-07-15 live-prod finding: refresh_niche_task loads its own fastembed
+    model inside the fork on top of whatever the default queue's staff-job
+    battery is doing concurrently — 3x observed SIGKILL/WorkerLostError in the
+    leadgen_worker container's 2GB memcg limit (host had 5.2GB free; this was
+    a per-container cap collision, not host exhaustion). WorkerLostError
+    bypasses this task's own max_retries entirely (broker-level redelivery of
+    the same task id), so under sustained contention this could retry
+    indefinitely, each cycle burning ~90-120s and risking collateral OOM of
+    unrelated concurrent tasks sharing the container. worker-heavy already
+    exists (concurrency=1, 2.44GB, near-idle) for exactly this class of
+    problem — mirrors _route_video_task's exact pattern. Never touches
+    HEAVY_STAFF_JOBS or the default queue's existing routing."""
+    try:
+        if name == "app.tasks.kb_niche_refresh.refresh_niche_task" and _heavy_queue_enabled():
+            return {"queue": "heavy"}
+    except Exception as _e:
+        logger.debug("_route_kb_refresh_task routing failed, using default queue: %s", _e)
+    return None
+
+
 # Production-ready configuration
 celery_app.conf.update(
     # Serialization
@@ -103,6 +125,7 @@ celery_app.conf.update(
     task_routes=(
         _route_staff_task,
         _route_video_task,
+        _route_kb_refresh_task,
         {
             "app.tasks.scraping.*": {"queue": "scraping"},
             "app.tasks.calling.*": {"queue": "calling"},
