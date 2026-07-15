@@ -165,5 +165,22 @@ def test_refresh_niche_task_verifies_via_readiness_not_just_seed_ok(monkeypatch,
     assert fake_redis.store.get("kb:niche_refresh:state:solar") == "failed"
 
 
+def test_refresh_niche_task_time_limits_have_margin_above_measured_worst_case():
+    """ADR-104 A10 (2026-07-15) pin: worker_heavy's first-use-per-process
+    Qdrant/fastembed init measured at ~97-99s (bare, non-Celery script; 3
+    separate ForkPoolWorker instances, all consistent). A task racing a
+    fresh pool-respawn's still-in-flight worker_process_init warm-up blocks
+    on the same lock, then does its own ~26s of real work -> ~123s observed
+    worst case. 90/120 (the pre-A10 values) left ZERO margin for that path.
+    This pins the values so a future edit can't silently regress the margin
+    back to zero without a test failure forcing a conscious decision."""
+    limits = kbr.refresh_niche_task
+    assert limits.soft_time_limit == 180
+    assert limits.time_limit == 240
+    # keep real margin above the measured ~123s worst case, not just "bigger"
+    assert limits.soft_time_limit >= 150
+    assert limits.time_limit - limits.soft_time_limit >= 30
+
+
 if __name__ == "__main__":
     raise SystemExit(pytest.main([__file__, "-v"]))
