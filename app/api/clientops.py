@@ -74,8 +74,18 @@ async def list_approvals(
     status: str = Query("", max_length=12),
     _user=Depends(require_admin),
 ):
-    """Approvals list — ?status=pending se sirf pending."""
+    """Approvals list — ?status=pending se sirf pending.
+
+    ADR-104 (2026-07-15, Priority 3): each row now also carries
+    ``business_name`` (and ``client_status``) so the admin Approvals table
+    can show a readable business name instead of the raw opaque client id.
+    One bulk ``list_clients()`` call builds an id→name map (single file
+    read, not a per-row lookup) — deleted/missing clients degrade to the
+    raw id, never raise. Only the public business name is exposed here,
+    never phone/email/other client fields.
+    """
     from app.marketing import content_approval
+    from app.marketing.clients_store import list_clients
 
     if status == "pending":
         rows = content_approval.pending(client_id)
@@ -83,6 +93,23 @@ async def list_approvals(
         rows = content_approval.list_all(client_id)
         if status:
             rows = [r for r in rows if r.get("status") == status]
+
+    try:
+        name_by_id = {
+            str(c.get("id")): str(c.get("business_name") or "").strip()
+            for c in list_clients()
+            if c.get("id")
+        }
+    except Exception as _e:  # pragma: no cover — never let enrichment break the list
+        logger.debug("approvals business_name enrichment skipped: %s", _e)
+        name_by_id = {}
+
+    for r in rows:
+        cid = str(r.get("client_id") or "")
+        name = name_by_id.get(cid, "")
+        r["business_name"] = name or None  # None = deleted/unknown client, UI falls back to id
+        r["client_status"] = "unknown" if cid and cid not in name_by_id else "ok"
+
     return {"ok": True, "count": len(rows), "approvals": rows}
 
 

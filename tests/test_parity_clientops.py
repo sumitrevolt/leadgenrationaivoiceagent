@@ -319,6 +319,73 @@ def test_maybe_assign_when_configured(tmp_path, monkeypatch):
     assert out["assigned_to"]["name"] == "A"
 
 
+def test_list_approvals_enriches_business_name(tmp_path, monkeypatch):
+    """ADR-104 (2026-07-15, Priority 3): GET /api/clientops/approvals now adds
+    business_name (+ client_status) to each row so the admin Approvals table
+    can show a readable name instead of the raw client id. Known client ->
+    business_name populated, client_status='ok'. Deleted/unknown client ->
+    business_name=None, client_status='unknown', client_id untouched (never
+    dropped) so the approve/reject buttons still work."""
+    import asyncio
+
+    from app.api import clientops
+    from app.marketing import content_approval as ca
+    from app.marketing import clients_store
+
+    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "approvals.jsonl"))
+    ca.submit("known-1", {"title": "Diwali post", "caption": "20% off"})
+    ca.submit("deleted-99", {"title": "Old post", "caption": "gone client"})
+
+    monkeypatch.setattr(
+        clients_store,
+        "list_clients",
+        lambda status=None, product=None: [
+            {"id": "known-1", "business_name": "Sharma Solar"},
+            {"id": "other-client", "business_name": "Verma Gym"},
+        ],
+    )
+
+    result = asyncio.get_event_loop().run_until_complete(
+        clientops.list_approvals(client_id="", status="pending")
+    )
+    assert result["ok"] is True
+    by_client = {r["client_id"]: r for r in result["approvals"]}
+
+    assert by_client["known-1"]["business_name"] == "Sharma Solar"
+    assert by_client["known-1"]["client_status"] == "ok"
+
+    assert by_client["deleted-99"]["business_name"] is None
+    assert by_client["deleted-99"]["client_status"] == "unknown"
+    # client_id itself must survive untouched -- decide buttons need it
+    assert by_client["deleted-99"]["client_id"] == "deleted-99"
+
+
+def test_list_approvals_enrichment_never_raises_on_store_failure(tmp_path, monkeypatch):
+    """If clients_store.list_clients() itself errors, the approvals list must
+    still return successfully (fail-open enrichment, per project convention:
+    external/secondary lookups never crash the primary response)."""
+    import asyncio
+
+    from app.api import clientops
+    from app.marketing import content_approval as ca
+    from app.marketing import clients_store
+
+    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "approvals2.jsonl"))
+    ca.submit("client-z", {"title": "Post", "caption": "x"})
+
+    def _boom(status=None, product=None):
+        raise RuntimeError("store unavailable")
+
+    monkeypatch.setattr(clients_store, "list_clients", _boom)
+
+    result = asyncio.get_event_loop().run_until_complete(
+        clientops.list_approvals(client_id="", status="pending")
+    )
+    assert result["ok"] is True
+    assert result["approvals"][0]["client_id"] == "client-z"
+    assert result["approvals"][0]["business_name"] is None
+
+
 def test_approval_decide_for_client(tmp_path, monkeypatch):
     from app.marketing import content_approval as ca
 
