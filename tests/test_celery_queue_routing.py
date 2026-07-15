@@ -139,3 +139,45 @@ def test_static_routes_unchanged_by_video_addition():
     # video is router-fn based (like "heavy"), NOT added to the static dict —
     # this assertion must stay exactly as it is today.
     assert _statically_routed_queues() == {"scraping", "calling", "reporting", "sync", "training"}
+
+
+def test_kb_refresh_router_routes_when_flag_on(monkeypatch):
+    """2026-07-15 — ADR-104 kb_niche_refresh moved off the default queue after
+    a live-prod OOM finding (see app/worker.py._route_kb_refresh_task
+    docstring): it collided with the default queue's staff-job battery inside
+    leadgen_worker's 2GB memcg limit, got SIGKILL'd 3x via WorkerLostError
+    (which bypasses the task's own max_retries — broker-level redelivery of
+    the same task id, unbounded). worker-heavy already exists + is already
+    consumed by every compose worker's -Q (see tests above) — no compose
+    change needed, only this routing rule."""
+    from app import worker
+
+    monkeypatch.setenv("CELERY_HEAVY_QUEUE", "1")
+    route = worker._route_kb_refresh_task(
+        "app.tasks.kb_niche_refresh.refresh_niche_task", (), {}, {}
+    )
+    assert route == {"queue": "heavy"}
+
+
+def test_kb_refresh_router_none_when_flag_off(monkeypatch):
+    from app import worker
+
+    monkeypatch.delenv("CELERY_HEAVY_QUEUE", raising=False)
+    route = worker._route_kb_refresh_task(
+        "app.tasks.kb_niche_refresh.refresh_niche_task", (), {}, {}
+    )
+    assert route is None
+
+
+def test_kb_refresh_router_none_for_other_tasks(monkeypatch):
+    from app import worker
+
+    monkeypatch.setenv("CELERY_HEAVY_QUEUE", "1")
+    route = worker._route_kb_refresh_task("app.tasks.scraping.scrape_leads", (), {}, {})
+    assert route is None
+
+
+def test_static_routes_unchanged_by_kb_refresh_addition():
+    # kb_refresh is router-fn based (like "heavy"/"video"), NOT added to the
+    # static dict — this assertion must stay exactly as it is today.
+    assert _statically_routed_queues() == {"scraping", "calling", "reporting", "sync", "training"}
