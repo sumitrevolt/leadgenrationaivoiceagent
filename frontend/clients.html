@@ -408,6 +408,7 @@
   // confirms; opening it makes no network request.
   function actionConfirmModal(opts){
     opts = opts || {};
+    var dangerous = !!opts.dangerous;
     return new Promise(function(resolve){
       var overlay = document.createElement('div');
       overlay.setAttribute('data-testid','action-confirm-modal-overlay');
@@ -415,18 +416,20 @@
       var box = document.createElement('div');
       box.style.cssText = 'background:#fff;border-radius:14px;max-width:480px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit;color:#111';
       box.innerHTML =
-        '<div style="font-weight:800;font-size:16px;margin-bottom:10px">Confirm content status change</div>' +
+        '<div style="font-weight:800;font-size:16px;margin-bottom:10px">' + (dangerous ? '⚠️ Force-deliver confirmation' : 'Confirm content status change') + '</div>' +
         '<div style="font-size:13.5px;line-height:1.7">' +
           '<div><b>Client:</b> ' + esc(opts.customer||'') + '</div>' +
-          '<div><b>Content:</b> ' + esc(opts.contentTitle||'') + '</div>' +
+          (opts.contentTitle ? '<div><b>Content:</b> ' + esc(opts.contentTitle||'') + '</div>' : '') +
           '<div><b>Action:</b> ' + esc(opts.action||'') + '</div>' +
-          '<div style="margin-top:8px;padding:8px;border-radius:8px;background:#f0fdf4;color:#166534">' +
-            'This only updates the internal status record. It does NOT post publicly and does not contact any external channel right now.' +
+          '<div style="margin-top:8px;padding:8px;border-radius:8px;background:' + (dangerous ? '#fef2f2' : '#f0fdf4') + ';color:' + (dangerous ? '#991b1b' : '#166534') + '">' +
+            (dangerous
+              ? 'This bypasses normal delivery gating and WILL attempt to actually deliver/contact this real customer right now (force=True). It does not change any flag for other customers.'
+              : 'This only updates the internal status record. It does NOT post publicly and does not contact any external channel right now.') +
           '</div>' +
         '</div>' +
         '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">' +
           '<button data-testid="acm-cancel" style="padding:9px 16px;border-radius:9px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:700">Cancel</button>' +
-          '<button data-testid="acm-confirm" style="padding:9px 16px;border-radius:9px;border:none;cursor:pointer;font-weight:800;color:#fff;background:#4f46e5">' + esc(opts.confirmLabel || 'Confirm') + '</button>' +
+          '<button data-testid="acm-confirm" style="padding:9px 16px;border-radius:9px;border:none;cursor:pointer;font-weight:800;color:#fff;background:' + (dangerous ? '#dc2626' : '#4f46e5') + '">' + esc(opts.confirmLabel || 'Confirm') + '</button>' +
         '</div>';
       overlay.appendChild(box);
       document.body.appendChild(overlay);
@@ -795,6 +798,21 @@
     if(btn) btn.onclick = function(){ deliverNow(c); };
   }
   async function deliverNow(c){
+    // ADR-104 Phase F (2026-07-15): this is the highest-severity unconfirmed
+    // action found this session -- it calls POST /api/admin/clients/{id}/
+    // deliver-now -> customer_delivery.deliver_client_value(force=True),
+    // a REAL forced delivery to a real paid customer, bypassing normal
+    // gating, with zero confirmation of any kind before this fix. Discovered
+    // live while viewing Jiya Makeover Studio's Delivery Timeline panel --
+    // never clicked on Jiya's real button; gated + verified using Cancel and
+    // a synthetic test client only.
+    var ok = await actionConfirmModal({
+      customer: c.business_name || c.id,
+      action: 'Force-deliver now (bypasses normal delivery gating)',
+      confirmLabel: 'Deliver now',
+      dangerous: true
+    });
+    if(!ok) return;
     var btn = document.getElementById("btnDeliverNow");
     setBusy(btn, true);
     try{

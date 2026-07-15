@@ -19,6 +19,15 @@ real mistake this page had zero protection against.
 
 Same test convention as test_action_confirm_modal.py: pure text/structure
 assertions against the shipped HTML/JS (no JS runtime assumed on PATH).
+
+Follow-up same file, same walkthrough: the "Deliver Now" button on this same
+page's Delivery Timeline panel (deliverNow() -> POST /api/admin/clients/{id}/
+deliver-now -> customer_delivery.deliver_client_value(client, force=True)) is
+a REAL forced delivery to a real paid customer that bypasses normal delivery
+gating -- the highest-severity unconfirmed action found this session -- and
+also had zero confirmation. The modal was extended with a `dangerous` variant
+(red, "WILL attempt to actually deliver/contact this real customer") reusing
+the same actionConfirmModal, rather than duplicating a second modal.
 """
 
 from __future__ import annotations
@@ -133,3 +142,33 @@ def test_modal_receives_client_and_content_context():
     body = _function_body(t, "function renderItems(c){")
     assert "c.business_name" in body
     assert "titleForModal" in body
+
+
+# --------------------------------------------------------------------------- #
+# "Deliver Now" (deliverNow()) -- highest-severity unconfirmed action found
+# this session: a REAL forced delivery to a real paid customer, bypassing
+# normal gating, that had zero confirmation before this fix.
+# --------------------------------------------------------------------------- #
+
+
+def test_modal_supports_a_dangerous_variant_for_real_customer_contact():
+    t = _text()
+    body = _modal_body(t)
+    assert "opts.dangerous" in body
+    assert "WILL attempt to actually deliver/contact this real customer" in body
+
+
+def test_delivernow_gated_by_modal_before_its_api_call():
+    t = _text()
+    body = _function_body(t, "async function deliverNow(c){")
+    modal_idx = body.index("actionConfirmModal(")
+    dangerous_idx = body.index("dangerous: true")
+    guard_idx = body.index("if(!ok) return")
+    api_idx = body.index('callApi("/api/admin/clients/')
+    assert modal_idx < dangerous_idx < guard_idx < api_idx
+
+
+def test_delivernow_modal_call_passes_customer_name():
+    t = _text()
+    body = _function_body(t, "async function deliverNow(c){")
+    assert "customer: c.business_name || c.id" in body
