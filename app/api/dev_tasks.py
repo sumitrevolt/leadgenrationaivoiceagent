@@ -6,9 +6,9 @@ import json
 import os
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -19,12 +19,28 @@ from app.dev_control import delivery as _delivery
 from app.dev_control import deploy as _deploy
 from app.dev_control import reconcile as _reconcile
 from app.dev_control.registry import MODEL_CATALOG, route_preview
+from app.dev_control.governor_auth import governor_auth_status, verify_governor_attestation
+from app.dev_control.governor_reviews import (
+    load_worker_report,
+    record_governor_review,
+    review_gate_status,
+)
 from app.dev_control.service import TaskState
 from app.models.base import get_async_db
 from app.models.dev_task import DevTask
 from app.models.dev_usage import DevTaskUsage
 
 router = APIRouter(prefix="/dev-tasks", tags=["Dev Task Control Plane"])
+
+_DUAL_REVIEW_GATED_STATES = {
+    TaskState.TESTS_RUNNING,
+    TaskState.STAGING_READY,
+    TaskState.STAGING_DEPLOYED,
+    TaskState.PRODUCTION_APPROVAL_REQUIRED,
+    TaskState.PRODUCTION_DEPLOYED,
+    TaskState.DELIVERY_VERIFICATION,
+    TaskState.COMPLETED,
+}
 
 
 def _enabled() -> bool:
@@ -182,6 +198,8 @@ async def transition_task(
     task = await db.get(DevTask, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="task not found")
+    if body.state in _DUAL_REVIEW_GATED_STATES and not review_gate_status(task.worker_report)["approved"]:
+        raise HTTPException(status_code=409, detail="dual_governor_review_required")
     from app.dev_control.service import InvalidTransition, transition
 
     record = {"state": task.state}
@@ -278,7 +296,13 @@ async def record_report(
     task = await db.get(DevTask, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="task not found")
-    task.worker_report = json.dumps(body.model_dump())
+    existing = load_worker_report(task.worker_report)
+    controlled = {
+        key: existing[key]
+        for key in ("proposal_artifact", "proposal_sha256", "governor_reviews")
+        if key in existing
+    }
+    task.worker_report = json.dumps({**body.model_dump(), **controlled})
     task.test_evidence = json.dumps({"commands": body.tests_executed, "result": body.test_result})
     task.updated_at = datetime.utcnow()
     await db.commit()
@@ -296,6 +320,13 @@ async def record_report(
 class PromoteStagingRequest(BaseModel):
     tests_passed: bool = True
     evidence: dict[str, Any] = Field(default_factory=dict)
+
+
+class GovernorReviewRequest(BaseModel):
+    governor: Literal["claude", "chatgpt"]
+    decision: Literal["approve", "changes_requested", "reject"]
+    artifact_hash: str = Field(..., min_length=64, max_length=64, pattern=r"^[0-9a-fA-F]{64}$")
+    summary: str = Field("", max_length=1000)
 
 
 class RequestApprovalRequest(BaseModel):
@@ -396,6 +427,61 @@ async def promote_staging(
     if not out.get("ok"):
         raise HTTPException(status_code=409, detail=out.get("reason", "cannot_promote"))
     return out
+
+
+@router.post("/{task_id}/governor-review")
+async def record_governor_review_endpoint(
+    task_id: str,
+    body: GovernorReviewRequest,
+    db: AsyncSession = Depends(get_async_db),
+    x_governor_timestamp: str | None = Header(None, alias="X-Governor-Timestamp"),
+    x_governor_nonce: str | None = Header(None, alias="X-Governor-Nonce"),
+    x_governor_signature: str | None = Header(None, alias="X-Governor-Signature"),
+) -> dict[str, Any]:
+    """Record one authenticated review; never store signature/provider output."""
+    _require_enabled()
+    attestation = verify_governor_attestation(
+        task_id=task_id,
+        governor=body.governor,
+        decision=body.decision,
+        artifact_hash=body.artifact_hash,
+        summary=body.summary,
+        issued_at=x_governor_timestamp,
+        nonce=x_governor_nonce,
+        signature=x_governor_signature,
+    )
+    if not attestation["ok"]:
+        raise HTTPException(status_code=403, detail="governor_attestation_invalid")
+
+    # Serialize reviews for the same task so one nonce cannot win two races.
+    task = await db.scalar(select(DevTask).where(DevTask.id == task_id).with_for_update())
+    if not task:
+        raise HTTPException(status_code=404, detail="task not found")
+    if task.state != TaskState.REVIEW_REQUIRED.value:
+        raise HTTPException(status_code=409, detail="task_not_awaiting_review")
+    try:
+        report = record_governor_review(
+            task.worker_report,
+            governor=body.governor,
+            decision=body.decision,
+            artifact_hash=body.artifact_hash,
+            summary=body.summary,
+            reviewed_by=f"governor:{body.governor}",
+            attestation_version=attestation["version"],
+            attestation_nonce=str(x_governor_nonce),
+        )
+    except ValueError as exc:
+        detail = "governor_attestation_replayed" if str(exc) == "attestation_replayed" else str(exc)
+        raise HTTPException(status_code=409, detail=detail) from exc
+    task.worker_report = json.dumps(report)
+    if body.decision == "changes_requested":
+        task.state = TaskState.CHANGES_REQUESTED.value
+    elif body.decision == "reject":
+        task.state = TaskState.FAILED.value
+    task.updated_at = datetime.utcnow()
+    await db.commit()
+    await db.refresh(task)
+    return {"task": _row(task), "review_gate": review_gate_status(report)}
 
 
 @router.post("/{task_id}/request-approval")
