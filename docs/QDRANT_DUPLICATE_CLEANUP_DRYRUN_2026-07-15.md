@@ -146,3 +146,60 @@ case all 8 duplicates are confined to an internal RAG quality-gate test namespac
 (`ab:ragquality`/`ab:ragtest`), not real niche-catalog or customer content. **Note that this is
 far smaller than the ~215,000 originally assumed** — that number does not match current
 production state; the true count is 8. Approve production cleanup?
+
+---
+
+## EXECUTION EVIDENCE — 2026-07-15 (approved and executed same session)
+
+Approved by the user with explicit safety requirements (delete only the 8 verified points,
+restrict to the internal test namespace, retain one canonical copy each, never touch
+customer/catalog/`_global`/Jiya/other-tenant data, record before/after counts, verify
+collection+app health, abort if live scope differs from approved scope, append rather than
+overwrite this report).
+
+**Script:** `scripts/qdrant_dedupe_cleanup_2026-07-15.py` — hardcodes the exact 7 approved
+fingerprint→(keep, drop-ids) pairs from this report, re-scans production `kb_main` live,
+aborts with no deletion if the live drop-id set doesn't exactly equal the approved set or if
+any drop id falls outside `ab:ragquality`/`ab:ragtest`, then deletes via an explicit
+`qmodels.PointIdsList(points=DROP_IDS)` — never a filter-based or namespace-wide delete.
+Executed via `docker exec leadgen_app python /tmp/qdrant_dedupe_cleanup_2026-07-15.py`.
+
+**Pre-execution baseline (unchanged from dry-run):**
+- `kb_main.points_count` = 1481, `status` = green
+- All 5 app-image containers + `leadgen_qdrant`: healthy, app uptime 36m (no restart pending)
+- `/health` → 200, `version: 5f65979c`
+
+**Live revalidation (before deleting anything):**
+- Live duplicate fingerprints: **7** (matches approved: 7)
+- Live extra/duplicate point count: **8** (matches approved: 8)
+- Live drop-id set == approved drop-id set: **True** — exact match, proceeded
+- All 8 drop ids confirmed confined to `ab:ragquality`/`ab:ragtest` — no scope drift
+
+**Deletion executed:** explicit `PointIdsList` delete of exactly these 8 ids —
+`450f4c6f-fb5a-4c9c-9e9e-7805a134758d`, `51da46e5-011c-4cda-8154-bc5571b039eb`,
+`7ac06641-a726-4ecc-ae83-8e386c728920`, `9ff5d624-9a21-534b-a0e5-25c7a85d2c21`,
+`a870bf1f-1685-4205-a6ea-18de6b57adc7`, `d401da52-a431-4067-bd66-03a0e0d2f336`,
+`e54603b0-4df8-4eab-bdae-e21a65425703`, `e6a6e099-2164-4d48-832b-9190c3e6c4fd`.
+
+**Post-execution counts and verification:**
+
+| Check | Before | After | Result |
+|---|---|---|---|
+| `kb_main.points_count` | 1481 | 1473 | delta = 8, exactly as expected |
+| `kb_main.status` | green | green | unchanged |
+| Duplicate fingerprints remaining | 7 | **0** | fully resolved |
+| Canonical (keep) points present | — | **7/7** | all retained copies confirmed still present |
+| `solar_residential` namespace count | 25 | 25 | **unchanged** |
+| `insurance` namespace count | 25 | 25 | **unchanged** |
+| `ai_marketing` namespace count | 27 | 27 | **unchanged** |
+| `home_loans` namespace count | 25 | 25 | **unchanged** |
+| `_global` namespace count | 379 | 379 | **unchanged** |
+| `ab:ragquality` namespace count | 13 | 6 | −7, matches approved scope |
+| `ab:ragtest` namespace count | 5 | 4 | −1, matches approved scope |
+| `/health` | 200, `5f65979c` | 200, `5f65979c` | unchanged |
+| App container | Up 36m, healthy | Up 36m, healthy | **no restart occurred** |
+| Qdrant container | Up 6d, healthy | Up 6d, healthy | **no restart occurred** |
+
+**Outcome:** exactly the 8 approved points deleted, nothing else. No customer, catalog, `_global`,
+Jiya, or other-tenant data touched. No container restart, no OOM, no app degradation. Cleanup
+complete and fully verified.
