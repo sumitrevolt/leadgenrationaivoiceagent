@@ -2,6 +2,75 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-15 - ADR-100 `/health` cacheable tha — drift detector khud STALE bol sakta tha
+
+Decision: `_mark_no_store()` helper (`app/api/health.py`) ab `/health`, `/health/live`,
+`/health/ready`, `/health/signup` pe `Cache-Control: no-store, no-cache,
+must-revalidate, max-age=0` + `Pragma`/`Expires` bhejta hai. Header-only, additive —
+body/status bilkul same. Test: `tests/test_health_no_store.py` (5 green).
+
+Context: 2026-07-15 admin audit ka **pehla** `GET https://leadsgenai.in/health` ne
+12.7-GHANTE purana body diya — `version: 91e7d37`, `uptime: 13m 53s`,
+`timestamp: 2026-07-14T12:59:06` — jabki prod asal me `b12d1e97` chala raha tha
+(uptime 8h24m). Response me kuch bhi stale nahi lag raha tha. Sirf `?cb=` query-string
+(alag cache key) lagane pe sach dikha. Root enabler CONTROL-TEST se proven: `/health`
+bare dict lautata tha bina kisi cache directive ke — `Cache-Control = None`, bilkul
+waise hi jaise abhi-bhi-unfixed `/health/platform` (control). Bina directive ke response
+browser/proxy heuristically cache kar sakta hai (RFC 9111 §4.2.2). KAUNSI layer ne cache
+kiya ye jaanna zaroori NAHI — `no-store` poori class ko source pe band karta hai.
+
+Ye cosmetic NAHI: CLAUDE.md khud `/health` ke `version` field ko THE deploy-drift
+detector declare karta hai ("/health ka version field hi tumhara drift detector hai").
+ADR-097 ne wo case harden kiya jahan running image ki provenance UNKNOWN thi; ye wahi
+failure ek layer bahar — provenance **REPORT** hi stale tha, aur pure confidence ke saath
+jhooth bol raha tha. Jo drift detector cache se serve ho sakta hai wo galat SHA dikha ke
+ek skewed/unversioned deploy ko chupke nikal jaane deta hai.
+
+Alternatives rejected: (a) Caddy pe cache header lagana — app hi source hai, aur app
+direct-hit (`127.0.0.1:8000`) pe bhi directive-less tha; (b) sirf `/health` fix karna —
+`/health/ready` bhi live dependency state + version deta hai, wo bhi stale ho sakta tha;
+(c) pehle "kaunsi layer ne cache kiya" debug karna — mechanism jaane bina bhi fix same hai.
+
+Consequence: `/health` ab drift-detector ke roop me trustworthy. **Sabak (ADR-095/096/
+098/099 ka hi parivar): field ek CLAIM hai, measurement nahi — aur ek FRESH-dikhne-wala
+stale response sabse khatarnak claim hai, kyunki usme koi staleness signal hi nahi hota.**
+Verify karte waqt cache-buster lagao ya `docker exec` se andar se pucho.
+Rollback: `git revert dbc6c48` (header-only, zero data/state impact).
+
+## 2026-07-15 - ADR-101 (FINDING, fix pending) Headline `Est. MRR` 4x inflated — ADR-095 ka gate revenue metric pe laga hi nahi
+
+Finding (implement NAHI kiya — billing-truth touch = contract test FIRST, §6):
+Admin dashboard EK HI PAGE pe DO alag MRR bolta hai:
+- Top KPI: **`Est. MRR ₹8.0K`** (`▲ Mktg ₹8.0K`)
+- Revenue Analytics panel: **`MRR ₹2.0K`**, `Active: 1`
+
+Code (`app/api/admin_dashboard_builders.py:598-603`): `estimated_mrr` = har us client ka
+`_client_mrr(c)` jiska `status == "active"` — **payment evidence ka koi check nahi**.
+Live browser truth (2026-07-15 `/app/admin`): Jiya ₹1,999 (real, invoice `d79d690f61b3`)
++ **Test Biz ₹2,999** (ADR-095 me KHUD synthetic declare kiya — `1f89031d621a`, 0 invoices)
++ **leadgenai-self ₹2,999** (company ka APNA internal tenant — customer revenue hai hi nahi)
+= ₹7,997 ≈ ₹8.0K. Asli MRR = **₹1,999** (Jiya only) — jo Revenue Analytics ka ₹2.0K +
+`Active: 1` + CLAUDE.md ka "1 real paying customer" — teeno se match karta hai.
+
+Matlab founder ka headline revenue number **4x inflated** hai, aur wo bilkul wahi bug-class
+hai jo ADR-095 ne already solve kiya: "plan selected ≠ paid". ADR-095 ne `has_paid_evidence()`
+(tri-state, invoice-backed, fail-OPEN) banaya aur dead-man detector pe laga diya — par
+**revenue metric pe laga hi nahi**. Fix = wahi maujooda helper `estimated_mrr` pe reuse karo
+(naya system mat banao), + `test_billing_truth_2026.py` me contract test.
+
+Saath me: wahi synthetic data admin ke "📋 Aapke kaam" queue me **"4 UPI payment activate
+karo — Customer ne pay kiya (revenue ruka)"** bhi bana raha hai. Chaaron rows synthetic test
+numbers hain (`9123456780`, `9876543299/11/10` = Fresh Test Biz 42 + 3x Sharma Solar, sab
+Trial ₹0). Yaani founder ko roz "revenue ruka" dikh raha hai jabki koi paisa ruka hi nahi.
+
+**Pattern (ab TEESRI baar — naam do): synthetic/test tenants production alert + metric
+surfaces ko poison karte hain.** ADR-095 = synthetic `Test Biz` ne har ghante founder ko
+page kiya. ADR-096 = synthetic test numbers ne WhatsApp fail-rate 0.973 pe pahuncha ke Jiya
+ke ledger me roz jhootha `integration_failed` likha. Ab ADR-101 = wahi synthetic tenants MRR
+4x inflate kar rahe + jhootha "revenue ruka" bana rahe. Har baar fix point-fix raha. Asli
+structural fix: test/synthetic tenants ko ek hi jagah flag karo (`is_synthetic`) aur SAARE
+revenue/alert aggregations us gate se guzaro — warna chauthi baar bhi yehi hoga.
+
 ## 2026-07-14 - ADR-092 Sweep counters me dedupe `sent` se ALAG (audit sach bole)
 
 Decision: `notify_pending_approvals` ab `note` (`duplicate_suppressed`/`dedupe_race`)
@@ -698,3 +767,25 @@ Rejected alternative: compose `${APP_VERSION:?err}` (required-var) — it would 
 Decision: `data/social_engine.json` flipped `{"dry_run": true}` → `false` (backup `.bak-dryrun-20260714-170348`; `enabled` untouched). Code: `engine.process_queue()` now logs a LOUD WARNING on every dry-run drain and returns `dry_run` in its result dict so callers/dashboards can badge it instead of guessing. Behaviour is otherwise unchanged — dry-run still marks jobs `published` on purpose (that is the canary's point: exercise queue→ledger→timeline→cockpit without a live post).
 
 Consequence: LeadGen AI's own automated posting had not happened AT ALL. Root cause was NOT missing config — Postiz was fully wired (`POSTIZ_API_KEY` 64 chars, `POSTIZ_API_URL=https://postiz.leadsgenai.in/api`, 4 integrations resolving live to facebook/instagram/x/youtube, `postiz` provider `configured=True`, `_default_platforms('leadgenai-self')==['postiz']`) and generation was healthy (`content_queue/leadgenai-self.jsonl` = 41 items, latest 2026-07-14). The blocker was the 2026-07-11 canary gate left ON: the engine drained, FABRICATED `PublishResult(ok=True)`, and marked 6 self-brand jobs `published` (post_id empty) while never calling Postiz. Every surface said "published"; reality was zero posts, for three days. Nobody noticed because NOTHING said "dry run" — no log line, no field, no badge. This is the ADR-095/096 class (fake state on a real status surface) with the ADR-097 remedy (make the silent state loud). A canary that is indistinguishable from production is worse than no canary: it manufactures false confidence. Tests: 5 new cases pin the warning text, the `dry_run` flag both ways, that a REAL drain stays quiet (so the alarm keeps meaning something), and that the `SOCIAL_ENGINE` master gate still wins. Rollback = restore the `.bak` or set `SOCIAL_DRY_RUN=1` (env wins over file). NOTE: 6 historical jobs remain marked `published` from dry runs — deliberately NOT rewritten, since re-queuing them would post stale content.
+
+## 2026-07-14 — ADR-099 A readiness endpoint must report the EFFECTIVE config, not one of its sources
+
+Decision: `GET /api/growth/social/postiz/status` now reports resolved truth. `postiz_publish` gains three public, never-raising wrappers — `effective_integration_ids(client=None)` (delegates to `_integration_ids`, the real resolver), `integrations_source(client=None)` → `"client"|"env"|"vault"|"none"`, and `api_url()` (wraps `_base()`). The endpoint uses them for `integrations_count` / `api_url_set` / `api_url`, adds `integrations_source`, and keeps `vault_integrations_count` so the `configure` endpoint's own write stays observable. No behaviour change to publishing — this is purely a reporting fix.
+
+Consequence: the endpoint read ONLY `vault.get("_global","postiz").meta["integrations"]` and reported `integrations_count: 0`, while `_integration_ids()` resolves `client.postiz_integrations` → env `POSTIZ_INTEGRATIONS` → vault meta, and prod has all 4 channel ids in the ENV var (vault meta is `""`). So the status surface said "no channels configured" while `publish_video()` would proceed with 4 — verified live in-container: `enabled()=True`, `_base()='https://postiz.leadsgenai.in/api'`, `_integration_ids(self_client)` → the same 4 ids present in Postiz's own DB (`facebook/instagram/x/youtube`, none disabled/deleted). `api_url_set` had the identical bug (vault-only, ignores env `POSTIZ_API_URL`) and was false-negative-prone for the same reason. This is the ADR-095/096/098 family — a status surface asserting state it did not actually measure — but inverted: those three showed fake SUCCESS, this one showed fake FAILURE. Both send operators somewhere real evidence would not. Cost was paid immediately: this session read `integrations_count: 0`, concluded the integration ids were the missing piece, and was ~1 approval away from writing them into the vault — a **guaranteed no-op**, since env wins over vault in the very resolver being "fixed". The write was blocked by a permission gate, not by the reasoning; the reasoning only self-corrected when `_integration_ids()` was finally evaluated directly instead of inferred from the status JSON. Lesson matches ADR-097's causal-claim discipline: when a readiness field and a code path disagree, evaluate the code path — a field is a claim, not a measurement.
+
+Also corrected here: ADR-098's supporting line "4 integrations resolving live to facebook/instagram/x/youtube … `configured=True`" is TRUE but was read as proving the publish path was fully wired. It does not — `configured=True` is `postiz_publish.enabled()`, which checks the API KEY ONLY, and the live 4-integration resolution came from Postiz's API (`_fetch_integration_platforms`), which `publish_video()` calls AFTER the `_integration_ids()` early-return at line 145. Those signals are compatible with a publish path that never fires. They happened to be fine here (env supplied the ids), but the inference was unsound. ADR-098's actual decision (dry_run flip + loud warning) stands unchanged and remains correct.
+
+Verified: `tests/test_postiz_config.py` 11/11 green (5 new: env-over-vault precedence, vault fallback, client-record precedence, `"none"` when unconfigured, and a regression pin reproducing prod's exact shape — vault `integrations=""` + env set → count 3, source `"env"`, `enabled()=True`). Neighbouring suites 32/32 green. `prod_check.py` PASS (1102 routes, exit 0); `check_secrets.py` clean. Rollback = revert the two edits; the wrappers are additive and nothing else imports them yet.
+
+## 2026-07-14 — ADR-100 The team roster's "last activity" lookup is one query, not one per member
+
+Decision: `team.py` gains `_latest_events_per_member(db, AgentEvent, members)` — a single `row_number() OVER (PARTITION BY member ORDER BY created_at DESC)` query returning the newest `AgentEvent` per member (Postgres in prod, SQLite >= 3.25 in tests). `team_status()` calls it instead of looping `query(...).filter(member == m).first()` over every STAFF key with no event today. The helper falls back to the original per-member loop if the window path raises, so behaviour is identical either way, and returns `[]` if even that fails — preserving the block's pre-existing best-effort contract.
+
+Consequence: this was Sentry PYTHON-S (`performance_n_plus_one_db_queries`, transaction `app.api.admin_dashboard.admin_agents`, 1428ms, release `b12d1e97` = currently deployed). `STAFF` has **31** members, so every `GET /api/admin/agents` could issue up to 31 extra round trips. The pathology is inverted from normal load bugs: it got WORSE the QUIETER the system was, because `missing` = members with no event today. A busy roster hid it; an idle one — nights, weekends, exactly when nobody is watching the dashboard — paid the full 31. Chosen deliberately over "fetch all rows for these members and group in Python", which is unbounded on any member with a long history; the window function is bounded to one row per member by construction.
+
+Verified: `tests/test_team_latest_events_n1.py` 7/7 on a REAL in-memory SQLite session with a `before_cursor_execute` SELECT counter — a fake DB cannot prove "one query instead of N", and the query COUNT is the whole regression. The pin is proven to DISCRIMINATE: `test_one_query_regardless_of_member_count` asserts 10 members → 1 SELECT, and `test_the_old_loop_really_did_cost_n_queries` forces the fallback (which IS the pre-fix loop) and asserts 10 members → 10 SELECTs. Without that second test, `sql_count == 1` could have passed for the wrong reason and the pin would be decorative. Also covered: correctness of "latest" per member, members with zero events absent (not None-padded), fallback correctness, and never-raises on a dead DB. Neighbours 12/12 (incl. `test_team_pulse_no_hang`, the documented hang-risk area). `prod_check.py` PASS (1102 routes, exit 0); `check_secrets.py` clean. Rollback = revert both hunks in `team.py`.
+
+Sentry triage recorded with this loop (13 unresolved → **11 already fixed**, verified by END timestamp per ADR-097, not by absence): PYTHON-G/H/M/R (870 events, `voice_niches`) last fired `2026-07-14T10:07:25Z` and `eb20ee5` is an ancestor of deployed `b12d1e97` → fixed. PYTHON-K/N/P (277 events, `RouteHitMiddleware._record` loop-affinity/`Event loop is closed`/`Too many connections`) last fired `07:02:42Z`, ~2 min after `bb8dc01` ("fix(obs): make route hit counter loop safe", `07:00:26Z`), also an ancestor of `b12d1e97` → fixed, the tail is deploy rollover. PYTHON-V (unversioned image) fired while `:latest` ran; prod is now `b12d1e97` across app/worker/worker_heavy/worker_video/scheduler with zero skew → the ADR-097 guard worked as designed. **These 11 are stale, not broken — but they are now the noise that will hide the next real issue.** Still genuinely open and NOT addressed here: PYTHON-Q (`❌ CRITICAL routes missing after startup` naming the REVENUE path — `/api/billing/plans`, `/api/customer/auth/login`, `/api/public/signup`, `/api/upi/submit`; 9 events, 4 days ago, needs root-cause) and PYTHON-A/B (`RuntimeError: No response returned.`, 133 events, `admin_dashboard.get_hourly_activity` + `main.public_audit_page`).
+
+STILL-OPEN (not fixed here, needs operator): (1) `deploy/postiz/.env:4` `POSTIZ_DISABLE_REGISTRATION=false` + Postiz public at postiz.leadsgenai.in = **anyone can self-register** on the instance; account `sumitrevolt23@gmail.com` / org `leadgenai` already exists so flipping to `true` is lock-out-safe. (2) YouTube's Google OAuth client is in **testing** mode (per `docker-compose.postiz.yml` comment) → refresh tokens die after 7 days; Postiz DB shows `tokenExpiration=2026-07-08 04:30` for the youtube integration, so it is already stale and will need reconnecting until the Google app is published to production. FB/IG tokens expire 2026-09-01; X expires 2058.
