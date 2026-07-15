@@ -322,11 +322,17 @@ async def social_postiz_status(_user=Depends(require_admin)):
 
     rec = vault.get("_global", "postiz") or {}
     meta = rec.get("meta") or {}
-    integrations = str(meta.get("integrations") or "")
+    vault_integrations = str(meta.get("integrations") or "")
+    effective_ids = postiz_publish.effective_integration_ids()
     return {
         "postiz_configured": postiz_publish.enabled(),
-        "api_url_set": bool(meta.get("api_url")),
-        "integrations_count": len([x for x in integrations.split(",") if x.strip()]),
+        "api_url_set": bool(postiz_publish.api_url()),
+        "api_url": postiz_publish.api_url(),
+        "integrations_count": len(effective_ids),
+        "integrations_source": postiz_publish.integrations_source(),
+        "vault_integrations_count": len(
+            [x for x in vault_integrations.split(",") if x.strip()]
+        ),
         "social_engine_enabled": social_engine.enabled(),
     }
 
