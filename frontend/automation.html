@@ -2918,9 +2918,18 @@ async function apContentList(){
     rows.forEach(function(r){
       var title=esc((r.content&&r.content.title)||(r.content&&r.content.caption)||'post').slice(0,50);
       var cid2=esc(r.client_id||'');
-      h+='<tr><td class="mut">'+cid2+'</td><td>'+title+'</td><td class="mut">'+esc(String(r.created_at||'').slice(0,16))+'</td><td>'
-        +'<button class="btn2" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'approve\',\''+cid2+'\',\''+title.replace(/'/g,"\\'")+'\')">✓</button> '
-        +'<button class="btnd" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'reject\',\''+cid2+'\',\''+title.replace(/'/g,"\\'")+'\')">✕</button></td></tr>';
+      // ADR-104 (2026-07-15, Priority 3): business name as primary label,
+      // client id kept as secondary/tooltip text (never dropped, since the
+      // decide-action buttons and any support/debug reference still need the
+      // raw id). Deleted/unknown client -> honest "(unknown client)" fallback,
+      // never a blank cell or a crash.
+      var bizName=esc(r.business_name||'');
+      var clientCell = bizName
+        ? '<b>'+bizName+'</b><br><span class="mut" style="font-size:11px" title="Client ID: '+cid2+'">'+cid2.slice(0,12)+'</span>'
+        : '<span class="warn">(unknown client)</span><br><span class="mut" style="font-size:11px" title="Client ID: '+cid2+'">'+cid2.slice(0,12)+'</span>';
+      h+='<tr><td>'+clientCell+'</td><td>'+title+'</td><td class="mut">'+esc(String(r.created_at||'').slice(0,16))+'</td><td>'
+        +'<button class="btn2" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'approve\',\''+esc(bizName||cid2)+'\',\''+title.replace(/'/g,"\\'")+'\')">✓</button> '
+        +'<button class="btnd" onclick="apContentDecide(\''+esc(r.id||'')+'\',\'reject\',\''+esc(bizName||cid2)+'\',\''+title.replace(/'/g,"\\'")+'\')">✕</button></td></tr>';
     });
     $('apContentOut').innerHTML=h+'</table>';
   }catch(e){warnBox('apContentOut','Content approvals fail: '+e.message)}
