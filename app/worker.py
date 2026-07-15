@@ -5,6 +5,8 @@ Production-ready background task processing
 
 import logging
 import os
+import threading
+import time
 
 from celery import Celery, signals
 from celery.schedules import crontab
@@ -177,6 +179,55 @@ celery_app.conf.update(
 # ============================================
 # Celery Signals for Production Monitoring
 # ============================================
+
+
+@signals.worker_process_init.connect
+def on_worker_process_init(**kwargs):
+    """ADR-104 A10 (2026-07-15) — pre-warm the Qdrant/fastembed singleton on
+    worker_heavy boot, OFF the task time budget.
+
+    Measured finding: both post-routing-fix `kb_niche_refresh.refresh_niche_task`
+    executions on worker_heavy showed an IDENTICAL ~90s silent gap (zero log
+    output) ending exactly at the task's own `soft_time_limit=90s`, followed by
+    ~26-27s of real (fast) work once forcibly kicked onto the Chroma/keyword
+    fallback. That 90s ceiling is the task's OWN soft limit, not any timeout
+    inside knowledge_base.py (5s Qdrant client / 20s embed-load) — meaning the
+    true hang duration is UNKNOWN and would just grow if the limits were
+    raised (the trap: "increase limits to conceal an unresolved hang"). The
+    likely cause is first-use-per-process cold cost (qdrant_client/fastembed/
+    onnxruntime imports + ONNX model init) in a worker_heavy process that has
+    never touched Qdrant before — NOT a per-task workload property.
+
+    Fix: pay that cold cost once at process boot instead of inline during a
+    task's window, using the exact same code path a real task hits
+    (`get_knowledge_base().backend(namespace)` -> `_get_index` ->
+    `_build_index` -> `_try_qdrant` -> `_QdrantIndex()` ->
+    `_get_qdrant_client()`/`_get_qdrant_embedder()`), so this is a real warm-up
+    of the real singleton, not a separate parallel code path. Bounded by its
+    own daemon thread + join timeout so a genuinely broken Qdrant endpoint
+    still lets the worker become ready (task-time fallback logic is
+    unchanged and remains the safety net). Gated to worker_heavy only
+    (default worker/scheduler never run this task, no reason to pay the
+    cost) via the same `CELERY_HEAVY_QUEUE` flag `_route_kb_refresh_task`
+    checks — INERT elsewhere, matching this project's flag convention."""
+    if not _heavy_queue_enabled():
+        return
+
+    def _warm() -> None:
+        try:
+            from app.voice_agent.knowledge_base import get_knowledge_base
+
+            t0 = time.monotonic()
+            backend = get_knowledge_base().backend("solar_residential")
+            logger.info(
+                "[kb-warmup] worker_heavy Qdrant/fastembed warm-up done backend=%s duration_s=%.2f",
+                backend,
+                time.monotonic() - t0,
+            )
+        except Exception as e:
+            logger.warning("[kb-warmup] worker_heavy warm-up failed (non-fatal): %s", type(e).__name__)
+
+    threading.Thread(target=_warm, name="kb-warmup-boot", daemon=True).start()
 
 
 @signals.worker_ready.connect
