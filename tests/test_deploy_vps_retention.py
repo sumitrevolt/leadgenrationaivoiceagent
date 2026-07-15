@@ -81,7 +81,15 @@ def test_build_cache_retention_present_with_age_and_storage_floor():
     assert 'BUILD_CACHE_KEEP_STORAGE="${BUILD_CACHE_KEEP_STORAGE:-20GB}"' in t
     assert "docker builder prune -f" in t
     assert "--filter \"unused-for=$BUILD_CACHE_MAX_AGE\"" in t
-    assert '--keep-storage "$BUILD_CACHE_KEEP_STORAGE"' in t
+    # `--keep-storage` is deprecated on Docker 29.4.3 (verified live: silently
+    # reclaimed 0B against a real 40GB-reclaimable cache) -- `--max-used-space`
+    # is the confirmed working successor (docker builder prune --help). The
+    # env VAR name stays BUILD_CACHE_KEEP_STORAGE (its value is just passed to
+    # the new flag) -- only the actual command-line flag must never be the
+    # deprecated one.
+    assert '--max-used-space "$BUILD_CACHE_KEEP_STORAGE"' in t
+    command_lines = [ln for ln in t.splitlines() if not ln.strip().startswith("#")]
+    assert "--keep-storage" not in "\n".join(command_lines)
 
 
 def test_build_cache_retention_runs_after_verified_deploy_not_before():

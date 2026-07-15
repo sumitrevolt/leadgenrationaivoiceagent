@@ -203,20 +203,31 @@ echo "  disk now: $(df -h / | tail -1 | awk '{print $5" used, "$4" free"}')"
 # images (nothing above touches it) — it can grow unbounded across many
 # deploys with zero relationship to how many image tags are kept. Bounded by
 # BOTH age (a layer still reused every build never ages out — only genuinely
-# stale/orphaned cache is a target) AND a keep-storage floor (so this never
-# nukes cache that would just slow the NEXT build back down for no disk
-# benefit). Never touches running containers, the image just deployed,
-# rollback images, volumes, or app/customer data — `docker builder prune` is
-# scoped strictly to buildx's own cache namespace, disjoint from `docker
-# images`/`docker volume`. Runs only after the verified deploy above, same
-# as image retention.
+# stale/orphaned cache is a target) AND a size cap (so this never nukes cache
+# that would just slow the NEXT build back down for no disk benefit, EXCEPT
+# when total cache genuinely exceeds the cap — see flag note below). Never
+# touches running containers, the image just deployed, rollback images,
+# volumes, or app/customer data — `docker builder prune` is scoped strictly
+# to buildx's own cache namespace, disjoint from `docker images`/`docker
+# volume`. Runs only after the verified deploy above, same as image retention.
+#
+# FLAG NOTE (verified live on this VPS, Docker 29.4.3): the classic
+# `--keep-storage` flag is deprecated on this buildx version and silently
+# reclaimed 0B in a live test even with 40GB genuinely reclaimable — it does
+# NOT error, it just doesn't do what the name implies anymore, which would
+# have been a silent no-op every single deploy. `--max-used-space` is the
+# correct successor for "cap total cache at N, prune oldest-first beyond
+# that" (confirmed via `docker builder prune --help`): unlike `--filter
+# unused-for=`, it is NOT age-gated — if total cache exceeds the cap, buildx
+# prunes down to it regardless of age. That is the intended ceiling
+# behavior here, not a bug.
 BUILD_CACHE_MAX_AGE="${BUILD_CACHE_MAX_AGE:-168h}"        # 7 days unused
 BUILD_CACHE_KEEP_STORAGE="${BUILD_CACHE_KEEP_STORAGE:-20GB}"
 echo "=== BUILD CACHE (before) ==="
 docker system df | grep -E "TYPE|Build Cache" || true
 if docker builder prune -f --filter "unused-for=$BUILD_CACHE_MAX_AGE" \
-    --keep-storage "$BUILD_CACHE_KEEP_STORAGE" > /tmp/deploy_buildcache_prune.log 2>&1; then
-  echo "=== BUILD CACHE (after, unused-for>=$BUILD_CACHE_MAX_AGE reclaimed above $BUILD_CACHE_KEEP_STORAGE floor) ==="
+    --max-used-space "$BUILD_CACHE_KEEP_STORAGE" > /tmp/deploy_buildcache_prune.log 2>&1; then
+  echo "=== BUILD CACHE (after, unused-for>=$BUILD_CACHE_MAX_AGE reclaimed, capped at $BUILD_CACHE_KEEP_STORAGE) ==="
   docker system df | grep -E "TYPE|Build Cache" || true
 else
   echo "WARN: build-cache prune failed (non-fatal — deploy already verified). Tail:"
