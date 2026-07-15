@@ -851,7 +851,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/research/deep/run` — Run
 - `GET   ` `/api/research/deep/status` — Status
 
-### Dev Task Control Plane  (18)
+### Dev Task Control Plane  (19)
 
 - `GET   ` `/api/dev-tasks` — List Tasks
 - `POST  ` `/api/dev-tasks` — Create Task
@@ -863,6 +863,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/dev-tasks/{task_id}/approve-production` — Approve Production
 - `POST  ` `/api/dev-tasks/{task_id}/claim` — Claim Task
 - `POST  ` `/api/dev-tasks/{task_id}/finalize-delivery` — Finalize Delivery
+- `POST  ` `/api/dev-tasks/{task_id}/governor-review` — Record Governor Review Endpoint
 - `POST  ` `/api/dev-tasks/{task_id}/heartbeat` — Heartbeat Task
 - `POST  ` `/api/dev-tasks/{task_id}/promote-staging` — Promote Staging
 - `POST  ` `/api/dev-tasks/{task_id}/reject-production` — Reject Production
