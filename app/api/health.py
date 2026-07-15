@@ -63,13 +63,48 @@ def _get_uptime_seconds() -> float:
     return (datetime.utcnow() - _startup_time).total_seconds()
 
 
+# A health body answers "what code is running RIGHT NOW, and is it well?" — a
+# CACHED health body answers that about the past, which is worse than no answer:
+# it looks authoritative while being wrong.
+#
+# Live proof (2026-07-15 admin audit): the FIRST `GET /health` from a browser
+# returned a 12.7-hour-stale body advertising `version: 91e7d37`, `uptime: 13m`,
+# `timestamp: 2026-07-14T12:59` — while production was actually running
+# `b12d1e97` with 8h24m uptime. Nothing about the response looked stale. Only
+# adding a `?cb=` query string (a different cache key) revealed the truth.
+#
+# Root enabler: these endpoints returned a bare dict with NO cache directives,
+# and a response without Cache-Control/Expires is heuristically cacheable by
+# browsers and any intermediary (RFC 9111 §4.2.2). We do not need to know WHICH
+# layer cached it — `no-store` closes the whole class at the source.
+#
+# Why this matters beyond tidiness: CLAUDE.md designates `/health`'s `version`
+# field as THE deploy-drift detector ("/health ka version field hi tumhara drift
+# detector hai"). ADR-097 hardened the case where the running image's provenance
+# is unknown; this is the same failure one layer out — the provenance REPORT
+# itself was stale. A drift detector that can be served from cache can tell you
+# the wrong SHA and let a skewed/unversioned deploy pass unnoticed.
+_NO_STORE = "no-store, no-cache, must-revalidate, max-age=0"
+
+
+def _mark_no_store(response: Response) -> None:
+    """Forbid caching of a health/version report (see _NO_STORE rationale)."""
+    response.headers["Cache-Control"] = _NO_STORE
+    response.headers["Pragma"] = "no-cache"  # HTTP/1.0 + legacy proxies
+    response.headers["Expires"] = "0"
+
+
 @router.get("/health")
-async def health_check() -> dict[str, Any]:
+async def health_check(response: Response) -> dict[str, Any]:
     """
     Basic health check endpoint
     Used by Cloud Run for liveness probes
     Returns 200 if the service is running
+
+    Never cached — this response carries the deployed version and is the
+    documented deploy-drift detector.
     """
+    _mark_no_store(response)
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
@@ -86,6 +121,7 @@ async def liveness_check(response: Response):
     Returns 200 if the process is running
     Fast and lightweight - no external dependencies checked
     """
+    _mark_no_store(response)
     response.status_code = status.HTTP_200_OK
     return {"status": "alive"}
 
@@ -102,6 +138,7 @@ async def signup_health(response: Response) -> dict[str, Any]:
     per-check status when all four probes pass; 503 with per-check failure
     detail otherwise. Never raises.
     """
+    _mark_no_store(response)
     checks: dict[str, Any] = {}
     overall_healthy = True
 
@@ -183,6 +220,7 @@ async def readiness_check(response: Response) -> dict[str, Any]:
     Used by Cloud Run for readiness probes
     Returns 503 if any critical dependency is unhealthy
     """
+    _mark_no_store(response)
     checks = {}
     overall_healthy = True
 
