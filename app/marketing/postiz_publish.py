@@ -220,4 +220,47 @@ async def publish_video(
         return {"sent": False, "reason": str(e)[:150]}
 
 
-__all__ = ["enabled", "upload_media", "publish_video"]
+def effective_integration_ids(client: dict[str, Any] | None = None) -> list[str]:
+    """Return the channel ids the real publish path would resolve.
+
+    Resolution order deliberately matches ``_integration_ids``: client record,
+    then ``POSTIZ_INTEGRATIONS``, then vault metadata.  Keeping this as a public,
+    never-raise diagnostic prevents readiness surfaces from reporting vault-only
+    state while publishing is actually configured through the environment.
+    """
+    try:
+        return _integration_ids(client)
+    except Exception:  # pragma: no cover - diagnostic must never break admin UI
+        return []
+
+
+def integrations_source(client: dict[str, Any] | None = None) -> str:
+    """Return ``client`` / ``env`` / ``vault`` / ``none`` for effective ids."""
+    try:
+        if (client or {}).get("postiz_integrations"):
+            return "client"
+        if (os.getenv("POSTIZ_INTEGRATIONS") or "").strip():
+            return "env"
+        if _vault_cfg().get("integrations", ""):
+            return "vault"
+    except Exception:  # pragma: no cover - diagnostic must never break admin UI
+        pass
+    return "none"
+
+
+def api_url() -> str:
+    """Return the effective Postiz API base URL without raising."""
+    try:
+        return _base()
+    except Exception:  # pragma: no cover
+        return ""
+
+
+__all__ = [
+    "enabled",
+    "upload_media",
+    "publish_video",
+    "effective_integration_ids",
+    "integrations_source",
+    "api_url",
+]

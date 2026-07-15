@@ -36,6 +36,28 @@ Check `GET /api/growth/infra/flags` → read flag's ban/cost risk → enable in 
 6. Re-link WhatsApp if the session drops after rotation: `https://leadsgenai.in/app/whatsapp` → Self-host card → Start session → scan QR (phone: WhatsApp → Linked Devices → Link a Device).
 7. Treat the OLD key/token (committed in git history before 2026-07-14) as permanently burned — rotation (not history rewrite) is the fix; do not reuse those values anywhere.
 
+## Postiz env change / restart (⚠️ wrong command can stop the main stack)
+Both compose files share the implicit `leadgen` project name. **Never** pass
+`--remove-orphans` with `docker-compose.postiz.yml`.
+
+1. `cd /opt/leadgen` and back up `deploy/postiz/.env` with a timestamp.
+2. Edit only the Postiz env file; the main app `.env` remains untouched.
+3. Apply exactly:
+   `docker compose -f docker-compose.postiz.yml --env-file deploy/postiz/.env up -d`
+4. Confirm the app, DB, Redis, workers, scheduler and Postiz containers all remain up.
+5. Verify the main health endpoint and Postiz login before leaving the change.
+
+To close public registration, set `POSTIZ_DISABLE_REGISTRATION=true`; an existing
+operator account must be confirmed before the restart. For YouTube, reconnecting
+the channel is temporary while the Google OAuth consent screen is in testing mode;
+publish the OAuth app to production, then reconnect and verify the stored expiry.
+
+## Postiz publish readiness
+`GET /api/growth/social/postiz/status` reports the effective integration resolver
+(`client → env → vault`), not vault metadata alone. Before claiming publish proof,
+also confirm `data/social_engine.json` has `dry_run:false` and require a real,
+non-empty provider `post_id`/`post_url` plus a browser-visible external post.
+
 ## Prod incident (skill: `prod-incident-triage`)
 Health 000/502 → `docker ps` + logs → py-spy dump on stuck proc → recover (targeted restart, NOT blind) → root-cause → postmortem entry in `memory/incidents.md` + prevention rule. Self-heal cron `scripts/vps_selfheal.sh` */10 already running.
 

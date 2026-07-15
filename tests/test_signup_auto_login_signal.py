@@ -17,6 +17,19 @@ from __future__ import annotations
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _clear_signup_bucket(monkeypatch):
+    from app.api import public_site as ps
+
+    async def _allow_signup(_ip, _bucket="signup"):
+        return None
+
+    monkeypatch.setattr(ps, "_rate_check", _allow_signup)
+    ps._RL.clear()
+    yield
+    ps._RL.clear()
+
+
 def _stub_signup_side_effects(monkeypatch, cid: str = "c_al"):
     """Mirror pattern from test_p1_audit_fixes_2026_06_27._stub_signup_side_effects."""
     import app.api.customer_auth as ca
@@ -29,7 +42,7 @@ def _stub_signup_side_effects(monkeypatch, cid: str = "c_al"):
     )
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
-    monkeypatch.setattr(ca, "register_login", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
     # Default: neuter plan provisioning (return True = success, isolated from auto_login).
     monkeypatch.setattr(usage, "activate_plan", lambda c, p, **k: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda c: True)
@@ -95,10 +108,8 @@ def test_signup_token_mint_failure_signals_auto_login_false(client, monkeypatch)
     assert nxt.get("reason") == "auto_login_unavailable"
 
 
-def test_signup_token_mint_failure_logs_at_warning_level(client, monkeypatch, caplog):
+def test_signup_token_mint_failure_logs_at_warning_level(client, monkeypatch):
     """Ops signal: token mint failure MUST log at >= WARNING (was DEBUG silent)."""
-    import logging
-
     _stub_signup_side_effects(monkeypatch, cid="c_warn")
 
     import app.api.admin as admin_mod
@@ -108,24 +119,27 @@ def test_signup_token_mint_failure_logs_at_warning_level(client, monkeypatch, ca
 
     monkeypatch.setattr(admin_mod, "create_access_token", _broken_mint)
 
-    with caplog.at_level(logging.WARNING, logger="app.api.public_site"):
-        r = client.post(
-            "/api/public/signup",
-            json={
-                "business_name": "Auto Login Warn",
-                "email": "warn@example.com",
-                "password": "secret123",
-                "plan": "starter",
-            },
-        )
+    from app.api import public_site as ps
+
+    warnings: list[str] = []
+    monkeypatch.setattr(
+        ps.logger,
+        "warning",
+        lambda message, *args: warnings.append(str(message) % args if args else str(message)),
+    )
+    r = client.post(
+        "/api/public/signup",
+        json={
+            "business_name": "Auto Login Warn",
+            "email": "warn@example.com",
+            "password": "secret123",
+            "plan": "starter",
+        },
+    )
     assert r.status_code == 200, r.text
     # At least one warning-or-higher record from public_site mentioning the failure.
-    warns = [
-        rec for rec in caplog.records
-        if rec.name.startswith("app.api.public_site") and rec.levelno >= logging.WARNING
-    ]
-    assert warns, "expected a WARNING log when auto-login token cannot be minted"
-    joined = " ".join(rec.getMessage().lower() for rec in warns)
+    assert warnings, "expected a WARNING log when auto-login token cannot be minted"
+    joined = " ".join(warnings).lower()
     assert "auto-login" in joined or "auto_login" in joined or "token" in joined
 
 
@@ -142,7 +156,7 @@ def test_signup_plan_provisioning_failure_signals_false(client, monkeypatch):
     monkeypatch.setattr(cs, "add_client", lambda **k: {"id": "c_pp", "business_name": k.get("business_name")})
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
-    monkeypatch.setattr(ca, "register_login", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
     monkeypatch.setattr(usage, "activate_plan", lambda c, p, **k: False)  # plan NOT applied
     monkeypatch.setattr(usage, "reset_usage_period", lambda c: False)
 
@@ -161,35 +175,41 @@ def test_signup_plan_provisioning_failure_signals_false(client, monkeypatch):
     assert d.get("plan_provisioned") is False, "MUST signal provisioning failure so ops can fix"
 
 
-def test_signup_plan_provisioning_raises_signals_false(client, monkeypatch, caplog):
+def test_signup_plan_provisioning_raises_signals_false(client, monkeypatch):
     """When activate_plan raises → response has plan_provisioned=False + WARNING log."""
     from app.marketing import clients_store as cs
     import app.api.customer_auth as ca
     import app.billing.usage as usage
-    import logging
-
     monkeypatch.setattr(cs, "add_client", lambda **k: {"id": "c_ppr", "business_name": k.get("business_name")})
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
-    monkeypatch.setattr(ca, "register_login", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
     monkeypatch.setattr(usage, "activate_plan", lambda c, p, **k: (_ for _ in ()).throw(RuntimeError("DB down")))
 
-    with caplog.at_level(logging.WARNING, logger="app.api.public_site"):
-        r = client.post(
-            "/api/public/signup",
-            json={
-                "business_name": "Plan Raise",
-                "email": "planraise@example.com",
-                "password": "secret123",
-                "plan": "starter",
-            },
-        )
+    from app.api import public_site as ps
+
+    warnings: list[str] = []
+    monkeypatch.setattr(
+        ps.logger,
+        "warning",
+        lambda message, *args: warnings.append(str(message) % args if args else str(message)),
+    )
+    r = client.post(
+        "/api/public/signup",
+        json={
+            "business_name": "Plan Raise",
+            "email": "planraise@example.com",
+            "password": "secret123",
+            "plan": "starter",
+        },
+    )
     assert r.status_code == 200, r.text
     d = r.json()
     assert d.get("ok") is True
     assert d.get("plan_provisioned") is False
-    warns = [rec for rec in caplog.records if rec.name.startswith("app.api.public_site") and rec.levelno >= logging.WARNING and ("plan provisioning" in rec.getMessage().lower() or "provisioning" in rec.getMessage().lower())]
-    assert warns, "expected WARNING log when plan provisioning raises"
+    assert any("provisioning" in message.lower() for message in warnings), (
+        "expected WARNING log when plan provisioning raises"
+    )
 
 
 def test_signup_trial_skips_plan_provisioning(client, monkeypatch):
@@ -201,7 +221,7 @@ def test_signup_trial_skips_plan_provisioning(client, monkeypatch):
     monkeypatch.setattr(cs, "add_client", lambda **k: {"id": "c_tr", "business_name": k.get("business_name")})
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
-    monkeypatch.setattr(ca, "register_login", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
     # Should never be called for trial — if it is, raise to catch.
     monkeypatch.setattr(usage, "activate_plan", lambda c, p, **k: (_ for _ in ()).throw(AssertionError("trial must not provision")))
     monkeypatch.setattr(usage, "reset_usage_period", lambda c: (_ for _ in ()).throw(AssertionError("trial must not watermark")))
