@@ -2410,11 +2410,30 @@
       return '<div class="health-row clickable" data-job="' + esc(j.job) + '"><span class="health-dot" style="background:' + (HEALTH_COLOR[j.status] || "#94a3b8") + '"></span>' +
         esc(j.job) + ' — ' + esc(j.status) + '</div>';
     }).join("");
-    var queueLine = '<div class="health-row"><span class="health-dot" style="background:' + ((q.dlq || 0) > 0 ? "#ef4444" : "#10b981") + '"></span>' +
-      'Queue: celery=' + esc(q.celery != null ? q.celery : "-") + ' · dlq=' + esc(q.dlq != null ? q.dlq : "-") + '</div>';
-    el.innerHTML = queueLine + (rows || '<div class="empty-note">Koi overdue/failed job nahi — sab healthy hai.</div>');
+    // ADR-104 Phase F (2026-07-15): this line used to read q.dlq only (the
+    // retryable-failed count) and completely ignored q.dead (retry-exhausted,
+    // dlq_retry.py) -- so it could say "celery=0 · dlq=0" / green dot / "sab
+    // healthy hai" on the same page whose own Reliability Console (below)
+    // correctly showed dead items. automation_health.health()'s queue object
+    // has always carried both dlq and dead (see ADR-104 Phase B) -- this
+    // widget just wasn't reading the field. No backend change needed.
+    var deadCount = q.dead != null ? q.dead : 0;
+    var retryFailedCount = q.dlq != null ? q.dlq : 0;
+    var hasDeadOrFailed = (retryFailedCount > 0) || (deadCount > 0);
+    var queueLine = '<div class="health-row' + (deadCount > 0 ? ' clickable" data-cta="failureConsoleCard' : '') + '"><span class="health-dot" style="background:' + (hasDeadOrFailed ? "#ef4444" : "#10b981") + '"></span>' +
+      'Queue: celery=' + esc(q.celery != null ? q.celery : "-") + ' · retry-failed=' + esc(q.dlq != null ? q.dlq : "-") + ' · dead=' + esc(q.dead != null ? q.dead : "-") +
+      (deadCount > 0 ? ' — Reliability Console dekho →' : '') + '</div>';
+    var emptyNote = hasDeadOrFailed
+      ? '<div class="empty-note" style="color:#ef4444">⚠️ Dead/exhausted ya retry-failed job(s) hai — upar Queue line dekho, ' +
+        '"sab healthy" tabhi jab dono 0 hon.</div>'
+      : '<div class="empty-note">Koi overdue/failed job nahi — sab healthy hai.</div>';
+    el.innerHTML = queueLine + (rows || emptyNote);
     Array.prototype.forEach.call(el.querySelectorAll(".health-row.clickable"), function(row){
-      row.onclick = function(){ OFFICE.openHealthPanel(row.getAttribute("data-job")); };
+      if (row.hasAttribute("data-job")) {
+        row.onclick = function(){ OFFICE.openHealthPanel(row.getAttribute("data-job")); };
+      } else if (row.hasAttribute("data-cta")) {
+        row.onclick = function(){ OFFICE.jumpToCta(row.getAttribute("data-cta")); };
+      }
     });
   };
 
