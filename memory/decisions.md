@@ -1492,3 +1492,15 @@ Redelivery/idempotency check for all 4: none are currently in-flight or schedule
 Verification: no code changed, so no new tests/prod_check/deploy needed for this entry - this was a pure production investigation + one live, safe, evidence-only action. Real evidence: prod `dlq:dead` contents (redacted to task_id/error/args/ts only, no customer data), `git log` ancestry proving fix-before-incident-vs-after ordering, live worker log line for the verification dispatch, before/after `dlq:dead`/heartbeat state, unchanged container uptimes throughout.
 
 Not in scope / still open: trainer's 07-12 root cause remains genuinely unconfirmed (monitoring-only disposition, not a diagnosed-and-fixed one like qa). The still-open item from Phase A10 (worker_heavy's ~97-99s Qdrant/fastembed cold-start cost itself not fully root-caused) is unrelated to this entry and remains separately open.
+
+## 2026-07-15 - ADR-104 addendum #14 - Qdrant duplicate-cleanup dry-run: the ~215,000 premise was stale, real count is 8
+
+No destructive action taken - pure measurement, per the brief's explicit "dry run only, do NOT execute deletion" instruction. Full report: `docs/QDRANT_DUPLICATE_CLEANUP_DRYRUN_2026-07-15.md`.
+
+The task brief assumed ~215,000 historical duplicate points awaiting cleanup. Live measurement via a bare `QdrantClient` (bypassing the embedder, per addendum #6's own lesson) found: `kb_main`=1,481 points, `agent_memory`=10, `code_index`=0, `llm_semantic_cache`=56 - **1,547 points total across every collection in this Qdrant instance.** Nothing is remotely close to 215,000. Rather than force a large cleanup plan to match a stale premise, reported the true measured state.
+
+Full scroll of all 1,481 `kb_main` points, deduped by SHA-1 fingerprint of `(namespace, source, text)`: 1,473 unique fingerprints, 7 duplicated, **8 extra points total** - all 8 confined to `ab:ragquality`/`ab:ragtest` (sources `ab_gate`/`ab_seed`), which are `app/platform/eval_hub.py`'s `run_rag_ab_gate()` A/B-test-harness namespaces, never read by the customer voice path. Zero duplicates in `_global`, any of the 39 real niche-catalog namespaces, or any `client:<id>` namespace.
+
+Why this dropped from an assumed 215K to a measured 1,547-total/8-duplicate reality: almost certainly this session's own earlier A4.6 fix (duplicate-vector-write bug in `load_niche_faqs`) plus `replace_source=True` reseed runs across the niche catalog (the same mechanism that collapsed `solar_residential` from 1,674 to 9 points) already resolved the large-scale duplication this task was written to address, before this dry-run ran.
+
+Report includes the full required structure (retained-vs-deleted exact point IDs, exclusion proof, expected benefit = negligible/hygiene-only, operational risk = effectively zero, backup strategy, exact scoped `points_selector=PointIdsList(...)` delete command touching only the 8 named IDs, post-cleanup verification plan) and ends with the exact required approval question, explicitly flagging that 8 is far smaller than the originally-assumed 215,000. **Deletion has NOT been executed - awaiting explicit user approval**, per the brief.
