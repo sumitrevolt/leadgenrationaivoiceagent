@@ -51,11 +51,17 @@ Do this every morning before touching anything else:
    number with `0 running` on Recent Runs is a stuck-worker sign.
 6. **Check scheduler health** — "Jobs alive" tile (`/app/control-center`, top strip,
    "HEARTBEAT") should read `N/N`, not less.
-7. **Check disk / build-cache** — SSH `df -h` or read the deploy log's `DISK GUARD` line;
-   warn at 80% used, hard-stop at 90%. Build cache is capped at 20GB reclaim-eligible but
-   the *total* cache has been trending up across this session's three deploys
-   (91.58GB total, 70GB+ reclaimable, disk 76→77% used) — not urgent, but worth a monthly
-   `docker builder prune` review if it keeps climbing.
+7. **Check disk / build-cache** — SSH `df -h` or read the deploy log's `DISK GUARD` line.
+   Current thresholds (`scripts/deploy_vps.sh`): **warn ≥80% used, hard-stop ≥90% used**
+   (refuses to build past hard-stop). Build cache retention runs automatically after every
+   verified deploy — `docker builder prune -f --filter unused-for=168h --max-used-space 20GB`
+   (7-day-unused entries pruned, total cache capped at 20GB regardless of age if it exceeds
+   the cap). Tagged image retention keeps the newest 3 app-image tags. Disk was last observed
+   at 76→77% used across this session's earlier deploys (below warn) — this reconciliation
+   step needs a live SSH session to re-check current numbers; it could not be re-verified
+   from an agent sandbox without SSH key access (see §10). The retention *policy* itself is
+   sound and doesn't need changing unless a live check finds cache genuinely exceeding the
+   20GB cap after the automatic prune ran.
 8. **Check customers needing attention** — `/app/clients` client list + each client's
    Delivery Timeline panel (see §5). Look for "Customer delivery SLA breached" or repeated
    "Approval reminder raised" entries.
@@ -78,13 +84,25 @@ fixed and truthful.**
 ### 3.2 Control Center — `/app/control-center`
 Four levels via the left sidebar: **L1 Executive** (Problems/Staff pulse/Aaj ke jobs/Flags
 OFF cards + a bottom Live Log/Recent Runs/DLQ-Queue tab strip), **L2 Stack** (an
-architecture graph — **classification: broken/incomplete this session**, the canvas
-rendered an empty broken-image placeholder with no console error captured; the "Old
-explorer ↗" link next to it is the known-working fallback — use that until L2 Stack's
-graph is fixed), **L3 Workflow** (not walked this session), **L4 Agent** (Root-cause
+architecture graph, embedded via `<iframe src="/app/control-center/graph">` —
+**classification: root-caused and fixed, commit `5d4b9fe`, see §7a**; the "Old
+explorer ↗" link next to it remains a valid fallback if you ever prefer the plain page),
+**L3 Workflow** (not walked this session), **L4 Agent** (Root-cause
 analysis findings list + an Agent Explorer staff grid with Sab/Marketing/Voice/Platform
 tabs — functional, showed real findings including the 4 dead tasks and 6 recent failed
 flow-runs with actionable `fix:` text).
+
+**L2 Stack graph troubleshooting (§7a).** If this ever goes blank again: check the response
+headers on `/app/control-center/graph` first (`curl -sD - -o /dev/null <url>`) — an
+`X-Frame-Options: DENY` or a `frame-ancestors` CSP directive that omits `'self'` will make
+the browser silently refuse to render the iframe, with **no console error at all** (this is
+not a JS bug, so `read_console_messages` will look clean even when this is exactly the
+cause). The graph's own JS (`control_center_graph.html`) has real error-handling (a loading
+spinner, an error banner, try/catch around ELK init) — if you see that error banner instead
+of a blank canvas, the problem is genuinely in the graph's data/rendering, not headers, and
+is a different bug. The graph itself is fully static (a hardcoded `VIEWS` object with 3 tabs
+— Structural/Automation/Products — no backend fetch at all), so "malformed data from the
+API" is not a real failure mode here; "blank canvas, no error" almost always means headers.
 
 Header tiles: STAFF, JOBS AAJ, RUNS, QUEUE/DLQ, HEARTBEAT, LLM BRAIN — all `● live`. The
 QUEUE/DLQ tile and its DLQ/Queue detail tab both now read `dead` alongside `dlq`
@@ -114,11 +132,16 @@ opened and verified this session — the rest are listed under §8 as not yet wa
   Self-Improve Cost Tracking (daily LLM-heavy budget cap), Self-Improve Approval Queue
   (gated by `SELF_IMPROVE_APPROVAL` flag, currently OFF so nothing queues there), and
   Content Approvals (client posts) — a flat table across **all** clients with columns
-  Client / Content / When / Action. **Known UX gap (not fixed this session, logged for
-  follow-up):** the Client column shows the raw opaque client id (e.g. `105a5a749a81`),
-  not the business name — you have to cross-reference `/app/clients` to know which real
-  customer a row belongs to. Approve/Reject here are already gated by the ADR-104
-  confirmation modal (fixed earlier this session, commit `1f87ae3`).
+  Client / Content / When / Action. **Client-name fix (§7b, commit `8a64e9c`):** the Client
+  column used to show only the raw opaque client id (e.g. `105a5a749a81`) — you had to
+  cross-reference `/app/clients` to know which real customer a row belonged to. It now shows
+  the business name in bold as the primary label, with the client id kept directly below as
+  small muted text (also in the `title` tooltip) — the id is never hidden, just demoted to
+  secondary, since the approve/reject buttons and any support conversation still need it. A
+  deleted/unknown client shows an honest "(unknown client)" label instead of a blank cell or
+  a stale name. Approve/Reject here are already gated by the ADR-104 confirmation modal
+  (fixed earlier this session, commit `1f87ae3`), and the confirmation dialog itself now
+  also shows the business name instead of the raw id.
 - **Schedule tab**: every scheduled job (`ops`, `reply_triage`, `watchdog`, `onboard`,
   `mcp_engineer`, `engineer_sre`, `meter_watch`, `email_outreach`, `email_followup`, etc.)
   with cadence, last-run timestamp, duration, `ok` status, an ON/OFF toggle, and a manual
@@ -146,12 +169,28 @@ Confirm-button click required, Escape/backdrop/Cancel always safe, Enter never c
 opening the modal makes no network call. **Classification: was two real safety gaps
 (one high-severity), now fixed and verified.**
 
-**Known gap found but not fixed this session (logged for follow-up):** two other
-consequential admin endpoints exist in `app/api/admin_ops.py` —
-`POST /clients/{id}/password-reset` and `POST /clients/{id}/onboard/scrape` — that were
-not found wired into `clients.html`'s UI (they may be used from a different admin page not
-inspected this session). Worth a follow-up grep across `frontend/*.html` before assuming
-they're unreachable or already safe.
+**Password-reset / onboard-scrape — found, audited, fixed (§7c, commit `2895e97`).** The
+two consequential admin endpoints in `app/api/admin_ops.py` —
+`POST /clients/{id}/password-reset` and `POST /clients/{id}/onboard/scrape` — are **not**
+wired into `clients.html`; they live on a different admin page,
+**`/app/admin` → Customer 360 panel → "Manual Action Triggers"** (three buttons: 🚀 Deliver
+Value Now, 🌐 Re-Scrape Website, 🔑 Reset Password). Password reset already had a
+well-built confirmation modal (password+confirm fields, live strength meter, Loop 27,
+2026-07-11) — that one was never a gap. Re-scrape had zero confirmation despite queuing a
+real `force=True` website re-scrape + KB/content re-seed that can overwrite already-tailored
+content even on an already-set-up client — now gated with the same modal pattern. Both
+endpoints previously had **no audit trail at all**; both now write a
+`delivery_ledger.log_event(client_id, "admin_manual_action", ...)` entry (visible in that
+client's Delivery Timeline) every time an admin uses them — never logging the password
+itself. Backend password minimum raised from 4 to 8 chars to match what the UI already
+enforced.
+
+**Found but NOT fixed (flagged for a follow-up session):** the same Customer 360 panel's
+🚀 **Deliver Value Now** button (`c360DeliverNow()`, same backend action as clients.html's
+already-fixed Deliver Now) still fires with **zero confirmation** — it hits the identical
+`POST /clients/{id}/deliver-now` endpoint that clients.html gates with the red "dangerous"
+confirmation modal (§7, fix #5), but this second UI surface was never covered by that fix.
+Treat this exactly like the other unconfirmed-action gaps in §7 until it's fixed.
 
 ## 4. Automation / task state — what each label means
 
@@ -225,6 +264,49 @@ any of this work — every browser verification used Cancel only, and where a re
 needed to prove the gate, it was performed on synthetic test clients (Fresh Test Biz 42,
 Sharma Solar), never Jiya.
 
+### 7a–7c. Follow-up priorities fixed the same session (2026-07-15, ADR-104 continued)
+
+| # | Surface | Problem | Fix | Commit | Tests |
+|---|---|---|---|---|---|
+| 7a | `app/middleware/__init__.py` (`SecurityHeadersMiddleware`) + `/app/control-center/graph` | Blanket `X-Frame-Options: DENY` (correct default for every other admin page) silently blocked `control_center.html`'s own same-origin `<iframe>`, rendering an empty canvas with **no console error** | New same-origin-only tier (`X-Frame-Options: SAMEORIGIN`, `frame-ancestors 'self'`) scoped to exactly this one path — narrower than the pre-existing fully-public client-widget tier | `5d4b9fe` | `tests/test_l2_stack_graph_frame_headers.py` — pure-logic tests run and passed locally; TestClient integration tests need the full app dependency graph (not exercised in the authoring sandbox) |
+| 7b | `app/api/clientops.py` (`GET /clientops/approvals`) + `automation.html` (`apContentList`) | Approvals table showed only the raw client id, no business name | Bulk `list_clients()` id→name enrichment (one call, not per-row); business name as primary label, id kept as secondary/tooltip text, honest "(unknown client)" fallback for deleted clients | `8a64e9c` | `tests/test_parity_clientops.py` — 18/18 passed locally |
+| 7c | `app/api/admin_ops.py` (password-reset, onboard/scrape) + `admin_dashboard.html` (Customer 360 panel) | Onboard/scrape fired a real `force=True` re-scrape+re-seed with zero confirmation; both endpoints had zero audit trail; password-reset's backend minimum (4 chars) was weaker than the UI's (8) | Confirmation modal added for re-scrape (matching the password-reset modal's style); `delivery_ledger.log_event` audit entry added to both; backend minimum raised to 8 | `2895e97` | `tests/test_admin_client_actions_audit.py` — 7/7 passed locally |
+
+None of 7a-7c were deployed as of this session's end — see §10 for the push/deploy blocker
+and what to do about it.
+
+### 7d. Qdrant scoped duplicate cleanup + Jiya stale-content review (2026-07-15)
+
+**Qdrant:** a dry-run audit found exactly 8 duplicate points in `kb_main` (not the ~215,000
+originally assumed — that number no longer matched reality after earlier work this session
+already fixed the real large-scale duplication). All 8 were confined to two internal
+RAG-quality-gate test namespaces (`ab:ragquality`, `ab:ragtest`), never customer or catalog
+data. After explicit approval, the cleanup re-validated the live candidate set matched the
+approved 8-point scope exactly, then deleted only those 8 point IDs (`PointIdsList`, never a
+filter/namespace-wide delete). Verified: `kb_main.points_count` 1481→1473, 0 duplicate
+fingerprints remaining, all 7 canonical copies retained, all 5 real niche/catalog namespaces
+and `_global` unchanged, collection status stayed green, no container restart. Full
+before/after evidence: `docs/QDRANT_DUPLICATE_CLEANUP_DRYRUN_2026-07-15.md` (appended, not
+overwritten). Cleanup script: `scripts/qdrant_dedupe_cleanup_2026-07-15.py` — reusable if a
+similar internal test-namespace duplication reappears (re-validates live scope before
+deleting anything; safe to re-run, it's a no-op if nothing matches).
+
+**Jiya stale-content review procedure:** to review a client's draft/pending content queue
+without changing anything, read `data/content_queue/<client-slug>.jsonl` directly (each line
+= one record: `id`, `client_id`, `date`, `type`, `title`, `caption`, `hashtags`, optional
+`svg`, `status`, `created_at`) rather than relying only on the admin UI — the raw file
+surfaces defects the UI summary can hide (e.g. duplicate captions across differently-labeled
+items, a stale/wrong phone number baked into an SVG poster, geography mismatches, malformed
+text). Build a per-item table covering: brand correctness, service relevance, area
+correctness, duplicate risk, festival/date relevance, quality issues, recommended action,
+whether public publishing is even possible yet (check the client's actual connected-channel
+status separately — don't assume), then group into 5 buckets: ready for approval after human
+review / needs editing / obsolete-or-date-expired / duplicate-redundant / blocked by missing
+info. **Never** approve, reject, schedule, or publish anything while building this review —
+it is a read-only pass; present the grouped findings and ask for per-item decisions using
+the exact record IDs, never a blanket approval request. Example:
+`docs/JIYA_CONTENT_DECISION_PACK_2026-07-15.md`.
+
 ## 8. Not yet walked this session (do not assume these are fine or broken)
 
 Named in the original Phase F scope but not individually opened/tested this session:
@@ -246,3 +328,19 @@ not as confirmed-safe.
   Jiya (or any other real customer) content without an exact explicit go-ahead, or a
   destructive data operation (Qdrant cleanup, DB reset) → stop and ask the person, do not
   proceed unilaterally, per this repo's standing safety rules.
+
+## 10. Agent-session push/deploy blocker (2026-07-15)
+
+Commits `5d4b9fe`, `8a64e9c`, `2895e97` (§7a-7c above) exist only in the local working-tree
+repo as of this session's end — they were **not pushed to GitHub and not deployed**. The
+agent sandbox that authored them has no stored GitHub credentials and no SSH private key for
+the VPS (both live only on the operator's own Windows machine, per this repo's established
+workflow — `C:\PROGRA~1\Git\cmd\git.exe` / `C:\Users\Ratanshila\.ssh\id_rsa`). This is also
+why Priority 5 (live disk/build-cache reconciliation) could only be verified at the code/
+policy level, not against live VPS numbers.
+
+To finish rolling these out: `git push` from the operator's own Windows git, then deploy each
+SHA through the normal pipeline (`APP_VERSION=<sha> bash scripts/deploy_vps.sh`), then
+browser-verify `/app/control-center` (L2 Stack graph should render), `/app/automation#approvals`
+(business names visible), and the Customer 360 panel's Re-Scrape button (confirmation modal
+appears) — the same way every earlier fix this session was verified.
