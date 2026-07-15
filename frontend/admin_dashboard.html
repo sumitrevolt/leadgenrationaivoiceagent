@@ -2807,9 +2807,46 @@ async function c360DeliverNow() {
   }
 }
 
-async function c360ScrapeWebsite() {
+// ADR-104 (2026-07-15, Priority 4): this button fired force=True re-scrape +
+// re-seed (KB, content pack) for a REAL customer with zero confirmation --
+// same class of gap already fixed elsewhere this session (clients.html
+// deliver-now, automation.html approvals, control_center.html health).
+// force=True can overwrite an already-tailored KB/content pack even if the
+// client is already setup_done (see onboarding.auto_onboard docstring).
+function _closeC360ScrapeModal() {
+  var o = document.getElementById("c360ScrapeModalOverlay");
+  if (o) o.remove();
+  if (typeof _c360ScrapeUntrap === "function") { _c360ScrapeUntrap(); _c360ScrapeUntrap = null; }
+}
+function c360ScrapeWebsite() {
   const cid = _currentC360Id;
   if (!cid) return;
+  _closeC360ScrapeModal();
+  var overlay = document.createElement("div");
+  overlay.id = "c360ScrapeModalOverlay";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", "Confirm website re-scrape");
+  overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px";
+  overlay.innerHTML = ''
+    + '<div class="card" style="max-width:440px;width:100%;background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.4);margin:0">'
+    + '  <div class="hd"><h3 style="margin:0;font-size:15px">🌐 Re-scrape website — <span style="color:#6366f1">' + String(cid).replace(/[<>&"]/g, "") + '</span></h3></div>'
+    + '  <div class="bd">'
+    + '    <div style="font-size:13px;line-height:1.5;margin-bottom:12px">This re-scrapes the customer\'s real website and re-seeds their knowledge base + first content pack -- <b>even if setup is already complete</b>, this can overwrite already-tailored content. This is a real background job, not a preview.</div>'
+    + '    <div style="display:flex;gap:8px;justify-content:flex-end">'
+    + '      <button class="btn" type="button" onclick="_closeC360ScrapeModal()" style="padding:8px 14px;font-size:12px">Cancel</button>'
+    + '      <button class="btn primary" id="c360ScrapeConfirmBtn" type="button" onclick="_c360ScrapeConfirmed()" style="padding:8px 16px;font-size:12px;background:#6366f1">Re-scrape now</button>'
+    + '    </div>'
+    + '  </div>'
+    + '</div>';
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) _closeC360ScrapeModal(); });
+  document.body.appendChild(overlay);
+  _c360ScrapeUntrap = _focusTrap(overlay, _closeC360ScrapeModal);
+}
+async function _c360ScrapeConfirmed() {
+  const cid = _currentC360Id;
+  if (!cid) return;
+  _closeC360ScrapeModal();
   const btn = document.getElementById("c360ScrapeBtn");
   btn.disabled = true;
   btn.textContent = "Scraping...";
