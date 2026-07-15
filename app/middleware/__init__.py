@@ -56,6 +56,18 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     # widget client sites pe kabhi render hi nahi hote).
     _EMBEDDABLE_PREFIXES = ("/api/engage/reviews-widget",)
 
+    # Paths jo SIRF humaari apni admin UI ke andar <iframe> hote hain (kabhi
+    # kisi external site se nahi) — in pe blanket DENY nahi (warna apna hi
+    # iframe load nahi hota), par blanket "frame-ancestors *" bhi nahi (koi
+    # external site embed na kar sake) — SAMEORIGIN + frame-ancestors 'self'.
+    # ADR-104 (2026-07-15): Control Center L2 Stack graph is exactly this —
+    # X-Frame-Options: DENY (the correct default for every OTHER admin page)
+    # was silently blocking control_center.html's own same-origin
+    # <iframe src="/app/control-center/graph">, rendering as a blank canvas
+    # with no console error (the browser's frame-refusal isn't a JS
+    # exception, so nothing logged) — the page itself was never broken.
+    _SAME_ORIGIN_EMBEDDABLE_PREFIXES = ("/app/control-center/graph",)
+
     @staticmethod
     def _is_embeddable(path: str) -> bool:
         if path.startswith(SecurityHeadersMiddleware._EMBEDDABLE_PREFIXES):
@@ -63,19 +75,25 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # /b/{slug}/embed (lead-capture iframe)
         return path.startswith("/b/") and path.endswith("/embed")
 
+    @staticmethod
+    def _is_same_origin_embeddable(path: str) -> bool:
+        return path.startswith(SecurityHeadersMiddleware._SAME_ORIGIN_EMBEDDABLE_PREFIXES)
+
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         response = await call_next(request)
 
         embeddable = False
+        same_origin_embeddable = False
         try:
             embeddable = self._is_embeddable(request.url.path)
+            same_origin_embeddable = self._is_same_origin_embeddable(request.url.path)
         except (AttributeError, TypeError) as _e:
             logger.debug("SecurityHeadersMiddleware embeddable check failed: %s", _e)
 
         # Security headers
         response.headers["X-Content-Type-Options"] = "nosniff"
         if not embeddable:
-            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-Frame-Options"] = "SAMEORIGIN" if same_origin_embeddable else "DENY"
         response.headers["X-XSS-Protection"] = "1; mode=block"
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         # CSP: dashboards/web-call pages load Chart.js etc. from jsDelivr/cdnjs and
@@ -83,7 +101,12 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # fetch/WebSocket, and play mic-recorded audio from blobs.
         # img-src: QR (api.qrserver.com) + AI images (pollinations) admin pages me
         # direct render hote hain.
-        _frame = "frame-ancestors *; " if embeddable else ""
+        if embeddable:
+            _frame = "frame-ancestors *; "
+        elif same_origin_embeddable:
+            _frame = "frame-ancestors 'self'; "
+        else:
+            _frame = ""
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             + _frame
