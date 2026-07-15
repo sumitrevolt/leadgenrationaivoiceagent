@@ -82,7 +82,11 @@ def load_from_text(
     return added
 
 
-def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
+def load_niche_faqs(
+    kb: KnowledgeBase,
+    namespace: str = "_global",
+    only: "str | Iterable[str] | None" = None,
+) -> int:
     """
     app.niches.NICHES + common business FAQs se KB entries banao.
 
@@ -94,21 +98,58 @@ def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
     Args:
         kb: KnowledgeBase instance.
         namespace: jahan common business FAQs jaayein (default "_global").
+        only: ADR-104 — niche scoping. `None` (default) = LEGACY behaviour, saare
+            NICHES + common FAQs seed hote hain (bootstrap_default_kb ke 4 global
+            callers isi pe depend karte hain — behaviour byte-for-byte same).
+            str ya iterable dene par SIRF wahi niche(s) seed hote hain aur common
+            business FAQs SKIP hote hain (wo niche-data nahi hai). Filtering
+            expensive doc-generation/embed/upsert se PEHLE hoti hai, isliye ek
+            niche maangne par doosre niches ka koi kaam nahi hota.
+
+    Raises:
+        ValueError: `only` me koi aisa niche key ho jo NICHES me nahi (fail-fast,
+            taaki typo chupchaap "0 chunks seeded" me na badle).
 
     Returns:
         Total chunks added across all namespaces.
     """
     total = 0
 
-    # 1) Common business FAQs -> global namespace
-    total += kb.add_documents(COMMON_BUSINESS_FAQS, source="business_faq", namespace=namespace)
-
     # 2) Per-niche facts -> har niche ka apna namespace
     try:
         from app.niches import NICHES
     except Exception as e:  # pragma: no cover
         logger.warning(f"NICHES import failed, only common FAQs loaded: {e}")
-        return total
+        if only is None:
+            # legacy: common FAQs abhi bhi seed karo
+            return kb.add_documents(
+                COMMON_BUSINESS_FAQS, source="business_faq", namespace=namespace
+            )
+        return 0
+
+    # ADR-104: `only` ko normalize + validate karo — expensive kaam se PEHLE.
+    wanted: set[str] | None = None
+    if only is not None:
+        raw = [only] if isinstance(only, str) else list(only)
+        wanted = {str(n).strip() for n in raw if str(n).strip()}
+        unknown = sorted(wanted - set((NICHES or {}).keys()))
+        if unknown:
+            raise ValueError(f"load_niche_faqs: unknown niche key(s): {unknown}")
+
+    # 1) Common business FAQs -> global namespace (SIRF legacy/full seed pe;
+    #    scoped seed sirf maanga hua niche chhuta hai).
+    # replace_source=True (ADR-104 A4.6): existing delete-before-reseed
+    # mechanism (see load_from_website + tests/test_kb_delete_before_reseed.py)
+    # — bina iske, dobara-bootstrap old text ko orphan chhod deta hai (naya
+    # deterministic id != purana), sirf APPEND, kabhi OVERWRITE nahi. Scope
+    # (namespace, source) tak seemित — koi doosra source/namespace touch nahi hota.
+    if wanted is None:
+        total += kb.add_documents(
+            COMMON_BUSINESS_FAQS,
+            source="business_faq",
+            namespace=namespace,
+            replace_source=True,
+        )
 
     # Professional telecaller script dataset (pure-data, import-safe) — har niche
     # ke researched opening / discovery / objection-rebuttals / value-lines /
@@ -121,6 +162,11 @@ def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
         _script_docs = None
 
     for niche_key, cfg in (NICHES or {}).items():
+        # ADR-104: scoped seed — unrelated niche ka koi doc-generation/embed/upsert
+        # nahi. Ye check LOOP ke sabse upar hai (expensive kaam se pehle) — yehi wo
+        # jagah hai jiski kami se 4-niche QA run 39 niches seed kar deta tha.
+        if wanted is not None and niche_key not in wanted:
+            continue
         facts: list[str] = []
         name = cfg.get("name", niche_key.replace("_", " ").title())
         hook = cfg.get("pitch_hook")
@@ -160,19 +206,37 @@ def load_niche_faqs(kb: KnowledgeBase, namespace: str = "_global") -> int:
 
         # niche-specific facts apne namespace me + global me bhi (taaki default
         # KB me sab niches ki value-prop available rahe).
-        n1 = kb.add_documents(facts, source=f"niche:{niche_key}", namespace=niche_key)
-        n2 = kb.add_documents(facts, source=f"niche:{niche_key}", namespace=namespace)
+        # replace_source=True (ADR-104 A4.6 — the duplicate-vector-write fix):
+        # NICHES/niche_knowledge text kabhi-kabhi edit hoti hai (pitch_hook
+        # wording, naye facts) — bina replace_source ke purana-text ka point
+        # `_kb_point_id`(namespace, text) se DIFFERENT id banata (naya
+        # deterministic id != purana), to reseed sirf APPEND karta, kabhi
+        # OVERWRITE/clean nahi. Yehi ~185x kb_main duplication ka root cause
+        # tha (ADR-104 addendum #7 — measured, not assumed). Scope EXACTLY
+        # (namespace, source) tak seemित hai (delete_source implementation:
+        # knowledge_base.py _QdrantIndex.delete_source) — koi doosra niche,
+        # koi doosra source (website:, kb_interview, ...) touch nahi hota.
+        n1 = kb.add_documents(
+            facts, source=f"niche:{niche_key}", namespace=niche_key, replace_source=True
+        )
+        n2 = kb.add_documents(
+            facts, source=f"niche:{niche_key}", namespace=namespace, replace_source=True
+        )
         total += n1 + n2
 
         # Professional script lines -> SAME per-niche namespace, taaki retrieval
         # pe opening/objection/closing/value surface ho. Covered niche apna
         # script deta hai; uncovered (custom incl.) "general" script pe map.
+        # replace_source=True yahan bhi — same reasoning as facts above.
         if _script_docs is not None:
             try:
                 sdocs = _script_docs(niche_key)
                 if sdocs:
                     total += kb.add_documents(
-                        sdocs, source=f"script:{niche_key}", namespace=niche_key
+                        sdocs,
+                        source=f"script:{niche_key}",
+                        namespace=niche_key,
+                        replace_source=True,
                     )
             except Exception as e:  # pragma: no cover
                 logger.debug(f"script docs skipped for {niche_key}: {e}")
@@ -290,10 +354,47 @@ def bootstrap_default_kb() -> KnowledgeBase:
     return kb
 
 
+def seed_niche(kb: KnowledgeBase, niche: str) -> dict:
+    """ADR-104: EK niche ka scoped seed + structured (redacted) result.
+
+    `bootstrap_default_kb()` saare 39 niches seed karta hai — wo live voice
+    reply-path ke liye kabhi safe nahi tha (dekho ADR-104). Ye uska bounded,
+    owned replacement hai: sirf maanga hua niche.
+
+    Result me SIRF safe operational metadata hai — koi document text, prompt,
+    transcript, customer data ya secret nahi.
+
+    Returns:
+        {"niche", "ok", "chunks", "duration_s", "error_class"}
+    """
+    import time as _time
+
+    t0 = _time.monotonic()
+    try:
+        chunks = load_niche_faqs(kb, only=niche)
+        return {
+            "niche": niche,
+            "ok": True,
+            "chunks": int(chunks),
+            "duration_s": round(_time.monotonic() - t0, 3),
+            "error_class": None,
+        }
+    except Exception as e:
+        # error_class only — message me customer/secret data leak ho sakta hai.
+        return {
+            "niche": niche,
+            "ok": False,
+            "chunks": 0,
+            "duration_s": round(_time.monotonic() - t0, 3),
+            "error_class": type(e).__name__,
+        }
+
+
 __all__ = [
     "load_niche_faqs",
     "load_from_text",
     "load_from_website",
     "bootstrap_default_kb",
+    "seed_niche",
     "COMMON_BUSINESS_FAQS",
 ]

@@ -499,6 +499,44 @@ try:
 except Exception:
     _KB_MIN_SCORE = 0.35
 
+# ADR-104 A4.4 — typed, redacted _kb_facts() outcomes (log-only; never surfaced
+# in the spoken reply). See _kb_facts() docstring for the fix this replaces.
+_KB_STATE_FACTS_AVAILABLE = "facts_available"
+_KB_STATE_NOT_READY = "niche_not_ready"
+_KB_STATE_REFRESH_REQUESTED = "refresh_requested"
+_KB_STATE_UNSUPPORTED = "unsupported_niche"
+_KB_STATE_READINESS_TIMEOUT = "readiness_timeout"
+_KB_STATE_READINESS_FAILED = "readiness_failed"
+_KB_STATE_RETRIEVAL_TIMEOUT = "retrieval_timeout"
+_KB_STATE_RETRIEVAL_FAILED = "retrieval_failed"
+
+
+def _kb_log_state(
+    niche: str,
+    state: str,
+    t0: float,
+    *,
+    count: int | None = None,
+    error_class: str | None = None,
+) -> None:
+    """Redacted KB-state log line — niche key / state / duration / error class
+    ONLY. Never transcripts, prompts, phone numbers, document text, Qdrant URL
+    or credentials (ADR-104 contract, mirrors kb_readiness.py's logging rule)."""
+    try:
+        import time as _time
+
+        dur_ms = round((_time.monotonic() - t0) * 1000, 1)
+        logger.debug(
+            "[kb-facts] niche=%s state=%s duration_ms=%s count=%s error_class=%s",
+            niche,
+            state,
+            dur_ms,
+            count if count is not None else "",
+            error_class or "",
+        )
+    except Exception:
+        pass
+
 
 # D-9 (source-line) + D-10 (talk-listen / objection 3-beat / WhatsApp-gate /
 # Hinglish-mirror). Appended to the system prompt (gated CONVO_DISCIPLINE, default
@@ -618,44 +656,24 @@ def _short_hook(hook: str, max_len: int = 90) -> str:
 
 
 # --------------------------------------------------------------------------- #
-# KB singleton — bootstrap ONCE (niche + business FAQs seed) phir reuse. App
-# startup KB ko seed nahi karta, isliye grounding ke liye yahin ensure karte
-# hain; bootstrap_default_kb ko har turn call karna KB ko dobara-dobara seed kar
-# deta, to ek hi baar (cached). Duplicate texts retrieve par dedupe ho jaate.
+# KB access — ADR-104 A4.4. The live voice reply path NEVER bootstraps/seeds
+# the KB inline. `_kb_facts()` below reads from the existing process-singleton
+# `get_knowledge_base()` (app.voice_agent.knowledge_base — cheap in-process
+# constructor, no I/O, no catalog seed) only after a bare-metadata readiness
+# check (app.voice_agent.kb_readiness) confirms this niche's content already
+# exists in Qdrant. A cold niche gets ONE owned, deduplicated refresh request
+# (app.tasks.kb_niche_refresh) instead of an inline catalog-wide bootstrap —
+# that inline bootstrap (formerly `_get_kb()` -> `bootstrap_default_kb()`,
+# removed here) was the incident: it seeded the FULL 39/42-niche catalog on
+# every cold turn inside `asyncio.to_thread`, gated by a global `_KB_TRIED`
+# flag set BEFORE the seed finished, and its 1.5s `asyncio.wait_for` abandoned
+# the await without stopping the background thread — the thread kept
+# embedding for ~60s+ while Celery's executor shutdown blocked on it until the
+# 600s hard kill. Full measured chain: memory/decisions.md ADR-104.
+# `bootstrap_default_kb()` itself is UNCHANGED and still used by its other,
+# non-voice-hot-path callers (agents/supervisor.py, api/data.py,
+# platform/agent_provisioner.py) — this file just stopped calling it.
 # --------------------------------------------------------------------------- #
-_KB_SINGLETON: Any = None
-_KB_TRIED = False
-_KB_LOADED_AT = 0.0
-
-
-def _get_kb():
-    """Cached, bootstrapped KnowledgeBase (None agar bootstrap fail).
-
-    D-12: optional TTL refresh — set `KB_REFRESH_SEC` (default 0 = never, current
-    behaviour) to re-bootstrap the singleton after that many seconds so KB data
-    changes are picked up without a restart. Opt-in keeps the hot path unchanged
-    by default (re-bootstrap is synchronous, so use a generous TTL like 3600)."""
-    global _KB_SINGLETON, _KB_TRIED, _KB_LOADED_AT
-    import time
-
-    try:
-        ttl = float(os.environ.get("KB_REFRESH_SEC", "0") or "0")
-    except Exception:
-        ttl = 0.0
-    if _KB_TRIED and ttl > 0 and (time.time() - _KB_LOADED_AT) >= ttl:
-        _KB_TRIED = False  # TTL elapsed -> allow one re-bootstrap on this call
-    if _KB_TRIED:
-        return _KB_SINGLETON
-    _KB_TRIED = True
-    try:
-        from app.voice_agent.kb_loader import bootstrap_default_kb
-
-        _KB_SINGLETON = bootstrap_default_kb()
-        _KB_LOADED_AT = time.time()
-    except Exception as e:  # pragma: no cover
-        logger.debug(f"[telecaller-brain] KB bootstrap failed: {e}")
-        _KB_SINGLETON = None
-    return _KB_SINGLETON
 
 
 class TelecallerBrain:
@@ -2777,23 +2795,117 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     # ------------------------------------------------------------------ #
     async def _kb_facts(self, user_text: str) -> list[str]:
         """Top-2 grounding facts from the niche + client KB for this user turn.
-        Runs in an executor with a short timeout so a slow/empty/cold KB never
-        stalls the spoken reply. Returns [] on anything unusual."""
+
+        ADR-104 A4.4 rewrite. THE ORIGINAL BUG: this method ran the full
+        39/42-niche catalog bootstrap (`bootstrap_default_kb()` via the old
+        `_get_kb()`) in `asyncio.to_thread` on every cold call, gated behind a
+        global `_KB_TRIED` flag set BEFORE the seed finished (partial init
+        read as "done"). The 1.5s `asyncio.wait_for` abandoned the await but
+        never stopped the thread: QA logic finished in ~61s while the orphaned
+        bg thread kept embedding until Celery's 600s hard kill —
+        `shutdown_default_executor()` blocks on ALL submitted work, not just
+        the one piece being awaited. Full measured chain: memory/decisions.md
+        ADR-104 (addenda #4-#7).
+
+        Fix shape — four separated concerns, NEVER a catalog-wide seed here:
+          1. unsupported niche -> degrade immediately (no Qdrant/Redis/Celery).
+          2. readiness check   -> bare metadata-only Qdrant count
+                                   (kb_readiness — ~7ms warm, never touches
+                                   the embedder or `_get_qdrant_client()`).
+          3. cold-but-supported -> request ONE owned, deduplicated
+                                    niche-refresh Celery task
+                                    (app.tasks.kb_niche_refresh); return
+                                    immediately, KB-less this turn (honest
+                                    degrade — the caller never sees internal
+                                    KB state, only an empty facts list).
+          4. ready              -> retrieve from the existing process
+                                    singleton (`get_knowledge_base()` — cheap,
+                                    no seeding) with the same bounded executor
+                                    query as before this fix.
+
+        Runs in an executor with a short timeout so a slow/cold KB never
+        stalls the spoken reply. Returns [] on anything unusual; internal KB
+        state is logged (redacted) via `_kb_log_state`, never spoken."""
         ut = (user_text or "").strip()
         if len(ut) < 3:
             return []
-        # Off-load to a thread: the FIRST call runs bootstrap_default_kb (seeds 39 niches
-        # = hundreds of sync embed+upsert ops) which would otherwise FREEZE the whole
-        # event loop on the spoken-reply hot path. _KB_TRIED is set before the seed, so a
-        # timeout here just lets the seed finish on the bg thread; the next turn gets it.
-        try:
-            kb = await asyncio.wait_for(asyncio.to_thread(_get_kb), timeout=_KB_TIMEOUT_S)
-        except Exception:
-            kb = None
-        if kb is None:
+
+        import time as _time
+
+        t0 = _time.monotonic()
+        niche = self.niche
+
+        from app.voice_agent.kb_readiness import (
+            STATE_ERROR,
+            count_niche_catalog_points,
+            is_supported_niche,
+        )
+
+        # 1) Unsupported niche (e.g. QA's "real_estate" target — a pre-existing
+        #    catalog/QA-target drift, ADR-104 addendum #5) degrades immediately.
+        #    No exception, no seed, no enqueue, no Qdrant call at all.
+        if not is_supported_niche(niche):
+            _kb_log_state(niche, _KB_STATE_UNSUPPORTED, t0)
             return []
 
-        namespaces = [self.niche]
+        # 2) Readiness — bare metadata-only count, bounded. First call in a
+        #    process pays a ~1-1.5s connection warm-up; kb_readiness keeps that
+        #    bare client a singleton so every later call is ~7ms (a startup
+        #    hook warms this off the spoken hot path where one exists).
+        try:
+            readiness_fut = asyncio.ensure_future(
+                asyncio.to_thread(count_niche_catalog_points, niche)
+            )
+            readiness = await asyncio.wait_for(readiness_fut, timeout=_KB_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            # Own the future instead of discarding it: the bg thread is bounded
+            # by kb_readiness's own Qdrant client timeout (a couple seconds,
+            # never indefinite) and will resolve on its own; attach a no-op
+            # callback so its eventual result/exception isn't logged as
+            # "never retrieved" and nothing is left dangling.
+            try:
+                readiness_fut.add_done_callback(
+                    lambda f: (None if f.cancelled() else f.exception())
+                )
+            except Exception:
+                pass
+            _kb_log_state(niche, _KB_STATE_READINESS_TIMEOUT, t0)
+            return []
+        except Exception as e:
+            _kb_log_state(niche, _KB_STATE_READINESS_FAILED, t0, error_class=type(e).__name__)
+            return []
+
+        if readiness.state == STATE_ERROR:
+            _kb_log_state(
+                niche, _KB_STATE_READINESS_FAILED, t0, error_class=readiness.error_class
+            )
+            return []
+
+        if not readiness.is_ready:
+            # Cold but supported: request ONE owned, deduplicated refresh and
+            # return immediately. This turn proceeds without KB grounding; a
+            # later turn (once the background task verifies the seed landed)
+            # picks it up via the readiness check above.
+            try:
+                from app.tasks.kb_niche_refresh import request_niche_refresh
+
+                queued = request_niche_refresh(niche)
+            except Exception:
+                queued = False
+            _kb_log_state(
+                niche, _KB_STATE_REFRESH_REQUESTED if queued else _KB_STATE_NOT_READY, t0
+            )
+            return []
+
+        # 3) Ready — retrieve from the existing warmed singleton.
+        # get_knowledge_base() is a cheap in-process constructor call (no I/O,
+        # no catalog seed); the ONLY network work below is the bounded
+        # retrieval query itself, unchanged from before this fix.
+        from app.voice_agent.knowledge_base import get_knowledge_base
+
+        kb = get_knowledge_base()
+
+        namespaces = [niche]
         if self.client_id:
             namespaces.append(f"client:{self.client_id}")
 
@@ -2808,8 +2920,19 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
         try:
             loop = asyncio.get_event_loop()
-            hits = await asyncio.wait_for(loop.run_in_executor(None, _query), timeout=_KB_TIMEOUT_S)
-        except Exception:
+            query_fut = loop.run_in_executor(None, _query)
+            hits = await asyncio.wait_for(query_fut, timeout=_KB_TIMEOUT_S)
+        except asyncio.TimeoutError:
+            # Own the future on timeout instead of discarding it — bounded by
+            # the qdrant client's own socket timeout, not indefinite.
+            try:
+                query_fut.add_done_callback(lambda f: (None if f.cancelled() else f.exception()))
+            except Exception:
+                pass
+            _kb_log_state(niche, _KB_STATE_RETRIEVAL_TIMEOUT, t0)
+            return []
+        except Exception as e:
+            _kb_log_state(niche, _KB_STATE_RETRIEVAL_FAILED, t0, error_class=type(e).__name__)
             return []
 
         # gate weak/empty, dedupe, keep top-2 by score.
@@ -2856,6 +2979,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     facts = [(ar["answer"] or "").strip()]
             except Exception:
                 pass
+        _kb_log_state(niche, _KB_STATE_FACTS_AVAILABLE, t0, count=len(facts))
         return facts
 
     # ------------------------------------------------------------------ #
