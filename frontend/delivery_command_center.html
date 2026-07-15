@@ -211,6 +211,12 @@
   <h2 class="col-title">🧯 Failed Jobs — Dead-letter queue (DLQ)</h2>
   <div class="card">
     <div class="hint">Celery tasks jo fail hui. "Dead" = auto-retry exhausted (dlq_retry). Read-only view — sweep/retry ops <a href="/app/ops">/app/ops</a> se. Redis: dlq:failed_tasks / dlq:dead.</div>
+    <!-- ADR-104 Phase B follow-up (2026-07-15): this summary is ALWAYS computed
+         from BOTH dlq:failed_tasks + dlq:dead (never just the tab currently
+         selected below) so this card can never show "DLQ khaali" while a dead
+         task exists — the exact false-green gap Phase B fixed on the
+         Reliability Console but this page had never been wired to. -->
+    <div id="dlqSummary" class="hint" style="font-weight:700"><span class="spin"></span> Loading DLQ summary…</div>
     <div class="filters">
       <button class="filter dlq-filter on" data-dlq-key="failed">Failed</button>
       <button class="filter dlq-filter" data-dlq-key="dead">Dead (exhausted)</button>
@@ -494,9 +500,47 @@
           '<td class="sub">' + esc(when) + '</td></tr>';
       }).join("") + '</tbody></table>';
   }
+  // ADR-104 Phase B follow-up (2026-07-15): renders the summary from BOTH
+  // failed + dead counts, independent of which tab (DLQ_KEY) is selected for
+  // the item table below. Mirrors office_map.html's Reliability Console,
+  // which already fetches both keys — this page previously fetched only one.
+  function renderDlqSummary(failedCount, deadCount, err){
+    var el = document.getElementById("dlqSummary");
+    if(!el) return;
+    if(err){
+      el.innerHTML = '⚠️ DLQ summary load nahi hua: ' + esc(err);
+      return;
+    }
+    var dead = Number(deadCount) || 0, failed = Number(failedCount) || 0;
+    if(dead > 0){
+      el.innerHTML = '⚠️ Failed (retry-able): ' + esc(failed) + ' · Dead (exhausted): ' + esc(dead) +
+        ' — <a href="/app/office#reliability" target="_blank" style="color:var(--err);font-weight:800">Reliability Console me dekho →</a>';
+      el.style.color = "var(--err)";
+    }else if(failed > 0){
+      el.innerHTML = '⚠️ Failed (retry-able): ' + esc(failed) + ' · Dead (exhausted): 0';
+      el.style.color = "var(--warn)";
+    }else{
+      el.innerHTML = '✅ DLQ khaali — koi failed ya dead job nahi.';
+      el.style.color = "var(--ok)";
+    }
+  }
   async function loadDlq(){
     var box = document.getElementById("dlqBody");
     try{
+      // Always fetch BOTH keys for the summary, regardless of which tab is
+      // selected — a tab-scoped fetch alone is exactly how this card used to
+      // go blind to a nonzero dead count sitting behind the other tab.
+      var results = await Promise.allSettled([
+        callApi("/api/growth/infra/dlq?key=failed&limit=1", {headers: hdrs()}),
+        callApi("/api/growth/infra/dlq?key=dead&limit=1", {headers: hdrs()})
+      ]);
+      var failedRes = results[0], deadRes = results[1];
+      if(failedRes.status === "fulfilled" && deadRes.status === "fulfilled"){
+        renderDlqSummary(failedRes.value.count, deadRes.value.count, null);
+      }else{
+        var e = (failedRes.reason || deadRes.reason);
+        renderDlqSummary(0, 0, e ? e.message : "unknown error");
+      }
       var data = await callApi("/api/growth/infra/dlq?key=" + encodeURIComponent(DLQ_KEY) + "&limit=50", {headers: hdrs()});
       renderDlq(data);
     }catch(e){
