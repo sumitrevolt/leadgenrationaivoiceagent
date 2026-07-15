@@ -37,6 +37,41 @@ stale response sabse khatarnak claim hai, kyunki usme koi staleness signal hi na
 Verify karte waqt cache-buster lagao ya `docker exec` se andar se pucho.
 Rollback: `git revert dbc6c48` (header-only, zero data/state impact).
 
+### ADR-100 ADDENDUM (same session, post-deploy verification — CORRECTS the entry above)
+
+DEPLOYED `685cffaa` aur prod me VERIFY kiya: Caddy ke through
+`cache-control: no-store, no-cache, must-revalidate, max-age=0` + `pragma` +
+`expires` sach me ja rahe hain (`curl -s -D -` proof). **Par upar wali entry ne
+jo imply kiya — "ab drift detector trustworthy hai" — wo ADHOORA hai. Browser
+me test karke pakda:**
+
+Fix ke baad bhi, NORMAL navigation par Chrome ne **abhi bhi purana poisoned
+entry** serve kiya:
+- `/health` → `version: 91e7d37`, `timestamp: 2026-07-14T12:59` (12.7h purana)
+- `/health/ready` → **`version: "latest"`**, `free_gb: 66.16`, `timestamp:
+  2026-07-14T12:21` (~14h purana)
+Jabki usi waqt hard-reload (`ctrl+shift+R`) ne sach diya: `685cffaa`, `free_gb: 43.6`.
+Aur hard-reload ke BAAD bhi agli normal navigation wapas STALE pe chali gayi —
+yaani no-store wali fetch purane entry ko **evict nahi karti**.
+
+Matlab: **`no-store` sirf NAYA poisoning rokta hai; jo cache pehle se zeher hai wo
+zeher hi rahega** jab tak uski heuristic freshness khatam na ho ya cache clear na ho.
+Iska seedha operational natija: **founder ka browser abhi bhi jhooth bol raha hoga**,
+aur `/health/ready` pe `version: "latest"` dikhayega — jo ADR-097 ke apne rule ke
+hisaab se "prod ka code UNKNOWN hai" matlab rakhta hai = **FALSE ALARM, purely cache
+ki wajah se**. Cache dono taraf jhooth bol chuka hai: ek taraf purana SHA, doosri
+taraf `latest` ka nakli alarm.
+
+Isliye SOP (Admin guide + har verification me): **`/health` ko plain browser visit se
+KABHI verify mat karo.** `curl` use karo ya `?cb=<random>` lagao — ya `docker exec`
+se andar se pucho. Ye wahi ADR-099 ka sabak hai ek aur roop me: *field ek CLAIM hai,
+measurement nahi* — aur browser ka address bar sabse aasani se jhooth bolne wala
+"measurement" hai.
+
+Bacha hua kaam (backlog): pre-fix poisoned entries ke liye koi server-side eviction
+nahi hai (`Clear-Site-Data` bahut aggressive hoga). Practical: operator ek baar cache
+clear kare, ya bas cache-buster SOP follow kare.
+
 ## 2026-07-15 - ADR-101 (FINDING, fix pending) Headline `Est. MRR` 4x inflated — ADR-095 ka gate revenue metric pe laga hi nahi
 
 Finding (implement NAHI kiya — billing-truth touch = contract test FIRST, §6):
