@@ -391,6 +391,66 @@
     return ((p[0]||"?")[0] + (p[1]? p[1][0] : "")).toUpperCase();
   }
 
+  // ---- ADR-104 Phase F (2026-07-15): in-page confirmation modal ------------
+  // Live discovery: this page's Approve/Posted/Skip buttons called
+  // markItem() -> POST /api/clients/{id}/content/{itemId}/status DIRECTLY on
+  // click with ZERO confirmation of any kind -- not even a native confirm(),
+  // which is worse than the two surfaces already fixed this session
+  // (frontend/automation.html, frontend/delivery_command_center.html; see
+  // their matching actionConfirmModal). Found while viewing Jiya Makeover
+  // Studio's real pending draft content. mark_item() only rewrites a local
+  // JSONL bookkeeping status (app/marketing/auto_content.py) -- it does NOT
+  // itself trigger a public post (own-brand/customer auto-posting is a
+  // separate, still-manual copy/download step per CLAUDE.md) -- so the label
+  // below says "record", never "publish", to stay factually accurate. Same
+  // modal contract as automation.html: resolves true ONLY from an explicit
+  // click on its own Confirm button; Escape/backdrop cancel; Enter never
+  // confirms; opening it makes no network request.
+  function actionConfirmModal(opts){
+    opts = opts || {};
+    return new Promise(function(resolve){
+      var overlay = document.createElement('div');
+      overlay.setAttribute('data-testid','action-confirm-modal-overlay');
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,15,25,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+      var box = document.createElement('div');
+      box.style.cssText = 'background:#fff;border-radius:14px;max-width:480px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.35);font-family:inherit;color:#111';
+      box.innerHTML =
+        '<div style="font-weight:800;font-size:16px;margin-bottom:10px">Confirm content status change</div>' +
+        '<div style="font-size:13.5px;line-height:1.7">' +
+          '<div><b>Client:</b> ' + esc(opts.customer||'') + '</div>' +
+          '<div><b>Content:</b> ' + esc(opts.contentTitle||'') + '</div>' +
+          '<div><b>Action:</b> ' + esc(opts.action||'') + '</div>' +
+          '<div style="margin-top:8px;padding:8px;border-radius:8px;background:#f0fdf4;color:#166534">' +
+            'This only updates the internal status record. It does NOT post publicly and does not contact any external channel right now.' +
+          '</div>' +
+        '</div>' +
+        '<div style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px">' +
+          '<button data-testid="acm-cancel" style="padding:9px 16px;border-radius:9px;border:1px solid #ddd;background:#fff;cursor:pointer;font-weight:700">Cancel</button>' +
+          '<button data-testid="acm-confirm" style="padding:9px 16px;border-radius:9px;border:none;cursor:pointer;font-weight:800;color:#fff;background:#4f46e5">' + esc(opts.confirmLabel || 'Confirm') + '</button>' +
+        '</div>';
+      overlay.appendChild(box);
+      document.body.appendChild(overlay);
+      function cleanup(result){
+        if(overlay.parentNode) document.body.removeChild(overlay);
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      }
+      function onKey(e){
+        // Explicitly: Enter must NOT confirm. Only Escape (=cancel) is handled.
+        if(e.key === 'Escape') cleanup(false);
+      }
+      document.addEventListener('keydown', onKey);
+      overlay.addEventListener('click', function(e){ if(e.target === overlay) cleanup(false); });
+      box.querySelector('[data-testid="acm-cancel"]').onclick = function(){ cleanup(false); };
+      box.querySelector('[data-testid="acm-confirm"]').onclick = function(){ cleanup(true); };
+    });
+  }
+  var ACT_LABEL = {
+    approved: 'Approve content (internal record only)',
+    posted: 'Record as already posted (you must have manually shared it)',
+    skipped: 'Skip this content'
+  };
+
   // ---- Copy (clipboard + execCommand fallback) -----------------------------
   function doCopy(text, btn, restoreLabel){
     function done(){
@@ -778,7 +838,7 @@
       var tb = TYPE_BADGE[type];
       var st = String(it.status||"draft").toLowerCase();
       var copyText = (it.caption || "") + ((it.hashtags && it.hashtags.length) ? "\n\n" + it.hashtags.join(" ") : "");
-      var ci = itemStore.push({id: it.id, svg: it.svg || "", copy: copyText, type: type}) - 1;
+      var ci = itemStore.push({id: it.id, svg: it.svg || "", copy: copyText, type: type, title: it.title || ""}) - 1;
 
       var capHtml = it.caption ? '<div class="cap">' + esc(it.caption) + '</div>' : "";
       var tagHtml = (it.hashtags && it.hashtags.length)
@@ -812,9 +872,18 @@
 
     // wire actions
     box.querySelectorAll("[data-act]").forEach(function(b){
-      b.onclick = function(){
+      b.onclick = async function(){
         var rec = itemStore[parseInt(b.getAttribute("data-i"),10)];
-        markItem(c, rec.id, b.getAttribute("data-act"), b);
+        var act = b.getAttribute("data-act");
+        var titleForModal = rec.title || (rec.type + ' content');
+        var ok = await actionConfirmModal({
+          customer: c.business_name || c.id,
+          contentTitle: titleForModal,
+          action: ACT_LABEL[act] || act,
+          confirmLabel: ACT_LABEL[act] || 'Confirm'
+        });
+        if(!ok) return;
+        markItem(c, rec.id, act, b);
       };
     });
     box.querySelectorAll("[data-copy]").forEach(function(b){
