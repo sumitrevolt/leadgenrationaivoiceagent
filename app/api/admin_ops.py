@@ -926,20 +926,37 @@ async def deliver_now(client_id: str, _user=Depends(require_admin)) -> dict:
 @router.post("/clients/{client_id}/password-reset", summary="Admin-clicked customer password reset")
 async def client_password_reset(client_id: str, body: dict, _user=Depends(require_admin)) -> dict:
     password = body.get("password")
-    if not password or len(password) < 4:
-        raise HTTPException(status_code=400, detail="Invalid password")
-    
+    # ADR-104 (2026-07-15, Priority 4): backend minimum now matches the
+    # admin_dashboard.html modal's own client-side rule (8 chars) -- the API
+    # previously only enforced 4, so a direct call (bypassing the UI) could
+    # set a materially weaker password than the UI ever allows.
+    if not password or len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+
     from app.marketing import clients_store
     client = clients_store.get_client(client_id)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
-        
+
     email = client.get("email")
     if not email:
         raise HTTPException(status_code=400, detail="Client email not set, cannot reset login credentials")
-        
+
     from app.api import customer_auth
     customer_auth.register_login(email, password, client_id)
+    # ADR-104 (2026-07-15, Priority 4): this endpoint had no audit trail at
+    # all -- a real customer's login credential could be overwritten with no
+    # record of who did it or when. Mirrors the existing deliver_now pattern
+    # (delivery_ledger.log_event, per-client, actor="admin"). Never the
+    # password itself -- only that a reset happened.
+    try:
+        from app.marketing import delivery_ledger
+
+        delivery_ledger.log_event(
+            client_id, "admin_manual_action", detail="password_reset", actor="admin"
+        )
+    except Exception as le:  # pragma: no cover
+        logger.debug("password_reset ledger log skip: %s", le)
     return {"ok": True}
 
 
@@ -949,9 +966,22 @@ async def client_onboard_scrape(client_id: str, background_tasks: BackgroundTask
     client = clients_store.get_client(client_id)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
-    
+
     from app.marketing import onboarding
     background_tasks.add_task(onboarding.auto_onboard, client_id, send_welcome=False, force=True)
+    # ADR-104 (2026-07-15, Priority 4): force=True re-scrapes the client's
+    # real website and re-seeds KB/content pack even if setup_done -- a real
+    # overwrite-capable action with no prior audit trail. Log it the same way
+    # as deliver_now/password_reset (fire-and-forget, never blocks the
+    # background task or the response).
+    try:
+        from app.marketing import delivery_ledger
+
+        delivery_ledger.log_event(
+            client_id, "admin_manual_action", detail="onboard_rescrape_triggered", actor="admin"
+        )
+    except Exception as le:  # pragma: no cover
+        logger.debug("onboard_scrape ledger log skip: %s", le)
     return {"ok": True}
 
 
