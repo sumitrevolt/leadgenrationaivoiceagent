@@ -121,7 +121,7 @@ AUTOMATION_FLAGS = [
     "MAGIC_LINK",  # passwordless customer login (single-use email link) — OFF default
     "IMPERSONATION",  # super-admin "login as customer" support tool (audited) — OFF default
     "PUBLIC_GUARDRAILS",  # PII-redact + prompt-injection block on public chatbot/widget LLM — OFF default, fail-open
-    "CONTENT_APPROVAL_AUTO",  # daily auto_content → client approval queue auto-submit — OFF default
+    "CONTENT_APPROVAL_AUTO",  # daily auto_content → approval queue AUTO-SUBMIT (not auto-approve) — OFF default
     "OLLAMA_URL",
     "OLLAMA_PRIMARY",  # self-hosted own LLM (GPU/PC) — URL set = active
     "NEWSLETTER_ENGINE",

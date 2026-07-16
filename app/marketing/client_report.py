@@ -196,16 +196,18 @@ async def build_report(client_id: str, month: str = "", send: bool | None = None
     try:
         from app.marketing import clients_store
 
-        client = clients_store.get_client(client_id)
+        # Billing alias (invoice id) → canonical marketing client id
+        client = clients_store.resolve_client(client_id) or clients_store.get_client(client_id)
         if not client:
             return {"ok": False, "error": "client not found"}
+        cid = str(client.get("id") or client_id).strip()
         month = month or _month()
         s = collect_stats(client, month)
-        delivery = collect_delivery(client_id, month)
+        delivery = collect_delivery(cid, month)
         next_actions_hi = _next_actions(delivery, client)
         html = _render_html(client, s, delivery, next_actions_hi)
         os.makedirs(_OUT_DIR, exist_ok=True)
-        path = os.path.join(_OUT_DIR, f"{client_id}_{month}.html")
+        path = os.path.join(_OUT_DIR, f"{cid}_{month}.html")
         with open(path, "w", encoding="utf-8") as f:
             f.write(html)
         emailed = False
@@ -226,12 +228,15 @@ async def build_report(client_id: str, month: str = "", send: bool | None = None
         try:
             from app.marketing import delivery_ledger
 
-            delivery_ledger.log_event(client_id, "weekly_report_generated", detail=month)
+            delivery_ledger.log_event(
+                cid, "weekly_report_generated", detail=month, key=f"report:{cid}:{month}"
+            )
         except Exception:
             pass
         return {
             "ok": True,
             "path": path,
+            "client_id": cid,
             "stats": s,
             "delivery": delivery,
             "next_actions_hi": next_actions_hi,

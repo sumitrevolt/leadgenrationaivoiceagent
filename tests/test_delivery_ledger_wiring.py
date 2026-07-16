@@ -68,7 +68,10 @@ async def test_auto_onboard_logs_started_and_completed(monkeypatch):
     monkeypatch.setattr(onboarding, "_seed_kb_from_website", _fake_seed_kb)
     monkeypatch.setattr(onboarding, "_first_content_pack", _fake_content_pack)
     monkeypatch.setattr(onboarding, "_send_welcome_whatsapp", _fake_welcome)
-    monkeypatch.setattr("app.marketing.auto_content.seed_client_content", lambda client: _async_zero(), raising=False)
+    async def _fake_seed(_client):
+        return 0
+
+    monkeypatch.setattr("app.marketing.auto_content.seed_client_content", _fake_seed, raising=False)
     monkeypatch.setattr("app.platform.client_snapshots.apply_niche_to_client", lambda cid: {"ok": True}, raising=False)
 
     events = []
@@ -112,11 +115,16 @@ def test_record_stuck_logs_correct_event_type(monkeypatch, tmp_path):
 async def test_seed_client_content_logs_calendar_and_drafts(monkeypatch):
     from app.marketing import auto_content
 
-    async def _fake_generate(client):
+    async def _fake_generate(client, day=None):
         return [{"type": "post"}, {"type": "post"}]
 
     monkeypatch.setattr(auto_content, "generate_for_client", _fake_generate)
-    monkeypatch.setattr(auto_content, "_append_items", lambda cid, items: len(items), raising=False)
+    monkeypatch.setattr(
+        auto_content,
+        "_append_items_detailed",
+        lambda cid, items: (2, list(items)[:2]),
+        raising=False,
+    )
 
     events = []
     monkeypatch.setattr(
@@ -138,11 +146,13 @@ async def test_seed_client_content_no_ledger_noise_when_zero_added(monkeypatch):
     """Zero new drafts (dedupe hit / recycle also empty) -> no misleading events."""
     from app.marketing import auto_content
 
-    async def _fake_generate(client):
+    async def _fake_generate(client, day=None):
         return []
 
     monkeypatch.setattr(auto_content, "generate_for_client", _fake_generate)
-    monkeypatch.setattr(auto_content, "_append_items", lambda cid, items: 0, raising=False)
+    monkeypatch.setattr(
+        auto_content, "_append_items_detailed", lambda cid, items: (0, []), raising=False
+    )
 
     async def _fake_recycle(client):
         return 0

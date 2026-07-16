@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -18,6 +19,7 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _DELIVERY_DIR = os.path.join("data", "product_one_delivery")
+_REPORT_DIR = os.path.join("data", "client_reports")
 
 PIPELINE = [
     "payment_received",
@@ -46,7 +48,7 @@ STAGE_LABELS = {
 DELIVERABLES = [
     ("business_profile", "Business profile setup", "Customer details + local offer captured"),
     ("brand_kit", "Brand kit", "Logo text, colors, tone, and basic brand identity"),
-    ("branded_posters", "4 branded posters", "At least 4 poster/festival creative drafts"),
+    ("branded_posters", "4 branded posters", "At least 4 branded SVG poster drafts (type=poster only)"),
     ("social_posts", "12 social captions or posts", "Monthly social content draft bank"),
     ("festival_ideas", "Festival/local post suggestions", "Local/festival campaign ideas"),
     ("gbp_suggestions", "Google Business Profile content suggestions", "GBP/update ideas ready"),
@@ -86,7 +88,7 @@ ProductOnePlanDeliverables = {
         {
             "deliverable_type": "branded_posters",
             "title": "4 branded posters",
-            "description": "At least 4 poster/festival creative drafts",
+            "description": "At least 4 branded SVG poster drafts (type=poster only)",
             "channel": "poster",
             "owner": "AI",
         },
@@ -571,6 +573,23 @@ def _ledger_summary(cid: str) -> dict[str, Any]:
         return {}
 
 
+def _monthly_report_on_disk(cid: str, client: dict[str, Any] | None = None) -> bool:
+    """True if this month's white-label HTML report exists for marketing id OR billing aliases."""
+    try:
+        month = time.strftime("%Y-%m")
+        ids: list[str] = [str(cid or "").strip()]
+        aliases = (client or {}).get("billing_client_ids") or []
+        if isinstance(aliases, (list, tuple, set)):
+            ids.extend(str(a).strip() for a in aliases if str(a).strip())
+        out_dir = _REPORT_DIR
+        for i in ids:
+            if i and os.path.isfile(os.path.join(out_dir, f"{i}_{month}.html")):
+                return True
+    except Exception:
+        return False
+    return False
+
+
 def _ledger_recent_failures(cid: str) -> int:
     """24h rolling failure count — used for health score RED flag instead of
     all-time `automation_failures`. Prevents historical failures from
@@ -861,7 +880,10 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
         led_events = _ledger_events(cid)
         actions = manual_events(cid)
 
-        posters = [i for i in items if str(i.get("type") or "").lower() in ("poster", "festival")]
+        # Branded posters = type "poster" ONLY. Festival SVG/text posts are a
+        # separate deliverable (festival_ideas). Counting festival as posters
+        # padded "4/4" for Jiya with 1 real poster + 3 festival items (audit 2026-07-17).
+        posters = [i for i in items if str(i.get("type") or "").lower() == "poster"]
         post_like = [
             i
             for i in items
@@ -881,6 +903,7 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
         report_action = _manual_done(actions, "monthly_report")
         proof_action = _manual_done(actions, "proof")
         publish_action = _manual_done(actions, "publish_manual")
+        report_on_disk = _monthly_report_on_disk(cid, client)
 
         # Database-backed CustomerDeliverable sync (2026-07-08, parallel track).
         # This is real forward progress toward a proper per-billing-cycle
@@ -949,9 +972,9 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
             _deliverable(*DELIVERABLES[7], "done" if has_content_type("review_reply") or _manual_done(actions, "review_replies") else "pending",
                 next_action="AI review reply templates auto-generate honge" if _client_plan_paid(client) else "",
                 owner="AI"),
-            _deliverable(*DELIVERABLES[8], "done" if int(ledger.get("reports") or 0) > 0 or report_action else "pending",
-                proof_note=str((report_action or {}).get("note") or ""),
-                next_action="Mahine ke end me auto-generate hoga — Admin Monthly Report button se bhi bana sakta hai" if not report_action else ""),
+            _deliverable(*DELIVERABLES[8], "done" if int(ledger.get("reports") or 0) > 0 or report_action or report_on_disk else "pending",
+                proof_note=str((report_action or {}).get("note") or ("report file on disk" if report_on_disk else "")),
+                next_action="Mahine ke end me auto-generate hoga — Admin Monthly Report button se bhi bana sakta hai" if not report_action and not report_on_disk else ""),
             _deliverable(*DELIVERABLES[9], "done" if published or proof_action or publish_action else ("in_progress" if approved else "pending"),
                 proof_note=str((proof_action or publish_action or {}).get("note") or ""),
                 integration_required=_missing_social_integration(),
@@ -985,7 +1008,12 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
             stage = "setup_in_progress" if setup_pct else "onboarding_pending"
             next_action = "Day-1 content pack generate karo."
 
-        if int(ledger.get("reports") or 0) > 0 or report_action:
+        if (int(ledger.get("reports") or 0) > 0 or report_action) and stage not in (
+            "approval_pending",
+            "setup_in_progress",
+            "onboarding_pending",
+            "payment_received",
+        ):
             stage = "report_sent"
             next_action = "Renewal ke liye monthly value recap share karo."
         if stage == "report_sent" and deliverable_pct >= 80:
