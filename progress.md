@@ -1,6 +1,21 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-16 (Launch-ready evidence refresh — no runtime rebuild)
+Goal: Prove launch-ready with live evidence; clear safe leftovers; fix only real code blockers (none found).
+Inspected: Live `/health`+`/health/ready`+`/api/activation/summary` · local HEAD vs origin vs prod image · VPS 5/5 skew · celery/dlq · platform_dial · `/api/public/pay-info` · critical routes · OmniRoute uncommitted leftovers · Current State owner-only items.
+Problems Found: (0 code blockers). (1) `/api/upi/pay-info` 404 = wrong probe path — real route `/api/public/pay-info` 200 + enabled. (2) Uncommitted ADR-108 addendum + smoke script sitting dirty. (3) `node_modules/` + `tmp_deploy/` noise unignored. (4) Git HEAD `1eb2f56` (docs) ahead of runtime `5b392253` — intentional docs-only lag, not skew (images 5/5 on `5b392253`).
+Changed: `memory/decisions.md` (ADR-108 live-smoke addendum) · `scripts/omniroute_agent_smoke.py` NEW · `tests/test_omniroute_scripts.py` (synthetic/no-secret contract) · `.gitignore` (`node_modules/`/`tmp_deploy/`/`tmp_vps_*.sh`) · deleted session `tmp_deploy` + probe scripts. **No app/runtime code change → no rebuild.**
+Tests Run: omniroute_client + smoke contract + billing_truth + l2_stack_graph → **green** · `prod_check` ALL PASSED (1103 routes) · `check_secrets` CLEAN.
+Verification Evidence:
+- BEFORE: activation already GO; leftovers dirty; wrong UPI path looked like 404.
+- AFTER live: `/health` healthy `version=5b392253` `environment=production` · `/health/ready` db/redis/llm healthy · activation `ready_for_first_paid_customer=true` `blocker_count=0` · skew 5/5 all `:5b392253` · celery=0 dlq=0 · platform_dial `enabled=False` `PLATFORM_DIAL_DAILY=0` · pay-info 200 (starter 1999 / advanced 5999) · plans/niches 200.
+Risks: None new. OmniRoute remains INERT on VPS (no gateway) — correct.
+Remaining (owner-only, non-blocking): YouTube OAuth Publish · Postiz registration lock confirm · Unity WebGL local-only · own-brand social e2e `post_id` proof · Sentry triage.
+Next Highest Priority: GTM Hot Queue → first new paid customer; monitor Jiya delivery.
+Final Verdict: **LAUNCH READY** — live proof green; leftovers committed (docs/script only); rebuild correctly skipped.
+
+## Loop Run
 Date: 2026-07-16 (L2 Stack graph — restore + truthful embed)
 Goal: `/app/control-center` L2 architecture graph empty/broken restore; Old Explorer fallback preserve; production-ready evidence.
 Inspected: progress/memory · Graphify control-center/L2 · middleware XFO · `control_center.html`/`control_center_graph.html` · live GET/HEAD headers · Playwright parent iframe + standalone graph.
