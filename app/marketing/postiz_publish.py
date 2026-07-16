@@ -104,6 +104,46 @@ async def _fetch_integration_platforms() -> dict[str, str]:
     return {}
 
 
+async def live_integrations_summary() -> dict[str, Any]:
+    """Best-effort Postiz channel list for admin honesty (refresh flags, ids).
+
+    Never raises. Empty when key unset or API unreachable.
+    """
+    if not enabled():
+        return {"ok": False, "channels": [], "youtube_refresh_needed": False}
+    try:
+        import httpx
+
+        async with httpx.AsyncClient(timeout=15) as cx:
+            r = await cx.get(f"{_base()}/public/v1/integrations", headers=_headers())
+        if r.status_code // 100 != 2:
+            return {"ok": False, "channels": [], "youtube_refresh_needed": False}
+        data = r.json()
+        if not isinstance(data, list):
+            return {"ok": False, "channels": [], "youtube_refresh_needed": False}
+        channels: list[dict[str, Any]] = []
+        youtube_refresh = False
+        for it in data:
+            if not isinstance(it, dict) or not it.get("id"):
+                continue
+            ident = str(it.get("identifier") or it.get("providerIdentifier") or "").lower()
+            refresh = bool(it.get("refreshNeeded") or it.get("refresh_needed"))
+            if ident == "youtube" and refresh:
+                youtube_refresh = True
+            channels.append(
+                {
+                    "id": str(it.get("id")),
+                    "identifier": ident,
+                    "refresh_needed": refresh,
+                    "name": str(it.get("name") or it.get("providerIdentifier") or "")[:80],
+                }
+            )
+        return {"ok": True, "channels": channels[:30], "youtube_refresh_needed": youtube_refresh}
+    except Exception as e:
+        logger.debug(f"[postiz] live_integrations_summary skip: {e}")
+        return {"ok": False, "channels": [], "youtube_refresh_needed": False}
+
+
 async def upload_media(path: str) -> dict[str, Any] | None:
     """Local file Postiz pe upload (IG/YT/TikTok verified-URL maangte) → media obj."""
     if not enabled() or not path or not os.path.isfile(path):

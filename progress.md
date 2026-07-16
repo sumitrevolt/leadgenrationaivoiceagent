@@ -1,6 +1,19 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-16 (launch gaps sweep — Postiz/social proof/status)
+Goal: User "sab fix karo" — close remaining launch blockers where code/VPS actionable.
+Inspected: VPS deploy/postiz/.env, social_engine.json, social_post_jobs.jsonl, activation/summary GO.
+Problems Found: Postiz reg + social e2e already fixed on VPS (stale CLAUDE blockers); status API lacked publish_proven + YouTube refresh visibility.
+Changed: store.publish_proof/queue_counts; postiz live_integrations_summary; social/postiz/status fields; CLAUDE Next action sync; tests.
+Tests Run: test_postiz_config 18/18; prod_check ALL PASSED.
+Verification Evidence: VPS POSTIZ_DISABLE_REGISTRATION=true; jobs 7ff911ed/46d14cc3 post_id non-empty; activation blocker_count=0.
+Risks: YouTube OAuth app publish = Google Console USER-only (cannot automate).
+Remaining: YouTube publish app; GTM 2nd customer; Sentry triage.
+Next Highest Priority: Google Console OAuth publish + Hot Queue sales grind.
+Final Verdict: Platform launch GO; only external YouTube + GTM remain.
+
+## Loop Run
 Date: 2026-07-16 (ship — ADR-112/113/114 → VPS)
 Goal: Commit + VPS deploy enterprise honesty bundle; sync Current State after LIVE proof.
 Inspected: staged 30 files; prod_check; targeted pytest; deploy_vps.sh log; live /health.

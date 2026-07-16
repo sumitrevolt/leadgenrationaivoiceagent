@@ -160,6 +160,46 @@ async def test_admin_status_reports_effective_env_config(monkeypatch):
     assert out["social_engine_enabled"] is True
     assert "dry_run" in out
     assert out["dry_run"] is False
+    assert "publish_proven" in out
+    assert "queue_counts" in out
+
+
+async def test_admin_status_reports_publish_proof(monkeypatch, tmp_path):
+    from app.api import growth_automation as ga
+    from app.marketing import postiz_publish as pp
+    from app.social_engine import store
+
+    _mock_vault(monkeypatch, integrations="fb1")
+    monkeypatch.setenv("POSTIZ_INTEGRATIONS", "fb1")
+    monkeypatch.setenv("SOCIAL_ENGINE", "1")
+    jobs = tmp_path / "social_post_jobs.jsonl"
+    jobs.write_text(
+        '{"id":"j1","status":"published","post_id":"real-post-abc","updated_at":"2026-07-15T12:00:00"}\n'
+    )
+    monkeypatch.setattr(store, "_PATH", str(jobs))
+
+    async def _fake_live():
+        return {"ok": True, "channels": [], "youtube_refresh_needed": False}
+
+    monkeypatch.setattr(pp, "live_integrations_summary", _fake_live)
+
+    out = await ga.social_postiz_status(_user=None)
+    assert out["publish_proven"] is True
+    assert out["last_real_post_id"] == "real-post-abc"
+
+
+def test_publish_proof_ignores_dry_run_ids(tmp_path, monkeypatch):
+    from app.social_engine import store
+
+    jobs = tmp_path / "social_post_jobs.jsonl"
+    jobs.write_text(
+        '{"id":"j1","status":"published","post_id":"dry-abc","updated_at":"2026-07-16"}\n'
+        '{"id":"j2","status":"published","post_id":"cmr-real","updated_at":"2026-07-15"}\n'
+    )
+    monkeypatch.setattr(store, "_PATH", str(jobs))
+    proof = store.publish_proof()
+    assert proof["publish_proven"] is True
+    assert proof["last_real_post_id"] == "cmr-real"
 
 
 async def test_admin_status_reports_dry_run_when_env_set(monkeypatch):
