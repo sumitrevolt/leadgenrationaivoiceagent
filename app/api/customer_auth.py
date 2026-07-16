@@ -190,8 +190,9 @@ def _content_summary(items: list) -> dict:
 # --------------------------------------------------------------------------- #
 # auth dependency
 # --------------------------------------------------------------------------- #
-def require_customer(creds: HTTPAuthorizationCredentials = Depends(_security)) -> str:
-    """Return the authenticated client_id from a customer JWT (role=customer)."""
+async def require_customer(creds: HTTPAuthorizationCredentials = Depends(_security)) -> str:
+    """Return the authenticated client_id from a customer JWT (role=customer).
+    Check Redis blacklist for logged-out tokens."""
     try:
         from app.api.admin import decode_token
 
@@ -205,6 +206,21 @@ def require_customer(creds: HTTPAuthorizationCredentials = Depends(_security)) -
     cid = payload.get("sub")
     if not cid:
         raise HTTPException(status_code=401, detail="Invalid token payload")
+
+    # Check if token is blacklisted (logged out)
+    try:
+        from app.cache import get_redis_client
+        redis_client = await get_redis_client()
+        token = creds.credentials
+        blacklist_key = f"customer:logout:{token[:20]}"
+        is_blacklisted = await redis_client.exists(blacklist_key)
+        if is_blacklisted:
+            raise HTTPException(status_code=401, detail="Token has been revoked (logged out)")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.debug(f"[require_customer] blacklist check failed: {e} (allowing request)")
+
     return str(cid)
 
 
@@ -629,6 +645,27 @@ async def me(client_id: str = Depends(require_customer)):
         "product": product,
         "first_hour_setup": _first_hour_setup_state(client_rec),
     }
+
+
+@router.post("/logout")
+async def logout(creds: HTTPAuthorizationCredentials = Depends(_security), client_id: str = Depends(require_customer)):
+    """Invalidate customer JWT token (Redis blacklist + return 200)."""
+    try:
+        from app.cache import get_redis_client
+        redis_client = await get_redis_client()
+        token = creds.credentials
+        # Extract expiry from JWT to set Redis TTL
+        from app.api.admin import decode_token
+        payload = decode_token(token)
+        exp = payload.get("exp", 0)
+        ttl = max(1, exp - int(datetime.now(timezone.utc).timestamp()))
+        # Blacklist the token
+        blacklist_key = f"customer:logout:{token[:20]}"
+        await redis_client.setex(blacklist_key, ttl, "1")
+        logger.info(f"[logout] customer {client_id} invalidated")
+    except Exception as e:
+        logger.warning(f"[logout] blacklist failed: {e} (frontend logout still valid)")
+    return {"message": "Logged out successfully"}
 
 
 @router.get("/portal/content")
