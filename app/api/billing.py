@@ -554,50 +554,74 @@ async def get_invoices(
     db: AsyncSession = Depends(get_async_db),
 ):
     """
-    Get invoice history for a client (Postgres + JSONL GST invoices merged)
+    Get invoice history for a client (Postgres + JSONL GST invoices merged).
+
+    Alias-aware (ADR-106): JSONL rows may be owned by a legacy billing id
+    (`d79d690f61b3`) while the JWT carries the canonical slug (`jiya-makeover`).
     """
+    alias_ids = _billing_client_ids(client_id)
+
     # Query Postgres invoices
     result = await db.execute(
         select(Invoice)
-        .where(Invoice.client_id.in_(_billing_client_ids(client_id)))
+        .where(Invoice.client_id.in_(alias_ids))
         .order_by(Invoice.created_at.desc())
     )
     pg_invoices = result.scalars().all()
 
-    # Also read JSONL GST invoices for this client
-    all_invoices = []
+    # Also read JSONL GST invoices for this client + aliases
+    all_invoices: list[InvoiceResponse] = []
     try:
         from app.billing import gst_invoice
-        jsonl_invoices = [r for r in gst_invoice.list_invoices(500) if str(r.get("client_id")) == client_id]
-        # Convert JSONL to response format
+
+        alias_set = set(alias_ids)
+        jsonl_invoices = [
+            r for r in gst_invoice.list_invoices(500) if str(r.get("client_id") or "") in alias_set
+        ]
         for inv in jsonl_invoices:
-            all_invoices.append(InvoiceResponse(
-                id=inv.get("id") or inv.get("number") or "",
-                invoice_number=inv.get("number") or "",
-                status="paid",
-                total=float(inv.get("gross_inr") or 0),
-                amount_paid=float(inv.get("gross_inr") or 0),
-                amount_due=0,
-                currency="INR",
-                invoice_date=inv.get("date") or "",
-                due_date=None,
-                pdf_url=None,
-                hosted_url=None,
-            ))
+            all_invoices.append(
+                InvoiceResponse(
+                    id=str(inv.get("id") or inv.get("number") or ""),
+                    invoice_number=str(inv.get("number") or ""),
+                    status="paid",
+                    total=float(inv.get("gross_inr") or 0),
+                    amount_paid=float(inv.get("gross_inr") or 0),
+                    amount_due=0,
+                    currency="INR",
+                    invoice_date=str(inv.get("date") or ""),
+                    due_date=None,
+                    pdf_url=None,
+                    hosted_url=None,
+                )
+            )
     except Exception as e:
         logger.debug(f"[get_invoices] JSONL read failed: {e}")
 
-    # Add Postgres invoices (dedup by invoice_number)
+    # Add Postgres invoices (dedup by invoice_number) — full InvoiceResponse fields
     seen_numbers = {inv.invoice_number for inv in all_invoices if inv.invoice_number}
     for inv in pg_invoices:
-        if inv.invoice_number not in seen_numbers:
-            all_invoices.append(InvoiceResponse(
+        if inv.invoice_number in seen_numbers:
+            continue
+        all_invoices.append(
+            InvoiceResponse(
+                id=inv.id,
+                invoice_number=inv.invoice_number,
+                status=_ev(inv.status) or "draft",
+                total=float(inv.total) if inv.total else 0,
+                amount_paid=float(inv.amount_paid) if inv.amount_paid else 0,
+                amount_due=float(inv.amount_due) if inv.amount_due else 0,
+                currency=inv.currency or "INR",
+                invoice_date=inv.invoice_date.isoformat() if inv.invoice_date else "",
+                due_date=inv.due_date.isoformat() if inv.due_date else None,
+                pdf_url=inv.pdf_url,
                 hosted_url=inv.hosted_invoice_url,
-            ))
+            )
+        )
+        seen_numbers.add(inv.invoice_number)
 
     # Sort by date descending, apply limit/offset
-    all_invoices.sort(key=lambda x: x.invoice_date, reverse=True)
-    return all_invoices[offset:offset + limit]
+    all_invoices.sort(key=lambda x: x.invoice_date or "", reverse=True)
+    return all_invoices[offset : offset + limit]
 
 
 @router.get("/billing/invoices/{invoice_id}", tags=["Billing"])

@@ -1,6 +1,19 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-16 (Production-Ready Loop — evidence refresh + gap close)
+Goal: Fresh production-ready analysis; fix remaining code gaps that would still break Jiya after deploy of prior logout/invoice commits.
+Inspected: Live `/health`+`/health/ready`+`/api/activation/summary` · local vs origin vs prod SHA · `get_invoices` merge · customer_dashboard logout UI · `deploy_vps.sh` pull/SHA resolve · prod_check + secrets.
+Problems Found: (1) Prod still on `f2793d8b` — logout revoke + invoice merge commits (`ee4e7fa`/`10ca6dc`) origin pe hain par UNDEPLOYED. (2) Invoice merge incomplete: Postgres `InvoiceResponse` sirf `hosted_url` pass karta (ValidationError risk) + JSONL filter exact `client_id` (ADR-106 alias miss → Jiya GST invoice still empty). (3) `customer_dashboard.html` me server revoke logout nahi — sirf error-banner local clear. (4) `deploy_vps.sh` pull-fail / SHA≠HEAD pe silent stale rebuild possible (no `-e`, `| tail` mask).
+Changed: `app/api/billing.py` (alias-aware JSONL + full Postgres InvoiceResponse) · `frontend/customer_dashboard.html` (`doCustomerLogout` + topbar Logout) · `scripts/deploy_vps.sh` (pull-fail abort + SHA/HEAD match gate) · tests: `test_billing_alias_resolution.py`, `test_production_deployment.py`, `test_deploy_vps_retention.py`.
+Tests Run: billing_alias + production_deployment + deploy_vps_retention + customer_logout + billing_truth → **44 passed, 1 skipped** (test account) · `prod_check.py` ALL PASSED (1103 routes) · secrets CLEAN earlier this session.
+Verification Evidence: Live prod `version=f2793d8b` `environment=production` · activation `ready_for_first_paid_customer=true` `blocker_count=0` · ready checks db/redis/llm healthy · disk 49.5GB free · local tree green; **deploy of this HEAD still required** for logout/invoice/dashboard fixes to hit customers.
+Risks: Until deploy, Jiya still on pre-logout/pre-invoice-merge code. YouTube OAuth / Postiz registration / Unity remain owner/non-blocking. Control-center L2 graph empty = admin UX, not GO blocker.
+Remaining: (1) USER: commit (if chahiye) + push + canonical `deploy_vps.sh` with matching HEAD sha. (2) Post-deploy smoke: Jiya Logout revoke + Purane Bills shows INV/2026-27/0001. (3) Owner: YouTube OAuth publish. (4) Optional: control-center L2 graph.
+Next Highest Priority: Deploy current main (after user auth) — code GO, runtime lag hi asli remaining gate.
+Final Verdict: **CONDITIONALLY READY → GO after deploy** (activation API already GO; customer-facing logout/invoice fixes local-proven, prod-lagged).
+
+## Loop Run
 Date: 2026-07-16 (Launch Closure: Logout Fix, Tenant Proof, Invoice Reconcile)
 Goal: Close remaining P1/P2 gaps (logout revocation, tenant isolation proof, invoice portal) and finalize LAUNCH READY verdict.
 Inspected: Customer JWT auth flow (no session revocation before fix) · Tenant API boundaries via live tests · Invoice data sources (JSONL vs Postgres) · Production sha/image/digest.

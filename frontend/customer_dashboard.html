@@ -570,6 +570,9 @@
       </div>
       <!-- Dark mode toggle -->
       <button class="btn" id="darkBtn" onclick="toggleDark()" aria-label="Toggle dark mode" aria-pressed="false" style="padding:8px 10px;font-size:16px;min-width:44px">🌙</button>
+      <!-- Session revoke (API blacklist) + local clear — shared-device safe -->
+      <button class="btn" id="logoutBtn" type="button" onclick="doCustomerLogout()" aria-label="Logout"
+              style="padding:8px 12px;font-size:12px;font-weight:700;min-width:44px">Logout</button>
     </div>
 
     <div id="trialBanner" class="trial-banner" role="status" aria-live="polite">
@@ -592,7 +595,7 @@
     <div id="liveDataErrorBanner" class="trial-banner expired" role="alert" aria-live="assertive" style="display:none">
       <div class="msg" id="liveDataErrorMsg">Aapka live data load nahi ho paya — dobara try karein.</div>
       <button type="button" class="btn-pay" style="background:#dc2626" onclick="retryLiveDashboard()">🔄 Dobara try karein</button>
-      <button type="button" class="btn" style="min-height:auto;padding:10px 14px" onclick="localStorage.removeItem('lgai_token');window.location.replace('/app/login?reason=retry_failed')">Logout</button>
+      <button type="button" class="btn" style="min-height:auto;padding:10px 14px" onclick="doCustomerLogout('retry_failed')">Logout</button>
     </div>
 
     <div class="content" role="main" id="mainContent" data-active-view="home">
@@ -2216,6 +2219,25 @@ loadLiveDashboard();
    identity are never accepted for authenticated dashboard work.
    ============================================================ */
 function billToken(){ return localStorage.getItem("lgai_token") || ""; }
+/** Revoke JWT server-side (Redis blacklist) then clear local session + redirect. */
+async function doCustomerLogout(reason){
+  var token = localStorage.getItem("lgai_token") || "";
+  if(token){
+    try{
+      await fetch("/api/customer/auth/logout", {
+        method: "POST",
+        headers: {"Authorization": "Bearer " + token}
+      });
+    }catch(e){ /* network fail — still clear local state */ }
+  }
+  try{
+    localStorage.removeItem("lgai_token");
+    localStorage.removeItem("lgai_cid");
+    localStorage.removeItem("accessToken");
+  }catch(e){}
+  var q = reason ? ("?reason=" + encodeURIComponent(reason)) : "";
+  window.location.replace("/app/login" + q);
+}
 function billAuthHdr(){ const t=billToken(); return t ? {"Authorization":"Bearer "+t} : {}; }
 function qparam(k){ try{ return new URLSearchParams(location.search).get(k)||""; }catch(e){ return ""; } }
 

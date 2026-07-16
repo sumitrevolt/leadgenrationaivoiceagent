@@ -99,4 +99,14 @@ def test_every_where_clause_uses_alias_resolution():
             f"{model} query regressed to direct equality — use "
             "_billing_client_ids(client_id) with .in_()"
         )
-    assert src.count("_billing_client_ids(client_id)") >= 10
+    assert src.count("_billing_client_ids(") >= 10
+
+
+def test_get_invoices_jsonl_uses_alias_set():
+    """JSONL GST ledger may store legacy billing id — filter must use aliases."""
+    import inspect
+
+    src = inspect.getsource(billing_api.get_invoices)
+    assert "alias" in src.lower()
+    assert "gst_invoice" in src
+    assert 'str(r.get("client_id")) == client_id' not in src
