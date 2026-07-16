@@ -144,6 +144,13 @@ def _client_name(client_id: str) -> str:
     return f"Client {client_id}"
 
 
+def _ev(x):
+    """Enum-or-str value: enum member ho to `.value`, warna as-is (None-safe).
+    DB rows written outside the enum path (manual UPI activation) store plain
+    strings — `.value` on those crashed the first real subscription response."""
+    return getattr(x, "value", x)
+
+
 def _billing_client_ids(client_id: str) -> list[str]:
     """Canonical id + legacy `billing_client_ids` aliases (ADR-095 family, ADR-106).
 
@@ -441,8 +448,12 @@ async def get_current_subscription(
         id=subscription.id,
         plan_id=subscription.plan_id,
         plan_name=subscription.plan_name,
-        status=subscription.status.value,
-        billing_cycle=subscription.billing_cycle.value if subscription.billing_cycle else "monthly",
+        # ADR-106 addendum: DB me kuch fields plain str hain (manual-UPI activation
+        # ne payment_gateway='upi' raw string likha tha, enum member nahi) — `.value`
+        # on str = AttributeError = 500 on the FIRST-EVER real subscription response.
+        # `_ev()` enum ho to .value, warna value as-is (never raises).
+        status=_ev(subscription.status),
+        billing_cycle=_ev(subscription.billing_cycle) or "monthly",
         base_price=float(subscription.base_price) if subscription.base_price else 0,
         currency=subscription.currency,
         current_period_start=(
@@ -463,9 +474,7 @@ async def get_current_subscription(
             "leads_limit": subscription.leads_limit or "unlimited",
             "appointments_booked": subscription.appointments_booked,
         },
-        payment_gateway=(
-            subscription.payment_gateway.value if subscription.payment_gateway else None
-        ),
+        payment_gateway=_ev(subscription.payment_gateway),
     )
 
 
@@ -560,7 +569,7 @@ async def get_invoices(
         InvoiceResponse(
             id=inv.id,
             invoice_number=inv.invoice_number,
-            status=inv.status.value if inv.status else "draft",
+            status=_ev(inv.status) or "draft",
             total=float(inv.total) if inv.total else 0,
             amount_paid=float(inv.amount_paid) if inv.amount_paid else 0,
             amount_due=float(inv.amount_due) if inv.amount_due else 0,
@@ -1215,7 +1224,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                     "subscription.updated",
                     {
                         "plan_id": sub.plan_id,
-                        "status": sub.status.value if sub.status else "",
+                        "status": _ev(sub.status) or "",
                         "stripe_subscription_id": sub_id,
                         "event": event_type,
                     },
@@ -1239,7 +1248,7 @@ async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_
                     "subscription.updated",
                     {
                         "plan_id": sub.plan_id,
-                        "status": sub.status.value if sub.status else "",
+                        "status": _ev(sub.status) or "",
                         "stripe_subscription_id": sub_id,
                         "event": event_type,
                     },
