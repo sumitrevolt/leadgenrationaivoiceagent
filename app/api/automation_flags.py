@@ -294,4 +294,9 @@ AUTOMATION_FLAGS = [
     # Flip only in a sanitized local process using the explicit task registry.
     # NOT in the production customer request path (LeadGen's existing free_ai.py chain
     # is untouched/unconditional).
+    "OMNIROUTE_AGENTS",  # ADR-108 (2026-07-16, user go-ahead): staff-agent bulk LLM calls
+    # (free_ai.chat, profile=bulk ONLY — realtime/voice hot-path EXCLUDED) OmniRoute try
+    # kar sakte hai. Double-gated: OMNIROUTE_ENABLED=1 AND OMNIROUTE_AGENTS=1 dono chahiye.
+    # Sanitized payload only (mask_customer_data + validate_no_secrets), fail-open —
+    # OmniRoute down/miss = existing free chain unchanged. OFF default (INERT).
 ]

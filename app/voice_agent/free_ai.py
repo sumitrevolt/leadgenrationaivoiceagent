@@ -877,6 +877,21 @@ async def chat(
     except Exception:
         msgs = _msgs_original
 
+    # --- OmniRoute optional agent pre-hook (ADR-108, 2026-07-16) -------------
+    # Double-gated (OMNIROUTE_ENABLED + OMNIROUTE_AGENTS, dono OFF default = INERT).
+    # SIRF bulk profile — realtime/voice hot-path yahan KABHI nahi aata (latency +
+    # boundary). Fail-open: None/exception = neeche wali existing chain UNCHANGED
+    # chalti hai. Payload omniroute_client.generate() me dobara sanitize hota hai.
+    if prof != "realtime" and os.getenv("OMNIROUTE_AGENTS", "0").strip().lower() in ("1", "true", "yes"):
+        try:
+            from app.platform.omniroute_client import try_agent_chat
+
+            _omni_text = await try_agent_chat(msgs)
+            if _omni_text:
+                return _omni_text, "omniroute"
+        except Exception as _omni_exc:  # defensive — hook kabhi chain nahi girayega
+            logger.debug("[free_ai] omniroute agent hook bypass: %s", type(_omni_exc).__name__)
+
     chain = _build_llm_chain(prof)
     for provider, model in chain:
         if _provider_down(provider):

@@ -154,3 +154,14 @@ def test_sha_arg_must_match_repo_head():
     assert "requested APP_VERSION=" in t
     assert "Refusing silent code/tag skew" in t
     assert 'REPO_SHA != APP_VERSION' in t or "REPO_SHA != APP_VERSION" in t
+
+
+def test_compose_up_has_bounded_recreate_retry():
+    """2026-07-16: compose recreate race left prod down — cleanup+retry must exist."""
+    t = _text()
+    assert "_cleanup_recreate_ghosts" in t
+    assert "UP_RETRY_RC" in t
+    assert "compose recreate conflict detected" in t
+    cleanup_idx = t.index("_cleanup_recreate_ghosts")
+    verify_idx = t.index("=== VERIFY /health")
+    assert cleanup_idx < verify_idx

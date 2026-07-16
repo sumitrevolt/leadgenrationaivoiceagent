@@ -1,0 +1,33 @@
+# Agent OS — VPS AI Staff Index (generated from app/platform/team.py — code = truth)
+
+- **Boss** (`manager`) — Manager (Supervisor) · platform · On-demand (har /api/agents/run pe)
+- **Swara** (`swara`) — Telecaller · voice · On-demand (calls/demos)
+- **Ananya** (`ananya`) — Appointment Booker · voice · On-demand (booking campaigns / callbacks)
+- **Riya** (`riya`) — AI Receptionist · voice · On-demand (inbound / mini-site widget)
+- **Dev** (`dev`) — Data Analyst · marketing · Har naye client pe auto
+- **Rohan** (`rohan`) — Leads Manager · marketing · On-demand (campaigns)
+- **Arjun** (`arjun`) — QA Engineer · voice · Roz raat 2:30 + on-demand
+- **Meera** (`meera`) — Trainer · voice · Roz raat 3:00 + on-demand
+- **Lekha** (`lekha`) — Call Analytics Lead · voice · Roz subah + on-demand (/api/admin/web-calls/kpis)
+- **Raksha** (`raksha`) — Human Escalation Manager · voice · On-demand (live calls)
+- **Kavya** (`kavya`) — Ops Monitor · platform · Har ghante + on-demand
+- **Hermes** (`hermes`) — Infrastructure Handler · platform · Har ghante (watchdog, gated INFRA_HANDLER) + pulse rotation
+- **Isha** (`isha`) — Marketing Executive · marketing · On-demand (marketing)
+- **Tara** (`tara`) — Voice Infra Ops · voice · Har ghante (watchdog ke saath)
+- **Nikhil** (`nikhil`) — Revenue Ops · platform · Roz (digest/content jobs ke saath)
+- **Vikram** (`vikram`) — Code Upgrader · platform · Har ghante (watchdog ke saath, gated CODE_UPGRADER)
+- **Guru** (`guru`) — Skill Trainer · platform · Roz (trainer job ke saath, gated SKILL_PACK)
+- **Pranav** (`pranav`) — SRE / Reliability · platform · Har ghante (gated SRE_AGENT) + daily DR-readiness summary
+- **Vidya** (`vidya`) — FinOps / Cost · platform · Roz (daily margin digest, gated FINOPS_AGENT)
+- **Arnav** (`arnav`) — Security / Compliance · platform · Daily (gated SECURITY_AGENT) + on-demand posture report
+- **Kabir** (`kabir`) — DB Reliability Engineer · platform · Daily 10:00 IST (gated DBRE_AGENT)
+- **Diya** (`diya`) — Data-Integrity Engineer · platform · Daily 10:30 IST (gated DATA_INTEGRITY_AGENT)
+- **Aryan** (`aryan`) — Dependency / Supply-chain Engineer · platform · Weekly Sun 04:30 IST (gated DEPS_AGENT)
+- **Arya** (`arya`) — MCP Engineer · platform · Hourly (gated MCP_ENGINEER) + on-demand /api/platform/mcp/health
+- **Ravi** (`ravi`) — SEO Scout · marketing · Roz blog ke saath + Monday SEO batch
+- **Neha** (`neha`) — Pipeline Ops · marketing · Roz 11:00 IST pipeline job
+- **Kiran** (`kiran`) — Campaign Optimizer · marketing · Weekly + threshold (gated CAMPAIGN_OPTIMIZER)
+- **Priya** (`priya`) — CRM Sync Specialist · marketing · On-demand (har qualified lead pe, jab client ne CRM connect kiya ho)
+- **Zara** (`zara`) — Social Media Manager · marketing · Queue-driven (jab bhi approved content publish ke liye ready ho)
+- **Anika** (`anika`) — Cadence Manager · marketing · Roz scheduled (team_scheduler.py cadence.run_due())
+- **Ira** (`ira`) — Journey Automation Manager · marketing · Event-driven (jab bhi koi wired hook trigger fire kare)

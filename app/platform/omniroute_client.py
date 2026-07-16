@@ -88,6 +88,15 @@ _TASK_ROUTES: dict[str, OmniRouteRoute] = {
         fallback_model="mistral/mistral-small-latest",
         privacy_class="INTERNAL_SANITIZED",
     ),
+    # ADR-108 (2026-07-16): staff-agent bulk work (content/analysis/digests) — user
+    # explicitly approved agent-enable. Realtime/voice hot-path is NOT routed here
+    # (free_ai.chat hook engages only for profile=bulk). Payload is sanitized by
+    # generate() (mask_customer_data + validate_no_secrets) before any network call.
+    "leadgen.agent_ops": OmniRouteRoute(
+        primary_model="groq/llama-3.3-70b-versatile",
+        fallback_model="mistral/mistral-small-latest",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
 }
 
 
@@ -111,6 +120,37 @@ def omniroute_available() -> bool:
         )
         return False
     return True
+
+
+def agents_enabled() -> bool:
+    """ADR-108 double gate: master flag+key available AND agent opt-in flag ON."""
+    if os.getenv("OMNIROUTE_AGENTS", "0").strip().lower() not in ("1", "true", "yes"):
+        return False
+    return omniroute_available()
+
+
+async def try_agent_chat(messages: list[dict[str, Any]]) -> str | None:
+    """Optional staff-agent pre-hook (ADR-108) — NEVER raises, fail-open.
+
+    Returns sanitized OmniRoute text ya None (None = caller apni existing free_ai
+    chain use kare, unchanged). Voice/realtime callers ko yeh function call hi
+    nahi karna chahiye — free_ai.chat hook sirf profile=bulk pe engage hota hai.
+    """
+    if not agents_enabled():
+        return None
+    try:
+        result = await generate("leadgen.agent_ops", messages, "INTERNAL_SANITIZED")
+    except SafePayloadError as exc:
+        # Secret/unsafe payload = OmniRoute ko mat bhejo, par agent ko zinda rakho
+        # (existing chain apni PII-masking ke saath handle karegi).
+        logger.warning("[omniroute_client] agent payload rejected: %s", exc)
+        return None
+    except Exception as exc:  # pragma: no cover — defensive, agent kabhi na gire
+        logger.warning("[omniroute_client] agent hook error: %s", type(exc).__name__)
+        return None
+    if result is None:
+        return None
+    return result.text or None
 
 
 def omniroute_client() -> Any | None:
