@@ -1,6 +1,6 @@
 # 🔗 Priya — CRM Sync Specialist
 
-> Source of truth: `app/platform/team.py` STAFF["priya"]. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
+> Source of truth: `app/platform/team.py` STAFF["priya"] + `app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
 
 - **Key:** `priya`
 - **Product:** marketing
@@ -18,6 +18,22 @@ Qualified leads client ke apne Zoho/HubSpot CRM me auto-push (gated CRM_SYNC) �
 - `agent-os/standards/global/feature-flags.md`
 - `agent-os/standards/backend/error-handling.md`
 - `agent-os/standards/backend/lazy-imports.md`
+
+## Routing & governance (app/platform/agent_os_routing.py)
+
+- **Category:** `follow_up`
+- **OmniRoute task:** `NONE (forbidden)`
+- **Privacy class:** `CUSTOMER_SENSITIVE`
+- **OmniRoute eligible:** no (still needs `OMNIROUTE_ENABLED` + `OMNIROUTE_AGENTS` + key)
+- **May write production data:** yes
+- **May contact customers:** no
+- **Human approval before publish:** no
+- **Free models OK:** yes
+- **Auto-run allowed:** yes
+- **Max retries / timeout / queue:** 2 / 30s / `celery`
+- **Notes:** CRM sync may carry PII — OmniRoute forbidden.
+
+Disable one agent: uska feature gate env unset karo (ya Office HQ pause) — poora system band mat karo.
 
 ## Non-negotiables (CLAUDE.md §5)
 

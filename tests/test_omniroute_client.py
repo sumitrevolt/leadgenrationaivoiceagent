@@ -67,6 +67,15 @@ class TestOmniRouteResponsesAdapter:
             fallback_model="mistral/mistral-small-latest",
             privacy_class="INTERNAL_SANITIZED",
         )
+        agent_ops = get_task_route("leadgen.agent_ops", "INTERNAL_SANITIZED")
+        assert agent_ops.privacy_class == "INTERNAL_SANITIZED"
+        assert "leadgen.agent_ops" in {
+            "leadgen.coding_primary",
+            "leadgen.coding_fast",
+            "leadgen.repo_analysis",
+            "leadgen.test_generation",
+            "leadgen.agent_ops",
+        }
 
     def test_registry_rejects_customer_and_unknown_routes(self):
         with pytest.raises(SafePayloadError):

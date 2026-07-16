@@ -1,6 +1,6 @@
 # 📱 Zara — Social Media Manager
 
-> Source of truth: `app/platform/team.py` STAFF["zara"]. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
+> Source of truth: `app/platform/team.py` STAFF["zara"] + `app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
 
 - **Key:** `zara`
 - **Product:** marketing
@@ -18,6 +18,22 @@ Approved content queue drain karke per-client social channels (Telegram/Postiz/M
 - `agent-os/standards/global/feature-flags.md`
 - `agent-os/standards/backend/error-handling.md`
 - `agent-os/standards/backend/lazy-imports.md`
+
+## Routing & governance (app/platform/agent_os_routing.py)
+
+- **Category:** `social_media`
+- **OmniRoute task:** `leadgen.agent_ops`
+- **Privacy class:** `INTERNAL_SANITIZED`
+- **OmniRoute eligible:** yes (still needs `OMNIROUTE_ENABLED` + `OMNIROUTE_AGENTS` + key)
+- **May write production data:** yes
+- **May contact customers:** yes
+- **Human approval before publish:** yes
+- **Free models OK:** yes
+- **Auto-run allowed:** yes
+- **Max retries / timeout / queue:** 2 / 45s / `celery`
+- **Notes:** Publish path is approval-gated (SOCIAL_ENGINE + admin confirm).
+
+Disable one agent: uska feature gate env unset karo (ya Office HQ pause) — poora system band mat karo.
 
 ## Non-negotiables (CLAUDE.md §5)
 

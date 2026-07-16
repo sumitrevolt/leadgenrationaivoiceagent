@@ -1,6 +1,6 @@
 # 📊 Lekha — Call Analytics Lead
 
-> Source of truth: `app/platform/team.py` STAFF["lekha"]. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
+> Source of truth: `app/platform/team.py` STAFF["lekha"] + `app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
 
 - **Key:** `lekha`
 - **Product:** voice
@@ -21,6 +21,22 @@ Call-center KPIs — web+phone calls se duration, qualified-rate, booking-rate, 
 - `agent-os/standards/voice/compliance-gate.md`
 - `agent-os/standards/voice/reply-mirror.md`
 - `agent-os/standards/frontend/admin-actions.md`
+
+## Routing & governance (app/platform/agent_os_routing.py)
+
+- **Category:** `reporting`
+- **OmniRoute task:** `NONE (forbidden)`
+- **Privacy class:** `CUSTOMER_SENSITIVE`
+- **OmniRoute eligible:** no (still needs `OMNIROUTE_ENABLED` + `OMNIROUTE_AGENTS` + key)
+- **May write production data:** no
+- **May contact customers:** no
+- **Human approval before publish:** no
+- **Free models OK:** yes
+- **Auto-run allowed:** yes
+- **Max retries / timeout / queue:** 2 / 45s / `celery`
+- **Notes:** KPIs from call data — no OmniRoute.
+
+Disable one agent: uska feature gate env unset karo (ya Office HQ pause) — poora system band mat karo.
 
 ## Non-negotiables (CLAUDE.md §5)
 

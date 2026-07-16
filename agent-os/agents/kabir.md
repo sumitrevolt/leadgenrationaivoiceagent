@@ -1,6 +1,6 @@
 # 🗄️ Kabir — DB Reliability Engineer
 
-> Source of truth: `app/platform/team.py` STAFF["kabir"]. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
+> Source of truth: `app/platform/team.py` STAFF["kabir"] + `app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
 
 - **Key:** `kabir`
 - **Product:** platform
@@ -22,6 +22,22 @@ Postgres query-health — slow-query patterns (pg_stat_statements), unused/bloat
 - `agent-os/standards/backend/error-handling.md`
 - `agent-os/standards/backend/lazy-imports.md`
 - `agent-os/standards/backend/pydantic-models.md`
+
+## Routing & governance (app/platform/agent_os_routing.py)
+
+- **Category:** `recovery_incident`
+- **OmniRoute task:** `NONE (forbidden)`
+- **Privacy class:** `SENSITIVE_LOCAL_ONLY`
+- **OmniRoute eligible:** no (still needs `OMNIROUTE_ENABLED` + `OMNIROUTE_AGENTS` + key)
+- **May write production data:** no
+- **May contact customers:** no
+- **Human approval before publish:** no
+- **Free models OK:** yes
+- **Auto-run allowed:** yes
+- **Max retries / timeout / queue:** 1 / 45s / `celery`
+- **Notes:** DBRE — schema/ops sensitive; no OmniRoute.
+
+Disable one agent: uska feature gate env unset karo (ya Office HQ pause) — poora system band mat karo.
 
 ## Non-negotiables (CLAUDE.md §5)
 

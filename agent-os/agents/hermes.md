@@ -1,6 +1,6 @@
 # 🛰️ Hermes — Infrastructure Handler
 
-> Source of truth: `app/platform/team.py` STAFF["hermes"]. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
+> Source of truth: `app/platform/team.py` STAFF["hermes"] + `app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
 
 - **Key:** `hermes`
 - **Product:** platform
@@ -22,6 +22,22 @@ Poore infra ka scan — app readiness (db+redis), disk/memory, dead-man jobs, qu
 - `agent-os/standards/backend/lazy-imports.md`
 - `agent-os/standards/backend/pydantic-models.md`
 - `agent-os/standards/frontend/admin-actions.md`
+
+## Routing & governance (app/platform/agent_os_routing.py)
+
+- **Category:** `recovery_incident`
+- **OmniRoute task:** `leadgen.repo_analysis`
+- **Privacy class:** `INTERNAL_SANITIZED`
+- **OmniRoute eligible:** yes (still needs `OMNIROUTE_ENABLED` + `OMNIROUTE_AGENTS` + key)
+- **May write production data:** no
+- **May contact customers:** no
+- **Human approval before publish:** no
+- **Free models OK:** yes
+- **Auto-run allowed:** yes
+- **Max retries / timeout / queue:** 2 / 45s / `celery`
+- **Notes:** Infra watchdog; repo_analysis route if OmniRoute agents enabled.
+
+Disable one agent: uska feature gate env unset karo (ya Office HQ pause) — poora system band mat karo.
 
 ## Non-negotiables (CLAUDE.md §5)
 

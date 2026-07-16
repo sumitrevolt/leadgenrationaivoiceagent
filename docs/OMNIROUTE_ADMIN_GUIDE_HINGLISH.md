@@ -11,6 +11,9 @@ ho chuke hain. 2048 MB memory setting aur fresh-tab WebSocket stability bhi veri
 Yeh customer production traffic ke liye ON nahi hai. Jiya ya kisi aur customer ka
 phone, WhatsApp, payment, lead ya private business data OmniRoute ko nahi bhejna hai.
 
+Operator runbook (daily/weekly + 20 checklists): `docs/AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md`.
+Per-agent eligibility: `app/platform/agent_os_routing.py` (voice/billing = forbidden).
+
 ## Daily start/check
 
 ```powershell

@@ -1,6 +1,6 @@
 # 💹 Vidya — FinOps / Cost
 
-> Source of truth: `app/platform/team.py` STAFF["vidya"]. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
+> Source of truth: `app/platform/team.py` STAFF["vidya"] + `app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
 
 - **Key:** `vidya`
 - **Product:** platform
@@ -23,6 +23,22 @@ Per-tenant unit economics (cost-per-customer once LiteLLM virtual keys live), ma
 - `agent-os/standards/backend/lazy-imports.md`
 - `agent-os/standards/backend/pydantic-models.md`
 - `agent-os/standards/billing/billing-truth.md`
+
+## Routing & governance (app/platform/agent_os_routing.py)
+
+- **Category:** `billing`
+- **OmniRoute task:** `NONE (forbidden)`
+- **Privacy class:** `PROHIBITED_EXTERNAL`
+- **OmniRoute eligible:** no (still needs `OMNIROUTE_ENABLED` + `OMNIROUTE_AGENTS` + key)
+- **May write production data:** no
+- **May contact customers:** no
+- **Human approval before publish:** no
+- **Free models OK:** yes
+- **Auto-run allowed:** yes
+- **Max retries / timeout / queue:** 1 / 30s / `celery`
+- **Notes:** FinOps — cost/margin data stays off OmniRoute.
+
+Disable one agent: uska feature gate env unset karo (ya Office HQ pause) — poora system band mat karo.
 
 ## Non-negotiables (CLAUDE.md §5)
 

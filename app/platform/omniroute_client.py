@@ -129,26 +129,131 @@ def agents_enabled() -> bool:
     return omniroute_available()
 
 
-async def try_agent_chat(messages: list[dict[str, Any]]) -> str | None:
-    """Optional staff-agent pre-hook (ADR-108) — NEVER raises, fail-open.
+def resolve_agent_task(
+    agent_key: str | None = None, product: str | None = None
+) -> str | None:
+    """Pick OmniRoute task for a staff agent, or None if policy forbids.
+
+    Unknown/sensitive agents return None → caller stays on free_ai (fail-open).
+    """
+    try:
+        from app.platform.agent_os_routing import get_agent_policy, omniroute_allowed_for_agent
+    except Exception:  # pragma: no cover — defensive import
+        return "leadgen.agent_ops" if agent_key is None else None
+
+    if not agent_key:
+        # Generic bulk hook (free_ai) — shared sanitized ops route only.
+        return "leadgen.agent_ops"
+    if not omniroute_allowed_for_agent(agent_key, product):
+        logger.info(
+            "[omniroute_decision] agent=%s action=skip reason=policy_forbids",
+            agent_key,
+        )
+        return None
+    return get_agent_policy(agent_key, product).omniroute_task
+
+
+def _log_route_decision(
+    *,
+    task_type: str,
+    privacy_class: str,
+    provider: str | None,
+    model: str | None,
+    latency_ms: int | None,
+    input_tokens: int | None,
+    output_tokens: int | None,
+    fallback_reason: str | None,
+    ok: bool,
+    agent_key: str | None = None,
+    skip_reason: str | None = None,
+) -> None:
+    """Structured, PII-free route decision line for admin/ops grepping."""
+    logger.info(
+        "[omniroute_decision] ok=%s task=%s privacy=%s agent=%s provider=%s model=%s "
+        "latency_ms=%s in_tok=%s out_tok=%s fallback=%s skip=%s",
+        ok,
+        task_type,
+        privacy_class,
+        agent_key or "-",
+        provider or "-",
+        model or "-",
+        latency_ms if latency_ms is not None else "-",
+        input_tokens if input_tokens is not None else "-",
+        output_tokens if output_tokens is not None else "-",
+        fallback_reason or "-",
+        skip_reason or "-",
+    )
+
+
+async def try_agent_chat(
+    messages: list[dict[str, Any]],
+    agent_key: str | None = None,
+    product: str | None = None,
+) -> str | None:
+    """Optional staff-agent pre-hook (ADR-108/109) — NEVER raises, fail-open.
 
     Returns sanitized OmniRoute text ya None (None = caller apni existing free_ai
     chain use kare, unchanged). Voice/realtime callers ko yeh function call hi
     nahi karna chahiye — free_ai.chat hook sirf profile=bulk pe engage hota hai.
+
+    When ``agent_key`` is set, ``agent_os_routing`` may forbid OmniRoute entirely
+    (billing/voice/compliance) even if flags are ON.
     """
     if not agents_enabled():
         return None
+    task = resolve_agent_task(agent_key, product)
+    if not task:
+        return None
     try:
-        result = await generate("leadgen.agent_ops", messages, "INTERNAL_SANITIZED")
+        result = await generate(task, messages, "INTERNAL_SANITIZED", agent_key=agent_key)
     except SafePayloadError as exc:
         # Secret/unsafe payload = OmniRoute ko mat bhejo, par agent ko zinda rakho
         # (existing chain apni PII-masking ke saath handle karegi).
         logger.warning("[omniroute_client] agent payload rejected: %s", exc)
+        _log_route_decision(
+            task_type=task,
+            privacy_class="INTERNAL_SANITIZED",
+            provider=None,
+            model=None,
+            latency_ms=None,
+            input_tokens=None,
+            output_tokens=None,
+            fallback_reason=None,
+            ok=False,
+            agent_key=agent_key,
+            skip_reason="safe_payload_error",
+        )
         return None
     except Exception as exc:  # pragma: no cover — defensive, agent kabhi na gire
         logger.warning("[omniroute_client] agent hook error: %s", type(exc).__name__)
+        _log_route_decision(
+            task_type=task,
+            privacy_class="INTERNAL_SANITIZED",
+            provider=None,
+            model=None,
+            latency_ms=None,
+            input_tokens=None,
+            output_tokens=None,
+            fallback_reason=None,
+            ok=False,
+            agent_key=agent_key,
+            skip_reason=type(exc).__name__.lower(),
+        )
         return None
     if result is None:
+        _log_route_decision(
+            task_type=task,
+            privacy_class="INTERNAL_SANITIZED",
+            provider=None,
+            model=None,
+            latency_ms=None,
+            input_tokens=None,
+            output_tokens=None,
+            fallback_reason=None,
+            ok=False,
+            agent_key=agent_key,
+            skip_reason="gateway_or_provider_miss",
+        )
         return None
     return result.text or None
 
@@ -231,16 +336,34 @@ async def generate(
     response_schema: dict[str, Any] | None = None,
     timeout_seconds: int | None = None,
     metadata: dict[str, Any] | None = None,
+    agent_key: str | None = None,
 ) -> OmniRouteResult | None:
     """Run one explicit sanitized development task through OmniRoute.
 
     The function remains fail-open for gateway/provider faults: callers receive None
     and retain responsibility for their existing direct fallback. Privacy admission is
     fail-closed and raises ``SafePayloadError`` before any network attempt.
+
+    Logs a PII-free ``[omniroute_decision]`` line on success/exhaustion (never raw
+    prompts, completions, or secrets). ``metadata`` is accepted for API compat but
+    deliberately discarded.
     """
     del metadata  # Deliberately never log caller metadata or raw prompt content.
     route = get_task_route(task_type, privacy_class)
     if not omniroute_available():
+        _log_route_decision(
+            task_type=task_type,
+            privacy_class=privacy_class,
+            provider=None,
+            model=None,
+            latency_ms=None,
+            input_tokens=None,
+            output_tokens=None,
+            fallback_reason=None,
+            ok=False,
+            agent_key=agent_key,
+            skip_reason="unavailable",
+        )
         return None
 
     safe_messages = mask_customer_data(messages)
@@ -270,6 +393,19 @@ async def generate(
                     "[omniroute_client] request failed task=%s model=%s status=%s",
                     task_type, model, response.status_code,
                 )
+                _log_route_decision(
+                    task_type=task_type,
+                    privacy_class=privacy_class,
+                    provider=model.split("/", 1)[0],
+                    model=model,
+                    latency_ms=round((time.monotonic() - started) * 1000),
+                    input_tokens=None,
+                    output_tokens=None,
+                    fallback_reason=fallback_reason,
+                    ok=False,
+                    agent_key=agent_key,
+                    skip_reason=f"http_{response.status_code}",
+                )
                 return None
 
             body = response.json()
@@ -278,10 +414,23 @@ async def generate(
                 if index + 1 < len(candidates):
                     fallback_reason = "invalid_response_schema" if text else "empty_response"
                     continue
+                _log_route_decision(
+                    task_type=task_type,
+                    privacy_class=privacy_class,
+                    provider=model.split("/", 1)[0],
+                    model=model,
+                    latency_ms=round((time.monotonic() - started) * 1000),
+                    input_tokens=None,
+                    output_tokens=None,
+                    fallback_reason=fallback_reason,
+                    ok=False,
+                    agent_key=agent_key,
+                    skip_reason="empty_or_invalid_schema",
+                )
                 return None
 
             usage = body.get("usage") or {}
-            return OmniRouteResult(
+            result = OmniRouteResult(
                 text=text,
                 task_type=task_type,
                 provider=model.split("/", 1)[0],
@@ -291,6 +440,19 @@ async def generate(
                 output_tokens=usage.get("output_tokens"),
                 fallback_reason=fallback_reason,
             )
+            _log_route_decision(
+                task_type=task_type,
+                privacy_class=privacy_class,
+                provider=result.provider,
+                model=result.model,
+                latency_ms=result.latency_ms,
+                input_tokens=result.input_tokens,
+                output_tokens=result.output_tokens,
+                fallback_reason=result.fallback_reason,
+                ok=True,
+                agent_key=agent_key,
+            )
+            return result
         except (httpx.TimeoutException, httpx.TransportError, ValueError) as exc:
             if index + 1 < len(candidates):
                 fallback_reason = type(exc).__name__.lower()
@@ -300,5 +462,31 @@ async def generate(
                 "[omniroute_client] request unavailable task=%s model=%s error=%s",
                 task_type, model, type(exc).__name__,
             )
+            _log_route_decision(
+                task_type=task_type,
+                privacy_class=privacy_class,
+                provider=model.split("/", 1)[0],
+                model=model,
+                latency_ms=None,
+                input_tokens=None,
+                output_tokens=None,
+                fallback_reason=fallback_reason,
+                ok=False,
+                agent_key=agent_key,
+                skip_reason=type(exc).__name__.lower(),
+            )
             return None
+    _log_route_decision(
+        task_type=task_type,
+        privacy_class=privacy_class,
+        provider=None,
+        model=None,
+        latency_ms=None,
+        input_tokens=None,
+        output_tokens=None,
+        fallback_reason=fallback_reason,
+        ok=False,
+        agent_key=agent_key,
+        skip_reason="candidates_exhausted",
+    )
     return None

@@ -1,6 +1,6 @@
 # 🛠️ Vikram — Code Upgrader
 
-> Source of truth: `app/platform/team.py` STAFF["vikram"]. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
+> Source of truth: `app/platform/team.py` STAFF["vikram"] + `app/platform/agent_os_routing.py`. Yeh spec code se DERIVED hai — code badle to `python scripts/gen_agent_os_specs.py` re-run karo. Code vs spec conflict = code wins.
 
 - **Key:** `vikram`
 - **Product:** platform
@@ -22,6 +22,22 @@ Observability signals (LLM errors, failing jobs, weak actions) se code-upgrade p
 - `agent-os/standards/backend/lazy-imports.md`
 - `agent-os/standards/backend/pydantic-models.md`
 - `agent-os/standards/frontend/admin-actions.md`
+
+## Routing & governance (app/platform/agent_os_routing.py)
+
+- **Category:** `admin_operations`
+- **OmniRoute task:** `leadgen.coding_primary`
+- **Privacy class:** `INTERNAL_SANITIZED`
+- **OmniRoute eligible:** yes (still needs `OMNIROUTE_ENABLED` + `OMNIROUTE_AGENTS` + key)
+- **May write production data:** no
+- **May contact customers:** no
+- **Human approval before publish:** yes
+- **Free models OK:** yes
+- **Auto-run allowed:** no
+- **Max retries / timeout / queue:** 1 / 60s / `celery`
+- **Notes:** Code upgrader gated; human review before any apply.
+
+Disable one agent: uska feature gate env unset karo (ya Office HQ pause) — poora system band mat karo.
 
 ## Non-negotiables (CLAUDE.md §5)
 
