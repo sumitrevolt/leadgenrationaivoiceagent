@@ -248,3 +248,80 @@ async def office_briefing_audio(current_user=Depends(require_admin)):
         return FileResponse(path, media_type="audio/mpeg", filename="briefing.mp3")
     except Exception as e:  # pragma: no cover
         return JSONResponse(status_code=404, content={"ok": False, "error": str(e)})
+
+
+@router.get("/agent-os-status")
+async def office_agent_os_status(current_user=Depends(require_admin)):
+    """Read-only Agent OS + OmniRoute operator status (ADR-109).
+
+    Never returns API keys, raw prompts, or customer PII. OmniRoute remains
+    INERT unless both flags + key are set; this endpoint only reports truth.
+    """
+    import os
+
+    try:
+        from app.platform.agent_os_routing import agent_route_table
+        from app.platform.omniroute_client import (
+            _TASK_ROUTES,
+            agents_enabled,
+            omniroute_available,
+            omniroute_enabled,
+        )
+        from app.platform.team import STAFF
+    except Exception as e:  # pragma: no cover
+        return {"ok": False, "error": type(e).__name__, "agents": [], "omniroute": {}}
+
+    try:
+        table = agent_route_table()
+        agents = []
+        eligible = 0
+        forbidden = 0
+        for key, meta in STAFF.items():
+            row = table.get(key) or {}
+            omni_ok = bool(row.get("omniroute_eligible"))
+            if omni_ok:
+                eligible += 1
+            else:
+                forbidden += 1
+            agents.append({
+                "key": key,
+                "name": meta.get("name"),
+                "title": meta.get("title"),
+                "product": meta.get("product"),
+                "category": row.get("category"),
+                "omniroute_task": row.get("omniroute_task"),
+                "privacy_class": row.get("privacy_class"),
+                "omniroute_eligible": omni_ok,
+                "may_contact_customers": row.get("may_contact_customers"),
+                "requires_human_approval_before_publish": row.get(
+                    "requires_human_approval_before_publish"
+                ),
+                "auto_run_allowed": row.get("auto_run_allowed"),
+                "queue": row.get("queue"),
+            })
+        base = os.getenv("OMNIROUTE_BASE_URL", "http://127.0.0.1:20128/v1")
+        key_set = bool(os.getenv("OMNIROUTE_API_KEY"))
+        return {
+            "ok": True,
+            "staff_count": len(STAFF),
+            "eligible_for_omniroute": eligible,
+            "forbidden_omniroute": forbidden,
+            "agents": agents,
+            "omniroute": {
+                "enabled_flag": omniroute_enabled(),
+                "agents_flag": os.getenv("OMNIROUTE_AGENTS", "0").strip().lower()
+                in ("1", "true", "yes"),
+                "api_key_present": key_set,
+                "available": omniroute_available(),
+                "agents_hook_armed": agents_enabled(),
+                "base_url": base,
+                "task_routes": sorted(_TASK_ROUTES.keys()),
+                "prod_note": (
+                    "VPS pe gateway nahi hai — flags OFF rakho jab tak "
+                    "OMNIROUTE_BASE_URL + loopback/tunnel na ho."
+                ),
+            },
+            "runbook": "/docs path: docs/AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md",
+        }
+    except Exception as e:  # pragma: no cover
+        return {"ok": False, "error": type(e).__name__, "agents": [], "omniroute": {}}
