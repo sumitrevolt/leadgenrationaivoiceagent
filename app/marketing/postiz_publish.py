@@ -256,18 +256,6 @@ async def publish_video(
 
 
 def effective_integration_ids(client: dict[str, Any] | None = None) -> list[str]:
-<<<<<<< HEAD
-    """Return the channel ids the real publish path would resolve.
-
-    Resolution order deliberately matches ``_integration_ids``: client record,
-    then ``POSTIZ_INTEGRATIONS``, then vault metadata.  Keeping this as a public,
-    never-raise diagnostic prevents readiness surfaces from reporting vault-only
-    state while publishing is actually configured through the environment.
-    """
-    try:
-        return _integration_ids(client)
-    except Exception:  # pragma: no cover - diagnostic must never break admin UI
-=======
     """Channel ids `publish_video()` would ACTUALLY use, in its real precedence
     order (client record → env `POSTIZ_INTEGRATIONS` → vault meta).
 
@@ -280,18 +268,13 @@ def effective_integration_ids(client: dict[str, Any] | None = None) -> list[str]
     try:
         return _integration_ids(client)
     except Exception:  # pragma: no cover
->>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
         return []
 
 
 def integrations_source(client: dict[str, Any] | None = None) -> str:
-<<<<<<< HEAD
-    """Return ``client`` / ``env`` / ``vault`` / ``none`` for effective ids."""
-=======
     """Which source `effective_integration_ids()` resolved from — "client" /
     "env" / "vault" / "none". Operator triage: tells you WHERE to change the
     value, which matters because env silently wins over vault. Never raises."""
->>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
     try:
         if (client or {}).get("postiz_integrations"):
             return "client"
@@ -299,21 +282,13 @@ def integrations_source(client: dict[str, Any] | None = None) -> str:
             return "env"
         if _vault_cfg().get("integrations", ""):
             return "vault"
-<<<<<<< HEAD
-    except Exception:  # pragma: no cover - diagnostic must never break admin UI
-=======
     except Exception:  # pragma: no cover
->>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
         pass
     return "none"
 
 
 def api_url() -> str:
-<<<<<<< HEAD
-    """Return the effective Postiz API base URL without raising."""
-=======
     """Effective Postiz base URL (env → vault → cloud default). Never raises."""
->>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
     try:
         return _base()
     except Exception:  # pragma: no cover
