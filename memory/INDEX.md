@@ -21,3 +21,7 @@
 | `incidents.md` | Postmortems: what broke, root cause, fix, prevention rule | similar symptom dikhe, ya risky area touch karne se pehle |
 | `playbooks.md` | Repeatable procedures: deploy, rollback, new feature, client onboarding, flag enable, key rotation | koi operational kaam repeat karna ho |
 | `backlog.md` | Parked ideas WITH the why, so context survive kare | "ab kya banaye" / kisi purane idea pe wapas aana ho |
+
+## OKF curated bundle (Tier-2 companion)
+
+Repo-root **`knowledge/`** = Open Knowledge Format v0.1 draft bundle (ADR-119). Curated product/agent/ops/architecture pointers for agents. **Not** a RAG replacement — large-scale retrieval stays Qdrant; live truth stays Postgres; deep ADRs stay in `decisions.md`. No secrets in OKF.

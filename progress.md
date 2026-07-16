@@ -342,3 +342,21 @@ Goal: Commit + deploy wiring/social honesty fixes to production.
 Changed: commit `95a5aec` pushed origin/main; VPS `deploy_vps.sh` ? `=== DEPLOYED 95a5aecc OK ===`.
 Verification Evidence: `/health` version=`95a5aecc` environment=production; 5/5 APP_VERSION skew-free; smoke health/niches/billing/pay-info 200; queues/DLQ 0; public leadsgenai.in/health + activation summary ready.
 Remaining: Jiya per-customer Postiz channel IDs; optional `SOCIAL_PREFS_HONOR=1` when ready for prefs; YouTube OAuth Publish (owner).
+
+## Ops
+Date: 2026-07-17
+Action: VPS `SOCIAL_PREFS_HONOR=1` (`.env` append + recreate app/worker/scheduler/worker-heavy/worker-video on `APP_VERSION=95a5aecc`).
+Evidence: `docker exec leadgen_app/worker/scheduler printenv SOCIAL_PREFS_HONOR` = `1`; `/health` healthy production `95a5aecc`.
+Rollback: set `SOCIAL_PREFS_HONOR=0` in `/opt/leadgen/.env` + same recreate.
+
+## Loop Run
+Date: 2026-07-17 (ADR-119 knowledge architecture)
+Goal: Formalize Hybrid Agentic RAG + OKF final recommendation (OKF ? RAG replacement).
+Inspected: knowledge_base.py (e5-small/kb_main) · OKF v0.1 draft spec · memory/INDEX · user stack proposal.
+Problems Found: none to fix in runtime — risk was OKF-as-replacement; council rejected that.
+Changed: ADR-119 · `knowledge/` OKF scaffold · backlog hybrid+ingest phases · INDEX/playbooks/CLAUDE Current State.
+Tests Run: n/a (docs/architecture; no runtime flip).
+Verification Evidence: `knowledge/index.md` okf_version 0.1; ADR in decisions.md.
+Risks: BGE-M3/reranker bake still future — prod retrieval unchanged until flagged upgrade.
+Remaining: Phase-2 hybrid sparse+RRF behind flag; OKF?Qdrant ingest bridge.
+Next Highest Priority: GTM Hot Queue / Jiya Postiz IDs — hybrid RAG when retrieval quality blocks delivery.
