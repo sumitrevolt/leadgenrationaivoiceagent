@@ -174,6 +174,41 @@ def _is_auto_ack(msg: Any, subj: str) -> bool:
     return False
 
 
+# SPAM CONTENT GUARD (2026-07-15): betting/gambling spam ("Reddy Anna" cricket-ID
+# type mail) LLM se "interested" classify ho ke Hot Queue me draft-ready aa raha
+# tha (07-14 audit). _is_bulk_sender headers dekhta hai — yeh CONTENT dekhta hai,
+# isliye header-clean spam bhi pakda jaata hai. Patterns deliberately narrow
+# (betting/casino vocab only) taaki genuine business reply kabhi false-positive
+# na ho. REPLY_SPAM_CONTENT_GUARD=0 disables; REPLY_SPAM_EXTRA_TERMS (CSV,
+# literal substrings) se operator naye patterns bina deploy add kar sakta hai.
+_SPAM_CONTENT_RE = re.compile(
+    r"reddy\s*anna|bett?ing\s*(id|app|site|tips|exchange)|\bcasino\b|\bsatta\b|"
+    r"\bmatka\b|teen\s*patti|\bjackpot\b|cricket\s*id\b|book(ie|\s*id)\b|"
+    r"\bgambling\b|\bwagering?\b|aviator\s*(game|id)|ipl\s*id\b|lottery\s*(win|ticket|number)",
+    re.IGNORECASE,
+)
+
+
+def _is_spam_content(subj: str, body: str) -> bool:
+    """Betting/gambling spam detect (subject+body content). Known-prospect pe BHI
+    lagta — yeh vocab kisi genuine niche-business reply me nahi aata.
+    REPLY_SPAM_CONTENT_GUARD=0 = guard off. Never raises."""
+    try:
+        if (os.getenv("REPLY_SPAM_CONTENT_GUARD", "1") or "1").strip().lower() in {"0", "false", "off", "no"}:
+            return False
+        txt = f"{subj or ''}\n{body or ''}"
+        if _SPAM_CONTENT_RE.search(txt):
+            return True
+        extra = os.getenv("REPLY_SPAM_EXTRA_TERMS", "") or ""
+        low = txt.lower()
+        for term in (t.strip().lower() for t in extra.split(",")):
+            if term and term in low:
+                return True
+    except Exception:
+        pass
+    return False
+
+
 # SENDER FLOOD CAP (2026-07-07): ek hi sender se repeat-mail cap — auto-responder
 # ping-pong (312x adityabirla loop) har mail pe LLM classify+draft tokens jalata
 # tha aur drafts/Hot-Queue ko noise se bhar deta tha. Cap ke baad wale skip
@@ -632,6 +667,14 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     res["auto_ack"] = res.get("auto_ack", 0) + 1
                     _mark_imap_seen(M, i)
                     continue
+                # SPAM CONTENT GUARD (2026-07-15): betting/gambling vocab in
+                # subject/body = spam, LLM classify se PEHLE drop (Reddy Anna
+                # "interested" fake-hot fix — 07-14 audit).
+                if _is_spam_content(subj, body):
+                    res["skipped"] += 1
+                    res["spam_content"] = res.get("spam_content", 0) + 1
+                    _mark_imap_seen(M, i)
+                    continue
                 # Operator blocklist (REPLY_SENDER_BLOCKLIST env CSV) — hard skip.
                 if _is_blocklisted(frm):
                     res["skipped"] += 1
@@ -948,6 +991,10 @@ async def whatsapp_reply(
     # noise in reply_drafts/Hot-Queue — deliverability audit). Ye human 1-1
     # reply nahi hai — drop before classify. Operator blocklist bhi yahin.
     if frm.lower() == "status" or "@broadcast" in frm.lower() or _is_blocklisted(frm):
+        return {}
+    # SPAM CONTENT GUARD (2026-07-15): betting/gambling spam WhatsApp se bhi aata
+    # hai — email path jaisa hi content-level drop before classify.
+    if _is_spam_content("", txt):
         return {}
 
     # Conversation memory (2026-07-07): pichli baat-cheet nikaalo (current message record
@@ -1504,6 +1551,10 @@ def _is_noise_row(r: dict) -> bool:
             return True
         subj_body = f"{(r or {}).get('subject') or ''}\n{(r or {}).get('text') or (r or {}).get('body_snippet') or ''}"
         if _AUTO_ACK_RE.search(subj_body):
+            return True
+        # SPAM CONTENT (2026-07-15): pehle se saved betting-spam drafts bhi
+        # read-path pe hide ho jaayein (Hot Queue retro-clean).
+        if _is_spam_content("", subj_body):
             return True
     except Exception:
         pass
