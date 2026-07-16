@@ -122,6 +122,27 @@ Auth note: your admin token/session can expire while you're actively looking at 
 — if it suddenly shows all-zero "fallback" data, don't assume something broke; check
 Network tab for a 401 on `/api/control-center/overview` and re-login first.
 
+### 3.2b Full Console — `/app/admin` (overview, not daily home)
+
+**Use this page as a map, not as your only workspace.** Daily work lives on Delivery
+Cockpit, Automation, Client Actions, and Office HQ (linked from the **“Aaj ka 5-minute
+flow”** strip at the top — ADR-110).
+
+How to use (5 minutes):
+
+1. Read **Aaj ka business** — green = automations OK; yellow problems = follow the fix line.
+2. Open **Aapke kaam** — do **UPI** first (revenue), then content. Large content queues
+   (`>20`) do **not** offer “Sab approve” — go to Client Actions / Mission Control and
+   approve paid clients (e.g. Jiya) one by one. Never bulk-approve a 300+ backlog blindly.
+3. Jump via the 4 big buttons: Delivery → Automation → Clients → Office.
+4. Expand **Technical / Ops** only when something is broken (God Mode, LLM health, social
+   queue). Mid-page cards (campaigns, niches, billing lookup, …) stay collapsed by default.
+5. Sidebar **Full Console** is the active item on this URL; **Delivery Cockpit** is a
+   different page (do not trust a wrong `active` highlight — fixed in ADR-110).
+
+What is *not* “missing setup” on this page: OmniRoute on VPS (flags OFF until a gateway
+exists), platform_dial (HARD OFF by mandate), Unity 3D office (local artifacts only).
+
 ### 3.3 Automation Mission Control — `/app/automation`
 Left nav: Aaj / Flow Explorer / Launch / Schedule / Agents / Training / Scraping /
 Approvals / Events / Harvester / Prospects / Cadence / Sales Team AI / Processes /

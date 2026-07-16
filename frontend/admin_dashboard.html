@@ -47,10 +47,14 @@
   .sb-foot small{display:block;color:#a5b4fc;font-size:11px}
 
   .main{margin-left:248px;flex:1;min-width:0}
-  .topbar{height:62px;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:0 26px;position:sticky;top:0;z-index:10}
-  .topbar h1{font-size:18px;font-weight:700}
-  .topbar .sub{color:var(--muted);font-size:12px;margin-top:1px}
-  .top-right{margin-left:auto;display:flex;align-items:center;gap:14px}
+  .topbar{min-height:62px;height:auto;background:var(--card);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:10px 26px;position:sticky;top:0;z-index:10}
+  .brand-meta{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:2px}
+  .topbar h1{margin:0;font-size:18px;font-weight:700;letter-spacing:-.02em;line-height:1.2;white-space:nowrap}
+  .topbar .sub{margin:0;color:var(--muted);font-size:12.5px;font-weight:500;line-height:1.35;letter-spacing:.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .top-right{margin-left:auto;display:flex;align-items:center;gap:10px;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+  @media (max-width:900px){
+    .topbar .sub{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical}
+  }
   .pill{display:inline-flex;align-items:center;gap:7px;background:var(--indigo-l);color:var(--indigo-d);padding:7px 13px;border-radius:20px;font-weight:600;font-size:12.5px}
   .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
@@ -220,18 +224,18 @@
            Delivery-first: admin landing = Delivery Cockpit. Baaki saare internal links
            System me collapsed rakhe — kuch bhi delete/break nahi hua. -->
       <div class="sec nav-group" role="presentation">Delivery</div>
-      <a class="active" href="/app/delivery-command-center" role="menuitem" aria-label="Delivery Cockpit — customer delivery overview"><span class="ic" aria-hidden="true">📦</span> Delivery Cockpit</a>
+      <a href="/app/delivery-command-center" role="menuitem" aria-label="Delivery Cockpit — customer delivery overview"><span class="ic" aria-hidden="true">📦</span> Delivery Cockpit</a>
       <a href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
       <div class="sec nav-group" role="presentation">Automation</div>
       <a href="/app/automation" role="menuitem" aria-label="Mission Control automation"><span class="ic" aria-hidden="true">🎛</span> Automation Monitor <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
       <a href="/app/calendar" role="menuitem" aria-label="Content calendar"><span class="ic" aria-hidden="true">🗓</span> Content Calendar</a>
-      <a href="#sec-automation" role="menuitem" aria-label="Approvals and workflows"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
+      <a href="/app/automation#approvals" role="menuitem" aria-label="Approvals and workflows"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
       <div class="sec nav-group" role="presentation">Customers</div>
-      <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">10</span></a>
+      <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">—</span></a>
       <a href="/app/clients" role="menuitem" aria-label="Client actions"><span class="ic" aria-hidden="true">📋</span> Client Actions</a>
       <a href="/app/impersonate" role="menuitem" aria-label="Login as customer (support)"><span class="ic" aria-hidden="true">🕵️</span> Login as Customer</a>
       <div class="sec nav-group" role="presentation">System</div>
-      <a href="#top" role="menuitem" aria-label="Full admin dashboard"><span class="ic" aria-hidden="true">▦</span> Full Console</a>
+      <a class="active" href="#top" role="menuitem" aria-label="Full admin dashboard"><span class="ic" aria-hidden="true">▦</span> Full Console</a>
       <a href="/app/control-center" role="menuitem" aria-label="Control Center system observability"><span class="ic" aria-hidden="true">🖥</span> Control Center</a>
       <a href="/app/team-access" role="menuitem" aria-label="Team RBAC and settings"><span class="ic" aria-hidden="true">🔐</span> Settings</a>
       <a href="#sec-godmode" onclick="expandAdvTech();expandSystemGroup();return false;" role="menuitem" aria-label="God Mode + all system pages" style="font-size:10px;opacity:.7;margin-top:4px" id="nav-more-system">▼ Show all system pages</a>
@@ -239,7 +243,7 @@
         <a href="#sec-today-biz" role="menuitem" aria-label="Aaj ka business"><span class="ic" aria-hidden="true">🏠</span> Aaj ka business</a>
         <a href="/app/onboard" role="menuitem" aria-label="Onboarding Wizard"><span class="ic" aria-hidden="true">✦</span> Onboarding Wizard</a>
         <a href="#sec-launch-calls" role="menuitem" aria-label="Launch outbound campaign"><span class="ic" aria-hidden="true">🚀</span> Launch Campaign</a>
-        <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">8</span></a>
+        <a href="#sec-campaigns" role="menuitem" aria-label="Campaigns"><span class="ic" aria-hidden="true">◎</span> Campaigns <span class="badge" id="nav-camp">—</span></a>
         <a href="#sec-speed" role="menuitem" aria-label="Speed to lead"><span class="ic" aria-hidden="true">⚡</span> Speed-to-Lead</a>
         <a href="#sec-recordings" role="menuitem" aria-label="Call Recordings"><span class="ic" aria-hidden="true">🎙</span> Call Recordings</a>
         <a href="#sec-webcalls" role="menuitem" aria-label="Web test calls"><span class="ic" aria-hidden="true">💬</span> Web Test Calls</a>
@@ -251,7 +255,7 @@
         <a href="#sec-prospects" role="menuitem" aria-label="Prospects and leads"><span class="ic" aria-hidden="true">⊞</span> Prospects / Leads</a>
         <a href="/app/analytics" role="menuitem" aria-label="Analytics dashboard"><span class="ic" aria-hidden="true">📊</span> Analytics</a>
         <a href="/app/battlecard" role="menuitem" aria-label="Competitive Battlecard"><span class="ic" aria-hidden="true">⚔</span> Competitive Battlecard</a>
-        <a href="#sec-niches" role="menuitem" aria-label="Niches and Pricing"><span class="ic" aria-hidden="true">◆</span> Niches &amp; Pricing <span class="badge" id="nav-niche">25</span></a>
+        <a href="#sec-niches" role="menuitem" aria-label="Niches and Pricing"><span class="ic" aria-hidden="true">◆</span> Niches &amp; Pricing <span class="badge" id="nav-niche">—</span></a>
         <a href="#sec-diff" role="menuitem" aria-label="P0 differentiators"><span class="ic" aria-hidden="true">🎯</span> P0 Differentiators</a>
         <a href="/app/studio" role="menuitem" aria-label="AI creative studio"><span class="ic" aria-hidden="true">🎨</span> AI Studio</a>
         <a href="/app/deals" role="menuitem" aria-label="Deals pipeline"><span class="ic" aria-hidden="true">🤝</span> Deals Pipeline</a>
@@ -265,7 +269,7 @@
         <a href="/app/team" role="menuitem" aria-label="AI staff team"><span class="ic" aria-hidden="true">👥</span> AI Staff Team</a>
         <a href="/app/office" role="menuitem" aria-label="Virtual office"><span class="ic" aria-hidden="true">🏢</span> Virtual Office</a>
         <a href="/app/explorer" role="menuitem" aria-label="Architecture Explorer"><span class="ic" aria-hidden="true">🗺</span> Architecture Explorer</a>
-        <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">⚙</span> AI Agents <span class="badge" id="nav-ag">6</span></a>
+        <a href="#sec-agents" role="menuitem" aria-label="AI Agents"><span class="ic" aria-hidden="true">⚙</span> AI Agents <span class="badge" id="nav-ag">—</span></a>
         <a href="#sec-ops2026" role="menuitem" aria-label="Deliverability and eval"><span class="ic" aria-hidden="true">📬</span> Deliverability &amp; Eval</a>
         <a href="#sec-audit" role="menuitem" aria-label="Activity audit log"><span class="ic" aria-hidden="true">📜</span> Activity Log</a>
         <a href="#sec-godmode" onclick="expandAdvTech()" role="menuitem" aria-label="God Mode production control" style="background:rgba(239,68,68,.18);color:#fca5a5;font-weight:700"><span class="ic" aria-hidden="true">⚡</span> God Mode</a>
@@ -273,7 +277,7 @@
         <a href="/app/admin-login" id="navAdminLogin" role="menuitem" aria-label="Admin login"><span class="ic" aria-hidden="true">🔑</span> Admin Login</a>
       </div>
     </nav>
-    <div class="ao-sb-live"><span class="dot"></span>15 AI agents active</div>
+    <div class="ao-sb-live" id="sbLiveAgents"><span class="dot"></span>Full Console · daily guide upar</div>
     <div class="sb-foot" aria-label="Logged in admin user">
       <div class="av" id="sbAv" aria-hidden="true">A</div>
       <div style="flex:1;min-width:0">
@@ -289,9 +293,9 @@
   <main class="main" id="top">
     <div class="topbar" role="banner" aria-label="Admin dashboard header">
       <button class="menu-btn" onclick="document.getElementById('sidebar').classList.toggle('open')" aria-label="Toggle sidebar navigation menu" aria-controls="sidebar">☰</button>
-      <div>
+      <div class="brand-meta">
         <h1>Admin Dashboard</h1>
-        <div class="sub" aria-label="Page description">Saare clients ka overview &amp; control — ek hi jagah</div>
+        <p class="sub" aria-label="Page description">Saare clients — overview &amp; control, ek jagah</p>
       </div>
       <div class="top-right" role="toolbar" aria-label="Dashboard actions">
         <span class="ao-topbar-status" id="aoAdminStatus"><span class="dot"></span>Platform Live</span>
@@ -305,6 +309,30 @@
     </div>
 
     <div class="content">
+      <!-- ═══ Start Here — non-technical daily ritual (ADR-110 UX) ═══ -->
+      <div class="card" id="adminStartHere" style="margin-bottom:14px;border:1px solid #c7d2fe;background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%);scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(99,102,241,.18)">
+          <h3 style="color:#3730a3;font-size:16px;letter-spacing:-.3px">🚀 Aaj ka 5-minute flow — yahan se shuru karo</h3>
+        </div>
+        <div class="bd" style="color:#0f172a">
+          <ol style="margin:0 0 12px 18px;padding:0;font-size:13.5px;line-height:1.55;color:#334155">
+            <li><b>Aaj ka business</b> dekho — sab theek / koi problem?</li>
+            <li><b>Aapke kaam</b> — pehle UPI (paisa), phir content (paid clients).</li>
+            <li><a href="/app/delivery-command-center" style="color:#4f46e5;font-weight:700">Delivery Cockpit</a> — customer ko kya deliver hua.</li>
+            <li><a href="/app/clients" style="color:#4f46e5;font-weight:700">Client Actions</a> — Jiya / paid clients pe content approve.</li>
+            <li>Problem ho to <a href="/app/automation" style="color:#4f46e5;font-weight:700">Automation</a> ya <a href="/app/office" style="color:#4f46e5;font-weight:700">Office HQ</a>.</li>
+          </ol>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+            <a class="btn" href="/app/delivery-command-center" style="text-decoration:none;background:#0f766e">📦 Delivery</a>
+            <a class="btn" href="/app/automation" style="text-decoration:none;background:#4f46e5">🎛 Automation</a>
+            <a class="btn" href="/app/clients" style="text-decoration:none;background:#d97706">📋 Clients</a>
+            <a class="btn" href="/app/office" style="text-decoration:none;background:#334155">🏢 Office</a>
+            <a class="btn" href="#adminTasksCard" onclick="scrollToSec('adminTasksCard');return false;" style="text-decoration:none;background:#b45309">📋 Mere kaam</a>
+          </div>
+          <p style="margin:0;font-size:12px;color:#64748b;line-height:1.45">Yeh page = <b>Full Console</b> (overview + advanced). Roz ka asli kaam upar ke 4 pages pe hai — yahan sab ek saath mat kholo.</p>
+        </div>
+      </div>
+
       <!-- ═══ Aaj ka business — plain-Hinglish owner summary (business FIRST, above infra/God Mode) ═══ -->
       <div data-view="command_center" class="card" id="sec-today-biz" style="margin-bottom:14px;background:linear-gradient(135deg,#ecfdf5 0%,#eff6ff 100%);border:1px solid #6ee7b7;scroll-margin-top:80px">
         <div class="hd" style="border-bottom:1px solid rgba(16,185,129,.22)">
@@ -494,13 +522,14 @@
            only active payment-collection channel — burying it one click deeper
            was blocking payment acceptance. God Mode / MCP / hourly-jobs remain
            inside the collapse below. -->
-      <div data-view="office" class="card" id="sec-upi-selfserve" style="background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%);border:1px solid rgba(99,102,241,.6);margin-bottom:14px;scroll-margin-top:80px">
-        <div class="hd" style="border-bottom:1px solid rgba(255,255,255,.1)">
-          <h3 style="font-size:15px;color:#e0e7ff">📥 UPI Self-Serve Submissions <span style="font-weight:400;color:#94a3b8;font-size:11px">(customer ne "maine pay kiya" ref bheja — approve karo)</span></h3>
-          <button class="btn" onclick="loadUpiSelfServe()" style="margin-left:10px;padding:6px 12px;font-size:12px">↻ Refresh</button>
+      <div data-view="office" class="card" id="sec-upi-selfserve" style="background:linear-gradient(135deg,#ecfdf5 0%,#eff6ff 100%);border:1px solid #6ee7b7;margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(16,185,129,.22)">
+          <h3 style="font-size:15px;color:#065f46">💳 UPI payments — customer ne pay claim kiya</h3>
+          <button class="btn" onclick="loadUpiSelfServe()" style="margin-left:10px;padding:6px 12px;font-size:12px;background:#10b981;color:#fff;border:0">↻ Refresh</button>
         </div>
-        <div class="bd" id="upiSelfServeBody" style="color:#e2e8f0">
-          <span style="color:#818cf8;font-size:13px">Loading…</span>
+        <div class="bd" id="upiSelfServeBody" style="color:#0f172a">
+          <span style="color:#64748b;font-size:13px">Loading…</span>
+          <p style="margin:8px 0 0;font-size:12px;color:#64748b">Yahan se plan activate = revenue unlock. Pehle paid claim verify karo, phir activate.</p>
         </div>
       </div>
 
@@ -2653,6 +2682,51 @@ async function loadTodayBiz(){
 
 function scrollToSec(id){ var e=document.getElementById(id); if(e) e.scrollIntoView({behavior:"smooth",block:"start"}); }
 
+function adminOpenApprovals(){
+  // Honest CTA: Approvals panel pe le jao + data refresh + highlight (pehle "Approve →" sirf scroll tha)
+  scrollToSec("sec-automation");
+  try{ if(window.loadAutomationHub) loadAutomationHub(); }catch(e){}
+  try{ if(window.loadDiffPanel) loadDiffPanel(); }catch(e){}
+  setTimeout(function(){
+    var el=document.getElementById("autoApprovals");
+    if(!el) return;
+    el.style.outline="2px solid #d97706";
+    el.style.outlineOffset="4px";
+    el.style.borderRadius="8px";
+    setTimeout(function(){ el.style.outline=""; el.style.outlineOffset=""; }, 2400);
+  }, 350);
+}
+
+async function adminApproveAllPendingContent(){
+  // Bulk content approve — confirm pehle (ADR-104). Publish path open ho sakta hai.
+  var ok=window.confirm("Pending content posts APPROVE karoge?\n\nConfirm ke baad har pending post decide=approve hoga. Customer publish path open ho sakta hai.");
+  if(!ok) return;
+  try{
+    var r=await fetch("/api/clientops/approvals?status=pending",{headers:abAuthHdr(),cache:"no-store"});
+    var d=await r.json().catch(function(){return {};});
+    var rows=(d&&d.approvals)||[];
+    if(!rows.length){ adminToast("Koi pending content nahi","info"); adminOpenApprovals(); return; }
+    var done=0, fail=0;
+    for(var i=0;i<rows.length;i++){
+      var id=rows[i].id;
+      if(!id) continue;
+      try{
+        var rr=await fetch("/api/clientops/approvals/"+encodeURIComponent(id)+"/decide",{
+          method:"POST",
+          headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
+          body:JSON.stringify({action:"approve", note:"admin dashboard bulk"}),
+        });
+        var jd=await rr.json().catch(function(){return {};});
+        if(rr.ok&&jd.ok!==false) done++; else fail++;
+      }catch(e){ fail++; }
+    }
+    adminToast("Content: "+done+" approved"+(fail?" · "+fail+" fail":""), fail?"error":"success");
+    try{ loadAdminTasks(); }catch(e){}
+    try{ loadAutomationHub(); }catch(e){}
+    try{ if(window.loadDiffPanel) loadDiffPanel(); }catch(e){}
+  }catch(e){ adminToast("Bulk approve fail","error"); }
+}
+
 /* --- Customer Delivery OS Admin View Switcher --- */
 function showAdminView(viewName) {
   document.body.setAttribute("data-active-view", viewName);
@@ -3166,11 +3240,29 @@ function loadAdminTasks(){
       var sev={high:"#dc2626",medium:"#d97706",low:"#9ca3af"};
       document.getElementById("adminTasksBody").innerHTML = tasks.map(function(t){
         var col=sev[t.severity]||"#9ca3af";
-        return '<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.06)">'
+        var action=t.cta_action||"";
+        var href=t.cta_href||"";
+        var btnHtml="";
+        if(action==="open_href" && href){
+          btnHtml='<a class="btn" href="'+escH(href)+'" style="flex:0 0 auto;background:'+col+';color:#fff;border:0;padding:8px 12px;font-size:12px;border-radius:8px;white-space:nowrap;text-decoration:none">'+escH(t.cta_label||"Kholo")+' →</a>';
+        } else if(action==="open_approvals"){
+          btnHtml='<button class="btn" style="flex:0 0 auto;background:'+col+';color:#fff;border:0;padding:8px 12px;font-size:12px;border-radius:8px;white-space:nowrap" onclick="adminOpenApprovals()">'+escH(t.cta_label||"Approvals")+' →</button>';
+        } else {
+          btnHtml='<button class="btn" style="flex:0 0 auto;background:'+col+';color:#fff;border:0;padding:8px 12px;font-size:12px;border-radius:8px;white-space:nowrap" onclick="scrollToSec(\''+escH(t.cta_target||"")+'\')">'+escH(t.cta_label||"Dekho")+' →</button>';
+        }
+        // Content bulk: sirf chhote queues pe (ADR-104 + safety — 20+ = Mission Control)
+        var extra="";
+        if(t.id==="content" && (t.count||0)>0 && (t.count||0)<=20){
+          extra='<button class="btn" style="flex:0 0 auto;background:#059669;color:#fff;border:0;padding:8px 12px;font-size:12px;border-radius:8px;white-space:nowrap" onclick="adminApproveAllPendingContent()" title="Confirm ke baad saare pending content approve">Sab approve ('+escH(String(t.count))+')</button>';
+        } else if(t.id==="content" && (t.count||0)>20){
+          extra='<a class="btn" href="/app/clients" style="flex:0 0 auto;background:#059669;color:#fff;border:0;padding:8px 12px;font-size:12px;border-radius:8px;white-space:nowrap;text-decoration:none" title="Badi queue — client-by-client approve karo">Clients pe jao →</a>';
+        }
+        return '<div style="display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid rgba(0,0,0,.06);flex-wrap:wrap">'
           +'<span style="font-size:20px;flex:0 0 auto">'+escH(t.icon||"•")+'</span>'
-          +'<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:13.5px;color:#1e1b2e">'+escH(t.title)+'</div>'
+          +'<div style="flex:1;min-width:140px"><div style="font-weight:700;font-size:13.5px;color:#1e1b2e">'+escH(t.title)+'</div>'
           +'<div style="font-size:12px;color:#6b7280">'+escH(t.why||"")+'</div></div>'
-          +'<button class="btn" style="flex:0 0 auto;background:'+col+';color:#fff;border:0;padding:8px 12px;font-size:12px;border-radius:8px;white-space:nowrap" onclick="scrollToSec(\''+escH(t.cta_target||"")+'\')">'+escH(t.cta_label||"Dekho")+' →</button>'
+          +btnHtml
+          +extra
           +'</div>';
       }).join("");
       var c=document.getElementById("adminTasksCount"); if(c) c.textContent="("+(j.total_pending||tasks.length)+")";
@@ -3369,7 +3461,7 @@ function _restoreCollapsibleCards(){
   // at once. Vestigial-by-default sections auto-collapse and get a Dikhao ▾
   // toggle button injected into their .hd if none exists. State persists per
   // browser. Users can re-open any card — nothing is permanently hidden.
-  var _vestigial = ["sec-ops2026","sec-audit","sec-api","sec-sync","sec-diff","sec-delivery-queue"];
+  var _vestigial = ["agentCopilotCard","sec-ops2026","sec-audit","sec-api","sec-sync","sec-diff","sec-delivery-queue","sec-campaigns","sec-launch-calls","sec-niches","sec-prospects","sec-outreach-activity","sec-speed","sec-billing","sec-revenue","sec-hourly-ops","sec-hourly-activity","sec-llm-health","sec-social-cockpit"];
   _vestigial.forEach(function(id){
     var card = document.getElementById(id);
     if(!card) return;

@@ -569,23 +569,39 @@ def _admin_office() -> dict:
             "id": "selfimprove", "icon": "🤖", "severity": "medium", "count": n,
             "title": f"{n} self-improve task approve karo",
             "why": "Agents aapki OK ka wait kar rahe — tab tak loop ruka",
-            "cta_label": "Dekho", "cta_target": "sec-automation",
+            "cta_label": "Approvals kholo", "cta_target": "sec-automation",
+            "cta_action": "open_approvals",
         })
 
     # 2) Content approvals — posts waiting for sign-off
-    def _ca() -> int:
+    def _ca() -> tuple[int, dict[str, int]]:
         from app.marketing import content_approval
 
-        return len(content_approval.pending("") or [])
+        rows = content_approval.pending("") or []
+        by: dict[str, int] = {}
+        for r in rows:
+            cid = str((r or {}).get("client_id") or "unknown").strip() or "unknown"
+            by[cid] = by.get(cid, 0) + 1
+        return len(rows), by
 
-    n = _safe(_ca)
+    try:
+        n, by_client = _ca()
+    except Exception:
+        n, by_client = 0, {}
     if n > 0:
+        top_clients = sorted(by_client.items(), key=lambda kv: (-kv[1], kv[0]))[:4]
+        client_hint = ", ".join(f"{cid}({cnt})" for cid, cnt in top_clients) or "—"
+        n_clients = len(by_client)
         tasks.append({
             "id": "content", "icon": "✅", "severity": "high", "count": n,
-            "title": f"{n} post approve karo",
-            "why": "Posts taiyaar hain par approval ke bina ruke",
-            "impact": "approve karte hi auto-publish",
-            "cta_label": "Approve", "cta_target": "sec-automation",
+            "clients_affected": n_clients,
+            "title": f"{n} content posts · {n_clients} clients pe pending",
+            "why": f"Pehle paid clients check karo (top: {client_hint}). Bulk approve yahan risky — Mission Control / Client Actions use karo.",
+            "impact": "approve ke baad publish path open ho sakta hai",
+            # Honest CTA: Mission Control is the real approvals surface (not scroll-only)
+            "cta_label": "Mission Control", "cta_target": "sec-automation",
+            "cta_href": "/app/automation",
+            "cta_action": "open_href",
         })
 
     # 3) Code-upgrader patches — Vikram's proposals need review
@@ -600,7 +616,8 @@ def _admin_office() -> dict:
             "id": "patches", "icon": "🩹", "severity": "medium", "count": n,
             "title": f"{n} code patch review karo",
             "why": "Vikram ne fixes propose kiye — core code kabhi auto-apply nahi hota",
-            "cta_label": "Review", "cta_target": "sec-automation",
+            "cta_label": "Review kholo", "cta_target": "sec-automation",
+            "cta_action": "open_approvals",
         })
 
     # 4) UPI activations — customer paid, manual plan-activate pending (revenue!)
@@ -615,7 +632,7 @@ def _admin_office() -> dict:
             "title": f"{n} UPI payment activate karo",
             "why": "Customer ne pay kiya — manually plan activate karo (revenue ruka)",
             "impact": "activate karte hi customer ka product chalu",
-            "cta_label": "Activate", "cta_target": "sec-godmode",
+            "cta_label": "UPI queue kholo", "cta_target": "sec-upi-selfserve",
         })
 
     _sev = {"high": 0, "medium": 1, "low": 2}
