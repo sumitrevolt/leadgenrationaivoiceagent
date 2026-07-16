@@ -186,14 +186,15 @@ def test_static_routes_unchanged_by_kb_refresh_addition():
     assert _statically_routed_queues() == {"scraping", "calling", "reporting", "sync", "training"}
 
 
-def test_worker_process_init_warmup_skipped_when_flag_off(monkeypatch):
+def test_worker_process_init_warmup_skipped_on_default_worker(monkeypatch):
     """2026-07-15 ADR-104 A10 — worker_heavy Qdrant/fastembed warm-up (see
     on_worker_process_init docstring for the measured ~90s-hang finding this
-    fixes). Must be a true no-op when CELERY_HEAVY_QUEUE is unset, matching
-    every other flag-gated router/hook in this project."""
+    fixes). Routing stays enabled here, but the heavy process-role marker is
+    absent, so the default worker must remain a true no-op."""
     from app import worker
 
-    monkeypatch.delenv("CELERY_HEAVY_QUEUE", raising=False)
+    monkeypatch.setenv("CELERY_HEAVY_QUEUE", "1")
+    monkeypatch.delenv("CELERY_HEAVY_WORKER", raising=False)
     calls: list[str] = []
     fake_mod = types.ModuleType("app.voice_agent.knowledge_base")
     fake_mod.get_knowledge_base = lambda: calls.append("called") or None
@@ -208,6 +209,7 @@ def test_worker_process_init_warmup_runs_when_flag_on(monkeypatch):
     from app import worker
 
     monkeypatch.setenv("CELERY_HEAVY_QUEUE", "1")
+    monkeypatch.setenv("CELERY_HEAVY_WORKER", "1")
     calls: list[str] = []
 
     class _FakeKB:
@@ -235,6 +237,7 @@ def test_worker_process_init_warmup_never_raises_on_failure(monkeypatch):
     from app import worker
 
     monkeypatch.setenv("CELERY_HEAVY_QUEUE", "1")
+    monkeypatch.setenv("CELERY_HEAVY_WORKER", "1")
 
     class _BoomKB:
         def backend(self, namespace):
@@ -246,3 +249,15 @@ def test_worker_process_init_warmup_never_raises_on_failure(monkeypatch):
 
     worker.on_worker_process_init()  # must not raise
     time.sleep(0.2)
+
+
+def test_vps_heavy_worker_marker_is_exclusive():
+    """Only worker-heavy may run the memory-heavy Qdrant/ONNX warm-up."""
+    data = yaml.safe_load((REPO_ROOT / "docker-compose.vps.yml").read_text(encoding="utf-8"))
+    services = data["services"]
+    marked = {
+        name
+        for name, service in services.items()
+        if service.get("environment", {}).get("CELERY_HEAVY_WORKER") == "1"
+    }
+    assert marked == {"worker-heavy"}

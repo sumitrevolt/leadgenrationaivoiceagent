@@ -44,6 +44,9 @@ class FakeRedis:
     def hgetall(self, k):
         return dict(self.hashes.get(k) or {})
 
+    def ping(self):
+        return True
+
     def expire(self, k, ttl):
         return True
 
@@ -162,7 +165,11 @@ def test_integration_health_never_raises_without_redis(monkeypatch):
     ih.record_failure("smtp")  # no raise
     ih.record_success("smtp")  # no raise
     snap = ih.snapshot()
-    assert "error" in snap
+    assert snap["redis_status"] == "unavailable"
+    assert snap["degraded"] is True
+    assert snap["reason"] == "acquisition_failed"
+    assert snap["error_type"] == "ConnectionError"
+    assert "error" not in snap  # exception messages may contain Redis credentials
 
 
 # ---------------------------------------------------------------- file_lock

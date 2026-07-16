@@ -323,6 +323,19 @@ async def social_postiz_status(_user=Depends(require_admin)):
     rec = vault.get("_global", "postiz") or {}
     meta = rec.get("meta") or {}
     vault_integrations = str(meta.get("integrations") or "")
+<<<<<<< HEAD
+=======
+
+    # 2026-07-14 (ADR-099): report the EFFECTIVE resolved config, not just the
+    # vault field. `_integration_ids()` resolves client → env → vault, so env
+    # silently wins; counting only vault made this endpoint say
+    # `integrations_count: 0` while all 4 channels were wired via
+    # POSTIZ_INTEGRATIONS and publishing was fully functional. A status surface
+    # that under-reports readiness is the same failure class as ADR-095/096/098
+    # (fake state on a real status surface) — it sent an operator chasing a
+    # non-existent misconfiguration. `vault_integrations_count` is kept so the
+    # configure endpoint's own write is still observable.
+>>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
     effective_ids = postiz_publish.effective_integration_ids()
     return {
         "postiz_configured": postiz_publish.enabled(),
@@ -330,9 +343,13 @@ async def social_postiz_status(_user=Depends(require_admin)):
         "api_url": postiz_publish.api_url(),
         "integrations_count": len(effective_ids),
         "integrations_source": postiz_publish.integrations_source(),
+<<<<<<< HEAD
         "vault_integrations_count": len(
             [x for x in vault_integrations.split(",") if x.strip()]
         ),
+=======
+        "vault_integrations_count": len([x for x in vault_integrations.split(",") if x.strip()]),
+>>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
         "social_engine_enabled": social_engine.enabled(),
     }
 

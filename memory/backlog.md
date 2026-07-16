@@ -10,7 +10,7 @@ Schema: `[DATE parked] Idea — WHY it matters | what unblocks it`
 [2026-06-2X] **Own telephony stack (P3)** — cost ladder Plivo ₹0.60 → Vobiz ₹0.45 → operator-direct ₹0.30-0.40/min; at scale = biggest COGS lever | Plan in `docs/superpowers/plans/PENDING_PLANS.md`; needs volume + DLT.
 [2026-06-1X] **Missed-call auto-callback** — classic Indian lead-capture pattern, zero-DLT inbound | Vobiz DID + webhook (user paperwork).
 [2026-06-1X] **GBP API auto-post** — Google Business posts = highest-ROI local-marketing channel | Google ~60-din API approval (user applied?).
-[2026-06-1X] **Meta FB/IG auto-posting** — completes social automation promise | Meta app-review (user action).
+[2026-06-1X] ~~**Meta FB/IG auto-posting** — Meta app-review (user action).~~ **DONE for OWN brand (2026-07-14, ADR-099)** — app-review was never the blocker here: dev-mode app + admin role = `pages_manage_posts`/`instagram_content_publish` both "Ready for testing" on our own Pages. Live via Postiz (4 channels connected, ids in `POSTIZ_INTEGRATIONS`). STILL open for CUSTOMER pages = needs Advanced Access.
 [2026-06-1X] **HA / 2nd server** — single-VPS SPOF; warm-DR probe already wired | user spend decision.
 [2026-07-02] **Enterprise-audit follow-ups** — k6 load run, SLO burn-rate slice, live alembic verify, trivy enforce | audit scored SLO 3/Capacity 2/DB-mig 5/Supply 5 — these lift the weak domains.
 [2026-07-03] **Enable-everything Tier 3+4** — remaining flags council-reviewed, value on the table | user go-ahead only (Tier 1+2 already LIVE).
