@@ -34,10 +34,27 @@ DRY_RUN="${DRY_RUN:-0}"
 cd "$REPO" || { echo "FATAL: $REPO not found"; exit 1; }
 
 # ---------------------------------------------------------------- resolve sha
+# 2026-07-16 hardening: pull-fail + SHA/HEAD mismatch used to silently rebuild
+# whatever dirty tree was on disk while claiming a different APP_VERSION in the
+# log header (dep3 incident). Abort loudly instead.
 if [ "${1:-}" != "" ]; then
-  VER="$1"
+  if ! VER="$(git rev-parse --short "$1" 2>/dev/null)"; then
+    echo "FATAL: git object '$1' not found in $REPO — fetch/pull first, then retry."
+    exit 2
+  fi
+  HEAD_SHA="$(git rev-parse --short HEAD)"
+  if [ "$VER" != "$HEAD_SHA" ]; then
+    echo "FATAL: requested APP_VERSION=$VER but REPO HEAD=$HEAD_SHA."
+    echo "       Checkout/pull that sha first, then re-run. Refusing silent code/tag skew."
+    exit 2
+  fi
 else
-  git pull --ff-only 2>&1 | tail -2
+  echo "=== git pull --ff-only ==="
+  if ! git pull --ff-only; then
+    echo "FATAL: git pull --ff-only failed — refusing to deploy stale/dirty HEAD."
+    echo "       Resolve the pull (backup live data/*, no reset --hard), then retry."
+    exit 2
+  fi
   VER="$(git rev-parse --short HEAD)"
 fi
 
@@ -51,6 +68,10 @@ case "$(printf '%s' "$VER" | tr '[:upper:]' '[:lower:]')" in
 esac
 echo "=== DEPLOY $VER (services: $SERVICES) ==="
 echo "REPO_SHA=$(git rev-parse --short HEAD)"
+if [ "$(git rev-parse --short HEAD)" != "$VER" ]; then
+  echo "FATAL: REPO_SHA != APP_VERSION after resolve — aborting before build."
+  exit 2
+fi
 
 # ---------------------------------------------------------------- disk guard
 # Phase C (2026-07-15): the existing image-retention step below (added after

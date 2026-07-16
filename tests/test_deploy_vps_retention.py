@@ -132,3 +132,25 @@ def test_retention_never_uses_rmi_force_flag():
     joined = "\n".join(command_lines)
     assert "docker rmi -f" not in joined
     assert "docker rmi --force" not in joined
+
+
+def test_pull_fail_aborts_before_build():
+    """2026-07-16: pull-fail used to fall through and rebuild stale HEAD while
+    the log header claimed a different APP_VERSION. Abort must precede build."""
+    t = _text()
+    assert "git pull --ff-only failed" in t
+    assert "refusing to deploy stale" in t
+    pull_fail_idx = t.index("git pull --ff-only failed")
+    build_idx = t.index('docker compose -f "$COMPOSE" build app')
+    assert pull_fail_idx < build_idx
+    # Must not mask pull exit via `| tail` (pipefail alone is not enough without -e)
+    resolve = t[t.index("resolve sha") : build_idx]
+    assert "git pull --ff-only 2>&1 | tail" not in resolve
+
+
+def test_sha_arg_must_match_repo_head():
+    """Explicit APP_VERSION arg that does not match HEAD = abort (no silent skew)."""
+    t = _text()
+    assert "requested APP_VERSION=" in t
+    assert "Refusing silent code/tag skew" in t
+    assert 'REPO_SHA != APP_VERSION' in t or "REPO_SHA != APP_VERSION" in t
