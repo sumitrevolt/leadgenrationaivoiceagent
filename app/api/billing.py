@@ -144,6 +144,35 @@ def _client_name(client_id: str) -> str:
     return f"Client {client_id}"
 
 
+def _billing_client_ids(client_id: str) -> list[str]:
+    """Canonical id + legacy `billing_client_ids` aliases (ADR-095 family, ADR-106).
+
+    WHY: jiya-makeover (the ONLY real paying customer) logs in as `jiya-makeover`
+    but her Subscription/Invoice rows are owned by legacy billing id `d79d690f61b3`
+    — so every customer-facing billing read 404'd and the portal showed
+    "NO PLAN / Free Trial" + a fresh UPI QR to an already-paying customer
+    (2026-07-16 browser acceptance). Alert path fixed this identity split in
+    ADR-095 via `billing_client_ids`; this mirrors it for the billing API.
+    Never raises — falls back to [client_id]."""
+    ids = [str(client_id or "").strip()]
+    try:
+        from app.marketing.clients_store import get_client
+
+        rec = get_client(client_id) or {}
+        aliases = rec.get("billing_client_ids") or []
+        if isinstance(aliases, (list, tuple, set)):
+            ids.extend(str(x or "").strip() for x in aliases)
+    except Exception:
+        pass
+    seen: set[str] = set()
+    out: list[str] = []
+    for i in ids:
+        if i and i not in seen:
+            seen.add(i)
+            out.append(i)
+    return out or [client_id]
+
+
 def _stripe_configured() -> bool:
     # Stripe removed 2026-07-10 — always returns False.
     return False
@@ -391,7 +420,7 @@ async def get_current_subscription(
         select(Subscription)
         .where(
             and_(
-                Subscription.client_id == client_id,
+                Subscription.client_id.in_(_billing_client_ids(client_id)),
                 Subscription.status.in_(
                     [
                         SubscriptionStatus.TRIAL,
@@ -452,7 +481,7 @@ async def cancel_subscription(
     result = await db.execute(
         select(Subscription).where(
             and_(
-                Subscription.client_id == client_id,
+                Subscription.client_id.in_(_billing_client_ids(client_id)),
                 Subscription.status.in_([SubscriptionStatus.TRIAL, SubscriptionStatus.ACTIVE]),
             )
         )
@@ -520,7 +549,7 @@ async def get_invoices(
     """
     result = await db.execute(
         select(Invoice)
-        .where(Invoice.client_id == client_id)
+        .where(Invoice.client_id.in_(_billing_client_ids(client_id)))
         .order_by(Invoice.created_at.desc())
         .offset(offset)
         .limit(limit)
@@ -555,7 +584,7 @@ async def get_invoice_details(
     Get detailed invoice information
     """
     result = await db.execute(
-        select(Invoice).where(and_(Invoice.id == invoice_id, Invoice.client_id == client_id))
+        select(Invoice).where(and_(Invoice.id == invoice_id, Invoice.client_id.in_(_billing_client_ids(client_id))))
     )
     invoice = result.scalar_one_or_none()
 
@@ -576,7 +605,7 @@ async def get_current_usage(
     result = await db.execute(
         select(Subscription).where(
             and_(
-                Subscription.client_id == client_id,
+                Subscription.client_id.in_(_billing_client_ids(client_id)),
                 Subscription.status.in_([SubscriptionStatus.TRIAL, SubscriptionStatus.ACTIVE]),
             )
         )
@@ -634,7 +663,7 @@ async def get_payment_methods(
     """
     result = await db.execute(
         select(PaymentMethod)
-        .where(and_(PaymentMethod.client_id == client_id, PaymentMethod.is_active))
+        .where(and_(PaymentMethod.client_id.in_(_billing_client_ids(client_id)), PaymentMethod.is_active))
         .order_by(PaymentMethod.is_default.desc(), PaymentMethod.created_at.desc())
     )
     methods = result.scalars().all()
@@ -669,7 +698,7 @@ async def get_account_balance(
     """
     result = await db.execute(
         select(Subscription)
-        .where(Subscription.client_id == client_id)
+        .where(Subscription.client_id.in_(_billing_client_ids(client_id)))
         .order_by(Subscription.created_at.desc())
     )
     subscription = result.scalar_one_or_none()
@@ -695,7 +724,7 @@ async def get_usage_history(
 
     result = await db.execute(
         select(UsageRecord)
-        .where(and_(UsageRecord.client_id == client_id, UsageRecord.usage_date >= start_date))
+        .where(and_(UsageRecord.client_id.in_(_billing_client_ids(client_id)), UsageRecord.usage_date >= start_date))
         .order_by(UsageRecord.usage_date.desc())
     )
     records = result.scalars().all()
@@ -737,7 +766,7 @@ async def upgrade_subscription(
     result = await db.execute(
         select(Subscription).where(
             and_(
-                Subscription.client_id == client_id,
+                Subscription.client_id.in_(_billing_client_ids(client_id)),
                 Subscription.status.in_([SubscriptionStatus.TRIAL, SubscriptionStatus.ACTIVE]),
             )
         )
@@ -793,7 +822,7 @@ async def create_billing_portal(
     """
     result = await db.execute(
         select(Subscription)
-        .where(Subscription.client_id == client_id)
+        .where(Subscription.client_id.in_(_billing_client_ids(client_id)))
         .order_by(Subscription.created_at.desc())
     )
     subscription = result.scalar_one_or_none()
@@ -825,7 +854,7 @@ async def _get_active_or_paused_sub(db: AsyncSession, client_id: str) -> Subscri
         select(Subscription)
         .where(
             and_(
-                Subscription.client_id == client_id,
+                Subscription.client_id.in_(_billing_client_ids(client_id)),
                 Subscription.status.in_(
                     [
                         SubscriptionStatus.TRIAL,
@@ -953,7 +982,7 @@ async def _activate_subscription_row(
             select(Subscription)
             .where(
                 and_(
-                    Subscription.client_id == client_id,
+                    Subscription.client_id.in_(_billing_client_ids(client_id)),
                     Subscription.status.in_(
                         [
                             SubscriptionStatus.TRIAL,
