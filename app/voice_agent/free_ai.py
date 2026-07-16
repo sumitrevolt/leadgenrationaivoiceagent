@@ -809,11 +809,14 @@ async def chat(
     temperature: float = 0.6,
     scope: str = "global",
     profile: str | None = None,
+    agent_key: str | None = None,
+    product: str | None = None,
 ) -> tuple[str, str]:
     """Free LLM chain par ek short reply lo.
 
     ``profile``: ``realtime`` (voice/low-latency, default) ya ``bulk`` (content/blog).
     Unset → ``bulk`` auto jab ``max_tokens >= LLM_BULK_TOKEN_THRESHOLD`` (default 180).
+    ``agent_key`` / ``product``: Agent OS governance for OmniRoute bulk hook (ADR-108/109).
 
     Chain order:
       realtime — mistral → groq → cerebras → …
@@ -888,7 +891,9 @@ async def chat(
         try:
             from app.platform.omniroute_client import try_agent_chat
 
-            _omni_text = await try_agent_chat(msgs)
+            _omni_text = await try_agent_chat(
+                msgs, agent_key=agent_key, product=product
+            )
             if _omni_text:
                 return _omni_text, "omniroute"
         except Exception as _omni_exc:  # defensive — hook kabhi chain nahi girayega

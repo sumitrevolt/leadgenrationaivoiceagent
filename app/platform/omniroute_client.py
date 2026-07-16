@@ -40,6 +40,23 @@ logger = setup_logger(__name__)
 
 _OMNIROUTE_BASE_URL = os.getenv("OMNIROUTE_BASE_URL", "http://127.0.0.1:20128/v1")
 _RETRYABLE_STATUS_CODES = {408, 429, 500, 502, 503}
+_DEFAULT_MAX_OUTPUT_TOKENS = 1024
+
+
+def _provider_label(requested_model: str, resolved_model: str | None = None) -> str:
+    """Honest provider tag for logs/metrics.
+
+    Gateway combo ids (e.g. ``leadgen-free-first``) have no ``provider/`` prefix —
+    do NOT pretend the combo name is a provider. Prefer the gateway-resolved
+    model when it carries ``provider/model``; else label bare/combo ids ``combo``.
+    """
+    for candidate in (resolved_model, requested_model):
+        text = str(candidate or "").strip()
+        if "/" in text:
+            return text.split("/", 1)[0] or "unknown"
+    if str(requested_model or "").strip():
+        return "combo"
+    return "unknown"
 
 
 @dataclass(frozen=True)
@@ -76,29 +93,32 @@ class OmniRouteResult:
 # /v1/responses PONG calls se proven (HTTP 200, output_text + usage sahi shape).
 # Ye auto-aliases hain — gateway khud free pool me se resolve karta hai, isliye
 # kisi ek free provider ke retire hone pe route nahi tootta.
-# 2026-07-16 (same-day update): user ne Groq/Gemini/Mistral providers dashboard me
-# reconnect kar diye — groq/mistral IDs phir se PONG-proven. Config ab hybrid:
-# free auto-alias PRIMARY (free-tokens mandate) + reconnected provider FALLBACK
-# (purana ADR-verified setup restore).
+# 2026-07-16 (same-day update 2): user ne dashboard me ~25 provider accounts
+# reconnect kiye aur custom combo `leadgen-free-first` banaya (strategy=priority,
+# 4-deep gateway-side failover: opencode/deepseek-v4-flash-free FREE →
+# groq/llama-3.3-70b-versatile → mistral/mistral-small-latest →
+# gemini/gemini-flash-latest). Combo id REAL sanitized /v1/responses PONG se
+# proven (HTTP 200, free model ne resolve kiya). Routes ab combo PRIMARY +
+# auto/coding:free client-side FALLBACK — free-tokens mandate + deep failover.
 _TASK_ROUTES: dict[str, OmniRouteRoute] = {
     "leadgen.coding_primary": OmniRouteRoute(
-        primary_model="auto/coding:free",
-        fallback_model="groq/llama-3.3-70b-versatile",
+        primary_model="leadgen-free-first",
+        fallback_model="auto/coding:free",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.coding_fast": OmniRouteRoute(
-        primary_model="auto/coding:free",
-        fallback_model="groq/llama-3.3-70b-versatile",
+        primary_model="leadgen-free-first",
+        fallback_model="auto/coding:free",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.repo_analysis": OmniRouteRoute(
-        primary_model="auto/best-free",
-        fallback_model="mistral/mistral-small-latest",
+        primary_model="leadgen-free-first",
+        fallback_model="auto/best-free",
         privacy_class="INTERNAL_SANITIZED",
     ),
     "leadgen.test_generation": OmniRouteRoute(
-        primary_model="auto/coding:free",
-        fallback_model="groq/llama-3.3-70b-versatile",
+        primary_model="leadgen-free-first",
+        fallback_model="auto/coding:free",
         privacy_class="INTERNAL_SANITIZED",
     ),
     # ADR-108 (2026-07-16): staff-agent bulk work (content/analysis/digests) — user
@@ -106,8 +126,8 @@ _TASK_ROUTES: dict[str, OmniRouteRoute] = {
     # (free_ai.chat hook engages only for profile=bulk). Payload is sanitized by
     # generate() (mask_customer_data + validate_no_secrets) before any network call.
     "leadgen.agent_ops": OmniRouteRoute(
-        primary_model="auto/best-free",
-        fallback_model="groq/llama-3.3-70b-versatile",
+        primary_model="leadgen-free-first",
+        fallback_model="auto/best-free",
         privacy_class="INTERNAL_SANITIZED",
     ),
 }
@@ -350,6 +370,7 @@ async def generate(
     timeout_seconds: int | None = None,
     metadata: dict[str, Any] | None = None,
     agent_key: str | None = None,
+    max_output_tokens: int | None = None,
 ) -> OmniRouteResult | None:
     """Run one explicit sanitized development task through OmniRoute.
 
@@ -382,6 +403,11 @@ async def generate(
     safe_messages = mask_customer_data(messages)
     validate_no_secrets(safe_messages)
     timeout = _timeout_seconds(timeout_seconds)
+    try:
+        tok_cap = int(max_output_tokens) if max_output_tokens is not None else _DEFAULT_MAX_OUTPUT_TOKENS
+    except (TypeError, ValueError):
+        tok_cap = _DEFAULT_MAX_OUTPUT_TOKENS
+    tok_cap = max(64, min(tok_cap, 8192))
     headers = {"Authorization": f"Bearer {os.getenv('OMNIROUTE_API_KEY', '')}"}
     candidates = [route.primary_model]
     if route.fallback_model:
@@ -393,7 +419,7 @@ async def generate(
         payload = {
             "model": model,
             "input": safe_messages,
-            "max_output_tokens": 1024,
+            "max_output_tokens": tok_cap,
         }
         try:
             response = await _post_responses(_responses_url(), headers, payload, timeout)
@@ -409,7 +435,7 @@ async def generate(
                 _log_route_decision(
                     task_type=task_type,
                     privacy_class=privacy_class,
-                    provider=model.split("/", 1)[0],
+                    provider=_provider_label(model),
                     model=model,
                     latency_ms=round((time.monotonic() - started) * 1000),
                     input_tokens=None,
@@ -430,7 +456,7 @@ async def generate(
                 _log_route_decision(
                     task_type=task_type,
                     privacy_class=privacy_class,
-                    provider=model.split("/", 1)[0],
+                    provider=_provider_label(model, str(body.get("model") or "") or None),
                     model=model,
                     latency_ms=round((time.monotonic() - started) * 1000),
                     input_tokens=None,
@@ -443,11 +469,12 @@ async def generate(
                 return None
 
             usage = body.get("usage") or {}
+            resolved = str(body.get("model") or model)
             result = OmniRouteResult(
                 text=text,
                 task_type=task_type,
-                provider=model.split("/", 1)[0],
-                model=str(body.get("model") or model),
+                provider=_provider_label(model, resolved),
+                model=resolved,
                 latency_ms=round((time.monotonic() - started) * 1000),
                 input_tokens=usage.get("input_tokens"),
                 output_tokens=usage.get("output_tokens"),
@@ -478,7 +505,7 @@ async def generate(
             _log_route_decision(
                 task_type=task_type,
                 privacy_class=privacy_class,
-                provider=model.split("/", 1)[0],
+                provider=_provider_label(model),
                 model=model,
                 latency_ms=None,
                 input_tokens=None,

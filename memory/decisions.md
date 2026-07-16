@@ -1706,3 +1706,32 @@ User ne 2nd-paying-customer path ke liye AI auto-calling wapas choose kiya ("AI 
 **Evidence:** targeted pytest green (plan_delivery_p0 + product_one setup/admin + client_report + onboard_content_queue + delivery_ledger seed + billing_truth starter groups + hands_free); `prod_check.py` ALL CHECKS PASSED (1104 routes). Rollback = revert the touched marketing modules + packages.py + tests.
 
 **Not done (ops/deploy):** no commit/push/deploy; Jiya backlog clear/approve session + report rebuild under `jiya-makeover` + video regen = post-deploy ops; `SOCIAL_AUTOPOST` / `WHATSAPP_AUTO_SEND` stay OFF.
+
+## 2026-07-17 - ADR-117 - Wiring/social/Agent-OS audit fixes (customer Postiz isolation + social_drain STAFF_JOB)
+
+**Context:** Code-review + automation/social/Agent-OS audits: customers inherited global `POSTIZ_INTEGRATIONS` (cross-tenant leak risk); social queue lacked durable hourly drain on STAFF_JOB path; `enqueue_approved` ignored `engine.enabled()`; own-brand sat in approval backlog; `free_ai.chat` dropped `agent_key`; JOB_META orphans; ToS scrapers soft; customer social UI lied about auto-posting.
+
+**Decision:**
+- `postiz_publish`: client ? social_config ? **env/vault only for own-brand/admin**; customers without own IDs get `[]`.
+- `social_drain` full 6-layer STAFF_JOB (team_scheduler + beat `staff-social-drain-hourly` ? `run_staff_job` + JOB_META + EXPECTED_GAP_MIN + today_overview); `process_queue` recovers stale `processing`.
+- Own-brand auto-approve+enqueue; `enqueue_approved` uses `engine.enabled()`.
+- `free_ai.chat(..., agent_key=, product=)` forwards to `try_agent_chat`.
+- ToS scrape hard-refuse unless `ALLOW_TOS_SCRAPE=1`; customer `_social_status` honesty (per-client channel count).
+
+**Evidence:** `tests/test_wiring_audit_fixes_2026_07_17.py` + postiz/scheduler/today_overview/social_engine green; `prod_check.py` ALL CHECKS PASSED (1104 routes, automation 0 gaps); `check_secrets` clean. Rollback = revert touched modules + test file.
+
+**Not done:** commit/push/deploy (user gate); Jiya still needs per-customer Postiz IDs after isolation; own-brand backlog one-time clear after deploy.
+
+## 2026-07-17 - ADR-118 - Remaining audit P1/P2: prefs consent, OmniRoute honesty, Graphify cold-loud
+
+**Context:** After ADR-117 P0s, leftover code-fixable gaps: SOCIAL_PREFS_HONOR silent, no customer auto-consent mode, OmniRoute combo ids logged as fake providers + hard-coded max tokens, Graphify cold-machine soft WARN, zara/agent_key test gaps.
+
+**Decision:**
+- `approval_mode=auto` (explicit consent) + hands-free bridge when prefs honored; wizard radio + `prefs_honored` / `ownership_ok` / `hands_free_active` status honesty.
+- OmniRoute `_provider_label` (combo vs `provider/model`) + `max_output_tokens` caller override (64–8192).
+- `context_health` FAIL-LOUD on missing `graph.json`; `GRAPHIFY_REQUIRE_GRAPH=1` hard-fails exit.
+- Tests: zara still masks PII; free_ai forwards agent_key; ownership/hands-free status.
+
+**Not done (blocked / out of scope):** live OAuth authorize URLs (needs provider apps); legacy in-memory automation retire; Jiya per-customer Postiz IDs + deploy (ops).
+
+**Evidence:** wiring + omniroute tests green; prod_check ALL PASSED; secrets clean. Rollback = revert touched modules + frontend wizard bits + tests.

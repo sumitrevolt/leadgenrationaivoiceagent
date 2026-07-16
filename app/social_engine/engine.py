@@ -96,8 +96,17 @@ def _default_platforms(client_id: str) -> list[str]:
             acct = {"account_ref": _client_phone(client_id)}
             if wa.configured(acct):
                 out.append("whatsapp")
-        if reg.get("postiz") and reg["postiz"].configured():
-            out.append("postiz")
+        # Postiz only when THIS client has own channel ids (or own-brand global).
+        # Global POSTIZ_API_KEY alone must NOT enqueue customer jobs onto corporate
+        # LeadsGenAI FB/IG (audit 2026-07-17 tenant contamination).
+        try:
+            from app.marketing import clients_store, postiz_publish
+
+            crec = clients_store.get_client(client_id) or {"id": client_id}
+            if postiz_publish.enabled() and postiz_publish.effective_integration_ids(crec):
+                out.append("postiz")
+        except Exception:
+            pass
         for a in vault.list_accounts(client_id):
             p = str(a.get("platform") or "")
             if p in reg and p not in out:
@@ -311,6 +320,13 @@ async def process_queue(limit: int = 20) -> dict[str, Any]:
             'data/social_engine.json {"dry_run": false}.'
         )
     try:
+        # Recover jobs stuck in `processing` after worker crash (was admin-only).
+        try:
+            from . import scheduling as _sched_recover
+
+            _sched_recover.recover_stale_processing(store, older_than_min=15)
+        except Exception as _rec_e:
+            logger.debug(f"[engine] stale-processing recover skip: {_rec_e}")
         jobs = store.claim_pending(limit)
         # Loop-social-8 (2026-07-11): Phase 8 pause + emergency-stop gates —
         # lazy-import so tests without the module don't crash the drain.

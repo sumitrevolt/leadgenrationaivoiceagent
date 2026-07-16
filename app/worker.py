@@ -627,6 +627,15 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=40),
         "args": ("approval_email_sweep",),
     },
+    # Periodic social-engine drain (audit 2026-07-17): enqueue fires a one-shot
+    # Celery drain, but retry/dead/queued jobs need a scheduled sweep independent
+    # of VIDEO_AD_CYCLE. STAFF_JOB path so prod_check + dead-man + admin toggle
+    # all see it; social_engine.drain task remains for one-shot enqueue.
+    "staff-social-drain-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=10),
+        "args": ("social_drain",),
+    },
     "staff-process-autostart-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
         "schedule": crontab(hour=11, minute=30),  # 11:30 IST (timezone=Asia/Kolkata set in celery config)

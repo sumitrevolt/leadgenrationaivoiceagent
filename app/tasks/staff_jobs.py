@@ -76,6 +76,7 @@ STAFF_JOBS = (
     "call_kpi_digest",  # daily 19:30 IST Lekha call-KPI digest (was in-process-only → dead on Celery topology, audit 2026-07-04)
     "product_one_health",  # hourly :20 Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (2026-07-08)
     "approval_email_sweep",  # bounded pending-approval EMAIL sweep, gated APPROVAL_EMAIL_NOTIFY (default OFF); single-flight (2026-07-12)
+    "social_drain",  # hourly :10 native social queue drain (gated SOCIAL_ENGINE); Celery+in-process (audit 2026-07-17)
 )
 
 

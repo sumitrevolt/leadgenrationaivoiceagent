@@ -304,3 +304,34 @@ Verification Evidence: local only — not deployed. Poster scorer 1/4 with 1 poste
 Risks: prod Jiya data still stale until deploy+ops catch-up; pricing copy change is public-facing honesty (good) but user may want softer wording review.
 Remaining: USER commit/push/deploy; post-deploy Jiya ops (approval backlog, report rebuild under jiya-makeover, video regen if needed). No WA/social auto enable.
 Next Highest Priority: deploy ADR-116 then Jiya delivery catch-up session.
+
+## Loop Run
+Date: 2026-07-17 (deploy)
+Goal: Commit + deploy ADR-116 plan-delivery P0 fixes to production.
+Changed: commit `8b939d4` pushed to origin/main; VPS `deploy_vps.sh` (pull ff-only + build + 5 services).
+Verification Evidence: `/health` version=`8b939d4d` environment=production; 5/5 APP_VERSION skew-free; smoke health/niches/billing/pay-info 200; queues/DLQ 0; public leadsgenai.in/health matches.
+Remaining: Jiya ops catch-up (approval backlog, report rebuild under jiya-makeover, video regen) — code LIVE, data still stale until ops.
+
+## Loop Run
+Date: 2026-07-17 (wiring/social/Agent-OS audit — sab fix)
+Goal: Audit P0s ship — customer Postiz isolation, social drain beat, own-brand publish bridge, Agent OS agent_key, JOB_META/ToS/status honesty.
+Inspected: postiz_publish · social_engine · auto_content · free_ai · worker/staff_jobs/team_scheduler · customer_dashboard · scraper_manager · playbooks conflict · prod_check automation beat gap.
+Problems Found: (1) customers inherited global POSTIZ_INTEGRATIONS (2) beat `social_engine.drain` not STAFF_JOB ? prod_check BEAT REF fail (3) scheduler_config IndentationError (4) free_ai test masked by conftest stub (5) playbooks.md merge conflict markers.
+Changed: ADR-117 paths (isolation + social_drain 6-layer + bridges + agent_key + ToS + status); playbooks conflict resolved + customer-isolation note; NEW tests/test_wiring_audit_fixes_2026_07_17.py.
+Tests Run: wiring_audit + postiz_config + scheduler_admin + today_overview + social_engine = GREEN; prod_check ALL PASSED (1104 routes, automation 0 gaps); check_secrets OK.
+Verification Evidence: local only — not deployed.
+Risks: deploy ke baad Jiya auto-post OFF dikhega jab tak per-customer Postiz IDs set na hon (intentional honesty).
+Remaining: USER commit/push/deploy; post-deploy Jiya Postiz channel IDs + own-brand backlog drain watch.
+Next Highest Priority: user deploy ADR-117, phir Hot Queue ? 2nd paying customer.
+
+## Loop Run
+Date: 2026-07-17 (remaining audit P1/P2 — ADR-118)
+Goal: ADR-117 ke baad bache code-fixable gaps close.
+Inspected: social_oauth (already honest stub) · customer_dashboard/_social_status · auto_content prefs · client_config approval · omniroute_client provider/tokens · context_health · frontend wizard.
+Problems Found: prefs honor silent; no auto consent mode; combo id as provider; max_tokens hard-coded; graph missing only WARN; agent_key runtime + zara mask test gaps.
+Changed: ADR-118 paths above; tests extended.
+Tests Run: wiring_audit + omniroute + agent_os + project_context + postiz = GREEN; prod_check ALL PASSED; secrets OK.
+Verification Evidence: local only — not deployed.
+Risks: hands-free requires SOCIAL_PREFS_HONOR=1 + approval=auto + owned Postiz IDs (fail-closed defaults).
+Remaining: USER commit/push/deploy ADR-117+118; Jiya Postiz channel IDs; optional SOCIAL_PREFS_HONOR flip; OAuth authorize wiring later (provider-gated).
+Next Highest Priority: deploy batch, phir Jiya channel IDs + Hot Queue GTM.

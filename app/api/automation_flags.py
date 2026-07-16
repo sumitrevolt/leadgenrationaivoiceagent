@@ -78,6 +78,7 @@ AUTOMATION_FLAGS = [
     "FESTIVALS_LIVE_HOLIDAYS",
     "VIDEO_AD_CYCLE",  # har 5 din per-client AI video ad -> approval -> social publish (default OFF)
     "SOCIAL_ENGINE",  # native social-posting engine (own queue+providers; default OFF, video_ad_cycle inline fallback)
+    "ALLOW_TOS_SCRAPE",  # hard-off default — JustDial/IndiaMART/LinkedIn/social auto-scrape refuse (§5)
     "SOCIAL_DRY_RUN",  # ADR-098: drain queue but fabricate post_id=dry-* — NEVER real provider publish. Env wins over data/social_engine.json dry_run. Invisible-until-registered = fake "published" confidence.
     "CLIENT_REPORTS",
     "CUSTOMER_WISHES",

@@ -218,6 +218,30 @@ class LeadScraperManager:
         # auto-fired by a caller that omits sources=.
         sources = sources or ["google_maps"]
 
+        # Hard refuse ToS-blocked auto-scrape unless ALLOW_TOS_SCRAPE=1 (manual
+        # research / CSV path only — §5 compliance; comment-only gate was insufficient).
+        import os as _os
+
+        _tos_blocked = frozenset(
+            {"justdial", "indiamart", "linkedin", "social", "facebook", "instagram"}
+        )
+        _allow_tos = _os.environ.get("ALLOW_TOS_SCRAPE", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        if not _allow_tos:
+            blocked = [s for s in sources if str(s).strip().lower() in _tos_blocked]
+            if blocked:
+                logger.warning(
+                    "ToS-blocked scrape sources refused (set ALLOW_TOS_SCRAPE=1 only for "
+                    "explicit manual research): %s",
+                    blocked,
+                )
+            sources = [s for s in sources if str(s).strip().lower() not in _tos_blocked]
+        if not sources:
+            sources = ["google_maps"]
+
         logger.info(
             f"Starting lead scrape - Niche: {niche}, Cities: {len(cities)}, Sources: {sources}"
         )
@@ -226,8 +250,8 @@ class LeadScraperManager:
         queries = self.NICHE_QUERIES.get(niche, {})
 
         # Calculate leads per source/city
-        leads_per_source = max_leads // len(sources)
-        leads_per_city = leads_per_source // len(cities)
+        leads_per_source = max_leads // max(1, len(sources))
+        leads_per_city = max(1, leads_per_source // max(1, len(cities)))
 
         tasks = []
 

@@ -158,42 +158,46 @@ def test_static_every_customer_handler_uses_require_customer_dep():
 # LAYER 2 — Runtime dependency proof (real JWTs, real decode path)
 # --------------------------------------------------------------------------- #
 
-def test_require_customer_returns_jwt_sub_only():
+async def test_require_customer_returns_jwt_sub_only():
     """The primitive is authoritative on its own — no request state can
-    override it. Tenant-a's JWT ALWAYS resolves to tenant-a."""
+    override it. Tenant-a's JWT ALWAYS resolves to tenant-a.
+
+    `require_customer` is an async FastAPI dependency (it awaits a Redis
+    logout-blacklist check), so it must be awaited here too. asyncio_mode=auto
+    runs this coroutine test directly."""
     from app.api.customer_auth import require_customer
 
     token_a = _mint_customer_jwt(TENANT_A)
-    got = require_customer(creds=_creds(token_a))
+    got = await require_customer(creds=_creds(token_a))
     assert got == TENANT_A
 
 
-def test_tenant_b_jwt_never_resolves_to_tenant_a():
+async def test_tenant_b_jwt_never_resolves_to_tenant_a():
     """Symmetric — tenant-b's JWT resolves to tenant-b. There is no request
     state passed to `require_customer` other than the token itself; the
     function's signature FORBIDS any tenant hint from query/body/path."""
     from app.api.customer_auth import require_customer
 
     token_b = _mint_customer_jwt(TENANT_B)
-    got = require_customer(creds=_creds(token_b))
+    got = await require_customer(creds=_creds(token_b))
     assert got == TENANT_B
     assert got != TENANT_A
 
 
-def test_expired_token_rejected_no_tenant_data():
+async def test_expired_token_rejected_no_tenant_data():
     """Expired token → HTTPException, no tenant hint leaks into the error."""
     from fastapi import HTTPException
     from app.api.customer_auth import require_customer
 
     token = _mint_customer_jwt(TENANT_A, ttl_s=-60)  # already expired
     with pytest.raises(HTTPException) as exc:
-        require_customer(creds=_creds(token))
+        await require_customer(creds=_creds(token))
     assert exc.value.status_code in (401, 403)
     # sanitized detail — no tenant identifier
     assert TENANT_A not in str(exc.value.detail)
 
 
-def test_wrong_role_token_rejected():
+async def test_wrong_role_token_rejected():
     """A token whose `role != 'customer'` (e.g. admin token) MUST be rejected
     on a customer-only route."""
     from fastapi import HTTPException
@@ -201,20 +205,20 @@ def test_wrong_role_token_rejected():
 
     token = _mint_customer_jwt(TENANT_A, role="admin")
     with pytest.raises(HTTPException) as exc:
-        require_customer(creds=_creds(token))
+        await require_customer(creds=_creds(token))
     assert exc.value.status_code == 403
 
 
-def test_malformed_token_rejected():
+async def test_malformed_token_rejected():
     from fastapi import HTTPException
     from app.api.customer_auth import require_customer
 
     with pytest.raises(HTTPException) as exc:
-        require_customer(creds=_creds("not-a-jwt.at-all.zzz"))
+        await require_customer(creds=_creds("not-a-jwt.at-all.zzz"))
     assert exc.value.status_code == 401
 
 
-def test_token_without_sub_rejected():
+async def test_token_without_sub_rejected():
     from fastapi import HTTPException
     from jose import jwt as _jwt
     from app.config import settings
@@ -227,7 +231,7 @@ def test_token_without_sub_rejected():
     }
     token = _jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
     with pytest.raises(HTTPException) as exc:
-        require_customer(creds=_creds(token))
+        await require_customer(creds=_creds(token))
     assert exc.value.status_code in (401, 403)
 
 
@@ -252,7 +256,7 @@ def test_token_without_sub_rejected():
     "body:{\"tenant_id\":\"tenant-a-7F31\"}",
     "header:X-Tenant-Id=tenant-a-7F31",
 ])
-def test_no_request_attribute_can_override_authenticated_tenant(attack_variant):
+async def test_no_request_attribute_can_override_authenticated_tenant(attack_variant):
     """Every attack variant. The `require_customer` signature accepts ONLY
     `HTTPAuthorizationCredentials` — there's no way for a request query,
     body, path, or header to become an argument. This test documents the
@@ -277,7 +281,7 @@ def test_no_request_attribute_can_override_authenticated_tenant(attack_variant):
     # returns tenant-b. The variant text is documentation of what WOULD be
     # tried; the primitive can't consume it.
     token_b = _mint_customer_jwt(TENANT_B)
-    assert require_customer(creds=_creds(token_b)) == TENANT_B
+    assert await require_customer(creds=_creds(token_b)) == TENANT_B
 
 
 # --------------------------------------------------------------------------- #
