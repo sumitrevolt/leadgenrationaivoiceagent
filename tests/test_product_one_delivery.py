@@ -626,3 +626,50 @@ def test_delivery_cockpit_includes_integration_health(monkeypatch, tmp_path):
     cockpit = product_one_delivery.delivery_cockpit()
     assert "integration_health" in cockpit
     assert cockpit["integration_health"]["ok"] is True
+
+
+def test_gbp_url_alone_is_not_done_until_scored_audit(monkeypatch, tmp_path):
+    """GBP link ≠ deliverable done; scored audit JSON (or gbp content/manual) is."""
+    _wire_tmp(monkeypatch, tmp_path)
+    from app.marketing import product_one_delivery
+
+    gbp_dir = tmp_path / "gbp_audits"
+    gbp_dir.mkdir()
+    monkeypatch.setattr(product_one_delivery, "_GBP_AUDIT_DIR", str(gbp_dir), raising=False)
+
+    c = _client(socials={"instagram": "rahulmobile", "facebook": "", "gbp": "https://maps.google.com/?cid=1"})
+    state = product_one_delivery.customer_delivery_status("c1", c)
+    by_id = {d["id"]: d for d in state["deliverables"]}
+    assert by_id["gbp_suggestions"]["status"] == "in_progress"
+
+    import json
+
+    (gbp_dir / "c1.json").write_text(
+        json.dumps({"score": 72, "grade": "B", "top_fixes": ["photos"], "at": "2026-07-17 10:00"}),
+        encoding="utf-8",
+    )
+    state2 = product_one_delivery.customer_delivery_status("c1", c)
+    by_id2 = {d["id"]: d for d in state2["deliverables"]}
+    assert by_id2["gbp_suggestions"]["status"] == "done"
+    assert "72" in (by_id2["gbp_suggestions"].get("proof_note") or "")
+
+
+def test_collect_delivery_includes_gbp_score_and_approvals(monkeypatch, tmp_path):
+    _wire_tmp(monkeypatch, tmp_path)
+    from app.marketing import client_report, content_approval, delivery_ledger, product_one_delivery
+
+    gbp_dir = tmp_path / "gbp_audits"
+    gbp_dir.mkdir()
+    monkeypatch.setattr(product_one_delivery, "_GBP_AUDIT_DIR", str(gbp_dir), raising=False)
+    import json
+    import time
+
+    month = time.strftime("%Y-%m")
+    (gbp_dir / "c1.json").write_text(json.dumps({"score": 81, "grade": "A"}), encoding="utf-8")
+    delivery_ledger.log_event("c1", "post_draft_created", detail="x")
+    content_approval.submit("c1", {"title": "Wait", "caption": "approve me"})
+
+    d = client_report.collect_delivery("c1", month=month)
+    assert d["gbp_score"] == 81
+    assert d["approvals_pending"] >= 1
+    assert "81" in d["summary_hi"]

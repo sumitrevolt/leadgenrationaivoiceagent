@@ -1916,6 +1916,7 @@ _TOOLS = [
     {"key": "ads", "icon": "📣", "title": "Ad Copy Pack", "desc": "Google + Meta ad headlines", "method": "POST", "path": "/api/customer/studio/ads", "fields": ["offer", "city"]},
     {"key": "hashtags", "icon": "#️⃣", "title": "Hashtag Research", "desc": "Niche ke best hashtags", "method": "POST", "path": "/api/customer/studio/hashtags", "fields": ["count", "city"]},
     {"key": "gbp-tips", "icon": "📈", "title": "GBP Growth Tips", "desc": "Google ranking tips (free)", "method": "GET", "path": "/api/customer/studio/gbp-tips", "fields": []},
+    {"key": "gbp-audit", "icon": "📊", "title": "GBP Audit (0–100)", "desc": "16 sawal → score + top-5 Hinglish fixes (saved)", "method": "GET", "path": "/api/customer/gbp/questions", "fields": []},
     {"key": "festival-post", "icon": "🪔", "title": "Festival Posts", "desc": "Diwali/Holi/Eid auto captions", "method": "POST", "path": "/api/customer/studio/festival-post", "fields": ["days"]},
     {"key": "poster", "icon": "🖼️", "title": "Offer Poster", "desc": "Shop naam + offer + phone poster", "method": "POST", "path": "/api/customer/studio/poster", "fields": ["offer", "phone", "tagline"]},
     {"key": "review-request", "icon": "🙏", "title": "Review Request", "desc": "Review maangne ka message + link", "method": "POST", "path": "/api/customer/studio/review-request", "fields": []},

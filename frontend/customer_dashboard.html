@@ -766,6 +766,18 @@
           <span class="sm" style="color:var(--muted)">Report load ho raha hai...</span>
         </div>
       </div>
+      <!-- GBP scored audit (0–100) — Method 6 local SEO deliverable; not just GBP URL -->
+      <div data-view="reports" class="card marketing-only" id="reportsGbpAuditCard" style="margin-bottom:14px">
+        <div class="card-h">
+          <h2>🏪 Google Business Profile Audit (0–100)</h2>
+          <span class="pill" id="gbpAuditScorePill">—</span>
+          <span class="grow"></span>
+          <button class="btn" type="button" onclick="loadGbpAuditCard()">↻ Refresh</button>
+        </div>
+        <div class="card-b" id="reportsGbpAuditBody">
+          <span class="sm" style="color:var(--muted)">16 short sawalon se score + top-5 fixes. Login ke baad load hota hai.</span>
+        </div>
+      </div>
       <div data-view="reports" class="card" id="reportsQuickLinksCard" style="margin-bottom:14px">
         <div class="card-h"><h2>⬇️ Data downloads</h2></div>
         <div class="card-b" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
@@ -2427,22 +2439,25 @@ async function loadReportsView(){
   const body=document.getElementById("reportsDeliveryBody");
   const delivCard=document.getElementById("reportsDeliveryCard");
   const qlCard=document.getElementById("reportsQuickLinksCard");
+  const gbpCard=document.getElementById("reportsGbpAuditCard");
   if(!body) return;
   if(!billToken()){
     if(gate)gate.style.display="block";
     if(delivCard)delivCard.style.display="none";
     if(qlCard)qlCard.style.display="none";
+    if(gbpCard)gbpCard.style.display="none";
     return;
   }
   if(gate)gate.style.display="none";
   if(delivCard)delivCard.style.display="";
   if(qlCard)qlCard.style.display="";
+  if(gbpCard)gbpCard.style.display="";
   body.innerHTML='<span class="sm" style="color:var(--muted)">Load ho raha hai... ⏳</span>';
   try{
     const r=await fetch("/api/customer/delivery-proof",{headers:billAuthHdr()});
-    if(!r.ok){body.innerHTML='<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai. Thodi der baad refresh karein.</div>'; return;}
+    if(!r.ok){body.innerHTML='<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai. Thodi der baad refresh karein.</div>'; loadGbpAuditCard(); return;}
     const d=await r.json();
-    if(!d.ok){body.innerHTML='<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai.</div>'; return;}
+    if(!d.ok){body.innerHTML='<div class="sm" style="color:var(--muted)">Report abhi ready nahi hai.</div>'; loadGbpAuditCard(); return;}
     const pct=d.deliverable_completion_pct||0;
     const items=(d.deliverables||[]);
     const done=items.filter(function(x){return x.status==="done";}).length;
@@ -2462,6 +2477,8 @@ async function loadReportsView(){
           +'<span style="font-size:18px">'+(ok?"✅":"⏳")+'</span>'
           +'<div style="flex:1"><div style="font-weight:600">'+escH(it.title||it.name||it.key||"—")+'</div>'
           +(it.hint?'<div class="sm" style="color:var(--muted)">'+escH(it.hint)+'</div>':'')
+          +(it.proof_note?'<div class="sm" style="color:var(--muted)">'+escH(it.proof_note)+'</div>':'')
+          +(it.next_action?'<div class="sm">→ '+escH(it.next_action)+'</div>':'')
           +'</div>'
           +'<span class="sm" style="color:var(--muted)">'+escH(it.status||"")+'</span>'
           +'</div>';
@@ -2473,6 +2490,107 @@ async function loadReportsView(){
     body.innerHTML=h;
   }catch(e){
     body.innerHTML='<div class="sm" style="color:var(--muted)">Report load nahi hua ('+escH(e.message||"network")+').</div>';
+  }
+  loadGbpAuditCard();
+}
+
+async function loadGbpAuditCard(){
+  const box=document.getElementById("reportsGbpAuditBody");
+  const pill=document.getElementById("gbpAuditScorePill");
+  const card=document.getElementById("reportsGbpAuditCard");
+  if(!box) return;
+  if(!billToken()){
+    if(card)card.style.display="none";
+    return;
+  }
+  if(card)card.style.display="";
+  box.innerHTML='<span class="sm" style="color:var(--muted)">Audit load ho raha hai... ⏳</span>';
+  try{
+    const r=await fetch("/api/customer/gbp/questions",{headers:billAuthHdr()});
+    if(!r.ok){box.innerHTML='<div class="sm" style="color:var(--muted)">GBP audit abhi load nahi hua.</div>'; return;}
+    const d=await r.json();
+    const qs=d.questions||[];
+    const last=d.last||null;
+    if(pill){
+      if(last && last.score!=null){
+        pill.textContent=String(last.score)+"/100 · "+escH(last.grade||"");
+        pill.style.background="rgba(16,185,129,.15)";
+        pill.style.color="var(--ok)";
+      }else{
+        pill.textContent="Pending";
+        pill.style.background="";
+        pill.style.color="";
+      }
+    }
+    let h='';
+    if(last && last.score!=null){
+      h+='<div class="simple-note" style="margin-bottom:12px">Pichla score: <b>'+escH(last.score)+'/100</b> (grade '+escH(last.grade||"—")+')'
+        +(last.at?' · '+escH(last.at):'')
+        +'. Neeche answers update karke dobara score le sakte ho.</div>';
+      if(Array.isArray(last.top_fixes) && last.top_fixes.length){
+        h+='<div style="font-weight:700;margin:0 0 6px">Top fixes</div><ul style="margin:0 0 14px 18px;padding:0">';
+        last.top_fixes.slice(0,5).forEach(function(fx){ h+='<li class="sm" style="margin-bottom:4px">'+escH(fx)+'</li>'; });
+        h+='</ul>';
+      }
+    }else{
+      h+='<div class="simple-note" style="margin-bottom:12px">16 short sawal → 0–100 score + top-5 Hinglish fixes. Yeh deliverable complete karta hai (sirf GBP link se nahi).</div>';
+    }
+    if(!qs.length){
+      h+='<div class="sm" style="color:var(--muted)">Questions available nahi.</div>';
+      box.innerHTML=h;
+      return;
+    }
+    h+='<form id="gbpAuditForm" onsubmit="return false;">';
+    qs.forEach(function(q, qi){
+      const qid=String(q.id||("q"+qi));
+      h+='<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff">';
+      h+='<div style="font-weight:600;margin-bottom:8px">'+(qi+1)+'. '+escH(q.q||qid)+'</div>';
+      (q.options||[]).forEach(function(opt, oi){
+        const oid='gbp_'+qid+'_'+oi;
+        h+='<label for="'+escH(oid)+'" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;cursor:pointer;font-size:13px;line-height:1.35">'
+          +'<input type="radio" name="gbp_'+escH(qid)+'" id="'+escH(oid)+'" value="'+oi+'" style="margin-top:3px">'
+          +'<span>'+escH(opt.label||("Option "+oi))+'</span></label>';
+      });
+      h+='</div>';
+    });
+    h+='<button class="btn primary" type="button" onclick="submitGbpAudit()">Score nikaalo →</button>';
+    h+='<div class="sm" id="gbpAuditSubmitMsg" style="margin-top:8px;color:var(--muted)"></div>';
+    h+='</form>';
+    box.innerHTML=h;
+  }catch(e){
+    box.innerHTML='<div class="sm" style="color:var(--muted)">GBP audit load fail ('+escH(e.message||"network")+').</div>';
+  }
+}
+
+async function submitGbpAudit(){
+  const msg=document.getElementById("gbpAuditSubmitMsg");
+  if(!billToken()){ if(msg)msg.textContent="Pehle login karein."; return; }
+  const form=document.getElementById("gbpAuditForm");
+  if(!form) return;
+  const answers={};
+  const radios=form.querySelectorAll('input[type="radio"]:checked');
+  radios.forEach(function(inp){
+    const name=String(inp.name||"");
+    if(name.indexOf("gbp_")!==0) return;
+    answers[name.slice(4)]=parseInt(inp.value,10);
+  });
+  if(Object.keys(answers).length<8){
+    if(msg)msg.textContent="Kam-se-kam 8 sawalon ke jawab do — better score ke liye zyada better.";
+    return;
+  }
+  if(msg)msg.textContent="Score calculate ho raha hai...";
+  try{
+    const r=await fetch("/api/customer/gbp/score",{
+      method:"POST",
+      headers:Object.assign({"Content-Type":"application/json"}, billAuthHdr()),
+      body:JSON.stringify({answers:answers})
+    });
+    if(!r.ok){ if(msg)msg.textContent="Score fail — thodi der baad try karein."; return; }
+    const res=await r.json();
+    if(msg)msg.textContent="Score "+(res.score!=null?res.score:"—")+"/100 save ho gaya.";
+    loadGbpAuditCard();
+  }catch(e){
+    if(msg)msg.textContent="Network error: "+(e.message||"retry");
   }
 }
 
