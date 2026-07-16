@@ -28,7 +28,7 @@ family of fixes).
   such popup, that is a regression — file it the same way ADR-104's four fixes were filed
   (see §7).
 
-## 2. Daily 10-minute routine
+## Daily 10-minute routine
 
 Do this every morning before touching anything else:
 
@@ -68,6 +68,9 @@ Do this every morning before touching anything else:
 9. **Check approvals/evidence** — `/app/automation#approvals` shows the pending-approval
    count in the sidebar badge; `/app/clients` → client → Content panel shows per-item
    Draft/Approved/Posted/Skipped state directly.
+10. **Agent OS / OmniRoute (30s)** — confirm you are **not** expecting OmniRoute on VPS
+    unless you deliberately stood up a gateway. Default = both flags OFF. Full checklist:
+    `docs/AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md` §1.
 
 ## 3. Screen-by-screen guide (screens actually tested this session)
 
@@ -307,6 +310,32 @@ it is a read-only pass; present the grouped findings and ask for per-item decisi
 the exact record IDs, never a blanket approval request. Example:
 `docs/JIYA_CONTENT_DECISION_PACK_2026-07-15.md`.
 
+## 7b. Agent OS + OmniRoute (operator slice — 2026-07-16)
+
+Full runbook (20 checklists): `docs/AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md`.  
+Local OmniRoute start/check: `docs/OMNIROUTE_ADMIN_GUIDE_HINGLISH.md`.
+
+**Hinglish quick training (safe, read-only pehle):**
+
+1. **Agent roster** — 31 AI staff `app/platform/team.py` se aate hain; specs
+   `agent-os/agents/` me generated hain. Haath se spec edit mat karo — `gen_agent_os_specs.py`
+   re-run karo.
+2. **Routing / privacy** — `app/platform/agent_os_routing.py`. Voice, billing, security,
+   CRM-PII agents OmniRoute pe **jaate hi nahi**. Marketing bulk eligible, lekin publish
+   pehle approval.
+3. **OmniRoute flags** — `OMNIROUTE_ENABLED` + `OMNIROUTE_AGENTS` dono OFF default.
+   Production Docker Compose me OmniRoute service **nahi** hai (ADR-079). Local WSL
+   `127.0.0.1:20128` only.
+4. **Provider key** — dashboard me **aap khud** enter karoge; chat/repo me paste mat.
+5. **Decision logs** — app logs me `[omniroute_decision] ok=… task=… provider=…` (PII nahi).
+6. **Ek agent band** — Office pause ya uska feature gate unset; poora stack band mat karo.
+7. **Jiya** — content/delivery/call buttons pe approval modal; Cancel safe; real publish
+   bina explicit go-ahead nahi.
+
+Screens: `/app/office` (staff/reliability), `/app/control-center` L4 Agent,
+`/app/automation` (flags/schedule/approvals), `/app/agent-tools`. OmniRoute live badge
+HTML me abhi nahi — status flags + local dashboard se verify.
+
 ## 8. Not yet walked this session (do not assume these are fine or broken)
 
 Named in the original Phase F scope but not individually opened/tested this session:
@@ -314,11 +343,11 @@ Agent Tools / Training / Scraping / Events / Harvester / Prospects / Cadence / S
 / Processes / Self-Improve / Code Upgrader / RL Flywheel tabs on `/app/automation`; Social
 Setup; a dedicated Integration Health page (own-brand social/WhatsApp/Meta facts cited in
 §3 come from `CLAUDE.md`'s already-dated, already-verified entries, not a fresh click-
-through this session); OmniRoute in the sense of LLM-provider routing/fallback (L4 Agent's
-staff/agent grid was seen, but that is agent routing, not necessarily the same thing);
-Deployment/rollback UI (the mechanism was verified via 5 real deploys this session, but no
-dedicated rollback *button* in the admin UI was located or tested). Treat these as unknown,
-not as confirmed-safe.
+through this session); OmniRoute **dashboard browser walk** (code+docs+tests updated
+2026-07-16 in §7b / `AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md`, but live dashboard click-through
+still needs the human admin on local `:20128`); Deployment/rollback UI (the mechanism was
+verified via real deploys, but no dedicated rollback *button* in the admin UI was located
+or tested). Treat unwalked UI tabs as unknown, not as confirmed-safe.
 
 ## 9. Escalation
 

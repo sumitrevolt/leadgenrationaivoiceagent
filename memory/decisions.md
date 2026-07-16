@@ -1595,3 +1595,11 @@ Fix mirrors ADR-095: new `_billing_client_ids()` in `app/api/billing.py` (canoni
 Evidence: `tests/test_omniroute_client.py` 17/17 passed (naya `TestOmniRouteAgentHook` — default-INERT, single-flag-not-enough, masking, gateway-fault fail-open, bulk-uses-hook/realtime-never via fresh-module-copy pattern kyunki conftest `free_ai.chat` ko suite-wide stub karta hai), `prod_check.py` ALL CHECKS PASSED (1103 routes), `check_secrets.py` clean.
 
 **Addendum (same day) — LIVE local smoke PASSED.** `scripts/omniroute_agent_smoke.py` (permanent, synthetic-prompt-only) — gateway `127.0.0.1:20128` HTTP 200, `OMNIROUTE_API_KEY` Windows user-env me present (value kabhi read/print nahi hui), flags PROCESS-ONLY set karke run: all 4 gates True, `try_agent_chat()` ne exact `AGENT_OS_SMOKE_OK` lautaya (Groq via gateway). `.env` untouched, koi flag persist nahi — prod/VPS ab bhi poora INERT. Ye local proof hai; VPS enable ka blocker (gateway reachability) unchanged.
+
+## 2026-07-16 - ADR-109 - Central Agent OS routing/governance + OmniRoute decision logs + admin runbook
+
+**Decision:** Agent OS specs ab thin duty-sheets nahi — har STAFF key ke liye `app/platform/agent_os_routing.py` me explicit governance (category, OmniRoute task ya NONE, privacy class, write/contact/publish flags, retries/timeout/queue). `scripts/gen_agent_os_specs.py` Windows-safe (`Path(__file__).resolve().parent.parent`) aur har spec me Routing & governance block inject karta hai. `omniroute_client`: `resolve_agent_task(agent_key)` + PII-free `[omniroute_decision]` logs; sensitive agents (voice/billing/security/CRM/DBRE) `omniroute_task=None` even if flags ON. Docs: `docs/AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md` (20 checklists), `ROUTING_POLICY.md` + `leadgen.agent_ops`, `ADMIN_OPERATING_GUIDE.md` §7b + daily step 10.
+
+**Not done / intentional:** VPS OmniRoute gateway still missing (ADR-079/108) — flags OFF prod; no HTML OmniRoute badge yet; `free_ai.chat` generic hook still passes no `agent_key` (policy enforced when callers pass key). No flag flip, no deploy, no customer-facing action.
+
+**Evidence:** `tests/test_agent_os_routing.py` + `test_omniroute_client` = 28 passed; `prod_check` ALL PASSED (1103 routes); `check_secrets` CLEAN. Rollback = revert `agent_os_routing.py` + client + regen specs; runtime flags unchanged.

@@ -1,6 +1,19 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-16 (ADR-109 Agent OS + OmniRoute routing/governance)
+Goal: Master-prompt Priority 0-1 — central agent→route map, privacy gates, decision logs, admin runbooks; keep prod OmniRoute INERT.
+Inspected: git clean@96faf185; prod health a3ad3028; Agent OS 31/31; OmniRoute client/docs; ADMIN guide gaps.
+Problems Found: generator hardcoded sandbox REPO path; specs missing governance fields; ROUTING_POLICY missing agent_ops; no structured decision logs; no consolidated Agent OS admin runbook; per-agent route map missing.
+Changed: app/platform/agent_os_routing.py NEW; omniroute_client resolve+decision logs; gen_agent_os_specs Windows path+governance inject; 31 specs regen; ROUTING_POLICY; ADMIN_OPERATING_GUIDE §7b; docs/AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md; tests.
+Tests Run: test_agent_os_routing + test_omniroute_client = 28 passed; prod_check ALL PASSED; check_secrets CLEAN.
+Verification Evidence: zara OmniRoute eligible=yes; swara=no; STAFF↔overrides 31/31; prod still a3ad3028 healthy activation GO; flags not flipped.
+Risks: free_ai.chat still generic (no agent_key) — policy full enforce needs caller pass-through later; VPS OmniRoute still blocked by infra.
+Remaining: Admin browser walk with human login; optional HTML OmniRoute status badge; VPS gateway only with owner approval; commit/deploy when user asks.
+Next Highest Priority: User review + commit; live admin training walk on /app/office + control-center; do NOT flip OMNIROUTE_* on VPS.
+Final Verdict: PARTIALLY READY for Agent OS+OmniRoute ops layer (code+docs+tests green; prod OmniRoute correctly INERT; browser training pending human session).
+
+## Loop Run
 Date: 2026-07-16 (Launch-ready evidence refresh — no runtime rebuild)
 Goal: Prove launch-ready with live evidence; clear safe leftovers; fix only real code blockers (none found).
 Inspected: Live `/health`+`/health/ready`+`/api/activation/summary` · local HEAD vs origin vs prod image · VPS 5/5 skew · celery/dlq · platform_dial · `/api/public/pay-info` · critical routes · OmniRoute uncommitted leftovers · Current State owner-only items.
