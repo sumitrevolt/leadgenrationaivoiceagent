@@ -2,7 +2,29 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
-## 2026-07-15 - ADR-104 Phase F: 5th and 6th unconfirmed-action gaps found + fixed in frontend/clients.html (Deliver Now = highest severity this session)
+## 2026-07-16 - ADR-107 Agent OS v3 adopted — codebase standards live in agent-os/standards/, injectable per-task
+
+Decision: Builder Methods Agent OS v3 (github.com/buildermethods/agent-os) installed into the
+repo: 5 slash commands in `.claude/commands/agent-os/` (`/discover-standards`, `/inject-standards`,
+`/shape-spec`, `/plan-product`, `/index-standards`) + 15 standards in `agent-os/standards/`
+(backend×5, voice×5, billing×1, frontend×1, global×3) indexed in `index.yml`.
+
+Context: CLAUDE.md/§4/§7 + memory/ hold the knowledge but load coarse (whole file or whole
+memory doc). Standards = small per-area distillations DERIVED from real code (growth_crm.py,
+clients.py, auth_deps.py, control_center.py, free_ai.py, telecaller_brain.py, dial_gate.py,
+compliance.py, subscription.py, gst_invoice.py, clients.html) + landmines/ADRs — nothing
+invented. `/inject-standards` loads only the relevant area into context.
+
+Precedence: CLAUDE.md §5 invariants > code > standards. Standards are navigation/convention
+docs, NOT a compliance surface — conflict = fix the standard. New pattern discovered → update
+the matching standard file + rerun `/index-standards`.
+
+Consequence: agents (Claude Code/Cursor) can pull targeted conventions per task instead of
+re-deriving them; duplication risk with CLAUDE.md accepted because files are ≤25 lines each.
+Rejected: putting standards in memory/ (not injectable/indexed), skills (Agent OS standards
+are declarative convention docs, skills are procedures).
+
+: 5th and 6th unconfirmed-action gaps found + fixed in frontend/clients.html (Deliver Now = highest severity this session)
 
 Context: continuing the same-session ADR-104 confirmation-modal work (native `confirm()`
 removal in `automation.html`/`delivery_command_center.html`, then the DLQ dead-count truth
