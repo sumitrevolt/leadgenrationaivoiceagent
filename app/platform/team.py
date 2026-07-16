@@ -563,6 +563,58 @@ def stats(member: str | None = None, days: int = 7) -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # Team status (dashboard ka main payload)
 # --------------------------------------------------------------------------- #
+def _latest_events_per_member(db, AgentEvent, members: list[str]) -> list[Any]:
+    """Latest AgentEvent row for EACH member in ``members`` — in ONE query.
+
+    Replaces a `for m in members: query(...).first()` loop that was a textbook
+    N+1 (Sentry PYTHON-S). Uses `row_number() OVER (PARTITION BY member ORDER BY
+    created_at DESC)`, supported by Postgres (prod) and SQLite >= 3.25 (tests).
+
+    Bounded by construction: returns at most one row per requested member, so it
+    cannot blow up on a member with a long event history — which is why this is
+    a window function and not "fetch all rows for these members and group in
+    Python".
+
+    Falls back to the original per-member loop if the window path raises (old
+    SQLAlchemy/driver quirks), so the caller's behaviour is identical either
+    way. Never raises: returns [] if even the fallback fails.
+    """
+    if not members:
+        return []
+    try:
+        from sqlalchemy import func, select
+        from sqlalchemy.orm import aliased
+
+        rn = (
+            func.row_number()
+            .over(
+                partition_by=AgentEvent.member,
+                order_by=AgentEvent.created_at.desc(),
+            )
+            .label("_rn")
+        )
+        sub = select(AgentEvent, rn).where(AgentEvent.member.in_(members)).subquery()
+        ev = aliased(AgentEvent, sub)
+        return list(db.query(ev).filter(sub.c._rn == 1).all())
+    except Exception as e:
+        logger.debug(f"[team] window latest-per-member failed, falling back: {e}")
+
+    out: list[Any] = []
+    try:
+        for m in members:
+            r = (
+                db.query(AgentEvent)
+                .filter(AgentEvent.member == m)
+                .order_by(AgentEvent.created_at.desc())
+                .first()
+            )
+            if r is not None:
+                out.append(r)
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"[team] latest-per-member fallback failed: {e}")
+    return out
+
+
 def team_status() -> dict[str, Any]:
     """Roster + per-member live state + aaj ke counts + latest activity line."""
     now_utc = datetime.utcnow()
@@ -597,17 +649,20 @@ def team_status() -> dict[str, Any]:
                     per_member_errors[m] = per_member_errors.get(m, 0) + 1
                 if m not in last_event:
                     last_event[m] = _ev_dict(r)
-            # members whose last event is OLDER than today — fetch latest one each
+            # members whose last event is OLDER than today — fetch latest one each.
+            # 2026-07-14 (ADR-100): this was a per-member `.first()` in a loop =
+            # N+1. STAFF has 31 members, so an idle roster meant up to 31 round
+            # trips on every GET /api/admin/agents (Sentry PYTHON-S, 1428ms txn) —
+            # and it got WORSE the quieter the system was, which is exactly when
+            # nobody would suspect the dashboard. One window-function query
+            # returns the latest row per member instead. Falls back to the old
+            # loop if the window path fails (behaviour-identical), keeping this
+            # block's existing best-effort contract.
             missing = [m for m in STAFF if m not in last_event]
-            for m in missing:
-                r = (
-                    db.query(AgentEvent)
-                    .filter(AgentEvent.member == m)
-                    .order_by(AgentEvent.created_at.desc())
-                    .first()
-                )
-                if r is not None:
-                    last_event[m] = _ev_dict(r)
+            if missing:
+                for r in _latest_events_per_member(db, AgentEvent, missing):
+                    if r is not None and r.member:
+                        last_event[r.member] = _ev_dict(r)
         finally:
             db.close()
     except Exception as e:

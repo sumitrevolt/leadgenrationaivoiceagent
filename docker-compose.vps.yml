@@ -321,6 +321,7 @@ services:
       CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
       RUN_IN_PROCESS_SCHEDULER: "0"
       CELERY_HEAVY_QUEUE: "1"
+      CELERY_HEAVY_WORKER: "1"   # process-role marker: Qdrant/ONNX warm-up only here
       QDRANT_URL: http://qdrant:6333
     depends_on:
       db:

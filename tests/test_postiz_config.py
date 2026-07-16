@@ -81,6 +81,16 @@ def test_social_engine_off_when_nothing_set(monkeypatch, tmp_path):
     assert engine.enabled() is False
 
 
+<<<<<<< HEAD
+=======
+# --------------------------------------------------------------------------- #
+# ADR-099: status must report the EFFECTIVE resolved config, not one source.   #
+# Regression pin: env-configured integrations were invisible to                #
+# /social/postiz/status (reported 0) while publishing was fully wired.         #
+# --------------------------------------------------------------------------- #
+
+
+>>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
 def test_effective_integration_ids_env_wins_over_vault(monkeypatch):
     from app.marketing import postiz_publish as pp
 
@@ -119,16 +129,32 @@ def test_integrations_source_none_when_unconfigured(monkeypatch):
     assert pp.integrations_source() == "none"
 
 
+<<<<<<< HEAD
 def test_status_diagnostics_match_env_config(monkeypatch):
     from app.marketing import postiz_publish as pp
 
+=======
+def test_status_counts_env_integrations_not_just_vault(monkeypatch):
+    """The actual ADR-099 bug: vault meta empty + env set = status said 0."""
+    from app.marketing import postiz_publish as pp
+
+    # Mirrors prod at 2026-07-14: vault has key+url but integrations "".
+>>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
     _mock_vault(monkeypatch, integrations="")
     monkeypatch.setenv("POSTIZ_INTEGRATIONS", "fb1,ig2,x3")
     monkeypatch.delenv("POSTIZ_API_URL", raising=False)
 
+<<<<<<< HEAD
     assert len(pp.effective_integration_ids()) == 3
     assert pp.integrations_source() == "env"
     assert pp.api_url() == "https://postiz.leadsgenai.in/api"
+=======
+    effective = pp.effective_integration_ids()
+    assert len(effective) == 3, "env-configured channels must be visible to status"
+    assert pp.integrations_source() == "env"
+    assert pp.api_url() == "https://postiz.leadsgenai.in/api"
+    # publish_video() would proceed — status must not contradict that.
+>>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
     assert pp.enabled() is True
 
 

@@ -60,6 +60,15 @@ def _heavy_queue_enabled() -> bool:
     return os.environ.get("CELERY_HEAVY_QUEUE", "0").strip().lower() in ("1", "true", "yes")
 
 
+def _is_heavy_worker() -> bool:
+    """True only inside the dedicated heavy consumer process.
+
+    CELERY_HEAVY_QUEUE is a routing flag shared by app, scheduler, and the
+    default worker, so it cannot safely identify a worker process role.
+    """
+    return os.environ.get("CELERY_HEAVY_WORKER", "0").strip().lower() in ("1", "true", "yes")
+
+
 def _route_staff_task(name, args, kwargs, options, task=None, **kw):
     """Router fn: heavy staff-jobs → 'heavy' queue (sirf flag ON pe)."""
     try:
@@ -208,9 +217,10 @@ def on_worker_process_init(**kwargs):
     still lets the worker become ready (task-time fallback logic is
     unchanged and remains the safety net). Gated to worker_heavy only
     (default worker/scheduler never run this task, no reason to pay the
-    cost) via the same `CELERY_HEAVY_QUEUE` flag `_route_kb_refresh_task`
-    checks — INERT elsewhere, matching this project's flag convention."""
-    if not _heavy_queue_enabled():
+    cost) via the dedicated `CELERY_HEAVY_WORKER` process-role marker. The
+    routing flag cannot identify the role because app, beat, and the default
+    worker all need `CELERY_HEAVY_QUEUE=1` too."""
+    if not _is_heavy_worker():
         return
 
     def _warm() -> None:
