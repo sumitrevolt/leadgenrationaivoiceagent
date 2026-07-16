@@ -2,6 +2,56 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-16 - ADR-114 UPI pending truth + queue unknown UI + audit JSON verdict
+
+Decision: (1) `_pending_upi_queue` uses `upi_payments.list_payments("pending")` only —
+trial/free clients are NOT fake "payment pending". (2) `health()` exposes
+`queue_available`; Control Center must not clamp Redis `-1` to `0`. Redis unknown
+does NOT force `ok=False` (ADR-104 preserved). (3) `format_daily_check_json` uses
+shared `_daily_check_verdict` (no hardcoded green). (4) Register `SIGNUP_AUTO_ONBOARD`.
+Also fixed `0 or -1` treating empty queues as unknown.
+
+Context: Post-ADR-113 audit — fake revenue urgency + false-zero queue tiles + lying audit JSON.
+
+Rejected: Flipping overall health ok=False on Redis unknown (breaks ADR-104 tests).
+
+Consequence: Admin "UPI activate" count = real submissions; queue tiles honest when Redis down.
+
+## 2026-07-16 - ADR-113 Control Center cost/route-hits + nav_enabled + agents Agent OS honesty
+
+Decision: (1) Overview `cost` filled from budget_guard (same as cost-rollup); L1 UI fetches
+cost-rollup + route-hits — never ₹/$, never "instrument pending" lie. (2) Honor
+`nav_enabled` on admin nav (badge when CONTROL_CENTER OFF). (3) `/app/agents` shows
+Agent OS strip + 31-staff copy. (4) Register META/GBP/LinkedIn/X/GOOGLE_OAUTH_APPROVED
+in AUTOMATION_FLAGS. (5) agent-tools boot banner from `/api/agents-ext/status`.
+
+Context: Post-ADR-112 audit — APIs existed, UI orphan / dead contracts / stale 8-agent copy.
+
+Rejected: Fabricating money figures; hard-hiding Control Center URL; flipping OmniRoute on VPS.
+
+Consequence: Operators see real token/route telemetry state + flag truth on agents surfaces.
+
+## 2026-07-16 - ADR-112 Enterprise wiring honesty — OAuth/OmniRoute/dead-man/admin truth
+
+Decision: Systematic production-ready gap = **honesty + dead-man + ADR contract**, not missing
+modules. Ship: (1) Social OAuth never `ok:True` / `oauth_ready:True` until authorize URL +
+token exchange exist — env-approved alone → `activation_pending` + manual_paste.
+(2) OmniRoute `free_ai.chat` gate = `prof == "bulk"` only (not `!= realtime`).
+(3) `approval_email_sweep` in `EXPECTED_GAP_MIN` (180). (4) Register
+`APPROVAL_EMAIL_NOTIFY` / allowlist / `WARM_SLA_*` in AUTOMATION_FLAGS.
+(5) Control Center L2 derive automation_health/events from real jobs/queue metrics.
+(6) Mission Control Schedule merges `/automation-health`; Office HQ gets Agent OS strip.
+
+Context: User had Agent OS / OmniRoute / 32 agents / marketing / voice set up but felt
+unwired. Live audit: activation GO, 0 orphan jobs/flags — real gaps were fake-success
+paths + ops blind spots (same class as ADR-098 dry-run / ADR-099 fake failure).
+
+Rejected: Flipping OMNIROUTE_* on VPS (no gateway); enabling platform_dial; rewriting
+admin into new SPA; mass flag-on without owner.
+
+Consequence: Operators see true inert/pending state. Dead-man catches silent approval-email
+sweep death. OmniRoute flip later won't over-route non-bulk. Deploy required for prod UI.
+
 ## 2026-07-16 - ADR-110 Full Console user-friendly IA — Start Here strip + honest pending CTAs
 
 Decision: `/app/admin` Full Console ko non-technical daily home mat banao — pehle **“Aaj ka
@@ -1622,3 +1672,15 @@ Evidence: `tests/test_omniroute_client.py` 17/17 passed (naya `TestOmniRouteAgen
 **Not done / intentional:** VPS OmniRoute gateway still missing (ADR-079/108) — flags OFF prod; no HTML OmniRoute badge yet; `free_ai.chat` generic hook still passes no `agent_key` (policy enforced when callers pass key). No flag flip, no deploy, no customer-facing action.
 
 **Evidence:** `tests/test_agent_os_routing.py` + `test_omniroute_client` = 28 passed; `prod_check` ALL PASSED (1103 routes); `check_secrets` CLEAN. Rollback = revert `agent_os_routing.py` + client + regen specs; runtime flags unchanged.
+
+## ADR-111 (2026-07-16) — OmniRoute rebuilt after total WSL-distro loss; task routes moved to FREE auto-aliases
+
+**Context:** User mandate "OmniRoute ke free tokens use karne hain." Audit me mila purani WSL distro (jo OmniRoute v3.8.46 + saari dashboard provider config host karti thi) machine se UNREGISTER ho chuki thi — `wsl --list` = "no installed distributions", koi purana `ext4.vhdx` disk pe nahi bacha (search proof). Matlab Groq/Gemini/Mistral provider keys, OAuth connections (Kimi/Cline/Kiro/Antigravity), dashboard auth — sab PERMANENTLY gone. `OMNIROUTE_API_KEY` Windows User env var bach gaya (WSL ke bahar tha).
+
+**Decision & work:** (1) WSL Ubuntu-24.04 fresh install; OmniRoute v3.8.48 via **NodeSource Node 22 apt** (`nvm install 22` fresh WSL me "ValueError: too many values to unpack" se fail hua — Windows-PATH interop; NodeSource = deterministic workaround). (2) Gateway `start-omniroute.ps1` se UP :20128 (tmux `leadgen-omni`). (3) `_TASK_ROUTES` groq/mistral pinned IDs (fresh instance me 404 = unknown model) se **`auto/coding:free` + `auto/best-free`** pe shift — dono REAL sanitized `/v1/responses` PONG calls se proven (HTTP 200, `output_text`/`usage` shape client-compatible). Auto-alias = gateway free pool khud resolve karta hai (aaj `oc/big-pickle`), single-provider retire pe route nahi tootta. Contract tests saath update.
+
+**Evidence:** smoke `scripts/omniroute_agent_smoke.py` EXIT=0 — gates 4/4 True, `[omniroute_decision] ok=True task=leadgen.agent_ops provider=auto model=big-pickle in_tok=2258 out_tok=76`, reply `AGENT_OS_SMOKE_OK`. `test_omniroute_client.py + test_agent_os_routing.py` = 28 passed. `prod_check` ALL PASSED (1104 routes). Logs: `uat_evidence/omniroute_setup/`.
+
+**Boundaries unchanged:** VPS/prod flags OFF (local-dev only, ADR-108 double gate); privacy sanitize path untouched; fresh instance ka `/v1` auth abhi OFF (loopback-only accepted, dashboard password default — user rotate kare). Provider reconnects (user keys, dashboard me khud) = pending. Rollback = `_TASK_ROUTES` revert (1 hunk) + tests.
+
+**Same-day amendment (2026-07-16 shaam):** User ne dashboard me Groq + Gemini (54 models) + Mistral (62 models) API-key connections khud reconnect kar diye (Claude ne Chrome se navigate kiya, keys sirf user ne paste ki). `groq/llama-3.3-70b-versatile` + `mistral/mistral-small-latest` dono phir PONG-proven. `_TASK_ROUTES` ab HYBRID: free auto-alias PRIMARY + reconnected provider FALLBACK (coding/test → groq fb, repo_analysis → mistral fb, agent_ops → groq fb). Tests 28/28, smoke EXIT=0 dobara. OAuth providers (Kimi/Cline/Kiro/Antigravity) reconnect = pending user sign-in.

@@ -1,6 +1,45 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-16 (ADR-114 — UPI/queue/audit honesty)
+Goal: Continue after ADR-113 verify — strip debug, fix next fake-success gaps.
+Inspected: automation_health redis -1; admin_ops UPI queue; automation_health_audit JSON verdict; SIGNUP_AUTO_ONBOARD flag.
+Problems Found: (1) CC clamped redis -1→0 false-green zeros. (2) UPI task listed ALL trial clients as payment pending. (3) Audit JSON verdict hardcoded green. (4) `0 or -1` bug treated empty queues as unknown.
+Changed: queue_available + CC null depths; _pending_upi_queue→upi_payments; audit verdict helper; SIGNUP_AUTO_ONBOARD flag; tests; fixed 0-or--1.
+Tests Run: automation_health_dlq + pending_upi + control_center = 21 passed.
+Verification Evidence: debug R2 pending_n 0→1 from upi_payments; R1 queue_unknown only when -1; zero-depth queue_available true.
+Risks: Instrumentation still on for UI confirm; undeployed.
+Remaining: User verify admin UPI tasks + CC queue unknown; then strip logs + commit/deploy.
+Next Highest Priority: UI confirm → ship ADR-112..114 bundle.
+Final Verdict: ADR-114 local green; instrumentation STRIPPED after user confirm; ready commit/deploy.
+
+## Loop Run
+Date: 2026-07-16 (ADR-113 — next wiring honesty round)
+Goal: Continue finding/fixing enterprise wiring gaps after ADR-112.
+Inspected: Live activation GO; explore audit (CC cost orphan, nav_enabled dead, agents.html 8-agent drift, OAuth flags unregistered, agent-tools inert blindness).
+Problems Found: Cost tile said "instrument pending" while cost-rollup API exists; nav_enabled unused; agents.html no Agent OS + stale 8; META_* flags missing from registry; agent-tools claimed all flag-gated without status banner.
+Changed: control_center overview cost fill + frontend cost/route-hits; admin nav_enabled badge; agents.html strip+31 copy; coordinator docstring; automation_flags OAuth; agent_tools status banner; tests.
+Tests Run: test_control_center + social_oauth + omniroute = 38 passed; ASGI probe OVERVIEW/ROLLUP/HITS 200; debug log hyp A cost honesty.
+Verification Evidence: cost note no longer "instrument pending"; META in flags; nav_enabled=false surfaced; leftover instrumentation kept for UI verify.
+Risks: UI verify needs admin browser; prod still on 9ec893fe (undeployed).
+Remaining: User UI walk; commit/deploy when asked; strip debug regions after confirm.
+Next Highest Priority: Admin verify CC Cost + agents Agent OS + agent-tools banner → then ship.
+Final Verdict: ADR-113 local READY for UI verify.
+
+## Loop Run
+Date: 2026-07-16 (Enterprise wiring honesty — ADR-112)
+Goal: Features/modules set up but not systematically wired — clear code blockers for production-grade automation + admin honesty.
+Inspected: Live health/activation; automation_wiring_audit; explore agents (orphan loops + admin UX); social_oauth; free_ai OmniRoute gate; EXPECTED_GAP_MIN; automation_flags; control_center L2; office/automation/agent-tools.
+Problems Found: (A) OAuth approved path ok:True + empty authorize_url + state oauth_ready=True = fake-ready. (B) OmniRoute hook `prof != realtime` over-wide vs ADR bulk-only. (C) approval_email_sweep scheduled but missing dead-man EXPECTED_GAP. (D) L2 graph hardcodes automation_health healthy. (E) Schedule tab ignored automation-health API. (F) /app/office missing Agent OS strip. Flags APPROVAL_EMAIL_NOTIFY/WARM_SLA_NUDGE checked but unregistered.
+Changed: social_oauth honesty; free_ai bulk-only gate + NDJSON debug; automation_health gap; automation_flags registry; control_center L2 truthful map; automation.html schedule+health merge; office_map Agent OS card; tests.
+Tests Run: social_oauth + omniroute + approval_email gap → 25+ green; prod_check ALL PASSED; wiring audit 0 orphans; live activation GO (prod version 9ec893fe pre-deploy).
+Verification Evidence: debug-17bf7e.log — A ok:false activation_pending; B bulk gate_enter:true realtime:false; C gap 180 present; probe PROBE_OK.
+Risks: Instrumentation still in code (remove after user UI confirm). Prod not yet deployed with these fixes. OmniRoute VPS still correctly INERT.
+Remaining: User admin walk (office/automation/control-center); owner Postiz lock + YouTube OAuth; commit/deploy when user asks; strip debug regions after confirm.
+Next Highest Priority: User reproduce admin surfaces → then remove debug logs → commit/deploy.
+Final Verdict: CODE BLOCKERS CLEARED locally; LAUNCH already GO; enterprise wiring honesty PATCHED pending deploy + UI verify.
+
+## Loop Run
 Date: 2026-07-16 (Admin mode — Agent OS status LIVE)
 Goal: Full-authority admin setup continue — status API/UI, local OmniRoute proof, deploy.
 Inspected: OmniRoute local :20128 UP; prod pages 200; auth gate for status API.
@@ -177,3 +216,15 @@ Verification Evidence: prod version == deployed SHA (no `:latest`); MRR payment-
 Risks: Windows venv pytest for the new suite not run this session (sandbox-only proof — operator should run `pytest tests/test_reply_agent_spam_guard.py -q` + `prod_check.py` before commit). Spam guard is default-ON noise-guard (not a compliance gate); rollback = `REPLY_SPAM_CONTENT_GUARD=0` env, no deploy needed after flag set.
 Remaining: (1) USER: deploy the 10-commit backlog (`git pull --ff-only` then standard `deploy_vps.sh` with `APP_VERSION=f6fb352a`); (2) USER: verify real `git status` on Windows — if staged deletions of ADR-104 tests actually appear, `git restore --staged .`; (3) own-brand posting end-to-end proof still pending (needs VPS `data/social_post_jobs.jsonl` non-empty post_id); (4) Postiz open-registration + YouTube OAuth publish (already in Current State); (5) email warmup paused / approval backlog — operational.
 Next Highest Priority: user-run deploy of the pushed backlog, phir live acceptance (health version == f6fb352a + admin confirm-modals smoke).
+
+## Loop Run — 2026-07-16 (OmniRoute free-tokens rebuild)
+Date: 2026-07-16
+Goal: User mandate — OmniRoute ke free tokens LeadGen agent path me actually use hon (local dev).
+Inspected: omniroute_client.py, free_ai.py hook (~L885), agent_os_routing, OMNIROUTE docs (ADMIN_GUIDE/DEV_SETUP/PROVIDER_MATRIX), scripts (start-omniroute/ensure_running/check/smoke), tests (omniroute_client, agent_os_routing), gateway live state.
+Problems Found: (1) WSL distro DELETED — gateway impossible, purana instance+config unrecoverable (incident logged); (2) fresh gateway me groq/mistral model IDs 404 → _TASK_ROUTES dead; (3) nvm fresh-WSL me tootta hai; (4) 2 parallel npm installs (MCP-timeout survivor) — corruption risk; (5) fresh /v1 auth OFF + dashboard default password.
+Changed: WSL Ubuntu-24.04 + OmniRoute 3.8.48 install (NodeSource Node 22); _TASK_ROUTES → auto/coding:free + auto/best-free (5 tasks); test_omniroute_client.py expectations sync; worktrees rebuild started; ADR-111 + incident + CLAUDE.md Current State + AGENTS.md sync.
+Tests Run: pytest test_omniroute_client.py + test_agent_os_routing.py = 28 passed; prod_check ALL PASSED (1104 routes); real sanitized /v1/responses PONG x2; omniroute_agent_smoke.py EXIT=0.
+Verification Evidence: [omniroute_decision] ok=True task=leadgen.agent_ops provider=auto model=big-pickle in_tok=2258 out_tok=76; reply 'AGENT_OS_SMOKE_OK'; gateway :20128 healthy; logs uat_evidence/omniroute_setup/.
+Risks: fresh instance auth OFF (loopback-only), dashboard default password (user rotate); free models = OpenCode pool (sanitized-only path unchanged); provider reconnects pending user.
+Remaining: user dashboard login + ~29 provider setups redo (keys user paste karega, Chrome session ready); dashboard password rotate; optional Groq/Mistral routes wapas after reconnect.
+Next Highest Priority: dashboard provider reconnect session complete karna (Task #6).

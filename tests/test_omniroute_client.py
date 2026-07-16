@@ -62,9 +62,12 @@ class _Response:
 class TestOmniRouteResponsesAdapter:
     def test_registry_exposes_only_sanitized_dev_routes(self):
         route = get_task_route("leadgen.coding_primary", "INTERNAL_SANITIZED")
+        # 2026-07-16: gateway v3.8.48 rebuild — hybrid config: free auto-alias
+        # PRIMARY (free-tokens mandate) + reconnected Groq FALLBACK. Dono real
+        # sanitized /v1/responses PONG calls se proven.
         assert route == OmniRouteRoute(
-            primary_model="groq/llama-3.3-70b-versatile",
-            fallback_model="mistral/mistral-small-latest",
+            primary_model="auto/coding:free",
+            fallback_model="groq/llama-3.3-70b-versatile",
             privacy_class="INTERNAL_SANITIZED",
         )
         agent_ops = get_task_route("leadgen.agent_ops", "INTERNAL_SANITIZED")
@@ -115,9 +118,9 @@ class TestOmniRouteResponsesAdapter:
 
         assert result is not None
         assert result.text == "safe result"
-        assert result.provider == "groq"
+        assert result.provider == "auto"
         assert seen["url"].endswith("/v1/responses")
-        assert seen["payload"]["model"] == "groq/llama-3.3-70b-versatile"
+        assert seen["payload"]["model"] == "auto/coding:free"
         assert "9876543210" not in str(seen["payload"])
 
     @pytest.mark.asyncio
@@ -141,7 +144,7 @@ class TestOmniRouteResponsesAdapter:
         assert result is not None
         assert result.text == "fallback ok"
         assert result.fallback_reason == "http_429"
-        assert models == ["groq/llama-3.3-70b-versatile", "mistral/mistral-small-latest"]
+        assert models == ["auto/coding:free", "groq/llama-3.3-70b-versatile"]
 
     @pytest.mark.asyncio
     async def test_non_retryable_primary_failure_does_not_fallback(self, monkeypatch):
@@ -228,7 +231,7 @@ class TestOmniRouteAgentHook:
             [{"role": "user", "content": "Summarise leads, call 9876543210 back"}]
         )
         assert text == "agent ok"
-        assert seen["payload"]["model"] == "groq/llama-3.3-70b-versatile"
+        assert seen["payload"]["model"] == "auto/best-free"  # leadgen.agent_ops primary
         assert "9876543210" not in str(seen["payload"])  # customer data masked
 
     @pytest.mark.asyncio
@@ -287,3 +290,11 @@ class TestOmniRouteAgentHook:
         )
         assert len(calls) == 1  # no new hook call
         assert provider2 != "omniroute"
+
+        # Default / non-bulk / non-realtime must ALSO skip hook (ADR bulk-only).
+        text3, provider3 = await free_ai.chat(
+            "system", [{"role": "user", "content": "short"}],
+            max_tokens=40, profile="default",
+        )
+        assert len(calls) == 1
+        assert provider3 != "omniroute"

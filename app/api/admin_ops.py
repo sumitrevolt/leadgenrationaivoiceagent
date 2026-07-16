@@ -137,28 +137,45 @@ def _upi_info() -> dict:
 
 
 def _pending_upi_queue(limit: int = 20) -> list[dict]:
-    """Clients jinka plan trial/free hai — UPI screenshot ke baad activate."""
-    try:
-        from app.marketing import clients_store
+    """Real pending UPI submissions only — not every trial/free client.
 
-        rows = clients_store.list_clients()
+    ADR-114: listing all trial clients as 'payment pending' was fake revenue
+    urgency. Authoritative source = upi_payments.list_payments('pending');
+    client metadata is a join only.
+    """
+    try:
+        from app.platform import upi_payments
+
+        rows = upi_payments.list_payments("pending") or []
         pending: list[dict] = []
-        for c in rows:
-            plan = str(c.get("plan") or "trial").lower()
-            if plan not in ("trial", "free", ""):
-                continue
-            pending.append(
-                {
-                    "client_id": c.get("id"),
-                    "business_name": c.get("business_name"),
-                    "phone": c.get("phone"),
-                    "plan": plan,
-                    "niche": c.get("niche"),
-                    "created": c.get("created_at"),
-                }
-            )
+        client_by_id: dict = {}
+        try:
+            from app.marketing import clients_store
+
+            for c in clients_store.list_clients() or []:
+                cid = str(c.get("id") or "")
+                if cid:
+                    client_by_id[cid] = c
+        except Exception:
+            client_by_id = {}
+        for p in rows:
             if len(pending) >= limit:
                 break
+            cid = str(p.get("client_id") or "")
+            c = client_by_id.get(cid) or {}
+            pending.append(
+                {
+                    "client_id": cid or None,
+                    "payment_id": p.get("id"),
+                    "business_name": c.get("business_name") or p.get("business_name"),
+                    "phone": c.get("phone") or p.get("phone"),
+                    "plan": p.get("plan") or c.get("plan") or "trial",
+                    "niche": c.get("niche"),
+                    "amount": p.get("amount"),
+                    "upi_ref": p.get("upi_ref"),
+                    "created": p.get("created_at") or p.get("submitted_at") or c.get("created_at"),
+                }
+            )
         return pending
     except Exception:
         return []

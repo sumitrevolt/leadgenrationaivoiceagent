@@ -14,6 +14,10 @@ AUTOMATION_FLAGS = [
     "FLOW_RUNNER_CUSTOMER",  # Phase 7: per-client flow builder in customer portal (needs FLOW_RUNNER too, draft-only, default OFF)
     "FEATURE_FLAGS",  # SaaS infra Phase-1: per-tenant runtime feature-flag system master gate (default OFF)
     "APPROVAL_EMAIL_NOTIFY_HARD_OFF",  # emergency precedence over env/runtime approval-reminder gates
+    "APPROVAL_EMAIL_NOTIFY",  # pending-approval EMAIL sweep (staff job approval_email_sweep) — OFF default; allowlist fail-closed
+    "APPROVAL_EMAIL_CLIENT_ALLOWLIST",  # CSV client_ids allowed for approval emails when env path used
+    "WARM_SLA_NUDGE",  # office HQ warm-lead SLA founder nudge (nested under ops) — OFF default
+    "WARM_SLA_MIN",  # minutes threshold for warm SLA nudge (value-carrying)
     "TEAM_AUTOMATION",
     "RUN_IN_PROCESS_SCHEDULER",
     "NICHE_ROTATION",
@@ -24,6 +28,7 @@ AUTOMATION_FLAGS = [
     "CALL_LOG_DB",  # write structured call_logs row per call -> DB-backed analytics dashboard (default ON)
     "OPS_WATCHDOG",
     "AUTO_ONBOARD",
+    "SIGNUP_AUTO_ONBOARD",  # public signup → auto client onboard path (checked in public_site/customer_onboard)
     "SOCIAL_PREFS_HONOR",
     "USE_STRUCTURED_CONTENT",
     "USE_AGENTIC_RAG",
@@ -73,6 +78,7 @@ AUTOMATION_FLAGS = [
     "FESTIVALS_LIVE_HOLIDAYS",
     "VIDEO_AD_CYCLE",  # har 5 din per-client AI video ad -> approval -> social publish (default OFF)
     "SOCIAL_ENGINE",  # native social-posting engine (own queue+providers; default OFF, video_ad_cycle inline fallback)
+    "SOCIAL_DRY_RUN",  # ADR-098: drain queue but fabricate post_id=dry-* — NEVER real provider publish. Env wins over data/social_engine.json dry_run. Invisible-until-registered = fake "published" confidence.
     "CLIENT_REPORTS",
     "CUSTOMER_WISHES",
     "RANK_TRACKER",
@@ -299,4 +305,10 @@ AUTOMATION_FLAGS = [
     # kar sakte hai. Double-gated: OMNIROUTE_ENABLED=1 AND OMNIROUTE_AGENTS=1 dono chahiye.
     # Sanitized payload only (mask_customer_data + validate_no_secrets), fail-open —
     # OmniRoute down/miss = existing free chain unchanged. OFF default (INERT).
+    # Social OAuth env-approval (ADR-112): env ON ≠ oauth_ready until authorize URL wired.
+    "META_OAUTH_APPROVED",
+    "GBP_OAUTH_APPROVED",
+    "LINKEDIN_OAUTH_APPROVED",
+    "X_OAUTH_APPROVED",
+    "GOOGLE_OAUTH_APPROVED",
 ]

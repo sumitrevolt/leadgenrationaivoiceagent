@@ -236,7 +236,7 @@
       <a href="/app/impersonate" role="menuitem" aria-label="Login as customer (support)"><span class="ic" aria-hidden="true">🕵️</span> Login as Customer</a>
       <div class="sec nav-group" role="presentation">System</div>
       <a class="active" href="#top" role="menuitem" aria-label="Full admin dashboard"><span class="ic" aria-hidden="true">▦</span> Full Console</a>
-      <a href="/app/control-center" role="menuitem" aria-label="Control Center system observability"><span class="ic" aria-hidden="true">🖥</span> Control Center</a>
+      <a href="/app/control-center" id="navControlCenter" role="menuitem" aria-label="Control Center system observability"><span class="ic" aria-hidden="true">🖥</span> Control Center <span id="navCcGate" class="badge" style="display:none;background:#64748b">flag OFF</span></a>
       <a href="/app/team-access" role="menuitem" aria-label="Team RBAC and settings"><span class="ic" aria-hidden="true">🔐</span> Settings</a>
       <a href="#sec-godmode" onclick="expandAdvTech();expandSystemGroup();return false;" role="menuitem" aria-label="God Mode + all system pages" style="font-size:10px;opacity:.7;margin-top:4px" id="nav-more-system">▼ Show all system pages</a>
       <div id="nav-system-extra" style="display:none">
@@ -4911,6 +4911,28 @@ async function loadWebCalls(){
     if(body) body.innerHTML='<div style="color:var(--red);font-size:13px">Network error — '+escWC(String(e))+' — <a href="#" onclick="loadWebCalls();return false" style="color:var(--indigo)">Retry</a></div>';
   }
 }
+</script>
+<script>
+/* ADR-113: honor CONTROL_CENTER nav_enabled from overview (was dead contract). */
+(function honorControlCenterNav(){
+  try {
+    var t = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
+    if (!t) return;
+    fetch("/api/control-center/overview", { headers: { Authorization: "Bearer " + t }, cache: "no-store" })
+      .then(function(r){ return r.ok ? r.json() : null; })
+      .then(function(d){
+        if (!d) return;
+        var gate = document.getElementById("navCcGate");
+        var link = document.getElementById("navControlCenter");
+        if (d.nav_enabled === false) {
+          if (gate) gate.style.display = "inline-block";
+          if (link) { link.style.opacity = "0.65"; link.title = "CONTROL_CENTER flag OFF — URL se open ho sakta hai"; }
+        } else if (gate) {
+          gate.style.display = "none";
+        }
+      }).catch(function(){});
+  } catch (e) {}
+})();
 </script>
 <script src="/api/page-agent/boot.js" defer></script>
 </body>

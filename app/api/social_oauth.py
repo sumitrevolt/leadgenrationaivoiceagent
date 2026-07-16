@@ -27,7 +27,6 @@ Routes:
 from __future__ import annotations
 
 import os
-import secrets
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -87,15 +86,31 @@ class OAuthStateResponse(BaseModel):
 @router.get("/state")
 def oauth_state_all(_client_id: str = Depends(require_customer)) -> dict:
     """Per-platform OAuth readiness — customer wizard consumes this to decide
-    Connect button label + tooltip. Never raises."""
+    Connect button label + tooltip. Never raises.
+
+    ``oauth_ready`` is True ONLY when env-approved AND authorize URL path is
+    actually implemented. Today authorize is not wired → always manual_paste
+    even if META_OAUTH_APPROVED=1 (honest; matches /start activation_pending).
+    """
+    # Flip to True only when real authorize_url + code→token exchange ship.
+    _authorize_wired = False
     out = []
     for platform in _ENV_APPROVED_FLAGS.keys():
-        ready = _oauth_approved(platform)
+        env_ok = _oauth_approved(platform)
+        ready = bool(env_ok and _authorize_wired)
         out.append({
             "platform": platform,
             "oauth_ready": ready,
-            "external_blocker": "" if ready else _OWNER_ACTION_NOTES.get(platform, ""),
-            "fallback": "manual_paste" if not ready else "oauth_v1",
+            "env_approved": env_ok,
+            "external_blocker": (
+                "" if ready
+                else (
+                    "oauth_authorize_url_not_wired"
+                    if env_ok
+                    else _OWNER_ACTION_NOTES.get(platform, "")
+                )
+            ),
+            "fallback": "oauth_v1" if ready else "manual_paste",
             "scopes_required": _REQUIRED_SCOPES.get(platform, []),
         })
     return {"ok": True, "platforms": out}
@@ -124,19 +139,22 @@ def oauth_start(
             "fallback": "manual_paste",
             "fallback_endpoint": "/api/customer/social/accounts/connect",
         }
-    # Approved path (activation-day wiring). State is opaque + tied to the JWT
-    # client_id — checked in the callback. redirect_uri, PKCE, and provider URL
-    # are filled in per-platform at activation.
-    state = secrets.token_urlsafe(24)
+    # Env flag may be ON (owner approved Meta/etc.) but authorize URL + code→token
+    # exchange are NOT wired yet. Never return ok:True with empty authorize_url —
+    # that is fake-ready (UI would think OAuth works). Honest path = manual paste.
     return {
-        "ok": True,
-        "status": "oauth_start",
-        "state": state,
+        "ok": False,
+        "status": "activation_pending",
+        "reason": "oauth_authorize_url_not_wired",
+        "message": (
+            "Platform env-approved, lekin authorize URL / token exchange abhi activate "
+            "nahi — manual paste use karo."
+        ),
         "platform": p,
-        # These placeholders get real provider URLs once approval clears.
-        "authorize_url": "",  # populated at activation
+        "scopes_required": _REQUIRED_SCOPES.get(p, []),
+        "fallback": "manual_paste",
+        "fallback_endpoint": "/api/customer/social/accounts/connect",
         "return_to": return_to or "/app/office",
-        "next": "Redirect user to authorize_url with state=<state>",
     }
 
 

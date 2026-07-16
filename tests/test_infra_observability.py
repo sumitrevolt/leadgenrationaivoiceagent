@@ -120,6 +120,13 @@ def test_self_improve_tick_records_automation_heartbeat(tmp_path, monkeypatch):
     assert beats["self_improve"]["note"] == "daily_cap"
 
 
+def test_automation_health_covers_approval_email_sweep():
+    from app.platform import automation_health as ah
+
+    assert "approval_email_sweep" in ah.EXPECTED_GAP_MIN
+    assert ah.EXPECTED_GAP_MIN["approval_email_sweep"] == 180
+
+
 def test_automation_health_covers_durable_engineer_jobs():
     from app.platform import automation_health as ah
 

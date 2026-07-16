@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#4f46e5" />
 <link rel="manifest" href="/manifest.json">
 <title>Multi-Agent Coordination | LeadGen AI</title>
-<meta name="description" content="LeadGen AI — live Multi-Agent Coordination dashboard. Reflexion orchestration, debate/consensus, episodic memory over the 8-agent AI staff team." />
+<meta name="description" content="LeadGen AI — live Multi-Agent Coordination dashboard. Reflexion orchestration, debate/consensus, episodic memory over the 31-agent AI staff team." />
 <link rel="icon" type="image/svg+xml" href="/site/icons/icon.svg" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -177,9 +177,17 @@
 <main class="page">
   <div class="hero">
     <h1>🧠 Multi-Agent Coordination</h1>
-    <p class="sub">Boss 8-agent AI staff ko orchestrate karta hai — Reflexion, parallel fan-out, debate/consensus, aur LLM Council (cross-model peer review). Free-stack, ban-safe (default = drafts).</p>
+    <p class="sub">Boss 31-agent AI staff ko orchestrate karta hai — Reflexion, parallel fan-out, debate/consensus, aur LLM Council (cross-model peer review). Free-stack, ban-safe (default = drafts). Governance detail → <a href="/app/agent-tools">Agent Tools</a>.</p>
     <div class="authnote"><span id="authDot" class="dot"></span><span id="authMsg">Admin token check ho raha hai…</span></div>
   </div>
+
+  <section>
+    <div class="sec-head">
+      <h2>Agent OS / OmniRoute</h2>
+      <span class="hint">privacy · contact · publish · eligibility</span>
+    </div>
+    <div id="agentOsStrip" class="card" style="padding:14px 16px;font-size:.9rem;color:var(--muted)">⏳ Loading…</div>
+  </section>
 
   <!-- TEAM ROSTER -->
   <section>
@@ -332,6 +340,22 @@ function busy(btn, on, label){
 }
 
 /* ---------- 1. ROSTER (no auth) ---------- */
+async function loadAgentOsStrip(){
+  const el = document.getElementById("agentOsStrip");
+  if(!el) return;
+  try{
+    const d = await getJSON("/api/platform/office/agent-os-status", true);
+    const o = (d && d.omniroute) || {};
+    const hook = o.agents_hook_armed ? "⚠️ hook ARMED" : "✅ hook inert";
+    el.innerHTML = '<b>'+esc(d.staff_count||0)+'</b> staff · OmniRoute eligible <b>'+esc(d.eligible_for_omniroute||0)+'</b> · forbidden <b>'+esc(d.forbidden_omniroute||0)+'</b> · '+hook
+      + '<div style="margin-top:6px;font-size:.82rem">flags enabled='+!!o.enabled_flag+' · agents='+!!o.agents_flag+' · key='+!!o.api_key_present
+      + ' · <a href="/app/agent-tools">full governance table →</a></div>';
+  }catch(e){
+    el.innerHTML = (e && e.auth)
+      ? '🔒 Admin login chahiye — <a href="/app/admin-login">login</a>.'
+      : '⚠️ Agent OS status load fail — <a href="/app/agent-tools">agent-tools</a>.';
+  }
+}
 async function loadRoster(){
   const box = document.getElementById("roster");
   try{
@@ -570,6 +594,7 @@ function initAuthBanner(){
 
 document.addEventListener("DOMContentLoaded", function(){
   initAuthBanner();
+  loadAgentOsStrip();
   loadRoster();
   loadMemory();
   loadCouncilMembers();

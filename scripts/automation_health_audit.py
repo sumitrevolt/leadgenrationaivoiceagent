@@ -524,7 +524,14 @@ def format_daily_check_human() -> str:
     if approvals.get("enabled"):
         all_statuses.append(approvals["status"])
 
-    verdict = "green" if all(s == "green" for s in all_statuses) else "yellow" if "red" not in all_statuses else "red"
+    checks_for_verdict = {
+        "alive": alive,
+        "budget": budget,
+        "anomalies": anomalies,
+        "approvals": approvals,
+        "compliance": compliance,
+    }
+    verdict = _daily_check_verdict(checks_for_verdict)
     verdict_icon = status_icons.get(verdict, "?")
     verdict_text = "All green — loop healthy" if verdict == "green" else "Issues detected — investigate" if verdict == "red" else "Minor issues — monitor"
 
@@ -535,19 +542,41 @@ def format_daily_check_human() -> str:
     return "\n".join(output)
 
 
+def _daily_check_verdict(checks: dict) -> str:
+    """Aggregate per-check status → green|yellow|red (shared by human + JSON)."""
+    all_statuses = [
+        (checks.get("alive") or {}).get("status"),
+        (checks.get("budget") or {}).get("status"),
+        (checks.get("anomalies") or {}).get("status"),
+        (checks.get("compliance") or {}).get("status"),
+    ]
+    approvals = checks.get("approvals") or {}
+    if approvals.get("enabled"):
+        all_statuses.append(approvals.get("status"))
+    statuses = [s for s in all_statuses if s]
+    if not statuses:
+        return "yellow"
+    if all(s == "green" for s in statuses):
+        return "green"
+    if "red" in statuses:
+        return "red"
+    return "yellow"
+
+
 def format_daily_check_json() -> str:
-    """JSON format for daily check."""
+    """JSON format for daily check — verdict matches human formatter (ADR-114)."""
+    checks = {
+        "alive": check_alive(),
+        "budget": check_budget(),
+        "anomalies": check_anomalies(),
+        "approvals": check_approvals(),
+        "next_action": check_next_action(),
+        "compliance": check_compliance(),
+    }
     return json.dumps({
         "timestamp": _now().isoformat(),
-        "checks": {
-            "alive": check_alive(),
-            "budget": check_budget(),
-            "anomalies": check_anomalies(),
-            "approvals": check_approvals(),
-            "next_action": check_next_action(),
-            "compliance": check_compliance(),
-        },
-        "verdict": "green",  # Simplified for now
+        "checks": checks,
+        "verdict": _daily_check_verdict(checks),
     }, indent=2)
 
 
