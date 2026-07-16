@@ -335,3 +335,10 @@ Verification Evidence: local only — not deployed.
 Risks: hands-free requires SOCIAL_PREFS_HONOR=1 + approval=auto + owned Postiz IDs (fail-closed defaults).
 Remaining: USER commit/push/deploy ADR-117+118; Jiya Postiz channel IDs; optional SOCIAL_PREFS_HONOR flip; OAuth authorize wiring later (provider-gated).
 Next Highest Priority: deploy batch, phir Jiya channel IDs + Hot Queue GTM.
+
+## Loop Run
+Date: 2026-07-17 (deploy ADR-117/118)
+Goal: Commit + deploy wiring/social honesty fixes to production.
+Changed: commit `95a5aec` pushed origin/main; VPS `deploy_vps.sh` ? `=== DEPLOYED 95a5aecc OK ===`.
+Verification Evidence: `/health` version=`95a5aecc` environment=production; 5/5 APP_VERSION skew-free; smoke health/niches/billing/pay-info 200; queues/DLQ 0; public leadsgenai.in/health + activation summary ready.
+Remaining: Jiya per-customer Postiz channel IDs; optional `SOCIAL_PREFS_HONOR=1` when ready for prefs; YouTube OAuth Publish (owner).
