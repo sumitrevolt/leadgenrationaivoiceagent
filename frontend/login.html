@@ -177,7 +177,12 @@
     finally{ if(btn.textContent !== "Please wait…"){ btn.disabled=false; btn.textContent="Login"; } }
   });
 
-  document.getElementById("logout").addEventListener("click", function(){
+  document.getElementById("logout").addEventListener("click", async function(){
+    var token = localStorage.getItem("lgai_token")||"";
+    if(token){
+      try{ await fetch("/api/customer/auth/logout",{method:"POST",headers:{"Authorization":"Bearer "+token}}); }
+      catch(e){}
+    }
     localStorage.removeItem("lgai_token"); localStorage.removeItem("lgai_cid"); show("login"); });
 
   // Magic-link (passwordless) — sirf tab dikhao jab feature ON ho (config se).
