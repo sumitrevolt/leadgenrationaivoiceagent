@@ -1,6 +1,19 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-16 (Admin mode — Agent OS status LIVE)
+Goal: Full-authority admin setup continue — status API/UI, local OmniRoute proof, deploy.
+Inspected: OmniRoute local :20128 UP; prod pages 200; auth gate for status API.
+Problems Found: first auth test hit conftest mock (fixed by pop override).
+Changed: office_hq agent-os-status; agent_tools panel; tests; shipped ac0e0b2 + 82760e5.
+Tests Run: 30 passed (routing+omniroute+status); prod_check PASS; secrets CLEAN; local smoke AGENT_OS_SMOKE_OK.
+Verification Evidence: prod /health version=82760e51; status API unauth 401; agent-tools HTML has Agent OS panel; OmniRoute flags NOT set on VPS.
+Risks: browser admin training blocked on password (human must enter).
+Remaining: Human login → walk /app/office, control-center, agent-tools Refresh status; optional provider dashboard on :20128.
+Next Highest Priority: Complete live admin training walk after password; do not enable OMNIROUTE on VPS.
+Final Verdict: PARTIALLY READY → ops layer LIVE on 82760e51; training walk pending human login.
+
+## Loop Run
 Date: 2026-07-16 (ADR-109 Agent OS + OmniRoute routing/governance)
 Goal: Master-prompt Priority 0-1 — central agent→route map, privacy gates, decision logs, admin runbooks; keep prod OmniRoute INERT.
 Inspected: git clean@96faf185; prod health a3ad3028; Agent OS 31/31; OmniRoute client/docs; ADMIN guide gaps.
