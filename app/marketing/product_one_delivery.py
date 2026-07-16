@@ -51,7 +51,7 @@ DELIVERABLES = [
     ("branded_posters", "4 branded posters", "At least 4 branded SVG poster drafts (type=poster only)"),
     ("social_posts", "12 social captions or posts", "Monthly social content draft bank"),
     ("festival_ideas", "Festival/local post suggestions", "Local/festival campaign ideas"),
-    ("gbp_suggestions", "Google Business Profile content suggestions", "GBP/update ideas ready"),
+    ("gbp_suggestions", "Google Business Profile audit + suggestions", "Scored GBP audit (0–100) OR GBP content suggestions ready"),
     ("whatsapp_pack", "WhatsApp marketing content pack", "Ready-to-send WhatsApp promo copy"),
     ("review_replies", "Review reply drafts", "Reusable review response drafts"),
     ("monthly_report", "Monthly performance/report summary", "Monthly proof/report generated"),
@@ -590,6 +590,29 @@ def _monthly_report_on_disk(cid: str, client: dict[str, Any] | None = None) -> b
     return False
 
 
+# Persisted by POST /api/customer/gbp/score (customer_dashboard._GBP_DIR).
+# Override in tests via monkeypatch — never invent a score from GBP URL alone.
+_GBP_AUDIT_DIR = os.path.join("data", "gbp_audits")
+
+
+def _gbp_scored_audit(cid: str) -> dict[str, Any] | None:
+    """Latest persisted GBP self-audit (0–100) for this client, if any. Never raises."""
+    try:
+        fp = os.path.join(_GBP_AUDIT_DIR, f"{_safe_cid(cid)}.json")
+        if not os.path.isfile(fp):
+            return None
+        with open(fp, encoding="utf-8") as fh:
+            data = json.load(fh)
+        if not isinstance(data, dict):
+            return None
+        score = data.get("score")
+        if score is None:
+            return None
+        return data
+    except Exception:
+        return None
+
+
 def _ledger_recent_failures(cid: str) -> int:
     """24h rolling failure count — used for health score RED flag instead of
     all-time `automation_failures`. Prevents historical failures from
@@ -904,6 +927,13 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
         proof_action = _manual_done(actions, "proof")
         publish_action = _manual_done(actions, "publish_manual")
         report_on_disk = _monthly_report_on_disk(cid, client)
+        gbp_audit = _gbp_scored_audit(cid)
+        gbp_done = bool(
+            gbp_audit
+            or has_content_type("gbp", "gbp_post")
+            or _manual_done(actions, "gbp_suggestions")
+        )
+        gbp_link = bool(client.get("gbp") or (client.get("socials") or {}).get("gbp"))
 
         # Database-backed CustomerDeliverable sync (2026-07-08, parallel track).
         # This is real forward progress toward a proper per-billing-cycle
@@ -964,8 +994,20 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
             _deliverable(*DELIVERABLES[4], "done" if has_content_type("festival", "campaign") or _manual_done(actions, "festival_ideas") else "pending",
                 next_action="Festival calendar ke hisaab se AI auto-generate karega" if _client_plan_paid(client) else "",
                 owner="AI"),
-            _deliverable(*DELIVERABLES[5], "done" if client.get("gbp") or (client.get("socials") or {}).get("gbp") or _manual_done(actions, "gbp_suggestions") else "pending",
-                next_action="GBP link Setup Wizard me daalo — fir AI suggestions generate honge" if not client.get("gbp") and not (client.get("socials") or {}).get("gbp") else ""),
+            _deliverable(
+                *DELIVERABLES[5],
+                "done" if gbp_done else ("in_progress" if gbp_link else "pending"),
+                proof_note=(
+                    f"GBP audit score {int(gbp_audit.get('score') or 0)}/100"
+                    if gbp_audit
+                    else ""
+                ),
+                next_action=(
+                    ""
+                    if gbp_done
+                    else "Reports → GBP Audit (0–100) complete karo — top-5 fixes milenge"
+                ),
+            ),
             _deliverable(*DELIVERABLES[6], "done" if has_content_type("whatsapp") or _manual_done(actions, "whatsapp_pack") else "pending",
                 next_action="Content generate hone ke baad WhatsApp pack ready hoga" if _client_plan_paid(client) and not has_content_type("whatsapp") else "",
                 integration_required=_whatsapp_blocked),

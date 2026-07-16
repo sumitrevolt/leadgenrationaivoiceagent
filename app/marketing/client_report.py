@@ -73,7 +73,11 @@ _LEDGER_EVENT_MAP: dict[str, str] = {
 
 
 def collect_delivery(client_id: str, month: str = "") -> dict[str, Any]:
-    """Month-windowed delivery proof from delivery_ledger. Pure read, never raises."""
+    """Month-windowed delivery proof from delivery_ledger + GBP audit snapshot.
+
+    Pure read, never raises. Extra keys (gbp_score, approvals_pending) feed the
+    Method-12 analytics section of the monthly report without inventing ROAS.
+    """
     month = month or _month()
     d: dict[str, Any] = {
         "month": month,
@@ -83,6 +87,8 @@ def collect_delivery(client_id: str, month: str = "") -> dict[str, Any]:
         "posts_failed": 0,
         "leads_captured": 0,
         "followups_sent": 0,
+        "gbp_score": None,
+        "approvals_pending": 0,
     }
     try:
         from app.marketing import delivery_ledger
@@ -95,10 +101,40 @@ def collect_delivery(client_id: str, month: str = "") -> dict[str, Any]:
                 d[key] = int(d[key]) + 1
     except Exception as exc:
         logger.warning(f"collect_delivery failed: {exc}")
+    try:
+        from app.marketing import product_one_delivery as pod
+
+        audit = pod._gbp_scored_audit(client_id)
+        if audit and audit.get("score") is not None:
+            d["gbp_score"] = int(audit.get("score") or 0)
+    except Exception:
+        pass
+    try:
+        from app.marketing import content_approval
+
+        pending = [
+            a
+            for a in (content_approval.list_all(client_id, limit=200) or [])
+            if str(a.get("status") or "") == "pending"
+        ]
+        d["approvals_pending"] = len(pending)
+    except Exception:
+        pass
+    gbp_bit = (
+        f" GBP audit score {d['gbp_score']}/100."
+        if d.get("gbp_score") is not None
+        else ""
+    )
+    appr_bit = (
+        f" {d['approvals_pending']} posts approval wait me."
+        if int(d.get("approvals_pending") or 0) > 0
+        else ""
+    )
     d["summary_hi"] = (
         f"Is mahine: {d['posts_created']} naye posts bane, "
         f"{d['posts_published']} publish hue, "
         f"{d['leads_captured']} naye leads aaye."
+        f"{gbp_bit}{appr_bit}"
     )
     return d
 
@@ -155,6 +191,13 @@ def _render_html(
         ("Posts publish hue", delivery.get("posts_published", 0)),
         ("Naye leads captured", delivery.get("leads_captured", 0)),
         ("Follow-ups bheje", delivery.get("followups_sent", 0)),
+        (
+            "GBP audit score",
+            f"{delivery.get('gbp_score')}/100"
+            if delivery.get("gbp_score") is not None
+            else "— (Reports → GBP Audit)",
+        ),
+        ("Pending approvals", delivery.get("approvals_pending", 0)),
     ]
     d_trs = "".join(
         f"<tr><td style='padding:10px 14px;border-bottom:1px solid #eee'>{k}</td>"

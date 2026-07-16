@@ -16,11 +16,16 @@ Includes (product promise; delivery honesty per ADR-116):
 - Daily social content drafts (approve / 1-click; auto only with owned channels + consent)
 - Four branded posters monthly (`type=poster` — not festival padding)
 - WhatsApp content pack (1-click human send; bulk auto OFF)
-- GBP audit / tips (needs GBP link where required)
+- Scored GBP audit (0–100) in Reports + tips/text Studio tools
 - Review reply drafts
+- Lead capture + CRM + follow-up reminder drafts
+- Monthly performance report (delivery KPIs — not paid-ads ROAS)
+
+Not in starter (honesty): Meta/Google ads management, full SEO retainer, influencer outreach, WhatsApp bulk auto-send.
 
 Related:
 
+- [Agency methods map](agency-methods.md)
 - [Deliverables](deliverables.md)
 - [Pricing rules](pricing-rules.md)
 - [Customer onboarding](../operations/customer-onboarding.md)
