@@ -1,6 +1,27 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-16 (SHIP — invoices/logout/deploy-safety → production)
+Goal: Ship alias-aware invoice merge, customer logout revoke, deploy SHA/pull abort to live prod with verified evidence.
+Inspected: Git intended-only audit · gates (pytest/prod_check/secrets) · VPS drift (dirty data/* preserved, no reset --hard) · platform_dial HARD-OFF · deploy logs dep.log + dep2.log.
+Problems Found: (1) First `deploy_vps.sh 7e140275` hit known compose recreate name-conflict (`UP_RC=1`) → health empty → FATAL (script correctly refused success). (2) Heredoc-to-`docker exec` silent on large proofs — switched to `docker cp` python file for evidence.
+Changed (committed `7e14027`): `app/api/billing.py` · `frontend/customer_dashboard.html` · `scripts/deploy_vps.sh` · tests (alias/deploy/production_deployment) · `progress.md`. Pushed `151d0b0..7e14027` → origin/main. Unrelated unity/.codex/docs NOT touched. `.env` / YouTube / platform_dial NOT touched.
+Tests Run (pre-push): billing_alias + production_deployment + deploy_vps_retention + customer_logout + billing_truth → **44 passed, 1 skipped** · `prod_check` ALL PASSED (1103 routes) · `check_secrets` CLEAN.
+Verification Evidence:
+- Commit/push: `7e140275` (`fix(ship): alias-aware invoices, customer logout revoke, deploy SHA/pull abort`)
+- Deploy: first attempt FATAL (compose race); **retry canonical `deploy_vps.sh 7e140275` → `=== DEPLOYED 7e140275 OK ===`** (`/tmp/dep2.log`); BUILD_RC=0 UP_RC=0; skew 5/5; smoke /health /niches /plans /pay-info all 200; celery=0 dlq=0; retention pruned old tags; disk 74%/52G free
+- Live `/health`: healthy · version **`7e140275`** · environment production
+- `/api/activation/summary`: `ready_for_first_paid_customer=true` · `blocker_count=0`
+- Logout HTML: `/app/customer` + marketing + voice all contain `doCustomerLogout` + `/api/customer/auth/logout` + `logoutBtn`; unauth POST logout → 401
+- Logout revoke PROOF (in-container JWT for jiya-makeover): logout → require_customer → **401 `Token has been revoked (logged out)`** · `logout_revoke_PROOF=OK`
+- Purane Bills path PROOF: aliases `['jiya-makeover','d79d690f61b3']` · JSONL match **INV/2026-27/0001** (row client_id=`d79d690f61b3`, ₹1999) · Postgres InvoiceResponse full fields present in source · `invoice_alias_PROOF=OK`
+- platform_dial: `PLATFORM_DIAL_DAILY=0` · `enabled=False`
+Risks: Compose recreate race can still fail first `up` under load — canonical retry (same script, same SHA) recovered; no manual docker rm used. Disk hit 80% warn mid-build then retention brought to 74%.
+Remaining (owner-only, non-blocking): YouTube OAuth publish · control-center L2 graph empty · Unity WebGL local-only.
+Next Highest Priority: Monitor first real Jiya browser Logout click + Purane Bills UI render; watch disk/build-cache.
+Final Verdict: **SHIPPED + LIVE VERIFIED** on `7e140275`.
+
+## Loop Run
 Date: 2026-07-16 (Production-Ready Loop — evidence refresh + gap close)
 Goal: Fresh production-ready analysis; fix remaining code gaps that would still break Jiya after deploy of prior logout/invoice commits.
 Inspected: Live `/health`+`/health/ready`+`/api/activation/summary` · local vs origin vs prod SHA · `get_invoices` merge · customer_dashboard logout UI · `deploy_vps.sh` pull/SHA resolve · prod_check + secrets.
