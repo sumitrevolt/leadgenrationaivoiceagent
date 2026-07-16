@@ -70,6 +70,12 @@ Admin "Voice Keys" page (ya `POST /api/admin/voice/gemini-keys`) → per-key Goo
 ## Monthly memory pruning (INDEX rule 4)
 CLAUDE.md `## Current State` > 40 lines? → stale items ko `decisions.md` me move ya delete. Stale gotcha jo ab code me fixed = incidents entry me archive. AGENTS.md byte-copy re-sync (`Copy-Item CLAUDE.md AGENTS.md`).
 
+## Knowledge stack — OKF vs Qdrant (ADR-119)
+- **OKF** (`knowledge/`): curated rules/runbooks/agent policy — Git-diffable Markdown+YAML. Edit here for stable project knowledge; never put secrets.
+- **Qdrant** (`kb_main`): documents/FAQs/transcripts/approved content — Hybrid Agentic RAG upgrade path (dense+sparse later). Do **not** answer live invoice/lead counts from RAG.
+- **Postgres/API**: live operational truth. **Graphify**: code/workflow relationships only. **Redis**: short-term state.
+- Conflict: code wins, then fix OKF/`memory/`.
+
 ## Adding a scheduler job (skill: `scheduler-job`, `teach-agent-loop`)
 6-layer wiring (job fn + team_scheduler slot + worker task + heartbeat + admin toggle + test) → boot-grace for heavy jobs → parity guarded by prod_check automation-gaps.
 

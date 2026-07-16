@@ -1735,3 +1735,38 @@ User ne 2nd-paying-customer path ke liye AI auto-calling wapas choose kiya ("AI 
 **Not done (blocked / out of scope):** live OAuth authorize URLs (needs provider apps); legacy in-memory automation retire; Jiya per-customer Postiz IDs + deploy (ops).
 
 **Evidence:** wiring + omniroute tests green; prod_check ALL PASSED; secrets clean. Rollback = revert touched modules + frontend wizard bits + tests.
+
+## 2026-07-17 - ADR-119 - Hybrid Agentic RAG + OKF (OKF is NOT a RAG replacement)
+
+**Context:** User final recommendation — Google OKF v0.1 (June 2026 draft: Markdown + YAML frontmatter portable knowledge; NOT a vector DB/runtime) vs existing Qdrant `kb_main` (dense e5-small + namespace payload). Risk = treating OKF as query-time retrieval and gutting Qdrant.
+
+**Council (Chairman):**
+- Architect: keep layered router — Postgres live · OKF curated · Qdrant docs · Graphify relationships.
+- SRE/Security: tenant_id filter mandatory on every Qdrant retrieve; secrets never in Git OKF.
+- FinOps/Free-stack: BGE-M3 + bge-reranker = FREE local/fastembed path later; no paid embedding SaaS.
+- Product: GraphRAG only for relationship questions; FAQs/captions stay hybrid vector.
+
+**Decision (canonical):**
+```
+Canonical curated knowledge = OKF bundle (`knowledge/`, v0.1 draft — early, non-blocking)
+Large-scale retrieval       = Qdrant Hybrid Agentic RAG (upgrade path; do NOT remove)
+Live operational truth      = PostgreSQL / APIs (counts/status NEVER from RAG alone)
+Code/workflow context       = Graphify (`app/graphify-out/`, DEV navigation)
+Temporary memory            = Redis TTL
+LLM routing                 = OmniRoute (local-dev) + free_ai chain (prod)
+```
+
+**Target retrieval path:** Query Router ? (Postgres | OKF | Qdrant dense+sparse/RRF + rerank | Graphify) ? citations ? LLM.
+
+**Target Qdrant payload (minimum):** `tenant_id`, `document_type`, `visibility`, `status`, `source_id`, `version` (+ existing `namespace`). Server-side tenant filter fail-closed for customer scopes.
+
+**Phased upgrade (not big-bang):**
+1. OKF scaffold + ingest bridge (OKF ? Qdrant chunks) — this ADR.
+2. Hybrid dense+sparse (BM25/sparse) + RRF on `kb_main` behind flag.
+3. Embedding migrate e5-small ? BGE-M3 (bake + deadline + disable-switch; ML landmine rules).
+4. Reranker BAAI/bge-reranker-base (optional, flag OFF default).
+5. Query router module for staff/customer agents (OmniRoute bulk only for sanitized).
+
+**Not done now:** full BGE-M3/reranker prod flip (model bake + latency budget + tests). Current prod remains Qdrant dense + namespace filter + TF-IDF fallback.
+
+**Evidence:** OKF v0.1 draft confirmed (Google Cloud Knowledge Catalog SPEC); code today = `knowledge_base.py` multilingual-e5-small + `kb_main`. Rollback of future hybrid = flags OFF + keep e5 path.
