@@ -42,11 +42,16 @@ def check() -> dict:
 
     graph = ROOT / "app" / "graphify-out" / "graph.json"
     grpt = _graph_report_sha()
+    graph_present = graph.is_file()
     results["code_graph"] = {
-        "ok": graph.is_file(),
-        "detail": f"graph.json {'present' if graph.is_file() else 'MISSING'}; "
-                  f"report_sha={grpt or '?'} head={head[:8]} "
-                  f"{'FRESH' if grpt and head.startswith(grpt) else 'STALE/unknown'}",
+        "ok": graph_present,
+        "detail": (
+            f"graph.json present; report_sha={grpt or '?'} head={head[:8]} "
+            f"{'FRESH' if grpt and head.startswith(grpt) else 'STALE/unknown'}"
+            if graph_present
+            else "FAIL-LOUD: app/graphify-out/graph.json MISSING — Graphify MCP cold. "
+                 "Run scripts/graphify_refresh.bat (or .sh) before graphify query/explain."
+        ),
     }
 
     store_path = pc.DEFAULT_STORE
@@ -74,13 +79,31 @@ def main() -> int:
     r = check()
     print("context layer health:")
     for k, v in r.items():
-        print(f"  [{'PASS' if v['ok'] else 'WARN'}] {k}: {v['detail']}")
+        if k == "code_graph" and not v["ok"]:
+            tag = "FAIL"
+        else:
+            tag = "PASS" if v["ok"] else "WARN"
+        print(f"  [{tag}] {k}: {v['detail']}")
     hard_fail = (not r["project_context"]["ok"]) and (not r["memory_fallback"]["ok"])
-    verdict = "DEGRADED-BUT-USABLE" if not r["project_context"]["ok"] else "HEALTHY"
+    require_graph = (
+        __import__("os").environ.get("GRAPHIFY_REQUIRE_GRAPH", "0").strip().lower()
+        in ("1", "true", "yes")
+    )
+    graph_missing = not r["code_graph"]["ok"]
     if hard_fail:
         verdict = "FAILED"
+    elif graph_missing and require_graph:
+        verdict = "FAILED-GRAPH-MISSING"
+    elif graph_missing:
+        verdict = "DEGRADED-GRAPH-MISSING"
+    elif not r["project_context"]["ok"]:
+        verdict = "DEGRADED-BUT-USABLE"
+    else:
+        verdict = "HEALTHY"
     print(f"verdict: {verdict}")
-    return 1 if hard_fail else 0
+    if hard_fail or (graph_missing and require_graph):
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

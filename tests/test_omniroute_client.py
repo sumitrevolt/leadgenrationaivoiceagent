@@ -62,12 +62,12 @@ class _Response:
 class TestOmniRouteResponsesAdapter:
     def test_registry_exposes_only_sanitized_dev_routes(self):
         route = get_task_route("leadgen.coding_primary", "INTERNAL_SANITIZED")
-        # 2026-07-16: gateway v3.8.48 rebuild — hybrid config: free auto-alias
-        # PRIMARY (free-tokens mandate) + reconnected Groq FALLBACK. Dono real
-        # sanitized /v1/responses PONG calls se proven.
+        # 2026-07-16: gateway v3.8.48 rebuild — custom combo `leadgen-free-first`
+        # PRIMARY (4-deep priority failover: free deepseek → groq → mistral →
+        # gemini, PONG-proven) + free auto-alias client-side FALLBACK.
         assert route == OmniRouteRoute(
-            primary_model="auto/coding:free",
-            fallback_model="groq/llama-3.3-70b-versatile",
+            primary_model="leadgen-free-first",
+            fallback_model="auto/coding:free",
             privacy_class="INTERNAL_SANITIZED",
         )
         agent_ops = get_task_route("leadgen.agent_ops", "INTERNAL_SANITIZED")
@@ -118,9 +118,9 @@ class TestOmniRouteResponsesAdapter:
 
         assert result is not None
         assert result.text == "safe result"
-        assert result.provider == "auto"
+        assert result.provider == "combo"  # bare combo id — not faked as a provider
         assert seen["url"].endswith("/v1/responses")
-        assert seen["payload"]["model"] == "auto/coding:free"
+        assert seen["payload"]["model"] == "leadgen-free-first"
         assert "9876543210" not in str(seen["payload"])
 
     @pytest.mark.asyncio
@@ -144,7 +144,7 @@ class TestOmniRouteResponsesAdapter:
         assert result is not None
         assert result.text == "fallback ok"
         assert result.fallback_reason == "http_429"
-        assert models == ["auto/coding:free", "groq/llama-3.3-70b-versatile"]
+        assert models == ["leadgen-free-first", "auto/coding:free"]
 
     @pytest.mark.asyncio
     async def test_non_retryable_primary_failure_does_not_fallback(self, monkeypatch):
@@ -231,7 +231,7 @@ class TestOmniRouteAgentHook:
             [{"role": "user", "content": "Summarise leads, call 9876543210 back"}]
         )
         assert text == "agent ok"
-        assert seen["payload"]["model"] == "auto/best-free"  # leadgen.agent_ops primary
+        assert seen["payload"]["model"] == "leadgen-free-first"  # leadgen.agent_ops primary (combo)
         assert "9876543210" not in str(seen["payload"])  # customer data masked
 
     @pytest.mark.asyncio
@@ -247,6 +247,57 @@ class TestOmniRouteAgentHook:
 
         monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
         assert await try_agent_chat([{"role": "user", "content": "hello"}]) is None
+
+    @pytest.mark.asyncio
+    async def test_zara_agent_ops_still_masks_customer_pii(self, monkeypatch):
+        """may_contact_customers=True agents still use INTERNAL_SANITIZED masking."""
+        from app.platform.omniroute_client import try_agent_chat
+
+        monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+        monkeypatch.setenv("OMNIROUTE_AGENTS", "1")
+        monkeypatch.setenv("OMNIROUTE_API_KEY", "synthetic-test-key-not-real")
+        seen = {}
+
+        async def fake_post(url, headers, payload, timeout):
+            seen["payload"] = payload
+            return _Response(payload={
+                "model": "groq/llama-3.3-70b-versatile",
+                "output_text": "ok",
+            })
+
+        monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
+        text = await try_agent_chat(
+            [{"role": "user", "content": "Call customer 9876543210 tonight"}],
+            agent_key="zara",
+        )
+        assert text == "ok"
+        assert "9876543210" not in str(seen["payload"])
+
+    @pytest.mark.asyncio
+    async def test_max_output_tokens_override_and_provider_from_resolved(self, monkeypatch):
+        from app.platform.omniroute_client import generate
+
+        monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+        monkeypatch.setenv("OMNIROUTE_API_KEY", "synthetic-test-key-not-real")
+        seen = {}
+
+        async def fake_post(url, headers, payload, timeout):
+            seen["payload"] = payload
+            return _Response(payload={
+                "model": "groq/llama-3.3-70b-versatile",
+                "output_text": "tok ok",
+            })
+
+        monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
+        result = await generate(
+            "leadgen.coding_primary",
+            [{"role": "user", "content": "hi"}],
+            "INTERNAL_SANITIZED",
+            max_output_tokens=256,
+        )
+        assert result is not None
+        assert seen["payload"]["max_output_tokens"] == 256
+        assert result.provider == "groq"  # from gateway-resolved model
 
     @pytest.mark.asyncio
     async def test_free_ai_chat_bulk_uses_hook_and_realtime_never_does(self, monkeypatch):
@@ -267,8 +318,8 @@ class TestOmniRouteAgentHook:
         monkeypatch.setenv("OMNIROUTE_API_KEY", "synthetic-test-key-not-real")
         calls = []
 
-        async def fake_hook(messages):
-            calls.append(messages)
+        async def fake_hook(messages, agent_key=None, product=None):
+            calls.append({"messages": messages, "agent_key": agent_key, "product": product})
             return "omni agent reply"
 
         monkeypatch.setattr("app.platform.omniroute_client.try_agent_chat", fake_hook)
@@ -277,10 +328,12 @@ class TestOmniRouteAgentHook:
 
         text, provider = await free_ai.chat(
             "system", [{"role": "user", "content": "write digest"}],
-            max_tokens=512, profile="bulk",
+            max_tokens=512, profile="bulk", agent_key="zara", product="marketing",
         )
         assert (text, provider) == ("omni agent reply", "omniroute")
         assert len(calls) == 1
+        assert calls[0]["agent_key"] == "zara"
+        assert calls[0]["product"] == "marketing"
 
         # Realtime (voice hot-path) must NEVER touch the hook — chain empty = ("","").
         monkeypatch.setattr(free_ai, "_build_llm_chain", lambda prof: [])

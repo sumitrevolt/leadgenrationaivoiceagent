@@ -3471,9 +3471,14 @@ function renderSocialSetup(d,acct){
       +'<div style="flex:1;min-width:0"><div style="font-weight:600">'+escH(c.label||"")+'</div>'
       +'<div class="sm" style="color:var(--muted)">'+escH(c.note||"")+'</div></div>'+_ssBadge(c.state||"")+'</div>';
   }).join("");
-  var autoNote=st.auto_posting_active
-    ?'<div class="sm" style="color:#16a34a;margin-top:8px">✅ Auto-publish ON — approved posts aapke connected accounts pe jaate hain.</div>'
-    :'<div class="sm" style="color:var(--muted);margin-top:8px">ℹ️ Auto-publish abhi OFF hai — AI content banata + draft karta hai, aap approve/1-click share karte ho. (Ban-safe.)</div>';
+  var prefsNote=!st.prefs_honored
+    ?'<div class="sm" style="color:#b45309;margin-top:8px;padding:8px 10px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px">⚠️ Posting preferences save ho sakte hain, lekin abhi platform pe <b>SOCIAL_PREFS_HONOR</b> OFF hai — cadence/approval/auto choices daily engine honor nahi karega jab tak admin ON na kare.</div>'
+    :'';
+  var autoNote=st.hands_free_active
+    ?'<div class="sm" style="color:#16a34a;margin-top:8px">✅ Hands-free ON — aapke owned channels + approval=auto.</div>'
+    :(st.auto_posting_active
+      ?'<div class="sm" style="color:#16a34a;margin-top:8px">✅ Publish path ready — approve ke baad aapke connected accounts pe jaata hai. Hands-free ke liye Approval=Auto.</div>'
+      :'<div class="sm" style="color:var(--muted);margin-top:8px">ℹ️ Auto-publish abhi OFF hai — AI content banata + draft karta hai, aap approve/1-click share karte ho. (Ban-safe. Apne Postiz channel IDs chahiye.)</div>');
   /* Loop-social-2: per-platform connect cards. Renders below the aggregate
      status board — customers now see BOTH honest engine state AND per-
      platform connected/review-pending/disconnected pill + action button. */
@@ -3511,10 +3516,11 @@ function renderSocialSetup(d,acct){
     +toneOpts.map(function(o){return '<option value="'+o[0]+'"'+(brandTone===o[0]?" selected":"")+'>'+escH(o[1])+'</option>';}).join("")+'</select>';
   var ap=d.approval_mode||"review";
   var apr='<label class="sm" style="display:block;margin-top:4px"><input type="radio" name="ssAppr" value="review"'+(ap==="review"?" checked":"")+'> Main pehle dekhun, phir post (recommended)</label>'
-    +'<label class="sm" style="display:block;margin-top:2px"><input type="radio" name="ssAppr" value="draft"'+(ap==="draft"?" checked":"")+'> Sirf draft ready rakho — main khud post karunga</label>';
+    +'<label class="sm" style="display:block;margin-top:2px"><input type="radio" name="ssAppr" value="draft"'+(ap==="draft"?" checked":"")+'> Sirf draft ready rakho — main khud post karunga</label>'
+    +'<label class="sm" style="display:block;margin-top:2px"><input type="radio" name="ssAppr" value="auto"'+(ap==="auto"?" checked":"")+'> Auto publish — main consent deta hoon (sirf mere connected channels, ban-safe gates ke saath)</label>';
   body.innerHTML=
     '<div class="sm" style="color:var(--muted);margin-bottom:10px">Apne social channels connect karo — AI inke liye content banayega, aap approve karke ya 1-click post karoge.</div>'
-    +'<div style="font-weight:700;margin-bottom:2px">📡 Connection status</div>'+statusRows+autoNote
+    +'<div style="font-weight:700;margin-bottom:2px">📡 Connection status</div>'+statusRows+prefsNote+autoNote
     +'<details class="setup-advanced"><summary>Advanced account connection — apne accounts connect karein</summary>'
     +'<div class="sm" style="color:var(--muted);margin-bottom:6px">Har platform ke saamne "🔐 Connect" pe click karein aur apna access token daalein. Token encrypted-at-rest save hoga; actual publish admin engine ON hone ke baad hi hoga.</div>'
     +connectCards+'</details>'

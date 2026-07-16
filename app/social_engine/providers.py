@@ -361,7 +361,20 @@ class PostizProvider(SocialProvider):
         try:
             from app.marketing import clients_store, postiz_publish
 
-            client = clients_store.get_client(req.client_id) or {}
+            client = dict(clients_store.get_client(req.client_id) or {})
+            if not client.get("id"):
+                client["id"] = str(req.client_id or "")
+            # Wizard stores postiz_integrations in social_config — merge so publish
+            # does not silently fall through to (now blocked) global env IDs.
+            if not client.get("postiz_integrations"):
+                try:
+                    from app.social_engine import client_config
+
+                    cfg = client_config.get(str(req.client_id or "")) or {}
+                    if cfg.get("postiz_integrations"):
+                        client["postiz_integrations"] = cfg.get("postiz_integrations")
+                except Exception:
+                    pass
             res = await postiz_publish.publish_video(client, req.caption, req.media_path or req.media_url)
             ok = bool(res.get("sent"))
             return PublishResult(

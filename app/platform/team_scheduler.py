@@ -170,6 +170,7 @@ _last_ran: dict[str, str | None] = {
     "platform_dial": None,  # daily 11:30 IST: LeadGen AI self-sale outbound calls (gated PLATFORM_DIAL_DAILY)
     "product_one_health": None,  # hourly :20: Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (ungated safety-net, mirrors watchdog/onboard)
     "approval_email_sweep": None,  # hourly :40: bounded pending-approval EMAIL sweep (gated APPROVAL_EMAIL_NOTIFY, single-flight)
+    "social_drain": None,  # hourly :10: native social queue drain (gated SOCIAL_ENGINE)
 }
 
 
@@ -1112,6 +1113,12 @@ async def _run_job_inner(job: str) -> bool:
             # Never sends without customer consent + provider success; audit +
             # DB idempotency key make repeated runs safe.
             await approval_notifier.run_approval_email_sweep()
+        elif job == "social_drain":
+            from app.social_engine import engine as _social_engine
+
+            # Native social queue drain (Postiz/X/…). INERT unless SOCIAL_ENGINE
+            # on (process_queue no-ops). Also recovers stale `processing` jobs.
+            await _social_engine.process_queue(30)
         elif job == "obsidian_push":
             from app.platform import obsidian_sync as _obs
 
@@ -1371,6 +1378,10 @@ async def scheduler_loop() -> None:
             if now.minute >= 40 and _last_ran.get("approval_email_sweep") != hour_key:
                 _last_ran["approval_email_sweep"] = hour_key
                 await _run_job("approval_email_sweep")
+            # Native social queue drain — hourly :10 (INERT unless SOCIAL_ENGINE=1).
+            if now.minute >= 10 and _last_ran.get("social_drain") != hour_key:
+                _last_ran["social_drain"] = hour_key
+                await _run_job("social_drain")
             # D V1.1 process-engine auto-start — daily 11:30–13:00 IST (INERT unless PROCESS_AUTOSTART=1).
             if (11, 30) <= hm < (13, 0) and _last_ran.get("process_autostart") != day_key:
                 _last_ran["process_autostart"] = day_key

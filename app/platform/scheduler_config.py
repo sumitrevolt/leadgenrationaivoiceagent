@@ -72,6 +72,26 @@ JOB_META: dict[str, dict[str, str]] = {
     "engineer_deps": {"label": "Dependency CVE audit (Aryan)", "cadence": "Sun 04:30", "owner": "aryan"},
     "kb_refresh": {"label": "Contextual KB re-ingest", "cadence": "Sun 05:00", "owner": "meera"},
     "saturday_hygiene": {"label": "DLQ + celery trim", "cadence": "Sat 04:00", "owner": "kavya"},
+    "hot_queue_brief": {
+        "label": "Office HQ revenue brief (health-gated)",
+        "cadence": "daily 08:15",
+        "owner": "platform",
+    },
+    "product_one_health": {
+        "label": "Product 1 Customer Health + SLA Recovery",
+        "cadence": "hourly :20",
+        "owner": "platform",
+    },
+    "approval_email_sweep": {
+        "label": "Pending-approval email sweep (gated APPROVAL_EMAIL_NOTIFY)",
+        "cadence": "hourly :40",
+        "owner": "platform",
+    },
+    "social_drain": {
+        "label": "Social queue drain (Postiz/X — gated SOCIAL_ENGINE)",
+        "cadence": "hourly :10",
+        "owner": "isha",
+    },
 }
 
 # Jobs jinhe run-due recovery kabhi auto-enqueue NAHI karega (side-effect heavy:
@@ -195,7 +215,7 @@ def _dispatch(job: str) -> str:
 
         from app.platform import team_scheduler
 
-        asyncio.get_event_loop().create_task(team_scheduler._run_job(job))
+        asyncio.get_running_loop().create_task(team_scheduler._run_job(job))
         return "inline"
     except Exception as e:
         logger.warning(f"[scheduler-config] inline dispatch failed: {e}")

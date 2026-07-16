@@ -62,12 +62,26 @@ def _headers() -> dict[str, str]:
     return {"Authorization": _key()}
 
 
-def _integration_ids(client: dict[str, Any] | None) -> list[str]:
-    """Channel ids — client.postiz_integrations (list ya csv) warna env csv,
-    warna vault global config."""
-    raw: Any = (client or {}).get("postiz_integrations") if client else None
-    if not raw:
-        raw = os.getenv("POSTIZ_INTEGRATIONS") or _vault_cfg().get("integrations", "")
+_OWN_BRAND_IDS = frozenset({"leadgenai-self", "leadgen-ai"})
+
+
+def _is_own_brand(client: dict[str, Any] | None) -> bool:
+    """True when publish context is LeadGen own-brand (or admin/global, no client).
+
+    Customer records MUST NOT inherit ``POSTIZ_INTEGRATIONS`` / vault globals —
+    that posted customer copy onto corporate FB/IG (audit 2026-07-17).
+    """
+    if not client:
+        return True
+    cid = str(client.get("id") or "").strip().lower()
+    if cid in _OWN_BRAND_IDS:
+        return True
+    name = str(client.get("business_name") or "").strip().lower()
+    niche = str(client.get("niche") or "").strip().lower()
+    return niche == "ai_marketing" or name in ("leadgen ai", "leadsgenai", "leadsgen ai")
+
+
+def _parse_integration_ids(raw: Any) -> list[str]:
     if isinstance(raw, str):
         ids = [x.strip() for x in raw.split(",")]
     elif isinstance(raw, (list, tuple)):
@@ -75,6 +89,38 @@ def _integration_ids(client: dict[str, Any] | None) -> list[str]:
     else:
         ids = []
     return [x for x in ids if x][:20]
+
+
+def _social_config_integrations(client_id: str) -> list[str]:
+    """Wizard writes postiz_integrations to social_config.jsonl — merge for publish."""
+    cid = str(client_id or "").strip()
+    if not cid:
+        return []
+    try:
+        from app.social_engine import client_config
+
+        cfg = client_config.get(cid) or {}
+        return _parse_integration_ids(cfg.get("postiz_integrations"))
+    except Exception:
+        return []
+
+
+def _integration_ids(client: dict[str, Any] | None) -> list[str]:
+    """Channel ids for a publish.
+
+    Precedence: client record → social_config wizard → (own-brand/global only)
+    env ``POSTIZ_INTEGRATIONS`` → vault. Customers without their own IDs get [].
+    """
+    raw: Any = (client or {}).get("postiz_integrations") if client else None
+    ids = _parse_integration_ids(raw)
+    if not ids and client:
+        ids = _social_config_integrations(str(client.get("id") or ""))
+    if ids:
+        return ids
+    if _is_own_brand(client):
+        raw = os.getenv("POSTIZ_INTEGRATIONS") or _vault_cfg().get("integrations", "")
+        return _parse_integration_ids(raw)
+    return []
 
 
 # Platforms that reject text-only posts (Postiz "Should have at least one
@@ -313,15 +359,19 @@ def effective_integration_ids(client: dict[str, Any] | None = None) -> list[str]
 
 def integrations_source(client: dict[str, Any] | None = None) -> str:
     """Which source `effective_integration_ids()` resolved from — "client" /
-    "env" / "vault" / "none". Operator triage: tells you WHERE to change the
-    value, which matters because env silently wins over vault. Never raises."""
+    "social_config" / "env" / "vault" / "none". Operator triage: tells you WHERE
+    to change the value. Customers never report env/vault unless own-brand.
+    Never raises."""
     try:
-        if (client or {}).get("postiz_integrations"):
+        if _parse_integration_ids((client or {}).get("postiz_integrations")):
             return "client"
-        if (os.getenv("POSTIZ_INTEGRATIONS") or "").strip():
-            return "env"
-        if _vault_cfg().get("integrations", ""):
-            return "vault"
+        if client and _social_config_integrations(str(client.get("id") or "")):
+            return "social_config"
+        if _is_own_brand(client):
+            if (os.getenv("POSTIZ_INTEGRATIONS") or "").strip():
+                return "env"
+            if _vault_cfg().get("integrations", ""):
+                return "vault"
     except Exception:  # pragma: no cover
         pass
     return "none"

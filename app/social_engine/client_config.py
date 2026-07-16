@@ -39,7 +39,9 @@ _HANDLE_KEYS = ("instagram", "facebook", "gbp", "youtube", "linkedin", "twitter"
 _VALID_CHANNELS = ("instagram", "facebook", "gbp", "youtube", "linkedin", "whatsapp")
 
 _VALID_CADENCE = ("daily", "3x_week", "weekly", "off")
-_VALID_APPROVAL = ("review", "draft")
+# review = human approve pehle; draft = queue only; auto = customer consented
+# hands-free publish (SOCIAL_PREFS_HONOR + SOCIAL_ENGINE + own Postiz IDs still required).
+_VALID_APPROVAL = ("review", "draft", "auto")
 
 # Loop-social-19 (2026-07-11): Phase-3 Step-1 + Step-4 field completeness.
 # Additive — every new field defaults empty/list so existing wizard save calls
@@ -51,7 +53,7 @@ _DEFAULTS: dict[str, Any] = {
     "handles": dict.fromkeys(_HANDLE_KEYS, ""),
     "channels": [],
     "cadence": "daily",       # matches daily content engine; saved handles must not downgrade cadence
-    "approval_mode": "review",  # review = post se pehle approve; draft = sirf draft ready
+    "approval_mode": "review",  # review | draft | auto (auto = explicit customer consent)
     "postiz_integrations": [],  # optional/advanced — Postiz channel ids (admin-assisted)
     # Loop-social-19: Step-1 business profile fields — persisted alongside
     # clients_store base profile. Wizard-level source of truth for the

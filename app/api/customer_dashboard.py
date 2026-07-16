@@ -1328,11 +1328,24 @@ class SocialConfigIn(BaseModel):
 
 def _social_status(client_rec: dict | None) -> dict:
     """Honest per-capability connection status for the wizard's status board.
-    Never raises. States: ready | manual | soon | need_phone."""
+    Never raises. States: ready | manual | soon | need_phone.
+
+    Auto-publish is ready ONLY when THIS customer has their own Postiz channel
+    ids (clients_store or social_config) — global POSTIZ_API_KEY alone is not
+    enough (audit 2026-07-17 false-ready + tenant isolation).
+    """
+    import os as _os
+
     rec = client_rec or {}
     engine_on = False
-    postiz_on = False
+    postiz_key_on = False
+    client_channels: list[str] = []
+    integrations_source = "none"
     wa_ready = False
+    approval_mode = "review"
+    prefs_honored = (
+        _os.environ.get("SOCIAL_PREFS_HONOR", "0").strip().lower() in ("1", "true", "yes")
+    )
     try:
         from app.social_engine import enabled as _engine_enabled
 
@@ -1342,7 +1355,16 @@ def _social_status(client_rec: dict | None) -> dict:
     try:
         from app.marketing import postiz_publish
 
-        postiz_on = bool(postiz_publish.enabled())
+        postiz_key_on = bool(postiz_publish.enabled())
+        client_channels = list(postiz_publish.effective_integration_ids(rec) or [])
+        integrations_source = str(postiz_publish.integrations_source(rec) or "none")
+    except Exception:
+        pass
+    try:
+        from app.social_engine import client_config as _scfg
+
+        cfg = _scfg.get(str(rec.get("id") or ""))
+        approval_mode = str(cfg.get("approval_mode") or "review")
     except Exception:
         pass
     try:
@@ -1353,6 +1375,16 @@ def _social_status(client_rec: dict | None) -> dict:
         )
     except Exception:
         wa_ready = bool(str(rec.get("phone") or "").strip())
+
+    # Ownership: customer must own channels via client/social_config — never env leak.
+    ownership_ok = bool(
+        client_channels and integrations_source in ("client", "social_config")
+    )
+    customer_postiz_ready = bool(postiz_key_on and ownership_ok)
+    # Publish-path ready (approve → Postiz) vs hands-free (approval_mode=auto).
+    publish_path_active = bool(engine_on and customer_postiz_ready)
+    consent_auto = bool(prefs_honored and approval_mode == "auto")
+    hands_free_active = bool(publish_path_active and consent_auto)
 
     channels = [
         {
@@ -1374,11 +1406,21 @@ def _social_status(client_rec: dict | None) -> dict:
         {
             "key": "autopublish",
             "label": "Auto-publish (Instagram/Facebook/YouTube via Postiz)",
-            "state": "ready" if postiz_on else "soon",
+            "state": "ready" if publish_path_active else "soon",
             "note": (
-                "Aapke connected accounts pe seedha publish ho sakta hai."
-                if postiz_on
-                else "Setup chal raha hai — abhi tak content approve karke manual/1-click post karo."
+                f"Hands-free ON — aapke {len(client_channels)} channel(s), approval=auto."
+                if hands_free_active
+                else (
+                    f"Aapke {len(client_channels)} owned channel(s) — approve ke baad publish. "
+                    "Hands-free chahiye to Approval=Auto choose karo."
+                    if publish_path_active
+                    else (
+                        "Postiz platform ready hai — abhi aapke account channels connect karo "
+                        "(Postiz me apne pages link + integration IDs save)."
+                        if postiz_key_on
+                        else "Setup chal raha hai — abhi tak content approve karke manual/1-click post karo."
+                    )
+                )
             ),
         },
         {
@@ -1390,9 +1432,17 @@ def _social_status(client_rec: dict | None) -> dict:
     ]
     return {
         "engine_on": engine_on,
-        "postiz_on": postiz_on,
-        # auto_posting_active = kya koi bhi channel abhi actually auto-publish karega
-        "auto_posting_active": bool(engine_on and postiz_on),
+        "postiz_on": customer_postiz_ready,
+        "postiz_key_configured": postiz_key_on,
+        "postiz_channels_count": len(client_channels),
+        "integrations_source": integrations_source,
+        "ownership_ok": ownership_ok,
+        "prefs_honored": prefs_honored,
+        "approval_mode": approval_mode,
+        "consent_auto": consent_auto,
+        "hands_free_active": hands_free_active,
+        # Publish path armed (engine + owned channels) — not the same as hands-free.
+        "auto_posting_active": publish_path_active,
         "channels": channels,
     }
 

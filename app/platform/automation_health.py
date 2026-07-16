@@ -70,6 +70,7 @@ EXPECTED_GAP_MIN = {
     "call_kpi_digest": 30 * 60,  # daily 19:30 IST: Lekha call-KPI digest
     "product_one_health": 180,  # hourly :20 (2026-07-08): Product 1 Customer Health/Approval Reminder/SLA Recovery sweep, 3h grace like meter_watch
     "approval_email_sweep": 180,  # hourly pending-approval EMAIL (gated APPROVAL_EMAIL_NOTIFY); was scheduled but missing from dead-man
+    "social_drain": 180,  # hourly :10 native social queue drain (gated SOCIAL_ENGINE); 3h grace
 }
 
 

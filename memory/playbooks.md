@@ -36,29 +36,6 @@ Check `GET /api/growth/infra/flags` → read flag's ban/cost risk → enable in 
 6. Re-link WhatsApp if the session drops after rotation: `https://leadsgenai.in/app/whatsapp` → Self-host card → Start session → scan QR (phone: WhatsApp → Linked Devices → Link a Device).
 7. Treat the OLD key/token (committed in git history before 2026-07-14) as permanently burned — rotation (not history rewrite) is the fix; do not reuse those values anywhere.
 
-<<<<<<< HEAD
-## Postiz env change / restart (⚠️ wrong command can stop the main stack)
-Both compose files share the implicit `leadgen` project name. **Never** pass
-`--remove-orphans` with `docker-compose.postiz.yml`.
-
-1. `cd /opt/leadgen` and back up `deploy/postiz/.env` with a timestamp.
-2. Edit only the Postiz env file; the main app `.env` remains untouched.
-3. Apply exactly:
-   `docker compose -f docker-compose.postiz.yml --env-file deploy/postiz/.env up -d`
-4. Confirm the app, DB, Redis, workers, scheduler and Postiz containers all remain up.
-5. Verify the main health endpoint and Postiz login before leaving the change.
-
-To close public registration, set `POSTIZ_DISABLE_REGISTRATION=true`; an existing
-operator account must be confirmed before the restart. For YouTube, reconnecting
-the channel is temporary while the Google OAuth consent screen is in testing mode;
-publish the OAuth app to production, then reconnect and verify the stored expiry.
-
-## Postiz publish readiness
-`GET /api/growth/social/postiz/status` reports the effective integration resolver
-(`client → env → vault`), not vault metadata alone. Before claiming publish proof,
-also confirm `data/social_engine.json` has `dry_run:false` and require a real,
-non-empty provider `post_id`/`post_url` plus a browser-visible external post.
-=======
 ## Postiz env change / restart (⚠️ WRONG COMMAND = WHOLE PROD STACK DELETED)
 🚨 **Read this before ANY `docker compose` on `docker-compose.postiz.yml`.** Both compose files live in `/opt/leadgen`, so Compose shares the implicit project name `leadgen` across them. On 2026-07-03 a `--remove-orphans` on the postiz file made Compose treat the ENTIRE main stack (app/db/redis/workers) as orphans and **STOP+DELETE it** (volumes survived; restart recovered). **NEVER pass `--remove-orphans` to the postiz compose file.** Plain `up -d` is safe.
 1. SSH: `ssh -i ~/.ssh/id_rsa root@72.61.245.204`, `cd /opt/leadgen`.
@@ -69,18 +46,17 @@ non-empty provider `post_id`/`post_url` plus a browser-visible external post.
 5. Verify BEFORE walking away: `docker ps --format '{{.Names}} {{.Status}}' | grep -E 'leadgen_(app|db|redis|worker|scheduler|postiz)'` — **confirm the MAIN stack is still up**, not just postiz. Then `curl -s -o /dev/null -w '%{http_code}' https://leadsgenai.in/health` = 200 and `https://postiz.leadsgenai.in/` = 307.
 6. Env-name trap: compose passes `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET` (NOT Postiz-docs' `FACEBOOK_ID`/`FACEBOOK_SECRET`). Checking the wrong name reports a false "unset" — verify against `docker-compose.postiz.yml`, not upstream docs.
 
-**Close open registration (pending as of 2026-07-14, ADR-099):** `POSTIZ_DISABLE_REGISTRATION=false` → `true` in `deploy/postiz/.env:4`, then step 4–5. Lock-out-safe: account `sumitrevolt23@gmail.com` (org `leadgenai`) already exists in the Postiz DB. Verify: `https://postiz.leadsgenai.in/auth/register` should stop creating accounts; existing login still works.
+**Close open registration:** `POSTIZ_DISABLE_REGISTRATION=true` in `deploy/postiz/.env`, then step 4–5. Lock-out-safe: existing operator account must already exist in Postiz DB. Verify: `https://postiz.leadsgenai.in/auth/register` should stop creating accounts; existing login still works.
 
-**Reconnect YouTube (recurs every ~7 days until fixed properly):** the Google OAuth client is in **testing** mode → refresh tokens expire after 7 days. Postiz UI → the YouTube channel → reconnect. **Permanent fix** = Google Cloud Console → the `LeadsGenAI` project → OAuth consent screen → **Publish app** (production). FB/IG tokens expire 2026-09-01; X expires 2058. Check state without guessing:
+**Reconnect YouTube (recurs every ~7 days until fixed properly):** the Google OAuth client is in **testing** mode → refresh tokens expire after 7 days. Postiz UI → the YouTube channel → reconnect. **Permanent fix** = Google Cloud Console → the `LeadsGenAI` project → OAuth consent screen → **Publish app** (production). Check state without guessing:
 `docker exec leadgen_postiz_db psql -U postiz -d postiz -t -A -F' | ' -c 'select "providerIdentifier","refreshNeeded","tokenExpiration" from "Integration" where "deletedAt" is null;'`
 
 ## Postiz publish readiness — how to actually verify (do NOT trust one field)
-`/api/growth/social/postiz/status` was vault-only until ADR-099 and reported `integrations_count: 0` while publishing was fully wired via env. It now reports EFFECTIVE config + `integrations_source` (`client`/`env`/`vault`/`none`). Precedence that actually decides: `client.postiz_integrations` → env `POSTIZ_INTEGRATIONS` → vault meta. Ground truth in one command (read-only, posts nothing):
+`/api/growth/social/postiz/status` reports EFFECTIVE config + `integrations_source` (`client` / `social_config` / `env` / `vault` / `none`). **ADR-117:** global `POSTIZ_INTEGRATIONS` is own-brand/admin only — customers must have their own `postiz_integrations` (client dict or wizard `social_config`). Precedence: client → social_config → (own-brand only) env → vault. Ground truth (read-only, posts nothing):
 ```
-docker exec leadgen_app python -c "from app.marketing import postiz_publish as pp; print(pp.enabled(), pp.api_url(), pp.integrations_source(), pp.effective_integration_ids())"
+docker exec leadgen_app python -c "from app.marketing import postiz_publish as pp; c={'id':'jiya-makeover'}; print(pp.integrations_source(c), pp.effective_integration_ids(c)); print('own', pp.integrations_source(), pp.effective_integration_ids())"
 ```
-Empty list = `publish_video()` early-returns at the `_integration_ids()` guard and NOTHING posts. Also check `data/social_engine.json` `dry_run` — `true` fabricates `ok=True` and marks jobs `published` without calling Postiz (ADR-098).
->>>>>>> 4d3f030 (fix: reconcile workspace + resolve conflicts + finalize ADR-100/103 fixes)
+Empty list for a customer = no Postiz publish (honest). Also check `data/social_engine.json` `dry_run` — `true` fabricates `ok=True` (ADR-098). Hourly drain = staff job `social_drain` (:10 IST).
 
 ## Prod incident (skill: `prod-incident-triage`)
 Health 000/502 → `docker ps` + logs → py-spy dump on stuck proc → recover (targeted restart, NOT blind) → root-cause → postmortem entry in `memory/incidents.md` + prevention rule. Self-heal cron `scripts/vps_selfheal.sh` */10 already running.
@@ -96,3 +72,9 @@ CLAUDE.md `## Current State` > 40 lines? → stale items ko `decisions.md` me mo
 
 ## Adding a scheduler job (skill: `scheduler-job`, `teach-agent-loop`)
 6-layer wiring (job fn + team_scheduler slot + worker task + heartbeat + admin toggle + test) → boot-grace for heavy jobs → parity guarded by prod_check automation-gaps.
+
+## platform_dial STAGED re-enable (2026-07-16 — user go-ahead mila; safeguards ADR-025/027 verified complete, tests 25/25)
+3-layer kill abhi: `PLATFORM_DIAL_DAILY=0` (VPS .env — env explicit 0 = FINAL, file override nahi kar sakta) + `data/platform_dial.json enabled:false` + scheduler override paused. Safeguards jo pehle se built: dial_gate allowlist (fail-closed default ON) · in-call IVR-strike → call_feedback blocklist · call_qualifier bot-gate (qualified force-false on IVR-suspect/min-3-turns) · phone-type gate · learned prefix-block · `PLATFORM_DIAL_LIMIT` cap · place_call me gate (error = promotional block).
+**Stage 1 (allowlist test):** USER apna mobile `data/dial_test_mode.json` `numbers` me daale (ya `DIAL_TEST_ALLOWLIST` env) → VPS .env `PLATFORM_DIAL_DAILY` unset/=1 (USER-only edit) → `data/platform_dial.json {"enabled":true,"limit":3}` → scheduler override un-pause. Test-mode ON hi rehta = batch SIRF allowlist numbers dial karega; user khud agent ki quality sune. `scripts/agent_tester.py` scorecard bhi le (§6 DoD).
+**Stage 2 (real):** recordings/scorecard OK + USER final "go" → `data/dial_test_mode.json {"enabled":false}` → real prospects, saare gates (DND fail-closed 9am-7pm window, blocklist, phone-type, cap) active. Rollback kabhi bhi: `PLATFORM_DIAL_DAILY=0` (1 env var, instant).
+NOTE: calling window code-conservative 9am–7pm; DLT approved hai (2026-07-14) — cold outbound legal-side clear.

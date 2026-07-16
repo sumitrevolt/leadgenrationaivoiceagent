@@ -594,19 +594,47 @@ async def run_daily_content() -> dict[str, Any]:
             try:
                 items = await generate_for_client(client)
                 added, added_items = _append_items_detailed(cid, items)
-                if added and (
-                    os.environ.get("CONTENT_APPROVAL_AUTO", "0").strip().lower()
-                    in ("1", "true", "yes")
-                    or str(prefs.get("approval_mode") or "") == "review"
-                ):
+                # Own-brand OR customer explicit approval_mode=auto (prefs honored):
+                # skip human backlog — mark approved + enqueue when engine on.
+                mode = str(prefs.get("approval_mode") or "").strip().lower()
+                hands_free = bool(
+                    added
+                    and added_items
+                    and (cid == _SELF_CLIENT_ID or mode == "auto")
+                )
+                if hands_free:
                     try:
-                        from app.marketing import content_approval
+                        from app.social_engine import engine as _se
 
-                        # Only newly appended rows — never re-submit already-queued seed items.
                         for it in added_items[:5]:
-                            content_approval.submit(cid, it)
+                            mark_item(cid, str(it.get("id") or ""), "approved")
+                            if _se.enabled():
+                                caption_text = str(it.get("caption") or it.get("title") or "")
+                                if caption_text:
+                                    hashtags = " ".join(
+                                        f"#{h.lstrip('#')}" for h in (it.get("hashtags") or [])[:5]
+                                    )
+                                    full_caption = f"{caption_text}\n\n{hashtags}".strip()
+                                    _se.enqueue_publish(
+                                        cid, caption=full_caption, media_type="image"
+                                    )
                     except Exception as e:
-                        logger.debug(f"[auto_content] approval auto-submit skip: {e}")
+                        logger.debug(f"[auto_content] hands-free publish bridge skip: {e}")
+                elif added and added_items and mode not in ("draft", "auto"):
+                    # review (prefs) OR CONTENT_APPROVAL_AUTO — never draft/auto here.
+                    should_submit = (
+                        os.environ.get("CONTENT_APPROVAL_AUTO", "0").strip().lower()
+                        in ("1", "true", "yes")
+                        or mode == "review"
+                    )
+                    if should_submit:
+                        try:
+                            from app.marketing import content_approval
+
+                            for it in added_items[:5]:
+                                content_approval.submit(cid, it)
+                        except Exception as e:
+                            logger.debug(f"[auto_content] approval auto-submit skip: {e}")
                 if not added:
                     # Aaj ke sab items dedupe ne block kiye (queue dry-ish) —
                     # evergreen recycling se purana top content re-share karo.
@@ -906,9 +934,9 @@ def enqueue_approved(client_id: str, content: dict[str, Any], approval_id: str =
         }
         added = _append_items(client_id, [item]) > 0
         # H5: approved content → social_engine publish queue (GATED SOCIAL_ENGINE).
-        # Text-only bridge: caption posted to configured channels (Telegram/Postiz).
-        # Media URL skipped — visual posts (SVG/video) get separate video_ad_cycle path.
-        if added and os.environ.get("SOCIAL_ENGINE", "0").strip().lower() in ("1", "true", "yes"):
+        # Use engine.enabled() (env OR data/social_engine.json) — env-only guard used to
+        # block admin JSON-file activation (audit 2026-07-17 F3).
+        if added:
             try:
                 from app.social_engine import engine as _se
 

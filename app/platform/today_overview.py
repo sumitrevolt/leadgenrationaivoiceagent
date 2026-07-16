@@ -238,6 +238,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Approval email sweep (hourly :40)",
         "kya": "Pending-approval email reminders bhejta hai (gated APPROVAL_EMAIL_NOTIFY, off by default)",
     },
+    "social_drain": {
+        "label": "Social queue drain (hourly :10)",
+        "kya": "Queued social posts Postiz/X pe publish karta hai (gated SOCIAL_ENGINE)",
+    },
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason).
