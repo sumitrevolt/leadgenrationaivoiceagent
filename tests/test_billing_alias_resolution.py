@@ -60,6 +60,34 @@ def test_dedup_and_garbage_aliases(monkeypatch):
     ]
 
 
+def test_ev_enum_or_str_never_raises():
+    """ADR-106 addendum: prod DB had payment_gateway='upi' as a PLAIN STRING
+    (manual UPI activation), so `.value` 500'd the first-ever real subscription
+    response. `_ev()` must handle enum, str, and None."""
+    import enum
+
+    class S(enum.Enum):
+        ACTIVE = "active"
+
+    assert billing_api._ev(S.ACTIVE) == "active"
+    assert billing_api._ev("upi") == "upi"
+    assert billing_api._ev(None) is None
+
+
+def test_no_direct_dot_value_on_subscription_fields():
+    import inspect
+
+    src = inspect.getsource(billing_api)
+    for bad in (
+        "subscription.status.value",
+        "subscription.billing_cycle.value",
+        "subscription.payment_gateway.value",
+        "sub.status.value",
+        "inv.status.value",
+    ):
+        assert bad not in src, f"{bad} regressed — use _ev() (str-safe)"
+
+
 def test_every_where_clause_uses_alias_resolution():
     """Regression guard: no customer-facing billing WHERE clause may compare
     client_id by direct equality again (that is the exact bug shipped)."""
