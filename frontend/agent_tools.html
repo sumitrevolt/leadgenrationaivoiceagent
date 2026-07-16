@@ -39,7 +39,8 @@ label{font-size:.78rem;color:var(--mut);display:block;margin:8px 0 3px}
 <body>
 <div style="background:linear-gradient(135deg,#080c18,#0d1629);padding:10px 18px;display:flex;align-items:center;border-bottom:1px solid rgba(99,120,199,.15)"><a href="/app/admin" style="font-weight:700;font-size:14px;color:#e2e8f0;text-decoration:none">LeadGen AI</a><div style="flex:1"></div><span class="ao-topbar-status"><span class="dot"></span>AI Active</span></div>
 <h1>🛠 Agent Tools</h1>
-<div class="sub">17 agent-ext capabilities (Kilo · OpenCode · Ruflo · Hermes) ka admin cockpit. Saare flag-gated; <span class="badge sa">SA</span> = super-admin only.</div>
+<div class="sub">17 agent-ext capabilities (Kilo · OpenCode · Ruflo · Hermes) ka admin cockpit. Mixed: kuch tools always-on (admin), power tools flag-gated; <span class="badge sa">SA</span> = super-admin only.</div>
+<div id="extFlagsBanner" class="card" style="margin:10px 0 14px;padding:10px 12px;font-size:.82rem;color:var(--mut)">⏳ Flag status…</div>
 <div class="row">
   <input id="tokin" type="password" placeholder="Admin token (login se auto)" style="width:300px">
   <button class="btn ghost" onclick="saveTok()">Save token</button>
@@ -157,14 +158,16 @@ label{font-size:.78rem;color:var(--mut);display:block;margin:8px 0 3px}
 
   <section id="sec-agentos" class="tabsec"><div class="card">
     <h2>🧭 Agent OS + OmniRoute Status</h2>
-    <div class="d">Read-only operator view (ADR-109). Green flags ≠ customer traffic. Provider keys yahan dikhte nahi — dashboard me aap khud enter karte ho. VPS pe dono OmniRoute flags OFF hi healthy default hai.</div>
+    <div class="d">Read-only operator view (ADR-109). Green flags ≠ customer traffic. Provider keys yahan dikhte nahi — dashboard me aap khud enter karte ho. VPS pe dono OmniRoute flags OFF hi healthy default hai. Daily HQ: <a href="/app/automation" style="color:var(--acc)">/app/automation</a> · <a href="/app/control-center" style="color:var(--acc)">/app/control-center</a></div>
     <div class="row">
       <button class="btn" onclick="loadAgentOs()">Refresh status</button>
       <a class="mut" style="font-size:.8rem" href="/app/office" target="_blank">Operating HQ ↗</a>
       <a class="mut" style="font-size:.8rem" href="/app/control-center" target="_blank">Control Center ↗</a>
+      <a class="mut" style="font-size:.8rem" href="/app/automation" target="_blank">Mission Control ↗</a>
     </div>
     <div id="agentos-summary" class="mut" style="margin-top:8px;font-size:.85rem">—</div>
-    <pre id="o-agentos">—</pre>
+    <div id="agentos-table" style="margin-top:10px;overflow:auto;max-height:420px">—</div>
+    <pre id="o-agentos" style="margin-top:10px">—</pre>
   </div></section>
 
   <section id="sec-cap" class="tabsec"><div class="card">
@@ -269,6 +272,30 @@ function loadAgentOs(){
         + ' hook_armed='+!!o.agents_hook_armed;
       var el = $('agentos-summary');
       if(el) el.textContent = sum;
+      var tbl = $('agentos-table');
+      if(tbl){
+        var rows = (d && d.agents) || [];
+        var h = '<table style="width:100%;border-collapse:collapse;font-size:.78rem"><thead><tr>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Agent</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Privacy</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Contact</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Publish OK?</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">OmniRoute</th>'
+          + '<th style="text-align:left;padding:4px;border-bottom:1px solid #2a2f3e">Queue</th>'
+          + '</tr></thead><tbody>';
+        rows.forEach(function(a){
+          h += '<tr>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.name||a.key||'')+' <span class="mut">'+(a.key||'')+'</span></td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.privacy_class||'—')+'</td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.may_contact_customers?'yes':'no')+'</td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.requires_human_approval_before_publish?'human':'auto-ok')+'</td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.omniroute_eligible?'eligible':'forbidden')+'</td>'
+            + '<td style="padding:4px;border-bottom:1px solid #1a1e28">'+(a.queue||'—')+'</td>'
+            + '</tr>';
+        });
+        h += '</tbody></table>';
+        tbl.innerHTML = rows.length ? h : '<div class="mut">No agents</div>';
+      }
       return d;
     });
   });
@@ -286,6 +313,16 @@ function runBrowser(){call('o-browser',function(){return api('/api/agents-ext/br
 
 // boot: prefill token field (masked) if present
 if(tok())$('tokin').placeholder='token saved ✓ (login se)';
+(function loadExtFlagsBanner(){
+  var el=$('extFlagsBanner'); if(!el||!tok()){ if(el) el.textContent='Token save karo — phir flag status dikhega.'; return; }
+  api('/api/agents-ext/status').then(function(d){
+    var chip=function(k,on,note){ return '<span class="badge '+(on?'ok':'')+'" style="margin-right:6px">'+(on?'🟢 ':'⚪ ')+k+(on?' ON':' OFF')+(note?' · '+note:'')+'</span>'; };
+    el.innerHTML = chip('BATCH_HARNESS', !!d.batch_harness, 'info-only gate')
+      + chip('CODE_EXEC', !!d.code_exec, 'SA')
+      + chip('BROWSER', !!d.browser_tools, 'SA')
+      + ' <span class="mut">· search/review etc admin-auth pe chal sakte (master AGENTS_EXT alag)</span>';
+  }).catch(function(e){ el.textContent='Flag status fail: '+(e&&e.message||'auth?'); });
+})();
 </script>
 </body>
 </html>

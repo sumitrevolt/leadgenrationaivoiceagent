@@ -408,7 +408,7 @@ function blankOverview(){
       queue:{depth:0,dlq:0}, heartbeat:{up:0,total:0}, llm:{ok_rate:null,primary:''} },
     staff:[], jobs:[], flags_off:[], activation:{ready_for_paid:null,blockers:[]},
     eval_gate:{status:'',regression:null}, providers:[],
-    cost:{available:false, note:'instrument pending'}
+    cost:{available:false, note:'set LLM_BUDGET_GUARD=1', tokens_today:null, calls_today:null, budget_guard_enabled:false}
   };
 }
 
@@ -440,12 +440,54 @@ function loadOverview(){
     if (primary) { STATE.overview = primary; STATE.hasToken = true; STATE.liveAt = Date.now(); return; }
     return fanoutFallback(bases);
   }).then(function(){
+    return attachAgentOsWiring();
+  }).then(function(){
     STATE.fetching = false; STATE.loaded = true;
     render(); renderMetrics();
   }).catch(function(){
     STATE.fetching = false; STATE.loaded = true;
     render(); renderMetrics();
   });
+}
+
+// Agent OS / OmniRoute wiring strip — daily HQ pe dikhao (ADR-109). Fail-open.
+function attachAgentOsWiring(){
+  if (!STATE.token || !STATE.overview) return Promise.resolve();
+  var bases = getApiBases();
+  var ch = Promise.resolve(null);
+  bases.forEach(function(b){
+    ch = ch.then(function(got){
+      if (got) return got;
+      return fetchJSON(b + '/api/platform/office/agent-os-status', {token:STATE.token, ttl:0, timeout:9000})
+        .then(function(j){ STATE.liveBase = b; return j; })
+        .catch(function(){ return null; });
+    });
+  });
+  return ch.then(function(aos){
+    if (aos && STATE.overview) STATE.overview.agent_os = aos;
+  }).then(function(){
+    return attachCostAndRouteHits();
+  });
+}
+
+// Cost-rollup + route-hits — real APIs (ADR-113). Never invent ₹/$.
+function attachCostAndRouteHits(){
+  if (!STATE.token || !STATE.overview) return Promise.resolve();
+  var base = STATE.liveBase || (getApiBases()[0] || '');
+  var costP = fetchJSON(base + '/api/control-center/cost-rollup', {token:STATE.token, ttl:0, timeout:9000})
+    .then(function(j){ STATE.overview.cost_rollup = j; if (j && STATE.overview.cost) {
+      STATE.overview.cost.available = !!j.available;
+      STATE.overview.cost.note = j.note || STATE.overview.cost.note;
+      STATE.overview.cost.tokens_today = j.tokens_today;
+      STATE.overview.cost.calls_today = j.calls_today;
+      STATE.overview.cost.budget_guard_enabled = !!j.budget_guard_enabled;
+      STATE.overview.cost.by_provider = j.by_provider || [];
+    }})
+    .catch(function(){ return null; });
+  var hitsP = fetchJSON(base + '/api/control-center/route-hits', {token:STATE.token, ttl:0, timeout:9000})
+    .then(function(j){ STATE.overview.route_hits = j; })
+    .catch(function(){ return null; });
+  return Promise.all([costP, hitsP]);
 }
 
 // fan out to REAL existing endpoints (Promise.allSettled, partial is fine)
@@ -769,6 +811,30 @@ function renderL1(){
     }
     html += panelClose();
 
+    // Agent OS / OmniRoute wiring (read-only; VPS INERT = healthy default)
+    html += panelOpen('Agent OS / OmniRoute', '🧭', liveBadge());
+    var aos = o.agent_os || {};
+    var om = aos.omniroute || {};
+    if (aos.ok) {
+      var hookOn = !!om.agents_hook_armed;
+      var aosCls = hookOn ? 'waiting' : 'healthy';
+      html += '<div class="srow st-' + aosCls + '"><span class="sdot"></span><div class="stx">'
+        + '<div class="stitle">Staff ' + esc(String(aos.staff_count || 0))
+        + ' · OmniRoute eligible ' + esc(String(aos.eligible_for_omniroute || 0))
+        + ' · forbidden ' + esc(String(aos.forbidden_omniroute || 0)) + '</div>'
+        + '<div class="ssub">flags enabled=' + (om.enabled_flag ? 'ON' : 'OFF')
+        + ' agents=' + (om.agents_flag ? 'ON' : 'OFF')
+        + ' key=' + (om.api_key_present ? 'set' : 'no')
+        + ' · hook_armed=' + (hookOn ? 'YES' : 'no')
+        + ' · <a href="/app/agent-tools" style="color:inherit">detail → agent-tools</a></div></div></div>';
+      if (om.prod_note) {
+        html += '<div class="empty-line" style="opacity:.85">' + esc(om.prod_note) + '</div>';
+      }
+    } else {
+      html += '<div class="empty-line">Agent OS status nahi mila — <a href="/app/agent-tools">/app/agent-tools</a> pe Refresh</div>';
+    }
+    html += panelClose();
+
     // Eval gate
     html += panelOpen('Eval gate', '🧪', liveBadge());
     var eg = o.eval_gate || {};
@@ -798,14 +864,40 @@ function renderL1(){
     }
     html += panelClose();
 
-    // Cost — ALWAYS a dashed projection tile (never a $ number)
-    html += '<div class="panel dashed"><div class="panel-h"><span class="ph-t"><span class="pic">💸</span>Cost</span>'
-      + '<span class="lb proj"><span class="d"></span>◌ projection</span></div>'
+    // Cost — tokens/calls from cost-rollup (never ₹/$). Honest when guard OFF.
+    var cost = o.cost || {};
+    var costBig = cost.available
+      ? ((cost.tokens_today != null ? cost.tokens_today : '—') + ' tok · ' + (cost.calls_today != null ? cost.calls_today : '—') + ' calls')
+      : (cost.budget_guard_enabled ? '0 tok · guard ON' : '— · —');
+    var costSub = cost.available
+      ? 'today · free-stack (no ₹/$ figure)'
+      : esc(cost.note || 'set LLM_BUDGET_GUARD=1');
+    html += '<div class="panel' + (cost.available ? '' : ' dashed') + '"><div class="panel-h"><span class="ph-t"><span class="pic">💸</span>Usage (tokens)</span>'
+      + '<span class="lb ' + (cost.available ? 'ok' : 'proj') + '"><span class="d"></span>' + (cost.available ? 'live' : '◌ pending') + '</span></div>'
       + '<div class="panel-b"><div class="cost-tile">'
-      + '<div class="ct-glyph">◌</div>'
-      + '<div class="ct-big">— · —</div>'
-      + '<div class="ct-sub">projection · instrument pending<br>(is platform me cost data nahi — koi rupee/dollar figure nahi)</div>'
+      + '<div class="ct-glyph">' + (cost.available ? '✓' : '◌') + '</div>'
+      + '<div class="ct-big">' + esc(String(costBig)) + '</div>'
+      + '<div class="ct-sub">' + costSub + '</div>'
       + '</div></div></div>';
+
+    // Route hits — unused/hot API view (ROUTE_HIT_COUNTER)
+    var rh = o.route_hits || {};
+    html += panelOpen('Route hits today', '📍', liveBadge());
+    if (rh.enabled && rh.top && rh.top.length) {
+      rh.top.slice(0, 6).forEach(function(row){
+        html += '<div class="srow st-healthy"><span class="sdot"></span><div class="stx">'
+          + '<div class="stitle">' + esc(row.path) + '</div>'
+          + '<div class="ssub">' + esc(String(row.hits)) + ' hits</div></div></div>';
+      });
+      html += '<div class="empty-line mut">' + esc(String(rh.total_paths || 0)) + ' paths tracked</div>';
+    } else {
+      html += '<div class="empty-line">' + esc(rh.note || 'enable ROUTE_HIT_COUNTER=1 to track') + '</div>';
+    }
+    html += panelClose();
+
+    if (o.nav_enabled === false) {
+      html = '<div class="empty-line" style="border:1px dashed #f59e0b;padding:8px;margin-bottom:10px;border-radius:8px">⚠️ CONTROL_CENTER flag OFF — page URL se open hai, nav pe gated. Flip: CONTROL_CENTER=1</div>' + html;
+    }
 
     html += '</div>'; // grid
   }
@@ -966,7 +1058,14 @@ function ccGraphStatusMap(){
   var map = {};
   ['beat','worker','celery','scheduler','ops'].forEach(function(id){ map[id] = infraOk ? 'healthy' : 'failed'; });
   ['free_ai','rag'].forEach(function(id){ map[id] = llmOk ? 'healthy' : 'retry'; });
-  ['events','automation_health','data','data_layer'].forEach(function(id){ map[id] = 'healthy'; });
+  // Honest dead-man: never hardcode automation_health green (fake confidence).
+  var jobs = m.jobs || {};
+  var autoOk = (jobs.issues || 0) === 0 && (jobs.total || 0) > 0;
+  map['automation_health'] = autoOk ? 'healthy' : ((jobs.issues || 0) > 0 ? 'failed' : 'retry');
+  var q = m.queue || {};
+  var dlqN = (q.dlq || 0) + (q.dead || 0);
+    map['events'] = dlqN > 0 ? 'failed' : 'healthy';
+  // data / data_layer stay grey unless we have a direct signal — do not invent healthy
   return map;
 }
 function wireGraphBridge(){

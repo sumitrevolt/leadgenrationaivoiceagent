@@ -879,10 +879,12 @@ async def chat(
 
     # --- OmniRoute optional agent pre-hook (ADR-108, 2026-07-16) -------------
     # Double-gated (OMNIROUTE_ENABLED + OMNIROUTE_AGENTS, dono OFF default = INERT).
-    # SIRF bulk profile — realtime/voice hot-path yahan KABHI nahi aata (latency +
-    # boundary). Fail-open: None/exception = neeche wali existing chain UNCHANGED
-    # chalti hai. Payload omniroute_client.generate() me dobara sanitize hota hai.
-    if prof != "realtime" and os.getenv("OMNIROUTE_AGENTS", "0").strip().lower() in ("1", "true", "yes"):
+    # SIRF explicit bulk profile — realtime/default/other profiles NEVER enter
+    # (ADR contract: bulk-only; `!= realtime` over-routed non-bulk). Fail-open.
+    # Payload omniroute_client.generate() me dobara sanitize hota hai.
+    _omni_agents_on = os.getenv("OMNIROUTE_AGENTS", "0").strip().lower() in ("1", "true", "yes")
+    _omni_gate = prof == "bulk" and _omni_agents_on
+    if _omni_gate:
         try:
             from app.platform.omniroute_client import try_agent_chat
 

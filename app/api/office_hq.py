@@ -301,26 +301,27 @@ async def office_agent_os_status(current_user=Depends(require_admin)):
             })
         base = os.getenv("OMNIROUTE_BASE_URL", "http://127.0.0.1:20128/v1")
         key_set = bool(os.getenv("OMNIROUTE_API_KEY"))
+        omni = {
+            "enabled_flag": omniroute_enabled(),
+            "agents_flag": os.getenv("OMNIROUTE_AGENTS", "0").strip().lower()
+            in ("1", "true", "yes"),
+            "api_key_present": key_set,
+            "available": omniroute_available(),
+            "agents_hook_armed": agents_enabled(),
+            "base_url": base,
+            "task_routes": sorted(_TASK_ROUTES.keys()),
+            "prod_note": (
+                "VPS pe gateway nahi hai — flags OFF rakho jab tak "
+                "OMNIROUTE_BASE_URL + loopback/tunnel na ho."
+            ),
+        }
         return {
             "ok": True,
             "staff_count": len(STAFF),
             "eligible_for_omniroute": eligible,
             "forbidden_omniroute": forbidden,
             "agents": agents,
-            "omniroute": {
-                "enabled_flag": omniroute_enabled(),
-                "agents_flag": os.getenv("OMNIROUTE_AGENTS", "0").strip().lower()
-                in ("1", "true", "yes"),
-                "api_key_present": key_set,
-                "available": omniroute_available(),
-                "agents_hook_armed": agents_enabled(),
-                "base_url": base,
-                "task_routes": sorted(_TASK_ROUTES.keys()),
-                "prod_note": (
-                    "VPS pe gateway nahi hai — flags OFF rakho jab tak "
-                    "OMNIROUTE_BASE_URL + loopback/tunnel na ho."
-                ),
-            },
+            "omniroute": omni,
             "runbook": "/docs path: docs/AGENT_OS_OMNIROUTE_ADMIN_RUNBOOK.md",
         }
     except Exception as e:  # pragma: no cover

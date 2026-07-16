@@ -1,6 +1,6 @@
 """Multi-agent COORDINATOR — free-stack, always-on coordination over the STAFF roster.
 
-Existing pieces (REBUILD NAHI): `team.STAFF` (8-staff roster), `staff.py` (concrete
+Existing pieces (REBUILD NAHI): `team.STAFF` (31-staff roster), `staff.py` (concrete
 capabilities run_ops/qa/trainer/content/email), `supervisor.py` (langgraph routing,
 gated), `staff_supervisor.py` (langgraph-supervisor, heavy/opt-in). GAP = ek
 lightweight coordinator jo bina kisi heavy dep ke poore roster ko orchestrate kare.

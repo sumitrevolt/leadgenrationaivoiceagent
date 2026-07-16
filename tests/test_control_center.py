@@ -17,7 +17,7 @@ def _client():
 
 
 def test_overview_returns_full_contract():
-    """200 + every contract key present; cost.available must be False (no telemetry)."""
+    """200 + every contract key present; cost never fabricates ₹/$ (tokens only)."""
     c = _client()
     r = c.get("/api/control-center/overview")
     assert r.status_code == 200
@@ -31,11 +31,16 @@ def test_overview_returns_full_contract():
         "activation",
         "eval_gate",
         "cost",
+        "nav_enabled",
     ):
         assert key in body, f"missing top-level key: {key}"
     assert body["ok"] is True
-    # cost is ALWAYS unavailable — the project has no cost telemetry, never fabricate.
-    assert body["cost"]["available"] is False
+    # Without LLM_BUDGET_GUARD + tokens, available stays False — never a money figure.
+    cost = body["cost"]
+    assert "available" in cost and "note" in cost
+    assert "instrument pending" not in str(cost.get("note") or "").lower()
+    if not cost.get("budget_guard_enabled"):
+        assert cost["available"] is False
     # metrics sub-shape the frontend depends on
     m = body["metrics"]
     for sub in ("staff", "jobs", "runs", "queue", "heartbeat", "llm"):

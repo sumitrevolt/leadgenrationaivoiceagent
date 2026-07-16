@@ -163,7 +163,9 @@ Details: `docs/omniroute/ROLLBACK.md`.
 | HQ health | `/app/office` | celery + dead counts |
 | Control Center | `/app/control-center` | L1 problems, L4 agents |
 | Automation | `/app/automation` | schedule + approvals + flags |
-| Agent tools | `/app/agent-tools` | tooling; OmniRoute status UI abhi alag |
+| Agent tools | `/app/agent-tools` | Agent OS table + OmniRoute gates (detail) |
+| Automation Aaj | `/app/automation` | Agent OS wiring card (summary) |
+| Control Center | `/app/control-center` | Agent OS / OmniRoute L1 panel |
 | OmniRoute local | `127.0.0.1:20128` | Provider key khud enter |
 | Version | `/health` | SHA ≠ latest |
 | Emergency | flags / Office pause | Ek agent band, system zinda |
@@ -187,7 +189,7 @@ Engineering: code routes, tests, deploy scripts.
 
 ## Honest gaps (do not mark “done”)
 
-- Admin HTML me OmniRoute live badge **abhi nahi** (flags/API se verify).
-- VPS OmniRoute gateway **missing** → prod agent OmniRoute = blocked by infra.
+- OmniRoute status UI LIVE on `/app/agent-tools` + summary on `/app/automation` Aaj + `/app/control-center` L1 (2026-07-16 wiring).
+- VPS OmniRoute gateway **missing** → prod agent OmniRoute = blocked by infra (flags OFF = correct).
 - Per-call `agent_key` free_ai.chat se abhi pass nahi hota (generic `agent_ops`);  
   policy enforce hoti hai jab caller `try_agent_chat(..., agent_key=)` de.

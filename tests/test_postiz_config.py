@@ -158,6 +158,28 @@ async def test_admin_status_reports_effective_env_config(monkeypatch):
     assert out["integrations_source"] == "env"
     assert out["vault_integrations_count"] == 0
     assert out["social_engine_enabled"] is True
+    assert "dry_run" in out
+    assert out["dry_run"] is False
+
+
+async def test_admin_status_reports_dry_run_when_env_set(monkeypatch):
+    """ADR-098 class: dry_run must be visible on status (not omit → fake ready)."""
+    from app.api import growth_automation as ga
+
+    _mock_vault(monkeypatch, integrations="fb1")
+    monkeypatch.setenv("POSTIZ_INTEGRATIONS", "fb1")
+    monkeypatch.setenv("SOCIAL_ENGINE", "1")
+    monkeypatch.setenv("SOCIAL_DRY_RUN", "1")
+
+    out = await ga.social_postiz_status(_user=None)
+    assert out["dry_run"] is True
+    assert out["social_engine_enabled"] is True
+
+
+def test_social_dry_run_in_automation_flags_registry():
+    from app.api.automation_flags import AUTOMATION_FLAGS
+
+    assert "SOCIAL_DRY_RUN" in AUTOMATION_FLAGS
 
 
 async def test_publish_video_preserves_postiz_post_ids(monkeypatch):

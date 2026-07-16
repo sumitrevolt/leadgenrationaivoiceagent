@@ -86,6 +86,17 @@ def test_redis_unreachable_unknown_dlq_dead_does_not_falsely_degrade(tmp_path, m
     assert h["retryable_failed_present"] is False
     assert h["ok"] is True
     assert h["status"] in ("healthy", "warming_up")
+    # ADR-114: surface unknown honestly so UI does not paint celery/dlq as 0.
+    assert h["queue_available"] is False
+
+
+def test_queue_available_true_when_redis_answers(tmp_path, monkeypatch):
+    _empty_beats(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 0, "dead": 0}
+    )
+    h = ah.health()
+    assert h["queue_available"] is True
 
 
 def test_both_dead_and_retryable_failed_present_still_single_degraded_status(

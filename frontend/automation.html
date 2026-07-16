@@ -758,6 +758,12 @@ a{color:var(--acc)}
     <div id="launchBanner" style="margin-top:10px"></div>
     <div id="launchBody" class="mut" style="margin-top:8px">Load karo...</div>
   </div>
+  <div class="card" style="margin-top:14px;border-color:#2a4a5b">
+    <h2>🧭 Agent OS + OmniRoute wiring</h2>
+    <div class="mut">31 staff governance + OmniRoute gates (read-only). VPS pe flags OFF = healthy default. Detail table: <a href="/app/agent-tools" style="color:var(--acc)">/app/agent-tools</a> · <a href="/app/control-center" style="color:var(--acc)">Control Center</a></div>
+    <button class="btn2" onclick="aosLoad()">🔄 Refresh Agent OS</button>
+    <div id="aosOut" class="mut" style="margin-top:8px">Aaj load pe auto-refresh…</div>
+  </div>
   <div class="card" style="margin-top:14px">
     <h2>⚡ Speed-to-Lead</h2>
     <div class="mut">Inquiry aane ke baad pehla touch kitni der me? 2-min target = 21x conversion.
@@ -2591,13 +2597,18 @@ var JOB_DESC={
 async function scLoad(){
   try{
     var d=await api('/api/platform/team/scheduler');
+    var ah=null;
+    try{ ah=await api('/api/growth/infra/automation-health'); }catch(_ah){ ah=null; }
     var q=d.queue||{};
     var ok=String(d.status||'')==='ok'||String(d.status||'')==='healthy';
-    var ov=(d.overdue||[]);
+    var ov=(d.overdue||[]).slice();
+    if(ah&&Array.isArray(ah.overdue)){
+      ah.overdue.forEach(function(j){ if(ov.indexOf(j)<0) ov.push(j); });
+    }
     var banner=ok&&!ov.length
       ?'<div class="ok" style="font-size:15px;margin-bottom:8px">✅ Sab automations time pe chal rahe hain — koi action nahi chahiye.</div>'
       :'<div class="bad" style="font-size:15px;margin-bottom:8px">⚠️ Dhyan do: '+(ov.length?esc(ov.join(', '))+' job(s) time pe nahi chale.':'system status '+esc(d.status||'?'))+' Neeche table me red row dekho.</div>';
-    var h='<div class="result">'+banner+pills({status:d.status,overdue:ov.join(', ')||'none',queue_celery:q.celery,dlq:q.dlq});
+    var h='<div class="result">'+banner+pills({status:d.status,overdue:ov.join(', ')||'none',queue_celery:q.celery,dlq:q.dlq,dead_man:(ah&&ah.overdue&&ah.overdue.length)?ah.overdue.length:0});
     h+='<table><tr><th>Job</th><th>Kya karta hai</th><th>Kab (IST)</th><th>Last run (IST)</th><th>Took</th><th>Status</th><th>Auto</th><th></th></tr>';
     (d.jobs||[]).forEach(function(j){
       var st=String(j.status||'');
@@ -2808,7 +2819,7 @@ async function srProspect(){
   busy('srProsBtn',0);
 }
 // Safety-critical flags — alag highlight (governance/ban-risk). automation-flags skill.
-var SR_SAFETY=['LLM_BUDGET_HARD_KILL','LLM_BUDGET_GUARD','PUBLIC_GUARDRAILS','WHATSAPP_AUTO_SEND','AGENT_MEMORY','SEMANTIC_CACHE'];
+var SR_SAFETY=['LLM_BUDGET_HARD_KILL','LLM_BUDGET_GUARD','PUBLIC_GUARDRAILS','WHATSAPP_AUTO_SEND','VOICE_CLOSE_WHATSAPP','PLATFORM_DIAL_DAILY','OMNIROUTE_ENABLED','OMNIROUTE_AGENTS','REPLY_AUTO_SEND_HARD_OFF','SOCIAL_DRY_RUN','AGENT_MEMORY','SEMANTIC_CACHE'];
 async function srFlags(){
   try{
     var d=await api('/api/growth/infra/flags');
@@ -3115,9 +3126,27 @@ async function launchLoad(){
 }
 
 /* ---------------- 0. Aaj (plain-Hinglish home) ---------------- */
+async function aosLoad(){
+  try{
+    var d=await api('/api/platform/office/agent-os-status');
+    var o=(d&&d.omniroute)||{};
+    var h='<div class="result">';
+    h+='<span class="pill">Staff <b>'+esc(d.staff_count||0)+'</b></span> ';
+    h+='<span class="pill">OmniRoute eligible <b>'+esc(d.eligible_for_omniroute||0)+'</b></span> ';
+    h+='<span class="pill">forbidden <b>'+esc(d.forbidden_omniroute||0)+'</b></span> ';
+    h+='<span class="pill">'+(o.agents_hook_armed?'⚠️ hook ARMED':'✅ hook inert')+'</span>';
+    h+='<div class="mut" style="margin-top:6px">flags enabled='+!!o.enabled_flag+' · agents='+!!o.agents_flag+' · key='+!!o.api_key_present;
+    if(o.prod_note) h+=' · '+esc(o.prod_note);
+    h+='</div></div>';
+    $('aosOut').innerHTML=h;
+  }catch(e){
+    warnBox('aosOut','Agent OS status fail: '+e.message+' — token check /app/agent-tools');
+  }
+}
 async function tdLoad(){
   try{
     launchLoad();
+    aosLoad();
     var d=await api('/api/growth/overview/today');
     $('tdHead').textContent=d.headline||'🏠 Aaj';
     var ph='';
@@ -3133,7 +3162,7 @@ async function tdLoad(){
     var jh='';
     (d.jobs||[]).forEach(function(j){
       var st=String(j.status||'');
-      var cls=st==='ok'?'ok':(st==='scheduled_off'?'mut':(st==='overdue'||st==='last_failed'||st==='never_ran'?'bad':'warn'));
+      var cls=st==='ok'?'ok':(st==='scheduled_off'||st==='mandate_paused'?'mut':(st==='overdue'||st==='last_failed'||st==='never_ran'?'bad':'warn'));
       jh+='<div style="margin-top:8px;padding-bottom:8px;border-bottom:1px solid var(--line)"><b>'+esc(j.label)+'</b><div class="mut" style="font-size:.8rem">'+esc(j.kya||'')+'</div><div class="'+cls+'">'+esc(j.line)+'</div></div>';
     });
     $('tdJobs').innerHTML=jh||'<div class="mut">Koi job data nahi.</div>';
@@ -3147,7 +3176,7 @@ async function tdLoad(){
     warnBox('tdProblems','Load fail: '+e.message+' — token check karo (upar Save), phir Refresh dabao');
     $('tdStaff').innerHTML='<div class="mut">Team data abhi available nahi.</div>';
     $('tdJobs').innerHTML='<div class="mut">Schedule data abhi available nahi.</div>';
-    $('tdFlags').innerHTML='<div class="mut">Automation flags abhi available nahi.</div>';
+  3150|    $('tdFlags').innerHTML='<div class="mut">Automation flags abhi available nahi.</div>';
   }
 }
 

@@ -733,6 +733,15 @@
       <div id="failureConsoleList"><div class="loading-note">⏳ Loading…</div></div>
     </div>
 
+    <div id="agentOsCard" class="panel-box" style="margin-top:14px">
+      <h3 style="display:flex;align-items:center;gap:8px">
+        🧭 Agent OS / OmniRoute
+        <a href="/app/agent-tools" style="margin-left:auto;font-size:11.5px;font-weight:700"
+          title="Full governance table + agents-ext tools">Full panel →</a>
+      </h3>
+      <div id="agentOsSummary" class="empty-note">⏳ Loading…</div>
+    </div>
+
     <!-- F1 DLQ Repair Desk — mobile-safe entry point (canvas ≤760px hidden hota
          hai, isliye pile-sprite ke alaava yeh card zaroori). Count usi 15s poll
          (renderFailureConsole) se aata hai; card khulne pe drawer full list. -->
@@ -3835,6 +3844,36 @@
   };
   OFFICE.renderScheduler();
   setInterval(function(){ if (!OFFICE.authExpired && !document.hidden) OFFICE.renderScheduler(); }, 60000);
+
+  // Agent OS / OmniRoute read-only strip (ADR-109) — HQ operators need governance
+  // state without leaving /app/office. Full table lives on /app/agent-tools.
+  OFFICE.renderAgentOs = async function(){
+    var el = document.getElementById("agentOsSummary");
+    if (!el) return;
+    try {
+      var r = await fetch("/api/platform/office/agent-os-status", { headers: hdrs() });
+      if (r.status === 401 || r.status === 403) {
+        el.innerHTML = '🔒 Session expire — <a href="/app/admin-login">login</a>.';
+        return;
+      }
+      var d = r.ok ? await r.json() : {};
+      var o = (d && d.omniroute) || {};
+      var hook = o.agents_hook_armed ? "⚠️ hook ARMED" : "✅ hook inert (prod-safe)";
+      el.innerHTML =
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:12.5px">' +
+        '<span><b>' + esc(d.staff_count || 0) + '</b> staff</span>' +
+        '<span>· OmniRoute eligible <b>' + esc(d.eligible_for_omniroute || 0) + '</b></span>' +
+        '<span>· forbidden <b>' + esc(d.forbidden_omniroute || 0) + '</b></span>' +
+        '<span>· ' + hook + '</span></div>' +
+        '<div class="empty-note" style="margin-top:6px">flags enabled=' + !!o.enabled_flag +
+        ' · agents=' + !!o.agents_flag + ' · key=' + !!o.api_key_present +
+        (o.prod_note ? (' · ' + esc(o.prod_note)) : '') + '</div>';
+    } catch (e) {
+      el.innerHTML = '⚠️ Agent OS status load fail — <a href="/app/agent-tools">agent-tools</a> dekho.';
+    }
+  };
+  OFFICE.renderAgentOs();
+  setInterval(function(){ if (!OFFICE.authExpired && !document.hidden) OFFICE.renderAgentOs(); }, 60000);
 
   // ---- Simple/Pro view mode (default = Pro/advanced, full office map) -------
   // Simple: copilot + KPIs + priorities + approvals + health + scheduler + hot

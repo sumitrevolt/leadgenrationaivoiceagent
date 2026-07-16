@@ -334,6 +334,7 @@ async def social_postiz_status(_user=Depends(require_admin)):
     # non-existent misconfiguration. `vault_integrations_count` is kept so the
     # configure endpoint's own write is still observable.
     effective_ids = postiz_publish.effective_integration_ids()
+    dry_run = bool(social_engine._dry_run_enabled())
     return {
         "postiz_configured": postiz_publish.enabled(),
         "api_url_set": bool(postiz_publish.api_url()),
@@ -342,6 +343,8 @@ async def social_postiz_status(_user=Depends(require_admin)):
         "integrations_source": postiz_publish.integrations_source(),
         "vault_integrations_count": len([x for x in vault_integrations.split(",") if x.strip()]),
         "social_engine_enabled": social_engine.enabled(),
+        # ADR-098 class: omit dry_run = status can claim "ready" while publishes are fake.
+        "dry_run": dry_run,
     }
 
 

@@ -67,25 +67,38 @@ class OmniRouteResult:
 
 # Only models proven by a real, sanitized Responses API call belong here. The
 # catalogued Gemini 2.5 Flash entry was rejected upstream as retired on 2026-07-14.
+#
+# 2026-07-16 (fresh WSL Ubuntu-24.04 reinstall, gateway v3.8.48): purane
+# provider-connected model IDs (groq/llama-3.3-70b-versatile, mistral/
+# mistral-small-latest) fresh instance me EXIST nahi karte (providers reconnect
+# nahi hue) — un pe request = 404. User-mandate: OmniRoute ke bundled FREE-token
+# models use karne hain. `auto/coding:free` + `auto/best-free` dono REAL sanitized
+# /v1/responses PONG calls se proven (HTTP 200, output_text + usage sahi shape).
+# Ye auto-aliases hain — gateway khud free pool me se resolve karta hai, isliye
+# kisi ek free provider ke retire hone pe route nahi tootta.
+# 2026-07-16 (same-day update): user ne Groq/Gemini/Mistral providers dashboard me
+# reconnect kar diye — groq/mistral IDs phir se PONG-proven. Config ab hybrid:
+# free auto-alias PRIMARY (free-tokens mandate) + reconnected provider FALLBACK
+# (purana ADR-verified setup restore).
 _TASK_ROUTES: dict[str, OmniRouteRoute] = {
     "leadgen.coding_primary": OmniRouteRoute(
-        primary_model="groq/llama-3.3-70b-versatile",
-        fallback_model="mistral/mistral-small-latest",
-        privacy_class="INTERNAL_SANITIZED",
-    ),
-    "leadgen.coding_fast": OmniRouteRoute(
-        primary_model="groq/llama-3.3-70b-versatile",
-        fallback_model="mistral/mistral-small-latest",
-        privacy_class="INTERNAL_SANITIZED",
-    ),
-    "leadgen.repo_analysis": OmniRouteRoute(
-        primary_model="mistral/mistral-small-latest",
+        primary_model="auto/coding:free",
         fallback_model="groq/llama-3.3-70b-versatile",
         privacy_class="INTERNAL_SANITIZED",
     ),
-    "leadgen.test_generation": OmniRouteRoute(
-        primary_model="groq/llama-3.3-70b-versatile",
+    "leadgen.coding_fast": OmniRouteRoute(
+        primary_model="auto/coding:free",
+        fallback_model="groq/llama-3.3-70b-versatile",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.repo_analysis": OmniRouteRoute(
+        primary_model="auto/best-free",
         fallback_model="mistral/mistral-small-latest",
+        privacy_class="INTERNAL_SANITIZED",
+    ),
+    "leadgen.test_generation": OmniRouteRoute(
+        primary_model="auto/coding:free",
+        fallback_model="groq/llama-3.3-70b-versatile",
         privacy_class="INTERNAL_SANITIZED",
     ),
     # ADR-108 (2026-07-16): staff-agent bulk work (content/analysis/digests) — user
@@ -93,8 +106,8 @@ _TASK_ROUTES: dict[str, OmniRouteRoute] = {
     # (free_ai.chat hook engages only for profile=bulk). Payload is sanitized by
     # generate() (mask_customer_data + validate_no_secrets) before any network call.
     "leadgen.agent_ops": OmniRouteRoute(
-        primary_model="groq/llama-3.3-70b-versatile",
-        fallback_model="mistral/mistral-small-latest",
+        primary_model="auto/best-free",
+        fallback_model="groq/llama-3.3-70b-versatile",
         privacy_class="INTERNAL_SANITIZED",
     ),
 }

@@ -68,8 +68,15 @@ def _defaults() -> dict[str, Any]:
         "eval_gate": {"status": "neutral", "regression": False},
         # Provider chain order if cheaply available, else the live free-stack order.
         "providers": ["mistral", "groq", "cerebras", "gemini"],
-        # The project has NO cost telemetry — never fabricate a number.
-        "cost": {"available": False, "note": "instrument pending"},
+        # Token/usage telemetry lives in budget_guard when LLM_BUDGET_GUARD=1.
+        # Never fabricate ₹/$ — only tokens/calls. Filled in overview handler.
+        "cost": {
+            "available": False,
+            "note": "set LLM_BUDGET_GUARD=1 to capture per-day token usage",
+            "tokens_today": None,
+            "calls_today": None,
+            "budget_guard_enabled": False,
+        },
     }
 
 
@@ -116,17 +123,21 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
         out["metrics"]["jobs"] = {"total": total, "ok": ok, "issues": issues}
 
         q = h.get("queue") or {}
-        # Clamp redis-down sentinel (-1) to 0 so it never surfaces on the dashboard.
-        # ADR-104 Phase F (2026-07-15): "dead" was missing here entirely, so the
-        # L1 Executive Overview's QUEUE/DLQ tile and DLQ/Queue tab could show
-        # "DLQ 0 · Queue clean" while dlq:dead held retry-exhausted tasks
-        # needing manual attention (same family as the office_map.html /
-        # delivery_command_center.html fixes earlier this session, but here
-        # the API response itself dropped the field, not just the frontend).
+        queue_available = h.get("queue_available")
+        if queue_available is None:
+            queue_available = all(int(q.get(k, 0) or 0) >= 0 for k in ("celery", "dlq", "dead"))
+        # Redis-unknown (-1) must NOT become 0 on the dashboard (ADR-114 false-green).
+        def _q(key: str) -> int | None:
+            v = int(q.get(key, -1) if q.get(key) is not None else -1)
+            if not queue_available or v < 0:
+                return None
+            return v
+
         out["metrics"]["queue"] = {
-            "depth": max(0, int(q.get("celery", 0) or 0)),
-            "dlq": max(0, int(q.get("dlq", 0) or 0)),
-            "dead": max(0, int(q.get("dead", 0) or 0)),
+            "depth": _q("celery"),
+            "dlq": _q("dlq"),
+            "dead": _q("dead"),
+            "available": bool(queue_available),
         }
         # heartbeat: health() has no heartbeat object → derive. up = jobs that are
         # neither overdue nor never_ran (i.e. have a live recent beat).
@@ -203,6 +214,28 @@ async def control_center_overview(_user=Depends(require_admin)) -> dict[str, Any
         runs = flow_dispatch.list_runs(50) or []
         running = sum(1 for r in runs if r.get("status") == "running")
         out["metrics"]["runs"] = {"total": len(runs), "running": running}
+    except Exception:
+        pass
+
+    # ---- 7) cost honesty — same source as /cost-rollup (no ₹/$ ever) ----
+    try:
+        from app.llm import budget_guard
+
+        bg = await budget_guard.redis_stats() or {}
+        enabled = bool(bg.get("enabled"))
+        gtokens = int(bg.get("global_tokens") or 0)
+        gcalls = int(bg.get("global_calls") or 0)
+        out["cost"]["budget_guard_enabled"] = enabled
+        if enabled:
+            out["cost"]["tokens_today"] = gtokens
+            out["cost"]["calls_today"] = gcalls
+            if gtokens > 0:
+                out["cost"]["available"] = True
+                out["cost"]["note"] = ""
+            else:
+                out["cost"]["note"] = "LLM_BUDGET_GUARD on — aaj abhi 0 tokens captured"
+        else:
+            out["cost"]["note"] = "set LLM_BUDGET_GUARD=1 to capture per-day token usage"
     except Exception:
         pass
 

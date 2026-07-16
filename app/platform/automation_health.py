@@ -69,6 +69,7 @@ EXPECTED_GAP_MIN = {
     "platform_dial": 30 * 60,  # daily 11:30 IST: self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
     "call_kpi_digest": 30 * 60,  # daily 19:30 IST: Lekha call-KPI digest
     "product_one_health": 180,  # hourly :20 (2026-07-08): Product 1 Customer Health/Approval Reminder/SLA Recovery sweep, 3h grace like meter_watch
+    "approval_email_sweep": 180,  # hourly pending-approval EMAIL (gated APPROVAL_EMAIL_NOTIFY); was scheduled but missing from dead-man
 }
 
 
@@ -263,6 +264,24 @@ def health() -> dict[str, Any]:
     never_ran: list[str] = []
     for job, gap_min in EXPECTED_GAP_MIN.items():
         b = beats.get(job)
+        # User mandate HARD OFF (CLAUDE §5): platform_dial must not cry wolf as
+        # never_ran/overdue while intentionally killed. Surface mandate_paused.
+        if job == "platform_dial":
+            try:
+                from app.platform import platform_dial as _pd
+
+                if not _pd.enabled():
+                    jobs.append(
+                        {
+                            "job": job,
+                            "last_run": (b or {}).get("at") if b else None,
+                            "status": "mandate_paused",
+                            "note": "PLATFORM_DIAL HARD OFF (user mandate)",
+                        }
+                    )
+                    continue
+            except Exception:
+                pass
         if not b and (not _job_due_today(job) or not _job_due_yet(job)):
             jobs.append(
                 {
@@ -296,6 +315,9 @@ def health() -> dict[str, Any]:
         except Exception:
             jobs.append({"job": job, "status": "unknown"})
     q = queue_depth()
+    # Redis unreachable → depths stay -1. Must NOT read as healthy/empty queues
+    # on the UI (false-green zeros). Do NOT use `v or -1` — 0 is a valid depth.
+    queue_unknown = any(int(q.get(k, -1)) < 0 for k in ("celery", "heavy", "dlq", "dead"))
     backlogged = (
         q.get("celery", -1) > QUEUE_BACKLOG_ALERT or q.get("heavy", -1) > QUEUE_BACKLOG_ALERT
     )
@@ -328,10 +350,13 @@ def health() -> dict[str, Any]:
                 _obs_detail = "staging dir missing"
     except Exception as e:
         _obs_detail = str(e)[:100]
+    unhealthy = bool(
+        overdue or backlogged or dead_present or retryable_failed_present
+    )
     return {
         "status": (
             "degraded"
-            if (overdue or backlogged or dead_present or retryable_failed_present)
+            if unhealthy
             else ("warming_up" if never_ran else "healthy")
         ),
         # Explicit boolean truth for consumers — pehle sirf `status` string tha, jisse
@@ -340,10 +365,13 @@ def health() -> dict[str, Any]:
         # additive `ok` = degraded ka inverse (warming_up abhi-boot = ok, alarm nahi).
         # Phase B (2026-07-15): dead/retryable_failed ab isi inverse me shaamil —
         # dead tasks ya stuck DLQ failures ho to `ok` False hona CHAHIYE.
-        "ok": not (overdue or backlogged or dead_present or retryable_failed_present),
+        # ADR-114: Redis unknown (-1) does NOT force ok=False (ADR-104 contract) —
+        # but queue_available=false so UI must not paint DLQ/celery as 0.
+        "ok": not unhealthy,
         "overdue": overdue,
         "never_ran": never_ran,
         "queue": q,
+        "queue_available": not queue_unknown,
         "queue_backlogged": backlogged,
         "dead_tasks_present": dead_present,
         "retryable_failed_present": retryable_failed_present,
