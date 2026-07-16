@@ -912,7 +912,22 @@ function renderStub(title, desc, href, btn){
 // L2 — STACK GRAPH (Sigma + ELK WebGL engine, iframe-embedded)
 // ════════════════════════════════════════════════════════════════
 var _ccGraphWired = false;
+var _ccGraphWatch = null;
+function showL2EmbedIssue(detail){
+  var box = el('cc-graph-issue');
+  if (!box) return;
+  box.style.display = 'block';
+  box.innerHTML = '<strong style="color:var(--bad)">L2 graph load issue</strong>'
+    + '<div style="margin-top:4px;color:var(--mut);font-size:12px">' + esc(String(detail || 'unknown')) + '</div>'
+    + '<div style="margin-top:8px"><a href="/app/explorer" target="_blank" rel="noopener" style="color:#60a5fa">Old Explorer ↗ open karo</a>'
+    + ' — architecture map wahan working fallback hai.</div>';
+}
+function clearL2EmbedIssue(){
+  var box = el('cc-graph-issue');
+  if (box){ box.style.display = 'none'; box.innerHTML = ''; }
+}
 function renderL2(){
+  if (_ccGraphWatch) { try { clearTimeout(_ccGraphWatch); } catch(e){} _ccGraphWatch = null; }
   var c = el('canvas');
   c.innerHTML = '<div style="display:flex;flex-direction:column;height:100%;min-height:520px">'
     + '<div style="display:flex;align-items:center;gap:8px;padding:0 2px 8px;font-size:12px">'
@@ -921,14 +936,23 @@ function renderL2(){
     +   '<span style="color:var(--mut)">node click → inspector</span>'
     +   '<a href="/app/explorer" target="_blank" rel="noopener" style="margin-left:auto;color:#60a5fa;text-decoration:none">Old explorer ↗</a>'
     + '</div>'
+    + '<div id="cc-graph-issue" role="alert" style="display:none;margin:0 0 8px;padding:10px 12px;border:1px solid var(--bad);border-radius:8px;background:rgba(239,68,68,.08)"></div>'
     + '<iframe id="cc-graph-frame" src="/app/control-center/graph" title="Architecture graph" '
     +   'style="flex:1;width:100%;min-height:480px;border:1px solid var(--bd);border-radius:10px;background:#0a0a0c"></iframe>'
     + '</div>';
+  clearL2EmbedIssue();
   var frame = el('cc-graph-frame');
   if (frame) frame.addEventListener('load', function(){
     var map = ccGraphStatusMap();
     if (map) { try { frame.contentWindow.postMessage({ type:'cc-status', map: map }, '*'); } catch(e){} }
   });
+  // Watchdog: if child never posts ready/error (XFO/CSP blank frame), surface truth.
+  _ccGraphWatch = setTimeout(function(){
+    var issue = el('cc-graph-issue');
+    if (issue && issue.style.display === 'none') {
+      showL2EmbedIssue('Graph iframe ne 12s me ready signal nahi bheja (blank/blocked frame?). Old Explorer fallback use karo.');
+    }
+  }, 12000);
   wireGraphBridge();
 }
 // Honest live-status overlay: only nodes with a DIRECT runtime signal get a
@@ -950,7 +974,19 @@ function wireGraphBridge(){
   _ccGraphWired = true;
   window.addEventListener('message', function(ev){
     var d = ev && ev.data;
-    if (!d || d.type !== 'cc-node' || !d.node) return;
+    if (!d || !d.type) return;
+    if (d.type === 'cc-graph-ready') {
+      if (_ccGraphWatch) { try { clearTimeout(_ccGraphWatch); } catch(e){} _ccGraphWatch = null; }
+      if ((d.nodes || 0) > 0) clearL2EmbedIssue();
+      else showL2EmbedIssue('Graph ready par 0 nodes — dataset empty. Old Explorer dekho.');
+      return;
+    }
+    if (d.type === 'cc-graph-error') {
+      if (_ccGraphWatch) { try { clearTimeout(_ccGraphWatch); } catch(e){} _ccGraphWatch = null; }
+      showL2EmbedIssue(d.detail || 'Graph engine failed');
+      return;
+    }
+    if (d.type !== 'cc-node' || !d.node) return;
     var n = d.node;
     var rows = [['Type', n.ntype], ['Badge', n.badge], ['View', n.view], ['Files', n.files], ['Status', n.status || 'curated']];
     var html = '<div style="font-size:12px;color:var(--mut);line-height:1.7">';

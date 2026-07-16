@@ -1571,9 +1571,19 @@ async def control_center_page():
     return FileResponse(str(FRONTEND_DIR / "control_center.html"))
 
 
-@app.get("/app/control-center/graph", tags=["Frontend"])
+@app.api_route(
+    "/app/control-center/graph",
+    methods=["GET", "HEAD"],
+    tags=["Frontend"],
+    name="control_center_graph_page",
+)
 async def control_center_graph_page():
-    """Control Center L2 — Sigma.js + ELK WebGL architecture graph (iframe-embedded)."""
+    """Control Center L2 — Sigma.js + ELK WebGL architecture graph (iframe-embedded).
+
+    HEAD is explicit: some probes issue HEAD and a GET-only registration
+    returned FastAPI 404 JSON while GET was fine — iframe uses GET, but HEAD
+    404 confused operators during L2 blank-canvas triage.
+    """
     return FileResponse(str(FRONTEND_DIR / "control_center_graph.html"))
 
 

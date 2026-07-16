@@ -1,6 +1,19 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-16 (L2 Stack graph — restore + truthful embed)
+Goal: `/app/control-center` L2 architecture graph empty/broken restore; Old Explorer fallback preserve; production-ready evidence.
+Inspected: progress/memory · Graphify control-center/L2 · middleware XFO · `control_center.html`/`control_center_graph.html` · live GET/HEAD headers · Playwright parent iframe + standalone graph.
+Problems Found: (1) Historical root cause = `X-Frame-Options: DENY` on graph iframe (ADR-104 `5d4b9fe`) — already in prod lineage; live GET now `SAMEORIGIN` + `frame-ancestors 'self'`. (2) Browser smoke BEFORE this patch: iframe already rendered **46 nodes · 101 edges** (so blank was largely pre-fix/stale ledger). (3) Remaining real gap: **HEAD /app/control-center/graph → 404** while GET 200 (probe confusion). (4) Parent shell had no truthful embed-failure surface if iframe went blank again.
+Changed: `app/main.py` (GET+HEAD graph route) · `frontend/control_center_graph.html` (`cc-graph-ready`/`cc-graph-error` postMessage) · `frontend/control_center.html` (issue banner + Old Explorer + 12s watchdog) · `tests/test_l2_stack_graph_contract.py` NEW.
+Tests Run: test_l2_stack_graph_frame_headers + test_l2_stack_graph_contract → **10 passed** · prod_check ALL PASSED · secrets CLEAN · duplicate graph route count=1.
+Verification Evidence (pre-deploy baseline): Playwright iframe `#/stack` → 46 nodes/101 edges, canvas present, page errors [] · Old Explorer link present · GET XFO SAMEORIGIN. Post-deploy evidence appended after ship.
+Risks: 12s watchdog can false-positive on very slow ELK layouts (rare); PostHog script still CSP-blocked (unrelated noise).
+Remaining: Owner YouTube OAuth · Unity WebGL local-only.
+Next Highest Priority: Deploy this SHA + re-run Playwright iframe smoke proving ready postMessage clears issue banner.
+Final Verdict: pending deploy proof.
+
+## Loop Run
 Date: 2026-07-16 (SHIP — invoices/logout/deploy-safety → production)
 Goal: Ship alias-aware invoice merge, customer logout revoke, deploy SHA/pull abort to live prod with verified evidence.
 Inspected: Git intended-only audit · gates (pytest/prod_check/secrets) · VPS drift (dirty data/* preserved, no reset --hard) · platform_dial HARD-OFF · deploy logs dep.log + dep2.log.

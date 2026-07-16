@@ -569,6 +569,26 @@ const EDGE_COLORS = { sync:'#3a4453', async:'#3b6fa8', loop:'#8a5fc0', opt:'#5a4
     if (loadingEl) loadingEl.classList.add('hidden');
     if (errEl){ errEl.classList.add('vis'); const d=$('eb-detail'); if(d) d.textContent = String(detail||''); }
     try { console.error('[L2 graph] load failed:', detail); } catch(e){}
+    // Tell parent Control Center so the shell can show a truthful empty/error
+    // state + Old Explorer fallback (silent iframe blank was the old failure mode).
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'cc-graph-error', detail: String(detail || 'unknown') }, '*');
+      }
+    } catch (e) {}
+  }
+
+  function notifyReady(g){
+    try {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          type: 'cc-graph-ready',
+          nodes: g && typeof g.order === 'number' ? g.order : 0,
+          edges: g && typeof g.size === 'number' ? g.size : 0,
+          view: currentView
+        }, '*');
+      }
+    } catch (e) {}
   }
 
   if (!GraphCtor || !SigmaCtor || !ElkCtor){
@@ -756,6 +776,7 @@ const EDGE_COLORS = { sync:'#3a4453', async:'#3b6fa8', loop:'#8a5fc0', opt:'#5a4
 
     // counts
     $('counts').innerHTML = '<b>' + g.order + '</b> nodes · <b>' + g.size + '</b> edges';
+    notifyReady(g);
     // a11y summary
     $('a11y-summary').textContent =
       'Now showing ' + VIEWS[viewKey].label + ' — ' + g.order + ' nodes, ' + g.size +
