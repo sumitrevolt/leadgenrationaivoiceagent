@@ -2,6 +2,25 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-16 - ADR-110 Full Console user-friendly IA — Start Here strip + honest pending CTAs
+
+Decision: `/app/admin` Full Console ko non-technical daily home mat banao — pehle **“Aaj ka
+5-minute flow”** strip (Delivery / Automation / Clients / Office), nav honesty (Full Console
+`active`, Delivery Cockpit alag page), unbounded content-pending counts me **clients_affected
++ top-client hint**, primary CTA = `/app/automation` (Mission Control), bulk “Sab approve”
+sirf jab count ≤20, UPI card business-green + scroll target `sec-upi-selfserve`, mid-page
+noise (campaigns/niches/copilot/…) default-collapse, hardcoded sidebar badges/`15 agents`
+hataye. Guide: `docs/ADMIN_OPERATING_GUIDE.md` §3.2b.
+
+Context: Live walk showed 348 “Aapke kaam” (≈334 content backlog) + jhoota Delivery Cockpit
+`active` highlight + “Approve →” that only scrolled — dashboard daraata tha, enterprise nahi
+lagta tha. Rejected: auto-bulk-approving 300+ posts (customer publish risk); rewriting
+Full Console into SPA view-router (blast radius).
+
+Consequence: Admin pehle 4 canonical pages use kare; Full Console = overview map. Content
+backlog abhi bhi exist karta hai (store truth) — lekin UX ab “Clients pe jao” / Mission
+Control force karti hai, blind bulk nahi.
+
 ## 2026-07-16 - ADR-107 Agent OS v3 adopted — codebase standards live in agent-os/standards/, injectable per-task
 
 Decision: Builder Methods Agent OS v3 (github.com/buildermethods/agent-os) installed into the
