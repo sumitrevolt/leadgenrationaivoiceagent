@@ -495,8 +495,12 @@ async def run_scheduled() -> dict[str, Any]:
             f"overdue={overdue} queue_backlogged={bool(health.get('queue_backlogged'))}"
         )
         _log_scheduled_event("warn", detail)
+        # ADR-109 ops fix (2026-07-16): intentional fail-closed SKIP is NOT a job
+        # failure. Returning ok:False made Celery retry → dlq:dead → health stayed
+        # degraded → brief skipped forever (death spiral). ok:True + skipped keeps
+        # the gate (no LLM/TTS) without poisoning DLQ / dead-man status.
         return {
-            "ok": False,
+            "ok": True,
             "enabled": True,
             "skipped": "automation_unhealthy",
             "health_status": health.get("status") or "unknown",

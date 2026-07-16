@@ -1027,17 +1027,37 @@ async def infra_dlq_retry(limit: int = 10, _user=Depends(require_admin)):
 
 
 @router.delete("/infra/dlq")
-async def infra_dlq_purge(_user=Depends(require_admin)):
-    """DLQ poora khali karo."""
+async def infra_dlq_purge(key: str = "failed", _user=Depends(require_admin)):
+    """Purge DLQ lists. key=failed (default) | dead | all.
+
+    `dead` = retry-exhausted (`dlq:dead`) — admin must clear stale deploy SIGKILL /
+    intentional-skip poison after root-cause fix. Also clears `dlq:retry_counts`
+    when dead/all so exhausted jobs can retry cleanly next time.
+    """
     try:
         import redis as _redis
 
         from app.config import settings
 
+        which = (key or "failed").strip().lower()
+        if which not in ("failed", "dead", "all"):
+            return {"error": "key must be failed|dead|all", "purged": 0}
         r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
-        n = int(r.llen("dlq:failed_tasks") or 0)
-        r.delete("dlq:failed_tasks")
-        return {"purged": n}
+        purged: dict[str, int] = {}
+        if which in ("failed", "all"):
+            n = int(r.llen("dlq:failed_tasks") or 0)
+            r.delete("dlq:failed_tasks")
+            purged["dlq:failed_tasks"] = n
+        if which in ("dead", "all"):
+            n = int(r.llen("dlq:dead") or 0)
+            r.delete("dlq:dead")
+            purged["dlq:dead"] = n
+            try:
+                r.delete("dlq:retry_counts")
+                purged["dlq:retry_counts"] = 1
+            except Exception:
+                pass
+        return {"purged": purged, "key": which}
     except Exception as e:
         return {"error": str(e)[:120]}
 

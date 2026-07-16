@@ -30,7 +30,8 @@ def test_scheduled_brief_is_inert_when_flag_is_off(monkeypatch):
     assert out == {"ok": True, "enabled": False, "skipped": "disabled"}
 
 
-def test_scheduled_brief_fails_closed_when_automation_is_unhealthy(monkeypatch):
+def test_scheduled_brief_skips_safely_when_automation_is_unhealthy(monkeypatch):
+    """Fail-closed (no LLM) but do NOT report job failure → avoids DLQ death spiral."""
     monkeypatch.setenv("HOT_QUEUE_BRIEF_DAILY", "1")
     monkeypatch.setattr(
         ob,
@@ -54,7 +55,7 @@ def test_scheduled_brief_fails_closed_when_automation_is_unhealthy(monkeypatch):
 
     out = _run(ob.run_scheduled())
 
-    assert out["ok"] is False
+    assert out["ok"] is True
     assert out["skipped"] == "automation_unhealthy"
     assert out["health_status"] == "degraded"
     assert built == []
