@@ -283,5 +283,56 @@ def list_jobs(client_id: str = "", status: str = "", limit: int = 100) -> list[d
     return rows[: max(1, min(int(limit or 100), 500))]
 
 
+def publish_proof(client_id: str = "") -> dict[str, Any]:
+    """Latest published job with a real provider post_id (not dry-run fabrications).
+
+    Empty post_id or ``dry-*`` prefix = not proof. Used by admin status so
+    operators don't chase a non-existent misconfiguration when jobs already
+    drained successfully (ADR-098/099 class).
+    """
+    cid = (client_id or "").strip()
+    best: dict[str, Any] | None = None
+    try:
+        for r in _latest().values():
+            if cid and str(r.get("client_id") or "") != cid:
+                continue
+            if str(r.get("status") or "") != "published":
+                continue
+            pid = str(r.get("post_id") or "").strip()
+            if not pid or pid.startswith("dry-"):
+                continue
+            if best is None or str(r.get("updated_at") or "") > str(best.get("updated_at") or ""):
+                best = r
+    except Exception as e:
+        logger.debug(f"[store] publish_proof skip: {e}")
+    if not best:
+        return {
+            "publish_proven": False,
+            "last_real_post_id": "",
+            "last_real_post_at": "",
+            "last_job_id": "",
+            "platform": "",
+        }
+    return {
+        "publish_proven": True,
+        "last_real_post_id": str(best.get("post_id") or ""),
+        "last_real_post_at": str(best.get("updated_at") or best.get("created_at") or ""),
+        "last_job_id": str(best.get("id") or ""),
+        "platform": str(best.get("platform") or ""),
+    }
+
+
+def queue_counts() -> dict[str, int]:
+    """Latest-wins status histogram for admin triage. Never raises."""
+    out: dict[str, int] = {}
+    try:
+        for r in _latest().values():
+            st = str(r.get("status") or "unknown")
+            out[st] = out.get(st, 0) + 1
+    except Exception as e:
+        logger.debug(f"[store] queue_counts skip: {e}")
+    return out
+
+
 def max_attempts() -> int:
     return _MAX_ATTEMPTS

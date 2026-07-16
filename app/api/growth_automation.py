@@ -318,7 +318,7 @@ async def social_postiz_status(_user=Depends(require_admin)):
     """Postiz + social-engine readiness (key kabhi expose nahi hoti)."""
     from app.marketing import postiz_publish
     from app.social_engine import engine as social_engine
-    from app.social_engine import vault
+    from app.social_engine import store, vault
 
     rec = vault.get("_global", "postiz") or {}
     meta = rec.get("meta") or {}
@@ -335,6 +335,10 @@ async def social_postiz_status(_user=Depends(require_admin)):
     # configure endpoint's own write is still observable.
     effective_ids = postiz_publish.effective_integration_ids()
     dry_run = bool(social_engine._dry_run_enabled())
+    proof = store.publish_proof()
+    counts = store.queue_counts()
+    live = await postiz_publish.live_integrations_summary()
+    youtube_refresh = bool(live.get("youtube_refresh_needed"))
     return {
         "postiz_configured": postiz_publish.enabled(),
         "api_url_set": bool(postiz_publish.api_url()),
@@ -345,6 +349,19 @@ async def social_postiz_status(_user=Depends(require_admin)):
         "social_engine_enabled": social_engine.enabled(),
         # ADR-098 class: omit dry_run = status can claim "ready" while publishes are fake.
         "dry_run": dry_run,
+        # Launch evidence: real provider post_id from drained jobs (not dry-* fabrications).
+        "publish_proven": bool(proof.get("publish_proven")),
+        "last_real_post_id": proof.get("last_real_post_id") or "",
+        "last_real_post_at": proof.get("last_real_post_at") or "",
+        "queue_counts": counts,
+        "live_integrations_ok": bool(live.get("ok")),
+        "live_channels": live.get("channels") or [],
+        "youtube_refresh_needed": youtube_refresh,
+        "youtube_oauth_action": (
+            "Google Cloud Console → OAuth consent screen → Publish app (testing mode = refresh token ~7d death)"
+            if youtube_refresh or not live.get("ok")
+            else ""
+        ),
     }
 
 
