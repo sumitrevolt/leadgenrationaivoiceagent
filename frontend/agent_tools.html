@@ -63,6 +63,7 @@ label{font-size:.78rem;color:var(--mut);display:block;margin:8px 0 3px}
   <button onclick="show('hooks',this)">🪝 Lifecycle Hooks</button>
   <button onclick="show('custom',this)">🎭 Custom Agents</button>
   <div class="grp">Ops</div>
+  <button onclick="show('agentos',this)">🧭 Agent OS / OmniRoute</button>
   <button onclick="show('cap',this)">⚡ Capacity</button>
   <button onclick="show('ckpt',this)">💾 Checkpoints</button>
   <button onclick="show('batch',this)">🚀 Batch Harness</button>
@@ -154,6 +155,18 @@ label{font-size:.78rem;color:var(--mut);display:block;margin:8px 0 3px}
     <pre id="o-custom">—</pre>
   </div></section>
 
+  <section id="sec-agentos" class="tabsec"><div class="card">
+    <h2>🧭 Agent OS + OmniRoute Status</h2>
+    <div class="d">Read-only operator view (ADR-109). Green flags ≠ customer traffic. Provider keys yahan dikhte nahi — dashboard me aap khud enter karte ho. VPS pe dono OmniRoute flags OFF hi healthy default hai.</div>
+    <div class="row">
+      <button class="btn" onclick="loadAgentOs()">Refresh status</button>
+      <a class="mut" style="font-size:.8rem" href="/app/office" target="_blank">Operating HQ ↗</a>
+      <a class="mut" style="font-size:.8rem" href="/app/control-center" target="_blank">Control Center ↗</a>
+    </div>
+    <div id="agentos-summary" class="mut" style="margin-top:8px;font-size:.85rem">—</div>
+    <pre id="o-agentos">—</pre>
+  </div></section>
+
   <section id="sec-cap" class="tabsec"><div class="card">
     <h2>⚡ Capacity & Policy <span class="badge">Hermes</span></h2>
     <div class="d">Credential-pool key counts (values never shown) + risk-score preview.</div>
@@ -243,6 +256,23 @@ function hooksReg(){call('o-hooks',function(){return api('/api/agents-ext/hooks'
 function customList(){call('o-custom',function(){return api('/api/agents-ext/custom-agents')})}
 function customReg(){call('o-custom',function(){var s;try{s=JSON.parse($('cu-spec').value)}catch(e){throw new Error('spec JSON invalid')}return api('/api/agents-ext/custom-agents',{method:'POST',body:JSON.stringify({spec:s})})})}
 // Ops
+function loadAgentOs(){
+  call('o-agentos', function(){
+    return api('/api/platform/office/agent-os-status').then(function(d){
+      var o = (d && d.omniroute) || {};
+      var sum = 'Staff '+((d&&d.staff_count)||0)
+        + ' · OmniRoute eligible '+((d&&d.eligible_for_omniroute)||0)
+        + ' · forbidden '+((d&&d.forbidden_omniroute)||0)
+        + ' · flags enabled='+!!o.enabled_flag
+        + ' agents='+!!o.agents_flag
+        + ' key='+!!o.api_key_present
+        + ' hook_armed='+!!o.agents_hook_armed;
+      var el = $('agentos-summary');
+      if(el) el.textContent = sum;
+      return d;
+    });
+  });
+}
 function capStatus(){call('o-cap',function(){return api('/api/agents-ext/capacity/status')})}
 function riskScore(){call('o-cap',function(){return api('/api/agents-ext/capacity/risk-score',{method:'POST',body:JSON.stringify({task:$('rs-task').value,cost:parseFloat($('rs-cost').value||0),reason:$('rs-reason').value})})})}
 function ckptList(){call('o-ckpt',function(){return api('/api/agents-ext/checkpoints')})}
