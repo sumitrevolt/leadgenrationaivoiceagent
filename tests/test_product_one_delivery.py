@@ -10,6 +10,7 @@ def _wire_tmp(monkeypatch, tmp_path):
     monkeypatch.setattr("app.marketing.delivery_ledger._LEDGER_DIR", str(tmp_path / "delivery_ledger"), raising=False)
     monkeypatch.setattr("app.marketing.delivery_ledger._CONTENT_QUEUE_DIR", str(tmp_path / "content_queue"), raising=False)
     monkeypatch.setattr("app.marketing.product_one_delivery._DELIVERY_DIR", str(tmp_path / "product_one_delivery"), raising=False)
+    monkeypatch.setattr("app.marketing.product_one_delivery._REPORT_DIR", str(tmp_path / "client_reports"), raising=False)
 
 
 def _client(**overrides):

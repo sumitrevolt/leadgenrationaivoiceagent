@@ -208,7 +208,7 @@ def _make_poster_item(
 ) -> dict[str, Any]:
     """SVG poster item (brand colors client se). posters.generate_poster never-raise."""
     name = str(client.get("business_name") or "Aapka Business")
-    phone = str(client.get("phone") or "")
+    phone = _safe_client_phone(client)
     bc = _brand_colors(client)
     svg = ""
     try:
@@ -239,6 +239,29 @@ def _make_poster_item(
     }
 
 
+_PLACEHOLDER_PHONE_TAILS = frozenset(
+    {
+        "9876543210",  # common demo/fixture — never print on customer creatives
+        "1234567890",
+        "0000000000",
+        "1111111111",
+    }
+)
+
+
+def _safe_client_phone(client: dict[str, Any]) -> str:
+    """Real customer phone only — refuse known placeholder/fixture numbers.
+
+    Empty string → posters.py falls back to 'Call / WhatsApp karein' (not a fake number).
+    """
+    raw = str(client.get("phone") or client.get("whatsapp_phone") or "").strip()
+    digits = "".join(ch for ch in raw if ch.isdigit())
+    tail = digits[-10:] if len(digits) >= 10 else digits
+    if not tail or tail in _PLACEHOLDER_PHONE_TAILS:
+        return ""
+    return raw
+
+
 async def generate_for_client(
     client: dict[str, Any], day: date | None = None
 ) -> list[dict[str, Any]]:
@@ -254,13 +277,24 @@ async def generate_for_client(
         weekday = d.weekday()
         item_type, theme, occasion = _WEEKLY_PLAN.get(weekday, ("post", "Daily Post", ""))
 
-        # --- nearby festival lookup (within 2 days) --- #
+        # --- nearby festival lookup (relative to target `d`, not always "today") --- #
         near_fest: dict[str, Any] | None = None
         try:
             if festivals is not None:
-                for f in festivals.upcoming(2) or []:
-                    if 0 <= int(f.get("days_away", 99)) <= 2:
-                        near_fest = f
+                for f in festivals.upcoming(45) or []:
+                    fd = None
+                    try:
+                        from datetime import datetime as _dt
+
+                        fd = _dt.strptime(str(f.get("date") or ""), "%Y-%m-%d").date()
+                    except Exception:
+                        fd = None
+                    if fd is None:
+                        continue
+                    delta = (fd - d).days
+                    if 0 <= delta <= 2:
+                        near_fest = dict(f)
+                        near_fest["days_away"] = delta
                         break
         except Exception as e:  # pragma: no cover
             logger.debug(f"[auto_content] festival lookup skip: {e}")
@@ -372,11 +406,23 @@ def _caption_ok(item: dict[str, Any]) -> tuple[bool, str]:
 
 def _append_items(client_id: str, items: list[dict[str, Any]]) -> int:
     """Items queue file me append karo (date+type DEDUPE). Added count return."""
+    n, _added = _append_items_detailed(client_id, items)
+    return n
+
+
+def _append_items_detailed(
+    client_id: str, items: list[dict[str, Any]]
+) -> tuple[int, list[dict[str, Any]]]:
+    """Like `_append_items` but also returns the rows that were actually written.
+
+    Approval auto-submit must use this list — submitting the full generate()
+    output re-enqueues already-queued seed items (Jiya: 12 queue / 24 pending).
+    """
     if not items:
-        return 0
+        return 0, []
     path = _queue_path(client_id)
     seen = _existing_keys(client_id)
-    added = 0
+    added_rows: list[dict[str, Any]] = []
     try:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
         with open(path, "a", encoding="utf-8") as f:
@@ -390,10 +436,10 @@ def _append_items(client_id: str, items: list[dict[str, Any]]) -> int:
                     continue
                 seen.add(k)
                 f.write(json.dumps(it, ensure_ascii=False) + "\n")
-                added += 1
+                added_rows.append(it)
     except Exception as e:  # pragma: no cover
         logger.warning(f"[auto_content] append failed: {e}")
-    return added
+    return len(added_rows), added_rows
 
 
 async def _recycle_fallback(client: dict[str, Any]) -> int:
@@ -547,7 +593,7 @@ async def run_daily_content() -> dict[str, Any]:
                 continue
             try:
                 items = await generate_for_client(client)
-                added = _append_items(cid, items)
+                added, added_items = _append_items_detailed(cid, items)
                 if added and (
                     os.environ.get("CONTENT_APPROVAL_AUTO", "0").strip().lower()
                     in ("1", "true", "yes")
@@ -556,7 +602,8 @@ async def run_daily_content() -> dict[str, Any]:
                     try:
                         from app.marketing import content_approval
 
-                        for it in items[:5]:
+                        # Only newly appended rows — never re-submit already-queued seed items.
+                        for it in added_items[:5]:
                             content_approval.submit(cid, it)
                     except Exception as e:
                         logger.debug(f"[auto_content] approval auto-submit skip: {e}")
@@ -564,6 +611,7 @@ async def run_daily_content() -> dict[str, Any]:
                     # Aaj ke sab items dedupe ne block kiye (queue dry-ish) —
                     # evergreen recycling se purana top content re-share karo.
                     added = await _recycle_fallback(client)
+                    added_items = []
                 if added:
                     n_clients += 1
                     total_items += added
@@ -622,9 +670,12 @@ async def run_daily_content() -> dict[str, Any]:
 
 
 async def seed_client_content(client: dict[str, Any]) -> int:
-    """EK client ka naya Day-1 Value Delivery Packet generate + queue me append
-    (7-din calendar + 1 WhatsApp promo + 1 local campaign suggestion),
-    aur inhein automatic content_approval queue me submit karta hai.
+    """EK client ka Day-1 Value Delivery Packet generate + queue me append
+    (AAJ ka content + 1 WhatsApp promo + 1 local campaign suggestion),
+    aur naye items ko content_approval queue me submit karta hai.
+
+    Forward calendar days daily `run_daily_content` bharegi — 7-din pre-fill
+    date|type dedupe se roz-job ko block karti thi (audit 2026-07-17 / Jiya).
     KABHI raise nahi karta."""
     try:
         if not isinstance(client, dict):
@@ -634,7 +685,7 @@ async def seed_client_content(client: dict[str, Any]) -> int:
             return 0
 
         import uuid
-        from datetime import date, timedelta
+        from datetime import date
 
         from app.marketing import content_approval, delivery_ledger
         from app.marketing.whatsapp_pack import broadcast_pack
@@ -643,13 +694,11 @@ async def seed_client_content(client: dict[str, Any]) -> int:
         except Exception:
             free_ai = None
 
-        # 1. Generate 7-day marketing calendar (today + next 6 days)
+        # 1. Generate TODAY only (forward days = daily scheduler)
         all_items = []
-        for i in range(7):
-            d = date.today() + timedelta(days=i)
-            day_items = await generate_for_client(client, day=d)
-            if day_items:
-                all_items.extend(day_items)
+        day_items = await generate_for_client(client, day=date.today())
+        if day_items:
+            all_items.extend(day_items)
 
         # 2. Generate 1 WhatsApp promo message
         try:
@@ -695,7 +744,9 @@ async def seed_client_content(client: dict[str, Any]) -> int:
                     f"Business: {client.get('business_name')}\n"
                     f"Niche: {client.get('niche')}\n"
                     f"City: {client.get('city')}\n"
-                    f"Services: {client.get('services') or 'services'}"
+                    f"Services: {client.get('services') or 'services'}\n"
+                    f"IMPORTANT: Campaign MUST be for city '{client.get('city') or 'local area'}' only — "
+                    f"kisi aur sheher (Mumbai/Delhi/etc.) ka zikr mat karo."
                 )
                 text, _ = await free_ai.chat(
                     sys_prompt, [{"role": "user", "content": usr_prompt}], max_tokens=200, temperature=0.7
@@ -705,9 +756,10 @@ async def seed_client_content(client: dict[str, Any]) -> int:
                 logger.debug(f"[auto_content] campaign generation fail: {ce}")
 
         if not campaign_suggestion:
+            city = str(client.get("city") or "local area").strip() or "local area"
             campaign_suggestion = (
-                "Title: Refer a Friend Campaign\n"
-                "Suggestion: Apne existing customers ko WhatsApp par message bhejein: "
+                f"Title: Refer a Friend Campaign ({city})\n"
+                f"Suggestion: {city} ke existing customers ko WhatsApp par message bhejein: "
                 "'Apne kisi friend ko humare yahan refer karein, aur aap dono ko milega 20% off next service par!' "
                 "Isse local area me word-of-mouth marketing badhegi."
             )
@@ -726,15 +778,16 @@ async def seed_client_content(client: dict[str, Any]) -> int:
         all_items.append(campaign_item)
 
         # 4. Append to content queue (idempotent via date+type dedupe)
-        added = _append_items(cid, all_items)
+        added, added_items = _append_items_detailed(cid, all_items)
         if not added:
             # Fallback recycle
             added = await _recycle_fallback(client)
+            added_items = []
 
-        # 5. Automatically submit generated items to the approvals queue
-        if all_items:
+        # 5. Automatically submit ONLY newly added items to the approvals queue
+        if added_items:
             try:
-                for it in all_items:
+                for it in added_items:
                     content_approval.submit(cid, it)
             except Exception as ae:
                 logger.debug(f"[auto_content] Day-1 approvals submission fail: {ae}")

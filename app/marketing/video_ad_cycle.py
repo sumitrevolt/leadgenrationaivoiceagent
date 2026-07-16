@@ -205,6 +205,8 @@ async def generate_for_client(
         if built.get("error"):
             return {"ok": False, "error": f"video gen fail: {built['error']}", "detail": built}
         video_path = built.get("path") or ""
+        if not str(video_path).strip():
+            return {"ok": False, "error": "video gen fail: empty path"}
         channels = _channels_for(client)
         content = {
             "type": "video_ad",
@@ -485,6 +487,17 @@ async def run_cycle() -> dict[str, Any]:
         return {"ran": False, "reason": "VIDEO_AD_CYCLE off"}
     out: dict[str, Any] = {"ran": True}
     try:
+        # Stuck rows: pending without a render path can never be approved/shared.
+        # Mark failed so the next due cycle can regenerate (audit 2026-07-17).
+        repaired = 0
+        try:
+            for rid, rec in list(_latest().items()):
+                if str(rec.get("status") or "") == "pending" and not str(rec.get("video_path") or "").strip():
+                    _update(rid, status="failed", error="missing_video_path", failed_at=_now())
+                    repaired += 1
+        except Exception as e:
+            logger.debug(f"[video_ad] stuck-pending repair skip: {e}")
+        out["repaired_missing_path"] = repaired
         out["regenerated"] = await _regen_due()
         interval = _interval_days()
         st = _load_state()

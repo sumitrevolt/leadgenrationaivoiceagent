@@ -1,6 +1,44 @@
 # progress.md â€” Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-17 (Customer Plan Delivery Audit â€” â‚¹1,999 / Jiya)
+Goal: Evidence-based audit of every advertised starter promise vs Jiya real delivery; no silent fixes.
+Inspected: Graphify delivery subgraph; packages.py 93 features; prod SHA/images; Jiya content_queue/ledger/product_one_delivery/flags; pricing+minisite+cockpit browser; code-reviewer honesty pass; prior PRODUCT_ONE/DELIVERY_OS/JIYA decision docs.
+Problems Found: (P0) roz/~7AM unmet (3 July gen days); 24 approvals ~125h SLA breached; poster 4/4 padded with festival + phone defect; video pending; SOCIAL_AUTOPOST unset=MOCK; monthly report file tiny + ledger reports=0; Hands-Free overclaim vs draft-not-send; stale delivery_state=delivered vs live approval_pending 50%.
+Changed: docs only â€” `docs/audits/customer_plan_delivery_audit_2026-07-17.md` (93-row matrix). No product code.
+Tests Run: N/A audit-only; live probes + browser.
+Verification Evidence: HEAD=origin=prod git=app images aab11f19; packages 93; Jiya probe queue=12 draft; social_jobs=0; mini-site 200; pricing accordion 33+10+7+8+4+6+5+20.
+Risks: Selling next customer on current public Hands-Free/roz/video copy = trust risk. Auth portal deep UX still UNVERIFIED without human OTP.
+Remaining: Pricing clarifications (owner approve); Jiya QC+approval catch-up; poster scorer fix; video pipeline or hide claim.
+Next Highest Priority: P0 pricing honesty + Jiya approval/share session before next paid onboard.
+Final Verdict: **D. PRICING PROMISE EXCEEDS PRODUCTION CAPABILITY** (ops shape also C).
+
+## Loop Run
+Date: 2026-07-17 (A-to-Z Launch & Enterprise Audit â€” execute mode)
+Goal: Run a2z-launch-enterprise-audit end-to-end (Discoverâ†’Verifyâ†’Fixâ†’Testâ†’Browserâ†’Verdict); score Marketing + standalone Voice separately; 3 verdicts.
+Inspected: prod_check, explorer_sync --check, cross_path_audit, deep_wiring_audit, automation_wiring_audit, automation_health_audit (daily+weekly), check_html_js, check_secrets; live /health + /api/activation/summary + auth-gated infra APIs; ~10 targeted pytest suites (billing/omniroute/tenant/security/compliance/upi/dlq/voice); customer_auth.require_customer source; main.py control_center_graph route.
+Problems Found: (P2) tenant-isolation regression suite `test_customer_tenant_isolation_authenticated.py` was RED â€” 16 tests called async `require_customer` synchronously (stale after it became async for a Redis logout-blacklist await); the attack-matrix was unverified in CI. Source code is CORRECT (FastAPI awaits async deps), so isolation intact â€” only the test was stale. (P3 cosmetic) prod_check "Duplicate Operation ID control_center_graph_page" = single api_route GET+HEAD, benign. (P3) API.md endpoint index out of date.
+Changed: tests/test_customer_tenant_isolation_authenticated.py â€” 7 test fns â†’ async def + await require_customer(...) (asyncio_mode=auto). Additive test-only fix; no app/prod code touched. Parallel dirty tree (omniroute_client.py, decisions.md, playbooks.md, progress.md, test_omniroute_client.py) preserved untouched.
+Tests Run: prod_check ALL PASSED (1104 routes, 0 wiring gaps); explorer_sync 81/81 no orphans; cross_path/deep_wiring/automation_wiring 0 gaps; automation_health daily=ALL GREEN weekly clean; check_secrets clean (10 files); billing_truth+omniroute 33; explorer+telephony 11; security/rbac/idor 21; tenant isolation 29 (post-fix, was 13pass/16failâ†’29pass); compliance/voice 15; upi/billing/dlq 46; voice_product_contract green.
+Verification Evidence: live /health {status:healthy, version:aab11f19 (NOT "latest"), environment:production}; /api/activation/summary {ready_for_first_paid_customer:true, blocker_count:0, warn_count:0}; public money-path surfaces / /pricing /start /audit /site-audit /demo /privacy /app/login all 200; admin page shells 200 with backing infra APIs 401 (RBAC enforced); tenant test now 29/29 green.
+Risks: Browser MCP had no attached Chrome backend â†’ interactive admin click-matrix (Phase E) UNVERIFIED (documented honestly, not faked). Live infra-health/flags auth-gated (401) so not independently value-verified. Single-VPS = no HA.
+Remaining: Interactive admin browser proof needs a Chrome backend + admin creds (owner). API.md sync (scripts/sync_api_docs.py). GTM 2nd paying customer. YouTube OAuth publish (owner).
+Next Highest Priority: GTM Hot Queue â†’ 2nd paid customer; then owner-run admin browser click-matrix to close Phase E.
+Final Verdict: Marketing = GO; Voice standalone = CONDITIONAL GO (DLT+platform_dial HARD-OFF gate cold outbound, by mandate). Production Ready = GO (prod_check PASS, version real, 0 P0/P1, queues/DLQ 0). Enterprise â‰ˆ 101/120 (evidence-scored; DR/SLO/capacity single-VPS-limited). 1 P2 fixed (tenant test), no open P0/P1 in money path.
+
+## Loop Run
+Date: 2026-07-16 (OmniRoute combo â€” free-tokens routing final)
+Goal: User "combo banao omniroute pe" â€” custom failover combo + app routes wire.
+Inspected: /v1/combos API (POST=405, GET=200 w/ client key); Combos dashboard wizard; provider dropdown (~25 accounts user-reconnected); _TASK_ROUTES + contract tests.
+Problems Found: combo creation data-plane se not possible (405) â€” Chrome UI hi path; Chrome extension mid-session disconnect (user relaunch se resolved).
+Changed: Dashboard combo `leadgen-free-first` (priority: opencode/deepseek-v4-flash-free FREE â†’ groq/llama-3.3-70b â†’ mistral/mistral-small-latest â†’ gemini/gemini-flash-latest); _TASK_ROUTES 5/5 primary=combo + free-alias fallback; tests sync.
+Tests Run: test_omniroute_client + test_agent_os_routing = 28 passed; sanitized PONG via combo id HTTP 200.
+Verification Evidence: GET /v1/combos lists combo; smoke `[omniroute_decision] ok=True provider=leadgen-free-first model=deepseek-v4-flash-free` reply AGENT_OS_SMOKE_OK EXIT=0.
+Risks: combo local-gateway only (VPS INERT unchanged); dashboard password abhi default (USER rotate pending).
+Remaining: OAuth provider sign-ins (user), dashboard password rotate (user), Sentry connector reconnect (user).
+Next Highest Priority: GTM per sprint goal; local dev ab free tokens pe.
+
+## Loop Run
 Date: 2026-07-16 (launch gaps sweep â€” Postiz/social proof/status)
 Goal: User "sab fix karo" â€” close remaining launch blockers where code/VPS actionable.
 Inspected: VPS deploy/postiz/.env, social_engine.json, social_post_jobs.jsonl, activation/summary GO.
@@ -254,3 +292,15 @@ Verification Evidence: [omniroute_decision] ok=True task=leadgen.agent_ops provi
 Risks: fresh instance auth OFF (loopback-only), dashboard default password (user rotate); free models = OpenCode pool (sanitized-only path unchanged); provider reconnects pending user.
 Remaining: user dashboard login + ~29 provider setups redo (keys user paste karega, Chrome session ready); dashboard password rotate; optional Groq/Mistral routes wapas after reconnect.
 Next Highest Priority: dashboard provider reconnect session complete karna (Task #6).
+
+## Loop Run
+Date: 2026-07-17
+Goal: Audit ke saare P0 delivery honesty/reliability findings fix (`sab fix karo`).
+Inspected: audit doc 2026-07-17 · product_one_delivery · auto_content · client_report · clients_store · video_ad_cycle · packages.py · automation_flags · related tests.
+Problems Found: poster festival-padding · report billing-id orphan · 7-day seed blocking daily · approval auto-submit overclaim + full-list submit · video empty-path pending · pricing overclaims · pytest-asyncio + asyncio.run loop pollution in new test.
+Changed: ADR-116 code paths (poster honesty, report alias+ledger key, today-only seed, detailed append + new-only approval submit, phone/city QC, video fail-closed, packages wording, flag comment); tests/test_plan_delivery_p0_fixes_2026_07_17.py + related test expectation updates.
+Tests Run: pytest plan_delivery_p0 + product_one (setup/admin) + client_report build + onboard_content_queue + delivery_ledger seed + billing_truth starter + hands_free = ALL GREEN; prod_check ALL CHECKS PASSED (1104 routes).
+Verification Evidence: local only — not deployed. Poster scorer 1/4 with 1 poster+3 festival; seed adds 3 (post/wa/campaign); report path uses marketing id.
+Risks: prod Jiya data still stale until deploy+ops catch-up; pricing copy change is public-facing honesty (good) but user may want softer wording review.
+Remaining: USER commit/push/deploy; post-deploy Jiya ops (approval backlog, report rebuild under jiya-makeover, video regen if needed). No WA/social auto enable.
+Next Highest Priority: deploy ADR-116 then Jiya delivery catch-up session.

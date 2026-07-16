@@ -102,7 +102,7 @@ def test_build_report_adds_delivery_section_and_keeps_event(monkeypatch, tmp_pat
     html = open(result["path"], encoding="utf-8").read()
     assert "AI team ne is mahine kya kiya" in html
     assert "Agle steps" in html
-    assert ("cbuild", "weekly_report_generated", {"detail": MONTH}) in logged
+    assert ("cbuild", "weekly_report_generated", {"detail": MONTH, "key": f"report:cbuild:{MONTH}"}) in logged
 
 
 def test_build_report_delivery_failure_keeps_ok_true(monkeypatch, tmp_path):

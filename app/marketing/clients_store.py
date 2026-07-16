@@ -336,6 +336,42 @@ def get_client(cid: str) -> dict[str, Any] | None:
     return None
 
 
+def resolve_client(cid: str) -> dict[str, Any] | None:
+    """Canonical marketing client by id OR billing alias (`billing_client_ids`).
+
+    Invoice/subscription ids (e.g. `d79d690f61b3`) often differ from the marketing
+    slug id (`jiya-makeover`). Reports/ledger must use the marketing id so proof
+    lands on the customer the portal actually loads. Never raises.
+    """
+    try:
+        key = (cid or "").strip()
+        if not key:
+            return None
+        direct = get_client(key)
+        if direct:
+            return direct
+        for r in _read_all():
+            aliases = r.get("billing_client_ids") or []
+            if not isinstance(aliases, (list, tuple, set)):
+                continue
+            if key in {str(a).strip() for a in aliases if str(a).strip()}:
+                return r
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"[clients_store] resolve_client failed: {e}")
+    return None
+
+
+def canonical_client_id(cid: str) -> str:
+    """Return marketing client id for any id/alias; fallback to input stripped."""
+    try:
+        rec = resolve_client(cid)
+        if rec and str(rec.get("id") or "").strip():
+            return str(rec.get("id")).strip()
+    except Exception:
+        pass
+    return str(cid or "").strip()
+
+
 def get_by_slug(slug: str) -> dict[str, Any] | None:
     """Ek client by slug — mini-site /b/{slug} ke liye. None agar na mile.
 
@@ -513,6 +549,8 @@ __all__ = [
     "add_client",
     "list_clients",
     "get_client",
+    "resolve_client",
+    "canonical_client_id",
     "get_by_slug",
     "set_status",
     "update_client",
