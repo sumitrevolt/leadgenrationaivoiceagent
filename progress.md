@@ -1,6 +1,19 @@
 # progress.md — Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-16 (ship — ADR-112/113/114 → VPS)
+Goal: Commit + VPS deploy enterprise honesty bundle; sync Current State after LIVE proof.
+Inspected: staged 30 files; prod_check; targeted pytest; deploy_vps.sh log; live /health.
+Problems Found: none new — postiz asyncio event-loop flake only when suite co-run (isolation 16/16 green).
+Changed: commit `1500132` push main; VPS `deploy_vps.sh` → `15001321`; CLAUDE/AGENTS Current State deploy-pending → LIVE.
+Tests Run: prod_check ALL PASSED (1104 routes); check_secrets clean; targeted suites green.
+Verification Evidence: `/health` version=`15001321` environment=production; skew 5/5; smoke 4×200; queues/DLQ 0/0; `=== DEPLOYED 15001321 OK ===`.
+Risks: Build cache ~97GB reclaimable (age/cap kept it); disk 79%/41G free — watch next deploys.
+Remaining: Owner Postiz registration lock + YouTube OAuth publish; own-brand e2e post_id proof; Sentry triage.
+Next Highest Priority: GTM Hot Queue / dialer — mid-funnel 0→1 paid.
+Final Verdict: ADR-112..114 LIVE on prod `15001321`.
+
+## Loop Run
 Date: 2026-07-16 (ADR-114 — UPI/queue/audit honesty)
 Goal: Continue after ADR-113 verify — strip debug, fix next fake-success gaps.
 Inspected: automation_health redis -1; admin_ops UPI queue; automation_health_audit JSON verdict; SIGNUP_AUTO_ONBOARD flag.
