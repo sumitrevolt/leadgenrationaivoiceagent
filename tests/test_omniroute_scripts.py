@@ -44,3 +44,13 @@ def test_one_command_dev_launcher_retains_omniroute_memory_limit():
     text = (ROOT / "scripts" / "_leadgen_dev_up.sh").read_text(encoding="utf-8")
     assert "OMNIROUTE_MEMORY_MB=2048" in text
     assert text.count("OMNIROUTE_MEMORY_MB=2048") >= 2
+
+
+def test_agent_smoke_script_is_synthetic_only_and_never_prints_secrets():
+    """ADR-108 local smoke — permanent script, public prompt, bool-only key check."""
+    text = (ROOT / "scripts" / "omniroute_agent_smoke.py").read_text(encoding="utf-8")
+    assert "AGENT_OS_SMOKE_OK" in text
+    assert "try_agent_chat" in text
+    assert "bool(os.getenv('OMNIROUTE_API_KEY'))" in text
+    assert "print(os.getenv('OMNIROUTE_API_KEY'" not in text
+    assert "print(os.environ.get('OMNIROUTE_API_KEY'" not in text
