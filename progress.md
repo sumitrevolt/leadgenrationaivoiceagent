@@ -4,14 +4,23 @@
 Date: 2026-07-16 (L2 Stack graph — restore + truthful embed)
 Goal: `/app/control-center` L2 architecture graph empty/broken restore; Old Explorer fallback preserve; production-ready evidence.
 Inspected: progress/memory · Graphify control-center/L2 · middleware XFO · `control_center.html`/`control_center_graph.html` · live GET/HEAD headers · Playwright parent iframe + standalone graph.
-Problems Found: (1) Historical root cause = `X-Frame-Options: DENY` on graph iframe (ADR-104 `5d4b9fe`) — already in prod lineage; live GET now `SAMEORIGIN` + `frame-ancestors 'self'`. (2) Browser smoke BEFORE this patch: iframe already rendered **46 nodes · 101 edges** (so blank was largely pre-fix/stale ledger). (3) Remaining real gap: **HEAD /app/control-center/graph → 404** while GET 200 (probe confusion). (4) Parent shell had no truthful embed-failure surface if iframe went blank again.
-Changed: `app/main.py` (GET+HEAD graph route) · `frontend/control_center_graph.html` (`cc-graph-ready`/`cc-graph-error` postMessage) · `frontend/control_center.html` (issue banner + Old Explorer + 12s watchdog) · `tests/test_l2_stack_graph_contract.py` NEW.
-Tests Run: test_l2_stack_graph_frame_headers + test_l2_stack_graph_contract → **10 passed** · prod_check ALL PASSED · secrets CLEAN · duplicate graph route count=1.
-Verification Evidence (pre-deploy baseline): Playwright iframe `#/stack` → 46 nodes/101 edges, canvas present, page errors [] · Old Explorer link present · GET XFO SAMEORIGIN. Post-deploy evidence appended after ship.
-Risks: 12s watchdog can false-positive on very slow ELK layouts (rare); PostHog script still CSP-blocked (unrelated noise).
-Remaining: Owner YouTube OAuth · Unity WebGL local-only.
-Next Highest Priority: Deploy this SHA + re-run Playwright iframe smoke proving ready postMessage clears issue banner.
-Final Verdict: pending deploy proof.
+Problems Found: (1) Historical root cause = `X-Frame-Options: DENY` on graph iframe (ADR-104 `5d4b9fe`) — already in prod lineage; live GET now `SAMEORIGIN` + `frame-ancestors 'self'`. (2) Pre-patch browser smoke: iframe already rendered **46 nodes · 101 edges** (blank was largely pre-fix/stale ledger). (3) Remaining real gap: **HEAD /app/control-center/graph → 404** while GET 200 (probe confusion). (4) Parent shell had no truthful embed-failure surface if iframe went blank again.
+Changed: `app/main.py` (GET+HEAD graph route) · `frontend/control_center_graph.html` (`cc-graph-ready`/`cc-graph-error` postMessage) · `frontend/control_center.html` (issue banner + Old Explorer + 12s watchdog) · `tests/test_l2_stack_graph_contract.py` NEW. Commit `5b392253`.
+Tests Run: test_l2_stack_graph_frame_headers + test_l2_stack_graph_contract → **10 passed** · prod_check ALL PASSED · secrets CLEAN · duplicate graph route = 1 (`GET`,`HEAD`).
+Verification Evidence:
+- BEFORE (contract gap): HEAD graph → 404; parent had no `cc-graph-issue` / ready-postMessage wiring; historical blank = XFO DENY (fixed earlier in lineage).
+- AFTER deploy `=== DEPLOYED 5b392253 OK ===`: BUILD_RC=0 UP_RC=0; skew 5/5 (`app`/`worker`/`scheduler`/`worker_heavy`/`worker_video`); celery=0 dlq=0.
+- Live `/health`: healthy · version **`5b392253`** · environment production.
+- `/api/activation/summary`: `ready_for_first_paid_customer=true` · `blocker_count=0`.
+- Graph HEAD+GET both 200; `X-Frame-Options: SAMEORIGIN`; CSP `frame-ancestors 'self'`.
+- Playwright parent `#/stack`: iframe **46 nodes · 101 edges**, canvas 1046×441, errorVisible=false, PAGE_ERRORS=[], Old explorer ↗ present; IFRAME_EXIT=0.
+- Playwright standalone `/app/control-center/graph`: 46 nodes · 101 edges, globals graphology/Sigma/ELK=function, CONSOLE_ERR=[], STANDALONE_EXIT=0.
+- `/app/explorer` → 200 (Old Explorer fallback). Parent HTML contains `cc-graph-issue` + watchdog + ready handler.
+- Console: only unrelated PostHog CSP block (pre-existing); no graph/API frame errors.
+Risks: OpenAPI warns duplicate op-id for GET+HEAD same handler (harmless); 12s watchdog can false-positive on very slow ELK (rare).
+Remaining: Owner YouTube OAuth · Unity WebGL local-only · Postiz registration lock (owner).
+Next Highest Priority: Own-brand social e2e drain proof (`post_id` non-empty) · Sentry triage.
+Final Verdict: **SHIPPED + LIVE VERIFIED** on `5b392253`.
 
 ## Loop Run
 Date: 2026-07-16 (SHIP — invoices/logout/deploy-safety → production)
