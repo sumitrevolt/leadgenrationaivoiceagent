@@ -151,3 +151,130 @@ class TestOmniRouteResponsesAdapter:
             "INTERNAL_SANITIZED",
         ) is None
         assert attempts == 1
+
+
+class TestOmniRouteAgentHook:
+    """ADR-108: staff-agent opt-in gate — double-gated, sanitized, fail-open."""
+
+    def _clear(self, monkeypatch):
+        monkeypatch.delenv("OMNIROUTE_ENABLED", raising=False)
+        monkeypatch.delenv("OMNIROUTE_AGENTS", raising=False)
+        monkeypatch.delenv("OMNIROUTE_API_KEY", raising=False)
+
+    def test_agents_disabled_by_default(self, monkeypatch):
+        from app.platform.omniroute_client import agents_enabled
+
+        self._clear(monkeypatch)
+        assert agents_enabled() is False
+
+    def test_agents_flag_alone_is_not_enough(self, monkeypatch):
+        """OMNIROUTE_AGENTS=1 without master flag+key must stay OFF (double gate)."""
+        from app.platform.omniroute_client import agents_enabled
+
+        self._clear(monkeypatch)
+        monkeypatch.setenv("OMNIROUTE_AGENTS", "1")
+        assert agents_enabled() is False
+        monkeypatch.setenv("OMNIROUTE_ENABLED", "1")  # still no key
+        assert agents_enabled() is False
+
+    def test_agents_enabled_when_fully_gated_open(self, monkeypatch):
+        from app.platform.omniroute_client import agents_enabled
+
+        monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+        monkeypatch.setenv("OMNIROUTE_AGENTS", "1")
+        monkeypatch.setenv("OMNIROUTE_API_KEY", "synthetic-test-key-not-real")
+        assert agents_enabled() is True
+
+    @pytest.mark.asyncio
+    async def test_try_agent_chat_inert_when_disabled(self, monkeypatch):
+        from app.platform.omniroute_client import try_agent_chat
+
+        self._clear(monkeypatch)
+        called = False
+
+        async def fake_post(url, headers, payload, timeout):  # pragma: no cover
+            nonlocal called
+            called = True
+            return _Response(payload={"output_text": "should never happen"})
+
+        monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
+        assert await try_agent_chat([{"role": "user", "content": "hello"}]) is None
+        assert called is False  # zero network attempts while gated OFF
+
+    @pytest.mark.asyncio
+    async def test_try_agent_chat_happy_path_masks_payload(self, monkeypatch):
+        from app.platform.omniroute_client import try_agent_chat
+
+        monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+        monkeypatch.setenv("OMNIROUTE_AGENTS", "1")
+        monkeypatch.setenv("OMNIROUTE_API_KEY", "synthetic-test-key-not-real")
+        seen = {}
+
+        async def fake_post(url, headers, payload, timeout):
+            seen.update(payload=payload)
+            return _Response(payload={"model": "llama-3.3-70b-versatile", "output_text": "agent ok"})
+
+        monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
+        text = await try_agent_chat(
+            [{"role": "user", "content": "Summarise leads, call 9876543210 back"}]
+        )
+        assert text == "agent ok"
+        assert seen["payload"]["model"] == "groq/llama-3.3-70b-versatile"
+        assert "9876543210" not in str(seen["payload"])  # customer data masked
+
+    @pytest.mark.asyncio
+    async def test_try_agent_chat_never_raises_on_gateway_fault(self, monkeypatch):
+        from app.platform.omniroute_client import try_agent_chat
+
+        monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+        monkeypatch.setenv("OMNIROUTE_AGENTS", "1")
+        monkeypatch.setenv("OMNIROUTE_API_KEY", "synthetic-test-key-not-real")
+
+        async def fake_post(url, headers, payload, timeout):
+            raise httpx.ConnectError("gateway down")
+
+        monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
+        assert await try_agent_chat([{"role": "user", "content": "hello"}]) is None
+
+    @pytest.mark.asyncio
+    async def test_free_ai_chat_bulk_uses_hook_and_realtime_never_does(self, monkeypatch):
+        """free_ai.chat: bulk profile → omniroute pre-hook; realtime → existing chain only.
+
+        conftest.py suite-wide `free_ai.chat` ko stub karta hai (network-hang guard),
+        isliye yahan module ki FRESH isolated copy load karke REAL chat test karte hai
+        — sys.modules untouched, baaki suite ka stub intact.
+        """
+        import importlib.util
+
+        spec = importlib.util.find_spec("app.voice_agent.free_ai")
+        free_ai = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(free_ai)
+
+        monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+        monkeypatch.setenv("OMNIROUTE_AGENTS", "1")
+        monkeypatch.setenv("OMNIROUTE_API_KEY", "synthetic-test-key-not-real")
+        calls = []
+
+        async def fake_hook(messages):
+            calls.append(messages)
+            return "omni agent reply"
+
+        monkeypatch.setattr("app.platform.omniroute_client.try_agent_chat", fake_hook)
+        # Cache OFF for this test — hook se pehle cache-hit na aa jaye.
+        monkeypatch.setattr(free_ai, "_llm_cache_on", lambda prof: False)
+
+        text, provider = await free_ai.chat(
+            "system", [{"role": "user", "content": "write digest"}],
+            max_tokens=512, profile="bulk",
+        )
+        assert (text, provider) == ("omni agent reply", "omniroute")
+        assert len(calls) == 1
+
+        # Realtime (voice hot-path) must NEVER touch the hook — chain empty = ("","").
+        monkeypatch.setattr(free_ai, "_build_llm_chain", lambda prof: [])
+        text2, provider2 = await free_ai.chat(
+            "system", [{"role": "user", "content": "hello"}],
+            max_tokens=60, profile="realtime",
+        )
+        assert len(calls) == 1  # no new hook call
+        assert provider2 != "omniroute"

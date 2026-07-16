@@ -132,22 +132,53 @@ fi
 
 # ------------------------------------------------------------------------ up
 echo "=== UP (all app-image services — prevents skew) ==="
-# shellcheck disable=SC2086
-APP_VERSION="$VER" docker compose -f "$COMPOSE" --profile celery \
-  up -d --no-deps $SERVICES > /tmp/deploy_up.log 2>&1
+
+# Compose recreate race (2026-07-16 prod-down): docker renames the old container
+# to <hash>_leadgen_* before removing it; if the next step fails, canonical
+# names stay Exited and ghosts stay Created → /health 000. Bounded cleanup+retry.
+_compose_up() {
+  # shellcheck disable=SC2086
+  APP_VERSION="$VER" docker compose -f "$COMPOSE" --profile celery \
+    up -d --no-deps $SERVICES
+}
+
+_cleanup_recreate_ghosts() {
+  echo "=== UP CLEANUP: remove Created *_leadgen_* ghosts + exited app-image containers ==="
+  docker ps -a --format '{{.Names}} {{.Status}}' | while read -r _name _status; do
+    case "$_name" in *_leadgen_*)
+      if echo "$_status" | grep -qiE 'created|dead'; then
+        echo "  rm ghost $_name ($_status)"
+        docker rm -f "$_name" 2>/dev/null || true
+      fi
+      ;;
+    esac
+  done
+  for _c in leadgen_app leadgen_worker leadgen_scheduler leadgen_worker_heavy leadgen_worker_video; do
+    _st="$(docker inspect -f '{{.State.Status}}' "$_c" 2>/dev/null || echo missing)"
+    if [ "$_st" = "exited" ] || [ "$_st" = "created" ] || [ "$_st" = "dead" ]; then
+      echo "  rm stale $_c (status=$_st)"
+      docker rm -f "$_c" 2>/dev/null || true
+    fi
+  done
+}
+
+_compose_up > /tmp/deploy_up.log 2>&1
 UP_RC=$?
 echo "UP_RC=$UP_RC"
 if [ "$UP_RC" -ne 0 ]; then
-  # Do NOT abort on the exit code alone. `docker compose up` can return non-zero
-  # on a TRANSIENT recreate race (observed 2026-07-14: 'Conflict. The container
-  # name "/<hash>_leadgen_app" is already in use' — docker renames the old
-  # container before removing it, and a retry inside compose then succeeded) while
-  # the END STATE is completely correct. The exit code is an inference; the
-  # verification below is evidence. Warn loudly, then let VERIFY decide — it is
-  # strict (health version + per-container skew + smoke) and cannot pass on a
-  # genuinely broken deploy.
   echo "WARN: up returned $UP_RC — NOT trusting that alone. Tail:"
   tail -12 /tmp/deploy_up.log
+  if grep -qiE 'Conflict|already in use|Error while Stopping' /tmp/deploy_up.log; then
+    echo "WARN: compose recreate conflict detected — bounded cleanup + one retry"
+    _cleanup_recreate_ghosts
+    _compose_up >> /tmp/deploy_up.log 2>&1
+    UP_RC=$?
+    echo "UP_RETRY_RC=$UP_RC"
+    if [ "$UP_RC" -ne 0 ]; then
+      echo "WARN: up retry returned $UP_RC. Tail:"
+      tail -12 /tmp/deploy_up.log
+    fi
+  fi
   echo "WARN: continuing to VERIFY; the observed end state decides."
 fi
 
