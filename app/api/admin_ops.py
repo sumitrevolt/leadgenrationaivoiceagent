@@ -649,6 +649,63 @@ async def voice_launch_kill(req: _VoiceKillReq, _user=Depends(require_admin)):
     return {"ok": ok, "kill": bool(req.kill), "status": await _vl.launch_status()}
 
 
+@router.get(
+    "/swara-enterprise/status",
+    summary="Swara free-AI sticky routing + STT gate + training loop status",
+)
+async def swara_enterprise_status(_user=Depends(require_admin)):
+    """Admin surface: route health, STT gate, training proposals — NO secrets."""
+    out: dict = {"ok": True}
+    try:
+        from app.voice_agent.voice_sticky_route import health_snapshot, logical_routes
+
+        out["router"] = health_snapshot()
+        out["logical_routes"] = logical_routes()
+    except Exception as e:
+        out["router"] = {"error": type(e).__name__}
+    try:
+        from app.voice_agent.stt_understanding_gate import gate_snapshot
+
+        out["stt_gate"] = gate_snapshot()
+    except Exception as e:
+        out["stt_gate"] = {"error": type(e).__name__}
+    try:
+        from app.voice_agent.postcall_qa import training_loop_enabled
+        from pathlib import Path
+        import json
+
+        proposals = []
+        p = Path("data") / "voice_training_proposals.jsonl"
+        if p.exists():
+            lines = p.read_text(encoding="utf-8").strip().splitlines()[-5:]
+            for line in lines:
+                try:
+                    proposals.append(json.loads(line))
+                except Exception:
+                    continue
+        out["training"] = {
+            "loop_enabled": training_loop_enabled(),
+            "recent_proposals": proposals,
+        }
+    except Exception as e:
+        out["training"] = {"error": type(e).__name__}
+    try:
+        import os
+
+        out["voice_env"] = {
+            "VOICE_LLM_MODEL": (os.environ.get("VOICE_LLM_MODEL") or "")[:40],
+            "VOICE_STICKY_ROUTE": os.environ.get("VOICE_STICKY_ROUTE", "1"),
+            "VOICE_TOOLS": os.environ.get("VOICE_TOOLS", "0"),
+            "STT_UNDERSTANDING_GATE": os.environ.get("STT_UNDERSTANDING_GATE", "1"),
+            "PLATFORM_DIAL_DAILY": os.environ.get("PLATFORM_DIAL_DAILY", "0"),
+            "VOICE_LAUNCH_CAMPAIGN": os.environ.get("VOICE_LAUNCH_CAMPAIGN", "0"),
+            "OMNIROUTE_ENABLED": os.environ.get("OMNIROUTE_ENABLED", "0"),
+        }
+    except Exception:
+        pass
+    return out
+
+
 def _admin_office() -> dict:
     """🏢 Admin Office — "Sumit ke kaam": 4 scattered pending-action queues (self-
     improve / content / code-patch / UPI approvals) ONE jagah, plain Hinglish +

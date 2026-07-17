@@ -716,6 +716,12 @@ class VobizStreamSession:
         self._voice_variant_id: str | None = None
         self._voice_variant_resolved = False
 
+        # Enterprise conversation control plane (2026-07-17 OmniRoute free-AI upgrade)
+        self._session_state = None  # CallSessionState — lazy
+        self._sticky_route = None  # StickyRoute — pin at greet
+        self._conv_ctx = None  # ConversationContext — bounded turn memory
+        self._stt_gate_metrics = None  # SttGateMetrics
+
     # ------------------------------------------------------------------ #
     # Main receive loop
     async def handle(self) -> None:
@@ -1417,8 +1423,63 @@ class VobizStreamSession:
                 _outcome = "empty_stt"
                 _record = True
                 return
-            # JUNK GUARD — don't spend an LLM call (or speak) on garbage STT.
-            # Too-short / punctuation-only / noise → drop silently, keep listening.
+            # STT understanding gate (enterprise) — classify before LLM/sales advance.
+            # Replaces silent junk-drop with clarify / failure-close when needed.
+            try:
+                from app.voice_agent import stt_understanding_gate as _stt_gate
+
+                if _stt_gate.enabled():
+                    self._ensure_enterprise_state()
+                    last_user = next(
+                        (
+                            m.get("content", "")
+                            for m in reversed(self.hist)
+                            if m.get("role") == "user"
+                        ),
+                        "",
+                    )
+                    gate = _stt_gate.classify(text, last_user=last_user or "")
+                    if self._stt_gate_metrics is not None:
+                        _stt_gate.apply_metrics(self._stt_gate_metrics, gate)
+                        if self._session_state is not None:
+                            self._session_state.stt_metrics = self._stt_gate_metrics.as_dict()
+                    if gate.cls.value == "valid_opt_out":
+                        # Fall through to existing opt-out path below (do not drop).
+                        pass
+                    elif not gate.allow_llm:
+                        if gate.cls.value == "duplicate":
+                            logger.debug(f"[vobiz-stream] STT gate dup: {text!r}")
+                            _outcome = "dup"
+                            return
+                        if gate.clarify and self._stt_gate_metrics is not None:
+                            if _stt_gate.should_failure_close(self._stt_gate_metrics):
+                                self._stt_gate_metrics.stt_failure_close_count += 1
+                                reply = _stt_gate.failure_close_line()
+                                self.hist.append({"role": "user", "content": text})
+                                self.hist.append({"role": "assistant", "content": reply})
+                                _outcome = "stt_failure_close"
+                                _reply_text = reply
+                                await self._say_and_wait(reply)
+                                await self._terminate_call(
+                                    "application_exception", "stt_unclear_limit"
+                                )
+                                return
+                            reply = _stt_gate.CLARIFY_LINE
+                            self.hist.append({"role": "user", "content": text})
+                            self.hist.append({"role": "assistant", "content": reply})
+                            _outcome = "stt_clarify"
+                            _reply_text = reply
+                            await self._say(reply)
+                            return
+                        # Noise without clarify budget → silent drop (keep listening).
+                        logger.debug(
+                            f"[vobiz-stream] STT gate drop {gate.cls.value}: {text!r}"
+                        )
+                        _outcome = "junk"
+                        return
+            except Exception as e:
+                logger.debug(f"[vobiz-stream] STT gate skip: {e}")
+            # Legacy junk guard (failsafe if gate off / failed).
             if self._is_junk(text):
                 logger.debug(f"[vobiz-stream] dropped junk STT: {text!r}")
                 _outcome = "junk"
@@ -2120,6 +2181,19 @@ class VobizStreamSession:
                     self._telecaller.set_caller_phone(self._lead_phone)
             except Exception:
                 pass
+            # Attach enterprise sticky route + context + session (opener guard).
+            try:
+                self._ensure_enterprise_state()
+                if self._sticky_route is not None:
+                    self._telecaller._sticky_route = self._sticky_route  # noqa: SLF001
+                    if self._sticky_route.model:
+                        self._telecaller.model = self._sticky_route.model
+                if self._conv_ctx is not None:
+                    self._telecaller._conv_ctx = self._conv_ctx  # noqa: SLF001
+                if self._session_state is not None:
+                    self._telecaller._session_state = self._session_state  # noqa: SLF001
+            except Exception:
+                pass
         except Exception as e:
             logger.warning(f"[vobiz-stream] TelecallerBrain unavailable: {e}")
             self._telecaller = None
@@ -2409,7 +2483,64 @@ class VobizStreamSession:
             except Exception as e:
                 logger.debug(f"[vobiz-stream] filler synth failed ({t!r}): {e}")
 
+    def _ensure_enterprise_state(self) -> None:
+        """Lazy-init per-call sticky route + session state + conversation context."""
+        if self._session_state is not None:
+            return
+        try:
+            from app.voice_agent.call_session_state import CallSessionState
+            from app.voice_agent.conversation_context import build_context
+            from app.voice_agent.stt_understanding_gate import SttGateMetrics
+            from app.voice_agent.voice_sticky_route import select_at_call_start, sticky_enabled
+
+            self._session_state = CallSessionState(
+                call_id=str(self.stream_sid or ""),
+                tenant_id=str(self.client_id or ""),
+                niche=str(self.niche or ""),
+            )
+            self._stt_gate_metrics = SttGateMetrics()
+            self._conv_ctx = build_context(
+                tenant_id=str(self.client_id or ""),
+                business_name=self.client_name or "",
+                niche=str(self.niche or ""),
+                history=list(self.hist or []),
+            )
+            if sticky_enabled():
+                self._sticky_route = select_at_call_start()
+                self._session_state.pin_route(
+                    route=self._sticky_route.route_id,
+                    provider=self._sticky_route.provider,
+                    model=self._sticky_route.model,
+                    version=self._sticky_route.version,
+                )
+                self._conv_ctx.active_route = self._sticky_route.route_id
+                self._conv_ctx.active_model = self._sticky_route.model
+                # Propagate pin to TelecallerBrain so mid-call churn stops.
+                try:
+                    tc = self._get_telecaller()
+                    if tc is not None:
+                        tc._sticky_route = self._sticky_route  # noqa: SLF001
+                        if self._sticky_route.model:
+                            tc.model = self._sticky_route.model
+                except Exception:
+                    pass
+                logger.info(
+                    f"[vobiz-stream {self.stream_sid}] sticky route "
+                    f"{self._sticky_route.provider}/{self._sticky_route.model}"
+                )
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] enterprise state init skip: {e}")
+
+    def _mark_greeting_done(self) -> None:
+        try:
+            self._ensure_enterprise_state()
+            if self._session_state is not None:
+                self._session_state.mark_greeting_spoken()
+        except Exception:
+            pass
+
     async def _greet(self) -> None:
+        self._ensure_enterprise_state()
         try:
             from app.voice_agent.platform_pitch import (
                 initial_state,
@@ -2440,6 +2571,7 @@ class VobizStreamSession:
                     if i == 0:
                         self._disclosure_active = False
                 self._disclosure_active = False
+                self._mark_greeting_done()
                 return
         except Exception as e:
             logger.debug(f"[vobiz-stream] platform greet failed: {e}")
@@ -2470,10 +2602,12 @@ class VobizStreamSession:
                     self._speaking = True
                     self._barge_frames = 0
                     self._play_task = asyncio.create_task(self._run_play(pcm))
+                    self._mark_greeting_done()
                     return
             except Exception as e:
                 logger.debug(f"[vobiz-stream] cached greet failed: {e}")
         await self._say(line)  # fallback: synth now (pregen failed/missing)
+        self._mark_greeting_done()
 
     async def _say(self, text: str) -> None:
         """Speak a reply via SENTENCE-CHUNKED STREAMING TTS (see _say_streaming):
@@ -3084,6 +3218,20 @@ class VobizStreamSession:
                 "barge_count": self._interruptions,  # P4-3 interruption tracking
                 "messages": redacted_msgs,
             }
+            # Enterprise conversation metadata (no secrets / no raw audio).
+            try:
+                if self._session_state is not None:
+                    rec["session_state"] = self._session_state.as_dict()
+                if self._sticky_route is not None:
+                    rec["sticky_route"] = self._sticky_route.as_dict()
+                if self._stt_gate_metrics is not None:
+                    rec["stt_gate"] = self._stt_gate_metrics.as_dict()
+                from app.voice_agent.postcall_qa import analyze_transcript
+
+                qa = analyze_transcript(self.hist)
+                rec["postcall_qa"] = qa.as_dict()
+            except Exception:
+                pass
             try:
                 from app.voice_agent.call_termination import (
                     count_agent_turns,
