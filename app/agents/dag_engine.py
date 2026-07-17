@@ -460,6 +460,22 @@ def ensure_alive(stale_minutes: int = 15) -> dict[str, Any]:
             if age_min < stale_minutes:
                 active.append(run_id)
                 continue
+            # Guard: process_tick → flow_dispatch.engine_for(); malformed /
+            # pre-Phase-2 journal (no engine=dag) silently falls back to
+            # process_engine and mis-advances the run. Skip those revive.
+            try:
+                from app.agents import dag_engine as _dag
+                from app.agents.flow_dispatch import engine_for
+
+                if engine_for(run_id) is not _dag:
+                    logger.warning(
+                        f"[dag] revive skip {run_id}: engine_for mismatch "
+                        f"(not dag — refusing process_engine fallback)"
+                    )
+                    continue
+            except Exception as e:
+                logger.debug(f"[dag] engine_for check failed {run_id}: {e}")
+                continue
             try:
                 from app.tasks.staff_jobs import process_tick
 

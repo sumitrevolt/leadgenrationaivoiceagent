@@ -92,6 +92,40 @@ def test_process_engine_ensure_alive_revives_stale():
         assert "testrun123" in out.get("revived", [])
 
 
+def test_dag_ensure_alive_skips_engine_mismatch(monkeypatch):
+    """F-2: stale run whose engine_for is not dag must NOT enqueue process_tick."""
+    from app.agents import dag_engine
+    from app.agents import process_engine
+
+    monkeypatch.setattr(
+        dag_engine,
+        "list_runs",
+        lambda limit=50: [{"run_id": "dagbad001", "status": "running"}],
+    )
+    monkeypatch.setattr(
+        dag_engine,
+        "_read_events",
+        lambda _rid: [
+            {
+                "type": "run_started",
+                "data": {"process": "flow:x"},
+                "at": "2020-01-01T00:00:00+00:00",
+            }
+        ],
+    )
+    monkeypatch.setattr(
+        "app.agents.flow_dispatch.engine_for",
+        lambda _rid: process_engine,  # mismatch → skip revive
+    )
+    delayed: list[str] = []
+    with patch("app.tasks.staff_jobs.process_tick") as mock_tick:
+        mock_tick.delay = lambda rid: delayed.append(rid)
+        out = dag_engine.ensure_alive(stale_minutes=1)
+    assert out.get("ok") is True
+    assert delayed == []
+    assert "dagbad001" not in out.get("revived", [])
+
+
 def test_speed_to_lead_callback_touch(tmp_path, monkeypatch):
     from app.platform import speed_to_lead as stl
 

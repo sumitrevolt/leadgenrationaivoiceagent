@@ -73,3 +73,24 @@ def test_queue_flooded_safe_on_redis_error(monkeypatch: pytest.MonkeyPatch) -> N
 
     # Error reading depth must fail-open (not flooded) — never block the sweep on a glitch
     assert dlq_retry._queue_flooded(_BadRedis()) is False
+
+
+def test_kb_share_flags_in_automation_registry() -> None:
+    from app.api.automation_flags import AUTOMATION_FLAGS
+
+    assert "COORD_KB_SHARE" in AUTOMATION_FLAGS
+    assert "KB_SKILL_LEARN" in AUTOMATION_FLAGS
+
+
+def test_coordinator_heartbeat_records_automation_health(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app.agents import coordinator
+    from app.platform import automation_health as ah
+
+    recorded: list[tuple] = []
+    monkeypatch.setattr(
+        ah,
+        "record_run",
+        lambda job, ok=True, seconds=0.0, note="", **_k: recorded.append((job, ok, note)),
+    )
+    coordinator._heartbeat("coordinate", True, 0.0, "test goal")
+    assert recorded and recorded[0][0] == "coordinator" and recorded[0][1] is True

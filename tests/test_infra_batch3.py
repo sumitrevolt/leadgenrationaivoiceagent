@@ -41,6 +41,10 @@ class FakeRedis:
         h[f] = int(h.get(f, 0)) + n
         return h[f]
 
+    def incr(self, k):
+        self.kv[k] = str(int(self.kv.get(k) or 0) + 1)
+        return int(self.kv[k])
+
     def hgetall(self, k):
         return dict(self.hashes.get(k) or {})
 
@@ -48,6 +52,7 @@ class FakeRedis:
         return True
 
     def expire(self, k, ttl):
+        self.kv.setdefault(f"__ttl__{k}", ttl)
         return True
 
     def get(self, k):
@@ -123,6 +128,31 @@ def test_dlq_sweep_unknown_task_goes_dead(monkeypatch):
     out = asyncio.run(dlq_retry.run_sweep(r=r))
     assert out["skipped"] == 1
     assert r.llen(dlq_retry.DEAD_KEY) == 1  # blind retry NAHI — side-effect safe
+
+
+def test_dlq_retry_counts_are_per_job(monkeypatch):
+    """Per-job Redis keys: one job's incr must not share / reset another's TTL bucket."""
+    from app.platform import dlq_retry
+
+    monkeypatch.setenv("DLQ_AUTO_RETRY", "1")
+    monkeypatch.setenv("RUN_IN_PROCESS_SCHEDULER", "1")
+
+    async def fake_run_job(_job):
+        return True
+
+    from app.platform import team_scheduler
+
+    monkeypatch.setattr(team_scheduler, "_run_job", fake_run_job)
+
+    r = FakeRedis()
+    r.lpush(dlq_retry.DLQ_KEY, json.dumps({"args": "('content',)", "error": "a"}))
+    r.lpush(dlq_retry.DLQ_KEY, json.dumps({"args": "('qa',)", "error": "b"}))
+    out = asyncio.run(dlq_retry.run_sweep(r=r, max_items=10))
+    assert {x["job"] for x in out["retried"]} == {"content", "qa"}
+    assert r.get(f"{dlq_retry.COUNT_KEY_PREFIX}content") == "1"
+    assert r.get(f"{dlq_retry.COUNT_KEY_PREFIX}qa") == "1"
+    # shared hash must NOT be the write path anymore
+    assert r.hgetall(dlq_retry.COUNTS_KEY) == {}
 
 
 # ---------------------------------------------------------- integration_health

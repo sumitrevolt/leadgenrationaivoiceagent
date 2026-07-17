@@ -99,6 +99,22 @@ def set_status(patch_id: str, status: str, note: str = "") -> dict[str, Any]:
         )
     except Exception:
         pass
+    # D1: eval_gate on applied patches (INERT unless EVAL_GATE=1). Mirrors
+    # self_improve._execute — slow quality drift after Vikram acceptances.
+    if status == "applied":
+        try:
+            from app.agents import eval_gate
+
+            if eval_gate.enabled():
+                eval_gate.score_and_gate(
+                    suite="code_upgrader",
+                    metric="patch_outcome",
+                    current_score=1.0,
+                    agent="vikram",
+                    artifact=str(patch_id),
+                )
+        except Exception as _eg_exc:
+            logger.debug(f"[code_upgrader] eval_gate hook skip: {_eg_exc}")
     return {"ok": True, "id": patch_id, "status": status}
 
 

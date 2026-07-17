@@ -184,6 +184,38 @@ def test_upgrader_propose_and_status(tmp_path, monkeypatch):
     assert res4["proposed"] == 0
 
 
+def test_upgrader_applied_calls_eval_gate(tmp_path, monkeypatch):
+    """applied status → eval_gate.score_and_gate (INERT unless EVAL_GATE=1)."""
+    from app.agents import code_upgrader as cu
+    from app.agents import eval_gate
+
+    monkeypatch.setattr(cu, "_PATCHES", str(tmp_path / "patches.jsonl"))
+    monkeypatch.setenv("EVAL_GATE", "1")
+    called: list[dict] = []
+
+    def _fake_score_and_gate(**kwargs):
+        called.append(kwargs)
+        return {"decision": "accept", "ratio": 1.0}
+
+    monkeypatch.setattr(eval_gate, "enabled", lambda: True)
+    monkeypatch.setattr(eval_gate, "score_and_gate", _fake_score_and_gate)
+
+    cu._append(
+        {
+            "id": "p-eval-1",
+            "status": "approved",
+            "title": "t",
+            "at": "2026-07-17T00:00:00",
+        }
+    )
+    assert cu.set_status("p-eval-1", "applied", "shipped")["ok"]
+    assert len(called) == 1
+    assert called[0]["suite"] == "code_upgrader"
+    assert called[0]["metric"] == "patch_outcome"
+    assert called[0]["agent"] == "vikram"
+    assert called[0]["artifact"] == "p-eval-1"
+
+
 def test_llm_cooldown_escalates_and_resets(monkeypatch):
     from app.voice_agent import free_ai as fa
 

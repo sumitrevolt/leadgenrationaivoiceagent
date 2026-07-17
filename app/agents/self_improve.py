@@ -1114,14 +1114,23 @@ def compute_outcome_value(outcome_dict: dict[str, Any]) -> float:
 # ---------------------------------------------------------------- cost tracking + approval gates
 
 
+_COST_FILE = os.path.join("data", "self_improve_cost.json")
+
+
 class CostTracker:
-    """Daily cost cap + per-task tracking (Phase 6 safety gates)."""
+    """Daily cost cap + per-task tracking (Phase 6 safety gates).
+
+    Spent counter persists to `data/self_improve_cost.json` so worker restart
+    mid-day does not reset the advisory budget. max_per_day() run-count remains
+    the hard durable gate; this tracker is estimated $/task (not measured tokens).
+    """
 
     def __init__(self, daily_cap: float = 50.0):
         self.daily_cap = daily_cap
         self.today_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
         self.today_cost = 0.0
         self.tasks_today: list[dict[str, Any]] = []
+        self._load()
 
     def can_afford(self, task_name: str, estimated_cost: float) -> bool:
         """Check if task fits under daily budget."""
@@ -1139,6 +1148,7 @@ class CostTracker:
                 "time": _now().isoformat(),
             }
         )
+        self._persist()
 
     def get_daily_status(self) -> dict[str, Any]:
         """Return today's budget status."""
@@ -1152,10 +1162,10 @@ class CostTracker:
                 round(100 * self.today_cost / self.daily_cap, 1) if self.daily_cap > 0 else 0
             ),
             "tasks": self.tasks_today,
-            # Honesty label (audit §2): cost constants ($2.5/$0.5) are estimates, not
-            # measured tokens. This counter is in-memory per-process and resets on restart.
-            # The durable real guard is max_per_day() run-count (file-state).
-            "note": "estimated_per_process",
+            # Honesty: cost constants ($2.5/$0.5) are estimates, not measured tokens.
+            # Counter is file-durable across worker restarts (same UTC day).
+            # Hard durable guard remains max_per_day() run-count (file-state).
+            "note": "estimated_durable_file",
         }
 
     def _reset_if_new_day(self) -> None:
@@ -1164,6 +1174,35 @@ class CostTracker:
             self.today_date = new_date
             self.today_cost = 0.0
             self.tasks_today = []
+            self._persist()
+
+    def _load(self) -> None:
+        try:
+            if os.path.exists(_COST_FILE):
+                with open(_COST_FILE, encoding="utf-8") as f:
+                    d = json.load(f) or {}
+                if str(d.get("date") or "") == self.today_date:
+                    self.today_cost = float(d.get("spent") or 0.0)
+                    tasks = d.get("tasks") or []
+                    self.tasks_today = list(tasks)[-50:] if isinstance(tasks, list) else []
+        except Exception:
+            pass
+
+    def _persist(self) -> None:
+        try:
+            os.makedirs(os.path.dirname(_COST_FILE) or ".", exist_ok=True)
+            with open(_COST_FILE, "w", encoding="utf-8") as f:
+                json.dump(
+                    {
+                        "date": self.today_date,
+                        "spent": round(self.today_cost, 2),
+                        "tasks": self.tasks_today[-50:],
+                    },
+                    f,
+                    ensure_ascii=False,
+                )
+        except Exception:
+            pass
 
 
 def should_skip_task(
