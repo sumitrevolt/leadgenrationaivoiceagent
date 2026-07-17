@@ -63,11 +63,14 @@ except Exception:  # pragma: no cover - SDK missing
 # endpoint use hota hai (subscription plan, no per-key quota). Token 55-min cache;
 # google-auth ADC ya GOOGLE_APPLICATION_CREDENTIALS JSON dono support.
 import os as _os
+
 _VERTEX_TOKEN_CACHE: dict = {"token": "", "exp": 0.0}
 
 
 def _vertex_project() -> str:
-    return (_os.environ.get("GOOGLE_CLOUD_PROJECT_ID") or _os.environ.get("GOOGLE_CLOUD_PROJECT") or "").strip()
+    return (
+        _os.environ.get("GOOGLE_CLOUD_PROJECT_ID") or _os.environ.get("GOOGLE_CLOUD_PROJECT") or ""
+    ).strip()
 
 
 def _vertex_location() -> str:
@@ -95,6 +98,7 @@ async def _vertex_bearer_token() -> str:
     try:
         import google.auth  # type: ignore
         import google.auth.transport.requests  # type: ignore
+
         creds, _ = await asyncio.get_event_loop().run_in_executor(
             None,
             lambda: google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"]),
@@ -130,10 +134,12 @@ _NVIDIA_BASE = "https://integrate.api.nvidia.com/v1"  # build.nvidia.com
 # code-switched utterances ("I'm interested" -> "वो इंट तर सेलू"), which broke the
 # brain's question-detection. `whisper-large-v3` (non-turbo) is more accurate on
 # Hindi/Hinglish; set GROQ_STT_MODEL=whisper-large-v3-turbo to trade accuracy for speed.
-_GROQ_STT_MODEL = (_os.environ.get("GROQ_STT_MODEL", "").strip() or "whisper-large-v3")
+_GROQ_STT_MODEL = _os.environ.get("GROQ_STT_MODEL", "").strip() or "whisper-large-v3"
 _CEREBRAS_LLM_MODEL = "gpt-oss-120b"  # free, fastest 120B
 _GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # free, 6000 RPM, 14k RPD
-_GEMINI_LLM_MODEL = "gemini-2.5-flash"  # paid tier — key set, 2.5-flash works (2.0-flash-lite free_tier=0)
+_GEMINI_LLM_MODEL = (
+    "gemini-2.5-flash"  # paid tier — key set, 2.5-flash works (2.0-flash-lite free_tier=0)
+)
 _SAMBANOVA_LLM_MODEL = "Meta-Llama-3.3-70B-Instruct"  # free, fast inference chip
 _MISTRAL_LLM_MODEL = "mistral-small-latest"  # free tier (La Plateforme)
 _NVIDIA_LLM_MODEL = "meta/llama-3.3-70b-instruct"  # NVIDIA NIM free — quality fallback (env override: NVIDIA_LLM_MODEL)
@@ -200,6 +206,7 @@ def _ollama_primary() -> bool:
 # kiye (QA-tester proven). 8s = professional replies, no repeats; occasional
 # spike phone par cached filler ("hmm/achha ji") se mask hota hai.
 _CALL_TIMEOUT_S = 8.0
+
 
 # STREAMING token-loop deadlines (chat_stream). The OLD code wrapped only stream
 # CREATION in a timeout; the `async for chunk in stream` token loop was UNBOUNDED,
@@ -342,7 +349,10 @@ _PROVIDER_CFG: dict[str, tuple[str, str]] = {
     "gemini": ("gemini_api_key", _GEMINI_BASE),
     "sambanova": ("sambanova_api_key", _SAMBANOVA_BASE),  # free — cloud.sambanova.ai
     "mistral": ("mistral_api_key", _MISTRAL_BASE),  # free tier — console.mistral.ai
-    "nvidia": ("nvidia_api_key", _NVIDIA_BASE),  # NVIDIA NIM free-tier fallback — integrate.api.nvidia.com
+    "nvidia": (
+        "nvidia_api_key",
+        _NVIDIA_BASE,
+    ),  # NVIDIA NIM free-tier fallback — integrate.api.nvidia.com
 }
 
 
@@ -567,9 +577,12 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     gemini_model = (_os.getenv("GEMINI_LLM_MODEL", "") or "").strip() or _GEMINI_LLM_MODEL
     try:
         from app.config import settings
+
         gemini_primary = getattr(settings, "gemini_primary", False)
         default_llm = (getattr(settings, "default_llm", "") or "").strip()
-        if not _os.getenv("GEMINI_LLM_MODEL", "").strip() and default_llm.lower().startswith("gemini"):
+        if not _os.getenv("GEMINI_LLM_MODEL", "").strip() and default_llm.lower().startswith(
+            "gemini"
+        ):
             gemini_model = default_llm
     except Exception:
         gemini_primary = _os.getenv("GEMINI_PRIMARY", "0").strip().lower() in ("1", "true", "yes")
@@ -628,14 +641,14 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
         ("groq", _GROQ_QWEN3_MODEL),
         ("groq", _GROQ_KIMI_K2_MODEL),
     ]
-    
+
     if not gemini_primary:
         # BUGFIX (2026-07-05): yahan hardcoded _GEMINI_LLM_MODEL (paid 2.5-flash) tha
         # jo GEMINI_LLM_MODEL/DEFAULT_LLM override ko IGNORE karta — free keys pe paid
         # model = 429/quota burn. Ab wahi overridable `gemini_model` (line ~544) use karo
         # jo gemini_primary path bhi use karta.
         chain.append(("gemini", gemini_model))
-        
+
     chain += [
         ("sambanova", _SAMBANOVA_LLM_MODEL),
         # NVIDIA NIM deep-tail: AFTER sambanova (free-unlimited) to conserve metered
@@ -666,7 +679,7 @@ def _blocked_for_provider(msgs: Any, provider: str) -> bool:
     # Never stringify arbitrary objects: their repr may contain a hexadecimal memory
     # address that accidentally satisfies the phone-number matcher. Real call paths
     # provide message strings/lists/dicts; malformed input stays fail-open by contract.
-    if not isinstance(msgs, (str, list, dict)):
+    if not isinstance(msgs, str | list | dict):
         return False
     try:
         from app.platform.safe_ai_payload import SafePayloadError, block_if_sensitive
@@ -730,6 +743,7 @@ async def chat_provider(
     _msgs_original = msgs
     try:
         from app.platform.safe_ai_payload import mask_customer_data
+
         msgs = mask_customer_data(msgs)
         if msgs is None:
             msgs = _msgs_original
@@ -874,6 +888,7 @@ async def chat(
     _msgs_original = msgs
     try:
         from app.platform.safe_ai_payload import mask_customer_data
+
         msgs = mask_customer_data(msgs)
         if msgs is None:
             msgs = _msgs_original
@@ -891,9 +906,7 @@ async def chat(
         try:
             from app.platform.omniroute_client import try_agent_chat
 
-            _omni_text = await try_agent_chat(
-                msgs, agent_key=agent_key, product=product
-            )
+            _omni_text = await try_agent_chat(msgs, agent_key=agent_key, product=product)
             if _omni_text:
                 return _omni_text, "omniroute"
         except Exception as _omni_exc:  # defensive — hook kabhi chain nahi girayega
@@ -939,6 +952,7 @@ async def chat(
                     _reset_cooldown_streak(provider)
                     try:
                         from app.platform import llm_metrics
+
                         llm_metrics.record(provider, True, (time.monotonic() - _t0) * 1000)
                     except Exception:
                         pass
@@ -1062,6 +1076,7 @@ async def chat_stream(
     _msgs_original = msgs
     try:
         from app.platform.safe_ai_payload import mask_customer_data
+
         msgs = mask_customer_data(msgs)
         if msgs is None:
             msgs = _msgs_original
@@ -1069,6 +1084,28 @@ async def chat_stream(
         msgs = _msgs_original
 
     prof = _resolve_llm_profile(profile, max_tokens)
+
+    # OmniRoute voice brain (OMNIROUTE_VOICE=1) — realtime/stream path ONLY.
+    # Fail-open: empty stream falls through to direct free providers below.
+    if prof == "realtime":
+        try:
+            from app.voice_agent import omniroute_voice
+
+            if omniroute_voice.voice_enabled():
+                got = False
+                async for delta in omniroute_voice.chat_stream(
+                    system,
+                    msgs,
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                ):
+                    got = True
+                    yield delta
+                if got:
+                    return
+        except Exception as _ov_exc:
+            logger.debug("[free_ai] omniroute_voice stream bypass: %s", type(_ov_exc).__name__)
+
     chain = _build_llm_chain(prof)
     for provider, model in chain:
         if _provider_down(provider):

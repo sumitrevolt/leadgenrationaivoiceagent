@@ -227,7 +227,7 @@ Verification Evidence:
 - `/api/activation/summary`: `ready_for_first_paid_customer=true` ? `blocker_count=0`
 - Logout HTML: `/app/customer` + marketing + voice all contain `doCustomerLogout` + `/api/customer/auth/logout` + `logoutBtn`; unauth POST logout ? 401
 - Logout revoke PROOF (in-container JWT for jiya-makeover): logout ? require_customer ? **401 `Token has been revoked (logged out)`** ? `logout_revoke_PROOF=OK`
-- Purane Bills path PROOF: aliases `['jiya-makeover','d79d690f61b3']` ? JSONL match **INV/2026-27/0001** (row client_id=`d79d690f61b3`, ?1999) ? Postgres InvoiceResponse full fields present in source ? `invoice_alias_PROOF=OK`
+- Purane Bills path PROOF: aliases `['jiya-makeover','<client-hash>']` ? JSONL match **INV/2026-27/0001** (row client_id=`<client-hash>`, ?1999) ? Postgres InvoiceResponse full fields present in source ? `invoice_alias_PROOF=OK`  # pragma: allowlist secret
 - platform_dial: `PLATFORM_DIAL_DAILY=0` ? `enabled=False`
 Risks: Compose recreate race can still fail first `up` under load ? canonical retry (same script, same SHA) recovered; no manual docker rm used. Disk hit 80% warn mid-build then retention brought to 74%.
 Remaining (owner-only, non-blocking): YouTube OAuth publish ? control-center L2 graph empty ? Unity WebGL local-only.
@@ -564,3 +564,26 @@ Risks: VOICE_FOLLOWUP default OFF — prod inert until operator flip; no admin U
 Remaining: user flip VOICE_FOLLOWUP=1 + deploy; optional control-center UI for pending callbacks.
 Next Highest Priority: deploy voice_followup wiring; flip flag; monitor first trial day8/9 placements.
 
+## Loop Run
+Date: 2026-07-17 (voice follow-up deploy + VOICE_FOLLOWUP flip)
+Goal: Commit/push/deploy post-call follow-up workflows; flip VOICE_FOLLOWUP=1 on prod; verify scheduler + platform_dial OFF.
+Inspected: local HEAD e7956290=prod; scoped 11 files; unrelated WIP preserved (boss_council, gbp, telecaller_brain, frontend).
+Problems Found: none blocking; env flip required post-deploy recreate (VOICE_FOLLOWUP added to .env after initial deploy).
+Changed: commit e8af0ce3 (11 files, +832); push origin/main; canonical deploy APP_VERSION=e8af0ce3; appended VOICE_FOLLOWUP=1 to /opt/leadgen/.env; recreated 5 app-image services via docker-compose.vps.yml --profile celery.
+Tests Run: pytest test_voice_followup + test_hands_free_automations = 34 passed; prod_check ALL PASSED; check_secrets clean; deploy BUILD/UP/health/skew/smoke gates.
+Verification Evidence: /health.version=e8af0ce3 production; 5/5 APP_VERSION=e8af0ce3 no skew; smoke 200s; VOICE_FOLLOWUP=1 in app/worker/scheduler; PLATFORM_DIAL_DAILY=0; process-voice-followups beat crontab(minute=25) in deployed worker.py; Redis PONG celery=0 DLQ=0; disk 76%.
+Risks: voice_followup JSONL store has no admin UI yet; first real trial day8/9 placements need monitoring.
+Remaining: optional control-center UI for pending callbacks; monitor first scheduled follow-ups at :25 hourly.
+Next Highest Priority: monitor process_voice_followups at :25 IST; watch for first trial day8/9 callback placement.
+
+## Loop Run
+Date: 2026-07-17 (OmniRoute Swara integration Phases 2-11 — local implement)
+Goal: Structured turn metrics, omniroute_voice router, barge-in LLM cancel, processing ack, answer discipline, tests; canary/deploy pending flags.
+Inspected: Phase-1 baseline (Swara=free_ai direct, no OmniRoute on voice; def66060 turn P50 12.1s); vobiz_stream, telecaller_brain, free_ai, omniroute_client, voice_sticky_route, turn_metrics.
+Problems Found: (1) No structured turn_id/generation_id/gap metrics. (2) Voice hot-path bypassed OmniRoute entirely. (3) Barge-in cancelled playback only, not LLM gen. (4) No threshold processing ack. (5) Customer Q could get multi-? bot replies.
+Changed: NEW app/voice_agent/omniroute_voice.py (OMNIROUTE_VOICE=1, streaming, cancel, leadgen.swara_live CUSTOMER_MASKED); turn_metrics TurnStampBuilder; vobiz_stream stamps + barge LLM cancel + VOICE_PROCESSING_ACK; telecaller_brain OmniRoute wire + max-1 follow-up Q; free_ai realtime stream hook; voice_sticky_route omniroute pin; automation_flags OMNIROUTE_VOICE/VOICE_PROCESSING_ACK*; tests/test_omniroute_voice.py; test_turn_metrics + test_omniroute_client updates.
+Tests Run: pytest test_omniroute_voice + test_turn_metrics + test_omniroute_client = 36 passed; prod_check ALL PASSED (1112 routes); check_secrets clean.
+Verification Evidence: local gates green; prod still e8af0ce3 (no deploy this loop); OMNIROUTE_VOICE unset = INERT (safe); canary +919359984977 NOT run (needs deploy + flag flip + live call).
+Risks: OmniRoute gateway absent on VPS (Phase-1) — OMNIROUTE_VOICE=1 without gateway falls back to free_ai (fail-open); real latency improvement unproven until canary; processing ack PCM needs edge-tts on worker.
+Remaining: deploy APP_VERSION=<sha>; set OMNIROUTE_ENABLED+API_KEY+OMNIROUTE_VOICE=1 on voice path; allowlisted canary +919359984977 with interrupt test; measure before/after turn P50.
+Next Highest Priority: surgical deploy + canary call with structured turn_metrics JSONL evidence; rollback = e8af0ce3 + OMNIROUTE_VOICE=0.

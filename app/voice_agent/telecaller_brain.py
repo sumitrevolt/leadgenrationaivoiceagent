@@ -46,6 +46,7 @@ except Exception:  # pragma: no cover
     def to_roman(_t: str) -> str:  # type: ignore[misc]
         return _t or ""
 
+
 # Professional telecaller script dataset (pure-data, import-safe). Guarded so a
 # missing/broken module can never stop the brain from initializing — get_script
 # then degrades to {} and the prompt falls back to niche-data questions.
@@ -137,9 +138,7 @@ def _sanitize_utterance(ut: str) -> str:
             # BUGFIX (2026-07-05): bare-substring match legit shabd garble kar deta
             # tha ("exact assessment" me "act as" -> "ex[...]sessment"). Word-boundary
             # se sirf poore words/phrases match hote (same pattern as _ROLE_INJECTION_RE).
-            pattern = re.compile(
-                r"\b" + re.escape(marker) + r"\b", re.IGNORECASE
-            )
+            pattern = re.compile(r"\b" + re.escape(marker) + r"\b", re.IGNORECASE)
             ut = pattern.sub("[...]", ut)
             low = ut.lower()  # re-check on updated string
     return ut
@@ -446,8 +445,7 @@ def _is_post_close_reply(ut: str) -> bool:
 
 
 _GOODBYE_UTTERANCE_RE = re.compile(
-    r"\b(thank|thanks|dhanyavaad|shubh ho|bye|alvida|goodbye)\b|"
-    r"थैंक|थैंक्स|धन्यवाद|अलविदा|शुभ",
+    r"\b(thank|thanks|dhanyavaad|shubh ho|bye|alvida|goodbye)\b|" r"थैंक|थैंक्स|धन्यवाद|अलविदा|शुभ",
     re.IGNORECASE,
 )
 
@@ -848,7 +846,9 @@ class TelecallerBrain:
         # Voice LLM model — env-tunable (research 2026-06-30: flash-lite = fast +
         # decent free Hindi IF; set VOICE_LLM_MODEL=gemini-2.5-flash for higher Hindi
         # instruction-following at the cost of latency/quota — reversible, default unchanged).
-        _voice_model = (os.environ.get("VOICE_LLM_MODEL", "") or "").strip() or "gemini-2.5-flash-lite"
+        _voice_model = (
+            os.environ.get("VOICE_LLM_MODEL", "") or ""
+        ).strip() or "gemini-2.5-flash-lite"
         self.model = _voice_model
         if first_key:
             try:
@@ -900,7 +900,8 @@ class TelecallerBrain:
         # so the LLM honours it on edge cases too (the deterministic gate in reply()
         # is the hard backstop). Gated SOFTNO_DEESCALATE (default ON).
         try:
-            from app.voice_agent.intent_softno import SYSTEM_RULE, enabled as _softno_on
+            from app.voice_agent.intent_softno import SYSTEM_RULE
+            from app.voice_agent.intent_softno import enabled as _softno_on
 
             if _softno_on() and SYSTEM_RULE not in self.system_prompt:
                 self.system_prompt += SYSTEM_RULE
@@ -995,9 +996,7 @@ class TelecallerBrain:
             "Bas apna WhatsApp number confirm kar dijiye?"
         )
 
-    def _apply_audit_loop_guard(
-        self, line: str, history: list[dict[str, str]] | None
-    ) -> str:
+    def _apply_audit_loop_guard(self, line: str, history: list[dict[str, str]] | None) -> str:
         if not line:
             return line
         if "audit" in line.lower() and _count_audit_mentions(history) >= _audit_loop_max():
@@ -1013,6 +1012,7 @@ class TelecallerBrain:
             ss = getattr(self, "_session_state", None)
             if ss is not None:
                 ss.conversation_stage = "close"
+                ss.closing_started = True
         except Exception:
             pass
 
@@ -1036,9 +1036,7 @@ class TelecallerBrain:
             return self._final_goodbye_line()
         return line
 
-    def _deliver_post_close_wrap(
-        self, history: list[dict[str, str]] | None, ut: str
-    ) -> str:
+    def _deliver_post_close_wrap(self, history: list[dict[str, str]] | None, ut: str) -> str:
         """After setup/handoff: goodbye, number confirm, or brief answer — NO audit resell."""
         if not ut or not _close_detect_enabled() or not history:
             return ""
@@ -1054,6 +1052,14 @@ class TelecallerBrain:
         if _is_goodbye_utterance(ut):
             self.session_closed = True
             self.final_message_played = True
+            try:
+                ss = getattr(self, "_session_state", None)
+                if ss is not None:
+                    ss.session_closed = True
+                    ss.final_message_played = True
+                    ss.conversation_stage = "ended"
+            except Exception:
+                pass
             if self.caller_phone and not self.close_signal_fired:
                 self._on_close_signal()
             return self._final_goodbye_line()
@@ -1552,10 +1558,36 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         # (proven in 2026-06-25 web test-calls). Over-detection here is SAFE: it just
         # routes more turns to the LLM, which answers in context = more professional.
         dev_q = (
-            "क्या", "कैसे", "कैसा", "कब", "कहाँ", "कहां", "क्यों", "क्यूँ", "कितना",
-            "कितने", "कितनी", "कौन", "मतलब", "समझा", "बता", "चार्ज", "कीमत", "दाम",
-            "पैसे", "रुपय", "प्लान", "पैकेज", "सर्विस", "service", "monthly", "yearly",
-            "प्रोवाइड", "देते", "देती", "दे रहे",
+            "क्या",
+            "कैसे",
+            "कैसा",
+            "कब",
+            "कहाँ",
+            "कहां",
+            "क्यों",
+            "क्यूँ",
+            "कितना",
+            "कितने",
+            "कितनी",
+            "कौन",
+            "मतलब",
+            "समझा",
+            "बता",
+            "चार्ज",
+            "कीमत",
+            "दाम",
+            "पैसे",
+            "रुपय",
+            "प्लान",
+            "पैकेज",
+            "सर्विस",
+            "service",
+            "monthly",
+            "yearly",
+            "प्रोवाइड",
+            "देते",
+            "देती",
+            "दे रहे",
         )
         return any(w in (ut or "") for w in dev_q)
 
@@ -1716,7 +1748,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 return self._clean(
                     "Pehle posts aur audit 24-48 ghante me ready — roz ka content subah ~7 baje portal me."
                 )
-            if any(w in low for w in ("social", "instagram", "facebook", "whatsapp", "post", "ads")):
+            if any(
+                w in low for w in ("social", "instagram", "facebook", "whatsapp", "post", "ads")
+            ):
                 return self._clean(
                     "Roz ke posts aur ads AI banati hai — aapki industry aur city ke hisaab se, "
                     "aap sirf approve ya copy-paste karo."
@@ -1730,17 +1764,13 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         # known cases (AI-identity, price, platform FAQs) ke liye rakha.
         return ""
 
-    def _repeats_recent(
-        self, text: str, history: list[dict[str, str]], lookback: int = 4
-    ) -> bool:
+    def _repeats_recent(self, text: str, history: list[dict[str, str]], lookback: int = 4) -> bool:
         """True agar `text` recent assistant line jaisa ho — canned-repeat se bachne
         ke liye. Repeat hone wale shortcut ko "" deke LLM elaborate kara dete hain."""
         if not text:
             return False
         asst = [
-            str(m.get("content") or "")
-            for m in (history or [])
-            if m.get("role") == "assistant"
+            str(m.get("content") or "") for m in (history or []) if m.get("role") == "assistant"
         ]
         return any(self._too_similar(text, prev) for prev in asst[-lookback:])
 
@@ -1763,8 +1793,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
         if any(w in low for w in ("trial", "free trial", "demo", "test karna", "try karna")):
             return self._clean(
-                "7 din ka FREE trial hai, bina credit card. "
-                "Aaj setup kar doon ya kal subah?"
+                "7 din ka FREE trial hai, bina credit card. " "Aaj setup kar doon ya kal subah?"
             )
         if any(w in low for w in ("busy", "meeting", "abhi nahi", "time nahi")):
             return self._clean("Shaam paanch baje ya kal subah gyarah — kab theek rahega?")
@@ -1781,9 +1810,46 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         # (probe showed it gave the wrong rebuttal). Rebuttals from get_script (the
         # common-objections set merged into every niche). Fire for ALL niches.
         for _ok, _ow in (
-            ("fraud_suspicion", ("fraud", "scam", "spam", "dhoka", "thag", "fake", "genuine company", "asli company", "farzi")),
-            ("decision_maker", ("decide nahi", "owner se", "partner se", "boss se", "malik se", "sahab se", "main decide nahi", "main nahi decide")),
-            ("tried_before", ("pehle try", "pehle kiya", "pehle use", "pehle liya", "kaam nahi aaya", "fayda nahi", "faida nahi", "waste ho gaya")),
+            (
+                "fraud_suspicion",
+                (
+                    "fraud",
+                    "scam",
+                    "spam",
+                    "dhoka",
+                    "thag",
+                    "fake",
+                    "genuine company",
+                    "asli company",
+                    "farzi",
+                ),
+            ),
+            (
+                "decision_maker",
+                (
+                    "decide nahi",
+                    "owner se",
+                    "partner se",
+                    "boss se",
+                    "malik se",
+                    "sahab se",
+                    "main decide nahi",
+                    "main nahi decide",
+                ),
+            ),
+            (
+                "tried_before",
+                (
+                    "pehle try",
+                    "pehle kiya",
+                    "pehle use",
+                    "pehle liya",
+                    "kaam nahi aaya",
+                    "fayda nahi",
+                    "faida nahi",
+                    "waste ho gaya",
+                ),
+            ),
         ):
             if any(w in low for w in _ow):
                 obj = (s.get("objections") or {}).get(_ok) or ""
@@ -1798,9 +1864,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 if any(w in low for w in words):
                     obj = (s.get("objections") or {}).get(key) or ""
                     if obj:
-                        return self._apply_audit_loop_guard(
-                            self._clean(str(obj)), history
-                        )
+                        return self._apply_audit_loop_guard(self._clean(str(obj)), history)
         if "kaun ho" in low or "aap kaun" in low or "who are you" in low:
             return self._clean(self._who_am_i_line())
         if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
@@ -1913,9 +1977,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             last = self._last_bot_line(history)
             if nxt and "?" in nxt:
                 # Agar last bot line already yehi sawaal tha, seedha next do.
-                if self._already_asked(nxt, history) or (
-                    last and self._too_similar(nxt, last)
-                ):
+                if self._already_asked(nxt, history) or (last and self._too_similar(nxt, last)):
                     disc = [d for d in (s.get("discovery") or self.questions or []) if d]
                     for q in disc:
                         if not self._already_asked(q, history):
@@ -1954,7 +2016,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
                 if intent_softno.should_deescalate(history, ut):
                     logger.debug("[telecaller-brain] polite-no de-escalation (2nd soft refusal)")
-                    return intent_softno.deescalation_reply(self.niche, self.client_name, history, ut)
+                    return intent_softno.deescalation_reply(
+                        self.niche, self.client_name, history, ut
+                    )
             except Exception:
                 pass
             # ROLE-INJECTION GUARD (pre-LLM, gated VOICE_GUARDRAILS, default ON):
@@ -2175,7 +2239,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 from app.voice_agent import intent_softno
 
                 if intent_softno.should_deescalate(history, ut):
-                    yield intent_softno.deescalation_reply(self.niche, self.client_name, history, ut)
+                    yield intent_softno.deescalation_reply(
+                        self.niche, self.client_name, history, ut
+                    )
                     return
             except Exception:
                 pass
@@ -2183,7 +2249,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             # turn before it reaches the streaming LLM. Single yield + return.
             try:
                 if ut and _voice_guardrails_enabled() and _is_injection_attempt(ut):
-                    logger.info("[telecaller-brain] injection/role-switch deflected (pre-LLM, stream)")
+                    logger.info(
+                        "[telecaller-brain] injection/role-switch deflected (pre-LLM, stream)"
+                    )
                     yield self._injection_deflection(history)
                     return
             except Exception:
@@ -2198,7 +2266,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 pass
             try:
                 if ut and _close_detect_enabled() and _is_close_intent(ut):
-                    logger.info("[telecaller-brain] buy/close signal -> confirm setup (pre-LLM, stream)")
+                    logger.info(
+                        "[telecaller-brain] buy/close signal -> confirm setup (pre-LLM, stream)"
+                    )
                     yield self._close_setup_reply(ut)
                     return
             except Exception:
@@ -2212,6 +2282,39 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             from app.voice_agent import free_ai
 
             async def _tokens():
+                gen_id = None
+                try:
+                    from app.voice_agent import omniroute_voice
+
+                    if omniroute_voice.voice_enabled():
+                        gen_id = omniroute_voice.new_generation_id()
+                        sess = getattr(self, "_voice_session", None)
+                        if sess is not None:
+                            sess._active_generation_id = gen_id  # noqa: SLF001
+                            if getattr(sess, "_turn_stamp", None) is not None:
+                                ts = sess._turn_stamp  # noqa: SLF001
+                                ts.generation_id = gen_id
+                                ts.stamp("llm_request_started")
+                        got_omni = False
+                        async for t in omniroute_voice.chat_stream(
+                            "",
+                            [{"role": "user", "content": prompt}],
+                            max_tokens=int(_GEN_CONFIG["max_output_tokens"]),
+                            temperature=float(_GEN_CONFIG["temperature"]),
+                            generation_id=gen_id,
+                        ):
+                            if omniroute_voice.is_cancelled(gen_id):
+                                return
+                            got_omni = True
+                            yield t
+                        if got_omni:
+                            if sess is not None and getattr(sess, "_turn_stamp", None) is not None:
+                                sess._turn_stamp.stamp("omniroute_route_selected")  # noqa: SLF001
+                            return
+                except Exception as _ov_exc:
+                    logger.debug(
+                        "[telecaller-brain] omniroute stream bypass: %s", type(_ov_exc).__name__
+                    )
                 async for t in free_ai.chat_stream(
                     system="",
                     messages=[{"role": "user", "content": prompt}],
@@ -2219,6 +2322,14 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     temperature=float(_GEN_CONFIG["temperature"]),
                     profile="realtime",
                 ):
+                    if gen_id:
+                        try:
+                            from app.voice_agent import omniroute_voice as _ov
+
+                            if _ov.is_cancelled(gen_id):
+                                return
+                        except Exception:
+                            pass
                     yield t
 
             got = False
@@ -2360,7 +2471,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 pass
             try:
                 if ut and _close_detect_enabled() and _is_close_intent(ut):
-                    logger.info("[telecaller-brain] buy/close signal -> confirm setup (pre-LLM, tools)")
+                    logger.info(
+                        "[telecaller-brain] buy/close signal -> confirm setup (pre-LLM, tools)"
+                    )
                     return self._close_setup_reply(ut), None
             except Exception:
                 pass
@@ -2399,7 +2512,14 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 # the prompt-level guard.
                 if any(
                     w in low_s
-                    for w in ("book ho ga", "booking kar di", "booking ho ga", "confirm ho ga", "move kar di", "cancel kar di")
+                    for w in (
+                        "book ho ga",
+                        "booking kar di",
+                        "booking ho ga",
+                        "confirm ho ga",
+                        "move kar di",
+                        "cancel kar di",
+                    )
                 ):
                     spoken = ""
                 # REPEAT GUARD (tool path lacked it — real-call 2026-06-28: bot ne
@@ -2674,21 +2794,67 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         asked = sum(1 for q in disc if self._already_asked(q, history))
         return asked >= 1
 
+    _FACTUAL_ANSWER_RE = re.compile(
+        r"(\d{3,}|₹|\brs\.?\s*\d|/mo|per month|\bplan\b|\bpackage|\bsetup\b|"
+        r"\bpricing\b|\bprice\b|\btrial\b|\bfree\b|se start|start hota)",
+        re.IGNORECASE,
+    )
+
+    @staticmethod
+    def _split_spoken_sentences(text: str) -> list[str]:
+        parts = re.split(r"(?<=[?.!।])\s+", (text or "").strip())
+        return [p.strip() for p in parts if p and p.strip()]
+
+    @classmethod
+    def _is_factual_answer_clause(cls, sentence: str) -> bool:
+        return bool(cls._FACTUAL_ANSWER_RE.search(sentence or ""))
+
+    @classmethod
+    def _trim_customer_answer_questions(cls, text: str) -> str:
+        """Customer ne sawaal poocha: factual jawab rakho, max 1 trailing follow-up ?."""
+        sentences = cls._split_spoken_sentences(text)
+        if not sentences:
+            return (text or "").strip()
+        factual_idx = {i for i, s in enumerate(sentences) if cls._is_factual_answer_clause(s)}
+        last_factual = max(factual_idx) if factual_idx else -1
+        kept: list[str] = []
+        trailing_q_budget = 1
+        for i, sent in enumerate(sentences):
+            is_q = sent.rstrip().endswith("?")
+            if i in factual_idx or not is_q:
+                kept.append(sent)
+                continue
+            # Non-factual question sentence.
+            if i < last_factual:
+                continue  # rhetorical Q before the factual answer block
+            if trailing_q_budget > 0:
+                kept.append(sent)
+                trailing_q_budget -= 1
+        return " ".join(kept).strip() or (text or "").strip()
+
     def _apply_question_discipline(
         self, reply: str, ut: str, history: list[dict[str, str]] | None
     ) -> str:
-        """Post-process: customer ne sawaal poocha → jawab rakho; warna faltu ? hatao."""
+        """Post-process: customer ne sawaal poocha → poora jawab + max 1 follow-up ?."""
         text = (reply or "").strip()
         if not text or "?" not in text:
             return text
+        if self._looks_like_question(ut):
+            # BEFORE parse_and_validate — _one_question() would cut at 1st ? and
+            # drop pricing/setup clauses that follow rhetorical double-questions.
+            try:
+                from app.voice_agent.response_contract import _strip_markdown
+
+                text = _strip_markdown(text)
+            except Exception:
+                pass
+            return self._trim_customer_answer_questions(text)
         try:
             from app.voice_agent.response_contract import parse_and_validate
 
             text = parse_and_validate(text).spoken_response
         except Exception:
             pass
-        if self._looks_like_question(ut):
-            return text
         try:
             from app.voice_agent.platform_pitch import is_platform_pitch
 
@@ -2705,9 +2871,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         return text
 
     @staticmethod
-    def is_tool_action_intent(
-        history: list[dict[str, str]] | None, ut: str
-    ) -> bool:
+    def is_tool_action_intent(history: list[dict[str, str]] | None, ut: str) -> bool:
         """True when this turn may need an in-call tool (book/reschedule/slot confirm)."""
         _low = to_roman(ut or "").lower()
         _time_signal = (
@@ -2716,29 +2880,32 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             or bool(re.search(r"\b\d{1,2}\s*(?::\d{2})?\s*[ap]m\b", _low))
             or bool(re.search(r"\b\d{1,2}:\d{2}\b", _low))
         )
-        _action = any(
-            w in _low
-            for w in (
-                "book",
-                "appointment",
-                "appoint",
-                "visit",
-                "meeting",
-                "slot",
-                "schedule",
-                "milne",
-                "milunga",
-                "kab mil",
-                "demo fix",
-                "reschedule",
-                "postpone",
-                "time badal",
-                "din badal",
-                "aage badha",
+        _action = (
+            any(
+                w in _low
+                for w in (
+                    "book",
+                    "appointment",
+                    "appoint",
+                    "visit",
+                    "meeting",
+                    "slot",
+                    "schedule",
+                    "milne",
+                    "milunga",
+                    "kab mil",
+                    "demo fix",
+                    "reschedule",
+                    "postpone",
+                    "time badal",
+                    "din badal",
+                    "aage badha",
+                )
             )
-        ) or _time_signal or any(
-            w in (ut or "")
-            for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "बजे")
+            or _time_signal
+            or any(
+                w in (ut or "") for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "बजे")
+            )
         )
         if not _action and history:
             _prev = ""
@@ -2861,9 +3028,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             "on",
         )
 
-    def _opener_cache_eligible(
-        self, history: list[dict[str, str]] | None, ut: str
-    ) -> bool:
+    def _opener_cache_eligible(self, history: list[dict[str, str]] | None, ut: str) -> bool:
         """First-USER-turn-only cache eligibility. Conservative gates so we never
         serve a context-dependent line to the wrong call. The bot's auto-greeting
         sits in history as an assistant message BEFORE the first user reply —
@@ -2873,9 +3038,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             return False
         if not ut or len(ut) < 5:  # "haan"/"ok" too generic to safely match
             return False
-        user_msgs = sum(
-            1 for m in (history or []) if (m.get("role") or "") == "user"
-        )
+        user_msgs = sum(1 for m in (history or []) if (m.get("role") or "") == "user")
         if user_msgs > 0:  # not the first user turn → context-bleed risk
             return False
         try:
@@ -2909,9 +3072,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 return hit
             vec = await _safe_embed(be, norm)
             if vec is not None:
-                found = await _safe_thread(
-                    be.vsearch, vec, scope, timeout=_store_timeout()
-                )
+                found = await _safe_thread(be.vsearch, vec, scope, timeout=_store_timeout())
                 if found and (found.get("response") or "").strip():
                     if float(found.get("score") or 0.0) >= _min_sim():
                         return found["response"]
@@ -3001,6 +3162,34 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         Else VOICE_LLM_RACE / GEMINI_PRIMARY sequential behaviour (unchanged)."""
         from app.config import settings
 
+        # OmniRoute voice brain — masked customer payload, fail-open to sticky/free_ai.
+        try:
+            from app.voice_agent import omniroute_voice
+
+            if omniroute_voice.voice_enabled():
+                gen_id = omniroute_voice.new_generation_id()
+                sess = getattr(self, "_voice_session", None)
+                if sess is not None:
+                    sess._active_generation_id = gen_id  # noqa: SLF001
+                    if getattr(sess, "_turn_stamp", None) is not None:
+                        sess._turn_stamp.generation_id = gen_id  # noqa: SLF001
+                        sess._turn_stamp.stamp("llm_request_started")  # noqa: SLF001
+                text, meta = await omniroute_voice.chat(
+                    "",
+                    [{"role": "user", "content": prompt}],
+                    max_tokens=int(_GEN_CONFIG["max_output_tokens"]),
+                    temperature=float(_GEN_CONFIG["temperature"]),
+                    generation_id=gen_id,
+                )
+                if text and not omniroute_voice.is_cancelled(gen_id):
+                    if sess is not None and getattr(sess, "_turn_stamp", None) is not None:
+                        sess._turn_stamp.stamp("omniroute_route_selected")  # noqa: SLF001
+                        if meta and meta.model:
+                            sess._turn_stamp.omniroute_model = meta.model  # noqa: SLF001
+                    return self._clean(text), "omniroute"
+        except Exception as e:
+            logger.debug("[telecaller-brain] omniroute_voice generate skip: %s", e)
+
         sticky = getattr(self, "_sticky_route", None)
         if sticky is not None and getattr(sticky, "provider", ""):
             try:
@@ -3022,7 +3211,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         if self._voice_llm_race():
             return await self._generate_raced(prompt)
 
-        use_gemini_first = getattr(settings, "gemini_primary", False) or self._voice_gemini_primary()
+        use_gemini_first = (
+            getattr(settings, "gemini_primary", False) or self._voice_gemini_primary()
+        )
 
         if use_gemini_first:
             text = await self._gemini_reply(prompt)
@@ -3041,6 +3232,24 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         """Call the pinned provider only (no per-turn round-robin)."""
         provider = (getattr(sticky, "provider", "") or "").strip().lower()
         model = (getattr(sticky, "model", "") or "").strip()
+        if provider == "omniroute":
+            try:
+                from app.voice_agent import omniroute_voice
+
+                if omniroute_voice.voice_enabled():
+                    gen_id = omniroute_voice.new_generation_id()
+                    text, _meta = await omniroute_voice.chat(
+                        "",
+                        [{"role": "user", "content": prompt}],
+                        max_tokens=int(_GEN_CONFIG["max_output_tokens"]),
+                        temperature=float(_GEN_CONFIG["temperature"]),
+                        generation_id=gen_id,
+                    )
+                    if text and not omniroute_voice.is_cancelled(gen_id):
+                        return self._clean(text)
+            except Exception as e:
+                logger.debug("[telecaller-brain] sticky omniroute fail: %s", e)
+            return await self._free_llm(prompt)
         if provider == "gemini":
             if model:
                 self.model = model
@@ -3098,9 +3307,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         pivot = self._next_discovery_line(history or []) or self._audit_loop_pivot_line()
         return self._apply_audit_loop_guard(pivot, history)
 
-    def _guard_semantic_loop(
-        self, text: str, history: list[dict[str, str]] | None
-    ) -> str:
+    def _guard_semantic_loop(self, text: str, history: list[dict[str, str]] | None) -> str:
         """Fingerprint last assistant turns; pivot if bot would repeat itself."""
         if not text:
             return text
@@ -3300,9 +3507,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             return []
 
         if readiness.state == STATE_ERROR:
-            _kb_log_state(
-                niche, _KB_STATE_READINESS_FAILED, t0, error_class=readiness.error_class
-            )
+            _kb_log_state(niche, _KB_STATE_READINESS_FAILED, t0, error_class=readiness.error_class)
             return []
 
         if not readiness.is_ready:
@@ -3316,9 +3521,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 queued = request_niche_refresh(niche)
             except Exception:
                 queued = False
-            _kb_log_state(
-                niche, _KB_STATE_REFRESH_REQUESTED if queued else _KB_STATE_NOT_READY, t0
-            )
+            _kb_log_state(niche, _KB_STATE_REFRESH_REQUESTED if queued else _KB_STATE_NOT_READY, t0)
             return []
 
         # 3) Ready — retrieve from the existing warmed singleton.
@@ -3388,7 +3591,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             if len(facts) >= _KB_TOP_K:
                 break
         # Agentic RAG fallback: plain retrieve ne kuch nahi diya + USE_AGENTIC_RAG=1
-        if not facts and os.environ.get("USE_AGENTIC_RAG", "").strip() in ("1", "true", "yes", "on"):
+        if not facts and os.environ.get("USE_AGENTIC_RAG", "").strip() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        ):
             try:
                 from app.agents.agentic_rag import get_agentic_rag
 
@@ -3414,13 +3622,23 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         "" on timeout/other failure (free_ai chain handles the rest)."""
         # --- 1) Vertex AI path (Google Cloud subscription, no per-key quota) ---
         try:
-            from app.voice_agent.free_ai import _vertex_available, _vertex_bearer_token, _vertex_base_url
+            from app.voice_agent.free_ai import (
+                _vertex_available,
+                _vertex_base_url,
+                _vertex_bearer_token,
+            )
+
             if _vertex_available():
                 from openai import AsyncOpenAI  # type: ignore
+
                 token = await _vertex_bearer_token()
                 if token:
-                    model_name = getattr(settings, "default_llm", None) or self.model or "gemini-2.5-flash"
-                    client = AsyncOpenAI(api_key=token, base_url=_vertex_base_url(), timeout=_REPLY_TIMEOUT_S)
+                    model_name = (
+                        getattr(settings, "default_llm", None) or self.model or "gemini-2.5-flash"
+                    )
+                    client = AsyncOpenAI(
+                        api_key=token, base_url=_vertex_base_url(), timeout=_REPLY_TIMEOUT_S
+                    )
                     resp = await asyncio.wait_for(
                         client.chat.completions.create(
                             model=model_name,

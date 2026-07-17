@@ -99,9 +99,7 @@ def test_record_turn_disabled_is_noop(tmp_path, monkeypatch):
 def test_record_turn_drops_none_values(tmp_path, monkeypatch):
     monkeypatch.setenv("TURN_METRICS", "1")
     base = str(tmp_path / "tm2")
-    tm.record_turn(
-        {"stt_ms": 50.0, "tts_first_ms": None, "outcome": "empty_stt"}, base_dir=base
-    )
+    tm.record_turn({"stt_ms": 50.0, "tts_first_ms": None, "outcome": "empty_stt"}, base_dir=base)
     recs = tm.load_day(base_dir=base)
     assert "tts_first_ms" not in recs[0]
     assert recs[0]["outcome"] == "empty_stt"
@@ -112,3 +110,21 @@ def test_record_turn_empty_or_bad_input(tmp_path, monkeypatch):
     base = str(tmp_path / "tm3")
     assert tm.record_turn({}, base_dir=base) is False
     assert tm.record_turn(None, base_dir=base) is False  # type: ignore[arg-type]
+
+
+def test_turn_stamp_builder_gaps():
+    b = tm.TurnStampBuilder(speech_end_ms=1000.0)
+    b.stamp("stt_final", at_ms=120.0)
+    b.stamp("llm_request_started", at_ms=150.0)
+    b.stamp("llm_first_token", at_ms=900.0)
+    b.stamp("first_audio", at_ms=1200.0)
+    b.generation_id = "abc123"
+    b.interrupted = True
+    rec = b.build(outcome="ok")
+    assert rec["turn_id"]
+    assert rec["generation_id"] == "abc123"
+    assert rec["stt_final_ms"] == 120.0
+    assert rec["llm_first_ms"] == 900.0
+    assert rec["first_audio_ms"] == 1200.0
+    assert rec["interrupted"] is True
+    assert "reply_text" not in rec
