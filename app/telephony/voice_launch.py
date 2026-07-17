@@ -1,0 +1,808 @@
+"""voice_launch — controlled outbound-calling launch spine (2026-07-17).
+
+KYUN: cold AI calling (`platform_dial`) 05-Jul se 3-layer HARD OFF tha (real
+paisa + IVR ko "interested" mark). Controlled re-launch ke liye ek CENTRAL,
+fail-CLOSED safety spine chahiye jo:
+  * per-lead eligibility ek jagah decide kare (compliance + dial_gate + consent
+    ko compose karke — koi naya compliance gate NAHI, existing chokepoints reuse),
+  * daily attempt cap (default 100 IST/day) ATOMIC + cross-worker rakhe,
+  * concurrency limit expose kare,
+  * 30-call training-pause boundaries bataye,
+  * provider dispositions (NUP/busy/failed/rejected/no_answer) canonicalize kare
+    aur decide kare kaunsa attempt cap me count hota hai,
+  * campaign state machine ke states de.
+
+DESIGN (repo-consistent): import-safe, koi function KABHI raise nahi karta.
+Master flag ``VOICE_LAUNCH_CAMPAIGN`` (default OFF = INERT) — is module ke hone
+bhar se koi call NAHI lagti; ye sirf gate/counter/state helpers deta hai jinhe
+dial loop explicit call kare. platform_dial ke teen kill-layers (env/data-file/
+scheduler) is module se untouched hain — ye unke UPAR ek extra safety spine hai.
+
+FAIL-CLOSED: agar counter (Redis) unavailable ho to cap "reached" maana jata hai
+(spend/compliance cap ko count na kar paane par dial mat karo). Eligibility me
+koi gate prove na ho to lead INELIGIBLE.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from enum import Enum
+from pathlib import Path
+from typing import Any
+
+from app.telephony.compliance import IST
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
+# Launch hard ceiling — daily cap kabhi is se upar nahi ja sakta (env override bhi clamp).
+_DAILY_CAP_CEILING = 100
+_DEFAULT_DAILY_CAP = 100
+_DEFAULT_TEST_CAP = 25  # internal test calls (allowlist) — campaign quota se ALAG
+_DEFAULT_CONCURRENCY = 1
+_TRAIN_BATCH = 30  # 30-call batches: pause@30/60/90 → train → resume
+_COUNTER_TTL_S = 129600  # 36h — IST-date counter, midnight rollover buffer
+
+
+# --------------------------------------------------------------------------- #
+# Campaign state machine
+# --------------------------------------------------------------------------- #
+class CampaignState(str, Enum):
+    DRAFT = "draft"
+    COMPLIANCE_BLOCKED = "compliance_blocked"
+    READY = "ready"
+    TEST_MODE = "test_mode"
+    PILOT = "pilot"
+    RUNNING = "running"
+    PAUSED_FOR_TRAINING = "paused_for_training"
+    PAUSED_BY_ADMIN = "paused_by_admin"
+    PAUSED_BY_CIRCUIT_BREAKER = "paused_by_circuit_breaker"
+    DAILY_LIMIT_REACHED = "daily_limit_reached"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+# States in which the dial loop is allowed to place NEW calls.
+_DIALABLE_STATES = frozenset(
+    {CampaignState.TEST_MODE, CampaignState.PILOT, CampaignState.RUNNING}
+)
+
+
+def state_is_dialable(state: CampaignState) -> bool:
+    return state in _DIALABLE_STATES
+
+
+# --------------------------------------------------------------------------- #
+# Canonical dispositions + counting policy (NUP resolution)
+# --------------------------------------------------------------------------- #
+class VoiceDisposition(str, Enum):
+    """Canonical outbound-attempt disposition.
+
+    NUP resolution (2026-07-17): "NUP" (Number Un-obtainable / Not-UP) codebase
+    ke CallOutcome enum me NAHI tha — ye ek PROVIDER/SIP-layer non-connect
+    disposition hai (unallocated/unobtainable/rejected number, SIP 3/4/6xx).
+    Canonically ise NUP alag rakha hai (billing/analytics visibility ke liye),
+    par FAILED family ke saath ek NON-CONNECT attempt hai. Launch policy: har
+    provider-ACCEPTED attempt (answered/nup/busy/failed/rejected/no_answer/...)
+    daily cap me count hota hai; sirf pre-dial SKIP (gate ne block kiya, call
+    kabhi lagi hi nahi) count NAHI hota.
+    """
+
+    ANSWERED = "answered"
+    NO_ANSWER = "no_answer"
+    BUSY = "busy"
+    FAILED = "failed"
+    REJECTED = "rejected"
+    NUP = "nup"
+    VOICEMAIL = "voicemail"
+    DND = "dnd"
+    WRONG_NUMBER = "wrong_number"
+    DROPPED = "dropped"
+    SKIPPED = "skipped"  # pre-dial gate skip — call NEVER placed, does NOT count
+
+
+# Raw provider/webhook/internal token -> canonical. Lowercased+stripped lookup.
+_DISPOSITION_ALIASES: dict[str, VoiceDisposition] = {
+    # answered / connected family
+    "answered": VoiceDisposition.ANSWERED,
+    "answer": VoiceDisposition.ANSWERED,
+    "connected": VoiceDisposition.ANSWERED,
+    "completed": VoiceDisposition.ANSWERED,
+    "complete": VoiceDisposition.ANSWERED,
+    "hangup": VoiceDisposition.ANSWERED,
+    "interested": VoiceDisposition.ANSWERED,
+    "appointment": VoiceDisposition.ANSWERED,
+    "callback": VoiceDisposition.ANSWERED,
+    "not_interested": VoiceDisposition.ANSWERED,
+    # no-answer family
+    "no_answer": VoiceDisposition.NO_ANSWER,
+    "no-answer": VoiceDisposition.NO_ANSWER,
+    "noanswer": VoiceDisposition.NO_ANSWER,
+    "missed": VoiceDisposition.NO_ANSWER,
+    "ring_timeout": VoiceDisposition.NO_ANSWER,
+    "timeout": VoiceDisposition.NO_ANSWER,
+    # busy
+    "busy": VoiceDisposition.BUSY,
+    "user_busy": VoiceDisposition.BUSY,
+    # NUP — number unobtainable / unallocated / not-up (SIP 404/410/604/3xx)
+    "nup": VoiceDisposition.NUP,
+    "unobtainable": VoiceDisposition.NUP,
+    "unallocated": VoiceDisposition.NUP,
+    "number_unobtainable": VoiceDisposition.NUP,
+    "not_up": VoiceDisposition.NUP,
+    "invalid_number": VoiceDisposition.NUP,
+    "invalid": VoiceDisposition.NUP,
+    "congestion": VoiceDisposition.NUP,
+    "network_unreachable": VoiceDisposition.NUP,
+    # rejected / declined
+    "rejected": VoiceDisposition.REJECTED,
+    "declined": VoiceDisposition.REJECTED,
+    "call_rejected": VoiceDisposition.REJECTED,
+    "forbidden": VoiceDisposition.REJECTED,
+    # failed (generic provider failure that still consumed an attempt)
+    "failed": VoiceDisposition.FAILED,
+    "error": VoiceDisposition.FAILED,
+    # voicemail / machine
+    "voicemail": VoiceDisposition.VOICEMAIL,
+    "machine": VoiceDisposition.VOICEMAIL,
+    "amd": VoiceDisposition.VOICEMAIL,
+    # compliance / data quality
+    "dnd": VoiceDisposition.DND,
+    "opt_out": VoiceDisposition.DND,
+    "wrong_number": VoiceDisposition.WRONG_NUMBER,
+    "dropped": VoiceDisposition.DROPPED,
+    # pre-dial skip
+    "skipped": VoiceDisposition.SKIPPED,
+    "skip": VoiceDisposition.SKIPPED,
+    "blocked": VoiceDisposition.SKIPPED,
+}
+
+# Dispositions that DO NOT count toward the daily cap (call never placed).
+_NON_COUNTING = frozenset({VoiceDisposition.SKIPPED})
+# Dispositions that represent a live human connection.
+_CONNECT = frozenset({VoiceDisposition.ANSWERED})
+
+
+def normalize_disposition(raw: Any) -> VoiceDisposition:
+    """Map any raw provider/internal status token to a canonical VoiceDisposition.
+    Unknown => FAILED (conservative: a provider-accepted-but-unknown attempt still
+    counts toward the cap rather than being silently ignored). Never raises."""
+    try:
+        if isinstance(raw, VoiceDisposition):
+            return raw
+        key = str(raw or "").strip().lower().replace(" ", "_").replace("-", "_")
+        if not key:
+            return VoiceDisposition.FAILED
+        return _DISPOSITION_ALIASES.get(key, VoiceDisposition.FAILED)
+    except Exception:
+        return VoiceDisposition.FAILED
+
+
+def disposition_counts_toward_cap(disp: Any) -> bool:
+    """Launch policy: har provider-accepted attempt counts; sirf pre-dial SKIP nahi."""
+    return normalize_disposition(disp) not in _NON_COUNTING
+
+
+def disposition_is_connect(disp: Any) -> bool:
+    return normalize_disposition(disp) in _CONNECT
+
+
+# --------------------------------------------------------------------------- #
+# Structured skip reasons (why a lead is ineligible)
+# --------------------------------------------------------------------------- #
+class SkipReason:
+    NONE = ""
+    NO_PHONE = "no_phone"
+    INVALID_PHONE = "invalid_phone"
+    ADMIN_KILL = "admin_kill_switch"
+    CAMPAIGN_DISABLED = "campaign_disabled"
+    DIAL_TEST_MODE = "dial_test_mode_not_allowlisted"
+    PHONE_TYPE_BLOCKED = "phone_type_blocked"
+    LEARNED_IVR_BLOCK = "learned_ivr_block"
+    ON_DND = "on_dnd_registry"
+    DND_LOOKUP_FAILED = "dnd_lookup_failed"
+    OPTED_OUT = "opted_out"
+    OUTSIDE_WINDOW = "outside_calling_window"
+    DLT_NOT_APPROVED = "dlt_not_approved"
+    NO_CALLER_ID = "no_caller_id"
+    COMPLIANCE_DISABLED = "compliance_disabled_unsafe"
+    GATE_ERROR = "gate_error"
+
+
+@dataclass
+class EligibilityResult:
+    eligible: bool
+    reason: str = SkipReason.NONE
+    detail: dict[str, Any] = field(default_factory=dict)
+
+    def as_dict(self) -> dict[str, Any]:
+        return {"eligible": self.eligible, "reason": self.reason, "detail": dict(self.detail)}
+
+
+# --------------------------------------------------------------------------- #
+# Config knobs (env-first; read at call-time so VPS toggle needs no code deploy)
+# --------------------------------------------------------------------------- #
+def _env(name: str, default: str = "") -> str:
+    return (os.environ.get(name, "") or "").strip() or default
+
+
+def _flag_on(name: str, default: bool = False) -> bool:
+    v = _env(name).lower()
+    if v in ("1", "true", "yes", "on"):
+        return True
+    if v in ("0", "false", "no", "off"):
+        return False
+    return default
+
+
+def campaign_enabled() -> bool:
+    """Master gate. Default OFF = INERT (dial loop must no-op). platform_dial ke
+    teen kill-layers ke UPAR ek aur explicit launch gate."""
+    return _flag_on("VOICE_LAUNCH_CAMPAIGN", default=False)
+
+
+def _kill_file() -> Path:
+    return Path(_env("VOICE_LAUNCH_KILL_FILE", "data/voice_launch_kill.json"))
+
+
+def admin_kill_engaged() -> bool:
+    """Global admin kill switch. Env ``VOICE_LAUNCH_KILL=1`` (final) warna
+    data-file ``{"kill": true}`` (container-recreate ke bina flip — data/ bind-mount).
+    Kill engaged => koi bhi outbound call INELIGIBLE (fail-safe)."""
+    v = _env("VOICE_LAUNCH_KILL").lower()
+    if v in ("1", "true", "yes", "on"):
+        return True
+    if v in ("0", "false", "no", "off"):
+        return False
+    try:
+        data = json.loads(_kill_file().read_text(encoding="utf-8"))
+        return bool(isinstance(data, dict) and data.get("kill"))
+    except Exception:
+        return False
+
+
+def daily_cap(kind: str = "campaign") -> int:
+    """Attempts/IST-day ceiling. campaign default 100 (hard-clamped ≤100),
+    test allowlist default 25 (separate quota)."""
+    if kind == "test":
+        try:
+            n = int(_env("VOICE_TEST_DAILY_CAP", str(_DEFAULT_TEST_CAP)))
+        except Exception:
+            n = _DEFAULT_TEST_CAP
+        return max(1, min(n, 200))
+    try:
+        n = int(_env("VOICE_DAILY_CALL_CAP", str(_DEFAULT_DAILY_CAP)))
+    except Exception:
+        n = _DEFAULT_DAILY_CAP
+    return max(1, min(n, _DAILY_CAP_CEILING))
+
+
+def concurrency_limit() -> int:
+    try:
+        n = int(_env("VOICE_CALL_CONCURRENCY", str(_DEFAULT_CONCURRENCY)))
+    except Exception:
+        n = _DEFAULT_CONCURRENCY
+    return max(1, min(n, 10))
+
+
+def training_batch_size() -> int:
+    try:
+        n = int(_env("VOICE_TRAIN_BATCH", str(_TRAIN_BATCH)))
+    except Exception:
+        n = _TRAIN_BATCH
+    return max(5, min(n, 100))
+
+
+# --------------------------------------------------------------------------- #
+# 30-call training-pause boundaries
+# --------------------------------------------------------------------------- #
+def training_pause_due(count_after: int) -> bool:
+    """True jab abhi-abhi liya gaya attempt ek training boundary pe land kare
+    (batch=30 => 30/60/90 ...). Dial loop is boundary pe PAUSED_FOR_TRAINING me
+    jaaye, gates chalaye, phir resume kare. Last batch (== cap) pe EOD eval."""
+    try:
+        b = training_batch_size()
+        return count_after > 0 and count_after % b == 0
+    except Exception:
+        return False
+
+
+def next_training_boundary(count_so_far: int) -> int | None:
+    try:
+        b = training_batch_size()
+        cap = daily_cap("campaign")
+        nxt = ((count_so_far // b) + 1) * b
+        return nxt if nxt <= cap else None
+    except Exception:
+        return None
+
+
+# --------------------------------------------------------------------------- #
+# Atomic IST daily counter (cross-worker via Redis; fail-CLOSED)
+# --------------------------------------------------------------------------- #
+def _ist_date() -> str:
+    return datetime.now(IST).strftime("%Y%m%d")
+
+
+def _counter_key(kind: str) -> str:
+    return f"voice_launch:attempts:{kind}:{_ist_date()}"
+
+
+@dataclass
+class SlotReservation:
+    ok: bool
+    count: int
+    cap: int
+    reason: str = ""
+
+
+async def _redis():
+    from app.cache import get_redis_client
+
+    return await get_redis_client()
+
+
+async def attempts_today(kind: str = "campaign") -> int:
+    """Aaj (IST) ke reserved attempts. Counter unavailable => -1 (unknown)."""
+    try:
+        r = await _redis()
+        raw = await r.get(_counter_key(kind))
+        return int(raw) if raw is not None else 0
+    except Exception as e:
+        logger.warning(f"[voice_launch] attempts_today counter unavailable ({e})")
+        return -1
+
+
+async def daily_cap_reached(kind: str = "campaign") -> bool:
+    """FAIL-CLOSED: counter unavailable (-1) => True (block)."""
+    n = await attempts_today(kind)
+    if n < 0:
+        return True
+    return n >= daily_cap(kind)
+
+
+async def reserve_call_slot(kind: str = "campaign") -> SlotReservation:
+    """Atomically claim ONE attempt slot for today (IST). Returns ok=False if the
+    cap is reached OR the counter is unavailable (fail-CLOSED — spend/compliance
+    cap ko count na kar paane par dial mat karo). Idempotency is the CALLER's job
+    (dedupe per lead); this only enforces the volume ceiling.
+
+    ATOMICITY: single Redis INCR — multi-worker safe. First incr sets the 36h TTL.
+    """
+    cap = daily_cap(kind)
+    try:
+        r = await _redis()
+        key = _counter_key(kind)
+        count = int(await r.incr(key))
+        if count == 1:
+            try:
+                await r.expire(key, _COUNTER_TTL_S)
+            except Exception:
+                pass
+        if count > cap:
+            # over-cap: roll back our own increment so a rejected reservation does
+            # not permanently inflate the counter, then report daily_limit_reached.
+            try:
+                await r.set(key, str(cap), ex=_COUNTER_TTL_S)
+            except Exception:
+                pass
+            return SlotReservation(False, cap, cap, reason="daily_limit_reached")
+        return SlotReservation(True, count, cap)
+    except Exception as e:
+        logger.warning(f"[voice_launch] reserve_call_slot fail-CLOSED ({e})")
+        return SlotReservation(False, -1, cap, reason="counter_unavailable")
+
+
+# --------------------------------------------------------------------------- #
+# Centralized per-lead eligibility (fail-CLOSED) — composes existing chokepoints
+# --------------------------------------------------------------------------- #
+async def is_lead_eligible_for_voice_call(
+    phone: str,
+    call_type: str = "promotional",
+    *,
+    now: datetime | None = None,
+    lead: Any = None,
+) -> EligibilityResult:
+    """THE single per-lead pre-dial gate. Fail-CLOSED for promotional calls.
+
+    Composition order (cheapest/most-decisive first):
+      1. admin kill switch  -> ineligible
+      2. phone presence/sanity
+      3. dial_gate.check (test-mode allowlist + phone-type + learned IVR blocklist)
+      4. compliance gate (DND fail-closed + calling window + DLT/140 + consent opt-out)
+
+    Ye koi NAYA compliance gate NAHI banata — existing ``app.telephony.compliance``
+    aur ``app.telephony.dial_gate`` ko reuse karta hai (single source of truth).
+    Never raises. Any internal error => promotional ineligible, transactional eligible.
+    """
+    ct = (call_type or "promotional").strip().lower()
+    detail: dict[str, Any] = {"call_type": ct}
+    try:
+        # 1) global admin kill switch (fail-safe)
+        if admin_kill_engaged():
+            return EligibilityResult(False, SkipReason.ADMIN_KILL, detail)
+
+        # 2) phone sanity
+        digits = "".join(ch for ch in str(phone or "") if ch.isdigit())
+        detail["digits"] = len(digits)
+        if not digits:
+            return EligibilityResult(False, SkipReason.NO_PHONE, detail)
+        if not (10 <= len(digits) <= 15):
+            return EligibilityResult(False, SkipReason.INVALID_PHONE, detail)
+
+        # 3) dial_gate — promotional test-mode allowlist + phone-type + learned block
+        try:
+            from app.telephony import dial_gate
+
+            allowed, reason = dial_gate.check(phone, call_type=ct)
+            detail["dial_gate"] = reason
+            if not allowed:
+                r = SkipReason.DIAL_TEST_MODE
+                if reason.startswith("dial_blocklist"):
+                    r = SkipReason.LEARNED_IVR_BLOCK
+                elif reason.startswith("phone_type_gate"):
+                    r = SkipReason.PHONE_TYPE_BLOCKED
+                return EligibilityResult(False, r, detail)
+        except Exception as e:
+            logger.warning(f"[voice_launch] dial_gate error, fail-closed ({e})")
+            if ct == "promotional":
+                return EligibilityResult(False, SkipReason.GATE_ERROR, detail)
+
+        # 4) compliance gate — THE TRAI chokepoint (DND/window/DLT/consent)
+        from app.telephony.compliance import CallType, get_compliance_gate
+
+        ctype = CallType.PROMOTIONAL if ct == "promotional" else CallType.TRANSACTIONAL
+        decision = await get_compliance_gate().check(phone, ctype, now=now)
+        detail["compliance"] = decision.as_dict()
+        if not decision.allowed:
+            reason = _map_compliance_reason(decision.reasons)
+            return EligibilityResult(False, reason, detail)
+
+        # compliance_disabled bypass is itself a red flag — surface as unsafe.
+        if "compliance_disabled" in (decision.reasons or []):
+            return EligibilityResult(False, SkipReason.COMPLIANCE_DISABLED, detail)
+
+        return EligibilityResult(True, SkipReason.NONE, detail)
+    except Exception as e:
+        logger.warning(f"[voice_launch] eligibility error, fail-closed ({e})")
+        detail["error"] = str(e)
+        safe = ct != "promotional"
+        return EligibilityResult(safe, SkipReason.GATE_ERROR, detail)
+
+
+def _map_compliance_reason(reasons: list[str]) -> str:
+    joined = " ".join(reasons or [])
+    if "opted_out" in joined:
+        return SkipReason.OPTED_OUT
+    if "on_dnd_registry" in joined:
+        return SkipReason.ON_DND
+    if "dnd_lookup_failed" in joined:
+        return SkipReason.DND_LOOKUP_FAILED
+    if "outside_calling_hours" in joined:
+        return SkipReason.OUTSIDE_WINDOW
+    if "dlt_not_approved" in joined:
+        return SkipReason.DLT_NOT_APPROVED
+    if "no_caller_id" in joined:
+        return SkipReason.NO_CALLER_ID
+    if "invalid_number" in joined:
+        return SkipReason.INVALID_PHONE
+    return SkipReason.GATE_ERROR
+
+
+async def release_call_slot(kind: str = "campaign") -> int:
+    """Roll back ONE reserved slot (call reserved but NEVER became a provider-accepted
+    attempt — e.g. provider-side compliance_blocked). DECR, floored at 0. Never raises."""
+    try:
+        r = await _redis()
+        key = _counter_key(kind)
+        cur = await r.get(key)
+        n = int(cur) if cur is not None else 0
+        n = max(0, n - 1)
+        await r.set(key, str(n), ex=_COUNTER_TTL_S)
+        return n
+    except Exception as e:
+        logger.warning(f"[voice_launch] release_call_slot noop ({e})")
+        return -1
+
+
+# --------------------------------------------------------------------------- #
+# Disposition counters (admin NUP/outcome visibility) — per IST day
+# --------------------------------------------------------------------------- #
+def _disp_key(disp: VoiceDisposition, kind: str) -> str:
+    return f"voice_launch:disp:{kind}:{disp.value}:{_ist_date()}"
+
+
+async def record_disposition(disp: Any, kind: str = "campaign") -> None:
+    """Increment the per-day counter for a canonical disposition. Best-effort."""
+    try:
+        d = normalize_disposition(disp)
+        r = await _redis()
+        key = _disp_key(d, kind)
+        n = int(await r.incr(key))
+        if n == 1:
+            try:
+                await r.expire(key, _COUNTER_TTL_S)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug(f"[voice_launch] record_disposition skip ({e})")
+
+
+async def disposition_counts_today(kind: str = "campaign") -> dict[str, int]:
+    """{disposition: count} for today (IST). Missing counter => 0. Never raises."""
+    out: dict[str, int] = {}
+    try:
+        r = await _redis()
+        for d in VoiceDisposition:
+            try:
+                raw = await r.get(_disp_key(d, kind))
+                if raw is not None and int(raw) > 0:
+                    out[d.value] = int(raw)
+            except Exception:
+                continue
+    except Exception as e:
+        logger.debug(f"[voice_launch] disposition_counts_today skip ({e})")
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Circuit breaker (provider-failure spike / compliance-unavailable / recording)
+# --------------------------------------------------------------------------- #
+_CIRCUIT_KEY = "voice_launch:circuit:open"
+_CONSEC_KEY = "voice_launch:consec_fail"
+_CIRCUIT_TTL_S = 1800  # 30 min auto-reset
+
+
+def circuit_fail_threshold() -> int:
+    try:
+        return max(2, int(_env("VOICE_CIRCUIT_FAIL_THRESHOLD", "5")))
+    except Exception:
+        return 5
+
+
+async def circuit_open() -> bool:
+    """True while the breaker is tripped. Never raises (unavailable => False so a
+    Redis outage doesn't itself wedge the loop — the daily-cap is the fail-closed
+    guard; the breaker is an availability/spike guard on top)."""
+    try:
+        r = await _redis()
+        return bool(await r.get(_CIRCUIT_KEY))
+    except Exception:
+        return False
+
+
+async def trip_circuit(reason: str) -> None:
+    """Open the breaker (TTL auto-reset) + page ops via existing ntfy path. Idempotent-ish."""
+    try:
+        r = await _redis()
+        already = bool(await r.get(_CIRCUIT_KEY))
+        await r.set(_CIRCUIT_KEY, reason[:120], ex=_CIRCUIT_TTL_S)
+        if not already:
+            logger.error(f"🚨 [voice_launch] circuit breaker TRIPPED: {reason}")
+            try:
+                from app.platform.ops_alerts import alert_voice_circuit_breaker
+
+                alert_voice_circuit_breaker(reason)
+            except Exception:
+                pass
+    except Exception as e:
+        logger.warning(f"[voice_launch] trip_circuit noop ({e})")
+
+
+async def reset_circuit() -> None:
+    try:
+        r = await _redis()
+        await r.delete(_CIRCUIT_KEY)
+        await r.delete(_CONSEC_KEY)
+    except Exception:
+        pass
+
+
+async def record_provider_result(placed: bool, error: str = "") -> bool:
+    """Update the consecutive-failure counter after a provider attempt and trip the
+    breaker on a failure SPIKE. compliance_blocked (pre-dial) does NOT count as a
+    provider failure. Returns True if the breaker is now open. Never raises."""
+    try:
+        r = await _redis()
+        if placed:
+            await r.delete(_CONSEC_KEY)
+            return await circuit_open()
+        if (error or "").strip() == "compliance_blocked":
+            return await circuit_open()  # not a provider failure
+        n = int(await r.incr(_CONSEC_KEY))
+        if n == 1:
+            try:
+                await r.expire(_CONSEC_KEY, _CIRCUIT_TTL_S)
+            except Exception:
+                pass
+        if n >= circuit_fail_threshold():
+            await trip_circuit(f"provider_failure_spike ({n} consecutive; last={error[:60]})")
+            return True
+        return await circuit_open()
+    except Exception as e:
+        logger.warning(f"[voice_launch] record_provider_result noop ({e})")
+        return False
+
+
+# --------------------------------------------------------------------------- #
+# Recording pipeline gate (block dials if MANDATORY recording path unhealthy)
+# --------------------------------------------------------------------------- #
+def _recordings_dir() -> Path:
+    return Path(_env("RECORDINGS_DIR", "data/recordings"))
+
+
+def recording_required() -> bool:
+    """Recording MANDATORY only when explicitly required (default OFF = graceful;
+    existing paths that don't record are not broken). Set VOICE_RECORDING_REQUIRED=1
+    for a launch that must retain call recordings (TRAI 90-day + QA)."""
+    return _flag_on("VOICE_RECORDING_REQUIRED", default=False)
+
+
+def recording_path_healthy() -> bool:
+    """Recordings dir exists (or creatable) and is writable. Never raises."""
+    try:
+        d = _recordings_dir()
+        d.mkdir(parents=True, exist_ok=True)
+        return os.access(str(d), os.W_OK)
+    except Exception:
+        return False
+
+
+def recording_gate_ok() -> tuple[bool, str]:
+    """(ok, reason). Fail-CLOSED only when recording is REQUIRED and path unhealthy."""
+    if not recording_required():
+        return True, "recording_not_required"
+    if recording_path_healthy():
+        return True, "recording_healthy"
+    return False, "recording_path_unhealthy"
+
+
+# --------------------------------------------------------------------------- #
+# Runtime campaign-state persistence (admin visibility) + kill toggle + status
+# --------------------------------------------------------------------------- #
+_STATE_KEY = "voice_launch:state"
+
+
+async def set_campaign_state(state: Any) -> None:
+    try:
+        s = state.value if isinstance(state, CampaignState) else str(state)
+        r = await _redis()
+        await r.set(_STATE_KEY, s, ex=_COUNTER_TTL_S)
+    except Exception:
+        pass
+
+
+async def get_campaign_state() -> str:
+    try:
+        r = await _redis()
+        v = await r.get(_STATE_KEY)
+        return str(v) if v else CampaignState.DRAFT.value
+    except Exception:
+        return CampaignState.DRAFT.value
+
+
+def set_kill(on: bool) -> bool:
+    """Admin global kill switch write (data-file; container-recreate ke bina flip).
+    Env VOICE_LAUNCH_KILL, agar set ho, iske UPAR final rehta hai. Returns success."""
+    try:
+        p = _kill_file()
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(json.dumps({"kill": bool(on)}), encoding="utf-8")
+        return True
+    except Exception as e:
+        logger.warning(f"[voice_launch] set_kill failed ({e})")
+        return False
+
+
+async def launch_status() -> dict[str, Any]:
+    """One-call admin snapshot: kill/enabled/cap/attempts/remaining/training/circuit/
+    recording/state + today's disposition (NUP) counts. Never raises."""
+    attempts = await attempts_today("campaign")
+    cap = daily_cap("campaign")
+    remaining = None if attempts < 0 else max(0, cap - attempts)
+    test_attempts = await attempts_today("test")
+    rec_ok, rec_reason = recording_gate_ok()
+    return {
+        "campaign_enabled": campaign_enabled(),
+        "admin_kill_engaged": admin_kill_engaged(),
+        "daily_cap": cap,
+        "attempts_today": attempts,
+        "remaining_today": remaining,
+        "test_daily_cap": daily_cap("test"),
+        "test_attempts_today": test_attempts,
+        "concurrency_limit": concurrency_limit(),
+        "training_batch_size": training_batch_size(),
+        "next_training_boundary": next_training_boundary(max(0, attempts)),
+        "circuit_open": await circuit_open(),
+        "recording_required": recording_required(),
+        "recording_ok": rec_ok,
+        "recording_reason": rec_reason,
+        "state": await get_campaign_state(),
+        "dispositions_today": await disposition_counts_today("campaign"),
+        "nup_today": (await disposition_counts_today("campaign")).get(VoiceDisposition.NUP.value, 0),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Effective campaign-state resolver (pure — no side effects)
+# --------------------------------------------------------------------------- #
+def resolve_campaign_state(
+    *,
+    configured: CampaignState | str = CampaignState.DRAFT,
+    compliance_ok: bool = True,
+    circuit_open: bool = False,
+    training_pause: bool = False,
+    attempts: int = 0,
+    cap: int | None = None,
+) -> CampaignState:
+    """Derive the effective runtime state from the configured state + live signals.
+    Precedence (safest first): admin kill > campaign disabled > compliance block >
+    circuit breaker > daily limit > training pause > configured/running."""
+    try:
+        cfg = configured if isinstance(configured, CampaignState) else CampaignState(str(configured))
+    except Exception:
+        cfg = CampaignState.DRAFT
+    cap = cap if cap is not None else daily_cap("campaign")
+
+    if admin_kill_engaged():
+        return CampaignState.PAUSED_BY_ADMIN
+    if not campaign_enabled():
+        return CampaignState.DRAFT
+    if cfg in (CampaignState.COMPLETED, CampaignState.FAILED, CampaignState.PAUSED_BY_ADMIN):
+        return cfg
+    if not compliance_ok:
+        return CampaignState.COMPLIANCE_BLOCKED
+    if circuit_open:
+        return CampaignState.PAUSED_BY_CIRCUIT_BREAKER
+    if attempts >= cap:
+        return CampaignState.DAILY_LIMIT_REACHED
+    if training_pause:
+        return CampaignState.PAUSED_FOR_TRAINING
+    if cfg in _DIALABLE_STATES:
+        return cfg
+    if cfg == CampaignState.READY:
+        return CampaignState.READY
+    return cfg
+
+
+__all__ = [
+    "CampaignState",
+    "VoiceDisposition",
+    "SkipReason",
+    "EligibilityResult",
+    "SlotReservation",
+    "state_is_dialable",
+    "normalize_disposition",
+    "disposition_counts_toward_cap",
+    "disposition_is_connect",
+    "campaign_enabled",
+    "admin_kill_engaged",
+    "daily_cap",
+    "concurrency_limit",
+    "training_batch_size",
+    "training_pause_due",
+    "next_training_boundary",
+    "attempts_today",
+    "daily_cap_reached",
+    "reserve_call_slot",
+    "release_call_slot",
+    "record_disposition",
+    "disposition_counts_today",
+    "circuit_open",
+    "trip_circuit",
+    "reset_circuit",
+    "record_provider_result",
+    "circuit_fail_threshold",
+    "recording_required",
+    "recording_path_healthy",
+    "recording_gate_ok",
+    "set_campaign_state",
+    "get_campaign_state",
+    "set_kill",
+    "launch_status",
+    "is_lead_eligible_for_voice_call",
+    "resolve_campaign_state",
+]

@@ -88,6 +88,16 @@ async def vobiz_status_webhook(request: Request):
 
     logger.info(f"Vobiz status webhook - SID: {call_sid}, Status: {status}")
 
+    # Controlled-launch disposition tally (NUP/busy/failed/answered…) for admin
+    # visibility + daily analytics. Best-effort, never blocks the webhook.
+    try:
+        from app.telephony import voice_launch as _vl
+
+        if status:
+            await _vl.record_disposition(status, "campaign")
+    except Exception:
+        pass
+
     try:
         if status in ("completed", "complete", "answered", "hangup"):
             # Idempotency: dedup on call_id so metering/billing run exactly once.

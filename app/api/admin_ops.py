@@ -491,6 +491,12 @@ async def system_summary(_user=Depends(require_admin)):
         platform_dial_enabled = False
         platform_dial_limit = 0
     try:
+        from app.telephony import voice_launch as _vl
+
+        voice_launch_snapshot = await _vl.launch_status()
+    except Exception as _vle:
+        voice_launch_snapshot = {"error": str(_vle)}
+    try:
         from app.platform import approval_notifier as _approval_notifier
 
         approval_notify_health = _approval_notifier.get_health()
@@ -542,6 +548,7 @@ async def system_summary(_user=Depends(require_admin)):
             "limit": platform_dial_limit,
             "hard_off": not platform_dial_enabled,
         },
+        "voice_launch": voice_launch_snapshot,
         "approval_notify": approval_notify_health,
         "vobiz_caller_id": os.environ.get("VOBIZ_CALLER_ID", "unset"),
         # Razorpay removed 2026-06-18 — manual UPI only; stub for JS compat.
@@ -559,6 +566,33 @@ async def system_summary(_user=Depends(require_admin)):
 @router.get("/upi/pending", summary="Clients waiting for UPI screenshot activation")
 async def upi_pending(_user=Depends(require_admin)):
     return {"pending": _pending_upi_queue(30), "upi": _upi_info()}
+
+
+# ── Controlled voice-calling launch (2026-07-17) ───────────────────────────────
+@router.get("/voice-launch/status", summary="Controlled voice-calling launch status")
+async def voice_launch_status(_user=Depends(require_admin)):
+    """Kill switch, daily cap/remaining, training boundary, circuit-breaker,
+    recording gate, campaign state + today's NUP/disposition tally."""
+    from app.telephony import voice_launch as _vl
+
+    return await _vl.launch_status()
+
+
+class _VoiceKillReq(BaseModel):
+    kill: bool
+
+
+@router.post("/voice-launch/kill", summary="Engage/release the voice-calling kill switch")
+async def voice_launch_kill(req: _VoiceKillReq, _user=Depends(require_admin)):
+    """Global admin kill switch (data-file). kill=true => ALL outbound campaign calls
+    become ineligible (fail-safe); env VOICE_LAUNCH_KILL, if set, overrides this."""
+    from app.telephony import voice_launch as _vl
+
+    ok = _vl.set_kill(bool(req.kill))
+    logger.warning(
+        f"[voice_launch] admin kill switch set kill={req.kill} by {getattr(_user, 'email', 'admin')}"
+    )
+    return {"ok": ok, "kill": bool(req.kill), "status": await _vl.launch_status()}
 
 
 def _admin_office() -> dict:
