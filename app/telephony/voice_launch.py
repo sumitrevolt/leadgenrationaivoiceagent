@@ -117,10 +117,14 @@ _DISPOSITION_ALIASES: dict[str, VoiceDisposition] = {
     "appointment": VoiceDisposition.ANSWERED,
     "callback": VoiceDisposition.ANSWERED,
     "not_interested": VoiceDisposition.ANSWERED,
+    # Vobiz HangupCause tokens (live 2026-07-17)
+    "normal_clearing": VoiceDisposition.ANSWERED,
+    "end_of_xml_instructions": VoiceDisposition.ANSWERED,
     # no-answer family
     "no_answer": VoiceDisposition.NO_ANSWER,
     "no-answer": VoiceDisposition.NO_ANSWER,
     "noanswer": VoiceDisposition.NO_ANSWER,
+    "no_user_response": VoiceDisposition.NO_ANSWER,
     "missed": VoiceDisposition.NO_ANSWER,
     "ring_timeout": VoiceDisposition.NO_ANSWER,
     "timeout": VoiceDisposition.NO_ANSWER,
@@ -131,6 +135,7 @@ _DISPOSITION_ALIASES: dict[str, VoiceDisposition] = {
     "nup": VoiceDisposition.NUP,
     "unobtainable": VoiceDisposition.NUP,
     "unallocated": VoiceDisposition.NUP,
+    "unallocated_number": VoiceDisposition.NUP,
     "number_unobtainable": VoiceDisposition.NUP,
     "not_up": VoiceDisposition.NUP,
     "invalid_number": VoiceDisposition.NUP,
