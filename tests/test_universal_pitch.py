@@ -62,9 +62,8 @@ def test_platform_opening_segments_wired():
     from app.voice_agent.universal_pitch import platform_opening_segments
 
     segs = platform_opening_segments()
-    assert len(segs) == 3
-    assert segs[0] == UNIVERSAL_AGENT_INTRO
-    assert "1,999" in segs[1]
-    assert "social" in segs[1].lower() or "posts" in segs[1].lower()
-    # INTEREST_ASK is Hinglish ("…try karke dekhna chahenge?") — no English "interested".
-    assert any(w in segs[2].lower() for w in ("try", "free", "chahenge", "dekh"))
+    # Single short opener — price waits for caller yes (2026-07-17).
+    assert len(segs) == 1
+    assert "LeadGen AI" in segs[0]
+    assert "1,999" not in segs[0] and "1999" not in segs[0]
+    assert any(w in segs[0].lower() for w in ("minute", "baat", "sakti"))

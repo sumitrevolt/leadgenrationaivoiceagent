@@ -597,9 +597,9 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
             try:
                 # Web-call is the enterprise TEST/proxy surface for the phone
                 # agent, so its Swara pace must MATCH the phone default (+12%,
-                # 2026-07-17 owner live-call feedback: +26/+33% felt rushed).
+                # 2026-07-17 owner: +12% still SLOW on live call → +28% snappy.
                 # WEB_TTS_RATE still wins for per-env tune. Phone = VOBIZ_TTS_RATE.
-                _wrate = os.environ.get("WEB_TTS_RATE", "+12%").strip() or "+12%"
+                _wrate = os.environ.get("WEB_TTS_RATE", "+28%").strip() or "+28%"
                 comm = edge_tts.Communicate(text, "hi-IN-SwaraNeural", rate=_wrate)
             except TypeError:
                 # edge-tts build without the `rate` kwarg — synth at default rate.

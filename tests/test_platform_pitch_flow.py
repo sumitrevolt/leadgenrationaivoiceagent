@@ -8,6 +8,7 @@ from app.voice_agent.platform_pitch import (
     classify_interest,
     initial_state,
     is_platform_pitch,
+    line_yes_praise,
     next_reply,
     opening_segments,
 )
@@ -19,18 +20,22 @@ def test_is_platform_pitch_only_ai_marketing():
     assert is_platform_pitch("") is False
 
 
-def test_opening_segments_three_parts():
+def test_opening_segments_short_opener_then_wait():
+    """Opener is ONE short breath; price/pitch waits for caller yes (10–15 turns)."""
     segs = opening_segments()
-    assert len(segs) == 3
+    assert len(segs) == 1
     assert "LeadGen AI" in segs[0]
-    # segs[0] = mandatory TRAI AI-disclosure prefix ("Main ek AI agent hoon…")
-    # + lean intro + permission-ask (2026-07-02). Compliance prefix legitimately
-    # makes it longer than the bare intro — cap accommodates disclosure, still ~one
-    # breath. Bloat guard stays (was a stale 28 that pre-dated the disclosure prefix).
     assert len(segs[0].split()) <= 48
-    assert "1,999" in segs[1] or "1999" in segs[1]
-    # INTEREST_ASK is Hinglish now ("…try karke dekhna chahenge?") — no English "interested".
-    assert any(w in segs[2].lower() for w in ("try", "free", "chahenge", "dekh"))
+    # Permission ask stays in the opener
+    assert any(w in segs[0].lower() for w in ("minute", "baat", "sakti", "hoon"))
+    # Price must NOT be dumped in the opener monologue
+    assert "1,999" not in segs[0] and "1999" not in segs[0]
+
+
+def test_yes_praise_carries_price_after_permission():
+    reply = line_yes_praise()
+    assert "1,999" in reply or "1999" in reply
+    assert any(w in reply.lower() for w in ("marketing", "agency", "staff", "trial", "free"))
 
 
 def test_classify_interest_yes_no_unclear():
