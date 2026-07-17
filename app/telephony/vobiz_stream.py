@@ -704,6 +704,12 @@ class VobizStreamSession:
         # IVR strike counter (2026-07-06): _is_ivr_prompt hits; threshold par
         # hangup (IVR_HANGUP default ON) — machine se baat karne ka paisa band.
         self._ivr_hits = 0
+        # Termination observability (2026-07-17): explicit reason on every hangup.
+        self._termination_reason: str | None = None
+        self._termination_source: str | None = None
+        self._last_user_audio_ms: float = 0.0
+        self._last_agent_audio_ms: float = 0.0
+        self._terminate_after_reply: tuple[str, str] | None = None
 
         # Kiran flywheel voice_opening (VOICE_CAMPAIGN_VARIANTS=1)
         self._flywheel_opening_override: str | None = None
@@ -759,6 +765,19 @@ class VobizStreamSession:
                     break  # disconnected
                 mtype = msg.get("type")
                 if mtype == "websocket.disconnect":
+                    if not self._termination_reason:
+                        from app.voice_agent.call_termination import (
+                            PROVIDER_DISCONNECT,
+                            RECIPIENT_HANGUP,
+                            count_user_turns,
+                        )
+
+                        reason = (
+                            RECIPIENT_HANGUP
+                            if count_user_turns(self.hist) > 0
+                            else PROVIDER_DISCONNECT
+                        )
+                        self._mark_terminated(reason, "websocket_disconnect")
                     break
                 raw = msg.get("text")
                 if raw is None and msg.get("bytes") is not None:
@@ -869,15 +888,22 @@ class VobizStreamSession:
                     )
                 except Exception:
                     pass
-                self._closed = True
-                self._stop_play()
-                try:
-                    await self.ws.close()
-                except Exception:
-                    pass
+                await self._terminate_call("recipient_opted_out", "dtmf_press9")
         elif event == "stop":
             logger.info(f"[vobiz-stream] stop sid={self.stream_sid}")
-            self._closed = True
+            if not self._termination_reason:
+                from app.voice_agent.call_termination import (
+                    PROVIDER_DISCONNECT,
+                    RECIPIENT_HANGUP,
+                    count_user_turns,
+                )
+
+                reason = (
+                    RECIPIENT_HANGUP
+                    if count_user_turns(self.hist) > 0
+                    else PROVIDER_DISCONNECT
+                )
+                self._mark_terminated(reason, "vobiz_stop")
         elif event == "playedStream":
             logger.debug("[vobiz-stream] playedStream (playAudio finished) — no-op")
         elif event == "clearedAudio":
@@ -945,6 +971,7 @@ class VobizStreamSession:
         _na_now = _now_ms()
         if is_speech:
             self._last_activity_ms = _na_now
+            self._last_user_audio_ms = _na_now
             self._noinput_reprompts = 0
         elif self._speaking:
             self._last_activity_ms = _na_now
@@ -1039,6 +1066,10 @@ class VobizStreamSession:
             self._spawn(self._on_utterance(utt))
             return
 
+        # Max call duration watchdog (engaged calls get full window; hard cap only).
+        if self._media_frames % 50 == 0:
+            self._spawn(self._maybe_end_on_limits())
+
         # D-13 no-input watchdog (gated NOINPUT_POLICY, default OFF): caller silent
         # too long while idle (bot not speaking/thinking, no utterance in progress)
         # -> reprompt, then graceful close. Debounced via _last_activity_ms reset.
@@ -1129,6 +1160,77 @@ class VobizStreamSession:
         self._disclosure_active = True
         self._disclosure_deadline_ms = _now_ms() + 6000.0
 
+    def _mark_terminated(self, reason: str, source: str) -> None:
+        """Record termination reason once; idempotent."""
+        if self._termination_reason:
+            return
+        try:
+            from app.voice_agent.call_termination import ALL_REASONS, UNKNOWN_TERMINATION
+
+            r = (reason or UNKNOWN_TERMINATION).strip()
+            self._termination_reason = r if r in ALL_REASONS else UNKNOWN_TERMINATION
+        except Exception:
+            self._termination_reason = reason or "unknown_termination"
+        self._termination_source = (source or "unknown")[:120]
+        self._closed = True
+
+    async def _terminate_call(self, reason: str, source: str, *, close_ws: bool = True) -> None:
+        """End call with explicit termination metadata."""
+        self._mark_terminated(reason, source)
+        self._stop_play()
+        if close_ws:
+            try:
+                await self.ws.close()
+            except Exception:
+                pass
+
+    async def _maybe_end_on_limits(self) -> None:
+        """Hard caps only — never end engaged calls before supported_max_turns."""
+        if self._closed or self._termination_reason:
+            return
+        try:
+            from app.voice_agent.call_termination import (
+                MAX_DURATION_REACHED,
+                MAX_TURNS_REACHED,
+                count_completed_exchanges,
+                max_call_duration_seconds,
+                supported_max_turns,
+            )
+
+            dur = max(0.0, (datetime.now(timezone.utc) - self._started_at).total_seconds())
+            if dur >= max_call_duration_seconds():
+                logger.info(
+                    f"[vobiz-stream {self.stream_sid}] max duration {dur:.0f}s — ending"
+                )
+                await self._terminate_call(MAX_DURATION_REACHED, "duration_watchdog")
+                return
+            ex = count_completed_exchanges(self.hist)
+            if ex >= supported_max_turns():
+                logger.info(
+                    f"[vobiz-stream {self.stream_sid}] max turns {ex} — ending"
+                )
+                await self._terminate_call(MAX_TURNS_REACHED, "turn_policy")
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] limit check skip: {e}")
+
+    async def _flush_pending_speech(self) -> None:
+        """Finalize buffered caller audio before teardown (fixes user_turns=0 when
+        speech was captured during barge-locked opener but call ended early)."""
+        try:
+            if self._thinking or not self._had_speech or self._speech_ms < MIN_SPEECH_MS:
+                return
+            utt = b"".join(self._speech_buf)
+            if not utt:
+                return
+            logger.info(
+                f"[vobiz-stream {self.stream_sid}] flush buffered speech "
+                f"({self._speech_ms:.0f}ms) before teardown"
+            )
+            self._reset_speech()
+            await self._on_utterance(utt)
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] flush pending speech skip: {e}")
+
     @staticmethod
     def _noinput_enabled() -> bool:
         """D-13 no-input/silence policy gate (default OFF)."""
@@ -1162,12 +1264,7 @@ class VobizStreamSession:
                     )
                 except Exception:
                     pass
-                self._closed = True
-                self._stop_play()
-                try:
-                    await self.ws.close()
-                except Exception:
-                    pass
+                await self._terminate_call("no_input_exhausted", "noinput_watchdog")
         except Exception as e:
             logger.debug(f"[vobiz-stream] no-input handle failed: {e}")
 
@@ -1378,12 +1475,7 @@ class VobizStreamSession:
                         f"{self._ivr_hits} — hanging up (machine, not a human)"
                     )
                     _outcome = "ivr_hangup"
-                    self._closed = True
-                    self._stop_play()
-                    try:
-                        await self.ws.close()
-                    except Exception:
-                        pass
+                    await self._terminate_call("application_exception", "ivr_strike_limit", close_ws=True)
                     return
                 reply = self._ivr_voicemail_reply()
                 self.hist.append({"role": "assistant", "content": reply})
@@ -1418,12 +1510,7 @@ class VobizStreamSession:
                 _outcome = "opt_out"
                 _reply_text = reply
                 await self._say_and_wait(reply)
-                self._closed = True
-                self._stop_play()
-                try:
-                    await self.ws.close()
-                except Exception:
-                    pass
+                await self._terminate_call("recipient_opted_out", "verbal_opt_out")
                 return
             # SPONTANEITY: LLM+TTS se pehle turant cached "Hmm/Achha" filler
             # bajao — 1-3s ki think-window me line dead na lage. Inline await
@@ -1536,6 +1623,17 @@ class VobizStreamSession:
                     self._record_turn(_stt_ms, turn_ms, _outcome, _reply_text)
                 except Exception:
                     pass
+                try:
+                    await self._maybe_end_on_limits()
+                except Exception:
+                    pass
+                if self._terminate_after_reply:
+                    reason, source = self._terminate_after_reply
+                    self._terminate_after_reply = None
+                    try:
+                        await self._terminate_call(reason, source)
+                    except Exception:
+                        pass
             self._turn_t0_ms = None
 
     def _record_turn(
@@ -1618,9 +1716,7 @@ class VobizStreamSession:
             pass
         # Close the WS gracefully — _cleanup() (idempotent) runs metering/transcript.
         try:
-            self._closed = True
-            self._stop_play()
-            await self.ws.close()
+            await self._terminate_call("application_exception", "amd_machine", close_ws=True)
         except Exception as e:
             logger.debug(f"[vobiz-stream] AMD close failed: {e}")
         return True
@@ -1774,6 +1870,10 @@ class VobizStreamSession:
 
             reply, self._pitch_state = next_reply(self._pitch_state, text)
             if reply is not None:
+                if getattr(self._pitch_state, "phase", "") == "closed":
+                    from app.voice_agent.call_termination import RECIPIENT_REJECTED
+
+                    self._terminate_after_reply = (RECIPIENT_REJECTED, "platform_pitch")
                 if self._pitch_state.phase == "discovery":
                     if os.environ.get("PHONE_CELEBRATION", "0").strip().lower() in (
                         "1",
@@ -2117,12 +2217,8 @@ class VobizStreamSession:
             )
             if should_end:
                 await self._say_and_wait(confirm)
-                self._closed = True
-                self._stop_play()
-                try:
-                    await self.ws.close()
-                except Exception:
-                    pass
+                reason = "agent_completed_goal" if name == "end_call" else "agent_completed_goal"
+                await self._terminate_call(reason, f"tool:{name}")
             else:
                 await self._say(confirm)
             return {"outcome": f"tool:{name}", "reply_text": confirm}
@@ -2699,7 +2795,7 @@ class VobizStreamSession:
             await asyncio.wait_for(self.ws.send_text(json.dumps(obj)), timeout=_SEND_TIMEOUT_S)
         except Exception as e:
             logger.debug(f"[vobiz-stream] send failed: {e}")
-            self._closed = True
+            self._mark_terminated("websocket_failure", "ws_send")
 
     async def _cleanup(self) -> None:
         if self._teardown_done:
@@ -2707,13 +2803,31 @@ class VobizStreamSession:
         self._teardown_done = True
         self._closed = True
         self._stop_play()
+        try:
+            await self._flush_pending_speech()
+        except Exception:
+            pass
         turns = len([m for m in self.hist if m.get("role") == "user"])
         ended = datetime.now(timezone.utc)
         dur = max(0.0, (ended - self._started_at).total_seconds())
+        if not self._termination_reason:
+            try:
+                from app.voice_agent.call_termination import classify_unknown
+
+                self._termination_reason = classify_unknown(
+                    user_turns=turns,
+                    duration_s=dur,
+                    media_events=self._media_event_count,
+                    had_speech_buffered=self._had_speech and self._speech_ms >= MIN_SPEECH_MS,
+                )
+                self._termination_source = self._termination_source or "teardown_infer"
+            except Exception:
+                self._termination_reason = "unknown_termination"
         inbound_s = round(self._media_bytes / 2 / SAMPLE_RATE, 1)
         logger.info(
             f"[vobiz-stream] call summary sid={self.stream_sid} niche={self.niche} "
             f"client={self.client_id} dur={dur:.0f}s user_turns={turns} "
+            f"termination={self._termination_reason} source={self._termination_source} "
             f"msgs={len(self.hist)} stt={self._stt_counts} "
             f"inbound_frames={self._media_frames} inbound_audio={inbound_s}s "
             f"caller_rms_max={self._caller_rms_max} vad_thr={self._vad_rms}"
@@ -2871,7 +2985,7 @@ class VobizStreamSession:
                 outcome=("test_session" if _phoneless else stream_outcome),
                 started_at=self._started_at,
                 ended_at=ended,
-                q=getattr(self, "_last_qual", None),
+                q=self._call_log_qual(stream_outcome),
             )
         except Exception as e:
             logger.debug(f"[vobiz-stream] persist_call_log skip: {e}")
@@ -2899,6 +3013,34 @@ class VobizStreamSession:
             )
         except Exception:
             pass
+
+    def _call_log_qual(self, stream_outcome: str) -> dict | None:
+        """Merge qualification + termination for call_logs.qualification_data."""
+        try:
+            from app.voice_agent.call_termination import (
+                count_agent_turns,
+                count_completed_exchanges,
+                termination_record,
+            )
+
+            base = dict(getattr(self, "_last_qual", None) or {})
+            base.update(
+                termination_record(
+                    reason=self._termination_reason or "unknown_termination",
+                    source=self._termination_source or "unknown",
+                    call_id=str(self.stream_sid or ""),
+                    user_turns=len([m for m in self.hist if m.get("role") == "user"]),
+                    agent_turns=count_agent_turns(self.hist),
+                    completed_exchanges=count_completed_exchanges(self.hist),
+                    duration_s=max(
+                        0.0, (datetime.now(timezone.utc) - self._started_at).total_seconds()
+                    ),
+                    extra={"stream_outcome": stream_outcome},
+                )
+            )
+            return base
+        except Exception:
+            return getattr(self, "_last_qual", None)
 
     def _persist_transcript(self, ended: datetime, dur_s: float, user_turns: int) -> None:
         """Har call ka full transcript + meta ek JSON line me append karo —
@@ -2942,6 +3084,30 @@ class VobizStreamSession:
                 "barge_count": self._interruptions,  # P4-3 interruption tracking
                 "messages": redacted_msgs,
             }
+            try:
+                from app.voice_agent.call_termination import (
+                    count_agent_turns,
+                    count_completed_exchanges,
+                    termination_record,
+                )
+
+                rec.update(
+                    termination_record(
+                        reason=self._termination_reason or "unknown_termination",
+                        source=self._termination_source or "unknown",
+                        call_id=str(self.stream_sid or ""),
+                        user_turns=user_turns,
+                        agent_turns=count_agent_turns(self.hist),
+                        completed_exchanges=count_completed_exchanges(self.hist),
+                        duration_s=dur_s,
+                        extra={
+                            "last_user_audio_ms": self._last_user_audio_ms,
+                            "last_agent_audio_ms": self._last_agent_audio_ms,
+                        },
+                    )
+                )
+            except Exception:
+                pass
             # P1 observability: per-turn latency + call-level P50/P95 rollup so the
             # transcript itself is tunable without joining a separate file.
             if self._turn_metrics:
