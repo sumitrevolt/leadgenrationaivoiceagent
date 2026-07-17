@@ -39,6 +39,8 @@ AUTOMATION_FLAGS = [
     "USE_LANGGRAPH_SUPERVISOR",
     "USE_LANGGRAPH_HIGH_STAKES",
     "AGENT_STANDUP",
+    "LLM_COUNCIL",  # Karpathy multi-model council (boss unclear → decide); OFF = council-decide endpoints fail soft
+    "COUNCIL_TIMEOUT_S",  # council per-call timeout seconds (value-carrying)
     "SALES_ENGINE",
     "CADENCE_ENGINE",
     "DUNNING_ENGINE",
@@ -49,6 +51,15 @@ AUTOMATION_FLAGS = [
     "CHANNEL_EXPERIMENTS",
     "CAMPAIGN_OPTIMIZER",  # Kiran: orchestrates optimizer+bandit+feedback every 100 interactions
     "PLATFORM_DIAL_DAILY",  # daily 11:30 IST self-sale AI cold-call batch (Swara; limit=PLATFORM_DIAL_LIMIT, niche=PLATFORM_DIAL_NICHE)
+    # --- Controlled voice-calling launch spine (2026-07-17, app/telephony/voice_launch.py) ---
+    "VOICE_LAUNCH_CAMPAIGN",  # master gate for controlled cold-call campaign — OFF default (INERT); UPAR of platform_dial 3-layer kill
+    "VOICE_LAUNCH_KILL",  # global admin kill switch — 1 = ALL outbound calls ineligible (fail-safe); data/voice_launch_kill.json fallback
+    "VOICE_DAILY_CALL_CAP",  # attempts/IST-day ceiling (default 100, hard-clamped ≤100). Every provider-accepted attempt counts
+    "VOICE_TEST_DAILY_CAP",  # internal allowlist test-call quota (default 25) — SEPARATE from campaign cap
+    "VOICE_CALL_CONCURRENCY",  # simultaneous outbound calls (default 1; launch starts at 1)
+    "VOICE_TRAIN_BATCH",  # calls-per-batch before a training pause (default 30 → pause@30/60/90)
+    "VOICE_CIRCUIT_FAIL_THRESHOLD",  # consecutive provider failures before circuit breaker trips (default 5)
+    "VOICE_RECORDING_REQUIRED",  # 1 = recording MANDATORY; unhealthy recordings dir blocks new dials (fail-closed). Default OFF (graceful)
     "OUTREACH_CAMPAIGN_VARIANTS",  # cold email uses Kiran champion/challenger copy (impression/reply tracked)
     "VOICE_CAMPAIGN_VARIANTS",  # Swara phone/web greeting uses voice_opening champion/challenger
     "PROCESS_ENGINE",  # deterministic process-as-code workflows (complement to PROCESS_AUTOSTART)

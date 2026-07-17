@@ -154,6 +154,25 @@ def alert_staff_failure(job: str, detail: str = "") -> dict[str, Any]:
 
 
 
+def alert_voice_circuit_breaker(reason: str = "") -> dict[str, Any]:
+    """Voice controlled-calling circuit breaker tripped (provider-failure spike /
+    compliance-unavailable / recording-unhealthy) — campaign auto-paused. Pages ops
+    via ntfy (OPS_ALERTS-gated + cooldown'd so a sustained outage doesn't spam)."""
+    if not enabled():
+        return {"alerted": False, "reason": "disabled"}
+    key = "voice_circuit_breaker"
+    if _cooldown_active(key, "voice_circuit_breaker"):
+        return {"alerted": False, "reason": "cooldown"}
+    _ntfy(
+        "\U0001f6d1 voice campaign PAUSED — circuit breaker",
+        (f"Controlled calling auto-paused: {reason}")[:480],
+        priority="high",
+        tags=["stop_sign", "voice"],
+    )
+    _record_fire(key)
+    return {"alerted": True}
+
+
 def alert_paid_customer_stuck(client_id: str, business_name: str, reason: str) -> dict[str, Any]:
     """The jiya-makeover-class bug, closed: a PAID customer's value-delivery got
     stuck (WhatsApp send failed, no phone on file, AUTO_DELIVER_VALUE off, etc.)

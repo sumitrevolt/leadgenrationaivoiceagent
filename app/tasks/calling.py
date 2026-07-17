@@ -419,14 +419,49 @@ async def _dial_vobiz_campaign(
     import re
 
     from app.api.telephony_vobiz import start_stream_call
+    from app.telephony import voice_launch as vl
     from app.telephony.vobiz_handler import VobizClient
 
     client = VobizClient()
     if not dry_run and not client.available():
         return {"ok": 0, "skip": 0, "fail": 0, "placed_ids": [], "error": "vobiz_not_configured"}
 
+    # ── Controlled-launch safety spine (2026-07-17, app/telephony/voice_launch.py) ──
+    # spine_on = VOICE_LAUNCH_CAMPAIGN=1 → full enforcement (per-lead fail-closed
+    # eligibility + atomic daily cap + 30-call training pause + circuit breaker +
+    # recording gate). Default OFF = INERT: existing behaviour UNCHANGED (only the
+    # always-safe global admin kill switch, default off, is honoured). Composes ON
+    # TOP of the existing compliance/dial_gate layers — never replaces them.
+    spine_on = vl.campaign_enabled()
+    kind = "campaign"
+
+    if not dry_run and vl.admin_kill_engaged():
+        await vl.set_campaign_state(vl.CampaignState.PAUSED_BY_ADMIN)
+        return {
+            "ok": 0, "skip": len(prospects), "fail": 0, "placed_ids": [],
+            "state": vl.CampaignState.PAUSED_BY_ADMIN.value, "error": "admin_kill_switch",
+        }
+
+    if spine_on and not dry_run:
+        rec_ok, rec_reason = vl.recording_gate_ok()
+        if not rec_ok:
+            await vl.trip_circuit(rec_reason)
+            await vl.set_campaign_state(vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER)
+            return {
+                "ok": 0, "skip": len(prospects), "fail": 0, "placed_ids": [],
+                "state": vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER.value, "error": rec_reason,
+            }
+        if await vl.circuit_open():
+            await vl.set_campaign_state(vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER)
+            return {
+                "ok": 0, "skip": len(prospects), "fail": 0, "placed_ids": [],
+                "state": vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER.value, "error": "circuit_open",
+            }
+        await vl.set_campaign_state(vl.CampaignState.RUNNING)
+
     ok = skip = fail = 0
     placed_ids: list[str] = []
+    stop_state = None
     for p in prospects:
         p10 = re.sub(r"\D", "", (p.phone or "").strip())[-10:]
         niche = "ai_marketing" if platform else (p.niche or "general")
@@ -436,12 +471,35 @@ async def _dial_vobiz_campaign(
         if not p10 or len(p10) != 10:
             skip += 1
             continue
+
+        # per-lead fail-closed eligibility + atomic daily-cap reservation
+        slot = None
+        if spine_on:
+            elig = await vl.is_lead_eligible_for_voice_call("+91" + p10, call_type)
+            if not elig.eligible:
+                skip += 1
+                await vl.record_disposition(vl.VoiceDisposition.SKIPPED, kind)
+                logger.info(f"[voice_launch] lead {p.id} ineligible: {elig.reason}")
+                continue
+            slot = await vl.reserve_call_slot(kind)
+            if not slot.ok:
+                # daily_limit_reached OR counter_unavailable (fail-CLOSED) → stop dialing
+                stop_state = (
+                    vl.CampaignState.DAILY_LIMIT_REACHED
+                    if slot.reason == "daily_limit_reached"
+                    else vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER
+                )
+                logger.warning(f"[voice_launch] stop dialing — {slot.reason}")
+                break
+
         result = await start_stream_call(
             to="+91" + p10, niche=niche, call_type=call_type, client_id=cid or None
         )
         if result.get("placed"):
             ok += 1
             placed_ids.append(p.id)
+            if spine_on:
+                await vl.record_provider_result(True)
             # mark_called INLINE, right after each placed call — same
             # crash-safety as fire_calls.py's per-lead mark_called(). A
             # batched-after-the-loop update would lose every already-dialed
@@ -469,10 +527,41 @@ async def _dial_vobiz_campaign(
                 db.rollback()
         elif result.get("error") == "compliance_blocked":
             skip += 1
+            if spine_on and slot is not None:
+                # provider-side compliance block = NOT a provider-accepted attempt →
+                # roll back the reserved slot so it doesn't consume the daily cap.
+                await vl.release_call_slot(kind)
+                await vl.record_disposition(vl.VoiceDisposition.SKIPPED, kind)
         else:
             fail += 1
+            if spine_on:
+                # provider failure IS a provider-accepted attempt → keep slot (counts);
+                # feed the circuit breaker (trips on a consecutive-failure spike).
+                await vl.record_disposition(vl.VoiceDisposition.FAILED, kind)
+                if await vl.record_provider_result(False, str(result.get("error") or "")):
+                    stop_state = vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER
+                    logger.warning("[voice_launch] circuit breaker tripped — pausing campaign")
+                    break
+
+        # 30-call training pause boundary — ATOMIC via the reservation counter
+        # (slot.count is a single Redis INCR, so exactly one worker crosses 30/60/90).
+        if spine_on and slot is not None and result.get("placed") and vl.training_pause_due(slot.count):
+            stop_state = vl.CampaignState.PAUSED_FOR_TRAINING
+            logger.info(f"[voice_launch] training pause at call {slot.count}")
+            break
+
         await asyncio.sleep(4)
-    return {"ok": ok, "skip": skip, "fail": fail, "placed_ids": placed_ids}
+
+    if spine_on and not dry_run:
+        if stop_state is not None:
+            await vl.set_campaign_state(stop_state)
+        elif not await vl.circuit_open():
+            await vl.set_campaign_state(vl.CampaignState.RUNNING)
+
+    out = {"ok": ok, "skip": skip, "fail": fail, "placed_ids": placed_ids}
+    if stop_state is not None:
+        out["state"] = stop_state.value
+    return out
 
 
 @shared_task(bind=True)
