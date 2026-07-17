@@ -319,6 +319,10 @@ AUTOMATION_FLAGS = [
     # kar sakte hai. Double-gated: OMNIROUTE_ENABLED=1 AND OMNIROUTE_AGENTS=1 dono chahiye.
     # Sanitized payload only (mask_customer_data + validate_no_secrets), fail-open —
     # OmniRoute down/miss = existing free chain unchanged. OFF default (INERT).
+    # --- Swara enterprise conversation upgrade (2026-07-17) ---
+    "VOICE_STICKY_ROUTE",  # pin provider/model at call start (default ON) — no mid-call churn
+    "STT_UNDERSTANDING_GATE",  # pre-LLM STT classify + clarify (default ON)
+    "VOICE_TRAINING_LOOP",  # 30-call pause → QA proposal (default ON; auto fine-tune NEVER)
     # Social OAuth env-approval (ADR-112): env ON ≠ oauth_ready until authorize URL wired.
     "META_OAUTH_APPROVED",
     "GBP_OAUTH_APPROVED",

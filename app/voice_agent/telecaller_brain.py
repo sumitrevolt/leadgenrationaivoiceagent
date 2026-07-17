@@ -2260,8 +2260,35 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 # repeat = chhodo, script ka agla sawaal do.
                 elif self._too_similar(spoken, self._prev_assistant(history)):
                     spoken = ""
+                # RE-GREETING GUARD (VOICE_TOOLS path) — live defect 2026-07-17:
+                # reply() already blocked mid-call opener parrot; reply_with_tools
+                # did NOT → opener replayed when VOICE_TOOLS=1. Mirror reply().
+                else:
+                    _spoken_n = sum(
+                        1 for m in (history or []) if (m.get("role") or "") == "assistant"
+                    )
+                    if _spoken_n >= 1 and self._looks_like_greeting(spoken):
+                        logger.info(
+                            "[telecaller-brain] tools path blocked opener repeat "
+                            "(greeting_completed)"
+                        )
+                        try:
+                            # Surface to call session if attached.
+                            ss = getattr(self, "_session_state", None)
+                            if ss is not None and hasattr(ss, "block_opener_repeat"):
+                                ss.block_opener_repeat()
+                        except Exception:
+                            pass
+                        spoken = ""
             if not spoken:
                 spoken = self._script_fallback(history) or self._safe_fallback(history)
+            # Response contract: strip markdown / multi-question.
+            try:
+                from app.voice_agent.response_contract import parse_and_validate
+
+                spoken = parse_and_validate(spoken).spoken_response
+            except Exception:
+                pass
             return spoken, None
         except Exception as e:
             logger.debug(f"[telecaller-brain] reply_with_tools fallback: {e}")
@@ -2697,10 +2724,27 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     t.cancel()
 
     async def _generate(self, prompt: str) -> tuple:
-        """(reply_text, provider). VOICE_LLM_RACE=1 → race both backends in parallel
-        (first non-empty wins). Else GEMINI_PRIMARY/VOICE_GEMINI_PRIMARY decides
-        sequential order; default = free_ai.chat (Mistral->Groq->...) first."""
+        """(reply_text, provider). Sticky route pins provider for the call when set.
+        Else VOICE_LLM_RACE / GEMINI_PRIMARY sequential behaviour (unchanged)."""
         from app.config import settings
+
+        sticky = getattr(self, "_sticky_route", None)
+        if sticky is not None and getattr(sticky, "provider", ""):
+            try:
+                text = await self._generate_sticky(prompt, sticky)
+                if text:
+                    return text, f"sticky:{sticky.provider}"
+                # Fallback once (preserves state — no opener replay here).
+                from app.voice_agent.voice_sticky_route import try_fallback
+
+                nxt = try_fallback(sticky, error="empty_or_error")
+                if nxt is not None:
+                    self._sticky_route = nxt
+                    text = await self._generate_sticky(prompt, nxt)
+                    if text:
+                        return text, f"sticky_fb:{nxt.provider}"
+            except Exception as e:
+                logger.debug("[telecaller-brain] sticky generate skip: %s", e)
 
         if self._voice_llm_race():
             return await self._generate_raced(prompt)
@@ -2719,6 +2763,33 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 return text, "free_ai"
             text = await self._gemini_reply(prompt)
             return (text, "gemini") if text else ("", "")
+
+    async def _generate_sticky(self, prompt: str, sticky) -> str:
+        """Call the pinned provider only (no per-turn round-robin)."""
+        provider = (getattr(sticky, "provider", "") or "").strip().lower()
+        model = (getattr(sticky, "model", "") or "").strip()
+        if provider == "gemini":
+            if model:
+                self.model = model
+            return await self._gemini_reply(prompt)
+        # Free-provider pin via chat_provider when available.
+        try:
+            from app.voice_agent import free_ai
+
+            if hasattr(free_ai, "chat_provider") and provider:
+                text, _p = await free_ai.chat_provider(
+                    provider,
+                    model or "",
+                    "",
+                    [{"role": "user", "content": prompt}],
+                    max_tokens=int(_GEN_CONFIG["max_output_tokens"]),
+                    temperature=float(_GEN_CONFIG["temperature"]),
+                )
+                return self._clean(text) if text else ""
+        except Exception as e:
+            logger.debug("[telecaller-brain] sticky chat_provider fail: %s", e)
+        # Degrade to free_ai chain (still better than silence).
+        return await self._free_llm(prompt)
 
     @staticmethod
     def _prev_assistant(history: list[dict[str, str]] | None) -> str:
@@ -2778,6 +2849,15 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         # system prompt, before history). Default "" = byte-identical prompt.
         if extra_system:
             lines.append(extra_system)
+        # Enterprise bounded context (server-owned pricing + recent turns summary).
+        try:
+            ctx = getattr(self, "_conv_ctx", None)
+            if ctx is not None and hasattr(ctx, "prompt_block"):
+                block = ctx.prompt_block()
+                if block:
+                    lines.append(block)
+        except Exception:
+            pass
         vl = self._voice_lessons_block()
         if vl:
             lines.append(vl)

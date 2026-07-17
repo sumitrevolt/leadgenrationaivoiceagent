@@ -548,6 +548,19 @@ async def _dial_vobiz_campaign(
         if spine_on and slot is not None and result.get("placed") and vl.training_pause_due(slot.count):
             stop_state = vl.CampaignState.PAUSED_FOR_TRAINING
             logger.info(f"[voice_launch] training pause at call {slot.count}")
+            try:
+                from app.voice_agent.postcall_qa import propose_training_correction, training_loop_enabled
+
+                if training_loop_enabled():
+                    propose_training_correction(
+                        batch_count=int(slot.count),
+                        qa_summary={
+                            "reason": "training_boundary",
+                            "placed_ids_tail": list(placed_ids)[-5:],
+                        },
+                    )
+            except Exception as _te:
+                logger.debug(f"[voice_launch] training proposal skip: {_te}")
             break
 
         await asyncio.sleep(4)
