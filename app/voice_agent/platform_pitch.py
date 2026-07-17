@@ -88,18 +88,15 @@ def _script() -> dict:
 
 
 def opening_segments() -> list[str]:
-    """Three-part greet: intro → short pitch → interest yes/no.
+    """ONE short greet only — then WAIT for the caller.
 
-    The intro carries the TRAI AI-disclosure ("Main ek AI assistant hoon") for
-    parity with every tcbrain-niche opener (which wraps ensure_ai_disclosure).
-    Without this the ai_marketing platform pitch was the ONE opener that never
-    disclosed it was an AI. Idempotent + never-raise (helper falls back to the
-    raw intro on any error)."""
-    from app.voice_agent.universal_pitch import (
-        INTEREST_ASK,
-        PITCH_SHORT,
-        UNIVERSAL_AGENT_INTRO,
-    )
+    2026-07-17 live defect: 3-part opener (intro+pitch+ask) spoke ~40s back-to-
+    back with barge locked → user_turns=0 → Vobiz "End Of XML Instructions"
+    hangup. Owner wants 10–15 conversation turns: so opener = identity +
+    permission ask ONLY; price/pitch comes AFTER the caller says haan (see
+    line_yes_praise / next_reply). Idempotent + never-raise.
+    """
+    from app.voice_agent.universal_pitch import UNIVERSAL_AGENT_INTRO
 
     s = _script()
     intro = (s.get("opening") or "").strip() or UNIVERSAL_AGENT_INTRO
@@ -109,20 +106,28 @@ def opening_segments() -> list[str]:
         intro = ensure_ai_disclosure(intro)
     except Exception:
         pass
-    pitch = (s.get("pitch_short") or "").strip() or PITCH_SHORT
-    ask = (s.get("interest_ask") or "").strip() or INTEREST_ASK
-    return [intro, pitch, ask]
+    return [intro]
 
 
 def line_yes_praise() -> str:
+    """After permission yes: deliver SHORT pitch + one discovery question.
+
+    Pitch moved out of the opener (2026-07-17) so the first breath is short
+    enough for the caller to answer — then we give price/trial here."""
+    from app.voice_agent.universal_pitch import PITCH_SHORT
+
     s = _script()
+    pitch = (s.get("pitch_short") or "").strip() or PITCH_SHORT
     praise = (s.get("yes_praise") or "").strip()
     if praise:
-        return praise
+        return f"{pitch} {praise}"
     disc = [str(q).strip() for q in (s.get("discovery") or []) if str(q).strip()]
     if disc:
-        return f"Theek — {disc[0]}"
-    return "Theek — marketing abhi khud karte ho, staff se, ya agency?"
+        return f"Theek — {pitch} {disc[0]}"
+    return (
+        f"Theek — {pitch} "
+        "Marketing abhi khud karte ho, staff se, ya agency?"
+    )
 
 
 def line_no_convince() -> str:

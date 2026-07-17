@@ -214,10 +214,9 @@ THINK_MAX_S = _env_num("VOBIZ_THINK_MAX_S", 16.0)
 # shared PHONE_TTS_* fall through, else the snappy default. EdgeTTS takes these
 # natively (rate/pitch/volume kwargs) — guarded so a build lacking a kwarg is
 # fine. e.g. VOBIZ_TTS_PITCH="+3Hz" warms the female voice; rate="+0%" slows it.
-# Default +12% (2026-07-17 owner live-call feedback: +33% kabhi rush / kabhi
-# crawl feel — ek stable Hinglish outbound pace). VOBIZ_TTS_RATE/PHONE_TTS_RATE
-# still win for per-env tune (e.g. "+20%" faster, "+0%" slower).
-TTS_RATE = (os.environ.get("VOBIZ_TTS_RATE") or os.environ.get("PHONE_TTS_RATE") or "+12%").strip()
+# Default +28% (2026-07-17 owner: +12% abhi bhi SLOW; +33% pehle rush feel —
+# +28% = snappy Hinglish without chipmunk). VOBIZ_TTS_RATE/PHONE_TTS_RATE win.
+TTS_RATE = (os.environ.get("VOBIZ_TTS_RATE") or os.environ.get("PHONE_TTS_RATE") or "+28%").strip()
 TTS_PITCH = (os.environ.get("VOBIZ_TTS_PITCH") or os.environ.get("PHONE_TTS_PITCH") or "").strip()
 TTS_VOLUME = (os.environ.get("VOBIZ_TTS_VOLUME") or "").strip()
 
@@ -2340,6 +2339,10 @@ class VobizStreamSession:
                         await self._run_play(pcms[i])
                     else:
                         await self._say_and_wait(seg)
+                    # Unlock barge after FIRST segment — long multi-seg openers
+                    # used to lock the caller out for ~40s (2026-07-17 defect).
+                    if i == 0:
+                        self._disclosure_active = False
                 self._disclosure_active = False
                 return
         except Exception as e:

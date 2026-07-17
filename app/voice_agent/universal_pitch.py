@@ -45,8 +45,10 @@ INTEREST_ASK = "Ek baar free me try karke dekhna chahenge?"
 
 
 def platform_opening_segments() -> list[str]:
-    """3-part ai_marketing greet — web-call + Vobiz/phone real calls."""
-    return [UNIVERSAL_AGENT_INTRO, PITCH_SHORT, INTEREST_ASK]
+    """ai_marketing greet — single short opener (wait for caller before pitch)."""
+    from app.voice_agent.platform_pitch import opening_segments
+
+    return opening_segments()
 
 
 __all__ = [

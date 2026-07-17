@@ -27,7 +27,7 @@ def test_split_sentences_short_fragment():
 
 # --------------------------------------------------------------------------- #
 # 2026-07-17 — live-call quality parity: web (test/demo) path must match the
-# phone agent — no "ji/sir" habit fillers spoken; Swara pace consistent (+12%).
+# phone agent — no "ji/sir" habit fillers spoken; Swara pace consistent (+28%).
 # --------------------------------------------------------------------------- #
 def test_web_filler_lines_have_no_address_fillers():
     banned = ("ji", "sir", "madam", "haji", "haan ji", "achha ji")
@@ -39,11 +39,11 @@ def test_web_filler_lines_have_no_address_fillers():
 
 
 def test_web_tts_rate_default_matches_phone_pace():
-    # Default (env unset) must be the +12% owner-tuned pace, not the old +26%.
+    # Default (env unset) must be the +28% owner-tuned snappy pace.
     old = os.environ.pop("WEB_TTS_RATE", None)
     try:
-        default = os.environ.get("WEB_TTS_RATE", "+12%").strip() or "+12%"
-        assert default == "+12%"
+        default = os.environ.get("WEB_TTS_RATE", "+28%").strip() or "+28%"
+        assert default == "+28%"
     finally:
         if old is not None:
             os.environ["WEB_TTS_RATE"] = old
