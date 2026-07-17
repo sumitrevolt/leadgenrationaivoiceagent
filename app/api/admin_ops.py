@@ -249,6 +249,60 @@ async def calls_recent(_user=Depends(require_admin)):
     return await asyncio.to_thread(_call_stats)
 
 
+def _load_call_transcript(call_id: str) -> dict | None:
+    """Find one stream call transcript by stream_sid / call_id (JSONL tail scan)."""
+    cid = (call_id or "").strip()
+    if not cid:
+        return None
+    import json
+    import os
+
+    root = os.path.join("data", "call_transcripts")
+    if not os.path.isdir(root):
+        return None
+    files = sorted(f for f in os.listdir(root) if f.endswith(".jsonl"))
+    for name in reversed(files[-21:]):
+        path = os.path.join(root, name)
+        try:
+            with open(path, encoding="utf-8") as f:
+                for ln in f:
+                    try:
+                        rec = json.loads(ln)
+                    except Exception:
+                        continue
+                    if not isinstance(rec, dict):
+                        continue
+                    if str(rec.get("stream_sid") or "") == cid or str(rec.get("call_sid") or "") == cid:
+                        return rec
+        except Exception:
+            continue
+    return None
+
+
+@router.get("/calls/{call_id}/detail", summary="Call transcript + termination detail")
+async def call_detail(call_id: str, _user=Depends(require_admin)):
+    rec = await asyncio.to_thread(_load_call_transcript, call_id)
+    if not rec:
+        return {"ok": False, "call": None}
+    return {
+        "ok": True,
+        "call": {
+            "call_id": call_id,
+            "stream_sid": rec.get("stream_sid"),
+            "duration_s": rec.get("duration_s"),
+            "user_turns": rec.get("user_turns"),
+            "agent_turns": rec.get("agent_turns"),
+            "completed_exchanges": rec.get("completed_exchanges"),
+            "termination_reason": rec.get("termination_reason"),
+            "termination_source": rec.get("termination_source"),
+            "niche": rec.get("niche"),
+            "client_name": rec.get("client_name"),
+            "messages": rec.get("messages") or [],
+            "turn_metrics": rec.get("turn_metrics"),
+        },
+    }
+
+
 # ── Campaign endpoints ────────────────────────────────────────────────────────
 @router.post("/campaign/launch", summary="Launch outbound call campaign")
 async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
