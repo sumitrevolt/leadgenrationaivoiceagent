@@ -64,8 +64,25 @@ async def vobiz_status_webhook(request: Request):
     except Exception:
         form_data = {}
 
-    call_sid = form_data.get("CallSid") or form_data.get("call_uuid") or form_data.get("id")
-    status = (form_data.get("Status") or form_data.get("call_status") or "").lower()
+    call_sid = (
+        form_data.get("CallSid")
+        or form_data.get("CallUUID")
+        or form_data.get("call_uuid")
+        or form_data.get("RequestUUID")
+        or form_data.get("id")
+    )
+    status = (
+        form_data.get("Status")
+        or form_data.get("CallStatus")
+        or form_data.get("call_status")
+        or ""
+    ).lower()
+    hangup_cause = (
+        form_data.get("HangupCause")
+        or form_data.get("HangupCauseName")
+        or form_data.get("hangup_cause")
+        or ""
+    )
     duration_raw = form_data.get("Duration") or form_data.get("duration")
     recording_url = form_data.get("RecordingUrl") or form_data.get("recording_url")
     call_id = form_data.get("CallbackData") or form_data.get("call_id") or call_sid
@@ -86,15 +103,20 @@ async def vobiz_status_webhook(request: Request):
         except Exception:
             pass
 
-    logger.info(f"Vobiz status webhook - SID: {call_sid}, Status: {status}")
+    logger.info(
+        f"Vobiz status webhook - SID: {call_sid}, Status: {status}, HangupCause: {hangup_cause}"
+    )
 
     # Controlled-launch disposition tally (NUP/busy/failed/answered…) for admin
     # visibility + daily analytics. Best-effort, never blocks the webhook.
+    # Prefer HangupCause when CallStatus is generic "completed" — otherwise
+    # every hangup looks like ANSWERED and NUP/no_answer vanish from metrics.
     try:
         from app.telephony import voice_launch as _vl
 
-        if status:
-            await _vl.record_disposition(status, "campaign")
+        disp_token = (hangup_cause or status or "").strip()
+        if disp_token:
+            await _vl.record_disposition(disp_token, "campaign")
     except Exception:
         pass
 

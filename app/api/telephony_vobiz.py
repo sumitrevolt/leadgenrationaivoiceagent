@@ -270,7 +270,18 @@ async def start_stream_call(
             f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
             f"?{_answer_stream_qs(niche_key, client_id, lead_phone=to)}"
         )
-        result = await client.place_call(to=to, answer_url=answer_url, call_type=call_type)
+        # Per-call hangup_url so Vobiz posts HangupCause/CallStatus → disposition
+        # tally (NUP/no_answer/answered). Without this, stream-calls never hit
+        # /api/webhooks/vobiz/status (proven 2026-07-17 live call gap).
+        hangup_url = f"{settings.public_base_url}/api/webhooks/vobiz/status"
+        result = await client.place_call(
+            to=to,
+            answer_url=answer_url,
+            call_type=call_type,
+            hangup_url=hangup_url,
+            hangup_method="POST",
+            CallbackData=token,
+        )
         if result.get("blocked"):
             await _pop_pending(token)
             return {"placed": False, "error": "compliance_blocked", "vobiz_response": result}
@@ -279,6 +290,7 @@ async def start_stream_call(
             "placed": placed,
             "vobiz_response": result,
             "answer_url": answer_url,
+            "hangup_url": hangup_url,
             "stream_token": token,
         }
     except Exception as e:
@@ -311,8 +323,14 @@ async def place_stream_call(
         f"{settings.public_base_url}/api/telephony/vobiz/answer-stream/{token}"
         f"?{_answer_stream_qs(niche_key, request.client_id, lead_phone=request.to)}"
     )
+    hangup_url = f"{settings.public_base_url}/api/webhooks/vobiz/status"
     result = await client.place_call(
-        to=request.to, answer_url=answer_url, call_type=request.call_type
+        to=request.to,
+        answer_url=answer_url,
+        call_type=request.call_type,
+        hangup_url=hangup_url,
+        hangup_method="POST",
+        CallbackData=token,
     )
     if result.get("blocked"):
         await _pop_pending(token)
