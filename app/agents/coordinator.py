@@ -156,6 +156,21 @@ def _log(member: str, action: str, detail: str) -> None:
         pass
 
 
+def _heartbeat(pattern: str, ok: bool, t0: float, note: str = "") -> None:
+    """Feed dead-man /automation_health (team.log_event alone overdue-alert nahi kholta)."""
+    try:
+        from app.platform import automation_health
+
+        automation_health.record_run(
+            "coordinator",
+            ok=bool(ok),
+            seconds=max(0.0, time.monotonic() - t0),
+            note=f"{pattern}:{(note or '')}"[:120],
+        )
+    except Exception:
+        pass
+
+
 # --- D2: coordinator LLM cost guard (INERT unless COORDINATOR_LLM_CAP_PER_MIN>0) ---
 # self_improve ke paas SELFIMPROVE_COST_CAP hai; coordinator ke LLM calls (plan/
 # coordinate/fan_out/reflect/debate) ka koi cap nahi tha — recurring/public path me
@@ -305,6 +320,7 @@ async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> di
     goal = (goal or "").strip()
     if len(goal) < 3:
         return {"ok": False, "error": "goal bahut chhota hai"}
+    t0 = time.monotonic()
     run_id = uuid.uuid4().hex[:12]
     steps = await plan(goal, max_steps)
     blackboard: dict[str, Any] = {"goal": goal, "results": []}
@@ -352,6 +368,7 @@ async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> di
         "at": _now(),
     }
     _persist(out)
+    _heartbeat("coordinate", bool(summary), t0, goal[:60])
     return out
 
 
@@ -542,6 +559,7 @@ async def coordinate_advanced(
     goal = (goal or "").strip()
     if len(goal) < 3:
         return {"ok": False, "error": "goal bahut chhota hai"}
+    t0 = time.monotonic()
     run_id = uuid.uuid4().hex[:12]
     recalled = _recall(goal)
     hint = " | ".join(recalled)
@@ -604,6 +622,7 @@ async def coordinate_advanced(
         )
     except Exception:
         pass
+    _heartbeat("advanced", bool(summary), t0, goal[:60])
     return out
 
 
@@ -719,6 +738,7 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
     goal = (goal or "").strip()
     if len(goal) < 3:
         return {"ok": False, "error": "goal bahut chhota hai"}
+    t0 = time.monotonic()
     run_id = uuid.uuid4().hex[:12]
     assign = await _assign_teams(goal)
     _log("manager", "hier_start", f"{goal} -> teams {list(assign)}")
@@ -754,6 +774,7 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
         )
     except Exception:
         pass
+    _heartbeat("hierarchical", bool(summary), t0, goal[:60])
     return out
 
 

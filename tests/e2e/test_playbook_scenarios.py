@@ -183,11 +183,11 @@ def test_e2e_scheduler_health_contract_and_future_window(monkeypatch, tmp_path):
 # 15. Queue DLQ replay  →  app/platform/dlq_retry.py (REAL sweep logic)
 # ---------------------------------------------------------------------------
 class _FakeRedis:
-    """Minimal Redis stand-in for the dlq_retry sweep (list + hash ops only)."""
+    """Minimal Redis stand-in for the dlq_retry sweep (list + per-job incr)."""
 
     def __init__(self, items: list[str]):
         self._lists: dict[str, list[str]] = {_DLQ_KEY: list(items)}
-        self._hash: dict[str, dict[str, int]] = {}
+        self._kv: dict[str, str] = {}
 
     def rpop(self, k):
         lst = self._lists.get(k) or []
@@ -196,10 +196,9 @@ class _FakeRedis:
     def lpush(self, k, v):
         self._lists.setdefault(k, []).insert(0, v)
 
-    def hincrby(self, k, f, n):
-        h = self._hash.setdefault(k, {})
-        h[f] = h.get(f, 0) + n
-        return h[f]
+    def incr(self, k):
+        self._kv[k] = str(int(self._kv.get(k) or 0) + 1)
+        return int(self._kv[k])
 
     def expire(self, k, ttl):
         return True

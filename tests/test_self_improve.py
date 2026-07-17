@@ -69,6 +69,26 @@ def test_selfimprove_gated_off(tmp_path, monkeypatch):
     assert si.ensure_alive() == {"enabled": False}
 
 
+def test_cost_tracker_persists_across_instances(tmp_path, monkeypatch):
+    """F-3: CostTracker spent survives 'worker restart' (new instance, same file)."""
+    from app.agents import self_improve as si
+
+    cost_file = tmp_path / "self_improve_cost.json"
+    monkeypatch.setattr(si, "_COST_FILE", str(cost_file))
+    si._cost_tracker = None
+
+    ct1 = si.CostTracker(daily_cap=50.0)
+    ct1.record_cost("scrape_leads", 2.5)
+    assert ct1.get_daily_status()["spent"] == 2.5
+    assert ct1.get_daily_status()["note"] == "estimated_durable_file"
+    assert cost_file.exists()
+
+    ct2 = si.CostTracker(daily_cap=50.0)
+    assert ct2.today_cost == 2.5
+    assert ct2.can_afford("x", 47.5) is True  # 2.5 + 47.5 = 50
+    assert ct2.can_afford("x", 48.0) is False
+
+
 def test_selfimprove_queue_and_pick(tmp_path, monkeypatch):
     si = _patch_stores(monkeypatch, tmp_path)
     assert si.add_task("")["ok"] is False

@@ -7,8 +7,9 @@ Koi dekhe hi nahi to failed job pade-pade automation gap ban jata.
 YEH MODULE: watchdog job (hourly) me wired sweep —
   - DLQ se items pop karo, sirf STAFF_JOBS parse karo (side-effect-safe:
     legacy/unknown tasks blindly retry NAHI hote → `dlq:dead` me move).
-  - Per-job attempt count Redis hash `dlq:retry_counts` me (6h TTL) —
-    MAX_ATTEMPTS (2) ke baad job `dlq:dead` me + (gated) email alert.
+  - Per-job attempt count Redis key `dlq:retry:{job}` me (12h TTL) —
+    MAX_ATTEMPTS ke baad job `dlq:dead` me + (gated) email alert.
+    (Shared-hash TTL hata diya — kisi job ka incr doosri job ka cap reset na kare.)
   - Re-dispatch: Celery owner ho (RUN_IN_PROCESS_SCHEDULER=0) to
     `run_staff_job.apply_async(countdown=backoff)`; warna direct in-process
     `team_scheduler._run_job` await.
@@ -30,7 +31,8 @@ logger = setup_logger(__name__)
 
 DLQ_KEY = "dlq:failed_tasks"
 DEAD_KEY = "dlq:dead"
-COUNTS_KEY = "dlq:retry_counts"
+COUNTS_KEY = "dlq:retry_counts"  # legacy shared-hash (unused for writes; kept for ops grep)
+COUNT_KEY_PREFIX = "dlq:retry:"  # per-job key → deterministic TTL / MAX_ATTEMPTS
 COUNTS_TTL_S = 12 * 3600  # attempt-counts 12h baad reset (transient-failure count zinda rahe)
 MAX_ATTEMPTS = 3  # 3 auto-retries before dead-queue — transient 429/500/timeout ko recover hone ka extra chance (tha 2)
 BACKOFF_BASE_S = 120  # attempt n → n*120s countdown (celery path)
@@ -173,8 +175,9 @@ async def run_sweep(max_items: int = 20, r=None, force: bool = False) -> dict[st
                 r.lpush(DEAD_KEY, json.dumps(rec, ensure_ascii=False))
                 out["skipped"] += 1
                 continue
-            attempts = int(r.hincrby(COUNTS_KEY, job, 1) or 1)
-            r.expire(COUNTS_KEY, COUNTS_TTL_S)
+            count_key = f"{COUNT_KEY_PREFIX}{job}"
+            attempts = int(r.incr(count_key) or 1)
+            r.expire(count_key, COUNTS_TTL_S)
             if attempts >= MAX_ATTEMPTS:
                 rec["dead_reason"] = f"max {MAX_ATTEMPTS} auto-retries exhausted"
                 r.lpush(DEAD_KEY, json.dumps(rec, ensure_ascii=False))
