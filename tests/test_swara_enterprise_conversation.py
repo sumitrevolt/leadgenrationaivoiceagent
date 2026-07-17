@@ -255,3 +255,50 @@ def test_training_proposal_forbids_pricing_fine_tune(tmp_path, monkeypatch):
     assert "fine_tune" not in p["allowed_surfaces"]
     assert p["auto_fine_tune"] is False
     assert "stt_filters" in p["allowed_surfaces"]
+
+
+def test_customer_provide_question_gets_full_answer():
+    b = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    out = b._customer_qa_reply("तो क्या provide कर रहे हो तुम?")
+    assert out
+    assert "marketing" in out.lower() or "post" in out.lower()
+    assert "?" not in out or out.count("?") <= 1
+
+
+def test_customer_plan_question_gets_pricing_not_discovery():
+    b = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    assert b._looks_like_question("वाला plan?")
+    out = b._customer_qa_reply("वाला plan?")
+    assert out
+    assert "1999" in out or "5,999" in out or "5999" in out
+
+
+def test_platform_pitch_caps_discovery_after_one_question():
+    b = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    hist = [
+        {"role": "assistant", "content": "Marketing abhi khud karte ho, staff se, ya agency?"},
+        {"role": "user", "content": "khud karta hoon"},
+    ]
+    assert b._platform_pitch_discovery_cap_reached(hist) is True
+    nxt = b._next_discovery_line(hist)
+    assert "marketing abhi khud" not in (nxt or "").lower()
+    assert "google pe" not in (nxt or "").lower() or "?" not in (nxt or "")
+
+
+def test_question_discipline_strips_extra_q_when_customer_silent():
+    b = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    hist = [
+        {"role": "assistant", "content": "Marketing abhi khud karte ho, staff se, ya agency?"},
+        {"role": "user", "content": "khud karta hoon"},
+    ]
+    raw = "Roz posts automatic hain — social pe time milta hai kya?"
+    out = b._apply_question_discipline(raw, "khud karta hoon", hist)
+    assert "?" not in out
+
+
+def test_greeting_on_platform_pitch_skips_discovery_barrage():
+    b = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    out = b._fast_path_reply([], "Hello")
+    assert out
+    assert "post" in out.lower() or "automatic" in out.lower() or "trial" in out.lower()
+    assert "marketing abhi khud" not in out.lower()

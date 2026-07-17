@@ -1172,6 +1172,8 @@ class TelecallerBrain:
 
 SELF-PITCH MODE (tum apna hi LeadGen AI product bech rahi ho — yeh rules sabse upar priority pe hain):
 - Customer se "aapko kya chahiye" ya lambi discovery MAT poocho — SEEDHA batao hum kya karte hain: AI se roz Instagram/Facebook/Google post+ads+leads, WhatsApp follow-up automatic.
+- POORE CALL me MAX EK qualifying sawaal jab tak customer khud sawaal na pooche — uske baad value/close, discovery checklist ignore.
+- Customer ne sawaal poocha ho → PEHLE poora clear jawab (pricing/features/kaise-kaam), phir optional ek chhota relevant follow-up — faltu/exploratory sawaal BANNED.
 - MAX EK qualifying sawaal ke baad seedha close-move pe aao: "Aaj 7-din FREE trial start karoon (bina card) ya seedha paid plan?"
 - Interest ka koi bhi signal (haan/interested/batao/sunao/pricing-sawaal) → TURANT close-move pe jao — lambi baat mat khincho.
 - Detail/lambi baat WHATSAPP pe hogi, is CALL par nahi (calling paisa kharch karta hai, WhatsApp free hai) — interest confirm hote hi WhatsApp number confirm karo, "poori detail WhatsApp pe bhej rahi hoon" bolo, warmly call wrap karo. Is call ka POORA maqsad = interest confirm + WhatsApp handoff — poori sales pitch yahi call pe khatam karne ki koshish MAT karo.
@@ -1394,6 +1396,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             r"\bwhen\b",
             r"\bwhere\b",
             r"\btell me\b",
+            r"\bplan\b",
+            r"\bprovide\b",
         )
         if any(re.search(pat, low) for pat in qwords):
             return True
@@ -1406,6 +1410,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             "क्या", "कैसे", "कैसा", "कब", "कहाँ", "कहां", "क्यों", "क्यूँ", "कितना",
             "कितने", "कितनी", "कौन", "मतलब", "समझा", "बता", "चार्ज", "कीमत", "दाम",
             "पैसे", "रुपय", "प्लान", "पैकेज", "सर्विस", "service", "monthly", "yearly",
+            "प्रोवाइड", "देते", "देती", "दे रहे",
         )
         return any(w in (ut or "") for w in dev_q)
 
@@ -1478,6 +1483,10 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "monthly",
                     "yearly",
                     "साल",
+                    "plan",
+                    "wala plan",
+                    "वाला plan",
+                    "प्लान",
                 )
             ):
                 return self._clean(
@@ -1537,8 +1546,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "सेवा",
                     "फीचर",
                     "फ़ीचर",
+                    "प्रोवाइड",
+                    "provide",
+                    "दे रहे",
+                    "देते",
                 )
-            ):
+            ) or any(w in (ut or "") for w in ("प्रोवाइड", "provide kar", "provide karte")):
                 return self._clean(
                     "Hum AI Automated Marketing dete hain: Instagram-Facebook pe roz posts aur ads, "
                     "Google Business boost, aur inquiry pe auto follow-up. Aap approve karo — baaki automatic."
@@ -1595,7 +1608,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         # dena — chahe wahi line repeat ho — dodge/discovery-sawaal se kahin zyada
         # professional hai (re-ask = "aur clear batao", silence/ulta-sawaal nahi).
         if qa and (self._looks_like_question(ut) or not self._repeats_recent(qa, history)):
-            return qa
+            return self._apply_question_discipline(qa, ut, history)
         try:
             from app.voice_agent.niche_scripts import get_script
 
@@ -1647,6 +1660,41 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             return self._clean(self._who_am_i_line())
         if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
             return self._clean(self._ai_disclosure_qa_line())
+        # Operator/coach feedback during test calls — acknowledge + commit to WhatsApp handoff.
+        if (
+            ("whatsapp" in low or "व्हाट्सएप" in (ut or ""))
+            and len((ut or "").split()) >= 8
+            and any(
+                w in low or w in (ut or "")
+                for w in (
+                    "customer ko",
+                    "कस्टमर",
+                    "detail",
+                    "डिटेल",
+                    "charges",
+                    "incoming call",
+                    "paise bachao",
+                )
+            )
+        ):
+            return self._clean(
+                "Samajh gayi — ab se poori detail WhatsApp pe bhejungi, call pe seedha clear jawab. "
+                "Trial setup kar doon?"
+            )
+        # Greeting / permission on self-pitch — pitch + close, NOT discovery barrage.
+        if any(w in low for w in ("hello", "namaste", "hi", "hey", "bolo", "boliye", "sunao")):
+            try:
+                from app.voice_agent.platform_pitch import is_platform_pitch
+                from app.voice_agent.universal_pitch import PITCH_SHORT
+
+                if is_platform_pitch(self.niche):
+                    hist_len = sum(1 for m in (history or []) if m.get("role") == "user")
+                    if hist_len <= 2:
+                        return self._clean(
+                            f"Theek — {PITCH_SHORT} 7 din FREE trial bina card — aaj setup kar doon?"
+                        )
+            except Exception:
+                pass
         if any(w in low for w in ("whatsapp", "send kar", "bhej do", "message kar")) and not (
             "mat" in low or "nahi" in low
         ):
@@ -1704,6 +1752,18 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             and not self._looks_like_question(ut)
             and len(low.split()) <= 3
         ):
+            # Self-pitch: discovery auto-advance OFF after 1 qualifying Q asked.
+            if self._platform_pitch_discovery_cap_reached(history):
+                nxt = self._next_discovery_line(history)
+                if nxt:
+                    ack = self._mirror_ack(ut)
+                    combined = f"{ack} {nxt}".strip()
+                    return self._apply_question_discipline(
+                        self._apply_audit_loop_guard(self._clean(combined), history),
+                        ut,
+                        history,
+                    )
+                return ""
             nxt = self._next_discovery_line(history)
             last = self._last_bot_line(history)
             if nxt and "?" in nxt:
@@ -1720,7 +1780,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 combined = f"{ack} {nxt}".strip()
                 if "?" not in combined:
                     combined = f"{combined} {nxt}"
-                return self._apply_audit_loop_guard(self._clean(combined), history)
+                return self._apply_question_discipline(
+                    self._apply_audit_loop_guard(self._clean(combined), history),
+                    ut,
+                    history,
+                )
         return ""
 
     # ------------------------------------------------------------------ #
@@ -1984,6 +2048,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     _t = asyncio.create_task(self._opener_cache_store(ut, text))
                     _t.add_done_callback(lambda t: t.cancelled() or t.exception())
                 text = self._guard_semantic_loop(text, history)
+                text = self._apply_question_discipline(text, ut, history)
             return text or self._safe_fallback(history)
         except Exception as e:
             logger.warning(f"[telecaller-brain] reply failed: {e}")
@@ -2224,42 +2289,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             # warna VOICE_TOOLS on hone pe "kitne features" jaisa sawaal tool-LLM pe
             # ja ke dodge ho jaata (P1 regression). Sirf booking/action-intent turns
             # ko tool-LLM pe bhejo (woh CALL book_appointment/check_availability kare).
-            _low = to_roman(ut).lower()
-            # A clock-time mention ("3 baje", "teen baje", "5 pm", "11:30") is ITSELF a
-            # scheduling signal. Real-call: after Swara offers a slot (fast-path ~line
-            # 1006: "shaam paanch baje ya kal subah gyarah, kab theek?"), the caller
-            # replies "haan kal 3 baje theek hai" with NO book/appointment keyword — woh
-            # confirmation tool-LLM (-> CALL book_appointment) tak pohanchni chahiye, NA
-            # ki discovery auto-advance fast-path pe. (gated path only; reply() untouched.)
-            _time_signal = (
-                "baje" in _low
-                or "bje" in _low
-                or bool(re.search(r"\b\d{1,2}\s*(?::\d{2})?\s*[ap]m\b", _low))
-                or bool(re.search(r"\b\d{1,2}:\d{2}\b", _low))
-            )
-            _action_intent = any(
-                w in _low
-                for w in (
-                    "book", "appointment", "appoint", "visit", "meeting", "slot",
-                    "schedule", "milne", "milunga", "kab mil", "demo fix",
-                    "reschedule", "postpone", "time badal", "din badal", "aage badha",
-                )
-            ) or _time_signal or any(
-                w in ut for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "बजे")
-            )
-            # Bare confirmation ("theek hai"/"chalega"/"ok"/"haan") bina time-word ke tabhi
-            # action-intent counts jab bot ke LAST turn ne actually slot/time propose kiya
-            # ho — warna generic ack QA/objection fast-path ko galat se skip kar dega.
-            if not _action_intent and history:
-                _prev_low = to_roman(self._prev_assistant(history)).lower()
-                if any(
-                    w in _prev_low
-                    for w in ("baje", "slot", "kab theek", "kab mil", "kab milun", "fix kar doon", "fix kar du")
-                ) and (
-                    any(c in _low for c in ("theek hai", "thik hai", "chalega", "sahi hai", "pakka", "kar do", "kar lo"))
-                    or bool(re.search(r"\b(?:ok|okay|done|yes|haan)\b", _low))
-                ):
-                    _action_intent = True
+            _action_intent = self.is_tool_action_intent(history, ut)
             if not _action_intent:
                 fast = self._fast_path_reply(history, ut)
                 if fast:
@@ -2327,6 +2357,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             except Exception:
                 pass
             spoken = self._guard_semantic_loop(spoken, history)
+            spoken = self._apply_question_discipline(spoken, ut, history)
             return spoken, None
         except Exception as e:
             logger.debug(f"[telecaller-brain] reply_with_tools fallback: {e}")
@@ -2544,6 +2575,126 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 return True
         return False
 
+    def _platform_pitch_discovery_cap_reached(self, history: list[dict[str, str]]) -> bool:
+        """Self-pitch (ai_marketing): max ONE scripted discovery Q per call."""
+        try:
+            from app.voice_agent.platform_pitch import is_platform_pitch
+
+            if not is_platform_pitch(self.niche):
+                return False
+        except Exception:
+            return False
+        try:
+            from app.voice_agent.niche_scripts import get_script
+
+            s = get_script(self.niche) or {}
+            disc = [d for d in (s.get("discovery") or self.questions or []) if d]
+        except Exception:
+            disc = list(self.questions or [])
+        asked = sum(1 for q in disc if self._already_asked(q, history))
+        return asked >= 1
+
+    def _apply_question_discipline(
+        self, reply: str, ut: str, history: list[dict[str, str]] | None
+    ) -> str:
+        """Post-process: customer ne sawaal poocha → jawab rakho; warna faltu ? hatao."""
+        text = (reply or "").strip()
+        if not text or "?" not in text:
+            return text
+        try:
+            from app.voice_agent.response_contract import parse_and_validate
+
+            text = parse_and_validate(text).spoken_response
+        except Exception:
+            pass
+        if self._looks_like_question(ut):
+            return text
+        try:
+            from app.voice_agent.platform_pitch import is_platform_pitch
+
+            if is_platform_pitch(self.niche) and self._platform_pitch_discovery_cap_reached(
+                history or []
+            ):
+                i = text.find("?")
+                if i > 0:
+                    stmt = text[:i].strip().rstrip("—,-")
+                    if stmt and len(stmt.split()) >= 4:
+                        return stmt
+        except Exception:
+            pass
+        return text
+
+    @staticmethod
+    def is_tool_action_intent(
+        history: list[dict[str, str]] | None, ut: str
+    ) -> bool:
+        """True when this turn may need an in-call tool (book/reschedule/slot confirm)."""
+        _low = to_roman(ut or "").lower()
+        _time_signal = (
+            "baje" in _low
+            or "bje" in _low
+            or bool(re.search(r"\b\d{1,2}\s*(?::\d{2})?\s*[ap]m\b", _low))
+            or bool(re.search(r"\b\d{1,2}:\d{2}\b", _low))
+        )
+        _action = any(
+            w in _low
+            for w in (
+                "book",
+                "appointment",
+                "appoint",
+                "visit",
+                "meeting",
+                "slot",
+                "schedule",
+                "milne",
+                "milunga",
+                "kab mil",
+                "demo fix",
+                "reschedule",
+                "postpone",
+                "time badal",
+                "din badal",
+                "aage badha",
+            )
+        ) or _time_signal or any(
+            w in (ut or "")
+            for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "बजे")
+        )
+        if not _action and history:
+            _prev = ""
+            for m in reversed(history):
+                if m.get("role") == "assistant":
+                    _prev = to_roman(str(m.get("content") or "")).lower()
+                    break
+            if any(
+                w in _prev
+                for w in (
+                    "baje",
+                    "slot",
+                    "kab theek",
+                    "kab mil",
+                    "kab milun",
+                    "fix kar doon",
+                    "fix kar du",
+                )
+            ) and (
+                any(
+                    c in _low
+                    for c in (
+                        "theek hai",
+                        "thik hai",
+                        "chalega",
+                        "sahi hai",
+                        "pakka",
+                        "kar do",
+                        "kar lo",
+                    )
+                )
+                or bool(re.search(r"\b(?:ok|okay|done|yes|haan)\b", _low))
+            ):
+                _action = True
+        return _action
+
     def _next_discovery_line(self, history: list[dict[str, str]]) -> str:
         """Pehla unasked discovery → value → close."""
         try:
@@ -2553,7 +2704,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         except Exception:
             s = {}
         disc = [d for d in (s.get("discovery") or self.questions or []) if d]
-        if self._interest_confirmed:
+        if self._interest_confirmed or self._platform_pitch_discovery_cap_reached(history):
             disc = []
         skip = int(getattr(self, "_discovery_skip", 0) or 0)
         if skip > 0:

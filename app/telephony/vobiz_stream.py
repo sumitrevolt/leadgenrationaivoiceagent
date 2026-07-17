@@ -1733,6 +1733,15 @@ class VobizStreamSession:
         if len(self._turn_metrics) < 500:
             self._turn_metrics.append({k: v for k, v in rec.items() if v is not None})
         _record_turn_metric(rec)
+        try:
+            logger.info(
+                f"[vobiz-stream {self.stream_sid}] turn_latency "
+                f"stt={rec.get('stt_ms')} llm_first={rec.get('llm_first_ms')} "
+                f"tts_first={rec.get('tts_first_ms')} turn={rec.get('turn_ms')} "
+                f"outcome={outcome}"
+            )
+        except Exception:
+            pass
 
     async def _amd_check(self, text: str) -> bool:
         """Answering-machine detection on the first caller utterance.
@@ -2259,6 +2268,18 @@ class VobizStreamSession:
         tc = self._get_telecaller()
         if tc is None or not hasattr(tc, "reply_with_tools"):
             return None
+        # Non-action turns: streaming LLM→TTS (USE_LLM_STREAM_TTS) — VOICE_TOOLS=1
+        # used to block the stream path in _on_utterance and wait ~8s for full LLM
+        # before _say(). Action/booking turns still need reply_with_tools (CALL parse).
+        try:
+            from app.voice_agent.telecaller_brain import TelecallerBrain
+
+            if not TelecallerBrain.is_tool_action_intent(self.hist, text):
+                streamed = await self._stream_spoken_reply(text, tc)
+                if streamed is not None:
+                    return streamed
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] stream spoken reply skip: {e}")
         reg = self._get_tool_registry()
         if reg is None:
             return None
@@ -2298,7 +2319,7 @@ class VobizStreamSession:
             else:
                 await self._say(confirm)
             return {"outcome": f"tool:{name}", "reply_text": confirm}
-        # --- normal spoken reply path ---
+        # --- normal spoken reply path (stream miss / action fallback) ---
         spoken = (spoken or "").strip()
         if not spoken:
             return None  # nothing to say -> fall through to the standard path
@@ -2306,6 +2327,36 @@ class VobizStreamSession:
         logger.info(f"[vobiz-stream {self.stream_sid}] bot(tools): {spoken}")
         await self._say(spoken)
         return {"outcome": "ok", "reply_text": spoken}
+
+    async def _stream_spoken_reply(self, text: str, tc) -> dict | None:
+        """Stream LLM sentences → early TTS for non-tool turns (latency fix)."""
+        try:
+            from app.voice_agent.llm_stream_tts import stream_tts_enabled
+
+            if not stream_tts_enabled() or not TTS_AVAILABLE:
+                return None
+        except Exception:
+            return None
+        parts: list[str] = []
+
+        async def _gen():
+            async for sent in tc.reply_stream_sentences(self.hist, text):
+                if self._turn_llm_first_ms is None and self._turn_t0_ms is not None:
+                    self._turn_llm_first_ms = _now_ms() - self._turn_t0_ms
+                parts.append(sent)
+                yield sent
+
+        try:
+            await self._say_from_sentence_gen(_gen())
+        except Exception as e:
+            logger.debug(f"[vobiz-stream {self.stream_sid}] stream spoken reply failed: {e}")
+            return None
+        reply = " ".join(parts).strip()
+        if not reply:
+            return None
+        self.hist.append({"role": "assistant", "content": reply})
+        logger.info(f"[vobiz-stream {self.stream_sid}] bot(stream): {reply}")
+        return {"outcome": "ok", "reply_text": reply}
 
     @staticmethod
     def _tool_confirmation(name: str, result) -> str:
