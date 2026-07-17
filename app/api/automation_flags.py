@@ -320,6 +320,14 @@ AUTOMATION_FLAGS = [
     # kar sakte hai. Double-gated: OMNIROUTE_ENABLED=1 AND OMNIROUTE_AGENTS=1 dono chahiye.
     # Sanitized payload only (mask_customer_data + validate_no_secrets), fail-open —
     # OmniRoute down/miss = existing free chain unchanged. OFF default (INERT).
+    # Sanitized payload only (mask_customer_data + validate_no_secrets), fail-open —
+    # OmniRoute down/miss = existing free chain unchanged. OFF default (INERT).
+    "OMNIROUTE_VOICE",  # Swara live LLM brain via omniroute_voice.py (streaming).
+    # Requires OMNIROUTE_ENABLED=1 + OMNIROUTE_API_KEY. Masked customer payload only.
+    # OFF default (INERT) — flip after canary on allowlisted call.
+    "VOICE_PROCESSING_ACK",  # After ~2s without first audio: short "Ji, ek second." bridge.
+    # Cancelled on first audio or barge-in. OFF default (INERT).
+    "VOICE_PROCESSING_ACK_DELAY_S",  # Seconds before processing ack (default 2.0).
     # --- Swara enterprise conversation upgrade (2026-07-17) ---
     "VOICE_STICKY_ROUTE",  # pin provider/model at call start (default ON) — no mid-call churn
     "STT_UNDERSTANDING_GATE",  # pre-LLM STT classify + clarify (default ON)

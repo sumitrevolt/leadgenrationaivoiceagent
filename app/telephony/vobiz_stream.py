@@ -81,6 +81,7 @@ from app.utils.logger import setup_logger
 
 # Per-turn latency metrics (P1 observability) — import-safe, stdlib-only deps.
 # now_ms() is monotonic ms; record helper is gated (TURN_METRICS) + never-raises.
+from app.voice_agent.turn_metrics import TurnStampBuilder
 from app.voice_agent.turn_metrics import now_ms as _now_ms
 from app.voice_agent.turn_metrics import record_turn as _record_turn_metric
 
@@ -186,6 +187,7 @@ except Exception:  # pragma: no cover
 
     def is_backchannel(text: str) -> bool:
         return False
+
 
 _VAD_RMS = int(_env_num("VOBIZ_VAD_RMS", _DEF_VAD_RMS))  # PCM16 RMS speech gate
 SILENCE_MS = _env_num(
@@ -560,6 +562,9 @@ _GREET_CACHE_MAX = 64
 _FILLER_TEXTS = ("Hmm...", "Ek second...")
 _FILLER_PCM: list[bytes] = []
 _FILLER_STARTED = False  # synth fillers once per worker (first session does it)
+_PROCESSING_ACK_TEXT = "Ji, ek second."
+_PROCESSING_ACK_PCM: bytes | None = None
+_PROCESSING_ACK_STARTED = False
 _CELEBRATION_PCM: bytes | None = None
 _CELEBRATION_STARTED = False
 
@@ -608,6 +613,10 @@ class VobizStreamSession:
         self._turn_t0_ms: float | None = None
         self._turn_llm_first_ms: float | None = None
         self._turn_tts_first_ms: float | None = None
+        self._turn_stamp: TurnStampBuilder | None = None
+        self._active_generation_id: str | None = None
+        self._stream_task: asyncio.Task | None = None
+        self._processing_ack_task: asyncio.Task | None = None
         self._turn_metrics: list[dict] = []  # accumulated for the transcript record
         self._stt_bias: str | None = None  # D-11 niche/brand STT bias (lazy, once)
         self._sil_buf = bytearray()  # D-5 per-session Silero rolling window (>=512 samples)
@@ -743,6 +752,7 @@ class VobizStreamSession:
                 self._bg_tasks.add(self._pregen_task)
                 self._pregen_task.add_done_callback(self._bg_tasks.discard)
                 self._spawn(self._pregen_fillers())
+                self._spawn(self._pregen_processing_ack())
                 self._spawn(self._pregen_celebration_sfx())
         except Exception as e:
             logger.debug(f"[vobiz-stream] pregen spawn failed: {e}")
@@ -843,7 +853,9 @@ class VobizStreamSession:
         if event == "media":
             self._media_event_count += 1
             _msub = data.get("media") or {}
-            payload = (_msub.get("payload") if isinstance(_msub, dict) else None) or data.get("payload")
+            payload = (_msub.get("payload") if isinstance(_msub, dict) else None) or data.get(
+                "payload"
+            )
             if payload:
                 # Greet on first audio too (in case start was missed); NOT gated
                 # on sid — Vobiz playAudio carries no stream id.
@@ -905,9 +917,7 @@ class VobizStreamSession:
                 )
 
                 reason = (
-                    RECIPIENT_HANGUP
-                    if count_user_turns(self.hist) > 0
-                    else PROVIDER_DISCONNECT
+                    RECIPIENT_HANGUP if count_user_turns(self.hist) > 0 else PROVIDER_DISCONNECT
                 )
                 self._mark_terminated(reason, "vobiz_stop")
         elif event == "playedStream":
@@ -1133,10 +1143,7 @@ class VobizStreamSession:
         longer false-stop the bot, while a real interrupting clause still cuts in.
         Defensive: any import error keeps the snappy default (zero behaviour change)."""
         try:
-            from app.voice_agent.turn_detector import (
-                barge_guard_enabled,
-                barge_guard_frames,
-            )
+            from app.voice_agent.turn_detector import barge_guard_enabled, barge_guard_frames
 
             if barge_guard_enabled():
                 return max(BARGE_MIN_FRAMES, barge_guard_frames(20.0, default_ms=280.0))
@@ -1205,16 +1212,12 @@ class VobizStreamSession:
 
             dur = max(0.0, (datetime.now(timezone.utc) - self._started_at).total_seconds())
             if dur >= max_call_duration_seconds():
-                logger.info(
-                    f"[vobiz-stream {self.stream_sid}] max duration {dur:.0f}s — ending"
-                )
+                logger.info(f"[vobiz-stream {self.stream_sid}] max duration {dur:.0f}s — ending")
                 await self._terminate_call(MAX_DURATION_REACHED, "duration_watchdog")
                 return
             ex = count_completed_exchanges(self.hist)
             if ex >= supported_max_turns():
-                logger.info(
-                    f"[vobiz-stream {self.stream_sid}] max turns {ex} — ending"
-                )
+                logger.info(f"[vobiz-stream {self.stream_sid}] max turns {ex} — ending")
                 await self._terminate_call(MAX_TURNS_REACHED, "turn_policy")
         except Exception as e:
             logger.debug(f"[vobiz-stream] limit check skip: {e}")
@@ -1398,16 +1401,21 @@ class VobizStreamSession:
         # end. _record decides if this utterance is a real turn worth recording
         # (junk/duplicate STT noise is skipped). Never changes call behaviour.
         self._turn_t0_ms = _now_ms()
+        self._turn_stamp = TurnStampBuilder(speech_end_ms=self._turn_t0_ms)
         self._turn_llm_first_ms = None
         self._turn_tts_first_ms = None
+        self._active_generation_id = None
         _stt_ms: float | None = None
         _outcome = "ok"
         _record = False
         _reply_text = ""
+        _proc_ack_task: asyncio.Task | None = None
         try:
             _t_stt = _now_ms()
             text = (await self._stt(pcm16) or "").strip()
             _stt_ms = _now_ms() - _t_stt
+            if self._turn_stamp is not None:
+                self._turn_stamp.stamp("stt_final", at_ms=_stt_ms)
             # Post-STT Hinglish correction (smart-fix Component 1b) — was only wired
             # on the free web-call path (web_call.py); paying Vobiz phone calls got
             # uncorrected STT into the NLU gates + LLM. Gated STT_CORRECT (default
@@ -1474,9 +1482,7 @@ class VobizStreamSession:
                             await self._say(reply)
                             return
                         # Noise without clarify budget → silent drop (keep listening).
-                        logger.debug(
-                            f"[vobiz-stream] STT gate drop {gate.cls.value}: {text!r}"
-                        )
+                        logger.debug(f"[vobiz-stream] STT gate drop {gate.cls.value}: {text!r}")
                         _outcome = "junk"
                         return
             except Exception as e:
@@ -1538,7 +1544,9 @@ class VobizStreamSession:
                         f"{self._ivr_hits} — hanging up (machine, not a human)"
                     )
                     _outcome = "ivr_hangup"
-                    await self._terminate_call("application_exception", "ivr_strike_limit", close_ws=True)
+                    await self._terminate_call(
+                        "application_exception", "ivr_strike_limit", close_ws=True
+                    )
                     return
                 reply = self._ivr_voicemail_reply()
                 self.hist.append({"role": "assistant", "content": reply})
@@ -1561,6 +1569,12 @@ class VobizStreamSession:
                 except Exception as e:
                     logger.debug(f"[vobiz-stream] AMD check skip: {e}")
             self.hist.append({"role": "user", "content": text})
+            # Threshold-based processing ack — short bridge if first audio slow.
+            try:
+                _proc_ack_task = asyncio.create_task(self._processing_ack_watch())
+                self._processing_ack_task = _proc_ack_task
+            except Exception:
+                _proc_ack_task = None
             # TCCCPR verbal opt-out — suppress + polite goodbye + end call.
             # Checked BEFORE the LLM so the model can't talk past a revocation.
             if self._is_opt_out(text):
@@ -1582,7 +1596,9 @@ class VobizStreamSession:
             try:
                 # Default OFF (2026-07-17): habit fillers ("ji/sir") mid-turn
                 # confuse callers; opt-in via USE_THINKING_FILLER=1 if needed.
-                _filler_on = (os.environ.get("USE_THINKING_FILLER", "0") or "0").strip().lower() in (
+                _filler_on = (
+                    os.environ.get("USE_THINKING_FILLER", "0") or "0"
+                ).strip().lower() in (
                     "1",
                     "true",
                     "yes",
@@ -1677,12 +1693,12 @@ class VobizStreamSession:
             logger.warning(f"[vobiz-stream] utterance handling failed: {e}")
             _outcome = "error"
         finally:
+            self._cancel_processing_ack(self._processing_ack_task)
+            self._processing_ack_task = None
             self._thinking = False
             if _record:
                 try:
-                    turn_ms = (
-                        _now_ms() - self._turn_t0_ms if self._turn_t0_ms is not None else None
-                    )
+                    turn_ms = _now_ms() - self._turn_t0_ms if self._turn_t0_ms is not None else None
                     self._record_turn(_stt_ms, turn_ms, _outcome, _reply_text)
                 except Exception:
                     pass
@@ -1717,18 +1733,27 @@ class VobizStreamSession:
             "outcome": outcome,
             "stt_ms": round(stt_ms, 1) if stt_ms is not None else None,
             "llm_first_ms": (
-                round(self._turn_llm_first_ms, 1)
-                if self._turn_llm_first_ms is not None
-                else None
+                round(self._turn_llm_first_ms, 1) if self._turn_llm_first_ms is not None else None
             ),
             "tts_first_ms": (
-                round(self._turn_tts_first_ms, 1)
-                if self._turn_tts_first_ms is not None
-                else None
+                round(self._turn_tts_first_ms, 1) if self._turn_tts_first_ms is not None else None
             ),
             "turn_ms": round(turn_ms, 1) if turn_ms is not None else None,
             "reply_words": len((reply_text or "").split()),
         }
+        if self._turn_stamp is not None:
+            try:
+                rec.update(
+                    self._turn_stamp.build(
+                        outcome=outcome,
+                        stt_ms=rec.get("stt_ms"),
+                        llm_first_ms=rec.get("llm_first_ms"),
+                        tts_first_ms=rec.get("tts_first_ms"),
+                        turn_ms=rec.get("turn_ms"),
+                    )
+                )
+            except Exception:
+                pass
         # Keep the in-memory list bounded (a call won't reach this, but be safe).
         if len(self._turn_metrics) < 500:
             self._turn_metrics.append({k: v for k, v in rec.items() if v is not None})
@@ -1736,12 +1761,57 @@ class VobizStreamSession:
         try:
             logger.info(
                 f"[vobiz-stream {self.stream_sid}] turn_latency "
+                f"turn_id={rec.get('turn_id')} gen={rec.get('generation_id')} "
                 f"stt={rec.get('stt_ms')} llm_first={rec.get('llm_first_ms')} "
-                f"tts_first={rec.get('tts_first_ms')} turn={rec.get('turn_ms')} "
-                f"outcome={outcome}"
+                f"tts_first={rec.get('tts_first_ms')} first_audio={rec.get('first_audio_ms')} "
+                f"turn={rec.get('turn_ms')} cancelled={rec.get('cancelled')} "
+                f"interrupted={rec.get('interrupted')} outcome={outcome}"
             )
         except Exception:
             pass
+
+    @staticmethod
+    def _processing_ack_enabled() -> bool:
+        return (os.environ.get("VOICE_PROCESSING_ACK", "0") or "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+            "on",
+        )
+
+    @staticmethod
+    def _processing_ack_delay_s() -> float:
+        try:
+            return max(0.5, float(os.environ.get("VOICE_PROCESSING_ACK_DELAY_S", "2.0") or "2.0"))
+        except (TypeError, ValueError):
+            return 2.0
+
+    def _cancel_processing_ack(self, task: asyncio.Task | None = None) -> None:
+        t = task or self._processing_ack_task
+        if t and not t.done():
+            t.cancel()
+
+    async def _processing_ack_watch(self) -> None:
+        """Play a short bridge if first audio is slow (threshold-based)."""
+        if not self._processing_ack_enabled() or not TTS_AVAILABLE:
+            return
+        try:
+            await asyncio.sleep(self._processing_ack_delay_s())
+            if not self._thinking or self._turn_tts_first_ms is not None or self._speaking:
+                return
+            pcm = _PROCESSING_ACK_PCM
+            if not pcm:
+                return
+            if self._turn_stamp is not None:
+                self._turn_stamp.stamp("processing_ack")
+            self._stop_play()
+            self._speaking = True
+            self._barge_frames = 0
+            await self._run_play(pcm)
+        except asyncio.CancelledError:
+            return
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] processing ack failed: {e}")
 
     async def _amd_check(self, text: str) -> bool:
         """Answering-machine detection on the first caller utterance.
@@ -1846,7 +1916,9 @@ class VobizStreamSession:
 
             wav = _pcm_to_wav(pcm16)
             lang = (os.environ.get("GROQ_STT_LANG", "") or "hi").strip()
-            text, _provider = await transcribe_audio(wav, language=lang, prompt=self._get_stt_bias())
+            text, _provider = await transcribe_audio(
+                wav, language=lang, prompt=self._get_stt_bias()
+            )
             return (text or "").strip().strip("\"'` ").strip()
         except Exception as e:
             logger.warning(f"[vobiz-stream] Groq STT failed ({e}) — fallback")
@@ -2129,11 +2201,14 @@ class VobizStreamSession:
                 # P1: first streamed sentence → time-to-first-token for this turn.
                 if self._turn_llm_first_ms is None and self._turn_t0_ms is not None:
                     self._turn_llm_first_ms = _now_ms() - self._turn_t0_ms
+                    if self._turn_stamp is not None:
+                        self._turn_stamp.stamp("llm_first_token", at_ms=self._turn_llm_first_ms)
                 parts.append(sent)
                 yield sent
 
         try:
-            await self._say_from_sentence_gen(_gen())
+            self._stream_task = asyncio.create_task(self._say_from_sentence_gen(_gen()))
+            await self._stream_task
             return " ".join(parts).strip()
         except Exception as e:
             logger.debug("[vobiz-stream] think_and_say_stream failed: %s", e)
@@ -2173,6 +2248,7 @@ class VobizStreamSession:
                 client_id=self.client_id,
                 voice_role=getattr(self, "voice_role", "telecaller"),
             )
+            self._telecaller._voice_session = self  # noqa: SLF001 — gen-id + turn stamps
             # Agent memory (AGENT_MEMORY flag): per-(client+lead) subject -> cross-session
             # recall/remember in brain.reply(). Stable lead id na ho to inert (no leak).
             try:
@@ -2309,8 +2385,7 @@ class VobizStreamSession:
                 f"ok={getattr(result, 'ok', None)} -> {confirm[:60]}"
             )
             should_end = name == "end_call" or (
-                isinstance(getattr(result, "data", None), dict)
-                and result.data.get("should_end")
+                isinstance(getattr(result, "data", None), dict) and result.data.get("should_end")
             )
             if should_end:
                 await self._say_and_wait(confirm)
@@ -2536,6 +2611,19 @@ class VobizStreamSession:
             except Exception as e:
                 logger.debug(f"[vobiz-stream] filler synth failed ({t!r}): {e}")
 
+    async def _pregen_processing_ack(self) -> None:
+        """Pre-synthesize threshold-based processing ack once per worker."""
+        global _PROCESSING_ACK_PCM, _PROCESSING_ACK_STARTED
+        if _PROCESSING_ACK_STARTED or not TTS_AVAILABLE:
+            return
+        _PROCESSING_ACK_STARTED = True
+        try:
+            pcm = await self._synth_pcm(_PROCESSING_ACK_TEXT)
+            if pcm:
+                _PROCESSING_ACK_PCM = pcm
+        except Exception as e:
+            logger.debug(f"[vobiz-stream] processing ack synth failed: {e}")
+
     def _ensure_enterprise_state(self) -> None:
         """Lazy-init per-call sticky route + session state + conversation context."""
         if self._session_state is not None:
@@ -2679,9 +2767,7 @@ class VobizStreamSession:
             if tc is not None and getattr(tc, "closing_started", False):
                 low = text.lower()
                 if "audit" in low and "dhanyavaad" not in low:
-                    logger.info(
-                        f"[vobiz-stream {self.stream_sid}] post_close_speech_blocked audit"
-                    )
+                    logger.info(f"[vobiz-stream {self.stream_sid}] post_close_speech_blocked audit")
                     return
         except Exception:
             pass
@@ -2915,6 +3001,10 @@ class VobizStreamSession:
             # (greeting) never mis-stamps; set once per turn.
             if self._turn_tts_first_ms is None and self._turn_t0_ms is not None:
                 self._turn_tts_first_ms = _now_ms() - self._turn_t0_ms
+                if self._turn_stamp is not None:
+                    self._turn_stamp.stamp("first_audio", at_ms=self._turn_tts_first_ms)
+                    self._turn_stamp.stamp("tts_started", at_ms=self._turn_tts_first_ms)
+                self._cancel_processing_ack()
             # Recording: mix bot TTS onto the call timeline (same clock as caller).
             if self._rec_enabled and self._rec_bot_playhead is not None:
                 self._rec_mix_bot(self._rec_bot_playhead, frame)
@@ -2971,16 +3061,32 @@ class VobizStreamSession:
         if self._play_task and not self._play_task.done():
             self._play_task.cancel()
         self._play_task = None
+        if self._stream_task and not self._stream_task.done():
+            self._stream_task.cancel()
+        self._stream_task = None
+        if self._active_generation_id:
+            try:
+                from app.voice_agent.omniroute_voice import cancel_generation
+
+                cancel_generation(self._active_generation_id)
+            except Exception:
+                pass
+            if self._turn_stamp is not None:
+                self._turn_stamp.cancelled = True
+            self._active_generation_id = None
+        self._cancel_processing_ack()
 
     async def _barge_in(self) -> None:
-        """User started talking over us — stop playback and flush Vobiz buffer."""
+        """User started talking over us — stop playback, flush buffer, cancel LLM."""
         self._barge_frames = 0
         self._interruptions += 1  # P4-3 interruption tracking
         self._barged_capture = True  # BARGE_GUARD: the next utterance cut us off
+        if self._turn_stamp is not None:
+            self._turn_stamp.interrupted = True
         self._stop_play()
         self._speaking = False
         await self._send({"event": "clearAudio"})
-        logger.debug("[vobiz-stream] barge-in: playback cleared (clearAudio)")
+        logger.debug("[vobiz-stream] barge-in: playback+LLM cleared (clearAudio)")
 
     # ------------------------------------------------------------------ #
     async def _send(self, obj: dict[str, Any]) -> None:

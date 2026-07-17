@@ -7,6 +7,7 @@ OmniRoute gateway is OPTIONAL (local/dev). Production voice uses the same free
 providers via free_ai with sticky pin — OmniRoute catalog informs route picks
 when available; otherwise env defaults apply.
 """
+
 from __future__ import annotations
 
 import os
@@ -65,6 +66,19 @@ def sticky_enabled() -> bool:
 
 def _env_primary() -> tuple[str, str]:
     """Pick live primary from env. Default: gemini/VOICE_LLM_MODEL (current prod)."""
+    if (os.environ.get("OMNIROUTE_VOICE", "0") or "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        try:
+            from app.platform.omniroute_client import omniroute_available
+
+            if omniroute_available():
+                return "omniroute", "leadgen-free-first"
+        except Exception:
+            pass
     model = (os.environ.get("VOICE_LLM_MODEL", "") or "").strip() or "gemini-2.5-flash"
     provider = (os.environ.get("VOICE_STICKY_PROVIDER", "") or "").strip().lower()
     if not provider:

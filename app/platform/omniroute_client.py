@@ -23,6 +23,7 @@ Usage (only after a sanitized dev-only route is verified and explicitly enabled)
     if omniroute_available():
         result = await generate("leadgen.coding_primary", messages, "INTERNAL_SANITIZED")
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -130,6 +131,14 @@ _TASK_ROUTES: dict[str, OmniRouteRoute] = {
         fallback_model="auto/best-free",
         privacy_class="INTERNAL_SANITIZED",
     ),
+    # ADR-108 voice extension (2026-07-17): Swara live turn — masked customer
+    # speech only (mask_customer_data + validate_no_secrets before network).
+    # Gated by OMNIROUTE_VOICE=1; streaming via omniroute_voice.py.
+    "leadgen.swara_live": OmniRouteRoute(
+        primary_model="leadgen-free-first",
+        fallback_model="auto/coding:free",
+        privacy_class="CUSTOMER_MASKED",
+    ),
 }
 
 
@@ -162,9 +171,7 @@ def agents_enabled() -> bool:
     return omniroute_available()
 
 
-def resolve_agent_task(
-    agent_key: str | None = None, product: str | None = None
-) -> str | None:
+def resolve_agent_task(agent_key: str | None = None, product: str | None = None) -> str | None:
     """Pick OmniRoute task for a staff agent, or None if policy forbids.
 
     Unknown/sensitive agents return None → caller stays on free_ai (fail-open).
@@ -404,7 +411,9 @@ async def generate(
     validate_no_secrets(safe_messages)
     timeout = _timeout_seconds(timeout_seconds)
     try:
-        tok_cap = int(max_output_tokens) if max_output_tokens is not None else _DEFAULT_MAX_OUTPUT_TOKENS
+        tok_cap = (
+            int(max_output_tokens) if max_output_tokens is not None else _DEFAULT_MAX_OUTPUT_TOKENS
+        )
     except (TypeError, ValueError):
         tok_cap = _DEFAULT_MAX_OUTPUT_TOKENS
     tok_cap = max(64, min(tok_cap, 8192))
@@ -430,7 +439,9 @@ async def generate(
                     continue
                 logger.warning(
                     "[omniroute_client] request failed task=%s model=%s status=%s",
-                    task_type, model, response.status_code,
+                    task_type,
+                    model,
+                    response.status_code,
                 )
                 _log_route_decision(
                     task_type=task_type,
@@ -500,7 +511,9 @@ async def generate(
                 continue
             logger.warning(
                 "[omniroute_client] request unavailable task=%s model=%s error=%s",
-                task_type, model, type(exc).__name__,
+                task_type,
+                model,
+                type(exc).__name__,
             )
             _log_route_decision(
                 task_type=task_type,

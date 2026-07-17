@@ -3,13 +3,14 @@
 Audit 2026-07-12. Sumit's OmniRoute instance has no admin auth configured, so this
 module must never attempt a real network call unless explicitly enabled+keyed.
 """
+
 import httpx
 import pytest
 
 from app.platform.omniroute_client import (
     OmniRouteRoute,
-    get_task_route,
     generate,
+    get_task_route,
     omniroute_available,
     omniroute_client,
     omniroute_enabled,
@@ -78,6 +79,7 @@ class TestOmniRouteResponsesAdapter:
             "leadgen.repo_analysis",
             "leadgen.test_generation",
             "leadgen.agent_ops",
+            "leadgen.swara_live",
         }
 
     def test_registry_rejects_customer_and_unknown_routes(self):
@@ -90,10 +92,14 @@ class TestOmniRouteResponsesAdapter:
     async def test_generate_stays_inert_without_explicit_opt_in(self, monkeypatch):
         monkeypatch.delenv("OMNIROUTE_ENABLED", raising=False)
         monkeypatch.delenv("OMNIROUTE_API_KEY", raising=False)
-        assert await generate(
-            "leadgen.coding_primary", [{"role": "user", "content": "write a test"}],
-            "INTERNAL_SANITIZED",
-        ) is None
+        assert (
+            await generate(
+                "leadgen.coding_primary",
+                [{"role": "user", "content": "write a test"}],
+                "INTERNAL_SANITIZED",
+            )
+            is None
+        )
 
     @pytest.mark.asyncio
     async def test_generate_uses_responses_api_and_masks_payload(self, monkeypatch):
@@ -103,11 +109,13 @@ class TestOmniRouteResponsesAdapter:
 
         async def fake_post(url, headers, payload, timeout):
             seen.update(url=url, headers=headers, payload=payload, timeout=timeout)
-            return _Response(payload={
-                "model": "llama-3.3-70b-versatile",
-                "output_text": "safe result",
-                "usage": {"input_tokens": 3, "output_tokens": 2},
-            })
+            return _Response(
+                payload={
+                    "model": "llama-3.3-70b-versatile",
+                    "output_text": "safe result",
+                    "usage": {"input_tokens": 3, "output_tokens": 2},
+                }
+            )
 
         monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
         result = await generate(
@@ -133,11 +141,14 @@ class TestOmniRouteResponsesAdapter:
             models.append(payload["model"])
             if len(models) == 1:
                 return _Response(status_code=429)
-            return _Response(payload={"model": "mistral-small-latest", "output_text": "fallback ok"})
+            return _Response(
+                payload={"model": "mistral-small-latest", "output_text": "fallback ok"}
+            )
 
         monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
         result = await generate(
-            "leadgen.coding_primary", [{"role": "user", "content": "write a test"}],
+            "leadgen.coding_primary",
+            [{"role": "user", "content": "write a test"}],
             "INTERNAL_SANITIZED",
         )
 
@@ -158,10 +169,14 @@ class TestOmniRouteResponsesAdapter:
             return _Response(status_code=401)
 
         monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
-        assert await generate(
-            "leadgen.coding_primary", [{"role": "user", "content": "write a test"}],
-            "INTERNAL_SANITIZED",
-        ) is None
+        assert (
+            await generate(
+                "leadgen.coding_primary",
+                [{"role": "user", "content": "write a test"}],
+                "INTERNAL_SANITIZED",
+            )
+            is None
+        )
         assert attempts == 1
 
 
@@ -224,7 +239,9 @@ class TestOmniRouteAgentHook:
 
         async def fake_post(url, headers, payload, timeout):
             seen.update(payload=payload)
-            return _Response(payload={"model": "llama-3.3-70b-versatile", "output_text": "agent ok"})
+            return _Response(
+                payload={"model": "llama-3.3-70b-versatile", "output_text": "agent ok"}
+            )
 
         monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
         text = await try_agent_chat(
@@ -260,10 +277,12 @@ class TestOmniRouteAgentHook:
 
         async def fake_post(url, headers, payload, timeout):
             seen["payload"] = payload
-            return _Response(payload={
-                "model": "groq/llama-3.3-70b-versatile",
-                "output_text": "ok",
-            })
+            return _Response(
+                payload={
+                    "model": "groq/llama-3.3-70b-versatile",
+                    "output_text": "ok",
+                }
+            )
 
         monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
         text = await try_agent_chat(
@@ -283,10 +302,12 @@ class TestOmniRouteAgentHook:
 
         async def fake_post(url, headers, payload, timeout):
             seen["payload"] = payload
-            return _Response(payload={
-                "model": "groq/llama-3.3-70b-versatile",
-                "output_text": "tok ok",
-            })
+            return _Response(
+                payload={
+                    "model": "groq/llama-3.3-70b-versatile",
+                    "output_text": "tok ok",
+                }
+            )
 
         monkeypatch.setattr("app.platform.omniroute_client._post_responses", fake_post)
         result = await generate(
@@ -327,8 +348,12 @@ class TestOmniRouteAgentHook:
         monkeypatch.setattr(free_ai, "_llm_cache_on", lambda prof: False)
 
         text, provider = await free_ai.chat(
-            "system", [{"role": "user", "content": "write digest"}],
-            max_tokens=512, profile="bulk", agent_key="zara", product="marketing",
+            "system",
+            [{"role": "user", "content": "write digest"}],
+            max_tokens=512,
+            profile="bulk",
+            agent_key="zara",
+            product="marketing",
         )
         assert (text, provider) == ("omni agent reply", "omniroute")
         assert len(calls) == 1
@@ -338,16 +363,20 @@ class TestOmniRouteAgentHook:
         # Realtime (voice hot-path) must NEVER touch the hook — chain empty = ("","").
         monkeypatch.setattr(free_ai, "_build_llm_chain", lambda prof: [])
         text2, provider2 = await free_ai.chat(
-            "system", [{"role": "user", "content": "hello"}],
-            max_tokens=60, profile="realtime",
+            "system",
+            [{"role": "user", "content": "hello"}],
+            max_tokens=60,
+            profile="realtime",
         )
         assert len(calls) == 1  # no new hook call
         assert provider2 != "omniroute"
 
         # Default / non-bulk / non-realtime must ALSO skip hook (ADR bulk-only).
         text3, provider3 = await free_ai.chat(
-            "system", [{"role": "user", "content": "short"}],
-            max_tokens=40, profile="default",
+            "system",
+            [{"role": "user", "content": "short"}],
+            max_tokens=40,
+            profile="default",
         )
         assert len(calls) == 1
         assert provider3 != "omniroute"
