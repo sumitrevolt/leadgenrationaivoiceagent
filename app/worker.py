@@ -322,6 +322,12 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=0),  # Every hour
         "args": (),
     },
+    # Voice follow-up callbacks (trial day8/9 + interested-not-converted)
+    "process-voice-followups": {
+        "task": "app.tasks.calling.process_voice_followups",
+        "schedule": crontab(minute=25),  # Every hour at :25 IST (celery TZ)
+        "args": (20,),
+    },
     # Daily report generation (8 PM)
     "daily-report": {
         "task": "app.tasks.reporting.generate_daily_report",

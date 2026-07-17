@@ -207,6 +207,19 @@ def process_callbacks():
 
 
 @shared_task
+def process_voice_followups(limit: int = 20):
+    """Drain due VOICE_FOLLOWUP scheduled callbacks (transactional, consented)."""
+    logger.info("Processing voice follow-up callbacks")
+    try:
+        from app.telephony import voice_followup
+
+        return _run_async(voice_followup.run_due(limit=max(1, int(limit))))
+    except Exception as e:
+        logger.error(f"voice followup task failed: {e}")
+        return {"ok": False, "error": str(e)}
+
+
+@shared_task
 def retry_failed_calls():
     """
     Retry failed calls that are eligible for retry.
