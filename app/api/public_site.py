@@ -867,6 +867,21 @@ async def public_signup(body: SignupIn, request: Request):
     except Exception as e:
         logger.debug(f"[signup] lifecycle enroll skip: {e}")
 
+    # Voice follow-up — trial day 8/9 conversion calls (transactional, consented).
+    if is_trial and (body.phone or "").strip():
+        try:
+            from app.telephony import voice_followup
+
+            voice_followup.schedule_trial_callbacks(
+                phone=str(body.phone or ""),
+                client_id=cid,
+                business_name=biz,
+                niche=str(body.niche or "ai_marketing"),
+                source="signup_trial",
+            )
+        except Exception as e:
+            logger.debug(f"[signup] voice trial schedule skip: {e}")
+
     # Affiliate referral — ref_code se signup aaya to record karo (commission track)
     try:
         ref = (body.ref_code or "").strip()

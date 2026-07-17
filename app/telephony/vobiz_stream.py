@@ -3445,6 +3445,23 @@ class VobizStreamSession:
                     self._bump_selfimprove_counter()
             except Exception as e:
                 logger.debug(f"[vobiz-stream] self-improve counter skip: {e}")
+            try:
+                from app.telephony import voice_followup
+
+                tc = getattr(self, "_telecaller", None)
+                close_signal = bool(getattr(tc, "close_signal_fired", False))
+                await voice_followup.run_post_call_workflows(
+                    call_id=str(self.stream_sid or ""),
+                    phone=lead_phone,
+                    client_id=str(self.client_id or ""),
+                    client_name=self.client_name or "",
+                    niche=self.niche or "",
+                    q=q,
+                    close_signal=close_signal,
+                    not_interested=bool(q is not None and not q.get("qualified")),
+                )
+            except Exception as e:
+                logger.debug(f"[vobiz-stream] post-call workflow skip: {e}")
         except Exception as e:
             logger.debug(f"[vobiz-stream] auto-qualify skip: {e}")
 

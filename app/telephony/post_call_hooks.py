@@ -668,6 +668,22 @@ async def finalize_stream_session(
         )
     except Exception:
         pass
+    try:
+        from app.telephony import voice_followup
+
+        close_signal = bool((extra_transcript or {}).get("close_signal"))
+        await voice_followup.run_post_call_workflows(
+            call_id=str(call_id or ""),
+            phone=phone or "",
+            client_id=str(client_id or ""),
+            client_name=client_name or "",
+            niche=niche or "",
+            q=q,
+            close_signal=close_signal,
+            not_interested=bool(q is not None and not q.get("qualified") and turns > 0),
+        )
+    except Exception:
+        pass
 
 
 __all__ = [

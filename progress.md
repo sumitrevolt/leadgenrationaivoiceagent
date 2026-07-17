@@ -528,3 +528,39 @@ Risks: no live VPS deploy performed; production remains correctly fail-closed un
 Remaining: commit/push/deploy only on explicit user authorization; no local MCP blocker remains.
 Next Highest Priority: keep MCP production exposure gated; if deployment is requested, ship via canonical `scripts/deploy_vps.sh` and verify `/health.version`.
 
+## Loop Run
+Date: 2026-07-17 (FastAPI MCP repair production deploy)
+Goal: Scoped MCP repair commit/push/deploy karke live import, auth gate, version parity aur health prove karna.
+Inspected: local staged/foreign-commit state; VPS git/container drift; compose service inventory; canonical deploy_vps.sh; live health, app logs, container versions, queues/DLQ, MCP endpoint.
+Problems Found: VPS tree me pre-existing runtime data/backups dirty the, lekin MCP files se overlap nahi; deploy build me existing numpy/onnxruntime/packaging resolver warnings aaye, build gate fail nahi hua.
+Changed: six scoped files commit `95b8ff6` me; origin/main push; canonical detached `scripts/deploy_vps.sh` se app + worker + scheduler + worker-heavy + worker-video versioned recreate; old image retention.
+Tests Run: post-commit MCP suites 19 passed; canonical BUILD/UP/health/skew/smoke/queue gates; two public `/health` reads; public unauthenticated `/mcp`; in-container FastApiMCP import; app startup-log inspection.
+Verification Evidence: `BUILD_RC=0`, `UP_RC=0`, `/health.version=95b8ff6a` + `environment=production` twice; five app-image containers healthy and APP_VERSION=95b8ff6a; `/health`, voice niches, billing plans, pay-info all 200; unauthenticated `/mcp`=401; startup log `MCP server mounted ... gated: token`; no false missing/dependency log; celery=0, DLQ=0; disk 76% used/48G free; deploy script `DEPLOYED 95b8ff6a OK`.
+Risks: Docker build emitted pre-existing supplemental dependency conflict warnings; runtime health/import/smoke gates are green. VPS dirty runtime data/backups remain intentionally preserved.
+Remaining: none in MCP repair/deploy scope.
+Next Highest Priority: monitor normal production logs; keep MCP token gate fail-closed.
+
+## Loop Run
+Date: 2026-07-17 (Swara final acceptance — post-close + latency)
+Goal: Verify prod 830b4b6f baseline; analyze canary 7742e06a; fix proven post-close audit leak + latency path; deploy only if defect proven; one allowlisted acceptance call.
+Inspected: /health + 5/5 image skew; container env (VOICE_TOOLS=1, USE_LLM_STREAM_TTS=1, PLATFORM_DIAL_DAILY=0, VOICE_CALL_CONCURRENCY=1); transcript JSONL call 7742e06a + b251f9d4; telecaller_brain close/stream paths; vobiz_stream TTS enqueue.
+Problems Found: (1) PROVEN post-close leak on 7742e06a — after Perfect+WhatsApp readback + "thank you", script_fallback spoke "Toh FREE Google audit abhi bhej doon?". (2) Latency p50 turn_ms ~8.5–9.3s (STT ~270ms; LLM+TTS bottleneck). (3) Post-close wrap only matched "whatsapp number confirm" — missed Perfect/readback lines.
+Changed: commit e795629 — closing_started/session_closed state; _deliver_post_close_wrap + _block_post_close_speech; script_fallback blocked after close; stream fallback to fast_path before reply() double-call; vobiz_stream _say audit guard; tests +4 in test_voice_close_signal.py.
+Tests Run: pytest test_voice_close_signal + test_swara_enterprise = 14 passed; prod_check ALL PASSED; deploy e7956290 OK 5/5 skew-free.
+Verification Evidence: baseline 830b4b6f confirmed pre-deploy; deploy e7956290 /health + skew; acceptance call b251f9d4 (239s, 15 user turns) — thank-you → final goodbye NO audit (audit_count=0); pricing 1999/5999 + trial; post_handoff_bot only Dhanyavaad line; turn_p50=9326ms turn_p95=15787ms stt_p50=271ms.
+Risks: latency still operational slow (~9s p50); opener_repeat flagged postcall_qa; session_state closing flags telemetry sync minor follow-up (local uncommitted).
+Remaining: latency optimization without model swap (streaming first-audio metrics, broader fast-path QA); opener-repeat guard.
+Next Highest Priority: reduce LLM-path turn_ms toward ≤5s p50 or prove streaming first-audio ≤2s; optional micro-deploy session_state sync.
+
+## Loop Run
+Date: 2026-07-17 (post-call automation + trial/follow-up scheduling)
+Goal: Wire post-call workflows, trial day8/9 voice callbacks, interested-not-converted auto follow-up, self-improve connection verify.
+Inspected: post_call_hooks, vobiz_stream teardown, public_site signup, team_scheduler, tasks/calling, lifecycle_nurture pattern, consent_ledger, sales_pipeline deals.jsonl.
+Problems Found: WhatsApp/CRM/QA/training partially wired; NO trial day8/9 scheduler; NO interested auto follow-up; post-call had no unified workflow hook with idempotency.
+Changed: NEW app/telephony/voice_followup.py; hooks in post_call_hooks.finalize_stream_session + vobiz_stream._auto_qualify + public_site trial signup; VOICE_FOLLOWUP flag; team_scheduler + Celery beat process_voice_followups; tests/test_voice_followup.py (8).
+Tests Run: pytest tests/test_voice_followup.py 8 passed; prod_check ALL PASSED (1112 routes, 0 gaps); check_secrets clean.
+Verification Evidence: prod /health version=e7956290 (pre-this-change deploy); local gates green; no deploy of voice_followup yet.
+Risks: VOICE_FOLLOWUP default OFF — prod inert until operator flip; no admin UI tab for scheduled callbacks (JSONL store only).
+Remaining: user flip VOICE_FOLLOWUP=1 + deploy; optional control-center UI for pending callbacks.
+Next Highest Priority: deploy voice_followup wiring; flip flag; monitor first trial day8/9 placements.
+

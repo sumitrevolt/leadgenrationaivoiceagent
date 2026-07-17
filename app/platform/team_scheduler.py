@@ -660,6 +660,11 @@ async def _run_job_inner(job: str) -> bool:
             await _run_content_engine(
                 "lifecycle_nurture", lifecycle_nurture.run_due()
             )  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
+            from app.telephony import voice_followup
+
+            await _run_content_engine(
+                "voice_followup", voice_followup.run_due()
+            )  # trial day8/9 + interested follow-up calls (gated VOICE_FOLLOWUP; inert off)
             from app.marketing import channel_experiments
 
             await _run_content_engine(

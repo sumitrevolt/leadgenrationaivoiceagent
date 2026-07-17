@@ -32,6 +32,7 @@ _BACKING_ENGINES = [
     ("app.platform.lead_alerts", "notify_new_lead_bg"),
     ("app.marketing.sales_pipeline", "run_pipeline"),
     ("app.marketing.lifecycle_nurture", "run_due"),
+    ("app.telephony.voice_followup", "run_due"),
     ("app.platform.deliverability_monitor", "run_check"),
     ("app.platform.team_report", "run_weekly_if_enabled"),
     # the 4 customer_autopilot-wired engines:
