@@ -516,3 +516,15 @@ Risks: audit pivot after close not gated; semantic guard late on hangup flush; O
 Remaining: fix post-close audit suppression; retry canary; admin start OmniRoute+OAuth via tunnel.
 Next Highest Priority: post-close state guard (skip audit after close_signal_fired) + redeploy + canary retry.
 
+## Loop Run
+Date: 2026-07-17 (FastAPI MCP Windows import repair)
+Goal: Windows local setup me false `fastapi-mcp not installed` startup message ko root-cause se fix karke MCP import/mount verify karna.
+Inspected: Graphify MCP startup context; app/main.py optional MCP mount + token/IP fail-closed gate; requirements.lock.txt/requirements.txt; mcp 1.28.1 METADATA; app/platform/mcp_engineer.py; MCP tests; local Python 3.11 venv.
+Problems Found: (1) `fastapi-mcp==0.4.0` installed tha, par documented `--no-deps` setup ne Windows-only `pywin32>=310` skip kiya, isliye nested `ModuleNotFoundError: pywintypes` aaya. (2) broad ImportError handler ne nested dependency failure ko false "fastapi-mcp not installed" bola. (3) ungated development mount log false "ip-allowlist" bolta tha.
+Changed: local venv me `pywin32==311` installed; requirements.lock.txt me Windows-only marker pin; new app/platform/mcp_import.py truthful import/gate diagnostics; app/main.py wired; tests/test_mcp_import.py RED-GREEN regression tests; scoped plan doc.
+Tests Run: `pytest tests/test_mcp_import.py tests/test_mcp_engineer.py -q` = 19 passed; direct FastApiMCP+pywintypes import; development ASGI mount probe; production ASGI `/health` + unauthorized `/mcp`; `prod_check.py`; `check_secrets.py`; compileall; duplicate MCP mount grep.
+Verification Evidence: FastApiMCP import OK; pywintypes DLL loaded; development routes `/mcp` + `/mcp/messages/` mounted and log says `development-ungated`; temporary production probe `/health`=200 with `environment=production`, unauthenticated `/mcp`=401; prod_check ALL CHECKS PASSED (1112 routes, 0 wiring gaps); secrets clean; exactly one `_mcp.mount()`.
+Risks: no live VPS deploy performed; production remains correctly fail-closed unless FASTAPI_MCP_TOKEN or MCP_IP_ALLOWLIST is configured. Ruff verification unavailable because repo venv has no ruff module; compileall/diff-check passed.
+Remaining: commit/push/deploy only on explicit user authorization; no local MCP blocker remains.
+Next Highest Priority: keep MCP production exposure gated; if deployment is requested, ship via canonical `scripts/deploy_vps.sh` and verify `/health.version`.
+
