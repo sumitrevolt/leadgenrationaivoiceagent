@@ -39,21 +39,17 @@ from app.voice_agent.knowledge_base import (
 # Yeh natural_dialog.DEFAULT_KNOWLEDGE["_global"] ke saath consistent hai.
 # --------------------------------------------------------------------------- #
 COMMON_BUSINESS_FAQS: list[str] = [
-    "Hum aapke business ke potential customers ko AI voice agent se call karke "
-    "qualified leads laate hain — aap sirf interested customers se baat karte ho.",
-    "Pricing per qualified lead hoti hai, ₹200 se ₹500 ke beech. Aap sirf result "
-    "ke paise dete ho — koi fixed mahina kharcha nahi.",
+    "LeadGen AI ka main product AI Automated Marketing hai — Instagram, Facebook "
+    "aur Google pe posts, ads aur profile boost AI se automatic hota hai.",
+    "Pricing: Main plan ₹1,999/mahina, Advanced/Combo ₹5,999/mahina. Growth ₹2,999 "
+    "legacy hidden hai. Per-lead paisa nahi — flat monthly SaaS.",
+    "7 din FREE trial bina card. Aapko khud posts nahi banani — AI banata hai, "
+    "aap approve ya publish karte ho.",
+    "Advanced plan me inquiry pe AI voice callback bhi milta hai (feature), "
+    "lekin main product marketing automation hai — marketing+voice bundle framing mat use karo.",
     "Demo bilkul free hai. 15 minute me dikha dete hain ki system aapke business "
-    "ke liye kaise leads laata hai.",
-    "Aapko kuch setup nahi karna. Hum poora system handle karte hain — scripting, "
-    "calling, follow-up sab.",
-    "Leads seedha aapke WhatsApp par ya aapke CRM (HubSpot/Google Sheets) me "
-    "deliver ho jaate hain, real-time.",
-    "AI voice agent aapke business ke hisaab se customer se baat karta hai, unhe "
-    "qualify karta hai, aur sirf serious leads aage bhejta hai.",
-    "Aap kisi bhi waqt start ya pause kar sakte ho — koi lambe contract ki " "majboori nahi.",
-    "Calls aapke kaam ke ghanton me hoti hain (din me), DND rules ka dhyaan rakhte "
-    "hue — compliance handle hum karte hain.",
+    "ke liye kaise content aur leads laata hai.",
+    "Aap kisi bhi waqt start ya pause kar sakte ho — koi lambe contract ki majboori nahi.",
 ]
 
 

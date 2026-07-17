@@ -121,22 +121,22 @@ def line_yes_praise() -> str:
         return praise
     disc = [str(q).strip() for q in (s.get("discovery") or []) if str(q).strip()]
     if disc:
-        return f"Bahut achha sir — {disc[0]}"
-    return "Theek sir — marketing abhi khud karte ho, staff se, ya agency?"
+        return f"Theek — {disc[0]}"
+    return "Theek — marketing abhi khud karte ho, staff se, ya agency?"
 
 
 def line_no_convince() -> str:
     return (_script().get("no_convince_once") or "").strip() or (
-        "Samajh sakti hoon sir — 7 din ka FREE trial hai, pehle result dekho phir decide."
+        "Samajh sakti hoon — 7 din ka FREE trial hai, pehle result dekho phir decide."
     )
 
 
 def line_close_cold() -> str:
-    return (_script().get("close_cold") or "").strip() or ("Theek hai sir, shukriya — din shubh!")
+    return (_script().get("close_cold") or "").strip() or ("Theek hai, shukriya — din shubh!")
 
 
 def line_clarify() -> str:
-    return "Ji sir — interested ho to haan, warna seedha nahi bata dijiye?"
+    return "Interested ho to haan, warna seedha nahi bata dijiye?"
 
 
 # Direct product questions ("kya kya features", "kitne ka", "price", "kaise kaam")
@@ -172,6 +172,15 @@ _PRODUCT_Q_WORDS: tuple[str, ...] = (
     "matlab kya",
     "demo",
     "samjhao",
+    # English product asks (bilingual / web demo)
+    "what do you",
+    "what you do",
+    "what you guys",
+    "guys do",
+    "do exactly",
+    "how does it work",
+    "how it works",
+    "tell me about your",
     # Devanagari (Whisper hi script)
     "फीचर",
     "फ़ीचर",
@@ -230,7 +239,7 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
 
     low = re.sub(r"\s+", " ", (user_text or "").lower()).strip()
     if any(w in low for w in ("busy", "meeting", "time nahi")):
-        return "Bilkul sir — shaam paanch ya kal subah gyarah, callback kab theek rahega?", state
+        return "Bilkul — shaam paanch ya kal subah gyarah, callback kab theek rahega?", state
     if low in ("kya", "kya?", "huh", "what"):
         return (
             f"LeadGen AI se Swara — {PITCH_SHORT} "

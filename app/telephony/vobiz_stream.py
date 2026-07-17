@@ -214,10 +214,10 @@ THINK_MAX_S = _env_num("VOBIZ_THINK_MAX_S", 16.0)
 # shared PHONE_TTS_* fall through, else the snappy default. EdgeTTS takes these
 # natively (rate/pitch/volume kwargs) — guarded so a build lacking a kwarg is
 # fine. e.g. VOBIZ_TTS_PITCH="+3Hz" warms the female voice; rate="+0%" slows it.
-# Default bumped +26% -> +33% (audit 2026-07-04 owner feedback: "agent talks
-# slowly"). VOBIZ_TTS_RATE/PHONE_TTS_RATE still win, so it's tunable per-env
-# without a code change (e.g. "+20%" to slow back down).
-TTS_RATE = (os.environ.get("VOBIZ_TTS_RATE") or os.environ.get("PHONE_TTS_RATE") or "+33%").strip()
+# Default +12% (2026-07-17 owner live-call feedback: +33% kabhi rush / kabhi
+# crawl feel — ek stable Hinglish outbound pace). VOBIZ_TTS_RATE/PHONE_TTS_RATE
+# still win for per-env tune (e.g. "+20%" faster, "+0%" slower).
+TTS_RATE = (os.environ.get("VOBIZ_TTS_RATE") or os.environ.get("PHONE_TTS_RATE") or "+12%").strip()
 TTS_PITCH = (os.environ.get("VOBIZ_TTS_PITCH") or os.environ.get("PHONE_TTS_PITCH") or "").strip()
 TTS_VOLUME = (os.environ.get("VOBIZ_TTS_VOLUME") or "").strip()
 
@@ -555,7 +555,10 @@ def _split_sentences(text: str) -> list[str]:
 # --------------------------------------------------------------------------- #
 _GREET_CACHE: dict[str, bytes] = {}
 _GREET_CACHE_MAX = 64
-_FILLER_TEXTS = ("Hmm...", "Achha...", "Ji sir...", "Samajh gayi...", "Ek second...")
+# Thinking fillers (played BEFORE LLM reply). "Ji sir/Achha ji" BANNED —
+# 2026-07-17 live feedback: mid-turn habit fillers confuse the caller.
+# Keep only short non-addressing bridges; USE_THINKING_FILLER defaults OFF.
+_FILLER_TEXTS = ("Hmm...", "Ek second...")
 _FILLER_PCM: list[bytes] = []
 _FILLER_STARTED = False  # synth fillers once per worker (first session does it)
 _CELEBRATION_PCM: bytes | None = None
@@ -1428,11 +1431,13 @@ class VobizStreamSession:
             # (~0.5s, acceptable); _run_play har frame pe _speaking check karta
             # hai, isliye barge-in (jo flag girata hai) filler ko bhi kaat deta.
             try:
-                _filler_on = (os.environ.get("USE_THINKING_FILLER", "1") or "1").strip().lower() not in (
-                    "0",
-                    "false",
-                    "no",
-                    "off",
+                # Default OFF (2026-07-17): habit fillers ("ji/sir") mid-turn
+                # confuse callers; opt-in via USE_THINKING_FILLER=1 if needed.
+                _filler_on = (os.environ.get("USE_THINKING_FILLER", "0") or "0").strip().lower() in (
+                    "1",
+                    "true",
+                    "yes",
+                    "on",
                 )
                 if _filler_on and _FILLER_PCM and TTS_AVAILABLE and not self._speaking:
                     self._stop_play()

@@ -356,7 +356,10 @@ def _get_natural_dialog(niche: str, client_name: str, client_service: str) -> An
 
 import re as _re
 
-_FILLER_LINES = ["Hmm...", "Achha...", "Ji...", "Haan..."]
+# Thinking fillers (played only on mic/audio turns while the LLM thinks).
+# "Ji..." dropped (2026-07-17 owner feedback: habit-address fillers confuse the
+# caller); only short neutral bridges kept — phone _FILLER_TEXTS parity.
+_FILLER_LINES = ["Hmm...", "Achha...", "Ek second..."]
 _filler_idx = 0
 
 
@@ -592,7 +595,11 @@ async def _edge_tts_mp3_b64(text: str) -> str | None:
             return None
         try:
             try:
-                _wrate = os.environ.get("WEB_TTS_RATE", "+26%").strip() or "+26%"
+                # Web-call is the enterprise TEST/proxy surface for the phone
+                # agent, so its Swara pace must MATCH the phone default (+12%,
+                # 2026-07-17 owner live-call feedback: +26/+33% felt rushed).
+                # WEB_TTS_RATE still wins for per-env tune. Phone = VOBIZ_TTS_RATE.
+                _wrate = os.environ.get("WEB_TTS_RATE", "+12%").strip() or "+12%"
                 comm = edge_tts.Communicate(text, "hi-IN-SwaraNeural", rate=_wrate)
             except TypeError:
                 # edge-tts build without the `rate` kwarg — synth at default rate.
@@ -1573,8 +1580,9 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     )
                     continue
 
-                # Never hang — customer ko hamesha kuch sunai de.
-                tc_reply = "Ji sir, sun rahi hoon — thoda detail me bataye?"
+                # Never hang — customer ko hamesha kuch sunai de. (No "ji/sir"
+                # habit-address filler — 2026-07-17 owner live-call feedback.)
+                tc_reply = "Sun rahi hoon — thoda detail me bataye?"
                 _log_turn(
                     session, "assistant", tc_reply, meta=_turn_meta(_turn_timing, _t_recv, user_text)
                 )

@@ -85,9 +85,9 @@ _GENERIC_QUESTIONS = [
 # concrete action pe le jaate hain (callback/follow-up) bina koi invented
 # number/price ke. _already_asked se rotate karte hain — kabhi robot-repeat nahi.
 _UNIVERSAL_CLOSE = [
-    "Toh sir, agla step rakhte hain — ek short callback aaj ya kal, kab theek rahega?",
+    "Toh agla step rakhte hain — ek short callback aaj ya kal, kab theek rahega?",
     "Main aapko details bhej ke ek quick follow-up fix kar deti hoon — subah ya shaam?",
-    "Aapki baat clear hai sir — ek next-step call rakhte hain, aaj ya kal convenient?",
+    "Aapki baat clear hai — ek next-step call rakhte hain, aaj ya kal convenient?",
 ]
 
 # ---------------------------------------------------------------------------
@@ -290,7 +290,7 @@ def _obeyed_injection(text: str) -> bool:
 # call keeps moving. {client}/{agent} filled at use-time.
 _INROLE_DEFLECTIONS: dict[str, tuple[str, ...]] = {
     "telecaller": (
-        "Yeh nahi kar sakti sir. Aapki business priority kya hai?",
+        "Yeh nahi kar sakti. Aapki business priority kya hai?",
         "Main role nahi badalungi. Business ki sabse badi dikkat kya hai?",
         "Main marketing aur leads par hi baat karungi. Abhi kya kar rahe hain?",
     ),
@@ -302,7 +302,7 @@ _INROLE_DEFLECTIONS: dict[str, tuple[str, ...]] = {
     "receptionist": (
         "Main reception se hoon. Aapki kaise madad karun?",
         "Main front desk assistant hoon. Kaunsa department chahiye?",
-        "Main call route karungi sir. Bataiye kya chahiye?",
+        "Main call route karungi. Bataiye kya chahiye?",
     ),
 }
 
@@ -594,22 +594,33 @@ def _convo_discipline_enabled() -> bool:
 
 
 def _marketing_plan_price_line(plan_key: str = "starter") -> str:
-    """Marketing price line from packages.py, so voice never quotes stale pricing."""
-    fallback = "AI Marketing Automation Rs 1,999 mahine se"
+    """Marketing price line from packages.py, so voice never quotes stale pricing.
+
+    Spoken labels stay Main/Advanced (no 'marketing+voice bundle' USP framing —
+    user mandate). Prices always from packages.py."""
+    fallbacks = {
+        "starter": "Main plan Rs 1,999 mahine se",
+        "advanced": "Advanced Rs 5,999 mahine se",
+    }
+    key = (plan_key or "starter").strip().lower()
     try:
         from app.marketing.packages import get_packages
 
-        key = (plan_key or "starter").strip().lower()
         for pkg in get_packages(include_trial=False):
             if str(pkg.get("key") or "").lower() != key:
                 continue
             price = int(pkg.get("price_inr_month") or 0)
-            name = str(pkg.get("name") or "Starter").replace("Marketing ", "").strip()
-            if price > 0:
-                return f"{name} Rs {price:,} mahine se"
+            if price <= 0:
+                break
+            if key == "starter":
+                return f"Main plan Rs {price:,} mahine se"
+            if key == "advanced":
+                return f"Advanced Rs {price:,} mahine se"
+            name = str(pkg.get("name") or key).split("—")[0].split("+")[0].strip()
+            return f"{name} Rs {price:,} mahine se"
     except Exception:
         pass
-    return fallback
+    return fallbacks.get(key, fallbacks["starter"])
 
 
 def _short_hook(hook: str, max_len: int = 90) -> str:
@@ -1139,14 +1150,15 @@ HARD RULES (har turn, bina exception):
 8. Numbers/prices SIRF ALLOWED list ya neeche FACTS se. Apne se koi figure/discount/promise kabhi nahi.
 9. User ki bhasha mirror karo. "AI/bot ho?" poochhe to sach: haan AI assistant hoon — phir ek line value.
 10. Output me SIRF bola jaane wala text — koi "Swara:" prefix, emoji, markdown, bullet nahi.
-11. Hamesha customer ko izzat se 'aap' aur 'sir/madam' bolkar address karo — tone respectful aur professional. KABHI 'tum', 'tu', 'yaar', 'bhai' ya informal slang mat karo.
+11. Customer ko respectfully 'aap' se address karo. Habitual fillers BANNED mid-speech: "ji", "sir", "madam", "haji", "haan ji", "achha ji" — beech-beech me mat bolo. Tone professional; KABHI 'tum', 'tu', 'yaar', 'bhai' mat karo.
 12. "Zara dobara boliye" poori call me MAX ek baar — baar-baar mat bolo. User ne kuch bhi partial bola ho to usme se jo samjho use karo, seedha agla sawaal.
 13. Generic praise BANNED ("bahut achha sir", "great choice", "wonderful") — seedha relevant discovery ya value pe aao.
-14. User ke jawab pe SEEDHA aage badho — har turn "samajh gayi / haan ji / achha ji / theek ji / bilkul ji" jaise filler-acknowledge se shuru MAT karo (= robotic ratta). Zaroori lage to chhota + HAR BAAR alag confirmer, warna bina kisi prefix ke direct agla chhota sawaal.
-15. PEHLE JAWAB, PHIR SAWAAL: customer ne kuch poocha ho to uska seedha, clear jawab ek line me do — apni discovery-checklist chalane ke liye uska sawaal IGNORE mat karo. Jawab ke baad hi agla chhota sawaal.
-16. FEATURE NAHI, FAYDA: baat customer ke result/fayde me karo, technical feature me nahi — ho sake to unki situation se jod ke ("aap jaise businesses ko isse...").
-17. CONFIDENT raho: "shayad", "lagta hai", "pata nahi", "ho sakta hai" jaise unsure shabd avoid karo. Koi number/fact na pata ho to ek clear next-step do (FREE audit/trial jaisa), guess kabhi nahi.
-18. DISCOVERY-DONE → CLOSE: jab 2-3 zaroori sawaal pooch liye ho ya unke jawaab history me aa chuke ho, to NAYE discovery sawaal mat dhoondo aur baat ko circle me mat ghumao — seedha ek concrete next-step pe le aao (FREE trial/audit aaj ya kal set karoon? ya appointment/callback slot) aur warmly wrap karo. Interested lage to slot/trial confirm karke band karo; har turn ka ek clear maqsad ho.
+14. User ke jawab pe SEEDHA aage badho — har turn "samajh gayi / haan ji / achha ji / theek ji / bilkul ji" jaise filler-acknowledge se shuru MAT karo (= robotic ratta). Direct agla clear jawab ya chhota sawaal.
+15. PEHLE JAWAB, PHIR SAWAAL: customer ne product/price/kaise-kaam poocha ho to APPROVED FACTS se seedha, clear jawab do (Main Rs 1,999 / Advanced Rs 5,999; posts+ads+Google; FREE trial) — discovery-checklist ke liye sawaal IGNORE mat karo. Invented pricing/offers BANNED.
+16. FEATURE NAHI, FAYDA: baat customer ke result/fayde me karo — "aapko khud post nahi banana, AI karta hai". Technical jargon mat thuno.
+17. CONFIDENT raho: "shayad", "lagta hai", "pata nahi", "ho sakta hai" jaise unsure shabd avoid karo. Koi number/fact na pata ho to ek clear next-step do (FREE audit/trial), guess kabhi nahi.
+18. DISCOVERY-DONE → CLOSE: jab 2-3 zaroori sawaal pooch liye ho, seedha next-step (FREE trial aaj/kal) pe le aao — circle mat ghumao.
+19. Pace clear: chhote vakya, natural Hinglish — rush mat karo, crawl mat karo; har shabd samajhne layak.
 
 GOOD vs BAD (hamesha GOOD jaisa — chhota, human, ek sawaal):
 
@@ -1322,6 +1334,13 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             r"\bmatlab\b",
             r"\bexplain\b",
             r"\bdetail\b",
+            # English question markers (web demo / bilingual callers)
+            r"\bwhat\b",
+            r"\bhow\b",
+            r"\bwhy\b",
+            r"\bwhen\b",
+            r"\bwhere\b",
+            r"\btell me\b",
         )
         if any(re.search(pat, low) for pat in qwords):
             return True
@@ -1346,7 +1365,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             "receptionist": "aapki call route/help karne ke liye",
         }.get(role, "aapke business leads qualify karne ke liye")
         agent = getattr(self, "agent_name", None) or "Swara"
-        return f"Haan sir, main AI assistant {agent} hoon — {purpose}."
+        return f"Haan, main ek AI assistant {agent} hoon — {purpose}."
 
     def _who_am_i_line(self) -> str:
         """Role/niche-aware 'kaun ho?' answer. The ai_marketing product-pitch is
@@ -1409,8 +1428,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 )
             ):
                 return self._clean(
-                    f"{_marketing_plan_price_line('starter')} — roz posts, ads, Google boost AI se; "
-                    "7 din FREE trial bhi hai."
+                    f"{_marketing_plan_price_line('starter')}; "
+                    f"{_marketing_plan_price_line('advanced')}. "
+                    "Roz posts, ads, Google boost AI se — 7 din FREE trial."
                 )
             if any(
                 w in low
@@ -1442,6 +1462,16 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     "kya cheez",
                     "kaam kya",
                     "sab kya",
+                    # English product asks (web/demo + bilingual callers)
+                    "what do you",
+                    "what you do",
+                    "what you guys",
+                    "guys do",
+                    "do exactly",
+                    "what does this",
+                    "tell me about your",
+                    "how does it work",
+                    "how it works",
                     # Devanagari (Whisper hi script) — what-do-you-do asks
                     "क्या कर",
                     "क्या क्या",
@@ -1457,8 +1487,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 )
             ):
                 return self._clean(
-                    "Char main cheezein sir — (1) roz ke posts aur ads, (2) Google pe upar ranking, "
-                    "(3) festival posters, (4) inquiry ka auto follow-up. Sab AI se, aap dhanda pe focus."
+                    "Hum AI Automated Marketing dete hain: Instagram-Facebook pe roz posts aur ads, "
+                    "Google Business boost, aur inquiry pe auto follow-up. Aap approve karo — baaki automatic."
                 )
             if any(w in low for w in ("free trial", "trial", "demo", "try karna")):
                 return self._clean("7 din FREE trial, bina card. Aaj setup kar doon ya kal subah?")
@@ -1522,11 +1552,11 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
         if any(w in low for w in ("trial", "free trial", "demo", "test karna", "try karna")):
             return self._clean(
-                "Bilkul sir — 7 din ka FREE trial hai, bina credit card. "
+                "7 din ka FREE trial hai, bina credit card. "
                 "Aaj setup kar doon ya kal subah?"
             )
         if any(w in low for w in ("busy", "meeting", "abhi nahi", "time nahi")):
-            return self._clean("Shaam paanch baje ya kal subah gyarah — kab theek rahega sir?")
+            return self._clean("Shaam paanch baje ya kal subah gyarah — kab theek rahega?")
         if any(w in low for w in ("mehenga", "mahnga", "costly", "zyada paisa", "budget zyada")):
             obj = (s.get("objections") or {}).get("mehenga") or ""
             if obj:
@@ -2242,12 +2272,14 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
     # Agent KABHI chup na rahe — LLM slow/empty + script-fallback bhi khali ho to
     # ek safe Hinglish clarify/ack line do (silence = worst UX; test me "NO REPLY" bug).
+    # No habit-address fillers (ji/sir/sar) — 2026-07-17 owner live-call feedback.
+    # These bypass _clean (returned raw by _safe_fallback), so keep them clean at source.
     _SAFE_LINES = (
-        "Achha sir, thoda detail me bataaiye?",
-        "Achha — aage bataye sir?",
-        "Ji sir, sun rahi hoon — boliye?",
+        "Achha, thoda detail me bataaiye?",
+        "Achha — aage bataiye?",
+        "Sun rahi hoon — boliye?",
     )
-    _CLARIFY_LINE = "Ji sir, ek baar phir short me boliye?"
+    _CLARIFY_LINE = "Ek baar phir short me boliye?"
 
     @staticmethod
     def _asks_to_repeat(text: str) -> bool:
@@ -2289,7 +2321,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             n = sum(1 for m in hist if (m.get("role") or "") == "assistant")
             return self._SAFE_LINES[n % len(self._SAFE_LINES)]
         except Exception:
-            return "Ji sir, boliye?"
+            return "Boliye?"
 
     def _injection_deflection(self, history: list[dict[str, str]]) -> str:
         """Safe, in-role line for an injection/role-switch turn — refuses the
@@ -2308,7 +2340,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 pick = lines[(n + 1) % len(lines)]
             return self._clean(pick) or pick
         except Exception:
-            return "Sorry sir, main sirf aapke business ki baat kar sakti hoon — bataiye kya chahiye?"
+            return "Sorry, main sirf aapke business ki baat kar sakti hoon — bataiye kya chahiye?"
 
     # User ne SPECIFIC sawaal poocha par KB/LLM jawab nahi de paaya (e.g. niche KB
     # seed nahi, ya fact available nahi) — aise me script ka random value-line
@@ -2316,9 +2348,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     # confused/noob). Iski jagah honest acknowledge + concrete next-step do (koi
     # fact invent NAHI, rule-8 safe). Rotate + repeat-skip taaki robotic na lage.
     _GRACEFUL_Q = (
-        "Achha sawaal sir — iski poori detail main aapko bhej deti hoon; ek short follow-up aaj ya kal rakh lein?",
-        "Ji sir — ye main confirm karke aapko share kar deti hoon; chahein to ek quick callback fix kar dein?",
-        "Bilkul sir — exact jaankari nikaal ke bhej deti hoon; tab tak aapka koi aur sawaal ho to boliye?",
+        "Achha sawaal — iski poori detail main aapko bhej deti hoon; ek short follow-up aaj ya kal rakh lein?",
+        "Ye main confirm karke aapko share kar deti hoon; chahein to ek quick callback fix kar dein?",
+        "Bilkul — exact jaankari nikaal ke bhej deti hoon; tab tak aapka koi aur sawaal ho to boliye?",
     )
 
     def _graceful_question_fallback(self, history: list[dict[str, str]]) -> str:
@@ -3080,8 +3112,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
     def _clean(self, text: str) -> str:
         """TTS-safe + HARD BREVITY: strip role prefixes/markdown, collapse
-        whitespace, cap to 1–2 COMPLETE sentences / ~28 words (phone par lambi reply =
-        bura UX). Meta/noob phrases => '' (caller uses script_fallback)."""
+        whitespace, strip habitual fillers (ji/sir/haji), cap to 1–2 COMPLETE
+        sentences / ~28 words. Meta/noob phrases => '' (caller uses script_fallback)."""
         t = (text or "").strip()
         agent = re.escape(getattr(self, "agent_name", None) or "Swara")
         t = re.sub(rf"^({agent}|agent|assistant)\s*:\s*", "", t, flags=re.IGNORECASE)
@@ -3098,6 +3130,31 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         )[0].strip()
         t = t.replace("*", "").replace("`", "").replace("#", "")
         t = re.sub(r"\s+", " ", t).strip()
+        # Habitual address fillers (2026-07-17 live feedback: strip ji/sir/sar/
+        # haji/haan-ji everywhere — leading combos, standalone, and mid-turn,
+        # including before any punctuation "!"/"?"). "sar" = common Whisper
+        # mishear of "sir". (?![a-z]) protects real words (sarkar/sirf/sara).
+        t = re.sub(
+            r"^(?:(?:ji|haan|han|achha|acha|theek|thik|bilkul)[\s,]+)*"
+            r"(?:ji|sir|sar|madam|haji)(?![a-z])[\s,.!?—\-]*",
+            "",
+            t,
+            flags=re.IGNORECASE,
+        )
+        t = re.sub(
+            r"\b(?:haan\s+ji|achha\s+ji|acha\s+ji|theek\s+ji|thik\s+ji|bilkul\s+ji|haji)\b[,.!?\s]*",
+            " ",
+            t,
+            flags=re.IGNORECASE,
+        )
+        t = re.sub(
+            r"(?<=[\s,.!?—])(?:ji|sir|sar|madam|haji)(?![a-z])(?=[\s,.!?—]|$)",
+            "",
+            t,
+            flags=re.IGNORECASE,
+        )
+        t = re.sub(r"\s+([,.!?])", r"\1", t)  # drop space left before punctuation
+        t = re.sub(r"\s+", " ", t).strip(" ,.—-")
         # Small free models kabhi-kabhi reasoning/meta leak karte hain ek
         # un-closed parenthetical me ("...karte ho? (Lagta hai ki user?"). Aisa
         # dangling "(...." (bina closing ')') cut kar do — warna TTS junk bolega.
