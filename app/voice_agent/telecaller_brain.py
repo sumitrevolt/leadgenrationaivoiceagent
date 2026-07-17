@@ -348,6 +348,14 @@ def _ack_trial_close_enabled() -> bool:
     )
 
 
+def _audit_loop_max() -> int:
+    """Max bot audit mentions before pivoting to trial/WhatsApp (default 2)."""
+    try:
+        return max(1, min(int(os.environ.get("AUDIT_LOOP_MAX", "2") or "2"), 5))
+    except Exception:
+        return 2
+
+
 _BARE_ACK_RE = re.compile(
     r"^(?:ok(?:ay)?|haa?n|ji|yes|yeah|theek(?:\s+hai)?(?:\s+ji)?|thik(?:\s+hai)?"
     r"|achh?a|sahi\s+hai|bilkul|hmm+|hm+|right|correct)[.!,\s]*$",
@@ -453,6 +461,17 @@ def _extract_phone(ut: str) -> str:
         return digits if 7 <= len(digits) <= 12 else ""
     except Exception:
         return ""
+
+
+def _count_audit_mentions(history: list[dict[str, str]] | None) -> int:
+    """How many assistant turns already pitched an audit (loop guard input)."""
+    n = 0
+    for m in history or []:
+        if not isinstance(m, dict) or m.get("role") != "assistant":
+            continue
+        if "audit" in str(m.get("content") or "").lower():
+            n += 1
+    return n
 
 
 # ---------------------------------------------------------------------------
@@ -890,6 +909,40 @@ class TelecallerBrain:
         p = "".join(c for c in str(phone or "") if c.isdigit())
         if p:
             self.caller_phone = p
+
+    def _close_setup_reply(self, ut: str) -> str:
+        """Buy/close signal: ask WhatsApp confirm OR read back number same turn."""
+        num = _extract_phone(ut)
+        if num:
+            if not self.caller_phone:
+                self.set_caller_phone(num)
+            self._on_close_signal()
+            spoken = " ".join(num)
+            return self._clean(
+                f"Perfect sir! Aapka WhatsApp number {spoken} — isi par abhi "
+                "saari detail aur setup bhej rahi hoon. Dhanyavaad, aapka din shubh ho!"
+            )
+        self._on_close_signal()
+        return self._clean(
+            "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp "
+            "number confirm kar dijiye, setup ki saari jaankari wahin bhej deti hoon."
+        )
+
+    def _audit_loop_pivot_line(self) -> str:
+        """Pivot off repeated audit offers — trial + WhatsApp confirm once."""
+        return self._clean(
+            "Theek hai sir — seedha 7 din ka FREE trial shuru kar deti hoon. "
+            "Bas apna WhatsApp number confirm kar dijiye?"
+        )
+
+    def _apply_audit_loop_guard(
+        self, line: str, history: list[dict[str, str]] | None
+    ) -> str:
+        if not line:
+            return line
+        if "audit" in line.lower() and _count_audit_mentions(history) >= _audit_loop_max():
+            return self._audit_loop_pivot_line()
+        return line
 
     def _on_close_signal(self) -> None:
         """Customer ne close/proceed-signal diya (haan chalu karo / le lo) —
@@ -1587,7 +1640,9 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 if any(w in low for w in words):
                     obj = (s.get("objections") or {}).get(key) or ""
                     if obj:
-                        return self._clean(str(obj))
+                        return self._apply_audit_loop_guard(
+                            self._clean(str(obj)), history
+                        )
         if "kaun ho" in low or "aap kaun" in low or "who are you" in low:
             return self._clean(self._who_am_i_line())
         if any(w in low for w in ("ai ho", "bot ho", "robot", "machine", "real ho")):
@@ -1665,7 +1720,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 combined = f"{ack} {nxt}".strip()
                 if "?" not in combined:
                     combined = f"{combined} {nxt}"
-                return self._clean(combined)
+                return self._apply_audit_loop_guard(self._clean(combined), history)
         return ""
 
     # ------------------------------------------------------------------ #
@@ -1760,15 +1815,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             try:
                 if ut and _close_detect_enabled() and _is_close_intent(ut):
                     logger.info("[telecaller-brain] buy/close signal -> confirm setup (pre-LLM)")
-                    # Real side-effects NOW (not text-only) — see _on_close_signal
-                    # docstring: sales_pipeline deal + WhatsApp send to the number
-                    # we already dialed. Fixes "customer haan bolta hai to onboard
-                    # nahi hota" — the close moment used to have zero durable action.
-                    self._on_close_signal()
-                    return self._clean(
-                        "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp "
-                        "number confirm kar dijiye, setup ki saari jaankari wahin bhej deti hoon."
-                    )
+                    return self._close_setup_reply(ut)
             except Exception:
                 pass
             fast = self._fast_path_reply(history, ut)
@@ -1936,6 +1983,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 if _cache_eligible:
                     _t = asyncio.create_task(self._opener_cache_store(ut, text))
                     _t.add_done_callback(lambda t: t.cancelled() or t.exception())
+                text = self._guard_semantic_loop(text, history)
             return text or self._safe_fallback(history)
         except Exception as e:
             logger.warning(f"[telecaller-brain] reply failed: {e}")
@@ -2014,11 +2062,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             try:
                 if ut and _close_detect_enabled() and _is_close_intent(ut):
                     logger.info("[telecaller-brain] buy/close signal -> confirm setup (pre-LLM, stream)")
-                    self._on_close_signal()
-                    yield self._clean(
-                        "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp "
-                        "number confirm kar dijiye, setup ki saari jaankari wahin bhej deti hoon."
-                    )
+                    yield self._close_setup_reply(ut)
                     return
             except Exception:
                 pass
@@ -2172,14 +2216,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             try:
                 if ut and _close_detect_enabled() and _is_close_intent(ut):
                     logger.info("[telecaller-brain] buy/close signal -> confirm setup (pre-LLM, tools)")
-                    self._on_close_signal()
-                    return (
-                        self._clean(
-                            "Bilkul sir! Aaj hi shuru kar deti hoon — bas aapka WhatsApp "
-                            "number confirm kar dijiye, setup ki saari jaankari wahin bhej deti hoon."
-                        ),
-                        None,
-                    )
+                    return self._close_setup_reply(ut), None
             except Exception:
                 pass
             # ANSWER-FIRST SAFETY: deterministic fast-path (QA answers, objection
@@ -2289,6 +2326,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 spoken = parse_and_validate(spoken).spoken_response
             except Exception:
                 pass
+            spoken = self._guard_semantic_loop(spoken, history)
             return spoken, None
         except Exception as e:
             logger.debug(f"[telecaller-brain] reply_with_tools fallback: {e}")
@@ -2515,6 +2553,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         except Exception:
             s = {}
         disc = [d for d in (s.get("discovery") or self.questions or []) if d]
+        if self._interest_confirmed:
+            disc = []
         skip = int(getattr(self, "_discovery_skip", 0) or 0)
         if skip > 0:
             disc = disc[skip:]
@@ -2522,12 +2562,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         closing = (s.get("closing") or "").strip()
         for q in disc:
             if not self._already_asked(q, history):
-                return self._clean(q)
+                return self._apply_audit_loop_guard(self._clean(q), history)
         for v in vals:
             if not self._already_asked(v, history):
                 return self._clean(v)
         if closing and not self._already_asked(closing, history):
-            return self._clean(closing)
+            return self._apply_audit_loop_guard(self._clean(closing), history)
         # Discovery + value + niche-closing sab ho chuke → conversation ROKO mat:
         # ek concrete next-step do (warna "aage kya" = dead-air ya wahi line repeat).
         for c in _UNIVERSAL_CLOSE:
@@ -2798,6 +2838,45 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
             if m.get("role") == "assistant":
                 return str(m.get("content") or "").strip()
         return ""
+
+    def _recent_assistant_lines(
+        self, history: list[dict[str, str]] | None, n: int = 3
+    ) -> list[str]:
+        lines: list[str] = []
+        for m in reversed(history or []):
+            if not isinstance(m, dict) or m.get("role") != "assistant":
+                continue
+            lines.append(str(m.get("content") or ""))
+            if len(lines) >= n:
+                break
+        return lines
+
+    def _mark_semantic_loop(self, reason: str = "repeat_response") -> None:
+        self._semantic_loop_detected = True
+        try:
+            ss = getattr(self, "_session_state", None)
+            if ss is not None:
+                ss.semantic_loop_detected = True
+        except Exception:
+            pass
+        logger.info("[telecaller-brain] semantic loop detected: %s", reason)
+
+    def _semantic_loop_pivot(self, history: list[dict[str, str]] | None) -> str:
+        pivot = self._next_discovery_line(history or []) or self._audit_loop_pivot_line()
+        return self._apply_audit_loop_guard(pivot, history)
+
+    def _guard_semantic_loop(
+        self, text: str, history: list[dict[str, str]] | None
+    ) -> str:
+        """Fingerprint last assistant turns; pivot if bot would repeat itself."""
+        if not text:
+            return text
+        for prev in self._recent_assistant_lines(history, 3):
+            if self._too_similar(text, prev):
+                self._mark_semantic_loop("repeat_response")
+                pivot = self._semantic_loop_pivot(history)
+                return pivot if pivot else text
+        return text
 
     @staticmethod
     def _too_similar(a: str, b: str) -> bool:

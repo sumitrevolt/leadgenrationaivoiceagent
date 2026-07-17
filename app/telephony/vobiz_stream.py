@@ -1446,6 +1446,8 @@ class VobizStreamSession:
                     if gate.cls.value == "valid_opt_out":
                         # Fall through to existing opt-out path below (do not drop).
                         pass
+                    elif gate.allow_llm and gate.text and gate.text.strip() != text.strip():
+                        text = gate.text.strip()
                     elif not gate.allow_llm:
                         if gate.cls.value == "duplicate":
                             logger.debug(f"[vobiz-stream] STT gate dup: {text!r}")
