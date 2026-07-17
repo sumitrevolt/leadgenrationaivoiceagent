@@ -19,6 +19,7 @@ class CallSessionState:
     greeting_completed: bool = False
     introduction_count: int = 0
     opener_blocked_count: int = 0
+    semantic_loop_detected: bool = False
     conversation_stage: str = "opening"  # opening|discovery|pitch|objection|close|ended
     active_model_route: str = ""
     active_provider: str = ""
@@ -69,6 +70,7 @@ class CallSessionState:
             "greeting_completed": self.greeting_completed,
             "introduction_count": self.introduction_count,
             "opener_blocked_count": self.opener_blocked_count,
+            "semantic_loop_detected": self.semantic_loop_detected,
             "conversation_stage": self.conversation_stage,
             "active_model_route": self.active_model_route,
             "active_provider": self.active_provider,

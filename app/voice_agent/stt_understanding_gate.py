@@ -64,6 +64,48 @@ _CONFIRM = re.compile(
     re.IGNORECASE,
 )
 
+_PHONE_CONTENT_RE = re.compile(
+    r"(?:\+?91[\s-]?)?[6-9]\d{9}|\d[\d\s\-]{5,}\d"
+)
+
+
+def strip_junk_phrases(text: str) -> tuple[str, float, bool]:
+    """Remove known Whisper junk phrases; return (cleaned, junk_ratio, had_junk)."""
+    t = (text or "").strip()
+    if not t:
+        return "", 0.0, False
+    low = t.lower()
+    had_junk = False
+    cleaned = t
+    for phrase in _JUNK_PHRASES:
+        if phrase == "...":
+            continue
+        if phrase in low:
+            had_junk = True
+            cleaned = re.sub(re.escape(phrase), " ", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\s{2,}", " ", cleaned).strip(" ,.-")
+    orig_toks = re.findall(r"[0-9A-Za-zऀ-ॿ']+", low)
+    clean_toks = re.findall(r"[0-9A-Za-zऀ-ॿ']+", cleaned.lower())
+    junk_ratio = 0.0
+    if orig_toks:
+        junk_ratio = max(0.0, (len(orig_toks) - len(clean_toks)) / len(orig_toks))
+    return cleaned, junk_ratio, had_junk
+
+
+def _has_meaningful_content(text: str) -> bool:
+    """True when stripped text still carries phone digits or substantive words."""
+    t = (text or "").strip()
+    if not t:
+        return False
+    if _PHONE_CONTENT_RE.search(t):
+        return True
+    toks = [w for w in re.findall(r"[0-9A-Za-zऀ-ॿ']+", t.lower()) if len(w) > 2]
+    if len(toks) >= 2:
+        return True
+    if len(toks) == 1 and any(ch.isdigit() for ch in toks[0]):
+        return True
+    return len(t.split()) >= 4
+
 
 class SttClass(str, Enum):
     VALID_MEANINGFUL = "valid_meaningful"
@@ -155,11 +197,42 @@ def classify(
                 SttClass.DUPLICATE, t, False, False, False, "exact_dup"
             )
 
-        # Known Whisper junk loops ("Aam shabd" x N).
+        # Known Whisper junk loops ("Aam shabd" x N) — pure junk only.
         for phrase in _JUNK_PHRASES:
             if phrase in low and len(set(re.findall(r"\w+", low))) <= 3:
                 return SttGateResult(
                     SttClass.NOISE, t, False, False, True, f"junk:{phrase}"
+                )
+
+        # Mixed junk + content ("Aam shabd, 8459012607 mera mobile…") — strip or clarify.
+        cleaned, junk_ratio, had_junk = strip_junk_phrases(t)
+        if had_junk:
+            if cleaned and cleaned != t and _has_meaningful_content(cleaned):
+                return SttGateResult(
+                    SttClass.VALID_MEANINGFUL,
+                    cleaned,
+                    True,
+                    True,
+                    False,
+                    "junk_stripped",
+                )
+            if not cleaned or not _has_meaningful_content(cleaned):
+                return SttGateResult(
+                    SttClass.NOISE,
+                    cleaned or t,
+                    False,
+                    False,
+                    True,
+                    "mixed_junk",
+                )
+            if junk_ratio >= 0.45:
+                return SttGateResult(
+                    SttClass.LOW_CONFIDENCE,
+                    cleaned,
+                    False,
+                    False,
+                    True,
+                    "mixed_junk_ratio",
                 )
 
         toks = re.findall(r"[0-9A-Za-zऀ-ॿ']+", low)

@@ -14,6 +14,7 @@ from app.voice_agent.stt_understanding_gate import (
     apply_metrics,
     classify,
     should_failure_close,
+    strip_junk_phrases,
 )
 from app.voice_agent.telecaller_brain import TelecallerBrain
 from app.voice_agent.voice_sticky_route import (
@@ -28,6 +29,113 @@ def test_stt_gate_aam_shabd_is_noise():
     assert r.cls == SttClass.NOISE
     assert r.allow_llm is False
     assert r.clarify is True
+
+
+def test_stt_gate_mixed_junk_with_phone_strips_and_allows_llm():
+    raw = "Aam shabd, A4 590 12607 mera mobile number hai"
+    r = classify(raw)
+    assert r.cls == SttClass.VALID_MEANINGFUL
+    assert r.allow_llm is True
+    assert "aam shabd" not in r.text.lower()
+    assert "12607" in r.text or "590" in r.text
+
+
+def test_stt_gate_mixed_junk_only_triggers_clarify():
+    r = classify("Aam shabd, thank you for watching, subscribe")
+    assert r.allow_llm is False
+    assert r.clarify is True
+    assert r.cls in (SttClass.NOISE, SttClass.LOW_CONFIDENCE)
+
+
+def test_stt_gate_mixed_junk_metrics():
+    m = SttGateMetrics()
+    g = classify("Aam shabd, thank you for watching")
+    apply_metrics(m, g)
+    assert m.stt_noise_count >= 1 or m.stt_low_confidence_count >= 1
+    assert m.stt_clarification_count >= 1
+
+
+def test_strip_junk_phrases_preserves_phone_content():
+    cleaned, ratio, had = strip_junk_phrases(
+        "Aam shabd, 8459012607 par WhatsApp bhej do"
+    )
+    assert had is True
+    assert "8459012607" in cleaned
+    assert "aam shabd" not in cleaned.lower()
+
+
+def test_close_setup_reply_confirms_number_same_turn():
+    b = TelecallerBrain(niche="ai_marketing", client_name="Test Co")
+    b.caller_phone = ""
+    b.close_signal_fired = False
+    out = b._close_setup_reply("haan start karo 9876543210 par")
+    assert "9876543210" in out.replace(" ", "")
+    assert b.caller_phone == "9876543210"
+
+
+def test_close_setup_reply_without_number_asks_confirm():
+    b = TelecallerBrain(niche="ai_marketing", client_name="Test Co")
+    out = b._close_setup_reply("aaj hi trial start kar do")
+    assert "whatsapp number confirm" in out.lower()
+
+
+def test_audit_loop_pivot_after_repeated_audit_offers():
+    b = TelecallerBrain(niche="ai_marketing", client_name="Test Co")
+    history = [
+        {"role": "assistant", "content": "FREE Google audit bhej doon?"},
+        {"role": "assistant", "content": "Tab tak FREE audit karwa doon?"},
+    ]
+    pivot = b._apply_audit_loop_guard(
+        "Toh FREE Google audit abhi bhej doon? Saath me 7-din trial — aaj set kar doon?",
+        history,
+    )
+    assert "whatsapp number confirm" in pivot.lower()
+    assert "audit" not in pivot.lower()
+
+
+def test_fast_path_soch_ke_pivots_after_audit_loop():
+    b = TelecallerBrain(niche="ai_marketing", client_name="Test Co")
+    history = [
+        {"role": "assistant", "content": "FREE Google audit bhej doon?"},
+        {"role": "assistant", "content": "Tab tak FREE audit karwa doon?"},
+    ]
+    ans = TelecallerBrain._fast_path_reply(b, history, "soch ke batata hoon")
+    assert ans
+    assert "whatsapp number confirm" in ans.lower()
+    assert "audit" not in ans.lower()
+
+
+def test_discovery_skipped_after_interest_confirmed():
+    b = TelecallerBrain(niche="ai_marketing", client_name="Test Co")
+    b._interest_confirmed = True
+    history = [{"role": "assistant", "content": "Marketing khud karte ho?"}]
+    nxt = b._next_discovery_line(history)
+    assert "marketing khud" not in nxt.lower()
+
+
+def test_stt_gate_opt_out_with_junk_not_stripped():
+    r = classify("Aam shabd call mat karna number hata do")
+    assert r.cls == SttClass.VALID_OPT_OUT
+    assert r.allow_llm is False
+
+
+def test_stt_gate_pricing_mixed_junk_strips_and_allows():
+    r = classify("Aam shabd marketing plan kitne ka hai")
+    assert r.cls == SttClass.VALID_MEANINGFUL
+    assert r.allow_llm is True
+    assert "aam shabd" not in r.text.lower()
+    assert "plan" in r.text.lower() or "marketing" in r.text.lower()
+
+
+def test_semantic_loop_guard_pivots_on_repeat():
+    b = TelecallerBrain(niche="ai_marketing", client_name="Test Co")
+    history = [
+        {"role": "assistant", "content": "Plan Main package 1999 rupaye mahine ka hai."},
+    ]
+    repeat = "Plan Main package 1999 rupaye mahine ka hai."
+    out = b._guard_semantic_loop(repeat, history)
+    assert out != repeat
+    assert getattr(b, "_semantic_loop_detected", False) is True
 
 
 def test_stt_gate_meaningful_hindi():
