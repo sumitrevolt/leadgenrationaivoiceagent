@@ -162,11 +162,13 @@ def test_fast_path_whatsapp_negation_does_not_handoff() -> None:
 def test_clean_cuts_hallucinated_transcript() -> None:
     # Small free models kabhi poora dialogue continue kar dete hain — Swara ka
     # sirf pehla turn bolna chahiye, "User:"/"Swara:" leak nahi.
+    # 2026-07-17: leading "Ji … sir" habit fillers bhi strip hote hain.
     b = _brain("general")
     out = TelecallerBrain._clean(b, "Ji theek hai sir. User: aur batao Swara: haan ji")
     low = out.lower()
     assert "user:" not in low and "swara:" not in low
-    assert out.startswith("Ji theek hai")
+    assert "theek hai" in low
+    assert "ji sir" not in low and not low.startswith("ji ")
 
 
 def test_clean_strips_unclosed_paren_leak() -> None:
@@ -466,3 +468,49 @@ async def test_tools_path_post_close_wrap_pivots_to_whatsapp() -> None:
     assert tool_call is None
     assert "WhatsApp" in spoken
     assert "9 8 7 6 5 4 3 2 1 0" in spoken
+
+
+# --------------------------------------------------------------------------- #
+# 2026-07-17 — live-call quality: no habit fillers; clear product facts
+# --------------------------------------------------------------------------- #
+def test_clean_strips_banned_habit_fillers() -> None:
+    b = _brain("ai_marketing")
+    out = TelecallerBrain._clean(b, "Ji sir, haan ji — AI se posts aur ads automatic.")
+    low = out.lower()
+    assert "ji sir" not in low
+    assert "haan ji" not in low
+    assert "haji" not in low
+    assert "posts" in low or "ads" in low
+    # AI disclosure still allowed when present
+    disclosed = TelecallerBrain._clean(b, "Main ek AI assistant hoon. Posts automatic.")
+    assert "ai assistant" in disclosed.lower()
+
+
+def test_product_qa_has_clear_facts_without_sir_filler() -> None:
+    b = _brain("ai_marketing")
+    b._interest_confirmed = False
+    feat = TelecallerBrain._customer_qa_reply(b, "aap kya kya features dete ho")
+    assert feat
+    low = feat.lower()
+    assert any(w in low for w in ("instagram", "facebook", "posts", "ads", "google"))
+    assert " ji" not in f" {low}"
+    assert not low.startswith("sir")
+    assert "sir —" not in low and "sir," not in low
+    price = TelecallerBrain._customer_qa_reply(b, "price kitna hai")
+    assert "1,999" in price or "1999" in price
+    assert "5,999" in price or "5999" in price
+    assert "sir" not in price.lower()
+    eng = TelecallerBrain._customer_qa_reply(b, "okay so what do you guys do exactly")
+    assert eng
+    elow = eng.lower()
+    assert any(w in elow for w in ("instagram", "facebook", "posts", "ads", "marketing"))
+    assert "sir" not in elow
+
+
+def test_thinking_filler_texts_have_no_address_fillers() -> None:
+    from app.telephony import vobiz_stream as vs
+
+    banned = ("ji sir", "sir", "haji", "achha ji", "haan ji")
+    for t in vs._FILLER_TEXTS:
+        low = t.lower()
+        assert not any(b in low for b in banned), t

@@ -180,13 +180,13 @@ NICHE_SCRIPTS: dict[str, dict] = {
         "pitch_short": PITCH_SHORT,
         "interest_ask": INTEREST_ASK,
         "yes_praise": (
-            "Bahut achha sir — pehle aapki situation samajh leti hoon. "
+            "Theek — pehle aapki situation samajh leti hoon. "
             "Marketing abhi khud karte ho, staff se, ya agency?"
         ),
         "no_convince_once": (
-            "Samajh sakti hoon sir — 7 din ka FREE trial hai, pehle result dekho phir decide."
+            "Samajh sakti hoon — 7 din ka FREE trial hai, pehle result dekho phir decide."
         ),
-        "close_cold": "Theek hai sir, shukriya — din shubh!",
+        "close_cold": "Theek hai, shukriya — din shubh!",
         "discovery": [
             "Marketing abhi khud karte ho, staff se, ya agency?",
             "Google pe search karne par upar dikhta hai kya?",
@@ -194,18 +194,18 @@ NICHE_SCRIPTS: dict[str, dict] = {
             "Mahine me marketing pe approx kitna kharcha?",
         ],
         "objections": {
-            "mehenga": "Sir, ₹1,999/mahina se shuru — din me ₹40 se kam. Ek extra customer se kharcha nikal jaata hai.",
-            "abhi_nahi": "Koi baat nahi sir — tab tak FREE Google audit karwa doon? Score aur fixes, koi charge nahi.",
-            "soch_ke": "Bilkul sochiye sir — FREE audit bhej deti hoon, 7-din trial bhi hai, aaram se decide kijiye.",
-            "pehle_se_hai": "Achha sir — agency ₹15-25K leti hai, hum ₹1,999 se. Inquiry follow-up bhi AI se ho jaata hai.",
-            "bharosa": "Sahi sawaal sir — pehle FREE audit aur trial lijiye, pasand aaye tabhi aage badhiye.",
+            "mehenga": "₹1,999/mahina se shuru — din me ₹40 se kam. Ek extra customer se kharcha nikal jaata hai.",
+            "abhi_nahi": "Koi baat nahi — tab tak FREE Google audit karwa doon? Score aur fixes, koi charge nahi.",
+            "soch_ke": "Bilkul sochiye — FREE audit bhej deti hoon, 7-din trial bhi hai, aaram se decide kijiye.",
+            "pehle_se_hai": "Agency ₹15-25K leti hai, hum ₹1,999 se. Inquiry follow-up bhi AI se ho jaata hai.",
+            "bharosa": "Sahi sawaal — pehle FREE audit aur trial lijiye, pasand aaye tabhi aage badhiye.",
         },
         "value_lines": [
             "Roz ke posts, festival posters aur Google profile — sab automatic, aapka time bachta hai.",
             "7 din FREE trial — bina card, pehle result dekho.",
             "Advanced me inquiry pe 2 minute me AI callback bhi — koi lead miss nahi.",
         ],
-        "closing": "Toh sir, FREE Google audit abhi bhej doon? Saath me 7-din trial — aaj ya kal set kar doon?",
+        "closing": "Toh FREE Google audit abhi bhej doon? Saath me 7-din trial — aaj ya kal set kar doon?",
     },
     # ====================================================================== #
     # ADDITIONAL NICHE SCRIPTS (29 niches — professionally researched Hinglish)
