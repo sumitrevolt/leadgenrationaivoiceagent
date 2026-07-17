@@ -445,6 +445,60 @@ def _is_post_close_reply(ut: str) -> bool:
         return False
 
 
+_GOODBYE_UTTERANCE_RE = re.compile(
+    r"\b(thank|thanks|dhanyavaad|shubh ho|bye|alvida|goodbye)\b|"
+    r"थैंक|थैंक्स|धन्यवाद|अलविदा|शुभ",
+    re.IGNORECASE,
+)
+
+
+def _is_goodbye_utterance(ut: str) -> bool:
+    """Caller wrapping up after close/handoff — no more sales pitch."""
+    try:
+        t = (to_roman(ut or "") or ut or "")[:_MAX_UTTERANCE_CHARS].lower()
+        if not t:
+            return False
+        if _GOODBYE_UTTERANCE_RE.search(t):
+            return True
+        return any(w in (ut or "") for w in ("थैंक", "धन्यवाद", "शुभ"))
+    except Exception:
+        return False
+
+
+def _is_post_close_bot_line(text: str) -> bool:
+    """Last bot line already committed to WhatsApp handoff / final setup."""
+    try:
+        low = (to_roman(text or "") or text or "").lower()
+        if not low:
+            return False
+        if "whatsapp number confirm" in low:
+            return True
+        if "perfect" in low and "whatsapp" in low:
+            return True
+        if "bhej rahi hoon" in low and ("setup" in low or "detail" in low):
+            return True
+        if "dhanyavaad" in low and "whatsapp" in low:
+            return True
+        return False
+    except Exception:
+        return False
+
+
+def _post_close_context_active(history: list[dict[str, str]] | None) -> bool:
+    try:
+        last = next(
+            (
+                str(m.get("content", ""))
+                for m in reversed(history or [])
+                if isinstance(m, dict) and m.get("role") == "assistant"
+            ),
+            "",
+        )
+        return _is_post_close_bot_line(last)
+    except Exception:
+        return False
+
+
 # Phone-number read-back — echo the WhatsApp number the caller gave so they can
 # catch an STT mistake. Returned digits get spaced at use-time so EdgeTTS reads
 # them one-by-one ("aath chaar paanch…") instead of as one giant number.
@@ -749,6 +803,11 @@ class TelecallerBrain:
         # every reply() call. web_call.py reads this once per turn to decide
         # whether to emit a close_signal WS event (inline trial-signup overlay).
         self.close_signal_fired: bool = False
+        # Irreversible close state — persists across turns (unlike close_signal_fired).
+        self.closing_started: bool = False
+        self.final_message_queued: bool = False
+        self.final_message_played: bool = False
+        self.session_closed: bool = False
 
         # Multi-key rotation pool (free-AI resilience): STT + LLM share a Gemini
         # quota PER KEY, so we rotate to the next key on a quota/429 error. The
@@ -912,6 +971,7 @@ class TelecallerBrain:
 
     def _close_setup_reply(self, ut: str) -> str:
         """Buy/close signal: ask WhatsApp confirm OR read back number same turn."""
+        self._mark_closing_started()
         num = _extract_phone(ut)
         if num:
             if not self.caller_phone:
@@ -944,6 +1004,90 @@ class TelecallerBrain:
             return self._audit_loop_pivot_line()
         return line
 
+    def _mark_closing_started(self) -> None:
+        if self.closing_started:
+            return
+        self.closing_started = True
+        self.final_message_queued = True
+        try:
+            ss = getattr(self, "_session_state", None)
+            if ss is not None:
+                ss.conversation_stage = "close"
+        except Exception:
+            pass
+
+    def _final_goodbye_line(self) -> str:
+        return self._clean(
+            "Bilkul sir! Saari detail WhatsApp pe bhej di — wahin milte hain. "
+            "Dhanyavaad, aapka din shubh ho!"
+        )
+
+    def _block_post_close_speech(self, line: str, *, authorized_final: bool = False) -> str:
+        if not line or authorized_final:
+            return line
+        if not (self.closing_started or self.session_closed):
+            return line
+        if self.session_closed:
+            logger.info("[telecaller-brain] post_close_speech_blocked session_closed")
+            return ""
+        low = line.lower()
+        if "audit" in low:
+            logger.info("[telecaller-brain] post_close_speech_blocked audit")
+            return self._final_goodbye_line()
+        return line
+
+    def _deliver_post_close_wrap(
+        self, history: list[dict[str, str]] | None, ut: str
+    ) -> str:
+        """After setup/handoff: goodbye, number confirm, or brief answer — NO audit resell."""
+        if not ut or not _close_detect_enabled() or not history:
+            return ""
+        if self.session_closed:
+            return ""
+        last_bot = self._last_bot_line(history) or ""
+        in_ctx = self.closing_started or _post_close_context_active(history)
+        if not in_ctx and not _is_post_close_bot_line(last_bot):
+            return ""
+        if not self.closing_started:
+            self._mark_closing_started()
+
+        if _is_goodbye_utterance(ut):
+            self.session_closed = True
+            self.final_message_played = True
+            if self.caller_phone and not self.close_signal_fired:
+                self._on_close_signal()
+            return self._final_goodbye_line()
+
+        if _is_post_close_bot_line(last_bot) and _is_post_close_reply(ut):
+            logger.info("[telecaller-brain] post-close wrap -> WhatsApp pivot")
+            _num = _extract_phone(ut)
+            if _num and not self.caller_phone:
+                self.set_caller_phone(_num)
+                self._on_close_signal()
+            elif self.caller_phone and not self.close_signal_fired:
+                self._on_close_signal()
+            self.final_message_played = True
+            if _num:
+                _spoken = " ".join(_num)
+                return self._clean(
+                    f"Perfect sir! Aapka WhatsApp number {_spoken} — isi par abhi "
+                    "saari detail aur setup bhej rahi hoon. Dhanyavaad, aapka din shubh ho!"
+                )
+            return self._clean(
+                "Perfect sir! Saari detail aur setup abhi WhatsApp pe bhej rahi "
+                "hoon — wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
+            )
+
+        if in_ctx and (self._looks_like_question(ut) or len((ut or "").split()) >= 5):
+            qa = self._customer_qa_reply(ut)
+            if qa:
+                out = self._apply_question_discipline(qa, ut, history)
+                return self._block_post_close_speech(out)
+            return self._clean(
+                "Samajh gayi — poori detail WhatsApp pe bhej rahi hoon, call pe charge bachate hain."
+            )
+        return ""
+
     def _on_close_signal(self) -> None:
         """Customer ne close/proceed-signal diya (haan chalu karo / le lo) —
         the bot's spoken promise ("abhi shuru kar deti hoon / WhatsApp bhej rahi
@@ -970,6 +1114,7 @@ class TelecallerBrain:
         """
         if not self.caller_phone:
             return
+        self._mark_closing_started()
         self.close_signal_fired = True
         try:
             from app.marketing import sales_pipeline
@@ -1822,53 +1967,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     return self._injection_deflection(history)
             except Exception:
                 pass
-            # POST-CLOSE WRAP (pre-LLM, gated CLOSE_DETECT): a setup-confirm already
-            # went out (we asked for the WhatsApp number); the caller's reply — a
-            # number or "haan, yahi number" — means we're DONE on the call. Short
-            # goodbye + everything moves to WhatsApp (calls cost money => no more
-            # questions once committed; web-test feedback 2026-06-29). Fail-open.
+            # POST-CLOSE WRAP (pre-LLM, gated CLOSE_DETECT): setup confirm / goodbye /
+            # handoff already spoken — block audit resell and move to WhatsApp.
             try:
-                if ut and _close_detect_enabled() and history:
-                    _last_bot = next(
-                        (
-                            str(m.get("content", ""))
-                            for m in reversed(history)
-                            if isinstance(m, dict) and m.get("role") == "assistant"
-                        ),
-                        "",
-                    )
-                    if "whatsapp number confirm" in _last_bot.lower() and _is_post_close_reply(ut):
-                        logger.info("[telecaller-brain] post-close wrap -> WhatsApp pivot")
-                        _num = _extract_phone(ut)
-                        if _num and not self.caller_phone:
-                            # Web-test call (no dialed number) — the caller just
-                            # SPOKE their WhatsApp number, the only one we'll ever
-                            # have on this path. Use it now to fire the durable
-                            # close actions (deal write + real WhatsApp send)
-                            # that _on_close_signal() no-op'd earlier for lack
-                            # of a phone (fixes: web-call close-signal never
-                            # produced a deal or a WhatsApp send).
-                            self.set_caller_phone(_num)
-                            self._on_close_signal()
-                        elif self.caller_phone and not self.close_signal_fired:
-                            # 2026-07-06: DIALED path — caller ne sirf affirm kiya
-                            # ("haan yahi number"); number pehle se hai, durable
-                            # close (deal-write) AB fire karo. Pehle yeh sirf web
-                            # path (spoken number) me hota tha => phone calls par
-                            # close-affirm ka deal record hi nahi banta tha.
-                            self._on_close_signal()
-                        if _num:
-                            # Read the number back digit-by-digit so the caller can
-                            # catch any STT mistake before we send to WhatsApp.
-                            _spoken = " ".join(_num)
-                            return self._clean(
-                                f"Perfect sir! Aapka WhatsApp number {_spoken} — isi par abhi "
-                                "saari detail aur setup bhej rahi hoon. Dhanyavaad, aapka din shubh ho!"
-                            )
-                        return self._clean(
-                            "Perfect sir! Saari detail aur setup abhi WhatsApp pe bhej rahi "
-                            "hoon — wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
-                        )
+                wrap = self._deliver_post_close_wrap(history, ut)
+                if wrap:
+                    return wrap
             except Exception:
                 pass
             # BUY / CLOSE SIGNAL (pre-LLM, gated CLOSE_DETECT default ON): caller
@@ -2036,10 +2140,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                         if _anti_loop_enabled() and self._user_substantive(ut):
                             _ack = self._mirror_ack(ut)
                             if _ack and not sc.lower().startswith(_ack.lower().rstrip(" —")[:6]):
-                                return self._clean(f"{_ack} {sc}".strip())
+                                return self._block_post_close_speech(
+                                    self._clean(f"{_ack} {sc}".strip())
+                                )
                     except Exception:
                         pass
-                    return sc
+                    return self._block_post_close_speech(sc)
             if text:
                 logger.debug(f"[telecaller-brain] reply via {prov}")
                 # OPENER CACHE STORE — store GENUINE LLM reply for next first-turn
@@ -2082,46 +2188,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                     return
             except Exception:
                 pass
-            # POST-CLOSE WRAP + BUY/CLOSE SIGNAL (pre-LLM) — 2026-07-03: these two
-            # guards existed ONLY in reply(), never ported here. Since
-            # USE_LLM_STREAM_TTS=1 routes every real phone call through THIS
-            # generator (not reply()), an explicit close-signal ("activate karo
-            # plan", "final karo direct") NEVER short-circuited on a live call —
-            # it fell straight to the streaming LLM, which (being a free-tier
-            # model on Devanagari input) often answered "Ji, zara dobara boliye?"
-            # instead of confirming the close. Same logic as reply(), single
-            # yield + return instead of return.
+            # POST-CLOSE WRAP + BUY/CLOSE SIGNAL (pre-LLM) — same guards as reply().
             try:
-                if ut and _close_detect_enabled() and history:
-                    _last_bot = next(
-                        (
-                            str(m.get("content", ""))
-                            for m in reversed(history)
-                            if isinstance(m, dict) and m.get("role") == "assistant"
-                        ),
-                        "",
-                    )
-                    if "whatsapp number confirm" in _last_bot.lower() and _is_post_close_reply(ut):
-                        logger.info("[telecaller-brain] post-close wrap -> WhatsApp pivot (stream)")
-                        _num = _extract_phone(ut)
-                        if _num and not self.caller_phone:
-                            self.set_caller_phone(_num)
-                            self._on_close_signal()
-                        elif self.caller_phone and not self.close_signal_fired:
-                            # 2026-07-06: dialed-path affirm => durable close (reply() parity).
-                            self._on_close_signal()
-                        if _num:
-                            _spoken = " ".join(_num)
-                            yield self._clean(
-                                f"Perfect sir! Aapka WhatsApp number {_spoken} — isi par abhi "
-                                "saari detail aur setup bhej rahi hoon. Dhanyavaad, aapka din shubh ho!"
-                            )
-                            return
-                        yield self._clean(
-                            "Perfect sir! Saari detail aur setup abhi WhatsApp pe bhej rahi "
-                            "hoon — wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
-                        )
-                        return
+                wrap = self._deliver_post_close_wrap(history, ut)
+                if wrap:
+                    yield wrap
+                    return
             except Exception:
                 pass
             try:
@@ -2202,6 +2274,14 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 return
         except Exception as e:
             logger.debug("[telecaller-brain] reply_stream_sentences skip: %s", e)
+        fast = self._fast_path_reply(history, user_text)
+        if fast:
+            yield fast
+            return
+        sc = self._script_fallback(history)
+        if sc:
+            yield self._block_post_close_speech(sc)
+            return
         one = await self.reply(history, user_text)
         if one:
             yield one
@@ -2697,6 +2777,8 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
 
     def _next_discovery_line(self, history: list[dict[str, str]]) -> str:
         """Pehla unasked discovery → value → close."""
+        if self.closing_started or self.session_closed:
+            return ""
         try:
             from app.voice_agent.niche_scripts import get_script
 

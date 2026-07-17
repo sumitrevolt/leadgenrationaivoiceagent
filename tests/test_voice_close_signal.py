@@ -310,3 +310,65 @@ async def test_send_close_whatsapp_omits_biz_for_ai_marketing_niche(monkeypatch)
     assert "biz=" not in sent["message"]
     assert "phone=9876543210" in sent["message"]
     assert "niche=ai_marketing" in sent["message"]
+
+
+@pytest.mark.asyncio
+async def test_thank_you_after_whatsapp_readback_no_audit(monkeypatch):
+    """Proven 7742e06a defect: after Perfect+WhatsApp readback, thank-you must NOT
+    resell FREE Google audit."""
+    monkeypatch.setenv("CLOSE_DETECT", "1")
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    brain.set_caller_phone("9876543210")
+    brain.closing_started = True
+    history = [
+        {
+            "role": "assistant",
+            "content": (
+                "Perfect! Aapka WhatsApp number 9 8 7 6 5 4 3 2 1 0 — isi par abhi "
+                "saari detail aur setup bhej rahi hoon."
+            ),
+        }
+    ]
+    reply = await brain.reply(history, "theek hai thank you")
+    assert "audit" not in reply.lower()
+    assert brain.session_closed is True
+    assert "whatsapp" in reply.lower() or "dhanyavaad" in reply.lower()
+
+
+@pytest.mark.asyncio
+async def test_stream_thank_you_after_handoff_blocks_audit(monkeypatch):
+    monkeypatch.setenv("CLOSE_DETECT", "1")
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    brain.set_caller_phone("9876543210")
+    history = [
+        {
+            "role": "assistant",
+            "content": (
+                "Perfect sir! Saari detail aur setup abhi WhatsApp pe bhej rahi "
+                "hoon — wahin aaram se baat kar lenge. Dhanyavaad, aapka din shubh ho!"
+            ),
+        }
+    ]
+    out: list[str] = []
+    async for sent in TelecallerBrain.reply_stream_sentences(brain, history, "ok thanks"):
+        out.append(sent)
+    text = " ".join(out).lower()
+    assert "audit" not in text
+    assert brain.session_closed is True
+
+
+def test_script_fallback_empty_after_closing_started():
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    brain.closing_started = True
+    history = [
+        {"role": "assistant", "content": "FREE Google audit bhej doon?"},
+    ]
+    assert brain._script_fallback(history) == ""
+
+
+def test_block_post_close_speech_strips_audit_line():
+    brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    brain.closing_started = True
+    blocked = brain._block_post_close_speech("Toh FREE Google audit abhi bhej doon?")
+    assert "audit" not in blocked.lower()
+    assert "whatsapp" in blocked.lower() or "dhanyavaad" in blocked.lower()
