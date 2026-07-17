@@ -1103,13 +1103,21 @@ try:
                 content={"detail": "MCP /mcp endpoint requires authentication"},
             )
 
-        _gate_kind = "token" if _mcp_token else "ip-allowlist"
+        from app.platform.mcp_import import mcp_gate_kind
+
+        _gate_kind = mcp_gate_kind(
+            token_configured=bool(_mcp_token),
+            allowlist_configured=bool(_mcp_allowlist),
+        )
         logger.info(
             f"✅ MCP server mounted at /mcp (gated: {_gate_kind}, "
             f"Platform/Data/Agents tools)"
         )
-except ImportError:
-    logger.info("fastapi-mcp not installed — MCP exposure disabled")
+except ImportError as e:
+    from app.platform.mcp_import import describe_mcp_import_failure
+
+    _mcp_log_level, _mcp_log_message = describe_mcp_import_failure(e)
+    getattr(logger, _mcp_log_level)(_mcp_log_message)
 except Exception as e:
     logger.warning(f"MCP mount failed (non-fatal): {e}")
 
