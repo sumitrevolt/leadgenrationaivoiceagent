@@ -2669,6 +2669,22 @@ class VobizStreamSession:
         so _stop_play()/_barge_in() cancel synth + playback together."""
         if not text or not text.strip():
             return
+        try:
+            tc = self._telecaller if self._telecaller_tried else None
+            if tc is not None and getattr(tc, "session_closed", False):
+                logger.info(
+                    f"[vobiz-stream {self.stream_sid}] post_close_speech_blocked session_closed"
+                )
+                return
+            if tc is not None and getattr(tc, "closing_started", False):
+                low = text.lower()
+                if "audit" in low and "dhanyavaad" not in low:
+                    logger.info(
+                        f"[vobiz-stream {self.stream_sid}] post_close_speech_blocked audit"
+                    )
+                    return
+        except Exception:
+            pass
         if not TTS_AVAILABLE:
             logger.warning("[vobiz-stream] TTS unavailable (edge-tts/pydub) — skipping speak")
             return

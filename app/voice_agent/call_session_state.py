@@ -21,6 +21,9 @@ class CallSessionState:
     opener_blocked_count: int = 0
     semantic_loop_detected: bool = False
     conversation_stage: str = "opening"  # opening|discovery|pitch|objection|close|ended
+    closing_started: bool = False
+    final_message_played: bool = False
+    session_closed: bool = False
     active_model_route: str = ""
     active_provider: str = ""
     active_model: str = ""
@@ -72,6 +75,9 @@ class CallSessionState:
             "opener_blocked_count": self.opener_blocked_count,
             "semantic_loop_detected": self.semantic_loop_detected,
             "conversation_stage": self.conversation_stage,
+            "closing_started": self.closing_started,
+            "final_message_played": self.final_message_played,
+            "session_closed": self.session_closed,
             "active_model_route": self.active_model_route,
             "active_provider": self.active_provider,
             "active_model": self.active_model,
