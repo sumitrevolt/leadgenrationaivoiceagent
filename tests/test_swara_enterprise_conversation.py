@@ -1,4 +1,5 @@
 """Focused tests for Swara enterprise conversation upgrade (STT/sticky/opener/QA)."""
+
 from __future__ import annotations
 
 import pytest
@@ -56,9 +57,7 @@ def test_stt_gate_mixed_junk_metrics():
 
 
 def test_strip_junk_phrases_preserves_phone_content():
-    cleaned, ratio, had = strip_junk_phrases(
-        "Aam shabd, 8459012607 par WhatsApp bhej do"
-    )
+    cleaned, ratio, had = strip_junk_phrases("Aam shabd, 8459012607 par WhatsApp bhej do")
     assert had is True
     assert "8459012607" in cleaned
     assert "aam shabd" not in cleaned.lower()
@@ -294,6 +293,17 @@ def test_question_discipline_strips_extra_q_when_customer_silent():
     raw = "Roz posts automatic hain — social pe time milta hai kya?"
     out = b._apply_question_discipline(raw, "khud karta hoon", hist)
     assert "?" not in out
+
+
+def test_question_discipline_preserves_pricing_after_customer_question():
+    """Rhetorical double-? must not cut pricing/setup detail after the 2nd ?."""
+    b = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")
+    hist = [{"role": "user", "content": "price kya hai aapka?"}]
+    raw = "Interested hain? Budget kitna? " "Basic plan 1999 se start hota hai — setup free hai."
+    out = b._apply_question_discipline(raw, "price kya hai aapka?", hist)
+    assert "1999" in out
+    assert "setup free" in out.lower()
+    assert out.count("?") <= 1
 
 
 def test_greeting_on_platform_pitch_skips_discovery_barrage():

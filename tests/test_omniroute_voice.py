@@ -123,3 +123,91 @@ class TestSwaraLiveRoute:
 
         with pytest.raises(SafePayloadError):
             get_task_route(ov.TASK_SWARA_LIVE, "INTERNAL_SANITIZED")
+
+
+class TestOmniRouteSingleRoute:
+    @pytest.mark.asyncio
+    async def test_omniroute_single_route_shared_generation_id(self, monkeypatch):
+        """Telecaller-owned gen_id: free_ai realtime must not re-attempt OmniRoute."""
+        from app.voice_agent import free_ai
+
+        monkeypatch.setenv("OMNIROUTE_VOICE", "1")
+        monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+        monkeypatch.setenv("OMNIROUTE_API_KEY", "synthetic-test-key-not-real")
+
+        omni_calls: list[str | None] = []
+
+        async def fake_omni_chat_stream(*args, **kwargs):
+            omni_calls.append(kwargs.get("generation_id"))
+            if False:
+                yield "tok"
+
+        monkeypatch.setattr(ov, "chat_stream", fake_omni_chat_stream)
+
+        class _Delta:
+            def __init__(self, content: str):
+                self.content = content
+
+        class _Choice:
+            def __init__(self, content: str):
+                self.delta = _Delta(content)
+
+        class _Chunk:
+            def __init__(self, content: str):
+                self.choices = [_Choice(content)]
+
+        class _FakeStream:
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if getattr(self, "_done", False):
+                    raise StopAsyncIteration
+                self._done = True
+                return _Chunk("fallback")
+
+            async def aclose(self):
+                return None
+
+        class _FakeCompletions:
+            async def create(self, **kwargs):
+                return _FakeStream()
+
+        class _FakeClient:
+            chat = type("Chat", (), {"completions": _FakeCompletions()})()
+
+        monkeypatch.setattr(
+            "app.voice_agent.free_ai._build_llm_chain", lambda _prof: [("groq", "x")]
+        )
+        monkeypatch.setattr("app.voice_agent.free_ai._client", lambda _p: _FakeClient())
+        monkeypatch.setattr("app.voice_agent.free_ai._provider_down", lambda _p: False)
+        monkeypatch.setattr("app.voice_agent.free_ai._blocked_for_provider", lambda _m, _p: False)
+
+        gen_id = ov.new_generation_id()
+        async for _ in ov.chat_stream(
+            "", [{"role": "user", "content": "price kya hai"}], generation_id=gen_id
+        ):
+            pass
+
+        got_free = False
+        async for _ in free_ai.chat_stream(
+            "",
+            [{"role": "user", "content": "price kya hai"}],
+            max_tokens=16,
+            profile="realtime",
+        ):
+            got_free = True
+            break
+
+        assert got_free is True
+        assert len(omni_calls) == 1
+        assert omni_calls[0] == gen_id
+
+
+class TestCancelledBounded:
+    def test_cancelled_dict_bounded(self, monkeypatch):
+        monkeypatch.setenv("OMNIROUTE_VOICE_CANCELLED_MAX", "32")
+        ov._cancelled.clear()
+        for i in range(50):
+            ov.cancel_generation(f"gen{i:04d}")
+        assert len(ov._cancelled) <= 32

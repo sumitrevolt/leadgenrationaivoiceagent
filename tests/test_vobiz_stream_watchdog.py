@@ -22,6 +22,8 @@ from __future__ import annotations
 import asyncio
 import types
 
+import pytest
+
 from app.telephony import vobiz_stream as vs
 
 
@@ -214,3 +216,40 @@ async def test_send_is_bounded_when_ws_write_hangs(monkeypatch):
     await asyncio.wait_for(sess._send({"event": "playAudio"}), timeout=1)
 
     assert sess._closed is True
+
+
+async def test_processing_ack_does_not_cancel_live_stream(monkeypatch):
+    """Ack bridge must stop stale playback only — never kill in-flight LLM stream."""
+    monkeypatch.setenv("VOICE_PROCESSING_ACK", "1")
+    monkeypatch.setenv("VOICE_PROCESSING_ACK_DELAY_S", "0.05")
+    monkeypatch.setattr(vs, "TTS_AVAILABLE", True)
+    monkeypatch.setattr(vs, "_PROCESSING_ACK_PCM", b"\x00" * 640)
+    sess = _session()
+    sess._thinking = True
+    sess._active_generation_id = "gen-test-01"
+    stream_cancelled = False
+
+    async def _live_stream():
+        nonlocal stream_cancelled
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            stream_cancelled = True
+            raise
+
+    sess._stream_task = asyncio.create_task(_live_stream())
+
+    async def _quick_play(_pcm):
+        return None
+
+    monkeypatch.setattr(sess, "_run_play", _quick_play)
+
+    await sess._processing_ack_watch()
+
+    assert stream_cancelled is False
+    assert sess._stream_task is not None
+    assert not sess._stream_task.done()
+    assert sess._active_generation_id == "gen-test-01"
+    sess._stream_task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await sess._stream_task
