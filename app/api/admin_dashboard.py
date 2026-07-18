@@ -54,7 +54,9 @@ async def _safe_collect_live_stats(timeout: float = 8.0) -> dict:
     try:
         return await asyncio.wait_for(asyncio.to_thread(_collect_live_stats), timeout=timeout)
     except Exception as e:
-        logger.warning("admin_dashboard: _collect_live_stats timed out/failed (%ss budget): %s", timeout, e)
+        logger.warning(
+            "admin_dashboard: _collect_live_stats timed out/failed (%ss budget): %s", timeout, e
+        )
         return {}
 
 
@@ -234,7 +236,9 @@ async def get_revenue_trend(days: int = 90, _user=Depends(require_admin)) -> dic
         return {"enabled": True, "points": [], "note": str(e)[:160]}
 
 
-def _build_client_timeline(client_id, agent_events, inquiries, audit, delivery_events=None, limit=50):
+def _build_client_timeline(
+    client_id, agent_events, inquiries, audit, delivery_events=None, limit=50
+):
     """Pure merge+sort of per-client events from 4 sources. Newest first."""
     items: list[dict] = []
     for ev in agent_events or []:
@@ -355,7 +359,9 @@ async def get_client_timeline(
         delivery_events = delivery_ledger.timeline(client_id, limit=100, customer_only=False)
     except Exception:
         delivery_events = []
-    events = _build_client_timeline(client_id, agent_events, inquiries, audit, delivery_events, limit)
+    events = _build_client_timeline(
+        client_id, agent_events, inquiries, audit, delivery_events, limit
+    )
     return {"enabled": True, "client_id": client_id, "events": events}
 
 
@@ -706,6 +712,21 @@ async def bulk_email_clients(body: BulkEmailIn, _user=Depends(require_admin)) ->
     """Selected clients ko transactional check-in email — SMTP off ho to graceful skip."""
     from app.api.billing import _client_email, _client_name
     from app.integrations.email_sender import EmailSender
+
+    try:
+        from app.platform.owner_os import kill_engaged
+
+        if kill_engaged("owner_bulk_email"):
+            return {
+                "ok": False,
+                "sent": 0,
+                "skipped": 0,
+                "failed": 0,
+                "error": "owner_bulk_email kill switch ENGAGED",
+                "details": [],
+            }
+    except Exception:
+        pass
 
     subject = (body.subject or "LeadsGenAI — quick check-in").strip()[:200]
     custom = (body.message or "").strip()
