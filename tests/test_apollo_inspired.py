@@ -130,8 +130,9 @@ def test_cadence_step_stats(tmp_path, monkeypatch):
 
 def test_apollo_routes_registered():
     from app.api.growth import router
+    from app.utils.route_inspection import iter_effective_routes
 
-    paths = {r.path for r in router.routes}
+    paths = {getattr(r, "path", "") for r in iter_effective_routes(router.routes)}
     for p in (
         "/growth/prospects/search",
         "/growth/prospects/lists",
