@@ -27,3 +27,45 @@ def test_admin_office_tasks_sorted_and_well_formed():
         assert int(t.get("count") or 0) >= 1, t
     # total_pending == sum of per-task counts
     assert o["total_pending"] == sum(int(t.get("count") or 0) for t in o["your_tasks"])
+
+
+def test_admin_office_content_why_uses_business_names(monkeypatch):
+    """Pending content hint should prefer business_name over raw client ids."""
+    import app.api.admin_ops as admin_ops
+
+    class _CA:
+        @staticmethod
+        def pending(_cid):
+            return [
+                {"client_id": "jiya-makeover"},
+                {"client_id": "jiya-makeover"},
+                {"client_id": "deadbeefdead"},
+            ]
+
+    class _SI:
+        @staticmethod
+        def approval_status():
+            return {"pending_count": 0}
+
+    class _CU:
+        @staticmethod
+        def list_patches(_st, _n):
+            return []
+
+    def _get_client(cid):
+        if cid == "jiya-makeover":
+            return {"business_name": "Jiya Makeover Studio", "slug": "jiya-makeover"}
+        return None
+
+    monkeypatch.setattr("app.marketing.content_approval.pending", _CA.pending)
+    monkeypatch.setattr("app.agents.self_improve.approval_status", _SI.approval_status)
+    monkeypatch.setattr("app.agents.code_upgrader.list_patches", _CU.list_patches)
+    monkeypatch.setattr(admin_ops, "_pending_upi_queue", lambda _n: [])
+    monkeypatch.setattr("app.marketing.clients_store.get_client", _get_client)
+    monkeypatch.setattr("app.marketing.clients_store.get_by_slug", lambda _s: None)
+
+    o = admin_ops._admin_office()
+    content = next((t for t in o["your_tasks"] if t.get("id") == "content"), None)
+    assert content, o["your_tasks"]
+    assert "Jiya Makeover Studio" in content["why"]
+    assert "jiya-makeover(" not in content["why"]

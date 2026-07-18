@@ -20,7 +20,7 @@ import time
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -215,11 +215,13 @@ def _leads_ready() -> dict:
             connect_timeout=4,
         )
         cur = conn.cursor()
-        cur.execute("""SELECT COALESCE(NULLIF(LOWER(niche),''),'general') AS n, COUNT(*)
+        cur.execute(
+            """SELECT COALESCE(NULLIF(LOWER(niche),''),'general') AS n, COUNT(*)
             FROM leads
             WHERE phone IS NOT NULL AND phone <> ''
               AND COALESCE(call_attempts,0) = 0
-            GROUP BY 1 ORDER BY 2 DESC LIMIT 15""")
+            GROUP BY 1 ORDER BY 2 DESC LIMIT 15"""
+        )
         rows = cur.fetchall()
         conn.close()
         by_niche = [{"niche": r[0], "count": int(r[1])} for r in rows]
@@ -272,7 +274,10 @@ def _load_call_transcript(call_id: str) -> dict | None:
                         continue
                     if not isinstance(rec, dict):
                         continue
-                    if str(rec.get("stream_sid") or "") == cid or str(rec.get("call_sid") or "") == cid:
+                    if (
+                        str(rec.get("stream_sid") or "") == cid
+                        or str(rec.get("call_sid") or "") == cid
+                    ):
                         return rec
         except Exception:
             continue
@@ -320,11 +325,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
     if not 1 <= req.limit <= 200:
         raise HTTPException(status_code=400, detail="limit must be 1–200")
 
-    from app.tasks.calling import (
-        acquire_campaign_lock,
-        campaign_lock_held,
-        release_campaign_lock,
-    )
+    from app.tasks.calling import acquire_campaign_lock, campaign_lock_held, release_campaign_lock
 
     if campaign_lock_held():
         raise HTTPException(
@@ -670,9 +671,10 @@ async def swara_enterprise_status(_user=Depends(require_admin)):
     except Exception as e:
         out["stt_gate"] = {"error": type(e).__name__}
     try:
-        from app.voice_agent.postcall_qa import training_loop_enabled
-        from pathlib import Path
         import json
+        from pathlib import Path
+
+        from app.voice_agent.postcall_qa import training_loop_enabled
 
         proposals = []
         p = Path("data") / "voice_training_proposals.jsonl"
@@ -727,13 +729,19 @@ def _admin_office() -> dict:
 
     n = _safe(_si)
     if n > 0:
-        tasks.append({
-            "id": "selfimprove", "icon": "🤖", "severity": "medium", "count": n,
-            "title": f"{n} self-improve task approve karo",
-            "why": "Agents aapki OK ka wait kar rahe — tab tak loop ruka",
-            "cta_label": "Approvals kholo", "cta_target": "sec-automation",
-            "cta_action": "open_approvals",
-        })
+        tasks.append(
+            {
+                "id": "selfimprove",
+                "icon": "🤖",
+                "severity": "medium",
+                "count": n,
+                "title": f"{n} self-improve task approve karo",
+                "why": "Agents aapki OK ka wait kar rahe — tab tak loop ruka",
+                "cta_label": "Approvals kholo",
+                "cta_target": "sec-automation",
+                "cta_action": "open_approvals",
+            }
+        )
 
     # 2) Content approvals — posts waiting for sign-off
     def _ca() -> tuple[int, dict[str, int]]:
@@ -752,19 +760,42 @@ def _admin_office() -> dict:
         n, by_client = 0, {}
     if n > 0:
         top_clients = sorted(by_client.items(), key=lambda kv: (-kv[1], kv[0]))[:4]
-        client_hint = ", ".join(f"{cid}({cnt})" for cid, cnt in top_clients) or "—"
+
+        def _client_label(cid: str) -> str:
+            """Show business name when known — raw hex ids confuse non-tech admins."""
+            key = str(cid or "").strip()
+            if not key or key == "unknown":
+                return "Unknown client"
+            try:
+                from app.marketing.clients_store import get_by_slug, get_client
+
+                rec = get_client(key) or get_by_slug(key) or {}
+                name = str(rec.get("business_name") or rec.get("company") or "").strip()
+                if name:
+                    return name
+            except Exception:
+                pass
+            return key if len(key) <= 18 else (key[:10] + "…")
+
+        client_hint = ", ".join(f"{_client_label(cid)} ({cnt})" for cid, cnt in top_clients) or "—"
         n_clients = len(by_client)
-        tasks.append({
-            "id": "content", "icon": "✅", "severity": "high", "count": n,
-            "clients_affected": n_clients,
-            "title": f"{n} content posts · {n_clients} clients pe pending",
-            "why": f"Pehle paid clients check karo (top: {client_hint}). Bulk approve yahan risky — Mission Control / Client Actions use karo.",
-            "impact": "approve ke baad publish path open ho sakta hai",
-            # Honest CTA: Mission Control is the real approvals surface (not scroll-only)
-            "cta_label": "Mission Control", "cta_target": "sec-automation",
-            "cta_href": "/app/automation",
-            "cta_action": "open_href",
-        })
+        tasks.append(
+            {
+                "id": "content",
+                "icon": "✅",
+                "severity": "high",
+                "count": n,
+                "clients_affected": n_clients,
+                "title": f"{n} content posts · {n_clients} clients pe pending",
+                "why": f"Pehle paid clients check karo (top: {client_hint}). Bulk approve yahan risky — Mission Control / Client Actions use karo.",
+                "impact": "approve ke baad publish path open ho sakta hai",
+                # Honest CTA: Mission Control is the real approvals surface (not scroll-only)
+                "cta_label": "Mission Control",
+                "cta_target": "sec-automation",
+                "cta_href": "/app/automation",
+                "cta_action": "open_href",
+            }
+        )
 
     # 3) Code-upgrader patches — Vikram's proposals need review
     def _cp() -> int:
@@ -774,13 +805,19 @@ def _admin_office() -> dict:
 
     n = _safe(_cp)
     if n > 0:
-        tasks.append({
-            "id": "patches", "icon": "🩹", "severity": "medium", "count": n,
-            "title": f"{n} code patch review karo",
-            "why": "Vikram ne fixes propose kiye — core code kabhi auto-apply nahi hota",
-            "cta_label": "Review kholo", "cta_target": "sec-automation",
-            "cta_action": "open_approvals",
-        })
+        tasks.append(
+            {
+                "id": "patches",
+                "icon": "🩹",
+                "severity": "medium",
+                "count": n,
+                "title": f"{n} code patch review karo",
+                "why": "Vikram ne fixes propose kiye — core code kabhi auto-apply nahi hota",
+                "cta_label": "Review kholo",
+                "cta_target": "sec-automation",
+                "cta_action": "open_approvals",
+            }
+        )
 
     # 4) UPI activations — customer paid, manual plan-activate pending (revenue!)
     try:
@@ -789,13 +826,19 @@ def _admin_office() -> dict:
         upi_q = []
     if upi_q:
         n = len(upi_q)
-        tasks.append({
-            "id": "upi", "icon": "💳", "severity": "high", "count": n,
-            "title": f"{n} UPI payment activate karo",
-            "why": "Customer ne pay kiya — manually plan activate karo (revenue ruka)",
-            "impact": "activate karte hi customer ka product chalu",
-            "cta_label": "UPI queue kholo", "cta_target": "sec-upi-selfserve",
-        })
+        tasks.append(
+            {
+                "id": "upi",
+                "icon": "💳",
+                "severity": "high",
+                "count": n,
+                "title": f"{n} UPI payment activate karo",
+                "why": "Customer ne pay kiya — manually plan activate karo (revenue ruka)",
+                "impact": "activate karte hi customer ka product chalu",
+                "cta_label": "UPI queue kholo",
+                "cta_target": "sec-upi-selfserve",
+            }
+        )
 
     _sev = {"high": 0, "medium": 1, "low": 2}
     tasks.sort(key=lambda t: _sev.get(t.get("severity"), 9))
@@ -804,9 +847,16 @@ def _admin_office() -> dict:
     if not tasks:
         headline = "✅ Koi pending approval nahi — sab clear"
     else:
-        headline = f"⚠️ {total} cheez aapki action maangti hai" + (f" ({high} urgent)" if high else "")
-    return {"ok": True, "enabled": True, "headline": headline,
-            "your_tasks": tasks, "total_pending": total}
+        headline = f"⚠️ {total} cheez aapki action maangti hai" + (
+            f" ({high} urgent)" if high else ""
+        )
+    return {
+        "ok": True,
+        "enabled": True,
+        "headline": headline,
+        "your_tasks": tasks,
+        "total_pending": total,
+    }
 
 
 @router.get("/office", summary="Admin Office — consolidated 'Sumit ke kaam' pending actions")
@@ -1063,7 +1113,11 @@ async def upi_activate(
                 action="payment.approve",
                 resource_type="client",
                 resource_id=cid,
-                new_value={"plan": plan, "via": "upi_screenshot", "clear_trial": bool(body.clear_trial)},
+                new_value={
+                    "plan": plan,
+                    "via": "upi_screenshot",
+                    "clear_trial": bool(body.clear_trial),
+                },
                 ip_address=request.client.host if request.client else None,
                 severity="warning",
             )
@@ -1076,7 +1130,9 @@ async def upi_activate(
         raise HTTPException(status_code=500, detail=str(exc)[:200]) from exc
 
 
-@router.post("/clients/{client_id}/deliver-now", summary="Human-clicked single-customer delivery unstick")
+@router.post(
+    "/clients/{client_id}/deliver-now", summary="Human-clicked single-customer delivery unstick"
+)
 async def deliver_now(client_id: str, _user=Depends(require_admin)) -> dict:
     """Admin clicks this for one stuck paid customer — calls the existing
     deliver_client_value(force=True) bypass. Never touches AUTO_DELIVER_VALUE;
@@ -1113,15 +1169,19 @@ async def client_password_reset(client_id: str, body: dict, _user=Depends(requir
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
     from app.marketing import clients_store
+
     client = clients_store.get_client(client_id)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
 
     email = client.get("email")
     if not email:
-        raise HTTPException(status_code=400, detail="Client email not set, cannot reset login credentials")
+        raise HTTPException(
+            status_code=400, detail="Client email not set, cannot reset login credentials"
+        )
 
     from app.api import customer_auth
+
     customer_auth.register_login(email, password, client_id)
     # ADR-104 (2026-07-15, Priority 4): this endpoint had no audit trail at
     # all -- a real customer's login credential could be overwritten with no
@@ -1139,14 +1199,20 @@ async def client_password_reset(client_id: str, body: dict, _user=Depends(requir
     return {"ok": True}
 
 
-@router.post("/clients/{client_id}/onboard/scrape", summary="Admin-clicked customer website re-scrape")
-async def client_onboard_scrape(client_id: str, background_tasks: BackgroundTasks, _user=Depends(require_admin)) -> dict:
+@router.post(
+    "/clients/{client_id}/onboard/scrape", summary="Admin-clicked customer website re-scrape"
+)
+async def client_onboard_scrape(
+    client_id: str, background_tasks: BackgroundTasks, _user=Depends(require_admin)
+) -> dict:
     from app.marketing import clients_store
+
     client = clients_store.get_client(client_id)
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
 
     from app.marketing import onboarding
+
     background_tasks.add_task(onboarding.auto_onboard, client_id, send_welcome=False, force=True)
     # ADR-104 (2026-07-15, Priority 4): force=True re-scrapes the client's
     # real website and re-seeds KB/content pack even if setup_done -- a real
@@ -1222,7 +1288,9 @@ async def trust_configure_turnstile(body: TrustTurnstileReq, _user=Depends(requi
     return {"ok": True, "trust": trust_config.status()}
 
 
-@router.post("/trust/configure-sentry", summary="Set Sentry DSN (lazy web init; worker restart recommended)")
+@router.post(
+    "/trust/configure-sentry", summary="Set Sentry DSN (lazy web init; worker restart recommended)"
+)
 async def trust_configure_sentry(body: TrustSentryReq, _user=Depends(require_admin)):
     from app.platform import trust_config
 
@@ -1254,7 +1322,9 @@ async def trust_configure_posthog(body: TrustPosthogReq, _user=Depends(require_a
     }
 
 
-@router.post("/flow/seed-templates", summary="Apply all Flow Runner starter templates (FLOW_RUNNER=1)")
+@router.post(
+    "/flow/seed-templates", summary="Apply all Flow Runner starter templates (FLOW_RUNNER=1)"
+)
 async def flow_seed_templates(_user=Depends(require_admin)):
     """Council ship-now — 3 starter flows ek click me (draft-safe)."""
     if os.getenv("FLOW_RUNNER", "0") not in ("1", "true", "True"):
@@ -1286,7 +1356,9 @@ async def flow_seed_templates(_user=Depends(require_admin)):
     return {"ok": True, "created": created, "count": len(created)}
 
 
-@router.get("/voice/latency", summary="Voice agent per-turn latency rollup (P50/P95) — proves call speed")
+@router.get(
+    "/voice/latency", summary="Voice agent per-turn latency rollup (P50/P95) — proves call speed"
+)
 async def voice_latency(date: str = "", recent: int = 20, _user=Depends(require_admin)):
     """Per-turn voice latency (stt_ms / llm_first_ms / tts_first_ms / turn_ms)
     rolled up to P50/P95/avg/max from ``data/turn_metrics/`` — the numbers that
