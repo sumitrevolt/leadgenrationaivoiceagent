@@ -167,7 +167,7 @@ def _billing_client_ids(client_id: str) -> list[str]:
 
         rec = get_client(client_id) or {}
         aliases = rec.get("billing_client_ids") or []
-        if isinstance(aliases, (list, tuple, set)):
+        if isinstance(aliases, list | tuple | set):
             ids.extend(str(x or "").strip() for x in aliases)
     except Exception:
         pass
@@ -563,9 +563,7 @@ async def get_invoices(
 
     # Query Postgres invoices
     result = await db.execute(
-        select(Invoice)
-        .where(Invoice.client_id.in_(alias_ids))
-        .order_by(Invoice.created_at.desc())
+        select(Invoice).where(Invoice.client_id.in_(alias_ids)).order_by(Invoice.created_at.desc())
     )
     pg_invoices = result.scalars().all()
 
@@ -576,7 +574,9 @@ async def get_invoices(
 
         alias_set = set(alias_ids)
         jsonl_invoices = [
-            r for r in gst_invoice.list_invoices(500) if str(r.get("client_id") or "") in alias_set
+            r
+            for r in gst_invoice.list_invoices(500)
+            if str(r.get("client_id") or "") in alias_set and not r.get("voided")
         ]
         for inv in jsonl_invoices:
             all_invoices.append(
@@ -634,7 +634,9 @@ async def get_invoice_details(
     Get detailed invoice information
     """
     result = await db.execute(
-        select(Invoice).where(and_(Invoice.id == invoice_id, Invoice.client_id.in_(_billing_client_ids(client_id))))
+        select(Invoice).where(
+            and_(Invoice.id == invoice_id, Invoice.client_id.in_(_billing_client_ids(client_id)))
+        )
     )
     invoice = result.scalar_one_or_none()
 
@@ -713,7 +715,11 @@ async def get_payment_methods(
     """
     result = await db.execute(
         select(PaymentMethod)
-        .where(and_(PaymentMethod.client_id.in_(_billing_client_ids(client_id)), PaymentMethod.is_active))
+        .where(
+            and_(
+                PaymentMethod.client_id.in_(_billing_client_ids(client_id)), PaymentMethod.is_active
+            )
+        )
         .order_by(PaymentMethod.is_default.desc(), PaymentMethod.created_at.desc())
     )
     methods = result.scalars().all()
@@ -774,7 +780,12 @@ async def get_usage_history(
 
     result = await db.execute(
         select(UsageRecord)
-        .where(and_(UsageRecord.client_id.in_(_billing_client_ids(client_id)), UsageRecord.usage_date >= start_date))
+        .where(
+            and_(
+                UsageRecord.client_id.in_(_billing_client_ids(client_id)),
+                UsageRecord.usage_date >= start_date,
+            )
+        )
         .order_by(UsageRecord.usage_date.desc())
     )
     records = result.scalars().all()
@@ -883,7 +894,9 @@ async def create_billing_portal(
             raise HTTPException(status_code=503, detail="Stripe gateway not configured")
         try:
             # Stripe removed 2026-07-10 — no billing portal available.
-            raise HTTPException(status_code=503, detail="Billing portal not available (UPI-only payments)")
+            raise HTTPException(
+                status_code=503, detail="Billing portal not available (UPI-only payments)"
+            )
         except Exception as e:
             logger.error(f"Failed to create billing portal: {e}")
             raise HTTPException(status_code=500, detail=str(e))

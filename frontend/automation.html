@@ -2339,15 +2339,28 @@ async function rvInvoices(){
     var h='<div class="result">'+pills(d.stats||{});
     var rows=d.invoices||[];
     if(rows.length){
-      h+='<table><tr><th>Number</th><th>Date</th><th>Client</th><th>Plan</th><th>₹ Gross</th><th></th></tr>';
+      h+='<table><tr><th>Number</th><th>Date</th><th>Client</th><th>Plan</th><th>₹ Gross</th><th></th><th></th></tr>';
       rows.forEach(function(r){
-        h+='<tr><td>'+esc(r.number||'')+'</td><td class="mut">'+esc(r.date||'')+'</td><td>'+esc(r.client_id||'')+'</td><td>'+esc(r.plan||'')+'</td><td>'+esc(r.gross_inr||'')+'</td>';
-        h+='<td><a href="/api/growth/revenue/invoice-html?number='+encodeURIComponent(r.number||'')+'" target="_blank" rel="noopener">🖨️ HTML</a></td></tr>';
+        var st=r.voided?' style="text-decoration:line-through;opacity:.55"':'';
+        h+='<tr'+st+'><td>'+esc(r.number||'')+(r.voided?' <span class="warn">VOID</span>':'')+'</td><td class="mut">'+esc(r.date||'')+'</td><td>'+esc(r.client_id||'')+'</td><td>'+esc(r.plan||'')+'</td><td>'+esc(r.gross_inr||'')+'</td>';
+        h+='<td><a href="/api/growth/revenue/invoice-html?number='+encodeURIComponent(r.number||'')+'" target="_blank" rel="noopener">🖨️ HTML</a></td>';
+        h+='<td>'+(r.voided?('<span class="mut" title="'+esc(r.void_reason||'')+'">voided</span>'):('<button class="btn2" onclick="rvVoidInv(\''+esc(r.number||'')+'\')">❌ Void</button>'))+'</td></tr>';
       });
       h+='</table>';
     }else h+='<div class="mut" style="margin-top:6px">Koi invoice nahi.</div>';
     $('rvInvOut').innerHTML=h+'</div>';
   }catch(e){toast('Invoices fail: '+e.message,false)}
+}
+async function rvVoidInv(number){
+  // Accountant-safe void: record delete NAHI hota, append-only VOID marker lagta hai.
+  var reason=prompt('Invoice '+number+' VOID karne ka reason (accountant trail me jayega):');
+  if(reason===null) return;
+  if(!confirm('Pakka VOID karna hai '+number+'? (Undo nahi hota — number consumed rahega, gross reporting se hat jayega)')) return;
+  try{
+    var d=await api('/api/growth/revenue/invoice-void',{method:'POST',body:JSON.stringify({number:number,reason:reason})});
+    if(d.ok){toast('Invoice '+number+' VOID ✅');rvInvoices();}
+    else toast('Void fail: '+(d.error||'?'),false);
+  }catch(e){toast('Void fail: '+e.message,false)}
 }
 async function rvAlerts(){
   try{

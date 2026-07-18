@@ -1625,6 +1625,10 @@ async def control_center_page():
     methods=["GET", "HEAD"],
     tags=["Frontend"],
     name="control_center_graph_page",
+    # GET+HEAD on one registration share one unique_id -> FastAPI "Duplicate
+    # Operation ID" warning at /openapi.json build. HTML page needs no schema
+    # entry; route registration (app.routes) is unaffected.
+    include_in_schema=False,
 )
 async def control_center_graph_page():
     """Control Center L2 — Sigma.js + ELK WebGL architecture graph (iframe-embedded).
@@ -2332,4 +2336,10 @@ if __name__ == "__main__":
 
     # reload sirf development me — prod me galti se `python app/main.py` chale to
     # auto-reload (file-watch overhead + double-load) na ho (audit P2).
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=settings.is_development)
+    # Intentional dev entrypoint bind; production runs containerized uvicorn.
+    uvicorn.run(
+        "app.main:app",
+        host="0.0.0.0",  # nosec B104 - intentional dev bind
+        port=8000,
+        reload=settings.is_development,
+    )
