@@ -6,9 +6,8 @@ Production-ready SQLAlchemy models for the B2B Intelligence Platform
 from app.models.account import Account
 from app.models.agent import Agent, AgentStatus
 from app.models.agent_event import AgentEvent
-from app.models.campaign_variant import CampaignVariant
-from app.models.contact import Contact
-from app.models.interaction import Interaction
+from app.models.approval_notification import ApprovalNotification
+from app.models.automation_log import AutomationLog
 from app.models.base import (
     Base,
     async_session,
@@ -20,14 +19,17 @@ from app.models.base import (
     init_async_db,
     init_db,
 )
-from app.models.billing_record import (
-    BillingRecord,
-    BillingRecordStatus,
-    BillingRecordType,
-)
+from app.models.billing_record import BillingRecord, BillingRecordStatus, BillingRecordType
 from app.models.call_log import CallDirection, CallLog, CallOutcome
 from app.models.campaign import Campaign, CampaignStatus, CampaignType
+from app.models.campaign_variant import CampaignVariant
 from app.models.client import Client, ClientStatus, SubscriptionPlan
+from app.models.contact import Contact
+from app.models.customer_deliverable import (
+    CustomerDeliverable,
+    DeliverableChannel,
+    DeliverableStatus,
+)
 from app.models.data_credits import (
     CREDIT_COSTS,
     APIKey,
@@ -37,12 +39,16 @@ from app.models.data_credits import (
     CreditTransactionType,
     DataCredits,
 )
+from app.models.dev_task import DevTask
+from app.models.dev_usage import DevTaskUsage
+from app.models.interaction import Interaction
 from app.models.lead import Lead, LeadSource, LeadStatus
 from app.models.lead_pipeline import (
     LeadPipelineBatch,
     LeadPipelineQualityIssue,
     LeadPipelineStageRun,
 )
+from app.models.owner_os import OwnerCommand, OwnerKillSwitch, OwnerOSAuditEvent
 from app.models.payment import (
     BillingCycle,
     Invoice,
@@ -57,15 +63,6 @@ from app.models.payment import (
     UsageRecord,
 )
 from app.models.user import AuditLog, User, UserRole, UserSession, UserStatus
-from app.models.customer_deliverable import (
-    CustomerDeliverable,
-    DeliverableStatus,
-    DeliverableChannel,
-)
-from app.models.automation_log import AutomationLog
-from app.models.approval_notification import ApprovalNotification
-from app.models.dev_task import DevTask
-from app.models.dev_usage import DevTaskUsage
 
 __all__ = [
     # Base
@@ -143,4 +140,8 @@ __all__ = [
     "LeadPipelineBatch",
     "LeadPipelineStageRun",
     "LeadPipelineQualityIssue",
+    # Owner OS durable tables
+    "OwnerCommand",
+    "OwnerKillSwitch",
+    "OwnerOSAuditEvent",
 ]
