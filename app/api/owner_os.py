@@ -44,6 +44,33 @@ class KillIn(BaseModel):
 
 class AgentControlIn(BaseModel):
     note: str = Field("", max_length=200)
+    reason: str = Field("", max_length=200)
+    ttl_hours: int | None = Field(None, ge=1, le=168)
+    idempotency_key: str | None = Field(None, max_length=80)
+
+
+class AgentExecutionControlIn(BaseModel):
+    """V1.1 scoped execution controls (Isha slice first)."""
+
+    manual_pause: bool | None = None
+    scheduled_pause: bool | None = None
+    stop_claims: bool | None = None
+    drain: bool | None = None
+    reason: str = Field("", max_length=200)
+    ttl_hours: int | None = Field(None, ge=1, le=168)
+    idempotency_key: str | None = Field(None, max_length=80)
+
+
+class TaskControlIn(BaseModel):
+    task_id: str = Field(..., min_length=4, max_length=80)
+    reason: str = Field("", max_length=200)
+
+
+class RouteHealthIn(BaseModel):
+    """Sanitized non-customer route probe — approved task keys only."""
+
+    task_type: str = Field("leadgen.agent_ops", min_length=8, max_length=64)
+    prompt: str = Field("Reply with exactly: OWNER_OS_ROUTE_OK", min_length=8, max_length=120)
 
 
 class ReassignIn(BaseModel):
@@ -85,12 +112,28 @@ async def owner_agent_detail(agent_id: str, user: User = Depends(require_admin))
     hit = next((a for a in reg.get("agents") or [] if a.get("id") == agent_id), None)
     if not hit:
         raise HTTPException(status_code=404, detail="agent not found")
+    from app.platform import owner_agent_execution as oae
+
+    snap = (
+        oae.isha_execution_snapshot()
+        if agent_id == "isha"
+        else {
+            "ok": True,
+            "agent_id": agent_id,
+            "control": oae.control_view(agent_id),
+            "counts": oae.task_counts_for_agent(agent_id),
+            "workflows": [],
+            "omniroute": {},
+            "calling_hard_off": True,
+        }
+    )
     return {
         "ok": True,
         "agent": hit,
         "pause_scope": "manual_runs_only",
         "pause_label": "Pause Manual Runs",
         "pause_note": owner_os.PAUSE_SCOPE_NOTE,
+        "execution": snap,
     }
 
 
@@ -101,7 +144,7 @@ async def owner_agent_detail(agent_id: str, user: User = Depends(require_admin))
 async def owner_pause_agent(
     agent_id: str, body: AgentControlIn | None = None, user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    from app.platform import agent_controls
+    from app.platform import owner_agent_execution as oae
     from app.platform.office_hq import RUNNABLE_MEMBERS
 
     if agent_id not in RUNNABLE_MEMBERS:
@@ -109,9 +152,19 @@ async def owner_pause_agent(
             status_code=400,
             detail="Pause Manual Runs sirf RUNNABLE agents pe. Scheduled jobs alag — Automation → Schedule.",
         )
-    note = (body.note if body else "") or "owner_os Pause Manual Runs"
-    out = agent_controls.pause(agent_id, by=_actor(user), note=note)
-    owner_os.audit(_actor(user), "agent_pause_manual_runs", {"agent_id": agent_id, "note": note})
+    note = (
+        (body.note if body else "") or (body.reason if body else "") or "owner_os Pause Manual Runs"
+    )
+    out = oae.set_control(
+        agent_id,
+        by=_actor(user),
+        reason=note,
+        ttl_hours=body.ttl_hours if body else None,
+        idempotency_key=body.idempotency_key if body else None,
+        manual_pause=True,
+    )
+    if not out.get("ok"):
+        raise HTTPException(status_code=400, detail=out.get("error") or "pause failed")
     return {
         **out,
         "pause_label": "Pause Manual Runs",
@@ -125,16 +178,129 @@ async def owner_pause_agent(
     dependencies=[Depends(rate_limit("owner_os", 30, 60))],
 )
 async def owner_resume_agent(agent_id: str, user: User = Depends(require_admin)) -> dict[str, Any]:
-    from app.platform import agent_controls
+    from app.platform import owner_agent_execution as oae
 
-    out = agent_controls.resume(agent_id, by=_actor(user))
-    owner_os.audit(_actor(user), "agent_resume_manual_runs", {"agent_id": agent_id})
+    out = oae.resume(agent_id, by=_actor(user), reason="owner_os resume")
+    if not out.get("ok"):
+        raise HTTPException(status_code=400, detail=out.get("error") or "resume failed")
     return {
         **out,
         "pause_label": "Resume Manual Runs",
         "pause_scope": "manual_runs_only",
         "note": owner_os.PAUSE_SCOPE_NOTE,
     }
+
+
+@router.post(
+    "/agents/{agent_id}/controls",
+    dependencies=[Depends(rate_limit("owner_os", 30, 60))],
+)
+async def owner_set_agent_controls(
+    agent_id: str, body: AgentExecutionControlIn, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """V1.1: set scoped execution controls (scheduled pause / stop claims / drain)."""
+    from app.platform import owner_agent_execution as oae
+
+    flags = {
+        k: v
+        for k, v in {
+            "manual_pause": body.manual_pause,
+            "scheduled_pause": body.scheduled_pause,
+            "stop_claims": body.stop_claims,
+            "drain": body.drain,
+        }.items()
+        if v is not None
+    }
+    if not flags:
+        raise HTTPException(status_code=400, detail="at least one control flag required")
+    out = oae.set_control(
+        agent_id,
+        by=_actor(user),
+        reason=body.reason or "owner_os execution control",
+        ttl_hours=body.ttl_hours,
+        idempotency_key=body.idempotency_key,
+        **flags,
+    )
+    if not out.get("ok"):
+        raise HTTPException(status_code=400, detail=out.get("error") or "control failed")
+    return out
+
+
+@router.post(
+    "/agents/{agent_id}/restore-defaults",
+    dependencies=[Depends(rate_limit("owner_os", 30, 60))],
+)
+async def owner_restore_agent_defaults(
+    agent_id: str, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    from app.platform import owner_agent_execution as oae
+
+    return oae.restore_defaults(agent_id, by=_actor(user))
+
+
+@router.post(
+    "/agents/{agent_id}/cancel-queued",
+    dependencies=[Depends(rate_limit("owner_os", 20, 60))],
+)
+async def owner_cancel_queued(
+    agent_id: str, body: TaskControlIn, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    from app.platform import owner_agent_execution as oae
+
+    out = oae.cancel_queued_task(agent_id, body.task_id, by=_actor(user), reason=body.reason)
+    if not out.get("ok"):
+        raise HTTPException(status_code=400, detail=out.get("error") or "cancel failed")
+    return out
+
+
+@router.post(
+    "/agents/{agent_id}/request-cancel-running",
+    dependencies=[Depends(rate_limit("owner_os", 20, 60))],
+)
+async def owner_request_cancel_running(
+    agent_id: str, body: TaskControlIn, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    from app.platform import owner_agent_execution as oae
+
+    out = oae.request_cancel_running(agent_id, body.task_id, by=_actor(user), reason=body.reason)
+    if not out.get("ok"):
+        raise HTTPException(status_code=400, detail=out.get("error") or "request failed")
+    return out
+
+
+@router.get("/workflows")
+async def owner_workflows(user: User = Depends(require_admin)) -> dict[str, Any]:
+    return owner_os.workflow_registry()
+
+
+@router.get("/workflows/{workflow_id}")
+async def owner_workflow_detail(
+    workflow_id: str, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    out = owner_os.workflow_detail(workflow_id)
+    if not out.get("ok"):
+        raise HTTPException(status_code=404, detail=out.get("error") or "not found")
+    return out
+
+
+@router.get("/routes")
+async def owner_route_matrix(user: User = Depends(require_admin)) -> dict[str, Any]:
+    return owner_os.route_matrix()
+
+
+@router.post(
+    "/routes/health-test",
+    dependencies=[Depends(rate_limit("owner_os_route", 10, 60))],
+)
+async def owner_route_health_test(
+    body: RouteHealthIn, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    out = await owner_os.route_health_test(
+        task_type=body.task_type, prompt=body.prompt, actor=_actor(user)
+    )
+    if not out.get("ok") and out.get("error"):
+        raise HTTPException(status_code=400, detail=out.get("error"))
+    return out
 
 
 @router.get("/tasks")

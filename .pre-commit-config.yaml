@@ -48,7 +48,10 @@ repos:
     rev: 1.7.7
     hooks:
       - id: bandit
-        args: [-r, app, --skip, B101]  # Skip assert warnings
+        # Per-changed-file scan at medium+ severity. The old `-r app` + filenames
+        # combo crashed bandit ("unrecognized arguments") so the hook never ran;
+        # whole-repo low-severity scan has ~1.5k legacy B110 defensive-except hits.
+        args: [--skip, B101, -ll]
         exclude: tests/
 
   # Secrets detection
