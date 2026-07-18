@@ -388,15 +388,23 @@ def build() -> dict[str, Any]:
         if h.get("dead_tasks_present"):
             problems.append(
                 {
-                    "kya": f"{q.get('dead')} task(s) dead/exhausted (dlq:dead, retry budget khatam)",
-                    "fix": "Reliability Console (/app/office#reliability) me inspect karo — manual retry ya root-cause fix chahiye",
+                    "kya": (
+                        f"{q.get('dead')} failed kaam stuck hain — system ne retry band kar diya "
+                        f"(dead/exhausted)"
+                    ),
+                    "fix": "Stuck tasks dekho, root-cause fix karo, phir retry/clear",
+                    "href": "/app/office#reliability",
                 }
             )
         if h.get("retryable_failed_present") and not h.get("queue_backlogged"):
             problems.append(
                 {
-                    "kya": f"{q.get('dlq')} task DLQ me (dlq:failed_tasks, retry-able)",
-                    "fix": "dlq_retry sweep ka wait karo ya Reliability Console se manual retry karo",
+                    "kya": (
+                        f"{q.get('dlq')} failed tasks dubara try ke liye wait kar rahe hain "
+                        f"(DLQ, retry-able)"
+                    ),
+                    "fix": "Thodi der auto-retry ka wait karo, ya Reliability se manual retry",
+                    "href": "/app/office#reliability",
                 }
             )
     except Exception as e:
