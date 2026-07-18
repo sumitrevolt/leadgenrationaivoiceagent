@@ -63,6 +63,9 @@ async def test_reply_stream_sentences_uses_chat_stream(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_reply_stream_sentences_fallback_on_empty_stream(monkeypatch):
+    """Empty stream (LLM failure) → DETERMINISTIC script fallback, NOT a second
+    LLM round-trip via reply() (e795629: 'stream fallback to fast path without
+    double LLM'). reply() stays last-resort only."""
     from app.voice_agent.telecaller_brain import TelecallerBrain
 
     async def _empty(**kwargs):
@@ -72,7 +75,10 @@ async def test_reply_stream_sentences_fallback_on_empty_stream(monkeypatch):
     async def _fake_kb(_text: str):
         return ""
 
+    called = {"reply": False}
+
     async def _one_shot(_history, _text):
+        called["reply"] = True
         return "Fallback line."
 
     monkeypatch.setattr("app.voice_agent.free_ai.chat_stream", _empty)
@@ -81,7 +87,37 @@ async def test_reply_stream_sentences_fallback_on_empty_stream(monkeypatch):
     monkeypatch.setattr(brain, "reply", _one_shot)
 
     parts = [s async for s in brain.reply_stream_sentences([], "hello")]
-    assert parts == ["Fallback line."]
+    assert parts, "empty stream must still yield a spoken line"
+    assert called["reply"] is False, "no double LLM call on plain stream failure"
+
+
+@pytest.mark.asyncio
+async def test_reply_stream_sentences_guard_reject_uses_reply(monkeypatch):
+    """First-sentence guard rejection (repeat-ask on substantive input) must fall
+    to reply()'s guarded suite — script fallback would ignore the user's point."""
+    from app.voice_agent.telecaller_brain import TelecallerBrain
+
+    async def _repeat_ask(**kwargs):
+        yield "Ji, zara dobara boliye?"
+
+    async def _fake_kb(_text: str):
+        return ""
+
+    async def _one_shot(_history, _text):
+        return "Seedha jawab wali line."
+
+    monkeypatch.setattr("app.voice_agent.free_ai.chat_stream", _repeat_ask)
+    brain = TelecallerBrain(niche="general", client_name="Demo")
+    monkeypatch.setattr(brain, "_kb_facts", _fake_kb)
+    monkeypatch.setattr(brain, "reply", _one_shot)
+
+    parts = [
+        s
+        async for s in brain.reply_stream_sentences(
+            [], "meri baat ka jawab do, aap dusri baat kar rahi ho"
+        )
+    ]
+    assert parts == ["Seedha jawab wali line."]
 
 
 def test_stream_tts_flag_on(monkeypatch):
@@ -139,6 +175,4 @@ async def test_clause_flush_off_by_default(monkeypatch):
         yield "dekhiye sir yeh ek lambi shuruaat hai, phir baaki baat poori hoti hai."
 
     out = [s async for s in iter_sentences_from_tokens(_tok())]
-    assert out == [
-        "dekhiye sir yeh ek lambi shuruaat hai, phir baaki baat poori hoti hai."
-    ]
+    assert out == ["dekhiye sir yeh ek lambi shuruaat hai, phir baaki baat poori hoti hai."]

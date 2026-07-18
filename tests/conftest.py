@@ -51,14 +51,8 @@ if os.environ.get("PYTEST_NETGUARD", "0").strip().lower() in ("1", "true", "yes"
         _warnings.warn(
             f"[conftest] netguard could not be enabled: {_ng_exc!r}.",
             RuntimeWarning,
+            stacklevel=2,
         )
-
-# Use SQLite for tests (fast, no external dependencies)
-# DB lives in the OS temp dir — avoids polluting the repo and works on
-# network/mounted filesystems where SQLite locking can fail with disk I/O errors.
-import tempfile
-from collections.abc import AsyncGenerator, Generator
-from datetime import datetime, timezone
 
 # =============================================================================
 # HTTPX 0.28 COMPAT SHIM (2026-07-10, test-only — prod code untouched).
@@ -72,6 +66,13 @@ from datetime import datetime, timezone
 # agar future httpx me `app=` wapas aata hai to shim khud NO-OP ho jata hai.
 # =============================================================================
 import inspect as _inspect
+
+# Use SQLite for tests (fast, no external dependencies)
+# DB lives in the OS temp dir — avoids polluting the repo and works on
+# network/mounted filesystems where SQLite locking can fail with disk I/O errors.
+import tempfile
+from collections.abc import AsyncGenerator, Generator
+from datetime import datetime, timezone
 
 import httpx as _httpx
 
@@ -238,6 +239,21 @@ def event_loop():
         loop = asyncio.new_event_loop()
     yield loop
     loop.close()
+
+
+@pytest.fixture(autouse=True)
+def _ensure_policy_event_loop():
+    """ORDER-DEPENDENT FLAKE FIX (2026-07-18): sync tests that call asyncio.run()
+    (test_voice_tools / test_call_learning / etc.) leave the MainThread policy
+    loop UNSET on exit (asyncio.run closes its loop + set_event_loop(None)).
+    pytest-asyncio 0.23 then raises 'There is no current event loop' for every
+    LATER async test file in the same run (seen: test_voice_opener_cache red in
+    combined runs, green standalone). Re-arm a policy loop before each test."""
+    try:
+        asyncio.get_event_loop_policy().get_event_loop()
+    except RuntimeError:
+        asyncio.set_event_loop(asyncio.new_event_loop())
+    yield
 
 
 # =============================================================================
@@ -407,6 +423,23 @@ def mock_llm(mocker):
 # =============================================================================
 # CLEANUP
 # =============================================================================
+
+
+@pytest.fixture(autouse=True)
+def _isolate_billing_stores(monkeypatch, tmp_path):
+    """2026-07-18 PROD-LEDGER CONTAMINATION FIX (INV/2026-27/0003..0013 postmortem):
+    tests `upi_payments._STORE` to patch karte the par `_fire_gst_invoice` →
+    `gst_invoice.create_invoice` REAL relative `data/invoices.jsonl` (cwd) me likhta
+    tha. VPS pe targeted pytest chala to 11 synthetic `cli_*` invoices production
+    Rule-46 ledger me ghus gaye. Ab HAR test ke billing stores tmp_path pe redirect —
+    koi bhi test kabhi real `data/` billing files ko touch nahi kar sakta. Tests jo
+    khud _STORE patch karte hain unka setattr baad me lagta hai (unaffected)."""
+    from app.billing import gst_invoice
+    from app.platform import upi_payments
+
+    monkeypatch.setattr(gst_invoice, "_STORE", str(tmp_path / "_iso_invoices.jsonl"))
+    monkeypatch.setattr(upi_payments, "_STORE", str(tmp_path / "_iso_upi_payments.json"))
+    yield
 
 
 @pytest.fixture(autouse=True)

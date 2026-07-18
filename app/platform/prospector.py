@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import time
 import urllib.parse
 import urllib.request
 import uuid
@@ -82,9 +83,14 @@ def _scraped_reject_reason(
     except Exception:
         # Name safety remains fail-closed if the shared gate cannot import.
         lowered = str(name or "").lower()
-        return "official_or_helpline_name" if any(
-            token in lowered for token in ("irctc", "indian railways", "railway station", "helpline")
-        ) else ""
+        return (
+            "official_or_helpline_name"
+            if any(
+                token in lowered
+                for token in ("irctc", "indian railways", "railway station", "helpline")
+            )
+            else ""
+        )
 
 
 def is_quality_approved(record: dict[str, Any] | None) -> bool:
@@ -99,7 +105,9 @@ def is_quality_approved(record: dict[str, Any] | None) -> bool:
     digits = "".join(c for c in str(record.get("phone") or "") if c.isdigit())
     phone10 = digits[-10:] if len(digits) >= 10 else ""
     source_query = str(record.get("source_query") or "")
-    source = source_query.split(":", 1)[-1] if source_query.startswith("harvest:") else "google_maps"
+    source = (
+        source_query.split(":", 1)[-1] if source_query.startswith("harvest:") else "google_maps"
+    )
     return not _scraped_reject_reason(
         name,
         phone10,
@@ -109,6 +117,7 @@ def is_quality_approved(record: dict[str, Any] | None) -> bool:
         types=record.get("types") or (),
         business_status=str(record.get("business_status") or ""),
     )
+
 
 # --------------------------------------------------------------------------- #
 # Targets — kaunse niches ke businesses dhundhne hain (env-overridable).
@@ -384,7 +393,8 @@ def _osm_search(query: str, city: str, limit: int) -> list[dict[str, Any]]:
             data=data,
             headers={"User-Agent": _OSM_UA, "Content-Type": "application/x-www-form-urlencoded"},
         )
-        with urllib.request.urlopen(req, timeout=25) as resp:
+        # Fixed, code-owned HTTPS Overpass endpoint; no user-controlled scheme.
+        with urllib.request.urlopen(req, timeout=25) as resp:  # nosec B310
             payload = json.loads(resp.read().decode("utf-8", "replace"))
 
         for el in payload.get("elements", []) or []:
@@ -802,8 +812,30 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
             pairs = pairs[:max_queries]
             summary["queries_capped"] = True
 
+        # WALL-CLOCK BUDGET (2026-07-18: 7 'prospect' jobs dlq:dead — 6×SoftTimeLimit
+        # +1×hard-600s on 2026-07-17). PROSPECT_MAX_QUERIES fanout capta hai par time
+        # nahi: ek slow provider chain (Google walk + OSM 25s timeouts + email fetch)
+        # phir bhi Celery ke 540s soft limit ko cross kar sakti thi → retry burn →
+        # DLQ. Ab har query se PEHLE monotonic budget check — exhausted = partial
+        # summary ke saath GRACEFUL return, kabhi time-limit kill nahi.
+        # Env PROSPECT_TIME_BUDGET_S (default 420 = worker soft-limit 540 se 2 min margin).
+        try:
+            time_budget_s = float(os.environ.get("PROSPECT_TIME_BUDGET_S", "420"))
+        except Exception:
+            time_budget_s = 420.0
+        time_budget_s = max(5.0, min(time_budget_s, 480.0))
+        t_start = time.monotonic()
+        summary["time_budget_exhausted"] = False
+
         max_per = max(1, min(int(limit_per_query), 50))
         for idx, (target, city) in enumerate(pairs):
+            if time.monotonic() - t_start > time_budget_s:
+                summary["time_budget_exhausted"] = True
+                logger.warning(
+                    f"[prospector] time budget {time_budget_s:.0f}s exhausted after "
+                    f"{summary['queries_run']} queries — partial return (no soft-limit kill)"
+                )
+                break
             niche = target.get("niche") or "general"
             query = target.get("query") or ""
             if not query:
@@ -943,6 +975,9 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
                         and _email_fn is not None
                         and max_email_fetch
                         and email_fetches < max_email_fetch
+                        # Budget khatam → naya slow network fetch mat kholo
+                        # (already-fetched rows ka local processing chalta rahe).
+                        and (time.monotonic() - t_start) <= time_budget_s
                     ):
                         email_fetches += 1
                         try:
