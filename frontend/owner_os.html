@@ -62,6 +62,8 @@ textarea{min-height:88px;resize:vertical}
     <button class="on" data-tab="home">Home</button>
     <button data-tab="commands">Commands</button>
     <button data-tab="agents">Agents</button>
+    <button data-tab="workflows">Workflows</button>
+    <button data-tab="routes">OmniRoute</button>
     <button data-tab="tasks">Tasks</button>
     <button data-tab="approvals">Approvals</button>
     <button data-tab="kill">Kill Switches</button>
@@ -111,7 +113,42 @@ textarea{min-height:88px;resize:vertical}
       <p class="muted" id="pauseNote">Scheduled jobs may continue. Use workflow or scheduler controls to stop scheduled execution.</p>
       <div class="chips" id="agentChips"></div>
       <div id="agentList"></div>
+      <div id="ishaSlice" class="card" style="margin-top:12px;background:#0f172a">
+        <h3>Isha — V1.1 execution controls</h3>
+        <p class="muted">Scheduler dispatch paused = new jobs will not be queued. Already queued/running may continue unless Stop Claims / Drain.</p>
+        <div class="chips" id="ishaChips"></div>
+        <div class="row" style="margin-top:8px">
+          <button class="btn warn" onclick="ishaCtrl({scheduled_pause:true})">Pause Scheduled Dispatch</button>
+          <button class="btn warn" onclick="ishaCtrl({stop_claims:true})">Stop New Task Claims</button>
+          <button class="btn danger" onclick="ishaCtrl({drain:true})">Drain Agent</button>
+          <button class="btn ok" onclick="ishaResume()">Resume / Restore Defaults</button>
+          <button class="btn sec" onclick="loadIshaSlice()">↻ Refresh Isha</button>
+        </div>
+        <div class="pre" id="ishaDetail" style="margin-top:10px">—</div>
+      </div>
       <div class="teach" id="teach-agents"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-workflows">
+    <div class="card">
+      <h2>Workflow Control Center (aggregator)</h2>
+      <p class="muted">Existing scheduler + process library — no second scheduler. Isha focus: <code>content</code> + <code>client_content</code>.</p>
+      <div id="wfBox" class="muted">—</div>
+      <div class="teach" id="teach-workflows"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-routes">
+    <div class="card">
+      <h2>OmniRoute Agent Route Matrix</h2>
+      <p class="muted">Approved registry only. Credentials never shown. Route health test = sanitized non-customer prompt.</p>
+      <div class="row" style="margin-bottom:8px">
+        <button class="btn sec" onclick="loadRoutes()">↻ Load matrix</button>
+        <button class="btn" onclick="routeHealth()">Sanitized route-health test (Isha)</button>
+      </div>
+      <div id="routeBox" class="muted">—</div>
+      <div class="teach" id="teach-routes"></div>
     </div>
   </section>
 
@@ -185,12 +222,15 @@ document.getElementById("tabs").addEventListener("click", (e)=>{
   b.classList.add("on");
   document.getElementById("panel-"+b.dataset.tab).classList.add("on");
   if(b.dataset.tab==="training") loadTraining();
+  if(b.dataset.tab==="agents") loadIshaSlice();
+  if(b.dataset.tab==="workflows"){ loadWorkflows(); loadTeach("workflows"); }
+  if(b.dataset.tab==="routes"){ loadRoutes(); loadTeach("routes"); }
 });
 
 async function boot(){
   if(!tok()){ document.getElementById("authBadge").textContent="Login required"; document.getElementById("authBadge").className="badge err"; toast("Pehle /app/admin-login"); }
   else { document.getElementById("authBadge").textContent="Admin session"; document.getElementById("authBadge").className="badge ok"; }
-  await Promise.all([loadHome(), loadAgents(), loadTasks(), loadApprovals(), loadKills(), loadCommands(), loadTeach("home"), loadTeach("commands"), loadTeach("agents"), loadTeach("tasks"), loadTeach("approvals"), loadTeach("kill")]);
+  await Promise.all([loadHome(), loadAgents(), loadIshaSlice(), loadTasks(), loadApprovals(), loadKills(), loadCommands(), loadTeach("home"), loadTeach("commands"), loadTeach("agents"), loadTeach("tasks"), loadTeach("approvals"), loadTeach("kill"), loadTeach("workflows"), loadTeach("routes")]);
 }
 
 async function loadTeach(page){
@@ -316,8 +356,63 @@ async function loadAgents(){
       </div>
     </div>`).join("");
 }
-async function pauseAgent(id){ const {body}=await api("/api/admin/owner-os/agents/"+id+"/pause",{method:"POST",body:JSON.stringify({note:"owner_os UI"})}); toast(body.ok?"Pause Manual Runs OK":(body.detail||body.error||"fail")); loadAgents(); }
-async function resumeAgent(id){ const {body}=await api("/api/admin/owner-os/agents/"+id+"/resume",{method:"POST",body:"{}"}); toast(body.ok?"Resume Manual Runs OK":(body.detail||body.error||"fail")); loadAgents(); }
+async function pauseAgent(id){ const {body}=await api("/api/admin/owner-os/agents/"+id+"/pause",{method:"POST",body:JSON.stringify({note:"owner_os UI"})}); toast(body.ok?"Pause Manual Runs OK":(body.detail||body.error||"fail")); loadAgents(); if(id==="isha") loadIshaSlice(); }
+async function resumeAgent(id){ const {body}=await api("/api/admin/owner-os/agents/"+id+"/resume",{method:"POST",body:"{}"}); toast(body.ok?"Resume Manual Runs OK":(body.detail||body.error||"fail")); loadAgents(); if(id==="isha") loadIshaSlice(); }
+
+async function loadIshaSlice(){
+  const {status,body}=await api("/api/admin/owner-os/agents/isha");
+  if(status!==200){ document.getElementById("ishaDetail").textContent="load fail"; return; }
+  const ex=body.execution||{};
+  const c=(ex.control&&ex.control.effective_scope)||{};
+  const counts=ex.counts||{};
+  document.getElementById("ishaChips").innerHTML =
+    `<span class="chip">manual_pause: <b>${!!c.manual_pause}</b></span>`+
+    `<span class="chip">scheduled_pause: <b>${!!c.scheduled_pause}</b></span>`+
+    `<span class="chip">stop_claims: <b>${!!c.stop_claims}</b></span>`+
+    `<span class="chip">drain: <b>${!!c.drain}</b> (${esc(c.drain_state||"idle")})</span>`+
+    `<span class="chip">queued: <b>${counts.queued??0}</b></span>`+
+    `<span class="chip">running: <b>${counts.running??0}</b></span>`;
+  document.getElementById("ishaDetail").textContent = JSON.stringify({
+    control: ex.control, counts, workflows: ex.workflows, omniroute: ex.omniroute
+  }, null, 2);
+}
+async function ishaCtrl(flags){
+  const {body}=await api("/api/admin/owner-os/agents/isha/controls",{
+    method:"POST", body: JSON.stringify({...flags, reason:"owner_os UI v1.1"})
+  });
+  toast(body.ok?"Isha control OK":(body.detail||body.error||"fail"));
+  loadIshaSlice(); loadAgents();
+}
+async function ishaResume(){
+  const {body}=await api("/api/admin/owner-os/agents/isha/restore-defaults",{method:"POST",body:"{}"});
+  toast(body.ok?"Isha restored":(body.detail||body.error||"fail"));
+  loadIshaSlice(); loadAgents();
+}
+async function loadWorkflows(){
+  const {body}=await api("/api/admin/owner-os/workflows");
+  const rows=(body.workflows||[]).filter(w=> (w.participating_agents||[]).includes("isha") || ["content","blog","afternoon_content","weekly_marketing","social_drain","client_content"].includes(w.workflow_id));
+  document.getElementById("wfBox").innerHTML = rows.length? rows.map(w=>`
+    <div style="padding:8px 0;border-bottom:1px solid #1f2937">
+      <b>${esc(w.workflow_id)}</b> <span class="badge">${esc(w.kind||"")}</span>
+      <div class="muted">${esc(w.business_purpose||"")} · ${esc(w.schedule||"")} · enabled=${w.enabled}</div>
+    </div>`).join("") : "<div class='muted'>No Isha workflows</div>";
+}
+async function loadRoutes(){
+  const {body}=await api("/api/admin/owner-os/routes");
+  const isha=(body.rows||[]).find(r=>r.agent==="isha");
+  document.getElementById("routeBox").innerHTML =
+    `<div class="chip">available: <b>${!!(body.health&&body.health.omniroute_available)}</b></div>`+
+    `<div class="chip">key present: <b>${!!(body.health&&body.health.api_key_present)}</b></div>`+
+    (isha?`<div class="pre" style="margin-top:8px">${esc(JSON.stringify(isha,null,2))}</div>`:"<div class='muted'>Isha row missing</div>");
+}
+async function routeHealth(){
+  const {body}=await api("/api/admin/owner-os/routes/health-test",{
+    method:"POST",
+    body: JSON.stringify({task_type:"leadgen.agent_ops", prompt:"Reply with exactly: OWNER_OS_ROUTE_OK"})
+  });
+  toast(body.ok?(body.skipped?"route unavailable (safe skip)":"route health OK"):(body.detail||body.error||"fail"));
+  document.getElementById("routeBox").textContent = JSON.stringify(body, null, 2);
+}
 
 async function loadTasks(){
   const {body}=await api("/api/admin/owner-os/tasks");

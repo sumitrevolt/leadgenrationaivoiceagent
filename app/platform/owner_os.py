@@ -163,9 +163,28 @@ TRAINING_PAGES = {
     },
     "agents": {
         "title": "Agent Registry (canonical = 31)",
-        "hinglish": "manager = Boss (supervisor). Pause Manual Runs = sirf Run now; scheduler alag.",
-        "safe_commands": ["Swara pause karo", "Isha resume karo"],
-        "next": "Scheduled jobs band karne ke liye Automation → Schedule.",
+        "hinglish": (
+            "manager = Boss. Pause Manual Runs = sirf Run now. "
+            "Isha pe Scheduled Pause / Drain / Stop Claims alag buttons hain."
+        ),
+        "safe_commands": [
+            "Isha ka scheduled dispatch pause karo",
+            "Isha ko drain karo",
+            "Isha resume karo",
+        ],
+        "next": "Queued vs running: drain running ko force-kill nahi karta — finish hone do.",
+    },
+    "workflows": {
+        "title": "Workflow Control (read-only aggregator)",
+        "hinglish": "Naya scheduler nahi — JOB_META + process_library + health merge. Isha = content + client_content.",
+        "safe_commands": ["Isha workflows dikhao"],
+        "next": "Enable/disable scheduled job pehle Pause Scheduled / Drain se prove karo.",
+    },
+    "routes": {
+        "title": "OmniRoute Agent Route Matrix",
+        "hinglish": "Sirf approved task keys. Credentials kabhi UI me nahi. Route change customer work auto-start nahi karta.",
+        "safe_commands": ["Isha route health test (sanitized)"],
+        "next": "Arbitrary model string reject — registry se hi primary/fallback.",
     },
     "tasks": {
         "title": "Task Control",
@@ -432,7 +451,9 @@ def kill_engaged(key: str) -> bool:
     return store.kill_engaged(key)
 
 
-def scheduler_dispatch_allowed(agent_id: str | None = None) -> tuple[bool, str]:
+def scheduler_dispatch_allowed(
+    agent_id: str | None = None, job: str | None = None
+) -> tuple[bool, str]:
     """Explicit scheduled-dispatch gate. False = do not enqueue/start new scheduled work.
 
     Semantics when blocked:
@@ -441,12 +462,21 @@ def scheduler_dispatch_allowed(agent_id: str | None = None) -> tuple[bool, str]:
     - currently running tasks: not preemptively killed
     - resume: future cadence continues; no automatic catch-up flood of missed intervals
     Manual per-agent Pause Manual Runs does NOT affect this gate.
+    V1.1: per-agent scheduled_pause / drain also block (via owner_agent_execution).
     """
     _sync_store_paths()
     if store.kill_engaged("owner_schedulers"):
         return False, "owner_schedulers_kill_switch"
     if store.kill_engaged("owner_all_agents"):
         return False, "owner_all_agents_kill_switch"
+    try:
+        from app.platform import owner_agent_execution as oae
+
+        blocked, reason = oae.scheduled_dispatch_blocked(agent_id=agent_id, job=job)
+        if blocked:
+            return False, reason
+    except Exception:
+        pass
     return True, ""
 
 
@@ -542,8 +572,11 @@ def agent_registry() -> dict[str, Any]:
     try:
         from app.platform.agent_os_routing import agent_route_table
 
-        for row in agent_route_table() or []:
-            route_by_key[str(row.get("key") or "")] = row
+        # agent_route_table() returns dict[agent_key → policy fields], not a list.
+        table = agent_route_table() or {}
+        if isinstance(table, dict):
+            for key, row in table.items():
+                route_by_key[str(key)] = row if isinstance(row, dict) else {}
     except Exception:
         pass
 
@@ -1499,6 +1532,232 @@ def owner_home() -> dict[str, Any]:
             "admin": "/app/admin",
         },
     }
+
+
+def workflow_registry() -> dict[str, Any]:
+    """Read-only join of scheduler jobs + process library — no second scheduler."""
+    items: list[dict[str, Any]] = []
+    try:
+        from app.platform import scheduler_config
+
+        for j in scheduler_config.list_jobs().get("jobs") or []:
+            owner = str(j.get("owner") or "")
+            items.append(
+                {
+                    "workflow_id": j.get("job"),
+                    "kind": "scheduled_job",
+                    "business_purpose": j.get("label"),
+                    "owner_department": DEPARTMENT_FOR_PRODUCT.get(
+                        "marketing" if owner == "isha" else "platform", "platform"
+                    ),
+                    "participating_agents": [owner] if owner else [],
+                    "tenant_scope": "global",
+                    "enabled": j.get("enabled"),
+                    "kill_switch_state": (
+                        "owner_schedulers" if kill_engaged("owner_schedulers") else "clear"
+                    ),
+                    "schedule": j.get("cadence"),
+                    "last_run": j.get("last_run"),
+                    "next_run": None,
+                    "status": j.get("status"),
+                    "external_side_effects": (
+                        "social_publish_possible"
+                        if j.get("job") == "social_drain"
+                        else "internal_or_draft"
+                    ),
+                }
+            )
+    except Exception as e:
+        logger.debug("[owner_os] workflow jobs: %s", e)
+    try:
+        from app.agents import process_library
+
+        for p in process_library.list_processes() or []:
+            items.append(
+                {
+                    "workflow_id": p.get("key"),
+                    "kind": "process",
+                    "business_purpose": p.get("name"),
+                    "owner_department": (
+                        "Marketing and Content" if p.get("key") == "client_content" else "Platform"
+                    ),
+                    "participating_agents": ["isha"] if p.get("key") == "client_content" else [],
+                    "tenant_scope": "per_run_inputs.client_id",
+                    "enabled": True,
+                    "schedule": "on_demand",
+                    "approvals": "breakpoint_human_review",
+                    "external_side_effects": "none_until_breakpoint",
+                }
+            )
+    except Exception as e:
+        logger.debug("[owner_os] workflow processes: %s", e)
+    return {
+        "ok": True,
+        "count": len(items),
+        "workflows": items,
+        "note": "Aggregator only — state remains in scheduler_config / process_engine / automation_health.",
+    }
+
+
+def workflow_detail(workflow_id: str) -> dict[str, Any]:
+    wid = str(workflow_id or "").strip()
+    if not wid:
+        return {"ok": False, "error": "workflow_id required"}
+    reg = workflow_registry()
+    hit = next((w for w in reg.get("workflows") or [] if w.get("workflow_id") == wid), None)
+    if not hit:
+        return {"ok": False, "error": "not found"}
+    # Attach Isha control + route when relevant.
+    extra: dict[str, Any] = {}
+    agents = hit.get("participating_agents") or []
+    if "isha" in agents or wid in (
+        "content",
+        "blog",
+        "afternoon_content",
+        "weekly_marketing",
+        "social_drain",
+        "client_content",
+    ):
+        try:
+            from app.platform import owner_agent_execution as oae
+
+            extra["agent_control"] = oae.control_view("isha")
+            extra["task_counts"] = oae.task_counts_for_agent("isha")
+        except Exception:
+            pass
+        try:
+            from app.platform.agent_os_routing import get_agent_policy
+
+            p = get_agent_policy("isha", "marketing")
+            extra["current_model_routes"] = {
+                "primary": p.omniroute_task,
+                "privacy_class": p.privacy_class,
+                "timeout_seconds": p.timeout_seconds,
+            }
+        except Exception:
+            pass
+    return {"ok": True, "workflow": {**hit, **extra}}
+
+
+def route_matrix() -> dict[str, Any]:
+    """Agent × work-type × approved OmniRoute mapping — secret-free."""
+    rows: list[dict[str, Any]] = []
+    try:
+        from app.platform.agent_os_routing import agent_route_table
+        from app.platform.omniroute_client import _TASK_ROUTES, agents_enabled, omniroute_available
+
+        table = agent_route_table() or {}
+        for agent_key, pol in table.items():
+            task = pol.get("omniroute_task")
+            route = _TASK_ROUTES.get(task) if task else None
+            rows.append(
+                {
+                    "agent": agent_key,
+                    "work_type": pol.get("category"),
+                    "primary_route": route.primary_model if route else None,
+                    "fallback_route": route.fallback_model if route else None,
+                    "task_type": task,
+                    "timeout": pol.get("timeout_seconds"),
+                    "latency_target": 1500 if agent_key == "swara" else 5000,
+                    "privacy_class": pol.get("privacy_class"),
+                    "cost_class": "low_cost" if pol.get("may_use_free_models") else "premium",
+                    "health": (
+                        "eligible" if pol.get("omniroute_eligible") else "forbidden_or_local"
+                    ),
+                    "last_route_used": None,
+                }
+            )
+        health = {
+            "omniroute_available": bool(omniroute_available()),
+            "agents_hook_armed": bool(agents_enabled()),
+            "api_key_present": bool(os.getenv("OMNIROUTE_API_KEY")),
+            # Never return key material.
+        }
+    except Exception as e:
+        logger.debug("[owner_os] route_matrix: %s", e)
+        health = {"error": type(e).__name__}
+    dumped = json.dumps({"rows": rows, "health": health})
+    if "sk-" in dumped.lower() or "Bearer " in dumped:
+        return {"ok": False, "error": "secret_leak_prevented"}
+    return {
+        "ok": True,
+        "rows": rows,
+        "health": health,
+        "policies": [
+            "Swara requires low-latency conversational route (leadgen.swara_live).",
+            "Routine drafts prefer low-cost approved routes.",
+            "Customer data must be masked; credentials never returned.",
+            "Arbitrary provider/model strings are rejected.",
+            "Route changes do not auto-start customer work.",
+        ],
+    }
+
+
+async def route_health_test(
+    *,
+    task_type: str = "leadgen.agent_ops",
+    prompt: str = "Reply with exactly: OWNER_OS_ROUTE_OK",
+    actor: str = "admin",
+) -> dict[str, Any]:
+    """Sanitized non-customer OmniRoute probe via approved registry only."""
+    from app.platform.omniroute_client import _TASK_ROUTES, generate, omniroute_available
+    from app.platform.safe_ai_payload import SafePayloadError
+
+    tt = str(task_type or "").strip()
+    if tt not in _TASK_ROUTES:
+        return {"ok": False, "error": "task_not_in_approved_registry", "task_type": tt}
+    route = _TASK_ROUTES[tt]
+    if route.privacy_class not in ("INTERNAL_SANITIZED",):
+        return {
+            "ok": False,
+            "error": "privacy_class_not_allowed_for_owner_os_probe",
+            "privacy_class": route.privacy_class,
+        }
+    # Block prompts that look like customer PII.
+    low = (prompt or "").lower()
+    if any(x in low for x in ("@gmail", "+91", "jiya", "customer", "whatsapp", "upi")):
+        return {"ok": False, "error": "prompt_looks_like_customer_data"}
+    audit(actor, "omniroute_route_health_test", {"task_type": tt, "started": True})
+    if not omniroute_available():
+        return {
+            "ok": True,
+            "skipped": True,
+            "reason": "omniroute_unavailable",
+            "task_type": tt,
+            "primary_route": route.primary_model,
+            "fallback_route": route.fallback_model,
+            "note": "Gateway/key absent — fail-open; no customer impact.",
+            "secrets_returned": False,
+        }
+    try:
+        result = await generate(
+            tt,
+            [{"role": "user", "content": prompt}],
+            route.privacy_class,
+            agent_key="isha" if tt == "leadgen.agent_ops" else None,
+        )
+    except SafePayloadError as e:
+        return {"ok": False, "error": f"safe_payload:{e}", "secrets_returned": False}
+    except Exception as e:
+        return {"ok": False, "error": type(e).__name__, "secrets_returned": False}
+    out = {
+        "ok": True,
+        "task_type": tt,
+        "primary_route": route.primary_model,
+        "fallback_route": route.fallback_model,
+        "provider": getattr(result, "provider", None) if result else None,
+        "model": getattr(result, "model", None) if result else None,
+        "latency_ms": getattr(result, "latency_ms", None) if result else None,
+        "fallback_reason": getattr(result, "fallback_reason", None) if result else None,
+        "reply_preview": ((result.text or "")[:80] if result else None),
+        "gateway_miss": result is None,
+        "secrets_returned": False,
+        "customer_work_started": False,
+    }
+    audit(
+        actor, "omniroute_route_health_test", {"task_type": tt, "ok": True, "miss": result is None}
+    )
+    return out
 
 
 def training(page: str = "home") -> dict[str, Any]:

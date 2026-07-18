@@ -584,6 +584,26 @@ async def run_daily_content() -> dict[str, Any]:
         # rank 0 = paying real client, rank 1 = self / no-plan filler.
         active = sorted(active, key=lambda c: _content_priority_rank(c))
         for client in active:
+            # Owner OS V1.1: cooperative abort between clients (drain/stop_claims /
+            # request_cancel_running). Never force mid-client; never raise.
+            try:
+                from app.platform import owner_agent_execution as _oae
+
+                if _oae.agent_abort_requested("isha"):
+                    logger.info(
+                        "[auto_content] cooperative agent abort — stopping between clients "
+                        "(clients_done=%s items=%s)",
+                        n_clients,
+                        total_items,
+                    )
+                    return {
+                        "clients": n_clients,
+                        "items": total_items,
+                        "stopped": True,
+                        "reason": "agent_abort",
+                    }
+            except Exception:
+                pass
             cid = str(client.get("id") or "")
             if not cid:
                 continue
@@ -598,9 +618,7 @@ async def run_daily_content() -> dict[str, Any]:
                 # skip human backlog — mark approved + enqueue when engine on.
                 mode = str(prefs.get("approval_mode") or "").strip().lower()
                 hands_free = bool(
-                    added
-                    and added_items
-                    and (cid == _SELF_CLIENT_ID or mode == "auto")
+                    added and added_items and (cid == _SELF_CLIENT_ID or mode == "auto")
                 )
                 if hands_free:
                     try:
@@ -717,6 +735,7 @@ async def seed_client_content(client: dict[str, Any]) -> int:
 
         from app.marketing import content_approval, delivery_ledger
         from app.marketing.whatsapp_pack import broadcast_pack
+
         try:
             from app.voice_agent import free_ai
         except Exception:
@@ -733,7 +752,7 @@ async def seed_client_content(client: dict[str, Any]) -> int:
             pack = await broadcast_pack(
                 business_name=client.get("business_name") or "Aapka Business",
                 niche=client.get("niche") or "general",
-                offer=client.get("services") or ""
+                offer=client.get("services") or "",
             )
             broadcast_msg = pack["broadcast"][0] if pack.get("broadcast") else ""
         except Exception as we:
@@ -777,7 +796,10 @@ async def seed_client_content(client: dict[str, Any]) -> int:
                     f"kisi aur sheher (Mumbai/Delhi/etc.) ka zikr mat karo."
                 )
                 text, _ = await free_ai.chat(
-                    sys_prompt, [{"role": "user", "content": usr_prompt}], max_tokens=200, temperature=0.7
+                    sys_prompt,
+                    [{"role": "user", "content": usr_prompt}],
+                    max_tokens=200,
+                    temperature=0.7,
                 )
                 campaign_suggestion = text.strip()
             except Exception as ce:
@@ -825,7 +847,10 @@ async def seed_client_content(client: dict[str, Any]) -> int:
             try:
                 delivery_ledger.log_event(cid, "marketing_calendar_generated")
                 delivery_ledger.log_event(
-                    cid, "post_draft_created", detail=f"{added} drafts/suggestions setup kiya", meta={"count": added}
+                    cid,
+                    "post_draft_created",
+                    detail=f"{added} drafts/suggestions setup kiya",
+                    meta={"count": added},
                 )
             except Exception as le:  # pragma: no cover
                 logger.debug(f"[auto_content] ledger log skip: {le}")
@@ -855,7 +880,6 @@ async def seed_client_content(client: dict[str, Any]) -> int:
     except Exception as e:  # pragma: no cover
         logger.debug(f"[auto_content] seed_client_content skip: {e}")
         return 0
-
 
 
 def list_queue(client_id: str, status: str | None = None, limit: int = 60) -> list[dict[str, Any]]:
@@ -943,7 +967,9 @@ def enqueue_approved(client_id: str, content: dict[str, Any], approval_id: str =
                 if _se.enabled():
                     caption_text = item.get("caption") or item.get("title") or ""
                     if caption_text:
-                        hashtags = " ".join(f"#{h.lstrip('#')}" for h in (item.get("hashtags") or [])[:5])
+                        hashtags = " ".join(
+                            f"#{h.lstrip('#')}" for h in (item.get("hashtags") or [])[:5]
+                        )
                         full_caption = f"{caption_text}\n\n{hashtags}".strip()
                         _se.enqueue_publish(client_id, caption=full_caption, media_type="image")
             except Exception as _e:

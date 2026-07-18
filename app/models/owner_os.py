@@ -64,3 +64,20 @@ class OwnerOSAuditEvent(Base):
     before_summary = Column(Text, nullable=True)
     after_summary = Column(Text, nullable=True)
     meta_json = Column(Text, nullable=True)
+
+
+class OwnerAgentControl(Base):
+    __tablename__ = "owner_agent_controls"
+
+    agent_id = Column(String(40), primary_key=True)
+    manual_pause = Column(Boolean, nullable=False, default=False)
+    scheduled_pause = Column(Boolean, nullable=False, default=False)
+    stop_claims = Column(Boolean, nullable=False, default=False)
+    drain = Column(Boolean, nullable=False, default=False)
+    drain_state = Column(String(20), nullable=False, default="idle")
+    reason = Column(String(200), nullable=True)
+    changed_by = Column(String(120), nullable=True)
+    changed_at = Column(DateTime, default=datetime.utcnow)
+    expiry = Column(DateTime, nullable=True)
+    version = Column(Integer, nullable=False, default=1)
+    meta_json = Column(Text, nullable=True)
