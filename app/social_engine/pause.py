@@ -83,7 +83,7 @@ def paused_platforms() -> set[str]:
     raw = cfg.get("paused_platforms") or []
     if isinstance(raw, str):
         return {x.strip().lower() for x in raw.split(",") if x.strip()}
-    if isinstance(raw, (list, tuple)):
+    if isinstance(raw, list | tuple):
         return {str(x).strip().lower() for x in raw if str(x).strip()}
     return set()
 
@@ -104,7 +104,7 @@ def paused_clients() -> set[str]:
     raw = cfg.get("paused_clients") or []
     if isinstance(raw, str):
         return {x.strip() for x in raw.split(",") if x.strip()}
-    if isinstance(raw, (list, tuple)):
+    if isinstance(raw, list | tuple):
         return {str(x).strip() for x in raw if str(x).strip()}
     return set()
 
@@ -117,6 +117,14 @@ def should_pause_job(job: dict[str, Any]) -> tuple[bool, str]:
     try:
         if emergency_stop_active():
             return True, "emergency_stop"
+        # Owner OS publishing kill (Postgres/JSONL) — fail-closed if engaged.
+        try:
+            from app.platform.owner_os import kill_engaged
+
+            if kill_engaged("owner_publishing"):
+                return True, "owner_publishing_kill"
+        except Exception:
+            pass
         plat = str(job.get("platform") or "").strip().lower()
         if plat and plat in paused_platforms():
             return True, "paused_platform"

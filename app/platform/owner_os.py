@@ -1,0 +1,1401 @@
+"""owner_os.py — Admin/Owner Operating System (production-safe vertical slice).
+
+Canonical workforce = app.platform.team.STAFF (31). `manager` key = display name Boss
+(system supervisor + runnable worker — NOT a missing 32nd agent).
+
+HONEST SCOPE:
+- Agent pause gates ONLY manual Run-now (agent_controls) — labeled Pause Manual Runs.
+- Outbound calling cannot be enabled here (platform_dial stays HARD OFF).
+- Safe command intents may execute; high-risk intents stay APPROVAL_REQUIRED.
+- Storage: Postgres (Alembic 019) with hardened JSONL fallback (OWNER_OS_STORAGE=jsonl).
+- No shell/SQL/arbitrary code execution.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import re
+import uuid
+from datetime import datetime, timezone
+from typing import Any
+
+from app.platform import owner_os_store as store
+from app.utils.logger import setup_logger
+
+logger = setup_logger(__name__)
+
+# Test monkeypatches may still set these; store module paths are authoritative.
+_CMD_STORE = store.CMD_STORE
+_KILL_STORE = store.KILL_STORE
+_AUDIT_STORE = store.AUDIT_STORE
+
+
+def owner_os_flag_on() -> bool:
+    v = (os.getenv("OWNER_OS") or "1").strip().lower()
+    return v not in ("0", "false", "no", "off")
+
+
+STATUSES = (
+    "DRAFT",
+    "VALIDATED",
+    "APPROVAL_REQUIRED",
+    "READY",
+    "QUEUED",
+    "RUNNING",
+    "SUCCEEDED",
+    "FAILED",
+    "CANCELLED",
+)
+
+ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
+    "DRAFT": frozenset({"VALIDATED", "APPROVAL_REQUIRED", "READY", "CANCELLED"}),
+    "VALIDATED": frozenset({"APPROVAL_REQUIRED", "READY", "QUEUED", "CANCELLED"}),
+    "APPROVAL_REQUIRED": frozenset({"READY", "QUEUED", "CANCELLED", "FAILED"}),
+    "READY": frozenset({"QUEUED", "RUNNING", "CANCELLED", "APPROVAL_REQUIRED"}),
+    "QUEUED": frozenset({"RUNNING", "CANCELLED", "FAILED"}),
+    "RUNNING": frozenset({"SUCCEEDED", "FAILED", "CANCELLED"}),
+    "SUCCEEDED": frozenset(),
+    "FAILED": frozenset({"QUEUED", "CANCELLED"}),
+    "CANCELLED": frozenset({"QUEUED"}),  # retry path only
+}
+
+# System supervisors = STAFF keys that also act as control-plane supervisors.
+SYSTEM_SUPERVISOR_IDS = frozenset({"manager"})  # display: Boss
+# Non-STAFF service identities (queues/workers) — not counted as workforce agents.
+SERVICE_IDENTITY_IDS = frozenset({"celery", "scheduler", "voice_stream", "social_drain"})
+
+DEPARTMENT_FOR_PRODUCT = {
+    "platform": "Infrastructure and Reliability",
+    "voice": "Voice and Calling",
+    "marketing": "Marketing and Content",
+}
+
+SAFE_INTENTS = {
+    "status_report",
+    "list_agents",
+    "list_approvals",
+    "list_kill_switches",
+    "pause_agent",
+    "resume_agent",
+    "training_help",
+}
+
+HIGH_RISK_INTENTS = {
+    "enable_calling",
+    "bulk_email",
+    "whatsapp_campaign",
+    "social_publish",
+    "payment_mutate",
+    "customer_delete",
+}
+
+# Kill switch → real enforcement points (documented for UI + tests).
+KILL_ENFORCEMENT_MATRIX: dict[str, dict[str, Any]] = {
+    "platform_dial": {
+        "enforcement": ["app.platform.platform_dial.enabled", "PLATFORM_DIAL_DAILY=0"],
+        "can_enable_here": False,
+        "note": "HARD OFF — Owner OS ENABLE refuse",
+    },
+    "voice_launch_kill": {
+        "enforcement": ["app.telephony.voice_launch.admin_kill_engaged"],
+        "can_toggle": True,
+    },
+    "social_pause": {
+        "enforcement": ["app.social_engine.pause.should_pause_job", "emergency_stop"],
+        "can_toggle": True,
+    },
+    "owner_all_agents": {
+        "enforcement": ["owner_os.owner_kill_blocks", "owner_os.execute_command"],
+        "can_toggle": True,
+    },
+    "owner_schedulers": {
+        "enforcement": ["owner_os.scheduler_dispatch_allowed"],
+        "can_toggle": True,
+        "note": "Blocks Owner OS–aware scheduled dispatch when engaged",
+    },
+    "owner_publishing": {
+        "enforcement": ["app.social_engine.pause.should_pause_job", "owner_os.owner_kill_blocks"],
+        "can_toggle": True,
+    },
+    "owner_bulk_email": {
+        "enforcement": ["app.api.admin_dashboard.bulk_email_clients", "owner_os.owner_kill_blocks"],
+        "can_toggle": True,
+    },
+    "owner_whatsapp_outbound": {
+        "enforcement": ["app.marketing.whatsapp_campaign.auto_send_enabled gate", "owner_os"],
+        "can_toggle": True,
+    },
+    "owner_payment_mutation": {
+        "enforcement": ["owner_os.owner_kill_blocks", "high-risk intent refuse"],
+        "can_toggle": True,
+    },
+}
+
+TRAINING_PAGES = {
+    "home": {
+        "title": "Owner Home",
+        "hinglish": "Yahan se business ka aaj ka pulse dekho — approvals, failed jobs, Hot Queue, agents.",
+        "safe_commands": [
+            "Sab agents ki current duty batao",
+            "Pending approvals dikhao",
+            "Jiya ke pending deliverables ka status report banao. Publish mat karna.",
+        ],
+        "next": "Pehle Attention Queue dekho, phir Commands box se safe order do.",
+    },
+    "commands": {
+        "title": "Owner Command Console",
+        "hinglish": "Hinglish me order likho → plan preview dekho → Confirm. High-risk pe automatic block.",
+        "safe_commands": [
+            "Aaj ke pending approvals dikhao",
+            "Isha ko pause karo (sirf manual Run now)",
+            "Jiya status report banao, customer message mat bhejna",
+        ],
+        "next": "Confirm se pehle 'Actions that will NOT run' padho.",
+    },
+    "agents": {
+        "title": "Agent Registry (canonical = 31)",
+        "hinglish": "manager = Boss (supervisor). Pause Manual Runs = sirf Run now; scheduler alag.",
+        "safe_commands": ["Swara pause karo", "Isha resume karo"],
+        "next": "Scheduled jobs band karne ke liye Automation → Schedule.",
+    },
+    "tasks": {
+        "title": "Task Control",
+        "hinglish": "Owner commands + recent agent events. Assign/reassign command se.",
+        "safe_commands": ["Failed tasks list dikhao"],
+        "next": "Retry sirf safe intents pe; calling/email publish yahan se nahi.",
+    },
+    "approvals": {
+        "title": "Approval Center",
+        "hinglish": "sales/coordinator/fde decide yahan; content = Open in Mission Control.",
+        "safe_commands": ["Pending approvals dikhao"],
+        "next": "Same canonical approvals_bridge — Mission Control sync.",
+    },
+    "kill": {
+        "title": "Kill Switches",
+        "hinglish": "Calling HARD OFF. Social pause / voice kill / owner kills yahan se.",
+        "safe_commands": ["Kill switch status dikhao"],
+        "next": "Calling ENABLE yahan se intentionally refuse hota hai.",
+    },
+    "training": {
+        "title": "Admin Training Mode",
+        "hinglish": "Har panel pe 'Teach me' — safe practice commands, risky actions pe warning.",
+        "safe_commands": ["Training help dikhao"],
+        "next": "Pehle dry-run status report chalao.",
+    },
+}
+
+PAUSE_SCOPE_NOTE = (
+    "Scheduled jobs may continue. Use workflow or scheduler controls to stop scheduled execution."
+)
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _sync_store_paths() -> None:
+    """Honor test monkeypatches on module-level path constants."""
+    store.CMD_STORE = _CMD_STORE
+    store.KILL_STORE = _KILL_STORE
+    store.AUDIT_STORE = _AUDIT_STORE
+    # If tests redirected sidecar paths away from defaults, force JSONL backend.
+    if (
+        _CMD_STORE != os.path.join("data", "owner_commands.jsonl")
+        or _KILL_STORE != os.path.join("data", "owner_kill_switches.jsonl")
+        or _AUDIT_STORE != os.path.join("data", "owner_os_audit.jsonl")
+    ):
+        os.environ["OWNER_OS_STORAGE"] = "jsonl"
+        store.reset_storage_mode()
+
+
+def audit(actor: str, action: str, detail: dict[str, Any] | None = None) -> None:
+    _sync_store_paths()
+    d = detail or {}
+    store.append_audit(
+        actor,
+        action,
+        target=str(
+            d.get("target") or d.get("command_id") or d.get("agent_id") or d.get("key") or ""
+        )[:120]
+        or None,
+        tenant_id=d.get("tenant_id"),
+        correlation_id=d.get("correlation_id"),
+        after_summary=str(d.get("status") or d.get("engaged") or "")[:200] or None,
+        meta=d,
+    )
+
+
+def can_transition(from_status: str, to_status: str) -> bool:
+    return to_status in ALLOWED_TRANSITIONS.get(from_status, frozenset())
+
+
+def kill_switch_board() -> dict[str, Any]:
+    _sync_store_paths()
+    board: dict[str, Any] = {
+        "platform_dial": {
+            "engaged": True,
+            "hard_off": True,
+            "source": "env+data",
+            "can_enable_here": False,
+            **KILL_ENFORCEMENT_MATRIX["platform_dial"],
+        },
+        "voice_launch_kill": {
+            "engaged": False,
+            "source": "voice_launch",
+            **KILL_ENFORCEMENT_MATRIX["voice_launch_kill"],
+        },
+        "social_pause": {
+            "engaged": False,
+            "source": "social_engine",
+            **KILL_ENFORCEMENT_MATRIX["social_pause"],
+        },
+        "owner_all_agents": {
+            "engaged": False,
+            "source": "owner_kill_switches",
+            **KILL_ENFORCEMENT_MATRIX["owner_all_agents"],
+        },
+        "owner_schedulers": {
+            "engaged": False,
+            "source": "owner_kill_switches",
+            **KILL_ENFORCEMENT_MATRIX["owner_schedulers"],
+        },
+        "owner_publishing": {
+            "engaged": False,
+            "source": "owner_kill_switches",
+            **KILL_ENFORCEMENT_MATRIX["owner_publishing"],
+        },
+        "owner_bulk_email": {
+            "engaged": False,
+            "source": "owner_kill_switches",
+            **KILL_ENFORCEMENT_MATRIX["owner_bulk_email"],
+        },
+        "owner_whatsapp_outbound": {
+            "engaged": False,
+            "source": "owner_kill_switches",
+            **KILL_ENFORCEMENT_MATRIX["owner_whatsapp_outbound"],
+        },
+        "owner_payment_mutation": {
+            "engaged": False,
+            "source": "owner_kill_switches",
+            **KILL_ENFORCEMENT_MATRIX["owner_payment_mutation"],
+        },
+    }
+    try:
+        from app.platform import platform_dial as _pd
+
+        enabled = bool(_pd.enabled())
+        board["platform_dial"].update(
+            {
+                "engaged": not enabled,
+                "hard_off": not enabled,
+                "source": "platform_dial",
+                "can_enable_here": False,
+                "note": "HARD OFF mandate — Owner OS se enable nahi hota",
+            }
+        )
+    except Exception:
+        pass
+    try:
+        from app.telephony.voice_launch import admin_kill_engaged
+
+        board["voice_launch_kill"]["engaged"] = bool(admin_kill_engaged())
+        board["voice_launch_kill"]["can_toggle"] = True
+    except Exception:
+        pass
+    try:
+        from app.social_engine.pause import emergency_stop_active
+
+        board["social_pause"]["engaged"] = bool(emergency_stop_active())
+        board["social_pause"]["can_toggle"] = True
+    except Exception:
+        pass
+    for k, rec in store.kill_map().items():
+        if k in board:
+            board[k] = {
+                **board[k],
+                "engaged": bool(rec.get("engaged")),
+                "by": rec.get("by") or rec.get("changed_by"),
+                "at": rec.get("at"),
+                "reason": rec.get("reason"),
+                "source": "owner_kill_switches",
+                "can_toggle": True,
+            }
+    board["_matrix"] = KILL_ENFORCEMENT_MATRIX
+    board["_calling_badge"] = "Calling HARD OFF"
+    return board
+
+
+def set_kill_switch(key: str, engaged: bool, by: str = "admin", reason: str = "") -> dict[str, Any]:
+    _sync_store_paths()
+    key = (key or "").strip()
+    if key in ("platform_dial", "enable_calling", "outbound_calling"):
+        audit(by, "kill_switch_refused", {"key": key, "engaged": engaged})
+        return {
+            "ok": False,
+            "error": "platform_dial / outbound calling Owner OS se ENABLE nahi hota (HARD OFF mandate)",
+        }
+    allowed = {
+        "voice_launch_kill",
+        "social_pause",
+        "owner_all_agents",
+        "owner_schedulers",
+        "owner_publishing",
+        "owner_bulk_email",
+        "owner_whatsapp_outbound",
+        "owner_payment_mutation",
+    }
+    if key not in allowed:
+        return {"ok": False, "error": f"unknown kill switch: {key}"}
+
+    if key == "voice_launch_kill":
+        try:
+            from app.telephony import voice_launch as vl
+
+            if hasattr(vl, "set_kill"):
+                vl.set_kill(bool(engaged))
+        except Exception as e:
+            return {"ok": False, "error": f"voice_launch: {type(e).__name__}"}
+    if key == "social_pause":
+        try:
+            path = os.path.join("data", "social_engine.json")
+            data: dict[str, Any] = {}
+            if os.path.exists(path):
+                try:
+                    data = json.loads(open(path, encoding="utf-8").read())
+                except Exception:
+                    data = {}
+            data["emergency_stop"] = bool(engaged)
+            data["by"] = (by or "admin")[:80]
+            data["reason"] = (reason or "")[:200]
+            data["at"] = _now_iso()
+            os.makedirs("data", exist_ok=True)
+            open(path, "w", encoding="utf-8").write(json.dumps(data, ensure_ascii=False, indent=2))
+        except Exception as e:
+            return {"ok": False, "error": f"social_pause: {type(e).__name__}"}
+
+    rec = store.set_kill_record(key, engaged, by=by, reason=reason)
+    audit(by, "kill_switch_set", {"key": key, "engaged": bool(engaged), "reason": reason})
+    return {"ok": True, **rec}
+
+
+def owner_kill_blocks(intent: str) -> str | None:
+    _sync_store_paths()
+    km = store.kill_map()
+    if km.get("owner_all_agents", {}).get("engaged") and intent not in (
+        "list_kill_switches",
+        "training_help",
+        "list_agents",
+    ):
+        return "owner_all_agents kill switch ENGAGED"
+    if intent in ("social_publish",) and (
+        km.get("owner_publishing", {}).get("engaged")
+        or kill_switch_board().get("social_pause", {}).get("engaged")
+    ):
+        return "publishing kill engaged"
+    if intent in ("bulk_email",) and km.get("owner_bulk_email", {}).get("engaged"):
+        return "bulk email kill engaged"
+    if intent in ("whatsapp_campaign",) and km.get("owner_whatsapp_outbound", {}).get("engaged"):
+        return "whatsapp outbound kill engaged"
+    if intent in ("payment_mutate",) and km.get("owner_payment_mutation", {}).get("engaged"):
+        return "payment mutation kill engaged"
+    if intent in ("enable_calling",):
+        return "outbound calling HARD OFF"
+    return None
+
+
+def kill_engaged(key: str) -> bool:
+    """Public helper for real execution paths (social/email/whatsapp)."""
+    _sync_store_paths()
+    if key == "platform_dial":
+        try:
+            from app.platform import platform_dial as _pd
+
+            return not bool(_pd.enabled())
+        except Exception:
+            return True
+    if key == "social_pause":
+        try:
+            from app.social_engine.pause import emergency_stop_active
+
+            return bool(emergency_stop_active())
+        except Exception:
+            return False
+    return store.kill_engaged(key)
+
+
+def scheduler_dispatch_allowed(agent_id: str | None = None) -> tuple[bool, str]:
+    """Explicit scheduled-dispatch gate. False = do not start new scheduled work."""
+    _sync_store_paths()
+    if store.kill_engaged("owner_schedulers") or store.kill_engaged("owner_all_agents"):
+        return False, "owner scheduler/all-agents kill engaged"
+    # Manual pause does NOT block scheduler — honest semantics.
+    return True, ""
+
+
+def agent_registry() -> dict[str, Any]:
+    """Canonical inventory — separate workforce / supervisors / services / runnable."""
+    from app.platform.team import STAFF
+
+    agents: list[dict[str, Any]] = []
+    paused: dict[str, Any] = {}
+    runnable: set[str] = set()
+    members_live: dict[str, Any] = {}
+    try:
+        from app.platform import agent_controls
+        from app.platform.office_hq import RUNNABLE_MEMBERS, room_for_member
+        from app.platform.team import team_status
+
+        paused = agent_controls.list_paused()
+        runnable = set(RUNNABLE_MEMBERS)
+        ts = team_status() or {}
+        members_live = {m.get("key"): m for m in (ts.get("members") or [])}
+    except Exception:
+        from app.platform.office_hq import RUNNABLE_MEMBERS, room_for_member
+
+        runnable = set(RUNNABLE_MEMBERS)
+
+    orphan_runnable = sorted(k for k in runnable if k not in STAFF)
+    route_by_key: dict[str, Any] = {}
+    try:
+        from app.platform.agent_os_routing import agent_route_table
+
+        for row in agent_route_table() or []:
+            route_by_key[str(row.get("key") or "")] = row
+    except Exception:
+        pass
+
+    supervisors: list[dict[str, Any]] = []
+    for key, meta in STAFF.items():
+        live = members_live.get(key) or {}
+        product = str(meta.get("product") or "platform")
+        room = room_for_member(key, product)
+        route = route_by_key.get(key) or {}
+        is_supervisor = key in SYSTEM_SUPERVISOR_IDS
+        row = {
+            "id": key,
+            "agent_id": key,
+            "name": meta.get("name", key),
+            "emoji": meta.get("emoji", "🤖"),
+            "title": meta.get("title", ""),
+            "department": DEPARTMENT_FOR_PRODUCT.get(product, product),
+            "product": product,
+            "room": room,
+            "responsibility": meta.get("duties", ""),
+            "schedule": meta.get("schedule", ""),
+            "status": live.get("state") or "offline",
+            "today_actions": int(live.get("today_actions") or 0),
+            "today_errors": int(live.get("today_errors") or 0),
+            "last_activity": live.get("last_activity"),
+            "runnable": key in runnable,
+            "paused": key in paused,
+            "pause_scope": "manual_runs_only",
+            "pause_label": "Pause Manual Runs" if key not in paused else "Resume Manual Runs",
+            "pause_note": PAUSE_SCOPE_NOTE,
+            "is_system_supervisor": is_supervisor,
+            "omniroute_eligible": bool(route.get("omniroute_eligible")),
+            "requires_human_approval_before_publish": bool(
+                route.get("requires_human_approval_before_publish")
+            ),
+            "queue": route.get("queue") or "celery",
+            "risk_level": "high" if product == "voice" else ("medium" if key == "zara" else "low"),
+            "approval_level": (
+                "human_before_publish"
+                if route.get("requires_human_approval_before_publish")
+                else "owner_for_high_risk"
+            ),
+        }
+        agents.append(row)
+        if is_supervisor:
+            supervisors.append(
+                {
+                    "id": key,
+                    "name": meta.get("name", key),
+                    "role": "system_supervisor",
+                    "note": "Canonical STAFF key; display name Boss. Not a separate 32nd agent.",
+                }
+            )
+
+    agents.sort(key=lambda a: (a["department"], a["name"]))
+    service_identities = [
+        {"id": sid, "role": "service_identity", "note": "Not a STAFF workforce agent"}
+        for sid in sorted(SERVICE_IDENTITY_IDS)
+    ]
+    counts = {
+        "canonical_agents": len(agents),
+        "system_supervisors": len(supervisors),
+        "service_identities": len(service_identities),
+        "runnable_workers": len([a for a in agents if a.get("runnable")]),
+        "paused_manual_runs": len(paused),
+        "orphan_runnable_ids": orphan_runnable,
+    }
+    return {
+        "ok": True,
+        "staff_count": counts["canonical_agents"],
+        "inventory": counts,
+        "manager_explanation": (
+            "manager is the canonical STAFF key for the agent displayed as Boss. "
+            "It is a system supervisor AND a runnable manual-run worker. "
+            "It is not a missing 32nd agent — workforce stays 31."
+        ),
+        "marketing_note": "Docs sometimes say ~32; code truth is 31 STAFF keys (manager=Boss)",
+        "agents": agents,
+        "system_supervisors": supervisors,
+        "service_identities": service_identities,
+        "runnable_members": sorted(runnable),
+        "paused_count": len(paused),
+        "pause_semantics": {
+            "label_pause": "Pause Manual Runs",
+            "label_resume": "Resume Manual Runs",
+            "scope": "manual_runs_only",
+            "note": PAUSE_SCOPE_NOTE,
+            "scheduled_dispatch": "not_blocked_by_manual_pause",
+            "queued_tasks": "already-queued Celery tasks may still run",
+            "running_tasks": "in-flight runs are not preemptively killed",
+        },
+    }
+
+
+def approvals_inbox() -> dict[str, Any]:
+    items: list[dict[str, Any]] = []
+    counts = {"pending": 0, "by_source": {}}
+    try:
+        from app.platform import approvals_bridge
+
+        d = approvals_bridge.list_drafts(include_decided=False) or {}
+        counts = d.get("counts") or counts
+        for row in d.get("items") or d.get("drafts") or []:
+            src = str(row.get("source") or "")
+            decidable = src in ("sales", "coordinator", "fde")
+            items.append(
+                {
+                    "source": src,
+                    "item_id": row.get("item_id") or row.get("id"),
+                    "title": (row.get("title") or row.get("summary") or "")[:160],
+                    "risk": row.get("risk") or row.get("risk_tier") or "medium",
+                    "status": row.get("status") or "pending",
+                    "customer": row.get("client_id") or row.get("customer") or "",
+                    "tenant_id": row.get("client_id") or row.get("customer") or "",
+                    "requesting_agent": row.get("agent") or row.get("member") or src,
+                    "action_type": row.get("action") or row.get("kind") or src,
+                    "expected_impact": (row.get("impact") or row.get("summary") or "")[:200],
+                    "category": "agent_draft",
+                    "decidable_here": decidable,
+                    "ui_state": "operational" if decidable else "view_only",
+                    "open_in": None if decidable else "/app/automation#approvals",
+                    "open_reason": (
+                        None
+                        if decidable
+                        else "Content/unsupported source — decide in Mission Control (canonical UI)"
+                    ),
+                }
+            )
+    except Exception as e:
+        logger.debug("[owner_os] approvals_bridge: %s", e)
+    try:
+        path = os.path.join("data", "content_approvals.jsonl")
+        for row in store._read_jsonl(path)[-40:]:
+            if str(row.get("status") or "pending") != "pending":
+                continue
+            items.append(
+                {
+                    "source": "content",
+                    "item_id": row.get("id") or row.get("approval_id"),
+                    "title": (row.get("caption") or row.get("title") or "content approval")[:160],
+                    "risk": "medium",
+                    "status": "pending",
+                    "customer": row.get("client_id") or "",
+                    "tenant_id": row.get("client_id") or "",
+                    "requesting_agent": "zara",
+                    "action_type": "content_publish",
+                    "expected_impact": "Customer-facing social content",
+                    "category": "customer_content",
+                    "decidable_here": False,
+                    "ui_state": "view_only",
+                    "open_in": "/app/automation#approvals",
+                    "open_reason": "Customer content publish — Open in Mission Control (no auto-exec from Owner OS)",
+                }
+            )
+    except Exception:
+        pass
+    return {
+        "ok": True,
+        "pending": int((counts or {}).get("pending") or len(items)),
+        "by_source": (counts or {}).get("by_source") or {},
+        "items": items[:80],
+        "categories": [
+            "customer_content",
+            "social_publishing",
+            "outbound_email",
+            "whatsapp_message",
+            "outbound_calling",
+            "payment_billing",
+            "agent_permission",
+            "workflow_change",
+        ],
+        "note": "Decisions reuse approvals_bridge.decide — same as Mission Control. Calling HARD OFF.",
+        "bridge": "approvals_bridge",
+    }
+
+
+def decide_approval(
+    source: str,
+    item_id: str,
+    decision: str,
+    actor: str = "admin",
+    reason: str = "",
+) -> dict[str, Any]:
+    """Canonical approval bridge — no second approval system."""
+    source = (source or "").strip().lower()
+    item_id = (item_id or "").strip()
+    decision = (decision or "").strip().lower()
+    if source == "content":
+        return {
+            "ok": False,
+            "error": "content approvals are view-only in Owner OS",
+            "open_in": "/app/automation#approvals",
+            "reason": "Customer publish path — decide in Mission Control",
+        }
+    if decision not in ("approve", "reject", "request_changes"):
+        return {"ok": False, "error": "decision must be approve|reject|request_changes"}
+    if decision == "request_changes":
+        # Bridge only supports approve|reject — map to reject with reason stamp via reject.
+        decision = "reject"
+        reason = (reason or "request_changes").strip() or "request_changes"
+    try:
+        from app.platform import approvals_bridge
+
+        out = approvals_bridge.decide(source, item_id, decision, by=actor)
+        audit(
+            actor,
+            "approval_decide",
+            {
+                "source": source,
+                "item_id": item_id,
+                "decision": decision,
+                "reason": reason[:200],
+                "noop": out.get("noop"),
+                "status": out.get("status"),
+            },
+        )
+        return out
+    except Exception as e:
+        return {"ok": False, "error": f"{type(e).__name__}: {e}"[:200]}
+
+
+def task_board() -> dict[str, Any]:
+    _sync_store_paths()
+    cmds = list_commands(limit=40)
+    running = [c for c in cmds if c.get("status") in ("QUEUED", "RUNNING", "READY")]
+    failed = [c for c in cmds if c.get("status") == "FAILED"]
+    waiting = [c for c in cmds if c.get("status") == "APPROVAL_REQUIRED"]
+    done = [c for c in cmds if c.get("status") == "SUCCEEDED"]
+    events: list[dict[str, Any]] = []
+    try:
+        from app.platform.team import recent_events
+
+        for ev in (recent_events(30) if callable(recent_events) else []) or []:
+            events.append(
+                {
+                    "agent": ev.get("agent") or ev.get("member"),
+                    "action": ev.get("action") or ev.get("event"),
+                    "status": ev.get("status"),
+                    "detail": (ev.get("detail") or ev.get("message") or "")[:160],
+                    "at": ev.get("at") or ev.get("created_at"),
+                }
+            )
+    except Exception:
+        try:
+            from app.platform import team
+
+            st = team.team_status() or {}
+            for m in st.get("members") or []:
+                if m.get("last_activity"):
+                    events.append(
+                        {
+                            "agent": m.get("key"),
+                            "action": "last_activity",
+                            "status": m.get("state"),
+                            "detail": "",
+                            "at": m.get("last_activity"),
+                        }
+                    )
+        except Exception:
+            pass
+    return {
+        "ok": True,
+        "views": {
+            "my_attention": waiting[:20],
+            "running": running[:20],
+            "waiting_approval": waiting[:20],
+            "failed": failed[:20],
+            "completed": done[:20],
+        },
+        "recent_events": events[:30],
+        "counts": {
+            "running": len(running),
+            "waiting_approval": len(waiting),
+            "failed": len(failed),
+            "completed": len(done),
+        },
+    }
+
+
+def _extract_tenant(text: str) -> str | None:
+    t = (text or "").lower()
+    if "jiya" in t:
+        return "jiya-makeover"
+    m = re.search(r"client[_\s-]?id[:\s]+([a-z0-9\-_]{3,60})", t)
+    if m:
+        return m.group(1)
+    return None
+
+
+def _extract_agent(text: str) -> str | None:
+    from app.platform.team import STAFF
+
+    t = (text or "").lower()
+    for key, meta in STAFF.items():
+        name = str(meta.get("name") or "").lower()
+        if key in t or (name and name in t):
+            return key
+    return None
+
+
+def parse_intent(text: str) -> dict[str, Any]:
+    raw = (text or "").strip()
+    low = raw.lower()
+    tenant = _extract_tenant(raw)
+    agent = _extract_agent(raw)
+
+    forbidden: list[str] = []
+    will_not = [
+        "shell/SSH/terminal access",
+        "raw SQL",
+        "arbitrary Python exec",
+        "unrestricted infra changes",
+    ]
+
+    intent = "unknown"
+    risk = "low"
+    approval = False
+    actions: list[str] = []
+    tools: list[str] = []
+    publish_allowed = False
+    customer_notify_allowed = False
+
+    if any(x in low for x in ("kill switch", "kill-switch", "emergency stop", "band karo calling")):
+        intent = "list_kill_switches"
+        actions = ["Show production safety board"]
+        tools = ["owner_os.kill_switch_board"]
+    elif any(x in low for x in ("training", "sikhao", "teach me", "kaise use")):
+        intent = "training_help"
+        actions = ["Show Admin Training Mode tips"]
+        tools = ["owner_os.training"]
+    elif any(x in low for x in ("approval", "approve", "pending approval", "manzoori")):
+        intent = "list_approvals"
+        actions = ["List pending approvals across bridges"]
+        tools = ["approvals_bridge", "content_approvals"]
+    elif re.search(r"\b(pause|rok|band)\b", low) and agent:
+        intent = "pause_agent"
+        actions = [f"Pause Manual Runs for agent '{agent}'"]
+        tools = ["agent_controls.pause"]
+        risk = "low"
+        will_not.append(PAUSE_SCOPE_NOTE)
+    elif re.search(r"\b(resume|chalu|unpause)\b", low) and agent:
+        intent = "resume_agent"
+        actions = [f"Resume Manual Runs for agent '{agent}'"]
+        tools = ["agent_controls.resume"]
+    elif any(x in low for x in ("sab agents", "all agents", "duty", "workforce", "registry")):
+        intent = "list_agents"
+        actions = ["Return full 31-agent inventory with supervisor separation"]
+        tools = ["team.STAFF", "agent_controls"]
+    elif any(
+        x in low
+        for x in (
+            "status report",
+            "deliverable",
+            "pending post",
+            "pending social",
+            "report banao",
+            "status batao",
+        )
+    ) or (tenant and "jiya" in low):
+        intent = "status_report"
+        actions = [
+            "Build read-only deliverables/status report for tenant",
+            "Mark command SUCCEEDED with evidence JSON",
+        ]
+        tools = ["marketing.clients_store", "delivery ledger (read)"]
+        will_not.extend(
+            [
+                "content publish",
+                "customer WhatsApp/email send",
+                "payment capture",
+                "outbound calling",
+            ]
+        )
+        publish_allowed = False
+        customer_notify_allowed = False
+        if not tenant:
+            tenant = "jiya-makeover" if "jiya" in low else None
+    elif any(
+        x in low for x in ("call chalu", "calling enable", "platform_dial", "swara calling on")
+    ):
+        intent = "enable_calling"
+        risk = "critical"
+        approval = True
+        actions = ["REFUSED — outbound calling HARD OFF"]
+        forbidden.append("enable_calling")
+    elif any(x in low for x in ("publish", "post karo", "zara publish", "social pe daalo")):
+        intent = "social_publish"
+        risk = "high"
+        approval = True
+        actions = ["Would require Approval Center + SOCIAL gate"]
+        will_not.append("auto-publish without owner approve")
+    elif any(x in low for x in ("bulk email", "mass email", "saare ko email")):
+        intent = "bulk_email"
+        risk = "critical"
+        approval = True
+        actions = ["Blocked pending explicit owner approval path"]
+    else:
+        intent = "unknown"
+        risk = "medium"
+        approval = True
+        actions = ["Needs clarification — unrecognized intent fails closed"]
+
+    block = owner_kill_blocks(intent)
+    if block:
+        approval = True
+        forbidden.append(block)
+
+    safe = intent in SAFE_INTENTS and not approval and intent != "unknown"
+    status = "VALIDATED" if intent != "unknown" else "DRAFT"
+    if approval or intent in HIGH_RISK_INTENTS or intent == "unknown":
+        status = "APPROVAL_REQUIRED"
+    if safe:
+        status = "READY"
+    if intent == "status_report":
+        publish_allowed = False
+        customer_notify_allowed = False
+
+    return {
+        "ok": True,
+        "original": raw[:2000],
+        "intent": intent,
+        "normalized": intent,
+        "tenant_id": tenant,
+        "agent_id": agent,
+        "department": None,
+        "priority": "normal",
+        "risk_level": risk,
+        "approval_required": bool(approval) or intent in HIGH_RISK_INTENTS or intent == "unknown",
+        "safe_to_execute": safe,
+        "publish_allowed": publish_allowed,
+        "customer_notify_allowed": customer_notify_allowed,
+        "actions": actions,
+        "tools": tools,
+        "will_not_perform": will_not,
+        "forbidden": forbidden,
+        "expected_output": "Inspectable evidence object + audit row",
+        "status": status,
+        "preview_summary": _preview_summary(
+            intent, tenant, agent, actions, will_not, risk, publish_allowed, customer_notify_allowed
+        ),
+    }
+
+
+def _preview_summary(
+    intent: str,
+    tenant: str | None,
+    agent: str | None,
+    actions: list[str],
+    will_not: list[str],
+    risk: str,
+    publish_allowed: bool = False,
+    customer_notify_allowed: bool = False,
+) -> str:
+    lines = [
+        f"Intent: {intent}",
+        f"Tenant: {tenant or '—'}",
+        f"Agent: {agent or '—'}",
+        f"Risk: {risk}",
+        f"Publish allowed: {publish_allowed}",
+        f"Customer notify allowed: {customer_notify_allowed}",
+        "Actions: " + "; ".join(actions[:4]),
+        "Will NOT: " + "; ".join(will_not[:4]),
+    ]
+    return "\n".join(lines)
+
+
+def list_commands(limit: int = 50) -> list[dict[str, Any]]:
+    _sync_store_paths()
+    return store.list_commands(limit)
+
+
+def get_command(command_id: str) -> dict[str, Any] | None:
+    _sync_store_paths()
+    return store.get_command(command_id)
+
+
+def create_command(
+    text: str,
+    actor: str = "admin",
+    idempotency_key: str | None = None,
+    confirm: bool = False,
+) -> dict[str, Any]:
+    _sync_store_paths()
+    plan = parse_intent(text)
+    if idempotency_key:
+        existing = store.find_by_idempotency(idempotency_key)
+        if existing:
+            return {"ok": True, "deduped": True, "command": existing, "plan": plan}
+
+    cid = "ocmd_" + uuid.uuid4().hex[:12]
+    corr = "corr_" + uuid.uuid4().hex[:12]
+    if not idempotency_key:
+        idempotency_key = hashlib.sha256(
+            f"{actor}|{text.strip().lower()}|{_now_iso()[:13]}".encode()
+        ).hexdigest()[:24]
+
+    status = plan["status"]
+    if plan["safe_to_execute"] and confirm:
+        status = "QUEUED"
+    elif plan["safe_to_execute"] and not confirm:
+        status = "READY"
+    elif plan["approval_required"] or plan["intent"] == "unknown":
+        status = "APPROVAL_REQUIRED"
+
+    cmd = {
+        "command_id": cid,
+        "idempotency_key": idempotency_key,
+        "actor": (actor or "admin")[:120],
+        "actor_id": (actor or "admin")[:120],
+        "original": plan["original"],
+        "original_instruction": plan["original"],
+        "intent": plan["intent"],
+        "normalized_intent": plan["intent"],
+        "tenant_id": plan.get("tenant_id"),
+        "agent_id": plan.get("agent_id"),
+        "priority": "normal",
+        "risk_level": plan["risk_level"],
+        "approval_required": plan["approval_required"],
+        "approval_state": "required" if plan["approval_required"] else "none",
+        "parameters": {
+            "actions": plan["actions"],
+            "tools": plan["tools"],
+            "will_not_perform": plan["will_not_perform"],
+        },
+        "status": status,
+        "execution_state": status,
+        "progress": 0,
+        "retry_count": 0,
+        "created_at": _now_iso(),
+        "updated_at": _now_iso(),
+        "evidence": None,
+        "error": None,
+        "preview_summary": plan["preview_summary"],
+        "publish_allowed": bool(plan.get("publish_allowed")),
+        "customer_notify_allowed": bool(plan.get("customer_notify_allowed")),
+        "correlation_id": corr,
+        "version": 1,
+    }
+    if plan["intent"] == "status_report":
+        cmd["publish_allowed"] = False
+        cmd["customer_notify_allowed"] = False
+
+    saved = store.insert_command(cmd)
+    # If insert deduped via unique constraint race
+    if saved.get("command_id") != cid and saved.get("idempotency_key") == idempotency_key:
+        return {"ok": True, "deduped": True, "command": saved, "plan": plan}
+    audit(
+        actor,
+        "command_create",
+        {
+            "command_id": saved.get("command_id") or cid,
+            "intent": cmd["intent"],
+            "status": status,
+            "correlation_id": corr,
+            "tenant_id": cmd.get("tenant_id"),
+        },
+    )
+    return {"ok": True, "command": saved, "plan": plan}
+
+
+def _update_command(command_id: str, **fields: Any) -> dict[str, Any]:
+    _sync_store_paths()
+    cur = get_command(command_id)
+    if not cur:
+        return {"ok": False, "error": "command not found"}
+    new_status = fields.get("status")
+    if new_status and new_status != cur.get("status"):
+        if not can_transition(str(cur.get("status")), str(new_status)):
+            return {
+                "ok": False,
+                "error": f"illegal transition {cur.get('status')} → {new_status}",
+                "command": cur,
+            }
+    return store.update_command(command_id, **fields)
+
+
+def approve_command(command_id: str, actor: str = "admin") -> dict[str, Any]:
+    cur = get_command(command_id)
+    if not cur:
+        return {"ok": False, "error": "command not found"}
+    if cur.get("status") in ("QUEUED", "RUNNING", "SUCCEEDED"):
+        return {"ok": False, "error": "already approved/executed", "command": cur}
+    if cur.get("intent") in HIGH_RISK_INTENTS or cur.get("intent") == "enable_calling":
+        return {"ok": False, "error": "this intent cannot be approved for auto-exec in Owner OS v1"}
+    plan = parse_intent(str(cur.get("original") or ""))
+    if not plan.get("safe_to_execute"):
+        return {"ok": False, "error": "not a safe executable intent", "plan": plan}
+    out = _update_command(command_id, status="QUEUED", progress=10, approval_state="approved")
+    audit(
+        actor,
+        "command_approve",
+        {"command_id": command_id, "correlation_id": cur.get("correlation_id")},
+    )
+    return out
+
+
+def cancel_command(command_id: str, actor: str = "admin") -> dict[str, Any]:
+    cur = get_command(command_id)
+    if not cur:
+        return {"ok": False, "error": "command not found"}
+    if cur.get("status") in ("SUCCEEDED", "CANCELLED"):
+        return {"ok": False, "error": f"cannot cancel from {cur.get('status')}"}
+    out = _update_command(command_id, status="CANCELLED", progress=100)
+    audit(actor, "command_cancel", {"command_id": command_id})
+    return out
+
+
+def retry_command(command_id: str, actor: str = "admin") -> dict[str, Any]:
+    cur = get_command(command_id)
+    if not cur:
+        return {"ok": False, "error": "command not found"}
+    if cur.get("status") not in ("FAILED", "CANCELLED"):
+        return {"ok": False, "error": "retry only for FAILED/CANCELLED"}
+    out = _update_command(
+        command_id,
+        status="QUEUED",
+        progress=5,
+        retry_count=int(cur.get("retry_count") or 0) + 1,
+        error=None,
+        sanitized_error=None,
+    )
+    audit(
+        actor,
+        "command_retry",
+        {"command_id": command_id, "retry_count": int(cur.get("retry_count") or 0) + 1},
+    )
+    return out
+
+
+def reassign_command(command_id: str, agent_id: str, actor: str = "admin") -> dict[str, Any]:
+    from app.platform.team import STAFF
+
+    if agent_id not in STAFF:
+        return {"ok": False, "error": "unknown agent"}
+    cur = get_command(command_id)
+    if not cur:
+        return {"ok": False, "error": "command not found"}
+    if cur.get("status") in ("RUNNING", "SUCCEEDED"):
+        return {"ok": False, "error": "cannot reassign after execution started/completed"}
+    out = _update_command(command_id, agent_id=agent_id, assigned_agent_id=agent_id)
+    audit(actor, "command_reassign", {"command_id": command_id, "agent_id": agent_id})
+    return out
+
+
+def _build_status_report(tenant_id: str) -> dict[str, Any]:
+    evidence: dict[str, Any] = {
+        "tenant_id": tenant_id,
+        "publish": False,
+        "customer_notify": False,
+        "publish_allowed": False,
+        "customer_notify_allowed": False,
+        "profile": {},
+        "pending_approvals": 0,
+        "notes": [],
+    }
+    try:
+        from app.marketing.clients_store import get_client
+
+        c = get_client(tenant_id) or {}
+        evidence["profile"] = {
+            "client_id": c.get("client_id") or tenant_id,
+            "business_name": c.get("business_name"),
+            "plan": c.get("plan"),
+            "status": c.get("status"),
+            "product": c.get("product"),
+            "onboarding_status": c.get("onboarding_status") or c.get("setup_status"),
+        }
+    except Exception as e:
+        evidence["notes"].append(f"clients_store: {type(e).__name__}")
+    try:
+        path = os.path.join("data", "content_approvals.jsonl")
+        n = 0
+        for row in store._read_jsonl(path):
+            if (
+                str(row.get("client_id") or "") == tenant_id
+                and str(row.get("status") or "pending") == "pending"
+            ):
+                n += 1
+        evidence["pending_approvals"] = n
+    except Exception:
+        pass
+    try:
+        ledger = os.path.join("data", "delivery_ledger", f"{tenant_id}.jsonl")
+        events = store._read_jsonl(ledger)
+        evidence["delivery_ledger_events"] = len(events)
+        evidence["delivery_ledger_tail"] = [
+            {
+                "at": e.get("at") or e.get("ts"),
+                "event": e.get("event") or e.get("type"),
+                "ok": e.get("ok"),
+            }
+            for e in events[-8:]
+        ]
+    except Exception:
+        evidence["delivery_ledger_events"] = 0
+    evidence["notes"].append(
+        "Read-only report — no publish, no customer message, no payment mutation"
+    )
+    return evidence
+
+
+def execute_command(command_id: str, actor: str = "admin") -> dict[str, Any]:
+    _sync_store_paths()
+    cur = get_command(command_id)
+    if not cur:
+        return {"ok": False, "error": "command not found"}
+    if cur.get("status") == "SUCCEEDED":
+        return {
+            "ok": True,
+            "deduped": True,
+            "command": cur,
+            "note": "already succeeded — no re-exec",
+        }
+    if cur.get("status") not in ("READY", "QUEUED"):
+        return {"ok": False, "error": f"cannot execute from status {cur.get('status')}"}
+
+    intent = str(cur.get("intent") or "")
+    block = owner_kill_blocks(intent)
+    if block:
+        _update_command(
+            command_id, status="FAILED", error=block, sanitized_error=block, progress=100
+        )
+        return {"ok": False, "error": block}
+
+    if intent not in SAFE_INTENTS:
+        return {"ok": False, "error": "intent not safe for Owner OS v1 execution"}
+
+    # Safe reports always force publish/notify off
+    if intent == "status_report":
+        _update_command(command_id, publish_allowed=False, customer_notify_allowed=False)
+
+    started = _update_command(command_id, status="RUNNING", progress=30)
+    if not started.get("ok"):
+        return started
+
+    try:
+        evidence: dict[str, Any] = {"intent": intent}
+        if intent == "status_report":
+            tenant = str(cur.get("tenant_id") or "jiya-makeover")
+            evidence = _build_status_report(tenant)
+            if not cur.get("agent_id"):
+                _update_command(command_id, agent_id="isha", assigned_agent_id="isha")
+        elif intent == "list_agents":
+            evidence = {"registry": agent_registry()}
+        elif intent == "list_approvals":
+            evidence = approvals_inbox()
+        elif intent == "list_kill_switches":
+            evidence = kill_switch_board()
+        elif intent == "training_help":
+            evidence = {"pages": TRAINING_PAGES}
+        elif intent == "pause_agent":
+            from app.platform import agent_controls
+            from app.platform.office_hq import RUNNABLE_MEMBERS
+
+            agent = str(cur.get("agent_id") or "")
+            if agent not in RUNNABLE_MEMBERS:
+                raise ValueError(
+                    f"agent '{agent}' is not in RUNNABLE_MEMBERS (Pause Manual Runs N/A)"
+                )
+            evidence = agent_controls.pause(agent, by=actor, note="owner_os Pause Manual Runs")
+            evidence["pause_label"] = "Pause Manual Runs"
+            evidence["pause_note"] = PAUSE_SCOPE_NOTE
+        elif intent == "resume_agent":
+            from app.platform import agent_controls
+
+            agent = str(cur.get("agent_id") or "")
+            evidence = agent_controls.resume(agent, by=actor)
+            evidence["pause_label"] = "Resume Manual Runs"
+        else:
+            raise ValueError(f"unhandled safe intent: {intent}")
+
+        out = _update_command(
+            command_id,
+            status="SUCCEEDED",
+            progress=100,
+            evidence=evidence,
+            error=None,
+            sanitized_error=None,
+        )
+        audit(
+            actor,
+            "command_execute",
+            {
+                "command_id": command_id,
+                "intent": intent,
+                "status": "SUCCEEDED",
+                "correlation_id": cur.get("correlation_id"),
+                "tenant_id": cur.get("tenant_id"),
+            },
+        )
+        return out
+    except Exception as e:
+        err = f"{type(e).__name__}: {e}"[:300]
+        out = _update_command(
+            command_id, status="FAILED", progress=100, error=err, sanitized_error=err
+        )
+        audit(
+            actor,
+            "command_execute",
+            {
+                "command_id": command_id,
+                "intent": intent,
+                "status": "FAILED",
+                "correlation_id": cur.get("correlation_id"),
+            },
+        )
+        return out
+
+
+def run_now(text: str, actor: str = "admin", idempotency_key: str | None = None) -> dict[str, Any]:
+    plan = parse_intent(text)
+    created = create_command(
+        text, actor=actor, idempotency_key=idempotency_key, confirm=plan.get("safe_to_execute")
+    )
+    cmd = created.get("command") or {}
+    if created.get("deduped") and cmd.get("status") == "SUCCEEDED":
+        return {
+            "ok": True,
+            "plan": plan,
+            "created": created,
+            "executed": {"ok": True, "command": cmd, "deduped": True},
+        }
+    if plan.get("safe_to_execute") and cmd.get("command_id"):
+        if cmd.get("status") not in ("QUEUED", "READY"):
+            _update_command(cmd["command_id"], status="QUEUED", progress=5)
+        executed = execute_command(cmd["command_id"], actor=actor)
+        return {"ok": True, "plan": plan, "created": created, "executed": executed}
+    return {
+        "ok": True,
+        "plan": plan,
+        "created": created,
+        "executed": None,
+        "note": "Confirm/approve required before execution",
+    }
+
+
+def owner_home() -> dict[str, Any]:
+    reg = agent_registry()
+    appr = approvals_inbox()
+    kills = kill_switch_board()
+    tasks = task_board()
+    agents = reg.get("agents") or []
+    inv = reg.get("inventory") or {}
+    working = [a for a in agents if a.get("status") == "working"]
+    paused = [a for a in agents if a.get("paused")]
+    attention: list[dict[str, Any]] = []
+    if appr.get("pending"):
+        attention.append(
+            {
+                "kind": "approvals",
+                "title": f"{appr['pending']} pending approvals",
+                "href": "/app/owner#approvals",
+                "priority": "high",
+            }
+        )
+    if kills.get("platform_dial", {}).get("hard_off"):
+        attention.append(
+            {
+                "kind": "safety",
+                "title": "Outbound calling HARD OFF (correct)",
+                "href": "/app/owner#kill",
+                "priority": "info",
+            }
+        )
+    if tasks["counts"]["failed"]:
+        attention.append(
+            {
+                "kind": "failed",
+                "title": f"{tasks['counts']['failed']} failed owner commands",
+                "href": "/app/owner#tasks",
+                "priority": "high",
+            }
+        )
+    attention.append(
+        {
+            "kind": "hot_queue",
+            "title": "Hot Queue / Inbox check karo",
+            "href": "/app/inbox",
+            "priority": "medium",
+        }
+    )
+    return {
+        "ok": True,
+        "owner_os_flag": owner_os_flag_on(),
+        "storage_mode": store.storage_mode(),
+        "generated_at": _now_iso(),
+        "staff_count": reg.get("staff_count"),
+        "inventory": inv,
+        "manager_explanation": reg.get("manager_explanation"),
+        "workforce": {
+            "total": inv.get("canonical_agents", len(agents)),
+            "canonical_agents": inv.get("canonical_agents", len(agents)),
+            "system_supervisors": inv.get("system_supervisors", 0),
+            "service_identities": inv.get("service_identities", 0),
+            "runnable_workers": inv.get("runnable_workers", 0),
+            "working": len(working),
+            "paused_manual_run": len(paused),
+            "runnable": len(reg.get("runnable_members") or []),
+        },
+        "pause_semantics": reg.get("pause_semantics"),
+        "calling_badge": "Calling HARD OFF",
+        "attention": attention,
+        "approvals_pending": appr.get("pending"),
+        "kill_switches": {
+            k: {"engaged": v.get("engaged"), "hard_off": v.get("hard_off")}
+            for k, v in kills.items()
+            if not str(k).startswith("_")
+        },
+        "tasks": tasks["counts"],
+        "recent_commands": list_commands(8),
+        "recommended": [
+            {
+                "label": "Jiya status report (safe)",
+                "command": "Jiya ke pending deliverables ka status report banao. Koi content publish ya customer message mat bhejna.",
+            },
+            {"label": "Pending approvals", "command": "Pending approvals dikhao"},
+            {"label": "Kill switch board", "command": "Kill switch status dikhao"},
+        ],
+        "links": {
+            "inbox": "/app/inbox",
+            "office": "/app/office",
+            "automation": "/app/automation",
+            "control_center": "/app/control-center",
+            "admin": "/app/admin",
+        },
+    }
+
+
+def training(page: str = "home") -> dict[str, Any]:
+    p = TRAINING_PAGES.get((page or "home").lower()) or TRAINING_PAGES["home"]
+    return {"ok": True, "page": page, **p, "all_pages": list(TRAINING_PAGES.keys())}
+
+
+def recent_audit(limit: int = 40) -> list[dict[str, Any]]:
+    _sync_store_paths()
+    return store.recent_audit(limit)

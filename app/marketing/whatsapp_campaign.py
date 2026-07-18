@@ -32,6 +32,13 @@ logger = setup_logger(__name__)
 # --------------------------------------------------------------------------- #
 def auto_send_enabled() -> bool:
     """True only if the operator explicitly turned auto-send ON (default OFF = ban-safe)."""
+    try:
+        from app.platform.owner_os import kill_engaged
+
+        if kill_engaged("owner_whatsapp_outbound"):
+            return False
+    except Exception:
+        pass
     return os.getenv("WHATSAPP_AUTO_SEND", "0").strip().lower() in ("1", "true", "yes", "on")
 
 
