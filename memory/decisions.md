@@ -1770,3 +1770,13 @@ LLM routing                 = OmniRoute (local-dev) + free_ai chain (prod)
 **Not done now:** full BGE-M3/reranker prod flip (model bake + latency budget + tests). Current prod remains Qdrant dense + namespace filter + TF-IDF fallback.
 
 **Evidence:** OKF v0.1 draft confirmed (Google Cloud Knowledge Catalog SPEC); code today = `knowledge_base.py` multilingual-e5-small + `kb_main`. Rollback of future hybrid = flags OFF + keep e5 path.
+
+## 2026-07-18 - ADR-120 Owner OS V1.1 Isha execution-control slice
+
+Decision: Extend Owner OS V1 with durable per-agent execution controls starting with Isha only. New module `owner_agent_execution` + Alembic 020 `owner_agent_controls` (Postgres primary, JSONL fallback). Controls: manual_pause, scheduled_pause, stop_claims, drain, cancel-queued (no terminate), cooperative cancel-running. Enforce at existing choke-points (`scheduler_dispatch_allowed(job=)`, staff_jobs apply_async/run_staff_job, team_scheduler._run_job). Workflow surface = read-only aggregator over JOB_META + process_library (no second scheduler). OmniRoute matrix + sanitized health-test use approved `_TASK_ROUTES` only; credentials never returned. Fixed `agent_route_table()` dict iteration bug in `agent_registry`.
+
+Context: V1 PRODUCTION READY on ce562408; Pause Manual Runs intentionally did not stop scheduled work. V1.1 goal = real daily ops control without rewriting V1 safety.
+
+Rejected: force-kill of running customer-critical tasks; arbitrary model strings; broad UI redesign; enabling calling.
+
+Consequence: Isha scheduled pause/drain proven via unit tests before deploy; resume does not catch-up missed intervals; calling stays HARD OFF.

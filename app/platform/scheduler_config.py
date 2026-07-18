@@ -317,7 +317,7 @@ def _dispatch(job: str, *, manual: bool = False) -> str:
         try:
             from app.platform.owner_os import record_scheduler_skip, scheduler_dispatch_allowed
 
-            allowed, reason = scheduler_dispatch_allowed()
+            allowed, reason = scheduler_dispatch_allowed(job=job)
             if not allowed:
                 record_scheduler_skip(job, reason, source="scheduler_config._dispatch")
                 return "skipped_owner_schedulers"

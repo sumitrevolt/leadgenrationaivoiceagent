@@ -221,19 +221,29 @@ async def _run_job(job: str, retry_count: int = 0) -> bool:
     admin Automation Runs panel me is run ka attempt-number dikhe (ADR-065 p2)."""
     import time as _time
 
-    # Owner OS global scheduler kill (owner_schedulers) — blocks NEW scheduled work
-    # at the shared in-process + Celery execution choke-point. Already-running
-    # tasks are not preempted here; resume does not catch-up missed intervals.
+    # Owner OS global scheduler kill + V1.1 per-agent scheduled/drain/claim gates.
+    # Already-running tasks are not preempted here; resume does not catch-up.
     try:
         from app.platform.owner_os import record_scheduler_skip, scheduler_dispatch_allowed
 
-        allowed, reason = scheduler_dispatch_allowed()
+        allowed, reason = scheduler_dispatch_allowed(job=job)
         if not allowed:
             record_scheduler_skip(job, reason, source="team_scheduler._run_job")
             logger.info(f"[team-scheduler] job '{job}' skipped — {reason}")
             return True
     except Exception:
         pass  # FAIL-OPEN — store blip pe job normal chalega
+    try:
+        from app.platform import owner_agent_execution as oae
+        from app.platform.owner_os import record_scheduler_skip
+
+        claim_ok, claim_reason = oae.claim_allowed(job=job)
+        if not claim_ok:
+            record_scheduler_skip(job, claim_reason, source="team_scheduler._run_job_claim")
+            logger.info(f"[team-scheduler] job '{job}' claim blocked — {claim_reason}")
+            return True
+    except Exception:
+        pass
 
     # Admin scheduler toggle (scheduler_config, FAIL-OPEN): admin ne job PAUSE
     # kiya ho to skip — heartbeat "admin_paused" note ke saath record hota
