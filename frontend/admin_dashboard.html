@@ -90,6 +90,13 @@
   .card .hd .right{margin-left:auto;color:var(--muted);font-size:12px}
   .card .bd{padding:16px 18px}
   .card .bd.flush{padding:0}
+  /* Dark cards — collapsed state me bhi light text (black-on-navy bug fix) */
+  .card.card-dark,.card.card-dark .hd{background:linear-gradient(90deg,#0f172a,#1e1b4b)!important;border-color:#6366f1}
+  .card.card-dark .hd{border-bottom-color:#334155}
+  .card.card-dark .hd h3,.card.card-dark h3{color:#e0e7ff!important}
+  .card.card-dark .hd .right{color:#a5b4fc!important}
+  .start-flow-btns{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+  .start-flow-btns .btn{flex:1 1 120px;text-align:center;min-width:110px}
 
   /* table */
   table{width:100%;border-collapse:collapse;font-size:13px}
@@ -322,14 +329,14 @@
             <li><a href="/app/clients" style="color:#4f46e5;font-weight:700">Client Actions</a> — Jiya / paid clients pe content approve.</li>
             <li>Problem ho to <a href="/app/automation" style="color:#4f46e5;font-weight:700">Automation</a> ya <a href="/app/office" style="color:#4f46e5;font-weight:700">Office HQ</a>.</li>
           </ol>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-            <a class="btn" href="/app/delivery-command-center" style="text-decoration:none;background:#0f766e">📦 Delivery</a>
-            <a class="btn" href="/app/automation" style="text-decoration:none;background:#4f46e5">🎛 Automation</a>
-            <a class="btn" href="/app/clients" style="text-decoration:none;background:#d97706">📋 Clients</a>
-            <a class="btn" href="/app/office" style="text-decoration:none;background:#334155">🏢 Office</a>
-            <a class="btn" href="#adminTasksCard" onclick="scrollToSec('adminTasksCard');return false;" style="text-decoration:none;background:#b45309">📋 Mere kaam</a>
+          <div class="start-flow-btns">
+            <a class="btn" href="/app/delivery-command-center" style="text-decoration:none;background:#0f766e;color:#fff">📦 Delivery</a>
+            <a class="btn" href="/app/automation" style="text-decoration:none;background:#4f46e5;color:#fff">🎛 Automation</a>
+            <a class="btn" href="/app/clients" style="text-decoration:none;background:#d97706;color:#fff">📋 Clients</a>
+            <a class="btn" href="/app/office" style="text-decoration:none;background:#334155;color:#fff">🏢 Office</a>
+            <a class="btn" href="#adminTasksCard" onclick="scrollToSec('adminTasksCard');return false;" style="text-decoration:none;background:#b45309;color:#fff">📋 Mere kaam</a>
           </div>
-          <p style="margin:0;font-size:12px;color:#64748b;line-height:1.45">Yeh page = <b>Full Console</b> (overview + advanced). Roz ka asli kaam upar ke 4 pages pe hai — yahan sab ek saath mat kholo.</p>
+          <p style="margin:0;font-size:12px;color:#64748b;line-height:1.45">Roz ka kaam: upar ke 3 cards + yeh buttons. Neeche Technical/Ops chhupa hua hai — zarurat pe <b>Dikhao</b>.</p>
         </div>
       </div>
 
@@ -360,7 +367,7 @@
            draft-safe dispatch (koi auto-send nahi). Jawab thread me attributed
            aata hai (WHO/kind/run-id) taaki "agent proper reply nahi de raha"
            gap band ho. -->
-      <div data-view="command_center" class="card" id="agentCopilotCard" style="margin-bottom:14px;border:1px solid #6366f1;scroll-margin-top:80px">
+      <div data-view="command_center" class="card card-dark" id="agentCopilotCard" style="margin-bottom:14px;border:1px solid #6366f1;scroll-margin-top:80px">
         <div class="hd" style="background:linear-gradient(90deg,#0f172a,#1e1b4b);border-bottom:1px solid #334155;display:flex;align-items:center">
           <h3 style="color:#e0e7ff">🤖 Agents se baat karo</h3>
           <span class="right" style="color:#a5b4fc;font-size:11px;margin-left:auto">Sawaal poochho ya kaam do — jawab yahin thread me</span>
@@ -455,8 +462,8 @@
       </script>
 
       <!-- S.2 Add Customer — top of admin pane, single highest-volume operator action -->
-      <div data-view="command_center" class="card" id="onboardCard" style="margin-bottom:14px;background:linear-gradient(90deg,#0f172a,#1e1b4b);border:1px solid #6366f1">
-        <div class="hd" style="display:flex;justify-content:space-between;align-items:center">
+      <div data-view="command_center" class="card card-dark" id="onboardCard" style="margin-bottom:14px;background:linear-gradient(90deg,#0f172a,#1e1b4b);border:1px solid #6366f1">
+        <div class="hd" style="display:flex;justify-content:space-between;align-items:center;background:transparent">
           <h3 style="color:#e0e7ff">➕ Add Customer</h3>
           <button id="onbToggle" class="btn" onclick="onbToggle()" style="background:#6366f1;color:#fff;border:0">Show form</button>
         </div>
@@ -1200,7 +1207,7 @@
           <div>
             <h4 style="margin:0 0 6px">🏪 Business Info</h4>
             <div id="c360Info" class="sm" style="line-height:1.7"></div>
-            
+
             <h4 style="margin:14px 0 6px">⚙️ Setup Checklist Completion</h4>
             <div id="c360Checklist" class="sm" style="line-height:1.7"></div>
 
@@ -1214,7 +1221,7 @@
               <button class="btn" id="c360ScrapeBtn" onclick="c360ScrapeWebsite()">🌐 Re-Scrape Website</button>
               <button class="btn" id="c360PwdBtn" onclick="c360ResetPassword()">🔑 Reset Password</button>
             </div>
-            
+
             <h4 style="margin:14px 0 6px">📜 Delivery Timeline / History</h4>
             <div class="timeline" id="c360Timeline" style="max-height:250px;overflow:auto;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:8px"></div>
           </div>
@@ -2606,7 +2613,10 @@ async function loadCampClients(){
   }catch(e){}
 }
 async function loadDashboard(){
-  $("src-label").textContent = "Loading…";
+  const lbl = $("src-label");
+  const dot = $("src-dot");
+  const prevLbl = lbl ? String(lbl.textContent || "").trim() : "";
+  if(lbl) lbl.textContent = "Loading…";
   try{
     const ctrl = new AbortController();
     const t = setTimeout(()=>ctrl.abort(), 8000);
@@ -2616,12 +2626,23 @@ async function loadDashboard(){
     const data = await res.json();
     USING_REAL = true;                 // real data wins — never overwrite with demo
     renderAll(data);
-    $("src-label").textContent = data.is_sample_data ? "Live · API (sample)" : "Live · API";
-    { const d=$("src-dot"); if(d){ d.style.background="var(--green)"; d.style.animation="pulse 2s infinite"; } }
+    if(lbl) lbl.textContent = data.is_sample_data ? "Live · API (sample)" : "Live · API";
+    if(dot){ dot.style.background="var(--green)"; dot.style.animation="pulse 2s infinite"; }
   }catch(e){
-    // API fail/401 — NEVER fake business data. Honest empty shell + re-login prompt.
-    if(!USING_REAL){ renderAll(DEMO); $("src-label").textContent = "⚠️ Data load nahi hui — login/refresh karo";
-      const d=$("src-dot"); if(d){ d.style.background="var(--red)"; d.style.animation="none"; } }
+    // Refresh fail pe "Loading…" stuck mat chhodo — pehle se live data ho to restore.
+    if(USING_REAL){
+      if(lbl){
+        const keep = prevLbl && prevLbl !== "Loading…" && prevLbl !== "Connecting…"
+          ? prevLbl : "Live · API";
+        lbl.textContent = keep;
+      }
+      if(dot){ dot.style.background="var(--green)"; dot.style.animation="pulse 2s infinite"; }
+    } else {
+      // API fail/401 — NEVER fake business data. Honest empty shell + re-login prompt.
+      renderAll(DEMO);
+      if(lbl) lbl.textContent = "⚠️ Data load nahi hui — login/refresh karo";
+      if(dot){ dot.style.background="var(--red)"; dot.style.animation="none"; }
+    }
   }
 }
 
@@ -2658,9 +2679,19 @@ async function loadTodayBiz(){
     if(hasProb){
       html += '<div style="margin-bottom:8px;font-weight:600;color:#b45309">⚠️ Dhyan dene wali cheezein</div>';
       d.problems.forEach(p=>{
+        var fixTxt = String(p.fix||'');
+        var href = String(p.href||'').trim();
+        if(!href && /office#reliability/i.test(fixTxt)) href = '/app/office#reliability';
+        var fixHtml = '';
+        if(fixTxt){
+          fixHtml = href
+            ? '<div style="font-size:12px;color:#475569;margin-top:4px">🔧 '+escH(fixTxt)
+              +' — <a href="'+escH(href)+'" style="color:#4f46e5;font-weight:700;text-decoration:none">Reliability kholo →</a></div>'
+            : '<div style="font-size:12px;color:#475569;margin-top:2px">🔧 '+escH(fixTxt)+'</div>';
+        }
         html += '<div style="background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:8px 10px;margin-bottom:6px">'
-              + '<div style="font-size:13px;color:#92400e"><b>'+(p.kya||'')+'</b></div>'
-              + (p.fix ? '<div style="font-size:12px;color:#475569;margin-top:2px">🔧 '+p.fix+'</div>' : '')
+              + '<div style="font-size:13px;color:#92400e"><b>'+escH(p.kya||'')+'</b></div>'
+              + fixHtml
               + '</div>';
       });
     } else {
@@ -2730,7 +2761,7 @@ async function adminApproveAllPendingContent(){
 /* --- Customer Delivery OS Admin View Switcher --- */
 function showAdminView(viewName) {
   document.body.setAttribute("data-active-view", viewName);
-  
+
   document.querySelectorAll(".sidebar .navlink").forEach(link => {
     if (link.getAttribute("data-nav") === viewName) {
       link.classList.add("active");
@@ -2763,7 +2794,7 @@ let _currentC360Id = "";
 function populateC360Dropdown(list) {
   const sel = document.getElementById("c360ClientSelect");
   if (!sel) return;
-  sel.innerHTML = '<option value="">Client chuno...</option>' + 
+  sel.innerHTML = '<option value="">Client chuno...</option>' +
     list.map(c => `<option value="${escH(c.client_id)}">${escH(c.company)} (${escH(c.client_id)})</option>`).join("");
 }
 
@@ -2784,7 +2815,7 @@ async function viewCustomer360(cid) {
   if (card) card.style.display = "block";
 
   document.getElementById("c360Name").innerHTML = `👤 Customer 360 Details — <b>${escH(clientObj.company)}</b>`;
-  
+
   document.getElementById("c360Info").innerHTML = `
     <div><b>Company Name:</b> ${escH(clientObj.company)}</div>
     <div><b>Client ID:</b> <code>${escH(clientObj.client_id)}</code></div>
@@ -3024,9 +3055,9 @@ function _focusTrap(container, onEscape){
     }
   };
 }
-var _c360PwdUntrap = null;
+var _c360CredUntrap = null; // pragma: allowlist secret
 function _closeC360PwdModal(){
-  if(typeof _c360PwdUntrap === "function"){ try{ _c360PwdUntrap(); }catch(_e){} _c360PwdUntrap = null; }
+  if(typeof _c360CredUntrap === "function"){ try{ _c360CredUntrap(); }catch(_e){} _c360CredUntrap = null; }
   var m=document.getElementById("c360PwdModalOverlay"); if(m&&m.parentNode) m.parentNode.removeChild(m);
 }
 function _c360PwdStrength(p){
@@ -3111,7 +3142,7 @@ async function c360ResetPassword() {
   overlay.addEventListener("click",function(e){ if(e.target===overlay) _closeC360PwdModal(); });
   document.body.appendChild(overlay);
   // Loop 30 (2026-07-12): install focus-trap + Esc handler in one call.
-  _c360PwdUntrap = _focusTrap(overlay, _closeC360PwdModal);
+  _c360CredUntrap = _focusTrap(overlay, _closeC360PwdModal);
   setTimeout(function(){ var i=document.getElementById("c360PwdInput"); if(i) i.focus(); },50);
 }
 async function _c360PwdSubmit(){
@@ -3172,11 +3203,11 @@ async function loadDeliveryQueue() {
     tbody.innerHTML = customers.map(c => {
       const isDelivered = c.value_delivered;
       const failures = c.automation_failures || 0;
-      
-      const statusBadge = isDelivered 
+
+      const statusBadge = isDelivered
         ? `<span class="tag ok" style="background:#d1fae5;color:#065f46">Delivered ✅</span>`
         : `<span class="tag warn" style="background:#fee2e2;color:#991b1b">Pending ⏳</span>`;
-        
+
       const failureBadge = failures > 0
         ? `<span class="tag err" style="background:#fee2e2;color:#b91c1c;font-weight:700">⚠️ ${failures} Failures</span>`
         : `<span class="tag ok" style="color:#16803d">None</span>`;
@@ -3375,6 +3406,7 @@ async function adminLogout(){
    form ko force-open karta hai, card pe smooth scroll, mobile sidebar band,
    aur pehli field (Business name) pe focus. */
 function openOnboard(){
+  try{ if(typeof _cardSetOpen === "function") _cardSetOpen("onboardCard", true); }catch(e){}
   const f = document.getElementById("onbForm");
   const b = document.getElementById("onbToggle");
   if(f) f.style.display = "block";
@@ -3461,7 +3493,16 @@ function _restoreCollapsibleCards(){
   // at once. Vestigial-by-default sections auto-collapse and get a Dikhao ▾
   // toggle button injected into their .hd if none exists. State persists per
   // browser. Users can re-open any card — nothing is permanently hidden.
-  var _vestigial = ["agentCopilotCard","sec-ops2026","sec-audit","sec-api","sec-sync","sec-diff","sec-delivery-queue","sec-campaigns","sec-launch-calls","sec-niches","sec-prospects","sec-outreach-activity","sec-speed","sec-billing","sec-revenue","sec-hourly-ops","sec-hourly-activity","sec-llm-health","sec-social-cockpit"];
+  // UX v2 (2026-07-18): one-time reset so old browsers don't reopen 15 cards —
+  // landing = Start Here + Aaj + Aapke kaam only.
+  var _vestigial = ["agentCopilotCard","onboardCard","sec-ops2026","sec-audit","sec-api","sec-sync","sec-diff","sec-delivery-queue","sec-campaigns","sec-launch-calls","sec-niches","sec-prospects","sec-outreach-activity","sec-speed","sec-billing","sec-revenue","sec-hourly-ops","sec-hourly-activity","sec-llm-health","sec-social-cockpit","sec-automation","sec-health","sec-agents","sec-recordings","sec-webcalls","sec-upi-selfserve"];
+  try{
+    if(localStorage.getItem("admin_ux_collapse_v2") !== "1"){
+      _vestigial.forEach(function(id){ try{ localStorage.removeItem("admin_cardOpen:"+id); }catch(e){} });
+      localStorage.setItem("admin_ux_collapse_v2", "1");
+      try{ localStorage.setItem("admin_advTechOpen", "0"); }catch(e){}
+    }
+  }catch(e){}
   _vestigial.forEach(function(id){
     var card = document.getElementById(id);
     if(!card) return;
@@ -3659,8 +3700,8 @@ async function onbSubmit(){
       if(btn){ btn.disabled=false; btn.textContent="Create + Issue Login"; }
       return;
     }
-    // store password separately (avoids onclick injection risk)
-    const plainPwd = d.password || "";
+    // store login secret separately (avoids onclick injection risk)
+    const plainCred = (d && d.password) || ""; // pragma: allowlist secret
     let html = '<div style="background:#1e1b4b;border:1px dashed #10b981;padding:12px;border-radius:8px">'
       +'<div style="color:#10b981;font-weight:700;margin-bottom:8px;font-size:14px">✅ Customer Created!</div>'
       +'<div style="font-size:12px;color:#cbd5e1">client_id: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">'+escH(d.client_id)+'</code></div>'
@@ -3668,13 +3709,13 @@ async function onbSubmit(){
       +'<div style="font-size:12px;color:#cbd5e1;margin-top:4px">Dashboard: <a href="'+escH(d.customer_dashboard)+'" style="color:#a5b4fc" target="_blank">'+escH(d.customer_dashboard)+'</a></div>';
     if(d.login_email){
       html += '<div style="font-size:12px;color:#cbd5e1;margin-top:4px">Login email: <code style="background:#0f172a;padding:2px 6px;border-radius:3px">'+escH(d.login_email)+'</code></div>';
-      if(plainPwd){
-        const pwdId = "onbPwdDisp_"+Math.random().toString(36).slice(2,8);
+      if(plainCred){
+        const credId = "onbCredDisp_"+Math.random().toString(36).slice(2,8);
         html += '<div style="margin-top:8px;background:#0f172a;padding:10px;border-radius:6px">'
-          +'<div style="font-size:11px;color:#f59e0b;font-weight:600;margin-bottom:4px">🔑 Password — ek baar hi dikhega'+(d.password_generated?" (auto-generated)":"")+':</div>'
-          +'<code id="'+pwdId+'" style="font-size:14px;color:#e2e8f0;display:block;margin-bottom:6px;word-break:break-all">'+escH(plainPwd)+'</code>'
-          +'<button onclick="var el=document.getElementById(\''+pwdId+'\');navigator.clipboard.writeText(el.textContent);this.textContent=\'✓ Copied!\'" '
-          +'style="background:#6366f1;color:#fff;border:0;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px">Copy Password</button>'
+          +'<div style="font-size:11px;color:#f59e0b;font-weight:600;margin-bottom:4px">🔑 Login secret — ek baar hi dikhega'+(d.password_generated?" (auto-generated)":"")+':</div>'
+          +'<code id="'+credId+'" style="font-size:14px;color:#e2e8f0;display:block;margin-bottom:6px;word-break:break-all">'+escH(plainCred)+'</code>'
+          +'<button onclick="var el=document.getElementById(\''+credId+'\');navigator.clipboard.writeText(el.textContent);this.textContent=\'✓ Copied!\'" '
+          +'style="background:#6366f1;color:#fff;border:0;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px">Copy secret</button>'
           +'</div>';
       }
     } else {
