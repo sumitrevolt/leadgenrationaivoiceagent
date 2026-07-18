@@ -115,7 +115,10 @@ class TestSwaraLiveRoute:
         from app.platform.omniroute_client import get_task_route
 
         route = get_task_route(ov.TASK_SWARA_LIVE, ov.PRIVACY_CUSTOMER_MASKED)
-        assert route.primary_model == "leadgen-free-first"
+        # 2026-07-18: voice hot-path pinned to the dedicated fast gateway combo
+        # (groq -> mistral -> gemini); free-first burns voice max_tokens on
+        # reasoning_content and streams zero `content` deltas.
+        assert route.primary_model == "leadgen-swara-live"
         assert route.privacy_class == "CUSTOMER_MASKED"
 
     def test_wrong_privacy_rejected(self):
