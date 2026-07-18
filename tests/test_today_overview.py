@@ -4,6 +4,7 @@ Guards the admin-friendly contract: build() never raises, returns the expected
 shape, and every scheduled job has a human Hinglish label (no raw job-keys leak
 to the non-technical admin's home tab).
 """
+
 from datetime import datetime as real_datetime
 
 from app.platform import today_overview
@@ -73,9 +74,14 @@ def test_dead_tasks_present_surfaces_as_an_actionable_problem(monkeypatch):
 
     monkeypatch.setattr(automation_health, "health", _health)
     d = today_overview.build()
-    dead_problems = [p for p in d["problems"] if "dead" in p["kya"] or "exhausted" in p["kya"]]
+    dead_problems = [
+        p
+        for p in d["problems"]
+        if "stuck" in p["kya"].lower() or "dead" in p["kya"] or "exhausted" in p["kya"]
+    ]
     assert dead_problems, f"expected a dead/exhausted problem, got: {d['problems']}"
     assert dead_problems[0]["fix"]
+    assert dead_problems[0].get("href") == "/app/office#reliability"
 
 
 def test_retryable_failed_present_surfaces_when_not_already_backlogged(monkeypatch):
@@ -96,8 +102,13 @@ def test_retryable_failed_present_surfaces_when_not_already_backlogged(monkeypat
 
     monkeypatch.setattr(automation_health, "health", _health)
     d = today_overview.build()
-    retry_problems = [p for p in d["problems"] if "DLQ" in p["kya"] and "retry-able" in p["kya"]]
+    retry_problems = [
+        p
+        for p in d["problems"]
+        if ("DLQ" in p["kya"] or "dubara try" in p["kya"]) and "retry-able" in p["kya"]
+    ]
     assert retry_problems, f"expected a retry-able DLQ problem, got: {d['problems']}"
+    assert retry_problems[0].get("href") == "/app/office#reliability"
 
 
 def test_future_scheduled_jobs_are_not_due_yet(monkeypatch):
