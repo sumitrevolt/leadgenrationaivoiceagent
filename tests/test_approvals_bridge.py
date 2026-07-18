@@ -22,6 +22,7 @@ def _isolate(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(ab, "_DECISIONS", str(tmp_path / "decisions.jsonl"))
     monkeypatch.setattr(ab, "_COORD_RUNS", str(tmp_path / "coord.jsonl"))
     monkeypatch.setattr(ab, "_FDE_DEPLOYS", str(tmp_path / "fde.jsonl"))
+    monkeypatch.setattr(ab, "_VERIFICATION", str(tmp_path / "owner_os_verification.jsonl"))
 
 
 def _write(path: str, rows: list[dict]) -> None:
@@ -299,7 +300,14 @@ def test_sales_adapter_epoch_ts_to_iso_and_dedupe(monkeypatch, tmp_path):
     rows = [  # list_analyses returns newest-first
         {"pid": "111", "name": "", "grade": "C", "score": 53, "ts": 1782984616, "md": ""},
         {"pid": "111", "name": "", "grade": "C", "score": 53, "ts": 1782900000, "md": ""},
-        {"pid": "222", "name": "Shop", "grade": "B", "score": 70, "ts": "2026-07-01T10:00:00", "md": ""},
+        {
+            "pid": "222",
+            "name": "Shop",
+            "grade": "B",
+            "score": 70,
+            "ts": "2026-07-01T10:00:00",
+            "md": "",
+        },
     ]
     monkeypatch.setattr(sales_team, "list_analyses", lambda limit=20: rows)
     out = ab._drafts_sales(ab._status_map())
@@ -328,8 +336,20 @@ def test_recent_decisions_newest_first_with_titles(monkeypatch, tmp_path):
     _write(
         ab._COORD_RUNS,
         [
-            {"run_id": "r1", "execute": False, "goal": "clear hot replies", "summary": "s1", "at": "t1"},
-            {"run_id": "r2", "execute": False, "goal": "audit outreach", "summary": "s2", "at": "t2"},
+            {
+                "run_id": "r1",
+                "execute": False,
+                "goal": "clear hot replies",
+                "summary": "s1",
+                "at": "t1",
+            },
+            {
+                "run_id": "r2",
+                "execute": False,
+                "goal": "audit outreach",
+                "summary": "s2",
+                "at": "t2",
+            },
         ],
     )
     ab.decide("coordinator", "r1", "approve", by="sumit")
@@ -345,15 +365,93 @@ def test_recent_decisions_newest_first_with_titles(monkeypatch, tmp_path):
 def test_recent_decisions_collapses_to_latest_and_respects_limit(monkeypatch, tmp_path):
     _isolate(monkeypatch, tmp_path)
     monkeypatch.setattr(ab, "_drafts_sales", lambda smap: [])
-    _write(ab._COORD_RUNS, [{"run_id": "r1", "execute": False, "goal": "g", "summary": "s", "at": "t1"}])
+    _write(
+        ab._COORD_RUNS,
+        [{"run_id": "r1", "execute": False, "goal": "g", "summary": "s", "at": "t1"}],
+    )
     ab.decide("coordinator", "r1", "approve", by="a")
-    ab.decide("coordinator", "r1", "reject", by="b")  # noop (already decided) — status sidecar still append-only
+    ab.decide(
+        "coordinator", "r1", "reject", by="b"
+    )  # noop (already decided) — status sidecar still append-only
     out = ab.recent_decisions(limit=1)
     assert len(out) == 1
     assert out[0]["id"] == "r1"
-    assert out[0]["status"] == "approved"  # decide() no-ops once decided; latest row still reflects the first decision
+    assert (
+        out[0]["status"] == "approved"
+    )  # decide() no-ops once decided; latest row still reflects the first decision
 
 
 def test_recent_decisions_never_raises_on_missing_file(monkeypatch, tmp_path):
     _isolate(monkeypatch, tmp_path)
     assert ab.recent_decisions() == []
+
+
+# --------------------------------------------------------------------------- #
+# Owner OS disposable verification approval (no external side effects)
+# --------------------------------------------------------------------------- #
+def test_verification_approval_create_decide_double_and_no_side_effects(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr(ab, "_drafts_sales", lambda smap: [])
+    created = ab.create_verification_approval(by="admin@test", ttl_hours=24)
+    assert created["ok"] is True
+    iid = created["id"]
+    drafts = ab.list_drafts()["drafts"]
+    hit = next(d for d in drafts if d["id"] == iid)
+    assert hit["source"] == "owner_os_verification"
+    assert hit["disposable"] is True
+    assert hit["no_side_effects"] is True
+    assert hit["risk"] == "low"
+
+    # Approve = verification-only action string, no workflow dispatch
+    side = {"coord": 0, "fde": 0, "sales": 0}
+    monkeypatch.setattr(
+        ab, "_action_coordinator", lambda item_id: side.__setitem__("coord", 1) or "x"
+    )
+    monkeypatch.setattr(ab, "_action_fde", lambda item_id: side.__setitem__("fde", 1) or "x")
+    monkeypatch.setattr(ab, "_action_sales", lambda item_id: side.__setitem__("sales", 1) or "x")
+
+    d1 = ab.decide(
+        "owner_os_verification",
+        iid,
+        "approve",
+        by="admin@test",
+        reason="Owner OS production verification",
+    )
+    assert d1["ok"] is True
+    assert d1["status"] == "approved"
+    assert d1["no_side_effects"] is True
+    assert "verification only" in (d1.get("action") or "")
+    assert side == {"coord": 0, "fde": 0, "sales": 0}
+
+    d2 = ab.decide("owner_os_verification", iid, "reject", by="admin@test")
+    assert d2.get("noop") is True
+    assert d2["status"] == "approved"
+
+    # Still visible when include_decided
+    decided = ab.list_drafts(include_decided=True)["drafts"]
+    hit2 = next(d for d in decided if d["id"] == iid)
+    assert hit2["status"] == "approved"
+
+
+def test_verification_expired_cannot_decide(monkeypatch, tmp_path):
+    _isolate(monkeypatch, tmp_path)
+    from datetime import datetime, timedelta, timezone
+
+    iid = "oosv_expired1"
+    past = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
+    _write(
+        ab._VERIFICATION,
+        [
+            {
+                "id": iid,
+                "title": "expired",
+                "summary": "x",
+                "created_at": past,
+                "expires_at": past,
+                "disposable": True,
+            }
+        ],
+    )
+    out = ab.decide("owner_os_verification", iid, "approve", by="a")
+    assert out.get("ok") is False
+    assert out.get("error") == "approval_expired"

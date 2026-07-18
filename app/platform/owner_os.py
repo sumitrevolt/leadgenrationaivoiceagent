@@ -111,9 +111,16 @@ KILL_ENFORCEMENT_MATRIX: dict[str, dict[str, Any]] = {
         "can_toggle": True,
     },
     "owner_schedulers": {
-        "enforcement": ["owner_os.scheduler_dispatch_allowed"],
+        "enforcement": [
+            "app.tasks.staff_jobs.OwnerSchedulerGuardedTask.apply_async",
+            "app.platform.team_scheduler._run_job",
+            "owner_os.scheduler_dispatch_allowed",
+        ],
         "can_toggle": True,
-        "note": "Blocks Owner OS–aware scheduled dispatch when engaged",
+        "note": (
+            "Scheduler dispatch paused. New scheduled jobs will not be queued. "
+            "Already queued or running tasks may continue."
+        ),
     },
     "owner_publishing": {
         "enforcement": ["app.social_engine.pause.should_pause_job", "owner_os.owner_kill_blocks"],
@@ -426,12 +433,86 @@ def kill_engaged(key: str) -> bool:
 
 
 def scheduler_dispatch_allowed(agent_id: str | None = None) -> tuple[bool, str]:
-    """Explicit scheduled-dispatch gate. False = do not start new scheduled work."""
+    """Explicit scheduled-dispatch gate. False = do not enqueue/start new scheduled work.
+
+    Semantics when blocked:
+    - new Beat/schedule/run_due dispatches: SKIP (not enqueued / early-return)
+    - already queued Celery messages: may still be consumed (worker entry also skips work)
+    - currently running tasks: not preemptively killed
+    - resume: future cadence continues; no automatic catch-up flood of missed intervals
+    Manual per-agent Pause Manual Runs does NOT affect this gate.
+    """
     _sync_store_paths()
-    if store.kill_engaged("owner_schedulers") or store.kill_engaged("owner_all_agents"):
-        return False, "owner scheduler/all-agents kill engaged"
-    # Manual pause does NOT block scheduler — honest semantics.
+    if store.kill_engaged("owner_schedulers"):
+        return False, "owner_schedulers_kill_switch"
+    if store.kill_engaged("owner_all_agents"):
+        return False, "owner_all_agents_kill_switch"
     return True, ""
+
+
+def record_scheduler_skip(
+    job: str | None,
+    reason: str = "owner_schedulers_kill_switch",
+    *,
+    source: str = "dispatch",
+) -> dict[str, Any]:
+    """Sanitized skip record + audit (never raises)."""
+    job_s = str(job or "")[:64]
+    reason_s = str(reason or "owner_schedulers_kill_switch")[:80]
+    out = {
+        "ok": True,
+        "skipped": True,
+        "reason": reason_s,
+        "job": job_s,
+        "source": source[:40],
+        "note": (
+            "Scheduler dispatch paused. New scheduled jobs will not be queued. "
+            "Already queued or running tasks may continue."
+        ),
+    }
+    try:
+        audit(
+            "system",
+            "scheduler_dispatch_skipped",
+            {
+                "target": job_s or "staff_job",
+                "job": job_s,
+                "reason": reason_s,
+                "source": source,
+            },
+        )
+    except Exception:
+        pass
+    try:
+        from app.platform import automation_health as _ah
+
+        if job_s:
+            _ah.record_run(job_s, True, 0.0, note=reason_s)
+    except Exception:
+        pass
+    try:
+        from app.platform.automation_log_service import log_event as _log_auto
+
+        if job_s:
+            _log_auto(
+                client_id="",
+                job_type=job_s,
+                status="skipped",
+                output_summary=reason_s,
+                triggered_by="scheduler",
+                meta_json={"phase": "skipped", "reason": reason_s, "source": source},
+            )
+    except Exception:
+        pass
+    try:
+        # Optional metric hook (no-op if registry missing)
+        from app.platform import job_metrics
+
+        if hasattr(job_metrics, "incr"):
+            job_metrics.incr("owner_schedulers_skipped")
+    except Exception:
+        pass
+    return out
 
 
 def agent_registry() -> dict[str, Any]:
@@ -567,7 +648,7 @@ def approvals_inbox() -> dict[str, Any]:
         counts = d.get("counts") or counts
         for row in d.get("items") or d.get("drafts") or []:
             src = str(row.get("source") or "")
-            decidable = src in ("sales", "coordinator", "fde")
+            decidable = src in ("sales", "coordinator", "fde", "owner_os_verification")
             items.append(
                 {
                     "source": src,
@@ -580,8 +661,14 @@ def approvals_inbox() -> dict[str, Any]:
                     "requesting_agent": row.get("agent") or row.get("member") or src,
                     "action_type": row.get("action") or row.get("kind") or src,
                     "expected_impact": (row.get("impact") or row.get("summary") or "")[:200],
-                    "category": "agent_draft",
+                    "category": (
+                        "internal_verification" if src == "owner_os_verification" else "agent_draft"
+                    ),
                     "decidable_here": decidable,
+                    "disposable": bool(row.get("disposable") or src == "owner_os_verification"),
+                    "no_side_effects": bool(
+                        row.get("no_side_effects") or src == "owner_os_verification"
+                    ),
                     "ui_state": "operational" if decidable else "view_only",
                     "open_in": None if decidable else "/app/automation#approvals",
                     "open_reason": (
@@ -666,7 +753,7 @@ def decide_approval(
     try:
         from app.platform import approvals_bridge
 
-        out = approvals_bridge.decide(source, item_id, decision, by=actor)
+        out = approvals_bridge.decide(source, item_id, decision, by=actor, reason=reason[:200])
         audit(
             actor,
             "approval_decide",
@@ -682,6 +769,29 @@ def decide_approval(
         return out
     except Exception as e:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"[:200]}
+
+
+def create_verification_approval(actor: str = "admin") -> dict[str, Any]:
+    """Create disposable internal approval for Owner OS ↔ Mission Control sync proof."""
+    from app.platform import approvals_bridge
+
+    out = approvals_bridge.create_verification_approval(
+        by=actor,
+        title="Owner OS production verification (disposable)",
+        note="Internal disposable approval — no publish/email/WA/call/billing/customer mutation",
+        ttl_hours=24,
+    )
+    if out.get("ok"):
+        audit(
+            actor,
+            "approval_verification_created",
+            {
+                "target": out.get("id"),
+                "source": "owner_os_verification",
+                "item_id": out.get("id"),
+            },
+        )
+    return out
 
 
 def task_board() -> dict[str, Any]:
