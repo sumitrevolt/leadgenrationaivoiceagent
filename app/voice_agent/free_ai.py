@@ -1085,27 +1085,6 @@ async def chat_stream(
 
     prof = _resolve_llm_profile(profile, max_tokens)
 
-    # OmniRoute voice brain (OMNIROUTE_VOICE=1) — realtime/stream path ONLY.
-    # Fail-open: empty stream falls through to direct free providers below.
-    if prof == "realtime":
-        try:
-            from app.voice_agent import omniroute_voice
-
-            if omniroute_voice.voice_enabled():
-                got = False
-                async for delta in omniroute_voice.chat_stream(
-                    system,
-                    msgs,
-                    max_tokens=max_tokens,
-                    temperature=temperature,
-                ):
-                    got = True
-                    yield delta
-                if got:
-                    return
-        except Exception as _ov_exc:
-            logger.debug("[free_ai] omniroute_voice stream bypass: %s", type(_ov_exc).__name__)
-
     chain = _build_llm_chain(prof)
     for provider, model in chain:
         if _provider_down(provider):

@@ -1804,7 +1804,7 @@ class VobizStreamSession:
                 return
             if self._turn_stamp is not None:
                 self._turn_stamp.stamp("processing_ack")
-            self._stop_play()
+            self._stop_playback_only()
             self._speaking = True
             self._barge_frames = 0
             await self._run_play(pcm)
@@ -2210,6 +2210,9 @@ class VobizStreamSession:
             self._stream_task = asyncio.create_task(self._say_from_sentence_gen(_gen()))
             await self._stream_task
             return " ".join(parts).strip()
+        except asyncio.CancelledError:
+            logger.debug("[vobiz-stream] think_and_say_stream cancelled")
+            return ""
         except Exception as e:
             logger.debug("[vobiz-stream] think_and_say_stream failed: %s", e)
             return ""
@@ -3056,6 +3059,12 @@ class VobizStreamSession:
             )
             self._speaking = False
             self._disclosure_active = False
+
+    def _stop_playback_only(self) -> None:
+        """Stop TTS playback only — in-flight LLM stream + generation stay alive."""
+        if self._play_task and not self._play_task.done():
+            self._play_task.cancel()
+        self._play_task = None
 
     def _stop_play(self) -> None:
         if self._play_task and not self._play_task.done():
