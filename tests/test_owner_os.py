@@ -223,7 +223,7 @@ def test_scheduler_not_blocked_by_manual_pause(monkeypatch, tmp_path):
     owner_os.set_kill_switch("owner_schedulers", True, by="t", reason="unit")
     ok2, reason2 = owner_os.scheduler_dispatch_allowed("isha")
     assert ok2 is False
-    assert "kill" in reason2.lower()
+    assert reason2 == "owner_schedulers_kill_switch"
 
 
 def test_unknown_intent_fail_closed(monkeypatch, tmp_path):
@@ -238,8 +238,8 @@ def test_approval_decide_bridge(monkeypatch, tmp_path):
     _patch_stores(monkeypatch, tmp_path)
     calls = []
 
-    def _fake_decide(source, item_id, decision, by="admin"):
-        calls.append((source, item_id, decision, by))
+    def _fake_decide(source, item_id, decision, by="admin", reason=""):
+        calls.append((source, item_id, decision, by, reason))
         if len(calls) > 1:
             return {"ok": True, "source": source, "id": item_id, "status": "approved", "noop": True}
         return {"ok": True, "source": source, "id": item_id, "status": "approved", "action": "ok"}

@@ -25,7 +25,8 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
+import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -35,7 +36,8 @@ logger = setup_logger(__name__)
 _DECISIONS = os.path.join("data", "approval_decisions.jsonl")
 _COORD_RUNS = os.path.join("data", "coordination_runs.jsonl")
 _FDE_DEPLOYS = os.path.join("data", "fde_deploys.jsonl")
-_SOURCES = ("sales", "coordinator", "fde")
+_VERIFICATION = os.path.join("data", "owner_os_verification_approvals.jsonl")
+_SOURCES = ("sales", "coordinator", "fde", "owner_os_verification")
 
 
 def _now_iso() -> str:
@@ -47,7 +49,7 @@ def _ts_to_iso(ts: Any) -> str:
     reads ints as MILLISECONDS -> every draft showed "20616 din pehle" (1970).
     Normalize at this single choke point so every consumer gets ISO."""
     try:
-        if isinstance(ts, (int, float)) and ts > 0:
+        if isinstance(ts, int | float) and ts > 0:
             return datetime.fromtimestamp(ts).isoformat()
         return str(ts or "")
     except Exception:
@@ -90,7 +92,9 @@ def _status_for(source: str, item_id: str, smap: dict | None = None) -> str:
     return str((r or {}).get("status") or "pending")
 
 
-def _set_status(source: str, item_id: str, status: str, by: str = "admin") -> None:
+def _set_status(
+    source: str, item_id: str, status: str, by: str = "admin", reason: str = ""
+) -> None:
     try:
         os.makedirs("data", exist_ok=True)
         with open(_DECISIONS, "a", encoding="utf-8") as f:
@@ -101,6 +105,7 @@ def _set_status(source: str, item_id: str, status: str, by: str = "admin") -> No
                         "item_id": item_id,
                         "status": status,
                         "by": (by or "admin")[:80],
+                        "reason": (reason or "")[:200],
                         "at": _now_iso(),
                     },
                     ensure_ascii=False,
@@ -109,6 +114,103 @@ def _set_status(source: str, item_id: str, status: str, by: str = "admin") -> No
             )
     except Exception as e:
         logger.debug("[approvals] status write skip: %s", e)
+
+
+def create_verification_approval(
+    *,
+    title: str = "Owner OS production verification (disposable)",
+    by: str = "admin",
+    ttl_hours: int = 24,
+    note: str = "Internal disposable approval — no external side effects",
+) -> dict[str, Any]:
+    """Create a disposable internal approval with ZERO external side effects.
+
+    Appears in the same list_drafts / Mission Control drafts queue as other
+    sources. Approve/reject only stamps status — no workflow, publish, email,
+    WhatsApp, call, billing, or customer mutation.
+    """
+    item_id = "oosv_" + uuid.uuid4().hex[:12]
+    now = datetime.now(timezone.utc)
+    expires = now + timedelta(hours=max(1, min(int(ttl_hours or 24), 72)))
+    row = {
+        "id": item_id,
+        "item_id": item_id,
+        "source": "owner_os_verification",
+        "title": (title or "Owner OS production verification (disposable)")[:160],
+        "summary": (note or "")[:240],
+        "disposable": True,
+        "internal": True,
+        "no_side_effects": True,
+        "risk": "low",
+        "risk_tier": "low",
+        "client_id": "",
+        "customer": "",
+        "created_by": (by or "admin")[:80],
+        "created_at": now.isoformat(),
+        "expires_at": expires.isoformat(),
+        "status": "pending",
+    }
+    try:
+        os.makedirs("data", exist_ok=True)
+        with open(_VERIFICATION, "a", encoding="utf-8") as f:
+            f.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except Exception as e:
+        return {"ok": False, "error": f"write_failed:{type(e).__name__}"}
+    return {"ok": True, "draft": row, "id": item_id, "source": "owner_os_verification"}
+
+
+def _drafts_verification(smap: dict) -> list[dict[str, Any]]:
+    out: list[dict[str, Any]] = []
+    now = datetime.now(timezone.utc)
+    try:
+        for r in _read_jsonl(_VERIFICATION):
+            iid = str(r.get("id") or r.get("item_id") or "")
+            if not iid:
+                continue
+            exp_raw = str(r.get("expires_at") or "")
+            expired = False
+            if exp_raw:
+                try:
+                    exp = datetime.fromisoformat(exp_raw.replace("Z", "+00:00"))
+                    if exp.tzinfo is None:
+                        exp = exp.replace(tzinfo=timezone.utc)
+                    expired = now > exp
+                except Exception:
+                    expired = False
+            st = _status_for("owner_os_verification", iid, smap)
+            if expired and st == "pending":
+                st = "expired"
+            out.append(
+                {
+                    "source": "owner_os_verification",
+                    "id": iid,
+                    "item_id": iid,
+                    "title": (r.get("title") or "Owner OS verification")[:160],
+                    "summary": (r.get("summary") or "")[:240],
+                    "body": (r.get("summary") or "")[:500],
+                    "status": st,
+                    "risk": "low",
+                    "risk_tier": "low",
+                    "client_id": "",
+                    "customer": "",
+                    "agent": "owner_os",
+                    "action": "internal_verification",
+                    "impact": "none — disposable verification only",
+                    "disposable": True,
+                    "no_side_effects": True,
+                    "expires_at": r.get("expires_at"),
+                    "expired": expired,
+                    "at": r.get("created_at") or "",
+                    "meta": {
+                        "disposable": True,
+                        "internal": True,
+                        "no_side_effects": True,
+                    },
+                }
+            )
+    except Exception as e:
+        logger.debug("[approvals] verification adapter skip: %s", e)
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -238,7 +340,12 @@ def _drafts_fde(smap: dict) -> list[dict[str, Any]]:
 def list_drafts(include_decided: bool = False) -> dict[str, Any]:
     """Merged agentic-draft queue. Pending-only by default."""
     smap = _status_map()
-    drafts = _drafts_sales(smap) + _drafts_coordinator(smap) + _drafts_fde(smap)
+    drafts = (
+        _drafts_sales(smap)
+        + _drafts_coordinator(smap)
+        + _drafts_fde(smap)
+        + _drafts_verification(smap)
+    )
     if not include_decided:
         drafts = [d for d in drafts if d.get("status") == "pending"]
     by_source: dict[str, int] = {}
@@ -264,18 +371,23 @@ def recent_decisions(limit: int = 8) -> list[dict[str, Any]]:
         latest: dict[tuple[str, str], dict[str, Any]] = {}
         for r in rows:
             latest[(str(r["source"]), str(r["item_id"]))] = r
-        titles = {(d["source"], d["id"]): d.get("title") for d in list_drafts(include_decided=True).get("drafts") or []}
+        titles = {
+            (d["source"], d["id"]): d.get("title")
+            for d in list_drafts(include_decided=True).get("drafts") or []
+        }
         decided = sorted(latest.values(), key=lambda r: r.get("at") or "", reverse=True)
         for r in decided[: max(1, min(50, limit))]:
             key = (str(r.get("source") or ""), str(r.get("item_id") or ""))
-            out.append({
-                "source": key[0],
-                "id": key[1],
-                "title": titles.get(key) or f"{key[0]} #{key[1]}",
-                "status": r.get("status") or "",
-                "by": r.get("by") or "admin",
-                "at": r.get("at") or "",
-            })
+            out.append(
+                {
+                    "source": key[0],
+                    "id": key[1],
+                    "title": titles.get(key) or f"{key[0]} #{key[1]}",
+                    "status": r.get("status") or "",
+                    "by": r.get("by") or "admin",
+                    "at": r.get("at") or "",
+                }
+            )
     except Exception as e:
         logger.debug(f"[approvals] recent_decisions skipped: {e}")
     return out
@@ -324,17 +436,35 @@ def _action_fde(item_id: str) -> str:
         return "reviewed (drip enable skip)"
 
 
-def decide(source: str, item_id: str, decision: str, by: str = "admin") -> dict[str, Any]:
+def _action_verification(item_id: str) -> str:
+    """Intentionally empty — disposable Owner OS verification has no side effects."""
+    return "verification only — no external action"
+
+
+def decide(
+    source: str,
+    item_id: str,
+    decision: str,
+    by: str = "admin",
+    reason: str = "",
+) -> dict[str, Any]:
     """Stamp status + fire bounded safe action. Idempotent, never raises."""
     source = (source or "").strip().lower()
     item_id = (item_id or "").strip()
     decision = (decision or "").strip().lower()
+    reason = (reason or "")[:200]
     if source not in _SOURCES:
         return {"ok": False, "error": f"unknown source (allowed: {list(_SOURCES)})"}
     if not item_id:
         return {"ok": False, "error": "item_id required"}
     if decision not in ("approve", "reject"):
         return {"ok": False, "error": "decision must be approve|reject"}
+
+    # Expired verification drafts cannot be decided.
+    if source == "owner_os_verification":
+        for d in _drafts_verification(_status_map()):
+            if d.get("id") == item_id and d.get("expired"):
+                return {"ok": False, "error": "approval_expired", "source": source, "id": item_id}
 
     cur = _status_for(source, item_id)
     if cur in ("approved", "rejected"):
@@ -344,7 +474,7 @@ def decide(source: str, item_id: str, decision: str, by: str = "admin") -> dict[
     # Stamp the decision FIRST, then fire the best-effort action — so a concurrent
     # double-approve or an action failure cannot leave the item un-stamped or
     # double-fire the bounded action (TOCTOU narrowing for the single-admin case).
-    _set_status(source, item_id, status, by)
+    _set_status(source, item_id, status, by, reason=reason)
     action = ""
     if decision == "approve":
         if source == "sales":
@@ -353,6 +483,10 @@ def decide(source: str, item_id: str, decision: str, by: str = "admin") -> dict[
             action = _action_coordinator(item_id)
         elif source == "fde":
             action = _action_fde(item_id)
+        elif source == "owner_os_verification":
+            action = _action_verification(item_id)
+    elif source == "owner_os_verification":
+        action = _action_verification(item_id)
     try:
         from app.platform import team
 
@@ -362,11 +496,22 @@ def decide(source: str, item_id: str, decision: str, by: str = "admin") -> dict[
         team.log_event(
             "arnav",
             f"approval_{status}",
-            f"{source} {item_id[:24]} {status} by {by}" + (f" — {action}" if action else ""),
+            f"{source} {item_id[:24]} {status} by {by}"
+            + (f" — {action}" if action else "")
+            + (f" ({reason})" if reason else ""),
         )
     except Exception:
         pass
-    return {"ok": True, "source": source, "id": item_id, "status": status, "action": action}
+    return {
+        "ok": True,
+        "source": source,
+        "id": item_id,
+        "status": status,
+        "action": action,
+        "reason": reason,
+        "by": (by or "admin")[:80],
+        "no_side_effects": source == "owner_os_verification",
+    }
 
 
-__all__ = ["list_drafts", "decide"]
+__all__ = ["list_drafts", "decide", "create_verification_approval", "recent_decisions"]

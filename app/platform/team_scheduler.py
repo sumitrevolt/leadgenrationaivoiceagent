@@ -73,14 +73,13 @@ def _acquire_lock() -> bool:
             # (heartbeat _refresh_lock har tick mtime update karta hai).
             stale = False
             try:
-                stale = (
-                    datetime.now().timestamp() - os.path.getmtime(_LOCK_PATH)
-                ) > _LOCK_STALE_S
+                stale = (datetime.now().timestamp() - os.path.getmtime(_LOCK_PATH)) > _LOCK_STALE_S
             except Exception as le:
                 stale = False  # mtime unreadable → stale PROVE nahi hua
                 logger.warning(
                     "[team-scheduler] lock mtime unreadable — fail-closed skip "
-                    "(no steal without proof): %s", le,
+                    "(no steal without proof): %s",
+                    le,
                 )
             dead = False
             if not stale:
@@ -91,7 +90,8 @@ def _acquire_lock() -> bool:
                     dead = False  # pid unreadable → dead PROVE nahi hua
                     logger.warning(
                         "[team-scheduler] lock pid unreadable — fail-closed skip "
-                        "(no steal without proof): %s", le,
+                        "(no steal without proof): %s",
+                        le,
                     )
             if stale or dead:
                 try:
@@ -221,6 +221,20 @@ async def _run_job(job: str, retry_count: int = 0) -> bool:
     admin Automation Runs panel me is run ka attempt-number dikhe (ADR-065 p2)."""
     import time as _time
 
+    # Owner OS global scheduler kill (owner_schedulers) — blocks NEW scheduled work
+    # at the shared in-process + Celery execution choke-point. Already-running
+    # tasks are not preempted here; resume does not catch-up missed intervals.
+    try:
+        from app.platform.owner_os import record_scheduler_skip, scheduler_dispatch_allowed
+
+        allowed, reason = scheduler_dispatch_allowed()
+        if not allowed:
+            record_scheduler_skip(job, reason, source="team_scheduler._run_job")
+            logger.info(f"[team-scheduler] job '{job}' skipped — {reason}")
+            return True
+    except Exception:
+        pass  # FAIL-OPEN — store blip pe job normal chalega
+
     # Admin scheduler toggle (scheduler_config, FAIL-OPEN): admin ne job PAUSE
     # kiya ho to skip — heartbeat "admin_paused" note ke saath record hota
     # taaki dead-man overdue alert na bajaye. Dono paths (in-process + Celery)
@@ -337,7 +351,9 @@ async def _run_job(job: str, retry_count: int = 0) -> bool:
                 error_message=_err_msg[:2000] if _err_msg else "",
                 retry_count=int(retry_count or 0),
                 triggered_by="scheduler",
-                meta_json={"phase": "finish", "start_log_id": _log_id} if _log_id else {"phase": "finish"},
+                meta_json=(
+                    {"phase": "finish", "start_log_id": _log_id} if _log_id else {"phase": "finish"}
+                ),
             )
         except Exception:
             pass
@@ -491,7 +507,9 @@ async def _run_job_inner(job: str) -> bool:
                 # embeddings and can cold-start for several minutes, so it gets a
                 # separate explicit gate and must never hold the daily trainer task
                 # hostage to Celery's 10-minute hard limit.
-                if skill_pack.enabled() and os.environ.get("SKILL_PACK_KB_INGEST", "0").strip().lower() in (
+                if skill_pack.enabled() and os.environ.get(
+                    "SKILL_PACK_KB_INGEST", "0"
+                ).strip().lower() in (
                     "1",
                     "true",
                     "yes",
@@ -545,7 +563,9 @@ async def _run_job_inner(job: str) -> bool:
                     _date,
                     f"# Daily Digest\n\n{_digest_text}",
                 )
-                _obs.append_note("Sessions", _date, f"[digest] {_digest_text[:300]}", member="team_scheduler")
+                _obs.append_note(
+                    "Sessions", _date, f"[digest] {_digest_text[:300]}", member="team_scheduler"
+                )
             except Exception:
                 pass
             # HARDENING (audit 2026-07-07): ye 4 revenue-relevant engines pehle unguarded
@@ -763,7 +783,9 @@ async def _run_job_inner(job: str) -> bool:
                 _blog_n = (_blog_result or {}).get("published", 0)
                 _blog_slugs = ", ".join((_blog_result or {}).get("slugs") or [])
                 _blog_summary = f"published={_blog_n} slugs=[{_blog_slugs[:200]}]"
-                _obs_blog.append_note("Sessions", _blog_date, f"[blog] {_blog_summary}", member="team_scheduler")
+                _obs_blog.append_note(
+                    "Sessions", _blog_date, f"[blog] {_blog_summary}", member="team_scheduler"
+                )
             except Exception:
                 pass
             try:
@@ -814,7 +836,12 @@ async def _run_job_inner(job: str) -> bool:
                     f"scraper={_pr.get('scraper', '?')} "
                     f"niches={list((_pr.get('by_niche') or {}).keys())[:10]}"
                 )
-                _obs_prospect.append_note("Sessions", _prospect_date, f"[prospect] {_prospect_summary[:300]}", member="team_scheduler")
+                _obs_prospect.append_note(
+                    "Sessions",
+                    _prospect_date,
+                    f"[prospect] {_prospect_summary[:300]}",
+                    member="team_scheduler",
+                )
             except Exception:
                 pass
             # Multi-source harvest sweep (websearch/opendata/enrich) — gated
@@ -844,7 +871,12 @@ async def _run_job_inner(job: str) -> bool:
                     f"cap={_or.get('cap', '?')}"
                     + (f" skip_reason={_or['skipped']}" if _or.get("skipped") else "")
                 )
-                _obs_outreach.append_note("Sessions", _outreach_date, f"[email_outreach] {_outreach_summary[:300]}", member="team_scheduler")
+                _obs_outreach.append_note(
+                    "Sessions",
+                    _outreach_date,
+                    f"[email_outreach] {_outreach_summary[:300]}",
+                    member="team_scheduler",
+                )
             except Exception:
                 pass
         elif job == "reply_triage":
@@ -923,7 +955,9 @@ async def _run_job_inner(job: str) -> bool:
             except Exception as _si_e:
                 # SYNC call — _run_content_engine (await) nahi chalega. Loud warn (pass NAHI):
                 # revive safety-net ka failure chhupana nahi chahiye.
-                logger.warning(f"[team-scheduler] watchdog self_improve.ensure_alive failed: {_si_e}")
+                logger.warning(
+                    f"[team-scheduler] watchdog self_improve.ensure_alive failed: {_si_e}"
+                )
             try:
                 from app.agents import process_engine
 
@@ -1022,8 +1056,8 @@ async def _run_job_inner(job: str) -> bool:
             # (default ON; no paid Places API — lead_harvester respects LEAD_HARVESTER).
             # Uses safety wrapper for P1 pool cleanup (2026-07-11).
             if os.environ.get("MIDDAY_PROSPECT", "1").strip().lower() in ("1", "true", "yes"):
-                from scripts import harvest_safety_wrapper
                 from app.platform import team
+                from scripts import harvest_safety_wrapper
 
                 _h = await harvest_safety_wrapper.run_harvest_safe()
                 if _h.get("ok"):
@@ -1180,8 +1214,8 @@ async def _run_job_inner(job: str) -> bool:
             # Gated EVENING_PROSPECT (default OFF; LEAD_HARVESTER bhi on hona chahiye).
             # Uses safety wrapper for P1 pool cleanup (2026-07-11).
             if os.environ.get("EVENING_PROSPECT", "0").strip().lower() in ("1", "true", "yes"):
-                from scripts import harvest_safety_wrapper
                 from app.platform import team
+                from scripts import harvest_safety_wrapper
 
                 _h = await harvest_safety_wrapper.run_harvest_safe()
                 if _h.get("ok"):
@@ -1301,13 +1335,21 @@ async def scheduler_loop() -> None:
                 _last_ran["prospect"] = day_key
                 await _run_job("prospect")
             _email_hour_key = f"{day_key}:{now.hour}"
-            if 9 <= now.hour <= 19 and hm[1] < 20 and _last_ran["email_outreach"] != _email_hour_key:
+            if (
+                9 <= now.hour <= 19
+                and hm[1] < 20
+                and _last_ran["email_outreach"] != _email_hour_key
+            ):
                 _last_ran["email_outreach"] = _email_hour_key
                 await _run_job("email_outreach")
             if (11, 0) <= hm < (12, 0) and _last_ran["pipeline"] != day_key:
                 _last_ran["pipeline"] = day_key
                 await _run_job("pipeline")
-            if 9 <= now.hour <= 19 and hm[1] >= 20 and _last_ran["email_followup"] != _email_hour_key:
+            if (
+                9 <= now.hour <= 19
+                and hm[1] >= 20
+                and _last_ran["email_followup"] != _email_hour_key
+            ):
                 _last_ran["email_followup"] = _email_hour_key
                 await _run_job("email_followup")
             # 11:30–12:30 IST — daily self-sale AI cold-call batch. Gated PLATFORM_DIAL_DAILY.
