@@ -23,11 +23,11 @@ from app.api import analytics, campaigns, leads, webhooks
 from app.api.admin import router as admin_router
 from app.api.admin_dashboard import router as admin_dashboard_router
 from app.api.agents import router as agents_router
-from app.api.dev_tasks import router as dev_tasks_router
 from app.api.ai import router as ai_router
 from app.api.billing import router as billing_router
 from app.api.customer_dashboard import router as customer_dashboard_router
 from app.api.data import router as data_router
+from app.api.dev_tasks import router as dev_tasks_router
 from app.api.health import router as health_router
 from app.api.ml_training import router as ml_router
 from app.api.platform import router as platform_router
@@ -126,9 +126,12 @@ def _log_startup_banner():
     # knows immediately when GOOGLE_MAPS_API_KEY is unset/placeholder.
     _gmaps_key = (getattr(settings, "google_maps_api_key", "") or "").strip()
     if not _gmaps_key or _gmaps_key.lower().startswith("your-"):
-        logger.warning("⚠️  GOOGLE_MAPS_API_KEY not set or placeholder — prospecting pipeline will return zero leads!")
+        logger.warning(
+            "⚠️  GOOGLE_MAPS_API_KEY not set or placeholder — prospecting pipeline will return zero leads!"
+        )
         try:
             from app.platform import ops_alerts
+
             ops_alerts._ntfy(
                 "Prospecting blind — Google Maps API key missing",
                 "GOOGLE_MAPS_API_KEY not configured. Lead scraping silently returns zero results.",
@@ -244,7 +247,9 @@ async def lifespan(app: FastAPI):
 
         async def _obsidian_startup_mirror() -> None:
             try:
-                import pathlib as _pl, asyncio as _aio3
+                import asyncio as _aio3
+                import pathlib as _pl
+
                 from app.platform import obsidian_sync as _obs
 
                 _ROOT = _pl.Path(__file__).resolve().parent.parent
@@ -253,7 +258,8 @@ async def lifespan(app: FastAPI):
                     await _aio3.get_running_loop().run_in_executor(
                         None,
                         lambda f=_f: _obs.write_note(
-                            "Decisions", f.stem.lower().replace("_", "-"),
+                            "Decisions",
+                            f.stem.lower().replace("_", "-"),
                             f.read_text(encoding="utf-8", errors="ignore"),
                             tags=["adr", "decision"],
                         ),
@@ -319,15 +325,21 @@ async def lifespan(app: FastAPI):
         }
         # Revenue + customer-critical paths (must never go silently missing)
         _critical = [
-            "/api/billing/plans", "/api/customer/auth/login",
-            "/api/public/signup", "/api/public/pay-info",
-            "/api/upi/submit", "/api/customer/auth/me",
+            "/api/billing/plans",
+            "/api/customer/auth/login",
+            "/api/public/signup",
+            "/api/public/pay-info",
+            "/api/upi/submit",
+            "/api/customer/auth/me",
         ]
-        _missing = [p for p in _critical if not any(rp == p or rp.startswith(p) for rp in _registered)]
+        _missing = [
+            p for p in _critical if not any(rp == p or rp.startswith(p) for rp in _registered)
+        ]
         if _missing:
             logger.error(f"❌ CRITICAL routes missing after startup: {_missing}")
             try:
                 from app.platform import ops_alerts
+
                 ops_alerts._ntfy(
                     "Critical routes missing",
                     f"Router import silently failed — missing: {', '.join(_missing)}",
@@ -344,8 +356,8 @@ async def lifespan(app: FastAPI):
             logger.error("❌ ZERO routes registered — all router imports failed!")
         elif len(_registered) < 50:
             logger.warning(
-                "⚠️ Only %d routes registered — expected 400+ — router import"
-                " failures likely", len(_registered),
+                "⚠️ Only %d routes registered — expected 400+ — router import" " failures likely",
+                len(_registered),
             )
     except Exception as _sweep_e:
         logger.warning(f"Critical route sweep skipped: {_sweep_e}")
@@ -927,19 +939,25 @@ except Exception as _e:  # pragma: no cover
 try:
     from app.api.email_track import router as email_track_router
 
-    app.include_router(email_track_router)  # /t/o, /t/c (public pixels) + /api/admin/email-tracking/* — NO prefix
+    app.include_router(
+        email_track_router
+    )  # /t/o, /t/c (public pixels) + /api/admin/email-tracking/* — NO prefix
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Email tracking router not mounted: {_e}")
 try:
     from app.api import segments as segments_api
 
-    app.include_router(segments_api.router, tags=["Segments"])  # /api/segments/* (dynamic segment builder)
+    app.include_router(
+        segments_api.router, tags=["Segments"]
+    )  # /api/segments/* (dynamic segment builder)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Segments router not mounted: {_e}")
 try:
     from app.api.studio_media import router as studio_media_router
 
-    app.include_router(studio_media_router)  # /api/customer/studio/* media (upload/serve image tools)
+    app.include_router(
+        studio_media_router
+    )  # /api/customer/studio/* media (upload/serve image tools)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Studio media router not mounted: {_e}")
 try:
@@ -976,9 +994,17 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Admin ops router not mounted: {_e}")
 try:
+    from app.api.owner_os import router as owner_os_router
+
+    app.include_router(owner_os_router)  # /api/admin/owner-os/* — Owner Command Console
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Owner OS router not mounted: {_e}")
+try:
     from app.api.integration_health_api import router as integration_health_router
 
-    app.include_router(integration_health_router)  # /api/admin/integrations/health + /api/customer/integrations/health
+    app.include_router(
+        integration_health_router
+    )  # /api/admin/integrations/health + /api/customer/integrations/health
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Integration health router not mounted: {_e}")
 try:
@@ -990,31 +1016,41 @@ except Exception as _e:  # pragma: no cover
 try:
     from app.api.admin_db_explorer import router as admin_db_router
 
-    app.include_router(admin_db_router)  # /api/admin/db/* (read-only DB explorer, ADMIN_DB_EXPLORER gated)
+    app.include_router(
+        admin_db_router
+    )  # /api/admin/db/* (read-only DB explorer, ADMIN_DB_EXPLORER gated)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Admin DB explorer router not mounted: {_e}")
 try:
     from app.api.llm_compare import router as llm_compare_router
 
-    app.include_router(llm_compare_router)  # /api/llm/compare/* (blind arena, LLM_COMPARE_ENABLED gated, INERT default)
+    app.include_router(
+        llm_compare_router
+    )  # /api/llm/compare/* (blind arena, LLM_COMPARE_ENABLED gated, INERT default)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"LLM Compare router not mounted: {_e}")
 try:
     from app.api.model_cookbook import router as model_cookbook_router
 
-    app.include_router(model_cookbook_router)  # /api/cookbook/* (niche→LLM recipes, MODEL_COOKBOOK_ENABLED gated, INERT default)
+    app.include_router(
+        model_cookbook_router
+    )  # /api/cookbook/* (niche→LLM recipes, MODEL_COOKBOOK_ENABLED gated, INERT default)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Model Cookbook router not mounted: {_e}")
 try:
     from app.api.deep_research import router as deep_research_router
 
-    app.include_router(deep_research_router)  # /api/research/deep/* (multi-step cited research, DEEP_RESEARCH_ENABLED gated, INERT default)
+    app.include_router(
+        deep_research_router
+    )  # /api/research/deep/* (multi-step cited research, DEEP_RESEARCH_ENABLED gated, INERT default)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Deep Research router not mounted: {_e}")
 try:
     from app.api.docs_ai_edit import router as docs_ai_edit_router
 
-    app.include_router(docs_ai_edit_router)  # /api/docs/edit/* (AI writing surface, DOCS_AI_EDIT_ENABLED gated, INERT default)
+    app.include_router(
+        docs_ai_edit_router
+    )  # /api/docs/edit/* (AI writing surface, DOCS_AI_EDIT_ENABLED gated, INERT default)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Docs AI-Edit router not mounted: {_e}")
 app.include_router(web_call_router, prefix="/api", tags=["Web Call (Test Mode)"])  # /api/web-call/*
@@ -1045,9 +1081,7 @@ try:
 
     _mcp_token = os.environ.get("FASTAPI_MCP_TOKEN", "").strip()
     _mcp_allowlist = [
-        ip.strip()
-        for ip in os.environ.get("MCP_IP_ALLOWLIST", "").split(",")
-        if ip.strip()
+        ip.strip() for ip in os.environ.get("MCP_IP_ALLOWLIST", "").split(",") if ip.strip()
     ]
     _mcp_gated = bool(_mcp_token) or bool(_mcp_allowlist)
     _mcp_is_prod = os.environ.get("ENV", "production").strip().lower() == "production"
@@ -1085,7 +1119,9 @@ try:
             # allowlisted IP), so it must NEVER drive an auth decision.
             client_ip = (request.client.host if request.client else "") or ""
             _xff_parts = [
-                p.strip() for p in request.headers.get("x-forwarded-for", "").split(",") if p.strip()
+                p.strip()
+                for p in request.headers.get("x-forwarded-for", "").split(",")
+                if p.strip()
             ]
             real_ip = (_xff_parts[-1] if _xff_parts else "") or client_ip
             if _mcp_allowlist and real_ip in _mcp_allowlist:
@@ -1093,6 +1129,7 @@ try:
             # Reject — log to Arya's auth-failure tail-file
             try:
                 from app.platform import mcp_engineer as _arya
+
                 _arya.log_auth_failure("unauthorized", ip=real_ip, path=path[:120])
             except (ImportError, AttributeError) as _arya_e:
                 logger.debug("MCP auth failure log skipped: %s", _arya_e)
@@ -1110,8 +1147,7 @@ try:
             allowlist_configured=bool(_mcp_allowlist),
         )
         logger.info(
-            f"✅ MCP server mounted at /mcp (gated: {_gate_kind}, "
-            f"Platform/Data/Agents tools)"
+            f"✅ MCP server mounted at /mcp (gated: {_gate_kind}, " f"Platform/Data/Agents tools)"
         )
 except ImportError as e:
     from app.platform.mcp_import import describe_mcp_import_failure
@@ -1136,6 +1172,7 @@ if _website_dir.is_dir():
 _ds_dir = FRONTEND_DIR / "design-system"
 if _ds_dir.is_dir():
     app.mount("/design-system", StaticFiles(directory=str(_ds_dir)), name="design_system")
+
 
 # Unity WebGL build artifacts (Blueprint Virtual Office). Mounted ONLY when a versioned
 # build directory exists — static files are flag-independent; the gated entry point is
@@ -1243,7 +1280,6 @@ async def customer_pipeline_page():
     return FileResponse(str(FRONTEND_DIR / "customer_pipeline.html"))
 
 
-
 @app.get("/app/segments", tags=["Frontend"])
 async def segments_page():
     """Dynamic condition-based segment builder (Mautic parity) over /api/segments/*."""
@@ -1305,7 +1341,7 @@ async def pwa_icon(size: int):
             icon_path.parent.mkdir(parents=True, exist_ok=True)
             img.save(icon_path)
         return FileResponse(str(icon_path), media_type="image/png")
-    except (OSError, IOError) as _e:
+    except OSError as _e:
         logger.debug("pwa_icon render failed: %s", _e)
         return _Resp(status_code=404)
 
@@ -1333,7 +1369,6 @@ async def customer_flows_page():
 async def customer_voice_page():
     """AI Voice Agent customer dashboard — leads, calls, transcripts, routing (marketing sections hidden)."""
     return FileResponse(str(FRONTEND_DIR / "customer_dashboard.html"))
-
 
 
 @app.get("/app/admin", tags=["Frontend"])
@@ -1368,6 +1403,12 @@ async def web_call_test_page():
 async def team_dashboard_page():
     """AI Staff / Team dashboard (roster, live activity, manual runs)."""
     return FileResponse(str(FRONTEND_DIR / "team_dashboard.html"))
+
+
+@app.get("/app/owner", tags=["Frontend"])
+async def owner_os_page():
+    """Owner Operating System — command console, agent registry, approvals, kill switches."""
+    return FileResponse(str(FRONTEND_DIR / "owner_os.html"))
 
 
 @app.get("/app/office", tags=["Frontend"])
@@ -1699,7 +1740,9 @@ async def llms_txt():
 
     from app.marketing.ai_discovery import build_llms_txt
 
-    return PlainTextResponse(build_llms_txt(_seo_base_url()), media_type="text/plain; charset=utf-8")
+    return PlainTextResponse(
+        build_llms_txt(_seo_base_url()), media_type="text/plain; charset=utf-8"
+    )
 
 
 @app.get("/pricing.md", include_in_schema=False)
@@ -1711,7 +1754,9 @@ async def pricing_md():
 
     from app.marketing.ai_discovery import build_pricing_md
 
-    return PlainTextResponse(build_pricing_md(_seo_base_url()), media_type="text/markdown; charset=utf-8")
+    return PlainTextResponse(
+        build_pricing_md(_seo_base_url()), media_type="text/markdown; charset=utf-8"
+    )
 
 
 @app.get("/sitemap.xml", include_in_schema=False)
@@ -1745,13 +1790,25 @@ async def sitemap_xml():
         from xml.sax.saxutils import escape as _xesc
 
         static_paths = [
-            "/", "/audit", "/pricing", "/start", "/voice-agent",
-            "/compare", "/demo", "/site-audit", "/geo-check", "/blog",
-            "/app/test-call", "/privacy", "/terms", "/refund",
+            "/",
+            "/audit",
+            "/pricing",
+            "/start",
+            "/voice-agent",
+            "/compare",
+            "/demo",
+            "/site-audit",
+            "/geo-check",
+            "/blog",
+            "/app/test-call",
+            "/privacy",
+            "/terms",
+            "/refund",
         ]
         urls: list[str] = list(static_paths)
         try:
             from app.marketing import seo_blog
+
             for slug in seo_blog.all_slugs():
                 if slug:
                     urls.append(f"/blog/{slug}")
@@ -1759,6 +1816,7 @@ async def sitemap_xml():
             logger.debug("sitemap seo_blog slugs failed: %s", _e)
         try:
             from app.marketing.clients_store import list_clients
+
             for c in list_clients(status="active"):
                 slug = str(c.get("slug") or "").strip()
                 if slug:
@@ -1766,8 +1824,14 @@ async def sitemap_xml():
         except (ImportError, AttributeError) as _e:
             logger.debug("sitemap clients_store failed: %s", _e)
         _SITEMAP_NICHES = [
-            "real-estate", "solar", "coaching", "dental",
-            "insurance", "home-loans", "interior-design", "restaurant",
+            "real-estate",
+            "solar",
+            "coaching",
+            "dental",
+            "insurance",
+            "home-loans",
+            "interior-design",
+            "restaurant",
         ]
         _SITEMAP_CITIES = ["india", "mumbai", "delhi", "bangalore"]
         for _n in _SITEMAP_NICHES:
@@ -1873,11 +1937,16 @@ async def blog_article(slug: str):
     city = _h(str(article.get("city") or ""))
     created = _h(str(article.get("created_at") or "")[:10])
     import re as _re
+
     _raw_body = str(article.get("html_body") or "")
     # Strip all tags except a safe allowlist — prevents XSS if DB content is
     # ever poisoned (CWE-79/80). Allowlist: structural + text formatting only.
     _ALLOWED = r"<(/?(h[1-6]|p|ul|ol|li|blockquote|strong|em|b|i|br|hr))(\s[^>]*)?>|<!--.*?-->"
-    body_html = _re.sub(r"<[^>]+>", lambda m: m.group(0) if _re.fullmatch(_ALLOWED, m.group(0), _re.I | _re.S) else "", _raw_body)
+    body_html = _re.sub(
+        r"<[^>]+>",
+        lambda m: m.group(0) if _re.fullmatch(_ALLOWED, m.group(0), _re.I | _re.S) else "",
+        _raw_body,
+    )
     crumb = f"{niche}{(' · ' + city) if city else ''}"
 
     html = (
@@ -1902,12 +1971,21 @@ async def blog_article(slug: str):
 # Niche × City SEO landing pages — /for/{niche}-in-{city}
 # ---------------------------------------------------------------------------
 _NICHE_LABELS: dict[str, str] = {
-    "real-estate": "Real Estate", "solar": "Solar", "coaching": "Coaching",
-    "dental": "Dental", "insurance": "Insurance", "home-loans": "Home Loans",
-    "interior-design": "Interior Design", "restaurant": "Restaurant",
-    "gym": "Gym & Fitness", "hospital": "Hospital & Clinic",
-    "study-abroad": "Study Abroad", "ca-firm": "CA / Accounting Firm",
-    "travel": "Travel Agency", "beauty": "Beauty Parlour", "school": "School",
+    "real-estate": "Real Estate",
+    "solar": "Solar",
+    "coaching": "Coaching",
+    "dental": "Dental",
+    "insurance": "Insurance",
+    "home-loans": "Home Loans",
+    "interior-design": "Interior Design",
+    "restaurant": "Restaurant",
+    "gym": "Gym & Fitness",
+    "hospital": "Hospital & Clinic",
+    "study-abroad": "Study Abroad",
+    "ca-firm": "CA / Accounting Firm",
+    "travel": "Travel Agency",
+    "beauty": "Beauty Parlour",
+    "school": "School",
 }
 _NICHE_HOOKS_WEB: dict[str, str] = {
     "real-estate": "property listings aur buyer leads",
@@ -1932,6 +2010,7 @@ _NICHE_HOOKS_WEB: dict[str, str] = {
 async def niche_landing(slug: str):
     """SEO niche×city landing page — /for/real-estate-in-mumbai etc."""
     from html import escape as _h
+
     from fastapi.responses import HTMLResponse
 
     # parse niche + city from slug e.g. "real-estate-in-mumbai"
@@ -1951,8 +2030,10 @@ async def niche_landing(slug: str):
     # Validate slug contains only safe URL chars — prevents injecting quotes/tags
     # into canonical href and JSON-LD (CWE-79/80 via path parameter).
     import re as _re_slug
-    if not _re_slug.match(r'^[a-z0-9\-]{1,120}$', slug.lower()):
+
+    if not _re_slug.match(r"^[a-z0-9\-]{1,120}$", slug.lower()):
         from fastapi.responses import HTMLResponse as _HR
+
         return _HR(content="<h1>Not Found</h1>", status_code=404)
     # Absolute + lowercase-normalized: a raw/relative canonical would let mixed-case
     # slug variants (e.g. /for/Dental-in-Mumbai) each self-canonicalize, splitting
@@ -1970,24 +2051,24 @@ async def niche_landing(slug: str):
         '<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebPage",'
         f'"name":"{_h(title)}","description":"{_h(desc)}","url":"{canonical}"}}'
         "</script>"
-        '<style>body{font-family:system-ui,sans-serif;margin:0;color:#1a1a2e}'
-        '.hero{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:72px 24px;text-align:center}'
-        '.hero h1{font-size:2rem;margin:0 0 16px;line-height:1.25}'
-        '.hero p{font-size:1.1rem;opacity:.9;max-width:600px;margin:0 auto 28px}'
-        '.btn{display:inline-block;background:#fff;color:#4f46e5;padding:14px 28px;border-radius:8px;'
-        'font-weight:700;text-decoration:none;margin:6px}'
-        '.btn.sec{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.6)}'
-        '.features{max-width:800px;margin:56px auto;padding:0 24px}'
-        '.features h2{color:#1a1a2e;margin-bottom:24px}'
-        '.feat{background:#f8f9ff;border-left:4px solid #4f46e5;padding:16px 20px;margin:12px 0;border-radius:0 8px 8px 0}'
-        '.cta{background:#faf5ff;text-align:center;padding:56px 24px}'
-        '.cta h2{color:#4f46e5;margin-bottom:8px}'
-        '.cta a{display:inline-block;background:#4f46e5;color:#fff;padding:14px 32px;border-radius:8px;'
-        'font-weight:700;text-decoration:none;margin-top:16px}'
-        'footer{text-align:center;padding:24px;color:#888;font-size:.85rem}'
-        '</style></head><body>'
+        "<style>body{font-family:system-ui,sans-serif;margin:0;color:#1a1a2e}"
+        ".hero{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;padding:72px 24px;text-align:center}"
+        ".hero h1{font-size:2rem;margin:0 0 16px;line-height:1.25}"
+        ".hero p{font-size:1.1rem;opacity:.9;max-width:600px;margin:0 auto 28px}"
+        ".btn{display:inline-block;background:#fff;color:#4f46e5;padding:14px 28px;border-radius:8px;"
+        "font-weight:700;text-decoration:none;margin:6px}"
+        ".btn.sec{background:transparent;color:#fff;border:2px solid rgba(255,255,255,.6)}"
+        ".features{max-width:800px;margin:56px auto;padding:0 24px}"
+        ".features h2{color:#1a1a2e;margin-bottom:24px}"
+        ".feat{background:#f8f9ff;border-left:4px solid #4f46e5;padding:16px 20px;margin:12px 0;border-radius:0 8px 8px 0}"
+        ".cta{background:#faf5ff;text-align:center;padding:56px 24px}"
+        ".cta h2{color:#4f46e5;margin-bottom:8px}"
+        ".cta a{display:inline-block;background:#4f46e5;color:#fff;padding:14px 32px;border-radius:8px;"
+        "font-weight:700;text-decoration:none;margin-top:16px}"
+        "footer{text-align:center;padding:24px;color:#888;font-size:.85rem}"
+        "</style></head><body>"
         f'<div class="hero"><h1>{_h(niche_label)} business ke liye<br>AI Marketing {_h(city_phrase)}</h1>'
-        f'<p>Automate {_h(hook)} — bina extra manpower ke.</p>'
+        f"<p>Automate {_h(hook)} — bina extra manpower ke.</p>"
         '<a href="/audit" class="btn">Free Audit lo</a>'
         '<a href="/pricing" class="btn sec">Pricing dekho</a></div>'
         f'<div class="features"><h2>Hum {_h(niche_label)} businesses ke liye kya karte hain</h2>'
@@ -1996,12 +2077,12 @@ async def niche_landing(slug: str):
         f'<div class="feat"><b>Google Profile Audit</b> — Rating, reviews, aur visibility gaps identify karo — free.</div>'
         f'<div class="feat"><b>AI Content Pack</b> — Weekly posters, captions, aur SEO content — {_h(niche_label)}-specific.</div>'
         '<div class="feat"><b>Advanced: AI Voice Agent</b> — Inbound callback aur lead qualification automatically (₹5,999/mo).</div>'
-        '</div>'
+        "</div>"
         f'<div class="cta"><h2>Shuru karo aaj hi</h2>'
-        f'<p>{_h(niche_label)} {_h(city_phrase)} — Starter plan sirf ₹1,999/mahina.</p>'
+        f"<p>{_h(niche_label)} {_h(city_phrase)} — Starter plan sirf ₹1,999/mahina.</p>"
         '<a href="/start">Abhi Start Karo →</a></div>'
         '<footer>© LeadsGenAI · <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a></footer>'
-        '</body></html>'
+        "</body></html>"
     )
     return HTMLResponse(content=html, headers={"X-Content-Type-Options": "nosniff"})
 

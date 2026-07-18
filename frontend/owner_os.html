@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Owner OS — LeadGen AI</title>
+<style>
+:root{
+  --bg:#0b1220; --card:#111827; --line:#1f2937; --ink:#e5e7eb; --muted:#94a3b8;
+  --brand:#6366f1; --ok:#22c55e; --warn:#f59e0b; --err:#ef4444; --soft:#1e1b4b;
+}
+*{box-sizing:border-box} body{margin:0;font-family:Segoe UI,system-ui,sans-serif;background:linear-gradient(180deg,#0b1220,#111827);color:var(--ink)}
+a{color:#a5b4fc;text-decoration:none}
+.top{position:sticky;top:0;z-index:10;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 16px;background:rgba(11,18,32,.92);border-bottom:1px solid var(--line);backdrop-filter:blur(8px)}
+.brand{font-weight:800} .brand span{color:var(--brand)}
+.nav a{margin-right:10px;font-size:13px;color:var(--muted)} .nav a:hover{color:#fff}
+.wrap{max-width:1200px;margin:0 auto;padding:16px}
+.grid{display:grid;grid-template-columns:1.2fr .8fr;gap:14px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:14px}
+.card h2{margin:0 0 8px;font-size:16px} .card h3{margin:0 0 6px;font-size:14px;color:#c7d2fe}
+.muted{color:var(--muted);font-size:12px;line-height:1.45}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.btn{border:0;border-radius:10px;padding:8px 12px;font-weight:700;cursor:pointer;font-size:13px;background:var(--brand);color:#fff}
+.btn.sec{background:#334155} .btn.warn{background:var(--warn);color:#111} .btn.danger{background:var(--err)} .btn.ok{background:var(--ok);color:#052e16}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+textarea,input,select{width:100%;background:#0f172a;border:1px solid #334155;color:var(--ink);border-radius:10px;padding:10px;font:inherit}
+textarea{min-height:88px;resize:vertical}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+.chip{background:#0f172a;border:1px solid #334155;border-radius:999px;padding:5px 10px;font-size:12px}
+.chip b{color:#fff}
+.agent{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px;border-bottom:1px solid #1f2937}
+.agent:last-child{border-bottom:0}
+.badge{font-size:11px;padding:2px 8px;border-radius:999px;background:#1e293b;color:#cbd5e1}
+.badge.ok{background:#14532d;color:#bbf7d0} .badge.warn{background:#78350f;color:#fde68a} .badge.err{background:#7f1d1d;color:#fecaca}
+.pre{white-space:pre-wrap;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:10px;font-size:12px;max-height:260px;overflow:auto}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.tabs button{background:#1e293b;color:#cbd5e1;border:1px solid #334155;border-radius:999px;padding:6px 12px;cursor:pointer;font-size:12px;font-weight:700}
+.tabs button.on{background:var(--brand);color:#fff;border-color:var(--brand)}
+.panel{display:none}.panel.on{display:block}
+.toast{position:fixed;right:14px;bottom:14px;background:#1e1b4b;border:1px solid #6366f1;padding:10px 14px;border-radius:10px;font-size:13px;display:none;z-index:50}
+.teach{margin-top:8px;padding:10px;border-radius:10px;background:var(--soft);border:1px dashed #6366f1;font-size:12px;color:#c7d2fe}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">👑 Owner OS <span>· LeadGen AI</span></div>
+  <nav class="nav">
+    <a href="/app/admin">Admin</a>
+    <a href="/app/inbox">Hot Queue</a>
+    <a href="/app/office">Office</a>
+    <a href="/app/automation">Automation</a>
+    <a href="/app/admin-login">Login</a>
+  </nav>
+  <div class="spacer" style="flex:1"></div>
+  <span class="badge" id="authBadge">checking…</span>
+  <button class="btn sec" onclick="boot()">↻ Refresh</button>
+</header>
+
+<main class="wrap">
+  <div class="tabs" id="tabs">
+    <button class="on" data-tab="home">Home</button>
+    <button data-tab="commands">Commands</button>
+    <button data-tab="agents">Agents</button>
+    <button data-tab="tasks">Tasks</button>
+    <button data-tab="approvals">Approvals</button>
+    <button data-tab="kill">Kill Switches</button>
+    <button data-tab="training">Training</button>
+  </div>
+
+  <section class="panel on" id="panel-home">
+    <div class="card">
+      <h2>Owner Home — business abhi kya kar raha hai?</h2>
+      <p class="muted">Har metric actionable hai. Terminal/SSH ki zarurat nahi for routine ops.</p>
+      <div class="row" style="margin-bottom:8px"><span class="badge err" id="callingBadge">Calling HARD OFF</span></div>
+      <div class="chips" id="homeChips"></div>
+      <h3>Attention</h3>
+      <div id="homeAttention" class="muted">Loading…</div>
+      <h3 style="margin-top:12px">Recommended safe commands</h3>
+      <div id="homeRecs" class="row"></div>
+      <div class="teach" id="teach-home"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-commands">
+    <div class="grid">
+      <div class="card">
+        <h2>Owner Command Console</h2>
+        <p class="muted">Hinglish / Hindi / English. Pehle Preview, phir Confirm & Run (sirf safe intents).</p>
+        <textarea id="cmdText" placeholder="Jiya ke pending deliverables ka status report banao. Koi content publish ya customer message mat bhejna."></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn sec" onclick="previewCmd()">Preview plan</button>
+          <button class="btn" onclick="runCmd()">Confirm & Run (safe)</button>
+          <button class="btn sec" onclick="document.getElementById('cmdText').value=SAMPLE">Sample Jiya report</button>
+        </div>
+        <h3 style="margin-top:14px">Interpreted plan</h3>
+        <div class="pre" id="cmdPreview">—</div>
+        <div class="teach" id="teach-commands"></div>
+      </div>
+      <div class="card">
+        <h2>Recent commands</h2>
+        <div id="cmdList" class="muted">—</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-agents">
+    <div class="card">
+      <h2>Agent Registry</h2>
+      <p class="muted">Canonical workforce = <b>31</b> STAFF. <b>manager</b> = Boss (system supervisor + runnable). Pause Manual Runs ≠ full agent stop.</p>
+      <p class="muted" id="pauseNote">Scheduled jobs may continue. Use workflow or scheduler controls to stop scheduled execution.</p>
+      <div class="chips" id="agentChips"></div>
+      <div id="agentList"></div>
+      <div class="teach" id="teach-agents"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-tasks">
+    <div class="card">
+      <h2>Task Control</h2>
+      <p class="muted">Owner commands: approve queue, running, failed, completed + recent agent events.</p>
+      <div class="chips" id="taskChips"></div>
+      <div id="taskBoard" class="muted"></div>
+      <div class="teach" id="teach-tasks"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-approvals">
+    <div class="card">
+      <h2>Approval Center</h2>
+      <p class="muted">Canonical bridge = Mission Control. sales/coordinator/fde decide yahan; content = View-only → Open in Mission Control.</p>
+      <div id="apprBox" class="muted"></div>
+      <p class="muted" style="margin-top:10px"><a href="/app/automation#approvals">Mission Control Approvals →</a></p>
+      <div class="teach" id="teach-approvals"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-kill">
+    <div class="card">
+      <h2>Production Safety — Kill Switches</h2>
+      <p class="muted">Server-side enforced. Outbound calling yahan se <b>ENABLE nahi</b> hota.</p>
+      <div id="killBox"></div>
+      <div class="teach" id="teach-kill"></div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-training">
+    <div class="card">
+      <h2>Admin Training Mode</h2>
+      <p class="muted">Har page pe Teach-me. Safe practice pehle, risky baad me.</p>
+      <div class="row">
+        <select id="trainPage" onchange="loadTraining()">
+          <option value="home">Home</option>
+          <option value="commands">Commands</option>
+          <option value="agents">Agents</option>
+          <option value="tasks">Tasks</option>
+          <option value="approvals">Approvals</option>
+          <option value="kill">Kill</option>
+          <option value="training">Training</option>
+        </select>
+        <button class="btn sec" onclick="loadTraining()">Teach me this page</button>
+      </div>
+      <div class="teach" id="trainBody" style="margin-top:12px"></div>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const SAMPLE = "Jiya ke pending deliverables ka status report banao. Koi content publish ya customer message mat bhejna.";
+function tok(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
+function authHdr(){ const t=tok(); return t? {Authorization:"Bearer "+t,"Content-Type":"application/json"} : {"Content-Type":"application/json"}; }
+function toast(m){ const el=document.getElementById("toast"); el.textContent=m; el.style.display="block"; setTimeout(()=>el.style.display="none",3200); }
+async function api(path, opts={}){
+  const r = await fetch(path, { ...opts, headers: { ...authHdr(), ...(opts.headers||{}) } });
+  let j=null; try{ j=await r.json(); }catch(e){ j={ok:false,error:"bad_json"}; }
+  if(r.status===401||r.status===403){ document.getElementById("authBadge").textContent="Login required"; document.getElementById("authBadge").className="badge err"; }
+  return {status:r.status, body:j};
+}
+
+document.getElementById("tabs").addEventListener("click", (e)=>{
+  const b=e.target.closest("button[data-tab]"); if(!b) return;
+  document.querySelectorAll("#tabs button").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".panel").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on");
+  document.getElementById("panel-"+b.dataset.tab).classList.add("on");
+  if(b.dataset.tab==="training") loadTraining();
+});
+
+async function boot(){
+  if(!tok()){ document.getElementById("authBadge").textContent="Login required"; document.getElementById("authBadge").className="badge err"; toast("Pehle /app/admin-login"); }
+  else { document.getElementById("authBadge").textContent="Admin session"; document.getElementById("authBadge").className="badge ok"; }
+  await Promise.all([loadHome(), loadAgents(), loadTasks(), loadApprovals(), loadKills(), loadCommands(), loadTeach("home"), loadTeach("commands"), loadTeach("agents"), loadTeach("tasks"), loadTeach("approvals"), loadTeach("kill")]);
+}
+
+async function loadTeach(page){
+  const {body}=await api("/api/admin/owner-os/training?page="+encodeURIComponent(page));
+  const el=document.getElementById("teach-"+page);
+  if(!el||!body||!body.ok) return;
+  el.innerHTML = "<b>Teach me · "+esc(body.title||page)+"</b><br>"+esc(body.hinglish||"")+"<br><b>Next:</b> "+esc(body.next||"");
+}
+
+async function loadHome(){
+  const {status,body}=await api("/api/admin/owner-os/home");
+  if(status!==200){ document.getElementById("homeAttention").textContent="Home load fail ("+status+")"; return; }
+  const w=body.workforce||{};
+  document.getElementById("callingBadge").textContent = body.calling_badge || "Calling HARD OFF";
+  document.getElementById("homeChips").innerHTML = [
+    ["Canonical agents", w.canonical_agents??w.total],
+    ["Supervisors", w.system_supervisors],
+    ["Service IDs", w.service_identities],
+    ["Manual-runnable", w.runnable_workers??w.runnable],
+    ["Paused manual", w.paused_manual_run],
+    ["Approvals", body.approvals_pending],
+    ["Failed cmds", (body.tasks||{}).failed||0],
+    ["Storage", body.storage_mode]
+  ].map(([k,v])=>`<span class="chip">${k}: <b>${v??"—"}</b></span>`).join("");
+  const att=(body.attention||[]).map(a=>`<div style="margin:6px 0">• <a href="${esc(a.href||"#")}">${esc(a.title||"")}</a> <span class="badge">${esc(a.priority||"")}</span></div>`).join("")||"Koi critical attention nahi";
+  document.getElementById("homeAttention").innerHTML=att;
+  document.getElementById("homeRecs").innerHTML=(body.recommended||[]).map(r=>
+    `<button class="btn sec" onclick="useRec(${JSON.stringify(r.command||"")})">${esc(r.label||"cmd")}</button>`
+  ).join("");
+}
+
+function useRec(cmd){
+  document.querySelector('#tabs button[data-tab="commands"]').click();
+  document.getElementById("cmdText").value=cmd;
+}
+
+async function previewCmd(){
+  const text=document.getElementById("cmdText").value.trim();
+  if(text.length<3){ toast("Command likho"); return; }
+  const {body}=await api("/api/admin/owner-os/commands/preview",{method:"POST",body:JSON.stringify({text})});
+  document.getElementById("cmdPreview").textContent = body.preview_summary || JSON.stringify(body,null,2);
+}
+
+let _lastIdem = null;
+async function runCmd(){
+  const text=document.getElementById("cmdText").value.trim();
+  if(text.length<3){ toast("Command likho"); return; }
+  if(!_lastIdem) _lastIdem = "ui_"+Date.now()+"_"+Math.random().toString(16).slice(2,8);
+  const {status,body}=await api("/api/admin/owner-os/commands",{method:"POST",body:JSON.stringify({text, run_now:true, confirm:true, idempotency_key:_lastIdem})});
+  const exec=(body.executed||{}).command || body.command || {};
+  const plan=body.plan||{};
+  document.getElementById("cmdPreview").textContent =
+    (plan.preview_summary||"")+"\n\n--- RESULT ---\n"+JSON.stringify({
+      http:status,
+      intent: plan.intent,
+      tenant_id: plan.tenant_id,
+      publish_allowed: plan.publish_allowed,
+      customer_notify_allowed: plan.customer_notify_allowed,
+      risk_level: plan.risk_level,
+      status: exec.status || (body.created&&body.created.command&&body.created.command.status),
+      command_id: exec.command_id || (body.created&&body.created.command&&body.created.command.command_id),
+      correlation_id: exec.correlation_id || (body.created&&body.created.command&&body.created.command.correlation_id),
+      deduped: !!(body.created&&body.created.deduped) || !!(body.executed&&body.executed.deduped),
+      evidence_keys: exec.evidence? Object.keys(exec.evidence): [],
+      error: exec.error || body.error || null,
+      note: body.note || null
+    },null,2);
+  toast(exec.status==="SUCCEEDED"?"Command SUCCEEDED":(body.note||exec.status||"done"));
+  if(exec.status==="SUCCEEDED") _lastIdem = null;
+  loadCommands(); loadTasks(); loadHome();
+}
+
+async function loadCommands(){
+  const {body}=await api("/api/admin/owner-os/commands?limit=20");
+  const cmds=body.commands||[];
+  document.getElementById("cmdList").innerHTML = cmds.length? cmds.map(c=>`
+    <div style="border-bottom:1px solid #1f2937;padding:8px 0">
+      <div><b>${esc(c.intent)}</b> <span class="badge ${c.status==="SUCCEEDED"?"ok":(c.status==="FAILED"?"err":"warn")}">${esc(c.status)}</span></div>
+      <div class="muted">${esc((c.original||"").slice(0,120))}</div>
+      <div class="row" style="margin-top:6px">
+        <button class="btn sec" onclick="execCmd('${esc(c.command_id)}')">Execute</button>
+        <button class="btn sec" onclick="cancelCmd('${esc(c.command_id)}')">Cancel</button>
+        <button class="btn sec" onclick="retryCmd('${esc(c.command_id)}')">Retry</button>
+      </div>
+    </div>`).join("") : "Abhi koi command nahi";
+}
+
+async function execCmd(id){ const {body}=await api("/api/admin/owner-os/commands/"+id+"/execute",{method:"POST",body:"{}"}); toast((body.command||{}).status||body.error||"exec"); loadCommands(); }
+async function cancelCmd(id){ await api("/api/admin/owner-os/commands/"+id+"/cancel",{method:"POST",body:"{}"}); loadCommands(); }
+async function retryCmd(id){ await api("/api/admin/owner-os/commands/"+id+"/retry",{method:"POST",body:"{}"}); loadCommands(); loadTasks(); }
+
+async function loadAgents(){
+  const {body}=await api("/api/admin/owner-os/agents");
+  const agents=body.agents||[];
+  const inv=body.inventory||{};
+  document.getElementById("agentChips").innerHTML =
+    `<span class="chip">Canonical: <b>${inv.canonical_agents??body.staff_count??agents.length}</b></span>`+
+    `<span class="chip">Supervisors: <b>${inv.system_supervisors??0}</b></span>`+
+    `<span class="chip">Service IDs: <b>${inv.service_identities??0}</b></span>`+
+    `<span class="chip">Manual-runnable: <b>${inv.runnable_workers??(body.runnable_members||[]).length}</b></span>`+
+    `<span class="chip">Paused manual: <b>${inv.paused_manual_runs ?? body.paused_count ?? 0}</b></span>`;
+  if(body.manager_explanation){
+    document.getElementById("pauseNote").textContent =
+      (body.pause_semantics&&body.pause_semantics.note? body.pause_semantics.note+" ":"")+
+      "manager = Boss: "+body.manager_explanation;
+  }
+  document.getElementById("agentList").innerHTML = agents.map(a=>`
+    <div class="agent">
+      <div style="font-size:22px">${esc(a.emoji||"🤖")}</div>
+      <div>
+        <div><b>${esc(a.name)}</b> <span class="muted">(${esc(a.id)})</span>
+          <span class="badge ${a.status==='working'?'ok':''}">${esc(a.status)}</span>
+          ${a.is_system_supervisor?'<span class="badge warn">supervisor</span>':""}
+          ${a.paused?'<span class="badge warn">manual paused</span>':""}
+          ${a.runnable?'<span class="badge">manual-runnable</span>':""}
+        </div>
+        <div class="muted">${esc(a.department)} · ${esc(a.title)}</div>
+        <div class="muted">${esc((a.responsibility||"").slice(0,140))}</div>
+      </div>
+      <div class="row">
+        ${a.runnable?`<button class="btn warn" onclick="pauseAgent('${esc(a.id)}')">Pause Manual Runs</button>
+        <button class="btn ok" onclick="resumeAgent('${esc(a.id)}')">Resume Manual Runs</button>`:'<span class="muted">scheduler-driven</span>'}
+      </div>
+    </div>`).join("");
+}
+async function pauseAgent(id){ const {body}=await api("/api/admin/owner-os/agents/"+id+"/pause",{method:"POST",body:JSON.stringify({note:"owner_os UI"})}); toast(body.ok?"Pause Manual Runs OK":(body.detail||body.error||"fail")); loadAgents(); }
+async function resumeAgent(id){ const {body}=await api("/api/admin/owner-os/agents/"+id+"/resume",{method:"POST",body:"{}"}); toast(body.ok?"Resume Manual Runs OK":(body.detail||body.error||"fail")); loadAgents(); }
+
+async function loadTasks(){
+  const {body}=await api("/api/admin/owner-os/tasks");
+  const c=body.counts||{};
+  document.getElementById("taskChips").innerHTML = Object.entries(c).map(([k,v])=>`<span class="chip">${k}: <b>${v}</b></span>`).join("");
+  const v=body.views||{};
+  const blocks=["my_attention","running","failed","completed"].map(k=>{
+    const rows=v[k]||[];
+    return `<h3>${k}</h3>`+(rows.length?rows.map(r=>`<div class="muted">• <b>${esc(r.intent||r.status)}</b> ${esc((r.original||"").slice(0,80))} <span class="badge">${esc(r.status||"")}</span></div>`).join(""):"<div class='muted'>—</div>");
+  }).join("");
+  document.getElementById("taskBoard").innerHTML=blocks;
+}
+
+async function loadApprovals(){
+  const {body}=await api("/api/admin/owner-os/approvals");
+  const items=body.items||[];
+  document.getElementById("apprBox").innerHTML =
+    `<div class="chip">Pending: <b>${body.pending||0}</b></div>`+
+    (items.slice(0,30).map(i=>{
+      const decidable=!!i.decidable_here;
+      const sid=esc(i.source||"");
+      const iid=esc(i.item_id||"");
+      return `<div style="padding:8px 0;border-bottom:1px solid #1f2937">
+        <b>${sid}</b> · ${esc(i.category||"")} · tenant <b>${esc(i.tenant_id||i.customer||"—")}</b>
+        <span class="badge ${decidable?'ok':'warn'}">${decidable?'operational':'View-only'}</span>
+        <div class="muted">${esc(i.title||"")}</div>
+        <div class="muted">Agent: ${esc(i.requesting_agent||"—")} · Action: ${esc(i.action_type||"—")} · Risk: ${esc(i.risk||"—")}</div>
+        <div class="row" style="margin-top:6px">
+          ${decidable?`<button class="btn ok" onclick="decideAppr('${sid}','${iid}','approve')">Approve</button>
+            <button class="btn danger" onclick="decideAppr('${sid}','${iid}','reject')">Reject</button>`:
+            `<a class="btn sec" href="${esc(i.open_in||'/app/automation#approvals')}">Open in Mission Control</a>
+             <span class="muted">${esc(i.open_reason||'')}</span>`}
+        </div>
+      </div>`;
+    }).join("")||"<div class='muted'>Queue empty / bridge quiet</div>");
+}
+async function decideAppr(source, itemId, decision){
+  const {status,body}=await api("/api/admin/owner-os/approvals/"+encodeURIComponent(source)+"/"+encodeURIComponent(itemId)+"/decide",{
+    method:"POST", body: JSON.stringify({decision, reason:"owner_os bridge"})
+  });
+  toast(status===200&&body.ok? (body.noop?"Already decided":body.status||"ok") : (body.detail||body.error||"fail"));
+  loadApprovals();
+}
+
+async function loadKills(){
+  const {body}=await api("/api/admin/owner-os/kill-switches");
+  const sw=body.switches||{};
+  document.getElementById("killBox").innerHTML = Object.entries(sw).map(([k,v])=>{
+    const on=!!v.engaged;
+    const can=v.can_toggle!==false && v.can_enable_here!==false && k!=="platform_dial";
+    return `<div class="agent">
+      <div class="badge ${on?"err":"ok"}">${on?"ENGAGED":"off"}</div>
+      <div><b>${esc(k)}</b><div class="muted">${esc(v.note||v.source||"")}</div></div>
+      <div class="row">
+        ${can?`<button class="btn danger" onclick="setKill('${esc(k)}',true)">Engage</button>
+               <button class="btn ok" onclick="setKill('${esc(k)}',false)">Release</button>`:
+               `<span class="muted">locked</span>`}
+      </div>
+    </div>`;
+  }).join("");
+}
+async function setKill(key, engaged){
+  const reason = engaged? "owner_os UI engage":"owner_os UI release";
+  const {status,body}=await api("/api/admin/owner-os/kill-switches",{method:"POST",body:JSON.stringify({key,engaged,reason})});
+  toast(status===200&&body.ok? (engaged?"ENGAGED":"released") : (body.detail||body.error||"refused"));
+  loadKills();
+}
+
+async function loadTraining(){
+  const page=document.getElementById("trainPage").value;
+  const {body}=await api("/api/admin/owner-os/training?page="+encodeURIComponent(page));
+  if(!body||!body.ok){ document.getElementById("trainBody").textContent="fail"; return; }
+  document.getElementById("trainBody").innerHTML =
+    `<b>${esc(body.title)}</b><p>${esc(body.hinglish)}</p><p><b>Safe commands:</b><br>${(body.safe_commands||[]).map(c=>"• "+esc(c)).join("<br>")}</p><p><b>Next:</b> ${esc(body.next||"")}</p>`;
+}
+
+function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
+
+boot();
+</script>
+</body>
+</html>
