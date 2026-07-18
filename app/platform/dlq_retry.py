@@ -64,7 +64,7 @@ def parse_staff_job(rec: dict[str, Any]) -> str | None:
         raw = rec.get("args") or ""
         try:
             parsed = ast.literal_eval(raw)
-            if isinstance(parsed, (list, tuple)) and parsed:
+            if isinstance(parsed, list | tuple) and parsed:
                 cand = str(parsed[0])
                 if cand in STAFF_JOBS:
                     return cand
@@ -81,6 +81,15 @@ def parse_staff_job(rec: dict[str, Any]) -> str | None:
 
 async def _dispatch(job: str, attempt: int) -> str:
     """Job dobara chalao. Return: 'celery' ya 'inprocess' (kaise dispatch hua)."""
+    try:
+        from app.platform.owner_os import record_scheduler_skip, scheduler_dispatch_allowed
+
+        allowed, reason = scheduler_dispatch_allowed()
+        if not allowed:
+            record_scheduler_skip(job, reason, source="dlq_retry._dispatch")
+            return "skipped_owner_schedulers"
+    except Exception:
+        pass
     if _celery_owns_jobs():
         from app.tasks.staff_jobs import run_staff_job
 
