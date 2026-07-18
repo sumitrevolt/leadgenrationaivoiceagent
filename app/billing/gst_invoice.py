@@ -90,12 +90,26 @@ def _append(rec: dict[str, Any]) -> None:
         logger.warning(f"[invoice] append failed: {e}")
 
 
+def _void_map(rows: list[dict[str, Any]] | None = None) -> dict[str, dict[str, Any]]:
+    """number -> void-marker record. Void markers = append-only rows with
+    ``kind: "void"`` + ``voids: <number>`` (2026-07-18 accountant-safe correction:
+    Rule-46 sequential ledger me DELETE forbidden — original row preserved, number
+    consumed rehta hai, reporting/dedupe voided ko exclude karti hai)."""
+    out: dict[str, dict[str, Any]] = {}
+    for r in rows if rows is not None else _read():
+        if r.get("kind") == "void" and r.get("voids"):
+            out[str(r["voids"])] = r
+    return out
+
+
 def next_number(fy: str | None = None) -> str:
     """Sequential per-FY number, Rule 46 compliant (<=16 chars): INV/2026-27/0001.
 
     NOTE: count-based; MUST be called inside ``_reserve_number_and_append`` so the
     read-count and the append are atomic — otherwise two concurrent invoices compute
-    the same number (duplicate Rule-46 number = GST violation)."""
+    the same number (duplicate Rule-46 number = GST violation). Void markers carry
+    no ``fy`` key, so they never inflate the count; voided invoices DO keep their
+    number consumed (no reuse)."""
     fy = fy or fy_label()
     n = sum(1 for r in _read() if r.get("fy") == fy) + 1
     return f"INV/{fy}/{n:04d}"
@@ -267,10 +281,19 @@ def invoice_html(inv: dict[str, Any]) -> str:
         )
         gstin_line = f'GSTIN: {e(sup.get("gstin", ""))}<br>' if sup.get("gstin") else ""
         rec_gstin = f'GSTIN: {e(rec.get("gstin", ""))}<br>' if rec.get("gstin") else ""
+        void_banner = (
+            f'<div style="border:2px solid #c00;color:#c00;text-align:center;'
+            f'font-weight:bold;padding:8px;margin:8px 0">VOIDED — '
+            f'{e(str(inv.get("void_reason", "") or "cancelled"))} '
+            f'({e(str(inv.get("voided_at", ""))[:10])})</div>'
+            if inv.get("voided")
+            else ""
+        )
         return f"""<!doctype html><html><head><meta charset="utf-8"><title>{e(str(inv.get("number", "")))}</title>
 <style>body{{font-family:Arial,sans-serif;max-width:720px;margin:24px auto;color:#222}}
 table{{width:100%;border-collapse:collapse;margin:12px 0}}td,th{{border:1px solid #ddd;padding:8px}}
 .h{{display:flex;justify-content:space-between}}.tot{{font-weight:bold;background:#f7f7f7}}</style></head><body>
+{void_banner}
 <div class="h"><div><h2 style="margin:0;color:#e85d04">{e(sup.get("name", ""))}</h2>
 {gstin_line}{e(sup.get("address", ""))}<br>{e(sup.get("email", ""))}</div>
 <div style="text-align:right"><h3 style="margin:0">{"TAX INVOICE" if inv.get("tax_mode") != "unregistered" else "INVOICE"}</h3>
@@ -287,9 +310,15 @@ Place of supply: {e(str(inv.get("place_of_supply", "")))}<br>Reverse charge: No<
 
 
 def _already_invoiced(client_id: str, plan: str, payment_ref: str) -> bool:
-    """Dedupe — same payment_ref, ya (ref na ho to) same client+plan pichhle 20h me."""
+    """Dedupe — same payment_ref, ya (ref na ho to) same client+plan pichhle 20h me.
+    Voided invoices dedupe me COUNT nahi hote (galat invoice void karke same ref pe
+    corrected reissue possible rahe)."""
     try:
         rows = _read()
+        voided = _void_map(rows)
+        rows = [
+            r for r in rows if r.get("kind") != "void" and str(r.get("number") or "") not in voided
+        ]
         if payment_ref:
             return any(r.get("payment_ref") == payment_ref for r in rows)
         cutoff = _now() - timedelta(hours=20)
@@ -352,27 +381,82 @@ async def on_payment_success(
         return {}
 
 
+def void_invoice(number: str, reason: str = "", by: str = "") -> dict[str, Any]:
+    """Accountant-safe VOID (2026-07-18 billing containment): original invoice row
+    kabhi delete/rewrite NAHI hota — ek append-only void marker judta hai. Number
+    consumed rehta hai (Rule-46 sequence intact), reporting gross me count nahi
+    hota, aur payment_ref dedupe se free ho jata hai (corrected reissue possible).
+    Idempotent: dobara void = deduped:True. Never raises."""
+    try:
+        num = (number or "").strip()
+        if not num:
+            return {"ok": False, "error": "number required"}
+        rows = _read()
+        target = next((r for r in rows if r.get("kind") != "void" and r.get("number") == num), None)
+        if not target:
+            return {"ok": False, "error": f"invoice not found: {num}"}
+        existing = _void_map(rows).get(num)
+        if existing:
+            return {"ok": True, "number": num, "deduped": True, "void": existing}
+        marker = {
+            "kind": "void",
+            "voids": num,
+            "voided_at": _now().isoformat(),
+            "reason": str(reason or "")[:300],
+            "by": str(by or "")[:120],
+            "gross_inr": target.get("gross_inr"),
+            "client_id": target.get("client_id"),
+        }
+        with _LOCK:
+            _append(marker)
+        logger.info(f"[invoice] VOID {num} reason={marker['reason'][:80]!r} by={marker['by']}")
+        return {"ok": True, "number": num, "void": marker}
+    except Exception as e:
+        logger.warning(f"[invoice] void failed: {e}")
+        return {"ok": False, "error": str(e)[:200]}
+
+
+def _annotate_voided(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Invoice rows only (markers hidden), voided ones flagged in-place."""
+    voided = _void_map(rows)
+    out: list[dict[str, Any]] = []
+    for r in rows:
+        if r.get("kind") == "void":
+            continue
+        v = voided.get(str(r.get("number") or ""))
+        if v:
+            r["voided"] = True
+            r["void_reason"] = v.get("reason", "")
+            r["voided_at"] = v.get("voided_at", "")
+        out.append(r)
+    return out
+
+
 def list_invoices(limit: int = 50) -> list[dict[str, Any]]:
-    rows = _read()
+    rows = _annotate_voided(_read())
     return rows[-max(1, min(int(limit or 50), 500)) :][::-1]
 
 
 def get_by_number(number: str) -> dict[str, Any]:
-    for r in _read():
+    for r in _annotate_voided(_read()):
         if r.get("number") == (number or "").strip():
             return r
     return {}
 
 
 def stats() -> dict[str, Any]:
-    rows = _read()
+    rows = _annotate_voided(_read())
     fy = fy_label()
     fy_rows = [r for r in rows if r.get("fy") == fy]
+    fy_live = [r for r in fy_rows if not r.get("voided")]
+    fy_void = [r for r in fy_rows if r.get("voided")]
     return {
         "total": len(rows),
         "fy": fy,
         "fy_count": len(fy_rows),
-        "fy_gross_inr": round(sum(float(r.get("gross_inr") or 0) for r in fy_rows), 2),
+        "fy_gross_inr": round(sum(float(r.get("gross_inr") or 0) for r in fy_live), 2),
+        "fy_voided_count": len(fy_void),
+        "fy_voided_gross_inr": round(sum(float(r.get("gross_inr") or 0) for r in fy_void), 2),
         "registered_mode": bool(_supplier().get("gstin")),
         "send_enabled": _send_enabled(),
     }
@@ -384,6 +468,7 @@ __all__ = [
     "on_payment_success",
     "list_invoices",
     "get_by_number",
+    "void_invoice",
     "stats",
     "next_number",
     "fy_label",

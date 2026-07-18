@@ -1780,3 +1780,13 @@ Context: V1 PRODUCTION READY on ce562408; Pause Manual Runs intentionally did no
 Rejected: force-kill of running customer-critical tasks; arbitrary model strings; broad UI redesign; enabling calling.
 
 Consequence: Isha scheduled pause/drain proven via unit tests before deploy; resume does not catch-up missed intervals; calling stays HARD OFF.
+
+## 2026-07-18 - ADR-121 Billing ledger containment + prospect time budget
+
+Decision: (1) Autouse pytest fixture redirects `gst_invoice._STORE` + `upi_payments._STORE` to tmp_path so billing tests can never write the live Rule-46 JSONL. (2) Accountant-safe `void_invoice(number, reason)` appends a `kind:void` marker ? original row preserved, number stays consumed, stats/dedupe/customer portal exclude voided; admin route `POST /api/growth/revenue/invoice-void` + Automation UI Void button. (3) Prospector enforces `PROSPECT_TIME_BUDGET_S` (default 420) and `run_staff_job` fails-fast on `SoftTimeLimitExceeded` (no Celery retry burn). (4) Recommend prod `UPI_AUTO_ACTIVATE=0` for human-reviewed canary until revoke of contaminated INV/0002-0013.
+
+Context: Launch audit + forensic dump proved 11 `cli_*` invoices + 1 disposable E2E invoice contaminated prod ledger; 7 dead prospect jobs kept automation health red while live queues were empty. `blocker_count=0` on activation summary under-reported these.
+
+Rejected: hard-delete of invoice JSONL lines (Rule-46 audit trail); raising Celery soft limit without workload bound; purging `dlq:dead` before deploy of time-budget fix; flipping `UPI_AUTO_ACTIVATE` without operator confirm.
+
+Consequence: Contaminated numbers get VOID after deploy (ops plan); next real invoice is INV/0014; local/VPS pytest no longer poison ledger; voice hard-offs unchanged. Deploy + env flip + void + DLQ purge = USER-approved ops, not auto.

@@ -101,7 +101,11 @@ def _write_all(rows: list[dict]) -> None:
 
             # Prune: keep latest 72 backups
             _all = sorted(
-                [f for f in os.listdir(_bkp_dir) if f.startswith("customer_auth.") and f.endswith(".jsonl.gz")],
+                [
+                    f
+                    for f in os.listdir(_bkp_dir)
+                    if f.startswith("customer_auth.") and f.endswith(".jsonl.gz")
+                ],
                 reverse=True,
             )
             for _old in _all[72:]:
@@ -175,7 +179,9 @@ def _content_summary(items: list) -> dict:
     if counts["posted"]:
         parts.append(f"{counts['posted']} publish ho chuk{'a' if counts['posted'] == 1 else 'e'}")
     if counts["approved"]:
-        parts.append(f"{counts['approved']} publish hone wal{'a' if counts['approved'] == 1 else 'e'}")
+        parts.append(
+            f"{counts['approved']} publish hone wal{'a' if counts['approved'] == 1 else 'e'}"
+        )
     if counts["draft"]:
         parts.append(
             f"{counts['draft']} approval ka wait kar rah{'a' if counts['draft'] == 1 else 'e'}"
@@ -210,6 +216,7 @@ async def require_customer(creds: HTTPAuthorizationCredentials = Depends(_securi
     # Check if token is blacklisted (logged out)
     try:
         from app.cache import get_redis_client
+
         redis_client = await get_redis_client()
         token = creds.credentials
         blacklist_key = f"customer:logout:{token[:20]}"
@@ -256,7 +263,9 @@ def register_login(
                     logger.warning(
                         "[customer-auth] register_login refused cross-tenant overwrite "
                         "for email=%s incoming_cid=%s existing_cid=%s",
-                        e, cid, existing_cid,
+                        e,
+                        cid,
+                        existing_cid,
                     )
                     return {
                         "ok": False,
@@ -433,7 +442,9 @@ class SignupIn(BaseModel):
     plan: str = Field("starter", max_length=30)
 
 
-@router.post("/signup", dependencies=[Depends(rate_limit("cust_signup", 5, 300)), Depends(verify_turnstile)])
+@router.post(
+    "/signup", dependencies=[Depends(rate_limit("cust_signup", 5, 300)), Depends(verify_turnstile)]
+)
 async def customer_signup(req: SignupIn, request: Request):
     """MERGED (2026-06-27): self-serve signup ka SINGLE canonical implementation ab
     `app.api.public_site.public_signup` hai. Pehle yeh ek DUPLICATE signup code-path tha
@@ -509,15 +520,17 @@ def _first_hour_setup_state(client_rec: dict | None) -> dict:
         except Exception:
             pass
         remaining = max(1, 30 - elapsed_min)  # tuned to auto_onboard's typical 10-30 min
-        out.update({
-            "active": True,
-            "minutes_elapsed": elapsed_min,
-            "minutes_remaining": remaining,
-            "message": (
-                f"🚀 Aapki AI team abhi setup ho rahi hai — "
-                f"~{remaining} min me pehla content taiyaar hoga."
-            ),
-        })
+        out.update(
+            {
+                "active": True,
+                "minutes_elapsed": elapsed_min,
+                "minutes_remaining": remaining,
+                "message": (
+                    f"🚀 Aapki AI team abhi setup ho rahi hai — "
+                    f"~{remaining} min me pehla content taiyaar hoga."
+                ),
+            }
+        )
     except Exception:
         pass
     return out
@@ -531,9 +544,26 @@ class ChangePwIn(BaseModel):
 # Same block-list as Loop 13B (public_site.py) — keep centralized here so a
 # password rotation cannot land on a known-breached string post-signup either.
 _BREACHED_PASSWORDS = {
-    "password", "password1", "123456", "12345678", "123456789", "1234567890",
-    "qwerty", "abc123", "111111", "000000", "admin", "welcome", "letmein",
-    "iloveyou", "monkey", "dragon", "master", "shadow", "sunshine", "princess",
+    "password",
+    "password1",
+    "123456",
+    "12345678",
+    "123456789",
+    "1234567890",
+    "qwerty",
+    "abc123",
+    "111111",
+    "000000",
+    "admin",
+    "welcome",
+    "letmein",
+    "iloveyou",
+    "monkey",
+    "dragon",
+    "master",
+    "shadow",
+    "sunshine",
+    "princess",
 }
 
 
@@ -567,7 +597,9 @@ async def customer_change_password(
         # created before customer_auth existed, or store corruption). Log for ops
         # then return a 409 — customer can email support for a manual reset.
         logger.warning("[customer-auth] change-password: no credential row for cid=%s", client_id)
-        raise HTTPException(status_code=409, detail="Account credentials nahi mile — support se contact karo.")
+        raise HTTPException(
+            status_code=409, detail="Account credentials nahi mile — support se contact karo."
+        )
 
     # 2) Verify old password (constant-time via _verify).
     if not _verify(req.old_password, row.get("password_hash", "")):
@@ -604,7 +636,9 @@ async def customer_change_password(
     # 5) Update credentials. register_login is idempotent (email match dedupe + overwrite).
     email = str(row.get("email") or "").strip()
     if not email:
-        raise HTTPException(status_code=500, detail="Account row corrupt — support se contact karo.")
+        raise HTTPException(
+            status_code=500, detail="Account row corrupt — support se contact karo."
+        )
     register_login(email, req.new_password, client_id)
 
     # 6) Emit admin AutomationLog for security audit trail.
@@ -648,14 +682,19 @@ async def me(client_id: str = Depends(require_customer)):
 
 
 @router.post("/logout")
-async def logout(creds: HTTPAuthorizationCredentials = Depends(_security), client_id: str = Depends(require_customer)):
+async def logout(
+    creds: HTTPAuthorizationCredentials = Depends(_security),
+    client_id: str = Depends(require_customer),
+):
     """Invalidate customer JWT token (Redis blacklist + return 200)."""
     try:
         from app.cache import get_redis_client
+
         redis_client = await get_redis_client()
         token = creds.credentials
         # Extract expiry from JWT to set Redis TTL
         from app.api.admin import decode_token
+
         payload = decode_token(token)
         exp = payload.get("exp", 0)
         ttl = max(1, exp - int(datetime.now(timezone.utc).timestamp()))
@@ -723,7 +762,13 @@ async def portal_invoices(client_id: str = Depends(require_customer)):
     try:
         from app.billing import gst_invoice
 
-        rows = [r for r in gst_invoice.list_invoices(500) if str(r.get("client_id")) == client_id]
+        # Voided invoices (accountant correction markers) customer portal me
+        # nahi dikhte — sirf live bills. Admin list voided+flag dikhata hai.
+        rows = [
+            r
+            for r in gst_invoice.list_invoices(500)
+            if str(r.get("client_id")) == client_id and not r.get("voided")
+        ]
         return {
             "invoices": [
                 {
@@ -749,7 +794,7 @@ async def portal_invoice_html(number: str, client_id: str = Depends(require_cust
         from app.billing import gst_invoice
 
         inv = gst_invoice.get_by_number(number)
-        if not inv or str(inv.get("client_id")) != client_id:
+        if not inv or str(inv.get("client_id")) != client_id or inv.get("voided"):
             return {"error": "invoice not found"}
         return HTMLResponse(gst_invoice.invoice_html(inv))
     except Exception:
