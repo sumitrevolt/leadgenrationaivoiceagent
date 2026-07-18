@@ -213,4 +213,23 @@ tmp_vps_*.sh
 !/start_server.bat
 /gemini_vertex
 /55-min
-.codex/config.toml 
+
+# Temp / one-shot diagnostics + captured outputs (ai-firstify 2026-07-18; NARROWED 2026-07-18).
+# Policy (docs/CONTEXT_HYGIENE_POLICY.md): reusable canary/diagnostic TOOLS stay TRACKED under
+# scripts/canary/ or scripts/. Only one-off _tmp_ scripts and generated OUTPUT are ignored —
+# a blanket scripts/_canary_* would hide reusable safety tooling, so canary SCRIPTS are NOT ignored.
+scripts/_tmp_*
+scripts/_canary_*.log
+scripts/_canary_*_out.txt
+scripts/_canary_*.txt
+# root-scoped one-off capture files only (leading / = repo-root, never hides nested tracked evidence)
+/*_exit.txt
+/pytest_*.txt
+/*_result.txt
+/forensics_*.txt
+# editor/agent backup files (never tracked; confirmed 0 tracked matches)
+*.bak
+*.bak.*
+# designated ignored runtime scratch for local diagnostics + generated outputs
+artifacts/local/
+.codex/config.toml
