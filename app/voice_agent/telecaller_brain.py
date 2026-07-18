@@ -1891,7 +1891,10 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 "Trial setup kar doon?"
             )
         # Greeting / permission on self-pitch — pitch + close, NOT discovery barrage.
-        if any(w in low for w in ("hello", "namaste", "hi", "hey", "bolo", "boliye", "sunao")):
+        # WORD-BOUNDARY match (2026-07-18): plain `"hi" in low` substring-fired on
+        # romanized Hindi ("chahiye"/"rahi"/"nahi" sab me "hi" hai) — substantive
+        # complaints ko canned pitch mil jaati thi on the live stream fast path.
+        if re.search(r"\b(hello|namaste|hi|hey|bolo|boliye|sunao)\b", low):
             try:
                 from app.voice_agent.platform_pitch import is_platform_pitch
                 from app.voice_agent.universal_pitch import PITCH_SHORT
@@ -2231,6 +2234,16 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
         """
         from app.voice_agent.llm_stream_tts import iter_sentences_from_tokens
 
+        # Per-turn close_signal flag — MUST mirror reply() so stream-path WS
+        # close_signal events don't stick from a prior turn (2da6239 / cross_path).
+        self.close_signal_fired = False
+        # True when the post-LLM first-sentence guards rejected the stream (repeat-ask
+        # on substantive input / injection / PII / re-greet). Those cases must fall to
+        # reply() — its full guarded suite ANSWERS the user — not to _script_fallback,
+        # which ignores user_text and would ask an unrelated discovery question (the
+        # exact "jawab nahi deti" failure the guard exists to stop). The fast/script
+        # shortcut below stays for plain LLM failures (no double LLM call, e795629).
+        guard_reject = False
         try:
             ut = (user_text or "").strip()
             # POLITE-NO 2-strike de-escalation (D-8) — same backstop as reply(),
@@ -2378,6 +2391,7 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                         logger.info(
                             "[telecaller-brain] stream first sentence failed guards -> reply() fallback"
                         )
+                        guard_reject = True
                         break  # got stays False -> one-shot reply() below
                 got = True
                 yield cleaned
@@ -2385,14 +2399,15 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
                 return
         except Exception as e:
             logger.debug("[telecaller-brain] reply_stream_sentences skip: %s", e)
-        fast = self._fast_path_reply(history, user_text)
-        if fast:
-            yield fast
-            return
-        sc = self._script_fallback(history)
-        if sc:
-            yield self._block_post_close_speech(sc)
-            return
+        if not guard_reject:
+            fast = self._fast_path_reply(history, user_text)
+            if fast:
+                yield fast
+                return
+            sc = self._script_fallback(history)
+            if sc:
+                yield self._block_post_close_speech(sc)
+                return
         one = await self.reply(history, user_text)
         if one:
             yield one
@@ -2979,6 +2994,12 @@ GOOD: Koi baat nahi — "{hook_short}" se clients ko fayda hua. Shukriya, din sh
     def _script_fallback(self, history: list[dict[str, str]]) -> str:
         """Deterministic professional line from the niche script (no LLM).
         Skips discovery questions already asked in history."""
+        # HARD post-close guard (e795629 canary 7742e06a): after closing started,
+        # KOI script line nahi — the closing-tail below used to resell the FREE
+        # Google audit AFTER the WhatsApp-handoff thank-you. _next_discovery_line
+        # already guards; the tail bypassed it.
+        if self.closing_started or self.session_closed:
+            return ""
         line = self._next_discovery_line(history)
         if line:
             return line

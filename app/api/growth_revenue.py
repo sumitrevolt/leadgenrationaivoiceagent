@@ -130,6 +130,20 @@ async def revenue_invoice_create(payload: dict, _user=Depends(require_admin)):
     return inv or {"error": "invoice nahi bana — client_id/plan/amount check karo"}
 
 
+@router.post("/revenue/invoice-void")
+async def revenue_invoice_void(payload: dict, _user=Depends(require_admin)):
+    """Accountant-safe invoice VOID: {number, reason?}. Record delete NAHI hota —
+    append-only void marker (Rule-46 sequence intact, gross reporting se excluded).
+    2026-07-18 billing containment: synthetic test invoices ka correction path."""
+    from app.billing import gst_invoice
+
+    number = str(payload.get("number") or "").strip()
+    if not number:
+        return {"ok": False, "error": "number chahiye (e.g. INV/2026-27/0003)"}
+    by = str(getattr(_user, "email", "") or "admin")
+    return gst_invoice.void_invoice(number, reason=str(payload.get("reason") or ""), by=by)
+
+
 @router.get("/revenue/invoices.csv")
 async def revenue_invoices_csv(fy: str = "", _user=Depends(require_admin)):
     """GSTR-friendly CSV export (?fy=2026-27 optional filter) — accounting/CA ke liye."""
@@ -165,6 +179,7 @@ async def revenue_invoices_csv(fy: str = "", _user=Depends(require_admin)):
             "tax_mode",
             "payment_ref",
             "gateway",
+            "status",
         ]
     )
     for r in rows:
@@ -189,6 +204,7 @@ async def revenue_invoices_csv(fy: str = "", _user=Depends(require_admin)):
                 r.get("tax_mode"),
                 r.get("payment_ref"),
                 r.get("gateway"),
+                "voided" if r.get("voided") else "",
             ]
         )
     return PlainTextResponse(buf.getvalue(), media_type="text/csv")

@@ -13,10 +13,24 @@ from app.voice_agent.telecaller_brain import TelecallerBrain
 
 
 def _brain(niche: str) -> TelecallerBrain:
-    # Bypass the heavy __init__ (KB / niche-DB load) — _script_fallback only
-    # needs self.niche and the static _clean helper.
+    # Bypass the heavy __init__ (KB / niche-DB load). Stream/close paths still
+    # need the close-state attrs that __init__ would set — missing ones get
+    # swallowed by reply_stream_sentences try/except and silently miss close.
     b = TelecallerBrain.__new__(TelecallerBrain)
     b.niche = niche
+    b.client_name = "Demo Co"
+    b.client_id = None
+    b.voice_role = "telecaller"
+    b.agent_name = "Swara"
+    b.memory_subject = None
+    b._interest_confirmed = False
+    b._discovery_skip = 0
+    b.caller_phone = ""
+    b.close_signal_fired = False
+    b.closing_started = False
+    b.final_message_queued = False
+    b.final_message_played = False
+    b.session_closed = False
     return b
 
 
@@ -351,13 +365,24 @@ async def test_stream_reply_close_signal_short_circuits_before_llm() -> None:
     b.close_signal_fired = False
     b.caller_phone = ""
     out: list[str] = []
-    async for sent in TelecallerBrain.reply_stream_sentences(
-        b, [], "प्री प्लान एक्टिवेट करो।"
-    ):
+    async for sent in TelecallerBrain.reply_stream_sentences(b, [], "प्री प्लान एक्टिवेट करो।"):
         out.append(sent)
     text = " ".join(out)
     assert "WhatsApp" in text
     assert "shuru kar deti hoon" in text
+
+
+async def test_stream_reply_resets_close_signal_fired_per_turn() -> None:
+    """Mirror reply(): sticky prior-turn close_signal_fired must clear on stream entry."""
+    b = _brain("ai_marketing")
+    b.close_signal_fired = True
+    b.caller_phone = ""
+    out: list[str] = []
+    async for sent in TelecallerBrain.reply_stream_sentences(b, [], "ok"):
+        out.append(sent)
+    # No phone + non-close utterance => _on_close_signal cannot re-set the flag.
+    assert b.close_signal_fired is False
+    assert out  # stream still yields something (fast-path/script/fallback)
 
 
 async def test_stream_reply_post_close_wrap_pivots_to_whatsapp() -> None:
@@ -423,7 +448,9 @@ async def test_stream_repeat_ask_on_clear_sentence_falls_back_to_reply(monkeypat
 
     out: list[str] = []
     async for sent in TelecallerBrain.reply_stream_sentences(
-        b, [], "मेरी बात का जवाब दो, मुझे product marketing के लिए leads chahiye aur aap दूसरी baat कर रही हो"
+        b,
+        [],
+        "मेरी बात का जवाब दो, मुझे product marketing के लिए leads chahiye aur aap दूसरी baat कर रही हो",
     ):
         out.append(sent)
     text = " ".join(out)
@@ -444,8 +471,10 @@ async def test_tools_path_close_signal_short_circuits_before_llm() -> None:
     b.close_signal_fired = False
     b.caller_phone = ""
     spoken, tool_call = await TelecallerBrain.reply_with_tools(
-        b, [{"role": "assistant", "content": "Ek baar free me try karke dekhna chahenge?"}],
-        "final karo, pre-plan start karo.", registry=None
+        b,
+        [{"role": "assistant", "content": "Ek baar free me try karke dekhna chahenge?"}],
+        "final karo, pre-plan start karo.",
+        registry=None,
     )
     assert tool_call is None
     assert "WhatsApp" in spoken
