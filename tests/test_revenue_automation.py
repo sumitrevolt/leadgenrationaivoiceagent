@@ -175,8 +175,9 @@ def test_revenue_digest_run_force_defensive(tmp_path, monkeypatch):
 # ----------------------------- imports/wiring ----------------------------- #
 def test_growth_router_has_revenue_routes():
     from app.api.growth import router
+    from app.utils.route_inspection import iter_effective_routes
 
-    paths = {r.path for r in router.routes}
+    paths = {getattr(r, "path", "") for r in iter_effective_routes(router.routes)}
     for p in (
         "/growth/revenue/dunning/run",
         "/growth/revenue/health/clients",
