@@ -148,6 +148,18 @@ async def owner_approvals(user: User = Depends(require_admin)) -> dict[str, Any]
 
 
 @router.post(
+    "/approvals/verification",
+    dependencies=[Depends(rate_limit("owner_os", 10, 60))],
+)
+async def owner_create_verification_approval(user: User = Depends(require_admin)) -> dict[str, Any]:
+    """Create one disposable internal approval (no external side effects)."""
+    out = owner_os.create_verification_approval(actor=_actor(user))
+    if not out.get("ok"):
+        raise HTTPException(status_code=400, detail=out.get("error") or "create failed")
+    return out
+
+
+@router.post(
     "/approvals/{source}/{item_id}/decide",
     dependencies=[Depends(rate_limit("owner_os", 20, 60))],
 )
@@ -162,6 +174,13 @@ async def owner_decide_approval(
     )
     if not out.get("ok"):
         raise HTTPException(status_code=400, detail=out.get("error") or "decide failed")
+    # Keep Mission Control / Office HQ cache in sync (same as growth decide path).
+    try:
+        from app.platform import office_hq
+
+        await office_hq.invalidate_snapshot_cache()
+    except Exception:
+        pass
     return out
 
 

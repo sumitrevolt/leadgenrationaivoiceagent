@@ -35,41 +35,145 @@ _OVERRIDES = os.path.join("data", "scheduler_overrides.json")
 # worker.py beat crontabs). Yeh DISPLAY-only hai — actual timing wahi 2 sources.
 # ---------------------------------------------------------------------------
 JOB_META: dict[str, dict[str, str]] = {
-    "growth": {"label": "Growth pulse — funnel check + auto-action", "cadence": "har 15 min", "owner": "boss"},
+    "growth": {
+        "label": "Growth pulse — funnel check + auto-action",
+        "cadence": "har 15 min",
+        "owner": "boss",
+    },
     "flow_cron": {"label": "Flow Runner cron scan", "cadence": "har 5 min", "owner": "platform"},
     "ops": {"label": "System health check", "cadence": "hourly :05", "owner": "kavya"},
-    "reply_triage": {"label": "Email replies padh ke draft jawab", "cadence": "hourly :20", "owner": "rohan"},
+    "reply_triage": {
+        "label": "Email replies padh ke draft jawab",
+        "cadence": "hourly :20",
+        "owner": "rohan",
+    },
     "watchdog": {"label": "Kuch toota to email alert", "cadence": "hourly :35", "owner": "kavya"},
-    "onboard": {"label": "Naye paid client ka auto-setup", "cadence": "hourly :50", "owner": "platform"},
+    "onboard": {
+        "label": "Naye paid client ka auto-setup",
+        "cadence": "hourly :50",
+        "owner": "platform",
+    },
     "mcp_engineer": {"label": "MCP health pulse (Arya)", "cadence": "hourly :40", "owner": "arya"},
-    "engineer_sre": {"label": "Reliability score (Pranav SRE)", "cadence": "hourly :45", "owner": "pranav"},
-    "meter_watch": {"label": "Billing meter-failure watcher", "cadence": "hourly :55", "owner": "platform"},
-    "email_outreach": {"label": "Cold emails + warmup (cap 25/din)", "cadence": "9am-7pm hourly :05", "owner": "rohan"},
-    "email_followup": {"label": "Day-3/7 follow-ups", "cadence": "9am-7pm hourly :20", "owner": "rohan"},
-    "revenue_snapshot": {"label": "MRR/churn snapshot", "cadence": "daily 00:15", "owner": "platform"},
-    "obsidian_push": {"label": "Second-brain compact + git push", "cadence": "daily 02:15", "owner": "platform"},
+    "engineer_sre": {
+        "label": "Reliability score (Pranav SRE)",
+        "cadence": "hourly :45",
+        "owner": "pranav",
+    },
+    "meter_watch": {
+        "label": "Billing meter-failure watcher",
+        "cadence": "hourly :55",
+        "owner": "platform",
+    },
+    "email_outreach": {
+        "label": "Cold emails + warmup (cap 25/din)",
+        "cadence": "9am-7pm hourly :05",
+        "owner": "rohan",
+    },
+    "email_followup": {
+        "label": "Day-3/7 follow-ups",
+        "cadence": "9am-7pm hourly :20",
+        "owner": "rohan",
+    },
+    "revenue_snapshot": {
+        "label": "MRR/churn snapshot",
+        "cadence": "daily 00:15",
+        "owner": "platform",
+    },
+    "obsidian_push": {
+        "label": "Second-brain compact + git push",
+        "cadence": "daily 02:15",
+        "owner": "platform",
+    },
     "qa": {"label": "Voice-agent quality test (Arjun)", "cadence": "daily 02:30", "owner": "arjun"},
-    "trainer": {"label": "AI brain training/tuning (Meera)", "cadence": "daily 03:00", "owner": "meera"},
+    "trainer": {
+        "label": "AI brain training/tuning (Meera)",
+        "cadence": "daily 03:00",
+        "owner": "meera",
+    },
     "blog": {"label": "SEO blog post generate", "cadence": "daily 06:30", "owner": "isha"},
-    "content": {"label": "Self + clients ke social posts", "cadence": "daily 07:00", "owner": "isha"},
+    "content": {
+        "label": "Self + clients ke social posts",
+        "cadence": "daily 07:00",
+        "owner": "isha",
+    },
     "standup": {"label": "Boss team standup", "cadence": "daily 08:00", "owner": "boss"},
     "digest": {"label": "Daily business summary email", "cadence": "daily 08:30", "owner": "boss"},
-    "readiness_digest": {"label": "Activation-readiness ntfy digest", "cadence": "daily 08:30", "owner": "platform"},
-    "engineer_finops": {"label": "Margin score (Vidya FinOps)", "cadence": "daily 09:00", "owner": "vidya"},
-    "prospect": {"label": "Naye prospects dhoondna (niches rotation)", "cadence": "daily 09:30", "owner": "rohan"},
-    "engineer_security": {"label": "Compliance posture (Arnav)", "cadence": "daily 09:30", "owner": "arnav"},
-    "engineer_dbre": {"label": "Postgres reliability (Kabir)", "cadence": "daily 10:00", "owner": "kabir"},
-    "engineer_dataquality": {"label": "Lead/CRM integrity (Diya)", "cadence": "daily 10:30", "owner": "diya"},
-    "pipeline": {"label": "Lead rescore + hot-lead surfacing (Neha)", "cadence": "daily 11:00", "owner": "neha"},
-    "platform_dial": {"label": "Self-sale AI cold-call batch", "cadence": "daily 11:30", "owner": "swara"},
-    "process_autostart": {"label": "Process-engine auto-start", "cadence": "daily 11:30", "owner": "platform"},
-    "midday_prospect": {"label": "2nd lead-supply pass", "cadence": "daily 14:30", "owner": "rohan"},
-    "afternoon_content": {"label": "2nd content-gen pass", "cadence": "daily 15:00", "owner": "isha"},
-    "evening_prospect": {"label": "3rd lead-harvest pass", "cadence": "daily 17:00", "owner": "rohan"},
+    "readiness_digest": {
+        "label": "Activation-readiness ntfy digest",
+        "cadence": "daily 08:30",
+        "owner": "platform",
+    },
+    "engineer_finops": {
+        "label": "Margin score (Vidya FinOps)",
+        "cadence": "daily 09:00",
+        "owner": "vidya",
+    },
+    "prospect": {
+        "label": "Naye prospects dhoondna (niches rotation)",
+        "cadence": "daily 09:30",
+        "owner": "rohan",
+    },
+    "engineer_security": {
+        "label": "Compliance posture (Arnav)",
+        "cadence": "daily 09:30",
+        "owner": "arnav",
+    },
+    "engineer_dbre": {
+        "label": "Postgres reliability (Kabir)",
+        "cadence": "daily 10:00",
+        "owner": "kabir",
+    },
+    "engineer_dataquality": {
+        "label": "Lead/CRM integrity (Diya)",
+        "cadence": "daily 10:30",
+        "owner": "diya",
+    },
+    "pipeline": {
+        "label": "Lead rescore + hot-lead surfacing (Neha)",
+        "cadence": "daily 11:00",
+        "owner": "neha",
+    },
+    "platform_dial": {
+        "label": "Self-sale AI cold-call batch",
+        "cadence": "daily 11:30",
+        "owner": "swara",
+    },
+    "process_autostart": {
+        "label": "Process-engine auto-start",
+        "cadence": "daily 11:30",
+        "owner": "platform",
+    },
+    "midday_prospect": {
+        "label": "2nd lead-supply pass",
+        "cadence": "daily 14:30",
+        "owner": "rohan",
+    },
+    "afternoon_content": {
+        "label": "2nd content-gen pass",
+        "cadence": "daily 15:00",
+        "owner": "isha",
+    },
+    "evening_prospect": {
+        "label": "3rd lead-harvest pass",
+        "cadence": "daily 17:00",
+        "owner": "rohan",
+    },
     "evening_wrap": {"label": "EOD summary + hot recap", "cadence": "daily 18:30", "owner": "boss"},
-    "call_kpi_digest": {"label": "Call-KPI digest (Lekha)", "cadence": "daily 19:30", "owner": "lekha"},
-    "weekly_marketing": {"label": "S-tier niche marketing packs", "cadence": "Wed 12:30", "owner": "isha"},
-    "engineer_deps": {"label": "Dependency CVE audit (Aryan)", "cadence": "Sun 04:30", "owner": "aryan"},
+    "call_kpi_digest": {
+        "label": "Call-KPI digest (Lekha)",
+        "cadence": "daily 19:30",
+        "owner": "lekha",
+    },
+    "weekly_marketing": {
+        "label": "S-tier niche marketing packs",
+        "cadence": "Wed 12:30",
+        "owner": "isha",
+    },
+    "engineer_deps": {
+        "label": "Dependency CVE audit (Aryan)",
+        "cadence": "Sun 04:30",
+        "owner": "aryan",
+    },
     "kb_refresh": {"label": "Contextual KB re-ingest", "cadence": "Sun 05:00", "owner": "meera"},
     "saturday_hygiene": {"label": "DLQ + celery trim", "cadence": "Sat 04:00", "owner": "kavya"},
     "hot_queue_brief": {
@@ -151,7 +255,9 @@ def set_enabled(job: str, enabled: bool, by: str = "admin", note: str = "") -> d
             from app.platform import team
 
             team.log_event(
-                "manager", "task_assigned", f"scheduler {'ON' if enabled else 'PAUSE'}: {job} (by {by})"
+                "manager",
+                "task_assigned",
+                f"scheduler {'ON' if enabled else 'PAUSE'}: {job} (by {by})",
             )
         except Exception:
             pass
@@ -199,14 +305,31 @@ def list_jobs() -> dict[str, Any]:
     }
 
 
-def _dispatch(job: str) -> str:
+def _dispatch(job: str, *, manual: bool = False) -> str:
     """Job ko background me chalao — Celery prefer (durable, web-process block
     nahi hota; idempotent_task ttl=3600 double-enqueue dedupe karta). Broker na
-    mile to in-process create_task fallback (rollback mode)."""
+    mile to in-process create_task fallback (rollback mode).
+
+    Scheduled paths (manual=False) honor owner_schedulers kill via
+    OwnerSchedulerGuardedTask.apply_async. Admin run_now sets manual=True.
+    """
+    if not manual:
+        try:
+            from app.platform.owner_os import record_scheduler_skip, scheduler_dispatch_allowed
+
+            allowed, reason = scheduler_dispatch_allowed()
+            if not allowed:
+                record_scheduler_skip(job, reason, source="scheduler_config._dispatch")
+                return "skipped_owner_schedulers"
+        except Exception:
+            pass
     try:
         from app.tasks.staff_jobs import run_staff_job
 
-        run_staff_job.delay(job)
+        if manual:
+            run_staff_job.apply_async(args=[job], headers={"owner_os_manual": True})
+        else:
+            run_staff_job.delay(job)
         return "celery"
     except Exception as e:
         logger.warning(f"[scheduler-config] celery dispatch failed ({e}) — inline fallback")
@@ -233,7 +356,7 @@ def run_now(job: str, by: str = "admin") -> dict[str, Any]:
         team.log_event("manager", "task_assigned", f"manual job run: {job} (by {by})")
     except Exception:
         pass
-    via = _dispatch(job)
+    via = _dispatch(job, manual=True)
     return {"ok": via != "failed", "job": job, "started_via": via}
 
 

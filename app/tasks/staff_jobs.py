@@ -24,15 +24,81 @@ from __future__ import annotations
 
 import asyncio
 import time
+from typing import Any
 
-from celery import shared_task
+from celery import Task, shared_task
 
-from app.utils.logger import setup_logger
 from app.platform import celery_async
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
 from app.tasks.idempotency import idempotent_task
+
+
+class _SkippedAsyncResult:
+    """Minimal AsyncResult stand-in when enqueue is blocked (Beat-safe)."""
+
+    def __init__(self, payload: dict[str, Any]):
+        self.id = "owner-schedulers-skipped"
+        self._payload = payload
+
+    @property
+    def state(self) -> str:
+        return "SUCCESS"
+
+    def ready(self) -> bool:
+        return True
+
+    def successful(self) -> bool:
+        return True
+
+    def failed(self) -> bool:
+        return False
+
+    def get(self, *args: Any, **kwargs: Any) -> dict[str, Any]:
+        return self._payload
+
+    def forget(self) -> None:
+        return None
+
+
+class OwnerSchedulerGuardedTask(Task):
+    """Block *scheduled* enqueue of staff jobs when owner_schedulers is engaged.
+
+    Beat, run_due, DLQ redispatch, and `.delay()` all go through apply_async.
+    Admin manual run_now may pass headers={"owner_os_manual": True} to bypass.
+    Worker entry also re-checks (defense in depth for already-queued messages).
+    """
+
+    abstract = True
+
+    def apply_async(self, args=None, kwargs=None, **options: Any):  # type: ignore[override]
+        headers = dict(options.get("headers") or {})
+        manual = bool(headers.get("owner_os_manual") or (kwargs or {}).get("_owner_os_manual"))
+        if not manual:
+            try:
+                from app.platform.owner_os import record_scheduler_skip, scheduler_dispatch_allowed
+
+                allowed, reason = scheduler_dispatch_allowed()
+                if not allowed:
+                    job = None
+                    if args:
+                        job = args[0]
+                    elif kwargs:
+                        job = kwargs.get("job")
+                    logger.info(
+                        "[staff_jobs] apply_async blocked job=%s reason=%s",
+                        job,
+                        reason,
+                    )
+                    payload = record_scheduler_skip(str(job or ""), reason, source="apply_async")
+                    return _SkippedAsyncResult(payload)
+            except Exception as e:
+                # Fail-OPEN on guard errors so a store blip cannot freeze all automation.
+                logger.debug("[staff_jobs] scheduler guard skip check failed: %s", e)
+        return super().apply_async(args=args, kwargs=kwargs, **options)
+
 
 # Same job names as team_scheduler._run_job dispatcher.
 STAFF_JOBS = (
@@ -208,7 +274,12 @@ def seed_first_week(self, cid: str):
             return {"ok": False, "client_id": cid, "error": "client not found"}
         pending = auto_content.upcoming_item_count(cid)
         if pending > 0:
-            return {"ok": True, "client_id": cid, "skipped": "already_has_upcoming", "upcoming": pending}
+            return {
+                "ok": True,
+                "client_id": cid,
+                "skipped": "already_has_upcoming",
+                "upcoming": pending,
+            }
         added = _run_async(auto_content.seed_client_content(client)) or 0
         return {"ok": True, "client_id": cid, "items_created": int(added)}
     except Exception as e:
@@ -265,6 +336,7 @@ def self_improve_revive(self):
 
 @shared_task(
     bind=True,
+    base=OwnerSchedulerGuardedTask,
     name="app.tasks.staff_jobs.run_staff_job",
     max_retries=2,
     default_retry_delay=120,
@@ -276,6 +348,15 @@ def run_staff_job(self, job: str):
     if job not in STAFF_JOBS:
         logger.warning(f"[staff_jobs] unknown job '{job}' — skip")
         return {"ok": False, "job": job, "reason": "unknown"}
+    # Defense in depth: already-queued messages still no-op when kill engaged.
+    try:
+        from app.platform.owner_os import record_scheduler_skip, scheduler_dispatch_allowed
+
+        allowed, reason = scheduler_dispatch_allowed()
+        if not allowed:
+            return record_scheduler_skip(job, reason, source="run_staff_job")
+    except Exception:
+        pass
     try:
         from app.platform import boot_grace
 
