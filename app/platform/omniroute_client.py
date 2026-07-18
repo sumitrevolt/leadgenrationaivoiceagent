@@ -134,9 +134,16 @@ _TASK_ROUTES: dict[str, OmniRouteRoute] = {
     # ADR-108 voice extension (2026-07-17): Swara live turn — masked customer
     # speech only (mask_customer_data + validate_no_secrets before network).
     # Gated by OMNIROUTE_VOICE=1; streaming via omniroute_voice.py.
+    # 2026-07-18 latency fix: leadgen-free-first's first model
+    # (opencode/deepseek-v4-flash-free) burns the whole voice max_tokens budget on
+    # reasoning_content and returns HTTP 200 with zero `content` deltas — combo
+    # never fails over, Swara gets empty streams (canary: 5/6 empty, 4.5s first
+    # token on the 1 success). Voice hot-path now uses the dedicated gateway combo
+    # `leadgen-swara-live` (groq -> mistral -> gemini, no reasoning-only models);
+    # direct groq is the client-side fallback. Coding/bulk routes stay free-first.
     "leadgen.swara_live": OmniRouteRoute(
-        primary_model="leadgen-free-first",
-        fallback_model="auto/coding:free",
+        primary_model="leadgen-swara-live",
+        fallback_model="groq/llama-3.3-70b-versatile",
         privacy_class="CUSTOMER_MASKED",
     ),
 }
