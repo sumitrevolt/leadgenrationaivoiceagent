@@ -80,13 +80,13 @@ class OwnerSchedulerGuardedTask(Task):
             try:
                 from app.platform.owner_os import record_scheduler_skip, scheduler_dispatch_allowed
 
-                allowed, reason = scheduler_dispatch_allowed()
+                job = None
+                if args:
+                    job = args[0]
+                elif kwargs:
+                    job = kwargs.get("job")
+                allowed, reason = scheduler_dispatch_allowed(job=str(job or "") or None)
                 if not allowed:
-                    job = None
-                    if args:
-                        job = args[0]
-                    elif kwargs:
-                        job = kwargs.get("job")
                     logger.info(
                         "[staff_jobs] apply_async blocked job=%s reason=%s",
                         job,
@@ -348,15 +348,44 @@ def run_staff_job(self, job: str):
     if job not in STAFF_JOBS:
         logger.warning(f"[staff_jobs] unknown job '{job}' — skip")
         return {"ok": False, "job": job, "reason": "unknown"}
-    # Defense in depth: already-queued messages still no-op when kill engaged.
+    # Defense in depth: already-queued messages still no-op when kill/agent controls engage.
     try:
         from app.platform.owner_os import record_scheduler_skip, scheduler_dispatch_allowed
 
-        allowed, reason = scheduler_dispatch_allowed()
+        allowed, reason = scheduler_dispatch_allowed(job=job)
         if not allowed:
             return record_scheduler_skip(job, reason, source="run_staff_job")
     except Exception:
         pass
+    try:
+        from app.platform import owner_agent_execution as oae
+        from app.platform.owner_os import record_scheduler_skip
+
+        claim_ok, claim_reason = oae.claim_allowed(job=job)
+        if not claim_ok:
+            return record_scheduler_skip(job, claim_reason, source="run_staff_job_claim")
+        # Cooperative cancel before body starts.
+        tid = str(getattr(getattr(self, "request", None), "id", "") or "")
+        if tid and oae.cancel_requested(tid):
+            return {
+                "ok": True,
+                "skipped": True,
+                "reason": "cooperative_cancel_acknowledged",
+                "job": job,
+                "stopped": True,
+            }
+    except Exception as e:
+        # Fail-closed for Isha/agent-scoped jobs when control check itself breaks.
+        try:
+            from app.platform.owner_agent_execution import agent_for_job
+            from app.platform.owner_os import record_scheduler_skip
+
+            if agent_for_job(job):
+                return record_scheduler_skip(
+                    job, "agent_control_state_ambiguous", source="run_staff_job_claim"
+                )
+        except Exception:
+            logger.debug("[staff_jobs] claim guard fail-closed path: %s", e)
     try:
         from app.platform import boot_grace
 
@@ -376,9 +405,23 @@ def run_staff_job(self, job: str):
             return {"ok": True, "job": job, "skipped": "boot_grace", "deferred_in_s": delay}
     except Exception:
         pass
+    aid = None
+    tid = str(getattr(getattr(self, "request", None), "id", "") or "")
     try:
+        from app.platform import owner_agent_execution as oae
         from app.platform import team_scheduler
 
+        aid = oae.agent_for_job(job)
+        if aid and tid:
+            oae.register_running_task(aid, job, tid)
+        if aid and oae.agent_abort_requested(aid):
+            return {
+                "ok": True,
+                "skipped": True,
+                "reason": "agent_abort_acknowledged",
+                "job": job,
+                "stopped": True,
+            }
         ok = _run_async(
             team_scheduler._run_job(job, retry_count=int(getattr(self.request, "retries", 0) or 0))
         )
@@ -388,3 +431,11 @@ def run_staff_job(self, job: str):
     except Exception as e:  # invoke-level failure -> retry, fir DLQ
         logger.warning(f"[staff_jobs] job '{job}' invoke failed: {e}")
         raise self.retry(exc=e)
+    finally:
+        try:
+            if aid and tid:
+                from app.platform import owner_agent_execution as oae
+
+                oae.clear_running_task(aid, tid)
+        except Exception:
+            pass

@@ -599,3 +599,39 @@ Verification Evidence: container->gateway HTTP 200 through full chain; /health v
 Risks: gateway+tunnel live on Windows/WSL — machine sleep/reboot = OmniRoute down (voice fail-open to free_ai, but latency evidence stops accruing); Windows ssh.exe breakage unexplained (WSL path is the workaround); groq free-tier quota now on voice hot path.
 Remaining: REAL allowlisted canary call +919359984977 within 9am-7pm IST window (turn_metrics JSONL before/after P50/P95 incl. STT+TTS, live interrupt on-call); Phase 10 browser /app/test-call; bandit hook repair; consider gateway on VPS or autossh/systemd for tunnel durability.
 Next Highest Priority: 9am+ IST real canary call with turn_metrics evidence; compare against 2026-07-17 baseline JSONL.
+
+## Loop Run
+Date: 2026-07-18 (A2Z Launch + Enterprise Audit � full)
+Goal: Discover?Verify?Fix safe local P0�P2?Test?Browser proof?Score/Verdict (Marketing vs Voice separate; Business/Production/Enterprise).
+Inspected: Live /health+/activation/summary+/pay-info; prod_check; explorer_sync; cross_path; deep_wiring; automation_wiring+health; check_secrets; check_html_js; VPS PLATFORM_DIAL_DAILY+celery/dlq+scheduler_overrides; browser /app/admin|/automation|/control-center|/office|/explorer|/pricing; compliance.py DND fail-closed; telecaller_brain stream parity.
+Problems Found: (P2) explorer missing voice_followup engine node � explorer_sync FAIL + 2 pytest red. (P2) reply_stream_sentences missing per-turn close_signal_fired=False � cross_path FAIL (2da6239 lesson). (P2/ops) VPS scheduler_overrides.platform_dial.enabled=True (layer-3 NOT paused) while PLATFORM_DIAL_DAILY=0 holds kill. (P3) API.md stale; platform_dial.json absent on VPS (env=0 sufficient); unauth admin APIs 401 (expected); PostHog CSP block on control-center.
+Changed: frontend/explorer.html (+voice_followup node+edge); app/voice_agent/telecaller_brain.py (stream close_signal reset); tests/test_telecaller_brain.py (_brain close-state attrs + reset regression test).
+Tests Run: explorer_sync OK; cross_path OK; deep_wiring 0 gaps; automation_wiring OK; automation_health ALL GREEN; check_secrets OK; check_html_js OK; pytest test_explorer_sync + billing_truth + stream close tests PASS; prod_check ALL PASSED (1112 routes, explorer 83/83).
+Verification Evidence: /health version=9c5bebea environment=production; activation ready_for_first_paid_customer=true blocker_count=0; pay-info enabled starter 1999 / advanced 5999; VPS PLATFORM_DIAL_DAILY=0 celery=0 dlq=0; surfaces admin/automation/cc/office/explorer/pricing/inbox/audit/start all HTTP 200; UPI POST unauth=401 (auth gate); browser shells render + RBAC 401s on data APIs.
+Risks: Local fixes NOT deployed (prod still 9c5bebea without stream reset / explorer node); authenticated admin button-matrix incomplete (no login creds in session); capacity/load test not re-run this session.
+Remaining: user-approve commit+deploy of 3 local files; pause scheduler_overrides.platform_dial for 3-layer defense; Hot Queue ? 2nd paid customer.
+Next Highest Priority: GTM Hot Queue dialer / 2nd paying Marketing customer (money path GO).
+
+## Loop Run
+Date: 2026-07-18 (Owner OS V1.1 Isha vertical slice — local implement)
+Goal: Full agent execution controls for Isha + workflow aggregator + OmniRoute matrix/health + training; no V1 rewrite.
+Inspected: agent_controls (manual-only), staff_jobs OwnerSchedulerGuardedTask, scheduler_config JOB_META (isha jobs), process_library client_content, agent_os_routing/omniroute_client; OmniRoute + workflow discovery subagents.
+Problems Found: (1) owner_os.agent_registry iterated agent_route_table() as list though it returns dict — OmniRoute fields always empty. (2) No per-agent scheduled/claim/drain controls.
+Changed: owner_agent_execution.py; Alembic 020; owner_os/api/owner_os/staff_jobs/team_scheduler/scheduler_config/dlq_retry; frontend owner_os.html Isha strip + workflows/routes tabs; tests/test_owner_agent_execution.py; ADR-120; plan doc.
+Tests Run: test_owner_agent_execution 18 passed; + owner_os/omniroute/agent_os_routing suite 68 passed; check_secrets OK; prod_check ALL PASSED (1142 routes).
+Verification Evidence: local only — not committed/deployed this loop; prod still ce562408.
+Risks: browser proof + migration 020 on VPS pending; Celery inspect counts best-effort; cooperative cancel honest unsupported for jobs that ignore Redis flag.
+Remaining: user commit/push/deploy; alembic upgrade 020; authenticated browser Isha pause→drain→resume + route-health proof.
+Next Highest Priority: deploy V1.1 slice then live Owner OS browser proof on Isha.
+
+## Loop Run
+Date: 2026-07-18 (Owner OS V1.1 follow-up — lifecycle gaps from discovery)
+Goal: Close residual gaps from Isha lifecycle discovery: cooperative mid-run abort, running-task lease, registry-drift guard.
+Inspected: [Trace Isha control lifecycle](61495f18-205d-4c2e-8d31-869e420d298b) report; owner_agent_execution; run_staff_job; auto_content.run_daily_content; JOB_META/STAFF_JOBS/EXPECTED_GAP_MIN.
+Problems Found: Redis cancel flag existed but auto_content did not poll; no running task_id lease; no drift test across three job registries.
+Changed: agent_abort + register_running_task/get_running_task; drain/stop_claims engage abort; run_staff_job register/clear + abort ack; auto_content between-client abort return; snapshot fields; 3 new tests (drift/abort/lease).
+Tests Run: tests/test_owner_agent_execution.py 21 passed; check_secrets OK.
+Verification Evidence: pytest EXIT=0 (21 dots); secrets scan clean. Still local-only — not committed/deployed.
+Risks: other Isha engines (blog/social_drain) still may not poll abort mid-body; prod deploy + alembic 020 + browser proof pending.
+Remaining: user scoped commit on feat/owner-os-v1.1-isha-slice → push/deploy → alembic 020 → authenticated Isha control proof.
+Next Highest Priority: user go-ahead for commit/deploy of V1.1 slice.
