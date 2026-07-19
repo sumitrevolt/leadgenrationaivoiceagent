@@ -297,7 +297,7 @@
 const API = "";
 const AUTH_ERR = 'Admin login required — open <a href="/app/login">/app/login</a>';
 
-function tok(){ return localStorage.getItem("accessToken"); }
+function tok(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken"); }
 function esc(s){ return String(s==null?"":s).replace(/[&<>]/g, m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m])); }
 function spin(){ return '<span class="spin"></span>'; }
 

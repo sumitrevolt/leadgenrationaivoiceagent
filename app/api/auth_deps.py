@@ -71,6 +71,16 @@ async def get_current_user(
         if user.status == UserStatus.INACTIVE:
             raise HTTPException(status_code=403, detail="Account inactive")
 
+        # Tier-1 Slice C: server-side JWT session revocation (logout / password reset /
+        # disable / role change / suspected compromise). Fail-CLOSED for admin-tier tokens
+        # so a Redis blip can't let a possibly-revoked admin token through; fail-OPEN for
+        # lower tiers to preserve availability. Customer auth (require_customer) is separate.
+        from app.platform import admin_sessions
+
+        _high_risk = user.role in (UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.MANAGER)
+        if await admin_sessions.is_revoked(payload, fail_closed=_high_risk):
+            raise HTTPException(status_code=401, detail="Session has been revoked")
+
         return user
 
     except JWTError:

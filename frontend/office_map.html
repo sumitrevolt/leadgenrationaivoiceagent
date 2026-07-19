@@ -793,7 +793,7 @@
   var OFFICE = {};
 
   // ---- Auth (same localStorage key as every other admin page) -------------
-  function token(){ return localStorage.getItem("accessToken") || ""; }
+  function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
   function hdrs(json){
     var h = {};
     var t = token();

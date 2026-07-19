@@ -54,7 +54,7 @@
   <div class="card"><h2>Tasks</h2><div style="overflow:auto"><table id="tasks"></table></div></div>
 </main>
 <script>
-function token(){ return localStorage.getItem("accessToken") || ""; }
+function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
 function hdr(){ const h={"Content-Type":"application/json"}; const t=token(); if(t) h["Authorization"]="Bearer "+t; return h; }
 async function api(path, opts){ const r=await fetch("/api/dev-tasks"+path, Object.assign({headers:hdr()}, opts||{})); return {status:r.status, body: await r.json().catch(()=>({}))}; }
 
