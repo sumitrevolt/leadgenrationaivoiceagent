@@ -40,22 +40,54 @@ _IST = timezone(timedelta(hours=5, minutes=30))
 # `product` bucket (defensive — a future STAFF addition never 404s a room).
 # --------------------------------------------------------------------------- #
 ROOM_DEFS: list[dict[str, str]] = [
-    {"id": "coordinator", "name": "Coordinator Room", "emoji": "🧑‍💼",
-     "purpose": "Kaam assign karta, stuck tasks dekhta, next-best-action deta"},
-    {"id": "lead_lab", "name": "Data / Lead Lab", "emoji": "🧹",
-     "purpose": "Lead import, dedupe, validation, enrichment, scoring"},
-    {"id": "sales_crm", "name": "Sales / CRM Room", "emoji": "🤝",
-     "purpose": "Qualified follow-up, deal stages, appointments, CRM sync"},
-    {"id": "voice_team", "name": "Voice Team", "emoji": "📞",
-     "purpose": "AI voice calls, queue, transcripts, appointment outcomes"},
-    {"id": "marketing_team", "name": "Marketing Team", "emoji": "📣",
-     "purpose": "WhatsApp/social/GBP content, offers, campaign creatives"},
-    {"id": "qa_audit", "name": "QA / Audit Room", "emoji": "🧪",
-     "purpose": "Automation quality checks, broken workflows, bad data"},
-    {"id": "platform_engineering", "name": "Platform / Engineering", "emoji": "🛠️",
-     "purpose": "System health, API/provider status, cron, queues, DB"},
-    {"id": "admin_finance", "name": "Admin / Finance Room", "emoji": "💰",
-     "purpose": "Billing, invoices, payments, subscriptions, churn-risk"},
+    {
+        "id": "coordinator",
+        "name": "Coordinator Room",
+        "emoji": "🧑‍💼",
+        "purpose": "Kaam assign karta, stuck tasks dekhta, next-best-action deta",
+    },
+    {
+        "id": "lead_lab",
+        "name": "Data / Lead Lab",
+        "emoji": "🧹",
+        "purpose": "Lead import, dedupe, validation, enrichment, scoring",
+    },
+    {
+        "id": "sales_crm",
+        "name": "Sales / CRM Room",
+        "emoji": "🤝",
+        "purpose": "Qualified follow-up, deal stages, appointments, CRM sync",
+    },
+    {
+        "id": "voice_team",
+        "name": "Voice Team",
+        "emoji": "📞",
+        "purpose": "AI voice calls, queue, transcripts, appointment outcomes",
+    },
+    {
+        "id": "marketing_team",
+        "name": "Marketing Team",
+        "emoji": "📣",
+        "purpose": "WhatsApp/social/GBP content, offers, campaign creatives",
+    },
+    {
+        "id": "qa_audit",
+        "name": "QA / Audit Room",
+        "emoji": "🧪",
+        "purpose": "Automation quality checks, broken workflows, bad data",
+    },
+    {
+        "id": "platform_engineering",
+        "name": "Platform / Engineering",
+        "emoji": "🛠️",
+        "purpose": "System health, API/provider status, cron, queues, DB",
+    },
+    {
+        "id": "admin_finance",
+        "name": "Admin / Finance Room",
+        "emoji": "💰",
+        "purpose": "Billing, invoices, payments, subscriptions, churn-risk",
+    },
 ]
 ROOM_IDS = {r["id"] for r in ROOM_DEFS}
 
@@ -101,20 +133,34 @@ MEMBER_ROOM: dict[str, str] = {
 }
 
 # STAFF keys with a REAL, individually re-triggerable manual-run wired today
-# (app/agents/staff.py run_member() dispatch table). Everyone else's "retry"
-# button must stay disabled/omitted rather than lie about doing something.
-RUNNABLE_MEMBERS = {"arjun", "meera", "kavya", "manager", "isha", "rohan"}
+# (app/agents/staff.py run_member() dispatch table). All 31 STAFF members now
+# have run_* wrappers — Paperclip Plan B expansion (2026-07-19).
+RUNNABLE_MEMBERS = set(STAFF.keys())
 
 # Member key -> the single env flag that gates their underlying automation
-# engine, for offline_reason classification. Only members whose "offline"
-# state is EXPLAINED by a known off-by-design flag go here — everyone else
-# offline is either genuinely idle (no matching data today) or unknown.
+# engine, for offline_reason classification. Expanded to cover ALL gated agents
+# (previously only 5 — many flag-gated agents showed "no_data_today" instead of
+# the accurate "flag_off:X" reason).
 _MEMBER_GATING_FLAG: dict[str, str] = {
+    # Marketing
     "priya": "CRM_SYNC",
     "zara": "SOCIAL_ENGINE",
     "anika": "CADENCE_ENGINE",
     "ira": "JOURNEY_ENGINE",
+    "kiran": "CAMPAIGN_OPTIMIZER",
+    # Voice
     "raksha": "CALL_TRANSFER",
+    # Platform / Engineering
+    "hermes": "INFRA_HANDLER",
+    "vikram": "CODE_UPGRADER",
+    "guru": "SKILL_PACK",
+    "pranav": "SRE_AGENT",
+    "vidya": "FINOPS_AGENT",
+    "arnav": "SECURITY_AGENT",
+    "kabir": "DBRE_AGENT",
+    "diya": "DATA_INTEGRITY_AGENT",
+    "aryan": "DEPS_AGENT",
+    "arya": "MCP_ENGINEER",
 }
 
 
@@ -135,23 +181,43 @@ def classify_offline_reason(key: str) -> str:
     except Exception:
         return "unknown"
 
+
 # automation_health job-key -> owning room, for blocked/error badges per room.
 JOB_ROOM: dict[str, str] = {
-    "prospect": "lead_lab", "midday_prospect": "lead_lab", "evening_prospect": "lead_lab",
-    "pipeline": "lead_lab", "engineer_dataquality": "lead_lab",
+    "prospect": "lead_lab",
+    "midday_prospect": "lead_lab",
+    "evening_prospect": "lead_lab",
+    "pipeline": "lead_lab",
+    "engineer_dataquality": "lead_lab",
     "reply_triage": "sales_crm",
-    "qa": "qa_audit", "trainer": "qa_audit",
-    "email_outreach": "marketing_team", "email_followup": "marketing_team",
-    "content": "marketing_team", "blog": "marketing_team", "afternoon_content": "marketing_team",
-    "weekly_marketing": "marketing_team", "kb_refresh": "marketing_team",
-    "digest": "admin_finance", "revenue_snapshot": "admin_finance", "meter_watch": "admin_finance",
-    "growth": "coordinator", "standup": "coordinator", "process_autostart": "coordinator",
-    "ops": "platform_engineering", "watchdog": "platform_engineering", "onboard": "platform_engineering",
-    "engineer_sre": "platform_engineering", "mcp_engineer": "platform_engineering",
-    "engineer_finops": "admin_finance", "engineer_security": "platform_engineering",
-    "engineer_dbre": "platform_engineering", "engineer_deps": "platform_engineering",
-    "readiness_digest": "platform_engineering", "saturday_hygiene": "platform_engineering",
-    "obsidian_push": "platform_engineering", "flow_cron": "platform_engineering",
+    "qa": "qa_audit",
+    "trainer": "qa_audit",
+    "email_outreach": "marketing_team",
+    "email_followup": "marketing_team",
+    "content": "marketing_team",
+    "blog": "marketing_team",
+    "afternoon_content": "marketing_team",
+    "weekly_marketing": "marketing_team",
+    "kb_refresh": "marketing_team",
+    "digest": "admin_finance",
+    "revenue_snapshot": "admin_finance",
+    "meter_watch": "admin_finance",
+    "growth": "coordinator",
+    "standup": "coordinator",
+    "process_autostart": "coordinator",
+    "ops": "platform_engineering",
+    "watchdog": "platform_engineering",
+    "onboard": "platform_engineering",
+    "engineer_sre": "platform_engineering",
+    "mcp_engineer": "platform_engineering",
+    "engineer_finops": "admin_finance",
+    "engineer_security": "platform_engineering",
+    "engineer_dbre": "platform_engineering",
+    "engineer_deps": "platform_engineering",
+    "readiness_digest": "platform_engineering",
+    "saturday_hygiene": "platform_engineering",
+    "obsidian_push": "platform_engineering",
+    "flow_cron": "platform_engineering",
     "evening_wrap": "platform_engineering",
     "call_kpi_digest": "voice_team",
 }
@@ -174,40 +240,159 @@ APPROVAL_ROOM = {"sales": "sales_crm", "coordinator": "coordinator", "fde": "sal
 # --------------------------------------------------------------------------- #
 SCHEDULE_DEFS: list[dict[str, Any]] = [
     {"job": "revenue_snapshot", "label": "MRR snapshot", "type": "daily", "window": [0, 5, 0, 35]},
-    {"job": "obsidian_push", "label": "Obsidian brain push", "type": "daily", "window": [2, 15, 3, 0]},
+    {
+        "job": "obsidian_push",
+        "label": "Obsidian brain push",
+        "type": "daily",
+        "window": [2, 15, 3, 0],
+    },
     {"job": "qa", "label": "Voice QA (Arjun)", "type": "daily", "window": [2, 30, 4, 0]},
     {"job": "trainer", "label": "Trainer + ML (Meera)", "type": "daily", "window": [3, 0, 4, 30]},
     {"job": "blog", "label": "SEO blog (Dev)", "type": "daily", "window": [6, 30, 8, 30]},
-    {"job": "content", "label": "Content generation (Isha)", "type": "daily", "window": [7, 0, 9, 0]},
+    {
+        "job": "content",
+        "label": "Content generation (Isha)",
+        "type": "daily",
+        "window": [7, 0, 9, 0],
+    },
     {"job": "standup", "label": "Boss standup", "type": "daily", "window": [8, 0, 9, 30]},
     {"job": "digest", "label": "Morning digest", "type": "daily", "window": [8, 30, 10, 30]},
-    {"job": "readiness_digest", "label": "Readiness digest", "type": "daily", "window": [8, 30, 9, 30]},
-    {"job": "engineer_finops", "label": "FinOps score (Vidya)", "type": "daily", "window": [9, 0, 10, 0]},
-    {"job": "prospect", "label": "Lead prospecting (Rohan)", "type": "daily", "window": [9, 30, 11, 30]},
-    {"job": "engineer_security", "label": "Security posture (Arnav)", "type": "daily", "window": [9, 30, 10, 30]},
-    {"job": "engineer_dbre", "label": "DB reliability (Kabir)", "type": "daily", "window": [10, 0, 11, 0]},
-    {"job": "engineer_dataquality", "label": "Data integrity (Diya)", "type": "daily", "window": [10, 30, 11, 30]},
-    {"job": "pipeline", "label": "Pipeline rescore (Neha)", "type": "daily", "window": [11, 0, 12, 0]},
-    {"job": "platform_dial", "label": "Self-sale cold-call batch", "type": "daily", "window": [11, 30, 12, 30]},
-    {"job": "process_autostart", "label": "Process auto-start", "type": "daily", "window": [11, 30, 13, 0]},
-    {"job": "midday_prospect", "label": "Midday lead harvest", "type": "daily", "window": [14, 30, 15, 30]},
-    {"job": "afternoon_content", "label": "Afternoon content (Isha)", "type": "daily", "window": [15, 0, 16, 0]},
-    {"job": "evening_prospect", "label": "Evening lead harvest", "type": "daily", "window": [17, 0, 18, 0]},
+    {
+        "job": "readiness_digest",
+        "label": "Readiness digest",
+        "type": "daily",
+        "window": [8, 30, 9, 30],
+    },
+    {
+        "job": "engineer_finops",
+        "label": "FinOps score (Vidya)",
+        "type": "daily",
+        "window": [9, 0, 10, 0],
+    },
+    {
+        "job": "prospect",
+        "label": "Lead prospecting (Rohan)",
+        "type": "daily",
+        "window": [9, 30, 11, 30],
+    },
+    {
+        "job": "engineer_security",
+        "label": "Security posture (Arnav)",
+        "type": "daily",
+        "window": [9, 30, 10, 30],
+    },
+    {
+        "job": "engineer_dbre",
+        "label": "DB reliability (Kabir)",
+        "type": "daily",
+        "window": [10, 0, 11, 0],
+    },
+    {
+        "job": "engineer_dataquality",
+        "label": "Data integrity (Diya)",
+        "type": "daily",
+        "window": [10, 30, 11, 30],
+    },
+    {
+        "job": "pipeline",
+        "label": "Pipeline rescore (Neha)",
+        "type": "daily",
+        "window": [11, 0, 12, 0],
+    },
+    {
+        "job": "platform_dial",
+        "label": "Self-sale cold-call batch",
+        "type": "daily",
+        "window": [11, 30, 12, 30],
+    },
+    {
+        "job": "process_autostart",
+        "label": "Process auto-start",
+        "type": "daily",
+        "window": [11, 30, 13, 0],
+    },
+    {
+        "job": "midday_prospect",
+        "label": "Midday lead harvest",
+        "type": "daily",
+        "window": [14, 30, 15, 30],
+    },
+    {
+        "job": "afternoon_content",
+        "label": "Afternoon content (Isha)",
+        "type": "daily",
+        "window": [15, 0, 16, 0],
+    },
+    {
+        "job": "evening_prospect",
+        "label": "Evening lead harvest",
+        "type": "daily",
+        "window": [17, 0, 18, 0],
+    },
     {"job": "evening_wrap", "label": "Evening wrap", "type": "daily", "window": [18, 30, 19, 30]},
-    {"job": "call_kpi_digest", "label": "Call KPI digest (Lekha)", "type": "daily", "window": [19, 30, 20, 30]},
-    {"job": "weekly_marketing", "label": "Weekly marketing packs", "type": "weekly", "weekday": 2, "window": [12, 30, 13, 30]},
-    {"job": "saturday_hygiene", "label": "Hygiene sweep (DLQ+trim)", "type": "weekly", "weekday": 5, "window": [4, 0, 5, 30]},
-    {"job": "kb_refresh", "label": "KB refresh", "type": "weekly", "weekday": 6, "window": [5, 0, 6, 30]},
-    {"job": "engineer_deps", "label": "Dependency CVE audit (Aryan)", "type": "weekly", "weekday": 6, "window": [4, 30, 5, 0]},
+    {
+        "job": "call_kpi_digest",
+        "label": "Call KPI digest (Lekha)",
+        "type": "daily",
+        "window": [19, 30, 20, 30],
+    },
+    {
+        "job": "weekly_marketing",
+        "label": "Weekly marketing packs",
+        "type": "weekly",
+        "weekday": 2,
+        "window": [12, 30, 13, 30],
+    },
+    {
+        "job": "saturday_hygiene",
+        "label": "Hygiene sweep (DLQ+trim)",
+        "type": "weekly",
+        "weekday": 5,
+        "window": [4, 0, 5, 30],
+    },
+    {
+        "job": "kb_refresh",
+        "label": "KB refresh",
+        "type": "weekly",
+        "weekday": 6,
+        "window": [5, 0, 6, 30],
+    },
+    {
+        "job": "engineer_deps",
+        "label": "Dependency CVE audit (Aryan)",
+        "type": "weekly",
+        "weekday": 6,
+        "window": [4, 30, 5, 0],
+    },
     {"job": "growth", "label": "Growth pulse", "type": "recurring", "cadence": "har 15 min"},
     {"job": "flow_cron", "label": "Flow Runner cron", "type": "recurring", "cadence": "har 5 min"},
     {"job": "ops", "label": "Ops health (Kavya)", "type": "recurring", "cadence": "hourly :05"},
-    {"job": "email_outreach", "label": "Email outreach (Rohan)", "type": "recurring", "cadence": "9am-7pm hourly"},
-    {"job": "email_followup", "label": "Email follow-ups", "type": "recurring", "cadence": "9am-7pm hourly (:20+)"},
+    {
+        "job": "email_outreach",
+        "label": "Email outreach (Rohan)",
+        "type": "recurring",
+        "cadence": "9am-7pm hourly",
+    },
+    {
+        "job": "email_followup",
+        "label": "Email follow-ups",
+        "type": "recurring",
+        "cadence": "9am-7pm hourly (:20+)",
+    },
     {"job": "reply_triage", "label": "Reply triage", "type": "recurring", "cadence": "hourly :20"},
     {"job": "watchdog", "label": "Ops watchdog", "type": "recurring", "cadence": "hourly :35"},
-    {"job": "mcp_engineer", "label": "MCP health (Arya)", "type": "recurring", "cadence": "hourly :40"},
-    {"job": "engineer_sre", "label": "SRE score (Pranav)", "type": "recurring", "cadence": "hourly :45"},
+    {
+        "job": "mcp_engineer",
+        "label": "MCP health (Arya)",
+        "type": "recurring",
+        "cadence": "hourly :40",
+    },
+    {
+        "job": "engineer_sre",
+        "label": "SRE score (Pranav)",
+        "type": "recurring",
+        "cadence": "hourly :45",
+    },
     {"job": "onboard", "label": "Auto onboarding", "type": "recurring", "cadence": "hourly :50"},
     {"job": "meter_watch", "label": "Meter watch", "type": "recurring", "cadence": "hourly :55"},
 ]
@@ -221,6 +406,7 @@ def build_schedule() -> list[dict[str, Any]]:
         return [dict(d) for d in SCHEDULE_DEFS]
     except Exception:
         return []
+
 
 PIPELINE_STAGE_META: list[dict[str, Any]] = [
     {"id": "lead_source", "name": "Lead Source / Import", "order": 1},
@@ -367,8 +553,15 @@ def _iso(dt: Any) -> str | None:
 # --------------------------------------------------------------------------- #
 def build_rooms_and_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     rooms: dict[str, dict[str, Any]] = {
-        r["id"]: {**r, "agent_keys": [], "activeTaskCount": 0, "blockedTaskCount": 0,
-                  "errorCount": 0, "approvalCount": 0, "status": "idle"}
+        r["id"]: {
+            **r,
+            "agent_keys": [],
+            "activeTaskCount": 0,
+            "blockedTaskCount": 0,
+            "errorCount": 0,
+            "approvalCount": 0,
+            "status": "idle",
+        }
         for r in ROOM_DEFS
     }
     agents: list[dict[str, Any]] = []
@@ -464,11 +657,18 @@ def build_rooms_and_agents() -> tuple[list[dict[str, Any]], list[dict[str, Any]]
 # --------------------------------------------------------------------------- #
 async def build_metrics(live_stats: dict[str, Any] | None = None) -> dict[str, Any]:
     out: dict[str, Any] = {
-        "new_leads_today": 0, "qualified_leads_today": 0, "calls_completed_today": 0,
+        "new_leads_today": 0,
+        "qualified_leads_today": 0,
+        "calls_completed_today": 0,
         "emails_sent_today": 0,
-        "appointments_booked": 0, "campaigns_ready": 0, "payments_pending": 0,
-        "active_customers": 0, "failed_automations": 0, "approvals_needed": 0,
-        "system_issues": 0, "mrr": 0,
+        "appointments_booked": 0,
+        "campaigns_ready": 0,
+        "payments_pending": 0,
+        "active_customers": 0,
+        "failed_automations": 0,
+        "approvals_needed": 0,
+        "system_issues": 0,
+        "mrr": 0,
     }
     try:
         live = live_stats if live_stats is not None else await _safe_collect_live_stats()
@@ -543,10 +743,19 @@ async def build_metrics(live_stats: dict[str, Any] | None = None) -> dict[str, A
 # the stage-detail drawer (pipeline_stage_detail) asks for a fuller list so its
 # filter/search controls have something real to operate on.
 # --------------------------------------------------------------------------- #
-async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+async def build_pipeline(
+    items_limit: int = 3, live_stats: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
     stages: dict[str, dict[str, Any]] = {
-        m["id"]: {**m, "count": 0, "stuckCount": 0, "errorCount": 0, "items": [],
-                  "source": "mock", "note": "Backend data not wired yet."}
+        m["id"]: {
+            **m,
+            "count": 0,
+            "stuckCount": 0,
+            "errorCount": 0,
+            "items": [],
+            "source": "mock",
+            "note": "Backend data not wired yet.",
+        }
         for m in PIPELINE_STAGE_META
     }
     try:
@@ -572,7 +781,9 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
 
         async def _q():
             async with get_async_session() as session:  # type: ignore
-                res = await session.execute(select(Lead).order_by(Lead.created_at.desc()).limit(500))
+                res = await session.execute(
+                    select(Lead).order_by(Lead.created_at.desc()).limit(500)
+                )
                 return list(res.scalars().all())
 
         rows = await _safe_db_call(_q(), timeout=8.0, label="pipeline.lead_select") or []
@@ -580,7 +791,9 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         s["count"] = len(rows)
         s["source"] = "real"
         s["note"] = "Leads table — last 500 rows scanned."
-        s["items"] = [_lead_item(r, "lead_source", overrides, approval_titles) for r in rows[:items_limit]]
+        s["items"] = [
+            _lead_item(r, "lead_source", overrides, approval_titles) for r in rows[:items_limit]
+        ]
 
         # 2) Cleaning & Enrichment — PARTIAL: real verification flags, but no
         # dedicated dedupe/enrichment table exists (Diya's dedupe pass is
@@ -589,7 +802,9 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         s2 = stages["cleaning_enrichment"]
         s2["count"] = len(unverified)
         s2["source"] = "partial"
-        s2["note"] = "Approximated via phone_verified flag — no dedicated dedupe/enrichment table yet."
+        s2["note"] = (
+            "Approximated via phone_verified flag — no dedicated dedupe/enrichment table yet."
+        )
 
         # 3) Scoring & Qualification — real (lead_score bands + rejection statuses).
         hot = [r for r in rows if int(getattr(r, "lead_score", 0) or 0) >= 70]
@@ -598,12 +813,17 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         rejected = [r for r in rows if _enum_value(r, "status") in rejected_st]
         s3 = stages["scoring_qualification"]
         s3["count"] = len(hot) + len(warm)
-        s3["hot_count"] = len(hot)   # score>=70 (asli hot)
+        s3["hot_count"] = len(hot)  # score>=70 (asli hot)
         s3["warm_count"] = len(warm)  # 40-69 (warm — "hot" NAHI)
         s3["stuckCount"] = 0
         s3["source"] = "real"
-        s3["note"] = f"{len(hot)} hot (score>=70) · {len(warm)} warm (40-69) · {len(rejected)} rejected."
-        s3["items"] = [_lead_item(r, "scoring_qualification", overrides, approval_titles) for r in hot[:items_limit]]
+        s3["note"] = (
+            f"{len(hot)} hot (score>=70) · {len(warm)} warm (40-69) · {len(rejected)} rejected."
+        )
+        s3["items"] = [
+            _lead_item(r, "scoring_qualification", overrides, approval_titles)
+            for r in hot[:items_limit]
+        ]
 
         # 5) Outreach Queue — PARTIAL: only the voice-call channel is directly
         # queryable via Lead.next_call_at (email/WhatsApp cadence state lives
@@ -613,34 +833,58 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         s5 = stages["outreach_queue"]
         s5["count"] = len(due)
         s5["stuckCount"] = len(
-            [r for r in due if r.next_call_at < now_dt - timedelta(hours=24)
-             and not _is_resolved(overrides, getattr(r, "id", ""))]
+            [
+                r
+                for r in due
+                if r.next_call_at < now_dt - timedelta(hours=24)
+                and not _is_resolved(overrides, getattr(r, "id", ""))
+            ]
         )
         s5["source"] = "partial"
-        s5["note"] = "Voice call queue only (Lead.next_call_at). Email/WhatsApp cadence state not merged in yet."
-        s5["items"] = [_lead_item(r, "outreach_queue", overrides, approval_titles) for r in due[:items_limit]]
+        s5["note"] = (
+            "Voice call queue only (Lead.next_call_at). Email/WhatsApp cadence state not merged in yet."
+        )
+        s5["items"] = [
+            _lead_item(r, "outreach_queue", overrides, approval_titles) for r in due[:items_limit]
+        ]
 
         # 6) Conversation / Follow-up — real (CALLBACK status).
         callback = [r for r in rows if _enum_value(r, "status") == "callback"]
         s6 = stages["conversation_followup"]
         s6["count"] = len(callback)
         s6["stuckCount"] = len(
-            [r for r in callback if getattr(r, "next_call_at", None) and r.next_call_at < now_dt
-             and not _is_resolved(overrides, getattr(r, "id", ""))]
+            [
+                r
+                for r in callback
+                if getattr(r, "next_call_at", None)
+                and r.next_call_at < now_dt
+                and not _is_resolved(overrides, getattr(r, "id", ""))
+            ]
         )
         s6["source"] = "real"
-        s6["items"] = [_lead_item(r, "conversation_followup", overrides, approval_titles) for r in callback[:items_limit]]
+        s6["items"] = [
+            _lead_item(r, "conversation_followup", overrides, approval_titles)
+            for r in callback[:items_limit]
+        ]
 
         # 7) Appointment / Demo Booking — real.
         appt = [r for r in rows if _enum_value(r, "status") == "appointment"]
         s7 = stages["appointment_booking"]
         s7["count"] = len(appt)
         s7["stuckCount"] = len(
-            [r for r in appt if getattr(r, "appointment_date", None) and r.appointment_date < now_dt
-             and not _is_resolved(overrides, getattr(r, "id", ""))]
+            [
+                r
+                for r in appt
+                if getattr(r, "appointment_date", None)
+                and r.appointment_date < now_dt
+                and not _is_resolved(overrides, getattr(r, "id", ""))
+            ]
         )
         s7["source"] = "real"
-        s7["items"] = [_lead_item(r, "appointment_booking", overrides, approval_titles) for r in appt[:items_limit]]
+        s7["items"] = [
+            _lead_item(r, "appointment_booking", overrides, approval_titles)
+            for r in appt[:items_limit]
+        ]
     except Exception as e:
         logger.warning(f"[office_hq] pipeline lead-stages failed: {e}")
 
@@ -655,7 +899,9 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         s4 = stages["campaign_planning"]
         s4["count"] = int(live.get("content_items_generated") or 0)
         s4["source"] = "partial"
-        s4["note"] = "Total content-queue depth across clients (auto_content). Per-item preview not wired."
+        s4["note"] = (
+            "Total content-queue depth across clients (auto_content). Per-item preview not wired."
+        )
     except Exception as e:
         logger.debug(f"[office_hq] campaign_planning skipped: {e}")
 
@@ -683,11 +929,12 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         s8["source"] = "real" if st.get("engine_on") else "partial"
         s8["note"] = (
             "Deals store (data/deals.jsonl) — 8-stage sales funnel."
-            if st.get("engine_on") else
-            "SALES_ENGINE flag is off — deals store exists but is not being fed automatically."
+            if st.get("engine_on")
+            else "SALES_ENGINE flag is off — deals store exists but is not being fed automatically."
         )
         s8["items"] = [
-            _deal_item(d, overrides, approval_titles, stuck_cut) for d in list(reversed(deals))[:items_limit]
+            _deal_item(d, overrides, approval_titles, stuck_cut)
+            for d in list(reversed(deals))[:items_limit]
         ]
     except Exception as e:
         logger.debug(f"[office_hq] deal_conversion skipped: {e}")
@@ -714,7 +961,9 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         s9 = stages["customer_onboarding"]
         s9["count"] = trial
         s9["source"] = "partial"
-        s9["note"] = "Approximated via Subscription.status=trial — no bulk onboarding-checklist table exists yet."
+        s9["note"] = (
+            "Approximated via Subscription.status=trial — no bulk onboarding-checklist table exists yet."
+        )
     except Exception as e:
         logger.debug(f"[office_hq] customer_onboarding skipped: {e}")
 
@@ -724,13 +973,23 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
 
         h = automation_health.health() or {}
         content_jobs = {"content", "blog", "afternoon_content", "weekly_marketing"}
-        running = [j for j in (h.get("jobs") or []) if j.get("job") in content_jobs and j.get("status") == "ok"]
-        failed = [j for j in (h.get("jobs") or []) if j.get("job") in content_jobs and j.get("status") == "last_failed"]
+        running = [
+            j
+            for j in (h.get("jobs") or [])
+            if j.get("job") in content_jobs and j.get("status") == "ok"
+        ]
+        failed = [
+            j
+            for j in (h.get("jobs") or [])
+            if j.get("job") in content_jobs and j.get("status") == "last_failed"
+        ]
         s10 = stages["service_delivery"]
         s10["count"] = len(running)
         s10["errorCount"] = len(failed)
         s10["source"] = "partial"
-        s10["note"] = "Content-job heartbeat proxy (automation_health) — not a per-customer delivery ledger."
+        s10["note"] = (
+            "Content-job heartbeat proxy (automation_health) — not a per-customer delivery ledger."
+        )
     except Exception as e:
         logger.debug(f"[office_hq] service_delivery skipped: {e}")
 
@@ -747,8 +1006,12 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
         s11["stuckCount"] = past_due
         s11["errorCount"] = int(dstats.get("open") or 0)
         s11["source"] = "real"
-        s11["note"] = f"{active} active subs · {past_due} past_due · {dstats.get('open', 0)} dunning cases open."
-        s11["items"] = [_dunning_item(c, overrides) for c in (dstats.get("open_cases") or [])[:items_limit]]
+        s11["note"] = (
+            f"{active} active subs · {past_due} past_due · {dstats.get('open', 0)} dunning cases open."
+        )
+        s11["items"] = [
+            _dunning_item(c, overrides) for c in (dstats.get("open_cases") or [])[:items_limit]
+        ]
     except Exception as e:
         logger.debug(f"[office_hq] billing_subscription skipped: {e}")
 
@@ -756,7 +1019,12 @@ async def build_pipeline(items_limit: int = 3, live_stats: dict[str, Any] | None
     try:
         from app.platform import client_health
 
-        rep = await _safe_db_call(client_health.health_report(), timeout=8.0, label="pipeline.client_health") or []
+        rep = (
+            await _safe_db_call(
+                client_health.health_report(), timeout=8.0, label="pipeline.client_health"
+            )
+            or []
+        )
         red = [r for r in rep if r.get("band") == "red"]
         s12 = stages["retention_growth"]
         s12["count"] = len(rep)
@@ -817,7 +1085,8 @@ def _apply_override(item: dict[str, Any], overrides: dict[str, dict[str, Any]]) 
 
 
 def _lead_item(
-    r: Any, stage_id: str,
+    r: Any,
+    stage_id: str,
     overrides: dict[str, dict[str, Any]] | None = None,
     approval_titles: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -834,9 +1103,14 @@ def _lead_item(
         "priority": "hot" if int(getattr(r, "lead_score", 0) or 0) >= 70 else "normal",
         "status": _enum_value(r, "status"),
         "lastActivityAt": _iso(getattr(r, "updated_at", None)),
-        "nextAction": "Call karo" if stage_id in ("outreach_queue", "conversation_followup") else "Review karo",
+        "nextAction": (
+            "Call karo"
+            if stage_id in ("outreach_queue", "conversation_followup")
+            else "Review karo"
+        ),
         "slaRisk": bool(
-            getattr(r, "next_call_at", None) and r.next_call_at < datetime.utcnow() - timedelta(hours=24)
+            getattr(r, "next_call_at", None)
+            and r.next_call_at < datetime.utcnow() - timedelta(hours=24)
         ),
         "needsApproval": _needs_approval(name, approval_titles or []),
     }
@@ -876,7 +1150,9 @@ def _deal_item(
     return _apply_override(item, overrides or {})
 
 
-def _dunning_item(c: dict[str, Any], overrides: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
+def _dunning_item(
+    c: dict[str, Any], overrides: dict[str, dict[str, Any]] | None = None
+) -> dict[str, Any]:
     item = {
         "id": c.get("id") or c.get("client_id"),
         "name": c.get("business_name") or c.get("client_id") or "Client",
@@ -896,7 +1172,9 @@ def _dunning_item(c: dict[str, Any], overrides: dict[str, dict[str, Any]] | None
     return _apply_override(item, overrides or {})
 
 
-def _health_item(r: dict[str, Any], overrides: dict[str, dict[str, Any]] | None = None) -> dict[str, Any]:
+def _health_item(
+    r: dict[str, Any], overrides: dict[str, dict[str, Any]] | None = None
+) -> dict[str, Any]:
     item = {
         "id": r.get("client_id"),
         "name": r.get("business_name") or r.get("client_id") or "Client",
@@ -970,14 +1248,16 @@ def build_approval_queue(drafts: list[dict[str, Any]] | None = None) -> list[dic
 
             drafts = (approvals_bridge.list_drafts(include_decided=False) or {}).get("drafts") or []
         for d in drafts:
-            queue.append({
-                "kind": "draft",
-                "source": d.get("source") or "",
-                "id": str(d.get("id") or ""),
-                "title": str(d.get("title") or d.get("id") or "")[:160],
-                "summary": str(d.get("body") or "")[:400],
-                "created_at": d.get("created_at") or "",
-            })
+            queue.append(
+                {
+                    "kind": "draft",
+                    "source": d.get("source") or "",
+                    "id": str(d.get("id") or ""),
+                    "title": str(d.get("title") or d.get("id") or "")[:160],
+                    "summary": str(d.get("body") or "")[:400],
+                    "created_at": d.get("created_at") or "",
+                }
+            )
     except Exception as e:
         logger.debug(f"[office_hq] approval_queue drafts skipped: {e}")
     # 2) code-upgrader patch proposals (Vikram) — approve is a MARKER only;
@@ -986,14 +1266,16 @@ def build_approval_queue(drafts: list[dict[str, Any]] | None = None) -> list[dic
         from app.agents import code_upgrader
 
         for p in code_upgrader.list_patches("proposed", 20) or []:
-            queue.append({
-                "kind": "patch",
-                "source": "code_upgrader",
-                "id": str(p.get("id") or ""),
-                "title": str(p.get("title") or p.get("issue") or p.get("id") or "")[:160],
-                "summary": str(p.get("rationale") or p.get("issue") or "")[:400],
-                "created_at": p.get("at") or "",
-            })
+            queue.append(
+                {
+                    "kind": "patch",
+                    "source": "code_upgrader",
+                    "id": str(p.get("id") or ""),
+                    "title": str(p.get("title") or p.get("issue") or p.get("id") or "")[:160],
+                    "summary": str(p.get("rationale") or p.get("issue") or "")[:400],
+                    "created_at": p.get("at") or "",
+                }
+            )
     except Exception as e:
         logger.debug(f"[office_hq] approval_queue patches skipped: {e}")
     # 3) self-improve approval gates (SELF_IMPROVE_APPROVAL)
@@ -1001,15 +1283,19 @@ def build_approval_queue(drafts: list[dict[str, Any]] | None = None) -> list[dic
         from app.agents import self_improve
 
         for t in (self_improve.approval_status() or {}).get("pending") or []:
-            queue.append({
-                "kind": "selfimprove",
-                "source": "self_improve",
-                "id": str(t.get("id") or ""),
-                "title": str(t.get("task") or t.get("id") or "")[:160],
-                "summary": (str(t.get("reason") or "")
-                            + (f" (est. cost ${t.get('cost')})" if t.get("cost") else ""))[:400],
-                "created_at": t.get("timestamp") or "",
-            })
+            queue.append(
+                {
+                    "kind": "selfimprove",
+                    "source": "self_improve",
+                    "id": str(t.get("id") or ""),
+                    "title": str(t.get("task") or t.get("id") or "")[:160],
+                    "summary": (
+                        str(t.get("reason") or "")
+                        + (f" (est. cost ${t.get('cost')})" if t.get("cost") else "")
+                    )[:400],
+                    "created_at": t.get("timestamp") or "",
+                }
+            )
     except Exception as e:
         logger.debug(f"[office_hq] approval_queue selfimprove skipped: {e}")
     return [q for q in queue if q["id"]]
@@ -1024,18 +1310,24 @@ def build_coordination(limit: int = 5) -> list[dict[str, Any]]:
         from app.platform import approvals_bridge
 
         rows = approvals_bridge._read_jsonl(approvals_bridge._COORD_RUNS)
-        for r in rows[-max(1, min(20, limit)):][::-1]:
+        for r in rows[-max(1, min(20, limit)) :][::-1]:
             outcome = str(
-                r.get("summary") or r.get("solution") or r.get("design")
-                or r.get("implementation_plan") or r.get("verdict") or ""
+                r.get("summary")
+                or r.get("solution")
+                or r.get("design")
+                or r.get("implementation_plan")
+                or r.get("verdict")
+                or ""
             )[:220]
-            out.append({
-                "goal": str(r.get("goal") or r.get("query") or "coordination run")[:140],
-                "mode": str(r.get("pattern") or r.get("mode") or "sequential"),
-                "executed": bool(r.get("execute")),
-                "outcome": outcome,
-                "at": r.get("at") or "",
-            })
+            out.append(
+                {
+                    "goal": str(r.get("goal") or r.get("query") or "coordination run")[:140],
+                    "mode": str(r.get("pattern") or r.get("mode") or "sequential"),
+                    "executed": bool(r.get("execute")),
+                    "outcome": outcome,
+                    "at": r.get("at") or "",
+                }
+            )
     except Exception as e:
         logger.debug(f"[office_hq] build_coordination skipped: {e}")
     return out
@@ -1062,11 +1354,18 @@ def _parse_boss_reply(text: str) -> tuple[str, str]:
     """'VERDICT: approve | REASON: ...' -> ("approve"|"reject", reason). Lenient."""
     t = (text or "").strip()
     low = t.lower()
-    verdict = "reject" if ("reject" in low and low.find("reject") < (low.find("approve") if "approve" in low else 10**9)) else ("approve" if "approve" in low else "")
+    verdict = (
+        "reject"
+        if (
+            "reject" in low
+            and low.find("reject") < (low.find("approve") if "approve" in low else 10**9)
+        )
+        else ("approve" if "approve" in low else "")
+    )
     reason = t
     if "reason" in low:
         try:
-            reason = t[low.index("reason") + len("reason"):].lstrip(":| ").strip()
+            reason = t[low.index("reason") + len("reason") :].lstrip(":| ").strip()
         except Exception:
             reason = t
     return verdict, reason[:200]
@@ -1087,17 +1386,30 @@ async def boss_review(max_items: int = 10, per_item_timeout: float = 20.0) -> di
             user = (
                 f"Type: {it['kind']} ({it.get('source')})\nTitle: {it['title']}\n"
                 f"Summary: {it.get('summary') or '(none)'}\n"
-                + ("NOTE: code patch approve = sirf review-marker; apply hamesha manual deploy-loop me hota hai."
-                   if it["kind"] == "patch" else "")
+                + (
+                    "NOTE: code patch approve = sirf review-marker; apply hamesha manual deploy-loop me hota hai."
+                    if it["kind"] == "patch"
+                    else ""
+                )
             )
             text, provider = await asyncio.wait_for(
-                free_ai.chat(_BOSS_SYSTEM, [{"role": "user", "content": user}],
-                             max_tokens=120, temperature=0.3, scope="office_boss"),
+                free_ai.chat(
+                    _BOSS_SYSTEM,
+                    [{"role": "user", "content": user}],
+                    max_tokens=120,
+                    temperature=0.3,
+                    scope="office_boss",
+                ),
                 timeout=per_item_timeout,
             )
             verdict, reason = _parse_boss_reply(text)
             if not verdict:
-                return {**base, "verdict": "skip", "reason": "LLM se clear verdict nahi mila", "provider": provider}
+                return {
+                    **base,
+                    "verdict": "skip",
+                    "reason": "LLM se clear verdict nahi mila",
+                    "provider": provider,
+                }
             return {**base, "verdict": verdict, "reason": reason, "provider": provider}
         except Exception as e:
             logger.debug(f"[office_hq] boss_review item {it.get('id')} skipped: {e}")
@@ -1109,9 +1421,13 @@ async def boss_review(max_items: int = 10, per_item_timeout: float = 20.0) -> di
     except Exception as e:
         logger.warning(f"[office_hq] boss_review failed: {e}")
         verdicts = []
-    return {"ok": True, "verdicts": verdicts, "reviewed": len(verdicts),
-            "note": "Boss sirf RECOMMEND karta hai — final Approve/Reject HUMAN click se hi hota hai.",
-            "generated_at": _now().isoformat()}
+    return {
+        "ok": True,
+        "verdicts": verdicts,
+        "reviewed": len(verdicts),
+        "note": "Boss sirf RECOMMEND karta hai — final Approve/Reject HUMAN click se hi hota hai.",
+        "generated_at": _now().isoformat(),
+    }
 
 
 def build_system_health() -> dict[str, Any]:
@@ -1135,45 +1451,66 @@ def next_best_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
 
         pending = int((approvals.get("counts") or {}).get("pending") or 0)
         if pending:
-            actions.append({
-                "label": f"🗂️ {pending} draft(s) approval ke liye pending — review karo",
-                "severity": "warning", "cta_target": "approvals",
-            })
+            actions.append(
+                {
+                    "label": f"🗂️ {pending} draft(s) approval ke liye pending — review karo",
+                    "severity": "warning",
+                    "cta_target": "approvals",
+                }
+            )
         overdue = len(health.get("overdue") or [])
         if overdue:
-            actions.append({
-                "label": f"⚠️ {overdue} automation job(s) time par nahi chale — check karo",
-                "severity": "warning", "cta_target": "system_health",
-            })
+            actions.append(
+                {
+                    "label": f"⚠️ {overdue} automation job(s) time par nahi chale — check karo",
+                    "severity": "warning",
+                    "cta_target": "system_health",
+                }
+            )
         if int(metrics.get("payments_pending") or 0):
-            actions.append({
-                "label": f"💳 {metrics['payments_pending']} payment pending — reminder bhejo",
-                "severity": "warning", "cta_target": "billing_subscription",
-            })
+            actions.append(
+                {
+                    "label": f"💳 {metrics['payments_pending']} payment pending — reminder bhejo",
+                    "severity": "warning",
+                    "cta_target": "billing_subscription",
+                }
+            )
         retention = pipeline.get("retention_growth") or {}
         if int(retention.get("errorCount") or 0):
-            actions.append({
-                "label": f"❤️ {retention['errorCount']} client churn-risk (red) — proactively contact karo",
-                "severity": "error", "cta_target": "retention_growth",
-            })
+            actions.append(
+                {
+                    "label": f"❤️ {retention['errorCount']} client churn-risk (red) — proactively contact karo",
+                    "severity": "error",
+                    "cta_target": "retention_growth",
+                }
+            )
         deal = pipeline.get("deal_conversion") or {}
         if int(deal.get("stuckCount") or 0):
-            actions.append({
-                "label": f"🤝 {deal['stuckCount']} deal(s) 14+ din se stuck — follow-up karo",
-                "severity": "warning", "cta_target": "deal_conversion",
-            })
+            actions.append(
+                {
+                    "label": f"🤝 {deal['stuckCount']} deal(s) 14+ din se stuck — follow-up karo",
+                    "severity": "warning",
+                    "cta_target": "deal_conversion",
+                }
+            )
         hot = int((pipeline.get("scoring_qualification") or {}).get("count") or 0)
         followup = int((pipeline.get("conversation_followup") or {}).get("stuckCount") or 0)
         if followup:
-            actions.append({
-                "label": f"🔥 {followup} follow-up overdue hai — hot leads ko call karo",
-                "severity": "warning", "cta_target": "conversation_followup",
-            })
+            actions.append(
+                {
+                    "label": f"🔥 {followup} follow-up overdue hai — hot leads ko call karo",
+                    "severity": "warning",
+                    "cta_target": "conversation_followup",
+                }
+            )
         elif hot:
-            actions.append({
-                "label": f"🔥 {hot} hot lead(s) available — outreach shuru karo",
-                "severity": "info", "cta_target": "scoring_qualification",
-            })
+            actions.append(
+                {
+                    "label": f"🔥 {hot} hot lead(s) available — outreach shuru karo",
+                    "severity": "info",
+                    "cta_target": "scoring_qualification",
+                }
+            )
     except Exception as e:
         logger.debug(f"[office_hq] next_best_actions failed: {e}")
     order = {"error": 0, "warning": 1, "info": 2}
@@ -1192,14 +1529,18 @@ def build_boss_brief(snapshot: dict[str, Any]) -> dict[str, Any]:
         pipeline = {s.get("id"): s for s in (snapshot.get("pipeline") or [])}
         approvals = snapshot.get("approvals") or {}
         health = snapshot.get("system_health") or {}
-        pending = int((approvals.get("counts") or {}).get("total_pending")
-                      or (approvals.get("counts") or {}).get("pending") or 0)
+        pending = int(
+            (approvals.get("counts") or {}).get("total_pending")
+            or (approvals.get("counts") or {}).get("pending")
+            or 0
+        )
         overdue = len(health.get("overdue") or [])
         dlq = int((health.get("queue") or {}).get("dlq") or 0)
         stuck_followups = int((pipeline.get("conversation_followup") or {}).get("stuckCount") or 0)
+        stale_count = len(snapshot.get("stale_tasks") or [])
         s3 = pipeline.get("scoring_qualification") or {}
-        hot = int(s3.get("hot_count", s3.get("count") or 0) or 0)   # asli hot (score>=70)
-        warm = int(s3.get("warm_count") or 0)                       # warm (40-69)
+        hot = int(s3.get("hot_count", s3.get("count") or 0) or 0)  # asli hot (score>=70)
+        warm = int(s3.get("warm_count") or 0)  # warm (40-69)
         new_today = int(metrics.get("new_leads_today") or 0)
         qualified_today = int(metrics.get("qualified_leads_today") or 0)
         # Mid-funnel stall: aaj kaafi naye leads aaye par ek bhi qualify nahi hua
@@ -1218,20 +1559,32 @@ def build_boss_brief(snapshot: dict[str, Any]) -> dict[str, Any]:
         elif overdue:
             risk_label = f"{overdue} automation job overdue"
             risk_target = "systemHealthPanel"
+        elif stale_count:
+            risk_label = f"{stale_count} agent task(s) stuck >10min"
+            risk_target = "taskQueuePanel"
         elif stuck_followups:
             risk_label = f"{stuck_followups} follow-up stuck"
             risk_target = "pipelineBoard"
 
         if pending:
-            recommendation = {"label": f"{pending} approval review karo", "cta_target": "approvalsPanel"}
+            recommendation = {
+                "label": f"{pending} approval review karo",
+                "cta_target": "approvalsPanel",
+            }
         elif midfunnel_stall:
-            recommendation = {"label": "Mid-funnel dekho: qualify + outreach chalu karo", "cta_target": "pipelineBoard"}
+            recommendation = {
+                "label": "Mid-funnel dekho: qualify + outreach chalu karo",
+                "cta_target": "pipelineBoard",
+            }
         elif stuck_followups:
             recommendation = {"label": "Stuck follow-ups clear karo", "cta_target": "pipelineBoard"}
         elif hot:
             recommendation = {"label": "Hot leads pe Rohan ko lagao", "cta_target": "pipelineBoard"}
         elif warm:
-            recommendation = {"label": f"{warm} warm lead(s) pe outreach/nurture lagao", "cta_target": "pipelineBoard"}
+            recommendation = {
+                "label": f"{warm} warm lead(s) pe outreach/nurture lagao",
+                "cta_target": "pipelineBoard",
+            }
         else:
             recommendation = {"label": "Office feed monitor karo", "cta_target": "feedCard"}
 
@@ -1279,8 +1632,11 @@ def build_priority_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         health = snapshot.get("system_health") or {}
         pipeline = {s.get("id"): s for s in (snapshot.get("pipeline") or [])}
         metrics = snapshot.get("metrics") or {}
-        pending = int((approvals.get("counts") or {}).get("total_pending")
-                      or (approvals.get("counts") or {}).get("pending") or 0)
+        pending = int(
+            (approvals.get("counts") or {}).get("total_pending")
+            or (approvals.get("counts") or {}).get("pending")
+            or 0
+        )
         dlq = int((health.get("queue") or {}).get("dlq") or 0)
         overdue = len(health.get("overdue") or [])
         stuck = int((pipeline.get("conversation_followup") or {}).get("stuckCount") or 0)
@@ -1293,68 +1649,131 @@ def build_priority_actions(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         payments = int(metrics.get("payments_pending") or 0)
 
         if new_today >= 20 and qualified_today == 0:
-            actions.append({
-                "id": "midfunnel_stall", "title": f"Mid-funnel ruka: {new_today} leads, 0 qualified",
-                "why": "Qualification/outreach ruka hai — money-funnel band, revenue rok raha.",
-                "severity": "critical", "owner": "rohan", "room": "sales_crm",
-                "age": "", "cta_label": "Open Pipeline", "cta_target": "pipelineBoard",
-            })
+            actions.append(
+                {
+                    "id": "midfunnel_stall",
+                    "title": f"Mid-funnel ruka: {new_today} leads, 0 qualified",
+                    "why": "Qualification/outreach ruka hai — money-funnel band, revenue rok raha.",
+                    "severity": "critical",
+                    "owner": "rohan",
+                    "room": "sales_crm",
+                    "age": "",
+                    "cta_label": "Open Pipeline",
+                    "cta_target": "pipelineBoard",
+                }
+            )
         if dlq:
-            actions.append({
-                "id": "dlq", "title": f"{dlq} failed job(s)",
-                "why": "Failed jobs automation trust block kar sakte hain.",
-                "severity": "critical", "owner": "hermes", "room": "platform_engineering",
-                "age": "", "cta_label": "Open Reliability", "cta_target": "failureConsoleCard",
-            })
+            actions.append(
+                {
+                    "id": "dlq",
+                    "title": f"{dlq} failed job(s)",
+                    "why": "Failed jobs automation trust block kar sakte hain.",
+                    "severity": "critical",
+                    "owner": "hermes",
+                    "room": "platform_engineering",
+                    "age": "",
+                    "cta_label": "Open Reliability",
+                    "cta_target": "failureConsoleCard",
+                }
+            )
         if overdue:
-            actions.append({
-                "id": "overdue_jobs", "title": f"{overdue} overdue automation job(s)",
-                "why": "Scheduled loops heartbeat miss kar rahe hain.",
-                "severity": "high", "owner": "kavya", "room": "platform_engineering",
-                "age": "", "cta_label": "Open Health", "cta_target": "systemHealthPanel",
-            })
+            actions.append(
+                {
+                    "id": "overdue_jobs",
+                    "title": f"{overdue} overdue automation job(s)",
+                    "why": "Scheduled loops heartbeat miss kar rahe hain.",
+                    "severity": "high",
+                    "owner": "kavya",
+                    "room": "platform_engineering",
+                    "age": "",
+                    "cta_label": "Open Health",
+                    "cta_target": "systemHealthPanel",
+                }
+            )
         if pending:
-            actions.append({
-                "id": "approvals", "title": f"{pending} approval(s) pending",
-                "why": "Human approval output ko block kar raha hai.",
-                "severity": "high", "owner": "manager", "room": "coordinator",
-                "age": "", "cta_label": "Review Approvals", "cta_target": "approvalsPanel",
-            })
+            actions.append(
+                {
+                    "id": "approvals",
+                    "title": f"{pending} approval(s) pending",
+                    "why": "Human approval output ko block kar raha hai.",
+                    "severity": "high",
+                    "owner": "manager",
+                    "room": "coordinator",
+                    "age": "",
+                    "cta_label": "Review Approvals",
+                    "cta_target": "approvalsPanel",
+                }
+            )
         if stuck:
-            actions.append({
-                "id": "stuck_followups", "title": f"{stuck} follow-up(s) stuck",
-                "why": "Warm leads ki value late follow-up se girti hai.",
-                "severity": "high", "owner": "rohan", "room": "sales_crm",
-                "age": "", "cta_label": "Open Pipeline", "cta_target": "conversation_followup",
-            })
+            actions.append(
+                {
+                    "id": "stuck_followups",
+                    "title": f"{stuck} follow-up(s) stuck",
+                    "why": "Warm leads ki value late follow-up se girti hai.",
+                    "severity": "high",
+                    "owner": "rohan",
+                    "room": "sales_crm",
+                    "age": "",
+                    "cta_label": "Open Pipeline",
+                    "cta_target": "conversation_followup",
+                }
+            )
         if retention_red:
-            actions.append({
-                "id": "retention", "title": f"{retention_red} client(s) churn-risk",
-                "why": "Retention risk direct revenue risk hai.",
-                "severity": "high", "owner": "nikhil", "room": "admin_finance",
-                "age": "", "cta_label": "Open Retention", "cta_target": "retention_growth",
-            })
+            actions.append(
+                {
+                    "id": "retention",
+                    "title": f"{retention_red} client(s) churn-risk",
+                    "why": "Retention risk direct revenue risk hai.",
+                    "severity": "high",
+                    "owner": "nikhil",
+                    "room": "admin_finance",
+                    "age": "",
+                    "cta_label": "Open Retention",
+                    "cta_target": "retention_growth",
+                }
+            )
         if payments:
-            actions.append({
-                "id": "payments", "title": f"{payments} payment(s) pending",
-                "why": "Cash collection ko operator attention chahiye.",
-                "severity": "medium", "owner": "nikhil", "room": "admin_finance",
-                "age": "", "cta_label": "Open Billing", "cta_target": "billing_subscription",
-            })
+            actions.append(
+                {
+                    "id": "payments",
+                    "title": f"{payments} payment(s) pending",
+                    "why": "Cash collection ko operator attention chahiye.",
+                    "severity": "medium",
+                    "owner": "nikhil",
+                    "room": "admin_finance",
+                    "age": "",
+                    "cta_label": "Open Billing",
+                    "cta_target": "billing_subscription",
+                }
+            )
         if hot:
-            actions.append({
-                "id": "hot_leads", "title": f"{hot} hot lead(s) ready",
-                "why": "Yeh immediate sales opportunity hai.",
-                "severity": "medium", "owner": "rohan", "room": "sales_crm",
-                "age": "", "cta_label": "Open Hot Leads", "cta_target": "scoring_qualification",
-            })
+            actions.append(
+                {
+                    "id": "hot_leads",
+                    "title": f"{hot} hot lead(s) ready",
+                    "why": "Yeh immediate sales opportunity hai.",
+                    "severity": "medium",
+                    "owner": "rohan",
+                    "room": "sales_crm",
+                    "age": "",
+                    "cta_label": "Open Hot Leads",
+                    "cta_target": "scoring_qualification",
+                }
+            )
         elif warm:
-            actions.append({
-                "id": "warm_leads", "title": f"{warm} warm lead(s) — nurture/outreach",
-                "why": "Warm leads ko outreach/nurture chahiye warna thande ho jayenge.",
-                "severity": "medium", "owner": "rohan", "room": "sales_crm",
-                "age": "", "cta_label": "Open Pipeline", "cta_target": "scoring_qualification",
-            })
+            actions.append(
+                {
+                    "id": "warm_leads",
+                    "title": f"{warm} warm lead(s) — nurture/outreach",
+                    "why": "Warm leads ko outreach/nurture chahiye warna thande ho jayenge.",
+                    "severity": "medium",
+                    "owner": "rohan",
+                    "room": "sales_crm",
+                    "age": "",
+                    "cta_label": "Open Pipeline",
+                    "cta_target": "scoring_qualification",
+                }
+            )
     except Exception as e:
         logger.debug(f"[office_hq] build_priority_actions failed: {e}")
     actions.sort(key=lambda a: (_severity_rank(a.get("severity", "low")), a.get("id", "")))
@@ -1367,7 +1786,9 @@ def build_room_workloads(snapshot: dict[str, Any]) -> dict[str, dict[str, Any]]:
     try:
         agents_by_room: dict[str, list[dict[str, Any]]] = {}
         for agent in snapshot.get("agents") or []:
-            agents_by_room.setdefault(str(agent.get("room") or "platform_engineering"), []).append(agent)
+            agents_by_room.setdefault(str(agent.get("room") or "platform_engineering"), []).append(
+                agent
+            )
         for room in snapshot.get("rooms") or []:
             rid = str(room.get("id") or "")
             out[rid] = {
@@ -1390,10 +1811,18 @@ def build_room_workloads(snapshot: dict[str, Any]) -> dict[str, dict[str, Any]]:
             }
         for item in build_priority_actions(snapshot):
             rid = item.get("room") or "coordinator"
-            out.setdefault(rid, {
-                "room": rid, "name": rid, "owner_count": 0, "active_agents": [],
-                "health": {}, "work_items": [], "source": "snapshot",
-            })
+            out.setdefault(
+                rid,
+                {
+                    "room": rid,
+                    "name": rid,
+                    "owner_count": 0,
+                    "active_agents": [],
+                    "health": {},
+                    "work_items": [],
+                    "source": "snapshot",
+                },
+            )
             out[rid]["work_items"].append(item)
         for room in out.values():
             room["work_items"] = room.get("work_items", [])[:3]
@@ -1408,32 +1837,39 @@ def build_replay(snapshot: dict[str, Any], limit: int = 20) -> dict[str, Any]:
     try:
         at = snapshot.get("generated_at") or _now().isoformat()
         for action in build_priority_actions(snapshot):
-            items.append({
-                "at": at, "actor": action.get("owner") or "manager",
-                "title": action.get("title") or action.get("id"),
-                "detail": action.get("why") or "",
-                "target": action.get("cta_target") or "",
-                "kind": "priority",
-            })
+            items.append(
+                {
+                    "at": at,
+                    "actor": action.get("owner") or "manager",
+                    "title": action.get("title") or action.get("id"),
+                    "detail": action.get("why") or "",
+                    "target": action.get("cta_target") or "",
+                    "kind": "priority",
+                }
+            )
         for run in snapshot.get("coordination") or []:
-            items.append({
-                "at": run.get("at") or at,
-                "actor": "manager",
-                "title": str(run.get("goal") or "Coordination run")[:120],
-                "detail": str(run.get("outcome") or "")[:180],
-                "target": "feedCard",
-                "kind": "coordination",
-            })
+            items.append(
+                {
+                    "at": run.get("at") or at,
+                    "actor": "manager",
+                    "title": str(run.get("goal") or "Coordination run")[:120],
+                    "detail": str(run.get("outcome") or "")[:180],
+                    "target": "feedCard",
+                    "kind": "coordination",
+                }
+            )
         for stage in snapshot.get("pipeline") or []:
             if int(stage.get("count") or 0):
-                items.append({
-                    "at": at,
-                    "actor": "pipeline",
-                    "title": f"{stage.get('name') or stage.get('id')}: {stage.get('count')} item(s)",
-                    "detail": stage.get("note") or "",
-                    "target": stage.get("id") or "pipelineBoard",
-                    "kind": "pipeline",
-                })
+                items.append(
+                    {
+                        "at": at,
+                        "actor": "pipeline",
+                        "title": f"{stage.get('name') or stage.get('id')}: {stage.get('count')} item(s)",
+                        "detail": stage.get("note") or "",
+                        "target": stage.get("id") or "pipelineBoard",
+                        "kind": "pipeline",
+                    }
+                )
     except Exception as e:
         logger.debug(f"[office_hq] build_replay failed: {e}")
     capped = max(1, min(50, int(limit or 20)))
@@ -1460,14 +1896,16 @@ def build_enterprise_features(snapshot: dict[str, Any]) -> dict[str, Any]:
 
         active_agents = len([a for a in agents if a.get("status") != "offline"])
         room_issues = sum(
-            int(r.get("blockedTaskCount") or 0) + int(r.get("errorCount") or 0)
-            for r in rooms
+            int(r.get("blockedTaskCount") or 0) + int(r.get("errorCount") or 0) for r in rooms
         )
         pipeline_items = sum(int(s.get("count") or 0) for s in pipeline)
         stuck_items = sum(int(s.get("stuckCount") or 0) for s in pipeline)
         error_items = sum(int(s.get("errorCount") or 0) for s in pipeline)
-        pending_approvals = int((approvals.get("counts") or {}).get("total_pending")
-                                or (approvals.get("counts") or {}).get("pending") or 0)
+        pending_approvals = int(
+            (approvals.get("counts") or {}).get("total_pending")
+            or (approvals.get("counts") or {}).get("pending")
+            or 0
+        )
         health_jobs = health.get("jobs") or []
         overdue_jobs = len(health.get("overdue") or [])
         never_ran = len(health.get("never_ran") or [])
@@ -1480,51 +1918,166 @@ def build_enterprise_features(snapshot: dict[str, Any]) -> dict[str, Any]:
             return "attention" if warn else "live"
 
         features = [
-            {"id": "office_map", "name": "Interactive office map", "room": "Coordinator",
-             "status": status(ready=bool(rooms and agents)), "metric": f"{len(rooms)} rooms / {len(agents)} agents",
-             "cta_target": "stageWrap"},
-            {"id": "live_roster", "name": "Live AI staff roster", "room": "Team",
-             "status": status(warn=active_agents == 0, ready=bool(agents)),
-             "metric": f"{active_agents}/{len(agents)} active", "cta_target": "leaderboardPanel"},
-            {"id": "room_health", "name": "Room-level blocked/error signals", "room": "Ops",
-             "status": status(warn=room_issues > 0, ready=bool(rooms)),
-             "metric": f"{room_issues} room issues", "cta_target": "stageWrap"},
-            {"id": "kpi_board", "name": "Executive KPI board", "room": "Finance",
-             "status": "live", "metric": f"MRR Rs {int(metrics.get('mrr') or 0):,}", "cta_target": "kpiRow"},
-            {"id": "next_actions", "name": "Next-best-action command strip", "room": "Boss",
-             "status": status(warn=bool(nba)), "metric": f"{len(nba)} actions", "cta_target": "nbaCard"},
-            {"id": "lead_pipeline", "name": "12-stage lead-to-renewal pipeline", "room": "Sales",
-             "status": status(ready=bool(pipeline)), "metric": f"{pipeline_items} items", "cta_target": "pipelineBoard"},
-            {"id": "stage_drilldown", "name": "Pipeline drill-down + filters", "room": "Sales",
-             "status": status(ready=bool(pipeline)), "metric": "up to 50 items/stage", "cta_target": "pipelineBoard"},
-            {"id": "owner_assignment", "name": "Owner assignment sidecar", "room": "Sales",
-             "status": "live", "metric": "assign agent per item", "cta_target": "pipelineBoard"},
-            {"id": "sla_repair", "name": "SLA stuck-item repair", "room": "Ops",
-             "status": status(warn=stuck_items > 0), "metric": f"{stuck_items} stuck", "cta_target": "pipelineBoard"},
-            {"id": "approval_queue", "name": "Unified approvals queue", "room": "Admin",
-             "status": status(warn=pending_approvals > 0), "metric": f"{pending_approvals} pending",
-             "cta_target": "approvalsPanel"},
-            {"id": "boss_review", "name": "Boss review recommendations", "room": "Boss",
-             "status": "live", "metric": "recommend-only", "cta_target": "approvalsPanel"},
-            {"id": "system_health", "name": "Automation health monitor", "room": "Engineering",
-             "status": status(warn=(overdue_jobs + never_ran) > 0, ready=bool(health)),
-             "metric": f"{overdue_jobs} overdue / {never_ran} never", "cta_target": "systemHealthPanel"},
-            {"id": "dlq_console", "name": "DLQ retry and repair desk", "room": "Reliability",
-             "status": status(warn=dlq_count > 0), "metric": f"{dlq_count} dlq", "cta_target": "failureConsoleCard"},
-            {"id": "hot_queue", "name": "Reception hot-reply tray", "room": "Sales",
-             "status": "live", "metric": "reply_agent hot queue", "cta_target": "hotQueueCard"},
-            {"id": "schedule", "name": "IST automation day-plan", "room": "Ops",
-             "status": status(ready=bool(schedule)), "metric": f"{len(schedule)} jobs", "cta_target": "schedulePanel"},
-            {"id": "live_feed", "name": "Live automation event feed", "room": "Ops",
-             "status": "live", "metric": "8s event poll", "cta_target": "feedCard"},
-            {"id": "coordination_history", "name": "Coordinator/council run history", "room": "Boss",
-             "status": status(warn=not coordination), "metric": f"{len(coordination)} recent", "cta_target": "feedCard"},
-            {"id": "workflow_runs", "name": "Workflow run monitor", "room": "Automation",
-             "status": "live", "metric": "flow-run endpoint", "cta_target": "workflowRunsCard"},
-            {"id": "system_map", "name": "Expandable system architecture map", "room": "Engineering",
-             "status": "live", "metric": "control-center iframe", "cta_target": "systemMapCard"},
-            {"id": "briefing", "name": "Swara morning briefing", "room": "Voice",
-             "status": "live", "metric": "text + cached audio", "cta_target": "briefingBtn"},
+            {
+                "id": "office_map",
+                "name": "Interactive office map",
+                "room": "Coordinator",
+                "status": status(ready=bool(rooms and agents)),
+                "metric": f"{len(rooms)} rooms / {len(agents)} agents",
+                "cta_target": "stageWrap",
+            },
+            {
+                "id": "live_roster",
+                "name": "Live AI staff roster",
+                "room": "Team",
+                "status": status(warn=active_agents == 0, ready=bool(agents)),
+                "metric": f"{active_agents}/{len(agents)} active",
+                "cta_target": "leaderboardPanel",
+            },
+            {
+                "id": "room_health",
+                "name": "Room-level blocked/error signals",
+                "room": "Ops",
+                "status": status(warn=room_issues > 0, ready=bool(rooms)),
+                "metric": f"{room_issues} room issues",
+                "cta_target": "stageWrap",
+            },
+            {
+                "id": "kpi_board",
+                "name": "Executive KPI board",
+                "room": "Finance",
+                "status": "live",
+                "metric": f"MRR Rs {int(metrics.get('mrr') or 0):,}",
+                "cta_target": "kpiRow",
+            },
+            {
+                "id": "next_actions",
+                "name": "Next-best-action command strip",
+                "room": "Boss",
+                "status": status(warn=bool(nba)),
+                "metric": f"{len(nba)} actions",
+                "cta_target": "nbaCard",
+            },
+            {
+                "id": "lead_pipeline",
+                "name": "12-stage lead-to-renewal pipeline",
+                "room": "Sales",
+                "status": status(ready=bool(pipeline)),
+                "metric": f"{pipeline_items} items",
+                "cta_target": "pipelineBoard",
+            },
+            {
+                "id": "stage_drilldown",
+                "name": "Pipeline drill-down + filters",
+                "room": "Sales",
+                "status": status(ready=bool(pipeline)),
+                "metric": "up to 50 items/stage",
+                "cta_target": "pipelineBoard",
+            },
+            {
+                "id": "owner_assignment",
+                "name": "Owner assignment sidecar",
+                "room": "Sales",
+                "status": "live",
+                "metric": "assign agent per item",
+                "cta_target": "pipelineBoard",
+            },
+            {
+                "id": "sla_repair",
+                "name": "SLA stuck-item repair",
+                "room": "Ops",
+                "status": status(warn=stuck_items > 0),
+                "metric": f"{stuck_items} stuck",
+                "cta_target": "pipelineBoard",
+            },
+            {
+                "id": "approval_queue",
+                "name": "Unified approvals queue",
+                "room": "Admin",
+                "status": status(warn=pending_approvals > 0),
+                "metric": f"{pending_approvals} pending",
+                "cta_target": "approvalsPanel",
+            },
+            {
+                "id": "boss_review",
+                "name": "Boss review recommendations",
+                "room": "Boss",
+                "status": "live",
+                "metric": "recommend-only",
+                "cta_target": "approvalsPanel",
+            },
+            {
+                "id": "system_health",
+                "name": "Automation health monitor",
+                "room": "Engineering",
+                "status": status(warn=(overdue_jobs + never_ran) > 0, ready=bool(health)),
+                "metric": f"{overdue_jobs} overdue / {never_ran} never",
+                "cta_target": "systemHealthPanel",
+            },
+            {
+                "id": "dlq_console",
+                "name": "DLQ retry and repair desk",
+                "room": "Reliability",
+                "status": status(warn=dlq_count > 0),
+                "metric": f"{dlq_count} dlq",
+                "cta_target": "failureConsoleCard",
+            },
+            {
+                "id": "hot_queue",
+                "name": "Reception hot-reply tray",
+                "room": "Sales",
+                "status": "live",
+                "metric": "reply_agent hot queue",
+                "cta_target": "hotQueueCard",
+            },
+            {
+                "id": "schedule",
+                "name": "IST automation day-plan",
+                "room": "Ops",
+                "status": status(ready=bool(schedule)),
+                "metric": f"{len(schedule)} jobs",
+                "cta_target": "schedulePanel",
+            },
+            {
+                "id": "live_feed",
+                "name": "Live automation event feed",
+                "room": "Ops",
+                "status": "live",
+                "metric": "8s event poll",
+                "cta_target": "feedCard",
+            },
+            {
+                "id": "coordination_history",
+                "name": "Coordinator/council run history",
+                "room": "Boss",
+                "status": status(warn=not coordination),
+                "metric": f"{len(coordination)} recent",
+                "cta_target": "feedCard",
+            },
+            {
+                "id": "workflow_runs",
+                "name": "Workflow run monitor",
+                "room": "Automation",
+                "status": "live",
+                "metric": "flow-run endpoint",
+                "cta_target": "workflowRunsCard",
+            },
+            {
+                "id": "system_map",
+                "name": "Expandable system architecture map",
+                "room": "Engineering",
+                "status": "live",
+                "metric": "control-center iframe",
+                "cta_target": "systemMapCard",
+            },
+            {
+                "id": "briefing",
+                "name": "Swara morning briefing",
+                "room": "Voice",
+                "status": "live",
+                "metric": "text + cached audio",
+                "cta_target": "briefingBtn",
+            },
         ]
 
         live_count = len([f for f in features if f["status"] == "live"])
@@ -1604,6 +2157,7 @@ def build_trend_alerts(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
     Read-only, deterministic, thresholds env-tunable (OFFICE_STUCK_ALERT_DELTA /
     OFFICE_HOT_ALERT_DROP, default 3), never-raise."""
     try:
+
         def _thr(name: str, default: int) -> int:
             try:
                 return int(os.getenv(name, "").strip() or default)
@@ -1615,17 +2169,21 @@ def build_trend_alerts(snapshot: dict[str, Any]) -> list[dict[str, Any]]:
         stuck = dod.get("stuck") or {}
         hot = dod.get("hot") or {}
         if int(stuck.get("delta") or 0) >= _thr("OFFICE_STUCK_ALERT_DELTA", 3):
-            alerts.append({
-                "level": "warn",
-                "signal": "stuck_rising",
-                "msg": f"⚠️ Stuck leads +{stuck.get('delta')} vs kal ({stuck.get('now')}) — mid-funnel jam, aaj clear karo.",
-            })
+            alerts.append(
+                {
+                    "level": "warn",
+                    "signal": "stuck_rising",
+                    "msg": f"⚠️ Stuck leads +{stuck.get('delta')} vs kal ({stuck.get('now')}) — mid-funnel jam, aaj clear karo.",
+                }
+            )
         if int(hot.get("delta") or 0) <= -_thr("OFFICE_HOT_ALERT_DROP", 3):
-            alerts.append({
-                "level": "warn",
-                "signal": "hot_falling",
-                "msg": f"📉 Hot leads {hot.get('delta')} vs kal ({hot.get('now')}) — top-funnel dheema, prospecting/outreach push.",
-            })
+            alerts.append(
+                {
+                    "level": "warn",
+                    "signal": "hot_falling",
+                    "msg": f"📉 Hot leads {hot.get('delta')} vs kal ({hot.get('now')}) — top-funnel dheema, prospecting/outreach push.",
+                }
+            )
         return alerts
     except Exception as e:
         logger.debug(f"[office_hq] build_trend_alerts skipped: {e}")
@@ -1695,6 +2253,35 @@ async def build_snapshot() -> dict[str, Any]:
     snapshot["enterprise_features"] = build_enterprise_features(snapshot)
     snapshot["trends"] = build_trends(snapshot)  # W4.2: day-over-day pipeline momentum
     snapshot["trend_alerts"] = build_trend_alerts(snapshot)  # W4.3: momentum alerts
+    # Paperclip-inspired: per-agent cost + task queue depth
+    try:
+        from app.platform import agent_cost_tracker as act
+
+        snapshot["agent_costs"] = act.today_snapshot()
+    except Exception:
+        snapshot["agent_costs"] = {}
+    try:
+        from app.platform import agent_task_queue as atq
+
+        snapshot["task_queue"] = await atq.agent_queue_snapshot()
+    except Exception:
+        snapshot["task_queue"] = {}
+
+    # Paperclip: stale tasks — surface stuck work (report, don't auto-fix)
+    try:
+        from app.platform import agent_task_queue as atq2
+
+        snapshot["stale_tasks"] = await atq2.stale_tasks(threshold_minutes=10)
+    except Exception:
+        snapshot["stale_tasks"] = []
+
+    # Paperclip: budget dashboard
+    try:
+        from app.platform import agent_budget
+
+        snapshot["budget_dashboard"] = agent_budget.budget_dashboard()
+    except Exception:
+        snapshot["budget_dashboard"] = {}
 
     try:
         from app.cache import cache
@@ -1725,8 +2312,14 @@ async def pipeline_stage_detail(stage_id: str) -> dict[str, Any]:
     for s in stages:
         if s["id"] == stage_id:
             return s
-    return {"id": stage_id, "name": stage_id, "count": 0, "items": [], "source": "mock",
-            "note": "Unknown stage id."}
+    return {
+        "id": stage_id,
+        "name": stage_id,
+        "count": 0,
+        "items": [],
+        "source": "mock",
+        "note": "Unknown stage id.",
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -1765,7 +2358,12 @@ def move_item(item_id: str, item_type: str, next_stage: str, by: str = "admin") 
         if next_stage not in sales_pipeline.STAGES:
             return {"ok": False, "error": f"stage must be one of {sales_pipeline.STAGES}"}
         ok = sales_pipeline.set_stage(item_id, next_stage, allow_reverse=True)
-        return {"ok": ok, "item_id": item_id, "stage": next_stage, "via": "sales_pipeline.set_stage"}
+        return {
+            "ok": ok,
+            "item_id": item_id,
+            "stage": next_stage,
+            "via": "sales_pipeline.set_stage",
+        }
     if item_type == "lead":
         return admin_pipeline_overrides.set_status_override(item_id, next_stage, by)
     return {"ok": False, "error": f"unsupported item_type: {item_type}"}
@@ -1814,11 +2412,26 @@ async def run_agent_task(member: str, goal: str, scope: str = "solo") -> dict[st
         from app.platform import team
 
         team.log_event(
-            member=key, action="task_dispatched",
-            detail=f"[{scope}] {goal[:180]}", status="ok", meta={"scope": scope, "goal": goal[:400]},
+            member=key,
+            action="task_dispatched",
+            detail=f"[{scope}] {goal[:180]}",
+            status="ok",
+            meta={"scope": scope, "goal": goal[:400]},
         )
     except Exception as e:
         logger.debug(f"[office_hq] run_agent_task log_event skipped: {e}")
+
+    # --- AgentTask queue: create task record ---
+    task_id: str | None = None
+    try:
+        from app.platform import agent_task_queue as atq
+
+        t_res = await atq.assign(key, goal, delegated_by="admin")
+        task_id = t_res.get("id") if t_res.get("ok") else None
+        if task_id:
+            await atq.start(task_id)
+    except Exception:
+        pass
 
     try:
         from app.agents import coordinator
@@ -1830,23 +2443,63 @@ async def run_agent_task(member: str, goal: str, scope: str = "solo") -> dict[st
         result = await asyncio.wait_for(coro, timeout=_TASK_TIMEOUT)
     except asyncio.TimeoutError:
         logger.warning(f"[office_hq] run_agent_task({key},{scope}) hit {_TASK_TIMEOUT}s budget")
+        if task_id:
+            try:
+                from app.platform import agent_task_queue as atq
+
+                await atq.complete(task_id, result=f"timeout after {int(_TASK_TIMEOUT)}s")
+            except Exception:
+                pass
         return {
-            "ok": True, "status": "timeout", "member": key, "scope": scope,
+            "ok": True,
+            "status": "timeout",
+            "member": key,
+            "scope": scope,
             "summary": "",
-            "note": (f"Time-limit ({int(_TASK_TIMEOUT)}s) tak poora nahi hua — jitne step complete "
-                     "hue woh events/ticker me dikhenge. Halka goal ya solo scope try karo."),
+            "note": (
+                f"Time-limit ({int(_TASK_TIMEOUT)}s) tak poora nahi hua — jitne step complete "
+                "hue woh events/ticker me dikhenge. Halka goal ya solo scope try karo."
+            ),
         }
     except Exception as e:
         logger.warning(f"[office_hq] run_agent_task({key},{scope}) failed: {e}")
+        if task_id:
+            try:
+                from app.platform import agent_task_queue as atq
+
+                await atq.fail(task_id, str(e)[:300])
+            except Exception:
+                pass
         return {"ok": False, "error": str(e)[:300], "member": key, "scope": scope}
 
     result = result or {}
+    # --- AgentTask queue: complete/fail task ---
+    if task_id:
+        try:
+            from app.platform import agent_task_queue as atq
+
+            summary = str(result.get("summary") or "")[:500]
+            if result.get("ok", True):
+                await atq.complete(task_id, result=summary)
+            else:
+                await atq.fail(task_id, str(result.get("error") or "failed")[:300])
+        except Exception:
+            pass
+
     if not result.get("ok", True):
-        return {"ok": False, "error": str(result.get("error") or "coordinator run failed"),
-                "member": key, "scope": scope}
+        return {
+            "ok": False,
+            "error": str(result.get("error") or "coordinator run failed"),
+            "member": key,
+            "scope": scope,
+        }
     return {
-        "ok": True, "status": "done", "member": key, "scope": scope,
+        "ok": True,
+        "status": "done",
+        "member": key,
+        "scope": scope,
         "run_id": result.get("run_id") or "",
+        "task_id": task_id or "",
         "summary": str(result.get("summary") or "(summary abhi nahi bana)")[:1200],
         "note": "Pura result agent_events/ticker me bhi aa gaya (draft-safe — koi auto-send nahi).",
     }
@@ -1867,16 +2520,44 @@ _ASK_ROUTE_TIMEOUT = 12.0
 _ASK_ANSWER_TIMEOUT = 25.0
 
 _TASK_VERB_HINTS = (
-    "karo", "kar do", "kardo", "banao", "bana do", "bhejo", "bhej do", "chalao",
-    "run kar", "dispatch", "draft", "likho", "likh do", "nikalo", "dhundo",
-    "harvest", "scrape", "post kar", "call kar", "schedule kar", "start kar",
+    "karo",
+    "kar do",
+    "kardo",
+    "banao",
+    "bana do",
+    "bhejo",
+    "bhej do",
+    "chalao",
+    "run kar",
+    "dispatch",
+    "draft",
+    "likho",
+    "likh do",
+    "nikalo",
+    "dhundo",
+    "harvest",
+    "scrape",
+    "post kar",
+    "call kar",
+    "schedule kar",
+    "start kar",
 )
 
 # "sabhi agents ko command" (user-ask 2026-07-03) — broadcast = parallel fan_out
 # to the doer-set (RUNNABLE_MEMBERS), capped, draft-safe.
 _BROADCAST_HINTS = (
-    "sabhi agent", "sab agent", "sabko", "sab ko", "all agent", "broadcast",
-    "puri team", "poori team", "saari team", "sari team", "everyone", "har agent",
+    "sabhi agent",
+    "sab agent",
+    "sabko",
+    "sab ko",
+    "all agent",
+    "broadcast",
+    "puri team",
+    "poori team",
+    "saari team",
+    "sari team",
+    "everyone",
+    "har agent",
 )
 
 
@@ -1891,15 +2572,16 @@ def _ask_heuristic_route(q: str) -> dict[str, str]:
 
 async def _ask_route(q: str) -> dict[str, str]:
     """Free-LLM intent+staff router (strict-JSON) — fail/timeout = heuristic."""
-    roster = "\n".join(f"- {k}: {v.get('title','')} — {str(v.get('duties',''))[:90]}"
-                       for k, v in STAFF.items())
+    roster = "\n".join(
+        f"- {k}: {v.get('title','')} — {str(v.get('duties',''))[:90]}" for k, v in STAFF.items()
+    )
     system = (
         "Tum ek AI-office router ho. User (admin) ka message classify karo.\n"
         "Roster:\n" + roster + "\n\n"
         'STRICT JSON hi lautao: {"kind":"question"|"task"|"broadcast","member":"<roster-key>","scope":"solo"|"team"}\n'
         "task = user kuch KARWANA chahta hai (banao/bhejo/chalao...). member = sabse fit staff-key; "
         'confuse ho to "manager" + scope "team". question = info/status poocha hai. '
-        'broadcast = user SABHI/puri team agents ko ek saath command dena chahta hai.'
+        "broadcast = user SABHI/puri team agents ko ek saath command dena chahta hai."
     )
     try:
         import json as _json
@@ -1907,12 +2589,17 @@ async def _ask_route(q: str) -> dict[str, str]:
         from app.voice_agent import free_ai
 
         text, _p = await asyncio.wait_for(
-            free_ai.chat(system, [{"role": "user", "content": q}],
-                         max_tokens=80, temperature=0.0, scope="office_ask_route"),
+            free_ai.chat(
+                system,
+                [{"role": "user", "content": q}],
+                max_tokens=80,
+                temperature=0.0,
+                scope="office_ask_route",
+            ),
             timeout=_ASK_ROUTE_TIMEOUT,
         )
         raw = (text or "").strip()
-        raw = raw[raw.find("{"): raw.rfind("}") + 1]
+        raw = raw[raw.find("{") : raw.rfind("}") + 1]
         parsed = _json.loads(raw)
         kind = str(parsed.get("kind") or "").strip().lower()
         member = str(parsed.get("member") or "").strip().lower()
@@ -1944,14 +2631,23 @@ def _ask_context_from_snapshot(snap: dict[str, Any]) -> str:
             parts.append("Pending approvals: " + "; ".join(f"{k}={v}" for k, v in items))
         nba = snap.get("next_best_actions") or []
         if nba:
-            parts.append("Next-best-actions: " + " | ".join(str(x.get("title") or x)[:80] for x in nba[:3]))
+            parts.append(
+                "Next-best-actions: " + " | ".join(str(x.get("title") or x)[:80] for x in nba[:3])
+            )
         sh = snap.get("system_health") or {}
         if sh:
             parts.append("System: " + "; ".join(f"{k}={v}" for k, v in list(sh.items())[:6]))
         agents = snap.get("agents") or []
         if agents:
-            active = [a.get("name") or a.get("key") for a in agents if a.get("status") in ("working", "active")]
-            parts.append(f"Staff active: {len(active)}/{len(agents)}" + (f" ({', '.join(map(str, active[:6]))})" if active else ""))
+            active = [
+                a.get("name") or a.get("key")
+                for a in agents
+                if a.get("status") in ("working", "active")
+            ]
+            parts.append(
+                f"Staff active: {len(active)}/{len(agents)}"
+                + (f" ({', '.join(map(str, active[:6]))})" if active else "")
+            )
         return "\n".join(parts)[:1400]
     except Exception:
         return ""
@@ -1980,12 +2676,23 @@ async def hq_ask(q: str) -> dict[str, Any]:
                 timeout=_TASK_TIMEOUT,
             )
         except asyncio.TimeoutError:
-            return {"ok": True, "kind": "broadcast", "member": "", "scope": "team",
-                    "text": f"⏳ Broadcast time-limit ({int(_TASK_TIMEOUT)}s) me poora nahi hua — "
-                            "jitne agents ne kaam kiya woh events/ticker me hai."}
+            return {
+                "ok": True,
+                "kind": "broadcast",
+                "member": "",
+                "scope": "team",
+                "text": f"⏳ Broadcast time-limit ({int(_TASK_TIMEOUT)}s) me poora nahi hua — "
+                "jitne agents ne kaam kiya woh events/ticker me hai.",
+            }
         except Exception as e:
-            return {"ok": False, "kind": "broadcast", "member": "", "scope": "team",
-                    "text": f"❌ Broadcast fail: {str(e)[:200]}", "error": str(e)[:300]}
+            return {
+                "ok": False,
+                "kind": "broadcast",
+                "member": "",
+                "scope": "team",
+                "text": f"❌ Broadcast fail: {str(e)[:200]}",
+                "error": str(e)[:300],
+            }
         result = result or {}
         lines = [f"📢 {len(result.get('agents') or agents)} agents ko bheja:"]
         for r in (result.get("results") or [])[:8]:
@@ -1994,21 +2701,39 @@ async def hq_ask(q: str) -> dict[str, Any]:
             lines.append(f"• {nm}: {out[:140]}" if out else f"• {nm}: (events me dekho)")
         if result.get("summary"):
             lines.append("\n🧑‍💼 Boss ka merge: " + str(result["summary"])[:400])
-        return {"ok": True, "kind": "broadcast", "member": "", "scope": "team",
-                "run_id": str(result.get("at") or ""), "text": "\n".join(lines)[:1400]}
+        return {
+            "ok": True,
+            "kind": "broadcast",
+            "member": "",
+            "scope": "team",
+            "run_id": str(result.get("at") or ""),
+            "text": "\n".join(lines)[:1400],
+        }
 
     if route["kind"] == "task":
         res = await run_agent_task(route["member"], q, route["scope"])
         name = STAFF.get(route["member"], {}).get("name") or route["member"]
         if not res.get("ok"):
-            return {"ok": False, "kind": "task", "member": route["member"], "scope": route["scope"],
-                    "text": f"❌ {name} ko dispatch fail hua: {res.get('error','?')}", "error": res.get("error", "")}
+            return {
+                "ok": False,
+                "kind": "task",
+                "member": route["member"],
+                "scope": route["scope"],
+                "text": f"❌ {name} ko dispatch fail hua: {res.get('error','?')}",
+                "error": res.get("error", ""),
+            }
         if res.get("status") == "timeout":
             text = f"⏳ {name} ko kaam de diya — time-limit me poora nahi hua, jitna hua woh events/ticker me hai."
         else:
             text = f"📨 {name} ({route['scope']}) ne kaam kiya:\n{res.get('summary','')}".strip()
-        return {"ok": True, "kind": "task", "member": route["member"], "scope": route["scope"],
-                "run_id": res.get("run_id", ""), "text": text[:1400]}
+        return {
+            "ok": True,
+            "kind": "task",
+            "member": route["member"],
+            "scope": route["scope"],
+            "run_id": res.get("run_id", ""),
+            "text": text[:1400],
+        }
 
     # question -> grounded Boss answer
     try:
@@ -2028,8 +2753,13 @@ async def hq_ask(q: str) -> dict[str, Any]:
         from app.voice_agent import free_ai
 
         text, _p = await asyncio.wait_for(
-            free_ai.chat(system, [{"role": "user", "content": q}],
-                         max_tokens=350, temperature=0.4, scope="office_ask"),
+            free_ai.chat(
+                system,
+                [{"role": "user", "content": q}],
+                max_tokens=350,
+                temperature=0.4,
+                scope="office_ask",
+            ),
             timeout=_ASK_ANSWER_TIMEOUT,
         )
         answer = (text or "").strip()
@@ -2037,7 +2767,9 @@ async def hq_ask(q: str) -> dict[str, Any]:
         logger.warning(f"[office_hq] hq_ask answer LLM failed: {e}")
         answer = ""
     if not answer:
-        answer = ("LLM abhi jawab nahi de paya. Snapshot facts:\n" + (ctx or "(kuch nahi mila)"))[:900]
+        answer = ("LLM abhi jawab nahi de paya. Snapshot facts:\n" + (ctx or "(kuch nahi mila)"))[
+            :900
+        ]
     return {"ok": True, "kind": "question", "text": answer[:1400]}
 
 
@@ -2062,7 +2794,9 @@ _DEFAULT_COUNCIL_TOPIC = (
 )
 
 
-async def improvement_council(topic: str = "", team_size: int = 4, max_rounds: int = 1) -> dict[str, Any]:
+async def improvement_council(
+    topic: str = "", team_size: int = 4, max_rounds: int = 1
+) -> dict[str, Any]:
     """Snapshot-grounded AgentVerse discussion on what to improve next.
 
     Always draft-only (execute=False — a discussion, not an action run).
@@ -2082,12 +2816,16 @@ async def improvement_council(topic: str = "", team_size: int = 4, max_rounds: i
     except Exception:  # pragma: no cover — build_snapshot khud never-raise hai
         snap = {}
     ctx = _ask_context_from_snapshot(snap or {})
-    goal = topic + ("\n\nAAJ KE REAL FACTS (isi pe grounded raho, number mat banao):\n" + ctx if ctx else "")
+    goal = topic + (
+        "\n\nAAJ KE REAL FACTS (isi pe grounded raho, number mat banao):\n" + ctx if ctx else ""
+    )
 
     try:
         from app.platform import team
 
-        team.log_event(member="manager", action="improvement_council_start", detail=topic[:180], status="ok")
+        team.log_event(
+            member="manager", action="improvement_council_start", detail=topic[:180], status="ok"
+        )
     except Exception as e:
         logger.debug(f"[office_hq] improvement_council log_event(start) skipped: {e}")
 
@@ -2095,15 +2833,21 @@ async def improvement_council(topic: str = "", team_size: int = 4, max_rounds: i
         from app.agents import coordinator
 
         result = await asyncio.wait_for(
-            coordinator.coordinate_agentverse(goal, execute=False, max_rounds=max_rounds, team_size=team_size),
+            coordinator.coordinate_agentverse(
+                goal, execute=False, max_rounds=max_rounds, team_size=team_size
+            ),
             timeout=_COUNCIL_TIMEOUT,
         )
     except asyncio.TimeoutError:
         logger.warning(f"[office_hq] improvement_council hit {_COUNCIL_TIMEOUT}s budget")
         return {
-            "ok": True, "status": "timeout", "topic": topic,
-            "note": (f"Time-limit ({int(_COUNCIL_TIMEOUT)}s) me discussion poori nahi hui — "
-                     "chhota topic ya kam experts (team_size 2) try karo."),
+            "ok": True,
+            "status": "timeout",
+            "topic": topic,
+            "note": (
+                f"Time-limit ({int(_COUNCIL_TIMEOUT)}s) me discussion poori nahi hui — "
+                "chhota topic ya kam experts (team_size 2) try karo."
+            ),
         }
     except Exception as e:
         logger.warning(f"[office_hq] improvement_council failed: {e}")
@@ -2111,34 +2855,47 @@ async def improvement_council(topic: str = "", team_size: int = 4, max_rounds: i
 
     result = result or {}
     if not result.get("ok", True):
-        return {"ok": False, "error": str(result.get("error") or "council run failed"), "topic": topic}
+        return {
+            "ok": False,
+            "error": str(result.get("error") or "council run failed"),
+            "topic": topic,
+        }
 
     contributions: list[dict[str, Any]] = []
     for c in result.get("contributions") or []:
         staff_key = str(c.get("staff") or "").strip().lower()
         out_val = c.get("output")
-        contributions.append({
-            "role": str(c.get("role") or "")[:80],
-            "staff": staff_key,
-            "staff_name": (STAFF.get(staff_key, {}) or {}).get("name") or "",
-            "output": (out_val if isinstance(out_val, str) else str(out_val or ""))[:800],
-            "dispatchable": staff_key in STAFF,
-        })
+        contributions.append(
+            {
+                "role": str(c.get("role") or "")[:80],
+                "staff": staff_key,
+                "staff_name": (STAFF.get(staff_key, {}) or {}).get("name") or "",
+                "output": (out_val if isinstance(out_val, str) else str(out_val or ""))[:800],
+                "dispatchable": staff_key in STAFF,
+            }
+        )
 
     try:
         from app.platform import team
 
         team.log_event(
-            member="manager", action="improvement_council_done",
-            detail=f"score={result.get('final_score')} experts={len(contributions)}", status="ok",
+            member="manager",
+            action="improvement_council_done",
+            detail=f"score={result.get('final_score')} experts={len(contributions)}",
+            status="ok",
         )
     except Exception:
         pass
 
     return {
-        "ok": True, "topic": topic,
+        "ok": True,
+        "topic": topic,
         "experts": [
-            {"role": e.get("role", ""), "expertise": e.get("expertise", ""), "staff": e.get("staff", "")}
+            {
+                "role": e.get("role", ""),
+                "expertise": e.get("expertise", ""),
+                "staff": e.get("staff", ""),
+            }
             for e in (result.get("experts") or [])
         ],
         "contributions": contributions,

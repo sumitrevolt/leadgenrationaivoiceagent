@@ -6,6 +6,7 @@ Production-ready SQLAlchemy models for the B2B Intelligence Platform
 from app.models.account import Account
 from app.models.agent import Agent, AgentStatus
 from app.models.agent_event import AgentEvent
+from app.models.agent_task import AgentTask
 from app.models.approval_notification import ApprovalNotification
 from app.models.automation_log import AutomationLog
 from app.models.base import (
@@ -97,6 +98,7 @@ __all__ = [
     "Agent",
     "AgentStatus",
     "AgentEvent",
+    "AgentTask",
     # Billing record models
     "BillingRecord",
     "BillingRecordType",

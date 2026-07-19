@@ -37,6 +37,8 @@ ALIAS_TO_MEMBER = {
     "digest": "manager",
     "content": "isha",
     "email_outreach": "rohan",
+    "blog": "ravi",
+    "growth": "manager",
 }
 
 
@@ -97,12 +99,20 @@ def pause(member: str, by: str = "admin", note: str = "") -> dict[str, Any]:
     m = _canon(member)
     if not m:
         return {"ok": False, "error": "member required"}
-    rec = {"member": m, "paused": True, "by": (by or "admin")[:80], "note": (note or "")[:200], "at": _now_iso()}
+    rec = {
+        "member": m,
+        "paused": True,
+        "by": (by or "admin")[:80],
+        "note": (note or "")[:200],
+        "at": _now_iso(),
+    }
     _append(rec)
     try:
         from app.platform import team
 
-        team.log_event(m, "paused_by_admin", f"Manual run paused by {by}: {note}"[:200], status="warn")
+        team.log_event(
+            m, "paused_by_admin", f"Manual run paused by {by}: {note}"[:200], status="warn"
+        )
     except Exception:
         pass
     return {"ok": True, **rec}

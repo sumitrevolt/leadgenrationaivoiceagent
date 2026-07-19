@@ -296,12 +296,38 @@ async def _run_job(job: str, retry_count: int = 0) -> bool:
         )
     except Exception:
         pass
+    # --- Paperclip Routine Bridge: every cron run → auditable AgentTask ---
+    _routine_task_id = None
+    try:
+        from app.platform import agent_task_queue as atq
+
+        _rt = await atq.assign(
+            job,
+            f"Scheduled routine: {job}",
+            delegated_by="scheduler",
+        )
+        _routine_task_id = _rt.get("id") if _rt.get("ok") else None
+        if _routine_task_id:
+            await atq.start(_routine_task_id)
+    except Exception:
+        pass
+
     try:
         # W1.2: _run_job_inner ab bool deta — False = job-level fail (dead-man
         # switch ko real status jaana chahiye). Re-raise NAHI: scheduler_loop poore
         # tick ko ek hi try me chalata hai, to yahan raise = is tick ke baaki jobs skip.
         _res = await _run_job_inner(job)
         _ok = _res is not False
+
+        # Routine bridge: complete task
+        if _routine_task_id:
+            try:
+                if _ok:
+                    await atq.complete(_routine_task_id, result=f"routine {job} ok")
+                else:
+                    await atq.fail(_routine_task_id, f"routine {job} returned False")
+            except Exception:
+                pass
         if _res is False:
             # inner ne apna exception khud pakad ke sirf False diya — yahan detail
             # nahi milti (inner ke internals refactor nahi karte), isliye generic marker.
@@ -316,6 +342,12 @@ async def _run_job(job: str, retry_count: int = 0) -> bool:
         _err_class = type(_e).__name__
         _err_msg = str(_e)
         logger.warning(f"[team-scheduler] job '{job}' raised unexpectedly", exc_info=True)
+        # Routine bridge: mark failed on exception
+        if _routine_task_id:
+            try:
+                await atq.fail(_routine_task_id, f"{_err_class}: {_err_msg[:200]}")
+            except Exception:
+                pass
     finally:
         _duration = _time.monotonic() - _t0
         try:
