@@ -2,6 +2,29 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-19 - ADR-125 branded_posters top-up generator (Product One 80% -> 90%)
+
+Decision: `auto_content.generate_poster_pack(client, target=4)` — real branded SVG
+posters ko `target` (4) tak top-up karta hai (`posters.generate_poster`:
+offer-burst/generic-sale/clean-pro templates + brand colors + niche Hinglish offers),
+distinct dates pe (date|type dedup bachao), sirf non-empty-SVG wale count. Self-guarding
+(need = target - existing), approval + ledger + deliverable-sync, `seed_client_content`
+(= generate_content) me wired. Deployed 716bed84.
+
+Context: ADR-124 ke baad Jiya 80% pe thi — branded_posters 2/4 (daily calendar se
+~1 poster/din + dedup se ek run me kam accrue). Plan "4 branded posters" promise karta.
+
+Rejected: fake/empty posters (svg-empty skip — real only, §0 no-stub); poster ko
+gbp/review pack me merge (alag deliverable); sirf daily job pe chhodna (customer ko
+turant 4 draft chahiye).
+
+Consequence: generate_content ab 9/10 deliverables fill karta. Jiya operate (prod):
+poster 2->4, branded_posters `done`, pct 80->90 (dono ids). 2 contract tests. Rollback =
+revert 716bed84. Remaining: `proof` (last 10%) — HONESTLY blocked, NOT faked: real
+published/scheduled work ya admin manual 1-click publish chahiye (Jiya ke apne social
+channels connected nahi + Meta customer-page review blocked + ban-safety §5). Isliye
+proof intentionally `in_progress` chhoda.
+
 ## 2026-07-19 - ADR-124 GBP + review-reply generators (Product One delivery 60% -> 80%)
 
 Decision: `auto_content` me do naye generators — `generate_gbp_pack` (type=`gbp`
