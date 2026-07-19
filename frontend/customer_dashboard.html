@@ -4491,18 +4491,25 @@ function drawCalendarGrid() {
   window.runActiveTool=async function(){
     var t=ACTIVE; if(!t) return;
     var btn=document.getElementById("toolRunBtn"), res=document.getElementById("toolModalResult");
-    var body={}; document.querySelectorAll("#toolModalFields .tool-field").forEach(function(el){ var v=(el.value||"").trim(); if(v) body[el.getAttribute("data-f")]=v; });
+    var LIST_FIELDS={services:1,reviews:1,langs:1}; // backend list[str] fields — comma/newline -> array (warna 422)
+    var body={}; document.querySelectorAll("#toolModalFields .tool-field").forEach(function(el){
+      var f=el.getAttribute("data-f"), v=(el.value||"").trim(); if(!v) return;
+      body[f]= LIST_FIELDS[f] ? v.split(/[,\n]+/).map(function(s){return s.trim();}).filter(Boolean) : v;
+    });
     btn.disabled=true; var old=btn.textContent; btn.textContent="⏳ Ban raha hai…";
     res.innerHTML='<span class="sm" style="color:var(--muted)">AI kaam kar rahi hai…</span>';
+    var _ctl=new AbortController(); var _to=setTimeout(function(){_ctl.abort();},45000);
     try{
       var method=t.method||"POST";
-      var opt={method:method,headers:Object.assign({},tHdr())};
+      var opt={method:method,headers:Object.assign({},tHdr()),signal:_ctl.signal};
       if(method==="POST"){ opt.headers["Content-Type"]="application/json"; opt.body=JSON.stringify(body); }
-      var r=await fetch(t.path,opt);
+      var r=await fetch(t.path,opt); clearTimeout(_to);
       var j=null; try{ j=await r.json(); }catch(e){}
-      if(!r.ok){ throw new Error((j&&(j.detail||j.error))||("HTTP "+r.status)); }
+      if(!r.ok){ var em=(j&&(j.detail||(j.error&&(j.error.message||j.error))||j.message))||("HTTP "+r.status); throw new Error(typeof em==="string"?em:JSON.stringify(em)); }
       res.innerHTML=renderToolResult(j);
-    }catch(e){ res.innerHTML='<div class="sm" style="color:#b91c1c">Nahi bana — '+escH(String(e&&e.message||e))+'. Thodi der baad try karo.</div>'; }
+    }catch(e){ clearTimeout(_to);
+      var msg=(e&&e.name==="AbortError")?"Ye tool thoda heavy hai (AI zyada kaam kar raha) — 45s me ready nahi hua. Dobara try karo.":("Nahi bana — "+String(e&&e.message||e)+". Thodi der baad try karo.");
+      res.innerHTML='<div class="sm" style="color:#b91c1c">'+escH(msg)+'</div>'; }
     btn.disabled=false; btn.textContent=old;
   };
   function collectText(o,acc){

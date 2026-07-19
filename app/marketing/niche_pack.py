@@ -73,7 +73,16 @@ async def build_pack(
                 "provider": p.get("provider") or "",
             }
 
-        results = await asyncio.gather(*[_one(t) for t in themes], return_exceptions=True)
+        # 2026-07-19: bounded concurrency (Semaphore 2) — unbounded gather free-tier
+        # LLM ko 429-burst kar raha tha (niche-pack 35s+ timeout). 2-at-a-time =
+        # sequential se tez par 429-storm nahi.
+        _sem = asyncio.Semaphore(2)
+
+        async def _bounded(t: str) -> dict[str, Any]:
+            async with _sem:
+                return await _one(t)
+
+        results = await asyncio.gather(*[_bounded(t) for t in themes], return_exceptions=True)
         for r in results:
             if isinstance(r, dict):
                 posts.append(r)
