@@ -29,10 +29,11 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
+from app.platform.admin_audit import record_admin_action
 
 logger = logging.getLogger(__name__)
 
@@ -448,17 +449,19 @@ class DeliveryActionIn(BaseModel):
 async def admin_delivery_action(
     client_id: str,
     body: DeliveryActionIn,
-    _user=Depends(require_admin),
+    request: Request,
+    admin=Depends(require_admin),
 ) -> dict:
     """Action buttons for Delivery Cockpit.
 
     Buttons call real existing operations where available (content generation,
     approval, monthly report) or create an explicit manual task/proof record.
     """
+    cid = (client_id or "").strip()
     try:
         from app.marketing import product_one_delivery
 
-        return await product_one_delivery.record_manual_action(
+        res = await product_one_delivery.record_manual_action(
             client_id,
             body.action,
             deliverable_id=body.deliverable_id,
@@ -466,8 +469,35 @@ async def admin_delivery_action(
             owner=body.owner,
             status=body.status,
         )
+        await record_admin_action(
+            request=request,
+            actor=admin,
+            action="client.delivery_action",
+            target_type="client",
+            target_id=cid,
+            tenant=cid,
+            after={
+                "action": body.action,
+                "deliverable_id": body.deliverable_id,
+                "status": body.status,
+            },
+            result=("success" if (isinstance(res, dict) and res.get("ok", True)) else "failed"),
+        )
+        return res
     except Exception as e:
         logger.warning("admin_delivery_action failed: %s", e)
+        await record_admin_action(
+            request=request,
+            actor=admin,
+            action="client.delivery_action",
+            target_type="client",
+            target_id=cid,
+            tenant=cid,
+            after={"action": getattr(body, "action", None)},
+            result="failed",
+            error=str(e)[:200],
+            severity="critical",
+        )
         return {"ok": False, "error": str(e)[:160]}
 
 
@@ -692,24 +722,56 @@ class ClientDeleteIn(BaseModel):
 
 @router.post("/clients/{client_id}/delete")
 async def admin_delete_client(
-    client_id: str, body: ClientDeleteIn, _user=Depends(require_admin)
+    client_id: str, body: ClientDeleteIn, request: Request, admin=Depends(require_admin)
 ) -> dict:
     """Permanently remove a client record (admin cleanup of test/junk). Irreversible
     → confirm required. Admin-gated like the other destructive admin actions."""
+    cid = (client_id or "").strip()
     if not body.confirm:
+        await record_admin_action(
+            request=request,
+            actor=admin,
+            action="client.delete",
+            target_type="client",
+            target_id=cid,
+            tenant=cid,
+            result="rejected",
+            error="confirm required",
+        )
         return {"ok": False, "error": "confirm required"}
     from app.marketing import clients_store
 
-    ok = clients_store.delete_client((client_id or "").strip())
+    ok = clients_store.delete_client(cid)
+    await record_admin_action(
+        request=request,
+        actor=admin,
+        action="client.delete",
+        target_type="client",
+        target_id=cid,
+        tenant=cid,
+        after={"deleted": bool(ok)},
+        result=("success" if ok else "failed"),
+        error=(None if ok else "delete_client returned False"),
+    )
     return {"ok": ok, "client_id": client_id, "deleted": ok}
 
 
 @router.post("/clients/dedupe")
-async def admin_dedupe_clients(_user=Depends(require_admin)) -> dict:
+async def admin_dedupe_clients(request: Request, admin=Depends(require_admin)) -> dict:
     """Remove exact-duplicate client records (same phone → keep newest)."""
     from app.marketing import clients_store
 
-    return {"ok": True, **clients_store.dedupe_clients()}
+    res = clients_store.dedupe_clients()
+    await record_admin_action(
+        request=request,
+        actor=admin,
+        action="client.dedupe",
+        target_type="client",
+        target_id="*",
+        after=res,
+        result="success",
+    )
+    return {"ok": True, **res}
 
 
 @router.get("/agents")
@@ -728,15 +790,29 @@ class BulkEmailIn(BaseModel):
 
 
 @router.post("/clients/bulk-email")
-async def bulk_email_clients(body: BulkEmailIn, _user=Depends(require_admin)) -> dict:
+async def bulk_email_clients(
+    body: BulkEmailIn, request: Request, admin=Depends(require_admin)
+) -> dict:
     """Selected clients ko transactional check-in email — SMTP off ho to graceful skip."""
     from app.api.billing import _client_email, _client_name
     from app.integrations.email_sender import EmailSender
 
+    _n_targets = len(body.client_ids or [])
     try:
         from app.platform.owner_os import kill_engaged
 
         if kill_engaged("owner_bulk_email"):
+            await record_admin_action(
+                request=request,
+                actor=admin,
+                action="client.bulk_email",
+                target_type="client",
+                target_id="*",
+                after={"targets": _n_targets},
+                result="rejected",
+                error="owner_bulk_email kill switch ENGAGED",
+                severity="warning",
+            )
             return {
                 "ok": False,
                 "sent": 0,
@@ -785,6 +861,17 @@ async def bulk_email_clients(body: BulkEmailIn, _user=Depends(require_admin)) ->
             failed += 1
             details.append({"client_id": cid, "status": "failed", "error": str(e)[:80]})
 
+    await record_admin_action(
+        request=request,
+        actor=admin,
+        action="client.bulk_email",
+        target_type="client",
+        target_id="*",
+        after={"sent": sent, "skipped": skipped, "failed": failed, "targets": _n_targets},
+        result=("success" if failed == 0 else "partial"),
+        error=(None if failed == 0 else f"{failed} sends failed"),
+        severity=("info" if failed == 0 else "warning"),
+    )
     return {
         "ok": sent > 0 or (skipped > 0 and failed == 0),
         "sent": sent,
@@ -816,9 +903,21 @@ async def get_ops_snapshot(_user=Depends(require_admin)) -> dict:
 
 
 @router.post("/ops/celery-trim")
-async def trim_celery_queue(body: CeleryTrimIn, _user=Depends(require_admin)) -> dict:
+async def trim_celery_queue(
+    body: CeleryTrimIn, request: Request, admin=Depends(require_admin)
+) -> dict:
     """Clear stale Celery backlog (beat re-schedules). confirm=true + depth>=min_depth required."""
     if not body.confirm:
+        await record_admin_action(
+            request=request,
+            actor=admin,
+            action="ops.celery_trim",
+            target_type="queue",
+            target_id="celery",
+            result="rejected",
+            error="confirm:true required",
+            severity="warning",
+        )
         return {"ok": False, "error": "confirm:true required — yeh pending tasks delete karta hai"}
     try:
         import redis as _redis
@@ -828,12 +927,34 @@ async def trim_celery_queue(body: CeleryTrimIn, _user=Depends(require_admin)) ->
         r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=3)
         depth = int(r.llen("celery") or 0)
         if depth < body.min_depth:
+            await record_admin_action(
+                request=request,
+                actor=admin,
+                action="ops.celery_trim",
+                target_type="queue",
+                target_id="celery",
+                before={"depth": depth, "min_depth": body.min_depth},
+                result="rejected",
+                error=f"depth {depth} < min_depth {body.min_depth}",
+                severity="warning",
+            )
             return {
                 "ok": False,
                 "error": f"queue depth {depth} < min_depth {body.min_depth} — trim skip",
                 "depth": depth,
             }
         r.delete("celery")
+        await record_admin_action(
+            request=request,
+            actor=admin,
+            action="ops.celery_trim",
+            target_type="queue",
+            target_id="celery",
+            before={"depth": depth},
+            after={"cleared": depth},
+            result="success",
+            severity="warning",
+        )
         return {
             "ok": True,
             "cleared": depth,
@@ -841,4 +962,14 @@ async def trim_celery_queue(body: CeleryTrimIn, _user=Depends(require_admin)) ->
         }
     except Exception as e:
         logger.warning("admin_dashboard: celery-trim failed (%s)", e)
+        await record_admin_action(
+            request=request,
+            actor=admin,
+            action="ops.celery_trim",
+            target_type="queue",
+            target_id="celery",
+            result="failed",
+            error=str(e)[:200],
+            severity="critical",
+        )
         return {"ok": False, "error": str(e)[:160]}
