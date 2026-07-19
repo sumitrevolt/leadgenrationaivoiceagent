@@ -158,16 +158,34 @@ class VobizClient:
             return {"status_code": 0, "body": {"error": _err}}
 
     async def get_balance(self) -> dict[str, Any]:
-        """GET {base}/ — account details (incl. balance). Never raises."""
+        """GET {base}/ — account details (incl. balance). Never raises.
+
+        2026-07-19: split timeout (connect=5s, read=10s) — pehle 15s total timeout
+        se ConnectTimeout har hourly watchdog run pe noise + no balance evidence
+        milta tha. Ab connect fail-fast hoga (5s) aur recurring transport errors
+        warning level pe log hote hain (error spam kam, signal same).
+        """
         try:
             import httpx  # lazy
 
-            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(connect=5.0, read=10.0, write=5.0, pool=2.0),
+                follow_redirects=True,
+            ) as client:
                 resp = await client.get(f"{self.base_url}/", headers=self._headers())
             return {"status_code": resp.status_code, "body": self._safe_body(resp)}
         except Exception as e:
             _err = f"{type(e).__name__}: {e}".rstrip(": ")
-            logger.error(f"Vobiz get_balance failed: {_err}")
+            # Recurring ConnectTimeout/transport errors = warning (not error).
+            # Known Vobiz API reachability issue — operator-action, not a code bug.
+            _is_transport = any(
+                t in type(e).__name__
+                for t in ("Timeout", "ConnectError", "ConnectTimeout", "NetworkError")
+            )
+            if _is_transport:
+                logger.warning(f"Vobiz get_balance transport error (recurring?): {_err}")
+            else:
+                logger.error(f"Vobiz get_balance failed: {_err}")
             return {"status_code": 0, "body": {"error": _err}}
 
 

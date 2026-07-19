@@ -22,7 +22,9 @@ class Settings(BaseSettings):
     secret_key: str = "change-this-in-production-min-32-chars-xxxxx"
 
     # Database
-    database_url: str = "sqlite+aiosqlite:///./data/leadgen_dev.db"  # dev-only default; prod uses env
+    database_url: str = (
+        "sqlite+aiosqlite:///./data/leadgen_dev.db"  # dev-only default; prod uses env
+    )
     redis_url: str = "redis://localhost:6379/0"
 
     # Vector RAG (Qdrant) — empty = disabled; KB falls back to Chroma/keyword
@@ -49,7 +51,9 @@ class Settings(BaseSettings):
     xai_api_key: str = ""  # x.ai (Grok — Groq se ALAG company; credits-based)
     sambanova_api_key: str = ""  # cloud.sambanova.ai — 100% free, no card, Llama-3.3-70B
     mistral_api_key: str = ""  # console.mistral.ai — free tier La Plateforme, mistral-small
-    nvidia_api_key: str = ""  # build.nvidia.com — NVIDIA NIM (OpenAI-compatible); free tier 40 RPM + metered credits, deep-tail fallback
+    nvidia_api_key: str = (
+        ""  # build.nvidia.com — NVIDIA NIM (OpenAI-compatible); free tier 40 RPM + metered credits, deep-tail fallback
+    )
     google_cloud_project_id: str = ""
     google_cloud_location: str = "us-central1"
     default_llm: str = (
@@ -116,10 +120,14 @@ class Settings(BaseSettings):
     # EXISTING WhatsApp account via QR scan. Default provider stays "cloud" so setting these
     # alone changes nothing until WHATSAPP_PROVIDER=waha. A number is EITHER on Cloud API
     # OR on a Web-session stack — never both at once.
-    whatsapp_provider: str = "cloud"  # "cloud" (Meta Cloud API) | "waha"/"selfhost" (own WAHA stack)
+    whatsapp_provider: str = (
+        "cloud"  # "cloud" (Meta Cloud API) | "waha"/"selfhost" (own WAHA stack)
+    )
     whatsapp_business_number: str = ""  # linked business number, digits e.g. 918261030181
     waha_base_url: str = ""  # e.g. http://waha:3000 (in-network) — set = self-host stack reachable
-    waha_api_key: str = ""  # X-Api-Key for the WAHA HTTP API (matches WAHA_API_KEY on the container)
+    waha_api_key: str = (
+        ""  # X-Api-Key for the WAHA HTTP API (matches WAHA_API_KEY on the container)
+    )
     waha_session: str = "default"  # WAHA session name holding the linked number
     waha_webhook_token: str = ""  # shared secret in the WAHA->app webhook URL (path gate)
 
@@ -200,6 +208,20 @@ class Settings(BaseSettings):
     # Monitoring
     sentry_dsn: str | None = None
     log_level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR
+
+    @staticmethod
+    def missing_sentry_api_creds() -> list[str]:
+        """Return Sentry issue-level API env vars that are unset while DSN-based
+        event capture needs them for UI issue triage. Pure + testable — main.py
+        logs a warning when this is non-empty."""
+        import os
+
+        _pairs = (
+            ("SENTRY_AUTH_TOKEN", os.environ.get("SENTRY_AUTH_TOKEN", "").strip()),
+            ("SENTRY_ORG", os.environ.get("SENTRY_ORG", "").strip()),
+            ("SENTRY_PROJECT", os.environ.get("SENTRY_PROJECT", "").strip()),
+        )
+        return [k for k, v in _pairs if not v]
 
     # Platform Settings (Multi-Tier Automation)
     auto_start_platform: bool = True  # Auto-start 24/7 automation on startup

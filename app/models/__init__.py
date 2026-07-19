@@ -24,6 +24,7 @@ from app.models.call_log import CallDirection, CallLog, CallOutcome
 from app.models.campaign import Campaign, CampaignStatus, CampaignType
 from app.models.campaign_variant import CampaignVariant
 from app.models.client import Client, ClientStatus, SubscriptionPlan
+from app.models.compliance_audit import ComplianceAuditLog, ComplianceDecision
 from app.models.contact import Contact
 from app.models.customer_deliverable import (
     CustomerDeliverable,
@@ -144,4 +145,7 @@ __all__ = [
     "OwnerCommand",
     "OwnerKillSwitch",
     "OwnerOSAuditEvent",
+    # Compliance audit model
+    "ComplianceAuditLog",
+    "ComplianceDecision",
 ]

@@ -194,7 +194,12 @@ def _is_spam_content(subj: str, body: str) -> bool:
     lagta — yeh vocab kisi genuine niche-business reply me nahi aata.
     REPLY_SPAM_CONTENT_GUARD=0 = guard off. Never raises."""
     try:
-        if (os.getenv("REPLY_SPAM_CONTENT_GUARD", "1") or "1").strip().lower() in {"0", "false", "off", "no"}:
+        if (os.getenv("REPLY_SPAM_CONTENT_GUARD", "1") or "1").strip().lower() in {
+            "0",
+            "false",
+            "off",
+            "no",
+        }:
             return False
         txt = f"{subj or ''}\n{body or ''}"
         if _SPAM_CONTENT_RE.search(txt):
@@ -322,9 +327,7 @@ def _source_received_at(msg: Any, fetch_data: Any = None) -> str:
         match = re.search(r'INTERNALDATE "([^"\r\n]{1,80})"', str(meta))
         if match:
             candidates.append(
-                datetime.strptime(match.group(1), "%d-%b-%Y %H:%M:%S %z").astimezone(
-                    timezone.utc
-                )
+                datetime.strptime(match.group(1), "%d-%b-%Y %H:%M:%S %z").astimezone(timezone.utc)
             )
     except Exception:
         pass
@@ -416,7 +419,9 @@ async def _classify(subject: str, body: str, history: str = "") -> str:
             + (
                 "\nNOTE: message pichle sawaal ka JAWAAB bhi ho sakta — context dekh ke "
                 "intent decide karo (jaise naam/area/service ka jawab = 'question'/'interested', "
-                "'other' nahi)." if history else ""
+                "'other' nahi)."
+                if history
+                else ""
             )
             + "\nSIRF ek label reply karo, kuch aur nahi."
         )
@@ -604,7 +609,9 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
         return {"skipped": "imap_unconfigured"}
     try:
         auto_mode = await _reply_auto_send_enabled()
-        M = imaplib.IMAP4_SSL(host, 993, timeout=20)  # no timeout = worker hangs on a stalled IMAP read
+        M = imaplib.IMAP4_SSL(
+            host, 993, timeout=20
+        )  # no timeout = worker hangs on a stalled IMAP read
         M.login(user, pw)
         M.select("INBOX")
         typ, data = M.search(None, "UNSEEN")
@@ -713,7 +720,8 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             logger.warning(
                                 "[reply_agent] LLM_GUARD: possible prompt-injection from %s "
                                 "signals=%s — review draft, do NOT act on embedded instructions",
-                                frm, _inj,
+                                frm,
+                                _inj,
                             )
                     else:
                         _scan_status = "clean"
@@ -1022,7 +1030,12 @@ async def whatsapp_reply(
     # 1-to-1 conversation ka reactive jawab hai, NOT bulk cold auto-send (§5 ka
     # WHATSAPP_AUTO_SEND gate alag hai + untouched). WAHA doc bhi "inbound auto-reply +
     # warm 1-to-1" ko safe use bataata hai. Enable: WHATSAPP_AI_AUTOREPLY=1.
-    _auto = os.environ.get("WHATSAPP_AI_AUTOREPLY", "").strip().lower() in {"1", "true", "yes", "on"}
+    _auto = os.environ.get("WHATSAPP_AI_AUTOREPLY", "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
     _draft_intents = ("interested", "question", "objection") + (("other",) if _auto else ())
     draft = ""
     if intent in _draft_intents:
@@ -1179,7 +1192,7 @@ def _hq_id(row: dict) -> str:
     import hashlib
 
     key = f"{row.get('from') or ''}|{row.get('at') or ''}"
-    return hashlib.sha1(key.encode("utf-8", "ignore")).hexdigest()[:12]
+    return hashlib.sha1(key.encode("utf-8", "ignore"), usedforsecurity=False).hexdigest()[:12]
 
 
 def _india_wa_number(raw: Any) -> str:
@@ -1381,14 +1394,25 @@ async def _send_reply_email(
 
 
 async def run_auto_reply_backlog(
-    *, limit: int | None = None, send_fn=None, claim_fn=None, release_unattempted_fn=None,
+    *,
+    limit: int | None = None,
+    send_fn=None,
+    claim_fn=None,
+    release_unattempted_fn=None,
 ) -> dict[str, Any]:
     """Send safe known-prospect email replies and close their Hot Queue rows."""
     out: dict[str, Any] = {
-        "enabled": False, "seen": 0, "sent": 0, "failed": 0,
-        "claimed_elsewhere": 0, "blocked_injection": 0,
-        "blocked_suppressed": 0, "blocked_unverified": 0,
-        "skipped_unknown": 0, "expired": 0, "stale_reengagement": 0,
+        "enabled": False,
+        "seen": 0,
+        "sent": 0,
+        "failed": 0,
+        "claimed_elsewhere": 0,
+        "blocked_injection": 0,
+        "blocked_suppressed": 0,
+        "blocked_unverified": 0,
+        "skipped_unknown": 0,
+        "expired": 0,
+        "stale_reengagement": 0,
     }
     try:
         is_enabled = await _reply_auto_send_enabled()
@@ -1429,7 +1453,11 @@ async def run_auto_reply_backlog(
             if row.get("intent") not in _HOT_INTENTS or not str(row.get("draft") or "").strip():
                 continue
             if row.get("hq_status") == "done" or row.get("auto_send_status") in {
-                "sent", "blocked", "expired", "attempting", "ambiguous"
+                "sent",
+                "blocked",
+                "expired",
+                "attempting",
+                "ambiguous",
             }:
                 continue
             out["seen"] += 1
@@ -1440,7 +1468,14 @@ async def run_auto_reply_backlog(
                 continue
             if row.get("injection_flag"):
                 out["blocked_injection"] += 1
-                _update_draft_fields(hq_id, {"auto_send_status": "blocked", "auto_send_reason": "injection", "hq_status": "done"})
+                _update_draft_fields(
+                    hq_id,
+                    {
+                        "auto_send_status": "blocked",
+                        "auto_send_reason": "injection",
+                        "hq_status": "done",
+                    },
+                )
                 continue
             try:
                 from app.platform import email_unsub
@@ -1450,12 +1485,22 @@ async def run_auto_reply_backlog(
                 suppressed = True
             if suppressed:
                 out["blocked_suppressed"] += 1
-                _update_draft_fields(hq_id, {"auto_send_status": "blocked", "auto_send_reason": "suppressed", "hq_status": "done"})
+                _update_draft_fields(
+                    hq_id,
+                    {
+                        "auto_send_status": "blocked",
+                        "auto_send_reason": "suppressed",
+                        "hq_status": "done",
+                    },
+                )
                 continue
             age_days = _reply_age_days(row)
             if age_days is None or age_days > 30:
                 out["expired"] += 1
-                _update_draft_fields(hq_id, {"auto_send_status": "expired", "auto_send_reason": "age", "hq_status": "done"})
+                _update_draft_fields(
+                    hq_id,
+                    {"auto_send_status": "expired", "auto_send_reason": "age", "hq_status": "done"},
+                )
                 continue
             stale = age_days >= 7
             delivery_key = str(row.get("delivery_key") or "").strip()
@@ -1466,9 +1511,7 @@ async def run_auto_reply_backlog(
                 # is limited to one stable sender claim, never one claim per processing row.
                 delivery_key = _reply_delivery_key(frm, "<stale-reengagement>")
             if not stale and (
-                not row.get("source_at")
-                or row.get("scan_status") != "clean"
-                or not delivery_key
+                not row.get("source_at") or row.get("scan_status") != "clean" or not delivery_key
             ):
                 out["blocked_unverified"] += 1
                 _update_draft_fields(
@@ -1519,20 +1562,29 @@ async def run_auto_reply_backlog(
                 ok = False
             if ok:
                 sent_at = datetime.now(timezone.utc).isoformat()
-                _update_draft_fields(hq_id, {
-                    "auto_send_status": "sent", "auto_sent_at": sent_at,
-                    "auto_send_attempts": attempts,
-                    "auto_send_reason": "stale_reengagement" if stale else "fresh_reply",
-                    "hq_status": "done", "hq_done_at": sent_at,
-                })
+                _update_draft_fields(
+                    hq_id,
+                    {
+                        "auto_send_status": "sent",
+                        "auto_sent_at": sent_at,
+                        "auto_send_attempts": attempts,
+                        "auto_send_reason": "stale_reengagement" if stale else "fresh_reply",
+                        "hq_status": "done",
+                        "hq_done_at": sent_at,
+                    },
+                )
                 out["sent"] += 1
                 out["stale_reengagement"] += int(stale)
                 logger.info("[reply_agent] safe auto-reply sent (intent=%s)", row.get("intent"))
             else:
-                _update_draft_fields(hq_id, {
-                    "auto_send_status": "ambiguous", "auto_send_attempts": attempts,
-                    "auto_send_last_failure_at": datetime.now(timezone.utc).isoformat(),
-                })
+                _update_draft_fields(
+                    hq_id,
+                    {
+                        "auto_send_status": "ambiguous",
+                        "auto_send_attempts": attempts,
+                        "auto_send_last_failure_at": datetime.now(timezone.utc).isoformat(),
+                    },
+                )
                 out["failed"] += 1
         return out
     except Exception as exc:
@@ -1561,13 +1613,30 @@ def _is_noise_row(r: dict) -> bool:
     return False
 
 
-def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
+def hot_queue(
+    limit: int = 50,
+    intents: tuple = _HOT_INTENTS,
+    scope: str = "boss",
+) -> list[dict]:
     """Prioritized outreach-reply queue: filter hot intents, drop handled/noise,
     require email senders to match an actually-emailed prospect, dedupe by sender
-    (latest wins), then join prospect context. NEVER raises — [] on failure."""
+    (latest wins), then join prospect context. NEVER raises — [] on failure.
+
+    scope:
+      boss  — default: hide done + admin_pending (boss actionable queue)
+      admin — only admin_pending (parked for human admin)
+      all   — everything except done (council lookup / full review)
+    """
     try:
+        scope_n = str(scope or "boss").strip().lower()
+        if scope_n not in ("boss", "admin", "all"):
+            scope_n = "boss"
         rows = [r for r in list_drafts(limit=100000) if r.get("intent") in intents]
         rows = [r for r in rows if (r.get("hq_status") or "") != "done"]
+        if scope_n == "boss":
+            rows = [r for r in rows if (r.get("hq_status") or "") != "admin_pending"]
+        elif scope_n == "admin":
+            rows = [r for r in rows if (r.get("hq_status") or "") == "admin_pending"]
         rows = [r for r in rows if not _is_noise_row(r)]
         pmap = _full_prospect_map()
         # IMAP triage also sees vendor onboarding, billing and system alerts. An
@@ -1579,11 +1648,7 @@ def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
             r
             for r in rows
             if r.get("channel") == "whatsapp"
-            or bool(
-                (
-                    pmap.get(str(r.get("from") or "").strip().lower()) or {}
-                ).get("emailed_at")
-            )
+            or bool((pmap.get(str(r.get("from") or "").strip().lower()) or {}).get("emailed_at"))
         ]
         latest: dict[str, dict] = {}
         for r in sorted(rows, key=lambda x: str(x.get("at") or "")):
@@ -1603,9 +1668,7 @@ def hot_queue(limit: int = 50, intents: tuple = _HOT_INTENTS) -> list[dict]:
                 from urllib.parse import quote
 
                 msg = str(r.get("draft") or "").strip()
-                r["wa_link"] = f"https://wa.me/{wa_num}" + (
-                    f"?text={quote(msg)}" if msg else ""
-                )
+                r["wa_link"] = f"https://wa.me/{wa_num}" + (f"?text={quote(msg)}" if msg else "")
             else:
                 r["wa_link"] = ""
             if r.get("channel") == "whatsapp" and not r["wa_link"]:
@@ -1658,6 +1721,35 @@ def mark_handled(hq_id: str) -> bool:
         return False
 
 
+def park_for_admin(hq_id: str, note: str = "") -> bool:
+    """Boss unclear / council PARK_ADMIN — queue se boss view hatao, admin scope me rakho."""
+    hq_id = (hq_id or "").strip()
+    if not hq_id or not os.path.exists(_DRAFTS_FILE):
+        return False
+    try:
+        row = next(
+            (
+                item
+                for item in list_drafts(limit=100000)
+                if _hq_id(item) == hq_id and (item.get("hq_status") or "") != "done"
+            ),
+            None,
+        )
+        if row is None:
+            return False
+        return _update_draft_fields(
+            hq_id,
+            {
+                "hq_status": "admin_pending",
+                "hq_admin_note": str(note or "").strip()[:300],
+                "hq_parked_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
+    except Exception as exc:
+        logger.debug("park_for_admin err: %s", exc)
+        return False
+
+
 __all__ = [
     "run_reply_triage",
     "run_auto_reply_backlog",
@@ -1665,6 +1757,7 @@ __all__ = [
     "list_drafts",
     "hot_queue",
     "mark_handled",
+    "park_for_admin",
     "make_hq_done_token",
     "verify_hq_done_token",
 ]
