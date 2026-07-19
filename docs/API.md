@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1179 operations)
+## Endpoint Index — auto-generated from OpenAPI (1181 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1473,7 +1473,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/agents-ext/trajectory/export` — Trajectory Export
 - `POST  ` `/api/agents-ext/trajectory/record` — Trajectory Record
 
-### Owner OS  (31)
+### Owner OS  (33)
 
 - `GET   ` `/api/admin/owner-os/agents` — Owner Agents
 - `GET   ` `/api/admin/owner-os/agents/{agent_id}` — Owner Agent Detail
@@ -1502,6 +1502,8 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/owner-os/kill-switches` — Owner Set Kill
 - `GET   ` `/api/admin/owner-os/routes` — Owner Route Matrix
 - `POST  ` `/api/admin/owner-os/routes/health-test` — Owner Route Health Test
+- `GET   ` `/api/admin/owner-os/runtime` — Owner Runtime Status
+- `POST  ` `/api/admin/owner-os/runtime/run` — Owner Runtime Run
 - `GET   ` `/api/admin/owner-os/tasks` — Owner Tasks
 - `GET   ` `/api/admin/owner-os/training` — Owner Training
 - `GET   ` `/api/admin/owner-os/workflows` — Owner Workflows

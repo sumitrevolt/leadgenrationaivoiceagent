@@ -82,6 +82,19 @@ class ApprovalDecideIn(BaseModel):
     reason: str = Field("", max_length=200)
 
 
+class RuntimeRunIn(BaseModel):
+    """Agent Runtime pilot dispatch (Phase-B). Runner enforces the full contract
+    policy (pilot allowlist / RED block / kill / approval / budget) fail-CLOSED."""
+
+    agent_id: str = Field(..., min_length=2, max_length=40)
+    action: str = Field(..., min_length=3, max_length=80)
+    payload: dict[str, Any] = Field(default_factory=dict)
+    tenant_id: str = Field("", max_length=80)
+    approval_ref: str = Field("", max_length=80)
+    idempotency_key: str = Field("", max_length=80)
+    timeout_s: float | None = Field(None, gt=0, le=600)
+
+
 @router.get("/home")
 async def owner_home(user: User = Depends(require_admin)) -> dict[str, Any]:
     return owner_os.owner_home()
@@ -364,6 +377,58 @@ async def owner_set_kill(body: KillIn, user: User = Depends(require_admin)) -> d
     if not out.get("ok"):
         raise HTTPException(status_code=400, detail=out.get("error") or "kill switch refused")
     return out
+
+
+@router.get("/runtime")
+async def owner_runtime_status(user: User = Depends(require_admin)) -> dict[str, Any]:
+    """Agent Runtime (Phase-B) operator board — mode/lane, heartbeats, useful work,
+    active tasks, budgets, kill-switch state, runtime DLQ. Never raises."""
+    from app.platform import agent_runtime
+    from app.platform.agent_runtime_pilots import ensure_pilots_registered
+
+    ensure_pilots_registered()
+    out = agent_runtime.runtime_status()
+    out["dlq_tail"] = agent_runtime.runtime_dlq(20)
+    return out
+
+
+@router.post(
+    "/runtime/run",
+    dependencies=[Depends(rate_limit("owner_os_runtime", 15, 60))],
+)
+async def owner_runtime_run(
+    body: RuntimeRunIn, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """Operator-triggered pilot dispatch under FULL contract policy. Non-pilot /
+    RED / kill-engaged / unapproved AMBER = structured blocked result (fail-closed)."""
+    from app.platform import agent_runtime
+    from app.platform.agent_runtime_pilots import ensure_pilots_registered
+
+    ensure_pilots_registered()
+    result = await agent_runtime.submit(
+        body.agent_id,
+        body.action,
+        body.payload,
+        tenant_id=body.tenant_id,
+        approval_ref=body.approval_ref,
+        idempotency_key=body.idempotency_key,
+        trigger="owner_os",
+        timeout_s=body.timeout_s,
+    )
+    owner_os.audit(
+        _actor(user),
+        "agent_runtime_run",
+        {
+            "target": body.agent_id,
+            "agent_id": body.agent_id,
+            "action": body.action,
+            "status": result.status,
+            "reason": result.reason,
+            "tenant_id": body.tenant_id,
+            "task_id": result.task_id,
+        },
+    )
+    return {"ok": result.status == "succeeded", "result": result.to_dict()}
 
 
 @router.get("/training")
