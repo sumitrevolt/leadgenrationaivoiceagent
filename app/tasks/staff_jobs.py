@@ -193,7 +193,13 @@ def self_improve_tick(self):
     except Exception as e:
         logger.warning(f"[self-improve] tick failed: {e}")
         res = {"ok": False, "error": str(e)[:200]}
-    # requeue ALWAYS attempt (loop never dies) — sirf flag OFF pe chain stop
+    # requeue ALWAYS attempt (loop never dies) — sirf flag OFF pe chain stop.
+    # 2026-07-19 FIX: pehle slot_token="" (tick_slot denied — boundary ya Redis
+    # hiccup) pe chain DYING thi → 20-min watchdog revive cycle (repeated stale
+    # heartbeat). Ab flag ON + slot denied ho to bhi short-countdown requeue
+    # karo — chain self-heals without watchdog. Fail-closed preserved: Redis
+    # down ho to apply_async bhi raise karega → outer except catches → chain
+    # dies → watchdog revives when Redis back (same as before, no multiplication).
     try:
         from app.agents import self_improve
 
@@ -209,6 +215,11 @@ def self_improve_tick(self):
                 self_improve.release_tick_slot(slot_token)
             if queued:
                 self_improve.note_tick_requeue(gap)
+        elif self_improve.enabled() and not slot_token:
+            # Slot denied (boundary/Redis hiccup) par flag ON — chain mat maro.
+            # Short countdown retry; next tick pe slot acquire hoga ya phir se
+            # deny — kabhi chain multiply nahi (NX lock + next_allowed guard).
+            self_improve_tick.apply_async(countdown=self_improve.gap_seconds())
         elif slot_token:
             self_improve.release_tick_slot(slot_token)
     except Exception as e:

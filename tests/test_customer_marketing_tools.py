@@ -16,6 +16,7 @@ def test_routes_registered_no_dupes():
     for p in (
         "/api/customer/gbp/questions",
         "/api/customer/gbp/score",
+        "/api/customer/gbp/council-suggest",
         "/api/customer/creatives",
         "/api/customer/report",
     ):

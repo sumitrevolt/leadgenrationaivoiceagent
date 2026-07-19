@@ -42,22 +42,28 @@ _STATUSES = {"pending", "approved", "rejected"}
 # with `{"ok": False, "error": "illegal_transition"}` — prevents e.g. a
 # published post being flipped back to pending, or a cancelled post reviving.
 _EXTENDED_STATUSES = {
-    "pending", "ready_for_review", "changes_requested",
-    "approved", "rejected",
-    "scheduled", "publishing", "published",
-    "partially_published", "cancelled",
+    "pending",
+    "ready_for_review",
+    "changes_requested",
+    "approved",
+    "rejected",
+    "scheduled",
+    "publishing",
+    "published",
+    "partially_published",
+    "cancelled",
 }
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
-    "pending":              {"ready_for_review", "approved", "rejected", "changes_requested", "cancelled"},
-    "ready_for_review":     {"approved", "rejected", "changes_requested", "cancelled"},
-    "changes_requested":    {"pending", "ready_for_review", "approved", "cancelled"},
-    "approved":             {"scheduled", "publishing", "cancelled"},
-    "rejected":             {"pending", "cancelled"},
-    "scheduled":            {"publishing", "cancelled"},
-    "publishing":           {"published", "partially_published", "rejected", "cancelled"},
-    "published":            set(),                     # terminal
-    "partially_published":  {"publishing", "cancelled"},
-    "cancelled":            set(),                     # terminal
+    "pending": {"ready_for_review", "approved", "rejected", "changes_requested", "cancelled"},
+    "ready_for_review": {"approved", "rejected", "changes_requested", "cancelled"},
+    "changes_requested": {"pending", "ready_for_review", "approved", "cancelled"},
+    "approved": {"scheduled", "publishing", "cancelled"},
+    "rejected": {"pending", "cancelled"},
+    "scheduled": {"publishing", "cancelled"},
+    "publishing": {"published", "partially_published", "rejected", "cancelled"},
+    "published": set(),  # terminal
+    "partially_published": {"publishing", "cancelled"},
+    "cancelled": set(),  # terminal
 }
 
 
@@ -235,7 +241,9 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
 
                 content = merged.get("content") or {}
                 title = str(content.get("title") or content.get("occasion") or "")
-                delivery_ledger.log_event(str(merged.get("client_id") or ""), "post_approved", detail=title)
+                delivery_ledger.log_event(
+                    str(merged.get("client_id") or ""), "post_approved", detail=title
+                )
             except Exception as le:
                 logger.debug(f"[content_approval] ledger log skip: {le}")
             # Video-ad approve -> publish-queue mark (scheduler hi publish karta; web light).
@@ -318,6 +326,42 @@ def decide_for_client(
     return approve(token)
 
 
+def escalate_for_client(client_id: str, approval_id: str, note: str = "") -> dict[str, Any]:
+    """Boss/council unclear — status pending rakho, needs_admin=True flag (admin desk)."""
+    try:
+        rec = _by_id_for_client(client_id, approval_id)
+        if rec is None:
+            return {"ok": False, "error": "approval nahi mila."}
+        if str(rec.get("status") or "") != "pending":
+            return {"ok": False, "error": "sirf pending approval escalate ho sakti hai."}
+        update = {
+            "id": rec["id"],
+            "token": rec.get("token"),
+            "client_id": rec.get("client_id"),
+            "status": "pending",
+            "needs_admin": True,
+            "admin_note": str(note or "").strip()[:300],
+            "escalated_at": _now(),
+        }
+        _append(update)
+        merged = {**rec, **update}
+        try:
+            from app.platform.team import log_event
+
+            log_event(
+                "isha",
+                "content_escalated",
+                f"Client {merged.get('client_id')} ne approval admin ke liye park kiya",
+                meta={"approval_id": merged.get("id"), "note": update["admin_note"]},
+            )
+        except Exception:
+            pass
+        return {"ok": True, "approval": merged}
+    except Exception as e:
+        logger.warning(f"[content_approval] escalate failed: {e}")
+        return {"ok": False, "error": str(e)[:160]}
+
+
 def decide_by_id(approval_id: str, action: str, note: str = "") -> dict[str, Any]:
     """Admin/support — approval id se decide (client_id verify nahi)."""
     rec = _latest_states().get(str(approval_id or "").strip())
@@ -355,8 +399,12 @@ def transition(
             return {"ok": False, "error": "approval_id_required"}
         ns = str(new_status or "").strip().lower()
         if ns not in _EXTENDED_STATUSES:
-            return {"ok": False, "error": "invalid_status", "status": ns,
-                    "allowed": sorted(_EXTENDED_STATUSES)}
+            return {
+                "ok": False,
+                "error": "invalid_status",
+                "status": ns,
+                "allowed": sorted(_EXTENDED_STATUSES),
+            }
         rec = _latest_states().get(aid)
         if rec is None:
             return {"ok": False, "error": "approval_not_found"}
@@ -369,8 +417,13 @@ def transition(
         if ns == cur:
             return {"ok": True, "no_change": True, "approval": rec}
         if ns not in allowed:
-            return {"ok": False, "error": "illegal_transition",
-                    "from": cur, "to": ns, "allowed": sorted(allowed)}
+            return {
+                "ok": False,
+                "error": "illegal_transition",
+                "from": cur,
+                "to": ns,
+                "allowed": sorted(allowed),
+            }
         row = {
             "id": aid,
             "token": rec.get("token"),
@@ -456,9 +509,12 @@ def _edit_action(
             return {"ok": False, "error": "approval_not_found"}
         cur_status = str(rec.get("status") or "").strip().lower()
         if cur_status in _EDIT_LOCKED_STATES:
-            return {"ok": False, "error": "edit_locked",
-                    "status": cur_status,
-                    "message": "Post is already dispatched — cancel + resubmit for changes"}
+            return {
+                "ok": False,
+                "error": "edit_locked",
+                "status": cur_status,
+                "message": "Post is already dispatched — cancel + resubmit for changes",
+            }
         # Deep-copy content so we don't mutate the merged read view.
         content = dict(rec.get("content") or {})
         content[field] = new_value
@@ -485,8 +541,13 @@ def _edit_action(
             )
         except Exception:
             pass
-        return {"ok": True, "approval_id": aid, "field": field,
-                "actor": actor, "status": cur_status}
+        return {
+            "ok": True,
+            "approval_id": aid,
+            "field": field,
+            "actor": actor,
+            "status": cur_status,
+        }
     except Exception as e:
         logger.warning(f"[content_approval] edit_action failed: {e}")
         return {"ok": False, "error": str(e)[:160]}
@@ -503,8 +564,12 @@ def edit_caption(
     if not isinstance(new_caption, str):
         return {"ok": False, "error": "invalid_caption"}
     return _edit_action(
-        approval_id, "caption", new_caption.strip()[:8000],
-        actor, note, "post_draft_created",
+        approval_id,
+        "caption",
+        new_caption.strip()[:8000],
+        actor,
+        note,
+        "post_draft_created",
     )
 
 
@@ -521,15 +586,22 @@ def replace_media(
     url = str(media_url or "").strip()[:1000]
     path = str(media_path or "").strip()[:500]
     if not url and not path:
-        return {"ok": False, "error": "media_required",
-                "message": "media_url or media_path required"}
+        return {
+            "ok": False,
+            "error": "media_required",
+            "message": "media_url or media_path required",
+        }
     mtype = str(media_type or "").strip().lower()[:16]
     if mtype and mtype not in ("image", "video", "text"):
         return {"ok": False, "error": "invalid_media_type"}
     payload = {"url": url, "path": path, "type": mtype}
     return _edit_action(
-        approval_id, "media", payload,
-        actor, note, "post_draft_created",
+        approval_id,
+        "media",
+        payload,
+        actor,
+        note,
+        "post_draft_created",
     )
 
 
@@ -559,8 +631,12 @@ def change_scheduled_time(
         return {"ok": False, "error": "invalid_iso", "message": str(e)[:120]}
     payload = {"scheduled_time": when, "timezone": str(tz or "Asia/Kolkata")[:64]}
     return _edit_action(
-        approval_id, "schedule", payload,
-        actor, note, "post_scheduled",
+        approval_id,
+        "schedule",
+        payload,
+        actor,
+        note,
+        "post_scheduled",
     )
 
 
@@ -625,7 +701,11 @@ def _publish_log_event(client_id: str, action: str, rec: dict[str, Any]) -> None
             "isha",
             f"approval_{action}",
             f"Client {client_id} content {action}: {_content_title(rec)}",
-            meta={"approval_id": rec.get("id"), "client_id": client_id, "status": rec.get("status")},
+            meta={
+                "approval_id": rec.get("id"),
+                "client_id": client_id,
+                "status": rec.get("status"),
+            },
         )
     except Exception:
         pass
@@ -639,6 +719,7 @@ __all__ = [
     "list_all",
     "get_by_token",
     "decide_for_client",
+    "escalate_for_client",
     "decide_by_id",
     "schedule",
     "mark_published",
@@ -672,7 +753,10 @@ def mark_published(approval_id: str, channel: str = "", evidence_url: str = "") 
         return {"ok": False, "error": "approval nahi mila"}
     st = str(rec.get("status") or "").lower()
     if st not in ("approved", "scheduled"):
-        return {"ok": False, "error": f"sirf approved/scheduled posts publish ho sakte (current: {st})"}
+        return {
+            "ok": False,
+            "error": f"sirf approved/scheduled posts publish ho sakte (current: {st})",
+        }
     rec["status"] = "published"
     rec["published_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
     rec["publish_channel"] = str(channel)[:50] if channel else "manual"
@@ -706,12 +790,27 @@ def _redact_url_for_audit(url: str) -> str:
 
         parts = urlsplit(str(url))
         _REDACT_KEYS = {
-            "client_id", "clientid", "client-id",
-            "customer_id", "customerid", "customer-id",
-            "tenant", "tenant_id", "tenantid",
-            "slug", "user", "user_id",
-            "email", "phone", "mobile",
-            "token", "access_token", "api_key", "apikey", "key", "secret",
+            "client_id",
+            "clientid",
+            "client-id",
+            "customer_id",
+            "customerid",
+            "customer-id",
+            "tenant",
+            "tenant_id",
+            "tenantid",
+            "slug",
+            "user",
+            "user_id",
+            "email",
+            "phone",
+            "mobile",
+            "token",
+            "access_token",
+            "api_key",
+            "apikey",
+            "key",
+            "secret",
         }
         pairs = parse_qsl(parts.query, keep_blank_values=True)
         # Build the query manually so the `[REDACTED]` sentinel stays literal
@@ -723,10 +822,15 @@ def _redact_url_for_audit(url: str) -> str:
                 query_parts.append(f"{k}=[REDACTED]")
             else:
                 query_parts.append(f"{k}={v}")
-        return urlunsplit((
-            parts.scheme, parts.netloc, parts.path,
-            "&".join(query_parts), "",  # drop fragment
-        ))
+        return urlunsplit(
+            (
+                parts.scheme,
+                parts.netloc,
+                parts.path,
+                "&".join(query_parts),
+                "",  # drop fragment
+            )
+        )
     except Exception:
         return "[REDACTED_URL]"
 
@@ -766,7 +870,10 @@ def update_evidence_url(
         return {"ok": False, "error": "approval_id required"}
     new_url = str(new_url or "").strip()
     if not new_url:
-        return {"ok": False, "error": "new_url required (blank refused to prevent evidence erasure)"}
+        return {
+            "ok": False,
+            "error": "new_url required (blank refused to prevent evidence erasure)",
+        }
     if not (new_url.startswith("http://") or new_url.startswith("https://")):
         return {"ok": False, "error": "new_url must be http(s)"}
     if len(new_url) > 500:
@@ -776,7 +883,10 @@ def update_evidence_url(
     if not rec:
         return {"ok": False, "error": "approval nahi mila"}
     if str(rec.get("status") or "").lower() != "published":
-        return {"ok": False, "error": f"update_evidence_url runs only on published (current: {rec.get('status')})"}
+        return {
+            "ok": False,
+            "error": f"update_evidence_url runs only on published (current: {rec.get('status')})",
+        }
 
     old_url = str(rec.get("evidence_url") or "")
     if old_url == new_url:
@@ -788,13 +898,15 @@ def update_evidence_url(
     # sensitive query values (client_id/tenant/email/token) are stripped +
     # the fragment removed. NEVER retain the raw `old_url` in audit history.
     history = list(rec.get("evidence_url_history") or [])
-    history.append({
-        "old_url_fingerprint": _fingerprint_url(old_url),
-        "old_url_redacted": _redact_url_for_audit(old_url),
-        "changed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "actor_id": str(actor_id or "system")[:80],
-        "reason": str(reason or "")[:200],
-    })
+    history.append(
+        {
+            "old_url_fingerprint": _fingerprint_url(old_url),
+            "old_url_redacted": _redact_url_for_audit(old_url),
+            "changed_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            "actor_id": str(actor_id or "system")[:80],
+            "reason": str(reason or "")[:200],
+        }
+    )
     rec["evidence_url_history"] = history[-5:]
     rec["evidence_url"] = new_url
     rec["evidence_url_updated_at"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -835,7 +947,12 @@ def update_evidence_url(
 
 
 _PII_URL_MARKERS = (
-    "client_id=", "customer_id=", "tenant=", "tenant_id=", "slug=", "email=",
+    "client_id=",
+    "customer_id=",
+    "tenant=",
+    "tenant_id=",
+    "slug=",
+    "email=",
 )
 
 
@@ -932,7 +1049,8 @@ def migrate_evidence_urls(
                 # (status/timestamps unchanged, no duplicate publication)
                 # are enforced by the existing implementation + tests.
                 r = update_evidence_url(
-                    aid, _opaque_dashboard_url(aid),
+                    aid,
+                    _opaque_dashboard_url(aid),
                     actor_id=str(actor_id)[:80],
                     reason="migrate_evidence_urls_sweep",
                 )
@@ -955,7 +1073,9 @@ def migrate_evidence_urls(
                         raw = str(entry.pop("old_url"))
                         entry["old_url_fingerprint"] = _fingerprint_url(raw)
                         entry["old_url_redacted"] = _redact_url_for_audit(raw)
-                        entry.setdefault("migrated_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
+                        entry.setdefault(
+                            "migrated_at", datetime.now(timezone.utc).isoformat(timespec="seconds")
+                        )
                         redacted_count += 1
                     new_hist.append(entry)
                 if redacted_count:

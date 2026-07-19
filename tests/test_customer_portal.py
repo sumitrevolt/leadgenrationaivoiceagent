@@ -21,6 +21,8 @@ def test_credential_store_roundtrip(tmp_path, monkeypatch):
 
 
 def test_require_customer_enforces_role():
+    import asyncio
+
     from fastapi import HTTPException
 
     from app.api.admin import create_access_token, decode_token
@@ -32,13 +34,14 @@ def test_require_customer_enforces_role():
     class _Cust:
         credentials = tok
 
-    assert CA.require_customer(_Cust()) == "client42"
+    # require_customer is async (Redis blacklist check since ADR logout revoke)
+    assert asyncio.run(CA.require_customer(_Cust())) == "client42"
 
     class _Admin:
         credentials = create_access_token("u1", "x@y.com", "admin")
 
     try:
-        CA.require_customer(_Admin())
+        asyncio.run(CA.require_customer(_Admin()))
         raise AssertionError("admin token must be rejected")
     except HTTPException as e:
         assert e.status_code == 403

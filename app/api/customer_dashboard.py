@@ -69,6 +69,7 @@ from app.api.customer_dashboard_builders import (  # noqa: F401  (helpers extrac
 # Pydantic response models (this is the exact JSON contract the HTML consumes) #
 # --------------------------------------------------------------------------- #
 from app.api.customer_dashboard_models import (  # noqa: F401  (models extracted 2026-06-20)
+    ApprovalBanner,
     CallRow,
     Campaign,
     ChartsData,
@@ -80,7 +81,6 @@ from app.api.customer_dashboard_models import (  # noqa: F401  (models extracted
     LeadRow,
     OnboardingChecklist,
     OnboardingStep,
-    ApprovalBanner,
     SeriesPoint,
     TeamAgentCard,
 )
@@ -171,12 +171,20 @@ def _voice_team_response(
     else:
         s_status, s_label = "active", "Taiyaar"
         s_task = "Naya lead aate hi turant call karne ko taiyaar hoon."
-    agents.append(TeamAgentCard(
-        key="swara", name=sname, emoji=semoji, title="Telecaller",
-        duties="Aapke har lead ko call karke qualify karti hai",
-        status=s_status, status_label=s_label, task=s_task,
-        metric=f"{total_leads} call", accent="#4f46e5",
-    ))
+    agents.append(
+        TeamAgentCard(
+            key="swara",
+            name=sname,
+            emoji=semoji,
+            title="Telecaller",
+            duties="Aapke har lead ko call karke qualify karti hai",
+            status=s_status,
+            status_label=s_label,
+            task=s_task,
+            metric=f"{total_leads} call",
+            accent="#4f46e5",
+        )
+    )
 
     # 📅 Ananya — Appointment Booker
     aname, aemoji = _meta("ananya", "Ananya", "📅")
@@ -186,22 +194,37 @@ def _voice_team_response(
     else:
         a_status, a_label = "active", "Taiyaar"
         a_task = "Interested customers ke liye booking slots ready hain."
-    agents.append(TeamAgentCard(
-        key="ananya", name=aname, emoji=aemoji, title="Appointment Booker",
-        duties="Qualified leads ke appointment/demo slot book karti hai",
-        status=a_status, status_label=a_label, task=a_task,
-        metric=(f"{hot} slot" if hot else "Slots ready"), accent="#0891b2",
-    ))
+    agents.append(
+        TeamAgentCard(
+            key="ananya",
+            name=aname,
+            emoji=aemoji,
+            title="Appointment Booker",
+            duties="Qualified leads ke appointment/demo slot book karti hai",
+            status=a_status,
+            status_label=a_label,
+            task=a_task,
+            metric=(f"{hot} slot" if hot else "Slots ready"),
+            accent="#0891b2",
+        )
+    )
 
     # 🎓 Meera — Call Quality Trainer (trust: calls sound human + fast)
     mname, memoji = _meta("meera", "Meera", "🎓")
-    agents.append(TeamAgentCard(
-        key="meera", name=mname, emoji=memoji, title="Call Quality",
-        duties="Har call ki quality monitor karti hai",
-        status="active", status_label="Monitor kar rahi",
-        task="Har call ki quality check — saaf, natural aur fast awaaz.",
-        metric="Quality ✓", accent="#7c3aed",
-    ))
+    agents.append(
+        TeamAgentCard(
+            key="meera",
+            name=mname,
+            emoji=memoji,
+            title="Call Quality",
+            duties="Har call ki quality monitor karti hai",
+            status="active",
+            status_label="Monitor kar rahi",
+            task="Har call ki quality check — saaf, natural aur fast awaaz.",
+            metric="Quality ✓",
+            accent="#7c3aed",
+        )
+    )
 
     # 🧑‍💼 Boss — Team Lead (coordinator summary)
     busy_count = sum(1 for a in agents if a.status == "working")
@@ -212,12 +235,20 @@ def _voice_team_response(
     else:
         b_status, b_label = "active", "Active"
         b_task = "Team ready hai — naya lead aate hi calling shuru."
-    agents.append(TeamAgentCard(
-        key="manager", name=bname, emoji=bemoji, title="Team Lead",
-        duties="Poori voice team ko coordinate karta hai",
-        status=b_status, status_label=b_label, task=b_task,
-        metric=f"{len(agents) + 1} member", accent="#2563eb",
-    ))
+    agents.append(
+        TeamAgentCard(
+            key="manager",
+            name=bname,
+            emoji=bemoji,
+            title="Team Lead",
+            duties="Poori voice team ko coordinate karta hai",
+            status=b_status,
+            status_label=b_label,
+            task=b_task,
+            metric=f"{len(agents) + 1} member",
+            accent="#2563eb",
+        )
+    )
 
     total_today = total_leads
     is_sample = bool(not client_rec and total_today == 0)
@@ -288,8 +319,7 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
 
     niche = str((client_rec or {}).get("niche") or "").strip()
     has_profile = bool(
-        client_rec
-        and (client_rec.get("website") or niche or client_rec.get("business_name"))
+        client_rec and (client_rec.get("website") or niche or client_rec.get("business_name"))
     )
 
     # ---- per-agent state (client-scoped; names/emoji from STAFF) ----
@@ -321,12 +351,20 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
     else:
         i_status, i_label = "working", "Likh rahi hai"
         i_task = "Aaj ka social post draft kar rahi hoon."
-    agents.append(TeamAgentCard(
-        key="isha", name=iname, emoji=iemoji, title="Content Writer",
-        duties="Roz aapke liye social posts likhti hai",
-        status=i_status, status_label=i_label, task=i_task,
-        metric=f"{total_posts} post", accent="#db2777",
-    ))
+    agents.append(
+        TeamAgentCard(
+            key="isha",
+            name=iname,
+            emoji=iemoji,
+            title="Content Writer",
+            duties="Roz aapke liye social posts likhti hai",
+            status=i_status,
+            status_label=i_label,
+            task=i_task,
+            metric=f"{total_posts} post",
+            accent="#db2777",
+        )
+    )
 
     # 🎯 Rohan — Leads Manager
     rname, remoji = _meta("rohan", "Rohan", "🎯")
@@ -339,29 +377,45 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
     else:
         r_status, r_label = "active", "Taiyaar"
         r_task = "Naye leads ke liye targeting set kar rakhi hai."
-    agents.append(TeamAgentCard(
-        key="rohan", name=rname, emoji=remoji, title="Leads Manager",
-        duties="Leads laata aur qualify karta hai",
-        status=r_status, status_label=r_label, task=r_task,
-        metric=f"{total_leads} lead", accent="#ea580c",
-    ))
+    agents.append(
+        TeamAgentCard(
+            key="rohan",
+            name=rname,
+            emoji=remoji,
+            title="Leads Manager",
+            duties="Leads laata aur qualify karta hai",
+            status=r_status,
+            status_label=r_label,
+            task=r_task,
+            metric=f"{total_leads} lead",
+            accent="#ea580c",
+        )
+    )
 
     # 📚 Dev — Business Researcher
     dname, demoji = _meta("dev", "Dev", "📚")
     if has_profile:
         d_status, d_label = "active", "Active"
         d_task = "Aapke business ki profile AI ko sikha ke ready rakhi hai."
-        d_metric = (niche.title() if niche else "Profile ready")
+        d_metric = niche.title() if niche else "Profile ready"
     else:
         d_status, d_label = "working", "Setup kar raha hai"
         d_task = "Aapka business samajh raha hoon — profile complete karo."
         d_metric = "Setup pending"
-    agents.append(TeamAgentCard(
-        key="dev", name=dname, emoji=demoji, title="Business Researcher",
-        duties="Aapka business AI ko samjhata hai",
-        status=d_status, status_label=d_label, task=d_task,
-        metric=d_metric, accent="#7c3aed",
-    ))
+    agents.append(
+        TeamAgentCard(
+            key="dev",
+            name=dname,
+            emoji=demoji,
+            title="Business Researcher",
+            duties="Aapka business AI ko samjhata hai",
+            status=d_status,
+            status_label=d_label,
+            task=d_task,
+            metric=d_metric,
+            accent="#7c3aed",
+        )
+    )
 
     # 🧑‍💼 Boss — Team Lead (coordinator; summary card)
     busy_count = sum(1 for a in agents if a.status == "working")
@@ -372,12 +426,20 @@ def get_customer_team(client_id: str = Depends(require_customer)) -> CustomerTea
     else:
         b_status, b_label = "active", "Active"
         b_task = "Team ready hai — naya kaam aate hi assign kar dunga."
-    agents.append(TeamAgentCard(
-        key="manager", name=bname, emoji=bemoji, title="Team Lead",
-        duties="Poori team ko coordinate karta hai",
-        status=b_status, status_label=b_label, task=b_task,
-        metric=f"{len(agents) + 1} member", accent="#2563eb",
-    ))
+    agents.append(
+        TeamAgentCard(
+            key="manager",
+            name=bname,
+            emoji=bemoji,
+            title="Team Lead",
+            duties="Poori team ko coordinate karta hai",
+            status=b_status,
+            status_label=b_label,
+            task=b_task,
+            metric=f"{len(agents) + 1} member",
+            accent="#2563eb",
+        )
+    )
 
     total_today = total_posts + total_leads
     is_sample = bool(not client_rec and total_today == 0)
@@ -424,12 +486,16 @@ def customer_gbp_questions(client_id: str = Depends(require_customer)) -> dict:
     Customer khud apna Google Business Profile audit kar sakta hai — scoring
     PURE LOGIC hai (koi LLM cost nahi). Last result per-client file me save hota
     hai taaki card pe "pichla score" dikhe."""
-    out: dict = {"questions": [], "total": 0, "last": None}
+    out: dict = {"questions": [], "total": 0, "last": None, "suggested": None}
     try:
         from app.marketing import gbp_audit
 
         out["questions"] = gbp_audit.AUDIT_QUESTIONS
         out["total"] = len(gbp_audit.AUDIT_QUESTIONS)
+        try:
+            out["suggested"] = gbp_audit.heuristic_suggest(_client_record(client_id) or {})
+        except Exception:
+            out["suggested"] = None
     except Exception as e:
         logger.debug("customer_gbp_questions: module load failed (%s)", e)
     try:
@@ -458,11 +524,27 @@ def customer_gbp_score(
     result["at"] = datetime.now().strftime("%Y-%m-%d %H:%M")
     try:
         os.makedirs(_GBP_DIR, exist_ok=True)
-        with open(os.path.join(_GBP_DIR, _safe_cid(client_id) + ".json"), "w", encoding="utf-8") as fh:
+        with open(
+            os.path.join(_GBP_DIR, _safe_cid(client_id) + ".json"), "w", encoding="utf-8"
+        ) as fh:
             json.dump(result, fh, ensure_ascii=False)
     except Exception as e:
         logger.debug("customer_gbp_score: persist failed (%s)", e)
     return result
+
+
+@router.post(
+    "/gbp/council-suggest",
+    dependencies=[Depends(rate_limit("gbp_council", 4, 60))],
+)
+async def customer_gbp_council_suggest(client_id: str = Depends(require_customer)) -> dict:
+    """Council + heuristic answer suggestions. Score SAVE nahi hota — boss confirm kare."""
+    from app.platform import boss_council
+
+    client = _client_record(client_id) or {"id": client_id}
+    out = await boss_council.decide_gbp_suggest(client)
+    out["persisted"] = False
+    return out
 
 
 @router.get("/creatives")
@@ -487,15 +569,17 @@ def customer_creatives(client_id: str = Depends(require_customer)) -> dict:
         rid = str((client_rec or {}).get("id") or client_id or "").strip()
         if rid:
             for it in list_queue(rid, limit=24):
-                posts.append({
-                    "title": str(it.get("title") or it.get("occasion") or "Post")[:140],
-                    "caption": str(it.get("caption") or it.get("text") or "")[:2000],
-                    "hashtags": list(it.get("hashtags") or [])[:12],
-                    "status": str(it.get("status") or "draft"),
-                    "created_at": str(it.get("created_at") or ""),
-                    "svg": str(it.get("svg") or ""),
-                    "has_svg": bool(it.get("svg")),
-                })
+                posts.append(
+                    {
+                        "title": str(it.get("title") or it.get("occasion") or "Post")[:140],
+                        "caption": str(it.get("caption") or it.get("text") or "")[:2000],
+                        "hashtags": list(it.get("hashtags") or [])[:12],
+                        "status": str(it.get("status") or "draft"),
+                        "created_at": str(it.get("created_at") or ""),
+                        "svg": str(it.get("svg") or ""),
+                        "has_svg": bool(it.get("svg")),
+                    }
+                )
     except Exception as e:
         logger.debug("customer_creatives: content queue failed (%s)", e)
 
@@ -510,7 +594,7 @@ def customer_creatives(client_id: str = Depends(require_customer)) -> dict:
 
 @router.get("/autopilot")
 def customer_autopilot_drafts(client_id: str = Depends(require_customer)) -> dict:
-    """"Aapki AI team ne ye taiyaar kiya" — the hands-free autopilot drafts
+    """ "Aapki AI team ne ye taiyaar kiya" — the hands-free autopilot drafts
     (owner-brief / feedback survey / stale-inquiry nudge / evergreen post) the AI
     prepared for THIS business. Draft-only: 1-click send stays the customer's
     choice (no bulk auto-send — ban-safe). client_id from the JWT (require_customer)
@@ -585,25 +669,19 @@ def customer_voice_queue_status(client_id: str = Depends(require_customer)) -> d
 
         with get_db_session() as db:
             total = (
-                db.query(Lead)
-                .filter(Lead.assigned_to == client_id, Lead.phone.isnot(None))
-                .count()
+                db.query(Lead).filter(Lead.assigned_to == client_id, Lead.phone.isnot(None)).count()
             )
             called = len(
                 {
                     r[0]
-                    for r in db.query(CallLog.lead_id)
-                    .filter(CallLog.client_id == client_id)
-                    .all()
+                    for r in db.query(CallLog.lead_id).filter(CallLog.client_id == client_id).all()
                     if r[0]
                 }
             )
             _today = datetime.now(timezone.utc).date()
             today_calls = sum(
                 1
-                for c in db.query(CallLog.initiated_at)
-                .filter(CallLog.client_id == client_id)
-                .all()
+                for c in db.query(CallLog.initiated_at).filter(CallLog.client_id == client_id).all()
                 if c[0] and c[0].date() == _today
             )
     except Exception as e:
@@ -889,11 +967,7 @@ def _client_owns_lead(client_id: str, lead_id: str) -> tuple[bool, bool]:
         from app.models.lead import Lead
 
         with get_db_session() as db:
-            row = (
-                db.query(Lead.id)
-                .filter(Lead.assigned_to == client_id, Lead.id == lid)
-                .first()
-            )
+            row = db.query(Lead.id).filter(Lead.assigned_to == client_id, Lead.id == lid).first()
             if row is not None:
                 return True, False
     except Exception as e:
@@ -1070,8 +1144,12 @@ class RoutingConfigIn(BaseModel):
 
 
 class ApprovalDecideIn(BaseModel):
-    action: str = Field(default="approve", pattern="^(approve|reject)$")
+    action: str = Field(default="approve", pattern="^(approve|reject|escalate)$")
     note: str = Field(default="", max_length=300)
+
+
+class ApprovalCouncilIn(BaseModel):
+    apply: bool = True
 
 
 class KbInfoIn(BaseModel):
@@ -1110,9 +1188,7 @@ def customer_kb_info(
     try:
         from app.voice_agent.knowledge_base import get_knowledge_base
 
-        chunks = get_knowledge_base().add_documents(
-            [text], source="portal:kb_info", namespace=ns
-        )
+        chunks = get_knowledge_base().add_documents([text], source="portal:kb_info", namespace=ns)
     except Exception as e:
         logger.debug("customer kb-info add_documents failed: %s", e)
         raise HTTPException(status_code=503, detail="KB abhi available nahi, thodi der me try karo")
@@ -1187,7 +1263,9 @@ def customer_get_profile(client_id: str = Depends(require_customer)) -> dict:
 
 
 @router.post("/profile")
-def customer_update_profile(body: ProfileUpdateIn, client_id: str = Depends(require_customer)) -> dict:
+def customer_update_profile(
+    body: ProfileUpdateIn, client_id: str = Depends(require_customer)
+) -> dict:
     """Setup Wizard write path — business profile/social/WhatsApp/brand-tone,
     Customer Delivery OS mission's 4 wizard dimensions. IDOR-safe (client_id
     from JWT); only the fields named on ProfileUpdateIn can ever be set — no
@@ -1212,19 +1290,35 @@ def customer_update_profile(body: ProfileUpdateIn, client_id: str = Depends(requ
         if body.approval_preference.strip():
             fields["approval_preference"] = body.approval_preference.strip()
 
-        socials = {k: v.strip() for k, v in {
-            "instagram": body.instagram, "facebook": body.facebook, "gbp": body.gbp,
-        }.items() if v.strip()}
+        socials = {
+            k: v.strip()
+            for k, v in {
+                "instagram": body.instagram,
+                "facebook": body.facebook,
+                "gbp": body.gbp,
+            }.items()
+            if v.strip()
+        }
         if socials:
             fields["socials"] = socials
-        brand = {k: v.strip() for k, v in {
-            "tagline": body.tagline, "primary": body.primary_color,
-            "accent": body.accent_color, "logo_text": body.logo_text,
-        }.items() if v.strip()}
+        brand = {
+            k: v.strip()
+            for k, v in {
+                "tagline": body.tagline,
+                "primary": body.primary_color,
+                "accent": body.accent_color,
+                "logo_text": body.logo_text,
+            }.items()
+            if v.strip()
+        }
         if brand:
             fields["brand"] = brand
 
-        updated = clients_store.update_client(client_id, **fields) if fields else clients_store.get_client(client_id)
+        updated = (
+            clients_store.update_client(client_id, **fields)
+            if fields
+            else clients_store.get_client(client_id)
+        )
         if updated is None:
             raise HTTPException(status_code=404, detail="Client not found")
 
@@ -1274,7 +1368,11 @@ def customer_generate_first_week(client_id: str = Depends(require_customer)) -> 
             seed_first_week.delay(client_id)
         except Exception as qe:
             logger.warning("first-week seed enqueue failed for %s: %s", client_id, qe)
-            return {"ok": False, "queued": False, "error": "Abhi generate nahi ho paya — thodi der baad try karein."}
+            return {
+                "ok": False,
+                "queued": False,
+                "error": "Abhi generate nahi ho paya — thodi der baad try karein.",
+            }
         return {
             "ok": True,
             "queued": True,
@@ -1343,8 +1441,10 @@ def _social_status(client_rec: dict | None) -> dict:
     integrations_source = "none"
     wa_ready = False
     approval_mode = "review"
-    prefs_honored = (
-        _os.environ.get("SOCIAL_PREFS_HONOR", "0").strip().lower() in ("1", "true", "yes")
+    prefs_honored = _os.environ.get("SOCIAL_PREFS_HONOR", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
     )
     try:
         from app.social_engine import enabled as _engine_enabled
@@ -1377,9 +1477,7 @@ def _social_status(client_rec: dict | None) -> dict:
         wa_ready = bool(str(rec.get("phone") or "").strip())
 
     # Ownership: customer must own channels via client/social_config — never env leak.
-    ownership_ok = bool(
-        client_channels and integrations_source in ("client", "social_config")
-    )
+    ownership_ok = bool(client_channels and integrations_source in ("client", "social_config"))
     customer_postiz_ready = bool(postiz_key_on and ownership_ok)
     # Publish-path ready (approve → Postiz) vs hands-free (approval_mode=auto).
     publish_path_active = bool(engine_on and customer_postiz_ready)
@@ -1554,10 +1652,7 @@ def _sync_social_delivery_stage(client_id: str, cfg: dict) -> None:
     """Best-effort: social config saved → advance delivery_stage. Never raises."""
     try:
         handles = cfg.get("handles", {})
-        has_social = any(
-            str(handles.get(k, "")).strip()
-            for k in ("instagram", "facebook", "gbp")
-        )
+        has_social = any(str(handles.get(k, "")).strip() for k in ("instagram", "facebook", "gbp"))
         if not has_social:
             return
         from app.marketing.delivery_ledger import log_event
@@ -1626,7 +1721,8 @@ class SocialConnectIn(BaseModel):
     account_ref: str = Field("", max_length=255)
     label: str = Field("", max_length=120)
     source: str = Field(
-        "manual_paste", max_length=32,
+        "manual_paste",
+        max_length=32,
         description="How this token was obtained (manual_paste, admin_paste, oauth_v1)",
     )
 
@@ -1657,20 +1753,23 @@ def customer_social_accounts(client_id: str = Depends(require_customer)) -> dict
             _raw_ref = str(r.get("account_ref") or "")
             try:
                 import hashlib as _h
+
                 _acct_id = _h.sha1(
-                    (f"{client_id}|{plat}|{_raw_ref}").encode("utf-8")
+                    (f"{client_id}|{plat}|{_raw_ref}").encode(), usedforsecurity=False
                 ).hexdigest()[:16]
             except Exception:
                 _acct_id = ""
-            accounts_by_plat[plat].append({
-                "platform": plat,
-                "account_id": _acct_id,  # opaque, DELETE-safe (Loop 27)
-                "account_ref_masked": _mask_ref(_raw_ref),
-                "label": str(meta.get("label") or "")[:120],
-                "source": str(meta.get("source") or "manual_paste")[:32],
-                "updated_at": str(r.get("ts") or ""),
-                "token_stored": _mask_token_present(True),  # list_accounts filters deleted
-            })
+            accounts_by_plat[plat].append(
+                {
+                    "platform": plat,
+                    "account_id": _acct_id,  # opaque, DELETE-safe (Loop 27)
+                    "account_ref_masked": _mask_ref(_raw_ref),
+                    "label": str(meta.get("label") or "")[:120],
+                    "source": str(meta.get("source") or "manual_paste")[:32],
+                    "updated_at": str(r.get("ts") or ""),
+                    "token_stored": _mask_token_present(True),  # list_accounts filters deleted
+                }
+            )
 
         # Platform-level summary — customer wizard consumes this to render per-platform
         # "Connect / Reconnect / Disconnect" buttons + honest state text.
@@ -1678,16 +1777,20 @@ def customer_social_accounts(client_id: str = Depends(require_customer)) -> dict
         platforms = []
         for p in _CONNECT_PLATFORMS:
             has = bool(accounts_by_plat[p])
-            state = "connected" if has else (
-                "provider_review_pending" if p in _review_pending else "not_connected"
+            state = (
+                "connected"
+                if has
+                else ("provider_review_pending" if p in _review_pending else "not_connected")
             )
-            platforms.append({
-                "platform": p,
-                "connected": has,
-                "state": state,
-                "account_count": len(accounts_by_plat[p]),
-                "requires_review": p in _review_pending and not has,
-            })
+            platforms.append(
+                {
+                    "platform": p,
+                    "connected": has,
+                    "state": state,
+                    "account_count": len(accounts_by_plat[p]),
+                    "requires_review": p in _review_pending and not has,
+                }
+            )
 
         return {
             "ok": True,
@@ -1719,29 +1822,38 @@ def customer_social_accounts_connect(
 
         plat = str(body.platform or "").strip().lower()
         if plat not in _CONNECT_PLATFORMS:
-            raise HTTPException(status_code=400, detail={
-                "error": "invalid_platform",
-                "message": f"Sirf {', '.join(_CONNECT_PLATFORMS)} allowed hain",
-            })
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "invalid_platform",
+                    "message": f"Sirf {', '.join(_CONNECT_PLATFORMS)} allowed hain",
+                },
+            )
         tok = str(body.token or "").strip()
         if not tok or len(tok) < 8:
-            raise HTTPException(status_code=400, detail={
-                "error": "invalid_token",
-                "message": "Access token kam se kam 8 char ka hona chahiye",
-            })
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "invalid_token",
+                    "message": "Access token kam se kam 8 char ka hona chahiye",
+                },
+            )
         ref = str(body.account_ref or "").strip()[:255]
         # Meta / GBP / LI ke liye account_ref MANDATORY (dispatch node id). X/YT
         # ke liye optional — provider unhe token alone se resolve karta.
         if plat in ("facebook", "instagram", "gbp", "linkedin") and not ref:
-            raise HTTPException(status_code=400, detail={
-                "error": "account_ref_required",
-                "message": {
-                    "facebook": "Facebook Page ID chahiye",
-                    "instagram": "Instagram Business User ID chahiye",
-                    "gbp": "GBP location resource (accounts/…/locations/…) chahiye",
-                    "linkedin": "LinkedIn organization/person urn chahiye",
-                }.get(plat, "account_ref chahiye"),
-            })
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "error": "account_ref_required",
+                    "message": {
+                        "facebook": "Facebook Page ID chahiye",
+                        "instagram": "Instagram Business User ID chahiye",
+                        "gbp": "GBP location resource (accounts/…/locations/…) chahiye",
+                        "linkedin": "LinkedIn organization/person urn chahiye",
+                    }.get(plat, "account_ref chahiye"),
+                },
+            )
 
         source = str(body.source or "manual_paste").strip().lower()
         if source not in ("manual_paste", "admin_paste", "oauth_v1"):
@@ -1752,8 +1864,11 @@ def customer_social_accounts_connect(
         }
         ok = bool(vault.put(client_id, plat, tok, account_ref=ref, meta=meta))
         if not ok:
-            return {"ok": False, "error": "vault_put_failed",
-                    "message": "Token save nahi hua, dobara try karo"}
+            return {
+                "ok": False,
+                "error": "vault_put_failed",
+                "message": "Token save nahi hua, dobara try karo",
+            }
 
         # Best-effort delivery-ledger + team-feed logging so ops/customer both see the
         # connect event. Never-raise (best-effort per §4).
@@ -1761,8 +1876,10 @@ def customer_social_accounts_connect(
             from app.marketing import delivery_ledger
 
             delivery_ledger.log_event(
-                client_id, "social_setup_completed",
-                detail=f"{plat} account connected", key=f"social_connect:{plat}:{ref}",
+                client_id,
+                "social_setup_completed",
+                detail=f"{plat} account connected",
+                key=f"social_connect:{plat}:{ref}",
             )
         except Exception:
             pass
@@ -1770,7 +1887,8 @@ def customer_social_accounts_connect(
             from app.platform import team
 
             team.log_event(
-                "zara", "social_account_connected",
+                "zara",
+                "social_account_connected",
                 f"{client_id}: {plat} account connected (source={source})",
                 status="ok",
             )
@@ -1820,6 +1938,7 @@ def customer_social_accounts_disconnect(
             # account count (small); safe to iterate.
             try:
                 import hashlib as _h
+
                 rows = vault.list_accounts(client_id) or []
                 for _r in rows:
                     _rp = str(_r.get("platform") or "").strip().lower()
@@ -1827,7 +1946,7 @@ def customer_social_accounts_disconnect(
                         continue
                     _rr = str(_r.get("account_ref") or "")
                     _h1 = _h.sha1(
-                        (f"{client_id}|{plat}|{_rr}").encode("utf-8")
+                        (f"{client_id}|{plat}|{_rr}").encode(), usedforsecurity=False
                     ).hexdigest()[:16]
                     if _h1 == aid:
                         resolved_ref = _rr[:255]
@@ -1839,7 +1958,8 @@ def customer_social_accounts_disconnect(
             from app.platform import team
 
             team.log_event(
-                "zara", "social_account_disconnected",
+                "zara",
+                "social_account_disconnected",
                 f"{client_id}: {plat} account_ref={_mask_ref(resolved_ref)}",
                 status="warn",
             )
@@ -1875,52 +1995,81 @@ def customer_social_readiness(client_id: str = Depends(require_customer)) -> dic
         checks = []
 
         def _add(key: str, label: str, ok: bool, action: str) -> None:
-            checks.append({"key": key, "label": label, "ok": bool(ok),
-                           "action": "" if ok else action})
+            checks.append(
+                {"key": key, "label": label, "ok": bool(ok), "action": "" if ok else action}
+            )
 
         # Step 1: business profile
-        _add("business_name",  "Business ka naam",
-             bool(str(rec.get("business_name") or "").strip()),
-             "Business name add karo")
-        _add("niche",          "Niche / category",
-             bool(str(rec.get("niche") or "").strip()),
-             "Niche select karo")
-        _add("location",       "Location / city",
-             bool(str(rec.get("city") or rec.get("location") or "").strip()),
-             "Sheher select karo")
-        _add("phone",          "Contact number",
-             bool(str(rec.get("phone") or "").strip()),
-             "WhatsApp number add karo")
-        _add("email",          "Email",
-             bool(str(rec.get("email") or "").strip()),
-             "Email confirm karo")
+        _add(
+            "business_name",
+            "Business ka naam",
+            bool(str(rec.get("business_name") or "").strip()),
+            "Business name add karo",
+        )
+        _add(
+            "niche",
+            "Niche / category",
+            bool(str(rec.get("niche") or "").strip()),
+            "Niche select karo",
+        )
+        _add(
+            "location",
+            "Location / city",
+            bool(str(rec.get("city") or rec.get("location") or "").strip()),
+            "Sheher select karo",
+        )
+        _add(
+            "phone",
+            "Contact number",
+            bool(str(rec.get("phone") or "").strip()),
+            "WhatsApp number add karo",
+        )
+        _add("email", "Email", bool(str(rec.get("email") or "").strip()), "Email confirm karo")
 
         # Step 2: brand assets
-        _add("brand_logo",     "Logo",
-             bool(assets.get("logo_url") or rec.get("logo_url")),
-             "Logo upload karo (Brand section)")
-        _add("brand_colors",   "Brand color",
-             bool(assets.get("primary_color") or rec.get("primary_color")),
-             "Ek brand color choose karo")
+        _add(
+            "brand_logo",
+            "Logo",
+            bool(assets.get("logo_url") or rec.get("logo_url")),
+            "Logo upload karo (Brand section)",
+        )
+        _add(
+            "brand_colors",
+            "Brand color",
+            bool(assets.get("primary_color") or rec.get("primary_color")),
+            "Ek brand color choose karo",
+        )
 
         # Step 3: at least one social account connected OR a social handle
         has_any_social = bool(accts) or any(
             str(socials.get(k) or "").strip() for k in ("instagram", "facebook", "gbp")
         )
-        _add("social_account", "Ek social account",
-             has_any_social,
-             "Kam se kam ek Instagram/Facebook/GBP connect karo")
+        _add(
+            "social_account",
+            "Ek social account",
+            has_any_social,
+            "Kam se kam ek Instagram/Facebook/GBP connect karo",
+        )
 
         # Step 4: content prefs
-        _add("channels_chosen", "AI kin channels ke liye content banaye",
-             bool(cfg.get("channels")),
-             "Wizard me channel select karo")
-        _add("cadence",        "Content cadence",
-             str(cfg.get("cadence") or "").strip() not in ("", "off"),
-             "Weekly cadence choose karo")
-        _add("approval_mode",  "Approval preference",
-             bool(str(cfg.get("approval_mode") or "").strip()),
-             "Approve-mode select karo (recommended: review)")
+        _add(
+            "channels_chosen",
+            "AI kin channels ke liye content banaye",
+            bool(cfg.get("channels")),
+            "Wizard me channel select karo",
+        )
+        _add(
+            "cadence",
+            "Content cadence",
+            str(cfg.get("cadence") or "").strip() not in ("", "off"),
+            "Weekly cadence choose karo",
+        )
+        _add(
+            "approval_mode",
+            "Approval preference",
+            bool(str(cfg.get("approval_mode") or "").strip()),
+            "Approve-mode select karo (recommended: review)",
+        )
 
         total = len(checks)
         done = sum(1 for c in checks if c["ok"])
@@ -1933,12 +2082,19 @@ def customer_social_readiness(client_id: str = Depends(require_customer)) -> dic
             "total": total,
             "checks": checks,
             "pending": pending,
-            "ready_to_publish": percent >= 80 and any(c["key"] == "social_account" and c["ok"] for c in checks),
+            "ready_to_publish": percent >= 80
+            and any(c["key"] == "social_account" and c["ok"] for c in checks),
         }
     except Exception as e:
         logger.debug("customer social readiness failed: %s", e)
-        return {"ok": False, "score": 0, "checks": [], "pending": [],
-                "ready_to_publish": False, "error": "readiness load nahi hua"}
+        return {
+            "ok": False,
+            "score": 0,
+            "checks": [],
+            "pending": [],
+            "ready_to_publish": False,
+            "error": "readiness load nahi hua",
+        }
 
 
 @router.get("/branded-feed")
@@ -1986,17 +2142,14 @@ def customer_delivery_proof(client_id: str = Depends(require_customer)) -> dict:
         from app.marketing import product_one_delivery
 
         state = product_one_delivery.customer_delivery_status(client_id)
-        deliverables = [
-            d
-            for d in state.get("deliverables", [])
-            if d.get("customer_visible", True)
-        ]
+        deliverables = [d for d in state.get("deliverables", []) if d.get("customer_visible", True)]
         # Fetch pending approvals + published posts for the new delivery view
         approvals_pending = []
         posts_published = []
         business_name = ""
         try:
             import app.marketing.clients_store as cs
+
             c = cs.get_client(client_id) or {}
             business_name = c.get("business_name", "")
         except Exception:
@@ -2021,6 +2174,7 @@ def customer_delivery_proof(client_id: str = Depends(require_customer)) -> dict:
             approvals_pending = []
         try:
             from app.marketing.delivery_ledger import timeline
+
             ledger = timeline(client_id, limit=100)
             posts_published = [
                 {
@@ -2028,7 +2182,9 @@ def customer_delivery_proof(client_id: str = Depends(require_customer)) -> dict:
                     "title": e.get("detail") or e.get("label") or e.get("event", "Post"),
                     "detail": e.get("detail", ""),
                     "status": "published" if e.get("event") == "post_published" else "approved",
-                    "status_label": "Published" if e.get("event") == "post_published" else "Approved",
+                    "status_label": (
+                        "Published" if e.get("event") == "post_published" else "Approved"
+                    ),
                 }
                 for e in ledger
                 if e.get("event") in ("post_published", "post_approved")
@@ -2087,6 +2243,8 @@ def customer_pending_approvals(client_id: str = Depends(require_customer)):
                 "status": r.get("status"),
                 "created_at": r.get("created_at"),
                 "content": r.get("content") or {},
+                "needs_admin": bool(r.get("needs_admin")),
+                "admin_note": r.get("admin_note") or "",
             }
             for r in rows
         ]
@@ -2102,10 +2260,28 @@ def customer_decide_approval(
     body: ApprovalDecideIn,
     client_id: str = Depends(require_customer),
 ):
-    """Portal se approve/reject — token link ki zaroorat nahi."""
+    """Portal se approve/reject/escalate — token link ki zaroorat nahi."""
     from app.marketing import content_approval
 
+    if body.action == "escalate":
+        return content_approval.escalate_for_client(client_id, approval_id, note=body.note or "")
     return content_approval.decide_for_client(client_id, approval_id, body.action, body.note or "")
+
+
+@router.post(
+    "/approvals/{approval_id}/council-decide",
+    dependencies=[Depends(rate_limit("approval_council", 6, 60))],
+)
+async def customer_approval_council_decide(
+    approval_id: str,
+    body: ApprovalCouncilIn | None = None,
+    client_id: str = Depends(require_customer),
+):
+    """Samajh nahi aaya → LLM Council decide (APPROVE / PARK_ADMIN / KEEP)."""
+    from app.platform import boss_council
+
+    apply = True if body is None else bool(body.apply)
+    return await boss_council.decide_approval(client_id, approval_id, apply=apply)
 
 
 @router.get("/routing")

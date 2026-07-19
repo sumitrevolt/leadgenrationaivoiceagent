@@ -1231,18 +1231,34 @@ async def reply_feedback_stats(_user=Depends(require_admin)):
 @router.get("/reply/hot-queue")
 async def reply_hot_queue(
     limit: int = 50,
+    scope: str = "boss",
     _user=Depends(require_admin),
 ):
     """Hot Queue (GTM): interested/question replies — dedupe + prospect
-    phone-join + freshness sort. Roz subah isse kaam karo (call/WhatsApp/send)."""
+    phone-join + freshness sort. Roz subah isse kaam karo (call/WhatsApp/send).
+
+    scope=boss (default) | admin (parked) | all."""
     from app.platform import reply_agent
 
-    rows = reply_agent.hot_queue(limit=max(1, min(200, limit)))
-    return {"ok": True, "count": len(rows), "items": rows}
+    scope_n = str(scope or "boss").strip().lower()
+    if scope_n not in ("boss", "admin", "all"):
+        scope_n = "boss"
+    rows = reply_agent.hot_queue(limit=max(1, min(200, limit)), scope=scope_n)
+    return {"ok": True, "count": len(rows), "scope": scope_n, "items": rows}
 
 
 class HotQueueDoneIn(BaseModel):
     hq_id: str
+
+
+class HotQueueParkIn(BaseModel):
+    hq_id: str
+    note: str = ""
+
+
+class HotQueueCouncilIn(BaseModel):
+    hq_id: str
+    apply: bool = True
 
 
 @router.post("/reply/hot-queue/done")
@@ -1258,6 +1274,37 @@ async def reply_hot_queue_done(
     if not ok:
         raise HTTPException(404, "hq_id not found (ya already done)")
     return {"ok": True, "hq_id": body.hq_id}
+
+
+@router.post("/reply/hot-queue/park")
+async def reply_hot_queue_park(
+    body: HotQueueParkIn,
+    _rl=Depends(rate_limit("hot_queue_park", 60, 60)),
+    _user=Depends(require_admin),
+):
+    """Manual park for admin — boss unclear without running council."""
+    from app.platform import reply_agent
+
+    ok = reply_agent.park_for_admin(body.hq_id, note=body.note or "")
+    if not ok:
+        raise HTTPException(404, "hq_id not found (ya already done)")
+    return {"ok": True, "hq_id": body.hq_id, "hq_status": "admin_pending"}
+
+
+@router.post(
+    "/reply/hot-queue/council-decide", dependencies=[Depends(rate_limit("hq_council", 8, 60))]
+)
+async def reply_hot_queue_council_decide(
+    body: HotQueueCouncilIn,
+    _user=Depends(require_admin),
+):
+    """Boss samajh nahi aaya → LLM Council decide (DONE/PARK_ADMIN/KEEP/CALL)."""
+    from app.platform import boss_council
+
+    out = await boss_council.decide_hot_queue(body.hq_id, apply=bool(body.apply))
+    if not out.get("ok") and "nahi mila" in str(out.get("error") or "").lower():
+        raise HTTPException(404, out.get("error") or "not found")
+    return out
 
 
 @router.post("/reply/hot-queue/quick-done/{token}")
@@ -1369,9 +1416,10 @@ async def infra_flags(_user=Depends(require_admin)):
         # *_TOKEN/*_SECRET/*_KEY, TOTP_CHALLENGE_KEY…) — mask the value; plain on/off
         # toggles still show their "1"/"true". `set`/`on` stay visible for both.
         _fu = f.upper()
-        _is_secret = _fu.endswith(
-            ("_KEY", "_TOKEN", "_SECRET", "PASSWORD", "_URL", "_DSN")
-        ) or "PASSWORD" in _fu
+        _is_secret = (
+            _fu.endswith(("_KEY", "_TOKEN", "_SECRET", "PASSWORD", "_URL", "_DSN"))
+            or "PASSWORD" in _fu
+        )
         out[f] = {
             "set": v is not None,
             "on": (v or "").strip().lower() in ("1", "true", "yes"),

@@ -1202,7 +1202,17 @@ a{color:var(--acc)}
 <script>
 const $=id=>document.getElementById(id);
 function tok(){return localStorage.getItem('accessToken')||''}
-function saveTok(){localStorage.setItem('accessToken',$('tokin').value.trim());toast('Token saved ✅')}
+function saveTok(){
+  var v=$('tokin').value.trim();
+  /* 2026-07-19: empty Save used to OVERWRITE the login token with '' and
+     silently break every API call on this page. Guard + hint instead. */
+  if(!v){toast('Token khali hai — login karo ya token paste karke Save dabao',false);return}
+  localStorage.setItem('accessToken',v);toast('Token saved ✅')
+}
+/* 2026-07-19: placeholder promised "login se auto" but nothing ever filled the
+   field — /app/admin-login stores accessToken in localStorage, so prefill it
+   (type=password, so masked). Field stays editable for token override. */
+(function(){var t=tok();if(t)$('tokin').value=t})();
 function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function toast(msg,ok){var t=document.createElement('div');t.className='toast '+(ok===false?'tbad':'tok');t.textContent=msg;document.body.appendChild(t);setTimeout(function(){t.remove()},4500)}
 async function api(path,opts){
@@ -3189,7 +3199,7 @@ async function tdLoad(){
     warnBox('tdProblems','Load fail: '+e.message+' — token check karo (upar Save), phir Refresh dabao');
     $('tdStaff').innerHTML='<div class="mut">Team data abhi available nahi.</div>';
     $('tdJobs').innerHTML='<div class="mut">Schedule data abhi available nahi.</div>';
-  3150|    $('tdFlags').innerHTML='<div class="mut">Automation flags abhi available nahi.</div>';
+    $('tdFlags').innerHTML='<div class="mut">Automation flags abhi available nahi.</div>';
   }
 }
 
@@ -3584,7 +3594,10 @@ var AUTOLOAD={today:tdLoad,schedule:function(){scLoad();scAuto(true)},agents:agL
 var _origShow=show;
 show=function(tab){_origShow(tab);if(tab!=='schedule')scAuto(false);if(AUTOLOAD[tab])try{AUTOLOAD[tab]()}catch(e){}};
 var start=(location.hash||'').replace('#','');
-var valid=['today','schedule','agents','training','scraping','approvals','events','harvest','prospects','cadence','salesai','process','selfimp','upgrader','drafters','revenue','research','contentplus','lifecycle','contentauto','fde','telephony','postcall','loyalty','nps','webhooks','reviewmon','clientrep','fflags'];
+/* 2026-07-19: derive valid tabs from the sidebar DOM — the old hard-coded list
+   had drifted (growthlab/clientops/rl missing), so their #hash deep-links
+   silently bounced to "today". */
+var valid=Array.prototype.map.call(document.querySelectorAll('#sidebar button[id^="tab-"]'),function(b){return b.id.slice(4)});
 show(valid.indexOf(start)>=0?start:'today');
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>
