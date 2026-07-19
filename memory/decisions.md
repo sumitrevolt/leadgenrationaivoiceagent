@@ -2,6 +2,49 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-19 - ADR-126 Canonical Agent Runtime Contract registry (Agent-OS Phase-A foundation)
+
+Decision: naya `app/platform/agent_registry.py` — 31 STAFF agents ke liye single canonical
+governance layer. DERIVE-not-duplicate: display fields `team.STAFF` se, triggers+cadence
+`scheduler_config.JOB_META` se (reverse owner->jobs map; `boss` owner -> `manager` fold),
+sirf governance data (`_GOVERNANCE`) hand-authored — autonomy L0-L4, policy lane
+GREEN/AMBER/RED, default_mode (live/draft/shadow/proposal/inbound_ready/hard_off), reasoning
+flag, primary env-flag, prohibited[], budgets (cost_inr/api/contact_cap), max_concurrency,
+run_timeout, retry, idempotency, heartbeat_gap + useful_work_gap, escalation, kill_switches[],
+test_ref. `AgentContract` frozen dataclass. `validate_registry()` = reconciliation + §5 gates
+AS DATA (swara/ananya must be RED+hard_off; no AMBER/RED defaults LIVE; every agent under
+`owner_all_agents` global kill; escalation resolves). INERT/additive — koi runtime module isko
+import nahi karta (Phase-A foundation only). 14 contract tests green (`tests/test_agent_registry.py`),
+`validate_registry()==[]`, summary: 31 canonical, lanes GREEN20/AMBER9/RED2, 6 reasoning agents.
+NOT deployed (local-verified only, §8 no-deploy-without-ask).
+
+Context: 31-agent workforce metadata 5 jagah bikhri + contradictory thi (team.STAFF /
+JOB_META / agent_controls.ALIAS_TO_MEMBER / owner_os / scorecard doc). Autonomy-level ya
+policy-lane koi DATA ke roop me tha hi nahi (Explore-verified). Enterprise Agent-OS ko ek
+reconciled truth chahiye jise Boss-router + Owner OS + tests sab padh saken.
+
+Count decision (honest): 31 canonical rakha — owner_os pehle se assert karta ("manager=Boss
+is one of 31, not a 32nd"). Aditi persona INVENT nahi kiya: delivery-assurance remit pehle se
+`customer_delivery.py`+`delivery_ledger.py` owns (entitlement->delivery, billing<->marketing id
+via billing_client_ids, undelivered dead-man, SLA founder-page). Prompt ke apne fallback-branch
+("agar already owned -> 31 rakho, Agent-OS ko 32nd control-plane worker model karo") ke hisaab se
+`CONTROL_PLANE` (id=agent_os, counts_toward_workforce=False) = honest 32nd. KNOWN_DRIFTS[] me 4
+real contradictions record: (1) ALIAS_TO_MEMBER['blog']=ravi vs JOB_META blog owner=isha
+(canonical=isha; ravi=embedded SEO sub-engine), (2) JOB_META social_drain owner=isha vs publish
+executor zara, (3) scorecard title "32" (doc-fixed -> 31), (4) JOB_META pseudo-owners boss/platform.
+
+Rejected: naya Aditi persona (count inflate + owner_os 31-assertion todta + existing engine
+duplicate); governance ko naye dict me duplicate karna (derive kiya); is session runtime me wire
+karna (Phase B+ canary ka kaam); ALIAS_TO_MEMBER blog drift ko abhi surgically badalna (routing
+behaviour change = alag reviewed change; abhi sirf test me canonical assert kiya).
+
+Consequence: Boss routing + Owner OS + contract-tests ke liye 1 reconciled source. Scorecard doc
+title 32->31 fix. Files: +app/platform/agent_registry.py, +tests/test_agent_registry.py, doc title.
+Rollback = dono naye file delete (kuch import nahi karta -> zero blast radius). Remaining (Phase A
+rest): registry ko owner_os/scheduler ka source-of-truth banao (work-ledger/leases/idempotency
+partly EXIST — agent_task_queue/automation_health/idempotency reuse), ALIAS_TO_MEMBER blog drift
+surgical fix, optional: delivery engine ko named persona (priya/zara/anika/ira precedent).
+
 ## 2026-07-19 - ADR-125 branded_posters top-up generator (Product One 80% -> 90%)
 
 Decision: `auto_content.generate_poster_pack(client, target=4)` — real branded SVG
