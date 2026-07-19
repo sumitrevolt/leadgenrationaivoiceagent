@@ -227,6 +227,12 @@ scripts/_canary_*.txt
 /pytest_*.txt
 /*_result.txt
 /forensics_*.txt
+# root-scoped debug dumps (prod page snapshots, cleanup logs, stderr captures, leftover commit msgs) — 2026-07-19 harden
+/*_prod.html
+/cleanup_*.txt
+/wt_prodcheck.txt
+/commit_msg*.txt
+/*.err
 # editor/agent backup files (never tracked; confirmed 0 tracked matches)
 *.bak
 *.bak.*
