@@ -12,6 +12,7 @@ conservative rehta hai, owner motivated rehta hai.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -300,3 +301,106 @@ def score_audit(answers: dict[str, Any]) -> dict[str, Any]:
         "top_fixes": top_fixes,
         "impact": impact,
     }
+
+
+def _worst_idx(qid: str) -> int:
+    """Unknown → sabse conservative (last) option."""
+    for q in AUDIT_QUESTIONS:
+        if q["id"] == qid:
+            return max(0, len(q["options"]) - 1)
+    return 0
+
+
+def _clamp_idx(qid: str, idx: int) -> int:
+    for q in AUDIT_QUESTIONS:
+        if q["id"] == qid:
+            n = len(q["options"])
+            try:
+                i = int(idx)
+            except (TypeError, ValueError):
+                return _worst_idx(qid)
+            return max(0, min(n - 1, i))
+    return 0
+
+
+def heuristic_suggest(client: dict[str, Any] | None) -> dict[str, Any]:
+    """Profile se CONSERVATIVE answer suggestions. Score SAVE nahi karta.
+
+    Unknown facts → worst/pata-nahi option. Sirf clear signals pe mid/better.
+    """
+    c = client if isinstance(client, dict) else {}
+    socials = c.get("socials") if isinstance(c.get("socials"), dict) else {}
+    gbp = str(c.get("gbp") or socials.get("gbp") or "").strip()
+    phone = str(c.get("phone") or c.get("whatsapp_phone") or "").strip()
+    website = str(c.get("website") or c.get("site_url") or "").strip()
+    services = c.get("services")
+    has_services = bool(
+        (isinstance(services, str) and services.strip())
+        or (isinstance(services, list | tuple) and len(services) > 0)
+    )
+    city = str(c.get("city") or c.get("target_area") or "").strip()
+    niche = str(c.get("niche") or c.get("industry") or "").strip()
+    wa = bool(str(c.get("whatsapp_phone") or "").strip())
+
+    answers: dict[str, int] = {q["id"]: _worst_idx(q["id"]) for q in AUDIT_QUESTIONS}
+    sources: dict[str, str] = {}
+
+    if gbp:
+        answers["claimed"] = 1  # claimed? verify unknown — mid, not best
+        sources["claimed"] = "gbp_link_present"
+    if phone and website:
+        answers["contact"] = 0
+        sources["contact"] = "phone+website_in_profile"
+    elif phone:
+        answers["contact"] = 1
+        sources["contact"] = "phone_only"
+    if has_services:
+        answers["services"] = 1
+        sources["services"] = "services_in_profile"
+    if city and niche:
+        answers["description"] = 1
+        sources["description"] = "city+niche_known_not_gbp_text"
+    if wa:
+        answers["booking"] = 0
+        sources["booking"] = "whatsapp_can_be_booking_link"
+        answers["messaging"] = 2  # still unknown if GBP chat on
+        sources["messaging"] = "wa_exists_gbp_chat_unknown"
+
+    # Photos/reviews/hours/posts/qna/nap/geo — live GBP bina invent nahi
+    for qid in (
+        "photos",
+        "posts",
+        "reviews_count",
+        "rating",
+        "review_replies",
+        "qna",
+        "hours",
+        "geo_photos",
+        "nap",
+        "categories",
+    ):
+        sources.setdefault(qid, "unknown_conservative")
+
+    return {
+        "ok": True,
+        "answers": answers,
+        "sources": sources,
+        "mode": "heuristic",
+        "note_hi": (
+            "Profile se conservative suggestions. Photos/reviews/hours jaise facts "
+            "GBP pe dekh ke boss confirm kare — Score tabhi save hoga."
+        ),
+    }
+
+
+def parse_council_gbp_answers(text: str) -> dict[str, int]:
+    """Chairman text se `Q_<id>: <index>` lines. Invalid skip."""
+    out: dict[str, int] = {}
+    raw = str(text or "")
+    for q in AUDIT_QUESTIONS:
+        qid = q["id"]
+        m = re.search(rf"(?im)^\s*Q_{re.escape(qid)}\s*:\s*(\d+)\s*$", raw)
+        if not m:
+            continue
+        out[qid] = _clamp_idx(qid, int(m.group(1)))
+    return out

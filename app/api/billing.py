@@ -29,6 +29,7 @@ from app.models.payment import (
     UsageRecord,
 )
 from app.utils.logger import setup_logger
+from app.utils.redirect_security import validate_redirect_url
 
 logger = setup_logger(__name__)
 router = APIRouter()
@@ -739,6 +740,10 @@ async def add_account_balance(
     Add balance to account (for per-lead pricing model).
     Stripe removed 2026-07-10 — returns clean 503.
     """
+    # SECURITY FIX (P0-2, 2026-07-19): Validate redirect URLs to prevent open redirects
+    _ = validate_redirect_url(success_url, is_dev=settings.app_env == "development")
+    _ = validate_redirect_url(cancel_url, is_dev=settings.app_env == "development")
+
     raise HTTPException(
         status_code=503,
         detail="Online payment abhi setup ho raha hai — UPI ya contact se pay karein.",
@@ -823,14 +828,18 @@ async def upgrade_subscription(
     must not self-upgrade for free — customer-initiated upgrades go through
     /billing/checkout (which charges the new plan) and the webhook updates the plan.
     """
-    # Get current subscription
+    # SECURITY FIX (P0-3, 2026-07-19): Add row-level locking to prevent concurrent modification
+    # Use SELECT ... FOR UPDATE to prevent race conditions on subscription upgrades
+    # This ensures only one request can modify the subscription at a time
     result = await db.execute(
-        select(Subscription).where(
+        select(Subscription)
+        .where(
             and_(
                 Subscription.client_id.in_(_billing_client_ids(client_id)),
                 Subscription.status.in_([SubscriptionStatus.TRIAL, SubscriptionStatus.ACTIVE]),
             )
         )
+        .with_for_update()  # Row-level pessimistic lock
     )
     subscription = result.scalar_one_or_none()
 
@@ -913,6 +922,7 @@ async def create_billing_portal(
 # PAUSE / RESUME subscription
 # =============================================================================
 async def _get_active_or_paused_sub(db: AsyncSession, client_id: str) -> Subscription:
+    # SECURITY FIX (P0-3, 2026-07-19): Add row-level locking for pause/resume operations
     result = await db.execute(
         select(Subscription)
         .where(
@@ -928,6 +938,7 @@ async def _get_active_or_paused_sub(db: AsyncSession, client_id: str) -> Subscri
             )
         )
         .order_by(Subscription.created_at.desc())
+        .with_for_update()  # Row-level pessimistic lock
     )
     sub = result.scalar_one_or_none()
     if not sub:

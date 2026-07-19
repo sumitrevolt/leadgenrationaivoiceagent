@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.base import get_async_db
 from app.models.user import User, UserRole, UserStatus
+from app.utils.jwt_versioning import get_jwt_manager
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -27,7 +28,9 @@ JWT_ALGORITHM = settings.jwt_algorithm
 def decode_token(token: str) -> dict:
     """Decode and validate JWT token"""
     try:
-        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        # SECURITY FIX (P0-5, 2026-07-19): Use JWT key manager for key versioning
+        jwt_mgr = get_jwt_manager(JWT_SECRET, JWT_ALGORITHM)
+        payload = jwt_mgr.decode(token)
         return payload
     except JWTError as e:
         raise HTTPException(status_code=401, detail=f"Invalid token: {str(e)}")

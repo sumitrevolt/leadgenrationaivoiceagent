@@ -55,6 +55,7 @@ from datetime import datetime, time, timedelta, timezone
 from enum import Enum
 from typing import Any
 
+from app.telephony.compliance_audit_logger import log_compliance_decision
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -288,6 +289,7 @@ class ComplianceGate:
         phone: str,
         call_type: CallType = CallType.PROMOTIONAL,
         now: datetime | None = None,
+        db=None,  # Optional AsyncSession for audit logging (P0-4, 2026-07-19)
     ) -> ComplianceDecision:
         """Run every applicable rule. Returns a ComplianceDecision (never raises)."""
         try:
@@ -401,6 +403,38 @@ class ComplianceGate:
                     f"🚫 ComplianceGate BLOCKED {ct.value} call to ***{phone_d[-4:]}: "
                     f"{', '.join(reasons)}"
                 )
+            # SECURITY FIX (P0-4, 2026-07-19): Log compliance decision to database for audit
+            try:
+                import asyncio
+
+                if db is not None:
+                    # Non-blocking: log decision asynchronously
+                    primary_reason = reasons[0] if reasons else "allowed"
+                    await log_compliance_decision(
+                        db=db,
+                        phone=phone,
+                        call_type=ct.value,
+                        decision_allowed=allowed,
+                        decision_reason=primary_reason,
+                        dnd_checked=checks.get("dnd") is not None,
+                        dnd_result=checks.get("dnd"),
+                        window_checked=checks.get("within_hours") is not None,
+                        window_start=(
+                            checks.get("window", "").split("-")[0]
+                            if "-" in checks.get("window", "")
+                            else None
+                        ),
+                        window_end=(
+                            checks.get("window", "").split("-")[1]
+                            if "-" in checks.get("window", "")
+                            else None
+                        ),
+                        call_time=checks.get("now_ist"),
+                        request_path="/api/voice/call",
+                        notes=", ".join(reasons) if reasons else "allowed",
+                    )
+            except Exception as audit_err:
+                logger.warning(f"Compliance audit logging failed: {audit_err}")
             return ComplianceDecision(allowed, ct.value, phone, reasons, checks)
 
         except Exception as e:

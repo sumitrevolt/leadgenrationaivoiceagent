@@ -840,9 +840,7 @@ def _base_url() -> str:
 def _mint_magic(client_id: str, email: str) -> str:
     from datetime import timedelta
 
-    from jose import jwt
-
-    from app.config import settings
+    from app.utils.jwt_versioning import get_jwt_manager
 
     payload = {
         "sub": str(client_id),
@@ -851,16 +849,20 @@ def _mint_magic(client_id: str, email: str) -> str:
         "jti": secrets.token_hex(16),
         "exp": datetime.now(timezone.utc) + timedelta(seconds=_magic_ttl()),
     }
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    # SECURITY FIX (P0-5, 2026-07-19): Use JWT key manager for key versioning support
+    jwt_mgr = get_jwt_manager()
+    return jwt_mgr.encode(payload)
 
 
 def _decode_magic(token: str) -> dict:
-    from jose import JWTError, jwt
+    from jose import JWTError
 
-    from app.config import settings
+    from app.utils.jwt_versioning import get_jwt_manager
 
     try:
-        payload = jwt.decode(token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+        # SECURITY FIX (P0-5, 2026-07-19): Use JWT key manager for key versioning support
+        jwt_mgr = get_jwt_manager()
+        payload = jwt_mgr.decode(token)
     except JWTError:
         raise HTTPException(status_code=401, detail="Link invalid ya expire ho gaya")
     if payload.get("type") != "magic" or not payload.get("sub"):

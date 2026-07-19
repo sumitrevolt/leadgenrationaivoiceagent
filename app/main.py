@@ -80,6 +80,17 @@ if settings.sentry_dsn and settings.app_env == "production":
             ),
         )
         logger.info("✅ Sentry error tracking initialized")
+        # 2026-07-19: issue-level API review (Sentry webhooks / resolved-issue triage)
+        # ke liye SENTRY_AUTH_TOKEN + SENTRY_ORG + SENTRY_PROJECT chahiye (DSN sirf
+        # inbound event capture karta hai). Yeh teen env vars missing ho to operator
+        # ko startup pe pata chalega — otherwise yeh gap silent rahta tha aur 72h
+        # audit me "Sentry issue-level review unverified" dikhta tha.
+        _missing_sentry_api = settings.missing_sentry_api_creds()
+        if _missing_sentry_api:
+            logger.warning(
+                "⚠️  Sentry DSN armed (inbound events captured), par issue-level API review unavailable — "
+                f"missing: {', '.join(_missing_sentry_api)}. Set these for Sentry UI issue triage via API."
+            )
     except ImportError:
         logger.warning("sentry-sdk not installed, error tracking disabled")
     except Exception as e:
@@ -456,18 +467,29 @@ except Exception as _otel_e:  # never block boot on observability wiring
     logger.warning(f"OTel wiring skipped: {_otel_e}")
 
 # CORS Middleware (configured based on environment)
-# In production the allowed origins come from settings.cors_origins
-# (CORS_ORIGINS env var, JSON list) so each deployment can set its own domains.
-allowed_origins = ["*"] if settings.app_env == "development" else settings.cors_origins
+# - Development: wildcard origins, NO credentials (safe for dev tools)
+# - Production: specific origins only, credentials allowed (strict security)
+if settings.app_env == "development":
+    # Development: permissive for local testing (wildcard, no credentials)
+    cors_config = {
+        "allow_origins": ["*"],
+        "allow_credentials": False,  # Browsers ignore credentials with wildcard origins
+        "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["*"],
+        "expose_headers": ["X-Request-ID", "X-Response-Time"],
+    }
+else:
+    # Production: strict, specific origins from config
+    cors_config = {
+        "allow_origins": settings.cors_origins,
+        "allow_credentials": True,  # Safe because origins are specific
+        "allow_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["*"],
+        "expose_headers": ["X-Request-ID", "X-Response-Time"],
+    }
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["X-Request-ID", "X-Response-Time"],
-)
+app.add_middleware(CORSMiddleware, **cors_config)
+
 
 # PostHog web-analytics snippet auto-inject (G3) — OFF by default. POSTHOG_API_KEY
 # unset = har response untouched (turant passthrough). Never blocks boot.
@@ -1451,6 +1473,30 @@ async def customer_office_page(mode: str | None = None):
         if _shell.is_file():
             return FileResponse(str(_shell))
     return RedirectResponse("/app/customer", status_code=307)
+
+
+# 2026-07-19: customer-dashboard views are hash-based (#view-billing etc), so the
+# natural path-style deep links customers type/bookmark (/app/customer/billing)
+# were a hard 404 (reported bug). STATIC aliases only — a /app/customer/{view}
+# catch-all would shadow future sibling routes (first-route-wins, §7 landmine).
+# The dashboard's product-redirect script preserves location.hash, so these land
+# on the right per-product page with the right view open.
+def _register_customer_view_aliases() -> None:
+    view_names = ("billing", "leads", "reports", "calendar", "support", "delivery", "setup")
+
+    def _make(view: str):
+        async def _alias():
+            return RedirectResponse(f"/app/customer#view-{view}", status_code=307)
+
+        _alias.__name__ = f"customer_view_alias_{view}"
+        _alias.__doc__ = f"Path-style alias -> /app/customer#view-{view} (hash view engine)."
+        return _alias
+
+    for _view in view_names:
+        app.get(f"/app/customer/{_view}", tags=["Frontend"])(_make(_view))
+
+
+_register_customer_view_aliases()
 
 
 @app.get("/app/marketing", tags=["Frontend"])

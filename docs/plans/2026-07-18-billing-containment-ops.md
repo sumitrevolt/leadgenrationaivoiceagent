@@ -1,7 +1,7 @@
 # Billing Containment Ops Plan — 2026-07-18
 
-**Code shipped (this session):** test-store isolation + accountant-safe `void_invoice` + prospect time-budget + soft-timeout no-retry.
-**Prod mutations:** NONE yet. Production stays on `1803f819` until user asks deploy/flip.
+**Code shipped (this session):** test-store isolation + accountant-safe `void_invoice` + prospect time-budget + soft-timeout no-retry + voice fallback hardening + CI lock pins.
+**Prod:** containment + voice fixes LIVE on `f8a5f6e9` (2026-07-18 deploy). Ledger voids (C) ✅ DONE 15:16 UTC. Disposable reconcile (D) ✅ DONE 15:30 UTC. DLQ purge (E) still pending (needs one successful prospect run first).
 
 ## Forensic truth (read-only, preserved in `forensics_billing_dlq.txt`)
 
@@ -29,33 +29,37 @@ pinned `APP_VERSION=1803f819` + `-f docker-compose.vps.yml`. Proof: container en
 
 Rollback: `UPI_AUTO_ACTIVATE=1` + same recreate.
 
-### B. Deploy containment code (this branch)
+### B. Deploy containment code (this branch) — ✅ DONE 2026-07-18 ~15:07 UTC
 
-Deploy via `scripts/deploy_vps.sh` with `APP_VERSION=<new sha>` after commit/push. Ships:
-- autouse test isolation (prevents future ledger writes)
-- `POST /api/growth/revenue/invoice-void` + UI Void button
-- `PROSPECT_TIME_BUDGET_S` (default 420s) + soft-timeout no-retry
+Merged PR #53 (`09e250d` containment+voice) + PR #54 (`c4faf9f` CI lock/route tests) → `main` `f8a5f6e9`.
+Canonical `scripts/deploy_vps.sh` on VPS: BUILD_RC=0, UP_RC=0, `/health`=`f8a5f6e9`, all 5 app-image containers skewed-clean, smoke `/health` `/api/voice/niches` `/api/billing/plans` `/api/public/pay-info` → 200, queues `celery=0` / `dlq:failed_tasks=0` (`dlq:dead=7` preserved intentionally).
 
-### C. Void contaminated invoices (AFTER B deploy)
+### C. Void contaminated invoices (AFTER B deploy) — ✅ DONE 2026-07-18 15:16 UTC
 
-Admin JWT → for each of INV/0002..0013:
+USER-approved ("voids chalao"); executed via `scripts/_tmp_void_invoices_c.sh` inside
+`leadgen_app` (APP_VERSION `f8a5f6e9`) calling shipped `gst_invoice.void_invoice` —
+same code path as the admin route, append-only markers only. Ledger backup taken
+first: `data/invoices.jsonl.bak-voidC-20260718_151618` (13 lines).
 
-```bash
-curl -X POST https://leadsgenai.in/api/growth/revenue/invoice-void \
-  -H "Authorization: Bearer $ADMIN_JWT" -H "Content-Type: application/json" \
-  -d '{"number":"INV/2026-27/0003","reason":"synthetic test data — pytest contamination 2026-07-18; never a real payment"}'
-```
+Proof: all 12 (INV/0002..0013) → OK; guard check INV/0001 (Jiya, `d79d690f61b3`,
+₹1,999) `voided:false`; `stats` after = `fy_gross_inr: 1999.0`,
+`fy_voided_count: 12`, `fy_voided_gross_inr: 61988.0`. No JSONL line deleted.
+Next real invoice = `INV/2026-27/0014`. Idempotent — re-run = `deduped:True`.
 
-Or use `/app/automation` → GST Invoices → ❌ Void.
-**Do NOT delete JSONL lines. Do NOT void INV/0001 (Jiya).**
+### D. Reconcile disposable tenant — ✅ DONE 2026-07-18 15:30 UTC
 
-Expected after voids: `stats.fy_gross_inr == 1999`, `fy_voided_count == 12`, next real invoice = `INV/2026-27/0014`.
+USER-approved ("reconcile chalao"); executed via `scripts/_tmp_reconcile_d_read.sh` /
+`_read2.sh` (read-first) + `scripts/_tmp_reconcile_d_write.sh` (surgical write, operator
+approval card).
 
-### D. Reconcile disposable tenant
-
-- Confirm clients_store already deleted (`scripts/_tmp_launch_cleanup.py` ran earlier).
-- Postgres: deactivate/delete client+subscription for `041a2fb0ca1e` (read first; then surgical).
-- Keep UPI + invoice rows as audit (void invoice per C).
+- Read-first proof: clients row `041a2fb0ca1e` = "LAUNCH E2E Disposable 20260718101104"
+  status=active; 1 subscription `bae85f1a…` starter/upi active; payments=0, campaigns=0;
+  clients_store + customer_auth JSONL already clean (0 hits).
+- Write: NO DELETE — transactional `status='cancelled'` on both rows (status columns are
+  varchar), subscription `cancelled_at`/`ended_at`/`cancel_reason` set. Pre-write CSV
+  backup: `/root/reconcileD_20260718_153030.csv` on VPS.
+- Verify: both rows `cancelled` @15:30:31; guard check Jiya `d79d690f61b3` client+sub
+  still `active`. UPI record + voided INV/0002 kept as audit (per plan).
 
 ### E. DLQ dead closure (AFTER B deploy + one successful prospect run)
 
@@ -70,9 +74,9 @@ No changes to `PLATFORM_DIAL_DAILY=0`, WhatsApp autosend, OmniRoute durability, 
 
 ## Verification checklist post-ops
 
-- [ ] `UPI_AUTO_ACTIVATE=0` in running app env
-- [ ] `GET /api/growth/revenue/invoices` → Jiya live, 0002–0013 voided
-- [ ] `stats.fy_gross_inr == 1999`
+- [x] `UPI_AUTO_ACTIVATE=0` in running app env
+- [x] `GET /api/growth/revenue/invoices` → Jiya live, 0002–0013 voided (verified via stats + ledger tail 15:16 UTC)
+- [x] `stats.fy_gross_inr == 1999`
 - [ ] Customer portal for Jiya still shows INV/0001
 - [ ] `dlq:dead == 0` after purge
 - [ ] Fresh prospect run `ok` + no new SoftTimeLimit in worker logs
