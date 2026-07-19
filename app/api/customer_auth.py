@@ -125,11 +125,30 @@ def _find(email: str) -> dict | None:
     return None
 
 
+def _marketing_cid(client_id: str) -> str:
+    """Resolve a customer's auth/login id to the canonical MARKETING client id.
+
+    UPI-activated customers log in with their billing/subscription id (e.g. Jiya
+    `d79d690f61b3`), but all marketing content / brand / mini-site stores are
+    keyed on the marketing id (`jiya-makeover`, which carries the billing id in
+    `billing_client_ids`). Marketing content/dashboard reads MUST canonicalize
+    or the customer sees an orphaned partial view. Billing/invoice reads must
+    NOT use this — invoices are owned by the billing id. Never raises;
+    `canonical_client_id` falls back to the raw id when no marketing record
+    matches (so seed/demo clients keyed by their own id are unaffected)."""
+    try:
+        from app.marketing.clients_store import canonical_client_id
+
+        return canonical_client_id(client_id) or client_id
+    except Exception:
+        return client_id
+
+
 def _biz_name(client_id: str) -> str:
     try:
         from app.marketing.clients_store import get_client
 
-        return str((get_client(client_id) or {}).get("business_name") or "")
+        return str((get_client(_marketing_cid(client_id)) or {}).get("business_name") or "")
     except Exception:
         return ""
 
@@ -667,7 +686,7 @@ async def me(client_id: str = Depends(require_customer)):
     try:
         from app.marketing.clients_store import get_client
 
-        client_rec = get_client(client_id)
+        client_rec = get_client(_marketing_cid(client_id))
         product = str((client_rec or {}).get("product") or "marketing").strip().lower()
     except Exception:
         product = "marketing"
@@ -714,10 +733,15 @@ async def portal_content(client_id: str = Depends(require_customer)):
     Ownership token se enforced; kabhi raise nahi (empty graceful).
     (2026-06-12 UX upgrade: pehle customer ko apna content dikhta hi nahi tha.)"""
     out: dict = {"items": [], "links": {}}
+    # Marketing content is keyed on the canonical marketing id, not the
+    # billing/login id the customer authenticates with (Jiya: d79d690f61b3 ->
+    # jiya-makeover). Without this the portal showed an orphaned partial feed
+    # (7 stray drafts) instead of the customer's real content bank.
+    mcid = _marketing_cid(client_id)
     try:
         from app.marketing.auto_content import list_queue
 
-        items = list_queue(client_id, limit=10) or []
+        items = list_queue(mcid, limit=10) or []
         out["items"] = [
             {
                 "id": i.get("id"),
@@ -741,7 +765,7 @@ async def portal_content(client_id: str = Depends(require_customer)):
     try:
         from app.marketing.clients_store import get_client
 
-        c = get_client(client_id) or {}
+        c = get_client(mcid) or {}
         slug = c.get("slug") or ""
         if slug:
             out["links"] = {
