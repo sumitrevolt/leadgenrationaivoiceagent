@@ -943,9 +943,18 @@ def customer_delivery_status(
     """Full Product One state for one customer. Never raises."""
     cid = str(client_id or "").strip()
     try:
-        if client is None:
-            from app.marketing import clients_store
+        from app.marketing import clients_store
 
+        # Canonicalize billing/subscription/login ids (e.g. Jiya's
+        # `d79d690f61b3`) to the marketing client id (`jiya-makeover`) so every
+        # content/approval/ledger/report read below hits the SAME identity the
+        # marketing pipeline keyed the work on. Passing the alias id otherwise
+        # produced a partial "orphan" view (Jiya: 10% shown vs 60% real).
+        # canonical_client_id falls back to the raw id; never raises.
+        canon = clients_store.canonical_client_id(cid)
+        if canon:
+            cid = canon
+        if client is None:
             client = clients_store.get_client(cid) or {}
         client = client or {}
         setup = _setup_checks(client)
