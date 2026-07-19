@@ -13,6 +13,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel
 
 from app.config import settings
+from app.utils.jwt_versioning import get_jwt_manager
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -71,7 +72,8 @@ def create_access_token(
         "type": "access",
     }
 
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    jwt_mgr = get_jwt_manager()
+    return jwt_mgr.encode(payload)
 
 
 def create_refresh_token(user_id: str, expires_delta: timedelta | None = None) -> str:
@@ -98,7 +100,8 @@ def create_refresh_token(user_id: str, expires_delta: timedelta | None = None) -
         "type": "refresh",
     }
 
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+    jwt_mgr = get_jwt_manager()
+    return jwt_mgr.encode(payload)
 
 
 def create_token_pair(user_id: str, email: str, role: str) -> TokenPair:

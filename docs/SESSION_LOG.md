@@ -259,7 +259,7 @@ curl -s -H "X-Admin-Token: $ADMIN" https://leadsgenai.in/api/admin/mcp/audit | j
 ## FULL-AUTO GROWTH ENGINE (2026-06-07, last commit of day) — "leads bhi tum lao"
 - User demand: sab automated + leads bhi system laye. **Built: Rohan auto-prospecting** `app/platform/prospector.py` — roz 09:30 IST (team_scheduler job "prospect"): Google Maps scraper se 4 niches × Pune/Mumbai/Nagpur businesses → phone-dedupe → data/prospects.jsonl (gitignored) → har prospect ka personalized Hinglish pitch + ready wa.me link (status ready/sent/replied/client/dead). PROSPECT_TARGETS env-overridable.
 - **Outreach dashboard /app/outreach** (frontend/outreach.html): prospect cards + "📲 WhatsApp bhejo" (wa.me prefilled new tab + auto mark sent) + Reply-aaya/Dead buttons + filter tabs + "Abhi prospects dhundo" run button. API: /api/platform/team/prospects (GET/run/status, admin).
-- **Inquiry auto-callback**: public_site.py inquiry save ke baad AUTO_CALLBACK_INQUIRY!=0 → `start_stream_call()` (naya internal helper in telephony_vobiz.py, no-auth-layer) → Swara turant unhe AI call karti (consent: unhone form bhara). Telephony unfunded ho to graceful error event. 
+- **Inquiry auto-callback**: public_site.py inquiry save ke baad AUTO_CALLBACK_INQUIRY!=0 → `start_stream_call()` (naya internal helper in telephony_vobiz.py, no-auth-layer) → Swara turant unhe AI call karti (consent: unhone form bhara). Telephony unfunded ho to graceful error event.
 - **HONEST LIMITS user ko bataye**: WhatsApp bulk auto-send = number ban (isliye one-click human send); cold auto-calls bina DLT/140 = ₹10L TRAI risk (isliye sirf inbound auto-callback). **GOOGLE_MAPS_API_KEY .env me placeholder hai — real key (ya playwright phones nahi deta) chahiye warna scraper empty/limited.** VPS verified: outreach page 200, tests green.
 
 ## 🔄 PIVOT: MARKETING-FIRST (2026-06-07, commit 6a423f6) — USER FINAL DIRECTION
@@ -307,12 +307,12 @@ curl -s -H "X-Admin-Token: $ADMIN" https://leadsgenai.in/api/admin/mcp/audit | j
 
 ## CUSTOMER-READY SETUP (2026-06-08) — free scraper + auto per-client social handling
 - **FREE prospect scraper (no paid key)**: prospector.py ab **OpenStreetMap Overpass API** use karta hai (stdlib urllib, no key, legal) jab GOOGLE_MAPS_API_KEY na ho. `_osm_search(query,city,limit)` — area-name scoping, OSM tag map (restaurant→amenity, salon→shop=hairdresser/beauty, gym→leisure=fitness_centre, jewellery→shop=jewelry, etc.), parse name/phone/addr/website. No-phone prospects bhi save hote (wa_link="" + `google_search_link`). VPS verified: "restaurant Pune" → 5 results (McDonald's...). Dedupe phone-OR-name|city. summary scraper="osm_overpass".
-- **Automated per-client social media handling (asli product)**: 
+- **Automated per-client social media handling (asli product)**:
   - `app/marketing/clients_store.py` — marketing CLIENT onboarding (data/marketing_clients.jsonl): add/list/get/set_status/update; brand brand_kit me mirror (poster auto-brand). `_CLIENTS_FILE` const.
   - `app/marketing/auto_content.py` — **har active client ka content KHUD banta hai**: weekly plan (Mon tip/Tue offer/Wed brand-poster/Thu reel/Fri festival-fun/Sat product/Sun engagement) + festival ≤2 din me to festival post+poster. `run_daily_content()` → per-client queue data/content_queue/<id>.jsonl (date+type dedupe). list_queue/mark_item (draft→approved→posted/skipped). `_QUEUE_DIR` const.
   - **Scheduler**: team_scheduler.py me "content" job **roz 07:00 IST** → run_daily_content (Isha). staff.run_member dispatch bhi.
   - `app/api/clients.py` — /api/clients/* (admin): onboard, list, status, content/run, content list, item status. Mounted main.py.
-  - **Portal** /app/clients (frontend/clients.html): naya client form (niche/plan/brand colors/socials) + client cards (status toggle) + content panel (Aaj ka content banao + approve/copy/PNG/posted). 
+  - **Portal** /app/clients (frontend/clients.html): naya client form (niche/plan/brand colors/socials) + client cards (status toggle) + content panel (Aaj ka content banao + approve/copy/PNG/posted).
 - **HONEST LIMIT user ko bataya**: auto-POSTING Insta/FB pe Meta Graph API + app-review (hafte, locked) chahiye — abhi auto-GENERATION + queue + 1-click copy/download/wa-send. True auto-publish future.
 - VPS verified: clients page 200, onboard→generate→queue working, tests green. Tasks 37-39 done.
 
@@ -331,8 +331,8 @@ curl -s -H "X-Admin-Token: $ADMIN" https://leadsgenai.in/api/admin/mcp/audit | j
 ## 📧 EMAIL OUTREACH LIVE + PROVEN (2026-06-08) — full auto loop chalu
 - **Hostinger SMTP WORKING**: admin@leadsgenai.in, `smtp.hostinger.com` port 465 (use_tls), sahi password .env me set (VPS — gitignored, literal NEVER in committed files/CLAUDE.md). Pehle 2 attempts fail the (typo/truncated password); 3rd sahi password pe `smtp_diag.py` → OK 465 + 587. titan.email fail (Hostinger native email, titan nahi).
 - **Test + REAL send proven**: EmailSender → test email sumitrevolt23@gmail.com SEND_OK=True. Fresh scrape (email capture on) → 3 prospects with_email → `run_email_outreach()` → **sent:3, failed:0**, prospects "emailed" mark. AUTO_EMAIL_OUTREACH=true → **Rohan roz 10:30 IST khud bhejta hai.**
-- **Email API path bhi built (fallback/option)**: `app/integrations/email_api.py` — Resend + Brevo (env RESEND_API_KEY/BREVO_API_KEY). EmailSender API-FIRST (key ho to) phir SMTP. Abhi SMTP hi use ho raha (API keys unset). 
-- **Scrape email-capture**: prospector Maps website → _extract_email_from_website, cap PROSPECT_MAX_EMAIL_FETCH=20 → ~30-40% businesses ka email milta hai (rest WhatsApp 1-click). 
+- **Email API path bhi built (fallback/option)**: `app/integrations/email_api.py` — Resend + Brevo (env RESEND_API_KEY/BREVO_API_KEY). EmailSender API-FIRST (key ho to) phir SMTP. Abhi SMTP hi use ho raha (API keys unset).
+- **Scrape email-capture**: prospector Maps website → _extract_email_from_website, cap PROSPECT_MAX_EMAIL_FETCH=20 → ~30-40% businesses ka email milta hai (rest WhatsApp 1-click).
 - **STATUS: poora outreach loop ab automated** — scrape (9:30) → personalized pitch (real Google data) → email send (10:30). + auto-content (7:00), audit funnel, digest (8:30), backups, QA/trainer. Sirf WhatsApp send + payment 1-click (ban/safety).
 - **SECURITY GOTCHA**: email password kabhi CLAUDE.md/scripts me mat likho (git push hota hai) — sirf .env. GitHub push-protection arbitrary passwords nahi pakadta, isliye manual dhyan.
 
@@ -371,10 +371,10 @@ curl -s -H "X-Admin-Token: $ADMIN" https://leadsgenai.in/api/admin/mcp/audit | j
 - Sandbox git index nahi padh sakta (version mismatch) — git operations Desktop Commander + Windows git (C:\PROGRA~1\Git\cmd\git.exe) se karo.
 - .bat files me npm/git jaise .cmd tools ko `call` ke saath invoke karo warna batch wahi terminate ho jata hai. `timeout /t` non-interactive me fail hota hai — `ping -n N 127.0.0.1` use karo.
 - Desktop Commander one-liner quoting mangle karta hai — complex commands .bat file me likh ke chalao, output log file me redirect karke Read karo.
-  
-## 2026-06-08 Scheduler single-instance fix (commit 8311372)  
-- uvicorn --workers 2 dono scheduler chala rahe the = double jobs (double email/content). Fix: data/.scheduler.lock (O_EXCL + heartbeat + dead-pid reclaim) in team_scheduler.py. VPS verified: loop-started=1, skip=1. Duplicate jobs khatam.  
-- Remaining = EXTERNAL-blocked only: Insta/FB auto-post (Meta app-review), GBP auto (Google approval), cold-calls (DLT+DID). Code se complete nahi ho sakte.  
+
+## 2026-06-08 Scheduler single-instance fix (commit 8311372)
+- uvicorn --workers 2 dono scheduler chala rahe the = double jobs (double email/content). Fix: data/.scheduler.lock (O_EXCL + heartbeat + dead-pid reclaim) in team_scheduler.py. VPS verified: loop-started=1, skip=1. Duplicate jobs khatam.
+- Remaining = EXTERNAL-blocked only: Insta/FB auto-post (Meta app-review), GBP auto (Google approval), cold-calls (DLT+DID). Code se complete nahi ho sakte.
 
 ## EFFICIENCY REPOS — open-source integrations (2026-06-08)
 - **User: "github repos add karo to increase efficiency".** Research (5 searches) → best free/CPU/Hindi open-source repos for the voice+AI pipeline. Full prioritized map: `docs/Efficiency_Repos_Integration.md`.
@@ -695,7 +695,7 @@ Fixed the broken app image + swapped the live app into Docker (both verified, au
 - **Live app swap** (`scripts/vps_app_container_swap.sh`, auto-rollback): stop systemd → `docker compose up -d app` → poll `/health/ready` → **200 (db+redis healthy, version=latest = container)** → `systemctl disable leadgen` (kept for rollback). Compose app fixes: DATABASE_URL hardcoded to internal `db:5432` (NOT `.env`'s 127.0.0.1, which is for the systemd-host/migration path); `user: "0:0"` so the root-owned bind-mounted `./data` stays writable. ~30s downtime.
 - **Smoke**: leadsgenai.in /,/audit,/blog,/api/data/niches?tier=S all 200 via Caddy→container; niches API real data (Postgres). Containers healthy: leadgen_app + leadgen_db + leadgen_redis (+ existing freeswitch, qdrant). systemd inactive. Nightly pg_backup OK (42K).
 
-**Net end state:** App in Docker (`leadgen_app`, restart:unless-stopped, auto-heal) → Postgres + Redis, host Caddy TLS unchanged. Reproducible image from committed lock. Nightly backups. Two-level rollback (app→systemd, DB→SQLite). 
+**Net end state:** App in Docker (`leadgen_app`, restart:unless-stopped, auto-heal) → Postgres + Redis, host Caddy TLS unchanged. Reproducible image from committed lock. Nightly backups. Two-level rollback (app→systemd, DB→SQLite).
 
 **Rollback cheatsheet:** app→systemd `docker compose -f docker-compose.vps.yml stop app; systemctl enable --now leadgen`. DB→SQLite: set `.env` DATABASE_URL=sqlite:////opt/leadgen/leadgen.db + restart.
 
@@ -772,7 +772,7 @@ Fixed the broken app image + swapped the live app into Docker (both verified, au
 
 ### 2) Sentiment-gated review GENERATION engine — reviews=20% local ranking, 3-5x in 90d
 - GREP: `app/marketing/review_kit.py` ALREADY review-request content banata (WA msg + pure-python QR + counter-card + full_kit LLM-polish). REBUILD NAHI.
-- NAYA `app/marketing/review_engine.py` ORCHESTRATION on top: `request_review()` sentiment-gate (happy≥4/5 → review_kit.full_kit Google request; unhappy → `_private_feedback_msg`, rating bachao, Google-compliant). Track `data/review_requests.jsonl`. Auto-send gated WHATSAPP_AUTO_SEND (existing whatsapp.py send_text_message). 
+- NAYA `app/marketing/review_engine.py` ORCHESTRATION on top: `request_review()` sentiment-gate (happy≥4/5 → review_kit.full_kit Google request; unhappy → `_private_feedback_msg`, rating bachao, Google-compliant). Track `data/review_requests.jsonl`. Auto-send gated WHATSAPP_AUTO_SEND (existing whatsapp.py send_text_message).
 - API: POST /growth/review/request, GET /review/requests. Journey action `request_review` added (journeys.py ACTIONS + _run_action) → omnichannel tie-in.
 
 ### 3) WhatsApp Flows — in-chat lead capture (India #1 2026)
@@ -792,8 +792,8 @@ Fixed the broken app image + swapped the live app into Docker (both verified, au
 
 ### NOT done
 - Deploy NAHI (commit only). Flows = Meta approval pending; missed-call = Vobiz DID pending (dono ready-to-flip).
-  
-## 2026-06-10 - Revenue Automation batch (research-driven, Windows-verified, NOT deployed) 
+
+## 2026-06-10 - Revenue Automation batch (research-driven, Windows-verified, NOT deployed)
 
 **Research basis (deep web)**: (1) involuntary churn ~9% MRR / ~30% of attrition — automated dunning recovers 40-70% (Baremetrics/Churn Buster/Razorpay intelligent-retry patterns; Razorpay khud NPCI 1+3 retries karta, hum uske UPAR human-channel recovery layer hain). (2) Behavioral lifecycle emails 3.8x vs drip; day-0/2/7 activation sequence trial->paid ~2x (ChartMogul 2026: median free->paid 8%, top quartile 15%+). (3) Proactive weekly client monitoring = 34% lambi agency retention. OSS reference: Dittofeed/Laudspeaker (journey/lifecycle pattern free-stack me adapt, heavy self-host dep ke bina).
 
@@ -826,12 +826,12 @@ Fixed the broken app image + swapped the live app into Docker (both verified, au
 **2026-06-10 Exotel API setup (commit 8bdd8eb, LIVE)**: balance API v1 works (Rs422.62 trial credits; v2 unsupported), exotel_account.balance() 30-min cache -> telephony_readiness wired (exotel_balance field + EXOTEL_LOW_BALANCE alert default 100). ExoPhone StatusCallback API se SET (200): 01141189204 -> leadsgenai.in/api/webhooks/exotel/status. 2nd proven call: 55s completed AnsweredBy=human. scripts/exotel_setup_audit.py (--set-callback/--call). KYC abhi bhi notstarted = sirf verified numbers. GOTCHA: container me script docker cp se chala sakte (image rebuild ke bina).
 
 **2026-06-10 Apollo-inspired batch (commit dd1a613, LIVE, 382 routes)**: prospect_lists.py (filter search live-score + saved lists + list->cadence enroll), Apollo-CSV import (alias map, dedupe, DB mirror), email_finder.py waterfall (site-extract -> pattern -> MX; SMTP-handshake skip = reputation-safe), cadence step_touches stats. Tests 7/7. LIVE smoke: search 3 real prospects (home_loans Nashik batch se), email-finder hello@leadsgenai.in website-source + info@/contact@ MX-pattern. Apollo verdict doc: data India-local pe weak, free tier manual — isliye UX patterns copy kiye, unka SaaS nahi.
- 
-## 2026-06-10 — 5 marketing AI upgrades (content_feedback, trends, kb_personalize, telegram_publish, reel_video) 
-- 388 routes, tests/test_marketing_upgrades.py 8/8. Routes /api/growth/content/*. brand_kit already existed - skipped (no duplicate). TELEGRAM_BOT_TOKEN + ffmpeg = user/VPS deps. 
- 
-## 2026-06-10 — Pollinations NEW API migrate (gen.pollinations.ai): ai_image.py rewrite, key-safety pk_/sk_, ai-image-proxy route (cache), video_url() added. 389 routes, tests 9/9. 
- 
+
+## 2026-06-10 — 5 marketing AI upgrades (content_feedback, trends, kb_personalize, telegram_publish, reel_video)
+- 388 routes, tests/test_marketing_upgrades.py 8/8. Routes /api/growth/content/*. brand_kit already existed - skipped (no duplicate). TELEGRAM_BOT_TOKEN + ffmpeg = user/VPS deps.
+
+## 2026-06-10 — Pollinations NEW API migrate (gen.pollinations.ai): ai_image.py rewrite, key-safety pk_/sk_, ai-image-proxy route (cache), video_url() added. 389 routes, tests 9/9.
+
 ## 2026-06-10 — competitor-parity batch-2: 5 UI pages (studio/calendar/deals/inbox/onboard via 2 parallel agents), photo-poster (kontext i2i), template library, loyalty coupons, client monthly report, client API keys, 2FA TOTP, custom-domain tenant, PWA, /status. 408 routes, 15/15 tests.
 
 ## 2026-06-10 — COMPETITOR-PARITY BATCH-3 (16 features, 4 parallel agents A-D, disjoint-file ownership; commits e765911 + a1da957 + healthcheck fix) — LIVE
@@ -1084,12 +1084,12 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
 - **Silero VAD: DEFERRED (sahi path documented)** — container me `pip install` rebuild pe udd jaata; sahi tarika = `requirements.lock.txt` me silero-vad+torch-cpu add + image rebuild + `USE_SILERO_VAD=1`. Capacity OK (11.8GB RAM / 158GB disk free). Risk: torch ~800MB image bloat + build-time — alag controlled deploy me karna.
 - **Tests**: `test_llm_cooldown_escalates_and_resets` (escalate/daily/no-trip/reset) + dedupe regression asserts in `test_upgrader_propose_and_status`; stale `test_team_has_new_staff` `==12` → `>=13 + hermes` (== lesson dobara). 9/9 green, prod_check PASS.
 - **Deploy**: a2f1415 → VPS rebuild app+worker, health 200 x2; duplicate patch 8b05c72081 container CLI se REJECTED (note me reason). Approved patches (6e7af0622c, c01b6766b0) ka fix yahi commit hai — chahein to `applied` mark karein.
-  
-## 2026-06-12 PM - PROD-DOWN #3 (embedder runtime-download) + model-bake + UX batch  
-- Incident: aaj ke voicehuman rebuild ne fastembed cache wipe kiya. User ne /app/test-call khola - WS - - - TextEmbedding() ne HuggingFace se ~250MB SYNC download event-loop pe shuru kiya - uvicorn workers freeze (CPU 0%%, health timeout streak 9, selfheal restart-loop). Diagnose: host py-spy dump (container me ptrace denied) ne exact stack diya. Recover: docker restart + docker exec -d warm download.  
-- Fixes commit e0587bb: knowledge_base thread+deadline KB_EMBED_LOAD_TIMEOUT_S=20 + _QDRANT_DISABLED; web_call _run_blocking 15s sab init sites (343/420/442/480/502); phone_stream _get_telecaller to_thread 10s; Dockerfile.lock FASTEMBED_CACHE_PATH=/opt/fastembed_cache bake + silero-vad (torch CPU wheels) bake; Hermes _check_embedder; skill model-asset-bake. Voice tests 38/38, prod_check 621, JS_OK dono HTML.  
-- UX: automation.html JOB_DESC mapping + health banner; customer_dashboard.html redesign by sub-agent (sections reorder: Aaj ke liye hero - se - - -; Hinglish labels; mobile-first 44px; empty/loading states) + tryLive demo-race bugfix (resolveClientId + auth header pehle). Sub-agent findings: sendToCRM() fake, /api/billing/portal Stripe-only, dono pre-existing.  
-- VPS: weekly docker prune cron + USE_SILERO_VAD=1 is deploy me set kiye gaye (post-rebuild).  
+
+## 2026-06-12 PM - PROD-DOWN #3 (embedder runtime-download) + model-bake + UX batch
+- Incident: aaj ke voicehuman rebuild ne fastembed cache wipe kiya. User ne /app/test-call khola - WS - - - TextEmbedding() ne HuggingFace se ~250MB SYNC download event-loop pe shuru kiya - uvicorn workers freeze (CPU 0%%, health timeout streak 9, selfheal restart-loop). Diagnose: host py-spy dump (container me ptrace denied) ne exact stack diya. Recover: docker restart + docker exec -d warm download.
+- Fixes commit e0587bb: knowledge_base thread+deadline KB_EMBED_LOAD_TIMEOUT_S=20 + _QDRANT_DISABLED; web_call _run_blocking 15s sab init sites (343/420/442/480/502); phone_stream _get_telecaller to_thread 10s; Dockerfile.lock FASTEMBED_CACHE_PATH=/opt/fastembed_cache bake + silero-vad (torch CPU wheels) bake; Hermes _check_embedder; skill model-asset-bake. Voice tests 38/38, prod_check 621, JS_OK dono HTML.
+- UX: automation.html JOB_DESC mapping + health banner; customer_dashboard.html redesign by sub-agent (sections reorder: Aaj ke liye hero - se - - -; Hinglish labels; mobile-first 44px; empty/loading states) + tryLive demo-race bugfix (resolveClientId + auth header pehle). Sub-agent findings: sendToCRM() fake, /api/billing/portal Stripe-only, dono pre-existing.
+- VPS: weekly docker prune cron + USE_SILERO_VAD=1 is deploy me set kiye gaye (post-rebuild).
 
 ## 2026-06-12 PM - COMPETITIVE INTEL + /compare page (commit 1a77967, LIVE)
 - 2 parallel web-research agents: Marketing (Predis $32-79/mo DIY content-only; Dhanda=Ezo Technologies ~Rs1k/mo eff. posts+GBP, no-refund/slow-support complaints, EZO hardware channel; AdBanao ~Rs150/mo templates 10-langs; Practina $99/mo US-tool INDIA LAUNCH PREP me - watch; GHL $97+usage agencies-only, Twilio voice = India TRAI-illegal) + Voice (SquadStack closest model-rival: per-lead-PROCESSED not qualified, ~Rs22,425 entry, human-network moat, Plug-N-Play downmarket threat; Vodex US debt-collection pivot $100/mo minutes; Exotel voicebot enterprise-quote - vendor+competitor dono; Knowlarity=Gupshup legacy IVR; CallHippo $199/mo English-first foreign-VoIP).
@@ -1607,7 +1607,7 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
 
 ## 2026-06-27 — Enterprise master-audit pass + Gemini SDK migration + public pricing fix (2 plans, Combo, yearly) — DEPLOYED LIVE
 
-**Trigger**: user ne enterprise master-audit mega-prompt diya (refined spec `docs/ENTERPRISE_MASTER_AUDIT_PROMPT_LEADGENAI.md`). Measure-first (memory `saas-infra-saturated`) — koi P0/P1 nahi; live `/api/activation/summary` = ready_for_first_paid_customer:true, 0 blockers/0 warns. prod_check + billing-truth + cross_path_audit + voice/MCP tests sab green; `/mcp` live 401-gated; Razorpay/Exotel sirf inert. 
+**Trigger**: user ne enterprise master-audit mega-prompt diya (refined spec `docs/ENTERPRISE_MASTER_AUDIT_PROMPT_LEADGENAI.md`). Measure-first (memory `saas-infra-saturated`) — koi P0/P1 nahi; live `/api/activation/summary` = ready_for_first_paid_customer:true, 0 blockers/0 warns. prod_check + billing-truth + cross_path_audit + voice/MCP tests sab green; `/mcp` live 401-gated; Razorpay/Exotel sirf inert.
 - **Gemini SDK migration (8e30588)**: deprecated `google-generativeai` → new `google.genai.Client` in `ai.py`/`vertex_client.py`/`llm_brain.py` (gemini-API paths). Vertex paths untouched; dono SDK lock me coexist (2.8.0 + 0.3.2) → `telecaller_brain.py`/`llm_probe.py` old SDK pe safe. Import-clean, extractors compatible.
 - **Pricing drift fix (a345ed7)**: CLAUDE.md/AGENTS.md/saas-pricing-strategy skills stale (1199/6999) → packages.py source-of-truth (1999/5999, yearly 19990/59990). Billing was always correct.
 - **Public = 2 plans + yearly (472084b)**: user-clarified "Growth plan nahi — sirf Main 1999 + Combo 5999". `/api/public/pay-info` was leaking Growth (`public:False`) via `get_packages()` → fixed to `get_public_packages()`. Landing pricing showed monthly only → yearly subline added (JS render + static Starter/Advanced). Growth stays internal hidden-legacy (backward-compat).
@@ -1786,3 +1786,14 @@ User-directed (elicited choices: voice pricing=HYBRID tier+packs · billable lea
 - **Agent OS**: ADR-108/109 layer — `2a30f98` routing governance + OmniRoute decision logs; `ac0e0b2` admin `/agent-os-status` API+UI. Double-gated OmniRoute still INERT default.
 - **Key gotcha**: HEAD `/app/control-center/graph` was 404 while GET 200 (parent lacked `cc-graph-issue`); historical blank iframe was XFO DENY (already fixed in lineage).
 - **Verify**: prod_check PASS — 1103 routes; live health production + activation green. Checkpoint docs commit follows.
+
+## 2026-07-18 — Social networking finalize + daily auto-post verify [Cowork/Desktop Commander]
+
+- **Env drift fix**: `POSTIZ_INTEGRATIONS` prod me sirf 2 ids (FB+IG) the — X + YouTube ids add kiye (ab 4: `cmr6iwsfs…`, `cmr6j9hiw…`, `cmr6kx2j9…`, `cmr6oak91…`). `.env` backup `.env.bak.social.<ts>`; recreate pinned `APP_VERSION=1803f819` + `-f docker-compose.vps.yml` (aaj ke legacy-stack landmine ke mutabik). `/health` green, env verified in app+worker+scheduler. Text-only posts pe code IG/YT khud skip karta (`_MEDIA_REQUIRED_PLATFORMS`) — all-4 safe.
+- **Postiz channels verified**: 4 connected + enabled (FB `Leadsgenai`, IG `leadsgenai`, X `leadgenai`, YT `@leadsgenai`), koi `refreshNeeded` nahi at check-time. YouTube OAuth app Publish (Google Console) = USER action pending (testing-mode refresh-token death).
+- **Isha agent paused mila** (`scheduled_pause+stop_claims`, owner_os UI v1.1, by sumitrevolt23@gmail.com, no expiry) — content/blog/social_drain sab `agent_scheduled_pause` pe skip ho rahe the. User-confirm ke baad `owner_agent_execution.resume('isha')` — flags clear, verified.
+- **Missed content run**: 07:00 IST content job aaj miss (boot-grace skip + deferred retry lost across restarts; blog ka deferred 08:30:45 IST fire hua, content ka nahi). Manual re-trigger ke baad full run 530s complete (11:06 UTC). Catch-up-sweep idea → `memory/backlog.md`.
+- **E2E publish proof (aaj)**: own-brand `leadgenai-self` job `fccfba5976e54415` queued→published 2s me, Postiz `post_id=cmrpt8uk80004nz6oxq2qv6lg` (09:01 IST); jiya-makeover WhatsApp posts bhi drain ho rahe (14:22/15:01/16:18 IST). `social_drain` beat = crontab minute=10 IST tz → UTC :40 fire hota hai (confusion note).
+- **Automation truth**: generation auto (content 07:00 + afternoon 15:00 + blog 06:30 IST) → approval-gated drafts → approved/hands-free items social_engine queue → hourly drain → Postiz/WhatsApp. Own-brand + prefs-consent customers = hands-free; baaki approval pe.
+- **YouTube OAuth PUBLISHED** (same session, user-requested, Chrome MCP): Google Console → LeadsGenAI project (`nomadic-pipe-501417-e3`) → Auth Platform Audience → Publish app → Confirm → status **"In production"** verified. NOTE: purana testing-mode refresh token apni 7-day expiry rakhta hai — USER ko Postiz me YT channel ek baar reconnect karna hai, uske baad token permanent. Unverified-app warning sirf naye OAuth grants pe dikhega (khud ke account ke liye "continue" theek hai).
+- **Postiz YT reconnect DONE** (same session, Chrome MCP): Add Channel → YouTube → account sumitrevolt23 → brand account "sandeep maheswari" (user-confirmed — LeadsGenAI channel isi ke under) → unverified warning Advanced→continue → all scopes → LeadsGenAI @leadsgenai select → Save → "Channel Added". Verified: integration id UNCHANGED `cmr6oak910001qu6v418i0g6u` (env match, no duplicate), 4 channels enabled. Token ab production-grant = no 7-day expiry. GOTCHA: YT channel brand-account ke under hai, personal nahi — future reconnects me "sandeep maheswari" chunna.

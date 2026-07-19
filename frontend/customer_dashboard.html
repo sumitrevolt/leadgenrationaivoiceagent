@@ -462,6 +462,12 @@
     { display:none !important; }
   /* one tile hidden -> remaining "Aaj ke liye" tile spans full width */
   .prod-marketing .today-grid, .prod-voice .today-grid { grid-template-columns:1fr; }
+  /* 2026-07-19: mobile bottom-nav buttons were NOT product-gated — a marketing
+     customer tapping "Leads" landed on a view whose every card is hidden by the
+     rules above = fully blank page (reported bug). Gate them like the sidebar. */
+  .prod-marketing .mobile-app-nav [data-mobile-view="leads"],
+  .prod-voice .mobile-app-nav [data-mobile-view="calendar"]
+    { display:none !important; }
 </style>
 </head>
 <body>
@@ -484,8 +490,10 @@
         if(!j) return;
         var p = j.product==="voice" ? "voice" : j.product==="combo" ? "combo" : "marketing";
         if(p===pageProduct) return; // already on the correct page — no loop
-        location.replace(p==="marketing" ? "/app/customer/marketing"
-                       : p==="voice" ? "/app/customer/voice" : "/app/customer");
+        /* keep the #view-... hash so deep links (e.g. /app/customer/billing
+           alias -> /app/customer#view-billing) survive the product redirect */
+        location.replace((p==="marketing" ? "/app/customer/marketing"
+                       : p==="voice" ? "/app/customer/voice" : "/app/customer") + (location.hash||""));
       }).catch(function(){});
   }catch(e){}
 })();
@@ -1261,7 +1269,7 @@
         }
       }
       </script>
-      
+
       <!-- Support view -->
       <div data-view="delivery" class="owner-hero" aria-label="Aapki Product One Delivery">
         <div>
@@ -1945,6 +1953,12 @@ function resizeCharts(){
 }
 function showView(name){
   name=["home","delivery","setup","calendar","leads","reports","billing","support"].indexOf(name)>=0?name:"home";
+  /* 2026-07-19 product guard: leads/calls UI is voice-only and the content
+     calendar is marketing-only — the per-product CSS hides EVERY card of the
+     other product's view, so navigating there (hash deep-link / stale bookmark)
+     rendered a fully blank page. Fall back to home instead. */
+  if(name==="leads" && document.body.classList.contains("prod-marketing")) name="home";
+  if(name==="calendar" && document.body.classList.contains("prod-voice")) name="home";
   var mc=document.getElementById("mainContent");
   if(mc)mc.setAttribute("data-active-view",name);
   document.querySelectorAll("[data-nav]").forEach(function(n){
@@ -2347,14 +2361,14 @@ async function loadDeliveryProof() {
     setText("uxDelivery", done + "/" + total + " (" + dpct + "%)");
     setText("uxDeliveryHint", dpct >= 80 ? "Lagbhag complete! Aakhri report baki." : dpct >= 40 ? "Content generate ho raha hai. Approval do ya setup complete karo." : "Setup complete karo taaki content generate ho.");
     if (dc) dc.style.display = "";
-    
+
     const notes = (d.customer_status_notes || []).map(function(n) {
       return '<div class="simple-note" style="margin:8px 0;background:var(--bg);padding:8px 12px;border-radius:8px;border-left:4px solid var(--accent)">' +
              '<b>' + escH(n.title || "Update") + '</b>' +
              '<div class="sm" style="color:var(--muted);margin-top:2px">' + escH(n.message || "") + '</div>' +
              '</div>';
     }).join("");
-    
+
     function getStatusMeta(status) {
       var map = {
         "delivered": { label: "Delivered", icon: "✓", color: "var(--ok)", bg: "rgba(16,185,129,.1)" },
@@ -2375,12 +2389,12 @@ async function loadDeliveryProof() {
     const items = (d.deliverables || []).map(function(it) {
       const st = String(it.status || "not_started").toLowerCase();
       const meta = getStatusMeta(st);
-      
+
       var evidenceLink = "";
       if (it.evidence_url) {
         evidenceLink = '<div style="margin-top:6px"><a href="' + escH(it.evidence_url) + '" target="_blank" class="btn" style="padding:4px 8px;font-size:11px;display:inline-flex;align-items:center;gap:4px">📂 View proof / file</a></div>';
       }
-      
+
       var nextActionMsg = "";
       if (it.next_action) {
         nextActionMsg = '<div class="sm" style="color:#475569;margin-top:4px"><b>Next step:</b> ' + escH(it.next_action) + '</div>';
@@ -2400,7 +2414,7 @@ async function loadDeliveryProof() {
     }).join("");
 
     const monthly = d.monthly_summary || {};
-    const summaryHtml = 
+    const summaryHtml =
       '<div class="status-strip" style="grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:14px;gap:8px">' +
         '<div class="status-card" style="padding:10px">' +
           '<div class="lab">Plan Active</div>' +
@@ -2419,7 +2433,7 @@ async function loadDeliveryProof() {
         '</div>' +
       '</div>';
 
-    box.innerHTML = 
+    box.innerHTML =
       '<div class="simple-note" style="margin-bottom:12px;line-height:1.5">📢 <b>Status:</b> ' + escH(d.customer_message || "Aapki weekly and local marketing content queue active hai.") + '</div>' +
       summaryHtml +
       notes +
@@ -2533,33 +2547,79 @@ async function loadGbpAuditCard(){
         h+='</ul>';
       }
     }else{
-      h+='<div class="simple-note" style="margin-bottom:12px">16 short sawal → 0–100 score + top-5 Hinglish fixes. Yeh deliverable complete karta hai (sirf GBP link se nahi).</div>';
+      h+='<div class="simple-note" style="margin-bottom:12px">16 short sawal → 0–100 score. <b>Council invent score nahi karta</b> — suggestions pre-select karta hai; aap GBP pe check karke Score dabao.</div>';
     }
     if(!qs.length){
       h+='<div class="sm" style="color:var(--muted)">Questions available nahi.</div>';
       box.innerHTML=h;
       return;
     }
+    const seed=(d.suggested&&d.suggested.answers)||{};
+    window._gbpSeedAnswers=seed;
+    h+='<div class="bar" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+      +'<button class="btn" type="button" onclick="applyGbpSuggestions(window._gbpSeedAnswers||{},\'heuristic\')">⚡ Profile suggest</button>'
+      +'<button class="btn" type="button" onclick="councilGbpSuggest(this)">🤔 Council suggest</button>'
+      +'</div>';
     h+='<form id="gbpAuditForm" onsubmit="return false;">';
     qs.forEach(function(q, qi){
       const qid=String(q.id||("q"+qi));
+      const pre=seed[qid];
       h+='<div style="border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px;background:#fff">';
       h+='<div style="font-weight:600;margin-bottom:8px">'+(qi+1)+'. '+escH(q.q||qid)+'</div>';
       (q.options||[]).forEach(function(opt, oi){
         const oid='gbp_'+qid+'_'+oi;
+        const chk=(pre!=null && Number(pre)===oi)?' checked':'';
         h+='<label for="'+escH(oid)+'" style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;cursor:pointer;font-size:13px;line-height:1.35">'
-          +'<input type="radio" name="gbp_'+escH(qid)+'" id="'+escH(oid)+'" value="'+oi+'" style="margin-top:3px">'
+          +'<input type="radio" name="gbp_'+escH(qid)+'" id="'+escH(oid)+'" value="'+oi+'"'+chk+' style="margin-top:3px">'
           +'<span>'+escH(opt.label||("Option "+oi))+'</span></label>';
       });
       h+='</div>';
     });
     h+='<button class="btn primary" type="button" onclick="submitGbpAudit()">Score nikaalo →</button>';
-    h+='<div class="sm" id="gbpAuditSubmitMsg" style="margin-top:8px;color:var(--muted)"></div>';
+    h+='<div class="sm" id="gbpAuditSubmitMsg" style="margin-top:8px;color:var(--muted)">Suggestions confirm karke Score dabao — tabhi deliverable green hoga.</div>';
     h+='</form>';
     box.innerHTML=h;
   }catch(e){
     box.innerHTML='<div class="sm" style="color:var(--muted)">GBP audit load fail ('+escH(e.message||"network")+').</div>';
   }
+}
+
+function applyGbpSuggestions(answers, mode){
+  const form=document.getElementById("gbpAuditForm");
+  const msg=document.getElementById("gbpAuditSubmitMsg");
+  if(!form||!answers) return;
+  Object.keys(answers).forEach(function(qid){
+    const v=String(answers[qid]);
+    const el=form.querySelector('input[name="gbp_'+qid+'"][value="'+v+'"]');
+    if(el) el.checked=true;
+  });
+  if(msg)msg.textContent=(mode==="council"?"Council":"Profile")+" suggestions select ho gaye — GBP pe check karke Score nikaalo (abhi save nahi hua).";
+}
+
+async function councilGbpSuggest(btn){
+  const msg=document.getElementById("gbpAuditSubmitMsg");
+  if(!billToken()){ if(msg)msg.textContent="Pehle login karein."; return; }
+  if(btn){ btn.disabled=true; btn.textContent="Council…"; }
+  if(msg)msg.textContent="LLM Council suggestions… (score save nahi hota)";
+  try{
+    const r=await fetch("/api/customer/gbp/council-suggest",{
+      method:"POST",
+      headers:Object.assign({"Content-Type":"application/json"}, billAuthHdr()),
+      body:"{}"
+    });
+    const d=await r.json();
+    if(!r.ok||!d.ok){
+      if(msg)msg.textContent=d.error||d.council_error||"Council fail — Profile suggest try karo.";
+      if(btn){ btn.disabled=false; btn.textContent="🤔 Council suggest"; }
+      return;
+    }
+    window._gbpSeedAnswers=d.answers||{};
+    applyGbpSuggestions(d.answers||{}, "council");
+    if(msg)msg.textContent=(d.why||d.note_hi||"Suggestions ready.")+" — Score tabhi save jab aap dabao.";
+  }catch(e){
+    if(msg)msg.textContent="Council error: "+(e.message||"retry");
+  }
+  if(btn){ btn.disabled=false; btn.textContent="🤔 Council suggest"; }
 }
 
 async function submitGbpAudit(){
@@ -3060,12 +3120,16 @@ async function loadApprovals(){
       body.innerHTML='<span class="sm" style="color:var(--muted)">Abhi koi post approval pending nahi — naya draft aane par yahan dikhega. ✅</span>';
       return;
     }
-    body.innerHTML=rows.map(function(a){
+    body.innerHTML='<div class="sm" style="color:var(--muted);margin-bottom:10px">Rule: samajh aaye → Approve. Nahi samajhe → Council Decide (AI multi-model). Clear nahi / brand risk → Admin pending.</div>'+rows.map(function(a){
       const c=a.content||{};
       const cap=escH((c.caption||c.text||"").slice(0,180));
-      return '<div class="approve-card"><div style="font-weight:700">'+escH(c.title||c.occasion||"Naya post")+'</div>'
+      const adminPill=a.needs_admin?'<span class="pill" style="background:#fff7ed;color:#9a3412">Admin pending</span> ':'';
+      return '<div class="approve-card"><div style="font-weight:700">'+adminPill+escH(c.title||c.occasion||"Naya post")+'</div>'
         +'<div class="sm" style="margin-top:4px">'+cap+'</div>'
+        +(a.admin_note?'<div class="sm" style="color:var(--muted)">Note: '+escH(a.admin_note)+'</div>':'')
         +'<div class="acts"><button class="btn primary" onclick="decideApproval(\''+escH(a.id)+'\',\'approve\')">✅ Approve</button>'
+        +'<button class="btn" onclick="councilApproval(\''+escH(a.id)+'\',this)">🤔 Council Decide</button>'
+        +'<button class="btn" onclick="decideApproval(\''+escH(a.id)+'\',\'escalate\')">⏳ Admin pending</button>'
         +'<button class="btn" onclick="decideApproval(\''+escH(a.id)+'\',\'reject\')">❌ Change chahiye</button></div></div>';
     }).join("");
   }catch(e){ card.style.display="none"; }
@@ -3098,15 +3162,45 @@ async function decideApproval(id, action){
   if(!id) return;
   let note="";
   if(action==="reject"){ note=prompt("Kya change chahiye? (optional)")||""; }
+  if(action==="escalate"){ note=prompt("Admin ke liye short note? (optional)")||"boss unclear"; }
   try{
     const r=await fetch("/api/customer/approvals/"+encodeURIComponent(id)+"/decide",{
       method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
       body:JSON.stringify({action:action, note:note})
     });
     const d=await r.json();
-    if(r.ok&&d.ok){ toast(action==="approve"?"Approve ho gaya ✅":"Feedback bhej di ✅", action==="approve"?"Post publish queue me hai.":"Team naya version banayegi."); loadApprovals(); loadContent(); }
+    if(r.ok&&d.ok){
+      var msg = action==="approve" ? "Approve ho gaya ✅"
+        : (action==="escalate" ? "Admin pending pe rakha ⏳" : "Feedback bhej di ✅");
+      var sub = action==="approve" ? "Post publish queue me hai."
+        : (action==="escalate" ? "Admin review karega — aapke liye pending flagged." : "Team naya version banayegi.");
+      toast(msg, sub); loadApprovals(); loadContent();
+    }
     else toast("Nahi hua", d.error||"Dobara try karo");
   }catch(e){ toast("Error", e.message); }
+}
+
+async function councilApproval(id, btn){
+  if(!id) return;
+  if(btn){ btn.disabled=true; btn.textContent="Council…"; }
+  try{
+    const r=await fetch("/api/customer/approvals/"+encodeURIComponent(id)+"/council-decide",{
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"},billAuthHdr()),
+      body:JSON.stringify({apply:true})
+    });
+    const d=await r.json();
+    if(r.ok&&d.ok){
+      var dec=d.decision||{};
+      toast("Council: "+(dec.action||"?"), (dec.why||d.summary||"Decision apply ho gaya.").toString().slice(0,160));
+      loadApprovals(); loadContent();
+    }else{
+      toast("Council fail", d.error||"Keys/quota check karo");
+      if(btn){ btn.disabled=false; btn.textContent="🤔 Council Decide"; }
+    }
+  }catch(e){
+    toast("Council error", e.message||"retry");
+    if(btn){ btn.disabled=false; btn.textContent="🤔 Council Decide"; }
+  }
 }
 
 /* ============================================================
@@ -3230,7 +3324,7 @@ function renderSetupWizard(d){
     +_swField("swBizName","Business ka naam",d.business_name,"e.g. Aapka Business Name")
     +_swField("swCity","City",d.city,"e.g. Mumbai")
     +_swField("swPhone","Contact number",d.phone,"e.g. 98765 43210")
-    
+
     +'<div style="font-weight:700;margin:16px 0 2px">🎯 Services & Target Area</div>'
     +_swField("swServices","Kya services/products dete hain?",d.services,"e.g. Hair makeup, facials, bridal packages")
     +_swField("swTargetArea","Target local areas / neighborhood",d.target_area,"e.g. Andheri West, Bandra")
@@ -4282,7 +4376,7 @@ function drawCalendarGrid() {
 
       chip.textContent = '[' + (it.type || 'post') + '] ' + (it.title || 'Post');
       chip.title = it.title + ": " + it.caption;
-      
+
       chip.onclick = function(e) {
         e.stopPropagation();
         alert("📌 " + it.title + " (" + (it.type || 'post') + " - " + status + ")\n\n" + it.caption + "\n\n" + (it.hashtags || []).join(" "));
