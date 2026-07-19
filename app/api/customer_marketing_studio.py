@@ -2215,7 +2215,7 @@ async def studio_niche_pack(client_id: str = Depends(require_customer)) -> dict:
         from app.marketing import niche_pack
 
         out = await niche_pack.build_pack(
-            niche_key=c["niche"], business_name=c["business_name"], city=c["city"], count=4
+            niche_key=c["niche"], business_name=c["business_name"], city=c["city"], count=2
         )
     except Exception as e:
         _fail("Niche Pack", e)

@@ -136,7 +136,7 @@ async def build_page_kit(
     niche: str = "general",
     city: str = "",
     phone: str = "",
-    posts_count: int = 5,
+    posts_count: int = 2,
 ) -> dict[str, Any]:
     """Complete social-page setup kit. KABHI raise nahi karta, hamesha complete."""
     biz = (business_name or "Aapka Business").strip()
@@ -190,16 +190,22 @@ async def build_page_kit(
         except Exception:
             return {}
 
-    # 2026-07-19: bounded concurrency (Semaphore 2) — unbounded gather free-tier LLM
-    # ko 429-burst kar raha tha (bio-page 30s+ timeout). 2-at-a-time = balanced.
-    _sem = asyncio.Semaphore(2)
+    # 2026-07-19: SEQUENTIAL + per-post 10s timeout — free-tier concurrent LLM calls
+    # 429-backoff dete the (bio-page 30s+ hang). posts_count=2 default + sequential
+    # + per-call timeout = reliably fast, kabhi hang nahi.
+    async def _post_to(occ: str) -> dict:
+        try:
+            return await asyncio.wait_for(_post(occ), timeout=10)
+        except Exception:
+            return {"occasion": occ, "caption": f"{biz} — {niche_name}. {occ}!", "hashtags": [], "image_idea": ""}
 
-    async def _post_b(occ: str) -> dict:
-        async with _sem:
-            return await _post(occ)
-
-    results = await asyncio.gather(*[_post_b(o) for o in occasions], _tags())
-    first_posts, tag_research = list(results[:-1]), results[-1]
+    first_posts = []
+    for o in occasions:
+        first_posts.append(await _post_to(o))
+    try:
+        tag_research = await asyncio.wait_for(_tags(), timeout=8)
+    except Exception:
+        tag_research = {}
 
     logo = ""
     try:
