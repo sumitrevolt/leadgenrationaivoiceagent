@@ -2,6 +2,26 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-19 - ADR-122 GTM speed-to-lead: new-lead ntfy phone-push (email complement)
+
+Decision: `lead_alerts._do_notify` ab email + client-WA ke saath platform owner ke PHONE pe
+ntfy push bhi karta hai (`_notify_owner_ntfy`) â€” 1-tap "WhatsApp" action seedha lead ko. Gated
+`LEAD_NTFY_ALERT` (default ON) + `ntfy.enabled()` (NTFY_URL+NTFY_TOPIC); never-raise; INERT
+without ntfy creds. `LEAD_NTFY_ALERT` registered in AUTOMATION_FLAGS; `_do_notify` return me
+`push_sent`. Deployed 5e2ccb9c.
+
+Context: Harden audit â€” funnel + conversion path (public_site.submit_inquiry: dual rate-limit +
+Turnstile fail-open + honeypot + file-first never-lose) genuinely healthy. Speed-to-lead alert
+email/WA-only tha (email inbox me dab jaata); ntfy (fastest phone push) sirf ops/budget/governance
+me wired tha, new-lead me nahi = dormant-but-wireable GTM gap ("5-min reply = 9x conversion").
+
+Rejected: --no-verify direct-main commit (bypasses no-commit-to-branch guardrail â€” used feature
+branch + ff-merge instead); ntfy-only (email/WA retained â€” additive redundant channels); new module
+(reuse existing app/integrations/ntfy.py push+actions).
+
+Consequence: Naya lead aate hi owner ke phone pe instant buzz (agar NTFY_URL/TOPIC armed prod pe) ->
+faster first call. Email + client-WA paths unchanged. Rollback = LEAD_NTFY_ALERT=0 (flag, no redeploy).
+
 ## 2026-07-16 - ADR-114 UPI pending truth + queue unknown UI + audit JSON verdict
 
 Decision: (1) `_pending_upi_queue` uses `upi_payments.list_payments("pending")` only â€”
@@ -1693,7 +1713,7 @@ User ne 2nd-paying-customer path ke liye AI auto-calling wapas choose kiya ("AI 
 
 ## 2026-07-17 - ADR-116 - Customer plan delivery P0 honesty (poster/report/seed/approval/video/pricing)
 
-**Context:** Production Delivery Audit (docs/audits/customer_plan_delivery_audit_2026-07-17.md) verdict D — pricing promise exceeded live capability shape for Jiya (?1,999 Marketing). Root causes: (1) branded_posters scorer padded with `festival` items; (2) monthly report wrote under billing alias + no ledger key; (3) `seed_client_content` pre-filled 7 calendar days so daily job appended 0; (4) `CONTENT_APPROVAL_AUTO` misread as auto-approve (actually auto-submit) and submitted full generate list incl. duplicates; (5) video `pending` with empty path looked live; (6) packages.py overclaimed Hands-Free / CRM / hot-lead call language.
+**Context:** Production Delivery Audit (docs/audits/customer_plan_delivery_audit_2026-07-17.md) verdict D ï¿½ pricing promise exceeded live capability shape for Jiya (?1,999 Marketing). Root causes: (1) branded_posters scorer padded with `festival` items; (2) monthly report wrote under billing alias + no ledger key; (3) `seed_client_content` pre-filled 7 calendar days so daily job appended 0; (4) `CONTENT_APPROVAL_AUTO` misread as auto-approve (actually auto-submit) and submitted full generate list incl. duplicates; (5) video `pending` with empty path looked live; (6) packages.py overclaimed Hands-Free / CRM / hot-lead call language.
 
 **Decision:** Honesty + reliability fixes, fail-closed for fake success, no outbound WA/social enable, no prod data mutation this session.
 - `product_one_delivery`: count `type==poster` only; `report_sent` no longer overrides live `approval_pending`; report-on-disk helper for deliverable truth.
@@ -1728,7 +1748,7 @@ User ne 2nd-paying-customer path ke liye AI auto-calling wapas choose kiya ("AI 
 
 **Decision:**
 - `approval_mode=auto` (explicit consent) + hands-free bridge when prefs honored; wizard radio + `prefs_honored` / `ownership_ok` / `hands_free_active` status honesty.
-- OmniRoute `_provider_label` (combo vs `provider/model`) + `max_output_tokens` caller override (64–8192).
+- OmniRoute `_provider_label` (combo vs `provider/model`) + `max_output_tokens` caller override (64ï¿½8192).
 - `context_health` FAIL-LOUD on missing `graph.json`; `GRAPHIFY_REQUIRE_GRAPH=1` hard-fails exit.
 - Tests: zara still masks PII; free_ai forwards agent_key; ownership/hands-free status.
 
@@ -1738,17 +1758,17 @@ User ne 2nd-paying-customer path ke liye AI auto-calling wapas choose kiya ("AI 
 
 ## 2026-07-17 - ADR-119 - Hybrid Agentic RAG + OKF (OKF is NOT a RAG replacement)
 
-**Context:** User final recommendation — Google OKF v0.1 (June 2026 draft: Markdown + YAML frontmatter portable knowledge; NOT a vector DB/runtime) vs existing Qdrant `kb_main` (dense e5-small + namespace payload). Risk = treating OKF as query-time retrieval and gutting Qdrant.
+**Context:** User final recommendation ï¿½ Google OKF v0.1 (June 2026 draft: Markdown + YAML frontmatter portable knowledge; NOT a vector DB/runtime) vs existing Qdrant `kb_main` (dense e5-small + namespace payload). Risk = treating OKF as query-time retrieval and gutting Qdrant.
 
 **Council (Chairman):**
-- Architect: keep layered router — Postgres live · OKF curated · Qdrant docs · Graphify relationships.
+- Architect: keep layered router ï¿½ Postgres live ï¿½ OKF curated ï¿½ Qdrant docs ï¿½ Graphify relationships.
 - SRE/Security: tenant_id filter mandatory on every Qdrant retrieve; secrets never in Git OKF.
 - FinOps/Free-stack: BGE-M3 + bge-reranker = FREE local/fastembed path later; no paid embedding SaaS.
 - Product: GraphRAG only for relationship questions; FAQs/captions stay hybrid vector.
 
 **Decision (canonical):**
 ```
-Canonical curated knowledge = OKF bundle (`knowledge/`, v0.1 draft — early, non-blocking)
+Canonical curated knowledge = OKF bundle (`knowledge/`, v0.1 draft ï¿½ early, non-blocking)
 Large-scale retrieval       = Qdrant Hybrid Agentic RAG (upgrade path; do NOT remove)
 Live operational truth      = PostgreSQL / APIs (counts/status NEVER from RAG alone)
 Code/workflow context       = Graphify (`app/graphify-out/`, DEV navigation)
@@ -1761,7 +1781,7 @@ LLM routing                 = OmniRoute (local-dev) + free_ai chain (prod)
 **Target Qdrant payload (minimum):** `tenant_id`, `document_type`, `visibility`, `status`, `source_id`, `version` (+ existing `namespace`). Server-side tenant filter fail-closed for customer scopes.
 
 **Phased upgrade (not big-bang):**
-1. OKF scaffold + ingest bridge (OKF ? Qdrant chunks) — this ADR.
+1. OKF scaffold + ingest bridge (OKF ? Qdrant chunks) ï¿½ this ADR.
 2. Hybrid dense+sparse (BM25/sparse) + RRF on `kb_main` behind flag.
 3. Embedding migrate e5-small ? BGE-M3 (bake + deadline + disable-switch; ML landmine rules).
 4. Reranker BAAI/bge-reranker-base (optional, flag OFF default).
