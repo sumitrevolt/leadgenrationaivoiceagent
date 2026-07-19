@@ -190,7 +190,15 @@ async def build_page_kit(
         except Exception:
             return {}
 
-    results = await asyncio.gather(*[_post(o) for o in occasions], _tags())
+    # 2026-07-19: bounded concurrency (Semaphore 2) — unbounded gather free-tier LLM
+    # ko 429-burst kar raha tha (bio-page 30s+ timeout). 2-at-a-time = balanced.
+    _sem = asyncio.Semaphore(2)
+
+    async def _post_b(occ: str) -> dict:
+        async with _sem:
+            return await _post(occ)
+
+    results = await asyncio.gather(*[_post_b(o) for o in occasions], _tags())
     first_posts, tag_research = list(results[:-1]), results[-1]
 
     logo = ""
