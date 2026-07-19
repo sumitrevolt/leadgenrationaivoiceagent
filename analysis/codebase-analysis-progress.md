@@ -116,17 +116,45 @@ Invariant: **equality across identities** (counts may grow with real activity).
 | Status | **Committed `e845243`, present on prod `716bed84`** (`def link_billing_alias` verified in container). |
 | Bulk backfill | **Not executed** (requires explicit dry-run review + execution flag per policy). |
 
+## HTTP-layer UAT (2026-07-19, prod container, read-only)
+
+Method: short-lived customer JWT minted in-container for billing alias `d79d690f61b3`
+(same shape as real login; token never persisted/exposed), real FastAPI endpoints hit
+on `localhost:8080`. Script removed from VPS + container after run.
+
+| Endpoint | Status | Evidence |
+|---|---|---|
+| `GET /api/customer/auth/me` | 200 | `business='Jiya Makeover Studio'` |
+| `GET /api/customer/auth/portal/content` | 200 | 10 items, business/niche/summary present |
+| `GET /api/customer/auth/portal/invoices` | 200 | exactly 1: `INV/2026-27/0001` |
+| `GET /api/customer/dashboard` | 200 | approval_banner/branding/kpis/leads present |
+| `GET /api/customer/approvals/pending` | 200 | **7 pending** (matches container proof) |
+| `GET /api/customer/timeline` | 200 | 27 events |
+| `GET /api/customer/delivery-proof` | 200 | deliverables + completion pct present |
+| `GET /api/customer/profile` | 200 | `business='Jiya Makeover Studio'`, approval_preference present |
+| `GET /api/customer/office` | 200 | next_best_action/tasks present |
+
+**Verdict: PASS 9/9** — billing-alias JWT sees full canonical marketing view over real HTTP.
+
+### Approve-one-draft: intentionally NOT executed
+
+`content_approval.approve → auto_content.enqueue_approved → social_engine.enqueue_publish`
+and prod has `SOCIAL_ENGINE=1` + `data/social_engine.json {"enabled": true, "dry_run": false}`.
+Approving = real external publish enqueue. This is a customer-visible business action;
+left for Jiya/admin to perform deliberately. (Ownership gates already contract-tested.)
+
+### Alias-gaps dry-run (prod): `orphan_billing_ids=0` — no unlinked invoice owners exist.
+
 ## Active work
 
-- None for identity deliverability — **production-closed**.
-- Optional: run `report_billing_alias_gaps.py` on VPS and review any orphan billing ids before any repair.
+- None for identity deliverability — **production-closed + HTTP-layer UAT passed**.
 
 ## Backlog
 
 ### P1 (remaining, external-gated)
 1. Swara controlled **inbound** canary (telecom/user) — `platform_dial` stays OFF
-2. Admin HQ + Jiya portal **browser UAT** (credentials/OTP)
-3. Optional: approve one Jiya draft in browser when publish side-effects are understood
+2. Jiya portal **visual/browser** UAT (needs real credentials/OTP; API layer already verified)
+3. First real draft approval — deliberate business action (social_engine live, will publish)
 
 ### P2
 - Unified admin command surface consolidation
