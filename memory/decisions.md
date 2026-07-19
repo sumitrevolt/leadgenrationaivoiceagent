@@ -2,6 +2,32 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-19 - ADR-123 Jiya client-identity split-brain fix (billing/login id -> marketing id canonicalization)
+
+Decision: Customer portal marketing-reads (`customer_auth._marketing_cid` helper -> `/portal/content`,
+`/me`, `_biz_name`) aur `product_one_delivery.customer_delivery_status()` ab client id ko
+`clients_store.canonical_client_id()` se canonicalize karte hain. UPI-activated customer apni
+billing/subscription id se login karta hai (Jiya `d79d690f61b3`), par uska marketing content bank
+marketing id (`jiya-makeover`, billing id `billing_client_ids` me) pe keyed hai. Billing/invoice
+reads RAW id pe hi rehte hain (invoices billing id ke owner). Deployed 670f5793.
+
+Context: Ek real paying customer (Jiya, Rs.1999 starter, 2 hafte active) ka portal uski asli ~60%
+delivery (20+ content items) ki jagah sirf 7 orphan drafts / 10% dikha raha tha — portal +
+delivery-status raw billing/login id (`d79d690f61b3`) pe read kar rahe the jabki pipeline
+`jiya-makeover` pe likhta hai. `resolve_client`/`canonical_client_id` pehle se the (docstring me
+literally Jiya example) par hot read-paths inhe use nahi kar rahe the.
+
+Rejected: require_customer me GLOBAL canonicalize (invoice ownership billing id pe -> Jiya ka invoice
+view tut jaata); list_queue primitive me canonicalize (hot/broad, double-resolve); DB
+customer_deliverables ko marketing id pe re-key (destructive migration).
+
+Consequence: Jiya (+ har future customer jiski login/billing id != marketing id) ko portal me apni
+poori real delivery dikhti hai. Billing/invoice untouched. Contract test
+`test_client_identity_canonicalization_2026.py` (3 cases). Rollback = revert 670f5793. Remaining
+(honest): gbp_suggestions + review_replies ka dedicated generator nahi (generate_content dono cover
+nahi karta) — separate loop; DB sidecar `customer_deliverables` (d79...) marketing pipeline
+(jiya-makeover) se abhi bhi orphan (customer-visible NAHI, migration-safety signal only).
+
 ## 2026-07-19 - ADR-122 GTM speed-to-lead: new-lead ntfy phone-push (email complement)
 
 Decision: `lead_alerts._do_notify` ab email + client-WA ke saath platform owner ke PHONE pe
