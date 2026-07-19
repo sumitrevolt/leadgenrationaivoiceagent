@@ -242,6 +242,61 @@ async def _notify_client_owner(rec: dict[str, Any], client: dict[str, Any]) -> b
         return False
 
 
+def _ntfy_alert_enabled() -> bool:
+    """LEAD_NTFY_ALERT default ON (=1). '0'/'false'/'no' se OFF. Alag se
+    ntfy.enabled() (NTFY_URL+NTFY_TOPIC) bhi chahiye — dono par push jaata."""
+    return os.environ.get("LEAD_NTFY_ALERT", "1").strip().lower() not in ("0", "false", "no")
+
+
+async def _notify_owner_ntfy(rec: dict[str, Any], client: dict[str, Any]) -> bool:
+    """Speed-to-lead: platform owner ke PHONE pe instant ntfy push — email
+    (inbox me dab jaata) ka complement. 1-tap 'WhatsApp' action seedha lead ko
+    reply karne ke liye. Gated LEAD_NTFY_ALERT (default ON) + ntfy.enabled().
+    Dedupe upstream (_recently_alerted) se hota. KABHI raise nahi karta."""
+    try:
+        if not _ntfy_alert_enabled():
+            return False
+        from app.integrations import ntfy
+
+        if not ntfy.enabled():
+            return False
+        name = str(rec.get("name") or "Naya lead").strip()[:80]
+        phone_d = _digits(rec.get("phone") or "")
+        niche = str(rec.get("niche") or (client or {}).get("niche") or "").strip()[:50]
+        source = str(
+            rec.get("source") or rec.get("source_slug") or rec.get("utm_source") or "website"
+        ).strip()[:50]
+        lines = [f"{name} · 📞 {phone_d or 'phone nahi mila'}"]
+        lines.append(f"Source: {source}" + (f" · {niche}" if niche else ""))
+        msg = str(rec.get("message") or "").strip()[:160]
+        if msg:
+            lines.append(f"💬 {msg}")
+        actions: list[dict[str, Any]] = []
+        if len(phone_d) >= 10:
+            actions.append(
+                {"action": "view", "label": "WhatsApp", "url": f"https://wa.me/91{phone_d[-10:]}"}
+            )
+        try:
+            from app.marketing.embed_widget import site_base
+
+            base = site_base()
+        except Exception:
+            base = "https://leadsgenai.in"
+        actions.append({"action": "view", "label": "Dashboard", "url": f"{base}/app/clients"})
+        return bool(
+            await ntfy.push(
+                f"🔥 Naya lead: {name}",
+                "\n".join(lines),
+                priority="high",
+                tags=["fire"],
+                actions=actions[:3],
+            )
+        )
+    except Exception as e:  # never-raise — alert flow ko kabhi nahi todta
+        logger.debug(f"lead_alerts ntfy owner push skipped: {e}")
+        return False
+
+
 async def _do_notify(rec: dict[str, Any]) -> dict[str, Any]:
     client = _lookup_client(rec)
     subject, body = _alert_text(rec, client)
@@ -249,6 +304,12 @@ async def _do_notify(rec: dict[str, Any]) -> dict[str, Any]:
         em = await _send_email(subject, body)
     except Exception:
         em = False
+    # Owner ke PHONE pe instant ntfy push (email complement — speed-to-lead:
+    # "5-min me reply = 9x conversion"). Gated + never-raise.
+    try:
+        push_ok = await _notify_owner_ntfy(rec, client)
+    except Exception:
+        push_ok = False
     # Lead record me client_id ho to us client ke owner ko bhi turant WA ping
     # (platform admin ke alawa). Never-raise, gated CLIENT_HOT_LEAD_ALERT.
     try:
@@ -258,6 +319,7 @@ async def _do_notify(rec: dict[str, Any]) -> dict[str, Any]:
     return {
         "ok": True,
         "email_sent": em is True,
+        "push_sent": push_ok is True,
         "client_notified": client_wa is True,
         "deduped": False,
     }

@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1125 operations)
+## Endpoint Index — auto-generated from OpenAPI (1179 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -306,8 +306,13 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/ai/qualify-call` — Qualify Call
 - `POST  ` `/api/ai/strategy-suggestion` — Get Strategy Suggestion
 
-### Admin  (14)
+### Admin  (19)
 
+- `POST  ` `/api/admin/2fa/activate` — Twofa Activate
+- `POST  ` `/api/admin/2fa/disable` — Twofa Disable
+- `POST  ` `/api/admin/2fa/recovery/regenerate` — Twofa Recovery Regen
+- `POST  ` `/api/admin/2fa/setup` — Twofa Setup
+- `GET   ` `/api/admin/2fa/status` — Twofa Status
 - `GET   ` `/api/admin/audit-logs` — Get Audit Logs
 - `POST  ` `/api/admin/auth/login` — Login
 - `POST  ` `/api/admin/auth/logout` — Logout
@@ -356,9 +361,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/revenue-trend` — Get Revenue Trend
 - `GET   ` `/api/admin/sync-health` — Admin Sync Health
 
-### Admin Ops  (24)
+### Admin Ops  (28)
 
 - `GET   ` `/api/admin/calls/recent` — Recent call outcomes / qualified summary
+- `GET   ` `/api/admin/calls/{call_id}/detail` — Call transcript + termination detail
 - `POST  ` `/api/admin/campaign/launch` — Launch outbound call campaign
 - `GET   ` `/api/admin/campaign/status` — Last campaign run status
 - `POST  ` `/api/admin/campaign/stop` — Stop the currently running campaign
@@ -368,6 +374,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/flow/seed-templates` — Apply all Flow Runner starter templates (FLOW_RUNNER=1)
 - `GET   ` `/api/admin/leads/ready` — Uncontacted leads ready to call (campaign pre-flight)
 - `GET   ` `/api/admin/office` — Admin Office — consolidated 'Sumit ke kaam' pending actions
+- `GET   ` `/api/admin/swara-enterprise/status` — Swara free-AI sticky routing + STT gate + training loop status
 - `GET   ` `/api/admin/system/summary` — System snapshot for God Mode panel
 - `POST  ` `/api/admin/trust/configure-posthog` — Set PostHog API key + host (no restart)
 - `POST  ` `/api/admin/trust/configure-sentry` — Set Sentry DSN (lazy web init; worker restart recommended)
@@ -377,6 +384,8 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/upi/clients` — Search clients for manual UPI activate
 - `POST  ` `/api/admin/upi/configure` — Set platform UPI VPA (data file — no container restart)
 - `GET   ` `/api/admin/upi/pending` — Clients waiting for UPI screenshot activation
+- `POST  ` `/api/admin/voice-launch/kill` — Engage/release the voice-calling kill switch
+- `GET   ` `/api/admin/voice-launch/status` — Controlled voice-calling launch status
 - `GET   ` `/api/admin/voice/bookings` — Appointments the AI voice agent booked (durable ledger)
 - `GET   ` `/api/admin/voice/gemini-keys` — Voice Gemini key pool status (masked)
 - `POST  ` `/api/admin/voice/gemini-keys` — Validate + save voice Gemini keys (no restart)
@@ -610,9 +619,10 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (31)
+### Customer Dashboard  (33)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
+- `POST  ` `/api/customer/approvals/{approval_id}/council-decide` — Customer Approval Council Decide
 - `POST  ` `/api/customer/approvals/{approval_id}/decide` — Customer Decide Approval
 - `GET   ` `/api/customer/autopilot` — Customer Autopilot Drafts
 - `GET   ` `/api/customer/branded-feed` — Customer Branded Feed
@@ -621,6 +631,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/dashboard` — Get Customer Dashboard
 - `POST  ` `/api/customer/dashboard/send-to-crm` — Send Dashboard Leads To Crm
 - `GET   ` `/api/customer/delivery-proof` — Customer Delivery Proof
+- `POST  ` `/api/customer/gbp/council-suggest` — Customer Gbp Council Suggest
 - `GET   ` `/api/customer/gbp/questions` — Customer Gbp Questions
 - `POST  ` `/api/customer/gbp/score` — Customer Gbp Score
 - `GET   ` `/api/customer/health` — Customer Dashboard Health
@@ -757,10 +768,11 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 - `GET   ` `/api/customer/pipeline` — Customer Pipeline
 
-### Customer Portal  (12)
+### Customer Portal  (13)
 
 - `POST  ` `/api/customer/auth/change-password` — Customer Change Password
 - `POST  ` `/api/customer/auth/login` — Customer Login
+- `POST  ` `/api/customer/auth/logout` — Logout
 - `GET   ` `/api/customer/auth/magic-link/config` — Magic Link Config
 - `POST  ` `/api/customer/auth/magic-link/request` — Magic Link Request
 - `POST  ` `/api/customer/auth/magic-link/verify` — Magic Link Verify
@@ -890,7 +902,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (61)
+### Frontend  (68)
 
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
@@ -906,13 +918,19 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/clients` — Clients Page
 - `GET   ` `/app/command-center` — Command Center Page
 - `GET   ` `/app/control-center` — Control Center Page
-- `GET   ` `/app/control-center/graph` — Control Center Graph Page
 - `GET   ` `/app/conversations` — Conversations Page
 - `GET   ` `/app/customer` — Customer Dashboard Page
+- `GET   ` `/app/customer/billing` — Customer View Alias Billing
+- `GET   ` `/app/customer/calendar` — Customer View Alias Calendar
+- `GET   ` `/app/customer/delivery` — Customer View Alias Delivery
 - `GET   ` `/app/customer/flows` — Customer Flows Page
+- `GET   ` `/app/customer/leads` — Customer View Alias Leads
 - `GET   ` `/app/customer/marketing` — Customer Marketing Page
 - `GET   ` `/app/customer/office` — Customer Office Page
 - `GET   ` `/app/customer/pipeline` — Customer Pipeline Page
+- `GET   ` `/app/customer/reports` — Customer View Alias Reports
+- `GET   ` `/app/customer/setup` — Customer View Alias Setup
+- `GET   ` `/app/customer/support` — Customer View Alias Support
 - `GET   ` `/app/customer/voice` — Customer Voice Page
 - `GET   ` `/app/dashboards` — Dashboards Page
 - `GET   ` `/app/deals` — Deals Page
@@ -931,6 +949,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/onboard` — Onboard Page
 - `GET   ` `/app/ops` — Ops Page
 - `GET   ` `/app/outreach` — Outreach Page
+- `GET   ` `/app/owner` — Owner Os Page
 - `GET   ` `/app/segments` — Segments Page
 - `GET   ` `/app/studio` — Studio Page
 - `GET   ` `/app/team` — Team Dashboard Page
@@ -954,7 +973,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (217)
+### Growth  (220)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
@@ -1087,7 +1106,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/reply/feedback` — Reply Feedback
 - `GET   ` `/api/growth/reply/feedback/stats` — Reply Feedback Stats
 - `GET   ` `/api/growth/reply/hot-queue` — Reply Hot Queue
+- `POST  ` `/api/growth/reply/hot-queue/council-decide` — Reply Hot Queue Council Decide
 - `POST  ` `/api/growth/reply/hot-queue/done` — Reply Hot Queue Done
+- `POST  ` `/api/growth/reply/hot-queue/park` — Reply Hot Queue Park
 - `POST  ` `/api/growth/reply/hot-queue/quick-done/{token}` — Reply Hot Queue Quick Done
 - `GET   ` `/api/growth/research/search` — Research Search
 - `POST  ` `/api/growth/revenue/client-report` — Client Report Build
@@ -1100,6 +1121,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/growth/revenue/health/run` — Client Health Run
 - `POST  ` `/api/growth/revenue/invoice` — Revenue Invoice Create
 - `GET   ` `/api/growth/revenue/invoice-html` — Revenue Invoice Html
+- `POST  ` `/api/growth/revenue/invoice-void` — Revenue Invoice Void
 - `GET   ` `/api/growth/revenue/invoices` — Revenue Invoices
 - `GET   ` `/api/growth/revenue/invoices.csv` — Revenue Invoices Csv
 - `GET   ` `/api/growth/revenue/lifecycle` — Lifecycle Overview
@@ -1426,8 +1448,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/niche/stats` — Niche prospects stats
 - `GET   ` `/api/niche/voice-niches` — All voice niches list
 
-### Operating HQ  (14)
+### Operating HQ  (15)
 
+- `GET   ` `/api/platform/office/agent-os-status` — Office Agent Os Status
 - `POST  ` `/api/platform/office/agents/{member}/pause` — Office Pause Agent
 - `POST  ` `/api/platform/office/agents/{member}/resume` — Office Resume Agent
 - `POST  ` `/api/platform/office/agents/{member}/task` — Office Agent Task
@@ -1449,6 +1472,40 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/agents-ext/trajectories` — Trajectories Best
 - `POST  ` `/api/agents-ext/trajectory/export` — Trajectory Export
 - `POST  ` `/api/agents-ext/trajectory/record` — Trajectory Record
+
+### Owner OS  (31)
+
+- `GET   ` `/api/admin/owner-os/agents` — Owner Agents
+- `GET   ` `/api/admin/owner-os/agents/{agent_id}` — Owner Agent Detail
+- `POST  ` `/api/admin/owner-os/agents/{agent_id}/cancel-queued` — Owner Cancel Queued
+- `POST  ` `/api/admin/owner-os/agents/{agent_id}/controls` — Owner Set Agent Controls
+- `POST  ` `/api/admin/owner-os/agents/{agent_id}/pause` — Owner Pause Agent
+- `POST  ` `/api/admin/owner-os/agents/{agent_id}/request-cancel-running` — Owner Request Cancel Running
+- `POST  ` `/api/admin/owner-os/agents/{agent_id}/restore-defaults` — Owner Restore Agent Defaults
+- `POST  ` `/api/admin/owner-os/agents/{agent_id}/resume` — Owner Resume Agent
+- `GET   ` `/api/admin/owner-os/approvals` — Owner Approvals
+- `POST  ` `/api/admin/owner-os/approvals/verification` — Owner Create Verification Approval
+- `POST  ` `/api/admin/owner-os/approvals/{source}/{item_id}/decide` — Owner Decide Approval
+- `GET   ` `/api/admin/owner-os/audit` — Owner Audit
+- `GET   ` `/api/admin/owner-os/commands` — Owner List Commands
+- `POST  ` `/api/admin/owner-os/commands` — Owner Create Command
+- `POST  ` `/api/admin/owner-os/commands/preview` — Owner Preview
+- `GET   ` `/api/admin/owner-os/commands/{command_id}` — Owner Get Command
+- `POST  ` `/api/admin/owner-os/commands/{command_id}/approve` — Owner Approve
+- `POST  ` `/api/admin/owner-os/commands/{command_id}/cancel` — Owner Cancel
+- `POST  ` `/api/admin/owner-os/commands/{command_id}/execute` — Owner Execute
+- `POST  ` `/api/admin/owner-os/commands/{command_id}/reassign` — Owner Reassign
+- `POST  ` `/api/admin/owner-os/commands/{command_id}/retry` — Owner Retry
+- `GET   ` `/api/admin/owner-os/home` — Owner Home
+- `GET   ` `/api/admin/owner-os/inventory` — Owner Inventory
+- `GET   ` `/api/admin/owner-os/kill-switches` — Owner Kills
+- `POST  ` `/api/admin/owner-os/kill-switches` — Owner Set Kill
+- `GET   ` `/api/admin/owner-os/routes` — Owner Route Matrix
+- `POST  ` `/api/admin/owner-os/routes/health-test` — Owner Route Health Test
+- `GET   ` `/api/admin/owner-os/tasks` — Owner Tasks
+- `GET   ` `/api/admin/owner-os/training` — Owner Training
+- `GET   ` `/api/admin/owner-os/workflows` — Owner Workflows
+- `GET   ` `/api/admin/owner-os/workflows/{workflow_id}` — Owner Workflow Detail
 
 ### Page Agent  (2)
 
