@@ -29,6 +29,7 @@ customer_delivery.py / social_engine (ban-safety). Visible value = this PULL log
 Module-level path consts (`_LEDGER_DIR`, `_CONTENT_QUEUE_DIR`) are exposed for
 test monkeypatch.
 """
+
 from __future__ import annotations
 
 import json
@@ -54,35 +55,95 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     "customer_created": ("🆕", "Aapka account ban gaya", "Customer record created", True),
     "plan_activated": ("✅", "Aapka plan activate ho gaya", "Plan activated", True),
     "onboarding_started": ("⚙️", "AI ne aapka setup shuru kiya", "Onboarding started", True),
-    "onboarding_completed": ("🎉", "Setup poora — business site + content taiyaar", "Onboarding completed", True),
-    "social_setup_completed": ("🌐", "Aapne social accounts connect kar diye", "Social setup completed", True),
-    "marketing_calendar_generated": ("🗓️", "7-din ka marketing calendar ban gaya", "Marketing calendar generated", True),
-    "post_draft_created": ("📝", "Naya post draft ready — approve karein", "Post draft created", True),
+    "onboarding_completed": (
+        "🎉",
+        "Setup poora — business site + content taiyaar",
+        "Onboarding completed",
+        True,
+    ),
+    "social_setup_completed": (
+        "🌐",
+        "Aapne social accounts connect kar diye",
+        "Social setup completed",
+        True,
+    ),
+    "marketing_calendar_generated": (
+        "🗓️",
+        "7-din ka marketing calendar ban gaya",
+        "Marketing calendar generated",
+        True,
+    ),
+    "post_draft_created": (
+        "📝",
+        "Naya post draft ready — approve karein",
+        "Post draft created",
+        True,
+    ),
     "post_approved": ("👍", "Aapne post approve kiya", "Post approved", True),
     "post_published": ("📢", "Post publish ho gaya", "Post published", True),
-    "post_failed": ("⚠️", "Post publish nahi ho paaya — account connect karein", "Post publish failed", True),
+    "post_failed": (
+        "⚠️",
+        "Post publish nahi ho paaya — account connect karein",
+        "Post publish failed",
+        True,
+    ),
     "lead_captured": ("📥", "Naya lead aaya", "Lead captured", True),
     "followup_sent": ("💬", "Follow-up message bheja gaya", "Follow-up sent", True),
-    "weekly_report_generated": ("📊", "Is hafte ki report taiyaar", "Weekly report generated", True),
-    "automation_failed": ("🚨", "Ek background kaam ruk gaya — team dekh rahi hai", "Automation failed", False),
+    "weekly_report_generated": (
+        "📊",
+        "Is hafte ki report taiyaar",
+        "Weekly report generated",
+        True,
+    ),
+    "automation_failed": (
+        "🚨",
+        "Ek background kaam ruk gaya — team dekh rahi hai",
+        "Automation failed",
+        False,
+    ),
     "admin_manual_action": ("🛠️", "", "Admin manual action", False),
     # Product 1 Customer Deliverability layer (2026-07-08) — Customer Health +
     # Approval Reminder + SLA Recovery agents log through these. Additive only;
     # existing 13 event types + their behaviour are unchanged.
-    "approval_reminded": ("⏰", "Aapka post approval ka wait kar raha hai", "Approval reminder raised", True),
-    "sla_breached": ("🔴", "Delivery me deri ho rahi — team ko notify kar diya gaya", "Customer delivery SLA breached", False),
-    "sla_recovered": ("🟢", "Delivery wapas track pe aa gayi", "Customer delivery SLA recovered", False),
+    "approval_reminded": (
+        "⏰",
+        "Aapka post approval ka wait kar raha hai",
+        "Approval reminder raised",
+        True,
+    ),
+    "sla_breached": (
+        "🔴",
+        "Delivery me deri ho rahi — team ko notify kar diya gaya",
+        "Customer delivery SLA breached",
+        False,
+    ),
+    "sla_recovered": (
+        "🟢",
+        "Delivery wapas track pe aa gayi",
+        "Customer delivery SLA recovered",
+        False,
+    ),
     # Integration Health Agent (2026-07-08) — a PLATFORM integration (SMTP/
     # WhatsApp/Vobiz/Pollinations/scheduler queue) failing enough to impact this
     # specific customer's delivery. Internal-only (customer sees the existing
     # generic "team is on it" note via customer_status_notes, never the raw
     # integration name/error).
-    "integration_failed": ("🔌", "", "Platform integration failing — impacts this customer's delivery", False),
+    "integration_failed": (
+        "🔌",
+        "",
+        "Platform integration failing — impacts this customer's delivery",
+        False,
+    ),
     # Video Creative Pipeline (2026-07-10) — Phase 1, generic recipe only.
     "video_render_started": ("🎬", "Aapka video ban raha hai", "Video render started", True),
     "video_qa_failed": ("⚠️", "", "Video QA check failed — not published", False),
     "video_render_failed": ("⚠️", "", "Video render failed", False),
-    "video_ready": ("🎥", "Naya video taiyaar — approve karein", "Video render succeeded, pending approval", True),
+    "video_ready": (
+        "🎥",
+        "Naya video taiyaar — approve karein",
+        "Video render succeeded, pending approval",
+        True,
+    ),
     # Loop-social-6 (2026-07-11) — canonical social-delivery event enum (Phase 9).
     # Additive only: `social_setup_completed` (existing, per-customer aggregate)
     # kept; `social_account_connected` is the finer-grained per-platform connect
@@ -91,32 +152,76 @@ LABELS: dict[str, tuple[str, str, str, bool]] = {
     # (queued → processing → published/partial/retry/dead/cancelled). Token +
     # customer-action events surface states the admin cockpit + customer
     # timeline must act on. customer_visible=False for pure ops noise.
-    "social_account_connected": ("🔗", "Ek social account connect ho gaya", "Social account connected (per-platform)", True),
-    "social_account_disconnected": ("🔓", "Ek social account disconnect ho gaya", "Social account disconnected (per-platform)", True),
-    "social_account_connection_failed": ("🚫", "Social account connect nahi hua — dobara try karein", "Social account connection failed", True),
+    "social_account_connected": (
+        "🔗",
+        "Ek social account connect ho gaya",
+        "Social account connected (per-platform)",
+        True,
+    ),
+    "social_account_disconnected": (
+        "🔓",
+        "Ek social account disconnect ho gaya",
+        "Social account disconnected (per-platform)",
+        True,
+    ),
+    "social_account_connection_failed": (
+        "🚫",
+        "Social account connect nahi hua — dobara try karein",
+        "Social account connection failed",
+        True,
+    ),
     "token_refreshed": ("🔁", "", "Provider token refreshed", False),
-    "token_expired": ("🕓", "Ek social account ka access expire ho gaya — reconnect karein", "Provider token expired", True),
+    "token_expired": (
+        "🕓",
+        "Ek social account ka access expire ho gaya — reconnect karein",
+        "Provider token expired",
+        True,
+    ),
     "post_scheduled": ("📅", "Post schedule ho gaya", "Post scheduled for publish", True),
     "post_publish_started": ("🚀", "", "Post publish attempt started", False),
-    "post_partially_published": ("🟡", "Post kuch platforms pe gaya — kuch pending", "Post partially published across platforms", True),
+    "post_partially_published": (
+        "🟡",
+        "Post kuch platforms pe gaya — kuch pending",
+        "Post partially published across platforms",
+        True,
+    ),
     "post_retry_scheduled": ("↩️", "", "Post publish retry scheduled", False),
     "post_cancelled": ("🛑", "Aapne post cancel kar diya", "Post cancelled", True),
-    "customer_action_required": ("⚠️", "Ek kaam aapki attention chahiye", "Customer action required", True),
+    "customer_action_required": (
+        "⚠️",
+        "Ek kaam aapki attention chahiye",
+        "Customer action required",
+        True,
+    ),
     # Evidence-hygiene loop (2026-07-11 P0). Non-publication audit marker for
     # `content_approval.update_evidence_url` — records that an evidence URL
     # was rewritten (typically retroactive PII cleanup) WITHOUT counting as a
     # fresh publication. customer_visible=False: this is admin/audit-only;
     # customer already saw the original `post_published` event.
-    "evidence_amended": ("🔧", "", "Evidence URL amended (audit-only, not a new publication)", False),
+    "evidence_amended": (
+        "🔧",
+        "",
+        "Evidence URL amended (audit-only, not a new publication)",
+        False,
+    ),
     # Delivery gate (2026-07-12) — intentional hold, NOT a failure. Logged when
     # AUTO_DELIVER_VALUE is OFF or phone missing — ops-only, doesn't count toward
     # automation_failed or trigger RED health flags.
     "delivery_gated": ("⏸️", "", "Delivery gated (intentional hold, not a failure)", False),
+    # Identity alias link (2026-07-19) — marketing id ↔ billing/login id binding.
+    # Internal-only; customer portal already resolves via billing_client_ids.
+    "identity_alias_linked": ("🔗", "", "Billing/login alias linked to marketing client", False),
 }
 EVENT_TYPES: frozenset[str] = frozenset(LABELS.keys())
 
 # Events that represent published/real marketing OUTPUT (for "value delivered").
-_VALUE_EVENTS = {"onboarding_completed", "social_setup_completed", "post_published", "lead_captured", "followup_sent"}
+_VALUE_EVENTS = {
+    "onboarding_completed",
+    "social_setup_completed",
+    "post_published",
+    "lead_captured",
+    "followup_sent",
+}
 
 # Events that mean "something broke and needs attention" (for at-risk / failures).
 _FAILURE_EVENTS = {"post_failed", "automation_failed"}
@@ -261,7 +366,9 @@ def _enrich(rec: dict[str, Any], *, customer: bool) -> dict[str, Any]:
     }
 
 
-def timeline(client_id: str, limit: int = 50, *, customer_only: bool = False) -> list[dict[str, Any]]:
+def timeline(
+    client_id: str, limit: int = 50, *, customer_only: bool = False
+) -> list[dict[str, Any]]:
     """Enriched events, newest first. customer_only=True drops internal/ops events
     and uses the Hinglish labels. Never raises."""
     events = _read_events(client_id)
@@ -363,7 +470,7 @@ def recent_counts(client_id: str, hours: int = 168) -> dict[str, Any]:
 
 
 def customer_view(client_id: str, limit: int = 30) -> dict[str, Any]:
-    """"AI ne aapke liye kya kiya" — customer-safe timeline + summary. Never raises."""
+    """ "AI ne aapke liye kya kiya" — customer-safe timeline + summary. Never raises."""
     return {
         "timeline": timeline(client_id, limit=limit, customer_only=True),
         "summary": summary(client_id),
@@ -403,7 +510,9 @@ def _backfill_content_queue(cid: str) -> int:
                     continue
                 title = str(it.get("title") or it.get("type") or it.get("kind") or "post")[:120]
                 status = str(it.get("status") or "").strip().lower()
-                if log_event(cid, "post_draft_created", detail=title, actor="backfill", key=f"cq:{i}:draft"):
+                if log_event(
+                    cid, "post_draft_created", detail=title, actor="backfill", key=f"cq:{i}:draft"
+                ):
                     n += 1
                 if status in ("approved", "scheduled") and log_event(
                     cid, "post_approved", detail=title, actor="backfill", key=f"cq:{i}:approved"
@@ -425,8 +534,13 @@ def _backfill_lifecycle(cid: str, client: dict[str, Any]) -> int:
     try:
         created = str(client.get("created_at") or "")
         plan = str(client.get("plan") or "").strip().lower()
-        if log_event(cid, "customer_created", detail=str(client.get("business_name") or ""),
-                     actor="backfill", key="lc:created"):
+        if log_event(
+            cid,
+            "customer_created",
+            detail=str(client.get("business_name") or ""),
+            actor="backfill",
+            key="lc:created",
+        ):
             n += 1
         if plan and plan not in ("", "free", "trial", "none", "pending"):
             if log_event(cid, "plan_activated", detail=plan, actor="backfill", key="lc:activated"):

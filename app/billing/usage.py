@@ -490,16 +490,25 @@ def activate_plan(
         return False
 
     applied = False
+    marketing_cid = cid
     try:
-        from app.marketing.clients_store import get_client, update_client
+        from app.marketing.clients_store import link_billing_alias, resolve_client, update_client
 
-        if get_client(cid):
-            update_client(cid, plan=plan_k)
+        # Resolve billing-alias login ids to the marketing record before plan write
+        # (Jiya: subscription/invoice may stay on billing id; plan lives on marketing).
+        rec = resolve_client(cid)
+        if rec and str(rec.get("id") or "").strip():
+            marketing_cid = str(rec.get("id")).strip()
+            update_client(marketing_cid, plan=plan_k)
             applied = True
+            # Record the activation id as an alias when it differs (idempotent).
+            link_billing_alias(marketing_cid, cid, actor="activate_plan")
             try:
                 from app.marketing import delivery_ledger
 
-                delivery_ledger.log_event(cid, "plan_activated", detail=plan_k, key="lc:activated")
+                delivery_ledger.log_event(
+                    marketing_cid, "plan_activated", detail=plan_k, key="lc:activated"
+                )
             except Exception as le:  # pragma: no cover
                 logger.debug("activate_plan ledger log skip: %s", le)
     except Exception as e:  # pragma: no cover - defensive

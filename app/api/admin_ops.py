@@ -100,6 +100,9 @@ class UpiActivateReq(BaseModel):
     client_id: str
     plan: str = "starter"
     clear_trial: bool = True
+    # Optional legacy invoice/subscription owner id to bind onto the marketing
+    # client (ADR-095 dual-identity). Idempotent; refuses cross-tenant steal.
+    billing_client_id: str = ""
 
 
 class VoiceGeminiKeysReq(BaseModel):
@@ -1052,8 +1055,10 @@ async def upi_activate(
         from app.billing import usage as usage_mod
         from app.marketing import clients_store
 
-        if not clients_store.get_client(cid):
+        mrec = clients_store.resolve_client(cid)
+        if not mrec:
             raise HTTPException(status_code=404, detail="client not found")
+        mcid = str(mrec.get("id") or cid).strip()
         # Manual UPI payment verified by admin — ensure the Subscription row too
         # (portal /billing/subscription 404s without one; audit 2026-07-04).
         # ENTERPRISE FIX (2026-07-10): reset_usage_period ALSO call karo —
@@ -1065,7 +1070,20 @@ async def upi_activate(
         upd = {"plan": plan, "status": "active"}
         if body.clear_trial:
             upd["trial"] = False
-        clients_store.update_client(cid, **upd)
+        clients_store.update_client(mcid, **upd)
+        # Dual-identity bind: when admin supplies the legacy billing/invoice owner
+        # id (Jiya recreation case), attach it to this marketing client so portal
+        # + billing alias resolution keep working. Idempotent; conflict-safe.
+        legacy = str(body.billing_client_id or "").strip()
+        if legacy:
+            link_res = clients_store.link_billing_alias(mcid, legacy, actor="upi_activate")
+            if not link_res.get("ok"):
+                logger.warning(
+                    "upi_activate alias link refused client=%s billing=%s reason=%s",
+                    mcid,
+                    legacy,
+                    link_res.get("reason"),
+                )
         # DELIVERY GUARANTEE (2026-07-05, council): paisa aate hi value-FIRST delivery
         # trigger karo (mini-site link + content) — customer ko "kuch nahi mila" na ho
         # (jiya makeover incident fix). Gated AUTO_DELIVER_VALUE: OFF = sirf detect+record
