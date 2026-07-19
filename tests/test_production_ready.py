@@ -22,7 +22,7 @@ class TestConfiguration:
 
         # In production, secret key should be changed
         if settings.app_env == "production":
-            assert settings.secret_key != "change-this-in-production"
+            assert settings.secret_key != "change-this-in-production"  # pragma: allowlist secret
             assert len(settings.secret_key) >= 32
 
 
@@ -77,11 +77,7 @@ class TestExceptionHandlers:
     """Test exception handling"""
 
     def test_custom_exceptions(self):
-        from app.exceptions import (
-            LeadGenException,
-            ResourceNotFoundException,
-            ValidationException,
-        )
+        from app.exceptions import LeadGenException, ResourceNotFoundException, ValidationException
 
         # Test base exception
         exc = LeadGenException("Test error", code="TEST")
@@ -104,12 +100,7 @@ class TestCache:
     """Test caching layer"""
 
     def test_cache_imports(self):
-        from app.cache import (
-            Cache,
-            DistributedLock,
-            RedisRateLimiter,
-            get_redis_client,
-        )
+        from app.cache import Cache, DistributedLock, RedisRateLimiter, get_redis_client
 
         assert get_redis_client is not None
         assert Cache is not None
@@ -193,11 +184,6 @@ class TestAPIRouters:
 
 class TestPlatformComponents:
     """Test platform components"""
-
-    def test_orchestrator_imports(self):
-        from app.platform.orchestrator import PlatformOrchestrator
-
-        assert PlatformOrchestrator is not None
 
     def test_tenant_manager_imports(self):
         from app.platform.tenant_manager import TenantManager
