@@ -5,6 +5,7 @@ what is done, what is blocked, and what proof exists. This module is deliberatel
 derived from existing stores (clients_store, content_queue, content_approval,
 delivery_ledger) plus a tiny manual-action jsonl. No migration, no new page.
 """
+
 from __future__ import annotations
 
 import json
@@ -48,14 +49,26 @@ STAGE_LABELS = {
 DELIVERABLES = [
     ("business_profile", "Business profile setup", "Customer details + local offer captured"),
     ("brand_kit", "Brand kit", "Logo text, colors, tone, and basic brand identity"),
-    ("branded_posters", "4 branded posters", "At least 4 branded SVG poster drafts (type=poster only)"),
+    (
+        "branded_posters",
+        "4 branded posters",
+        "At least 4 branded SVG poster drafts (type=poster only)",
+    ),
     ("social_posts", "12 social captions or posts", "Monthly social content draft bank"),
     ("festival_ideas", "Festival/local post suggestions", "Local/festival campaign ideas"),
-    ("gbp_suggestions", "Google Business Profile audit + suggestions", "Scored GBP audit (0–100) OR GBP content suggestions ready"),
+    (
+        "gbp_suggestions",
+        "Google Business Profile audit + suggestions",
+        "Scored GBP audit (0–100) OR GBP content suggestions ready",
+    ),
     ("whatsapp_pack", "WhatsApp marketing content pack", "Ready-to-send WhatsApp promo copy"),
     ("review_replies", "Review reply drafts", "Reusable review response drafts"),
     ("monthly_report", "Monthly performance/report summary", "Monthly proof/report generated"),
-    ("proof", "Proof of published/scheduled work", "Published, scheduled, or manual proof note exists"),
+    (
+        "proof",
+        "Proof of published/scheduled work",
+        "Published, scheduled, or manual proof note exists",
+    ),
 ]
 
 ACTION_LABELS = {
@@ -156,7 +169,9 @@ _LEGACY_DB_DELIVERABLE_TYPES = {
 }
 
 
-def initialize_deliverables_for_client(db, client_id: str, plan_code: str | None, billing_cycle_month: str) -> None:
+def initialize_deliverables_for_client(
+    db, client_id: str, plan_code: str | None, billing_cycle_month: str
+) -> None:
     """Create initial customer deliverables for the billing cycle month from the plan template if missing.
     Idempotent, never duplicates.
     """
@@ -167,7 +182,11 @@ def initialize_deliverables_for_client(db, client_id: str, plan_code: str | None
     )
 
     plan_code = (plan_code or "starter").strip().lower()
-    template_key = "starter" if plan_code in ("starter", "marketing", "growth", "combo", "advanced") else "starter"
+    template_key = (
+        "starter"
+        if plan_code in ("starter", "marketing", "growth", "combo", "advanced")
+        else "starter"
+    )
 
     template = ProductOnePlanDeliverables.get(template_key, ProductOnePlanDeliverables["starter"])
 
@@ -261,7 +280,9 @@ def sync_customer_deliverable_status(
         )
         if billing_cycle_month:
             q = q.filter(CustomerDeliverable.billing_cycle_month == billing_cycle_month)
-        row = q.order_by(CustomerDeliverable.billing_cycle_month.desc(), CustomerDeliverable.created_at.desc()).first()
+        row = q.order_by(
+            CustomerDeliverable.billing_cycle_month.desc(), CustomerDeliverable.created_at.desc()
+        ).first()
         if row is None:
             return False
 
@@ -344,7 +365,10 @@ def customer_deliverable_db_audit(cards: list[dict[str, Any]] | None = None) -> 
             rows = (
                 db.query(CustomerDeliverable)
                 .filter(CustomerDeliverable.client_id.in_(client_ids))
-                .order_by(CustomerDeliverable.billing_cycle_month.desc(), CustomerDeliverable.created_at.desc())
+                .order_by(
+                    CustomerDeliverable.billing_cycle_month.desc(),
+                    CustomerDeliverable.created_at.desc(),
+                )
                 .all()
             )
             db_by_client: dict[str, dict[str, Any]] = {}
@@ -413,7 +437,9 @@ def customer_deliverable_db_audit(cards: list[dict[str, Any]] | None = None) -> 
                 )
 
     out["mismatches"] = mismatches[:50]
-    out["read_path_ready"] = not (out["missing_rows"] or out["stale_db_rows"] or out["ahead_db_rows"])
+    out["read_path_ready"] = not (
+        out["missing_rows"] or out["stale_db_rows"] or out["ahead_db_rows"]
+    )
     return out
 
 
@@ -579,7 +605,7 @@ def _monthly_report_on_disk(cid: str, client: dict[str, Any] | None = None) -> b
         month = time.strftime("%Y-%m")
         ids: list[str] = [str(cid or "").strip()]
         aliases = (client or {}).get("billing_client_ids") or []
-        if isinstance(aliases, (list, tuple, set)):
+        if isinstance(aliases, list | tuple | set):
             ids.extend(str(a).strip() for a in aliases if str(a).strip())
         out_dir = _REPORT_DIR
         for i in ids:
@@ -713,7 +739,12 @@ def _escalate_approvals(pending_approvals: list[dict[str, Any]]) -> list[dict[st
 # deliverable", a paid customer with zero posts/reports would look freshly
 # delivered the moment anyone opened their dashboard, masking exactly the
 # "zero deliverables" red flag this health check exists to catch.
-_NON_DELIVERABLE_EVENTS = {"customer_created", "plan_activated", "onboarding_started", "onboarding_completed"}
+_NON_DELIVERABLE_EVENTS = {
+    "customer_created",
+    "plan_activated",
+    "onboarding_started",
+    "onboarding_completed",
+}
 
 
 def _last_deliverable_hours(
@@ -786,11 +817,16 @@ def _customer_health(
         red.append("automation_failed")
     if blank_timeline:
         red.append("blank_timeline")
-    elif hours_since_last is not None and hours_since_last > _SLA_NO_DELIVERABLE_HOURS and stage in (
-        "payment_received",
-        "onboarding_pending",
-        "setup_in_progress",
-        "content_ready",
+    elif (
+        hours_since_last is not None
+        and hours_since_last > _SLA_NO_DELIVERABLE_HOURS
+        and stage
+        in (
+            "payment_received",
+            "onboarding_pending",
+            "setup_in_progress",
+            "content_ready",
+        )
     ):
         red.append("no_deliverable_24h")
     if worst_escalation == "admin_manual_action":
@@ -820,8 +856,10 @@ def _customer_health(
         sla_hours_remaining = round(_SLA_NO_DELIVERABLE_HOURS - hours_since_last, 1)
     for a in approvals_escalated:
         if a["escalation"] in ("normal", "stale_24h"):
-            remaining = round(_APPROVAL_STALE_HOURS - a["hours_open"], 1) if a["escalation"] == "normal" else round(
-                _APPROVAL_URGENT_HOURS - a["hours_open"], 1
+            remaining = (
+                round(_APPROVAL_STALE_HOURS - a["hours_open"], 1)
+                if a["escalation"] == "normal"
+                else round(_APPROVAL_URGENT_HOURS - a["hours_open"], 1)
             )
             if sla_hours_remaining is None or remaining < sla_hours_remaining:
                 sla_hours_remaining = remaining
@@ -838,17 +876,30 @@ def _setup_checks(client: dict[str, Any]) -> dict[str, bool]:
     brand = client.get("brand") if isinstance(client.get("brand"), dict) else {}
     socials = client.get("socials") if isinstance(client.get("socials"), dict) else {}
     return {
-        "business": bool(client.get("business_name") and (client.get("city") or client.get("phone"))),
+        "business": bool(
+            client.get("business_name") and (client.get("city") or client.get("phone"))
+        ),
         "offer": bool(client.get("services") or client.get("target_area")),
-        "brand": bool((brand or {}).get("primary") or (brand or {}).get("logo_text") or (brand or {}).get("tagline")),
-        "social": bool(any((socials or {}).get(k) for k in ("instagram", "facebook", "gbp")) or client.get("whatsapp_phone")),
+        "brand": bool(
+            (brand or {}).get("primary")
+            or (brand or {}).get("logo_text")
+            or (brand or {}).get("tagline")
+        ),
+        "social": bool(
+            any((socials or {}).get(k) for k in ("instagram", "facebook", "gbp"))
+            or client.get("whatsapp_phone")
+        ),
         "approval": bool(client.get("approval_preference")),
     }
 
 
 def _manual_done(actions: list[dict[str, Any]], deliverable_id: str) -> dict[str, Any] | None:
     for ev in actions:
-        if ev.get("deliverable_id") == deliverable_id and ev.get("status") in ("success", "manual_required", "done"):
+        if ev.get("deliverable_id") == deliverable_id and ev.get("status") in (
+            "success",
+            "manual_required",
+            "done",
+        ):
             return ev
     return None
 
@@ -886,7 +937,9 @@ def _deliverable(
     }
 
 
-def customer_delivery_status(client_id: str, client: dict[str, Any] | None = None) -> dict[str, Any]:
+def customer_delivery_status(
+    client_id: str, client: dict[str, Any] | None = None
+) -> dict[str, Any]:
     """Full Product One state for one customer. Never raises."""
     cid = str(client_id or "").strip()
     try:
@@ -910,10 +963,18 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
         post_like = [
             i
             for i in items
-            if str(i.get("type") or "").lower() in ("post", "reel", "festival", "campaign", "whatsapp")
+            if str(i.get("type") or "").lower()
+            in ("post", "reel", "festival", "campaign", "whatsapp")
         ]
-        approved = [i for i in items if str(i.get("status") or "").lower() in ("approved", "scheduled", "posted", "published")]
-        published = [i for i in items if str(i.get("status") or "").lower() in ("posted", "published")]
+        approved = [
+            i
+            for i in items
+            if str(i.get("status") or "").lower()
+            in ("approved", "scheduled", "posted", "published")
+        ]
+        published = [
+            i for i in items if str(i.get("status") or "").lower() in ("posted", "published")
+        ]
         pending_approvals = [a for a in approvals if str(a.get("status") or "") == "pending"]
         # 24h rolling window — historical failures don't permanently tank
         # health score; once root cause is fixed, score recovers within a day.
@@ -961,10 +1022,22 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
         # change with its own migration/test pass — not a silent swap.
 
         # Integration readiness — so customer/admin know if real posting is blocked
-        _social_engine_on = os.environ.get("SOCIAL_ENGINE", "0").strip().lower() in ("1", "true", "yes")
-        _social_autopost_on = os.environ.get("SOCIAL_AUTOPOST", "0").strip().lower() in ("1", "true", "yes")
+        _social_engine_on = os.environ.get("SOCIAL_ENGINE", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
+        _social_autopost_on = os.environ.get("SOCIAL_AUTOPOST", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         _postiz_key_set = bool((os.environ.get("POSTIZ_API_KEY") or "").strip())
-        _wa_auto_send = os.environ.get("WHATSAPP_AUTO_SEND", "0").strip().lower() in ("1", "true", "yes")
+        _wa_auto_send = os.environ.get("WHATSAPP_AUTO_SEND", "0").strip().lower() in (
+            "1",
+            "true",
+            "yes",
+        )
 
         def _missing_social_integration() -> str:
             if not _social_engine_on:
@@ -975,32 +1048,69 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
                 return "Postiz API key set nahi hai. Multi-channel auto-publish ke liye POSTIZ_API_KEY set karo."
             return ""
 
-        _whatsapp_blocked = "WhatsApp auto-send OFF hai (WHATSAPP_AUTO_SEND=0). 1-click manual send only." if not _wa_auto_send else ""
+        _whatsapp_blocked = (
+            "WhatsApp auto-send OFF hai (WHATSAPP_AUTO_SEND=0). 1-click manual send only."
+            if not _wa_auto_send
+            else ""
+        )
 
         # Per-deliverable next actions + integration labels
         deliverables = [
-            _deliverable(*DELIVERABLES[0], "done" if setup["business"] else "pending",
-                owner="Customer", next_action="Setup Wizard me business details complete karo" if not setup["business"] else ""),
-            _deliverable(*DELIVERABLES[1], "done" if setup["brand"] else "pending",
-                owner="Customer + AI", next_action="Logo text/colors/photo daalo" if not setup["brand"] else ""),
-            _deliverable(*DELIVERABLES[2], "done" if len(posters) >= 4 else ("in_progress" if posters else "pending"),
+            _deliverable(
+                *DELIVERABLES[0],
+                "done" if setup["business"] else "pending",
+                owner="Customer",
+                next_action=(
+                    "Setup Wizard me business details complete karo"
+                    if not setup["business"]
+                    else ""
+                ),
+            ),
+            _deliverable(
+                *DELIVERABLES[1],
+                "done" if setup["brand"] else "pending",
+                owner="Customer + AI",
+                next_action="Logo text/colors/photo daalo" if not setup["brand"] else "",
+            ),
+            _deliverable(
+                *DELIVERABLES[2],
+                "done" if len(posters) >= 4 else ("in_progress" if posters else "pending"),
                 proof_note=f"{len(posters)}/4 creatives ready",
                 next_action="Admin → Generate Content dabao" if not posters else "",
-                owner="AI"),
-            _deliverable(*DELIVERABLES[3], "done" if len(post_like) >= 12 else ("in_progress" if post_like else "pending"),
+                owner="AI",
+            ),
+            _deliverable(
+                *DELIVERABLES[3],
+                "done" if len(post_like) >= 12 else ("in_progress" if post_like else "pending"),
                 proof_note=f"{len(post_like)}/12 posts ready",
-                next_action="Daily content job automated hai — abhi " + ("kuch posts ready" if post_like else "generate hone ka wait") if post_like else "",
-                owner="AI"),
-            _deliverable(*DELIVERABLES[4], "done" if has_content_type("festival", "campaign") or _manual_done(actions, "festival_ideas") else "pending",
-                next_action="Festival calendar ke hisaab se AI auto-generate karega" if _client_plan_paid(client) else "",
-                owner="AI"),
+                next_action=(
+                    "Daily content job automated hai — abhi "
+                    + ("kuch posts ready" if post_like else "generate hone ka wait")
+                    if post_like
+                    else ""
+                ),
+                owner="AI",
+            ),
+            _deliverable(
+                *DELIVERABLES[4],
+                (
+                    "done"
+                    if has_content_type("festival", "campaign")
+                    or _manual_done(actions, "festival_ideas")
+                    else "pending"
+                ),
+                next_action=(
+                    "Festival calendar ke hisaab se AI auto-generate karega"
+                    if _client_plan_paid(client)
+                    else ""
+                ),
+                owner="AI",
+            ),
             _deliverable(
                 *DELIVERABLES[5],
                 "done" if gbp_done else ("in_progress" if gbp_link else "pending"),
                 proof_note=(
-                    f"GBP audit score {int(gbp_audit.get('score') or 0)}/100"
-                    if gbp_audit
-                    else ""
+                    f"GBP audit score {int(gbp_audit.get('score') or 0)}/100" if gbp_audit else ""
                 ),
                 next_action=(
                     ""
@@ -1008,19 +1118,66 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
                     else "Reports → GBP Audit (0–100) complete karo — top-5 fixes milenge"
                 ),
             ),
-            _deliverable(*DELIVERABLES[6], "done" if has_content_type("whatsapp") or _manual_done(actions, "whatsapp_pack") else "pending",
-                next_action="Content generate hone ke baad WhatsApp pack ready hoga" if _client_plan_paid(client) and not has_content_type("whatsapp") else "",
-                integration_required=_whatsapp_blocked),
-            _deliverable(*DELIVERABLES[7], "done" if has_content_type("review_reply") or _manual_done(actions, "review_replies") else "pending",
-                next_action="AI review reply templates auto-generate honge" if _client_plan_paid(client) else "",
-                owner="AI"),
-            _deliverable(*DELIVERABLES[8], "done" if int(ledger.get("reports") or 0) > 0 or report_action or report_on_disk else "pending",
-                proof_note=str((report_action or {}).get("note") or ("report file on disk" if report_on_disk else "")),
-                next_action="Mahine ke end me auto-generate hoga — Admin Monthly Report button se bhi bana sakta hai" if not report_action and not report_on_disk else ""),
-            _deliverable(*DELIVERABLES[9], "done" if published or proof_action or publish_action else ("in_progress" if approved else "pending"),
+            _deliverable(
+                *DELIVERABLES[6],
+                (
+                    "done"
+                    if has_content_type("whatsapp") or _manual_done(actions, "whatsapp_pack")
+                    else "pending"
+                ),
+                next_action=(
+                    "Content generate hone ke baad WhatsApp pack ready hoga"
+                    if _client_plan_paid(client) and not has_content_type("whatsapp")
+                    else ""
+                ),
+                integration_required=_whatsapp_blocked,
+            ),
+            _deliverable(
+                *DELIVERABLES[7],
+                (
+                    "done"
+                    if has_content_type("review_reply") or _manual_done(actions, "review_replies")
+                    else "pending"
+                ),
+                next_action=(
+                    "AI review reply templates auto-generate honge"
+                    if _client_plan_paid(client)
+                    else ""
+                ),
+                owner="AI",
+            ),
+            _deliverable(
+                *DELIVERABLES[8],
+                (
+                    "done"
+                    if int(ledger.get("reports") or 0) > 0 or report_action or report_on_disk
+                    else "pending"
+                ),
+                proof_note=str(
+                    (report_action or {}).get("note")
+                    or ("report file on disk" if report_on_disk else "")
+                ),
+                next_action=(
+                    "Mahine ke end me auto-generate hoga — Admin Monthly Report button se bhi bana sakta hai"
+                    if not report_action and not report_on_disk
+                    else ""
+                ),
+            ),
+            _deliverable(
+                *DELIVERABLES[9],
+                (
+                    "done"
+                    if published or proof_action or publish_action
+                    else ("in_progress" if approved else "pending")
+                ),
                 proof_note=str((proof_action or publish_action or {}).get("note") or ""),
                 integration_required=_missing_social_integration(),
-                next_action="Admin manual-proof/publish kare ya SOCIAL_ENGINE ON karo" if not published and not proof_action and not publish_action else ""),
+                next_action=(
+                    "Admin manual-proof/publish kare ya SOCIAL_ENGINE ON karo"
+                    if not published and not proof_action and not publish_action
+                    else ""
+                ),
+            ),
         ]
         complete = sum(1 for d in deliverables if d["status"] == "done")
         deliverable_pct = int(round(complete / max(1, len(deliverables)) * 100))
@@ -1092,15 +1249,21 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
             "product": client.get("product") or "marketing",
             "stage": stage,
             "stage_label": STAGE_LABELS.get(stage, stage),
-            "pipeline": [{"key": k, "label": STAGE_LABELS[k], "active": k == stage} for k in PIPELINE],
+            "pipeline": [
+                {"key": k, "label": STAGE_LABELS[k], "active": k == stage} for k in PIPELINE
+            ],
             "setup_checks": setup,
             "setup_completion_pct": setup_pct,
             "deliverable_completion_pct": deliverable_pct,
             "deliverables": deliverables,
             "pending_customer_inputs": [k for k, v in setup.items() if not v],
-            "pending_admin_actions": _pending_admin_actions(stage, risk_flag, pending_approvals, items),
+            "pending_admin_actions": _pending_admin_actions(
+                stage, risk_flag, pending_approvals, items
+            ),
             "customer_status_notes": _customer_status_notes(stage, risk_flag, deliverables, setup),
-            "monthly_summary": _monthly_summary(deliverables, setup_pct, deliverable_pct, failed_count, len(pending_approvals)),
+            "monthly_summary": _monthly_summary(
+                deliverables, setup_pct, deliverable_pct, failed_count, len(pending_approvals)
+            ),
             "content_generated": len(items),
             "posts_waiting_for_approval": len(pending_approvals),
             "posts_scheduled": len(approved),
@@ -1116,8 +1279,14 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
             "health_reasons": health["reasons"],
             "sla_hours_remaining": health["sla_hours_remaining"],
             "approval_escalation": approvals_escalated,
-            "stale_approvals_24h": sum(1 for a in approvals_escalated if a["escalation"] == "stale_24h"),
-            "urgent_approvals_48h": sum(1 for a in approvals_escalated if a["escalation"] in ("urgent_48h", "admin_manual_action")),
+            "stale_approvals_24h": sum(
+                1 for a in approvals_escalated if a["escalation"] == "stale_24h"
+            ),
+            "urgent_approvals_48h": sum(
+                1
+                for a in approvals_escalated
+                if a["escalation"] in ("urgent_48h", "admin_manual_action")
+            ),
             "automation_events": _automation_events_from_sources(cid, client, led_events, actions),
         }
     except Exception as exc:
@@ -1137,7 +1306,9 @@ def customer_delivery_status(client_id: str, client: dict[str, Any] | None = Non
         }
 
 
-def _pending_admin_actions(stage: str, risk: str, pending_approvals: list[dict[str, Any]], items: list[dict[str, Any]]) -> list[str]:
+def _pending_admin_actions(
+    stage: str, risk: str, pending_approvals: list[dict[str, Any]], items: list[dict[str, Any]]
+) -> list[str]:
     out: list[str] = []
     if risk == "automation_failed":
         out.append("Retry failed automation ya manual delivery proof add karo.")
@@ -1175,10 +1346,16 @@ def _customer_status_notes(
             {
                 "type": "customer_input_needed",
                 "title": "Setup details pending",
-                "message": "Pending details: " + ", ".join(missing[:4]) + ". Ye milte hi delivery fast ho jayegi.",
+                "message": "Pending details: "
+                + ", ".join(missing[:4])
+                + ". Ye milte hi delivery fast ho jayegi.",
             }
         )
-    pending_titles = [str(d.get("title") or "") for d in deliverables if d.get("status") in ("pending", "in_progress")]
+    pending_titles = [
+        str(d.get("title") or "")
+        for d in deliverables
+        if d.get("status") in ("pending", "in_progress")
+    ]
     if pending_titles and stage not in ("published", "report_sent", "renewal_ready"):
         notes.append(
             {
@@ -1243,7 +1420,11 @@ def _last_status(ledger_events: list[dict[str, Any]], actions: list[dict[str, An
         return "No delivery event yet"
     ev = merged[0]
     status = str(ev.get("status") or ev.get("event") or "success")
-    label = str(ev.get("workflow_name") or ev.get("label") or ACTION_LABELS.get(str(ev.get("action") or ""), "Delivery update"))
+    label = str(
+        ev.get("workflow_name")
+        or ev.get("label")
+        or ACTION_LABELS.get(str(ev.get("action") or ""), "Delivery update")
+    )
     return f"{label}: {status}"
 
 
@@ -1294,7 +1475,10 @@ def _automation_events_from_sources(
                 "customer_id": cid,
                 "customer_name": client.get("business_name") or "Customer",
                 "workflow_id": str(ev.get("workflow_id") or ev.get("action") or "manual"),
-                "workflow_name": str(ev.get("workflow_name") or ACTION_LABELS.get(str(ev.get("action") or ""), "Manual action")),
+                "workflow_name": str(
+                    ev.get("workflow_name")
+                    or ACTION_LABELS.get(str(ev.get("action") or ""), "Manual action")
+                ),
                 "trigger_source": str(ev.get("trigger_source") or "admin"),
                 "status": status,
                 "started_at": ev.get("started_at") or ev.get("at") or "",
@@ -1444,9 +1628,23 @@ def delivery_cockpit() -> dict[str, Any]:
     try:
         from app.marketing import clients_store
 
-        clients = clients_store.list_clients(status="active")
+        raw = clients_store.list_clients(status="active")
     except Exception:
-        clients = []
+        raw = []
+
+    # ADR-121b: deduplicate by client id — marketing_clients.jsonl can have
+    # duplicate id rows (e.g. leadgenai-self written twice) or near-duplicate
+    # entries (Sharma Solar ×3 from a rapid-fire test run). First-seen wins
+    # (list is newest-first from list_clients).
+    seen_ids: set[str] = set()
+    clients: list[dict[str, Any]] = []
+    for c in raw:
+        cid = str(c.get("id") or "").strip()
+        if cid and cid in seen_ids:
+            continue
+        seen_ids.add(cid)
+        clients.append(c)
+
     cards = [admin_customer_card(c) for c in clients]
     by_stage: dict[str, int] = dict.fromkeys(PIPELINE, 0)
     for c in cards:
@@ -1457,21 +1655,32 @@ def delivery_cockpit() -> dict[str, Any]:
     # first" — worst health + lowest score first so admin understands risk in
     # the first screen, not after scrolling.
     _health_order = {"red": 0, "yellow": 1, "green": 2}
-    cards.sort(key=lambda c: (_health_order.get(str(c.get("health_status") or "green"), 2), int(c.get("health_score") if c.get("health_score") is not None else 100)))
+    cards.sort(
+        key=lambda c: (
+            _health_order.get(str(c.get("health_status") or "green"), 2),
+            int(c.get("health_score") if c.get("health_score") is not None else 100),
+        )
+    )
 
-    # Revenue MRR breakdown — fixes hardcoded ₹0 on Delivery Cockpit frontend
+    # Revenue MRR breakdown — ADR-121b: gate on _has_paid_evidence() so MRR
+    # matches dashboard KPI (was: cockpit counted test/self-brand clients →
+    # ₹7,997 vs KPI ₹1,999 — same _has_paid_evidence miss as ADR-101).
     mrr_total = 0
     by_plan: dict[str, dict[str, int]] = {}
     paying = 0
     try:
+        from app.api.admin_dashboard_builders import _has_paid_evidence
+
         for c in clients:
             price = _cockpit_client_mrr(c)
-            mrr_total += price
+            paid = _has_paid_evidence(c)
             plan_name = str(c.get("plan") or "starter").title()
             cur = by_plan.setdefault(plan_name, {"count": 0, "mrr": 0})
             cur["count"] += 1
-            cur["mrr"] += price
-            if price > 0:
+            if paid:
+                mrr_total += price
+                cur["mrr"] += price
+            if price > 0 and paid:
                 paying += 1
     except Exception as e:
         logger.debug("delivery_cockpit revenue compute failed: %s", e)
@@ -1479,23 +1688,35 @@ def delivery_cockpit() -> dict[str, Any]:
     return {
         "ok": True,
         "generated_at": _now(),
-        "pipeline": [{"key": k, "label": STAGE_LABELS[k], "count": by_stage.get(k, 0)} for k in PIPELINE],
+        "pipeline": [
+            {"key": k, "label": STAGE_LABELS[k], "count": by_stage.get(k, 0)} for k in PIPELINE
+        ],
         "revenue": {
             "mrr_total": mrr_total,
             "paying_customers": paying,
-            "by_plan": dict(sorted(by_plan.items(), key=lambda x: (-int(x[1].get("mrr") or 0), x[0]))),
+            "by_plan": dict(
+                sorted(by_plan.items(), key=lambda x: (-int(x[1].get("mrr") or 0), x[0]))
+            ),
         },
         "summary": {
-            "new_paid_customers": sum(1 for c in cards if c.get("current_delivery_stage") in ("payment_received", "onboarding_pending")),
+            "new_paid_customers": sum(
+                1
+                for c in cards
+                if c.get("current_delivery_stage") in ("payment_received", "onboarding_pending")
+            ),
             "pending_customer_inputs": sum(1 for c in cards if c.get("pending_customer_inputs")),
             "pending_admin_actions": sum(1 for c in cards if c.get("pending_admin_actions")),
             "content_generated": sum(int(c.get("content_generated") or 0) for c in cards),
-            "posts_waiting_for_approval": sum(int(c.get("posts_waiting_for_approval") or 0) for c in cards),
+            "posts_waiting_for_approval": sum(
+                int(c.get("posts_waiting_for_approval") or 0) for c in cards
+            ),
             "posts_scheduled": sum(int(c.get("posts_scheduled") or 0) for c in cards),
             "posts_published": sum(int(c.get("posts_published") or 0) for c in cards),
             "failed_automations": sum(int(c.get("failed_automations") or 0) for c in cards),
             "customers_at_risk": sum(1 for c in cards if c.get("risk_flag") != "ok"),
-            "renewal_ready": sum(1 for c in cards if c.get("current_delivery_stage") == "renewal_ready"),
+            "renewal_ready": sum(
+                1 for c in cards if c.get("current_delivery_stage") == "renewal_ready"
+            ),
             "red_customers": sum(1 for c in cards if c.get("health_status") == "red"),
             "yellow_customers": sum(1 for c in cards if c.get("health_status") == "yellow"),
             "green_customers": sum(1 for c in cards if c.get("health_status") == "green"),
@@ -1529,14 +1750,24 @@ def _safe_integration_readiness() -> dict[str, Any]:
     try:
         return integration_readiness()
     except Exception as exc:
-        return {"ok": False, "integrations": [], "scheduler": {}, "affected_customers_total": 0, "error": str(exc)[:150]}
+        return {
+            "ok": False,
+            "integrations": [],
+            "scheduler": {},
+            "affected_customers_total": 0,
+            "error": str(exc)[:150],
+        }
 
 
 def automation_events(filter_key: str = "", client_id: str = "") -> list[dict[str, Any]]:
     try:
         from app.marketing import clients_store
 
-        clients = [clients_store.get_client(client_id)] if client_id else clients_store.list_clients(status="active")
+        clients = (
+            [clients_store.get_client(client_id)]
+            if client_id
+            else clients_store.list_clients(status="active")
+        )
     except Exception:
         clients = []
     rows: list[dict[str, Any]] = []
@@ -1570,7 +1801,11 @@ def _matches_filter(row: dict[str, Any], key: str) -> bool:
     action = str(row.get("next_action") or "").lower()
     rid = str(row.get("related_deliverable_id") or "").lower()
     if k == "failed_today":
-        return status == "failed" and str(row.get("started_at") or "")[:10] == datetime.now(timezone.utc).date().isoformat()
+        return (
+            status == "failed"
+            and str(row.get("started_at") or "")[:10]
+            == datetime.now(timezone.utc).date().isoformat()
+        )
     if k in ("manual_required", "manual_action_required"):
         return status == "manual_required"
     if k == "customer_blocked":
@@ -1628,7 +1863,13 @@ async def record_manual_action(
 
             result["report"] = await client_report.build_report(cid, send=False)
             deliverable_id = deliverable_id or "monthly_report"
-        elif act in ("publish_manual", "manual_task_done", "retry_failed", "send_reminder", "assign_owner"):
+        elif act in (
+            "publish_manual",
+            "manual_task_done",
+            "retry_failed",
+            "send_reminder",
+            "assign_owner",
+        ):
             result["manual"] = True
             if act == "publish_manual":
                 deliverable_id = deliverable_id or "proof"
@@ -1653,7 +1894,11 @@ async def record_manual_action(
         "error_message": err,
         "retry_count": 1 if act == "retry_failed" else 0,
         "next_retry_at": "",
-        "next_action": "Check result and continue delivery." if status == "success" else "Retry again or use manual fallback.",
+        "next_action": (
+            "Check result and continue delivery."
+            if status == "success"
+            else "Retry again or use manual fallback."
+        ),
         "deliverable_id": deliverable_id,
         "note": note[:500],
         "owner": owner[:80],
@@ -1799,12 +2044,12 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
                 # SLA Recovery: only the specific, safe, already-existing
                 # "no content yet" case. Approval / automation-failure reasons
                 # need a human, not more auto-generation — left to admin.
-                if (
-                    ("blank_timeline" in reasons or "no_deliverable_24h" in reasons)
-                    and int(state.get("content_generated") or 0) == 0
-                ):
+                if ("blank_timeline" in reasons or "no_deliverable_24h" in reasons) and int(
+                    state.get("content_generated") or 0
+                ) == 0:
                     already_today = any(
-                        ev.get("action") == "generate_content" and str(ev.get("at") or "")[:10] == today
+                        ev.get("action") == "generate_content"
+                        and str(ev.get("at") or "")[:10] == today
                         for ev in manual_events(cid, limit=50)
                     )
                     if not already_today:
@@ -1835,12 +2080,20 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
                         out["sla_recovered"] += 1
 
             for a in state.get("approval_escalation") or []:
-                if a.get("escalation") in ("stale_24h", "urgent_48h", "admin_manual_action") and a.get("id"):
+                if a.get("escalation") in (
+                    "stale_24h",
+                    "urgent_48h",
+                    "admin_manual_action",
+                ) and a.get("id"):
                     if delivery_ledger.log_event(
                         cid,
                         "approval_reminded",
                         detail=f"Approval {a['id']} open {a['hours_open']}h ({a['escalation']})",
-                        meta={"approval_id": a["id"], "escalation": a["escalation"], "hours_open": a["hours_open"]},
+                        meta={
+                            "approval_id": a["id"],
+                            "escalation": a["escalation"],
+                            "hours_open": a["hours_open"],
+                        },
                         actor="product_one_health",
                         key=f"appr_remind:{a['id']}:{a['escalation']}",
                     ):
@@ -1867,12 +2120,36 @@ _INTEGRATION_FAIL_THRESHOLD = 3  # ignore one-off blips; only map "affecting cus
 # reason if this ever needs to reach a customer view, admin-technical reason,
 # impact scope). scope: "all_paid" | "voice_product" | "ops_only".
 _INTEGRATION_IMPACT: dict[str, tuple[str, str, str]] = {
-    "smtp": ("Aapki weekly report/email update thoda delay ho sakta hai.", "SMTP email delivery failing", "all_paid"),
-    "email_api": ("Aapki weekly report/email update thoda delay ho sakta hai.", "Email API failing", "all_paid"),
-    "imap": ("", "IMAP reply-triage failing (internal ops signal, not customer-facing)", "ops_only"),
-    "vobiz": ("Aapke voice calls me technical dikkat aa rahi hai — team dekh rahi hai.", "Vobiz telephony failing", "voice_product"),
-    "whatsapp": ("Aapka WhatsApp content draft thoda delay ho sakta hai.", "WhatsApp integration failing", "all_paid"),
-    "pollinations": ("Aapke poster/creative images thoda delay ho sakte hain.", "Pollinations image-gen failing", "all_paid"),
+    "smtp": (
+        "Aapki weekly report/email update thoda delay ho sakta hai.",
+        "SMTP email delivery failing",
+        "all_paid",
+    ),
+    "email_api": (
+        "Aapki weekly report/email update thoda delay ho sakta hai.",
+        "Email API failing",
+        "all_paid",
+    ),
+    "imap": (
+        "",
+        "IMAP reply-triage failing (internal ops signal, not customer-facing)",
+        "ops_only",
+    ),
+    "vobiz": (
+        "Aapke voice calls me technical dikkat aa rahi hai — team dekh rahi hai.",
+        "Vobiz telephony failing",
+        "voice_product",
+    ),
+    "whatsapp": (
+        "Aapka WhatsApp content draft thoda delay ho sakta hai.",
+        "WhatsApp integration failing",
+        "all_paid",
+    ),
+    "pollinations": (
+        "Aapke poster/creative images thoda delay ho sakte hain.",
+        "Pollinations image-gen failing",
+        "all_paid",
+    ),
     "qdrant": ("", "Qdrant RAG lookup failing (content quality degrade, not blocking)", "ops_only"),
     "places": ("", "Google Places prospecting failing (not a customer-delivery issue)", "ops_only"),
     "stripe": ("", "Stripe removed 2026-07-10 — payments via UPI only", "ops_only"),
@@ -1891,9 +2168,13 @@ _RECOMMENDED_FIX: dict[str, str] = {
 }
 
 
-def _affected_clients_for_scope(scope: str, paid_clients: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _affected_clients_for_scope(
+    scope: str, paid_clients: list[dict[str, Any]]
+) -> list[dict[str, Any]]:
     if scope == "voice_product":
-        return [c for c in paid_clients if str(c.get("product") or "").lower() in ("voice", "combo")]
+        return [
+            c for c in paid_clients if str(c.get("product") or "").lower() in ("voice", "combo")
+        ]
     if scope == "all_paid":
         return list(paid_clients)
     return []  # ops_only — real signal, but not a Product 1 customer-delivery impact
@@ -1933,7 +2214,9 @@ def integration_readiness(hours: int = 6) -> dict[str, Any]:
     try:
         from app.marketing import clients_store
 
-        paid_clients = [c for c in (clients_store.list_clients(status="active") or []) if _client_plan_paid(c)]
+        paid_clients = [
+            c for c in (clients_store.list_clients(status="active") or []) if _client_plan_paid(c)
+        ]
     except Exception:
         paid_clients = []
 
@@ -1979,7 +2262,9 @@ def integration_readiness(hours: int = 6) -> dict[str, Any]:
                 "scope": scope,
                 "affected_customer_ids": [str(c.get("id") or "") for c in affected],
                 "affected_customer_count": len(affected),
-                "recommended_fix": _RECOMMENDED_FIX.get(name, "Integration logs check karo (`GET /api/growth/infra/integrations`)."),
+                "recommended_fix": _RECOMMENDED_FIX.get(
+                    name, "Integration logs check karo (`GET /api/growth/infra/integrations`)."
+                ),
             }
         )
 

@@ -87,7 +87,7 @@
   .bar span{display:block;height:100%;background:linear-gradient(90deg,#7c3aed,#22c55e);border-radius:inherit}
   .sub{font-size:11px;color:var(--muted);margin-top:3px}
   .actions{display:flex;gap:6px;flex-wrap:wrap}
-  .mini{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 8px;font-size:11px;font-weight:800;cursor:pointer}
+  .mini{border:1px solid var(--line);background:#fff;border-radius:8px;padding:5px 10px;font-size:11px;font-weight:800;cursor:pointer;white-space:nowrap}
   .mini.primary{background:var(--brand);border-color:var(--brand);color:#fff}
   .mini.warn{background:#fff7ed;color:#9a3412}
   /* Delivery-health state badge — tone (ok/warn/err/muted) from server health.tone */
@@ -381,7 +381,7 @@
       });
       var missingHtml = missingItems.length ? '<div class="sub" style="color:#d97706;font-size:10px;margin-top:2px">⚠️ ' + missingItems.join(', ') + ' missing</div>' : '';
       return '<tr>' +
-        '<td class="nm">' + esc(c.customer_name || c.business_name || "(no name)") + '<div class="sub">' + esc(c.risk_flag || "ok") + '</div></td>' +
+        '<td class="nm">' + esc(c.customer_name || c.business_name || "(no name)") + '<div class="sub">' + esc(({"customer_blocked":"Customer Blocked","at_risk":"At Risk","churn_risk":"Churn Risk","payment_overdue":"Payment Overdue","ok":"OK"}[c.risk_flag] || (c.risk_flag||"ok").replace(/_/g," ").replace(/\b\w/g,function(l){return l.toUpperCase()}))) + '</div></td>' +
         '<td><span class="pill plan">' + esc(c.plan || "starter") + '</span></td>' +
         '<td>' + healthBadge(c) + '<div class="sub">' + esc(c.stage_label || c.current_delivery_stage || "-") + '</div></td>' +
         '<td style="min-width:90px"><b>' + setup + '%</b><div class="bar"><span style="width:' + setup + '%"></span></div>' + missingHtml + '</td>' +

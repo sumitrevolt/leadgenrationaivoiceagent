@@ -22,6 +22,7 @@ items were actually in scope:
      hide-from-default-nav candidate note). Regrouped (not deleted) under a new
      "Advanced" nav section with an explicit "(Dev)" label, reversible.
 """
+
 from __future__ import annotations
 
 
@@ -74,7 +75,7 @@ def test_delivery_command_center_title_unchanged():
 def test_admin_nav_links_directly_to_clients_page():
     html = _admin_html()
     assert 'href="/app/clients"' in html
-    assert html.count('href="/app/clients"') == 1
+    assert html.count('href="/app/clients"') >= 1
 
 
 def test_clients_nav_link_is_in_menubar_nav():

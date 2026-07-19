@@ -50,11 +50,12 @@ def _build_onboarding_checklist(
     rec = client_rec or _client_record(client_id) or {}
     slug = str(rec.get("slug") or "").strip()
     socials = rec.get("socials") or {}
-    
+
     # Retrieve tone
     tone = ""
     try:
         from app.marketing import brand_kit
+
         tone = str((brand_kit.get_brand(client_id) or {}).get("tone") or "").strip()
     except Exception:
         pass
@@ -115,7 +116,7 @@ def _build_onboarding_checklist(
     )
 
 
-def _trial_banner(client_rec: dict | None, *, has_paid_plan: bool = False) -> "TrialBanner | None":
+def _trial_banner(client_rec: dict | None, *, has_paid_plan: bool = False) -> TrialBanner | None:
     """Trial expiry nudge — day 5+ ya expired pe pay CTA."""
     from app.api.customer_dashboard_models import TrialBanner
     from app.marketing.packages import PACKAGES, trial_status
@@ -720,7 +721,7 @@ def _build_from_db(client_id: str, campaign: str | None) -> DashboardResponse | 
 # LLM, never raises. Product-aware (marketing | voice | combo) so each         #
 # dashboard shows the RIGHT tasks. Drives frontend "🏢 Aapka Office" block.    #
 # --------------------------------------------------------------------------- #
-def _rel_time(dt: "datetime | None") -> str:
+def _rel_time(dt: datetime | None) -> str:
     """datetime -> chhota Hinglish relative time ('abhi' / 'N min pehle' / 'kal')."""
     if not dt:
         return ""
@@ -765,87 +766,139 @@ def _office_tasks(rec, product, onboarding, approvals_pending, trial, routing_se
     # 0) Payment / trial — blocks ALL automation
     if trial and getattr(trial, "show_pay_cta", False):
         expired = bool(getattr(trial, "expired", False))
-        tasks.append({
-            "id": "pay", "icon": "💳", "severity": "high", "priority": 0,
-            "title": "Plan activate karo (UPI)" if expired else "Trial chal raha — abhi pay karke pakka karo",
-            "why": (
-                "Trial khatam — roz ka automation ruk jayega"
-                if expired
-                else f"Trial me {int(getattr(trial, 'days_left', 0))} din bache"
-            ),
-            "impact": "content + calls + leads — sab chalu rahega",
-            "cta_label": "Pay karo", "cta_target": "billingCard",
-        })
+        tasks.append(
+            {
+                "id": "pay",
+                "icon": "💳",
+                "severity": "high",
+                "priority": 0,
+                "title": (
+                    "Plan activate karo (UPI)"
+                    if expired
+                    else "Trial chal raha — abhi pay karke pakka karo"
+                ),
+                "why": (
+                    "Trial khatam — roz ka automation ruk jayega"
+                    if expired
+                    else f"Trial me {int(getattr(trial, 'days_left', 0))} din bache"
+                ),
+                "impact": "content + calls + leads — sab chalu rahega",
+                "cta_label": "Pay karo",
+                "cta_target": "billingCard",
+            }
+        )
 
     # 1) Business profile (naam + phone) — sab products
     if not _done("profile"):
-        tasks.append({
-            "id": "profile", "icon": "🏢", "severity": "high", "priority": 1,
-            "title": "Business profile pura karo",
-            "why": "AI ke paas aapka naam/phone/detail nahi",
-            "impact": "sahi branding + lead pe turant contact",
-            "cta_label": "Profile bharo", "cta_target": "onboardWrap",
-        })
+        tasks.append(
+            {
+                "id": "profile",
+                "icon": "🏢",
+                "severity": "high",
+                "priority": 1,
+                "title": "Business profile pura karo",
+                "why": "AI ke paas aapka naam/phone/detail nahi",
+                "impact": "sahi branding + lead pe turant contact",
+                "cta_label": "Profile bharo",
+                "cta_target": "onboardWrap",
+            }
+        )
 
     # 2) Website -> Knowledge Base (helps BOTH content + voice grounding)
     if not _done("setup"):
-        tasks.append({
-            "id": "website", "icon": "🌐", "severity": "high", "priority": 2,
-            "title": "Website / business detail do",
-            "why": "AI ko aapka kaam abhi theek se samajh nahi",
-            "impact": "behtar content + accurate jawab (calls + chat)",
-            "cta_label": "Website do", "cta_target": "onboardWrap",
-        })
+        tasks.append(
+            {
+                "id": "website",
+                "icon": "🌐",
+                "severity": "high",
+                "priority": 2,
+                "title": "Website / business detail do",
+                "why": "AI ko aapka kaam abhi theek se samajh nahi",
+                "impact": "behtar content + accurate jawab (calls + chat)",
+                "cta_label": "Website do",
+                "cta_target": "onboardWrap",
+            }
+        )
 
     # 3) Mini-site live — lead capture (marketing/combo)
     if is_mkt and not _done("minisite"):
-        tasks.append({
-            "id": "minisite", "icon": "🔗", "severity": "medium", "priority": 3,
-            "title": "Mini-site live karo",
-            "why": "Aapka lead-capture page abhi band hai",
-            "impact": "website visitors se direct enquiries",
-            "cta_label": "Live karo", "cta_target": "webToolsCard",
-        })
+        tasks.append(
+            {
+                "id": "minisite",
+                "icon": "🔗",
+                "severity": "medium",
+                "priority": 3,
+                "title": "Mini-site live karo",
+                "why": "Aapka lead-capture page abhi band hai",
+                "impact": "website visitors se direct enquiries",
+                "cta_label": "Live karo",
+                "cta_target": "webToolsCard",
+            }
+        )
 
     # 4) Pending content approvals (marketing/combo)
     if is_mkt and approvals_pending > 0:
-        tasks.append({
-            "id": "approvals", "icon": "✅", "severity": "high", "priority": 1,
-            "title": f"{approvals_pending} post approve karo",
-            "why": "Posts taiyaar hain par approval ke bina ruke hain",
-            "impact": "approve karte hi auto-publish ho jayenge",
-            "cta_label": "Dekho + approve", "cta_target": "approvalCard",
-        })
+        tasks.append(
+            {
+                "id": "approvals",
+                "icon": "✅",
+                "severity": "high",
+                "priority": 1,
+                "title": f"{approvals_pending} post approve karo",
+                "why": "Posts taiyaar hain par approval ke bina ruke hain",
+                "impact": "approve karte hi auto-publish ho jayenge",
+                "cta_label": "Dekho + approve",
+                "cta_target": "approvalCard",
+            }
+        )
 
     # 5) Call routing (voice/combo) — kis team-member ko lead jaaye
     if is_voice and not routing_set:
-        tasks.append({
-            "id": "routing", "icon": "👥", "severity": "medium", "priority": 3,
-            "title": "Call routing set karo (team numbers)",
-            "why": "Lead aane pe kise bheje — abhi set nahi",
-            "impact": "koi lead miss nahi hoga (round-robin)",
-            "cta_label": "Set karo", "cta_target": "routingCard",
-        })
+        tasks.append(
+            {
+                "id": "routing",
+                "icon": "👥",
+                "severity": "medium",
+                "priority": 3,
+                "title": "Call routing set karo (team numbers)",
+                "why": "Lead aane pe kise bheje — abhi set nahi",
+                "impact": "koi lead miss nahi hoga (round-robin)",
+                "cta_label": "Set karo",
+                "cta_target": "routingCard",
+            }
+        )
 
     # 6) Hot leads waiting (voice/combo) — abhi contact karo
     if is_voice and hot_leads > 0:
-        tasks.append({
-            "id": "hotleads", "icon": "🔥", "severity": "high", "priority": 2,
-            "title": f"{hot_leads} hot lead{'s' if hot_leads > 1 else ''} — jaldi call/WhatsApp karo",
-            "why": "Inka intent high hai, der = customer chala jayega",
-            "impact": "fast contact = zyada deals close",
-            "cta_label": "Leads dekho", "cta_target": "leadsCard",
-        })
+        tasks.append(
+            {
+                "id": "hotleads",
+                "icon": "🔥",
+                "severity": "high",
+                "priority": 2,
+                "title": f"{hot_leads} hot lead{'s' if hot_leads > 1 else ''} — jaldi call/WhatsApp karo",
+                "why": "Inka intent high hai, der = customer chala jayega",
+                "impact": "fast contact = zyada deals close",
+                "cta_label": "Leads dekho",
+                "cta_target": "leadsCard",
+            }
+        )
 
     # 7) First test enquiry (brand-new, low priority nudge)
     if not _done("leads"):
-        tasks.append({
-            "id": "testlead", "icon": "🧪", "severity": "low", "priority": 5,
-            "title": "Ek test enquiry bhej kar dekho",
-            "why": "Abhi tak koi lead/enquiry nahi aayi",
-            "impact": "poora flow (lead -> alert -> follow-up) confirm",
-            "cta_label": "Kaise?", "cta_target": "webToolsCard",
-        })
+        tasks.append(
+            {
+                "id": "testlead",
+                "icon": "🧪",
+                "severity": "low",
+                "priority": 5,
+                "title": "Ek test enquiry bhej kar dekho",
+                "why": "Abhi tak koi lead/enquiry nahi aayi",
+                "impact": "poora flow (lead -> alert -> follow-up) confirm",
+                "cta_label": "Kaise?",
+                "cta_target": "webToolsCard",
+            }
+        )
 
     _sev = {"high": 0, "medium": 1, "low": 2}
     tasks.sort(key=lambda t: (t.get("priority", 9), _sev.get(t.get("severity"), 9)))
@@ -863,11 +916,15 @@ def _office_activity(client_id: str, rec: dict | None, limit: int = 12) -> list[
             city = str(r.get("city") or "").strip()
             loc = f" ({city})" if city else ""
             tier = _lead_score_from_inquiry(r)
-            items.append({
-                "_dt": dt, "when": _rel_time(dt), "who": "📥 Mini-site",
-                "did": f"Nayi enquiry: {nm}{loc}" + (" — 🔥 hot" if tier == "Hot" else ""),
-                "status": "ok",
-            })
+            items.append(
+                {
+                    "_dt": dt,
+                    "when": _rel_time(dt),
+                    "who": "📥 Mini-site",
+                    "did": f"Nayi enquiry: {nm}{loc}" + (" — 🔥 hot" if tier == "Hot" else ""),
+                    "status": "ok",
+                }
+            )
     except Exception:
         pass
     try:
@@ -875,7 +932,7 @@ def _office_activity(client_id: str, rec: dict | None, limit: int = 12) -> list[
 
         rid = str((rec or {}).get("id") or client_id or "").strip()
         if rid:
-            for q in (list_queue(rid, limit=40) or []):
+            for q in list_queue(rid, limit=40) or []:
                 if not isinstance(q, dict):
                     continue
                 dt = _parse_dt(q)
@@ -889,10 +946,15 @@ def _office_activity(client_id: str, rec: dict | None, limit: int = 12) -> list[
                 else:
                     verb = "taiyaar"
                 ch = str(q.get("channel") or q.get("platform") or "social").strip() or "social"
-                items.append({
-                    "_dt": dt, "when": _rel_time(dt), "who": "✍️ Isha",
-                    "did": f"{ch.title()} post {verb}", "status": "ok",
-                })
+                items.append(
+                    {
+                        "_dt": dt,
+                        "when": _rel_time(dt),
+                        "who": "✍️ Isha",
+                        "did": f"{ch.title()} post {verb}",
+                        "status": "ok",
+                    }
+                )
     except Exception:
         pass
     items.sort(key=lambda x: x.get("_dt") or datetime.min, reverse=True)
@@ -987,9 +1049,17 @@ def _build_office(client_id: str) -> dict:
             headline = f"📋 {len(tasks)} chhota kaam baaki — baaki AI team sambhaal rahi"
 
         next_best_action = (
-            {"title": tasks[0]["title"], "why": tasks[0]["why"], "cta_target": tasks[0]["cta_target"]}
+            {
+                "title": tasks[0]["title"],
+                "why": tasks[0]["why"],
+                "cta_target": tasks[0]["cta_target"],
+            }
             if tasks
-            else {"title": "Abhi kuch nahi karna", "why": "Sab set hai — AI team kaam pe lagi hai", "cta_target": ""}
+            else {
+                "title": "Abhi kuch nahi karna",
+                "why": "Sab set hai — AI team kaam pe lagi hai",
+                "cta_target": "",
+            }
         )
 
         from app.platform.office_schema import UNITY_OFFICE_SCHEMA_VERSION
