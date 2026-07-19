@@ -42,7 +42,12 @@ def test_estimated_mrr_counts_only_clients_with_payment_evidence(monkeypatch):
     from app.api import admin_dashboard_builders as b
 
     paying = {"id": "jiya-makeover", "status": "active", "plan": "starter"}
-    never_paid = {"id": "1f89031d621a", "name": "Test Biz", "status": "active", "plan": "growth"}
+    never_paid = {
+        "id": "1f89031d621a",  # pragma: allowlist secret
+        "name": "Test Biz",
+        "status": "active",
+        "plan": "growth",
+    }
     self_brand = {"id": "leadgenai-self", "status": "active", "plan": "growth"}
 
     # Only the real customer has invoice evidence.
@@ -69,7 +74,12 @@ def test_collect_live_stats_estimated_mrr_excludes_unpaid_tenants(monkeypatch):
 
     live_set = [
         {"id": "jiya-makeover", "status": "active", "plan": "starter"},
-        {"id": "1f89031d621a", "name": "Test Biz", "status": "active", "plan": "growth"},
+        {
+            "id": "1f89031d621a",  # pragma: allowlist secret
+            "name": "Test Biz",
+            "status": "active",
+            "plan": "growth",
+        },
         {"id": "leadgenai-self", "status": "active", "plan": "growth"},
     ]
     monkeypatch.setattr(
@@ -89,9 +99,9 @@ def test_collect_live_stats_estimated_mrr_excludes_unpaid_tenants(monkeypatch):
         f"real dashboard path reported ₹{stats['estimated_mrr']} — must be ₹1,999 "
         "(only the invoice-backed client). ₹7,997 = the ADR-101 regression."
     )
-    assert sum(stats["mrr_by_product"].values()) == stats["estimated_mrr"], (
-        "lane breakdown must reconcile with the headline total"
-    )
+    assert (
+        sum(stats["mrr_by_product"].values()) == stats["estimated_mrr"]
+    ), "lane breakdown must reconcile with the headline total"
 
 
 def test_estimated_mrr_fails_open_when_ledger_unknown(monkeypatch):
@@ -171,19 +181,6 @@ def test_usage_topup_guards():
     assert usage.add_topup_minutes("", 100) is False
     assert usage.add_topup_minutes("c1", 0) is False
     assert usage.topup_minutes("") == 0
-
-
-# ----------------------- recovery links ----------------------- #
-def test_payment_link_removed_returns_graceful_error():
-    """Razorpay removed 2026-06-18 — payment links are an inert stub returning
-    a graceful {ok: False} (never raises, never charges)."""
-    from app.billing import payment_links
-
-    assert payment_links.is_configured() is False
-    res = asyncio.run(
-        payment_links.create_payment_link("c1", 999, "renewal", extra_notes={"plan_id": "starter"})
-    )
-    assert res["ok"] is False and res.get("error")
 
 
 def test_dunning_link_helpers(tmp_path, monkeypatch):

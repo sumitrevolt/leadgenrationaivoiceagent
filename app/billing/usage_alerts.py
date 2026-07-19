@@ -76,7 +76,9 @@ def _already_alerted(client_id: str, threshold: int, period: str) -> bool:
         r.get("client_id") == client_id
         and int(r.get("threshold") or 0) == threshold
         and r.get("period") == period
-        and (bool(r.get("sent")) or not enabled)  # only a DELIVERED alert dedups when enabled — otherwise presence in log is enough to avoid log spam
+        and (
+            bool(r.get("sent")) or not enabled
+        )  # only a DELIVERED alert dedups when enabled — otherwise presence in log is enough to avoid log spam
         for r in _read()
     )
 
@@ -106,31 +108,13 @@ def build_message(threshold: int, business_name: str, used: int, cap: int) -> di
 
 
 async def _topup_link(client_id: str, business_name: str) -> str:
-    """100%-threshold pe 1-tap top-up payment link (entry pack). Creds unset = "".
+    """Razorpay payment-links removed 2026-06-18 — always "".
 
-    notes plan_id='topup_100' => payment.captured webhook AUTO minutes credit + invoice
-    (app/api/billing.py topup branch). Never raises.
+    Usage-alert email body already carries PRICING_URL (manual UPI path).
+    Kept as a named helper so callers stay readable; never raises.
     """
-    try:
-        from app.billing import payment_links
-        from app.marketing.packages import topup_pack
-
-        if not payment_links.is_configured():
-            return ""
-        pack = topup_pack("topup_100")
-        if not pack:
-            return ""
-        res = await payment_links.create_payment_link(
-            client_id,
-            pack["price_inr"],
-            f"{pack['label']} — AI voice minutes ({business_name})".strip(),
-            customer_name=business_name,
-            business_name="LeadsGenAI",
-            extra_notes={"plan_id": pack["key"]},
-        )
-        return str(res.get("short_url") or "") if res.get("ok") else ""
-    except Exception:
-        return ""
+    _ = (client_id, business_name)
+    return ""
 
 
 async def _send(to_email: str, subject: str, body: str) -> bool:
