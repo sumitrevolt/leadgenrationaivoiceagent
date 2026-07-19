@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>LeadGen AI — Command Center</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>if(typeof Chart==='undefined'){var s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js';document.head.appendChild(s);}</script>
 <link rel="stylesheet" href="/design-system/styles.css" />
 <style>
   /* Brand/status/effect names aliased -> LeadGen AI Design System tokens (linked /design-system/styles.css).
@@ -58,8 +59,9 @@
   .pill{display:inline-flex;align-items:center;gap:7px;background:var(--indigo-l);color:var(--indigo-d);padding:7px 13px;border-radius:20px;font-weight:600;font-size:12.5px}
   .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,163,74,.5);animation:pulse 2s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(22,163,74,.5)}70%{box-shadow:0 0 0 8px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
-  .btn{background:var(--indigo);color:#fff;border:none;padding:9px 15px;border-radius:9px;font-weight:600;cursor:pointer;font-size:13px}
+  .btn{background:var(--indigo);color:#fff;border:none;padding:9px 15px;border-radius:9px;font-weight:600;cursor:pointer;font-size:13px;transition:opacity .15s}
   .btn:hover{background:var(--indigo-d)}
+  .btn:disabled,.btn[disabled]{opacity:.5;cursor:not-allowed;pointer-events:none}
   .btn-ghost{background:#f1f5f9;color:var(--ink);border:1px solid var(--line);text-decoration:none;display:inline-flex;align-items:center}
   .btn-ghost:hover{background:#e2e8f0}
   .btn-logout{background:#fff;color:var(--muted);border:1px solid var(--line);padding:8px 14px;font-size:12.5px}
@@ -756,7 +758,7 @@
         </div>
         <!-- Search + filter bar -->
         <div class="filter-bar" role="search" aria-label="Client search and filter">
-          <input type="search" id="clientSearch" placeholder="Company ya niche dhundho…" aria-label="Search clients" oninput="filterClients()" autocomplete="off">
+          <input type="search" id="clientSearch" placeholder="Company ya niche dhundho…" aria-label="Search clients" oninput="_debouncedFilterClients()" autocomplete="off">
           <select id="clientProductFilter" aria-label="Filter by product" onchange="filterClients()">
             <option value="">Sab products</option>
             <option value="marketing">📣 AI Marketing</option>
@@ -779,9 +781,9 @@
             <option value="">Sab niches</option>
           </select>
           <label for="clientMinMrr" class="sr-only">Minimum MRR filter</label>
-          <input type="number" id="clientMinMrr" placeholder="Min MRR ₹" aria-label="Minimum MRR in rupees" oninput="filterClients()" style="width:100px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:12px">
+          <input type="number" id="clientMinMrr" placeholder="Min MRR ₹" aria-label="Minimum MRR in rupees" oninput="_debouncedFilterClients()" style="width:100px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:12px">
           <label for="clientMinLeads" class="sr-only">Minimum leads filter</label>
-          <input type="number" id="clientMinLeads" placeholder="Min leads" aria-label="Minimum leads delivered" oninput="filterClients()" style="width:90px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:12px">
+          <input type="number" id="clientMinLeads" placeholder="Min leads" aria-label="Minimum leads delivered" oninput="_debouncedFilterClients()" style="width:90px;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font-size:12px">
           <span class="fc" id="clientFilterCount" aria-live="polite" aria-atomic="true"></span>
           <button class="btn" onclick="clearClientFilters()" aria-label="Clear all client filters" style="padding:6px 10px;font-size:11px">✕ Clear</button>
         </div>
@@ -810,6 +812,7 @@
               <tr><td><span class="skeleton sk-badge" style="width:20px;height:20px;border-radius:4px"></span></td><td><span class="skeleton sk-text" style="width:65%"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton" style="height:13px;width:40px;display:inline-block"></span></td><td><span class="skeleton sk-badge"></span></td><td><span class="skeleton" style="height:13px;width:60px;display:inline-block"></span></td></tr>
             </tbody>
           </table>
+          <div id="clientsPagination" style="display:flex;align-items:center;justify-content:center;gap:6px;padding:8px 0;font-size:12px"></div>
         </div>
       </div>
 
@@ -1138,7 +1141,7 @@
           <button class="btn card-collapse-btn" onclick="toggleCardCollapse('sec-recordings')" aria-label="Toggle Call Recordings section" style="margin-left:6px;padding:6px 12px;font-size:12px">Dikhao ▾</button>
         </div>
         <div class="filter-bar" role="search" aria-label="Recording search and filter">
-          <input type="search" id="recSearch" placeholder="Call ID (SID) dhundho…" aria-label="Search recordings by call ID" oninput="filterRecordings()" autocomplete="off">
+          <input type="search" id="recSearch" placeholder="Call ID (SID) dhundho…" aria-label="Search recordings by call ID" oninput="clearTimeout(window._recSearchT);window._recSearchT=setTimeout(filterRecordings,200)" autocomplete="off">
           <select id="recDateFilter" aria-label="Filter by date" onchange="filterRecordings()">
             <option value="">Sab dates</option>
           </select>
@@ -1653,17 +1656,17 @@ async function opsCeleryTrim(){
   try{
     const r=await fetch("/api/admin/ops/celery-trim",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({confirm:true,min_depth:50})});
     const d=await r.json();
-    alert(d.ok ? ("✅ Cleared "+(d.cleared||0)+" tasks") : (d.error||"trim fail"));
+    adminToast(d.ok ? ("✅ Cleared "+(d.cleared||0)+" tasks") : (d.error||"trim fail"), d.ok?"success":"error");
     if(d.ok) loadDashboard();
-  }catch(e){ alert("Network error"); }
+  }catch(e){ adminToast("Network error","error"); }
 }
 async function opsDlqSweep(){
   try{
     const r=await fetch("/api/growth/infra/dlq/sweep?limit=20",{method:"POST",headers:abAuthHdr()});
     const d=await r.json();
-    alert(d.ok!==false ? "DLQ sweep chala — Mission Control me detail dekho" : (d.error||"fail"));
+    adminToast(d.ok!==false ? "DLQ sweep chala — Mission Control me detail dekho" : (d.error||"fail"), d.ok!==false?"success":"error");
     loadDashboard();
-  }catch(e){ alert("DLQ sweep fail"); }
+  }catch(e){ adminToast("DLQ sweep fail","error"); }
 }
 
 function renderKPIs(k, live){
@@ -1725,9 +1728,11 @@ function renderProductSummary(filtered, all){
 function setClientProductFilter(val){
   const sel=$("clientProductFilter");
   if(sel) sel.value=val||"";
-  filterClients();
+  _clientsPage=1; filterClients();
 }
 
+let _clientsPage=1; const _clientsPerPage=25;
+let _clientSearchTimer; function _debouncedFilterClients(){ clearTimeout(_clientSearchTimer); _clientSearchTimer=setTimeout(()=>{ _clientsPage=1; _renderClientsFiltered(); },200); }
 function _renderClientsFiltered(){
   const q = ($("clientSearch").value||"").toLowerCase().trim();
   const pr = ($("clientProductFilter").value||"").toLowerCase();
@@ -1752,7 +1757,11 @@ function _renderClientsFiltered(){
     const titles={marketing:"AI Marketing Clients",voice:"Voice Agent Clients",combo:"Combo Clients"};
     head.textContent = pr && titles[pr] ? titles[pr] : "Sabhi Clients";
   }
-  $("clients").innerHTML = filtered.length ? filtered.map(c=>{
+  /* pagination */
+  const totalPages=Math.max(1,Math.ceil(filtered.length/_clientsPerPage));
+  if(_clientsPage>totalPages) _clientsPage=totalPages;
+  const start=(_clientsPage-1)*_clientsPerPage, pageSlice=filtered.slice(start,start+_clientsPerPage);
+  $("clients").innerHTML = pageSlice.length ? pageSlice.map(c=>{
     const pb=productBadge(c.product);
     return `<tr data-company="${escH(c.company)}" data-client-id="${escH(c.client_id||"")}" data-product="${escH(c.product||"marketing")}" data-niche="${escH(c.niche)}" data-status="${escH(c.status)}" data-plan="${escH(c.plan)}" data-mrr="${c.mrr}">
       <td><input type="checkbox" class="client-cb" aria-label="Select ${escH(c.company)}" onchange="onClientCbChange()"></td>
@@ -1766,6 +1775,19 @@ function _renderClientsFiltered(){
     </tr>`;
   }).join("") :
     `<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px">Koi client nahi mila — filters clear karo.</td></tr>`;
+  /* pagination controls */
+  const pgEl=$("clientsPagination");
+  if(pgEl){
+    if(totalPages<=1){ pgEl.innerHTML=""; }
+    else{
+      let pgH='<button onclick="_clientsPage=1;_renderClientsFiltered()" style="padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px"'+((_clientsPage<=1)?' disabled':'')+'>«</button>';
+      pgH+='<button onclick="_clientsPage=Math.max(1,_clientsPage-1);_renderClientsFiltered()" style="padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px"'+((_clientsPage<=1)?' disabled':'')+'>‹</button>';
+      pgH+=`<span style="color:var(--muted)">Page ${_clientsPage} / ${totalPages}</span>`;
+      pgH+='<button onclick="_clientsPage=Math.min('+totalPages+',_clientsPage+1);_renderClientsFiltered()" style="padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px"'+((_clientsPage>=totalPages)?' disabled':'')+'>›</button>';
+      pgH+='<button onclick="_clientsPage='+totalPages+';_renderClientsFiltered()" style="padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);cursor:pointer;font-size:11px"'+((_clientsPage>=totalPages)?' disabled':'')+'>»</button>';
+      pgEl.innerHTML=pgH;
+    }
+  }
   const fc=$("clientFilterCount");
   if(fc) fc.textContent = filtered.length<_allClients.length ? `${filtered.length} / ${_allClients.length}` : "";
   const mrr = filtered.reduce((s,c)=>s+c.mrr,0);
@@ -1785,7 +1807,7 @@ function renderClients(list){
   _renderClientsFiltered();
 }
 
-function filterClients(){ _renderClientsFiltered(); }
+function filterClients(){ _clientsPage=1; _renderClientsFiltered(); }
 function clearClientFilters(){
   $("clientSearch").value=""; $("clientProductFilter").value=""; $("clientStatusFilter").value=""; $("clientPlanFilter").value="";
   if($("clientNicheFilter")) $("clientNicheFilter").value="";
@@ -2133,7 +2155,7 @@ async function recordOutreachReviewDecision(){
     if(!r.ok || d.ok===false) throw new Error(d.error||"save failed");
     await loadOutreachReviewDecisions();
   }catch(e){
-    alert("Review decision save fail hua.");
+    adminToast("Review decision save fail hua.","error");
   }
 }
 
@@ -2144,12 +2166,12 @@ async function exportOutreachReviewCSV(bucket){
     if(!r.ok) throw new Error("bad status");
     const d=await r.json();
     const rows=d.candidates||[];
-    if(!rows.length){ alert("Is bucket me export ke liye recipients nahi mile."); return; }
+    if(!rows.length){ adminToast("Is bucket me export ke liye recipients nahi mile.","warn"); return; }
     _downloadCSV(_toCSV(["Business","Email","Phone","City","Niche","Website","Bucket","Reason"],
       rows.map(x=>[x.business,x.email,x.phone,x.city,x.niche,x.website,x.label||x.bucket,x.reason])),
       `outreach_${bucket||"priority_local_smb"}.csv`);
   }catch(e){
-    alert("Outreach CSV export fail hua — admin login/connection check karo.");
+    adminToast("Outreach CSV export fail hua — admin login/connection check karo.","error");
   }
 }
 
@@ -2551,7 +2573,7 @@ async function dedupeClients(){
   try{
     const r=await fetch("/api/admin/clients/dedupe",{method:"POST",headers:abAuthHdr()});
     const d=await r.json();
-    adminToast("Dedupe: "+(d.removed||0)+" removed, "+(d.kept||0)+" kept");
+    adminToast("Dedupe: "+(d.removed||0)+" removed, "+(d.kept||0)+" kept","success");
     loadDashboard();
   }catch(e){ adminToast("Dedupe fail: "+e.message,"error"); }
 }
@@ -2572,17 +2594,22 @@ async function bulkDelete(){
   const sel=_getSelectedRows();
   if(!sel.length){ adminToast("Koi client select nahi!","error"); return; }
   if(!confirm(sel.length+" client(s) PERMANENTLY delete? (irreversible)")) return;
-  let ok=0, failed=0;
+  /* disable button during operation */
+  const btn=document.querySelector('[onclick="bulkDelete()"]');
+  if(btn){ btn.disabled=true; btn.dataset.prevText=btn.textContent; btn.textContent="Deleting…"; }
+  let ok=0, failed=0; const failedNames=[];
   for(let i=0;i<sel.length;i++){
     const c=sel[i];
-    adminToast("Deleting "+(i+1)+"/"+sel.length+"…");
+    adminToast("Deleting "+(i+1)+"/"+sel.length+" — "+escH(c.business_name||c.client_id||"")+"…");
     try{
       const r=await fetch("/api/admin/clients/"+encodeURIComponent(c.client_id)+"/delete",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({confirm:true})});
       const d=await r.json().catch(()=>({}));
-      if(r.ok&&d&&d.deleted) ok++; else failed++;
-    }catch(e){ failed++; }
+      if(r.ok&&d&&d.deleted) ok++; else{ failed++; failedNames.push(c.business_name||c.client_id||"unknown"); }
+    }catch(e){ failed++; failedNames.push(c.business_name||c.client_id||"unknown"); }
   }
-  adminToast(ok+" deleted · "+failed+" failed", failed ? "error" : "success");
+  if(btn){ btn.disabled=false; btn.textContent=btn.dataset.prevText||"🗑 Delete"; }
+  const msg = ok+" deleted"+(failed ? " · "+failed+" failed ("+failedNames.join(", ")+")" : "");
+  adminToast(msg, failed ? "error" : "success");
   if(!failed) clearBulkSelect();
   loadDashboard();
 }
@@ -3309,26 +3336,19 @@ document.addEventListener("DOMContentLoaded", ()=>{
   // Kept the function definition for potential future view-switching wiring.
   try{ if(localStorage.getItem("admin_advTechOpen") === "1") _advTechSetOpen(true); }catch(e){}
   _restoreCollapsibleCards();
-  loadOfficeTeaser();
-  adminAuthBoot();
-  loadTodayBiz();
-  loadAdminTasks();
-  loadDashboard(); loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026(); loadPendingNiches();
-  loadRevenueAnalytics(); loadRevenueTrend(); loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadSocialCockpit(); loadSocialPause(); loadSocialTokenHealth(); loadSocialLatestEvents();
-  loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail();
-  loadSyncHealth(); loadAgents();
-  loadAutomationHub();
-  loadRecordings();
-  loadWebCalls();
-  loadGodMode();
-  loadCampaignStatus();
-  loadUpiSelfServe();
-  loadMcpStatus();
+  /* Tier-1: critical — auth + above-fold KPIs (fire immediately) */
+  loadOfficeTeaser(); adminAuthBoot(); loadTodayBiz(); loadAdminTasks(); loadDashboard();
+  /* Tier-2: primary panels — stagger 150ms to avoid burst */
+  setTimeout(()=>{ loadNiches(); onbLoadNiches(); loadAssessmentScores(); loadCampClients(); loadOps2026(); loadPendingNiches(); loadRevenueAnalytics(); loadRevenueTrend(); },150);
+  /* Tier-3: secondary panels — stagger 400ms */
+  setTimeout(()=>{ loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadSocialCockpit(); loadSocialPause(); loadSocialTokenHealth(); loadSocialLatestEvents(); },400);
+  /* Tier-4: heavy/below-fold — stagger 700ms */
+  setTimeout(()=>{ loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail(); loadSyncHealth(); loadAgents(); loadAutomationHub(); loadRecordings(); loadWebCalls(); loadGodMode(); loadCampaignStatus(); loadUpiSelfServe(); loadMcpStatus(); },700);
 });
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
    never paint fake demo numbers over real ones). Cosmetic random nudges removed. */
-setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadTodayBiz(); loadAdminTasks(); } }, 60000);
+setInterval(()=>{ loadAgents(); if(USING_REAL){ loadDashboard(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadTodayBiz(); loadAdminTasks(); loadSocialCockpit(); loadAutomationHub(); loadGodMode(); } }, 60000);
 
 /* ============================================================
    BILLING & SUBSCRIPTIONS — admin per-client lookup.
@@ -3637,7 +3657,7 @@ function onbRefreshPlans(){
   }
   sel.innerHTML = opts.map(function(o){ return '<option value="'+escH(o[0])+'">'+escH(o[1])+'</option>'; }).join("");
 }
-function _onbVal(id){ return (document.getElementById(id).value || "").trim(); }
+function _onbVal(id){ return ((document.getElementById(id)||{}).value || "").trim(); }
 function _onbErrMsg(d){
   // Backend wraps errors as {error:{message:"..."}} OR FastAPI validation as {error:{details:{errors:[]}}}
   if(!d) return "Request failed — check console";
@@ -3798,18 +3818,18 @@ async function approvePendingNiche(id, name){
   try{
     const r = await fetch("/api/data/niches/pending/"+encodeURIComponent(id)+"/approve", {method:"POST", headers:abAuthHdr()});
     const d = await r.json();
-    alert(r.ok ? ("✅ "+d.message) : ("❌ "+(d.detail||"Failed")));
+    adminToast(r.ok ? ("✅ "+d.message) : ("❌ "+(d.detail||"Failed")), r.ok?"success":"error");
     loadPendingNiches();
-  }catch(e){ alert("Error: "+e); }
+  }catch(e){ adminToast("Error: "+e,"error"); }
 }
 async function rejectPendingNiche(id, name){
   if(!confirm('Reject niche "'+name+'"?')) return;
   try{
     const r = await fetch("/api/data/niches/pending/"+encodeURIComponent(id), {method:"DELETE", headers:abAuthHdr()});
     const d = await r.json();
-    alert(r.ok ? "Niche reject kar di." : ("❌ "+(d.detail||"Failed")));
+    adminToast(r.ok ? "Niche reject kar di." : ("❌ "+(d.detail||"Failed")), r.ok?"success":"error");
     loadPendingNiches();
-  }catch(e){ alert("Error: "+e); }
+  }catch(e){ adminToast("Error: "+e,"error"); }
 }
 
 async function adminLoadBilling(){
@@ -3884,8 +3904,8 @@ async function adminBillingPortal(){
       body:JSON.stringify({return_url:location.href})});
     const j=await r.json();
     if(r.ok&&j.portal_url){ window.open(j.portal_url,"_blank","noopener"); }
-    else{ alert(j.message||"No hosted portal — use Pause/Cancel."); }
-  }catch(e){ alert("Portal error — try again."); }
+    else{ adminToast(j.message||"No hosted portal — use Pause/Cancel.","warn"); }
+  }catch(e){ adminToast("Portal error — try again.","error"); }
 }
 
 async function adminBilling(action){
@@ -3902,8 +3922,8 @@ async function adminBilling(action){
     const r=await fetch(url,opts);
     const j=await r.json().catch(()=>({}));
     if(r.ok){ adminLoadBilling(); }
-    else{ alert(j.detail||"Action failed (check admin token)."); }
-  }catch(e){ alert("Network error."); }
+    else{ adminToast(j.detail||"Action failed (check admin token).","error"); }
+  }catch(e){ adminToast("Network error.","error"); }
 }
 
 /* ====== Automation Workflows Hub ====== */
@@ -4024,7 +4044,7 @@ async function autoAction(kind){
   }catch(e){ if(out) out.innerHTML='<span style="color:var(--red)">'+escH(e.message)+'</span>'; }
 }
 async function autoQueueTask(){
-  const task=($("autoSiTask")||{}).value||""; if(!task.trim()){ alert("Task likho"); return; }
+  const task=($("autoSiTask")||{}).value||""; if(!task.trim()){ adminToast("Task likho","warn"); return; }
   try{
     const d=await autoFetch("/api/growth/selfimprove/task",{method:"POST",body:JSON.stringify({task:task.trim()}),headers:Object.assign({"Content-Type":"application/json"},abAuthHdr())});
     $("autoSiStatus").textContent="Queued ✅ — agle tick pe uthayega";
@@ -4036,14 +4056,14 @@ async function autoApprSi(id,action){
   try{
     await autoFetch("/api/growth/selfimprove/approval/"+encodeURIComponent(id)+"/"+action,{method:"PATCH",body:JSON.stringify({reason:""}),headers:Object.assign({"Content-Type":"application/json"},abAuthHdr())});
     loadAutomationHub();
-  }catch(e){ alert(e.message); }
+  }catch(e){ adminToast(e.message,"error"); }
 }
 async function autoProcAppr(id){
   if(!id||!confirm("Process step approve?")) return;
   try{
     await autoFetch("/api/growth/process/run/"+encodeURIComponent(id)+"/approve",{method:"POST",body:JSON.stringify({note:"admin dashboard"}),headers:Object.assign({"Content-Type":"application/json"},abAuthHdr())});
     loadAutomationHub();
-  }catch(e){ alert(e.message); }
+  }catch(e){ adminToast(e.message,"error"); }
 }
 
 /* ══════════════════════════════════════════════════════════════════
@@ -4551,7 +4571,7 @@ async function waStartSession(){
 async function saveTurnstile(){
   const site=(document.getElementById('tsSiteKey')||{}).value||'';
   const secret=(document.getElementById('tsSecretKey')||{}).value||'';
-  if(!site||!secret){ alert('Site + secret dono chahiye'); return; }
+  if(!site||!secret){ adminToast('Site + secret dono chahiye','warn'); return; }
   try{
     const r=await fetch('/api/admin/trust/configure-turnstile',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({site_key:site,secret_key:secret})});
     const d=await r.json();
@@ -4562,7 +4582,7 @@ async function saveTurnstile(){
 
 async function saveSentry(){
   const dsn=(document.getElementById('sentryDsn')||{}).value||'';
-  if(!dsn){ alert('Sentry DSN chahiye'); return; }
+  if(!dsn){ adminToast('Sentry DSN chahiye','warn'); return; }
   try{
     const r=await fetch('/api/admin/trust/configure-sentry',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({dsn:dsn})});
     const d=await r.json();
@@ -4574,7 +4594,7 @@ async function saveSentry(){
 async function savePosthog(){
   const key=(document.getElementById('posthogApiKey')||{}).value||'';
   const host=(document.getElementById('posthogHost')||{}).value||'';
-  if(!key){ alert('PostHog API key chahiye'); return; }
+  if(!key){ adminToast('PostHog API key chahiye','warn'); return; }
   try{
     const r=await fetch('/api/admin/trust/configure-posthog',{method:'POST',headers:Object.assign({'Content-Type':'application/json'},abAuthHdr()),body:JSON.stringify({api_key:key,host:host})});
     const d=await r.json();
@@ -4602,7 +4622,7 @@ async function seedFlowTemplates(){
 async function saveUpiVpa(){
   const inp = document.getElementById('upiVpaInput');
   const vpa = inp ? (inp.value||'').trim() : '';
-  if(!vpa || vpa.indexOf('@')<1){ alert('Valid UPI VPA daalo — jaise shop@ybl'); return; }
+  if(!vpa || vpa.indexOf('@')<1){ adminToast('Valid UPI VPA daalo — jaise shop@ybl','warn'); return; }
   try{
     const r = await fetch('/api/admin/upi/configure',{
       method:'POST',
@@ -4661,6 +4681,8 @@ async function fireCampaign(){
   const dry   = ($("campDry")||{}).checked;
   const platform = ($("campPlatform")||{}).checked;
   const clientId = platform ? "" : (($("campClient")||{}).value||"").trim();
+  /* disable fire button during launch to prevent double-fire */
+  if(fireBtn){ fireBtn.disabled=true; fireBtn.textContent="Launching…"; }
   $("campOut").innerHTML = `<span style="color:var(--amber)">⏳ Launching campaign (limit=${limit}, dry_run=${dry}, platform=${platform})…</span>`;
   try{
     const r = await fetch("/api/admin/campaign/launch",{
@@ -4679,6 +4701,8 @@ async function fireCampaign(){
     }
   }catch(e){
     $("campOut").innerHTML = `<span style="color:var(--red)">Network error: ${escH(String(e))}</span>`;
+  }finally{
+    if(fireBtn){ fireBtn.disabled=false; fireBtn.textContent="🔥 Fire Campaign"; }
   }
 }
 
@@ -4688,22 +4712,25 @@ async function stopCampaign(){
     const r = await fetch("/api/admin/campaign/stop",{method:"POST",headers:abAuthHdr()});
     const d = await r.json();
     if(d.stopped){ $("campOut").innerHTML='<span style="color:var(--amber)">⏹ Campaign stopped — naye calls ruk gaye.</span>'; }
-    else alert("Stop nahi hua: "+(d.reason||JSON.stringify(d)));
-  }catch(e){ alert("Network error"); }
+    else adminToast("Stop nahi hua: "+(d.reason||JSON.stringify(d)),"error");
+  }catch(e){ adminToast("Network error","error"); }
   loadCampaignStatus();
 }
 
 async function _pollCampaign(){
   _campPolling = true;
-  for(let i=0;i<100;i++){
+  const maxMs=5*60*1000; /* 5 min max poll window */
+  const start=Date.now();
+  while(Date.now()-start < maxMs){
     await new Promise(res=>setTimeout(res,3500));
     try{
       const d = await fetch("/api/admin/campaign/status",{headers:abAuthHdr(),cache:"no-store"}).then(r=>r.json());
       renderCampaignStatus(d);
-      if(d.status !== "running"){ _campPolling=false; loadGodMode(); break; }
+      if(d.status !== "running"){ _campPolling=false; loadGodMode(); return; }
     }catch(e){ break; }
   }
   _campPolling=false;
+  adminToast("Campaign poll timeout (5 min) — status tab me manually check karo","warn");
 }
 
 /* ====== Call Recordings ====== */
