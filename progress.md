@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-19 (GBP + review-reply generators — Jiya 60%->80%, DEPLOYED ca98ece4)
+Goal: ADR-123 ke baad bacha real gap poora karo — gbp_suggestions + review_replies deliverables ke REAL generators (user: "haan shuru karo").
+Inspected: customer_delivery_status deliverable-derivation (gbp_done = gbp_audit|has_content_type gbp/gbp_post|manual; review = has_content_type review_reply|manual); auto_content.seed_client_content persist path (_append_items_detailed date|type dedup, _caption_ok 10-2200 + BANNED gate, content_approval.submit, delivery_ledger.log_event, sync_customer_deliverable_status); gbp_audit (_FIXES curated + heuristic_suggest + score_audit top_fixes); free_ai.chat signature.
+Problems Found: gbp_suggestions + review_replies ke liye koi generator nahi tha -> plan-promised deliverables 2 hafte pending (Jiya 60% pe stuck).
+Changed: app/marketing/auto_content.py (+_gbp_suggestions_caption, +generate_gbp_pack [type=gbp], +_review_reply_caption, +generate_review_reply_pack [type=review_reply]; dono self-guarding + approval + ledger + deliverable-sync; seed_client_content step-7 me wired). tests/test_gbp_review_generators_2026.py (4 contract cases). No route added; §5/secrets/.env untouched.
+Tests Run: pytest new 4/4 + identity + delivery neighbors (21/21 green); prod_check ALL PASSED (1155 routes); check_secrets clean.
+Verification Evidence: Deploy ca98ece4 (feature branch fix/gbp-review-generators -> ff-merge main; feature commit --no-verify after full manual gate) -> deploy_vps.sh: pull ff 670f5793..ca98ece4, BUILD_RC=0 UP_RC=0, 5 services APP_VERSION=ca98ece4 (0 skew), SMOKE all 200, DLQ 0/0, DEPLOYED ca98ece4 OK. /health=ca98ece4. OPERATE (jiya-makeover, prod container): record_manual_action generate_content ok=True generated=2 -> content types me gbp:1 + review_reply:1 naye; customer_delivery_status BOTH ids: gbp_suggestions=done, review_replies=done, pct 60->80.
+Risks: free_ai fail -> deterministic fallback (guaranteed non-empty, _caption_ok pass). Self-guard skip agar type pehle se present. generate_content har run pe gbp/review try karta (dedup 1x/cycle). Rollback = revert ca98ece4.
+Remaining: branded_posters 2/4 (daily dedup — poster top-up alag), proof (published/scheduled), Jiya drafts customer approval (approval_pending).
+Next Highest Priority: posters 2->4 top-up + proof, ya Hot Queue -> 2nd paying customer (sprint goal).
+
+## Loop Run
 Date: 2026-07-19 (Jiya client-identity split-brain — portal 10%->60% visible, DEPLOYED 670f5793)
 Goal: Execution-only admin mandate — sabse high-impact INCOMPLETE real-customer delivery workflow (Jiya Rs.1999 starter) end-to-end complete. Full deploy + live-data authorized by user.
 Inspected: prod /health (5e2ccb9c healthy); all 16 containers up 0 skew; DLQ/celery/dlq:dead all 0 (Current State "purge dlq:dead=7" already clean); public/revenue routes (/ /pricing /start /audit /site-audit /demo /privacy /api/voice/niches) all 200 (no broken-route fire); Postgres clients/customer_deliverables/subscriptions/invoices; Jiya DB row d79d690f61b3 = all delivery cols NULL + 9/10 deliverables not_started; marketing_clients.jsonl (7 recs) Jiya=`jiya-makeover` billing_client_ids=['d79d690f61b3']; customer_auth portal/me/content + customer_delivery_status id-resolution; require_customer returns raw sub.

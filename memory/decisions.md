@@ -2,6 +2,30 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-19 - ADR-124 GBP + review-reply generators (Product One delivery 60% -> 80%)
+
+Decision: `auto_content` me do naye generators — `generate_gbp_pack` (type=`gbp`
+content item; prioritised profile fixes `gbp_audit.heuristic_suggest`+`score_audit`
+se, `_FIXES` curated deterministic fallback) aur `generate_review_reply_pack`
+(type=`review_reply`; 3 reply drafts free-AI + deterministic Hinglish fallback).
+Dono self-guarding (queue me pehle se us type ka item ho to skip), approval-submit +
+ledger + deliverable-sync karte hain, aur `seed_client_content` (= `generate_content`
+action) me wired. Deployed ca98ece4.
+
+Context: ADR-123 ke baad Jiya 60% pe atki thi — `gbp_suggestions` + `review_replies`
+deliverables ke liye koi generator hi nahi tha (`has_content_type("gbp"/"review_reply")`
+kabhi true nahi hota). Ye plan-promised deliverables 2 hafte pending the.
+
+Rejected: sirf status flip (fake — real content chahiye, §0 no-stub); naya scheduler
+job (existing generate_content path reuse — admin button + SLA recovery dono ab cover);
+poster top-up ko isme mila dena (alag concern — daily dedup).
+
+Consequence: `generate_content` ab 8/10 deliverables fill karta hai. Jiya operate
+(prod): generated=2 -> gbp + review_reply items live, dono deliverables `done`, pct
+60->80 (dono ids par identical, ADR-123 holding). 4 contract tests. Rollback = revert
+ca98ece4. Remaining: branded_posters (2/4, daily dedup) + proof (published/scheduled)
++ Jiya drafts customer approval.
+
 ## 2026-07-19 - ADR-123 Jiya client-identity split-brain fix (billing/login id -> marketing id canonicalization)
 
 Decision: Customer portal marketing-reads (`customer_auth._marketing_cid` helper -> `/portal/content`,
