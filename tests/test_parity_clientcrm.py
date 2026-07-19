@@ -222,15 +222,12 @@ def test_minisite_catalog_section(tmp_path, monkeypatch):
 
 
 # --------------------------------------------------------------------------- #
-# payment_links — removed 2026-06-18 (Razorpay gone); stub is fully inert
+# payment_links — Razorpay removed 2026-06-18; stub deleted 2026-07-19
 # --------------------------------------------------------------------------- #
-def test_payment_link_removed_stub_inert():
-    from app.billing import payment_links as pl
+def test_payment_links_module_removed():
+    import importlib
 
-    assert pl.is_configured() is False
-    res = asyncio.run(pl.create_payment_link("c1", 499, "June service"))
-    assert res["ok"] is False and res.get("error")
-    # stub stores nothing
-    assert pl.list_payment_links() == []
-    # wa share link is a no-op now
-    assert pl.build_wa_share_link("9876543210", "Ramesh", "B", "P", 499, "https://x") == ""
+    import pytest
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("app.billing.payment_links")

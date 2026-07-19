@@ -37,20 +37,16 @@ def test_nps_submit_and_stats(tmp_path, monkeypatch):
     assert r3["ok"] and r3["bucket"] == "promoter"
 
 
-# ------------------- Payment recon (removed 2026-06-18) ------------------- #
-# Razorpay gateway removed — payment_recon is now an inert stub (no rail to
-# reconcile; payments via manual UPI). Just verify it never raises.
-def test_recon_removed_stub_inert():
-    from app.billing import payment_recon as pr
+# ------------------- Payment recon (deleted 2026-07-19) ------------------- #
+# Razorpay gateway removed 2026-06-18; inert stub deleted 2026-07-19 (dead-code
+# cleanup). Payments = manual UPI. Guard against reintroduction.
+def test_recon_module_removed():
+    import importlib
 
-    assert pr.match_payments([], []) == {
-        "total_payments": 0,
-        "gross_inr": 0,
-        "matched": 0,
-        "unmatched": [],
-    }
-    assert asyncio.run(pr.run_if_enabled())["ok"] is False
-    assert pr.last_report()["ok"] is False
+    import pytest
+
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("app.billing.payment_recon")
 
 
 # ----------------------------- IndexNow ----------------------------- #
