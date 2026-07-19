@@ -42,7 +42,7 @@ def _cta(cfg: dict[str, Any]) -> str:
 
 
 async def build_pack(
-    niche_key: str, business_name: str | None = None, city: str = "", count: int = 4
+    niche_key: str, business_name: str | None = None, city: str = "", count: int = 2
 ) -> dict[str, Any]:
     """Ek niche ka poora marketing pack. count = kitne content_focus themes (posts)."""
     cfg = _niche_cfg(niche_key)
@@ -62,9 +62,11 @@ async def build_pack(
         themes = focuses[: max(1, min(int(count), 6))]
 
         async def _one(theme: str) -> dict[str, Any]:
-            # 2026-07-19: perf — themes ab parallel (pehle sequential 4-LLM = 6-15s
-            # timeout). gather + return_exceptions taaki ek fail poora pack na tode.
-            p = await generate_post(biz, niche_key, occasion=theme, offer=offer)
+            # 2026-07-19: per-post 10s timeout — ek slow free-LLM call poora pack ko
+            # 45s+ hang na kare (generate_post ka apna template-fallback bhi hai).
+            p = await asyncio.wait_for(
+                generate_post(biz, niche_key, occasion=theme, offer=offer), timeout=10
+            )
             return {
                 "theme": theme,
                 "caption": p.get("caption") or p.get("post_text") or "",
@@ -73,21 +75,14 @@ async def build_pack(
                 "provider": p.get("provider") or "",
             }
 
-        # 2026-07-19: bounded concurrency (Semaphore 2) — unbounded gather free-tier
-        # LLM ko 429-burst kar raha tha (niche-pack 35s+ timeout). 2-at-a-time =
-        # sequential se tez par 429-storm nahi.
-        _sem = asyncio.Semaphore(2)
-
-        async def _bounded(t: str) -> dict[str, Any]:
-            async with _sem:
-                return await _one(t)
-
-        results = await asyncio.gather(*[_bounded(t) for t in themes], return_exceptions=True)
-        for r in results:
-            if isinstance(r, dict):
-                posts.append(r)
-            else:
-                logger.warning(f"[niche_pack] one theme failed: {r}")
+        # 2026-07-19: SEQUENTIAL (concurrency 1) — free-tier LLM concurrent calls
+        # 429-backoff dete (single call ~1.2s fast, 4-concurrent 40s+). count=2
+        # default + sequential + per-post timeout = reliably <20s, kabhi hang nahi.
+        for theme in themes:
+            try:
+                posts.append(await _one(theme))
+            except Exception as e:
+                logger.warning(f"[niche_pack] theme '{theme}' skipped: {e}")
     except Exception as e:
         logger.warning(f"[niche_pack] post gen failed: {e}")
 
