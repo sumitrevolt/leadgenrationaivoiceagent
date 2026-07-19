@@ -572,6 +572,16 @@
         </div>
       </div>
 
+      <!-- 2FA — per-user admin TOTP (Tier-1 Slice D) -->
+      <div class="card" id="sec-2fa" style="background:linear-gradient(135deg,#0f172a 0%,#14352b 50%,#0f172a 100%);border:1px solid rgba(16,185,129,.4);margin-bottom:14px;scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(255,255,255,.1)">
+          <h3 style="color:#a7f3d0;font-size:16px;letter-spacing:-.3px">🔐 My Two-Factor Auth (TOTP)</h3>
+          <span class="right" id="tfa-summary" style="color:#6ee7b7;font-size:11px">—</span>
+          <button class="btn" onclick="load2FA()" style="background:#059669;margin-left:10px;padding:6px 12px;font-size:12px">↻</button>
+        </div>
+        <div class="bd" id="tfa-body" style="color:#e2e8f0;font-size:13px">Loading…</div>
+      </div>
+
       <!-- MCP Server Status — /mcp mount is gate-refused in prod without
            FASTAPI_MCP_TOKEN/MCP_IP_ALLOWLIST (app/main.py). Previously only a
            log-line warning + hourly Arya pulse file; no admin UI visibility. -->
@@ -3343,7 +3353,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   /* Tier-3: secondary panels — stagger 400ms */
   setTimeout(()=>{ loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadSocialCockpit(); loadSocialPause(); loadSocialTokenHealth(); loadSocialLatestEvents(); },400);
   /* Tier-4: heavy/below-fold — stagger 700ms */
-  setTimeout(()=>{ loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail(); loadSyncHealth(); loadAgents(); loadAutomationHub(); loadRecordings(); loadWebCalls(); loadGodMode(); loadCampaignStatus(); loadUpiSelfServe(); loadMcpStatus(); },700);
+  setTimeout(()=>{ loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail(); loadSyncHealth(); loadAgents(); loadAutomationHub(); loadRecordings(); loadWebCalls(); loadGodMode(); loadCampaignStatus(); loadUpiSelfServe(); loadMcpStatus(); load2FA(); },700);
 });
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
@@ -4642,6 +4652,72 @@ async function saveUpiVpa(){
     if(r.ok && d.ok){ adminToast('✅ UPI VPA save — /pricing aur pay-info ab live','success'); loadGodMode(); }
     else adminToast('Error: '+(d.detail||JSON.stringify(d)),'error');
   }catch(e){ adminToast('Network error','error'); }
+}
+
+/* ══════════════ 2FA (per-user TOTP) — Tier-1 Slice D ══════════════ */
+async function load2FA(){
+  const b=$("tfa-body"), s=$("tfa-summary");
+  try{
+    const r=await fetch("/api/admin/2fa/status",{headers:abAuthHdr(),cache:"no-store"});
+    if(!r.ok){ if(b) b.innerHTML='<span style="color:#f87171">Login/refresh needed</span>'; return; }
+    const d=await r.json();
+    if(s) s.textContent = d.enabled ? "ON" : (d.must_setup ? "REQUIRED" : "OFF");
+    let h='';
+    if(d.enabled){
+      h='<div style="color:#6ee7b7">✅ 2FA enabled · '+(d.recovery_remaining||0)+' recovery codes left</div>'
+        +'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
+        +'<button class="btn" style="background:#dc2626;padding:6px 12px;font-size:12px" onclick="disable2FA()">Disable 2FA</button>'
+        +'<button class="btn" style="background:#059669;padding:6px 12px;font-size:12px" onclick="regen2FA()">New recovery codes</button></div>';
+    }else{
+      h=(d.must_setup?'<div style="color:#fca5a5;margin-bottom:6px">⚠ Policy requires 2FA for your role — enroll now.</div>':'')
+        +'<div style="color:#cbd5e1">Protect your admin login with an authenticator app (Google Authenticator, Authy…).</div>'
+        +'<button class="btn" style="background:#059669;margin-top:8px;padding:6px 12px;font-size:12px" onclick="setup2FA()">Set up 2FA</button>';
+    }
+    if(b) b.innerHTML=h;
+  }catch(e){ if(b) b.innerHTML='<span style="color:#f87171">Error</span>'; }
+}
+async function setup2FA(){
+  const pw=prompt("Confirm your password to start 2FA setup:"); if(!pw) return;
+  try{
+    const r=await fetch("/api/admin/2fa/setup",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({password:pw})});
+    const d=await r.json();
+    if(!r.ok){ adminToast(d.detail||"Setup failed","error"); return; }
+    const b=$("tfa-body");
+    if(b) b.innerHTML='<div style="color:#a7f3d0;font-weight:700">Add to your authenticator app:</div>'
+      +'<div style="margin:6px 0"><b>Secret:</b> <code style="background:#111;padding:2px 6px;border-radius:4px;user-select:all">'+escH(d.secret)+'</code></div>'
+      +'<div style="font-size:11px;color:#94a3b8;word-break:break-all">otpauth: '+escH(d.otpauth_uri)+'</div>'
+      +'<div style="margin-top:8px;color:#fbbf24"><b>Recovery codes — save these, shown once:</b><br><code style="background:#111;padding:4px 6px;border-radius:4px;display:inline-block;margin-top:4px;user-select:all">'+(d.recovery_codes||[]).map(escH).join(" &nbsp; ")+'</code></div>'
+      +'<div style="margin-top:10px"><input id="tfa-activate-code" placeholder="6-digit code" style="padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#0b1220;color:#e2e8f0;width:120px"> <button class="btn" style="background:#059669;padding:6px 12px;font-size:12px" onclick="activate2FA()">Activate</button></div>';
+  }catch(e){ adminToast("Network error","error"); }
+}
+async function activate2FA(){
+  const code=(($("tfa-activate-code")||{}).value||"").trim();
+  try{
+    const r=await fetch("/api/admin/2fa/activate",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({code})});
+    const d=await r.json();
+    adminToast(r.ok?"✅ 2FA enabled":(d.detail||"Activation failed"), r.ok?"success":"error");
+    if(r.ok) load2FA();
+  }catch(e){ adminToast("Network error","error"); }
+}
+async function disable2FA(){
+  const pw=prompt("Confirm password to DISABLE 2FA:"); if(!pw) return;
+  const code=(prompt("Enter a current 2FA code (or a recovery code):")||"").trim();
+  try{
+    const r=await fetch("/api/admin/2fa/disable",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({password:pw,code})});
+    const d=await r.json();
+    adminToast(r.ok?"2FA disabled":(d.detail||"Disable failed"), r.ok?"success":"error");
+    if(r.ok) load2FA();
+  }catch(e){ adminToast("Network error","error"); }
+}
+async function regen2FA(){
+  const pw=prompt("Confirm password:"); if(!pw) return;
+  const code=(prompt("Enter a current 2FA code:")||"").trim();
+  try{
+    const r=await fetch("/api/admin/2fa/recovery/regenerate",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({password:pw,code})});
+    const d=await r.json();
+    if(r.ok){ const b=$("tfa-body"); if(b) b.innerHTML='<div style="color:#fbbf24"><b>New recovery codes — save these:</b><br><code style="background:#111;padding:4px 6px;border-radius:4px;display:inline-block;margin-top:4px;user-select:all">'+(d.recovery_codes||[]).map(escH).join(" &nbsp; ")+'</code></div><button class="btn" style="background:#059669;margin-top:8px;padding:6px 12px;font-size:12px" onclick="load2FA()">Done</button>'; }
+    else adminToast(d.detail||"Failed","error");
+  }catch(e){ adminToast("Network error","error"); }
 }
 
 /* ══════════════════════════════════════════════════════════════════

@@ -90,6 +90,7 @@ class LoginResponse(BaseModel):
     expires_in: int = 3600
     user: UserResponse
     must_change_password: bool = False  # temp-password onboarding (rbac flag)
+    must_setup_2fa: bool = False  # Tier-1 Slice D: policy requires 2FA enrollment
 
 
 class AdminStats(BaseModel):
@@ -264,16 +265,31 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_async_db))
         await log_audit(db, None, "login.failed", "user", user.id, severity="warning")
         raise HTTPException(status_code=401, detail="Invalid email or password")
 
-    # 2FA (optional): ADMIN_TOTP_SECRET env set ho to valid TOTP zaroori (gated, zero-migration)
-    import os as _os
+    # 2FA step-up (Tier-1 Slice D): per-user TOTP takes precedence. The shared
+    # ADMIN_TOTP_SECRET remains ONLY as a bootstrap / break-glass fallback for users who
+    # have not yet enrolled — so the owner can never be permanently locked out.
+    from app.platform import admin_2fa
 
-    _totp_secret = (_os.getenv("ADMIN_TOTP_SECRET") or "").strip()
-    if _totp_secret:
-        from app.utils.totp import verify_totp
-
-        if not verify_totp(_totp_secret, request.totp):
+    if admin_2fa.is_enabled(user):
+        if not await admin_2fa.verify_login_code(user, request.totp):
+            user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+            if user.failed_login_attempts >= 5:
+                user.locked_until = datetime.utcnow() + timedelta(minutes=30)
+            await db.commit()
             await log_audit(db, user.id, "login.totp_failed", "user", user.id, severity="warning")
             raise HTTPException(status_code=401, detail="2FA code required/invalid")
+    else:
+        import os as _os
+
+        _totp_secret = (_os.getenv("ADMIN_TOTP_SECRET") or "").strip()
+        if _totp_secret:
+            from app.utils.totp import verify_totp
+
+            if not verify_totp(_totp_secret, request.totp):
+                await log_audit(
+                    db, user.id, "login.totp_failed", "user", user.id, severity="warning"
+                )
+                raise HTTPException(status_code=401, detail="2FA code required/invalid")
 
     # Reset failed attempts on success
     user.failed_login_attempts = 0
@@ -306,10 +322,18 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_async_db))
     except Exception:
         _must_change = False
 
+    try:
+        from app.platform import admin_2fa as _a2fa
+
+        _must_setup_2fa = _a2fa.must_setup(user)
+    except Exception:
+        _must_setup_2fa = False
+
     return LoginResponse(
         access_token=access_token,
         refresh_token=refresh_token,
         must_change_password=_must_change,
+        must_setup_2fa=_must_setup_2fa,
         user=UserResponse(
             id=user.id,
             email=user.email,
@@ -374,6 +398,116 @@ async def logout(
 
     await log_audit(db, user.id, "logout", "user", user.id)
     return {"message": "Logged out successfully"}
+
+
+# ============================================================================
+# Per-user 2FA (TOTP) — Tier-1 Slice D
+# ============================================================================
+
+
+class TwoFAPasswordIn(BaseModel):
+    password: str
+
+
+class TwoFAActivateIn(BaseModel):
+    code: str
+
+
+class TwoFADisableIn(BaseModel):
+    password: str
+    code: str = ""
+
+
+@router.get("/2fa/status")
+async def twofa_status(user: User = Depends(get_current_user)):
+    """Current user's 2FA state + enrollment policy."""
+    from app.platform import admin_2fa
+
+    return admin_2fa.status(user)
+
+
+@router.post("/2fa/setup", dependencies=[Depends(rate_limit("admin_2fa", 10, 300))])
+async def twofa_setup(
+    body: TwoFAPasswordIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Begin enrollment: password re-auth → returns otpauth URI + raw secret + recovery
+    codes ONCE (never persisted in plaintext, never logged). 2FA is not enabled until
+    /2fa/activate confirms a code."""
+    if not user.verify_password(body.password):
+        await log_audit(db, user.id, "2fa.setup_denied", "user", user.id, severity="warning")
+        raise HTTPException(status_code=401, detail="Password re-authentication failed")
+    from app.platform import admin_2fa
+
+    enroll = admin_2fa.generate_enrollment(user)
+    await db.commit()
+    await log_audit(db, user.id, "2fa.setup_begin", "user", user.id)
+    return {
+        "ok": True,
+        "otpauth_uri": enroll["otpauth_uri"],
+        "secret": enroll["secret"],
+        "recovery_codes": enroll["recovery_codes"],
+    }
+
+
+@router.post("/2fa/activate", dependencies=[Depends(rate_limit("admin_2fa", 10, 300))])
+async def twofa_activate(
+    body: TwoFAActivateIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Confirm the pending enrollment with a TOTP code → enable 2FA."""
+    from app.platform import admin_2fa
+
+    if not admin_2fa.activate(user, body.code):
+        await log_audit(db, user.id, "2fa.activate_failed", "user", user.id, severity="warning")
+        raise HTTPException(status_code=400, detail="Invalid or expired 2FA code")
+    await db.commit()
+    await log_audit(db, user.id, "2fa.activated", "user", user.id)
+    return {"ok": True, "enabled": True}
+
+
+@router.post("/2fa/disable", dependencies=[Depends(rate_limit("admin_2fa", 10, 300))])
+async def twofa_disable(
+    body: TwoFADisableIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Disable 2FA: password re-auth + a current TOTP/recovery code → revoke all sessions."""
+    from app.platform import admin_2fa, admin_sessions
+
+    if not user.verify_password(body.password):
+        raise HTTPException(status_code=401, detail="Password re-authentication failed")
+    if admin_2fa.is_enabled(user) and not await admin_2fa.verify_login_code(user, body.code):
+        await log_audit(db, user.id, "2fa.disable_denied", "user", user.id, severity="warning")
+        raise HTTPException(status_code=401, detail="Current 2FA code required")
+    admin_2fa.disable(user)
+    await db.commit()
+    await admin_sessions.revoke_all_for_user(user.id, reason="2fa_disabled")
+    await log_audit(db, user.id, "2fa.disabled", "user", user.id, severity="warning")
+    return {"ok": True, "enabled": False}
+
+
+@router.post("/2fa/recovery/regenerate", dependencies=[Depends(rate_limit("admin_2fa", 5, 300))])
+async def twofa_recovery_regen(
+    body: TwoFADisableIn,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
+    """Issue a fresh set of recovery codes (invalidates old). Requires password + a code."""
+    from app.platform import admin_2fa
+
+    if not user.verify_password(body.password):
+        raise HTTPException(status_code=401, detail="Password re-authentication failed")
+    if not admin_2fa.is_enabled(user):
+        raise HTTPException(status_code=400, detail="2FA not enabled")
+    if not await admin_2fa.verify_login_code(user, body.code):
+        raise HTTPException(status_code=401, detail="Current 2FA code required")
+    codes = admin_2fa.regenerate_recovery(user)
+    await db.commit()
+    await log_audit(db, user.id, "2fa.recovery_regenerated", "user", user.id, severity="warning")
+    return {"ok": True, "recovery_codes": codes}
 
 
 # ============================================================================

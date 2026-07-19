@@ -5,8 +5,26 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import secrets
 import struct
 import time
+from urllib.parse import quote
+
+
+def generate_secret(length: int = 20) -> str:
+    """Random base32 TOTP secret (RFC 4648, unpadded). length=20 bytes → 160-bit, 32 chars."""
+    return base64.b32encode(secrets.token_bytes(length)).decode().rstrip("=")
+
+
+def provisioning_uri(
+    secret_b32: str, account: str, issuer: str = "LeadsGenAI", digits: int = 6, step: int = 30
+) -> str:
+    """otpauth:// URI for authenticator apps (Google Authenticator, Authy, etc.)."""
+    label = quote(f"{issuer}:{account}")
+    return (
+        f"otpauth://totp/{label}?secret={secret_b32}&issuer={quote(issuer)}"
+        f"&algorithm=SHA1&digits={digits}&period={step}"
+    )
 
 
 def _code(secret_b32: str, counter: int, digits: int = 6) -> str:
