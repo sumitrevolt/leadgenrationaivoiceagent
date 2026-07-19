@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-19 (harden pass - live+code audit + GTM speed-to-lead ntfy push, DEPLOYED 5e2ccb9c)
+Goal: Full Loop Engineer harden - live prod + code audit, then ship highest-impact GTM/conversion fix. Full deploy authorized by user.
+Inspected: prod /health (cache-bust: 91e7d37/clock-skew were STALE-CACHE false alarms; real = 77c1332 production); prod_check (ALL PASS 1155 routes/0 gaps); check_secrets clean; git tree (NO uncommitted SOURCE - only junk staged); Chrome live funnel (/ /pricing /start /audit /demo /privacy all 200, homepage compliant, lead-magnet audit API live); billing.py IDOR (already token-derived from _authed_client_id - SAFE); dup-route check (0); conversion path public_site.submit_inquiry (/api/public/inquiry: dual rate-limit + Turnstile fail-open + honeypot + file-first never-lose); inquiry_hooks.run_after_inquiry (BANT + alerts + auto-callback); lead_alerts._do_notify (email + client-WA, NO ntfy); ntfy.py (push ready, used by ops NOT leads).
+Problems Found: Audit verdict - prod healthy+secure, no fire; ledger "pending deploys" were already committed+live (code wins). External CDN 503s = Chrome-env artifact (Windows-verified 200). Real items: (1) API.md out-of-date (prod_check flag). (2) GTM speed-to-lead GAP - fastest push channel (ntfy phone) wired for ops/budget/governance but NOT new-lead alert (email/WA only; email inbox-buried). (3) junk staged files (hygiene - left untouched, user-staged).
+Changed: app/platform/lead_alerts.py (+_ntfy_alert_enabled + _notify_owner_ntfy; _do_notify now email+ntfy+client-WA with push_sent in return; 1-tap WhatsApp action button; gated LEAD_NTFY_ALERT default ON + ntfy.enabled(); never-raise; INERT without NTFY_URL/TOPIC). app/api/automation_flags.py (registered LEAD_NTFY_ALERT). docs/API.md (regenerated sync_api_docs - 1179 ops, was out-of-date). tests/test_lead_alerts_ntfy.py (5 RED-first). No route added; §5 compliance/secrets untouched; no .env change.
+Tests Run: pytest tests/test_lead_alerts_ntfy.py + tests/test_content_ordering_lead_alerts.py (12/12); prod_check.py; check_secrets.py.
+Verification Evidence: 12/12 pytest green; prod_check `[OK] ALL CHECKS PASSED` (1155 routes, API.md in sync); secrets clean (19 files). Deploy: commit 5e2ccb9 (feature branch harden/lead-ntfy-speed-to-lead -> ff-merge main, NO hook bypass) -> push -> deploy_vps.sh: pull ff 77c1332b..5e2ccb9c, BUILD_RC=0, UP_RC=0, all 5 services APP_VERSION=5e2ccb9c (0 skew), SMOKE /health+/api/voice/niches+/api/billing/plans+/api/public/pay-info all 200, DLQ 0/0, `DEPLOYED 5e2ccb9c OK`. Independent: /health version=5e2ccb9c environment=production; LEAD_NTFY_ALERT in deployed flags.
+Risks: ntfy push only fires if NTFY_URL+NTFY_TOPIC set on prod (else INERT no-op - graceful). Rollback = LEAD_NTFY_ALERT=0 (flag, no redeploy) or redeploy 77c1332. Email+client-WA paths unchanged (purely additive).
+Remaining: Junk staged files (automation_prod.html/customer_prod.html/cleanup_*.txt/commit_msg2.txt/wt_prodcheck.txt) still staged on local main - user decision to unstage/gitignore. Confirm NTFY_URL/TOPIC armed on prod so the push actually delivers.
+Next Highest Priority: Confirm ntfy armed on prod (submit test lead -> phone buzz); then next GTM lever (Hot Queue -> 2nd paying customer per sprint goal).
+
+## Loop Run
 Date: 2026-07-19 (automation Mission Control — empty content + token auto-fill)
 Goal: Fix customer/admin-reported Criticals: Automation main content empty + Automation auth broken (token not auto-filling).
 Inspected: frontend/automation.html (~3593 lines) — CSS `.tabsec{display:none}`, boot `show()`, token helpers, AUTOLOAD; node --check on extracted script; Playwright local `/app/automation`.
