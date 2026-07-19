@@ -54,9 +54,13 @@ def _build_onboarding_checklist(
     # Retrieve tone
     tone = ""
     try:
-        from app.marketing import brand_kit
+        from app.marketing import brand_kit, clients_store
 
-        tone = str((brand_kit.get_brand(client_id) or {}).get("tone") or "").strip()
+        # Brand marketing id pe keyed — alias/login id ko canonicalize karo.
+        tone = str(
+            (brand_kit.get_brand(clients_store.canonical_client_id(client_id)) or {}).get("tone")
+            or ""
+        ).strip()
     except Exception:
         pass
 
@@ -195,9 +199,11 @@ def _approval_banner(client_id: str):
     from app.api.customer_dashboard_models import ApprovalBanner
 
     try:
-        from app.marketing import content_approval
+        from app.marketing import clients_store, content_approval
 
-        count = len(content_approval.pending(client_id) or [])
+        # Approvals marketing id pe keyed hain — billing/login alias ko canonicalize
+        # karo warna alias-login customer (Jiya) ko apne pending approvals nahi dikhte.
+        count = len(content_approval.pending(clients_store.canonical_client_id(client_id)) or [])
     except Exception:
         count = 0
     if count <= 0:
@@ -238,11 +244,19 @@ def _read_inquiries() -> list[dict]:
 
 
 def _client_record(client_id: str) -> dict | None:
-    """clients_store se is client ka record (slug/business_name/niche match)."""
-    try:
-        from app.marketing.clients_store import get_by_slug, get_client
+    """clients_store se is client ka canonical marketing record.
 
-        return get_client(client_id) or get_by_slug(client_id)
+    UPI-activated customers apni billing/login id (e.g. Jiya `d79d690f61b3`) se
+    login karte hain, par marketing record marketing id (`jiya-makeover`) pe keyed
+    hai — billing id us record ke `billing_client_ids` me carry hoti hai.
+    `resolve_client` alias ko canonical record pe map karta; warna customer
+    dashboard ko orphaned partial view (content/plan/onboarding sab khali) dikhta
+    tha. Billing/invoice reads raw id use karte hain (yahan nahi). Kabhi raise nahi.
+    """
+    try:
+        from app.marketing.clients_store import get_by_slug, resolve_client
+
+        return resolve_client(client_id) or get_by_slug(client_id)
     except Exception:
         return None
 
@@ -1015,7 +1029,10 @@ def _build_office(client_id: str) -> dict:
         try:
             from app.marketing import content_approval
 
-            approvals_pending = len(content_approval.pending(client_id) or [])
+            # `rec` ab canonical marketing record hai (alias-aware _client_record);
+            # approvals usi marketing id pe keyed hain, raw login id pe nahi.
+            _mcid = str((rec or {}).get("id") or client_id or "").strip()
+            approvals_pending = len(content_approval.pending(_mcid) or [])
         except Exception:
             approvals_pending = 0
 

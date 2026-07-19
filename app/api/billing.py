@@ -155,18 +155,22 @@ def _ev(x):
 def _billing_client_ids(client_id: str) -> list[str]:
     """Canonical id + legacy `billing_client_ids` aliases (ADR-095 family, ADR-106).
 
-    WHY: jiya-makeover (the ONLY real paying customer) logs in as `jiya-makeover`
-    but her Subscription/Invoice rows are owned by legacy billing id `d79d690f61b3`
-    — so every customer-facing billing read 404'd and the portal showed
-    "NO PLAN / Free Trial" + a fresh UPI QR to an already-paying customer
-    (2026-07-16 browser acceptance). Alert path fixed this identity split in
-    ADR-095 via `billing_client_ids`; this mirrors it for the billing API.
-    Never raises — falls back to [client_id]."""
+    WHY: jiya-makeover (the ONLY real paying customer) has Subscription/Invoice
+    rows owned by legacy billing id `d79d690f61b3` while the marketing record is
+    `jiya-makeover`. JWT may carry either id depending on login provisioning.
+    Uses `resolve_client` so BOTH directions load the same id set for `.in_()`
+    filters. Never raises — falls back to [client_id]."""
     ids = [str(client_id or "").strip()]
     try:
-        from app.marketing.clients_store import get_client
+        from app.marketing.clients_store import resolve_client
 
-        rec = get_client(client_id) or {}
+        # resolve_client covers BOTH directions: marketing JWT (direct hit) and
+        # billing-alias JWT (alias → marketing record). get_client alone missed
+        # the billing-alias login case, so aliases never loaded for that JWT.
+        rec = resolve_client(client_id) or {}
+        canon = str(rec.get("id") or "").strip()
+        if canon:
+            ids.append(canon)
         aliases = rec.get("billing_client_ids") or []
         if isinstance(aliases, list | tuple | set):
             ids.extend(str(x or "").strip() for x in aliases)

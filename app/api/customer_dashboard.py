@@ -1231,12 +1231,14 @@ def customer_get_profile(client_id: str = Depends(require_customer)) -> dict:
     try:
         from app.marketing import brand_kit, clients_store
 
-        c = clients_store.get_client(client_id) or {}
+        # Profile/brand marketing id pe keyed — billing/login alias canonicalize.
+        mcid = clients_store.canonical_client_id(client_id)
+        c = clients_store.resolve_client(client_id) or {}
         brand = c.get("brand") or {}
         socials = c.get("socials") or {}
         tone = ""
         try:
-            tone = str((brand_kit.get_brand(client_id) or {}).get("tone") or "")
+            tone = str((brand_kit.get_brand(mcid) or {}).get("tone") or "")
         except Exception:
             pass
         return {
@@ -1273,6 +1275,11 @@ def customer_update_profile(
     itself would allow them. Never-500."""
     try:
         from app.marketing import brand_kit, clients_store
+
+        # Marketing record + brand_kit marketing id pe keyed. Billing/login alias
+        # (Jiya `d79d690f61b3`) se update_client(alias) pehle 404 deta tha — profile
+        # wizard save hi nahi hota tha. Canonicalize once for every write below.
+        mcid = clients_store.canonical_client_id(client_id)
 
         fields: dict = {}
         if body.business_name.strip():
@@ -1315,9 +1322,9 @@ def customer_update_profile(
             fields["brand"] = brand
 
         updated = (
-            clients_store.update_client(client_id, **fields)
+            clients_store.update_client(mcid, **fields)
             if fields
-            else clients_store.get_client(client_id)
+            else clients_store.resolve_client(client_id)
         )
         if updated is None:
             raise HTTPException(status_code=404, detail="Client not found")
@@ -1327,8 +1334,8 @@ def customer_update_profile(
         # without clobbering whatever the mirror above just wrote.
         if body.tone.strip():
             try:
-                current = brand_kit.get_brand(client_id) or {}
-                brand_kit.save_brand(client_id, {**current, "tone": body.tone.strip()})
+                current = brand_kit.get_brand(mcid) or {}
+                brand_kit.save_brand(mcid, {**current, "tone": body.tone.strip()})
             except Exception as e:
                 logger.debug("customer profile tone save skip: %s", e)
 
@@ -1351,9 +1358,11 @@ def customer_generate_first_week(client_id: str = Depends(require_customer)) -> 
     try:
         from app.marketing import auto_content, clients_store
 
-        if not clients_store.get_client(client_id):
+        # Seed/content pipeline marketing id pe keyed — billing/login alias canonicalize.
+        mcid = clients_store.canonical_client_id(client_id)
+        if not clients_store.resolve_client(client_id):
             raise HTTPException(status_code=404, detail="Client not found")
-        upcoming = auto_content.upcoming_item_count(client_id)
+        upcoming = auto_content.upcoming_item_count(mcid)
         if upcoming > 0:
             return {
                 "ok": True,
@@ -1365,7 +1374,7 @@ def customer_generate_first_week(client_id: str = Depends(require_customer)) -> 
         try:
             from app.tasks.staff_jobs import seed_first_week
 
-            seed_first_week.delay(client_id)
+            seed_first_week.delay(mcid)
         except Exception as qe:
             logger.warning("first-week seed enqueue failed for %s: %s", client_id, qe)
             return {
@@ -1553,9 +1562,12 @@ def customer_social_get(client_id: str = Depends(require_customer)) -> dict:
         from app.marketing import clients_store
         from app.social_engine import client_config
 
-        rec = clients_store.get_client(client_id) or {}
+        # Profile socials marketing id pe; social_config may be under either id
+        # (legacy connects) — prefer canonical, fall back to raw login id.
+        mcid = clients_store.canonical_client_id(client_id)
+        rec = clients_store.resolve_client(client_id) or {}
         socials = rec.get("socials") or {}
-        cfg = client_config.get(client_id)
+        cfg = client_config.get(mcid) or client_config.get(client_id)
         handles = cfg.get("handles") or {}
         # instagram/facebook/gbp = clients_store.socials authoritative (profile
         # wizard bhi wahi likhta); config-store extended-handles overlay karta.
@@ -1986,9 +1998,10 @@ def customer_social_readiness(client_id: str = Depends(require_customer)) -> dic
         from app.social_engine import client_config as _cc
         from app.social_engine import vault as _vault
 
-        rec = clients_store.get_client(client_id) or {}
-        cfg = _cc.get(client_id) or {}
-        accts = _vault.list_accounts(client_id) or []
+        mcid = clients_store.canonical_client_id(client_id)
+        rec = clients_store.resolve_client(client_id) or {}
+        cfg = _cc.get(mcid) or _cc.get(client_id) or {}
+        accts = _vault.list_accounts(mcid) or _vault.list_accounts(client_id) or []
         socials = rec.get("socials") or {}
         assets = rec.get("brand_assets") or {}
 
@@ -2102,9 +2115,9 @@ async def customer_branded_feed(client_id: str = Depends(require_customer)):
     """AdBanao-style aaj ke 3 branded posts (logo+naam frame) — customer scoped."""
     try:
         from app.marketing import brand_frames
-        from app.marketing.clients_store import get_client
+        from app.marketing.clients_store import resolve_client
 
-        c = get_client(client_id) or {}
+        c = resolve_client(client_id) or {}
         slug = str(c.get("slug") or client_id or "").strip()
         return await brand_frames.daily_feed(slug)
     except Exception as e:
@@ -2118,13 +2131,17 @@ def customer_delivery_timeline(client_id: str = Depends(require_customer), limit
     client_id JWT (require_customer) se aata hai => customer sirf apni hi
     timeline dekhta hai. Never raises; empty list on any error."""
     try:
+        from app.marketing import clients_store
         from app.marketing.delivery_ledger import ensure_backfilled, timeline
 
+        # Ledger files marketing id pe keyed hain — billing/login alias (Jiya
+        # `d79d690f61b3`) ko canonicalize kiye bina timeline blank dikhti thi.
+        mcid = clients_store.canonical_client_id(client_id)
         # Pre-ledger (purane paid) customers ka historical timeline pehli read pe
         # lazily backfill karo — warna jiya jaise existing customer ko "AI ne kya
         # kiya" blank dikhta. Idempotent (marker file), never-raises.
-        ensure_backfilled(client_id)
-        events = timeline(client_id, limit=limit, customer_only=True)
+        ensure_backfilled(mcid)
+        events = timeline(mcid, limit=limit, customer_only=True)
         return {"ok": True, "events": events}
     except Exception as e:
         logger.debug("customer timeline failed: %s", e)
@@ -2143,21 +2160,25 @@ def customer_delivery_proof(client_id: str = Depends(require_customer)) -> dict:
 
         state = product_one_delivery.customer_delivery_status(client_id)
         deliverables = [d for d in state.get("deliverables", []) if d.get("customer_visible", True)]
-        # Fetch pending approvals + published posts for the new delivery view
+        # Fetch pending approvals + published posts for the new delivery view.
+        # Marketing content/approvals/ledger are keyed on the canonical marketing
+        # id (Jiya: `jiya-makeover`); the JWT carries the billing/login alias
+        # (`d79d690f61b3`). Canonicalize once for every marketing-domain read.
         approvals_pending = []
         posts_published = []
         business_name = ""
         try:
-            import app.marketing.clients_store as cs
+            from app.marketing import clients_store
 
-            c = cs.get_client(client_id) or {}
+            mcid = clients_store.canonical_client_id(client_id)
+            c = clients_store.resolve_client(client_id) or {}
             business_name = c.get("business_name", "")
         except Exception:
-            pass
+            mcid = client_id
         try:
             from app.marketing import content_approval
 
-            for row in content_approval.pending(client_id)[:10]:
+            for row in content_approval.pending(mcid)[:10]:
                 content = row.get("content") or {}
                 caption = str(content.get("caption") or content.get("text") or "")
                 approvals_pending.append(
@@ -2175,7 +2196,7 @@ def customer_delivery_proof(client_id: str = Depends(require_customer)) -> dict:
         try:
             from app.marketing.delivery_ledger import timeline
 
-            ledger = timeline(client_id, limit=100)
+            ledger = timeline(mcid, limit=100)
             posts_published = [
                 {
                     "date": e.get("at", "")[:10],
@@ -2234,9 +2255,9 @@ def _customer_delivery_message(state: dict) -> str:
 def customer_pending_approvals(client_id: str = Depends(require_customer)):
     """Posts jo client approval ka wait kar rahe hain."""
     try:
-        from app.marketing import content_approval
+        from app.marketing import clients_store, content_approval
 
-        rows = content_approval.pending(client_id)
+        rows = content_approval.pending(clients_store.canonical_client_id(client_id))
         safe = [
             {
                 "id": r.get("id"),
@@ -2261,11 +2282,18 @@ def customer_decide_approval(
     client_id: str = Depends(require_customer),
 ):
     """Portal se approve/reject/escalate — token link ki zaroorat nahi."""
-    from app.marketing import content_approval
+    from app.marketing import clients_store, content_approval
 
+    # Approval records marketing id pe keyed hain aur decide/escalate ownership
+    # check `rec.client_id == cid` karta hai. UPI/billing alias se login (Jiya
+    # `d79d690f61b3`) ko canonical marketing id (`jiya-makeover`) pe map kiye bina
+    # ownership check kabhi match nahi hota → customer apna content approve hi
+    # nahi kar pata tha. canonical_client_id sirf isi tenant ke record pe map
+    # karta (billing_client_ids), isliye cross-tenant access nahi khulta.
+    cid = clients_store.canonical_client_id(client_id)
     if body.action == "escalate":
-        return content_approval.escalate_for_client(client_id, approval_id, note=body.note or "")
-    return content_approval.decide_for_client(client_id, approval_id, body.action, body.note or "")
+        return content_approval.escalate_for_client(cid, approval_id, note=body.note or "")
+    return content_approval.decide_for_client(cid, approval_id, body.action, body.note or "")
 
 
 @router.post(
@@ -2278,10 +2306,15 @@ async def customer_approval_council_decide(
     client_id: str = Depends(require_customer),
 ):
     """Samajh nahi aaya → LLM Council decide (APPROVE / PARK_ADMIN / KEEP)."""
+    from app.marketing import clients_store
     from app.platform import boss_council
 
+    # Council ownership check `_by_id_for_client` marketing id pe match karta —
+    # billing alias se login pe "pending approval nahi mila" aata tha.
     apply = True if body is None else bool(body.apply)
-    return await boss_council.decide_approval(client_id, approval_id, apply=apply)
+    return await boss_council.decide_approval(
+        clients_store.canonical_client_id(client_id), approval_id, apply=apply
+    )
 
 
 @router.get("/routing")
