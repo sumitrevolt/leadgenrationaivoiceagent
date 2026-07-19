@@ -55,19 +55,30 @@ async def build_pack(
 
     posts: list[dict[str, Any]] = []
     try:
+        import asyncio
+
         from app.marketing.post_generator import generate_post
 
-        for theme in focuses[: max(1, min(int(count), 6))]:
+        themes = focuses[: max(1, min(int(count), 6))]
+
+        async def _one(theme: str) -> dict[str, Any]:
+            # 2026-07-19: perf — themes ab parallel (pehle sequential 4-LLM = 6-15s
+            # timeout). gather + return_exceptions taaki ek fail poora pack na tode.
             p = await generate_post(biz, niche_key, occasion=theme, offer=offer)
-            posts.append(
-                {
-                    "theme": theme,
-                    "caption": p.get("caption") or p.get("post_text") or "",
-                    "hashtags": p.get("hashtags") or [],
-                    "image_idea": p.get("image_idea") or "",
-                    "provider": p.get("provider") or "",
-                }
-            )
+            return {
+                "theme": theme,
+                "caption": p.get("caption") or p.get("post_text") or "",
+                "hashtags": p.get("hashtags") or [],
+                "image_idea": p.get("image_idea") or "",
+                "provider": p.get("provider") or "",
+            }
+
+        results = await asyncio.gather(*[_one(t) for t in themes], return_exceptions=True)
+        for r in results:
+            if isinstance(r, dict):
+                posts.append(r)
+            else:
+                logger.warning(f"[niche_pack] one theme failed: {r}")
     except Exception as e:
         logger.warning(f"[niche_pack] post gen failed: {e}")
 

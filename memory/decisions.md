@@ -1926,3 +1926,10 @@ Context: Launch audit + forensic dump proved 11 `cli_*` invoices + 1 disposable 
 Rejected: hard-delete of invoice JSONL lines (Rule-46 audit trail); raising Celery soft limit without workload bound; purging `dlq:dead` before deploy of time-budget fix; flipping `UPI_AUTO_ACTIVATE` without operator confirm.
 
 Consequence: Contaminated numbers get VOID after deploy (ops plan); next real invoice is INV/0014; local/VPS pytest no longer poison ledger; voice hard-offs unchanged. Deploy + env flip + void + DLQ purge = USER-approved ops, not auto.
+
+## ADR-127 (2026-07-19) — Customer self-serve Marketing Tools UI + delivery% relabel + niche_pack parallel [LOCAL, NOT deployed]
+**Context:** Live audit — 87 studio tools (`customer_marketing_studio.py _TOOLS`) backend-live (all HTTP 200, real output) par customer dashboard UI me reachable NAHI (live DOM `studio/` refs=0); pricing "har bullet = live UI card" claim adhoora. + delivery view "Setup Progress" bar delivery%(90) dikhata (API `setup_completion_pct=100` unused) = confusing. + niche_pack 4-post sequential = 6-15s timeout.
+**Decision:** (1) customer_dashboard.html me additive `data-view="tools"` Marketing Tools view — `/api/customer/studio/tools`→87-card grid + search + per-tool fields form + GET/POST invoke + result Copy/WhatsApp (helpers escH/copyText reuse; showView whitelist+voice-guard+lazy hook; CSS hide-list). (2) delivery-view bar relabel "Setup Progress"→"Delivery Progress" (home 90% se consistent), init 0%→…. (3) niche_pack.build_pack → `asyncio.gather(return_exceptions=True)` parallel (~4x).
+**Verification:** node --check + py_compile OK; gather sim (order+fail-safe); LIVE exact-JS test 87 grid + GET+POST 200 real. Secrets/dup clean.
+**Rejected/NOT done:** proof-item ko fake-close (§0 no-fake — real publish Meta-gated); 196-approval bulk auto-approve (§5 ban-safety/quality — ops decision).
+**Consequence:** Deploy pe promise-vs-delivery gap band; niche_pack fix live-verify deploy ke baad. Deploy = user gate (§8) pending.

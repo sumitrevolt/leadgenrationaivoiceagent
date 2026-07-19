@@ -160,6 +160,7 @@
   [data-active-view="leads"]    [data-view]:not([data-view="leads"]),
   [data-active-view="reports"]  [data-view]:not([data-view="reports"]),
   [data-active-view="billing"]  [data-view]:not([data-view="billing"]),
+  [data-active-view="tools"]    [data-view]:not([data-view="tools"]),
   [data-active-view="support"]  [data-view]:not([data-view="support"]){display:none !important}
 
   .prod-marketing .date-range,.prod-marketing .ctl,.prod-voice .date-range,.prod-voice .ctl{display:none}
@@ -530,6 +531,7 @@
     <a class="navlink" data-nav="delivery" href="#" onclick="showView('delivery');return false;" aria-label="My Delivery status"><span class="ic" aria-hidden="true">📦</span> My Delivery</a>
     <a class="navlink" data-nav="setup" href="#" onclick="showView('setup');return false;" aria-label="Setup Wizard self-serve"><span class="ic" aria-hidden="true">🧙</span> Setup Wizard</a>
     <a class="navlink marketing-only" data-nav="calendar" href="#" onclick="showView('calendar');return false;" aria-label="Marketing Calendar"><span class="ic" aria-hidden="true">📅</span> Content &amp; Approvals</a>
+    <a class="navlink marketing-only" data-nav="tools" href="#" onclick="showView('tools');return false;" aria-label="Marketing Tools — self-serve AI tools"><span class="ic" aria-hidden="true">🧰</span> Marketing Tools</a>
     <a class="navlink voice-only" data-nav="leads" href="#" onclick="showView('leads');return false;" aria-label="Leads and Calls"><span class="ic" aria-hidden="true">🔥</span> Leads Inbox</a>
     <a class="navlink" data-nav="reports" href="#" onclick="showView('reports');return false;" aria-label="Reports and statistics"><span class="ic" aria-hidden="true">📊</span> Reports</a>
     <a class="navlink" data-nav="billing" href="#" onclick="showView('billing');return false;" aria-label="Billing, webhooks, and security"><span class="ic" aria-hidden="true">💳</span> Billing</a>
@@ -1283,11 +1285,11 @@
         </div>
       </div>
 
-      <div data-view="delivery" class="sec-title">📋 Aapka Product One Setup</div>
+      <div data-view="delivery" class="sec-title">📦 Aapki Delivery Progress — is mahine</div>
       <div data-view="delivery" id="deliveryProgressBar" style="margin-bottom:14px;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:18px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <span style="font-weight:800;font-size:14px">Setup Progress</span>
-          <span style="font-weight:800;font-size:14px;color:var(--brand)" id="deliveryPct">0%</span>
+          <span style="font-weight:800;font-size:14px">Delivery Progress</span>
+          <span style="font-weight:800;font-size:14px;color:var(--brand)" id="deliveryPct">…</span>
         </div>
         <div style="background:#e9e7f2;border-radius:99px;height:10px;overflow:hidden">
           <div id="deliveryProgressFill" style="background:linear-gradient(90deg,var(--brand-2),var(--brand));height:100%;width:0%;border-radius:99px;transition:width .6s ease"></div>
@@ -1344,6 +1346,30 @@
           <p class="sm" style="color:var(--muted);margin:8px 0 0" aria-label="App build version, for support reference">
             Build: <span id="uiBuildValue">…</span>
           </p>
+        </div>
+      </div>
+
+      <!-- Marketing Tools (self-serve studio) — 2026-07-19: backend /api/customer/studio/*
+           (87 tools) already LIVE; yeh sirf UI wiring hai (grid + per-tool form + result). -->
+      <div data-view="tools" class="sec-title marketing-only">🧰 Marketing Tools — jo chahiye, khud banao</div>
+      <div data-view="tools" class="card marketing-only" id="toolsCard" style="margin-bottom:18px">
+        <div class="hd"><h3 style="margin:0">80+ AI tools — ek click me content/leads/reviews/SEO</h3></div>
+        <div class="bd">
+          <input id="toolsSearch" type="search" placeholder="🔍 Tool dhoondo — poster, review, blog, GBP, coupon…" oninput="filterTools(this.value)" aria-label="Search marketing tools"
+                 style="width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;margin-bottom:14px;font-size:14px">
+          <div id="toolsGrid" aria-live="polite"><span class="sm" style="color:var(--muted)">Tools load ho rahe…</span></div>
+        </div>
+      </div>
+      <div data-view="tools" id="toolModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:flex-start;justify-content:center;padding:24px;overflow:auto" role="dialog" aria-modal="true" aria-labelledby="toolModalTitle" onclick="if(event.target===this)closeToolModal()">
+        <div style="background:#fff;border-radius:14px;max-width:640px;width:100%;padding:20px;box-shadow:0 20px 60px rgba(0,0,0,.3)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <h3 id="toolModalTitle" style="margin:0;flex:1">Tool</h3>
+            <button class="btn" onclick="closeToolModal()" aria-label="Band karo">✖</button>
+          </div>
+          <p id="toolModalDesc" class="sm" style="color:var(--muted);margin:0 0 12px"></p>
+          <div id="toolModalFields"></div>
+          <button class="btn primary" id="toolRunBtn" onclick="runActiveTool()">✨ Banao</button>
+          <div id="toolModalResult" style="margin-top:14px"></div>
         </div>
       </div>
 
@@ -1953,13 +1979,14 @@ function resizeCharts(){
   }, 0);
 }
 function showView(name){
-  name=["home","delivery","setup","calendar","leads","reports","billing","support"].indexOf(name)>=0?name:"home";
+  name=["home","delivery","setup","calendar","tools","leads","reports","billing","support"].indexOf(name)>=0?name:"home";
   /* 2026-07-19 product guard: leads/calls UI is voice-only and the content
      calendar is marketing-only — the per-product CSS hides EVERY card of the
      other product's view, so navigating there (hash deep-link / stale bookmark)
      rendered a fully blank page. Fall back to home instead. */
   if(name==="leads" && document.body.classList.contains("prod-marketing")) name="home";
   if(name==="calendar" && document.body.classList.contains("prod-voice")) name="home";
+  if(name==="tools" && document.body.classList.contains("prod-voice")) name="home";
   var mc=document.getElementById("mainContent");
   if(mc)mc.setAttribute("data-active-view",name);
   document.querySelectorAll("[data-nav]").forEach(function(n){
@@ -1971,6 +1998,7 @@ function showView(name){
   resizeCharts();
   if(name === "delivery" && typeof loadDeliveryView === "function") loadDeliveryView();
   if(name === "reports"  && typeof loadReportsView  === "function") loadReportsView();
+  if(name === "tools"    && typeof loadToolsView    === "function") loadToolsView();
   try{history.replaceState(null,"","#view-"+name);}catch(e){}
   window.scrollTo({top:0,behavior:"smooth"});
 }
@@ -4405,6 +4433,106 @@ function drawCalendarGrid() {
 }
 </script>
 <!-- 🏢 Aapka Office virtual-office widget (shared across all 3 customer dashboards) -->
+<script>
+/* Marketing Tools self-serve grid — 2026-07-19. Backend /api/customer/studio/*
+   (87 tools) already LIVE; yeh UI wiring hai. Additive — koi existing fn touch nahi.
+   Uses global helpers escH/copyText/toast defined above (non-module scripts). */
+(function(){
+  var TOOLS=[], LOADED=false, ACTIVE=null, RESULT_TEXT="";
+  function tHdr(){ var t=localStorage.getItem("lgai_token")||""; return t?{"Authorization":"Bearer "+t}:{}; }
+  window.loadToolsView=async function(){
+    var grid=document.getElementById("toolsGrid"); if(!grid) return;
+    if(LOADED) return;
+    if(!localStorage.getItem("lgai_token")){ grid.innerHTML='<span class="sm" style="color:var(--muted)">Login ke baad saare tools dikhenge.</span>'; return; }
+    try{
+      var r=await fetch("/api/customer/studio/tools",{headers:tHdr()});
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      var j=await r.json(); TOOLS=Array.isArray(j)?j:(j.tools||j.items||[]);
+      LOADED=true; renderTools(TOOLS);
+    }catch(e){ grid.innerHTML='<span class="sm" style="color:var(--muted)">Tools load nahi hue — thodi der me refresh karo.</span>'; }
+  };
+  function renderTools(list){
+    var grid=document.getElementById("toolsGrid"); if(!grid) return;
+    if(!list.length){ grid.innerHTML='<span class="sm" style="color:var(--muted)">Koi tool nahi mila.</span>'; return; }
+    var h='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px">';
+    list.forEach(function(t){
+      var gi=TOOLS.indexOf(t);
+      h+='<button class="tool-card" onclick="openTool('+gi+')" style="text-align:left;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:#fbfaff;cursor:pointer;display:flex;flex-direction:column;gap:4px;font-family:inherit">'
+        +'<span style="font-size:22px">'+escH(t.icon||"🛠")+'</span>'
+        +'<span style="font-weight:700;font-size:14px">'+escH(t.title||t.key||"Tool")+'</span>'
+        +'<span class="sm" style="color:var(--muted);line-height:1.35">'+escH(t.desc||"")+'</span>'
+        +'</button>';
+    });
+    grid.innerHTML=h+'</div>';
+  }
+  window.filterTools=function(q){
+    q=(q||"").toLowerCase().trim();
+    if(!q){ renderTools(TOOLS); return; }
+    renderTools(TOOLS.filter(function(t){ return ((t.title||"")+" "+(t.desc||"")+" "+(t.key||"")).toLowerCase().indexOf(q)>=0; }));
+  };
+  window.openTool=function(idx){
+    var t=TOOLS[idx]; if(!t) return; ACTIVE=t; RESULT_TEXT="";
+    document.getElementById("toolModalTitle").textContent=(t.icon||"")+" "+(t.title||t.key||"Tool");
+    document.getElementById("toolModalDesc").textContent=t.desc||"";
+    var fh="";
+    (t.fields||[]).forEach(function(f){
+      fh+='<div style="margin-bottom:10px"><label class="sm" style="display:block;font-weight:600;margin-bottom:4px;text-transform:capitalize">'+escH(f.replace(/_/g," "))+'</label>'
+        +'<input class="tool-field" data-f="'+escH(f)+'" autocomplete="off" style="width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px" placeholder="'+escH(f.replace(/_/g," "))+'"></div>';
+    });
+    if(!(t.fields||[]).length){ fh='<p class="sm" style="color:var(--muted)">Koi input nahi chahiye — bas Banao dabao.</p>'; }
+    document.getElementById("toolModalFields").innerHTML=fh;
+    document.getElementById("toolModalResult").innerHTML="";
+    var btn=document.getElementById("toolRunBtn"); btn.disabled=false; btn.textContent="✨ Banao";
+    document.getElementById("toolModal").style.display="flex";
+  };
+  window.closeToolModal=function(){ var m=document.getElementById("toolModal"); if(m) m.style.display="none"; ACTIVE=null; };
+  window.__copyToolRes=function(){ if(RESULT_TEXT) copyText(RESULT_TEXT); };
+  window.__waToolRes=function(){ if(RESULT_TEXT) window.open("https://wa.me/?text="+encodeURIComponent(RESULT_TEXT),"_blank","noopener"); };
+  window.runActiveTool=async function(){
+    var t=ACTIVE; if(!t) return;
+    var btn=document.getElementById("toolRunBtn"), res=document.getElementById("toolModalResult");
+    var body={}; document.querySelectorAll("#toolModalFields .tool-field").forEach(function(el){ var v=(el.value||"").trim(); if(v) body[el.getAttribute("data-f")]=v; });
+    btn.disabled=true; var old=btn.textContent; btn.textContent="⏳ Ban raha hai…";
+    res.innerHTML='<span class="sm" style="color:var(--muted)">AI kaam kar rahi hai…</span>';
+    try{
+      var method=t.method||"POST";
+      var opt={method:method,headers:Object.assign({},tHdr())};
+      if(method==="POST"){ opt.headers["Content-Type"]="application/json"; opt.body=JSON.stringify(body); }
+      var r=await fetch(t.path,opt);
+      var j=null; try{ j=await r.json(); }catch(e){}
+      if(!r.ok){ throw new Error((j&&(j.detail||j.error))||("HTTP "+r.status)); }
+      res.innerHTML=renderToolResult(j);
+    }catch(e){ res.innerHTML='<div class="sm" style="color:#b91c1c">Nahi bana — '+escH(String(e&&e.message||e))+'. Thodi der baad try karo.</div>'; }
+    btn.disabled=false; btn.textContent=old;
+  };
+  function collectText(o,acc){
+    acc=acc||[];
+    if(o==null) return acc;
+    if(typeof o==="string"){ if(o.trim()) acc.push(o); return acc; }
+    if(Array.isArray(o)){ o.forEach(function(x){ collectText(x,acc); }); return acc; }
+    if(typeof o==="object"){ Object.keys(o).forEach(function(k){ if(k==="ok"||k==="tool") return; collectText(o[k],acc); }); return acc; }
+    return acc;
+  }
+  function renderToolResult(j){
+    var data=(j&&j.result!=null)?j.result:j;
+    var svgs=[]; (function findSvg(o){ if(o==null)return; if(typeof o==="string"){ if(/^<svg[\s\S]*<\/svg>\s*$/i.test(o.trim())) svgs.push(o.trim()); return;} if(Array.isArray(o)){o.forEach(findSvg);return;} if(typeof o==="object"){Object.keys(o).forEach(function(k){findSvg(o[k]);});} })(data);
+    var texts=collectText(data);
+    var showText=texts.join("\n\n").replace(/<svg[\s\S]*?<\/svg>/gi,"").trim();
+    RESULT_TEXT=showText;
+    var h="";
+    svgs.slice(0,4).forEach(function(sv){ h+='<div class="svgwrap" style="margin-bottom:10px;max-width:360px">'+sv+'</div>'; });
+    if(showText){
+      h+='<div class="sm" style="white-space:pre-wrap;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:10px;padding:12px;background:#fff">'+escH(showText)+'</div>'
+        +'<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">'
+        +'<button class="btn" onclick="window.__copyToolRes()">📋 Copy</button>'
+        +'<button class="btn primary" onclick="window.__waToolRes()">📲 WhatsApp</button>'
+        +'</div>';
+    }
+    if(!h) h='<span class="sm" style="color:var(--muted)">Ban gaya ✅ (preview available nahi).</span>';
+    return h;
+  }
+})();
+</script>
 <script src="/design-system/customer_office.js" defer></script>
 </body>
 </html>

@@ -864,3 +864,14 @@ Verification Evidence: standalone logic sim green on all 5; function body copied
 Risks: none — test-only addition; sandbox can't run their venv so user should run `.venv\Scripts\python.exe -m pytest tests/test_coordinator_rate_cap.py -q` before deploy to confirm in-repo.
 Remaining: USER — Phase 0 config (AUTOMATION_HEALTH_ALERTS=1 + ntfy env + scheduler-alive proof); then GREEN Batch G1 enablement per docs/AGENT_ENABLEMENT_RUNBOOK.md; run new test in venv. Deploy = user's call.
 Next Highest Priority: user runs venv pytest (test_coordinator_rate_cap + test_reply_auto_send) + prod_check, then Phase 0 flip; parallel = GTM Hot Queue 2nd customer.
+
+## Loop Run — 2026-07-19 (customer delivery gap-closure; LOCAL, NOT deployed)
+- **Goal:** Live audit ke gaps close karo — self-serve tools UI + setup% mislabel + niche_pack slow.
+- **Inspected:** customer_dashboard.html (showView/nav/views/card conventions), customer_marketing_studio.py `_TOOLS` (87), `/api/customer/studio/tools`, delivery-proof API, niche_pack.build_pack, delivery_command_center Manual-proof path.
+- **Problems Found:** (1) 87 studio tools backend-live (all 200) par customer UI me koi grid/button nahi (live DOM `studio/` refs=0). (2) Delivery view bar "Setup Progress" label pe delivery% (90) feed hota tha; API `setup_completion_pct=100` unused; "0%" = pre-load flash. (3) niche_pack 4 posts sequential (`await` loop) → 6-15s timeout.
+- **Changed:** (a) customer_dashboard.html — naya `data-view="tools"` Marketing Tools view + sidebar navlink + run-modal + JS (loadToolsView→grid→per-tool fields form→GET/POST invoke→result Copy/WhatsApp); showView whitelist+voice-guard+lazy hook; CSS hide-list; additive only. (b) customer_dashboard.html — delivery-view bar relabel "Setup Progress"→"Delivery Progress" + init 0%→… (home 90% se consistent). (c) niche_pack.py — 4 posts `asyncio.gather(return_exceptions=True)`, order preserved.
+- **Tests Run:** node --check (tools IIFE) OK; py_compile niche_pack OK; isolated gather sim (order+fail-safe, 0.31s vs serial 1.2s); LIVE backend test (exact new JS): 87 grid + GET(best-time) + POST(review-reply) all 200 real output; secrets/dup grep clean.
+- **Verification Evidence:** studio/tools=87·200; delivery-proof setup=100/deliv=90; relabel landed (3), stray "Setup Progress"=0.
+- **Risks:** niche_pack fix only verifiable live after DEPLOY (live runs old code). Tools view untested on prod till deploy.
+- **Remaining:** DEPLOY (user gate §8). Gap#4 196-approval backlog = ops (no autonomous bulk-approve, §5). Publish-proof = external Meta-gated (admin Manual-proof button available; not faked).
+- **Next Highest Priority:** user go/no-go on deploy → build+verify `/health`+smoke → post-deploy live screenshot of Marketing Tools view.
