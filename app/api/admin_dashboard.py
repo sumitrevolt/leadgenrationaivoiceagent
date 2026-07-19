@@ -33,6 +33,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.auth_deps import require_admin
+from app.platform import admin_idempotency
 from app.platform.admin_audit import record_admin_action
 
 logger = logging.getLogger(__name__)
@@ -739,9 +740,19 @@ async def admin_delete_client(
             error="confirm required",
         )
         return {"ok": False, "error": "confirm required"}
+    _idem = admin_idempotency.begin(
+        request=request,
+        actor_id=getattr(admin, "id", None),
+        scope="client.delete",
+        payload={"client_id": cid, "confirm": True},
+    )
+    if isinstance(_idem, admin_idempotency.Replay):
+        return _idem.response
     from app.marketing import clients_store
 
     ok = clients_store.delete_client(cid)
+    result = {"ok": ok, "client_id": client_id, "deleted": ok}
+    admin_idempotency.store(_idem, result)
     await record_admin_action(
         request=request,
         actor=admin,
@@ -752,16 +763,27 @@ async def admin_delete_client(
         after={"deleted": bool(ok)},
         result=("success" if ok else "failed"),
         error=(None if ok else "delete_client returned False"),
+        idempotency_key=admin_idempotency.key_of(request),
     )
-    return {"ok": ok, "client_id": client_id, "deleted": ok}
+    return result
 
 
 @router.post("/clients/dedupe")
 async def admin_dedupe_clients(request: Request, admin=Depends(require_admin)) -> dict:
     """Remove exact-duplicate client records (same phone → keep newest)."""
+    _idem = admin_idempotency.begin(
+        request=request,
+        actor_id=getattr(admin, "id", None),
+        scope="client.dedupe",
+        payload={},
+    )
+    if isinstance(_idem, admin_idempotency.Replay):
+        return _idem.response
     from app.marketing import clients_store
 
     res = clients_store.dedupe_clients()
+    result = {"ok": True, **res}
+    admin_idempotency.store(_idem, result)
     await record_admin_action(
         request=request,
         actor=admin,
@@ -770,8 +792,9 @@ async def admin_dedupe_clients(request: Request, admin=Depends(require_admin)) -
         target_id="*",
         after=res,
         result="success",
+        idempotency_key=admin_idempotency.key_of(request),
     )
-    return {"ok": True, **res}
+    return result
 
 
 @router.get("/agents")
@@ -824,6 +847,19 @@ async def bulk_email_clients(
     except Exception:
         pass
 
+    _idem = admin_idempotency.begin(
+        request=request,
+        actor_id=getattr(admin, "id", None),
+        scope="client.bulk_email",
+        payload={
+            "client_ids": sorted(str(c) for c in (body.client_ids or [])),
+            "subject": body.subject or "",
+            "message": body.message or "",
+        },
+    )
+    if isinstance(_idem, admin_idempotency.Replay):
+        return _idem.response
+
     subject = (body.subject or "LeadsGenAI — quick check-in").strip()[:200]
     custom = (body.message or "").strip()
     sender = EmailSender()
@@ -861,6 +897,15 @@ async def bulk_email_clients(
             failed += 1
             details.append({"client_id": cid, "status": "failed", "error": str(e)[:80]})
 
+    result = {
+        "ok": sent > 0 or (skipped > 0 and failed == 0),
+        "sent": sent,
+        "skipped": skipped,
+        "failed": failed,
+        "smtp_configured": bool(sender.user and sender.password),
+        "details": details[:20],
+    }
+    admin_idempotency.store(_idem, result)
     await record_admin_action(
         request=request,
         actor=admin,
@@ -871,15 +916,9 @@ async def bulk_email_clients(
         result=("success" if failed == 0 else "partial"),
         error=(None if failed == 0 else f"{failed} sends failed"),
         severity=("info" if failed == 0 else "warning"),
+        idempotency_key=admin_idempotency.key_of(request),
     )
-    return {
-        "ok": sent > 0 or (skipped > 0 and failed == 0),
-        "sent": sent,
-        "skipped": skipped,
-        "failed": failed,
-        "smtp_configured": bool(sender.user and sender.password),
-        "details": details[:20],
-    }
+    return result
 
 
 class CeleryTrimIn(BaseModel):
@@ -919,6 +958,14 @@ async def trim_celery_queue(
             severity="warning",
         )
         return {"ok": False, "error": "confirm:true required — yeh pending tasks delete karta hai"}
+    _idem = admin_idempotency.begin(
+        request=request,
+        actor_id=getattr(admin, "id", None),
+        scope="ops.celery_trim",
+        payload={"confirm": True, "min_depth": body.min_depth},
+    )
+    if isinstance(_idem, admin_idempotency.Replay):
+        return _idem.response
     try:
         import redis as _redis
 
@@ -938,12 +985,20 @@ async def trim_celery_queue(
                 error=f"depth {depth} < min_depth {body.min_depth}",
                 severity="warning",
             )
-            return {
+            result = {
                 "ok": False,
                 "error": f"queue depth {depth} < min_depth {body.min_depth} — trim skip",
                 "depth": depth,
             }
+            admin_idempotency.store(_idem, result)
+            return result
         r.delete("celery")
+        result = {
+            "ok": True,
+            "cleared": depth,
+            "message": "celery queue cleared — beat will re-queue jobs",
+        }
+        admin_idempotency.store(_idem, result)
         await record_admin_action(
             request=request,
             actor=admin,
@@ -954,13 +1009,12 @@ async def trim_celery_queue(
             after={"cleared": depth},
             result="success",
             severity="warning",
+            idempotency_key=admin_idempotency.key_of(request),
         )
-        return {
-            "ok": True,
-            "cleared": depth,
-            "message": "celery queue cleared — beat will re-queue jobs",
-        }
+        return result
     except Exception as e:
+        # Transient failure: do NOT store → the in_progress lock expires (LOCK_TTL) so a
+        # later retry re-executes rather than replaying a transient error.
         logger.warning("admin_dashboard: celery-trim failed (%s)", e)
         await record_admin_action(
             request=request,
