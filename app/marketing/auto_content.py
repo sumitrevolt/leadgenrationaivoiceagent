@@ -889,6 +889,10 @@ async def seed_client_content(client: dict[str, Any]) -> int:
             added += await generate_review_reply_pack(client)
         except Exception as rre:  # pragma: no cover
             logger.debug(f"[auto_content] review pack skip: {rre}")
+        try:
+            added += await generate_poster_pack(client)
+        except Exception as pe:  # pragma: no cover
+            logger.debug(f"[auto_content] poster pack skip: {pe}")
 
         return added
     except Exception as e:  # pragma: no cover
@@ -1106,6 +1110,93 @@ async def generate_review_reply_pack(client: dict[str, Any]) -> int:
         return added
     except Exception as e:  # pragma: no cover
         logger.debug(f"[auto_content] generate_review_reply_pack skip: {e}")
+        return 0
+
+
+async def generate_poster_pack(client: dict[str, Any], target: int = 4) -> int:
+    """branded_posters deliverable ko REAL banata hai: queue me kam-se-kam
+    `target` (default 4) real branded SVG posters ensure karta hai. Existing
+    posters count karke sirf kami (target - existing) generate karta hai
+    (self-guarding, idempotent). Har naya poster distinct date pe (date|type
+    dedup bachne ke liye), sirf non-empty SVG wale count hote (empty = skip,
+    koi fake poster nahi). KABHI raise nahi karta."""
+    try:
+        if not isinstance(client, dict):
+            return 0
+        cid = str(client.get("id") or "").strip()
+        if not cid:
+            return 0
+        existing = [
+            it for it in list_queue(cid, limit=500) if str(it.get("type") or "").lower() == "poster"
+        ]
+        need = max(0, int(target) - len(existing))
+        if need <= 0:
+            return 0
+
+        from datetime import date, timedelta
+
+        from app.marketing import content_approval, delivery_ledger
+
+        # Varied real templates + niche-aware Hinglish offers (generate_poster
+        # unknown id => clean-pro fallback, kabhi empty nahi).
+        combos = [
+            ("offer-burst", "Is hafte ka special offer — abhi book karein!"),
+            ("generic-sale", "Seasonal glow package — limited slots!"),
+            ("clean-pro", "Naya look, naya confidence — aaj hi aayein."),
+            ("offer-burst", "Bridal & party makeup — advance booking khuli hai!"),
+        ]
+        used_dates = {str(it.get("date")) for it in existing}
+        items: list[dict[str, Any]] = []
+        base = date.today()
+        offset = 0
+        made = 0
+        while made < need and offset < 60:
+            d = (base + timedelta(days=offset)).strftime("%Y-%m-%d")
+            offset += 1
+            if d in used_dates:
+                continue  # date|type poster dedup bachao
+            tpl, offer = combos[made % len(combos)]
+            item = _make_poster_item(
+                client, d, template_id=tpl, title="Branded Poster", offer=offer
+            )
+            if not str(item.get("svg") or "").strip():
+                continue  # real SVG only — no empty/fake poster
+            items.append(item)
+            used_dates.add(d)
+            made += 1
+        if not items:
+            return 0
+        added, added_items = _append_items_detailed(cid, items)
+        if added_items:
+            try:
+                for it in added_items:
+                    content_approval.submit(cid, it)
+            except Exception as ae:  # pragma: no cover
+                logger.debug(f"[auto_content] poster approval submit skip: {ae}")
+            try:
+                delivery_ledger.log_event(
+                    cid,
+                    "poster_generated",
+                    detail=f"{len(added_items)} branded poster(s) ready",
+                    meta={"count": len(added_items)},
+                )
+            except Exception:  # pragma: no cover
+                pass
+            try:
+                from app.marketing import product_one_delivery
+
+                product_one_delivery.sync_customer_deliverable_status(
+                    cid,
+                    "branded_posters",
+                    "pending_approval",
+                    note=f"{len(added_items)} branded posters generated.",
+                    owner="AI",
+                )
+            except Exception as de:  # pragma: no cover
+                logger.debug(f"[auto_content] poster deliverable sync skip: {de}")
+        return added
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"[auto_content] generate_poster_pack skip: {e}")
         return 0
 
 

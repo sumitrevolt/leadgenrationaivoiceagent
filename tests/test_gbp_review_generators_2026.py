@@ -98,3 +98,25 @@ def test_seed_client_content_covers_gbp_and_review(monkeypatch, tmp_path):
     types = set(_types("gr-test"))
     assert "gbp" in types
     assert "review_reply" in types
+
+
+def test_generate_poster_pack_reaches_target_and_self_guards(monkeypatch, tmp_path):
+    _iso(monkeypatch, tmp_path)
+    n = asyncio.run(auto_content.generate_poster_pack(CLIENT, target=4))
+    assert n == 4  # started with 0
+    posters = [
+        i for i in auto_content.list_queue("gr-test", limit=200) if str(i.get("type")).lower() == "poster"
+    ]
+    assert len(posters) == 4
+    assert all(str(p.get("svg") or "").strip() for p in posters)  # real SVG only
+    # self-guard: already at target -> nothing more
+    assert asyncio.run(auto_content.generate_poster_pack(CLIENT, target=4)) == 0
+    assert _types("gr-test").count("poster") == 4
+
+
+def test_delivery_status_marks_posters_done(monkeypatch, tmp_path):
+    _iso(monkeypatch, tmp_path)
+    asyncio.run(auto_content.generate_poster_pack(CLIENT, target=4))
+    st = product_one_delivery.customer_delivery_status("gr-test", CLIENT)
+    dels = {d["id"]: d["status"] for d in (st.get("deliverables") or [])}
+    assert dels.get("branded_posters") == "done"
