@@ -876,9 +876,236 @@ async def seed_client_content(client: dict[str, Any]) -> int:
             except Exception as de:  # pragma: no cover
                 logger.debug(f"[auto_content] deliverable db sync skip: {de}")
 
+        # 7. Monthly deliverables the daily/post pipeline doesn't cover: GBP
+        # suggestions + review-reply drafts. Self-guarding (skip if already
+        # present this cycle). Without these two, the gbp_suggestions /
+        # review_replies deliverables never flipped to "done" (audit 2026-07-19,
+        # Jiya stuck at 60% — plan promises both).
+        try:
+            added += await generate_gbp_pack(client)
+        except Exception as ge:  # pragma: no cover
+            logger.debug(f"[auto_content] gbp pack skip: {ge}")
+        try:
+            added += await generate_review_reply_pack(client)
+        except Exception as rre:  # pragma: no cover
+            logger.debug(f"[auto_content] review pack skip: {rre}")
+
         return added
     except Exception as e:  # pragma: no cover
         logger.debug(f"[auto_content] seed_client_content skip: {e}")
+        return 0
+
+
+def _gbp_suggestions_caption(client: dict[str, Any]) -> str:
+    """Ek rich GBP-suggestions draft (top prioritised profile fixes) — heuristic
+    audit se, curated deterministic fallback ke saath. KABHI empty nahi."""
+    biz = str((client or {}).get("business_name") or "Aapka Business").strip()
+    lines: list[str] = []
+    try:
+        from app.marketing import gbp_audit
+
+        sug = gbp_audit.heuristic_suggest(client)
+        scored = gbp_audit.score_audit((sug or {}).get("answers") or {})
+        for f in (scored.get("top_fixes") or [])[:5]:
+            fix = (
+                str(f.get("fix") or f.get("action") or f.get("text") or "").strip()
+                if isinstance(f, dict)
+                else str(f or "").strip()
+            )
+            if fix:
+                lines.append(f"• {fix}")
+        if not lines:
+            for area in ("posts", "photos", "reviews_count", "review_replies", "qna"):
+                fix = (getattr(gbp_audit, "_FIXES", {}) or {}).get(area)
+                if fix:
+                    lines.append(f"• {fix}")
+    except Exception:
+        lines = []
+    if not lines:
+        lines = [
+            "• Har Somvaar ek GBP post daalo (offer/update + photo) — freshness signal.",
+            "• Is hafte 5 naye photos add karo (kaam, team, before/after).",
+            "• Har khush customer se turant Google review maango (counter par QR).",
+            "• Sab reviews ka 24-ghante me reply karo (negative pehle).",
+        ]
+    head = f"Google Business Profile — is mahine ke top sudhaar ({biz}):"
+    return (head + "\n" + "\n".join(lines))[:2100]
+
+
+async def generate_gbp_pack(client: dict[str, Any]) -> int:
+    """GBP suggestions deliverable ko REAL banata hai: ek `gbp` content item
+    (prioritised profile fixes) queue me + approval submit + ledger + deliverable
+    sync. Self-guarding — client ke queue me pehle se koi gbp item ho to skip
+    (monthly deliverable, roz regenerate nahi). KABHI raise nahi karta."""
+    try:
+        if not isinstance(client, dict):
+            return 0
+        cid = str(client.get("id") or "").strip()
+        if not cid:
+            return 0
+        for it in list_queue(cid, limit=500):
+            if str(it.get("type") or "").lower() in ("gbp", "gbp_post"):
+                return 0  # already delivered this cycle
+
+        import uuid
+        from datetime import date
+
+        from app.marketing import content_approval, delivery_ledger
+
+        item = {
+            "id": uuid.uuid4().hex[:12],
+            "client_id": cid,
+            "date": date.today().strftime("%Y-%m-%d"),
+            "type": "gbp",
+            "title": "Google Business Profile — Suggestions",
+            "caption": _gbp_suggestions_caption(client),
+            "hashtags": [],
+            "status": "draft",
+            "created_at": _now(),
+        }
+        added, added_items = _append_items_detailed(cid, [item])
+        if added_items:
+            try:
+                for it in added_items:
+                    content_approval.submit(cid, it)
+            except Exception as ae:  # pragma: no cover
+                logger.debug(f"[auto_content] gbp approval submit skip: {ae}")
+            try:
+                delivery_ledger.log_event(
+                    cid,
+                    "gbp_suggestions_generated",
+                    detail="GBP profile suggestions draft ready",
+                )
+            except Exception:  # pragma: no cover
+                pass
+            try:
+                from app.marketing import product_one_delivery
+
+                product_one_delivery.sync_customer_deliverable_status(
+                    cid,
+                    "gbp_suggestions",
+                    "pending_approval",
+                    note="GBP suggestions draft generated.",
+                    owner="AI",
+                )
+            except Exception as de:  # pragma: no cover
+                logger.debug(f"[auto_content] gbp deliverable sync skip: {de}")
+        return added
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"[auto_content] generate_gbp_pack skip: {e}")
+        return 0
+
+
+async def _review_reply_caption(client: dict[str, Any]) -> str:
+    """3 review-reply drafts (5-star / mixed / negative) — free-AI first,
+    deterministic Hinglish fallback. KABHI empty nahi."""
+    biz = str((client or {}).get("business_name") or "Aapka Business").strip()
+    niche = str((client or {}).get("niche") or "business").strip()
+    out: list[str] = []
+    try:
+        from app.voice_agent import free_ai  # optional
+    except Exception:
+        free_ai = None  # type: ignore
+    if free_ai is not None:
+        try:
+            sys_prompt = (
+                "Tu local business owner ka assistant hai jo Google review ke professional, warm "
+                "Hinglish REPLY drafts likhta hai. Business ka naam use kar. TEEN reply de, har 2-3 "
+                "line. Format EXACT:\nSTAR5: <reply>\nMIXED: <reply>\nNEG: <reply>"
+            )
+            usr_prompt = (
+                f"Business: {biz}\nNiche: {niche}\nCity: {(client or {}).get('city') or ''}"
+            )
+            text, _ = await free_ai.chat(
+                sys_prompt,
+                [{"role": "user", "content": usr_prompt}],
+                max_tokens=400,
+                temperature=0.6,
+            )
+            import re as _re
+
+            for tag, label in (
+                ("STAR5", "5-star khush review"),
+                ("MIXED", "Mixed / minor complaint"),
+                ("NEG", "Naaraz customer"),
+            ):
+                m = _re.search(rf"(?im)^{tag}\s*:\s*(.+)$", text or "")
+                if m and m.group(1).strip():
+                    out.append(f"[{label}]\n{m.group(1).strip()}")
+        except Exception:
+            out = []
+    if not out:
+        out = [
+            f"[5-star khush review]\nBahut bahut shukriya! 🙏 {biz} par aapko accha laga jaan kar "
+            "dil khush ho gaya. Aise hi pyaar banaye rakhein — jald phir milte hain!",
+            f"[Mixed / minor complaint]\nAapke feedback ke liye dhanyavaad. {biz} me hum har baar "
+            "behtar karne ki koshish karte hain — aapki baat note kar li, agli visit aur acchi hogi. 🙏",
+            f"[Naaraz customer]\nHumein khed hai ki experience accha nahi raha. {biz} ki taraf se "
+            "maafi — please humein call/DM karein taaki hum turant sahi kar sakein. Aapki santushti zaroori hai.",
+        ]
+    return ("Review reply drafts (copy-paste ready):\n\n" + "\n\n".join(out))[:2100]
+
+
+async def generate_review_reply_pack(client: dict[str, Any]) -> int:
+    """review_replies deliverable ko REAL banata hai: ek `review_reply` content
+    item (3 reply drafts) queue me + approval + ledger + deliverable sync.
+    Self-guarding. KABHI raise nahi karta."""
+    try:
+        if not isinstance(client, dict):
+            return 0
+        cid = str(client.get("id") or "").strip()
+        if not cid:
+            return 0
+        for it in list_queue(cid, limit=500):
+            if str(it.get("type") or "").lower() == "review_reply":
+                return 0
+
+        import uuid
+        from datetime import date
+
+        from app.marketing import content_approval, delivery_ledger
+
+        item = {
+            "id": uuid.uuid4().hex[:12],
+            "client_id": cid,
+            "date": date.today().strftime("%Y-%m-%d"),
+            "type": "review_reply",
+            "title": "Review Reply Drafts",
+            "caption": await _review_reply_caption(client),
+            "hashtags": [],
+            "status": "draft",
+            "created_at": _now(),
+        }
+        added, added_items = _append_items_detailed(cid, [item])
+        if added_items:
+            try:
+                for it in added_items:
+                    content_approval.submit(cid, it)
+            except Exception as ae:  # pragma: no cover
+                logger.debug(f"[auto_content] review approval submit skip: {ae}")
+            try:
+                delivery_ledger.log_event(
+                    cid,
+                    "review_replies_generated",
+                    detail="Review reply drafts ready",
+                )
+            except Exception:  # pragma: no cover
+                pass
+            try:
+                from app.marketing import product_one_delivery
+
+                product_one_delivery.sync_customer_deliverable_status(
+                    cid,
+                    "review_replies",
+                    "pending_approval",
+                    note="Review reply drafts generated.",
+                    owner="AI",
+                )
+            except Exception as de:  # pragma: no cover
+                logger.debug(f"[auto_content] review deliverable sync skip: {de}")
+        return added
+    except Exception as e:  # pragma: no cover
+        logger.debug(f"[auto_content] generate_review_reply_pack skip: {e}")
         return 0
 
 
