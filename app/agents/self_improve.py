@@ -335,7 +335,13 @@ _STAGE_ACTIONS = {
         "rescore_pipeline",
     ],
     "retention": ["revenue_sweep", "content_pack"],
-    "scale": ["optimizer", "campaign_optimize", "channel_experiments", "harvest_leads", "skill_sweep"],
+    "scale": [
+        "optimizer",
+        "campaign_optimize",
+        "channel_experiments",
+        "harvest_leads",
+        "skill_sweep",
+    ],
 }
 
 
@@ -639,9 +645,7 @@ async def _voice_learn() -> dict[str, Any]:
     try:
         from app.agents import live_eval
 
-        rep = await asyncio.wait_for(
-            asyncio.to_thread(live_eval.eval_recent_calls, 8), timeout=60
-        )
+        rep = await asyncio.wait_for(asyncio.to_thread(live_eval.eval_recent_calls, 8), timeout=60)
     except Exception as e:
         return {"ok": False, "detail": f"voice_learn eval: {str(e)[:90]}"}
 
@@ -815,7 +819,9 @@ def _next_skill_sweep_name(skills: list[dict[str, Any]]) -> tuple[str, dict[str,
     names = sorted({str(s.get("name") or "").strip().lower() for s in skills if s.get("name")})
     if not names:
         return "", {}
-    signature = hashlib.sha1("|".join(names).encode("utf-8", errors="ignore")).hexdigest()
+    signature = hashlib.sha1(
+        "|".join(names).encode("utf-8", errors="ignore"), usedforsecurity=False
+    ).hexdigest()
     st = _load_state()
     sweep = st.get("skill_sweep") if isinstance(st.get("skill_sweep"), dict) else {}
     if sweep.get("signature") != signature:
@@ -935,7 +941,7 @@ async def _reflect() -> dict[str, Any]:
     if not lesson:
         fails = [r.get("action") for r in runs if not r.get("ok")]
         lesson = (
-            f"Actions failing zyada: {', '.join(sorted(set(str(f) for f in fails)))} — inke flags/creds check karo."
+            f"Actions failing zyada: {', '.join(sorted({str(f) for f in fails}))} — inke flags/creds check karo."
             if fails
             else "Sab actions theek chal rahe — explore naya channel via channel_experiments."
         )
@@ -946,7 +952,11 @@ async def _reflect() -> dict[str, Any]:
     except Exception:
         pass
     # Hivemind: reflection lessons → KB skills namespace (cross-agent sharing)
-    if lesson and len(lesson) > 20 and os.environ.get("KB_SKILL_LEARN", "").strip() in ("1", "true", "yes", "on"):
+    if (
+        lesson
+        and len(lesson) > 20
+        and os.environ.get("KB_SKILL_LEARN", "").strip() in ("1", "true", "yes", "on")
+    ):
         try:
             from app.voice_agent.knowledge_base import get_knowledge_base
 
@@ -963,10 +973,13 @@ async def _reflect() -> dict[str, Any]:
             pass
     # Write reflection lesson to obsidian brain
     try:
-        from app.platform import obsidian_sync as _obs
         from datetime import datetime
 
-        _obs.append_note("Sessions", datetime.utcnow().strftime("%Y-%m-%d"), lesson[:500], member="self_improve")
+        from app.platform import obsidian_sync as _obs
+
+        _obs.append_note(
+            "Sessions", datetime.utcnow().strftime("%Y-%m-%d"), lesson[:500], member="self_improve"
+        )
     except Exception:
         pass
     return {"ok": True, "detail": f"lesson: {lesson[:120]}"}
@@ -1560,7 +1573,11 @@ async def run_once() -> dict[str, Any]:
     except Exception:
         pass
     # Hivemind: HIGH-VALUE runs (outcome >= 0.7) → KB skills namespace (Activeloop pattern)
-    if result.get("ok") and outcome_value >= 0.7 and os.environ.get("KB_SKILL_LEARN", "").strip() in ("1", "true", "yes", "on"):
+    if (
+        result.get("ok")
+        and outcome_value >= 0.7
+        and os.environ.get("KB_SKILL_LEARN", "").strip() in ("1", "true", "yes", "on")
+    ):
         try:
             from app.voice_agent.knowledge_base import get_knowledge_base
 
@@ -1599,8 +1616,11 @@ async def run_once() -> dict[str, Any]:
         from app.agents.rl import reward as _rl_reward
 
         _rl_reward.record_reward(
-            "funnel", action, float(rec["outcome_value"]),
-            ref=rec["id"], context={"source": rec["source"]},
+            "funnel",
+            action,
+            float(rec["outcome_value"]),
+            ref=rec["id"],
+            context={"source": rec["source"]},
         )
     except Exception:
         pass
@@ -1625,8 +1645,10 @@ async def run_once() -> dict[str, Any]:
     _heartbeat({"runs_today": runs_today + 1, "last_action": action, "status": "ok"})
     # Obsidian — append self-improve run to Sessions/ (INERT if OBSIDIAN_SYNC unset).
     try:
-        from app.platform import obsidian_sync as _obs
         import datetime as _dt
+
+        from app.platform import obsidian_sync as _obs
+
         _obs.append_note(
             "Sessions",
             _dt.datetime.utcnow().strftime("%Y-%m-%d"),

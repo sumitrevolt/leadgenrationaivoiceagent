@@ -9,10 +9,9 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-
-from app.api.ratelimit import rate_limit
 from pydantic import BaseModel, EmailStr, Field
 
+from app.api.ratelimit import rate_limit
 from app.config import settings
 from app.models.user import AuditLog, User, UserRole, UserSession, UserStatus
 from app.utils.logger import setup_logger
@@ -193,11 +192,7 @@ def decode_token(token: str) -> dict:
 # single canonical implementation so behaviour can no longer diverge. Other
 # modules importing `require_admin` from here (e.g. assessment.py) auto-inherit
 # the stronger version. auth_deps imports no app.api.* module → no import cycle.
-from app.api.auth_deps import (  # noqa: E402
-    get_current_user,
-    require_admin,
-    require_super_admin,
-)
+from app.api.auth_deps import get_current_user, require_admin, require_super_admin  # noqa: E402
 
 
 async def log_audit(

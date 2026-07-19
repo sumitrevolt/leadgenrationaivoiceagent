@@ -78,16 +78,11 @@ def _map_to_option(raw: str, options: list[str]) -> str | None:
     return None
 
 
-async def _one_vote(
-    question: str, options: list[str], index: int
-) -> dict[str, Any]:
+async def _one_vote(question: str, options: list[str], index: int) -> dict[str, Any]:
     """Ek voter ka call — persona + temperature index pe. Fail = abstain (no crash)."""
     persona, temp = _VOTER_PERSONAS[index % len(_VOTER_PERSONAS)]
     opts_block = "\n".join(f"- {o}" for o in options)
-    system = (
-        persona
-        + " Tumhe ek decision lena hai. SIRF di gayi options me se EXACTLY EK chuno."
-    )
+    system = persona + " Tumhe ek decision lena hai. SIRF di gayi options me se EXACTLY EK chuno."
     user = (
         f"Sawal: {question}\n\nOptions:\n{opts_block}\n\n"
         "Pehle 1 line me apna reason do, fir aakhri line me likho: "
@@ -163,7 +158,7 @@ async def vote(question: str, options: list[str], voters: int = 3) -> dict:
         logger.debug("consensus gather failed: %s", e)
         results = []
 
-    tally: dict[str, int] = {o: 0 for o in opts}
+    tally: dict[str, int] = dict.fromkeys(opts, 0)
     rationale_samples: list[str] = []
     valid_votes = 0
     for r in results:

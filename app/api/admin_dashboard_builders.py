@@ -256,7 +256,13 @@ def delivery_health(
             }
 
         # 1. AT RISK — established (set-up, producing) account that went quiet/broke.
-        if active and paid and setup_done and posts_created > 0 and (not value_7d or failures_24h > 0):
+        if (
+            active
+            and paid
+            and setup_done
+            and posts_created > 0
+            and (not value_7d or failures_24h > 0)
+        ):
             if failures_24h > 0:
                 reason = f"{failures_24h} delivery failure(s) pichhle 24h me"
             else:
@@ -265,39 +271,66 @@ def delivery_health(
 
         # 2. NOT STARTED — nothing has happened yet at all.
         if not setup_done and events_total == 0:
-            return _out("not_started", "Shuru nahi hua", "Abhi tak koi activity nahi — setup baaki",
-                        "open_setup", "warn")
+            return _out(
+                "not_started",
+                "Shuru nahi hua",
+                "Abhi tak koi activity nahi — setup baaki",
+                "open_setup",
+                "warn",
+            )
 
         # 3. BLOCKED — setup incomplete and it's been stuck >24h.
         age = _age_hours(client.get("created_at"))
         if not setup_done and age is not None and age > 24:
-            return _out("blocked", "Setup ruka", "Setup 24h+ se adhoora — investigate",
-                        "open_setup", "err")
+            return _out(
+                "blocked", "Setup ruka", "Setup 24h+ se adhoora — investigate", "open_setup", "err"
+            )
 
         # 4. NOT STARTED (early) — still not set up, but recent / has some events.
         if not setup_done:
-            return _out("not_started", "Shuru nahi hua", "Setup chal raha — abhi poora nahi hua",
-                        "open_setup", "warn")
+            return _out(
+                "not_started",
+                "Shuru nahi hua",
+                "Setup chal raha — abhi poora nahi hua",
+                "open_setup",
+                "warn",
+            )
 
         # 5. SETUP READY — onboarded but first campaign not generated.
         if posts_created == 0:
-            return _out("setup_ready", "Campaign baaki", "Setup ho gaya — pehla campaign generate karo",
-                        "generate_campaign", "warn")
+            return _out(
+                "setup_ready",
+                "Campaign baaki",
+                "Setup ho gaya — pehla campaign generate karo",
+                "generate_campaign",
+                "warn",
+            )
 
         # 6. PENDING APPROVAL — waiting on the customer to approve drafts.
         if pending > 0:
-            return _out("pending_approval", "Approval baaki", f"{pending} content approval pending",
-                        "approve_content", "warn")
+            return _out(
+                "pending_approval",
+                "Approval baaki",
+                f"{pending} content approval pending",
+                "approve_content",
+                "warn",
+            )
 
         # 7. LIVE — approved/queued content not yet published (rollout in flight).
         if posts_approved > posts_published:
-            return _out("live", "Live chal raha", "Content approve/queue ho gaya — publish hone waala",
-                        "none", "ok")
+            return _out(
+                "live",
+                "Live chal raha",
+                "Content approve/queue ho gaya — publish hone waala",
+                "none",
+                "ok",
+            )
 
         # 8. DELIVERED — value landed within the last 7 days.
         if value_7d:
-            return _out("delivered", "Value mil rahi", "Pichhle 7 din me value deliver hui",
-                        "none", "ok")
+            return _out(
+                "delivered", "Value mil rahi", "Pichhle 7 din me value deliver hui", "none", "ok"
+            )
 
         return _out("unknown", "—", "State compute nahi ho paayi", "none", "muted")
     except Exception as e:  # pragma: no cover — defensive, never break the rollup
@@ -319,8 +352,7 @@ def _build_command_center() -> dict[str, Any]:
     + content_approval.pending + _client_mrr — deliberately NOT a new
     independent aggregator (2026-07-07 backlog flagged 3 duplicate ones
     already; this reuses, it doesn't add a 4th). Never raises."""
-    from app.marketing import clients_store, content_approval, delivery_ledger
-    from app.marketing import product_one_delivery
+    from app.marketing import clients_store, content_approval, delivery_ledger, product_one_delivery
 
     try:
         clients = clients_store.list_clients(status="active")
@@ -379,7 +411,9 @@ def _build_command_center() -> dict[str, Any]:
         # attempt failed) are both real "something needs attention" signals —
         # summed so a customer whose ONLY issue is a failed post still surfaces
         # here (found while wiring post_failed in the Marketing Calendar loop).
-        automation_failures = int(s.get("automation_failures") or 0) + int(s.get("posts_failed") or 0)
+        automation_failures = int(s.get("automation_failures") or 0) + int(
+            s.get("posts_failed") or 0
+        )
         if value_delivered:
             receiving_value += 1
         if automation_failures > 0:
@@ -624,9 +658,16 @@ def _collect_live_stats() -> dict:
     try:
         from app.marketing import clients_store
 
-        clients = clients_store.list_clients()
+        # ADR-121b: deduplicate by id — JSONL can have duplicate rows
+        _seen: set[str] = set()
+        for _c in clients_store.list_clients():
+            _cid = str(_c.get("id") or "").strip()
+            if _cid and _cid in _seen:
+                continue
+            _seen.add(_cid)
+            clients.append(_c)
         stats["marketing_clients"] = len(clients)  # legacy key = total clients (all products)
-        active = clients_store.list_clients(status="active")
+        active = [c for c in clients if str(c.get("status") or "").lower() == "active"]
         stats["marketing_clients_active"] = len(active)
         stats["clients_by_product"] = _clients_by_product(clients)
         stats["clients_active_by_product"] = _clients_by_product(active)
@@ -796,7 +837,7 @@ def _real_agents() -> list[Agent]:
             detail = str(la.get("detail") or m.get("title") or "-")[:60]
             mins = m.get("last_active_mins")
             when = ""
-            if isinstance(mins, (int, float)):
+            if isinstance(mins, int | float):
                 when = (
                     "abhi"
                     if mins < 2

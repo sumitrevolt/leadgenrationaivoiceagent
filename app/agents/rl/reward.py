@@ -4,6 +4,7 @@ versioned scalar reward log. Logging-only: NO policy/decision change.
 Flag-gated (RL_ENGINE), fail-open, idempotent on `ref`, auto-trimmed. Mirrors
 the never-raise + INERT-when-unset patterns of eval_gate / lead_usage.
 """
+
 from __future__ import annotations
 
 import datetime as _dt
@@ -53,9 +54,19 @@ def _now() -> str:
 # ---------- reward functions (pure) ----------
 
 _VOICE_OUTCOME_W = {
-    "appointment": 1.0, "qualified": 0.9, "interested": 0.7, "callback": 0.6,
-    "neutral": 0.5, "voicemail": 0.4, "no_answer": 0.3, "busy": 0.3,
-    "not_interested": 0.15, "wrong_number": 0.1, "dnd": 0.0, "failed": 0.1, "dropped": 0.2,
+    "appointment": 1.0,
+    "qualified": 0.9,
+    "interested": 0.7,
+    "callback": 0.6,
+    "neutral": 0.5,
+    "voicemail": 0.4,
+    "no_answer": 0.3,
+    "busy": 0.3,
+    "not_interested": 0.15,
+    "wrong_number": 0.1,
+    "dnd": 0.0,
+    "failed": 0.1,
+    "dropped": 0.2,
 }
 
 
@@ -67,11 +78,11 @@ def voice_reward(call: dict[str, Any]) -> float:
         return 0.5
     score = None
     cq = call.get("conversation_quality")
-    if isinstance(cq, (int, float)):
+    if isinstance(cq, int | float):
         score = _clamp(float(cq) / 100.0, 0.0, 1.0)
     if score is None:
         isc = call.get("interest_score")
-        if isinstance(isc, (int, float)):
+        if isinstance(isc, int | float):
             score = _clamp(float(isc) / 100.0, 0.0, 1.0)
     if score is None:
         oc = str(call.get("outcome", "")).strip().lower()
@@ -80,18 +91,28 @@ def voice_reward(call: dict[str, Any]) -> float:
     if score is None:
         score = 0.7 if call.get("qualified") else 0.4
     viol = call.get("qa_violations")
-    if isinstance(viol, (list, tuple)):
+    if isinstance(viol, list | tuple):
         score -= 0.1 * len(viol)
-    elif isinstance(viol, (int, float)):
+    elif isinstance(viol, int | float):
         score -= 0.1 * float(viol)
     return round(_clamp(score, 0.0, 1.0), 4)
 
 
 _OUTREACH_KIND_W = {
-    "signup": 1.0, "booked": 1.0, "appointment": 0.9, "interested": 0.8,
-    "reply": 0.6, "question": 0.6, "inquiry": 0.5, "open": 0.3,
-    "objection": 0.2, "not_interested": -0.3, "bounce": -0.5,
-    "unsubscribe": -1.0, "opt_out": -1.0, "complaint": -1.0,
+    "signup": 1.0,
+    "booked": 1.0,
+    "appointment": 0.9,
+    "interested": 0.8,
+    "reply": 0.6,
+    "question": 0.6,
+    "inquiry": 0.5,
+    "open": 0.3,
+    "objection": 0.2,
+    "not_interested": -0.3,
+    "bounce": -0.5,
+    "unsubscribe": -1.0,
+    "opt_out": -1.0,
+    "complaint": -1.0,
 }
 
 
@@ -122,7 +143,7 @@ def dev_reward(record: dict[str, Any]) -> float:
     elif tp is False:
         r -= 0.2
     findings = record.get("review_findings")
-    if isinstance(findings, (int, float)):
+    if isinstance(findings, int | float):
         r -= 0.05 * float(findings)
     dh = str(record.get("deploy_health", "")).strip().lower()
     if dh in ("ok", "healthy", "200", "production"):
@@ -134,11 +155,12 @@ def dev_reward(record: dict[str, Any]) -> float:
 
 # ---------- writer ----------
 
+
 def _read(path: str, n: int | None = None) -> list[dict[str, Any]]:
     try:
         if not os.path.exists(path):
             return []
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             rows = f.readlines()
         if n:
             rows = rows[-n:]
@@ -164,7 +186,7 @@ def _ref_seen(ref: str, *, path: str, scan: int = 2000) -> bool:
 
 def _trim(path: str) -> None:
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             rows = f.readlines()
         if len(rows) > _MAX_ROWS:
             with open(path, "w", encoding="utf-8") as f:
@@ -208,6 +230,7 @@ def record_reward(
 
 
 # ---------- readers ----------
+
 
 def recent(domain: str | None = None, n: int = 50) -> list[dict[str, Any]]:
     rows = _read(_REWARDS)
@@ -267,7 +290,14 @@ def summary() -> dict[str, Any]:
 
 
 __all__ = [
-    "enabled", "voice_reward", "outreach_reward", "dev_reward",
-    "record_reward", "recent", "arm_stats", "graduation_status", "summary",
+    "enabled",
+    "voice_reward",
+    "outreach_reward",
+    "dev_reward",
+    "record_reward",
+    "recent",
+    "arm_stats",
+    "graduation_status",
+    "summary",
     "REWARD_VERSION",
 ]

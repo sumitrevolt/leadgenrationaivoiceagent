@@ -1,4 +1,10 @@
 /* LeadGen AI — Webfonts
    Display/headings: Plus Jakarta Sans · Body/UI: Inter
-   Sourced from Google Fonts (same families the product links in production). */
+   Sourced from Google Fonts (same families the product links in production).
+   System-font fallback stack ensures readable text if CDN is down. */
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+
+/* Fallback: if Google Fonts fails, UI still looks acceptable with system fonts.
+   The font-family declarations in styles.css already have system fallbacks
+   (e.g. "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif),
+   so this file's @import is purely an enhancement — not a hard dependency. */
