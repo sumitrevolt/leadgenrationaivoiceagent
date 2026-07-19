@@ -2,6 +2,53 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-19 - ADR-128 Shared Agent Runtime Phase-B (contract-ENFORCED, 3 pilots, INERT default)
+
+Decision: naya `app/platform/agent_runtime.py` + `agent_runtime_pilots.py` — EK common runtime/control-plane
+jo ADR-126 registry ke `AgentContract` ko dispatch se PEHLE enforce karta hai (policy = enforcement, display
+nahi). 31 Swara-clones/31 LLM-services NAHI — shared runner + per-agent capability (tool-adapter) registry.
+Gate order (sab fail-CLOSED): master-flag `AGENT_RUNTIME` (default OFF=INERT) → contract-exists → RED/hard_off
+(swara/ananya HAMESHA blocked, koi env flip pass nahi karta) → pilot allowlist (code-level `PILOT_AGENTS` =
+kavya/isha/zara only, big-bang nahi) → prohibited[] → primary_flag → kill_switches (owner_os.kill_engaged;
+owner_* check-error = block) → capability-registered → tenant-isolation (tenant_required/mismatch) → AMBER
+customer-side-effect approval (content_approval, fail-closed) → budgets (cost_inr/api/contact daily caps) →
+concurrency (max_concurrency slots) → cancellation → idempotency (billing.idempotency `agentrt:` prefix;
+claim sab gates ke BAAD, failure pe key forget = retryable). Lifecycle queued→leased→running→terminal;
+per-attempt `wait_for` timeout; bounded retry (retry_policy "dlq" = 3 attempts) → runtime DLQ
+`data/agent_runtime_dlq.jsonl` (failure reason + escalation, bounded 500). Heartbeat DO signals: process_hb
+har dispatch pe, useful_work sirf real succeeded pe (`data/agent_runtime_state.json`, file_lock atomic —
+automation_health pattern). Event/on-demand idle agents = `healthy_idle` (offline KABHI nahi); non-pilots =
+`registry_only` (honest). Swara ke reuse patterns: explicit state machine, structured result contract,
+timeout/fallback discipline, kill+audit — voice-specific (STT/TTS/streaming/barge-in/DND) voice modules me hi.
+
+Pilots: kavya `ops_health_check` (GREEN L0, read-only automation_health rollup, 0 LLM) · isha
+`draft_content_brief` (GREEN L1 reasoning, DRAFT/PROPOSAL only, LLM sirf `AGENT_RUNTIME_LLM=1` pe free-stack
++ deterministic fallback, kabhi publish nahi) · zara `publish_approved_content` (AMBER L2, sirf APPROVED
+content_approval record → EXISTING social_engine queue hand-off; engine off = honest SkipTask; defense-in-depth
+re-check). Visibility: GET `/api/admin/owner-os/runtime` (mode/lane/hb/useful/active/budget/kill/DLQ per 31)
++ POST `/api/admin/owner-os/runtime/run` (admin, rate-limited, audited) + owner_os.html naya "Runtime" tab
+(API-only nahi chhoda). Reuse-not-duplicate: kill=owner_os store, idempotency=billing.idempotency, durable
+task identity/lease=agent_task_queue (best-effort), events=team.log_event, DLQ-depth view=automation_health
+queue_depth. Flags registered: `AGENT_RUNTIME`, `AGENT_RUNTIME_LLM` (dono OFF default).
+
+Context: ADR-126 registry INERT tha — koi module consume nahi karta tha; master mandate = Swara-grade
+enterprise runtime sab 31 pe bina 31 LLM-services banaye. Bonus fix: `scripts/deep_wiring_audit.py` ab
+`window.NAME=function/arrow` globals ko funcs manta hai (customer_dashboard.html ke 3 false "dead handler"
+prod_check FAIL kara rahe the — handlers real the, line 4488+).
+
+Alternatives rejected: har agent ka apna runner/queue (duplication, mandate-violation); scheduler/_run_job ko
+is slice me runtime pe migrate karna (big-bang — Phase C+ after pilot evidence); Celery task wrapper (web-path
+operator-runs ko bhi contract-gate chahiye tha; Celery integration Phase C); Redis-backed DLQ list (Celery-
+task-shaped dlq:failed_tasks me unknown records dlq:dead flood karte — file-DLQ automation_health pattern par).
+
+Consequence: registry ab LIVE consumer rakhta hai (owner_os API + runtime) par production behaviour ZERO change
+jab tak `AGENT_RUNTIME=1` na ho; RED/§5 gates data+code dono me. Tests: tests/test_agent_runtime.py 24 cases
+(15 mandated incl. green-success/flag-skip/kill/prohibited/timeout/retry→DLQ/dedupe/concurrency/budget/tenant/
+AMBER-approval/RED-hard-off/hb-vs-useful/healthy-idle/registry-green) + registry 14 + owner_os 21 = 59 green;
+prod_check ALL PASSED (1157 routes, 0 wiring gaps, API.md sync 1181); check_secrets clean. NOT deployed (§8).
+Rollback = 2 naye module + 2 route + UI tab remove; ya sirf flag unset (already default). Remaining: Phase-C
+scheduler/Boss-router ko runtime pe converge, pilot live-canary evidence ke baad allowlist widen.
+
 ## 2026-07-19 - ADR-126 Canonical Agent Runtime Contract registry (Agent-OS Phase-A foundation)
 
 Decision: naya `app/platform/agent_registry.py` — 31 STAFF agents ke liye single canonical
@@ -1933,3 +1980,9 @@ Consequence: Contaminated numbers get VOID after deploy (ops plan); next real in
 **Verification:** node --check + py_compile OK; gather sim (order+fail-safe); LIVE exact-JS test 87 grid + GET+POST 200 real. Secrets/dup clean.
 **Rejected/NOT done:** proof-item ko fake-close (§0 no-fake — real publish Meta-gated); 196-approval bulk auto-approve (§5 ban-safety/quality — ops decision).
 **Consequence:** Deploy pe promise-vs-delivery gap band; niche_pack fix live-verify deploy ke baad. Deploy = user gate (§8) pending.
+
+## ADR-127b (2026-07-19) — Studio tools type-coercion + concurrency; niche-pack/bio-page honest-slow [DEPLOYED 1a6f07c5]
+**Context:** "Saare 87 tools test" — 85/87 live 200. Gaps: (1) new Marketing Tools UI form sab string bhejta → list[str] fields (services/reviews/langs) 422; (2) niche-pack+bio-page 42s+ timeout.
+**Decision:** UI runActiveTool me list-field coercion (comma/newline→array) + 45s client timeout + nested-error message. niche_pack+social_page_kit gather→Semaphore(2). DEPLOYED 1a6f07c5.
+**Verified:** list-coercion PROVEN live (gbp-text comma-string→200, screenshot). py_compile+node check+/health prod.
+**HONEST (NOT claimed fixed):** niche-pack/bio-page still 42s+ — single generate_post=1.2s so bottleneck is free-tier rate-limit under multi-call burst, NOT concurrency. 100+ session test-calls ne providers rate-limit kiya (self-inflicted) → clean benchmark blocked. Semaphore(2) marginal. Real fix = reduce LLM-call-count (4→2) or cache — follow-up, not done. UI degrades gracefully.

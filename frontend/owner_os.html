@@ -68,6 +68,7 @@ textarea{min-height:88px;resize:vertical}
     <button data-tab="workflows">Workflows</button>
     <button data-tab="routes">OmniRoute</button>
     <button data-tab="tasks">Tasks</button>
+    <button data-tab="runtime">Runtime</button>
     <button data-tab="approvals">Approvals</button>
     <button data-tab="kill">Kill Switches</button>
     <button data-tab="training">Training</button>
@@ -165,6 +166,23 @@ textarea{min-height:88px;resize:vertical}
     </div>
   </section>
 
+  <section class="panel" id="panel-runtime">
+    <div class="card">
+      <h2>Agent Runtime (Phase-B pilots)</h2>
+      <p class="muted">Shared contract-enforced runtime. Sirf pilots (kavya/isha/zara) dispatchable — baaki 28 <b>registry_only</b>. RED lane (swara/ananya) hamesha blocked. Master flag <code>AGENT_RUNTIME</code> off = sab dispatch SKIPPED.</p>
+      <div class="chips" id="rtChips"></div>
+      <div class="row" style="margin:8px 0">
+        <button class="btn sec" onclick="loadRuntime()">↻ Refresh</button>
+        <button class="btn" onclick="runtimeKavya()">Run Kavya ops check (read-only)</button>
+      </div>
+      <div id="rtAgents"></div>
+      <h3 style="margin-top:12px">Runtime DLQ (last 20)</h3>
+      <div class="pre" id="rtDlq">—</div>
+      <h3 style="margin-top:12px">Last dispatch result</h3>
+      <div class="pre" id="rtResult">—</div>
+    </div>
+  </section>
+
   <section class="panel" id="panel-approvals">
     <div class="card">
       <h2>Approval Center</h2>
@@ -228,6 +246,7 @@ document.getElementById("tabs").addEventListener("click", (e)=>{
   if(b.dataset.tab==="agents") loadIshaSlice();
   if(b.dataset.tab==="workflows"){ loadWorkflows(); loadTeach("workflows"); }
   if(b.dataset.tab==="routes"){ loadRoutes(); loadTeach("routes"); }
+  if(b.dataset.tab==="runtime") loadRuntime();
 });
 
 async function boot(){
@@ -427,6 +446,49 @@ async function loadTasks(){
     return `<h3>${k}</h3>`+(rows.length?rows.map(r=>`<div class="muted">• <b>${esc(r.intent||r.status)}</b> ${esc((r.original||"").slice(0,80))} <span class="badge">${esc(r.status||"")}</span></div>`).join(""):"<div class='muted'>—</div>");
   }).join("");
   document.getElementById("taskBoard").innerHTML=blocks;
+}
+
+async function loadRuntime(){
+  const {status,body}=await api("/api/admin/owner-os/runtime");
+  if(status!==200||!body){ document.getElementById("rtAgents").textContent="load fail ("+status+")"; return; }
+  document.getElementById("rtChips").innerHTML = [
+    ["Runtime flag", body.runtime_enabled? "ON":"OFF (inert)"],
+    ["Pilots", (body.pilots||[]).join(", ")],
+    ["Canonical", body.canonical_count],
+    ["Runtime DLQ", body.runtime_dlq_count],
+    ["Celery q", (body.celery_queue||{}).celery]
+  ].map(([k,v])=>`<span class="chip">${k}: <b>${esc(String(v??"—"))}</b></span>`).join("");
+  const rows=(body.agents||[]);
+  document.getElementById("rtAgents").innerHTML = rows.map(a=>{
+    const kills=Object.entries(a.kill_switches||{}).filter(([,v])=>v===true).map(([k])=>k);
+    const b=a.budget||{};
+    const lr=a.last_result||{};
+    const laneCls=a.lane==="RED"?"err":(a.lane==="AMBER"?"warn":"ok");
+    const hCls=(a.health==="healthy"||a.health==="healthy_idle")?"ok":(a.health==="pilot_ready"||a.health==="registry_only")?"":"warn";
+    return `<div class="agent">
+      <div><span class="badge ${laneCls}">${esc(a.lane)}</span></div>
+      <div>
+        <div><b>${esc(a.name)}</b> <span class="muted">(${esc(a.agent_id)})</span>
+          ${a.pilot?'<span class="badge ok">pilot</span>':''}
+          <span class="badge ${hCls}">${esc(a.health)}</span>
+          <span class="badge">${esc(a.mode)}</span>
+          ${a.cancel_requested?'<span class="badge err">cancel requested</span>':''}
+          ${kills.length?`<span class="badge err">kill: ${esc(kills.join(","))}</span>`:''}
+        </div>
+        <div class="muted">hb: ${esc(a.last_heartbeat||"—")} · useful: ${esc(a.last_useful_work||"—")} · active: ${(a.active_tasks||[]).length} · last: ${esc(lr.status||"—")}${lr.reason?" ("+esc(lr.reason)+")":""}</div>
+        <div class="muted">budget ₹${(b.cost_inr||{}).used??0}/${(b.cost_inr||{}).cap??0} · api ${(b.api_calls||{}).used??0}/${(b.api_calls||{}).cap??0} · contacts ${(b.contacts||{}).used??0}/${(b.contacts||{}).cap??0} · runs ${b.runs_today??0} · escalate → ${esc(a.escalation)}</div>
+      </div>
+      <div class="muted">${esc((a.capabilities||[]).join(", ")||"")}</div>
+    </div>`;
+  }).join("");
+  document.getElementById("rtDlq").textContent = JSON.stringify(body.dlq_tail||[], null, 2);
+}
+async function runtimeKavya(){
+  const {body}=await api("/api/admin/owner-os/runtime/run",{method:"POST",body:JSON.stringify({agent_id:"kavya",action:"ops_health_check"})});
+  const r=(body||{}).result||{};
+  toast(r.status==="succeeded"?"Kavya check OK":(r.reason||r.status||"blocked/skipped"));
+  document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
+  loadRuntime();
 }
 
 async function loadApprovals(){

@@ -2,10 +2,10 @@
 """Deep wiring audit — onclick handlers + api()/fetch paths vs FastAPI routes."""
 from __future__ import annotations
 
-from functools import lru_cache
 import pathlib
 import re
 import sys
+from functools import cache, lru_cache
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -13,17 +13,67 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 PAGES = sorted((ROOT / "frontend").glob("*.html"))
 
 SKIP_HANDLERS = {
-    "document", "navigator", "window", "alert", "confirm", "return", "this",
-    "classList", "copyText", "esc", "escH", "$", "show", "api", "toast",
-    "adminToast", "jpre", "pills", "draftBlocks", "busy", "warnBox",
-    "copyVal", "copyTxt", "scrollToId", "toggleDark", "toggleNotifPanel",
-    "markAllRead", "saveTok", "tok", "hdr", "JSON", "location", "render",
-    "applyFilter", "start", "load", "setMsg", "renderAll", "filterByCampaign",
+    "document",
+    "navigator",
+    "window",
+    "alert",
+    "confirm",
+    "return",
+    "this",
+    "classList",
+    "copyText",
+    "esc",
+    "escH",
+    "$",
+    "show",
+    "api",
+    "toast",
+    "adminToast",
+    "jpre",
+    "pills",
+    "draftBlocks",
+    "busy",
+    "warnBox",
+    "copyVal",
+    "copyTxt",
+    "scrollToId",
+    "toggleDark",
+    "toggleNotifPanel",
+    "markAllRead",
+    "saveTok",
+    "tok",
+    "hdr",
+    "JSON",
+    "location",
+    "render",
+    "applyFilter",
+    "start",
+    "load",
+    "setMsg",
+    "renderAll",
+    "filterByCampaign",
     # JS keywords + DOM-event built-ins (inline onclicks like
     # onclick="event.stopPropagation();realFn()" — first stmt is a built-in).
-    "event", "if", "else", "for", "while", "switch", "void", "delete",
-    "console", "history", "localStorage", "sessionStorage", "Math", "Object",
-    "Array", "String", "Number", "setTimeout", "setInterval", "e",
+    "event",
+    "if",
+    "else",
+    "for",
+    "while",
+    "switch",
+    "void",
+    "delete",
+    "console",
+    "history",
+    "localStorage",
+    "sessionStorage",
+    "Math",
+    "Object",
+    "Array",
+    "String",
+    "Number",
+    "setTimeout",
+    "setInterval",
+    "e",
 }
 
 
@@ -39,7 +89,7 @@ def load_routes() -> set[str]:
     }
 
 
-@lru_cache(maxsize=None)
+@cache
 def _route_to_regex(route: str) -> re.Pattern[str]:
     """Compile each FastAPI-style dynamic route once per audit run."""
     parts: list[str] = []
@@ -81,6 +131,10 @@ def audit_file(path: pathlib.Path, routes: set[str]) -> dict:
             onclicks.add(re.sub(r"\(.*", "", expr).strip())
     funcs = set(re.findall(r"(?:async\s+)?function\s+([A-Za-z_$][\w$]*)", html))
     funcs |= set(re.findall(r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(", html))
+    # window.NAME = (async) function / arrow — IIFE-scoped globals (real runtime
+    # handlers; regex blind-spot pehle inhe "dead handler" bata raha tha).
+    funcs |= set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function", html))
+    funcs |= set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(", html))
 
     apis: set[str] = set()
     apis |= set(re.findall(r"""api\(['"]([^'"]+)['"]""", html))
