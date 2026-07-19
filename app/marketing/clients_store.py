@@ -352,7 +352,7 @@ def resolve_client(cid: str) -> dict[str, Any] | None:
             return direct
         for r in _read_all():
             aliases = r.get("billing_client_ids") or []
-            if not isinstance(aliases, (list, tuple, set)):
+            if not isinstance(aliases, list | tuple | set):
                 continue
             if key in {str(a).strip() for a in aliases if str(a).strip()}:
                 return r
@@ -370,6 +370,112 @@ def canonical_client_id(cid: str) -> str:
     except Exception:
         pass
     return str(cid or "").strip()
+
+
+def link_billing_alias(
+    marketing_id: str,
+    billing_id: str,
+    *,
+    actor: str = "system",
+) -> dict[str, Any]:
+    """Idempotently attach ``billing_id`` to a marketing record's ``billing_client_ids``.
+
+    Used after activation/provisioning so a UPI/subscription id (or a recreated
+    legacy invoice owner id) can resolve back to the marketing tenant the portal
+    and content pipeline already use. Never silently steals an alias owned by
+    another tenant. Never raises.
+
+    Returns ``{ok, linked, reason, marketing_id, billing_id}``.
+    """
+    mid = str(marketing_id or "").strip()
+    bid = str(billing_id or "").strip()
+    out: dict[str, Any] = {
+        "ok": False,
+        "linked": False,
+        "reason": "unknown",
+        "marketing_id": mid,
+        "billing_id": bid,
+        "actor": str(actor or "system")[:80],
+    }
+    try:
+        if not mid or not bid:
+            out["reason"] = "missing_ids"
+            return out
+        if mid == bid:
+            out.update({"ok": True, "reason": "same_id"})
+            return out
+
+        # Already resolvable to this marketing id → idempotent success.
+        existing = resolve_client(bid)
+        if existing and str(existing.get("id") or "").strip() == mid:
+            out.update({"ok": True, "reason": "already_linked"})
+            return out
+        # Alias (or direct id) owned by a different marketing tenant → refuse.
+        if existing and str(existing.get("id") or "").strip() not in ("", mid):
+            out.update(
+                {
+                    "reason": "conflict",
+                    "owner": str(existing.get("id") or "").strip(),
+                }
+            )
+            return out
+
+        # billing_id is itself another marketing client's primary id → refuse.
+        direct = get_client(bid)
+        if direct and str(direct.get("id") or "").strip() not in ("", mid):
+            out.update(
+                {
+                    "reason": "conflict_direct",
+                    "owner": str(direct.get("id") or "").strip(),
+                }
+            )
+            return out
+
+        mrec = get_client(mid)
+        if not mrec:
+            out["reason"] = "marketing_not_found"
+            return out
+
+        aliases = [
+            str(a).strip() for a in (mrec.get("billing_client_ids") or []) if str(a or "").strip()
+        ]
+        if bid in aliases:
+            out.update({"ok": True, "reason": "already_linked"})
+            return out
+
+        new_aliases = list(dict.fromkeys([*aliases, bid]))[:10]
+        updated = update_client(mid, billing_client_ids=new_aliases)
+        if updated is None:
+            out["reason"] = "update_failed"
+            return out
+
+        out.update({"ok": True, "linked": True, "reason": "linked"})
+        try:
+            logger.info(
+                "[clients_store] link_billing_alias ok marketing=%s billing=%s actor=%s",
+                mid,
+                bid,
+                out["actor"],
+            )
+        except Exception:
+            pass
+        try:
+            from app.marketing import delivery_ledger
+
+            delivery_ledger.log_event(
+                mid,
+                "identity_alias_linked",
+                detail=f"billing_alias:{bid}",
+                actor=str(out["actor"])[:40],
+                key=f"alias:{mid}:{bid}",
+            )
+        except Exception:
+            pass
+        return out
+    except Exception as e:  # pragma: no cover
+        logger.warning(f"[clients_store] link_billing_alias failed: {e}")
+        out["reason"] = "error"
+        return out
 
 
 def get_by_slug(slug: str) -> dict[str, Any] | None:
@@ -430,7 +536,6 @@ _ALLOWED_FIELDS = {
 }
 
 
-
 def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
     """Client ke fields update karo (whitelist). Updated dict ya None. Kabhi
     raise nahi. Brand/socials dict-merge hote hain; brand change brand_kit me
@@ -469,7 +574,7 @@ def update_client(cid: str, **fields: Any) -> dict[str, Any] | None:
                 # per-client CRM config dict — store as-is (generic else would str() it)
                 found["crm"] = dict(v) if isinstance(v, dict) else found.get("crm", {})
             elif k == "billing_client_ids":
-                vals = v if isinstance(v, (list, tuple, set)) else []
+                vals = v if isinstance(v, list | tuple | set) else []
                 clean = (str(x or "").strip()[:120] for x in vals)
                 found[k] = list(dict.fromkeys(x for x in clean if x))[:10]
             elif k in ("email", "contact_email"):
@@ -551,6 +656,7 @@ __all__ = [
     "get_client",
     "resolve_client",
     "canonical_client_id",
+    "link_billing_alias",
     "get_by_slug",
     "set_status",
     "update_client",
