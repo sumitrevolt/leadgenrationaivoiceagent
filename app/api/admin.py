@@ -7,7 +7,7 @@ import json
 import uuid
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, EmailStr, Field
 
@@ -332,9 +332,13 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_async_db))
 
 
 @router.post("/auth/logout")
-async def logout(user: User = Depends(get_current_user), db: AsyncSession = Depends(get_async_db)):
+async def logout(
+    request: Request,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db),
+):
     """
-    Logout and invalidate all user sessions
+    Logout and invalidate all user sessions (DB session rows + real JWT revocation).
     """
     # Invalidate all sessions for user in database
     result = await db.execute(
@@ -347,6 +351,27 @@ async def logout(user: User = Depends(get_current_user), db: AsyncSession = Depe
         session.revoke_reason = "logout"
 
     await db.commit()
+
+    # Tier-1 Slice C: the DB rows above were never checked on requests — the JWT itself
+    # stayed valid after logout. Actually revoke it now: blacklist this token's jti AND
+    # epoch-bump the user (matches this endpoint's "invalidate ALL sessions" intent).
+    from app.platform import admin_sessions
+
+    try:
+        auth = request.headers.get("authorization") or ""
+        if auth.lower().startswith("bearer "):
+            payload = decode_token(auth.split(" ", 1)[1])
+            ttl = None
+            exp = payload.get("exp")
+            if exp:
+                import time as _t
+
+                ttl = max(1, int(exp) - int(_t.time()))
+            await admin_sessions.revoke_jti(payload.get("jti"), ttl=ttl)
+    except Exception:
+        pass
+    await admin_sessions.revoke_all_for_user(user.id, reason="logout")
+
     await log_audit(db, user.id, "logout", "user", user.id)
     return {"message": "Logged out successfully"}
 
@@ -616,6 +641,17 @@ async def update_user(
     await db.commit()
     await db.refresh(user)
 
+    # Tier-1 Slice C: a role or status change must invalidate the target's existing tokens
+    # so a stale higher-privilege / still-active session cannot be reused after downgrade,
+    # suspension or deactivation.
+    if request.role or request.status:
+        from app.platform import admin_sessions
+
+        await admin_sessions.revoke_all_for_user(
+            user.id,
+            reason=f"user.update role={request.role or '-'} status={request.status or '-'}",
+        )
+
     await log_audit(
         db, admin.id, "user.update", "user", user.id, old_value=old_values, new_value=user.to_dict()
     )
@@ -662,6 +698,11 @@ async def delete_user(
     user_email = user.email
     await db.delete(user)
     await db.commit()
+
+    # Tier-1 Slice C: kill any live tokens of the deleted user immediately.
+    from app.platform import admin_sessions
+
+    await admin_sessions.revoke_all_for_user(user_id, reason="user.delete")
 
     await log_audit(
         db,

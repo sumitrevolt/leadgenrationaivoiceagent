@@ -49,7 +49,7 @@
   <div id="out"><div class="empty">Search karo ya "Recent" dabao — brain ke notes yahan dikhenge.</div></div>
 </div>
 <script>
-const TOKEN = localStorage.getItem("accessToken") || "";
+const TOKEN = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
 function H(){ return {"Authorization":"Bearer "+TOKEN}; }
 function esc(s){ return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
 function render(notes){

@@ -233,7 +233,7 @@
   "use strict";
 
   // ---- Auth: Bearer token from localStorage (same key as main app) --------
-  function token(){ return localStorage.getItem("accessToken") || ""; }
+  function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
   function hdrs(extra){
     var h = extra || {};
     var t = token();
