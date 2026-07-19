@@ -1654,7 +1654,7 @@ async function _postPause(body){
 async function opsCeleryTrim(){
   if(!confirm("Celery pending queue DELETE karein? (beat dubara schedule karega)")) return;
   try{
-    const r=await fetch("/api/admin/ops/celery-trim",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({confirm:true,min_depth:50})});
+    const r=await fetch("/api/admin/ops/celery-trim",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr(),idemHdr()),body:JSON.stringify({confirm:true,min_depth:50})});
     const d=await r.json();
     adminToast(d.ok ? ("✅ Cleared "+(d.cleared||0)+" tasks") : (d.error||"trim fail"), d.ok?"success":"error");
     if(d.ok) loadDashboard();
@@ -1853,7 +1853,7 @@ function bulkEmail(){
     try{
       const r=await fetch("/api/admin/clients/bulk-email",{
         method:"POST",
-        headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),
+        headers:Object.assign({"Content-Type":"application/json"},abAuthHdr(),idemHdr()),
         body:JSON.stringify({client_ids:sel.map(c=>c.client_id)}),
       });
       const d=await r.json().catch(()=>({}));
@@ -2571,7 +2571,7 @@ async function loadOfficeTeaser(){
 async function dedupeClients(){
   if(!confirm("Exact-duplicate clients (same phone) hata du? Newest record rahega.")) return;
   try{
-    const r=await fetch("/api/admin/clients/dedupe",{method:"POST",headers:abAuthHdr()});
+    const r=await fetch("/api/admin/clients/dedupe",{method:"POST",headers:Object.assign({},abAuthHdr(),idemHdr())});
     const d=await r.json();
     adminToast("Dedupe: "+(d.removed||0)+" removed, "+(d.kept||0)+" kept","success");
     loadDashboard();
@@ -2602,7 +2602,7 @@ async function bulkDelete(){
     const c=sel[i];
     adminToast("Deleting "+(i+1)+"/"+sel.length+" — "+escH(c.business_name||c.client_id||"")+"…");
     try{
-      const r=await fetch("/api/admin/clients/"+encodeURIComponent(c.client_id)+"/delete",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({confirm:true})});
+      const r=await fetch("/api/admin/clients/"+encodeURIComponent(c.client_id)+"/delete",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr(),idemHdr()),body:JSON.stringify({confirm:true})});
       const d=await r.json().catch(()=>({}));
       if(r.ok&&d&&d.deleted) ok++; else{ failed++; failedNames.push(c.business_name||c.client_id||"unknown"); }
     }catch(e){ failed++; failedNames.push(c.business_name||c.client_id||"unknown"); }
@@ -3359,6 +3359,15 @@ let AB_CID = "";
 function abAuthHdr(){
   const t = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
   return t ? {"Authorization":"Bearer "+t} : {};
+}
+/* Tier-1 Slice B: per-action Idempotency-Key so a retry/double-submit of a destructive
+   admin POST executes once server-side. (UI also disables buttons during in-flight ops.) */
+function idemHdr(){
+  try{
+    const u = (window.crypto && crypto.randomUUID) ? crypto.randomUUID()
+              : ("k-"+Date.now()+"-"+Math.random().toString(16).slice(2));
+    return {"Idempotency-Key": u};
+  }catch(e){ return {"Idempotency-Key": "k-"+Date.now()+"-"+Math.random().toString(16).slice(2)}; }
 }
 
 async function adminAuthBoot(){
