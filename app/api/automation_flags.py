@@ -167,6 +167,7 @@ AUTOMATION_FLAGS = [
     "TELEPHONY_READY_ALERTS",  # Tara readiness score-drop email alert
     "SOCIAL_AUTOPOST",  # Meta Graph real publish (content job)
     "AUTO_CALLBACK_INQUIRY",  # inquiry submit pe instant AI callback
+    "LEAD_NTFY_ALERT",  # naya lead pe platform owner ke phone pe instant ntfy push (email complement, 1-tap WhatsApp) — ON default, no-op until NTFY_URL+NTFY_TOPIC set
     "WHATSAPP_LEAD_FLOW_ID",  # Meta Flow in-chat lead capture (URL-valued = set hone pe ON)
     "REPLY_AUTO_SEND",  # guarded known-prospect email auto-reply; default OFF
     "REPLY_AUTO_SEND_HARD_OFF",  # emergency precedence override; 1 always blocks sends
