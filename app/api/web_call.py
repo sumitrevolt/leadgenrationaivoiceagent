@@ -33,15 +33,23 @@ Import-safe: degrades gracefully if the VoicePipeline or providers are missing �
 falls back to a simple LLM responder, and if even that is unavailable, an echo.
 """
 
+import asyncio
+import os
+import time
 from datetime import datetime, timezone
 from typing import Any
 from uuid import uuid4
 
-import asyncio
-import os
-import time
-
-from fastapi import APIRouter, File, Form, Query, Request, UploadFile, WebSocket, WebSocketDisconnect
+from fastapi import (
+    APIRouter,
+    File,
+    Form,
+    Query,
+    Request,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 
 from app.utils.logger import setup_logger
 
@@ -146,9 +154,7 @@ def _log_turn(
     turns.append(turn)
 
 
-def _turn_meta(
-    timing: dict[str, Any], t_recv: float, heard: str
-) -> dict[str, Any]:
+def _turn_meta(timing: dict[str, Any], t_recv: float, heard: str) -> dict[str, Any]:
     """Assemble assistant-turn diagnostics from the stage clocks.
 
     latency_ms = PERCEIVED gap = user-message-arrival -> bot-starts-speaking
@@ -198,12 +204,13 @@ def _is_booking_intent(text: str) -> bool:
     ):
         return True
     return any(
-        w in (text or "")
-        for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "टाइम बदल")
+        w in (text or "") for w in ("बुक", "अपॉइंटमेंट", "मीटिंग", "विजिट", "स्लॉट", "रीशेड्यूल", "टाइम बदल")
     )
 
 
-def _history_from_session(session: dict[str, Any], *, exclude_last_user: str | None = None) -> list[dict[str, str]]:
+def _history_from_session(
+    session: dict[str, Any], *, exclude_last_user: str | None = None
+) -> list[dict[str, str]]:
     """Turn log = source of truth — WS handler history desync se wrong jawab na aaye."""
     out: list[dict[str, str]] = []
     for t in session.get("turns") or []:
@@ -795,7 +802,11 @@ async def web_call_session_detail(
 ) -> dict[str, Any]:
     """One saved test-call session + full transcript (lead_key must match)."""
     try:
-        from app.voice_agent.web_call_store import get_session, normalize_lead_key, normalize_session_id
+        from app.voice_agent.web_call_store import (
+            get_session,
+            normalize_lead_key,
+            normalize_session_id,
+        )
 
         lk = normalize_lead_key(lead_key)
         sid = normalize_session_id(session_id)
@@ -1293,9 +1304,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                             opening,
                         )
                         try:
-                            await websocket.send_json(
-                                {"type": "session", **_memory_meta(session)}
-                            )
+                            await websocket.send_json({"type": "session", **_memory_meta(session)})
                         except Exception:
                             pass
                         continue
@@ -1345,7 +1354,11 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 _turn_timing["stt_ms"] = int((time.monotonic() - _t_stt) * 1000)
                 # STT-source diagnostic (next-iteration decision: kya browser-text —
                 # 0ms, free — Groq jitna accurate hai? Sirf divergence pe log = low noise).
-                if browser_text and stt_text and stt_text.strip().lower() != browser_text.strip().lower():
+                if (
+                    browser_text
+                    and stt_text
+                    and stt_text.strip().lower() != browser_text.strip().lower()
+                ):
                     logger.info(
                         f"[web-call STT compare] groq={stt_text[:80]!r} browser={browser_text[:80]!r} "
                         f"stt_ms={_turn_timing.get('stt_ms')}"
@@ -1500,13 +1513,18 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 # USE_LLM_STREAM_TTS=1 pe stream path fast_path skip + 14s hang (tune loop).
                 use_llm_stream = False
 
-                async def _brain_turn() -> str:
+                async def _brain_turn(
+                    _history=history,
+                    _user_text=user_text,
+                    _tcbrain=tcbrain,
+                    _use_stream=use_llm_stream,
+                ) -> str:
                     nonlocal tc_reply
-                    if use_llm_stream:
+                    if _use_stream:
                         return await _brain_turn_stream()
                     _t_llm = time.monotonic()
                     try:
-                        tc_reply = await tcbrain.reply(history, user_text)
+                        tc_reply = await _tcbrain.reply(_history, _user_text)
                     except Exception as e:
                         tc_reply = ""
                         logger.warning(
@@ -1532,16 +1550,18 @@ async def web_call_ws(websocket: WebSocket) -> None:
                             pass
                     return tc_reply
 
-                async def _brain_turn_stream() -> str:
+                async def _brain_turn_stream(
+                    _websocket=websocket, _history=history, _user_text=user_text, _tcbrain=tcbrain, _turn_timing=_turn_timing
+                ) -> str:
                     nonlocal tc_reply
                     streamed: list[str] = []
                     try:
-                        async for sentence in tcbrain.reply_stream_sentences(history, user_text):
+                        async for sentence in _tcbrain.reply_stream_sentences(_history, _user_text):
                             streamed.append(sentence)
                             await _send_tcbrain_sentence_chunks(
-                                websocket,
+                                _websocket,
                                 sentences=[sentence],
-                                user_text=user_text,
+                                user_text=_user_text,
                                 full_reply=" ".join(streamed).strip(),
                                 llm_stream=True,
                                 timing=_turn_timing,
@@ -1576,7 +1596,10 @@ async def web_call_ws(websocket: WebSocket) -> None:
 
                 if tc_reply:
                     _log_turn(
-                        session, "assistant", tc_reply, meta=_turn_meta(_turn_timing, _t_recv, user_text)
+                        session,
+                        "assistant",
+                        tc_reply,
+                        meta=_turn_meta(_turn_timing, _t_recv, user_text),
                     )
                     continue
 
@@ -1584,7 +1607,10 @@ async def web_call_ws(websocket: WebSocket) -> None:
                 # habit-address filler — 2026-07-17 owner live-call feedback.)
                 tc_reply = "Sun rahi hoon — thoda detail me bataye?"
                 _log_turn(
-                    session, "assistant", tc_reply, meta=_turn_meta(_turn_timing, _t_recv, user_text)
+                    session,
+                    "assistant",
+                    tc_reply,
+                    meta=_turn_meta(_turn_timing, _t_recv, user_text),
                 )
                 await _send_bot_message(websocket, tc_reply, heard=user_text)
                 continue
@@ -1746,9 +1772,7 @@ async def _transcribe_audio(
             from app.voice_agent.indic_providers import SarvamSTT
 
             _sx = await asyncio.wait_for(
-                SarvamSTT().transcribe(
-                    audio, language=os.environ.get("DEFAULT_LANGUAGE", "hi-IN")
-                ),
+                SarvamSTT().transcribe(audio, language=os.environ.get("DEFAULT_LANGUAGE", "hi-IN")),
                 timeout=12.0,
             )
             if (_sx or "").strip():
@@ -1872,7 +1896,7 @@ async def _respond(pipeline, brain, history, session, user_text):
                         from app.voice_agent.guardrails import get_guardrails
 
                         gout = get_guardrails().check_output(safe)
-                        safe = (gout.text or safe)
+                        safe = gout.text or safe
                     except Exception:
                         pass
                     return safe, None
@@ -1898,7 +1922,7 @@ def _unpack_pipeline_result(result: Any):
         return result, None
     if isinstance(result, dict):
         return result.get("text") or result.get("reply") or "(no response)", result.get("audio_b64")
-    if isinstance(result, (tuple, list)) and result:
+    if isinstance(result, tuple | list) and result:
         text = str(result[0])
         audio = result[1] if len(result) > 1 else None
         return text, audio

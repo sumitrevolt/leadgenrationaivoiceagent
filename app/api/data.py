@@ -317,6 +317,7 @@ def _get_niches_cache():
     if _niches_cache is None:
         try:
             from app.cache import Cache
+
             _niches_cache = Cache(prefix="api_niches", default_ttl=300)
         except Exception:
             pass
@@ -490,11 +491,13 @@ async def delete_custom_niche(
 # ── Pending Niches (admin review queue) ──────────────────────────────────── #
 
 import json as _json_pending
-from pathlib import Path as _Path_pending
 import re as _re_pending
 import uuid as _uuid_pending
+from pathlib import Path as _Path_pending
 
-_PENDING_FILE = _Path_pending(__file__).resolve().parent.parent.parent / "data" / "pending_niches.json"
+_PENDING_FILE = (
+    _Path_pending(__file__).resolve().parent.parent.parent / "data" / "pending_niches.json"
+)
 
 
 def _slugify_pending(name: str) -> str:
@@ -514,7 +517,9 @@ def _read_pending() -> list:
 def _write_pending(items: list) -> None:
     try:
         _PENDING_FILE.parent.mkdir(parents=True, exist_ok=True)
-        _PENDING_FILE.write_text(_json_pending.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+        _PENDING_FILE.write_text(
+            _json_pending.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     except Exception:
         pass
 
@@ -544,8 +549,13 @@ async def submit_pending_niche(payload: PendingNicheIn, current_user=Depends(req
     }
     items.append(item)
     _write_pending(items)
-    return {"ok": True, "id": item["id"], "name": name, "status": "pending",
-            "message": "Niche review queue me add ho gayi — admin approve karne ke baad permanent list me aayegi"}
+    return {
+        "ok": True,
+        "id": item["id"],
+        "name": name,
+        "status": "pending",
+        "message": "Niche review queue me add ho gayi — admin approve karne ke baad permanent list me aayegi",
+    }
 
 
 @router.get("/niches/pending")
@@ -561,10 +571,9 @@ async def approve_pending_niche(pending_id: str, current_user=Depends(require_ad
     item = next((i for i in items if i.get("id") == pending_id), None)
     if not item:
         raise HTTPException(status_code=404, detail="Pending niche nahi mili")
-    from app.niches import add_custom_niche, NICHES, _BUILTIN_KEYS
+    from app.niches import _BUILTIN_KEYS, NICHES, add_custom_niche, refresh_custom_niches
+
     name = item["name"]
-    # check already exists
-    from app.niches import refresh_custom_niches
     refresh_custom_niches()
     slug = _re_pending.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")[:50]
     if slug in NICHES:
@@ -580,8 +589,12 @@ async def approve_pending_niche(pending_id: str, current_user=Depends(require_ad
     items = [i for i in items if i.get("id") != pending_id]
     _write_pending(items)
     await _invalidate_niches_cache()
-    return {"ok": True, "niche_key": key, "name": name,
-            "message": f"'{name}' approve ho gayi — ab permanently niches list me hai"}
+    return {
+        "ok": True,
+        "niche_key": key,
+        "name": name,
+        "message": f"'{name}' approve ho gayi — ab permanently niches list me hai",
+    }
 
 
 @router.delete("/niches/pending/{pending_id}")
@@ -599,7 +612,9 @@ async def reject_pending_niche(pending_id: str, current_user=Depends(require_adm
 @router.get("/cities")
 async def get_available_cities(
     db: AsyncSession = Depends(get_async_db),
-    client_id: str = Depends(get_client_id),  # metered Lead aggregate — block anon in prod (matches siblings)
+    client_id: str = Depends(
+        get_client_id
+    ),  # metered Lead aggregate — block anon in prod (matches siblings)
 ):
     """Get list of cities with company counts"""
     from sqlalchemy import func, select

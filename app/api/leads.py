@@ -118,8 +118,6 @@ async def scrape_leads(
     Start a background scraping task (requires manager role).
     Persists discovered leads into the real `Lead` table (dedup-by-phone).
     """
-    import uuid
-
     task_id = str(uuid.uuid4())
 
     scrape_tasks[task_id] = {"status": "running", "started_at": datetime.now(), "leads_found": 0}
@@ -184,7 +182,13 @@ async def get_leads_summary(current_user: User = Depends(get_current_user)):
         if _get_sync_engine() is None or _SessionLocal is None:
             return {
                 "total": 0,
-                "by_status": {"new": 0, "contacted": 0, "qualified": 0, "converted": 0, "rejected": 0},
+                "by_status": {
+                    "new": 0,
+                    "contacted": 0,
+                    "qualified": 0,
+                    "converted": 0,
+                    "rejected": 0,
+                },
                 "by_source": {},
                 "by_city": {},
                 "avg_score": 0.0,
