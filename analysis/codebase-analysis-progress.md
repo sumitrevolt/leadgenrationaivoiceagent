@@ -1,6 +1,6 @@
 # LeadGen AI — Persistent Execution Ledger
 
-> Updated: 2026-07-19 ~19:15 IST. No secrets. Evidence-backed.
+> Updated: 2026-07-19 ~20:40 IST. No secrets. Evidence-backed production closure.
 
 ## Project coordinates
 
@@ -12,113 +12,126 @@
 | Production domain | `https://leadsgenai.in` |
 | VPS app dir | `/opt/leadgen` |
 | Compose file | `docker-compose.vps.yml` |
-| Real customer (read-only / reversible ops) | Jiya Makeover Studio · tenant `jiya-makeover` · plan Starter ₹1,999 |
-| Billing/login alias | `d79d690f61b3` (carried in marketing record `billing_client_ids`) |
+| Real customer | Jiya Makeover Studio · `jiya-makeover` · Starter ₹1,999 |
+| Billing/login alias | `d79d690f61b3` (in `billing_client_ids`) |
 
 ## Current verified baseline
 
 | Check | Result |
 |---|---|
-| Local HEAD (pre-session WIP commit) | `670f579` — `fix(delivery/identity): canonicalize billing/login id -> marketing id for customer portal + delivery status` |
-| Origin/main relation (session start) | 0 ahead / 0 behind of `origin/main` at discovery; HEAD later advanced locally to `670f579` when WIP was committed mid-session |
-| Working tree (this session) | Modified (uncommitted): `app/api/customer_dashboard.py`, `app/api/customer_dashboard_builders.py`, `app/api/customer_marketing_studio.py`, `tests/test_client_identity_canonicalization_2026.py` (extended). Local data only (do **not** commit): `data/marketing_clients.jsonl` (alias seed), `data/delivery_ledger/jiya-makeover.jsonl` (side-effect of delivery_status) |
-| Production `/health` | `healthy`, version **`5e2ccb9c`**, uptime ~1h18m (2026-07-19 13:41 UTC). **Does NOT yet include** `670f579` or this session's dashboard/approval canonicalization |
-| Known open blockers | (1) Production not on identity-fix SHAs yet. (2) Controlled Swara inbound canary still user-gated (SESSION_HANDOFF). (3) Admin/customer browser UAT needs credentials. (4) `platform_dial` HARD-OFF intact — do not re-enable. |
-| Feature flags of note | `platform_dial=false` (HARD-OFF). OmniRoute agent flags OFF on VPS (gateway reachability). |
+| Local / origin `main` tip (this write) | `716bed8` — includes portal + recurrence commits |
+| Portal identity commit | **`dbc4c86`** `fix(portal): canonicalize billing and marketing client identity` |
+| Recurrence-prevention commit | **`e845243`** `fix(identity): auto-link billing aliases on plan activation` |
+| Previous production SHA (session start) | `5e2ccb9c` → later `670f5793` → `ca98ece4` → **`dbc4c864`** (our deploy) → now **`716bed84`** |
+| Current production `/health` | `healthy`, version **`716bed84`**, environment=`production` |
+| Working tree | Local verification-only data still dirty (`data/marketing_clients.jsonl`, `data/delivery_ledger/jiya-makeover.jsonl`) — **never committed**. Unrelated WIP may exist in other files — leave alone. |
+| `platform_dial` | `enabled: false` (HARD-OFF preserved) |
+| Queues (post `dbc4c864` deploy) | celery=0, dlq:failed=0, dlq:dead=0 |
 
-## Architecture map (concise)
+## Files included in portal commit `dbc4c86`
 
-```
-Customer JWT (role=customer, sub=client_id)
-        │
-        ├─ BILLING domain (raw login / billing id)
-        │    invoices · subscriptions · CallLog · Lead.assigned_to
-        │    → app/api/billing.py already resolves aliases via _billing_client_ids (ADR-106)
-        │
-        └─ MARKETING domain (canonical marketing id)
-             clients_store · auto_content queue · content_approval · brand_kit · delivery_ledger
-             → MUST canonicalize via clients_store.canonical_client_id / resolve_client
-```
+- `app/api/billing.py`
+- `app/api/customer_dashboard.py`
+- `app/api/customer_dashboard_builders.py`
+- `app/api/customer_marketing_studio.py`
+- `tests/test_billing_alias_resolution.py`
+- `tests/test_client_identity_canonicalization_2026.py`
+- `analysis/*` (overview, architecture, technical-issues, this ledger)
 
-- **Entry points:** FastAPI app routers under `app/api/`; Celery workers + scheduler; customer portal HTML under `frontend/`; admin surfaces under `/app/office` (Operating HQ — authoritative per SESSION_HANDOFF).
-- **Identity primitives:** `app/marketing/clients_store.py` → `resolve_client`, `canonical_client_id` (alias via `billing_client_ids`).
-- **Customer portal:** `customer_auth.py`, `customer_dashboard.py` + `_builders`, `customer_marketing_studio.py`.
-- **Delivery truth:** `product_one_delivery.customer_delivery_status` + `delivery_ledger`.
-- **Billing:** GST invoices + subscription tables; alias-aware since ADR-106.
-- **Voice:** Swara path; outbound dial HARD-OFF.
-- **OmniRoute:** installed; agent traffic double-gated OFF on VPS.
+## Files explicitly excluded
 
-## Completed work (this session)
+- `data/marketing_clients.jsonl`
+- `data/delivery_ledger/jiya-makeover.jsonl`
+- `.env*`, credentials, runtime artifacts, probe scripts
 
-### P1 — Customer portal identity split (billing login ↔ marketing content)
+## Files included in recurrence commit `e845243`
+
+- `app/marketing/clients_store.py` (`link_billing_alias`)
+- `app/marketing/delivery_ledger.py` (`identity_alias_linked` event)
+- `app/billing/usage.py` (`activate_plan` resolve + link)
+- `app/api/admin_ops.py` (`billing_client_id` on UPI activate)
+- `tests/test_link_billing_alias_2026.py`
+- `scripts/report_billing_alias_gaps.py` (read-only dry-run)
+
+## Tests and release gates (pre-commit `dbc4c86`)
+
+- Identity + billing alias + delivery + plan-delivery: **43 passed**
+- Tenant isolation (`test_customer_tenant_isolation_authenticated` + `test_phase3_billing_tenant`): **26 passed**
+- `scripts/check_secrets.py`: **OK**
+- `scripts/prod_check.py`: **ALL CHECKS PASSED** (1155 routes)
+- `py_compile` on changed files: **OK**
+- Recurrence suite `test_link_billing_alias_2026.py`: **8 passed**
+
+## Deployment
+
+| Step | Evidence |
+|---|---|
+| Command | `cd /opt/leadgen && setsid nohup bash scripts/deploy_vps.sh dbc4c86 > /tmp/dep_dbc4c86.log` |
+| Result | `=== DEPLOYED dbc4c864 OK ===` |
+| Rollback target at deploy time | `ca98ece4` (prior live image) |
+| All 5 app-image services | `APP_VERSION=dbc4c864` (app/worker/scheduler/worker_heavy/worker_video) — no skew |
+| Smoke | `/health` `/api/voice/niches` `/api/billing/plans` `/api/public/pay-info` → 200 |
+| Later tip | Production advanced to **`716bed84`** (poster-pack deploy) which **contains** `dbc4c86` + `e845243` |
+
+## Production functional verification (Jiya)
+
+### Portal parity (both identities) — `PARITY_OK` on live app container
+
+| Metric | Billing id `d79d690f61b3` | Marketing id `jiya-makeover` |
+|---|---|---|
+| `canonical_client_id` | `jiya-makeover` | `jiya-makeover` |
+| `_client_record().id` / plan | `jiya-makeover` / starter | same |
+| Content posts | 26 (later recheck; was 24 on `dbc4c864`) | 26 |
+| Approval banner count | 7 | 7 |
+| Delivery % / generated / waiting | 90 / 26 / 7 | 90 / 26 / 7 |
+| `_billing_client_ids` set | `{d79d…, jiya-makeover}` | same set |
+
+Invariant: **equality across identities** (counts may grow with real activity).
+
+### Approval workflow
+
+- Raw billing id `decide_for_client` → `ok=False` (`approval nahi mila`) — ownership gate intact
+- Unrelated tenant → `ok=False`
+- `_by_id_for_client(marketing)` True; raw billing False; canon(billing) True
+- **Mutation skipped** — approving a real draft can enqueue publish; not performed. Reason recorded.
+
+### Billing isolation
+
+- Jiya invoice set via alias resolution: **1 active**, **0 voided payable**
+- Active number: **`INV/2026-27/0001`** only
+- Billing id sets equal for both JWT directions
+
+### Negative tenant isolation
+
+- Unknown tenant `_client_record` → None
+- Other-tenant pending does not include Jiya
+- Cross-tenant decide refused
+
+## Recurrence prevention
 
 | Field | Detail |
 |---|---|
-| **Problem** | UPI-activated customer (Jiya) logging in with billing id `d79d690f61b3` saw orphaned / partial marketing views; approvals pending were invisible; **approve/reject mutation failed ownership** (`approval nahi mila`); profile wizard `update_client(alias)` → 404; timeline blank. |
-| **Root cause** | ADR-095 identity split: marketing pipeline keys on `jiya-makeover`; login/JWT can carry billing id. Partial fix in `670f579` covered `/me`, `/portal/content`, `customer_delivery_status` only. Dashboard keystone `_client_record` still used `get_client` (no alias). Approval decide/pending/banner/profile/timeline/studio still used raw id. |
-| **Expected** | Billing-alias login sees same marketing content, plan, approvals, delivery % as marketing-id login; can approve own posts; profile save works. Billing/invoices stay on raw id. |
-| **Actual (before)** | Local proof: content under MKT=9, under BILL=0; `canonical(BILL)` fell back to raw when alias missing; with alias + old `_client_record` → None / 0 posts / banner false. |
-| **Files changed (this session, uncommitted)** | `app/api/customer_dashboard_builders.py` (`_client_record` → `resolve_client`; approval banner; brand tone; office approvals). `app/api/customer_dashboard.py` (profile get/set, branded-feed, timeline, delivery-proof, approvals pending/decide, council-decide). `app/api/customer_marketing_studio.py` (NBA + daily brief pending counts). `tests/test_client_identity_canonicalization_2026.py` (7 contract tests). |
-| **Already on HEAD `670f579`** | `app/api/customer_auth.py` (`_marketing_cid`), `app/marketing/product_one_delivery.py` (canonicalize at entry), original 3 identity tests. |
-| **Tests executed** | `tests/test_client_identity_canonicalization_2026.py` → **7 passed**. Bundle with `test_billing_alias_resolution.py` + `test_customer_delivery_2026_07_05.py` → **33 passed**. |
-| **Runtime verification (local, reversible)** | Seeded `billing_client_ids=['d79d690f61b3']` on `jiya-makeover` via `clients_store.update_client` (matches production truth per ADR-106 / commit message). After seed + code: `canonical(BILL)=jiya-makeover`, `content_posts(BILL)=9`, `banner=True count=9`, `delivery(BILL)` name/plan/content_generated/posts_waiting **identical** to `delivery(MKT)` (deliverable_pct=40). Assertion `PARITY OK` printed. |
-| **Commit SHA** | Not committed this session (await clean commit of code-only files; do not commit `data/*`). Base WIP: `670f579`. |
-| **Deployment status** | **NOT deployed.** Prod still on `5e2ccb9c`. |
-| **Remaining risks** | (1) Prod marketing record must retain `billing_client_ids` (ADR-106 said it does). (2) Any remaining customer-facing marketing call site that bypasses `_client_record` / explicit canonicalize. (3) Local auth store still keys Jiya login as `jiya-makeover` (stale vs prod claim of billing-id login) — code is correct for both. (4) Mid-session file reverts observed — verify diffs before commit. |
-
-### P1 — Billing alias helper bidirectional (ADR-106 harden)
-
-| Field | Detail |
-|---|---|
-| **Problem** | `_billing_client_ids` used `get_client` only — billing-alias JWT never loaded the marketing record's alias list (only `[billing_id]`). |
-| **Root cause** | Helper assumed JWT is always marketing id (ADR-106 era). |
-| **Fix** | Use `resolve_client`; include canon id + aliases; dedup unchanged. |
-| **Files** | `app/api/billing.py`, `tests/test_billing_alias_resolution.py` (+ new `test_billing_alias_jwt_also_resolves_both_ids`) |
-| **Tests** | Billing alias suite green inside 38-test bundle |
-| **Deploy** | Not deployed |
-
-### Additional portal sites canonicalized (same session)
-
-- `POST /campaigns/generate-first-week` — resolve + seed under marketing id
-- `GET /social/config` + readiness checks — resolve marketing socials; social_config/vault try mcid then raw
-- Studio mini-site customize — resolve + `update_client(mcid)`
+| Root cause | `billing_client_ids` was ops-manual only (ADR-080 repair). Recreation/activation could diverge marketing vs invoice owner again. |
+| Implemented | `link_billing_alias` (idempotent, conflict-safe, audit event). `activate_plan` resolves marketing id + links activation id. UPI activate optional `billing_client_id`. Dry-run `scripts/report_billing_alias_gaps.py` (email-unique suggestions only; no bulk mutate). |
+| Status | **Committed `e845243`, present on prod `716bed84`** (`def link_billing_alias` verified in container). |
+| Bulk backfill | **Not executed** (requires explicit dry-run review + execution flag per policy). |
 
 ## Active work
 
-- **Current selected task:** Identity canonicalization gap — **DONE locally**; awaiting commit + deploy.
-- **Why highest-value:** Real ₹1,999 customer deliverability under billing-alias login.
-- **Next concrete step:** Commit **code-only** files (exclude `data/*` and do not commit secrets). Suggested paths:
-  - `app/api/customer_dashboard.py`
-  - `app/api/customer_dashboard_builders.py`
-  - `app/api/customer_marketing_studio.py`
-  - `app/api/billing.py`
-  - `tests/test_client_identity_canonicalization_2026.py`
-  - `tests/test_billing_alias_resolution.py`
-  - `analysis/*` (optional docs)
-  - Then deploy to VPS; browser-verify Jiya portal.
+- None for identity deliverability — **production-closed**.
+- Optional: run `report_billing_alias_gaps.py` on VPS and review any orphan billing ids before any repair.
 
-## Backlog (prioritized)
+## Backlog
 
-### P0
-- None newly proven this session (prod healthy on `5e2ccb9c`).
-
-### P1
-1. **Deploy identity canonicalization** (`670f579` + this session's dashboard/approval/profile/timeline fixes) to production; browser-verify Jiya portal content + approve one draft (tenant-scoped).
-2. **Swara controlled inbound canary** on deployed SHA (SESSION_HANDOFF — user/telecom gated; `platform_dial` stays OFF).
-3. **Admin HQ browser UAT** — canary call recording/transcript + billing shows only INV/0001.
-4. **Audit remaining customer marketing call sites** for raw-id usage (studio deeper paths, any new endpoints).
+### P1 (remaining, external-gated)
+1. Swara controlled **inbound** canary (telecom/user) — `platform_dial` stays OFF
+2. Admin HQ + Jiya portal **browser UAT** (credentials/OTP)
+3. Optional: approve one Jiya draft in browser when publish side-effects are understood
 
 ### P2
-- Unified admin command surface consolidation (Priority A) — after customer delivery truth is solid on prod.
-- Scheduler/queue last-run observability consistency (Priority C).
-- OmniRoute VPS gateway reachability (blocked on infra).
+- Unified admin command surface consolidation
+- OmniRoute VPS gateway
 
-### P3
-- Polish / optional Unity virtual-office paths.
-- Align `test_voice_gemini_primary_flag` default (non-blocking env artifact).
+## Architecture map (unchanged essence)
 
-## Session notes
-
-- Mid-session, uncommitted WIP on `customer_auth.py` + `product_one_delivery.py` was committed externally as `670f579` while this agent was tracing — extended the incomplete fix rather than duplicating.
-- Do **not** reopen billing void/active invoice work (SESSION_HANDOFF: DONE).
-- Do **not** re-enable `platform_dial` outbound.
+Marketing domain must use `canonical_client_id` / `resolve_client`. Billing domain uses `_billing_client_ids` / raw invoice owner ids. Never mix invoice ownership onto marketing id.
