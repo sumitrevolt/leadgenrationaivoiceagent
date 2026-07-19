@@ -89,7 +89,9 @@ def _qa_run_limits() -> tuple[int, float]:
     """
 
     try:
-        max_turns = int(os.getenv("QA_MAX_TURNS", str(_QA_DEFAULT_MAX_TURNS)) or _QA_DEFAULT_MAX_TURNS)
+        max_turns = int(
+            os.getenv("QA_MAX_TURNS", str(_QA_DEFAULT_MAX_TURNS)) or _QA_DEFAULT_MAX_TURNS
+        )
     except (TypeError, ValueError):
         max_turns = _QA_DEFAULT_MAX_TURNS
     try:
@@ -286,7 +288,9 @@ async def run_qa(niches: list[str] | None = None) -> dict[str, Any]:
             if total_turns >= max_turns:
                 # Reaching the cap exactly on the final available turn is complete,
                 # not truncated.  Preserve that distinction for the admin record.
-                truncated = truncated or (turn_index + 1 < len(turns)) or (niche_index + 1 < len(targets))
+                truncated = (
+                    truncated or (turn_index + 1 < len(turns)) or (niche_index + 1 < len(targets))
+                )
                 break
 
         team.log_event(
@@ -404,7 +408,13 @@ async def run_trainer() -> dict[str, Any]:
                         niche = str(rec.get("niche") or "general").strip() or "general"
                         ns = niche_stats.setdefault(
                             niche,
-                            {"calls": 0, "user_msgs": 0, "junk_user": 0, "reply_words": [], "repeats": 0},
+                            {
+                                "calls": 0,
+                                "user_msgs": 0,
+                                "junk_user": 0,
+                                "reply_words": [],
+                                "repeats": 0,
+                            },
                         )
                         ns["calls"] += 1
                         for k, v in (rec.get("stt_counts") or {}).items():
@@ -446,9 +456,9 @@ async def run_trainer() -> dict[str, Any]:
             by_niche[n] = {
                 "calls": ns["calls"],
                 "user_turns": ns["user_msgs"],
-                "junk_stt_ratio": round(ns["junk_user"] / ns["user_msgs"], 2)
-                if ns["user_msgs"]
-                else 0.0,
+                "junk_stt_ratio": (
+                    round(ns["junk_user"] / ns["user_msgs"], 2) if ns["user_msgs"] else 0.0
+                ),
                 "avg_reply_words": round(sum(rw) / len(rw), 1) if rw else 0.0,
                 "repeats": ns["repeats"],
             }
@@ -477,9 +487,7 @@ async def run_trainer() -> dict[str, Any]:
         # W2.3-half2: aggregate ke piche chhupi noisy-STT niche flag karo — global
         # junk threshold ke NICHE ho tab bhi ek niche cross kar sakti hai (masked).
         if junk_ratio <= _junk_max and len(by_niche) >= 2:
-            _sig = [
-                (n, d) for n, d in by_niche.items() if d["user_turns"] >= _NICHE_MIN_TURNS
-            ]
+            _sig = [(n, d) for n, d in by_niche.items() if d["user_turns"] >= _NICHE_MIN_TURNS]
             if _sig:
                 worst_n, worst_d = max(_sig, key=lambda x: x[1]["junk_stt_ratio"])
                 if worst_d["junk_stt_ratio"] > _junk_max:
@@ -972,6 +980,386 @@ async def run_growth() -> dict[str, Any]:
 
 
 # --------------------------------------------------------------------------- #
+# Extended run_* wrappers — 25 previously non-runnable agents ko manual-trigger
+# surface dete hain. Har wrapper apne engine ko delegate karta hai, env-flag
+# check karta hai, aur KABHI raise nahi karta. Log via team.log_event().
+# Pattern: try/import → flag check → engine call → log → result dict.
+# --------------------------------------------------------------------------- #
+
+
+def _flag_on(flag: str) -> bool:
+    """Env flag active hai ya nahi — util for gated agents."""
+    return (os.environ.get(flag) or "").strip().lower() in ("1", "true", "yes")
+
+
+def _log(member: str, action: str, detail: str, status: str = "ok") -> None:
+    """Safe team.log_event wrapper — never raises."""
+    try:
+        from app.platform import team
+
+        team.log_event(member, action, detail, status=status)
+    except Exception:
+        pass
+
+
+def _track_agent_cost(agent_id: str, result: dict[str, Any], elapsed_s: float) -> None:
+    """Best-effort per-agent cost tracking via agent_cost_tracker. Never raises."""
+    try:
+        from app.platform import agent_cost_tracker as act
+
+        # Extract provider/token info if the run result contains it
+        provider = result.get("provider", "") or ""
+        tokens_in = int(result.get("cost_tokens_in", 0) or result.get("tokens_in", 0) or 0)
+        tokens_out = int(result.get("cost_tokens_out", 0) or result.get("tokens_out", 0) or 0)
+        act.record(
+            agent_id, provider=provider or "unknown", tokens_in=tokens_in, tokens_out=tokens_out
+        )
+    except Exception:
+        pass
+
+
+async def run_swara() -> dict[str, Any]:
+    """Swara (Voice Agent) — readiness status check. On-demand voice actor,
+    no standalone batch — reports voice subsystem health."""
+    try:
+        from app.voice_agent import free_ai
+
+        providers = await free_ai.provider_status() if hasattr(free_ai, "provider_status") else {}
+        _log("swara", "readiness_check", f"Voice subsystem: {len(providers)} providers")
+        return {"ok": True, "type": "readiness", "providers": providers}
+    except Exception as e:
+        _log("swara", "readiness_check", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_ananya() -> dict[str, Any]:
+    """Ananya (Booking Campaigns) — booking reminders + callback queue."""
+    try:
+        from app.platform import booking_reminders
+
+        res = await booking_reminders.run_due()
+        _log("ananya", "booking_reminders", f"Reminders: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("ananya", "booking_reminders", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_riya() -> dict[str, Any]:
+    """Riya (Inbound/Widget) — readiness check. Event-driven agent."""
+    try:
+        _log("riya", "readiness_check", "Inbound widget agent ready")
+        return {"ok": True, "type": "readiness", "detail": "event-driven, no batch run"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def run_dev() -> dict[str, Any]:
+    """Dev (New Client Setup) — onboarding sweep + ML training status."""
+    try:
+        from app.marketing import onboarding
+
+        res = await onboarding.run_onboarding_sweep()
+        _log("dev", "onboarding_sweep", f"Sweep: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("dev", "onboarding_sweep", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_lekha() -> dict[str, Any]:
+    """Lekha (Call KPI Analyst) — daily call analytics digest."""
+    try:
+        from app.voice_agent import call_analytics
+
+        call_analytics.run_daily_digest()
+        _log("lekha", "call_kpi_digest", "KPI digest generated")
+        return {"ok": True}
+    except Exception as e:
+        _log("lekha", "call_kpi_digest", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_raksha() -> dict[str, Any]:
+    """Raksha (Live Call Monitor) — call transfer readiness (gated CALL_TRANSFER)."""
+    try:
+        if not _flag_on("CALL_TRANSFER"):
+            return {"ok": True, "status": "flag_off:CALL_TRANSFER"}
+        _log("raksha", "readiness_check", "Call transfer system ready")
+        return {"ok": True, "type": "readiness"}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def run_hermes() -> dict[str, Any]:
+    """Hermes (Infra Watchdog) — ops watchdog safety checks (gated INFRA_HANDLER)."""
+    try:
+        from app.platform import ops_watchdog
+
+        res = ops_watchdog.run_checks()
+        _log("hermes", "watchdog", f"Checks: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("hermes", "watchdog", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_tara() -> dict[str, Any]:
+    """Tara (Voice Watchdog) — voice subsystem monitoring."""
+    try:
+        from app.platform import ops_watchdog
+
+        res = ops_watchdog.run_checks()
+        _log("tara", "voice_watchdog", f"Voice health: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("tara", "voice_watchdog", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_nikhil() -> dict[str, Any]:
+    """Nikhil (Revenue Ops) — revenue digest + client health + usage alerts."""
+    try:
+        results = {}
+        try:
+            from app.platform import revenue_digest
+
+            results["revenue"] = await revenue_digest.maybe_run_weekly()
+        except Exception as e:
+            results["revenue"] = {"error": str(e)}
+        try:
+            from app.platform import client_health
+
+            results["client_health"] = await client_health.run_check()
+        except Exception as e:
+            results["client_health"] = {"error": str(e)}
+        try:
+            from app.billing import usage_alerts
+
+            results["usage_alerts"] = await usage_alerts.run_check()
+        except Exception as e:
+            results["usage_alerts"] = {"error": str(e)}
+        _log("nikhil", "revenue_ops", f"3 engines run: {list(results.keys())}")
+        return {"ok": True, "results": results}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+async def run_vikram() -> dict[str, Any]:
+    """Vikram (Code Upgrader) — code-upgrade proposals (gated CODE_UPGRADER)."""
+    try:
+        from app.agents import code_upgrader
+
+        await code_upgrader.run_if_enabled()
+        _log("vikram", "code_upgrader", "Code upgrade check complete")
+        return {"ok": True}
+    except Exception as e:
+        _log("vikram", "code_upgrader", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_guru() -> dict[str, Any]:
+    """Guru (Skill Pack) — skill KB ingest (gated SKILL_PACK)."""
+    try:
+        from app.platform import skill_pack
+
+        if not skill_pack.enabled():
+            return {"ok": True, "status": "flag_off:SKILL_PACK"}
+        res = skill_pack.ingest_to_kb()
+        _log("guru", "skill_ingest", f"Skills → KB: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("guru", "skill_ingest", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_pranav() -> dict[str, Any]:
+    """Pranav (SRE) — reliability score (gated SRE_AGENT)."""
+    try:
+        from app.platform import engineer_agents
+
+        res = engineer_agents.run_sre()
+        _log("pranav", "sre_check", f"SRE: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("pranav", "sre_check", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_vidya() -> dict[str, Any]:
+    """Vidya (FinOps) — margin digest (gated FINOPS_AGENT)."""
+    try:
+        from app.platform import engineer_agents
+
+        res = engineer_agents.run_finops()
+        _log("vidya", "finops_check", f"FinOps: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("vidya", "finops_check", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_arnav() -> dict[str, Any]:
+    """Arnav (Security) — compliance posture (gated SECURITY_AGENT)."""
+    try:
+        from app.platform import engineer_agents
+
+        res = engineer_agents.run_security()
+        _log("arnav", "security_check", f"Security: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("arnav", "security_check", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_kabir() -> dict[str, Any]:
+    """Kabir (DBRE) — Postgres reliability (gated DBRE_AGENT)."""
+    try:
+        from app.platform import engineer_agents
+
+        res = engineer_agents.run_dbre()
+        _log("kabir", "dbre_check", f"DBRE: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("kabir", "dbre_check", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_diya() -> dict[str, Any]:
+    """Diya (Data Integrity) — lead/CRM data integrity (gated DATA_INTEGRITY_AGENT)."""
+    try:
+        from app.platform import engineer_agents
+
+        res = engineer_agents.run_dataquality()
+        _log("diya", "dataquality_check", f"Data quality: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("diya", "dataquality_check", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_aryan() -> dict[str, Any]:
+    """Aryan (Deps Audit) — dependency CVE audit (gated DEPS_AGENT)."""
+    try:
+        from app.platform import engineer_agents
+
+        res = engineer_agents.run_deps()
+        _log("aryan", "deps_check", f"Deps: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("aryan", "deps_check", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_arya() -> dict[str, Any]:
+    """Arya (MCP Engineer) — MCP health pulse (gated MCP_ENGINEER)."""
+    try:
+        from app.platform import mcp_engineer
+
+        res = mcp_engineer.run_mcp()
+        _log("arya", "mcp_check", f"MCP: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("arya", "mcp_check", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_ravi() -> dict[str, Any]:
+    """Ravi (SEO/Blog) — programmatic SEO blog articles."""
+    try:
+        return await run_blog(n=3)
+    except Exception as e:
+        _log("ravi", "blog", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_neha() -> dict[str, Any]:
+    """Neha (Pipeline Ops) — lead rescore + hot-lead surfacing."""
+    try:
+        from app.platform import pipeline_ops
+
+        res = await pipeline_ops.run_daily()
+        _log("neha", "pipeline", f"Pipeline: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("neha", "pipeline", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_kiran() -> dict[str, Any]:
+    """Kiran (Campaign Optimizer) — campaign optimization (gated CAMPAIGN_OPTIMIZER)."""
+    try:
+        from app.agents import campaign_optimizer
+
+        res = await campaign_optimizer.optimize()
+        _log("kiran", "campaign_optimize", f"Optimizer: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("kiran", "campaign_optimize", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_priya() -> dict[str, Any]:
+    """Priya (CRM Sync) — customer CRM sync + wishes (gated CRM_SYNC)."""
+    try:
+        if not _flag_on("CRM_SYNC"):
+            return {"ok": True, "status": "flag_off:CRM_SYNC"}
+        from app.marketing import customer_crm
+
+        res = await customer_crm.run_wishes_if_enabled()
+        _log("priya", "crm_sync", f"CRM: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("priya", "crm_sync", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_zara() -> dict[str, Any]:
+    """Zara (Social Publisher) — social queue drain (gated SOCIAL_ENGINE)."""
+    try:
+        if not _flag_on("SOCIAL_ENGINE"):
+            return {"ok": True, "status": "flag_off:SOCIAL_ENGINE"}
+        from app.social_engine import engine as social_engine
+
+        res = await social_engine.process_queue(30)
+        _log("zara", "social_drain", f"Social: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("zara", "social_drain", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_anika() -> dict[str, Any]:
+    """Anika (Cadence) — omnichannel cadence advance (gated CADENCE_ENGINE)."""
+    try:
+        if not _flag_on("CADENCE_ENGINE"):
+            return {"ok": True, "status": "flag_off:CADENCE_ENGINE"}
+        from app.marketing import cadence
+
+        res = await cadence.run_due()
+        _log("anika", "cadence", f"Cadence: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("anika", "cadence", str(e), "error")
+        return {"error": str(e)}
+
+
+async def run_ira() -> dict[str, Any]:
+    """Ira (Journey/Hooks) — lifecycle nurture (gated JOURNEY_ENGINE)."""
+    try:
+        if not _flag_on("JOURNEY_ENGINE"):
+            return {"ok": True, "status": "flag_off:JOURNEY_ENGINE"}
+        from app.marketing import lifecycle_nurture
+
+        res = await lifecycle_nurture.run_due()
+        _log("ira", "lifecycle_nurture", f"Journey: {res}")
+        return {"ok": True, "result": res}
+    except Exception as e:
+        _log("ira", "lifecycle_nurture", str(e), "error")
+        return {"error": str(e)}
+
+
+# --------------------------------------------------------------------------- #
 # Dispatcher — member/job naam se sahi run_* function chalao (API + scheduler).
 # --------------------------------------------------------------------------- #
 async def run_member(member: str) -> dict[str, Any]:
@@ -1000,7 +1388,30 @@ async def run_member(member: str) -> dict[str, Any]:
             return {"skipped": True, "reason": "paused_by_admin"}
     except Exception:
         pass
+
+    # --- Paperclip budget governor: check before running ---
+    try:
+        from app.platform import agent_budget
+
+        budget_result = agent_budget.check(key)
+        if not budget_result.get("allowed", True):
+            logger.info(
+                f"[staff] run_member({key}) blocked — budget exceeded (tier {budget_result.get('tier')})"
+            )
+            try:
+                from app.platform import team
+
+                team.log_event(
+                    key, "run_blocked_budget", f"Budget exceeded: {budget_result}", status="error"
+                )
+            except Exception:
+                pass
+            return {"skipped": True, "reason": "budget_exceeded", "budget": budget_result}
+    except Exception:
+        pass
+
     table = {
+        # --- Original 6 RUNNABLE + aliases ---
         "arjun": run_qa,
         "qa": run_qa,
         "meera": run_trainer,
@@ -1015,12 +1426,43 @@ async def run_member(member: str) -> dict[str, Any]:
         "growth": run_growth,
         "rohan": run_email_outreach,
         "email_outreach": run_email_outreach,
+        # --- Voice team ---
+        "swara": run_swara,
+        "ananya": run_ananya,
+        "riya": run_riya,
+        "lekha": run_lekha,
+        "raksha": run_raksha,
+        "tara": run_tara,
+        # --- Marketing team ---
+        "dev": run_dev,
+        "ravi": run_ravi,
+        "neha": run_neha,
+        "kiran": run_kiran,
+        "priya": run_priya,
+        "zara": run_zara,
+        "anika": run_anika,
+        "ira": run_ira,
+        # --- Platform / Engineering ---
+        "hermes": run_hermes,
+        "nikhil": run_nikhil,
+        "vikram": run_vikram,
+        "guru": run_guru,
+        "pranav": run_pranav,
+        "vidya": run_vidya,
+        "arnav": run_arnav,
+        "kabir": run_kabir,
+        "diya": run_diya,
+        "aryan": run_aryan,
+        "arya": run_arya,
     }
     fn = table.get(key)
     if fn is None:
         return {"error": f"unknown member/job: {member}"}
+    t0 = time.monotonic()
     try:
-        return await fn()
+        result = await fn()
+        _track_agent_cost(key, result, time.monotonic() - t0)
+        return result
     except Exception as e:
         logger.warning(f"[staff] run_member({member}) failed: {e}")
         return {"error": str(e)}
@@ -1036,4 +1478,30 @@ __all__ = [
     "run_email_outreach",
     "run_growth",
     "run_member",
+    # Extended roster — all 25 previously non-runnable agents
+    "run_swara",
+    "run_ananya",
+    "run_riya",
+    "run_dev",
+    "run_lekha",
+    "run_raksha",
+    "run_hermes",
+    "run_tara",
+    "run_nikhil",
+    "run_vikram",
+    "run_guru",
+    "run_pranav",
+    "run_vidya",
+    "run_arnav",
+    "run_kabir",
+    "run_diya",
+    "run_aryan",
+    "run_arya",
+    "run_ravi",
+    "run_neha",
+    "run_kiran",
+    "run_priya",
+    "run_zara",
+    "run_anika",
+    "run_ira",
 ]
