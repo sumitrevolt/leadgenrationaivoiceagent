@@ -27,7 +27,7 @@ def _capture(logger: logging.Logger, level: int = logging.INFO):
 
 
 def test_startup_banner_never_logs_google_maps_key(monkeypatch):
-    synthetic_key = "AIzaSyD-abc123_ABC456def789ghiJKL012mno"  # pragma: allowlist secret
+    synthetic_key = "FAKE_GOOGLE_MAPS_KEY_FOR_TESTS_ONLY_000"  # pragma: allowlist secret
     monkeypatch.setattr(main.settings, "google_maps_api_key", synthetic_key)
 
     with _capture(main.logger, logging.INFO) as records:
