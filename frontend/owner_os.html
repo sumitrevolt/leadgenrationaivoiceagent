@@ -490,6 +490,25 @@ async function runtimeKavya(){
   document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
   loadRuntime();
 }
+async function runtimeIsha(){
+  const tenant=(document.getElementById("rtTenant").value||"").trim();
+  if(!tenant){ toast("tenant_id required (e.g. jiya-makeover)"); return; }
+  const topic=(document.getElementById("rtTopic").value||"local business marketing").trim().slice(0,200);
+  const idem="ui-isha-"+Date.now();
+  const {body}=await api("/api/admin/owner-os/runtime/run",{method:"POST",body:JSON.stringify({
+    agent_id:"isha",
+    action:"draft_content_brief",
+    tenant_id:tenant,
+    payload:{topic, business_name:tenant},
+    idempotency_key:idem
+  })});
+  const r=(body||{}).result||{};
+  const out=(r.output||{});
+  const pub=out.published===true;
+  toast(r.status==="succeeded"?(pub?"WARN published?":"Isha draft OK (not published)"):(r.reason||r.status||"blocked/skipped"));
+  document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
+  loadRuntime();
+}
 
 async function loadApprovals(){
   const {body}=await api("/api/admin/owner-os/approvals");
