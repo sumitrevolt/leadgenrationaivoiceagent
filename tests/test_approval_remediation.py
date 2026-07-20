@@ -52,6 +52,9 @@ _STATES = {
     },  # too young -> ignored
 }
 
+# Fake billing alias fixture (not a credential) — same pattern as test_delivery_assurance.
+_JIYA_BILLING_ALIAS = "d79d690f61b3"  # pragma: allowlist secret
+
 
 def _wire(monkeypatch):
     monkeypatch.setattr(content_approval, "_latest_states", lambda: dict(_STATES))
@@ -59,7 +62,7 @@ def _wire(monkeypatch):
         clients_store,
         "list_clients",
         lambda status=None, product=None: [
-            {"id": "jiya-makeover", "billing_client_ids": ["d79d690f61b3"]}
+            {"id": "jiya-makeover", "billing_client_ids": [_JIYA_BILLING_ALIAS]}
         ],
     )
     monkeypatch.setattr(clients_store, "canonical_client_id", lambda cid: str(cid or "").strip())
