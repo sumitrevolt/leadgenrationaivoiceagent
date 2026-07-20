@@ -52,7 +52,7 @@ def test_disk_guard_runs_before_the_actual_build():
     problem that already happened."""
     t = _text()
     guard_idx = t.index("=== DISK GUARD")
-    build_idx = t.index("docker compose -f \"$COMPOSE\" build app")
+    build_idx = t.index('docker compose -f "$COMPOSE" build app')
     assert guard_idx < build_idx
 
 
@@ -71,8 +71,15 @@ def test_dry_run_exits_zero_before_any_build_or_up_command():
     # exit line) must not contain any mutating docker subcommand
     guard_start = t.index('if [ "$DRY_RUN" = "1" ]; then\n  echo "=== BUILD CACHE')
     preview_block = t[guard_start:dry_run_exit_idx]
-    for mutating in ("docker rmi", "docker builder prune", "docker image prune", "docker system prune"):
-        assert mutating not in preview_block, f"DRY_RUN preview must stay read-only, found {mutating!r}"
+    for mutating in (
+        "docker rmi",
+        "docker builder prune",
+        "docker image prune",
+        "docker system prune",
+    ):
+        assert (
+            mutating not in preview_block
+        ), f"DRY_RUN preview must stay read-only, found {mutating!r}"
 
 
 def test_build_cache_retention_present_with_age_and_storage_floor():
@@ -80,7 +87,7 @@ def test_build_cache_retention_present_with_age_and_storage_floor():
     assert 'BUILD_CACHE_MAX_AGE="${BUILD_CACHE_MAX_AGE:-168h}"' in t
     assert 'BUILD_CACHE_KEEP_STORAGE="${BUILD_CACHE_KEEP_STORAGE:-20GB}"' in t
     assert "docker builder prune -f" in t
-    assert "--filter \"unused-for=$BUILD_CACHE_MAX_AGE\"" in t
+    assert '--filter "unused-for=$BUILD_CACHE_MAX_AGE"' in t
     # `--keep-storage` is deprecated on Docker 29.4.3 (verified live: silently
     # reclaimed 0B against a real 40GB-reclaimable cache) -- `--max-used-space`
     # is the confirmed working successor (docker builder prune --help). The
@@ -153,7 +160,7 @@ def test_sha_arg_must_match_repo_head():
     t = _text()
     assert "requested APP_VERSION=" in t
     assert "Refusing silent code/tag skew" in t
-    assert 'REPO_SHA != APP_VERSION' in t or "REPO_SHA != APP_VERSION" in t
+    assert "REPO_SHA != APP_VERSION" in t or "REPO_SHA != APP_VERSION" in t
 
 
 def test_compose_up_has_bounded_recreate_retry():
@@ -165,3 +172,24 @@ def test_compose_up_has_bounded_recreate_retry():
     cleanup_idx = t.index("_cleanup_recreate_ghosts")
     verify_idx = t.index("=== VERIFY /health")
     assert cleanup_idx < verify_idx
+
+
+def test_health_verification_retries_during_bounded_cold_start_window():
+    """A single health probe can race the app's model/import cold start.
+
+    The canonical deploy must wait for the exact deployed SHA, with an
+    operator-tunable but bounded retry count and interval, before failing or
+    moving on to retention.
+    """
+    t = _text()
+    assert 'HEALTH_MAX_ATTEMPTS="${HEALTH_MAX_ATTEMPTS:-12}"' in t
+    assert 'HEALTH_RETRY_SECONDS="${HEALTH_RETRY_SECONDS:-5}"' in t
+    assert 'while [ "$HEALTH_ATTEMPT" -le "$HEALTH_MAX_ATTEMPTS" ]' in t
+    assert 'if [ "$LIVE_VER" = "$VER" ]; then' in t
+    assert 'sleep "$HEALTH_RETRY_SECONDS"' in t
+    assert "after $HEALTH_MAX_ATTEMPTS attempts" in t
+
+    verify_idx = t.index("=== VERIFY /health")
+    retry_idx = t.index('while [ "$HEALTH_ATTEMPT" -le "$HEALTH_MAX_ATTEMPTS" ]')
+    skew_idx = t.index("=== SKEW CHECK")
+    assert verify_idx < retry_idx < skew_idx
