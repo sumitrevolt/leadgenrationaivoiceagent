@@ -657,13 +657,17 @@
         toast("Delivery Cockpit data partial/fail — dobara try karo", "err");
       }
       var customers = (data && data.customers) || [];
+      var assurance = (data && data.assurance) || {};
       renderKpis({
         total_customers: customers.length,
         paying_customers: customers.filter(function(c){ return c.plan !== "trial"; }).length,
         stuck_in_setup: (data.summary || {}).pending_customer_inputs,
         receiving_value: customers.filter(function(c){ return Number(c.deliverable_completion_pct || 0) > 0; }).length,
         failed_automation_count: (data.summary || {}).failed_automations,
-        pending_approvals_total: (data.summary || {}).posts_waiting_for_approval
+        pending_approvals_total: (data.summary || {}).posts_waiting_for_approval,
+        // delivery_assurance rollup — paid customers missed/at-risk (canonical ids)
+        at_risk_count: Number(assurance.at_risk || 0) + Number(assurance.missed || 0),
+        benefit_this_week: (data.summary || {}).posts_published
       });
       renderPipeline((data && data.pipeline) || []);
       renderRevenue((data && data.revenue) || {mrr_total:0, by_plan:{}});

@@ -1735,7 +1735,27 @@ def delivery_cockpit() -> dict[str, Any]:
         "customers": cards,
         "integration_health": _safe_integration_readiness(),
         "db_audit": _safe_customer_deliverable_db_audit(cards),
+        # Read-only paid-customer missed/at-risk rollup (nikhil / delivery_assurance).
+        # Never mutates delivery state; cockpit stays useful even if scan fails.
+        "assurance": _safe_delivery_assurance_summary(),
     }
+
+
+def _safe_delivery_assurance_summary() -> dict[str, Any]:
+    """Never-raise wrapper around delivery_assurance.missed_deliverables_summary."""
+    try:
+        from app.marketing import delivery_assurance
+
+        return delivery_assurance.missed_deliverables_summary()
+    except Exception as exc:
+        return {
+            "generated_at": None,
+            "checked": 0,
+            "missed": 0,
+            "at_risk": 0,
+            "customers": [],
+            "error": str(exc)[:160],
+        }
 
 
 def _safe_customer_deliverable_db_audit(cards: list[dict[str, Any]]) -> dict[str, Any]:

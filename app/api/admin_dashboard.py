@@ -421,6 +421,41 @@ async def admin_delivery_cockpit(_user=Depends(require_admin)) -> dict:
         return {"ok": False, "summary": {}, "pipeline": [], "customers": [], "error": str(e)[:160]}
 
 
+@router.get("/delivery-assurance")
+async def admin_delivery_assurance(
+    include_healthy: bool = Query(False),
+    limit: int = Query(100, ge=1, le=500),
+    _user=Depends(require_admin),
+) -> dict:
+    """Read-only missed / at-risk paid-customer delivery scan.
+
+    Composes existing delivery primitives (canonical id + ledger evidence +
+    customer_delivery_status). Never sends WhatsApp/email and never mutates
+    delivery_state. Owner attribution: nikhil (revenue ops).
+    """
+    try:
+        from app.marketing import delivery_assurance
+
+        scan = await asyncio.to_thread(
+            delivery_assurance.scan_missed_deliverables,
+            limit,
+            include_healthy,
+        )
+        return {"ok": scan.get("status") == "success", **scan}
+    except Exception as e:
+        logger.warning("admin_delivery_assurance failed: %s", e)
+        return {
+            "ok": False,
+            "status": "error",
+            "agent_id": "delivery_assurance",
+            "checked": 0,
+            "missed_count": 0,
+            "at_risk_count": 0,
+            "items": [],
+            "error": str(e)[:160],
+        }
+
+
 @router.get("/delivery-logs")
 async def admin_delivery_logs(
     filter: str = Query("", max_length=80),
