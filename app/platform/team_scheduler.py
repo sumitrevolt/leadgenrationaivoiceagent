@@ -860,7 +860,7 @@ async def _run_job_inner(job: str) -> bool:
             if os.environ.get("NICHE_ROTATION", "0").strip().lower() in ("1", "true", "yes"):
                 from app.platform import niche_prospector
 
-                _prospect_result = await niche_prospector.run(batch=8)
+                _prospect_result = await niche_prospector.run(batch=4)
             else:
                 from app.platform import prospector
 
