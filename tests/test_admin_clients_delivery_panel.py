@@ -32,7 +32,8 @@ def test_delivery_panel_calls_real_admin_timeline_endpoint():
 def test_deliver_now_calls_real_admin_endpoint_and_reuses_helpers():
     html = _html()
     idx = html.index("async function deliverNow(")
-    snippet = html[idx : idx + 700]
+    # Confirmation/audit commentary may grow; inspect the whole bounded handler.
+    snippet = html[idx : html.index("\n  var TYPE_BADGE", idx)]
     assert "/deliver-now" in snippet
     assert 'method: "POST"' in snippet
     assert "hdrs()" in snippet
