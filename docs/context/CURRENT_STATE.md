@@ -7,7 +7,7 @@
 2026-07-20T02:05Z (prod `/health` probe) · local git verified same session
 
 ## Local HEAD
-`79ef3dcd5712efc1535894fd478fe92e12dc43a4` — `feat(delivery): read-only missed-deliverable assurance aggregator`
+bfdef446288c22c24282a8353dd81b74d063edec - feat(context): canonical docs + wire delivery assurance to admin cockpit
 Label: CODE-PRESENT (matches origin/main)
 
 ## Origin/main

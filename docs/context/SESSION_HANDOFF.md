@@ -7,7 +7,7 @@ Context recovery + WS-1: wire delivery_assurance into admin cockpit/API/UI
 `79ef3dcd` (local = origin/main) · prod `8ad64db7`
 
 ## Ending SHA
-(see commit after this handoff write — expect new SHA on main)
+bfdef446288c22c24282a8353dd81b74d063edec - feat(context): canonical docs + wire delivery assurance to admin cockpit
 
 ## Files changed
 - `docs/context/*` (CURRENT_STATE, SYSTEM_MAP, PRODUCTION_TRUTH, ACTIVE_WORK, DECISIONS, RISKS_AND_BLOCKERS, AGENT_OWNERSHIP, SESSION_HANDOFF, AI_OPERATING_PROTOCOL)
