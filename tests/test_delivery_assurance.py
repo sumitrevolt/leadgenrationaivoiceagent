@@ -351,3 +351,7 @@ def test_command_center_feeds_assurance_into_at_risk_kpi():
     assert "at_risk_count:" in html
     assert "assurance.at_risk" in html
     assert "assurance.missed" in html
+    # Never fake green zero when assurance scan failed
+    assert "assurance.error" in html
+    assert "assuranceUnavailable" in html
+    assert "assurance unavailable" in html
