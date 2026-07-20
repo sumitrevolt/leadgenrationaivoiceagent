@@ -14,12 +14,14 @@ from __future__ import annotations
 
 import pytest
 
+from tests._api_helpers import api_error_message
+
 
 @pytest.fixture(autouse=True)
 def _override_customer_auth(monkeypatch):
     """Force `require_customer` to return a known client_id for these tests."""
-    from app.main import app
     from app.api.customer_auth import require_customer
+    from app.main import app
 
     app.dependency_overrides[require_customer] = lambda: "c_pwtest"
     yield
@@ -37,7 +39,9 @@ def _stub_store_row(monkeypatch, email: str = "u@example.com"):
     }
     monkeypatch.setattr(ca, "_read", lambda: [row])
     captured: dict = {}
-    monkeypatch.setattr(ca, "register_login", lambda e, p, c: captured.update(email=e, password=p, client_id=c))
+    monkeypatch.setattr(
+        ca, "register_login", lambda e, p, c: captured.update(email=e, password=p, client_id=c)
+    )
     return captured
 
 
@@ -45,12 +49,16 @@ def test_change_password_happy_path_updates_store_and_logs(client, monkeypatch):
     captured = _stub_store_row(monkeypatch)
 
     import app.platform.automation_log_service as als
+
     log_rows: list[dict] = []
     monkeypatch.setattr(als, "log_event", lambda **kw: (log_rows.append(kw), "id")[1])
 
     r = client.post(
         "/api/customer/auth/change-password",
-        json={"old_password": "oldPass123!", "new_password": "newerPass456$"},
+        json={
+            "old_password": "oldPass123!",  # pragma: allowlist secret
+            "new_password": "newerPass456$",  # pragma: allowlist secret
+        },
     )
     assert r.status_code == 200, r.text
     assert r.json().get("ok") is True
@@ -67,12 +75,13 @@ def test_change_password_rejects_wrong_old_password_with_admin_log(client, monke
     _stub_store_row(monkeypatch)
 
     import app.platform.automation_log_service as als
+
     log_rows: list[dict] = []
     monkeypatch.setattr(als, "log_event", lambda **kw: (log_rows.append(kw), "id")[1])
 
     r = client.post(
         "/api/customer/auth/change-password",
-        json={"old_password": "WRONG", "new_password": "newerPass456$"},
+        json={"old_password": "WRONG", "new_password": "newerPass456$"},  # pragma: allowlist secret
     )
     assert r.status_code == 401
     fail_rows = [x for x in log_rows if x.get("job_type") == "password_change_failed"]
@@ -85,10 +94,13 @@ def test_change_password_rejects_breached_new_password(client, monkeypatch):
 
     r = client.post(
         "/api/customer/auth/change-password",
-        json={"old_password": "oldPass123!", "new_password": "password"},
+        json={
+            "old_password": "oldPass123!",  # pragma: allowlist secret
+            "new_password": "password",  # pragma: allowlist secret
+        },
     )
     assert r.status_code == 422
-    assert "common" in (r.json().get("detail") or "").lower()
+    assert "common" in api_error_message(r).lower()
 
 
 def test_change_password_rejects_reuse_of_old_password(client, monkeypatch):
@@ -96,10 +108,13 @@ def test_change_password_rejects_reuse_of_old_password(client, monkeypatch):
 
     r = client.post(
         "/api/customer/auth/change-password",
-        json={"old_password": "oldPass123!", "new_password": "oldPass123!"},
+        json={
+            "old_password": "oldPass123!",  # pragma: allowlist secret
+            "new_password": "oldPass123!",  # pragma: allowlist secret
+        },
     )
     assert r.status_code == 422
-    assert "alag" in (r.json().get("detail") or "").lower()
+    assert "alag" in api_error_message(r).lower()
 
 
 def test_change_password_returns_409_when_no_credential_row(client, monkeypatch):
@@ -111,7 +126,7 @@ def test_change_password_returns_409_when_no_credential_row(client, monkeypatch)
 
     r = client.post(
         "/api/customer/auth/change-password",
-        json={"old_password": "any", "new_password": "newerPass456$"},
+        json={"old_password": "any", "new_password": "newerPass456$"},  # pragma: allowlist secret
     )
     assert r.status_code == 409
-    assert "support" in (r.json().get("detail") or "").lower()
+    assert "support" in api_error_message(r).lower()

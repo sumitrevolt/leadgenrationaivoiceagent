@@ -517,6 +517,16 @@ def _reset_rate_limit_state():
         except Exception:
             pass
         try:
+            from app.middleware import RateLimitMiddleware
+
+            node = app.middleware_stack
+            while node is not None:
+                if isinstance(node, RateLimitMiddleware):
+                    node._fallback_counts.clear()
+                node = getattr(node, "app", None)
+        except Exception:
+            pass
+        try:
             import app.api.public_site as _ps
 
             for _dn in ("_RL", "_RL_AUDIT"):
