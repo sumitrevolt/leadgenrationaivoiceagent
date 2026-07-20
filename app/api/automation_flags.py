@@ -8,6 +8,7 @@ tests import `from app.api.growth import AUTOMATION_FLAGS`).
 # Saare gated automation flags ka registry — live env status ek jagah.
 AUTOMATION_FLAGS = [
     "OWNER_OS",  # Owner Operating System (/app/owner + /api/admin/owner-os) — always mounted for admin; flag documents surface
+    "OPENCLAW_ENABLED",  # OpenClaw Owner Copilot edge layer (/api/owner-copilot) — OFF default; Owner OS remains sole action authority
     "CONTROL_CENTER",  # enterprise Control Center cockpit (/app/control-center) — nav-surface gate, default OFF
     "ROUTE_HIT_COUNTER",  # per-route hit counter middleware (Redis route_hits:{YYYYMMDD}) for the Control Center "unused API" view — default OFF (middleware not in stack when off)
     "FLOW_RUNNER",  # visual builder -> process-as-code execution (admin, linear+DAG, default OFF)
