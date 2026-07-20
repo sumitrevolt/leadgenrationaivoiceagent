@@ -1095,7 +1095,7 @@ app.include_router(
 #   - FASTAPI_MCP_TOKEN env set + clients send `Authorization: Bearer <token>`
 #   - MCP_IP_ALLOWLIST env set (CSV) + request client IP must match
 # When NEITHER is set in production (PROD env), the mount is REFUSED and a
-# loud warning is logged. Dev path (DEBUG=1) still mounts to allow local work.
+# loud warning is logged. Non-production APP_ENV still mounts to allow local work.
 # Arya (mcp_engineer.py) probes this gate and alerts if it ever regresses.
 # ---------------------------------------------------------------------------
 try:
@@ -1106,7 +1106,7 @@ try:
         ip.strip() for ip in os.environ.get("MCP_IP_ALLOWLIST", "").split(",") if ip.strip()
     ]
     _mcp_gated = bool(_mcp_token) or bool(_mcp_allowlist)
-    _mcp_is_prod = os.environ.get("ENV", "production").strip().lower() == "production"
+    _mcp_is_prod = settings.app_env == "production"
 
     if not _mcp_gated and _mcp_is_prod:
         logger.warning(
