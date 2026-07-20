@@ -1022,6 +1022,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Owner OS router not mounted: {_e}")
 try:
+    from app.api.owner_copilot import router as owner_copilot_router
+
+    app.include_router(
+        owner_copilot_router
+    )  # /api/owner-copilot/* — OpenClaw Owner Copilot (flag-gated)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Owner Copilot router not mounted: {_e}")
+try:
     from app.api.integration_health_api import router as integration_health_router
 
     app.include_router(

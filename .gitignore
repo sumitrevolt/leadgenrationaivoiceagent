@@ -174,6 +174,9 @@ auraleads_extracted/
 .env.production
 .env.local
 
+# OpenClaw local proof state (tokens, runtime) — never commit
+config/openclaw/.local/
+
 # Local artifacts that must never ship
 source.tar.gz
 *.tar.gz
@@ -239,3 +242,5 @@ scripts/_canary_*.txt
 # designated ignored runtime scratch for local diagnostics + generated outputs
 artifacts/local/
 .codex/config.toml
+
+!config/openclaw/plugins/**/openclaw.plugin.json
