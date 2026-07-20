@@ -857,6 +857,9 @@ async def _run_job_inner(job: str) -> bool:
         elif job == "prospect":
             # NICHE_ROTATION=1 → all-42-niches round-robin (niche_prospector); warna
             # default 4-niche prospector (aaj jaisa). Gated = zero behaviour change.
+            import time as _time_prospect
+
+            _prospect_t0 = _time_prospect.monotonic()
             if os.environ.get("NICHE_ROTATION", "0").strip().lower() in ("1", "true", "yes"):
                 from app.platform import niche_prospector
 
@@ -887,12 +890,36 @@ async def _run_job_inner(job: str) -> bool:
             except Exception:
                 pass
             # Multi-source harvest sweep (websearch/opendata/enrich) — gated
-            # LEAD_HARVESTER=1, gated sources bina key inert. Legal-only sources.
-            # Uses safety wrapper to prevent asyncpg pool cleanup issues (P1).
+            # LEAD_HARVESTER=1. MUST stay inside Celery soft-limit (~540s).
+            # 2026-07-20: unbounded GTM×niche_prospector after niche scrape → SoftTimeLimit.
             try:
-                from scripts import harvest_safety_wrapper
+                _elapsed = _time_prospect.monotonic() - _prospect_t0
+                _remain = max(0.0, 480.0 - _elapsed)
+                if _remain < 45.0:
+                    logger.warning(
+                        f"[team-scheduler] skip harvest after prospect — "
+                        f"only {_remain:.0f}s left under SoftTimeLimit margin"
+                    )
+                else:
+                    from scripts import harvest_safety_wrapper
 
-                await harvest_safety_wrapper.run_harvest_loop_safe()
+                    # Avoid nested niche_prospector inside harvest (already scraped above).
+                    _prev_skip = os.environ.get("SKIP_HARVEST_PROSPECTOR_SRC")
+                    os.environ["SKIP_HARVEST_PROSPECTOR_SRC"] = "1"
+                    try:
+                        await asyncio.wait_for(
+                            harvest_safety_wrapper.run_harvest_loop_safe(),
+                            timeout=min(_remain - 20.0, 120.0),
+                        )
+                    finally:
+                        if _prev_skip is None:
+                            os.environ.pop("SKIP_HARVEST_PROSPECTOR_SRC", None)
+                        else:
+                            os.environ["SKIP_HARVEST_PROSPECTOR_SRC"] = _prev_skip
+            except asyncio.TimeoutError:
+                logger.warning(
+                    "[team-scheduler] harvest truncated after prospect (SoftTimeLimit margin)"
+                )
             except Exception:
                 pass
         elif job == "email_outreach":
