@@ -186,10 +186,37 @@ sleep 22
 
 # -------------------------------------------------------------------- verify
 echo "=== VERIFY /health (host port 8000; in-network the app listens on 8080) ==="
-HEALTH="$(curl -s -m 10 127.0.0.1:8000/health)"
+HEALTH_MAX_ATTEMPTS="${HEALTH_MAX_ATTEMPTS:-12}"
+HEALTH_RETRY_SECONDS="${HEALTH_RETRY_SECONDS:-5}"
+case "$HEALTH_MAX_ATTEMPTS" in
+  ''|*[!0-9]*) HEALTH_MAX_ATTEMPTS=12 ;;
+esac
+case "$HEALTH_RETRY_SECONDS" in
+  ''|*[!0-9]*) HEALTH_RETRY_SECONDS=5 ;;
+esac
+# Keep operator overrides bounded: enough for a slow model/import cold start,
+# never an unbounded deploy hang.
+[ "$HEALTH_MAX_ATTEMPTS" -lt 1 ] && HEALTH_MAX_ATTEMPTS=1
+[ "$HEALTH_MAX_ATTEMPTS" -gt 24 ] && HEALTH_MAX_ATTEMPTS=24
+[ "$HEALTH_RETRY_SECONDS" -gt 15 ] && HEALTH_RETRY_SECONDS=15
+
+HEALTH=""
+LIVE_VER=""
+HEALTH_ATTEMPT=1
+while [ "$HEALTH_ATTEMPT" -le "$HEALTH_MAX_ATTEMPTS" ]; do
+  HEALTH="$(curl -s -m 10 127.0.0.1:8000/health || true)"
+  LIVE_VER="$(printf '%s' "$HEALTH" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')"
+  printf '  attempt %s/%s: version=%s\n' \
+    "$HEALTH_ATTEMPT" "$HEALTH_MAX_ATTEMPTS" "${LIVE_VER:-<not-ready>}"
+  if [ "$LIVE_VER" = "$VER" ]; then
+    break
+  fi
+  [ "$HEALTH_ATTEMPT" -lt "$HEALTH_MAX_ATTEMPTS" ] && sleep "$HEALTH_RETRY_SECONDS"
+  HEALTH_ATTEMPT=$((HEALTH_ATTEMPT + 1))
+done
 echo "$HEALTH"
-LIVE_VER="$(printf '%s' "$HEALTH" | sed -n 's/.*"version":"\([^"]*\)".*/\1/p')"
 if [ "$LIVE_VER" != "$VER" ]; then
+  echo "FATAL: /health did not report $VER after $HEALTH_MAX_ATTEMPTS attempts."
   echo "FATAL: /health version='$LIVE_VER' != deployed '$VER' — prod did NOT pick"
   echo "       up this build. Do NOT report this deploy as successful."
   [ "$UP_RC" -ne 0 ] && echo "       (up also returned $UP_RC — see /tmp/deploy_up.log)"
