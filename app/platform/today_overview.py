@@ -127,7 +127,7 @@ JOB_INFO: dict[str, dict[str, str]] = {
     },
     "digest": {"label": "Daily digest (subah 8:30)", "kya": "Din ka summary email Sumit ko"},
     "prospect": {
-        "label": "Dev — scraping (subah 9:30)",
+        "label": "Rohan — prospect scrape (subah 9:30)",
         "kya": "Naye business prospects dhundta hai (42 niches rotation)",
     },
     "email_outreach": {
@@ -155,7 +155,7 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "kya": "Dusra content-gen pass (gated AFTERNOON_CONTENT)",
     },
     "evening_prospect": {
-        "label": "Dev — evening harvest (17:00)",
+        "label": "Rohan — evening harvest (17:00)",
         "kya": "Teesra free lead-harvest pass (gated EVENING_PROSPECT)",
     },
     "obsidian_push": {
