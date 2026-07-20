@@ -90,7 +90,13 @@ def request_timeout_seconds() -> float:
 
 
 def is_production_env() -> bool:
-    """Mirror compliance production detection — settings first, env fallback."""
+    """True if any authoritative env marker is production.
+
+    CI often sets ENVIRONMENT=development with APP_ENV=test. Stage A tests may
+    set APP_ENV=production via monkeypatch — that must win even if ENVIRONMENT
+    remains development. Never treat unknown/empty as production unless
+    settings.is_production is already True.
+    """
     try:
         from app.config import settings
 
@@ -98,8 +104,11 @@ def is_production_env() -> bool:
             return True
     except Exception:
         pass
-    env = (os.getenv("ENVIRONMENT") or os.getenv("APP_ENV") or "").strip().lower()
-    return env == "production"
+    values = {
+        (os.getenv("ENVIRONMENT") or "").strip().lower(),
+        (os.getenv("APP_ENV") or "").strip().lower(),
+    }
+    return "production" in values
 
 
 def durable_idempotency_ready() -> bool:
