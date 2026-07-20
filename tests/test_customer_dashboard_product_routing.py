@@ -22,9 +22,12 @@ from fastapi.testclient import TestClient
 
 
 def _script_block(body: str) -> str:
-    m = re.search(r"<script>(.*?)</script>", body, re.S)
-    assert m, "no inline <script> block found in served page"
-    return m.group(1)
+    """Prefer the product-routing script, not an earlier CDN bootstrap <script>."""
+    for m in re.finditer(r"<script>(.*?)</script>", body, re.S):
+        block = m.group(1)
+        if "pageProduct" in block or "location.pathname" in block:
+            return block
+    raise AssertionError("no product-routing inline <script> block found in served page")
 
 
 def test_all_three_product_routes_serve_200():

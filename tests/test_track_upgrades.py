@@ -197,16 +197,19 @@ def test_billing_webhook_razorpay_header_rejected_after_removal(c):
     assert r.status_code == 400
 
 
-def test_billing_webhook_stripe_unconfigured_is_safe(c, monkeypatch):
-    """Stripe-Signature present but no webhook secret configured -> graceful, not a 500."""
+def test_billing_webhook_stripe_signature_rejected_after_removal(c, monkeypatch):
+    """Stripe gateway removed 2026-07-10 (manual UPI only). A Stripe-Signature
+    header must not be accepted as a live payment webhook — unified route is 400."""
     monkeypatch.setattr(settings, "stripe_webhook_secret", "", raising=False)
     r = c.post(
         "/api/billing/webhook",
         headers={"Stripe-Signature": "t=1,v1=abc"},
         content=b"{}",
     )
-    assert r.status_code == 200
-    assert r.json().get("status") == "webhook_secret_not_configured"
+    assert r.status_code == 400
+    from tests._api_helpers import api_error_message
+
+    assert "upi" in api_error_message(r).lower() or "webhook" in api_error_message(r).lower()
 
 
 # =============================================================================
@@ -260,10 +263,10 @@ def test_whatsapp_inbound_creates_draft(c, monkeypatch, tmp_path):
     from app.integrations import whatsapp as wa_int
     from app.platform import reply_agent
 
-    async def fake_classify(subject, body):
+    async def fake_classify(subject, body, history=""):
         return "interested"
 
-    async def fake_draft(biz, subject, body, intent):
+    async def fake_draft(biz, subject, body, intent, history_msgs=None):
         return "Namaste! Free demo set karein?"
 
     monkeypatch.setattr(reply_agent, "_classify", fake_classify)
@@ -307,10 +310,10 @@ def test_whatsapp_reply_helper_writes_draft(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     from app.platform import reply_agent
 
-    async def fake_classify(subject, body):
+    async def fake_classify(subject, body, history=""):
         return "question"
 
-    async def fake_draft(biz, subject, body, intent):
+    async def fake_draft(biz, subject, body, intent, history_msgs=None):
         return "Ji, batayein."
 
     monkeypatch.setattr(reply_agent, "_classify", fake_classify)

@@ -1964,7 +1964,7 @@ function viewForHash(h){
            content:"home",account:"billing"};
   h=(h||"").replace(/^#/,"").replace(/^view-/,"");
   if(map[h])return map[h];
-  return ["home","delivery","setup","calendar","leads","reports","billing","support"].indexOf(h)>=0 ? h : "home";
+  return ["home","delivery","setup","calendar","tools","leads","reports","billing","support"].indexOf(h)>=0 ? h : "home";
 }
 function resizeCharts(){
   // Chart.js canvases first drawn while their container was hidden (an inactive
