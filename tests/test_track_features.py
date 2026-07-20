@@ -2,6 +2,8 @@
 
 import asyncio
 
+from tests._api_helpers import iter_mounted_routes
+
 
 def _run(coro):
     return asyncio.new_event_loop().run_until_complete(coro)
@@ -37,16 +39,16 @@ def test_send_campaign_links_when_off(monkeypatch):
 def test_call_request_call_type():
     from app.telephony.call_manager import CallRequest
 
-    base = dict(
-        lead_id="l",
-        phone_number="p",
-        campaign_id="c",
-        niche="n",
-        client_name="cn",
-        client_service="cs",
-        script_name="s",
-        lead_data={},
-    )
+    base = {
+        "lead_id": "l",
+        "phone_number": "p",
+        "campaign_id": "c",
+        "niche": "n",
+        "client_name": "cn",
+        "client_service": "cs",
+        "script_name": "s",
+        "lead_data": {},
+    }
     assert CallRequest(**base).call_type == "promotional"
     assert CallRequest(**base, call_type="transactional").call_type == "transactional"
 
@@ -54,7 +56,7 @@ def test_call_request_call_type():
 def test_booking_router_mounted():
     from app.main import app
 
-    paths = {getattr(r, "path", "") for r in app.routes}
+    paths = {r.path for r in iter_mounted_routes(app)}
     assert "/api/booking/slots" in paths
     assert "/api/booking/book" in paths
 
