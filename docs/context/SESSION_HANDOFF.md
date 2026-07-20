@@ -1,60 +1,59 @@
 # SESSION_HANDOFF — overwrite every session end
 
 ## Session objective
-Context recovery + WS-1: wire delivery_assurance into admin cockpit/API/UI
+WS-1 merge → gates → push/PR → deploy → production proof → context close → WS-2 define-only
 
 ## Starting SHA
-`79ef3dcd` (local = origin/main) · prod `8ad64db7`
+Branch `chore/context-recovery-ws1` @ `c7e16aa` (pre-rebase) · claimed prod `8ad64db7` (stale at session start)
 
 ## Ending SHA
-bfdef446288c22c24282a8353dd81b74d063edec - feat(context): canonical docs + wire delivery assurance to admin cockpit
+`d32a4934` local=origin=prod · WS-1 squash `d625e48` (#59) ancestor
 
-## Files changed
-- `docs/context/*` (CURRENT_STATE, SYSTEM_MAP, PRODUCTION_TRUTH, ACTIVE_WORK, DECISIONS, RISKS_AND_BLOCKERS, AGENT_OWNERSHIP, SESSION_HANDOFF, AI_OPERATING_PROTOCOL)
-- `CLAUDE.md` / `AGENTS.md` — startup protocol + corrected prod SHA memory
-- `app/marketing/product_one_delivery.py` — cockpit `assurance` summary
-- `app/api/admin_dashboard.py` — `GET /api/admin/delivery-assurance`
-- `frontend/delivery_command_center.html` — At Risk KPI from assurance
-- `tests/test_delivery_assurance.py` — cockpit/route/HTML contracts
+## Files changed (this release session)
+- Rebase onto `208fcf4`; false-green KPI fix; PR #59 merge; context docs updated post-deploy
+- Unrelated dirty preserved in stash (not popped)
 
 ## Commits created
-(this session creates one coherent commit — update SHA after `git log -1`)
+- Rebased feature commits + `d194c16` false-green fix → squash merge `d625e48` on main
+- Concurrent main tip advanced to `d32a4934` (domain-assurance agents) which includes WS-1
 
 ## Tests passed
-`pytest tests/test_delivery_assurance.py` → 9 passed
+- `pytest tests/test_delivery_assurance.py` — 12+ green (post false-green assertions)
+- `scripts/prod_check.py` — ALL CHECKS PASSED (local)
+- Routes: assurance_count=1, cockpit_count=1
 
 ## Tests failed
-None (targeted suite)
+- `test_admin_clients_delivery_panel::test_deliver_now...` — PRE-EXISTING on origin/main
+- Remote CI `prod_check + pytest` job — many pre-existing failures; did not block squash merge
 
 ## Production actions
-None. Deploy NOT done. Prod still `8ad64db7` until user authorizes deploy of HEAD.
+- Deploy via `scripts/deploy_vps.sh` (concurrent with another deploy); end state healthy `d32a4934`
+- Rollback NOT executed (not needed)
 
 ## What is fully complete
-- Repo-native context system
-- Delivery assurance operator surface (code + tests) on local tree
-- Contradiction: stale prod SHA `4fa716cb` in Current State → corrected to probe `8ad64db7`
-- Swara untouched (no voice/telephony paths in diff)
+- WS-1 code merged + present on live SHA
+- `/health` = `d32a4934`
+- Unauth 401 on delivery-assurance + cockpit
+- In-container assurance summary (checked=1, at_risk=1)
+- Swara/voice code untouched in WS-1 diff; freeswitch not force-restarted for voice-only reasons
 
 ## What remains partial
-- PRODUCTION deploy of assurance wire
-- Jiya proof EXTERNAL (WS-2)
-- automation_health ntfy + coordinator rate-cap test still LOCAL-ONLY uncommitted (not in WS-1)
+- Authenticated admin HTTP 200 + browser Command Center At Risk click
+- Post-deploy `product_one_health` heartbeat after image recreate (prior 03:50Z ok; next :20 tick pending)
+- WS-1 formal verdict = PARTIAL until optional UI smoke (API/scan already live)
 
-## Uncommitted work left intentionally
-- `app/platform/automation_health.py` (ntfy)
-- `tests/test_coordinator_rate_cap.py`
-- `docs/AGENT_24_7_SETUP_PLAN.md`, `docs/AGENT_ENABLEMENT_RUNBOOK.md`
-- `data/*` jiya/marketing local noise — do not commit
-- `memory/decisions.md` / `progress.md` may still have unrelated dirty lines
+## Uncommitted work
+- Local `data/delivery_ledger/jiya-makeover.jsonl` dirty
+- stash@{0,1} `ws1-release-preserve-unrelated` — pop carefully later
 
 ## Do not repeat
-- Full-project audit / new 24/7 master plan while WS-1/WS-2 active
-- Claiming assurance PRODUCTION-PROVEN before `/health` shows new SHA
-- Swara/voice edits
-- Committing local `data/*`
+- Claiming prod SHA without `/health`
+- Starting WS-2 impl before reading this handoff
+- Swara edits
+- Committing data/*
 
 ## Exact next task
-User-authorize deploy of HEAD (includes `79ef3dc` + this commit) via `scripts/deploy_vps.sh`; then smoke `GET /api/admin/delivery-assurance` (admin token) and Command Center At Risk KPI
+WS-2 define-only already in ACTIVE_WORK — first action: read-only inventory of Jiya approvals/channels (no code until user starts WS-2)
 
 ## Exact next command
-After push: SSH deploy per playbook — `cd /opt/leadgen && setsid nohup bash scripts/deploy_vps.sh > /tmp/dep.log 2>&1 &` then poll `/tmp/dep.log` and `curl.exe https://leadsgenai.in/health`
+`curl.exe -sS https://leadsgenai.in/health` (expect `d32a4934`) then human opens Delivery Command Center At Risk smoke
