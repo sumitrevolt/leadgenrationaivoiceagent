@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from starlette.requests import Request
@@ -32,6 +33,25 @@ from tests.conftest import create_mock_user
 
 client = TestClient(app)
 
+# Auth deps this module may temporarily remove — never wipe unrelated overrides.
+_AUTH_DEPS = (
+    get_current_user,
+    get_current_user_optional,
+    require_admin,
+    require_super_admin,
+    require_copilot_actor,
+)
+
+
+@pytest.fixture(autouse=True)
+def _openclaw_restore_global_state():
+    """Snapshot/restore dependency overrides + OpenClaw idempotency only."""
+    before = dict(app.dependency_overrides)
+    yield
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(before)
+    _IDEMPOTENCY.clear()
+
 
 def _enable(monkeypatch, allowlist: str | None = None):
     monkeypatch.setenv("OPENCLAW_ENABLED", "1")
@@ -39,8 +59,7 @@ def _enable(monkeypatch, allowlist: str | None = None):
     monkeypatch.setenv("OPENCLAW_REQUIRE_APPROVAL_FOR_AMBER", "1")
     monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
     monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "127.0.0.1,::1,testclient")
-    monkeypatch.delenv("APP_ENV", raising=False)
-    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    # Leave CI-like ENVIRONMENT alone unless a test sets production markers.
     if allowlist is not None:
         monkeypatch.setenv("OPENCLAW_ALLOWED_COMMANDS", allowlist)
     else:
@@ -69,15 +88,24 @@ def _patch_owner_stores(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "AUDIT_STORE", str(tmp_path / "audit.jsonl"))
 
 
-def _clear_auth_overrides():
-    for dep in (
-        get_current_user,
-        get_current_user_optional,
-        require_admin,
-        require_super_admin,
-        require_copilot_actor,
-    ):
+def _snapshot_auth_overrides() -> dict:
+    return {
+        dep: app.dependency_overrides[dep] for dep in _AUTH_DEPS if dep in app.dependency_overrides
+    }
+
+
+def _clear_auth_overrides() -> dict:
+    """Temporarily remove auth overrides; return snapshot for restore."""
+    saved = _snapshot_auth_overrides()
+    for dep in _AUTH_DEPS:
         app.dependency_overrides.pop(dep, None)
+    return saved
+
+
+def _restore_auth_overrides(saved: dict) -> None:
+    for dep in _AUTH_DEPS:
+        app.dependency_overrides.pop(dep, None)
+    app.dependency_overrides.update(saved)
 
 
 def _err_text(resp) -> str:
@@ -152,20 +180,9 @@ def test_command_fails_closed_when_disabled(monkeypatch):
 
 def test_unauthenticated_denied(monkeypatch):
     _enable(monkeypatch)
-    saved = {
-        require_admin: app.dependency_overrides.pop(require_admin, None),
-        get_current_user: app.dependency_overrides.pop(get_current_user, None),
-        get_current_user_optional: app.dependency_overrides.pop(get_current_user_optional, None),
-        require_super_admin: app.dependency_overrides.pop(require_super_admin, None),
-        require_copilot_actor: app.dependency_overrides.pop(require_copilot_actor, None),
-    }
-    try:
-        r = client.get("/api/owner-copilot/status")
-        assert r.status_code in (401, 403)
-    finally:
-        for dep, fn in saved.items():
-            if fn is not None:
-                app.dependency_overrides[dep] = fn
+    _clear_auth_overrides()
+    r = client.get("/api/owner-copilot/status")
+    assert r.status_code in (401, 403)
 
 
 def test_gateway_token_auth(monkeypatch, tmp_path):
@@ -187,25 +204,22 @@ def test_gateway_token_auth(monkeypatch, tmp_path):
         return None
 
     app.dependency_overrides[get_current_user_optional] = _no_user
-    try:
-        _tok = "local-dev-gateway-token-xyz"
-        bad = client.post(
-            "/api/owner-copilot/command",
-            json={"command": "platform.status"},
-            headers={"Authorization": "Bearer wrong"},  # nosecret — fake auth negative path
-        )
-        assert bad.status_code == 401
-        good = client.post(
-            "/api/owner-copilot/command",
-            json={"command": "platform.status", "idempotency_key": "gw-tok-1"},
-            headers={"Authorization": f"Bearer {_tok}"},  # nosecret — local test double only
-        )
-        assert good.status_code == 200
-        body = good.json()
-        assert body["ok"] is True
-        assert body["status"] == "SUCCEEDED"
-    finally:
-        _clear_auth_overrides()
+    _tok = "local-dev-gateway-token-xyz"
+    bad = client.post(
+        "/api/owner-copilot/command",
+        json={"command": "platform.status"},
+        headers={"Authorization": "Bearer wrong"},  # nosecret — fake auth negative path
+    )
+    assert bad.status_code == 401
+    good = client.post(
+        "/api/owner-copilot/command",
+        json={"command": "platform.status", "idempotency_key": "gw-tok-1"},
+        headers={"Authorization": f"Bearer {_tok}"},  # nosecret — local test double only
+    )
+    assert good.status_code == 200
+    body = good.json()
+    assert body["ok"] is True
+    assert body["status"] == "SUCCEEDED"
 
 
 def test_customer_role_denied(monkeypatch):
@@ -667,8 +681,41 @@ def test_no_default_jiya_in_handler():
     assert out["error"] == "tenant_id required"
 
 
-def test_production_green_allowlist_accepted(monkeypatch):
+@pytest.mark.parametrize(
+    "environment,app_env,expected",
+    [
+        ("development", "test", False),
+        ("development", "production", True),
+        ("production", "test", True),
+        ("production", "development", True),
+        ("production", "production", True),
+        ("", "", False),
+        ("staging", "staging", False),
+        ("development", "", False),
+        ("", "development", False),
+    ],
+)
+def test_is_production_env_matrix(monkeypatch, environment, app_env, expected):
+    """Any authoritative marker == production → production (CI ENVIRONMENT must not mask)."""
+    if environment:
+        monkeypatch.setenv("ENVIRONMENT", environment)
+    else:
+        monkeypatch.delenv("ENVIRONMENT", raising=False)
+    if app_env:
+        monkeypatch.setenv("APP_ENV", app_env)
+    else:
+        monkeypatch.delenv("APP_ENV", raising=False)
+    assert policies.is_production_env() is expected
+
+
+def _force_ci_like_production(monkeypatch):
+    """Simulate GitHub Actions: ENVIRONMENT=development while APP_ENV=production under test."""
+    monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("APP_ENV", "production")
+
+
+def test_production_green_allowlist_accepted(monkeypatch):
+    _force_ci_like_production(monkeypatch)
     monkeypatch.setenv(
         "OPENCLAW_ALLOWED_COMMANDS",
         "platform.status,agents.list",
@@ -679,7 +726,7 @@ def test_production_green_allowlist_accepted(monkeypatch):
 
 
 def test_production_amber_allowlist_stripped(monkeypatch):
-    monkeypatch.setenv("APP_ENV", "production")
+    _force_ci_like_production(monkeypatch)
     monkeypatch.setenv(
         "OPENCLAW_ALLOWED_COMMANDS",
         "platform.status,agent.pause,agents.list",
@@ -706,7 +753,7 @@ def test_red_rejected_even_with_allow_red_flag(monkeypatch):
 
 def test_stage_a_cannot_mutate_agent_state_in_production(monkeypatch):
     monkeypatch.setenv("OPENCLAW_ENABLED", "1")
-    monkeypatch.setenv("APP_ENV", "production")
+    _force_ci_like_production(monkeypatch)
     monkeypatch.setenv(
         "OPENCLAW_ALLOWED_COMMANDS",
         "platform.status,agent.pause,agent.resume",
