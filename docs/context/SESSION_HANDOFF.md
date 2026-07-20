@@ -1,59 +1,61 @@
-# SESSION_HANDOFF — overwrite every session end
+# SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-WS-1 merge → gates → push/PR → deploy → production proof → context close → WS-2 define-only
+Fix the local false-production MCP refusal warning while keeping the production
+MCP surface fail-closed.
 
-## Starting SHA
-Branch `chore/context-recovery-ws1` @ `c7e16aa` (pre-rebase) · claimed prod `8ad64db7` (stale at session start)
+## Starting state
+- Isolated worktree based on `origin/main` `c4d98dee`.
+- Branch: `codex/fix-mcp-app-env-20260720`.
+- Primary `feat/openclaw-owner-copilot` checkout remained dirty and untouched.
+- Production was healthy on `c4d98dee`; MCP token was present on the host and
+  all five canonical containers.
 
-## Ending SHA
-`d32a4934` local=origin=prod · WS-1 squash `d625e48` (#59) ancestor
+## Root cause
+`app/main.py` used legacy `os.environ.get("ENV", "production")` only for MCP,
+while configuration, health, middleware, and Compose use validated
+`APP_ENV`/`settings.app_env`. Local `APP_ENV=development` with no legacy `ENV`
+was therefore misclassified as production and logged the refusal warning.
 
-## Files changed (this release session)
-- Rebase onto `208fcf4`; false-green KPI fix; PR #59 merge; context docs updated post-deploy
-- Unrelated dirty preserved in stash (not popped)
+## Changed
+- `app/main.py`: `_mcp_is_prod = settings.app_env == "production"` and corrected
+  the adjacent environment comment.
+- `tests/test_mcp_import.py`: real startup subprocess contracts for:
+  - development + no MCP token/allowlist -> mounts development-ungated;
+  - production + no MCP token/allowlist -> refuses fail-closed.
+- `progress.md`: canonical loop evidence.
+- `docs/context/SESSION_HANDOFF.md`: this handoff.
 
-## Commits created
-- Rebased feature commits + `d194c16` false-green fix → squash merge `d625e48` on main
-- Concurrent main tip advanced to `d32a4934` (domain-assurance agents) which includes WS-1
+## TDD and verification
+- RED proof: development startup test failed on the exact
+  `MCP mount REFUSED` warning before implementation.
+- Final MCP import/engineer/qualifier suite: 28 passed.
+- Pre-commit hooks: all passed, including Black, isort, Ruff, Bandit, and
+  detect-secrets.
+- `scripts/check_secrets.py`: clean on changed code/test files.
+- `py_compile`: passed.
+- `scripts/prod_check.py`: ALL CHECKS PASSED; 1159 routes, 48 pages, zero
+  wiring gaps; development import logged the expected ungated MCP mount.
 
-## Tests passed
-- `pytest tests/test_delivery_assurance.py` — 12+ green (post false-green assertions)
-- `scripts/prod_check.py` — ALL CHECKS PASSED (local)
-- Routes: assurance_count=1, cockpit_count=1
+## Production safety evidence
+- No production mutation this fix session.
+- Host and all five canonical containers had `FASTAPI_MCP_TOKEN=SET`.
+- Compose label pointed to `/opt/leadgen/docker-compose.vps.yml`.
+- Public and on-box unauthenticated `/mcp/` returned 401.
+- `/api/mcp-product/v1/discover` returned 200.
+- Production startup log said `MCP server mounted at /mcp (gated: token)`.
 
-## Tests failed
-- `test_admin_clients_delivery_panel::test_deliver_now...` — PRE-EXISTING on origin/main
-- Remote CI `prod_check + pytest` job — many pre-existing failures; did not block squash merge
+## Protected scope
+No `.env`, secret value, OpenClaw, Voice/Swara, `platform_dial`, billing,
+compliance, customer data, route, or middleware authorization behavior changed.
 
-## Production actions
-- Deploy via `scripts/deploy_vps.sh` (concurrent with another deploy); end state healthy `d32a4934`
-- Rollback NOT executed (not needed)
-
-## What is fully complete
-- WS-1 code merged + present on live SHA
-- `/health` = `d32a4934`
-- Unauth 401 on delivery-assurance + cockpit
-- In-container assurance summary (checked=1, at_risk=1)
-- Swara/voice code untouched in WS-1 diff; freeswitch not force-restarted for voice-only reasons
-
-## What remains partial
-- Authenticated admin HTTP 200 + browser Command Center At Risk click
-- Post-deploy `product_one_health` heartbeat after image recreate (prior 03:50Z ok; next :20 tick pending)
-- WS-1 formal verdict = PARTIAL until optional UI smoke (API/scan already live)
-
-## Uncommitted work
-- Local `data/delivery_ledger/jiya-makeover.jsonl` dirty
-- stash@{0,1} `ws1-release-preserve-unrelated` — pop carefully later
-
-## Do not repeat
-- Claiming prod SHA without `/health`
-- Starting WS-2 impl before reading this handoff
-- Swara edits
-- Committing data/*
+## Remaining
+User authorization for commit/push/deploy has been received. The isolated
+four-file slice is ready for commit and canonical deployment. Already-running
+local uvicorn processes still hold the old imported module until restarted from
+the fixed source.
 
 ## Exact next task
-WS-2 define-only already in ACTIVE_WORK — first action: read-only inventory of Jiya approvals/channels (no code until user starts WS-2)
-
-## Exact next command
-`curl.exe -sS https://leadsgenai.in/health` (expect `d32a4934`) then human opens Delivery Command Center At Risk smoke
+Commit exact four files, push the isolated branch, fast-forward main if still
+safe, deploy through `scripts/deploy_vps.sh`, and verify production still logs
+`gated: token` and returns 401 without bearer authentication.
