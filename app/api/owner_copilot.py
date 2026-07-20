@@ -1,9 +1,12 @@
 """Owner Copilot API — /api/owner-copilot/*
 
 Inbound trust model:
-  OpenClaw Gateway (or admin browser) → this API → Owner OS → 31 agents
+  OpenClaw Gateway (or super-admin browser) → this API → Owner OS → 31 agents
 
-Auth: require_copilot_actor (admin JWT OR OPENCLAW_API_TOKEN machine bearer).
+Auth:
+  - Human: canonical super-admin JWT only (module-RBAC insufficient)
+  - Machine: OPENCLAW_API_TOKEN + OPENCLAW_GATEWAY_ALLOWED_IPS peer check
+
 Gate: OPENCLAW_ENABLED (default off). Owner OS = sole action authority.
 LeadGen does not call OpenClaw for core runtime (inbound-only).
 """

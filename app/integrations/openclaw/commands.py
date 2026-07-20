@@ -24,7 +24,7 @@ def list_command_catalogue() -> dict[str, Any]:
             {
                 "command": name,
                 "safety_lane": lane,
-                "permission": "super_admin_or_admin",
+                "permission": "super_admin",
                 "approval_required": lane == "AMBER",
                 "idempotent": lane == "GREEN" or name in ("agent.pause", "agent.resume"),
                 "timeout_seconds": 12,
@@ -147,9 +147,35 @@ def _queues_status(params: dict[str, Any], *, actor: str, correlation_id: str) -
 
 
 def _delivery_status(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
+    from app.marketing.clients_store import canonical_client_id, resolve_client
     from app.platform import owner_os
 
-    tenant = str(params.get("tenant_id") or params.get("client_id") or "jiya-makeover").strip()
+    raw = params.get("tenant_id") or params.get("client_id")
+    if raw is None or not str(raw).strip():
+        return {
+            "status": "FAILED",
+            "verified": True,
+            "error": "tenant_id required",
+            "result": None,
+            "evidence": {"correlation_id": correlation_id, "actor": actor},
+            "next_action": "Pass tenant_id (marketing id or billing alias)",
+        }
+    requested = str(raw).strip()
+    rec = resolve_client(requested)
+    if not rec:
+        return {
+            "status": "FAILED",
+            "verified": True,
+            "error": "unknown tenant",
+            "result": None,
+            "evidence": {
+                "requested": requested[:80],
+                "correlation_id": correlation_id,
+                "actor": actor,
+            },
+            "next_action": "Use canonical marketing client id or known billing alias",
+        }
+    tenant = canonical_client_id(requested)
     # Reuse Owner OS safe status report — publish/notify forced off upstream.
     if hasattr(owner_os, "_build_status_report"):
         rep = owner_os._build_status_report(tenant)  # noqa: SLF001
@@ -160,6 +186,7 @@ def _delivery_status(params: dict[str, Any], *, actor: str, correlation_id: str)
         "verified": True,
         "result": {
             "tenant_id": tenant,
+            "requested_tenant": requested,
             "report": rep,
             "publish_allowed": False,
             "customer_notify_allowed": False,
@@ -306,7 +333,7 @@ def classify_nl(text: str) -> dict[str, Any]:
             "note": "RED — OpenClaw refuse; existing admin workflow use karo",
         }
 
-    # Agent extract (reuse Owner OS helper when available).
+    # Agent extract (reuse Owner OS helper when available). Never invent a tenant.
     try:
         from app.platform.owner_os import _extract_agent, _extract_tenant
 
@@ -317,8 +344,7 @@ def classify_nl(text: str) -> dict[str, Any]:
         if tenant:
             params["tenant_id"] = tenant
     except Exception:
-        if "jiya" in low:
-            params["tenant_id"] = "jiya-makeover"
+        pass
 
     if re.search(r"\b(pause|rok)\b", low) and params.get("agent_id"):
         return _prop("agent.pause", params, raw, "AMBER")
@@ -330,7 +356,7 @@ def classify_nl(text: str) -> dict[str, Any]:
         return _prop("approvals.list", params, raw, "GREEN")
     if any(x in low for x in ("queue", "celery", "dlq")):
         return _prop("queues.status", params, raw, "GREEN")
-    if any(x in low for x in ("delivery", "deliverable", "jiya")) and "mission" not in low:
+    if any(x in low for x in ("delivery", "deliverable")) and "mission" not in low:
         return _prop("delivery.status", params, raw, "GREEN")
     if any(x in low for x in ("next action", "highest-value", "kya karun", "priority")):
         return _prop("owner.next_actions", params, raw, "GREEN")

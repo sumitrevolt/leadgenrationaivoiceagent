@@ -1,10 +1,12 @@
-"""OpenClaw Owner Copilot — auth, lanes, allowlist, Owner OS authority."""
+"""OpenClaw Owner Copilot — auth, lanes, allowlist, Owner OS authority, trust boundary."""
 
 from __future__ import annotations
 
-import os
+from unittest.mock import MagicMock
 
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from starlette.requests import Request
 
 from app.api.auth_deps import (
     get_current_user,
@@ -14,11 +16,19 @@ from app.api.auth_deps import (
 )
 from app.integrations.openclaw import commands as oc_cmd
 from app.integrations.openclaw import policies
-from app.integrations.openclaw.auth import require_copilot_actor
+from app.integrations.openclaw.auth import (
+    CopilotActor,
+    gateway_source_allowed,
+    peer_host,
+    require_copilot_actor,
+    validate_gateway_token,
+)
 from app.integrations.openclaw.owner_os_adapter import _IDEMPOTENCY
 from app.main import app
+from app.models.user import UserRole
 from app.platform import owner_os
 from app.platform import owner_os_store as store
+from tests.conftest import create_mock_user
 
 client = TestClient(app)
 
@@ -28,16 +38,22 @@ def _enable(monkeypatch, allowlist: str | None = None):
     monkeypatch.setenv("OPENCLAW_ALLOW_RED_ACTIONS", "0")
     monkeypatch.setenv("OPENCLAW_REQUIRE_APPROVAL_FOR_AMBER", "1")
     monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
+    monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "127.0.0.1,::1,testclient")
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
     if allowlist is not None:
         monkeypatch.setenv("OPENCLAW_ALLOWED_COMMANDS", allowlist)
     else:
         monkeypatch.delenv("OPENCLAW_ALLOWED_COMMANDS", raising=False)
     _IDEMPOTENCY.clear()
-    # Ensure admin JWT path works under TestClient (optional-user override).
-    from app.integrations.openclaw.auth import CopilotActor
 
     async def _admin_actor():
-        return CopilotActor(id="test-admin", kind="admin", email="test@example.com")
+        return CopilotActor(
+            id="test-admin",
+            kind="admin",
+            email="test@example.com",
+            role="super_admin",
+        )
 
     app.dependency_overrides[require_copilot_actor] = _admin_actor
 
@@ -53,10 +69,56 @@ def _patch_owner_stores(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "AUDIT_STORE", str(tmp_path / "audit.jsonl"))
 
 
+def _clear_auth_overrides():
+    for dep in (
+        get_current_user,
+        get_current_user_optional,
+        require_admin,
+        require_super_admin,
+        require_copilot_actor,
+    ):
+        app.dependency_overrides.pop(dep, None)
+
+
+def _err_text(resp) -> str:
+    body = resp.json()
+    detail = body.get("detail")
+    if isinstance(detail, dict):
+        return str(detail.get("message") or detail.get("error") or detail)
+    if detail:
+        return str(detail)
+    err = body.get("error")
+    if isinstance(err, dict):
+        return str(err.get("message") or err.get("code") or err)
+    return str(body)
+
+
+def _fake_request(host: str, headers: dict[str, str] | None = None) -> Request:
+    hdrs = [(k.lower().encode(), v.encode()) for k, v in (headers or {}).items()]
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/api/owner-copilot/command",
+        "raw_path": b"/api/owner-copilot/command",
+        "query_string": b"",
+        "headers": hdrs,
+        "client": (host, 12345),
+        "server": ("testserver", 80),
+    }
+    return Request(scope)
+
+
+# ---------------------------------------------------------------------------
+# Existing regression suite
+# ---------------------------------------------------------------------------
+
+
 def test_status_works_when_disabled(monkeypatch):
     monkeypatch.setenv("OPENCLAW_ENABLED", "0")
     monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
-    from app.integrations.openclaw.auth import CopilotActor
 
     async def _admin_actor():
         return CopilotActor(id="test-admin", kind="admin", email="test@example.com")
@@ -72,7 +134,6 @@ def test_status_works_when_disabled(monkeypatch):
 def test_command_fails_closed_when_disabled(monkeypatch):
     monkeypatch.setenv("OPENCLAW_ENABLED", "0")
     monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
-    from app.integrations.openclaw.auth import CopilotActor
 
     async def _admin_actor():
         return CopilotActor(id="test-admin", kind="admin", email="test@example.com")
@@ -112,15 +173,15 @@ def test_gateway_token_auth(monkeypatch, tmp_path):
     monkeypatch.setenv("OPENCLAW_ENABLED", "1")
     monkeypatch.setenv("OPENCLAW_ALLOW_RED_ACTIONS", "0")
     monkeypatch.setenv("OPENCLAW_API_TOKEN", "local-dev-gateway-token-xyz")
+    monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "127.0.0.1,::1")
     monkeypatch.delenv("OPENCLAW_ALLOWED_COMMANDS", raising=False)
+    # TestClient peer host varies by httpx/starlette — unit-test IP separately.
+    monkeypatch.setattr(
+        "app.integrations.openclaw.auth.gateway_source_allowed",
+        lambda _req: True,
+    )
     _IDEMPOTENCY.clear()
-    # Clear JWT / actor overrides so only gateway token authenticates.
-    saved = {
-        get_current_user: app.dependency_overrides.pop(get_current_user, None),
-        get_current_user_optional: app.dependency_overrides.pop(get_current_user_optional, None),
-        require_admin: app.dependency_overrides.pop(require_admin, None),
-        require_copilot_actor: app.dependency_overrides.pop(require_copilot_actor, None),
-    }
+    _clear_auth_overrides()
 
     async def _no_user():
         return None
@@ -144,20 +205,14 @@ def test_gateway_token_auth(monkeypatch, tmp_path):
         assert body["ok"] is True
         assert body["status"] == "SUCCEEDED"
     finally:
-        for dep, fn in saved.items():
-            if fn is not None:
-                app.dependency_overrides[dep] = fn
-            else:
-                app.dependency_overrides.pop(dep, None)
+        _clear_auth_overrides()
 
 
 def test_customer_role_denied(monkeypatch):
     _enable(monkeypatch)
 
     async def _deny_actor():
-        from fastapi import HTTPException
-
-        raise HTTPException(status_code=403, detail="Admin access required")
+        raise HTTPException(status_code=403, detail="Super admin access required")
 
     saved = app.dependency_overrides.get(require_copilot_actor)
     app.dependency_overrides[require_copilot_actor] = _deny_actor
@@ -290,6 +345,8 @@ def test_classify_ambiguous_is_readonly():
 
 def test_policy_red_never_in_allowlist(monkeypatch):
     monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
     monkeypatch.setenv(
         "OPENCLAW_ALLOWED_COMMANDS",
         "platform.status,calling.enable,shell.execute",
@@ -315,3 +372,346 @@ def test_daily_brief(monkeypatch, tmp_path):
     body = r.json()
     assert body["ok"] is True
     assert body["command"] == "business.daily_summary"
+
+
+# ---------------------------------------------------------------------------
+# Trust-boundary hardening
+# ---------------------------------------------------------------------------
+
+
+def test_human_customer_jwt_denied(monkeypatch):
+    """Customer-like (viewer) JWT → 403 (not super-admin)."""
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
+    _clear_auth_overrides()
+    customer = create_mock_user(user_id="cust-1", email="cust@x.com", role=UserRole.VIEWER)
+
+    async def _cust():
+        return customer
+
+    app.dependency_overrides[get_current_user_optional] = _cust
+    try:
+        r = client.post("/api/owner-copilot/command", json={"command": "platform.status"})
+        assert r.status_code == 403
+        assert "Super admin" in _err_text(r)
+    finally:
+        _clear_auth_overrides()
+
+
+def test_human_normal_admin_denied(monkeypatch):
+    """Normal admin without SUPER_ADMIN → 403."""
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
+    _clear_auth_overrides()
+    admin = create_mock_user(user_id="adm-1", email="admin@x.com", role=UserRole.ADMIN)
+
+    async def _adm():
+        return admin
+
+    app.dependency_overrides[get_current_user_optional] = _adm
+    try:
+        r = client.post("/api/owner-copilot/command", json={"command": "platform.status"})
+        assert r.status_code == 403
+    finally:
+        _clear_auth_overrides()
+
+
+def test_human_module_rbac_denied(monkeypatch):
+    """Module-RBAC grant must not become Owner Copilot authority."""
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
+    _clear_auth_overrides()
+    agent = create_mock_user(user_id="ag-1", email="agent@x.com", role=UserRole.AGENT)
+    # Pretend can_access_admin false but rbac would pass — role gate must still deny.
+    agent.can_access_admin = MagicMock(return_value=False)  # type: ignore[method-assign]
+
+    async def _ag():
+        return agent
+
+    app.dependency_overrides[get_current_user_optional] = _ag
+    try:
+        r = client.post("/api/owner-copilot/command", json={"command": "platform.status"})
+        assert r.status_code == 403
+    finally:
+        _clear_auth_overrides()
+
+
+def test_human_super_admin_accepted(monkeypatch, tmp_path):
+    _patch_owner_stores(monkeypatch, tmp_path)
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
+    monkeypatch.delenv("OPENCLAW_ALLOWED_COMMANDS", raising=False)
+    _IDEMPOTENCY.clear()
+    _clear_auth_overrides()
+    sa = create_mock_user(user_id="sa-1", email="sa@x.com", role=UserRole.SUPER_ADMIN)
+
+    async def _sa():
+        return sa
+
+    app.dependency_overrides[get_current_user_optional] = _sa
+    try:
+        r = client.post(
+            "/api/owner-copilot/command",
+            json={"command": "platform.status", "idempotency_key": "sa-ok-1"},
+        )
+        assert r.status_code == 200
+        assert r.json()["ok"] is True
+    finally:
+        _clear_auth_overrides()
+
+
+def test_gateway_valid_token_allowlisted_ip(monkeypatch):
+    monkeypatch.setenv("OPENCLAW_API_TOKEN", "gw-secret-token-aaaa")
+    monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "127.0.0.1,::1")
+    assert validate_gateway_token("gw-secret-token-aaaa") is True
+    req = _fake_request("127.0.0.1")
+    assert gateway_source_allowed(req) is True
+
+
+def test_gateway_valid_token_untrusted_ip_rejected(monkeypatch):
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.setenv("OPENCLAW_API_TOKEN", "gw-secret-token-bbbb")
+    monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "127.0.0.1,::1")
+    _IDEMPOTENCY.clear()
+    _clear_auth_overrides()
+    # Force socket peer check to fail regardless of TestClient host.
+    monkeypatch.setattr(
+        "app.integrations.openclaw.auth.gateway_source_allowed",
+        lambda _req: False,
+    )
+
+    async def _no_user():
+        return None
+
+    app.dependency_overrides[get_current_user_optional] = _no_user
+    try:
+        r = client.post(
+            "/api/owner-copilot/command",
+            json={"command": "platform.status"},
+            headers={"Authorization": "Bearer gw-secret-token-bbbb"},  # nosecret
+        )
+        assert r.status_code == 403
+        assert "allowlisted" in _err_text(r).lower()
+    finally:
+        _clear_auth_overrides()
+
+
+def test_gateway_invalid_token_rejected(monkeypatch):
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.setenv("OPENCLAW_API_TOKEN", "gw-secret-token-cccc")
+    monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "testclient")
+    _clear_auth_overrides()
+
+    async def _no_user():
+        return None
+
+    app.dependency_overrides[get_current_user_optional] = _no_user
+    try:
+        r = client.post(
+            "/api/owner-copilot/command",
+            json={"command": "platform.status"},
+            headers={"Authorization": "Bearer wrong-token"},  # nosecret
+        )
+        assert r.status_code == 401
+    finally:
+        _clear_auth_overrides()
+
+
+def test_gateway_missing_token_rejected(monkeypatch):
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.setenv("OPENCLAW_API_TOKEN", "gw-secret-token-dddd")
+    monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "testclient")
+    _clear_auth_overrides()
+
+    async def _no_user():
+        return None
+
+    app.dependency_overrides[get_current_user_optional] = _no_user
+    try:
+        r = client.post("/api/owner-copilot/command", json={"command": "platform.status"})
+        assert r.status_code == 401
+    finally:
+        _clear_auth_overrides()
+
+
+def test_gateway_token_unset_fails_closed_for_anonymous(monkeypatch):
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.delenv("OPENCLAW_API_TOKEN", raising=False)
+    _clear_auth_overrides()
+
+    async def _no_user():
+        return None
+
+    app.dependency_overrides[get_current_user_optional] = _no_user
+    try:
+        r = client.post(
+            "/api/owner-copilot/command",
+            json={"command": "platform.status"},
+            headers={"Authorization": "Bearer anything"},  # nosecret
+        )
+        assert r.status_code == 401
+    finally:
+        _clear_auth_overrides()
+
+
+def test_xff_spoof_does_not_bypass_source_check(monkeypatch):
+    """Spoofed X-Forwarded-For: 127.0.0.1 must not override socket peer."""
+    monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "127.0.0.1,::1")
+    req = _fake_request(
+        "203.0.113.50",
+        headers={"x-forwarded-for": "127.0.0.1", "x-real-ip": "127.0.0.1"},
+    )
+    assert peer_host(req) == "203.0.113.50"
+    assert gateway_source_allowed(req) is False
+
+
+def test_gateway_empty_allowlist_fails_closed(monkeypatch):
+    monkeypatch.setenv("OPENCLAW_GATEWAY_ALLOWED_IPS", "")
+    req = _fake_request("127.0.0.1")
+    assert gateway_source_allowed(req) is False
+
+
+def test_delivery_missing_tenant_rejected(monkeypatch, tmp_path):
+    _enable(monkeypatch)
+    _patch_owner_stores(monkeypatch, tmp_path)
+    r = client.post(
+        "/api/owner-copilot/command",
+        json={"command": "delivery.status", "params": {}},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "FAILED"
+    assert body.get("error") == "tenant_id required"
+    assert "jiya" not in str(body).lower()
+
+
+def test_delivery_unknown_tenant_rejected(monkeypatch, tmp_path):
+    _enable(monkeypatch)
+    _patch_owner_stores(monkeypatch, tmp_path)
+
+    def _none(_cid):
+        return None
+
+    monkeypatch.setattr("app.marketing.clients_store.resolve_client", _none)
+    r = client.post(
+        "/api/owner-copilot/command",
+        json={"command": "delivery.status", "params": {"tenant_id": "no-such-tenant-xyz"}},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "FAILED"
+    assert body.get("error") == "unknown tenant"
+
+
+def test_delivery_canonical_tenant_accepted(monkeypatch, tmp_path):
+    _enable(monkeypatch)
+    _patch_owner_stores(monkeypatch, tmp_path)
+
+    monkeypatch.setattr(
+        "app.marketing.clients_store.resolve_client",
+        lambda cid: {"id": "demo-tenant"} if cid == "demo-tenant" else None,
+    )
+    monkeypatch.setattr(
+        "app.marketing.clients_store.canonical_client_id",
+        lambda cid: "demo-tenant",
+    )
+    monkeypatch.setattr(
+        owner_os,
+        "_build_status_report",
+        lambda tid: {"tenant_id": tid, "ok": True},
+    )
+    r = client.post(
+        "/api/owner-copilot/command",
+        json={"command": "delivery.status", "params": {"tenant_id": "demo-tenant"}},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "SUCCEEDED"
+    assert (body.get("result") or {}).get("tenant_id") == "demo-tenant"
+
+
+def test_delivery_billing_alias_resolves(monkeypatch, tmp_path):
+    _enable(monkeypatch)
+    _patch_owner_stores(monkeypatch, tmp_path)
+
+    monkeypatch.setattr(
+        "app.marketing.clients_store.resolve_client",
+        # nosecret — synthetic billing alias fixture, not a live credential
+        lambda cid: (
+            {"id": "jiya-makeover"} if cid in ("billing-alias-demo", "jiya-makeover") else None
+        ),
+    )
+    monkeypatch.setattr(
+        "app.marketing.clients_store.canonical_client_id",
+        lambda cid: "jiya-makeover",
+    )
+    monkeypatch.setattr(
+        owner_os,
+        "_build_status_report",
+        lambda tid: {"tenant_id": tid, "ok": True},
+    )
+    r = client.post(
+        "/api/owner-copilot/command",
+        json={"command": "delivery.status", "params": {"client_id": "billing-alias-demo"}},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["status"] == "SUCCEEDED"
+    assert (body.get("result") or {}).get("tenant_id") == "jiya-makeover"
+    assert (body.get("result") or {}).get("requested_tenant") == "billing-alias-demo"
+
+
+def test_no_default_jiya_in_handler():
+    out = oc_cmd._delivery_status({}, actor="t", correlation_id="c1")
+    assert out["status"] == "FAILED"
+    assert out["error"] == "tenant_id required"
+
+
+def test_production_green_allowlist_accepted(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv(
+        "OPENCLAW_ALLOWED_COMMANDS",
+        "platform.status,agents.list",
+    )
+    monkeypatch.setattr(policies, "durable_idempotency_ready", lambda: False)
+    allowed = policies.allowed_commands()
+    assert allowed == frozenset({"platform.status", "agents.list"})
+
+
+def test_production_amber_allowlist_stripped(monkeypatch):
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv(
+        "OPENCLAW_ALLOWED_COMMANDS",
+        "platform.status,agent.pause,agents.list",
+    )
+    monkeypatch.setattr(policies, "durable_idempotency_ready", lambda: False)
+    allowed = policies.allowed_commands()
+    assert "agent.pause" not in allowed
+    assert "platform.status" in allowed
+    assert allowed <= policies.GREEN_COMMANDS
+
+
+def test_red_rejected_even_with_allow_red_flag(monkeypatch):
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.setenv("OPENCLAW_ALLOW_RED_ACTIONS", "1")
+    monkeypatch.setenv(
+        "OPENCLAW_ALLOWED_COMMANDS",
+        "platform.status,calling.enable,shell.execute",
+    )
+    ok, reason = policies.command_permitted("calling.enable")
+    assert ok is False
+    assert "RED" in reason
+    assert "calling.enable" not in policies.allowed_commands()
+
+
+def test_stage_a_cannot_mutate_agent_state_in_production(monkeypatch):
+    monkeypatch.setenv("OPENCLAW_ENABLED", "1")
+    monkeypatch.setenv("APP_ENV", "production")
+    monkeypatch.setenv(
+        "OPENCLAW_ALLOWED_COMMANDS",
+        "platform.status,agent.pause,agent.resume",
+    )
+    monkeypatch.setattr(policies, "durable_idempotency_ready", lambda: False)
+    ok, reason = policies.command_permitted("agent.pause")
+    assert ok is False
+    assert "AMBER" in reason or "OPENCLAW_ALLOWED_COMMANDS" in reason or "durable" in reason

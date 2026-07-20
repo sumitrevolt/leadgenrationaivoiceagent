@@ -6,8 +6,10 @@ import uuid
 from typing import Any
 
 from app.integrations.openclaw.audit import audit_openclaw
+from app.integrations.openclaw.idempotency import MEMORY_STORE, get_store
 from app.integrations.openclaw.policies import (
     command_permitted,
+    durable_idempotency_ready,
     redact_secrets,
     require_approval_for_amber,
     safety_lane_for,
@@ -16,8 +18,9 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# In-process idempotency for GREEN reads within a short window (tests + local).
-_IDEMPOTENCY: dict[str, dict[str, Any]] = {}
+# Back-compat for tests that clear in-process cache.
+_IDEMPOTENCY = MEMORY_STORE
+_GREEN_IDEMPOTENCY_TTL_S = 300
 
 
 def _corr(explicit: str | None = None) -> str:
@@ -27,17 +30,19 @@ def _corr(explicit: str | None = None) -> str:
 def _idem_get(key: str | None) -> dict[str, Any] | None:
     if not key:
         return None
-    return _IDEMPOTENCY.get(key)
+    # Prefer durable when available; otherwise memory (GREEN optimization only).
+    store = get_store(prefer_durable=durable_idempotency_ready())
+    return store.get(key)
 
 
 def _idem_put(key: str | None, value: dict[str, Any]) -> None:
     if not key:
         return
-    if len(_IDEMPOTENCY) > 500:
-        # Drop oldest-ish arbitrarily to bound memory.
-        for k in list(_IDEMPOTENCY.keys())[:100]:
-            _IDEMPOTENCY.pop(k, None)
-    _IDEMPOTENCY[key] = value
+    store = get_store(prefer_durable=durable_idempotency_ready())
+    store.put(key, value, _GREEN_IDEMPOTENCY_TTL_S)
+    # Keep memory mirror for local tests when durable path used.
+    if store is not MEMORY_STORE:
+        MEMORY_STORE.put(key, value, _GREEN_IDEMPOTENCY_TTL_S)
 
 
 def run_via_owner_os(
