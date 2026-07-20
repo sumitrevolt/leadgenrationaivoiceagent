@@ -85,7 +85,7 @@ Change safe = **(1)** context-grep pehle (callers/routes/tests) **(2)** targeted
 
 ## 8. AGENT OPERATING RULES (Claude Code is repo me aise kaam kare)
 
-- **Canonical shared context (MANDATORY startup):** pehle `docs/context/CURRENT_STATE.md` + `ACTIVE_WORK.md` + `SESSION_HANDOFF.md` padho; phir sirf relevant `SYSTEM_MAP.md` section. Protocol = `docs/context/AI_OPERATING_PROTOCOL.md`. Max 3 workstreams. Full-project audit / naya master plan tab mat banao jab ACTIVE_WORK me stream already ho. Prod SHA sirf `/health.version` se likho. Swara/voice = FROZEN (edit mana). Session end pe `SESSION_HANDOFF.md` overwrite.
+- **Canonical shared context (MANDATORY startup):** pehle `docs/context/CURRENT_STATE.md` + `ACTIVE_WORK.md` + `SESSION_HANDOFF.md` padho; phir sirf relevant `SYSTEM_MAP.md` section. Protocol = `docs/context/AI_OPERATING_PROTOCOL.md` + parent **Universal Execution OS** `docs/context/UNIVERSAL_EXECUTION_OS.md` (ADR-129 — Claude/Codex/Cursor same; EXECUTE→TEST→FIX→PROVE). Max 3 workstreams. Full-project audit / naya master plan tab mat banao jab ACTIVE_WORK me stream already ho. Prod SHA sirf `/health.version` se likho. Swara/voice = FROZEN (edit mana). Session end pe `SESSION_HANDOFF.md` overwrite.
 - **Hinglish (Roman) me HI reply** — concise, kam formatting. **Canary: HAR reply ke END me akeli line `🐦 pelican`** (model-emitted, hook se NAHI — context-drift check).
 - **Work Quality Gate (har code task):** (1) context-first — edit se PEHLE parallel Grep/Glob se saare touch-points + files PURA padho (2) Edit se theek pehle Read (stale content pe edit mat karo) (3) padosi convention copy, additive prefer (4) `/verify` green hone tak "done" nahi (5) skills invoke karo: `fable-operating-manual` (non-trivial) / `context-first` (code edit) / `systematic-debugging` (bug) / `llm-council-decision` (ambiguous strategy) (6) dormant-but-wireable gaps SHIP karo — decide-and-ship, over-ask mat karo (7) Discover→Contract→Execute→Self-review→Evidence; automation change = flag+idempotency+retry/DLQ+metrics+rollback+runbook.
 - **Never:** `.env` values touch/overwrite · destructive migration/`DROP`/`reset --hard` bina explicit user confirm · `git add -A` (parallel Cursor edits — shared files diff karo) · commit/push bina user ke kahe · secrets kisi file me.
@@ -112,9 +112,9 @@ Poora repo har session dobara mat padho — ek **Graphify code knowledge-graph**
 **Sprint goal:** GTM 0→1 — pehle paid customers on Marketing product (jiya makeover = only real paying customer); mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint), 1st paid target ≤7d from 2026-07-02.
 
 **Last 3 significant decisions:**
-- 2026-07-20: **Context system LIVE (repo)** — `docs/context/*` = shared truth; AI startup = CURRENT_STATE→ACTIVE_WORK→SESSION_HANDOFF. Prod SHA truth = `/health` (`8ad64db7` at verify); origin/main may be ahead until deploy.
+- 2026-07-20: **ADR-129** — Universal Execution OS locked for Claude/Codex/Cursor (`docs/context/UNIVERSAL_EXECUTION_OS.md` + always-apply rules). Mode EXECUTE→TEST→FIX→PROVE.
+- 2026-07-20: **Context system LIVE (repo)** — `docs/context/*` = shared truth; AI startup = CURRENT_STATE→ACTIVE_WORK→SESSION_HANDOFF. Prod SHA truth = `/health`.
 - 2026-07-20: **ADR-128 CANARY** — `AGENT_RUNTIME=1`; Kavya succeeded; Swara RED blocked. Rollback = unset flag + recreate app.
-- 2026-07-19: **ADR-127/126** — Marketing Tools + Agent registry/runtime code on main (see decisions.md).
 **Blockers / USER-action pending (env-unset = dormant, graceful skip):**
 - **Billing ledger** (2026-07-18): ✅ Containment+voice LIVE `f8a5f6e9` · ✅ `UPI_AUTO_ACTIVATE=0` · ✅ INV/0002–0013 VOIDED 15:16 UTC (append-only markers, backup `invoices.jsonl.bak-voidC-20260718_151618`; `fy_gross_inr=1999`, Jiya 0001 live, next=0014). ✅ Disposable `041a2fb0ca1e` reconciled 15:30 UTC (client+sub `cancelled`, no delete, CSV backup `/root/reconcileD_20260718_153030.csv`). ✅ `dlq:dead`/`dlq:failed_tasks`/`celery` all = 0 (verified 2026-07-19).
 - Unity WebGL build (ADR-076): **LOCAL-ONLY — prod pe NAHI hai** (2026-07-14). Gated OFF; not a launch blocker.

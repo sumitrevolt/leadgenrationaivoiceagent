@@ -9,6 +9,6 @@ Before any non-trivial work:
 1. Read `docs/context/CURRENT_STATE.md`
 2. Read `docs/context/ACTIVE_WORK.md`
 3. Read `docs/context/SESSION_HANDOFF.md`
-4. Follow `docs/context/AI_OPERATING_PROTOCOL.md`
+4. Follow `docs/context/AI_OPERATING_PROTOCOL.md` + `docs/context/UNIVERSAL_EXECUTION_OS.md` (ADR-129)
 
-Max 3 workstreams. No full-repo audit when ACTIVE_WORK has a stream. Swara/voice = FROZEN. Prod completion requires `/health` evidence, not local tests alone. End session by overwriting `SESSION_HANDOFF.md`.
+Max 3 workstreams. Mode = EXECUTE→TEST→FIX→PROVE (not audit-only). No full-repo audit when ACTIVE_WORK has a stream. Swara/voice = FROZEN. Prod completion requires `/health` evidence, not local tests alone. End session by overwriting `SESSION_HANDOFF.md`.

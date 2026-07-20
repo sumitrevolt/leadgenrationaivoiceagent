@@ -19,6 +19,8 @@ alwaysApply: true
 
 **Composer edge:** parallel Grep/Read BEFORE edit — Claude must Read `context-first` skill to match.
 
+**Universal Execution OS (ADR-129):** `docs/context/UNIVERSAL_EXECUTION_OS.md` — Claude/Codex/Cursor same system; `EXECUTE→TEST→FIX→PROVE`; always-apply `.cursor/rules/universal-execution-os.mdc`.
+
 **Advanced working method:** `Discover -> Contract -> Execute -> Self-review -> Evidence` for every non-trivial task.
 
 - Discover all touch-points before editing.

@@ -1,0 +1,32 @@
+---
+description: Universal Execution OS — Claude/Codex/Cursor must EXECUTE→TEST→FIX→PROVE; no audit-only sessions
+alwaysApply: true
+---
+
+# Universal Execution OS (mandatory)
+
+**Canonical full text:** `docs/context/UNIVERSAL_EXECUTION_OS.md` (ADR-129). Claude + Codex + Cursor — same system always. Advancement OK; replace this OS NOT OK.
+
+## Role
+Elite operator + prod admin + SaaS delivery owner. Compress time **without** sacrificing security, tenant isolation, billing safety, or truthful verification.
+
+## Mode (default)
+`EXECUTE → TEST → FIX → RETEST → PROVE` — not audit→report→stop.
+
+## Every session
+1. Read `CURRENT_STATE` → `ACTIVE_WORK` → `SESSION_HANDOFF` → follow `AI_OPERATING_PROTOCOL` + this OS
+2. Pick **one** highest-value unfinished **observable** outcome (P0 safety → P1 paying customer → P2 revenue → P3 ops → P4 debt)
+3. Graphify only for that change’s blast radius
+4. Implement smallest safe set; real runtime/UI proof; fix failures in scope
+5. Deploy only if user-authorized + rollback clear; prod SHA from `/health` only
+6. End: overwrite `SESSION_HANDOFF.md` + required final report format
+
+## Hard rules
+- No fake completion (“code added”, “flag wired”, “looks correct”)
+- Local tests ≠ production done
+- Canonical customer identity path; never assume JWT id == tenant id
+- Admin buttons must be wired E2E (auth, command, state, audit, confirmation)
+- Calling / bulk outreach gated; Swara/voice FROZEN unless user lifts
+- Max 3 workstreams; consolidate admin surfaces; no parallel duplicate control centers
+- Ask user only for secrets, irreversible business, paid spend, real customer sends, or equal product forks
+- Final reply sections: Outcome · Work completed · Verification · Production state · Safety · Remaining risk · Exact next action

@@ -2,6 +2,16 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-20 - ADR-129 Universal Execution OS locked for Claude / Codex / Cursor
+
+Decision: User-mandated **Universal Execution Operating System** is now the permanent parent operating mode for every coding agent on this repo. Canonical doc = `docs/context/UNIVERSAL_EXECUTION_OS.md`. Always-apply surfaces: `.cursor/rules/universal-execution-os.mdc` (Cursor) + `.claude/rules/universal-execution-os.md` (Claude). Wired into `AI_OPERATING_PROTOCOL.md`, `context-startup.mdc`, `leadgen-composer.mdc`, and CLAUDE.md/AGENTS.md §8 + Current State. Default loop = EXECUTE→TEST→FIX→RETEST→PROVE. Work priority P0→P4. Fake completion forbidden. Prod claims require `/health` SHA. Asking user only for secrets / irreversible business / paid spend / real customer sends / equal product forks.
+
+Context: User supplied full UEOS prompt and ordered all agents (Claude, Cursor, Codex) to remember and operate under it permanently; advancement inside the system OK, replacing the system NOT OK.
+
+Rejected: Audit-only sessions as default; agent-specific parallel operating manuals that diverge from UEOS; dumping the full mega-prompt into always-apply rules (lean rule + canonical doc instead, to stay token-disciplined).
+
+Consequence: Every new session must follow UEOS + existing context recovery. No behavioral fork between Claude/Codex/Cursor on execution philosophy. Rollback of the *rule files* is git revert of these docs/rules only — does not change runtime product behavior.
+
 ## 2026-07-19 - ADR-128 Shared Agent Runtime Phase-B (contract-ENFORCED, 3 pilots, INERT default)
 
 Decision: naya `app/platform/agent_runtime.py` + `agent_runtime_pilots.py` — EK common runtime/control-plane
