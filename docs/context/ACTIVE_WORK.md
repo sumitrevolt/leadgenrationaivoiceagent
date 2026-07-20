@@ -1,48 +1,38 @@
 # ACTIVE_WORK — max 3 workstreams
 
-Completed/abandoned streams must be removed, not archived here forever.
-
 ---
 
-## WS-1 Delivery assurance operator surface
+## WS-1 Delivery assurance operator surface — CLOSED (PARTIAL proof)
 - **ID:** WS-1
-- **Business outcome:** Admin can see which paid customers are missed/at-risk (canonical ids) without guessing from chat
-- **Owner:** Context Recovery / Delivery Ops (nikhil attribution)
-- **Branch or worktree:** `main` @ `79ef3dc` + this session commits
-- **Allowed files:**
-  - `app/marketing/delivery_assurance.py` (exists)
-  - `app/marketing/product_one_delivery.py`
-  - `app/api/admin_dashboard.py`
-  - `frontend/delivery_command_center.html`
-  - `tests/test_delivery_assurance.py` (+ related admin/HTML guards)
-  - `docs/context/*`
-- **Protected files:** all `app/voice_agent/**`, `app/telephony/**`, Swara prompts, VAD/STT/TTS, voice workers/dashboards
-- **Dependencies:** deploy of HEAD after `8ad64db7` (user authorize)
-- **Acceptance criteria:**
-  - Cockpit JSON includes `assurance` summary (never-raise)
-  - `GET /api/admin/delivery-assurance` admin-gated, read-only
-  - Command Center feeds At Risk KPI from assurance
-  - Targeted pytest green; no Swara paths in diff
-- **Current state:** CODE-PRESENT module+tests on origin; admin/UI wire IN PROGRESS this session; NOT PRODUCTION-PROVEN
-- **Next exact action:** complete route+UI+tests, commit, update SESSION_HANDOFF
-- **Next exact command:** `.venv\Scripts\python.exe -m pytest tests/test_delivery_assurance.py -q`
+- **Business outcome:** Admin can see missed/at-risk paid customers
+- **Owner:** Delivery Ops / nikhil attribution
+- **Branch:** merged via PR #59 → `d625e48` on main; live under `d32a4934`
+- **Current state:** MERGED + DEPLOYED. Authenticated browser KPI click NOT proven → treat proof as PARTIAL; API/scan PRODUCTION-PROVEN.
+- **Next exact action:** none for WS-1 impl — optional admin UI smoke
+- **Next exact command:** (optional) open Delivery Command Center with admin token; confirm At Risk reflects assurance
 
 ---
 
-## WS-2 Jiya proof (last 10%)
+## WS-2 Jiya delivery assurance proof and operator recovery flow
 - **ID:** WS-2
-- **Business outcome:** Paying customer sees published/scheduled proof on own channels
-- **Owner:** Human + Zara path (approval-gated)
-- **Branch:** n/a (ops + Meta)
-- **Allowed files:** content approval / social publish paths only when explicitly activated
-- **Protected files:** Swara/voice entire tree
-- **Dependencies:** Meta Advanced Access for customer pages OR admin 1-click manual publish + customer approval of `approval_pending`
-- **Acceptance criteria:** deliverable `proof` = done for `jiya-makeover` with ledger evidence
-- **Current state:** HONEST-blocked EXTERNAL — PARTIAL
-- **Next exact action:** customer approve pending drafts OR connect Jiya channels after Meta review
-- **Next exact command:** (ops) open `/app` delivery / approvals for jiya-makeover — no code until path chosen
+- **Business outcome:** Paying customer Jiya reaches honest `proof` / recoverable delivery gaps without fake completion
+- **Exact observed gap:** Delivery ~90%; `proof` HONEST-blocked (Meta customer-page Advanced Access and/or pending approvals). Assurance shows at_risk for paid client without mutating records.
+- **Owner:** Human operator + content/approval path (Zara gated)
+- **Branch or worktree:** TBD when started (new branch from main)
+- **Allowed files:** content approval, social publish handoff, delivery ledger read paths, admin recovery actions already exposed — only when workstream activated
+- **Protected files:** ALL Swara/voice/telephony/STT/TTS/VAD/SIP/WebSocket/call/recording
+- **Acceptance criteria:**
+  - Read-only baseline of Jiya deliverables + assurance item documented
+  - Chosen recovery path (customer approve drafts OR Meta connect OR admin manual-publish proof) executed with ledger evidence
+  - `proof` done OR explicit EXTERNAL blocker residual with evidence
+  - No cross-tenant leakage; no fabricated publish
+- **Safe test-data strategy:** Prefer real Jiya drafts already in queue; no synthetic paid customers; no ledger forge
+- **Dependencies:** Meta Advanced Access for customer pages OR customer approval of `approval_pending`
+- **Current state:** DEFINED ONLY — do not implement until WS-1 closed session ends and no open prod fire
+- **Next exact action:** Inventory Jiya `approval_pending` + channel connect status (read-only)
+- **Next exact command:** `curl.exe -sS https://leadsgenai.in/health` then admin portal approvals for `jiya-makeover` (human)
 
 ---
 
-## WS-3 (slot reserved — empty)
-No third concurrent implementation. Parked ideas (24/7 agent enablement docs, coordinator rate-cap test, automation_health ntfy) stay untracked/local until WS-1 or WS-2 frees a slot.
+## WS-3 (empty)
+Parked LOCAL-ONLY in stash: automation_health ntfy, coordinator rate-cap test, AGENT_24_7 docs.
