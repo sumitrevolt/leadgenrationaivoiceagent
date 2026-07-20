@@ -1,12 +1,13 @@
 """OpenClaw safety lanes, allowlist, and fail-closed gates.
 
-GREEN  — autonomous after admin auth (read-only / diagnostics)
-AMBER  — requires Owner OS approval before mutation
+GREEN  — autonomous after super-admin / gateway auth (read-only / diagnostics)
+AMBER  — requires Owner OS approval before mutation (Stage B + durable idempotency)
 RED    — prohibited via OpenClaw; owner must use existing admin workflows
 """
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import Any
 
@@ -60,6 +61,8 @@ ALL_TYPED = GREEN_COMMANDS | AMBER_COMMANDS | RED_COMMANDS
 
 DEFAULT_STAGE_A_ALLOWLIST = ",".join(sorted(GREEN_COMMANDS))
 
+logger = logging.getLogger(__name__)
+
 
 def _truthy(name: str, default: str = "0") -> bool:
     return (os.getenv(name) or default).strip().lower() in ("1", "true", "yes", "on")
@@ -86,14 +89,67 @@ def request_timeout_seconds() -> float:
         return 12.0
 
 
-def allowed_commands() -> frozenset[str]:
-    """Env allowlist. Empty/unset → Stage A GREEN defaults. Fail-closed for unknown."""
+def is_production_env() -> bool:
+    """Mirror compliance production detection — settings first, env fallback."""
+    try:
+        from app.config import settings
+
+        if bool(getattr(settings, "is_production", False)):
+            return True
+    except Exception:
+        pass
+    env = (os.getenv("ENVIRONMENT") or os.getenv("APP_ENV") or "").strip().lower()
+    return env == "production"
+
+
+def durable_idempotency_ready() -> bool:
+    """AMBER production requires durable Redis idempotency. Memory alone is insufficient."""
+    try:
+        from app.integrations.openclaw.idempotency import durable_idempotency_available
+
+        return bool(durable_idempotency_available())
+    except Exception:
+        return False
+
+
+def _raw_allowlist_parts() -> set[str]:
     raw = (os.getenv("OPENCLAW_ALLOWED_COMMANDS") or "").strip()
     if not raw:
-        return frozenset(GREEN_COMMANDS)
-    parts = {p.strip() for p in raw.split(",") if p.strip()}
-    # Never expand allowlist into RED even if operator mis-sets env.
-    return frozenset(p for p in parts if p not in RED_COMMANDS)
+        return set(GREEN_COMMANDS)
+    return {p.strip() for p in raw.split(",") if p.strip()}
+
+
+def allowed_commands() -> frozenset[str]:
+    """Env allowlist. Empty/unset → Stage A GREEN defaults.
+
+    Production Stage A: strict subset of GREEN_COMMANDS. AMBER entries are stripped
+    when durable idempotency is unavailable (high-severity warning). RED never admitted.
+    OPENCLAW_ALLOW_RED_ACTIONS never expands RED into executable set.
+    """
+    parts = _raw_allowlist_parts()
+    # Never expand allowlist into RED even if operator mis-sets env or ALLOW_RED=1.
+    parts = {p for p in parts if p not in RED_COMMANDS}
+
+    amber_requested = parts & AMBER_COMMANDS
+    if is_production_env() and amber_requested and not durable_idempotency_ready():
+        logger.error(
+            "openclaw_stage_a_guard stripped_amber=%s reason=durable_idempotency_unavailable "
+            "severity=high note=Stage_A_GREEN_only_until_Stage_B",
+            sorted(amber_requested),
+        )
+        parts -= AMBER_COMMANDS
+
+    if is_production_env():
+        # Stage A production = GREEN-only structural subset.
+        non_green = parts - GREEN_COMMANDS
+        if non_green:
+            logger.error(
+                "openclaw_stage_a_guard stripped_non_green=%s reason=stage_a_green_only severity=high",
+                sorted(non_green),
+            )
+            parts &= GREEN_COMMANDS
+
+    return frozenset(parts)
 
 
 def safety_lane_for(command: str) -> str:
@@ -116,11 +172,18 @@ def command_permitted(command: str) -> tuple[bool, str]:
         return False, "empty command"
     lane = safety_lane_for(c)
     if lane == "RED":
+        # OPENCLAW_ALLOW_RED_ACTIONS must NEVER make RED executable.
+        _ = allow_red_actions()  # observed for ops clarity only
         return False, (
             f"RED command refused via OpenClaw: {c}. "
             "Use existing secure admin / Owner OS workflow."
         )
     if c not in allowed_commands():
+        if lane == "AMBER" and is_production_env() and not durable_idempotency_ready():
+            return (
+                False,
+                "AMBER disabled in production until durable OpenClaw idempotency (Stage B)",
+            )
         return False, f"command not in OPENCLAW_ALLOWED_COMMANDS: {c}"
     if lane == "AMBER" and not require_approval_for_amber():
         # Still require Owner OS approval path in adapter — this flag only softens UX.
@@ -169,6 +232,7 @@ def redact_secrets(payload: Any) -> Any:
 
 
 def policy_snapshot() -> dict[str, Any]:
+    durable = durable_idempotency_ready()
     return {
         "enabled": openclaw_enabled(),
         "allow_red_actions": allow_red_actions(),
@@ -179,5 +243,12 @@ def policy_snapshot() -> dict[str, Any]:
         "amber": sorted(AMBER_COMMANDS),
         "red": sorted(RED_COMMANDS),
         "calling_hard_off": True,
+        "production": is_production_env(),
+        "stage_a_green_only": is_production_env() or not durable,
+        "durable_idempotency": durable,
+        "idempotency_note": (
+            "In-process cache is GREEN-read optimization / local tests only. "
+            "AMBER production requires durable Redis idempotency (Stage B)."
+        ),
         "note": "OpenClaw is an edge Copilot — Owner OS remains sole action authority",
     }

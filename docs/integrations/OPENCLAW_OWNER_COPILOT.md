@@ -91,8 +91,20 @@ Local AMBER proof may add `agent.pause` (parks approval; no silent mutate).
 
 ## Auth
 
-- Admin JWT (browser) **or** `OPENCLAW_API_TOKEN` gateway bearer
+- **Human:** canonical super-admin JWT only (normal admin / module-RBAC → 403)
+- **Gateway:** `OPENCLAW_API_TOKEN` (constant-time) **and** socket peer in `OPENCLAW_GATEWAY_ALLOWED_IPS` (default loopback; empty = fail closed)
+- `X-Forwarded-For` is not trusted for Gateway machine auth
 - Rate limit: `owner_copilot` / `owner_copilot_nl` buckets
+
+## Tenant safety
+
+`delivery.status` requires `tenant_id` / `client_id`. Resolved via `clients_store.resolve_client` (canonical + billing alias). Missing / unknown → `FAILED`. Never defaults to Jiya or any customer.
+
+## Stage A vs Stage B
+
+- **Stage A (production):** GREEN allowlist only. AMBER stripped if durable idempotency unavailable.
+- **Idempotency:** in-process cache = GREEN read optimization / local tests. Redis store interface exists; AMBER production needs durable path (Stage B).
+- `OPENCLAW_ALLOW_RED_ACTIONS=1` never makes RED executable.
 
 ## API
 
