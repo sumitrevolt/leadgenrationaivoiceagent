@@ -23,6 +23,7 @@ SAFETY CONTRACT (enforced by tests):
 
 Lane: AMBER (internal state change), started gated-off. Owner attribution: zara (social/publishing).
 """
+
 from __future__ import annotations
 
 import os
@@ -122,7 +123,9 @@ def _stuck_records(min_age_hours: float) -> list[dict[str, Any]]:
                 "client_id": str((rec or {}).get("client_id") or ""),
                 "status": status,
                 "age_hours": age,
-                "title": str((rec or {}).get("content", {}).get("title") or (rec or {}).get("title") or "")[:80],
+                "title": str(
+                    (rec or {}).get("content", {}).get("title") or (rec or {}).get("title") or ""
+                )[:80],
             }
         )
     return out
@@ -156,6 +159,119 @@ def plan_remediation(min_age_hours: float = _DEFAULT_MIN_AGE_H) -> dict[str, Any
         "active_clients": len(active),
         "expire_sample": expire[:8],
         "escalate_sample": escalate[:8],
+    }
+
+
+def _meta_channel_status(canonical_id: str, aliases: list[str] | None = None) -> dict[str, Any]:
+    """Read-only Meta channel connect check for a customer. NEVER returns tokens.
+    Ignores global platform fallback (own-brand) so customer proof isn't false-green.
+    """
+    ids = {str(canonical_id or "").strip()}
+    for a in aliases or []:
+        if str(a or "").strip():
+            ids.add(str(a).strip())
+    out: dict[str, Any] = {
+        "connected": False,
+        "has_page_id": False,
+        "has_instagram": False,
+        "scope": "none",
+    }
+    if not any(ids):
+        return out
+    try:
+        from app.integrations import meta_graph
+
+        for r in meta_graph._read_conns() or []:
+            cid = str((r or {}).get("client_id") or "").strip()
+            if cid not in ids:
+                continue
+            tok = str((r or {}).get("page_access_token") or "").strip()
+            if not tok:
+                continue
+            out["connected"] = True
+            out["has_page_id"] = bool(str((r or {}).get("page_id") or "").strip())
+            out["has_instagram"] = bool(str((r or {}).get("instagram_account_id") or "").strip())
+            out["scope"] = "client"
+            break
+    except Exception as exc:
+        logger.debug("approval_remediation meta status skip: %s", exc)
+        out["error"] = "meta_store_unreadable"
+    return out
+
+
+def client_inventory(
+    client_id: str,
+    min_age_hours: float = _DEFAULT_MIN_AGE_H,
+) -> dict[str, Any]:
+    """READ-ONLY WS-2 inventory for one customer (canonical id OR billing alias).
+
+    Returns stuck approvals for that tenant, escalate-vs-expire classification,
+    and Meta channel connect status (no tokens). Never mutates, never publishes.
+    """
+    started = _now()
+    raw = str(client_id or "").strip()
+    aliases: list[str] = []
+    rec: dict[str, Any] = {}
+    try:
+        from app.marketing import clients_store
+
+        rec = clients_store.resolve_client(raw) or clients_store.get_client(raw) or {}
+        canon = str((rec or {}).get("id") or "").strip() or _canonical(raw) or raw
+        for a in (rec or {}).get("billing_client_ids") or []:
+            if str(a or "").strip():
+                aliases.append(str(a).strip())
+    except Exception:
+        canon = _canonical(raw) or raw
+        rec = {}
+    match_ids = {raw, canon, *aliases} - {""}
+
+    active = _active_canonical_ids()
+    is_active = bool(raw in active or canon in active or any(a in active for a in aliases))
+    stuck_all = _stuck_records(min_age_hours)
+    mine = [
+        r
+        for r in stuck_all
+        if str(r.get("client_id") or "") in match_ids
+        or _canonical(str(r.get("client_id") or "")) in match_ids
+    ]
+    by_status: dict[str, int] = {}
+    for r in mine:
+        st = str(r.get("status") or "")
+        by_status[st] = by_status.get(st, 0) + 1
+        r["canonical_id"] = canon
+        r["client_active"] = is_active
+
+    meta = _meta_channel_status(canon, aliases)
+    recovery = "none"
+    if mine and is_active:
+        recovery = "customer_approve_or_admin_escalate"
+    elif mine and not is_active:
+        recovery = "expire_inactive_via_remediation"
+    if is_active and not meta.get("connected"):
+        recovery = (
+            "meta_customer_connect_or_manual_publish"
+            if not mine
+            else "approve_drafts_and_or_meta_connect"
+        )
+
+    return {
+        "run_id": str(uuid.uuid4()),
+        "agent_id": "approval_remediation",
+        "domain": "content_publishing",
+        "lane": "GREEN",
+        "status": "success",
+        "generated_at": _iso(started),
+        "input_client_id": raw,
+        "canonical_id": canon,
+        "client_active": is_active,
+        "client_name": (rec or {}).get("business_name"),
+        "min_age_hours": float(min_age_hours),
+        "stuck_count": len(mine),
+        "by_status": by_status,
+        "stuck_sample": mine[:20],
+        "meta_channel": meta,
+        "recommended_recovery": recovery,
+        "note": "read-only inventory — no publish, no cancel",
     }
 
 
@@ -224,7 +340,8 @@ def execute_remediation(
                 continue  # NEVER touch an active client's draft
             try:
                 res = content_approval.cancel(
-                    r["id"], actor="approval_remediation",
+                    r["id"],
+                    actor="approval_remediation",
                     note="auto-expired: client inactive, draft stale (approval remediation)",
                 )
                 if isinstance(res, dict) and res.get("ok") is not False:
@@ -251,11 +368,15 @@ def _observe(result: dict[str, Any]) -> None:
             f"{result.get('escalate_active', 0)} active-escalate "
             f"(dry_run={result.get('dry_run')})"
         )
-        team.log_event(_OWNER_MEMBER, "approval_remediation", detail[:160],
-                       status="ok" if result.get("status") == "success" else "error",
-                       meta={"expired": result.get("expired"), "candidates": result.get("expire_candidates")})
+        team.log_event(
+            _OWNER_MEMBER,
+            "approval_remediation",
+            detail[:160],
+            status="ok" if result.get("status") == "success" else "error",
+            meta={"expired": result.get("expired"), "candidates": result.get("expire_candidates")},
+        )
     except Exception as exc:
         logger.debug("approval_remediation observe skip: %s", exc)
 
 
-__all__ = ["plan_remediation", "execute_remediation"]
+__all__ = ["plan_remediation", "execute_remediation", "client_inventory"]

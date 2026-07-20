@@ -17,6 +17,7 @@ AUTOMATION_FLAGS = [
     "APPROVAL_EMAIL_NOTIFY_HARD_OFF",  # emergency precedence over env/runtime approval-reminder gates
     "APPROVAL_EMAIL_NOTIFY",  # pending-approval EMAIL sweep (staff job approval_email_sweep) — OFF default; allowlist fail-closed
     "APPROVAL_EMAIL_CLIENT_ALLOWLIST",  # CSV client_ids allowed for approval emails when env path used
+    "APPROVAL_REMEDIATION",  # expire inactive-client stuck drafts only (plan always read-only; execute needs flag + dry_run=False) — OFF default
     "WARM_SLA_NUDGE",  # office HQ warm-lead SLA founder nudge (nested under ops) — OFF default
     "WARM_SLA_MIN",  # minutes threshold for warm SLA nudge (value-carrying)
     "TEAM_AUTOMATION",

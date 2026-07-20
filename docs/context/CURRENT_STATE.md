@@ -3,46 +3,38 @@
 > Evidence labels: PRODUCTION-PROVEN · CODE-PRESENT · TEST-PROVEN · LOCAL-ONLY · PARTIAL · STALE · UNKNOWN
 
 ## Last verified timestamp
-2026-07-20T05:30Z (UEOS rule-pack commit prep; prod SHA re-probe before claims)
+2026-07-20T05:45Z (UEOS committed; WS-2 inventory LOCAL+TEST; prod health probed)
 
 ## Local HEAD
-`22fa97cacac17360c72bd006d5e4065d1a75937f` (pre-UEOS-commit) — branch `main`
+Branch `chore/ueos-adr-129` @ `4966cfe` (+ uncommitted WS-2 inventory surface)
 Label: CODE-PRESENT
 
 ## Origin/main
-`ef5e8b4bf27dc7b2df78fc888aac1b98248f8109` — **1 commit ahead of local** (`feat(agent-os): safe approval/publishing remediation`)
-Label: CODE-PRESENT (local behind; do not push UEOS without integrating)
+`ef5e8b4` (approval remediation) — cherry-picked onto branch as `4966cfe`
+Label: CODE-PRESENT
 
 ## Production SHA
-Re-probe `/health` required — prior session claimed `d32a4934` (STALE relative to origin tip)
-Label: STALE until re-probe
+`22fa97ca` — PRODUCTION-PROVEN (`/health`)
+Label: PRODUCTION-PROVEN
 
 ## Repository cleanliness
-DIRTY pre-commit: UEOS rule pack (to commit) · `data/delivery_ledger/jiya-makeover.jsonl` (exclude) · stashes preserved
+DIRTY: WS-2 inventory files uncommitted · `data/delivery_ledger/jiya-makeover.jsonl` (exclude) · UEOS+cherry-pick committed on feature branch (not pushed)
 
 ## Production status
-Unchanged by UEOS (docs/rules only). Re-probe health after any product work.
+healthy · production · delivery-assurance 401 · new approval-remediation routes 404 until deploy
 
 ## Paying customers
-1 — Jiya Makeover · `jiya-makeover` · billing alias `d79d690f61b3`
+1 — Jiya Makeover · `jiya-makeover` · billing alias `d79d690f61b3` (local store missing billing_client_ids)
 
 ## Working customer workflows
-- Identity canonicalize — PRODUCTION-PROVEN
-- Delivery matrix ~90% — PARTIAL (proof EXTERNAL)
-- Delivery assurance operator surface — PRODUCTION-PROVEN (API+scan); UI click PARTIAL
+- Identity canonicalize — PRODUCTION-PROVEN (prod); LOCAL clients store alias link MISSING
+- Delivery assurance API — PRODUCTION-PROVEN
+- Approval remediation plan/inventory — TEST-PROVEN + LOCAL-ONLY baseline; NOT on prod yet
 
 ## Broken / incomplete customer workflows
-- Jiya `proof` last 10% — HONEST-blocked EXTERNAL (WS-2)
-
-## Non-voice agent status
-31 STAFF · AGENT_RUNTIME canary · Swara FROZEN · **UEOS ADR-129 locking (this commit)**
-
-## Top blockers
-1. Jiya proof EXTERNAL (WS-2)
-2. Local main behind origin by `ef5e8b4` (integrate before push)
-3. Authenticated UI KPI proof gap (optional)
+- Jiya `proof` — 9 local pending approvals + Meta not connected → recovery approve_and/or_meta_connect (EXTERNAL/human)
 
 ## Top 3 next actions
-1. Commit UEOS pack (in progress)
-2. WS-2 read-only Jiya approval/channel inventory (P1)
-3. Integrate/pull origin `ef5e8b4` before any push
+1. Commit+PR WS-2 inventory slice on `chore/ueos-adr-129` (user ask)
+2. Deploy → authenticated prod GET `/api/admin/approval-remediation/client/jiya-makeover`
+3. Human: approve Jiya drafts and/or Meta customer-page connect

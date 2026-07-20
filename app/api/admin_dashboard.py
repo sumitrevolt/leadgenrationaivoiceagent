@@ -456,6 +456,62 @@ async def admin_delivery_assurance(
         }
 
 
+@router.get("/approval-remediation/plan")
+async def admin_approval_remediation_plan(
+    min_age_hours: float = Query(48.0, ge=0, le=8760),
+    _user=Depends(require_admin),
+) -> dict:
+    """Read-only stuck-approval plan (inactive expire vs active escalate).
+
+    Never cancels, never publishes. Execute path stays flag-gated offline.
+    """
+    try:
+        from app.marketing import approval_remediation
+
+        plan = await asyncio.to_thread(approval_remediation.plan_remediation, min_age_hours)
+        return {"ok": plan.get("status") == "success", **plan}
+    except Exception as e:
+        logger.warning("admin_approval_remediation_plan failed: %s", e)
+        return {
+            "ok": False,
+            "status": "error",
+            "agent_id": "approval_remediation",
+            "total_stuck": 0,
+            "expire_candidates": 0,
+            "escalate_active": 0,
+            "error": str(e)[:160],
+        }
+
+
+@router.get("/approval-remediation/client/{client_id}")
+async def admin_approval_remediation_client(
+    client_id: str,
+    min_age_hours: float = Query(48.0, ge=0, le=8760),
+    _user=Depends(require_admin),
+) -> dict:
+    """Read-only WS-2 inventory for one customer (canonical or billing alias).
+
+    Stuck approvals + Meta channel connect (no tokens). Never mutates.
+    """
+    try:
+        from app.marketing import approval_remediation
+
+        inv = await asyncio.to_thread(
+            approval_remediation.client_inventory, client_id, min_age_hours
+        )
+        return {"ok": inv.get("status") == "success", **inv}
+    except Exception as e:
+        logger.warning("admin_approval_remediation_client failed: %s", e)
+        return {
+            "ok": False,
+            "status": "error",
+            "agent_id": "approval_remediation",
+            "input_client_id": client_id,
+            "stuck_count": 0,
+            "error": str(e)[:160],
+        }
+
+
 @router.get("/delivery-logs")
 async def admin_delivery_logs(
     filter: str = Query("", max_length=80),
