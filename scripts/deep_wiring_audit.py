@@ -135,6 +135,29 @@ def audit_file(path: pathlib.Path, routes: set[str]) -> dict:
     # handlers; regex blind-spot pehle inhe "dead handler" bata raha tha).
     funcs |= set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?function", html))
     funcs |= set(re.findall(r"window\.([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?\(", html))
+    # Exported controller objects can expose concise object-literal methods used
+    # directly by inline handlers (for example BP.enterMode()).  Treat only an
+    # explicitly window-exported object + a matching method definition as wired;
+    # a missing BP.someMethod must still fail instead of skipping the whole base.
+    exported_objects = set(
+        re.findall(
+            r"window\.([A-Za-z_$][\w$]*)\s*=\s*\1\b",
+            html,
+        )
+    )
+    for handler in onclicks:
+        if "." not in handler:
+            continue
+        obj, method = handler.split(".", 1)
+        if (
+            obj in exported_objects
+            and re.fullmatch(r"[A-Za-z_$][\w$]*", method)
+            and re.search(
+                rf"(?m)^\s*(?:async\s+)?{re.escape(method)}\s*\([^)]*\)\s*\{{",
+                html,
+            )
+        ):
+            funcs.add(handler)
 
     apis: set[str] = set()
     apis |= set(re.findall(r"""api\(['"]([^'"]+)['"]""", html))

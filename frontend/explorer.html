@@ -366,7 +366,232 @@ body{background:#0a0a0c;color:#e2e8f0;font-family:-apple-system,BlinkMacSystemFo
 @media(max-width:560px){.sj-legend{grid-template-columns:1fr}}
 </style>
 </head>
-<body>
+<body class="mode-blueprint">
+
+<!-- ══════════════════════════════════════════════════════════════════
+     PROJECT BLUEPRINT (default) — Make.com-inspired, original LeadGen AI.
+     Additive layer: the legacy dark canvas below (#topbar/#searchbar/#main)
+     is the "Technical Graph" and stays 100% intact (?view=technical).
+     ══════════════════════════════════════════════════════════════════ -->
+<style id="bp-style">
+:root{
+  --bp-bg:#f6f8fc; --bp-grid:#dbe2ee; --bp-ink:#1e2a3a; --bp-ink2:#5a6b82;
+  --bp-line:#c3ccdb; --bp-card:#ffffff; --bp-card2:#f9fbff; --bp-accent:#4f46e5;
+  --bp-shadow:0 1px 3px rgba(20,30,50,.08),0 8px 24px rgba(20,30,50,.06);
+  --bp-ok:#16a34a; --bp-warn:#d97706; --bp-block:#dc2626; --bp-dis:#94a3b8; --bp-unk:#c7cfdb;
+}
+body.mode-blueprint #topbar,body.mode-blueprint #searchbar,body.mode-blueprint #main,
+body.mode-blueprint #cmdk-back{display:none!important;}
+body.mode-technical #bp-root{display:none!important;}
+body.mode-technical #bp-back{display:flex;}
+#bp-root{position:fixed;inset:0;z-index:40;display:flex;flex-direction:column;
+  background:var(--bp-bg);
+  background-image:radial-gradient(var(--bp-grid) 1.1px,transparent 1.1px);
+  background-size:22px 22px;color:var(--bp-ink);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  overflow:hidden;}
+#bp-back{display:none;position:fixed;top:10px;left:12px;z-index:60;align-items:center;gap:6px;
+  background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:9px 14px;font-size:13px;
+  font-weight:600;cursor:pointer;box-shadow:var(--bp-shadow);}
+/* ---- top mode bar ---- */
+#bp-modebar{display:flex;align-items:center;gap:10px;padding:10px 16px;background:#ffffffdd;
+  backdrop-filter:blur(6px);border-bottom:1px solid var(--bp-line);flex-wrap:wrap;min-height:56px;}
+.bp-brand{display:flex;align-items:center;gap:9px;font-weight:800;font-size:15px;letter-spacing:-.2px;}
+.bp-brand .bp-logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,#6366f1,#8b5cf6);
+  display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;}
+.bp-modes{display:flex;gap:4px;background:#eef1f7;padding:4px;border-radius:12px;flex-wrap:wrap;}
+.bp-mode{border:none;background:transparent;color:var(--bp-ink2);font-size:13px;font-weight:600;
+  padding:8px 14px;border-radius:9px;cursor:pointer;min-height:40px;white-space:nowrap;}
+.bp-mode.active{background:#fff;color:var(--bp-accent);box-shadow:0 1px 2px rgba(20,30,50,.12);}
+.bp-spacer{flex:1 1 auto;}
+.bp-search{display:flex;align-items:center;gap:6px;background:#fff;border:1px solid var(--bp-line);
+  border-radius:10px;padding:7px 11px;min-width:180px;}
+.bp-search input{border:none;outline:none;font-size:13px;background:transparent;width:150px;color:var(--bp-ink);}
+.bp-statuschip{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--bp-line);
+  border-radius:10px;padding:7px 12px;font-size:12px;font-weight:600;color:var(--bp-ink2);}
+.bp-statuschip .bp-dot{width:9px;height:9px;border-radius:50%;background:var(--bp-unk);}
+.bp-link{border:1px solid var(--bp-line);background:#fff;color:var(--bp-ink2);border-radius:10px;
+  padding:8px 12px;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;min-height:38px;
+  display:inline-flex;align-items:center;gap:5px;}
+/* ---- breadcrumb ---- */
+#bp-crumb{display:flex;align-items:center;gap:6px;padding:9px 18px;font-size:13px;color:var(--bp-ink2);
+  background:#ffffffbb;border-bottom:1px solid var(--bp-line);min-height:40px;flex-wrap:wrap;}
+#bp-crumb .bp-cb{cursor:pointer;color:var(--bp-accent);font-weight:600;}
+#bp-crumb .bp-cb.plain{color:var(--bp-ink2);cursor:default;font-weight:600;}
+#bp-crumb .bp-sep{color:var(--bp-line);}
+/* ---- scroll stage ---- */
+#bp-stage{flex:1 1 auto;overflow:auto;position:relative;-webkit-overflow-scrolling:touch;}
+.bp-pad{padding:22px clamp(16px,4vw,44px) 60px;max-width:1500px;margin:0 auto;}
+.bp-h1{font-size:20px;font-weight:800;letter-spacing:-.3px;margin:2px 0 3px;}
+.bp-sub{font-size:13px;color:var(--bp-ink2);margin-bottom:20px;max-width:760px;}
+/* ---- section cards grid (Blueprint home = map of maps) ---- */
+.bp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px;}
+.bp-card{background:var(--bp-card);border:1px solid var(--bp-line);border-radius:16px;padding:18px;
+  cursor:pointer;box-shadow:var(--bp-shadow);transition:transform .12s,box-shadow .12s,border-color .12s;
+  position:relative;overflow:hidden;}
+.bp-card:hover{transform:translateY(-3px);box-shadow:0 4px 10px rgba(20,30,50,.1),0 16px 40px rgba(20,30,50,.1);
+  border-color:#b9c4d8;}
+.bp-card .bp-cardtop{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.bp-cardicon{width:46px;height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;
+  color:#fff;flex:none;}
+.bp-cardicon svg{width:26px;height:26px;}
+.bp-cardtitle{font-size:15px;font-weight:750;letter-spacing:-.2px;line-height:1.2;}
+.bp-carddesc{font-size:12.5px;color:var(--bp-ink2);line-height:1.5;min-height:38px;}
+.bp-cardfoot{display:flex;align-items:center;justify-content:space-between;margin-top:14px;
+  padding-top:12px;border-top:1px dashed var(--bp-line);}
+.bp-flowcount{font-size:11.5px;color:var(--bp-ink2);font-weight:600;}
+.bp-ring{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;
+  padding:3px 9px;border-radius:20px;}
+.bp-ring .bp-rdot{width:8px;height:8px;border-radius:50%;box-shadow:0 0 0 3px currentColor;opacity:1;}
+.bp-st-healthy{color:var(--bp-ok);background:#eafaf0;} .bp-st-healthy .bp-rdot{background:var(--bp-ok);}
+.bp-st-warning{color:var(--bp-warn);background:#fef5e7;} .bp-st-warning .bp-rdot{background:var(--bp-warn);}
+.bp-st-blocked{color:var(--bp-block);background:#fdeaea;} .bp-st-blocked .bp-rdot{background:var(--bp-block);}
+.bp-st-disabled{color:#64748b;background:#eef1f6;} .bp-st-disabled .bp-rdot{background:var(--bp-dis);box-shadow:0 0 0 3px #cbd5e1;}
+.bp-st-unknown{color:#7c8aa0;background:#eef1f6;} .bp-st-unknown .bp-rdot{background:transparent;box-shadow:inset 0 0 0 2px #b6c0d0;}
+/* ---- focused flow lane ---- */
+#bp-flowwrap{position:relative;}
+.bp-flowhead{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;margin-bottom:6px;}
+.bp-flowtabs{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 20px;}
+.bp-ftab{border:1px solid var(--bp-line);background:#fff;color:var(--bp-ink2);border-radius:20px;
+  padding:8px 15px;font-size:12.5px;font-weight:600;cursor:pointer;min-height:40px;}
+.bp-ftab.active{background:var(--bp-accent);border-color:var(--bp-accent);color:#fff;}
+.bp-canvas{position:relative;background:var(--bp-card);border:1px solid var(--bp-line);border-radius:18px;
+  box-shadow:var(--bp-shadow);padding:12px;overflow:hidden;}
+.bp-canvas svg.bp-edges{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+.bp-nodelayer{position:relative;z-index:2;}
+/* module = circular Make.com-style */
+.bp-mod{position:absolute;display:flex;flex-direction:column;align-items:center;width:120px;cursor:pointer;
+  transform:translate(-50%,-50%);transition:filter .12s;}
+.bp-disc{width:76px;height:76px;border-radius:50%;background:#fff;border:2px solid var(--bp-line);
+  display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(20,30,50,.10);
+  position:relative;}
+.bp-disc svg{width:38px;height:38px;}
+.bp-mod[data-shape=router] .bp-disc{border-radius:16px;transform:rotate(45deg);}
+.bp-mod[data-shape=router] .bp-disc svg{transform:rotate(-45deg);}
+.bp-mod[data-shape=storage] .bp-disc{border-radius:38px/22px;width:88px;}
+.bp-mod[data-shape=queue] .bp-disc{clip-path:polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%);border-radius:0;}
+.bp-mod[data-shape=human] .bp-disc{border-style:dashed;border-width:2.5px;}
+.bp-mod[data-shape=trigger] .bp-disc,.bp-mod[data-shape=outcome] .bp-disc{border-width:3px;}
+.bp-mod .bp-modlabel{margin-top:9px;font-size:11.5px;font-weight:700;text-align:center;line-height:1.25;
+  max-width:118px;color:var(--bp-ink);}
+.bp-mod .bp-modsub{font-size:10px;color:var(--bp-ink2);text-align:center;margin-top:1px;max-width:118px;}
+.bp-mod .bp-modring{position:absolute;top:-2px;right:14px;width:15px;height:15px;border-radius:50%;
+  border:2.5px solid #fff;z-index:3;}
+.bp-mod .bp-modbadge{position:absolute;top:-9px;left:50%;transform:translateX(-50%);font-size:8.5px;
+  font-weight:800;letter-spacing:.3px;padding:2px 6px;border-radius:6px;white-space:nowrap;z-index:4;
+  background:#eef1f7;color:#5a6b82;}
+.bp-mod.dim{filter:grayscale(.7) opacity(.42);}
+.bp-mod.sel .bp-disc{border-color:var(--bp-accent);box-shadow:0 0 0 4px rgba(79,70,229,.18),0 4px 12px rgba(20,30,50,.12);}
+.bp-mod[data-dis=1] .bp-disc{border-style:dashed;background:#f1f4f9;}
+.bp-mod[data-dis=1] .bp-disc svg{opacity:.5;}
+.bp-lane-hint{font-size:11.5px;color:var(--bp-ink2);margin:0 0 12px;display:flex;gap:14px;flex-wrap:wrap;}
+.bp-lane-hint b{color:var(--bp-ink);}
+.bp-toggle{border:1px solid var(--bp-line);background:#fff;color:var(--bp-ink2);border-radius:9px;
+  padding:7px 12px;font-size:12px;font-weight:600;cursor:pointer;min-height:38px;}
+.bp-toggle.on{background:#eef0ff;border-color:#c3c8f5;color:var(--bp-accent);}
+/* ---- detail drawer ---- */
+#bp-drawer{position:fixed;top:0;right:0;height:100%;width:min(410px,92vw);background:#fff;z-index:70;
+  box-shadow:-6px 0 30px rgba(20,30,50,.16);transform:translateX(105%);transition:transform .22s ease;
+  display:flex;flex-direction:column;}
+#bp-drawer.open{transform:translateX(0);}
+.bp-dhead{display:flex;align-items:flex-start;gap:12px;padding:18px 18px 14px;border-bottom:1px solid var(--bp-line);}
+.bp-dicon{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff;flex:none;}
+.bp-dicon svg{width:26px;height:26px;}
+.bp-dtitle{font-size:16px;font-weight:750;line-height:1.2;}
+.bp-dx{margin-left:auto;border:none;background:#eef1f6;width:32px;height:32px;border-radius:9px;cursor:pointer;
+  font-size:16px;color:var(--bp-ink2);flex:none;}
+.bp-dbody{padding:16px 18px 30px;overflow:auto;font-size:13px;line-height:1.55;}
+.bp-drow{margin-bottom:13px;}
+.bp-dk{font-size:10.5px;font-weight:800;letter-spacing:.5px;color:#93a0b4;text-transform:uppercase;margin-bottom:3px;}
+.bp-dv{color:var(--bp-ink);}
+.bp-dv code{background:#eef1f6;border-radius:5px;padding:1px 5px;font-size:12px;}
+.bp-chip{display:inline-block;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:6px;margin:2px 4px 2px 0;}
+.bp-ev-prod{background:#eafaf0;color:#15803d;} .bp-ev-test{background:#eef2ff;color:#4338ca;}
+.bp-ev-code{background:#f1f5f9;color:#475569;} .bp-ev-local{background:#fef5e7;color:#b45309;}
+.bp-ev-ext{background:#fdeaea;color:#b91c1c;} .bp-ev-unknown{background:#eef1f6;color:#64748b;}
+.bp-dlink{display:inline-flex;align-items:center;gap:5px;color:var(--bp-accent);font-weight:600;text-decoration:none;font-size:12.5px;}
+/* ---- products view ---- */
+.bp-prodgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:18px;}
+.bp-prodcol{background:var(--bp-card);border:1px solid var(--bp-line);border-radius:18px;padding:20px;box-shadow:var(--bp-shadow);}
+.bp-prodcol.mkt{border-top:4px solid #6366f1;} .bp-prodcol.voice{border-top:4px solid #f59e0b;}
+.bp-prodname{font-size:17px;font-weight:800;}
+.bp-prodtag{font-size:12px;font-weight:700;padding:3px 9px;border-radius:7px;display:inline-block;margin:8px 0 4px;}
+.bp-tier{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px dashed var(--bp-line);}
+.bp-tiername{font-weight:700;font-size:13.5px;} .bp-tierdesc{font-size:11.5px;color:var(--bp-ink2);}
+.bp-tierprice{font-weight:800;font-size:14px;white-space:nowrap;}
+.bp-note{background:#fff8e6;border:1px solid #f5e0a8;color:#8a6d1a;border-radius:10px;padding:11px 14px;
+  font-size:12.5px;margin-bottom:16px;}
+/* ---- error state ---- */
+#bp-error{display:none;text-align:center;padding:60px 20px;}
+#bp-error.on{display:block;}
+#bp-error .bp-euh{font-size:17px;font-weight:750;margin-bottom:8px;}
+#bp-error .bp-esub{color:var(--bp-ink2);font-size:13px;margin-bottom:20px;}
+.bp-bigbtn{border:none;background:var(--bp-accent);color:#fff;border-radius:12px;padding:13px 22px;
+  font-size:14px;font-weight:700;cursor:pointer;box-shadow:var(--bp-shadow);}
+/* ---- mobile ---- */
+@media(max-width:640px){
+  #bp-modebar{padding:8px 10px;gap:7px;}
+  /* touch-target contract: min 44px on mobile */
+  .bp-mode,.bp-ftab,.bp-toggle,.bp-link,.bp-bigbtn,.bp-ftab{min-height:44px;}
+  .bp-dx{width:44px;height:44px;}
+  .bp-modes{width:100%;overflow-x:auto;flex-wrap:nowrap;}
+  .bp-brand{font-size:13px;} .bp-search{display:none;}
+  .bp-pad{padding:16px 12px 60px;}
+  .bp-grid{grid-template-columns:1fr;}
+  .bp-mode{padding:8px 11px;font-size:12px;}
+  /* focused flow becomes vertical stepper */
+  .bp-canvas.stepper .bp-nodelayer{position:static;}
+  .bp-canvas.stepper svg.bp-edges{display:none;}
+  .bp-canvas.stepper .bp-mod{position:static;transform:none;width:100%;flex-direction:row;
+    gap:14px;align-items:center;padding:12px;border-bottom:1px solid var(--bp-line);}
+  .bp-canvas.stepper .bp-mod .bp-modlabel,.bp-canvas.stepper .bp-mod .bp-modsub{text-align:left;max-width:none;margin:0;}
+  .bp-canvas.stepper .bp-mod .bp-modtext{display:flex;flex-direction:column;gap:2px;}
+  .bp-canvas.stepper .bp-mod .bp-modbadge{position:static;transform:none;margin-left:auto;}
+  .bp-canvas.stepper .bp-disc{flex:none;}
+  .bp-canvas.stepper .bp-stepnum{font-size:11px;font-weight:800;color:var(--bp-ink2);min-width:18px;}
+}
+.bp-stepnum{display:none;}
+</style>
+
+<button id="bp-back" onclick="BP.enterMode('blueprint')">← Blueprint</button>
+
+<div id="bp-root" aria-label="Project Blueprint">
+  <div id="bp-modebar">
+    <div class="bp-brand"><span class="bp-logo">◆</span> LeadGen AI · Blueprint</div>
+    <div class="bp-modes" role="tablist">
+      <button class="bp-mode active" data-mode="blueprint" onclick="BP.enterMode('blueprint')">🗺 Project Blueprint</button>
+      <button class="bp-mode" data-mode="automations" onclick="BP.enterMode('automations')">⚙ Automations</button>
+      <button class="bp-mode" data-mode="products" onclick="BP.enterMode('products')">📦 Products</button>
+      <button class="bp-mode" data-mode="technical" onclick="BP.enterMode('technical')">🕸 Technical Graph</button>
+    </div>
+    <div class="bp-spacer"></div>
+    <label class="bp-search"><span aria-hidden="true">⌕</span>
+      <input id="bp-search-input" type="text" placeholder="Search steps…" oninput="BP.search(this.value)" aria-label="Search blueprint steps">
+    </label>
+    <div class="bp-statuschip" id="bp-statuschip"><span class="bp-dot"></span><span id="bp-statustext">Checking…</span></div>
+    <a class="bp-link" href="/app/automation">🏠 Dashboard</a>
+  </div>
+  <div id="bp-crumb"></div>
+  <div id="bp-stage">
+    <div class="bp-pad">
+      <div id="bp-error">
+        <div class="bp-euh">Blueprint could not render</div>
+        <div class="bp-esub" id="bp-error-detail">Something went wrong drawing this view. Your data is safe — open the full Technical Graph instead.</div>
+        <button class="bp-bigbtn" onclick="BP.enterMode('technical')">Open Old Explorer / Technical Graph →</button>
+      </div>
+      <div id="bp-content"></div>
+    </div>
+  </div>
+</div>
+
+<div id="bp-drawer" aria-label="Node details">
+  <div class="bp-dhead">
+    <div class="bp-dicon" id="bp-dicon"></div>
+    <div><div class="bp-dtitle" id="bp-dtitle"></div><div id="bp-dsub" style="font-size:12px;color:var(--bp-ink2)"></div></div>
+    <button class="bp-dx" onclick="BP.closeDrawer()" aria-label="Close">✕</button>
+  </div>
+  <div class="bp-dbody" id="bp-dbody"></div>
+</div>
 
 <div id="topbar">
   <div class="brand"><div class="dot"></div>LeadGen AI · Explorer</div>
@@ -806,9 +1031,12 @@ const VIEWS = {
       {id:'voice_followup', type:'platform', badge:'AUTO', cx:'simple', sched:'min:25', title:'Voice Followup', desc:'Consented trial day-8/9 + interested callbacks (NOT cold outbound) · VOICE_FOLLOWUP gate · Celery process-voice-followups', files:'voice_followup.py', flag:'VOICE_FOLLOWUP', x:1840, y:2080, w:270, h:100},
       {id:'owner_os', type:'platform', badge:'OWNER OS', cx:'moderate', sched:'live', title:'Owner OS Dispatch Gate', desc:'scheduler_dispatch_allowed + record_scheduler_skip — per-agent kill/pause board · audit events · gates team_scheduler._run_job AUR staff_jobs OwnerSchedulerGuardedTask dono paths', files:'owner_os.py', x:40, y:2200, w:280, h:100},
       {id:'owner_agent_execution', type:'platform', badge:'V1.1', cx:'moderate', sched:'live', title:'Owner Agent Execution', desc:'Per-agent scheduled-pause / stop-claims / drain / cooperative abort + running-task lease (owner_agent_controls table, ADR-120) · /app/owner Isha strip', files:'owner_agent_execution.py', x:340, y:2200, w:290, h:100},
+      {id:'agent_task_queue', type:'platform', badge:'AUDIT QUEUE', cx:'moderate', sched:'every cron run', title:'Agent Task Queue', desc:'Paperclip-style AgentTask bridge · atomic claim · parent delegation/cost roll-up · scheduler run start/done/fail audit', files:'agent_task_queue.py · agent_task.py', x:660, y:2200, w:290, h:100},
     ],
     edges: [
       {f:'scheduler_config', t:'beat', lbl:'gates run', style:'sync'},
+      {f:'beat', t:'agent_task_queue', lbl:'routine audit', style:'sync'},
+      {f:'agent_task_queue', t:'data', lbl:'AgentTask rows', style:'sync'},
       {f:'owner_os', t:'worker', lbl:'dispatch gate', style:'sync'},
       {f:'owner_agent_execution', t:'owner_os', lbl:'agent controls', style:'sync'},
       {f:'beat', t:'worker', lbl:'cron fire', style:'async'},
@@ -3859,6 +4087,745 @@ function init() {
 }
 
 init();
+</script>
+
+<script>
+/* ══════════════════════════════════════════════════════════════════════
+   PROJECT BLUEPRINT MODULE  (additive · reads existing globals VIEWS,
+   liveHealth, fetchProductPricing, renderNodes, renderEdges, fitView,
+   switchView). Never mutates the legacy Technical Graph data. All status
+   is derived from the SAME live endpoints init() already polls — no fakes.
+   ══════════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+
+/* ---------- local inline SVG icon registry (no CDN) ---------- */
+function _svg(inner, extra){ return '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" '+(extra||'')+' aria-hidden="true">'+inner+'</svg>'; }
+const _S = 'stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" fill="none"';
+const BPIC = {
+  // provider / brand marks (recognizable, simplified, brand-tinted)
+  fastapi:   _svg('<circle cx="12" cy="12" r="10" fill="#05998b"/><path d="M13 5l-5 8h4l-1 6 5-8h-4z" fill="#fff"/>'),
+  docker:    _svg('<rect x="3" y="10" width="18" height="7" rx="1.2" fill="#2496ed"/><g fill="#fff"><rect x="5" y="11.5" width="2.4" height="2.4"/><rect x="8" y="11.5" width="2.4" height="2.4"/><rect x="11" y="11.5" width="2.4" height="2.4"/><rect x="8" y="8.7" width="2.4" height="2.4"/><rect x="11" y="8.7" width="2.4" height="2.4"/></g><path d="M20 10c1.2-.6 2-.2 2.4.3-.3 1-1.4 1.1-2.4.8z" fill="#2496ed"/>'),
+  postgres:  _svg('<ellipse cx="12" cy="6.5" rx="7" ry="3" fill="#336791"/><path d="M5 6.5v11c0 1.6 3.1 3 7 3s7-1.4 7-3v-11" fill="#336791"/><text x="12" y="15" font-size="7" fill="#fff" text-anchor="middle" font-weight="700">P</text>'),
+  redis:     _svg('<path d="M12 3l9 4-9 4-9-4z" fill="#dc382d"/><path d="M3 11l9 4 9-4M3 15l9 4 9-4" stroke="#dc382d" stroke-width="2" fill="none"/>'),
+  qdrant:    _svg('<path d="M12 2l8.5 5v10L12 22l-8.5-5V7z" fill="#7c3aed"/><circle cx="12" cy="12" r="3" fill="#fff"/>'),
+  celery:    _svg('<circle cx="12" cy="12" r="9" fill="none" stroke="#37814a" stroke-width="2.4"/><path d="M12 6a6 6 0 100 12" stroke="#a9e34b" stroke-width="2.4" fill="none"/>'),
+  gmaps:     _svg('<path d="M12 2c-3.9 0-7 3-7 6.8C5 14 12 22 12 22s7-8 7-13.2C19 5 15.9 2 12 2z" fill="#ea4335"/><circle cx="12" cy="8.7" r="2.6" fill="#fff"/>'),
+  whatsapp:  _svg('<path d="M12 3a9 9 0 00-7.7 13.6L3 21l4.6-1.2A9 9 0 1012 3z" fill="#25d366"/><path d="M9 8.5c.2-.5.4-.5.7-.5s.6 0 .8.6c.2.6.7 1.6.7 1.7s0 .3-.2.5c-.2.2-.4.5-.5.6s-.2.2 0 .5c.2.3.9 1.4 2 1.9 1 .5 1.2.4 1.4.2.2-.2.6-.7.8-.9.2-.3.4-.2.6-.1.3.1 1.6.8 1.7.9 0 .2 0 .8-.2 1.2-.3.5-1.3.9-1.8.9-.6 0-2.5-.3-4.4-2.2C9 12 8.6 10.5 8.5 10c-.1-.4.2-.9.4-1.2z" fill="#fff"/>'),
+  meta:      _svg('<path d="M3 15c1-6 3.5-8 5-8 2 0 3 3 4 5s2 5 4 5c1.5 0 2.5-1.5 2.5-3.5S23 9 21 9c-2 0-3 2.5-4 4.5S15 18 13 18c-1.5 0-4-2-6-9" stroke="#0866ff" stroke-width="2.2" fill="none"/>'),
+  postiz:    _svg('<rect x="3" y="3" width="18" height="18" rx="5" fill="#8b5cf6"/><path d="M9 17V8h3.5a2.7 2.7 0 010 5.4H9" stroke="#fff" stroke-width="2" fill="none"/>'),
+  stripe:    _svg('<rect x="3" y="3" width="18" height="18" rx="4" fill="#635bff"/><path d="M14.5 9.3c-2.4-.9-3.6-.5-3.6.4 0 1.9 4.6 1 4.6 4 0 1.7-1.5 2.6-3.6 2.6-1 0-2.1-.2-3-.7" stroke="#fff" stroke-width="1.9" fill="none"/>'),
+  upi:       _svg('<rect x="3" y="3" width="18" height="18" rx="4" fill="#f97316"/><path d="M9 7h5M9 10h5M10.5 7c1.7 0 3 1.2 3 2.6s-1.3 2.6-3 2.6H10l3.5 4.8" stroke="#fff" stroke-width="1.7" fill="none"/>'),
+  sentry:    _svg('<path d="M12 4l8 14h-3.5C15.7 12.7 12.8 9.6 8.5 8.6 9.6 6.9 10.8 5 12 4z" fill="#362d59"/><path d="M12 4l-8 14h6c-.3-3 1.2-5.6 3.5-6.9" fill="#7553ff" opacity=".85"/>'),
+  prometheus:_svg('<circle cx="12" cy="12" r="9" fill="#e6522c"/><path d="M12 5c1.5 2 .5 3.5 0 4.5-.6 1.2.2 2 1 2.5" stroke="#fff" stroke-width="1.6" fill="none"/><rect x="8" y="13" width="8" height="1.8" fill="#fff"/><rect x="9.5" y="15.5" width="5" height="1.6" fill="#fff"/>'),
+  grafana:   _svg('<circle cx="12" cy="12" r="9" fill="#f46800"/><path d="M8 15c0-3 1.8-5 4-5M12 10c1.5 0 3 1 3 3" stroke="#fff" stroke-width="1.8" fill="none"/><circle cx="12" cy="9" r="1.6" fill="#fff"/>'),
+  mistral:   _svg('<g fill="#fa5010"><rect x="4" y="5" width="3.3" height="14"/><rect x="16.7" y="5" width="3.3" height="14"/></g><g fill="#ffc300"><rect x="8" y="5" width="3.3" height="7"/><rect x="12.7" y="5" width="3.3" height="7"/></g><g fill="#ff8205"><rect x="8" y="12" width="8" height="7"/></g>'),
+  groq:      _svg('<circle cx="12" cy="12" r="9" fill="#f55036"/><path d="M12 7a5 5 0 105 5v-2h-3" stroke="#fff" stroke-width="1.9" fill="none"/>'),
+  gemini:    _svg('<path d="M12 2c.6 5 3 7.4 8 8-5 .6-7.4 3-8 8-.6-5-3-7.4-8-8 5-.6 7.4-3 8-8z" fill="#4285f4"/>'),
+  vobiz:     _svg('<rect x="3" y="3" width="18" height="18" rx="5" fill="#2563eb"/><path d="M8.5 8c.4-.5 1-.4 1.3.2l.8 1.5c.2.4 0 .7-.3 1-.4.3-.4.5-.2.9.4.7 1.2 1.5 1.9 1.9.4.2.6.2.9-.2.3-.3.6-.5 1-.3l1.5.8c.6.3.7.9.2 1.3-1 .9-2.3.9-3.7.2C11 15.3 9 13.3 8 11.3c-.7-1.4-.5-2.5.5-3.3z" fill="#fff"/>'),
+  smtp:      _svg('<rect x="3" y="5.5" width="18" height="13" rx="2" '+_S+' stroke="#0ea5e9"/><path d="M4 7l8 6 8-6" '+_S+' stroke="#0ea5e9"/>'),
+  caddy:     _svg('<path d="M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z" fill="#22c55e"/><path d="M9.5 12l1.8 1.8 3.5-3.6" stroke="#fff" stroke-width="1.9" fill="none"/>'),
+  // internal pictograms (line style, currentColor)
+  lead:      _svg('<circle cx="10" cy="8" r="3.3" '+_S+'/><path d="M4 19c0-3.3 2.7-5.5 6-5.5 1.4 0 2.7.4 3.7 1.1M18 14v5M15.5 16.5h5" '+_S+'/>'),
+  content:   _svg('<rect x="5" y="3" width="12" height="17" rx="2" '+_S+'/><path d="M8 8h6M8 11h6M8 14h4M15.5 17.5l4-4 1.6 1.6-4 4H15.5z" '+_S+'/>'),
+  approval:  _svg('<path d="M12 3l7 3v5c0 4.5-3 7.3-7 8.8C8 17.3 5 14.5 5 10V6z" '+_S+'/><path d="M9.3 11.5l1.8 1.8 3.6-3.8" '+_S+'/>'),
+  router:    _svg('<circle cx="12" cy="12" r="2.3" '+_S+'/><path d="M12 9.7V4M12 4l-2 2M12 4l2 2M12 14.3v2.5l5 2.5M12 16.8L7 19.3M9.9 12H4M18 12h2" '+_S+'/>'),
+  scheduler: _svg('<circle cx="12" cy="13" r="7.5" '+_S+'/><path d="M12 9v4l2.5 2M9 3h6M12 3v2.5" '+_S+'/>'),
+  agent:     _svg('<rect x="5" y="8" width="14" height="10" rx="2.5" '+_S+'/><path d="M12 4v4M8.5 8V6.5M15.5 8V6.5" '+_S+'/><circle cx="9.5" cy="13" r="1.1" fill="currentColor"/><circle cx="14.5" cy="13" r="1.1" fill="currentColor"/><path d="M9.5 15.7h5" '+_S+'/>'),
+  billing:   _svg('<rect x="3" y="6" width="18" height="12" rx="2.4" '+_S+'/><path d="M3 10h18M6.5 14.5h4" '+_S+'/>'),
+  security:  _svg('<path d="M12 3l7 3v5c0 4.5-3 7.3-7 8.8C8 17.3 5 14.5 5 10V6z" '+_S+'/><rect x="9.5" y="11" width="5" height="4" rx="1" '+_S+'/><path d="M10.5 11v-1a1.5 1.5 0 013 0v1" '+_S+'/>'),
+  database:  _svg('<ellipse cx="12" cy="6" rx="7" ry="3" '+_S+'/><path d="M5 6v12c0 1.6 3.1 3 7 3s7-1.4 7-3V6M5 12c0 1.6 3.1 3 7 3s7-1.4 7-3" '+_S+'/>'),
+  alert:     _svg('<path d="M12 4l9 15H3z" '+_S+'/><path d="M12 10v4M12 16.5v.2" '+_S+'/>'),
+  human:     _svg('<circle cx="12" cy="8" r="3.4" '+_S+'/><path d="M5 20c0-3.6 3-6 7-6s7 2.4 7 6" '+_S+'/>'),
+  storage:   _svg('<path d="M4 8l8-4 8 4-8 4z" '+_S+'/><path d="M4 8v8l8 4 8-4V8M12 12v8" '+_S+'/>'),
+  trigger:   _svg('<path d="M13 3L5 14h5l-1 7 8-11h-5z" '+_S+' fill="currentColor" fill-opacity=".12"/>'),
+  queue:     _svg('<rect x="4" y="4" width="16" height="4" rx="1.4" '+_S+'/><rect x="4" y="10" width="16" height="4" rx="1.4" '+_S+'/><rect x="4" y="16" width="16" height="4" rx="1.4" '+_S+'/>'),
+  outcome:   _svg('<circle cx="12" cy="12" r="8.5" '+_S+'/><path d="M8.3 12.2l2.6 2.6 4.8-5" '+_S+'/>'),
+  funnel:    _svg('<path d="M4 5h16l-6 7v6l-4 2v-8z" '+_S+'/>'),
+  voice:     _svg('<rect x="9" y="3" width="6" height="11" rx="3" '+_S+'/><path d="M5 11a7 7 0 0014 0M12 18v3M9 21h6" '+_S+'/>'),
+  phone:     _svg('<path d="M6 3h3l1.5 5-2 1.5c1 2.5 3 4.5 5.5 5.5l1.5-2 5 1.5v3c0 1-.8 1.8-1.8 1.8C11.2 22 3 13.8 3 5.8 3 4.8 3.8 4 5 4z" '+_S+'/>'),
+  email:     _svg('<rect x="3" y="5.5" width="18" height="13" rx="2" '+_S+'/><path d="M4 7l8 6 8-6" '+_S+'/>'),
+  social:    _svg('<circle cx="6" cy="12" r="2.6" '+_S+'/><circle cx="17" cy="6" r="2.6" '+_S+'/><circle cx="17" cy="18" r="2.6" '+_S+'/><path d="M8.3 10.8l6.4-3.6M8.3 13.2l6.4 3.6" '+_S+'/>'),
+  search:    _svg('<circle cx="11" cy="11" r="6.5" '+_S+'/><path d="M16 16l4 4" '+_S+'/>'),
+  health:    _svg('<path d="M3 12h4l2-5 3 10 2-6 2 3h5" '+_S+'/>'),
+  invoice:   _svg('<path d="M6 3h9l3 3v15l-2.5-1.5L13 21l-2.5-1.5L8 21l-2-1.5V3z" '+_S+'/><path d="M9 8h6M9 11h6M9 14h4" '+_S+'/>'),
+  payment:   _svg('<rect x="3" y="6" width="18" height="12" rx="2.4" '+_S+'/><path d="M8 10h6M8 13h5M9.5 10c1.4 0 2.4.9 2.4 2s-1 2-2.4 2H8l3 3" '+_S+'/>'),
+  brain:     _svg('<path d="M9 4a3 3 0 00-3 3 3 3 0 00-1 5.5A3 3 0 007 18a3 3 0 005 1 3 3 0 005-1 3 3 0 002-5.5A3 3 0 0015 4a3 3 0 00-6 0z" '+_S+'/><path d="M12 5v14" '+_S+'/>'),
+  monitor:   _svg('<path d="M12 21a9 9 0 119-9" '+_S+'/><path d="M12 12l5-3" '+_S+'/><circle cx="12" cy="12" r="1.6" fill="currentColor"/>'),
+  network:   _svg('<circle cx="12" cy="5" r="2.3" '+_S+'/><circle cx="5" cy="18" r="2.3" '+_S+'/><circle cx="19" cy="18" r="2.3" '+_S+'/><path d="M11 7L6.5 16M13 7l4.5 9M7 18h10" '+_S+'/>'),
+  page:      _svg('<rect x="5" y="3" width="14" height="18" rx="2" '+_S+'/><path d="M8 8h8M8 12h8M8 16h5" '+_S+'/>'),
+  handoff:   _svg('<path d="M7 11l-3 3 3 3M17 7l3-3-3-3" '+_S+'/><path d="M4 14h9a4 4 0 004-4M20 4h-9a4 4 0 00-4 4" '+_S+'/>'),
+  block:     _svg('<circle cx="12" cy="12" r="8.5" '+_S+'/><path d="M6.5 6.5l11 11" '+_S+'/>'),
+  onboard:   _svg('<path d="M12 3l8 4v5c0 5-4 8-8 9-4-1-8-4-8-9V7z" '+_S+'/><path d="M12 8v6M9 11h6" '+_S+'/>'),
+  self:      _svg('<path d="M20 12a8 8 0 10-2.3 5.6" '+_S+'/><path d="M20 7v4h-4" '+_S+'/>'),
+  // category fallbacks
+  cat_marketing:_svg('<path d="M4 13l14-6v10l-14-6zM4 13v4M18 9l2-1v8l-2-1" '+_S+'/>'),
+  cat_platform: _svg('<rect x="4" y="4" width="16" height="16" rx="3" '+_S+'/><path d="M8 8h8v8H8z" '+_S+'/>'),
+  cat_monitor:  _svg('<path d="M12 21a9 9 0 119-9" '+_S+'/><path d="M12 12l4-2" '+_S+'/>'),
+  cat_ai:       _svg('<rect x="5" y="8" width="14" height="10" rx="2.5" '+_S+'/><path d="M12 4v4" '+_S+'/><circle cx="9.5" cy="13" r="1" fill="currentColor"/><circle cx="14.5" cy="13" r="1" fill="currentColor"/>'),
+  cat_voice:    _svg('<rect x="9" y="3" width="6" height="11" rx="3" '+_S+'/><path d="M5 11a7 7 0 0014 0" '+_S+'/>'),
+  cat_data:     _svg('<ellipse cx="12" cy="6" rx="7" ry="3" '+_S+'/><path d="M5 6v12c0 1.6 3 3 7 3s7-1.4 7-3V6" '+_S+'/>'),
+  cat_external: _svg('<circle cx="12" cy="12" r="8.5" '+_S+'/><path d="M3.5 12h17M12 3.5c2.5 2.3 2.5 14.7 0 17M12 3.5c-2.5 2.3-2.5 14.7 0 17" '+_S+'/>'),
+  cat_gap:      _svg('<path d="M12 4l9 15H3z" '+_S+'/><path d="M12 10v4M12 16.5v.2" '+_S+'/>')
+};
+function bpIcon(key, cat){
+  if(key && BPIC[key]) return BPIC[key];
+  if(cat && BPIC['cat_'+cat]) return BPIC['cat_'+cat];
+  return BPIC.cat_platform;  // deterministic final fallback
+}
+
+/* ---------- kind → shape + accent + badge ---------- */
+const KIND = {
+  trigger:{shape:'trigger', color:'#16a34a', badge:'TRIGGER'},
+  input:  {shape:'circle',  color:'#0ea5e9', badge:'INPUT'},
+  process:{shape:'circle',  color:'#6366f1', badge:'STEP'},
+  router: {shape:'router',  color:'#d97706', badge:'ROUTER'},
+  action: {shape:'circle',  color:'#7c3aed', badge:'ACTION'},
+  storage:{shape:'storage', color:'#0d9488', badge:'STORE'},
+  human:  {shape:'human',   color:'#db2777', badge:'HUMAN'},
+  queue:  {shape:'queue',   color:'#0891b2', badge:'QUEUE'},
+  agent:  {shape:'circle',  color:'#a855f7', badge:'AGENT'},
+  alert:  {shape:'circle',  color:'#dc2626', badge:'ALERT'},
+  outcome:{shape:'outcome', color:'#16a34a', badge:'DONE'},
+  security:{shape:'human',  color:'#475569', badge:'GATE'},
+  monitor:{shape:'circle',  color:'#0891b2', badge:'MONITOR'},
+  external:{shape:'circle', color:'#64748b', badge:'EXTERNAL'}
+};
+
+/* ---------- BLUEPRINT DATA (references real files/flags; up/down auto) ----------
+   files values are reused verbatim from the curated VIEWS graph (already
+   validated by test_files_refs_resolve) or are non-file capability labels. */
+const F = {
+  // reusable file strings (all resolve on disk via existing graph)
+  pub:'public pages', pkg:'packages.py · /app/marketing', vpkg:'voice_packages.py · /voice-agent',
+  pay:'upi_config.py · activation.py', portal:'customer_dashboard.py', bill:'billing.py · usage.py',
+  prospect:'prospector.py · lead_harvester.py', niche:'niche_prospector.py', pipe:'pipeline_ops.py',
+  outreach:'auto_outreach.py · email_unsub.py', reply:'reply_agent.py', appr:'approvals_bridge.py',
+  crm:'app/platform/crm_sync.py', content:'auto_content.py · content_schedule.py',
+  capproval:'content_approval.py · clientops.py', wa:'whatsapp_campaign.py · wa_campaign_runner.py',
+  reg:'agent_registry.py', runtime:'agent_runtime.py', owneros:'owner_os.py',
+  worker:'app/worker.py', exec:'owner_agent_execution.py', copilot:'app/api/owner_copilot.py',
+  ah:'automation_health.py · automation_log_service.py', sched2:'scheduled_ops.py · office_briefing.py · dlq_retry.py',
+  missed:'missed_call.py', compl:'compliance.py', vstream:'post_call_hooks.py · vobiz_stream.py',
+  vbrain:'voice_agent/ · post_call_hooks.py', pch:'post_call_hooks.py', fire:'scripts/fire_calls.py',
+  launch:'activation.py · final_integration_check.py', caddy:'docker-compose.vps.yml',
+  main:'app/main.py', tenant:'middleware/tenant.py', obs:'docker-compose.observability.yml',
+  models:'models/', integ:'integrations/', embed:'embed_widget.py', compare:'compare.html',
+  onboard:'onboarding.py · fde.py', self:'self_improve.py', evalg:'eval_gate.py · eval_metrics.py · eval_suite.py'
+};
+function step(o){ return o; }
+
+const BP_SECTIONS = [
+ {key:'products', title:'Products & Customer Journey', accent:'#6366f1', icon:'funnel', status:'launch',
+  desc:'2 alag products — lead magnet se signup tak ka funnel. Marketing aur Voice hamesha ALAG bikte hain.',
+  flows:[{key:'journey', title:'Acquisition → Product Choice → Signup', steps:[
+    step({id:'j_visitor', title:'Visitor', sub:'organic / SEO / ads', kind:'trigger', icon:'network', ev:'PRODUCTION-PROVEN', status:'public_health', files:F.pub, trigger:'Inbound web visit', input:'Traffic sources', output:'Session', owner:'Growth', dash:'/app/analytics'}),
+    step({id:'j_magnet', title:'Free Lead Magnets', sub:'/audit · /site-audit · /demo', kind:'input', icon:'search', ev:'PRODUCTION-PROVEN', files:F.embed, trigger:'CTA click', input:'Business name / URL', output:'Audit + captured lead', owner:'Marketing', dash:'/app/growth-tools'}),
+    step({id:'j_pricing', title:'Pricing / Compare', sub:'/pricing · /compare (no bundle)', kind:'router', icon:'router', ev:'PRODUCTION-PROVEN', files:F.compare, trigger:'Interested visitor', input:'Product intent', output:'Marketing OR Voice path', owner:'Sales', dash:'/pricing'}),
+    step({id:'j_mkt', title:'AI Automated Marketing', sub:'MAIN product · live package pricing', kind:'action', icon:'cat_marketing', ev:'PRODUCTION-PROVEN', files:F.pkg, trigger:'Chose Marketing', input:'Niche + city', output:'Marketing subscription', owner:'Product', dash:'/app/marketing'}),
+    step({id:'j_voice', title:'AI Voice Calling Agent', sub:'STANDALONE · niche-band pricing', kind:'action', icon:'cat_voice', ev:'CODE-PRESENT', files:F.vpkg, trigger:'Chose Voice', input:'Niche band', output:'Voice subscription', owner:'Product', dash:'/voice-agent'}),
+    step({id:'j_start', title:'Signup /start', sub:'account + plan select', kind:'process', icon:'onboard', ev:'PRODUCTION-PROVEN', files:F.pay, trigger:'Plan chosen', input:'Contact + plan', output:'Pending order', owner:'Billing', dash:'/start'}),
+    step({id:'j_pay', title:'UPI / Stripe Pay', sub:'manual UPI primary', kind:'action', icon:'upi', ev:'PRODUCTION-PROVEN', files:F.pay, trigger:'Order placed', input:'UPI ref / card', output:'Payment confirmed', owner:'Billing', dash:'/app/admin'}),
+    step({id:'j_active', title:'Subscription + Portal', sub:'entitlements live', kind:'outcome', icon:'approval', ev:'PRODUCTION-PROVEN', files:F.portal, trigger:'Payment ok', input:'Plan', output:'Active customer + portal access', owner:'Delivery', dash:'/app/customer'})
+  ], conns:[[3,6,'checkout'],[4,6,'checkout']]}]},
+
+ {key:'leadgen', title:'Lead Generation & CRM', accent:'#0ea5e9', icon:'lead', status:'jobs',
+  desc:'Prospect discovery → scoring → outreach → Hot Queue → human follow-up. ToS-safe sources only.',
+  flows:[{key:'discovery', title:'Discovery → Scoring → Outreach → Hot Queue', steps:[
+    step({id:'l_prospect', title:'Prospector', sub:'09:30 daily · 39 niches', kind:'trigger', icon:'search', ev:'PRODUCTION-PROVEN', flag:'NICHE_ROTATION', status:'jobs', files:F.prospect, trigger:'Scheduler 09:30 IST', input:'Niche + city rotation', output:'Raw business list', owner:'Growth agent', dash:'/app/outreach'}),
+    step({id:'l_maps', title:'Maps + OSM + SearXNG', sub:'phones + reviews', kind:'input', icon:'gmaps', ev:'PRODUCTION-PROVEN', files:F.niche, trigger:'Prospect run', input:'Places / Overpass', output:'Enriched leads', owner:'Growth', dash:'/app/outreach'}),
+    step({id:'l_score', title:'Lead Rescore', sub:'11:00 hot-lead surfacing', kind:'process', icon:'monitor', ev:'PRODUCTION-PROVEN', files:F.pipe, trigger:'Daily 11:00', input:'Lead pool', output:'Scored + ranked', owner:'Neha (pipeline)', dash:'/app/dashboards'}),
+    step({id:'l_route', title:'Route: Hot vs Cold', sub:'decision', kind:'router', icon:'router', ev:'CODE-PRESENT', files:F.pipe, trigger:'Score threshold', input:'Ranked leads', output:'Hot→queue / Cold→nurture', owner:'Pipeline', dash:'/app/dashboards'}),
+    step({id:'l_outreach', title:'Email Outreach', sub:'Rohan · cap 25/day', kind:'action', icon:'email', ev:'PRODUCTION-PROVEN', flag:'AUTO_EMAIL_OUTREACH', files:F.outreach, trigger:'Cold lead', input:'Verified email', output:'Hinglish cold email + followups', owner:'Rohan', dash:'/app/outreach'}),
+    step({id:'l_reply', title:'Reply Agent', sub:'hourly IMAP triage', kind:'process', icon:'agent', ev:'PRODUCTION-PROVEN', flag:'REPLY_AGENT', files:F.reply, trigger:'Inbound reply', input:'Email thread', output:'Intent + guarded reply', owner:'Rohan', dash:'/app/outreach'}),
+    step({id:'l_hotq', title:'Hot Queue', sub:'/app/inbox speed-to-lead', kind:'queue', icon:'queue', ev:'PRODUCTION-PROVEN', files:F.pipe, trigger:'Hot lead / positive reply', input:'Qualified lead', output:'Actionable queue item', owner:'Sales', dash:'/app/inbox'}),
+    step({id:'l_human', title:'Human Follow-up', sub:'1-click WhatsApp / call', kind:'human', icon:'handoff', ev:'PRODUCTION-PROVEN', files:F.appr, trigger:'Queue item', input:'Lead context', output:'Human contact', owner:'Sumit / sales', dash:'/app/inbox'}),
+    step({id:'l_crm', title:'CRM Sync', sub:'Zoho / HubSpot (opt)', kind:'storage', icon:'database', ev:'CODE-PRESENT', flag:'CRM_SYNC', files:F.crm, trigger:'Lead update', input:'Lead record', output:'CRM contact', owner:'Growth', dash:'/app/growth-tools'})
+  ], conns:[[6,7,'work'],[1,8,'store']]}]},
+
+ {key:'content', title:'Content & Social Publishing', accent:'#8b5cf6', icon:'content', status:'jobs',
+  desc:'Roz AI content → human approval → social publish. WhatsApp bulk auto-send OFF (ban-safety).',
+  flows:[{key:'approval', title:'Generate → Approve → Publish', steps:[
+    step({id:'c_gen', title:'Content Generator', sub:'Isha · 07:00 daily', kind:'trigger', icon:'content', ev:'PRODUCTION-PROVEN', flag:'USE_STRUCTURED_CONTENT', status:'jobs', files:F.content, trigger:'Scheduler 07:00 IST', input:'Client niche + calendar', output:'Draft posts', owner:'Isha', dash:'/app/marketing'}),
+    step({id:'c_packs', title:'Niche + Festival Packs', sub:'auto-schedule', kind:'input', icon:'page', ev:'PRODUCTION-PROVEN', files:'auto_content · marketing.py', trigger:'Generation run', input:'Festival calendar', output:'Themed content', owner:'Isha', dash:'/app/marketing'}),
+    step({id:'c_queue', title:'Approval Queue', sub:'God Mode + portal', kind:'router', icon:'router', ev:'PRODUCTION-PROVEN', files:F.capproval, trigger:'Draft ready', input:'Draft post', output:'Approve / reject / edit', owner:'Admin + customer', dash:'/app/automation'}),
+    step({id:'c_human', title:'Human Approve', sub:'HITL ✓/✕', kind:'human', icon:'approval', ev:'PRODUCTION-PROVEN', files:F.appr, trigger:'Queue item', input:'Draft', output:'Approved content', owner:'Sumit / customer', dash:'/app/automation'}),
+    step({id:'c_publish', title:'Social Publish', sub:'Postiz · 4 channels', kind:'action', icon:'postiz', ev:'CODE-PRESENT', files:'social_engine · Postiz', trigger:'Approved', input:'Scheduled post', output:'Published to social', owner:'Zara', dash:'/app/automation'}),
+    step({id:'c_wa', title:'WhatsApp 1-click', sub:'auto-send OFF', kind:'action', icon:'whatsapp', ev:'CODE-PRESENT', flag:'WHATSAPP_AUTO_SEND', files:F.wa, trigger:'Approved', input:'WA template', output:'Human 1-click send link', owner:'Zara', dash:'/app/whatsapp'}),
+    step({id:'c_live', title:'Published + Portal', sub:'customer sees proof', kind:'outcome', icon:'approval', ev:'PRODUCTION-PROVEN', files:F.portal, trigger:'Publish ok', input:'Post', output:'Delivery proof in portal', owner:'Delivery', dash:'/app/customer'})
+  ], conns:[[3,5,'also WA']]}]},
+
+ {key:'aistaff', title:'AI Staff & Owner OS', accent:'#a855f7', icon:'agent', status:'jobs',
+  desc:'31-agent registry → shared runtime → Owner OS dispatch gate (kill/pause) → execution → audit.',
+  flows:[{key:'runtime', title:'31 Agents → Runtime → Owner Gate → Audit', steps:[
+    step({id:'a_reg', title:'Agent Registry', sub:'31 agents', kind:'trigger', icon:'agent', ev:'PRODUCTION-PROVEN', status:'jobs', files:F.reg, trigger:'Registry load', input:'Agent definitions', output:'Roster', owner:'Agent-OS', dash:'/app/team'}),
+    step({id:'a_runtime', title:'Agent Runtime', sub:'AGENT_RUNTIME=1 canary', kind:'process', icon:'brain', ev:'TEST-PROVEN', flag:'AGENT_RUNTIME', files:F.runtime, trigger:'Task dispatch', input:'Agent + task', output:'Runtime execution', owner:'Agent-OS', dash:'/app/team'}),
+    step({id:'a_gate', title:'Owner OS Dispatch Gate', sub:'allow / pause / kill', kind:'router', icon:'router', ev:'PRODUCTION-PROVEN', files:F.owneros, trigger:'Before every job', input:'Agent id', output:'Allowed or skipped (audited)', owner:'Owner OS', dash:'/app/owner'}),
+    step({id:'a_disp', title:'Scheduler Dispatch', sub:'team_scheduler', kind:'action', icon:'scheduler', ev:'PRODUCTION-PROVEN', files:F.sched2, trigger:'Gate allowed', input:'Job', output:'Queued task', owner:'Kavya', dash:'/app/automation'}),
+    step({id:'a_queue', title:'Task Queue + DLQ', sub:'Redis + file DLQ', kind:'queue', icon:'queue', ev:'PRODUCTION-PROVEN', files:F.worker, trigger:'Dispatched', input:'Task', output:'Executed / DLQ on fail', owner:'Kavya', dash:'/app/ops'}),
+    step({id:'a_exec', title:'Execution + Leases', sub:'cooperative abort', kind:'action', icon:'cog', ev:'PRODUCTION-PROVEN', files:F.exec, trigger:'Worker pick', input:'Task lease', output:'Result', owner:'Agent-OS', dash:'/app/owner'}),
+    step({id:'a_audit', title:'Audit Events', sub:'every dispatch logged', kind:'storage', icon:'database', ev:'PRODUCTION-PROVEN', files:F.owneros, trigger:'Any action', input:'Event', output:'Audit trail', owner:'Owner OS', dash:'/app/owner'}),
+    step({id:'a_copilot', title:'OpenClaw Owner Copilot', sub:'edge only · flag OFF', kind:'agent', icon:'brain', ev:'LOCAL-ONLY', flag:'OPENCLAW_ENABLED', files:F.copilot, trigger:'Owner NL command', input:'Typed command', output:'GREEN run / AMBER park / RED refuse', owner:'Owner / Sumit', dash:'/app/owner'})
+  ], conns:[[2,6,'audit']]}]},
+
+ {key:'automations', title:'Automations & Scheduler', accent:'#10b981', icon:'scheduler', status:'jobs',
+  desc:'Celery beat → Redis → worker → engines, with a dead-man health switch. Full library in Automations tab.',
+  flows:[{key:'engine', title:'Beat → Redis → Worker → Health', steps:[
+    step({id:'s_beat', title:'Celery Beat', sub:'IST schedule', kind:'trigger', icon:'scheduler', ev:'PRODUCTION-PROVEN', status:'jobs', files:F.worker, trigger:'Cron IST', input:'Schedule', output:'Job messages', owner:'Kavya', dash:'/app/ops'}),
+    step({id:'s_redis', title:'Redis Broker', sub:'queue + state', kind:'queue', icon:'redis', ev:'PRODUCTION-PROVEN', files:F.models, trigger:'Beat emit', input:'Job', output:'Queued', owner:'SRE', dash:'/app/ops'}),
+    step({id:'s_worker', title:'Worker ×4', sub:'concurrency=4', kind:'process', icon:'celery', ev:'PRODUCTION-PROVEN', files:F.worker, trigger:'Message', input:'Task', output:'Engine run', owner:'Kavya', dash:'/app/ops'}),
+    step({id:'s_engines', title:'Scheduled Engines', sub:'content/outreach/revenue…', kind:'action', icon:'cog', ev:'PRODUCTION-PROVEN', files:F.sched2, trigger:'Worker pick', input:'Job payload', output:'Business effect', owner:'Staff agents', dash:'/app/automation'}),
+    step({id:'s_health', title:'Automation Health', sub:'dead-man switch', kind:'router', icon:'monitor', ev:'PRODUCTION-PROVEN', status:'jobs', files:F.ah, trigger:'Continuous', input:'Last-run per job', output:'OK / overdue / failed', owner:'Ops', dash:'/app/ops'}),
+    step({id:'s_alert', title:'Overdue / DLQ Alert', sub:'ntfy push', kind:'alert', icon:'alert', ev:'PRODUCTION-PROVEN', status:'dlq', files:F.ah, trigger:'Overdue detected', input:'Health signal', output:'Alert', owner:'Ops', dash:'/app/ops'}),
+    step({id:'s_recover', title:'Recovery', sub:'DLQ retry / revive', kind:'outcome', icon:'self', ev:'PRODUCTION-PROVEN', files:F.sched2, trigger:'Alert', input:'Failed task', output:'Requeued / healed', owner:'Ops', dash:'/app/ops'})
+  ], conns:[[4,2,'watches']]}]},
+
+ {key:'voice', title:'Voice & Telephony', accent:'#f59e0b', icon:'voice', status:'public_health',
+  desc:'Inbound / callback voice only. Cold outbound platform_dial HARD OFF. Swara/voice code FROZEN this wave.',
+  flows:[{key:'inbound', title:'Inbound Callback → Brain → Compliance → Post-Call', steps:[
+    step({id:'v_in', title:'Inbound / Missed-call', sub:'consent-based callback', kind:'trigger', icon:'phone', ev:'CODE-PRESENT', flag:'AUTO_CALLBACK_INQUIRY', files:F.missed, trigger:'Inquiry / missed call', input:'Consented number', output:'Callback request', owner:'Voice', dash:'/app/dialer'}),
+    step({id:'v_gate', title:'Consent + DND Gate', sub:'fail-CLOSED', kind:'router', icon:'security', ev:'PRODUCTION-PROVEN', files:F.compl, trigger:'Before dial', input:'Number + consent', output:'Allowed / blocked', owner:'Compliance', dash:'/app/dialer'}),
+    step({id:'v_stream', title:'Vobiz WS Stream', sub:'L16/16k', kind:'input', icon:'vobiz', ev:'CODE-PRESENT', files:F.vstream, trigger:'Call connect', input:'Audio stream', output:'Live audio', owner:'Voice', dash:'/app/dialer'}),
+    step({id:'v_brain', title:'Voice Brain', sub:'Groq STT · Mistral · EdgeTTS', kind:'process', icon:'brain', ev:'CODE-PRESENT', files:F.vbrain, trigger:'Audio in', input:'Speech', output:'AI reply speech', owner:'Swara (FROZEN)', dash:'/app/dialer'}),
+    step({id:'v_disc', title:'AI Disclosure', sub:'"ek AI assistant"', kind:'security', icon:'approval', ev:'PRODUCTION-PROVEN', files:F.compl, trigger:'Call start', input:'Policy', output:'Disclosed call', owner:'Compliance', dash:'/app/dialer'}),
+    step({id:'v_post', title:'Post-Call Hooks', sub:'meter + qualify', kind:'process', icon:'cog', ev:'PRODUCTION-PROVEN', flag:'AUTO_QUALIFY_CALLS', files:F.pch, trigger:'On hangup', input:'Call result', output:'Minutes + qualification', owner:'Voice', dash:'/app/dialer'}),
+    step({id:'v_store', title:'Billing + Transcript', sub:'90-day retention', kind:'storage', icon:'database', ev:'PRODUCTION-PROVEN', files:F.pch, trigger:'Post-call', input:'Usage + transcript', output:'Billed minutes + stored transcript', owner:'Billing', dash:'/app/admin'}),
+    step({id:'v_dial', title:'platform_dial (Cold Outbound)', sub:'HARD OFF · user mandate', kind:'action', icon:'block', ev:'CODE-PRESENT', disabled:true, files:F.fire, trigger:'—', input:'—', output:'Disabled (3-layer kill)', owner:'—', note:'PLATFORM_DIAL_DAILY=0 + data flag false + scheduler paused. Re-enable only on explicit user go-ahead.', dash:'/app/dialer'})
+  ], conns:[]}]},
+
+ {key:'billing', title:'Billing & Customer Delivery', accent:'#0d9488', icon:'billing', status:'launch',
+  desc:'UPI pay → subscription → GST invoice → 10-deliverable matrix → delivery assurance scan → proof.',
+  flows:[{key:'delivery', title:'UPI Pay → Subscription → Invoice → Delivery Assurance', steps:[
+    step({id:'b_pay', title:'UPI Manual Pay', sub:'primary (Stripe intl)', kind:'trigger', icon:'upi', ev:'PRODUCTION-PROVEN', files:F.pay, trigger:'Customer pays', input:'UPI ref', output:'Payment record', owner:'Billing', dash:'/app/admin'}),
+    step({id:'b_verify', title:'Verify + Activate', sub:'UPI_AUTO_ACTIVATE=0', kind:'human', icon:'approval', ev:'PRODUCTION-PROVEN', files:F.pay, trigger:'Payment claim', input:'UPI ref', output:'Verified activation', owner:'Sumit', dash:'/app/admin'}),
+    step({id:'b_sub', title:'Subscription Sync', sub:'packages.py truth', kind:'process', icon:'billing', ev:'PRODUCTION-PROVEN', files:F.bill, trigger:'Activated', input:'Plan', output:'Active subscription', owner:'Billing', dash:'/app/admin'}),
+    step({id:'b_inv', title:'GST Invoice', sub:'Rule-46 INV/2026-27', kind:'action', icon:'invoice', ev:'PRODUCTION-PROVEN', files:F.bill, trigger:'Subscription', input:'Plan + GSTIN', output:'Sequential invoice', owner:'Billing', dash:'/app/admin'}),
+    step({id:'b_matrix', title:'Delivery Matrix', sub:'10 deliverables', kind:'process', icon:'content', ev:'PRODUCTION-PROVEN', files:'product_one_delivery · customer_delivery', trigger:'Active customer', input:'Plan entitlements', output:'Deliverable schedule', owner:'Delivery', dash:'/app/delivery-command-center'}),
+    step({id:'b_assure', title:'Delivery Assurance', sub:'hourly at-risk scan', kind:'router', icon:'monitor', ev:'PRODUCTION-PROVEN', files:'delivery_assurance · delivery ledger', trigger:'Hourly', input:'Delivery state', output:'On-track / at-risk', owner:'Nikhil', dash:'/app/delivery-command-center'}),
+    step({id:'b_alert', title:'At-risk Alert', sub:'operator recovery', kind:'alert', icon:'alert', ev:'PRODUCTION-PROVEN', files:'delivery_assurance · delivery ledger', trigger:'Gap detected', input:'At-risk customer', output:'Operator alert', owner:'Nikhil', dash:'/app/delivery-command-center'}),
+    step({id:'b_proof', title:'Customer Proof', sub:'portal delivery view', kind:'outcome', icon:'approval', ev:'PARTIAL', files:F.portal, trigger:'Delivered', input:'Deliverables', output:'Proof visible to customer', owner:'Delivery', dash:'/app/customer'})
+  ], conns:[[5,4,'watches']]}]},
+
+ {key:'data', title:'Data & Integrations', accent:'#3b82f6', icon:'database', status:'public_health',
+  desc:'Core datastores + free-stack external providers. All AI providers are free-tier (user mandate).',
+  flows:[{key:'stores', title:'Datastores + External Providers', steps:[
+    step({id:'d_pg', title:'Postgres + PgBouncer', sub:'leads / clients / calls', kind:'storage', icon:'postgres', ev:'PRODUCTION-PROVEN', files:F.models, trigger:'App R/W', input:'Rows', output:'Durable state', owner:'SRE', dash:'/app/ops'}),
+    step({id:'d_redis', title:'Redis', sub:'broker + cache + state', kind:'storage', icon:'redis', ev:'PRODUCTION-PROVEN', files:F.models, trigger:'Queue/cache', input:'Keys', output:'Fast state', owner:'SRE', dash:'/app/ops'}),
+    step({id:'d_qdrant', title:'Qdrant', sub:'RAG kb_main', kind:'storage', icon:'qdrant', ev:'PRODUCTION-PROVEN', files:F.models, trigger:'Retrieval', input:'Embeddings', output:'Semantic recall', owner:'AI', dash:'/app/brain'}),
+    step({id:'d_llm', title:'LLM Providers', sub:'Mistral · Groq · Gemini', kind:'external', icon:'mistral', ev:'PRODUCTION-PROVEN', files:F.integ, trigger:'LLM call', input:'Prompt', output:'Completion (429 fallback chain)', owner:'Platform LLM', dash:'/app/brain'}),
+    step({id:'d_tts', title:'EdgeTTS · Pollinations', sub:'free TTS + images', kind:'external', icon:'voice', ev:'PRODUCTION-PROVEN', files:F.integ, trigger:'TTS / image', input:'Text', output:'Audio / image', owner:'AI', dash:'/app/marketing'}),
+    step({id:'d_maps', title:'Maps · SearXNG', sub:'prospecting + search', kind:'external', icon:'gmaps', ev:'PRODUCTION-PROVEN', files:F.integ, trigger:'Lookup', input:'Query', output:'Places / results', owner:'Growth', dash:'/app/outreach'}),
+    step({id:'d_smtp', title:'SMTP / IMAP', sub:'Hostinger mailbox', kind:'external', icon:'smtp', ev:'PRODUCTION-PROVEN', files:F.integ, trigger:'Send/receive', input:'Email', output:'Delivered / triaged', owner:'Growth', dash:'/app/outreach'}),
+    step({id:'d_social', title:'WhatsApp · Meta · Postiz', sub:'messaging + social', kind:'external', icon:'whatsapp', ev:'CODE-PRESENT', files:F.integ, trigger:'Publish/send', input:'Message', output:'Delivered post/msg', owner:'Marketing', dash:'/app/whatsapp'}),
+    step({id:'d_pay', title:'Stripe · UPI', sub:'payments', kind:'external', icon:'stripe', ev:'PRODUCTION-PROVEN', files:F.bill, trigger:'Charge', input:'Payment', output:'Confirmed txn', owner:'Billing', dash:'/app/admin'})
+  ], conns:[[3,2,'RAG'],[0,3,'context']]}]},
+
+ {key:'infra', title:'Infrastructure, Security & Observability', accent:'#64748b', icon:'security', status:'public_health',
+  desc:'Edge → app → fail-open tenant / fail-closed compliance → datastores → full observability + backup.',
+  flows:[{key:'stack', title:'Edge → App → Gates → Observability', steps:[
+    step({id:'i_caddy', title:'Caddy (TLS)', sub:'leadsgenai.in', kind:'trigger', icon:'caddy', ev:'PRODUCTION-PROVEN', status:'public_health', files:F.caddy, trigger:'HTTPS request', input:'Traffic', output:'Proxied to app', owner:'SRE', dash:'/health'}),
+    step({id:'i_app', title:'FastAPI App', sub:':8080 · uvicorn ×2', kind:'process', icon:'fastapi', ev:'PRODUCTION-PROVEN', status:'public_health', files:F.main, trigger:'Request', input:'HTTP', output:'Response', owner:'Backend', dash:'/health'}),
+    step({id:'i_tenant', title:'Tenant Middleware', sub:'fail-OPEN apex', kind:'router', icon:'router', ev:'PRODUCTION-PROVEN', files:F.tenant, trigger:'Per request', input:'Host', output:'Tenant branding', owner:'Platform', dash:'/app/control-center'}),
+    step({id:'i_compl', title:'Compliance Gates', sub:'DND/DPDP fail-CLOSED', kind:'security', icon:'security', ev:'PRODUCTION-PROVEN', files:F.compl, trigger:'Sensitive action', input:'Request', output:'Allowed / blocked', owner:'Compliance', dash:'/privacy'}),
+    step({id:'i_data', title:'Datastores', sub:'PG · Redis · Qdrant', kind:'storage', icon:'database', ev:'PRODUCTION-PROVEN', files:F.models, trigger:'R/W', input:'Data', output:'Persistence', owner:'SRE', dash:'/app/ops'}),
+    step({id:'i_obs', title:'Prometheus + Grafana', sub:'Loki · Tempo', kind:'monitor', icon:'grafana', ev:'PRODUCTION-PROVEN', files:F.obs, trigger:'Metrics scrape', input:'Telemetry', output:'Dashboards', owner:'SRE', dash:'/app/ops'}),
+    step({id:'i_sentry', title:'Sentry', sub:'errors ARMED', kind:'alert', icon:'sentry', ev:'PRODUCTION-PROVEN', files:F.obs, trigger:'Exception', input:'Error event', output:'Alert + issue', owner:'SRE', dash:'/app/ops'}),
+    step({id:'i_backup', title:'Offsite Backup', sub:'rclone → GDrive', kind:'storage', icon:'storage', ev:'PRODUCTION-PROVEN', files:F.obs, trigger:'Scheduled', input:'DB dump', output:'Restore-proven backup', owner:'SRE', dash:'/app/ops'}),
+    step({id:'i_health', title:'Health /health', sub:'version + status', kind:'outcome', icon:'health', ev:'PRODUCTION-PROVEN', status:'public_health', files:F.launch, trigger:'Probe', input:'—', output:'environment + version', owner:'SRE', dash:'/health'})
+  ], conns:[[5,1,'observes']]}]}
+];
+
+/* ---------- AUTOMATION WORKFLOW CARDS (Trigger→Input→Processing→Router→Action→Storage/Outcome) ---------- */
+const BP_AUTOMATIONS = [
+  {key:'discovery', title:'Lead discovery → scoring → outreach', sectionKey:'leadgen', flowKey:'discovery'},
+  {key:'hotqueue', title:'Inquiry → Hot Queue → human follow-up', accent:'#0ea5e9', icon:'handoff', steps:[
+    step({id:'w2_inq', title:'Inquiry', sub:'form / reply / call', kind:'trigger', icon:'lead', ev:'PRODUCTION-PROVEN', files:'app/api/clientops.py', trigger:'New inquiry', input:'Contact', output:'Lead', owner:'Growth'}),
+    step({id:'w2_norm', title:'Normalize + Consent', sub:'DPDP basis', kind:'input', icon:'approval', ev:'PRODUCTION-PROVEN', files:F.compl, trigger:'Inquiry', input:'Raw contact', output:'Consented lead', owner:'Compliance'}),
+    step({id:'w2_score', title:'Score', sub:'hot vs cold', kind:'process', icon:'monitor', ev:'PRODUCTION-PROVEN', files:F.pipe, trigger:'Lead', input:'Signals', output:'Score', owner:'Neha'}),
+    step({id:'w2_route', title:'Route', sub:'queue decision', kind:'router', icon:'router', ev:'CODE-PRESENT', files:F.pipe, trigger:'Score', input:'Lead', output:'Hot→queue', owner:'Pipeline'}),
+    step({id:'w2_queue', title:'Hot Queue', sub:'/app/inbox', kind:'queue', icon:'queue', ev:'PRODUCTION-PROVEN', files:F.pipe, trigger:'Hot', input:'Lead', output:'Queue item', owner:'Sales'}),
+    step({id:'w2_human', title:'Human Follow-up', sub:'ntfy speed-to-lead', kind:'human', icon:'handoff', ev:'PRODUCTION-PROVEN', files:F.appr, trigger:'Queue', input:'Context', output:'Contacted', owner:'Sumit'}),
+    step({id:'w2_store', title:'Outcome Logged', sub:'lead status', kind:'storage', icon:'database', ev:'PRODUCTION-PROVEN', files:F.models, trigger:'Contacted', input:'Disposition', output:'Updated lead', owner:'Sales'})
+  ]},
+  {key:'content', title:'Content generation → approval → social publish', sectionKey:'content', flowKey:'approval'},
+  {key:'reply', title:'Reply agent → classification → guarded response', accent:'#8b5cf6', icon:'agent', steps:[
+    step({id:'w4_in', title:'Inbound Reply', sub:'IMAP hourly', kind:'trigger', icon:'email', ev:'PRODUCTION-PROVEN', flag:'REPLY_AGENT', files:F.reply, trigger:'Scheduler hourly', input:'Email', output:'Thread', owner:'Rohan'}),
+    step({id:'w4_parse', title:'Parse Thread', sub:'known-prospect only', kind:'input', icon:'content', ev:'PRODUCTION-PROVEN', files:F.reply, trigger:'Reply', input:'Email body', output:'Clean text', owner:'Rohan'}),
+    step({id:'w4_class', title:'Intent Classify', sub:'free LLM', kind:'process', icon:'brain', ev:'PRODUCTION-PROVEN', files:F.reply, trigger:'Text', input:'Message', output:'Intent', owner:'Rohan'}),
+    step({id:'w4_route', title:'Guard Router', sub:'safe / escalate', kind:'router', icon:'router', ev:'PRODUCTION-PROVEN', files:F.reply, trigger:'Intent', input:'Classified reply', output:'Auto / human', owner:'Rohan'}),
+    step({id:'w4_reply', title:'Guarded Reply', sub:'at-most-once ledger', kind:'action', icon:'email', ev:'PRODUCTION-PROVEN', files:F.reply, trigger:'Safe intent', input:'Draft', output:'Sent reply', owner:'Rohan'}),
+    step({id:'w4_store', title:'Reply Ledger', sub:'idempotent', kind:'storage', icon:'database', ev:'PRODUCTION-PROVEN', files:F.models, trigger:'Sent', input:'Reply record', output:'Ledger entry', owner:'Rohan'})
+  ]},
+  {key:'signup', title:'Customer signup → onboarding → delivery assurance', accent:'#0d9488', icon:'onboard', steps:[
+    step({id:'w5_sign', title:'Signup', sub:'/start + pay', kind:'trigger', icon:'onboard', ev:'PRODUCTION-PROVEN', files:F.pay, trigger:'Payment ok', input:'New customer', output:'Account', owner:'Billing'}),
+    step({id:'w5_kb', title:'Website → KB Seed', sub:'auto onboard', kind:'input', icon:'search', ev:'CODE-PRESENT', flag:'AUTO_ONBOARD', files:F.onboard, trigger:'Signup', input:'Website', output:'Seeded KB', owner:'FDE'}),
+    step({id:'w5_pack', title:'First Content Pack', sub:'FDE deploy', kind:'process', icon:'content', ev:'CODE-PRESENT', files:F.onboard, trigger:'KB seeded', input:'Niche', output:'Starter content', owner:'Isha/FDE'}),
+    step({id:'w5_route', title:'Entitlement Router', sub:'plan gate', kind:'router', icon:'router', ev:'PRODUCTION-PROVEN', files:F.bill, trigger:'Onboarded', input:'Plan', output:'Enabled modules', owner:'Billing'}),
+    step({id:'w5_matrix', title:'Delivery Matrix', sub:'10 deliverables', kind:'action', icon:'content', ev:'PRODUCTION-PROVEN', files:'product_one_delivery · customer_delivery', trigger:'Entitled', input:'Plan', output:'Schedule', owner:'Delivery'}),
+    step({id:'w5_assure', title:'Delivery Assurance', sub:'hourly scan', kind:'storage', icon:'monitor', ev:'PRODUCTION-PROVEN', files:'delivery_assurance · delivery ledger', trigger:'Hourly', input:'Delivery state', output:'On-track / at-risk', owner:'Nikhil'})
+  ]},
+  {key:'upi', title:'UPI/payment → subscription → invoice', sectionKey:'billing', flowKey:'delivery'},
+  {key:'agents', title:'AI agents → scheduler → execution → audit', sectionKey:'aistaff', flowKey:'runtime'},
+  {key:'selfimprove', title:'Self-improve → evaluation → approval/requeue', accent:'#a855f7', icon:'self', steps:[
+    step({id:'w8_tick', title:'Self-Improve Loop', sub:'180s tick', kind:'trigger', icon:'self', ev:'CODE-PRESENT', flag:'SELF_IMPROVE_LOOP', files:F.self, trigger:'Timer 180s', input:'Signals', output:'Improvement candidate', owner:'Vikram'}),
+    step({id:'w8_gen', title:'Proposal Gen', sub:'free LLM patch', kind:'input', icon:'brain', ev:'CODE-PRESENT', files:'code_upgrader.py', trigger:'Candidate', input:'Signal', output:'Patch proposal', owner:'Vikram'}),
+    step({id:'w8_eval', title:'Eval Gate', sub:'regression detect', kind:'process', icon:'monitor', ev:'CODE-PRESENT', flag:'EVAL_GATE', files:F.evalg, trigger:'Proposal', input:'Candidate', output:'Quality score', owner:'Arjun'}),
+    step({id:'w8_route', title:'Approve / Requeue', sub:'decision', kind:'router', icon:'router', ev:'CODE-PRESENT', files:F.evalg, trigger:'Score', input:'Eval result', output:'Approve OR requeue', owner:'Arjun'}),
+    step({id:'w8_appr', title:'Human Approve', sub:'core code never auto', kind:'human', icon:'approval', ev:'PRODUCTION-PROVEN', files:'code_upgrader.py', trigger:'Passed eval', input:'Proposal', output:'Approved / rejected', owner:'Sumit'}),
+    step({id:'w8_store', title:'Patch Ledger', sub:'data/code_patches.jsonl', kind:'storage', icon:'database', ev:'CODE-PRESENT', files:'code_upgrader.py', trigger:'Decision', input:'Patch record', output:'Ledger', owner:'Vikram'})
+  ]},
+  {key:'runtimehealth', title:'Runtime health → alert → recovery/DLQ', sectionKey:'automations', flowKey:'engine'},
+  {key:'inbound', title:'Inbound/missed-call → consent gate → callback', sectionKey:'voice', flowKey:'inbound'}
+];
+
+/* ---------- PRODUCTS (2 SKUs, never bundled; pricing from live API when available) ---------- */
+const BP_PRODUCTS = {
+  marketing:{ name:'AI Automated Marketing', tag:'MAIN PRODUCT', accent:'mkt',
+    note:'Voice is ONLY an included feature inside the Advanced tier — never sold as a "bundle".',
+    tiers:[
+      {id:'m_trial', name:'Marketing Trial', desc:'7-day free · 5 posts · GBP audit · widget', price:'Free', key:'trial', static:true},
+      {id:'m_starter', name:'AI Marketing (Main)', desc:'Daily AI posts · frames · GBP · reviews · WA pack', price:'Loading…', key:'starter'},
+      {id:'m_advanced', name:'Advanced (voice feature)', desc:'Everything + 2-min callback + 500 voice min', price:'Loading…', key:'advanced'}
+    ]},
+  voice:{ name:'AI Voice Calling Agent', tag:'STANDALONE PRODUCT', accent:'voice',
+    note:'A full AI telecaller, sold separately by niche band. DLT-gated for cold outbound.',
+    tiers:[
+      {id:'v_pilot', name:'Voice Pilot', desc:'7 days · 50 calls · zero payment', price:'Loading…', key:'voice_pilot'},
+      {id:'v_band_a', name:'Band A — Volume', desc:'Insurance · coaching · solar · hospital', price:'Loading…', key:'voice_a_monthly'},
+      {id:'v_band_b', name:'Band B — Mid', desc:'Home loans · study abroad · dental', price:'Loading…', key:'voice_b_monthly'},
+      {id:'v_band_c', name:'Band C — Premium', desc:'IVF · immigration · hair transplant', price:'Loading…', key:'voice_c_monthly'}
+    ]}
+};
+
+/* ---------- status computation (truthful, live-endpoint driven) ---------- */
+function liveSnap(){ try{ if(typeof liveHealth!=='undefined'&&liveHealth) return liveHealth; if(typeof liveSnapshot!=='undefined'&&liveSnapshot) return liveSnapshot; }catch(e){} return null; }
+function stStatus(n){
+  if(n.disabled) return 'disabled';
+  const L = liveSnap(); const k = n.status;
+  if(k==='public_health'){ if(L&&L.health&&L.health.status==='healthy') return 'healthy'; return 'unknown'; }
+  if(k==='launch'){ if(!L||!L.summary) return 'unknown'; const s=L.summary; if(s.production_ready||s.ready_for_launch) return 'healthy'; return (s.blocker_count?'warning':'unknown'); }
+  if(k==='jobs'){ if(!L||!L.automationHealth||!Object.keys(L.automationHealth).length) return 'unknown'; const ah=L.automationHealth; if((ah.overdue||[]).length) return 'warning'; if(ah.status==='healthy') return 'healthy'; if(ah.status==='warming_up') return 'warning'; return 'unknown'; }
+  if(k==='dlq'){ if(!L||!L.automationHealth||!L.automationHealth.queue) return 'unknown'; const d=L.automationHealth.queue.dlq; return (d>0)?'warning':'healthy'; }
+  if(n.flag){ if(L&&L.flags&&(n.flag in L.flags)) return L.flags[n.flag]?'healthy':'disabled'; return 'unknown'; }
+  return 'unknown';
+}
+const ST_LABEL={healthy:'Healthy',warning:'Warning',blocked:'Blocked',disabled:'Disabled',unknown:'Unknown'};
+const ST_COLOR={healthy:'#16a34a',warning:'#d97706',blocked:'#dc2626',disabled:'#94a3b8',unknown:'transparent'};
+function rollup(section){
+  let seen=[]; section.flows.forEach(f=>f.steps.forEach(s=>seen.push(stStatus(s))));
+  if(seen.includes('blocked')) return 'blocked';
+  if(section.status){ const own=stStatus({status:section.status}); if(own!=='unknown') return own; }
+  if(seen.includes('warning')) return 'warning';
+  if(seen.some(x=>x==='healthy')) return 'healthy';
+  return 'unknown';
+}
+
+/* ---------- controller ---------- */
+const BP = {
+  mode:'blueprint', sectionKey:null, flowKey:null, workflowKey:null, showConns:false, showAllConns:false,
+  q:'',
+  _idx:null,
+
+  boot(){
+    // decide initial mode from ?view= (technical deep-link preserved)
+    let view=null; try{ view=new URLSearchParams(location.search).get('view'); }catch(e){}
+    // suppress legacy auto-popups behind the blueprint
+    try{ document.getElementById('samajh-modal').style.display='none'; document.getElementById('help-modal').style.display='none'; }catch(e){}
+    if(view && (view==='technical'||['structural','automation','products','custom'].includes(view))){
+      this.enterMode('technical', view);
+    } else {
+      this.enterMode('blueprint');
+    }
+    // live status refresh: piggyback on the same poller init() runs
+    this.refreshStatus();
+    setTimeout(()=>{ try{ this.refreshStatus(); }catch(e){} }, 2500);  // catch first live fetch
+    setInterval(()=>{ try{ this.refreshStatus(); }catch(e){} }, 15000);
+    window.addEventListener('resize', ()=>{ if(this.mode==='blueprint'&&this.sectionKey) this._renderFlowView(); });
+    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && document.getElementById('bp-drawer').classList.contains('open')) this.closeDrawer(); });
+  },
+
+  enterMode(mode, legacyView){
+    this.mode = mode==='technical'?'technical':mode;
+    this.closeDrawer();
+    document.querySelectorAll('.bp-mode').forEach(b=>b.classList.toggle('active', b.dataset.mode===(mode==='technical'?'technical':mode)));
+    if(mode==='technical'){
+      document.body.classList.remove('mode-blueprint'); document.body.classList.add('mode-technical');
+      try{
+        if(legacyView && legacyView!=='technical' && typeof switchView==='function'){
+          const tabBtn=document.querySelector('.nav-tab[data-view='+legacyView+']'); switchView(legacyView, tabBtn);
+        } else { if(typeof renderNodes==='function') renderNodes(); if(typeof renderEdges==='function') renderEdges(); }
+        setTimeout(()=>{ try{ if(typeof fitView==='function') fitView(); }catch(e){} }, 60);
+      }catch(e){}
+      return;
+    }
+    document.body.classList.add('mode-blueprint'); document.body.classList.remove('mode-technical');
+    this.sectionKey=null; this.flowKey=null; this.workflowKey=null; this.q=''; this.showConns=false; this.showAllConns=false;
+    try{ document.getElementById('bp-search-input').value=''; }catch(e){}
+    this._safe(()=>{
+      if(mode==='automations') this.renderAutomations();
+      else if(mode==='products') this.renderProducts();
+      else this.renderHome();
+    });
+  },
+
+  _safe(fn){
+    try{ document.getElementById('bp-error').classList.remove('on'); fn(); }
+    catch(e){ console.error('[blueprint] render error', e);
+      document.getElementById('bp-content').innerHTML='';
+      var d=document.getElementById('bp-error-detail'); if(d) d.textContent='Render error: '+(e&&e.message?e.message:e)+'. Your data is safe — open the Technical Graph.';
+      document.getElementById('bp-error').classList.add('on');
+      this.crumb([['Project Blueprint',()=>this.enterMode('blueprint')],['Error',null]]);
+    }
+  },
+
+  crumb(items){
+    const el=document.getElementById('bp-crumb'); el.innerHTML='';
+    items.forEach((it,i)=>{
+      if(i) el.insertAdjacentHTML('beforeend','<span class="bp-sep">›</span>');
+      const s=document.createElement('span');
+      s.textContent=it[0];
+      if(it[1]){ s.className='bp-cb'; s.onclick=it[1]; s.tabIndex=0; s.setAttribute('role','link');
+        s.onkeydown=(e)=>{ if(e.key==='Enter') it[1](); }; }
+      else s.className='bp-cb plain';
+      el.appendChild(s);
+    });
+  },
+
+  renderHome(){
+    this.crumb([['Project Blueprint',null]]);
+    let h='<div class="bp-h1">Project Blueprint</div><div class="bp-sub">Aapke poore system ka block-by-block naksha. Kisi section par click karke uska focused flow dekho — ek screen par sirf 5–12 readable steps.</div><div class="bp-grid">';
+    BP_SECTIONS.forEach(sec=>{
+      const st=rollup(sec); const nFlows=sec.flows.length; const nSteps=sec.flows.reduce((a,f)=>a+f.steps.length,0);
+      h+='<div class="bp-card" role="button" tabindex="0" onclick="BP.openSection(\''+sec.key+'\')" onkeydown="if(event.key===\'Enter\')BP.openSection(\''+sec.key+'\')">'
+        +'<div class="bp-cardtop"><div class="bp-cardicon" style="background:'+sec.accent+'">'+bpIcon(sec.icon)+'</div>'
+        +'<span class="bp-ring bp-st-'+st+'" data-secring="'+sec.key+'"><span class="bp-rdot"></span>'+ST_LABEL[st]+'</span></div>'
+        +'<div class="bp-cardtitle">'+sec.title+'</div>'
+        +'<div class="bp-carddesc">'+sec.desc+'</div>'
+        +'<div class="bp-cardfoot"><span class="bp-flowcount">'+nSteps+' steps · '+nFlows+' flow'+(nFlows>1?'s':'')+'</span><span class="bp-flowcount" style="color:'+sec.accent+'">Open →</span></div>'
+        +'</div>';
+    });
+    h+='</div>';
+    document.getElementById('bp-content').innerHTML=h;
+  },
+
+  openSection(key){
+    this.sectionKey=key; const sec=BP_SECTIONS.find(s=>s.key===key); this.flowKey=sec.flows[0].key;
+    this._safe(()=>this._renderFlowView());
+  },
+
+  _renderFlowView(){
+    const sec=BP_SECTIONS.find(s=>s.key===this.sectionKey); if(!sec) return this.renderHome();
+    const flow=sec.flows.find(f=>f.key===this.flowKey)||sec.flows[0];
+    this.crumb([['Project Blueprint',()=>this.enterMode('blueprint')],[sec.title,sec.flows.length>1?null:()=>this.openSection(sec.key)],[flow.title,null]]);
+    let h='<div id="bp-flowwrap"><div class="bp-flowhead"><div><div class="bp-h1">'+sec.title+'</div><div class="bp-sub">'+sec.desc+'</div></div>'
+      +'<div style="display:flex;gap:8px;align-items:flex-start;flex-wrap:wrap">'
+      +'<button class="bp-toggle'+(this.showConns?' on':'')+'" onclick="BP.toggleConns()">↔ Show connections</button>'
+      +'<button class="bp-toggle'+(this.showAllConns?' on':'')+'" onclick="BP.toggleAllConns()" title="Advanced: reveal every cross-link">⚡ All technical links</button>';
+    if(sec.key==='automations') h+='<button class="bp-toggle" onclick="BP.enterMode(\'automations\')">⚙ Automations library</button>';
+    if(sec.key==='automations'||sec.key==='aistaff') h+='<button class="bp-toggle" onclick="BP.showSchedule()">🕐 Schedule timeline</button>';
+    h+='</div></div>';
+    if(sec.flows.length>1){ h+='<div class="bp-flowtabs">'; sec.flows.forEach(f=>{ h+='<button class="bp-ftab'+(f.key===flow.key?' active':'')+'" onclick="BP.setFlow(\''+f.key+'\')">'+f.title+'</button>'; }); h+='</div>'; }
+    h+='<div class="bp-lane-hint"><span><b>Trigger→Input→Processing→Router→Action→Storage/Outcome</b></span><span>◯ step · ◇ router · ⬡ queue · ▭ storage · ⬚ human · click = details</span></div>';
+    h+='<div id="bp-canvas-host"></div></div>';
+    document.getElementById('bp-content').innerHTML=h;
+    this._drawLane(flow, sec.accent);
+  },
+
+  setFlow(fk){ this.flowKey=fk; this._safe(()=>this._renderFlowView()); },
+  toggleConns(){ this.showConns=!this.showConns; if(!this.showConns) this.showAllConns=false; this._safe(()=>this._reDraw()); },
+  toggleAllConns(){ this.showAllConns=!this.showAllConns; if(this.showAllConns) this.showConns=true; this._safe(()=>this._reDraw()); },
+  _reDraw(){
+    if(this.workflowKey){ const w=BP_AUTOMATIONS.find(x=>x.key===this.workflowKey); const wf=this._resolveWorkflow(w); this._drawLane(wf.flow, wf.accent, true); this._syncToggleBtns(); return; }
+    const sec=BP_SECTIONS.find(s=>s.key===this.sectionKey); const flow=sec.flows.find(f=>f.key===this.flowKey)||sec.flows[0];
+    this._drawLane(flow, sec.accent); this._syncToggleBtns();
+  },
+  _syncToggleBtns(){ document.querySelectorAll('.bp-flowhead .bp-toggle').forEach(b=>{ if(b.textContent.indexOf('Show connections')>=0) b.classList.toggle('on',this.showConns); if(b.textContent.indexOf('All technical')>=0) b.classList.toggle('on',this.showAllConns); }); },
+
+  _mobile(){ try{ return window.matchMedia('(max-width:640px)').matches; }catch(e){ return window.innerWidth<=640; } },
+
+  _drawLane(flow, accent, isWorkflow){
+    const host=document.getElementById('bp-canvas-host'); if(!host) return;
+    const steps=flow.steps; const mob=this._mobile();
+    const canvas=document.createElement('div'); canvas.className='bp-canvas'+(mob?' stepper':'');
+    host.innerHTML=''; host.appendChild(canvas);
+    if(mob){
+      // vertical stepper
+      const layer=document.createElement('div'); layer.className='bp-nodelayer'; canvas.appendChild(layer);
+      steps.forEach((s,i)=>{ layer.appendChild(this._modEl(s,i,accent,true)); });
+      return;
+    }
+    const W=Math.max(canvas.clientWidth-24, host.clientWidth-24, 640);
+    const per=Math.max(3,Math.min(6,Math.floor((W-60)/160)));
+    const rows=Math.ceil(steps.length/per); const sx=W/per; const rowH=158; const top=64;
+    const pos=steps.map((s,i)=>{ const r=Math.floor(i/per); let c=i%per; if(r%2===1) c=per-1-c; return {x:Math.round(sx*c+sx/2), y:top+r*rowH}; });
+    const Hpx=top+rows*rowH+10;
+    canvas.style.height=Hpx+'px';
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'); svg.setAttribute('class','bp-edges'); svg.setAttribute('viewBox','0 0 '+W+' '+Hpx); svg.setAttribute('preserveAspectRatio','none');
+    svg.innerHTML='<defs>'
+      +'<marker id="bp-ah" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#9aa6b8"/></marker>'
+      +'<marker id="bp-ah-a" markerWidth="7" markerHeight="7" refX="5.5" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="'+accent+'"/></marker></defs>';
+    // primary sequential connectors
+    for(let i=0;i<steps.length-1;i++){ svg.insertAdjacentHTML('beforeend', this._edgePath(pos[i],pos[i+1],'#c3ccdb',true,false)); }
+    // cross-connections (hidden unless toggled)
+    if((this.showConns||this.showAllConns) && flow.conns){
+      const sel=this._selIdx;
+      flow.conns.forEach(c=>{ const a=c[0],b=c[1]; if(this.showAllConns || sel==null || sel===a || sel===b){ svg.insertAdjacentHTML('beforeend', this._edgePath(pos[a],pos[b],accent,true,true,c[2])); } });
+    }
+    canvas.appendChild(svg);
+    const layer=document.createElement('div'); layer.className='bp-nodelayer'; layer.style.height=Hpx+'px'; canvas.appendChild(layer);
+    steps.forEach((s,i)=>{ const el=this._modEl(s,i,accent,false); el.style.left=pos[i].x+'px'; el.style.top=pos[i].y+'px'; if(this._selIdx!=null && this._selIdx!==i && (this.showConns||this.showAllConns)) el.classList.add('dim'); layer.appendChild(el); });
+  },
+
+  _edgePath(a,b,color,arrow,dashed,label){
+    const dx=(b.x-a.x), dy=(b.y-a.y);
+    let d;
+    if(Math.abs(dy)<4){ const mx=(a.x+b.x)/2; d='M'+a.x+' '+a.y+' C '+mx+' '+a.y+' '+mx+' '+b.y+' '+b.x+' '+b.y; }
+    else { const my=(a.y+b.y)/2; d='M'+a.x+' '+a.y+' C '+a.x+' '+my+' '+b.x+' '+my+' '+b.x+' '+b.y; }
+    return '<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2" '+(dashed?'stroke-dasharray="2,5" stroke-linecap="round"':'')+' marker-end="url(#'+(color===color&&arrow&&color!=='#c3ccdb'?'bp-ah-a':'bp-ah')+')"/>';
+  },
+
+  _modEl(s,i,accent,stepper){
+    const kd=KIND[s.kind]||KIND.process; const stt=stStatus(s);
+    const el=document.createElement('div'); el.className='bp-mod'; el.setAttribute('data-shape',kd.shape); el.setAttribute('data-dis', s.disabled?1:0);
+    el.setAttribute('role','button'); el.tabIndex=0; el.setAttribute('aria-label',s.title+' — '+kd.badge+' — '+ST_LABEL[stt]);
+    el.title=s.title+' · '+ST_LABEL[stt];
+    const ringColor=ST_COLOR[stt];
+    const ringStyle = stt==='unknown' ? 'background:#fff;border-color:#c7cfdb' : 'background:'+ringColor+';border-color:#fff';
+    const numHtml = stepper?'<span class="bp-stepnum">'+(i+1)+'</span>':'';
+    const disc='<div class="bp-disc" style="color:'+(s.disabled?'#94a3b8':kd.color)+'">'+bpIcon(s.icon, s.cat)
+      +'<span class="bp-modbadge">'+kd.badge+'</span>'
+      +'<span class="bp-modring" style="'+ringStyle+'" title="'+ST_LABEL[stt]+'"></span></div>';
+    const txt='<div class="bp-modtext"><div class="bp-modlabel">'+s.title+'</div>'+(s.sub?'<div class="bp-modsub">'+s.sub+'</div>':'')+'</div>';
+    el.innerHTML=numHtml+disc+txt;
+    el.onclick=()=>{ this._selIdx=i; this.openNode(s, i); this._reDraw(); this._markSel(el); };
+    el.onkeydown=(e)=>{ if(e.key==='Enter'){ this._selIdx=i; this.openNode(s,i); this._reDraw(); this._markSel(el); } };
+    return el;
+  },
+  _markSel(el){ document.querySelectorAll('.bp-mod').forEach(m=>m.classList.remove('sel')); if(el) el.classList.add('sel'); },
+
+  openNode(s, i){
+    const kd=KIND[s.kind]||KIND.process; const stt=stStatus(s);
+    document.getElementById('bp-dicon').style.background = s.disabled?'#94a3b8':kd.color;
+    document.getElementById('bp-dicon').innerHTML=bpIcon(s.icon,s.cat);
+    document.getElementById('bp-dtitle').textContent=s.title;
+    document.getElementById('bp-dsub').textContent=kd.badge+(s.sub?' · '+s.sub:'');
+    // upstream/downstream auto-derived from flow order
+    let up='—', down='—';
+    const chain=this._currentChain();
+    if(chain){ const idx=chain.findIndex(x=>x.id===s.id); if(idx>0) up=chain[idx-1].title; if(idx>=0&&idx<chain.length-1) down=chain[idx+1].title; }
+    const evCls={'PRODUCTION-PROVEN':'bp-ev-prod','TEST-PROVEN':'bp-ev-test','CODE-PRESENT':'bp-ev-code','LOCAL-ONLY':'bp-ev-local','EXTERNAL-BLOCKED':'bp-ev-ext','PARTIAL':'bp-ev-local','UNKNOWN':'bp-ev-unknown'}[s.ev||'UNKNOWN']||'bp-ev-unknown';
+    function row(k,v){ return v?('<div class="bp-drow"><div class="bp-dk">'+k+'</div><div class="bp-dv">'+v+'</div></div>'):''; }
+    let body='';
+    body+=row('Ye kya karta hai', (s.sub?s.sub+'. ':'')+'A '+kd.badge.toLowerCase()+' step in this flow.');
+    body+=row('Trigger / schedule', s.trigger);
+    body+=row('Input', s.input);
+    body+=row('Output', s.output);
+    body+=row('Owner / agent', s.owner);
+    body+='<div class="bp-drow"><div class="bp-dk">Runtime status</div><div class="bp-dv"><span class="bp-ring bp-st-'+stt+'"><span class="bp-rdot"></span>'+ST_LABEL[stt]+'</span>'+(s.status==='public_health'||s.status==='jobs'||s.status==='launch'||s.status==='dlq'?' <span style="color:#93a0b4;font-size:11px">(live)</span>':'')+'</div></div>';
+    body+='<div class="bp-drow"><div class="bp-dk">Evidence label</div><div class="bp-dv"><span class="bp-chip '+evCls+'">'+(s.ev||'UNKNOWN')+'</span></div></div>';
+    body+=row('Feature flag', s.flag?('<code>'+s.flag+'</code>'):'—');
+    body+=row('Source files', s.files?('<code>'+s.files+'</code>'):'—');
+    body+='<div class="bp-drow"><div class="bp-dk">Connected upstream / downstream</div><div class="bp-dv">↑ '+up+'<br>↓ '+down+'</div></div>';
+    if(s.note) body+='<div class="bp-note" style="margin-top:6px">⚠ '+s.note+'</div>';
+    if(s.dash) body+='<div class="bp-drow" style="margin-top:8px"><a class="bp-dlink" href="'+s.dash+'">↗ Open '+s.dash+'</a></div>';
+    document.getElementById('bp-dbody').innerHTML=body;
+    document.getElementById('bp-drawer').classList.add('open');
+  },
+  _currentChain(){
+    if(this.workflowKey){ const w=BP_AUTOMATIONS.find(x=>x.key===this.workflowKey); return this._resolveWorkflow(w).flow.steps; }
+    const sec=BP_SECTIONS.find(s=>s.key===this.sectionKey); if(!sec) return null; const f=sec.flows.find(x=>x.key===this.flowKey)||sec.flows[0]; return f.steps;
+  },
+  closeDrawer(){ this._selIdx=null; try{ document.getElementById('bp-drawer').classList.remove('open'); }catch(e){} document.querySelectorAll('.bp-mod').forEach(m=>{m.classList.remove('sel');m.classList.remove('dim');}); },
+
+  /* ----- Automations mode ----- */
+  _resolveWorkflow(w){
+    if(w.steps) return {flow:{title:w.title, steps:w.steps, conns:w.conns||[]}, accent:w.accent||'#10b981'};
+    const sec=BP_SECTIONS.find(s=>s.key===w.sectionKey); const f=sec.flows.find(x=>x.key===w.flowKey);
+    return {flow:f, accent:sec.accent};
+  },
+  renderAutomations(){
+    this.workflowKey=null; this.sectionKey=null;
+    this.crumb([['Project Blueprint',()=>this.enterMode('blueprint')],['Automations',null]]);
+    let h='<div class="bp-h1">Automations</div><div class="bp-sub">Har automation ek alag selectable workflow hai — spaghetti canvas nahi. Card par click karke uska focused Trigger→…→Outcome flow dekho.</div><div class="bp-grid">';
+    BP_AUTOMATIONS.forEach(w=>{ const r=this._resolveWorkflow(w); const acc=r.accent; const nSteps=r.flow.steps.length;
+      let seen=r.flow.steps.map(s=>stStatus(s)); let st = seen.includes('blocked')?'blocked':(seen.includes('warning')?'warning':(seen.some(x=>x==='healthy')?'healthy':(seen.every(x=>x==='disabled')?'disabled':'unknown')));
+      h+='<div class="bp-card" role="button" tabindex="0" onclick="BP.openWorkflow(\''+w.key+'\')" onkeydown="if(event.key===\'Enter\')BP.openWorkflow(\''+w.key+'\')">'
+        +'<div class="bp-cardtop"><div class="bp-cardicon" style="background:'+acc+'">'+bpIcon(r.flow.steps[0].icon,r.flow.steps[0].cat)+'</div>'
+        +'<span class="bp-ring bp-st-'+st+'"><span class="bp-rdot"></span>'+ST_LABEL[st]+'</span></div>'
+        +'<div class="bp-cardtitle">'+w.title+'</div>'
+        +'<div class="bp-carddesc">'+nSteps+'-step flow · '+r.flow.steps[0].sub+' → '+r.flow.steps[nSteps-1].title+'</div>'
+        +'<div class="bp-cardfoot"><span class="bp-flowcount">Trigger → Outcome</span><span class="bp-flowcount" style="color:'+acc+'">Open →</span></div></div>';
+    });
+    h+='</div>';
+    document.getElementById('bp-content').innerHTML=h;
+  },
+  openWorkflow(key){
+    this.workflowKey=key; const w=BP_AUTOMATIONS.find(x=>x.key===key); const r=this._resolveWorkflow(w);
+    this.showConns=false; this.showAllConns=false; this._selIdx=null;
+    this.crumb([['Project Blueprint',()=>this.enterMode('blueprint')],['Automations',()=>this.enterMode('automations')],[w.title,null]]);
+    let h='<div id="bp-flowwrap"><div class="bp-flowhead"><div><div class="bp-h1">'+w.title+'</div><div class="bp-sub">Standard automation shape — Trigger → Input → Processing → Router/Decision → Action → Storage/Outcome.</div></div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+      +'<button class="bp-toggle'+(this.showConns?' on':'')+'" onclick="BP.toggleConns()">↔ Show connections</button>'
+      +'<button class="bp-toggle'+(this.showAllConns?' on':'')+'" onclick="BP.toggleAllConns()">⚡ All technical links</button>'
+      +'<button class="bp-toggle" onclick="BP.enterMode(\'automations\')">← All automations</button></div></div>'
+      +'<div class="bp-lane-hint"><span>◯ step · ◇ router · ⬡ queue · ▭ storage · ⬚ human</span></div><div id="bp-canvas-host"></div></div>';
+    document.getElementById('bp-content').innerHTML=h;
+    this._drawLane(r.flow, r.accent, true);
+  },
+
+  /* ----- Products mode (live pricing when available) ----- */
+  renderProducts(){
+    this.crumb([['Project Blueprint',()=>this.enterMode('blueprint')],['Products',null]]);
+    const P=BP_PRODUCTS;
+    function col(p){
+      let h='<div class="bp-prodcol '+p.accent+'"><div class="bp-prodname">'+p.name+'</div>'
+        +'<span class="bp-prodtag" style="background:'+(p.accent==='mkt'?'#eef0ff;color:#4f46e5':'#fff3e0;color:#b45309')+'">'+p.tag+'</span>'
+        +'<div class="bp-tierdesc" style="margin:6px 0 4px">'+p.note+'</div>';
+      p.tiers.forEach(t=>{ h+='<div class="bp-tier"><div><div class="bp-tiername">'+t.name+'</div><div class="bp-tierdesc">'+t.desc+'</div></div><div class="bp-tierprice" data-price="'+t.key+'"'+(t.static?' data-static-price="1"':'')+'>'+t.price+'</div></div>'; });
+      h+='</div>';
+      return h;
+    }
+    let h='<div class="bp-h1">Products</div><div class="bp-sub">DO alag products — kabhi bundle mat becho. Marketing MAIN product hai; Voice standalone. Pricing live package API se sync hoti hai.</div>'
+      +'<div class="bp-note">⚠ "Marketing + Voice bundle" framing GALAT hai. Advanced tier me voice sirf ek included FEATURE hai — alag Voice product nahi.</div>'
+      +'<div class="bp-prodgrid">'+col(P.marketing)+col(P.voice)+'</div>'
+      +'<div class="bp-sub" style="margin-top:14px" id="bp-price-src">Pricing source: fetching live package APIs…</div>';
+    document.getElementById('bp-content').innerHTML=h;
+    this._fetchLivePricing();
+  },
+  _fetchLivePricing(){
+    // reuse existing endpoints only; degrade gracefully (no fake numbers)
+    try{
+      const bases = (typeof getApiBases==='function')?getApiBases():[location.origin];
+      (async()=>{
+        for(const base of bases){
+          try{
+            const urls=[
+              '/api/marketing/packages',
+              '/api/voice/packages?band=A',
+              '/api/voice/packages?band=B',
+              '/api/voice/packages?band=C'
+            ];
+            const responses=await Promise.all(urls.map(url=>
+              fetch(base+url,{mode:'cors',credentials:'omit'}).catch(()=>null)
+            ));
+            for(const response of responses){
+              if(response&&response.ok){ try{ this._applyPricing(await response.json()); }catch(e){} }
+            }
+            const liveEls=Array.from(document.querySelectorAll('.bp-tierprice[data-price]:not([data-static-price])'));
+            const liveCount=liveEls.filter(el=>el.hasAttribute('data-live-price')).length;
+            const s=document.getElementById('bp-price-src');
+            if(liveEls.length && liveCount===liveEls.length){
+              if(s) s.textContent='Pricing source: LIVE package APIs ('+base.replace(/^https?:\/\//,'')+').';
+              return;
+            }
+            if(liveCount>0 && s) s.textContent='Pricing source: PARTIAL live package APIs ('+liveCount+'/'+liveEls.length+' tiers). Trying the next approved API base…';
+          }catch(e){}
+        }
+        const finalEls=Array.from(document.querySelectorAll('.bp-tierprice[data-price]:not([data-static-price])'));
+        const finalCount=finalEls.filter(el=>el.hasAttribute('data-live-price')).length;
+        const s=document.getElementById('bp-price-src');
+        if(finalCount>0){
+          if(s) s.textContent='Pricing source: PARTIAL live package APIs ('+finalCount+'/'+finalEls.length+' tiers). Unavailable prices are not guessed.';
+        } else if(s) s.textContent='Pricing source: live package APIs unavailable. Paid prices are not guessed — open /pricing.';
+      })();
+    }catch(e){}
+  },
+  _applyPricing(payload){
+    // best-effort map of {key/plan -> price} without assuming a rigid schema
+    let list=[]; if(Array.isArray(payload)) list=payload; else if(payload&&Array.isArray(payload.packages)) list=payload.packages; else if(payload&&Array.isArray(payload.tiers)) list=payload.tiers; else if(payload&&Array.isArray(payload.plans)) list=payload.plans; else if(payload&&typeof payload==='object') list=Object.values(payload).filter(x=>x&&typeof x==='object');
+    let hit=0;
+    document.querySelectorAll('.bp-tierprice[data-price]').forEach(el=>{
+      const key=el.getAttribute('data-price');
+      const m=list.find(p=>p&&(p.key===key||p.plan_id===key||p.id===key||p.plan===key||p.slug===key));
+      if(m){
+        const price=m.price_inr_month ?? m.price_inr ?? m.price ?? m.amount ?? m.monthly;
+        if(price!=null){
+          const n=Number(price);
+          el.textContent=Number.isFinite(n) ? (n===0?'₹0':('₹'+n.toLocaleString('en-IN')+'/mo')) : String(price);
+          el.setAttribute('data-live-price','1');
+          hit++;
+        }
+      }
+    });
+    return hit;
+  },
+
+  /* ----- schedule timeline (separate lane view) ----- */
+  showSchedule(){
+    let sched=[]; try{ if(typeof IST_SCHEDULE!=='undefined') sched=IST_SCHEDULE; }catch(e){}
+    this.crumb([['Project Blueprint',()=>this.enterMode('blueprint')],['Automations & Scheduler',()=>this.openSection('automations')],['IST Schedule',null]]);
+    let h='<div class="bp-h1">IST Daily Schedule</div><div class="bp-sub">team_scheduler timeline — kaunsa kaam kis waqt chalta hai. Yahi truth automation flows ke trigger times feed karti hai.</div>';
+    h+='<div class="bp-canvas" style="padding:6px 14px">';
+    if(!sched.length) h+='<div class="bp-sub" style="padding:16px">Schedule data unavailable.</div>';
+    sched.forEach(row=>{ h+='<div style="display:flex;align-items:center;gap:14px;padding:11px 4px;border-bottom:1px solid var(--bp-line)">'
+      +'<div style="min-width:70px;font-weight:800;color:#4f46e5;font-size:13px">'+row.time+'</div>'
+      +'<div style="width:30px;height:30px;border-radius:8px;background:#eef1f7;display:flex;align-items:center;justify-content:center;color:#5a6b82">'+bpIcon('scheduler')+'</div>'
+      +'<div style="font-size:13px;font-weight:600">'+row.label+'</div></div>'; });
+    h+='</div>';
+    document.getElementById('bp-content').innerHTML=h;
+  },
+
+  /* ----- search across sections + automations ----- */
+  _buildIndex(){
+    if(this._idx) return this._idx; const idx=[];
+    BP_SECTIONS.forEach(sec=>sec.flows.forEach(f=>f.steps.forEach(s=>idx.push({s, where:sec.title, kind:'section', sectionKey:sec.key, flowKey:f.key}))));
+    BP_AUTOMATIONS.forEach(w=>{ const r=this._resolveWorkflow(w); r.flow.steps.forEach(s=>idx.push({s, where:'Automation: '+w.title, kind:'workflow', workflowKey:w.key})); });
+    this._idx=idx; return idx;
+  },
+  search(q){
+    this.q=(q||'').trim().toLowerCase();
+    if(!this.q){ if(this.mode==='automations') return this.renderAutomations(); if(this.mode==='products') return this.renderProducts(); if(this.sectionKey) return this._renderFlowView(); return this.renderHome(); }
+    const idx=this._buildIndex(); const seen=new Set(); const hits=[];
+    idx.forEach(e=>{ const hay=(e.s.title+' '+(e.s.sub||'')+' '+(e.s.files||'')+' '+(e.s.owner||'')).toLowerCase(); if(hay.includes(this.q)){ const dk=e.s.id+'|'+e.where; if(!seen.has(dk)){ seen.add(dk); hits.push(e); } } });
+    this.crumb([['Project Blueprint',()=>this.enterMode('blueprint')],['Search: "'+q+'"',null]]);
+    let h='<div class="bp-h1">Search results</div><div class="bp-sub">'+hits.length+' step(s) match "'+q+'". Click to open the focused flow.</div><div class="bp-grid">';
+    if(!hits.length) h+='<div class="bp-sub">Kuch nahi mila. Doosra keyword try karo.</div>';
+    hits.slice(0,40).forEach(e=>{ const kd=KIND[e.s.kind]||KIND.process; const stt=stStatus(e.s);
+      const open = e.kind==='workflow'?("BP.openWorkflow('"+e.workflowKey+"')"):("BP.openSection('"+e.sectionKey+"');BP.setFlow('"+e.flowKey+"')");
+      h+='<div class="bp-card" role="button" tabindex="0" onclick="'+open+'" onkeydown="if(event.key===\'Enter\'){'+open+'}">'
+        +'<div class="bp-cardtop"><div class="bp-cardicon" style="background:'+kd.color+'">'+bpIcon(e.s.icon,e.s.cat)+'</div>'
+        +'<span class="bp-ring bp-st-'+stt+'"><span class="bp-rdot"></span>'+ST_LABEL[stt]+'</span></div>'
+        +'<div class="bp-cardtitle">'+e.s.title+'</div>'
+        +'<div class="bp-carddesc"><b style="color:#5a6b82">'+e.where+'</b><br>'+(e.s.sub||'')+'</div>'
+        +'<div class="bp-cardfoot"><span class="bp-flowcount">'+kd.badge+'</span><span class="bp-flowcount" style="color:'+kd.color+'">Open focused →</span></div></div>';
+    });
+    h+='</div>';
+    document.getElementById('bp-content').innerHTML=h;
+  },
+
+  refreshStatus(){
+    const L=liveSnap();
+    const chip=document.getElementById('bp-statuschip'); const dot=chip.querySelector('.bp-dot'); const txt=document.getElementById('bp-statustext');
+    if(!L){ dot.style.background='#c7cfdb'; txt.textContent='Live status: sign in / unreachable'; }
+    else{
+      const ok=L.health&&L.health.status==='healthy'; const launch=L.summary&&(L.summary.production_ready||L.summary.ready_for_launch);
+      const overdue=L.automationHealth&&(L.automationHealth.overdue||[]).length;
+      if(launch&&!overdue){ dot.style.background='#16a34a'; txt.textContent='Production ready'; }
+      else if(ok&&overdue){ dot.style.background='#d97706'; txt.textContent=overdue+' job(s) overdue'; }
+      else if(ok){ dot.style.background='#16a34a'; txt.textContent='Live · healthy'; }
+      else{ dot.style.background='#c7cfdb'; txt.textContent='Live status: unknown'; }
+    }
+    // refresh visible rings IN PLACE (no full re-render → no scroll reset / flash)
+    if(this.mode!=='blueprint' || this.q) return;
+    if(!this.sectionKey && !this.workflowKey){
+      document.querySelectorAll('[data-secring]').forEach(el=>{
+        const sec=BP_SECTIONS.find(s=>s.key===el.getAttribute('data-secring')); if(!sec) return;
+        const st=rollup(sec); el.className='bp-ring bp-st-'+st; el.innerHTML='<span class="bp-rdot"></span>'+ST_LABEL[st];
+      });
+    } else if(this.sectionKey || this.workflowKey){
+      const chain=this._currentChain()||[];
+      document.querySelectorAll('#bp-canvas-host .bp-mod').forEach((el,i)=>{ if(!chain[i]) return;
+        const stt=stStatus(chain[i]); const r=el.querySelector('.bp-modring'); if(!r) return;
+        r.style.background = stt==='unknown'?'#fff':ST_COLOR[stt];
+        r.style.borderColor = stt==='unknown'?'#c7cfdb':'#fff'; r.title=ST_LABEL[stt];
+      });
+    }
+  }
+};
+window.BP = BP;
+try{ BP.boot(); }catch(e){ console.error('[blueprint] boot failed', e);
+  try{ document.body.classList.remove('mode-blueprint'); document.body.classList.add('mode-technical'); var b=document.getElementById('bp-back'); if(b) b.style.display='flex'; }catch(_){} }
+})();
 </script>
 </body>
 </html>
