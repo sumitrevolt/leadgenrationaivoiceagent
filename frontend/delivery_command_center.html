@@ -317,7 +317,7 @@
       {lbl: "Receiving Value", val: s.receiving_value, cls: "ok", sub: "kam se kam 1 delivery event"},
       {lbl: "Automation Issues", val: s.failed_automation_count, cls: s.failed_automation_count > 0 ? "err" : "ok", sub: "kisi automation me fail"},
       {lbl: "Pending Approvals", val: s.pending_approvals_total, cls: s.pending_approvals_total > 0 ? "warn" : "ok", sub: "customer se wait"},
-      {lbl: "At Risk", val: s.at_risk_count, cls: s.at_risk_count > 0 ? "err" : "ok", sub: "value ruki / fail hui"},
+      {lbl: "At Risk", val: s.at_risk_count, cls: s.at_risk_count == null ? "" : (s.at_risk_count > 0 ? "err" : "ok"), sub: s.at_risk_count == null ? "assurance unavailable" : "value ruki / fail hui"},
       {lbl: "Benefit This Week", val: s.benefit_this_week, cls: "ok", sub: "is hafte value mili"},
     ];
     row.innerHTML = cards.map(function(c){
@@ -657,13 +657,22 @@
         toast("Delivery Cockpit data partial/fail — dobara try karo", "err");
       }
       var customers = (data && data.customers) || [];
+      var assurance = (data && data.assurance) || {};
+      var assuranceUnavailable = !!assurance.error;
+      var assuranceAtRisk = assuranceUnavailable
+        ? null
+        : (Number(assurance.at_risk || 0) + Number(assurance.missed || 0));
       renderKpis({
         total_customers: customers.length,
         paying_customers: customers.filter(function(c){ return c.plan !== "trial"; }).length,
         stuck_in_setup: (data.summary || {}).pending_customer_inputs,
         receiving_value: customers.filter(function(c){ return Number(c.deliverable_completion_pct || 0) > 0; }).length,
         failed_automation_count: (data.summary || {}).failed_automations,
-        pending_approvals_total: (data.summary || {}).posts_waiting_for_approval
+        pending_approvals_total: (data.summary || {}).posts_waiting_for_approval,
+        // delivery_assurance rollup — paid customers missed/at-risk (canonical ids).
+        // If assurance scan failed, show "–" (never fake green zero).
+        at_risk_count: assuranceAtRisk,
+        benefit_this_week: (data.summary || {}).posts_published
       });
       renderPipeline((data && data.pipeline) || []);
       renderRevenue((data && data.revenue) || {mrr_total:0, by_plan:{}});
