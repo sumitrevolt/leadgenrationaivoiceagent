@@ -2110,6 +2110,22 @@ async def run_health_and_recovery_sweep() -> dict[str, Any]:
         except Exception as exc:
             out["errors"].append(f"{cid}:{str(exc)[:150]}")
             continue
+
+    # Delivery-assurance observability (read-only, additive — 2026-07-20): emit the
+    # periodic missed/at-risk heartbeat + counts so the hourly sweep leaves a
+    # visible, evidence-backed trace on the team feed (owner: nikhil). Reuses the
+    # delivery_assurance aggregator (canonical id + ledger evidence) — no sends, no
+    # state mutation. Fully defensive: a failure here never changes the sweep's own
+    # recovery result.
+    try:
+        from app.marketing import delivery_assurance
+
+        _assur = delivery_assurance.scan_missed_deliverables(limit=200)
+        out["assurance_missed"] = int(_assur.get("missed_count") or 0)
+        out["assurance_at_risk"] = int(_assur.get("at_risk_count") or 0)
+    except Exception as exc:  # pragma: no cover - defensive
+        out["errors"].append(f"assurance:{str(exc)[:120]}")
+
     return out
 
 
