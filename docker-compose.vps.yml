@@ -50,10 +50,11 @@ services:
     environment:
       APP_ENV: production
       PORT: 8080
-      # 1 worker = today's behaviour (web + in-process scheduler in one process).
-      # To scale: set WEB_CONCURRENCY=N and RUN_IN_PROCESS_SCHEDULER=0, then enable
-      # a dedicated scheduler (see docs/PRODUCTION_CUTOVER.md "Scaling").
-      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-1}
+      # 2026-07-20: default 1->2 web workers — concurrent-burst 502 se bachne (studio
+      # tools). SAFE kyunki RUN_IN_PROCESS_SCHEDULER=0 (Celery durable, no in-process
+      # scheduler dup) + app container 3GiB mem_limit ke andar (~1GB/worker). Agar
+      # VPS .env WEB_CONCURRENCY set karti hai to wahi wins (yeh default no-op).
+      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
       RUN_IN_PROCESS_SCHEDULER: ${RUN_IN_PROCESS_SCHEDULER:-1}
       # Container ALWAYS uses in-stack internal DNS (db/redis), NOT the host's
       # 127.0.0.1 DATABASE_URL in .env (that's for the systemd-host app + migration).
