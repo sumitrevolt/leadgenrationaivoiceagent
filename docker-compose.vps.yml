@@ -50,11 +50,12 @@ services:
     environment:
       APP_ENV: production
       PORT: 8080
-      # 2026-07-20: default 1->2 web workers — concurrent-burst 502 se bachne (studio
-      # tools). SAFE kyunki RUN_IN_PROCESS_SCHEDULER=0 (Celery durable, no in-process
-      # scheduler dup) + app container 3GiB mem_limit ke andar (~1GB/worker). Agar
-      # VPS .env WEB_CONCURRENCY set karti hai to wahi wins (yeh default no-op).
-      WEB_CONCURRENCY: ${WEB_CONCURRENCY:-2}
+      # 2026-07-20: 2 web workers (concurrent-burst 502 fix). HARDCODED literal (NOT
+      # ${..}) taaki env_file .env ka WEB_CONCURRENCY=1 override ho jaaye — compose me
+      # `environment:` block, `env_file:` se UPAR precedence rakhta hai. SAFE:
+      # RUN_IN_PROCESS_SCHEDULER=0 (no in-process scheduler dup) + app 3GiB mem_limit
+      # (~1GB/worker, 4.6Gi sys free). Tune karna ho to YAHIN badlo (.env nahi).
+      WEB_CONCURRENCY: 2
       RUN_IN_PROCESS_SCHEDULER: ${RUN_IN_PROCESS_SCHEDULER:-1}
       # Container ALWAYS uses in-stack internal DNS (db/redis), NOT the host's
       # 127.0.0.1 DATABASE_URL in .env (that's for the systemd-host app + migration).
