@@ -225,6 +225,20 @@ app.dependency_overrides[require_admin] = get_mock_user
 app.dependency_overrides[require_super_admin] = get_mock_user
 
 
+@pytest.fixture(autouse=True)
+def restore_dependency_overrides():
+    """Snapshot/restore FastAPI dependency overrides per test (Cluster 1).
+
+    Many tests clear or replace app.dependency_overrides and forget to restore,
+    causing later tests to see HTTP 401. This restores the session baseline
+    without bypassing production authentication — production code paths unchanged.
+    """
+    before = dict(app.dependency_overrides)
+    yield
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(before)
+
+
 # =============================================================================
 # EVENT LOOP CONFIGURATION
 # =============================================================================
@@ -473,3 +487,44 @@ def netguard_session():
         _ng_disable()  # restore originals so pytest's own cleanup can work
     except Exception:
         yield  # never block pytest teardown
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_state():
+    """Isolate per-IP rate-limit counters between tests (2026-07-18).
+
+    Tests point REDIS_URL at a refused port, so app.cache falls back to a
+    PROCESS-LEVEL InMemoryCache singleton (app.cache._redis_client). Its
+    rl:<scope>:<ip> counters — written by both rate_limit() deps and
+    public_site._rate_check() — accumulate across tests (every TestClient
+    request shares one client IP). After ~10 signup POSTs, later tests got
+    HTTP 429 instead of 422/200 (test_signup_password_hygiene). Clearing ONLY
+    rl:* keys (plus public_site's in-memory fallback lists) keeps rate limiting
+    fully functional WITHIN a test while resetting it BETWEEN tests. Test-only:
+    production limiter behaviour and configuration are unchanged."""
+
+    def _clear():
+        try:
+            import app.cache as _cache
+
+            for _name in ("_redis_client", "_cache_redis_client"):
+                _client = getattr(_cache, _name, None)
+                for _attr in ("_cache", "_expiry"):
+                    _store = getattr(_client, _attr, None)
+                    if isinstance(_store, dict):
+                        for _k in [k for k in list(_store) if str(k).startswith("rl:")]:
+                            _store.pop(_k, None)
+        except Exception:
+            pass
+        try:
+            import app.api.public_site as _ps
+
+            for _dn in ("_RL", "_RL_AUDIT"):
+                _d = getattr(_ps, _dn, None)
+                if isinstance(_d, dict):
+                    _d.clear()
+        except Exception:
+            pass
+
+    _clear()
+    yield
