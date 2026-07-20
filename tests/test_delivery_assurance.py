@@ -168,3 +168,42 @@ def test_run_result_shape_and_summary(monkeypatch):
     summ = da.missed_deliverables_summary()
     assert summ["checked"] == 1
     assert summ["customers"][0]["id"] == "jiya-makeover"
+
+
+
+# --------------------------------------------------------------------------- #
+# Slice 2 — live wiring: hourly product_one_health sweep observability
+# --------------------------------------------------------------------------- #
+def test_health_sweep_emits_assurance_observability(monkeypatch):
+    """The hourly sweep runs the read-only assurance scan and reports its counts."""
+    import asyncio
+
+    from app.marketing import product_one_delivery as p1
+
+    monkeypatch.setattr(clients_store, "list_clients", lambda status=None, product=None: [])
+    monkeypatch.setattr(
+        da,
+        "scan_missed_deliverables",
+        lambda limit=200: {"status": "success", "missed_count": 2, "at_risk_count": 1},
+    )
+    out = asyncio.run(p1.run_health_and_recovery_sweep())
+    assert out["ok"] is True
+    assert out["assurance_missed"] == 2
+    assert out["assurance_at_risk"] == 1
+
+
+def test_health_sweep_isolated_from_assurance_failure(monkeypatch):
+    """A failure in the assurance scan must NOT break the sweep's own result."""
+    import asyncio
+
+    from app.marketing import product_one_delivery as p1
+
+    monkeypatch.setattr(clients_store, "list_clients", lambda status=None, product=None: [])
+
+    def _boom(limit=200):
+        raise RuntimeError("assurance down")
+
+    monkeypatch.setattr(da, "scan_missed_deliverables", _boom)
+    out = asyncio.run(p1.run_health_and_recovery_sweep())
+    assert out["ok"] is True  # sweep still succeeds
+    assert any("assurance:" in e for e in out.get("errors", []))
