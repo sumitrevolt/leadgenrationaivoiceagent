@@ -22,10 +22,20 @@ REUSE-not-duplicate (koi naya queue/scheduler/persistence-system nahi):
   - useful-work events → app.platform.team.log_event (dashboard feed)
   - state files        → automation_health pattern (data/*.json + file_lock, atomic)
 
-POLICY = ENFORCEMENT, display nahi. `run_task` dispatch se PEHLE, is order me:
-  master-flag → contract-exists → RED/hard_off → pilot-rollout → prohibited →
-  primary-flag → kill-switches → capability → tenant-isolation → approval →
-  budgets → concurrency → cancellation → idempotency — sab fail-CLOSED.
+POLICY = ENFORCEMENT, display nahi. `run_task` / admission order (canonical):
+  1 invalid agent/capability (no contract / not registered)
+  2 RED hard-off / frozen
+  3 global AGENT_RUNTIME flag
+  4 individual agent primary_flag
+  5 platform/agent kill switches  → reason kill_switch_engaged:<key>
+  6 Owner OS stop-claims / drain / pause via runtime_admission_blocked
+       → agent_claims_stopped | agent_draining | agent_paused
+  7 cancellation (_CANCELLED_AGENTS) → cancel_requested
+  8 capability / tenant / approval / budget policy
+  9 concurrency slot + durable lease claim
+  10 pre-engine re-check (admission + cancel) → then engine
+  Race close: admission checked in evaluate_policy, again before durable open,
+  and again immediately before cap.fn. Resume clears controls only — no catch-up.
 
 CONTROLLED ROLLOUT: sirf PILOT_AGENTS dispatch ho sakte hain (Wave-A pilots +
 Wave-B GREEN/read-only engines). Baaki agents capability-registered hote hain
@@ -139,6 +149,47 @@ def _kill_engaged(key: str) -> bool | None:
         return None
 
 
+def _owner_admission_blocked(agent_id: str) -> tuple[bool, str]:
+    """Owner OS pause/drain/stop-claims — injectable seam for race tests.
+
+    Returns (blocked, reason_code). Empty reason when not blocked.
+    """
+    try:
+        from app.platform.owner_agent_execution import runtime_admission_blocked
+
+        return runtime_admission_blocked(agent_id=agent_id)
+    except Exception as e:
+        logger.warning("[agent_runtime] owner admission check errored: %s", e)
+        return True, "agent_control_state_ambiguous"
+
+
+def admission_decision(
+    *,
+    allowed: bool,
+    reason_code: str,
+    agent_id: str,
+    capability: str = "",
+    control_source: str = "",
+    control_id: str = "",
+    correlation_id: str = "",
+    state: str = "",
+) -> dict[str, Any]:
+    """Structured admission / control decision (Owner OS + admin projections)."""
+    if not state:
+        state = "allowed" if allowed else "blocked"
+    return {
+        "allowed": bool(allowed),
+        "state": state,
+        "reason_code": reason_code or "",
+        "agent_id": agent_id,
+        "capability": capability,
+        "control_source": control_source,
+        "control_id": control_id,
+        "evaluated_at": _now_iso(),
+        "correlation_id": correlation_id or "",
+    }
+
+
 def _idem_seen(key: str, ttl_s: int = 24 * 3600) -> bool:
     try:
         from app.billing.idempotency import seen_before_sync
@@ -243,6 +294,7 @@ class AgentResult:
     dlq: bool = False
     lifecycle: list[str] = field(default_factory=list)
     usage: dict[str, float] = field(default_factory=dict)
+    decision: dict[str, Any] | None = None  # structured admission / control decision
     at: str = field(default_factory=_now_iso)
 
     def to_dict(self) -> dict[str, Any]:
@@ -491,7 +543,14 @@ def _max_attempts(retry_policy: str) -> int:
     return 3 if "dlq" in (retry_policy or "").lower() else 1
 
 
-def _blocked(task: AgentTask, contract: Any, reason: str, lifecycle: list[str]) -> AgentResult:
+def _blocked(
+    task: AgentTask,
+    contract: Any,
+    reason: str,
+    lifecycle: list[str],
+    *,
+    decision: dict[str, Any] | None = None,
+) -> AgentResult:
     return AgentResult(
         task_id=task.task_id,
         agent_id=task.agent_id,
@@ -502,7 +561,29 @@ def _blocked(task: AgentTask, contract: Any, reason: str, lifecycle: list[str]) 
         lane=getattr(contract, "lane", "") if contract else "",
         escalation=getattr(contract, "escalation", "") if contract else "",
         lifecycle=lifecycle + [TaskStatus.BLOCKED.value],
+        decision=decision,
     )
+
+
+def _owner_control_refusal(
+    task: AgentTask, contract: Any, reason: str, lifecycle: list[str]
+) -> AgentResult:
+    """Block with structured Owner OS control decision + audit-friendly team event."""
+    decision = admission_decision(
+        allowed=False,
+        reason_code=reason,
+        agent_id=task.agent_id,
+        capability=task.action,
+        control_source="owner_os",
+        correlation_id=task.task_id,
+    )
+    _log_team_event(
+        task.agent_id,
+        "runtime_control_blocked",
+        f"{task.action}: {reason}",
+        status="warn",
+    )
+    return _blocked(task, contract, reason, lifecycle, decision=decision)
 
 
 def _skipped(task: AgentTask, contract: Any, reason: str, lifecycle: list[str]) -> AgentResult:
@@ -564,11 +645,53 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
     for key in contract.kill_switches:
         engaged = _kill_engaged(key)
         if engaged is True:
-            return contract, None, _blocked(task, contract, f"kill_switch_engaged:{key}", lc)
+            decision = admission_decision(
+                allowed=False,
+                reason_code="kill_switch_active",
+                agent_id=task.agent_id,
+                capability=task.action,
+                control_source="owner_os",
+                control_id=key,
+                correlation_id=task.task_id,
+            )
+            # Keep legacy reason string for production-proven callers/tests;
+            # structured decision.reason_code = kill_switch_active.
+            return (
+                contract,
+                None,
+                _blocked(
+                    task,
+                    contract,
+                    f"kill_switch_engaged:{key}",
+                    lc,
+                    decision=decision,
+                ),
+            )
         if engaged is None and key.startswith("owner_"):
             return contract, None, _blocked(task, contract, f"kill_switch_check_error:{key}", lc)
 
-    # 8. Capability must be registered (tool adapter = the only execution path)
+    # 8. Owner OS pause / drain / stop-claims (shared admission; reject — no park)
+    blocked, ctrl_reason = _owner_admission_blocked(task.agent_id)
+    if blocked:
+        return contract, None, _owner_control_refusal(task, contract, ctrl_reason, lc)
+
+    # 9. Soft cancellation (new work only; in-flight may finish)
+    if task.agent_id in _CANCELLED_AGENTS:
+        decision = admission_decision(
+            allowed=False,
+            reason_code="cancel_requested",
+            agent_id=task.agent_id,
+            capability=task.action,
+            control_source="agent_runtime",
+            correlation_id=task.task_id,
+        )
+        return (
+            contract,
+            None,
+            _blocked(task, contract, "cancel_requested", lc, decision=decision),
+        )
+
+    # 10. Capability must be registered (tool adapter = the only execution path)
     cap = get_capability(task.agent_id, task.action)
     if cap is None:
         return (
@@ -577,7 +700,7 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
             _blocked(task, contract, f"capability_not_registered:{task.action}", lc),
         )
 
-    # 9. Tenant isolation — tenant-scoped work needs an explicit tenant, and the
+    # 11. Tenant isolation — tenant-scoped work needs an explicit tenant, and the
     #    payload may not point at a different tenant (cross-client leak gate).
     if cap.tenant_scoped:
         if not task.tenant_id:
@@ -586,7 +709,7 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
         if payload_cid and payload_cid != task.tenant_id:
             return contract, cap, _blocked(task, contract, "tenant_mismatch", lc)
 
-    # 10. Customer-facing approval (AMBER discipline): explicit requires_approval
+    # 12. Customer-facing approval (AMBER discipline): explicit requires_approval
     #     OR any customer side-effect on an AMBER/RED-ceiling agent.
     needs_approval = cap.requires_approval or (
         cap.side_effect == "customer" and contract.lane in (ar.Lane.AMBER.value, ar.Lane.RED.value)
@@ -597,11 +720,11 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
         if not _approval_approved(task.tenant_id, task.approval_ref):
             return contract, cap, _blocked(task, contract, "approval_not_approved", lc)
 
-    # 11. Contact cap: counting capability on a zero-cap agent = never allowed.
+    # 13. Contact cap: counting capability on a zero-cap agent = never allowed.
     if cap.counts_contact and contract.customer_contact_cap_day <= 0:
         return contract, cap, _blocked(task, contract, "customer_contact_not_allowed", lc)
 
-    # 12. Budgets (daily, fail-CLOSED at the cap)
+    # 14. Budgets (daily, fail-CLOSED at the cap)
     usage = _usage_today(task.agent_id)
     if contract.cost_budget_inr_day > 0 and usage["cost_inr"] >= contract.cost_budget_inr_day:
         return contract, cap, _blocked(task, contract, "budget_exhausted:cost_inr", lc)
@@ -609,10 +732,6 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
         return contract, cap, _blocked(task, contract, "budget_exhausted:api_calls", lc)
     if cap.counts_contact and usage["contacts"] >= contract.customer_contact_cap_day:
         return contract, cap, _blocked(task, contract, "budget_exhausted:contacts", lc)
-
-    # 13. Cancellation
-    if task.agent_id in _CANCELLED_AGENTS:
-        return contract, cap, _blocked(task, contract, "cancel_requested", lc)
 
     return contract, cap, None
 
@@ -642,6 +761,30 @@ async def run_task(task: AgentTask) -> AgentResult:
             )
         return refusal
 
+    # Race close #1: control set after policy pass, before concurrency lease.
+    late_block, late_reason = _owner_admission_blocked(task.agent_id)
+    if late_block:
+        res = _owner_control_refusal(task, contract, late_reason, lc)
+        _record_heartbeat(task.agent_id, useful=False, result=res)
+        return res
+    if task.agent_id in _CANCELLED_AGENTS:
+        res = _blocked(
+            task,
+            contract,
+            "cancel_requested",
+            lc,
+            decision=admission_decision(
+                allowed=False,
+                reason_code="cancel_requested",
+                agent_id=task.agent_id,
+                capability=task.action,
+                control_source="agent_runtime",
+                correlation_id=task.task_id,
+            ),
+        )
+        _record_heartbeat(task.agent_id, useful=False, result=res)
+        return res
+
     # Concurrency slot (lease semantics — in-process; durable lease via atq below)
     if not _acquire_slot(task.agent_id, contract.max_concurrency):
         res = _blocked(task, contract, "concurrency_limit", lc)
@@ -651,6 +794,30 @@ async def run_task(task: AgentTask) -> AgentResult:
     durable_id: str | None = None
     idem_claimed = False
     try:
+        # Race close #2: control between slot acquire and durable/engine work.
+        late_block, late_reason = _owner_admission_blocked(task.agent_id)
+        if late_block:
+            res = _owner_control_refusal(task, contract, late_reason, lc)
+            _record_heartbeat(task.agent_id, useful=False, result=res)
+            return res
+        if task.agent_id in _CANCELLED_AGENTS:
+            res = _blocked(
+                task,
+                contract,
+                "cancel_requested",
+                lc,
+                decision=admission_decision(
+                    allowed=False,
+                    reason_code="cancel_requested",
+                    agent_id=task.agent_id,
+                    capability=task.action,
+                    control_source="agent_runtime",
+                    correlation_id=task.task_id,
+                ),
+            )
+            _record_heartbeat(task.agent_id, useful=False, result=res)
+            return res
+
         lc.append(TaskStatus.LEASED.value)
         with _RUN_LOCK:
             _ACTIVE_TASKS[task.task_id] = {
@@ -684,9 +851,77 @@ async def run_task(task: AgentTask) -> AgentResult:
         lc.append(TaskStatus.RUNNING.value)
         last_err: tuple[str, str] = ("", "")
         for attempt in range(1, attempts_allowed + 1):
+            # Race close #3: control / cancel immediately before engine call.
+            pre_block, pre_reason = _owner_admission_blocked(task.agent_id)
+            if pre_block:
+                if idem_claimed:
+                    _idem_forget(task.idempotency_key)
+                res = _owner_control_refusal(task, contract, pre_reason, lc)
+                await _durable_close(durable_id, False, f"blocked:{pre_reason}")
+                _record_heartbeat(task.agent_id, useful=False, result=res)
+                return res
+            if task.agent_id in _CANCELLED_AGENTS:
+                if idem_claimed:
+                    _idem_forget(task.idempotency_key)
+                res = _blocked(
+                    task,
+                    contract,
+                    "cancel_requested",
+                    lc,
+                    decision=admission_decision(
+                        allowed=False,
+                        reason_code="cancel_requested",
+                        agent_id=task.agent_id,
+                        capability=task.action,
+                        control_source="agent_runtime",
+                        correlation_id=task.task_id,
+                    ),
+                )
+                await _durable_close(durable_id, False, "blocked:cancel_requested")
+                _record_heartbeat(task.agent_id, useful=False, result=res)
+                return res
             try:
                 output = await asyncio.wait_for(cap.fn(ctx), timeout=effective_timeout)
                 dur = int((time.monotonic() - t0) * 1000)
+                # Non-cooperative engine: cancel requested during wait_for completed
+                # anyway — classify honestly (do not pretend we cancelled mid-flight).
+                if task.agent_id in _CANCELLED_AGENTS:
+                    res = AgentResult(
+                        task_id=task.task_id,
+                        agent_id=task.agent_id,
+                        action=task.action,
+                        status=TaskStatus.SUCCEEDED.value,
+                        reason="cancel_requested_but_engine_completed",
+                        output=output if isinstance(output, dict) else {"value": output},
+                        attempts=attempt,
+                        duration_ms=dur,
+                        mode=contract.default_mode,
+                        lane=contract.lane,
+                        escalation=contract.escalation,
+                        lifecycle=lc + [TaskStatus.SUCCEEDED.value],
+                        usage=dict(ctx.usage),
+                        decision=admission_decision(
+                            allowed=True,
+                            reason_code="cancel_requested_but_engine_completed",
+                            agent_id=task.agent_id,
+                            capability=task.action,
+                            control_source="agent_runtime",
+                            state="completed_despite_cancel",
+                            correlation_id=task.task_id,
+                        ),
+                    )
+                    _charge_usage(task.agent_id, ctx.usage)
+                    _record_heartbeat(task.agent_id, useful=True, result=res)
+                    _log_team_event(
+                        task.agent_id,
+                        "runtime_cancel_after_complete",
+                        f"{task.action}: engine finished under cancel request",
+                        status="warn",
+                    )
+                    await _durable_close(
+                        durable_id, True, f"{task.action}: cancel_requested_but_engine_completed"
+                    )
+                    return res
                 res = AgentResult(
                     task_id=task.task_id,
                     agent_id=task.agent_id,
@@ -941,4 +1176,5 @@ __all__ = [
     "runtime_status",
     "runtime_dlq",
     "evaluate_policy",
+    "admission_decision",
 ]

@@ -186,7 +186,7 @@ def _amber_hold(
         confirm=False,
     )
     cmd = created.get("command") or {}
-    cid = cmd.get("command_id")
+    cid = created.get("command_id") or cmd.get("command_id")
     # Owner OS may mark some pauses as SAFE/READY — OpenClaw AMBER must still
     # require explicit Owner OS approve/execute (never silent mutate).
     if cid and cmd.get("status") in ("READY", "VALIDATED", "QUEUED", "DRAFT"):
@@ -203,14 +203,14 @@ def _amber_hold(
     out = {
         "ok": True,
         "command": command,
-        "command_id": cmd.get("command_id"),
+        "command_id": cid or cmd.get("command_id"),
         "correlation_id": corr,
         "safety_lane": "AMBER",
         "status": "APPROVAL_REQUIRED",
         "approval_required": True,
-        "approval_id": cmd.get("command_id"),
+        "approval_id": cid or cmd.get("command_id"),
         "result": {
-            "owner_os_command": cmd.get("command_id"),
+            "owner_os_command": cid or cmd.get("command_id"),
             "plan": created.get("plan"),
             "params": redact_secrets(params),
             "note": "AMBER — Owner OS pe approve/execute karo; OpenClaw ne mutate nahi kiya",
@@ -225,7 +225,7 @@ def _amber_hold(
         command=command,
         safety_lane="AMBER",
         correlation_id=corr,
-        detail={"status": "APPROVAL_REQUIRED", "command_id": cmd.get("command_id")},
+        detail={"status": "APPROVAL_REQUIRED", "command_id": cid or cmd.get("command_id")},
     )
     return out
 
