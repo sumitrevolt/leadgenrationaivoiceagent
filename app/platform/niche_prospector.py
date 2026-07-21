@@ -136,7 +136,7 @@ def build_targets(
 
 async def run(
     tier: str | None = None,
-    batch: int = 8,
+    batch: int = 4,
     limit_per_query: int = 6,
     cities: list[str] | None = None,
     advance: bool = True,
@@ -144,14 +144,33 @@ async def run(
     """Next niche-batch scrape karo (existing prospector se). Kabhi raise nahi.
 
     advance=True → cursor aage badhao (agla run agle niches karega).
+
+    Post-scrape rescore/cadence are HARD-BOUNDED — 2026-07-20: dlq:dead SoftTimeLimit
+    on prospect while NICHE_ROTATION=1; scrape itself had wall-clock budget but
+    ``rescore_db(2000)`` after it blew past Celery soft 540s.
     """
+    import asyncio
+    import time as _time
+
+    t0 = _time.monotonic()
+    # Keep niche fan-out small under Celery soft limit; prospector also caps queries.
+    try:
+        batch = int(os.environ.get("NICHE_PROSPECT_BATCH", str(batch)))
+    except Exception:
+        batch = 4
+    batch = max(1, min(batch, 8))
+
     targets = build_targets(tier=tier, batch=batch, cities=cities)
     if not targets:
         return {"ok": False, "reason": "no niches/targets", "covered": []}
 
     covered = sorted({t["niche"] for t in targets})
     old = os.environ.get("PROSPECT_TARGETS")
+    old_max_q = os.environ.get("PROSPECT_MAX_QUERIES")
     os.environ["PROSPECT_TARGETS"] = json.dumps(targets, ensure_ascii=False)
+    # Prefer a tight query cap when niche-rotation injects many keyword×city pairs.
+    if old_max_q is None:
+        os.environ["PROSPECT_MAX_QUERIES"] = os.environ.get("NICHE_PROSPECT_MAX_QUERIES", "4")
     result: Any = None
     try:
         from app.platform import prospector
@@ -165,6 +184,10 @@ async def run(
             os.environ.pop("PROSPECT_TARGETS", None)
         else:
             os.environ["PROSPECT_TARGETS"] = old
+        if old_max_q is None:
+            os.environ.pop("PROSPECT_MAX_QUERIES", None)
+        else:
+            os.environ["PROSPECT_MAX_QUERIES"] = old_max_q
 
     if advance:
         keys = _all_niche_keys(tier)
@@ -181,13 +204,21 @@ async def run(
             step = max(1, scraped or batch)
             _write_cursor((_read_cursor() + step) % len(keys))
 
-    # Auto-score the leads so hot ones surface in dashboards — best-effort, never blocks.
-    try:
-        from app.platform import lead_scoring
+    # Auto-score — bounded so post-work cannot SoftTimeLimit the Celery task.
+    rescore_out: dict[str, Any] = {"skipped": True}
+    elapsed = _time.monotonic() - t0
+    if elapsed < 420.0:
+        try:
+            from app.platform import lead_scoring
 
-        await lead_scoring.rescore_db(2000)
-    except Exception as e:
-        logger.debug(f"[niche_prospector] auto-rescore skip: {e}")
+            rescore_out = await asyncio.wait_for(lead_scoring.rescore_db(100), timeout=45.0)
+        except Exception as e:
+            logger.debug(f"[niche_prospector] auto-rescore skip: {e}")
+            rescore_out = {"ok": False, "error": str(e)[:120]}
+    else:
+        logger.warning(
+            f"[niche_prospector] skip rescore — scrape already {elapsed:.0f}s (Celery soft-limit margin)"
+        )
 
     # Cadence auto-enroll — naye scraped leads ko omnichannel sequence me daalo.
     # Gated CADENCE_ENGINE=1 (cadence.enroll guard karta hai agar off).
@@ -195,7 +226,10 @@ async def run(
     try:
         import os as _os
 
-        if _os.environ.get("CADENCE_ENGINE", "").strip() in ("1", "true", "yes"):
+        if (
+            _os.environ.get("CADENCE_ENGINE", "").strip() in ("1", "true", "yes")
+            and elapsed < 450.0
+        ):
             from app.marketing import cadence as _cadence
             from app.platform import prospector as _p
 
@@ -221,6 +255,8 @@ async def run(
         "targets": len(targets),
         "result": result,
         "cadence_enrolled": cadence_enrolled,
+        "rescore": rescore_out,
+        "elapsed_s": round(_time.monotonic() - t0, 1),
     }
 
 

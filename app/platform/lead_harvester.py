@@ -198,6 +198,19 @@ async def _valid_email(email: str) -> str:
 
 async def _src_prospector(niche: str, city: str, limit: int) -> dict[str, Any]:
     """Primary: existing Places+OSM rotation (khud persist karta)."""
+    # When nested under the daily prospect job, niche scrape already ran —
+    # calling niche_prospector again multiplies wall-clock into SoftTimeLimit.
+    if os.environ.get("SKIP_HARVEST_PROSPECTOR_SRC", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        return {
+            "source": "prospector",
+            "skipped": "nested_under_prospect",
+            "persisted_internally": False,
+            "leads": [],
+        }
     try:
         from app.platform import niche_prospector
 
@@ -316,8 +329,16 @@ def _ogd_name(rec: dict[str, Any]) -> str:
     """Extract a business/unit name from a data.gov.in record — FIELD-NAME-AGNOSTIC.
     (Udyam = `EnterpriseName`; other MSME datasets = name_of_unit/firm_name/... .)"""
     n = _rec_ci(
-        rec, "enterprisename", "enterprise_name", "name_of_enterprise", "name_of_unit",
-        "unit_name", "firm_name", "company_name", "msme_name", "name",
+        rec,
+        "enterprisename",
+        "enterprise_name",
+        "name_of_enterprise",
+        "name_of_unit",
+        "unit_name",
+        "firm_name",
+        "company_name",
+        "msme_name",
+        "name",
     )
     if n:
         return n
@@ -389,7 +410,9 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
 
         def _fetch() -> dict[str, Any]:
             req = urllib.request.Request(url, headers={"User-Agent": "leadgenai/1.0"})
-            with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:  # noqa: S310
+            with urllib.request.urlopen(
+                req, timeout=_HTTP_TIMEOUT
+            ) as resp:  # noqa: S310  # nosec B310
                 return json.loads(resp.read().decode("utf-8", "replace")) or {}
 
         data = await asyncio.to_thread(_fetch)
@@ -679,6 +702,12 @@ async def run_loop_sweep() -> dict[str, Any]:
                 n_pairs = int(os.environ.get("GTM_PAIRS_PER_RUN", "6") or "6")
             except Exception:
                 n_pairs = 6
+            # Hard cap when nested under Celery prospect (SoftTimeLimit margin).
+            try:
+                max_pairs = int(os.environ.get("HARVEST_LOOP_MAX_PAIRS", "2") or "2")
+            except Exception:
+                max_pairs = 2
+            n_pairs = max(1, min(n_pairs, max(1, max_pairs)))
             pairs = gtm_targeting.next_targets(max(1, n_pairs))
             if pairs:
                 out: dict[str, Any] = {"enabled": True, "mode": "gtm_matrix", "new": 0, "pairs": []}

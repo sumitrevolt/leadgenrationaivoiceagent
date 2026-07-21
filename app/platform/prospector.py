@@ -818,11 +818,12 @@ async def run_prospecting(limit_per_query: int = 10) -> dict[str, Any]:
         # phir bhi Celery ke 540s soft limit ko cross kar sakti thi → retry burn →
         # DLQ. Ab har query se PEHLE monotonic budget check — exhausted = partial
         # summary ke saath GRACEFUL return, kabhi time-limit kill nahi.
-        # Env PROSPECT_TIME_BUDGET_S (default 420 = worker soft-limit 540 se 2 min margin).
+        # Env PROSPECT_TIME_BUDGET_S (default 300 = worker soft-limit 540 se ~4 min margin;
+        # was 420 — still SoftTimeLimit under NICHE_ROTATION + post-scrape rescore, 2026-07-20).
         try:
-            time_budget_s = float(os.environ.get("PROSPECT_TIME_BUDGET_S", "420"))
+            time_budget_s = float(os.environ.get("PROSPECT_TIME_BUDGET_S", "300"))
         except Exception:
-            time_budget_s = 420.0
+            time_budget_s = 300.0
         time_budget_s = max(5.0, min(time_budget_s, 480.0))
         t_start = time.monotonic()
         summary["time_budget_exhausted"] = False

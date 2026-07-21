@@ -35,6 +35,14 @@ def test_job_info_covers_every_scheduled_job():
     assert not missing, f"JOB_INFO missing Hinglish labels for: {missing}"
 
 
+def test_prospect_label_matches_job_meta_owner():
+    """JOB_META prospect.owner=rohan — UI must not blame Dev (KNOWN_DRIFT class)."""
+    info = today_overview.JOB_INFO["prospect"]
+    assert "Rohan" in info["label"]
+    assert "Dev" not in info["label"]
+    assert "Rohan" in today_overview.JOB_INFO["evening_prospect"]["label"]
+
+
 def test_new_jobs_labelled():
     for key in (
         "revenue_snapshot",

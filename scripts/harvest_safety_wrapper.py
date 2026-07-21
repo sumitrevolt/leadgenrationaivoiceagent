@@ -47,13 +47,11 @@ async def run_harvest_safe(
         # Run harvest with connection timeout
         result = await asyncio.wait_for(
             lead_harvester.run_harvest(niche, city, limit, sources or []),
-            timeout=600.0  # 10 min hard timeout
+            timeout=600.0,  # 10 min hard timeout
         )
         return result
     except asyncio.TimeoutError:
-        logger.error(
-            f"[harvest_safety] Timeout: run_harvest exceeded 600s (niche={niche})"
-        )
+        logger.error(f"[harvest_safety] Timeout: run_harvest exceeded 600s (niche={niche})")
         return {
             "niche": niche,
             "error": "timeout:600s",
@@ -61,9 +59,7 @@ async def run_harvest_safe(
             "sources": [],
         }
     except Exception as e:
-        logger.error(
-            f"[harvest_safety] Exception: {type(e).__name__}: {str(e)[:200]}"
-        )
+        logger.error(f"[harvest_safety] Exception: {type(e).__name__}: {str(e)[:200]}")
         return {
             "niche": niche,
             "error": f"{type(e).__name__}:{str(e)[:100]}",
@@ -85,18 +81,29 @@ async def run_harvest_safe(
 
 
 async def run_harvest_loop_safe() -> dict[str, Any]:
-    """Safely run harvest_loop_sweep with connection cleanup."""
+    """Safely run harvest_loop_sweep with connection cleanup.
+
+    Wall-clock MUST stay under Celery soft-limit (~540s). The previous 900s
+    wait_for let GTM×niche_prospector fan-out SoftTimeLimit the parent
+    ``prospect`` staff job (2026-07-20 prod canary on b5cac26).
+    """
     from app.platform import lead_harvester
+
+    try:
+        timeout_s = float(os.environ.get("HARVEST_LOOP_TIMEOUT_S", "120") or "120")
+    except Exception:
+        timeout_s = 120.0
+    timeout_s = max(5.0, min(timeout_s, 300.0))
 
     try:
         result = await asyncio.wait_for(
             lead_harvester.run_loop_sweep(),
-            timeout=900.0  # 15 min for full sweep
+            timeout=timeout_s,
         )
         return result
     except asyncio.TimeoutError:
-        logger.error("[harvest_safety] Timeout: run_loop_sweep exceeded 900s")
-        return {"error": "timeout:900s", "leads_total": 0}
+        logger.error(f"[harvest_safety] Timeout: run_loop_sweep exceeded {timeout_s:.0f}s")
+        return {"error": f"timeout:{int(timeout_s)}s", "leads_total": 0, "truncated": True}
     finally:
         try:
             from app.database import get_db_pool
