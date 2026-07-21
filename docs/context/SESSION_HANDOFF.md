@@ -1,61 +1,47 @@
-# SESSION_HANDOFF - overwrite every session end
+# SESSION_HANDOFF — overwrite every session end
 
 ## Session objective
-Fix the local false-production MCP refusal warning while keeping the production
-MCP surface fail-closed.
+Finish PR #72 CI + reconcile production drift; stop before merge/deploy
+(no owner authorization for production action in active prompt).
 
-## Starting state
-- Isolated worktree based on `origin/main` `c4d98dee`.
-- Branch: `codex/fix-mcp-app-env-20260720`.
-- Primary `feat/openclaw-owner-copilot` checkout remained dirty and untouched.
-- Production was healthy on `c4d98dee`; MCP token was present on the host and
-  all five canonical containers.
+## PR #72
+- URL: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/72
+- Head: `676c51ad260377614b89bb2c28f7daf481029fdf`
+- Draft: yes · Mergeable: clean · Reviews: none
+- CI (latest HEAD): Lint, test, prod_check+pytest, Trivy repo, GitGuardian = **success**
+  (Trivy image scan skipped)
 
-## Root cause
-`app/main.py` used legacy `os.environ.get("ENV", "production")` only for MCP,
-while configuration, health, middleware, and Compose use validated
-`APP_ENV`/`settings.app_env`. Local `APP_ENV=development` with no legacy `ENV`
-was therefore misclassified as production and logged the refusal warning.
+## Production drift
+| Layer | SHA |
+|---|---|
+| `/health` + running images | `7ce4d979…` |
+| `origin/main` | `10a3996a…` |
+| PR #72 head | `676c51a…` |
+| VPS git checkout HEAD | `0ff5d06c…` (stale vs image; surgical-deploy hygiene) |
 
-## Changed
-- `app/main.py`: `_mcp_is_prod = settings.app_env == "production"` and corrected
-  the adjacent environment comment.
-- `tests/test_mcp_import.py`: real startup subprocess contracts for:
-  - development + no MCP token/allowlist -> mounts development-ungated;
-  - production + no MCP token/allowlist -> refuses fail-closed.
-- `progress.md`: canonical loop evidence.
-- `docs/context/SESSION_HANDOFF.md`: this handoff.
+**Classification: `SAFE_BEHIND_DOCS_ONLY`**
+- Gap `7ce4d979..10a3996a` = PR #71 docs/memory only (3 files). Zero app/migrations/compose.
 
-## TDD and verification
-- RED proof: development startup test failed on the exact
-  `MCP mount REFUSED` warning before implementation.
-- Final MCP import/engineer/qualifier suite: 28 passed.
-- Pre-commit hooks: all passed, including Black, isort, Ruff, Bandit, and
-  detect-secrets.
-- `scripts/check_secrets.py`: clean on changed code/test files.
-- `py_compile`: passed.
-- `scripts/prod_check.py`: ALL CHECKS PASSED; 1159 routes, 48 pages, zero
-  wiring gaps; development import logged the expected ungated MCP mount.
+## Prod flag snapshot (read-only inspect)
+- `APP_ENV=production`, `APP_VERSION=7ce4d979…`
+- `AGENT_RUNTIME=1`, `SRE_AGENT=1` already set on running app
+- `OPENCLAW` / `PLATFORM_DIAL` unset
+- Redis: celery=0, dlq:failed=0, **dlq:dead=7**
+- Alembic: `022_add_request_depth` (head)
+- RestartCount=0, healthy
 
-## Production safety evidence
-- No production mutation this fix session.
-- Host and all five canonical containers had `FASTAPI_MCP_TOKEN=SET`.
-- Compose label pointed to `/opt/leadgen/docker-compose.vps.yml`.
-- Public and on-box unauthenticated `/mcp/` returned 401.
-- `/api/mcp-product/v1/discover` returned 200.
-- Production startup log said `MCP server mounted at /mcp (gated: token)`.
+**Important:** Prod image is **pre-PR#72**. Wave-B / workforce factory / Pranav
+`run_owned_workflow` **not** on prod yet. Existing flags only arm old 3-pilot
+runtime (kavya/isha/zara). Production Pranav workforce canary = **BLOCKED**
+until merge+deploy of reviewed main SHA + explicit owner auth.
 
-## Protected scope
-No `.env`, secret value, OpenClaw, Voice/Swara, `platform_dial`, billing,
-compliance, customer data, route, or middleware authorization behavior changed.
+## Local proof (unchanged)
+Pranav real-engine canary in worktree — see `docs/agent_runtime/CANARY_LOCAL_PROOF.md`
 
-## Remaining
-User authorization for commit/push/deploy has been received. The isolated
-four-file slice is ready for commit and canonical deployment. Already-running
-local uvicorn processes still hold the old imported module until restarted from
-the fixed source.
+## Exact next (owner-gated)
+1. Human review PR #72 → `gh pr ready 72` → merge
+2. Deploy `origin/main` tip via `scripts/deploy_vps.sh` with `APP_VERSION=<full sha>`
+3. Disabled-state proof first, then single Pranav canary + Redis idempotency + rollback
 
-## Exact next task
-Commit exact four files, push the isolated branch, fast-forward main if still
-safe, deploy through `scripts/deploy_vps.sh`, and verify production still logs
-`gated: token` and returns 401 without bearer authentication.
+## Protected
+No merge, deploy, .env flip, Swara/voice, billing, customer data, primary dirty tree.
