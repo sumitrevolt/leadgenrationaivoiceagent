@@ -27,9 +27,10 @@ POLICY = ENFORCEMENT, display nahi. `run_task` dispatch se PEHLE, is order me:
   primary-flag → kill-switches → capability → tenant-isolation → approval →
   budgets → concurrency → cancellation → idempotency — sab fail-CLOSED.
 
-CONTROLLED ROLLOUT: sirf PILOT_AGENTS (kavya/isha/zara) dispatch ho sakte hain.
-Baaki 28 registry me defined hain par runtime unhe refuse karta hai jab tak
-common-runtime evidence ke baad allowlist widen na ho (big-bang activation nahi).
+CONTROLLED ROLLOUT: sirf PILOT_AGENTS dispatch ho sakte hain (Wave-A pilots +
+Wave-B GREEN/read-only engines). Baaki agents capability-registered hote hain
+(``agent_runtime_workforce``) par allowlist se bahar = intentionally disabled.
+RED voice (swara/ananya) HAMESHA blocked. Big-bang 31-live activation nahi.
 
 INERT DEFAULT: master flag `AGENT_RUNTIME` unset/0 = har dispatch SKIPPED.
 Kuch bhi scheduled/automatic is module se nahi chalta — sirf Owner OS
@@ -70,9 +71,30 @@ class TaskStatus(str, Enum):
     SKIPPED = "skipped"  # non-error non-run: flag off / duplicate / capability self-skip
 
 
-# Controlled rollout — Phase-B pilots ONLY. Widening this set = a reviewed,
-# evidence-backed change (never a runtime env flip).
-PILOT_AGENTS: frozenset[str] = frozenset({"kavya", "isha", "zara"})
+# Controlled rollout allowlist (code-level — never an env flip).
+# Wave-A: kavya / isha / zara (proven).
+# Wave-B: READ-ONLY / diagnostic GREEN only (engineer + hermes + nikhil scan).
+# Mutating GREEN (neha/manager/ravi/…) stay capability-registered but OUT of
+# allowlist until a dedicated canary. Voice RED + customer AMBER + voice-adjacent
+# QA stay OUT.
+PILOT_AGENTS: frozenset[str] = frozenset(
+    {
+        # Wave-A
+        "kavya",
+        "isha",
+        "zara",
+        # Wave-B read-only / diagnostic
+        "hermes",
+        "pranav",
+        "vidya",
+        "arnav",
+        "kabir",
+        "diya",
+        "aryan",
+        "arya",
+        "nikhil",  # delivery_assurance scan ONLY (read-only capability)
+    }
+)
 
 _MASTER_FLAG = "AGENT_RUNTIME"
 
@@ -775,6 +797,8 @@ def _agent_health(aid: str, contract: Any, row: dict[str, Any], event_only: bool
     hb = row.get("process_hb")
     useful = row.get("useful_work")
     if aid not in PILOT_AGENTS:
+        if capabilities_for(aid):
+            return "healthy_idle" if event_only else "capability_ready_hold"
         return "healthy_idle" if event_only else "registry_only"
     if not hb:
         return "pilot_ready"  # wired but not yet dispatched — not an incident
@@ -866,8 +890,8 @@ def runtime_status() -> dict[str, Any]:
             "master_flag": _MASTER_FLAG,
             "pilots": sorted(PILOT_AGENTS),
             "rollout_note": (
-                "Phase-B controlled rollout — sirf pilots dispatchable. Baaki 28 "
-                "registry-defined (registry_only), big-bang activation nahi."
+                "Controlled rollout — PILOT_AGENTS dispatchable under AGENT_RUNTIME. "
+                "Others capability-registered but hold/frozen; no big-bang 31-live."
             ),
             "canonical_count": len(reg),
             "runtime_dlq_count": _dlq_count(),

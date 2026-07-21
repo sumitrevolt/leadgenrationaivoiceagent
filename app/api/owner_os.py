@@ -384,11 +384,15 @@ async def owner_runtime_status(user: User = Depends(require_admin)) -> dict[str,
     """Agent Runtime (Phase-B) operator board — mode/lane, heartbeats, useful work,
     active tasks, budgets, kill-switch state, runtime DLQ. Never raises."""
     from app.platform import agent_runtime
-    from app.platform.agent_runtime_pilots import ensure_pilots_registered
+    from app.platform.agent_runtime_workforce import (
+        ensure_workforce_registered,
+        workforce_rollout_state,
+    )
 
-    ensure_pilots_registered()
+    ensure_workforce_registered()
     out = agent_runtime.runtime_status()
     out["dlq_tail"] = agent_runtime.runtime_dlq(20)
+    out["workforce_rollout"] = workforce_rollout_state()
     return out
 
 
@@ -399,12 +403,12 @@ async def owner_runtime_status(user: User = Depends(require_admin)) -> dict[str,
 async def owner_runtime_run(
     body: RuntimeRunIn, user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Operator-triggered pilot dispatch under FULL contract policy. Non-pilot /
+    """Operator-triggered runtime dispatch under FULL contract policy. Non-pilot /
     RED / kill-engaged / unapproved AMBER = structured blocked result (fail-closed)."""
     from app.platform import agent_runtime
-    from app.platform.agent_runtime_pilots import ensure_pilots_registered
+    from app.platform.agent_runtime_workforce import ensure_workforce_registered
 
-    ensure_pilots_registered()
+    ensure_workforce_registered()
     result = await agent_runtime.submit(
         body.agent_id,
         body.action,
