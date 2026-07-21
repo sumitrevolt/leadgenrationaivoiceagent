@@ -239,3 +239,6 @@ scripts/_canary_*.txt
 # designated ignored runtime scratch for local diagnostics + generated outputs
 artifacts/local/
 .codex/config.toml
+
+# OpenClaw local runtime (tokens/state — never commit)
+config/openclaw/.local/
