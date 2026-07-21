@@ -2,14 +2,23 @@
 
 > **Goal:** Claude Code is **PRIMARY** for this repo — skills encode Cursor's parallel context-first edge explicitly.
 > **Start every code task:** `context-first` → `leadgen-composer` → one domain skill.
-> **Project skills:** ~184 folders (2026-07-05) in `.claude/skills/` + ~181 in `data/skills_extra/`.
+> **Project skills:** 208 folders in `.claude/skills/` (single canonical root) + `data/skills_extra/`.
 
-## ⚠️ Mirror topology (.claude ↔ .agents) — 2026-07-05 discovery, DHYAN SE
+## Canonical skill root (.claude/skills) — Phase 12 consolidation (2026-07-21)
 
-- **61 dirs in `.claude/skills/` are Windows JUNCTIONS** pointing into `.agents/skills/` (same physical files — edit either side, both "change"). Baaki real dirs hain.
-- **KABHI `rmtree`/`robocopy /MIR`/recursive-delete in skills trees mat chalao** — junction ke aar-paar asli content delete ho jata hai (2026-07-05 me `ab-testing` aise hi uda tha, git se restore hua).
-- **Edit rule: `.claude/skills/` me edit karo** (PRIMARY). Junction dirs auto-reflect hote; REAL shared dirs ke liye file-level sync (2026-07-05 me full reconcile hua — 76 files, 9 naye mirrors). Runtime `skill_pack.py` `.claude` pehle load karta hai (name-dedupe) — drift runtime pe shadow hoti thi, ab reconciled.
-- `.agents/skills/`-only 23 dirs = generic vendored (npx skills) — unhe `.claude` me mat kheencho.
+- **Single canonical tracked tree: `.claude/skills/`.** The former `.agents/skills/`
+  mirror was a byte-identical duplicate (399 common files, 0 divergent) plus 23 extra
+  skills. Those 23 were merged into `.claude/skills/` and the duplicate tree was
+  removed via `git rm`. There is now exactly one implementation per skill.
+- **No junctions in repository state.** A fresh clone contains plain directories,
+  never junctions — the earlier "61 junctions" note described a local workstation
+  overlay, not Git state (proven: a fresh checkout reports zero junctions). Do not
+  recreate workstation junctions as a repository solution.
+- **Safety:** never run `rmtree`/`robocopy /MIR`/recursive filesystem delete against a
+  skills tree; use `git rm` on explicit paths (junctions can delete across the link).
+  A CI guard (`tests/test_skill_tree_canonical_guard.py`) fails if `.agents/skills`
+  reappears, a Dockerfile bakes it, runtime code references it, or a skill id duplicates.
+- Runtime `skill_pack.py` loads only `.claude/skills/` (+ `data/skills_extra/`).
 
 ## Claude loading protocol (MANDATORY)
 

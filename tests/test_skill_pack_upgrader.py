@@ -20,12 +20,9 @@ def _fresh(monkeypatch, tmp_path):
     from app.platform import skill_pack as sp
 
     skills_dir = str(tmp_path / "skills")
-    agents_skills_dir = str(tmp_path / "agents_skills")
     extra_dir = str(tmp_path / "extra")
     os.makedirs(skills_dir, exist_ok=True)
-    os.makedirs(agents_skills_dir, exist_ok=True)
     monkeypatch.setattr(sp, "_SKILLS_DIR", skills_dir)
-    monkeypatch.setattr(sp, "_AGENTS_SKILLS_DIR", agents_skills_dir)
     monkeypatch.setattr(sp, "_EXTRA_DIR", extra_dir)
     sp._cache["at"] = 0.0
     sp._cache["skills"] = []
@@ -56,13 +53,13 @@ def test_skill_pack_list_find_snippet(tmp_path, monkeypatch):
     assert sp.snippet_for("zzz qqq xyzabc") == ""
 
 
-def test_skill_pack_loads_agents_skills_and_dedupes_project_priority(tmp_path, monkeypatch):
+def test_skill_pack_single_canonical_root_dedupes_by_name(tmp_path, monkeypatch):
+    # Phase 12: skills load ONLY from the canonical .claude/skills root. Skills that
+    # used to live in the removed .agents/skills tree are now merged here.
     sp, skills_dir = _fresh(monkeypatch, tmp_path)
-    agents_skills_dir = sp._AGENTS_SKILLS_DIR
 
     _mk_skill(skills_dir, "shared-playbook", "Project version", "Use project truth first.")
-    _mk_skill(agents_skills_dir, "shared-playbook", "Agents duplicate", "This should be deduped.")
-    _mk_skill(agents_skills_dir, "agent-only", "Agent-only skill", "Use agent-only workflow.")
+    _mk_skill(skills_dir, "agent-only", "Agent-only skill", "Use agent-only workflow.")
 
     skills = sp.list_skills()
     names = [s["name"] for s in skills]
@@ -72,6 +69,7 @@ def test_skill_pack_loads_agents_skills_and_dedupes_project_priority(tmp_path, m
     assert sp.load("shared-playbook")["description"] == "Project version"
     assert sp.load("agent-only")["description"] == "Agent-only skill"
     assert sp.find("agent only workflow", k=1)[0]["name"] == "agent-only"
+    assert not hasattr(sp, "_AGENTS_SKILLS_DIR")
 
 
 def test_dockerfiles_bake_skill_sources_for_runtime_agents():
@@ -79,7 +77,7 @@ def test_dockerfiles_bake_skill_sources_for_runtime_agents():
     for name in ("Dockerfile.lock", "Dockerfile", "Dockerfile.production"):
         text = (root / name).read_text(encoding="utf-8")
         assert ".claude/skills/" in text, f"{name} must bake .claude skills"
-        assert ".agents/skills/" in text, f"{name} must bake .agents skills"
+        assert ".agents/skills/" not in text, f"{name} must NOT reference removed .agents skills"
 
 
 def test_vps_verify_deploy_checks_runtime_skill_sources():
@@ -87,7 +85,7 @@ def test_vps_verify_deploy_checks_runtime_skill_sources():
     text = (root / "scripts" / "vps_verify_deploy.py").read_text(encoding="utf-8")
     assert "sys.path.insert" in text
     assert "skill_pack.list_skills" in text
-    assert "skills source agents" in text
+    assert "skills source project" in text
 
 
 def test_skill_pack_author_tier1_guards(tmp_path, monkeypatch):
