@@ -16,12 +16,14 @@ GREEN_COMMANDS: frozenset[str] = frozenset(
     {
         "platform.status",
         "agents.list",
+        "agents.unhealthy",
         "agent.status",
         "approvals.list",
         "delivery.status",
         "queues.status",
         "business.daily_summary",
         "owner.next_actions",
+        "runtime.status",
     }
 )
 

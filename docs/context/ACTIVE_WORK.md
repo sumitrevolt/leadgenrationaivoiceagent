@@ -2,33 +2,27 @@
 
 ---
 
-## WS-1 Delivery assurance operator surface — CLOSED (PARTIAL proof)
+## WS-1 Agent Runtime workforce Wave-B — IN PROGRESS (local proven)
 - **ID:** WS-1
-- **Business outcome:** Admin can see missed/at-risk paid customers
-- **Current state:** MERGED historically. Optional admin UI smoke only.
+- **Business outcome:** All 31 agents have real runtime capabilities; Wave-B GREEN dispatchable under `AGENT_RUNTIME`; Swara OpenClaw-observable without voice edits
+- **Owner:** Platform
+- **Branch / worktree:** `feat/agent-runtime-workforce-31` @ `C:\Users\Ratanshila\Documents\leadgen-agent-runtime-31`
+- **Acceptance:**
+  - 31/31 capabilities registered ✅
+  - Swara frozen transfer via OpenClaw `agent.status` (no voice edits) ✅
+  - Wave-B pilots widened (19) ✅
+  - pytest 93 green (runtime+workforce+registry+openclaw) ✅
+  - prod_check PASS ✅
+  - Prod deploy / `AGENT_RUNTIME` canary — NOT done (owner-gated)
+- **Next exact action:** Commit/PR when asked → owner-authorized canary
 
 ---
 
-## WS-2 Jiya delivery assurance proof and operator recovery flow — PARKED
-- **ID:** WS-2
-- **Business outcome:** Jiya reaches honest `proof` / recoverable delivery gaps
-- **Current state:** PARKED; human approve-drafts vs Meta still EXTERNAL
-- **Next exact action:** Resume after OpenClaw PR merge or parallel human path
+## WS-2 Jiya delivery assurance — PARKED
+- External Meta/approvals
 
 ---
 
-## WS-3 OpenClaw Owner Copilot — LOCAL CLOSURE DONE (PR)
-- **ID:** WS-3
-- **Business outcome:** Owner has NL Copilot over 31 agents without bypassing Owner OS
-- **Owner:** Platform / Sumit
-- **Branch:** `feat/openclaw-owner-copilot`
-- **Acceptance (Stage A local):**
-  - Real OpenClaw Gateway → LeadGen typed adapter ✅
-  - GREEN/AMBER/RED + idempotency ✅
-  - Agents = 31 · Calling HARD OFF ✅
-  - Browser Owner Copilot tab smoke ✅
-  - Flag OFF default ✅
-  - Prod deploy NOT done
-- **Current state:** Local real-gateway verified; review-ready PR; production rollout pending auth
-- **Next exact action:** PR review → explicit Stage A prod deploy authorization
-- **Out of scope this PR:** Boss multi-agent missions · Prometheus counters
+## WS-3 OpenClaw Owner Copilot — MERGED (prod flag OFF)
+- Source on main; `OPENCLAW_ENABLED` default 0
+- New GREEN cmds on this branch: `agents.unhealthy`, `runtime.status`

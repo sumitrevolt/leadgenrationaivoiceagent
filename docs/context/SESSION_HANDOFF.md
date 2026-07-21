@@ -1,61 +1,38 @@
-# SESSION_HANDOFF - overwrite every session end
+# SESSION_HANDOFF — overwrite every session end
 
 ## Session objective
-Fix the local false-production MCP refusal warning while keeping the production
-MCP surface fail-closed.
+Convert documented 31-agent system into real Agent Runtime capabilities + OpenClaw
+observe path, without recreating existing kernel / Owner OS / touching Swara voice.
 
 ## Starting state
-- Isolated worktree based on `origin/main` `c4d98dee`.
-- Branch: `codex/fix-mcp-app-env-20260720`.
-- Primary `feat/openclaw-owner-copilot` checkout remained dirty and untouched.
-- Production was healthy on `c4d98dee`; MCP token was present on the host and
-  all five canonical containers.
+- Primary checkout `leadgenrationaiagent` DIRTY (skill deletions) — left untouched
+- Isolated worktree: `C:\Users\Ratanshila\Documents\leadgen-agent-runtime-31`
+- Branch: `feat/agent-runtime-workforce-31` @ `origin/main` tip `10a3996a`
+- Prod `/health.version` was `7ce4d979` (local main); origin/main ahead
 
-## Root cause
-`app/main.py` used legacy `os.environ.get("ENV", "production")` only for MCP,
-while configuration, health, middleware, and Compose use validated
-`APP_ENV`/`settings.app_env`. Local `APP_ENV=development` with no legacy `ENV`
-was therefore misclassified as production and logged the refusal warning.
+## Discover
+- Already present: `agent_registry` (31 contracts), `agent_runtime` kernel,
+  pilots (kavya/isha/zara), OpenClaw→Owner OS, staff `run_*` wrappers
+- Gap: only 3 pilots had capabilities; 28 registry-only; no workforce factory
 
-## Changed
-- `app/main.py`: `_mcp_is_prod = settings.app_env == "production"` and corrected
-  the adjacent environment comment.
-- `tests/test_mcp_import.py`: real startup subprocess contracts for:
-  - development + no MCP token/allowlist -> mounts development-ungated;
-  - production + no MCP token/allowlist -> refuses fail-closed.
-- `progress.md`: canonical loop evidence.
-- `docs/context/SESSION_HANDOFF.md`: this handoff.
+## Changed (worktree only)
+- `app/platform/agent_runtime_workforce.py` — factory: 31 caps, Swara frozen transfer,
+  Wave-B engine wraps (reuse engineer_agents / delivery_assurance / infra_handler / staff)
+- `app/platform/agent_runtime.py` — widen `PILOT_AGENTS` Wave-B; health `capability_ready_hold`
+- `app/api/owner_os.py` — `ensure_workforce_registered` on runtime routes
+- OpenClaw: `agents.unhealthy`, `runtime.status`, Swara `openclaw_transfer` on `agent.status`
+- Tests: `tests/test_agent_runtime_workforce.py` + fix non-pilot assert agent
+- Docs: `docs/agent_runtime/TRUTH_MATRIX.md`, `OPERATOR_RUNBOOK.md`,
+  `docs/research/OPENCLAW_31_AGENT_RESEARCH.md`
 
-## TDD and verification
-- RED proof: development startup test failed on the exact
-  `MCP mount REFUSED` warning before implementation.
-- Final MCP import/engineer/qualifier suite: 28 passed.
-- Pre-commit hooks: all passed, including Black, isort, Ruff, Bandit, and
-  detect-secrets.
-- `scripts/check_secrets.py`: clean on changed code/test files.
-- `py_compile`: passed.
-- `scripts/prod_check.py`: ALL CHECKS PASSED; 1159 routes, 48 pages, zero
-  wiring gaps; development import logged the expected ungated MCP mount.
+## Verification
+- pytest workforce+runtime+registry+openclaw: re-run after cache clear (see progress)
+- `prod_check.py` ALL CHECKS PASSED earlier (1166 routes)
+- Swara: ZERO voice file edits; RED still hard-off; OpenClaw transfer package only
 
-## Production safety evidence
-- No production mutation this fix session.
-- Host and all five canonical containers had `FASTAPI_MCP_TOKEN=SET`.
-- Compose label pointed to `/opt/leadgen/docker-compose.vps.yml`.
-- Public and on-box unauthenticated `/mcp/` returned 401.
-- `/api/mcp-product/v1/discover` returned 200.
-- Production startup log said `MCP server mounted at /mcp (gated: token)`.
-
-## Protected scope
-No `.env`, secret value, OpenClaw, Voice/Swara, `platform_dial`, billing,
-compliance, customer data, route, or middleware authorization behavior changed.
-
-## Remaining
-User authorization for commit/push/deploy has been received. The isolated
-four-file slice is ready for commit and canonical deployment. Already-running
-local uvicorn processes still hold the old imported module until restarted from
-the fixed source.
+## Protected
+No `.env`, billing, calling enable, Swara/voice modules, primary dirty tree, prod deploy
 
 ## Exact next task
-Commit exact four files, push the isolated branch, fast-forward main if still
-safe, deploy through `scripts/deploy_vps.sh`, and verify production still logs
-`gated: token` and returns 401 without bearer authentication.
+Owner: review worktree → commit/PR when asked → Stage canary `AGENT_RUNTIME=1` + one
+GREEN flag (e.g. `SRE_AGENT=1`) — no OpenClaw prod flip without auth; calling stays off
