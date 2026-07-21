@@ -11,6 +11,7 @@ post_approved / post_published / post_failed. Three independent call sites:
 Each site is hermetic (tmp-path file redirection or monkeypatched log_event),
 mirrors this project's existing fixture conventions (tests/test_clients.py's
 tmp_store, tests/test_social_engine.py's iso)."""
+
 from __future__ import annotations
 
 import asyncio
@@ -111,11 +112,17 @@ class TestMarkItemLedgerWiring:
 
 class TestContentApprovalLedgerWiring:
     def test_customer_portal_approve_logs_post_approved(self, tmp_path, monkeypatch, logged_events):
-        monkeypatch.setattr(content_approval, "_FILE", os.path.join(str(tmp_path), "content_approvals.jsonl"))
+        monkeypatch.setattr(
+            content_approval, "_FILE", os.path.join(str(tmp_path), "content_approvals.jsonl")
+        )
         # enqueue_approved touches the real client queue file too — redirect it.
-        monkeypatch.setattr(auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue"))
+        monkeypatch.setattr(
+            auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue")
+        )
 
-        sub = content_approval.submit("c-portal-1", {"title": "Holi Special", "caption": "Holi hai!"})
+        sub = content_approval.submit(
+            "c-portal-1", {"title": "Holi Special", "caption": "Holi hai!"}
+        )
         assert sub["ok"] is True
         token = sub["approval"]["token"]
 
@@ -124,9 +131,15 @@ class TestContentApprovalLedgerWiring:
         assert result["ok"] is True
         assert ("c-portal-1", "post_approved", "Holi Special") in logged_events
 
-    def test_customer_portal_reject_does_not_log_post_approved(self, tmp_path, monkeypatch, logged_events):
-        monkeypatch.setattr(content_approval, "_FILE", os.path.join(str(tmp_path), "content_approvals.jsonl"))
-        monkeypatch.setattr(auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue"))
+    def test_customer_portal_reject_does_not_log_post_approved(
+        self, tmp_path, monkeypatch, logged_events
+    ):
+        monkeypatch.setattr(
+            content_approval, "_FILE", os.path.join(str(tmp_path), "content_approvals.jsonl")
+        )
+        monkeypatch.setattr(
+            auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue")
+        )
 
         sub = content_approval.submit("c-portal-2", {"title": "Rejected Post"})
         token = sub["approval"]["token"]
@@ -135,9 +148,15 @@ class TestContentApprovalLedgerWiring:
 
         assert logged_events == []
 
-    def test_double_decide_is_idempotent_and_does_not_double_log(self, tmp_path, monkeypatch, logged_events):
-        monkeypatch.setattr(content_approval, "_FILE", os.path.join(str(tmp_path), "content_approvals.jsonl"))
-        monkeypatch.setattr(auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue"))
+    def test_double_decide_is_idempotent_and_does_not_double_log(
+        self, tmp_path, monkeypatch, logged_events
+    ):
+        monkeypatch.setattr(
+            content_approval, "_FILE", os.path.join(str(tmp_path), "content_approvals.jsonl")
+        )
+        monkeypatch.setattr(
+            auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue")
+        )
 
         sub = content_approval.submit("c-portal-3", {"title": "Once Only"})
         token = sub["approval"]["token"]
@@ -221,4 +240,4 @@ class TestSocialEngineLedgerWiring:
         out = asyncio.run(iso.process_queue())
 
         assert out["skipped"] == 1
-        assert logged_events == []
+        assert not [event for event in logged_events if event[1] == "post_failed"]

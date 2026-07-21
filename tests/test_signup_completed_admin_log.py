@@ -15,16 +15,17 @@ import pytest
 
 def _stub_signup_side_effects(monkeypatch, cid: str = "c_c1"):
     import app.api.customer_auth as ca
-    import app.marketing.clients_store as cs
     import app.billing.usage as usage
+    import app.marketing.clients_store as cs
 
     monkeypatch.setattr(
-        cs, "add_client",
+        cs,
+        "add_client",
         lambda **k: {"id": cid, "business_name": k.get("business_name")},
     )
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
-    monkeypatch.setattr(ca, "register_login", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
     monkeypatch.setattr(usage, "activate_plan", lambda c, p, **k: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda c: True)
 
@@ -44,7 +45,7 @@ def test_signup_success_emits_signup_completed_row(client, monkeypatch):
         json={
             "business_name": "GTM Paid Biz",
             "email": "gtmpaid@example.com",
-            "password": "secret123",
+            "password": "secret123",  # pragma: allowlist secret
             "plan": "advanced",
         },
     )
@@ -59,7 +60,9 @@ def test_signup_success_emits_signup_completed_row(client, monkeypatch):
     assert row.get("status") == "success"
     assert row.get("triggered_by") == "signup"
     summary = row.get("output_summary") or ""
-    assert "GTM Paid Biz" in summary, f"business name must be in summary for admin scan: {summary!r}"
+    assert (
+        "GTM Paid Biz" in summary
+    ), f"business name must be in summary for admin scan: {summary!r}"
     assert "advanced" in summary
     assert "[trial]" not in summary
     meta = row.get("meta_json") or {}
@@ -85,7 +88,7 @@ def test_signup_success_trial_flagged_in_summary_and_meta(client, monkeypatch):
         json={
             "business_name": "GTM Trial Biz",
             "email": "gtmtrial@example.com",
-            "password": "secret123",
+            "password": "secret123",  # pragma: allowlist secret
             "plan": "trial",
         },
     )
@@ -111,15 +114,16 @@ def test_signup_completed_log_failure_does_not_break_signup(client, monkeypatch)
 
     import app.platform.automation_log_service as als
 
-    monkeypatch.setattr(als, "log_event",
-                        lambda **kw: (_ for _ in ()).throw(RuntimeError("db down")))
+    monkeypatch.setattr(
+        als, "log_event", lambda **kw: (_ for _ in ()).throw(RuntimeError("db down"))
+    )
 
     r = client.post(
         "/api/public/signup",
         json={
             "business_name": "GTM Defensive Biz",
             "email": "gtmdef@example.com",
-            "password": "secret123",
+            "password": "secret123",  # pragma: allowlist secret
             "plan": "starter",
         },
     )

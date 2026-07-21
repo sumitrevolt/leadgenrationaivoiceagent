@@ -66,7 +66,8 @@ def test_delivery_ledger_onboarding_event():
     assert "marketing_client_onboarded" in event_types
 
 
-def test_content_generation_for_jiya():
+@pytest.mark.asyncio
+async def test_content_generation_for_jiya():
     """Verify content can be generated for jiya-makeover."""
     from app.marketing.auto_content import generate_for_client
 
@@ -84,7 +85,7 @@ def test_content_generation_for_jiya():
         },
     }
 
-    items = generate_for_client(client)
+    items = await generate_for_client(client)
     assert len(items) > 0, "No content generated for jiya-makeover"
 
     # Verify content has required fields
@@ -117,17 +118,22 @@ def test_social_engine_providers_available():
     assert "whatsapp" in registry or registry.get("whatsapp") is not None
 
 
-def test_customer_dashboard_renders_jiya():
+def test_customer_dashboard_renders_jiya(monkeypatch):
     """Verify customer dashboard API can build response for jiya-makeover."""
     from app.api.customer_dashboard_builders import _client_record
-    from app.marketing import clients_store
 
-    client_id = "jiya-makeover"
-    client = clients_store.get_client(client_id)
-    assert client is not None, f"Client {client_id} not found in store"
+    client = {
+        "id": "jiya-makeover",
+        "business_name": "Jiya Makeover Studio",
+        "niche": "beauty_makeover",
+        "city": "Mumbai",
+        "status": "active",
+    }
 
-    # Verify dashboard builder can use this record
-    record = _client_record(client)
+    # Builder contract must not depend on mutable local JSONL fixture state.
+    monkeypatch.setattr("app.marketing.clients_store.resolve_client", lambda _cid: client)
+    monkeypatch.setattr("app.marketing.clients_store.get_by_slug", lambda _cid: None)
+    record = _client_record("jiya-makeover")
     assert record is not None
     assert record.get("business_name") == "Jiya Makeover Studio"
     assert record.get("niche") == "beauty_makeover"
@@ -142,22 +148,34 @@ def test_admin_dashboard_lists_jiya():
     assert jiya is not None, "jiya-makeover not visible in admin client list"
 
 
-def test_delivery_ledger_event_logging():
+def test_delivery_ledger_event_logging(tmp_path, monkeypatch):
     """Verify delivery ledger can log new events for jiya-makeover."""
     from app.marketing import delivery_ledger
 
-    # This is a dry-run test — log a test event
-    before = len(delivery_ledger.list_events("jiya-makeover"))
+    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", str(tmp_path / "delivery_ledger"))
+    before = len(delivery_ledger.timeline("jiya-makeover"))
 
-    delivery_ledger.record_event(
-        client_id="jiya-makeover",
-        event="test_e2e_verification",
-        detail="E2E test passed",
-        actor="test_suite",
+    assert (
+        delivery_ledger.log_event(
+            client_id="jiya-makeover",
+            event="test_e2e_verification",
+            detail="E2E test passed",
+            actor="test_suite",
+        )
+        is False
+    )  # unknown event types stay fail-closed
+
+    assert (
+        delivery_ledger.log_event(
+            client_id="jiya-makeover",
+            event="post_draft_created",
+            detail="E2E test passed",
+            actor="test_suite",
+        )
+        is True
     )
-
-    after = len(delivery_ledger.list_events("jiya-makeover"))
-    assert after > before, "Event not logged"
+    after = len(delivery_ledger.timeline("jiya-makeover"))
+    assert after == before + 1, "Event not logged"
 
 
 def test_social_engine_enqueue_dryrun():
@@ -206,8 +224,8 @@ async def test_full_e2e_pipeline_dry_run():
     Full dry-run pipeline: generate → queue → approve → social-enqueue → dry-publish.
     This stage demonstrates production readiness without live API calls.
     """
-    from app.marketing.auto_content import generate_for_client
     from app.marketing import clients_store
+    from app.marketing.auto_content import generate_for_client
 
     client_id = "jiya-makeover"
 
@@ -216,7 +234,7 @@ async def test_full_e2e_pipeline_dry_run():
     assert client is not None
 
     # Generate content
-    items = generate_for_client(client)
+    items = await generate_for_client(client)
     assert len(items) > 0, "No content generated"
 
     # Stage B: Internal canary (in-memory, no DB writes)

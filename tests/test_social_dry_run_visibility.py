@@ -12,6 +12,7 @@ surface) and the same fix as ADR-097: make the silent state LOUD.
 
 Offline/pure — no providers, no network.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -40,13 +41,29 @@ def test_drain_result_reports_dry_run_false_on_real_publish(monkeypatch):
     assert out["dry_run"] is False
 
 
-def test_dry_run_drain_logs_a_loud_warning(monkeypatch, caplog):
+def test_dry_run_drain_logs_a_loud_warning(monkeypatch):
     """Three days of silent fake-publishing is what this warning prevents."""
     import logging
+    from contextlib import contextmanager
 
-    caplog.set_level(logging.WARNING, logger="app.social_engine.engine")
-    _drain(monkeypatch, dry=True)
-    blob = " ".join(r.getMessage() for r in caplog.records).lower()
+    records: list[str] = []
+
+    class _H(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            records.append(record.getMessage())
+
+    handler = _H()
+    logger = logging.getLogger("app.social_engine.engine")
+    prev = logger.level
+    logger.addHandler(handler)
+    logger.setLevel(logging.WARNING)
+    try:
+        _drain(monkeypatch, dry=True)
+    finally:
+        logger.removeHandler(handler)
+        logger.setLevel(prev)
+
+    blob = " ".join(records).lower()
     assert "dry-run" in blob or "dry run" in blob
     assert "nothing" in blob  # must say nothing is actually posted
 

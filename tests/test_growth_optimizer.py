@@ -7,6 +7,8 @@ from __future__ import annotations
 import asyncio
 import random
 
+from tests._api_helpers import iter_mounted_routes
+
 
 # ----------------------------- channel experiments ----------------------------- #
 def test_experiments_stats_and_bandit(tmp_path, monkeypatch):
@@ -167,7 +169,7 @@ def test_city_rotation_deterministic(monkeypatch):
 def test_growth_router_has_optimizer_routes():
     from app.api.growth import router
 
-    paths = {r.path for r in router.routes}
+    paths = {r.path for r in iter_mounted_routes(router)}
     for p in (
         "/growth/optimizer/analysis",
         "/growth/optimizer/run",
