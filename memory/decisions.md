@@ -2,6 +2,26 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-20 - ADR-OPENCLAW-OWNER-COPILOT OpenClaw as Owner Copilot edge layer
+
+Decision: OpenClaw integrates as optional Owner Copilot / Chief of Staff only —
+hierarchy Admin → OpenClaw → Owner OS → Boss → 31 agents → Celery. Package
+`app/integrations/openclaw/` + `/api/owner-copilot/*` + Owner OS UI tab. Master
+flag `OPENCLAW_ENABLED` default OFF (fail-closed). Typed command allowlist;
+GREEN autonomous reads; AMBER parks Owner OS approval (force APPROVAL_REQUIRED);
+RED always refuse (calling/billing/deploy/shell/SQL). No duplicate 31 OpenClaw
+agents. Core SaaS has zero hard dependency — disable = instant rollback.
+
+Context: Owner needs NL control surface without granting VPS/shell/DB/billing/
+calling power or bypassing Owner OS governance.
+
+Alternatives rejected: OpenClaw as supreme orchestrator; 31 OpenClaw agent clones;
+direct Celery/DB from OpenClaw; always-on without flag.
+
+Consequence: Stage A local TEST-PROVEN; prod starts read-only only after explicit
+deploy auth. Docs: `docs/integrations/OPENCLAW_OWNER_COPILOT.md`,
+`docs/runbooks/openclaw-owner-copilot.md`, `docs/adr/ADR-OPENCLAW-OWNER-COPILOT.md`.
+
 ## 2026-07-19 - ADR-128 Shared Agent Runtime Phase-B (contract-ENFORCED, 3 pilots, INERT default)
 
 Decision: naya `app/platform/agent_runtime.py` + `agent_runtime_pilots.py` — EK common runtime/control-plane
