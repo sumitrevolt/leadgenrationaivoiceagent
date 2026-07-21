@@ -1,46 +1,47 @@
 # SESSION_HANDOFF — overwrite every session end
 
 ## Session objective
-Convert documented 31-agent system into real Agent Runtime capabilities + OpenClaw
-observe path, without recreating existing kernel / Owner OS / touching Swara voice.
+Finish PR #72 CI + reconcile production drift; stop before merge/deploy
+(no owner authorization for production action in active prompt).
 
-## Continuation outcome (2026-07-21)
-- **PR #72** open (draft): `feat/agent-runtime-workforce-31` — workforce factory + Wave-B pilots
-- **Local canary proof:** `pranav` = `canary_proven` (real-engine, local only)
-- **Prod canary BLOCKED:** `/health` `7ce4d97` behind `origin/main` `10a3996`; branch `18b8d3e` not deployed; `AGENT_RUNTIME` unset on prod
-- Other 11 pilots = `canary_ready`; 17 = `rollout_hold`; Swara+Ananya = `intentionally_disabled`
+## PR #72
+- URL: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/72
+- Head: `676c51ad260377614b89bb2c28f7daf481029fdf`
+- Draft: yes · Mergeable: clean · Reviews: none
+- CI (latest HEAD): Lint, test, prod_check+pytest, Trivy repo, GitGuardian = **success**
+  (Trivy image scan skipped)
 
-## Starting state
-- Primary checkout `leadgenrationaiagent` DIRTY (skill deletions) — left untouched
-- Isolated worktree: `C:\Users\Ratanshila\Documents\leadgen-agent-runtime-31`
-- Branch: `feat/agent-runtime-workforce-31` @ tip `18b8d3e` (ahead of origin/main `10a3996`)
-- Prod `/health.version` = `7ce4d97` (drift vs main)
+## Production drift
+| Layer | SHA |
+|---|---|
+| `/health` + running images | `7ce4d979…` |
+| `origin/main` | `10a3996a…` |
+| PR #72 head | `676c51a…` |
+| VPS git checkout HEAD | `0ff5d06c…` (stale vs image; surgical-deploy hygiene) |
 
-## Discover
-- Already present: `agent_registry` (31 contracts), `agent_runtime` kernel,
-  pilots (kavya/isha/zara), OpenClaw→Owner OS, staff `run_*` wrappers
-- Gap: only 3 pilots had capabilities; 28 registry-only; no workforce factory
+**Classification: `SAFE_BEHIND_DOCS_ONLY`**
+- Gap `7ce4d979..10a3996a` = PR #71 docs/memory only (3 files). Zero app/migrations/compose.
 
-## Changed (worktree only)
-- `app/platform/agent_runtime_workforce.py` — factory: 31 caps, Swara frozen transfer,
-  Wave-B engine wraps (reuse engineer_agents / delivery_assurance / infra_handler / staff)
-- `app/platform/agent_runtime.py` — widen `PILOT_AGENTS` Wave-B; health `capability_ready_hold`
-- `app/api/owner_os.py` — `ensure_workforce_registered` on runtime routes
-- OpenClaw: `agents.unhealthy`, `runtime.status`, Swara `openclaw_transfer` on `agent.status`
-- Tests: `tests/test_agent_runtime_workforce.py` + fix non-pilot assert agent
-- Docs: `docs/agent_runtime/TRUTH_MATRIX.md`, `OPERATOR_RUNBOOK.md`,
-  `docs/research/OPENCLAW_31_AGENT_RESEARCH.md`
+## Prod flag snapshot (read-only inspect)
+- `APP_ENV=production`, `APP_VERSION=7ce4d979…`
+- `AGENT_RUNTIME=1`, `SRE_AGENT=1` already set on running app
+- `OPENCLAW` / `PLATFORM_DIAL` unset
+- Redis: celery=0, dlq:failed=0, **dlq:dead=7**
+- Alembic: `022_add_request_depth` (head)
+- RestartCount=0, healthy
 
-## Verification
-- pytest workforce+runtime+registry+openclaw: green (see progress)
-- `prod_check.py` ALL CHECKS PASSED earlier (1166 routes)
-- Local Pranav real-engine canary: proven
-- Prod Stage A / AGENT_RUNTIME: **not** done (drift + deploy auth)
-- Swara: ZERO voice file edits; RED still hard-off; OpenClaw transfer package only
+**Important:** Prod image is **pre-PR#72**. Wave-B / workforce factory / Pranav
+`run_owned_workflow` **not** on prod yet. Existing flags only arm old 3-pilot
+runtime (kavya/isha/zara). Production Pranav workforce canary = **BLOCKED**
+until merge+deploy of reviewed main SHA + explicit owner auth.
+
+## Local proof (unchanged)
+Pranav real-engine canary in worktree — see `docs/agent_runtime/CANARY_LOCAL_PROOF.md`
+
+## Exact next (owner-gated)
+1. Human review PR #72 → `gh pr ready 72` → merge
+2. Deploy `origin/main` tip via `scripts/deploy_vps.sh` with `APP_VERSION=<full sha>`
+3. Disabled-state proof first, then single Pranav canary + Redis idempotency + rollback
 
 ## Protected
-No `.env`, billing, calling enable, Swara/voice modules, primary dirty tree, prod deploy
-
-## Exact next task
-Clear prod drift (deploy auth) before any prod `AGENT_RUNTIME=1` canary; keep OpenClaw OFF;
-calling stays off. Do not merge/deploy without owner go-ahead.
+No merge, deploy, .env flip, Swara/voice, billing, customer data, primary dirty tree.
