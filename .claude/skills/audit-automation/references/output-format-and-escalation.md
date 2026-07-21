@@ -43,7 +43,7 @@
    Opt-Out Enforced: ✅ (synced 2h ago)
    Recording Retention: ✅ Cleanup scheduled daily 03:00Z
    High-Risk Approval: ✅ ON for voice/calls
-   
+
 ═══════════════════════════════════════════════════════════
 VERDICT: ✅ ALL GREEN — Loop healthy, no action needed.
 ```
@@ -107,5 +107,16 @@ VERDICT: ✅ ALL GREEN — Loop healthy, no action needed.
 
 5. **Compliance alert**:
    - [ ] DLT not enabled? Set up via Vobiz + `ENABLE_DLT=1`
-   - [ ] Opt-outs ignored? Rebuild DND cache: `python scripts/dnd_sync.py --rebuild`
+   - [ ] Opt-outs ignored? There is NO `scripts/dnd_sync.py` — do not look for it.
+         The DND cache is IN-MEMORY (`app/utils/dnd_checker.py`, `DNDChecker._cache`,
+         7-day expiry) and clears on process restart; there is nothing to rebuild.
+         Correct checks, in order:
+           1. `DND_FAIL_OPEN` MUST be unset/0. If set to 1 in production it is
+              refused and logged CRITICAL (`app/telephony/compliance.py:173`),
+              but unset it anyway — there is no legitimate prod use.
+           2. Opt-outs are authoritative from the local consent ledger, NOT the
+              registry API (`dnd_checker.py:36-38`). Verify the ledger, not the cache.
+           3. An un-cached number returns UNVERIFIED and the gate fails CLOSED
+              (`compliance.py:266-278`). "No result" is safe, not a bug.
+           4. Restart the worker to drop the in-memory cache if you suspect staleness.
    - [ ] Recording retention? Verify `RECORDING_RETENTION_DAYS` set + cron active
