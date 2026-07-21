@@ -149,7 +149,9 @@ class TestVobizGetBalanceTimeoutHardening:
             getattr(to, "read", None) == 10.0
         ), f"read timeout must be 10s, got {getattr(to, 'read', None)}"
 
-    def test_transport_error_logged_as_warning_not_error(self, monkeypatch, caplog):
+    def test_transport_error_logged_as_warning_not_error(self, monkeypatch):
+        import logging
+
         import httpx as _httpx_mod
 
         from app.telephony import vobiz_handler
@@ -174,16 +176,30 @@ class TestVobizGetBalanceTimeoutHardening:
         client.auth_token = "TOK"
         client.base_url = "https://api.vobiz.ai/api/v1/Account/AUTH"
 
-        with caplog.at_level(logging.WARNING, logger="app.telephony.vobiz_handler"):
+        records: list[logging.LogRecord] = []
+
+        class _H(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                records.append(record)
+
+        handler = _H()
+        logger = vobiz_handler.logger
+        prev = logger.level
+        logger.addHandler(handler)
+        logger.setLevel(logging.WARNING)
+        try:
             res = asyncio.run(client.get_balance())
+        finally:
+            logger.removeHandler(handler)
+            logger.setLevel(prev)
 
         assert res["status_code"] == 0
         assert "ConnectTimeout" in str(res["body"].get("error", ""))
 
-        error_records = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        error_records = [r for r in records if r.levelno >= logging.ERROR]
         warning_records = [
             r
-            for r in caplog.records
+            for r in records
             if r.levelno == logging.WARNING and "transport error" in r.getMessage().lower()
         ]
         assert not error_records, "ConnectTimeout must NOT log as ERROR (recurring noise)"

@@ -11,23 +11,31 @@ registers EVERY table on `Base.metadata` (leads, clients, campaigns, users, paym
 billing_records, agents, agent_events, data_credits, ...) — single source of truth, no
 hand-maintained per-model import list to drift out of sync.
 """
+
 from logging.config import fileConfig
 
 from sqlalchemy import create_engine, pool
 
-from alembic import context
-
 # Importing the package registers every model on Base.metadata.
 import app.models  # noqa: F401  (side-effect import — registers all tables)
+from alembic import context
 from app.models.base import Base
 
 # Alembic Config object (values from alembic.ini).
 config = context.config
 
 # Python logging from the ini (best-effort — never block migrations on a logging hiccup).
+# disable_existing_loggers=False is REQUIRED: env.py is imported in-process by
+# run_startup_migrations() during the app lifespan, and fileConfig defaults to
+# disable_existing_loggers=True (the default) - which sets logger.disabled=True on EVERY app
+# logger that already exists (e.g. app.integrations.email_sender), silencing them
+# process-wide for the rest of that process. That is an application-lifecycle bug
+# (startup migrations silently killed app logging) and the direct cause of the
+# order-dependent email/log test failures. Alembic only needs to configure its
+# own loggers here, not clobber the application's.
 if config.config_file_name is not None:
     try:
-        fileConfig(config.config_file_name)
+        fileConfig(config.config_file_name, disable_existing_loggers=False)
     except Exception:
         pass
 

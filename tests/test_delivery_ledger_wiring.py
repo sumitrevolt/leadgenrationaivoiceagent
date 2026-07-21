@@ -34,7 +34,9 @@ def test_activate_plan_logs_plan_activated(monkeypatch):
         lambda cid: {"id": cid, "business_name": "Test Biz"},
         raising=False,
     )
-    monkeypatch.setattr("app.marketing.clients_store.update_client", lambda cid, **kw: None, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.clients_store.update_client", lambda cid, **kw: None, raising=False
+    )
     # Subscription-row side of activate_plan touches the DB — irrelevant to this
     # test, so make it a no-op rather than requiring a live DB.
     monkeypatch.setattr(usage, "_latest_subscription", lambda db, cid: None, raising=False)
@@ -54,7 +56,9 @@ async def test_auto_onboard_logs_started_and_completed(monkeypatch):
 
     client = {"id": "c1", "business_name": "Test Biz"}
     monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: client, raising=False)
-    monkeypatch.setattr("app.marketing.clients_store.update_client", lambda cid, **kw: None, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.clients_store.update_client", lambda cid, **kw: None, raising=False
+    )
 
     async def _fake_seed_kb(cid, website):
         return {"kb_chunks": 0}
@@ -68,11 +72,16 @@ async def test_auto_onboard_logs_started_and_completed(monkeypatch):
     monkeypatch.setattr(onboarding, "_seed_kb_from_website", _fake_seed_kb)
     monkeypatch.setattr(onboarding, "_first_content_pack", _fake_content_pack)
     monkeypatch.setattr(onboarding, "_send_welcome_whatsapp", _fake_welcome)
+
     async def _fake_seed(_client):
         return 0
 
     monkeypatch.setattr("app.marketing.auto_content.seed_client_content", _fake_seed, raising=False)
-    monkeypatch.setattr("app.platform.client_snapshots.apply_niche_to_client", lambda cid: {"ok": True}, raising=False)
+    monkeypatch.setattr(
+        "app.platform.client_snapshots.apply_niche_to_client",
+        lambda cid: {"ok": True},
+        raising=False,
+    )
 
     events = []
     monkeypatch.setattr(
@@ -115,10 +124,16 @@ def test_record_stuck_logs_correct_event_type(monkeypatch, tmp_path):
 async def test_seed_client_content_logs_calendar_and_drafts(monkeypatch):
     from app.marketing import auto_content
 
+    async def _no_extra_pack(_client):
+        return 0
+
     async def _fake_generate(client, day=None):
         return [{"type": "post"}, {"type": "post"}]
 
     monkeypatch.setattr(auto_content, "generate_for_client", _fake_generate)
+    monkeypatch.setattr(auto_content, "generate_gbp_pack", _no_extra_pack)
+    monkeypatch.setattr(auto_content, "generate_review_reply_pack", _no_extra_pack)
+    monkeypatch.setattr(auto_content, "generate_poster_pack", _no_extra_pack)
     monkeypatch.setattr(
         auto_content,
         "_append_items_detailed",
@@ -146,10 +161,16 @@ async def test_seed_client_content_no_ledger_noise_when_zero_added(monkeypatch):
     """Zero new drafts (dedupe hit / recycle also empty) -> no misleading events."""
     from app.marketing import auto_content
 
+    async def _no_extra_pack(_client):
+        return 0
+
     async def _fake_generate(client, day=None):
         return []
 
     monkeypatch.setattr(auto_content, "generate_for_client", _fake_generate)
+    monkeypatch.setattr(auto_content, "generate_gbp_pack", _no_extra_pack)
+    monkeypatch.setattr(auto_content, "generate_review_reply_pack", _no_extra_pack)
+    monkeypatch.setattr(auto_content, "generate_poster_pack", _no_extra_pack)
     monkeypatch.setattr(
         auto_content, "_append_items_detailed", lambda cid, items: (0, []), raising=False
     )
