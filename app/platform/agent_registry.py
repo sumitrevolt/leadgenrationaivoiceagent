@@ -17,10 +17,30 @@ This module is that single canonical layer. It is DERIVE-not-DUPLICATE:
   - governance (autonomy/lane/flag/kill/budget/…)     ← _GOVERNANCE table below
     (the only hand-authored data — none of it existed as data anywhere before)
 
-It is **INERT / additive**: nothing in the running app imports this yet. It adds
-NO runtime behaviour, touches NO compliance gate, and cannot change how any
-agent runs. It exists so Boss (coordinator), Owner OS (control surface) and the
-contract test-suite can all read ONE reconciled truth instead of five.
+⚠️  **LOAD-BEARING — NOT INERT.** (Corrected 2026-07-21; the previous docstring
+claimed "nothing in the running app imports this yet", which is FALSE and was
+dangerous to rely on.) This module is imported at runtime by:
+
+  - ``app.platform.agent_runtime.evaluate_policy()``  (L507)  ← ENFORCEMENT
+  - ``app.platform.agent_runtime.runtime_status()``   (L800)
+  - ``app.platform.agent_status``                     (L189, L218)
+  - ``app.platform.ops_assurance``                    (L82)
+
+``evaluate_policy`` reads ``get_contract()`` as the dispatch source of truth
+(L516) and blocks RED-lane / HARD_OFF agents off ``contract.lane`` (L521).
+
+CONSEQUENCE — read before editing ``_GOVERNANCE`` below: changing an agent's
+``lane`` from RED to GREEN/AMBER here does NOT merely change a report. It
+directly removes the L521 dispatch block for that agent. The RED lane is the
+mechanism that keeps the voice agents (swara/ananya) un-dispatchable. Treat
+every ``_GOVERNANCE`` lane/mode edit as a RED-lane safety change requiring an
+explicit owner mandate, not as documentation.
+
+Invariant tests that must keep passing: L1049 (RED lane ⇒ HARD_OFF) and
+L1055 (AMBER/RED must not default LIVE).
+
+It exists so Boss (coordinator), Owner OS (control surface) and the contract
+test-suite can all read ONE reconciled truth instead of five.
 
 CANONICAL COUNT = 31 (code truth, matches owner_os.py: "manager=Boss is one of
 the 31, not a 32nd agent"). Agent-OS itself (this registry + owner_os control
