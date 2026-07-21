@@ -954,3 +954,14 @@ Next Highest Priority: user runs venv pytest (test_coordinator_rate_cap + test_r
 - **Risks:** Local code is not committed, pushed, or deployed. Rollback is the single-line revert to legacy detection, but that would restore the false local warning; production protection is separately locked by the production-refuses subprocess test.
 - **Remaining:** User authorization is required for commit/push/deploy. Existing local uvicorn processes must be restarted from the fixed code before their already-loaded module state changes.
 - **Next Highest Priority:** If authorized, commit the isolated four-file evidence slice, push, canonical deploy, and verify `/mcp` remains 401 without bearer plus gated-token mount logs; otherwise return to GTM Hot Queue.
+
+## Loop Run — 2026-07-22 (Pranav prod canary evidence docs; NO redeploy / NO flag flip)
+- **Goal:** Read-only VPS verify of Pranav prod canary + write truth/evidence/handoff docs + docs-only draft PR.
+- **Inspected:** `leadgen_app` idempotency `_PREFIX`; Redis `*pranav-prod-canary*`; container env `AGENT_RUNTIME*`; `/health`; `dlq:dead`; worktree docs under `docs/agent_runtime` + `docs/context`.
+- **Problems Found:** Prior truth matrix still said production canary BLOCKED / local-only; handoff stale on pre-PR#72 image `7ce4d979`.
+- **Changed:** `docs/agent_runtime/TRUTH_MATRIX.md` (pranav=`production_canary_proven`, counts 1/11/17/2); new `docs/agent_runtime/PROD_CANARY_EVIDENCE.md`; `docs/context/SESSION_HANDOFF.md` + `ACTIVE_WORK.md`; this Loop Run.
+- **Tests Run:** N/A (docs-only). VPS read-only probe instead.
+- **Verification Evidence:** PREFIX=`idem:`; KEY_COUNT=2 samples `idem:agentrt:pranav-prod-canary-41765cfd-v1` + `-v1-b`; `AGENT_RUNTIME=0`; `/health.version=41765cfd` production healthy; `dlq:dead=7`. No redeploy. No flag flip.
+- **Risks:** Docs branch only — main remains without evidence until PR merge. Do not treat KEY_COUNT as live score without re-probe (TTL may expire).
+- **Remaining:** Merge docs PR; keep runtime flags OFF; GTM Hot Queue.
+- **Next Highest Priority:** Docs PR review/merge, then sprint GTM (2nd paying customer). Flags stay OFF.

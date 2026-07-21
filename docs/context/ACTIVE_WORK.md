@@ -2,15 +2,16 @@
 
 ---
 
-## WS-1 Agent Runtime PR #72 — CI GREEN, PROD CANARY BLOCKED (auth)
+## WS-1 Agent Runtime — PRODUCTION CANARY PROVEN (flags OFF)
 - **ID:** WS-1
-- **Branch / worktree:** `feat/agent-runtime-workforce-31` @ `leadgen-agent-runtime-31`
-- **PR:** #72 draft, head `676c51a`, CI success, mergeable
-- **Drift:** `SAFE_BEHIND_DOCS_ONLY` (prod `7ce4d979` → main `10a3996a` docs-only)
-- **Local:** Pranav canary_proven
-- **Prod Pranav workforce canary:** BLOCKED — OWNER AUTHORIZATION REQUIRED (merge+deploy)
-- **Note:** Prod already has `AGENT_RUNTIME=1`/`SRE_AGENT=1` on **old** image (3 pilots only)
-- **Next exact action:** Owner authorize merge of #72 + deploy; then single Pranav canary loop
+- **Prod SHA:** `41765cfd` (`/health`)
+- **PR code:** #72 merged + deployed
+- **Pranav:** `production_canary_proven` (flags OFF after)
+- **Flags now:** `AGENT_RUNTIME=0`, `AGENT_RUNTIME_EXECUTE` unset
+- **Redis:** 2 idem keys `idem:agentrt:pranav-prod-canary-41765cfd-v1(+-b)`; `dlq:dead=7`
+- **Docs:** `docs/agent_runtime/PROD_CANARY_EVIDENCE.md` + updated `TRUTH_MATRIX.md`
+- **Counts:** 1 / 11 / 17 / 2
+- **Next exact action:** Keep flags OFF; merge docs evidence PR; no further prod canary without owner auth
 
 ---
 
