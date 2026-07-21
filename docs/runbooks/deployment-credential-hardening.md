@@ -80,3 +80,30 @@ Authenticating as `leadgen-deploy` with the dedicated key:
 
 No product code, no application version change, no redeploy, no rollback.
 Production remains `0ff5d06`. `DEPLOY_ENABLED` stays unset. `PR #67` untouched.
+
+## Wrapper safety hardening (adversarial-review outcome)
+
+The wrapper (`scripts/vps/leadgen-deploy-release`, installed byte-identically at
+`/usr/local/sbin/leadgen-deploy-release`) additionally:
+
+- **Single-flight lock**: `flock -n` on `/run/leadgen-deploy.lock`; a second
+  invocation (manual or CI) while a deploy holds the lock exits `3` — GitHub
+  workflow concurrency alone is insufficient, so the lock lives in the wrapper.
+- **Environment hardening**: fixed `PATH`, and unsets caller-controlled
+  `DOCKER_HOST`, `COMPOSE_FILE`, `COMPOSE_PROJECT_NAME`, `COMPOSE_PROFILES`,
+  `DOCKER_CONFIG`, `BASH_ENV`, `ENV`, `PYTHONPATH`, `LD_PRELOAD`,
+  `LD_LIBRARY_PATH`. sudo `env_reset` + `secure_path` already strip these; this
+  is defense in depth (and covers direct root invocation).
+- **Input contract**: exactly one arg; leading-dash rejected; length must be 40;
+  lowercase-hex only. Every use of the validated SHA is quoted; no `eval`, no
+  indirect execution. Fixed image repo / compose file / dir / celery profile /
+  health endpoint. Rollback uses the captured immutable previous image, never a
+  floating tag; DB path is upgrade-only (no blind downgrade).
+
+Repo source and the installed executable are kept byte-identical
+(`sha256 = 6aa336d5…`); CI must not merge a workflow whose wrapper source
+differs from the installed file.
+
+Note: `shellcheck` is not installed on the host or VPS; `bash -n` passes and the
+runtime input/lock matrix is proven (all malicious inputs exit 2, concurrent
+invocation exits 3).
