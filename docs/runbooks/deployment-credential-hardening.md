@@ -1,5 +1,15 @@
 # Deployment Credential Hardening (2026-07-21)
 
+> **STATUS (2026-07-21): COMPLETED — hardened path PRODUCTION-PROVEN.** This
+> path was first exercised in production by deploy run `29834863683`, releasing
+> `7ce4d97` (`7ce4d979120da42cca9348320aae36640a2fdb27`) from previous prod
+> `0ff5d06` (rollback not used). The old GitHub Actions secrets `GHCR_PAT`,
+> `VPS_USER`, `VPS_SSH_KEY` have since been retired; `VPS_HOST`, `VPS_DEPLOY_USER`,
+> `VPS_SSH_KEY_DEPLOY` are retained. The emergency root key remains outside GitHub
+> for operator recovery. The pre-completion status lines below (e.g. "Production
+> remains `0ff5d06`") describe the state at the time this hardening PR was written
+> and are preserved as historical record. See `PRODUCTION_DEPLOYMENT_RECORD_7ce4d97.md`.
+
 Removes the two long-lived risks in the VPS deploy path proven during the
 `0ff5d06` production deploy:
 
