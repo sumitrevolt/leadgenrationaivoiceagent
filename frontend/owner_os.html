@@ -623,14 +623,28 @@ async function loadCopilot(){
   document.getElementById("copilotCalling").textContent = "Calling HARD OFF";
   const ctx=body.context||{};
   const a=ctx.agents||{}, q=ctx.queues||{}, ap=ctx.approvals||{};
-  document.getElementById("copilotChips").innerHTML = [
+  // Built via DOM + textContent rather than innerHTML: these values come from an
+  // API response, and although they are numeric counts today, an unescaped sink
+  // would become an XSS vector the moment any of them turns into a string.
+  // Renders identically: <span class="chip">Key: <b>value</b></span>
+  const chipsEl = document.getElementById("copilotChips");
+  chipsEl.textContent = "";
+  for(const [k,v] of [
     ["Agents", a.total],
     ["Paused", a.paused_manual_run_count ?? (a.paused||[]).length],
     ["Approvals", ap.pending],
     ["Celery", q.pending],
     ["DLQ", q.failed],
     ["Dead", q.dead]
-  ].map(([k,v])=>`<span class="chip">${k}: <b>${v??"—"}</b></span>`).join("");
+  ]){
+    const span=document.createElement("span");
+    span.className="chip";
+    span.append(k+": ");
+    const b=document.createElement("b");
+    b.textContent = (v ?? "—");
+    span.append(b);
+    chipsEl.append(span);
+  }
   document.getElementById("copilotCtx").textContent = JSON.stringify(ctx,null,2);
   const next=(ctx.next_actions||[])[0];
   document.getElementById("copilotNext").textContent = next? (next.label||next.command_hint||"—") : (on? "—":"Enable OPENCLAW_ENABLED locally to run commands");
