@@ -2,19 +2,24 @@
 
 ---
 
-## WS-1 Agent Runtime workforce Wave-B — IN PROGRESS (local proven)
+## WS-1 Agent Runtime workforce Wave-B — IN PROGRESS
 - **ID:** WS-1
 - **Business outcome:** All 31 agents have real runtime capabilities; Wave-B GREEN dispatchable under `AGENT_RUNTIME`; Swara OpenClaw-observable without voice edits
 - **Owner:** Platform
 - **Branch / worktree:** `feat/agent-runtime-workforce-31` @ `C:\Users\Ratanshila\Documents\leadgen-agent-runtime-31`
+- **Status:**
+  - Draft **PR #72** open
+  - Local canary **proven** (`pranav` real-engine)
+  - Prod canary **blocked** on drift (`7ce4d97` behind `10a3996`) + deploy auth; `AGENT_RUNTIME` unset on prod
 - **Acceptance:**
-  - 31/31 capabilities registered ✅
-  - Swara frozen transfer via OpenClaw `agent.status` (no voice edits) ✅
-  - Wave-B pilots widened (19) ✅
-  - pytest 93 green (runtime+workforce+registry+openclaw) ✅
-  - prod_check PASS ✅
-  - Prod deploy / `AGENT_RUNTIME` canary — NOT done (owner-gated)
-- **Next exact action:** Commit/PR when asked → owner-authorized canary
+  - 31/31 capabilities registered ✓
+  - Swara frozen transfer via OpenClaw `agent.status` (no voice edits) ✓
+  - Wave-B pilots widened ✓
+  - pytest green (runtime+workforce+registry+openclaw) ✓
+  - prod_check PASS ✓
+  - Local Pranav canary proven ✓
+  - Prod deploy / `AGENT_RUNTIME` canary — BLOCKED (drift + deploy auth)
+- **Next exact action:** Owner-authorized clear prod drift → then Stage A canary; do not merge/deploy without go-ahead
 
 ---
 

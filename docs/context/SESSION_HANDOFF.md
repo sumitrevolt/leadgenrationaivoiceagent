@@ -4,11 +4,17 @@
 Convert documented 31-agent system into real Agent Runtime capabilities + OpenClaw
 observe path, without recreating existing kernel / Owner OS / touching Swara voice.
 
+## Continuation outcome (2026-07-21)
+- **PR #72** open (draft): `feat/agent-runtime-workforce-31` — workforce factory + Wave-B pilots
+- **Local canary proof:** `pranav` = `canary_proven` (real-engine, local only)
+- **Prod canary BLOCKED:** `/health` `7ce4d97` behind `origin/main` `10a3996`; branch `18b8d3e` not deployed; `AGENT_RUNTIME` unset on prod
+- Other 11 pilots = `canary_ready`; 17 = `rollout_hold`; Swara+Ananya = `intentionally_disabled`
+
 ## Starting state
 - Primary checkout `leadgenrationaiagent` DIRTY (skill deletions) — left untouched
 - Isolated worktree: `C:\Users\Ratanshila\Documents\leadgen-agent-runtime-31`
-- Branch: `feat/agent-runtime-workforce-31` @ `origin/main` tip `10a3996a`
-- Prod `/health.version` was `7ce4d979` (local main); origin/main ahead
+- Branch: `feat/agent-runtime-workforce-31` @ tip `18b8d3e` (ahead of origin/main `10a3996`)
+- Prod `/health.version` = `7ce4d97` (drift vs main)
 
 ## Discover
 - Already present: `agent_registry` (31 contracts), `agent_runtime` kernel,
@@ -26,13 +32,15 @@ observe path, without recreating existing kernel / Owner OS / touching Swara voi
   `docs/research/OPENCLAW_31_AGENT_RESEARCH.md`
 
 ## Verification
-- pytest workforce+runtime+registry+openclaw: re-run after cache clear (see progress)
+- pytest workforce+runtime+registry+openclaw: green (see progress)
 - `prod_check.py` ALL CHECKS PASSED earlier (1166 routes)
+- Local Pranav real-engine canary: proven
+- Prod Stage A / AGENT_RUNTIME: **not** done (drift + deploy auth)
 - Swara: ZERO voice file edits; RED still hard-off; OpenClaw transfer package only
 
 ## Protected
 No `.env`, billing, calling enable, Swara/voice modules, primary dirty tree, prod deploy
 
 ## Exact next task
-Owner: review worktree → commit/PR when asked → Stage canary `AGENT_RUNTIME=1` + one
-GREEN flag (e.g. `SRE_AGENT=1`) — no OpenClaw prod flip without auth; calling stays off
+Clear prod drift (deploy auth) before any prod `AGENT_RUNTIME=1` canary; keep OpenClaw OFF;
+calling stays off. Do not merge/deploy without owner go-ahead.
