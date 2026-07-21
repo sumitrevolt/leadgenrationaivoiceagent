@@ -338,18 +338,86 @@ isolation, budget, idempotency, DLQ, kill switches.
 
 ---
 
-## 10. Exact next action
+## 10. Production truth — FRESHLY VERIFIED 2026-07-21 (supersedes §1)
 
-1. **Fresh production probe** — §1's `d02a999c` is still a *cached* read, and main
-   is 1 commit ahead at `9c1bb308`. Cache-bust before any deploy decision:
-   ```powershell
-   $ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-   curl.exe -sS -H "Cache-Control: no-cache" "https://leadsgenai.in/health?cb=$ts"
-   ```
-   Run twice, ≥10s apart; uptime must advance or it is still cached.
+Cache-bypassed via `curl.exe` with `Cache-Control: no-cache, no-store, max-age=0`
++ `Pragma: no-cache` + a `?cache_bust=<epoch_ms>` query, run twice 32s apart:
 
-2. **OpenClaw merge (ADR-130)** — must happen in an isolated worktree, rebased
-   onto current main (4 conflict indicators expected), with its own 764-line
-   suite green. Not started.
+| Probe | server timestamp | uptime | version |
+|---|---|---|---|
+| 1 | `03:37:41.520589` | `0h 18m 33s` | `9c1bb308` |
+| 2 | `03:38:13.585819` | `0h 19m 6s` | `9c1bb308` |
 
-3. **Skill consolidation** — still outstanding. See §7 for the verified gap list.
+Freshness proof: uptime advanced 33s across a 32s gap · no `Age:` header ·
+response `Cache-Control: no-store, no-cache, must-revalidate` · version stable ·
+`environment: production`.
+
+**PRODUCTION = `9c1bb308` = local `main`. Zero drift.**
+
+Two corrections this supersedes: `d02a999c` was (a) a cached read, and (b)
+superseded by a real deploy ~19 min before the probe. Production was redeployed
+during this session.
+
+---
+
+## 11. OpenClaw integration — MERGE-READY (not merged, not deployed)
+
+Integrated in an **isolated worktree**, never on `main`.
+
+| | |
+|---|---|
+| Worktree | `C:\Users\Ratanshila\Documents\leadgen-openclaw-integration` |
+| Branch | `integration/openclaw-owner-copilot` |
+| Base | `main` @ `9c1bb30` |
+| Source | `feat/openclaw-owner-copilot` @ `8fc1f62` (local == origin) |
+| Merge commit | **`2c48084`** |
+| Worktree status | clean |
+| Tracked `.pyc` in merge | **0** |
+
+### Conflicts — 2 actual (merge-tree's "4" was a coarse indicator)
+
+`app/main.py` and `frontend/owner_os.html` — the real integration points —
+**auto-merged clean**.
+
+1. **`.gitignore` → UNION.** main ignores `config/openclaw/.local/` (tokens/state);
+   the branch un-ignores the plugin manifest. Both kept: secrets stay ignored,
+   manifest stays tracked.
+2. **`docs/context/SESSION_HANDOFF.md` → took MAIN's.** The branch copy is a stale
+   2026-07-20 state doc; merging it would have overwritten current state.
+
+### Security proof — empirical, not a code read
+
+Worst case exercised: `OPENCLAW_ENABLED=1` **and** `OPENCLAW_ALLOW_RED_ACTIONS=1`
+**and** every RED command injected into `OPENCLAW_COMMAND_ALLOWLIST`.
+
+Result: **all 8 RED commands refused** (`shell.execute`, `sql.execute`,
+`calling.enable`, `platform_dial.enable`, `billing.mutate`, `deploy.production`,
+`kill_switch.bypass`, and an unknown command → RED). `allowed_commands()` leaked
+**zero** RED entries. Defaults with no env set: `openclaw_enabled()` False,
+`allow_red_actions()` False.
+
+Authority path confirmed in source: `owner_os_adapter` → `owner_os.create_command()`.
+No second dispatcher.
+
+### Test evidence (project venv, real host)
+
+| Suite | Result |
+|---|---|
+| `tests/test_openclaw_owner_copilot.py` | **46 passed, exit 0** |
+| owner-os + governance + runtime + tenant-isolation + isha-ui (8 files) | **123 passed, exit 0** |
+| `scripts/prod_check.py` in worktree | **ALL CHECKS PASSED** |
+
+Worktree `prod_check` shows `1166 routes` (main: `1160`) = +6 OpenClaw routes, and
+**no orphan warnings** — the detector correctly stops firing once the source exists.
+
+**Verdict: MERGE-READY.** Not merged to `main`. **NOT DEPLOYED.**
+
+---
+
+## 12. Exact next action
+
+Open a PR from `integration/openclaw-owner-copilot` → `main` for human review.
+Do **not** fast-merge: `app/main.py` gained a router mount and `frontend/owner_os.html`
+gained UI, both auto-merged without human eyes on them.
+
+Still outstanding: **skill consolidation** (§7 gap list) — not started in any pass.
