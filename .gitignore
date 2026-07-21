@@ -1,17 +1,17 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# graphify (code knowledge-graph dev tool) — generated artifacts, regenerable + large (graph.json ~9MB)
+# graphify (code knowledge-graph dev tool) â€” generated artifacts, regenerable + large (graph.json ~9MB)
 graphify-out/
 app/graphify-out/
 .graphify/
 
-# Secrets (never commit) — Alertmanager SMTP password file, written on VPS from .env
+# Secrets (never commit) â€” Alertmanager SMTP password file, written on VPS from .env
 monitoring/alertmanager_smtp_pass
 
-# Unity office loop — local verification/UAT evidence logs (docs/UNITY_VIRTUAL_OFFICE_UAT.md)
+# Unity office loop â€” local verification/UAT evidence logs (docs/UNITY_VIRTUAL_OFFICE_UAT.md)
 uat_evidence/
 
 # Local tool directories
@@ -123,11 +123,11 @@ venv.bak/
 .vscode/
 *.swp
 *.swo
-# Kiro IDE — vendored third-party skill packs (not project code; contains JS with literal
+# Kiro IDE â€” vendored third-party skill packs (not project code; contains JS with literal
 # 'token'/'secret' strings that trip check_secrets.py false-positives)
 .kiro/
 
-# Claude Code agent worktrees — harness-managed isolation scratch (full repo copies);
+# Claude Code agent worktrees â€” harness-managed isolation scratch (full repo copies);
 # must NEVER be committed (one got committed = 1290 duplicate files).
 .claude/worktrees/
 
@@ -174,6 +174,9 @@ auraleads_extracted/
 .env.production
 .env.local
 
+# OpenClaw local proof state (tokens, runtime) â€” never commit
+config/openclaw/.local/
+
 # Local artifacts that must never ship
 source.tar.gz
 *.tar.gz
@@ -216,7 +219,7 @@ tmp_vps_*.sh
 
 # Temp / one-shot diagnostics + captured outputs (ai-firstify 2026-07-18; NARROWED 2026-07-18).
 # Policy (docs/CONTEXT_HYGIENE_POLICY.md): reusable canary/diagnostic TOOLS stay TRACKED under
-# scripts/canary/ or scripts/. Only one-off _tmp_ scripts and generated OUTPUT are ignored —
+# scripts/canary/ or scripts/. Only one-off _tmp_ scripts and generated OUTPUT are ignored â€”
 # a blanket scripts/_canary_* would hide reusable safety tooling, so canary SCRIPTS are NOT ignored.
 scripts/_tmp_*
 scripts/_canary_*.log
@@ -227,7 +230,7 @@ scripts/_canary_*.txt
 /pytest_*.txt
 /*_result.txt
 /forensics_*.txt
-# root-scoped debug dumps (prod page snapshots, cleanup logs, stderr captures, leftover commit msgs) — 2026-07-19 harden
+# root-scoped debug dumps (prod page snapshots, cleanup logs, stderr captures, leftover commit msgs) â€” 2026-07-19 harden
 /*_prod.html
 /cleanup_*.txt
 /wt_prodcheck.txt
@@ -240,5 +243,7 @@ scripts/_canary_*.txt
 artifacts/local/
 .codex/config.toml
 
-# OpenClaw local runtime (tokens/state — never commit)
+# OpenClaw local runtime (tokens/state - never commit)
 config/openclaw/.local/
+# ...but the plugin manifest IS source and must be tracked
+!config/openclaw/plugins/**/openclaw.plugin.json

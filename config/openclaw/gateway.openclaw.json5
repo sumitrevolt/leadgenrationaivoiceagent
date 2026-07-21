@@ -1,0 +1,53 @@
+{
+  "agents": {
+    "list": [
+      {
+        "id": "owner-copilot",
+        "name": "Owner Copilot",
+        "default": true,
+        "tools": {
+          "allow": ["leadgen_owner_command"],
+          "deny": [
+            "exec",
+            "spawn",
+            "shell",
+            "fs_write",
+            "fs_delete",
+            "fs_move",
+            "apply_patch",
+            "browser",
+            "nodes",
+            "cron",
+            "gateway"
+          ]
+        }
+      }
+    ]
+  },
+  "tools": {
+    "allow": ["leadgen_owner_command"],
+    "deny": ["exec", "spawn", "shell", "fs_write", "fs_delete", "fs_move", "apply_patch"]
+  },
+  "plugins": {
+    "load": {
+      "paths": ["./plugins/leadgen-owner-copilot"]
+    },
+    "entries": {
+      "leadgen-owner-copilot": {
+        "enabled": true
+      }
+    }
+  },
+  "gateway": {
+    "port": 18789,
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "REPLACE_WITH_LOCAL_OPENCLAW_GATEWAY_TOKEN"
+    },
+    "tools": {
+      "allow": ["leadgen_owner_command"],
+      "deny": ["exec", "spawn", "shell", "browser", "nodes", "cron", "gateway"]
+    }
+  }
+}

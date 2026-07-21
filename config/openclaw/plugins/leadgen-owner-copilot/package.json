@@ -1,0 +1,13 @@
+{
+  "name": "@leadgen/openclaw-owner-copilot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Narrow HTTP tool: OpenClaw → LeadGen Owner Copilot (Owner OS only)",
+  "openclaw": {
+    "extensions": ["./index.js"],
+    "compat": {
+      "pluginApi": ">=2026.3.24"
+    }
+  }
+}

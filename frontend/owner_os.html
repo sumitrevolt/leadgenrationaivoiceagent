@@ -71,6 +71,7 @@ textarea{min-height:88px;resize:vertical}
     <button data-tab="runtime">Runtime</button>
     <button data-tab="approvals">Approvals</button>
     <button data-tab="kill">Kill Switches</button>
+    <button data-tab="copilot">Owner Copilot</button>
     <button data-tab="training">Training</button>
   </div>
 
@@ -208,6 +209,38 @@ textarea{min-height:88px;resize:vertical}
     </div>
   </section>
 
+  <section class="panel" id="panel-copilot">
+    <div class="grid">
+      <div class="card">
+        <h2>OpenClaw Owner Copilot</h2>
+        <p class="muted">Chief of Staff edge layer. Actions sirf Owner OS se. Calling HARD OFF. Flag: <code>OPENCLAW_ENABLED</code>.</p>
+        <div class="row" style="margin-bottom:8px">
+          <span class="badge err" id="copilotCalling">Calling HARD OFF</span>
+          <span class="badge" id="copilotFlag">flag…</span>
+          <span class="badge" id="copilotLane">lane…</span>
+        </div>
+        <div class="chips" id="copilotChips"></div>
+        <textarea id="copilotText" placeholder="Aaj platform ka complete status batao."></textarea>
+        <div class="row" style="margin-top:10px">
+          <button class="btn sec" onclick="copilotPreview()">Parse / Preview</button>
+          <button class="btn" onclick="copilotRun()">Run (GREEN / park AMBER)</button>
+          <button class="btn sec" onclick="loadCopilot()">↻ Status</button>
+        </div>
+        <h3 style="margin-top:14px">Parsed command</h3>
+        <div class="pre" id="copilotPreview">—</div>
+        <h3 style="margin-top:14px">Result / evidence</h3>
+        <div class="pre" id="copilotResult">—</div>
+      </div>
+      <div class="card">
+        <h2>Context snapshot</h2>
+        <div class="pre" id="copilotCtx">—</div>
+        <h3 style="margin-top:12px">Suggested next action</h3>
+        <div id="copilotNext" class="muted">—</div>
+        <p class="muted" style="margin-top:12px">Audit: Owner OS audit store · <a href="/app/owner#approvals">Approvals</a></p>
+      </div>
+    </div>
+  </section>
+
   <section class="panel" id="panel-training">
     <div class="card">
       <h2>Admin Training Mode</h2>
@@ -253,6 +286,7 @@ document.getElementById("tabs").addEventListener("click", (e)=>{
   if(b.dataset.tab==="workflows"){ loadWorkflows(); loadTeach("workflows"); }
   if(b.dataset.tab==="routes"){ loadRoutes(); loadTeach("routes"); }
   if(b.dataset.tab==="runtime") loadRuntime();
+  if(b.dataset.tab==="copilot") loadCopilot();
 });
 
 async function boot(){
@@ -577,6 +611,66 @@ async function loadTraining(){
   if(!body||!body.ok){ document.getElementById("trainBody").textContent="fail"; return; }
   document.getElementById("trainBody").innerHTML =
     `<b>${esc(body.title)}</b><p>${esc(body.hinglish)}</p><p><b>Safe commands:</b><br>${(body.safe_commands||[]).map(c=>"• "+esc(c)).join("<br>")}</p><p><b>Next:</b> ${esc(body.next||"")}</p>`;
+}
+
+async function loadCopilot(){
+  const {status,body}=await api("/api/owner-copilot/status");
+  const flagEl=document.getElementById("copilotFlag");
+  if(status!==200){ flagEl.textContent="status "+status; flagEl.className="badge err"; return; }
+  const on=!!body.enabled;
+  flagEl.textContent = on? "OPENCLAW_ENABLED=1":"OPENCLAW_ENABLED=0";
+  flagEl.className = on? "badge ok":"badge warn";
+  document.getElementById("copilotCalling").textContent = "Calling HARD OFF";
+  const ctx=body.context||{};
+  const a=ctx.agents||{}, q=ctx.queues||{}, ap=ctx.approvals||{};
+  // Built via DOM + textContent rather than innerHTML: these values come from an
+  // API response, and although they are numeric counts today, an unescaped sink
+  // would become an XSS vector the moment any of them turns into a string.
+  // Renders identically: <span class="chip">Key: <b>value</b></span>
+  const chipsEl = document.getElementById("copilotChips");
+  chipsEl.textContent = "";
+  for(const [k,v] of [
+    ["Agents", a.total],
+    ["Paused", a.paused_manual_run_count ?? (a.paused||[]).length],
+    ["Approvals", ap.pending],
+    ["Celery", q.pending],
+    ["DLQ", q.failed],
+    ["Dead", q.dead]
+  ]){
+    const span=document.createElement("span");
+    span.className="chip";
+    span.append(k+": ");
+    const b=document.createElement("b");
+    b.textContent = (v ?? "—");
+    span.append(b);
+    chipsEl.append(span);
+  }
+  document.getElementById("copilotCtx").textContent = JSON.stringify(ctx,null,2);
+  const next=(ctx.next_actions||[])[0];
+  document.getElementById("copilotNext").textContent = next? (next.label||next.command_hint||"—") : (on? "—":"Enable OPENCLAW_ENABLED locally to run commands");
+}
+
+async function copilotPreview(){
+  const text=document.getElementById("copilotText").value.trim();
+  if(text.length<3){ toast("Command likho"); return; }
+  const {status,body}=await api("/api/owner-copilot/nl",{method:"POST",body:JSON.stringify({text, execute:false})});
+  document.getElementById("copilotLane").textContent = ((body.proposal||{}).safety_lane)||"?";
+  document.getElementById("copilotLane").className = "badge "+(((body.proposal||{}).safety_lane)==="RED"?"err":((body.proposal||{}).safety_lane)==="AMBER"?"warn":"ok");
+  document.getElementById("copilotPreview").textContent = JSON.stringify(body.proposal||body,null,2);
+  if(status===503) toast("OPENCLAW_ENABLED=0");
+}
+
+async function copilotRun(){
+  const text=document.getElementById("copilotText").value.trim();
+  if(text.length<3){ toast("Command likho"); return; }
+  const idem="ocui_"+Date.now()+"_"+Math.random().toString(16).slice(2,8);
+  const {status,body}=await api("/api/owner-copilot/nl",{method:"POST",body:JSON.stringify({text, execute:true, confirm:true, idempotency_key:idem})});
+  document.getElementById("copilotPreview").textContent = JSON.stringify(body.proposal||{},null,2);
+  document.getElementById("copilotResult").textContent = JSON.stringify(body.executed||body,null,2);
+  const lane=((body.proposal||{}).safety_lane)||((body.executed||{}).safety_lane);
+  document.getElementById("copilotLane").textContent = lane||"?";
+  document.getElementById("copilotLane").className = "badge "+(lane==="RED"?"err":lane==="AMBER"?"warn":"ok");
+  toast(status===200? ((body.executed||{}).status||"ok") : ("fail "+status));
 }
 
 function esc(s){ return String(s??"").replace(/[&<>"']/g,c=>({ "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;" }[c])); }
