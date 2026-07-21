@@ -171,10 +171,16 @@ textarea{min-height:88px;resize:vertical}
       <h2>Agent Runtime (Phase-B pilots)</h2>
       <p class="muted">Shared contract-enforced runtime. Sirf pilots (kavya/isha/zara) dispatchable — baaki 28 <b>registry_only</b>. RED lane (swara/ananya) hamesha blocked. Master flag <code>AGENT_RUNTIME</code> off = sab dispatch SKIPPED.</p>
       <div class="chips" id="rtChips"></div>
-      <div class="row" style="margin:8px 0">
+      <div class="row" style="margin:8px 0; flex-wrap:wrap; gap:8px; align-items:center">
         <button class="btn sec" onclick="loadRuntime()">↻ Refresh</button>
         <button class="btn" onclick="runtimeKavya()">Run Kavya ops check (read-only)</button>
+        <label class="muted" for="rtTenant">Tenant</label>
+        <input id="rtTenant" type="text" placeholder="ws3-canary (not Jiya for canary)" style="min-width:180px;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" autocomplete="off" />
+        <label class="muted" for="rtTopic">Topic</label>
+        <input id="rtTopic" type="text" placeholder="local business marketing" style="min-width:200px;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" autocomplete="off" />
+        <button class="btn ok" onclick="runtimeIsha()">Run Isha draft brief (draft-only)</button>
       </div>
+      <p class="muted" style="margin:0 0 8px">Isha requires <code>tenant_id</code>. Empty tenant = client validation error. Output stays <code>published=false</code>.</p>
       <div id="rtAgents"></div>
       <h3 style="margin-top:12px">Runtime DLQ (last 20)</h3>
       <div class="pre" id="rtDlq">—</div>
