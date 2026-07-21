@@ -38,25 +38,37 @@ try:
     sources = {s.get("source") for s in skills}
     print("skills total      :", len(skills))
     print("skills source project:", "project" in sources)
-    print("skills source agents :", "agents" in sources)
     print("skills source extra  :", "extra" in sources)
 except Exception as e:
     print("skills sources    :", "ERR", e)
 # numpy/sklearn drift that Cursor's f674f6c fixed — confirm no breakage
 try:
-    import numpy, sklearn, scipy  # noqa
+    import numpy  # noqa
+    import scipy
+    import sklearn
+
     print("numpy/sklearn/scipy:", "OK", getattr(numpy, "__version__", "?"))
 except Exception as e:
     print("numpy/sklearn/scipy:", "BROKEN", e)
 # eval module actually runs
 try:
     from app.agents import eval_metrics as em
-    print("eval sanity score :", em.transcript_quality([{"role": "assistant", "content": "Ek line. Interested?"}]))
+
+    print(
+        "eval sanity score :",
+        em.transcript_quality([{"role": "assistant", "content": "Ek line. Interested?"}]),
+    )
 except Exception as e:
     print("eval sanity       :", "ERR", e)
-print("flags:",
-      "RERANKER=", os.environ.get("USE_RERANKER"),
-      "HYBRID=", os.environ.get("USE_HYBRID_SEARCH"),
-      "CONTEXTUAL=", os.environ.get("USE_CONTEXTUAL_INGEST"),
-      "KOKORO=", os.environ.get("USE_KOKORO_TTS"))
+print(
+    "flags:",
+    "RERANKER=",
+    os.environ.get("USE_RERANKER"),
+    "HYBRID=",
+    os.environ.get("USE_HYBRID_SEARCH"),
+    "CONTEXTUAL=",
+    os.environ.get("USE_CONTEXTUAL_INGEST"),
+    "KOKORO=",
+    os.environ.get("USE_KOKORO_TTS"),
+)
 print("--- end verify ---")
