@@ -275,8 +275,9 @@ async def test_red_lane_remains_hard_off(monkeypatch):
 
 
 async def test_non_pilot_agent_blocked():
-    _register("manager", "unit_probe", _ok_cap)
-    res = await rt.submit("manager", "unit_probe")
+    # Wave-B put manager in pilots; AMBER hold (rohan) stays allowlist-blocked.
+    _register("rohan", "unit_probe", _ok_cap)
+    res = await rt.submit("rohan", "unit_probe")
     assert res.status == "blocked"
     assert res.reason == "not_in_pilot_rollout"
 

@@ -2,33 +2,20 @@
 
 ---
 
-## WS-1 Delivery assurance operator surface — CLOSED (PARTIAL proof)
+## WS-1 Agent Runtime PR #72 — CI GREEN, PROD CANARY BLOCKED (auth)
 - **ID:** WS-1
-- **Business outcome:** Admin can see missed/at-risk paid customers
-- **Current state:** MERGED historically. Optional admin UI smoke only.
+- **Branch / worktree:** `feat/agent-runtime-workforce-31` @ `leadgen-agent-runtime-31`
+- **PR:** #72 draft, head `676c51a`, CI success, mergeable
+- **Drift:** `SAFE_BEHIND_DOCS_ONLY` (prod `7ce4d979` → main `10a3996a` docs-only)
+- **Local:** Pranav canary_proven
+- **Prod Pranav workforce canary:** BLOCKED — OWNER AUTHORIZATION REQUIRED (merge+deploy)
+- **Note:** Prod already has `AGENT_RUNTIME=1`/`SRE_AGENT=1` on **old** image (3 pilots only)
+- **Next exact action:** Owner authorize merge of #72 + deploy; then single Pranav canary loop
 
 ---
 
-## WS-2 Jiya delivery assurance proof and operator recovery flow — PARKED
-- **ID:** WS-2
-- **Business outcome:** Jiya reaches honest `proof` / recoverable delivery gaps
-- **Current state:** PARKED; human approve-drafts vs Meta still EXTERNAL
-- **Next exact action:** Resume after OpenClaw PR merge or parallel human path
+## WS-2 Jiya delivery — PARKED
 
 ---
 
-## WS-3 OpenClaw Owner Copilot — LOCAL CLOSURE DONE (PR)
-- **ID:** WS-3
-- **Business outcome:** Owner has NL Copilot over 31 agents without bypassing Owner OS
-- **Owner:** Platform / Sumit
-- **Branch:** `feat/openclaw-owner-copilot`
-- **Acceptance (Stage A local):**
-  - Real OpenClaw Gateway → LeadGen typed adapter ✅
-  - GREEN/AMBER/RED + idempotency ✅
-  - Agents = 31 · Calling HARD OFF ✅
-  - Browser Owner Copilot tab smoke ✅
-  - Flag OFF default ✅
-  - Prod deploy NOT done
-- **Current state:** Local real-gateway verified; review-ready PR; production rollout pending auth
-- **Next exact action:** PR review → explicit Stage A prod deploy authorization
-- **Out of scope this PR:** Boss multi-agent missions · Prometheus counters
+## WS-3 OpenClaw — MERGED source, prod flag OFF (OPENCLAW unset)
