@@ -12,11 +12,33 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from tests._api_helpers import iter_mounted_routes
 
 
 @pytest.fixture
 def client() -> TestClient:
     return TestClient(app)
+
+
+@pytest.fixture(autouse=True)
+def clear_auth_overrides() -> None:
+    """Exercise campaign authorization without conftest's authenticated user."""
+    from app.api.auth_deps import (
+        get_current_user,
+        require_admin,
+        require_agent,
+        require_manager,
+        require_super_admin,
+    )
+
+    for dependency in (
+        get_current_user,
+        require_admin,
+        require_agent,
+        require_manager,
+        require_super_admin,
+    ):
+        app.dependency_overrides.pop(dependency, None)
 
 
 # All campaign endpoints — full surface coverage so future endpoint adds get caught.
@@ -60,7 +82,8 @@ def test_campaign_route_count_locked(client: TestClient) -> None:
     """Catch a future endpoint added without auth: count must stay at 9.
     If you add a new /api/campaigns/* route, gate it AND bump this number."""
     paths = [
-        r.path for r in app.routes
+        r.path
+        for r in iter_mounted_routes(app)
         if getattr(r, "path", "").startswith("/api/campaigns")
     ]
     assert len(paths) == 9, (

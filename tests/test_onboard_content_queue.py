@@ -59,6 +59,17 @@ def _stub_packet_deps(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
     return submitted
 
 
+def _disable_extended_packs(monkeypatch: pytest.MonkeyPatch, auto_content: Any) -> None:
+    """Keep this Day-1 queue contract scoped to its three primary items."""
+
+    async def _none(_client: dict[str, Any]) -> int:
+        return 0
+
+    monkeypatch.setattr(auto_content, "generate_gbp_pack", _none)
+    monkeypatch.setattr(auto_content, "generate_review_reply_pack", _none)
+    monkeypatch.setattr(auto_content, "generate_poster_pack", _none)
+
+
 @pytest.mark.asyncio
 async def test_seed_client_content_appends_to_queue(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -66,6 +77,7 @@ async def test_seed_client_content_appends_to_queue(
     from app.marketing import auto_content
 
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    _disable_extended_packs(monkeypatch, auto_content)
     submitted = _stub_packet_deps(monkeypatch)
 
     async def _gen(client: dict, day: Any = None) -> list[dict]:
@@ -91,6 +103,7 @@ async def test_seed_client_content_is_idempotent(
     from app.marketing import auto_content
 
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    _disable_extended_packs(monkeypatch, auto_content)
     _stub_packet_deps(monkeypatch)
 
     async def _gen(client: dict, day: Any = None) -> list[dict]:
@@ -114,6 +127,7 @@ async def test_auto_onboard_populates_content_queue(
     from app.marketing import auto_content, clients_store, onboarding
 
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    _disable_extended_packs(monkeypatch, auto_content)
     _stub_packet_deps(monkeypatch)
 
     fake_client = {"id": "c9", "business_name": "Verma Tiffin", "niche": "tiffin", "phone": "9"}

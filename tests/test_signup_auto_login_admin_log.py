@@ -16,16 +16,17 @@ import pytest
 
 def _stub_signup_side_effects(monkeypatch, cid: str = "c_al2"):
     import app.api.customer_auth as ca
-    import app.marketing.clients_store as cs
     import app.billing.usage as usage
+    import app.marketing.clients_store as cs
 
     monkeypatch.setattr(
-        cs, "add_client",
+        cs,
+        "add_client",
         lambda **k: {"id": cid, "business_name": k.get("business_name")},
     )
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
-    monkeypatch.setattr(ca, "register_login", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
     monkeypatch.setattr(usage, "activate_plan", lambda c, p, **k: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda c: True)
 
@@ -57,7 +58,7 @@ def test_signup_auto_login_failure_emits_automation_log(client, monkeypatch):
         json={
             "business_name": "Admin Log Biz",
             "email": "adminlog@example.com",
-            "password": "secret123",
+            "password": "secret123",  # pragma: allowlist secret
             "plan": "starter",
         },
     )
@@ -95,7 +96,7 @@ def test_signup_normal_path_emits_no_failure_log(client, monkeypatch):
         json={
             "business_name": "Admin Log Ok",
             "email": "adminlog2@example.com",
-            "password": "secret123",
+            "password": "secret123",  # pragma: allowlist secret
             "plan": "starter",
         },
     )
@@ -115,17 +116,21 @@ def test_signup_log_emit_failure_does_not_break_signup(client, monkeypatch):
     import app.api.admin as admin_mod
     import app.platform.automation_log_service as als
 
-    monkeypatch.setattr(admin_mod, "create_access_token",
-                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("nope")))
-    monkeypatch.setattr(als, "log_event",
-                        lambda **kw: (_ for _ in ()).throw(RuntimeError("db down")))
+    monkeypatch.setattr(
+        admin_mod,
+        "create_access_token",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("nope")),
+    )
+    monkeypatch.setattr(
+        als, "log_event", lambda **kw: (_ for _ in ()).throw(RuntimeError("db down"))
+    )
 
     r = client.post(
         "/api/public/signup",
         json={
             "business_name": "Admin Log Defensive",
             "email": "adminlog3@example.com",
-            "password": "secret123",
+            "password": "secret123",  # pragma: allowlist secret
             "plan": "starter",
         },
     )
