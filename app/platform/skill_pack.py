@@ -29,7 +29,9 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _SKILLS_DIR = os.path.join(".claude", "skills")
-_AGENTS_SKILLS_DIR = os.path.join(".agents", "skills")
+# Canonical skill registry consolidated to .claude/skills (Phase 12 skill-tree
+# de-duplication). The former secondary agents skill mirror was a byte-identical
+# duplicate plus 23 extra skills that are now merged here; it no longer exists.
 _EXTRA_DIR = os.path.join("data", "skills_extra")
 _MAX_AUTHOR_BYTES = 16 * 1024  # Tier-1 size cap
 _CACHE_TTL_S = 300
@@ -100,11 +102,6 @@ def _load_all() -> list[dict[str, Any]]:
                 p = os.path.join(_SKILLS_DIR, d, "SKILL.md")
                 if os.path.isfile(p):
                     _add_skill(_parse_skill(p, "project"))
-        if os.path.isdir(_AGENTS_SKILLS_DIR):
-            for d in sorted(os.listdir(_AGENTS_SKILLS_DIR)):
-                p = os.path.join(_AGENTS_SKILLS_DIR, d, "SKILL.md")
-                if os.path.isfile(p):
-                    _add_skill(_parse_skill(p, "agents"))
         if os.path.isdir(_EXTRA_DIR):
             for fn in sorted(os.listdir(_EXTRA_DIR)):
                 if fn.endswith(".md"):
