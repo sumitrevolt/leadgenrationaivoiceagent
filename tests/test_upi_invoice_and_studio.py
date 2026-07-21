@@ -22,6 +22,7 @@ from fastapi.testclient import TestClient
 
 from app.api.admin import create_access_token
 from app.main import app
+from tests._api_helpers import iter_mounted_routes
 
 
 # --------------------------------------------------------------------------- #
@@ -45,7 +46,9 @@ def test_upi_decide_fires_gst_invoice(tmp_path, monkeypatch):
 
     calls = []
 
-    async def _fake_on_payment_success(client_id, plan, payment_ref="", gateway="", amount_inr=None):
+    async def _fake_on_payment_success(
+        client_id, plan, payment_ref="", gateway="", amount_inr=None
+    ):
         calls.append({"client_id": client_id, "plan": plan, "gateway": gateway, "ref": payment_ref})
         return {"ok": True}
 
@@ -96,13 +99,18 @@ def test_upi_invoice_hook_never_raises(tmp_path, monkeypatch):
 # --------------------------------------------------------------------------- #
 # Shared client fixture for the studio wrapper tests                           #
 # --------------------------------------------------------------------------- #
-def _seed_client(monkeypatch, tmp_path, business_name="Glow Studio Nagpur", niche="beauty_makeover"):
+def _seed_client(
+    monkeypatch, tmp_path, business_name="Glow Studio Nagpur", niche="beauty_makeover"
+):
     """Create an isolated marketing client and return (client_id, auth_headers)."""
     from app.marketing import clients_store
 
     monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
     rec = clients_store.add_client(
-        business_name=business_name, niche=niche, city="Nagpur", phone="8712928847",
+        business_name=business_name,
+        niche=niche,
+        city="Nagpur",
+        phone="8712928847",
         brand={"tagline": "Aapki khoobsurti, humari zimmedari"},
     )
     cid = rec["id"]
@@ -128,7 +136,11 @@ def test_studio_quote_is_client_scoped_not_leadgen(tmp_path, monkeypatch):
     r = c.post(
         "/api/customer/studio/quote-draft",
         headers=H,
-        json={"inquiry": "Bridal makeup ka rate kya hai?", "service": "Bridal makeup", "customer_name": "Riya"},
+        json={
+            "inquiry": "Bridal makeup ka rate kya hai?",
+            "service": "Bridal makeup",
+            "customer_name": "Riya",
+        },
     )
     assert r.status_code == 200, r.text
     d = r.json()
@@ -191,7 +203,7 @@ def test_studio_upi_qr_no_vpa_graceful(tmp_path, monkeypatch):
 
 
 def test_studio_new_routes_mounted_and_authed():
-    paths = {getattr(r, "path", "") for r in app.routes}
+    paths = {r.path for r in iter_mounted_routes(app)}
     for p in [
         "/api/customer/studio/upi-qr",
         "/api/customer/studio/ai-image",
@@ -199,7 +211,11 @@ def test_studio_new_routes_mounted_and_authed():
     ]:
         assert p in paths, f"missing route {p}"
     c = TestClient(app)
-    for p in ["/api/customer/studio/upi-qr", "/api/customer/studio/ai-image", "/api/customer/studio/complete-post"]:
+    for p in [
+        "/api/customer/studio/upi-qr",
+        "/api/customer/studio/ai-image",
+        "/api/customer/studio/complete-post",
+    ]:
         assert c.post(p, json={}).status_code in (401, 403), f"{p} not auth-gated"
 
 
@@ -215,11 +231,21 @@ def test_studio_ai_image_customer_scoped(tmp_path, monkeypatch):
     and returns a marketing_image payload. marketing_image is stubbed (no network)."""
     from app.marketing import ai_image
 
-    cid, H = _seed_client(monkeypatch, tmp_path, business_name="Trend Tattoos", niche="tattoo_studio")
+    cid, H = _seed_client(
+        monkeypatch, tmp_path, business_name="Trend Tattoos", niche="tattoo_studio"
+    )
 
     seen = {}
 
-    async def _fake_marketing_image(business_name, niche="general", occasion="", offer="", style="vibrant professional", width=1024, height=1024):
+    async def _fake_marketing_image(
+        business_name,
+        niche="general",
+        occasion="",
+        offer="",
+        style="vibrant professional",
+        width=1024,
+        height=1024,
+    ):
         seen["business_name"] = business_name
         seen["niche"] = niche
         return {"url": "/api/marketing/ai-image-proxy?prompt=x", "prompt": "test prompt"}

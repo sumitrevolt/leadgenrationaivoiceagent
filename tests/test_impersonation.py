@@ -4,6 +4,8 @@ Critical invariants: flag-gating (404 when off), token is customer-role + imp-ma
 audit is called on start. No full app / DB — coroutines direct, deps faked.
 """
 
+import asyncio
+
 import pytest
 from fastapi import HTTPException
 
@@ -44,7 +46,9 @@ def test_token_is_customer_role_with_imp_markers(monkeypatch):
 
     from app.api.customer_auth import require_customer
 
-    cid = require_customer(HTTPAuthorizationCredentials(scheme="Bearer", credentials=tok))
+    cid = asyncio.run(
+        require_customer(HTTPAuthorizationCredentials(scheme="Bearer", credentials=tok))
+    )
     assert cid == "cli9"
 
 

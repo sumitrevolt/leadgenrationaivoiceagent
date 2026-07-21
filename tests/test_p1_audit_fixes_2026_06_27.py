@@ -91,7 +91,7 @@ def test_orphan_signup_delegates_to_canonical(client, monkeypatch):
         json={
             "business_name": "Merge Co",
             "email": "merge@example.com",
-            "password": "secret123",
+            "password": "secret123",  # pragma: allowlist secret
             "phone": "9000000000",
             "plan": "starter",
         },
@@ -108,10 +108,12 @@ def _stub_signup_side_effects(monkeypatch, cid="c_prov"):
     import app.api.customer_auth as ca
     import app.marketing.clients_store as cs
 
-    monkeypatch.setattr(cs, "add_client", lambda **k: {"id": cid, "business_name": k.get("business_name")})
+    monkeypatch.setattr(
+        cs, "add_client", lambda **k: {"id": cid, "business_name": k.get("business_name")}
+    )
     monkeypatch.setattr(ca, "login_exists", lambda e: False)
     monkeypatch.setattr(ca, "client_has_login", lambda c: False)
-    monkeypatch.setattr(ca, "register_login", lambda *a, **k: None)
+    monkeypatch.setattr(ca, "register_login", lambda *a, **k: {"ok": True})
 
 
 def test_public_signup_provisions_paid_plan(client, monkeypatch):
@@ -126,8 +128,12 @@ def test_public_signup_provisions_paid_plan(client, monkeypatch):
 
     r = client.post(
         "/api/public/signup",
-        json={"business_name": "Paid Biz", "email": "paid@example.com",
-              "password": "secret123", "plan": "advanced"},
+        json={
+            "business_name": "Paid Biz",
+            "email": "paid@example.com",
+            "password": "secret123",  # pragma: allowlist secret
+            "plan": "advanced",
+        },
     )
     assert r.status_code == 200, r.text
     assert activated.get("cid") == "c_prov"
@@ -145,8 +151,12 @@ def test_public_signup_skips_provision_on_trial(client, monkeypatch):
 
     r = client.post(
         "/api/public/signup",
-        json={"business_name": "Trial Biz", "email": "trial@example.com",
-              "password": "secret123", "plan": "trial"},
+        json={
+            "business_name": "Trial Biz",
+            "email": "trial@example.com",
+            "password": "secret123",  # pragma: allowlist secret
+            "plan": "trial",
+        },
     )
     assert r.status_code == 200, r.text
     assert "called" not in activated, "trial should not activate a paid plan"
@@ -167,9 +177,13 @@ def test_public_signup_captures_business_website(client, monkeypatch):
 
     r = client.post(
         "/api/public/signup",
-        json={"business_name": "Site Biz", "email": "site@example.com",
-              "password": "secret123", "plan": "starter",
-              "business_website": "sharmasolar.in"},
+        json={
+            "business_name": "Site Biz",
+            "email": "site@example.com",
+            "password": "secret123",  # pragma: allowlist secret
+            "plan": "starter",
+            "business_website": "sharmasolar.in",
+        },
     )
     assert r.status_code == 200, r.text
     assert saved.get("cid") == "c_site"
@@ -182,7 +196,11 @@ def test_public_signup_honeypot_still_rejects(client, monkeypatch):
     _stub_signup_side_effects(monkeypatch)
     r = client.post(
         "/api/public/signup",
-        json={"business_name": "Bot Biz", "email": "bot@example.com",
-              "password": "secret123", "website": "http://spam.example"},
+        json={
+            "business_name": "Bot Biz",
+            "email": "bot@example.com",
+            "password": "secret123",  # pragma: allowlist secret
+            "website": "http://spam.example",
+        },
     )
     assert r.status_code == 400
