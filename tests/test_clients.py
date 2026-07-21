@@ -162,7 +162,7 @@ class TestGenerateForClient:
             "upcoming",
             lambda days=2: [
                 {
-                    "date": "2099-01-01",
+                    "date": "2026-06-11",  # within 2 days of day=2026-06-10
                     "name": "Diwali",
                     "type": "hindu",
                     "marketing_angle": "x",

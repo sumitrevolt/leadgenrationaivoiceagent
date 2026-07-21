@@ -8,6 +8,8 @@ from __future__ import annotations
 import asyncio
 from datetime import datetime, timedelta, timezone
 
+from tests._api_helpers import iter_mounted_routes
+
 
 def test_carousel_fallback_slides():
     from app.marketing import carousel
@@ -128,7 +130,7 @@ def test_multilang_fallback():
 def test_growth_router_has_bulk_routes():
     from app.api.growth import router
 
-    paths = {r.path for r in router.routes}
+    paths = {r.path for r in iter_mounted_routes(router)}
     for p in (
         "/growth/content/carousel",
         "/growth/content/meme",

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import asyncio
 
+from tests._api_helpers import iter_mounted_routes
+
 
 def test_telephony_readiness_checks(monkeypatch):
     from app.telephony import telephony_readiness as tr
@@ -53,7 +55,7 @@ def test_new_staff_in_roster():
 def test_ops_routes_registered():
     from app.api.growth import router
 
-    paths = {r.path for r in router.routes}
+    paths = {r.path for r in iter_mounted_routes(router)}
     assert "/growth/infra/telephony-readiness" in paths
     assert "/growth/revenue/summary" in paths
     assert "/growth/inbox" in paths

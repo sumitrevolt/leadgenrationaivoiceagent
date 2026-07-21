@@ -40,17 +40,18 @@ def upgrade() -> None:
             sa.Column("id", sa.String(36), primary_key=True),
             sa.Column("name", sa.String(100), nullable=False),
             sa.Column("agent_code", sa.String(20), index=True),
-            sa.Column(
-                "current_client_id", sa.String(36), sa.ForeignKey("clients.id")
-            ),
+            sa.Column("current_client_id", sa.String(36), sa.ForeignKey("clients.id")),
             sa.Column("current_client_name", sa.String(255)),
-            sa.Column(
-                "current_campaign_id", sa.String(36), sa.ForeignKey("campaigns.id")
-            ),
+            sa.Column("current_campaign_id", sa.String(36), sa.ForeignKey("campaigns.id")),
             sa.Column(
                 "status",
                 sa.Enum(
-                    "IDLE", "CALLING", "SCRAPING", "PAUSED", "ERROR", "OFFLINE",
+                    "IDLE",
+                    "CALLING",
+                    "SCRAPING",
+                    "PAUSED",
+                    "ERROR",
+                    "OFFLINE",
                     name="agentstatus",
                 ),
                 server_default="IDLE",
@@ -84,9 +85,7 @@ def upgrade() -> None:
             sa.Column("meta_json", sa.Text(), server_default="{}"),
             sa.Column("created_at", sa.DateTime(), nullable=False),
         )
-        op.create_index(
-            "ix_agent_events_member_time", "agent_events", ["member", "created_at"]
-        )
+        op.create_index("ix_agent_events_member_time", "agent_events", ["member", "created_at"])
         op.create_index("ix_agent_events_time", "agent_events", ["created_at"])
 
 
@@ -96,3 +95,16 @@ def downgrade() -> None:
             op.drop_table(tbl)
         except Exception:
             pass
+    # sa.Enum(name="agentstatus") on agents.status implicitly CREATEs a Postgres
+    # TYPE on upgrade, but op.drop_table does NOT drop that TYPE. Without removing
+    # it here, a downgrade -> upgrade round-trip fails with
+    # "type agentstatus already exists" (the CI Postgres round-trip gate).
+    # The only dependent (agents.status) is dropped above, so the TYPE has no
+    # remaining dependents at this point. IF EXISTS matches this migration's
+    # already-idempotent contract (guarded upgrade, try/except downgrade), and is
+    # NOT a substitute for ordering — the drop is correctly sequenced after the
+    # dependent tables. Guarded to Postgres: SQLite maps Enum to VARCHAR+CHECK and
+    # has no TYPE object, so DROP TYPE is invalid there.
+    bind = op.get_bind()
+    if bind.dialect.name == "postgresql":
+        op.execute("DROP TYPE IF EXISTS agentstatus")
