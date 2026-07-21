@@ -91,7 +91,6 @@ COPY --chown=appuser:appgroup frontend/ ./frontend/
 COPY --chown=appuser:appgroup data/ ./data/
 # Project skills — skill_pack inhe VPS agents ko runtime pe serve karta hai
 COPY --chown=appuser:appgroup .claude/skills/ ./.claude/skills/
-COPY --chown=appuser:appgroup .agents/skills/ ./.agents/skills/
 RUN chown -R appuser:appgroup /app
 # Embedding model BAKE (2026-06-12 prod-down lesson): cache missing hone par
 # fastembed runtime me HuggingFace se download karta hai -> event-loop hang ->
