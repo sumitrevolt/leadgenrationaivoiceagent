@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 
 from app.api.admin import create_access_token
 from app.main import app
+from tests._api_helpers import iter_mounted_routes
 
 _TOK = create_access_token("studio-test-client", "studio@test.com", "customer")
 _H = {"Authorization": f"Bearer {_TOK}", "Content-Type": "application/json"}
@@ -17,7 +18,10 @@ _POST_TOOLS = [
     ("/api/customer/studio/post", {"occasion": "Diwali", "offer": "20% off"}),
     ("/api/customer/studio/calendar", {"days": 7}),
     ("/api/customer/studio/whatsapp", {"occasion": "Weekend sale"}),
-    ("/api/customer/studio/review-reply", {"review_text": "Bahut accha service, fast!", "rating": 5}),
+    (
+        "/api/customer/studio/review-reply",
+        {"review_text": "Bahut accha service, fast!", "rating": 5},
+    ),
     ("/api/customer/studio/gbp-text", {"services": ["Repair", "Installation"]}),
     ("/api/customer/studio/ads", {"offer": "Free demo"}),
     ("/api/customer/studio/hashtags", {"count": 15}),
@@ -36,7 +40,10 @@ _POST_TOOLS = [
     ("/api/customer/studio/carousel", {"topic": "tips", "slides": 3}),
     ("/api/customer/studio/bio-page", {}),
     ("/api/customer/studio/lead-magnet", {}),
-    ("/api/customer/studio/negative-review-rescue", {"review_text": "Late service tha", "rating": 1}),
+    (
+        "/api/customer/studio/negative-review-rescue",
+        {"review_text": "Late service tha", "rating": 1},
+    ),
     ("/api/customer/studio/budget-suggest", {"avg_deal_value": 20000, "target_leads": 10}),
     ("/api/customer/studio/customer-reminder", {"kind": "renewal"}),
     ("/api/customer/studio/appointment-assistant", {}),
@@ -59,16 +66,35 @@ _POST_TOOLS = [
 
 # Pure-logic "sections" tools (GET, zero-LLM)
 _SECTION_TOOLS = [
-    "business-description", "brand-palette", "customer-avatar", "seasonal-offers",
-    "local-event-campaign", "case-study", "grid-planner", "highlights", "faq-page",
-    "schema-markup", "conversion-tracking", "lost-lead-reason", "complaint-recovery", "ugc-request",
-    "nps-survey", "whatsapp-catalog", "click-to-whatsapp-ad", "sms-pack", "aeo-checklist",
-    "loyalty-program", "rank-check-guide", "booking-link", "newsletter-outline", "evergreen-ideas",
+    "business-description",
+    "brand-palette",
+    "customer-avatar",
+    "seasonal-offers",
+    "local-event-campaign",
+    "case-study",
+    "grid-planner",
+    "highlights",
+    "faq-page",
+    "schema-markup",
+    "conversion-tracking",
+    "lost-lead-reason",
+    "complaint-recovery",
+    "ugc-request",
+    "nps-survey",
+    "whatsapp-catalog",
+    "click-to-whatsapp-ad",
+    "sms-pack",
+    "aeo-checklist",
+    "loyalty-program",
+    "rank-check-guide",
+    "booking-link",
+    "newsletter-outline",
+    "evergreen-ideas",
 ]
 
 
 def test_studio_routes_mounted():
-    paths = {getattr(r, "path", "") for r in app.routes}
+    paths = {r.path for r in iter_mounted_routes(app)}
     for p in [
         "/api/customer/studio/tools",
         "/api/customer/studio/post",
@@ -97,26 +123,84 @@ def test_studio_tools_list():
     d = r.json()
     assert d["ok"] is True and d["count"] == 87
     assert {t["key"] for t in d["tools"]} >= {
-        "ai-inbox", "re-engagement", "listings", "website-widget", "aeo-checklist",
-        "whatsapp-catalog", "sms-pack", "nps-survey", "loyalty-program",
-        "meme", "multilang-post", "trends", "partnerships", "business-card",
-        "email-signature", "reviews-widget", "niche-pack", "missed-call-reply",
-        "sentiment", "community-content", "evergreen-ideas", "gbp-audit",
+        "ai-inbox",
+        "re-engagement",
+        "listings",
+        "website-widget",
+        "aeo-checklist",
+        "whatsapp-catalog",
+        "sms-pack",
+        "nps-survey",
+        "loyalty-program",
+        "meme",
+        "multilang-post",
+        "trends",
+        "partnerships",
+        "business-card",
+        "email-signature",
+        "reviews-widget",
+        "niche-pack",
+        "missed-call-reply",
+        "sentiment",
+        "community-content",
+        "evergreen-ideas",
+        "gbp-audit",
     }
     assert {t["key"] for t in d["tools"]} >= {
-        "post", "ads", "review-reply", "hashtags", "festival-post", "poster",
-        "review-request", "followup-sequence", "speed-followup", "reel-script",
-        "win-back", "quote-draft", "next-best-action", "competitor", "faq-reply",
-        "carousel", "bio-page", "lead-magnet", "negative-review-rescue",
-        "photo-reminder", "budget-suggest", "customer-reminder", "appointment-assistant",
-        "month-planner", "templates", "blog", "landing-audit", "testimonial",
-        "repurpose", "referral", "roi-calculator", "objection-handler",
-        "best-time", "owner-brief", "growth-coach",
-        "business-description", "service-menu", "coupon", "brand-palette",
-        "customer-avatar", "seasonal-offers", "local-event-campaign", "case-study",
-        "grid-planner", "highlights", "voiceover", "youtube-metadata", "faq-page",
-        "service-area", "schema-markup", "conversion-tracking", "lost-lead-reason",
-        "complaint-recovery", "ugc-request",
+        "post",
+        "ads",
+        "review-reply",
+        "hashtags",
+        "festival-post",
+        "poster",
+        "review-request",
+        "followup-sequence",
+        "speed-followup",
+        "reel-script",
+        "win-back",
+        "quote-draft",
+        "next-best-action",
+        "competitor",
+        "faq-reply",
+        "carousel",
+        "bio-page",
+        "lead-magnet",
+        "negative-review-rescue",
+        "photo-reminder",
+        "budget-suggest",
+        "customer-reminder",
+        "appointment-assistant",
+        "month-planner",
+        "templates",
+        "blog",
+        "landing-audit",
+        "testimonial",
+        "repurpose",
+        "referral",
+        "roi-calculator",
+        "objection-handler",
+        "best-time",
+        "owner-brief",
+        "growth-coach",
+        "business-description",
+        "service-menu",
+        "coupon",
+        "brand-palette",
+        "customer-avatar",
+        "seasonal-offers",
+        "local-event-campaign",
+        "case-study",
+        "grid-planner",
+        "highlights",
+        "voiceover",
+        "youtube-metadata",
+        "faq-page",
+        "service-area",
+        "schema-markup",
+        "conversion-tracking",
+        "lost-lead-reason",
+        "complaint-recovery",
+        "ugc-request",
     }
     assert "niche" in d["context"]
 
@@ -154,8 +238,15 @@ def test_studio_post_tools_never_empty():
         d = r.json()
         assert d.get("ok") is True, f"{path} not ok"
         # each tool returns a non-empty payload under one of these keys
-        payload = (d.get("result") or d.get("items") or d.get("messages")
-                   or d.get("actions") or d.get("library") or d.get("brief") or d.get("sections"))
+        payload = (
+            d.get("result")
+            or d.get("items")
+            or d.get("messages")
+            or d.get("actions")
+            or d.get("library")
+            or d.get("brief")
+            or d.get("sections")
+        )
         assert payload, f"{path} returned empty payload"
 
 

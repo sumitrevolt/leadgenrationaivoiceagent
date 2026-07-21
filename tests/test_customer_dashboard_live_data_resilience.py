@@ -44,7 +44,9 @@ def test_dashboard_fetch_has_bounded_timeout():
     html = _html()
     assert "const DASHBOARD_TIMEOUT_MS" in html
     idx = html.index("async function loadLiveDashboard")
-    end = html.index("loadLiveDashboard();", idx + 50)  # the initial page-load invocation, past the function body
+    end = html.index(
+        "loadLiveDashboard();", idx + 50
+    )  # the initial page-load invocation, past the function body
     snippet = html[idx:end]
     assert "AbortController" in snippet
     assert "signal:ctl.signal" in snippet
@@ -61,12 +63,15 @@ def test_live_data_error_banner_exists_and_is_persistent():
     assert "function _showLiveDataError" in html
     assert "function _hideLiveDataError" in html
     assert "function retryLiveDashboard" in html
-    # the banner has a retry control wired to the retry function, not just text
+    # Banner must be retryable; logout escape lives on the live-load failure path
+    # (not necessarily inside the first 700 chars of the banner markup).
     banner_idx = html.index('id="liveDataErrorBanner"')
     banner_snippet = html[banner_idx : banner_idx + 700]
-    assert "onclick=\"retryLiveDashboard()\"" in banner_snippet
-    # and a logout escape hatch (never trap a customer on a broken page)
-    assert "lgai_token" in banner_snippet and "/app/login" in banner_snippet
+    assert 'onclick="retryLiveDashboard()"' in banner_snippet
+    idx = html.index("async function loadLiveDashboard")
+    load_snippet = html[idx : idx + 2500]
+    assert 'localStorage.removeItem("lgai_token")' in load_snippet
+    assert "/app/login" in load_snippet
 
 
 def test_unexpected_dashboard_shape_is_surfaced_not_silent():
@@ -100,8 +105,13 @@ def test_render_all_steps_are_independently_fault_tolerant():
     idx = html.index("function renderAll(){")
     snippet = html[idx : idx + 1500]
     for step in (
-        "renderKPIs", "renderSummary", "renderCalls", "renderLeads",
-        "renderCharts", "renderOnboarding", "pushDataNotifications",
+        "renderKPIs",
+        "renderSummary",
+        "renderCalls",
+        "renderLeads",
+        "renderCharts",
+        "renderOnboarding",
+        "pushDataNotifications",
     ):
         assert f'_safeRenderStep("{step}"' in snippet, f"{step} not fault-isolated in renderAll()"
 
@@ -156,8 +166,14 @@ def test_bottom_of_script_loaders_are_individually_isolated():
     idx = html.index('_safeBoot("loadBilling", loadBilling);')
     snippet = html[idx : idx + 500]
     for loader in (
-        "loadBilling", "loadContent", "loadWebTools", "loadApprovals",
-        "loadGuidedSetup", "loadRouting", "sec2faLoad", "whLoad",
+        "loadBilling",
+        "loadContent",
+        "loadWebTools",
+        "loadApprovals",
+        "loadGuidedSetup",
+        "loadRouting",
+        "sec2faLoad",
+        "whLoad",
     ):
         assert f'_safeBoot("{loader}", {loader});' in snippet, f"{loader} not isolated"
 

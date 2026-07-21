@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import pytest
 
+from tests._api_helpers import api_error_message
+
 
 def test_login_bad_email_emits_login_failed_row(client, monkeypatch):
     """Unknown email → 401 uniform message + one login_failed log row with
@@ -27,11 +29,14 @@ def test_login_bad_email_emits_login_failed_row(client, monkeypatch):
 
     r = client.post(
         "/api/customer/auth/login",
-        json={"email": "nonexistent@example.com", "password": "whatever"},
+        json={
+            "email": "nonexistent@example.com",
+            "password": "whatever",  # pragma: allowlist secret
+        },
     )
     assert r.status_code == 401
     # Uniform message MUST NOT reveal which factor failed.
-    assert "Invalid email or password" in (r.json().get("detail") or "")
+    assert "Invalid email or password" in api_error_message(r)
 
     rows = [c for c in captured if c.get("job_type") == "login_failed"]
     assert len(rows) == 1, f"expected exactly 1 login_failed row, got {len(rows)}"
@@ -50,9 +55,15 @@ def test_login_bad_password_emits_login_failed_row(client, monkeypatch):
     import app.api.customer_auth as ca
     import app.platform.automation_log_service as als
 
-    monkeypatch.setattr(ca, "_find", lambda e: {
-        "email": e, "client_id": "c_known", "password_hash": "pbkdf2$120000$deadbeef$abcd",
-    })
+    monkeypatch.setattr(
+        ca,
+        "_find",
+        lambda e: {
+            "email": e,
+            "client_id": "c_known",
+            "password_hash": "pbkdf2$120000$deadbeef$abcd",  # pragma: allowlist secret
+        },
+    )
     monkeypatch.setattr(ca, "_verify", lambda pw, stored: False)
 
     captured: list[dict] = []
@@ -60,10 +71,10 @@ def test_login_bad_password_emits_login_failed_row(client, monkeypatch):
 
     r = client.post(
         "/api/customer/auth/login",
-        json={"email": "known@example.com", "password": "wrong"},
+        json={"email": "known@example.com", "password": "wrong"},  # pragma: allowlist secret
     )
     assert r.status_code == 401
-    assert "Invalid email or password" in (r.json().get("detail") or "")
+    assert "Invalid email or password" in api_error_message(r)
 
     rows = [c for c in captured if c.get("job_type") == "login_failed"]
     assert len(rows) == 1
@@ -75,12 +86,18 @@ def test_login_success_emits_no_failure_log(client, monkeypatch):
     """Successful login MUST NOT emit a failure row (no false positives in the
     admin panel). Also verifies the success path is untouched by Loop 8."""
     import app.api.customer_auth as ca
-    import app.platform.customer_totp as totp
     import app.platform.automation_log_service as als
+    import app.platform.customer_totp as totp
 
-    monkeypatch.setattr(ca, "_find", lambda e: {
-        "email": e, "client_id": "c_ok", "password_hash": "stored",
-    })
+    monkeypatch.setattr(
+        ca,
+        "_find",
+        lambda e: {
+            "email": e,
+            "client_id": "c_ok",
+            "password_hash": "stored",  # pragma: allowlist secret
+        },
+    )
     monkeypatch.setattr(ca, "_verify", lambda pw, stored: True)
     monkeypatch.setattr(totp, "is_enabled", lambda cid: False)
 
@@ -89,7 +106,7 @@ def test_login_success_emits_no_failure_log(client, monkeypatch):
 
     r = client.post(
         "/api/customer/auth/login",
-        json={"email": "ok@example.com", "password": "right"},
+        json={"email": "ok@example.com", "password": "right"},  # pragma: allowlist secret
     )
     assert r.status_code == 200
     assert r.json().get("access_token"), "success path unchanged"
