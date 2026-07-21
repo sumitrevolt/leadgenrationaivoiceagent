@@ -3,8 +3,16 @@ registry (app/platform/agent_registry.py).
 
 These are the Phase-A acceptance tests: they assert the registry reconciles the
 five previously-scattered sources into ONE truth and encodes the §5 compliance
-gates as data. INERT module — these tests import only pure/light modules and do
-not require a DB or a running app.
+gates as data. These tests import only pure/light modules and do not require a
+DB or a running app.
+
+NOTE (2026-07-21): "INERT" previously appeared here and in the module docstring
+of agent_registry.py. That was wrong — the registry IS load-bearing at runtime
+(agent_runtime.evaluate_policy L507/L516/L521 blocks RED-lane dispatch off it).
+The tests below are therefore SAFETY tests, not documentation tests: if
+test_cold_outbound_voice_is_red_and_hard_off or
+test_lane_distribution_matches_scorecard_shape fails, cold outbound calling may
+have become dispatchable. Do not "fix" such a failure by relaxing the assertion.
 """
 
 from __future__ import annotations
