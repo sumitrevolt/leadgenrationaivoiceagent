@@ -1093,7 +1093,9 @@ def create_command(
     if idempotency_key:
         existing = store.find_by_idempotency(idempotency_key)
         if existing:
-            return {"ok": True, "deduped": True, "command": existing, "plan": plan}
+            return _normalize_command_result(
+                {"ok": True, "deduped": True, "command": existing, "plan": plan}
+            )
 
     cid = "ocmd_" + uuid.uuid4().hex[:12]
     corr = "corr_" + uuid.uuid4().hex[:12]
@@ -1151,7 +1153,9 @@ def create_command(
     saved = store.insert_command(cmd)
     # If insert deduped via unique constraint race
     if saved.get("command_id") != cid and saved.get("idempotency_key") == idempotency_key:
-        return {"ok": True, "deduped": True, "command": saved, "plan": plan}
+        return _normalize_command_result(
+            {"ok": True, "deduped": True, "command": saved, "plan": plan}
+        )
     audit(
         actor,
         "command_create",
@@ -1163,7 +1167,27 @@ def create_command(
             "tenant_id": cmd.get("tenant_id"),
         },
     )
-    return {"ok": True, "command": saved, "plan": plan}
+    return _normalize_command_result({"ok": True, "command": saved, "plan": plan})
+
+
+def _normalize_command_result(out: dict[str, Any]) -> dict[str, Any]:
+    """Stable top-level command_id (+ status) while keeping nested ``command`` for legacy.
+
+    Production canary saw adapters reading top-level command_id as null when only
+    the nested dictionary shape was present. Do not invent runtime_run_id here —
+    a command is not yet a runtime run.
+    """
+    cmd = out.get("command") if isinstance(out.get("command"), dict) else {}
+    cid = out.get("command_id") or (cmd.get("command_id") if cmd else None)
+    status = out.get("status") or (cmd.get("status") if cmd else None)
+    if cid:
+        out["command_id"] = cid
+    if status:
+        out["status"] = status
+    # Compatibility aliases used by some Owner OS / OpenClaw projections.
+    if cid and not out.get("id"):
+        out["id"] = cid
+    return out
 
 
 def _update_command(command_id: str, **fields: Any) -> dict[str, Any]:
