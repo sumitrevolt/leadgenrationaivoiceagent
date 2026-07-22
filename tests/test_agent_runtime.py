@@ -30,24 +30,16 @@ def isolated_runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_DLQ_PATH", str(tmp_path / "dlq.jsonl"))
     monkeypatch.setattr(rt, "_BACKOFF_BASE_S", 0.0)
     monkeypatch.setattr(rt, "_kill_engaged", lambda key: False)
-
-    idem_store: dict[str, bool] = {}
-
-    def _fake_seen(key, ttl_s=86400):
-        if key in idem_store:
-            return True
-        idem_store[key] = True
-        return False
-
-    monkeypatch.setattr(rt, "_idem_seen", _fake_seen)
-    monkeypatch.setattr(rt, "_idem_forget", lambda key: idem_store.pop(key, None))
     monkeypatch.setattr(rt, "_approval_approved", lambda tenant, ref: False)
 
     caps_snapshot = dict(rt._CAPABILITIES)
     monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    monkeypatch.setenv("AGENT_RUNTIME_IDEM_BACKEND", "memory")
     from app.platform import agent_runtime_cancellation as crc
+    from app.platform import agent_runtime_idempotency as arid
 
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -59,6 +51,7 @@ def isolated_runtime(tmp_path, monkeypatch):
     rt._CAPABILITIES.clear()
     rt._CAPABILITIES.update(caps_snapshot)
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -185,7 +178,9 @@ async def test_idempotent_duplicate_suppressed():
     assert dup.reason == "duplicate_suppressed"
 
 
-async def test_failed_run_releases_idempotency_key():
+async def test_failed_run_retains_key_blocks_same_key_retry():
+    """Terminal failure is durable — same key must not re-execute (need new key)."""
+
     async def boom(ctx):
         raise ValueError("x")
 
@@ -194,7 +189,10 @@ async def test_failed_run_releases_idempotency_key():
     assert r1.status == "failed"
     _register("kavya", "boomer", _ok_cap)  # fixed now
     r2 = await rt.submit("kavya", "boomer", idempotency_key="k2")
-    assert r2.status == "succeeded"  # failure ne key nahi jalayi
+    assert r2.status == "skipped"
+    assert r2.reason == "duplicate_suppressed"
+    r3 = await rt.submit("kavya", "boomer", idempotency_key="k2-retry")
+    assert r3.status == "succeeded"
 
 
 # ---------------------------------------------------------------------- #

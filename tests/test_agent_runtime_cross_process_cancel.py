@@ -45,6 +45,7 @@ def test_cross_process_cancellation_via_file_store(tmp_path):
         sys.path.insert(0, {str(ROOT)!r})
         os.environ["AGENT_RUNTIME_CANCEL_BACKEND"] = "file"
         os.environ["AGENT_RUNTIME_CANCEL_FILE"] = {str(store)!r}
+        os.environ["AGENT_RUNTIME_IDEM_BACKEND"] = "memory"
         os.environ["AGENT_RUNTIME"] = "1"
         os.environ["SRE_AGENT"] = "1"
         from app.platform import agent_runtime as rt
@@ -55,8 +56,6 @@ def test_cross_process_cancellation_via_file_store(tmp_path):
             return {{}}
 
         rt._kill_engaged = lambda key: False
-        rt._idem_seen = lambda key, ttl_s=86400: False
-        rt._idem_forget = lambda key: None
         rt._approval_approved = lambda tenant, ref: False
         rt._owner_admission_blocked = lambda aid: (False, "")
         rt._BACKOFF_BASE_S = 0.0

@@ -6,10 +6,9 @@ import asyncio
 
 import pytest
 
-from app.billing import idempotency as idem
 from app.platform import agent_runtime as rt
 from app.platform import agent_runtime_cancellation as crc
-from app.platform.agent_runtime import AgentCapability, AgentTask, SkipTask
+from app.platform.agent_runtime import AgentCapability, AgentTask
 
 
 @pytest.fixture(autouse=True)
@@ -19,12 +18,14 @@ def _iso(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_DLQ_PATH", str(tmp_path / "dlq.jsonl"))
     monkeypatch.setattr(rt, "_BACKOFF_BASE_S", 0.0)
     monkeypatch.setattr(rt, "_kill_engaged", lambda key: False)
-    monkeypatch.setattr(rt, "_idem_seen", lambda key, ttl_s=86400: False)
-    monkeypatch.setattr(rt, "_idem_forget", lambda key: None)
     monkeypatch.setattr(rt, "_approval_approved", lambda tenant, ref: False)
     monkeypatch.setattr(rt, "_owner_admission_blocked", lambda aid: (False, ""))
     monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    monkeypatch.setenv("AGENT_RUNTIME_IDEM_BACKEND", "memory")
+    from app.platform import agent_runtime_idempotency as arid
+
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
     caps = dict(rt._CAPABILITIES)
@@ -36,6 +37,7 @@ def _iso(tmp_path, monkeypatch):
     rt._CAPABILITIES.clear()
     rt._CAPABILITIES.update(caps)
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -187,10 +189,12 @@ async def test_store_unavailable_blocks_before_engine(monkeypatch):
 
 
 def test_idempotency_backend_status_truthful():
-    st = idem.backend_status()
-    assert st["key_prefix"] == "idem:"
-    assert "fail_open_on_redis_error" in st
-    assert st["idempotency_backend"] in ("redis", "memory")
+    from app.platform import agent_runtime_idempotency as arid
+
+    st = arid.backend_status()
+    assert st["key_prefix"].startswith("agentrt:idem:")
+    assert st.get("fail_open_on_redis_error") is False
+    assert st["idempotency_backend"] in ("redis", "memory", "file")
 
 
 async def test_owner_os_art_cancel_shape(monkeypatch):
