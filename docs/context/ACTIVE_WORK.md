@@ -17,18 +17,20 @@
 
 ---
 
-## WS-3 OpenClaw Owner Copilot — LOCAL CLOSURE DONE (PR)
+## WS-3 OpenClaw Daily Video Production Cell — LOCAL COMPLETE (flags OFF)
 - **ID:** WS-3
-- **Business outcome:** Owner has NL Copilot over 31 agents without bypassing Owner OS
+- **Business outcome:** Daily enterprise videos per tenant with WhatsApp/dashboard approval before Postiz publish
 - **Owner:** Platform / Sumit
-- **Branch:** `feat/openclaw-owner-copilot`
-- **Acceptance (Stage A local):**
-  - Real OpenClaw Gateway → LeadGen typed adapter ✅
-  - GREEN/AMBER/RED + idempotency ✅
-  - Agents = 31 · Calling HARD OFF ✅
-  - Browser Owner Copilot tab smoke ✅
-  - Flag OFF default ✅
-  - Prod deploy NOT done
-- **Current state:** Local real-gateway verified; review-ready PR; production rollout pending auth
-- **Next exact action:** PR review → explicit Stage A prod deploy authorization
-- **Out of scope this PR:** Boss multi-agent missions · Prometheus counters
+- **Branch:** `feat/openclaw-daily-video-production`
+- **Acceptance (Stage 0 local):**
+  - Graphify reuse of video_ad_cycle/pipeline/approval/postiz ✅
+  - Harness `video.*` tools registered (8) ✅
+  - State machine + version-bound publish gate ✅
+  - Feedback classifier (ambiguous ≠ approve) ✅
+  - Real local renders 9:16/1:1/16:9 + ffprobe ✅
+  - pytest 50 green + prod_check PASS ✅
+  - Flags default OFF ✅
+  - Prod deploy NOT done; WhatsApp/Jiya canary NOT done
+- **Current state:** Deploy-ready code on feature branch; all VIDEO_* flags OFF
+- **Next exact action:** User review → commit/PR when asked → Stage 2 own-brand canary only after explicit flag authorization
+- **Out of scope this wave:** Remotion, paid APIs, platform_dial, Swara/voice edits

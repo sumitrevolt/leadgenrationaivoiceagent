@@ -11,5 +11,6 @@ Link ADRs; do not duplicate full text. Full ADRs live in `memory/decisions.md`.
 | ADR-128 Agent Runtime + pilots | Shared fail-closed runtime | 2026-07-19/20 | agent_runtime* | Inert registry-only Phase-A |
 | ADR-123 identity canonicalize | Jiya portal orphan drafts | 2026-07-19 | customer_auth, delivery status | Raw billing id on marketing reads |
 | platform_dial HARD OFF | User mandate | 2026-07-05 | Swara dial | Re-enable without allowlist |
+| ADR-132 Video Production Cell | Reuse video_ad_cycle; harness video.*; flags OFF | 2026-07-22 | video_production, postiz, WA | Second agent framework / paid render |
 | Production SHA truth = `/health.version` | Provenance | 2026-07-14 ADR-097 | deploy | CLAUDE memory without probe |
 | Delivery assurance = read-only compose under nikhil | Paid customer miss detection without new persona | 2026-07-19/20 | delivery_assurance | Inventing 32nd delivery agent |

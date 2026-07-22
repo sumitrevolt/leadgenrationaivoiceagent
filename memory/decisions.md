@@ -2169,3 +2169,28 @@ Consequence: Contaminated numbers get VOID after deploy (ops plan); next real in
 **Rejected/NOT done:** naya enforcement enable, batch canary rerun, real-provider LLM call for proof, deploy/commit/push/PR, unsafe tool GREEN, staff_supervisor gap chhupana.
 
 **Consequence:** Sab 5 families shadow + structured-contract + registry-backed (real proof). **Overall: NOT READY FOR GLOBAL ENFORCEMENT** (no prod persistence/multi-worker-idempotency/monitoring/prod-sandbox/prod-canary). Local implementation coherent + testable (470 tests green) → PR-ready. Batch = only enforcement-prepared family (C4 local, canary done+rolled back; no standing authorization). STAFF=31; Kavach non-dispatchable; Owner OS sole authority; calling+platform_dial+CODE_EXEC HARD OFF; all enforcement OFF. Kuch commit/push/deploy nahi; `.env`/VPS untouched. Next: accumulated harness implementation ko reviewable isolated commit/PR ke liye prepare karo.
+
+## ADR-132 (2026-07-22) — OpenClaw Daily Video Production Cell = REUSE video_ad_cycle [LOCAL Stage 0, flags OFF]
+**Context:** Master prompt asked for multi-agent daily video production with customer WhatsApp approval loop + Postiz publish. Graphify already showed a strong path: `video_ad_cycle` + `video_pipeline` (FFmpeg) + `content_approval` + `postiz_publish` + harness registry. Inventing a 32nd persona / second social/WhatsApp stack was forbidden.
+
+**Decision — REUSE + EXTEND (not rewrite):**
+- Authoritative cell: `app/marketing/video_production/` wraps existing cycle. Roles map to STAFF **isha** (brief/script/render/review) + **zara** (publish) + **arnav** (QA/compliance lane on tools) — Boss/Owner OS coordinates. No 32nd agent / no second framework.
+- Why reuse: production-proven approval + Postiz + WAHA paths already exist; cell adds governance (state machine, version bind, harness tools, flags) without bypassing Owner OS.
+- State machine (`states.py`) sits beside legacy statuses; `workflow_state` stamped on records. Publish fail-closed via `publish_gate.assert_can_publish` (version-bound `approved_version`). Editing/superseding invalidates prior approval (`final_approved=False` on changes).
+- WhatsApp review (`review_whatsapp.py`) uses existing WAHA/selfhost path; `VIDEO_WHATSAPP_REVIEW_ENABLED=0` default; idempotent send; NL feedback → `classify_feedback` (ambiguous ≠ approve).
+- Harness: 8 `video.*` tools registered in canonical registry (GREEN draft/render/QA; AMBER WA send + approve + schedule). `VIDEO_HARNESS_ENFORCE=0` default.
+- Flags (all OFF): `VIDEO_PRODUCTION_ENABLED`, `VIDEO_DAILY_SCHEDULER_ENABLED`, `VIDEO_CUSTOMER_REVIEW_ENABLED`, `VIDEO_WHATSAPP_REVIEW_ENABLED`, `VIDEO_SOCIAL_PUBLISH_ENABLED`, `VIDEO_HARNESS_ENFORCE`, `VIDEO_OWN_BRAND_ENABLED`. Legacy `VIDEO_AD_CYCLE` still drives scheduler when production master OFF.
+- Render: local FFmpeg + Pillow; **EdgeTTS = optional free network adapter** (not fully local) with silent-slide fallback when TTS fails. Ratios 9:16 / 1:1 / 16:9. No paid APIs.
+- Security: tenant-scoped list/approve; FFmpeg args as argv lists (no shell); music niche path-sanitized; customer phone only last4 in send receipts; proof MP4s stay under gitignored `data/*`.
+- UI: ClientOps card in `automation.html`; customer `/api/customer/videos` + dashboard Video Review card.
+- Rollout: Stage 0 local → Stage 1 shadow harness → Stage 2 own-brand → Stage 3 one Jiya preview → Stage 4 allowlist. **Not "production ready"** until live WA/Postiz/browser canaries proven.
+
+**Verification (Stage 0):**
+- Targeted pytest video suites green
+- `scripts/video_production_local_proof.py` → 3 ratios + ffprobe (local `data/video_production_proof/`, gitignored)
+- `prod_check.py` PASS
+- Calling / platform_dial untouched HARD OFF
+
+**Known limitations:** authenticated browser E2E not run; live WhatsApp delivery unproven; live Postiz under production-cell mode unproven; Jiya canary not started; prod deploy not performed.
+
+**Rollback:** unset all `VIDEO_*` flags (default already OFF); cell imports are fail-soft. Legacy `video_ad_cycle` path unchanged when `VIDEO_PRODUCTION_ENABLED=0`. Code rollback = revert commit if needed.
