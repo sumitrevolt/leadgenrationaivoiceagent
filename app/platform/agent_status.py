@@ -61,13 +61,24 @@ def _iso() -> str:
 
 
 def _flag_enabled(flag: str, *, require_explicit: bool = False) -> bool:
-    """Blank primary_flag: historical 'ungated/core'. Dispatchable pilots must not
-    use blank flags (validate_registry + evaluate_policy enforce). Status UI treats
-    blank + require_explicit as disabled so we never project 'always on' for pilots.
+    """Blank primary_flag: historical 'ungated/core' for non-dispatchable inventory.
+
+    Dispatchable pilots must not use blank flags (validate_registry + evaluate_policy).
+    When require_explicit=True (pilots), blank ≠ always-on — project disabled.
     """
     if not flag:
         return not require_explicit
     return os.environ.get(flag, "").strip().lower() in _TRUE
+
+
+def _is_dispatchable_pilot(agent_id: str) -> bool:
+    """True iff agent is in the runtime PILOT_AGENTS allowlist. Fail-open False."""
+    try:
+        from app.platform.agent_runtime import PILOT_AGENTS
+
+        return bool(agent_id) and agent_id in PILOT_AGENTS
+    except Exception:
+        return False
 
 
 def _kill_engaged(keys: tuple[str, ...]) -> str | None:
@@ -123,9 +134,12 @@ def resolve_agent_health(
     killed_key: str | None,
 ) -> dict[str, Any]:
     """Honest health for one agent contract + its live signals. Pure, never raises."""
+    primary_flag = getattr(contract, "primary_flag", "")
+    agent_id = getattr(contract, "id", "") or ""
+    # Pilots: blank flag fail-closed. Core/hold inventory (e.g. Neha): blank = ungated.
     enabled = _flag_enabled(
-        getattr(contract, "primary_flag", ""),
-        require_explicit=True,  # blank flag ≠ always-on for status projection
+        primary_flag,
+        require_explicit=_is_dispatchable_pilot(agent_id),
     )
     last_mins = None
     today_actions = 0
@@ -141,12 +155,11 @@ def resolve_agent_health(
     agent_overdue = sorted(jobs & overdue_jobs)
     gap = getattr(contract, "useful_work_gap_min", None)  # None = event-driven
     event_driven = gap is None
-    primary_flag = getattr(contract, "primary_flag", "")
 
     # Priority: kill > disabled(gated) > failing > overdue > (event idle) > periodic window
     if killed_key:
         health = "killed"
-    elif primary_flag and not enabled:
+    elif not enabled:
         health = "disabled"
     elif today_actions > 0 and today_errors >= today_actions:
         health = "failed"
