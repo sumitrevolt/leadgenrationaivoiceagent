@@ -44,7 +44,9 @@ _ANON = {"", "<lambda>", "lambda", "<anonymous>", "?"}
 
 def _hash(obj: Any) -> str:
     try:
-        return hashlib.sha1(json.dumps(obj, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:16]
+        return hashlib.sha1(
+            json.dumps(obj, sort_keys=True, default=str).encode("utf-8"), usedforsecurity=False
+        ).hexdigest()[:16]
     except Exception:
         return "unhashable"
 
@@ -63,8 +65,13 @@ def _diag(agent: str, batch_run_id: str, kind: str, extra: dict) -> None:
         from app.agents.harness import audit
         from app.agents.harness.contracts import RunContext
 
-        audit.record(RunContext(agent=agent, run_id=batch_run_id), None, None,
-                     kind=kind, extra={**extra, "source_loop": _SOURCE_LOOP})
+        audit.record(
+            RunContext(agent=agent, run_id=batch_run_id),
+            None,
+            None,
+            kind=kind,
+            extra={**extra, "source_loop": _SOURCE_LOOP},
+        )
     except Exception:
         pass
 
@@ -99,16 +106,34 @@ def observe_batch_item(
 
     # Resume-skip = diagnostic only, NEVER an executed-action observation.
     if resumed:
-        _diag(aid, batch_run_id, "shadow_resume_skip",
-              {"batch_run_id": batch_run_id, "item_id": item_id, "item_index": item_index,
-               "attempt": attempt, "comparison_verdict": "RESUME_SKIPPED", "resumed": True})
+        _diag(
+            aid,
+            batch_run_id,
+            "shadow_resume_skip",
+            {
+                "batch_run_id": batch_run_id,
+                "item_id": item_id,
+                "item_index": item_index,
+                "attempt": attempt,
+                "comparison_verdict": "RESUME_SKIPPED",
+                "resumed": True,
+            },
+        )
         return None
 
     dedup_key = f"{_SOURCE_LOOP}:{batch_run_id}:{item_id}:{attempt}:{operation_name}"
     if _seen(dedup_key):
-        _diag(aid, batch_run_id, "shadow_dedup",
-              {"dedup_key": dedup_key, "item_id": item_id, "attempt": attempt,
-               "comparison_verdict": "DUPLICATE_SUPPRESSED"})
+        _diag(
+            aid,
+            batch_run_id,
+            "shadow_dedup",
+            {
+                "dedup_key": dedup_key,
+                "item_id": item_id,
+                "attempt": attempt,
+                "comparison_verdict": "DUPLICATE_SUPPRESSED",
+            },
+        )
         return None
 
     try:
@@ -118,14 +143,14 @@ def observe_batch_item(
 
         op = (operation_name or "").strip()
         stable = op not in _ANON
-        if tool_name:                    # explicit CANONICAL registry identity
+        if tool_name:  # explicit CANONICAL registry identity
             tool = tool_name
             tver = tool_version or "1.0.0"
-        else:                            # legacy = unregistered internal action
+        else:  # legacy = unregistered internal action
             tool = f"batch.execute.{op}" if stable else "batch.execute.__anonymous__"
             tver = "v1"
         args = operation_arguments or {}
-        risk = RiskClass.READ            # internal batch item = read/compute
+        risk = RiskClass.READ  # internal batch item = read/compute
         shadow_ref = f"shadow:{batch_run_id}:{item_id}:{attempt}"
 
         class _AnyArgs(BaseModel):
@@ -138,37 +163,66 @@ def observe_batch_item(
         reg.register(tool, _tripwire, _AnyArgs, risk)
 
         req = ToolCall(
-            name=tool, args=args, reason="shadow observation of batch item",
-            tool_version=tver, risk_class=risk, idempotency_key=shadow_ref,
-            budget_scope="run", expected_effect=f"batch {batch_name} item {item_id}",
+            name=tool,
+            args=args,
+            reason="shadow observation of batch item",
+            tool_version=tver,
+            risk_class=risk,
+            idempotency_key=shadow_ref,
+            budget_scope="run",
+            expected_effect=f"batch {batch_name} item {item_id}",
         )
         ctx = RunContext(
-            run_id=batch_run_id, task_id=batch_run_id, tenant_id=(tenant_id or SYSTEM_TENANT),
-            agent=aid, actor_id="batch_runner", shadow_run_id=shadow_ref,
+            run_id=batch_run_id,
+            task_id=batch_run_id,
+            tenant_id=(tenant_id or SYSTEM_TENANT),
+            agent=aid,
+            actor_id="batch_runner",
+            shadow_run_id=shadow_ref,
             source_loop=_SOURCE_LOOP,
         )
         meta = dict(execution_metadata or {})
         # Anonymous operation identity -> MISSING_CONTEXT (never guessed).
         override = "MISSING_CONTEXT" if (not tool_name and not stable) else None
-        meta.update({
-            "latency_ms": latency_ms, "legacy_tool": tool, "side_effect_class": "internal",
-            "batch_run_id": batch_run_id, "batch_name": batch_name, "item_id": item_id,
-            "item_index": item_index, "attempt": attempt, "operation_name": op or "<anonymous>",
-            "actual_executor": actual_executor or op or "<anonymous>",
-            "normalized_tool": tool, "normalized_arguments_hash": _hash(args),
-            "actual_arguments_hash": _hash(args),
-            "checkpoint_state": checkpoint_state, "resumed": False,
-            "source_run_id": batch_run_id, "parent_action_id": f"{batch_run_id}:{item_id}",
-            "tool_registry_status": ("canonical_registered" if tool_name else "unregistered_internal_action"),
-        })
+        meta.update(
+            {
+                "latency_ms": latency_ms,
+                "legacy_tool": tool,
+                "side_effect_class": "internal",
+                "batch_run_id": batch_run_id,
+                "batch_name": batch_name,
+                "item_id": item_id,
+                "item_index": item_index,
+                "attempt": attempt,
+                "operation_name": op or "<anonymous>",
+                "actual_executor": actual_executor or op or "<anonymous>",
+                "normalized_tool": tool,
+                "normalized_arguments_hash": _hash(args),
+                "actual_arguments_hash": _hash(args),
+                "checkpoint_state": checkpoint_state,
+                "resumed": False,
+                "source_run_id": batch_run_id,
+                "parent_action_id": f"{batch_run_id}:{item_id}",
+                "tool_registry_status": (
+                    "canonical_registered" if tool_name else "unregistered_internal_action"
+                ),
+            }
+        )
         if override:
             meta["verdict_override"] = override
         return Harness(registry=reg).observe(
-            ctx, req, actual_result=actual_result, actual_error=actual_error,
+            ctx,
+            req,
+            actual_result=actual_result,
+            actual_error=actual_error,
             execution_metadata=meta,
         )
     except Exception as e:
         logger.warning("harness.batch_shadow: observation failed (batch unaffected): %s", e)
-        _diag(aid, batch_run_id, "shadow_error",
-              {"error": str(e)[:200], "item_id": item_id, "item_index": item_index})
+        _diag(
+            aid,
+            batch_run_id,
+            "shadow_error",
+            {"error": str(e)[:200], "item_id": item_id, "item_index": item_index},
+        )
         return None

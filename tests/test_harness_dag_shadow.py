@@ -4,16 +4,13 @@ Standalone tests exercise the DAG adapter + Harness.observe with no app deps.
 The final test drives the REAL dag_engine.advance() executor path (skipped where
 the app isn't importable).
 """
+
 import json
 import os
 
 import pytest
 
-from app.agents.harness.adapters import (
-    observe_dag_action,
-    shadow_eligible,
-    shadow_loop_eligible,
-)
+from app.agents.harness.adapters import observe_dag_action, shadow_eligible, shadow_loop_eligible
 
 
 def _env(mp, agents="nikhil", loops="dag_engine", harness="1", shadowf="1", enforce="0"):
@@ -25,17 +22,31 @@ def _env(mp, agents="nikhil", loops="dag_engine", harness="1", shadowf="1", enfo
 
 
 def _obs(**kw):
-    base = dict(dag_run_id="dr1", node_id="A", attempt=0, agent_id="nikhil",
-               tenant_id="", tool_name="dag.noop", arguments={}, actual_result={"ok": True},
-               latency_ms=5, dag_node_status="completed")
+    base = {
+        "dag_run_id": "dr1",
+        "node_id": "A",
+        "attempt": 0,
+        "agent_id": "nikhil",
+        "tenant_id": "",
+        "tool_name": "dag.noop",
+        "arguments": {},
+        "actual_result": {"ok": True},
+        "latency_ms": 5,
+        "dag_node_status": "completed",
+    }
     base.update(kw)
     return observe_dag_action(**base)
 
 
 # ---- eligibility -----------------------------------------------------
 def test_all_off_no_record(monkeypatch):
-    for k in ("AGENT_HARNESS", "AGENT_HARNESS_SHADOW", "AGENT_HARNESS_ENFORCE",
-              "AGENT_HARNESS_CANARY_AGENTS", "AGENT_HARNESS_CANARY_LOOPS"):
+    for k in (
+        "AGENT_HARNESS",
+        "AGENT_HARNESS_SHADOW",
+        "AGENT_HARNESS_ENFORCE",
+        "AGENT_HARNESS_CANARY_AGENTS",
+        "AGENT_HARNESS_CANARY_LOOPS",
+    ):
         monkeypatch.delenv(k, raising=False)
     assert _obs() is None
 
@@ -97,22 +108,34 @@ def test_failed_node_bounded_error(monkeypatch):
 
 def test_retry_distinct_attempt_refs(monkeypatch):
     _env(monkeypatch)
-    r0 = _obs(attempt=0, actual_result=None, actual_error="gate fail",
-              dag_node_status="retry_pending", retry_scheduled=True)
-    r1 = _obs(attempt=1, actual_result=None, actual_error="gate fail",
-              dag_node_status="retry_pending", retry_scheduled=True)
+    r0 = _obs(
+        attempt=0,
+        actual_result=None,
+        actual_error="gate fail",
+        dag_node_status="retry_pending",
+        retry_scheduled=True,
+    )
+    r1 = _obs(
+        attempt=1,
+        actual_result=None,
+        actual_error="gate fail",
+        dag_node_status="retry_pending",
+        retry_scheduled=True,
+    )
     assert r0["comparison_verdict"] == "RETRY_OBSERVED"
     assert r0["shadow_run_id"] == "shadow:dr1:A:0"
     assert r1["shadow_run_id"] == "shadow:dr1:A:1"
     assert r0["shadow_run_id"] != r1["shadow_run_id"]
-    assert r0["run_id"] == r1["run_id"] == "dr1"   # same DAG run
+    assert r0["run_id"] == r1["run_id"] == "dr1"  # same DAG run
 
 
 def test_shadow_failure_swallowed(monkeypatch):
     _env(monkeypatch)
-    monkeypatch.setattr("app.agents.harness.loop.Harness.observe",
-                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
-    assert _obs() is None   # never raises into the DAG
+    monkeypatch.setattr(
+        "app.agents.harness.loop.Harness.observe",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
+    assert _obs() is None  # never raises into the DAG
 
 
 # ---- identity / privacy ---------------------------------------------
@@ -127,23 +150,24 @@ def test_correlation_preserved(monkeypatch):
 def test_agent_and_tenant(monkeypatch):
     _env(monkeypatch)
     assert _obs()["agent"] == "nikhil"
-    assert _obs()["tenant_id"] == "__system__"                # default system scope
+    assert _obs()["tenant_id"] == "__system__"  # default system scope
     assert _obs(tenant_id="client:acme")["tenant_id"] == "client:acme"  # preserved
 
 
 def test_secret_redacted_and_bounded(monkeypatch):
     _env(monkeypatch)
-    big = {"api_key": "sk_live_SECRET", "blob": "x" * 5000, "ok": True}
+    big = {"api_key": "sk_live_SECRET", "blob": "x" * 5000, "ok": True}  # pragma: allowlist secret
     rec = _obs(actual_result=big)
     blob = json.dumps(rec)
     assert "sk_live_SECRET" not in blob and "REDACTED" in blob
-    assert len(rec["legacy_result_summary"]) <= 620            # bounded
+    assert len(rec["legacy_result_summary"]) <= 620  # bounded
 
 
 # ---- explainability --------------------------------------------------
 def test_explainable(monkeypatch, tmp_path):
     _env(monkeypatch)
     from app.agents.harness import audit
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
     _obs(dag_run_id="drE", node_id="A", attempt=0)
     events = audit.replay("drE")
@@ -160,6 +184,7 @@ def test_real_dag_advance_shadow(monkeypatch, tmp_path):
     dag = pytest.importorskip("app.agents.dag_engine")
     plib = pytest.importorskip("app.agents.process_library")
     from app.agents.harness import audit
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
     _env(monkeypatch)
 
@@ -181,24 +206,36 @@ def test_real_dag_advance_shadow(monkeypatch, tmp_path):
     # seed a real run journal: single task node "A" under nikhil identity
     run_id = "dr_test_1"
     graph = {"nodes": {"A": {"kind": "task", "action": "noop"}}, "in": {}, "out": {}}
-    dag._append_event(run_id, "run_started",
-                      {"process": "flow:test", "engine": "dag", "graph": graph,
-                       "inputs": {"_harness_agent_id": "nikhil"}})
+    dag._append_event(
+        run_id,
+        "run_started",
+        {
+            "process": "flow:test",
+            "engine": "dag",
+            "graph": graph,
+            "inputs": {"_harness_agent_id": "nikhil"},
+        },
+    )
 
     import asyncio
+
     out = asyncio.run(dag.advance(run_id))
     assert out["status"] == dag.ST_COMPLETED
-    assert calls["n"] == 1                         # real node executed EXACTLY once
+    assert calls["n"] == 1  # real node executed EXACTLY once
 
     journal = dag.journal(run_id)
     completed = [e for e in journal if e["type"] == "node_completed"]
-    assert len(completed) == 1                     # no duplicate journal entry
+    assert len(completed) == 1  # no duplicate journal entry
 
     rows = [json.loads(x) for x in open(tmp_path / "runs.jsonl", encoding="utf-8")]
-    dag_shadow = [r for r in rows if r.get("kind") == "shadow"
-                  and r["extra"].get("source_loop") == "dag_engine"
-                  and r["extra"].get("node_id") == "A"]
-    assert len(dag_shadow) == 1                     # exactly one shadow record
+    dag_shadow = [
+        r
+        for r in rows
+        if r.get("kind") == "shadow"
+        and r["extra"].get("source_loop") == "dag_engine"
+        and r["extra"].get("node_id") == "A"
+    ]
+    assert len(dag_shadow) == 1  # exactly one shadow record
     ex = dag_shadow[0]["extra"]
     assert ex["agent"] == "nikhil" and ex["dag_run_id"] == run_id
     assert ex["comparison_verdict"] == "MATCH" and ex["enforcement"] is False

@@ -23,6 +23,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+from collections.abc import Mapping
 from enum import Enum
 from typing import Any, Optional
 
@@ -90,6 +91,44 @@ def claimed_lane(rc: Any) -> Optional[RiskLane]:
         return _CLAIM_LANE.get(RiskClass(rc)) if rc is not None else None
     except Exception:
         return None
+
+
+# --------------------------------------------------------------------------- #
+# Deterministic canonicalization for the manifest fingerprint.
+#
+# The manifest hash is a CHANGE / CONFORMANCE fingerprint (NOT an auth token and
+# NOT an authorization mechanism): the same registry definitions must always
+# produce the same hash, independent of PYTHONHASHSEED randomization, process,
+# container or restart. The only non-determinism source is unordered collections
+# (frozenset/set) which model_dump serializes to iteration-order-dependent lists.
+# We canonicalize by sorting set/frozenset members and dict keys deterministically
+# while PRESERVING list/tuple order (which may be semantically meaningful, e.g. a
+# JSON-Schema ``required`` array). No repr(), no Python object hashes, no
+# insertion-order reliance; unsupported leaf types fail loudly at json.dumps.
+# --------------------------------------------------------------------------- #
+def _canonical_json(value: Any) -> str:
+    return json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+    )
+
+
+def canonicalize_manifest_value(value: Any) -> Any:
+    """Recursively convert *value* into a deterministic, JSON-native structure."""
+    if isinstance(value, BaseModel):
+        return canonicalize_manifest_value(value.model_dump(mode="python"))
+    if isinstance(value, Enum):
+        return canonicalize_manifest_value(value.value)
+    if isinstance(value, Mapping):
+        return {
+            str(k): canonicalize_manifest_value(value[k])
+            for k in sorted(value, key=lambda item: str(item))
+        }
+    if isinstance(value, set | frozenset):
+        items = [canonicalize_manifest_value(v) for v in value]
+        return sorted(items, key=_canonical_json)
+    if isinstance(value, tuple | list):
+        return [canonicalize_manifest_value(v) for v in value]
+    return value
 
 
 # --------------------------------------------------------------------------- #
@@ -245,10 +284,20 @@ class CanonicalToolRegistry:
         return "*" in defn.allowed_tenant_scopes or t in defn.allowed_tenant_scopes
 
     def manifest_hash(self) -> str:
+        # Deterministic conformance fingerprint (see canonicalize_manifest_value):
+        # dump in python mode so set/frozenset survive, canonicalize (sort sets +
+        # dict keys, preserve list order), then stable-encode. Independent of
+        # PYTHONHASHSEED / process / container / registration order.
+        payload = [
+            canonicalize_manifest_value(self._defs[k].model_dump(mode="python"))
+            for k in sorted(self._defs)
+        ]
         blob = json.dumps(
-            [self._defs[k].model_dump(mode="json") for k in sorted(self._defs)],
+            payload,
             sort_keys=True,
-            default=str,
+            separators=(",", ":"),
+            ensure_ascii=False,
+            allow_nan=False,
         )
         return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
 

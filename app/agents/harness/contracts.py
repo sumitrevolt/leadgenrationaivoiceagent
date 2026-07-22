@@ -10,6 +10,7 @@ types.
 Pydantic v2. No app.* imports here on purpose: contracts must stay importable
 in isolation (CI, unit tests, other services).
 """
+
 from __future__ import annotations
 
 import time
@@ -22,11 +23,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class RiskClass(str, Enum):
     """How dangerous a tool is. Drives approval + sandbox tier."""
-    READ = "read"            # no side effects (search, read_file, lookup)
-    WRITE_LOCAL = "write_local"   # mutates local/DB state (draft, checkpoint)
+
+    READ = "read"  # no side effects (search, read_file, lookup)
+    WRITE_LOCAL = "write_local"  # mutates local/DB state (draft, checkpoint)
     EXTERNAL_SEND = "external_send"  # email / whatsapp / social publish
     TELEPHONY = "telephony"  # place_call — DLT/DND gated
-    MONEY = "money"          # spend / activate subscription / refund
+    MONEY = "money"  # spend / activate subscription / refund
     CODE_EXEC = "code_exec"  # runs model-generated code — highest tier
 
 
@@ -59,6 +61,7 @@ class ToolCall(BaseModel):
     Carries the full governed-action field set required by the harness spec so
     every action is attributable, budgeted, idempotent and auditable.
     """
+
     model_config = ConfigDict(extra="forbid")
 
     schema_version: str = Field("1.0", description="ActionRequest contract version")
@@ -71,12 +74,15 @@ class ToolCall(BaseModel):
     # Governed-action metadata (spec field set).
     tool_version: str = Field("v1", description="Contract version of the target tool")
     risk_class: Optional[RiskClass] = Field(
-        None, description="Optional model-declared risk; the registry's value is authoritative")
+        None, description="Optional model-declared risk; the registry's value is authoritative"
+    )
     idempotency_key: Optional[str] = Field(
-        None, description="Required for MUTATING actions; dedupes effects on replay")
+        None, description="Required for MUTATING actions; dedupes effects on replay"
+    )
     budget_scope: str = Field("run", description="Which budget bucket this call charges")
     approval_reference: Optional[str] = Field(
-        None, description="Owner OS approval id once an AMBER/dangerous action is cleared")
+        None, description="Owner OS approval id once an AMBER/dangerous action is cleared"
+    )
     expected_effect: str = Field("", description="Human-readable declared effect (audited)")
     timeout_s: float = Field(30.0, description="Per-call wall-clock timeout")
 
@@ -87,6 +93,7 @@ ActionRequest = ToolCall
 
 class ToolResult(BaseModel):
     """Outcome of executing a ToolCall."""
+
     model_config = ConfigDict(extra="forbid")
 
     call_id: str
@@ -107,7 +114,7 @@ class StopReason(str, Enum):
     WALL_CLOCK = "wall_clock"
     NO_PROGRESS = "no_progress"
     KILL_SWITCH = "kill_switch"
-    DENIED = "denied"                 # permission / approval refused
+    DENIED = "denied"  # permission / approval refused
     ERROR = "error"
 
 
@@ -119,32 +126,33 @@ SYSTEM_TENANT = "__system__"
 
 class ComparisonVerdict(str, Enum):
     MATCH = "MATCH"
-    POLICY_MISMATCH = "POLICY_MISMATCH"     # harness would have denied what legacy did
+    POLICY_MISMATCH = "POLICY_MISMATCH"  # harness would have denied what legacy did
     ARGUMENT_MISMATCH = "ARGUMENT_MISMATCH"
     TOOL_MISMATCH = "TOOL_MISMATCH"
     MISSING_CONTEXT = "MISSING_CONTEXT"
     SHADOW_ERROR = "SHADOW_ERROR"
     LEGACY_ERROR = "LEGACY_ERROR"
-    RETRY_OBSERVED = "RETRY_OBSERVED"   # legacy gate failed, DAG will retry
-    PARSER_AMBIGUITY = "PARSER_AMBIGUITY"     # coordinator parse was ambiguous
-    FALLBACK_OBSERVED = "FALLBACK_OBSERVED"   # legacy took a fallback path
+    RETRY_OBSERVED = "RETRY_OBSERVED"  # legacy gate failed, DAG will retry
+    PARSER_AMBIGUITY = "PARSER_AMBIGUITY"  # coordinator parse was ambiguous
+    FALLBACK_OBSERVED = "FALLBACK_OBSERVED"  # legacy took a fallback path
     DELEGATION_OBSERVED = "DELEGATION_OBSERVED"  # coordinator delegated to another loop
-    RESUME_SKIPPED = "RESUME_SKIPPED"         # batch item skipped on resume (NOT executed)
+    RESUME_SKIPPED = "RESUME_SKIPPED"  # batch item skipped on resume (NOT executed)
     DUPLICATE_SUPPRESSED = "DUPLICATE_SUPPRESSED"  # duplicate shadow write suppressed
 
 
 class RunContext(BaseModel):
     """Per-run state threaded through the whole loop. The single ``run_id`` is
     the join key that makes OB-02 (replayable audit) possible."""
+
     model_config = ConfigDict(extra="allow")
 
     run_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
     task_id: str = ""
-    tenant_id: str = ""                # AC-03 data-residency / client isolation
-    agent: str = "default"            # maps to agent_permissions matrix + task profile
-    actor_id: str = ""                # who triggered the run (operator/scheduler)
-    shadow_run_id: str = ""           # set in shadow mode: shadow:<real_run_id>:<idx>
-    source_loop: str = ""             # e.g. staff.run_member
+    tenant_id: str = ""  # AC-03 data-residency / client isolation
+    agent: str = "default"  # maps to agent_permissions matrix + task profile
+    actor_id: str = ""  # who triggered the run (operator/scheduler)
+    shadow_run_id: str = ""  # set in shadow mode: shadow:<real_run_id>:<idx>
+    source_loop: str = ""  # e.g. staff.run_member
     started_at: float = Field(default_factory=time.time)
 
     # Accumulators the StopController reads (ST-01/02).

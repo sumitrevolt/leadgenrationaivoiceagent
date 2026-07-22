@@ -5,6 +5,7 @@ AMBER / EXTERNAL_SEND / APPROVAL_REQUIRED because usage_alerts can send
 customer upsell emails. REGISTRY_MATCH on identity; would_require_approval;
 enforcement OFF; legacy run_nikhil authoritative.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -14,14 +15,23 @@ import pytest
 
 from app.agents.harness.adapters import shadow
 from app.agents.harness.contracts import RiskClass
-from app.agents.harness.registry import (REGISTRY, AuthorityClass, CanonicalToolRegistry,
-                                         RegistryConflict, RiskLane, SideEffectClass,
-                                         ToolDefinition, claimed_lane)
+from app.agents.harness.registry import (
+    REGISTRY,
+    AuthorityClass,
+    CanonicalToolRegistry,
+    RegistryConflict,
+    RiskLane,
+    SideEffectClass,
+    ToolDefinition,
+    claimed_lane,
+)
 
 NIK = "agent.nikhil.revenue_operations"
 
 
-def _canary_env(mp, agents="nikhil", loops="staff.run_member", harness="1", shadowf="1", enforce="0"):
+def _canary_env(
+    mp, agents="nikhil", loops="staff.run_member", harness="1", shadowf="1", enforce="0"
+):
     mp.setenv("AGENT_HARNESS", harness)
     mp.setenv("AGENT_HARNESS_SHADOW", shadowf)
     mp.setenv("AGENT_HARNESS_ENFORCE", enforce)
@@ -30,29 +40,53 @@ def _canary_env(mp, agents="nikhil", loops="staff.run_member", harness="1", shad
 
 
 def _obs(member="nikhil", **kw):
-    base = dict(actual_result={"ok": True, "results": {"revenue": {"ok": True},
-                "client_health": {"ok": True}, "usage_alerts": {"ok": True}}},
-                real_run_id="r1")
+    base = {
+        "actual_result": {
+            "ok": True,
+            "results": {
+                "revenue": {"ok": True},
+                "client_health": {"ok": True},
+                "usage_alerts": {"ok": True},
+            },
+        },
+        "real_run_id": "r1",
+    }
     base.update(kw)
     return shadow.observe_legacy_run(member, **base)
 
 
 def _def(name=NIK, **kw):
-    base = dict(name=name, version="1.0.0", description="x",
-                input_schema={"type": "object",
-                              "properties": {"requested_by": {"type": "string", "maxLength": 120}},
-                              "required": [], "additionalProperties": False},
-                risk_class=RiskLane.AMBER, side_effect_class=SideEffectClass.EXTERNAL_SEND,
-                authority=AuthorityClass.APPROVAL_REQUIRED, requires_approval=True,
-                requires_idempotency=True, allowed_agents=frozenset({"nikhil"}))
+    base = {
+        "name": name,
+        "version": "1.0.0",
+        "description": "x",
+        "input_schema": {
+            "type": "object",
+            "properties": {"requested_by": {"type": "string", "maxLength": 120}},
+            "required": [],
+            "additionalProperties": False,
+        },
+        "risk_class": RiskLane.AMBER,
+        "side_effect_class": SideEffectClass.EXTERNAL_SEND,
+        "authority": AuthorityClass.APPROVAL_REQUIRED,
+        "requires_approval": True,
+        "requires_idempotency": True,
+        "allowed_agents": frozenset({"nikhil"}),
+    }
     base.update(kw)
     return ToolDefinition(**base)
 
 
 def _eval(**kw):
-    base = dict(tool_name=NIK, tool_version="1.0.0", arguments={}, agent_id="nikhil",
-                tenant_id="__system__", idempotency_key="shadow:x",
-                claimed_risk=claimed_lane(RiskClass.EXTERNAL_SEND))
+    base = {
+        "tool_name": NIK,
+        "tool_version": "1.0.0",
+        "arguments": {},
+        "agent_id": "nikhil",
+        "tenant_id": "__system__",
+        "idempotency_key": "shadow:x",
+        "claimed_risk": claimed_lane(RiskClass.EXTERNAL_SEND),
+    }
     base.update(kw)
     return REGISTRY.evaluate_action(**base)
 
@@ -72,7 +106,8 @@ def test_unknown_member_unmapped():
 
 
 def test_mapping_conflict_rejected():
-    r = CanonicalToolRegistry(); r.register(_def())
+    r = CanonicalToolRegistry()
+    r.register(_def())
     with pytest.raises(RegistryConflict):
         r.register(_def(description="DIFFERENT"))
 
@@ -99,6 +134,7 @@ def test_definition_validates():
 
 def test_canonical_dotted_format():
     import re
+
     assert re.match(r"^[a-z][a-z0-9]*(?:\.[a-z0-9_]+){1,}$", NIK)
 
 
@@ -182,18 +218,30 @@ def test_approval_requirement_visible():
 def test_owner_os_authority_preserved():
     r = CanonicalToolRegistry()
     r.register(_def(name="agent.nikhil.owneros", authority=AuthorityClass.OWNER_OS_REQUIRED))
-    e = r.evaluate_action(tool_name="agent.nikhil.owneros", tool_version="1.0.0",
-                          arguments={}, agent_id="nikhil", tenant_id="__system__",
-                          idempotency_key="k", claimed_risk=None)
+    e = r.evaluate_action(
+        tool_name="agent.nikhil.owneros",
+        tool_version="1.0.0",
+        arguments={},
+        agent_id="nikhil",
+        tenant_id="__system__",
+        idempotency_key="k",
+        claimed_risk=None,
+    )
     assert e["authority"] == "OWNER_OS_REQUIRED" and e["would_allow"] is False
 
 
 def test_disabled_definition_denies():
     r = CanonicalToolRegistry()
     r.register(_def(name="agent.nikhil.disabled", enabled_by_default=False))
-    e = r.evaluate_action(tool_name="agent.nikhil.disabled", tool_version="1.0.0",
-                          arguments={}, agent_id="nikhil", tenant_id="__system__",
-                          idempotency_key="k", claimed_risk=None)
+    e = r.evaluate_action(
+        tool_name="agent.nikhil.disabled",
+        tool_version="1.0.0",
+        arguments={},
+        agent_id="nikhil",
+        tenant_id="__system__",
+        idempotency_key="k",
+        claimed_risk=None,
+    )
     assert e["registry_comparison"] == "DISABLED" and e["would_deny"] is True
 
 
@@ -202,9 +250,15 @@ def test_version_mismatch_visible():
 
 
 def test_unknown_member_unregistered_eval():
-    e = REGISTRY.evaluate_action(tool_name="staff.run_kavya", tool_version="v1",
-                                 arguments={}, agent_id="kavya", tenant_id="__system__",
-                                 idempotency_key="k", claimed_risk=None)
+    e = REGISTRY.evaluate_action(
+        tool_name="staff.run_kavya",
+        tool_version="v1",
+        arguments={},
+        agent_id="kavya",
+        tenant_id="__system__",
+        idempotency_key="k",
+        claimed_risk=None,
+    )
     assert e["registry_comparison"] == "UNREGISTERED_TOOL"
 
 
@@ -212,12 +266,19 @@ def test_unknown_member_unregistered_eval():
 def _run_real(monkeypatch, tmp_path, member="nikhil", nikhil_result=None, raise_exc=False):
     staff = pytest.importorskip("app.agents.staff")
     from app.agents.harness import audit
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
     _canary_env(monkeypatch, agents="nikhil,kavya")
     monkeypatch.setattr("app.platform.agent_controls.is_paused", lambda k: False, raising=False)
     calls = {"n": 0}
-    res_default = {"ok": True, "results": {"revenue": {"ok": True},
-                   "client_health": {"ok": True}, "usage_alerts": {"ok": True}}}
+    res_default = {
+        "ok": True,
+        "results": {
+            "revenue": {"ok": True},
+            "client_health": {"ok": True},
+            "usage_alerts": {"ok": True},
+        },
+    }
 
     async def fake_nikhil():
         calls["n"] += 1
@@ -228,8 +289,9 @@ def _run_real(monkeypatch, tmp_path, member="nikhil", nikhil_result=None, raise_
     monkeypatch.setattr(staff, "run_nikhil", fake_nikhil)
     res = asyncio.run(staff.run_member(member))
     rows = [json.loads(x) for x in open(tmp_path / "runs.jsonl", encoding="utf-8")]
-    sh = [r["extra"] for r in rows if r.get("kind") == "shadow"
-          and r["extra"].get("agent") == member]
+    sh = [
+        r["extra"] for r in rows if r.get("kind") == "shadow" and r["extra"].get("agent") == member
+    ]
     return staff, res, calls, (sh[-1] if sh else None)
 
 
@@ -256,8 +318,14 @@ def test_real_registry_match(monkeypatch, tmp_path):
 
 def test_real_success_result_unchanged(monkeypatch, tmp_path):
     _, res, calls, ex = _run_real(monkeypatch, tmp_path)
-    assert res == {"ok": True, "results": {"revenue": {"ok": True},
-                   "client_health": {"ok": True}, "usage_alerts": {"ok": True}}}
+    assert res == {
+        "ok": True,
+        "results": {
+            "revenue": {"ok": True},
+            "client_health": {"ok": True},
+            "usage_alerts": {"ok": True},
+        },
+    }
 
 
 def test_real_exception_path(monkeypatch, tmp_path):
@@ -270,8 +338,10 @@ def test_real_observer_failure_no_alter(monkeypatch, tmp_path):
     staff = pytest.importorskip("app.agents.staff")
     _canary_env(monkeypatch)
     monkeypatch.setattr("app.platform.agent_controls.is_paused", lambda k: False, raising=False)
-    monkeypatch.setattr("app.agents.harness.loop.Harness.observe",
-                        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    monkeypatch.setattr(
+        "app.agents.harness.loop.Harness.observe",
+        lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")),
+    )
     calls = {"n": 0}
 
     async def fake_nikhil():
@@ -280,12 +350,13 @@ def test_real_observer_failure_no_alter(monkeypatch, tmp_path):
 
     monkeypatch.setattr(staff, "run_nikhil", fake_nikhil)
     res = asyncio.run(staff.run_member("nikhil"))
-    assert res.get("ok") is True and calls["n"] == 1   # unaffected
+    assert res.get("ok") is True and calls["n"] == 1  # unaffected
 
 
 def test_real_peer_unregistered(monkeypatch, tmp_path):
     staff = pytest.importorskip("app.agents.staff")
     from app.agents.harness import audit
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
     _canary_env(monkeypatch, agents="nikhil,kavya")
     monkeypatch.setattr("app.platform.agent_controls.is_paused", lambda k: False, raising=False)
@@ -295,10 +366,12 @@ def test_real_peer_unregistered(monkeypatch, tmp_path):
         calls["n"] += 1
         return {"ok": True}
 
-    monkeypatch.setattr(staff, "run_ops", fake_ops)   # kavya -> run_ops
+    monkeypatch.setattr(staff, "run_ops", fake_ops)  # kavya -> run_ops
     asyncio.run(staff.run_member("kavya"))
     rows = [json.loads(x) for x in open(tmp_path / "runs.jsonl", encoding="utf-8")]
-    sh = [r["extra"] for r in rows if r.get("kind") == "shadow" and r["extra"].get("agent") == "kavya"]
+    sh = [
+        r["extra"] for r in rows if r.get("kind") == "shadow" and r["extra"].get("agent") == "kavya"
+    ]
     assert sh and sh[-1]["registry_comparison"] == "UNREGISTERED_TOOL"
     assert calls["n"] == 1
 
@@ -306,9 +379,15 @@ def test_real_peer_unregistered(monkeypatch, tmp_path):
 def test_real_flags_off_no_records(monkeypatch, tmp_path):
     staff = pytest.importorskip("app.agents.staff")
     from app.agents.harness import audit
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
-    for k in ("AGENT_HARNESS", "AGENT_HARNESS_SHADOW", "AGENT_HARNESS_ENFORCE",
-              "AGENT_HARNESS_CANARY_AGENTS", "AGENT_HARNESS_CANARY_LOOPS"):
+    for k in (
+        "AGENT_HARNESS",
+        "AGENT_HARNESS_SHADOW",
+        "AGENT_HARNESS_ENFORCE",
+        "AGENT_HARNESS_CANARY_AGENTS",
+        "AGENT_HARNESS_CANARY_LOOPS",
+    ):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setattr("app.platform.agent_controls.is_paused", lambda k: False, raising=False)
     calls = {"n": 0}
@@ -321,16 +400,21 @@ def test_real_flags_off_no_records(monkeypatch, tmp_path):
     res = asyncio.run(staff.run_member("nikhil"))
     assert res.get("ok") is True and calls["n"] == 1
     import os
-    assert not os.path.exists(tmp_path / "runs.jsonl")   # no records written
+
+    assert not os.path.exists(tmp_path / "runs.jsonl")  # no records written
 
 
 def test_explain_shows_layers(monkeypatch, tmp_path):
-    from app.integrations.openclaw.harness_commands import _explain
     from app.agents.harness import audit
+    from app.integrations.openclaw.harness_commands import _explain
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
     _canary_env(monkeypatch)
-    shadow.observe_legacy_run("nikhil", real_run_id="exp1",
-                              actual_result={"ok": True, "results": {"revenue": {"ok": True}}})
+    shadow.observe_legacy_run(
+        "nikhil",
+        real_run_id="exp1",
+        actual_result={"ok": True, "results": {"revenue": {"ok": True}}},
+    )
     res = _explain({"run_id": "exp1"}, actor="t", correlation_id="c")
     assert res["result"]["layers"].get("shadow_observation", 0) >= 1
 
@@ -346,18 +430,34 @@ def test_composite_summary_bounded(monkeypatch):
 
 def test_partial_failure_not_full_success(monkeypatch):
     _canary_env(monkeypatch)
-    rec = _obs(actual_result={"ok": True, "results": {"revenue": {"ok": True},
-               "client_health": {"ok": True}, "usage_alerts": {"error": "smtp down"}}})
+    rec = _obs(
+        actual_result={
+            "ok": True,
+            "results": {
+                "revenue": {"ok": True},
+                "client_health": {"ok": True},
+                "usage_alerts": {"error": "smtp down"},
+            },
+        }
+    )
     assert rec["partial_success"] is True and rec["full_success"] is False
     assert rec["components_failed"] == 1 and rec["components_ok"] == 2
 
 
 def test_full_failure_represented(monkeypatch):
     _canary_env(monkeypatch)
-    rec = _obs(actual_result={"ok": True, "results": {"revenue": {"error": "a"},
-               "client_health": {"error": "b"}, "usage_alerts": {"error": "c"}}})
+    rec = _obs(
+        actual_result={
+            "ok": True,
+            "results": {
+                "revenue": {"error": "a"},
+                "client_health": {"error": "b"},
+                "usage_alerts": {"error": "c"},
+            },
+        }
+    )
     assert rec["full_success"] is False and rec["components_failed"] == 3
-    assert rec["partial_success"] is False   # zero ok => not partial
+    assert rec["partial_success"] is False  # zero ok => not partial
 
 
 def test_total_latency_captured(monkeypatch):
@@ -369,25 +469,27 @@ def test_total_latency_captured(monkeypatch):
 def test_side_effect_classification_accurate(monkeypatch):
     _canary_env(monkeypatch)
     rec = _obs()
-    assert rec["side_effect_class"] == "external_send"   # usage_alerts can send
+    assert rec["side_effect_class"] == "external_send"  # usage_alerts can send
 
 
 def test_shadow_ref_stable_no_real_idempotency(monkeypatch):
     _canary_env(monkeypatch)
     a = _obs(real_run_id="R", action_index=0)
     b = _obs(real_run_id="R", action_index=0)
-    assert a["shadow_run_id"] == b["shadow_run_id"] == "shadow:R:0"   # stable, non-executable
-    assert a["shadow_run_id"].startswith("shadow:")                   # NOT a real idempotency key
+    assert a["shadow_run_id"] == b["shadow_run_id"] == "shadow:R:0"  # stable, non-executable
+    assert a["shadow_run_id"].startswith("shadow:")  # NOT a real idempotency key
 
 
 # ============ Compatibility (47-54) =================================
 def test_staff_count_still_31():
     from app.platform import agent_registry as ar
+
     assert len(ar.build_registry()) == ar.CANONICAL_COUNT == 31
 
 
 def test_three_families_registered():
     from app.integrations.openclaw.harness_commands import _registry_conformance
+
     fam = _registry_conformance({}, actor="t", correlation_id="c")["result"]["families"]
     assert fam["staff.run_member"] == "registered"
     assert fam["dag_engine"] == "registered"
@@ -397,6 +499,7 @@ def test_three_families_registered():
 
 def test_harness_tool_shows_nikhil_definition():
     from app.integrations.openclaw.harness_commands import _tool
+
     d = _tool({"name": NIK}, actor="t", correlation_id="c")["result"]["definition"]
     assert d["risk_class"] == "AMBER" and d["authority"] == "APPROVAL_REQUIRED"
     assert d["requires_approval"] is True and d["requires_idempotency"] is True
@@ -410,6 +513,7 @@ def test_manifest_hash_deterministic():
 
 def test_kavach_outside_staff_roster():
     from app.platform import agent_registry as ar
+
     reg = ar.build_registry()
     ids = set(reg.keys()) if isinstance(reg, dict) else {getattr(a, "agent_id", a) for a in reg}
     assert "kavach" not in {str(x).lower() for x in ids}

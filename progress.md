@@ -1,6 +1,17 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+- Date: 2026-07-21
+- Goal: 31-agent workforce factory + OpenClaw Swara transfer (no voice edits); reuse existing runtime/Owner OS
+- Inspected: team.STAFF, agent_registry, agent_runtime, pilots, OpenClaw, staff.run_*, Graphify Owner OS community
+- Problems Found: only 3/31 had runtime capabilities; Swara not OpenClaw-transfer packaged; PILOT allowlist too narrow for Wave-B
+- Changed: agent_runtime_workforce.py; PILOT_AGENTS Wave-B; owner_os runtime wire; OpenClaw agents.unhealthy+runtime.status+swara transfer; TRUTH_MATRIX + research + runbook; tests
+- Tests Run: pytest tests/test_agent_runtime_workforce.py tests/test_agent_runtime.py tests/test_agent_registry.py tests/test_openclaw_owner_copilot.py → 93 passed
+- Verification Evidence: prod_check ALL CHECKS PASSED; caps 31; pilots 19; swara capability frozen_transfer_status + RED block; primary dirty checkout untouched
+- Risks: Wave-B agents still need per-flag ON for useful work; AMBER hold agents not live; prod not deployed
+- Remaining: commit/PR; owner canary AGENT_RUNTIME=1 + one GREEN flag; AMBER hold expansion later
+- Next Highest Priority: Owner review → commit/PR authorization
+## Loop Run
 Date: 2026-07-20 (/app/explorer — Make.com-style Project Blueprint redesign; LOCAL+TEST+BROWSER-PROVEN, NOT deployed)
 Goal: Explorer ko sirf reskin nahi — naya readable "map of maps" IA. Live 83-node/118-edge/15%-zoom spaghetti ki jagah Blueprint Home → Section → Focused Flow (5–12 nodes) → Node Details. 4 top modes (Project Blueprint default / Automations / Products / Technical Graph). Legacy detailed graph + builder + flags + schedule + export PRESERVE as ?view=technical. Additive only; OpenClaw dirty work untouched; Voice/Swara + platform_dial + compliance touch nahi.
 Inspected: frontend/explorer.html (VIEWS structural/automation/products/custom · renderNodes/switchView/fetchLiveHealth · getApiBases · init · health-independence 3-string contract); app/main.py (single `/app/explorer` FileResponse route — no dup); app/api/growth.py (infra/flags · automation-health · explorer-drift endpoints); scripts/explorer_sync.py (parse_views/edge_audit/files_ref_audit — products-segment-to-EOF edge scan landmine); tests/test_explorer_sync.py + test_admin_nav_ia_groups.py (admin_dashboard-only, /app/explorer link must survive) + test_l2_stack_graph_contract.py; live https://leadsgenai.in/app/explorer desktop (DOM/console/network: 83 nodes 118 edges 15% zoom confirmed).

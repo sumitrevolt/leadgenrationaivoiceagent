@@ -151,8 +151,11 @@ async def _exec_email_digest(inputs: dict) -> dict:
     except Exception as e:
         return {"ok": False, "count": 0, "detail": f"digest err: {e}"[:150]}
     sent = bool((res or {}).get("sent"))
-    return {"ok": True, "count": 1 if sent else 0,
-            "detail": f"digest {(res or {}).get('week', '')}: {'emailed-admin' if sent else 'composed'}"}
+    return {
+        "ok": True,
+        "count": 1 if sent else 0,
+        "detail": f"digest {(res or {}).get('week', '')}: {'emailed-admin' if sent else 'composed'}",
+    }
 
 
 async def _exec_whatsapp_draft(inputs: dict) -> dict:
@@ -182,7 +185,11 @@ async def _exec_crm_queue(inputs: dict) -> dict:
         leads = []
     flag_on = _os.environ.get("CRM_SYNC", "0").strip().lower() in ("1", "true", "yes")
     if not flag_on:
-        return {"ok": True, "count": 0, "detail": f"crm draft: {len(leads)} eligible (CRM_SYNC off — no push)"}
+        return {
+            "ok": True,
+            "count": 0,
+            "detail": f"crm draft: {len(leads)} eligible (CRM_SYNC off — no push)",
+        }
     pushed = 0
     for ld in leads[:25]:
         try:
@@ -220,8 +227,11 @@ async def _exec_brand_pulse(inputs: dict) -> dict:
     except Exception as e:
         return {"ok": False, "count": 0, "detail": f"pulse err: {e}"[:150]}
     m = len((res or {}).get("mentions") or [])
-    return {"ok": bool((res or {}).get("ok", True)), "count": m,
-            "detail": f"brand mentions={m}, drafts={len((res or {}).get('reply_drafts') or [])}"}
+    return {
+        "ok": bool((res or {}).get("ok", True)),
+        "count": m,
+        "detail": f"brand mentions={m}, drafts={len((res or {}).get('reply_drafts') or [])}",
+    }
 
 
 async def _exec_review_scan(inputs: dict) -> dict:
@@ -247,8 +257,11 @@ async def _exec_client_report_draft(inputs: dict) -> dict:
         res = await client_report.build_report(cid, month=str(inputs.get("month", "")), send=False)
     except Exception as e:
         return {"ok": False, "count": 0, "detail": f"report err: {e}"[:150]}
-    return {"ok": bool((res or {}).get("ok")), "count": 1 if (res or {}).get("ok") else 0,
-            "detail": f"client report: {(res or {}).get('path', '')} (send=False)"}
+    return {
+        "ok": bool((res or {}).get("ok")),
+        "count": 1 if (res or {}).get("ok") else 0,
+        "detail": f"client report: {(res or {}).get('path', '')} (send=False)",
+    }
 
 
 async def _exec_http_request(inputs: dict) -> dict:
@@ -267,9 +280,13 @@ async def _exec_internal_calculation(inputs: dict) -> dict:
         n = int(inputs.get("n", 0))
     except Exception:
         n = 0
-    value = (n * (n + 1)) // 2   # triangular number — pure, deterministic
-    return {"ok": True, "count": 1,
-            "detail": f"internal_calculation n={n} sum={value}", "value": value}
+    value = (n * (n + 1)) // 2  # triangular number — pure, deterministic
+    return {
+        "ok": True,
+        "count": 1,
+        "detail": f"internal_calculation n={n} sum={value}",
+        "value": value,
+    }
 
 
 EXECUTORS = {

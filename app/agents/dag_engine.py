@@ -11,6 +11,7 @@ tick (no asyncio.gather) — crash-safe + rate-limit-safe. Conditions are
 FAIL-CLOSED (edge_condition). run_completed/run_failed are EMITTED by advance
 (replay reflects journal truth, like process_engine). Import-safe, never raises.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -25,7 +26,7 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_RUNS_DIR = os.path.join("data", "process_runs")                  # SHARED journal dir
+_RUNS_DIR = os.path.join("data", "process_runs")  # SHARED journal dir
 _INDEX = os.path.join("data", "process_runs", "dag_index.jsonl")  # SEPARATE index
 _STEP_TIMEOUT_S = 240
 
@@ -83,7 +84,11 @@ def _edge_state(edge: dict, nodes: dict) -> str:
     src = nodes.get(edge.get("f"), {})
     s = src.get("state")
     if s == "done":
-        return "fired" if edge_condition.edge_taken(edge.get("when"), src.get("result") or {}) else "dead"
+        return (
+            "fired"
+            if edge_condition.edge_taken(edge.get("when"), src.get("result") or {})
+            else "dead"
+        )
     if s in ("skipped", "failed"):
         return "dead"
     return "undetermined"
@@ -126,9 +131,19 @@ def _frontier(graph: dict, nodes: dict) -> tuple[list[str], list[str]]:
 
 def replay(run_id: str) -> dict[str, Any]:
     st: dict[str, Any] = {
-        "run_id": run_id, "status": ST_FAILED, "process": "", "inputs": {},
-        "engine": "dag", "graph": {}, "nodes": {}, "ready": [], "skip": [],
-        "waiting": "", "last_error": "", "started_at": "", "ended_at": "",
+        "run_id": run_id,
+        "status": ST_FAILED,
+        "process": "",
+        "inputs": {},
+        "engine": "dag",
+        "graph": {},
+        "nodes": {},
+        "ready": [],
+        "skip": [],
+        "waiting": "",
+        "last_error": "",
+        "started_at": "",
+        "ended_at": "",
     }
     events = _read_events(run_id)
     if not events:
@@ -211,8 +226,11 @@ def start_run(process_key: str, inputs: dict[str, Any] | None = None) -> dict[st
         if kind != "dag" or not graph:
             return {"ok": False, "error": "not a dag flow: " + "; ".join(errs)[:160]}
         run_id = f"{pk[:18]}-{uuid.uuid4().hex[:8]}"
-        _append_event(run_id, "run_started",
-                      {"process": process_key, "inputs": inputs or {}, "engine": "dag", "graph": graph})
+        _append_event(
+            run_id,
+            "run_started",
+            {"process": process_key, "inputs": inputs or {}, "engine": "dag", "graph": graph},
+        )
         try:
             os.makedirs(_RUNS_DIR, exist_ok=True)
             with open(_INDEX, "a", encoding="utf-8") as f:
@@ -290,14 +308,18 @@ async def advance(run_id: str, max_steps: int = 16) -> dict[str, Any]:
 
             if skip:
                 for nid in skip:
-                    _append_event(run_id, "node_skipped", {"node": nid, "reason": "branch not taken"})
+                    _append_event(
+                        run_id, "node_skipped", {"node": nid, "reason": "branch not taken"}
+                    )
                 continue  # recompute frontier
 
             if not ready:
                 # nothing ready/skippable: any non-terminal left = unreachable -> skip; then complete
                 for nid, n in nodes.items():
                     if n["state"] not in _TERMINAL_NODE:
-                        _append_event(run_id, "node_skipped", {"node": nid, "reason": "unreachable"})
+                        _append_event(
+                            run_id, "node_skipped", {"node": nid, "reason": "unreachable"}
+                        )
                 _append_event(run_id, "run_completed", {})
                 try:
                     from app.platform import team
@@ -312,16 +334,25 @@ async def advance(run_id: str, max_steps: int = 16) -> dict[str, Any]:
             kind = node.get("kind", "task")
 
             if kind == "breakpoint":
-                _append_event(run_id, "breakpoint_waiting",
-                              {"node": nid, "question": node.get("question", "Approve?")})
+                _append_event(
+                    run_id,
+                    "breakpoint_waiting",
+                    {"node": nid, "question": node.get("question", "Approve?")},
+                )
                 try:
                     from app.platform import team
 
-                    team.log_event("manager", "dag_breakpoint", f"{run_id}: {node.get('question', '')[:80]}")
+                    team.log_event(
+                        "manager", "dag_breakpoint", f"{run_id}: {node.get('question', '')[:80]}"
+                    )
                 except Exception:
                     pass
-                return {"run_id": run_id, "status": ST_WAITING, "node": nid,
-                        "breakpoint": node.get("question", "")}
+                return {
+                    "run_id": run_id,
+                    "status": ST_WAITING,
+                    "node": nid,
+                    "breakpoint": node.get("question", ""),
+                }
 
             if kind == "merge":
                 res = {"ok": True, "count": 1, "detail": "merged"}
@@ -361,22 +392,31 @@ async def advance(run_id: str, max_steps: int = 16) -> dict[str, Any]:
                 else:
                     _nstatus, _retry = "retry_pending", True
                 observe_dag_action(
-                    dag_run_id=run_id, node_id=nid, attempt=_cur,
-                    agent_id=str(inputs.get("_harness_agent_id")
-                                 or inputs.get("agent_id") or "manager"),
+                    dag_run_id=run_id,
+                    node_id=nid,
+                    attempt=_cur,
+                    agent_id=str(
+                        inputs.get("_harness_agent_id") or inputs.get("agent_id") or "manager"
+                    ),
                     tenant_id=str(inputs.get("tenant_id") or inputs.get("client_id") or ""),
                     tool_name=str(node.get("action") or nid),
                     tool_version=str(node.get("version") or "v1"),
-                    arguments=eff_inputs, actual_result=(result if ok else None),
+                    arguments=eff_inputs,
+                    actual_result=(result if ok else None),
                     actual_error=(None if ok else reason),
-                    latency_ms=int(ms), dag_node_status=_nstatus, retry_scheduled=_retry,
+                    latency_ms=int(ms),
+                    dag_node_status=_nstatus,
+                    retry_scheduled=_retry,
                 )
             except Exception:
                 pass
 
             if ok:
-                clean = {"ok": result.get("ok"), "count": result.get("count"),
-                         "detail": str(result.get("detail", ""))[:200]}
+                clean = {
+                    "ok": result.get("ok"),
+                    "count": result.get("count"),
+                    "detail": str(result.get("detail", ""))[:200],
+                }
                 _append_event(run_id, "node_completed", {"node": nid, "result": clean, "ms": ms})
                 _emit_out(run_id, graph, nid, clean)
                 done += 1
@@ -384,33 +424,47 @@ async def advance(run_id: str, max_steps: int = 16) -> dict[str, Any]:
 
             retries = int(nodes[nid].get("retries", 0)) + 1
             max_r = int(node.get("max_retries", 1))
-            _append_event(run_id, "node_gate_failed", {"node": nid, "reason": reason, "retries": retries})
+            _append_event(
+                run_id, "node_gate_failed", {"node": nid, "reason": reason, "retries": retries}
+            )
             if retries > max_r:
-                _append_event(run_id, "run_failed",
-                              {"error": f"node '{nid}' gate fail after {retries}: {reason}", "node": nid})
+                _append_event(
+                    run_id,
+                    "run_failed",
+                    {"error": f"node '{nid}' gate fail after {retries}: {reason}", "node": nid},
+                )
                 return {"run_id": run_id, "status": ST_FAILED, "error": reason, "node": nid}
             done += 1  # retry consumes budget
             continue
 
-        return {"run_id": run_id, "status": replay(run_id)["status"],
-                "note": "step budget — tick continue karega"}
+        return {
+            "run_id": run_id,
+            "status": replay(run_id)["status"],
+            "note": "step budget — tick continue karega",
+        }
     except Exception as e:
         logger.warning(f"[dag] advance failed {run_id}: {e}")
         return {"run_id": run_id, "status": ST_FAILED, "error": str(e)[:200]}
 
 
-def approve(run_id: str, approved_by: str = "admin", note: str = "", node_id: str = "") -> dict[str, Any]:
+def approve(
+    run_id: str, approved_by: str = "admin", note: str = "", node_id: str = ""
+) -> dict[str, Any]:
     try:
         st = replay(run_id)
         if st["status"] != ST_WAITING:
-            return {"ok": False, "error": f"run status '{st['status']}' — koi breakpoint pending nahi"}
+            return {
+                "ok": False,
+                "error": f"run status '{st['status']}' — koi breakpoint pending nahi",
+            }
         nid = node_id or st.get("waiting") or ""
         if not nid or nid not in st["nodes"]:
             return {"ok": False, "error": "no waiting node"}
-        _append_event(run_id, "breakpoint_approved",
-                      {"node": nid, "by": approved_by[:40], "note": note[:200]})
+        _append_event(
+            run_id, "breakpoint_approved", {"node": nid, "by": approved_by[:40], "note": note[:200]}
+        )
         # breakpoint out-edges are unconditional (compiler-enforced) -> emit for UI
-        for e in (st.get("graph", {}).get("out", {}).get(nid, []) or []):
+        for e in st.get("graph", {}).get("out", {}).get(nid, []) or []:
             _append_event(run_id, "edge_taken", {"f": nid, "t": e.get("t")})
         return {"ok": True, "run_id": run_id, "node": nid}
     except Exception as e:
@@ -422,8 +476,14 @@ def reject(run_id: str, by: str = "admin", reason: str = "", node_id: str = "") 
         st = replay(run_id)
         if st["status"] != ST_WAITING:
             return {"ok": False, "error": f"run status '{st['status']}'"}
-        _append_event(run_id, "run_failed",
-                      {"error": f"rejected by {by}: {reason[:150]}", "node": node_id or st.get("waiting", "")})
+        _append_event(
+            run_id,
+            "run_failed",
+            {
+                "error": f"rejected by {by}: {reason[:150]}",
+                "node": node_id or st.get("waiting", ""),
+            },
+        )
         return {"ok": True, "run_id": run_id, "status": ST_FAILED}
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
@@ -444,16 +504,18 @@ def list_runs(limit: int = 20) -> list[dict[str, Any]]:
         for r in rows[-limit:][::-1]:
             st = replay(r.get("run_id", ""))
             nodes = st["nodes"]
-            out.append({
-                "run_id": r.get("run_id"),
-                "process": st["process"] or r.get("process"),
-                "status": st["status"],
-                "engine": "dag",
-                "nodes": len(nodes),
-                "done": sum(1 for n in nodes.values() if n["state"] in _TERMINAL_NODE),
-                "last_error": st["last_error"],
-                "started_at": st["started_at"] or r.get("at"),
-            })
+            out.append(
+                {
+                    "run_id": r.get("run_id"),
+                    "process": st["process"] or r.get("process"),
+                    "status": st["status"],
+                    "engine": "dag",
+                    "nodes": len(nodes),
+                    "done": sum(1 for n in nodes.values() if n["state"] in _TERMINAL_NODE),
+                    "last_error": st["last_error"],
+                    "started_at": st["started_at"] or r.get("at"),
+                }
+            )
     except Exception:
         pass
     return out
@@ -518,6 +580,16 @@ def ensure_alive(stale_minutes: int = 15) -> dict[str, Any]:
 
 
 __all__ = [
-    "start_run", "advance", "approve", "reject", "replay", "list_runs",
-    "journal", "ensure_alive", "ST_RUNNING", "ST_WAITING", "ST_COMPLETED", "ST_FAILED",
+    "start_run",
+    "advance",
+    "approve",
+    "reject",
+    "replay",
+    "list_runs",
+    "journal",
+    "ensure_alive",
+    "ST_RUNNING",
+    "ST_WAITING",
+    "ST_COMPLETED",
+    "ST_FAILED",
 ]

@@ -17,6 +17,7 @@ not a *tool* catalog, and that `agent_permissions.can()` checks only the tool
 Registration is additive and side-effect free: importing this module registers
 nothing until a tool calls ``register()``.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -28,9 +29,11 @@ from .contracts import RiskClass, ToolCall
 
 try:  # never let a logging import break the harness
     from app.utils.logger import setup_logger  # type: ignore
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover - fallback for isolated use
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -56,7 +59,9 @@ class PermissionError_(Exception):
 
 
 class ToolRegistry:
-    def __init__(self, permission_fn: Optional[Callable[[str, str], Optional[bool]]] = None) -> None:
+    def __init__(
+        self, permission_fn: Optional[Callable[[str, str], Optional[bool]]] = None
+    ) -> None:
         self._tools: dict[str, ToolSpec] = {}
         # (agent, tool) -> True/False/None(unknown). Defaults to the app's
         # agent_permissions matrix. Injectable for tests / alt deployments.
@@ -77,8 +82,12 @@ class ToolRegistry:
         if name in self._tools:
             logger.warning("harness.registry: overwriting tool %s", name)
         self._tools[name] = ToolSpec(
-            name=name, fn=fn, args_schema=args_schema, risk=risk,
-            profiles=profiles or [], allowed_egress=allowed_egress or [],
+            name=name,
+            fn=fn,
+            args_schema=args_schema,
+            risk=risk,
+            profiles=profiles or [],
+            allowed_egress=allowed_egress or [],
             description=description,
         )
 
@@ -106,8 +115,7 @@ class ToolRegistry:
             raise PermissionError_(f"deny: unknown tool {call.name!r}")
 
         if spec.profiles and profile not in spec.profiles:
-            raise PermissionError_(
-                f"deny: profile {profile!r} not allowed for {call.name!r}")
+            raise PermissionError_(f"deny: profile {profile!r} not allowed for {call.name!r}")
 
         if self._permission_fn is not None:
             try:
@@ -118,13 +126,11 @@ class ToolRegistry:
         else:
             allowed = self._delegate_permission(agent, call.name)
         if allowed is False:
-            raise PermissionError_(
-                f"deny: agent {agent!r} lacks permission for {call.name!r}")
+            raise PermissionError_(f"deny: agent {agent!r} lacks permission for {call.name!r}")
         # allowed is True or None(unknown). For the harness path we treat
         # unknown as DENY for dangerous classes (fail-closed), allow for READ.
         if allowed is None and spec.risk is not RiskClass.READ:
-            raise PermissionError_(
-                f"deny (fail-closed): no explicit grant for {call.name!r}")
+            raise PermissionError_(f"deny (fail-closed): no explicit grant for {call.name!r}")
         return spec
 
     @staticmethod

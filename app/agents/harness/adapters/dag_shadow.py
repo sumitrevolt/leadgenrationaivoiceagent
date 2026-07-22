@@ -67,8 +67,11 @@ def _valid_envelope(dag_run_id: str, node_id: str, attempt: int) -> Optional[str
 def _args_hash(args: Any) -> str:
     import hashlib
     import json
+
     try:
-        return hashlib.sha1(json.dumps(args, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:16]
+        return hashlib.sha1(
+            json.dumps(args, sort_keys=True, default=str).encode("utf-8"), usedforsecurity=False
+        ).hexdigest()[:16]
     except Exception:
         return "unhashable"
 
@@ -102,12 +105,19 @@ def observe_dag_action(
             from app.agents.harness import audit
             from app.agents.harness.contracts import RunContext as _RC
 
-            audit.record(_RC(agent=(agent_id or "").strip().lower(),
-                             run_id=(dag_run_id or "dag_unknown")), None, None,
-                         kind="shadow_error",
-                         extra={"error": f"dag_envelope: {_env_err}", "node_id": node_id,
-                                "dag_run_id": dag_run_id, "source_loop": _SOURCE_LOOP,
-                                "comparison_verdict": "MISSING_CONTEXT"})
+            audit.record(
+                _RC(agent=(agent_id or "").strip().lower(), run_id=(dag_run_id or "dag_unknown")),
+                None,
+                None,
+                kind="shadow_error",
+                extra={
+                    "error": f"dag_envelope: {_env_err}",
+                    "node_id": node_id,
+                    "dag_run_id": dag_run_id,
+                    "source_loop": _SOURCE_LOOP,
+                    "comparison_verdict": "MISSING_CONTEXT",
+                },
+            )
         except Exception:
             pass
         return None
@@ -146,31 +156,54 @@ def observe_dag_action(
         reg.register(tool, _tripwire, _AnyArgs, risk)
 
         req = ToolCall(
-            name=tool, args=args, reason="shadow observation of DAG node",
-            tool_version=_tver, risk_class=risk,
-            idempotency_key=shadow_ref, budget_scope="run",
+            name=tool,
+            args=args,
+            reason="shadow observation of DAG node",
+            tool_version=_tver,
+            risk_class=risk,
+            idempotency_key=shadow_ref,
+            budget_scope="run",
             expected_effect=f"dag node {node_id} (attempt {attempt})",
         )
         ctx = RunContext(
-            run_id=dag_run_id, task_id=dag_run_id,
-            tenant_id=(tenant_id or SYSTEM_TENANT), agent=aid, actor_id="dag_scheduler",
-            shadow_run_id=shadow_ref, source_loop=_SOURCE_LOOP,
+            run_id=dag_run_id,
+            task_id=dag_run_id,
+            tenant_id=(tenant_id or SYSTEM_TENANT),
+            agent=aid,
+            actor_id="dag_scheduler",
+            shadow_run_id=shadow_ref,
+            source_loop=_SOURCE_LOOP,
         )
         meta = dict(execution_metadata or {})
-        meta.update({
-            "latency_ms": latency_ms, "legacy_tool": tool,
-            "side_effect_class": "internal", "dag_run_id": dag_run_id,
-            "node_id": node_id, "attempt": attempt,
-            "dag_node_status": dag_node_status, "retry_scheduled": bool(retry_scheduled),
-            "actual_executor": "process_library.execute_step",
-            "declared_tool": tool, "actual_arguments_hash": _args_hash(args),
-            "source_run_id": dag_run_id, "source_node_id": node_id, "source_attempt": attempt,
-            "step_type": (tool_name or ""), "canonical_tool": (tool if _canon else None),
-            "tool_registry_status": ("canonical_registered" if _canon else "unregistered_internal_action"),
-            "enforcement_applied": False,
-        })
+        meta.update(
+            {
+                "latency_ms": latency_ms,
+                "legacy_tool": tool,
+                "side_effect_class": "internal",
+                "dag_run_id": dag_run_id,
+                "node_id": node_id,
+                "attempt": attempt,
+                "dag_node_status": dag_node_status,
+                "retry_scheduled": bool(retry_scheduled),
+                "actual_executor": "process_library.execute_step",
+                "declared_tool": tool,
+                "actual_arguments_hash": _args_hash(args),
+                "source_run_id": dag_run_id,
+                "source_node_id": node_id,
+                "source_attempt": attempt,
+                "step_type": (tool_name or ""),
+                "canonical_tool": (tool if _canon else None),
+                "tool_registry_status": (
+                    "canonical_registered" if _canon else "unregistered_internal_action"
+                ),
+                "enforcement_applied": False,
+            }
+        )
         return Harness(registry=reg).observe(
-            ctx, req, actual_result=actual_result, actual_error=actual_error,
+            ctx,
+            req,
+            actual_result=actual_result,
+            actual_error=actual_error,
             execution_metadata=meta,
         )
     except Exception as e:
@@ -181,9 +214,16 @@ def observe_dag_action(
 
             audit.record(
                 RunContext(agent=(agent_id or "").strip().lower(), run_id=dag_run_id),
-                None, None, kind="shadow_error",
-                extra={"error": str(e)[:200], "agent": agent_id, "node_id": node_id,
-                       "dag_run_id": dag_run_id, "source_loop": _SOURCE_LOOP},
+                None,
+                None,
+                kind="shadow_error",
+                extra={
+                    "error": str(e)[:200],
+                    "agent": agent_id,
+                    "node_id": node_id,
+                    "dag_run_id": dag_run_id,
+                    "source_loop": _SOURCE_LOOP,
+                },
             )
         except Exception:
             pass

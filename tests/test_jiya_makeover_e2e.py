@@ -17,6 +17,49 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+# --- content-generation contract (app.marketing.auto_content.generate_for_client) ---
+# generate_for_client returns heterogeneous draft items. Caption-bearing items
+# (post / reel / festival post) always carry a non-empty, bounded caption -- the
+# template fallback guarantees this with NO network/LLM call. Poster / SVG items
+# (Wednesday "poster" day, festival posters) expose an ``svg`` payload and carry
+# NO ``caption`` key by design (see auto_content._caption_ok). Asserting a caption
+# on *every* item is wrong and fails on poster weekdays -- which is exactly the
+# network-disabled CI failure this contract check fixes.
+_CAPTION_MIN = 10
+_CAPTION_MAX = 2200
+
+
+def _assert_content_item_contract(item):
+    """Assert one generated draft item matches its per-type contract."""
+    assert item.get("type"), f"item missing type: {item}"
+    assert item.get("id"), f"item missing id: {item}"
+    assert item.get("status") == "draft", f"item not draft-only: {item}"
+    if "caption" in item:
+        cap = item.get("caption") or ""
+        assert cap, f"caption-bearing item ({item.get('type')}) has empty caption"
+        assert (
+            _CAPTION_MIN <= len(cap) <= _CAPTION_MAX
+        ), f"caption length {len(cap)} out of bounds for {item.get('type')}"
+    else:
+        # caption-less creative (poster / svg) -- must still expose an svg slot
+        assert "svg" in item, f"non-caption item missing svg slot: {item}"
+
+
+def _jiya_client():
+    return {
+        "id": "jiya-makeover",
+        "business_name": "Jiya Makeover Studio",
+        "niche": "beauty_makeover",
+        "city": "Mumbai",
+        "phone": "+919876543210",
+        "brand": {
+            "primary": "#e63946",
+            "accent": "#f1faee",
+            "tagline": "Premium Bridal & Event Makeup",
+            "logo_text": "Jiya Makeover",
+        },
+    }
+
 
 def test_jiya_makeover_onboarding_complete():
     """Verify jiya-makeover is fully onboarded into marketing system."""
@@ -88,12 +131,10 @@ async def test_content_generation_for_jiya():
     items = await generate_for_client(client)
     assert len(items) > 0, "No content generated for jiya-makeover"
 
-    # Verify content has required fields
+    # Verify each item satisfies the content contract for its type: caption-bearing
+    # items carry a bounded caption; poster/SVG items are caption-less by design.
     for item in items:
-        assert "caption" in item
-        assert "type" in item
-        assert item["caption"], f"Empty caption in item {item}"
-        assert len(item["caption"]) >= 10, "Caption too short"
+        _assert_content_item_contract(item)
 
 
 def test_social_engine_dryrun_ready():
@@ -237,13 +278,11 @@ async def test_full_e2e_pipeline_dry_run():
     items = await generate_for_client(client)
     assert len(items) > 0, "No content generated"
 
-    # Stage B: Internal canary (in-memory, no DB writes)
+    # Stage B: Internal canary (in-memory, no DB writes). Each draft item must
+    # satisfy the content contract for its type (caption-bearing -> bounded caption;
+    # poster/SVG -> caption-less creative). See _assert_content_item_contract.
     for item in items:
-        # Verify caption is usable for social
-        caption = item.get("caption", "")
-        assert caption, "Empty caption"
-        assert len(caption) > 10, "Caption too short"
-        assert len(caption) < 2200, "Caption too long"
+        _assert_content_item_contract(item)
 
     # Stage C: Simulate publishing (dry-run)
     with patch.dict(os.environ, {"SOCIAL_ENGINE": "1", "SOCIAL_DRY_RUN": "1"}):
@@ -255,6 +294,58 @@ async def test_full_e2e_pipeline_dry_run():
         assert os.getenv("SOCIAL_DRY_RUN") == "1"
 
     # Stage D would require WHATSAPP_BUSINESS_TOKEN + live APIs (skipped here)
+
+
+@pytest.mark.asyncio
+async def test_caption_bearing_day_offline_caption():
+    """A caption-bearing weekday (Monday -> post) must yield a non-empty, bounded
+    caption with NO network/LLM call -- the deterministic template fallback.
+    Locks the offline caption contract that CI (`-m "not network"`) relies on."""
+    from datetime import date
+
+    from app.marketing.auto_content import generate_for_client
+
+    items = await generate_for_client(_jiya_client(), day=date(2026, 7, 20))  # Monday
+    assert items, "Monday should generate content"
+    caption_items = [i for i in items if "caption" in i]
+    assert caption_items, "Monday (post day) must produce a caption-bearing item"
+    for it in caption_items:
+        cap = it.get("caption") or ""
+        assert cap, "caption-bearing item has empty caption offline"
+        assert _CAPTION_MIN <= len(cap) <= _CAPTION_MAX
+    # draft-only, no publish/send side effects
+    assert all(i.get("status") == "draft" for i in items)
+
+
+@pytest.mark.asyncio
+async def test_poster_day_is_captionless_svg():
+    """A poster weekday (Wednesday -> poster) yields an SVG creative with NO
+    caption by design. This is the exact case that previously (wrongly) failed
+    the blanket caption assertion in network-disabled CI."""
+    from datetime import date
+
+    from app.marketing.auto_content import generate_for_client
+
+    items = await generate_for_client(_jiya_client(), day=date(2026, 7, 22))  # Wednesday
+    assert items, "Wednesday should generate content"
+    poster_items = [i for i in items if "caption" not in i]
+    assert poster_items, "Wednesday (poster day) must produce a caption-less item"
+    for it in poster_items:
+        assert "svg" in it, "poster item must expose an svg slot"
+        assert not it.get("caption"), "poster item must not carry a caption"
+    assert all(i.get("status") == "draft" for i in items)
+
+
+@pytest.mark.asyncio
+async def test_generated_items_all_satisfy_contract_today():
+    """Whatever today's weekday produces, every item satisfies the per-type
+    content contract (regression guard against date-fragile caption assertions)."""
+    from app.marketing.auto_content import generate_for_client
+
+    items = await generate_for_client(_jiya_client())
+    assert items, "generate_for_client must never be empty"
+    for item in items:
+        _assert_content_item_contract(item)
 
 
 if __name__ == "__main__":

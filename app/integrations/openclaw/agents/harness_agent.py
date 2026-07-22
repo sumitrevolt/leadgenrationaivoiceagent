@@ -20,20 +20,25 @@ from typing import Any
 KAVACH_AGENT: dict[str, Any] = {
     "id": "openclaw_harness",
     "display_name": "Kavach",
-    "type": "openclaw_system",          # not "staff", not "worker"
+    "type": "openclaw_system",  # not "staff", not "worker"
     "authority": "advisory_validation_orchestration_enforcement_via_owner_os",
-    "dispatchable": False,               # never selectable by worker selectors
-    "staff_member": False,               # NOT in team.STAFF
+    "dispatchable": False,  # never selectable by worker selectors
+    "staff_member": False,  # NOT in team.STAFF
     "customer_facing": False,
-    "counts_toward_staff": False,        # canonical STAFF count impact: None
-    "second_dispatcher": False,          # strictly forbidden
+    "counts_toward_staff": False,  # canonical STAFF count impact: None
+    "second_dispatcher": False,  # strictly forbidden
     "calling_capable": False,
-    "flag": "OPENCLAW_HARNESS_AGENT",   # INERT default (0)
+    "flag": "OPENCLAW_HARNESS_AGENT",  # INERT default (0)
 }
 
 
 def is_enabled() -> bool:
-    return (os.getenv("OPENCLAW_HARNESS_AGENT") or "0").strip().lower() in ("1", "true", "yes", "on")
+    return (os.getenv("OPENCLAW_HARNESS_AGENT") or "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 def is_dispatchable() -> bool:
@@ -61,9 +66,15 @@ def classify_harness_nl(text: str) -> dict[str, Any]:
 
     def prop(cmd: str, lane: str, note: str | None = None, conf: str = "high") -> dict[str, Any]:
         return {
-            "ok": True, "command": cmd, "params": params, "safety_lane": lane,
-            "confidence": conf, "original": raw[:2000], "note": note,
-            "approval_required": lane == "AMBER", "agent": KAVACH_AGENT["id"],
+            "ok": True,
+            "command": cmd,
+            "params": params,
+            "safety_lane": lane,
+            "confidence": conf,
+            "original": raw[:2000],
+            "note": note,
+            "approval_required": lane == "AMBER",
+            "agent": KAVACH_AGENT["id"],
         }
 
     # Read intents (GREEN)
@@ -80,14 +91,24 @@ def classify_harness_nl(text: str) -> dict[str, Any]:
 
     # Control intents (AMBER — parked for Owner OS approval)
     if "shadow" in low:
-        return prop("harness.shadow.enable" if "enable" in low or "on" in low
-                    else "harness.shadow.disable", "AMBER")
+        return prop(
+            "harness.shadow.enable" if "enable" in low or "on" in low else "harness.shadow.disable",
+            "AMBER",
+        )
     if "canary" in low:
-        return prop("harness.canary.enable" if "enable" in low or "on" in low
-                    else "harness.canary.disable", "AMBER")
+        return prop(
+            "harness.canary.enable" if "enable" in low or "on" in low else "harness.canary.disable",
+            "AMBER",
+        )
     if "enforce" in low:
-        return prop("harness.enforce.enable" if "enable" in low or "on" in low
-                    else "harness.enforce.disable", "AMBER")
+        return prop(
+            (
+                "harness.enforce.enable"
+                if "enable" in low or "on" in low
+                else "harness.enforce.disable"
+            ),
+            "AMBER",
+        )
     if "pause" in low or "rok" in low:
         return prop("harness.pause", "AMBER")
     if "resume" in low or "chalu" in low:
@@ -104,19 +125,33 @@ def classify_harness_nl(text: str) -> dict[str, Any]:
     return prop("harness.status", "GREEN", note="Ambiguous -> read-only harness.status", conf="low")
 
 
-def handle(text: str, *, actor: str = "admin", correlation_id: str | None = None,
-           confirm: bool = False, idempotency_key: str | None = None) -> dict[str, Any]:
+def handle(
+    text: str,
+    *,
+    actor: str = "admin",
+    correlation_id: str | None = None,
+    confirm: bool = False,
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
     """Parse intent, then route through the SAME Owner OS gate as every other
     OpenClaw command. Kavach adds nothing that bypasses policy or Owner OS."""
     if not is_enabled():
-        return {"ok": False, "error": "OPENCLAW_HARNESS_AGENT=0 — Kavach inert", "agent": KAVACH_AGENT["id"]}
+        return {
+            "ok": False,
+            "error": "OPENCLAW_HARNESS_AGENT=0 — Kavach inert",
+            "agent": KAVACH_AGENT["id"],
+        }
 
     plan = classify_harness_nl(text)
     from app.integrations.openclaw.commands import execute_typed_command
 
     result = execute_typed_command(
-        plan["command"], plan.get("params") or {},
-        actor=actor, idempotency_key=idempotency_key,
-        confirm=confirm, correlation_id=correlation_id, text=text,
+        plan["command"],
+        plan.get("params") or {},
+        actor=actor,
+        idempotency_key=idempotency_key,
+        confirm=confirm,
+        correlation_id=correlation_id,
+        text=text,
     )
     return {"agent": KAVACH_AGENT["id"], "plan": plan, "result": result}

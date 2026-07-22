@@ -4,6 +4,7 @@ Standalone tests exercise the record-only observe() path + eligibility with no
 app.* deps. The final test drives the REAL staff.run_member dispatcher (skipped
 where the app isn't importable).
 """
+
 import asyncio
 import json
 
@@ -27,8 +28,12 @@ def _canary_env(mp, agents="nikhil", harness="1", shadowf="1", enforce="0"):
 
 # ---- flag isolation --------------------------------------------------
 def test_all_flags_off_no_record(monkeypatch):
-    for k in ("AGENT_HARNESS", "AGENT_HARNESS_SHADOW", "AGENT_HARNESS_ENFORCE",
-              "AGENT_HARNESS_CANARY_AGENTS"):
+    for k in (
+        "AGENT_HARNESS",
+        "AGENT_HARNESS_SHADOW",
+        "AGENT_HARNESS_ENFORCE",
+        "AGENT_HARNESS_CANARY_AGENTS",
+    ):
         monkeypatch.delenv(k, raising=False)
     assert shadow.observe_legacy_run("nikhil", actual_result={"ok": True}) is None
 
@@ -46,7 +51,7 @@ def test_empty_canary_none_eligible(monkeypatch):
 def test_nikhil_eligible(monkeypatch):
     _canary_env(monkeypatch)
     assert shadow.shadow_eligible("nikhil") is True
-    assert shadow.shadow_eligible("Nikhil") is True   # normalized
+    assert shadow.shadow_eligible("Nikhil") is True  # normalized
 
 
 def test_peers_ineligible(monkeypatch):
@@ -71,18 +76,20 @@ def test_observer_never_invokes_tool(monkeypatch):
     reg = ToolRegistry(permission_fn=lambda a, t: True)
     reg.register("staff.run_nikhil", boom, _NoArgs, RiskClass.WRITE_LOCAL)
     ctx = RunContext(agent="nikhil", tenant_id="__system__", source_loop="staff.run_member")
-    req = ToolCall(name="staff.run_nikhil", idempotency_key="shadow:r1:0",
-                   risk_class=RiskClass.WRITE_LOCAL)
+    req = ToolCall(
+        name="staff.run_nikhil", idempotency_key="shadow:r1:0", risk_class=RiskClass.WRITE_LOCAL
+    )
     rec = Harness(registry=reg).observe(ctx, req, actual_result={"ok": True})
-    assert called["n"] == 0                       # executor NEVER called
+    assert called["n"] == 0  # executor NEVER called
     assert rec["comparison_verdict"] == "MATCH"
-    assert rec["would_checkpoint"] is True        # WRITE_LOCAL is mutating
+    assert rec["would_checkpoint"] is True  # WRITE_LOCAL is mutating
 
 
 def test_shadow_ref_is_not_legacy_key(monkeypatch):
     _canary_env(monkeypatch)
-    rec = shadow.observe_legacy_run("nikhil", actual_result={"ok": True},
-                                    real_run_id="realRUN", action_index=0)
+    rec = shadow.observe_legacy_run(
+        "nikhil", actual_result={"ok": True}, real_run_id="realRUN", action_index=0
+    )
     assert rec is not None
     assert rec["shadow_run_id"] == "shadow:realRUN:0"
     assert rec["run_id"] == "realRUN"
@@ -101,7 +108,7 @@ def test_observer_exception_does_not_propagate(monkeypatch):
 
 # ---- policy lanes recorded ------------------------------------------
 def test_red_action_recorded_would_deny():
-    reg = ToolRegistry(permission_fn=lambda a, t: False)   # deny
+    reg = ToolRegistry(permission_fn=lambda a, t: False)  # deny
     reg.register("danger", _NoArgs and (lambda **_: None), _NoArgs, RiskClass.MONEY)
     ctx = RunContext(agent="nikhil")
     req = ToolCall(name="danger", idempotency_key="shadow:r:0", risk_class=RiskClass.MONEY)
@@ -126,7 +133,7 @@ def test_recorded_agent_is_nikhil(monkeypatch):
     _canary_env(monkeypatch)
     rec = shadow.observe_legacy_run("nikhil", actual_result={"ok": True})
     assert rec["agent"] == "nikhil"
-    assert rec["tenant_id"] == "__system__"       # explicit system scope, not a customer
+    assert rec["tenant_id"] == "__system__"  # explicit system scope, not a customer
 
 
 def test_no_peer_record(monkeypatch):
@@ -137,14 +144,16 @@ def test_no_peer_record(monkeypatch):
 def test_secret_redaction(monkeypatch):
     _canary_env(monkeypatch)
     rec = shadow.observe_legacy_run(
-        "nikhil", actual_result={"api_key": "sk_live_SECRET", "ok": True})
+        "nikhil",
+        actual_result={"api_key": "sk_live_SECRET", "ok": True},  # pragma: allowlist secret
+    )
     blob = json.dumps(rec)
     assert "sk_live_SECRET" not in blob
     assert "REDACTED" in blob
 
 
 def test_missing_tool_metadata_safe_record():
-    reg = ToolRegistry(permission_fn=lambda a, t: True)   # tool NOT registered
+    reg = ToolRegistry(permission_fn=lambda a, t: True)  # tool NOT registered
     ctx = RunContext(agent="nikhil")
     req = ToolCall(name="unregistered", risk_class=RiskClass.READ)
     rec = Harness(registry=reg).observe(ctx, req, actual_result={"ok": True})
@@ -156,20 +165,22 @@ def test_missing_tool_metadata_safe_record():
 def test_explainable_via_audit(monkeypatch, tmp_path):
     _canary_env(monkeypatch)
     from app.agents.harness import audit
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
-    rec = shadow.observe_legacy_run("nikhil", actual_result={"ok": True},
-                                    real_run_id="explainME", latency_ms=42)
+    rec = shadow.observe_legacy_run(
+        "nikhil", actual_result={"ok": True}, real_run_id="explainME", latency_ms=42
+    )
     events = audit.replay("explainME")
     assert events, "no audit events for run"
     ev = events[-1]["extra"]
-    assert ev["comparison_verdict"] == "MATCH"          # proposed-vs-actual present
+    assert ev["comparison_verdict"] == "MATCH"  # proposed-vs-actual present
     # Nikhil composite = AMBER (usage_alerts can send customer emails); registry
     # authoritative. Execution layer still MATCH (would_allow True), but the lane
     # is honestly AMBER and approval would be required.
     assert ev["predicted_lane"] == "AMBER"
     assert ev["would_require_approval"] is True
     assert ev["registry_comparison"] == "REGISTRY_MATCH"
-    assert ev["stop_decision"] == "continue"           # stop decision visible
+    assert ev["stop_decision"] == "continue"  # stop decision visible
     assert ev["run_id"] == "explainME" and ev["shadow_run_id"] == "shadow:explainME:0"
 
 
@@ -177,6 +188,7 @@ def test_explainable_via_audit(monkeypatch, tmp_path):
 def test_nikhil_through_real_run_member(monkeypatch, tmp_path):
     staff = pytest.importorskip("app.agents.staff")
     from app.agents.harness import audit
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
     _canary_env(monkeypatch)
 
@@ -192,10 +204,12 @@ def test_nikhil_through_real_run_member(monkeypatch, tmp_path):
     monkeypatch.setattr(staff, "run_nikhil", fake_nikhil)
     res = asyncio.run(staff.run_member("nikhil"))
 
-    assert calls["n"] == 1                      # legacy executed EXACTLY once
+    assert calls["n"] == 1  # legacy executed EXACTLY once
     assert res.get("ok") is True
     rows = [json.loads(x) for x in open(tmp_path / "runs.jsonl", encoding="utf-8")]
-    shadow_rows = [r for r in rows if r.get("kind") == "shadow" and r["extra"].get("agent") == "nikhil"]
+    shadow_rows = [
+        r for r in rows if r.get("kind") == "shadow" and r["extra"].get("agent") == "nikhil"
+    ]
     assert shadow_rows, "no shadow record from real run_member"
     assert shadow_rows[-1]["extra"]["comparison_verdict"] in ("MATCH", "LEGACY_ERROR")
     assert shadow_rows[-1]["extra"]["enforcement"] is False

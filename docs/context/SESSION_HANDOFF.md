@@ -1,17 +1,24 @@
-# SESSION_HANDOFF - overwrite every session end
+# SESSION_HANDOFF — overwrite every session end
 
 ## Session objective
-Package Stage 0 Video Production Cell: verify, commit, push, draft PR (no deploy/canary).
+Make draft PR #91 (OpenClaw Daily Video Production) mergeable by merging origin/main into the feature branch (no force-push, no PR merge, no deploy).
 
 ## Outcome
-**IN PROGRESS → commit/PR packaging**
-Branch `feat/openclaw-daily-video-production`. ADR-132. Stage 0 local verified. Production NOT deployed; all VIDEO_* flags OFF.
+**IN PROGRESS — merge resolution**
+Branch `feat/openclaw-daily-video-production`. Video Stage 0 local verified (ADR-140). Merged origin/main harness evolution (ADR-131..138 + durable audit PRs). All VIDEO_* flags remain OFF. Production NOT deployed.
 
-## Key evidence
+## Active stream (WS-3)
 - Package: `app/marketing/video_production/`
-- Proof script: `scripts/video_production_local_proof.py` (MP4s gitignored under `data/`)
-- Sanitized note: `docs/reports/VIDEO_PRODUCTION_STAGE0_PROOF.md`
-- EdgeTTS documented as network adapter with silent fallback
+- Proof: `scripts/video_production_local_proof.py` + `docs/reports/VIDEO_PRODUCTION_STAGE0_PROOF.md`
+- PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/91 (draft)
+
+## Main truth retained
+- origin/main tip includes harness audit/determinism/durable backend work (through PR #90)
+- OPENCLAW / VIDEO_* / platform_dial remain OFF by default
+- Swara/voice FROZEN; no secrets touched
 
 ## Exact next task
-Finish commit + draft PR; inspect checks. Do not enable flags / WhatsApp / Postiz / deploy.
+Finish conflict resolution → targeted video pytest + prod_check + secrets → commit merge → push (no force) → `gh pr checks 91`. Do not merge PR, enable flags, WhatsApp canary, or deploy.
+
+## Protected
+No force-push, no PR merge, no deploy, no .env flip, no Swara/voice, no billing, no customer data writes.

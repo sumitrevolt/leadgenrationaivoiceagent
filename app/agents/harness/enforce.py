@@ -64,7 +64,7 @@ class DenialReason(str, Enum):
     AGENT_NOT_ALLOWED = "AGENT_NOT_ALLOWED"
     TENANT_NOT_ALLOWED = "TENANT_NOT_ALLOWED"
     TOOL_DISABLED = "TOOL_DISABLED"
-    TOOL_NOT_ALLOWLISTED = "TOOL_NOT_ALLOWLISTED"   # registered but not in canary allowlist
+    TOOL_NOT_ALLOWLISTED = "TOOL_NOT_ALLOWLISTED"  # registered but not in canary allowlist
     RISK_NOT_GREEN = "RISK_NOT_GREEN"
     APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
     OWNER_OS_REQUIRED = "OWNER_OS_REQUIRED"
@@ -93,8 +93,9 @@ def _csv_set(name: str) -> set[str]:
     return {p.strip().lower() for p in raw.split(",") if p.strip()}
 
 
-def resolve_mode(*, agent_id: str, source_loop: str,
-                 tool_token: Optional[str] = None) -> tuple[HarnessMode, list[str]]:
+def resolve_mode(
+    *, agent_id: str, source_loop: str, tool_token: Optional[str] = None
+) -> tuple[HarnessMode, list[str]]:
     """Deterministic mode resolver. Fail-closed: any invalid/ambiguous combo -> OFF.
 
     tool_token (optional) = "<name>@<version>" for per-tool allowlist refinement.
@@ -248,17 +249,27 @@ def _reset_guard() -> None:
 # Enforcement gate — separates evaluation from execution
 # --------------------------------------------------------------------------- #
 class EnforcementGate:
-    def __init__(self, registry: Optional[CanonicalToolRegistry] = None,
-                 executors: Optional[ExecutorBindingRegistry] = None,
-                 stop: Optional[StopController] = None) -> None:
+    def __init__(
+        self,
+        registry: Optional[CanonicalToolRegistry] = None,
+        executors: Optional[ExecutorBindingRegistry] = None,
+        stop: Optional[StopController] = None,
+    ) -> None:
         self.registry = registry or REGISTRY
         self.executors = executors or EXECUTORS
         self.stop = stop or StopController()
 
     # ---- evaluate: PURE decision; NEVER executes ----------------------
-    def evaluate(self, ctx: RunContext, action_request: ToolCall, *,
-                 mode: HarnessMode, est_usd: float = 0.0, est_tokens: int = 0,
-                 execution_key: str = "") -> EnforcementDecision:
+    def evaluate(
+        self,
+        ctx: RunContext,
+        action_request: ToolCall,
+        *,
+        mode: HarnessMode,
+        est_usd: float = 0.0,
+        est_tokens: int = 0,
+        execution_key: str = "",
+    ) -> EnforcementDecision:
         name = action_request.name
         ver = action_request.tool_version or ""
         reasons: list[str] = []
@@ -266,9 +277,14 @@ class EnforcementGate:
 
         if mode is not HarnessMode.ENFORCE:
             reasons.append(DenialReason.INVALID_MODE.value)
-            return EnforcementDecision(allowed=False, mode=mode, tool_name=name,
-                                       tool_version=ver, denial_reasons=reasons,
-                                       execution_key=execution_key)
+            return EnforcementDecision(
+                allowed=False,
+                mode=mode,
+                tool_name=name,
+                tool_version=ver,
+                denial_reasons=reasons,
+                execution_key=execution_key,
+            )
 
         # exact tool/version allowlist (no wildcard)
         tools = _csv_set("AGENT_HARNESS_ENFORCE_TOOLS")
@@ -276,16 +292,23 @@ class EnforcementGate:
 
         # registry decision (authoritative risk/authority/schema/permission)
         from .registry import claimed_lane
+
         reg = self.registry.evaluate_action(
-            tool_name=name, tool_version=(ver or None), arguments=action_request.args,
-            agent_id=ctx.agent, tenant_id=ctx.tenant_id,
+            tool_name=name,
+            tool_version=(ver or None),
+            arguments=action_request.args,
+            agent_id=ctx.agent,
+            tenant_id=ctx.tenant_id,
             idempotency_key=action_request.idempotency_key,
             claimed_risk=claimed_lane(action_request.risk_class),
         )
         rc = reg.get("registry_comparison")
-        fields.update(registry_status=rc, schema_valid=reg.get("schema_validation"),
-                      agent_allowed=reg.get("agent_permission"),
-                      tenant_allowed=reg.get("tenant_permission"))
+        fields.update(
+            registry_status=rc,
+            schema_valid=reg.get("schema_validation"),
+            agent_allowed=reg.get("agent_permission"),
+            tenant_allowed=reg.get("tenant_permission"),
+        )
         _RS = RegistryStatus
         _map = {
             _RS.UNREGISTERED_TOOL.value: DenialReason.UNREGISTERED_TOOL,
@@ -299,12 +322,18 @@ class EnforcementGate:
         if rc in _map:
             reasons.append(_map[rc].value)
 
-        defn = self.registry.resolve(name, ver or None) if rc not in (
-            _RS.UNREGISTERED_TOOL.value, _RS.VERSION_MISMATCH.value) else None
+        defn = (
+            self.registry.resolve(name, ver or None)
+            if rc not in (_RS.UNREGISTERED_TOOL.value, _RS.VERSION_MISMATCH.value)
+            else None
+        )
         if defn is not None:
-            fields.update(risk_lane=defn.risk_class, authority=defn.authority,
-                          idempotency_required=defn.requires_idempotency,
-                          sandbox_required=defn.sandbox_required)
+            fields.update(
+                risk_lane=defn.risk_class,
+                authority=defn.authority,
+                idempotency_required=defn.requires_idempotency,
+                sandbox_required=defn.sandbox_required,
+            )
             # tool must be in the exact canary allowlist
             if not tools or token not in tools:
                 reasons.append(DenialReason.TOOL_NOT_ALLOWLISTED.value)
@@ -316,8 +345,7 @@ class EnforcementGate:
             if defn.authority is AuthorityClass.OWNER_OS_REQUIRED:
                 reasons.append(DenialReason.OWNER_OS_REQUIRED.value)
                 fields["owner_os_routing_required"] = True
-            if (defn.authority is AuthorityClass.APPROVAL_REQUIRED
-                    or defn.requires_approval):
+            if defn.authority is AuthorityClass.APPROVAL_REQUIRED or defn.requires_approval:
                 reasons.append(DenialReason.APPROVAL_REQUIRED.value)
                 fields["approval_required"] = True
             if defn.sandbox_required:
@@ -334,8 +362,7 @@ class EnforcementGate:
         budget_ok = self.stop.admit(ctx, est_usd, est_tokens)
         kill_clear = not self.stop.killed(ctx)
         cont, _reason = self.stop.check(ctx)
-        fields.update(budget_allowed=budget_ok, kill_switch_clear=kill_clear,
-                      stop_allowed=cont)
+        fields.update(budget_allowed=budget_ok, kill_switch_clear=kill_clear, stop_allowed=cont)
         if not budget_ok:
             reasons.append(DenialReason.BUDGET_DENIED.value)
         if not kill_clear:
@@ -344,13 +371,20 @@ class EnforcementGate:
             reasons.append(DenialReason.STOP_REQUESTED.value)
 
         allowed = not reasons
-        return EnforcementDecision(allowed=allowed, mode=mode, tool_name=name,
-                                   tool_version=ver, denial_reasons=reasons,
-                                   execution_key=execution_key, **fields)
+        return EnforcementDecision(
+            allowed=allowed,
+            mode=mode,
+            tool_name=name,
+            tool_version=ver,
+            denial_reasons=reasons,
+            execution_key=execution_key,
+            **fields,
+        )
 
     # ---- execute: ONLY the registry-bound executor, at most once ------
-    async def execute_registered(self, ctx: RunContext, action_request: ToolCall,
-                                 decision: EnforcementDecision) -> tuple[bool, Any, Optional[str], bool]:
+    async def execute_registered(
+        self, ctx: RunContext, action_request: ToolCall, decision: EnforcementDecision
+    ) -> tuple[bool, Any, Optional[str], bool]:
         """Returns (ok, output, error, duplicate_suppressed). Executes the
         registry-BOUND executor exactly once. The caller-supplied arbitrary
         callable is never touched here."""
@@ -366,7 +400,7 @@ class EnforcementGate:
         # Synchronous exactly-once claim (no await before this line).
         if not _claim(key):
             prev = _RESULTS.get(key)
-            return True, prev, None, True     # duplicate -> replay, no second execution
+            return True, prev, None, True  # duplicate -> replay, no second execution
         try:
             out = await fn(**dict(action_request.args or {}))
             _store_result(key, out)
@@ -378,81 +412,171 @@ class EnforcementGate:
 # --------------------------------------------------------------------------- #
 # Audit events (bounded; no secrets)
 # --------------------------------------------------------------------------- #
-def _audit_event(ctx: RunContext, call: Optional[ToolCall], event: str,
-                 decision: Optional[EnforcementDecision] = None, **extra: Any) -> None:
+def _audit_event(
+    ctx: RunContext,
+    call: Optional[ToolCall],
+    event: str,
+    decision: Optional[EnforcementDecision] = None,
+    **extra: Any,
+) -> None:
     try:
-        row: dict[str, Any] = {"event": event, "mode": HarnessMode.ENFORCE.value,
-                               "layer": "enforcement", "enforcement": True}
+        row: dict[str, Any] = {
+            "event": event,
+            "mode": HarnessMode.ENFORCE.value,
+            "layer": "enforcement",
+            "enforcement": True,
+        }
         if decision is not None:
-            row.update(decision_id=decision.decision_id, execution_key=decision.execution_key,
-                       tool_name=decision.tool_name, tool_version=decision.tool_version,
-                       risk=(decision.risk_lane.value if decision.risk_lane else None),
-                       authority=(decision.authority.value if decision.authority else None),
-                       denial_reasons=list(decision.denial_reasons),
-                       registry_status=decision.registry_status)
+            row.update(
+                decision_id=decision.decision_id,
+                execution_key=decision.execution_key,
+                tool_name=decision.tool_name,
+                tool_version=decision.tool_version,
+                risk=(decision.risk_lane.value if decision.risk_lane else None),
+                authority=(decision.authority.value if decision.authority else None),
+                denial_reasons=list(decision.denial_reasons),
+                registry_status=decision.registry_status,
+            )
         row.update(extra)
         audit.record(ctx, call, None, kind="enforce", extra=row)
     except Exception as e:  # audit must never break the batch
         logger.warning("harness.enforce: audit event failed: %s", e)
 
 
-async def enforce_batch_item(*, ctx: RunContext, batch_run_id: str, item_id: str,
-                             item_index: int, attempt: int, tool_name: str,
-                             tool_version: str, item: Any,
-                             gate: Optional[EnforcementGate] = None) -> dict:
+async def enforce_batch_item(
+    *,
+    ctx: RunContext,
+    batch_run_id: str,
+    item_id: str,
+    item_index: int,
+    attempt: int,
+    tool_name: str,
+    tool_version: str,
+    item: Any,
+    gate: Optional[EnforcementGate] = None,
+) -> dict:
     """Governed execution of ONE batch item in ENFORCE mode. The caller's
     arbitrary `fn` is NOT passed here and NEVER runs — only the registry-bound
     executor for `tool_name@tool_version` may execute, and only if every gate
     passes. NEVER raises into the batch."""
     gate = gate or EnforcementGate()
-    name = tool_name or f"batch.execute.{item_id}"     # no canonical id => unregistered => deny
+    name = tool_name or f"batch.execute.{item_id}"  # no canonical id => unregistered => deny
     ver = tool_version or ""
     exec_key = f"enforce:{batch_run_id}:{item_id}:{attempt}"
     args = item if isinstance(item, dict) else {"item": str(item)}
     try:
         from .contracts import RiskClass
-        req = ToolCall(name=name, args=args, tool_version=ver, risk_class=RiskClass.READ,
-                       idempotency_key=exec_key, reason="enforced batch item",
-                       expected_effect=f"batch {batch_run_id} item {item_id}")
+
+        req = ToolCall(
+            name=name,
+            args=args,
+            tool_version=ver,
+            risk_class=RiskClass.READ,
+            idempotency_key=exec_key,
+            reason="enforced batch item",
+            expected_effect=f"batch {batch_run_id} item {item_id}",
+        )
     except Exception as e:
-        _audit_event(ctx, None, "enforcement_failed", None, item_id=item_id,
-                     error=f"action_request_build: {str(e)[:120]}")
+        _audit_event(
+            ctx,
+            None,
+            "enforcement_failed",
+            None,
+            item_id=item_id,
+            error=f"action_request_build: {str(e)[:120]}",
+        )
         return {"ok": False, "denied": True, "reasons": ["ACTION_REQUEST_INVALID"], "result": None}
 
-    _audit_event(ctx, req, "enforcement_requested", None, item_id=item_id,
-                 item_index=item_index, batch_run_id=batch_run_id)
+    _audit_event(
+        ctx,
+        req,
+        "enforcement_requested",
+        None,
+        item_id=item_id,
+        item_index=item_index,
+        batch_run_id=batch_run_id,
+    )
     decision = gate.evaluate(ctx, req, mode=HarnessMode.ENFORCE, execution_key=exec_key)
-    _audit_event(ctx, req, "enforcement_evaluated", decision, item_id=item_id,
-                 executor_called=False, result_status="evaluated")
+    _audit_event(
+        ctx,
+        req,
+        "enforcement_evaluated",
+        decision,
+        item_id=item_id,
+        executor_called=False,
+        result_status="evaluated",
+    )
 
     if not decision.allowed_for_enforcement:
-        _audit_event(ctx, req, "enforcement_denied", decision, item_id=item_id,
-                     executor_called=False, result_status="denied")
-        return {"ok": False, "denied": True, "reasons": list(decision.denial_reasons),
-                "result": None, "decision_id": decision.decision_id}
+        _audit_event(
+            ctx,
+            req,
+            "enforcement_denied",
+            decision,
+            item_id=item_id,
+            executor_called=False,
+            result_status="denied",
+        )
+        return {
+            "ok": False,
+            "denied": True,
+            "reasons": list(decision.denial_reasons),
+            "result": None,
+            "decision_id": decision.decision_id,
+        }
 
     t0 = time.time()
     _audit_event(ctx, req, "enforcement_started", decision, item_id=item_id, executor_called=True)
     ok, out, err, dup = await gate.execute_registered(ctx, req, decision)
     latency = int((time.time() - t0) * 1000)
     if dup:
-        _audit_event(ctx, req, "enforcement_duplicate_suppressed", decision, item_id=item_id,
-                     executor_called=False, result_status="duplicate", latency_ms=latency)
+        _audit_event(
+            ctx,
+            req,
+            "enforcement_duplicate_suppressed",
+            decision,
+            item_id=item_id,
+            executor_called=False,
+            result_status="duplicate",
+            latency_ms=latency,
+        )
         return {"ok": True, "duplicate": True, "result": out, "decision_id": decision.decision_id}
     if ok:
-        _audit_event(ctx, req, "enforcement_completed", decision, item_id=item_id,
-                     executor_called=True, result_status="ok", latency_ms=latency)
+        _audit_event(
+            ctx,
+            req,
+            "enforcement_completed",
+            decision,
+            item_id=item_id,
+            executor_called=True,
+            result_status="ok",
+            latency_ms=latency,
+        )
         return {"ok": True, "result": out, "decision_id": decision.decision_id}
-    _audit_event(ctx, req, "enforcement_failed", decision, item_id=item_id,
-                 executor_called=True, result_status="error", error=err, latency_ms=latency)
-    return {"ok": False, "denied": False, "error": err, "result": None,
-            "decision_id": decision.decision_id}
+    _audit_event(
+        ctx,
+        req,
+        "enforcement_failed",
+        decision,
+        item_id=item_id,
+        executor_called=True,
+        result_status="error",
+        error=err,
+        latency_ms=latency,
+    )
+    return {
+        "ok": False,
+        "denied": False,
+        "error": err,
+        "result": None,
+        "decision_id": decision.decision_id,
+    }
 
 
 # --------------------------------------------------------------------------- #
 # Built-in registry-bound executor (explicit; deterministic; side-effect-free)
 # --------------------------------------------------------------------------- #
-_SAFE_CALLS = {"n": 0}   # observable call counter for proofs (no system side effect)
+_SAFE_CALLS = {"n": 0}  # observable call counter for proofs (no system side effect)
 
 
 async def _safe_calculation_executor(id: str) -> dict:
@@ -462,8 +586,13 @@ async def _safe_calculation_executor(id: str) -> dict:
     digest = 0
     for ch in str(id):
         digest = (digest * 31 + ord(ch)) & 0xFFFFFFFF
-    return {"ok": True, "id": id, "value": digest % 1000,
-            "tool": "batch.internal.safe_calculation", "summary": f"calc({id})={digest % 1000}"}
+    return {
+        "ok": True,
+        "id": id,
+        "value": digest % 1000,
+        "tool": "batch.internal.safe_calculation",
+        "summary": f"calc({id})={digest % 1000}",
+    }
 
 
 def _bind_builtins() -> None:

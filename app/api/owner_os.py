@@ -384,11 +384,15 @@ async def owner_runtime_status(user: User = Depends(require_admin)) -> dict[str,
     """Agent Runtime (Phase-B) operator board — mode/lane, heartbeats, useful work,
     active tasks, budgets, kill-switch state, runtime DLQ. Never raises."""
     from app.platform import agent_runtime
-    from app.platform.agent_runtime_pilots import ensure_pilots_registered
+    from app.platform.agent_runtime_workforce import (
+        ensure_workforce_registered,
+        workforce_rollout_state,
+    )
 
-    ensure_pilots_registered()
+    ensure_workforce_registered()
     out = agent_runtime.runtime_status()
     out["dlq_tail"] = agent_runtime.runtime_dlq(20)
+    out["workforce_rollout"] = workforce_rollout_state()
     return out
 
 
@@ -399,12 +403,12 @@ async def owner_runtime_status(user: User = Depends(require_admin)) -> dict[str,
 async def owner_runtime_run(
     body: RuntimeRunIn, user: User = Depends(require_admin)
 ) -> dict[str, Any]:
-    """Operator-triggered pilot dispatch under FULL contract policy. Non-pilot /
+    """Operator-triggered runtime dispatch under FULL contract policy. Non-pilot /
     RED / kill-engaged / unapproved AMBER = structured blocked result (fail-closed)."""
     from app.platform import agent_runtime
-    from app.platform.agent_runtime_pilots import ensure_pilots_registered
+    from app.platform.agent_runtime_workforce import ensure_workforce_registered
 
-    ensure_pilots_registered()
+    ensure_workforce_registered()
     result = await agent_runtime.submit(
         body.agent_id,
         body.action,
@@ -428,7 +432,30 @@ async def owner_runtime_run(
             "task_id": result.task_id,
         },
     )
-    return {"ok": result.status == "succeeded", "result": result.to_dict()}
+    out: dict[str, Any] = {
+        "ok": result.status == "succeeded",
+        "result": result.to_dict(),
+        "agent_id": body.agent_id,
+        "capability": body.action,
+        "status": result.status,
+        "reason_code": result.reason or "",
+    }
+    # Durable duplicate / store-unavailable projection (no fabricated IDs)
+    try:
+        from app.platform import agent_runtime_idempotency as arid
+
+        out["idempotency_backend"] = arid.backend_status().get("idempotency_backend")
+        out["fallback_active"] = arid.backend_status().get("fallback_active")
+    except Exception:
+        out["idempotency_backend"] = "unknown"
+        out["fallback_active"] = True
+    if result.reason in ("duplicate_suppressed", "duplicate_in_progress") and isinstance(
+        result.output, dict
+    ):
+        out["original_run_id"] = result.output.get("original_run_id")
+        out["original_status"] = result.output.get("original_status")
+        out["result_reference"] = result.output.get("result_digest")
+    return out
 
 
 @router.get("/training")

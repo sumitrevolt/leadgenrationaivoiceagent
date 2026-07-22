@@ -46,7 +46,9 @@ real-provider proof). Two bounded fixes shipped: (a) selection extraction now fi
 STAFF-named message, not the final supervisor message; (b) per-run `graph_run_id` removes a
 cross-run audit-dedup collision.
 
-## 3. Canonical tool matrix (manifest a20e2ede196c30ae)
+## 3. Canonical tool matrix (manifest 1d3b83331cf303e2 — deterministic)
+
+> Manifest fingerprint is now deterministic across PYTHONHASHSEED / process / container (ADR-138). The earlier values `a20e2ede196c30ae` and `697b56f06ed35102` were historical **non-deterministic** fingerprints and are not authoritative.
 
 | identity | ver | family | risk | side-effect | authority | agents | tenant | approval | idem | sandbox | net | bound |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -80,7 +82,7 @@ harness.enforce.*/harness.kill are AMBER.
 | family | level | rationale |
 |---|---|---|
 | batch_harness | C4 (local/internal) | owner-approved bounded canary done + rolled back; fail-closed; exactly-once; NOT C5 (no prod persistence/multi-worker/monitoring) |
-| dag_engine | C2 | REGISTRY_MATCH real proof; GREEN; no binding |
+| dag_engine | C2 → **production-shadow-proven** | REGISTRY_MATCH real proof; GREEN; no binding. One bounded production shadow canary passed 2026-07-22 (see `docs/agent_runtime/DAG_SHADOW_PRODUCTION_CANARY_PROOF.md`): legacy=1, harness executor=0, 1 shadow record, MATCH/REGISTRY_MATCH, manifest `1d3b83331cf303e2`, flags restored OFF |
 | staff.run_member/Nikhil | C2 (AMBER) | REGISTRY_MATCH real proof; AMBER external-send/approval — never autonomous |
 | coordinator | C2 (Dev delegation) | agent.delegate.dev REGISTRY_MATCH on real graph; orchestrator < C3; structured planner shadow/mocked |
 | supervisor.py | C2 | dev GREEN + rohan AMBER REGISTRY_MATCH on real LangGraph |
@@ -88,7 +90,8 @@ harness.enforce.*/harness.kill are AMBER.
 
 No family is C5. Only batch reached C4 (local). Coverage: shadow 5/5, structured-contract 5/5,
 registry-backed 5/5 (all five families now have >=1 REGISTRY_MATCH real proof), enforcement-prepared
-1 (batch), canary-proven 1 (batch local), production-enforced 0.
+1 (batch), canary-proven 1 (batch local), **production-shadow-proven 2 (dag_engine, batch_harness — 2026-07-22)**,
+production-enforced 0.
 
 ## 7. Rollback (flags OFF)
 
@@ -129,3 +132,31 @@ NOT READY FOR GLOBAL ENFORCEMENT. Five families are shadow-covered, structured-c
 and registry-backed with real REGISTRY_MATCH proofs; exactly one family (batch) is enforcement-prepared
 and has completed one owner-approved local canary (rolled back). The previous canary grants no standing
 authorization. Next: prepare the accumulated harness implementation for a reviewable isolated commit/PR.
+
+## 12. Production-shadow proof addendum (2026-07-22)
+
+One bounded production shadow canary was run for `dag_engine` (record-only; no enforcement; every
+temporary flag restored OFF). Full evidence: `docs/agent_runtime/DAG_SHADOW_PRODUCTION_CANARY_PROOF.md`.
+
+| Family | Shadow code | Structured contract | Registry-backed | Production shadow proof | Enforcement |
+|---|---:|---:|---:|---:|---:|
+| `dag_engine` | Yes | Yes | Yes | **Proven — 1 bounded run (2026-07-22)** | No |
+| `batch_harness` | Yes | Yes | Yes | **Proven — 1 bounded run (2026-07-22)** | Local-only canary; OFF |
+| `staff.run_member` | Yes | Yes | Yes | Not proven | No |
+| `coordinator` | Yes | Yes | Yes | Not proven | No |
+| `supervisor/staff_supervisor` | Yes | Yes | Yes | Fixture/local proof only | No |
+
+A second bounded production shadow canary was run for `batch_harness` (record-only; no enforcement;
+`agent=nikhil`, `tenant=__system__`, `batch.internal.safe_calculation@1.0.0`, value 321; registry-bound
+executor invoked 0 times; every temporary flag restored OFF). Full evidence:
+`docs/agent_runtime/BATCH_SHADOW_PRODUCTION_CANARY_PROOF.md`.
+
+**Production-shadow-proven families: 2 / 5 (`dag_engine`, `batch_harness`). Production-enforced
+families: 0 / 5.** These canaries prove the bounded shadow path per family; they are **not**
+platform-wide production readiness and grant no standing authorization for enforcement, agent
+activation, or a further canary.
+
+Production audit baseline: **2** harness shadow records (dag=1, batch=1, enforce=0). Audit file
+SHA-256 `660fdb599092bed637773887a096d758509c41f86ad09d88e3a15e6bf4f5999e`. The original DAG record
+remained byte-identical (SHA-256 `85f2b52de060de5355faa0f74dbc3c9d8971f77e60c6143250438972b12c9f0b`).
+Any record beyond these two must be investigated.

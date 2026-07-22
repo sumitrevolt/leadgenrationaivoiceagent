@@ -4,6 +4,7 @@ Standalone tests exercise the supervisor adapter + Harness.observe with no app
 deps. The final test drives the REAL supervisor LangGraph (supervisor.py)
 through run_supervisor_task (skipped where langgraph/app isn't importable).
 """
+
 import json
 
 import pytest
@@ -11,8 +12,8 @@ import pytest
 from app.agents.harness.adapters import (
     observe_supervisor_action,
     shadow_loop_eligible,
+    supervisor_shadow,
 )
-from app.agents.harness.adapters import supervisor_shadow
 
 
 def _env(mp, agents="rohan", loops="supervisor", harness="1", shadowf="1", enforce="0"):
@@ -24,23 +25,38 @@ def _env(mp, agents="rohan", loops="supervisor", harness="1", shadowf="1", enfor
 
 
 def _obs(**kw):
-    base = dict(supervisor_run_id="sup1", graph_run_id="g1", graph_step=1, tool_call_id=None,
-               supervisor_implementation="supervisor", actor_id="manager",
-               delegated_agent_id="rohan", tenant_id="", tool_name="leads_agent",
-               tool_arguments={"task": "x"}, actual_executor="leads_agent_node",
-               actual_result={"route": "leads_agent"}, latency_ms=9)
+    base = {
+        "supervisor_run_id": "sup1",
+        "graph_run_id": "g1",
+        "graph_step": 1,
+        "tool_call_id": None,
+        "supervisor_implementation": "supervisor",
+        "actor_id": "manager",
+        "delegated_agent_id": "rohan",
+        "tenant_id": "",
+        "tool_name": "leads_agent",
+        "tool_arguments": {"task": "x"},
+        "actual_executor": "leads_agent_node",
+        "actual_result": {"route": "leads_agent"},
+        "latency_ms": 9,
+    }
     base.update(kw)
     return observe_supervisor_action(**base)
 
 
 def setup_function(_):
-    supervisor_shadow._SEEN.clear()   # reset dedup between tests
+    supervisor_shadow._SEEN.clear()  # reset dedup between tests
 
 
 # ---- eligibility -----------------------------------------------------
 def test_all_off(monkeypatch):
-    for k in ("AGENT_HARNESS", "AGENT_HARNESS_SHADOW", "AGENT_HARNESS_ENFORCE",
-              "AGENT_HARNESS_CANARY_AGENTS", "AGENT_HARNESS_CANARY_LOOPS"):
+    for k in (
+        "AGENT_HARNESS",
+        "AGENT_HARNESS_SHADOW",
+        "AGENT_HARNESS_ENFORCE",
+        "AGENT_HARNESS_CANARY_AGENTS",
+        "AGENT_HARNESS_CANARY_LOOPS",
+    ):
         monkeypatch.delenv(k, raising=False)
     assert _obs() is None
 
@@ -128,23 +144,24 @@ def test_secret_redacted_bounded(monkeypatch):
 def test_dedup_same_toolcall(monkeypatch):
     _env(monkeypatch)
     r0 = _obs(tool_call_id="call_abc", attempt=0)
-    r1 = _obs(tool_call_id="call_abc", attempt=0)   # duplicate callback
-    assert r0 is not None and r1 is None            # second suppressed
+    r1 = _obs(tool_call_id="call_abc", attempt=0)  # duplicate callback
+    assert r0 is not None and r1 is None  # second suppressed
 
 
 def test_retry_distinct_attempt(monkeypatch):
     _env(monkeypatch)
     r0 = _obs(tool_call_id="call_abc", attempt=0)
-    r1 = _obs(tool_call_id="call_abc", attempt=1)   # genuine retry
+    r1 = _obs(tool_call_id="call_abc", attempt=1)  # genuine retry
     assert r0["shadow_run_id"] == "shadow:g1:1:call_abc"
     assert r1["shadow_run_id"] == "shadow:g1:1:call_abc"  # keyed by tool_call_id
-    assert r0 is not None and r1 is not None         # distinct attempts both recorded
+    assert r0 is not None and r1 is not None  # distinct attempts both recorded
 
 
 # ---- explainability --------------------------------------------------
 def test_explainable(monkeypatch, tmp_path):
     _env(monkeypatch)
     from app.agents.harness import audit
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
     _obs(supervisor_run_id="supE", graph_run_id="supE")
     ev = audit.replay("supE")[-1]["extra"]
@@ -161,12 +178,14 @@ def test_real_supervisor_graph(monkeypatch, tmp_path):
     if not getattr(sup, "AGENTS_AVAILABLE", False):
         pytest.skip("langgraph not available")
     from app.agents.harness import audit
+
     monkeypatch.setattr(audit, "_RUN_LOG", str(tmp_path / "runs.jsonl"))
-    _env(monkeypatch, agents="rohan")   # leads route -> delegated worker 'rohan'
+    _env(monkeypatch, agents="rohan")  # leads route -> delegated worker 'rohan'
 
     # force keyword router (no network) + fixture the leaf LLM brain (safe)
     async def _boom(*a, **k):
         raise RuntimeError("no llm")
+
     monkeypatch.setattr("app.voice_agent.free_ai.chat", _boom, raising=False)
 
     calls = {"n": 0}
@@ -179,14 +198,19 @@ def test_real_supervisor_graph(monkeypatch, tmp_path):
     monkeypatch.setattr(sup, "_llm_brain", lambda: FakeBrain())
 
     import asyncio
+
     out = asyncio.run(sup.run_supervisor_task("qualify leads and plan outreach campaign"))
     assert out["route"] == "leads_agent"
-    assert calls["n"] == 1                        # real node executed EXACTLY once
+    assert calls["n"] == 1  # real node executed EXACTLY once
 
     rows = [json.loads(x) for x in open(tmp_path / "runs.jsonl", encoding="utf-8")]
-    sup_rows = [r for r in rows if r.get("kind") == "shadow"
-                and r["extra"].get("source_loop") == "supervisor"
-                and r["extra"].get("delegated_agent") == "rohan"]
+    sup_rows = [
+        r
+        for r in rows
+        if r.get("kind") == "shadow"
+        and r["extra"].get("source_loop") == "supervisor"
+        and r["extra"].get("delegated_agent") == "rohan"
+    ]
     assert len(sup_rows) == 1
     ex = sup_rows[0]["extra"]
     assert ex["comparison_verdict"] == "MATCH" and ex["enforcement"] is False

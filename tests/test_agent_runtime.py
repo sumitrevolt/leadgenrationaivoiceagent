@@ -30,21 +30,16 @@ def isolated_runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_DLQ_PATH", str(tmp_path / "dlq.jsonl"))
     monkeypatch.setattr(rt, "_BACKOFF_BASE_S", 0.0)
     monkeypatch.setattr(rt, "_kill_engaged", lambda key: False)
-
-    idem_store: dict[str, bool] = {}
-
-    def _fake_seen(key, ttl_s=86400):
-        if key in idem_store:
-            return True
-        idem_store[key] = True
-        return False
-
-    monkeypatch.setattr(rt, "_idem_seen", _fake_seen)
-    monkeypatch.setattr(rt, "_idem_forget", lambda key: idem_store.pop(key, None))
     monkeypatch.setattr(rt, "_approval_approved", lambda tenant, ref: False)
 
     caps_snapshot = dict(rt._CAPABILITIES)
-    rt._CANCELLED_AGENTS.clear()
+    monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    monkeypatch.setenv("AGENT_RUNTIME_IDEM_BACKEND", "memory")
+    from app.platform import agent_runtime_cancellation as crc
+    from app.platform import agent_runtime_idempotency as arid
+
+    crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -55,7 +50,8 @@ def isolated_runtime(tmp_path, monkeypatch):
     yield rt
     rt._CAPABILITIES.clear()
     rt._CAPABILITIES.update(caps_snapshot)
-    rt._CANCELLED_AGENTS.clear()
+    crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -182,7 +178,9 @@ async def test_idempotent_duplicate_suppressed():
     assert dup.reason == "duplicate_suppressed"
 
 
-async def test_failed_run_releases_idempotency_key():
+async def test_failed_run_retains_key_blocks_same_key_retry():
+    """Terminal failure is durable — same key must not re-execute (need new key)."""
+
     async def boom(ctx):
         raise ValueError("x")
 
@@ -191,7 +189,10 @@ async def test_failed_run_releases_idempotency_key():
     assert r1.status == "failed"
     _register("kavya", "boomer", _ok_cap)  # fixed now
     r2 = await rt.submit("kavya", "boomer", idempotency_key="k2")
-    assert r2.status == "succeeded"  # failure ne key nahi jalayi
+    assert r2.status == "skipped"
+    assert r2.reason == "duplicate_suppressed"
+    r3 = await rt.submit("kavya", "boomer", idempotency_key="k2-retry")
+    assert r3.status == "succeeded"
 
 
 # ---------------------------------------------------------------------- #
@@ -275,8 +276,9 @@ async def test_red_lane_remains_hard_off(monkeypatch):
 
 
 async def test_non_pilot_agent_blocked():
-    _register("manager", "unit_probe", _ok_cap)
-    res = await rt.submit("manager", "unit_probe")
+    # Wave-B put manager in pilots; AMBER hold (rohan) stays allowlist-blocked.
+    _register("rohan", "unit_probe", _ok_cap)
+    res = await rt.submit("rohan", "unit_probe")
     assert res.status == "blocked"
     assert res.reason == "not_in_pilot_rollout"
 
@@ -334,12 +336,14 @@ def test_registry_still_green_and_pilots_canonical():
 # ---------------------------------------------------------------------- #
 # Extras: cancellation, capability self-skip, pilot registration, status surface
 # ---------------------------------------------------------------------- #
-async def test_cancellation_blocks_new_dispatch():
+async def test_cancellation_blocks_specific_run():
     _register("kavya", "unit_probe", _ok_cap)
-    rt.request_cancel("kavya")
-    res = await rt.submit("kavya", "unit_probe")
-    assert res.status == "blocked" and res.reason == "cancel_requested"
-    rt.clear_cancel("kavya")
+    task = rt.AgentTask(agent_id="kavya", action="unit_probe")
+    out = rt.request_cancel_run("kavya", task.task_id, reason="unit")
+    assert out.get("ok") is True
+    res = await rt.run_task(task)
+    assert res.status == "cancelled" and res.reason == "cancel_requested"
+    # Unrelated future run is NOT cancelled
     res2 = await rt.submit("kavya", "unit_probe")
     assert res2.status == "succeeded"
 

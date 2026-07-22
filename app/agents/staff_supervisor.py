@@ -80,7 +80,7 @@ class StaffSupervisor:
             for key, info in STAFF.items():
                 role = info.get("role", key)
                 duties = info.get("duties") or info.get("duty") or ""
-                if isinstance(duties, (list, tuple)):
+                if isinstance(duties, list | tuple):
                     duties = ", ".join(map(str, duties))
                 name = info.get("name", key)
                 prompt = (
@@ -139,6 +139,7 @@ class StaffSupervisor:
                 # This is the graph's own structured metadata, never guessed prose.
                 try:
                     from app.platform.team import STAFF
+
                     _staff_keys = {str(k).strip().lower() for k in (STAFF or {}).keys()}
                 except Exception:
                     _staff_keys = set()
@@ -156,20 +157,27 @@ class StaffSupervisor:
                     if _nm and _nm in _staff_keys and _nm != "supervisor":
                         _deleg, _sel = _nm, "MESSAGE_NAME"
                         break
-                if _deleg is None and msgs:      # fall back to last name (provenance UNKNOWN)
+                if _deleg is None and msgs:  # fall back to last name (provenance UNKNOWN)
                     _deleg = _mname(msgs[-1])
-                _gid = f"staff_supervisor:{abs(hash(task)) % 10**8}"   # per-run id (avoids cross-run dedup collision)
+                _gid = f"staff_supervisor:{abs(hash(task)) % 10**8}"  # per-run id (avoids cross-run dedup collision)
                 observe_supervisor_action(
-                    supervisor_run_id=_gid, graph_run_id=_gid,
-                    graph_step=len(msgs), tool_call_id=None,
+                    supervisor_run_id=_gid,
+                    graph_run_id=_gid,
+                    graph_step=len(msgs),
+                    tool_call_id=None,
                     supervisor_implementation="staff_supervisor",
-                    actor_id="manager", delegated_agent_id=_deleg,
-                    tenant_id="", tool_name=(_deleg or ""),
+                    actor_id="manager",
+                    delegated_agent_id=_deleg,
+                    tenant_id="",
+                    tool_name=(_deleg or ""),
                     tool_arguments={"task": task},
                     actual_executor="staff_supervisor.graph",
-                    actual_result={"turns": len(msgs)}, latency_ms=0.0,
-                    graph_metadata={"selection_source": _sel,
-                                    "actual_node": "staff_supervisor.graph"},
+                    actual_result={"turns": len(msgs)},
+                    latency_ms=0.0,
+                    graph_metadata={
+                        "selection_source": _sel,
+                        "actual_node": "staff_supervisor.graph",
+                    },
                 )
             except Exception:
                 pass

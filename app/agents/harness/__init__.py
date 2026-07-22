@@ -9,6 +9,7 @@ Wire-first: this package CALLS your existing modules (agent_permissions,
 risk_approve, agent_checkpoints, context_packets, budgets, budget_guard,
 observability_llm, dev_control.gateway) rather than duplicating them.
 """
+
 from .contracts import (
     DANGEROUS,
     MUTATING,
@@ -34,12 +35,28 @@ from .stop import Budget, StopController
 from .tool_registry import REGISTRY, ToolRegistry, ToolSpec
 
 __all__ = [
-    "ActionRequest", "RiskClass", "RunContext", "StopReason", "ToolCall", "ToolResult",
-    "DANGEROUS", "MUTATING",
-    "REGISTRY", "ToolRegistry", "ToolSpec",
-    "Budget", "StopController",
-    "Sandbox", "SandboxPolicy",
-    "Harness", "enabled",
-    "HarnessMode", "EnforcementGate", "EnforcementDecision", "DenialReason",
-    "resolve_mode", "EXECUTORS", "enforcement_state",
+    "ActionRequest",
+    "RiskClass",
+    "RunContext",
+    "StopReason",
+    "ToolCall",
+    "ToolResult",
+    "DANGEROUS",
+    "MUTATING",
+    "REGISTRY",
+    "ToolRegistry",
+    "ToolSpec",
+    "Budget",
+    "StopController",
+    "Sandbox",
+    "SandboxPolicy",
+    "Harness",
+    "enabled",
+    "HarnessMode",
+    "EnforcementGate",
+    "EnforcementDecision",
+    "DenialReason",
+    "resolve_mode",
+    "EXECUTORS",
+    "enforcement_state",
 ]

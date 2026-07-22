@@ -13,6 +13,7 @@ It enforces hard caps (tokens/cost/wall-clock/tool-calls/iterations), detects
 no-monotonic-progress, and consults a **live** kill switch (Redis key, no
 redeploy). It is fail-CLOSED for the harness path.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -23,9 +24,11 @@ from .contracts import RunContext, StopReason
 
 try:
     from app.utils.logger import setup_logger  # type: ignore
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -44,10 +47,12 @@ def _redis():
     """Best-effort Redis handle reusing the app's client if present."""
     try:
         from app.cache import get_redis  # type: ignore
+
         return get_redis()
     except Exception:
         try:
             from app.infrastructure.redis_client import redis_client  # type: ignore
+
             return redis_client
         except Exception:
             return None
@@ -91,7 +96,9 @@ class StopController:
     # ---- progress signature (ST-02) -----------------------------------
     @staticmethod
     def signature(observation: object) -> str:
-        return hashlib.sha1(repr(observation).encode("utf-8", "ignore")).hexdigest()[:16]
+        return hashlib.sha1(
+            repr(observation).encode("utf-8", "ignore"), usedforsecurity=False
+        ).hexdigest()[:16]
 
     def record_progress(self, ctx: RunContext, observation: object) -> None:
         sig = self.signature(observation)

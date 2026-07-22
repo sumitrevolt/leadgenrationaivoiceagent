@@ -94,6 +94,16 @@ def _registry_summary() -> dict[str, Any]:
         return {"registered_tools": 0, "tools": [], "note": f"registry unavailable: {e}"}
 
 
+def _audit_backend_status() -> dict[str, Any]:
+    """Durable-audit backend snapshot for harness.status (read-only, no secrets)."""
+    try:
+        from app.agents.harness import audit
+
+        return audit.backend_status()
+    except Exception as e:  # status must never break
+        return {"backend": "unknown", "error": str(e)[:160]}
+
+
 def _status(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
     flags = _harness_flags()
     return {
@@ -104,21 +114,28 @@ def _status(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[
             "kill_switch": _kill_state(),
             "registry": _registry_summary(),
             "enforcement": (
-                "enforce" if flags["AGENT_HARNESS_ENFORCE"]
-                else "shadow" if flags["AGENT_HARNESS_SHADOW"]
-                else "inert"
+                "enforce"
+                if flags["AGENT_HARNESS_ENFORCE"]
+                else "shadow" if flags["AGENT_HARNESS_SHADOW"] else "inert"
             ),
             "calling_hard_off": True,
             "conformance_level": _conformance_level(flags),
+            "audit_backend": _audit_backend_status(),
         },
         "evidence": {
-            "sources": ["env_flags", "harness.REGISTRY", "harness.stop.kill"],
+            "sources": [
+                "env_flags",
+                "harness.REGISTRY",
+                "harness.stop.kill",
+                "harness.audit_backend",
+            ],
             "actor": actor,
             "correlation_id": correlation_id,
         },
         "next_action": (
             "Shadow evidence dekho (harness.explain <run_id>)"
-            if flags["AGENT_HARNESS_SHADOW"] else "Stage A shadow enable karo (owner approval)"
+            if flags["AGENT_HARNESS_SHADOW"]
+            else "Stage A shadow enable karo (owner approval)"
         ),
     }
 
@@ -133,6 +150,7 @@ def _explain(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict
         events = audit.replay(run_id)
     except Exception as e:
         return {"status": "FAILED", "verified": True, "error": str(e), "result": None}
+
     def _layer(ev: dict) -> str:
         x = ev.get("extra") or {}
         kind = ev.get("kind")
@@ -156,7 +174,7 @@ def _explain(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict
         "result": {
             "run_id": run_id,
             "event_count": len(events),
-            "layers": layers,   # shadow_observation vs enforcement_decision/execution/denial vs legacy
+            "layers": layers,  # shadow_observation vs enforcement_decision/execution/denial vs legacy
             "timeline": events,
             "control_trail": [e.get("control_trail") for e in events if e.get("control_trail")],
         },
@@ -241,9 +259,13 @@ def _tools(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[s
     from app.agents.harness.registry import REGISTRY
 
     tools = REGISTRY.list_tools()
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"tools": tools, "count": len(tools), "manifest_hash": REGISTRY.manifest_hash()},
-            "evidence": {"source": "harness.registry", "correlation_id": correlation_id}, "next_action": None}
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {"tools": tools, "count": len(tools), "manifest_hash": REGISTRY.manifest_hash()},
+        "evidence": {"source": "harness.registry", "correlation_id": correlation_id},
+        "next_action": None,
+    }
 
 
 def _tool(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
@@ -254,26 +276,46 @@ def _tool(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[st
         return {"status": "FAILED", "verified": True, "error": "name required", "result": None}
     d = REGISTRY.get(name)
     if not d:
-        return {"status": "SUCCEEDED", "verified": True,
-                "result": {"name": name, "registered": False, "versions": REGISTRY.list_versions(name)},
-                "evidence": {"correlation_id": correlation_id}, "next_action": "Tool not registered"}
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"registered": True, "definition": d.public_view(),
-                       "versions": REGISTRY.list_versions(name)},
-            "evidence": {"correlation_id": correlation_id}, "next_action": None}
+        return {
+            "status": "SUCCEEDED",
+            "verified": True,
+            "result": {"name": name, "registered": False, "versions": REGISTRY.list_versions(name)},
+            "evidence": {"correlation_id": correlation_id},
+            "next_action": "Tool not registered",
+        }
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "registered": True,
+            "definition": d.public_view(),
+            "versions": REGISTRY.list_versions(name),
+        },
+        "evidence": {"correlation_id": correlation_id},
+        "next_action": None,
+    }
 
 
 def _registry(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
     from app.agents.harness.registry import REGISTRY
 
     tools = REGISTRY.list_tools()
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"manifest_hash": REGISTRY.manifest_hash(), "tool_count": len(tools),
-                       "tools": [f"{t['name']}@{t['version']}" for t in tools]},
-            "evidence": {"correlation_id": correlation_id}, "next_action": None}
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "manifest_hash": REGISTRY.manifest_hash(),
+            "tool_count": len(tools),
+            "tools": [f"{t['name']}@{t['version']}" for t in tools],
+        },
+        "evidence": {"correlation_id": correlation_id},
+        "next_action": None,
+    }
 
 
-def _registry_conformance(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
+def _registry_conformance(
+    params: dict[str, Any], *, actor: str, correlation_id: str
+) -> dict[str, Any]:
     from app.agents.harness.registry import REGISTRY
 
     tools = REGISTRY.list_tools()
@@ -289,11 +331,18 @@ def _registry_conformance(params: dict[str, Any], *, actor: str, correlation_id:
         "supervisor": ("registered" if supervisor_registered else "unregistered"),
         "batch_harness": ("registered" if batch_registered else "unregistered"),
     }
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"families": families, "registered_tools": len(tools),
-                       "manifest_hash": REGISTRY.manifest_hash(), "enforcement": "OFF"},
-            "evidence": {"correlation_id": correlation_id},
-            "next_action": "Registry-backed enforcement is OFF (shadow-only)"}
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "families": families,
+            "registered_tools": len(tools),
+            "manifest_hash": REGISTRY.manifest_hash(),
+            "enforcement": "OFF",
+        },
+        "evidence": {"correlation_id": correlation_id},
+        "next_action": "Registry-backed enforcement is OFF (shadow-only)",
+    }
 
 
 def _enforcement(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
@@ -305,33 +354,57 @@ def _enforcement(params: dict[str, Any], *, actor: str, correlation_id: str) -> 
         st = enforcement_state()
     except Exception as e:
         return {"status": "FAILED", "verified": True, "error": str(e), "result": None}
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {**st, "note": "enforcement INERT unless agent+loop+tool fully allowlisted"},
-            "evidence": {"source": "harness.enforce.enforcement_state",
-                         "correlation_id": correlation_id},
-            "next_action": ("Owner-approved canary runbook: "
-                            "docs/runbooks/BATCH_HARNESS_ENFORCEMENT_CANARY.md")}
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {**st, "note": "enforcement INERT unless agent+loop+tool fully allowlisted"},
+        "evidence": {
+            "source": "harness.enforce.enforcement_state",
+            "correlation_id": correlation_id,
+        },
+        "next_action": (
+            "Owner-approved canary runbook: " "docs/runbooks/BATCH_HARNESS_ENFORCEMENT_CANARY.md"
+        ),
+    }
 
 
 def _coord_contract(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
     import os as _os
+
     try:
         from app.agents.harness.coordinator_contract import (
             CoordinatorActionType,
             CoordinatorPlanVerdict,
         )
+
         atypes = [t.value for t in CoordinatorActionType]
         verdicts = [v.value for v in CoordinatorPlanVerdict]
     except Exception as e:
         return {"status": "FAILED", "verified": True, "error": str(e), "result": None}
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"plan_schema": "CoordinatorPlanV1", "action_schema": "CoordinatorActionV1",
-                       "contract_version": "1.0", "action_types": atypes, "verdicts": verdicts,
-                       "structured_plan_flag": (_os.getenv("COORDINATOR_STRUCTURED_PLAN") or "0"),
-                       "structured_plan_shadow_flag": (_os.getenv("COORDINATOR_STRUCTURED_PLAN_SHADOW") or "0"),
-                       "prohibited": ["arbitrary action_type", "raw prose as contract",
-                                      "kavach delegation target", "unknown agent", "extra fields"]},
-            "evidence": {"correlation_id": correlation_id}, "next_action": None}
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "plan_schema": "CoordinatorPlanV1",
+            "action_schema": "CoordinatorActionV1",
+            "contract_version": "1.0",
+            "action_types": atypes,
+            "verdicts": verdicts,
+            "structured_plan_flag": (_os.getenv("COORDINATOR_STRUCTURED_PLAN") or "0"),
+            "structured_plan_shadow_flag": (
+                _os.getenv("COORDINATOR_STRUCTURED_PLAN_SHADOW") or "0"
+            ),
+            "prohibited": [
+                "arbitrary action_type",
+                "raw prose as contract",
+                "kavach delegation target",
+                "unknown agent",
+                "extra fields",
+            ],
+        },
+        "evidence": {"correlation_id": correlation_id},
+        "next_action": None,
+    }
 
 
 def _coord_samples(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
@@ -339,25 +412,45 @@ def _coord_samples(params: dict[str, Any], *, actor: str, correlation_id: str) -
     # structural coverage (both executor boundaries) + registered coordinator actions.
     from app.agents.harness.adapters.coordinator_shadow import COORDINATOR_TOOL_MAP
     from app.agents.harness.registry import REGISTRY
-    reg = [f"{t['name']}@{t['version']}" for t in REGISTRY.list_tools()
-           if t["name"].startswith("agent.delegate.")]
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"executor_boundaries_covered": ["_run_agent", "_expert_contribution"],
-                       "boundary_coverage": "2/2", "registered_delegations": reg,
-                       "mapped_delegations": [f"{k}->{v[0]}@{v[1]}" for k, v in COORDINATOR_TOOL_MAP.items()],
-                       "note": "per-run plan-match/mismatch/fallback stats via harness.explain(run_id)"},
-            "evidence": {"correlation_id": correlation_id}, "next_action": None}
+
+    reg = [
+        f"{t['name']}@{t['version']}"
+        for t in REGISTRY.list_tools()
+        if t["name"].startswith("agent.delegate.")
+    ]
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "executor_boundaries_covered": ["_run_agent", "_expert_contribution"],
+            "boundary_coverage": "2/2",
+            "registered_delegations": reg,
+            "mapped_delegations": [f"{k}->{v[0]}@{v[1]}" for k, v in COORDINATOR_TOOL_MAP.items()],
+            "note": "per-run plan-match/mismatch/fallback stats via harness.explain(run_id)",
+        },
+        "evidence": {"correlation_id": correlation_id},
+        "next_action": None,
+    }
 
 
 def _coord_readiness(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"coordinator": "STRUCTURED CONTRACT STABLE, BUT NOT READY FOR ENFORCEMENT",
-                       "registry_backed_actions": ["agent.delegate.dev@1.0.0"],
-                       "executor_boundaries_covered": "2/2", "enforcement": "OFF",
-                       "blockers": ["real provider-native structured planning is shadow-only/mocked",
-                                    "most delegations remain UNREGISTERED (side-effect/LLM downstream)",
-                                    "no executor binding; enforcement prohibited"]},
-            "evidence": {"correlation_id": correlation_id}, "next_action": None}
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "coordinator": "STRUCTURED CONTRACT STABLE, BUT NOT READY FOR ENFORCEMENT",
+            "registry_backed_actions": ["agent.delegate.dev@1.0.0"],
+            "executor_boundaries_covered": "2/2",
+            "enforcement": "OFF",
+            "blockers": [
+                "real provider-native structured planning is shadow-only/mocked",
+                "most delegations remain UNREGISTERED (side-effect/LLM downstream)",
+                "no executor binding; enforcement prohibited",
+            ],
+        },
+        "evidence": {"correlation_id": correlation_id},
+        "next_action": None,
+    }
 
 
 def _sup_contract(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
@@ -369,39 +462,67 @@ def _sup_contract(params: dict[str, Any], *, actor: str, correlation_id: str) ->
         from app.agents.harness.coordinator_contract import SelectionSource, SupervisorVerdict
     except Exception as e:
         return {"status": "FAILED", "verified": True, "error": str(e), "result": None}
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"reused_contract": "CoordinatorActionV1 (via SupervisorDecisionV1)",
-                       "contract_version": "1.0",
-                       "implementations": ["supervisor", "staff_supervisor"],
-                       "selection_sources": [s.value for s in SelectionSource],
-                       "verdicts": [v.value for v in SupervisorVerdict],
-                       "route_map": SUPERVISOR_ROUTE_MAP,
-                       "delegations": {k: f"{v[0]}@{v[1]}" for k, v in SUPERVISOR_DELEGATION.items()}},
-            "evidence": {"correlation_id": correlation_id}, "next_action": None}
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "reused_contract": "CoordinatorActionV1 (via SupervisorDecisionV1)",
+            "contract_version": "1.0",
+            "implementations": ["supervisor", "staff_supervisor"],
+            "selection_sources": [s.value for s in SelectionSource],
+            "verdicts": [v.value for v in SupervisorVerdict],
+            "route_map": SUPERVISOR_ROUTE_MAP,
+            "delegations": {k: f"{v[0]}@{v[1]}" for k, v in SUPERVISOR_DELEGATION.items()},
+        },
+        "evidence": {"correlation_id": correlation_id},
+        "next_action": None,
+    }
 
 
 def _sup_samples(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
     from app.agents.harness.registry import REGISTRY
-    reg = [f"{t['name']}@{t['version']}" for t in REGISTRY.list_tools()
-           if t["name"] in ("agent.delegate.dev", "agent.delegate.rohan")]
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"implementations_covered": {"supervisor": "real graph proof",
-                       "staff_supervisor": "structured-contract wired; real graph gated on optional deps"},
-                       "registered_delegations": reg,
-                       "note": "per-run samples via harness.explain(<graph_run_id>)"},
-            "evidence": {"correlation_id": correlation_id}, "next_action": None}
+
+    reg = [
+        f"{t['name']}@{t['version']}"
+        for t in REGISTRY.list_tools()
+        if t["name"] in ("agent.delegate.dev", "agent.delegate.rohan")
+    ]
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "implementations_covered": {
+                "supervisor": "real graph proof",
+                "staff_supervisor": "structured-contract wired; real graph gated on optional deps",
+            },
+            "registered_delegations": reg,
+            "note": "per-run samples via harness.explain(<graph_run_id>)",
+        },
+        "evidence": {"correlation_id": correlation_id},
+        "next_action": None,
+    }
 
 
 def _sup_readiness(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
-    return {"status": "SUCCEEDED", "verified": True,
-            "result": {"supervisor_family": "STRUCTURED CONTRACT STABLE, BUT NOT READY FOR ENFORCEMENT",
-                       "registry_backed_actions": ["agent.delegate.dev@1.0.0 (reused, GREEN)",
-                                                    "agent.delegate.rohan@1.0.0 (AMBER approval-required)"],
-                       "enforcement": "OFF",
-                       "blockers": ["staff_supervisor real graph gated on langgraph-supervisor optional dep",
-                                    "agent.delegate.rohan is AMBER (never autonomous enforcement)",
-                                    "no executor binding; enforcement prohibited"]},
-            "evidence": {"correlation_id": correlation_id}, "next_action": None}
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "supervisor_family": "STRUCTURED CONTRACT STABLE, BUT NOT READY FOR ENFORCEMENT",
+            "registry_backed_actions": [
+                "agent.delegate.dev@1.0.0 (reused, GREEN)",
+                "agent.delegate.rohan@1.0.0 (AMBER approval-required)",
+            ],
+            "enforcement": "OFF",
+            "blockers": [
+                "staff_supervisor real graph gated on langgraph-supervisor optional dep",
+                "agent.delegate.rohan is AMBER (never autonomous enforcement)",
+                "no executor binding; enforcement prohibited",
+            ],
+        },
+        "evidence": {"correlation_id": correlation_id},
+        "next_action": None,
+    }
 
 
 HARNESS_HANDLERS: dict[str, Any] = {

@@ -16,12 +16,14 @@ GREEN_COMMANDS: frozenset[str] = frozenset(
     {
         "platform.status",
         "agents.list",
+        "agents.unhealthy",
         "agent.status",
         "approvals.list",
         "delivery.status",
         "queues.status",
         "business.daily_summary",
         "owner.next_actions",
+        "runtime.status",
     }
 )
 
@@ -59,10 +61,7 @@ RED_COMMANDS: frozenset[str] = frozenset(
 
 # --- Kavach harness command surface (additive; read=GREEN, control=AMBER) ---
 try:
-    from app.integrations.openclaw.harness_commands import (
-        HARNESS_AMBER,
-        HARNESS_GREEN,
-    )
+    from app.integrations.openclaw.harness_commands import HARNESS_AMBER, HARNESS_GREEN
 
     GREEN_COMMANDS = GREEN_COMMANDS | HARNESS_GREEN
     AMBER_COMMANDS = AMBER_COMMANDS | HARNESS_AMBER

@@ -7,6 +7,7 @@ available for compatibility and is explicitly marked heuristic (never
 "structured_native"). Nothing here executes — it validates, normalizes and
 compares; the legacy coordinator executor stays authoritative.
 """
+
 from __future__ import annotations
 
 import re
@@ -144,6 +145,7 @@ def delegation_identity(agent_id: str) -> str:
 def _known_agents() -> set[str]:
     try:
         from app.platform.team import STAFF
+
         return {str(k).strip().lower() for k in (STAFF or {}).keys()}
     except Exception:
         return {"manager", "rohan", "swara", "dev", "arjun", "meera", "kavya", "isha"}
@@ -166,8 +168,9 @@ def validate_delegation_target(target_agent: str) -> tuple[bool, str]:
 # Legacy parser adapter — normalize _extract_list output into the contract.
 # NEVER pretends heuristic output is structured_native.
 # --------------------------------------------------------------------------- #
-def normalize_legacy_plan(steps: list[dict], *, fallback_used: bool = False,
-                          objective: str = "", regex_used: bool = False) -> CoordinatorPlanV1:
+def normalize_legacy_plan(
+    steps: list[dict], *, fallback_used: bool = False, objective: str = "", regex_used: bool = False
+) -> CoordinatorPlanV1:
     """Normalize legacy `[{agent, task}]` selection into a CoordinatorPlanV1 with
     honest provenance. Heuristic/fallback provenance is preserved."""
     if fallback_used:
@@ -181,33 +184,50 @@ def normalize_legacy_plan(steps: list[dict], *, fallback_used: bool = False,
         if not isinstance(s, dict):
             continue
         agent = str(s.get("agent") or "").strip().lower()
-        actions.append(CoordinatorActionV1(
-            action_id=f"legacy-{i}", sequence=i,
-            action_type=CoordinatorActionType.DELEGATE_AGENT,
-            target_agent=agent, task=str(s.get("task") or "")[:_MAX_TASK],
-            arguments={}, expected_effect="legacy delegation (draft/execute)",
-            claimed_risk=RiskLane.GREEN,
-        ))
-    return CoordinatorPlanV1(objective=str(objective or "")[:500], actions=actions,
-                             synthesis_required=False, stop_after_actions=False,
-                             plan_source=src)
+        actions.append(
+            CoordinatorActionV1(
+                action_id=f"legacy-{i}",
+                sequence=i,
+                action_type=CoordinatorActionType.DELEGATE_AGENT,
+                target_agent=agent,
+                task=str(s.get("task") or "")[:_MAX_TASK],
+                arguments={},
+                expected_effect="legacy delegation (draft/execute)",
+                claimed_risk=RiskLane.GREEN,
+            )
+        )
+    return CoordinatorPlanV1(
+        objective=str(objective or "")[:500],
+        actions=actions,
+        synthesis_required=False,
+        stop_after_actions=False,
+        plan_source=src,
+    )
 
 
 def _bounded_diff(seq: int, field: str, a: Any, b: Any) -> dict:
-    return {"sequence": seq, "field": field,
-            "structured": str(a)[:120], "legacy": str(b)[:120]}
+    return {"sequence": seq, "field": field, "structured": str(a)[:120], "legacy": str(b)[:120]}
 
 
-def compare_plans(structured: Optional[CoordinatorPlanV1],
-                  legacy: CoordinatorPlanV1) -> CoordinatorPlanComparison:
+def compare_plans(
+    structured: Optional[CoordinatorPlanV1], legacy: CoordinatorPlanV1
+) -> CoordinatorPlanComparison:
     """Deterministic structured-vs-legacy comparison. NEVER modifies execution."""
     if structured is None:
         return CoordinatorPlanComparison(
-            legacy_plan_source=legacy.plan_source.value, structured_plan_source="none",
-            legacy_action_count=len(legacy.actions), structured_action_count=0,
-            matched_actions=0, missing_actions=len(legacy.actions), extra_actions=0,
-            target_agent_matches=0, tool_matches=0, argument_matches=0,
-            ordering_matches=False, comparison_verdict=CoordinatorPlanVerdict.STRUCTURED_INVALID)
+            legacy_plan_source=legacy.plan_source.value,
+            structured_plan_source="none",
+            legacy_action_count=len(legacy.actions),
+            structured_action_count=0,
+            matched_actions=0,
+            missing_actions=len(legacy.actions),
+            extra_actions=0,
+            target_agent_matches=0,
+            tool_matches=0,
+            argument_matches=0,
+            ordering_matches=False,
+            comparison_verdict=CoordinatorPlanVerdict.STRUCTURED_INVALID,
+        )
     if legacy.plan_source is PlanSource.FALLBACK_DEFAULT:
         verdict0 = CoordinatorPlanVerdict.LEGACY_FALLBACK
     else:
@@ -252,11 +272,18 @@ def compare_plans(structured: Optional[CoordinatorPlanV1],
     return CoordinatorPlanComparison(
         legacy_plan_source=legacy.plan_source.value,
         structured_plan_source=structured.plan_source.value,
-        legacy_action_count=len(la), structured_action_count=len(sa),
-        matched_actions=matched, missing_actions=missing, extra_actions=extra,
-        target_agent_matches=tgt, tool_matches=tool, argument_matches=arg,
+        legacy_action_count=len(la),
+        structured_action_count=len(sa),
+        matched_actions=matched,
+        missing_actions=missing,
+        extra_actions=extra,
+        target_agent_matches=tgt,
+        tool_matches=tool,
+        argument_matches=arg,
         ordering_matches=order_ok and len(sa) == len(la),
-        comparison_verdict=verdict, differences=diffs[:20])
+        comparison_verdict=verdict,
+        differences=diffs[:20],
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -323,29 +350,43 @@ class SupervisorDecisionV1(BaseModel):
             raise ValueError(f"invalid target_agent: {err}")
         return v
 
-    def to_coordinator_action(self, *, tool_name: Optional[str] = None,
-                              tool_version: Optional[str] = None,
-                              claimed_risk: RiskLane = RiskLane.GREEN) -> CoordinatorActionV1:
+    def to_coordinator_action(
+        self,
+        *,
+        tool_name: Optional[str] = None,
+        tool_version: Optional[str] = None,
+        claimed_risk: RiskLane = RiskLane.GREEN,
+    ) -> CoordinatorActionV1:
         """Normalize this supervisor decision into the shared CoordinatorActionV1.
         actor_id and supervisor metadata are preserved in bounded arguments."""
         args = dict(self.arguments or {})
         if len(json_dumps_safe(args)) > _MAX_ARG_BLOB:
             args = {"_truncated": True}
-        args.update(supervisor_implementation=self.supervisor_implementation,
-                    graph_run_id=self.graph_run_id, graph_step=self.graph_step,
-                    route_label=self.route_label, actor_id=self.actor_id,
-                    selection_source=self.selection_source.value)
+        args.update(
+            supervisor_implementation=self.supervisor_implementation,
+            graph_run_id=self.graph_run_id,
+            graph_step=self.graph_step,
+            route_label=self.route_label,
+            actor_id=self.actor_id,
+            selection_source=self.selection_source.value,
+        )
         return CoordinatorActionV1(
-            action_id=self.decision_id, sequence=self.graph_step,
+            action_id=self.decision_id,
+            sequence=self.graph_step,
             action_type=CoordinatorActionType.DELEGATE_AGENT,
-            target_agent=self.target_agent, tool_name=tool_name, tool_version=tool_version,
-            task=str(self.task)[:_MAX_TASK], arguments=args,
+            target_agent=self.target_agent,
+            tool_name=tool_name,
+            tool_version=tool_version,
+            task=str(self.task)[:_MAX_TASK],
+            arguments=args,
             expected_effect=f"supervisor delegation to {self.target_agent}",
-            claimed_risk=claimed_risk)
+            claimed_risk=claimed_risk,
+        )
 
 
 def json_dumps_safe(obj: Any) -> str:
     import json as _json
+
     try:
         return _json.dumps(obj, default=str)
     except Exception:

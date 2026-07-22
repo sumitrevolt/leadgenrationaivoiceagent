@@ -102,12 +102,114 @@ def _agent_status(params: dict[str, Any], *, actor: str, correlation_id: str) ->
     if not hit:
         return {"status": "FAILED", "verified": True, "error": "agent not found", "result": None}
     ctrl = oae.control_view(agent_id)
+    result: dict[str, Any] = {
+        "agent": hit,
+        "control": ctrl,
+        "calling_hard_off": True,
+    }
+    # Swara / Ananya — OpenClaw transfer package (voice code untouched).
+    if agent_id in ("swara", "ananya"):
+        result["openclaw_transfer"] = {
+            "status": "FROZEN",
+            "modification_permission": "NONE",
+            "calling": "HARD_OFF",
+            "runtime_dispatch": "blocked_red_lane",
+            "note": (
+                "Fully configured voice agent — OpenClaw observes via Owner OS; "
+                "no voice/STT/TTS/dial mutation through Copilot."
+            ),
+        }
     return {
         "status": "SUCCEEDED",
         "verified": True,
-        "result": {"agent": hit, "control": ctrl, "calling_hard_off": True},
+        "result": result,
         "evidence": {"agent_id": agent_id, "correlation_id": correlation_id, "actor": actor},
         "next_action": None,
+    }
+
+
+def _agents_unhealthy(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
+    """GREEN: list agents with bad/stale runtime health (Owner OS runtime board)."""
+    from app.platform import agent_runtime
+    from app.platform.agent_runtime_workforce import ensure_workforce_registered
+
+    ensure_workforce_registered()
+    status = agent_runtime.runtime_status()
+    bad = {
+        "stale_useful_work",
+        "unknown",
+        "blocked",
+        "failed",
+    }
+    unhealthy = [
+        a
+        for a in (status.get("agents") or [])
+        if str(a.get("health") or "") in bad
+        or bool(a.get("last_error"))
+        or bool(a.get("active_tasks"))
+        and str(a.get("health") or "").startswith("fail")
+    ]
+    # Also surface kill-engaged + paused from Owner OS registry.
+    from app.platform import owner_os
+
+    reg = owner_os.agent_registry()
+    paused = [a for a in (reg.get("agents") or []) if a.get("paused")]
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "unhealthy_runtime": unhealthy,
+            "paused": [{"id": a.get("id"), "name": a.get("name")} for a in paused],
+            "runtime_enabled": status.get("runtime_enabled"),
+            "pilots": status.get("pilots"),
+            "calling_hard_off": True,
+        },
+        "evidence": {
+            "unhealthy_count": len(unhealthy),
+            "paused_count": len(paused),
+            "correlation_id": correlation_id,
+            "actor": actor,
+        },
+        "next_action": (
+            "Pause/drain via Owner OS approval path"
+            if unhealthy or paused
+            else "Fleet healthy / idle"
+        ),
+    }
+
+
+def _runtime_status(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
+    from app.platform import agent_runtime
+    from app.platform.agent_runtime_workforce import (
+        ensure_workforce_registered,
+        workforce_rollout_state,
+    )
+
+    ensure_workforce_registered()
+    status = agent_runtime.runtime_status()
+    rollout = workforce_rollout_state()
+    return {
+        "status": "SUCCEEDED",
+        "verified": True,
+        "result": {
+            "runtime": {
+                "ok": status.get("ok"),
+                "runtime_enabled": status.get("runtime_enabled"),
+                "pilots": status.get("pilots"),
+                "agent_count": len(status.get("agents") or []),
+            },
+            "workforce_rollout": {
+                "staff_count": rollout.get("staff_count"),
+                "pilots": rollout.get("pilots"),
+                "frozen_voice": rollout.get("frozen_voice"),
+                "states": {
+                    a["agent_id"]: a["rollout_state"] for a in (rollout.get("agents") or [])
+                },
+            },
+            "calling_hard_off": True,
+        },
+        "evidence": {"correlation_id": correlation_id, "actor": actor, "source": "agent_runtime"},
+        "next_action": "Owner OS Runtime tab for per-agent board",
     }
 
 
@@ -250,12 +352,14 @@ def _amber_stub(params: dict[str, Any], *, actor: str, correlation_id: str) -> d
 HANDLERS: dict[str, Handler] = {
     "platform.status": _platform_status,
     "agents.list": _agents_list,
+    "agents.unhealthy": _agents_unhealthy,
     "agent.status": _agent_status,
     "approvals.list": _approvals_list,
     "queues.status": _queues_status,
     "delivery.status": _delivery_status,
     "business.daily_summary": _daily_summary,
     "owner.next_actions": _next_actions,
+    "runtime.status": _runtime_status,
     "agent.pause": _amber_stub,
     "agent.resume": _amber_stub,
     "agent.drain": _amber_stub,
@@ -372,7 +476,21 @@ def classify_nl(text: str) -> dict[str, Any]:
         return _prop("business.daily_summary", params, raw, "GREEN")
     if any(x in low for x in ("sab agents", "all agents", "workforce", "registry", "agents list")):
         return _prop("agents.list", params, raw, "GREEN")
-    if params.get("agent_id") and any(x in low for x in ("status", "kaisa", "unhealthy")):
+    if any(
+        x in low
+        for x in (
+            "unhealthy agents",
+            "agents unhealthy",
+            "missed heartbeat",
+            "heartbeat miss",
+            "kaun toot",
+            "failed agents",
+        )
+    ):
+        return _prop("agents.unhealthy", params, raw, "GREEN")
+    if any(x in low for x in ("runtime status", "agent runtime", "pilot status", "rollout")):
+        return _prop("runtime.status", params, raw, "GREEN")
+    if params.get("agent_id") and any(x in low for x in ("status", "kaisa", "unhealthy", "frozen")):
         return _prop("agent.status", params, raw, "GREEN")
     if any(x in low for x in ("platform status", "health", "status batao", "pulse")):
         return _prop("platform.status", params, raw, "GREEN")

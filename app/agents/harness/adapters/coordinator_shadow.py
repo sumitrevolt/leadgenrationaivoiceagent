@@ -48,7 +48,9 @@ def resolve_coordinator_tool(delegated_agent: str) -> Optional[tuple[str, str]]:
 
 def _hash(obj: Any) -> str:
     try:
-        return hashlib.sha1(json.dumps(obj, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:16]
+        return hashlib.sha1(
+            json.dumps(obj, sort_keys=True, default=str).encode("utf-8"), usedforsecurity=False
+        ).hexdigest()[:16]
     except Exception:
         return "unhashable"
 
@@ -109,13 +111,22 @@ def observe_coordinator_action(
         reg.register(tool, _tripwire, _AnyArgs, risk)
 
         req = ToolCall(
-            name=tool, args=args, reason="shadow observation of coordinator action",
-            tool_version=_tver, risk_class=risk, idempotency_key=shadow_ref,
-            budget_scope="run", expected_effect=f"coordinator {orchestration_path}[{action_index}]",
+            name=tool,
+            args=args,
+            reason="shadow observation of coordinator action",
+            tool_version=_tver,
+            risk_class=risk,
+            idempotency_key=shadow_ref,
+            budget_scope="run",
+            expected_effect=f"coordinator {orchestration_path}[{action_index}]",
         )
         ctx = RunContext(
-            run_id=crid, task_id=crid, tenant_id=(tenant_id or SYSTEM_TENANT),
-            agent=aid, actor_id="coordinator", shadow_run_id=shadow_ref,
+            run_id=crid,
+            task_id=crid,
+            tenant_id=(tenant_id or SYSTEM_TENANT),
+            agent=aid,
+            actor_id="coordinator",
+            shadow_run_id=shadow_ref,
             source_loop=_SOURCE_LOOP,
         )
         meta = dict(execution_metadata or {})
@@ -127,40 +138,63 @@ def observe_coordinator_action(
             override = "FALLBACK_OBSERVED"
         elif str(meta.get("parser_confidence", "")).upper() in ("FAILED", "FALLBACK"):
             override = "PARSER_AMBIGUITY"
-        meta.update({
-            "latency_ms": latency_ms, "legacy_tool": tool, "side_effect_class": "internal",
-            "coordinator_run_id": crid, "orchestration_path": orchestration_path,
-            "action_index": action_index, "actual_executor": actual_executor or f"_TOOLS[{aid}]",
-            "raw_response_hash": raw_response_hash,
-            "normalized_tool": tool, "normalized_arguments_hash": _hash(args),
-            "actual_arguments_hash": _hash(args),
-            "parser_type": meta.get("parser_type", "_extract_list"),
-            "parser_confidence": meta.get("parser_confidence", "HEURISTIC"),
-            "fallback_used": bool(fallback_used),
-            "delegated_agent": delegated_agent,
-            "parent_run_id": parent_run_id, "parent_action_id": f"{crid}:{action_index}",
-            "tool_registry_status": ("canonical_registered" if _canon else "unregistered_internal_action"),
-            "source_run_id": crid,
-            "step_type": aid, "canonical_tool": (tool if _canon else None),
-            "executor_boundary": boundary, "enforcement_applied": False,
-        })
+        meta.update(
+            {
+                "latency_ms": latency_ms,
+                "legacy_tool": tool,
+                "side_effect_class": "internal",
+                "coordinator_run_id": crid,
+                "orchestration_path": orchestration_path,
+                "action_index": action_index,
+                "actual_executor": actual_executor or f"_TOOLS[{aid}]",
+                "raw_response_hash": raw_response_hash,
+                "normalized_tool": tool,
+                "normalized_arguments_hash": _hash(args),
+                "actual_arguments_hash": _hash(args),
+                "parser_type": meta.get("parser_type", "_extract_list"),
+                "parser_confidence": meta.get("parser_confidence", "HEURISTIC"),
+                "fallback_used": bool(fallback_used),
+                "delegated_agent": delegated_agent,
+                "parent_run_id": parent_run_id,
+                "parent_action_id": f"{crid}:{action_index}",
+                "tool_registry_status": (
+                    "canonical_registered" if _canon else "unregistered_internal_action"
+                ),
+                "source_run_id": crid,
+                "step_type": aid,
+                "canonical_tool": (tool if _canon else None),
+                "executor_boundary": boundary,
+                "enforcement_applied": False,
+            }
+        )
         if override:
             meta["verdict_override"] = override
         return Harness(registry=reg).observe(
-            ctx, req, actual_result=actual_result, actual_error=actual_error,
+            ctx,
+            req,
+            actual_result=actual_result,
+            actual_error=actual_error,
             execution_metadata=meta,
         )
     except Exception as e:
-        logger.warning("harness.coordinator_shadow: observation failed (coordinator unaffected): %s", e)
+        logger.warning(
+            "harness.coordinator_shadow: observation failed (coordinator unaffected): %s", e
+        )
         try:
             from app.agents.harness import audit
             from app.agents.harness.contracts import RunContext
 
             audit.record(
                 RunContext(agent=(agent_id or "").strip().lower(), run_id=coordinator_run_id or ""),
-                None, None, kind="shadow_error",
-                extra={"error": str(e)[:200], "agent": agent_id,
-                       "orchestration_path": orchestration_path, "source_loop": _SOURCE_LOOP},
+                None,
+                None,
+                kind="shadow_error",
+                extra={
+                    "error": str(e)[:200],
+                    "agent": agent_id,
+                    "orchestration_path": orchestration_path,
+                    "source_loop": _SOURCE_LOOP,
+                },
             )
         except Exception:
             pass

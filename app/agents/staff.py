@@ -1469,7 +1469,9 @@ async def run_member(member: str) -> dict[str, Any]:
             from app.agents.harness.adapters import observe_legacy_run
 
             observe_legacy_run(
-                key, action=f"staff.run_{key}", actual_result=result,
+                key,
+                action=f"staff.run_{key}",
+                actual_result=result,
                 latency_ms=int((time.monotonic() - t0) * 1000),
                 source_loop="staff.run_member",
             )
@@ -1482,7 +1484,9 @@ async def run_member(member: str) -> dict[str, Any]:
             from app.agents.harness.adapters import observe_legacy_run
 
             observe_legacy_run(
-                key, action=f"staff.run_{key}", actual_error=e,
+                key,
+                action=f"staff.run_{key}",
+                actual_error=e,
                 latency_ms=int((time.monotonic() - t0) * 1000),
                 source_loop="staff.run_member",
             )

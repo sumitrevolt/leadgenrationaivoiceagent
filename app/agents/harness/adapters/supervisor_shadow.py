@@ -62,7 +62,9 @@ _SEEN_MAX = 2048
 
 def _hash(obj: Any) -> str:
     try:
-        return hashlib.sha1(json.dumps(obj, sort_keys=True, default=str).encode("utf-8")).hexdigest()[:16]
+        return hashlib.sha1(
+            json.dumps(obj, sort_keys=True, default=str).encode("utf-8"), usedforsecurity=False
+        ).hexdigest()[:16]
     except Exception:
         return "unhashable"
 
@@ -111,10 +113,17 @@ def observe_supervisor_action(
             from app.agents.harness import audit
             from app.agents.harness.contracts import RunContext
 
-            audit.record(RunContext(agent=gate_agent, run_id=graph_run_id), None, None,
-                         kind="shadow_dedup",
-                         extra={"dedup_key": dedup_key, "source_loop": _SOURCE_LOOP,
-                                "replay_suppressed": True})
+            audit.record(
+                RunContext(agent=gate_agent, run_id=graph_run_id),
+                None,
+                None,
+                kind="shadow_dedup",
+                extra={
+                    "dedup_key": dedup_key,
+                    "source_loop": _SOURCE_LOOP,
+                    "replay_suppressed": True,
+                },
+            )
         except Exception:
             pass
         return None
@@ -133,7 +142,7 @@ def observe_supervisor_action(
         else:
             tool = tool_name or f"supervisor.{supervisor_implementation}"
             _tver = "v1"
-            risk = RiskClass.READ           # routing/draft = internal read-only
+            risk = RiskClass.READ  # routing/draft = internal read-only
         srid = supervisor_run_id or graph_run_id or ("sup_" + _hash((graph_run_id, graph_step)))
         shadow_ref = f"shadow:{graph_run_id}:{graph_step}:{tool_call_id or attempt}"
 
@@ -147,14 +156,23 @@ def observe_supervisor_action(
         reg.register(tool, _tripwire, _AnyArgs, risk)
 
         req = ToolCall(
-            name=tool, args=args, reason="shadow observation of supervisor action",
-            tool_version=_tver, risk_class=risk, idempotency_key=shadow_ref,
-            budget_scope="run", expected_effect=f"{supervisor_implementation} step {graph_step}",
+            name=tool,
+            args=args,
+            reason="shadow observation of supervisor action",
+            tool_version=_tver,
+            risk_class=risk,
+            idempotency_key=shadow_ref,
+            budget_scope="run",
+            expected_effect=f"{supervisor_implementation} step {graph_step}",
         )
         ctx = RunContext(
-            run_id=srid, task_id=srid, tenant_id=(tenant_id or SYSTEM_TENANT),
-            agent=gate_agent, actor_id=(actor_id or "manager"),
-            shadow_run_id=shadow_ref, source_loop=_SOURCE_LOOP,
+            run_id=srid,
+            task_id=srid,
+            tenant_id=(tenant_id or SYSTEM_TENANT),
+            agent=gate_agent,
+            actor_id=(actor_id or "manager"),
+            shadow_run_id=shadow_ref,
+            source_loop=_SOURCE_LOOP,
         )
         gm = dict(graph_metadata or {})
         _route_label = gm.pop("route_label", None)
@@ -171,27 +189,43 @@ def observe_supervisor_action(
         elif not _canon and _sel_source == "HEURISTIC":
             override = "PARSER_AMBIGUITY"
         meta = {
-            "latency_ms": latency_ms, "legacy_tool": tool, "side_effect_class": "internal",
+            "latency_ms": latency_ms,
+            "legacy_tool": tool,
+            "side_effect_class": "internal",
             "supervisor_implementation": supervisor_implementation,
-            "graph_run_id": graph_run_id, "graph_step": graph_step,
-            "tool_call_id": tool_call_id, "actual_executor": actual_executor or tool,
-            "normalized_tool": tool, "normalized_arguments_hash": _hash(args),
+            "graph_run_id": graph_run_id,
+            "graph_step": graph_step,
+            "tool_call_id": tool_call_id,
+            "actual_executor": actual_executor or tool,
+            "normalized_tool": tool,
+            "normalized_arguments_hash": _hash(args),
             "actual_arguments_hash": _hash(args),
-            "delegated_agent": gate_agent, "delegated_agent_id": gate_agent,
-            "parent_run_id": srid, "parent_action_id": f"{srid}:{graph_step}",
+            "delegated_agent": gate_agent,
+            "delegated_agent_id": gate_agent,
+            "parent_run_id": srid,
+            "parent_action_id": f"{srid}:{graph_step}",
             "source_run_id": srid,
-            "tool_registry_status": ("canonical_registered" if _canon else "unregistered_internal_action"),
-            "attempt": attempt, "replay_suppressed": False,
-            "canonical_tool": (tool if _canon else None), "step_type": gate_agent,
-            "enforcement_applied": False, "selection_source": _sel_source,
-            "route_label": _route_label, "actual_node": _actual_node,
+            "tool_registry_status": (
+                "canonical_registered" if _canon else "unregistered_internal_action"
+            ),
+            "attempt": attempt,
+            "replay_suppressed": False,
+            "canonical_tool": (tool if _canon else None),
+            "step_type": gate_agent,
+            "enforcement_applied": False,
+            "selection_source": _sel_source,
+            "route_label": _route_label,
+            "actual_node": _actual_node,
             "route_node_mismatch": _route_node_mismatch,
         }
         meta.update({f"graph_{k}": v for k, v in gm.items()})
         if override:
             meta["verdict_override"] = override
         return Harness(registry=reg).observe(
-            ctx, req, actual_result=actual_result, actual_error=actual_error,
+            ctx,
+            req,
+            actual_result=actual_result,
+            actual_error=actual_error,
             execution_metadata=meta,
         )
     except Exception as e:
@@ -201,11 +235,17 @@ def observe_supervisor_action(
             from app.agents.harness.contracts import RunContext
 
             audit.record(
-                RunContext(agent=gate_agent, run_id=graph_run_id or ""), None, None,
+                RunContext(agent=gate_agent, run_id=graph_run_id or ""),
+                None,
+                None,
                 kind="shadow_error",
-                extra={"error": str(e)[:200], "delegated_agent": gate_agent,
-                       "supervisor_implementation": supervisor_implementation,
-                       "source_loop": _SOURCE_LOOP})
+                extra={
+                    "error": str(e)[:200],
+                    "delegated_agent": gate_agent,
+                    "supervisor_implementation": supervisor_implementation,
+                    "source_loop": _SOURCE_LOOP,
+                },
+            )
         except Exception:
             pass
         return None

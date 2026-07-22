@@ -23,6 +23,7 @@ backend we scrub credentials so leaked code cannot *authenticate* to your
 providers, which is the highest-value mitigation; treat network containment as
 a prod-backend responsibility.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -34,14 +35,28 @@ from typing import List, Optional
 
 try:
     from app.utils.logger import setup_logger  # type: ignore
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 # Any env var whose NAME matches these fragments is stripped before exec.
-_SECRET_FRAGMENTS = ("KEY", "TOKEN", "SECRET", "PASSWORD", "PASSWD", "DSN",
-                     "CREDENTIAL", "PRIVATE", "SID", "AUTH", "WEBHOOK", "VPA")
+_SECRET_FRAGMENTS = (
+    "KEY",
+    "TOKEN",
+    "SECRET",
+    "PASSWORD",
+    "PASSWD",
+    "DSN",
+    "CREDENTIAL",
+    "PRIVATE",
+    "SID",
+    "AUTH",
+    "WEBHOOK",
+    "VPA",
+)
 
 
 @dataclass
@@ -84,8 +99,7 @@ def _apply_rlimits(policy: SandboxPolicy):
         return None
 
     def _limit():
-        resource.setrlimit(resource.RLIMIT_CPU,
-                           (policy.cpu_seconds, policy.cpu_seconds))
+        resource.setrlimit(resource.RLIMIT_CPU, (policy.cpu_seconds, policy.cpu_seconds))
         mem = policy.address_space_mb * 1024 * 1024
         try:
             resource.setrlimit(resource.RLIMIT_AS, (mem, mem))
@@ -95,6 +109,7 @@ def _apply_rlimits(policy: SandboxPolicy):
         resource.setrlimit(resource.RLIMIT_FSIZE, (fsz, fsz))
         resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
         os.setsid()  # own process group so we can kill the whole tree
+
     return _limit
 
 
@@ -120,7 +135,11 @@ class Sandbox:
         with tempfile.TemporaryDirectory(prefix="harness_sbx_") as cwd:
             try:
                 proc = await asyncio.create_subprocess_exec(
-                    sys.executable, "-I", "-B", "-c", script,
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    "-c",
+                    script,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd,
@@ -150,6 +169,7 @@ class Sandbox:
     async def _kill_tree(proc) -> None:
         try:
             import signal
+
             os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
         except Exception:
             try:

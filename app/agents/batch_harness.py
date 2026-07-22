@@ -142,18 +142,10 @@ async def run_batch(
     try:
         from app.agents.harness.contracts import SYSTEM_TENANT as _SYS_TENANT
         from app.agents.harness.contracts import RunContext as _RunContext
-        from app.agents.harness.enforce import (
-            EnforcementGate as _EnforcementGate,
-        )
-        from app.agents.harness.enforce import (
-            HarnessMode as _HarnessMode,
-        )
-        from app.agents.harness.enforce import (
-            enforce_batch_item as _enforce_item,
-        )
-        from app.agents.harness.enforce import (
-            resolve_mode as _resolve_mode,
-        )
+        from app.agents.harness.enforce import EnforcementGate as _EnforcementGate
+        from app.agents.harness.enforce import HarnessMode as _HarnessMode
+        from app.agents.harness.enforce import enforce_batch_item as _enforce_item
+        from app.agents.harness.enforce import resolve_mode as _resolve_mode
 
         _mode, _ = _resolve_mode(agent_id=agent_id, source_loop="batch_harness")
         if _mode is _HarnessMode.ENFORCE:
@@ -161,8 +153,11 @@ async def run_batch(
             enforce_batch_item = _enforce_item
             _egate = _enforce_gate or _EnforcementGate()
             _ectx = _RunContext(
-                run_id=ckpt_id, task_id=ckpt_id, tenant_id=(tenant_id or _SYS_TENANT),
-                agent=(agent_id or "").strip().lower(), actor_id="batch_runner",
+                run_id=ckpt_id,
+                task_id=ckpt_id,
+                tenant_id=(tenant_id or _SYS_TENANT),
+                agent=(agent_id or "").strip().lower(),
+                actor_id="batch_runner",
                 source_loop="batch_harness",
             )
     except Exception as _e:  # any resolver/import failure => safe legacy path
@@ -179,16 +174,25 @@ async def run_batch(
 
             _op = getattr(fn, "__name__", "") or ""
             observe_batch_item(
-                batch_run_id=ckpt_id, batch_name=(label or ckpt_id),
-                item_id=_item_key(item), item_index=index, attempt=0,
-                agent_id=agent_id, tenant_id=tenant_id, operation_name=_op,
+                batch_run_id=ckpt_id,
+                batch_name=(label or ckpt_id),
+                item_id=_item_key(item),
+                item_index=index,
+                attempt=0,
+                agent_id=agent_id,
+                tenant_id=tenant_id,
+                operation_name=_op,
                 operation_arguments=(item if isinstance(item, dict) else {"item": _item_key(item)}),
                 actual_executor=(_op or "batch.fn"),
-                actual_result=(res if err is None else None), actual_error=err,
+                actual_result=(res if err is None else None),
+                actual_error=err,
                 latency_ms=round(latency, 1),
-                checkpoint_state=("resume_skipped" if resumed else ("completed" if ok else "failed")),
+                checkpoint_state=(
+                    "resume_skipped" if resumed else ("completed" if ok else "failed")
+                ),
                 resumed=resumed,
-                tool_name=(tool_name or None), tool_version=(tool_version or None),
+                tool_name=(tool_name or None),
+                tool_version=(tool_version or None),
             )
         except Exception:
             pass
@@ -197,9 +201,12 @@ async def run_batch(
         nonlocal done, failed, skipped
         if index in already:
             skipped += 1
-            _obs_batch(index, item, resumed=True, ok=None, summary="", err=None, res=None, latency=0.0)
+            _obs_batch(
+                index, item, resumed=True, ok=None, summary="", err=None, res=None, latency=0.0
+            )
             return
         import time as _time
+
         _t0 = _time.monotonic()
         ok = True
         summary = ""
@@ -213,19 +220,27 @@ async def run_batch(
                 # execute the bound executor zero times.
                 try:
                     _eres = await enforce_batch_item(
-                        ctx=_ectx, batch_run_id=ckpt_id, item_id=_item_key(item),
-                        item_index=index, attempt=0, tool_name=tool_name,
-                        tool_version=tool_version, item=item, gate=_egate,
+                        ctx=_ectx,
+                        batch_run_id=ckpt_id,
+                        item_id=_item_key(item),
+                        item_index=index,
+                        attempt=0,
+                        tool_name=tool_name,
+                        tool_version=tool_version,
+                        item=item,
+                        gate=_egate,
                     )
                     res = _eres.get("result")
                     if _eres.get("ok"):
                         ok = True
-                        summary = str((res or {}).get("summary")
-                                      or (res or {}).get("value") or "")[:_SUMMARY_CAP]
+                        summary = str((res or {}).get("summary") or (res or {}).get("value") or "")[
+                            :_SUMMARY_CAP
+                        ]
                     else:
                         ok = False
-                        _err = (_eres.get("error")
-                                or ("denied:" + ",".join(_eres.get("reasons") or [])))[:200]
+                        _err = (
+                            _eres.get("error") or ("denied:" + ",".join(_eres.get("reasons") or []))
+                        )[:200]
                         summary = f"error: {_err}"
                 except Exception as e:  # gate must never crash the batch
                     ok = False
@@ -263,8 +278,16 @@ async def run_batch(
         # SHADOW observation only — ENFORCE mode emits its own enforcement_* audit
         # events inside enforce_batch_item and must not also shadow-observe.
         if not _enforce:
-            _obs_batch(index, item, resumed=False, ok=ok, summary=summary, err=_err,
-                       res=res, latency=(_time.monotonic() - _t0) * 1000.0)
+            _obs_batch(
+                index,
+                item,
+                resumed=False,
+                ok=ok,
+                summary=summary,
+                err=_err,
+                res=res,
+                latency=(_time.monotonic() - _t0) * 1000.0,
+            )
 
     try:
         await asyncio.gather(*(_run_one(i, it) for i, it in enumerate(items)))

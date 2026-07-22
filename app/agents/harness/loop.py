@@ -22,6 +22,7 @@ Ordered pipeline for every ToolCall:
 GV-01 is structural: the model only ever produces a ``ToolCall`` (never runs
 anything itself), and its ``reason`` is audited but never trusted for control.
 """
+
 from __future__ import annotations
 
 import os
@@ -38,9 +39,11 @@ from .tool_registry import REGISTRY, PermissionError_, ToolRegistry
 
 try:
     from app.utils.logger import setup_logger  # type: ignore
+
     logger = setup_logger(__name__)
 except Exception:  # pragma: no cover
     import logging
+
     logger = logging.getLogger(__name__)
 
 
@@ -65,8 +68,10 @@ async def _default_approval(ctx: RunContext, call: ToolCall, risk: RiskClass) ->
     # Best-effort: register the pending action for the human queue, then HOLD.
     try:
         from app.agents import risk_approve  # type: ignore
-        enq = (getattr(risk_approve, "enqueue", None)
-               or getattr(risk_approve, "request_approval", None))
+
+        enq = getattr(risk_approve, "enqueue", None) or getattr(
+            risk_approve, "request_approval", None
+        )
         if callable(enq):
             enq(run_id=ctx.run_id, tool=call.name, args=call.args)
     except Exception as e:
@@ -100,12 +105,18 @@ async def _checkpoint(ctx: RunContext, call: ToolCall) -> None:
     try:
         if isinstance(paths, list) and paths:
             from app.agents import agent_checkpoints  # type: ignore
+
             snap = getattr(agent_checkpoints, "snapshot", None)
             if callable(snap):
                 snap(paths, label)  # repo signature: snapshot(paths, label="")
         else:
-            audit.record(ctx, call, None, kind="checkpoint",
-                         extra={"logical": True, "idempotency_key": call.idempotency_key})
+            audit.record(
+                ctx,
+                call,
+                None,
+                kind="checkpoint",
+                extra={"logical": True, "idempotency_key": call.idempotency_key},
+            )
     except Exception as e:
         logger.warning("harness.loop: checkpoint failed (continuing): %s", e)
 
@@ -113,14 +124,25 @@ async def _checkpoint(ctx: RunContext, call: ToolCall) -> None:
 import hashlib as _hashlib
 import json as _json
 
-_SECRET_FRAGS = ("key", "token", "secret", "password", "authorization",
-                 "bearer", "api_key", "vpa", "credential", "private")
+_SECRET_FRAGS = (
+    "key",
+    "token",
+    "secret",
+    "password",
+    "authorization",
+    "bearer",
+    "api_key",
+    "vpa",
+    "credential",
+    "private",
+)
 
 
 def _args_hash(args) -> str:
     try:
         return _hashlib.sha1(
-            _json.dumps(args, sort_keys=True, default=str).encode("utf-8")
+            _json.dumps(args, sort_keys=True, default=str).encode("utf-8"),
+            usedforsecurity=False,
         ).hexdigest()[:16]
     except Exception:
         return "unhashable"
@@ -151,14 +173,18 @@ def _redact(obj):
         return out
     if isinstance(obj, list):
         return [_redact(x) for x in obj[:50]]
-    if isinstance(obj, str) and (obj.startswith("sk-") or obj.startswith("sk_")
-                                 or obj.startswith("Bearer ") or "BEGIN PRIVATE" in obj):
+    if isinstance(obj, str) and (
+        obj.startswith("sk-")
+        or obj.startswith("sk_")
+        or obj.startswith("Bearer ")
+        or "BEGIN PRIVATE" in obj
+    ):
         return "***REDACTED***"
     return obj
 
 
 def _bounded_summary(result, limit: int = 600):
-    red = _redact(result)                     # redact keys/values BEFORE serializing
+    red = _redact(result)  # redact keys/values BEFORE serializing
     try:
         s = red if isinstance(red, str) else _json.dumps(red, default=str)
     except Exception:
@@ -183,9 +209,14 @@ class Harness:
         self.egress_scan = egress_scan or _default_egress_scan
         self.sandbox = Sandbox(sandbox_policy)
 
-    async def step(self, ctx: RunContext, call: ToolCall,
-                   profile: str = "default",
-                   est_usd: float = 0.0, est_tokens: int = 0) -> ToolResult:
+    async def step(
+        self,
+        ctx: RunContext,
+        call: ToolCall,
+        profile: str = "default",
+        est_usd: float = 0.0,
+        est_tokens: int = 0,
+    ) -> ToolResult:
         """Run ONE tool call through every control. Never raises — returns a
         ToolResult with ok=False and the control trail on any refusal/error."""
         t0 = time.time()
@@ -263,8 +294,12 @@ class Harness:
             if spec.risk is RiskClass.CODE_EXEC:
                 sbx = await self.sandbox.run_python(call.args.get("script", ""))
                 res.ok = sbx.ok
-                res.output = {"stdout": sbx.stdout, "stderr": sbx.stderr,
-                              "exit_code": sbx.exit_code, "timed_out": sbx.timed_out}
+                res.output = {
+                    "stdout": sbx.stdout,
+                    "stderr": sbx.stderr,
+                    "exit_code": sbx.exit_code,
+                    "timed_out": sbx.timed_out,
+                }
                 trail.append("SB-01:sandboxed")
             else:
                 res.output = await spec.fn(**parsed.model_dump())
@@ -287,21 +322,39 @@ class Harness:
         return res
 
     # ---- record-only evaluation (SHADOW) -----------------------------
-    def evaluate(self, ctx: RunContext, call: ToolCall, profile: str = "default",
-                 est_usd: float = 0.0, est_tokens: int = 0) -> dict:
+    def evaluate(
+        self,
+        ctx: RunContext,
+        call: ToolCall,
+        profile: str = "default",
+        est_usd: float = 0.0,
+        est_tokens: int = 0,
+    ) -> dict:
         """Run every control DECISION that step() would, but NEVER execute the
         tool. Pure function over the request + context. Returns a decision dict."""
-        d = {"would_validate": None, "would_allow": None, "would_require_approval": None,
-             "would_checkpoint": None, "would_deny_reason": None, "predicted_lane": None,
-             "budget_decision": None, "stop_decision": None, "risk_class": None}
+        d = {
+            "would_validate": None,
+            "would_allow": None,
+            "would_require_approval": None,
+            "would_checkpoint": None,
+            "would_deny_reason": None,
+            "predicted_lane": None,
+            "budget_decision": None,
+            "stop_decision": None,
+            "risk_class": None,
+        }
         if self.stop.killed(ctx):
             d["stop_decision"] = "kill_switch"
         try:
             self.registry.validate(call)
             d["would_validate"] = True
         except (ValidationError, KeyError) as e:
-            d.update(would_validate=False, would_allow=False,
-                     would_deny_reason=f"schema/bounds: {e}", predicted_lane="RED")
+            d.update(
+                would_validate=False,
+                would_allow=False,
+                would_deny_reason=f"schema/bounds: {e}",
+                predicted_lane="RED",
+            )
             return d
         try:
             spec = self.registry.permit(ctx.agent, profile, call)
@@ -311,13 +364,17 @@ class Harness:
             return d
         d["risk_class"] = spec.risk.value
         if spec.risk in MUTATING and not call.idempotency_key:
-            d.update(would_allow=False, would_deny_reason="missing idempotency_key (mutating)",
-                     predicted_lane="RED")
+            d.update(
+                would_allow=False,
+                would_deny_reason="missing idempotency_key (mutating)",
+                predicted_lane="RED",
+            )
             return d
         d["budget_decision"] = "admit" if self.stop.admit(ctx, est_usd, est_tokens) else "deny"
         if d["budget_decision"] == "deny":
-            d.update(would_allow=False, would_deny_reason="budget admission denied",
-                     predicted_lane="RED")
+            d.update(
+                would_allow=False, would_deny_reason="budget admission denied", predicted_lane="RED"
+            )
             return d
         d["would_require_approval"] = spec.risk in DANGEROUS
         d["would_checkpoint"] = spec.risk in MUTATING
@@ -326,28 +383,45 @@ class Harness:
         d["predicted_lane"] = "AMBER" if d["would_require_approval"] else "GREEN"
         return d
 
-    def observe(self, ctx: RunContext, action_request: ToolCall,
-                actual_result=None, actual_error=None,
-                execution_metadata: Optional[dict] = None, profile: str = "default") -> dict:
+    def observe(
+        self,
+        ctx: RunContext,
+        action_request: ToolCall,
+        actual_result=None,
+        actual_error=None,
+        execution_metadata: Optional[dict] = None,
+        profile: str = "default",
+    ) -> dict:
         """SHADOW, record-only. Evaluate controls, compare proposed-vs-actual,
         persist a bounded/redacted audit row. NEVER executes the tool and NEVER
         affects legacy control flow. Returns the shadow record."""
         from .contracts import ComparisonVerdict
+
         meta = execution_metadata or {}
         try:
-            d = self.evaluate(ctx, action_request, profile=profile,
-                              est_usd=meta.get("est_usd", 0.0), est_tokens=meta.get("est_tokens", 0))
+            d = self.evaluate(
+                ctx,
+                action_request,
+                profile=profile,
+                est_usd=meta.get("est_usd", 0.0),
+                est_tokens=meta.get("est_tokens", 0),
+            )
         except Exception as e:  # observer must never raise into legacy
             logger.warning("harness.observe: evaluate errored: %s", e)
-            rec = {"agent": ctx.agent, "mode": "shadow", "comparison_verdict":
-                   ComparisonVerdict.SHADOW_ERROR.value, "error": str(e)[:200],
-                   "run_id": ctx.run_id, "shadow_run_id": ctx.shadow_run_id}
+            rec = {
+                "agent": ctx.agent,
+                "mode": "shadow",
+                "comparison_verdict": ComparisonVerdict.SHADOW_ERROR.value,
+                "error": str(e)[:200],
+                "run_id": ctx.run_id,
+                "shadow_run_id": ctx.shadow_run_id,
+            }
             audit.record(ctx, action_request, None, kind="shadow", extra=rec)
             return rec
         if d.get("would_validate") is False:
             verdict = ComparisonVerdict.MISSING_CONTEXT
         elif d.get("would_allow") is False:
-            verdict = ComparisonVerdict.POLICY_MISMATCH   # harness would deny; legacy did it
+            verdict = ComparisonVerdict.POLICY_MISMATCH  # harness would deny; legacy did it
         elif meta.get("verdict_override"):
             # Adapter-supplied observed verdict (FALLBACK/DELEGATION/PARSER_AMBIGUITY)
             # — only honoured once structural gates (validate/permit) have passed.
@@ -356,23 +430,30 @@ class Harness:
             except Exception:
                 verdict = ComparisonVerdict.MATCH
         elif meta.get("retry_scheduled"):
-            verdict = ComparisonVerdict.RETRY_OBSERVED     # legacy gate failed -> DAG retry
+            verdict = ComparisonVerdict.RETRY_OBSERVED  # legacy gate failed -> DAG retry
         elif actual_error:
             verdict = ComparisonVerdict.LEGACY_ERROR
         else:
             verdict = ComparisonVerdict.MATCH
         rec = {
-            "agent": ctx.agent, "tenant_id": ctx.tenant_id, "actor_id": ctx.actor_id,
-            "source_loop": ctx.source_loop, "mode": "shadow",
-            "enforcement": False, "requested_tool": action_request.name,
+            "agent": ctx.agent,
+            "tenant_id": ctx.tenant_id,
+            "actor_id": ctx.actor_id,
+            "source_loop": ctx.source_loop,
+            "mode": "shadow",
+            "enforcement": False,
+            "requested_tool": action_request.name,
             "tool_version": action_request.tool_version,
-            "args_hash": _args_hash(action_request.args), "risk_class": d.get("risk_class"),
+            "args_hash": _args_hash(action_request.args),
+            "risk_class": d.get("risk_class"),
             "would_validate": d.get("would_validate"),
-            "predicted_lane": d.get("predicted_lane"), "would_allow": d.get("would_allow"),
+            "predicted_lane": d.get("predicted_lane"),
+            "would_allow": d.get("would_allow"),
             "would_require_approval": d.get("would_require_approval"),
             "would_checkpoint": d.get("would_checkpoint"),
             "would_deny_reason": d.get("would_deny_reason"),
-            "budget_decision": d.get("budget_decision"), "stop_decision": d.get("stop_decision"),
+            "budget_decision": d.get("budget_decision"),
+            "stop_decision": d.get("stop_decision"),
             "legacy_tool": meta.get("legacy_tool") or action_request.name,
             "legacy_status": ("error" if actual_error else _legacy_status(actual_result)),
             "legacy_error": (str(actual_error)[:200] if actual_error else None),
@@ -380,8 +461,9 @@ class Harness:
             "latency_ms": meta.get("latency_ms"),
             "side_effect_class": meta.get("side_effect_class", "unknown"),
             "comparison_verdict": verdict.value,
-            "execution_comparison": verdict.value,   # explicit alias (execution layer)
-            "run_id": ctx.run_id, "shadow_run_id": ctx.shadow_run_id,
+            "execution_comparison": verdict.value,  # explicit alias (execution layer)
+            "run_id": ctx.run_id,
+            "shadow_run_id": ctx.shadow_run_id,
         }
         # --- Layered CANONICAL REGISTRY evaluation (additive; never changes the
         # execution comparison above; registry decision is namespaced registry_*).
@@ -389,17 +471,30 @@ class Harness:
             from .registry import REGISTRY, claimed_lane
 
             reg = REGISTRY.evaluate_action(
-                tool_name=action_request.name, tool_version=action_request.tool_version,
-                arguments=action_request.args, agent_id=ctx.agent, tenant_id=ctx.tenant_id,
+                tool_name=action_request.name,
+                tool_version=action_request.tool_version,
+                arguments=action_request.args,
+                agent_id=ctx.agent,
+                tenant_id=ctx.tenant_id,
                 idempotency_key=action_request.idempotency_key,
                 claimed_risk=claimed_lane(action_request.risk_class),
             )
             rec["registry_comparison"] = reg.get("registry_comparison")
-            for _k in ("resolved_tool_name", "resolved_tool_version", "schema_validation",
-                       "agent_permission", "tenant_permission", "registry_risk_class",
-                       "claimed_risk_class", "risk_class_mismatch", "authority",
-                       "approval_requirement", "idempotency_requirement", "timeout_policy",
-                       "sandbox_requirement"):
+            for _k in (
+                "resolved_tool_name",
+                "resolved_tool_version",
+                "schema_validation",
+                "agent_permission",
+                "tenant_permission",
+                "registry_risk_class",
+                "claimed_risk_class",
+                "risk_class_mismatch",
+                "authority",
+                "approval_requirement",
+                "idempotency_requirement",
+                "timeout_policy",
+                "sandbox_requirement",
+            ):
                 rec[_k] = reg.get(_k)
             rec["registry_would_allow"] = reg.get("would_allow")
             rec["registry_would_require_approval"] = reg.get("would_require_approval")
@@ -409,37 +504,82 @@ class Harness:
             rec["registry_comparison"] = "registry_error"
             logger.warning("harness.observe: registry eval errored: %s", _e)
         # DAG-specific context (present only for dag_engine observations).
-        for k in ("dag_run_id", "node_id", "attempt", "dag_node_status",
-                  "retry_scheduled", "actual_executor", "declared_tool",
-                  "actual_arguments_hash", "source_run_id", "source_node_id",
-                  "source_attempt", "step_type", "canonical_tool",
-                  "enforcement_applied"):
+        for k in (
+            "dag_run_id",
+            "node_id",
+            "attempt",
+            "dag_node_status",
+            "retry_scheduled",
+            "actual_executor",
+            "declared_tool",
+            "actual_arguments_hash",
+            "source_run_id",
+            "source_node_id",
+            "source_attempt",
+            "step_type",
+            "canonical_tool",
+            "enforcement_applied",
+        ):
             if meta.get(k) is not None:
                 rec[k] = meta[k]
         # Coordinator-specific context (present only for coordinator observations).
-        for k in ("coordinator_run_id", "orchestration_path", "action_index",
-                  "parser_type", "parser_confidence", "raw_response_hash",
-                  "normalized_tool", "normalized_arguments_hash", "fallback_used",
-                  "delegated_agent", "parent_run_id", "parent_action_id",
-                  "delegated_run_id", "delegated_agent_id", "tool_registry_status",
-                  "executor_boundary"):
+        for k in (
+            "coordinator_run_id",
+            "orchestration_path",
+            "action_index",
+            "parser_type",
+            "parser_confidence",
+            "raw_response_hash",
+            "normalized_tool",
+            "normalized_arguments_hash",
+            "fallback_used",
+            "delegated_agent",
+            "parent_run_id",
+            "parent_action_id",
+            "delegated_run_id",
+            "delegated_agent_id",
+            "tool_registry_status",
+            "executor_boundary",
+        ):
             if meta.get(k) is not None:
                 rec[k] = meta[k]
         # Supervisor-family context (present only for supervisor observations).
-        for k in ("supervisor_implementation", "graph_run_id", "graph_step",
-                  "tool_call_id", "replay_suppressed", "selection_source",
-                  "route_label", "actual_node", "route_node_mismatch"):
+        for k in (
+            "supervisor_implementation",
+            "graph_run_id",
+            "graph_step",
+            "tool_call_id",
+            "replay_suppressed",
+            "selection_source",
+            "route_label",
+            "actual_node",
+            "route_node_mismatch",
+        ):
             if meta.get(k) is not None:
                 rec[k] = meta[k]
         # Batch-harness context (present only for batch observations).
-        for k in ("batch_run_id", "batch_name", "item_id", "item_index",
-                  "operation_name", "checkpoint_state", "resumed"):
+        for k in (
+            "batch_run_id",
+            "batch_name",
+            "item_id",
+            "item_index",
+            "operation_name",
+            "checkpoint_state",
+            "resumed",
+        ):
             if meta.get(k) is not None:
                 rec[k] = meta[k]
         # Staff composite context (present only for run_member composite observations).
-        for k in ("composite_action", "components", "component_count",
-                  "component_status", "components_ok", "components_failed",
-                  "partial_success", "full_success"):
+        for k in (
+            "composite_action",
+            "components",
+            "component_count",
+            "component_status",
+            "components_ok",
+            "components_failed",
+            "partial_success",
+            "full_success",
+        ):
             if meta.get(k) is not None:
                 rec[k] = meta[k]
         audit.record(ctx, action_request, None, kind="shadow", extra=_redact(rec))
@@ -473,5 +613,4 @@ class Harness:
                 return StopReason.GOAL_MET
 
             est_usd, est_tokens = est_cost(call)
-            await self.step(ctx, call, profile=profile,
-                            est_usd=est_usd, est_tokens=est_tokens)
+            await self.step(ctx, call, profile=profile, est_usd=est_usd, est_tokens=est_tokens)

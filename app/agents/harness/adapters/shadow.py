@@ -114,15 +114,21 @@ def _composite_summary(result) -> Optional[dict]:
         per[str(name)[:40]] = "ok" if c_ok else "error"
         ok_n += 1 if c_ok else 0
         fail_n += 0 if c_ok else 1
-    return {"composite_action": True, "components": sorted(per.keys()),
-            "component_count": len(per), "component_status": per,
-            "components_ok": ok_n, "components_failed": fail_n,
-            "partial_success": ok_n > 0 and fail_n > 0,
-            "full_success": fail_n == 0 and ok_n > 0}
+    return {
+        "composite_action": True,
+        "components": sorted(per.keys()),
+        "component_count": len(per),
+        "component_status": per,
+        "components_ok": ok_n,
+        "components_failed": fail_n,
+        "partial_success": ok_n > 0 and fail_n > 0,
+        "full_success": fail_n == 0 and ok_n > 0,
+    }
 
 
 class _JobArgs(BaseModel):
     """run_member jobs take no structured args; strict-empty schema."""
+
     model_config = ConfigDict(extra="forbid")
 
 
@@ -154,7 +160,7 @@ def observe_legacy_run(
         rrid = real_run_id or ("run_" + uuid.uuid4().hex[:12])
         # Shadow-safe derived reference — NOT the legacy idempotency key.
         shadow_ref = f"shadow:{rrid}:{action_index}"
-        legacy_tool = action or f"staff.run_{aid}"     # the REAL executor identity
+        legacy_tool = action or f"staff.run_{aid}"  # the REAL executor identity
         # Canonical identity resolution: a mapped STAFF member maps to a canonical
         # (tool, version); every unmapped member stays legacy => UNREGISTERED.
         _canon = resolve_staff_tool(aid)
@@ -164,8 +170,12 @@ def observe_legacy_run(
             tool, tver = legacy_tool, "v1"
 
         req = ToolCall(
-            name=tool, args={}, reason="shadow observation of legacy staff run",
-            tool_version=tver, risk_class=risk, idempotency_key=shadow_ref,
+            name=tool,
+            args={},
+            reason="shadow observation of legacy staff run",
+            tool_version=tver,
+            risk_class=risk,
+            idempotency_key=shadow_ref,
             expected_effect="internal revenue-ops digest/health/alerts",
             budget_scope="run",
         )
@@ -175,21 +185,33 @@ def observe_legacy_run(
         reg.register(tool, _noop, _JobArgs, risk)
 
         ctx = RunContext(
-            run_id=rrid, task_id=rrid, tenant_id=SYSTEM_TENANT, agent=aid,
-            actor_id=actor_id, shadow_run_id=shadow_ref, source_loop=source_loop,
+            run_id=rrid,
+            task_id=rrid,
+            tenant_id=SYSTEM_TENANT,
+            agent=aid,
+            actor_id=actor_id,
+            shadow_run_id=shadow_ref,
+            source_loop=source_loop,
         )
         _meta = {
-            "latency_ms": latency_ms, "legacy_tool": legacy_tool,
+            "latency_ms": latency_ms,
+            "legacy_tool": legacy_tool,
             "side_effect_class": ("external_send" if _canon else "internal"),
-            "step_type": aid, "canonical_tool": (tool if _canon else None),
-            "tool_registry_status": ("canonical_registered" if _canon else "unregistered_internal_action"),
+            "step_type": aid,
+            "canonical_tool": (tool if _canon else None),
+            "tool_registry_status": (
+                "canonical_registered" if _canon else "unregistered_internal_action"
+            ),
             "enforcement_applied": False,
         }
         _comp = _composite_summary(actual_result)
         if _comp:
             _meta.update(_comp)
         rec = Harness(registry=reg).observe(
-            ctx, req, actual_result=actual_result, actual_error=actual_error,
+            ctx,
+            req,
+            actual_result=actual_result,
+            actual_error=actual_error,
             execution_metadata=_meta,
         )
         return rec
@@ -201,7 +223,9 @@ def observe_legacy_run(
             from app.agents.harness.contracts import RunContext
 
             audit.record(
-                RunContext(agent=(agent_id or "").strip().lower()), None, None,
+                RunContext(agent=(agent_id or "").strip().lower()),
+                None,
+                None,
                 kind="shadow_error",
                 extra={"error": str(e)[:200], "agent": agent_id, "source_loop": source_loop},
             )
