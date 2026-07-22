@@ -82,7 +82,7 @@ harness.enforce.*/harness.kill are AMBER.
 | family | level | rationale |
 |---|---|---|
 | batch_harness | C4 (local/internal) | owner-approved bounded canary done + rolled back; fail-closed; exactly-once; NOT C5 (no prod persistence/multi-worker/monitoring) |
-| dag_engine | C2 | REGISTRY_MATCH real proof; GREEN; no binding |
+| dag_engine | C2 → **production-shadow-proven** | REGISTRY_MATCH real proof; GREEN; no binding. One bounded production shadow canary passed 2026-07-22 (see `docs/agent_runtime/DAG_SHADOW_PRODUCTION_CANARY_PROOF.md`): legacy=1, harness executor=0, 1 shadow record, MATCH/REGISTRY_MATCH, manifest `1d3b83331cf303e2`, flags restored OFF |
 | staff.run_member/Nikhil | C2 (AMBER) | REGISTRY_MATCH real proof; AMBER external-send/approval — never autonomous |
 | coordinator | C2 (Dev delegation) | agent.delegate.dev REGISTRY_MATCH on real graph; orchestrator < C3; structured planner shadow/mocked |
 | supervisor.py | C2 | dev GREEN + rohan AMBER REGISTRY_MATCH on real LangGraph |
@@ -90,7 +90,8 @@ harness.enforce.*/harness.kill are AMBER.
 
 No family is C5. Only batch reached C4 (local). Coverage: shadow 5/5, structured-contract 5/5,
 registry-backed 5/5 (all five families now have >=1 REGISTRY_MATCH real proof), enforcement-prepared
-1 (batch), canary-proven 1 (batch local), production-enforced 0.
+1 (batch), canary-proven 1 (batch local), **production-shadow-proven 1 (dag_engine — 2026-07-22)**,
+production-enforced 0.
 
 ## 7. Rollback (flags OFF)
 
@@ -131,3 +132,24 @@ NOT READY FOR GLOBAL ENFORCEMENT. Five families are shadow-covered, structured-c
 and registry-backed with real REGISTRY_MATCH proofs; exactly one family (batch) is enforcement-prepared
 and has completed one owner-approved local canary (rolled back). The previous canary grants no standing
 authorization. Next: prepare the accumulated harness implementation for a reviewable isolated commit/PR.
+
+## 12. Production-shadow proof addendum (2026-07-22)
+
+One bounded production shadow canary was run for `dag_engine` (record-only; no enforcement; every
+temporary flag restored OFF). Full evidence: `docs/agent_runtime/DAG_SHADOW_PRODUCTION_CANARY_PROOF.md`.
+
+| Family | Shadow code | Structured contract | Registry-backed | Production shadow proof | Enforcement |
+|---|---:|---:|---:|---:|---:|
+| `dag_engine` | Yes | Yes | Yes | **Proven — 1 bounded run (2026-07-22)** | No |
+| `batch_harness` | Yes | Yes | Yes | Not yet production-proven | Local-only canary; OFF |
+| `staff.run_member` | Yes | Yes | Yes | Not proven | No |
+| `coordinator` | Yes | Yes | Yes | Not proven | No |
+| `supervisor/staff_supervisor` | Yes | Yes | Yes | Fixture/local proof only | No |
+
+**Production-shadow-proven families: 1 / 5. Production-enforced families: 0 / 5.** The DAG canary
+proves the bounded shadow path; it is **not** platform-wide production readiness and grants no
+standing authorization for enforcement, agent activation, or a second canary.
+
+Post-canary production audit baseline: **1** harness shadow record (not 0). Audit file SHA-256
+`06e4c34f1eb8590d856e8e7838b9fdea3269662fcab2e0586faeddcbc9e69c85`. Any record beyond this one must
+be investigated.
