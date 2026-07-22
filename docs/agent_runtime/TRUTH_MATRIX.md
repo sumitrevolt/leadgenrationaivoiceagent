@@ -18,13 +18,16 @@ Source: `team.STAFF` · `agent_registry` · `agent_runtime.PILOT_AGENTS` · `age
 |---|---|
 | pause / stop_claims / drain new-work / kill | `production_proven` |
 | cancellation same-process | `production_proven` |
-| cancellation cross-process | `implementation_ready` (CI/file proof; **not** production-proven) |
+| cancellation cross-process | `production_proven` (SHA `d4b248f5`) |
+| cancellation_backend | `redis` (`fallback_active: false`) |
 | race rechecks | `integration_proven` |
-| cancellation_backend (after this PR) | `redis` (authoritative) |
-| idempotency_backend | `redis_primary_with_memory_fail_open` (truthful; live KEYS proof PARTIAL) |
+| idempotency_backend (after this PR) | `redis` fail-closed (code) |
+| idempotency_memory_fallback | `false` (agent runtime) |
+| idempotency_cross_process | `implementation_ready` — **not** production-proven |
+| idempotency_production_proven | `false` |
 
 ## Pilot allowlist
 
 `kavya, isha, zara, hermes, pranav, vidya, arnav, kabir, diya, aryan, arya, nikhil`
 
-See `DISTRIBUTED_CANCELLATION.md` · `NIKHIL_FLAG_ISOLATION.md` · `CANARY_PREFLIGHT.md`.
+See `DISTRIBUTED_CANCELLATION.md` · `DISTRIBUTED_IDEMPOTENCY.md` · `CANARY_PREFLIGHT.md`.

@@ -17,15 +17,16 @@ def isolated_runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_DLQ_PATH", str(tmp_path / "dlq.jsonl"))
     monkeypatch.setattr(rt, "_BACKOFF_BASE_S", 0.0)
     monkeypatch.setattr(rt, "_kill_engaged", lambda key: False)
-    monkeypatch.setattr(rt, "_idem_seen", lambda key, ttl_s=86400: False)
-    monkeypatch.setattr(rt, "_idem_forget", lambda key: None)
     monkeypatch.setattr(rt, "_approval_approved", lambda tenant, ref: False)
 
     caps_snapshot = dict(rt._CAPABILITIES)
     monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    monkeypatch.setenv("AGENT_RUNTIME_IDEM_BACKEND", "memory")
     from app.platform import agent_runtime_cancellation as crc
+    from app.platform import agent_runtime_idempotency as arid
 
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
     rt._CAPABILITIES.clear()
@@ -43,6 +44,7 @@ def isolated_runtime(tmp_path, monkeypatch):
     rt._CAPABILITIES.clear()
     rt._CAPABILITIES.update(caps_snapshot)
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 

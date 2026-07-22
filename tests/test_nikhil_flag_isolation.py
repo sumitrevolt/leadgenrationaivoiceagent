@@ -18,21 +18,14 @@ def _iso(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_DLQ_PATH", str(tmp_path / "dlq.jsonl"))
     monkeypatch.setattr(rt, "_BACKOFF_BASE_S", 0.0)
     monkeypatch.setattr(rt, "_kill_engaged", lambda key: False)
-    idem: dict[str, bool] = {}
-
-    def _seen(key, ttl_s=86400):
-        if key in idem:
-            return True
-        idem[key] = True
-        return False
-
-    monkeypatch.setattr(rt, "_idem_seen", _seen)
-    monkeypatch.setattr(rt, "_idem_forget", lambda key: idem.pop(key, None))
     monkeypatch.setattr(rt, "_owner_admission_blocked", lambda aid: (False, ""))
     monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    monkeypatch.setenv("AGENT_RUNTIME_IDEM_BACKEND", "memory")
     from app.platform import agent_runtime_cancellation as crc
+    from app.platform import agent_runtime_idempotency as arid
 
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     ensure_workforce_registered()
     monkeypatch.setenv("AGENT_RUNTIME", "1")
@@ -54,6 +47,7 @@ def _iso(tmp_path, monkeypatch):
         monkeypatch.setenv(fl, "0")
     yield
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
 
 
