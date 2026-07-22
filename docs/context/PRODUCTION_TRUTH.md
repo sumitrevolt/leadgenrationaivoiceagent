@@ -39,3 +39,9 @@ Jiya Makeover · `jiya-makeover`
 
 ## Rollback reference
 `bash scripts/deploy_vps.sh 208fcf48` (pre-WS-1-merge tip) or `69c4c8d2` (earlier) — only if health/auth regresses. Current: no rollback needed.
+
+## Agent-harness production shadow (canonical harness)
+- `dag_engine` production **shadow** canary passed 2026-07-22 on prod SHA `878c13973ce496c05979571e136c0138e95e4256`, registry manifest `1d3b83331cf303e2` — record-only, enforcement never enabled, all `AGENT_HARNESS*` flags restored OFF. PRODUCTION-PROVEN. Evidence: `docs/agent_runtime/DAG_SHADOW_PRODUCTION_CANARY_PROOF.md`.
+- Post-canary harness audit baseline: **1** shadow record at `/app/data/harness_runs.jsonl` (SHA-256 `06e4c34f1eb8590d856e8e7838b9fdea3269662fcab2e0586faeddcbc9e69c85`). Not 0 — future reviews compare against this baseline.
+- `CODE_EXEC=0`, canonical harness OFF, `AGENT_HARNESS_ENFORCE` empty — re-verified in-container 2026-07-22. PRODUCTION-PROVEN.
+- `BATCH_HARNESS=1` is an **info-flag only** (batch runner capability; sole call site is an admin endpoint; no `data/batch_runs/` usage in prod). It is separate from the `AGENT_HARNESS*` canonical-harness flags and does not enable shadow, enforcement, or code execution.
