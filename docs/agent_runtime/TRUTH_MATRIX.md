@@ -9,7 +9,7 @@ Source: `team.STAFF` · `agent_registry` · `agent_runtime.PILOT_AGENTS` · `age
 | **pranav** + **nikhil** | **2** | `production_canary_proven` (flags OFF — not permanently enabled) |
 | Other Wave-A/B read-only pilots | **10** | `canary_ready` |
 | GREEN mutate + AMBER/voice-adjacent hold | **17** | `rollout_hold` |
-| Swara + Ananya | **2** | `intentionally_disabled` |
+| Swara (Voice AI) + Ananya (Booking Voice) | **2** | `intentionally_disabled` |
 | **Total STAFF** | **31** | Boss=`manager` counted once |
 
 ## Shared runtime controls
