@@ -89,3 +89,80 @@ Option-A import is idempotent.
   secrets. Owner OS remains the sole mutation authority.
 - Deployment installs **capability only**. Activation and historical migration require separate owner
   authorization and are out of scope for the introducing PR.
+
+---
+
+## Addendum (2026-07-22) — atomicity, durability proof, and retention contract
+
+### Atomic claim + append (single Lua script)
+
+The dedup **claim** and the durable **append** are performed in one `EVAL` — never two
+independent round trips. `_ATOMIC_LUA` (in `audit_backend.py`):
+
+```
+GET dedup_key -> if present: HINCRBY duplicates_suppressed; return {DUPLICATE, stored_value}
+XADD stream MAXLEN ~ N * e <event>          -> id
+SET dedup_key '{"event_id":id,"envelope":<env>}' PX ttl
+HINCRBY records_created / family:* / mode:*
+return {CREATED, stored_value}
+```
+
+Because a Redis script runs atomically:
+- **XADD failure aborts the whole script** — the dedup key is never committed, so a retry recreates
+  the event (no dedup key stranded without a durable record).
+- **Client timeout after a successful commit** is safe — the retry finds the dedup key and returns
+  the original `event_id` (no second stream record).
+- **Concurrent observers** — exactly one creates the stream event; all others get `DUPLICATE` with
+  the same id.
+
+### Cluster-safe key design
+
+All keys the script touches share one hash tag `{audit}` → one slot:
+`harness:{audit}:events` (stream), `harness:{audit}:dedup:<sha256[:32]>`, `harness:{audit}:metrics`.
+Key names carry only bounded hashes — never raw tenant/agent/tool/payload values.
+
+### Retention ↔ dedup consistency (Option A)
+
+The dedup TTL (14 d) can outlive a count-trimmed stream record (`MAXLEN ~ 1,000,000`). To prevent a
+"dedup says duplicate but the event is gone" state, the dedup **value stores a compact immutable
+envelope** (identity + verdict fields) alongside the `event_id` (`derive_envelope`). A duplicate
+replay is therefore always resolvable from the dedup value itself, independent of stream trimming.
+The stream remains the full durable audit-of-record; the envelope is the bounded dedup backstop.
+
+### Durability proof (production Redis `leadgen_redis`)
+
+Verified read-only 2026-07-22 on the intended service (`redis:7-alpine`, redis 7.4.9):
+`appendonly=yes`, `appendfsync=everysec`, RDB `save 3600 1 300 100 60 10000`, `maxmemory=256MB`,
+**`maxmemory-policy=noeviction`**, `dir=/data` on the persistent named volume `leadgen_redisdata`,
+`aof_enabled=1`. This **meets** the durable-audit posture: a container/Redis restart preserves the
+stream and dedup keys, and audit records cannot be silently evicted under memory pressure — writes
+fail closed instead (the required behaviour). `EVAL`/Lua is supported. No separate Redis or Postgres
+is required. (Capacity note: at harness shadow volume, 256 MB with `noeviction` is ample headroom;
+under pressure writes fail closed rather than lose evidence.)
+
+### Failure & recovery matrix (proven)
+
+| scenario | result |
+|---|---|
+| Redis unavailable before script | fail-closed dropped observation + operational error; legacy result untouched |
+| script/connection error | fail-closed; `script_errors` incremented; **nothing committed** (atomicity) |
+| client timeout after commit | retry finds dedup key → returns original `event_id`; no second record |
+| process crash after commit | record durable in stream + dedup; a later retry resolves as duplicate |
+| Redis restart | AOF/RDB + volume preserve stream & dedup |
+| duplicate replay before TTL | `DUPLICATE` with original id |
+| duplicate replay after TTL | treated as new (documented; TTL ≫ review window) |
+| stream trimmed | dedup envelope still resolves the duplicate (Option A) |
+| maxmemory reached | `noeviction` → write fails closed (no silent audit loss) |
+
+Real-Redis, real-multiprocess (8 OS processes) validation of the atomic path: **1 record created, 7
+duplicates, 1 distinct event id, 0 partial commits on induced failure** — see
+`tests/test_harness_audit_backend_integration.py` (skips without a live Redis; run with
+`HARNESS_TEST_REDIS_URL`).
+
+### Metrics
+
+Durable in the `metrics` hash: `records_created`, `duplicates_suppressed`, `backend_errors`,
+`script_errors`, `oversize_rejections`, plus `family:*` / `mode:*`. Status also derives
+`stream_length`, `dedup_keys_active` (bounded scan), and oldest/newest event ids. `backend_errors`
+that occur while Redis is entirely unreachable are unavoidably process-local (logged) and labelled as
+such — durable counters require a reachable backend.
