@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -621,12 +622,66 @@ def request_cancel_running(
     *,
     by: str = "admin",
     reason: str = "",
+    command_id: str = "",
 ) -> dict[str, Any]:
-    """Cooperative cancel request. Does not claim stopped until worker acks."""
+    """Cooperative cancel request. Does not claim stopped until worker acks.
+
+    Agent-runtime runs (``art_*`` task ids) use the Redis cancellation store
+    (``agentrt:cancel:<agent>:<run>``). Legacy staff jobs keep the older
+    ``owner_os:cancel_request:`` key + abort flag path.
+    """
     aid = _canon_agent(agent_id)
     tid = str(task_id or "").strip()
     if not tid:
-        return {"ok": False, "error": "task_id required"}
+        return {"ok": False, "error": "task_id required", "reason_code": "malformed_target"}
+
+    # Agent Runtime distributed cancel (run-specific, cross-process).
+    if tid.startswith("art_"):
+        from app.platform import agent_runtime as art
+
+        cmd = str(command_id or "").strip() or f"ocmd_cancel_{uuid.uuid4().hex[:10]}"
+        out = art.request_cancel_run(
+            aid,
+            tid,
+            requested_by=by,
+            reason=reason,
+            command_id=cmd,
+            correlation_id=tid,
+        )
+        if not out.get("ok"):
+            return {
+                "ok": False,
+                "error": out.get("error") or out.get("reason_code") or "cancel_failed",
+                "reason_code": out.get("reason_code") or out.get("error"),
+                "command_id": cmd,
+                "agent_id": aid,
+                "targeted_run_ids": [],
+                "cancellation_backend": out.get("cancellation_backend"),
+                "stopped": False,
+            }
+        status = "cancel_requested"
+        if out.get("already_requested"):
+            status = "already_requested"
+        return {
+            "ok": True,
+            "command_id": cmd,
+            "status": status,
+            "agent_id": aid,
+            "targeted_run_ids": [tid],
+            "cancellation_backend": out.get("cancellation_backend") or "redis",
+            "requested_count": 0 if out.get("already_requested") else 1,
+            "already_requested_count": 1 if out.get("already_requested") else 0,
+            "requested": True,
+            "acknowledged": False,
+            "stopped": False,
+            "task_id": tid,
+            "newly_created": out.get("newly_created"),
+            "note": (
+                "Distributed Redis cancellation requested for runtime run. "
+                "Worker checkpoints observe the record across processes."
+            ),
+        }
+
     try:
         r = _redis()
         key = f"{CANCEL_KEY_PREFIX}{tid}"
@@ -653,6 +708,13 @@ def request_cancel_running(
             "acknowledged": False,
             "stopped": False,
             "task_id": tid,
+            "command_id": str(command_id or "")[:64],
+            "status": "cancel_requested",
+            "agent_id": aid,
+            "targeted_run_ids": [tid],
+            "cancellation_backend": "redis_legacy_staff",
+            "requested_count": 1,
+            "already_requested_count": 0,
             "note": (
                 "Cooperative cancellation requested. Task is not marked stopped until "
                 "the worker acknowledges. Isha content loop polls agent_abort between clients."
