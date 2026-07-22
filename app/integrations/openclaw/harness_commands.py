@@ -94,6 +94,16 @@ def _registry_summary() -> dict[str, Any]:
         return {"registered_tools": 0, "tools": [], "note": f"registry unavailable: {e}"}
 
 
+def _audit_backend_status() -> dict[str, Any]:
+    """Durable-audit backend snapshot for harness.status (read-only, no secrets)."""
+    try:
+        from app.agents.harness import audit
+
+        return audit.backend_status()
+    except Exception as e:  # status must never break
+        return {"backend": "unknown", "error": str(e)[:160]}
+
+
 def _status(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[str, Any]:
     flags = _harness_flags()
     return {
@@ -110,9 +120,15 @@ def _status(params: dict[str, Any], *, actor: str, correlation_id: str) -> dict[
             ),
             "calling_hard_off": True,
             "conformance_level": _conformance_level(flags),
+            "audit_backend": _audit_backend_status(),
         },
         "evidence": {
-            "sources": ["env_flags", "harness.REGISTRY", "harness.stop.kill"],
+            "sources": [
+                "env_flags",
+                "harness.REGISTRY",
+                "harness.stop.kill",
+                "harness.audit_backend",
+            ],
             "actor": actor,
             "correlation_id": correlation_id,
         },
