@@ -99,6 +99,7 @@ async def frozen_transfer_status(ctx: AgentExecutionContext) -> dict[str, Any]:
 
 async def nikhil_scan_delivery_assurance(ctx: AgentExecutionContext) -> dict[str, Any]:
     """Read-only missed/at-risk paid-customer scan — no dunning sends."""
+    _flag_skip("DELIVERY_ASSURANCE_AGENT")
     from app.marketing import delivery_assurance
 
     out = await asyncio.to_thread(
