@@ -46,7 +46,9 @@ real-provider proof). Two bounded fixes shipped: (a) selection extraction now fi
 STAFF-named message, not the final supervisor message; (b) per-run `graph_run_id` removes a
 cross-run audit-dedup collision.
 
-## 3. Canonical tool matrix (manifest a20e2ede196c30ae)
+## 3. Canonical tool matrix (manifest 1d3b83331cf303e2 — deterministic)
+
+> Manifest fingerprint is now deterministic across PYTHONHASHSEED / process / container (ADR-138). The earlier values `a20e2ede196c30ae` and `697b56f06ed35102` were historical **non-deterministic** fingerprints and are not authoritative.
 
 | identity | ver | family | risk | side-effect | authority | agents | tenant | approval | idem | sandbox | net | bound |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
