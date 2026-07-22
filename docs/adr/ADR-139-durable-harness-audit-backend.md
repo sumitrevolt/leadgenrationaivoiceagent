@@ -166,3 +166,53 @@ Durable in the `metrics` hash: `records_created`, `duplicates_suppressed`, `back
 `stream_length`, `dedup_keys_active` (bounded scan), and oldest/newest event ids. `backend_errors`
 that occur while Redis is entirely unreachable are unavoidably process-local (logged) and labelled as
 such — durable counters require a reachable backend.
+
+---
+
+## Amendment 2 (2026-07-22) — one authoritative all-or-nothing write
+
+The earlier `XADD`+`SET`+`HINCRBY` Lua script was **not** all-or-nothing: Redis does
+not roll back a script's earlier writes when a later command errors. Reproduced on
+an isolated Redis by poisoning the metrics key to a non-hash — the `HINCRBY` raised
+`WRONGTYPE` **after** `XADD` and `SET` had already committed (stream_length=1,
+dedup key present) while the client saw an error. Evidence and dedup could disagree.
+
+**Corrected model.** Each observation is a single immutable **record key**:
+
+```
+SET harness:{audit}:record:<sha256> <value> NX GET PX <retention>
+```
+
+That one command is the durable audit record, the first-observer claim, the
+duplicate identity, and the replay envelope. `nil` → created; old value → duplicate
+(the returned value *is* the record); error → nothing created. No second structure
+establishes durability, so a partial commit is impossible. Validated on real Redis 7.
+
+**Record value** (`build_record`): `{event_id, event (sanitized), envelope (compact),
+source_app_version, created_at}`. `event_id` is deterministic (== dedup key).
+
+**Stream + metrics are now DERIVED, non-authoritative indexes** updated best-effort
+*after* the authoritative write. If they fail, the record still exists, `counts()`
+reports `index_lag`/`index_errors`, and `RedisBackend.reconcile(dry_run=…)` rebuilds
+them from the authoritative records (idempotent; never touches records; supports
+dry-run). `counts().total` is the authoritative record-key count, not the stream.
+
+**Retention = dedup lifetime.** One key holds both, so "dedup without record" and
+"record without dedup" cannot occur. `HARNESS_AUDIT_RETENTION_S` default **90 days**
+(no shorter dedup TTL). After expiry a replay is legitimately a new observation.
+
+**Strict configuration.** `HARNESS_AUDIT_BACKEND` resolves by exact match: unset/empty
+or `jsonl` → jsonl; `redis` → redis; **any other value** (typo, trailing space, wrong
+case) → **invalid** → unhealthy, writes fail closed, **never silently jsonl**. Status
+reports `configured_value`, `resolved_backend`, `configuration_valid`, and honest
+`selected_intentionally` / `fallback_active` / `durable` / `multi_worker_safe`.
+
+**Migration provenance.** `derive_dedup_key(row, source_app_version=…)` lets a
+migration identify historical events under their ORIGINAL deployed SHA
+(`878c1397…`), never the migrating process's runtime SHA. Live observations keep
+using the current runtime SHA. The guarded CLI is `python -m
+app.agents.harness.audit_migrate` (dry-run default; `--apply` requires
+`--approval-token`, `--expected-source-checksum`, `--source-app-version`; idempotency
+marker keyed on source checksum + source SHA + schema + namespace; a different
+checksum under the same identity is refused; the source file is never modified).
+Migration and backend activation remain two independent owner-authorized operations.

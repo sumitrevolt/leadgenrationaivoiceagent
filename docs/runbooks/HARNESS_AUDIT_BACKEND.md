@@ -93,3 +93,46 @@ HARNESS_TEST_REDIS_URL=redis://localhost:6379/15 pytest tests/test_harness_audit
 ```
 
 Use a THROWAWAY Redis DB (the suite `flushdb`s around each test). Never point it at production Redis.
+
+## Authoritative single-write model (redis)
+
+Each observation is ONE immutable record key created with `SET harness:{audit}:record:<sha>
+<value> NX GET PX <retention>` — durable record + dedup claim + duplicate identity + envelope in a
+single all-or-nothing command. The Redis **stream** and **metrics** hash are DERIVED best-effort
+indexes; if they lag, the record still exists and `RedisBackend.reconcile(dry_run=…)` rebuilds them.
+`counts().total` is the authoritative record-key count. Retention = `HARNESS_AUDIT_RETENTION_S`
+(default 90 days) and is also the dedup lifetime.
+
+## Strict configuration
+
+`HARNESS_AUDIT_BACKEND` is matched exactly: unset/empty or `jsonl` → jsonl; `redis` → redis; **any
+other value** (typo/trailing-space/wrong-case) → **invalid** → unhealthy, writes fail closed, never
+silently jsonl. Check `harness.status.result.audit_backend.configuration_valid`.
+
+## Guarded historical migration (owner-authorized; separate from activation)
+
+Dry-run (default, ZERO writes):
+
+```
+python -m app.agents.harness.audit_migrate
+```
+
+Apply (all guards required):
+
+```
+python -m app.agents.harness.audit_migrate --apply \
+  --approval-token <token> \
+  --expected-source-checksum 660fdb599092bed637773887a096d758509c41f86ad09d88e3a15e6bf4f5999e \
+  --source-app-version 878c13973ce496c05979571e136c0138e95e4256 \
+  --source data/harness_runs.jsonl
+```
+
+- Refuses apply unless approval-token + expected checksum + 40-char source SHA are present and the
+  source file matches (checksum, 2 rows, dag=1/batch=1, enforcement=0).
+- Idempotent: re-apply of the same source is a no-op (2 recognized existing); a different checksum
+  under the same migration identity is refused.
+- Historical events are identified under their ORIGINAL `--source-app-version`, not the running SHA.
+- NEVER modifies the source JSONL, changes `.env`, restarts containers, sets `HARNESS_AUDIT_BACKEND`,
+  or enables a harness flag. **Migration ≠ activation** — two separate owner operations.
+- Requires `HARNESS_AUDIT_BACKEND=redis` resolved (refuses on jsonl/invalid). Do NOT run `--apply`
+  against production until the owner authorizes both migration and (separately) activation.
