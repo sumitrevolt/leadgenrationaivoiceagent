@@ -66,3 +66,30 @@ by TTL / capacity policy.
 - Enable any `AGENT_HARNESS*` / enforcement flag as part of this (unrelated and must stay OFF).
 - Treat capability deployment as activation — deploying this code changes nothing until
   `HARNESS_AUDIT_BACKEND=redis`.
+
+## Atomicity & durability (redis mode)
+
+Claim + append run in **one Redis Lua script** (`EVAL`), so there is never a two-round-trip window
+where a dedup key is set without a durable stream record. Keys share one hash tag `{audit}` (cluster-
+safe). The dedup value stores a compact envelope beside the `event_id`, so a duplicate replay is
+resolvable even if the stream later trims (ADR-139 Option A).
+
+Intended production Redis is `leadgen_redis` (redis 7.4.9): `appendonly=yes`, `appendfsync=everysec`,
+`maxmemory-policy=noeviction`, persistent named volume — verified to preserve data across restart and
+to fail writes closed (never silently evict audit records) under pressure.
+
+## Metrics (durable, `harness:{audit}:metrics`)
+
+`records_created`, `duplicates_suppressed`, `backend_errors`, `script_errors`, `oversize_rejections`,
+`family:*`, `mode:*`; plus derived `stream_length`, `dedup_keys_active`, oldest/newest event id.
+`backend_errors` while Redis is fully unreachable are process-local (logged) — labelled as such.
+
+## Run the real-Redis integration tests
+
+They skip automatically without a live Redis. To run:
+
+```
+HARNESS_TEST_REDIS_URL=redis://localhost:6379/15 pytest tests/test_harness_audit_backend_integration.py
+```
+
+Use a THROWAWAY Redis DB (the suite `flushdb`s around each test). Never point it at production Redis.

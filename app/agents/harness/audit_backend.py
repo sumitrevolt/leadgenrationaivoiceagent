@@ -10,9 +10,12 @@ Backends
 * ``jsonl`` (default): append-only file at ``HARNESS_RUN_LOG``. No record-layer
   dedup (identical to today). Intended for dev/test and the current production
   baseline. NOT multi-worker-safe.
-* ``redis``: atomic first-observer-wins dedup via ``SET NX PX`` and a durable,
-  retention-bounded Redis Stream for the audit-of-record. Multi-worker- and
-  restart-safe. This is the production-grade path.
+* ``redis``: **atomic** first-observer-wins dedup + durable append in a SINGLE
+  Redis Lua script (claim and ``XADD`` never split across two round trips). The
+  dedup value stores the stream event id AND a compact immutable envelope, so a
+  duplicate replay is always resolvable even if the stream later trims (ADR-139,
+  Option A). All keys share one hash slot (``{audit}``) so the script is
+  cluster-safe. Multi-worker- and restart-safe. This is the production-grade path.
 
 Fail-closed (production honesty)
 --------------------------------
@@ -49,9 +52,39 @@ except Exception:  # pragma: no cover
 # Configuration (all env-driven; safe defaults keep the backend inert).
 # --------------------------------------------------------------------------- #
 _DEFAULT_BACKEND = "jsonl"
-_STREAM_KEY = "harness:audit:events"
-_COUNTS_KEY = "harness:audit:counts"
-_DEDUP_PREFIX = "harness:audit:dedup:"
+# All keys share one hash slot ("{audit}") so the atomic Lua script is safe on a
+# Redis Cluster. Only bounded hashes appear in key names — never raw tenant,
+# agent, tool, or payload values.
+_STREAM_KEY = "harness:{audit}:events"
+_COUNTS_KEY = "harness:{audit}:metrics"
+_DEDUP_PREFIX = "harness:{audit}:dedup:"
+
+# Atomic claim + append. KEYS: dedup, stream, metrics.
+# ARGV: event_json, envelope_json, ttl_ms, maxlen, family, mode.
+# Returns {"CREATED"|"DUPLICATE", <dedup_value_json>}. Because the whole body runs
+# atomically inside Redis, an XADD failure aborts before the dedup key is set, and
+# a client timeout after commit is safe (retry finds the dedup key -> DUPLICATE
+# with the original event id). Never two independent round trips.
+_ATOMIC_LUA = """
+local existing = redis.call('GET', KEYS[1])
+if existing then
+  redis.call('HINCRBY', KEYS[3], 'duplicates_suppressed', 1)
+  return {'DUPLICATE', existing}
+end
+local maxlen = tonumber(ARGV[4])
+local id
+if maxlen and maxlen > 0 then
+  id = redis.call('XADD', KEYS[2], 'MAXLEN', '~', maxlen, '*', 'e', ARGV[1])
+else
+  id = redis.call('XADD', KEYS[2], '*', 'e', ARGV[1])
+end
+local val = '{"event_id":"' .. id .. '","envelope":' .. ARGV[2] .. '}'
+redis.call('SET', KEYS[1], val, 'PX', tonumber(ARGV[3]))
+redis.call('HINCRBY', KEYS[3], 'records_created', 1)
+redis.call('HINCRBY', KEYS[3], 'family:' .. ARGV[5], 1)
+redis.call('HINCRBY', KEYS[3], 'mode:' .. ARGV[6], 1)
+return {'CREATED', val}
+"""
 
 
 def _env(name: str, default: str) -> str:
@@ -203,19 +236,41 @@ def derive_dedup_key(row: dict[str, Any]) -> str:
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:32]
 
 
+def derive_envelope(row: dict[str, Any]) -> dict[str, Any]:
+    """Compact, immutable identity+verdict envelope stored in the dedup value so a
+    duplicate replay is resolvable even if the durable stream later trims (ADR-139
+    Option A). Bounded and secret-free by construction."""
+    ex = row.get("extra") or {}
+    return {
+        "ts": row.get("ts"),
+        "kind": row.get("kind"),
+        "agent": row.get("agent"),
+        "tenant_id": row.get("tenant_id"),
+        "source_loop": ex.get("source_loop"),
+        "resolved_tool_name": ex.get("resolved_tool_name") or row.get("tool"),
+        "resolved_tool_version": ex.get("resolved_tool_version"),
+        "mode": ex.get("mode"),
+        "execution_comparison": ex.get("execution_comparison"),
+        "registry_comparison": ex.get("registry_comparison"),
+        "node_or_item": ex.get("node_id") or ex.get("item_id"),
+        "attempt": ex.get("attempt"),
+        "run_id": row.get("run_id"),
+    }
+
+
 # --------------------------------------------------------------------------- #
 # Backend interface + implementations.
 # --------------------------------------------------------------------------- #
 class AuditBackend:
-    """A durable audit sink + atomic evidence-dedup claim."""
+    """A durable audit sink with an ATOMIC evidence-dedup + append operation."""
 
     name = "base"
 
-    def claim(self, dedup_key: str) -> bool:  # pragma: no cover - interface
-        raise NotImplementedError
-
-    def append(self, row: dict[str, Any]) -> Optional[str]:  # pragma: no cover
-        raise NotImplementedError
+    def record(self, row: dict[str, Any], dedup_key: str) -> dict[str, Any]:
+        """Atomically dedup + append one row. Returns
+        {"written": bool, "duplicate": bool, "event_id": str|None}.
+        Raises AuditBackendUnavailable on a durable-backend failure."""
+        raise NotImplementedError  # pragma: no cover - interface
 
     def counts(self) -> dict[str, Any]:  # pragma: no cover - interface
         raise NotImplementedError
@@ -234,14 +289,13 @@ class JsonlBackend(AuditBackend):
     def __init__(self, path: Optional[str] = None) -> None:
         self._path = path or os.getenv("HARNESS_RUN_LOG", "data/harness_runs.jsonl")
 
-    def claim(self, dedup_key: str) -> bool:
-        return True  # no record-layer dedup in jsonl mode (unchanged behaviour)
-
-    def append(self, row: dict[str, Any]) -> Optional[str]:
+    def record(self, row: dict[str, Any], dedup_key: str) -> dict[str, Any]:
+        # No record-layer dedup in jsonl mode (byte-identical to the historical
+        # baseline). dedup_key is accepted for interface parity but unused.
         os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
         with open(self._path, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
-        return None
+        return {"written": True, "duplicate": False, "event_id": None}
 
     def counts(self) -> dict[str, Any]:
         total = 0
@@ -285,9 +339,15 @@ class JsonlBackend(AuditBackend):
         return {"backend": self.name, "healthy": True, "fallback_active": True}
 
 
+def _to_str(x: Any) -> str:
+    return x.decode() if isinstance(x, bytes | bytearray) else str(x)
+
+
 class RedisBackend(AuditBackend):
-    """Atomic dedup (SET NX PX) + durable Redis Stream audit-of-record.
-    Multi-worker- and restart-safe. Fails closed when Redis is unreachable."""
+    """ATOMIC dedup + durable append via a single Redis Lua script, over a durable
+    Redis Stream audit-of-record. Multi-worker- and restart-safe. Fails closed when
+    Redis is unreachable — never a two-round-trip claim/append that could leave a
+    dedup key without a durable event."""
 
     name = "redis"
 
@@ -296,40 +356,43 @@ class RedisBackend(AuditBackend):
             raise AuditBackendUnavailable("no redis client")
         self._r = client
 
-    def claim(self, dedup_key: str) -> bool:
+    def record(self, row: dict[str, Any], dedup_key: str) -> dict[str, Any]:
         key = _DEDUP_PREFIX + dedup_key
+        ex = row.get("extra") or {}
+        fam = str(ex.get("source_loop") or row.get("kind") or "unknown")
+        mode = str(ex.get("mode") or row.get("kind") or "unknown")
+        event_json = json.dumps(row, ensure_ascii=False, default=str)
+        envelope_json = json.dumps(derive_envelope(row), ensure_ascii=False, default=str)
         try:
-            ok = self._r.set(key, str(round(time.time(), 3)), nx=True, px=dedup_ttl_s() * 1000)
-        except Exception as e:  # backend unavailable -> fail closed
-            raise AuditBackendUnavailable(f"claim failed: {e}") from e
-        return bool(ok)
-
-    def append(self, row: dict[str, Any]) -> Optional[str]:
-        try:
-            fields = {"e": json.dumps(row, ensure_ascii=False, default=str)}
-            ml = stream_maxlen()
-            if ml and ml > 0:
-                sid = self._r.xadd(_STREAM_KEY, fields, maxlen=ml, approximate=True)
-            else:
-                sid = self._r.xadd(_STREAM_KEY, fields)
-            ex = row.get("extra") or {}
-            fam = str(ex.get("source_loop") or row.get("kind") or "unknown")
-            mode = str(ex.get("mode") or row.get("kind") or "unknown")
+            res = self._r.eval(
+                _ATOMIC_LUA,
+                3,
+                key,
+                _STREAM_KEY,
+                _COUNTS_KEY,
+                event_json,
+                envelope_json,
+                str(dedup_ttl_s() * 1000),
+                str(stream_maxlen()),
+                fam,
+                mode,
+            )
+        except Exception as e:  # backend/script failure -> fail closed
             try:
-                self._r.hincrby(_COUNTS_KEY, "total", 1)
-                self._r.hincrby(_COUNTS_KEY, f"family:{fam}", 1)
-                self._r.hincrby(_COUNTS_KEY, f"mode:{mode}", 1)
-            except Exception:  # counters are best-effort; the stream is durable
+                self._r.hincrby(_COUNTS_KEY, "script_errors", 1)
+            except Exception:
                 pass
-            return sid.decode() if isinstance(sid, bytes | bytearray) else str(sid)
-        except Exception as e:
-            raise AuditBackendUnavailable(f"append failed: {e}") from e
-
-    def note_duplicate(self) -> None:
+            raise AuditBackendUnavailable(f"atomic record failed: {e}") from e
+        status = _to_str(res[0]) if res and len(res) > 0 else ""
+        val = _to_str(res[1]) if res and len(res) > 1 else ""
+        event_id = None
         try:
-            self._r.hincrby(_COUNTS_KEY, "duplicates_suppressed", 1)
+            event_id = json.loads(val).get("event_id")
         except Exception:
             pass
+        if status == "DUPLICATE":
+            return {"written": False, "duplicate": True, "event_id": event_id}
+        return {"written": True, "duplicate": False, "event_id": event_id}
 
     def note_error(self) -> None:
         try:
@@ -337,14 +400,16 @@ class RedisBackend(AuditBackend):
         except Exception:
             pass
 
-    def counts(self) -> dict[str, Any]:
-        def _d(x):
-            return x.decode() if isinstance(x, bytes | bytearray) else x
+    def note_oversize(self) -> None:
+        try:
+            self._r.hincrby(_COUNTS_KEY, "oversize_rejections", 1)
+        except Exception:
+            pass
 
+    def counts(self) -> dict[str, Any]:
         try:
             raw = self._r.hgetall(_COUNTS_KEY) or {}
-            h = {_d(k): int(_d(v)) for k, v in raw.items()}
-            total = h.get("total", 0)
+            h = {_to_str(k): int(_to_str(v)) for k, v in raw.items()}
             by_family = {k[7:]: v for k, v in h.items() if k.startswith("family:")}
             by_mode = {k[5:]: v for k, v in h.items() if k.startswith("mode:")}
             oldest = newest = None
@@ -352,24 +417,40 @@ class RedisBackend(AuditBackend):
                 first = self._r.xrange(_STREAM_KEY, count=1)
                 last = self._r.xrevrange(_STREAM_KEY, count=1)
                 if first:
-                    oldest = _d(first[0][0])
+                    oldest = _to_str(first[0][0])
                 if last:
-                    newest = _d(last[0][0])
+                    newest = _to_str(last[0][0])
             except Exception:
                 pass
             return {
                 "backend": self.name,
-                "total": total,
-                "stream_len": self._safe_xlen(),
-                "by_family": by_family,
-                "by_mode": by_mode,
+                "total": h.get("records_created", 0),
+                "records_created": h.get("records_created", 0),
                 "duplicates_suppressed": h.get("duplicates_suppressed", 0),
                 "backend_errors": h.get("backend_errors", 0),
+                "script_errors": h.get("script_errors", 0),
+                "oversize_rejections": h.get("oversize_rejections", 0),
+                "stream_length": self._safe_xlen(),
+                "dedup_keys_active": self._dedup_keys_active(),
+                "by_family": by_family,
+                "by_mode": by_mode,
                 "oldest_event_id": oldest,
                 "newest_event_id": newest,
             }
         except Exception as e:
             raise AuditBackendUnavailable(f"counts failed: {e}") from e
+
+    def _dedup_keys_active(self, cap: int = 100_000) -> int:
+        """Bounded count of live dedup keys (capped; approximate on large sets)."""
+        try:
+            n = 0
+            for _ in self._r.scan_iter(match=_DEDUP_PREFIX + "*", count=1000):
+                n += 1
+                if n >= cap:
+                    break
+            return n
+        except Exception:
+            return -1
 
     def _safe_xlen(self) -> int:
         try:
@@ -426,6 +507,7 @@ def write(row: dict[str, Any], *, backend: Optional[AuditBackend] = None) -> dic
     is reported as a fail-closed dropped observation (written=False, error set) so
     the caller can emit an operational error without touching the legacy result.
     """
+    dk = derive_dedup_key(row)  # derive BEFORE size-capping so identity is stable
     row = enforce_size(row)
     try:
         be = backend if backend is not None else get_backend()
@@ -439,22 +521,11 @@ def write(row: dict[str, Any], *, backend: Optional[AuditBackend] = None) -> dic
             "error": str(e),
         }
     try:
-        dk = derive_dedup_key(row)
-        if not be.claim(dk):
-            if hasattr(be, "note_duplicate"):
-                be.note_duplicate()  # type: ignore[attr-defined]
-            return {
-                "written": False,
-                "duplicate": True,
-                "event_id": None,
-                "backend": be.name,
-                "error": None,
-            }
-        eid = be.append(row)
+        res = be.record(row, dk)  # atomic dedup + durable append (single op)
         return {
-            "written": True,
-            "duplicate": False,
-            "event_id": eid,
+            "written": bool(res.get("written")),
+            "duplicate": bool(res.get("duplicate")),
+            "event_id": res.get("event_id"),
             "backend": be.name,
             "error": None,
         }
