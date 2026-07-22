@@ -246,6 +246,7 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
     # Inject obsidian second brain context (past decisions/patterns)
     try:
         from app.platform import obsidian_sync as _obs
+
         _brain = _obs.brain_context(str(goal or ""))
         if _brain:
             user = user + "\n\n" + _brain
@@ -288,11 +289,39 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
 async def _run_agent(agent: str, task: str, blackboard: dict, execute: bool) -> dict:
     """Ek agent apna sub-task kare — concrete capability (execute) ya free-LLM reasoning."""
     if execute and agent in _TOOLS:
+        _t0 = time.monotonic()
+        _res = None
+        _err = None
         try:
-            res = await _TOOLS[agent](task, blackboard.get("goal", ""))
-            return {"mode": "executed", "output": res}
+            _res = await _TOOLS[agent](task, blackboard.get("goal", ""))
+            _out = {"mode": "executed", "output": _res}
         except Exception as e:  # pragma: no cover - defensive
-            return {"mode": "executed", "error": str(e)[:200]}
+            _err = str(e)[:200]
+            _out = {"mode": "executed", "error": _err}
+        # Harness coordinator shadow (record-only; INERT unless AGENT_HARNESS +
+        # AGENT_HARNESS_SHADOW on, delegated agent in canary agents, coordinator
+        # in canary loops). agent_id = the REAL delegated agent. NEVER re-executes
+        # the tool, never calls the LLM, never changes the coordinator result.
+        try:
+            from app.agents.harness.adapters import observe_coordinator_action
+
+            observe_coordinator_action(
+                coordinator_run_id=str(blackboard.get("_run_id") or ""),
+                orchestration_path=str(blackboard.get("_path") or "coordinate"),
+                action_index=len(blackboard.get("results", [])),
+                agent_id=agent,
+                tenant_id=str(blackboard.get("_tenant") or ""),
+                normalized_action={"tool": agent, "task": task},
+                actual_executor=(
+                    (_res.get("tool") if isinstance(_res, dict) else "") or f"_TOOLS[{agent}]"
+                ),
+                actual_result=(_res if _err is None else None),
+                actual_error=_err,
+                latency_ms=round((time.monotonic() - _t0) * 1000, 1),
+            )
+        except Exception:
+            pass
+        return _out
     v = _roster().get(agent, {})
     prior = json.dumps(blackboard.get("results", [])[-3:], ensure_ascii=False)[:1200]
     sys = (
@@ -324,6 +353,8 @@ async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> di
     run_id = uuid.uuid4().hex[:12]
     steps = await plan(goal, max_steps)
     blackboard: dict[str, Any] = {"goal": goal, "results": []}
+    blackboard["_run_id"] = run_id  # harness shadow correlation (record-only)
+    blackboard["_path"] = "coordinate"
     _log("manager", "coordinate_start", f"{goal} -> {len(steps)} steps")
     for s in steps:
         agent, task = s["agent"], s["task"]
@@ -340,7 +371,8 @@ async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> di
     # Hivemind: executed steps with success → KB skills namespace (cross-agent sharing)
     if os.environ.get("COORD_KB_SHARE", "").strip() in ("1", "true", "yes", "on"):
         _executed_ok = [
-            r for r in blackboard.get("results", [])
+            r
+            for r in blackboard.get("results", [])
             if r.get("mode") == "executed" and not r.get("error")
         ]
         if _executed_ok and summary:
@@ -614,6 +646,7 @@ async def coordinate_advanced(
     # Obsidian — log reflexion run to Decisions/ (INERT if OBSIDIAN_SYNC unset).
     try:
         from app.platform import obsidian_sync as _obs
+
         _obs.write_note(
             "Decisions",
             f"reflexion-{run_id}",
@@ -664,6 +697,7 @@ async def debate(question: str, rounds: int = 1) -> dict:
     # Obsidian — log debate verdict to Decisions/ (INERT if OBSIDIAN_SYNC unset).
     try:
         from app.platform import obsidian_sync as _obs
+
         _obs.write_note(
             "Decisions",
             f"debate-{_now()[:10]}-{question[:30].replace(' ', '-')}",
@@ -766,6 +800,7 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
     # Obsidian — log hierarchical run to Decisions/ (INERT if OBSIDIAN_SYNC unset).
     try:
         from app.platform import obsidian_sync as _obs
+
         _obs.write_note(
             "Decisions",
             f"hier-{run_id}",
@@ -827,16 +862,39 @@ async def _expert_contribution(expert: dict, goal: str, board: str, execute: boo
     tool ho to ACTUAL artifact (safe capability), warna free-LLM draft."""
     staff = expert.get("staff") or ""
     if execute and staff in _TOOLS:
+        _t0 = time.monotonic()
+        _res = None
+        _err = None
         try:
-            res = await _TOOLS[staff](goal, goal)
-            return {"role": expert["role"], "staff": staff, "mode": "executed", "output": res}
+            _res = await _TOOLS[staff](goal, goal)
+            _out = {"role": expert["role"], "staff": staff, "mode": "executed", "output": _res}
         except Exception as e:  # pragma: no cover - defensive
-            return {
-                "role": expert["role"],
-                "staff": staff,
-                "mode": "executed",
-                "error": str(e)[:200],
-            }
+            _err = str(e)[:200]
+            _out = {"role": expert["role"], "staff": staff, "mode": "executed", "error": _err}
+        # Harness coordinator shadow — SECOND executor boundary (_expert_contribution).
+        # Record-only; INERT unless canary flags on. NEVER re-runs the tool, never
+        # changes the contribution, never raises.
+        try:
+            from app.agents.harness.adapters import observe_coordinator_action
+
+            observe_coordinator_action(
+                coordinator_run_id="coord_expert_" + str(abs(hash(goal)) % 10**8),
+                orchestration_path="agentverse",
+                action_index=0,
+                agent_id=staff,
+                tenant_id="",
+                normalized_action={"tool": staff, "task": str(expert.get("role") or "")[:120]},
+                actual_executor=(
+                    (_res.get("tool") if isinstance(_res, dict) else "") or f"_TOOLS[{staff}]"
+                ),
+                actual_result=(_res if _err is None else None),
+                actual_error=_err,
+                latency_ms=round((time.monotonic() - _t0) * 1000, 1),
+                boundary="_expert_contribution",
+            )
+        except Exception:
+            pass
+        return _out
     sys = (
         f"Tum '{expert['role']}' ho — expertise: {expert.get('expertise', '')}. Apne expert lens se "
         "goal pe concrete, actionable contribution do (3-5 line Hinglish). Sirf apna output."
