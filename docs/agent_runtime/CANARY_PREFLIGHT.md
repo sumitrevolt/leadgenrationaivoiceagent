@@ -32,18 +32,13 @@ set(eligible_agents) == {expected_agent}
 
 and `ungated_dispatchable_count == 0`.
 
-## Distributed cancellation (preflight note)
+## Distributed durability gates (before third agent)
 
-Cross-process cancel requires the Redis-backed store (`DISTRIBUTED_CANCELLATION.md`).
-Until that SHA is **deployed and production-proven**, treat:
+| Gate | Status |
+|---|---|
+| cancellation_cross_process | production_proven (`d4b248f5`) |
+| idempotency_cross_process | **not** production-proven until fail-closed Redis idempotency PR is deployed + Pranav proof |
 
-```yaml
-cancellation_cross_process: not_supported
-```
+Do not enable a third agent until idempotency is production-proven.
 
-Do not enable a third agent until owner-authorized cancel deploy + Pranav-only proof.
-
-## Nikhil (done) / next agent (blocked)
-
-Nikhil production canary proven on prior SHA; flags restored OFF.
-Third agent canary is **blocked** until distributed cancellation is production-proven.
+See `DISTRIBUTED_IDEMPOTENCY.md` · `DISTRIBUTED_CANCELLATION_PRODUCTION_PROOF.md`.

@@ -12,6 +12,7 @@ Canonical admission precedence (see also `agent_runtime.evaluate_policy` / modul
 8. capability / tenant / approval / budget policy
 9. concurrency slot + durable lease
 10. pre-engine re-check (controls + cancel) → engine
+11. idempotency claim (after slot) → Redis fail-closed; duplicates skipped
 
 ## Pause / drain / stop-claims contract
 
@@ -34,6 +35,16 @@ Full contract: `DISTRIBUTED_CANCELLATION.md`.
 - Non-cooperative engine finishes after cancel mid-flight: status `succeeded`, reason `cancel_requested_but_engine_completed`.
 - Redis unavailable at check: `blocked` / `cancellation_store_unavailable` (never silent “not cancelled”).
 - Process-local `_CANCELLED_AGENTS` **removed**. Primary backend: Redis. Legacy process-local: disabled.
+
+## Idempotency (Redis-backed, fail-closed)
+
+Full contract: `DISTRIBUTED_IDEMPOTENCY.md`.
+
+- Claim after policy + concurrency slot (blocked admissions do not burn success keys).
+- Duplicate → `skipped` / `duplicate_suppressed` or `duplicate_in_progress`.
+- Redis unavailable → `blocked` / `idempotency_store_unavailable` (no memory fail-open).
+- Failed/cancelled terminals retained; same key does not auto-retry (new key required).
+- Control-block / capability skip → `release` in-progress claim.
 
 ## Race closes
 
