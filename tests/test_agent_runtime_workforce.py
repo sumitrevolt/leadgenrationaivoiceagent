@@ -79,6 +79,8 @@ async def test_wave_b_pranav_sre_success(monkeypatch):
 
 async def test_nikhil_delivery_scan_read_only(monkeypatch):
     wf.ensure_workforce_registered()
+    monkeypatch.setenv("DELIVERY_ASSURANCE_AGENT", "1")
+    monkeypatch.setenv("AGENT_RUNTIME", "1")
 
     def _fake_scan(limit=100, include_healthy=False):
         return {"missed": [], "at_risk": [], "limit": limit}

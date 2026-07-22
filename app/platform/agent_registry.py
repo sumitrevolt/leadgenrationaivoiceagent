@@ -244,20 +244,26 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         test_ref="tests/test_agent_registry.py",
     ),
     "nikhil": dict(
-        autonomy=Autonomy.L1_RECOMMEND,
-        lane=Lane.AMBER,
-        default_mode=DRAFT,
+        # Lane GREEN: capability is PURE READ (delivery_assurance.scan_missed_deliverables)
+        # — no remediation/send/publish. Was AMBER historically; reconciled 2026-07-22.
+        autonomy=Autonomy.L0_OBSERVE,
+        lane=Lane.GREEN,
+        default_mode=LIVE,
         reasoning=False,
         trigger_types=(_G.EMBEDDED, _G.SCHEDULED),
-        primary_flag="",
-        prohibited=("mutate_billing_autonomously", "send_dunning_without_approval"),
+        primary_flag="DELIVERY_ASSURANCE_AGENT",
+        prohibited=(
+            "mutate_billing_autonomously",
+            "send_dunning_without_approval",
+            "customer_contact",
+        ),
         max_concurrency=1,
         run_timeout_s=180,
         retry_policy="daily retry",
         idempotency="per-client per-day",
         cost_inr=5.0,
         api_day=50,
-        contact_cap=25,
+        contact_cap=0,
         hb_gap_min=1560,
         useful_gap_min=1560,
         escalation="owner",
@@ -1087,6 +1093,30 @@ def validate_registry() -> list[str]:
             problems.append(
                 f"{aid}: escalation target '{c.escalation}' is not a known agent or 'owner'"
             )
+
+    # 6. Dispatchable pilots/canary-ready agents MUST have an explicit primary_flag.
+    #    Empty/null = ungated under AGENT_RUNTIME (production Nikhil canary blocker 2026-07-22).
+    #    Allowed empty: RED hard_off / frozen voice only (never pilot-dispatchable).
+    try:
+        from app.platform.agent_runtime import PILOT_AGENTS
+
+        for aid in sorted(PILOT_AGENTS):
+            c = reg.get(aid)
+            if not c:
+                problems.append(f"{aid}: in PILOT_AGENTS but missing registry contract")
+                continue
+            flag = (c.primary_flag or "").strip()
+            if not flag:
+                problems.append(
+                    f"{aid}: dispatchable pilot must have non-empty primary_flag "
+                    "(ungated agents forbidden under AGENT_RUNTIME)"
+                )
+            if c.lane == Lane.RED.value or c.default_mode == HARD_OFF:
+                problems.append(
+                    f"{aid}: RED/hard_off agent must not be in PILOT_AGENTS dispatch allowlist"
+                )
+    except Exception as exc:
+        problems.append(f"pilot_flag_validation_error:{type(exc).__name__}")
 
     return problems
 
