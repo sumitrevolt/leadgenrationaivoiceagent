@@ -364,7 +364,9 @@ class RedisBackend(AuditBackend):
         event_json = json.dumps(row, ensure_ascii=False, default=str)
         envelope_json = json.dumps(derive_envelope(row), ensure_ascii=False, default=str)
         try:
-            res = self._r.eval(
+            # nosecurity: Redis server-side Lua EVAL (not Python eval/exec); the
+            # script text is a fixed module constant, never user/model input.
+            res = self._r.eval(  # nosecurity
                 _ATOMIC_LUA,
                 3,
                 key,
