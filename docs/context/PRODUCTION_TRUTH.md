@@ -42,6 +42,8 @@ Jiya Makeover · `jiya-makeover`
 
 ## Agent-harness production shadow (canonical harness)
 - `dag_engine` production **shadow** canary passed 2026-07-22 on prod SHA `878c13973ce496c05979571e136c0138e95e4256`, registry manifest `1d3b83331cf303e2` — record-only, enforcement never enabled, all `AGENT_HARNESS*` flags restored OFF. PRODUCTION-PROVEN. Evidence: `docs/agent_runtime/DAG_SHADOW_PRODUCTION_CANARY_PROOF.md`.
-- Post-canary harness audit baseline: **1** shadow record at `/app/data/harness_runs.jsonl` (SHA-256 `06e4c34f1eb8590d856e8e7838b9fdea3269662fcab2e0586faeddcbc9e69c85`). Not 0 — future reviews compare against this baseline.
+- `batch_harness` production **shadow** canary passed 2026-07-22 (same SHA/manifest) — `agent=nikhil`, `tenant=__system__`, `batch.internal.safe_calculation@1.0.0`, deterministic value 321; registry-bound executor invoked **0** times (`enforce._SAFE_CALLS` delta 0); record-only, flags restored OFF. PRODUCTION-PROVEN. Evidence: `docs/agent_runtime/BATCH_SHADOW_PRODUCTION_CANARY_PROOF.md`.
+- Production-shadow-proven families: **2 / 5** (`dag_engine`, `batch_harness`). Production-enforced: **0 / 5**.
+- Harness audit baseline: **2** shadow records at `/app/data/harness_runs.jsonl` — dag=1, batch=1, enforce=0 (SHA-256 `660fdb599092bed637773887a096d758509c41f86ad09d88e3a15e6bf4f5999e`). The original DAG record stayed byte-identical (`85f2b52de060de5355faa0f74dbc3c9d8971f77e60c6143250438972b12c9f0b`). Future reviews compare against this baseline.
 - `CODE_EXEC=0`, canonical harness OFF, `AGENT_HARNESS_ENFORCE` empty — re-verified in-container 2026-07-22. PRODUCTION-PROVEN.
 - `BATCH_HARNESS=1` is an **info-flag only** (batch runner capability; sole call site is an admin endpoint; no `data/batch_runs/` usage in prod). It is separate from the `AGENT_HARNESS*` canonical-harness flags and does not enable shadow, enforcement, or code execution.
