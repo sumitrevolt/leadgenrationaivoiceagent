@@ -17,7 +17,8 @@ Swara se reuse kiye gaye PROVEN patterns (voice-specific code yahan NAHI):
 
 REUSE-not-duplicate (koi naya queue/scheduler/persistence-system nahi):
   - kill switches      → app.platform.owner_os.kill_engaged (owner_all_agents etc.)
-  - idempotency        → app.billing.idempotency.seen_before_sync (Redis+mem)
+  - idempotency        → app.platform.agent_runtime_idempotency (Redis fail-closed)
+  - cancellation       → app.platform.agent_runtime_cancellation (Redis fail-closed)
   - durable identity   → app.platform.agent_task_queue (AgentTask table, lease/claim)
   - useful-work events → app.platform.team.log_event (dashboard feed)
   - state files        → automation_health pattern (data/*.json + file_lock, atomic)
@@ -191,22 +192,84 @@ def admission_decision(
     }
 
 
-def _idem_seen(key: str, ttl_s: int = 24 * 3600) -> bool:
+def _idem_claim(task: AgentTask) -> Any:
+    """Atomic Redis claim for Agent Runtime logical submissions (fail-closed)."""
+    from app.platform import agent_runtime_idempotency as idem
+
+    return idem.claim(
+        task.agent_id,
+        task.action,
+        task.idempotency_key,
+        tenant_id=task.tenant_id or None,
+        runtime_run_id=task.task_id,
+    )
+
+
+def _idem_release(task: AgentTask) -> None:
+    """Drop in-progress claim after control-block / capability skip (not terminal burn)."""
     try:
-        from app.billing.idempotency import seen_before_sync
+        from app.platform import agent_runtime_idempotency as idem
 
-        return seen_before_sync(f"agentrt:{key}", ttl_s)
-    except Exception:
-        return False  # idempotency store down = fail-open (staff-job parity)
-
-
-def _idem_forget(key: str) -> None:
-    try:
-        from app.billing.idempotency import forget_sync
-
-        forget_sync(f"agentrt:{key}")
+        idem.release(
+            task.agent_id,
+            task.action,
+            task.idempotency_key,
+            tenant_id=task.tenant_id or None,
+        )
     except Exception:
         pass
+
+
+def _idem_complete(task: AgentTask, status: str, *, reason: str = "", digest: str = "") -> Any:
+    try:
+        from app.platform import agent_runtime_idempotency as idem
+
+        return idem.complete(
+            task.agent_id,
+            task.action,
+            task.idempotency_key,
+            status=status,
+            tenant_id=task.tenant_id or None,
+            terminal_reason=reason,
+            result_digest=digest or None,
+            runtime_run_id=task.task_id,
+        )
+    except Exception as e:
+        logger.warning("[agent_runtime] idem complete failed: %s", type(e).__name__)
+        return None
+
+
+def _duplicate_from_claim(
+    task: AgentTask, contract: Any | None, lc: list[str], claim: Any
+) -> AgentResult:
+    orig = claim.record or {}
+    reason = claim.reason_code or "duplicate_suppressed"
+    return AgentResult(
+        task_id=task.task_id,
+        agent_id=task.agent_id,
+        action=task.action,
+        status=TaskStatus.SKIPPED.value,
+        reason=reason,
+        mode=getattr(contract, "default_mode", "") if contract else "",
+        lane=getattr(contract, "lane", "") if contract else "",
+        escalation=getattr(contract, "escalation", "") if contract else "",
+        lifecycle=list(lc) + [TaskStatus.SKIPPED.value],
+        output={
+            "original_run_id": orig.get("runtime_run_id"),
+            "original_status": orig.get("status"),
+            "idempotency_backend": getattr(claim, "backend", "") or "redis",
+            "result_digest": orig.get("result_digest"),
+        },
+        decision=admission_decision(
+            allowed=False,
+            reason_code=reason,
+            agent_id=task.agent_id,
+            capability=task.action,
+            control_source="agent_runtime_idempotency",
+            state=str(orig.get("status") or "duplicate"),
+            correlation_id=str(orig.get("runtime_run_id") or task.task_id),
+        ),
+    )
 
 
 def _approval_approved(tenant_id: str, approval_ref: str) -> bool:
@@ -961,9 +1024,38 @@ async def run_task(task: AgentTask) -> AgentResult:
             }
         # Idempotency claim — sab gates pass hone ke BAAD (blocked runs key nahi jalate)
         if task.idempotency_key:
-            if _idem_seen(task.idempotency_key):
-                return _skipped(task, contract, "duplicate_suppressed", lc)
-            idem_claimed = True
+            claim = _idem_claim(task)
+            if claim.store_unavailable or (
+                not claim.ok and claim.reason_code == "idempotency_store_unavailable"
+            ):
+                res = _blocked(
+                    task,
+                    contract,
+                    "idempotency_store_unavailable",
+                    lc,
+                    decision=admission_decision(
+                        allowed=False,
+                        reason_code="idempotency_store_unavailable",
+                        agent_id=task.agent_id,
+                        capability=task.action,
+                        control_source="agent_runtime_idempotency",
+                        correlation_id=task.task_id,
+                    ),
+                )
+                _record_heartbeat(task.agent_id, useful=False, result=res)
+                return res
+            if not claim.ok and claim.reason_code in (
+                "malformed_idempotency_key",
+                "idempotency_record_malformed",
+            ):
+                res = _blocked(task, contract, claim.reason_code, lc)
+                _record_heartbeat(task.agent_id, useful=False, result=res)
+                return res
+            if claim.duplicate:
+                res = _duplicate_from_claim(task, contract, lc, claim)
+                _record_heartbeat(task.agent_id, useful=False, result=res)
+                return res
+            idem_claimed = bool(claim.claimed)
 
         durable_id = await _durable_open(task)
 
@@ -971,7 +1063,7 @@ async def run_task(task: AgentTask) -> AgentResult:
         cancel_res = _cancel_check(task, contract, lc)
         if cancel_res is not None:
             if idem_claimed:
-                _idem_forget(task.idempotency_key)
+                _idem_complete(task, "cancelled", reason=cancel_res.reason or "cancel_requested")
             await _durable_close(durable_id, False, "cancelled:post_lease")
             _record_heartbeat(task.agent_id, useful=False, result=cancel_res)
             return cancel_res
@@ -996,7 +1088,7 @@ async def run_task(task: AgentTask) -> AgentResult:
             pre_block, pre_reason = _owner_admission_blocked(task.agent_id)
             if pre_block:
                 if idem_claimed:
-                    _idem_forget(task.idempotency_key)
+                    _idem_release(task)  # control-blocked — do not burn successful key
                 res = _owner_control_refusal(task, contract, pre_reason, lc)
                 await _durable_close(durable_id, False, f"blocked:{pre_reason}")
                 _record_heartbeat(task.agent_id, useful=False, result=res)
@@ -1004,7 +1096,9 @@ async def run_task(task: AgentTask) -> AgentResult:
             cancel_res = _cancel_check(task, contract, lc)
             if cancel_res is not None:
                 if idem_claimed:
-                    _idem_forget(task.idempotency_key)
+                    _idem_complete(
+                        task, "cancelled", reason=cancel_res.reason or "cancel_requested"
+                    )
                 await _durable_close(durable_id, False, "cancelled:pre_engine")
                 _record_heartbeat(task.agent_id, useful=False, result=cancel_res)
                 return cancel_res
@@ -1041,6 +1135,15 @@ async def run_task(task: AgentTask) -> AgentResult:
                             correlation_id=task.task_id,
                         ),
                     )
+                    if idem_claimed:
+                        commit = _idem_complete(
+                            task,
+                            "cancel_requested_but_engine_completed",
+                            reason="noncoop",
+                            digest=task.task_id,
+                        )
+                        if commit is not None and getattr(commit, "store_unavailable", False):
+                            res.reason = "execution_completed_idempotency_commit_uncertain"
                     _charge_usage(task.agent_id, ctx.usage)
                     _record_heartbeat(task.agent_id, useful=True, result=res)
                     _log_team_event(
@@ -1067,6 +1170,10 @@ async def run_task(task: AgentTask) -> AgentResult:
                     lifecycle=lc + [TaskStatus.SUCCEEDED.value],
                     usage=dict(ctx.usage),
                 )
+                if idem_claimed:
+                    commit = _idem_complete(task, "succeeded", reason="ok", digest=task.task_id)
+                    if commit is not None and getattr(commit, "store_unavailable", False):
+                        res.reason = "execution_completed_idempotency_commit_uncertain"
                 _charge_usage(task.agent_id, ctx.usage)
                 _record_heartbeat(task.agent_id, useful=True, result=res)
                 _log_team_event(task.agent_id, "runtime_done", f"{task.action} ok ({dur}ms)")
@@ -1075,7 +1182,7 @@ async def run_task(task: AgentTask) -> AgentResult:
             except SkipTask as sk:
                 if str(sk.reason) == "cancelled":
                     if idem_claimed:
-                        _idem_forget(task.idempotency_key)
+                        _idem_complete(task, "cancelled", reason="cooperative")
                     res = _cancel_check(task, contract, lc) or AgentResult(
                         task_id=task.task_id,
                         agent_id=task.agent_id,
@@ -1095,7 +1202,7 @@ async def run_task(task: AgentTask) -> AgentResult:
                 _record_heartbeat(task.agent_id, useful=False, result=res)
                 await _durable_close(durable_id, True, f"{task.action} skipped: {sk.reason}")
                 if idem_claimed:
-                    _idem_forget(task.idempotency_key)  # skip ≠ done — retry allowed later
+                    _idem_release(task)  # skip ≠ durable success — retry allowed later
                 return res
             except asyncio.TimeoutError:
                 last_err = ("TimeoutError", f"attempt {attempt} exceeded {effective_timeout}s")
@@ -1128,7 +1235,8 @@ async def run_task(task: AgentTask) -> AgentResult:
         if goes_dlq:
             _dlq_push(task, res)
         if idem_claimed:
-            _idem_forget(task.idempotency_key)  # failure must stay retryable
+            # Terminal failure retained — same key does not auto-retry (need new key)
+            _idem_complete(task, "failed", reason=res.reason or "execution_failed")
         _record_heartbeat(task.agent_id, useful=False, result=res)
         _log_team_event(
             task.agent_id,
@@ -1283,11 +1391,11 @@ def runtime_status() -> dict[str, Any]:
         except Exception:
             queue = {"error": "queue_depth_unavailable"}
         try:
-            from app.billing import idempotency as idem
+            from app.platform import agent_runtime_idempotency as arid
 
-            idem_status = idem.backend_status()
+            idem_status = arid.backend_status()
         except Exception:
-            idem_status = {"idempotency_backend": "unknown"}
+            idem_status = {"idempotency_backend": "unknown", "fallback_active": True}
         return {
             "ok": True,
             "runtime_enabled": runtime_enabled(),
