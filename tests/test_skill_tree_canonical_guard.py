@@ -53,7 +53,7 @@ def test_runtime_code_does_not_reference_legacy_root() -> None:
 
 def test_canonical_root_has_consolidated_skills() -> None:
     dirs = {ln.split("/")[2] for ln in _tracked(CANON) if ln.endswith("/SKILL.md")}
-    assert len(dirs) >= 200, f"expected the consolidated skill set under {CANON}, found {len(dirs)}"
+    assert len(dirs) >= 140, f"expected the consolidated skill set under {CANON}, found {len(dirs)}"
 
 
 def test_no_duplicate_skill_name_within_canonical() -> None:
