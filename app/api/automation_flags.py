@@ -195,6 +195,8 @@ AUTOMATION_FLAGS = [
     "SRE_AGENT",  # Pranav reliability score (hourly :45)
     "FINOPS_AGENT",  # Vidya margin score + LiteLLM-attributed cost-per-tenant
     "SECURITY_AGENT",  # Arnav DPDP/TRAI posture
+    # Nikhil Revenue Ops — isolated runtime gate (default OFF; never ungated)
+    "DELIVERY_ASSURANCE_AGENT",  # Nikhil scan_delivery_assurance only
     # council 2026-06-25 — 3 new engineer agents (genuinely-uncovered loops)
     "DBRE_AGENT",  # Kabir Postgres reliability — slow-queries/indices/connections (daily 10:00)
     "DEPS_AGENT",  # Aryan dependency/supply-chain CVE audit, proposal-only (weekly Sun 04:30)

@@ -28,6 +28,7 @@ never imports or touches any voice/telephony runtime.
 
 Pure READ. Never raises. No sends, no mutation.
 """
+
 from __future__ import annotations
 
 import os
@@ -59,11 +60,25 @@ def _iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _flag_enabled(flag: str) -> bool:
-    """A blank primary_flag means core/ungated -> always enabled."""
+def _flag_enabled(flag: str, *, require_explicit: bool = False) -> bool:
+    """Blank primary_flag: historical 'ungated/core' for non-dispatchable inventory.
+
+    Dispatchable pilots must not use blank flags (validate_registry + evaluate_policy).
+    When require_explicit=True (pilots), blank ≠ always-on — project disabled.
+    """
     if not flag:
-        return True
+        return not require_explicit
     return os.environ.get(flag, "").strip().lower() in _TRUE
+
+
+def _is_dispatchable_pilot(agent_id: str) -> bool:
+    """True iff agent is in the runtime PILOT_AGENTS allowlist. Fail-open False."""
+    try:
+        from app.platform.agent_runtime import PILOT_AGENTS
+
+        return bool(agent_id) and agent_id in PILOT_AGENTS
+    except Exception:
+        return False
 
 
 def _kill_engaged(keys: tuple[str, ...]) -> str | None:
@@ -119,7 +134,13 @@ def resolve_agent_health(
     killed_key: str | None,
 ) -> dict[str, Any]:
     """Honest health for one agent contract + its live signals. Pure, never raises."""
-    enabled = _flag_enabled(getattr(contract, "primary_flag", ""))
+    primary_flag = getattr(contract, "primary_flag", "")
+    agent_id = getattr(contract, "id", "") or ""
+    # Pilots: blank flag fail-closed. Core/hold inventory (e.g. Neha): blank = ungated.
+    enabled = _flag_enabled(
+        primary_flag,
+        require_explicit=_is_dispatchable_pilot(agent_id),
+    )
     last_mins = None
     today_actions = 0
     today_errors = 0
@@ -134,12 +155,11 @@ def resolve_agent_health(
     agent_overdue = sorted(jobs & overdue_jobs)
     gap = getattr(contract, "useful_work_gap_min", None)  # None = event-driven
     event_driven = gap is None
-    primary_flag = getattr(contract, "primary_flag", "")
 
     # Priority: kill > disabled(gated) > failing > overdue > (event idle) > periodic window
     if killed_key:
         health = "killed"
-    elif primary_flag and not enabled:
+    elif not enabled:
         health = "disabled"
     elif today_actions > 0 and today_errors >= today_actions:
         health = "failed"
@@ -193,7 +213,9 @@ def agent_health(agent_id: str) -> dict[str, Any] | None:
             return None
         members = _team_status_by_key()
         overdue = _overdue_job_names()
-        return resolve_agent_health(c, members.get(agent_id), overdue, _kill_engaged(c.kill_switches))
+        return resolve_agent_health(
+            c, members.get(agent_id), overdue, _kill_engaged(c.kill_switches)
+        )
     except Exception as exc:
         logger.debug("agent_status agent_health(%s) err: %s", agent_id, exc)
         return None
