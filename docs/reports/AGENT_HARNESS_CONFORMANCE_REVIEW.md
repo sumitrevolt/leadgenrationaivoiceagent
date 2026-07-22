@@ -90,7 +90,7 @@ harness.enforce.*/harness.kill are AMBER.
 
 No family is C5. Only batch reached C4 (local). Coverage: shadow 5/5, structured-contract 5/5,
 registry-backed 5/5 (all five families now have >=1 REGISTRY_MATCH real proof), enforcement-prepared
-1 (batch), canary-proven 1 (batch local), **production-shadow-proven 1 (dag_engine — 2026-07-22)**,
+1 (batch), canary-proven 1 (batch local), **production-shadow-proven 2 (dag_engine, batch_harness — 2026-07-22)**,
 production-enforced 0.
 
 ## 7. Rollback (flags OFF)
@@ -141,15 +141,22 @@ temporary flag restored OFF). Full evidence: `docs/agent_runtime/DAG_SHADOW_PROD
 | Family | Shadow code | Structured contract | Registry-backed | Production shadow proof | Enforcement |
 |---|---:|---:|---:|---:|---:|
 | `dag_engine` | Yes | Yes | Yes | **Proven — 1 bounded run (2026-07-22)** | No |
-| `batch_harness` | Yes | Yes | Yes | Not yet production-proven | Local-only canary; OFF |
+| `batch_harness` | Yes | Yes | Yes | **Proven — 1 bounded run (2026-07-22)** | Local-only canary; OFF |
 | `staff.run_member` | Yes | Yes | Yes | Not proven | No |
 | `coordinator` | Yes | Yes | Yes | Not proven | No |
 | `supervisor/staff_supervisor` | Yes | Yes | Yes | Fixture/local proof only | No |
 
-**Production-shadow-proven families: 1 / 5. Production-enforced families: 0 / 5.** The DAG canary
-proves the bounded shadow path; it is **not** platform-wide production readiness and grants no
-standing authorization for enforcement, agent activation, or a second canary.
+A second bounded production shadow canary was run for `batch_harness` (record-only; no enforcement;
+`agent=nikhil`, `tenant=__system__`, `batch.internal.safe_calculation@1.0.0`, value 321; registry-bound
+executor invoked 0 times; every temporary flag restored OFF). Full evidence:
+`docs/agent_runtime/BATCH_SHADOW_PRODUCTION_CANARY_PROOF.md`.
 
-Post-canary production audit baseline: **1** harness shadow record (not 0). Audit file SHA-256
-`06e4c34f1eb8590d856e8e7838b9fdea3269662fcab2e0586faeddcbc9e69c85`. Any record beyond this one must
-be investigated.
+**Production-shadow-proven families: 2 / 5 (`dag_engine`, `batch_harness`). Production-enforced
+families: 0 / 5.** These canaries prove the bounded shadow path per family; they are **not**
+platform-wide production readiness and grant no standing authorization for enforcement, agent
+activation, or a further canary.
+
+Production audit baseline: **2** harness shadow records (dag=1, batch=1, enforce=0). Audit file
+SHA-256 `660fdb599092bed637773887a096d758509c41f86ad09d88e3a15e6bf4f5999e`. The original DAG record
+remained byte-identical (SHA-256 `85f2b52de060de5355faa0f74dbc3c9d8971f77e60c6143250438972b12c9f0b`).
+Any record beyond these two must be investigated.
