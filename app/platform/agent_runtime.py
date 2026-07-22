@@ -632,12 +632,29 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
     if task.action in set(contract.prohibited):
         return contract, None, _blocked(task, contract, f"prohibited_action:{task.action}", lc)
 
-    # 6. Primary feature flag ("" = ungated/core)
-    if contract.primary_flag and not _flag_on(contract.primary_flag):
+    # 6. Primary feature flag — PILOT / canary-ready agents MUST be explicitly gated.
+    #    Empty primary_flag on a dispatchable agent = fail-CLOSED (agent_flag_missing).
+    #    Non-pilot hold/frozen inventory may still use "" (not executable via this path).
+    flag = (contract.primary_flag or "").strip()
+    if task.agent_id in PILOT_AGENTS and not flag:
+        decision = admission_decision(
+            allowed=False,
+            reason_code="agent_flag_missing",
+            agent_id=task.agent_id,
+            capability=task.action,
+            control_source="agent_runtime",
+            correlation_id=task.task_id,
+        )
         return (
             contract,
             None,
-            _skipped(task, contract, f"flag_disabled:{contract.primary_flag}", lc),
+            _blocked(task, contract, "agent_flag_missing", lc, decision=decision),
+        )
+    if flag and not _flag_on(flag):
+        return (
+            contract,
+            None,
+            _skipped(task, contract, f"flag_disabled:{flag}", lc),
         )
 
     # 7. Kill switches — owner_all_agents global + per-agent. Errored check on

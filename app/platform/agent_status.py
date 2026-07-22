@@ -28,6 +28,7 @@ never imports or touches any voice/telephony runtime.
 
 Pure READ. Never raises. No sends, no mutation.
 """
+
 from __future__ import annotations
 
 import os
@@ -59,10 +60,13 @@ def _iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _flag_enabled(flag: str) -> bool:
-    """A blank primary_flag means core/ungated -> always enabled."""
+def _flag_enabled(flag: str, *, require_explicit: bool = False) -> bool:
+    """Blank primary_flag: historical 'ungated/core'. Dispatchable pilots must not
+    use blank flags (validate_registry + evaluate_policy enforce). Status UI treats
+    blank + require_explicit as disabled so we never project 'always on' for pilots.
+    """
     if not flag:
-        return True
+        return not require_explicit
     return os.environ.get(flag, "").strip().lower() in _TRUE
 
 
@@ -119,7 +123,10 @@ def resolve_agent_health(
     killed_key: str | None,
 ) -> dict[str, Any]:
     """Honest health for one agent contract + its live signals. Pure, never raises."""
-    enabled = _flag_enabled(getattr(contract, "primary_flag", ""))
+    enabled = _flag_enabled(
+        getattr(contract, "primary_flag", ""),
+        require_explicit=True,  # blank flag ≠ always-on for status projection
+    )
     last_mins = None
     today_actions = 0
     today_errors = 0
@@ -193,7 +200,9 @@ def agent_health(agent_id: str) -> dict[str, Any] | None:
             return None
         members = _team_status_by_key()
         overdue = _overdue_job_names()
-        return resolve_agent_health(c, members.get(agent_id), overdue, _kill_engaged(c.kill_switches))
+        return resolve_agent_health(
+            c, members.get(agent_id), overdue, _kill_engaged(c.kill_switches)
+        )
     except Exception as exc:
         logger.debug("agent_status agent_health(%s) err: %s", agent_id, exc)
         return None
