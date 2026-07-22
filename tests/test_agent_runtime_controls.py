@@ -22,17 +22,6 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_DLQ_PATH", str(tmp_path / "dlq.jsonl"))
     monkeypatch.setattr(rt, "_BACKOFF_BASE_S", 0.0)
     monkeypatch.setattr(rt, "_kill_engaged", lambda key: False)
-
-    idem_store: dict[str, bool] = {}
-
-    def _fake_seen(key, ttl_s=86400):
-        if key in idem_store:
-            return True
-        idem_store[key] = True
-        return False
-
-    monkeypatch.setattr(rt, "_idem_seen", _fake_seen)
-    monkeypatch.setattr(rt, "_idem_forget", lambda key: idem_store.pop(key, None))
     monkeypatch.setattr(rt, "_approval_approved", lambda tenant, ref: False)
 
     monkeypatch.setenv("OWNER_OS_STORAGE", "jsonl")
@@ -50,9 +39,12 @@ def isolated(tmp_path, monkeypatch):
 
     caps_snapshot = dict(rt._CAPABILITIES)
     monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    monkeypatch.setenv("AGENT_RUNTIME_IDEM_BACKEND", "memory")
     from app.platform import agent_runtime_cancellation as crc
+    from app.platform import agent_runtime_idempotency as arid
 
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -64,6 +56,7 @@ def isolated(tmp_path, monkeypatch):
     rt._CAPABILITIES.clear()
     rt._CAPABILITIES.update(caps_snapshot)
     crc.reset_memory_for_tests()
+    arid.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
