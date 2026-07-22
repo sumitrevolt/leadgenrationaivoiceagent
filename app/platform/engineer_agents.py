@@ -338,11 +338,13 @@ def run_finops() -> dict[str, Any]:
 #   KPI: consent_ledger_healthy, secrets_age_days, dpdp_grievance_set,
 #        webhook_secrets_armed
 #   Composite "posture score" 0-100.
+#
+#   Scheduler path: run_security() gated by SECURITY_AGENT (legacy).
+#   Agent Runtime path: compute_security_posture() after SECURITY_POSTURE_AGENT
+#   adapter gate — never OR the two flags for eligibility.
 # --------------------------------------------------------------------------- #
-def run_security() -> dict[str, Any]:
-    if not _flag_on(_SECURITY_FLAG):
-        return _disabled_result("security", _SECURITY_FLAG)
-
+def compute_security_posture() -> dict[str, Any]:
+    """Read-only posture score. No flag check — callers gate independently."""
     kpis: dict[str, Any] = {}
     actions: list[str] = []
     sub_scores: list[float] = []
@@ -391,10 +393,19 @@ def run_security() -> dict[str, Any]:
         "kpis": kpis,
         "actions": actions,
         "ts": int(time.time()),
+        "remediation_performed": False,
+        "read_only": True,
     }
     _try_log("arnav", "security_posture", json.dumps({"score": score, "armed": whatsapp}))
     _maybe_alert(result)
     return result
+
+
+def run_security() -> dict[str, Any]:
+    """Scheduler / staff entry — gated by SECURITY_AGENT only."""
+    if not _flag_on(_SECURITY_FLAG):
+        return _disabled_result("security", _SECURITY_FLAG)
+    return compute_security_posture()
 
 
 # --------------------------------------------------------------------------- #
@@ -468,7 +479,9 @@ def run_dbre() -> dict[str, Any]:
                     actions.append(f"{unused} never-scanned indexes — review for DROP")
                 else:
                     sub_scores.append(40.0)
-                    actions.append(f"{unused} unused indexes bloating writes — audit + DROP candidates")
+                    actions.append(
+                        f"{unused} unused indexes bloating writes — audit + DROP candidates"
+                    )
             except Exception:
                 sub_scores.append(50.0)
 
@@ -488,7 +501,9 @@ def run_dbre() -> dict[str, Any]:
                     actions.append(f"{slow} query patterns avg >1s — add indexes / optimize")
                 else:
                     sub_scores.append(20.0)
-                    actions.append(f"{slow} slow query patterns (>1s avg) — investigate top offenders")
+                    actions.append(
+                        f"{slow} slow query patterns (>1s avg) — investigate top offenders"
+                    )
             except Exception:
                 kpis["slow_queries_gt_1s"] = None
                 actions.append(
@@ -532,7 +547,9 @@ def run_dbre() -> dict[str, Any]:
         "actions": actions,
         "ts": int(time.time()),
     }
-    _try_log("kabir", "db_health", json.dumps({"score": score, "conns": kpis.get("active_connections")}))
+    _try_log(
+        "kabir", "db_health", json.dumps({"score": score, "conns": kpis.get("active_connections")})
+    )
     _maybe_alert(result)
     return result
 
@@ -585,7 +602,9 @@ def run_deps() -> dict[str, Any]:
             sub_scores.append(100.0)
         elif vulns <= 3:
             sub_scores.append(60.0)
-            actions.append(f"{vulns} dependency CVEs — review pip-audit, plan upgrades (never auto)")
+            actions.append(
+                f"{vulns} dependency CVEs — review pip-audit, plan upgrades (never auto)"
+            )
         else:
             sub_scores.append(20.0)
             actions.append(f"{vulns} dependency CVEs — prioritize upgrades (proposal-only)")
@@ -608,7 +627,11 @@ def run_deps() -> dict[str, Any]:
         "actions": actions,
         "ts": int(time.time()),
     }
-    _try_log("aryan", "dep_audit", json.dumps({"score": score, "vulns": kpis.get("known_vulnerabilities")}))
+    _try_log(
+        "aryan",
+        "dep_audit",
+        json.dumps({"score": score, "vulns": kpis.get("known_vulnerabilities")}),
+    )
     _maybe_alert(result)
     return result
 
@@ -687,10 +710,14 @@ def run_dataquality() -> dict[str, Any]:
         sub_scores.append(100.0)
     elif dup_ratio < 0.10:
         sub_scores.append(70.0)
-        actions.append(f"{dupes} duplicate leads ({dup_ratio*100:.0f}%) — review dedupe (report-only)")
+        actions.append(
+            f"{dupes} duplicate leads ({dup_ratio*100:.0f}%) — review dedupe (report-only)"
+        )
     else:
         sub_scores.append(30.0)
-        actions.append(f"{dupes} duplicate leads ({dup_ratio*100:.0f}%) — high dup rate, dedupe recommended")
+        actions.append(
+            f"{dupes} duplicate leads ({dup_ratio*100:.0f}%) — high dup rate, dedupe recommended"
+        )
 
     if miss_ratio < 0.05:
         sub_scores.append(100.0)
@@ -699,7 +726,9 @@ def run_dataquality() -> dict[str, Any]:
         actions.append(f"{missing} leads missing phone+email — enrich before outreach")
     else:
         sub_scores.append(40.0)
-        actions.append(f"{missing} leads ({miss_ratio*100:.0f}%) have no contact — enrichment needed")
+        actions.append(
+            f"{missing} leads ({miss_ratio*100:.0f}%) have no contact — enrichment needed"
+        )
 
     score = _clamp(sum(sub_scores) / len(sub_scores)) if sub_scores else None
     result = {
@@ -775,6 +804,7 @@ __all__ = [
     "run_sre",
     "run_finops",
     "run_security",
+    "compute_security_posture",
     "run_dbre",
     "run_deps",
     "run_dataquality",
