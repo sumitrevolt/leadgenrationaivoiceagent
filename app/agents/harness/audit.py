@@ -75,12 +75,32 @@ def record(
         "extra": extra or {},
     }
     _emit_span_attr(ctx, tool=row["tool"], kind=kind)
+    # Durable backend is INERT by default: with HARNESS_AUDIT_BACKEND=jsonl (the
+    # default) this is byte-identical to the historical append-only file sink and
+    # production is unchanged. A durable backend (redis) is used only when an
+    # operator explicitly selects it; in that mode the write is atomically deduped,
+    # durably appended, and FAILS CLOSED (dropped observation + operational error)
+    # rather than silently reverting to the process-local file.
     try:
-        os.makedirs(os.path.dirname(_RUN_LOG) or ".", exist_ok=True)
-        with open(_RUN_LOG, "a", encoding="utf-8") as f:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
-    except Exception as e:  # never break the loop on an audit write
-        logger.warning("harness.audit: run-log write failed: %s", e)
+        from . import audit_backend
+    except Exception:  # pragma: no cover - import safety
+        audit_backend = None  # type: ignore
+
+    if audit_backend is None or audit_backend.backend_name() == "jsonl":
+        try:
+            os.makedirs(os.path.dirname(_RUN_LOG) or ".", exist_ok=True)
+            with open(_RUN_LOG, "a", encoding="utf-8") as f:
+                f.write(json.dumps(row, ensure_ascii=False) + "\n")
+        except Exception as e:  # never break the loop on an audit write
+            logger.warning("harness.audit: run-log write failed: %s", e)
+    else:
+        res = audit_backend.write(row)
+        if not res.get("written") and not res.get("duplicate"):
+            logger.error(
+                "harness.audit: durable observation dropped (fail-closed) via %s: %s",
+                res.get("backend"),
+                res.get("error"),
+            )
 
 
 def replay(run_id: str) -> list:
@@ -99,3 +119,28 @@ def replay(run_id: str) -> list:
         return []
     events.sort(key=lambda r: r.get("ts", 0))
     return events
+
+
+def counts() -> dict:
+    """Read-only durable-audit counts for the harness status surface. Never raises."""
+    try:
+        from . import audit_backend
+
+        return audit_backend.get_backend().counts()
+    except Exception as e:  # pragma: no cover - status must never break callers
+        try:
+            from . import audit_backend
+
+            return {"backend": audit_backend.backend_name(), "error": str(e)[:160]}
+        except Exception:
+            return {"backend": "unknown", "error": str(e)[:160]}
+
+
+def backend_status() -> dict:
+    """Read-only backend health + config snapshot (no secrets). Never raises."""
+    try:
+        from . import audit_backend
+
+        return audit_backend.status()
+    except Exception as e:  # pragma: no cover
+        return {"backend": "unknown", "error": str(e)[:160]}
