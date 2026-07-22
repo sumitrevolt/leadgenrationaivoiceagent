@@ -93,8 +93,9 @@ def default_lock() -> InMemoryOwnershipLock:
 def get_lock() -> Any:
     """Prefer a reachable Redis backend; fall back to the in-memory backend."""
     try:
-        from app.config import settings
         import redis as _redis
+
+        from app.config import settings
 
         client = _redis.from_url(settings.redis_url, socket_timeout=2)
         client.ping()

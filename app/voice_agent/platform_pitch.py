@@ -279,7 +279,7 @@ def next_reply(state: PlatformPitchState, user_text: str) -> tuple[str | None, P
     verdict = classify_interest(user_text)
     if verdict == "unclear":
         # Substantive reply (not yes/no) = customer bol raha hai — discovery pe le jao.
-        if len(low) >= 12 and not low in ("haan", "ji", "ok", "okay", "theek"):
+        if len(low) >= 12 and low not in ("haan", "ji", "ok", "okay", "theek"):
             state.phase = "discovery"
             return None, state
         # Repetition guard: clarify ONCE; a second unclear (garbled/short STT) must

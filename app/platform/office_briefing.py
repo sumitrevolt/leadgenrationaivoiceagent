@@ -94,7 +94,7 @@ def _try_generation_claim(date: str) -> bool:
         try:
             fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
             try:
-                os.write(fd, f"pid={os.getpid()} at={_now_iso()}".encode("utf-8"))
+                os.write(fd, f"pid={os.getpid()} at={_now_iso()}".encode())
             finally:
                 os.close(fd)
             return True

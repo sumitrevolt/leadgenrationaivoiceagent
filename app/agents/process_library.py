@@ -258,7 +258,22 @@ async def _exec_http_request(inputs: dict) -> dict:
     return await flow_http.run(inputs or {})
 
 
+async def _exec_internal_calculation(inputs: dict) -> dict:
+    """Deterministic internal read-only calculation — no I/O, no network, no
+    mutation, no external effect. Isolated from business behaviour; the canonical
+    registry-backed DAG step (workflow.dag.internal_calculation@1.0.0). Legacy
+    executor stays authoritative — the harness observes this in shadow only."""
+    try:
+        n = int(inputs.get("n", 0))
+    except Exception:
+        n = 0
+    value = (n * (n + 1)) // 2   # triangular number — pure, deterministic
+    return {"ok": True, "count": 1,
+            "detail": f"internal_calculation n={n} sum={value}", "value": value}
+
+
 EXECUTORS = {
+    "internal_calculation": _exec_internal_calculation,
     "scrape": _exec_scrape,
     "harvest": _exec_harvest,
     "rescore": _exec_rescore,

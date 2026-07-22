@@ -1462,9 +1462,32 @@ async def run_member(member: str) -> dict[str, Any]:
     try:
         result = await fn()
         _track_agent_cost(key, result, time.monotonic() - t0)
+        # Harness shadow observation (record-only; Nikhil canary; INERT unless
+        # AGENT_HARNESS+AGENT_HARNESS_SHADOW on and key in canary allowlist).
+        # NEVER executes/blocks/retries the legacy run; never raises.
+        try:
+            from app.agents.harness.adapters import observe_legacy_run
+
+            observe_legacy_run(
+                key, action=f"staff.run_{key}", actual_result=result,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                source_loop="staff.run_member",
+            )
+        except Exception:
+            pass
         return result
     except Exception as e:
         logger.warning(f"[staff] run_member({member}) failed: {e}")
+        try:
+            from app.agents.harness.adapters import observe_legacy_run
+
+            observe_legacy_run(
+                key, action=f"staff.run_{key}", actual_error=e,
+                latency_ms=int((time.monotonic() - t0) * 1000),
+                source_loop="staff.run_member",
+            )
+        except Exception:
+            pass
         return {"error": str(e)}
 
 

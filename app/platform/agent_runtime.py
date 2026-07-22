@@ -592,7 +592,17 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
     if task.agent_id in _CANCELLED_AGENTS:
         return contract, cap, _blocked(task, contract, "cancel_requested", lc)
 
+    # 14. Tool payload validation (M2 contract check)
+    try:
+        from app.platform.tool_registry import validate_tool_payload
+        valid, val_reason = validate_tool_payload(task.action, task.payload)
+        if not valid:
+            return contract, cap, _blocked(task, contract, f"invalid_tool_payload:{val_reason}", lc)
+    except Exception as e:
+        logger.warning("[agent_runtime] Payload validation error: %s", e)
+
     return contract, cap, None
+
 
 
 # --------------------------------------------------------------------------- #
@@ -665,6 +675,11 @@ async def run_task(task: AgentTask) -> AgentResult:
             try:
                 output = await asyncio.wait_for(cap.fn(ctx), timeout=effective_timeout)
                 dur = int((time.monotonic() - t0) * 1000)
+                try:
+                    from app.platform.agent_checkpoint import save_checkpoint
+                    save_checkpoint(task.task_id, attempt, {"output": output, "usage": ctx.usage})
+                except Exception:
+                    pass
                 res = AgentResult(
                     task_id=task.task_id,
                     agent_id=task.agent_id,

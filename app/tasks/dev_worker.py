@@ -10,9 +10,9 @@ from __future__ import annotations
 
 import os
 
+from app.platform.celery_async import run as run_async
 from app.utils.logger import setup_logger
 from app.worker import celery_app
-from app.platform.celery_async import run as run_async
 
 logger = setup_logger(__name__)
 

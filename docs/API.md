@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1181 operations)
+## Endpoint Index — auto-generated from OpenAPI (1189 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -338,7 +338,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/db/table/{name}/export.csv` — Export one table to CSV (read-only, capped, redacted)
 - `GET   ` `/api/admin/db/tables` — List all DB tables (read-only explorer)
 
-### Admin Dashboard  (20)
+### Admin Dashboard  (21)
 
 - `GET   ` `/api/admin/activity-feed` — Get Activity Feed
 - `GET   ` `/api/admin/agents` — Admin Agents
@@ -350,6 +350,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/clients/{client_id}/timeline` — Get Client Timeline
 - `GET   ` `/api/admin/command-center` — Admin Command Center
 - `GET   ` `/api/admin/dashboard` — Get Admin Dashboard
+- `GET   ` `/api/admin/delivery-assurance` — Admin Delivery Assurance
 - `GET   ` `/api/admin/delivery-cockpit` — Admin Delivery Cockpit
 - `GET   ` `/api/admin/delivery-logs` — Admin Delivery Logs
 - `GET   ` `/api/admin/hourly-activity` — Get Hourly Activity
@@ -1472,6 +1473,16 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/agents-ext/trajectories` — Trajectories Best
 - `POST  ` `/api/agents-ext/trajectory/export` — Trajectory Export
 - `POST  ` `/api/agents-ext/trajectory/record` — Trajectory Record
+
+### Owner Copilot  (7)
+
+- `GET   ` `/api/owner-copilot/approvals` — Copilot Approvals
+- `GET   ` `/api/owner-copilot/catalogue` — Copilot Catalogue
+- `POST  ` `/api/owner-copilot/command` — Copilot Command
+- `GET   ` `/api/owner-copilot/commands/{command_id}` — Copilot Get Command
+- `GET   ` `/api/owner-copilot/daily-brief` — Copilot Daily Brief
+- `POST  ` `/api/owner-copilot/nl` — Copilot Nl
+- `GET   ` `/api/owner-copilot/status` — Copilot Status
 
 ### Owner OS  (33)
 

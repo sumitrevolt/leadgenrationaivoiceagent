@@ -14,7 +14,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-
 # Task routes that exist in app.platform.omniroute_client._TASK_ROUTES
 OMNIROUTE_TASK_AGENT_OPS = "leadgen.agent_ops"
 OMNIROUTE_TASK_CODING = "leadgen.coding_primary"

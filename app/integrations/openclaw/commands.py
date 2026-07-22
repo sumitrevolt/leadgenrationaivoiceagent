@@ -264,6 +264,14 @@ HANDLERS: dict[str, Handler] = {
     "approval.decide": _amber_stub,
 }
 
+# --- Kavach harness handlers (additive; GREEN read + AMBER parked) ---
+try:
+    from app.integrations.openclaw.harness_commands import HARNESS_HANDLERS
+
+    HANDLERS.update(HARNESS_HANDLERS)
+except Exception:  # never break the base command surface
+    pass
+
 
 def execute_typed_command(
     command: str,

@@ -281,7 +281,9 @@ def on_task_failure(task_id, exception, args, kwargs, traceback, einfo, **kw):
     # Best-effort + bounded (last 1000). Redis down ho to silent skip.
     try:
         import json as _json
-        from datetime import datetime as _dt, timezone as _tz
+        from datetime import datetime as _dt
+        from datetime import timezone as _tz
+
         import redis as _redis
 
         _r = _redis.from_url(settings.redis_url, socket_timeout=2)

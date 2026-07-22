@@ -310,7 +310,31 @@ async def run_supervisor_task(
     thread_id = f"{client_id or 'platform'}:{task[:20]}"
     config = {"configurable": {"thread_id": thread_id}}
 
+    import time as _time
+    _t0 = _time.monotonic()
     out = await _execute(initial, config)
+    # Harness supervisor-family shadow (record-only; INERT unless AGENT_HARNESS +
+    # AGENT_HARNESS_SHADOW on, delegated worker in canary agents, supervisor in
+    # canary loops). NEVER re-runs the graph/model/node; never raises.
+    try:
+        from app.agents.harness.adapters import observe_supervisor_action
+
+        _route = out.get("route") or "leads_agent"
+        _worker = "dev" if _route == "data_agent" else "rohan"
+        observe_supervisor_action(
+            supervisor_run_id=thread_id, graph_run_id=thread_id, graph_step=1,
+            tool_call_id=None, supervisor_implementation="supervisor",
+            actor_id="manager", delegated_agent_id=_worker,
+            tenant_id=str(client_id or ""), tool_name=_route,
+            tool_arguments={"task": task, "niche": niche_key},
+            actual_executor=f"{_route}_node",
+            actual_result={"route": _route, "result_len": len(str(out.get("result") or ""))},
+            latency_ms=round((_time.monotonic() - _t0) * 1000, 1),
+            graph_metadata={"selection_source": "GRAPH_ROUTE", "route_label": _route,
+                            "actual_node": f"{_route}_node"},
+        )
+    except Exception:
+        pass
     try:  # Team activity: Manager ne task route kiya
         from app.platform.team import log_event
 

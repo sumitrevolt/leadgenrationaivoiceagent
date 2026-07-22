@@ -345,6 +345,35 @@ async def advance(run_id: str, max_steps: int = 16) -> dict[str, Any]:
             ms = round((time.monotonic() - t0) * 1000, 1)
 
             ok, reason = process_library.check_gate(node, result)
+
+            # Harness DAG shadow (record-only; INERT unless AGENT_HARNESS +
+            # AGENT_HARNESS_SHADOW on, agent in canary agents, dag_engine in
+            # canary loops). NEVER executes/blocks/retries the node; never raises.
+            try:
+                from app.agents.harness.adapters import observe_dag_action
+
+                _cur = int(nodes[nid].get("retries", 0))
+                _maxr = int(node.get("max_retries", 1))
+                if ok:
+                    _nstatus, _retry = "completed", False
+                elif (_cur + 1) > _maxr:
+                    _nstatus, _retry = "failed", False
+                else:
+                    _nstatus, _retry = "retry_pending", True
+                observe_dag_action(
+                    dag_run_id=run_id, node_id=nid, attempt=_cur,
+                    agent_id=str(inputs.get("_harness_agent_id")
+                                 or inputs.get("agent_id") or "manager"),
+                    tenant_id=str(inputs.get("tenant_id") or inputs.get("client_id") or ""),
+                    tool_name=str(node.get("action") or nid),
+                    tool_version=str(node.get("version") or "v1"),
+                    arguments=eff_inputs, actual_result=(result if ok else None),
+                    actual_error=(None if ok else reason),
+                    latency_ms=int(ms), dag_node_status=_nstatus, retry_scheduled=_retry,
+                )
+            except Exception:
+                pass
+
             if ok:
                 clean = {"ok": result.get("ok"), "count": result.get("count"),
                          "detail": str(result.get("detail", ""))[:200]}

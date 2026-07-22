@@ -1518,6 +1518,7 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     _user_text=user_text,
                     _tcbrain=tcbrain,
                     _use_stream=use_llm_stream,
+                    _turn_timing=_turn_timing,
                 ) -> str:
                     nonlocal tc_reply
                     if _use_stream:
@@ -1536,13 +1537,13 @@ async def web_call_ws(websocket: WebSocket) -> None:
                         await _send_tcbrain_sentence_chunks(
                             websocket,
                             sentences=_split_sentences(tc_reply),
-                            user_text=user_text,
+                            user_text=_user_text,
                             full_reply=tc_reply,
                             llm_stream=False,
                             timing=_turn_timing,
                         )
                         _turn_timing["tts_ms"] = int((time.monotonic() - _t_tts) * 1000)
-                    signal_payload = _close_signal_payload(tcbrain)
+                    signal_payload = _close_signal_payload(_tcbrain)
                     if signal_payload:
                         try:
                             await websocket.send_json(signal_payload)

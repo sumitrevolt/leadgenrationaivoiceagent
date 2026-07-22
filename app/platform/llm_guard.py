@@ -26,7 +26,7 @@ TRUSTED_SOURCES = {"user", "customer", "operator", "admin", "system"}
 # IPI signal patterns — imperative-to-agent instructions embedded in content.
 # Conservative + observe-only, so benign false-positives are acceptable (we flag,
 # never block). Each = (name, compiled regex).
-_PATTERNS: list[tuple[str, "re.Pattern[str]"]] = [
+_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("ignore_prior", re.compile(
         r"\b(ignore|disregard|forget|override)\b.{0,30}\b(previous|prior|above|earlier|all)\b"
         r".{0,24}\b(instruction|prompt|message|rule|context)", re.I)),

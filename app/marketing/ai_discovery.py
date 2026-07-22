@@ -140,7 +140,7 @@ def build_pricing_md(base_url: str = DEFAULT_BASE) -> str:
     out.append("Self-serve marketing automation for local businesses. No telecom licensing needed.")
     out.append("")
     try:
-        from app.marketing.packages import get_public_packages, get_trial_package, get_topup_packs
+        from app.marketing.packages import get_public_packages, get_topup_packs, get_trial_package
 
         try:
             trial = get_trial_package()

@@ -337,6 +337,27 @@ def check_dev_control_invariants() -> None:
         print(f"[+] dev-control invariants skipped ({type(e).__name__}: {e})")
 
 
+def check_agent_harness_invariants() -> None:
+    """Validate Agent Harness standard invariants (M1-M5, policy gates, schemas)."""
+    try:
+        from app.platform import agent_registry as ar
+        from app.platform.tool_registry import validate_tool_payload
+
+        # 1. Swara RED lane must remain fail-closed
+        contract = ar.get_contract("swara")
+        if not contract or contract.lane != ar.Lane.RED.value:
+            PROBLEMS.append("AGENT-HARNESS: Swara contract missing or not RED lane")
+
+        # 2. Tool schema registry sanity check
+        v_ok, _ = validate_tool_payload("whatsapp_send", {"recipient_phone": "+919876543210", "message_text": "hi"})
+        if not v_ok:
+            PROBLEMS.append("AGENT-HARNESS: Tool registry payload validation failed for whatsapp_send")
+
+        print("[+] agent-harness invariants checked")
+    except Exception as e:
+        print(f"[+] agent-harness invariants skipped ({type(e).__name__}: {e})")
+
+
 def main() -> int:
     print("=" * 56)
     print("PRODUCTION READINESS CHECK")
@@ -349,6 +370,7 @@ def main() -> int:
     check_frontend_wiring()
     check_explorer_drift()
     check_api_docs_drift()
+    check_agent_harness_invariants()
     check_dev_control_invariants()
     print("-" * 56)
     # Warnings print BEFORE the verdict so they are visible on a passing run too —

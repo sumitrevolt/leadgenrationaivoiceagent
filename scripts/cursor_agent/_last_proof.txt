@@ -1,0 +1,89 @@
+## Launch-ready scorecard
+
+| Gate | Status | Evidence path | Blocker owner |
+|------|--------|---------------|---------------|
+| Public revenue funnel (pricing → signup → UPI) | **GREEN** | Live run: `scripts/launch_path_smoke.py` → `LAUNCH_PATH_SMOKE: PASS`; prod `/pricing`, `/start`, `/app/login`, `/api/public/pay-info`, `/api/public/signup` | — |
+| Activation / first paid customer (prod) | **GREEN** | `scripts/launch_path_smoke.py` L137–144 → `ready_for_first_paid_customer=True blockers=0`; logic in `app/api/activation.py` | — |
+| Production liveness | **GREEN** | Live `GET https://leadsgenai.in/health` → `status=healthy`, `version=9c1bb308` (2026-07-21 ~10:53Z) | — |
+| Production SHA documented vs live | **AMBER** | `docs/context/PRODUCTION_TRUTH.md` L4 still `d32a4934`; live `/health` = `9c1bb308` | **code** (doc refresh) |
+| `prod_check` (pre-deploy wiring gate) | **AMBER** | `scripts/prod_check.py` L1–15, L340–367; `docs/context/RISKS_AND_BLOCKERS.md` B4 — historically PASS with deps; local run failed `ModuleNotFoundError: fastapi` (env not installed) | **code** (local env) + **external** (CI signal) |
+| `production_ready` / activation snapshot (local) | **AMBER** | `scripts/production_ready.py` L84–139; local import fails without deps; prod truth via smoke above | **code** (local env) |
+| `final_integration_check` (composite gate) | **AMBER** | `scripts/final_integration_check.py` L28–55 — chains prod_check, wiring audits, `live_integration_smoke.py`, `production_ready.py`, pytest | **code** |
+| CI `prod_check + pytest` job | **RED** | `.github/workflows/ci.yml` L62–103; `docs/context/RISKS_AND_BLOCKERS.md` B4 — pre-existing pytest failures | **code** |
+| OpenClaw Owner Copilot (code on `main`) | **GREEN** | `docs/context/ACTIVE_WORK.md` WS-3; merged PR #65 @ `ef9790c` on `main` @ `0ff5d06` | — |
+| OpenClaw prod rollout | **AMBER** | `docs/context/CURRENT_STATE.md` L17–18, L24; `.env.example` L639 `OPENCLAW_ENABLED=0`; not on prod | **external** (Stage A human auth) |
+| Jiya delivery proof / assurance | **RED** | `docs/context/RISKS_AND_BLOCKERS.md` B1; `docs/context/ACTIVE_WORK.md` WS-2 PARKED; sole paid client `jiya-makeover` | **external** (Meta/manual publish) |
+| Cursor SDK harness | **AMBER** | `scripts/cursor_agent/harness.py`, `scripts/cursor_agent_proof.py`, `requirements-dev.txt` L58–61, `.env.example` L652–660 — **untracked WIP**; `scripts/cursor_agent/_last_proof.txt` still meta-stale (pre-doc-sync) | **code** |
+| Context / operational truth | **AMBER** | `docs/context/CURRENT_STATE.md` synced to PR #65/#66 locally (modified, uncommitted); `docs/context/PRODUCTION_TRUTH.md` prod SHA stale; `scripts/cursor_agent/_last_proof.txt` L3–16 still says “merge OpenClaw PR” | **code** |
+| Repo cleanliness | **AMBER** | `git status -sb` @ `0ff5d06`: modified ledger JSONL, context docs, `.env.example`, `requirements-dev.txt`; untracked `_ws4_ship/`, `scripts/cursor_agent/` | **code** |
+| `deploy_vps.sh` version skew check | **AMBER** | `scripts/deploy_vps.sh` L233–238; `docs/context/RISKS_AND_BLOCKERS.md` B3 — false FATAL on hashed container names | **code** |
+| Command Center authenticated UI KPI | **AMBER** | `docs/context/RISKS_AND_BLOCKERS.md` B2 — code+data proven; no admin-token browser click this cycle | **external** (ops smoke) |
+| Orphan test `__pycache__` | **AMBER** | `scripts/prod_check.py` run WARN — orphan tree under `tests/` (`test_kb_facts_adr104.py`, etc.) | **code** |
+
+**Bottom line:** Marketing / paid-signup path is **GREEN on prod today**. Launch is **blocked for honest “all gates green”** by CI pytest debt, unparked WIP, stale prod-truth docs, and **EXTERNAL** Jiya proof + OpenClaw prod auth.
+
+---
+
+## CODE-LOCAL fix list (ordered, max 8)
+
+1. **Land Cursor SDK harness as an isolated slice** · `scripts/cursor_agent/__init__.py`, `scripts/cursor_agent/harness.py`, `scripts/cursor_agent_proof.py`, `requirements-dev.txt`, `.env.example`, `.gitignore` · Removes untracked WIP drift; gives repeatable local launch proof without prod mutation · `python scripts/cursor_agent_proof.py --check` → JSON `"ok": true` (with local `.env` key only)
+
+2. **Refresh production SHA in context docs** · `docs/context/PRODUCTION_TRUTH.md`, `docs/context/CURRENT_STATE.md` · Live is `9c1bb308`; docs still claim `d32a4934` — misleads rollback/deploy decisions · `python scripts/launch_path_smoke.py` + manual `/health` version matches doc SHA
+
+3. **Regenerate honest proof artifact after doc sync** · `scripts/cursor_agent/_last_proof.txt` (gitignored output) · Current file is meta-instructions about stale docs, not launch truth · `python scripts/cursor_agent_proof.py` → `_last_proof.txt` references post–PR #65/#66 state, not “merge OpenClaw PR”
+
+4. **Fix `deploy_vps.sh` skew false-negative (B3)** · `scripts/deploy_vps.sh` L233–238 · Prevents false FATAL deploy abort when health/tags already match · skew check passes against hashed compose container names @ known-good deploy
+
+5. **CI pytest hygiene / quarantine (B4)** · `.github/workflows/ci.yml`, failing tests under `tests/` · Restores merge-gate trust · `pytest -m "not network" -q` green in CI job (`.github/workflows/ci.yml` L96–103)
+
+6. **Delete orphan test `__pycache__` artefacts** · `tests/**/__pycache__/*.pyc` for vanished sources listed in prod_check WARN · Clears prod_check orphan-module warning · `python scripts/prod_check.py` → no `ORPHAN MODULE TREE` WARN
+
+7. **Park or remove `_ws4_ship/` snapshot** · `_ws4_ship/` (8 stale copied files) · Prevents agents editing wrong copies vs `app/` / `frontend/` · directory removed or `_ws4_ship/README.md` marked PARKED-only
+
+8. **Commit context doc sync separately from ledger noise** · `docs/context/CURRENT_STATE.md`, `docs/context/ACTIVE_WORK.md`, `docs/context/SESSION_HANDOFF.md` · Keeps agent steering honest; exclude `data/content_queue/jiya-makeover.jsonl`, `data/delivery_ledger/jiya-makeover.jsonl` · top action #1 ≠ “Review + merge OpenClaw PR”; WS-3 reads **MERGED**
+
+---
+
+## EXTERNAL only (do not fake)
+
+- **Stage A OpenClaw prod deploy** — explicit human authorization; GREEN allowlist only (`docs/context/ACTIVE_WORK.md` WS-3; `.env.example` L639 `OPENCLAW_ENABLED=0`)
+- **WS-2 Jiya proof loop** — Meta customer-page access, human draft approval, manual publish proof (`docs/context/RISKS_AND_BLOCKERS.md` B1; `docs/context/ACTIVE_WORK.md` WS-2)
+- **GTM Hot Queue manual publish approvals** — Meta / human publish path (`docs/context/CURRENT_STATE.md` top action #3)
+- **Command Center authenticated browser smoke** — one admin login to Delivery Command Center (`docs/context/RISKS_AND_BLOCKERS.md` B2)
+- **Production deploy of any new commit** — live already at `9c1bb308` (external to this session); no deploy/push/commit here
+- **Secrets / prod `.env` values** — `CURSOR_API_KEY`, UPI creds, JWT secrets remain human-managed; only names in `.env.example`
+
+---
+
+## Exact first slice to implement now
+
+**Slice: Land Cursor SDK harness cleanly (exclude ledger + `_ws4_ship` noise)**
+
+**Files (add/track only these):**
+- `scripts/cursor_agent/__init__.py` — already exports `check_sdk_ready`, `run_proof_prompt`, `DEFAULT_PROOF_PROMPT` from `harness.py`
+- `scripts/cursor_agent/harness.py` — keep Windows shim at L13–16 (`os.get_blocking` / `os.set_blocking`); keep `DEFAULT_PROOF_PROMPT` pointing at `docs/context/CURRENT_STATE.md`, `ACTIVE_WORK.md`, and gate scripts
+- `scripts/cursor_agent_proof.py` — CLI with `--check`, `--prompt`, `--model`, `--cwd`; writes UTF-8 to gitignored `scripts/cursor_agent/_last_proof.txt` at L114–116
+- `requirements-dev.txt` — ensure block at L58–61: `cursor-sdk>=1.0.24,<2` with comment “dev harness only”
+- `.env.example` — ensure section at L652–660: `CURSOR_API_KEY=` empty default + commented `CURSOR_SDK_MODEL`; comment must state it does **not** enable `AGENT_RUNTIME` / OpenClaw
+- `.gitignore` — ensure L251–252: `scripts/cursor_agent/_last_proof.txt`
+
+**Doc touch (same slice, no ledger files):**
+- `docs/context/CURRENT_STATE.md` L21–22, L34: change “untracked `scripts/cursor_agent/`” → “Cursor SDK harness CODE-PRESENT (dev-only)”; top action #1 → “Regenerate `_last_proof.txt` after commit” or mark harness **LANDED**
+- `docs/context/SESSION_HANDOFF.md` L10: delete or past-tense “No `cursor-sdk` usage in repo yet”; L34–40: update Remaining #1 to done/pending-commit
+
+**Explicit exclusions (do not stage):**
+- `data/content_queue/jiya-makeover.jsonl`
+- `data/delivery_ledger/jiya-makeover.jsonl`
+- `_ws4_ship/**`
+- Any `.env` value changes, flag flips, or prod deploy scripts
+
+**Acceptance (local, no commit required to verify):**
+```powershell
+pip install -r requirements-dev.txt
+python scripts/cursor_agent_proof.py --check
+# expect exit 0 + {"ok": true, "package": "cursor-sdk", ...}
+git status -sb
+# expect scripts/cursor_agent/* and scripts/cursor_agent_proof.py tracked/staged; ledger JSONL still modified but unstaged
+```
+
+No secrets committed. No `OPENCLAW_ENABLED`, `AGENT_RUNTIME`, or voice flag changes. Harness remains dev-only proof tooling, not a product runtime.

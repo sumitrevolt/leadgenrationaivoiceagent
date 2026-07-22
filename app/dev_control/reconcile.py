@@ -16,7 +16,7 @@ from typing import Any
 
 from sqlalchemy import func, select
 
-from app.dev_control.service import TaskState, _TRANSITIONS
+from app.dev_control.service import _TRANSITIONS, TaskState
 
 _IN_FLIGHT = (TaskState.CLAIMED.value, TaskState.RUNNING.value)
 

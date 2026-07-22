@@ -17,9 +17,9 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from app.platform.celery_async import run as _run_async
 from app.utils.logger import setup_logger
 from app.worker import celery_app
-from app.platform.celery_async import run as _run_async
 
 logger = setup_logger(__name__)
 

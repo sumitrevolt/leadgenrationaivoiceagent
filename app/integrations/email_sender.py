@@ -3,9 +3,9 @@ Email Integration
 Send notifications and reports via email
 """
 
+import re
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-import re
 from typing import Any
 
 import aiosmtplib

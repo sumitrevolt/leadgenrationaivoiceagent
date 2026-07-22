@@ -877,7 +877,8 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         if not os.environ.get("SRE_AGENT"):
             return "SRE agent off (SRE_AGENT unset)"
         try:
-            import json as _j, time as _t
+            import json as _j
+            import time as _t
             hb_file = os.path.join("data", "job_heartbeats.json")
             if os.path.isfile(hb_file):
                 age = _t.time() - os.path.getmtime(hb_file)

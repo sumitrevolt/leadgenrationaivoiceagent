@@ -35,13 +35,17 @@ WAHA Core endpoints used (all free in Core):
 from __future__ import annotations
 
 import os
-from urllib.parse import urlencode
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 
 from app.config import settings
-from app.integrations.whatsapp import WhatsAppMessageMixin, _record_whatsapp_failure, _record_whatsapp_success
+from app.integrations.whatsapp import (
+    WhatsAppMessageMixin,
+    _record_whatsapp_failure,
+    _record_whatsapp_success,
+)
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)

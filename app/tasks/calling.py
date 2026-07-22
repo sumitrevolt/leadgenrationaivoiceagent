@@ -562,7 +562,10 @@ async def _dial_vobiz_campaign(
             stop_state = vl.CampaignState.PAUSED_FOR_TRAINING
             logger.info(f"[voice_launch] training pause at call {slot.count}")
             try:
-                from app.voice_agent.postcall_qa import propose_training_correction, training_loop_enabled
+                from app.voice_agent.postcall_qa import (
+                    propose_training_correction,
+                    training_loop_enabled,
+                )
 
                 if training_loop_enabled():
                     propose_training_correction(

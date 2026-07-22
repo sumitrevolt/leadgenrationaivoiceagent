@@ -145,7 +145,9 @@ class GoogleMapsScraper:
                             pass
                         if resp.status_code == 429:
                             try:
-                                from app.platform.integration_health import start_places_quota_cooldown
+                                from app.platform.integration_health import (
+                                    start_places_quota_cooldown,
+                                )
 
                                 start_places_quota_cooldown()
                             except Exception:

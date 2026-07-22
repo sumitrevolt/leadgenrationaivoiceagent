@@ -12,8 +12,8 @@ from app.lead_scraper.scraper_manager import LeadScraperManager
 from app.models.base import get_db_session
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.lead import Lead, LeadSource, LeadStatus
-from app.utils.logger import setup_logger
 from app.platform.celery_async import run as run_async
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 

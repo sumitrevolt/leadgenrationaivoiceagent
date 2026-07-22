@@ -19,7 +19,7 @@ import os
 from datetime import datetime
 from typing import Any
 
-from app.dev_control.service import TaskState, _TRANSITIONS
+from app.dev_control.service import _TRANSITIONS, TaskState
 
 
 def _flag(name: str) -> bool:

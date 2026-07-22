@@ -56,6 +56,7 @@ class RedisCallStore:
         self._client_loop = current_loop
         try:
             import redis.asyncio as aioredis
+
             from app.config import settings
 
             client = aioredis.from_url(

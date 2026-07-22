@@ -22,7 +22,7 @@ from typing import Any
 
 from app.dev_control import locks
 from app.dev_control.gateway import invoke
-from app.dev_control.service import TaskState, _TRANSITIONS
+from app.dev_control.service import _TRANSITIONS, TaskState
 from app.dev_control.usage import record_gateway_result
 
 

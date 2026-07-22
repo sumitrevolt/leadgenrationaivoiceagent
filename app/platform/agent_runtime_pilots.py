@@ -76,18 +76,22 @@ async def isha_draft_content_brief(ctx: AgentExecutionContext) -> dict[str, Any]
     if (os.getenv("AGENT_RUNTIME_LLM") or "").strip().lower() in ("1", "true", "yes"):
         try:
             from app.voice_agent.free_ai import chat as _chat
+            from app.platform.context_governance import ContextWindow
+
+            sys_prompt = "You draft short Hinglish marketing briefs. Draft/proposal only — never publish."
+            user_msg = f"Draft a short Hinglish social-post brief for '{business}' about: {topic}. 3 bullet hooks + 1 CTA. Draft only."
+
+            cw = ContextWindow(
+                system_prompt=sys_prompt,
+                tenant_id=ctx.tenant_id or "default",
+                messages=[{"role": "user", "content": user_msg}],
+                max_tokens=2000,
+            )
+            compacted_messages = cw.compact()
 
             draft_text = await _chat(
-                "You draft short Hinglish marketing briefs. Draft/proposal only — never publish.",
-                [
-                    {
-                        "role": "user",
-                        "content": (
-                            f"Draft a short Hinglish social-post brief for '{business}' "
-                            f"about: {topic}. 3 bullet hooks + 1 CTA. Draft only."
-                        ),
-                    }
-                ],
+                sys_prompt,
+                compacted_messages,
                 max_tokens=220,
             )
             if draft_text:

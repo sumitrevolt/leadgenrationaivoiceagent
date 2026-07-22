@@ -18,7 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from app.config import settings
-from app.utils.logger import setup_logger, redact_url
+from app.utils.logger import redact_url, setup_logger
 
 logger = setup_logger(__name__)
 
