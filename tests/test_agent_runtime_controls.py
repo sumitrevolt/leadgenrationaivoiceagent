@@ -49,7 +49,10 @@ def isolated(tmp_path, monkeypatch):
     monkeypatch.setattr(ac, "_STORE", str(tmp_path / "pause.jsonl"))
 
     caps_snapshot = dict(rt._CAPABILITIES)
-    rt._CANCELLED_AGENTS.clear()
+    monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    from app.platform import agent_runtime_cancellation as crc
+
+    crc.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -60,7 +63,7 @@ def isolated(tmp_path, monkeypatch):
     yield
     rt._CAPABILITIES.clear()
     rt._CAPABILITIES.update(caps_snapshot)
-    rt._CANCELLED_AGENTS.clear()
+    crc.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -173,9 +176,10 @@ async def test_cancel_before_engine():
         return {}
 
     _register("kavya", "ctrl_probe", cap)
-    rt.request_cancel("kavya")
-    res = await rt.submit("kavya", "ctrl_probe")
-    assert res.status == "blocked" and res.reason == "cancel_requested"
+    task = rt.AgentTask(agent_id="kavya", action="ctrl_probe")
+    rt.request_cancel_run("kavya", task.task_id)
+    res = await rt.run_task(task)
+    assert res.status == "cancelled" and res.reason == "cancel_requested"
     assert ran["n"] == 0
 
 
@@ -183,13 +187,20 @@ async def test_cancel_after_engine_classified_honestly(monkeypatch):
     """Non-cooperative: cancel flips during engine wait → honest reason."""
 
     async def cap(ctx):
-        rt.request_cancel("kavya")
+        rt.request_cancel_run("kavya", ctx.task.task_id)
         return {"done": True}
 
     _register("kavya", "ctrl_probe", cap)
     res = await rt.submit("kavya", "ctrl_probe")
     assert res.status == "succeeded"
     assert res.reason == "cancel_requested_but_engine_completed"
+
+
+async def test_agent_wide_cancel_no_running_is_ok():
+    out = rt.request_cancel("kavya")
+    assert out["ok"] is True
+    assert out["status"] == "no_running_tasks"
+    assert out["targeted_run_ids"] == []
 
 
 # ---- races ---------------------------------------------------------------- #

@@ -8,10 +8,10 @@ Canonical admission precedence (see also `agent_runtime.evaluate_policy` / modul
 4. per-agent `primary_flag`
 5. kill switches → `AgentResult.reason` = `kill_switch_engaged:<key>`; `decision.reason_code` = `kill_switch_active`
 6. Owner OS stop-claims / drain / pause via `owner_agent_execution.runtime_admission_blocked`
-7. soft cancel (`request_cancel`) → `cancel_requested`
+7. distributed run-cancel (`agentrt:cancel:<agent>:<runtime_run_id>`) → `cancelled` / `cancel_requested`
 8. capability / tenant / approval / budget policy
 9. concurrency slot + durable lease
-10. pre-engine re-check → engine
+10. pre-engine re-check (controls + cancel) → engine
 
 ## Pause / drain / stop-claims contract
 
@@ -25,15 +25,20 @@ Resume / clear controls restores bounded claims only — **no catch-up flood** (
 
 `claim_allowed()` for staff/scheduler still ignores `manual_pause` (legacy); agent_runtime uses `runtime_admission_blocked()`.
 
-## Cancellation
+## Cancellation (Redis-backed)
 
-- Before engine: `cancel_requested` (blocked).
-- Non-cooperative engine that finishes after cancel was set mid-flight: status may be `succeeded` with reason `cancel_requested_but_engine_completed` (honest — not a fake cancel).
+Full contract: `DISTRIBUTED_CANCELLATION.md`.
+
+- Identity: specific `runtime_run_id` (`art_*`). Agent-wide emergency = cancel each **active** run only.
+- Before engine: status `cancelled`, reason `cancel_requested`.
+- Non-cooperative engine finishes after cancel mid-flight: status `succeeded`, reason `cancel_requested_but_engine_completed`.
+- Redis unavailable at check: `blocked` / `cancellation_store_unavailable` (never silent “not cancelled”).
+- Process-local `_CANCELLED_AGENTS` **removed**. Primary backend: Redis. Legacy process-local: disabled.
 
 ## Race closes
 
-Admission re-checked: (1) in `evaluate_policy`, (2) after policy / before slot, (3) after slot / before durable+idem, (4) immediately before `cap.fn`.
+Admission re-checked: (1) in `evaluate_policy`, (2) after policy / before slot, (3) after slot / before durable+idem, (4) immediately before `cap.fn`, plus cancel probes at those boundaries.
 
 ## Owner OS command response
 
-`create_command` always exposes top-level `command_id` (+ `status`) while keeping nested `command` for legacy callers. No fabricated `runtime_run_id` at create time.
+`create_command` always exposes top-level `command_id` (+ `status`) while keeping nested `command` for legacy callers. Cancel-running for `art_*` returns structured Redis cancel fields (`targeted_run_ids`, `cancellation_backend`, counts).

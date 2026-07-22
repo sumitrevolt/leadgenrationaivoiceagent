@@ -32,11 +32,18 @@ set(eligible_agents) == {expected_agent}
 
 and `ungated_dispatchable_count == 0`.
 
-## Nikhil future plan (not executed here)
+## Distributed cancellation (preflight note)
 
-1. Deploy flag-isolation PR with all runtime flags OFF.
-2. Force every canary-ready peer flag OFF (census list).
-3. Set `DELIVERY_ASSURANCE_AGENT=1` only.
-4. Re-run preflight → eligible `{nikhil}`.
-5. Then arm `AGENT_RUNTIME=1`.
-6. Prove → rollback all OFF.
+Cross-process cancel requires the Redis-backed store (`DISTRIBUTED_CANCELLATION.md`).
+Until that SHA is **deployed and production-proven**, treat:
+
+```yaml
+cancellation_cross_process: not_supported
+```
+
+Do not enable a third agent until owner-authorized cancel deploy + Pranav-only proof.
+
+## Nikhil (done) / next agent (blocked)
+
+Nikhil production canary proven on prior SHA; flags restored OFF.
+Third agent canary is **blocked** until distributed cancellation is production-proven.
