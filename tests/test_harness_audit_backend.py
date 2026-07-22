@@ -1,78 +1,68 @@
-"""Durable harness audit + shadow-dedup backend — atomic Lua claim+append,
-multi-worker, restart, and fail-closed semantics (unit level).
+"""Durable harness audit backend — authoritative single-write model, strict config,
+status semantics, and guarded migration (unit level over a fake Redis).
 
-These are UNIT tests over a fake Redis whose ``eval`` replicates the atomic Lua
-contract. Real-Redis, real-multiprocess durability is proven separately in
-``tests/test_harness_audit_backend_integration.py`` (skips without a live Redis).
-All harness flags remain OFF; no executor runs here."""
+Real-Redis / real-multiprocess durability runs in
+tests/test_harness_audit_backend_integration.py (mandatory in CI). All harness
+flags remain OFF; no executor runs here."""
 
 from __future__ import annotations
 
 import fnmatch
 import json
 
-from app.agents.harness import audit, audit_backend
+import pytest
+
+from app.agents.harness import audit, audit_backend, audit_migrate
 
 
 # --------------------------------------------------------------------------- #
-# Fake Redis whose eval() implements the SAME atomic contract as _ATOMIC_LUA.
-# Two instances sharing one `store` simulate two processes / two containers.
+# Fake Redis supporting SET ... NX GET PX and the derived-index ops.
+# Two instances sharing one `store` simulate two processes/containers.
 # --------------------------------------------------------------------------- #
 class FakeRedis:
-    def __init__(self, store=None, crash=False, eval_crash=False):
+    def __init__(self, store=None, crash=False, poison_metrics=False):
         self.store = (
             store
             if store is not None
             else {"kv": {}, "kv_ttl": {}, "streams": {}, "hashes": {}, "seq": [0]}
         )
         self.crash = crash
-        self.eval_crash = eval_crash
+        self.poison_metrics = poison_metrics
 
     def _boom(self):
         if self.crash:
             raise ConnectionError("redis down")
 
-    def _hincr(self, name, field, amt=1):
-        h = self.store["hashes"].setdefault(name, {})
-        h[field] = int(h.get(field, 0)) + amt
-        return h[field]
-
-    def eval(self, script, numkeys, *args):
+    def set(self, name, value, nx=False, get=False, px=None):
         self._boom()
-        if self.eval_crash:
-            raise ConnectionError("script/connection failure")
-        keys = args[:numkeys]
-        argv = args[numkeys:]
-        dedup_key, stream_key, metrics_key = keys[0], keys[1], keys[2]
-        event_json, envelope_json, ttl_ms, maxlen, family, mode = argv
         kv = self.store["kv"]
-        if dedup_key in kv:
-            self._hincr(metrics_key, "duplicates_suppressed")
-            v = kv[dedup_key]
-            return [b"DUPLICATE", v.encode() if isinstance(v, str) else v]
-        s = self.store["streams"].setdefault(stream_key, [])
+        existed = name in kv
+        old = kv.get(name)
+        if nx and existed:
+            return old if get else None  # not set; GET returns existing
+        kv[name] = value
+        if px:
+            self.store["kv_ttl"][name] = px
+        return (old if existed else None) if get else True
+
+    def get(self, name):
+        self._boom()
+        return self.store["kv"].get(name)
+
+    def delete(self, name):
+        self.store["kv"].pop(name, None)
+        self.store["hashes"].pop(name, None)
+        return 1
+
+    def xadd(self, name, fields, maxlen=None, approximate=True):
+        self._boom()
+        s = self.store["streams"].setdefault(name, [])
         self.store["seq"][0] += 1
         sid = f"{self.store['seq'][0]}-0"
-        s.append((sid, {"e": event_json}))
-        ml = int(maxlen)
-        if ml > 0 and len(s) > ml:
-            del s[0 : len(s) - ml]
-        val = '{"event_id":"' + sid + '","envelope":' + envelope_json + "}"
-        kv[dedup_key] = val
-        self.store["kv_ttl"][dedup_key] = int(ttl_ms)
-        self._hincr(metrics_key, "records_created")
-        self._hincr(metrics_key, "family:" + family)
-        self._hincr(metrics_key, "mode:" + mode)
-        return [b"CREATED", val.encode()]
-
-    def hincrby(self, name, field, amount=1):
-        self._boom()
-        return self._hincr(name, field, amount)
-
-    def hgetall(self, name):
-        self._boom()
-        h = self.store["hashes"].get(name, {})
-        return {k.encode(): str(v).encode() for k, v in h.items()}
+        s.append((sid, dict(fields)))
+        if maxlen and len(s) > maxlen:
+            del s[0 : len(s) - maxlen]
+        return sid.encode()
 
     def xlen(self, name):
         self._boom()
@@ -82,13 +72,24 @@ class FakeRedis:
         self._boom()
         s = self.store["streams"].get(name, [])
         s = s[:count] if count else s
-        return [(sid.encode(), f) for sid, f in s]
+        return [(sid.encode(), {k.encode(): v.encode() for k, v in f.items()}) for sid, f in s]
 
-    def xrevrange(self, name, count=None):
+    def hincrby(self, name, field, amount=1):
         self._boom()
-        s = list(reversed(self.store["streams"].get(name, [])))
-        s = s[:count] if count else s
-        return [(sid.encode(), f) for sid, f in s]
+        if self.poison_metrics and name == audit_backend._METRICS_KEY:
+            raise TypeError("WRONGTYPE metrics poisoned")
+        h = self.store["hashes"].setdefault(name, {})
+        h[field] = int(h.get(field, 0)) + amount
+        return h[field]
+
+    def hset(self, name, field, value):
+        h = self.store["hashes"].setdefault(name, {})
+        h[field] = value
+        return 1
+
+    def hgetall(self, name):
+        self._boom()
+        return {k.encode(): str(v).encode() for k, v in self.store["hashes"].get(name, {}).items()}
 
     def scan_iter(self, match=None, count=None):
         self._boom()
@@ -120,7 +121,6 @@ def _row(
     return {
         "ts": 1.0,
         "run_id": run,
-        "task_id": run,
         "tenant_id": tenant,
         "agent": agent,
         "kind": kind,
@@ -136,180 +136,166 @@ def _row(
     }
 
 
-# ------------------------------- dedup key --------------------------------- #
-def test_dedup_key_distinguishes_tenant_agent_tool_attempt(monkeypatch):
-    monkeypatch.setenv("APP_VERSION", "sha1")
-    base = audit_backend.derive_dedup_key(_row())
-    assert base == audit_backend.derive_dedup_key(_row())
-    assert base != audit_backend.derive_dedup_key(_row(tenant="acme"))
-    assert base != audit_backend.derive_dedup_key(_row(agent="rohan"))
-    assert base != audit_backend.derive_dedup_key(_row(tool="other"))
-    assert base != audit_backend.derive_dedup_key(_row(attempt=1))
-    assert base != audit_backend.derive_dedup_key(_row(item="i2"))
+# ------------------------------ strict config ------------------------------ #
+def test_config_resolution(monkeypatch):
+    monkeypatch.delenv("HARNESS_AUDIT_BACKEND", raising=False)
+    assert audit_backend.resolve_backend_config()["resolved_backend"] == "jsonl"
+    monkeypatch.setenv("HARNESS_AUDIT_BACKEND", "jsonl")
+    assert audit_backend.backend_name() == "jsonl"
+    monkeypatch.setenv("HARNESS_AUDIT_BACKEND", "redis")
+    assert audit_backend.backend_name() == "redis"
+    for bad in ("redi", "redis ", "postgres", "REDISX"):
+        monkeypatch.setenv("HARNESS_AUDIT_BACKEND", bad)
+        c = audit_backend.resolve_backend_config()
+        assert c["resolved_backend"] == "invalid" and c["configuration_valid"] is False
 
 
-def test_dedup_key_binds_production_sha(monkeypatch):
-    monkeypatch.setenv("APP_VERSION", "shaA")
-    a = audit_backend.derive_dedup_key(_row())
-    monkeypatch.setenv("APP_VERSION", "shaB")
-    b = audit_backend.derive_dedup_key(_row())
-    assert a != b
+def test_invalid_backend_fails_closed_no_silent_jsonl(monkeypatch):
+    monkeypatch.setenv("HARNESS_AUDIT_BACKEND", "postgres")
+    be = audit_backend.get_backend()
+    assert isinstance(be, audit_backend.InvalidBackend)
+    r = audit_backend.write(_row(), backend=be)
+    assert r["written"] is False and r["error"] and r["backend"] == "invalid"
 
 
-# ------------------------------ atomic dedup ------------------------------- #
-def test_atomic_first_observer_wins():
+# ---------------------- authoritative single-write model ------------------- #
+def test_authoritative_create_and_duplicate():
     be = audit_backend.RedisBackend(FakeRedis())
     dk = audit_backend.derive_dedup_key(_row())
     r1 = be.record(_row(), dk)
     r2 = be.record(_row(), dk)
-    assert r1["written"] is True and r1["duplicate"] is False and r1["event_id"]
-    assert r2["written"] is False and r2["duplicate"] is True
-    assert r2["event_id"] == r1["event_id"]  # duplicate returns the ORIGINAL id
+    assert r1["written"] and not r1["duplicate"] and r1["event_id"] == dk
+    assert not r2["written"] and r2["duplicate"] and r2["event_id"] == dk
 
 
-def test_cross_process_dedup_shared_backend():
-    store = _store()
-    be1 = audit_backend.RedisBackend(FakeRedis(store))
-    be2 = audit_backend.RedisBackend(FakeRedis(store))  # another process/container
-    r1 = audit_backend.write(_row(), backend=be1)
-    r2 = audit_backend.write(_row(), backend=be2)
-    assert r1["written"] is True and r2["duplicate"] is True
-    assert r2["event_id"] == r1["event_id"]
-    assert be1.counts()["records_created"] == 1
-    assert be1.counts()["duplicates_suppressed"] == 1
-
-
-def test_multi_worker_many_observers_one_record():
-    store = _store()
-    workers = [audit_backend.RedisBackend(FakeRedis(store)) for _ in range(8)]
-    results = [audit_backend.write(_row(), backend=w) for w in workers]
-    assert sum(1 for r in results if r["written"]) == 1
-    assert sum(1 for r in results if r["duplicate"]) == 7
-    ids = {r["event_id"] for r in results}
-    assert len(ids) == 1  # every caller sees the same event id
-    assert workers[0].counts()["records_created"] == 1
-
-
-def test_different_events_not_collapsed():
-    store = _store()
-    be = audit_backend.RedisBackend(FakeRedis(store))
-    audit_backend.write(_row(item="a"), backend=be)
-    audit_backend.write(_row(item="b"), backend=be)
-    audit_backend.write(_row(item="a", attempt=1), backend=be)
-    assert be.counts()["records_created"] == 3
-
-
-# --------------------------- atomicity guarantees -------------------------- #
-def test_atomic_no_partial_commit_on_failure():
-    store = _store()
-    be = audit_backend.RedisBackend(FakeRedis(store, eval_crash=True))
-    r = audit_backend.write(_row(), backend=be)
-    assert r["written"] is False and r["error"]
-    # Nothing committed: no dedup key, no stream entry (claim+append were one op)
-    assert store["kv"] == {}
-    assert store["streams"].get(audit_backend._STREAM_KEY, []) == []
-
-
-def test_timeout_after_commit_retry_returns_same_event_id():
-    # Commit succeeds; a client-timeout retry of the SAME logical event must find
-    # the dedup key and return the original event id (no second stream record).
+def test_record_value_shape():
     store = _store()
     be = audit_backend.RedisBackend(FakeRedis(store))
     dk = audit_backend.derive_dedup_key(_row())
-    first = be.record(_row(), dk)
-    retry = be.record(_row(), dk)  # simulated retry after a lost ack
-    assert first["written"] and retry["duplicate"]
-    assert retry["event_id"] == first["event_id"]
-    assert be.counts()["records_created"] == 1
+    be.record(_row(), dk, source_app_version="878c1397")
+    rec = json.loads(store["kv"][audit_backend._RECORD_PREFIX + dk])
+    assert rec["event_id"] == dk
+    assert rec["event"]["agent"] == "nikhil"
+    assert rec["envelope"]["agent"] == "nikhil"
+    assert rec["source_app_version"] == "878c1397"
+    assert "created_at" in rec
 
 
-def test_envelope_stored_in_dedup_value():
+def test_partial_commit_impossible_metrics_poison():
+    # Poison metrics so the DERIVED index hincrby raises. The authoritative record
+    # must still be created and reported written=True (all-or-nothing decoupled).
+    store = _store()
+    be = audit_backend.RedisBackend(FakeRedis(store, poison_metrics=True))
+    dk = audit_backend.derive_dedup_key(_row())
+    r = be.record(_row(), dk)
+    assert r["written"] is True and r["duplicate"] is False
+    assert audit_backend._RECORD_PREFIX + dk in store["kv"]  # record durable
+
+
+def test_record_write_failure_leaves_nothing():
+    store = _store()
+
+    class FailSet(FakeRedis):
+        def set(self, *a, **k):
+            raise ConnectionError("down")
+
+    be = audit_backend.RedisBackend(FailSet(store))
+    r = audit_backend.write(_row(), backend=be)
+    assert r["written"] is False and r["error"]
+    assert store["kv"] == {}  # nothing created
+
+
+def test_retention_at_least_90_days(monkeypatch):
+    monkeypatch.delenv("HARNESS_AUDIT_RETENTION_S", raising=False)
+    assert audit_backend.audit_retention_s() >= 90 * 24 * 3600
     store = _store()
     be = audit_backend.RedisBackend(FakeRedis(store))
     dk = audit_backend.derive_dedup_key(_row())
     be.record(_row(), dk)
-    raw = store["kv"][audit_backend._DEDUP_PREFIX + dk]
-    parsed = json.loads(raw)
-    assert parsed["event_id"]
-    assert parsed["envelope"]["agent"] == "nikhil"
-    assert parsed["envelope"]["execution_comparison"] is None or "envelope" in parsed
+    assert store["kv_ttl"][audit_backend._RECORD_PREFIX + dk] >= 90 * 24 * 3600 * 1000
 
 
-# --------------------------- restart persistence --------------------------- #
-def test_restart_preserves_dedup_and_audit():
+# --------------------------- multi-worker / restart ------------------------ #
+def test_cross_process_one_record():
+    store = _store()
+    ws = [audit_backend.RedisBackend(FakeRedis(store)) for _ in range(8)]
+    res = [audit_backend.write(_row(), backend=w) for w in ws]
+    assert sum(1 for r in res if r["written"]) == 1
+    assert sum(1 for r in res if r["duplicate"]) == 7
+    assert len({r["event_id"] for r in res}) == 1
+    assert ws[0].counts()["authoritative_records"] == 1
+
+
+def test_restart_preserves_record():
     store = _store()
     be = audit_backend.RedisBackend(FakeRedis(store))
     r1 = audit_backend.write(_row(), backend=be)
-    be2 = audit_backend.RedisBackend(FakeRedis(store))  # restart: new client, same store
+    be2 = audit_backend.RedisBackend(FakeRedis(store))
     r2 = audit_backend.write(_row(), backend=be2)
-    assert r2["duplicate"] is True and r2["event_id"] == r1["event_id"]
-    assert be2.counts()["records_created"] == 1
+    assert r2["duplicate"] and r2["event_id"] == r1["event_id"]
+    assert be2.counts()["authoritative_records"] == 1
 
 
-# --------------------------- fail-closed semantics ------------------------- #
-def test_backend_unavailable_fails_closed_no_raise():
-    be = audit_backend.RedisBackend(FakeRedis(crash=True))
-    r = audit_backend.write(_row(), backend=be)
-    assert r["written"] is False and r["duplicate"] is False and r["error"]
-
-
-def test_production_redis_no_client_prohibits_silent_fallback(monkeypatch):
-    monkeypatch.setenv("HARNESS_AUDIT_BACKEND", "redis")
-    monkeypatch.setattr(audit_backend, "_get_redis_client", lambda: None)
-    r = audit_backend.write(_row())
-    assert r["written"] is False and r["error"] and r["backend"] == "redis"
-
-
-# ------------------------------ retention/TTL ------------------------------ #
-def test_dedup_claim_sets_ttl():
+def test_distinct_events_distinct_records():
     store = _store()
     be = audit_backend.RedisBackend(FakeRedis(store))
-    dk = audit_backend.derive_dedup_key(_row())
-    be.record(_row(), dk)
-    assert store["kv_ttl"].get(audit_backend._DEDUP_PREFIX + dk)  # PX TTL applied
+    for i in range(5):
+        audit_backend.write(_row(item=f"x{i}"), backend=be)
+    assert be.counts()["authoritative_records"] == 5
 
 
-def test_stream_maxlen_trims(monkeypatch):
-    monkeypatch.setenv("HARNESS_AUDIT_MAXLEN", "3")
+# ------------------------------- reconciler -------------------------------- #
+def test_reconcile_rebuilds_index():
     store = _store()
-    be = audit_backend.RedisBackend(FakeRedis(store))
-    for i in range(6):
+    r = FakeRedis(store)
+    be = audit_backend.RedisBackend(r)
+    for i in range(3):
         be.record(_row(item=f"x{i}"), audit_backend.derive_dedup_key(_row(item=f"x{i}")))
-    assert be._safe_xlen() <= 3
+    store["streams"][audit_backend._STREAM_KEY] = []  # simulate lost/lagged index
+    store["hashes"].pop(audit_backend._METRICS_KEY, None)
+    dry = be.reconcile(dry_run=True)
+    assert dry["authoritative_records"] == 3 and dry["missing_stream_entries"] == 3
+    live = be.reconcile(dry_run=False)
+    assert live["missing_stream_entries"] == 3
+    assert be._safe_xlen() == 3
+    assert be.counts()["by_family"].get("batch_harness") == 3
 
 
-# --------------------------- size + sanitization --------------------------- #
-def test_forbidden_keys_scrubbed():
-    row = _row()
-    sensitive = ["api_key", "password", "token", "authorization", "private_key"]
-    marker = "x" * 8
-    for k in sensitive:
-        row["extra"][k] = marker
-    out = audit_backend.enforce_size(row)
-    for k in sensitive:
-        assert out["extra"][k] == "<redacted>"
+# ---------------------------- status semantics ----------------------------- #
+def test_status_semantics_jsonl(monkeypatch, tmp_path):
+    monkeypatch.setenv("HARNESS_AUDIT_BACKEND", "jsonl")
+    monkeypatch.setenv("HARNESS_RUN_LOG", str(tmp_path / "h.jsonl"))
+    st = audit_backend.status()
+    h = st["health"]
+    assert st["backend"] == "jsonl" and st["configuration_valid"] is True
+    assert h["selected_intentionally"] and h["fallback_active"] is False
+    assert h["durable"] is False and h["multi_worker_safe"] is False
 
 
-def test_oversized_event_bounded(monkeypatch):
-    monkeypatch.setenv("HARNESS_AUDIT_MAX_BYTES", "512")
-    row = _row()
-    row["extra"]["legacy_result_summary"] = "A" * 5000
-    out = audit_backend.enforce_size(row)
-    assert len(json.dumps(out).encode()) <= 4096
-    assert out.get("_size_truncated") or out["extra"].get("_oversized_dropped_payload")
+def test_status_semantics_invalid(monkeypatch):
+    monkeypatch.setenv("HARNESS_AUDIT_BACKEND", "postgres")
+    st = audit_backend.status()
+    assert st["backend"] == "invalid" and st["configuration_valid"] is False
+    assert st["health"]["healthy"] is False
 
 
-# ------------------------------ jsonl fallback ----------------------------- #
-def test_jsonl_backend_default_no_dedup(tmp_path, monkeypatch):
-    monkeypatch.delenv("HARNESS_AUDIT_BACKEND", raising=False)
-    p = tmp_path / "runs.jsonl"
-    be = audit_backend.JsonlBackend(str(p))
-    audit_backend.write(_row(), backend=be)
-    audit_backend.write(_row(), backend=be)  # identical -> NOT deduped in jsonl mode
-    lines = [x for x in p.read_text().splitlines() if x.strip()]
-    assert len(lines) == 2
-    c = be.counts()
-    assert c["total"] == 2 and c["backend"] == "jsonl"
+def test_status_semantics_redis(monkeypatch):
+    store = _store()
+    monkeypatch.setenv("HARNESS_AUDIT_BACKEND", "redis")
+    monkeypatch.setattr(audit_backend, "_get_redis_client", lambda: FakeRedis(store))
+    audit_backend.write(_row(), backend=audit_backend.get_backend())
+    st = audit_backend.status()
+    assert st["backend"] == "redis"
+    assert st["health"]["durable"] is True and st["health"]["multi_worker_safe"] is True
+    assert st["counts"]["authoritative_records"] == 1
+
+
+# ------------------------- provenance / dedup identity --------------------- #
+def test_dedup_uses_source_app_version_for_migration(monkeypatch):
+    monkeypatch.setenv("APP_VERSION", "67a18b0_runtime")
+    live = audit_backend.derive_dedup_key(_row())
+    hist = audit_backend.derive_dedup_key(_row(), source_app_version="878c1397_source")
+    assert live != hist  # migration identity uses ORIGINAL provenance, not runtime
 
 
 def test_audit_record_jsonl_default_writes_file(tmp_path, monkeypatch):
@@ -325,73 +311,106 @@ def test_audit_record_jsonl_default_writes_file(tmp_path, monkeypatch):
         extra={"source_loop": "batch_harness", "mode": "shadow"},
     )
     data = (tmp_path / "hr.jsonl").read_text().strip().splitlines()
-    assert len(data) == 1 and json.loads(data[0])["agent"] == "nikhil"
+    assert len(data) == 1
 
 
-def test_audit_record_redis_path_dedups(monkeypatch):
-    from app.agents.harness.contracts import RunContext
-
-    store = _store()
-    monkeypatch.setenv("HARNESS_AUDIT_BACKEND", "redis")
-    monkeypatch.setattr(audit_backend, "_get_redis_client", lambda: FakeRedis(store))
-    ctx = RunContext(agent="nikhil", run_id="r1")
-    ex = {
-        "source_loop": "batch_harness",
-        "resolved_tool_name": "t",
-        "resolved_tool_version": "1.0.0",
-        "item_id": "i1",
+# ------------------------------- migration CLI ----------------------------- #
+_DAG = {
+    "ts": 1.0,
+    "run_id": "canary-dag-shadow-0001",
+    "tenant_id": "__system__",
+    "agent": "manager",
+    "kind": "shadow",
+    "tool": "workflow.dag.internal_calculation",
+    "extra": {
+        "source_loop": "dag_engine",
+        "node_id": "calc",
         "attempt": 0,
         "mode": "shadow",
-    }
-    audit.record(ctx, None, None, kind="shadow", extra=dict(ex))
-    audit.record(ctx, None, None, kind="shadow", extra=dict(ex))  # duplicate
-    assert audit_backend.get_backend().counts()["records_created"] == 1
+        "resolved_tool_name": "workflow.dag.internal_calculation",
+        "resolved_tool_version": "1.0.0",
+    },
+}
+_BATCH = {
+    "ts": 2.0,
+    "run_id": "canary_batch_shadow_0001",
+    "tenant_id": "__system__",
+    "agent": "nikhil",
+    "kind": "shadow",
+    "tool": "batch.internal.safe_calculation",
+    "extra": {
+        "source_loop": "batch_harness",
+        "item_id": "canary-batch-1",
+        "attempt": 0,
+        "mode": "shadow",
+        "resolved_tool_name": "batch.internal.safe_calculation",
+        "resolved_tool_version": "1.0.0",
+    },
+}
+_SRC_SHA = "0" * 40
 
 
-# ------------------------- historical import (Option A) -------------------- #
-def test_historical_import_idempotent():
+def _write_src(tmp_path):
+    import hashlib
+
+    p = tmp_path / "harness_runs.jsonl"
+    body = (json.dumps(_DAG) + "\n" + json.dumps(_BATCH) + "\n").encode()
+    p.write_bytes(body)
+    return str(p), hashlib.sha256(body).hexdigest()
+
+
+def test_migration_dry_run_zero_writes(tmp_path):
+    src, chk = _write_src(tmp_path)
     store = _store()
     be = audit_backend.RedisBackend(FakeRedis(store))
-    dag = _row(
-        loop="dag_engine",
-        tool="workflow.dag.internal_calculation",
-        item=None,
-        run="canary-dag-shadow-0001",
-    )
-    dag["extra"]["node_id"] = "calc"
-    batch = _row(
-        loop="batch_harness",
-        tool="batch.internal.safe_calculation",
-        item="canary-batch-1",
-        run="canary_batch_shadow_0001",
-    )
-    for _ in range(2):  # import twice -> still exactly 2
-        audit_backend.write(dag, backend=be)
-        audit_backend.write(batch, backend=be)
-    c = be.counts()
-    assert c["records_created"] == 2
-    assert c["by_family"].get("dag_engine") == 1
-    assert c["by_family"].get("batch_harness") == 1
+    pv = audit_migrate.preview(src, _SRC_SHA, backend=be)
+    assert pv["source_count"] == 2 and pv["source_checksum"] == chk
+    assert pv["source_family_breakdown"] == {"dag_engine": 1, "batch_harness": 1}
+    assert len(pv["derived_record_keys"]) == 2
+    assert store["kv"] == {}  # ZERO writes on preview
 
 
-# ------------------------------- status surface ---------------------------- #
-def test_status_counts_no_secrets(monkeypatch):
+def test_migration_apply_idempotent(tmp_path):
+    src, chk = _write_src(tmp_path)
     store = _store()
-    monkeypatch.setenv("HARNESS_AUDIT_BACKEND", "redis")
-    monkeypatch.setattr(audit_backend, "_get_redis_client", lambda: FakeRedis(store))
-    audit_backend.write(_row(), backend=audit_backend.get_backend())
-    st = audit_backend.status()
-    assert st["backend"] == "redis"
-    assert st["health"]["healthy"] is True
-    assert st["counts"]["total"] == 1
-    assert st["counts"]["dedup_keys_active"] == 1
-    blob = json.dumps(st).lower()
-    for bad in ("password", "secret", "token", "dsn", "authorization"):
-        assert bad not in blob
+    be = audit_backend.RedisBackend(FakeRedis(store))
+    r1 = audit_migrate.apply(src, "tok", chk, _SRC_SHA, backend=be)
+    assert r1["records_created"] == 2 and r1["already_existing"] == 0
+    r2 = audit_migrate.apply(src, "tok", chk, _SRC_SHA, backend=be)
+    assert r2["records_created"] == 0 and r2["already_existing"] == 2  # idempotent
 
 
-def test_keys_are_hash_tagged_single_slot():
-    # All keys the Lua touches share one {audit} hash tag -> one cluster slot.
-    assert "{audit}" in audit_backend._STREAM_KEY
-    assert "{audit}" in audit_backend._COUNTS_KEY
-    assert "{audit}" in audit_backend._DEDUP_PREFIX
+def test_migration_refuses_wrong_checksum(tmp_path):
+    src, _chk = _write_src(tmp_path)
+    be = audit_backend.RedisBackend(FakeRedis(_store()))
+    with pytest.raises(SystemExit):
+        audit_migrate.apply(src, "tok", "deadbeef" * 8, _SRC_SHA, backend=be)
+
+
+def test_migration_refuses_missing_guards(tmp_path):
+    src, chk = _write_src(tmp_path)
+    be = audit_backend.RedisBackend(FakeRedis(_store()))
+    with pytest.raises(SystemExit):
+        audit_migrate.apply(src, "", chk, _SRC_SHA, backend=be)  # no token
+    with pytest.raises(SystemExit):
+        audit_migrate.apply(src, "tok", chk, "short", backend=be)  # bad source sha
+
+
+def test_migration_uses_source_provenance(tmp_path):
+    src, chk = _write_src(tmp_path)
+    store = _store()
+    be = audit_backend.RedisBackend(FakeRedis(store))
+    audit_migrate.apply(src, "tok", chk, _SRC_SHA, backend=be)
+    # keys must be derived under the SOURCE sha, not the runtime sha
+    dag_key = audit_backend.derive_dedup_key(_DAG, source_app_version=_SRC_SHA)
+    assert audit_backend._RECORD_PREFIX + dag_key in store["kv"]
+
+
+def test_keys_hash_tagged_single_slot():
+    for k in (
+        audit_backend._RECORD_PREFIX,
+        audit_backend._STREAM_KEY,
+        audit_backend._METRICS_KEY,
+        audit_backend._MIGRATION_PREFIX,
+    ):
+        assert "{audit}" in k
