@@ -44,7 +44,10 @@ def isolated_runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_approval_approved", lambda tenant, ref: False)
 
     caps_snapshot = dict(rt._CAPABILITIES)
-    rt._CANCELLED_AGENTS.clear()
+    monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    from app.platform import agent_runtime_cancellation as crc
+
+    crc.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -55,7 +58,7 @@ def isolated_runtime(tmp_path, monkeypatch):
     yield rt
     rt._CAPABILITIES.clear()
     rt._CAPABILITIES.update(caps_snapshot)
-    rt._CANCELLED_AGENTS.clear()
+    crc.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
@@ -335,12 +338,14 @@ def test_registry_still_green_and_pilots_canonical():
 # ---------------------------------------------------------------------- #
 # Extras: cancellation, capability self-skip, pilot registration, status surface
 # ---------------------------------------------------------------------- #
-async def test_cancellation_blocks_new_dispatch():
+async def test_cancellation_blocks_specific_run():
     _register("kavya", "unit_probe", _ok_cap)
-    rt.request_cancel("kavya")
-    res = await rt.submit("kavya", "unit_probe")
-    assert res.status == "blocked" and res.reason == "cancel_requested"
-    rt.clear_cancel("kavya")
+    task = rt.AgentTask(agent_id="kavya", action="unit_probe")
+    out = rt.request_cancel_run("kavya", task.task_id, reason="unit")
+    assert out.get("ok") is True
+    res = await rt.run_task(task)
+    assert res.status == "cancelled" and res.reason == "cancel_requested"
+    # Unrelated future run is NOT cancelled
     res2 = await rt.submit("kavya", "unit_probe")
     assert res2.status == "succeeded"
 
