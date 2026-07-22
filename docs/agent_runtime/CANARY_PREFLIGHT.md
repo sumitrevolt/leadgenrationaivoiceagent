@@ -37,8 +37,8 @@ and `ungated_dispatchable_count == 0`.
 | Gate | Status |
 |---|---|
 | cancellation_cross_process | production_proven (`d4b248f5`) |
-| idempotency_cross_process | **not** production-proven until fail-closed Redis idempotency PR is deployed + Pranav proof |
+| idempotency_cross_process | production_proven (`3fe74095`) |
 
-Do not enable a third agent until idempotency is production-proven.
+Idempotency is production-proven (Pranav-only). Third agent still requires **separate** owner authorization; keep all other agents OFF.
 
-See `DISTRIBUTED_IDEMPOTENCY.md` · `DISTRIBUTED_CANCELLATION_PRODUCTION_PROOF.md`.
+See `DISTRIBUTED_IDEMPOTENCY.md` · `DISTRIBUTED_IDEMPOTENCY_PRODUCTION_PROOF.md` · `DISTRIBUTED_CANCELLATION_PRODUCTION_PROOF.md`.

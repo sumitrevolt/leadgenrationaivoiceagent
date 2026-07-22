@@ -1,47 +1,25 @@
 # SESSION_HANDOFF — overwrite every session end
 
 ## Session objective
-Finish PR #72 CI + reconcile production drift; stop before merge/deploy
-(no owner authorization for production action in active prompt).
+Owner-authorized merge + deploy + Pranav-only production proof for fail-closed Redis idempotency (PR #79).
 
-## PR #72
-- URL: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/72
-- Head: `676c51ad260377614b89bb2c28f7daf481029fdf`
-- Draft: yes · Mergeable: clean · Reviews: none
-- CI (latest HEAD): Lint, test, prod_check+pytest, Trivy repo, GitGuardian = **success**
-  (Trivy image scan skipped)
+## Outcome
+`COMPLETE — distributed-idempotency production closure only`
+Overall 31-agent mission remains **incomplete**.
 
-## Production drift
-| Layer | SHA |
-|---|---|
-| `/health` + running images | `7ce4d979…` |
-| `origin/main` | `10a3996a…` |
-| PR #72 head | `676c51a…` |
-| VPS git checkout HEAD | `0ff5d06c…` (stale vs image; surgical-deploy hygiene) |
+## Production
+- `/health` version: **`3fe74095`**
+- Merge commit: `3fe740958dac14eba2ac27d8ce91104aa7e90389`
+- Rollback unused: `d4b248f5`
+- Flags: **ALL workforce OFF**
+- OpenClaw OFF · calling HARD OFF
+- Queues: celery=0, failed=0, dead=7
+- `idempotency_backend: redis`, `fallback_active: false`
+- Concurrent proof: 1 success (`art_2079d7e415e2`) + 1 `duplicate_in_progress`
 
-**Classification: `SAFE_BEHIND_DOCS_ONLY`**
-- Gap `7ce4d979..10a3996a` = PR #71 docs/memory only (3 files). Zero app/migrations/compose.
+## Evidence
+- VPS: `/tmp/dist_idem_prod_proof.jsonl`
+- Docs: `docs/agent_runtime/DISTRIBUTED_IDEMPOTENCY_PRODUCTION_PROOF.md`
 
-## Prod flag snapshot (read-only inspect)
-- `APP_ENV=production`, `APP_VERSION=7ce4d979…`
-- `AGENT_RUNTIME=1`, `SRE_AGENT=1` already set on running app
-- `OPENCLAW` / `PLATFORM_DIAL` unset
-- Redis: celery=0, dlq:failed=0, **dlq:dead=7**
-- Alembic: `022_add_request_depth` (head)
-- RestartCount=0, healthy
-
-**Important:** Prod image is **pre-PR#72**. Wave-B / workforce factory / Pranav
-`run_owned_workflow` **not** on prod yet. Existing flags only arm old 3-pilot
-runtime (kavya/isha/zara). Production Pranav workforce canary = **BLOCKED**
-until merge+deploy of reviewed main SHA + explicit owner auth.
-
-## Local proof (unchanged)
-Pranav real-engine canary in worktree — see `docs/agent_runtime/CANARY_LOCAL_PROOF.md`
-
-## Exact next (owner-gated)
-1. Human review PR #72 → `gh pr ready 72` → merge
-2. Deploy `origin/main` tip via `scripts/deploy_vps.sh` with `APP_VERSION=<full sha>`
-3. Disabled-state proof first, then single Pranav canary + Redis idempotency + rollback
-
-## Protected
-No merge, deploy, .env flip, Swara/voice, billing, customer data, primary dirty tree.
+## Exact next action
+> Select third production canary from remaining 10 canary-ready agents (lowest-risk pattern) — **separate owner authorization required**; all other agents OFF.

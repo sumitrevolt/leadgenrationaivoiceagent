@@ -1,12 +1,12 @@
 # 31-Agent Truth Matrix (Wave-B read-only canary scope)
 
-Source: `team.STAFF` · `agent_registry` · `agent_runtime.PILOT_AGENTS` · `agent_runtime_workforce`.
+Source: `team.STAFF` Â· `agent_registry` Â· `agent_runtime.PILOT_AGENTS` Â· `agent_runtime_workforce`.
 
 ## Counts
 
 | Bucket | Count | Rollout state |
 |---|---|---|
-| **pranav** + **nikhil** | **2** | `production_canary_proven` (flags OFF — not permanently enabled) |
+| **pranav** + **nikhil** | **2** | `production_canary_proven` (flags OFF â€” not permanently enabled) |
 | Other Wave-A/B read-only pilots | **10** | `canary_ready` |
 | GREEN mutate + AMBER/voice-adjacent hold | **17** | `rollout_hold` |
 | Swara + Ananya | **2** | `intentionally_disabled` |
@@ -23,11 +23,11 @@ Source: `team.STAFF` · `agent_registry` · `agent_runtime.PILOT_AGENTS` · `age
 | race rechecks | `integration_proven` |
 | idempotency_backend (after this PR) | `redis` fail-closed (code) |
 | idempotency_memory_fallback | `false` (agent runtime) |
-| idempotency_cross_process | `implementation_ready` — **not** production-proven |
-| idempotency_production_proven | `false` |
+| idempotency_cross_process | `production_proven` (SHA `3fe74095`, Pranav-only) |
+| idempotency_production_proven | `true` (see `DISTRIBUTED_IDEMPOTENCY_PRODUCTION_PROOF.md`) |
 
 ## Pilot allowlist
 
 `kavya, isha, zara, hermes, pranav, vidya, arnav, kabir, diya, aryan, arya, nikhil`
 
-See `DISTRIBUTED_CANCELLATION.md` · `DISTRIBUTED_IDEMPOTENCY.md` · `CANARY_PREFLIGHT.md`.
+See `DISTRIBUTED_CANCELLATION.md` · `DISTRIBUTED_IDEMPOTENCY.md` · `DISTRIBUTED_IDEMPOTENCY_PRODUCTION_PROOF.md` · `CANARY_PREFLIGHT.md`.

@@ -1,6 +1,6 @@
 # Distributed Idempotency (Agent Runtime)
 
-**Status:** implementation + CI — **not** production-proven until authorized deploy + Pranav proof.
+**Status:** Redis-backed fail-closed Agent Runtime idempotency is **production-proven** on SHA `3fe74095` (Pranav-only). See `DISTRIBUTED_IDEMPOTENCY_PRODUCTION_PROOF.md`.
 
 **Why:** billing `idempotency.seen_before_sync` is Redis-primary with **memory fail-open**.
 When Redis blips, workers execute duplicates; process memory is invisible cross-process.
@@ -62,6 +62,6 @@ claim · (optional running update) · terminal complete · duplicate lookup. No 
 
 Revert deploy to prior SHA; memory fail-open returns only if old image restored.
 
-## Production proof (NOT executed here)
+## Production proof
 
-Pranav-only concurrent duplicate + restart survival + exact-key TTL after owner auth.
+Executed 2026-07-22 on deployed SHA `3fe74095` (Pranav-only). Concurrent APP+WORKER: 1 engine success + 1 `duplicate_in_progress`; restart survival `duplicate_suppressed`. Full evidence: `DISTRIBUTED_IDEMPOTENCY_PRODUCTION_PROOF.md`.
