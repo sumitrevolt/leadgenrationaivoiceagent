@@ -432,7 +432,30 @@ async def owner_runtime_run(
             "task_id": result.task_id,
         },
     )
-    return {"ok": result.status == "succeeded", "result": result.to_dict()}
+    out: dict[str, Any] = {
+        "ok": result.status == "succeeded",
+        "result": result.to_dict(),
+        "agent_id": body.agent_id,
+        "capability": body.action,
+        "status": result.status,
+        "reason_code": result.reason or "",
+    }
+    # Durable duplicate / store-unavailable projection (no fabricated IDs)
+    try:
+        from app.platform import agent_runtime_idempotency as arid
+
+        out["idempotency_backend"] = arid.backend_status().get("idempotency_backend")
+        out["fallback_active"] = arid.backend_status().get("fallback_active")
+    except Exception:
+        out["idempotency_backend"] = "unknown"
+        out["fallback_active"] = True
+    if result.reason in ("duplicate_suppressed", "duplicate_in_progress") and isinstance(
+        result.output, dict
+    ):
+        out["original_run_id"] = result.output.get("original_run_id")
+        out["original_status"] = result.output.get("original_status")
+        out["result_reference"] = result.output.get("result_digest")
+    return out
 
 
 @router.get("/training")
