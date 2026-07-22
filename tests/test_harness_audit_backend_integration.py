@@ -36,9 +36,25 @@ def _redis_available() -> bool:
         return False
 
 
+# In required mode (CI) a missing/unhealthy Redis is a HARD FAILURE, never a skip.
+_REQUIRE_REDIS = (os.getenv("HARNESS_REQUIRE_REDIS") or "").strip() == "1"
+_REDIS_UP = _redis_available()
+
 pytestmark = pytest.mark.skipif(
-    not _redis_available(), reason="no live Redis (set HARNESS_TEST_REDIS_URL)"
+    not _REDIS_UP and not _REQUIRE_REDIS,
+    reason="no live Redis (set HARNESS_TEST_REDIS_URL); skipping only when not required",
 )
+
+
+def test_required_redis_must_be_reachable():
+    """When HARNESS_REQUIRE_REDIS=1 (mandatory CI), the suite must NOT skip: a
+    missing or unhealthy Redis fails here so a skipped real-Redis suite can never
+    masquerade as success."""
+    if _REQUIRE_REDIS:
+        assert _REDIS_UP, f"HARNESS_REQUIRE_REDIS=1 but Redis unreachable at {REDIS_URL}"
+        # AOF durability must be active for a durable-audit claim.
+        cfg = _client().config_get("appendonly")
+        assert cfg.get("appendonly") == "yes", f"Redis AOF not enabled: {cfg}"
 
 
 @pytest.fixture(autouse=True)
