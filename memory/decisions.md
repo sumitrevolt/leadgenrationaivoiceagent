@@ -2169,3 +2169,17 @@ Consequence: Contaminated numbers get VOID after deploy (ops plan); next real in
 **Rejected/NOT done:** naya enforcement enable, batch canary rerun, real-provider LLM call for proof, deploy/commit/push/PR, unsafe tool GREEN, staff_supervisor gap chhupana.
 
 **Consequence:** Sab 5 families shadow + structured-contract + registry-backed (real proof). **Overall: NOT READY FOR GLOBAL ENFORCEMENT** (no prod persistence/multi-worker-idempotency/monitoring/prod-sandbox/prod-canary). Local implementation coherent + testable (470 tests green) → PR-ready. Batch = only enforcement-prepared family (C4 local, canary done+rolled back; no standing authorization). STAFF=31; Kavach non-dispatchable; Owner OS sole authority; calling+platform_dial+CODE_EXEC HARD OFF; all enforcement OFF. Kuch commit/push/deploy nahi; `.env`/VPS untouched. Next: accumulated harness implementation ko reviewable isolated commit/PR ke liye prepare karo.
+
+
+## ADR-138 (2026-07-22) - registry manifest hash made DETERMINISTIC (canonical serialization); a20e2ede/697b56f were non-deterministic fingerprints [fix, no policy change]
+**Context:** Owner-side VPS proof found `registry.manifest_hash()` non-deterministic - the same 5-tool registry produced different hashes across processes (observed `a20e2ede196c30ae` and `697b56f06ed35102`). Root cause: `ToolDefinition.model_dump` serialized `frozenset` fields (allowed_agents, allowed_tenant_scopes) to iteration-order-dependent lists; JSON `sort_keys` sorts dict keys only, not array elements, so PYTHONHASHSEED randomization reordered the arrays -> different SHA. This undermined the manifest as a conformance fingerprint.
+
+**Decision:** Add recursive `canonicalize_manifest_value()` (registry.py): set/frozenset -> deterministically sorted arrays; dict keys sorted; list/tuple order PRESERVED (JSON-Schema `required` may be semantically ordered); enum -> value; unsupported leaf types fail loud (no repr()/object-hash fallback). `manifest_hash()` now dumps `mode="python"` (sets survive) -> canonicalize -> stable JSON (`sort_keys`, `separators=(",",":")`, `ensure_ascii=False`, `allow_nan=False`) -> sha256[:16]. Registration order already independent (sorted keys). Digest family + visible length unchanged.
+
+**New canonical hash:** `1d3b83331cf303e2` - identical across PYTHONHASHSEED {0,1,2,3,42,1000,random}, processes and containers. `a20e2ede196c30ae` and `697b56f06ed35102` are HISTORICAL non-deterministic fingerprints, not authoritative post-fix values.
+
+**Unchanged (no policy drift):** 5 tools; nikhil AMBER/approval, rohan AMBER, dev GREEN/read-only, dag GREEN/NONE, batch GREEN/READ_ONLY; harness mode OFF by default; STAFF=31; CODE_EXEC=0. No enforcement, no tool add/remove, no schema semantic change.
+
+**Tests:** `tests/test_harness_manifest_determinism.py` (38) - cross-process/multi-seed determinism, collection-order independence, ordered-list preservation, semantic drift (name/version/risk/authority/agents/tenants/schema/side-effect/enabled), golden conformance, serialization safety (allow_nan/unicode/None/enum/no-callable exposure).
+
+**Consequence:** manifest is now a stable change/conformance fingerprint. Fix-only; no runtime activation, no enforcement, isolated (registry.py + tests + docs). Deploy of the merged SHA installs code only; all harness flags remain OFF.
