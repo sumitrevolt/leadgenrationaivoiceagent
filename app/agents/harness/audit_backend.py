@@ -1,31 +1,35 @@
 """Durable, multi-worker-safe harness audit + shadow-dedup backend.
 
-INERT BY DEFAULT. The backend is selected by ``HARNESS_AUDIT_BACKEND`` (default
-``"jsonl"``). With the default, behaviour is byte-identical to the historical
-append-only JSONL sink (single process; no cross-worker dedup) — production is
-unchanged until an operator explicitly sets ``HARNESS_AUDIT_BACKEND=redis``.
+INERT BY DEFAULT. Selected by ``HARNESS_AUDIT_BACKEND`` (default ``"jsonl"``):
+with the default, behaviour is byte-identical to the historical append-only JSONL
+sink — production is unchanged until an operator explicitly sets ``redis``.
 
-Backends
---------
-* ``jsonl`` (default): append-only file at ``HARNESS_RUN_LOG``. No record-layer
-  dedup (identical to today). Intended for dev/test and the current production
-  baseline. NOT multi-worker-safe.
-* ``redis``: **atomic** first-observer-wins dedup + durable append in a SINGLE
-  Redis Lua script (claim and ``XADD`` never split across two round trips). The
-  dedup value stores the stream event id AND a compact immutable envelope, so a
-  duplicate replay is always resolvable even if the stream later trims (ADR-139,
-  Option A). All keys share one hash slot (``{audit}``) so the script is
-  cluster-safe. Multi-worker- and restart-safe. This is the production-grade path.
+Persistence model (redis) — ONE authoritative all-or-nothing write
+------------------------------------------------------------------
+Each observation is a single immutable **record key** created with
+``SET harness:{audit}:record:<sha256> <value> NX GET PX <retention>``. That one
+command is simultaneously the durable audit record, the first-observer claim, the
+duplicate identity, and the replay envelope:
 
-Fail-closed (production honesty)
---------------------------------
-When ``HARNESS_AUDIT_BACKEND=redis`` and Redis is unavailable, an observation
-FAILS CLOSED: no record is written, an operational error is emitted, and the
-backend NEVER silently falls back to process-local dedup or the local file.
-The trade-off is explicit — we drop *evidence* rather than *claim dedup safety
-we cannot provide*. This dedups the audit/shadow EVIDENCE only; it makes no
-claim about exactly-once BUSINESS execution (the legacy path stays authoritative
-and is never re-run or altered by the audit layer).
+* returns nil  → the record was created (first observer);
+* returns old  → a duplicate; the returned value IS the existing record;
+* raises        → nothing was created (fail closed).
+
+No second structure is required to establish evidence durability, so a partial
+commit is impossible. The Redis **Stream** and **metrics** hash are
+NON-authoritative derived indexes updated best-effort AFTER the authoritative
+write; if they fail, the audit evidence still exists, status reports index lag,
+and an idempotent reconciler can rebuild them from the authoritative records.
+
+Retention: the record's TTL is also its dedup lifetime (one key), so "dedup
+exists but record missing" and "record exists but dedup missing" are impossible.
+After retention expiry a replay legitimately becomes a new observation.
+
+Fail-closed: in ``redis`` mode an unreachable/errored Redis drops the observation
+and emits an operational error; it NEVER silently falls back to process-local
+dedup or the file. An invalid ``HARNESS_AUDIT_BACKEND`` value is unhealthy and
+writes nothing — never silently coerced to jsonl. This dedups the audit/shadow
+EVIDENCE only; it makes no claim of exactly-once BUSINESS execution.
 
 Never stored: credentials, raw customer payloads, private message bodies, full
 environment variables, or unbounded model output (size-capped + key-filtered).
@@ -49,42 +53,13 @@ except Exception:  # pragma: no cover
     logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
-# Configuration (all env-driven; safe defaults keep the backend inert).
+# Keys (single hash slot "{audit}" -> cluster-safe; only bounded hashes in names)
 # --------------------------------------------------------------------------- #
 _DEFAULT_BACKEND = "jsonl"
-# All keys share one hash slot ("{audit}") so the atomic Lua script is safe on a
-# Redis Cluster. Only bounded hashes appear in key names — never raw tenant,
-# agent, tool, or payload values.
-_STREAM_KEY = "harness:{audit}:events"
-_COUNTS_KEY = "harness:{audit}:metrics"
-_DEDUP_PREFIX = "harness:{audit}:dedup:"
-
-# Atomic claim + append. KEYS: dedup, stream, metrics.
-# ARGV: event_json, envelope_json, ttl_ms, maxlen, family, mode.
-# Returns {"CREATED"|"DUPLICATE", <dedup_value_json>}. Because the whole body runs
-# atomically inside Redis, an XADD failure aborts before the dedup key is set, and
-# a client timeout after commit is safe (retry finds the dedup key -> DUPLICATE
-# with the original event id). Never two independent round trips.
-_ATOMIC_LUA = """
-local existing = redis.call('GET', KEYS[1])
-if existing then
-  redis.call('HINCRBY', KEYS[3], 'duplicates_suppressed', 1)
-  return {'DUPLICATE', existing}
-end
-local maxlen = tonumber(ARGV[4])
-local id
-if maxlen and maxlen > 0 then
-  id = redis.call('XADD', KEYS[2], 'MAXLEN', '~', maxlen, '*', 'e', ARGV[1])
-else
-  id = redis.call('XADD', KEYS[2], '*', 'e', ARGV[1])
-end
-local val = '{"event_id":"' .. id .. '","envelope":' .. ARGV[2] .. '}'
-redis.call('SET', KEYS[1], val, 'PX', tonumber(ARGV[3]))
-redis.call('HINCRBY', KEYS[3], 'records_created', 1)
-redis.call('HINCRBY', KEYS[3], 'family:' .. ARGV[5], 1)
-redis.call('HINCRBY', KEYS[3], 'mode:' .. ARGV[6], 1)
-return {'CREATED', val}
-"""
+_RECORD_PREFIX = "harness:{audit}:record:"  # authoritative immutable records
+_STREAM_KEY = "harness:{audit}:events"  # DERIVED, non-authoritative index
+_METRICS_KEY = "harness:{audit}:metrics"  # DERIVED, best-effort counters
+_MIGRATION_PREFIX = "harness:{audit}:migration:"  # migration idempotency markers
 
 
 def _env(name: str, default: str) -> str:
@@ -98,22 +73,37 @@ def _int_env(name: str, default: int) -> int:
         return default
 
 
+def resolve_backend_config() -> dict[str, Any]:
+    """Strict resolution. Unset/empty or 'jsonl' -> jsonl (valid); 'redis' -> redis
+    (valid); ANY other explicit value -> invalid (unhealthy, no write, no silent
+    fallback). A typo like 'redi'/'postgres' never becomes jsonl."""
+    raw = os.getenv("HARNESS_AUDIT_BACKEND")
+    # STRICT exact matching: unset/empty -> jsonl; exactly "jsonl"/"redis" -> that
+    # backend; ANY other explicit value (typo, trailing space, wrong case) -> invalid.
+    if raw is None or raw == "":
+        resolved, valid = "jsonl", True
+    elif raw == "jsonl":
+        resolved, valid = "jsonl", True
+    elif raw == "redis":
+        resolved, valid = "redis", True
+    else:
+        resolved, valid = "invalid", False
+    return {"configured_value": raw, "resolved_backend": resolved, "configuration_valid": valid}
+
+
 def backend_name() -> str:
-    """Selected backend id: 'jsonl' (default) or 'redis'. Read at call time."""
-    v = _env("HARNESS_AUDIT_BACKEND", _DEFAULT_BACKEND).lower()
-    return v if v in ("jsonl", "redis") else _DEFAULT_BACKEND
+    """Resolved backend id: 'jsonl' | 'redis' | 'invalid'. Read at call time."""
+    return resolve_backend_config()["resolved_backend"]
 
 
-def dedup_ttl_s() -> int:
-    # Dedup claim lifetime. Must exceed the operational review window so a late
-    # duplicate observation across a restart still resolves consistently.
-    return _int_env("HARNESS_DEDUP_TTL_S", 14 * 24 * 3600)  # 14 days
+def audit_retention_s() -> int:
+    # Authoritative record lifetime == dedup lifetime. >= 90 days (or a longer
+    # approved compliance window). NOT a short 14-day dedup TTL.
+    return _int_env("HARNESS_AUDIT_RETENTION_S", 90 * 24 * 3600)
 
 
 def stream_maxlen() -> int:
-    # Approximate retention bound for the durable audit stream (capacity guard,
-    # not the primary retention control). 0 disables trimming.
-    return _int_env("HARNESS_AUDIT_MAXLEN", 1_000_000)
+    return _int_env("HARNESS_AUDIT_STREAM_MAXLEN", 1_000_000)
 
 
 def max_event_bytes() -> int:
@@ -121,13 +111,12 @@ def max_event_bytes() -> int:
 
 
 class AuditBackendUnavailable(RuntimeError):
-    """Raised internally when a durable backend cannot service a request.
-    Callers turn this into a fail-closed dropped observation + operational error;
-    it is never raised into the legacy business path."""
+    """Durable backend could not service a request. Callers turn this into a
+    fail-closed dropped observation + operational error; never raised into legacy."""
 
 
 # --------------------------------------------------------------------------- #
-# Sanitisation + dedup-key derivation (shared by all backends).
+# Sanitisation + identity derivation (shared).
 # --------------------------------------------------------------------------- #
 _FORBIDDEN_SUBSTRINGS = (
     "password",
@@ -143,15 +132,13 @@ _FORBIDDEN_SUBSTRINGS = (
 
 
 def _scrub(obj: Any, depth: int = 0) -> Any:
-    """Best-effort structural scrub: drop forbidden-looking keys, bound strings.
-    The observe() layer already redacts; this is defence-in-depth at the sink."""
+    """Defence-in-depth scrub: drop forbidden-looking keys, bound strings."""
     if depth > 6:
         return "<max-depth>"
     if isinstance(obj, dict):
         out = {}
         for k, v in obj.items():
-            lk = str(k).lower()
-            if any(s in lk for s in _FORBIDDEN_SUBSTRINGS):
+            if any(s in str(k).lower() for s in _FORBIDDEN_SUBSTRINGS):
                 out[k] = "<redacted>"
             else:
                 out[k] = _scrub(v, depth + 1)
@@ -164,14 +151,13 @@ def _scrub(obj: Any, depth: int = 0) -> Any:
 
 
 def enforce_size(row: dict[str, Any]) -> dict[str, Any]:
-    """Return a size-bounded copy. Oversized rows get their heaviest field
-    (extra.legacy_result_summary) truncated, then the whole row hard-capped."""
+    """Return a scrubbed, size-bounded copy (heavy summary truncated, then hard cap)."""
     row = _scrub(row)
+    cap = max_event_bytes()
     try:
         blob = json.dumps(row, ensure_ascii=False, default=str)
     except Exception:
         blob = "{}"
-    cap = max_event_bytes()
     if len(blob.encode("utf-8")) <= cap:
         return row
     ex = row.get("extra")
@@ -179,10 +165,7 @@ def enforce_size(row: dict[str, Any]) -> dict[str, Any]:
         ex = dict(ex)
         ex["legacy_result_summary"] = str(ex.get("legacy_result_summary"))[:512] + "…<truncated>"
         row = {**row, "extra": ex, "_size_truncated": True}
-    blob = json.dumps(row, ensure_ascii=False, default=str)
-    if len(blob.encode("utf-8")) > cap:
-        # Last resort: keep only bounded identity fields (never lose the fact
-        # that an event happened; drop the heavy payload).
+    if len(json.dumps(row, ensure_ascii=False, default=str).encode("utf-8")) > cap:
         ex = row.get("extra") or {}
         row = {
             "ts": row.get("ts"),
@@ -202,12 +185,16 @@ def enforce_size(row: dict[str, Any]) -> dict[str, Any]:
     return row
 
 
-def derive_dedup_key(row: dict[str, Any]) -> str:
-    """Deterministic evidence-dedup key. Same logical observation (across
-    processes/containers/restarts) resolves to one key; different attempts and
-    different legitimate events stay distinct."""
+def derive_dedup_key(row: dict[str, Any], source_app_version: Optional[str] = None) -> str:
+    """Deterministic evidence identity. Live observations bind the CURRENT runtime
+    SHA (APP_VERSION/GIT_SHA); a migration passes an explicit validated
+    ``source_app_version`` so historical events keep their original provenance and
+    are NOT re-identified under the migrating process's SHA."""
     ex = row.get("extra") or {}
-    prod_sha = _env("APP_VERSION", "") or _env("GIT_SHA", "")
+    if source_app_version is not None:
+        prod_sha = str(source_app_version)
+    else:
+        prod_sha = _env("APP_VERSION", "") or _env("GIT_SHA", "")
     node_or_item = (
         ex.get("node_id")
         or ex.get("item_id")
@@ -227,8 +214,6 @@ def derive_dedup_key(row: dict[str, Any]) -> str:
         str(ex.get("attempt") if ex.get("attempt") is not None else ""),
         str(row.get("kind") or ""),
     ]
-    # If we have no discriminating context at all, fall back to a hash of the
-    # whole row so distinct rows are never collapsed into one dedup bucket.
     if not any(parts[1:8]):
         parts.append(
             hashlib.sha256(json.dumps(row, sort_keys=True, default=str).encode()).hexdigest()
@@ -237,9 +222,7 @@ def derive_dedup_key(row: dict[str, Any]) -> str:
 
 
 def derive_envelope(row: dict[str, Any]) -> dict[str, Any]:
-    """Compact, immutable identity+verdict envelope stored in the dedup value so a
-    duplicate replay is resolvable even if the durable stream later trims (ADR-139
-    Option A). Bounded and secret-free by construction."""
+    """Compact identity+verdict envelope (bounded, secret-free)."""
     ex = row.get("extra") or {}
     return {
         "ts": row.get("ts"),
@@ -258,31 +241,40 @@ def derive_envelope(row: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def build_record(
+    row: dict[str, Any], dedup_key: str, source_app_version: str, created_at: Optional[float] = None
+) -> dict[str, Any]:
+    """The authoritative record value: durable audit record + replay envelope +
+    explicit provenance. ``event_id`` is deterministic (== dedup_key) so retries
+    resolve identically."""
+    return {
+        "event_id": dedup_key,
+        "event": enforce_size(row),
+        "envelope": derive_envelope(row),
+        "source_app_version": source_app_version,
+        "created_at": created_at if created_at is not None else round(time.time(), 3),
+    }
+
+
 # --------------------------------------------------------------------------- #
-# Backend interface + implementations.
+# Backends.
 # --------------------------------------------------------------------------- #
 class AuditBackend:
-    """A durable audit sink with an ATOMIC evidence-dedup + append operation."""
-
     name = "base"
 
     def record(self, row: dict[str, Any], dedup_key: str) -> dict[str, Any]:
-        """Atomically dedup + append one row. Returns
-        {"written": bool, "duplicate": bool, "event_id": str|None}.
-        Raises AuditBackendUnavailable on a durable-backend failure."""
-        raise NotImplementedError  # pragma: no cover - interface
+        raise NotImplementedError  # pragma: no cover
 
-    def counts(self) -> dict[str, Any]:  # pragma: no cover - interface
-        raise NotImplementedError
+    def counts(self) -> dict[str, Any]:
+        raise NotImplementedError  # pragma: no cover
 
-    def health(self) -> dict[str, Any]:  # pragma: no cover - interface
-        raise NotImplementedError
+    def health(self) -> dict[str, Any]:
+        raise NotImplementedError  # pragma: no cover
 
 
 class JsonlBackend(AuditBackend):
-    """Legacy append-only file sink. Process-local (NOT multi-worker-safe).
-    ``claim`` always accepts — record-layer dedup is intentionally OFF here so
-    behaviour is byte-identical to the historical production baseline."""
+    """Legacy append-only file sink. Process-local (NOT multi-worker-safe). No
+    record-layer dedup (byte-identical to the historical production baseline)."""
 
     name = "jsonl"
 
@@ -290,8 +282,6 @@ class JsonlBackend(AuditBackend):
         self._path = path or os.getenv("HARNESS_RUN_LOG", "data/harness_runs.jsonl")
 
     def record(self, row: dict[str, Any], dedup_key: str) -> dict[str, Any]:
-        # No record-layer dedup in jsonl mode (byte-identical to the historical
-        # baseline). dedup_key is accepted for interface parity but unused.
         os.makedirs(os.path.dirname(self._path) or ".", exist_ok=True)
         with open(self._path, "a", encoding="utf-8") as f:
             f.write(json.dumps(row, ensure_ascii=False) + "\n")
@@ -336,7 +326,42 @@ class JsonlBackend(AuditBackend):
         }
 
     def health(self) -> dict[str, Any]:
-        return {"backend": self.name, "healthy": True, "fallback_active": True}
+        return {
+            "backend": self.name,
+            "healthy": True,
+            "selected_intentionally": True,
+            "fallback_active": False,
+            "durable": False,
+            "multi_worker_safe": False,
+            "configuration_valid": True,
+        }
+
+
+class InvalidBackend(AuditBackend):
+    """An explicitly invalid HARNESS_AUDIT_BACKEND value. Unhealthy; every write
+    fails closed. NEVER coerced to jsonl."""
+
+    name = "invalid"
+
+    def __init__(self, configured_value: Optional[str]) -> None:
+        self._configured = configured_value
+
+    def record(self, row: dict[str, Any], dedup_key: str) -> dict[str, Any]:
+        raise AuditBackendUnavailable(f"invalid HARNESS_AUDIT_BACKEND={self._configured!r}")
+
+    def counts(self) -> dict[str, Any]:
+        return {"backend": self.name, "total": None, "error": "invalid backend configuration"}
+
+    def health(self) -> dict[str, Any]:
+        return {
+            "backend": self.name,
+            "healthy": False,
+            "configuration_valid": False,
+            "configured_value": self._configured,
+            "fallback_active": False,
+            "durable": False,
+            "multi_worker_safe": False,
+        }
 
 
 def _to_str(x: Any) -> str:
@@ -344,10 +369,8 @@ def _to_str(x: Any) -> str:
 
 
 class RedisBackend(AuditBackend):
-    """ATOMIC dedup + durable append via a single Redis Lua script, over a durable
-    Redis Stream audit-of-record. Multi-worker- and restart-safe. Fails closed when
-    Redis is unreachable — never a two-round-trip claim/append that could leave a
-    dedup key without a durable event."""
+    """Authoritative single-write model: ``SET record NX GET PX``. All-or-nothing.
+    Stream + metrics are derived best-effort indexes (never determine existence)."""
 
     name = "redis"
 
@@ -356,97 +379,69 @@ class RedisBackend(AuditBackend):
             raise AuditBackendUnavailable("no redis client")
         self._r = client
 
-    def record(self, row: dict[str, Any], dedup_key: str) -> dict[str, Any]:
-        key = _DEDUP_PREFIX + dedup_key
+    def record(
+        self,
+        row: dict[str, Any],
+        dedup_key: str,
+        source_app_version: Optional[str] = None,
+        created_at: Optional[float] = None,
+    ) -> dict[str, Any]:
+        rec_key = _RECORD_PREFIX + dedup_key
+        sav = (
+            source_app_version
+            if source_app_version is not None
+            else (_env("APP_VERSION", "") or _env("GIT_SHA", ""))
+        )
+        record_val = build_record(row, dedup_key, sav, created_at)
+        val_json = json.dumps(record_val, ensure_ascii=False, default=str)
+        # ---- THE authoritative all-or-nothing write ----
+        try:
+            prev = self._r.set(rec_key, val_json, nx=True, get=True, px=audit_retention_s() * 1000)
+        except Exception as e:  # nothing created -> fail closed
+            self._note("script_errors")
+            raise AuditBackendUnavailable(f"authoritative record write failed: {e}") from e
+        if prev is not None:  # duplicate: the returned value IS the existing record
+            self._note("duplicates_suppressed")
+            existing_id = dedup_key
+            try:
+                existing_id = json.loads(_to_str(prev)).get("event_id", dedup_key)
+            except Exception:
+                pass
+            return {"written": False, "duplicate": True, "event_id": existing_id}
+        # created -> best-effort DERIVED index (must never affect the record)
+        self._index_best_effort(row, dedup_key, val_json)
+        return {"written": True, "duplicate": False, "event_id": dedup_key}
+
+    def _index_best_effort(self, row: dict[str, Any], dedup_key: str, val_json: str) -> None:
         ex = row.get("extra") or {}
         fam = str(ex.get("source_loop") or row.get("kind") or "unknown")
         mode = str(ex.get("mode") or row.get("kind") or "unknown")
-        event_json = json.dumps(row, ensure_ascii=False, default=str)
-        envelope_json = json.dumps(derive_envelope(row), ensure_ascii=False, default=str)
         try:
-            # nosecurity: Redis server-side Lua EVAL (not Python eval/exec); the
-            # script text is a fixed module constant, never user/model input.
-            res = self._r.eval(  # nosecurity
-                _ATOMIC_LUA,
-                3,
-                key,
-                _STREAM_KEY,
-                _COUNTS_KEY,
-                event_json,
-                envelope_json,
-                str(dedup_ttl_s() * 1000),
-                str(stream_maxlen()),
-                fam,
-                mode,
-            )
-        except Exception as e:  # backend/script failure -> fail closed
-            try:
-                self._r.hincrby(_COUNTS_KEY, "script_errors", 1)
-            except Exception:
-                pass
-            raise AuditBackendUnavailable(f"atomic record failed: {e}") from e
-        status = _to_str(res[0]) if res and len(res) > 0 else ""
-        val = _to_str(res[1]) if res and len(res) > 1 else ""
-        event_id = None
+            ml = stream_maxlen()
+            if ml and ml > 0:
+                self._r.xadd(_STREAM_KEY, {"rk": dedup_key}, maxlen=ml, approximate=True)
+            else:
+                self._r.xadd(_STREAM_KEY, {"rk": dedup_key})
+            self._r.hincrby(_METRICS_KEY, "records_created", 1)
+            self._r.hincrby(_METRICS_KEY, f"family:{fam}", 1)
+            self._r.hincrby(_METRICS_KEY, f"mode:{mode}", 1)
+        except Exception as e:  # index lag is recoverable; the record already exists
+            logger.warning("harness.audit: derived index update lagged (record durable): %s", e)
+            self._note("index_errors")
+
+    def _note(self, field: str) -> None:
         try:
-            event_id = json.loads(val).get("event_id")
+            self._r.hincrby(_METRICS_KEY, field, 1)
         except Exception:
             pass
-        if status == "DUPLICATE":
-            return {"written": False, "duplicate": True, "event_id": event_id}
-        return {"written": True, "duplicate": False, "event_id": event_id}
 
     def note_error(self) -> None:
-        try:
-            self._r.hincrby(_COUNTS_KEY, "backend_errors", 1)
-        except Exception:
-            pass
+        self._note("backend_errors")
 
-    def note_oversize(self) -> None:
-        try:
-            self._r.hincrby(_COUNTS_KEY, "oversize_rejections", 1)
-        except Exception:
-            pass
-
-    def counts(self) -> dict[str, Any]:
-        try:
-            raw = self._r.hgetall(_COUNTS_KEY) or {}
-            h = {_to_str(k): int(_to_str(v)) for k, v in raw.items()}
-            by_family = {k[7:]: v for k, v in h.items() if k.startswith("family:")}
-            by_mode = {k[5:]: v for k, v in h.items() if k.startswith("mode:")}
-            oldest = newest = None
-            try:
-                first = self._r.xrange(_STREAM_KEY, count=1)
-                last = self._r.xrevrange(_STREAM_KEY, count=1)
-                if first:
-                    oldest = _to_str(first[0][0])
-                if last:
-                    newest = _to_str(last[0][0])
-            except Exception:
-                pass
-            return {
-                "backend": self.name,
-                "total": h.get("records_created", 0),
-                "records_created": h.get("records_created", 0),
-                "duplicates_suppressed": h.get("duplicates_suppressed", 0),
-                "backend_errors": h.get("backend_errors", 0),
-                "script_errors": h.get("script_errors", 0),
-                "oversize_rejections": h.get("oversize_rejections", 0),
-                "stream_length": self._safe_xlen(),
-                "dedup_keys_active": self._dedup_keys_active(),
-                "by_family": by_family,
-                "by_mode": by_mode,
-                "oldest_event_id": oldest,
-                "newest_event_id": newest,
-            }
-        except Exception as e:
-            raise AuditBackendUnavailable(f"counts failed: {e}") from e
-
-    def _dedup_keys_active(self, cap: int = 100_000) -> int:
-        """Bounded count of live dedup keys (capped; approximate on large sets)."""
+    def _record_key_count(self, cap: int = 1_000_000) -> int:
         try:
             n = 0
-            for _ in self._r.scan_iter(match=_DEDUP_PREFIX + "*", count=1000):
+            for _ in self._r.scan_iter(match=_RECORD_PREFIX + "*", count=1000):
                 n += 1
                 if n >= cap:
                     break
@@ -454,22 +449,117 @@ class RedisBackend(AuditBackend):
         except Exception:
             return -1
 
+    def counts(self) -> dict[str, Any]:
+        try:
+            raw = self._r.hgetall(_METRICS_KEY) or {}
+            h = {_to_str(k): int(_to_str(v)) for k, v in raw.items()}
+            by_family = {k[7:]: v for k, v in h.items() if k.startswith("family:")}
+            by_mode = {k[5:]: v for k, v in h.items() if k.startswith("mode:")}
+            authoritative = self._record_key_count()
+            derived = h.get("records_created", 0)
+            return {
+                "backend": self.name,
+                "total": authoritative,  # AUTHORITATIVE record-key count
+                "authoritative_records": authoritative,
+                "derived_records_created": derived,  # from the best-effort index
+                "index_lag": (authoritative - derived) if authoritative >= 0 else None,
+                "duplicates_suppressed": h.get("duplicates_suppressed", 0),
+                "backend_errors": h.get("backend_errors", 0),
+                "script_errors": h.get("script_errors", 0),
+                "index_errors": h.get("index_errors", 0),
+                "oversize_rejections": h.get("oversize_rejections", 0),
+                "stream_length": self._safe_xlen(),
+                "by_family": by_family,
+                "by_mode": by_mode,
+            }
+        except Exception as e:
+            raise AuditBackendUnavailable(f"counts failed: {e}") from e
+
     def _safe_xlen(self) -> int:
         try:
             return int(self._r.xlen(_STREAM_KEY))
         except Exception:
             return -1
 
+    def reconcile(self, dry_run: bool = True, cap: int = 1_000_000) -> dict[str, Any]:
+        """Idempotently rebuild derived stream/metrics from authoritative records.
+        Never modifies authoritative records; never creates duplicate index entries."""
+        seen_stream = set()
+        try:
+            for _id, fields in self._r.xrange(_STREAM_KEY):
+                rk = fields.get(b"rk") or fields.get("rk")
+                if rk is not None:
+                    seen_stream.add(_to_str(rk))
+        except Exception:
+            pass
+        missing = []
+        fam_counts: dict[str, int] = {}
+        mode_counts: dict[str, int] = {}
+        total = 0
+        try:
+            for key in self._r.scan_iter(match=_RECORD_PREFIX + "*", count=1000):
+                total += 1
+                if total > cap:
+                    break
+                kstr = _to_str(key)
+                dk = kstr[len(_RECORD_PREFIX) :]
+                try:
+                    rec = json.loads(_to_str(self._r.get(kstr)))
+                    env = rec.get("envelope") or {}
+                    fam = str(env.get("source_loop") or env.get("kind") or "unknown")
+                    mode = str(env.get("mode") or env.get("kind") or "unknown")
+                except Exception:
+                    fam = mode = "unknown"
+                fam_counts[fam] = fam_counts.get(fam, 0) + 1
+                mode_counts[mode] = mode_counts.get(mode, 0) + 1
+                if dk not in seen_stream:
+                    missing.append(dk)
+        except Exception as e:
+            raise AuditBackendUnavailable(f"reconcile scan failed: {e}") from e
+        if not dry_run:
+            for dk in missing:
+                try:
+                    self._r.xadd(_STREAM_KEY, {"rk": dk}, maxlen=stream_maxlen(), approximate=True)
+                except Exception:
+                    pass
+            try:
+                self._r.delete(_METRICS_KEY)
+                self._r.hset(_METRICS_KEY, "records_created", total)
+                for f, c in fam_counts.items():
+                    self._r.hset(_METRICS_KEY, f"family:{f}", c)
+                for m, c in mode_counts.items():
+                    self._r.hset(_METRICS_KEY, f"mode:{m}", c)
+            except Exception:
+                pass
+        return {
+            "dry_run": dry_run,
+            "authoritative_records": total,
+            "missing_stream_entries": len(missing),
+            "by_family": fam_counts,
+            "by_mode": mode_counts,
+        }
+
     def health(self) -> dict[str, Any]:
         try:
             self._r.ping()
-            return {"backend": self.name, "healthy": True, "fallback_active": False}
+            return {
+                "backend": self.name,
+                "healthy": True,
+                "selected_intentionally": True,
+                "fallback_active": False,
+                "durable": True,
+                "multi_worker_safe": True,
+                "configuration_valid": True,
+            }
         except Exception as e:
             return {
                 "backend": self.name,
                 "healthy": False,
                 "error": str(e)[:120],
                 "fallback_active": False,
+                "durable": True,
+                "multi_worker_safe": True,
+                "configuration_valid": True,
             }
 
 
@@ -492,29 +582,28 @@ def _get_redis_client() -> Any:
 
 
 def get_backend(*, client: Any = None) -> AuditBackend:
-    """Construct the selected backend. ``client`` may be injected for tests.
-    In redis mode with no reachable client, raises AuditBackendUnavailable —
-    production must never silently fall back to the process-local file."""
-    name = backend_name()
-    if name == "redis":
+    """Construct the selected backend. Strict: invalid config -> InvalidBackend
+    (fail-closed). redis with no reachable client -> AuditBackendUnavailable.
+    NEVER silently falls back to jsonl for redis/invalid."""
+    cfg = resolve_backend_config()
+    resolved = cfg["resolved_backend"]
+    if resolved == "invalid":
+        return InvalidBackend(cfg["configured_value"])
+    if resolved == "redis":
         return RedisBackend(client if client is not None else _get_redis_client())
     return JsonlBackend()
 
 
 def write(row: dict[str, Any], *, backend: Optional[AuditBackend] = None) -> dict[str, Any]:
-    """Atomic dedup + durable append for one audit row.
-
-    Returns a result dict: {"written": bool, "duplicate": bool, "event_id": str|None,
-    "backend": str, "error": str|None}. NEVER raises — a durable-backend failure
-    is reported as a fail-closed dropped observation (written=False, error set) so
-    the caller can emit an operational error without touching the legacy result.
-    """
+    """Atomic dedup + durable append for one audit row. NEVER raises — a durable
+    failure is reported as a fail-closed dropped observation (written=False, error
+    set) so the caller can emit an operational error without touching legacy."""
     dk = derive_dedup_key(row)  # derive BEFORE size-capping so identity is stable
     row = enforce_size(row)
     try:
         be = backend if backend is not None else get_backend()
     except AuditBackendUnavailable as e:
-        logger.error("harness.audit: backend unavailable (fail-closed, observation dropped): %s", e)
+        logger.error("harness.audit: backend unavailable (fail-closed, dropped): %s", e)
         return {
             "written": False,
             "duplicate": False,
@@ -523,7 +612,7 @@ def write(row: dict[str, Any], *, backend: Optional[AuditBackend] = None) -> dic
             "error": str(e),
         }
     try:
-        res = be.record(row, dk)  # atomic dedup + durable append (single op)
+        res = be.record(row, dk)
         return {
             "written": bool(res.get("written")),
             "duplicate": bool(res.get("duplicate")),
@@ -537,7 +626,7 @@ def write(row: dict[str, Any], *, backend: Optional[AuditBackend] = None) -> dic
                 be.note_error()  # type: ignore[attr-defined]
             except Exception:
                 pass
-        logger.error("harness.audit: durable write failed closed (observation dropped): %s", e)
+        logger.error("harness.audit: durable write failed closed (dropped): %s", e)
         return {
             "written": False,
             "duplicate": False,
@@ -549,11 +638,13 @@ def write(row: dict[str, Any], *, backend: Optional[AuditBackend] = None) -> dic
 
 def status() -> dict[str, Any]:
     """Read-only backend status for the harness status surface (no secrets)."""
-    name = backend_name()
+    cfg = resolve_backend_config()
     out: dict[str, Any] = {
-        "backend": name,
+        "backend": cfg["resolved_backend"],
+        "configured_value": cfg["configured_value"],
+        "configuration_valid": cfg["configuration_valid"],
         "app_version": _env("APP_VERSION", "") or _env("GIT_SHA", ""),
-        "dedup_ttl_s": dedup_ttl_s(),
+        "audit_retention_s": audit_retention_s(),
         "stream_maxlen": stream_maxlen(),
         "max_event_bytes": max_event_bytes(),
     }
@@ -563,10 +654,9 @@ def status() -> dict[str, Any]:
         out["counts"] = be.counts()
     except AuditBackendUnavailable as e:
         out["health"] = {
-            "backend": name,
+            "backend": cfg["resolved_backend"],
             "healthy": False,
             "error": str(e)[:120],
-            "fallback_active": False,
         }
         out["counts"] = None
     return out
