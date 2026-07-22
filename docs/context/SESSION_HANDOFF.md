@@ -1,47 +1,32 @@
 # SESSION_HANDOFF — overwrite every session end
 
 ## Session objective
-Finish PR #72 CI + reconcile production drift; stop before merge/deploy
-(no owner authorization for production action in active prompt).
+Owner-authorized merge + deploy + Pranav-only production proof for Redis distributed cancellation (PR #77).
 
-## PR #72
-- URL: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/72
-- Head: `676c51ad260377614b89bb2c28f7daf481029fdf`
-- Draft: yes · Mergeable: clean · Reviews: none
-- CI (latest HEAD): Lint, test, prod_check+pytest, Trivy repo, GitGuardian = **success**
-  (Trivy image scan skipped)
+## Outcome
+`COMPLETE — distributed-cancellation production closure only`
+Overall 31-agent mission remains **incomplete**.
 
-## Production drift
-| Layer | SHA |
-|---|---|
-| `/health` + running images | `7ce4d979…` |
-| `origin/main` | `10a3996a…` |
-| PR #72 head | `676c51a…` |
-| VPS git checkout HEAD | `0ff5d06c…` (stale vs image; surgical-deploy hygiene) |
+## Production
+- `/health` version: **`d4b248f5`**
+- Merge commit: `d4b248f5b32f5624af70eeaf2a673c23709ed11e`
+- Rollback unused: `a7410c2d`
+- Flags: **ALL workforce OFF** (verified app/worker/scheduler)
+- OpenClaw OFF · calling HARD OFF
+- Queues: celery=0, failed=0, dead=7 (unchanged)
+- `cancellation_backend: redis`, `fallback_active: false`
+- `cancellation_cross_process: production_proven`
 
-**Classification: `SAFE_BEHIND_DOCS_ONLY`**
-- Gap `7ce4d979..10a3996a` = PR #71 docs/memory only (3 files). Zero app/migrations/compose.
+## Proof highlights
+- Cross-process: APP → Redis → WORKER, run `art_xproc4693448` → cancelled, engine=0
+- Baseline Pranav `art_421cee206a6d` succeeded
+- VPS evidence: `/tmp/dist_cancel_prod_proof.jsonl`
+- Docs: `docs/agent_runtime/DISTRIBUTED_CANCELLATION_PRODUCTION_PROOF.md`
 
-## Prod flag snapshot (read-only inspect)
-- `APP_ENV=production`, `APP_VERSION=7ce4d979…`
-- `AGENT_RUNTIME=1`, `SRE_AGENT=1` already set on running app
-- `OPENCLAW` / `PLATFORM_DIAL` unset
-- Redis: celery=0, dlq:failed=0, **dlq:dead=7**
-- Alembic: `022_add_request_depth` (head)
-- RestartCount=0, healthy
+## Exact next action
+> Implement fail-closed Redis-backed distributed idempotency as a focused PR before authorizing a third production agent.
 
-**Important:** Prod image is **pre-PR#72**. Wave-B / workforce factory / Pranav
-`run_owned_workflow` **not** on prod yet. Existing flags only arm old 3-pilot
-runtime (kavya/isha/zara). Production Pranav workforce canary = **BLOCKED**
-until merge+deploy of reviewed main SHA + explicit owner auth.
-
-## Local proof (unchanged)
-Pranav real-engine canary in worktree — see `docs/agent_runtime/CANARY_LOCAL_PROOF.md`
-
-## Exact next (owner-gated)
-1. Human review PR #72 → `gh pr ready 72` → merge
-2. Deploy `origin/main` tip via `scripts/deploy_vps.sh` with `APP_VERSION=<full sha>`
-3. Disabled-state proof first, then single Pranav canary + Redis idempotency + rollback
-
-## Protected
-No merge, deploy, .env flip, Swara/voice, billing, customer data, primary dirty tree.
+## Do not
+- Enable third agent / Nikhil / leave Pranav ON
+- Change idempotency under this closed auth
+- Fix Jiya E2E in this stream
