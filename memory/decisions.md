@@ -2184,7 +2184,7 @@ Consequence: Contaminated numbers get VOID after deploy (ops plan); next real in
 
 **Consequence:** manifest is now a stable change/conformance fingerprint. Fix-only; no runtime activation, no enforcement, isolated (registry.py + tests + docs). Deploy of the merged SHA installs code only; all harness flags remain OFF.
 
-## ADR-139 (2026-07-22) — OpenClaw Daily Video Production Cell = REUSE video_ad_cycle [LOCAL Stage 0, flags OFF]
+## ADR-140 (2026-07-22) — OpenClaw Daily Video Production Cell = REUSE video_ad_cycle [LOCAL Stage 0, flags OFF]
 **Context:** Master prompt asked for multi-agent daily video production with customer WhatsApp approval loop + Postiz publish. Graphify already showed a strong path: `video_ad_cycle` + `video_pipeline` (FFmpeg) + `content_approval` + `postiz_publish` + harness registry. Inventing a 32nd persona / second social/WhatsApp stack was forbidden.
 
 **Decision — REUSE + EXTEND (not rewrite):**
