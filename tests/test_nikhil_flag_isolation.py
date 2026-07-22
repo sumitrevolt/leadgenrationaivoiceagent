@@ -29,7 +29,10 @@ def _iso(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_idem_seen", _seen)
     monkeypatch.setattr(rt, "_idem_forget", lambda key: idem.pop(key, None))
     monkeypatch.setattr(rt, "_owner_admission_blocked", lambda aid: (False, ""))
-    rt._CANCELLED_AGENTS.clear()
+    monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    from app.platform import agent_runtime_cancellation as crc
+
+    crc.reset_memory_for_tests()
     rt._ACTIVE.clear()
     ensure_workforce_registered()
     monkeypatch.setenv("AGENT_RUNTIME", "1")
@@ -50,7 +53,7 @@ def _iso(tmp_path, monkeypatch):
     ):
         monkeypatch.setenv(fl, "0")
     yield
-    rt._CANCELLED_AGENTS.clear()
+    crc.reset_memory_for_tests()
     rt._ACTIVE.clear()
 
 

@@ -22,7 +22,10 @@ def isolated_runtime(tmp_path, monkeypatch):
     monkeypatch.setattr(rt, "_approval_approved", lambda tenant, ref: False)
 
     caps_snapshot = dict(rt._CAPABILITIES)
-    rt._CANCELLED_AGENTS.clear()
+    monkeypatch.setenv("AGENT_RUNTIME_CANCEL_BACKEND", "memory")
+    from app.platform import agent_runtime_cancellation as crc
+
+    crc.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
     rt._CAPABILITIES.clear()
@@ -39,7 +42,7 @@ def isolated_runtime(tmp_path, monkeypatch):
     yield
     rt._CAPABILITIES.clear()
     rt._CAPABILITIES.update(caps_snapshot)
-    rt._CANCELLED_AGENTS.clear()
+    crc.reset_memory_for_tests()
     rt._ACTIVE.clear()
     rt._ACTIVE_TASKS.clear()
 
