@@ -59,6 +59,15 @@ RED_COMMANDS: frozenset[str] = frozenset(
     }
 )
 
+# --- Kavach harness command surface (additive; read=GREEN, control=AMBER) ---
+try:
+    from app.integrations.openclaw.harness_commands import HARNESS_AMBER, HARNESS_GREEN
+
+    GREEN_COMMANDS = GREEN_COMMANDS | HARNESS_GREEN
+    AMBER_COMMANDS = AMBER_COMMANDS | HARNESS_AMBER
+except Exception:  # never break the base policy surface
+    pass
+
 ALL_TYPED = GREEN_COMMANDS | AMBER_COMMANDS | RED_COMMANDS
 
 DEFAULT_STAGE_A_ALLOWLIST = ",".join(sorted(GREEN_COMMANDS))
