@@ -80,7 +80,7 @@ class StaffSupervisor:
             for key, info in STAFF.items():
                 role = info.get("role", key)
                 duties = info.get("duties") or info.get("duty") or ""
-                if isinstance(duties, (list, tuple)):
+                if isinstance(duties, list | tuple):
                     duties = ", ".join(map(str, duties))
                 name = info.get("name", key)
                 prompt = (
@@ -127,6 +127,60 @@ class StaffSupervisor:
                 final = getattr(last, "content", None)
                 if final is None and isinstance(last, dict):
                     final = last.get("content", "")
+            # Harness supervisor-family shadow (record-only; INERT unless flags +
+            # the routed agent is in canary agents + supervisor loop allowlisted).
+            # delegated agent is derived from the graph's own message metadata —
+            # never guessed from prose. NEVER re-runs the graph; never raises.
+            try:
+                from app.agents.harness.adapters import observe_supervisor_action
+
+                # Structured selection: the routed WORKER is the message authored by
+                # a STAFF agent (name in STAFF), not the final supervisor message.
+                # This is the graph's own structured metadata, never guessed prose.
+                try:
+                    from app.platform.team import STAFF
+
+                    _staff_keys = {str(k).strip().lower() for k in (STAFF or {}).keys()}
+                except Exception:
+                    _staff_keys = set()
+
+                def _mname(m):
+                    n = getattr(m, "name", None)
+                    if n is None and isinstance(m, dict):
+                        n = m.get("name")
+                    return str(n).strip().lower() if n else None
+
+                _deleg = None
+                _sel = "UNKNOWN"
+                for _m in reversed(msgs):
+                    _nm = _mname(_m)
+                    if _nm and _nm in _staff_keys and _nm != "supervisor":
+                        _deleg, _sel = _nm, "MESSAGE_NAME"
+                        break
+                if _deleg is None and msgs:  # fall back to last name (provenance UNKNOWN)
+                    _deleg = _mname(msgs[-1])
+                _gid = f"staff_supervisor:{abs(hash(task)) % 10**8}"  # per-run id (avoids cross-run dedup collision)
+                observe_supervisor_action(
+                    supervisor_run_id=_gid,
+                    graph_run_id=_gid,
+                    graph_step=len(msgs),
+                    tool_call_id=None,
+                    supervisor_implementation="staff_supervisor",
+                    actor_id="manager",
+                    delegated_agent_id=_deleg,
+                    tenant_id="",
+                    tool_name=(_deleg or ""),
+                    tool_arguments={"task": task},
+                    actual_executor="staff_supervisor.graph",
+                    actual_result={"turns": len(msgs)},
+                    latency_ms=0.0,
+                    graph_metadata={
+                        "selection_source": _sel,
+                        "actual_node": "staff_supervisor.graph",
+                    },
+                )
+            except Exception:
+                pass
             return {"ok": True, "task": task, "reply": final or "", "turns": len(msgs)}
         except Exception as exc:
             logger.info("StaffSupervisor.run error: %s", exc)
