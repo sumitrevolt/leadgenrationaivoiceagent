@@ -331,6 +331,32 @@ def test_amber_pause_requires_approval(monkeypatch, tmp_path):
     assert body.get("command_id")
 
 
+def test_amber_confirm_true_still_parks(monkeypatch, tmp_path):
+    """Admin UI sends confirm=true on Run — must park AMBER, never silent mutate."""
+    _enable(
+        monkeypatch,
+        allowlist="platform.status,agent.pause,agents.list",
+    )
+    _patch_owner_stores(monkeypatch, tmp_path)
+    r = client.post(
+        "/api/owner-copilot/nl",
+        json={
+            "text": "Pause Isha safely",
+            "execute": True,
+            "confirm": True,
+            "idempotency_key": "oc-pause-confirm-true",
+        },
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert (body.get("proposal") or {}).get("safety_lane") == "AMBER"
+    executed = body.get("executed") or {}
+    assert executed.get("safety_lane") == "AMBER"
+    assert executed.get("status") == "APPROVAL_REQUIRED"
+    assert executed.get("approval_required") is True
+    assert executed.get("ok") is True
+
+
 def test_idempotency_green(monkeypatch, tmp_path):
     _enable(monkeypatch)
     _patch_owner_stores(monkeypatch, tmp_path)
@@ -376,6 +402,22 @@ def test_owner_copilot_page_tab_present():
     assert r.status_code == 200
     assert "Owner Copilot" in r.text
     assert "OPENCLAW_ENABLED" in r.text
+
+
+def test_admin_dashboard_openclaw_panel_present():
+    """Admin Console hosts OpenClaw panel wired to Owner Copilot APIs (not office/ask)."""
+    r = client.get("/app/admin")
+    assert r.status_code == 200
+    assert 'id="openclawAdminCard"' in r.text
+    assert "OpenClaw Copilot" in r.text
+    assert "/api/owner-copilot/nl" in r.text
+    assert "/api/owner-copilot/status" in r.text
+    assert "/api/admin/owner-os/approvals" in r.text
+    assert "/api/admin/owner-os/audit" in r.text
+    assert "Owner OS = sole authority" in r.text
+    # Office chat card remains separate — OpenClaw must not replace it with office/ask.
+    assert 'id="agentCopilotCard"' in r.text
+    assert r.text.index("openclawAdminCard") != r.text.index("agentCopilotCard")
 
 
 def test_daily_brief(monkeypatch, tmp_path):
