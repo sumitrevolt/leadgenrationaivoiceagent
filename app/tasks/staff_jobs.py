@@ -441,12 +441,14 @@ def run_staff_job(self, job: str):
             raise RuntimeError(f"staff job '{job}' reported failure")
         return {"ok": True, "job": job}
     except SoftTimeLimitExceeded:
-        # 2026-07-17 lesson (7 'prospect' jobs dlq:dead): soft-timeout = WORKLOAD
-        # problem — blind Celery retry SAME workload ko 9-min slots me 2x aur
-        # jalata hai (single heavy worker pin). Fail-fast: ek hi DLQ record,
-        # replay sirf root-cause (time budget/fanout) fix ke baad.
-        logger.warning(f"[staff_jobs] job '{job}' soft time limit — NO retry (workload bound karo)")
-        raise
+        # Soft timeout = WORKLOAD bound problem. Blind Celery retry same workload
+        # ko jalata hai (2026-07-17 prospect DLQ storm). Prefer wall-clock budgets
+        # in the job body; if SoftTimeLimit still fires, return partial SUCCESS so
+        # we do not fill dlq:failed_tasks / burn retries (2026-07-23 onboard/content).
+        logger.warning(
+            f"[staff_jobs] job '{job}' soft time limit — graceful partial (no retry/DLQ)"
+        )
+        return {"ok": True, "job": job, "partial": True, "reason": "soft_time_limit"}
     except Exception as e:  # invoke-level failure -> retry, fir DLQ
         logger.warning(f"[staff_jobs] job '{job}' invoke failed: {e}")
         raise self.retry(exc=e)

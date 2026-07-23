@@ -98,6 +98,9 @@ AUTOMATION_FLAGS = [
     "VIDEO_HARNESS_ENFORCE",  # harness evaluate_action must allow mutating video tools
     "VIDEO_HARNESS_SHADOW_ENABLED",  # Stage 1: observe video harness decisions; no enforcement / side effects
     "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
+    "CONTENT_TIME_BUDGET_S",  # content mega-job wall-clock budget (default 420; SoftTimeLimit margin)
+    "ONBOARD_TIME_BUDGET_S",  # onboard sweep wall-clock budget (default 300)
+    "PROSPECT_TIME_BUDGET_S",  # prospect harvest wall-clock budget (default 300)
     "SOCIAL_ENGINE",  # native social-posting engine (own queue+providers; default OFF, video_ad_cycle inline fallback)
     "POSTIZ_PINTEREST_BOARD",  # required for Pinterest in multi-channel Postiz create; unset = skip Pinterest only
     "POSTIZ_PUBLISH_MAX_CHANNELS",  # hard cap per create-post (0=block; unset=uncapped legacy fan-out)
