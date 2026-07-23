@@ -1647,6 +1647,7 @@ async function updateLeadStatus(sel){
 
 let _chartRenderQueued=false, _chartPendingData=null;
 function renderCharts(d){
+<<<<<<< HEAD
   if(typeof Chart==="undefined"){
     _chartPendingData=d;
     if(!_chartRenderQueued && window.__chartReady){
@@ -1662,6 +1663,12 @@ function renderCharts(d){
     return;
   }
   _chartPendingData=null;
+=======
+  if (typeof Chart === "undefined") {
+    console.warn("[renderCharts] Chart.js unavailable");
+    return;
+  }
+>>>>>>> 1aef418 (feat(customer-video): add tenant-isolated media endpoint, authenticated HTML5 player, and Range support (WS-3))
   const text="#6b7280", grid="rgba(109,40,217,.08)";
   Chart.defaults.font.family="inherit"; Chart.defaults.color=text;
   const cd = d.charts || {};
@@ -1695,6 +1702,10 @@ function renderCharts(d){
 function drawChart(id,type,data,opts){
   // P0-2026-07-12: each chart draws independently — one bad dataset/canvas must not
   // stop the remaining two charts from rendering (invariant: independent card render).
+  if (typeof Chart === "undefined") {
+    console.warn("[drawChart] Chart.js unavailable for " + id);
+    return;
+  }
   try{
     if(charts[id]) charts[id].destroy();
     const el=document.getElementById(id);
@@ -3211,32 +3222,17 @@ async function loadApprovals(){
   }catch(e){ card.style.display="none"; }
 }
 
-const videoPreviewUrls={};
-function clearVideoPreviewUrls(){
-  Object.keys(videoPreviewUrls).forEach(function(id){
-    try{ URL.revokeObjectURL(videoPreviewUrls[id]); }catch(e){}
-    delete videoPreviewUrls[id];
+var _videoBlobUrls = {};
+function revokeVideoBlobs(){
+  Object.keys(_videoBlobUrls).forEach(function(id){
+    if(_videoBlobUrls[id]){
+      try{ URL.revokeObjectURL(_videoBlobUrls[id]); }catch(e){}
+      delete _videoBlobUrls[id];
+    }
   });
 }
-
-function bindVideoReviewActions(body){
-  body.querySelectorAll("[data-video-preview]").forEach(function(btn){
-    btn.addEventListener("click",function(){
-      loadVideoPreview(btn.dataset.videoId,Number(btn.dataset.videoRevision||0),btn);
-    });
-  });
-  body.querySelectorAll("[data-video-action]").forEach(function(btn){
-    btn.addEventListener("click",function(){
-      videoFeedback(btn.dataset.videoId,btn.dataset.videoAction,Number(btn.dataset.videoRevision||0));
-    });
-  });
-}
-
-function videoErrorMessage(d, fallback){
-  if(d&&typeof d.detail==="string") return d.detail;
-  if(d&&typeof d.error==="string") return d.error;
-  if(d&&d.error&&typeof d.error.message==="string") return d.error.message;
-  return fallback||"Video request fail";
+if(typeof window!=="undefined"&&window.addEventListener){
+  window.addEventListener("beforeunload", revokeVideoBlobs);
 }
 
 async function loadVideoReviews(){
@@ -3246,36 +3242,42 @@ async function loadVideoReviews(){
     const r=await fetch("/api/customer/videos",{headers:billAuthHdr()});
     if(!r.ok){ if(body) body.innerHTML='<span class="sm" style="color:var(--muted)">Video queue load nahi hui.</span>'; return; }
     const d=await r.json(); const rows=d.videos||[];
-    clearVideoPreviewUrls();
-    if(!d.enabled){ card.style.display="none"; body.innerHTML=""; return; }
-    card.style.display="block";
     if(cnt) cnt.textContent=String(rows.length);
     if(!rows.length){
+      revokeVideoBlobs();
       body.innerHTML='<span class="sm" style="color:var(--muted)">Abhi koi video draft nahi — daily cycle ON hone par yahan aayega.</span>';
       return;
     }
+    revokeVideoBlobs();
     body.innerHTML=rows.map(function(v){
       const st=escH(v.status||"");
       const wf=escH(v.workflow_state||"");
       const rev=Number(v.revision||0);
       const cap=escH((v.caption||"").slice(0,160));
       const pending=st==="pending";
-      const id=escH(v.id||"");
-      const attrs=' data-video-id="'+id+'" data-video-revision="'+rev+'"';
-      const preview=v.has_video
-        ? '<button type="button" class="btn" data-video-preview'+attrs+'>Preview v'+(rev+1)+'</button>'
-          +'<div class="video-preview" hidden><video controls playsinline preload="metadata" aria-label="Video v'+(rev+1)+' preview" style="display:block;width:min(100%,360px);max-height:520px;margin-top:10px;border-radius:12px;background:#111"></video><div class="sm video-preview-status" style="color:var(--muted);margin-top:5px"></div></div>'
-        : '<span class="sm" style="color:var(--muted)">Video file unavailable</span>';
+      const vPlayer=v.media_url ? '<div style="margin:8px 0;"><video id="vplayer_'+escH(v.id)+'" controls preload="metadata" style="width:100%; max-height:280px; border-radius:8px; background:#000; display:block;"></video></div>' : '';
       return '<div class="approve-card"><div style="font-weight:700">Video v'+(rev+1)+' · '+st+(wf?(' · '+wf):'')+'</div>'
+        +vPlayer
         +'<div class="sm" style="margin-top:4px">'+cap+'</div>'
         +'<div class="sm" style="color:var(--muted)">Channels: '+escH((v.channels||[]).join(", ")||"—")+' · '+escH(v.aspect_ratio||"9:16")+'</div>'
-        +'<div class="acts">'+preview
-        +(pending?'<button type="button" class="btn primary" data-video-action="approve"'+attrs+'>✅ Approve v'+(rev+1)+'</button>'
-          +'<button type="button" class="btn" data-video-action="changes"'+attrs+'>✏️ Changes</button>'
-          +'<button type="button" class="btn" data-video-action="reject"'+attrs+'>❌ Reject</button>':'')
-        +'</div></div>';
+        +(pending?'<div class="acts"><button class="btn primary" onclick="videoFeedback(\''+escH(v.id)+'\',\'approve\')">✅ Approve v'+(rev+1)+'</button>'
+          +'<button class="btn" onclick="videoFeedback(\''+escH(v.id)+'\',\'changes\')">✏️ Changes</button>'
+          +'<button class="btn" onclick="videoFeedback(\''+escH(v.id)+'\',\'reject\')">❌ Reject</button></div>':'');
     }).join("");
-    bindVideoReviewActions(body);
+    rows.forEach(async function(v){
+      if(!v.media_url) return;
+      const vel=document.getElementById("vplayer_"+v.id);
+      if(!vel) return;
+      try{
+        const res=await fetch(v.media_url,{headers:billAuthHdr()});
+        if(res.ok){
+          const blob=await res.blob();
+          const bUrl=URL.createObjectURL(blob);
+          _videoBlobUrls[v.id]=bUrl;
+          vel.src=bUrl;
+        }
+      }catch(err){ console.error("Video stream load error:", err); }
+    });
   }catch(e){ if(body) body.innerHTML='<span class="sm" style="color:var(--muted)">Video review error.</span>'; }
 }
 

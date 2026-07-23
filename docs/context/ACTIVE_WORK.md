@@ -2,22 +2,27 @@
 
 ---
 
-## WS-1 Video Review Stage 3 — DEPLOYED, AUTH CANARY PENDING
+## WS-1 Ship queue (ops + main drift + routing + deploy skew) — LOCAL COMPLETE, OWNER PR
 - **ID:** WS-1
-- **Release:** PR #97, merge/deploy SHA `510ed7bc1c7834892f81b9db092d1febb50dad48`, workflow run `30002538121` successful.
-- **Status:** Exact-SHA five-container production parity and green health/readiness are proven. The first admin impersonation attempt returned 401 because the pre-deploy admin JWT was expired; reload correctly exposed the admin login boundary.
-- **Safety:** Customer review, WhatsApp review, publish/social, daily video scheduler, WhatsApp auto-send, and platform dial remain OFF. No customer decision, external send, call, billing mutation, or queue mutation was executed.
-- **Next exact action:** Owner signs in through the handed-off Admin Login tab and owner-managed config enables only `VIDEO_CUSTOMER_REVIEW_ENABLED=1` plus `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover`; then run one authenticated read-only Jiya Preview canary.
+- **Status:** CODE COMPLETE / LOCAL-TEST-PROVEN — four change-sets ready; push/PR/merge owner-gated
+- **Ready branches / sets:**
+  1. Primary dirty ops (self-improve failclosed + boot_grace health + invoice-backed paying KPI) — 33 pytest + prod_check
+  2. `backport/main-beat-chart-drift` @ `ade4103` — beat deadline 900 + chart race-safe — prod_check green
+  3. `fix/agent-routing-honesty` @ `5f3826e` — blog→isha + healthy_idle — 44 pytest
+  4. `fix/deploy-skew-compose-resolve` @ `9cd83d5` — compose skew B3 — 22 pytest
+- **Next exact action:** Owner authorize commit/push/PR in that order (do not mix with unrelated local HEAD)
 
 ---
 
-## WS-2 GTM Hot Queue /app/inbox — IN PROGRESS
+## WS-2 GTM Hot Queue /app/inbox — IN PROGRESS (0 → 1 ARR)
 - **ID:** WS-2
-- **Status:** Acquire second paid Marketing customer from lead-magnet inquiries with human-controlled outreach.
-- **Next exact action:** Continue `/app/inbox` Hot Queue follow-up; platform_dial and WhatsApp auto-send stay OFF.
+- **Status:** Hot Queue prioritization + 1-click human WhatsApp active (business stream)
+- **Next exact action:** Acquire 2nd paid customer from `/site-audit`, `/audit`, `/demo` inquiries; platform_dial + WA auto-send stay OFF
 
 ---
 
-## WS-3 OpenClaw Owner Copilot — PARKED, PROD FLAG OFF
+## WS-3 Video Review Stage 3 — CLOSED DEPLOYED
 - **ID:** WS-3
-- **Status:** No action in this loop; Owner OS remains sole mutation authority.
+- **Prod SHA:** `e8bffde3` (PRODUCTION-PROVEN; media route LIVE; unauth 401)
+- **Status:** CLOSED DEPLOYED via PR #97/#98 lineage + later prod tip. Customer `<video>` + `/media` on prod. Review/publish flags OFF.
+- **Next exact action:** Owner-gated Jiya canary only — `VIDEO_CUSTOMER_REVIEW_ENABLED=1` + `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover` after explicit auth. Do not open redundant video-preview PRs against main for already-shipped media route.
