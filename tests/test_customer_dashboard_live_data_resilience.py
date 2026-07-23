@@ -32,6 +32,8 @@ jsdom execution replay (harness2.js referenced in progress.md) was used
 to originally reproduce and then verify the fix end-to-end.
 """
 
+from pathlib import Path
+
 
 def _html():
     with open("frontend/customer_dashboard.html", encoding="utf-8") as f:
@@ -130,7 +132,7 @@ def test_chart_series_are_defensively_normalized():
     Every series consumed by chart rendering must be Array.isArray-guarded."""
     html = _html()
     idx = html.index("function renderCharts(d){")
-    snippet = html[idx : idx + 900]
+    snippet = html[idx : idx + 1500]
     assert "Array.isArray(cd.calls_per_day)" in snippet
     assert "Array.isArray(cd.leads_by_status)" in snippet
     assert "Array.isArray(cd.leads_by_city)" in snippet
@@ -147,6 +149,44 @@ def test_draw_chart_is_isolated_per_chart():
     idx = html.index("function drawChart(id,type,data,opts){")
     snippet = html[idx : idx + 550]
     assert "try{" in snippet and "catch(e)" in snippet
+
+
+def test_chart_loader_waits_for_primary_or_fallback_before_rendering():
+    """A successful CDN HTTP response is not enough: dashboard rendering must
+    wait until Chart is defined, try the fallback on load/error failure, and
+    never execute a bare `Chart.defaults` while both providers are pending."""
+    html = _html()
+    head = html[: html.index("</head>")]
+    assert "window.__chartReady" in head
+    assert "cdn.jsdelivr.net/npm/chart.js" in head
+    assert "cdnjs.cloudflare.com/ajax/libs/Chart.js" in head
+    assert "onload" in head and "onerror" in head
+
+    idx = html.index("function renderCharts(d){")
+    snippet = html[idx : idx + 800]
+    assert 'typeof Chart==="undefined"' in snippet
+    assert "window.__chartReady.then" in snippet
+    assert snippet.index('typeof Chart==="undefined"') < snippet.index("Chart.defaults")
+    assert "_chartPendingData=d" in snippet
+    assert "const pending=_chartPendingData" in snippet
+    assert "renderCharts(pending)" in snippet
+
+
+def test_chart_runtime_is_vendored_and_local_first_on_all_dashboards():
+    """Authenticated dashboards must not depend on third-party CDNs to render."""
+    frontend = Path("frontend")
+    asset = frontend / "design-system" / "vendor" / "chart.umd.js"
+    license_file = frontend / "design-system" / "vendor" / "chart.js-LICENSE.md"
+    assert asset.is_file() and asset.stat().st_size > 100_000
+    assert license_file.is_file()
+
+    local_src = "/design-system/vendor/chart.umd.js"
+    for page in ("customer_dashboard.html", "admin_dashboard.html", "analytics.html"):
+        page_html = (frontend / page).read_text(encoding="utf-8")
+        assert local_src in page_html, f"{page} is still CDN-only"
+        for remote in ("cdn.jsdelivr.net", "cdnjs.cloudflare.com"):
+            if remote in page_html:
+                assert page_html.index(local_src) < page_html.index(remote)
 
 
 def test_init_campaigns_defensive_against_non_array_campaigns():
