@@ -37,7 +37,7 @@ ALIAS_TO_MEMBER = {
     "digest": "manager",
     "content": "isha",
     "email_outreach": "rohan",
-    "blog": "ravi",
+    "blog": "isha",  # JOB_META/registry canonical owner (was ravi = KNOWN_DRIFT)
     "growth": "manager",
 }
 
