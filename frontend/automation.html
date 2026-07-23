@@ -579,6 +579,16 @@ a{color:var(--acc)}
     <div id="coApOut"></div>
   </div>
   <div class="card">
+    <h2>🎬 Video Production Cell</h2>
+    <div class="mut">OpenClaw-governed daily video queue (flags default OFF). Reuses video_ad_cycle + Postiz; approval ke bina publish nahi.</div>
+    <label>Client ID</label><input id="coVidClient" placeholder="jiya-makeover">
+    <label>Ratio</label>
+    <select id="coVidRatio"><option>9:16</option><option>1:1</option><option>16:9</option></select>
+    <button class="btn" onclick="coVidOps()">Queue / ops</button>
+    <button class="btn2" onclick="coVidGenerate()">Generate (heavy)</button>
+    <div id="coVidOut"></div>
+  </div>
+  <div class="card">
     <h2>👥 Lead Round-Robin</h2>
     <div class="mut">Client team config + manual assign test (NeoDove/TeleCRM parity).</div>
     <label>Client ID</label><input id="coRtClient" placeholder="client id">
@@ -1628,6 +1638,22 @@ async function coApList(){
     });
     $('coApOut').innerHTML=h+'</table></div>';
   }catch(e){toast('List fail: '+e.message,false)}
+}
+async function coVidOps(){
+  var cid=$('coVidClient').value.trim();
+  try{
+    var d=await api('/api/clientops/video-production/ops'+(cid?('?client_id='+encodeURIComponent(cid)):''));
+    $('coVidOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('Video ops fail: '+e.message,false)}
+}
+async function coVidGenerate(){
+  var cid=$('coVidClient').value.trim(), ratio=($('coVidRatio')&&$('coVidRatio').value)||'9:16';
+  if(!cid) return toast('Client ID chahiye',false);
+  try{
+    var d=await api('/api/clientops/video-production/generate',{method:'POST',body:JSON.stringify({client_id:cid,ratio:ratio})});
+    $('coVidOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+    toast('Video generate queued');
+  }catch(e){toast('Generate fail: '+e.message,false)}
 }
 // ADR-104 (2026-07-15): in-page confirmation modal, replacing native confirm()
 // for approval/publish/schedule/delivery actions. A native confirm() dialog

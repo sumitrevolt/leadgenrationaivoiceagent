@@ -223,9 +223,7 @@ async def snapshot_apply_niche(body: SnapshotApplyNicheIn, _user=Depends(require
     """1-click: client ke niche ka template lagao (auto-capture agar missing)."""
     from app.platform import client_snapshots
 
-    return client_snapshots.apply_niche_to_client(
-        body.target_client_id, body.niche or None
-    )
+    return client_snapshots.apply_niche_to_client(body.target_client_id, body.niche or None)
 
 
 # --------------------- F4: lead distribution (round-robin) ----------------- #
@@ -333,9 +331,7 @@ async def proposal_views(token: str = Query("", max_length=64), _user=Depends(re
 
 # ----------------------- F6: AI video-ad cycle (every-N-day) ---------------- #
 @router.get("/video-ads")
-async def video_ads_list(
-    client_id: str = Query("", max_length=60), _user=Depends(require_admin)
-):
+async def video_ads_list(client_id: str = Query("", max_length=60), _user=Depends(require_admin)):
     """AI video ads list (admin) — ?client_id= filter. Status: pending/approved/
     published/changes_requested/held_max_revisions."""
     from app.marketing import video_ad_cycle
@@ -377,6 +373,55 @@ async def video_ads_request_changes(
     from app.marketing import video_ad_cycle
 
     return await video_ad_cycle.request_changes(approval_id, body.note or "")
+
+
+@router.get("/video-production/ops")
+async def video_production_ops(
+    client_id: str = Query("", max_length=60), _user=Depends(require_admin)
+):
+    """Admin Video Production Cell queue + flag snapshot (extends video-ads list)."""
+    from app.marketing.video_production import cell
+
+    return cell.ops_summary(client_id)
+
+
+class VideoCellGenIn(BaseModel):
+    client_id: str
+    note: str | None = ""
+    ratio: str | None = "9:16"
+
+
+@router.post("/video-production/generate")
+async def video_production_generate(body: VideoCellGenIn, _user=Depends(require_admin)):
+    """Governed generate via Video Production Cell (HEAVY — background)."""
+    import asyncio
+
+    from app.marketing.video_production import cell
+
+    cid = (body.client_id or "").strip()
+    if not cid:
+        return {"ok": False, "error": "client_id zaroori hai."}
+    ratio = (body.ratio or "9:16").strip()
+
+    async def _run() -> None:
+        await cell.render_and_queue_review(cid, note=body.note or "", ratio=ratio)
+
+    asyncio.create_task(asyncio.to_thread(lambda: asyncio.run(_run())))
+    return {"ok": True, "queued": True, "client_id": cid, "ratio": ratio}
+
+
+class VideoApproveIn(BaseModel):
+    expected_revision: int | None = None
+
+
+@router.post("/video-production/{video_ad_id}/approve")
+async def video_production_approve(
+    video_ad_id: str, body: VideoApproveIn, _user=Depends(require_admin)
+):
+    """Version-bound approve (admin/support)."""
+    from app.marketing.video_production import cell
+
+    return cell.approve_version(video_ad_id, body.expected_revision)
 
 
 __all__ = ["router"]

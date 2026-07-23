@@ -2317,6 +2317,89 @@ async def customer_approval_council_decide(
     )
 
 
+@router.get("/videos")
+def customer_videos_list(client_id: str = Depends(require_customer)):
+    """Customer Video Production Cell — own videos only (tenant-isolated)."""
+    try:
+        from app.marketing import clients_store, video_ad_cycle
+
+        mcid = clients_store.canonical_client_id(client_id)
+        rows = video_ad_cycle.list_for_client(mcid)
+        safe = []
+        for r in rows:
+            safe.append(
+                {
+                    "id": r.get("id"),
+                    "status": r.get("status"),
+                    "workflow_state": r.get("workflow_state"),
+                    "revision": r.get("revision"),
+                    "approved_version": r.get("approved_version"),
+                    "caption": r.get("caption"),
+                    "channels": r.get("channels"),
+                    "created_at": r.get("created_at"),
+                    "published_at": r.get("published_at"),
+                    "approval_id": r.get("approval_id"),
+                    "has_video": bool(str(r.get("video_path") or "").strip()),
+                    "aspect_ratio": r.get("aspect_ratio") or "9:16",
+                    "feedback_categories": r.get("feedback_categories") or [],
+                }
+            )
+        return {"ok": True, "count": len(safe), "videos": safe}
+    except Exception as e:
+        logger.debug("customer videos list failed: %s", e)
+        return {"ok": False, "count": 0, "videos": []}
+
+
+class VideoFeedbackIn(BaseModel):
+    text: str = ""
+    action: str = "changes"  # approve | changes | reject
+
+
+@router.post("/videos/{video_ad_id}/feedback")
+def customer_video_feedback(
+    video_ad_id: str,
+    body: VideoFeedbackIn,
+    client_id: str = Depends(require_customer),
+):
+    """Dashboard video review — same intents as WhatsApp (version-bound)."""
+    from app.marketing import clients_store, content_approval, video_ad_cycle
+    from app.marketing.video_production import cell
+    from app.marketing.video_production.feedback import classify_feedback
+
+    mcid = clients_store.canonical_client_id(client_id)
+    rec = None
+    for r in video_ad_cycle.list_for_client(mcid):
+        if str(r.get("id")) == str(video_ad_id):
+            rec = r
+            break
+    if not rec:
+        return {"ok": False, "error": "video nahi mila"}
+    action = (body.action or "changes").strip().lower()
+    if action == "approve":
+        return cell.approve_version(str(video_ad_id), int(rec.get("revision") or 0))
+    text = (body.text or "").strip()
+    classified = classify_feedback(text if action != "reject" else "REJECT")
+    if action == "reject":
+        classified = {"intent": "reject", **{k: v for k, v in classified.items() if k != "intent"}}
+    tok = str(rec.get("token") or "")
+    if not tok:
+        return {"ok": False, "error": "approval token missing"}
+    if classified.get("intent") == "ambiguous" and action == "changes" and not text:
+        return {
+            "ok": False,
+            "ambiguous": True,
+            "clarification": "CHANGES ke saath detail likho (jaise: logo bada karo).",
+        }
+    note = text[:300] or action
+    out = content_approval.reject(tok, note=note)
+    video_ad_cycle._update(
+        str(video_ad_id),
+        revision_tasks=classified.get("tasks") or [],
+        feedback_categories=classified.get("categories") or [],
+    )
+    return {"ok": True, "classified": classified, "approval": out}
+
+
 @router.get("/routing")
 def customer_routing_get(client_id: str = Depends(require_customer)):
     """Client ki sales team round-robin config."""

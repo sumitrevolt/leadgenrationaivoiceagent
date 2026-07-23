@@ -172,7 +172,9 @@ async def _caption_slides(client: dict[str, Any], note: str = "") -> tuple[str, 
     except Exception:
         caption = ""
     if not caption:
-        caption = f"{business} — {offer or f'aapke area ka bharosemand {niche}'}. Inquiry: WhatsApp/Call."
+        caption = (
+            f"{business} — {offer or f'aapke area ka bharosemand {niche}'}. Inquiry: WhatsApp/Call."
+        )
     slides = [
         business,
         offer or f"Aapke area ka bharosemand {niche} expert",
@@ -228,12 +230,14 @@ async def generate_for_client(
                 "approval_id": appr.get("id"),
                 "token": appr.get("token"),
                 "status": "pending",
+                "workflow_state": "CLIENT_REVIEW_PENDING",
                 "revision": revision,
                 "note": note,
                 "video_path": video_path,
                 "caption": caption,
                 "channels": channels,
                 "supersedes": supersedes,
+                "final_approved": False,
                 "created_at": _now(),
             }
         )
@@ -277,7 +281,15 @@ def on_approved(approval_rec: dict[str, Any]) -> bool:
             return False
         for rid, rec in _latest().items():
             if str(rec.get("approval_id") or "") == aid and rec.get("status") == "pending":
-                _update(rid, status="approved", decided_at=_now())
+                rev = int(rec.get("revision") or 0)
+                _update(
+                    rid,
+                    status="approved",
+                    workflow_state="APPROVED",
+                    approved_version=rev,
+                    final_approved=True,
+                    decided_at=_now(),
+                )
                 return True
         return False
     except Exception as e:
@@ -296,7 +308,14 @@ def on_changes_requested(approval_rec: dict[str, Any]) -> bool:
         note = str(approval_rec.get("note") or "")
         for rid, rec in _latest().items():
             if str(rec.get("approval_id") or "") == aid and rec.get("status") == "pending":
-                _update(rid, status="changes_requested", note=note, changes_at=_now())
+                _update(
+                    rid,
+                    status="changes_requested",
+                    workflow_state="CHANGES_REQUESTED",
+                    final_approved=False,
+                    note=note,
+                    changes_at=_now(),
+                )
                 return True
         return False
     except Exception as e:
@@ -368,6 +387,17 @@ async def _tg_send_video(chat_id: str, video_path: str, caption: str = "") -> di
 async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
     from app.marketing import clients_store
 
+    # Fail-closed publish gate (version-bound approval). When Video Production
+    # Cell master flag is OFF, gate stays permissive for legacy VIDEO_AD_CYCLE.
+    try:
+        from app.marketing.video_production.publish_gate import assert_can_publish
+
+        gate = assert_can_publish(rec)
+        if not gate.get("ok"):
+            return {"any_sent": False, "channels": {"gate": gate}}
+    except Exception as e:
+        logger.debug(f"[video_ad] publish_gate skip (fail-open legacy): {e}")
+
     cid = str(rec.get("client_id") or "")
     client = clients_store.get_client(cid) or {}
     caption = str(rec.get("caption") or "")
@@ -392,8 +422,7 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             except Exception as _ue:
                 logger.debug(f"[video_ad] MinIO upload skip (fail-open): {_ue}")
             ids = _social_engine.enqueue_publish(
-                cid, caption=caption, media_path=video_path,
-                media_url=media_url, media_type="video"
+                cid, caption=caption, media_path=video_path, media_url=media_url, media_type="video"
             )
             return {"any_sent": bool(ids), "channels": {"engine": {"queued_jobs": ids}}}
     except Exception as e:
@@ -443,10 +472,22 @@ async def publish_due(limit: int = 20) -> dict[str, Any]:
             rid = str(rec.get("id") or "")
             res = await _publish_one(rec)
             if res.get("any_sent"):
-                _update(rid, status="published", published_at=_now(), publish_result=res["channels"])
+                _update(
+                    rid,
+                    status="published",
+                    workflow_state="PUBLISHED",
+                    published_at=_now(),
+                    publish_result=res["channels"],
+                )
                 published += 1
             else:
-                _update(rid, status="publish_failed", publish_result=res["channels"], failed_at=_now())
+                _update(
+                    rid,
+                    status="publish_failed",
+                    workflow_state="PUBLISH_FAILED",
+                    publish_result=res["channels"],
+                    failed_at=_now(),
+                )
                 failed += 1
         return {"ran": True, "published": published, "failed": failed}
     except Exception as e:
@@ -492,7 +533,10 @@ async def run_cycle() -> dict[str, Any]:
         repaired = 0
         try:
             for rid, rec in list(_latest().items()):
-                if str(rec.get("status") or "") == "pending" and not str(rec.get("video_path") or "").strip():
+                if (
+                    str(rec.get("status") or "") == "pending"
+                    and not str(rec.get("video_path") or "").strip()
+                ):
                     _update(rid, status="failed", error="missing_video_path", failed_at=_now())
                     repaired += 1
         except Exception as e:

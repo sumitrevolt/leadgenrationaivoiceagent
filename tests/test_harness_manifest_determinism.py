@@ -23,10 +23,10 @@ from app.agents.harness.registry import (
     canonicalize_manifest_value,
 )
 
-# Deterministic canonical fingerprint of the current approved five-tool registry.
+# Deterministic canonical fingerprint of the current approved registry tool set.
 # To intentionally update: change the registry, run this test, and replace this
 # value with the new deterministic hash (identical across every PYTHONHASHSEED).
-GOLDEN_MANIFEST = "1d3b83331cf303e2"
+GOLDEN_MANIFEST = "bf2b6a0826bf8202"
 
 CANONICAL_TOOLS = {
     "batch.internal.safe_calculation",
@@ -34,6 +34,14 @@ CANONICAL_TOOLS = {
     "agent.nikhil.revenue_operations",
     "agent.delegate.dev",
     "agent.delegate.rohan",
+    "video.brief.create",
+    "video.script.write",
+    "video.render.social",
+    "video.qa.run",
+    "video.review.whatsapp_send",
+    "video.version.approve",
+    "video.feedback.ingest",
+    "video.social.schedule",
 }
 
 

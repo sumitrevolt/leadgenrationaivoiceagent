@@ -90,6 +90,13 @@ AUTOMATION_FLAGS = [
     "ENABLE_LEGACY_BEAT",
     "FESTIVALS_LIVE_HOLIDAYS",
     "VIDEO_AD_CYCLE",  # har 5 din per-client AI video ad -> approval -> social publish (default OFF)
+    "VIDEO_PRODUCTION_ENABLED",  # OpenClaw Video Production Cell master (default OFF)
+    "VIDEO_DAILY_SCHEDULER_ENABLED",  # daily video planning job (aliases VIDEO_AD_CYCLE when on)
+    "VIDEO_CUSTOMER_REVIEW_ENABLED",  # customer dashboard + WA feedback ingest
+    "VIDEO_WHATSAPP_REVIEW_ENABLED",  # auto WA preview send (ban-safety; default OFF)
+    "VIDEO_SOCIAL_PUBLISH_ENABLED",  # approval-gated Postiz publish when production cell ON
+    "VIDEO_HARNESS_ENFORCE",  # harness evaluate_action must allow mutating video tools
+    "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
     "SOCIAL_ENGINE",  # native social-posting engine (own queue+providers; default OFF, video_ad_cycle inline fallback)
     "ALLOW_TOS_SCRAPE",  # hard-off default — JustDial/IndiaMART/LinkedIn/social auto-scrape refuse (§5)
     "SOCIAL_DRY_RUN",  # ADR-098: drain queue but fabricate post_id=dry-* — NEVER real provider publish. Env wins over data/social_engine.json dry_run. Invisible-until-registered = fake "published" confidence.

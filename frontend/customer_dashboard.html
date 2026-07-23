@@ -899,6 +899,15 @@
         <div class="card-b" id="approvalBody"></div>
       </div>
 
+      <!-- Video Production Cell — customer version review -->
+      <div data-view="home" class="card" id="videoReviewCard" style="margin-bottom:14px">
+        <div class="card-h">
+          <h2>🎬 Video Review — exact version approve</h2>
+          <span class="pill" id="videoReviewCount">0</span>
+        </div>
+        <div class="card-b" id="videoReviewBody"><span class="sm" style="color:var(--muted)">Loading…</span></div>
+      </div>
+
       <!-- Integration health — honest expiry / reconnect states (read-only) -->
       <div data-view="home" class="card" id="integrationsHealthCard" style="margin-bottom:14px;display:none">
         <div class="card-h">
@@ -3164,6 +3173,52 @@ async function loadApprovals(){
   }catch(e){ card.style.display="none"; }
 }
 
+async function loadVideoReviews(){
+  const card=document.getElementById("videoReviewCard"), body=document.getElementById("videoReviewBody"), cnt=document.getElementById("videoReviewCount");
+  if(!billToken()||!card) return;
+  try{
+    const r=await fetch("/api/customer/videos",{headers:billAuthHdr()});
+    if(!r.ok){ if(body) body.innerHTML='<span class="sm" style="color:var(--muted)">Video queue load nahi hui.</span>'; return; }
+    const d=await r.json(); const rows=d.videos||[];
+    if(cnt) cnt.textContent=String(rows.length);
+    if(!rows.length){
+      body.innerHTML='<span class="sm" style="color:var(--muted)">Abhi koi video draft nahi — daily cycle ON hone par yahan aayega.</span>';
+      return;
+    }
+    body.innerHTML=rows.map(function(v){
+      const st=escH(v.status||"");
+      const wf=escH(v.workflow_state||"");
+      const rev=Number(v.revision||0);
+      const cap=escH((v.caption||"").slice(0,160));
+      const pending=st==="pending";
+      return '<div class="approve-card"><div style="font-weight:700">Video v'+(rev+1)+' · '+st+(wf?(' · '+wf):'')+'</div>'
+        +'<div class="sm" style="margin-top:4px">'+cap+'</div>'
+        +'<div class="sm" style="color:var(--muted)">Channels: '+escH((v.channels||[]).join(", ")||"—")+' · '+escH(v.aspect_ratio||"9:16")+'</div>'
+        +(pending?'<div class="acts"><button class="btn primary" onclick="videoFeedback(\''+escH(v.id)+'\',\'approve\')">✅ Approve v'+(rev+1)+'</button>'
+          +'<button class="btn" onclick="videoFeedback(\''+escH(v.id)+'\',\'changes\')">✏️ Changes</button>'
+          +'<button class="btn" onclick="videoFeedback(\''+escH(v.id)+'\',\'reject\')">❌ Reject</button></div>':'');
+    }).join("");
+  }catch(e){ if(body) body.innerHTML='<span class="sm" style="color:var(--muted)">Video review error.</span>'; }
+}
+
+async function videoFeedback(id, action){
+  let text="";
+  if(action==="changes"){
+    text=window.prompt("Kya badalna hai? (jaise: logo bada karo, price update)")||"";
+    if(!text.trim()) return;
+  }
+  try{
+    const r=await fetch("/api/customer/videos/"+encodeURIComponent(id)+"/feedback",{
+      method:"POST", headers:Object.assign({"Content-Type":"application/json"}, billAuthHdr()),
+      body:JSON.stringify({action:action, text:text})
+    });
+    const d=await r.json();
+    if(!d.ok){ alert(d.clarification||d.error||"Fail"); return; }
+    await loadVideoReviews();
+    await loadApprovals();
+  }catch(e){ alert("Video feedback fail"); }
+}
+
 async function loadIntegrationsHealth(){
   const card=document.getElementById("integrationsHealthCard"), body=document.getElementById("integrationsHealthBody"), pill=document.getElementById("integrationsHealthPill");
   if(!billToken()||!card) return;
@@ -4057,6 +4112,7 @@ _safeBoot("loadBilling", loadBilling);
 _safeBoot("loadContent", loadContent);
 _safeBoot("loadWebTools", loadWebTools);
 _safeBoot("loadApprovals", loadApprovals);
+_safeBoot("loadVideoReviews", loadVideoReviews);
 _safeBoot("loadIntegrationsHealth", loadIntegrationsHealth);
 _safeBoot("loadGuidedSetup", loadGuidedSetup);
 _safeBoot("loadRouting", loadRouting);
