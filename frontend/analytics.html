@@ -6,7 +6,31 @@
 <link rel="manifest" href="/manifest.json"><meta name="theme-color" content="#2563eb">
 <title>LeadGen AI — Analytics</title>
 <link rel="stylesheet" href="/design-system/styles.css" />
-<script src="/design-system/vendor/chart.umd.js"></script>
+<!-- Chart.js is optional UI enhancement. The local copy is preferred, while
+     the remote copies keep older images/browser caches from breaking charts. -->
+<script>
+(function(){
+  var sources=[
+    "/design-system/vendor/chart.umd.js",
+    "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"
+  ];
+  window.__chartReady=new Promise(function(resolve){
+    function load(index){
+      if(typeof Chart!=="undefined"){ resolve(true); return; }
+      if(index>=sources.length){ resolve(false); return; }
+      var script=document.createElement("script");
+      script.src=sources[index]; script.async=true;
+      script.onload=function(){
+        if(typeof Chart!=="undefined") resolve(true); else load(index+1);
+      };
+      script.onerror=function(){ load(index+1); };
+      document.head.appendChild(script);
+    }
+    load(0);
+  });
+})();
+</script>
 <style>
   :root{--pri:#2563eb;--ink:#0f172a;--mut:#64748b;--bg:#f1f5f9;--card:#fff;}
   *{box-sizing:border-box;}
@@ -70,6 +94,17 @@
       options:{plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}});
   }
   async function load(){
+    if(typeof Chart==="undefined"){
+      if(window.__chartReady && !load._queued){
+        load._queued=true;
+        window.__chartReady.then(function(ok){
+          load._queued=false;
+          if(ok) load();
+          else err.textContent="Charts unavailable; KPI cards remain available.";
+        });
+      }
+      return;
+    }
     err.textContent="Loading…";
     var s = await getJSON("/api/admin/live-stats") || {};
     if(!Object.keys(s).length){ err.textContent="Stats load nahi hue — admin token sahi hai? (top-right paste karo)"; }

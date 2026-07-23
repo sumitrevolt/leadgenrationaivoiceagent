@@ -4,7 +4,31 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>LeadGen AI — Command Center</title>
-<script src="/design-system/vendor/chart.umd.js"></script>
+<!-- Chart.js is optional UI enhancement. The local copy is preferred, while
+     the remote copies keep older images/browser caches from breaking charts. -->
+<script>
+(function(){
+  var sources=[
+    "/design-system/vendor/chart.umd.js",
+    "https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js",
+    "https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.7/chart.umd.min.js"
+  ];
+  window.__chartReady=new Promise(function(resolve){
+    function load(index){
+      if(typeof Chart!=="undefined"){ resolve(true); return; }
+      if(index>=sources.length){ resolve(false); return; }
+      var script=document.createElement("script");
+      script.src=sources[index]; script.async=true;
+      script.onload=function(){
+        if(typeof Chart!=="undefined") resolve(true); else load(index+1);
+      };
+      script.onerror=function(){ load(index+1); };
+      document.head.appendChild(script);
+    }
+    load(0);
+  });
+})();
+</script>
 <link rel="stylesheet" href="/design-system/styles.css" />
 <style>
   /* Brand/status/effect names aliased -> LeadGen AI Design System tokens (linked /design-system/styles.css).
@@ -2319,6 +2343,16 @@ async function loadHealthDetail(){
 // B1: revenue trend line chart (MRR + churn over time). Inert when REVENUE_TRENDS off.
 let _revTrendChart=null;
 async function loadRevenueTrend(){
+  if(typeof Chart==="undefined"){
+    if(window.__chartReady && !loadRevenueTrend._queued){
+      loadRevenueTrend._queued=true;
+      window.__chartReady.then(function(ok){
+        loadRevenueTrend._queued=false;
+        if(ok) loadRevenueTrend();
+      });
+    }
+    return;
+  }
   try{
     const r=await fetch("/api/admin/revenue-trend?days=90",{headers:abAuthHdr(),cache:"no-store"});
     const d=await r.json();
@@ -2458,7 +2492,23 @@ function renderHealth(h, ts){
 }
 
 /* charts */
+let _adminChartRenderQueued=false, _adminChartPendingData=null;
 function renderCharts(c){
+  if(typeof Chart==="undefined"){
+    _adminChartPendingData=c;
+    if(!_adminChartRenderQueued && window.__chartReady){
+      _adminChartRenderQueued=true;
+      window.__chartReady.then(function(ok){
+        _adminChartRenderQueued=false;
+        const pending=_adminChartPendingData;
+        _adminChartPendingData=null;
+        if(ok && pending) renderCharts(pending);
+        else if(!ok) console.warn("[renderCharts] Chart.js unavailable; chart cards skipped");
+      });
+    }
+    return;
+  }
+  _adminChartPendingData=null;
   Object.values(charts).forEach(ch=>ch && ch.destroy());
   Chart.defaults.font.family = "'Segoe UI',system-ui,sans-serif";
   Chart.defaults.color = "#64748b";
