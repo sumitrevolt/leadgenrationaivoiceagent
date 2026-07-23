@@ -304,7 +304,17 @@ def ingest_inbound(from_phone: str, text: str, message_id: str = "") -> dict[str
 
         tok = str(rec.get("token") or "")
         if intent == "approve" and tok:
-            content_approval.approve(tok)
+            from app.marketing.video_production import cell
+
+            approved = cell.approve_version(str(rec.get("id") or ""), int(rec.get("revision") or 0))
+            if not approved.get("ok"):
+                return {
+                    "handled": False,
+                    "intent": "approve",
+                    "reason": approved.get("error") or "approval_failed",
+                    "video_ad_id": rec.get("id"),
+                    "client_id": cid,
+                }
             return {
                 "handled": True,
                 "intent": "approve",
@@ -313,13 +323,27 @@ def ingest_inbound(from_phone: str, text: str, message_id: str = "") -> dict[str
                 "client_id": cid,
             }
         if intent == "reject" and tok:
-            content_approval.reject(tok, note=(text or "")[:300])
+            approval = content_approval.get_by_token(tok)
+            if not approval or str(approval.get("status") or "").lower() != "pending":
+                return {
+                    "handled": False,
+                    "intent": "reject",
+                    "reason": "approval_already_decided",
+                }
             video_ad_cycle._update(  # noqa: SLF001 — shared store helper
                 str(rec.get("id")),
                 status="held_max_revisions",
                 workflow_state="CLIENT_REJECTED",
+                final_approved=False,
                 note=(text or "")[:300],
             )
+            rejected = content_approval.reject(tok, note=(text or "")[:300])
+            if not rejected.get("ok") or rejected.get("already_decided"):
+                return {
+                    "handled": False,
+                    "intent": "reject",
+                    "reason": "approval_already_decided",
+                }
             return {
                 "handled": True,
                 "intent": "reject",
@@ -327,8 +351,21 @@ def ingest_inbound(from_phone: str, text: str, message_id: str = "") -> dict[str
                 "client_id": cid,
             }
         if intent == "changes" and tok:
+            approval = content_approval.get_by_token(tok)
+            if not approval or str(approval.get("status") or "").lower() != "pending":
+                return {
+                    "handled": False,
+                    "intent": "changes",
+                    "reason": "approval_already_decided",
+                }
             note = (text or "")[:300]
-            content_approval.reject(tok, note=note)
+            changed = content_approval.reject(tok, note=note)
+            if not changed.get("ok") or changed.get("already_decided"):
+                return {
+                    "handled": False,
+                    "intent": "changes",
+                    "reason": "approval_already_decided",
+                }
             # on_changes_requested already via reject hook; attach structured tasks
             video_ad_cycle._update(
                 str(rec.get("id")),
