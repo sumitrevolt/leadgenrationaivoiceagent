@@ -58,6 +58,14 @@ docker exec leadgen_app python -c "from app.marketing import postiz_publish as p
 ```
 Empty list for a customer = no Postiz publish (honest). Also check `data/social_engine.json` `dry_run` — `true` fabricates `ok=True` (ADR-098). Hourly drain = staff job `social_drain` (:10 IST).
 
+### Postiz multi-channel selection (2026-07-23 Stage 2 closure)
+- `POSTIZ_PINTEREST_BOARD` — required when a Pinterest integration is in the target list. **Unset/whitespace = Pinterest skipped**; other eligible channels still publish (one bad channel must not 400 the whole batch).
+- `POSTIZ_PUBLISH_MAX_CHANNELS` — integer cap after eligibility filtering. `unset` = uncapped (legacy). `0` / negative = **block** (no create-post API). Invalid string = uncapped + warning. Values >20 clamped to 20.
+- Zero eligible targets → `sent=False`, **no** upload/create API call.
+- Dry-run (no publish): `from app.marketing.postiz_publish import plan_publish_channels` with a local `platform_map` — does not call create/upload.
+- Rollout: keep `VIDEO_SOCIAL_PUBLISH_ENABLED=0` while verifying selection. Rollback = revert PR; publishing flag stays OFF.
+- Legacy autonomous `VIDEO_AD_CYCLE` remains disabled. Any restoration requires a separate ownership and duplication review after the governed production cell is operational.
+
 ## Prod incident (skill: `prod-incident-triage`)
 Health 000/502 → `docker ps` + logs → py-spy dump on stuck proc → recover (targeted restart, NOT blind) → root-cause → postmortem entry in `memory/incidents.md` + prevention rule. Self-heal cron `scripts/vps_selfheal.sh` */10 already running.
 
