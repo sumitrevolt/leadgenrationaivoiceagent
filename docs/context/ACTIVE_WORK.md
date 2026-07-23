@@ -2,13 +2,12 @@
 
 ---
 
-## WS-1 Video Review Stage 3 — LOCAL READY, PROD NOT DEPLOYED
+## WS-1 Video Review Stage 3 — DEPLOYED, AUTH CANARY PENDING
 - **ID:** WS-1
-- **Branch / worktree:** `codex/video-review-stage3` @ `leadgen-video-review-stage3`
-- **Base / prod:** `c7d5fa69`
-- **Status:** Tenant/path/version-safe media, bearer-to-blob `<video controls>` preview, exact-revision decisions, terminal Reject semantics, stale-ledger refusal, explicit customer allowlist, local Chart.js, and service-worker v5 cache bust are implemented and browser/contract-proven locally.
-- **Safety:** All review/WhatsApp/publish/scheduler flags remain OFF in production; no customer decision or external send was executed.
-- **Next exact action:** Owner authorizes commit/push/deploy; then enable only `VIDEO_CUSTOMER_REVIEW_ENABLED=1` plus `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover` for one authenticated read-only Jiya preview canary. Keep publish/WA/scheduler OFF.
+- **Release:** PR #97, merge/deploy SHA `510ed7bc1c7834892f81b9db092d1febb50dad48`, workflow run `30002538121` successful.
+- **Status:** Exact-SHA five-container production parity and green health/readiness are proven. The first admin impersonation attempt returned 401 because the pre-deploy admin JWT was expired; reload correctly exposed the admin login boundary.
+- **Safety:** Customer review, WhatsApp review, publish/social, daily video scheduler, WhatsApp auto-send, and platform dial remain OFF. No customer decision, external send, call, billing mutation, or queue mutation was executed.
+- **Next exact action:** Owner signs in through the handed-off Admin Login tab and owner-managed config enables only `VIDEO_CUSTOMER_REVIEW_ENABLED=1` plus `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover`; then run one authenticated read-only Jiya Preview canary.
 
 ---
 

@@ -3,32 +3,30 @@
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN
 
 ## Last verified timestamp
-2026-07-21T14:04Z (production running `7ce4d97`, verified via `/health` + `/health/ready`).
+2026-07-23T11:41Z (production running `510ed7bc`, verified via `/health` + `/health/ready`).
 
 ## Production SHA
-`7ce4d97` (`7ce4d979120da42cca9348320aae36640a2fdb27`) - deployed and PRODUCTION-PROVEN.
-Rollback target: `0ff5d06` (`0ff5d06c56ed0786bd47e1a364ce213ec9b96426`).
-Deploy workflow run: `29834863683` (deploy-vps.yml, workflow_dispatch on `main`). Deploy status: successful; rollback: not used.
-Full deployment evidence: `PRODUCTION_DEPLOYMENT_RECORD_7ce4d97.md`.
+`510ed7bc` (`510ed7bc1c7834892f81b9db092d1febb50dad48`) - deployed and PRODUCTION-PROVEN.
+Deploy workflow run: `30002538121` (`deploy-vps.yml`, workflow_dispatch on `main`). Deploy status: successful; rollback: not used.
+Full deployment evidence: `docs/context/PRODUCTION_DEPLOYMENT_RECORD_510ed7bc.md`.
 Label: PRODUCTION-PROVEN
 
 ## Origin/main
-`7ce4d97` == production. Recent merges: PR #68 (deployment-credential hardening), PR #69 (production-state docs), PR #70 (skill-tree consolidation / Phase 12).
+`510ed7bc` == production. Video Review Stage 3 merged in PR #97; implementation commit `a4547e05`.
 Label: CODE-PRESENT
 
 ## Production health
-`/health` 200, `/health/ready` 200, environment `production`, scheduler count 1, no mixed SHA, no OOM.
-`/health/ready` checks green: database, redis, llm (gemini), disk, memory. Uptime resets seen externally are uvicorn
-per-worker reporting (WEB_CONCURRENCY=2), not container restarts.
+`/health` 200 and `/health/ready` 200 at exact `510ed7bc`; environment `production`.
+All five app-image containers match the exact SHA, are running, and have restart count 0. Ready checks are green for database, redis, LLM configuration, disk, and memory.
 Label: PRODUCTION-PROVEN
 
 ## Migration
-Live Alembic head: `022_add_request_depth`. The `7ce4d97` deploy ran `alembic upgrade head` as a no-op (already at head).
+The `510ed7bc` deploy completed its hard-gated transactional Alembic step successfully; this release introduced no migration.
 (Note: `008` is NOT the head - it is one revision in the 008..022 chain.)
 Label: PRODUCTION-PROVEN
 
 ## Routes
-0 route collisions (prod_check on the deployed release: ALL CHECKS PASSED in the deploy gate on exact `7ce4d97`).
+0 route collisions (prod_check on the deployed release: ALL CHECKS PASSED in the deploy gate on exact `510ed7bc`).
 Label: PRODUCTION-PROVEN
 
 ## Deployment architecture (hardened path - PRODUCTION-PROVEN)
@@ -49,7 +47,7 @@ GitHub Actions
 - The old root-based GitHub deploy path is retired. `GHCR_PAT` is retired; the registry package is public and pulled anonymously by exact SHA.
 - The emergency root key is retained OUTSIDE GitHub (operator machine / VPS recovery) for break-glass only.
 - `DEPLOY_ENABLED` defaults unset (off); a push to `main` runs the gate job only. Deploy requires operator-set `DEPLOY_ENABLED=true` + `workflow_dispatch`.
-Label: PRODUCTION-PROVEN (run `29834863683`)
+Label: PRODUCTION-PROVEN (run `30002538121`)
 
 ## Secret state (GitHub Actions)
 Retained: `VPS_HOST`, `VPS_DEPLOY_USER`, `VPS_SSH_KEY_DEPLOY`.
@@ -68,15 +66,15 @@ Label: PRODUCTION-PROVEN
 Label: PRODUCTION-PROVEN
 
 ## OpenClaw
-Source present on main; production flag OFF (`OPENCLAW_ENABLED` unset -> default 0, fail-closed). Owner OS is sole authority; RED lane refusal intact. Unchanged by the `7ce4d97` deploy.
+Source present on main; production flag OFF (`OPENCLAW_ENABLED` unset -> default 0, fail-closed). Owner OS is sole authority; RED lane refusal intact. Unchanged by the `510ed7bc` deploy.
 Label: CODE-PRESENT | PRODUCTION-PROVEN (OFF)
 
 ## Calling
-HARD OFF. Voice agents `swara`/`ananya` remain RED lane. No dial job queued; calling queue empty. `DND_FAIL_OPEN=0` (fail-closed). Unchanged by the `7ce4d97` deploy.
+HARD OFF. Voice agents `swara`/`ananya` remain RED lane. `PLATFORM_DIAL_DAILY=0`; calling queue empty. Unchanged by the `510ed7bc` deploy.
 Label: PRODUCTION-PROVEN
 
 ## Deployment gate
-`DEPLOY_ENABLED` unset (disarmed). No deployment workflow running.
+`DEPLOY_ENABLED=false` (disarmed). Deploy run `30002538121` is completed.
 
 ## Repository cleanliness
 Main clone working tree has pre-existing local edits (jiya ledgers, `_ws4_ship/`) that are intentionally untracked/uncommitted and excluded from all work.
@@ -87,7 +85,8 @@ Main clone working tree has pre-existing local edits (jiya ledgers, `_ws4_ship/`
 ## Working customer workflows
 - OpenClaw Owner Copilot - merged to main (PR #65), production flag OFF
 - Delivery assurance / identity - unchanged
+- Video Review Stage 3 code - deployed at `510ed7bc`; customer cohort gate remains OFF pending authenticated Jiya canary
 
 ## Top next actions
-1. Resume the next product/business execution workstream (e.g. Hot Queue -> second paying customer). No deployment is pending.
-2. Any future deploy: operator-gated via the proven hardened path (set `DEPLOY_ENABLED=true`, dispatch `deploy-vps.yml`, then unset).
+1. In the handed-off Admin Login tab, owner signs in; owner-managed runtime config enables only `VIDEO_CUSTOMER_REVIEW_ENABLED=1` and `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover`.
+2. Run one authenticated read-only Jiya Preview canary. Keep WhatsApp review, publish/social, daily video scheduler, WhatsApp auto-send, and platform dial OFF.
