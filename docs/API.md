@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1189 operations)
+## Endpoint Index — auto-generated from OpenAPI (1194 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -523,7 +523,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientcrm/wishes/drafts` — Wishes Drafts
 - `POST  ` `/api/clientcrm/wishes/run` — Wishes Run
 
-### ClientOps  (21)
+### ClientOps  (24)
 
 - `POST  ` `/api/clientops/approval` — Submit Approval
 - `GET   ` `/api/clientops/approvals` — List Approvals
@@ -546,6 +546,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientops/video-ads` — Video Ads List
 - `POST  ` `/api/clientops/video-ads/generate` — Video Ads Generate
 - `POST  ` `/api/clientops/video-ads/{approval_id}/request-changes` — Video Ads Request Changes
+- `POST  ` `/api/clientops/video-production/generate` — Video Production Generate
+- `GET   ` `/api/clientops/video-production/ops` — Video Production Ops
+- `POST  ` `/api/clientops/video-production/{video_ad_id}/approve` — Video Production Approve
 
 ### Clients  (7)
 
@@ -620,7 +623,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (33)
+### Customer Dashboard  (35)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/council-decide` — Customer Approval Council Decide
@@ -653,6 +656,8 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/speed-to-lead` — Customer Speed To Lead
 - `GET   ` `/api/customer/team` — Get Customer Team
 - `GET   ` `/api/customer/timeline` — Customer Delivery Timeline
+- `GET   ` `/api/customer/videos` — Customer Videos List
+- `POST  ` `/api/customer/videos/{video_ad_id}/feedback` — Customer Video Feedback
 - `POST  ` `/api/customer/voice/call-queue` — Customer Voice Call Queue
 - `GET   ` `/api/customer/voice/queue-status` — Customer Voice Queue Status
 
