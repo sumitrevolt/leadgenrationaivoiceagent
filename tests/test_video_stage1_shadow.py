@@ -130,7 +130,19 @@ def test_harness_video_tools_shadow_eval_no_execute():
     assert counters()["whatsapp_outbound_attempts"] == 0
 
 
-def test_video_harness_shadow_in_automation_flags():
-    from app.api.automation_flags import AUTOMATION_FLAGS
+def test_own_brand_allowlist_denies_customer(monkeypatch):
+    from app.marketing.video_production.allowlist import assert_own_brand_allowlist
 
-    assert "VIDEO_HARNESS_SHADOW_ENABLED" in AUTOMATION_FLAGS
+    monkeypatch.setenv("VIDEO_OWN_BRAND_ENABLED", "1")
+    denied = assert_own_brand_allowlist("jiya-makeover")
+    assert denied["ok"] is False
+    assert denied["error"] == "own_brand_allowlist_denied"
+    ok = assert_own_brand_allowlist("leadgenai-self")
+    assert ok["ok"] is True
+
+
+def test_own_brand_allowlist_noop_when_flag_off(monkeypatch):
+    from app.marketing.video_production.allowlist import assert_own_brand_allowlist
+
+    monkeypatch.delenv("VIDEO_OWN_BRAND_ENABLED", raising=False)
+    assert assert_own_brand_allowlist("jiya-makeover")["ok"] is True
