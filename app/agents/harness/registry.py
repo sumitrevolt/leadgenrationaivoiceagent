@@ -671,3 +671,11 @@ def _register_builtins() -> None:
 
 
 _register_builtins()
+
+# Video Production Cell tools (additive; idempotent; fail-soft).
+try:
+    from app.marketing.video_production.harness_tools import register_video_tools
+
+    register_video_tools()
+except Exception:
+    pass

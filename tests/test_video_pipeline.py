@@ -19,7 +19,11 @@ from app.marketing import video_pipeline
 def test_render_creative_video_success(monkeypatch, tmp_path):
     from app.marketing import reel_video
 
-    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True},
+    )
 
     async def _fake_tts(text, path):
         with open(path, "wb") as f:
@@ -29,16 +33,45 @@ def test_render_creative_video_success(monkeypatch, tmp_path):
     monkeypatch.setattr(reel_video, "_tts", _fake_tts)
     monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
-    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n, **kw: None)
 
     result = asyncio.run(
         video_pipeline.render_creative_video(
-            business_name="Sharma Solar", niche="solar", slides=["a", "b"], offer="20% off", client_id="c1"
+            business_name="Sharma Solar",
+            niche="solar",
+            slides=["a", "b"],
+            offer="20% off",
+            client_id="c1",
         )
     )
     assert "error" not in result
     assert result["path"].endswith(".mp4")
     assert os.path.exists(result["path"])
+
+
+def test_render_ships_when_tts_fails(monkeypatch, tmp_path):
+    """EdgeTTS is a network adapter — TTS failure must still yield a silent video."""
+    from app.marketing import reel_video
+
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True},
+    )
+
+    async def _tts_fail(text, path):
+        return False
+
+    monkeypatch.setattr(reel_video, "_tts", _tts_fail)
+    monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
+    monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n, **kw: None)
+
+    result = asyncio.run(
+        video_pipeline.render_creative_video(business_name="X", slides=["silent slide"])
+    )
+    assert "error" not in result
+    assert result["path"].endswith(".mp4")
 
 
 def _write_dummy_output(args: list[str]) -> bool:
@@ -51,7 +84,11 @@ def _write_dummy_output(args: list[str]) -> bool:
 def test_render_creative_video_ffmpeg_missing(monkeypatch):
     from app.marketing import reel_video
 
-    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": False, "pillow": True, "edge_tts": True, "ok": False})
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": False, "pillow": True, "edge_tts": True, "ok": False},
+    )
 
     result = asyncio.run(video_pipeline.render_creative_video(business_name="X"))
     assert "error" in result
@@ -79,8 +116,11 @@ def test_logo_temp_file_returns_none_for_empty():
 
 def test_make_branded_frame_writes_png():
     brand = {
-        "business_name": "Sharma Solar", "phone": "9876543210",
-        "primary": "#2563eb", "accent": "#f59e0b", "logo_data_uri": "",
+        "business_name": "Sharma Solar",
+        "phone": "9876543210",
+        "primary": "#2563eb",
+        "accent": "#f59e0b",
+        "logo_data_uri": "",
     }
     with tempfile.TemporaryDirectory() as tmp:
         path = video_pipeline._make_branded_frame("Aapka Business — Solar expert", 0, brand, tmp)
@@ -150,7 +190,11 @@ def test_mix_music_args_shape():
 def test_render_creative_video_ships_without_music_on_mix_failure(monkeypatch, tmp_path):
     from app.marketing import reel_video
 
-    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True},
+    )
 
     async def _fake_tts(text, path):
         with open(path, "wb") as f:
@@ -158,7 +202,9 @@ def test_render_creative_video_ships_without_music_on_mix_failure(monkeypatch, t
         return True
 
     monkeypatch.setattr(reel_video, "_tts", _fake_tts)
-    monkeypatch.setattr(video_pipeline, "_music_bed_path", lambda niche: "data/music_beds/generic.mp3")
+    monkeypatch.setattr(
+        video_pipeline, "_music_bed_path", lambda niche: "data/music_beds/generic.mp3"
+    )
 
     calls = {"n": 0}
 
@@ -170,7 +216,7 @@ def test_render_creative_video_ships_without_music_on_mix_failure(monkeypatch, t
 
     monkeypatch.setattr(reel_video, "_ffmpeg", _fake_ffmpeg)
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
-    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n, **kw: None)
 
     result = asyncio.run(video_pipeline.render_creative_video(business_name="X", slides=["a"]))
     assert "error" not in result
@@ -184,7 +230,11 @@ def test_render_creative_video_music_mix_success_survives_remove_failure(monkeyp
     try/except and turns a successful render into {"error": ...}."""
     from app.marketing import reel_video
 
-    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True},
+    )
 
     async def _fake_tts(text, path):
         with open(path, "wb") as f:
@@ -192,11 +242,13 @@ def test_render_creative_video_music_mix_success_survives_remove_failure(monkeyp
         return True
 
     monkeypatch.setattr(reel_video, "_tts", _fake_tts)
-    monkeypatch.setattr(video_pipeline, "_music_bed_path", lambda niche: "data/music_beds/generic.mp3")
+    monkeypatch.setattr(
+        video_pipeline, "_music_bed_path", lambda niche: "data/music_beds/generic.mp3"
+    )
     # Every ffmpeg call succeeds, including the music-mix call.
     monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
-    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n, **kw: None)
 
     def _raise_remove(path):
         raise OSError("simulated Windows file-lock on cleanup")
@@ -248,7 +300,9 @@ def test_qa_check_passes_on_valid_probe(monkeypatch, tmp_path):
     def _fake_run(cmd, **kw):
         class R:
             returncode = 0
-            stdout = b'{"format": {"duration": "12.0"}, "streams": [{"width": 720, "height": 1280}]}'
+            stdout = (
+                b'{"format": {"duration": "12.0"}, "streams": [{"width": 720, "height": 1280}]}'
+            )
 
         return R()
 
@@ -303,7 +357,9 @@ def test_qa_check_fails_on_wrong_resolution(monkeypatch, tmp_path):
     def _fake_run(cmd, **kw):
         class R:
             returncode = 0
-            stdout = b'{"format": {"duration": "12.0"}, "streams": [{"width": 1080, "height": 1080}]}'
+            stdout = (
+                b'{"format": {"duration": "12.0"}, "streams": [{"width": 1080, "height": 1080}]}'
+            )
 
         return R()
 
@@ -315,7 +371,11 @@ def test_qa_check_fails_on_wrong_resolution(monkeypatch, tmp_path):
 def test_render_creative_video_qa_failure_returns_error(monkeypatch, tmp_path):
     from app.marketing import reel_video
 
-    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True},
+    )
 
     async def _fake_tts(text, path):
         with open(path, "wb") as f:
@@ -325,7 +385,9 @@ def test_render_creative_video_qa_failure_returns_error(monkeypatch, tmp_path):
     monkeypatch.setattr(reel_video, "_tts", _fake_tts)
     monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
-    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: "forced failure for test")
+    monkeypatch.setattr(
+        video_pipeline, "_qa_check", lambda path, n, **kw: "forced failure for test"
+    )
 
     result = asyncio.run(video_pipeline.render_creative_video(business_name="X", slides=["a"]))
     assert result.get("error") == "qa_failed: forced failure for test"
@@ -339,7 +401,11 @@ def test_render_creative_video_survives_ledger_logging_failure(monkeypatch, tmp_
     success with no "error" key."""
     from app.marketing import delivery_ledger, reel_video
 
-    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True},
+    )
 
     async def _fake_tts(text, path):
         with open(path, "wb") as f:
@@ -349,7 +415,7 @@ def test_render_creative_video_survives_ledger_logging_failure(monkeypatch, tmp_
     monkeypatch.setattr(reel_video, "_tts", _fake_tts)
     monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
-    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n, **kw: None)
 
     calls = {"n": 0}
 
@@ -361,7 +427,11 @@ def test_render_creative_video_survives_ledger_logging_failure(monkeypatch, tmp_
 
     result = asyncio.run(
         video_pipeline.render_creative_video(
-            business_name="Sharma Solar", niche="solar", slides=["a", "b"], offer="20% off", client_id="c1"
+            business_name="Sharma Solar",
+            niche="solar",
+            slides=["a", "b"],
+            offer="20% off",
+            client_id="c1",
         )
     )
     assert "error" not in result
@@ -381,10 +451,14 @@ def test_render_creative_video_unexpected_exception_logs_exactly_once(monkeypatc
     video_ready-then-video_render_failed double-log this task also fixes)."""
     from app.marketing import delivery_ledger, reel_video
 
-    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True},
+    )
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
 
-    def _raise_frame(text, idx, brand, tmp_dir):
+    def _raise_frame(text, idx, brand, tmp_dir, **kw):
         raise ValueError("simulated PIL frame-render error")
 
     monkeypatch.setattr(video_pipeline, "_make_branded_frame", _raise_frame)
@@ -420,7 +494,11 @@ def test_render_creative_video_getsize_failure_never_double_logs(monkeypatch, tm
     assertion) in addition to video_render_failed from the outer except."""
     from app.marketing import delivery_ledger, reel_video
 
-    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True},
+    )
 
     async def _fake_tts(text, path):
         with open(path, "wb") as f:
@@ -430,7 +508,7 @@ def test_render_creative_video_getsize_failure_never_double_logs(monkeypatch, tm
     monkeypatch.setattr(reel_video, "_tts", _fake_tts)
     monkeypatch.setattr(reel_video, "_ffmpeg", lambda args: _write_dummy_output(args))
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
-    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n: None)
+    monkeypatch.setattr(video_pipeline, "_qa_check", lambda path, n, **kw: None)
 
     logged: list[tuple[str, str]] = []
 
@@ -451,7 +529,9 @@ def test_render_creative_video_getsize_failure_never_double_logs(monkeypatch, tm
     assert "error" in result
     ready_events = [e for e in logged if e[1] == "video_ready"]
     failed_events = [e for e in logged if e == ("c1", "video_render_failed")]
-    assert not ready_events, f"video_ready must never fire when getsize raises building the result dict, got {logged}"
+    assert (
+        not ready_events
+    ), f"video_ready must never fire when getsize raises building the result dict, got {logged}"
     assert len(failed_events) == 1, f"expected exactly one video_render_failed log, got {logged}"
 
 
@@ -477,7 +557,11 @@ def test_render_creative_video_mkdtemp_failure_never_raises(monkeypatch, tmp_pat
     # Must reach mkdtemp — if available() reports ok:False (e.g. ffmpeg
     # missing on the test host), the deps-missing return fires BEFORE
     # mkdtemp is ever called and this test would guard nothing.
-    monkeypatch.setattr(reel_video, "available", lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True})
+    monkeypatch.setattr(
+        reel_video,
+        "available",
+        lambda: {"ffmpeg": True, "pillow": True, "edge_tts": True, "ok": True},
+    )
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
 
     def _raise_mkdtemp(*a, **kw):
@@ -499,9 +583,10 @@ def test_render_creative_video_mkdtemp_failure_never_raises(monkeypatch, tmp_pat
     assert "error" in result
     # Exact order + count: started then failed, nothing else, nothing
     # dangling, nothing double-logged.
-    assert logged == [("c1", "video_render_started"), ("c1", "video_render_failed")], (
-        f"expected exactly [started, failed] in order, got {logged}"
-    )
+    assert logged == [
+        ("c1", "video_render_started"),
+        ("c1", "video_render_failed"),
+    ], f"expected exactly [started, failed] in order, got {logged}"
 
 
 def test_build_creative_video_task_registered():
@@ -582,7 +667,11 @@ def test_real_end_to_end_render_generic_recipe(tmp_path, monkeypatch):
     monkeypatch.setattr(video_pipeline, "_OUT_DIR", str(tmp_path))
     result = asyncio.run(
         video_pipeline.render_creative_video(
-            business_name="Test Business", niche="general", slides=["Hello world"], offer="", client_id=""
+            business_name="Test Business",
+            niche="general",
+            slides=["Hello world"],
+            offer="",
+            client_id="",
         )
     )
     assert "error" not in result, result.get("error")
