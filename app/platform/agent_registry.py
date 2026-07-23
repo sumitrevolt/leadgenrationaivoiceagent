@@ -873,11 +873,6 @@ CONTROL_PLANE: dict[str, Any] = {
 # so they are fixed, not silently rotting). Each is (locus, drift, canonical).
 KNOWN_DRIFTS: tuple[dict[str, str], ...] = (
     {
-        "locus": "agent_controls.ALIAS_TO_MEMBER['blog']",
-        "drift": "maps blog->ravi, but scheduler_config.JOB_META['blog'].owner=isha",
-        "canonical": "blog job owner = isha (JOB_META = scheduler source of truth); ravi = embedded SEO-pages sub-engine inside the blog job",
-    },
-    {
         "locus": "scheduler_config.JOB_META['social_drain'].owner",
         "drift": "owner=isha, but the publish executor is zara (Social Media Manager)",
         "canonical": "isha triggers social_drain; zara is the publish executor (owner_publishing lane)",

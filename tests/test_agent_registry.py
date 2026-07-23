@@ -116,16 +116,19 @@ def test_control_plane_is_not_a_counted_persona():
 
 
 def test_known_drifts_documented():
-    """The real contradictions found during reconciliation are recorded (not hidden)."""
+    """Remaining reconciliation contradictions stay recorded (blog alias drift FIXED)."""
     loci = {d["locus"] for d in ar.KNOWN_DRIFTS}
-    assert any("ALIAS_TO_MEMBER['blog']" in x for x in loci)
+    assert not any("ALIAS_TO_MEMBER['blog']" in x for x in loci)
     assert any("SCORECARD" in x.upper() for x in loci)
     for d in ar.KNOWN_DRIFTS:
         assert d["canonical"], d["locus"]
 
 
 def test_blog_canonical_owner_is_isha_not_ravi():
-    """JOB_META is the scheduler source of truth; blog owner = isha."""
+    """JOB_META + ALIAS_TO_MEMBER agree: blog owner = isha."""
+    from app.platform.agent_controls import ALIAS_TO_MEMBER
+
+    assert ALIAS_TO_MEMBER.get("blog") == "isha"
     isha = ar.get_contract("isha")
     assert "blog" in isha.jobs
     ravi = ar.get_contract("ravi")
