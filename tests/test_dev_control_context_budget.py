@@ -49,13 +49,13 @@ def test_packet_within_limit_is_ok_and_reproducible():
         assert heading in a["text"]
 
 
-def test_oversize_packet_requires_justification():
+def test_oversize_packet_is_hard_blocked_even_with_justification():
     big = "x" * (PACKET_TOKEN_LIMITS["simple"] * 4 + 500)
     denied = _packet(size_class="simple", code_excerpts=[{"path": "big.py", "text": big}])
     assert denied["ok"] is False and denied["reason"] == "packet_over_budget"
     allowed = _packet(size_class="simple", code_excerpts=[{"path": "big.py", "text": big}],
                       oversize_justification="full-file migration diff required")
-    assert allowed["ok"] is True and allowed["oversize_justification"]
+    assert allowed["ok"] is False and allowed["reason"] == "packet_over_budget"
 
 
 def test_prior_failed_attempts_are_included_for_the_next_model():

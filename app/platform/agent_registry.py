@@ -136,7 +136,7 @@ class AgentContract:
     default_mode: str
     reasoning: bool  # genuine LLM reasoning vs deterministic job
     trigger_types: tuple[str, ...]
-    primary_flag: str  # env flag that gates it ("" = ungated/core)
+    primary_flag: str  # Agent Runtime eligibility gate ("" = ungated/core)
     prohibited: tuple[str, ...]  # actions this agent must never take
     max_concurrency: int
     run_timeout_s: int
@@ -153,6 +153,9 @@ class AgentContract:
     # derived-at-build (triggers/cadence from JOB_META); default so __init__ stays tidy
     jobs: tuple[str, ...] = field(default_factory=tuple)
     cadences: tuple[str, ...] = field(default_factory=tuple)
+    # Optional scheduler-only env flag (independent of Agent Runtime primary_flag).
+    # Empty = no separate scheduler gate tracked on this contract.
+    scheduler_flag: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = {k: getattr(self, k) for k in self.__dataclass_fields__}  # type: ignore[attr-defined]
@@ -207,7 +210,10 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         default_mode=LIVE,
         reasoning=False,
         trigger_types=(_G.SCHEDULED,),
-        primary_flag="OPS_WATCHDOG",
+        # Runtime-only gate (Agent Runtime ops_health_check). Scheduler watchdog
+        # stays on OPS_WATCHDOG — never OR these together for eligibility.
+        primary_flag="OPS_HEALTH_AGENT",
+        scheduler_flag="OPS_WATCHDOG",  # purpose=scheduler; agent_runtime_gate=false
         prohibited=("mutate_infra", "customer_contact"),
         max_concurrency=1,
         run_timeout_s=120,
@@ -360,7 +366,10 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         default_mode=PROPOSAL,
         reasoning=False,
         trigger_types=(_G.SCHEDULED,),
-        primary_flag="SECURITY_AGENT",
+        # Runtime-only gate (Agent Runtime run_security core). Daily scheduler
+        # stays on SECURITY_AGENT — never OR these together for eligibility.
+        primary_flag="SECURITY_POSTURE_AGENT",
+        scheduler_flag="SECURITY_AGENT",  # purpose=scheduler; agent_runtime_gate=false
         prohibited=("disable_compliance_gate", "rotate_secrets_autonomously", "customer_contact"),
         max_concurrency=1,
         run_timeout_s=180,
@@ -988,6 +997,7 @@ def build_registry() -> dict[str, AgentContract]:
             test_ref=str(gov["test_ref"]),
             jobs=tuple(jobs),
             cadences=tuple(cadences),
+            scheduler_flag=str(gov.get("scheduler_flag") or ""),
         )
     return out
 
