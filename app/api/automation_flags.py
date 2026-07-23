@@ -96,6 +96,7 @@ AUTOMATION_FLAGS = [
     "VIDEO_WHATSAPP_REVIEW_ENABLED",  # auto WA preview send (ban-safety; default OFF)
     "VIDEO_SOCIAL_PUBLISH_ENABLED",  # approval-gated Postiz publish when production cell ON
     "VIDEO_HARNESS_ENFORCE",  # harness evaluate_action must allow mutating video tools
+    "VIDEO_HARNESS_SHADOW_ENABLED",  # Stage 1: observe video harness decisions; no enforcement / side effects
     "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
     "SOCIAL_ENGINE",  # native social-posting engine (own queue+providers; default OFF, video_ad_cycle inline fallback)
     "ALLOW_TOS_SCRAPE",  # hard-off default — JustDial/IndiaMART/LinkedIn/social auto-scrape refuse (§5)
