@@ -148,10 +148,12 @@ async def vidya_finops(ctx: AgentExecutionContext) -> dict[str, Any]:
 
 
 async def arnav_security(ctx: AgentExecutionContext) -> dict[str, Any]:
-    _flag_skip("SECURITY_AGENT")
+    # Runtime gate = SECURITY_POSTURE_AGENT (registry primary_flag). Do NOT
+    # OR with scheduler-only SECURITY_AGENT; call ungated posture compute.
+    _flag_skip("SECURITY_POSTURE_AGENT")
     from app.platform import engineer_agents
 
-    out = await asyncio.to_thread(engineer_agents.run_security)
+    out = await asyncio.to_thread(engineer_agents.compute_security_posture)
     ctx.add_usage(api_calls=1)
     return {"check": "security", "read_only": True, "result": _refuse_error_dict(out, "arnav")}
 
