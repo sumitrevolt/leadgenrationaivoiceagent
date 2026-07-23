@@ -989,17 +989,18 @@ def _acquire_revive_lock() -> bool:
     """Single-chain guard: Redis NX lock taaki concurrent revivers (watchdog hourly +
     self_improve_revive */20min) ek hi stale-window me DO chains na bana dein → queue
     flood (2501 self_improve_tick lesson). TTL ~gap*2: chain sach me mari ho to expire
-    hoke agla revive reseed kar lega. Fail-open — Redis na ho to True (purana behaviour)."""
+    hoke agla revive reseed kar lega. Redis unavailable/error par fail-closed
+    rakho: watchdog ko duplicate chain seed karne ki permission nahi milni chahiye
+    jab distributed lock verify nahi ho sakta."""
     try:
-        import redis as _redis
-
-        from app.config import settings
-
-        r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+        r = _redis_client()
+        if r is None:
+            return False
         ttl = max(300, gap_seconds() * 2)
         return bool(r.set("self_improve:revive_lock", str(int(time.time())), nx=True, ex=ttl))
-    except Exception:
-        return True  # fail-open: Redis down → pehle jaisa behave karo
+    except Exception as e:
+        logger.debug("[self-improve] revive-lock unavailable — fail-closed: %s", e)
+        return False
 
 
 def ensure_alive() -> dict[str, Any]:
