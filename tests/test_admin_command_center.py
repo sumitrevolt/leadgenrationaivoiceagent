@@ -5,6 +5,7 @@ so real logic can be verified); (2) the _plan_price("trial") regression found
 while building this (was silently attributing full Starter MRR to free-trial
 signups); (3) the GET /api/admin/command-center endpoint; (4) static-HTML
 presence for the new page + its main.py route."""
+
 from fastapi.testclient import TestClient
 
 
@@ -65,6 +66,10 @@ def test_bucket_definitions_cover_each_customer_type(monkeypatch):
     }
     approvals = [{"client_id": "value1"}, {"client_id": "value1"}, {"client_id": "fail1"}]
     _patch_sources(monkeypatch, clients, summaries, approvals)
+    monkeypatch.setattr(
+        "app.api.admin_dashboard_builders._has_paid_evidence",
+        lambda c: str(c.get("plan")) != "trial",
+    )
 
     out = _build_command_center()
     s = out["summary"]
@@ -92,6 +97,10 @@ def test_revenue_excludes_trial_and_sums_by_plan(monkeypatch):
         _client("c", plan="trial"),
     ]
     _patch_sources(monkeypatch, clients, {}, [])
+    monkeypatch.setattr(
+        "app.api.admin_dashboard_builders._has_paid_evidence",
+        lambda c: str(c.get("id")) in {"a", "b"},
+    )
 
     out = _build_command_center()
     assert out["revenue"]["mrr_total"] == 1999 * 2
@@ -106,13 +115,35 @@ def test_posts_failed_alone_also_counts_as_automation_issue(monkeypatch):
     from app.api.admin_dashboard_builders import _build_command_center
 
     clients = [_client("only-post-failed")]
-    summaries = {"only-post-failed": {"value_delivered": True, "automation_failures": 0, "posts_failed": 1}}
+    summaries = {
+        "only-post-failed": {"value_delivered": True, "automation_failures": 0, "posts_failed": 1}
+    }
     _patch_sources(monkeypatch, clients, summaries, [])
 
     out = _build_command_center()
     assert out["summary"]["failed_automation_count"] == 1
     by_id = {c["id"]: c for c in out["per_customer"]}
     assert by_id["only-post-failed"]["automation_failures"] == 1
+
+
+def test_selected_non_trial_without_payment_is_not_paying_or_mrr(monkeypatch):
+    """A plan choice alone must not create revenue in the admin rollup."""
+    from app.api.admin_dashboard_builders import _build_command_center
+
+    clients = [_client("unpaid", plan="growth"), _client("paid", plan="starter")]
+    _patch_sources(monkeypatch, clients, {}, [])
+    monkeypatch.setattr(
+        "app.api.admin_dashboard_builders._has_paid_evidence",
+        lambda c: str(c.get("id")) == "paid",
+    )
+
+    out = _build_command_center()
+
+    assert out["summary"]["paying_customers"] == 1
+    assert out["revenue"]["mrr_total"] == 1999
+    by_id = {c["id"]: c for c in out["per_customer"]}
+    assert by_id["unpaid"]["mrr"] == 0
+    assert by_id["paid"]["mrr"] == 1999
 
 
 def test_pending_approvals_fetched_once_not_per_client(monkeypatch):
@@ -128,7 +159,11 @@ def test_pending_approvals_fetched_once_not_per_client(monkeypatch):
         calls.append(client_id)
         return [{"client_id": "a"}]
 
-    monkeypatch.setattr("app.marketing.clients_store.list_clients", lambda status=None, product=None: clients, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.clients_store.list_clients",
+        lambda status=None, product=None: clients,
+        raising=False,
+    )
     monkeypatch.setattr("app.marketing.delivery_ledger.summary", lambda cid: {}, raising=False)
     monkeypatch.setattr("app.marketing.content_approval.pending", _pending, raising=False)
 
@@ -170,7 +205,13 @@ def test_command_center_endpoint_returns_real_shape(monkeypatch):
 
     _override_admin(app)
     clients = [_client("x", plan="starter")]
-    _patch_sources(monkeypatch, clients, {"x": {"value_delivered": True, "automation_failures": 0}}, [])
+    _patch_sources(
+        monkeypatch, clients, {"x": {"value_delivered": True, "automation_failures": 0}}, []
+    )
+    monkeypatch.setattr(
+        "app.api.admin_dashboard_builders._has_paid_evidence",
+        lambda c: True,
+    )
 
     with TestClient(app) as c:
         resp = c.get("/api/admin/command-center")
@@ -214,6 +255,22 @@ def test_page_calls_real_endpoint_and_reuses_localstorage_auth_pattern():
     assert '"/api/admin/delivery-logs"' in html
     assert 'localStorage.getItem("accessToken")' in html
     assert "hdrs()" in html
+
+
+def test_delivery_cockpit_paying_kpi_matches_invoice_backed_revenue():
+    """The live cockpit must not count a selected non-trial plan as paid.
+
+    Revenue is invoice-backed; using a plan-count KPI beside it produced the
+    contradictory live state "Paying 3 / MRR ₹0".
+    """
+    html = _page_html()
+    assert "var payingCustomers = Number(revenue.paying_customers);" in html
+    assert "paying_customers: payingCustomers" in html
+    assert (
+        'paying_customers: customers.filter(function(c){ return c.plan !== "trial"; }).length'
+        not in html
+    )
+    assert "invoice-backed paying customers, monthly" in html
 
 
 def test_page_has_all_six_kpi_labels():
