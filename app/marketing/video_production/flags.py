@@ -42,6 +42,21 @@ def customer_review_enabled() -> bool:
     return _on("VIDEO_CUSTOMER_REVIEW_ENABLED")
 
 
+def _customer_review_clients() -> frozenset[str]:
+    """Explicit tenant allowlist; empty stays fail-closed and ``*`` means all."""
+    raw = os.getenv("VIDEO_CUSTOMER_REVIEW_CLIENTS", "")
+    return frozenset(part.strip().lower() for part in raw.split(",") if part.strip())
+
+
+def customer_review_allowed(client_id: str) -> bool:
+    """Stage 3/4 gate: global switch plus an explicit canonical tenant id."""
+    if not customer_review_enabled():
+        return False
+    allowed = _customer_review_clients()
+    cid = str(client_id or "").strip().lower()
+    return bool(cid) and ("*" in allowed or cid in allowed)
+
+
 def whatsapp_review_enabled() -> bool:
     """Auto WhatsApp preview send — OFF default; ban-safety critical."""
     return _on("VIDEO_WHATSAPP_REVIEW_ENABLED")
@@ -91,6 +106,8 @@ def flag_snapshot() -> dict[str, bool]:
         "VIDEO_PRODUCTION_ENABLED": production_enabled(),
         "VIDEO_DAILY_SCHEDULER_ENABLED": daily_scheduler_enabled(),
         "VIDEO_CUSTOMER_REVIEW_ENABLED": customer_review_enabled(),
+        "VIDEO_CUSTOMER_REVIEW_CLIENTS_CONFIGURED": bool(_customer_review_clients()),
+        "VIDEO_CUSTOMER_REVIEW_ALLOW_ALL": "*" in _customer_review_clients(),
         "VIDEO_WHATSAPP_REVIEW_ENABLED": whatsapp_review_enabled(),
         "VIDEO_SOCIAL_PUBLISH_ENABLED": (
             social_publish_enabled()
@@ -109,6 +126,7 @@ __all__ = [
     "production_enabled",
     "daily_scheduler_enabled",
     "customer_review_enabled",
+    "customer_review_allowed",
     "whatsapp_review_enabled",
     "social_publish_enabled",
     "harness_enforce",
