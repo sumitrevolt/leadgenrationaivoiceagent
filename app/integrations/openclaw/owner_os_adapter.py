@@ -103,8 +103,9 @@ def run_via_owner_os(
         )
         return out
 
-    if lane == "AMBER" and require_approval_for_amber() and not confirm:
-        # Create Owner OS command in APPROVAL_REQUIRED state via NL bridge text.
+    if lane == "AMBER" and require_approval_for_amber():
+        # AMBER always parks — confirm means "submit approval request", never silent mutate.
+        # (Legacy `confirm=false` early-return lived in /nl; adapter must not treat confirm as bypass.)
         return _amber_hold(
             command, params, actor=actor, corr=corr, text=text, idempotency_key=idempotency_key
         )
