@@ -29,8 +29,9 @@ import json
 import logging
 import os
 from datetime import datetime
+from typing import Any, Dict, Optional
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.api.customer_auth import require_customer
@@ -2317,6 +2318,66 @@ async def customer_approval_council_decide(
     )
 
 
+def _authorize_video_media_path(rec: dict[str, Any], requesting_client_id: str):
+    """Centralized authorization helper for video media access.
+    Enforces tenant isolation, canonical client identity, path safety, and file type validation.
+    """
+    if not rec or not isinstance(rec, dict):
+        return None
+
+    try:
+        from pathlib import Path
+
+        from app.marketing import clients_store
+
+        req_cid = clients_store.canonical_client_id(requesting_client_id)
+        rec_cid = clients_store.canonical_client_id(str(rec.get("client_id") or ""))
+
+        if not req_cid or not rec_cid or req_cid != rec_cid:
+            return None
+
+        raw_path = str(rec.get("video_path") or "").strip()
+        if not raw_path:
+            return None
+
+        if os.path.islink(raw_path):
+            return None
+
+        target = Path(raw_path).resolve()
+
+        if not target.exists() or not target.is_file() or target.suffix.lower() != ".mp4":
+            return None
+
+        allowed_roots = [
+            Path("data/reels").resolve(),
+            Path("data/video_ads").resolve(),
+            Path("data/clips").resolve(),
+            Path("data/renders").resolve(),
+        ]
+
+        is_allowed = False
+        for root in allowed_roots:
+            try:
+                if target.is_relative_to(root):
+                    is_allowed = True
+                    break
+            except AttributeError:
+                try:
+                    target.relative_to(root)
+                    is_allowed = True
+                    break
+                except ValueError:
+                    pass
+
+        if not is_allowed:
+            return None
+
+        return target
+    except Exception as e:
+        logger.debug("_authorize_video_media_path error: %s", e)
+        return None
+
+
 @router.get("/videos")
 def customer_videos_list(client_id: str = Depends(require_customer)):
     """Customer Video Production Cell — own videos only (tenant-isolated)."""
@@ -2327,6 +2388,7 @@ def customer_videos_list(client_id: str = Depends(require_customer)):
         rows = video_ad_cycle.list_for_client(mcid)
         safe = []
         for r in rows:
+            auth_path = _authorize_video_media_path(r, mcid)
             safe.append(
                 {
                     "id": r.get("id"),
@@ -2339,7 +2401,8 @@ def customer_videos_list(client_id: str = Depends(require_customer)):
                     "created_at": r.get("created_at"),
                     "published_at": r.get("published_at"),
                     "approval_id": r.get("approval_id"),
-                    "has_video": bool(str(r.get("video_path") or "").strip()),
+                    "has_video": auth_path is not None,
+                    "media_url": f"/api/customer/videos/{r.get('id')}/media" if auth_path else None,
                     "aspect_ratio": r.get("aspect_ratio") or "9:16",
                     "feedback_categories": r.get("feedback_categories") or [],
                 }
@@ -2348,6 +2411,141 @@ def customer_videos_list(client_id: str = Depends(require_customer)):
     except Exception as e:
         logger.debug("customer videos list failed: %s", e)
         return {"ok": False, "count": 0, "videos": []}
+
+
+@router.get("/videos/{video_ad_id}/media")
+def customer_video_media(
+    video_ad_id: str,
+    client_id: str = Depends(require_customer),
+    range: str | None = Header(None, alias="Range"),
+):
+    """Stream authorized customer video media with inline disposition and HTTP Range support."""
+    import re
+
+    from fastapi.responses import Response, StreamingResponse
+
+    from app.marketing import clients_store, video_ad_cycle
+
+    mcid = clients_store.canonical_client_id(client_id)
+    rec = None
+    for r in video_ad_cycle.list_for_client(mcid):
+        if str(r.get("id")) == str(video_ad_id):
+            rec = r
+            break
+
+    if not rec:
+        raise HTTPException(status_code=404, detail="Video record not found")
+
+    target_path = _authorize_video_media_path(rec, mcid)
+    if not target_path:
+        raise HTTPException(status_code=404, detail="Video media not found or unauthorized")
+
+    file_size = target_path.stat().st_size
+    filename = f"video_ad_{video_ad_id}.mp4"
+
+    base_headers = {
+        "Content-Type": "video/mp4",
+        "Content-Disposition": f'inline; filename="{filename}"',
+        "Accept-Ranges": "bytes",
+    }
+
+    if range:
+        range_str = range.strip()
+        if "," in range_str:
+            return Response(
+                status_code=416,
+                headers={
+                    "Content-Range": f"bytes */{file_size}",
+                    **base_headers,
+                },
+            )
+
+        m_start_end = re.match(r"^bytes=(\d+)-(\d+)$", range_str)
+        m_open_end = re.match(r"^bytes=(\d+)-$", range_str)
+        m_suffix = re.match(r"^bytes=-(\d+)$", range_str)
+
+        start, end = None, None
+        if m_start_end:
+            start = int(m_start_end.group(1))
+            end = int(m_start_end.group(2))
+        elif m_open_end:
+            start = int(m_open_end.group(1))
+            end = file_size - 1
+        elif m_suffix:
+            s_len = int(m_suffix.group(1))
+            if s_len == 0:
+                return Response(
+                    status_code=416,
+                    headers={
+                        "Content-Range": f"bytes */{file_size}",
+                        **base_headers,
+                    },
+                )
+            start = max(0, file_size - s_len)
+            end = file_size - 1
+        else:
+            return Response(
+                status_code=416,
+                headers={
+                    "Content-Range": f"bytes */{file_size}",
+                    **base_headers,
+                },
+            )
+
+        if start < 0 or start >= file_size or end < start:
+            return Response(
+                status_code=416,
+                headers={
+                    "Content-Range": f"bytes */{file_size}",
+                    **base_headers,
+                },
+            )
+
+        end = min(end, file_size - 1)
+        content_length = end - start + 1
+
+        headers = {
+            **base_headers,
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Content-Length": str(content_length),
+        }
+
+        def iterfile():
+            with open(target_path, "rb") as f:
+                f.seek(start)
+                remaining = content_length
+                chunk_size = 64 * 1024
+                while remaining > 0:
+                    read_bytes = f.read(min(chunk_size, remaining))
+                    if not read_bytes:
+                        break
+                    remaining -= len(read_bytes)
+                    yield read_bytes
+
+        return StreamingResponse(
+            iterfile(),
+            status_code=206,
+            headers=headers,
+            media_type="video/mp4",
+        )
+
+    headers = {
+        **base_headers,
+        "Content-Length": str(file_size),
+    }
+
+    def iterfull():
+        with open(target_path, "rb") as f:
+            chunk_size = 64 * 1024
+            while chunk := f.read(chunk_size):
+                yield chunk
+
+    return StreamingResponse(
+        iterfull(),
+        status_code=200,
+        headers=headers,
+        media_type="video/mp4",
+    )
 
 
 class VideoFeedbackIn(BaseModel):
