@@ -49,7 +49,7 @@ def isolated(tmp_path, monkeypatch):
     rt._ACTIVE_TASKS.clear()
 
     monkeypatch.setenv("AGENT_RUNTIME", "1")
-    monkeypatch.setenv("OPS_WATCHDOG", "1")
+    monkeypatch.setenv("OPS_HEALTH_AGENT", "1")
     monkeypatch.setenv("AFTERNOON_CONTENT", "1")
     monkeypatch.setenv("SRE_AGENT", "1")
     yield

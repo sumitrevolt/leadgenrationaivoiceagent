@@ -31,13 +31,13 @@ def _iso(tmp_path, monkeypatch):
     monkeypatch.setenv("AGENT_RUNTIME", "1")
     # Peer pilot flags OFF for isolation tests
     for fl in (
-        "OPS_WATCHDOG",
+        "OPS_HEALTH_AGENT",
         "AFTERNOON_CONTENT",
         "SOCIAL_ENGINE",
         "INFRA_HANDLER",
         "SRE_AGENT",
         "FINOPS_AGENT",
-        "SECURITY_AGENT",
+        "SECURITY_POSTURE_AGENT",
         "DBRE_AGENT",
         "DATA_INTEGRITY_AGENT",
         "DEPS_AGENT",
@@ -168,7 +168,7 @@ def test_isolation_ok_when_only_nikhil_flag_on(monkeypatch):
 
 def test_isolation_fails_when_peer_flag_on(monkeypatch):
     monkeypatch.setenv("DELIVERY_ASSURANCE_AGENT", "1")
-    monkeypatch.setenv("OPS_WATCHDOG", "1")  # kavya
+    monkeypatch.setenv("OPS_HEALTH_AGENT", "1")  # kavya
     out = pf.canary_isolation_preflight("nikhil", assume_runtime_on=True)
     assert out["allowed"] is False
     assert out["reason_code"] == "canary_agent_isolation_failed"

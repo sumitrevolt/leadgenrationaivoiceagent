@@ -1,9 +1,9 @@
 # Distributed Cancellation (Agent Runtime)
 
-**Status:** implementation + CI — **not** production-proven until authorized deploy + Pranav proof.
+**Status:** Redis-backed cross-process cancellation is **production-proven** on SHA `d4b248f5` (Pranav-only). See `DISTRIBUTED_CANCELLATION_PRODUCTION_PROOF.md`.
 
-**Why:** process-local `_CANCELLED_AGENTS` only worked inside one process. Owner OS / API
-cancellation was invisible to Celery workers → `cancellation_cross_process: not_supported`.
+**Why (historical):** process-local `_CANCELLED_AGENTS` only worked inside one process. Owner OS / API
+cancellation was invisible to Celery workers → previously `cancellation_cross_process: not_supported`.
 
 ## Architecture
 

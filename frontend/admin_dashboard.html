@@ -260,6 +260,7 @@
       <a href="#onboardCard" onclick="openOnboard();return false;" role="menuitem" aria-label="Add new customer" style="background:#10b981;color:#fff;font-weight:700;margin-bottom:6px;box-shadow:0 4px 12px rgba(16,185,129,.4)"><span class="ic" aria-hidden="true">➕</span> Add Customer</a>
       <div class="sec nav-group" role="presentation">Automation</div>
       <a href="/app/owner" role="menuitem" aria-label="Owner Operating System command center"><span class="ic" aria-hidden="true">👑</span> Owner OS</a>
+      <a href="#openclawAdminCard" onclick="scrollToSec('openclawAdminCard');return false;" role="menuitem" aria-label="OpenClaw Owner Copilot — NL commands via Owner OS"><span class="ic" aria-hidden="true">🧠</span> OpenClaw Copilot <span class="badge" id="nav-openclaw-flag" style="background:#64748b;display:none">OFF</span></a>
       <a href="/app/automation" role="menuitem" aria-label="Mission Control automation"><span class="ic" aria-hidden="true">🎛</span> Automation Monitor <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
       <a href="/app/calendar" role="menuitem" aria-label="Content calendar"><span class="ic" aria-hidden="true">🗓</span> Content Calendar</a>
       <a href="/app/automation#approvals" role="menuitem" aria-label="Approvals and workflows"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
@@ -360,6 +361,7 @@
             <a class="btn" href="/app/automation" style="text-decoration:none;background:#4f46e5;color:#fff">🎛 Automation</a>
             <a class="btn" href="/app/clients" style="text-decoration:none;background:#d97706;color:#fff">📋 Clients</a>
             <a class="btn" href="/app/office" style="text-decoration:none;background:#334155;color:#fff">🏢 Office</a>
+            <a class="btn" href="#openclawAdminCard" onclick="scrollToSec('openclawAdminCard');return false;" style="text-decoration:none;background:#4f46e5;color:#fff">🧠 OpenClaw</a>
             <a class="btn" href="#adminTasksCard" onclick="scrollToSec('adminTasksCard');return false;" style="text-decoration:none;background:#b45309;color:#fff">📋 Mere kaam</a>
           </div>
           <p style="margin:0;font-size:12px;color:#64748b;line-height:1.45">Roz ka kaam: upar ke 3 cards + yeh buttons. Neeche Technical/Ops chhupa hua hai — zarurat pe <b>Dikhao</b>.</p>
@@ -484,6 +486,257 @@
         }
         var ai=document.getElementById("agentAskInput"); if(ai) ai.addEventListener("keydown", function(e){ if(e.key==="Enter") agentAsk(); });
         load();
+      })();
+      </script>
+
+      <!-- ═══ OpenClaw Owner Copilot (Admin Dashboard vertical slice) ═══
+           Authority: Admin → OpenClaw → Owner OS → Boss → 31 agents.
+           Reuses /api/owner-copilot/* + /api/admin/owner-os/approvals|audit|agents.
+           No second dispatcher; no Celery/shell bypass. OPENCLAW_ENABLED fail-closed. -->
+      <div data-view="command_center" class="card" id="openclawAdminCard" style="margin-bottom:14px;border:1px solid #6366f1;scroll-margin-top:80px;background:linear-gradient(135deg,#eef2ff 0%,#f8fafc 100%)">
+        <style>
+          #openclawAdminCard .oc-cmd-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:start}
+          #openclawAdminCard .oc-split{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+          #openclawAdminCard .oc-triple{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+          @media (max-width:900px){
+            #openclawAdminCard .oc-cmd-row{grid-template-columns:1fr 1fr}
+            #openclawAdminCard .oc-cmd-row textarea{grid-column:1/-1}
+            #openclawAdminCard .oc-split,#openclawAdminCard .oc-triple{grid-template-columns:1fr}
+          }
+        </style>
+        <div class="hd" style="border-bottom:1px solid rgba(99,102,241,.22);display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+          <h3 style="color:#3730a3;font-size:16px;letter-spacing:-.3px">🧠 OpenClaw Copilot</h3>
+          <span id="ocFlagBadge" style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#64748b;color:#fff">flag…</span>
+          <span id="ocLaneBadge" style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#1e293b;color:#cbd5e1">lane —</span>
+          <span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#7f1d1d;color:#fecaca">Calling HARD OFF</span>
+          <span class="right" style="margin-left:auto;font-size:11px;color:#64748b">Owner OS = sole authority · <a href="/app/owner#copilot" style="color:#4f46e5;font-weight:700">Owner OS tab →</a></span>
+        </div>
+        <div class="bd" style="color:#0f172a">
+          <p style="margin:0 0 10px;font-size:12.5px;color:#475569;line-height:1.45">Natural-language commands. GREEN runs via Owner OS · AMBER parks approval · RED always refused. Secrets / shell / billing / deploy / dial = blocked.</p>
+          <div id="ocSuggest" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px" aria-label="Suggested safe commands"></div>
+          <div class="oc-cmd-row">
+            <textarea id="ocText" rows="3" placeholder="Show current production health" aria-label="OpenClaw natural language command"
+              style="width:100%;padding:9px 12px;border:1px solid #c7d2fe;border-radius:9px;font-size:13px;resize:vertical;font-family:inherit"></textarea>
+            <button type="button" class="btn" id="ocPreviewBtn" onclick="ocPreview()" style="background:#334155;color:#fff;border:0;font-weight:700;white-space:nowrap">Parse</button>
+            <button type="button" class="btn" id="ocRunBtn" onclick="ocRun()" style="background:#4f46e5;color:#fff;border:0;font-weight:700;white-space:nowrap">Run</button>
+          </div>
+          <div class="oc-split">
+            <div>
+              <div style="font-size:11px;font-weight:800;color:#4338ca;margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px">Parsed intent</div>
+              <pre id="ocPreview" style="margin:0;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:10px;font-size:11.5px;max-height:180px;overflow:auto">—</pre>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:800;color:#4338ca;margin-bottom:4px;text-transform:uppercase;letter-spacing:.3px">Result / status</div>
+              <div id="ocStatusLine" style="font-size:12px;font-weight:800;margin-bottom:4px;color:#64748b">Pending</div>
+              <pre id="ocResult" style="margin:0;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:10px;font-size:11.5px;max-height:180px;overflow:auto">—</pre>
+            </div>
+          </div>
+          <div class="oc-triple">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div style="font-size:11px;font-weight:800;color:#4338ca;text-transform:uppercase;letter-spacing:.3px">Approval queue</div>
+                <button type="button" class="btn" onclick="ocLoadApprovals()" style="padding:3px 8px;font-size:11px;background:#e2e8f0;color:#334155;border:0">↻</button>
+              </div>
+              <div id="ocApprovals" style="font-size:12px;max-height:200px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px">—</div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div style="font-size:11px;font-weight:800;color:#4338ca;text-transform:uppercase;letter-spacing:.3px">Agent controls</div>
+                <button type="button" class="btn" onclick="ocLoadAgents()" style="padding:3px 8px;font-size:11px;background:#e2e8f0;color:#334155;border:0">↻</button>
+              </div>
+              <div id="ocAgents" style="font-size:12px;max-height:200px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px">—</div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <div style="font-size:11px;font-weight:800;color:#4338ca;text-transform:uppercase;letter-spacing:.3px">Audit timeline</div>
+                <button type="button" class="btn" onclick="ocLoadAudit()" style="padding:3px 8px;font-size:11px;background:#e2e8f0;color:#334155;border:0">↻</button>
+              </div>
+              <div id="ocAudit" style="font-size:12px;max-height:200px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px">—</div>
+            </div>
+          </div>
+          <p id="ocHint" style="margin:10px 0 0;font-size:11.5px;color:#64748b">Authority: Admin Dashboard → OpenClaw → Owner OS → Boss → 31 agents. Correlation IDs appear in result JSON.</p>
+        </div>
+      </div>
+      <script>
+      (function(){
+        var SUGGEST = [
+          "Show current production health",
+          "Which agents are currently active?",
+          "Show failed workflows from the last 24 hours",
+          "Show pending approvals",
+          "Prepare today's delivery risk report",
+          "Which customer deliverables need attention?",
+          "Show current feature-flag state without exposing secrets",
+          "Pause Isha safely",
+          "Drain Arjun after the current task"
+        ];
+        function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+        function authHdr(){ var t=localStorage.getItem("accessToken")||localStorage.getItem("adminToken")||""; return t?{"Authorization":"Bearer "+t,"Content-Type":"application/json"}:{"Content-Type":"application/json"}; }
+        async function api(path, opts){
+          var r=await fetch(path, Object.assign({}, opts||{}, {headers:Object.assign(authHdr(), (opts&&opts.headers)||{})}));
+          var j=null; try{ j=await r.json(); }catch(e){ j={ok:false,error:"bad_json"}; }
+          return {status:r.status, body:j};
+        }
+        function setLane(lane){
+          var el=document.getElementById("ocLaneBadge"); if(!el) return;
+          var L=String(lane||"—").toUpperCase();
+          el.textContent="lane "+L;
+          el.style.background = L==="GREEN"?"#14532d":L==="AMBER"?"#78350f":L==="RED"?"#7f1d1d":"#1e293b";
+          el.style.color = L==="GREEN"?"#bbf7d0":L==="AMBER"?"#fde68a":L==="RED"?"#fecaca":"#cbd5e1";
+        }
+        function setStatus(kind, label){
+          var el=document.getElementById("ocStatusLine"); if(!el) return;
+          el.textContent=label||kind||"Pending";
+          var col={Executed:"#15803d","Approval required":"#b45309",Refused:"#b91c1c",Failed:"#b91c1c",Pending:"#64748b",Preview:"#4338ca"}[kind]||"#64748b";
+          el.style.color=col;
+        }
+        function fillSuggest(){
+          var box=document.getElementById("ocSuggest"); if(!box) return;
+          box.textContent="";
+          SUGGEST.forEach(function(t){
+            var b=document.createElement("button");
+            b.type="button"; b.className="btn";
+            b.style.cssText="padding:4px 10px;font-size:11px;background:#e0e7ff;color:#3730a3;border:0;font-weight:700";
+            b.textContent=t;
+            b.addEventListener("click", function(){ var ta=document.getElementById("ocText"); if(ta){ ta.value=t; ta.focus(); } });
+            box.appendChild(b);
+          });
+        }
+        async function ocBoot(){
+          fillSuggest();
+          var {status,body}=await api("/api/owner-copilot/status");
+          var flag=document.getElementById("ocFlagBadge");
+          var nav=document.getElementById("nav-openclaw-flag");
+          var on=!!(body&&body.enabled);
+          if(flag){
+            flag.textContent = status===200?(on?"OPENCLAW_ENABLED=1":"OPENCLAW_ENABLED=0"):("status "+status);
+            flag.style.background = on?"#14532d":"#78350f";
+          }
+          if(nav){
+            nav.style.display="inline";
+            nav.textContent=on?"ON":"OFF";
+            nav.style.background=on?"#16a34a":"#64748b";
+          }
+          if(status===401||status===403){
+            setStatus("Failed","Login / super-admin required");
+            document.getElementById("ocResult").textContent="Auth required — /app/admin-login";
+          }
+          await Promise.all([ocLoadApprovals(), ocLoadAgents(), ocLoadAudit()]);
+        }
+        window.ocPreview = async function ocPreview(){
+          var text=(document.getElementById("ocText").value||"").trim();
+          if(text.length<3){ setStatus("Pending","Command likho"); return; }
+          setStatus("Preview","Parsing…");
+          var {status,body}=await api("/api/owner-copilot/nl",{method:"POST",body:JSON.stringify({text:text, execute:false})});
+          var prop=(body&&body.proposal)||body||{};
+          setLane(prop.safety_lane);
+          document.getElementById("ocPreview").textContent=JSON.stringify(prop,null,2);
+          document.getElementById("ocResult").textContent=status===503?"OPENCLAW_ENABLED=0 — fail-closed":"(preview only — Run se execute)";
+          setStatus(status===200?"Preview":"Failed", status===200?("Preview · "+(prop.safety_lane||"?")):"HTTP "+status);
+        };
+        window.ocRun = async function ocRun(){
+          var text=(document.getElementById("ocText").value||"").trim();
+          if(text.length<3){ setStatus("Pending","Command likho"); return; }
+          setStatus("Pending","Executing…");
+          document.getElementById("ocResult").textContent="…";
+          var idem="ocadm_"+Date.now()+"_"+Math.random().toString(16).slice(2,8);
+          var {status,body}=await api("/api/owner-copilot/nl",{method:"POST",body:JSON.stringify({text:text, execute:true, confirm:true, idempotency_key:idem})});
+          var prop=(body&&body.proposal)||{};
+          var ex=(body&&body.executed)||null;
+          setLane(prop.safety_lane||(ex&&ex.safety_lane));
+          document.getElementById("ocPreview").textContent=JSON.stringify(prop,null,2);
+          document.getElementById("ocResult").textContent=JSON.stringify(ex||body,null,2);
+          var lane=String(prop.safety_lane||(ex&&ex.safety_lane)||"").toUpperCase();
+          var st=String((ex&&ex.status)||"").toUpperCase();
+          if(status!==200){ setStatus("Failed","HTTP "+status); }
+          else if(lane==="RED"||st==="REJECTED"){ setStatus("Refused","RED refused · "+((ex&&ex.correlation_id)||"")); }
+          else if(lane==="AMBER"||(ex&&ex.approval_required)||st==="APPROVAL_REQUIRED"){ setStatus("Approval required","AMBER parked · Owner OS approval"); ocLoadApprovals(); }
+          else if(st==="SUCCEEDED"||st==="OK"||(ex&&ex.ok)){ setStatus("Executed","GREEN · "+((ex&&ex.correlation_id)||st)); }
+          else if(st==="FAILED"){ setStatus("Failed", st); }
+          else { setStatus("Pending", st||("HTTP "+status)); }
+          ocLoadAudit();
+        };
+        window.ocLoadApprovals = async function ocLoadApprovals(){
+          var el=document.getElementById("ocApprovals"); if(!el) return;
+          var {status,body}=await api("/api/admin/owner-os/approvals");
+          if(status===401||status===403){ el.textContent="Auth required"; return; }
+          if(status!==200){ el.textContent="Load fail ("+status+")"; return; }
+          var items=body.items||[];
+          if(!items.length){ el.innerHTML="<span style='color:#64748b'>Queue empty</span>"; return; }
+          el.innerHTML=items.slice(0,12).map(function(i){
+            var sid=esc(i.source||""); var iid=esc(i.item_id||"");
+            var decidable=!!i.decidable_here;
+            var btns=decidable
+              ?('<button type="button" class="btn" style="padding:3px 8px;font-size:11px;background:#16a34a;color:#fff;border:0;margin-right:4px" data-oc-appr="approve" data-src="'+sid+'" data-id="'+iid+'">Approve</button>'+
+                '<button type="button" class="btn" style="padding:3px 8px;font-size:11px;background:#dc2626;color:#fff;border:0" data-oc-appr="reject" data-src="'+sid+'" data-id="'+iid+'">Reject</button>')
+              :('<a href="'+esc(i.open_in||'/app/automation#approvals')+'" style="font-size:11px;color:#4f46e5;font-weight:700">Open Mission Control</a>');
+            return '<div style="padding:7px 0;border-bottom:1px solid #e2e8f0">'+
+              '<b>'+sid+'</b> · '+esc(i.category||'')+' · <span style="color:#64748b">'+esc(i.tenant_id||i.customer||'—')+'</span>'+
+              '<div style="color:#334155;margin:2px 0">'+esc(i.title||'')+'</div>'+
+              '<div style="color:#64748b;font-size:11px">Agent: '+esc(i.requesting_agent||'—')+' · Action: '+esc(i.action_type||'—')+' · Risk: '+esc(i.risk||'—')+
+              (i.created_at||i.ts?(' · '+esc(i.created_at||i.ts)):'')+'</div>'+
+              '<div style="margin-top:5px">'+btns+'</div></div>';
+          }).join("");
+        };
+        window.ocDecideAppr = async function ocDecideAppr(source, itemId, decision){
+          var {status,body}=await api("/api/admin/owner-os/approvals/"+encodeURIComponent(source)+"/"+encodeURIComponent(itemId)+"/decide",{
+            method:"POST", body:JSON.stringify({decision:decision, reason:"openclaw_admin_dashboard"})
+          });
+          setStatus(status===200&&body&&body.ok?"Executed":"Failed", status===200?(body.noop?"Already decided":(body.status||decision)):"decide fail "+status);
+          ocLoadApprovals(); ocLoadAudit();
+        };
+        window.ocLoadAgents = async function ocLoadAgents(){
+          var el=document.getElementById("ocAgents"); if(!el) return;
+          var {status,body}=await api("/api/admin/owner-os/agents");
+          if(status!==200){ el.textContent="Agents load fail ("+status+")"; return; }
+          var agents=body.agents||[];
+          var interesting=agents.filter(function(a){
+            return a.paused || a.drain || a.stop_claims || a.cancel_requested || (a.control&&(a.control.paused||a.control.drain_requested||a.control.stop_claims));
+          }).slice(0,20);
+          if(!interesting.length){
+            interesting=agents.slice(0,8);
+          }
+          if(!interesting.length){ el.innerHTML="<span style='color:#64748b'>No agent rows</span>"; return; }
+          el.innerHTML=interesting.map(function(a){
+            var c=a.control||{};
+            var bits=[];
+            if(a.paused||c.paused) bits.push("paused");
+            if(c.drain_requested||a.drain) bits.push("drain");
+            if(c.stop_claims||a.stop_claims) bits.push("stop_claims");
+            if(c.cancel_requested||a.cancel_requested) bits.push("cancel");
+            if(!bits.length) bits.push(a.status||"running");
+            return '<div style="padding:5px 0;border-bottom:1px solid #e2e8f0"><b>'+esc(a.name||a.id)+'</b> <span style="color:#64748b">('+esc(a.id)+')</span>'+
+              '<div style="font-size:11px;color:#334155">'+esc(bits.join(" · "))+'</div>'+
+              (a.last_heartbeat||c.last_heartbeat?('<div style="font-size:10px;color:#94a3b8">hb: '+esc(a.last_heartbeat||c.last_heartbeat)+'</div>'):'')+
+              '</div>';
+          }).join("");
+        };
+        window.ocLoadAudit = async function ocLoadAudit(){
+          var el=document.getElementById("ocAudit"); if(!el) return;
+          var {status,body}=await api("/api/admin/owner-os/audit?limit=40");
+          if(status!==200){ el.textContent="Audit load fail ("+status+")"; return; }
+          var ev=(body.events||[]).filter(function(e){
+            var act=String((e&&e.action)||"");
+            return act.indexOf("openclaw")>=0 || String((e&&e.source)||"").indexOf("openclaw")>=0 || String((e&&e.meta&&e.meta.source)||"").indexOf("openclaw")>=0;
+          }).slice(0,15);
+          if(!ev.length){
+            ev=(body.events||[]).slice(0,8);
+          }
+          if(!ev.length){ el.innerHTML="<span style='color:#64748b'>No audit rows yet</span>"; return; }
+          el.innerHTML=ev.map(function(e){
+            return '<div style="padding:5px 0;border-bottom:1px solid #e2e8f0">'+
+              '<b>'+esc(e.action||e.event||'event')+'</b>'+
+              '<div style="font-size:11px;color:#64748b">'+esc(e.actor||'')+' · '+esc(e.ts||e.created_at||'')+'</div>'+
+              (e.target||(e.meta&&e.meta.command)?('<div style="font-size:11px;color:#334155">'+esc(e.target||e.meta.command)+'</div>'):'')+
+              '</div>';
+          }).join("");
+        };
+        document.getElementById("ocApprovals")&&document.getElementById("ocApprovals").addEventListener("click", function(e){
+          var t=e.target.closest("[data-oc-appr]"); if(!t) return;
+          ocDecideAppr(t.getAttribute("data-src"), t.getAttribute("data-id"), t.getAttribute("data-oc-appr"));
+        });
+        if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", ocBoot);
+        else ocBoot();
       })();
       </script>
 

@@ -44,7 +44,7 @@ def isolated_runtime(tmp_path, monkeypatch):
     rt._ACTIVE_TASKS.clear()
 
     monkeypatch.setenv("AGENT_RUNTIME", "1")
-    monkeypatch.setenv("OPS_WATCHDOG", "1")
+    monkeypatch.setenv("OPS_HEALTH_AGENT", "1")
     monkeypatch.setenv("AFTERNOON_CONTENT", "1")
     monkeypatch.setenv("SOCIAL_ENGINE", "1")
     yield rt
@@ -83,11 +83,11 @@ async def test_green_task_success():
 # 2. Disabled flag skip (primary_flag + master flag dono)
 # ---------------------------------------------------------------------- #
 async def test_disabled_primary_flag_skips(monkeypatch):
-    monkeypatch.setenv("OPS_WATCHDOG", "0")
+    monkeypatch.setenv("OPS_HEALTH_AGENT", "0")
     _register("kavya", "unit_probe", _ok_cap)
     res = await rt.submit("kavya", "unit_probe")
     assert res.status == "skipped"
-    assert res.reason == "flag_disabled:OPS_WATCHDOG"
+    assert res.reason == "flag_disabled:OPS_HEALTH_AGENT"
 
 
 async def test_disabled_master_flag_skips_everything(monkeypatch):
@@ -287,7 +287,7 @@ async def test_non_pilot_agent_blocked():
 # 13. Heartbeat vs useful-work status (alag-alag signals)
 # ---------------------------------------------------------------------- #
 async def test_heartbeat_vs_useful_work(monkeypatch):
-    monkeypatch.setenv("OPS_WATCHDOG", "0")
+    monkeypatch.setenv("OPS_HEALTH_AGENT", "0")
     _register("kavya", "unit_probe", _ok_cap)
     skipped = await rt.submit("kavya", "unit_probe")
     assert skipped.status == "skipped"
@@ -295,7 +295,7 @@ async def test_heartbeat_vs_useful_work(monkeypatch):
     assert state["kavya"]["process_hb"]  # process alive
     assert not state["kavya"].get("useful_work")  # par useful kaam NAHI hua
 
-    monkeypatch.setenv("OPS_WATCHDOG", "1")
+    monkeypatch.setenv("OPS_HEALTH_AGENT", "1")
     ok = await rt.submit("kavya", "unit_probe")
     assert ok.status == "succeeded"
     state = rt._read_json(rt._STATE_PATH)

@@ -10,6 +10,9 @@ cd "$VAULT"
 export GIT_SSH_COMMAND='ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/root/.ssh/known_hosts'
 git add -A
 git -c user.email='admin@leadsgenai.in' -c user.name='LeadsGenAI VPS' commit --allow-empty -m "brain: nightly sync $(date -u +%Y-%m-%d)" >/dev/null 2>&1 || true
+# self-heal: integrate remote changes before pushing (prevents 'fetch first' lockup)
+git fetch origin 2>/dev/null || true
+git merge --no-edit -m "brain: auto-merge remote before push" origin/main 2>/dev/null || true
 if git push 2>&1; then
   echo "$(date -u) obsidian push OK"
 else

@@ -476,6 +476,10 @@ def classify_nl(text: str) -> dict[str, Any]:
         return _prop("business.daily_summary", params, raw, "GREEN")
     if any(x in low for x in ("sab agents", "all agents", "workforce", "registry", "agents list")):
         return _prop("agents.list", params, raw, "GREEN")
+    if any(x in low for x in ("currently active", "active agents", "kaun active", "which agents")):
+        return _prop("agents.list", params, raw, "GREEN")
+    if any(x in low for x in ("feature-flag", "feature flag", "flags state", "flag state")):
+        return _prop("platform.status", params, raw, "GREEN")
     if any(
         x in low
         for x in (
@@ -485,8 +489,12 @@ def classify_nl(text: str) -> dict[str, Any]:
             "heartbeat miss",
             "kaun toot",
             "failed agents",
+            "failed workflows",
+            "failed workflow",
         )
     ):
+        if "workflow" in low:
+            return _prop("queues.status", params, raw, "GREEN")
         return _prop("agents.unhealthy", params, raw, "GREEN")
     if any(x in low for x in ("runtime status", "agent runtime", "pilot status", "rollout")):
         return _prop("runtime.status", params, raw, "GREEN")

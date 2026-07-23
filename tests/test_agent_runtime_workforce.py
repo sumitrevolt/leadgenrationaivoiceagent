@@ -32,7 +32,7 @@ def isolated_runtime(tmp_path, monkeypatch):
     rt._CAPABILITIES.clear()
 
     monkeypatch.setenv("AGENT_RUNTIME", "1")
-    monkeypatch.setenv("OPS_WATCHDOG", "1")
+    monkeypatch.setenv("OPS_HEALTH_AGENT", "1")
     monkeypatch.setenv("AFTERNOON_CONTENT", "1")
     monkeypatch.setenv("SOCIAL_ENGINE", "1")
     monkeypatch.setenv("SRE_AGENT", "1")
