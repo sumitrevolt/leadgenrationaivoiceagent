@@ -28,7 +28,8 @@ AUTOMATION_FLAGS = [
     "AUTO_QUALIFY_CALLS",
     "REPLY_AGENT",
     "CALL_LOG_DB",  # write structured call_logs row per call -> DB-backed analytics dashboard (default ON)
-    "OPS_WATCHDOG",
+    "OPS_WATCHDOG",  # Kavya scheduler watchdog (hourly) — NOT Agent Runtime gate
+    "OPS_HEALTH_AGENT",  # Kavya Agent Runtime ops_health_check — independent of OPS_WATCHDOG
     "AUTO_ONBOARD",
     "SIGNUP_AUTO_ONBOARD",  # public signup → auto client onboard path (checked in public_site/customer_onboard)
     "SOCIAL_PREFS_HONOR",
@@ -208,7 +209,8 @@ AUTOMATION_FLAGS = [
     # F.5 engineer agents (Pranav SRE / Vidya FinOps / Arnav Security)
     "SRE_AGENT",  # Pranav reliability score (hourly :45)
     "FINOPS_AGENT",  # Vidya margin score + LiteLLM-attributed cost-per-tenant
-    "SECURITY_AGENT",  # Arnav DPDP/TRAI posture
+    "SECURITY_AGENT",  # Arnav scheduler daily posture entry — NOT Agent Runtime gate
+    "SECURITY_POSTURE_AGENT",  # Arnav Agent Runtime security posture — independent of SECURITY_AGENT
     # Nikhil Revenue Ops — isolated runtime gate (default OFF; never ungated)
     "DELIVERY_ASSURANCE_AGENT",  # Nikhil scan_delivery_assurance only
     # council 2026-06-25 — 3 new engineer agents (genuinely-uncovered loops)
