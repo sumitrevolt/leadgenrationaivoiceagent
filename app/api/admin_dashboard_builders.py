@@ -386,7 +386,12 @@ def _build_command_center() -> dict[str, Any]:
     for c in clients:
         cid = str(c.get("id") or "")
         plan = str(c.get("plan") or "starter").strip().lower()
-        if plan != "trial":
+        # A selected plan is not a payment. Keep this Command Center rollup on
+        # the same immutable invoice-backed definition as Delivery Cockpit;
+        # otherwise the admin shell can show "Paying 3 / MRR ₹0" for trial or
+        # synthetic tenants that have never paid.
+        paid = _has_paid_evidence(c)
+        if paid:
             paying += 1
         if not bool(c.get("setup_done")):
             stuck_in_setup += 1
@@ -427,7 +432,7 @@ def _build_command_center() -> dict[str, Any]:
         if bool(recent.get("value_events_in_window")):
             benefit_this_week += 1  # clients are already status="active"
 
-        mrr = _client_mrr(c)
+        mrr = _client_mrr(c) if paid else 0
         mrr_total += mrr
         bucket = by_plan.setdefault(plan, {"count": 0, "mrr": 0})
         bucket["count"] += 1
