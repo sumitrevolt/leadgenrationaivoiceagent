@@ -1,24 +1,18 @@
-# SESSION_HANDOFF — overwrite every session end
+# SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-Make draft PR #91 (OpenClaw Daily Video Production) mergeable by merging origin/main into the feature branch (no force-push, no PR merge, no deploy).
+Package Stage 0 Video Production Cell: verify, commit, push, draft PR #91; resolve main merge conflicts.
 
 ## Outcome
-**IN PROGRESS — merge resolution**
-Branch `feat/openclaw-daily-video-production`. Video Stage 0 local verified (ADR-140). Merged origin/main harness evolution (ADR-131..138 + durable audit PRs). All VIDEO_* flags remain OFF. Production NOT deployed.
+**COMPLETE for packaging scope**
+Draft PR https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/91
+HEAD after main merge: `4b8f3bf` (ADR renumbered to ADR-140 vs main's ADR-139).
+No deploy / no flags / no WhatsApp / no Postiz / no Jiya canary.
 
-## Active stream (WS-3)
-- Package: `app/marketing/video_production/`
-- Proof: `scripts/video_production_local_proof.py` + `docs/reports/VIDEO_PRODUCTION_STAGE0_PROOF.md`
-- PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/91 (draft)
-
-## Main truth retained
-- origin/main tip includes harness audit/determinism/durable backend work (through PR #90)
-- OPENCLAW / VIDEO_* / platform_dial remain OFF by default
-- Swara/voice FROZEN; no secrets touched
+## Key evidence
+- Commit series on `feat/openclaw-daily-video-production`
+- Local: video pytest 51 green; prod_check PASS; secrets OK
+- Mergeable after merging origin/main (harness took main + video registry hook re-applied)
 
 ## Exact next task
-Finish conflict resolution → targeted video pytest + prod_check + secrets → commit merge → push (no force) → `gh pr checks 91`. Do not merge PR, enable flags, WhatsApp canary, or deploy.
-
-## Protected
-No force-push, no PR merge, no deploy, no .env flip, no Swara/voice, no billing, no customer data writes.
+Await remaining CI on PR #91; if branch-caused fail → fix. Else await review before Stage 1 shadow / merge auth.
