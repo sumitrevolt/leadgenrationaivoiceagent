@@ -82,13 +82,23 @@ def _is_own_brand(client: dict[str, Any] | None) -> bool:
 
 
 def _parse_integration_ids(raw: Any) -> list[str]:
+    """Parse CSV/list integration ids — empty rejected, order preserved, deduped."""
     if isinstance(raw, str):
         ids = [x.strip() for x in raw.split(",")]
-    elif isinstance(raw, (list, tuple)):
+    elif isinstance(raw, list | tuple):
         ids = [str(x).strip() for x in raw]
     else:
         ids = []
-    return [x for x in ids if x][:20]
+    out: list[str] = []
+    seen: set[str] = set()
+    for x in ids:
+        if not x or x in seen:
+            continue
+        seen.add(x)
+        out.append(x)
+        if len(out) >= 20:
+            break
+    return out
 
 
 def _social_config_integrations(client_id: str) -> list[str]:
@@ -125,7 +135,143 @@ def _integration_ids(client: dict[str, Any] | None) -> list[str]:
 
 # Platforms that reject text-only posts (Postiz "Should have at least one
 # media" error) — media-required, unlike FB/X/LinkedIn which accept text.
-_MEDIA_REQUIRED_PLATFORMS = {"instagram", "tiktok", "pinterest", "youtube"}
+_MEDIA_REQUIRED_PLATFORMS = frozenset({"instagram", "tiktok", "pinterest", "youtube"})
+
+# Platforms that 400 the WHOLE multi-channel create-post batch unless
+# provider-specific settings are present. Skip them unless configured —
+# one bad channel must not block Facebook/IG/X (Stage 2 canary lesson).
+_BOARD_REQUIRED_PLATFORMS = frozenset({"pinterest"})
+
+# Hard ceiling for POSTIZ_PUBLISH_MAX_CHANNELS (matches parse cap).
+_PUBLISH_MAX_CHANNELS_CEILING = 20
+
+
+def _pinterest_board() -> str:
+    """Optional Postiz Pinterest board id/name. Unset/whitespace = skip Pinterest."""
+    return (os.getenv("POSTIZ_PINTEREST_BOARD") or "").strip()
+
+
+def _publish_max_channels() -> int | None:
+    """Channel cap for one create-post call.
+
+    Semantics:
+    - unset → ``None`` (no cap; legacy multi-channel fan-out)
+    - ``0`` / negative → ``0`` (zero targets; publish blocked, no API call)
+    - invalid string → ``None`` with warning (preserve prior uncapped behavior)
+    - ``N`` > ceiling → clamped to ``_PUBLISH_MAX_CHANNELS_CEILING``
+    """
+    raw = (os.getenv("POSTIZ_PUBLISH_MAX_CHANNELS") or "").strip()
+    if not raw:
+        return None
+    try:
+        n = int(raw)
+    except ValueError:
+        logger.warning("[postiz] POSTIZ_PUBLISH_MAX_CHANNELS invalid; treating as unset (uncapped)")
+        return None
+    if n <= 0:
+        return 0
+    if n > _PUBLISH_MAX_CHANNELS_CEILING:
+        logger.warning(
+            f"[postiz] POSTIZ_PUBLISH_MAX_CHANNELS={n} clamped to {_PUBLISH_MAX_CHANNELS_CEILING}"
+        )
+        return _PUBLISH_MAX_CHANNELS_CEILING
+    return n
+
+
+def select_publish_channels(
+    ids: list[str],
+    platform_map: dict[str, str],
+    *,
+    has_media: bool,
+    board: str | None = None,
+    max_channels: int | None = None,
+) -> dict[str, Any]:
+    """Deterministic channel filter before Postiz create-post.
+
+    Ordering = caller list order (config CSV / client list), after dedupe.
+    Never raises. Returns ``{ok, channels, skipped, reason}``.
+    """
+    board_val = (board if board is not None else _pinterest_board()).strip()
+    max_ch = max_channels if max_channels is not None else _publish_max_channels()
+    raw_ids = _parse_integration_ids(ids)
+    skipped: list[dict[str, str]] = []
+    eligible: list[str] = []
+
+    for iid in raw_ids:
+        plat = (platform_map.get(iid) or "").lower() if platform_map else ""
+        if not has_media and plat in _MEDIA_REQUIRED_PLATFORMS:
+            skipped.append({"id": iid, "platform": plat or "unknown", "reason": "media_required"})
+            continue
+        if plat in _BOARD_REQUIRED_PLATFORMS and not board_val:
+            skipped.append({"id": iid, "platform": plat, "reason": "POSTIZ_PINTEREST_BOARD_unset"})
+            continue
+        eligible.append(iid)
+
+    if max_ch is not None and max_ch <= 0:
+        return {
+            "ok": False,
+            "channels": [],
+            "skipped": skipped
+            + [
+                {
+                    "id": i,
+                    "platform": (platform_map.get(i) or "unknown"),
+                    "reason": "POSTIZ_PUBLISH_MAX_CHANNELS_zero",
+                }
+                for i in eligible
+            ],
+            "reason": "POSTIZ_PUBLISH_MAX_CHANNELS=0 (publish blocked)",
+        }
+
+    selected = eligible
+    if max_ch is not None and len(selected) > max_ch:
+        for i in selected[max_ch:]:
+            skipped.append(
+                {
+                    "id": i,
+                    "platform": (platform_map.get(i) or "unknown"),
+                    "reason": "max_channels_cap",
+                }
+            )
+        selected = selected[:max_ch]
+        logger.info(
+            f"[postiz] POSTIZ_PUBLISH_MAX_CHANNELS={max_ch}: selected={len(selected)} skipped_cap={len(eligible) - max_ch}"
+        )
+
+    if not selected:
+        reason = "no_eligible_channels"
+        if skipped and all(s.get("reason") == "media_required" for s in skipped):
+            reason = "sirf media-required channels the (text-only post)"
+        elif skipped and all(s.get("reason") == "POSTIZ_PINTEREST_BOARD_unset" for s in skipped):
+            reason = "sirf Board-required channels the (POSTIZ_PINTEREST_BOARD unset)"
+        elif any(s.get("reason") == "POSTIZ_PUBLISH_MAX_CHANNELS_zero" for s in skipped):
+            reason = "POSTIZ_PUBLISH_MAX_CHANNELS=0 (publish blocked)"
+        return {"ok": False, "channels": [], "skipped": skipped, "reason": reason}
+
+    board_skips = [s for s in skipped if s.get("reason") == "POSTIZ_PINTEREST_BOARD_unset"]
+    if board_skips:
+        logger.info(
+            f"[postiz] skipping Board-required channels count={len(board_skips)} reason=POSTIZ_PINTEREST_BOARD_unset"
+        )
+
+    return {"ok": True, "channels": selected, "skipped": skipped, "reason": "ok"}
+
+
+def plan_publish_channels(
+    client: dict[str, Any] | None = None,
+    *,
+    has_media: bool = True,
+    platform_map: dict[str, str] | None = None,
+) -> dict[str, Any]:
+    """Read-only channel plan (no Postiz upload/create). Safe for prod dry-run."""
+    ids = _integration_ids(client)
+    return {
+        "configured": ids,
+        "source": integrations_source(client),
+        "selection": select_publish_channels(ids, platform_map or {}, has_media=has_media),
+        "pinterest_board_set": bool(_pinterest_board()),
+        "max_channels": _publish_max_channels(),
+    }
 
 
 async def _fetch_integration_platforms() -> dict[str, str]:
@@ -212,9 +358,7 @@ async def upload_media(path: str) -> dict[str, Any] | None:
     return None
 
 
-async def publish_video(
-    client: dict[str, Any], caption: str, video_path: str
-) -> dict[str, Any]:
+async def publish_video(client: dict[str, Any], caption: str, video_path: str) -> dict[str, Any]:
     """Video+caption (ya text-only, video_path="" ho to) ko client ke configured
     Postiz channels pe ABHI post karo. Inert agar key/integration-ids missing.
     Returns {sent, channels, post_id, post_ids, post_url, reason}.  Postiz's
@@ -238,27 +382,23 @@ async def publish_video(
     # means no per-platform special-casing happens, same as before either fix
     # existed).
     platform_map = await _fetch_integration_platforms()
+    has_media = bool(video_path)
+    board = _pinterest_board()
+    selection = select_publish_channels(ids, platform_map, has_media=has_media, board=board)
+    if not selection.get("ok"):
+        return {
+            "sent": False,
+            "channels": [],
+            "skipped": selection.get("skipped") or [],
+            "reason": str(selection.get("reason") or "no_eligible_channels"),
+        }
+    ids = list(selection.get("channels") or [])
     media_list: list[dict[str, Any]] = []
     if video_path:
         media = await upload_media(video_path)
         if media is None:
             return {"sent": False, "reason": "media upload fail (ya file missing)"}
         media_list = [media]
-    else:
-        # 2026-07-04 fix: Postiz batches all ids into ONE API call — if any
-        # single platform in that batch requires media (Instagram/TikTok/
-        # Pinterest/YouTube all reject text-only posts with "Should have at
-        # least one media"), the WHOLE call failed and NOTHING published,
-        # even platforms like Facebook/X that would've succeeded on their
-        # own. Drop media-required platforms up front for text-only posts
-        # instead of letting one bad apple block everyone else.
-        if platform_map:
-            skipped = [i for i in ids if platform_map.get(i) in _MEDIA_REQUIRED_PLATFORMS]
-            ids = [i for i in ids if i not in skipped]
-            if skipped:
-                logger.info(f"[postiz] text-only post: skipping media-required channels {skipped}")
-        if not ids:
-            return {"sent": False, "reason": "sirf media-required channels the (text-only post)"}
     caption_clean = (caption or "").strip()
     value = [{"content": caption_clean[:2000], "image": media_list}]
     # 2026-07-04 fix: Postiz public API rejects posts without settings.post_type
@@ -282,8 +422,10 @@ async def publish_video(
         # self-hosted image validates them for X/Instagram/YouTube.
         provider_type = platform_map.get(integration_id) or ""
         typed = {**base_settings, **({"__type": provider_type} if provider_type else {})}
-        if platform_map.get(integration_id) == "youtube":
+        if provider_type == "youtube":
             return {**typed, "title": youtube_title, "type": "public"}
+        if provider_type == "pinterest" and board:
+            return {**typed, "Board": board}
         return typed
 
     body = {
@@ -292,8 +434,7 @@ async def publish_video(
         "shortLink": False,
         "tags": [],
         "posts": [
-            {"integration": {"id": i}, "value": value, "settings": _settings_for(i)}
-            for i in ids
+            {"integration": {"id": i}, "value": value, "settings": _settings_for(i)} for i in ids
         ],
     }
     try:
@@ -392,4 +533,6 @@ __all__ = [
     "effective_integration_ids",
     "integrations_source",
     "api_url",
+    "select_publish_channels",
+    "plan_publish_channels",
 ]

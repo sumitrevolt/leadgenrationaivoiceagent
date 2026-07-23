@@ -6,7 +6,9 @@ import sys
 import types
 
 
-def _mock_vault(monkeypatch, token="vk-123", api_url="https://postiz.leadsgenai.in/api", integrations="a1,b2"):
+def _mock_vault(
+    monkeypatch, token="vk-123", api_url="https://postiz.leadsgenai.in/api", integrations="a1,b2"
+):
     from app.social_engine import vault
 
     monkeypatch.setattr(
@@ -248,21 +250,27 @@ async def test_publish_video_preserves_postiz_post_ids(monkeypatch):
             return False
 
         async def get(self, *args, **kwargs):
-            return _Response([
-                {"id": "fb1", "identifier": "facebook"},
-                {"id": "x2", "identifier": "x"},
-            ])
+            return _Response(
+                [
+                    {"id": "fb1", "identifier": "facebook"},
+                    {"id": "x2", "identifier": "x"},
+                ]
+            )
 
         async def post(self, *args, **kwargs):
             seen.update(kwargs.get("json") or {})
-            return _Response([
-                {"postId": "post-fb-123", "integration": "fb1"},
-                {"postId": "post-x-456", "integration": "x2"},
-            ])
+            return _Response(
+                [
+                    {"postId": "post-fb-123", "integration": "fb1"},
+                    {"postId": "post-x-456", "integration": "x2"},
+                ]
+            )
 
     monkeypatch.setitem(sys.modules, "httpx", types.SimpleNamespace(AsyncClient=_Client))
     monkeypatch.setenv("POSTIZ_API_KEY", "key")
     monkeypatch.setenv("POSTIZ_INTEGRATIONS", "fb1,x2")
+    monkeypatch.delenv("POSTIZ_PUBLISH_MAX_CHANNELS", raising=False)
+    monkeypatch.delenv("POSTIZ_PINTEREST_BOARD", raising=False)
 
     out = await pp.publish_video({}, "Launch proof", "")
 
@@ -271,6 +279,327 @@ async def test_publish_video_preserves_postiz_post_ids(monkeypatch):
     assert out["post_ids"] == ["post-fb-123", "post-x-456"]
     assert out["post_url"] == ""
     assert [p["settings"]["__type"] for p in seen["posts"]] == ["facebook", "x"]
+
+
+# --------------------------------------------------------------------------- #
+# Stage 2 closure: Pinterest Board + max-channels fail-safe selection
+# --------------------------------------------------------------------------- #
+
+_PLAT_MAP = {
+    "fb1": "facebook",
+    "ig1": "instagram",
+    "li1": "linkedin",
+    "yt1": "youtube",
+    "pin1": "pinterest",
+    "x1": "x",
+}
+
+
+def test_select_pinterest_included_when_board_set(monkeypatch):
+    from app.marketing import postiz_publish as pp
+
+    monkeypatch.setenv("POSTIZ_PINTEREST_BOARD", "board-abc")
+    out = pp.select_publish_channels(["fb1", "pin1"], _PLAT_MAP, has_media=True, board="board-abc")
+    assert out["ok"] is True
+    assert out["channels"] == ["fb1", "pin1"]
+
+
+def test_select_pinterest_skipped_when_board_missing():
+    from app.marketing import postiz_publish as pp
+
+    out = pp.select_publish_channels(["fb1", "pin1"], _PLAT_MAP, has_media=True, board="")
+    assert out["ok"] is True
+    assert out["channels"] == ["fb1"]
+    assert any(s["reason"] == "POSTIZ_PINTEREST_BOARD_unset" for s in out["skipped"])
+
+
+def test_select_whitespace_board_treated_as_missing():
+    from app.marketing import postiz_publish as pp
+
+    out = pp.select_publish_channels(["pin1", "fb1"], _PLAT_MAP, has_media=True, board="   ")
+    assert out["channels"] == ["fb1"]
+
+
+def test_select_only_pinterest_without_board_blocks_zero_target():
+    from app.marketing import postiz_publish as pp
+
+    out = pp.select_publish_channels(["pin1"], _PLAT_MAP, has_media=True, board="")
+    assert out["ok"] is False
+    assert out["channels"] == []
+    assert "Board-required" in out["reason"] or "PINTEREST" in out["reason"]
+
+
+def test_select_max_channels_one_deterministic():
+    from app.marketing import postiz_publish as pp
+
+    out = pp.select_publish_channels(
+        ["fb1", "ig1", "x1"], _PLAT_MAP, has_media=True, board="", max_channels=1
+    )
+    assert out["channels"] == ["fb1"]
+
+
+def test_select_max_channels_two_deterministic():
+    from app.marketing import postiz_publish as pp
+
+    out = pp.select_publish_channels(
+        ["fb1", "ig1", "x1"], _PLAT_MAP, has_media=True, board="", max_channels=2
+    )
+    assert out["channels"] == ["fb1", "ig1"]
+
+
+def test_select_max_greater_than_available():
+    from app.marketing import postiz_publish as pp
+
+    out = pp.select_publish_channels(
+        ["fb1", "x1"], _PLAT_MAP, has_media=True, board="", max_channels=9
+    )
+    assert out["channels"] == ["fb1", "x1"]
+
+
+def test_select_max_zero_blocks(monkeypatch):
+    from app.marketing import postiz_publish as pp
+
+    monkeypatch.setenv("POSTIZ_PUBLISH_MAX_CHANNELS", "0")
+    out = pp.select_publish_channels(
+        ["fb1", "x1"], _PLAT_MAP, has_media=True, board="", max_channels=None
+    )
+    assert out["ok"] is False
+    assert out["channels"] == []
+    assert "0" in out["reason"]
+
+
+def test_select_invalid_max_treated_uncapped(monkeypatch):
+    from app.marketing import postiz_publish as pp
+
+    monkeypatch.setenv("POSTIZ_PUBLISH_MAX_CHANNELS", "nope")
+    assert pp._publish_max_channels() is None
+    out = pp.select_publish_channels(
+        ["fb1", "x1"], _PLAT_MAP, has_media=True, board="", max_channels=None
+    )
+    assert out["channels"] == ["fb1", "x1"]
+
+
+def test_select_negative_max_blocks(monkeypatch):
+    from app.marketing import postiz_publish as pp
+
+    monkeypatch.setenv("POSTIZ_PUBLISH_MAX_CHANNELS", "-3")
+    assert pp._publish_max_channels() == 0
+
+
+def test_select_duplicate_ids_consume_one_slot():
+    from app.marketing import postiz_publish as pp
+
+    out = pp.select_publish_channels(
+        ["fb1", "fb1", "x1"], _PLAT_MAP, has_media=True, board="", max_channels=2
+    )
+    assert out["channels"] == ["fb1", "x1"]
+
+
+def test_select_order_deterministic():
+    from app.marketing import postiz_publish as pp
+
+    a = pp.select_publish_channels(
+        ["x1", "fb1", "ig1"], _PLAT_MAP, has_media=True, board="", max_channels=3
+    )
+    b = pp.select_publish_channels(
+        ["x1", "fb1", "ig1"], _PLAT_MAP, has_media=True, board="", max_channels=3
+    )
+    assert a["channels"] == b["channels"] == ["x1", "fb1", "ig1"]
+
+
+def test_customer_does_not_inherit_env_integrations(monkeypatch):
+    from app.marketing import postiz_publish as pp
+
+    monkeypatch.setenv("POSTIZ_INTEGRATIONS", "fb1,ig1")
+    jiya = {"id": "jiya-makeover", "business_name": "Jiya Makeover Studio"}
+    assert pp.effective_integration_ids(jiya) == []
+    own = {"id": "leadgenai-self"}
+    assert pp.effective_integration_ids(own) == ["fb1", "ig1"]
+
+
+def test_plan_publish_channels_read_only(monkeypatch):
+    from app.marketing import postiz_publish as pp
+
+    monkeypatch.setenv("POSTIZ_INTEGRATIONS", "fb1,pin1")
+    monkeypatch.delenv("POSTIZ_PINTEREST_BOARD", raising=False)
+    monkeypatch.setenv("POSTIZ_PUBLISH_MAX_CHANNELS", "1")
+    plan = pp.plan_publish_channels(
+        {"id": "leadgenai-self"},
+        has_media=True,
+        platform_map=_PLAT_MAP,
+    )
+    assert plan["configured"] == ["fb1", "pin1"]
+    assert plan["selection"]["ok"] is True
+    assert plan["selection"]["channels"] == ["fb1"]
+    assert plan["pinterest_board_set"] is False
+
+
+async def test_publish_video_skips_pinterest_without_board(monkeypatch):
+    """Board-required channels must not 400 the whole multi-channel batch."""
+    from app.marketing import postiz_publish as pp
+
+    seen = {}
+    posts_called = {"n": 0}
+
+    class _Response:
+        status_code = 200
+        text = ""
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    class _Client:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, *args, **kwargs):
+            return _Response(
+                [
+                    {"id": "fb1", "identifier": "facebook"},
+                    {"id": "pin1", "identifier": "pinterest"},
+                ]
+            )
+
+        async def post(self, *args, **kwargs):
+            posts_called["n"] += 1
+            seen.update(kwargs.get("json") or {})
+            return _Response([{"postId": "post-fb-only", "integration": "fb1"}])
+
+    monkeypatch.setitem(sys.modules, "httpx", types.SimpleNamespace(AsyncClient=_Client))
+    monkeypatch.setenv("POSTIZ_API_KEY", "key")
+    monkeypatch.setenv("POSTIZ_INTEGRATIONS", "fb1,pin1")
+    monkeypatch.delenv("POSTIZ_PINTEREST_BOARD", raising=False)
+    monkeypatch.delenv("POSTIZ_PUBLISH_MAX_CHANNELS", raising=False)
+
+    out = await pp.publish_video({}, "Own-brand canary", "")
+
+    assert out["sent"] is True
+    assert out["channels"] == ["fb1"]
+    assert [p["integration"]["id"] for p in seen["posts"]] == ["fb1"]
+    assert posts_called["n"] == 1
+
+
+async def test_publish_video_zero_target_skips_create_api(monkeypatch):
+    from app.marketing import postiz_publish as pp
+
+    posts_called = {"n": 0}
+
+    class _Response:
+        status_code = 200
+        text = ""
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    class _Client:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, *args, **kwargs):
+            return _Response([{"id": "pin1", "identifier": "pinterest"}])
+
+        async def post(self, *args, **kwargs):
+            posts_called["n"] += 1
+            return _Response([])
+
+    monkeypatch.setitem(sys.modules, "httpx", types.SimpleNamespace(AsyncClient=_Client))
+    monkeypatch.setenv("POSTIZ_API_KEY", "key")
+    monkeypatch.setenv("POSTIZ_INTEGRATIONS", "pin1")
+    monkeypatch.delenv("POSTIZ_PINTEREST_BOARD", raising=False)
+
+    out = await pp.publish_video({}, "Should not post", "")
+    assert out["sent"] is False
+    assert posts_called["n"] == 0
+
+
+async def test_publish_video_respects_max_channels_cap(monkeypatch):
+    from app.marketing import postiz_publish as pp
+
+    seen = {}
+
+    class _Response:
+        status_code = 200
+        text = ""
+
+        def __init__(self, payload):
+            self._payload = payload
+
+        def json(self):
+            return self._payload
+
+    class _Client:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def get(self, *args, **kwargs):
+            return _Response(
+                [
+                    {"id": "fb1", "identifier": "facebook"},
+                    {"id": "x2", "identifier": "x"},
+                ]
+            )
+
+        async def post(self, *args, **kwargs):
+            seen.update(kwargs.get("json") or {})
+            return _Response([{"postId": "post-1"}])
+
+    monkeypatch.setitem(sys.modules, "httpx", types.SimpleNamespace(AsyncClient=_Client))
+    monkeypatch.setenv("POSTIZ_API_KEY", "key")
+    monkeypatch.setenv("POSTIZ_INTEGRATIONS", "fb1,x2")
+    monkeypatch.setenv("POSTIZ_PUBLISH_MAX_CHANNELS", "1")
+
+    out = await pp.publish_video({}, "One-post canary", "")
+
+    assert out["sent"] is True
+    assert out["channels"] == ["fb1"]
+    assert len(seen["posts"]) == 1
+
+
+def test_social_publish_flag_blocks_gate(monkeypatch):
+    from app.marketing.video_production import flags
+    from app.marketing.video_production.publish_gate import assert_can_publish
+
+    monkeypatch.setenv("VIDEO_PRODUCTION_ENABLED", "1")
+    monkeypatch.setenv("VIDEO_SOCIAL_PUBLISH_ENABLED", "0")
+    # re-read flags via env
+    assert flags.social_publish_enabled() is False
+    gate = assert_can_publish(
+        {
+            "status": "approved",
+            "workflow_state": "APPROVED",
+            "revision": 0,
+            "approved_version": 0,
+            "approval_id": "a1",
+            "video_path": "data/reels/x.mp4",
+            "final_approved": True,
+        }
+    )
+    assert gate["ok"] is False
+    assert "VIDEO_SOCIAL_PUBLISH_ENABLED" in gate["error"]
 
 
 async def test_postiz_provider_forwards_publish_evidence(monkeypatch):
