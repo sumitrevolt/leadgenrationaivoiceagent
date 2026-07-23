@@ -136,6 +136,66 @@ echo "=== UP (all app-image services — prevents skew) ==="
 # Compose recreate race (2026-07-16 prod-down): docker renames the old container
 # to <hash>_leadgen_* before removing it; if the next step fails, canonical
 # names stay Exited and ghosts stay Created → /health 000. Bounded cleanup+retry.
+
+# Resolve app-image containers by COMPOSE SERVICE name (not bare container_name).
+# Project-prefixed / hashed compose names used to false-FATAL the skew check when
+# hardcoding leadgen_app etc. even though /health SHA + image tags matched.
+_legacy_name_for_service() {
+  case "$1" in
+    app) echo leadgen_app ;;
+    worker) echo leadgen_worker ;;
+    scheduler) echo leadgen_scheduler ;;
+    worker-heavy) echo leadgen_worker_heavy ;;
+    worker-video) echo leadgen_worker_video ;;
+    *) echo "" ;;
+  esac
+}
+
+# Prints a container id/name for a compose service; returns 1 if unresolved.
+# Order: compose ps -> com.docker.compose.service label (+ optional image :$VER)
+#      -> legacy container_name from docker-compose.vps.yml.
+_resolve_compose_container() {
+  local svc="$1"
+  local cid=""
+  local legacy=""
+  local id=""
+  local img=""
+
+  # 1) docker compose ps (honors project name / this COMPOSE file)
+  cid="$(docker compose -f "$COMPOSE" --profile celery ps -q "$svc" 2>/dev/null | awk 'NF { print; exit }')"
+  if [ -n "$cid" ]; then
+    printf '%s\n' "$cid"
+    return 0
+  fi
+
+  # 2) Compose service label (project-prefixed names still carry this label)
+  while IFS= read -r id; do
+    [ -z "$id" ] && continue
+    if [ -n "${VER:-}" ]; then
+      img="$(docker inspect -f '{{.Config.Image}}' "$id" 2>/dev/null || true)"
+      case "$img" in
+        *:"$VER")
+          printf '%s\n' "$id"
+          return 0
+          ;;
+      esac
+    fi
+    printf '%s\n' "$id"
+    return 0
+  done <<EOF
+$(docker ps -aq --filter "label=com.docker.compose.service=${svc}" 2>/dev/null)
+EOF
+
+  # 3) Legacy bare container_name (compose file still sets these on prod today)
+  legacy="$(_legacy_name_for_service "$svc")"
+  if [ -n "$legacy" ] && docker inspect "$legacy" >/dev/null 2>&1; then
+    printf '%s\n' "$legacy"
+    return 0
+  fi
+
+  return 1
+}
+
 _compose_up() {
   # shellcheck disable=SC2086
   APP_VERSION="$VER" docker compose -f "$COMPOSE" --profile celery \
@@ -153,10 +213,15 @@ _cleanup_recreate_ghosts() {
       ;;
     esac
   done
-  for _c in leadgen_app leadgen_worker leadgen_scheduler leadgen_worker_heavy leadgen_worker_video; do
+  # Resolve via compose service names (same as skew check) — bare leadgen_* alone
+  # misses project-prefixed containers after a failed recreate.
+  for _svc in $SERVICES; do
+    _c="$(_resolve_compose_container "$_svc" || true)"
+    [ -z "$_c" ] && _c="$(_legacy_name_for_service "$_svc")"
+    [ -z "$_c" ] && continue
     _st="$(docker inspect -f '{{.State.Status}}' "$_c" 2>/dev/null || echo missing)"
     if [ "$_st" = "exited" ] || [ "$_st" = "created" ] || [ "$_st" = "dead" ]; then
-      echo "  rm stale $_c (status=$_st)"
+      echo "  rm stale $_svc ($_c status=$_st)"
       docker rm -f "$_c" 2>/dev/null || true
     fi
   done
@@ -227,15 +292,33 @@ if [ "$UP_RC" -ne 0 ]; then
   echo "      error as transient. Evidence over exit codes."
 fi
 
-echo "=== SKEW CHECK — every container must report the same sha ==="
+echo "=== SKEW CHECK — every app-image service must report the same sha ==="
 SKEW=0
-for c in leadgen_app leadgen_worker leadgen_scheduler leadgen_worker_heavy leadgen_worker_video; do
+for svc in $SERVICES; do
+  c="$(_resolve_compose_container "$svc" || true)"
+  if [ -z "$c" ]; then
+    printf '%-16s resolve=MISSING APP_VERSION=<missing>\n' "$svc"
+    SKEW=1
+    continue
+  fi
   cv="$(docker exec "$c" printenv APP_VERSION 2>/dev/null)"
-  printf '%-24s APP_VERSION=%s\n' "$c" "${cv:-<unset>}"
-  [ "$cv" = "$VER" ] || SKEW=1
+  img="$(docker inspect -f '{{.Config.Image}}' "$c" 2>/dev/null || true)"
+  printf '%-16s container=%s APP_VERSION=%s image=%s\n' \
+    "$svc" "$c" "${cv:-<unset>}" "${img:-?}"
+  if [ "$cv" != "$VER" ]; then
+    SKEW=1
+  fi
+  # Fail-closed on image tag skew too (Config.Image must end with :$VER when set)
+  case "$img" in
+    *:"$VER"|'') ;;
+    *)
+      echo "  WARN: image tag for $svc does not end with :$VER (image=$img)"
+      SKEW=1
+      ;;
+  esac
 done
 if [ "$SKEW" -ne 0 ]; then
-  echo "FATAL: version skew — at least one container is not on $VER."
+  echo "FATAL: version skew — at least one app-image service is not on $VER."
   exit 4
 fi
 
