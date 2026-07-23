@@ -8,7 +8,8 @@ soft-timeout pe 2 blind Celery retries (=27 min single heavy worker burn) karta 
 Contracts:
   1. run_prospecting apna PROSPECT_TIME_BUDGET_S wall-clock budget khud enforce
      karta hai — budget khatam = graceful partial return, kill nahi.
-  2. run_staff_job SoftTimeLimitExceeded pe retry NAHI karta (fail-fast → 1 DLQ record).
+  2. run_staff_job SoftTimeLimitExceeded pe retry NAHI karta — graceful partial
+     SUCCESS return (no DLQ fill / no Celery retry storm).
 """
 
 from __future__ import annotations
@@ -106,7 +107,7 @@ def test_full_budget_runs_all_queries(monkeypatch, tmp_path):
 
 
 def test_run_staff_job_does_not_retry_on_soft_time_limit(monkeypatch):
-    """SoftTimeLimitExceeded → straight raise (1 DLQ record), self.retry NAHI."""
+    """SoftTimeLimitExceeded → partial SUCCESS (no retry, no DLQ-worthy raise)."""
     from celery.exceptions import SoftTimeLimitExceeded
 
     from app.platform import boot_grace
@@ -133,8 +134,10 @@ def test_run_staff_job_does_not_retry_on_soft_time_limit(monkeypatch):
     monkeypatch.setattr(staff_jobs, "_run_async", _soft_kill)
     monkeypatch.setattr(staff_jobs.run_staff_job, "retry", _retry)
 
-    with pytest.raises(SoftTimeLimitExceeded):
-        staff_jobs.run_staff_job.run("prospect")
+    out = staff_jobs.run_staff_job.run("prospect")
+    assert out["ok"] is True
+    assert out.get("partial") is True
+    assert out.get("reason") == "soft_time_limit"
     assert retried["n"] == 0
 
 

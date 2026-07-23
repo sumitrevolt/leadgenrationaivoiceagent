@@ -951,9 +951,16 @@ async def infra_integrations(hours: int = 24, _user=Depends(require_admin)):
 
 @router.get("/infra/dlq")
 async def infra_dlq(limit: int = 50, key: str = "failed", _user=Depends(require_admin)):
-    """Failed Celery tasks inspect karo. key=failed (dlq:failed_tasks) ya
-    key=dead (dlq:dead — auto-retry exhausted/unknown, dlq_retry sweep)."""
-    redis_key = "dlq:dead" if key == "dead" else "dlq:failed_tasks"
+    """Failed Celery tasks inspect karo.
+
+    key=failed (dlq:failed_tasks) | dead (dlq:dead) | resolved (dlq:resolved).
+    """
+    which = (key or "failed").strip().lower()
+    redis_key = {
+        "failed": "dlq:failed_tasks",
+        "dead": "dlq:dead",
+        "resolved": "dlq:resolved",
+    }.get(which, "dlq:failed_tasks")
     out: dict = {"count": 0, "items": [], "key": redis_key}
     try:
         import json as _json
@@ -981,6 +988,38 @@ async def infra_dlq_sweep(limit: int = 20, _user=Depends(require_admin)):
     from app.platform import dlq_retry
 
     return await dlq_retry.run_sweep(max_items=limit, force=True)
+
+
+@router.post("/infra/dlq/resolve")
+async def infra_dlq_resolve(
+    source: str = "dead",
+    resolution: str = "STALE_EXPIRED",
+    job: str | None = None,
+    note: str = "",
+    limit: int = 50,
+    _user=Depends(require_admin),
+):
+    """Audited DLQ resolution — move matching records to dlq:resolved (no blind purge).
+
+    source=failed|dead · resolution=RECOVERED|ALREADY_COMPLETED|SUPERSEDED|
+    STALE_EXPIRED|NON_RETRYABLE|MANUAL_REVIEW_REQUIRED · optional job filter.
+    """
+    from app.platform import dlq_retry
+
+    which = (source or "dead").strip().lower()
+    source_key = {
+        "failed": dlq_retry.DLQ_KEY,
+        "dead": dlq_retry.DEAD_KEY,
+    }.get(which)
+    if not source_key:
+        return {"error": "source must be failed|dead", "moved": 0}
+    return dlq_retry.resolve_from_list(
+        source_key=source_key,
+        resolution=(resolution or "").strip().upper(),
+        job=(job or None),
+        note=note or "",
+        max_items=max(1, min(int(limit or 50), 200)),
+    )
 
 
 @router.post("/infra/dlq/retry")

@@ -215,3 +215,89 @@ async def run_sweep(max_items: int = 20, r=None, force: bool = False) -> dict[st
         logger.warning(f"[dlq_retry] sweep failed: {e}")
         out["error"] = str(e)[:120]
     return out
+
+
+RESOLVED_KEY = "dlq:resolved"
+_RESOLUTIONS = frozenset(
+    {
+        "RECOVERED",
+        "ALREADY_COMPLETED",
+        "SUPERSEDED",
+        "STALE_EXPIRED",
+        "NON_RETRYABLE",
+        "MANUAL_REVIEW_REQUIRED",
+    }
+)
+
+
+def resolve_from_list(
+    *,
+    source_key: str,
+    resolution: str,
+    job: str | None = None,
+    note: str = "",
+    max_items: int = 50,
+    r=None,
+) -> dict[str, Any]:
+    """Move matching DLQ records to ``dlq:resolved`` with audited resolution.
+
+    Does NOT blind-purge: every moved record keeps original fields + resolution
+    metadata. Physical source list shrinks only for matched items; unmatched stay.
+    Never raises.
+    """
+    out: dict[str, Any] = {"moved": 0, "kept": 0, "resolution": resolution, "source": source_key}
+    if resolution not in _RESOLUTIONS:
+        out["error"] = f"invalid_resolution:{resolution}"
+        return out
+    if source_key not in (DLQ_KEY, DEAD_KEY):
+        out["error"] = f"invalid_source:{source_key}"
+        return out
+    try:
+        r = r or _redis()
+        n = int(r.llen(source_key) or 0)
+        kept: list[str] = []
+        moved_jobs: list[str] = []
+        for _ in range(min(n, max(1, max_items))):
+            raw = r.rpop(source_key)
+            if not raw:
+                break
+            try:
+                rec = json.loads(raw)
+            except Exception:
+                kept.append(raw if isinstance(raw, str) else raw.decode("utf-8", "ignore"))
+                out["kept"] += 1
+                continue
+            job_name = parse_staff_job(rec) or ""
+            if job and job_name != job:
+                kept.append(json.dumps(rec, ensure_ascii=False))
+                out["kept"] += 1
+                continue
+            rec["resolution"] = resolution
+            rec["resolved_at"] = (
+                __import__("datetime").datetime.now(__import__("datetime").timezone.utc).isoformat()
+            )
+            if note:
+                rec["resolution_note"] = str(note)[:200]
+            r.lpush(RESOLVED_KEY, json.dumps(rec, ensure_ascii=False))
+            out["moved"] += 1
+            moved_jobs.append(job_name or "?")
+        for item in reversed(kept):
+            r.lpush(source_key, item)
+        r.ltrim(RESOLVED_KEY, 0, 999)
+        out["moved_jobs"] = moved_jobs
+        if out["moved"]:
+            logger.info(f"[dlq_retry] resolve {source_key}: {out}")
+    except Exception as e:
+        out["error"] = str(e)[:160]
+        logger.warning(f"[dlq_retry] resolve failed: {e}")
+    return out
+
+
+__all__ = [
+    "parse_staff_job",
+    "run_sweep",
+    "resolve_from_list",
+    "DLQ_KEY",
+    "DEAD_KEY",
+    "RESOLVED_KEY",
+]
