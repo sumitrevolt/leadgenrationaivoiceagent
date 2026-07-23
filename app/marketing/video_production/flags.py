@@ -2,6 +2,16 @@
 
 Legacy alias: VIDEO_AD_CYCLE remains authoritative for the scheduler cycle.
 New VIDEO_* flags add finer gates (WhatsApp review, social publish, harness).
+
+Stage 1 shadow posture (local/hermetic only — never flip WA/social/own-brand):
+  VIDEO_PRODUCTION_ENABLED=1
+  VIDEO_HARNESS_SHADOW_ENABLED=1
+  VIDEO_HARNESS_ENFORCE=0
+  VIDEO_DAILY_SCHEDULER_ENABLED=0
+  VIDEO_CUSTOMER_REVIEW_ENABLED=0
+  VIDEO_WHATSAPP_REVIEW_ENABLED=0
+  VIDEO_SOCIAL_PUBLISH_ENABLED=0
+  VIDEO_OWN_BRAND_ENABLED=0
 """
 
 from __future__ import annotations
@@ -24,7 +34,12 @@ def daily_scheduler_enabled() -> bool:
 
 
 def customer_review_enabled() -> bool:
-    return _on("VIDEO_CUSTOMER_REVIEW_ENABLED") or production_enabled()
+    """Customer dashboard review surfaces — explicit only.
+
+    Stage 1 requires VIDEO_PRODUCTION_ENABLED=1 with review still OFF, so this
+    must NOT auto-enable from the production master switch.
+    """
+    return _on("VIDEO_CUSTOMER_REVIEW_ENABLED")
 
 
 def whatsapp_review_enabled() -> bool:
@@ -48,8 +63,27 @@ def harness_enforce() -> bool:
     return _on("VIDEO_HARNESS_ENFORCE")
 
 
+def harness_shadow() -> bool:
+    """Stage 1: observe harness decisions without enforcement or side effects."""
+    return _on("VIDEO_HARNESS_SHADOW_ENABLED")
+
+
 def own_brand_enabled() -> bool:
     return _on("VIDEO_OWN_BRAND_ENABLED")
+
+
+def stage1_shadow_active() -> bool:
+    """True when Stage 1 shadow posture is correctly set (side-effect flags OFF)."""
+    return (
+        production_enabled()
+        and harness_shadow()
+        and not harness_enforce()
+        and not daily_scheduler_enabled()
+        and not customer_review_enabled()
+        and not whatsapp_review_enabled()
+        and not _on("VIDEO_SOCIAL_PUBLISH_ENABLED")
+        and not own_brand_enabled()
+    )
 
 
 def flag_snapshot() -> dict[str, bool]:
@@ -64,8 +98,10 @@ def flag_snapshot() -> dict[str, bool]:
             else _on("VIDEO_SOCIAL_PUBLISH_ENABLED")
         ),
         "VIDEO_HARNESS_ENFORCE": harness_enforce(),
+        "VIDEO_HARNESS_SHADOW_ENABLED": harness_shadow(),
         "VIDEO_OWN_BRAND_ENABLED": own_brand_enabled(),
         "VIDEO_AD_CYCLE": _on("VIDEO_AD_CYCLE"),
+        "stage1_shadow_active": stage1_shadow_active(),
     }
 
 
@@ -76,6 +112,8 @@ __all__ = [
     "whatsapp_review_enabled",
     "social_publish_enabled",
     "harness_enforce",
+    "harness_shadow",
     "own_brand_enabled",
+    "stage1_shadow_active",
     "flag_snapshot",
 ]

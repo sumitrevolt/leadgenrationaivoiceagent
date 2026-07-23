@@ -24,17 +24,22 @@ def test_flags_default_off(monkeypatch):
     for k in (
         "VIDEO_PRODUCTION_ENABLED",
         "VIDEO_DAILY_SCHEDULER_ENABLED",
+        "VIDEO_CUSTOMER_REVIEW_ENABLED",
         "VIDEO_WHATSAPP_REVIEW_ENABLED",
         "VIDEO_SOCIAL_PUBLISH_ENABLED",
         "VIDEO_HARNESS_ENFORCE",
+        "VIDEO_HARNESS_SHADOW_ENABLED",
         "VIDEO_OWN_BRAND_ENABLED",
         "VIDEO_AD_CYCLE",
     ):
         monkeypatch.delenv(k, raising=False)
     snap = flag_snapshot()
     assert snap["VIDEO_PRODUCTION_ENABLED"] is False
+    assert snap["VIDEO_CUSTOMER_REVIEW_ENABLED"] is False
     assert snap["VIDEO_WHATSAPP_REVIEW_ENABLED"] is False
     assert snap["VIDEO_HARNESS_ENFORCE"] is False
+    assert snap["VIDEO_HARNESS_SHADOW_ENABLED"] is False
+    assert snap["stage1_shadow_active"] is False
 
 
 def test_feedback_approve_changes_reject_ambiguous():
