@@ -2183,3 +2183,33 @@ Consequence: Contaminated numbers get VOID after deploy (ops plan); next real in
 **Tests:** `tests/test_harness_manifest_determinism.py` (38) - cross-process/multi-seed determinism, collection-order independence, ordered-list preservation, semantic drift (name/version/risk/authority/agents/tenants/schema/side-effect/enabled), golden conformance, serialization safety (allow_nan/unicode/None/enum/no-callable exposure).
 
 **Consequence:** manifest is now a stable change/conformance fingerprint. Fix-only; no runtime activation, no enforcement, isolated (registry.py + tests + docs). Deploy of the merged SHA installs code only; all harness flags remain OFF.
+
+## ADR-140 (2026-07-22) — OpenClaw Daily Video Production Cell = REUSE video_ad_cycle [LOCAL Stage 0, flags OFF]
+**Context:** Multi-agent daily video production with customer approval and Postiz publish was requested. The existing `video_ad_cycle`, `video_pipeline`, `content_approval`, `postiz_publish`, and harness registry already formed the correct base; a second media/social/WhatsApp stack or a 32nd persona was rejected.
+
+**Decision:** `app/marketing/video_production/` wraps the existing cycle. Isha handles brief/script/render/review, Zara owns publish, Arnav owns QA/compliance, and Owner OS remains the only mutation authority. The additive state machine binds approval to an exact revision; editing/superseding invalidates earlier approval. WhatsApp review reuses WAHA and stays OFF by default. All production, daily scheduler, customer review, WhatsApp, social publish, harness enforcement, and own-brand flags default OFF. Local FFmpeg/Pillow is authoritative; free EdgeTTS is optional with a safe fallback. No paid provider was added.
+
+**Rollout:** Stage 0 local → Stage 1 shadow → Stage 2 own-brand → Stage 3 one Jiya preview → Stage 4 explicit allowlist. The cell is not production-ready until authenticated browser plus WA/Postiz canaries prove the enabled stages. Rollback is all `VIDEO_*` flags OFF; legacy cycle behavior remains unchanged when the master flag is OFF.
+
+## ADR-141 (2026-07-23) — Video Review is tenant/path/version bound; Stage 3 cohort is explicit; dashboards use local Chart.js [LOCAL READY, PROD OFF]
+**Context:** Authenticated production E2E on `c7d5fa69` proved four valid H.264 files existed, but the customer could see only metadata and could not inspect the artifact. The dashboard also caught `Chart is not defined`, masking a public-CDN dependency failure. ADR-140 requires one Jiya preview before a broader rollout, but a global flag alone did not encode that cohort.
+
+**Decision:**
+- Customer review requires both `VIDEO_CUSTOMER_REVIEW_ENABLED=1` and normalized `VIDEO_CUSTOMER_REVIEW_CLIENTS`. Empty is fail-closed; `*` is an explicit all-tenant Stage-4 choice.
+- Customer media is served only through bearer-authenticated `/api/customer/videos/{id}/media?revision=N`; record lookup is tenant-scoped, revision must match, file must be an existing `.mp4`, and its resolved path must remain under approved media roots. Raw paths are never returned.
+- The browser fetches media with the customer JWT, creates a temporary blob URL, and renders `<video controls>`. Approve/change/reject sends the displayed `expected_revision`; stale decisions fail with 409.
+- Chart.js 4.4.7 is vendored with its MIT license under the Design System static mount. Customer uses local-first with remote disaster-recovery fallbacks; admin and analytics use the pinned local asset directly.
+- No review, WhatsApp, publish, daily scheduler, platform_dial, voice, or billing flag is activated by code.
+
+**Verification:** RED-first contracts followed by 126 targeted/expanded tests; Ruff, secrets, diff, duplicate-route, inline-JS, OpenAPI, and `prod_check.py` all green. Real local browser E2E decoded an authenticated 360x640 MP4 blob at `readyState=4` with zero console errors. Local analytics rendered three non-zero canvases from the vendored runtime. Synthetic data and the local server were cleaned up.
+
+**Consequence:** The isolated slice is ready for review and an owner-authorized deploy, not yet production-ready. Stage 3 GO requires exact-SHA deploy proof and one authenticated read-only Jiya Preview with only the customer review master flag plus Jiya allowlist enabled; WhatsApp/publish/scheduler stay OFF. Rollback is flags OFF plus code revert if necessary.
+
+## ADR-142 (2026-07-23) — Video review decisions preserve terminal semantics; dashboard dependencies bypass stale SW cache [LOCAL READY, PROD OFF]
+**Context:** Adversarial follow-up found that Dashboard Reject reused the generic content-rejection hook and therefore entered `changes_requested`, making a hard rejection eligible for scheduler regeneration. A stale rejected approval could also report a false approve success, revision `0` had a falsy idempotency edge, and the newly local Chart runtime still sat in the service worker cache-first bucket.
+
+**Decision:** Reject first marks the video `held_max_revisions` + `CLIENT_REJECTED` + `final_approved=False`, so the generic hook cannot enqueue regeneration; only Changes reaches `changes_requested`. Dashboard and gated WhatsApp intake verify the approval ledger is still pending, route approval through exact-version `cell.approve_version`, and refuse terminal ledger flips. An already-approved exact revision is idempotent, including revision zero, but a missing `approved_version` is never inferred as zero. Service worker cache is bumped to `leadgen-ai-v5`, and `/design-system/*` always uses network/no-store behavior.
+
+**Verification:** RED-first decision/cache tests, then **132** relevant tests green; Ruff, JS syntax, diff, secrets, duplicate-route, OpenAPI, and `prod_check.py` green. Authenticated local browser decoded the exact MP4 blob (`readyState=4`, 360x640, 2s, controls) and rendered three local Chart canvases with zero console errors. No real decision, send, call, publish, billing mutation, flag flip, commit, push, or deploy occurred.
+
+**Consequence:** Local Stage-3 candidate now preserves decision intent across dashboard and gated WhatsApp paths and is cache-bust safe. Production remains OFF/unmodified until owner-authorized shipping and one read-only Jiya preview canary.

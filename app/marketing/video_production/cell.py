@@ -161,12 +161,36 @@ def approve_version(video_ad_id: str, expected_revision: int | None = None) -> d
             "expected": expected_revision,
             "actual": rev,
         }
+    status = str(rec.get("status") or "").strip().lower()
+    approved_version = rec.get("approved_version")
+    try:
+        approved_revision = int(approved_version) if approved_version is not None else None
+    except (TypeError, ValueError):
+        approved_revision = None
+    if status == "approved" and approved_revision == rev:
+        return {"ok": True, "already_decided": True, "status": "approved"}
+    if status != "pending":
+        return {
+            "ok": False,
+            "error": "video_review_not_pending",
+            "status": status or "unknown",
+        }
     tok = str(rec.get("token") or "")
     if not tok:
         return {"ok": False, "error": "missing_token"}
     out = content_approval.approve(tok)
-    if out.get("ok"):
-        mark_version_approved(str(video_ad_id), rev)
+    if not out.get("ok"):
+        return out
+    approval_status = str((out.get("approval") or {}).get("status") or "").strip().lower()
+    if out.get("already_decided") and approval_status != "approved":
+        return {
+            "ok": False,
+            "error": "approval_already_decided",
+            "status": approval_status or "unknown",
+        }
+    if approval_status != "approved":
+        return {"ok": False, "error": "approval_not_approved", "status": approval_status}
+    mark_version_approved(str(video_ad_id), rev)
     return out
 
 

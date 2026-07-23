@@ -25,6 +25,7 @@ def test_flags_default_off(monkeypatch):
         "VIDEO_PRODUCTION_ENABLED",
         "VIDEO_DAILY_SCHEDULER_ENABLED",
         "VIDEO_CUSTOMER_REVIEW_ENABLED",
+        "VIDEO_CUSTOMER_REVIEW_CLIENTS",
         "VIDEO_WHATSAPP_REVIEW_ENABLED",
         "VIDEO_SOCIAL_PUBLISH_ENABLED",
         "VIDEO_HARNESS_ENFORCE",
@@ -36,10 +37,22 @@ def test_flags_default_off(monkeypatch):
     snap = flag_snapshot()
     assert snap["VIDEO_PRODUCTION_ENABLED"] is False
     assert snap["VIDEO_CUSTOMER_REVIEW_ENABLED"] is False
+    assert snap["VIDEO_CUSTOMER_REVIEW_CLIENTS_CONFIGURED"] is False
     assert snap["VIDEO_WHATSAPP_REVIEW_ENABLED"] is False
     assert snap["VIDEO_HARNESS_ENFORCE"] is False
     assert snap["VIDEO_HARNESS_SHADOW_ENABLED"] is False
     assert snap["stage1_shadow_active"] is False
+
+
+def test_customer_review_requires_explicit_tenant_allowlist(monkeypatch):
+    monkeypatch.setenv("VIDEO_CUSTOMER_REVIEW_ENABLED", "1")
+    monkeypatch.delenv("VIDEO_CUSTOMER_REVIEW_CLIENTS", raising=False)
+    assert flags.customer_review_allowed("tenant-a") is False
+    monkeypatch.setenv("VIDEO_CUSTOMER_REVIEW_CLIENTS", " tenant-a,tenant-b ")
+    assert flags.customer_review_allowed("TENANT-A") is True
+    assert flags.customer_review_allowed("tenant-c") is False
+    monkeypatch.setenv("VIDEO_CUSTOMER_REVIEW_CLIENTS", "*")
+    assert flags.customer_review_allowed("tenant-c") is True
 
 
 def test_feedback_approve_changes_reject_ambiguous():
@@ -162,6 +175,51 @@ def test_approve_version_mismatch(iso_video):
     assert rows[0]["status"] == "approved"
     assert rows[0].get("approved_version") == 0
     assert rows[0].get("final_approved") is True
+
+
+def test_approve_version_never_flips_an_already_rejected_approval(iso_video):
+    from app.marketing import content_approval
+    from app.marketing import video_ad_cycle as V
+    from app.marketing.video_production import states
+
+    r = asyncio.run(V.generate_for_client("c1"))
+    assert r["ok"]
+    token = r["approval"]["token"]
+    assert content_approval.reject(token, "not this version")["ok"] is True
+
+    # Simulate a stale video projection while the approval ledger is already terminal.
+    V._update(
+        r["id"],
+        status="pending",
+        workflow_state=states.CLIENT_REVIEW_PENDING,
+        final_approved=False,
+    )
+    out = approve_version(r["id"], expected_revision=0)
+    assert out["ok"] is False
+    assert out["error"] == "approval_already_decided"
+    rec = next(row for row in V.list_all() if row["id"] == r["id"])
+    assert rec.get("approved_version") is None
+    assert rec.get("final_approved") is False
+
+
+def test_approve_version_does_not_infer_missing_binding_as_revision_zero(iso_video):
+    from app.marketing import video_ad_cycle as V
+    from app.marketing.video_production import states
+
+    V._append(
+        {
+            "id": "legacy-approved-without-binding",
+            "client_id": "c1",
+            "status": "approved",
+            "workflow_state": states.APPROVED,
+            "revision": 0,
+            "approved_version": None,
+            "final_approved": True,
+        }
+    )
+    out = approve_version("legacy-approved-without-binding", expected_revision=0)
+    assert out["ok"] is False
+    assert out["error"] == "video_review_not_pending"
 
 
 def test_ops_summary(iso_video):
@@ -319,6 +377,67 @@ def test_wa_inbound_phone_bind_mismatch(monkeypatch, iso_video):
     out = review_whatsapp.ingest_inbound("919876543210", "APPROVE", "mid3")
     assert out.get("handled") is False
     assert out.get("reason") in ("no_pending_review", "phone_mismatch")
+
+
+def test_wa_inbound_reject_is_terminal_and_not_regenerated(monkeypatch, iso_video):
+    from app.marketing import clients_store
+    from app.marketing import video_ad_cycle as V
+    from app.marketing.video_production import review_whatsapp, states
+
+    monkeypatch.setenv("VIDEO_WHATSAPP_REVIEW_ENABLED", "1")
+    c1 = {
+        "id": "c1",
+        "business_name": "A",
+        "phone": "9876543210",
+        "status": "active",
+        "niche": "solar",
+        "offer": "x",
+    }
+    monkeypatch.setattr(clients_store, "list_clients", lambda status=None: [c1])
+    monkeypatch.setattr(clients_store, "get_client", lambda cid: c1 if cid == "c1" else {})
+    made = asyncio.run(V.generate_for_client("c1"))
+    assert made["ok"] is True
+
+    out = review_whatsapp.ingest_inbound("919876543210", "REJECT", "mid-reject")
+    assert out.get("handled") is True and out.get("intent") == "reject"
+    rec = next(row for row in V.list_all() if row["id"] == made["id"])
+    assert rec["status"] == "held_max_revisions"
+    assert rec["workflow_state"] == states.CLIENT_REJECTED
+    assert rec["final_approved"] is False
+    assert asyncio.run(V._regen_due()) == 0
+
+
+def test_wa_inbound_never_reports_approve_for_rejected_ledger(monkeypatch, iso_video):
+    from app.marketing import clients_store, content_approval
+    from app.marketing import video_ad_cycle as V
+    from app.marketing.video_production import review_whatsapp, states
+
+    monkeypatch.setenv("VIDEO_WHATSAPP_REVIEW_ENABLED", "1")
+    c1 = {
+        "id": "c1",
+        "business_name": "A",
+        "phone": "9876543210",
+        "status": "active",
+        "niche": "solar",
+        "offer": "x",
+    }
+    monkeypatch.setattr(clients_store, "list_clients", lambda status=None: [c1])
+    monkeypatch.setattr(clients_store, "get_client", lambda cid: c1 if cid == "c1" else {})
+    made = asyncio.run(V.generate_for_client("c1"))
+    assert content_approval.reject(made["approval"]["token"], "no")["ok"] is True
+    V._update(
+        made["id"],
+        status="pending",
+        workflow_state=states.CLIENT_REVIEW_PENDING,
+        final_approved=False,
+    )
+
+    out = review_whatsapp.ingest_inbound("919876543210", "APPROVE", "mid-stale")
+    assert out.get("handled") is False
+    assert out.get("reason") == "approval_already_decided"
+    rec = next(row for row in V.list_all() if row["id"] == made["id"])
+    assert rec.get("approved_version") is None
+    assert rec.get("final_approved") is False
 
 
 def test_publish_gate_exception_fail_closed_when_cell_on(monkeypatch, iso_video):

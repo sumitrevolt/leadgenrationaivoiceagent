@@ -93,6 +93,7 @@ AUTOMATION_FLAGS = [
     "VIDEO_PRODUCTION_ENABLED",  # OpenClaw Video Production Cell master (default OFF)
     "VIDEO_DAILY_SCHEDULER_ENABLED",  # daily video planning job (aliases VIDEO_AD_CYCLE when on)
     "VIDEO_CUSTOMER_REVIEW_ENABLED",  # customer dashboard + WA feedback ingest
+    "VIDEO_CUSTOMER_REVIEW_CLIENTS",  # comma Stage-3 tenant allowlist; '*' = explicit all
     "VIDEO_WHATSAPP_REVIEW_ENABLED",  # auto WA preview send (ban-safety; default OFF)
     "VIDEO_SOCIAL_PUBLISH_ENABLED",  # approval-gated Postiz publish when production cell ON
     "VIDEO_HARNESS_ENFORCE",  # harness evaluate_action must allow mutating video tools

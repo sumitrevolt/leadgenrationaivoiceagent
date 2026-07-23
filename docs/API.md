@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1181 operations)
+## Endpoint Index — auto-generated from OpenAPI (1196 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -338,7 +338,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/db/table/{name}/export.csv` — Export one table to CSV (read-only, capped, redacted)
 - `GET   ` `/api/admin/db/tables` — List all DB tables (read-only explorer)
 
-### Admin Dashboard  (20)
+### Admin Dashboard  (21)
 
 - `GET   ` `/api/admin/activity-feed` — Get Activity Feed
 - `GET   ` `/api/admin/agents` — Admin Agents
@@ -350,6 +350,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/clients/{client_id}/timeline` — Get Client Timeline
 - `GET   ` `/api/admin/command-center` — Admin Command Center
 - `GET   ` `/api/admin/dashboard` — Get Admin Dashboard
+- `GET   ` `/api/admin/delivery-assurance` — Admin Delivery Assurance
 - `GET   ` `/api/admin/delivery-cockpit` — Admin Delivery Cockpit
 - `GET   ` `/api/admin/delivery-logs` — Admin Delivery Logs
 - `GET   ` `/api/admin/hourly-activity` — Get Hourly Activity
@@ -522,7 +523,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientcrm/wishes/drafts` — Wishes Drafts
 - `POST  ` `/api/clientcrm/wishes/run` — Wishes Run
 
-### ClientOps  (21)
+### ClientOps  (24)
 
 - `POST  ` `/api/clientops/approval` — Submit Approval
 - `GET   ` `/api/clientops/approvals` — List Approvals
@@ -545,6 +546,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientops/video-ads` — Video Ads List
 - `POST  ` `/api/clientops/video-ads/generate` — Video Ads Generate
 - `POST  ` `/api/clientops/video-ads/{approval_id}/request-changes` — Video Ads Request Changes
+- `POST  ` `/api/clientops/video-production/generate` — Video Production Generate
+- `GET   ` `/api/clientops/video-production/ops` — Video Production Ops
+- `POST  ` `/api/clientops/video-production/{video_ad_id}/approve` — Video Production Approve
 
 ### Clients  (7)
 
@@ -619,7 +623,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (33)
+### Customer Dashboard  (36)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/council-decide` — Customer Approval Council Decide
@@ -652,6 +656,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/speed-to-lead` — Customer Speed To Lead
 - `GET   ` `/api/customer/team` — Get Customer Team
 - `GET   ` `/api/customer/timeline` — Customer Delivery Timeline
+- `GET   ` `/api/customer/videos` — Customer Videos List
+- `POST  ` `/api/customer/videos/{video_ad_id}/feedback` — Customer Video Feedback
+- `GET   ` `/api/customer/videos/{video_ad_id}/media` — Customer Video Media
 - `POST  ` `/api/customer/voice/call-queue` — Customer Voice Call Queue
 - `GET   ` `/api/customer/voice/queue-status` — Customer Voice Queue Status
 
@@ -973,7 +980,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/terms` — Terms Page
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
-### Growth  (220)
+### Growth  (221)
 
 - `POST  ` `/api/growth/affiliate/register` — Affiliate Register
 - `GET   ` `/api/growth/affiliate/stats` — Affiliate Stats
@@ -1044,6 +1051,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/growth/infra/automation-health` — Infra Automation Health
 - `DELETE` `/api/growth/infra/dlq` — Infra Dlq Purge
 - `GET   ` `/api/growth/infra/dlq` — Infra Dlq
+- `POST  ` `/api/growth/infra/dlq/resolve` — Infra Dlq Resolve
 - `POST  ` `/api/growth/infra/dlq/retry` — Infra Dlq Retry
 - `POST  ` `/api/growth/infra/dlq/sweep` — Infra Dlq Sweep
 - `GET   ` `/api/growth/infra/explorer-drift` — Infra Explorer Drift
@@ -1472,6 +1480,16 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/agents-ext/trajectories` — Trajectories Best
 - `POST  ` `/api/agents-ext/trajectory/export` — Trajectory Export
 - `POST  ` `/api/agents-ext/trajectory/record` — Trajectory Record
+
+### Owner Copilot  (7)
+
+- `GET   ` `/api/owner-copilot/approvals` — Copilot Approvals
+- `GET   ` `/api/owner-copilot/catalogue` — Copilot Catalogue
+- `POST  ` `/api/owner-copilot/command` — Copilot Command
+- `GET   ` `/api/owner-copilot/commands/{command_id}` — Copilot Get Command
+- `GET   ` `/api/owner-copilot/daily-brief` — Copilot Daily Brief
+- `POST  ` `/api/owner-copilot/nl` — Copilot Nl
+- `GET   ` `/api/owner-copilot/status` — Copilot Status
 
 ### Owner OS  (33)
 
