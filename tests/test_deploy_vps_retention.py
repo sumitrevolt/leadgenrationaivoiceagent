@@ -193,3 +193,14 @@ def test_health_verification_retries_during_bounded_cold_start_window():
     retry_idx = t.index('while [ "$HEALTH_ATTEMPT" -le "$HEALTH_MAX_ATTEMPTS" ]')
     skew_idx = t.index("=== SKEW CHECK")
     assert verify_idx < retry_idx < skew_idx
+
+
+def test_skew_check_uses_service_resolve_not_bare_names_only():
+    """RISKS B3: skew must not hardcode leadgen_* as the sole container lookup."""
+    t = _text()
+    assert "_resolve_compose_container" in t
+    assert "for svc in $SERVICES" in t
+    skew_idx = t.index("=== SKEW CHECK")
+    smoke_idx = t.index("=== SMOKE")
+    skew = t[skew_idx:smoke_idx]
+    assert "for c in leadgen_app" not in skew
