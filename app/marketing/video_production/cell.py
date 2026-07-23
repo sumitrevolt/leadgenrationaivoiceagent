@@ -99,6 +99,11 @@ async def render_and_queue_review(
         # Manual admin generate still allowed through video_ad_cycle directly;
         # cell path requires at least one gate when production cell is the entry.
         pass
+    from app.marketing.video_production.allowlist import assert_own_brand_allowlist
+
+    allow = assert_own_brand_allowlist(client_id)
+    if not allow.get("ok"):
+        return allow
     from app.marketing import video_ad_cycle
 
     r = await video_ad_cycle.generate_for_client(
@@ -168,6 +173,7 @@ def approve_version(video_ad_id: str, expected_revision: int | None = None) -> d
 async def schedule_approved(video_ad_id: str) -> dict[str, Any]:
     """AMBER — publish only if gate passes. Uses existing publish path."""
     from app.marketing import video_ad_cycle
+    from app.marketing.video_production.allowlist import assert_own_brand_allowlist
 
     rec = None
     for r in video_ad_cycle.list_all(200):
@@ -176,6 +182,9 @@ async def schedule_approved(video_ad_id: str) -> dict[str, Any]:
             break
     if not rec:
         return {"ok": False, "error": "not_found"}
+    allow = assert_own_brand_allowlist(str(rec.get("client_id") or ""))
+    if not allow.get("ok"):
+        return allow
     gate = assert_can_publish(rec)
     if not gate.get("ok"):
         return gate

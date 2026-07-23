@@ -401,6 +401,11 @@ async def video_production_generate(body: VideoCellGenIn, _user=Depends(require_
     cid = (body.client_id or "").strip()
     if not cid:
         return {"ok": False, "error": "client_id zaroori hai."}
+    from app.marketing.video_production.allowlist import assert_own_brand_allowlist
+
+    allow = assert_own_brand_allowlist(cid)
+    if not allow.get("ok"):
+        return allow
     ratio = (body.ratio or "9:16").strip()
 
     async def _run() -> None:
