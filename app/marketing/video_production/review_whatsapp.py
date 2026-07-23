@@ -181,6 +181,15 @@ def send_review_whatsapp(
             detail = {"error": str(e)[:120]}
 
         wa_link = f"https://wa.me/91{phone}?text={quote(msg[:900])}"
+        # Bind review to this phone so inbound cannot approve another tenant.
+        try:
+            from app.marketing import video_ad_cycle
+
+            rid = str(rec.get("id") or "")
+            if rid:
+                video_ad_cycle._update(rid, review_phone=phone)  # noqa: SLF001
+        except Exception:
+            pass
         seen[idem_key] = _now()
         _save_idem(seen)
         return {
@@ -196,42 +205,78 @@ def send_review_whatsapp(
         return {"sent": False, "reason": str(e)[:160]}
 
 
+def _clients_matching_phone(digits: str) -> list[dict[str, Any]]:
+    """Return all active clients whose phone/whatsapp ends with digits (last10)."""
+    import re as _re
+
+    from app.marketing import clients_store
+
+    out: list[dict[str, Any]] = []
+    for c in clients_store.list_clients(status="active") or []:
+        ph = _re.sub(r"\D", "", str(c.get("phone") or c.get("whatsapp") or ""))[-10:]
+        if ph and ph == digits:
+            out.append(c)
+    return out
+
+
 def ingest_inbound(from_phone: str, text: str, message_id: str = "") -> dict[str, Any]:
     """Resolve pending video review for this phone and apply classified intent.
 
     Returns {handled, intent, video_ad_id, ...}. Never raises.
+
+    Safety: requires VIDEO_WHATSAPP_REVIEW_ENABLED (dashboard feedback uses a
+    separate customer-auth path). Shared/ambiguous phones refuse closed.
     """
     from app.marketing.video_production import flags
     from app.marketing.video_production.feedback import classify_feedback
 
-    if not flags.whatsapp_review_enabled() and not flags.customer_review_enabled():
-        return {"handled": False, "reason": "review_flags_off"}
+    # Inbound WA must not activate merely because VIDEO_PRODUCTION_ENABLED is on.
+    if not flags.whatsapp_review_enabled():
+        return {"handled": False, "reason": "VIDEO_WHATSAPP_REVIEW_ENABLED off"}
     try:
         import re as _re
 
-        from app.marketing import clients_store, content_approval, video_ad_cycle
+        from app.marketing import content_approval, video_ad_cycle
 
         digits = _re.sub(r"\D", "", str(from_phone or ""))[-10:]
         if len(digits) < 10:
             return {"handled": False, "reason": "bad_phone"}
 
-        # Find client by phone
-        client = None
-        for c in clients_store.list_clients(status="active") or []:
-            ph = _re.sub(r"\D", "", str(c.get("phone") or c.get("whatsapp") or ""))[-10:]
-            if ph == digits:
-                client = c
-                break
-        if not client:
+        matches = _clients_matching_phone(digits)
+        if not matches:
             return {"handled": False, "reason": "tenant_unresolved"}
+        if len(matches) > 1:
+            # Fail-closed: never guess across tenants that share a number.
+            return {
+                "handled": True,
+                "intent": "ambiguous",
+                "clarification": (
+                    "Number multiple accounts se linked hai — dashboard se approve/reject karo."
+                ),
+                "reason": "phone_ambiguous_multi_tenant",
+            }
 
+        client = matches[0]
         cid = str(client.get("id") or "")
-        pending = [r for r in video_ad_cycle.list_for_client(cid) if r.get("status") == "pending"]
+        pending = [
+            r
+            for r in video_ad_cycle.list_for_client(cid)
+            if r.get("status") == "pending"
+            # Prefer records bound to this phone at send-time; allow unbound legacy.
+            and (
+                not str(r.get("review_phone") or "").strip()
+                or str(r.get("review_phone") or "")[-10:] == digits
+            )
+        ]
         if not pending:
             return {"handled": False, "reason": "no_pending_review", "client_id": cid}
         # Newest pending version
         pending.sort(key=lambda r: str(r.get("created_at") or ""), reverse=True)
         rec = pending[0]
+        # Exact phone bind when present on the review record
+        bound = str(rec.get("review_phone") or "").strip()[-10:]
+        if bound and bound != digits:
+            return {"handled": False, "reason": "phone_mismatch", "client_id": cid}
         classified = classify_feedback(text)
         _append_feedback(
             {

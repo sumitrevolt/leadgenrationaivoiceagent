@@ -387,8 +387,15 @@ async def _tg_send_video(chat_id: str, video_path: str, caption: str = "") -> di
 async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
     from app.marketing import clients_store
 
-    # Fail-closed publish gate (version-bound approval). When Video Production
-    # Cell master flag is OFF, gate stays permissive for legacy VIDEO_AD_CYCLE.
+    # Publish gate: when Video Production Cell master is ON → fail-closed on
+    # gate errors. When OFF → legacy VIDEO_AD_CYCLE fail-open if gate import fails.
+    _prod_cell = False
+    try:
+        from app.marketing.video_production import flags as _vflags
+
+        _prod_cell = bool(_vflags.production_enabled())
+    except Exception:
+        _prod_cell = False
     try:
         from app.marketing.video_production.publish_gate import assert_can_publish
 
@@ -396,6 +403,12 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
         if not gate.get("ok"):
             return {"any_sent": False, "channels": {"gate": gate}}
     except Exception as e:
+        if _prod_cell:
+            logger.warning(f"[video_ad] publish_gate fail-closed (cell ON): {e}")
+            return {
+                "any_sent": False,
+                "channels": {"gate": {"ok": False, "error": f"gate_exception:{str(e)[:120]}"}},
+            }
         logger.debug(f"[video_ad] publish_gate skip (fail-open legacy): {e}")
 
     cid = str(rec.get("client_id") or "")

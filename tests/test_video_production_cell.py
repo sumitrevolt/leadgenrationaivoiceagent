@@ -244,3 +244,98 @@ def test_cross_tenant_video_list_isolation(iso_video, monkeypatch):
     assert rows_other == []
     rows = V.list_for_client("c1")
     assert len(rows) == 1
+
+
+def test_wa_inbound_requires_whatsapp_flag(monkeypatch, iso_video):
+    """VIDEO_PRODUCTION_ENABLED alone must NOT enable WA ingest."""
+    from app.marketing.video_production import review_whatsapp
+
+    monkeypatch.setenv("VIDEO_PRODUCTION_ENABLED", "1")
+    monkeypatch.setenv("VIDEO_CUSTOMER_REVIEW_ENABLED", "1")
+    monkeypatch.delenv("VIDEO_WHATSAPP_REVIEW_ENABLED", raising=False)
+    out = review_whatsapp.ingest_inbound("919876543210", "APPROVE", "mid1")
+    assert out.get("handled") is False
+    assert "VIDEO_WHATSAPP_REVIEW_ENABLED" in str(out.get("reason") or "")
+
+
+def test_wa_inbound_multi_tenant_phone_refuses(monkeypatch, iso_video):
+    from app.marketing import clients_store
+    from app.marketing import video_ad_cycle as V
+    from app.marketing.video_production import review_whatsapp
+
+    monkeypatch.setenv("VIDEO_WHATSAPP_REVIEW_ENABLED", "1")
+    c1 = {
+        "id": "c1",
+        "business_name": "A",
+        "phone": "9876543210",
+        "status": "active",
+        "niche": "solar",
+        "offer": "x",
+    }
+    c2 = {
+        "id": "c2",
+        "business_name": "B",
+        "phone": "9876543210",
+        "status": "active",
+        "niche": "salon",
+        "offer": "y",
+    }
+    monkeypatch.setattr(clients_store, "list_clients", lambda status=None: [c1, c2])
+    monkeypatch.setattr(
+        clients_store, "get_client", lambda cid: c1 if cid == "c1" else (c2 if cid == "c2" else {})
+    )
+    asyncio.run(V.generate_for_client("c1"))
+    out = review_whatsapp.ingest_inbound("919876543210", "APPROVE", "mid2")
+    assert out.get("reason") == "phone_ambiguous_multi_tenant"
+    assert out.get("intent") == "ambiguous"
+    # Must not have approved
+    assert V.list_for_client("c1")[0]["status"] == "pending"
+
+
+def test_wa_inbound_phone_bind_mismatch(monkeypatch, iso_video):
+    from app.marketing import clients_store
+    from app.marketing import video_ad_cycle as V
+    from app.marketing.video_production import review_whatsapp
+
+    monkeypatch.setenv("VIDEO_WHATSAPP_REVIEW_ENABLED", "1")
+    c1 = {
+        "id": "c1",
+        "business_name": "A",
+        "phone": "9876543210",
+        "status": "active",
+        "niche": "solar",
+        "offer": "x",
+    }
+    monkeypatch.setattr(clients_store, "list_clients", lambda status=None: [c1])
+    monkeypatch.setattr(clients_store, "get_client", lambda cid: c1 if cid == "c1" else {})
+    asyncio.run(V.generate_for_client("c1"))
+    rid = V.list_for_client("c1")[0]["id"]
+    V._update(rid, review_phone="9111111111")
+    out = review_whatsapp.ingest_inbound("919876543210", "APPROVE", "mid3")
+    assert out.get("handled") is False
+    assert out.get("reason") in ("no_pending_review", "phone_mismatch")
+
+
+def test_publish_gate_exception_fail_closed_when_cell_on(monkeypatch, iso_video):
+    from app.marketing import postiz_publish
+    from app.marketing import video_ad_cycle as V
+    from app.marketing.video_production import publish_gate
+
+    monkeypatch.setenv("VIDEO_PRODUCTION_ENABLED", "1")
+    monkeypatch.setenv("VIDEO_SOCIAL_PUBLISH_ENABLED", "1")
+    asyncio.run(V.generate_for_client("c1"))
+    aid = V.list_for_client("c1")[0]["approval_id"]
+    V.on_approved({"id": aid})
+
+    def _boom(_rec):
+        raise RuntimeError("simulated gate crash")
+
+    monkeypatch.setattr(publish_gate, "assert_can_publish", _boom)
+    monkeypatch.setattr(postiz_publish, "enabled", lambda: True)
+
+    async def _pz(*a, **k):
+        return {"sent": True}
+
+    monkeypatch.setattr(postiz_publish, "publish_video", _pz)
+    pd = asyncio.run(V.publish_due())
+    assert pd.get("published", 0) == 0
