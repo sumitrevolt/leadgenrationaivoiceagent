@@ -13,6 +13,13 @@ def assert_can_publish(rec: dict[str, Any]) -> dict[str, Any]:
         if flags.production_enabled() and not flags.social_publish_enabled():
             return {"ok": False, "error": "VIDEO_SOCIAL_PUBLISH_ENABLED off"}
 
+        if flags.own_brand_enabled():
+            from app.marketing.video_production.allowlist import assert_own_brand_allowlist
+
+            allow = assert_own_brand_allowlist(str(rec.get("client_id") or ""))
+            if not allow.get("ok"):
+                return allow
+
         ok, reason = states.publish_allowed(rec)
         if not ok:
             return {"ok": False, "error": reason}
