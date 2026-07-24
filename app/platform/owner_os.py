@@ -984,7 +984,16 @@ def parse_intent(text: str) -> dict[str, Any]:
         if not tenant:
             tenant = "jiya-makeover" if "jiya" in low else None
     elif any(
-        x in low for x in ("call chalu", "calling enable", "platform_dial", "swara calling on")
+        x in low
+        for x in (
+            "call chalu",
+            "calling enable",
+            "enable calling",
+            "enable calls",
+            "start calling",
+            "platform_dial",
+            "swara calling on",
+        )
     ):
         intent = "enable_calling"
         risk = "critical"
