@@ -560,6 +560,7 @@ body.mode-technical #bp-back{display:flex;}
     <div class="bp-brand"><span class="bp-logo">◆</span> LeadGen AI · Blueprint</div>
     <div class="bp-modes" role="tablist">
       <button class="bp-mode active" data-mode="blueprint" onclick="BP.enterMode('blueprint')">🗺 Project Blueprint</button>
+      <button class="bp-mode" data-mode="master" onclick="BP.enterMode('master')">🏛 Master Blueprint</button>
       <button class="bp-mode" data-mode="automations" onclick="BP.enterMode('automations')">⚙ Automations</button>
       <button class="bp-mode" data-mode="products" onclick="BP.enterMode('products')">📦 Products</button>
       <button class="bp-mode" data-mode="technical" onclick="BP.enterMode('technical')">🕸 Technical Graph</button>
@@ -4433,6 +4434,8 @@ const BP = {
     try{ document.getElementById('samajh-modal').style.display='none'; document.getElementById('help-modal').style.display='none'; }catch(e){}
     if(view && (view==='technical'||['structural','automation','products','custom'].includes(view))){
       this.enterMode('technical', view);
+    } else if(view==='master'){
+      this.enterMode('master');
     } else {
       this.enterMode('blueprint');
     }
@@ -4464,6 +4467,7 @@ const BP = {
     this._safe(()=>{
       if(mode==='automations') this.renderAutomations();
       else if(mode==='products') this.renderProducts();
+      else if(mode==='master') this.renderMaster();
       else this.renderHome();
     });
   },
@@ -4506,6 +4510,126 @@ const BP = {
     });
     h+='</div>';
     document.getElementById('bp-content').innerHTML=h;
+  },
+
+  /* ---------- Master Blueprint (canonical backend graph, /api/blueprint) ---------- */
+  _master:null, masterLensKey:'master', masterFlowId:null, _mts:null,
+
+  _esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); },
+
+  _mStColor(s){ return ({'PRODUCTION-PROVEN':'#16a34a','TEST-PROVEN':'#2563eb','CODE-PRESENT':'#64748b','LOCAL-ONLY':'#ca8a04','PLANNED':'#7c3aed','UNVERIFIED':'#64748b','EXTERNAL-BLOCKED':'#ea580c','LEGACY':'#64748b','DEPRECATED':'#dc2626','UNKNOWN':'#64748b'})[s]||'#64748b'; },
+
+  _mLensPred(lens){
+    return (n)=>{
+      switch(lens){
+        case 'business': return ['public_funnel','pricing_packages','signup_onboarding','billing_payments','crm_hotqueue','content_gen','social_publish','customer_delivery','owner_os_copilot'].includes(n.domain);
+        case 'runtime': return n.layer===3 || !!n.runtime;
+        case 'data': return n.type==='store' || n.layer===6 || n.domain==='kb_rag';
+        case 'agent': return n.type==='agent' || n.type==='engine' || n.layer===3 || n.layer===4;
+        case 'deployment': return [1,6,8].includes(n.layer) || ['edge','store','observability'].includes(n.type);
+        case 'technical': return true;
+        default: return true;
+      }
+    };
+  },
+
+  async renderMaster(){
+    this.crumb([['Project Blueprint',()=>this.enterMode('blueprint')],['Master Blueprint',null]]);
+    const el=document.getElementById('bp-content');
+    el.innerHTML='<div class="bp-h1">Master Blueprint</div><div class="bp-sub">Canonical architecture graph load ho raha hai…</div>';
+    try{
+      if(!this._master){
+        const [g,v]=await Promise.all([
+          fetch('/api/blueprint/graph?check_files=1').then(r=>r.json()),
+          fetch('/api/blueprint/validate').then(r=>r.json()).catch(()=>null)
+        ]);
+        if(!g||!Array.isArray(g.nodes)) throw new Error('empty graph');
+        this._master={graph:g, valid:v};
+      }
+      this._renderMasterView();
+    }catch(e){
+      console.error('[master] load failed', e);
+      el.innerHTML='<div class="bp-h1">Master Blueprint</div><div class="bp-sub">Canonical graph abhi load nahi ho paya. Technical Graph khol ke dekho.</div>'
+        +'<button class="bp-bigbtn" onclick="BP.enterMode(\'technical\')">Open Technical Graph →</button>';
+    }
+  },
+
+  masterLens(lens){ this.masterLensKey=lens; this._renderMasterView(); },
+  masterFlow(fid){ this.masterFlowId=(this.masterFlowId===fid?null:fid); this._renderMasterView(); },
+  masterClear(){ this.masterFlowId=null; this.q=''; this._renderMasterView(); },
+  masterSearch(val){ this.q=val; clearTimeout(this._mts); this._mts=setTimeout(()=>{ try{ this._renderMasterView(); }catch(e){} },180); },
+
+  _renderMasterView(){
+    const M=this._master; if(!M||!M.graph) return this.renderMaster();
+    const g=M.graph, v=M.valid, E=(s)=>this._esc(s);
+    const pred=this._mLensPred(this.masterLensKey);
+    const q=(this.q||'').toLowerCase();
+    const flow=this.masterFlowId?g.flows.find(f=>f.id===this.masterFlowId):null;
+    const flowSet=flow?new Set(flow.steps):null;
+    const show=(n)=> pred(n) && (!q || (n.title+' '+n.desc+' '+n.id+' '+(n.flags||[]).join(' ')).toLowerCase().includes(q)) && (!flowSet||flowSet.has(n.id));
+    const lenses=[['master','🏛 Master'],['business','💰 Business'],['technical','🕸 Technical'],['runtime','⚡ Runtime'],['data','🗄 Data'],['agent','🤖 Agent'],['deployment','🚀 Deployment']];
+    const okBadge=v?(v.ok?'<span style="color:#16a34a">✔ schema OK</span>':'<span style="color:#dc2626">✖ '+(v.errors?v.errors.length:'?')+' errors</span>'):'<span style="color:var(--bp-ink2)">schema —</span>';
+    let h='';
+    h+='<div class="bp-h1">Master Blueprint <span style="font-size:12px;color:var(--bp-ink2);font-weight:500">'+E(g.schema_version)+'</span></div>';
+    h+='<div class="bp-sub">Backend-served canonical graph — '+g.counts.nodes+' nodes · '+g.counts.edges+' edges · '+g.counts.layers+' layers · '+g.counts.domains+' domains · '+g.counts.flows+' flows · '+okBadge+'</div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;align-items:center">';
+    lenses.forEach(l=>{ h+='<button class="bp-toggle'+(this.masterLensKey===l[0]?' on':'')+'" onclick="BP.masterLens(\''+l[0]+'\')">'+l[1]+'</button>'; });
+    h+='<label class="bp-search" style="margin-left:auto"><span aria-hidden="true">⌕</span><input type="text" value="'+E(this.q||'')+'" placeholder="Search nodes…" oninput="BP.masterSearch(this.value)" aria-label="Search master blueprint nodes"></label>';
+    h+='</div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px;align-items:center">';
+    h+='<span style="font-size:12px;color:var(--bp-ink2)">End-to-end flows:</span>';
+    g.flows.forEach(f=>{ h+='<button class="bp-toggle'+(this.masterFlowId===f.id?' on':'')+'" onclick="BP.masterFlow(\''+f.id+'\')" title="'+E(f.title)+'">'+E(f.id)+'</button>'; });
+    if(this.masterFlowId) h+='<button class="bp-toggle" onclick="BP.masterClear()">✕ clear</button>';
+    h+='</div>';
+    if(flow){ h+='<div class="bp-sub" style="margin:-6px 0 12px"><b>'+E(flow.id)+'</b> '+E(flow.title)+' → '+flow.steps.map(s=>{const n=g.nodes.find(x=>x.id===s);return n?E(n.title):E(s);}).join(' → ')+'</div>'; }
+    let shown=0;
+    g.layers.forEach(L=>{
+      const nodes=g.nodes.filter(n=>n.layer===L.id && show(n));
+      if(!nodes.length) return;
+      shown+=nodes.length;
+      h+='<div style="margin:0 0 14px;border:1px solid var(--bp-line);border-radius:10px;overflow:hidden">';
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bp-card2);flex-wrap:wrap"><b>L'+L.id+' · '+E(L.title)+'</b><span style="font-size:11px;color:var(--bp-ink2)">'+E(L.desc)+'</span></div>';
+      h+='<div style="display:flex;gap:8px;flex-wrap:wrap;padding:12px">';
+      nodes.forEach(n=>{
+        const c=this._mStColor(n.status);
+        const dis=n.disabled?';opacity:.65':'';
+        h+='<div role="button" tabindex="0" onclick="BP.masterNode(\''+n.id+'\')" onkeydown="if(event.key===\'Enter\')BP.masterNode(\''+n.id+'\')" '
+          +'style="min-width:150px;max-width:230px;border:1px solid var(--bp-line);border-left:3px solid '+c+';border-radius:8px;padding:8px 10px;cursor:pointer;background:var(--bp-card)'+dis+'">'
+          +'<div style="font-weight:600;font-size:13px;color:var(--bp-ink)">'+E(n.title)+(n.disabled?' 🔒':'')+'</div>'
+          +'<div style="font-size:10px;color:'+c+';font-weight:700;letter-spacing:.3px">'+E(n.status)+'</div>'
+          +'<div style="font-size:11px;color:var(--bp-ink2);margin-top:3px">'+E(n.desc)+'</div>'
+          +'</div>';
+      });
+      h+='</div></div>';
+    });
+    if(!shown) h+='<div class="bp-sub">Is lens / filter me koi node nahi mila.</div>';
+    h+='<div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">';
+    ['PRODUCTION-PROVEN','TEST-PROVEN','CODE-PRESENT','LOCAL-ONLY','PLANNED','EXTERNAL-BLOCKED','DEPRECATED','UNKNOWN'].forEach(s=>{ h+='<span style="font-size:11px;color:var(--bp-ink2)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+this._mStColor(s)+';margin-right:4px;vertical-align:middle"></span>'+s+'</span>'; });
+    h+='</div>';
+    h+='<div class="bp-sub" style="font-size:11px;margin-top:8px">Honesty: live runtime status = <b>Unknown</b> jab tak koi live signal bind na ho. Cold outbound (platform_dial) <b>HARD OFF</b> — visualize only, kabhi enable nahi.</div>';
+    document.getElementById('bp-content').innerHTML=h;
+  },
+
+  masterNode(id){
+    const M=this._master; if(!M||!M.graph) return; const g=M.graph, E=(s)=>this._esc(s);
+    const n=g.nodes.find(x=>x.id===id); if(!n) return;
+    const up=g.edges.filter(e=>e.target===id), down=g.edges.filter(e=>e.source===id);
+    const nm=i=>{const x=g.nodes.find(y=>y.id===i);return x?x.title:i;};
+    const dom=(g.domains.find(d=>d.key===n.domain)||{}).title||n.domain;
+    const lay=(g.layers.find(l=>l.id===n.layer)||{}).title||('L'+n.layer);
+    document.getElementById('bp-dicon').textContent=n.disabled?'🔒':'◆';
+    document.getElementById('bp-dtitle').textContent=n.title;
+    document.getElementById('bp-dsub').textContent='L'+n.layer+' '+lay+' · '+dom+' · '+n.type;
+    let b='';
+    b+='<div style="margin-bottom:8px"><span style="font-size:11px;font-weight:700;color:'+this._mStColor(n.status)+'">'+E(n.status)+'</span>'+(n.disabled?' <span style="color:#dc2626;font-weight:700">HARD OFF</span>':'')+'</div>';
+    b+='<div style="font-size:13px;margin-bottom:10px;color:var(--bp-ink)">'+E(n.desc)+'</div>';
+    if(n.files&&n.files.length){ b+='<div style="font-size:11px;color:var(--bp-ink2);margin-bottom:2px">Evidence files</div><div style="font-size:12px;margin-bottom:10px;color:var(--bp-ink)">'+n.files.map(f=>'<code>'+E(f)+'</code>'+(n.file_ok===false?' ⚠':'')).join('<br>')+'</div>'; }
+    if(n.flags&&n.flags.length){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Flags</div><div style="font-size:12px;margin-bottom:10px;color:var(--bp-ink)">'+n.flags.map(f=>'<code>'+E(f)+'</code>').join(' ')+'</div>'; }
+    if(n.runtime){ b+='<div style="font-size:12px;margin-bottom:10px;color:var(--bp-ink2)">Runtime probe: <code>'+E(n.runtime)+'</code> — live status <b>Unknown</b> unless bound.</div>'; }
+    b+='<div style="font-size:11px;color:var(--bp-ink2)">Upstream (feeds in)</div><div style="margin-bottom:8px">'+(up.length?up.map(e=>'<button class="bp-toggle" onclick="BP.masterNode(\''+e.source+'\')">← '+E(nm(e.source))+'</button>').join(' '):'<span style="font-size:12px;color:var(--bp-ink2)">none</span>')+'</div>';
+    b+='<div style="font-size:11px;color:var(--bp-ink2)">Downstream (feeds out)</div><div>'+(down.length?down.map(e=>'<button class="bp-toggle" onclick="BP.masterNode(\''+e.target+'\')">→ '+E(nm(e.target))+'</button>').join(' '):'<span style="font-size:12px;color:var(--bp-ink2)">none</span>')+'</div>';
+    document.getElementById('bp-dbody').innerHTML=b;
+    document.getElementById('bp-drawer').classList.add('open');
   },
 
   openSection(key){
