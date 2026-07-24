@@ -2989,10 +2989,15 @@ async function loadDashboard(){
 /* 🏠 Aaj ka business — plain-Hinglish owner summary at the TOP.
    Reuses the proven /api/growth/overview/today aggregator (no LLM, never-raise).
    Business-first: kya hua aaj, kya dhyan maangta hai + actionable fix. */
-function statChip(label, val){
-  return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 14px;min-width:92px;text-align:center">'
-       + '<div style="font-size:22px;font-weight:800;color:#0f172a;line-height:1.1">'+val+'</div>'
+function statChip(label, val, accent){
+  var border = accent ? accent.border : '#e2e8f0';
+  var numCol = accent ? accent.num : '#0f172a';
+  var bg = accent ? accent.bg : '#fff';
+  var href = accent && accent.href ? accent.href : '';
+  var inner = '<div style="background:'+bg+';border:1px solid '+border+';border-radius:10px;padding:8px 14px;min-width:92px;text-align:center">'
+       + '<div style="font-size:22px;font-weight:800;color:'+numCol+';line-height:1.1">'+val+'</div>'
        + '<div style="font-size:11px;color:#64748b;margin-top:2px">'+label+'</div></div>';
+  return href ? '<a href="'+href+'" style="text-decoration:none">'+inner+'</a>' : inner;
 }
 async function loadTodayBiz(){
   const body = $("todayBizBody"); if(!body) return;
@@ -3011,8 +3016,16 @@ async function loadTodayBiz(){
     const hasProb = !!(d.problems && d.problems.length);
     const headColor = hasProb ? '#b45309' : '#065f46';
     let html = '<div style="font-size:15px;font-weight:700;color:'+headColor+';margin-bottom:12px">'+(d.headline||'')+'</div>';
+    // "Aaj ke kaam" (events_today) = kaam jo agents AAJ kar CHUKE (auto-done), NOT
+    // pending backlog. Isliye label truthful: "auto ho chuke". Asli boss-decision
+    // backlog = t.needs_decision (pending approvals) — alag chip me, accent ke saath.
+    var nd = t.needs_decision||0;
+    var ndAccent = nd>0
+      ? {border:'#fbbf24',num:'#b45309',bg:'#fffbeb',href:'/app/automation#approvals'}
+      : {border:'#6ee7b7',num:'#059669',bg:'#ecfdf5'};
     html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
-          + statChip('📋 Aaj ke kaam', t.events_today||0)
+          + statChip('✅ Aaj auto ho chuke', t.events_today||0)
+          + statChip(nd>0?'🙋 Boss decision chahiye':'✅ Boss pe kuch pending nahi', nd, ndAccent)
           + statChip('🤖 Active agents', t.working||0)
           + statChip('👥 Staff', t.staff||0)
           + '</div>';
