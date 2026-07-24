@@ -9,18 +9,22 @@ from __future__ import annotations
 from app.marketing.creative_os.flags import flag_snapshot, os_enabled
 from app.marketing.creative_os.service import (
     approve_exact,
+    enqueue_generate,
     generate_preview,
     list_cockpit,
+    process_generation,
     quarantine,
     request_changes,
 )
 
 __all__ = [
     "approve_exact",
+    "enqueue_generate",
     "flag_snapshot",
     "generate_preview",
     "list_cockpit",
     "os_enabled",
+    "process_generation",
     "quarantine",
     "request_changes",
 ]

@@ -453,14 +453,14 @@ class CreativeOsGenIn(BaseModel):
 
 @router.post("/creative-os/generate")
 async def creative_os_generate(body: CreativeOsGenIn, _user=Depends(require_admin)):
-    """Deterministic preview generate (HEAVY). Requires CREATIVE_OS_ENABLED=1."""
-    from app.marketing.creative_os import generate_preview
+    """Enqueue deterministic preview (Celery video worker). No in-process FFmpeg."""
+    from app.marketing.creative_os import enqueue_generate
 
     cid = (body.client_id or "").strip()
     if not cid:
         return {"ok": False, "error": "client_id zaroori hai."}
     biz = (body.business_name or cid).strip()
-    return await generate_preview(
+    return enqueue_generate(
         tenant_id=cid,
         business_name=biz,
         recipe=(body.recipe or "offer_announcement").strip(),

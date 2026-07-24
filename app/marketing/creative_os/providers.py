@@ -172,17 +172,35 @@ def get_provider(name: str) -> CreativeProvider:
 
 
 async def generate_with_fallback(spec: CreativeSpec) -> dict[str, Any]:
-    """Try requested provider; on failure fall back to deterministic when OS enabled."""
-    primary = get_provider(spec.provider)
+    """Try requested provider; on failure fall back to deterministic when OS enabled.
+
+    On successful fallback, mutate ``spec`` to the provider that actually rendered
+    BEFORE callers run QA / licence checks.
+    """
+    requested = (spec.provider or "deterministic").strip().lower()
+    primary = get_provider(requested)
     out = await primary.generate(spec)
     if out.get("ok"):
         return out
-    if spec.provider != "deterministic" and flags.os_enabled():
+    if requested != "deterministic" and flags.os_enabled():
         fb = await _PROVIDERS["deterministic"].generate(spec)
         if fb.get("ok"):
-            fb.setdefault("warnings", []).append(
-                f"fell_back_from:{spec.provider}:{out.get('error')}"
-            )
+            from app.marketing.creative_os.licence import assert_provider_allowed
+
+            lic = assert_provider_allowed("deterministic", "ffmpeg-template")
+            spec.fallback_from = requested
+            spec.provider = "deterministic"
+            spec.model_name = "ffmpeg-template"
+            spec.model_version = "pinned"
+            spec.licence_snapshot = lic.get("snapshot") or {}
+            warns = list(fb.get("warnings") or [])
+            warns.append(f"fell_back_from:{requested}:{out.get('error')}")
+            spec.provider_warnings = warns
+            fb["warnings"] = warns
+            fb["fallback_from"] = requested
+            fb["provider"] = "deterministic"
+            fb["model"] = "ffmpeg-template"
+            fb["model_revision"] = "pinned"
             return fb
         return out
     return out

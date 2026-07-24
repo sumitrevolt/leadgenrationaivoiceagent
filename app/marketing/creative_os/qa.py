@@ -1,4 +1,4 @@
-"""Creative QA gate — deterministic checks + honest optional-capability degradation."""
+"""Creative QA gate — truthful evidence; optional checks never fake-pass."""
 
 from __future__ import annotations
 
@@ -23,9 +23,11 @@ _ASPECT_DIMS = {
     "4:5": (1080, 1350),
 }
 
+# Phase-1 blocking policy: only these severities fail the gate when result=failed
+_BLOCK_ON = frozenset({"block"})
+
 
 def detect_optional_capabilities() -> dict[str, bool]:
-    """Honest capability probe — missing deps = degraded, not fake pass."""
     caps = {
         "paddleocr": False,
         "scenedetect": False,
@@ -33,6 +35,7 @@ def detect_optional_capabilities() -> dict[str, bool]:
         "open_clip": False,
         "vmaf": False,
         "ffprobe": False,
+        "ffmpeg": False,
     }
     for mod, key in (
         ("paddleocr", "paddleocr"),
@@ -50,13 +53,36 @@ def detect_optional_capabilities() -> dict[str, bool]:
         caps["ffprobe"] = r.returncode == 0
     except Exception:
         caps["ffprobe"] = False
-    # VMAF is an ffmpeg filter — probe lazily via ffmpeg -filters when needed
+    try:
+        r = subprocess.run(["ffmpeg", "-version"], capture_output=True, timeout=5)
+        caps["ffmpeg"] = r.returncode == 0
+    except Exception:
+        caps["ffmpeg"] = False
     try:
         r = subprocess.run(["ffmpeg", "-hide_banner", "-filters"], capture_output=True, timeout=8)
         caps["vmaf"] = b"vmaf" in (r.stdout or b"").lower()
     except Exception:
         caps["vmaf"] = False
     return caps
+
+
+def _check(
+    name: str,
+    result: str,
+    *,
+    detail: str = "",
+    severity: str = "block",
+    evidence: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """result ∈ passed|failed|degraded_missing_dependency|not_evaluated"""
+    return {
+        "name": name,
+        "result": result,
+        "passed": result == "passed",
+        "detail": detail,
+        "severity": severity,
+        "evidence": evidence or {},
+    }
 
 
 def run_qa(
@@ -67,89 +93,163 @@ def run_qa(
     phone: str = "",
     budget_ms: int = 300_000,
 ) -> dict[str, Any]:
-    """Return structured QA result. ok=False blocks publish. Never raises."""
     checks: list[dict[str, Any]] = []
     degraded: list[str] = []
     caps = detect_optional_capabilities()
 
-    def _add(name: str, passed: bool, detail: str = "", severity: str = "block") -> None:
-        checks.append(
-            {"name": name, "passed": bool(passed), "detail": detail, "severity": severity}
-        )
-
     try:
         if not path or not os.path.exists(path) or os.path.getsize(path) < 1000:
-            _add("output_exists", False, "missing or trivial")
+            checks.append(_check("output_exists", "failed", detail="missing or trivial"))
         else:
-            _add("output_exists", True, f"size={os.path.getsize(path)}")
+            checks.append(
+                _check(
+                    "output_exists",
+                    "passed",
+                    detail=f"size={os.path.getsize(path)}",
+                    evidence={"bytes": os.path.getsize(path)},
+                )
+            )
 
         if not caps.get("ffprobe"):
             degraded.append("ffprobe_missing")
-            _add("ffprobe", False, "ffprobe unavailable", "block")
+            checks.append(
+                _check(
+                    "ffprobe",
+                    "degraded_missing_dependency",
+                    detail="ffprobe unavailable",
+                    severity="block",
+                )
+            )
             probe: dict[str, Any] = {}
         else:
             probe = _ffprobe(path)
-            _add("ffprobe", bool(probe.get("ok")), probe.get("error") or "ok")
+            checks.append(
+                _check(
+                    "ffprobe",
+                    "passed" if probe.get("ok") else "failed",
+                    detail=probe.get("error") or "ok",
+                    evidence=probe,
+                )
+            )
 
         exp_w, exp_h = _ASPECT_DIMS.get(spec.aspect_ratio, (0, 0))
         got_w = int(probe.get("width") or 0)
         got_h = int(probe.get("height") or 0)
         if exp_w and exp_h:
-            _add(
-                "aspect_ratio",
-                (got_w, got_h) == (exp_w, exp_h),
-                f"{got_w}x{got_h} vs {exp_w}x{exp_h}",
+            checks.append(
+                _check(
+                    "aspect_ratio",
+                    "passed" if (got_w, got_h) == (exp_w, exp_h) else "failed",
+                    detail=f"{got_w}x{got_h} vs {exp_w}x{exp_h}",
+                    evidence={"got": [got_w, got_h], "expected": [exp_w, exp_h]},
+                )
             )
 
         duration = float(probe.get("duration") or 0)
         scene_n = max(1, len(spec.scenes or []))
         min_d, max_d = 1.0, scene_n * 10.0
-        _add(
-            "duration_bounds",
-            min_d <= duration <= max_d if duration else False,
-            f"{duration}s in [{min_d},{max_d}]",
+        checks.append(
+            _check(
+                "duration_bounds",
+                "passed" if duration and min_d <= duration <= max_d else "failed",
+                detail=f"{duration}s in [{min_d},{max_d}]",
+                evidence={"duration_s": duration},
+            )
         )
-        _add("video_stream", bool(probe.get("has_video")), "")
-        # Audio optional when TTS failed — warn not block if silent path intentional
-        _add(
-            "audio_stream",
-            bool(probe.get("has_audio")),
-            "missing_audio",
-            severity="warn",
+        checks.append(
+            _check("video_stream", "passed" if probe.get("has_video") else "failed", detail="")
         )
-        _add("min_scene_count", scene_n >= 2, f"scenes={scene_n}")
+        checks.append(
+            _check(
+                "audio_stream",
+                "passed" if probe.get("has_audio") else "failed",
+                detail="missing_audio",
+                severity="warn",
+            )
+        )
+        checks.append(
+            _check(
+                "min_scene_count",
+                "passed" if scene_n >= 2 else "failed",
+                detail=f"scenes={scene_n}",
+            )
+        )
 
-        # Black-frame / silence / loudness: require ffmpeg signalstats — degrade if absent
-        if caps.get("ffprobe") and path and os.path.exists(path):
-            bf = _blackframe_hint(path)
-            if bf.get("degraded"):
+        # Black-frame with info-level logs so markers are visible
+        if caps.get("ffmpeg") and path and os.path.exists(path):
+            bf = _blackframe_probe(path, duration)
+            checks.append(
+                _check(
+                    "black_frame",
+                    bf["result"],
+                    detail=bf.get("detail") or "",
+                    severity="block",
+                    evidence=bf.get("evidence"),
+                )
+            )
+            if bf["result"] == "degraded_missing_dependency":
                 degraded.append("blackframe_probe_degraded")
-                _add("black_frame", True, "skipped_degraded", "warn")
-            else:
-                _add("black_frame", not bf.get("excess_black"), bf.get("detail") or "")
-            sil = _silence_hint(path)
-            if sil.get("degraded"):
+            sil = _silence_probe(path, duration, has_audio=bool(probe.get("has_audio")))
+            checks.append(
+                _check(
+                    "excess_silence",
+                    sil["result"],
+                    detail=sil.get("detail") or "",
+                    severity="warn",
+                    evidence=sil.get("evidence"),
+                )
+            )
+            if sil["result"] == "degraded_missing_dependency":
                 degraded.append("silence_probe_degraded")
-                _add("excess_silence", True, "skipped_degraded", "warn")
+        else:
+            degraded.append("ffmpeg_missing")
+            checks.append(
+                _check(
+                    "black_frame",
+                    "degraded_missing_dependency",
+                    detail="ffmpeg unavailable",
+                    severity="block",
+                )
+            )
+            checks.append(
+                _check(
+                    "excess_silence",
+                    "degraded_missing_dependency",
+                    detail="ffmpeg unavailable",
+                    severity="warn",
+                )
+            )
+
+        # Optional OCR / scene / whisper / clip / vmaf — never fake pass
+        for name, key in (
+            ("text_safe_zone", "paddleocr"),
+            ("brand_presence_ocr", "paddleocr"),
+            ("scenedetect", "scenedetect"),
+            ("faster_whisper", "faster_whisper"),
+            ("open_clip", "open_clip"),
+            ("vmaf", "vmaf"),
+        ):
+            if not caps.get(key):
+                degraded.append(f"{key}_missing")
+                checks.append(
+                    _check(
+                        name,
+                        "degraded_missing_dependency",
+                        detail=f"{key} absent",
+                        severity="info",
+                    )
+                )
             else:
-                _add("excess_silence", not sil.get("excess"), sil.get("detail") or "", "warn")
-        else:
-            degraded.append("av_signal_probes_skipped")
+                # Installed but Phase-1 evaluation not implemented → not_evaluated
+                checks.append(
+                    _check(
+                        name,
+                        "not_evaluated",
+                        detail=f"{key} installed; phase1 evaluator not wired",
+                        severity="info",
+                    )
+                )
 
-        # Text safe-zone / brand presence — OCR optional
-        if not caps.get("paddleocr"):
-            degraded.append("paddleocr_missing")
-            _add("text_safe_zone", True, "ocr_unavailable_degraded", "warn")
-            _add("brand_presence", True, "ocr_unavailable_degraded", "warn")
-        else:
-            _add("text_safe_zone", True, "ocr_available_basic_pass", "warn")
-            _add("brand_presence", True, "ocr_available_basic_pass", "warn")
-
-        for bad_cap in ("scenedetect", "faster_whisper", "open_clip", "vmaf"):
-            if not caps.get(bad_cap):
-                degraded.append(f"{bad_cap}_missing")
-
-        # Placeholders in captions/claims/script
         blob = " ".join(
             [
                 spec.script or "",
@@ -159,49 +259,80 @@ def run_qa(
                 " ".join(s.text for s in (spec.scenes or [])),
             ]
         )
-        _add("no_placeholders", not bool(_PLACEHOLDER_RE.search(blob)), "")
-
-        # Brand name expected in at least one scene when provided
+        checks.append(
+            _check(
+                "no_placeholders",
+                "passed" if not _PLACEHOLDER_RE.search(blob) else "failed",
+                detail="",
+            )
+        )
         if brand_name:
-            present = brand_name.lower() in blob.lower()
-            _add("brand_name_in_copy", present, brand_name, "warn")
+            checks.append(
+                _check(
+                    "brand_name_in_copy",
+                    "passed" if brand_name.lower() in blob.lower() else "failed",
+                    detail=brand_name,
+                    severity="warn",
+                )
+            )
 
-        # Tenant / asset consistency
         for aid in spec.source_asset_ids or []:
             from app.marketing.creative_os.assets import get_asset
 
             got = get_asset(spec.tenant_id, aid)
-            _add(
-                f"asset_tenant:{aid}",
-                bool(got.get("ok")),
-                got.get("error") or "ok",
+            checks.append(
+                _check(
+                    f"asset_tenant:{aid}",
+                    "passed" if got.get("ok") else "failed",
+                    detail=str(got.get("error") or "ok"),
+                )
             )
 
         lic = assert_provider_allowed(spec.provider, spec.model_name, spec.model_version)
-        _add("licence_allowed", bool(lic.get("ok")), str(lic.get("error") or "ok"))
+        checks.append(
+            _check(
+                "licence_allowed",
+                "passed" if lic.get("ok") else "failed",
+                detail=str(lic.get("error") or "ok"),
+                evidence={"snapshot": lic.get("snapshot") or {}},
+            )
+        )
 
         if spec.render_duration_ms and spec.render_duration_ms > budget_ms:
-            _add(
-                "generation_budget",
-                False,
-                f"{spec.render_duration_ms}ms > {budget_ms}ms",
+            checks.append(
+                _check(
+                    "generation_budget",
+                    "failed",
+                    detail=f"{spec.render_duration_ms}ms > {budget_ms}ms",
+                )
             )
         else:
-            _add("generation_budget", True, f"{spec.render_duration_ms}ms")
+            checks.append(
+                _check(
+                    "generation_budget",
+                    "passed",
+                    detail=f"{spec.render_duration_ms}ms",
+                )
+            )
 
-        # Optional packages never invent a pass — mark degraded state
-        for mod in ("scenedetect", "faster_whisper", "open_clip", "vmaf"):
-            if not caps.get(mod):
-                _add(f"optional:{mod}", True, "absent_degraded", "info")
-
-        blockers = [c for c in checks if not c["passed"] and c["severity"] == "block"]
+        blockers = [
+            c["name"] for c in checks if c["result"] == "failed" and c["severity"] in _BLOCK_ON
+        ]
+        # Missing ffprobe/ffmpeg for block-severity probes also blocks
+        blockers += [
+            c["name"]
+            for c in checks
+            if c["result"] == "degraded_missing_dependency"
+            and c["severity"] in _BLOCK_ON
+            and c["name"] in ("ffprobe", "black_frame", "output_exists")
+        ]
         ok = len(blockers) == 0
         return {
             "ok": ok,
             "degraded": degraded,
             "capabilities": caps,
             "checks": checks,
-            "blockers": [c["name"] for c in blockers],
+            "blockers": blockers,
             "brand_name": brand_name,
             "phone": phone,
         }
@@ -233,7 +364,7 @@ def _ffprobe(path: str) -> dict[str, Any]:
             timeout=30,
         )
         if r.returncode != 0:
-            return {"ok": False, "error": "ffprobe_failed"}
+            return {"ok": False, "error": "ffprobe_failed", "returncode": r.returncode}
         data = json.loads(r.stdout or b"{}")
         streams = data.get("streams") or []
         v = next((s for s in streams if s.get("codec_type") == "video"), {})
@@ -245,61 +376,142 @@ def _ffprobe(path: str) -> dict[str, Any]:
             "height": int(v.get("height") or 0),
             "has_video": bool(v),
             "has_audio": a is not None,
+            "returncode": r.returncode,
         }
     except Exception as e:
         return {"ok": False, "error": str(e)[:120]}
 
 
-def _blackframe_hint(path: str) -> dict[str, Any]:
-    """Best-effort blackframe detection; degrade honestly on failure."""
+def _blackframe_probe(path: str, duration_s: float) -> dict[str, Any]:
+    """Use info log level so blackdetect markers are emitted."""
     try:
         r = subprocess.run(
             [
                 "ffmpeg",
-                "-v",
-                "error",
+                "-hide_banner",
+                "-loglevel",
+                "info",
                 "-i",
                 path,
                 "-vf",
                 "blackdetect=d=0.5:pix_th=0.10",
+                "-an",
                 "-f",
                 "null",
                 "-",
             ],
             capture_output=True,
-            timeout=45,
+            timeout=60,
         )
         err = (r.stderr or b"").decode("utf-8", errors="replace")
-        # Count black_start markers; excess if many relative to short clip
-        hits = err.lower().count("black_start")
-        return {"excess_black": hits >= 3, "detail": f"black_segments={hits}", "degraded": False}
-    except Exception:
-        return {"degraded": True, "excess_black": False, "detail": "blackdetect_failed"}
+        if r.returncode not in (0,):
+            # null mux often returns 0; non-zero = real failure
+            if "blackdetect" not in err.lower() and r.returncode != 0:
+                return {
+                    "result": "degraded_missing_dependency",
+                    "detail": f"ffmpeg_rc={r.returncode}",
+                    "evidence": {"returncode": r.returncode, "stderr_tail": err[-400:]},
+                }
+        # Parse black_start / black_duration markers
+        import re as _re
+
+        segs = []
+        for m in _re.finditer(
+            r"black_start:(?P<start>[0-9.]+)\s+black_end:(?P<end>[0-9.]+)\s+black_duration:(?P<dur>[0-9.]+)",
+            err,
+        ):
+            segs.append(float(m.group("dur")))
+        # Fallback: count starts if duration form missing
+        if not segs:
+            starts = err.lower().count("black_start")
+            # Without parseable durations, do NOT treat as pass — not_evaluated-ish fail-soft warn
+            if starts == 0 and "blackdetect" in err.lower():
+                # filter ran, no black — pass
+                total_black = 0.0
+            elif starts == 0:
+                return {
+                    "result": "degraded_missing_dependency",
+                    "detail": "no_blackdetect_markers_in_log",
+                    "evidence": {"returncode": r.returncode, "stderr_tail": err[-400:]},
+                }
+            else:
+                total_black = float(starts) * 0.5  # conservative lower bound
+        else:
+            total_black = sum(segs)
+        pct = (total_black / duration_s * 100.0) if duration_s > 0 else 0.0
+        excess = pct >= 40.0 or total_black >= max(2.0, duration_s * 0.4)
+        return {
+            "result": "failed" if excess else "passed",
+            "detail": f"black_s={total_black:.2f} pct={pct:.1f}",
+            "evidence": {
+                "returncode": r.returncode,
+                "black_duration_s": total_black,
+                "black_pct": pct,
+                "segments": len(segs),
+            },
+        }
+    except Exception as e:
+        return {
+            "result": "degraded_missing_dependency",
+            "detail": str(e)[:120],
+            "evidence": {},
+        }
 
 
-def _silence_hint(path: str) -> dict[str, Any]:
+def _silence_probe(path: str, duration_s: float, *, has_audio: bool) -> dict[str, Any]:
+    if not has_audio:
+        return {
+            "result": "not_evaluated",
+            "detail": "no_audio_stream",
+            "evidence": {"has_audio": False},
+        }
     try:
         r = subprocess.run(
             [
                 "ffmpeg",
-                "-v",
-                "error",
+                "-hide_banner",
+                "-loglevel",
+                "info",
                 "-i",
                 path,
                 "-af",
-                "silencedetect=n=-40dB:d=2",
+                "silencedetect=n=-40dB:d=1",
                 "-f",
                 "null",
                 "-",
             ],
             capture_output=True,
-            timeout=45,
+            timeout=60,
         )
         err = (r.stderr or b"").decode("utf-8", errors="replace")
-        hits = err.lower().count("silence_start")
-        return {"excess": hits >= 3, "detail": f"silence_segments={hits}", "degraded": False}
-    except Exception:
-        return {"degraded": True, "excess": False, "detail": "silencedetect_failed"}
+        import re as _re
+
+        durs = [float(x) for x in _re.findall(r"silence_duration:\s*([0-9.]+)", err)]
+        if not durs and "silencedetect" not in err.lower() and "silence_start" not in err.lower():
+            return {
+                "result": "degraded_missing_dependency",
+                "detail": "no_silencedetect_markers_in_log",
+                "evidence": {"returncode": r.returncode, "stderr_tail": err[-400:]},
+            }
+        total = sum(durs) if durs else 0.0
+        pct = (total / duration_s * 100.0) if duration_s > 0 else 0.0
+        excess = pct >= 50.0
+        return {
+            "result": "failed" if excess else "passed",
+            "detail": f"silence_s={total:.2f} pct={pct:.1f}",
+            "evidence": {
+                "returncode": r.returncode,
+                "silence_duration_s": total,
+                "silence_pct": pct,
+                "intervals": len(durs),
+            },
+        }
+    except Exception as e:
+        return {
+            "result": "degraded_missing_dependency",
+            "detail": str(e)[:120],
+            "evidence": {},
+        }
 
 
 __all__ = ["detect_optional_capabilities", "run_qa"]

@@ -56,6 +56,8 @@ def save_record(spec: CreativeSpec, extra: dict[str, Any] | None = None) -> dict
             "qa_ok": (spec.qa_results or {}).get("ok"),
             "approval_revision": spec.approval_revision,
             "output_hash": spec.output_hash,
+            "output_asset_id": getattr(spec, "output_asset_id", "") or "",
+            "job_id": getattr(spec, "job_id", "") or "",
             "publish_targets": list(spec.publish_targets or []),
             "failure_reason": spec.failure_reason,
             "updated_at": time.time(),

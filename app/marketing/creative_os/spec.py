@@ -72,6 +72,10 @@ class CreativeSpec:
     prompt_version: str = "1"
     input_hashes: dict[str, str] = field(default_factory=dict)
     output_hash: str = ""
+    output_asset_id: str = ""
+    job_id: str = ""
+    fallback_from: str = ""
+    provider_warnings: list[str] = field(default_factory=list)
     licence_snapshot: dict[str, Any] = field(default_factory=dict)
     qa_results: dict[str, Any] = field(default_factory=dict)
     approval_revision: int = 0
@@ -79,6 +83,8 @@ class CreativeSpec:
     status: str = "queued"
     failure_reason: str = ""
     render_duration_ms: int = 0
+    change_note: str = ""
+    previous_output_hash: str = ""
     spec_version: str = SPEC_VERSION
 
     @staticmethod
