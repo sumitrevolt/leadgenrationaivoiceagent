@@ -307,28 +307,20 @@ async def async_db():
 
 
 @pytest.fixture(scope="session", autouse=True)
-def _async_engine_teardown_guard():
+def _async_engine_teardown_guard(event_loop):
     """Session-end guard + verification for the exit-139 fix (SQLAlchemy #13039).
 
     With NullPool the test async_engine never pools/orphans an aiosqlite
-    connection, so no `_connection_worker_thread` should survive the run; the
-    app's own engine is disposed on lifespan shutdown (app.main -> close_async_db).
-    This deterministically disposes the test engine at session end and asserts the
-    invariants -- surfacing any residual aiosqlite worker leak rather than hiding
-    it with a GC workaround.
+    connection, so no `_connection_worker_thread` should survive the run. This
+    deterministically disposes the test engine AND the app engine (used by
+    init_async_db for any non-TestClient async path) on the pytest event loop --
+    the loop those connections live on -- then asserts no aiosqlite worker leaked,
+    surfacing any residual leak rather than hiding it with a GC workaround.
     """
     yield
 
     import threading
-
-    disposed = True
-    _loop = asyncio.new_event_loop()
-    try:
-        _loop.run_until_complete(async_engine.dispose())
-    except Exception:
-        disposed = False
-    finally:
-        _loop.close()
+    import time as _time
 
     def _leaked_aiosqlite_workers():
         return [
@@ -337,6 +329,26 @@ def _async_engine_teardown_guard():
             if t.is_alive()
             and "aiosqlite" in (getattr(getattr(t, "_target", None), "__module__", "") or "")
         ]
+
+    disposed = True
+    try:
+        event_loop.run_until_complete(async_engine.dispose())
+    except Exception:
+        disposed = False
+    try:
+        from app.models.base import close_async_db
+
+        event_loop.run_until_complete(close_async_db())
+    except Exception:
+        pass
+
+    # aiosqlite worker threads stop asynchronously once their connection closes;
+    # allow a bounded settle window before asserting so a thread mid-exit is not
+    # mis-flagged as a leak.
+    for _ in range(50):  # up to ~5s
+        if not _leaked_aiosqlite_workers():
+            break
+        _time.sleep(0.1)
 
     assert disposed, "test async_engine.dispose() raised at session teardown"
     leaked = _leaked_aiosqlite_workers()
