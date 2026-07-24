@@ -1,45 +1,28 @@
 # SESSION_HANDOFF — overwrite every session end
 
 ## Session objective
-Authorized full review + fix (if needed) + merge of docs PR #112 (`docs/canonical-handoff-20260724`) so canonical context separates production `7cab5f60` from `origin/main` `216ad5c`, without deploy or app-code changes.
+Implement Phase-1 Creative Automation OS vertical slice (ADR-143) in isolated worktree from `origin/main`, with rules, exact-hash approval, deterministic provider, admin cockpit seam, tests, and Draft PR. No production deploy/flag activation.
 
 ## Outcome
-**DOCS ALIGNED + MERGE-AUTHORIZED.** Production remains `/health.version=7cab5f60` (re-probed 2026-07-24T03:15Z, healthy/production). `origin/main` tip `216ad5c` stays ahead (PRs #105–#111). Path-scoped follow-up commit refreshes probe timestamp, Obsidian cron classification, and CLAUDE/AGENTS hot cache (31 agents; Boss not 32nd; ADR-131 `.claude/skills`; Owner OS sole OpenClaw authority; Stage A; calling HARD OFF).
+**PARTIAL → code-complete local slice.** Draft PR prepared from `feat/creative-automation-os`. Authenticated browser canary deferred (no admin session in this run); lifecycle proven via unit/integration + scripted service path. Production untouched.
 
-## What shipped previously (still live)
-- PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/105
-- Feature commit: `444e58424b638f80c2b812ce90bc1afcf539bfc4`
-- Merge commit: `7cab5f609846e2c584edb8322dc684378a15e995` (`7cab5f60`)
-- Merged at: `2026-07-23T21:19:35Z`
-- Exact 4 files; `.agents/skills/**` excluded
+## Production truth (re-probed 2026-07-24 ~05:39Z / session start)
+- `/health.version`: `7cab5f60` · healthy · production
+- `origin/main` at worktree base: `5199b243` (PR #112 merge) — ahead of prod
+- Calling: HARD OFF (`PLATFORM_DIAL_DAILY=0`)
+- No VPS mutate / no creative flags flipped in prod
 
-## Production (re-probed 2026-07-24T03:15Z)
-- Actual `/health.version`: `7cab5f60`
-- status: healthy; environment: production
-- Rollback SHA retained: `7f37522e` (not used)
-- Flags (from prior ship evidence; not mutated this session): OpenClaw Stage A ON, `OPENCLAW_ALLOW_RED_ACTIONS=0`, `PLATFORM_DIAL_DAILY=0`
-- Customer review / WhatsApp review / social publish / video scheduler: OFF
-- No production deploy / VPS mutate during this docs review
-
-## Main tip (not deployed)
-- `origin/main` = `216ad5c` (Merge PR #106 skill canonical index)
-- Also on main, not claimed live: #107 runtime flag separation (Kavya/Arnav), #108 OmniRoute governance, #109/#110 proofs, #111 Obsidian self-heal
-- ADR-131 present on main (`.claude/skills` canonical; `.agents/skills` removed)
-
-## Obsidian cron (evidence)
-- Schedule proven: `45 20 * * *` host cron → `obsidian_host_push.sh`
-- **2026-07-24 20:45 UTC / 02:15 IST:** `NOT_YET_OCCURRED`
-- **Through 2026-07-23 20:45 UTC:** `PROVEN_FAILURE` (`fetch first`)
-- Host script now has fetch+merge self-heal (mtime after Jul 23 failure). Success of tonight's run is not yet claimable.
-
-## Dirty-primary triage decisions
-- `tests/test_customer_video_review_regression_2026.py` → SUPERSEDED (coverage already in `tests/test_video_production_auth_ui.py`); no Draft PR
-- Customer ledger `data/delivery_ledger/jiya-makeover.jsonl` → RUNTIME_DATA_NOT_FOR_GIT (1 append `sla_breached`); restore to `origin/main`
-- `_tmp_*` + merge report → disposable untracked scratch; path-delete (no high-confidence secret values found)
-- Docs → isolated branch `docs/canonical-handoff-20260724` (PR #112)
+## What shipped (local branch only)
+- Worktree: `C:\Users\Ratanshila\Documents\_leadgen_worktrees\leadgen-creative-os`
+- Branch: `feat/creative-automation-os`
+- Rules: `.cursor/rules/creative-automation-os.mdc`
+- ADR: `docs/adr/ADR-143-creative-automation-os.md` + `memory/decisions.md`
+- Package: `app/marketing/creative_os/*`
+- Wires: `video_pipeline` +`4:5`, `automation_flags`, `clientops` creative-os routes, admin + automation UI
+- Tests: `tests/test_creative_os.py` (17 passed) + video/postiz regressions (113 total in combined run) · `prod_check` OK · secrets clean
 
 ## Exact next task
-After PR #112 merge: inspect dirty merged-source worktrees `leadgen-dist-cancel` / `leadgen-nikhil-flag` / `leadgen-omniroute-governance` (protected — status only) OR continue Stage B AMBER design-only + Video Review Jiya canary after owner login + GTM Hot Queue. Do not deploy undeployed main tips.
+Owner reviews Draft PR; optionally run authenticated admin Creative Production canary on disposable tenant with `CREATIVE_OS_ENABLED=1` locally only. Do not deploy or enable GPU/provider flags without licence + hardware preflight.
 
 ## Rollback
-Runtime: redeploy `7f37522e` via `deploy_vps.sh`. Kill-switch: `OPENCLAW_ENABLED=0`. Source revert separate from runtime rollback.
+`CREATIVE_OS_ENABLED=0` (and related `CREATIVE_*` OFF). Code revert of feature branch / PR. Prod unchanged.

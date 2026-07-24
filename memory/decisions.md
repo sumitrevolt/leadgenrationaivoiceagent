@@ -2213,3 +2213,12 @@ Consequence: Contaminated numbers get VOID after deploy (ops plan); next real in
 **Verification:** RED-first decision/cache tests, then **132** relevant tests green; Ruff, JS syntax, diff, secrets, duplicate-route, OpenAPI, and `prod_check.py` green. Authenticated local browser decoded the exact MP4 blob (`readyState=4`, 360x640, 2s, controls) and rendered three local Chart canvases with zero console errors. No real decision, send, call, publish, billing mutation, flag flip, commit, push, or deploy occurred.
 
 **Consequence:** Local Stage-3 candidate now preserves decision intent across dashboard and gated WhatsApp paths and is cache-bust safe. Production remains OFF/unmodified until owner-authorized shipping and one read-only Jiya preview canary.
+
+## ADR-143 (2026-07-24) — Creative Automation OS extends Video Production Cell [LOCAL READY, PROD OFF]
+**Context:** Product needs governed static/social/reel creatives, exact-hash approval, licence-gated providers, and performance-learning seams without replacing `video_pipeline` / `video_ad_cycle` / Postiz / OmniRoute / Owner OS.
+
+**Decision:** Add `app/marketing/creative_os/` behind `CREATIVE_OS_ENABLED` (default OFF). CreativeSpec + recipe engine + tenant asset registry + licence allowlist + expanded QA + exact-hash approval + admin Creative Production cockpit. First real provider = deterministic FFmpeg (`video_pipeline`); Qwen-Image / FLUX.1-schnell / Wan2.2 / ComfyUI = fail-closed skeletons (no downloads, no network). Aspect `4:5` added. Learning recommends only — never auto-mutates prompts or spends. Calling remains HARD OFF; Marketing vs Voice stay separate.
+
+**Verification:** `tests/test_creative_os.py` (17) + video/postiz regressions green; `prod_check.py` OK; `check_secrets.py` clean. No production deploy or flag activation.
+
+**Consequence:** Draft PR for owner review. Rollback = `CREATIVE_OS_ENABLED=0`. GPU/lab providers stay blocked until licence + hardware preflight.
