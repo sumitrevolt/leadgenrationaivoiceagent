@@ -456,6 +456,41 @@ async def admin_delivery_assurance(
         }
 
 
+@router.get("/entitlement-assurance")
+async def admin_entitlement_assurance(
+    limit: int = Query(200, ge=1, le=500),
+    _user=Depends(require_admin),
+) -> dict:
+    """Read-only billing/entitlement-drift scan for Revenue Ops.
+
+    Cross-checks plan <-> invoice <-> subscription state to surface revenue
+    leaks: an active paid tenant with ZERO live invoice evidence
+    (``paid_no_invoice``), an invoice on a non-active subscription
+    (``invoice_without_active_subscription``), an ``unknown_plan``, or
+    ``entitlement_drift``. Composes existing billing primitives
+    (Rule-46 ledger + packages + subscription + canonical tenant ids) — NEVER
+    creates/voids an invoice, changes a subscription, or mutates a client.
+    Owner attribution: nikhil (revenue ops). Mirrors ``/delivery-assurance``.
+    """
+    try:
+        from app.billing import entitlement_assurance
+
+        scan = await asyncio.to_thread(entitlement_assurance.scan_entitlements, limit)
+        return {"ok": scan.get("status") == "success", **scan}
+    except Exception as e:
+        logger.warning("admin_entitlement_assurance failed: %s", e)
+        return {
+            "ok": False,
+            "status": "error",
+            "agent_id": "entitlement_assurance",
+            "domain": "billing",
+            "checked": 0,
+            "issues": [],
+            "counts": {},
+            "error": str(e)[:160],
+        }
+
+
 @router.get("/delivery-logs")
 async def admin_delivery_logs(
     filter: str = Query("", max_length=80),
