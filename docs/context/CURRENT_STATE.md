@@ -3,7 +3,7 @@
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN
 
 ## Last verified timestamp
-2026-07-24T00:10Z (production running `7cab5f60`, verified via public `/health`).
+2026-07-24T03:15Z (production running `7cab5f60`, verified via public `/health`).
 
 ## Production SHA
 `7cab5f60` (`7cab5f609846e2c584edb8322dc684378a15e995`) — OpenClaw Admin Dashboard PR #105 merge; PRODUCTION-PROVEN via `scripts/deploy_vps.sh`.
@@ -16,7 +16,7 @@ Label: PRODUCTION-PROVEN
 Label: CODE-PRESENT (main ahead of prod)
 
 ## Production health
-`/health` 200 at exact `7cab5f60`; environment `production`; status `healthy` (re-probed 2026-07-24T00:10Z).
+`/health` 200 at exact `7cab5f60`; environment `production`; status `healthy` (re-probed 2026-07-24T03:15Z).
 Label: PRODUCTION-PROVEN
 
 ## Migration
@@ -70,8 +70,19 @@ Label: PRODUCTION-PROVEN (Stage A ON + Admin panel)
 HARD OFF. `PLATFORM_DIAL_DAILY=0`. Unchanged by OpenClaw Admin deploy.
 Label: PRODUCTION-PROVEN
 
+## Agent workforce
+Canonical workforce remains **31 agents**. OpenClaw/Boss is Owner OS Copilot surface — **not** a 32nd agent.
+Label: CODE-PRESENT (registry) | PRODUCTION-PROVEN (OpenClaw Stage A does not expand workforce count)
+
+## Obsidian nightly cron
+Host cron `45 20 * * *` → `/opt/leadgen/scripts/obsidian_host_push.sh` (20:45 UTC / 02:15 IST). Log: `/var/log/leadgen_obsidian.log`.
+- **2026-07-24 20:45 UTC run:** `NOT_YET_OCCURRED` (VPS clock was still ~03:18Z during review).
+- **Through 2026-07-23 20:45 UTC:** `PROVEN_FAILURE` (`fetch first` push rejects).
+- Host script now includes fetch+merge self-heal (file mtime 2026-07-23 21:43Z, after that night's failure). Tonight is the first scheduled chance to prove success — do not claim PROVEN_SUCCESS yet.
+Label: PARTIAL (schedule+history proven; next run pending)
+
 ## Deployment gate
-`DEPLOY_ENABLED` disarmed (unset/false). No deploy performed during 2026-07-24 dirty-primary triage.
+`DEPLOY_ENABLED` disarmed (unset/false). No deploy performed during 2026-07-24 docs PR #112 review/merge.
 
 ## Repository cleanliness
 Primary worktree `feat/openclaw-admin-dashboard` was dirty (docs/ledger/temps/staged video regression). Triage ports docs via isolated `docs/canonical-handoff-20260724`; video regression file classified superseded by `tests/test_video_production_auth_ui.py`; customer ledger runtime append restored; `_tmp_*` disposable.
