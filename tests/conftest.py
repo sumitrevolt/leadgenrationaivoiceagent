@@ -4,6 +4,7 @@ Production-ready test fixtures with proper async handling
 """
 
 import asyncio
+import gc
 import os
 
 # TESTS ME AUTOMATION HAMESHA OFF (app.main import se PEHLE set karna zaroori):
@@ -328,7 +329,14 @@ async def async_db_session(async_db) -> AsyncGenerator:
 
 @pytest.fixture(scope="function")
 def client(db) -> Generator:
-    """Create test client (sync)"""
+    """Create test client (sync).
+
+    NOTE: the intermittent CI exit-139 SIGSEGV that used to fire here (cyclic GC
+    on the anyio worker thread mid app-lifespan `__aenter__`) is fixed globally
+    by the automatic-GC control in the pytest hooks at the bottom of this file —
+    which also covers the 38 test modules that build `with TestClient(app)`
+    directly. This fixture stays a plain lifespan-entered client.
+    """
     from httpx import ASGITransport
     from starlette.testclient import TestClient as StarletteTestClient
 
@@ -538,3 +546,45 @@ def _reset_rate_limit_state():
 
     _clear()
     yield
+
+
+# =============================================================================
+# CI-STABILITY: automatic cyclic-GC control (2026-07-24, exit-139 SIGSEGV fix)
+# =============================================================================
+# ROOT CAUSE (confirmed via crash dumps, not assumed): the full suite
+# intermittently crashed with
+#   Fatal Python error: Segmentation fault
+#   Current thread ...: Garbage-collecting
+#     -> contextlib.__aenter__ -> fastapi/routing.py merged_lifespan   (x17)
+# i.e. a CPython *automatic cyclic GC* pass firing on the anyio worker thread
+# while it was mid-way entering the app's 17-deep nested lifespan (5 mounts +
+# 88 include_router + 1 sub-app), with live aiosqlite connection worker threads
+# present. Reproduced identically across two independent CI jobs (89424485233 &
+# 88462045203). It is NOT an ML/native-load problem: KB_PREWARM / in-process
+# scheduler / embedder are already OFF in tests (top of this file) and no
+# torch/av thread appears in the dump.
+#
+# FIX (covers BOTH the `client` fixture AND the 38 test modules that build
+# `with TestClient(app)` directly): pause *automatic* cyclic GC for the
+# test-run phase and reclaim reference cycles deterministically at each test
+# teardown -- a shallow-stack, main-thread point where no lifespan is mid-entry,
+# so the crashing condition cannot occur. Reference-count reclamation is
+# untouched (objects still free immediately); nothing is skipped, xfail'd,
+# retried, or weakened, and production startup (app.main.lifespan) is unchanged.
+# No OpenMP/thread env hardening is added because the evidence implicates the
+# GC/lifespan race, not native threads.
+
+
+def pytest_collection_finish(session):
+    """Disable automatic cyclic GC once collection is done (start of run phase)."""
+    gc.disable()
+
+
+def pytest_runtest_teardown(item, nextitem):
+    """Reclaim reference cycles at a safe point so GC-off doesn't grow memory."""
+    gc.collect()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """Restore automatic GC at end of session."""
+    gc.enable()
