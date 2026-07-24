@@ -22,6 +22,13 @@ os.environ.setdefault("KB_PREWARM", "0")
 # Dono ka graceful fallback hai = zero test-behaviour change, sirf hang khatam.
 os.environ["REDIS_URL"] = "redis://127.0.0.1:6399/0"
 os.environ.setdefault("QDRANT_URL", "")
+# App singleton DB must match the harness file DB. Set BEFORE any app.* import
+# (pydantic Settings freezes database_url on first load).
+os.environ["DATABASE_URL"] = (
+    "sqlite+aiosqlite:///"
+    + __import__("tempfile").gettempdir().replace("\\", "/")
+    + "/leadgen_test.db"
+)
 
 # SAFETY NET: koi bhi test agar galti se asli network (LLM/Exotel/Maps/Redis) hit
 # kare to wo HANG na ho — har raw socket op max 10s me fail ho jaye. pytest-timeout
@@ -90,11 +97,44 @@ if "app" not in _inspect.signature(_httpx.Client.__init__).parameters:
     _httpx.AsyncClient.__init__ = _make_compat(_httpx.AsyncClient.__init__)
 
 import pytest
+import sqlalchemy.ext.asyncio as _sa_asyncio_early
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import NullPool
+
+# Patch BEFORE any app.* import: base._get_async_engine does a function-local
+# import of create_async_engine, so this module attribute is what it resolves.
+_ORIG_CAE_EARLY = _sa_asyncio_early.create_async_engine
+
+
+def _cae_nullpool_file_sqlite(url, *args, **kwargs):
+    """Test-only sqlite pool policy (SQLAlchemy #13039 / aiosqlite #369).
+
+    - File-backed sqlite+aiosqlite -> NullPool (close on every checkin; safe across
+      pytest + TestClient portal loops).
+    - :memory: / bare sqlite+aiosqlite:// -> StaticPool (one shared connection so
+      DDL stays visible across checkouts; dispose still closes the worker).
+    """
+    if "poolclass" not in kwargs:
+        try:
+            from sqlalchemy.engine.url import make_url
+            from sqlalchemy.pool import StaticPool
+
+            _u = make_url(str(url))
+            _db = (_u.database or "").strip()
+            if _u.get_backend_name() == "sqlite":
+                if _db in ("", ":memory:"):
+                    kwargs = {**kwargs, "poolclass": StaticPool}
+                else:
+                    kwargs = {**kwargs, "poolclass": NullPool}
+        except Exception:
+            pass
+    return _ORIG_CAE_EARLY(url, *args, **kwargs)
+
+
+_sa_asyncio_early.create_async_engine = _cae_nullpool_file_sqlite
 
 from app.api.auth_deps import (
     get_current_user,
@@ -155,7 +195,7 @@ TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engin
 # (this is the intermittent CI exit-139). NullPool closes every connection on
 # return, so nothing is pooled or orphaned and no worker thread survives for GC to
 # hit. Verified in a repro: 8 cross-loop uses leak a worker with the default pool,
-# zero with NullPool. The production async engine (app.models.base) is untouched.
+# zero with NullPool.
 async_engine = create_async_engine(
     TEST_ASYNC_DATABASE_URL,
     connect_args={"check_same_thread": False},
@@ -250,6 +290,28 @@ def restore_dependency_overrides():
     app.dependency_overrides.update(before)
 
 
+@pytest.fixture(autouse=True)
+def _resume_inquiry_bg_accept_gate():
+    """Keep inquiry spawn gate open across tests.
+
+    Production shutdown calls drain_inquiry_bg_tasks() which stops accepting.
+    Tests that exercise drain must not poison later cases; reopen after each test.
+    """
+    try:
+        from app.platform.inquiry_hooks import resume_accepting_inquiry_bg
+
+        resume_accepting_inquiry_bg()
+    except Exception:
+        pass
+    yield
+    try:
+        from app.platform.inquiry_hooks import resume_accepting_inquiry_bg
+
+        resume_accepting_inquiry_bg()
+    except Exception:
+        pass
+
+
 # =============================================================================
 # EVENT LOOP CONFIGURATION
 # =============================================================================
@@ -308,14 +370,11 @@ async def async_db():
 
 @pytest.fixture(scope="session", autouse=True)
 def _async_engine_teardown_guard(event_loop):
-    """Session-end guard + verification for the exit-139 fix (SQLAlchemy #13039).
+    """Session-end: call app drain, dispose engines, assert no aiosqlite workers.
 
-    With NullPool the test async_engine never pools/orphans an aiosqlite
-    connection, so no `_connection_worker_thread` should survive the run. This
-    deterministically disposes the test engine AND the app engine (used by
-    init_async_db for any non-TestClient async path) on the pytest event loop --
-    the loop those connections live on -- then asserts no aiosqlite worker leaked,
-    surfacing any residual leak rather than hiding it with a GC workaround.
+    Ownership/lifecycle lives in app.platform.inquiry_hooks — harness only
+    invokes the canonical drain then verifies (NullPool/StaticPool already set
+    for cross-loop safety). No parallel all-tasks cancel that hides app bugs.
     """
     yield
 
@@ -330,6 +389,25 @@ def _async_engine_teardown_guard(event_loop):
             and "aiosqlite" in (getattr(getattr(t, "_target", None), "__module__", "") or "")
         ]
 
+    if not event_loop.is_closed():
+        try:
+            from app.platform.inquiry_hooks import (
+                drain_inquiry_bg_tasks,
+                pending_inquiry_bg_count,
+                resume_accepting_inquiry_bg,
+            )
+
+            event_loop.run_until_complete(drain_inquiry_bg_tasks(timeout=5.0))
+            assert (
+                pending_inquiry_bg_count() == 0
+            ), "inquiry_hooks owned tasks still pending after drain"
+            # Leave accept gate open for any late imports in other session fixtures.
+            resume_accepting_inquiry_bg()
+        except AssertionError:
+            raise
+        except Exception:
+            pass
+
     disposed = True
     try:
         event_loop.run_until_complete(async_engine.dispose())
@@ -342,34 +420,18 @@ def _async_engine_teardown_guard(event_loop):
     except Exception:
         pass
 
-    # aiosqlite worker threads stop asynchronously once their connection closes;
-    # allow a bounded settle window before asserting so a thread mid-exit is not
-    # mis-flagged as a leak.
-    for _ in range(50):  # up to ~5s
+    for _ in range(50):  # up to ~5s settle
         if not _leaked_aiosqlite_workers():
             break
         _time.sleep(0.1)
 
     assert disposed, "test async_engine.dispose() raised at session teardown"
     leaked = _leaked_aiosqlite_workers()
-    if leaked:
-        _diag = []
-        for _t in threading.enumerate():
-            _tgt = getattr(_t, "_target", None)
-            if _t.is_alive() and "aiosqlite" in (getattr(_tgt, "__module__", "") or ""):
-                _conn = getattr(_tgt, "__self__", None)
-                _db = next(
-                    (
-                        getattr(_conn, _a, None)
-                        for _a in ("_database", "database", "_conn")
-                        if getattr(_conn, _a, None) is not None
-                    ),
-                    None,
-                )
-                _diag.append(f"{_t.name} conn={_conn!r} db={_db!r}")
-        raise AssertionError(
-            "aiosqlite connection worker thread(s) leaked at session end: " + " || ".join(_diag)
-        )
+    assert not leaked, (
+        "aiosqlite connection worker thread(s) leaked at session end: "
+        + ", ".join(leaked)
+        + " (app drain_inquiry_bg_tasks + dispose; see SQLAlchemy #13039)"
+    )
 
 
 @pytest.fixture(scope="function")
