@@ -575,29 +575,45 @@ def _reset_rate_limit_state():
 # GC/lifespan race, not native threads.
 
 
-# Automatic GC stays OFF during the whole run (this is what prevents the crash).
-# A full gc.collect() per test (~5.5k calls, each traversing the large app object
-# graph) ~3x'd suite wall-time, so instead we reclaim reference cycles in batches
-# of _GC_COLLECT_EVERY tests (plus a final sweep) -- memory stays bounded to a few
-# tests' worth of cycles at a fraction of the overhead.
-_GC_COLLECT_EVERY = 40
-_gc_since_collect = [0]
+# ROOT-CAUSE UPDATE (2026-07-24, 2nd dump): the crashing GC pass is NOT tied to
+# the lifespan stack depth -- a forced gc.collect() at teardown segfaulted the
+# same way:
+#     Garbage-collecting -> conftest.pytest_runtest_teardown
+#     (with a live aiosqlite `_connection_worker_thread`)
+# The real hazard is a cyclic-GC pass traversing SQLAlchemy-async **greenlet** /
+# aiosqlite connection objects. Batch-collecting (letting many tests' greenlets
+# accumulate, then collecting a messy graph) hits a bad object and crashes;
+# collecting each test's objects immediately -- while that test's greenlets have
+# just finished and the graph is clean -- does not (the per-test-collect build ran
+# 20 min crash-free).
+#
+# STRATEGY (fast AND stable):
+#   * gc.disable() -> no nondeterministic automatic collection during the run.
+#   * gc.freeze()  -> move the large *static* app object graph into the permanent
+#                     generation so per-test gc.collect() only scans the current
+#                     test's objects (keeps the per-test collect cheap; the freeze
+#                     is what avoids the ~3x slowdown of a naive per-test collect).
+#   * gc.collect() per teardown -> reclaim THIS test's cycles/greenlets while the
+#                     graph is clean, so nothing accumulates for a crashing batch GC.
+# Production startup is untouched; no test is skipped, xfail'd, or weakened.
 
 
 def pytest_collection_finish(session):
-    """Disable automatic cyclic GC once collection is done (start of run phase)."""
+    """Freeze the static app graph and disable automatic GC before the run phase."""
     gc.disable()
+    gc.freeze()
 
 
 def pytest_runtest_teardown(item, nextitem):
-    """Batch-reclaim reference cycles at a safe point (shallow stack, no lifespan
-    mid-entry) so automatic-GC-off does not grow memory across the suite."""
-    _gc_since_collect[0] += 1
-    if nextitem is None or _gc_since_collect[0] >= _GC_COLLECT_EVERY:
-        _gc_since_collect[0] = 0
-        gc.collect()
+    """Collect this test's cycles immediately (clean graph; fast thanks to the
+    freeze) so no suspended greenlet accumulates for a later crashing batch GC."""
+    gc.collect()
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Restore automatic GC at end of session."""
+    """Restore normal GC behaviour at end of session."""
+    try:
+        gc.unfreeze()
+    except Exception:
+        pass
     gc.enable()
