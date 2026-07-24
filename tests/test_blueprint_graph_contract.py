@@ -106,5 +106,93 @@ def test_api_router_prefix_and_single_registration():
     assert "/api/blueprint/graph" in paths
     assert "/api/blueprint/validate" in paths
     assert "/api/blueprint/meta" in paths
+    assert "/api/blueprint/public" in paths
+    assert "/api/blueprint/trace" in paths
     main = (REPO / "app" / "main.py").read_text(encoding="utf-8")
     assert main.count("from app.api.blueprint import router") == 1
+
+
+# --- P0: workforce truth (registry-derived, no drift) ---------------------
+def test_workforce_matches_canonical_registry_not_hardcoded():
+    from app.platform.team import STAFF
+
+    wf = bg._workforce()
+    assert wf["source"] == "registry"
+    assert wf["count"] == len(STAFF)  # fails on drift — the whole point
+    g = bg.build_graph()
+    assert g["workforce"]["count"] == len(STAFF)
+    assert g["counts"]["workforce"] == len(STAFF)
+    roster = next(n for n in g["nodes"] if n["id"] == "team_roster")
+    assert roster["workforce"]["count"] == len(STAFF)
+    assert wf["includes_manager"] is True  # Boss/manager is IN the 31, not a 32nd
+
+
+def test_no_stale_18_ai_staff_anywhere():
+    import json
+
+    blob = json.dumps(bg.build_graph()) + json.dumps(bg.build_public_graph())
+    assert "18 AI staff" not in blob
+    # validator also refuses it
+    assert bg.validate_graph()["ok"]
+
+
+# --- P1: multi-hop traversal (cycle-safe, deterministic) ------------------
+def test_shortest_path_linear_and_edges():
+    p = bg.shortest_path("prospector", "hot_queue")
+    assert p and p[0] == "prospector" and p[-1] == "hot_queue"
+    # every consecutive pair is a real directed edge
+    edges = {(e["source"], e["target"]) for e in bg.EDGES}
+    assert all((p[i], p[i + 1]) in edges for i in range(len(p) - 1))
+
+
+def test_shortest_path_same_missing_and_none():
+    assert bg.shortest_path("subscription", "subscription") == ["subscription"]
+    assert bg.shortest_path("nope_missing", "subscription") == []
+    assert bg.shortest_path("qdrant", "prospector") == []  # no directed path back
+
+
+def test_traverse_deterministic_bounded_cycle_safe():
+    a = bg.traverse("scheduler", "down", 3)
+    b = bg.traverse("scheduler", "down", 3)
+    assert a == b  # deterministic
+    assert "scheduler" not in a  # excludes start
+    assert bg.traverse("app_fastapi", "both", 0) == []  # depth 0
+    # bounded even with generous depth (no runaway on cycles)
+    assert len(bg.traverse("app_fastapi", "both", 99)) <= len(bg.NODES)
+
+
+def test_impact_is_downstream_only():
+    imp = bg.impact("scheduler", 3)
+    assert "staff_jobs" in imp and "auto_outreach" in imp
+
+
+# --- P0: sanitized public contract (no internal leakage) ------------------
+def test_public_graph_has_no_sensitive_metadata():
+    import json
+
+    pub = bg.build_public_graph()
+    assert pub["visibility"] == "public"
+    for n in pub["nodes"]:
+        assert set(n.keys()) == {"id", "title", "layer", "domain", "state", "disabled"}
+        assert n["state"] in {"live", "building", "planned", "off"}
+    blob = json.dumps(pub)
+    for leak_key in ('"files"', '"flags"', '"runtime"', '"tech_refs"', '"desc"', '"io"'):
+        assert leak_key not in blob, f"public payload leaks field: {leak_key}"
+    # sensitive = file paths, module refs, infra addresses/ports (NOT display
+    # product names in titles, which a public architecture overview may show).
+    for infra in ("app/", ".py", ".yml", "127.0.0.1", ":6432", ":6333", "8080", "docker-compose"):
+        assert infra not in blob, f"public payload leaks infra: {infra}"
+    # disabled node surfaces as off, not a granular DEPRECATED label
+    pd = next(n for n in pub["nodes"] if n["id"] == "platform_dial")
+    assert pd["state"] == "off"
+
+
+# --- P1: schema expansion present -----------------------------------------
+def test_schema_expansion_fields_present():
+    for k in ("routes_to", "triggers", "depends_on"):
+        assert k in bg.EDGE_KINDS
+    g = bg.build_graph()
+    assert "node_fields" in g and "edge_types" in g and "workforce" in g
+    roster = next(n for n in g["nodes"] if n["id"] == "team_roster")
+    for f in ("io", "process", "triggers", "feedback_loop", "tech_refs"):
+        assert f in roster

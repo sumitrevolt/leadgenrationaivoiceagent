@@ -30,9 +30,44 @@ import re
 from typing import Any
 
 # Canonical schema version — bump on any breaking node/edge/flow field change.
-SCHEMA_VERSION = "2026-07-24-mbp-v1"
+SCHEMA_VERSION = "2026-07-24-mbp-v2"
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
+
+# Canonical workforce truth lives in app.platform.team.STAFF (code-defined roster,
+# includes the "manager"/Boss persona — NOT a 32nd employee). The graph MUST NOT
+# hard-code a drifting number; it derives from the registry at build time.
+_CANONICAL_STAFF_FALLBACK = 31  # last-known; used only if the registry import fails
+
+
+def _workforce() -> dict[str, Any]:
+    """Registry-derived workforce metadata (never raises).
+
+    Returns the real ``len(STAFF)`` + per-product split from the canonical
+    ``app.platform.team.STAFF`` roster so the blueprint stays in lock-step with
+    code. ``source`` is ``registry`` on success, ``fallback`` if the import
+    fails (degraded, still honest)."""
+    try:
+        from app.platform.team import STAFF
+
+        by_product: dict[str, int] = {}
+        for v in STAFF.values():
+            p = str(v.get("product") or "unknown")
+            by_product[p] = by_product.get(p, 0) + 1
+        return {
+            "count": len(STAFF),
+            "by_product": by_product,
+            "includes_manager": "manager" in STAFF,
+            "source": "registry",
+        }
+    except Exception:
+        return {
+            "count": _CANONICAL_STAFF_FALLBACK,
+            "by_product": {},
+            "includes_manager": True,
+            "source": "fallback",
+        }
+
 
 # --- evidence labels (honesty vocabulary) ---------------------------------
 EVIDENCE_LABELS = (
@@ -63,7 +98,32 @@ NODE_TYPES = (
     "frontend",
     "product",
 )
-EDGE_KINDS = ("flow", "calls", "reads", "writes", "deploys", "guards", "observes")
+EDGE_KINDS = (
+    "flow",
+    "calls",
+    "reads",
+    "writes",
+    "deploys",
+    "guards",
+    "observes",
+    "routes_to",
+    "triggers",
+    "depends_on",
+)
+
+# Optional node fields (P1 schema expansion). Absent/None/empty = honestly
+# UNKNOWN, never fabricated. Required fields are validated in validate_graph.
+_REQUIRED_NODE_FIELDS = ("id", "title", "layer", "domain", "type", "status", "files", "desc")
+_OPTIONAL_NODE_FIELDS = (
+    "flags",
+    "disabled",
+    "runtime",
+    "io",  # {"input": str|None, "output": str|None} | None
+    "process",  # short "what it does" step | None
+    "triggers",  # list of trigger descriptions
+    "feedback_loop",  # str describing any close-the-loop signal | None
+    "tech_refs",  # list of legacy technical-graph module/id hints for drill-down
+)
 
 # --- Layers 1-9 (swimlanes) -----------------------------------------------
 LAYERS: list[dict[str, Any]] = [
@@ -83,7 +143,7 @@ LAYERS: list[dict[str, Any]] = [
         "id": 3,
         "key": "automation",
         "title": "Automation & AI Staff",
-        "desc": "Celery worker/beat, scheduler, agent runtime, 18 AI staff.",
+        "desc": "Celery worker/beat, scheduler, agent runtime, 31 canonical AI staff.",
     },
     {
         "id": 4,
@@ -166,6 +226,14 @@ def _n(nid, title, layer, domain, ntype, status, files, desc, **extra) -> dict[s
         "flags": list(extra.get("flags", [])),
         "disabled": bool(extra.get("disabled", False)),
         "runtime": extra.get("runtime"),  # optional live-status probe key
+        # P1 schema expansion — honest defaults (None/empty = UNKNOWN, not faked).
+        "io": extra.get("io"),
+        "process": extra.get("process"),
+        "triggers": list(extra.get("triggers", [])),
+        "feedback_loop": extra.get("feedback_loop"),
+        # canonical→technical drill-down hints (module basenames the legacy
+        # technical graph also carries); defaults to this node's own files.
+        "tech_refs": list(extra.get("tech_refs", []) or files),
     }
     return node
 
@@ -462,14 +530,19 @@ NODES: list[dict[str, Any]] = [
     ),
     _n(
         "team_roster",
-        "AI staff roster (18)",
+        "AI staff roster (canonical registry)",
         3,
         "ai_staff_runtime",
         "engine",
         "PRODUCTION-PROVEN",
         ["app/platform/team.py", "app/api/agents.py"],
-        "18 AI staff status/roster.",
+        "Canonical AI staff roster (count derived from app.platform.team.STAFF; "
+        "includes Boss/manager persona).",
         runtime="team",
+        process="Serve per-member live status (working/idle/offline) + today counts.",
+        io={"input": "agent_events + STAFF registry", "output": "team_status() rollup"},
+        triggers=["/api/agents/run", "scheduler jobs", "dashboard poll"],
+        feedback_loop="agent_events feed today-counts back into status rollup.",
     ),
     # Domain 12 — Scheduler / flow runner
     _n(
@@ -803,19 +876,30 @@ FLOWS: list[dict[str, Any]] = [
 
 
 def build_graph(*, check_files: bool = False) -> dict[str, Any]:
-    """Return the canonical graph payload (no secrets). ``check_files`` adds a
-    per-node ``file_ok`` marker for the drift HUD; off by default (hot path)."""
+    """Return the FULL canonical graph payload (ADMIN-only — carries repo file
+    paths, flags, runtime keys, tech_refs). ``check_files`` adds a per-node
+    ``file_ok`` marker for the drift HUD; off by default (hot path)."""
+    wf = _workforce()
     nodes = [dict(x) for x in NODES]
-    if check_files:
-        for n in nodes:
+    for n in nodes:
+        if n["id"] == "team_roster":
+            n["workforce"] = wf  # registry-derived; never a hard-coded drift number
+        if check_files:
             n["file_ok"] = all((_ROOT / f).exists() for f in n["files"])
     return {
         "schema_version": SCHEMA_VERSION,
+        "visibility": "admin",
         "layers": LAYERS,
         "domains": DOMAINS,
         "evidence_labels": list(EVIDENCE_LABELS),
         "node_types": list(NODE_TYPES),
         "edge_kinds": list(EDGE_KINDS),
+        "edge_types": list(EDGE_KINDS),  # alias for the schema-contract naming
+        "node_fields": {
+            "required": list(_REQUIRED_NODE_FIELDS),
+            "optional": list(_OPTIONAL_NODE_FIELDS),
+        },
+        "workforce": wf,
         "nodes": nodes,
         "edges": EDGES,
         "flows": FLOWS,
@@ -825,8 +909,144 @@ def build_graph(*, check_files: bool = False) -> dict[str, Any]:
             "layers": len(LAYERS),
             "domains": len(DOMAINS),
             "flows": len(FLOWS),
+            "workforce": wf["count"],
         },
     }
+
+
+# --- coarse public state (no operational-weakness leakage) -----------------
+_PUBLIC_STATE = {
+    "PRODUCTION-PROVEN": "live",
+    "TEST-PROVEN": "live",
+    "CODE-PRESENT": "building",
+    "LOCAL-ONLY": "building",
+    "EXTERNAL-BLOCKED": "building",
+    "PLANNED": "planned",
+    "UNVERIFIED": "planned",
+    "UNKNOWN": "planned",
+    "LEGACY": "off",
+    "DEPRECATED": "off",
+}
+
+
+def build_public_graph() -> dict[str, Any]:
+    """SANITIZED public contract (no auth). Business-safe labels + high-level
+    connections ONLY. Never exposes: repo paths, internal modules, feature-flag
+    inventory, runtime probe keys, security-control implementation detail,
+    granular evidence labels, or operational-weakness hints. Descriptions are
+    dropped entirely (they can carry infra detail like ports/hosts)."""
+    wf = _workforce()
+    nodes = [
+        {
+            "id": n["id"],
+            "title": n["title"],
+            "layer": n["layer"],
+            "domain": n["domain"],
+            "state": "off" if n["disabled"] else _PUBLIC_STATE.get(n["status"], "planned"),
+            # disabled is a compliance-positive fact (feature is OFF), not sensitive
+            "disabled": bool(n["disabled"]),
+        }
+        for n in NODES
+    ]
+    edges = [{"source": e["source"], "target": e["target"]} for e in EDGES]
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "visibility": "public",
+        "layers": [{"id": l["id"], "title": l["title"]} for l in LAYERS],
+        "domains": [
+            {"id": d["id"], "key": d["key"], "title": d["title"], "layer": d["layer"]}
+            for d in DOMAINS
+        ],
+        "nodes": nodes,
+        "edges": edges,
+        "flows": [{"id": f["id"], "title": f["title"], "steps": f["steps"]} for f in FLOWS],
+        "workforce": {"count": wf["count"]},  # count is a marketing-safe number
+        "counts": {
+            "nodes": len(nodes),
+            "edges": len(edges),
+            "layers": len(LAYERS),
+            "domains": len(DOMAINS),
+            "flows": len(FLOWS),
+        },
+    }
+
+
+# --- multi-hop traversal (cycle-safe, deterministic) -----------------------
+def _adjacency() -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """Precomputed adjacency: (downstream, upstream), each sorted for
+    deterministic output."""
+    down: dict[str, list[str]] = {n["id"]: [] for n in NODES}
+    up: dict[str, list[str]] = {n["id"]: [] for n in NODES}
+    for e in EDGES:
+        s, t = e["source"], e["target"]
+        if s in down and t in up:
+            down[s].append(t)
+            up[t].append(s)
+    for d in (down, up):
+        for k in d:
+            d[k] = sorted(set(d[k]))
+    return down, up
+
+
+def traverse(start: str, direction: str = "down", depth: int = 3) -> list[str]:
+    """BFS from ``start`` up to ``depth`` hops. ``direction`` = down|up|both.
+    Cycle-safe (visited set), deterministic (sorted per level), excludes start."""
+    down, up = _adjacency()
+    if start not in down:
+        return []
+    depth = max(0, min(int(depth or 0), 12))
+    maps = {"down": [down], "up": [up], "both": [down, up]}.get(direction, [down])
+    visited = {start}
+    frontier = [start]
+    order: list[str] = []
+    for _ in range(depth):
+        nxt: list[str] = []
+        for node in frontier:
+            for m in maps:
+                for nb in m.get(node, []):
+                    if nb not in visited:
+                        visited.add(nb)
+                        nxt.append(nb)
+        for nb in sorted(set(nxt)):
+            if nb not in order:
+                order.append(nb)
+        frontier = sorted(set(nxt))
+        if not frontier:
+            break
+    return order
+
+
+def shortest_path(src: str, tgt: str) -> list[str]:
+    """Directed (downstream) shortest path src→tgt (BFS). [] if none / unknown
+    node. Same src==tgt → [src]. Deterministic (sorted neighbour expansion)."""
+    down, _ = _adjacency()
+    if src not in down or tgt not in down:
+        return []
+    if src == tgt:
+        return [src]
+    prev: dict[str, str] = {}
+    visited = {src}
+    frontier = [src]
+    while frontier:
+        nxt: list[str] = []
+        for node in frontier:
+            for nb in down.get(node, []):
+                if nb not in visited:
+                    visited.add(nb)
+                    prev[nb] = node
+                    if nb == tgt:
+                        path = [tgt]
+                        while path[-1] != src:
+                            path.append(prev[path[-1]])
+                        return list(reversed(path))
+                    nxt.append(nb)
+        frontier = sorted(set(nxt))
+    return []
+
+
+def impact(start: str, depth: int = 3) -> list[str]:
+    """Downstream blast-radius from ``start`` (what breaks if this changes)."""
+    return traverse(start, "down", depth)
 
 
 _SECRET_RE = re.compile(
@@ -857,6 +1077,9 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
 
     # per-node field validation
     for n in NODES:
+        for req in _REQUIRED_NODE_FIELDS:
+            if req not in n:
+                errors.append(f"{n['id']}: missing required field {req}")
         if n["layer"] not in _LAYER_IDS:
             errors.append(f"{n['id']}: bad layer {n['layer']}")
         if n["domain"] not in _DOMAIN_KEYS:
@@ -867,12 +1090,22 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             errors.append(f"{n['id']}: bad status {n['status']}")
         if n["status"] in _IMPLEMENTED and not n["files"]:
             errors.append(f"{n['id']}: implemented ({n['status']}) but no file evidence")
+        # optional-field type discipline (present-but-wrong-type = drift)
+        if not isinstance(n.get("triggers", []), list):
+            errors.append(f"{n['id']}: triggers must be a list")
+        if not isinstance(n.get("tech_refs", []), list):
+            errors.append(f"{n['id']}: tech_refs must be a list")
+        if n.get("io") is not None and not isinstance(n["io"], dict):
+            errors.append(f"{n['id']}: io must be dict|None")
         if strict_files:
             for f in n["files"]:
                 if not (_ROOT / f).exists():
                     errors.append(f"{n['id']}: file ref not on disk: {f}")
         if _SECRET_RE.search(n.get("desc", "") + " ".join(n["files"])):
             errors.append(f"{n['id']}: secret-shaped literal in node")
+        # workforce-truth guard — the stale "18 AI staff" number must never return
+        if "18 AI staff" in (n.get("desc", "") + " " + n.get("title", "")):
+            errors.append(f"{n['id']}: stale '18 AI staff' workforce number")
 
     # edges resolve + degree
     deg = {i: 0 for i in idset}
@@ -903,6 +1136,11 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
     if not pd or not pd.get("disabled"):
         errors.append("platform_dial must be disabled=True (HARD OFF invariant)")
 
+    # workforce-truth guard on layer descriptions too
+    for l in LAYERS:
+        if "18 AI staff" in l.get("desc", ""):
+            errors.append(f"layer {l['id']}: stale '18 AI staff' workforce number")
+
     # coverage warnings (non-blocking)
     covered_layers = {n["layer"] for n in NODES}
     for l in _LAYER_IDS:
@@ -923,6 +1161,7 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             "edges": len(EDGES),
             "flows": len(FLOWS),
             "orphans": len(orphans),
+            "workforce": _workforce()["count"],
         },
     }
 
