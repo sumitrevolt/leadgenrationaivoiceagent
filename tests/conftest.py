@@ -94,6 +94,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
 
 from app.api.auth_deps import (
     get_current_user,
@@ -145,11 +146,21 @@ engine = create_engine(
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Async engine for async tests
+# Async engine for async tests.
+# NullPool (test-only) — SQLAlchemy #13039 / aiosqlite #369: under aiosqlite 0.22.x
+# SQLAlchemy's aiosqlite dialect does not close the underlying connection, so a
+# POOLED async connection reused across the pytest event loop and the TestClient
+# portal loops leaks an aiosqlite `_connection_worker_thread` once its loop is gone;
+# a later cyclic-GC pass on Linux/CPython then SIGSEGVs while traversing it
+# (this is the intermittent CI exit-139). NullPool closes every connection on
+# return, so nothing is pooled or orphaned and no worker thread survives for GC to
+# hit. Verified in a repro: 8 cross-loop uses leak a worker with the default pool,
+# zero with NullPool. The production async engine (app.models.base) is untouched.
 async_engine = create_async_engine(
     TEST_ASYNC_DATABASE_URL,
     connect_args={"check_same_thread": False},
     echo=False,
+    poolclass=NullPool,
 )
 AsyncTestingSessionLocal = async_sessionmaker(
     async_engine,
@@ -293,6 +304,43 @@ async def async_db():
     yield
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _async_engine_teardown_guard():
+    """Session-end guard + verification for the exit-139 fix (SQLAlchemy #13039).
+
+    With NullPool the test async_engine never pools/orphans an aiosqlite
+    connection, so no `_connection_worker_thread` should survive the run; the
+    app's own engine is disposed on lifespan shutdown (app.main -> close_async_db).
+    This deterministically disposes the test engine at session end and asserts the
+    invariants -- surfacing any residual aiosqlite worker leak rather than hiding
+    it with a GC workaround.
+    """
+    yield
+
+    import threading
+
+    disposed = True
+    _loop = asyncio.new_event_loop()
+    try:
+        _loop.run_until_complete(async_engine.dispose())
+    except Exception:
+        disposed = False
+    finally:
+        _loop.close()
+
+    def _leaked_aiosqlite_workers():
+        return [
+            t.name
+            for t in threading.enumerate()
+            if t.is_alive()
+            and "aiosqlite" in (getattr(getattr(t, "_target", None), "__module__", "") or "")
+        ]
+
+    assert disposed, "test async_engine.dispose() raised at session teardown"
+    leaked = _leaked_aiosqlite_workers()
+    assert not leaked, f"aiosqlite connection worker thread(s) leaked at session end: {leaked}"
 
 
 @pytest.fixture(scope="function")
