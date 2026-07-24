@@ -30,14 +30,15 @@ import re
 from typing import Any
 
 # Canonical schema version — bump on any breaking node/edge/flow field change.
-SCHEMA_VERSION = "2026-07-24-mbp-v2"
+SCHEMA_VERSION = "2026-07-24-mbp-v3"
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
 # Canonical workforce truth lives in app.platform.team.STAFF (code-defined roster,
 # includes the "manager"/Boss persona — NOT a 32nd employee). The graph MUST NOT
-# hard-code a drifting number; it derives from the registry at build time.
-_CANONICAL_STAFF_FALLBACK = 31  # last-known; used only if the registry import fails
+# hard-code a drifting number; it derives from the registry at build time. If the
+# registry cannot be imported the count is honestly Unknown (null) — NEVER a
+# fabricated last-known number (Unknown-stays-Unknown invariant).
 
 
 def _workforce() -> dict[str, Any]:
@@ -45,8 +46,9 @@ def _workforce() -> dict[str, Any]:
 
     Returns the real ``len(STAFF)`` + per-product split from the canonical
     ``app.platform.team.STAFF`` roster so the blueprint stays in lock-step with
-    code. ``source`` is ``registry`` on success, ``fallback`` if the import
-    fails (degraded, still honest)."""
+    code. On import failure it degrades HONESTLY: ``count`` and
+    ``includes_manager`` are ``None`` (Unknown), ``by_product`` empty, and
+    ``source`` is ``unavailable`` — no fabricated number."""
     try:
         from app.platform.team import STAFF
 
@@ -62,10 +64,10 @@ def _workforce() -> dict[str, Any]:
         }
     except Exception:
         return {
-            "count": _CANONICAL_STAFF_FALLBACK,
+            "count": None,  # Unknown — never fabricate a last-known number
             "by_product": {},
-            "includes_manager": True,
-            "source": "fallback",
+            "includes_manager": None,
+            "source": "unavailable",
         }
 
 
@@ -85,6 +87,8 @@ EVIDENCE_LABELS = (
 # statuses that assert working code → MUST carry file evidence.
 _IMPLEMENTED = {"PRODUCTION-PROVEN", "TEST-PROVEN", "CODE-PRESENT"}
 
+# NODE_TYPES = the VISUAL grouping the frontend renders (lens colours, swimlane
+# grouping). Kept stable so the FE never breaks on a rename.
 NODE_TYPES = (
     "edge",
     "app",
@@ -98,32 +102,138 @@ NODE_TYPES = (
     "frontend",
     "product",
 )
+
+# NODE_ROLES = the SEMANTIC role (agreed canonical vocabulary, v3). Orthogonal to
+# the visual ``type``. Validated when present; ``None`` = honestly Unknown.
+NODE_ROLES = (
+    "trigger",
+    "input",
+    "process",
+    "router",
+    "policy_gate",
+    "approval",
+    "human_action",
+    "AI_agent",
+    "API",
+    "frontend_surface",
+    "queue",
+    "scheduler",
+    "worker",
+    "datastore",
+    "integration",
+    "external_provider",
+    "security_control",
+    "observability",
+    "deployment",
+    "outcome",
+    "feedback_loop",
+)
+
+# EDGE_KINDS = full agreed semantic edge vocabulary (v3) + the original visual
+# kinds (flow/guards/observes/depends_on) kept for backward compatibility so
+# existing edges + the FE never break.
 EDGE_KINDS = (
-    "flow",
+    # --- agreed semantic vocabulary ---
     "calls",
+    "routes_to",
+    "queues",
+    "consumes",
+    "produces",
     "reads",
     "writes",
+    "stores",
+    "publishes",
+    "approves",
+    "rejects",
+    "blocks",
+    "retries",
+    "monitors",
+    "alerts",
+    "authenticates",
+    "authorizes",
+    "provisions",
+    "invoices",
     "deploys",
+    "rolls_back",
+    "synchronizes",
+    "resolves_identity",
+    "emits",
+    "triggers",
+    # --- back-compat visual kinds (pre-v3 edges / FE) ---
+    "flow",
     "guards",
     "observes",
-    "routes_to",
-    "triggers",
     "depends_on",
 )
 
-# Optional node fields (P1 schema expansion). Absent/None/empty = honestly
-# UNKNOWN, never fabricated. Required fields are validated in validate_graph.
+# Default visual-type → semantic-role mapping (derived, not invented). A node may
+# override with an explicit ``role``; otherwise this honest default applies.
+_TYPE_ROLE = {
+    "edge": "deployment",
+    "app": "API",
+    "engine": "worker",
+    "agent": "AI_agent",
+    "provider": "external_provider",
+    "store": "datastore",
+    "integration": "integration",
+    "observability": "observability",
+    "compliance": "security_control",
+    "frontend": "frontend_surface",
+    "product": "outcome",
+}
+
+# Required node fields (validated present). Optional fields default to
+# None/empty/UNKNOWN — NEVER invented.
 _REQUIRED_NODE_FIELDS = ("id", "title", "layer", "domain", "type", "status", "files", "desc")
 _OPTIONAL_NODE_FIELDS = (
+    "role",  # semantic role (NODE_ROLES) | None
     "flags",
     "disabled",
     "runtime",
     "io",  # {"input": str|None, "output": str|None} | None
-    "process",  # short "what it does" step | None
-    "triggers",  # list of trigger descriptions
-    "feedback_loop",  # str describing any close-the-loop signal | None
-    "tech_refs",  # list of legacy technical-graph module/id hints for drill-down
+    "process",
+    "triggers",  # list
+    "feedback_loop",  # str | None
+    "tech_refs",  # list of legacy technical-graph module/id hints
+    # --- agreed v3 contract fields (Unknown = null/empty) ---
+    "implementation_status",  # derived from evidence label
+    "runtime_status",  # joined live (client) — None here, never fabricated
+    "lifecycle_status",  # active | preview | deprecated | None
+    "owner",
+    "owner_agent",
+    "service",
+    "module",  # primary implementation module | None
+    "route",
+    "job",
+    "queue",
+    "datastore",
+    "table_or_collection",
+    "provider",
+    "feature_flags",  # == flags
+    "inputs",  # from io.input
+    "outputs",  # from io.output
+    "guards",  # list
+    "approvals",  # list
+    "tenant_scope",  # e.g. "per-tenant" | "platform" | None
+    "retry_policy",
+    "failure_path",
+    "source_evidence",  # == files
+    "admin_links",  # list
+    "customer_links",  # list
+    "documentation_links",  # list
+    "production_evidence",
+    "last_verified_at",
+    "tags",  # list
 )
+
+# lifecycle derivation from the evidence label (honest, not invented)
+_LIFECYCLE = {
+    "DEPRECATED": "deprecated",
+    "LEGACY": "deprecated",
+    "LOCAL-ONLY": "preview",
+    "PLANNED": "preview",
+    "UNVERIFIED": "preview",
+}
 
 # --- Layers 1-9 (swimlanes) -----------------------------------------------
 LAYERS: list[dict[str, Any]] = [
@@ -214,26 +324,59 @@ _DOMAIN_KEYS = {d["key"] for d in DOMAINS}
 
 
 def _n(nid, title, layer, domain, ntype, status, files, desc, **extra) -> dict[str, Any]:
+    files = list(files)
+    flags = list(extra.get("flags", []))
+    io = extra.get("io")
+    # module = first real .py implementation file, else None (honest).
+    module = next((f for f in files if f.endswith(".py")), None)
     node = {
         "id": nid,
         "title": title,
         "layer": layer,
         "domain": domain,
-        "type": ntype,
+        "type": ntype,  # VISUAL grouping (FE)
+        "role": extra.get("role") or _TYPE_ROLE.get(ntype),  # SEMANTIC role (derived default)
         "status": status,
-        "files": list(files),
+        "files": files,
         "desc": desc,
-        "flags": list(extra.get("flags", [])),
+        "flags": flags,
         "disabled": bool(extra.get("disabled", False)),
         "runtime": extra.get("runtime"),  # optional live-status probe key
-        # P1 schema expansion — honest defaults (None/empty = UNKNOWN, not faked).
-        "io": extra.get("io"),
+        # --- P1 schema fields ---
+        "io": io,
         "process": extra.get("process"),
         "triggers": list(extra.get("triggers", [])),
         "feedback_loop": extra.get("feedback_loop"),
-        # canonical→technical drill-down hints (module basenames the legacy
-        # technical graph also carries); defaults to this node's own files.
         "tech_refs": list(extra.get("tech_refs", []) or files),
+        # --- agreed v3 contract fields (derived where honest, else None/[]) ---
+        "implementation_status": status,
+        "runtime_status": None,  # joined live client-side; NEVER fabricated here
+        "lifecycle_status": _LIFECYCLE.get(status, "active"),
+        "owner": extra.get("owner"),
+        "owner_agent": extra.get("owner_agent"),
+        "service": extra.get("service"),
+        "module": module,
+        "route": extra.get("route"),
+        "job": extra.get("job"),
+        "queue": extra.get("queue"),
+        "datastore": extra.get("datastore"),
+        "table_or_collection": extra.get("table_or_collection"),
+        "provider": extra.get("provider"),
+        "feature_flags": flags,
+        "inputs": (io or {}).get("input") if isinstance(io, dict) else None,
+        "outputs": (io or {}).get("output") if isinstance(io, dict) else None,
+        "guards": list(extra.get("guards", [])),
+        "approvals": list(extra.get("approvals", [])),
+        "tenant_scope": extra.get("tenant_scope"),
+        "retry_policy": extra.get("retry_policy"),
+        "failure_path": extra.get("failure_path"),
+        "source_evidence": files,
+        "admin_links": list(extra.get("admin_links", [])),
+        "customer_links": list(extra.get("customer_links", [])),
+        "documentation_links": list(extra.get("documentation_links", [])),
+        "production_evidence": extra.get("production_evidence"),
+        "last_verified_at": extra.get("last_verified_at"),
+        "tags": list(extra.get("tags", [])),
     }
     return node
 
@@ -893,6 +1036,7 @@ def build_graph(*, check_files: bool = False) -> dict[str, Any]:
         "domains": DOMAINS,
         "evidence_labels": list(EVIDENCE_LABELS),
         "node_types": list(NODE_TYPES),
+        "node_roles": list(NODE_ROLES),
         "edge_kinds": list(EDGE_KINDS),
         "edge_types": list(EDGE_KINDS),  # alias for the schema-contract naming
         "node_fields": {
@@ -1097,6 +1241,14 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             errors.append(f"{n['id']}: tech_refs must be a list")
         if n.get("io") is not None and not isinstance(n["io"], dict):
             errors.append(f"{n['id']}: io must be dict|None")
+        # semantic role must be in the agreed vocabulary when present
+        if n.get("role") is not None and n["role"] not in NODE_ROLES:
+            errors.append(f"{n['id']}: bad semantic role {n['role']}")
+        if n.get("lifecycle_status") not in (None, "active", "preview", "deprecated"):
+            errors.append(f"{n['id']}: bad lifecycle_status {n.get('lifecycle_status')}")
+        for _lf in ("guards", "approvals", "tags", "admin_links", "customer_links"):
+            if not isinstance(n.get(_lf, []), list):
+                errors.append(f"{n['id']}: {_lf} must be a list")
         if strict_files:
             for f in n["files"]:
                 if not (_ROOT / f).exists():
@@ -1151,17 +1303,23 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
         if d not in covered_domains:
             warnings.append(f"domain {d} has no node")
 
+    # workforce truth — degraded (registry unavailable) is a WARNING, not a crash
+    wf = _workforce()
+    if wf["source"] != "registry" or wf["count"] is None:
+        warnings.append("workforce truth degraded: STAFF registry unavailable (count Unknown)")
+
     return {
         "ok": not errors,
         "schema_version": SCHEMA_VERSION,
         "errors": errors,
         "warnings": warnings,
+        "workforce": wf,
         "counts": {
             "nodes": len(NODES),
             "edges": len(EDGES),
             "flows": len(FLOWS),
             "orphans": len(orphans),
-            "workforce": _workforce()["count"],
+            "workforce": wf["count"],
         },
     }
 

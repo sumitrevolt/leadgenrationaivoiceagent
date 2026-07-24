@@ -196,3 +196,115 @@ def test_schema_expansion_fields_present():
     roster = next(n for n in g["nodes"] if n["id"] == "team_roster")
     for f in ("io", "process", "triggers", "feedback_loop", "tech_refs"):
         assert f in roster
+
+
+# --- workforce degraded mode (Unknown-stays-Unknown, no fabrication) -------
+def test_workforce_degraded_is_unknown_not_fabricated(monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "app.platform.team", None)  # force ImportError
+    wf = bg._workforce()
+    assert wf["count"] is None  # NOT 31
+    assert wf["includes_manager"] is None
+    assert wf["by_product"] == {}
+    assert wf["source"] == "unavailable"
+
+
+def test_validate_degraded_workforce_warns_not_crash(monkeypatch):
+    import sys
+
+    monkeypatch.setitem(sys.modules, "app.platform.team", None)
+    v = bg.validate_graph(strict_files=False)
+    assert v["ok"], v["errors"]  # structural integrity independent of registry
+    assert v["counts"]["workforce"] is None  # no fabricated number
+    assert any("workforce truth degraded" in w for w in v["warnings"])
+
+
+def test_no_fabricated_fallback_constant():
+    # the old _CANONICAL_STAFF_FALLBACK=31 must be gone
+    assert not hasattr(bg, "_CANONICAL_STAFF_FALLBACK")
+
+
+# --- v3 semantic schema (roles + edge semantics + field contract) ----------
+def test_all_nodes_have_valid_semantic_role():
+    g = bg.build_graph()
+    assert "node_roles" in g
+    for n in bg.NODES:
+        assert n["role"] in bg.NODE_ROLES, f"{n['id']} bad role {n['role']}"
+
+
+def test_edge_kinds_cover_agreed_semantics():
+    agreed = (
+        "calls",
+        "routes_to",
+        "queues",
+        "consumes",
+        "produces",
+        "reads",
+        "writes",
+        "stores",
+        "publishes",
+        "approves",
+        "rejects",
+        "blocks",
+        "retries",
+        "monitors",
+        "alerts",
+        "authenticates",
+        "authorizes",
+        "provisions",
+        "invoices",
+        "deploys",
+        "rolls_back",
+        "synchronizes",
+        "resolves_identity",
+        "emits",
+        "triggers",
+    )
+    for k in agreed:
+        assert k in bg.EDGE_KINDS, f"missing edge semantic {k}"
+    for e in bg.EDGES:
+        assert e["kind"] in bg.EDGE_KINDS
+
+
+def test_v3_contract_fields_present_and_honest():
+    required_fields = {
+        "role",
+        "implementation_status",
+        "runtime_status",
+        "lifecycle_status",
+        "module",
+        "service",
+        "route",
+        "job",
+        "queue",
+        "datastore",
+        "provider",
+        "feature_flags",
+        "inputs",
+        "outputs",
+        "guards",
+        "approvals",
+        "tenant_scope",
+        "retry_policy",
+        "failure_path",
+        "source_evidence",
+        "admin_links",
+        "customer_links",
+        "documentation_links",
+        "production_evidence",
+        "last_verified_at",
+        "tags",
+    }
+    g = bg.build_graph()
+    for n in g["nodes"]:
+        assert required_fields.issubset(n.keys()), f"{n['id']} missing v3 fields"
+        assert n["runtime_status"] is None  # runtime NEVER fabricated in the static graph
+        assert n["lifecycle_status"] in (None, "active", "preview", "deprecated")
+        assert n["implementation_status"] == n["status"]
+    # visual type preserved (FE not broken)
+    for n in bg.NODES:
+        assert n["type"] in bg.NODE_TYPES
+    # deprecated lifecycle for the HARD-OFF node
+    pd = next(n for n in bg.NODES if n["id"] == "platform_dial")
+    assert pd["lifecycle_status"] == "deprecated"

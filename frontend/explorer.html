@@ -4644,7 +4644,7 @@ const BP = {
       +(pub?'background:#fef3c7;color:#92400e">PUBLIC (sanitized) — admin login for full detail'
            :'background:#dcfce7;color:#166534">ADMIN (full canonical)')+'</div>';
     h+='<div class="bp-sub">Backend-served canonical graph — '+g.counts.nodes+' nodes · '+g.counts.edges+' edges · '+g.counts.layers+' layers · '+g.counts.domains+' domains · '+g.counts.flows+' flows'
-      +(g.workforce?' · '+g.workforce.count+' AI staff':'')+(okBadge?' · '+okBadge:'')
+      +(g.workforce&&g.workforce.count!=null?' · '+g.workforce.count+' AI staff':(g.workforce&&g.workforce.source==='unavailable'?' · AI staff: Unknown':''))+(okBadge?' · '+okBadge:'')
       +(mapped!=null?' · '+mapped+'/'+g.counts.nodes+' mapped to modules':'')+'</div>';
     // lens tabs + search
     h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;align-items:center">';
@@ -4723,6 +4723,11 @@ const BP = {
     b+='<div style="margin-bottom:8px"><span style="font-size:11px;font-weight:700;color:'+(pub?'var(--bp-ink2)':this._mStColor(n.status))+'">'+E(statusText)+'</span>'+(n.disabled?' <span style="color:#dc2626;font-weight:700">HARD OFF</span>':'')+'</div>';
     if(!pub){ const live=this._liveOf(n); b+='<div style="font-size:12px;margin-bottom:8px;color:'+this._liveColor(live.t)+'">● Runtime: <b>'+E(live.label)+'</b>'+(n.runtime?' <span style="color:var(--bp-ink2)">(source: '+E(n.runtime)+')</span>':' <span style="color:var(--bp-ink2)">(no live binding → Unknown)</span>')+'</div>'; }
     if(n.desc){ b+='<div style="font-size:13px;margin-bottom:10px;color:var(--bp-ink)">'+E(n.desc)+'</div>'; }
+    // semantic role + lifecycle + ownership (hide when Unknown)
+    const meta=[]; if(n.role) meta.push('role: <b>'+E(n.role)+'</b>'); if(n.lifecycle_status) meta.push('lifecycle: '+E(n.lifecycle_status)); if(n.tenant_scope) meta.push('scope: '+E(n.tenant_scope));
+    if(meta.length) b+='<div style="font-size:11px;color:var(--bp-ink2);margin-bottom:8px">'+meta.join(' · ')+'</div>';
+    if(n.owner||n.owner_agent||n.service){ const o=[]; if(n.owner)o.push('owner '+E(n.owner)); if(n.owner_agent)o.push('agent '+E(n.owner_agent)); if(n.service)o.push('service '+E(n.service)); b+='<div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">'+o.join(' · ')+'</div>'; }
+    if(n.failure_path){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Failure path</div><div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">'+E(n.failure_path)+'</div>'; }
     if(n.process){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Process</div><div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">'+E(n.process)+'</div>'; }
     if(n.io&&(n.io.input||n.io.output)){ b+='<div style="font-size:11px;color:var(--bp-ink2)">I/O</div><div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">in: '+E(n.io.input||'—')+'<br>out: '+E(n.io.output||'—')+'</div>'; }
     if(n.triggers&&n.triggers.length){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Triggers</div><div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">'+n.triggers.map(x=>'<code>'+E(x)+'</code>').join(' ')+'</div>'; }
