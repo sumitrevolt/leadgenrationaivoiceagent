@@ -3,30 +3,29 @@
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN
 
 ## Last verified timestamp
-2026-07-23T11:41Z (production running `510ed7bc`, verified via `/health` + `/health/ready`).
+2026-07-24T00:10Z (production running `7cab5f60`, verified via public `/health`).
 
 ## Production SHA
-`510ed7bc` (`510ed7bc1c7834892f81b9db092d1febb50dad48`) - deployed and PRODUCTION-PROVEN.
-Deploy workflow run: `30002538121` (`deploy-vps.yml`, workflow_dispatch on `main`). Deploy status: successful; rollback: not used.
-Full deployment evidence: `docs/context/PRODUCTION_DEPLOYMENT_RECORD_510ed7bc.md`.
+`7cab5f60` (`7cab5f609846e2c584edb8322dc684378a15e995`) — OpenClaw Admin Dashboard PR #105 merge; PRODUCTION-PROVEN via `scripts/deploy_vps.sh`.
+Previous runtime SHA: `7f37522e` (rollback reference; not used).
 Label: PRODUCTION-PROVEN
 
 ## Origin/main
-`510ed7bc` == production. Video Review Stage 3 merged in PR #97; implementation commit `a4547e05`.
-Label: CODE-PRESENT
+`216ad5c1b47272684207dbeaf4ce368b7493eca9` — ahead of production. Includes merged PRs #105–#111 (OpenClaw Admin, Obsidian self-heal, dist-cancel/Nikhil proofs, runtime flag separation, OmniRoute governance, skill canonical index / ADR-131).
+**Do not claim these post-#105 merges are live unless `/health.version` matches.** Production remains `7cab5f60`.
+Label: CODE-PRESENT (main ahead of prod)
 
 ## Production health
-`/health` 200 and `/health/ready` 200 at exact `510ed7bc`; environment `production`.
-All five app-image containers match the exact SHA, are running, and have restart count 0. Ready checks are green for database, redis, LLM configuration, disk, and memory.
+`/health` 200 at exact `7cab5f60`; environment `production`; status `healthy` (re-probed 2026-07-24T00:10Z).
 Label: PRODUCTION-PROVEN
 
 ## Migration
-The `510ed7bc` deploy completed its hard-gated transactional Alembic step successfully; this release introduced no migration.
+The `510ed7bc` Video Review Stage 3 deploy completed its hard-gated transactional Alembic step successfully; OpenClaw Admin `7cab5f60` introduced no migration.
 (Note: `008` is NOT the head - it is one revision in the 008..022 chain.)
 Label: PRODUCTION-PROVEN
 
 ## Routes
-0 route collisions (prod_check on the deployed release: ALL CHECKS PASSED in the deploy gate on exact `510ed7bc`).
+0 route collisions on deployed release path (prod_check gate historically green on `510ed7bc`; OpenClaw Admin ship was exact-4-file additive).
 Label: PRODUCTION-PROVEN
 
 ## Deployment architecture (hardened path - PRODUCTION-PROVEN)
@@ -47,7 +46,8 @@ GitHub Actions
 - The old root-based GitHub deploy path is retired. `GHCR_PAT` is retired; the registry package is public and pulled anonymously by exact SHA.
 - The emergency root key is retained OUTSIDE GitHub (operator machine / VPS recovery) for break-glass only.
 - `DEPLOY_ENABLED` defaults unset (off); a push to `main` runs the gate job only. Deploy requires operator-set `DEPLOY_ENABLED=true` + `workflow_dispatch`.
-Label: PRODUCTION-PROVEN (run `30002538121`)
+- Emergency/canonical VPS path also includes `scripts/deploy_vps.sh` with mandatory `APP_VERSION=<sha>`.
+Label: PRODUCTION-PROVEN
 
 ## Secret state (GitHub Actions)
 Retained: `VPS_HOST`, `VPS_DEPLOY_USER`, `VPS_SSH_KEY_DEPLOY`.
@@ -55,38 +55,36 @@ Retired (deleted from GitHub Actions after the proven hardened run): `GHCR_PAT`,
 Emergency root key remains outside GitHub for operator recovery. (Names/state only; no values recorded.)
 Label: PRODUCTION-PROVEN
 
-## Skill architecture (canonical registry - PRODUCTION-PROVEN)
+## Skill architecture (canonical registry - CODE-PRESENT on main via PR #106 / ADR-131)
 `.claude/skills` is the single canonical tracked skill root; `.agents/skills` is removed.
-- Canonical project skills: `208`
-- Additional/external skills (`data/skills_extra`, bind-mounted runtime source): `181`
-- Runtime loader total: `389` = 208 project + 181 extra + 0 agents (all uniquely named; deterministic)
-- Duplicate canonical skill IDs: `0`
 - Decision record: ADR-131 (`docs/adr/ADR-131-canonical-skill-registry.md`).
 - Duplicate-regression CI guard: `tests/test_skill_tree_canonical_guard.py`.
-Label: PRODUCTION-PROVEN
+- Counts in older notes (208/181/389) are historical snapshots — re-measure before asserting live VPS skill totals.
+Label: CODE-PRESENT on `origin/main` (not independently re-proven on prod image `7cab5f60`)
 
 ## OpenClaw
-Source present on main; production flag OFF (`OPENCLAW_ENABLED` unset -> default 0, fail-closed). Owner OS is sole authority; RED lane refusal intact. Unchanged by the `510ed7bc` deploy.
-Label: CODE-PRESENT | PRODUCTION-PROVEN (OFF)
+Stage A ON (`OPENCLAW_ENABLED=1` on production `7cab5f60`). Admin Dashboard `#openclawAdminCard` LIVE. GREEN-only allowlist; AMBER rejected in Stage A; RED refuse intact for matched phrases (`calling enable`); `OPENCLAW_ALLOW_RED_ACTIONS=0`; Gateway token EMPTY (browser super-admin path). Owner OS sole authority.
+Label: PRODUCTION-PROVEN (Stage A ON + Admin panel)
 
 ## Calling
-HARD OFF. Voice agents `swara`/`ananya` remain RED lane. `PLATFORM_DIAL_DAILY=0`; calling queue empty. Unchanged by the `510ed7bc` deploy.
+HARD OFF. `PLATFORM_DIAL_DAILY=0`. Unchanged by OpenClaw Admin deploy.
 Label: PRODUCTION-PROVEN
 
 ## Deployment gate
-`DEPLOY_ENABLED=false` (disarmed). Deploy run `30002538121` is completed.
+`DEPLOY_ENABLED` disarmed (unset/false). No deploy performed during 2026-07-24 dirty-primary triage.
 
 ## Repository cleanliness
-Main clone working tree has pre-existing local edits (jiya ledgers, `_ws4_ship/`) that are intentionally untracked/uncommitted and excluded from all work.
+Primary worktree `feat/openclaw-admin-dashboard` was dirty (docs/ledger/temps/staged video regression). Triage ports docs via isolated `docs/canonical-handoff-20260724`; video regression file classified superseded by `tests/test_video_production_auth_ui.py`; customer ledger runtime append restored; `_tmp_*` disposable.
 
 ## Paying customers
 1 - Jiya Makeover (`jiya-makeover`)
 
 ## Working customer workflows
-- OpenClaw Owner Copilot - merged to main (PR #65), production flag OFF
+- OpenClaw Admin / Owner Copilot Stage A — LIVE on production `7cab5f60` (PR #105)
 - Delivery assurance / identity - unchanged
-- Video Review Stage 3 code - deployed at `510ed7bc`; customer cohort gate remains OFF pending authenticated Jiya canary
+- Video Review Stage 3 code - deployed at `510ed7bc` (still in ancestry of prod); customer cohort gate remains OFF pending authenticated Jiya canary
 
 ## Top next actions
-1. In the handed-off Admin Login tab, owner signs in; owner-managed runtime config enables only `VIDEO_CUSTOMER_REVIEW_ENABLED=1` and `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover`.
-2. Run one authenticated read-only Jiya Preview canary. Keep WhatsApp review, publish/social, daily video scheduler, WhatsApp auto-send, and platform dial OFF.
+1. Stage B AMBER production approvals — design only; do not enable.
+2. Owner login → enable only `VIDEO_CUSTOMER_REVIEW_ENABLED=1` + `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover`; authenticated read-only Jiya Preview canary.
+3. GTM Hot Queue `/app/inbox` → 2nd paying Marketing customer. Keep WhatsApp review/publish/scheduler/platform_dial OFF.
