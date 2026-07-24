@@ -1,34 +1,45 @@
 # SESSION_HANDOFF — overwrite every session end
 
 ## Session objective
-Video Review Stage 3 ko intentional commit/PR/merge/deploy path se production tak ship karna, exact runtime parity prove karna, aur authenticated Jiya read-only Preview canary attempt karna.
+Authorized full review + fix (if needed) + merge of docs PR #112 (`docs/canonical-handoff-20260724`) so canonical context separates production `7cab5f60` from `origin/main` `216ad5c`, without deploy or app-code changes.
 
 ## Outcome
-**DEPLOYED AND HEALTHY at `510ed7bc`; authenticated Jiya Preview canary is pending owner login and owner-managed cohort flags.**
+**DOCS ALIGNED + MERGE-AUTHORIZED.** Production remains `/health.version=7cab5f60` (re-probed 2026-07-24T03:15Z, healthy/production). `origin/main` tip `216ad5c` stays ahead (PRs #105–#111). Path-scoped follow-up commit refreshes probe timestamp, Obsidian cron classification, and CLAUDE/AGENTS hot cache (31 agents; Boss not 32nd; ADR-131 `.claude/skills`; Owner OS sole OpenClaw authority; Stage A; calling HARD OFF).
 
-## Source and deployment
-- Implementation commit: `a4547e05ad20ef8b0a8321f23e33c94043b61645`.
-- PR #97 merged to `main`; merge/deploy SHA: `510ed7bc1c7834892f81b9db092d1febb50dad48`.
-- Manual operator-gated workflow run `30002538121` completed successfully; gate, image build/push, migration check, deploy, and readiness all passed. Rollback was not used.
-- `DEPLOY_ENABLED` was reset to `false` as soon as the deploy job started and remains disarmed.
+## What shipped previously (still live)
+- PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/105
+- Feature commit: `444e58424b638f80c2b812ce90bc1afcf539bfc4`
+- Merge commit: `7cab5f609846e2c584edb8322dc684378a15e995` (`7cab5f60`)
+- Merged at: `2026-07-23T21:19:35Z`
+- Exact 4 files; `.agents/skills/**` excluded
 
-## Verification
-- Pre-merge expanded targeted suite: 132 passed; commit-hook affected slice: 29 passed after Black reformatted two files.
-- Ruff, Black, isort, Bandit, detect-secrets, `git diff --check`, API sync, and full GitHub gate were green.
-- Public `/health` and `/health/ready` returned 200 at exact full SHA `510ed7bc...` with environment `production`; database, Redis, LLM configuration, disk, and memory checks were green.
-- All five app-image containers use exact `510ed7bc...`, are running, have matching `APP_VERSION`, and restart count 0.
-- Redis queues: celery=0, failed=0, dead=0, resolved=9.
-- Static/live auth probes: vendored Chart asset, service worker, health, and readiness returned 200; unauthenticated customer video API returned 401 as required.
+## Production (re-probed 2026-07-24T03:15Z)
+- Actual `/health.version`: `7cab5f60`
+- status: healthy; environment: production
+- Rollback SHA retained: `7f37522e` (not used)
+- Flags (from prior ship evidence; not mutated this session): OpenClaw Stage A ON, `OPENCLAW_ALLOW_RED_ACTIONS=0`, `PLATFORM_DIAL_DAILY=0`
+- Customer review / WhatsApp review / social publish / video scheduler: OFF
+- No production deploy / VPS mutate during this docs review
 
-## Browser canary result
-- The pre-deploy `/app/impersonate` tab still displayed the prior privileged DOM, but the exact Jiya impersonation POST returned 401.
-- Reload correctly showed “Super-admin access chahiye” and navigated to Admin Login. This is an expired-session boundary, not evidence of a Stage 3 code regression.
-- The Admin Login tab was handed off for owner password/2FA. No customer session or production media preview was created.
+## Main tip (not deployed)
+- `origin/main` = `216ad5c` (Merge PR #106 skill canonical index)
+- Also on main, not claimed live: #107 runtime flag separation (Kavya/Arnav), #108 OmniRoute governance, #109/#110 proofs, #111 Obsidian self-heal
+- ADR-131 present on main (`.claude/skills` canonical; `.agents/skills` removed)
 
-## Safety state
-- `PLATFORM_DIAL_DAILY=0`, `VIDEO_CUSTOMER_REVIEW_ENABLED=0`, `VIDEO_DAILY_SCHEDULER_ENABLED=0`, `VIDEO_WHATSAPP_REVIEW_ENABLED=0`, and `WHATSAPP_AUTO_SEND=0`.
-- Video social/Postiz rollout flags are unset/OFF. Base `VIDEO_PRODUCTION_ENABLED=1` remains unchanged.
-- No approve/change/reject, WhatsApp/email/social publish, call, billing mutation, duplicate record, or queue mutation occurred.
+## Obsidian cron (evidence)
+- Schedule proven: `45 20 * * *` host cron → `obsidian_host_push.sh`
+- **2026-07-24 20:45 UTC / 02:15 IST:** `NOT_YET_OCCURRED`
+- **Through 2026-07-23 20:45 UTC:** `PROVEN_FAILURE` (`fetch first`)
+- Host script now has fetch+merge self-heal (mtime after Jul 23 failure). Success of tonight's run is not yet claimable.
+
+## Dirty-primary triage decisions
+- `tests/test_customer_video_review_regression_2026.py` → SUPERSEDED (coverage already in `tests/test_video_production_auth_ui.py`); no Draft PR
+- Customer ledger `data/delivery_ledger/jiya-makeover.jsonl` → RUNTIME_DATA_NOT_FOR_GIT (1 append `sla_breached`); restore to `origin/main`
+- `_tmp_*` + merge report → disposable untracked scratch; path-delete (no high-confidence secret values found)
+- Docs → isolated branch `docs/canonical-handoff-20260724` (PR #112)
 
 ## Exact next task
-Owner signs in to the handed-off Admin Login tab. Through the owner-managed configuration path, enable only `VIDEO_CUSTOMER_REVIEW_ENABLED=1` and `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover`; keep every send/publish/scheduler/call switch OFF. Then repeat the authenticated Jiya Preview canary and require MP4 decode plus zero application console errors before Stage 3 GO.
+After PR #112 merge: inspect dirty merged-source worktrees `leadgen-dist-cancel` / `leadgen-nikhil-flag` / `leadgen-omniroute-governance` (protected — status only) OR continue Stage B AMBER design-only + Video Review Jiya canary after owner login + GTM Hot Queue. Do not deploy undeployed main tips.
+
+## Rollback
+Runtime: redeploy `7f37522e` via `deploy_vps.sh`. Kill-switch: `OPENCLAW_ENABLED=0`. Source revert separate from runtime rollback.
