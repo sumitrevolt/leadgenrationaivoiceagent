@@ -575,14 +575,27 @@ def _reset_rate_limit_state():
 # GC/lifespan race, not native threads.
 
 
+# Automatic GC stays OFF during the whole run (this is what prevents the crash).
+# A full gc.collect() per test (~5.5k calls, each traversing the large app object
+# graph) ~3x'd suite wall-time, so instead we reclaim reference cycles in batches
+# of _GC_COLLECT_EVERY tests (plus a final sweep) -- memory stays bounded to a few
+# tests' worth of cycles at a fraction of the overhead.
+_GC_COLLECT_EVERY = 40
+_gc_since_collect = [0]
+
+
 def pytest_collection_finish(session):
     """Disable automatic cyclic GC once collection is done (start of run phase)."""
     gc.disable()
 
 
 def pytest_runtest_teardown(item, nextitem):
-    """Reclaim reference cycles at a safe point so GC-off doesn't grow memory."""
-    gc.collect()
+    """Batch-reclaim reference cycles at a safe point (shallow stack, no lifespan
+    mid-entry) so automatic-GC-off does not grow memory across the suite."""
+    _gc_since_collect[0] += 1
+    if nextitem is None or _gc_since_collect[0] >= _GC_COLLECT_EVERY:
+        _gc_since_collect[0] = 0
+        gc.collect()
 
 
 def pytest_sessionfinish(session, exitstatus):
