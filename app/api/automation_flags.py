@@ -361,4 +361,17 @@ AUTOMATION_FLAGS = [
     "LINKEDIN_OAUTH_APPROVED",
     "X_OAUTH_APPROVED",
     "GOOGLE_OAUTH_APPROVED",
+    # --- Autonomous Sales Engine / Sales Autopilot (2026-07-24, app/platform/sales_autopilot) ---
+    # Policy-driven, fail-closed, DRY-RUN default. Separate from WHATSAPP_AUTO_SEND (never the
+    # master gate here). Calling stays HARD OFF. All default OFF / INERT.
+    "SALES_AUTOPILOT_ENABLED",  # master gate — OFF default → engine fully inert (no work, dry-run)
+    "SALES_AUTOPILOT_WHATSAPP_ENABLED",  # arm WA channel live-send (needs dry_run=false too)
+    "SALES_AUTOPILOT_EMAIL_ENABLED",  # arm email channel (live email is handoff-stub only)
+    "SALES_AUTOPILOT_DRY_RUN",  # force simulation (env can only make it MORE safe)
+    "SALES_AUTOPILOT_NEW_OUTREACH_KILL",  # block brand-new first-touch outreach
+    "SALES_AUTOPILOT_FOLLOWUP_KILL",  # block follow-ups
+    "SALES_AUTOPILOT_AUTOREPLY_KILL",  # block safe auto-replies (escalate to Owner OS only)
+    "SALES_AUTOPILOT_PAYMENT_REMINDER_KILL",  # block payment/onboarding nudges
+    "SALES_AUTOPILOT_CANARY_BATCH",  # per-tick batch size (default 1)
+    "SALES_AUTOPILOT_LLM_TONE",  # OPTIONAL tone-only LLM review (never authoritative)
 ]
