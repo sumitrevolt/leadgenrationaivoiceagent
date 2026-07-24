@@ -564,56 +564,45 @@ def _reset_rate_limit_state():
 # scheduler / embedder are already OFF in tests (top of this file) and no
 # torch/av thread appears in the dump.
 #
-# FIX (covers BOTH the `client` fixture AND the 38 test modules that build
-# `with TestClient(app)` directly): pause *automatic* cyclic GC for the
-# test-run phase and reclaim reference cycles deterministically at each test
-# teardown -- a shallow-stack, main-thread point where no lifespan is mid-entry,
-# so the crashing condition cannot occur. Reference-count reclamation is
-# untouched (objects still free immediately); nothing is skipped, xfail'd,
-# retried, or weakened, and production startup (app.main.lifespan) is unchanged.
-# No OpenMP/thread env hardening is added because the evidence implicates the
-# GC/lifespan race, not native threads.
+# NOTE: the first-attempt approach once described here (pause automatic GC +
+# reclaim per-teardown) was SUPERSEDED -- a forced gc.collect() also crashes.
+# The authoritative approach is the ROOT-CAUSE / FINAL FIX block just below.
 
 
-# ROOT-CAUSE UPDATE (2026-07-24, 2nd dump): the crashing GC pass is NOT tied to
-# the lifespan stack depth -- a forced gc.collect() at teardown segfaulted the
-# same way:
-#     Garbage-collecting -> conftest.pytest_runtest_teardown
-#     (with a live aiosqlite `_connection_worker_thread`)
-# The real hazard is a cyclic-GC pass traversing SQLAlchemy-async **greenlet** /
-# aiosqlite connection objects. Batch-collecting (letting many tests' greenlets
-# accumulate, then collecting a messy graph) hits a bad object and crashes;
-# collecting each test's objects immediately -- while that test's greenlets have
-# just finished and the graph is clean -- does not (the per-test-collect build ran
-# 20 min crash-free).
+# ROOT-CAUSE (2026-07-24, THREE CI dumps): a cyclic-GC pass -- whether the
+# automatic collector OR an explicit gc.collect() -- segfaults while an aiosqlite
+# `_connection_worker_thread` (the SQLAlchemy-async greenlet DB path) is live:
+#     Fatal Python error: Segmentation fault
+#     Current thread ...: Garbage-collecting
+#       -> app-lifespan __aenter__            (automatic GC, 1st/2nd dump), and
+#       -> tests/conftest.py teardown collect (forced gc.collect(), 3rd dump)
+#     with aiosqlite/core.py _connection_worker_thread live.
+# Two earlier hypotheses were DISPROVED by the dumps: it is not the lifespan
+# stack depth, and "collect each test while the graph is clean" is not safe --
+# a per-test forced collect AND a batched forced collect each crashed. ANY cyclic
+# GC over these greenlet/aiosqlite objects can crash.
 #
-# STRATEGY (fast AND stable):
-#   * gc.disable() -> no nondeterministic automatic collection during the run.
-#   * gc.freeze()  -> move the large *static* app object graph into the permanent
-#                     generation so per-test gc.collect() only scans the current
-#                     test's objects (keeps the per-test collect cheap; the freeze
-#                     is what avoids the ~3x slowdown of a naive per-test collect).
-#   * gc.collect() per teardown -> reclaim THIS test's cycles/greenlets while the
-#                     graph is clean, so nothing accumulates for a crashing batch GC.
-# Production startup is untouched; no test is skipped, xfail'd, or weakened.
+# FINAL FIX -- run ZERO cyclic GC over them:
+#   * gc.disable() at collection_finish -> no automatic collection during the run.
+#   * no forced gc.collect() anywhere    -> the explicit-collect crash path is gone.
+#   * gc.freeze() at session end         -> moves every live object into the
+#       permanent generation, so even CPython's shutdown-finalization GC has
+#       nothing (non-permanent) to traverse and cannot reach the bad objects.
+# Reference-COUNT reclamation is untouched (non-cyclic objects free immediately);
+# only reference *cycles* persist until the process exits seconds later. Nothing
+# is skipped, xfail'd, retried, or weakened; production startup (app.main.lifespan)
+# is unchanged; collection parity stays 5557 tests / 579 files.
 
 
 def pytest_collection_finish(session):
-    """Freeze the static app graph and disable automatic GC before the run phase."""
+    """Disable automatic cyclic GC for the whole run (see rationale above)."""
     gc.disable()
-    gc.freeze()
-
-
-def pytest_runtest_teardown(item, nextitem):
-    """Collect this test's cycles immediately (clean graph; fast thanks to the
-    freeze) so no suspended greenlet accumulates for a later crashing batch GC."""
-    gc.collect()
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Restore normal GC behaviour at end of session."""
+    """Freeze all live objects so the interpreter's shutdown GC cannot traverse
+    the greenlet/aiosqlite graph. Do NOT re-enable GC or force a collect."""
     try:
-        gc.unfreeze()
+        gc.freeze()
     except Exception:
         pass
-    gc.enable()
