@@ -352,7 +352,24 @@ def _async_engine_teardown_guard(event_loop):
 
     assert disposed, "test async_engine.dispose() raised at session teardown"
     leaked = _leaked_aiosqlite_workers()
-    assert not leaked, f"aiosqlite connection worker thread(s) leaked at session end: {leaked}"
+    if leaked:
+        _diag = []
+        for _t in threading.enumerate():
+            _tgt = getattr(_t, "_target", None)
+            if _t.is_alive() and "aiosqlite" in (getattr(_tgt, "__module__", "") or ""):
+                _conn = getattr(_tgt, "__self__", None)
+                _db = next(
+                    (
+                        getattr(_conn, _a, None)
+                        for _a in ("_database", "database", "_conn")
+                        if getattr(_conn, _a, None) is not None
+                    ),
+                    None,
+                )
+                _diag.append(f"{_t.name} conn={_conn!r} db={_db!r}")
+        raise AssertionError(
+            "aiosqlite connection worker thread(s) leaked at session end: " + " || ".join(_diag)
+        )
 
 
 @pytest.fixture(scope="function")
