@@ -112,9 +112,9 @@ Poora repo har session dobara mat padho — ek **Graphify code knowledge-graph**
 **Sprint goal:** GTM 0→1 — pehle paid customers on Marketing product (jiya makeover = only real paying customer); mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint), 1st paid target ≤7d from 2026-07-02.
 
 **Last 3 significant decisions:**
-- 2026-07-23: **ADR-142 VIDEO DECISIONS** — Reject is terminal/no-regeneration, only Changes revises, exact-version approval refuses stale terminal ledgers, and design-system assets bypass stale SW cache. Deployed at `510ed7bc`.
-- 2026-07-23: **ADR-141 VIDEO REVIEW** — media is tenant/path/version bound; Stage-3 cohort requires explicit customer allowlist; Chart.js is locally pinned. Deployed at `510ed7bc`; cohort remains OFF pending authenticated Jiya canary.
-- 2026-07-22: **ADR-140 VIDEO CELL** — reuse `video_ad_cycle`; no 32nd agent or duplicate WhatsApp/social stack; all `VIDEO_*` flags default OFF.
+- 2026-07-23: **OpenClaw Admin Stage A** — PR #105 LIVE at prod `7cab5f60`; Owner OS sole OpenClaw authority; GREEN-only; calling HARD OFF; workforce stays **31 agents** (Boss/OpenClaw is Copilot surface, **not** a 32nd agent).
+- 2026-07-23: **ADR-131 skill registry** — `.claude/skills` canonical tracked root; `.agents/skills` removed; CODE-PRESENT on `origin/main` via PR #106 (not claimed live solely because main tip ≠ `/health`).
+- 2026-07-23: **ADR-142 VIDEO DECISIONS** — Reject is terminal/no-regeneration, only Changes revises, exact-version approval refuses stale terminal ledgers, and design-system assets bypass stale SW cache. Deployed at `510ed7bc` (still in prod ancestry under `7cab5f60`).
 **Blockers / USER-action pending (env-unset = dormant, graceful skip):**
 - **Billing ledger** (2026-07-18): ✅ Containment+voice LIVE `f8a5f6e9` · ✅ `UPI_AUTO_ACTIVATE=0` · ✅ INV/0002–0013 VOIDED 15:16 UTC (append-only markers, backup `invoices.jsonl.bak-voidC-20260718_151618`; `fy_gross_inr=1999`, Jiya 0001 live, next=0014). ✅ Disposable `041a2fb0ca1e` reconciled 15:30 UTC (client+sub `cancelled`, no delete, CSV backup `/root/reconcileD_20260718_153030.csv`). ✅ `dlq:dead`/`dlq:failed_tasks`/`celery` all = 0 (verified 2026-07-19).
 - Unity WebGL build (ADR-076): **LOCAL-ONLY — prod pe NAHI hai** (2026-07-14). Gated OFF; not a launch blocker.
@@ -124,4 +124,4 @@ Poora repo har session dobara mat padho — ek **Graphify code knowledge-graph**
 
 **Next action:** Stage B AMBER production approvals design only (do not enable). Parallel: GTM Hot Queue → 2nd paying customer; Video Review Jiya canary still pending owner login. Detail = `docs/context/ACTIVE_WORK.md`.
 
-**Ops facts (hot):** **Prod `/health`=`7cab5f60`** (PR #105 OpenClaw Admin LIVE; re-probe before future claims) · `origin/main` tip `216ad5c` AHEAD of prod (PRs #106–#111 code-present, not claimed live) · rollback ref `7f37522e` · OpenClaw Stage A GREEN-only · customer review/WhatsApp review/social publish/video scheduler OFF · `PLATFORM_DIAL_DAILY=0` · shared context = `docs/context/` · Swara/voice FROZEN this wave.
+**Ops facts (hot):** **Prod `/health`=`7cab5f60`** (PR #105 OpenClaw Admin LIVE; re-probe before future claims) · `origin/main` tip `216ad5c` AHEAD of prod (PRs #106–#111 code-present, not claimed live) · rollback ref `7f37522e` · **31 agents** · Boss/OpenClaw ≠ 32nd agent · Owner OS sole OpenClaw authority · ADR-131 `.claude/skills` on main · OpenClaw Stage A GREEN-only · calling HARD OFF · `PLATFORM_DIAL_DAILY=0` · customer review/WhatsApp review/social publish/video scheduler OFF · shared context = `docs/context/` · Swara/voice FROZEN this wave.
