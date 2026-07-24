@@ -654,6 +654,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Activation router not mounted: {_e}")
 try:
+    from app.api.blueprint import router as _blueprint_router
+
+    # /api/blueprint/* — canonical versioned architecture graph for the
+    # /app/explorer Master Blueprint mode (read-only, no secrets, never-raises).
+    app.include_router(_blueprint_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Blueprint router not mounted: {_e}")
+try:
     from app.api.eval_gate import router as _eval_gate_router
 
     # /api/eval-gate/* — DeepEval close-the-loop reward signal (F.3).
