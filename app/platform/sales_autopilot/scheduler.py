@@ -92,11 +92,17 @@ async def run_tick(limit: int | None = None) -> dict[str, Any]:
     """One scheduler tick. INERT when master flag off. Never raises."""
     pol = _policy_mod.get_policy()
     if not pol.enabled:
+        # INERT: no lock, no work, no provider. Record the truth for observability.
+        res = {"enabled": False, "processed": 0, "skip_reason": "engine_disabled"}
+        _store.record_tick(res)
         return {"enabled": False, "processed": 0}
 
     token = _acquire_lock()
     if not token:
-        return {"enabled": True, "skipped": "lock_held", "processed": 0}
+        # Another tick holds the single-flight lock — skip (no overlap, no catch-up).
+        res = {"enabled": True, "skipped": "lock_held", "processed": 0}
+        _store.record_tick(res)
+        return res
 
     summary: dict[str, Any] = {
         "enabled": True,
@@ -144,6 +150,7 @@ async def run_tick(limit: int | None = None) -> dict[str, Any]:
         summary["error"] = str(e)[:150]
     finally:
         _release_lock(token)
+    _store.record_tick(summary)
     return summary
 
 

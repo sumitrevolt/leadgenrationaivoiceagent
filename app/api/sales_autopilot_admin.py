@@ -28,6 +28,32 @@ from app.platform.sales_autopilot import store as _store
 router = APIRouter(prefix="/api/sales-autopilot", tags=["Sales Autopilot"])
 
 
+def _scheduler_runtime() -> dict[str, Any]:
+    """Runtime-wiring truth: is the canary tick actually registered in beat/staff, at what
+    cadence, is it no-catch-up excluded, and what did the last tick do. Read-only; never
+    raises (missing registration just reports ``scheduler_registered: False``)."""
+    info: dict[str, Any] = {
+        "scheduler_registered": False,
+        "staff_job": "sales_autopilot",
+        "beat_task": "staff-sales-autopilot-hourly",
+        "cadence": None,
+        "no_catch_up": False,
+    }
+    try:
+        from app.platform.scheduler_config import JOB_META, RUN_DUE_EXCLUDE
+        from app.tasks.staff_jobs import STAFF_JOBS
+
+        info["scheduler_registered"] = ("sales_autopilot" in STAFF_JOBS) and (
+            "sales_autopilot" in JOB_META
+        )
+        info["cadence"] = (JOB_META.get("sales_autopilot") or {}).get("cadence")
+        info["no_catch_up"] = "sales_autopilot" in RUN_DUE_EXCLUDE
+    except Exception:  # pragma: no cover - defensive
+        pass
+    info["last_tick"] = _store.get_last_tick()
+    return info
+
+
 @router.get("/summary")
 async def summary(_user=Depends(require_admin)) -> dict[str, Any]:
     """Operator dashboard rollup: flags, policy posture, and today's attempt counts."""
@@ -49,6 +75,7 @@ async def summary(_user=Depends(require_admin)) -> dict[str, Any]:
         "caps": pol.get("caps"),
         "ist_hours": pol.get("ist_hours"),
         "calling": "HARD_OFF",
+        "scheduler": _scheduler_runtime(),
         "prospects_total": len(prospects),
         "status_counts": status_counts,
         "attempts_today_total": _store.attempts_today(),

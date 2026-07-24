@@ -237,6 +237,43 @@ def attempts_today(status: str | None = None, channel: str | None = None) -> int
 
 
 # ------------------------------------------------------------------ #
+# Scheduler last-run truth (observability — one small JSON, latest wins)
+# ------------------------------------------------------------------ #
+def _last_tick_file() -> str:
+    # Derived from _DIR at call-time so test monkeypatch of _DIR is honoured.
+    return os.path.join(_DIR, "last_tick.json")
+
+
+def record_tick(summary: dict[str, Any]) -> dict[str, Any]:
+    """Persist the most recent scheduler-tick truth (time + result). Never raises."""
+    rec = dict(summary or {})
+    rec["at"] = _now()
+    with _LOCK:
+        try:
+            os.makedirs(_DIR, exist_ok=True)
+            tmp = _last_tick_file() + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(rec, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, _last_tick_file())
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("[sales_autopilot.store] record tick failed: %s", e)
+    return rec
+
+
+def get_last_tick() -> dict[str, Any] | None:
+    """Read the last recorded scheduler tick (or None if never run). Never raises."""
+    with _LOCK:
+        try:
+            path = _last_tick_file()
+            if os.path.exists(path):
+                with open(path, encoding="utf-8") as f:
+                    return json.load(f) or None
+        except Exception as e:  # pragma: no cover - defensive
+            logger.warning("[sales_autopilot.store] read last tick failed: %s", e)
+    return None
+
+
+# ------------------------------------------------------------------ #
 # Estique seed / guard
 # ------------------------------------------------------------------ #
 def ensure_estique_seed() -> dict[str, Any]:
@@ -291,5 +328,7 @@ __all__ = [
     "update_attempt_status",
     "list_attempts",
     "attempts_today",
+    "record_tick",
+    "get_last_tick",
     "ensure_estique_seed",
 ]
