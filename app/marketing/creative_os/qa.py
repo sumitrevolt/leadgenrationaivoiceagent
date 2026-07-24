@@ -28,6 +28,14 @@ _BLOCK_ON = frozenset({"block"})
 
 
 def detect_optional_capabilities() -> dict[str, bool]:
+    """Presence-only probe — never import heavy native stacks (torch/paddle/clip).
+
+    Phase-1 evaluators are not wired; callers must treat optional ML caps as
+    ``not_evaluated`` when present, never as a fake pass. ``find_spec`` avoids
+    loading native extensions that have segfaulted CI TestClient lifespans.
+    """
+    import importlib.util
+
     caps = {
         "paddleocr": False,
         "scenedetect": False,
@@ -44,8 +52,7 @@ def detect_optional_capabilities() -> dict[str, bool]:
         ("open_clip", "open_clip"),
     ):
         try:
-            __import__(mod)
-            caps[key] = True
+            caps[key] = importlib.util.find_spec(mod) is not None
         except Exception:
             caps[key] = False
     try:

@@ -334,3 +334,98 @@ def test_customer_view_no_paths():
     blob = str(view)
     assert "data/reels" not in blob
     assert view.get("ok") is True
+
+
+def test_budget_concurrent_attempts(tmp_path, monkeypatch):
+    import concurrent.futures
+
+    monkeypatch.setenv("CREATIVE_BUDGET_ROOT", str(tmp_path / "budget"))
+    tid = "disposable-concurrency"
+
+    def _one(i: int):
+        return record_attempt(tid, creative_id=f"cr_{i}", kind="initial")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as pool:
+        results = list(pool.map(_one, range(20)))
+    assert all(r.get("ok") for r in results)
+    assert count_attempts_today(tid) == 20
+
+
+def test_customer_api_tenant_isolation_and_billing_alias(monkeypatch, tmp_path):
+    """JWT-derived tenant only; billing alias resolves to marketing id; cross-tenant 404."""
+    monkeypatch.setenv("ENVIRONMENT", "development")
+    monkeypatch.setenv("CREATIVE_OS_ENABLED", "1")
+    monkeypatch.setenv("CREATIVE_ASSET_ROOT", str(tmp_path / "assets"))
+    monkeypatch.setenv("CREATIVE_LEDGER_ROOT", str(tmp_path / "ledger"))
+
+    from fastapi.testclient import TestClient
+
+    from app.api.customer_auth import require_customer
+    from app.main import app
+    from app.marketing import clients_store
+
+    disposable = _ready_spec_with_file(tenant_id="disposable-test-tenant", fname="iso_a.mp4")
+    jiya = _ready_spec_with_file(tenant_id="jiya-makeover", fname="iso_j.mp4")
+
+    def _canon(cid: str) -> str:
+        c = (cid or "").strip()
+        # Fixture-only alias ids (not live billing secrets).
+        if c in ("jiya-billing-alias", "billing-alias-jiya-fixture", "jiya-makeover"):
+            return "jiya-makeover"
+        return c
+
+    monkeypatch.setattr(clients_store, "canonical_client_id", _canon)
+
+    async def _as_disposable():
+        return "disposable-test-tenant"
+
+    async def _as_jiya_alias():
+        return "jiya-billing-alias"
+
+    app.dependency_overrides[require_customer] = _as_disposable
+    try:
+        with TestClient(app) as c:
+            r = c.get("/api/customer/creative-os")
+            assert r.status_code == 200
+            body = r.json()
+            assert body.get("ok") is True
+            ids = {x.get("creative_id") for x in (body.get("creatives") or [])}
+            assert disposable.creative_id in ids
+            assert jiya.creative_id not in ids
+            leak = str(body)
+            assert "data/reels" not in leak
+            assert "model_version" not in leak
+            assert "licence_snapshot" not in leak
+            for item in body.get("creatives") or []:
+                assert "provider" not in item
+                assert "output_path" not in item
+                assert "local_path" not in item
+
+            # Cross-tenant media must 404
+            r404 = c.get(
+                f"/api/customer/creative-os/{jiya.creative_id}/media",
+                params={"revision": 0},
+            )
+            assert r404.status_code == 404
+
+        app.dependency_overrides[require_customer] = _as_jiya_alias
+        with TestClient(app) as c:
+            r = c.get("/api/customer/creative-os")
+            assert r.status_code == 200
+            body = r.json()
+            ids = {x.get("creative_id") for x in (body.get("creatives") or [])}
+            assert jiya.creative_id in ids
+            assert disposable.creative_id not in ids
+            assert clients_store.canonical_client_id("jiya-billing-alias") == "jiya-makeover"
+    finally:
+        app.dependency_overrides.clear()
+
+
+def test_customer_creative_os_requires_auth():
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+
+    with TestClient(app) as c:
+        r = c.get("/api/customer/creative-os")
+        assert r.status_code in (401, 403)
