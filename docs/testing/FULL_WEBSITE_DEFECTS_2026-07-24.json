@@ -1,0 +1,92 @@
+{
+  "generated_at": "2026-07-24T04:27:00Z",
+  "prod_sha_tested": "7cab5f60",
+  "origin_main": "5199b24",
+  "defects": [
+    {
+      "id": "DEF-001",
+      "severity": "P1",
+      "title": "OpenClaw NL phrase 'Enable calling' misclassified as GREEN",
+      "class": "SECURITY_INTENT_CLASSIFICATION",
+      "surface": "OpenClaw Owner Copilot / Owner OS",
+      "route": "/api/owner-copilot/nl",
+      "role": "code_path (prod SHA lineage 7cab5f60 includes classify_nl)",
+      "status_observed": "misclassification",
+      "evidence": {
+        "pre_fix_local": {
+          "Enable calling": {"safety_lane": "GREEN", "command": "platform.status", "note": "Ambiguous NL → read-only platform.status (fail-safe)"},
+          "enable calls": {"safety_lane": "GREEN", "command": "platform.status"},
+          "start calling": {"safety_lane": "GREEN", "command": "platform.status"},
+          "calling enable": {"safety_lane": "RED", "command": "calling.enable"},
+          "Call chalu karo": {"safety_lane": "RED", "command": "calling.enable"}
+        },
+        "file_lines": [
+          "app/integrations/openclaw/commands.py:409-428 (RED phrase list pre-fix omitted 'enable calling')",
+          "app/platform/owner_os.py:987-988 (parse_intent enable_calling detector pre-fix)"
+        ],
+        "live_auth_gate": "GET/POST /api/owner-copilot/* → 401 unauth (fail-closed auth OK); authenticated live phrase matrix BLOCKED without credentials this session"
+      },
+      "fix": {
+        "branch": "fix/openclaw-intent-calling-phrases",
+        "commit": "f9a2bd1",
+        "draft_pr": "https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/114",
+        "label": "DRAFT_PR",
+        "tests": "tests/test_openclaw_owner_copilot.py::test_calling_enable_phrase_matrix_is_red + tests/test_owner_os.py::test_enable_calling_phrase_synonyms_refused (11 passed)"
+      },
+      "merge_deploy": "DO_NOT_MERGE_DO_NOT_DEPLOY_per_mandate"
+    },
+    {
+      "id": "DEF-002",
+      "severity": "P2",
+      "title": "Public homepage CSP blocks PostHog + CDN font/lucide load failures in automation browser",
+      "class": "FRONTEND_CSP_THIRD_PARTY",
+      "surface": "Public marketing",
+      "route": "/",
+      "role": "unauth",
+      "status_observed": 200,
+      "evidence": {
+        "console": [
+          "CSP script-src blocks https://us-assets.i.posthog.com/static/array.js",
+          "net::ERR_FAILED fonts.googleapis.com Plus Jakarta Sans",
+          "net::ERR_FAILED cdn.jsdelivr.net lucide.min.js"
+        ],
+        "note": "Page still renders 200; analytics/icons may degrade. Automation browser may amplify CDN failures vs real users."
+      },
+      "fix": "backlog — do not ship CSP widen without security review",
+      "label": "LOCAL_FIX_ONLY"
+    },
+    {
+      "id": "DEF-003",
+      "severity": "P3",
+      "title": "Unauth /app/admin shell loads HTML 200 with OpenClaw badge OFF and empty client count",
+      "class": "AUTH_UX_SHELL",
+      "surface": "Admin dashboard",
+      "route": "/app/admin",
+      "role": "unauth",
+      "status_observed": 200,
+      "evidence": {
+        "ui": "OpenClaw Copilot menuitem shows OFF; 'Data load nahi hui — login/refresh karo'; clients badge 0",
+        "api": "/api/owner-copilot/status → 401",
+        "note": "Expected shell-first pattern; truth of OPENCLAW_ENABLED=1 only visible after super-admin auth. Not a bypass."
+      },
+      "fix": "backlog UX copy only",
+      "label": "LOCAL_FIX_ONLY"
+    },
+    {
+      "id": "DEF-004",
+      "severity": "P2",
+      "title": "Authenticated role matrix incomplete this session (no credentials used)",
+      "class": "TEST_COVERAGE_GAP",
+      "surface": "customer/admin/super_admin live UI",
+      "route": "/app/customer,/app/admin,/app/owner,/app/office",
+      "role": "BLOCKED",
+      "status_observed": "not_executed_authenticated",
+      "evidence": {
+        "reason": "Session did not load or use operator credentials; secrets not printed; unauth API gates proven 401",
+        "prior_prod_canaries": "OpenClaw Stage A GREEN/AMBER/RED authenticated canaries already PRODUCTION-PROVEN at deploy of 7cab5f60 per CURRENT_STATE — not re-run here"
+      },
+      "fix": "owner provides disposable canary session OR operator login; then resume Phase C auth matrix",
+      "label": "BLOCKED"
+    }
+  ]
+}
