@@ -88,8 +88,15 @@ def _new_outreach_targets(pol: _policy_mod.Policy, limit: int) -> list[dict[str,
     return out
 
 
-async def run_tick(limit: int | None = None) -> dict[str, Any]:
-    """One scheduler tick. INERT when master flag off. Never raises."""
+async def run_tick(limit: int | None = None, *, force_dry_run: bool = False) -> dict[str, Any]:
+    """One scheduler tick. INERT when master flag off. Never raises.
+
+    ``force_dry_run=True`` makes EVERY send on this tick a simulation, regardless
+    of stored policy. The canary endpoint documents "never sends live"; before
+    this parameter existed that promise rested entirely on ``policy.dry_run``
+    being set correctly, so a policy misconfiguration silently turned the canary
+    into a live sender. A safety promise must be structural, not configural.
+    """
     pol = _policy_mod.get_policy()
     if not pol.enabled:
         # INERT: no lock, no work, no provider. Record the truth for observability.
@@ -106,7 +113,8 @@ async def run_tick(limit: int | None = None) -> dict[str, Any]:
 
     summary: dict[str, Any] = {
         "enabled": True,
-        "dry_run": pol.dry_run,
+        "dry_run": bool(pol.dry_run) or bool(force_dry_run),
+        "forced_dry_run": bool(force_dry_run),
         "processed": 0,
         "outcomes": {},
         "items": [],
@@ -132,6 +140,7 @@ async def run_tick(limit: int | None = None) -> dict[str, Any]:
                 step=t["step"],
                 pol=pol,
                 prospect=rec,
+                force_dry_run=force_dry_run,
             )
             outcome = res.get("outcome", "SKIPPED")
             summary["outcomes"][outcome] = summary["outcomes"].get(outcome, 0) + 1
