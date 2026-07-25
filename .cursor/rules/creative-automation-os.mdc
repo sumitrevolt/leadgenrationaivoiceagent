@@ -1,0 +1,42 @@
+---
+description: Creative Automation OS — governed creative generation, approval, publish gates
+alwaysApply: true
+---
+
+# Creative Automation OS (ADR-143)
+
+Extend `app/marketing/video_pipeline.py` + `video_ad_cycle` + `video_production/` + Postiz.
+Do **not** replace those paths. New code lives under `app/marketing/creative_os/`.
+
+## Non-negotiable invariants
+
+1. **One canonical creative pipeline** — reuse video_ad_cycle / video_pipeline / Postiz; no second scheduler, agent framework, LLM gateway, or social stack.
+2. **Deterministic FFmpeg fallback** always available; providers are adapters behind it.
+3. **Provider adapters** only — never call external generation APIs with customer data.
+4. **New `CREATIVE_*` / GPU / model flags default OFF**; one-flag rollback = `CREATIVE_OS_ENABLED=0`.
+5. **Exact model + checkpoint licences** recorded in `licence.py`; unknown licence = blocked.
+6. **No production-time model downloads** — weights must be pre-provisioned offline.
+7. **Exact output-hash approval** — approve binds creative_id + revision + spec/output/caption/channel hashes; mutation invalidates and bumps revision.
+8. **No auto-spend / automatic ad activation** — no paid campaign budget buttons or auto-publish spend.
+9. **Tenant-scoped** prompts, assets, outputs, caches, metrics — cross-tenant asset resolve = refuse.
+10. **Consent + provenance** required for faces, voices, testimonials, before/after assets.
+11. **No fabricated** ratings, testimonials, prices, results, or claims.
+12. **Local-first** processing; ComfyUI only as isolated lab with allowlisted nodes + pinned commits.
+13. **Per-tenant generation + GPU budgets** enforced; exceed = fail-closed.
+14. **Bounded retries, timeout, circuit breaker** on providers.
+15. **Maximum revision count** (reuse video_ad_cycle / CREATIVE_MAX_REVISIONS).
+16. **No silent prompt/model self-modification** — learning recommends only; never auto-mutates production prompts.
+17. **ComfyUI custom-node allowlist + commit pinning** required before any lab enablement.
+18. **Full generation→publication observability** via delivery_ledger / creative store events.
+19. **Reproducible** prompt, model, seed, and input hashes on every CreativeSpec.
+20. **One-flag rollback** — `CREATIVE_OS_ENABLED=0` returns system to prior video cell behaviour.
+21. **Production calling remains HARD OFF** (`PLATFORM_DIAL_DAILY=0`); never touch Swara/telephony/DLT/Vobiz.
+22. **Marketing Automation and Voice Calling Agent stay architecturally separate products.**
+
+## Implementation rules
+
+- Additive, flag-gated, fail-closed for publish/licence/consent.
+- Provider skeletons must return `provider_unavailable` — never download weights or make external calls.
+- Admin cockpit extends canonical admin/automation shell — no disconnected command center.
+- Customer surfaces reuse video-review / delivery — never expose paths, providers, or infra.
+- Do not deploy or flip production creative flags without explicit owner authorization.

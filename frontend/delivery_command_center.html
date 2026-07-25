@@ -38,6 +38,7 @@
   .refresh-btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 13px;
     cursor:pointer;font-size:12.5px;font-weight:700;color:var(--brand)}
   .refresh-btn:hover{background:var(--brand-soft)}
+  a.refresh-btn{text-decoration:none;display:inline-flex;align-items:center}
 
   .wrap{max-width:1180px;margin:0 auto;padding:16px}
   .col-title{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;
@@ -126,6 +127,7 @@
   <div class="spacer"></div>
   <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
   <span class="chip">🕐 <b id="lastUpdate">Loading…</b></span>
+  <a class="refresh-btn" href="/app/admin" title="Admin dashboard">← Admin</a>
   <button class="refresh-btn" id="btnRefresh">🔄 Refresh</button>
   <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
   <div class="tokrow" id="tokRow">

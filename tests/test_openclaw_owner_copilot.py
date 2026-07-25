@@ -308,6 +308,36 @@ def test_red_calling_nl_rejected(monkeypatch, tmp_path):
     assert executed.get("status") == "REJECTED"
 
 
+@pytest.mark.parametrize(
+    "phrase",
+    [
+        "Enable calling",
+        "enable calling",
+        "enable calls",
+        "start calling",
+        "calling enable",
+        "Call chalu karo",
+    ],
+)
+def test_calling_enable_phrase_matrix_is_red(phrase, monkeypatch, tmp_path):
+    """Word-order / synonym gaps must not downgrade calling enable to GREEN."""
+    from app.integrations.openclaw.commands import classify_nl
+
+    _enable(monkeypatch)
+    _patch_owner_stores(monkeypatch, tmp_path)
+    proposal = classify_nl(phrase)
+    assert proposal["safety_lane"] == "RED", phrase
+    assert proposal["command"] == "calling.enable", phrase
+    r = client.post(
+        "/api/owner-copilot/nl",
+        json={"text": phrase, "execute": False},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert (body.get("proposal") or {}).get("safety_lane") == "RED", phrase
+    assert (body.get("proposal") or {}).get("command") == "calling.enable", phrase
+
+
 def test_amber_pause_requires_approval(monkeypatch, tmp_path):
     _enable(
         monkeypatch,
@@ -415,6 +445,10 @@ def test_admin_dashboard_openclaw_panel_present():
     assert "/api/admin/owner-os/approvals" in r.text
     assert "/api/admin/owner-os/audit" in r.text
     assert "Owner OS = sole authority" in r.text
+    # Enter (no Shift) → ocRun; Shift+Enter keeps newline in #ocText
+    assert 'id="ocText"' in r.text
+    assert 'e.key!=="Enter"' in r.text
+    assert "window.ocRun()" in r.text
     # Office chat card remains separate — OpenClaw must not replace it with office/ask.
     assert 'id="agentCopilotCard"' in r.text
     assert r.text.index("openclawAdminCard") != r.text.index("agentCopilotCard")

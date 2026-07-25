@@ -196,13 +196,19 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "hourly :10",
         "owner": "isha",
     },
+    "sales_autopilot": {
+        "label": "Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED)",
+        "cadence": "hourly :25",
+        "owner": "platform",
+    },
 }
+
 
 # Jobs jinhe run-due recovery kabhi auto-enqueue NAHI karega (side-effect heavy:
 # outbound calls/emails apni window ke bahar dobara nahi bhejne chahiye).
 # "digest" bhi: uske summary-email step me per-day dedupe nahi hai — recovery
 # double-fire = duplicate internal digest email (audit 2026-07-04).
-RUN_DUE_EXCLUDE = {"platform_dial", "email_outreach", "email_followup", "digest"}
+RUN_DUE_EXCLUDE = {"platform_dial", "email_outreach", "email_followup", "digest", "sales_autopilot"}
 
 
 def _now_iso() -> str:
