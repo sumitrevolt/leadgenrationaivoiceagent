@@ -1,6 +1,8 @@
 """Interaction log — append omnichannel touches to DB + jsonl audit.
 
 Every outreach/call/reply writes here when INTERACTION_LOG=1 (default ON).
+An OUTBOUND touch also promotes the resolved lead NEW -> CONTACTED via
+Lead.mark_contacted() (forward lead-status wiring, 2026-07-25).
 Never raises.
 """
 
@@ -102,9 +104,7 @@ async def record(
                 if not contact_id:
                     row = (
                         await session.execute(
-                            select(Contact)
-                            .where(func.lower(Contact.email) == em)
-                            .limit(1)
+                            select(Contact).where(func.lower(Contact.email) == em).limit(1)
                         )
                     ).scalar_one_or_none()
                     if row:
@@ -135,6 +135,19 @@ async def record(
                     occurred_at=_now().replace(tzinfo=None),
                 )
             )
+            # Forward lead-status wiring (2026-07-25): an OUTBOUND touch means we
+            # have now contacted this lead. Promote NEW -> CONTACTED via the model
+            # helper so a lead_status_history row (changed_by='outreach') is written
+            # in the SAME commit. Only direction=='out' (never inbound replies or
+            # drafts) and only NEW leads advance — mark_contacted() never downgrades.
+            # Best-effort: any failure here must not drop the interaction write.
+            if lead_id and (direction or "").strip().lower() == "out":
+                try:
+                    lead_obj = await session.get(Lead, lead_id)
+                    if lead_obj is not None:
+                        lead_obj.mark_contacted("outreach")
+                except Exception as _e:
+                    logger.debug("[interaction_log] mark_contacted skip: %s", _e)
             await session.commit()
     except Exception as e:
         logger.debug("[interaction_log] db skip: %s", e)
