@@ -106,6 +106,12 @@ jobs:
           # TelecallerBrain __init__ key-presence check — dummy kaafi (LLM calls
           # conftest-stubbed, no network).
           GROQ_API_KEY: ci-dummy-key-not-real  # pragma: allowlist secret
+          # Torch/OpenMP thread storms have segfaulted TestClient lifespan on
+          # GH runners (exit 139). Bound native threads for CI stability.
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          TOKENIZERS_PARALLELISM: "false"
         run: pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60
 
 
