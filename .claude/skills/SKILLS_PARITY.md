@@ -82,6 +82,15 @@
 | 8 | `db-migration-safety` | expand-contract, PgBouncer, rollback SQL | `supabase-postgres-best-practices`, `verify-ship` |
 | 9 | `supply-chain-security` | pip-audit, base-image age, typosquat, Actions pinning | `security-review`, `model-asset-bake` |
 
+## Governance — Agent Harness Standard (Master Blueprint companion)
+
+> Vendor-neutral harness control matrix (C-01..C-15, L1–L5). Scores agent loops; does not invent new STAFF personas.
+
+| Item | Path | Covers | Related existing (don't dup) |
+|---|---|---|---|
+| Skill | `agent-harness-standard/SKILL.md` (+ `reference.md`) | control matrix, self-cert checklist, maturity ladder | `agent-loop-design`, `leadgen-automation-reliability` |
+| Agent | `.claude/agents/harness-conformance-auditor/AGENT.md` | scores one loop C-01..C-15 → L1–L5 | `agent-workflow-auditor` |
+
 ## Cursor built-in → Claude repo skill
 
 | Cursor (`~/.cursor/skills-cursor/`) | Claude (repo) | Notes |

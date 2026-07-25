@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-25 (Automation-Max safe flags LIVE + harness blueprint PR)
+Goal: User option-1 safe automation ON prod; ship Master Blueprint harness governance + pin-safe VPS scripts as PR.
+Inspected: Mission Control Band list; printenv in leadgen_app; ADR-097 :latest landmine; origin/main tip 075dea8.
+Problems Found: (1) OPS_WATCHDOG/CADENCE/JOURNEY OFF on prod. (2) Flag recreate without APP_VERSION pulled :latest → skew to 97521572. (3) Harness auditor skill untracked.
+Changed: VPS flags SET + rollback to 441cf37a; +scripts/app_version_pin.py; automation-max + readiness pin-safe; harness-conformance-auditor + agent-harness-standard; AI_WORKFORCE 11/31; tests; context lanes.
+Tests Run: pytest tests/test_automation_max_flags_script.py (pending this loop).
+Verification Evidence: /health=441cf37a; Band list only AUTO_EMAIL; printenv OPS/CADENCE/JOURNEY/APPROVAL=1; dial/WA=0.
+Risks: Script already scp'd to VPS earlier; PR is repo sync. Cold email still OFF.
+Remaining: Merge PR; observe cadence; GTM Estique human send.
+Next Highest Priority: PR merge + 2nd paying customer.
+
+## Loop Run
 - Date: 2026-07-21
 - Goal: 31-agent workforce factory + OpenClaw Swara transfer (no voice edits); reuse existing runtime/Owner OS
 - Inspected: team.STAFF, agent_registry, agent_runtime, pilots, OpenClaw, staff.run_*, Graphify Owner OS community

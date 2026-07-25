@@ -1,25 +1,28 @@
-# ACTIVE_WORK — max 3 workstreams
+﻿# ACTIVE_WORK - max 3 workstreams
 
 ---
 
-## WS-1 Video Review Stage 3 — DEPLOYED, AUTH CANARY PENDING
+## WS-1 Automation-Max (MAIN GOAL) - PHASE-1 LIVE
 - **ID:** WS-1
-- **Release:** PR #97, merge/deploy SHA `510ed7bc1c7834892f81b9db092d1febb50dad48`, workflow run `30002538121` successful (still in production ancestry; current prod tip `7cab5f60`).
-- **Status:** Exact-SHA five-container production parity was proven at Stage 3 ship. Customer cohort / WhatsApp review / publish / daily video scheduler remain OFF.
-- **Safety:** No customer decision, external send, call, billing mutation, or queue mutation in triage.
-- **Next exact action:** Owner signs in; owner-managed config enables only `VIDEO_CUSTOMER_REVIEW_ENABLED=1` plus `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover`; then one authenticated read-only Jiya Preview canary.
+- **Business outcome:** Safe automation ON; humans approve high-impact/external only
+- **Evidence:** VPS flags SET 2026-07-25T10:34Z; Band list cleared for OPS/CADENCE; prod `441cf37a`
+- **Current state:** LIVE. Repo ships pin-safe scripts + harness auditor (this PR).
+- **Next exact action:** Observe Anika/cadence drafts; optional `--with-email` later
+- **Out of scope:** WA auto · dial · reply-auto-send · sales-autopilot
 
 ---
 
-## WS-2 GTM Hot Queue /app/inbox — IN PROGRESS
+## WS-2 GTM Hot Queue → 2nd paid customer - ACTIVE
 - **ID:** WS-2
-- **Status:** Acquire second paid Marketing customer from lead-magnet inquiries with human-controlled outreach.
-- **Next exact action:** Continue `/app/inbox` Hot Queue follow-up; platform_dial and WhatsApp auto-send stay OFF.
+- **Business outcome:** Second Marketing paid customer
+- **Current state:** Estique packet ready; human 1-click send
+- **Next exact action:** Owner send decision
+- **Out of scope:** cold auto-calls · bulk WA
 
 ---
 
-## WS-3 OpenClaw Admin Dashboard — LIVE Stage A (GREEN only)
+## WS-3 Master Blueprint harness governance - IN PR
 - **ID:** WS-3
-- **Release:** PR #105 merge `7cab5f609846e2c584edb8322dc684378a15e995` deployed to prod `7cab5f60` via `deploy_vps.sh`.
-- **Status:** Admin `#openclawAdminCard` LIVE. Authenticated GREEN canaries SUCCEEDED; AMBER Stage A REJECTED; RED `calling.enable` REJECTED; calling HARD OFF. Gateway token still EMPTY.
-- **Next exact action:** Separately reviewed Stage B design for production AMBER approvals — do not enable yet. Optional follow-up: NL phrase `enable calling` → RED (word-order gap).
+- **Business outcome:** Agent Harness Standard + conformance auditor in repo (Master Blueprint companion)
+- **Current state:** skill + AGENT.md + AI_WORKFORCE 11/31 sync
+- **Next exact action:** Merge this PR; optional score a loop with harness-conformance-auditor

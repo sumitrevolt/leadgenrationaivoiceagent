@@ -7,7 +7,7 @@
 
 ## Tier 1 — Claude Code Subagents (dev-time council, fan-out via Agent tool)
 
-10 specialist subagents (`.claude/agents/*/AGENT.md`). Each runs in an **isolated context** so the main thread stays clean and N can fan out in parallel. Read-only auditors find+prove (`file:line`); the one writer implements; the orchestrator (you, main thread) synthesizes.
+**11** specialist subagents (`.claude/agents/*/AGENT.md`). Each runs in an **isolated context** so the main thread stays clean and N can fan out in parallel. Read-only auditors find+prove (`file:line`); the one writer implements; the orchestrator (you, main thread) synthesizes.
 
 | Agent | Lens | R/W | Dispatch when |
 |-------|------|-----|---------------|
@@ -19,6 +19,7 @@
 | **frontend-ux-engineer** | UI craft + conversion | read-only | any visible page; "design dekho", "mobile toota", "conversion kam" |
 | **infra-doctor** | VPS/Docker/Celery/observability | read-only | "site down", health-check, deploy-safety, scheduler resilience |
 | **agent-workflow-auditor** | Agent loops/cost/eval | read-only | "loops healthy?", loop governance, before adding a loop |
+| **harness-conformance-auditor** | C-01..C-15 / L1–L5 harness score | read-only | "self-certify loop", maturity level, control-matrix audit vs `agent-harness-standard` |
 | **mcp-engineer** | `/mcp` + MCP-as-product | read+write (MCP only) | anything MCP / A2A card / Arya / key rotation |
 | **revenue-strategist** | CSO/growth/moat | read-only | "advancement council", ROI roadmap, "kya banaye ab", go-no-go |
 
@@ -28,11 +29,11 @@
 
 ## Tier 2 — Platform AI-Staff Agents (runtime, scheduled, customer/ops-facing)
 
-17 agents in `app/platform/team.py` + `team_scheduler.py` (24 IST-scheduled jobs). These RUN on the VPS worker/scheduler and do the actual business work. Full I/O: `docs/AGENT_REGISTRY.md` · UI `/app/team` · API `GET /api/platform/team`.
+**31** canonical agents in `app/platform/team.py` + `team_scheduler.py` (governed by `agent_registry.py`). These RUN on the VPS worker/scheduler and do the actual business work. Full I/O: `docs/AGENT_REGISTRY.md` · UI `/app/team` · API `GET /api/platform/team`. **Do not invent new STAFF personas** — gaps are usually capabilities/flags, not missing names (Aditi explicitly rejected).
 
-- **Marketing (5):** Isha (social/GBP) · Dev (KB/RAG) · Rohan (outreach/leads) · Ravi (SEO) · Neha (pipeline)
-- **Voice (4):** Swara (telecaller) · Tara (telephony infra) · Arjun (QA) · Meera (trainer)
-- **Platform (9):** Boss · Kavya (ops) · Hermes (infra) · Nikhil (revenue) · Vikram (code-upgrader) · Guru (skills) · Pranav (SRE) · Vidya (FinOps) · Arnav (security) — plus Arya (MCP), Kabir (DBRE), Aryan (deps-CVE), Diya (data-integrity) gated.
+- **Marketing:** Isha (social/GBP) · Dev (KB/RAG) · Rohan (outreach/leads) · Ravi (SEO) · Neha (pipeline) · + CRM/social/cadence staff (Priya/Zara/Anika/Ira)
+- **Voice:** Swara (telecaller) · Tara (telephony infra) · Arjun (QA) · Meera (trainer) · Ananya (booking) · Riya (inbound) · Lekha (analytics) · Raksha (escalation)
+- **Platform:** Boss · Kavya (ops) · Hermes (infra) · Nikhil (revenue) · Vikram (code-upgrader) · Guru (skills) · Pranav (SRE) · Vidya (FinOps) · Arnav (security) · Arya (MCP) · Kabir (DBRE) · Aryan (deps-CVE) · Diya (data-integrity)
 
 > Tier-1 `database-architect` is the **dev-time** counterpart of Tier-2 **Kabir**; `agent-workflow-auditor` audits the Tier-2 loops; `revenue-strategist` mirrors **Nikhil**. Dev-time finds & designs; runtime executes.
 

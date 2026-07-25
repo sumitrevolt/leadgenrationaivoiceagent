@@ -1,19 +1,27 @@
-# SESSION_HANDOFF — overwrite every session end
+﻿# SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-PR #116 P1 repair: Celery enqueue, state machine, strict approval + live file SHA, QA evidence, budget, customer creative-os routes. Update Draft PR. No deploy.
+Continue Automation-Max + Master Blueprint harness governance; ship PR.
 
 ## Outcome
-**PARTIAL.** Code P1 repairs complete and pushed; authenticated interactive browser canary still owner-gated (credentials). API TestClient enqueue canary + unit worker lifecycle proven. Prod untouched.
+**PR-ready on `feat/automation-max-harness-blueprint`.**
 
-## Production truth
-- `/health.version`: `7cab5f60` healthy production
-- `origin/main`: `5199b24`
-- PR #116 head: pending push after P1 commit
-- Calling HARD OFF
+### Prod (already done earlier this session)
+- Safe flags LIVE: OPS_WATCHDOG / CADENCE / JOURNEY / APPROVAL_EMAIL_NOTIFY
+- `/health`=`441cf37a` (after `:latest` skew rollback)
+- Cold email still OFF
 
-## Exact next task
-Owner runs authenticated admin + customer browser canary on disposable tenant with local `CREATIVE_OS_ENABLED=1`; then mark PR ready if CI green.
+### Repo (this branch)
+- `scripts/app_version_pin.py` + Automation-Max + readiness scripts pin-safe (ADR-097)
+- `tests/test_automation_max_flags_script.py`
+- `.claude/skills/agent-harness-standard/` + `harness-conformance-auditor`
+- `docs/AI_WORKFORCE.md` 11 subagents / 31 STAFF
+- context + SKILLS_PARITY updates
 
-## Rollback
-`CREATIVE_OS_ENABLED=0`; revert P1 commits on `feat/creative-automation-os`.
+## Owner next
+1. Merge PR when CI green
+2. Watch cadence drafts; GTM Estique human send
+3. Optional: `--with-email` after deliverability OK
+
+## Out of scope
+Deploy of this PR to VPS (script already on VPS from scp); cold email; dial; WA auto
