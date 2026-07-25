@@ -20,6 +20,7 @@ import asyncio
 import json
 import os
 import re
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -437,20 +438,82 @@ async def _src_opendata(niche: str, city: str, limit: int) -> dict[str, Any]:
     return {"source": "opendata", "leads": leads}
 
 
-async def enrich_missing_emails(limit: int = 8) -> dict[str, Any]:
+def _enrich_max_attempts() -> int:
+    """Bounded retry per prospect (default 2). EMAIL_ENRICH_MAX_ATTEMPTS override."""
+    try:
+        return max(1, int(os.environ.get("EMAIL_ENRICH_MAX_ATTEMPTS", "2") or "2"))
+    except Exception:
+        return 2
+
+
+def _enrich_row_delay_s() -> float:
+    """Inter-row politeness delay. Har row ek ALAG third-party site hai (per-host
+    rate ka sawaal nahi) — yeh delay hamare apne egress/DNS burst ko chhota rakhta
+    hai. EMAIL_ENRICH_ROW_DELAY_S se tune (0 = off)."""
+    try:
+        return max(0.0, min(5.0, float(os.environ.get("EMAIL_ENRICH_ROW_DELAY_S", "0.3") or 0.3)))
+    except Exception:
+        return 0.3
+
+
+async def enrich_missing_emails(limit: int = 8, deadline_s: float | None = None) -> dict[str, Any]:
     """Store ke website-wale prospects jinka email nahi — email_finder waterfall
-    (site-extract → pattern → MX). Kabhi raise nahi."""
+    (site-extract → pattern → MX). Kabhi raise nahi.
+
+    STALL FIX (2026-07-25): pehle yeh har run ``_read_all()`` ke HEAD se wahi
+    pehli ``limit`` no-email rows dobara try karta tha — failure ka koi marker
+    nahi tha, isliye scan kabhi aage badha hi nahi (prod audit: 4,137
+    ready+website rows bina email, sendable backlog sirf 182). Ab har attempt
+    ``email_enrich_attempts`` + ``email_enrich_last_at`` stamp karta hai (ek
+    atomic bulk write), aur attempts >= EMAIL_ENRICH_MAX_ATTEMPTS (default 2)
+    wali rows SKIP hoti hain — scan har run naye prospects tak pahunchta hai.
+
+    STATE-MACHINE FIX: email milte hi ``needs_enrich``/``new`` row "ready"
+    PROMOTE hoti hai (outreach sirf status='ready' padhta hai — pehle enriched
+    rows black hole me rehti thi). ready/sent/replied/client/dead ka status
+    KABHI touch nahi hota — sirf email field milti hai.
+
+    ``deadline_s`` = wall-clock budget. Har row se PEHLE check hota hai, aur
+    expire hone pe loop TOOT-ta hai — par jo attempts ho chuke wo phir bhi
+    likhe jaate hain (progress kabhi discard nahi). Yeh Celery sweep ke liye
+    zaroori hai: ek row worst-case ~20s+ le sakti hai (2 × 10s HTTP timeout),
+    isliye bina deadline ke ek "chhota" batch bhi task ke soft_time_limit ko
+    paar kar sakta hai — aur SoftTimeLimitExceeded us poore batch ke attempt
+    markers ko gira dega, yaani wahi stall wapas.
+    """
     found = 0
     tried = 0
+    exhausted = 0
+    deadline_hit = False
+    updates: dict[str, dict[str, Any]] = {}
+    t0 = time.monotonic()
+    row_delay = _enrich_row_delay_s()
     try:
         from app.platform import email_finder, prospector
 
+        max_attempts = _enrich_max_attempts()
+        now = _now()
         for r in prospector._read_all():
             if tried >= limit:
                 break
+            if deadline_s is not None and (time.monotonic() - t0) >= deadline_s:
+                deadline_hit = True
+                break
             if r.get("email") or not r.get("website"):
                 continue
+            attempts = 0
+            try:
+                attempts = int(r.get("email_enrich_attempts") or 0)
+            except Exception:
+                attempts = 0
+            if attempts >= max_attempts:
+                exhausted += 1
+                continue
             tried += 1
+            fields: dict[str, Any] = {
+                "email_enrich_attempts": attempts + 1,
+                "email_enrich_last_at": now,
+            }
             try:
                 res = await email_finder.find(
                     r["website"], owner_name=str(r.get("business_name") or "")
@@ -458,14 +521,42 @@ async def enrich_missing_emails(limit: int = 8) -> dict[str, Any]:
                 best = (res.get("emails") or [None])[0] if isinstance(res, dict) else None
                 email = best.get("email") if isinstance(best, dict) else best
                 if email:
-                    prospector.set_prospect_fields(r["id"], {"email": str(email)[:200]})
+                    fields["email"] = str(email)[:200]
+                    if (r.get("status") or "") in ("needs_enrich", "new"):
+                        fields["status"] = "ready"
                     found += 1
             except Exception:
-                continue
-            await asyncio.sleep(0.3)
+                pass  # attempt marker phir bhi likho — warna scan wahi atkega
+            pid = str(r.get("id") or "")
+            if pid:
+                updates[pid] = fields
+            if row_delay:
+                await asyncio.sleep(row_delay)
+        if updates:
+            prospector.set_prospect_fields_bulk(updates)
     except Exception as e:
-        return {"tried": tried, "found": found, "error": str(e)[:120]}
-    return {"tried": tried, "found": found}
+        # Best-effort flush: jo attempts ho chuke unke markers bachao, warna
+        # ek transient error poore batch ko dobara-try-able chhod deta hai.
+        if updates:
+            try:
+                from app.platform import prospector as _p
+
+                _p.set_prospect_fields_bulk(updates)
+            except Exception:
+                pass
+        return {
+            "tried": tried,
+            "found": found,
+            "skipped_exhausted": exhausted,
+            "deadline_hit": deadline_hit,
+            "error": str(e)[:120],
+        }
+    return {
+        "tried": tried,
+        "found": found,
+        "skipped_exhausted": exhausted,
+        "deadline_hit": deadline_hit,
+    }
 
 
 async def _src_osm(niche: str, city: str, limit: int) -> dict[str, Any]:

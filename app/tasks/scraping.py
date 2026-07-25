@@ -4,6 +4,9 @@ Background tasks for lead scraping
 """
 
 import json
+import os
+import time
+import uuid
 
 from celery import shared_task
 
@@ -12,8 +15,8 @@ from app.lead_scraper.scraper_manager import LeadScraperManager
 from app.models.base import get_db_session
 from app.models.campaign import Campaign, CampaignStatus
 from app.models.lead import Lead, LeadSource, LeadStatus
-from app.utils.logger import setup_logger
 from app.platform.celery_async import run as run_async
+from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
@@ -297,3 +300,195 @@ def enrich_lead_data(lead_ids: list[str] = None, limit: int = 50):
         return {"status": "failed", "error": str(e)}
 
     return {"status": "completed", "enriched_count": enriched_count}
+
+
+# ---------------------------------------------------------------------------
+# PROSPECT email-enrichment sweep (data/prospects.jsonl store — NOT the `leads`
+# table that enrich_lead_data above walks; the outreach sender reads the JSONL).
+#
+# WHY A TASK: POST /api/growth/harvest/enrich used to `await
+# enrich_missing_emails(limit)` inline in the HTTP request. Each row does a live
+# site fetch (2 x 10s httpx timeout) + MX lookups + a politeness sleep, so a
+# meaningful batch pins a web worker for many minutes — exactly what CLAUDE.md
+# §5 forbids ("Web process KABHI heavy job na chalaye — Celery only"). The only
+# other caller was run_harvest's limit=6, i.e. ~12-18 rows/day against a
+# 4,216-row enrichable backlog.
+#
+# Lands on the `scraping` queue via app/worker.py's static `app.tasks.scraping.*`
+# route, which leadgen_worker already consumes (-Q celery,calling,scraping,...).
+# No new queue, no new worker, no compose change.
+# ---------------------------------------------------------------------------
+
+# Rows per set_prospect_fields_bulk() write. That call rewrites the ENTIRE ~20MB
+# JSONL, so per-row writes are out; but a single giant write is equally wrong —
+# a hard kill mid-run would discard every attempt marker and re-create the stall
+# this whole change exists to fix. 25 caps the loss to one batch.
+_SWEEP_BATCH_DEFAULT = 25
+# Rows per task run. 100 x ~4s observed-typical = ~7min, matching the deadline.
+_SWEEP_MAX_ROWS_DEFAULT = 100
+# Wall-clock budget handed to enrich_missing_emails. Deliberately below
+# soft_time_limit so OUR deadline fires first and flushes progress, instead of
+# Celery's SoftTimeLimitExceeded killing an unflushed batch.
+_SWEEP_DEADLINE_S_DEFAULT = 420
+_SWEEP_SOFT_TIME_LIMIT = 480
+_SWEEP_TIME_LIMIT = 540
+# Lease TTL must EXCEED time_limit, else a slow-but-alive run loses its lease and
+# a second worker starts rewriting the same file concurrently (lost update).
+_SWEEP_LEASE_TTL_S = 900
+_SWEEP_LEASE_KEY = "harvest:email_enrich_sweep:lease"
+
+
+def _sweep_enabled() -> bool:
+    """EMAIL_ENRICH_SWEEP — INERT by default (AUTOMATION_FLAGS registry)."""
+    return os.environ.get("EMAIL_ENRICH_SWEEP", "0").strip().lower() in ("1", "true", "yes")
+
+
+def _sweep_arg(override: int, env_name: str, default: int, lo: int, hi: int) -> int:
+    """Resolve a bound: explicit caller arg (0/negative = unset) > env > default.
+    Both paths are clamped to [lo, hi] so an admin-supplied value can never widen
+    the sweep past what the worker's time/memory limits can absorb."""
+    try:
+        raw = override if override > 0 else int(os.environ.get(env_name, "") or default)
+        return max(lo, min(hi, raw))
+    except Exception:
+        return default
+
+
+def _sweep_redis():
+    try:
+        import redis as _redis
+
+        return _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
+    except Exception:
+        return None
+
+
+def _release_sweep_lease(token: str) -> None:
+    if not token:
+        return
+    r = _sweep_redis()
+    if r is None:
+        return
+    try:
+        cur = r.get(_SWEEP_LEASE_KEY)
+        if isinstance(cur, bytes):
+            cur = cur.decode("utf-8", "ignore")
+        if str(cur or "") == token:
+            r.delete(_SWEEP_LEASE_KEY)
+    except Exception:
+        pass
+
+
+@shared_task(
+    bind=True,
+    max_retries=2,
+    autoretry_for=(Exception,),
+    retry_backoff=60,
+    retry_backoff_max=300,
+    retry_jitter=True,
+    soft_time_limit=_SWEEP_SOFT_TIME_LIMIT,
+    time_limit=_SWEEP_TIME_LIMIT,
+)
+def email_enrichment_sweep(self, max_rows: int = 0, batch: int = 0, deadline_s: int = 0):
+    """Drain the prospect email-enrichment backlog in bounded, checkpointed batches.
+
+    Single-flight via a Redis lease with owner-token compare-and-delete (mirrors
+    app/tasks/kb_niche_refresh.py). Fail-CLOSED when Redis is unreachable: with no
+    dedupe guarantee, two concurrent runs would each _read_all() then rewrite the
+    whole JSONL and one would silently clobber the other's attempt markers.
+
+    Idempotent by construction — enrich_missing_emails stamps
+    email_enrich_attempts per row and skips rows at EMAIL_ENRICH_MAX_ATTEMPTS, so
+    a re-run resumes rather than repeating. Failures raise (bounded retry, then
+    the worker's task_failure signal records to dlq:failed_tasks).
+    """
+    if not _sweep_enabled():
+        return {"status": "skipped", "reason": "flag_off", "flag": "EMAIL_ENRICH_SWEEP"}
+
+    rows_cap = _sweep_arg(max_rows, "EMAIL_ENRICH_SWEEP_MAX_ROWS", _SWEEP_MAX_ROWS_DEFAULT, 1, 1000)
+    batch_size = _sweep_arg(batch, "EMAIL_ENRICH_SWEEP_BATCH", _SWEEP_BATCH_DEFAULT, 1, 100)
+    budget = _sweep_arg(
+        deadline_s,
+        "EMAIL_ENRICH_SWEEP_DEADLINE_S",
+        _SWEEP_DEADLINE_S_DEFAULT,
+        30,
+        _SWEEP_SOFT_TIME_LIMIT - 30,
+    )
+
+    r = _sweep_redis()
+    if r is None:
+        logger.warning("[enrich-sweep] no redis — refusing to run without a dedupe lease")
+        return {"status": "skipped", "reason": "no_redis"}
+    token = uuid.uuid4().hex
+    try:
+        acquired = r.set(_SWEEP_LEASE_KEY, token, nx=True, ex=_SWEEP_LEASE_TTL_S)
+    except Exception as e:
+        logger.warning("[enrich-sweep] lease error error_class=%s", type(e).__name__)
+        return {"status": "skipped", "reason": "lease_error"}
+    if not acquired:
+        return {"status": "skipped", "reason": "already_running"}
+
+    from celery.exceptions import SoftTimeLimitExceeded
+
+    from app.platform import lead_harvester
+
+    t0 = time.monotonic()
+    tried = found = exhausted = batches = 0
+    stopped = "rows_cap"
+    try:
+        while tried < rows_cap:
+            remaining_time = budget - (time.monotonic() - t0)
+            if remaining_time <= 1:
+                stopped = "deadline"
+                break
+            # One bulk write per batch; enrich_missing_emails flushes its own
+            # attempt markers before returning, so progress survives the loop exit.
+            asked = min(batch_size, rows_cap - tried)
+            res = run_async(
+                lead_harvester.enrich_missing_emails(limit=asked, deadline_s=remaining_time)
+            )
+            batches += 1
+            got = int(res.get("tried") or 0)
+            tried += got
+            found += int(res.get("found") or 0)
+            # Each batch re-scans from the head, so this is a snapshot of rows
+            # already at max attempts — take the high-water mark, not a sum.
+            exhausted = max(exhausted, int(res.get("skipped_exhausted") or 0))
+            if res.get("error"):
+                stopped = "error"
+                logger.warning("[enrich-sweep] batch error: %s", str(res.get("error"))[:120])
+                break
+            if res.get("deadline_hit"):
+                stopped = "deadline"
+                break
+            if got < asked:
+                # Short batch without a deadline hit = the scan reached EOF, so
+                # nothing enrichable is left this pass. Breaking here avoids one
+                # wasted full 20MB _read_all() just to confirm it.
+                stopped = "backlog_empty"
+                break
+    except SoftTimeLimitExceeded:
+        # Our own deadline should always fire first; if it didn't, exit cleanly
+        # (completed batches are already written) rather than dying unflushed.
+        stopped = "soft_time_limit"
+        logger.warning("[enrich-sweep] soft time limit hit after %s rows", tried)
+    finally:
+        _release_sweep_lease(token)
+
+    out = {
+        "status": "completed",
+        "tried": tried,
+        "found": found,
+        "skipped_exhausted": exhausted,
+        "batches": batches,
+        "stopped": stopped,
+        "duration_s": round(time.monotonic() - t0, 1),
+    }
+    logger.info("[enrich-sweep] %s", out)
+    try:
+        lead_harvester._append_run(
+            {"ts": lead_harvester._now(), "job": "email_enrich_sweep", **out}
+        )
+    except Exception:
+        pass
+    return out
