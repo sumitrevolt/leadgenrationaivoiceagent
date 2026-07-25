@@ -120,6 +120,28 @@ DETAIL_NODE_SPECS: list[tuple] = [
             "safety_lane": "AMBER",
         },
     ),
+    (
+        "detail_agentic_rag",
+        "Agentic / graph RAG",
+        5,
+        "kb_rag",
+        "store",
+        "CODE-PRESENT",
+        ["app/agents/agentic_rag.py", "app/voice_agent/graph_rag.py"],
+        "Multi-step agentic retrieval over the graph/vector knowledge base.",
+        {
+            # First genuine L2: hangs off the L1 group `detail_kb_rag` in the
+            # SAME domain. Cleared the bar on graph 3ac33e3f with reviewed
+            # exact-file ownership (graph_rag.py -> kb_rag) plus a feature-flag
+            # signal, and a dominant kb_rag dependency neighbourhood (10 vs 2).
+            "depth_level": 2,
+            "parent_node_id": "detail_kb_rag",
+            "legacy_node_id": "s_ragadv",
+            "source_provenance": "legacy-migrated",
+            "flags": ["AGENTIC_RAG_MIN_SCORE", "LIGHTRAG_DIR", "LIGHTRAG_EMBED_DIM"],
+            "safety_lane": "GREEN",
+        },
+    ),
 ]
 
 

@@ -161,7 +161,8 @@ def test_registry_contains_every_declared_detail_node():
 def test_exact_expected_counts_for_this_pr():
     c = bg.build_graph()["counts"]
     assert c["l0"] == 48, c
-    assert c["nodes"] == 53, c
+    assert c["nodes"] == 54, c
+    assert c["l1"] == 5 and c["l2"] == 1, c
     assert c["nodes"] == c["l0"] + c["l1"] + c["l2"]
 
 
