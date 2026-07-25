@@ -19,7 +19,7 @@ Continue Automation-Max + Master Blueprint harness governance; ship PR.
 - context + SKILLS_PARITY updates
 
 ## Owner next
-1. Merge PR when CI green
+1. Merge PR https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/135 when CI green
 2. Watch cadence drafts; GTM Estique human send
 3. Optional: `--with-email` after deliverability OK
 
