@@ -2222,3 +2222,39 @@ Consequence: Contaminated numbers get VOID after deploy (ops plan); next real in
 **Verification:** `tests/test_creative_os.py` (17) + video/postiz regressions green; `prod_check.py` OK; `check_secrets.py` clean. No production deploy or flag activation.
 
 **Consequence:** Draft PR for owner review. Rollback = `CREATIVE_OS_ENABLED=0`. GPU/lab providers stay blocked until licence + hardware preflight.
+
+## ADR-144 (2026-07-25) — Master Blueprint hierarchy: L1 is domain-rooted, L2 needs an L1 group [LIVE]
+**Context:** The v4 validator required every `depth > 0` node to carry `parent_node_id` or `parent_flow_id`. The curated L0 layer is 48 nodes citing ~67 files, so most detail modules have no honest L0 parent — and the rule *forced* one. That is the mechanism behind the false mappings caught during derivation: `admin_ui -> public_landing`, `celery -> app_fastapi`, `brand_frames -> public_landing`, `s_gbp -> public_landing` (accepted on a single Graphify vote).
+
+**Decision:** Reachability is now per depth. **L1** is reachable through its DOMAIN (or a flow, or a verified node) — a domain-rooted L1 node must never be forced under an L0 aggregate. **L2** still requires a real same-domain **L1** group parent (or a flow); parenting L2 directly onto an L0 aggregate skips the domain/flow layer and was rejected (`s_stttts -> voice_agent`, where `voice_agent` is L0 — resolved to L1 domain-rooted rather than inventing a group). The orphan rule is scoped to L0: detail nodes are reached by hierarchy, not overview edges, so demanding an edge would force fabricated connections. Validator enforces globally: parent exists, no self-parent, no cycles, parent depth strictly above child, L2 parent must be L1, node-parented children share the parent's domain.
+
+**Verification:** Negative tests pin every case above by name. `validate_graph(strict_files=True)` ok. L0 stable at 48 nodes / 52 edges / 11 flows / 18 domains / 9 layers; registry now L0 48 + L1 5 + L2 1 = 54. PRs #128, #131, #133 merged; live in production at `441cf37a`.
+
+**Consequence:** Detail migration can proceed without inventing parents. `blueprint_detail_nodes.py` is a split source file feeding the ONE canonical `NODES` registry — a split file is fine, a second graph source of truth is not, and the import is fail-closed (a broken detail module crashes rather than silently reverting 54 nodes to 48).
+
+## ADR-145 (2026-07-25) — Evidence tiers for blueprint derivation: ownership over adjacency [LIVE]
+**Context:** Automating "which domain/parent does this legacy node belong to" produced confidently-wrong answers three times. Broad directory ownership is meaningless here (`app/api` and `app/platform` hold hundreds of unrelated modules). A ratio-only dominance rule fired on `1 vs 0`. And AST dependency edges prove "A uses B", never "A belongs to B".
+
+**Decision:** `app/platform/blueprint_ownership.py` holds a **reviewed** registry — every prefix was read file-by-file; mixed packages are carved by explicit exclusion (KB/RAG under `app/voice_agent/`, consent/compliance under `app/telephony/`, the generic `idempotency` helper under `app/billing/`) or REJECTED wholesale with a stated reason (`app/api/`, `app/platform/`, `app/models/`, `app/utils/`, `app/middleware/`, `app/integrations/`, `app/tasks/`, `app/agents/`, `app/ml/`, `app/llm/`). Exact-file mappings beat prefixes. Ownership is ONE signal and can never yield HIGH alone; auto-accept needs >= 4 domain votes AND >= 2 distinct edges AND >= 1 independent current-source signal (route / Celery task / scheduler job / agent registry / feature flag). Critical domains need two non-AST signals. **A specific `parent_node_id` may never be claimed from dependency votes alone** — naming a domain from AST is survivable, asserting a structural parent is not.
+
+**Verification:** Live catch — `s_council` (LLM Council) scored `kb_rag` 4-2 and would have been parented under the RAG node purely because the council READS the knowledge base; `app/agents/` has no reviewed ownership, so it was held at MEDIUM and NOT imported. Result on `3ac33e3f`: 136/136 candidates classified, 6 imported, 0 fabricated mappings. PRs #130, #131, #133.
+
+**Consequence:** Import rate is deliberately low and honest. Raising it requires widening the *reviewed* ownership registry, not loosening thresholds.
+
+## ADR-146 (2026-07-25) — Reconciliation tooling fails closed; adjacency is not a contract [LIVE]
+**Context:** `blueprint_edge_reconcile --check` was the CI completeness gate but wrapped everything in `except Exception: sys.exit(0)` — a failed parse or broken canonical import would have reported success. Separately, `MIGRATE_VERIFIED` implied edges were safe to import when only their endpoints had been resolved.
+
+**Decision:** Fatal input failure returns `ok=False` with errors; `--check` and summary mode exit 1, unhandled exceptions exit 2 with context. Classification renamed to `ENDPOINTS_RESOLVED_REVIEW_REQUIRED`, and every entry carries `endpoint_resolution` / `contract_status` / `evidence_level` / `eligible_for_import` / `imported`; `IMPORTABLE_CLASSIFICATIONS` is empty. A legacy `{f,t}` literal proves adjacency only — `kind`, condition, mode, queue, data contract, success/failure/retry, audit event, tenant and idempotency propagation all stay `None`, asserted by test. Exact duplicate literals, canonical collapse collisions and already-existing canonical pairs are three distinct cases; an existing pair is `contract_equivalence=UNVERIFIED`, never assumed equivalent. Raw input is never silently de-duplicated.
+
+**Verification:** Measured, not assumed — 345 raw literals = 341 unique + 4 exact duplicates (`worker->prospect`, `worker->self_improve`, `ops->launch`, `pipeline_ops->events`); the historical "344" estimate was wrong. 345/345 accounted, 0 edges imported. PR #132.
+
+**Consequence:** Edge import is a separate future slice requiring per-field evidence. A tool that cannot read its inputs can no longer claim success.
+
+## ADR-147 (2026-07-25) — Never mutate sys.path at import time in test-imported modules [LIVE]
+**Context:** `scripts/blueprint_derive.py` inserted the repo root into `sys.path` at module level so the CLI would work. pytest imports that module. CI `prod_check + pytest` then segfaulted (exit 139) twice at two different sites — once inside `test_scheduler_admin`'s `importlib.reload`, once with no Python frame at all. `prod_check` itself always passed; it was never a logic failure.
+
+**Decision:** A second root entry lets `app` resolve under two module identities, so native extensions (torch / av / ctranslate2 — 155 loaded) re-initialise in one process and crash the interpreter. Path fixes now live in `_ensure_repo_importable()`, called from `__main__` only. Regression tests in both reconcilers assert no `sys.path.insert` appears above the `__main__` guard.
+
+**Verification:** Segfault reproduced twice on the offending commit, gone immediately after the fix; `prod_check + pytest` green at 8m33s. PR #131.
+
+**Consequence:** Any repo script that pytest imports must keep CLI-only path setup inside `__main__`. Related prior art: `822f5dd` fixed a different exit-139 via NullPool.
