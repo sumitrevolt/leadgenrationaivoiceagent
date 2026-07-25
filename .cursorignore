@@ -12,7 +12,7 @@ uat_evidence/
 graphify-out/
 unity/
 voice_stack/models/
-models/
+/models/
 data/lead_magnets/
 *.log
 *.db
