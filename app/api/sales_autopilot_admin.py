@@ -131,10 +131,13 @@ async def run_canary(
     payload: dict[str, Any] = Body(default={}),
     _user=Depends(require_admin),
 ) -> dict[str, Any]:
-    """Run ONE scheduler tick in FORCED dry-run (simulation). Never sends live."""
-    # Force dry-run at the send layer regardless of policy by processing a tiny batch and
-    # relying on run_tick honoring policy.dry_run; here we additionally simulate a single
-    # prospect if provided.
+    """Run ONE scheduler tick in FORCED dry-run (simulation). Never sends live.
+
+    Both branches force dry-run at the SEND layer. The tick branch previously
+    passed nothing and relied on ``policy.dry_run`` being set, which meant this
+    docstring's promise was only as true as the stored config — a live-configured
+    policy turned the canary into a real sender.
+    """
     pid = str(payload.get("prospect_id") or "").strip()
     if pid:
         res = await _send.send(
@@ -144,7 +147,7 @@ async def run_canary(
             force_dry_run=True,
         )
         return {"mode": "single", "result": res}
-    tick = await _scheduler.run_tick(limit=int(payload.get("limit") or 1))
+    tick = await _scheduler.run_tick(limit=int(payload.get("limit") or 1), force_dry_run=True)
     return {"mode": "tick", "result": tick}
 
 
