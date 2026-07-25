@@ -229,6 +229,13 @@ def test_opt_out_blocks_sales_autopilot_email(monkeypatch) -> None:
 
 
 def test_opt_out_blocks_sales_autopilot_whatsapp(monkeypatch) -> None:
+    # Pin the PRE-EXISTING WhatsApp campaign check to False. It reads the repo's
+    # data/wa_suppression.jsonl, so leaving it live made this test depend on
+    # checkout state: it passed locally and FAILED in CI, where that file already
+    # suppressed the number and returned "suppressed" before the canonical check
+    # ever ran. Forcing it False is what makes this test prove the canonical
+    # authority fires, rather than the old one masking it.
+    monkeypatch.setattr(_elig, "_is_suppressed", lambda _c: False)
     email_unsub.suppress("opt@out.com", scope=email_unsub.SCOPE_ALL_OUTREACH, prospect_id="p-sup-1")
     monkeypatch.setattr(_elig._store, "get_prospect", lambda _p: _prospect())
     out = _elig.evaluate(

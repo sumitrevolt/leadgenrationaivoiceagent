@@ -306,6 +306,10 @@ def suppress(
             _mask_phone(p),
             reason,
         )
+        # Durable cancellation of pending work, as part of the SAME canonical
+        # operation — so no caller can suppress without also stopping the
+        # schedulers, and the business rule lives in exactly one place.
+        _cancel_pending_outreach(scope=scope, prospect_id=str(prospect_id or ""), reason=reason)
         # Deliverability gate: one-click opt-out = strongest recipient negative signal
         # → feed spam-complaint-rate tracker (auto-pauses outreach at 0.25% over 7d).
         try:
@@ -318,6 +322,49 @@ def suppress(
     except Exception as ex:  # pragma: no cover — never-raise
         logger.debug("[email_unsub] suppress failed: %s", ex)
         return False
+
+
+def _cancel_pending_outreach(*, scope: str, prospect_id: str, reason: str) -> None:
+    """Durably stop scheduled follow-ups for a suppressed contact. Never raises.
+
+    There is no pending-follow-up QUEUE to delete from: sales-autopilot follow-ups
+    are *derived* on each tick by ``followups.due_followups`` from prospect state.
+    The durable equivalent of "cancel" is therefore a terminal prospect status,
+    which both ``due_followups`` (hard-stop list) and ``eligibility`` (opted_out
+    gate) already honour. Writing that status is what makes cancellation real
+    rather than relying solely on the pre-provider recheck.
+
+    Scope-correct by construction:
+      * ALL_OUTREACH  -> terminal opted-out status; stops email AND WhatsApp.
+      * EMAIL_ADDRESS -> records the email block only; must NOT stop WhatsApp,
+        because a dead mailbox is not an opt-out.
+    """
+    if not prospect_id:
+        return
+    try:
+        from app.platform.sales_autopilot import store as _sa_store
+
+        if scope == SCOPE_ALL_OUTREACH:
+            _sa_store.mark_status(
+                prospect_id,
+                _sa_store.STATUS_OPTED_OUT,
+                suppression_reason=reason,
+                suppressed_at=int(time.time()),
+                suppression_scope=scope,
+            )
+        elif scope in (SCOPE_EMAIL_ADDRESS, SCOPE_CHANNEL_CONTACT):
+            # Durable marker without a status change — the contact may still be
+            # reachable on another channel.
+            _sa_store.mark_status(
+                prospect_id,
+                (_sa_store.get_prospect(prospect_id) or {}).get("status") or _sa_store.STATUS_NEW,
+                email_suppressed=True,
+                suppression_reason=reason,
+                suppressed_at=int(time.time()),
+                suppression_scope=scope,
+            )
+    except Exception as e:  # never break the suppression write
+        logger.debug("[email_unsub] pending-outreach cancellation skipped: %s", e)
 
 
 def _row_scope(row: dict[str, object]) -> str:
