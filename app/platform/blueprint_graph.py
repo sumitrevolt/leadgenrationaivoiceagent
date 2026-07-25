@@ -974,6 +974,21 @@ NODES: list[dict[str, Any]] = [
 ]
 
 # --- EDGES (source→target within the canonical node set) ------------------
+# --- verified L1/L2 detail nodes (split source file, ONE registry) ---------
+# blueprint_detail_nodes holds evidence-cleared legacy migrations. They are
+# appended to THIS list so ids, validators, traversal and the public whitelist
+# stay global. A split file is fine; a second graph source of truth is not.
+#
+# FAIL-CLOSED ON PURPOSE. This is a committed canonical module, not an optional
+# runtime plugin. A syntax error, malformed spec or factory error must surface
+# immediately — silently reverting 53 nodes to 48 and still reporting a healthy
+# graph would be worse than crashing. No circular import exists: the detail
+# module imports nothing from this one (it receives ``_n`` as an argument).
+from app.platform.blueprint_detail_nodes import build_detail_nodes as _build_detail
+
+NODES.extend(_build_detail(_n))
+
+
 EDGES: list[dict[str, Any]] = [
     {"source": "edge_caddy", "target": "app_fastapi", "kind": "flow", "label": "TLS proxy"},
     {"source": "app_fastapi", "target": "public_landing", "kind": "calls"},
@@ -1166,6 +1181,11 @@ def build_graph(*, check_files: bool = False) -> dict[str, Any]:
             "domains": len(DOMAINS),
             "flows": len(FLOWS),
             "workforce": wf["count"],
+            # depth projections of the SAME registry — L0 must stay stable and
+            # readable while total depth grows.
+            "l0": sum(1 for n in NODES if n.get("depth_level", 0) == 0),
+            "l1": sum(1 for n in NODES if n.get("depth_level", 0) == 1),
+            "l2": sum(1 for n in NODES if n.get("depth_level", 0) == 2),
         },
     }
 
@@ -1373,14 +1393,22 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             )
         if n.get("parent_node_id") == n["id"]:
             errors.append(f"{n['id']}: parent_node_id points at itself")
-        # a deeper node must hang off SOMETHING or it can never be reached by
-        # progressive disclosure (this is the "no unreachable detail" gate)
-        if n.get("depth_level", 0) > 0 and not (
+        # --- "no unreachable detail" gate, per depth ------------------------
+        # L1 = domain/flow internals. A domain-rooted L1 node is legitimately
+        # reached by expanding its DOMAIN, so it must NOT be forced under an L0
+        # aggregate — inventing that parent is exactly how false mappings
+        # (admin_ui -> public_landing) get created. parent_domain_id is
+        # validated above, so an L1 node is always reachable.
+        # L2 = concrete implementation detail. It must resolve through a real
+        # L1/L2 group or a flow; domain-only placement would flatten every
+        # detail node directly under a broad domain.
+        if n.get("depth_level", 0) >= 2 and not (
             n.get("parent_node_id") or n.get("parent_flow_id")
         ):
             errors.append(
-                f"{n['id']}: depth_level {n['depth_level']} but no parent_node_id/"
-                "parent_flow_id — unreachable in progressive disclosure"
+                f"{n['id']}: depth_level {n['depth_level']} (L2 detail) needs a "
+                "parent_node_id group or parent_flow_id — domain-only placement "
+                "would leave it unreachable"
             )
         if n.get("safety_lane") not in (None, "GREEN", "AMBER", "RED"):
             errors.append(f"{n['id']}: bad safety_lane {n.get('safety_lane')}")
@@ -1402,10 +1430,30 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
     # --- v4 cross-node hierarchy integrity ---------------------------------
     _flow_id_set = {f["id"] for f in FLOWS}
     _seen_legacy: dict[str, str] = {}
+    _by_id = {n["id"]: n for n in NODES}
     for n in NODES:
         p = n.get("parent_node_id")
         if p and p not in idset:
             errors.append(f"{n['id']}: parent_node_id {p} is not a node")
+        elif p:
+            parent = _by_id[p]
+            # depth must strictly increase downward
+            if parent.get("depth_level", 0) >= n.get("depth_level", 0):
+                errors.append(
+                    f"{n['id']}: parent {p} depth {parent.get('depth_level')} is not "
+                    f"above child depth {n.get('depth_level')}")
+            # an L2 detail node must hang off an L1 group, never straight off an
+            # L0 aggregate — that skips the domain/flow layer entirely
+            if n.get("depth_level", 0) >= 2 and parent.get("depth_level", 0) != 1:
+                errors.append(
+                    f"{n['id']}: L2 node parented on depth-"
+                    f"{parent.get('depth_level')} node {p}; an L2 node needs an L1 "
+                    "group parent (or a flow parent)")
+            # node-parented children must agree on domain
+            if parent.get("domain") != n.get("domain"):
+                errors.append(
+                    f"{n['id']}: cross-domain parent {p} "
+                    f"({parent.get('domain')} != {n.get('domain')})")
         pf = n.get("parent_flow_id")
         if pf and pf not in _flow_id_set:
             errors.append(f"{n['id']}: parent_flow_id {pf} is not a flow")
@@ -1439,7 +1487,12 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             deg[t] += 1
         if e.get("kind") not in EDGE_KINDS:
             errors.append(f"edge {s}->{t}: bad kind {e.get('kind')}")
-    orphans = sorted(i for i, d in deg.items() if d == 0)
+    # Orphan rule applies to the L0 overview only. L1/L2 detail nodes are
+    # reached by HIERARCHY (domain / flow / group expansion), not by overview
+    # edges — the depth gates above already prove that reachability. Requiring
+    # an overview edge here would force fabricated connections.
+    _depth = {n["id"]: n.get("depth_level", 0) for n in NODES}
+    orphans = sorted(i for i, d in deg.items() if d == 0 and _depth.get(i, 0) == 0)
     for o in orphans:
         errors.append(f"orphan node (0 edges): {o}")
 
