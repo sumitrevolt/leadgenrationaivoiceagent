@@ -3,21 +3,37 @@
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN
 
 ## Last verified timestamp
-2026-07-24T03:15Z (production running `7cab5f60`, verified via public `/health`).
+2026-07-25T09:29Z (production running `441cf37a`, verified on-box AND via public `/health`).
+
+> **Read this section before trusting any SHA elsewhere in the repo.** On
+> 2026-07-25 an agent used a stale local `origin/main` ref and concluded PR #125
+> was unmerged when it had in fact already shipped to production. Always
+> `git fetch` and re-probe `/health` rather than trusting a checked-in number.
 
 ## Production SHA
-`7cab5f60` (`7cab5f609846e2c584edb8322dc684378a15e995`) — OpenClaw Admin Dashboard PR #105 merge; PRODUCTION-PROVEN via `scripts/deploy_vps.sh`.
-Previous runtime SHA: `7f37522e` (rollback reference; not used).
+`441cf37a` (`441cf37a109f1a7a51c60dd96032c8251ca647f6`) — blueprint detail-import PR #133 merge; PRODUCTION-PROVEN via `scripts/deploy_vps.sh` (2026-07-25T09:27Z).
+Previous runtime SHA: `d114f942` (Master Blueprint PR #125 squash merge) — rollback reference.
+Verified: on-box `127.0.0.1:8000/health` and `https://leadsgenai.in/health` both report `441cf37a`.
+Zero version skew — all five app-image services (`app`, `worker`, `scheduler`, `worker-heavy`, `worker-video`) run `APP_VERSION=441cf37a` on image `:441cf37a`.
 Label: PRODUCTION-PROVEN
 
 ## Origin/main
-`216ad5c1b47272684207dbeaf4ce368b7493eca9` — ahead of production. Includes merged PRs #105–#111 (OpenClaw Admin, Obsidian self-heal, dist-cancel/Nikhil proofs, runtime flag separation, OmniRoute governance, skill canonical index / ADR-131).
-**Do not claim these post-#105 merges are live unless `/health.version` matches.** Production remains `7cab5f60`.
-Label: CODE-PRESENT (main ahead of prod)
+`441cf37a` — **equal to production** as of this deploy.
+That deploy closed a ~21-commit backlog (`d114f942..441cf37a`, 102 files, +11,069/−279): the pydantic-core lock repair (#129), Master Blueprint v4 hierarchy/harness/reconcilers (#128, #130, #131, #132, #133), the autonomous sales engine (#124), Creative OS Phase-1 (#116), entitlement-assurance admin API (#121) and an OmniRoute governor change (#113).
+Label: PRODUCTION-PROVEN
 
 ## Production health
-`/health` 200 at exact `7cab5f60`; environment `production`; status `healthy` (re-probed 2026-07-24T03:15Z).
+`/health` 200 at exact `441cf37a`; environment `production`; status `healthy` (re-probed 2026-07-25T09:29Z).
+Post-deploy soak: 33 containers running, 0 restarting/exited, all five redeployed services `healthy`, zero ERROR/Traceback in `app`/`worker`/`scheduler` logs, `celery` + `dlq:failed_tasks` + `dlq:dead` all 0.
 Label: PRODUCTION-PROVEN
+
+## Newly-live-but-inert (shipped 2026-07-25, never previously run in prod)
+The autonomous sales engine and Creative OS Phase-1 are now ON DISK in production but gated OFF. Verified in the running containers:
+- `SALES_AUTOPILOT_ENABLED` — **unset in both `app` and `scheduler`** → engine fully inert (master gate, `app/api/automation_flags.py:378`)
+- `sales_autopilot` is in `RUN_DUE_EXCLUDE` → recovery never auto-enqueues it
+- `WHATSAPP_AUTO_SEND=0`, `PLATFORM_DIAL_DAILY=0` (calling HARD OFF)
+- Zero autopilot activity in scheduler/worker logs since deploy
+Do NOT treat these as live capabilities. Label: CODE-PRESENT (inert)
 
 ## Migration
 The `510ed7bc` Video Review Stage 3 deploy completed its hard-gated transactional Alembic step successfully; OpenClaw Admin `7cab5f60` introduced no migration.
