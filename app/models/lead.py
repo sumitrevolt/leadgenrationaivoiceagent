@@ -130,7 +130,9 @@ class Lead(Base):
     # Pipeline batch provenance (2026-07-08) — WHY this score, persisted not
     # just computed on demand; which prospector.py batch produced this lead.
     score_reason = Column(Text)
-    source_batch_id = Column(String(36), ForeignKey("lead_pipeline_batches.id"), nullable=True, index=True)
+    source_batch_id = Column(
+        String(36), ForeignKey("lead_pipeline_batches.id"), nullable=True, index=True
+    )
 
     # Status tracking
     status = Column(
@@ -288,7 +290,8 @@ class Lead(Base):
         see WHY a lead is hot, not just the number. Threshold centralized in
         settings.lead_hot_threshold (2026-07-08 — previously hardcoded 70 here
         while lead_scoring.py's own env default was 60; both now read the
-        same setting, see docs/superpowers/specs/2026-07-08-lead-gen-pipeline-automation-design.md)."""
+        same setting, see docs/superpowers/specs/2026-07-08-lead-gen-pipeline-automation-design.md).
+        """
         from app.config import settings
 
         self.lead_score = max(0, min(100, new_score))  # Clamp between 0-100
@@ -370,6 +373,23 @@ class Lead(Base):
             self.status = LeadStatus.CONTACTED
         self.updated_at = datetime.utcnow()
         self._record_transition(old_status, "system:mark_called")
+
+    def mark_contacted(self, changed_by: str = "outreach") -> None:
+        """Promote NEW -> CONTACTED when we make an outbound touch (email/cadence/
+        WhatsApp/SMS) - the non-call sibling of mark_called().
+
+        Unlike mark_called() this does NOT touch call_attempts / last_called_at:
+        an email outreach is not a phone call. Forward-only and never downgrades -
+        if the lead is already past NEW (CONTACTED, QUALIFIED, NOT_INTERESTED, ...)
+        it is left untouched and NO history row is written. Reuses
+        _record_transition() so lead_status_history stays the single audit
+        mechanism (no parallel writer)."""
+        if self.status != LeadStatus.NEW:
+            return
+        old_status = self.status
+        self.status = LeadStatus.CONTACTED
+        self.updated_at = datetime.utcnow()
+        self._record_transition(old_status, changed_by)
 
     def schedule_callback(self, callback_time: datetime, notes: str | None = None) -> None:
         """Schedule a callback for this lead"""
