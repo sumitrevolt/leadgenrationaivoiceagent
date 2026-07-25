@@ -974,6 +974,18 @@ NODES: list[dict[str, Any]] = [
 ]
 
 # --- EDGES (source→target within the canonical node set) ------------------
+# --- verified L1/L2 detail nodes (split source file, ONE registry) ---------
+# blueprint_detail_nodes holds evidence-cleared legacy migrations. They are
+# appended to THIS list so ids, validators, traversal and the public whitelist
+# stay global. A split file is fine; a second graph source of truth is not.
+try:  # never let an optional detail module break the canonical graph
+    from app.platform.blueprint_detail_nodes import build_detail_nodes as _bdn
+
+    NODES.extend(_bdn(_n))
+except Exception:  # pragma: no cover - defensive, mirrors repo convention
+    pass
+
+
 EDGES: list[dict[str, Any]] = [
     {"source": "edge_caddy", "target": "app_fastapi", "kind": "flow", "label": "TLS proxy"},
     {"source": "app_fastapi", "target": "public_landing", "kind": "calls"},
@@ -1166,6 +1178,11 @@ def build_graph(*, check_files: bool = False) -> dict[str, Any]:
             "domains": len(DOMAINS),
             "flows": len(FLOWS),
             "workforce": wf["count"],
+            # depth projections of the SAME registry — L0 must stay stable and
+            # readable while total depth grows.
+            "l0": sum(1 for n in NODES if n.get("depth_level", 0) == 0),
+            "l1": sum(1 for n in NODES if n.get("depth_level", 0) == 1),
+            "l2": sum(1 for n in NODES if n.get("depth_level", 0) == 2),
         },
     }
 
@@ -1373,14 +1390,22 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             )
         if n.get("parent_node_id") == n["id"]:
             errors.append(f"{n['id']}: parent_node_id points at itself")
-        # a deeper node must hang off SOMETHING or it can never be reached by
-        # progressive disclosure (this is the "no unreachable detail" gate)
-        if n.get("depth_level", 0) > 0 and not (
+        # --- "no unreachable detail" gate, per depth ------------------------
+        # L1 = domain/flow internals. A domain-rooted L1 node is legitimately
+        # reached by expanding its DOMAIN, so it must NOT be forced under an L0
+        # aggregate — inventing that parent is exactly how false mappings
+        # (admin_ui -> public_landing) get created. parent_domain_id is
+        # validated above, so an L1 node is always reachable.
+        # L2 = concrete implementation detail. It must resolve through a real
+        # L1/L2 group or a flow; domain-only placement would flatten every
+        # detail node directly under a broad domain.
+        if n.get("depth_level", 0) >= 2 and not (
             n.get("parent_node_id") or n.get("parent_flow_id")
         ):
             errors.append(
-                f"{n['id']}: depth_level {n['depth_level']} but no parent_node_id/"
-                "parent_flow_id — unreachable in progressive disclosure"
+                f"{n['id']}: depth_level {n['depth_level']} (L2 detail) needs a "
+                "parent_node_id group or parent_flow_id — domain-only placement "
+                "would leave it unreachable"
             )
         if n.get("safety_lane") not in (None, "GREEN", "AMBER", "RED"):
             errors.append(f"{n['id']}: bad safety_lane {n.get('safety_lane')}")
@@ -1439,7 +1464,12 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             deg[t] += 1
         if e.get("kind") not in EDGE_KINDS:
             errors.append(f"edge {s}->{t}: bad kind {e.get('kind')}")
-    orphans = sorted(i for i, d in deg.items() if d == 0)
+    # Orphan rule applies to the L0 overview only. L1/L2 detail nodes are
+    # reached by HIERARCHY (domain / flow / group expansion), not by overview
+    # edges — the depth gates above already prove that reachability. Requiring
+    # an overview edge here would force fabricated connections.
+    _depth = {n["id"]: n.get("depth_level", 0) for n in NODES}
+    orphans = sorted(i for i, d in deg.items() if d == 0 and _depth.get(i, 0) == 0)
     for o in orphans:
         errors.append(f"orphan node (0 edges): {o}")
 
