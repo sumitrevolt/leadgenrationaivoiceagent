@@ -15,17 +15,119 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Fire-and-forget task refs (GC-safe)
+# Application-owned fire-and-forget tasks (strong refs until done).
+# Without this, asyncio only weak-refs create_task() results and a Task can be
+# GC/destroyed mid-session — DB checkout never closes (SQLAlchemy #13039 /
+# aiosqlite #369 → orphan worker / CI exit-139).
 _BG_TASKS: set[asyncio.Task] = set()
+_ACCEPTING_BG: bool = True
+_DEFAULT_DRAIN_TIMEOUT_S = float(os.environ.get("INQUIRY_BG_DRAIN_TIMEOUT_S", "10") or "10")
 
 
-def _spawn(coro: Any) -> None:
+def _spawn(coro: Any, *, name: str = "inquiry_bg") -> asyncio.Task | None:
+    """Own a background coroutine until it finishes (request stays non-blocking)."""
+    global _ACCEPTING_BG
+    if not _ACCEPTING_BG:
+        logger.debug("[inquiry_hooks] spawn refused (shutting down): %s", name)
+        if asyncio.iscoroutine(coro):
+            coro.close()
+        return None
     try:
-        task = asyncio.create_task(coro)
-        _BG_TASKS.add(task)
-        task.add_done_callback(_BG_TASKS.discard)
+        task = asyncio.create_task(coro, name=f"inquiry:{name}")
     except Exception as e:
-        logger.debug(f"[inquiry_hooks] spawn skip: {e}")
+        logger.debug(f"[inquiry_hooks] spawn skip ({name}): {e}")
+        if asyncio.iscoroutine(coro):
+            try:
+                coro.close()
+            except Exception:
+                pass
+        return None
+
+    _BG_TASKS.add(task)
+
+    def _on_done(t: asyncio.Task, *, _name: str = name) -> None:
+        _BG_TASKS.discard(t)
+        try:
+            exc = t.exception()
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            return
+        if exc is not None:
+            logger.warning("[inquiry_hooks] bg task %s failed: %s", _name, exc)
+
+    task.add_done_callback(_on_done)
+    return task
+
+
+def stop_accepting_inquiry_bg() -> None:
+    """Refuse new inquiry background work (shutdown phase 1)."""
+    global _ACCEPTING_BG
+    _ACCEPTING_BG = False
+
+
+def resume_accepting_inquiry_bg() -> None:
+    """Re-open the spawn gate (tests / rare recover paths only)."""
+    global _ACCEPTING_BG
+    _ACCEPTING_BG = True
+
+
+def pending_inquiry_bg_count() -> int:
+    return len([t for t in _BG_TASKS if not t.done()])
+
+
+async def await_inquiry_bg_tasks(*, timeout: float | None = None) -> dict[str, int]:
+    """Wait for currently owned inquiry BG tasks without closing the accept gate.
+
+    Use from tests / request-scoped helpers. Shutdown must use
+    ``drain_inquiry_bg_tasks`` instead (stop accepting → await → cancel).
+    """
+    limit = _DEFAULT_DRAIN_TIMEOUT_S if timeout is None else float(timeout)
+    pending = [t for t in list(_BG_TASKS) if not t.done()]
+    if not pending:
+        return {"awaited": 0, "cancelled": 0, "remaining": 0}
+
+    done, still = await asyncio.wait(pending, timeout=max(0.0, limit))
+    cancelled = 0
+    if still:
+        for t in still:
+            t.cancel()
+        cancelled = len(still)
+        await asyncio.gather(*still, return_exceptions=True)
+
+    return {
+        "awaited": len(done),
+        "cancelled": cancelled,
+        "remaining": pending_inquiry_bg_count(),
+    }
+
+
+async def drain_inquiry_bg_tasks(*, timeout: float | None = None) -> dict[str, int]:
+    """Canonical shutdown drain — call BEFORE close_async_db()/engine.dispose().
+
+    Ordering (required):
+      1. stop accepting new work
+      2. await owned tasks (bounded timeout)
+      3. cancel still-pending
+      4. await cancelled with return_exceptions=True
+    """
+    stop_accepting_inquiry_bg()
+    result = await await_inquiry_bg_tasks(timeout=timeout)
+    if result["remaining"]:
+        logger.warning(
+            "[inquiry_hooks] drain finished with %d task(s) still pending "
+            "(awaited=%d cancelled=%d)",
+            result["remaining"],
+            result["awaited"],
+            result["cancelled"],
+        )
+    else:
+        logger.info(
+            "[inquiry_hooks] bg drain complete (awaited=%d cancelled=%d)",
+            result["awaited"],
+            result["cancelled"],
+        )
+    return result
 
 
 async def run_after_inquiry(
@@ -90,7 +192,7 @@ async def run_after_inquiry(
                 "source": rec.get("source"),
                 "created_at": rec.get("at"),
             }
-            _spawn(_cw.emit(cid, "lead.created", payload))
+            _spawn(_cw.emit(cid, "lead.created", payload), name="customer_webhook")
         except Exception:
             pass
         # Funnel event (audit 2026-07-04) — silent no-op without POSTHOG_API_KEY.
@@ -155,7 +257,8 @@ async def run_after_inquiry(
                     str(rec.get("niche") or "general"),
                     str(rec.get("business_name") or ""),
                     client_id=cid or "",
-                )
+                ),
+                name="auto_callback",
             )
     except Exception as e:
         logger.debug(f"[inquiry_hooks] auto-callback spawn skip: {e}")
@@ -163,7 +266,7 @@ async def run_after_inquiry(
     try:
         from app.api.public_site import _notify_inquiry_email
 
-        _spawn(_notify_inquiry_email(dict(rec)))
+        _spawn(_notify_inquiry_email(dict(rec)), name="notify_email")
     except Exception as e:
         logger.debug(f"[inquiry_hooks] notify-email spawn skip: {e}")
 
@@ -219,7 +322,8 @@ async def run_after_inquiry(
                 lead_id=str(lid or ""),
                 body_summary=str(rec.get("message") or rec.get("business_name") or "")[:200],
                 outcome="received",
-            )
+            ),
+            name="interaction_log",
         )
     except Exception as e:
         logger.debug(f"[inquiry_hooks] interaction skip: {e}")
@@ -237,7 +341,8 @@ async def run_after_inquiry(
                     "niche": rec.get("niche"),
                     "city": rec.get("city"),
                 },
-            )
+            ),
+            name="outbound_webhook",
         )
     except Exception:
         pass
@@ -255,7 +360,8 @@ async def run_after_inquiry(
                     "niche": rec.get("niche"),
                     "city": rec.get("city"),
                 },
-            )
+            ),
+            name="journey_emit",
         )
     except Exception:
         pass
@@ -335,7 +441,8 @@ async def run_after_inquiry(
                     },
                     client_id=cid or "",
                     note=f"Inbound inquiry (web/widget/webhook) · BANT {rec.get('bant_grade') or '?'}",
-                )
+                ),
+                name="crm_push",
             )
     except Exception as e:
         logger.debug(f"[inquiry_hooks] crm_sync spawn skip: {e}")

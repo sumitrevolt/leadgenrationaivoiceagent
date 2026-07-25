@@ -735,6 +735,15 @@
           var t=e.target.closest("[data-oc-appr]"); if(!t) return;
           ocDecideAppr(t.getAttribute("data-src"), t.getAttribute("data-id"), t.getAttribute("data-oc-appr"));
         });
+        // Enter = Run (same as purple button); Shift+Enter = newline in textarea
+        (function bindOcTextEnterToRun(){
+          var ta=document.getElementById("ocText"); if(!ta) return;
+          ta.addEventListener("keydown", function(e){
+            if(e.key!=="Enter" || e.shiftKey || e.isComposing) return;
+            e.preventDefault();
+            if(typeof window.ocRun==="function") window.ocRun();
+          });
+        })();
         if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", ocBoot);
         else ocBoot();
       })();
