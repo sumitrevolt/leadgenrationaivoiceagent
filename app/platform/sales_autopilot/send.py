@@ -139,6 +139,18 @@ async def send(
             result["preview"] = envelope["body"]
             return result
 
+        # 6b. PRE-PROVIDER SUPPRESSION RECHECK (defense in depth).
+        #
+        # Eligibility ran at SCHEDULING time. A prospect can reply STOP, or a
+        # bounce can land, in the window between being queued and being sent —
+        # a scheduler-time-only check would still deliver that message. This is
+        # the last read before the provider, and it fails CLOSED.
+        if _suppressed_now(rec, channel, contact):
+            _store.update_attempt_status(idem, SKIPPED, note="suppressed_pre_provider")
+            result["outcome"] = SKIPPED
+            result["reason"] = "suppressed_pre_provider"
+            return result
+
         # 7. LIVE path — only WhatsApp wired (email adapter is a handoff stub).
         timeout_s = float(pol.get("provider_timeout_s") or 20)
         if channel == "whatsapp":
@@ -177,6 +189,28 @@ async def send(
         result["outcome"] = FAILED
         result["reason"] = str(e)[:150]
         return result
+
+
+def _suppressed_now(rec: dict[str, Any], channel: str, contact: Any) -> bool:
+    """Re-read the canonical suppression ledger immediately before the provider.
+
+    Fail-CLOSED: if the ledger cannot be read we skip the send. A missed message
+    is recoverable; messaging someone who opted out is not.
+    """
+    try:
+        from app.platform import email_unsub
+
+        pid = str(rec.get("id") or "")
+        if (channel or "").lower() == "whatsapp":
+            return email_unsub.is_contact_suppressed(
+                phone=str(contact or ""), prospect_id=pid, channel="whatsapp"
+            )
+        return email_unsub.is_contact_suppressed(
+            email=str(contact or ""), prospect_id=pid, channel="email"
+        )
+    except Exception as e:  # pragma: no cover - defensive, fail-closed
+        logger.warning("[sales_autopilot.send] pre-provider suppression check failed: %s", e)
+        return True
 
 
 def _mask(contact: Any) -> str:

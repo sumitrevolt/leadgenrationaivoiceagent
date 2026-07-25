@@ -872,6 +872,36 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                                     "bounced_at": datetime.now(timezone.utc).isoformat(),
                                 },
                             )
+                        # Durable address-level suppression. Marking the prospect
+                        # row dead left the ADDRESS mailable from every other row,
+                        # so the same dead mailbox kept getting mail and kept
+                        # damaging deliverability.
+                        #
+                        # Scope is deliberately NOT global: a hard bounce says the
+                        # mailbox is dead, not that the person opted out, so the
+                        # contact's WhatsApp number must stay reachable. Only an
+                        # explicit opt-out reply escalates to ALL_OUTREACH.
+                        if delivery_kind in ("hard_bounce", "complaint") and bounced_email:
+                            try:
+                                from app.platform import email_unsub
+
+                                email_unsub.suppress(
+                                    bounced_email,
+                                    reason=delivery_kind,
+                                    scope=email_unsub.SCOPE_EMAIL_ADDRESS,
+                                    channel="email",
+                                    prospect_id=str(
+                                        (bp or {}).get("id") or (bp or {}).get("pid") or ""
+                                    ),
+                                    event_id=_reply_delivery_key(
+                                        bounced_email, _safe_thread_headers(msg)[0]
+                                    ),
+                                    source="delivery_report",
+                                )
+                            except Exception as _bsup_err:
+                                logger.warning(
+                                    "[reply_agent] bounce suppression failed: %s", _bsup_err
+                                )
                         if wr.get("paused"):
                             _notify(
                                 "rohan",
@@ -994,6 +1024,29 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
 
                 if intent == "unsubscribe":
                     res["unsubscribed"] += 1
+                    # DURABLE CROSS-CHANNEL SUPPRESSION. Every outreach mail tells
+                    # the recipient to "reply REMOVE" — but until now that reply
+                    # only marked the prospect row dead. The address stayed
+                    # mailable from any other prospect row and WhatsApp was
+                    # untouched, so the opt-out mechanism we advertise did not
+                    # actually work at the list level. Write the canonical
+                    # ALL_OUTREACH row; `event_id` makes reprocessing the same
+                    # message idempotent.
+                    try:
+                        from app.platform import email_unsub
+
+                        _mid = _safe_thread_headers(msg)[0]
+                        email_unsub.suppress(
+                            frm or "",
+                            reason="reply_unsubscribe",
+                            scope=email_unsub.SCOPE_ALL_OUTREACH,
+                            prospect_id=str(pid or ""),
+                            event_id=(_reply_delivery_key(frm or "", _mid) if _mid else ""),
+                            source="reply_agent",
+                        )
+                    except Exception as _sup_err:  # never break triage
+                        # No address in the log line — this path handles PII.
+                        logger.warning("[reply_agent] suppression write failed: %s", _sup_err)
                     # Deliverability gate: unsubscribe-reply = recipient negative signal.
                     # Feed spam-complaint-rate tracker (auto-pauses at 0.25% over 7d).
                     try:

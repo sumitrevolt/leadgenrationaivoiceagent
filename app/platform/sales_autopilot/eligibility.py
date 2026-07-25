@@ -40,6 +40,29 @@ def _result(decision: str, *reasons: str, **extra: Any) -> dict[str, Any]:
     return {"decision": decision, "reason_codes": list(reasons), **extra}
 
 
+def _canonical_suppressed(
+    prospect: dict[str, Any], rec: dict[str, Any], channel: str, contact: str
+) -> bool:
+    """Consult the canonical suppression ledger. FAIL-CLOSED.
+
+    An unavailable suppression ledger must block the send, not permit it: the
+    cost of a false block is a delayed message, the cost of a false allow is
+    contacting someone who explicitly told us to stop.
+    """
+    try:
+        from app.platform import email_unsub
+
+        pid = str(prospect.get("id") or rec.get("id") or "")
+        if channel == "whatsapp":
+            return email_unsub.is_contact_suppressed(
+                phone=contact, prospect_id=pid, channel="whatsapp"
+            )
+        return email_unsub.is_contact_suppressed(email=contact, prospect_id=pid, channel="email")
+    except Exception as e:  # fail-closed
+        logger.warning("[sales_autopilot.eligibility] suppression check failed: %s", e)
+        return True
+
+
 def _owner_kill(name: str) -> bool:
     try:
         from app.platform.owner_os import kill_engaged
@@ -170,6 +193,12 @@ def evaluate(
             return _result(INELIGIBLE, "no_channel_contact", channel=channel)
         if channel == "whatsapp" and _is_suppressed(contact):
             return _result(INELIGIBLE, "suppressed")
+        # Canonical suppression authority — covers BOTH channels. The check above
+        # only consults the WhatsApp campaign list, so an explicit opt-out (or a
+        # hard bounce) recorded in the suppression ledger did not block this
+        # engine at all, on either channel.
+        if _canonical_suppressed(prospect, rec, channel, contact):
+            return _result(INELIGIBLE, "suppressed_canonical", channel=channel)
 
         # 10. ICP match.
         if not _icp_ok(prospect, pol):
