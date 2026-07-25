@@ -174,6 +174,63 @@ def _is_auto_ack(msg: Any, subj: str) -> bool:
     return False
 
 
+# CASE-CLOSURE GUARD (2026-07-25): ticketing/CRM auto-responders that CLOSE a
+# case were LLM-classifying as "interested" — the exact OPPOSITE of the message.
+# Production audit found 292 of 304 all-time "interested" outcomes came from ONE
+# adityabirla.com ticketing address, with bodies like "Not related to Birla Opus.
+# Hence, closed.", "Not required as of now. Hence, case is closed." and "We
+# regret to inform you...". That single sender made the "interested" signal
+# worthless: 304 interested outcomes were really ~8 distinct prospects.
+#
+# _is_auto_ack (07-07) already targets this sender but only matches ACK wording
+# ("thank you for your enquiry", "we have received your") and only scans the
+# SUBJECT — a closure notice matches neither. This guard reads subject AND body.
+#
+# Patterns are deliberately narrow: each is an unambiguous refusal/closure that
+# cannot appear in a genuine "yes, tell me more" reply. REPLY_CLOSURE_GUARD=0
+# disables; REPLY_CLOSURE_EXTRA_TERMS (CSV, literal substrings) lets an operator
+# add patterns without a deploy — same ergonomics as the spam guard.
+_CLOSURE_RE = re.compile(
+    r"hence\s*,?\s*(the\s+)?(case\s+is\s+)?closed|"
+    r"case\s+(is\s+)?(now\s+)?closed|closing\s+(this|the)\s+(case|ticket|request)|"
+    r"ticket\s+(has\s+been\s+)?closed|"
+    r"not\s+required\s+(as\s+of\s+now|at\s+(this|the)\s+(time|moment)|currently)|"
+    r"no\s+(further\s+)?requirement|"
+    r"we\s+regret\s+to\s+inform|"
+    r"not\s+related\s+to\s+",
+    re.IGNORECASE,
+)
+
+
+def _is_case_closure(subj: str, body: str) -> bool:
+    """Ticketing/CRM case-closure or explicit refusal detect (subject + body).
+
+    Runs for EVERYONE, like the auto-ack guard: a closure notice is not a warm
+    reply no matter who sends it. REPLY_CLOSURE_GUARD=0 = guard off.
+    Never raises.
+    """
+    try:
+        if (os.getenv("REPLY_CLOSURE_GUARD", "1") or "1").strip().lower() in {
+            "0",
+            "false",
+            "off",
+        }:
+            return False
+        blob = f"{subj or ''}\n{body or ''}"
+        if _CLOSURE_RE.search(blob):
+            return True
+        extra = (os.getenv("REPLY_CLOSURE_EXTRA_TERMS", "") or "").strip()
+        if extra:
+            low = blob.lower()
+            for term in extra.split(","):
+                term = term.strip().lower()
+                if term and term in low:
+                    return True
+    except Exception:
+        pass
+    return False
+
+
 # SPAM CONTENT GUARD (2026-07-15): betting/gambling spam ("Reddy Anna" cricket-ID
 # type mail) LLM se "interested" classify ho ke Hot Queue me draft-ready aa raha
 # tha (07-14 audit). _is_bulk_sender headers dekhta hai — yeh CONTENT dekhta hai,
@@ -672,6 +729,16 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 if _is_auto_ack(msg, subj):
                     res["skipped"] += 1
                     res["auto_ack"] = res.get("auto_ack", 0) + 1
+                    _mark_imap_seen(M, i)
+                    continue
+                # CASE-CLOSURE GUARD (2026-07-25): ticketing auto-responder that
+                # CLOSES a case ("Not required as of now. Hence, case is closed.")
+                # was classifying as "interested" — the opposite of the message.
+                # 292 of 304 all-time "interested" rows came from one such sender.
+                # LLM classify se PEHLE drop.
+                if _is_case_closure(subj, body):
+                    res["skipped"] += 1
+                    res["case_closure"] = res.get("case_closure", 0) + 1
                     _mark_imap_seen(M, i)
                     continue
                 # SPAM CONTENT GUARD (2026-07-15): betting/gambling vocab in
