@@ -1,6 +1,42 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-25 (Automation-Max continue: approval allowlist + boot_grace recovery)
+Goal: Fix engines that looked ON but were inert (approval emails, morning content).
+Inspected: approval_notifier sweep (not_allowlisted=301); job_heartbeats content=boot_grace; automation_health scheduled_off hides lost defer; Anika events OK.
+Problems Found: (1) APPROVAL_EMAIL_NOTIFY=1 + empty allowlist = zero emails. (2) Same-day boot_grace marker hid content from overdue/recovery all day after recreate killed deferred countdown; 30h gap would not fire either.
+Changed: approval allowlist file sidecar; boot_grace.marker_still_active + lost_defer overdue; prod allowlist=jiya-makeover; run_due re-dispatched content; tests.
+Tests Run: pytest test_scheduler_boot_grace_health + allowlist file + workflow_gaps → 10 passed.
+Verification Evidence: content_health note=boot_grace_lost_defer overdue; run_due started content via celery; allowlist={jiya-makeover}; /health=441cf37a.
+Risks: Surgical hotfixes evaporate on recreate until PR merge+deploy. Content job long-running (LLM 404 fallbacks observed).
+Remaining: Merge PR #135; durable deploy; Estique human send.
+Next Highest Priority: PR merge.
+
+## Loop Run
+Date: 2026-07-25 (Automation-Max follow-on: cadence verify + Kavya unblock + journey gate)
+Goal: Continue fixing problems after Automation-Max Phase-1 — engines actually run, not just flags ON.
+Inspected: cadence_runs.jsonl; owner_agent_controls; staff_jobs apply_async blocks; journeys.ensure_active_defaults; ops_watchdog.
+Problems Found: (1) Cadence starve behind done rows — already fixed; prod verified advanced=30. (2) Kavya+Arnav left on scheduled_pause by canary "clear sticky" → ops/watchdog/engineer_security blocked despite OPS_WATCHDOG=1. (3) ensure_active_defaults treated ANY enabled rule as enough (signup-only would starve inquiry).
+Changed: Prod resume Kavya+Arnav; scripts/vps_clear_stale_canary_pauses.py; journeys inquiry-specific gate; tests; context handoff.
+Tests Run: pytest tests/test_workflow_gaps.py tests/test_automation_max_flags_script.py tests/test_cadence_run_due_active_limit.py → 13 passed.
+Verification Evidence: run_due advanced=30; watchdog dispatch allowed + _run_job True; /health=441cf37a; celery/dlq=0.
+Risks: Surgical hotfixes evaporate on recreate until PR merge+deploy.
+Remaining: Merge PR #135; durable deploy; GTM Estique human send.
+Next Highest Priority: PR merge when CI green.
+
+## Loop Run
+Date: 2026-07-25 (Automation-Max safe flags LIVE + harness blueprint PR)
+Goal: User option-1 safe automation ON prod; ship Master Blueprint harness governance + pin-safe VPS scripts as PR.
+Inspected: Mission Control Band list; printenv in leadgen_app; ADR-097 :latest landmine; origin/main tip 075dea8.
+Problems Found: (1) OPS_WATCHDOG/CADENCE/JOURNEY OFF on prod. (2) Flag recreate without APP_VERSION pulled :latest → skew to 97521572. (3) Harness auditor skill untracked.
+Changed: VPS flags SET + rollback to 441cf37a; +scripts/app_version_pin.py; automation-max + readiness pin-safe; harness-conformance-auditor + agent-harness-standard; AI_WORKFORCE 11/31; tests; context lanes.
+Tests Run: pytest tests/test_automation_max_flags_script.py (pending this loop).
+Verification Evidence: /health=441cf37a; Band list only AUTO_EMAIL; printenv OPS/CADENCE/JOURNEY/APPROVAL=1; dial/WA=0.
+Risks: Script already scp'd to VPS earlier; PR is repo sync. Cold email still OFF.
+Remaining: Merge PR; observe cadence; GTM Estique human send.
+Next Highest Priority: PR merge + 2nd paying customer.
+
+## Loop Run
 - Date: 2026-07-21
 - Goal: 31-agent workforce factory + OpenClaw Swara transfer (no voice edits); reuse existing runtime/Owner OS
 - Inspected: team.STAFF, agent_registry, agent_runtime, pilots, OpenClaw, staff.run_*, Graphify Owner OS community

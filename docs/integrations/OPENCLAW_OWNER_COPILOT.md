@@ -85,7 +85,9 @@ OpenClaw Gateway (agent id: owner-copilot)
 
 ## Typed commands (Stage A default allowlist)
 
-`platform.status`, `agents.list`, `agent.status`, `approvals.list`, `delivery.status`, `queues.status`, `business.daily_summary`, `owner.next_actions`
+`platform.status`, `agents.list`, `agent.status`, `approvals.list`, `delivery.status`, `queues.status`, `business.daily_summary`, `owner.next_actions`, `runtime.status`, `agents.unhealthy`, `automation.status`, `automation.agents`
+
+Automation-Max observe (Anika/Kavya/Isha/Rohan/Neha) = GREEN only; no new STAFF invented.
 
 Local AMBER proof may add `agent.pause` (parks approval; no silent mutate).
 

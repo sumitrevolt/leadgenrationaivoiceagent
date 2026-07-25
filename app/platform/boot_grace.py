@@ -6,7 +6,7 @@ Mirrors team_scheduler.scheduler_loop boot-grace for the durable Celery path.
 from __future__ import annotations
 
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 _IST = ZoneInfo("Asia/Kolkata")
@@ -60,4 +60,31 @@ def should_skip_boot_grace(job: str) -> bool:
     return lo <= cur < hi
 
 
-__all__ = ["should_skip_boot_grace", "defer_seconds"]
+def marker_still_active(job: str, marker_at: datetime, *, now: datetime | None = None) -> bool:
+    """True = boot_grace heartbeat should suppress overdue/recovery for a bit longer.
+
+    Intentional skip is only "scheduled_off" while we are still inside (or just past)
+    today's heavy window. After the window ends, a lone boot_grace marker usually
+    means the deferred Celery countdown was lost (worker recreate / broker drop) —
+    fall through so dead-man + run_due can recover the job the same day.
+    """
+    win = _HEAVY_WINDOWS.get(job)
+    if not win or marker_at is None:
+        return False
+    try:
+        now_ist = (now or datetime.now(timezone.utc)).astimezone(_IST)
+        marker_ist = marker_at
+        if marker_ist.tzinfo is None:
+            marker_ist = marker_ist.replace(tzinfo=timezone.utc)
+        marker_ist = marker_ist.astimezone(_IST)
+        if marker_ist.date() != now_ist.date():
+            return False
+        _, hi = win
+        # Match defer_seconds buffer (+45s) with a few extra minutes of slack.
+        end = now_ist.replace(hour=hi[0], minute=hi[1], second=0, microsecond=0)
+        return now_ist < (end + timedelta(minutes=5))
+    except Exception:
+        return False
+
+
+__all__ = ["should_skip_boot_grace", "defer_seconds", "marker_still_active"]

@@ -165,14 +165,23 @@ async def _execute_step(rec: dict[str, Any], step: dict[str, Any]) -> dict[str, 
 
 
 async def run_due(limit: int = 100) -> dict[str, Any]:
-    """Due steps advance karo across enrolled leads. GATED CADENCE_ENGINE. Kabhi raise nahi."""
+    """Due steps advance karo across enrolled leads. GATED CADENCE_ENGINE. Kabhi raise nahi.
+
+    ``limit`` = max ACTIVE leads to examine (not file-prefix rows). Prod pe pehle
+    ~100 ``done`` rows file ke top pe baithe the → ``rows[:limit]`` sirf unhe
+    dekhta tha aur 7k+ active leads starve ho rahe the (Anika idle).
+    """
     if not _enabled():
         return {"ok": False, "reason": "CADENCE_ENGINE off"}
     rows = _read(_LEADS)
     advanced = 0
-    for rec in rows[:limit]:
+    examined_active = 0
+    for rec in rows:
+        if examined_active >= limit:
+            break
         if rec.get("status") != "active":
             continue
+        examined_active += 1
         try:
             enrolled = datetime.fromisoformat(str(rec["enrolled_at"]).replace("Z", "+00:00"))
         except Exception:
@@ -217,7 +226,13 @@ async def run_due(limit: int = 100) -> dict[str, Any]:
             )
         except Exception:
             pass
-    return {"ok": True, "advanced": advanced, "active": active, "total": len(rows)}
+    return {
+        "ok": True,
+        "advanced": advanced,
+        "active": active,
+        "total": len(rows),
+        "examined_active": examined_active,
+    }
 
 
 def list_runs(limit: int = 50) -> list[dict[str, Any]]:

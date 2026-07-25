@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+from pathlib import Path
 
 ENV_PATH = os.environ.get("LEADGEN_ENV", "/opt/leadgen/.env")
 
@@ -67,16 +68,21 @@ def main() -> int:
     with open(ENV_PATH, "w", encoding="utf-8") as f:
         f.write(text)
 
-    subprocess.run(
-        [
-            "bash",
-            "-lc",
-            "cd /opt/leadgen && docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker worker-heavy scheduler",
-        ],
-        check=True,
+    # ADR-097: never recreate with compose default :latest
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from app_version_pin import resolve_app_version_pin  # noqa: E402
+
+    pin = resolve_app_version_pin()
+    recreate = (
+        f"cd /opt/leadgen && APP_VERSION={pin} docker compose "
+        f"-f docker-compose.vps.yml --profile celery up -d --no-deps "
+        f"app worker worker-heavy worker-video scheduler"
     )
+    print(f"RECREATE with APP_VERSION={pin}")
+    subprocess.run(["bash", "-lc", recreate], check=True)
     print("RECREATE app + celery stack OK")
     print("Verify: curl -s http://127.0.0.1:8000/api/activation/summary | head -c 400")
+    print("Verify: /health.version must equal pin (not latest)")
     return 0
 
 
