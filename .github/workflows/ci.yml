@@ -11,9 +11,15 @@ on:
   push:
     branches: [main]
     paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
+  # NO paths-ignore on pull_request (2026-07-25). The `Protect main` ruleset
+  # requires "Lint + syntax + secrets", "prod_check + pytest" and "harness
+  # real-redis integration" — all defined in THIS workflow. With a path filter
+  # a docs-only PR never triggers them, so those required contexts never report
+  # and the PR is permanently BLOCKED (mergeable=MERGEABLE, state=BLOCKED).
+  # Running CI on docs PRs costs a few minutes; faking the contexts would
+  # weaken the gate, so we run them for real instead.
   pull_request:
     branches: [main]
-    paths-ignore: ["docs/**", "**/*.md", "**/*.bak"]
 
 concurrency:
   group: ci-${{ github.ref }}
