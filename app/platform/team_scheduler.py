@@ -175,6 +175,7 @@ _last_ran: dict[str, str | None] = {
     "product_one_health": None,  # hourly :20: Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (ungated safety-net, mirrors watchdog/onboard)
     "approval_email_sweep": None,  # hourly :40: bounded pending-approval EMAIL sweep (gated APPROVAL_EMAIL_NOTIFY, single-flight)
     "social_drain": None,  # hourly :10: native social queue drain (gated SOCIAL_ENGINE)
+    "sales_autopilot": None,  # hourly :25: Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
 }
 
 
@@ -1249,6 +1250,13 @@ async def _run_job_inner(job: str) -> bool:
             # Never sends without customer consent + provider success; audit +
             # DB idempotency key make repeated runs safe.
             await approval_notifier.run_approval_email_sweep()
+        elif job == "sales_autopilot":
+            from app.platform.sales_autopilot import scheduler as _sales_ap
+
+            # Canary tick. INERT unless SALES_AUTOPILOT_ENABLED=1 (run_tick
+            # returns {enabled:False} immediately). Dry-run default; calling
+            # HARD OFF; Estique/manual_owner_confirmed fail-closed in eligibility.
+            await _sales_ap.run_tick()
         elif job == "social_drain":
             from app.social_engine import engine as _social_engine
 
@@ -1522,6 +1530,9 @@ async def scheduler_loop() -> None:
             if now.minute >= 40 and _last_ran.get("approval_email_sweep") != hour_key:
                 _last_ran["approval_email_sweep"] = hour_key
                 await _run_job("approval_email_sweep")
+            if now.minute >= 25 and _last_ran.get("sales_autopilot") != hour_key:
+                _last_ran["sales_autopilot"] = hour_key
+                await _run_job("sales_autopilot")
             # Native social queue drain — hourly :10 (INERT unless SOCIAL_ENGINE=1).
             if now.minute >= 10 and _last_ran.get("social_drain") != hour_key:
                 _last_ran["social_drain"] = hour_key

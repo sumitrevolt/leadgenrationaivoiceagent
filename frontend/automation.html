@@ -583,10 +583,26 @@ a{color:var(--acc)}
     <div class="mut">OpenClaw-governed daily video queue (flags default OFF). Reuses video_ad_cycle + Postiz; approval ke bina publish nahi.</div>
     <label>Client ID</label><input id="coVidClient" placeholder="jiya-makeover">
     <label>Ratio</label>
-    <select id="coVidRatio"><option>9:16</option><option>1:1</option><option>16:9</option></select>
+    <select id="coVidRatio"><option>9:16</option><option>4:5</option><option>1:1</option><option>16:9</option></select>
     <button class="btn" onclick="coVidOps()">Queue / ops</button>
     <button class="btn2" onclick="coVidGenerate()">Generate (heavy)</button>
     <div id="coVidOut"></div>
+  </div>
+  <div class="card">
+    <h2>🎨 Creative Automation OS</h2>
+    <div class="mut">ADR-143 governed creatives (CREATIVE_OS_ENABLED default OFF). Deterministic FFmpeg + exact-hash approval. No auto-publish / auto-spend.</div>
+    <label>Client ID</label><input id="crOsClient" placeholder="disposable-test-tenant">
+    <label>Business</label><input id="crOsBiz" placeholder="Test Salon">
+    <label>Recipe</label>
+    <select id="crOsRecipe">
+      <option>offer_announcement</option><option>problem_solution</option><option>service_showcase</option>
+      <option>faq_reel</option><option>festival_local</option><option>educational_tip</option>
+    </select>
+    <label>Ratio</label>
+    <select id="crOsRatio"><option>9:16</option><option>4:5</option><option>1:1</option><option>16:9</option></select>
+    <button class="btn" onclick="crOsOps()">Ops</button>
+    <button class="btn2" onclick="crOsGenerate()">Generate preview</button>
+    <div id="crOsOut"></div>
   </div>
   <div class="card">
     <h2>👥 Lead Round-Robin</h2>
@@ -1654,6 +1670,28 @@ async function coVidGenerate(){
     $('coVidOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
     toast('Video generate queued');
   }catch(e){toast('Generate fail: '+e.message,false)}
+}
+async function crOsOps(){
+  var cid=$('crOsClient').value.trim();
+  try{
+    var d=await api('/api/clientops/creative-os/ops'+(cid?('?client_id='+encodeURIComponent(cid)):''));
+    $('crOsOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+  }catch(e){toast('Creative OS ops fail: '+e.message,false)}
+}
+async function crOsGenerate(){
+  var cid=$('crOsClient').value.trim();
+  if(!cid) return toast('Client ID chahiye',false);
+  try{
+    var d=await api('/api/clientops/creative-os/generate',{method:'POST',body:JSON.stringify({
+      client_id:cid,
+      business_name:($('crOsBiz').value||cid).trim(),
+      recipe:($('crOsRecipe')&&$('crOsRecipe').value)||'offer_announcement',
+      ratio:($('crOsRatio')&&$('crOsRatio').value)||'9:16',
+      provider:'deterministic'
+    })});
+    $('crOsOut').innerHTML='<div class="result">'+jpre(d)+'</div>';
+    toast(d&&d.ok?'Creative preview ready':'Creative generate blocked');
+  }catch(e){toast('Creative generate fail: '+e.message,false)}
 }
 // ADR-104 (2026-07-15): in-page confirmation modal, replacing native confirm()
 // for approval/publish/schedule/delivery actions. A native confirm() dialog

@@ -261,6 +261,7 @@
       <div class="sec nav-group" role="presentation">Automation</div>
       <a href="/app/owner" role="menuitem" aria-label="Owner Operating System command center"><span class="ic" aria-hidden="true">👑</span> Owner OS</a>
       <a href="#openclawAdminCard" onclick="scrollToSec('openclawAdminCard');return false;" role="menuitem" aria-label="OpenClaw Owner Copilot — NL commands via Owner OS"><span class="ic" aria-hidden="true">🧠</span> OpenClaw Copilot <span class="badge" id="nav-openclaw-flag" style="background:#64748b;display:none">OFF</span></a>
+      <a href="#creativeOsCard" onclick="scrollToSec('creativeOsCard');return false;" role="menuitem" aria-label="Creative Production cockpit"><span class="ic" aria-hidden="true">🎨</span> Creative Production</a>
       <a href="/app/automation" role="menuitem" aria-label="Mission Control automation"><span class="ic" aria-hidden="true">🎛</span> Automation Monitor <span class="badge" id="nav-auto-appr" style="background:#f59e0b;display:none">0</span></a>
       <a href="/app/calendar" role="menuitem" aria-label="Content calendar"><span class="ic" aria-hidden="true">🗓</span> Content Calendar</a>
       <a href="/app/automation#approvals" role="menuitem" aria-label="Approvals and workflows"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
@@ -735,8 +736,140 @@
           var t=e.target.closest("[data-oc-appr]"); if(!t) return;
           ocDecideAppr(t.getAttribute("data-src"), t.getAttribute("data-id"), t.getAttribute("data-oc-appr"));
         });
+        // Enter = Run (same as purple button); Shift+Enter = newline in textarea
+        (function bindOcTextEnterToRun(){
+          var ta=document.getElementById("ocText"); if(!ta) return;
+          ta.addEventListener("keydown", function(e){
+            if(e.key!=="Enter" || e.shiftKey || e.isComposing) return;
+            e.preventDefault();
+            if(typeof window.ocRun==="function") window.ocRun();
+          });
+        })();
         if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", ocBoot);
         else ocBoot();
+      })();
+      </script>
+
+      <!-- ═══ Creative Production cockpit (ADR-143 Creative Automation OS) ═══
+           Extends canonical admin shell — no second command center.
+           CREATIVE_OS_ENABLED fail-closed. No auto-publish / auto-spend. -->
+      <div data-view="command_center" class="card" id="creativeOsCard" style="margin-bottom:14px;border:1px solid #0d9488;scroll-margin-top:80px;background:linear-gradient(135deg,#f0fdfa 0%,#f8fafc 100%)">
+        <div class="hd" style="border-bottom:1px solid rgba(13,148,136,.22);display:flex;align-items:center;flex-wrap:wrap;gap:8px">
+          <h3 style="color:#0f766e;font-size:16px;letter-spacing:-.3px">🎨 Creative Production</h3>
+          <span id="crOsFlagBadge" style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#64748b;color:#fff">flag…</span>
+          <span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#7f1d1d;color:#fecaca">No auto-spend</span>
+          <span style="font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;background:#7f1d1d;color:#fecaca">Calling HARD OFF</span>
+          <span class="right" style="margin-left:auto;font-size:11px;color:#64748b">Deterministic FFmpeg · exact-hash approval · Postiz gated</span>
+        </div>
+        <div class="bd" style="color:#0f172a">
+          <p style="margin:0 0 10px;font-size:12.5px;color:#475569;line-height:1.45">Queue → generate → QA → approval-pending. Publish only via existing approved exact revision + VIDEO_SOCIAL_PUBLISH. Disposable test tenants only.</p>
+          <div id="crOsCounts" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;font-size:11px"></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px;margin-bottom:10px">
+            <div><label style="font-size:11px;color:#64748b">Tenant ID</label><input id="crOsClient" placeholder="disposable-test-tenant" style="width:100%;padding:6px 10px;border:1px solid #99f6e4;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#64748b">Business</label><input id="crOsBiz" placeholder="Test Salon" style="width:100%;padding:6px 10px;border:1px solid #99f6e4;border-radius:6px"></div>
+            <div><label style="font-size:11px;color:#64748b">Recipe</label>
+              <select id="crOsRecipe" style="width:100%;padding:6px 10px;border:1px solid #99f6e4;border-radius:6px">
+                <option>offer_announcement</option><option>problem_solution</option><option>service_showcase</option>
+                <option>faq_reel</option><option>festival_local</option><option>educational_tip</option>
+              </select>
+            </div>
+            <div><label style="font-size:11px;color:#64748b">Aspect</label>
+              <select id="crOsRatio" style="width:100%;padding:6px 10px;border:1px solid #99f6e4;border-radius:6px">
+                <option>9:16</option><option>4:5</option><option>1:1</option><option>16:9</option>
+              </select>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <button type="button" class="btn" onclick="crOsOps()" style="background:#0f766e;color:#fff;border:0;font-weight:700">Refresh queue</button>
+            <button type="button" class="btn" onclick="crOsGenerate()" style="background:#134e4a;color:#fff;border:0;font-weight:700">Generate deterministic preview</button>
+            <button type="button" class="btn" onclick="crOsApprove()" style="background:#334155;color:#fff;border:0">Approve exact</button>
+            <button type="button" class="btn" onclick="crOsChanges()" style="background:#e2e8f0;color:#334155;border:0">Request changes</button>
+            <button type="button" class="btn" onclick="crOsQuarantine()" style="background:#7f1d1d;color:#fecaca;border:0">Quarantine</button>
+            <button type="button" class="btn" onclick="crOsPublishGate()" style="background:#e2e8f0;color:#334155;border:0">Check publish gate</button>
+            <button type="button" class="btn" onclick="crOsCopyLink()" style="background:#e2e8f0;color:#334155;border:0">Copy approval id</button>
+          </div>
+          <label style="font-size:11px;color:#64748b">Active creative id</label>
+          <input id="crOsId" placeholder="cr_…" style="width:100%;max-width:420px;padding:6px 10px;border:1px solid #99f6e4;border-radius:6px;margin-bottom:8px">
+          <pre id="crOsOut" style="margin:0;white-space:pre-wrap;background:#0f172a;color:#e2e8f0;border:1px solid #334155;border-radius:10px;padding:10px;font-size:11.5px;max-height:260px;overflow:auto">—</pre>
+          <div id="crOsTable" style="margin-top:10px;font-size:12px;max-height:220px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px">—</div>
+        </div>
+      </div>
+      <script>
+      (function(){
+        function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c];}); }
+        function out(obj){ var el=document.getElementById("crOsOut"); if(el) el.textContent=typeof obj==="string"?obj:JSON.stringify(obj,null,2); }
+        window.crOsOps = async function(){
+          var cid=(document.getElementById("crOsClient").value||"").trim();
+          var {status,body}=await api("/api/clientops/creative-os/ops"+(cid?("?client_id="+encodeURIComponent(cid)):"" ));
+          out({status:status, body:body});
+          var badge=document.getElementById("crOsFlagBadge");
+          if(badge){
+            var on=body&&body.enabled;
+            badge.textContent=on?"CREATIVE_OS ON":"CREATIVE_OS OFF";
+            badge.style.background=on?"#0d9488":"#64748b";
+          }
+          var counts=body&&body.counts||{};
+          var cEl=document.getElementById("crOsCounts");
+          if(cEl){
+            var keys=["queued","generating","qa_failed","approval_pending","approved","scheduled","published","failed","quarantined"];
+            cEl.innerHTML=keys.map(function(k){
+              return '<span style="padding:2px 8px;border-radius:999px;background:#ccfbf1;color:#115e59;font-weight:700">'+esc(k)+': '+(counts[k]||0)+'</span>';
+            }).join("");
+          }
+          var tEl=document.getElementById("crOsTable");
+          var items=(body&&body.items)||[];
+          if(tEl){
+            if(!items.length){ tEl.innerHTML="<span style='color:#64748b'>No creatives yet (flag OFF or empty queue)</span>"; }
+            else {
+              tEl.innerHTML=items.map(function(r){
+                return '<div style="padding:6px 0;border-bottom:1px solid #e2e8f0;cursor:pointer" onclick="document.getElementById(\'crOsId\').value=\''+esc(r.creative_id)+'\'">'+
+                  '<b>'+esc(r.creative_id)+'</b> · '+esc(r.tenant_id)+' · '+esc(r.status)+
+                  '<div style="font-size:11px;color:#64748b">'+esc(r.recipe)+' · '+esc(r.aspect_ratio)+' · '+esc(r.provider)+'/'+esc(r.model_name)+
+                  ' · rev '+esc(r.approval_revision)+' · hash '+esc(r.output_hash)+
+                  (r.failure_reason?(' · '+esc(r.failure_reason)):'')+'</div></div>';
+              }).join("");
+            }
+          }
+        };
+        window.crOsGenerate = async function(){
+          var body={
+            client_id:(document.getElementById("crOsClient").value||"").trim(),
+            business_name:(document.getElementById("crOsBiz").value||"").trim(),
+            recipe:document.getElementById("crOsRecipe").value,
+            ratio:document.getElementById("crOsRatio").value,
+            provider:"deterministic"
+          };
+          var {status,body:resp}=await api("/api/clientops/creative-os/generate",{method:"POST",body:JSON.stringify(body)});
+          out({status:status, body:resp});
+          if(resp&&resp.creative_id) document.getElementById("crOsId").value=resp.creative_id;
+          crOsOps();
+        };
+        async function _act(path){
+          var cid=(document.getElementById("crOsClient").value||"").trim();
+          var id=(document.getElementById("crOsId").value||"").trim();
+          if(!cid||!id){ out("tenant + creative id required"); return; }
+          var {status,body}=await api("/api/clientops/creative-os/"+encodeURIComponent(id)+"/"+path,{
+            method:"POST", body:JSON.stringify({client_id:cid, note:(path==="changes"?"admin change request":"")})
+          });
+          out({status:status, body:body}); crOsOps();
+        }
+        window.crOsApprove=function(){ return _act("approve"); };
+        window.crOsChanges=function(){ return _act("changes"); };
+        window.crOsQuarantine=function(){ return _act("quarantine"); };
+        window.crOsPublishGate=async function(){
+          var cid=(document.getElementById("crOsClient").value||"").trim();
+          var id=(document.getElementById("crOsId").value||"").trim();
+          var {status,body}=await api("/api/clientops/creative-os/"+encodeURIComponent(id)+"/publish-gate?client_id="+encodeURIComponent(cid));
+          out({status:status, body:body});
+        };
+        window.crOsCopyLink=function(){
+          var id=(document.getElementById("crOsId").value||"").trim();
+          if(!id){ out("no creative id"); return; }
+          if(navigator.clipboard) navigator.clipboard.writeText(id);
+          out({copied:id});
+        };
+        if(document.readyState==="loading") document.addEventListener("DOMContentLoaded", function(){ try{crOsOps();}catch(e){} });
+        else try{crOsOps();}catch(e){}
       })();
       </script>
 
@@ -2989,10 +3122,15 @@ async function loadDashboard(){
 /* 🏠 Aaj ka business — plain-Hinglish owner summary at the TOP.
    Reuses the proven /api/growth/overview/today aggregator (no LLM, never-raise).
    Business-first: kya hua aaj, kya dhyan maangta hai + actionable fix. */
-function statChip(label, val){
-  return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:8px 14px;min-width:92px;text-align:center">'
-       + '<div style="font-size:22px;font-weight:800;color:#0f172a;line-height:1.1">'+val+'</div>'
+function statChip(label, val, accent){
+  var border = accent ? accent.border : '#e2e8f0';
+  var numCol = accent ? accent.num : '#0f172a';
+  var bg = accent ? accent.bg : '#fff';
+  var href = accent && accent.href ? accent.href : '';
+  var inner = '<div style="background:'+bg+';border:1px solid '+border+';border-radius:10px;padding:8px 14px;min-width:92px;text-align:center">'
+       + '<div style="font-size:22px;font-weight:800;color:'+numCol+';line-height:1.1">'+val+'</div>'
        + '<div style="font-size:11px;color:#64748b;margin-top:2px">'+label+'</div></div>';
+  return href ? '<a href="'+href+'" style="text-decoration:none">'+inner+'</a>' : inner;
 }
 async function loadTodayBiz(){
   const body = $("todayBizBody"); if(!body) return;
@@ -3011,8 +3149,16 @@ async function loadTodayBiz(){
     const hasProb = !!(d.problems && d.problems.length);
     const headColor = hasProb ? '#b45309' : '#065f46';
     let html = '<div style="font-size:15px;font-weight:700;color:'+headColor+';margin-bottom:12px">'+(d.headline||'')+'</div>';
+    // "Aaj ke kaam" (events_today) = kaam jo agents AAJ kar CHUKE (auto-done), NOT
+    // pending backlog. Isliye label truthful: "auto ho chuke". Asli boss-decision
+    // backlog = t.needs_decision (pending approvals) — alag chip me, accent ke saath.
+    var nd = t.needs_decision||0;
+    var ndAccent = nd>0
+      ? {border:'#fbbf24',num:'#b45309',bg:'#fffbeb',href:'/app/automation#approvals'}
+      : {border:'#6ee7b7',num:'#059669',bg:'#ecfdf5'};
     html += '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px">'
-          + statChip('📋 Aaj ke kaam', t.events_today||0)
+          + statChip('✅ Aaj auto ho chuke', t.events_today||0)
+          + statChip(nd>0?'🙋 Boss decision chahiye':'✅ Boss pe kuch pending nahi', nd, ndAccent)
           + statChip('🤖 Active agents', t.working||0)
           + statChip('👥 Staff', t.staff||0)
           + '</div>';

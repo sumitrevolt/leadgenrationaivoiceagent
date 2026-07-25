@@ -100,6 +100,17 @@ AUTOMATION_FLAGS = [
     "VIDEO_HARNESS_ENFORCE",  # harness evaluate_action must allow mutating video tools
     "VIDEO_HARNESS_SHADOW_ENABLED",  # Stage 1: observe video harness decisions; no enforcement / side effects
     "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
+    "CREATIVE_OS_ENABLED",  # ADR-143 Creative Automation OS master (default OFF)
+    "CREATIVE_PROVIDER_QWEN_IMAGE",  # Qwen-Image adapter (skeleton; default OFF)
+    "CREATIVE_PROVIDER_FLUX_SCHNELL",  # FLUX.1-schnell only (skeleton; default OFF; flux.dev rejected)
+    "CREATIVE_PROVIDER_WAN22",  # Wan2.2 TI2V GPU worker only (skeleton; default OFF)
+    "CREATIVE_PROVIDER_COMFYUI",  # ComfyUI lab adapter (skeleton; default OFF)
+    "CREATIVE_GPU_LAB_ENABLED",  # GPU lab preflight gate (default OFF)
+    "CREATIVE_COMFYUI_ENABLED",  # isolated ComfyUI lab (default OFF)
+    "CREATIVE_LEARNING_ENABLED",  # performance recommendations only — never auto-mutate/spend (OFF)
+    "CREATIVE_MAX_REVISIONS",  # revision cap (default 3)
+    "CREATIVE_TENANT_DAILY_BUDGET",  # per-tenant generation cap/day (default 20)
+    "CREATIVE_WORKER_TIMEOUT_S",  # generation timeout seconds (default 300)
     "CONTENT_TIME_BUDGET_S",  # content mega-job wall-clock budget (default 420; SoftTimeLimit margin)
     "ONBOARD_TIME_BUDGET_S",  # onboard sweep wall-clock budget (default 300)
     "PROSPECT_TIME_BUDGET_S",  # prospect harvest wall-clock budget (default 300)
@@ -361,4 +372,17 @@ AUTOMATION_FLAGS = [
     "LINKEDIN_OAUTH_APPROVED",
     "X_OAUTH_APPROVED",
     "GOOGLE_OAUTH_APPROVED",
+    # --- Autonomous Sales Engine / Sales Autopilot (2026-07-24, app/platform/sales_autopilot) ---
+    # Policy-driven, fail-closed, DRY-RUN default. Separate from WHATSAPP_AUTO_SEND (never the
+    # master gate here). Calling stays HARD OFF. All default OFF / INERT.
+    "SALES_AUTOPILOT_ENABLED",  # master gate — OFF default → engine fully inert (no work, dry-run)
+    "SALES_AUTOPILOT_WHATSAPP_ENABLED",  # arm WA channel live-send (needs dry_run=false too)
+    "SALES_AUTOPILOT_EMAIL_ENABLED",  # arm email channel (live email is handoff-stub only)
+    "SALES_AUTOPILOT_DRY_RUN",  # force simulation (env can only make it MORE safe)
+    "SALES_AUTOPILOT_NEW_OUTREACH_KILL",  # block brand-new first-touch outreach
+    "SALES_AUTOPILOT_FOLLOWUP_KILL",  # block follow-ups
+    "SALES_AUTOPILOT_AUTOREPLY_KILL",  # block safe auto-replies (escalate to Owner OS only)
+    "SALES_AUTOPILOT_PAYMENT_REMINDER_KILL",  # block payment/onboarding nudges
+    "SALES_AUTOPILOT_CANARY_BATCH",  # per-tick batch size (default 1)
+    "SALES_AUTOPILOT_LLM_TONE",  # OPTIONAL tone-only LLM review (never authoritative)
 ]
