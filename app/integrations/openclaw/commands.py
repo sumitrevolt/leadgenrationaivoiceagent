@@ -119,6 +119,15 @@ def _agent_status(params: dict[str, Any], *, actor: str, correlation_id: str) ->
                 "no voice/STT/TTS/dial mutation through Copilot."
             ),
         }
+    # Automation-Max agents — observe package (cadence/ops/content/outreach).
+    try:
+        from app.integrations.openclaw.automation_commands import automation_agent_package
+
+        auto_pkg = automation_agent_package(agent_id)
+        if auto_pkg:
+            result["openclaw_automation"] = auto_pkg
+    except Exception:
+        pass
     return {
         "status": "SUCCEEDED",
         "verified": True,
@@ -376,6 +385,14 @@ try:
 except Exception:  # never break the base command surface
     pass
 
+# --- Automation-Max handlers (additive GREEN observe) ---
+try:
+    from app.integrations.openclaw.automation_commands import AUTOMATION_HANDLERS
+
+    HANDLERS.update(AUTOMATION_HANDLERS)
+except Exception:
+    pass
+
 
 def execute_typed_command(
     command: str,
@@ -483,6 +500,30 @@ def classify_nl(text: str) -> dict[str, Any]:
         return _prop("agents.list", params, raw, "GREEN")
     if any(x in low for x in ("feature-flag", "feature flag", "flags state", "flag state")):
         return _prop("platform.status", params, raw, "GREEN")
+    if any(
+        x in low
+        for x in (
+            "automation status",
+            "automation-max",
+            "automation max",
+            "cadence status",
+            "ops watchdog",
+            "band automations",
+            "kaun sa engine on",
+            "engines on",
+        )
+    ):
+        return _prop("automation.status", params, raw, "GREEN")
+    if any(
+        x in low
+        for x in (
+            "automation agents",
+            "cadence agent",
+            "anika status",
+            "kavya automation",
+        )
+    ):
+        return _prop("automation.agents", params, raw, "GREEN")
     if any(
         x in low
         for x in (

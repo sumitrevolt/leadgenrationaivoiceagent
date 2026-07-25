@@ -57,7 +57,7 @@ OPENCLAW_ENABLED=1
 OPENCLAW_ALLOW_RED_ACTIONS=0
 OPENCLAW_API_TOKEN=<local-dev-token-min-32-bytes-hex>
 OPENCLAW_GATEWAY_ALLOWED_IPS=127.0.0.1,::1
-OPENCLAW_ALLOWED_COMMANDS=platform.status,agents.list,agent.status,approvals.list,delivery.status,queues.status,business.daily_summary,owner.next_actions
+OPENCLAW_ALLOWED_COMMANDS=platform.status,agents.list,agent.status,approvals.list,delivery.status,queues.status,business.daily_summary,owner.next_actions,runtime.status,agents.unhealthy,automation.status,automation.agents
 ```
 
 `.env.example` stays `OPENCLAW_ENABLED=0`.

@@ -1,19 +1,24 @@
-# SESSION_HANDOFF — overwrite every session end
+﻿# SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-PR #116 P1 repair: Celery enqueue, state machine, strict approval + live file SHA, QA evidence, budget, customer creative-os routes. Update Draft PR. No deploy.
+Upgrade OpenClaw automation agents (observe) under Automation-Max.
 
 ## Outcome
-**PARTIAL.** Code P1 repairs complete and pushed; authenticated interactive browser canary still owner-gated (credentials). API TestClient enqueue canary + unit worker lifecycle proven. Prod untouched.
+### OpenClaw Automation-Max observe (PR #135 `a6cbf63`)
+- NEW GREEN: `automation.status`, `automation.agents`
+- `agent.status` for anika/kavya/isha/rohan/neha → `openclaw_automation` package
+- NL → automation status phrases
+- Prod surgical: modules docker-cp'd; `automation.status` SUCCEEDED (allowlist unset = all GREEN)
+- No new STAFF; mutations still AMBER → Owner OS
 
-## Production truth
-- `/health.version`: `7cab5f60` healthy production
-- `origin/main`: `5199b24`
-- PR #116 head: pending push after P1 commit
-- Calling HARD OFF
+### Prior wave (still relevant)
+Cadence/Kavya/approval allowlist/boot_grace recovery on same PR.
 
-## Exact next task
-Owner runs authenticated admin + customer browser canary on disposable tenant with local `CREATIVE_OS_ENABLED=1`; then mark PR ready if CI green.
+## Owner next
+1. Merge https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/135
+2. Durable deploy `APP_VERSION=<sha>`
+3. Owner Copilot UI / Gateway: try `automation.status`
+4. GTM Estique human send
 
-## Rollback
-`CREATIVE_OS_ENABLED=0`; revert P1 commits on `feat/creative-automation-os`.
+## Out of scope
+New personas · dial · WA auto · Swara voice edits · AMBER auto-approve

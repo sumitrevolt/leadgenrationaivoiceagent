@@ -306,16 +306,16 @@ def health() -> dict[str, Any]:
                 last = last.replace(tzinfo=timezone.utc)
             # A worker boot inside a heavy-job restart-protection window
             # intentionally skips and defers the job. Keep that event visible
-            # as scheduled_off for the current IST day instead of surfacing the
-            # previous day's heartbeat as overdue. The marker expires next day.
+            # as scheduled_off ONLY while the heavy window is still active.
+            # After the window ends, a lone boot_grace marker usually means the
+            # deferred countdown was lost (recreate/broker) — force overdue even
+            # if the daily EXPECTED_GAP has not elapsed yet, so run_due recovers
+            # the same day (content gap is 30h — without this, miss stays silent).
             if str(b.get("note") or "") == "boot_grace":
                 try:
-                    from zoneinfo import ZoneInfo
+                    from app.platform.boot_grace import marker_still_active
 
-                    ist = ZoneInfo("Asia/Kolkata")
-                    marker_day = last.astimezone(ist).date()
-                    today = _now().astimezone(ist).date()
-                    if marker_day == today and _job_due_today(job):
+                    if marker_still_active(job, last, now=_now()) and _job_due_today(job):
                         jobs.append(
                             {
                                 "job": job,
@@ -324,6 +324,19 @@ def health() -> dict[str, Any]:
                                 "duration_s": b.get("s"),
                                 "status": "scheduled_off",
                                 "note": "boot_grace",
+                            }
+                        )
+                        continue
+                    if _job_due_today(job) and _job_due_yet(job):
+                        overdue.append(job)
+                        jobs.append(
+                            {
+                                "job": job,
+                                "last_run": b.get("at"),
+                                "last_ok": b.get("ok"),
+                                "duration_s": b.get("s"),
+                                "status": "overdue",
+                                "note": "boot_grace_lost_defer",
                             }
                         )
                         continue

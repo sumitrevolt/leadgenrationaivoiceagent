@@ -1,9 +1,20 @@
-# CURRENT_STATE - LeadGen AI (operational truth)
+﻿# CURRENT_STATE - LeadGen AI (operational truth)
 
 Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN
 
 ## Last verified timestamp
-2026-07-25T09:29Z (production running `441cf37a`, verified on-box AND via public `/health`).
+2026-07-25T10:34Z (Automation-Max safe flags LIVE on prod; `/health`=`441cf37a` after `:latest` skew self-heal).
+
+## Sprint goal (LOCKED)
+**Automation-Max** — safe engines auto; human only for publish / money / dial / bulk WA.
+
+## Automation-Max (PRODUCTION-PROVEN 2026-07-25)
+VPS `.env` SET: `OPS_WATCHDOG=1` · `CADENCE_ENGINE=1` · `JOURNEY_ENGINE=1` · `APPROVAL_EMAIL_NOTIFY=1`.
+Cold email NOT enabled. NEVER untouched: WA auto-send · platform_dial · reply-auto-send · sales-autopilot.
+Script: `scripts/vps_enable_automation_max_flags.py` (ADR-097 pin-safe recreate).
+Backup: `/opt/leadgen/.env.bak_automation_max`
+Mission Control Band list: only `AUTO_EMAIL_OUTREACH` remains OFF (by design).
+Label: PRODUCTION-PROVEN
 
 > **Read this section before trusting any SHA elsewhere in the repo.** On
 > 2026-07-25 an agent used a stale local `origin/main` ref and concluded PR #125

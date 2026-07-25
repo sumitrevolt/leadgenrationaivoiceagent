@@ -504,6 +504,15 @@ async def _run_job_inner(job: str) -> bool:
                             pass
             except Exception as _pe_e:
                 logger.debug(f"[scheduler] process_engine tick skip: {_pe_e}")
+            # Cadence advance on growth pulse (15-min) — CADENCE_ENGINE gated.
+            # Content-job (daily 07:00) pe bhi chalega; yahan Anika starve na ho
+            # jab pehle N file rows already ``done`` hon (run_due active-limit fix).
+            try:
+                from app.marketing import cadence
+
+                await cadence.run_due(limit=50)
+            except Exception as _cd_e:
+                logger.debug(f"[scheduler] cadence growth-pulse skip: {_cd_e}")
         elif job == "ops":
             await staff.run_ops()
         elif job == "qa":

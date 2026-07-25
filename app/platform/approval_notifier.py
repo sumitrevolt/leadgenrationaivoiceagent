@@ -18,6 +18,7 @@ Design (Phase-1 customer-delivery, 2026-07-12):
 - Recipient / consent / send are module-level seams so tests can inject them.
 - Never raises (matches repo convention).
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -57,13 +58,30 @@ def notify_enabled() -> bool:
 
 
 def approval_client_allowlist() -> set[str]:
-    """Explicit customer ids eligible for approval email. Empty = fail closed."""
+    """Explicit customer ids eligible for approval email. Empty = fail closed.
+
+    Sources (union):
+      1. ``APPROVAL_EMAIL_CLIENT_ALLOWLIST`` env CSV
+      2. ``data/approval_email_client_allowlist.txt`` (one id per line) — so ops
+         can arm a paying client without container recreate (ADR-097 pin-safe).
+    """
+    ids: set[str] = set()
     raw = os.getenv("APPROVAL_EMAIL_CLIENT_ALLOWLIST", "")
-    return {
-        client_id
-        for item in raw.split(",")
-        if (client_id := item.strip()[:64])
-    }
+    for item in raw.split(","):
+        client_id = item.strip()[:64]
+        if client_id:
+            ids.add(client_id)
+    try:
+        path = os.path.join("data", "approval_email_client_allowlist.txt")
+        if os.path.isfile(path):
+            with open(path, encoding="utf-8") as f:
+                for line in f:
+                    line = line.split("#", 1)[0].strip()[:64]
+                    if line:
+                        ids.add(line)
+    except Exception:
+        pass
+    return ids
 
 
 async def _notification_scope(feature_service=None) -> tuple[bool, set[str]]:
@@ -107,9 +125,7 @@ async def _notification_scope(feature_service=None) -> tuple[bool, set[str]]:
         }
         allowed: set[str] = set()
         for client_id in candidates:
-            if await feature_service.is_enabled(
-                "approval_email_notify", tenant_id=client_id
-            ):
+            if await feature_service.is_enabled("approval_email_notify", tenant_id=client_id):
                 allowed.add(client_id)
         return bool(allowed), allowed
     except Exception:
@@ -195,7 +211,9 @@ def _email_allowed(client_id: str, email: str) -> tuple[bool, str]:
     return True, ""
 
 
-async def _do_send(to_email: str, subject: str, html: str, text: str) -> tuple[bool, str | None, str]:
+async def _do_send(
+    to_email: str, subject: str, html: str, text: str
+) -> tuple[bool, str | None, str]:
     """Returns (ok, provider_message_id, failure_category). Never raises."""
     try:
         from app.integrations.email_sender import email_sender
@@ -327,7 +345,11 @@ async def notify_approval(
                 result = await _run(sess)
     except Exception as e:
         logger.warning(f"notify_approval error: {type(e).__name__}")
-        return {"status": "failed", "failure_category": "internal_error", "approval_id": approval_id}
+        return {
+            "status": "failed",
+            "failure_category": "internal_error",
+            "approval_id": approval_id,
+        }
 
     # Per-customer ledger mirror (best-effort, idempotent).
     try:
@@ -511,7 +533,7 @@ class SweepLock:
                 if r is not None:
                     try:
                         cur = await r.get(self.key)
-                        cur_s = cur.decode() if isinstance(cur, (bytes, bytearray)) else cur
+                        cur_s = cur.decode() if isinstance(cur, bytes | bytearray) else cur
                         if cur_s == self._token:
                             await r.delete(self.key)
                     except Exception:
@@ -533,7 +555,14 @@ async def run_approval_email_sweep(
     """
     scope = await _notification_scope()
     if not scope[0]:
-        out = {"enabled": False, "skipped_lock": False, "seen": 0, "sent": 0, "skipped": 0, "failed": 0}
+        out = {
+            "enabled": False,
+            "skipped_lock": False,
+            "seen": 0,
+            "sent": 0,
+            "skipped": 0,
+            "failed": 0,
+        }
         _record_run(out)
         return out
     lock = lock if lock is not None else SweepLock()

@@ -37,3 +37,23 @@ def test_journey_ensure_adds_inquiry_when_only_custom_rules(monkeypatch):
         r.get("enabled") and r.get("trigger") == "inquiry_received"
         for r in journeys.list_journeys()
     )
+
+
+def test_journey_ensure_still_adds_inquiry_when_other_trigger_enabled(monkeypatch, tmp_path):
+    """Enabled signup/manual must NOT satisfy the inquiry default gate."""
+    from app.marketing import journeys
+
+    monkeypatch.setenv("JOURNEY_ENGINE", "1")
+    monkeypatch.setattr(journeys, "_JOURNEYS", str(tmp_path / "journeys.jsonl"))
+    monkeypatch.setattr(journeys, "_RUNS", str(tmp_path / "journey_runs.jsonl"))
+    journeys.add_journey(
+        "Signup only",
+        "signup",
+        [{"type": "draft_whatsapp", "params": {"topic": "welcome"}}],
+        enabled=True,
+    )
+    n = journeys.ensure_active_defaults()
+    assert n == 1
+    rules = journeys.list_journeys()
+    assert any(r.get("enabled") and r.get("trigger") == "signup" for r in rules)
+    assert any(r.get("enabled") and r.get("trigger") == "inquiry_received" for r in rules)

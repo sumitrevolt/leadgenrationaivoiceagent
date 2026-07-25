@@ -206,7 +206,12 @@ def ensure_active_defaults() -> int:
     """JOURNEY_ENGINE=1 par kam se kam ek inquiry rule ON — warna emit empty loop.
 
     Pehle seed (disabled) jab store khali; phir inquiry rule enable ya naya add.
-    Returns count enabled/added (0 ya 1). Kabhi raise nahi."""
+    Returns count enabled/added (0 ya 1). Kabhi raise nahi.
+
+    IMPORTANT: sirf *kisi* enabled rule ka hona kaafi NAHI — enabled rule
+    ``signup``/``manual`` ho to inquiry events ab bhi empty loop me marte.
+    Check specifically for enabled ``inquiry_received``.
+    """
     if not _enabled():
         return 0
     try:
@@ -214,7 +219,7 @@ def ensure_active_defaults() -> int:
         if not rules:
             seed_defaults()
             rules = list_journeys()
-        if any(r.get("enabled") for r in rules):
+        if any(r.get("enabled") and r.get("trigger") == "inquiry_received" for r in rules):
             return 0
         for r in rules:
             if r.get("trigger") == "inquiry_received":

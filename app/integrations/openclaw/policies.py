@@ -68,6 +68,14 @@ try:
 except Exception:  # never break the base policy surface
     pass
 
+# --- Automation-Max observe surface (additive GREEN only) ---
+try:
+    from app.integrations.openclaw.automation_commands import AUTOMATION_GREEN
+
+    GREEN_COMMANDS = GREEN_COMMANDS | AUTOMATION_GREEN
+except Exception:
+    pass
+
 ALL_TYPED = GREEN_COMMANDS | AMBER_COMMANDS | RED_COMMANDS
 
 DEFAULT_STAGE_A_ALLOWLIST = ",".join(sorted(GREEN_COMMANDS))
