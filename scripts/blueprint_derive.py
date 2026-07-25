@@ -46,11 +46,20 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GRAPH = ROOT / "app" / "graphify-out" / "graph.json"
 
-# blueprint_graph imports app.platform.blueprint_detail_nodes at module level
-# (fail-closed by design), so the repo root must be importable when this script
-# is run directly as `python scripts/blueprint_derive.py`.
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+def _ensure_repo_importable() -> None:
+    """Put the repo root on sys.path for direct CLI execution ONLY.
+
+    blueprint_graph imports app.platform.blueprint_detail_nodes at module level
+    (fail-closed by design), so `python scripts/blueprint_derive.py` needs the
+    repo root importable — sys.path[0] is `scripts/` in that case.
+
+    This must NOT run at import time. pytest imports this module, and inserting
+    another root entry there can make `app` resolve under two module identities;
+    re-initialising native extensions (torch/av/ctranslate2) in one process
+    segfaults the suite. Called from __main__ only.
+    """
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
 
 # Relations that express a real code dependency. `contains` (structural) and
 # `rationale_for` (doc annotation) are deliberately excluded.
@@ -442,6 +451,7 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    _ensure_repo_importable()
     try:
         sys.exit(main(sys.argv[1:]))
     except Exception as e:  # never-raise (repo convention)
