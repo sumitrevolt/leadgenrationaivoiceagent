@@ -86,7 +86,7 @@ jobs:
       # truth) and only the post-merge run on main actually advances it.
       - name: Restore eval_gate baseline cache
         if: steps.cfg.outputs.have == '1'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: data/eval_history.jsonl
           key: eval-history-${{ github.ref }}
