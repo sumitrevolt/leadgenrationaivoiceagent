@@ -111,8 +111,10 @@ async def send(
             return result
 
         # 4. Decide dry-run. ANY of these ⇒ simulate.
-        dry = bool(force_dry_run) or pol.dry_run or not pol.channel_enabled(channel)
+        forced = _coerce_forced_dry_run(force_dry_run)
+        dry = forced or pol.dry_run or not pol.channel_enabled(channel)
         result["dry_run"] = dry
+        result["forced_dry_run"] = forced
 
         # 5. Persist attempt BEFORE provider (status=pending).
         contact = rec.get("phone") if channel == "whatsapp" else rec.get("email")
@@ -152,6 +154,27 @@ async def send(
             return result
 
         # 7. LIVE path — only WhatsApp wired (email adapter is a handoff stub).
+        #
+        # FAIL-CLOSED PROVIDER BOUNDARY. Step 4 already forces `dry` when a caller
+        # requested simulation, so this branch is unreachable today — that is the
+        # point. It is the last statement before real money/reputation is spent, so
+        # the guarantee is asserted here rather than inferred from a boolean
+        # expression 30 lines up that a future edit could reorder or weaken.
+        if forced:
+            _store.update_attempt_status(idem, SIMULATED, note="forced_dry_run_guard")
+            _advance_prospect(prospect_id, channel, step, simulated=True)
+            logger.error(
+                "[sales_autopilot.send] forced dry-run reached the provider boundary "
+                "(prospect=%s channel=%s) — refusing to send. This is a bug in the "
+                "dry-run decision, not a config problem.",
+                prospect_id,
+                channel,
+            )
+            result["outcome"] = SIMULATED
+            result["reason"] = "forced_dry_run_guard"
+            result["dry_run"] = True
+            return result
+
         timeout_s = float(pol.get("provider_timeout_s") or 20)
         if channel == "whatsapp":
             try:
@@ -211,6 +234,21 @@ def _suppressed_now(rec: dict[str, Any], channel: str, contact: Any) -> bool:
     except Exception as e:  # pragma: no cover - defensive, fail-closed
         logger.warning("[sales_autopilot.send] pre-provider suppression check failed: %s", e)
         return True
+
+
+def _coerce_forced_dry_run(value: Any) -> bool:
+    """Normalise the forced-dry-run request, failing CLOSED on anything unknown.
+
+    Only an explicit ``False`` or ``None`` means "not forced". Every other value —
+    including a malformed ``"false"`` string, an int, or an arbitrary object — is
+    treated as a request to SIMULATE. Getting this backwards would send real
+    messages, so ambiguity resolves toward the harmless outcome.
+    """
+    if value is None or value is False:
+        return False
+    if value is True:
+        return True
+    return True  # unknown/malformed mode -> simulate
 
 
 def _mask(contact: Any) -> str:
