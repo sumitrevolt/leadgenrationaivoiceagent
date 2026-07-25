@@ -86,7 +86,7 @@ jobs:
 
       - name: Upload scan results + SBOM
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-repo-scan
           path: |
@@ -142,7 +142,7 @@ jobs:
 
       - name: Upload image scan results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: trivy-image-scan
           path: trivy-image.json
