@@ -46,6 +46,21 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GRAPH = ROOT / "app" / "graphify-out" / "graph.json"
 
+def _ensure_repo_importable() -> None:
+    """Put the repo root on sys.path for direct CLI execution ONLY.
+
+    blueprint_graph imports app.platform.blueprint_detail_nodes at module level
+    (fail-closed by design), so `python scripts/blueprint_derive.py` needs the
+    repo root importable — sys.path[0] is `scripts/` in that case.
+
+    This must NOT run at import time. pytest imports this module, and inserting
+    another root entry there can make `app` resolve under two module identities;
+    re-initialising native extensions (torch/av/ctranslate2) in one process
+    segfaults the suite. Called from __main__ only.
+    """
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
+
 # Relations that express a real code dependency. `contains` (structural) and
 # `rationale_for` (doc annotation) are deliberately excluded.
 DEP_RELATIONS = {"calls", "imports", "imports_from", "uses", "references",
@@ -195,6 +210,7 @@ def derive() -> dict[str, Any]:
     """Deterministic candidate derivation. Never raises."""
     br = _load("_br", "scripts/blueprint_reconcile.py")
     bg = _load("_bg", "app/platform/blueprint_graph.py")
+    own = _load("_own", "app/platform/blueprint_ownership.py")
 
     man = br.reconcile(ROOT)
     targets = [e for e in man["entries"] if e["classification"] == "MIGRATE_VERIFIED"]
@@ -250,6 +266,18 @@ def derive() -> dict[str, Any]:
 
         corr = corroboration(files, sched_jobs, staff)
 
+        # --- reviewed package/exact-file ownership (a NON-AST signal) --------
+        own_votes: collections.Counter = collections.Counter()
+        own_reasons: list[str] = []
+        for f in files:
+            dom, why = own.owning_domain(f)
+            if dom:
+                own_votes[dom] += 1
+            own_reasons.append(f"{f}: {why}")
+        own_top = own_votes.most_common(1)[0] if own_votes else None
+        own_domain = own_top[0] if own_top and len(own_votes) == 1 else None
+        own_conflict = len(own_votes) > 1
+
         dranked = dom_votes.most_common()
         dtop = dranked[0] if dranked else None
         dsecond = dranked[1] if len(dranked) > 1 else None
@@ -257,10 +285,22 @@ def derive() -> dict[str, Any]:
         ntop = nranked[0] if nranked else None
         nsecond = nranked[1] if len(nranked) > 1 else None
 
-        parent_domain = dtop[0] if dtop else None
+        # reviewed ownership outranks AST voting when they disagree, because it
+        # was human-verified per file; AST edges only prove code dependency.
+        parent_domain = own_domain or (dtop[0] if dtop else None)
         # a specific canonical parent is proposed ONLY when it clearly dominates
         parent_node = (ntop[0] if ntop and ntop[1] >= MIN_DOMAIN_VOTES
                        and (not nsecond or ntop[1] >= nsecond[1] * 2) else None)
+        # ...and it must live in the SAME domain. A cross-domain parent is how
+        # `s_telecore` (voice) nearly landed under `customer_dashboard`.
+        if parent_node and parent_domain and canon[parent_node]["domain"] != parent_domain:
+            parent_node = None
+        # ...and an L2 detail node needs an L1 group parent. Parenting L2
+        # straight onto an L0 aggregate skips the domain/flow layer (this is
+        # what `s_stttts -> voice_agent` did). All curated nodes are L0, so an
+        # L2 candidate simply has no valid node parent yet.
+        if parent_node and e["kind"] == "subnode" and canon[parent_node].get("depth_level", 0) != 1:
+            parent_node = None
         is_critical = bool(parent_domain and parent_domain in CRITICAL_DOMAINS)
 
         dominant = bool(
@@ -268,8 +308,28 @@ def derive() -> dict[str, Any]:
             and (not dsecond or dtop[1] >= dsecond[1] * 2)
         )
 
+        # non-AST signal count: reviewed ownership + route/task/job/agent/flag
+        non_ast = corr["count"] + (1 if own_domain else 0)
+
         if not files:
             conf, why = "LOW", "no unique current source path for declared files"
+        elif own_conflict:
+            conf, why = "MEDIUM", (
+                f"conflicting reviewed ownership across files {dict(own_votes)}")
+        elif own_domain and corr["count"] >= 1 and (
+            not dtop or dtop[0] == own_domain or not dominant
+        ):
+            conf, why = "HIGH", (
+                f"reviewed ownership -> {own_domain} + {corr['count']} "
+                "current-source signal(s)")
+        elif own_domain and dominant and dtop[0] == own_domain:
+            conf, why = "HIGH", (
+                f"reviewed ownership -> {own_domain} agrees with dominant "
+                f"dependency ({dtop[1]} votes)")
+        elif own_domain:
+            conf, why = "MEDIUM", (
+                f"reviewed ownership -> {own_domain} but no independent "
+                "route/task/job/agent/flag corroboration")
         elif not prov["available"]:
             conf, why = "LOW", "Graphify graph unavailable — cannot prove dependency"
         elif not dranked:
@@ -290,11 +350,15 @@ def derive() -> dict[str, Any]:
         else:
             conf, why = "MEDIUM", "competing canonical domains with equal support"
 
-        # harness policy: critical domains never auto-accept on AST alone
-        if conf == "HIGH" and is_critical and corr["count"] < 2:
+        # harness policy: critical domains never auto-accept on AST alone.
+        # Reviewed ownership counts as ONE non-AST signal; a second independent
+        # one (route/task/scheduler/agent-registry/flag) is still required.
+        if conf == "HIGH" and is_critical and non_ast < 2:
             conf, why = "MEDIUM", (
                 f"critical domain '{parent_domain}' — needs >=2 non-AST signals "
-                f"(has {corr['count']})")
+                f"(has {non_ast})")
+
+        depth = 2 if e["kind"] == "subnode" else 1
 
         if conf == "HIGH":
             final = "IMPORTED_CANONICAL"
@@ -303,12 +367,21 @@ def derive() -> dict[str, Any]:
         else:
             final = "MISSING_RUNTIME" if not files else "REVIEW_REQUIRED"
 
+        # An L2 detail node with no verified group/flow parent cannot be
+        # imported: the canonical validator would reject it as unreachable, and
+        # inventing a parent is precisely the failure mode we regression-test.
+        if final == "IMPORTED_CANONICAL" and depth >= 2 and not parent_node:
+            final = "REVIEW_REQUIRED"
+            conf = "MEDIUM"
+            why = (f"{why}; but L2 detail has no verified same-domain group "
+                   "parent — needs manual grouping before import")
+
         rows.append({
             "legacy_id": e["legacy_id"],
             "title": e["title"],
             "kind": e["kind"],
             "canonical_id": None,
-            "depth_level": 2 if e["kind"] == "subnode" else 1,
+            "depth_level": depth,
             "parent_domain_id": parent_domain if parent_domain in domain_keys else None,
             "parent_flow_id": None,
             "parent_node_id": parent_node,
@@ -321,6 +394,10 @@ def derive() -> dict[str, Any]:
             "domain_votes": dict(dranked[:4]),
             "competing_domains": [d for d, _ in dranked[1:3]],
             "corroboration": corr,
+            "ownership_domain": own_domain,
+            "ownership_rules_applied": sorted(own_reasons),
+            "ownership_conflict": own_conflict,
+            "non_ast_signals": non_ast,
         })
 
     counts = collections.Counter(r["confidence"] for r in rows)
@@ -374,6 +451,7 @@ def main(argv: list[str]) -> int:
 
 
 if __name__ == "__main__":
+    _ensure_repo_importable()
     try:
         sys.exit(main(sys.argv[1:]))
     except Exception as e:  # never-raise (repo convention)

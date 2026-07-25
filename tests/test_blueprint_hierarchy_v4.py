@@ -40,10 +40,23 @@ def test_parent_domain_id_is_a_real_domain():
 
 
 def test_deeper_nodes_are_reachable():
-    """Any node below L0 must hang off a node or a flow, or it can never be
-    opened by expand/collapse."""
+    """Reachability, per depth.
+
+    L1 is domain/flow internals — expanding its DOMAIN reaches it, so a
+    domain-rooted L1 node must NOT be forced under an L0 aggregate (inventing
+    that parent is how `admin_ui -> public_landing` happened).
+    L2 is concrete detail — it must resolve through a real L1/L2 group or flow.
+    """
+    domains = {d["key"] for d in bg.DOMAINS}
     for n in bg.NODES:
-        if n["depth_level"] > 0:
+        d = n["depth_level"]
+        if d == 1:
+            assert (
+                n.get("parent_domain_id") in domains
+                or n.get("parent_flow_id")
+                or n.get("parent_node_id")
+            ), n["id"]
+        elif d >= 2:
             assert n.get("parent_node_id") or n.get("parent_flow_id"), n["id"]
 
 
@@ -125,7 +138,10 @@ def test_build_graph_is_deterministic():
 def test_v4_did_not_change_the_curated_overview():
     """One Fix, Zero Regressions: the owner-facing L0 map is untouched."""
     c = bg.build_graph()["counts"]
-    assert c["nodes"] == 48 and c["edges"] == 52
+    # Total may grow as verified detail is migrated; the DEFAULT projection
+    # (L0) must stay exactly the curated owner-facing map.
+    assert c["l0"] == 48 and c["edges"] == 52
+    assert c["nodes"] == c["l0"] + c["l1"] + c["l2"]
     assert c["layers"] == 9 and c["domains"] == 18 and c["flows"] == 11
     assert bg.validate_graph(strict_files=False)["ok"]
 
@@ -145,9 +161,30 @@ def _errors(monkeypatch, nodes):
     return bg.validate_graph(strict_files=False)["errors"]
 
 
-def test_gate_rejects_unreachable_deep_node(monkeypatch):
+def test_gate_rejects_unparented_l2_detail(monkeypatch):
+    """L2 detail with no group/flow parent is unreachable — must fail."""
     errs = _errors(monkeypatch, [_base_node(depth_level=2)])
-    assert any("unreachable in progressive disclosure" in e for e in errs), errs
+    assert any("L2 detail" in e and "unreachable" in e for e in errs), errs
+
+
+def test_gate_allows_domain_rooted_l1(monkeypatch):
+    """An L1 node rooted on its DOMAIN is legitimate — no fabricated L0 parent.
+
+    Regression for the false-mapping class (`admin_ui -> public_landing`) that
+    a "must have parent_node_id" rule would have forced us to invent.
+    """
+    n = _base_node(depth_level=1)
+    assert n["parent_domain_id"] == "observability_ops"
+    assert n["parent_node_id"] is None
+    errs = _errors(monkeypatch, [n])
+    assert not any("unreachable" in e for e in errs), errs
+
+
+def test_gate_still_rejects_l1_with_bogus_domain(monkeypatch):
+    bad = _base_node(depth_level=1)
+    bad["parent_domain_id"] = "not_a_domain"
+    errs = _errors(monkeypatch, [bad])
+    assert any("bad parent_domain_id" in e for e in errs), errs
 
 
 def test_gate_rejects_self_parent(monkeypatch):

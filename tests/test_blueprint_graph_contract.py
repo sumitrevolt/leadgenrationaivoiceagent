@@ -64,7 +64,13 @@ def test_edges_resolve_and_no_orphans():
         assert e["kind"] in bg.EDGE_KINDS
         deg[e["source"]] += 1
         deg[e["target"]] += 1
-    assert not [i for i, d in deg.items() if d == 0], "orphan nodes present"
+    # Orphan rule is an L0 rule. L1/L2 detail nodes are reached by hierarchy
+    # (domain / flow / group expansion), not by overview edges — demanding an
+    # edge here would force fabricated connections. Their reachability is
+    # proven by the depth gates in validate_graph().
+    depth = {n["id"]: n.get("depth_level", 0) for n in bg.NODES}
+    orphans = [i for i, d in deg.items() if d == 0 and depth.get(i, 0) == 0]
+    assert not orphans, f"orphan L0 nodes present: {orphans}"
 
 
 def test_implemented_nodes_carry_real_file_evidence():
