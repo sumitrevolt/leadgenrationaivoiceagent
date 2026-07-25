@@ -106,9 +106,14 @@ DETAIL_NODE_SPECS: list[tuple] = [
         ],
         "Speech-to-text and text-to-speech providers behind the voice agent.",
         {
-            # L2 detail: hangs off the verified same-domain group `voice_agent`
-            "depth_level": 2,
-            "parent_node_id": "voice_agent",
+            # Domain-rooted L1. It was briefly modelled as L2 under
+            # `voice_agent`, but `voice_agent` is an L0 curated aggregate —
+            # parenting L2 directly onto L0 skips the L1 domain/flow layer and
+            # makes progressive disclosure inconsistent. No independently
+            # verified L1 voice-runtime group exists yet, and inventing one
+            # purely to satisfy the validator would be fabrication, so this
+            # stays L1 rooted on its domain until such a group is evidenced.
+            "depth_level": 1,
             "legacy_node_id": "s_stttts",
             "source_provenance": "legacy-migrated",
             "flags": ["USE_LLM_STREAM_TTS", "ALLOW_MOCK_STT"],

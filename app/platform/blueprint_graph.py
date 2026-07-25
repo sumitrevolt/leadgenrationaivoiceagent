@@ -978,12 +978,15 @@ NODES: list[dict[str, Any]] = [
 # blueprint_detail_nodes holds evidence-cleared legacy migrations. They are
 # appended to THIS list so ids, validators, traversal and the public whitelist
 # stay global. A split file is fine; a second graph source of truth is not.
-try:  # never let an optional detail module break the canonical graph
-    from app.platform.blueprint_detail_nodes import build_detail_nodes as _bdn
+#
+# FAIL-CLOSED ON PURPOSE. This is a committed canonical module, not an optional
+# runtime plugin. A syntax error, malformed spec or factory error must surface
+# immediately — silently reverting 53 nodes to 48 and still reporting a healthy
+# graph would be worse than crashing. No circular import exists: the detail
+# module imports nothing from this one (it receives ``_n`` as an argument).
+from app.platform.blueprint_detail_nodes import build_detail_nodes as _build_detail
 
-    NODES.extend(_bdn(_n))
-except Exception:  # pragma: no cover - defensive, mirrors repo convention
-    pass
+NODES.extend(_build_detail(_n))
 
 
 EDGES: list[dict[str, Any]] = [
@@ -1427,10 +1430,30 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
     # --- v4 cross-node hierarchy integrity ---------------------------------
     _flow_id_set = {f["id"] for f in FLOWS}
     _seen_legacy: dict[str, str] = {}
+    _by_id = {n["id"]: n for n in NODES}
     for n in NODES:
         p = n.get("parent_node_id")
         if p and p not in idset:
             errors.append(f"{n['id']}: parent_node_id {p} is not a node")
+        elif p:
+            parent = _by_id[p]
+            # depth must strictly increase downward
+            if parent.get("depth_level", 0) >= n.get("depth_level", 0):
+                errors.append(
+                    f"{n['id']}: parent {p} depth {parent.get('depth_level')} is not "
+                    f"above child depth {n.get('depth_level')}")
+            # an L2 detail node must hang off an L1 group, never straight off an
+            # L0 aggregate — that skips the domain/flow layer entirely
+            if n.get("depth_level", 0) >= 2 and parent.get("depth_level", 0) != 1:
+                errors.append(
+                    f"{n['id']}: L2 node parented on depth-"
+                    f"{parent.get('depth_level')} node {p}; an L2 node needs an L1 "
+                    "group parent (or a flow parent)")
+            # node-parented children must agree on domain
+            if parent.get("domain") != n.get("domain"):
+                errors.append(
+                    f"{n['id']}: cross-domain parent {p} "
+                    f"({parent.get('domain')} != {n.get('domain')})")
         pf = n.get("parent_flow_id")
         if pf and pf not in _flow_id_set:
             errors.append(f"{n['id']}: parent_flow_id {pf} is not a flow")

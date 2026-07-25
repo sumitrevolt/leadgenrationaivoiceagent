@@ -124,14 +124,85 @@ def test_imported_nodes_carry_legacy_mapping_and_evidence():
         assert n["source_provenance"] == "legacy-migrated"
 
 
-def test_imported_l2_has_same_domain_group_parent():
-    """Cross-domain parenting is the `s_telecore -> customer_dashboard` bug."""
+def test_imported_l2_has_same_domain_l1_group_parent():
+    """L2 needs an L1 group parent in the same domain.
+
+    Two failure modes are pinned here: the cross-domain parent
+    (`s_telecore -> customer_dashboard`) and the depth skip
+    (`s_stttts -> voice_agent`, where voice_agent is an L0 aggregate).
+    """
     by_id = {n["id"]: n for n in bg.NODES}
     for n in _imported():
         if n["depth_level"] >= 2:
             p = n.get("parent_node_id")
-            assert p, n["id"]
-            assert by_id[p]["domain"] == n["domain"], (n["id"], p)
+            assert p or n.get("parent_flow_id"), n["id"]
+            if p:
+                assert by_id[p]["domain"] == n["domain"], (n["id"], p)
+                assert by_id[p]["depth_level"] == 1, (n["id"], p)
+
+
+# --------------------------- fail-closed detail import --------------------
+def test_detail_import_is_not_silently_optional():
+    """A broken detail module must crash, not quietly drop back to 48 nodes."""
+    src = (bg._ROOT / "app" / "platform" / "blueprint_graph.py").read_text(
+        encoding="utf-8", errors="replace")
+    head = src.split("EDGES: list", 1)[0]
+    assert "build_detail_nodes" in head
+    assert "except Exception" not in head.split("blueprint_detail_nodes", 1)[1]
+
+
+def test_registry_contains_every_declared_detail_node():
+    ids = {n["id"] for n in bg.NODES}
+    declared = {spec[0] for spec in bdn.DETAIL_NODE_SPECS}
+    assert declared and declared <= ids
+    assert len(_imported()) == len(declared)
+
+
+def test_exact_expected_counts_for_this_pr():
+    c = bg.build_graph()["counts"]
+    assert c["l0"] == 48, c
+    assert c["nodes"] == 53, c
+    assert c["nodes"] == c["l0"] + c["l1"] + c["l2"]
+
+
+def test_malformed_detail_spec_is_rejected_not_swallowed():
+    """The factory must raise on a malformed spec rather than skip it."""
+    import pytest
+
+    bad = [("only", "three", "fields")]
+    orig = bdn.DETAIL_NODE_SPECS
+    try:
+        bdn.DETAIL_NODE_SPECS = bad  # type: ignore[assignment]
+        with pytest.raises(Exception):
+            bdn.build_detail_nodes(bg._n)
+    finally:
+        bdn.DETAIL_NODE_SPECS = orig  # type: ignore[assignment]
+
+
+def test_depth_ordering_is_enforced_globally(monkeypatch):
+    """Any L2 parented on an L0 node must fail validation, not just ours."""
+    l0 = next(n for n in bg.NODES if n["depth_level"] == 0)
+    bad = bg._n("tmp_depth_probe", "Probe", l0["layer"], l0["domain"], "engine",
+                "CODE-PRESENT", ["app/platform/blueprint_graph.py"], "probe",
+                depth_level=2, parent_node_id=l0["id"])
+    monkeypatch.setattr(bg, "NODES", [l0, bad])
+    monkeypatch.setattr(bg, "EDGES", [])
+    monkeypatch.setattr(bg, "FLOWS", [])
+    errs = bg.validate_graph(strict_files=False)["errors"]
+    assert any("needs an L1 group parent" in e for e in errs), errs
+
+
+def test_cross_domain_parent_rejected_globally(monkeypatch):
+    a = next(n for n in bg.NODES if n["depth_level"] == 0)
+    b = next(n for n in bg.NODES if n["depth_level"] == 0 and n["domain"] != a["domain"])
+    child = bg._n("tmp_xdomain", "Probe", a["layer"], a["domain"], "engine",
+                  "CODE-PRESENT", ["app/platform/blueprint_graph.py"], "probe",
+                  depth_level=1, parent_node_id=b["id"])
+    monkeypatch.setattr(bg, "NODES", [a, b, child])
+    monkeypatch.setattr(bg, "EDGES", [])
+    monkeypatch.setattr(bg, "FLOWS", [])
+    errs = bg.validate_graph(strict_files=False)["errors"]
+    assert any("cross-domain parent" in e for e in errs), errs
 
 
 def test_imported_l1_is_domain_rooted_without_fabricated_parent():

@@ -46,6 +46,12 @@ from typing import Any
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 GRAPH = ROOT / "app" / "graphify-out" / "graph.json"
 
+# blueprint_graph imports app.platform.blueprint_detail_nodes at module level
+# (fail-closed by design), so the repo root must be importable when this script
+# is run directly as `python scripts/blueprint_derive.py`.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 # Relations that express a real code dependency. `contains` (structural) and
 # `rationale_for` (doc annotation) are deliberately excluded.
 DEP_RELATIONS = {"calls", "imports", "imports_from", "uses", "references",
@@ -279,6 +285,12 @@ def derive() -> dict[str, Any]:
         # ...and it must live in the SAME domain. A cross-domain parent is how
         # `s_telecore` (voice) nearly landed under `customer_dashboard`.
         if parent_node and parent_domain and canon[parent_node]["domain"] != parent_domain:
+            parent_node = None
+        # ...and an L2 detail node needs an L1 group parent. Parenting L2
+        # straight onto an L0 aggregate skips the domain/flow layer (this is
+        # what `s_stttts -> voice_agent` did). All curated nodes are L0, so an
+        # L2 candidate simply has no valid node parent yet.
+        if parent_node and e["kind"] == "subnode" and canon[parent_node].get("depth_level", 0) != 1:
             parent_node = None
         is_critical = bool(parent_domain and parent_domain in CRITICAL_DOMAINS)
 
