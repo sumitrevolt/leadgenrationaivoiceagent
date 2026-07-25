@@ -242,6 +242,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Social queue drain (hourly :10)",
         "kya": "Queued social posts Postiz/X pe publish karta hai (gated SOCIAL_ENGINE)",
     },
+    "sales_autopilot": {
+        "label": "Sales Autopilot canary (hourly :25)",
+        "kya": "Policy-driven sales tick — dry-run default, calling HARD OFF, INERT jab SALES_AUTOPILOT_ENABLED off",
+    },
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason).
