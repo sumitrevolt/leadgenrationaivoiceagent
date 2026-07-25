@@ -66,15 +66,18 @@ async def record(
     except Exception:
         pass
     try:
-        from sqlalchemy import select
+        from sqlalchemy import func, select
 
         from app.models.base import get_async_session
         from app.models.contact import Contact
         from app.models.interaction import Interaction
+        from app.models.lead import Lead
         from app.platform.identity_resolver import _phone10
 
         contact_id = None
+        resolved_lead_id = (lead_id or "").strip() or None
         ph10 = _phone10(phone)
+        em = (email or "").strip().lower()
         async with get_async_session() as session:
             if ph10:
                 row = (
@@ -84,12 +87,45 @@ async def record(
                 ).scalar_one_or_none()
                 if row:
                     contact_id = row.id
+                    resolved_lead_id = resolved_lead_id or getattr(row, "lead_id", None)
+
+            # --- email identity resolution (2026-07-25) --------------------
+            # Outreach is overwhelmingly EMAIL (1,951 of 2,611 interactions),
+            # and an email interaction carries no phone — so the phone-only
+            # lookup above left EVERY email interaction orphaned: 2,611 rows
+            # with lead_id=0, incl. 295 replies whose outcome was "interested".
+            # Those warm prospects were invisible to the lead pipeline, which
+            # is why all 10,559 leads sat at status='new' with an empty
+            # lead_status_history. Measured on prod: email resolves 82% of all
+            # interactions and 96% of the "interested" ones.
+            if em:
+                if not contact_id:
+                    row = (
+                        await session.execute(
+                            select(Contact)
+                            .where(func.lower(Contact.email) == em)
+                            .limit(1)
+                        )
+                    ).scalar_one_or_none()
+                    if row:
+                        contact_id = row.id
+                        resolved_lead_id = resolved_lead_id or getattr(row, "lead_id", None)
+                if not resolved_lead_id:
+                    row = (
+                        await session.execute(
+                            select(Lead).where(func.lower(Lead.email) == em).limit(1)
+                        )
+                    ).scalar_one_or_none()
+                    if row:
+                        resolved_lead_id = row.id
+
+            lead_id = resolved_lead_id or None
             session.add(
                 Interaction(
                     id=iid,
                     client_id=client_id or "",
                     contact_id=contact_id,
-                    lead_id=lead_id or None,
+                    lead_id=lead_id,
                     channel=channel[:30],
                     direction=direction[:10],
                     body_summary=(body_summary or "")[:2000],
