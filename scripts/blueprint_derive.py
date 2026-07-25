@@ -350,6 +350,18 @@ def derive() -> dict[str, Any]:
         else:
             conf, why = "MEDIUM", "competing canonical domains with equal support"
 
+        # Claiming a specific STRUCTURAL parent (this node hangs under that
+        # node) is a stronger assertion than naming a domain, and AST edges
+        # cannot support it: they prove "A uses B", not "A belongs to B".
+        # Caught live: `s_council` (app/agents/llm_council.py) scored kb_rag 4-2
+        # purely because the LLM council READS the knowledge base, and would
+        # have been parented under the RAG node. app/agents/ is a rejected
+        # mixed package, so it has no reviewed ownership — hold it at MEDIUM.
+        if conf == "HIGH" and parent_node and not own_domain:
+            conf, why = "MEDIUM", (
+                f"proposes structural parent '{parent_node}' from dependency "
+                "votes alone; no reviewed ownership backs that placement")
+
         # harness policy: critical domains never auto-accept on AST alone.
         # Reviewed ownership counts as ONE non-AST signal; a second independent
         # one (route/task/scheduler/agent-registry/flag) is still required.
