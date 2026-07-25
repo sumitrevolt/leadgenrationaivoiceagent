@@ -32,7 +32,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+# Human-reply intents (LLM vocabulary). Delivery failures (hard_bounce /
+# soft_bounce / complaint) are NEVER LLM labels — they are assigned by
+# classify_delivery_report() before _classify() runs.
 _CATS = ["interested", "question", "objection", "not_interested", "unsubscribe", "ooo", "other"]
+_DELIVERY_OUTCOMES = ("hard_bounce", "soft_bounce", "complaint")
 
 # Bulk/marketing senders — unknown sender + inme se koi signal = junk skip.
 _BULK_LOCALPARTS = {
@@ -73,35 +77,173 @@ _BULK_LOCALPARTS = {
 
 
 _BOUNCE_LOCALPARTS = {"mailer-daemon", "postmaster", "bounce", "bounces"}
-_BOUNCE_SUBJECT_RE = re.compile(
-    r"undeliver|delivery status notification|delivery has failed|"
-    r"returned mail|mail delivery failed|failure notice|"
-    r"delivery.{0,10}fail|couldn.t be delivered|permanent.{0,10}error",
+_COMPLAINT_LOCALPARTS = {"complaint", "abuse", "feedbackloop", "feedback-loop", "fbl"}
+# RFC 3464 DSN status codes: 5.x.x = permanent (hard), 4.x.x = transient (soft).
+# HARD RULE 2026-07-25: subject text alone is NEVER a classification signal
+# (that mistake produced the fake "interested" signal earlier).
+_DSN_STATUS_RE = re.compile(
+    r"(?:status\s*[:=]\s*|smtp;\s*\d{3}\s+|diagnostic-code\s*[:=][^\n]*?)"
+    r"([45]\.\d{1,3}\.\d{1,3})"
+    r"|"
+    r"\b([45]\.\d{1,3}\.\d{1,3})\b",
+    re.IGNORECASE,
+)
+# Body-level structural NDR markers (RFC 3464 fields) — NOT subject guessing.
+_NDR_BODY_STRUCT_RE = re.compile(
+    r"final-recipient\s*:|original-recipient\s*:|reporting-mta\s*:|"
+    r"diagnostic-code\s*:|action\s*:\s*(failed|delayed)|"
+    r"content-type\s*:\s*message/delivery-status|"
+    r"this is (an? )?(automatically generated )?delivery status notification",
+    re.IGNORECASE,
+)
+_ARF_BODY_RE = re.compile(
+    r"feedback-type\s*:\s*abuse|report-type\s*=\s*feedback-report|"
+    r"content-type\s*:\s*message/feedback-report",
     re.IGNORECASE,
 )
 _EMAIL_RE = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}")
 
 
-def _is_bounce_message(frm: str, msg: Any, subj: str) -> bool:
-    """Detect bounce/NDR (Non-Delivery-Report) mail. GAP THIS CLOSES: bounce mail
-    was previously caught by `_is_bulk_sender` (mailer-daemon/postmaster are junk
-    localparts) and silently skipped — so `email_warmup.record_bounce()` was NEVER
-    called automatically, meaning bounce_rate_7d always read ~0% no matter how many
-    real bounces happened, warmup ramp kept climbing on a false-healthy signal, and
-    the outreach_quality funnel (0 replies / 1875 sends) had zero visibility into
-    whether mail was actually landing. Never raises."""
+def _sender_localpart(frm: str) -> str:
     try:
-        local = (frm.split("@", 1)[0] if "@" in frm else frm).lower()
-        if local in _BOUNCE_LOCALPARTS:
-            return True
-        ctype = str(msg.get_content_type() or "").lower()
-        if "report" in ctype and "delivery-status" in str(msg.get_payload() or "").lower()[:2000]:
-            return True
-        if _BOUNCE_SUBJECT_RE.search(subj or ""):
-            return True
+        addr = (frm or "").strip().lower()
+        if "<" in addr and ">" in addr:
+            addr = email.utils.parseaddr(frm)[1].lower() or addr
+        return (addr.split("@", 1)[0] if "@" in addr else addr).strip()
+    except Exception:
+        return ""
+
+
+def _dsn_class(body: str) -> str | None:
+    """Return '5' (hard) / '4' (soft) from first DSN status in body, else None."""
+    try:
+        for m in _DSN_STATUS_RE.finditer(body or ""):
+            code = (m.group(1) or m.group(2) or "").strip()
+            if code.startswith("5"):
+                return "5"
+            if code.startswith("4"):
+                return "4"
     except Exception:
         pass
-    return False
+    return None
+
+
+def _msg_content_type(msg: Any, content_type: str = "") -> str:
+    if content_type:
+        return str(content_type).lower()
+    try:
+        if msg is not None:
+            raw = str(msg.get("Content-Type") or msg.get_content_type() or "")
+            return raw.lower()
+    except Exception:
+        pass
+    return ""
+
+
+def _msg_header(msg: Any, name: str, fallback: str = "") -> str:
+    if fallback:
+        return str(fallback).strip()
+    try:
+        if msg is not None:
+            return str(msg.get(name) or "").strip()
+    except Exception:
+        pass
+    return ""
+
+
+def classify_delivery_report(
+    frm: str = "",
+    msg: Any = None,
+    subj: str = "",
+    body: str = "",
+    *,
+    content_type: str = "",
+    auto_submitted: str = "",
+    feedback_type: str = "",
+) -> str | None:
+    """Classify NDR / FBL mail into hard_bounce | soft_bounce | complaint.
+
+    HARD RULE: never classify from subject text alone. Requires at least one
+    structural signal (bounce/complaint sender, RFC 3464 multipart/report,
+    Auto-Submitted + DSN body fields, Feedback-Type / ARF, or NDR body structure).
+
+    Returns None when evidence is insufficient. Never raises.
+    """
+    try:
+        local = _sender_localpart(frm)
+        ctype = _msg_content_type(msg, content_type)
+        auto_sub = (auto_submitted or _msg_header(msg, "Auto-Submitted")).strip().lower()
+        fb_type = (
+            (
+                feedback_type
+                or _msg_header(msg, "Feedback-Type")
+                or _msg_header(msg, "X-Feedback-Type")
+            )
+            .strip()
+            .lower()
+        )
+        blob = f"{body or ''}"
+        # Also peek report payload when available (multipart/report).
+        payload_snip = ""
+        try:
+            if msg is not None and "report" in ctype:
+                payload_snip = str(msg.get_payload() or "")[:4000].lower()
+        except Exception:
+            payload_snip = ""
+        scan = f"{blob}\n{payload_snip}"
+
+        is_bounce_sender = local in _BOUNCE_LOCALPARTS
+        is_complaint_sender = local in _COMPLAINT_LOCALPARTS
+        is_delivery_report = (
+            ("multipart/report" in ctype and "delivery-status" in ctype)
+            or ("multipart/report" in ctype and "delivery-status" in scan)
+            or ("report-type=delivery-status" in ctype)
+        )
+        is_feedback_report = (
+            "report-type=feedback-report" in ctype
+            or "feedback-report" in ctype
+            or bool(fb_type and fb_type not in ("", "not-spam"))
+            or bool(_ARF_BODY_RE.search(scan))
+        )
+        has_ndr_body = bool(_NDR_BODY_STRUCT_RE.search(scan))
+        auto_with_dsn = bool(auto_sub and auto_sub != "no" and (_dsn_class(scan) or has_ndr_body))
+
+        # Structural gate — subject alone is NEVER enough.
+        structural = (
+            is_bounce_sender
+            or is_complaint_sender
+            or is_delivery_report
+            or is_feedback_report
+            or has_ndr_body
+            or auto_with_dsn
+        )
+        if not structural:
+            return None
+
+        # Complaints / feedback-loop first.
+        if is_complaint_sender or is_feedback_report:
+            return "complaint"
+
+        # Bounce / DSN path.
+        if is_bounce_sender or is_delivery_report or has_ndr_body or auto_with_dsn:
+            dsn = _dsn_class(scan)
+            if dsn == "4":
+                return "soft_bounce"
+            # 5.x.x OR bounce sender / delivery-status without a 4.x.x → hard.
+            return "hard_bounce"
+
+        return None
+    except Exception:
+        return None
+
+
+def _is_bounce_message(frm: str, msg: Any, subj: str, body: str = "") -> bool:
+    """True when classify_delivery_report finds a bounce/complaint.
+
+    Kept for callers/tests. Subject alone is insufficient (see classify_delivery_report).
+    Never raises.
+    """
+    return classify_delivery_report(frm, msg, subj, body) is not None
 
 
 def _extract_bounced_email(body: str, subj: str, pmap: dict) -> str:
@@ -324,6 +466,9 @@ _STATUS = {
     "unsubscribe": "dead",
     "ooo": "ready",
     "other": "replied",
+    "hard_bounce": "dead",
+    "soft_bounce": "ready",  # transient — do not kill the prospect
+    "complaint": "dead",
 }
 _DRAFTS_FILE = os.path.join("data", "reply_drafts.jsonl")
 
@@ -686,22 +831,36 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                 subj = _decode(msg.get("Subject", ""))
                 p = pmap.get(frm)
                 body = _body(msg)
-                # BOUNCE/NDR GUARD (2026-07-04): mailer-daemon/postmaster bounce mail
-                # was previously falling into the junk-guard below (unknown sender +
-                # bulk localpart) and got silently discarded — email_warmup never
-                # learned about it, so bounce_rate_7d stayed ~0% regardless of real
-                # deliverability. Detect it FIRST, feed the warmup tracker, then skip
-                # (a bounce is not a reply to classify/draft).
-                if _is_bounce_message(frm, msg, subj):
+                # BOUNCE / COMPLAINT GUARD (2026-07-04, hardened 2026-07-25):
+                # mailer-daemon NDRs + FBL complaints must NEVER reach the LLM and
+                # must NEVER count as engagement. Classify structurally (DSN /
+                # multipart/report / bounce sender / Feedback-Type) — subject
+                # text alone is insufficient. Wire outcome into interactions so
+                # hard/soft/complaint rates are measurable.
+                delivery_kind = classify_delivery_report(frm, msg, subj, body)
+                if delivery_kind:
                     res["skipped"] += 1
-                    res["bounced"] = res.get("bounced", 0) + 1
+                    res[delivery_kind] = res.get(delivery_kind, 0) + 1
+                    bounced_email = ""
                     try:
                         from app.platform import email_warmup
 
                         bounced_email = _extract_bounced_email(body, subj, pmap)
-                        wr = email_warmup.record_bounce(bounced_email, subj[:120])
+                        if delivery_kind == "complaint":
+                            wr = email_warmup.record_complaint(
+                                bounced_email or frm or "", f"fbl_{subj[:80]}"
+                            )
+                        else:
+                            wr = email_warmup.record_bounce(
+                                bounced_email, f"{delivery_kind}:{subj[:100]}"
+                            )
                         bp = pmap.get(bounced_email) if bounced_email else None
-                        if bp and (bp.get("id") or bp.get("pid")):
+                        # Hard bounce + complaint → dead. Soft bounce stays ready.
+                        if (
+                            delivery_kind in ("hard_bounce", "complaint")
+                            and bp
+                            and (bp.get("id") or bp.get("pid"))
+                        ):
                             from app.platform import prospector
 
                             _bpid = bp.get("id") or bp.get("pid")
@@ -709,7 +868,7 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             prospector.set_prospect_fields(
                                 _bpid,
                                 {
-                                    "bounce_reason": subj[:160],
+                                    "bounce_reason": f"{delivery_kind}:{subj[:140]}",
                                     "bounced_at": datetime.now(timezone.utc).isoformat(),
                                 },
                             )
@@ -717,8 +876,29 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             _notify(
                                 "rohan",
                                 "bounce_autopause",
-                                f"Bounce rate {wr.get('rate_pct')}% — outreach auto-paused 24h",
+                                f"Deliverability pause {wr.get('rate_pct')}% — outreach auto-paused 24h",
                             )
+                    except Exception:
+                        pass
+                    try:
+                        from app.platform import interaction_log
+
+                        # Intentionally synchronous-await in async triage: same
+                        # pattern as the human-reply path below. outcome is the
+                        # measurable vocabulary (hard_bounce/soft_bounce/complaint).
+                        await interaction_log.record(
+                            channel="email",
+                            direction="in",
+                            phone="",
+                            email=bounced_email or frm or "",
+                            body_summary=(body or subj or "")[:200],
+                            outcome=delivery_kind,
+                            meta={
+                                "delivery_report": True,
+                                "from": frm,
+                                "kind": delivery_kind,
+                            },
+                        )
                     except Exception:
                         pass
                     _mark_imap_seen(M, i)
@@ -1827,4 +2007,6 @@ __all__ = [
     "park_for_admin",
     "make_hq_done_token",
     "verify_hq_done_token",
+    "classify_delivery_report",
+    "_DELIVERY_OUTCOMES",
 ]
