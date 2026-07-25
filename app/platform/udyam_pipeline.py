@@ -128,7 +128,12 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
         return {"enabled": False}
     seeds = await _udyam_seeds(city, limit)
     if not seeds:
-        return {"enabled": True, "seeds": 0, "new": 0, "note": "no Udyam seeds (set DATA_GOV_IN_API_KEY + DATA_GOV_RESOURCE_ID)"}
+        return {
+            "enabled": True,
+            "seeds": 0,
+            "new": 0,
+            "note": "no Udyam seeds (set DATA_GOV_IN_API_KEY + DATA_GOV_RESOURCE_ID)",
+        }
 
     out = {"enabled": True, "seeds": len(seeds), "enriched": 0, "new": 0, "skipped": 0}
     try:
@@ -151,7 +156,9 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
             pincode = str(s.get("pincode") or "").strip()
             # classify the RIGHT niche from Udyam MajorActivity + name -> accurate scoring
             # + pitch (was tagging every lead 'general').
-            lead_niche = classify_from_text(f"{s.get('major_activity') or ''} {name}", default=niche)
+            lead_niche = classify_from_text(
+                f"{s.get('major_activity') or ''} {name}", default=niche
+            )
 
             m = await _maps_enrich(name, c, pincode)
             if m.get("phone") or m.get("website"):
@@ -186,7 +193,12 @@ async def run(limit: int = 20, city: str = "", niche: str = "general") -> dict[s
                 "rating": m.get("rating"),
                 "reviews_count": None,
                 "source": "udyam_enriched",
-                "status": "new",
+                # State-machine fix (2026-07-25): hamesha "new" likhna in rows ko
+                # PERMANENT black hole banata tha — koi job "new" ko kabhi promote
+                # nahi karta aur outreach sirf "ready" padhta hai (prod: 1,736 "new"
+                # rows stuck). Ab harvester ke ingest semantics mirror karo:
+                # contact mila = ready, warna needs_enrich (enrich sweep target).
+                "status": "ready" if (p10 or email) else "needs_enrich",
                 "lead_score": 0,
             }
             if _oc_on:  # OpenCorporates registry enrich (CIN/status) — adds B2B signal

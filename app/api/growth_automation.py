@@ -309,7 +309,9 @@ async def social_postiz_configure(body: PostizConfigIn, _user=Depends(require_ad
         "postiz_configured": postiz_publish.enabled(),
         "api_url": meta["api_url"] or "https://api.postiz.com",
         "integrations_count": len([x for x in meta["integrations"].split(",") if x.strip()]),
-        "social_engine_enabled": social_engine.enabled() if engine_result is None else engine_result,
+        "social_engine_enabled": (
+            social_engine.enabled() if engine_result is None else engine_result
+        ),
     }
 
 
@@ -417,12 +419,18 @@ async def admin_social_jobs(
             "filters": {"client_id": client_id, "platform": plat, "status": st},
         }
     except Exception as e:
-        return {"ok": False, "error": str(e)[:200], "count": 0, "jobs": [],
-                "counts": dict.fromkeys(_SOCIAL_JOB_STATUSES, 0)}
+        return {
+            "ok": False,
+            "error": str(e)[:200],
+            "count": 0,
+            "jobs": [],
+            "counts": dict.fromkeys(_SOCIAL_JOB_STATUSES, 0),
+        }
 
 
 class SocialPauseIn(BaseModel):
     """Loop-social-8 (2026-07-11): pause + emergency-stop admin toggle."""
+
     emergency_stop: bool | None = None
     paused_platforms: list[str] | None = None
     paused_clients: list[str] | None = None
@@ -456,9 +464,7 @@ async def admin_social_pause_set(body: SocialPauseIn, _user=Depends(require_admi
             str(x).strip().lower() for x in body.paused_platforms if str(x).strip()
         ]
     if body.paused_clients is not None:
-        partial["paused_clients"] = [
-            str(x).strip() for x in body.paused_clients if str(x).strip()
-        ]
+        partial["paused_clients"] = [str(x).strip() for x in body.paused_clients if str(x).strip()]
     cfg = _pause.set_config(**partial)
     return {
         "ok": True,
@@ -486,10 +492,18 @@ async def admin_social_job_run_now(job_id: str, _user=Depends(require_admin)):
             return {"ok": False, "error": "not_found", "job_id": jid}
         prev = str(cur.get("status") or "").lower()
         if prev == "published":
-            return {"ok": False, "error": "terminal", "job_id": jid,
-                    "message": "Published — cannot re-run (use cancel + new post)"}
-        store.mark(jid, "queued", last_error="",
-                   admin_run_now_at=__import__("time").strftime("%Y-%m-%dT%H:%M:%S"))
+            return {
+                "ok": False,
+                "error": "terminal",
+                "job_id": jid,
+                "message": "Published — cannot re-run (use cancel + new post)",
+            }
+        store.mark(
+            jid,
+            "queued",
+            last_error="",
+            admin_run_now_at=__import__("time").strftime("%Y-%m-%dT%H:%M:%S"),
+        )
         return {"ok": True, "job_id": jid, "previous": prev, "status": "queued"}
     except Exception as e:
         return {"ok": False, "error": str(e)[:200]}
@@ -521,12 +535,19 @@ async def admin_social_latest_events(limit: int = 50, _user=Depends(require_admi
         from app.marketing import delivery_ledger
 
         social_evs = {
-            "post_scheduled", "post_publish_started", "post_published",
-            "post_failed", "post_partially_published", "post_retry_scheduled",
-            "post_cancelled", "customer_action_required",
-            "social_account_connected", "social_account_disconnected",
+            "post_scheduled",
+            "post_publish_started",
+            "post_published",
+            "post_failed",
+            "post_partially_published",
+            "post_retry_scheduled",
+            "post_cancelled",
+            "customer_action_required",
+            "social_account_connected",
+            "social_account_disconnected",
             "social_account_connection_failed",
-            "token_expired", "token_refreshed",
+            "token_expired",
+            "token_refreshed",
         }
         # Ledger is per-client JSONL — walk the ledger dir.
         import os as _os
@@ -616,7 +637,12 @@ async def admin_social_job_retry(job_id: str, _user=Depends(require_admin)):
         if already in ("queued", "retry", "processing"):
             return {"ok": True, "job_id": jid, "status": already, "no_change": True}
         # Reset last_error so admin sees a clean state next drain.
-        store.mark(jid, "queued", last_error="", admin_retry_at=__import__("time").strftime("%Y-%m-%dT%H:%M:%S"))
+        store.mark(
+            jid,
+            "queued",
+            last_error="",
+            admin_retry_at=__import__("time").strftime("%Y-%m-%dT%H:%M:%S"),
+        )
         return {"ok": True, "job_id": jid, "status": "queued", "previous": already}
     except HTTPException:
         raise
@@ -659,11 +685,40 @@ async def harvest_sources(_user=Depends(require_admin)):
 
 
 @router.post("/harvest/enrich")
-async def harvest_enrich(limit: int = 10, _user=Depends(require_admin)):
-    """Email-less prospects pe enrich waterfall abhi chalao."""
+async def harvest_enrich(limit: int = 100, sync: bool = False, _user=Depends(require_admin)):
+    """Email-less prospects pe enrich waterfall — DEFAULT: Celery pe enqueue.
+
+    Pehle yeh `await enrich_missing_emails(limit)` INLINE karta tha. Har row ek
+    live site fetch (2 × 10s timeout) + MX lookups + politeness sleep hai, to
+    bada limit ek web worker ko ghanton block karta — CLAUDE.md §5 ka seedha
+    violation ("Web process KABHI heavy job na chalaye — Celery only"). Ab ye
+    `scraping` queue pe task enqueue karke task_id lautata hai.
+
+    `sync=true` = chhota INLINE smoke-test path (limit ≤25, 60s hard deadline),
+    manual-admin only — `harvest/run` ke "manual = flag-independent" precedent
+    jaisa. Bulk drain hamesha queued rehta hai.
+    """
     from app.platform import lead_harvester
 
-    return await lead_harvester.enrich_missing_emails(limit)
+    if sync:
+        capped = max(1, min(int(limit or 10), 25))
+        res = await lead_harvester.enrich_missing_emails(capped, deadline_s=60)
+        return {"mode": "sync", "limit": capped, **res}
+
+    from app.tasks.scraping import _sweep_enabled, email_enrichment_sweep
+
+    max_rows = max(1, min(int(limit or 100), 1000))
+    async_res = email_enrichment_sweep.apply_async(kwargs={"max_rows": max_rows})
+    return {
+        "mode": "queued",
+        "task_id": async_res.id,
+        "queue": "scraping",
+        "max_rows": max_rows,
+        # Flag OFF = task chalega par turant no-op karega. Admin ko yeh saaf
+        # dikhna chahiye warna "queued" dekh ke drain ka intezaar karta rahega.
+        "flag_enabled": _sweep_enabled(),
+        "flag": "EMAIL_ENRICH_SWEEP",
+    }
 
 
 @router.get("/harvest/gtm-coverage")
@@ -687,7 +742,9 @@ async def harvest_udyam_run(
 
 
 @router.post("/harvest/indiamart-run")
-async def harvest_indiamart_run(days: int = 1, niche: str = "general", _user=Depends(require_admin)):
+async def harvest_indiamart_run(
+    days: int = 1, niche: str = "general", _user=Depends(require_admin)
+):
     """Pull the seller's own IndiaMART buyer-leads (official Lead Manager API) + persist.
     Gated INDIAMART_CRM_KEY (seller account). Legal — NOT directory scraping."""
     from app.integrations import indiamart_leads
