@@ -771,6 +771,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"H.4 router not mounted: {_e}")
 try:
+    from app.api.sales_autopilot_admin import router as _sales_autopilot_router
+
+    # /api/sales-autopilot/* — Autonomous Sales Engine observability + dry-run canary.
+    # Admin-only; INERT when SALES_AUTOPILOT_ENABLED unset (policy engine returns dry-run).
+    app.include_router(_sales_autopilot_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Sales-autopilot admin router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(

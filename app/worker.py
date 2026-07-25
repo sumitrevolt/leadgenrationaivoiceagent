@@ -650,6 +650,13 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=40),
         "args": ("approval_email_sweep",),
     },
+    # Sales Autopilot canary tick. INERT unless SALES_AUTOPILOT_ENABLED=1
+    # (run_tick no-ops when off). Dry-run default; no catch-up flood.
+    "staff-sales-autopilot-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=25),
+        "args": ("sales_autopilot",),
+    },
     # Periodic social-engine drain (audit 2026-07-17): enqueue fires a one-shot
     # Celery drain, but retry/dead/queued jobs need a scheduled sweep independent
     # of VIDEO_AD_CYCLE. STAFF_JOB path so prod_check + dead-man + admin toggle
