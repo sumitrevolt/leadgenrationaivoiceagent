@@ -13,12 +13,16 @@ Checks:
   6. Frontend wiring — every onclick handler defined + every fetch path routed
 Exit code 0 = ready, 1 = problems found.
 """
+
 import ast
 import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 PROBLEMS: list[str] = []
+# Non-fatal signals. Printed prominently, but do NOT affect the exit code —
+# these are "a human should look at this", not "do not deploy".
+WARNINGS: list[str] = []
 
 
 def check_sources_parse() -> None:
@@ -55,6 +59,7 @@ def check_stale_pycache() -> None:
     import struct
 
     removed = 0
+    orphans: dict[pathlib.Path, list[str]] = {}
     for d in ("app", "tests", "scripts"):
         base = ROOT / d
         if not base.is_dir():
@@ -63,11 +68,21 @@ def check_stale_pycache() -> None:
             src_name = pyc.name.split(".")[0] + ".py"
             src = pyc.parent.parent / src_name
             if not src.exists():
-                continue  # orphan pyc, harmless
+                # Harmless for IMPORT safety: CPython will not load a __pycache__
+                # .pyc without its source. But a CLUSTER of orphans means a whole
+                # module tree left the working tree (unmerged branch, bad revert,
+                # interrupted refactor) while its build artefacts stayed behind.
+                # Nothing else in this repo detects that, so record it. Deliberately
+                # NOT deleted: the filenames are the only remaining evidence of what
+                # the vanished module was, which is what makes them diagnostic.
+                orphans.setdefault(pyc.parent, []).append(src_name)
+                continue
             try:
                 header = pyc.read_bytes()[:16]
                 if header[:4] != importlib.util.MAGIC_NUMBER:
-                    pyc.unlink(); removed += 1; continue  # wrong interpreter version
+                    pyc.unlink()
+                    removed += 1
+                    continue  # wrong interpreter version
                 flags = struct.unpack("<I", header[4:8])[0]
                 if flags & 0b11:
                     continue  # hash-based pyc, mtime not used
@@ -78,11 +93,30 @@ def check_stale_pycache() -> None:
                 # SIZE mismatch with MATCHING mtime → the dangerous case:
                 # source changed but clock skew kept mtime identical, Python
                 # would happily run the old bytecode.
-                if (pyc_mtime != int(st.st_mtime) & 0xFFFFFFFF
-                        or pyc_size != st.st_size & 0xFFFFFFFF):
-                    pyc.unlink(); removed += 1
+                if (
+                    pyc_mtime != int(st.st_mtime) & 0xFFFFFFFF
+                    or pyc_size != st.st_size & 0xFFFFFFFF
+                ):
+                    pyc.unlink()
+                    removed += 1
             except OSError:
                 PROBLEMS.append(f"PYCACHE: could not inspect/remove {pyc.relative_to(ROOT)}")
+
+    # A single orphan is noise (renamed file). Several in one directory means the
+    # directory's source is GONE — report the cluster, not each file.
+    for pkg_dir, names in sorted(orphans.items()):
+        if len(names) < 2:
+            continue
+        rel = pkg_dir.parent.relative_to(ROOT)
+        WARNINGS.append(
+            f"ORPHAN MODULE TREE: {rel} has {len(names)} .pyc files with NO .py source "
+            f"({', '.join(sorted(names)[:6])}{'...' if len(names) > 6 else ''}). "
+            "The source for this package is not in the working tree - check for an "
+            "unmerged branch (e.g. a checked-out feature branch you later switched "
+            "away from; git leaves gitignored __pycache__ behind) before assuming "
+            "the feature exists."
+        )
+
     print(f"[2/6] pycache check done ({removed} stale .pyc removed)")
 
 
@@ -91,6 +125,7 @@ def check_app_imports() -> None:
     sys.path.insert(0, str(ROOT))
     try:
         from app.main import app  # noqa: F401
+
         print("[3/6] app.main imports OK")
     except Exception as e:
         PROBLEMS.append(f"APP IMPORT FAILED: {type(e).__name__}: {e}")
@@ -217,21 +252,30 @@ def check_production_config() -> None:
         print("[5/6] skipped (config not importable)")
         return
     import os as _os
-    if _os.environ.get("CONSENT_DB") in ("1", "true", "yes") and not _os.environ.get("DATABASE_URL"):
-        PROBLEMS.append("CONFIG: CONSENT_DB=1 but DATABASE_URL unset — compliance risk (opt-outs won't persist)")
+
+    if _os.environ.get("CONSENT_DB") in ("1", "true", "yes") and not _os.environ.get(
+        "DATABASE_URL"
+    ):
+        PROBLEMS.append(
+            "CONFIG: CONSENT_DB=1 but DATABASE_URL unset — compliance risk (opt-outs won't persist)"
+        )
     # TRAI DND gate must stay fail-CLOSED. DND_FAIL_OPEN turns it fail-OPEN
     # (promotional calls to DND-unverified numbers go through) — never legitimate
     # in prod (TC-002). Flag it wherever it is set.
     if _os.environ.get("DND_FAIL_OPEN") in ("1", "true", "True", "yes"):
-        PROBLEMS.append(
-            "COMPLIANCE: DND_FAIL_OPEN is set — TRAI DND gate is fail-OPEN. Unset it."
-        )
+        PROBLEMS.append("COMPLIANCE: DND_FAIL_OPEN is set — TRAI DND gate is fail-OPEN. Unset it.")
     if settings.app_env == "production":
         if settings.debug:
             PROBLEMS.append("CONFIG: debug=True in production")
-        if settings.secret_key == "change-this-in-production":
+        # These two literals are the PLACEHOLDER values prod_check looks for in
+        # order to catch an unset default in production. They are detection
+        # patterns, not credentials — hence the allowlist pragmas.
+        if settings.secret_key == "change-this-in-production":  # pragma: allowlist secret
             PROBLEMS.append("CONFIG: default secret_key in production")
-        if settings.jwt_secret_key == "change-this-jwt-secret-in-production":
+        if (
+            settings.jwt_secret_key
+            == "change-this-jwt-secret-in-production"  # pragma: allowlist secret
+        ):
             PROBLEMS.append("CONFIG: default jwt_secret_key in production")
         if "*" in settings.cors_origins:
             PROBLEMS.append("CONFIG: CORS wildcard in production")
@@ -247,8 +291,9 @@ def check_explorer_drift() -> None:
 
         a = es.audit()
         cov = len(a["mods"]) - len(a["miss_mods"])
-        line = (f"[i] explorer graph: {a['nodes']} nodes · engine coverage "
-                f"{cov}/{len(a['mods'])}")
+        line = (
+            f"[i] explorer graph: {a['nodes']} nodes · engine coverage " f"{cov}/{len(a['mods'])}"
+        )
         if a["miss_mods"]:
             line += f" · {len(a['miss_mods'])} not drawn (scripts/explorer_sync.py --stubs)"
         ea = es.edge_audit(es._read(es.EXPLORER))
@@ -306,6 +351,13 @@ def main() -> int:
     check_api_docs_drift()
     check_dev_control_invariants()
     print("-" * 56)
+    # Warnings print BEFORE the verdict so they are visible on a passing run too —
+    # a warning that only shows on failure is a warning nobody reads.
+    if WARNINGS:
+        print(f"[WARN] {len(WARNINGS)} non-blocking signal(s):")
+        for w in WARNINGS:
+            print("  ~", w)
+        print("-" * 56)
     if PROBLEMS:
         print(f"[FAIL] {len(PROBLEMS)} problem(s):")
         for p in PROBLEMS:
@@ -321,6 +373,7 @@ def _write_obsidian_result(passed: bool) -> None:
     """Write prod_check result to Obsidian System/ (INERT if OBSIDIAN_SYNC unset)."""
     try:
         import sys as _sys
+
         _sys.path.insert(0, str(ROOT))
         from app.platform import obsidian_sync as _obs
 
@@ -330,6 +383,10 @@ def _write_obsidian_result(passed: bool) -> None:
             lines.append("\n## Problems")
             for p in PROBLEMS:
                 lines.append(f"- {p}")
+        if WARNINGS:
+            lines.append("\n## Warnings (non-blocking)")
+            for w in WARNINGS:
+                lines.append(f"- {w}")
         _obs.write_system_health("prod-check-latest", "\n".join(lines))
     except Exception:
         pass

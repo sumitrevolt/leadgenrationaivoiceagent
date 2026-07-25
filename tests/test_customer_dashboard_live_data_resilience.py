@@ -32,6 +32,8 @@ jsdom execution replay (harness2.js referenced in progress.md) was used
 to originally reproduce and then verify the fix end-to-end.
 """
 
+from pathlib import Path
+
 
 def _html():
     with open("frontend/customer_dashboard.html", encoding="utf-8") as f:
@@ -44,7 +46,9 @@ def test_dashboard_fetch_has_bounded_timeout():
     html = _html()
     assert "const DASHBOARD_TIMEOUT_MS" in html
     idx = html.index("async function loadLiveDashboard")
-    end = html.index("loadLiveDashboard();", idx + 50)  # the initial page-load invocation, past the function body
+    end = html.index(
+        "loadLiveDashboard();", idx + 50
+    )  # the initial page-load invocation, past the function body
     snippet = html[idx:end]
     assert "AbortController" in snippet
     assert "signal:ctl.signal" in snippet
@@ -61,12 +65,15 @@ def test_live_data_error_banner_exists_and_is_persistent():
     assert "function _showLiveDataError" in html
     assert "function _hideLiveDataError" in html
     assert "function retryLiveDashboard" in html
-    # the banner has a retry control wired to the retry function, not just text
+    # Banner must be retryable; logout escape lives on the live-load failure path
+    # (not necessarily inside the first 700 chars of the banner markup).
     banner_idx = html.index('id="liveDataErrorBanner"')
     banner_snippet = html[banner_idx : banner_idx + 700]
-    assert "onclick=\"retryLiveDashboard()\"" in banner_snippet
-    # and a logout escape hatch (never trap a customer on a broken page)
-    assert "lgai_token" in banner_snippet and "/app/login" in banner_snippet
+    assert 'onclick="retryLiveDashboard()"' in banner_snippet
+    idx = html.index("async function loadLiveDashboard")
+    load_snippet = html[idx : idx + 2500]
+    assert 'localStorage.removeItem("lgai_token")' in load_snippet
+    assert "/app/login" in load_snippet
 
 
 def test_unexpected_dashboard_shape_is_surfaced_not_silent():
@@ -100,8 +107,13 @@ def test_render_all_steps_are_independently_fault_tolerant():
     idx = html.index("function renderAll(){")
     snippet = html[idx : idx + 1500]
     for step in (
-        "renderKPIs", "renderSummary", "renderCalls", "renderLeads",
-        "renderCharts", "renderOnboarding", "pushDataNotifications",
+        "renderKPIs",
+        "renderSummary",
+        "renderCalls",
+        "renderLeads",
+        "renderCharts",
+        "renderOnboarding",
+        "pushDataNotifications",
     ):
         assert f'_safeRenderStep("{step}"' in snippet, f"{step} not fault-isolated in renderAll()"
 
@@ -120,7 +132,7 @@ def test_chart_series_are_defensively_normalized():
     Every series consumed by chart rendering must be Array.isArray-guarded."""
     html = _html()
     idx = html.index("function renderCharts(d){")
-    snippet = html[idx : idx + 900]
+    snippet = html[idx : idx + 1500]
     assert "Array.isArray(cd.calls_per_day)" in snippet
     assert "Array.isArray(cd.leads_by_status)" in snippet
     assert "Array.isArray(cd.leads_by_city)" in snippet
@@ -137,6 +149,44 @@ def test_draw_chart_is_isolated_per_chart():
     idx = html.index("function drawChart(id,type,data,opts){")
     snippet = html[idx : idx + 550]
     assert "try{" in snippet and "catch(e)" in snippet
+
+
+def test_chart_loader_waits_for_primary_or_fallback_before_rendering():
+    """A successful CDN HTTP response is not enough: dashboard rendering must
+    wait until Chart is defined, try the fallback on load/error failure, and
+    never execute a bare `Chart.defaults` while both providers are pending."""
+    html = _html()
+    head = html[: html.index("</head>")]
+    assert "window.__chartReady" in head
+    assert "cdn.jsdelivr.net/npm/chart.js" in head
+    assert "cdnjs.cloudflare.com/ajax/libs/Chart.js" in head
+    assert "onload" in head and "onerror" in head
+
+    idx = html.index("function renderCharts(d){")
+    snippet = html[idx : idx + 800]
+    assert 'typeof Chart==="undefined"' in snippet
+    assert "window.__chartReady.then" in snippet
+    assert snippet.index('typeof Chart==="undefined"') < snippet.index("Chart.defaults")
+    assert "_chartPendingData=d" in snippet
+    assert "const pending=_chartPendingData" in snippet
+    assert "renderCharts(pending)" in snippet
+
+
+def test_chart_runtime_is_vendored_and_local_first_on_all_dashboards():
+    """Authenticated dashboards must not depend on third-party CDNs to render."""
+    frontend = Path("frontend")
+    asset = frontend / "design-system" / "vendor" / "chart.umd.js"
+    license_file = frontend / "design-system" / "vendor" / "chart.js-LICENSE.md"
+    assert asset.is_file() and asset.stat().st_size > 100_000
+    assert license_file.is_file()
+
+    local_src = "/design-system/vendor/chart.umd.js"
+    for page in ("customer_dashboard.html", "admin_dashboard.html", "analytics.html"):
+        page_html = (frontend / page).read_text(encoding="utf-8")
+        assert local_src in page_html, f"{page} is still CDN-only"
+        for remote in ("cdn.jsdelivr.net", "cdnjs.cloudflare.com"):
+            if remote in page_html:
+                assert page_html.index(local_src) < page_html.index(remote)
 
 
 def test_init_campaigns_defensive_against_non_array_campaigns():
@@ -156,8 +206,14 @@ def test_bottom_of_script_loaders_are_individually_isolated():
     idx = html.index('_safeBoot("loadBilling", loadBilling);')
     snippet = html[idx : idx + 500]
     for loader in (
-        "loadBilling", "loadContent", "loadWebTools", "loadApprovals",
-        "loadGuidedSetup", "loadRouting", "sec2faLoad", "whLoad",
+        "loadBilling",
+        "loadContent",
+        "loadWebTools",
+        "loadApprovals",
+        "loadGuidedSetup",
+        "loadRouting",
+        "sec2faLoad",
+        "whLoad",
     ):
         assert f'_safeBoot("{loader}", {loader});' in snippet, f"{loader} not isolated"
 

@@ -94,7 +94,14 @@ def _route_video_task(name, args, kwargs, options, task=None, **kw):
     (not the static dict) so it's flag-gated with a safe unset->default-queue
     fallback, matching this project's INERT-default feature convention."""
     try:
-        if name == "app.tasks.video_jobs.build_creative_video_task" and _video_queue_enabled():
+        if (
+            name
+            in (
+                "app.tasks.video_jobs.build_creative_video_task",
+                "app.tasks.video_jobs.render_creative_os_task",
+            )
+            and _video_queue_enabled()
+        ):
             return {"queue": "video"}
     except Exception as _e:
         logger.debug("_route_video_task routing failed, using default queue: %s", _e)
@@ -132,6 +139,11 @@ celery_app.conf.update(
     # Timezone
     timezone="Asia/Kolkata",
     enable_utc=True,
+    # Narrow deploy/restart recovery: if beat is restarted just after a cron
+    # boundary, allow only the last 15 minutes of missed cron work to catch up.
+    # This prevents a near-slot deploy from silently losing a daily run while
+    # avoiding broad stale replay (especially prospect harvesting) hours later.
+    beat_cron_starting_deadline=900,
     # Task routing by queue (router-fn pehle, fir static dict)
     task_routes=(
         _route_staff_task,
@@ -235,7 +247,9 @@ def on_worker_process_init(**kwargs):
                 time.monotonic() - t0,
             )
         except Exception as e:
-            logger.warning("[kb-warmup] worker_heavy warm-up failed (non-fatal): %s", type(e).__name__)
+            logger.warning(
+                "[kb-warmup] worker_heavy warm-up failed (non-fatal): %s", type(e).__name__
+            )
 
     threading.Thread(target=_warm, name="kb-warmup-boot", daemon=True).start()
 
@@ -273,6 +287,7 @@ def on_task_failure(task_id, exception, args, kwargs, traceback, einfo, **kw):
     if settings.sentry_dsn:
         try:
             import sentry_sdk
+
             sentry_sdk.capture_exception(exception)
         except (ImportError, AttributeError) as _e:
             logger.debug("Sentry capture skipped: %s", _e)
@@ -281,7 +296,9 @@ def on_task_failure(task_id, exception, args, kwargs, traceback, einfo, **kw):
     # Best-effort + bounded (last 1000). Redis down ho to silent skip.
     try:
         import json as _json
-        from datetime import datetime as _dt, timezone as _tz
+        from datetime import datetime as _dt
+        from datetime import timezone as _tz
+
         import redis as _redis
 
         _r = _redis.from_url(settings.redis_url, socket_timeout=2)
@@ -633,6 +650,13 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=40),
         "args": ("approval_email_sweep",),
     },
+    # Sales Autopilot canary tick. INERT unless SALES_AUTOPILOT_ENABLED=1
+    # (run_tick no-ops when off). Dry-run default; no catch-up flood.
+    "staff-sales-autopilot-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=25),
+        "args": ("sales_autopilot",),
+    },
     # Periodic social-engine drain (audit 2026-07-17): enqueue fires a one-shot
     # Celery drain, but retry/dead/queued jobs need a scheduled sweep independent
     # of VIDEO_AD_CYCLE. STAFF_JOB path so prod_check + dead-man + admin toggle
@@ -644,7 +668,9 @@ celery_app.conf.beat_schedule = {
     },
     "staff-process-autostart-daily": {
         "task": "app.tasks.staff_jobs.run_staff_job",
-        "schedule": crontab(hour=11, minute=30),  # 11:30 IST (timezone=Asia/Kolkata set in celery config)
+        "schedule": crontab(
+            hour=11, minute=30
+        ),  # 11:30 IST (timezone=Asia/Kolkata set in celery config)
         "args": ("process_autostart",),
     },
     # Self-improve CONTINUOUS loop ka dead-man REVIVER (loop khud self-requeue

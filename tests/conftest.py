@@ -22,6 +22,13 @@ os.environ.setdefault("KB_PREWARM", "0")
 # Dono ka graceful fallback hai = zero test-behaviour change, sirf hang khatam.
 os.environ["REDIS_URL"] = "redis://127.0.0.1:6399/0"
 os.environ.setdefault("QDRANT_URL", "")
+# App singleton DB must match the harness file DB. Set BEFORE any app.* import
+# (pydantic Settings freezes database_url on first load).
+os.environ["DATABASE_URL"] = (
+    "sqlite+aiosqlite:///"
+    + __import__("tempfile").gettempdir().replace("\\", "/")
+    + "/leadgen_test.db"
+)
 
 # SAFETY NET: koi bhi test agar galti se asli network (LLM/Exotel/Maps/Redis) hit
 # kare to wo HANG na ho — har raw socket op max 10s me fail ho jaye. pytest-timeout
@@ -90,10 +97,44 @@ if "app" not in _inspect.signature(_httpx.Client.__init__).parameters:
     _httpx.AsyncClient.__init__ = _make_compat(_httpx.AsyncClient.__init__)
 
 import pytest
+import sqlalchemy.ext.asyncio as _sa_asyncio_early
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import NullPool
+
+# Patch BEFORE any app.* import: base._get_async_engine does a function-local
+# import of create_async_engine, so this module attribute is what it resolves.
+_ORIG_CAE_EARLY = _sa_asyncio_early.create_async_engine
+
+
+def _cae_nullpool_file_sqlite(url, *args, **kwargs):
+    """Test-only sqlite pool policy (SQLAlchemy #13039 / aiosqlite #369).
+
+    - File-backed sqlite+aiosqlite -> NullPool (close on every checkin; safe across
+      pytest + TestClient portal loops).
+    - :memory: / bare sqlite+aiosqlite:// -> StaticPool (one shared connection so
+      DDL stays visible across checkouts; dispose still closes the worker).
+    """
+    if "poolclass" not in kwargs:
+        try:
+            from sqlalchemy.engine.url import make_url
+            from sqlalchemy.pool import StaticPool
+
+            _u = make_url(str(url))
+            _db = (_u.database or "").strip()
+            if _u.get_backend_name() == "sqlite":
+                if _db in ("", ":memory:"):
+                    kwargs = {**kwargs, "poolclass": StaticPool}
+                else:
+                    kwargs = {**kwargs, "poolclass": NullPool}
+        except Exception:
+            pass
+    return _ORIG_CAE_EARLY(url, *args, **kwargs)
+
+
+_sa_asyncio_early.create_async_engine = _cae_nullpool_file_sqlite
 
 from app.api.auth_deps import (
     get_current_user,
@@ -145,11 +186,21 @@ engine = create_engine(
 )
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-# Async engine for async tests
+# Async engine for async tests.
+# NullPool (test-only) — SQLAlchemy #13039 / aiosqlite #369: under aiosqlite 0.22.x
+# SQLAlchemy's aiosqlite dialect does not close the underlying connection, so a
+# POOLED async connection reused across the pytest event loop and the TestClient
+# portal loops leaks an aiosqlite `_connection_worker_thread` once its loop is gone;
+# a later cyclic-GC pass on Linux/CPython then SIGSEGVs while traversing it
+# (this is the intermittent CI exit-139). NullPool closes every connection on
+# return, so nothing is pooled or orphaned and no worker thread survives for GC to
+# hit. Verified in a repro: 8 cross-loop uses leak a worker with the default pool,
+# zero with NullPool.
 async_engine = create_async_engine(
     TEST_ASYNC_DATABASE_URL,
     connect_args={"check_same_thread": False},
     echo=False,
+    poolclass=NullPool,
 )
 AsyncTestingSessionLocal = async_sessionmaker(
     async_engine,
@@ -225,6 +276,42 @@ app.dependency_overrides[require_admin] = get_mock_user
 app.dependency_overrides[require_super_admin] = get_mock_user
 
 
+@pytest.fixture(autouse=True)
+def restore_dependency_overrides():
+    """Snapshot/restore FastAPI dependency overrides per test (Cluster 1).
+
+    Many tests clear or replace app.dependency_overrides and forget to restore,
+    causing later tests to see HTTP 401. This restores the session baseline
+    without bypassing production authentication — production code paths unchanged.
+    """
+    before = dict(app.dependency_overrides)
+    yield
+    app.dependency_overrides.clear()
+    app.dependency_overrides.update(before)
+
+
+@pytest.fixture(autouse=True)
+def _resume_inquiry_bg_accept_gate():
+    """Keep inquiry spawn gate open across tests.
+
+    Production shutdown calls drain_inquiry_bg_tasks() which stops accepting.
+    Tests that exercise drain must not poison later cases; reopen after each test.
+    """
+    try:
+        from app.platform.inquiry_hooks import resume_accepting_inquiry_bg
+
+        resume_accepting_inquiry_bg()
+    except Exception:
+        pass
+    yield
+    try:
+        from app.platform.inquiry_hooks import resume_accepting_inquiry_bg
+
+        resume_accepting_inquiry_bg()
+    except Exception:
+        pass
+
+
 # =============================================================================
 # EVENT LOOP CONFIGURATION
 # =============================================================================
@@ -279,6 +366,72 @@ async def async_db():
     yield
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _async_engine_teardown_guard(event_loop):
+    """Session-end: call app drain, dispose engines, assert no aiosqlite workers.
+
+    Ownership/lifecycle lives in app.platform.inquiry_hooks — harness only
+    invokes the canonical drain then verifies (NullPool/StaticPool already set
+    for cross-loop safety). No parallel all-tasks cancel that hides app bugs.
+    """
+    yield
+
+    import threading
+    import time as _time
+
+    def _leaked_aiosqlite_workers():
+        return [
+            t.name
+            for t in threading.enumerate()
+            if t.is_alive()
+            and "aiosqlite" in (getattr(getattr(t, "_target", None), "__module__", "") or "")
+        ]
+
+    if not event_loop.is_closed():
+        try:
+            from app.platform.inquiry_hooks import (
+                drain_inquiry_bg_tasks,
+                pending_inquiry_bg_count,
+                resume_accepting_inquiry_bg,
+            )
+
+            event_loop.run_until_complete(drain_inquiry_bg_tasks(timeout=5.0))
+            assert (
+                pending_inquiry_bg_count() == 0
+            ), "inquiry_hooks owned tasks still pending after drain"
+            # Leave accept gate open for any late imports in other session fixtures.
+            resume_accepting_inquiry_bg()
+        except AssertionError:
+            raise
+        except Exception:
+            pass
+
+    disposed = True
+    try:
+        event_loop.run_until_complete(async_engine.dispose())
+    except Exception:
+        disposed = False
+    try:
+        from app.models.base import close_async_db
+
+        event_loop.run_until_complete(close_async_db())
+    except Exception:
+        pass
+
+    for _ in range(50):  # up to ~5s settle
+        if not _leaked_aiosqlite_workers():
+            break
+        _time.sleep(0.1)
+
+    assert disposed, "test async_engine.dispose() raised at session teardown"
+    leaked = _leaked_aiosqlite_workers()
+    assert not leaked, (
+        "aiosqlite connection worker thread(s) leaked at session end: "
+        + ", ".join(leaked)
+        + " (app drain_inquiry_bg_tasks + dispose; see SQLAlchemy #13039)"
+    )
 
 
 @pytest.fixture(scope="function")
@@ -473,3 +626,54 @@ def netguard_session():
         _ng_disable()  # restore originals so pytest's own cleanup can work
     except Exception:
         yield  # never block pytest teardown
+
+
+@pytest.fixture(autouse=True)
+def _reset_rate_limit_state():
+    """Isolate per-IP rate-limit counters between tests (2026-07-18).
+
+    Tests point REDIS_URL at a refused port, so app.cache falls back to a
+    PROCESS-LEVEL InMemoryCache singleton (app.cache._redis_client). Its
+    rl:<scope>:<ip> counters — written by both rate_limit() deps and
+    public_site._rate_check() — accumulate across tests (every TestClient
+    request shares one client IP). After ~10 signup POSTs, later tests got
+    HTTP 429 instead of 422/200 (test_signup_password_hygiene). Clearing ONLY
+    rl:* keys (plus public_site's in-memory fallback lists) keeps rate limiting
+    fully functional WITHIN a test while resetting it BETWEEN tests. Test-only:
+    production limiter behaviour and configuration are unchanged."""
+
+    def _clear():
+        try:
+            import app.cache as _cache
+
+            for _name in ("_redis_client", "_cache_redis_client"):
+                _client = getattr(_cache, _name, None)
+                for _attr in ("_cache", "_expiry"):
+                    _store = getattr(_client, _attr, None)
+                    if isinstance(_store, dict):
+                        for _k in [k for k in list(_store) if str(k).startswith("rl:")]:
+                            _store.pop(_k, None)
+        except Exception:
+            pass
+        try:
+            from app.middleware import RateLimitMiddleware
+
+            node = app.middleware_stack
+            while node is not None:
+                if isinstance(node, RateLimitMiddleware):
+                    node._fallback_counts.clear()
+                node = getattr(node, "app", None)
+        except Exception:
+            pass
+        try:
+            import app.api.public_site as _ps
+
+            for _dn in ("_RL", "_RL_AUDIT"):
+                _d = getattr(_ps, _dn, None)
+                if isinstance(_d, dict):
+                    _d.clear()
+        except Exception:
+            pass
+
+    _clear()
+    yield

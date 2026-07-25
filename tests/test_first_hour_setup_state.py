@@ -21,10 +21,10 @@ def _iso(dt: datetime) -> str:
 
 def test_me_first_hour_setup_active_for_fresh_customer(monkeypatch):
     """Signed up 5 min ago + no content → active=True with a helpful message."""
-    from app.api.customer_auth import _first_hour_setup_state
-
     # Zero content queued.
     import app.marketing.auto_content as ac
+    from app.api.customer_auth import _first_hour_setup_state
+
     monkeypatch.setattr(ac, "list_queue", lambda cid, limit=1: [])
 
     rec = {"id": "c_new", "created_at": _iso(datetime.now(timezone.utc) - timedelta(minutes=5))}
@@ -37,9 +37,9 @@ def test_me_first_hour_setup_active_for_fresh_customer(monkeypatch):
 
 def test_me_first_hour_setup_inactive_after_60_minutes(monkeypatch):
     """Signed up 65 min ago → active=False (window closed regardless of content)."""
+    import app.marketing.auto_content as ac
     from app.api.customer_auth import _first_hour_setup_state
 
-    import app.marketing.auto_content as ac
     monkeypatch.setattr(ac, "list_queue", lambda cid, limit=1: [])
 
     rec = {"id": "c_old", "created_at": _iso(datetime.now(timezone.utc) - timedelta(minutes=65))}
@@ -50,14 +50,16 @@ def test_me_first_hour_setup_inactive_after_60_minutes(monkeypatch):
 def test_me_first_hour_setup_inactive_when_content_ready(monkeypatch):
     """Fresh customer BUT auto_onboard already produced content → no banner
     (customer sees real content, not the setup message)."""
+    import app.marketing.auto_content as ac
     from app.api.customer_auth import _first_hour_setup_state
 
-    import app.marketing.auto_content as ac
     monkeypatch.setattr(ac, "list_queue", lambda cid, limit=1: [{"id": "post1"}])
 
     rec = {"id": "c_ready", "created_at": _iso(datetime.now(timezone.utc) - timedelta(minutes=10))}
     state = _first_hour_setup_state(rec)
-    assert state["active"] is False, "content already exists — customer doesn't need the setup banner"
+    assert (
+        state["active"] is False
+    ), "content already exists — customer doesn't need the setup banner"
 
 
 def test_me_first_hour_setup_defensive_on_missing_created_at(monkeypatch):
@@ -80,19 +82,27 @@ def test_me_first_hour_setup_defensive_on_none(monkeypatch):
 def test_me_endpoint_includes_first_hour_setup_field(client, monkeypatch):
     """The /me response contract MUST include first_hour_setup so FE can branch."""
     import app.api.customer_auth as ca
-    from app.api.auth_deps import require_customer
+    from app.api.customer_auth import require_customer
 
     # Override auth to a known cid.
     from app.main import app
+
     app.dependency_overrides[require_customer] = lambda: "c_me"
 
     import app.marketing.clients_store as cs
+
     monkeypatch.setattr(
-        cs, "get_client",
-        lambda cid: {"id": cid, "business_name": "Me Biz", "product": "marketing",
-                     "created_at": _iso(datetime.now(timezone.utc) - timedelta(minutes=3))},
+        cs,
+        "get_client",
+        lambda cid: {
+            "id": cid,
+            "business_name": "Me Biz",
+            "product": "marketing",
+            "created_at": _iso(datetime.now(timezone.utc) - timedelta(minutes=3)),
+        },
     )
     import app.marketing.auto_content as ac
+
     monkeypatch.setattr(ac, "list_queue", lambda cid, limit=1: [])
 
     try:

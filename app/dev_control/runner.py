@@ -7,7 +7,8 @@ HARD GATES (never relaxed by this module):
     that patch into the working tree, commits, pushes, or deploys. ``apply_patch``
     below unconditionally refuses; patch application is a separate future phase.
   * File-ownership locks prevent two workers touching the same files.
-  * All provider spend flows through the budget-admitting gateway + usage ledger.
+  * OmniRoute receives one bounded sanitized packet and no worktree/tool access.
+  * Provider usage evidence still flows into the existing usage ledger.
 """
 
 from __future__ import annotations
@@ -16,12 +17,13 @@ import json
 import os
 import uuid
 from datetime import datetime
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from app.dev_control import locks
-from app.dev_control.gateway import invoke
+from app.dev_control.context_packets import build_context_packet
+from app.dev_control.governor_reviews import artifact_sha256
+from app.dev_control.governed_omniroute import request_governed_proposal
 from app.dev_control.service import TaskState, _TRANSITIONS
 from app.dev_control.usage import record_gateway_result
 
@@ -86,6 +88,7 @@ async def run_dev_task(
     daily_remaining_usd: str | float = "5.00",
 ) -> dict[str, Any]:
     """Run one claimed task to a review-required proposal. Draft-only."""
+    del task_budget_usd, daily_remaining_usd  # OmniRoute combos are free-only; transport owns quota fallback.
     from app.models.dev_task import DevTask
 
     task = await db.get(DevTask, task_id)
@@ -112,21 +115,26 @@ async def run_dev_task(
         await db.commit()
 
         acceptance = _json_list(task.acceptance_criteria)
-        system = (
-            "You are a senior engineer producing a REVIEW-ONLY unified-diff patch "
-            "PROPOSAL plus a short rationale. Do not assume it will be auto-applied."
+        packet = build_context_packet(
+            task_id=task_id,
+            commit_sha=os.getenv("APP_VERSION", "governor-worktree-uncommitted")[:64],
+            contract_version="governed-omniroute-v1",
+            size_class="simple",
+            task_goal=(task.parent_objective or "").strip(),
+            acceptance_criteria=acceptance,
+            relevant_files=owned,
+            do_not_change=[
+                "Do not request repository, worktree, shell, Git, browser, database, or production access.",
+                "Do not apply, commit, push, deploy, send, call, bill, or mutate state.",
+            ],
+            output_format="review-only unified diff proposal + rationale; no tool calls",
         )
-        user = (task.parent_objective or "").strip()
-        if acceptance:
-            user += "\n\nAcceptance criteria:\n- " + "\n- ".join(acceptance)
-
-        result = await invoke(
-            task_id=task_id, task_type="code", sensitivity="normal", complexity="high",
-            system=system, messages=[{"role": "user", "content": user}], max_tokens=1200,
-            task_budget_usd=Decimal(str(task_budget_usd)),
-            daily_remaining_usd=Decimal(str(daily_remaining_usd)),
-            provider_call=provider_call,
-        )
+        if not packet.get("ok"):
+            result = {"ok": False, "reason": packet.get("reason", "packet_rejected"), "attempted": []}
+        elif provider_call is None:
+            result = await request_governed_proposal(packet)
+        else:
+            result = await request_governed_proposal(packet, transport=provider_call)
         try:
             await record_gateway_result(db, task_id, result, scope=f"dev-task:{task_id}")
         except Exception:
@@ -141,8 +149,11 @@ async def run_dev_task(
             return {"ok": False, "reason": result.get("reason"), "stage": "invoke"}
 
         artifact = _write_proposal(proposals_root, task_id, result.get("text") or "")
+        proposal_hash = artifact_sha256(Path(artifact).read_text(encoding="utf-8"))
         task.worker_report = json.dumps({
             "proposal_artifact": artifact,
+            "proposal_sha256": proposal_hash,
+            "governor_reviews": {},
             "provider": result.get("provider"),
             "model": result.get("model"),
             "applied": False,
@@ -155,6 +166,12 @@ async def run_dev_task(
             task.state = TaskState.REVIEW_REQUIRED.value
         task.updated_at = datetime.utcnow()
         await db.commit()
-        return {"ok": True, "state": task.state, "proposal_artifact": artifact, "applied": False}
+        return {
+            "ok": True,
+            "state": task.state,
+            "proposal_artifact": artifact,
+            "proposal_sha256": proposal_hash,
+            "applied": False,
+        }
     finally:
         lock.release(worker_id, owned)

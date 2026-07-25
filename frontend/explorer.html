@@ -560,6 +560,7 @@ body.mode-technical #bp-back{display:flex;}
     <div class="bp-brand"><span class="bp-logo">◆</span> LeadGen AI · Blueprint</div>
     <div class="bp-modes" role="tablist">
       <button class="bp-mode active" data-mode="blueprint" onclick="BP.enterMode('blueprint')">🗺 Project Blueprint</button>
+      <button class="bp-mode" data-mode="master" onclick="BP.enterMode('master')">🏛 Master Blueprint</button>
       <button class="bp-mode" data-mode="automations" onclick="BP.enterMode('automations')">⚙ Automations</button>
       <button class="bp-mode" data-mode="products" onclick="BP.enterMode('products')">📦 Products</button>
       <button class="bp-mode" data-mode="technical" onclick="BP.enterMode('technical')">🕸 Technical Graph</button>
@@ -941,7 +942,7 @@ const VIEWS = {
     badge: 'AUTOMATION PIPELINE',
     world: {w: 2900, h: 1650},
     nodes: [
-      {id:'beat', type:'platform', badge:'SCHEDULER', cx:'simple', sched:'IST cron', title:'Celery Beat + team_scheduler', desc:'06:30 blog · 07:00 content · 09:30+14:30 prospect · 10:30 outreach · 11:00 pipeline · 16:00 email_followup · 18:30 wrap · 08:00 standup · hourly engineer_sre/finops/security · readiness_digest · 15min growth-pulse', files:'worker.py · team_scheduler.py · staff_jobs.py', flag:'TEAM_AUTOMATION', x:1020, y:20, w:260, h:115},
+      {id:'beat', type:'platform', badge:'SCHEDULER', cx:'simple', sched:'IST cron', title:'Celery Beat + team_scheduler', desc:'06:30 blog · 07:00 content · 09:30+14:30 prospect · 10:30 outreach · 11:00 pipeline · 16:00 email_followup · 18:30 wrap · 08:00 standup · hourly engineer_sre/finops/security · readiness_digest · 15min growth-pulse · SoftTimeLimit margin via job_time_budget', files:'worker.py · team_scheduler.py · staff_jobs.py · job_time_budget.py', flag:'TEAM_AUTOMATION', x:1020, y:20, w:260, h:115},
       {id:'worker', type:'platform', badge:'QUEUE', cx:'moderate', sched:'concurrency=4', title:'Celery Worker', desc:'Redis broker → staff_jobs queue. DLQ dlq:failed_tasks. Boot-grace on heavy jobs.', files:'app/worker.py', x:1020, y:180, w:260, h:100},
       {id:'blog', type:'marketing', badge:'BLOG', cx:'simple', sched:'06:30 daily', title:'Programmatic Blog SEO', desc:'Niche×city blog posts · sitemap · IndexNow hook', files:'blog_generator · seo_pages.py · seo_blog.py', x:40, y:360, w:230, h:100},
       {id:'prospect', type:'marketing', badge:'SCRAPE', cx:'moderate', sched:'09:30 daily', title:'Prospector + Lead Harvester', desc:'Google Maps · OSM · SearXNG · LEAD_HARVESTER · 39 niches rotation', files:'prospector.py · lead_harvester.py', flag:'NICHE_ROTATION', x:300, y:360, w:250, h:110},
@@ -1032,6 +1033,7 @@ const VIEWS = {
       {id:'owner_os', type:'platform', badge:'OWNER OS', cx:'moderate', sched:'live', title:'Owner OS Dispatch Gate', desc:'scheduler_dispatch_allowed + record_scheduler_skip — per-agent kill/pause board · audit events · gates team_scheduler._run_job AUR staff_jobs OwnerSchedulerGuardedTask dono paths', files:'owner_os.py', x:40, y:2200, w:280, h:100},
       {id:'owner_agent_execution', type:'platform', badge:'V1.1', cx:'moderate', sched:'live', title:'Owner Agent Execution', desc:'Per-agent scheduled-pause / stop-claims / drain / cooperative abort + running-task lease (owner_agent_controls table, ADR-120) · /app/owner Isha strip', files:'owner_agent_execution.py', x:340, y:2200, w:290, h:100},
       {id:'agent_task_queue', type:'platform', badge:'AUDIT QUEUE', cx:'moderate', sched:'every cron run', title:'Agent Task Queue', desc:'Paperclip-style AgentTask bridge · atomic claim · parent delegation/cost roll-up · scheduler run start/done/fail audit', files:'agent_task_queue.py · agent_task.py', x:660, y:2200, w:290, h:100},
+      {id:'sales_autopilot', type:'platform', badge:'SALES', cx:'moderate', sched:'hourly :25', title:'Sales Autopilot', desc:'Policy-driven autonomous sales canary tick · dry-run default · calling HARD OFF · INERT unless SALES_AUTOPILOT_ENABLED · fail-closed eligibility', files:'sales_autopilot_admin.py · team_scheduler.py · staff_jobs.py', flag:'SALES_AUTOPILOT_ENABLED', x:980, y:2200, w:290, h:100},
     ],
     edges: [
       {f:'scheduler_config', t:'beat', lbl:'gates run', style:'sync'},
@@ -1050,6 +1052,7 @@ const VIEWS = {
       {f:'worker', t:'celery_app', lbl:'monitoring', style:'async'},
       {f:'worker', t:'customer_autopilot', lbl:'daily', style:'async'},
       {f:'worker', t:'platform_dial', lbl:'hourly', style:'async'},
+      {f:'worker', t:'sales_autopilot', lbl:'hourly :25', style:'async'},
       {f:'worker', t:'voice_followup', lbl:'min:25', style:'async'},
       {f:'worker', t:'approval_notifier', lbl:'daily gated', style:'async'},
       {f:'approval_notifier', t:'content_approve', lbl:'remind', style:'sync'},
@@ -3896,7 +3899,7 @@ const SUBNODES = {
     {id:'s_loyalty',   title:'Loyalty & Referral',     badge:'RETAIN',  files:'loyalty.py · referral_kit.py · affiliate.py · partnerships.py'},
     {id:'s_minisite',  title:'Mini-Site & Widgets',    badge:'WEB',     files:'mini_site.py · popup_widgets.py · reviews_widget.py · lead_magnet.py'},
     {id:'s_trends',    title:'Trends & Sentiment',     badge:'INSIGHT', files:'trends.py · sentiment.py · content_feedback.py'},
-    {id:'s_videoad',   title:'Video Ad Cycle',         badge:'VIDEO AD',files:'video_ad_cycle.py · social_channels.py', flag:'VIDEO_AD_CYCLE', desc:'5-day per-client AI video ad → approval → social publish'},
+    {id:'s_videoad',   title:'Video Ad Cycle',         badge:'VIDEO AD',files:'video_ad_cycle.py · video_production/', flag:'VIDEO_AD_CYCLE', desc:'5-day AI video → approval → Postiz; Video Production Cell (VIDEO_* flags) adds harness + WA review'},
   ],
   api: [
     {id:'s_admin_api',  title:'Admin Routers',     badge:'ADMIN',    files:'admin.py · admin_dashboard.py · admin_ops.py · h4_admin.py'},
@@ -4433,6 +4436,8 @@ const BP = {
     try{ document.getElementById('samajh-modal').style.display='none'; document.getElementById('help-modal').style.display='none'; }catch(e){}
     if(view && (view==='technical'||['structural','automation','products','custom'].includes(view))){
       this.enterMode('technical', view);
+    } else if(view==='master'){
+      this.enterMode('master');
     } else {
       this.enterMode('blueprint');
     }
@@ -4464,6 +4469,7 @@ const BP = {
     this._safe(()=>{
       if(mode==='automations') this.renderAutomations();
       else if(mode==='products') this.renderProducts();
+      else if(mode==='master') this.renderMaster();
       else this.renderHome();
     });
   },
@@ -4506,6 +4512,235 @@ const BP = {
     });
     h+='</div>';
     document.getElementById('bp-content').innerHTML=h;
+  },
+
+  /* ---------- Master Blueprint (canonical backend graph, /api/blueprint) ---------- */
+  _master:null, masterLensKey:'master', masterFlowId:null, _mts:null,
+
+  _esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); },
+
+  _mStColor(s){ return ({'PRODUCTION-PROVEN':'#16a34a','TEST-PROVEN':'#2563eb','CODE-PRESENT':'#64748b','LOCAL-ONLY':'#ca8a04','PLANNED':'#7c3aed','UNVERIFIED':'#64748b','EXTERNAL-BLOCKED':'#ea580c','LEGACY':'#64748b','DEPRECATED':'#dc2626','UNKNOWN':'#64748b'})[s]||'#64748b'; },
+
+  _mLensPred(lens){
+    return (n)=>{
+      switch(lens){
+        case 'business': return ['public_funnel','pricing_packages','signup_onboarding','billing_payments','crm_hotqueue','content_gen','social_publish','customer_delivery','owner_os_copilot'].includes(n.domain);
+        case 'runtime': return n.layer===3 || !!n.runtime;
+        case 'data': return n.type==='store' || n.layer===6 || n.domain==='kb_rag';
+        case 'agent': return n.type==='agent' || n.type==='engine' || n.layer===3 || n.layer===4;
+        case 'deployment': return [1,6,8].includes(n.layer) || ['edge','store','observability'].includes(n.type);
+        case 'technical': return true;
+        default: return true;
+      }
+    };
+  },
+
+  _mToken(){ try{ return (localStorage.getItem('accessToken')||localStorage.getItem('adminToken'))||''; }catch(e){ return ''; } },
+
+  async renderMaster(){
+    this.crumb([['Project Blueprint',()=>this.enterMode('blueprint')],['Master Blueprint',null]]);
+    const el=document.getElementById('bp-content');
+    el.innerHTML='<div class="bp-h1">Master Blueprint</div><div class="bp-sub">Canonical architecture graph load ho raha hai…</div>';
+    try{
+      if(!this._master){
+        const token=this._mToken();
+        let g=null, v=null, visibility='public';
+        if(token){
+          // admin: full canonical graph (files/flags/runtime/tech_refs)
+          const gr=await fetch('/api/blueprint/graph?check_files=1',{headers:{Authorization:'Bearer '+token},credentials:'omit'}).catch(()=>null);
+          if(gr&&gr.ok){ g=await gr.json(); visibility='admin';
+            v=await fetch('/api/blueprint/validate',{headers:{Authorization:'Bearer '+token},credentials:'omit'}).then(r=>r.ok?r.json():null).catch(()=>null);
+          }
+        }
+        if(!g){ // no token or 401/403 → sanitized public contract
+          const pr=await fetch('/api/blueprint/public',{credentials:'omit'}).catch(()=>null);
+          if(pr&&pr.ok){ g=await pr.json(); visibility='public'; }
+        }
+        if(!g||!Array.isArray(g.nodes)) throw new Error('empty graph');
+        this._master={graph:g, valid:v, visibility};
+      }
+      this._fetchLive();  // fire-and-forget bounded runtime join
+      this._renderMasterView();
+    }catch(e){
+      console.error('[master] load failed', e);
+      el.innerHTML='<div class="bp-h1">Master Blueprint</div><div class="bp-sub">Canonical graph abhi load nahi ho paya. Technical Graph khol ke dekho.</div>'
+        +'<button class="bp-bigbtn" onclick="BP.enterMode(\'technical\')">Open Technical Graph →</button>';
+    }
+  },
+
+  masterLens(lens){ this.masterLensKey=lens; this._renderMasterView(); },
+  masterFlow(fid){ this.masterFlowId=(this.masterFlowId===fid?null:fid); this._renderMasterView(); },
+  masterClear(){ this.masterFlowId=null; this.q=''; this._renderMasterView(); },
+  masterSearch(val){ this.q=val; clearTimeout(this._mts); this._mts=setTimeout(()=>{ try{ this._renderMasterView(); }catch(e){} },180); },
+  masterTraceReset(){ this.masterTraceResult=null; this._renderMasterView(); },
+
+  // --- bounded, fail-safe runtime join (approved health sources only) ------
+  async _fetchLive(){
+    const token=this._mToken();
+    const get=async(url,auth)=>{ try{ const ctrl=new AbortController(); const to=setTimeout(()=>ctrl.abort(),4000);
+      const h=(auth&&token)?{Authorization:'Bearer '+token}:{};
+      const r=await fetch(url,{signal:ctrl.signal,headers:h,credentials:'omit'}); clearTimeout(to);
+      return r.ok?await r.json():null; }catch(e){ return null; } };
+    const [health,activation,automation]=await Promise.all([
+      get('/health',false), get('/api/activation/summary',false), get('/api/growth/infra/automation-health',true)
+    ]);
+    this._live={health,activation,automation};
+    try{ if(this.mode==='master') this._renderMasterView(); }catch(e){}
+  },
+  // Bind a node's runtime key to a live signal. Unknown STAYS Unknown — never
+  // fabricate Healthy. Distinguishes implementation vs runtime vs feature-off.
+  _liveOf(n){
+    if(n.disabled) return {t:'off', label:'Disabled (HARD OFF)'};
+    const L=this._live; if(!n.runtime||!L) return {t:'unknown', label:'Unknown'};
+    if(n.runtime==='activation'&&L.activation) return L.activation.ready_for_launch?{t:'up',label:'Ready'}:{t:'warn',label:'Blocked'};
+    if(n.runtime==='automation_health'&&L.automation){ const ok=(L.automation.ok??L.automation.healthy); return ok?{t:'up',label:'Healthy'}:{t:'warn',label:'Attention'}; }
+    if(n.runtime==='team'&&L.health) return (L.health.status==='healthy')?{t:'up',label:'Up'}:{t:'unknown',label:'Unknown'};
+    return {t:'unknown', label:'Unknown'};
+  },
+  _liveColor(t){ return ({up:'#16a34a',warn:'#ea580c',off:'#dc2626',unknown:'#94a3b8'})[t]||'#94a3b8'; },
+
+  // --- client-side multi-hop traversal (cycle-safe, deterministic) ---------
+  _mAdj(g){ const down={},up={}; g.nodes.forEach(n=>{down[n.id]=[];up[n.id]=[];});
+    g.edges.forEach(e=>{ if(down[e.source]&&up[e.target]){down[e.source].push(e.target);up[e.target].push(e.source);} });
+    Object.keys(down).forEach(k=>down[k]=[...new Set(down[k])].sort());
+    Object.keys(up).forEach(k=>up[k]=[...new Set(up[k])].sort()); return {down,up}; },
+  _mShortest(g,s,t){ const {down}=this._mAdj(g); if(!(s in down)||!(t in down))return[]; if(s===t)return[s];
+    const prev={},vis=new Set([s]); let fr=[s];
+    while(fr.length){ const nx=[]; for(const nd of fr) for(const nb of down[nd]){ if(!vis.has(nb)){vis.add(nb);prev[nb]=nd;
+      if(nb===t){ const p=[t]; while(p[p.length-1]!==s) p.push(prev[p[p.length-1]]); return p.reverse(); } nx.push(nb);} }
+      fr=[...new Set(nx)].sort(); } return []; },
+  _mReach(g,s,dir,depth){ const {down,up}=this._mAdj(g); if(!(s in down))return[];
+    const maps=dir==='up'?[up]:dir==='both'?[down,up]:[down]; const vis=new Set([s]); let fr=[s]; const order=[];
+    for(let d=0; d<depth; d++){ const nx=[]; for(const nd of fr) for(const m of maps) for(const nb of (m[nd]||[])) if(!vis.has(nb)){vis.add(nb);nx.push(nb);}
+      [...new Set(nx)].sort().forEach(nb=>{ if(!order.includes(nb)) order.push(nb); }); fr=[...new Set(nx)].sort(); if(!fr.length)break; }
+    return order; },
+  masterTrace(kind){
+    const g=this._master&&this._master.graph; if(!g) return;
+    const gv=id=>{const el=document.getElementById(id);return el?el.value:'';};
+    const s=gv('mtr-src'), t=gv('mtr-tgt'); const depth=Math.max(1,Math.min(6,parseInt(gv('mtr-depth')||'3',10)||3));
+    const res={kind, src:s, depth};
+    if(kind==='path'){ res.tgt=t; res.path=this._mShortest(g,s,t); res.highlight=new Set(res.path); }
+    else if(kind==='up'||kind==='down'||kind==='both'){ res.reach=this._mReach(g,s,kind,depth); res.highlight=new Set([s,...res.reach]); }
+    else if(kind==='impact'){ res.reach=this._mReach(g,s,'down',depth); res.impact=true; res.highlight=new Set([s,...res.reach]); }
+    this.masterTraceResult=res; this._renderMasterView();
+  },
+
+  _renderMasterView(){
+    const M=this._master; if(!M||!M.graph) return this.renderMaster();
+    const g=M.graph, v=M.valid, E=(s)=>this._esc(s), pub=(M.visibility==='public');
+    const pred=this._mLensPred(this.masterLensKey);
+    const q=(this.q||'').toLowerCase();
+    const flow=this.masterFlowId?g.flows.find(f=>f.id===this.masterFlowId):null;
+    const flowSet=flow?new Set(flow.steps):null;
+    const tr=this.masterTraceResult; const hi=tr&&tr.highlight?tr.highlight:null;
+    const stOf=(n)=> pub ? (n.state||'planned') : (n.disabled?'DEPRECATED':n.status);
+    const colOf=(n)=> pub ? ({live:'#16a34a',building:'#64748b',planned:'#7c3aed',off:'#dc2626'}[n.state]||'#94a3b8') : this._mStColor(n.status);
+    const show=(n)=> pred(n) && (!q || ((n.title||'')+' '+(n.desc||'')+' '+n.id+' '+(n.flags||[]).join(' ')).toLowerCase().includes(q)) && (!flowSet||flowSet.has(n.id)) && (!hi||hi.has(n.id));
+    const lenses=[['master','🏛 Master'],['business','💰 Business'],['technical','🕸 Technical'],['runtime','⚡ Runtime'],['data','🗄 Data'],['agent','🤖 Agent'],['deployment','🚀 Deployment']];
+    const okBadge=v?(v.ok?'<span style="color:#16a34a">✔ schema OK</span>':'<span style="color:#dc2626">✖ '+(v.errors?v.errors.length:'?')+' errors</span>'):'';
+    const mapped=pub?null:g.nodes.filter(n=>(n.tech_refs&&n.tech_refs.length)).length;
+    let h='';
+    h+='<div class="bp-h1">Master Blueprint <span style="font-size:12px;color:var(--bp-ink2);font-weight:500">'+E(g.schema_version)+'</span></div>';
+    // visibility banner (honest about what contract is loaded)
+    h+='<div style="display:inline-block;font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;margin-bottom:6px;'
+      +(pub?'background:#fef3c7;color:#92400e">PUBLIC (sanitized) — admin login for full detail'
+           :'background:#dcfce7;color:#166534">ADMIN (full canonical)')+'</div>';
+    h+='<div class="bp-sub">Backend-served canonical graph — '+g.counts.nodes+' nodes · '+g.counts.edges+' edges · '+g.counts.layers+' layers · '+g.counts.domains+' domains · '+g.counts.flows+' flows'
+      +(g.workforce&&g.workforce.count!=null?' · '+g.workforce.count+' AI staff':(g.workforce&&g.workforce.source==='unavailable'?' · AI staff: Unknown':''))+(okBadge?' · '+okBadge:'')
+      +(mapped!=null?' · '+mapped+'/'+g.counts.nodes+' mapped to modules':'')+'</div>';
+    // lens tabs + search
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0;align-items:center">';
+    lenses.forEach(l=>{ h+='<button class="bp-toggle'+(this.masterLensKey===l[0]?' on':'')+'" onclick="BP.masterLens(\''+l[0]+'\')">'+l[1]+'</button>'; });
+    h+='<label class="bp-search" style="margin-left:auto"><span aria-hidden="true">⌕</span><input type="text" value="'+E(this.q||'')+'" placeholder="Search nodes…" oninput="BP.masterSearch(this.value)" aria-label="Search master blueprint nodes"></label>';
+    h+='</div>';
+    // multi-hop trace controls
+    const opts=g.nodes.slice().sort((a,b)=>a.title<b.title?-1:1).map(n=>'<option value="'+E(n.id)+'">'+E(n.title)+'</option>').join('');
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px;align-items:center;border:1px dashed var(--bp-line);border-radius:8px;padding:8px">';
+    h+='<span style="font-size:12px;color:var(--bp-ink2);font-weight:600">Trace:</span>';
+    h+='<select id="mtr-src" style="font-size:12px;padding:3px 6px;border:1px solid var(--bp-line);border-radius:6px;background:var(--bp-card);color:var(--bp-ink)"><option value="">from…</option>'+opts+'</select>';
+    h+='<select id="mtr-tgt" style="font-size:12px;padding:3px 6px;border:1px solid var(--bp-line);border-radius:6px;background:var(--bp-card);color:var(--bp-ink)"><option value="">to… (shortest)</option>'+opts+'</select>';
+    h+='depth <input id="mtr-depth" type="number" min="1" max="6" value="3" style="width:48px;font-size:12px;padding:3px 6px;border:1px solid var(--bp-line);border-radius:6px;background:var(--bp-card);color:var(--bp-ink)">';
+    h+='<button class="bp-toggle" onclick="BP.masterTrace(\'up\')">↑ Upstream</button>';
+    h+='<button class="bp-toggle" onclick="BP.masterTrace(\'down\')">↓ Downstream</button>';
+    h+='<button class="bp-toggle" onclick="BP.masterTrace(\'path\')">↔ Shortest path</button>';
+    h+='<button class="bp-toggle" onclick="BP.masterTrace(\'impact\')">💥 Impact</button>';
+    if(tr) h+='<button class="bp-toggle" onclick="BP.masterTraceReset()">✕ reset trace</button>';
+    h+='</div>';
+    if(tr){ const nm=i=>{const x=g.nodes.find(y=>y.id===i);return x?x.title:i;};
+      let msg='';
+      if(tr.kind==='path') msg = tr.path&&tr.path.length ? ('<b>Shortest path</b>: '+tr.path.map(nm).map(E).join(' → ')) : 'No directed path found.';
+      else if(tr.kind==='impact') msg = '<b>Impact (downstream depth '+tr.depth+')</b>: '+(tr.reach.length?tr.reach.map(nm).map(E).join(', '):'none');
+      else msg = '<b>'+tr.kind+' (depth '+tr.depth+')</b>: '+(tr.reach.length?tr.reach.map(nm).map(E).join(', '):'none');
+      h+='<div class="bp-sub" style="margin:-4px 0 12px;background:var(--bp-card2);border-radius:6px;padding:8px">'+msg+'</div>'; }
+    // flows
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px;align-items:center">';
+    h+='<span style="font-size:12px;color:var(--bp-ink2)">End-to-end flows:</span>';
+    g.flows.forEach(f=>{ h+='<button class="bp-toggle'+(this.masterFlowId===f.id?' on':'')+'" onclick="BP.masterFlow(\''+f.id+'\')" title="'+E(f.title)+'">'+E(f.id)+'</button>'; });
+    if(this.masterFlowId) h+='<button class="bp-toggle" onclick="BP.masterClear()">✕ clear</button>';
+    h+='</div>';
+    if(flow){ h+='<div class="bp-sub" style="margin:-6px 0 12px"><b>'+E(flow.id)+'</b> '+E(flow.title)+' → '+flow.steps.map(s=>{const n=g.nodes.find(x=>x.id===s);return n?E(n.title):E(s);}).join(' → ')+'</div>'; }
+    let shown=0;
+    g.layers.forEach(L=>{
+      const nodes=g.nodes.filter(n=>n.layer===L.id && show(n));
+      if(!nodes.length) return;
+      shown+=nodes.length;
+      h+='<div style="margin:0 0 14px;border:1px solid var(--bp-line);border-radius:10px;overflow:hidden">';
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bp-card2);flex-wrap:wrap"><b>L'+L.id+' · '+E(L.title)+'</b>'+(L.desc?'<span style="font-size:11px;color:var(--bp-ink2)">'+E(L.desc)+'</span>':'')+'</div>';
+      h+='<div style="display:flex;gap:8px;flex-wrap:wrap;padding:12px">';
+      nodes.forEach(n=>{
+        const c=colOf(n); const dis=n.disabled?';opacity:.65':''; const ring=(hi&&hi.has(n.id))?';box-shadow:0 0 0 2px var(--bp-accent)':'';
+        const live=pub?null:this._liveOf(n);
+        h+='<div role="button" tabindex="0" onclick="BP.masterNode(\''+n.id+'\')" onkeydown="if(event.key===\'Enter\')BP.masterNode(\''+n.id+'\')" '
+          +'style="min-width:150px;max-width:230px;border:1px solid var(--bp-line);border-left:3px solid '+c+';border-radius:8px;padding:8px 10px;cursor:pointer;background:var(--bp-card)'+dis+ring+'">'
+          +'<div style="font-weight:600;font-size:13px;color:var(--bp-ink)">'+E(n.title)+(n.disabled?' 🔒':'')+'</div>'
+          +'<div style="font-size:10px;color:'+c+';font-weight:700;letter-spacing:.3px">'+E(stOf(n))+'</div>'
+          +(live?'<div style="font-size:10px;color:'+this._liveColor(live.t)+';font-weight:600">● live: '+E(live.label)+'</div>':'')
+          +(!pub&&n.desc?'<div style="font-size:11px;color:var(--bp-ink2);margin-top:3px">'+E(n.desc)+'</div>':'')
+          +'</div>';
+      });
+      h+='</div></div>';
+    });
+    if(!shown) h+='<div class="bp-sub">Is lens / filter / trace me koi node nahi mila.</div>';
+    // legend
+    h+='<div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">';
+    if(pub){ [['live','#16a34a'],['building','#64748b'],['planned','#7c3aed'],['off','#dc2626']].forEach(s=>{ h+='<span style="font-size:11px;color:var(--bp-ink2)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+s[1]+';margin-right:4px;vertical-align:middle"></span>'+s[0]+'</span>'; }); }
+    else { ['PRODUCTION-PROVEN','TEST-PROVEN','CODE-PRESENT','LOCAL-ONLY','PLANNED','EXTERNAL-BLOCKED','DEPRECATED','UNKNOWN'].forEach(s=>{ h+='<span style="font-size:11px;color:var(--bp-ink2)"><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:'+this._mStColor(s)+';margin-right:4px;vertical-align:middle"></span>'+s+'</span>'; }); }
+    h+='</div>';
+    h+='<div class="bp-sub" style="font-size:11px;margin-top:8px">Honesty: live runtime status = <b>Unknown</b> jab tak koi approved live signal bind na ho (never fabricated Healthy). Cold outbound (platform_dial) <b>HARD OFF</b> — visualize only, kabhi enable nahi.</div>';
+    document.getElementById('bp-content').innerHTML=h;
+  },
+
+  masterNode(id){
+    const M=this._master; if(!M||!M.graph) return; const g=M.graph, E=(s)=>this._esc(s), pub=(M.visibility==='public');
+    const n=g.nodes.find(x=>x.id===id); if(!n) return;
+    const up=g.edges.filter(e=>e.target===id), down=g.edges.filter(e=>e.source===id);
+    const nm=i=>{const x=g.nodes.find(y=>y.id===i);return x?x.title:i;};
+    const dom=(g.domains.find(d=>d.key===n.domain)||{}).title||n.domain;
+    const lay=(g.layers.find(l=>l.id===n.layer)||{}).title||('L'+n.layer);
+    const statusText=pub?(n.state||'planned'):n.status;
+    document.getElementById('bp-dicon').textContent=n.disabled?'🔒':'◆';
+    document.getElementById('bp-dtitle').textContent=n.title;
+    document.getElementById('bp-dsub').textContent='L'+n.layer+' '+lay+' · '+dom+(n.type?' · '+n.type:'');
+    let b='';
+    b+='<div style="margin-bottom:8px"><span style="font-size:11px;font-weight:700;color:'+(pub?'var(--bp-ink2)':this._mStColor(n.status))+'">'+E(statusText)+'</span>'+(n.disabled?' <span style="color:#dc2626;font-weight:700">HARD OFF</span>':'')+'</div>';
+    if(!pub){ const live=this._liveOf(n); b+='<div style="font-size:12px;margin-bottom:8px;color:'+this._liveColor(live.t)+'">● Runtime: <b>'+E(live.label)+'</b>'+(n.runtime?' <span style="color:var(--bp-ink2)">(source: '+E(n.runtime)+')</span>':' <span style="color:var(--bp-ink2)">(no live binding → Unknown)</span>')+'</div>'; }
+    if(n.desc){ b+='<div style="font-size:13px;margin-bottom:10px;color:var(--bp-ink)">'+E(n.desc)+'</div>'; }
+    // semantic role + lifecycle + ownership (hide when Unknown)
+    const meta=[]; if(n.role) meta.push('role: <b>'+E(n.role)+'</b>'); if(n.lifecycle_status) meta.push('lifecycle: '+E(n.lifecycle_status)); if(n.tenant_scope) meta.push('scope: '+E(n.tenant_scope));
+    if(meta.length) b+='<div style="font-size:11px;color:var(--bp-ink2);margin-bottom:8px">'+meta.join(' · ')+'</div>';
+    if(n.owner||n.owner_agent||n.service){ const o=[]; if(n.owner)o.push('owner '+E(n.owner)); if(n.owner_agent)o.push('agent '+E(n.owner_agent)); if(n.service)o.push('service '+E(n.service)); b+='<div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">'+o.join(' · ')+'</div>'; }
+    if(n.failure_path){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Failure path</div><div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">'+E(n.failure_path)+'</div>'; }
+    if(n.process){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Process</div><div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">'+E(n.process)+'</div>'; }
+    if(n.io&&(n.io.input||n.io.output)){ b+='<div style="font-size:11px;color:var(--bp-ink2)">I/O</div><div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">in: '+E(n.io.input||'—')+'<br>out: '+E(n.io.output||'—')+'</div>'; }
+    if(n.triggers&&n.triggers.length){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Triggers</div><div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">'+n.triggers.map(x=>'<code>'+E(x)+'</code>').join(' ')+'</div>'; }
+    if(n.feedback_loop){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Feedback loop</div><div style="font-size:12px;margin-bottom:8px;color:var(--bp-ink)">'+E(n.feedback_loop)+'</div>'; }
+    if(n.files&&n.files.length){ b+='<div style="font-size:11px;color:var(--bp-ink2);margin-bottom:2px">Implementation (modules)</div><div style="font-size:12px;margin-bottom:10px;color:var(--bp-ink)">'+n.files.map(f=>'<code>'+E(f)+'</code>'+(n.file_ok===false?' ⚠':'')).join('<br>')+'</div>'; }
+    if(n.flags&&n.flags.length){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Flags</div><div style="font-size:12px;margin-bottom:10px;color:var(--bp-ink)">'+n.flags.map(f=>'<code>'+E(f)+'</code>').join(' ')+'</div>'; }
+    if(n.tech_refs&&n.tech_refs.length){ b+='<div style="font-size:11px;color:var(--bp-ink2)">Technical implementation</div><div style="font-size:12px;margin-bottom:6px;color:var(--bp-ink)">'+n.tech_refs.slice(0,8).map(f=>'<code>'+E(f)+'</code>').join(' ')+'</div><button class="bp-toggle" onclick="BP.enterMode(\'technical\')">Open technical graph →</button><div style="height:8px"></div>'; }
+    b+='<div style="font-size:11px;color:var(--bp-ink2)">Upstream (feeds in)</div><div style="margin-bottom:8px">'+(up.length?up.map(e=>'<button class="bp-toggle" onclick="BP.masterNode(\''+e.source+'\')">← '+E(nm(e.source))+'</button>').join(' '):'<span style="font-size:12px;color:var(--bp-ink2)">none</span>')+'</div>';
+    b+='<div style="font-size:11px;color:var(--bp-ink2)">Downstream (feeds out)</div><div>'+(down.length?down.map(e=>'<button class="bp-toggle" onclick="BP.masterNode(\''+e.target+'\')">→ '+E(nm(e.target))+'</button>').join(' '):'<span style="font-size:12px;color:var(--bp-ink2)">none</span>')+'</div>';
+    document.getElementById('bp-dbody').innerHTML=b;
+    document.getElementById('bp-drawer').classList.add('open');
   },
 
   openSection(key){

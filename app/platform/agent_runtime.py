@@ -17,19 +17,31 @@ Swara se reuse kiye gaye PROVEN patterns (voice-specific code yahan NAHI):
 
 REUSE-not-duplicate (koi naya queue/scheduler/persistence-system nahi):
   - kill switches      → app.platform.owner_os.kill_engaged (owner_all_agents etc.)
-  - idempotency        → app.billing.idempotency.seen_before_sync (Redis+mem)
+  - idempotency        → app.platform.agent_runtime_idempotency (Redis fail-closed)
+  - cancellation       → app.platform.agent_runtime_cancellation (Redis fail-closed)
   - durable identity   → app.platform.agent_task_queue (AgentTask table, lease/claim)
   - useful-work events → app.platform.team.log_event (dashboard feed)
   - state files        → automation_health pattern (data/*.json + file_lock, atomic)
 
-POLICY = ENFORCEMENT, display nahi. `run_task` dispatch se PEHLE, is order me:
-  master-flag → contract-exists → RED/hard_off → pilot-rollout → prohibited →
-  primary-flag → kill-switches → capability → tenant-isolation → approval →
-  budgets → concurrency → cancellation → idempotency — sab fail-CLOSED.
+POLICY = ENFORCEMENT, display nahi. `run_task` / admission order (canonical):
+  1 invalid agent/capability (no contract / not registered)
+  2 RED hard-off / frozen
+  3 global AGENT_RUNTIME flag
+  4 individual agent primary_flag
+  5 platform/agent kill switches  → reason kill_switch_engaged:<key>
+  6 Owner OS stop-claims / drain / pause via runtime_admission_blocked
+       → agent_claims_stopped | agent_draining | agent_paused
+  7 Redis run-cancel (agent_runtime_cancellation) → cancelled
+  8 capability / tenant / approval / budget policy
+  9 concurrency slot + durable lease claim
+  10 pre-engine re-check (admission + cancel) → then engine
+  Race close: admission checked in evaluate_policy, again before durable open,
+  and again immediately before cap.fn. Resume clears controls only — no catch-up.
 
-CONTROLLED ROLLOUT: sirf PILOT_AGENTS (kavya/isha/zara) dispatch ho sakte hain.
-Baaki 28 registry me defined hain par runtime unhe refuse karta hai jab tak
-common-runtime evidence ke baad allowlist widen na ho (big-bang activation nahi).
+CONTROLLED ROLLOUT: sirf PILOT_AGENTS dispatch ho sakte hain (Wave-A pilots +
+Wave-B GREEN/read-only engines). Baaki agents capability-registered hote hain
+(``agent_runtime_workforce``) par allowlist se bahar = intentionally disabled.
+RED voice (swara/ananya) HAMESHA blocked. Big-bang 31-live activation nahi.
 
 INERT DEFAULT: master flag `AGENT_RUNTIME` unset/0 = har dispatch SKIPPED.
 Kuch bhi scheduled/automatic is module se nahi chalta — sirf Owner OS
@@ -68,11 +80,33 @@ class TaskStatus(str, Enum):
     FAILED = "failed"
     BLOCKED = "blocked"  # policy refused (fail-closed) — kill/prohibited/approval/budget/RED
     SKIPPED = "skipped"  # non-error non-run: flag off / duplicate / capability self-skip
+    CANCELLED = "cancelled"  # distributed cancel observed before/at engine boundary
 
 
-# Controlled rollout — Phase-B pilots ONLY. Widening this set = a reviewed,
-# evidence-backed change (never a runtime env flip).
-PILOT_AGENTS: frozenset[str] = frozenset({"kavya", "isha", "zara"})
+# Controlled rollout allowlist (code-level — never an env flip).
+# Wave-A: kavya / isha / zara (proven).
+# Wave-B: READ-ONLY / diagnostic GREEN only (engineer + hermes + nikhil scan).
+# Mutating GREEN (neha/manager/ravi/…) stay capability-registered but OUT of
+# allowlist until a dedicated canary. Voice RED + customer AMBER + voice-adjacent
+# QA stay OUT.
+PILOT_AGENTS: frozenset[str] = frozenset(
+    {
+        # Wave-A
+        "kavya",
+        "isha",
+        "zara",
+        # Wave-B read-only / diagnostic
+        "hermes",
+        "pranav",
+        "vidya",
+        "arnav",
+        "kabir",
+        "diya",
+        "aryan",
+        "arya",
+        "nikhil",  # delivery_assurance scan ONLY (read-only capability)
+    }
+)
 
 _MASTER_FLAG = "AGENT_RUNTIME"
 
@@ -117,22 +151,125 @@ def _kill_engaged(key: str) -> bool | None:
         return None
 
 
-def _idem_seen(key: str, ttl_s: int = 24 * 3600) -> bool:
+def _owner_admission_blocked(agent_id: str) -> tuple[bool, str]:
+    """Owner OS pause/drain/stop-claims — injectable seam for race tests.
+
+    Returns (blocked, reason_code). Empty reason when not blocked.
+    """
     try:
-        from app.billing.idempotency import seen_before_sync
+        from app.platform.owner_agent_execution import runtime_admission_blocked
 
-        return seen_before_sync(f"agentrt:{key}", ttl_s)
-    except Exception:
-        return False  # idempotency store down = fail-open (staff-job parity)
+        return runtime_admission_blocked(agent_id=agent_id)
+    except Exception as e:
+        logger.warning("[agent_runtime] owner admission check errored: %s", e)
+        return True, "agent_control_state_ambiguous"
 
 
-def _idem_forget(key: str) -> None:
+def admission_decision(
+    *,
+    allowed: bool,
+    reason_code: str,
+    agent_id: str,
+    capability: str = "",
+    control_source: str = "",
+    control_id: str = "",
+    correlation_id: str = "",
+    state: str = "",
+) -> dict[str, Any]:
+    """Structured admission / control decision (Owner OS + admin projections)."""
+    if not state:
+        state = "allowed" if allowed else "blocked"
+    return {
+        "allowed": bool(allowed),
+        "state": state,
+        "reason_code": reason_code or "",
+        "agent_id": agent_id,
+        "capability": capability,
+        "control_source": control_source,
+        "control_id": control_id,
+        "evaluated_at": _now_iso(),
+        "correlation_id": correlation_id or "",
+    }
+
+
+def _idem_claim(task: AgentTask) -> Any:
+    """Atomic Redis claim for Agent Runtime logical submissions (fail-closed)."""
+    from app.platform import agent_runtime_idempotency as idem
+
+    return idem.claim(
+        task.agent_id,
+        task.action,
+        task.idempotency_key,
+        tenant_id=task.tenant_id or None,
+        runtime_run_id=task.task_id,
+    )
+
+
+def _idem_release(task: AgentTask) -> None:
+    """Drop in-progress claim after control-block / capability skip (not terminal burn)."""
     try:
-        from app.billing.idempotency import forget_sync
+        from app.platform import agent_runtime_idempotency as idem
 
-        forget_sync(f"agentrt:{key}")
+        idem.release(
+            task.agent_id,
+            task.action,
+            task.idempotency_key,
+            tenant_id=task.tenant_id or None,
+        )
     except Exception:
         pass
+
+
+def _idem_complete(task: AgentTask, status: str, *, reason: str = "", digest: str = "") -> Any:
+    try:
+        from app.platform import agent_runtime_idempotency as idem
+
+        return idem.complete(
+            task.agent_id,
+            task.action,
+            task.idempotency_key,
+            status=status,
+            tenant_id=task.tenant_id or None,
+            terminal_reason=reason,
+            result_digest=digest or None,
+            runtime_run_id=task.task_id,
+        )
+    except Exception as e:
+        logger.warning("[agent_runtime] idem complete failed: %s", type(e).__name__)
+        return None
+
+
+def _duplicate_from_claim(
+    task: AgentTask, contract: Any | None, lc: list[str], claim: Any
+) -> AgentResult:
+    orig = claim.record or {}
+    reason = claim.reason_code or "duplicate_suppressed"
+    return AgentResult(
+        task_id=task.task_id,
+        agent_id=task.agent_id,
+        action=task.action,
+        status=TaskStatus.SKIPPED.value,
+        reason=reason,
+        mode=getattr(contract, "default_mode", "") if contract else "",
+        lane=getattr(contract, "lane", "") if contract else "",
+        escalation=getattr(contract, "escalation", "") if contract else "",
+        lifecycle=list(lc) + [TaskStatus.SKIPPED.value],
+        output={
+            "original_run_id": orig.get("runtime_run_id"),
+            "original_status": orig.get("status"),
+            "idempotency_backend": getattr(claim, "backend", "") or "redis",
+            "result_digest": orig.get("result_digest"),
+        },
+        decision=admission_decision(
+            allowed=False,
+            reason_code=reason,
+            agent_id=task.agent_id,
+            capability=task.action,
+            control_source="agent_runtime_idempotency",
+            state=str(orig.get("status") or "duplicate"),
+            correlation_id=str(orig.get("runtime_run_id") or task.task_id),
+        ),
+    )
 
 
 def _approval_approved(tenant_id: str, approval_ref: str) -> bool:
@@ -202,6 +339,17 @@ class AgentExecutionContext:
         self.usage["api_calls"] += int(api_calls or 0)
         self.usage["contacts"] += int(contacts or 0)
 
+    def cancel_requested(self) -> bool:
+        """Cooperative checkpoint — True if Redis cancel exists for this run."""
+        from app.platform import agent_runtime_cancellation as crc
+
+        return crc.is_requested(self.task.agent_id, self.task.task_id).requested
+
+    def raise_if_cancelled(self) -> None:
+        """Engines call at checkpoints; raises SkipTask('cancelled')."""
+        if self.cancel_requested():
+            raise SkipTask("cancelled")
+
 
 @dataclass
 class AgentResult:
@@ -221,6 +369,7 @@ class AgentResult:
     dlq: bool = False
     lifecycle: list[str] = field(default_factory=list)
     usage: dict[str, float] = field(default_factory=dict)
+    decision: dict[str, Any] | None = None  # structured admission / control decision
     at: str = field(default_factory=_now_iso)
 
     def to_dict(self) -> dict[str, Any]:
@@ -248,25 +397,166 @@ def capabilities_for(agent_id: str) -> list[str]:
 
 
 # --------------------------------------------------------------------------- #
-# Concurrency + cancellation (in-process; cross-process = agent_task_queue lease)
+# Concurrency + distributed cancellation (Redis via agent_runtime_cancellation)
 # --------------------------------------------------------------------------- #
 _ACTIVE: dict[str, int] = {}
 _ACTIVE_TASKS: dict[str, dict[str, Any]] = {}
 _RUN_LOCK = threading.Lock()
-_CANCELLED_AGENTS: set[str] = set()
 
 
-def request_cancel(agent_id: str) -> dict[str, Any]:
-    """Soft-cancel: agent ke NAYE dispatches blocked; running attempt finish hota."""
+def request_cancel_run(
+    agent_id: str,
+    runtime_run_id: str,
+    *,
+    requested_by: str = "owner",
+    reason: str = "",
+    command_id: str = "",
+    correlation_id: str = "",
+    tenant_id: str | None = None,
+) -> dict[str, Any]:
+    """Cancel one runtime run (Redis). Preferred Owner OS path."""
+    from app.platform import agent_runtime_cancellation as crc
+
+    out = crc.request(
+        agent_id,
+        runtime_run_id,
+        requested_by=requested_by,
+        reason=reason,
+        command_id=command_id,
+        correlation_id=correlation_id or runtime_run_id,
+        tenant_id=tenant_id,
+    )
+    if out.get("ok"):
+        try:
+            from app.platform import owner_os
+
+            owner_os.audit(
+                requested_by,
+                "agent_runtime_cancel_requested",
+                {
+                    "agent_id": agent_id,
+                    "runtime_run_id": runtime_run_id,
+                    "command_id": command_id,
+                    "newly_created": out.get("newly_created"),
+                },
+            )
+        except Exception:
+            pass
+    return out
+
+
+def request_cancel(
+    agent_id: str, *, requested_by: str = "owner", reason: str = ""
+) -> dict[str, Any]:
+    """Emergency: cancel every *currently registered* active run for this agent.
+
+    Does NOT create a permanent agent-wide marker — future runs are unaffected.
+    """
+    from app.platform import agent_runtime_cancellation as crc
+
     with _RUN_LOCK:
-        _CANCELLED_AGENTS.add(agent_id)
-    return {"ok": True, "agent_id": agent_id, "cancelled": True}
+        targets = [tid for tid, info in _ACTIVE_TASKS.items() if info.get("agent_id") == agent_id]
+    if not targets:
+        return {
+            "ok": True,
+            "status": "no_running_tasks",
+            "agent_id": agent_id,
+            "targeted_run_ids": [],
+            "requested_count": 0,
+            "already_requested_count": 0,
+            "cancellation_backend": crc.backend_status().get("cancellation_backend"),
+            "fallback_active": crc.backend_status().get("fallback_active"),
+        }
+    requested = 0
+    already = 0
+    targeted: list[str] = []
+    for tid in targets:
+        out = request_cancel_run(
+            agent_id, tid, requested_by=requested_by, reason=reason or "agent_emergency_cancel"
+        )
+        if out.get("ok"):
+            targeted.append(tid)
+            if out.get("already_requested"):
+                already += 1
+            else:
+                requested += 1
+        elif out.get("reason_code") == "cancellation_store_unavailable":
+            return out
+    return {
+        "ok": True,
+        "status": "cancel_requested",
+        "agent_id": agent_id,
+        "targeted_run_ids": targeted,
+        "requested_count": requested,
+        "already_requested_count": already,
+        "cancellation_backend": crc.backend_status().get("cancellation_backend"),
+        "fallback_active": crc.backend_status().get("fallback_active"),
+    }
 
 
-def clear_cancel(agent_id: str) -> dict[str, Any]:
+def clear_cancel(agent_id: str, runtime_run_id: str = "") -> dict[str, Any]:
+    """Clear a specific run cancel, or all active-task cancels for the agent."""
+    from app.platform import agent_runtime_cancellation as crc
+
+    if runtime_run_id:
+        return crc.clear(agent_id, runtime_run_id)
     with _RUN_LOCK:
-        _CANCELLED_AGENTS.discard(agent_id)
-    return {"ok": True, "agent_id": agent_id, "cancelled": False}
+        targets = [tid for tid, info in _ACTIVE_TASKS.items() if info.get("agent_id") == agent_id]
+    cleared = 0
+    for tid in targets:
+        out = crc.clear(agent_id, tid)
+        if out.get("cleared"):
+            cleared += 1
+    return {"ok": True, "agent_id": agent_id, "cleared_count": cleared, "targeted_run_ids": targets}
+
+
+def _cancel_check(
+    task: AgentTask, contract: Any | None = None, lc: list[str] | None = None
+) -> AgentResult | None:
+    """Shared cancel probe. Returns AgentResult refusal or None to continue."""
+    from app.platform import agent_runtime_cancellation as crc
+
+    chk = crc.is_requested(task.agent_id, task.task_id)
+    base_lc = list(lc or [TaskStatus.QUEUED.value])
+    if chk.status == "store_unavailable":
+        decision = admission_decision(
+            allowed=False,
+            reason_code="cancellation_store_unavailable",
+            agent_id=task.agent_id,
+            capability=task.action,
+            control_source="agent_runtime_cancellation",
+            correlation_id=task.task_id,
+        )
+        return _blocked(
+            task,
+            contract,
+            "cancellation_store_unavailable",
+            base_lc,
+            decision=decision,
+        )
+    if chk.requested:
+        decision = admission_decision(
+            allowed=False,
+            reason_code="cancel_requested",
+            agent_id=task.agent_id,
+            capability=task.action,
+            control_source="agent_runtime_cancellation",
+            correlation_id=task.task_id,
+            state="cancelled",
+        )
+        return AgentResult(
+            task_id=task.task_id,
+            agent_id=task.agent_id,
+            action=task.action,
+            status=TaskStatus.CANCELLED.value,
+            reason="cancel_requested",
+            mode=getattr(contract, "default_mode", "") if contract else "",
+            lane=getattr(contract, "lane", "") if contract else "",
+            escalation=getattr(contract, "escalation", "") if contract else "",
+            lifecycle=base_lc + [TaskStatus.CANCELLED.value],
+            decision=decision,
+        )
+    return None
 
 
 def _acquire_slot(agent_id: str, limit: int) -> bool:
@@ -469,7 +759,14 @@ def _max_attempts(retry_policy: str) -> int:
     return 3 if "dlq" in (retry_policy or "").lower() else 1
 
 
-def _blocked(task: AgentTask, contract: Any, reason: str, lifecycle: list[str]) -> AgentResult:
+def _blocked(
+    task: AgentTask,
+    contract: Any,
+    reason: str,
+    lifecycle: list[str],
+    *,
+    decision: dict[str, Any] | None = None,
+) -> AgentResult:
     return AgentResult(
         task_id=task.task_id,
         agent_id=task.agent_id,
@@ -480,7 +777,29 @@ def _blocked(task: AgentTask, contract: Any, reason: str, lifecycle: list[str]) 
         lane=getattr(contract, "lane", "") if contract else "",
         escalation=getattr(contract, "escalation", "") if contract else "",
         lifecycle=lifecycle + [TaskStatus.BLOCKED.value],
+        decision=decision,
     )
+
+
+def _owner_control_refusal(
+    task: AgentTask, contract: Any, reason: str, lifecycle: list[str]
+) -> AgentResult:
+    """Block with structured Owner OS control decision + audit-friendly team event."""
+    decision = admission_decision(
+        allowed=False,
+        reason_code=reason,
+        agent_id=task.agent_id,
+        capability=task.action,
+        control_source="owner_os",
+        correlation_id=task.task_id,
+    )
+    _log_team_event(
+        task.agent_id,
+        "runtime_control_blocked",
+        f"{task.action}: {reason}",
+        status="warn",
+    )
+    return _blocked(task, contract, reason, lifecycle, decision=decision)
 
 
 def _skipped(task: AgentTask, contract: Any, reason: str, lifecycle: list[str]) -> AgentResult:
@@ -529,12 +848,29 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
     if task.action in set(contract.prohibited):
         return contract, None, _blocked(task, contract, f"prohibited_action:{task.action}", lc)
 
-    # 6. Primary feature flag ("" = ungated/core)
-    if contract.primary_flag and not _flag_on(contract.primary_flag):
+    # 6. Primary feature flag — PILOT / canary-ready agents MUST be explicitly gated.
+    #    Empty primary_flag on a dispatchable agent = fail-CLOSED (agent_flag_missing).
+    #    Non-pilot hold/frozen inventory may still use "" (not executable via this path).
+    flag = (contract.primary_flag or "").strip()
+    if task.agent_id in PILOT_AGENTS and not flag:
+        decision = admission_decision(
+            allowed=False,
+            reason_code="agent_flag_missing",
+            agent_id=task.agent_id,
+            capability=task.action,
+            control_source="agent_runtime",
+            correlation_id=task.task_id,
+        )
         return (
             contract,
             None,
-            _skipped(task, contract, f"flag_disabled:{contract.primary_flag}", lc),
+            _blocked(task, contract, "agent_flag_missing", lc, decision=decision),
+        )
+    if flag and not _flag_on(flag):
+        return (
+            contract,
+            None,
+            _skipped(task, contract, f"flag_disabled:{flag}", lc),
         )
 
     # 7. Kill switches — owner_all_agents global + per-agent. Errored check on
@@ -542,11 +878,42 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
     for key in contract.kill_switches:
         engaged = _kill_engaged(key)
         if engaged is True:
-            return contract, None, _blocked(task, contract, f"kill_switch_engaged:{key}", lc)
+            decision = admission_decision(
+                allowed=False,
+                reason_code="kill_switch_active",
+                agent_id=task.agent_id,
+                capability=task.action,
+                control_source="owner_os",
+                control_id=key,
+                correlation_id=task.task_id,
+            )
+            # Keep legacy reason string for production-proven callers/tests;
+            # structured decision.reason_code = kill_switch_active.
+            return (
+                contract,
+                None,
+                _blocked(
+                    task,
+                    contract,
+                    f"kill_switch_engaged:{key}",
+                    lc,
+                    decision=decision,
+                ),
+            )
         if engaged is None and key.startswith("owner_"):
             return contract, None, _blocked(task, contract, f"kill_switch_check_error:{key}", lc)
 
-    # 8. Capability must be registered (tool adapter = the only execution path)
+    # 8. Owner OS pause / drain / stop-claims (shared admission; reject — no park)
+    blocked, ctrl_reason = _owner_admission_blocked(task.agent_id)
+    if blocked:
+        return contract, None, _owner_control_refusal(task, contract, ctrl_reason, lc)
+
+    # 9. Distributed run-cancel (Redis) — specific runtime_run_id only
+    cancel_res = _cancel_check(task, contract, lc)
+    if cancel_res is not None:
+        return contract, None, cancel_res
+
+    # 10. Capability must be registered (tool adapter = the only execution path)
     cap = get_capability(task.agent_id, task.action)
     if cap is None:
         return (
@@ -555,7 +922,7 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
             _blocked(task, contract, f"capability_not_registered:{task.action}", lc),
         )
 
-    # 9. Tenant isolation — tenant-scoped work needs an explicit tenant, and the
+    # 11. Tenant isolation — tenant-scoped work needs an explicit tenant, and the
     #    payload may not point at a different tenant (cross-client leak gate).
     if cap.tenant_scoped:
         if not task.tenant_id:
@@ -564,7 +931,7 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
         if payload_cid and payload_cid != task.tenant_id:
             return contract, cap, _blocked(task, contract, "tenant_mismatch", lc)
 
-    # 10. Customer-facing approval (AMBER discipline): explicit requires_approval
+    # 12. Customer-facing approval (AMBER discipline): explicit requires_approval
     #     OR any customer side-effect on an AMBER/RED-ceiling agent.
     needs_approval = cap.requires_approval or (
         cap.side_effect == "customer" and contract.lane in (ar.Lane.AMBER.value, ar.Lane.RED.value)
@@ -575,11 +942,11 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
         if not _approval_approved(task.tenant_id, task.approval_ref):
             return contract, cap, _blocked(task, contract, "approval_not_approved", lc)
 
-    # 11. Contact cap: counting capability on a zero-cap agent = never allowed.
+    # 13. Contact cap: counting capability on a zero-cap agent = never allowed.
     if cap.counts_contact and contract.customer_contact_cap_day <= 0:
         return contract, cap, _blocked(task, contract, "customer_contact_not_allowed", lc)
 
-    # 12. Budgets (daily, fail-CLOSED at the cap)
+    # 14. Budgets (daily, fail-CLOSED at the cap)
     usage = _usage_today(task.agent_id)
     if contract.cost_budget_inr_day > 0 and usage["cost_inr"] >= contract.cost_budget_inr_day:
         return contract, cap, _blocked(task, contract, "budget_exhausted:cost_inr", lc)
@@ -587,10 +954,6 @@ def evaluate_policy(task: AgentTask) -> tuple[Any, AgentCapability, AgentResult 
         return contract, cap, _blocked(task, contract, "budget_exhausted:api_calls", lc)
     if cap.counts_contact and usage["contacts"] >= contract.customer_contact_cap_day:
         return contract, cap, _blocked(task, contract, "budget_exhausted:contacts", lc)
-
-    # 13. Cancellation
-    if task.agent_id in _CANCELLED_AGENTS:
-        return contract, cap, _blocked(task, contract, "cancel_requested", lc)
 
     return contract, cap, None
 
@@ -614,11 +977,22 @@ async def run_task(task: AgentTask) -> AgentResult:
     # Process heartbeat on EVERY dispatch attempt (even refusals) — runtime alive.
     if refusal is not None:
         _record_heartbeat(task.agent_id, useful=False, result=refusal)
-        if refusal.status == TaskStatus.BLOCKED.value:
+        if refusal.status in (TaskStatus.BLOCKED.value, TaskStatus.CANCELLED.value):
             _log_team_event(
                 task.agent_id, "runtime_blocked", f"{task.action}: {refusal.reason}", status="warn"
             )
         return refusal
+
+    # Race close #1: control set after policy pass, before concurrency lease.
+    late_block, late_reason = _owner_admission_blocked(task.agent_id)
+    if late_block:
+        res = _owner_control_refusal(task, contract, late_reason, lc)
+        _record_heartbeat(task.agent_id, useful=False, result=res)
+        return res
+    cancel_res = _cancel_check(task, contract, lc)
+    if cancel_res is not None:
+        _record_heartbeat(task.agent_id, useful=False, result=cancel_res)
+        return cancel_res
 
     # Concurrency slot (lease semantics — in-process; durable lease via atq below)
     if not _acquire_slot(task.agent_id, contract.max_concurrency):
@@ -629,6 +1003,17 @@ async def run_task(task: AgentTask) -> AgentResult:
     durable_id: str | None = None
     idem_claimed = False
     try:
+        # Race close #2: control between slot acquire and durable/engine work.
+        late_block, late_reason = _owner_admission_blocked(task.agent_id)
+        if late_block:
+            res = _owner_control_refusal(task, contract, late_reason, lc)
+            _record_heartbeat(task.agent_id, useful=False, result=res)
+            return res
+        cancel_res = _cancel_check(task, contract, lc)
+        if cancel_res is not None:
+            _record_heartbeat(task.agent_id, useful=False, result=cancel_res)
+            return cancel_res
+
         lc.append(TaskStatus.LEASED.value)
         with _RUN_LOCK:
             _ACTIVE_TASKS[task.task_id] = {
@@ -637,14 +1022,51 @@ async def run_task(task: AgentTask) -> AgentResult:
                 "tenant_id": task.tenant_id,
                 "started_at": _now_iso(),
             }
-
         # Idempotency claim — sab gates pass hone ke BAAD (blocked runs key nahi jalate)
         if task.idempotency_key:
-            if _idem_seen(task.idempotency_key):
-                return _skipped(task, contract, "duplicate_suppressed", lc)
-            idem_claimed = True
+            claim = _idem_claim(task)
+            if claim.store_unavailable or (
+                not claim.ok and claim.reason_code == "idempotency_store_unavailable"
+            ):
+                res = _blocked(
+                    task,
+                    contract,
+                    "idempotency_store_unavailable",
+                    lc,
+                    decision=admission_decision(
+                        allowed=False,
+                        reason_code="idempotency_store_unavailable",
+                        agent_id=task.agent_id,
+                        capability=task.action,
+                        control_source="agent_runtime_idempotency",
+                        correlation_id=task.task_id,
+                    ),
+                )
+                _record_heartbeat(task.agent_id, useful=False, result=res)
+                return res
+            if not claim.ok and claim.reason_code in (
+                "malformed_idempotency_key",
+                "idempotency_record_malformed",
+            ):
+                res = _blocked(task, contract, claim.reason_code, lc)
+                _record_heartbeat(task.agent_id, useful=False, result=res)
+                return res
+            if claim.duplicate:
+                res = _duplicate_from_claim(task, contract, lc, claim)
+                _record_heartbeat(task.agent_id, useful=False, result=res)
+                return res
+            idem_claimed = bool(claim.claimed)
 
         durable_id = await _durable_open(task)
+
+        # Post-lease / post-durable cancel (before engine)
+        cancel_res = _cancel_check(task, contract, lc)
+        if cancel_res is not None:
+            if idem_claimed:
+                _idem_complete(task, "cancelled", reason=cancel_res.reason or "cancel_requested")
+            await _durable_close(durable_id, False, "cancelled:post_lease")
+            _record_heartbeat(task.agent_id, useful=False, result=cancel_res)
+            return cancel_res
 
         effective_timeout = float(contract.run_timeout_s)
         if task.timeout_s:
@@ -662,9 +1084,78 @@ async def run_task(task: AgentTask) -> AgentResult:
         lc.append(TaskStatus.RUNNING.value)
         last_err: tuple[str, str] = ("", "")
         for attempt in range(1, attempts_allowed + 1):
+            # Race close #3: control / cancel immediately before engine call.
+            pre_block, pre_reason = _owner_admission_blocked(task.agent_id)
+            if pre_block:
+                if idem_claimed:
+                    _idem_release(task)  # control-blocked — do not burn successful key
+                res = _owner_control_refusal(task, contract, pre_reason, lc)
+                await _durable_close(durable_id, False, f"blocked:{pre_reason}")
+                _record_heartbeat(task.agent_id, useful=False, result=res)
+                return res
+            cancel_res = _cancel_check(task, contract, lc)
+            if cancel_res is not None:
+                if idem_claimed:
+                    _idem_complete(
+                        task, "cancelled", reason=cancel_res.reason or "cancel_requested"
+                    )
+                await _durable_close(durable_id, False, "cancelled:pre_engine")
+                _record_heartbeat(task.agent_id, useful=False, result=cancel_res)
+                return cancel_res
             try:
                 output = await asyncio.wait_for(cap.fn(ctx), timeout=effective_timeout)
                 dur = int((time.monotonic() - t0) * 1000)
+                # Non-cooperative engine: cancel requested during wait_for completed
+                # anyway — classify honestly (do not pretend we cancelled mid-flight).
+                from app.platform import agent_runtime_cancellation as crc
+
+                post = crc.is_requested(task.agent_id, task.task_id)
+                if post.requested:
+                    res = AgentResult(
+                        task_id=task.task_id,
+                        agent_id=task.agent_id,
+                        action=task.action,
+                        status=TaskStatus.SUCCEEDED.value,
+                        reason="cancel_requested_but_engine_completed",
+                        output=output if isinstance(output, dict) else {"value": output},
+                        attempts=attempt,
+                        duration_ms=dur,
+                        mode=contract.default_mode,
+                        lane=contract.lane,
+                        escalation=contract.escalation,
+                        lifecycle=lc + [TaskStatus.SUCCEEDED.value],
+                        usage=dict(ctx.usage),
+                        decision=admission_decision(
+                            allowed=True,
+                            reason_code="cancel_requested_but_engine_completed",
+                            agent_id=task.agent_id,
+                            capability=task.action,
+                            control_source="agent_runtime_cancellation",
+                            state="completed_despite_cancel",
+                            correlation_id=task.task_id,
+                        ),
+                    )
+                    if idem_claimed:
+                        commit = _idem_complete(
+                            task,
+                            "cancel_requested_but_engine_completed",
+                            reason="noncoop",
+                            digest=task.task_id,
+                        )
+                        if commit is not None and getattr(commit, "store_unavailable", False):
+                            res.reason = "execution_completed_idempotency_commit_uncertain"
+                    _charge_usage(task.agent_id, ctx.usage)
+                    _record_heartbeat(task.agent_id, useful=True, result=res)
+                    _log_team_event(
+                        task.agent_id,
+                        "runtime_cancel_after_complete",
+                        f"{task.action}: engine finished under cancel request",
+                        status="warn",
+                    )
+                    await _durable_close(
+                        durable_id, True, f"{task.action}: cancel_requested_but_engine_completed"
+                    )
+                    return res
                 res = AgentResult(
                     task_id=task.task_id,
                     agent_id=task.agent_id,
@@ -679,12 +1170,31 @@ async def run_task(task: AgentTask) -> AgentResult:
                     lifecycle=lc + [TaskStatus.SUCCEEDED.value],
                     usage=dict(ctx.usage),
                 )
+                if idem_claimed:
+                    commit = _idem_complete(task, "succeeded", reason="ok", digest=task.task_id)
+                    if commit is not None and getattr(commit, "store_unavailable", False):
+                        res.reason = "execution_completed_idempotency_commit_uncertain"
                 _charge_usage(task.agent_id, ctx.usage)
                 _record_heartbeat(task.agent_id, useful=True, result=res)
                 _log_team_event(task.agent_id, "runtime_done", f"{task.action} ok ({dur}ms)")
                 await _durable_close(durable_id, True, f"{task.action} succeeded")
                 return res
             except SkipTask as sk:
+                if str(sk.reason) == "cancelled":
+                    if idem_claimed:
+                        _idem_complete(task, "cancelled", reason="cooperative")
+                    res = _cancel_check(task, contract, lc) or AgentResult(
+                        task_id=task.task_id,
+                        agent_id=task.agent_id,
+                        action=task.action,
+                        status=TaskStatus.CANCELLED.value,
+                        reason="cancel_requested",
+                        attempts=attempt,
+                        lifecycle=lc + [TaskStatus.CANCELLED.value],
+                    )
+                    await _durable_close(durable_id, False, "cancelled:cooperative")
+                    _record_heartbeat(task.agent_id, useful=False, result=res)
+                    return res
                 res = _skipped(task, contract, f"capability_skip:{sk.reason}", lc)
                 res.attempts = attempt
                 res.usage = dict(ctx.usage)
@@ -692,7 +1202,7 @@ async def run_task(task: AgentTask) -> AgentResult:
                 _record_heartbeat(task.agent_id, useful=False, result=res)
                 await _durable_close(durable_id, True, f"{task.action} skipped: {sk.reason}")
                 if idem_claimed:
-                    _idem_forget(task.idempotency_key)  # skip ≠ done — retry allowed later
+                    _idem_release(task)  # skip ≠ durable success — retry allowed later
                 return res
             except asyncio.TimeoutError:
                 last_err = ("TimeoutError", f"attempt {attempt} exceeded {effective_timeout}s")
@@ -725,7 +1235,8 @@ async def run_task(task: AgentTask) -> AgentResult:
         if goes_dlq:
             _dlq_push(task, res)
         if idem_claimed:
-            _idem_forget(task.idempotency_key)  # failure must stay retryable
+            # Terminal failure retained — same key does not auto-retry (need new key)
+            _idem_complete(task, "failed", reason=res.reason or "execution_failed")
         _record_heartbeat(task.agent_id, useful=False, result=res)
         _log_team_event(
             task.agent_id,
@@ -775,6 +1286,8 @@ def _agent_health(aid: str, contract: Any, row: dict[str, Any], event_only: bool
     hb = row.get("process_hb")
     useful = row.get("useful_work")
     if aid not in PILOT_AGENTS:
+        if capabilities_for(aid):
+            return "healthy_idle" if event_only else "capability_ready_hold"
         return "healthy_idle" if event_only else "registry_only"
     if not hb:
         return "pilot_ready"  # wired but not yet dispatched — not an incident
@@ -809,7 +1322,13 @@ def runtime_status() -> dict[str, Any]:
             active_by_agent: dict[str, list[dict[str, Any]]] = {}
             for tid, info in _ACTIVE_TASKS.items():
                 active_by_agent.setdefault(info["agent_id"], []).append({"task_id": tid, **info})
-            cancelled = set(_CANCELLED_AGENTS)
+        try:
+            from app.platform import agent_runtime_cancellation as crc
+
+            cancel_backend = crc.backend_status()
+        except Exception:
+            crc = None  # type: ignore
+            cancel_backend = {"cancellation_backend": "unknown", "fallback_active": True}
         for aid, c in reg.items():
             row = state.get(aid) or {}
             u = usage_all.get(aid) or {}
@@ -819,6 +1338,16 @@ def runtime_status() -> dict[str, Any]:
                     kill_cache[k] = _kill_engaged(k)
                 kills[k] = kill_cache[k]
             event_only = aid in ar.EVENT_OR_ONDEMAND_ONLY
+            active_runs = active_by_agent.get(aid) or []
+            cancel_flags: list[str] = []
+            if crc is not None:
+                for arun in active_runs[:5]:
+                    try:
+                        chk = crc.is_requested(aid, arun["task_id"])
+                        if chk.requested:
+                            cancel_flags.append(arun["task_id"])
+                    except Exception:
+                        pass
             agents.append(
                 {
                     "agent_id": aid,
@@ -833,9 +1362,10 @@ def runtime_status() -> dict[str, Any]:
                     "event_or_ondemand_only": event_only,
                     "last_heartbeat": row.get("process_hb"),
                     "last_useful_work": row.get("useful_work"),
-                    "active_tasks": active_by_agent.get(aid, []),
+                    "active_tasks": active_runs,
                     "last_result": row.get("last_result"),
-                    "cancel_requested": aid in cancelled,
+                    "cancel_requested": bool(cancel_flags),
+                    "cancel_targeted_run_ids": cancel_flags,
                     "budget": {
                         "cost_inr": {
                             "used": float(u.get("cost_inr") or 0.0),
@@ -860,18 +1390,26 @@ def runtime_status() -> dict[str, Any]:
             queue = automation_health.queue_depth()
         except Exception:
             queue = {"error": "queue_depth_unavailable"}
+        try:
+            from app.platform import agent_runtime_idempotency as arid
+
+            idem_status = arid.backend_status()
+        except Exception:
+            idem_status = {"idempotency_backend": "unknown", "fallback_active": True}
         return {
             "ok": True,
             "runtime_enabled": runtime_enabled(),
             "master_flag": _MASTER_FLAG,
             "pilots": sorted(PILOT_AGENTS),
             "rollout_note": (
-                "Phase-B controlled rollout — sirf pilots dispatchable. Baaki 28 "
-                "registry-defined (registry_only), big-bang activation nahi."
+                "Controlled rollout — PILOT_AGENTS dispatchable under AGENT_RUNTIME. "
+                "Others capability-registered but hold/frozen; no big-bang 31-live."
             ),
             "canonical_count": len(reg),
             "runtime_dlq_count": _dlq_count(),
             "celery_queue": queue,
+            "cancellation": cancel_backend,
+            "idempotency": idem_status,
             "agents": agents,
             "calling_badge": "Calling HARD OFF",
             "generated_at": _now_iso(),
@@ -912,9 +1450,11 @@ __all__ = [
     "run_task",
     "submit",
     "request_cancel",
+    "request_cancel_run",
     "clear_cancel",
     "runtime_enabled",
     "runtime_status",
     "runtime_dlq",
     "evaluate_policy",
+    "admission_decision",
 ]

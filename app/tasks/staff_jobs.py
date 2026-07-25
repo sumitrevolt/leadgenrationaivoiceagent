@@ -144,6 +144,7 @@ STAFF_JOBS = (
     "product_one_health",  # hourly :20 Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (2026-07-08)
     "approval_email_sweep",  # bounded pending-approval EMAIL sweep, gated APPROVAL_EMAIL_NOTIFY (default OFF); single-flight (2026-07-12)
     "social_drain",  # hourly :10 native social queue drain (gated SOCIAL_ENGINE); Celery+in-process (audit 2026-07-17)
+    "sales_autopilot",  # hourly :25 Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
 )
 
 
@@ -193,13 +194,11 @@ def self_improve_tick(self):
     except Exception as e:
         logger.warning(f"[self-improve] tick failed: {e}")
         res = {"ok": False, "error": str(e)[:200]}
-    # requeue ALWAYS attempt (loop never dies) — sirf flag OFF pe chain stop.
-    # 2026-07-19 FIX: pehle slot_token="" (tick_slot denied — boundary ya Redis
-    # hiccup) pe chain DYING thi → 20-min watchdog revive cycle (repeated stale
-    # heartbeat). Ab flag ON + slot denied ho to bhi short-countdown requeue
-    # karo — chain self-heals without watchdog. Fail-closed preserved: Redis
-    # down ho to apply_async bhi raise karega → outer except catches → chain
-    # dies → watchdog revives when Redis back (same as before, no multiplication).
+    # Requeue only the tick that owns the distributed slot. A denied tick is
+    # usually a duplicate already queued by another chain; requeueing *every*
+    # denied duplicate multiplies the queue. The slot owner has already
+    # scheduled the next tick, while the watchdog can seed one fresh chain if
+    # the owner dies. Fail closed on a denied slot/Redis outage.
     try:
         from app.agents import self_improve
 
@@ -216,10 +215,9 @@ def self_improve_tick(self):
             if queued:
                 self_improve.note_tick_requeue(gap)
         elif self_improve.enabled() and not slot_token:
-            # Slot denied (boundary/Redis hiccup) par flag ON — chain mat maro.
-            # Short countdown retry; next tick pe slot acquire hoga ya phir se
-            # deny — kabhi chain multiply nahi (NX lock + next_allowed guard).
-            self_improve_tick.apply_async(countdown=self_improve.gap_seconds())
+            # Slot denied = duplicate or Redis guard unavailable. The owner (if
+            # any) already owns the next requeue; this tick must terminate.
+            logger.debug("[self-improve] tick skipped: slot denied; no requeue")
         elif slot_token:
             self_improve.release_tick_slot(slot_token)
     except Exception as e:
@@ -404,10 +402,26 @@ def run_staff_job(self, job: str):
         if boot_grace.should_skip_boot_grace(job):
             delay = boot_grace.defer_seconds(job)
             logger.info(f"[staff_jobs] boot-grace skip job '{job}' — deferred retry in {delay}s")
+            deferred = False
+            # Keep the real job's dead-man heartbeat truthful. Previously only
+            # the optional loop-supervisor emitted a synthetic marker, so the
+            # prior day's heartbeat stayed stale and appeared overdue.
             try:
                 run_staff_job.apply_async(args=[job], countdown=delay)
+                deferred = True
             except Exception as e:
                 logger.warning(f"[staff_jobs] boot-grace defer enqueue failed: {e}")
+            try:
+                from app.platform import automation_health
+
+                automation_health.record_run(
+                    job,
+                    deferred,
+                    0.0,
+                    note=("boot_grace" if deferred else "boot_grace_enqueue_failed"),
+                )
+            except Exception:
+                pass
             try:  # SP3: surface the silent boot-grace skip (gated LOOP_SUPERVISOR)
                 from app.platform import loop_supervisor as _ls
 
@@ -441,12 +455,14 @@ def run_staff_job(self, job: str):
             raise RuntimeError(f"staff job '{job}' reported failure")
         return {"ok": True, "job": job}
     except SoftTimeLimitExceeded:
-        # 2026-07-17 lesson (7 'prospect' jobs dlq:dead): soft-timeout = WORKLOAD
-        # problem — blind Celery retry SAME workload ko 9-min slots me 2x aur
-        # jalata hai (single heavy worker pin). Fail-fast: ek hi DLQ record,
-        # replay sirf root-cause (time budget/fanout) fix ke baad.
-        logger.warning(f"[staff_jobs] job '{job}' soft time limit — NO retry (workload bound karo)")
-        raise
+        # Soft timeout = WORKLOAD bound problem. Blind Celery retry same workload
+        # ko jalata hai (2026-07-17 prospect DLQ storm). Prefer wall-clock budgets
+        # in the job body; if SoftTimeLimit still fires, return partial SUCCESS so
+        # we do not fill dlq:failed_tasks / burn retries (2026-07-23 onboard/content).
+        logger.warning(
+            f"[staff_jobs] job '{job}' soft time limit — graceful partial (no retry/DLQ)"
+        )
+        return {"ok": True, "job": job, "partial": True, "reason": "soft_time_limit"}
     except Exception as e:  # invoke-level failure -> retry, fir DLQ
         logger.warning(f"[staff_jobs] job '{job}' invoke failed: {e}")
         raise self.retry(exc=e)

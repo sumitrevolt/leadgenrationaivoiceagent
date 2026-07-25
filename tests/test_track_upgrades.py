@@ -61,15 +61,20 @@ def c(monkeypatch):
             node._fallback_counts.clear()
         node = getattr(node, "app", None)
 
-    # TEESRI layer (the actual CI killer): public_signup ka apna INLINE per-IP
-    # throttle (`public_site._rate_limited`, module-level _RL dict, 5/min) —
-    # customer_auth signup canonical public_signup ko call karta hai, aur poora
-    # suite ek hi "testclient" IP share karta → CI me bucket full → 429
-    # "Thoda ruk ke dobara try karo". Route call-time pe module-fn read karta →
-    # monkeypatch clean lagti hai.
+    # TEESRI layer: public_signup INLINE per-IP throttle is `_rate_check`
+    # (module-level `_RL` / `_RL_AUDIT`). Stale tests patched removed
+    # `_rate_limited` — that AttributeError left signup unprotected from
+    # cross-test 429 pollution. Canonical seam = async `_rate_check` no-op.
     from app.api import public_site as ps
 
-    monkeypatch.setattr(ps, "_rate_limited", lambda ip, store=None: False)
+    async def _no_rate(_ip: str, bucket: str = "inquiry") -> None:
+        return None
+
+    monkeypatch.setattr(ps, "_rate_check", _no_rate)
+    if isinstance(getattr(ps, "_RL", None), dict):
+        ps._RL.clear()
+    if isinstance(getattr(ps, "_RL_AUDIT", None), dict):
+        ps._RL_AUDIT.clear()
     return client
 
 
@@ -83,7 +88,7 @@ def test_signup_creates_client_and_returns_token(c, monkeypatch, tmp_path):
     body = {
         "business_name": "Sharma Solar",
         "email": "owner@sharmasolar.in",
-        "password": "secret123",
+        "password": "secret123",  # pragma: allowlist secret — synthetic fixture
         "phone": "9876543210",
         "niche": "solar",
         "city": "Pune",
@@ -100,7 +105,10 @@ def test_signup_creates_client_and_returns_token(c, monkeypatch, tmp_path):
     # Credential persisted -> the new account can log in with the same password.
     login = c.post(
         "/api/customer/auth/login",
-        json={"email": "owner@sharmasolar.in", "password": "secret123"},
+        json={
+            "email": "owner@sharmasolar.in",
+            "password": "secret123",  # pragma: allowlist secret — synthetic fixture
+        },
     )
     assert login.status_code == 200, login.text
     assert login.json()["client_id"] == data["client_id"]
@@ -108,7 +116,11 @@ def test_signup_creates_client_and_returns_token(c, monkeypatch, tmp_path):
 
 def test_signup_duplicate_email_returns_409(c, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
-    body = {"business_name": "Dup Biz", "email": "dup@example.com", "password": "secret123"}
+    body = {
+        "business_name": "Dup Biz",
+        "email": "dup@example.com",
+        "password": "secret123",  # pragma: allowlist secret — synthetic fixture
+    }
     assert c.post("/api/customer/auth/signup", json=body).status_code == 200
     again = c.post("/api/customer/auth/signup", json=body)
     assert again.status_code == 409
@@ -118,7 +130,11 @@ def test_signup_invalid_email_returns_422(c, monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     r = c.post(
         "/api/customer/auth/signup",
-        json={"business_name": "No Email", "email": "notanemail", "password": "secret123"},
+        json={
+            "business_name": "No Email",
+            "email": "notanemail",
+            "password": "secret123",  # pragma: allowlist secret — synthetic fixture
+        },
     )
     assert r.status_code == 422
 
@@ -130,7 +146,7 @@ def test_signup_unknown_plan_defaults_to_starter(c, monkeypatch, tmp_path):
         json={
             "business_name": "Plan Test",
             "email": "plan@example.com",
-            "password": "secret123",
+            "password": "secret123",  # pragma: allowlist secret — synthetic fixture
             "plan": "enterprise-ultra",  # not a real plan
         },
     )
@@ -181,16 +197,19 @@ def test_billing_webhook_razorpay_header_rejected_after_removal(c):
     assert r.status_code == 400
 
 
-def test_billing_webhook_stripe_unconfigured_is_safe(c, monkeypatch):
-    """Stripe-Signature present but no webhook secret configured -> graceful, not a 500."""
+def test_billing_webhook_stripe_signature_rejected_after_removal(c, monkeypatch):
+    """Stripe gateway removed 2026-07-10 (manual UPI only). A Stripe-Signature
+    header must not be accepted as a live payment webhook — unified route is 400."""
     monkeypatch.setattr(settings, "stripe_webhook_secret", "", raising=False)
     r = c.post(
         "/api/billing/webhook",
         headers={"Stripe-Signature": "t=1,v1=abc"},
         content=b"{}",
     )
-    assert r.status_code == 200
-    assert r.json().get("status") == "webhook_secret_not_configured"
+    assert r.status_code == 400
+    from tests._api_helpers import api_error_message
+
+    assert "upi" in api_error_message(r).lower() or "webhook" in api_error_message(r).lower()
 
 
 # =============================================================================
@@ -244,10 +263,10 @@ def test_whatsapp_inbound_creates_draft(c, monkeypatch, tmp_path):
     from app.integrations import whatsapp as wa_int
     from app.platform import reply_agent
 
-    async def fake_classify(subject, body):
+    async def fake_classify(subject, body, history=""):
         return "interested"
 
-    async def fake_draft(biz, subject, body, intent):
+    async def fake_draft(biz, subject, body, intent, history_msgs=None):
         return "Namaste! Free demo set karein?"
 
     monkeypatch.setattr(reply_agent, "_classify", fake_classify)
@@ -291,10 +310,10 @@ def test_whatsapp_reply_helper_writes_draft(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     from app.platform import reply_agent
 
-    async def fake_classify(subject, body):
+    async def fake_classify(subject, body, history=""):
         return "question"
 
-    async def fake_draft(biz, subject, body, intent):
+    async def fake_draft(biz, subject, body, intent, history_msgs=None):
         return "Ji, batayein."
 
     monkeypatch.setattr(reply_agent, "_classify", fake_classify)

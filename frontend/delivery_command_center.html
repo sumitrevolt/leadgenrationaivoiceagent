@@ -38,6 +38,7 @@
   .refresh-btn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 13px;
     cursor:pointer;font-size:12.5px;font-weight:700;color:var(--brand)}
   .refresh-btn:hover{background:var(--brand-soft)}
+  a.refresh-btn{text-decoration:none;display:inline-flex;align-items:center}
 
   .wrap{max-width:1180px;margin:0 auto;padding:16px}
   .col-title{font-size:13px;font-weight:800;color:var(--muted);text-transform:uppercase;
@@ -126,6 +127,7 @@
   <div class="spacer"></div>
   <span class="ao-topbar-status"><span class="dot"></span>AI Active</span>
   <span class="chip">🕐 <b id="lastUpdate">Loading…</b></span>
+  <a class="refresh-btn" href="/app/admin" title="Admin dashboard">← Admin</a>
   <button class="refresh-btn" id="btnRefresh">🔄 Refresh</button>
   <div class="kbd" id="tokToggle" title="Admin token">🔑</div>
   <div class="tokrow" id="tokRow">
@@ -312,7 +314,7 @@
     var row = document.getElementById("kpiRow");
     var cards = [
       {lbl: "Total Customers", val: s.total_customers, sub: "active"},
-      {lbl: "Paying", val: s.paying_customers, sub: "trial nahi"},
+      {lbl: "Paying", val: s.paying_customers, sub: "payment proof confirmed"},
       {lbl: "Stuck in Setup", val: s.stuck_in_setup, cls: s.stuck_in_setup > 0 ? "warn" : "ok", sub: "onboarding adhoora"},
       {lbl: "Receiving Value", val: s.receiving_value, cls: "ok", sub: "kam se kam 1 delivery event"},
       {lbl: "Automation Issues", val: s.failed_automation_count, cls: s.failed_automation_count > 0 ? "err" : "ok", sub: "kisi automation me fail"},
@@ -332,7 +334,7 @@
     var byPlan = (rev && rev.by_plan) || {};
     var plans = Object.keys(byPlan);
     var head = '<div class="kpi" style="margin-bottom:12px"><div class="lbl">MRR Total</div>' +
-      '<div class="val">' + inr(rev && rev.mrr_total) + '</div><div class="sub">active customers, monthly</div></div>';
+      '<div class="val">' + inr(rev && rev.mrr_total) + '</div><div class="sub">invoice-backed paying customers, monthly</div></div>';
     if(!plans.length){
       body.innerHTML = head + '<div class="empty">Abhi koi paying plan nahi.</div>';
       return;
@@ -662,9 +664,17 @@
       var assuranceAtRisk = assuranceUnavailable
         ? null
         : (Number(assurance.at_risk || 0) + Number(assurance.missed || 0));
+      var revenue = (data && data.revenue) || {};
+      var payingCustomers = Number(revenue.paying_customers);
+      // The API's revenue block is invoice-backed. Keep the KPI aligned with
+      // that same truth instead of counting selected non-trial plans, which
+      // produced the live "Paying 3 / MRR ₹0" contradiction.
+      if(!Number.isFinite(payingCustomers)){
+        payingCustomers = customers.filter(function(c){ return c.plan !== "trial"; }).length;
+      }
       renderKpis({
         total_customers: customers.length,
-        paying_customers: customers.filter(function(c){ return c.plan !== "trial"; }).length,
+        paying_customers: payingCustomers,
         stuck_in_setup: (data.summary || {}).pending_customer_inputs,
         receiving_value: customers.filter(function(c){ return Number(c.deliverable_completion_pct || 0) > 0; }).length,
         failed_automation_count: (data.summary || {}).failed_automations,
@@ -675,7 +685,7 @@
         benefit_this_week: (data.summary || {}).posts_published
       });
       renderPipeline((data && data.pipeline) || []);
-      renderRevenue((data && data.revenue) || {mrr_total:0, by_plan:{}});
+      renderRevenue(revenue);
       ALL_CUSTOMERS = customers;
       renderCustomers(ALL_CUSTOMERS);
       loadLogs("");

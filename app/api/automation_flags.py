@@ -8,6 +8,7 @@ tests import `from app.api.growth import AUTOMATION_FLAGS`).
 # Saare gated automation flags ka registry — live env status ek jagah.
 AUTOMATION_FLAGS = [
     "OWNER_OS",  # Owner Operating System (/app/owner + /api/admin/owner-os) — always mounted for admin; flag documents surface
+    "OPENCLAW_ENABLED",  # OpenClaw Owner Copilot edge layer (/api/owner-copilot) — OFF default; Owner OS remains sole action authority
     "CONTROL_CENTER",  # enterprise Control Center cockpit (/app/control-center) — nav-surface gate, default OFF
     "ROUTE_HIT_COUNTER",  # per-route hit counter middleware (Redis route_hits:{YYYYMMDD}) for the Control Center "unused API" view — default OFF (middleware not in stack when off)
     "FLOW_RUNNER",  # visual builder -> process-as-code execution (admin, linear+DAG, default OFF)
@@ -27,7 +28,8 @@ AUTOMATION_FLAGS = [
     "AUTO_QUALIFY_CALLS",
     "REPLY_AGENT",
     "CALL_LOG_DB",  # write structured call_logs row per call -> DB-backed analytics dashboard (default ON)
-    "OPS_WATCHDOG",
+    "OPS_WATCHDOG",  # Kavya scheduler watchdog (hourly) — NOT Agent Runtime gate
+    "OPS_HEALTH_AGENT",  # Kavya Agent Runtime ops_health_check — independent of OPS_WATCHDOG
     "AUTO_ONBOARD",
     "SIGNUP_AUTO_ONBOARD",  # public signup → auto client onboard path (checked in public_site/customer_onboard)
     "SOCIAL_PREFS_HONOR",
@@ -89,7 +91,32 @@ AUTOMATION_FLAGS = [
     "ENABLE_LEGACY_BEAT",
     "FESTIVALS_LIVE_HOLIDAYS",
     "VIDEO_AD_CYCLE",  # har 5 din per-client AI video ad -> approval -> social publish (default OFF)
+    "VIDEO_PRODUCTION_ENABLED",  # OpenClaw Video Production Cell master (default OFF)
+    "VIDEO_DAILY_SCHEDULER_ENABLED",  # daily video planning job (aliases VIDEO_AD_CYCLE when on)
+    "VIDEO_CUSTOMER_REVIEW_ENABLED",  # customer dashboard + WA feedback ingest
+    "VIDEO_CUSTOMER_REVIEW_CLIENTS",  # comma Stage-3 tenant allowlist; '*' = explicit all
+    "VIDEO_WHATSAPP_REVIEW_ENABLED",  # auto WA preview send (ban-safety; default OFF)
+    "VIDEO_SOCIAL_PUBLISH_ENABLED",  # approval-gated Postiz publish when production cell ON
+    "VIDEO_HARNESS_ENFORCE",  # harness evaluate_action must allow mutating video tools
+    "VIDEO_HARNESS_SHADOW_ENABLED",  # Stage 1: observe video harness decisions; no enforcement / side effects
+    "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
+    "CREATIVE_OS_ENABLED",  # ADR-143 Creative Automation OS master (default OFF)
+    "CREATIVE_PROVIDER_QWEN_IMAGE",  # Qwen-Image adapter (skeleton; default OFF)
+    "CREATIVE_PROVIDER_FLUX_SCHNELL",  # FLUX.1-schnell only (skeleton; default OFF; flux.dev rejected)
+    "CREATIVE_PROVIDER_WAN22",  # Wan2.2 TI2V GPU worker only (skeleton; default OFF)
+    "CREATIVE_PROVIDER_COMFYUI",  # ComfyUI lab adapter (skeleton; default OFF)
+    "CREATIVE_GPU_LAB_ENABLED",  # GPU lab preflight gate (default OFF)
+    "CREATIVE_COMFYUI_ENABLED",  # isolated ComfyUI lab (default OFF)
+    "CREATIVE_LEARNING_ENABLED",  # performance recommendations only — never auto-mutate/spend (OFF)
+    "CREATIVE_MAX_REVISIONS",  # revision cap (default 3)
+    "CREATIVE_TENANT_DAILY_BUDGET",  # per-tenant generation cap/day (default 20)
+    "CREATIVE_WORKER_TIMEOUT_S",  # generation timeout seconds (default 300)
+    "CONTENT_TIME_BUDGET_S",  # content mega-job wall-clock budget (default 420; SoftTimeLimit margin)
+    "ONBOARD_TIME_BUDGET_S",  # onboard sweep wall-clock budget (default 300)
+    "PROSPECT_TIME_BUDGET_S",  # prospect harvest wall-clock budget (default 300)
     "SOCIAL_ENGINE",  # native social-posting engine (own queue+providers; default OFF, video_ad_cycle inline fallback)
+    "POSTIZ_PINTEREST_BOARD",  # required for Pinterest in multi-channel Postiz create; unset = skip Pinterest only
+    "POSTIZ_PUBLISH_MAX_CHANNELS",  # hard cap per create-post (0=block; unset=uncapped legacy fan-out)
     "ALLOW_TOS_SCRAPE",  # hard-off default — JustDial/IndiaMART/LinkedIn/social auto-scrape refuse (§5)
     "SOCIAL_DRY_RUN",  # ADR-098: drain queue but fabricate post_id=dry-* — NEVER real provider publish. Env wins over data/social_engine.json dry_run. Invisible-until-registered = fake "published" confidence.
     "CLIENT_REPORTS",
@@ -193,7 +220,10 @@ AUTOMATION_FLAGS = [
     # F.5 engineer agents (Pranav SRE / Vidya FinOps / Arnav Security)
     "SRE_AGENT",  # Pranav reliability score (hourly :45)
     "FINOPS_AGENT",  # Vidya margin score + LiteLLM-attributed cost-per-tenant
-    "SECURITY_AGENT",  # Arnav DPDP/TRAI posture
+    "SECURITY_AGENT",  # Arnav scheduler daily posture entry — NOT Agent Runtime gate
+    "SECURITY_POSTURE_AGENT",  # Arnav Agent Runtime security posture — independent of SECURITY_AGENT
+    # Nikhil Revenue Ops — isolated runtime gate (default OFF; never ungated)
+    "DELIVERY_ASSURANCE_AGENT",  # Nikhil scan_delivery_assurance only
     # council 2026-06-25 — 3 new engineer agents (genuinely-uncovered loops)
     "DBRE_AGENT",  # Kabir Postgres reliability — slow-queries/indices/connections (daily 10:00)
     "DEPS_AGENT",  # Aryan dependency/supply-chain CVE audit, proposal-only (weekly Sun 04:30)
@@ -342,4 +372,17 @@ AUTOMATION_FLAGS = [
     "LINKEDIN_OAUTH_APPROVED",
     "X_OAUTH_APPROVED",
     "GOOGLE_OAUTH_APPROVED",
+    # --- Autonomous Sales Engine / Sales Autopilot (2026-07-24, app/platform/sales_autopilot) ---
+    # Policy-driven, fail-closed, DRY-RUN default. Separate from WHATSAPP_AUTO_SEND (never the
+    # master gate here). Calling stays HARD OFF. All default OFF / INERT.
+    "SALES_AUTOPILOT_ENABLED",  # master gate — OFF default → engine fully inert (no work, dry-run)
+    "SALES_AUTOPILOT_WHATSAPP_ENABLED",  # arm WA channel live-send (needs dry_run=false too)
+    "SALES_AUTOPILOT_EMAIL_ENABLED",  # arm email channel (live email is handoff-stub only)
+    "SALES_AUTOPILOT_DRY_RUN",  # force simulation (env can only make it MORE safe)
+    "SALES_AUTOPILOT_NEW_OUTREACH_KILL",  # block brand-new first-touch outreach
+    "SALES_AUTOPILOT_FOLLOWUP_KILL",  # block follow-ups
+    "SALES_AUTOPILOT_AUTOREPLY_KILL",  # block safe auto-replies (escalate to Owner OS only)
+    "SALES_AUTOPILOT_PAYMENT_REMINDER_KILL",  # block payment/onboarding nudges
+    "SALES_AUTOPILOT_CANARY_BATCH",  # per-tick batch size (default 1)
+    "SALES_AUTOPILOT_LLM_TONE",  # OPTIONAL tone-only LLM review (never authoritative)
 ]

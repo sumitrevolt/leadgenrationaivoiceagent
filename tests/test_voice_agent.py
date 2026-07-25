@@ -96,11 +96,11 @@ class TestTelecallerBrainProfessionalism:
 
     def test_telecaller_brain_system_prompt_contains_professionalism_rule(self):
         brain = TelecallerBrain(niche="solar_residential", client_name="Sharma Solar")
-        assert "aap" in brain.system_prompt.lower()
-        assert "sir/madam" in brain.system_prompt.lower()
-        assert "professional" in brain.system_prompt.lower()
-        assert "respectful" in brain.system_prompt.lower()
-        assert "slang" in brain.system_prompt.lower()
+        prompt = brain.system_prompt.lower()
+        assert "professional" in prompt
+        assert "customer ko respectfully 'aap'" in prompt
+        assert "habitual fillers banned" in prompt
+        assert "kabhi 'tum', 'tu', 'yaar', 'bhai' mat karo" in prompt
 
     def test_niche_script_objections_are_polite(self):
         from app.voice_agent.niche_scripts import get_script
@@ -114,7 +114,10 @@ class TestTelecallerBrainProfessionalism:
         assert "aage badhna" not in ai_marketing["objections"]["bharosa"]
         assert "aage badhiye" in ai_marketing["objections"]["bharosa"]
         assert ai_marketing.get("pitch_short")
-        assert "LeadGen AI" in ai_marketing["opening"] or "Leads Generation AI" in ai_marketing["opening"]
+        assert (
+            "LeadGen AI" in ai_marketing["opening"]
+            or "Leads Generation AI" in ai_marketing["opening"]
+        )
 
     def test_telecaller_confirm_interest_appends_note(self):
         brain = TelecallerBrain(niche="ai_marketing", client_name="LeadGen AI")

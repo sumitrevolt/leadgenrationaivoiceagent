@@ -150,4 +150,41 @@ def forget_sync(key: str) -> None:
     _MEM.pop(key, None)
 
 
-__all__ = ["seen_before", "forget", "seen_before_sync", "forget_sync"]
+def backend_status() -> dict:
+    """Read-only idempotency durability projection — no credentials.
+
+    Production intent: Redis primary with per-process memory FAIL-OPEN fallback
+    when Redis is down (billing webhooks must not lose events). Nikhil canary
+    saw no ``idem:*`` KEYS because either Redis SET failed→memory, TTL not
+    inspected on the same logical DB, or keys expired/were forgotten after
+    cancelled/blocked paths. Do not claim Redis-only without live key proof.
+    """
+    db_label = "unset"
+    try:
+        from app.config import settings
+
+        url = str(getattr(settings, "redis_url", "") or os.getenv("REDIS_URL") or "")
+        if "/" in url.rsplit("@", 1)[-1]:
+            tail = url.rsplit("/", 1)[-1]
+            db_label = f"db{tail}" if tail.isdigit() else "url-present"
+        elif url:
+            db_label = "url-present"
+    except Exception:
+        db_label = "unknown"
+    redis_ok = False
+    try:
+        redis_ok = bool(_sync_redis().ping())
+    except Exception:
+        redis_ok = False
+    return {
+        "idempotency_backend": "redis" if redis_ok else "memory",
+        "fallback_active": not redis_ok,
+        "redis_database": db_label,
+        "key_prefix": _PREFIX,
+        "default_ttl_s": _DEFAULT_TTL_S,
+        "memory_entries": len(_MEM),
+        "fail_open_on_redis_error": True,
+    }
+
+
+__all__ = ["seen_before", "forget", "seen_before_sync", "forget_sync", "backend_status"]

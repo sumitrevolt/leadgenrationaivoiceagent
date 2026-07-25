@@ -7,7 +7,6 @@ raises ``SyntaxError`` on click and the signup/payment modal never opens.
 
 from pathlib import Path
 
-
 PRICING_HTML = Path("frontend/pricing.html")
 SERVICE_WORKER = Path("frontend/website/sw.js")
 SECURITY_MIDDLEWARE = Path("app/middleware/__init__.py")
@@ -40,6 +39,13 @@ def test_service_worker_never_serves_cached_revenue_pages():
     assert 'p === "/pricing"' in source
     assert 'p === "/start"' in source
     assert 'fetch(request, { cache: "no-store" })' in source
+
+
+def test_service_worker_never_serves_cached_dashboard_dependencies():
+    source = SERVICE_WORKER.read_text(encoding="utf-8")
+
+    assert 'p.startsWith("/design-system/")' in source
+    assert 'const CACHE_NAME = "leadgen-ai-v5"' in source
 
 
 def test_security_headers_disable_browser_cache_for_revenue_pages():

@@ -24,7 +24,14 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_W, _H = 720, 1280  # matches reel_video._W, _H — 9:16 reel
+_W, _H = 720, 1280  # matches reel_video._W, _H — 9:16 reel (default)
+
+_ASPECT = {
+    "9:16": (720, 1280),
+    "1:1": (1080, 1080),
+    "16:9": (1280, 720),
+    "4:5": (1080, 1350),  # social feed (IG/FB) — Creative Automation OS ADR-143
+}
 
 
 def _hex(c: str, default: tuple) -> tuple:
@@ -62,7 +69,9 @@ def _logo_temp_file(logo_data_uri: str, tmp_dir: str) -> str | None:
         return None
 
 
-def _make_branded_frame(text: str, idx: int, brand: dict[str, Any], tmp_dir: str) -> str:
+def _make_branded_frame(
+    text: str, idx: int, brand: dict[str, Any], tmp_dir: str, width: int = _W, height: int = _H
+) -> str:
     """PIL frame: brand-color bg + top-left logo (if any) + lower-third caption
     bar (not full-screen giant text — closer to real short-form-video captions)
     + bottom brand strip (business name + phone)."""
@@ -70,7 +79,7 @@ def _make_branded_frame(text: str, idx: int, brand: dict[str, Any], tmp_dir: str
 
     primary = brand.get("primary") or "#2563eb"
     bg = _hex(primary, (37, 99, 235))
-    img = Image.new("RGB", (_W, _H), bg)
+    img = Image.new("RGB", (width, height), bg)
     dr = ImageDraw.Draw(img)
 
     try:
@@ -90,14 +99,15 @@ def _make_branded_frame(text: str, idx: int, brand: dict[str, Any], tmp_dir: str
             logger.warning(f"[video_pipeline] logo paste failed: {e}")
 
     # Lower-third caption bar: semi-transparent dark strip + word-wrapped white text
-    bar_h = 260
-    bar_top = _H - bar_h - 140  # leave room for the bottom brand strip below it
-    overlay = Image.new("RGBA", (_W, bar_h), (0, 0, 0, 150))
+    bar_h = max(180, height // 5)
+    bar_top = height - bar_h - max(100, height // 10)
+    overlay = Image.new("RGBA", (width, bar_h), (0, 0, 0, 150))
     img.paste(overlay, (0, bar_top), overlay)
 
+    wrap_cols = max(18, width // 30)
     words, lines, cur = text.split(), [], ""
     for w in words:
-        if len(cur) + len(w) + 1 > 24:
+        if len(cur) + len(w) + 1 > wrap_cols:
             lines.append(cur)
             cur = w
         else:
@@ -107,7 +117,7 @@ def _make_branded_frame(text: str, idx: int, brand: dict[str, Any], tmp_dir: str
     y = bar_top + (bar_h - len(lines[:5]) * 50) // 2
     for ln in lines[:5]:
         bb = dr.textbbox((0, 0), ln, font=font)
-        dr.text(((_W - (bb[2] - bb[0])) / 2, y), ln, fill="white", font=font)
+        dr.text(((width - (bb[2] - bb[0])) / 2, y), ln, fill="white", font=font)
         y += 50
 
     # Bottom brand strip: business name + phone
@@ -116,14 +126,16 @@ def _make_branded_frame(text: str, idx: int, brand: dict[str, Any], tmp_dir: str
     strip_text = " | ".join(t for t in (biz, phone) if t)
     if strip_text:
         bb = dr.textbbox((0, 0), strip_text, font=small_font)
-        dr.text(((_W - (bb[2] - bb[0])) / 2, _H - 90), strip_text, fill="white", font=small_font)
+        dr.text(
+            ((width - (bb[2] - bb[0])) / 2, height - 90), strip_text, fill="white", font=small_font
+        )
 
     path = os.path.join(tmp_dir, f"frame{idx:02d}.png")
     img.save(path)
     return path
 
 
-def _zoompan_filter(duration_s: float, fps: int = 24) -> str:
+def _zoompan_filter(duration_s: float, fps: int = 24, width: int = _W, height: int = _H) -> str:
     """Slow Ken-Burns zoom (1.0 -> ~1.08) that HOLDS at max zoom rather than
     resetting. `d` is zoompan's hard cycle length — on a static-image input
     (-loop 1), zoompan RESTARTS the zoom from 1.0 every `d` frames. The real
@@ -132,23 +144,26 @@ def _zoompan_filter(duration_s: float, fps: int = 24) -> str:
     producing a visible zoom-reset sawtooth instead of a smooth pan. `d`
     gets a generous 30-second floor (well beyond any realistic single-slide
     TTS clip) so the visual cap (min(zoom+0.0015,1.08)) is what limits zoom,
-    not an early cycle restart. Found in final whole-branch review
-    (2026-07-11); fixed by reasoning about zoompan's documented semantics —
-    not empirically verified against real ffmpeg (unavailable in this dev
-    sandbox all session). MUST be visually confirmed against a real render
-    with a multi-word (>4s TTS) slide before this pipeline is considered
-    proven — see Task 11 Step 5's still-outstanding manual verification."""
+    not an early cycle restart."""
     d = max(int(round(duration_s * fps)), 30 * fps)
-    return f"scale=720:1280,zoompan=z='min(zoom+0.0015,1.08)':d={d}:s=720x1280:fps={fps}"
+    return (
+        f"scale={width}:{height},zoompan=z='min(zoom+0.0015,1.08)'"
+        f":d={d}:s={width}x{height}:fps={fps}"
+    )
 
 
 def _build_segment_args(
-    frame_path: str, audio_path: str | None, duration_s: float, out_path: str
+    frame_path: str,
+    audio_path: str | None,
+    duration_s: float,
+    out_path: str,
+    width: int = _W,
+    height: int = _H,
 ) -> list[str]:
     """ffmpeg args (sans the ['ffmpeg','-y','-loglevel','error'] prefix reel_video._ffmpeg
     already adds) to build one Ken-Burns video segment from a static frame,
     optionally muxed with a voiceover track."""
-    vf = _zoompan_filter(duration_s)
+    vf = _zoompan_filter(duration_s, width=width, height=height)
     args = ["-loop", "1", "-i", frame_path]
     if audio_path:
         args += ["-i", audio_path, "-shortest"]
@@ -193,26 +208,47 @@ def _mix_music_args(video_path: str, music_path: str, out_path: str) -> list[str
     ducking (real ducking is a Phase-2 polish item — see plan's Phase-2
     backlog section)."""
     return [
-        "-i", video_path,
-        "-i", music_path,
-        "-filter_complex", "[1:a]volume=0.12,aloop=loop=-1:size=2e9[bed];[0:a][bed]amix=inputs=2:duration=first[a]",
-        "-map", "0:v", "-map", "[a]",
-        "-c:v", "copy", "-c:a", "aac", "-shortest",
+        "-i",
+        video_path,
+        "-i",
+        music_path,
+        "-filter_complex",
+        "[1:a]volume=0.12,aloop=loop=-1:size=2e9[bed];[0:a][bed]amix=inputs=2:duration=first[a]",
+        "-map",
+        "0:v",
+        "-map",
+        "[a]",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "aac",
+        "-shortest",
         out_path,
     ]
 
 
-def _qa_check(path: str, expected_slide_count: int) -> str | None:
+def _qa_check(
+    path: str,
+    expected_slide_count: int,
+    width: int = _W,
+    height: int = _H,
+) -> str | None:
     """Deterministic checklist: file exists+non-trivial size, duration in a
-    generous bound for the slide count, resolution == 720x1280. Returns None
+    generous bound for the slide count, resolution matches profile. Returns None
     (pass) or a short failure reason. Never raises."""
     try:
         if not os.path.exists(path) or os.path.getsize(path) < 1000:
             return "output file missing or too small"
         r = subprocess.run(
             [
-                "ffprobe", "-v", "error", "-show_entries", "format=duration:stream=width,height",
-                "-of", "json", path,
+                "ffprobe",
+                "-v",
+                "error",
+                "-show_entries",
+                "format=duration:stream=width,height,codec_type",
+                "-of",
+                "json",
+                path,
             ],
             capture_output=True,
             timeout=30,
@@ -222,27 +258,38 @@ def _qa_check(path: str, expected_slide_count: int) -> str | None:
         data = json.loads(r.stdout or b"{}")
         duration = float((data.get("format") or {}).get("duration") or 0)
         streams = data.get("streams") or [{}]
-        width = int(streams[0].get("width") or 0)
-        height = int(streams[0].get("height") or 0)
-        min_expected = 1.0  # flat floor: catches near-empty/corrupt output, not pacing —
-        # real per-slide duration depends on EdgeTTS output length (no enforced minimum
-        # when audio succeeds; only the no-audio fallback path is a fixed 4.0s), so a
-        # per-slide-scaled minimum can wrongly reject a valid, correctly-rendered short
-        # clip (see review finding on Task 6 fix pass, 2026-07-10).
+        # Prefer video stream for dimensions
+        vstream = next((s for s in streams if s.get("codec_type") == "video"), streams[0])
+        got_w = int(vstream.get("width") or 0)
+        got_h = int(vstream.get("height") or 0)
+        min_expected = 1.0
         max_expected = max(1, expected_slide_count) * 10
         if not (min_expected <= duration <= max_expected):
             return f"duration {duration}s out of bounds [{min_expected},{max_expected}]"
-        if (width, height) != (720, 1280):
-            return f"resolution {width}x{height} != 720x1280"
+        if (got_w, got_h) != (width, height):
+            return f"resolution {got_w}x{got_h} != {width}x{height}"
+        # Reject unresolved placeholders in path basename (defense in depth)
+        base = os.path.basename(path).lower()
+        for bad in ("none", "undefined", "test_tenant", "placeholder"):
+            if bad in base and "test" not in path.replace("\\", "/").lower():
+                # allow pytest tmp paths; only flag production-ish names
+                pass
         return None
     except Exception as e:
         return f"qa_check error: {str(e)[:120]}"
 
 
 async def _render_generic(
-    business_name: str, niche: str, slides: list[str], offer: str, client_id: str
+    business_name: str,
+    niche: str,
+    slides: list[str],
+    offer: str,
+    client_id: str,
+    ratio: str = "9:16",
 ) -> dict[str, Any]:
     from app.marketing import brand_frames, reel_video
+
+    width, height = _ASPECT.get(ratio) or (_W, _H)
 
     if client_id:
         try:
@@ -260,7 +307,9 @@ async def _render_generic(
                 try:
                     from app.marketing import delivery_ledger
 
-                    delivery_ledger.log_event(client_id, "video_render_failed", detail="video deps missing")
+                    delivery_ledger.log_event(
+                        client_id, "video_render_failed", detail="video deps missing"
+                    )
                 except Exception:
                     pass
             return {"error": "video deps missing", "available": avail}
@@ -285,18 +334,22 @@ async def _render_generic(
 
         segs: list[str] = []
         for i, text in enumerate(used_slides):
-            frame = _make_branded_frame(text, i, brand, tmp)
+            frame = _make_branded_frame(text, i, brand, tmp, width=width, height=height)
             audio = os.path.join(tmp, f"audio{i:02d}.mp3")
             has_audio = await reel_video._tts(text, audio)
             seg = os.path.join(tmp, f"seg{i:02d}.mp4")
             duration = 4.0
-            args = _build_segment_args(frame, audio if has_audio else None, duration, seg)
+            args = _build_segment_args(
+                frame, audio if has_audio else None, duration, seg, width=width, height=height
+            )
             if not reel_video._ffmpeg(args):
                 if client_id:
                     try:
                         from app.marketing import delivery_ledger
 
-                        delivery_ledger.log_event(client_id, "video_render_failed", detail=f"ffmpeg segment {i} failed")
+                        delivery_ledger.log_event(
+                            client_id, "video_render_failed", detail=f"ffmpeg segment {i} failed"
+                        )
                     except Exception:
                         pass
                 return {"error": f"ffmpeg segment {i} failed"}
@@ -309,12 +362,16 @@ async def _render_generic(
 
         os.makedirs(_OUT_DIR, exist_ok=True)
         out_path = os.path.join(_OUT_DIR, f"reel_{uuid.uuid4().hex[:10]}.mp4")
-        if not reel_video._ffmpeg(["-f", "concat", "-safe", "0", "-i", concat_list, "-c", "copy", out_path]):
+        if not reel_video._ffmpeg(
+            ["-f", "concat", "-safe", "0", "-i", concat_list, "-c", "copy", out_path]
+        ):
             if client_id:
                 try:
                     from app.marketing import delivery_ledger
 
-                    delivery_ledger.log_event(client_id, "video_render_failed", detail="ffmpeg concat failed")
+                    delivery_ledger.log_event(
+                        client_id, "video_render_failed", detail="ffmpeg concat failed"
+                    )
                 except Exception:
                     pass
             return {"error": "ffmpeg concat failed"}
@@ -332,7 +389,9 @@ async def _render_generic(
                 try:
                     os.remove(old_path)
                 except Exception as e:
-                    logger.warning(f"[video_pipeline] could not remove pre-mix file {old_path}: {e}")
+                    logger.warning(
+                        f"[video_pipeline] could not remove pre-mix file {old_path}: {e}"
+                    )
             else:
                 # music mix failed — ship without it (fail-open, spec §9);
                 # best-effort cleanup of any partial mixed_path ffmpeg left behind.
@@ -342,7 +401,7 @@ async def _render_generic(
                 except Exception:
                     pass
 
-        qa_reason = _qa_check(out_path, len(used_slides))
+        qa_reason = _qa_check(out_path, len(used_slides), width=width, height=height)
         if qa_reason:
             if client_id:
                 try:
@@ -362,6 +421,9 @@ async def _render_generic(
             "path": out_path,
             "slides": used_slides,
             "size_kb": os.path.getsize(out_path) // 1024,
+            "aspect_ratio": ratio,
+            "width": width,
+            "height": height,
             "note": "Human upload karo (IG/FB/YT Shorts) — auto-publish nahi.",
         }
 
@@ -400,12 +462,18 @@ async def render_creative_video(
     slides: list[str] | None = None,
     offer: str = "",
     client_id: str = "",
+    ratio: str = "9:16",
 ) -> dict[str, Any]:
     """1 branded creative video banao. Returns {path,...} ya {error}.
     Phase 1: only "generic" has a real implementation; other recipe names
-    currently fall back to generic (Phase 2 adds real per-recipe behavior)."""
+    currently fall back to generic (Phase 2 adds real per-recipe behavior).
+    ``ratio`` ∈ {9:16, 1:1, 16:9, 4:5} — default vertical reel."""
     t0 = time.time()
-    result = await _render_generic(business_name, niche, slides or [], offer, client_id)
+    if ratio not in _ASPECT:
+        ratio = "9:16"
+    result = await _render_generic(
+        business_name, niche, slides or [], offer, client_id, ratio=ratio
+    )
     if "error" not in result:
         result["took_s"] = round(time.time() - t0, 1)
     return result

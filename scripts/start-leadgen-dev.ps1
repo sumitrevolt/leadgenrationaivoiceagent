@@ -1,5 +1,5 @@
 # start-leadgen-dev.ps1 — one-command local dev bring-up.
-# Brings up: WSL Redis broker + OmniRoute gateway/lanes (Node 22) + verifies Windows venv.
+# Brings up: WSL Redis broker + gateway-only OmniRoute (Node 22) + verifies Windows venv.
 # Dev-only, loopback-only, idempotent. Does NOT touch production, .env, or Docker.
 # Usage:  powershell -ExecutionPolicy Bypass -File scripts\start-leadgen-dev.ps1
 $ErrorActionPreference = 'Continue'
@@ -34,7 +34,8 @@ Write-Host ''
 Write-Host '== Ready =='
 Write-Host 'OmniRoute dashboard : http://127.0.0.1:20128   (live-WS 20129 loopback-locked)'
 Write-Host 'Redis broker        : 127.0.0.1:6379  (WSL Ubuntu-24.04)'
-Write-Host 'Attach coding lanes : wsl -d Ubuntu-24.04 -- tmux attach -t leadgen-omni'
+Write-Host 'Gateway-only tmux   : wsl -d Ubuntu-24.04 -- tmux attach -t leadgen-omni'
+Write-Host 'Worktrees are owned by Claude/ChatGPT; providers receive sanitized text only.'
 Write-Host ''
 Write-Host 'Unity WebGL build (pending USER action): add Windows Defender exclusion for'
 Write-Host '  C:\Program Files\Unity\Hub\Editor\2022.3.62f3'

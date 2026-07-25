@@ -419,7 +419,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
+    # Shutdown — owned inquiry BG work must finish (or cancel) BEFORE DB dispose.
+    # Otherwise a checked-out aiosqlite session outlives the engine (SQLAlchemy #13039).
     logger.info("Shutting down application...")
     if _call_processor_task is not None:
         _call_processor_task.cancel()
@@ -435,6 +436,12 @@ async def lifespan(app: FastAPI):
             pass
     if ml_scheduler:
         await stop_training_scheduler()
+    try:
+        from app.platform.inquiry_hooks import drain_inquiry_bg_tasks
+
+        await drain_inquiry_bg_tasks()
+    except Exception as _drain_e:
+        logger.warning(f"inquiry bg drain skipped: {_drain_e}")
     await close_async_db()
     await close_redis_client()
     logger.info("✅ Graceful shutdown complete")
@@ -654,6 +661,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Activation router not mounted: {_e}")
 try:
+    from app.api.blueprint import router as _blueprint_router
+
+    # /api/blueprint/* — canonical versioned architecture graph for the
+    # /app/explorer Master Blueprint mode (read-only, no secrets, never-raises).
+    app.include_router(_blueprint_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Blueprint router not mounted: {_e}")
+try:
     from app.api.eval_gate import router as _eval_gate_router
 
     # /api/eval-gate/* — DeepEval close-the-loop reward signal (F.3).
@@ -755,6 +770,14 @@ try:
     app.include_router(_h4_router)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"H.4 router not mounted: {_e}")
+try:
+    from app.api.sales_autopilot_admin import router as _sales_autopilot_router
+
+    # /api/sales-autopilot/* — Autonomous Sales Engine observability + dry-run canary.
+    # Admin-only; INERT when SALES_AUTOPILOT_ENABLED unset (policy engine returns dry-run).
+    app.include_router(_sales_autopilot_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Sales-autopilot admin router not mounted: {_e}")
 try:
     from app.api import conversion as _conversion
 
@@ -1021,6 +1044,14 @@ try:
     app.include_router(owner_os_router)  # /api/admin/owner-os/* — Owner Command Console
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Owner OS router not mounted: {_e}")
+try:
+    from app.api.owner_copilot import router as owner_copilot_router
+
+    app.include_router(
+        owner_copilot_router
+    )  # /api/owner-copilot/* — OpenClaw Owner Copilot (flag-gated)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Owner Copilot router not mounted: {_e}")
 try:
     from app.api.integration_health_api import router as integration_health_router
 

@@ -425,8 +425,18 @@ def log_event(
     try:
         from app.platform import obsidian_sync as _obs
 
-        entry = f"{action}" + (f" — {detail[:120]}" if detail else "") + (f" [{status}]" if status != "ok" else "")
-        _obs.append_note("Agents", (member or "system").capitalize(), entry, member=member or "system", tags=["agent"])
+        entry = (
+            f"{action}"
+            + (f" — {detail[:120]}" if detail else "")
+            + (f" [{status}]" if status != "ok" else "")
+        )
+        _obs.append_note(
+            "Agents",
+            (member or "system").capitalize(),
+            entry,
+            member=member or "system",
+            tags=["agent"],
+        )
     except Exception:
         pass
 
@@ -512,7 +522,9 @@ def stats(member: str | None = None, days: int = 7) -> dict[str, Any]:
             agg: dict[str, dict[str, Any]] = {}
             for mem, status, cnt, last in q.all():
                 mem = mem or "system"
-                rec = agg.setdefault(mem, {"total": 0, "ok": 0, "warn": 0, "error": 0, "last": None})
+                rec = agg.setdefault(
+                    mem, {"total": 0, "ok": 0, "warn": 0, "error": 0, "last": None}
+                )
                 n = int(cnt or 0)
                 rec["total"] += n
                 key = (status or "ok").strip().lower()
@@ -541,7 +553,9 @@ def stats(member: str | None = None, days: int = 7) -> dict[str, Any]:
                         "warn": rec["warn"],
                         "error": rec["error"],
                         "success_rate": round(rec["ok"] / tot, 3),
-                        "last_run": (last.replace(tzinfo=timezone.utc).isoformat() if last else None),
+                        "last_run": (
+                            last.replace(tzinfo=timezone.utc).isoformat() if last else None
+                        ),
                     }
                 )
                 t_total += rec["total"]
@@ -668,10 +682,21 @@ def team_status() -> dict[str, Any]:
     except Exception as e:
         logger.debug(f"[team] team_status db part failed: {e}")
 
+    # Event/on-demand agents: no recent useful event = healthy_idle (agent_runtime
+    # contract), NOT offline. Lazy import avoids import-time cycles with registry.
+    event_or_ondemand: frozenset[str] = frozenset()
+    try:
+        from app.platform.agent_registry import EVENT_OR_ONDEMAND_ONLY
+
+        event_or_ondemand = EVENT_OR_ONDEMAND_ONLY
+    except Exception:
+        event_or_ondemand = frozenset()
+
     members: list[dict[str, Any]] = []
     for key, info in STAFF.items():
         le = last_event.get(key)
-        state = "offline"
+        # Default: scheduled agents offline until recent event; event-only idle healthy.
+        state = "healthy_idle" if key in event_or_ondemand else "offline"
         if le and le.get("at"):
             try:
                 last_dt = datetime.fromisoformat(le["at"]).replace(tzinfo=None) - timedelta(0)
@@ -690,9 +715,9 @@ def team_status() -> dict[str, Any]:
                 if mins <= _WORKING_AFTER_MIN:
                     state = "working"
                 elif mins <= _ACTIVE_TODAY_MIN:
-                    state = "active"  # aaj kaam kiya, abhi rest — grey nahi
+                    state = "active"  # aaj kaam kiya, abhi rest - grey nahi
                 else:
-                    state = "offline"
+                    state = "healthy_idle" if key in event_or_ondemand else "offline"
         members.append(
             {
                 "key": key,
@@ -877,7 +902,9 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         if not os.environ.get("SRE_AGENT"):
             return "SRE agent off (SRE_AGENT unset)"
         try:
-            import json as _j, time as _t
+            import json as _j
+            import time as _t
+
             hb_file = os.path.join("data", "job_heartbeats.json")
             if os.path.isfile(hb_file):
                 age = _t.time() - os.path.getmtime(hb_file)
@@ -891,6 +918,7 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
             return "FinOps agent off (FINOPS_AGENT unset)"
         try:
             from app.marketing import clients_store
+
             clients = clients_store.get_active_clients() or []
             return f"FinOps watch · {len(clients)} active clients tracked"
         except Exception:
@@ -901,6 +929,7 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
             return "Security agent off (SECURITY_AGENT unset)"
         try:
             from app.telephony.consent_ledger import OptOutStore
+
             store = OptOutStore()
             count = len(store._load_all())
             return f"Security/compliance watch · {count} opt-outs in ledger"

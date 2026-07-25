@@ -18,6 +18,7 @@ karta hai (idempotent — setup_done wale skip).
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -441,7 +442,9 @@ async def auto_onboard(cid: str, send_welcome: bool = True, force: bool = False)
                 pass
         try:
             if send_welcome:
-                report["steps"]["welcome_whatsapp"] = await _send_welcome_whatsapp(client, kb_seeded)
+                report["steps"]["welcome_whatsapp"] = await _send_welcome_whatsapp(
+                    client, kb_seeded
+                )
             else:
                 report["steps"]["welcome_whatsapp"] = {"skipped": "caller_sends_own_welcome"}
         except Exception as exc:
@@ -465,13 +468,23 @@ async def auto_onboard(cid: str, send_welcome: bool = True, force: bool = False)
 
 async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
     """Find active clients without setup_done and auto-onboard them. Also re-nudges
-    clients still stuck on the business-info interview (own flag). Never raises."""
-    res: dict[str, Any] = {"onboarded": 0, "checked": 0}
+    clients still stuck on the business-info interview (own flag). Never raises.
+
+    Wall-clock budget (``ONBOARD_TIME_BUDGET_S``, default 300) — SoftTimeLimit
+    DLQ on 2026-07-23 ``onboard`` job: renudge + delivery + KB seed exceeded 540s.
+    """
+    from app.platform.job_time_budget import JobBudget
+
+    budget = JobBudget.from_env("ONBOARD_TIME_BUDGET_S", label="onboard")
+    res: dict[str, Any] = {"onboarded": 0, "checked": 0, "budget": budget.snapshot()}
     # Re-nudge pass runs INDEPENDENTLY of AUTO_ONBOARD (own flag KB_INTERVIEW_RENUDGE)
     # — a client can be stuck awaiting the interview even after AUTO_ONBOARD is turned
     # off, and this is a bug-fix for already-promised behaviour. Never raises.
     try:
-        res["renudge"] = await _renudge_awaiting_interviews()
+        if budget.ok(need=20.0):
+            res["renudge"] = await _renudge_awaiting_interviews()
+        else:
+            res["renudge"] = {"skipped": "time_budget"}
     except Exception as exc:
         logger.info("onboarding sweep renudge err: %s", exc)
         res["renudge"] = {"error": str(exc)}
@@ -479,19 +492,32 @@ async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
     # jise value deliver nahi hui woh visible + (AUTO_DELIVER_VALUE on ho to) auto-deliver
     # ho. Runs INDEPENDENTLY of AUTO_ONBOARD (delivery != onboarding). Never raises.
     try:
-        from app.marketing import customer_delivery
+        if budget.ok(need=30.0):
+            from app.marketing import customer_delivery
 
-        res["delivery"] = await customer_delivery.run_delivery_sweep()
+            remain = max(15.0, budget.remaining() - 10.0)
+            res["delivery"] = await asyncio.wait_for(
+                customer_delivery.run_delivery_sweep(), timeout=remain
+            )
+        else:
+            res["delivery"] = {"skipped": "time_budget"}
+    except TimeoutError:
+        logger.warning("[onboard] delivery sweep truncated by ONBOARD_TIME_BUDGET_S")
+        res["delivery"] = {"skipped": "time_budget_timeout"}
     except Exception as exc:
         logger.info("onboarding sweep delivery err: %s", exc)
         res["delivery"] = {"error": str(exc)}
     if not _flag("AUTO_ONBOARD"):
         res["skipped"] = "AUTO_ONBOARD off"
+        res["budget"] = budget.snapshot()
         return res
     try:
         from app.marketing import clients_store
 
         for c in clients_store.list_clients(status="active"):
+            if not budget.ok(need=25.0):
+                res["time_budget_exhausted"] = True
+                break
             res["checked"] += 1
             if c.get("setup_done"):
                 continue
@@ -502,6 +528,7 @@ async def run_onboarding_sweep(limit: int = 10) -> dict[str, Any]:
     except Exception as exc:
         logger.info("onboarding sweep err: %s", exc)
         res["error"] = str(exc)
+    res["budget"] = budget.snapshot()
     return res
 
 

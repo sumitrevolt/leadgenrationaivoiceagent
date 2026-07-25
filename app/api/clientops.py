@@ -223,9 +223,7 @@ async def snapshot_apply_niche(body: SnapshotApplyNicheIn, _user=Depends(require
     """1-click: client ke niche ka template lagao (auto-capture agar missing)."""
     from app.platform import client_snapshots
 
-    return client_snapshots.apply_niche_to_client(
-        body.target_client_id, body.niche or None
-    )
+    return client_snapshots.apply_niche_to_client(body.target_client_id, body.niche or None)
 
 
 # --------------------- F4: lead distribution (round-robin) ----------------- #
@@ -333,9 +331,7 @@ async def proposal_views(token: str = Query("", max_length=64), _user=Depends(re
 
 # ----------------------- F6: AI video-ad cycle (every-N-day) ---------------- #
 @router.get("/video-ads")
-async def video_ads_list(
-    client_id: str = Query("", max_length=60), _user=Depends(require_admin)
-):
+async def video_ads_list(client_id: str = Query("", max_length=60), _user=Depends(require_admin)):
     """AI video ads list (admin) — ?client_id= filter. Status: pending/approved/
     published/changes_requested/held_max_revisions."""
     from app.marketing import video_ad_cycle
@@ -377,6 +373,159 @@ async def video_ads_request_changes(
     from app.marketing import video_ad_cycle
 
     return await video_ad_cycle.request_changes(approval_id, body.note or "")
+
+
+@router.get("/video-production/ops")
+async def video_production_ops(
+    client_id: str = Query("", max_length=60), _user=Depends(require_admin)
+):
+    """Admin Video Production Cell queue + flag snapshot (extends video-ads list)."""
+    from app.marketing.video_production import cell
+
+    return cell.ops_summary(client_id)
+
+
+class VideoCellGenIn(BaseModel):
+    client_id: str
+    note: str | None = ""
+    ratio: str | None = "9:16"
+
+
+@router.post("/video-production/generate")
+async def video_production_generate(body: VideoCellGenIn, _user=Depends(require_admin)):
+    """Governed generate via Video Production Cell (HEAVY — background)."""
+    import asyncio
+
+    from app.marketing.video_production import cell
+
+    cid = (body.client_id or "").strip()
+    if not cid:
+        return {"ok": False, "error": "client_id zaroori hai."}
+    from app.marketing.video_production.allowlist import assert_own_brand_allowlist
+
+    allow = assert_own_brand_allowlist(cid)
+    if not allow.get("ok"):
+        return allow
+    ratio = (body.ratio or "9:16").strip()
+
+    async def _run() -> None:
+        await cell.render_and_queue_review(cid, note=body.note or "", ratio=ratio)
+
+    asyncio.create_task(asyncio.to_thread(lambda: asyncio.run(_run())))
+    return {"ok": True, "queued": True, "client_id": cid, "ratio": ratio}
+
+
+class VideoApproveIn(BaseModel):
+    expected_revision: int | None = None
+
+
+@router.post("/video-production/{video_ad_id}/approve")
+async def video_production_approve(
+    video_ad_id: str, body: VideoApproveIn, _user=Depends(require_admin)
+):
+    """Version-bound approve (admin/support)."""
+    from app.marketing.video_production import cell
+
+    return cell.approve_version(video_ad_id, body.expected_revision)
+
+
+# --------------- Creative Automation OS (ADR-143, flag-gated) --------------- #
+@router.get("/creative-os/ops")
+async def creative_os_ops(client_id: str = Query("", max_length=60), _user=Depends(require_admin)):
+    """Admin Creative Production cockpit queue + flag snapshot."""
+    from app.marketing.creative_os import list_cockpit
+
+    return list_cockpit(client_id)
+
+
+class CreativeOsGenIn(BaseModel):
+    client_id: str
+    business_name: str | None = ""
+    recipe: str | None = "offer_announcement"
+    offer: str | None = ""
+    niche: str | None = "general"
+    language: str | None = "hinglish"
+    platform: str | None = "instagram"
+    ratio: str | None = "9:16"
+    provider: str | None = "deterministic"
+    cta: str | None = ""
+
+
+@router.post("/creative-os/generate")
+async def creative_os_generate(body: CreativeOsGenIn, _user=Depends(require_admin)):
+    """Enqueue deterministic preview (Celery video worker). No in-process FFmpeg."""
+    from app.marketing.creative_os import enqueue_generate
+
+    cid = (body.client_id or "").strip()
+    if not cid:
+        return {"ok": False, "error": "client_id zaroori hai."}
+    biz = (body.business_name or cid).strip()
+    return enqueue_generate(
+        tenant_id=cid,
+        business_name=biz,
+        recipe=(body.recipe or "offer_announcement").strip(),
+        offer=body.offer or "",
+        niche=body.niche or "general",
+        language=body.language or "hinglish",
+        platform=body.platform or "instagram",
+        aspect_ratio=(body.ratio or "9:16").strip(),
+        provider=(body.provider or "deterministic").strip(),
+        cta=body.cta or "",
+    )
+
+
+class CreativeOsIdIn(BaseModel):
+    client_id: str
+    note: str | None = ""
+
+
+@router.post("/creative-os/{creative_id}/approve")
+async def creative_os_approve(creative_id: str, body: CreativeOsIdIn, _user=Depends(require_admin)):
+    from app.marketing.creative_os import approve_exact
+
+    return approve_exact((body.client_id or "").strip(), creative_id, actor="admin")
+
+
+@router.post("/creative-os/{creative_id}/changes")
+async def creative_os_changes(creative_id: str, body: CreativeOsIdIn, _user=Depends(require_admin)):
+    from app.marketing.creative_os import request_changes
+
+    return request_changes((body.client_id or "").strip(), creative_id, note=body.note or "")
+
+
+@router.post("/creative-os/{creative_id}/quarantine")
+async def creative_os_quarantine(
+    creative_id: str, body: CreativeOsIdIn, _user=Depends(require_admin)
+):
+    from app.marketing.creative_os import quarantine
+
+    return quarantine(
+        (body.client_id or "").strip(), creative_id, reason=body.note or "quarantined"
+    )
+
+
+@router.get("/creative-os/{creative_id}/publish-gate")
+async def creative_os_publish_gate(
+    creative_id: str,
+    client_id: str = Query(..., max_length=60),
+    _user=Depends(require_admin),
+):
+    """Exact-hash + VIDEO_SOCIAL_PUBLISH gate — never auto-publishes."""
+    from app.marketing.creative_os.service import publish_gate
+
+    return publish_gate(client_id, creative_id)
+
+
+@router.get("/creative-os/{creative_id}/customer-view")
+async def creative_os_customer_view(
+    creative_id: str,
+    client_id: str = Query(..., max_length=60),
+    _user=Depends(require_admin),
+):
+    """Customer-safe projection (admin preview of what customer sees)."""
+    from app.marketing.creative_os.service import customer_view
+
+    return customer_view(client_id, creative_id)
 
 
 __all__ = ["router"]

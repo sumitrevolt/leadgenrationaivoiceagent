@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -430,6 +431,10 @@ def scheduled_dispatch_blocked(
 def claim_allowed(agent_id: str | None = None, job: str | None = None) -> tuple[bool, str]:
     """False = worker must not start/claim new work for this scope.
 
+    NOTE: manual_pause intentionally does NOT block here — staff.run_member /
+    agent_controls.is_paused owns that path. Drain / stop_claims do block.
+    agent_runtime uses ``runtime_admission_blocked`` which ALSO honors pause.
+
     Fail-closed on ambiguous control-store errors for known agent-scoped jobs.
     """
     try:
@@ -452,6 +457,47 @@ def claim_allowed(agent_id: str | None = None, job: str | None = None) -> tuple[
         if agent_id or agent_for_job(job_s):
             return False, "agent_control_state_ambiguous"
         return True, ""
+
+
+def runtime_admission_blocked(
+    agent_id: str | None = None, job: str | None = None
+) -> tuple[bool, str]:
+    """Shared agent_runtime admission gate (pause + drain + stop-claims).
+
+    Returns (blocked, reason_code). Canonical reason codes:
+      agent_draining | agent_claims_stopped | agent_paused | agent_control_state_ambiguous
+
+    Precedence among Owner OS execution controls (kill/flags checked elsewhere):
+      drain before bare stop_claims (drain implies stop_claims — report agent_draining),
+      then stop_claims, then manual_pause (+ V1 agent_controls sidecar).
+
+    Fail-CLOSED on ambiguous control-store errors for known agent ids.
+    """
+    try:
+        aid = _canon_agent(agent_id or "") if agent_id else agent_for_job(str(job or ""))
+        if not aid:
+            return False, ""
+        c = get_control(aid)
+        # Drain implies stop_claims; prefer agent_draining when drain is engaged.
+        if c.get("drain"):
+            return True, "agent_draining"
+        if c.get("stop_claims"):
+            return True, "agent_claims_stopped"
+        if c.get("manual_pause"):
+            return True, "agent_paused"
+        try:
+            from app.platform import agent_controls
+
+            if agent_controls.is_paused(aid):
+                return True, "agent_paused"
+        except Exception:
+            pass
+        return False, ""
+    except Exception:
+        job_s = str(job or "")
+        if agent_id or agent_for_job(job_s):
+            return True, "agent_control_state_ambiguous"
+        return False, ""
 
 
 def refresh_drain_state(agent_id: str, *, queued: int = 0, running: int = 0) -> dict[str, Any]:
@@ -576,12 +622,66 @@ def request_cancel_running(
     *,
     by: str = "admin",
     reason: str = "",
+    command_id: str = "",
 ) -> dict[str, Any]:
-    """Cooperative cancel request. Does not claim stopped until worker acks."""
+    """Cooperative cancel request. Does not claim stopped until worker acks.
+
+    Agent-runtime runs (``art_*`` task ids) use the Redis cancellation store
+    (``agentrt:cancel:<agent>:<run>``). Legacy staff jobs keep the older
+    ``owner_os:cancel_request:`` key + abort flag path.
+    """
     aid = _canon_agent(agent_id)
     tid = str(task_id or "").strip()
     if not tid:
-        return {"ok": False, "error": "task_id required"}
+        return {"ok": False, "error": "task_id required", "reason_code": "malformed_target"}
+
+    # Agent Runtime distributed cancel (run-specific, cross-process).
+    if tid.startswith("art_"):
+        from app.platform import agent_runtime as art
+
+        cmd = str(command_id or "").strip() or f"ocmd_cancel_{uuid.uuid4().hex[:10]}"
+        out = art.request_cancel_run(
+            aid,
+            tid,
+            requested_by=by,
+            reason=reason,
+            command_id=cmd,
+            correlation_id=tid,
+        )
+        if not out.get("ok"):
+            return {
+                "ok": False,
+                "error": out.get("error") or out.get("reason_code") or "cancel_failed",
+                "reason_code": out.get("reason_code") or out.get("error"),
+                "command_id": cmd,
+                "agent_id": aid,
+                "targeted_run_ids": [],
+                "cancellation_backend": out.get("cancellation_backend"),
+                "stopped": False,
+            }
+        status = "cancel_requested"
+        if out.get("already_requested"):
+            status = "already_requested"
+        return {
+            "ok": True,
+            "command_id": cmd,
+            "status": status,
+            "agent_id": aid,
+            "targeted_run_ids": [tid],
+            "cancellation_backend": out.get("cancellation_backend") or "redis",
+            "requested_count": 0 if out.get("already_requested") else 1,
+            "already_requested_count": 1 if out.get("already_requested") else 0,
+            "requested": True,
+            "acknowledged": False,
+            "stopped": False,
+            "task_id": tid,
+            "newly_created": out.get("newly_created"),
+            "note": (
+                "Distributed Redis cancellation requested for runtime run. "
+                "Worker checkpoints observe the record across processes."
+            ),
+        }
+
     try:
         r = _redis()
         key = f"{CANCEL_KEY_PREFIX}{tid}"
@@ -608,6 +708,13 @@ def request_cancel_running(
             "acknowledged": False,
             "stopped": False,
             "task_id": tid,
+            "command_id": str(command_id or "")[:64],
+            "status": "cancel_requested",
+            "agent_id": aid,
+            "targeted_run_ids": [tid],
+            "cancellation_backend": "redis_legacy_staff",
+            "requested_count": 1,
+            "already_requested_count": 0,
             "note": (
                 "Cooperative cancellation requested. Task is not marked stopped until "
                 "the worker acknowledges. Isha content loop polls agent_abort between clients."

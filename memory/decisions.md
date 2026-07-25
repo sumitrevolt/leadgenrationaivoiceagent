@@ -2,6 +2,26 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-07-20 - ADR-OPENCLAW-OWNER-COPILOT OpenClaw as Owner Copilot edge layer
+
+Decision: OpenClaw integrates as optional Owner Copilot / Chief of Staff only —
+hierarchy Admin → OpenClaw → Owner OS → Boss → 31 agents → Celery. Package
+`app/integrations/openclaw/` + `/api/owner-copilot/*` + Owner OS UI tab. Master
+flag `OPENCLAW_ENABLED` default OFF (fail-closed). Typed command allowlist;
+GREEN autonomous reads; AMBER parks Owner OS approval (force APPROVAL_REQUIRED);
+RED always refuse (calling/billing/deploy/shell/SQL). No duplicate 31 OpenClaw
+agents. Core SaaS has zero hard dependency — disable = instant rollback.
+
+Context: Owner needs NL control surface without granting VPS/shell/DB/billing/
+calling power or bypassing Owner OS governance.
+
+Alternatives rejected: OpenClaw as supreme orchestrator; 31 OpenClaw agent clones;
+direct Celery/DB from OpenClaw; always-on without flag.
+
+Consequence: Stage A local TEST-PROVEN; prod starts read-only only after explicit
+deploy auth. Docs: `docs/integrations/OPENCLAW_OWNER_COPILOT.md`,
+`docs/runbooks/openclaw-owner-copilot.md`, `docs/adr/ADR-OPENCLAW-OWNER-COPILOT.md`.
+
 ## 2026-07-19 - ADR-128 Shared Agent Runtime Phase-B (contract-ENFORCED, 3 pilots, INERT default)
 
 Decision: naya `app/platform/agent_runtime.py` + `agent_runtime_pilots.py` — EK common runtime/control-plane
@@ -1986,3 +2006,219 @@ Consequence: Contaminated numbers get VOID after deploy (ops plan); next real in
 **Decision:** UI runActiveTool me list-field coercion (comma/newline→array) + 45s client timeout + nested-error message. niche_pack+social_page_kit gather→Semaphore(2). DEPLOYED 1a6f07c5.
 **Verified:** list-coercion PROVEN live (gbp-text comma-string→200, screenshot). py_compile+node check+/health prod.
 **HONEST (NOT claimed fixed):** niche-pack/bio-page still 42s+ — single generate_post=1.2s so bottleneck is free-tier rate-limit under multi-call burst, NOT concurrency. 100+ session test-calls ne providers rate-limit kiya (self-inflicted) → clean benchmark blocked. Semaphore(2) marginal. Real fix = reduce LLM-call-count (4→2) or cache — follow-up, not done. UI degrades gracefully.
+
+## ADR-130 (2026-07-21) — OpenClaw orphan `.pyc` = branch-switch artifact, NOT lost source [LOCAL, no code change]
+**Context:** `app/integrations/openclaw/` me sirf `__pycache__/*.pyc` (9 files) the, koi `.py` nahi. Same `app/api/owner_copilot.py` + `tests/test_openclaw_owner_copilot.py` — dono sirf bytecode. `app/**/*.py` me `openclaw`/`owner_copilot` ka ZERO grep hit. Pehle ise "lost/unmerged source" ya "bad revert" samjha gaya.
+
+**Root cause (PROVEN, not inferred):** `.gitignore:2` = `__pycache__/`. Source `feat/openclaw-owner-copilot` (`8fc1f62b`, local == origin, pushed) pe SAFE hai. `docs/context/SESSION_HANDOFF.md:10` — "Primary `feat/openclaw-owner-copilot` checkout remained dirty and untouched." Yani: wo branch yahin checkout tha → import/run ne `.pyc` banaye → koi `main` pe wapas switch kar gaya → git ne tracked `.py` hata diye par **gitignored `__pycache__/` ko chhua hi nahi** (git ignored files ko checkout pe kabhi delete nahi karta). Orphan bytecode = EXPECTED git behaviour. **Kuch bhi lost nahi hua.**
+
+**Decision:** Na "restore" (blind merge), na "retire" (branch delete). Dono galat premise pe the.
+- Branch AS-IS sound hai — 32 files / 3353 insertions / **764-line test suite** / ADR / runbook / integration docs.
+- Safety review PASS: `owner_os_adapter` → `owner_os.create_command()` (Owner OS authority intact, koi doosra dispatcher nahi). `policies.py` me explicit `RED_COMMANDS` frozenset ("always refused even if allowlist misconfigured") — `shell.execute`, `sql.execute`, `calling.enable`, `platform_dial.enable`, `billing.*`, `deploy.production`, `kill_switch.bypass`, `audit.disable`. `OPENCLAW_ENABLED` default `0` (fail-closed). Unknown command → `RED` → refuse (L172). RED allowlist se strip hota hai (L140). Koi `subprocess`/`os.system`/`shell=True`/`celery send_task`/`stripe` NAHI.
+- Tests jo exactly ye cover karte hain: `test_red_rejected_even_with_allow_red_flag`, `test_policy_red_never_in_allowlist`, `test_red_calling_nl_rejected`, `test_sql_injection_chars_blocked`, `test_command_fails_closed_when_disabled`, `test_gateway_token_unset_fails_closed_for_anonymous`, `test_xff_spoof_does_not_bypass_source_check`, `test_stage_a_cannot_mutate_agent_state_in_production`, `test_agents_list_31`, tenant-isolation + Jiya billing-alias.
+
+**MERGE NAHI KIYA — reason (honest):** (1) `git merge-tree` = **4 conflict indicators**; branch base `ef5e8b4` (2026-07-20) se `main` **7 commits** aage — conflicts `CLAUDE.md`/`AGENTS.md`/`docs/context/*` me expected. (2) Uska apna 764-line suite is session me **run nahi ho saka** (sandbox me `jose`/`edge_tts` etc. missing). 3353 lines security-sensitive code ko uske hi tests bina merge karna = §0 "no fake completion". Merge = real-host test-pass ke baad, user gate.
+
+**Consequence:** Repo ab "maybe installed" ambiguous nahi. Truth: **OpenClaw complete + reviewed-safe hai, par `main` pe INSTALLED NAHI hai** — sirf `feat/openclaw-owner-copilot` pe. Orphan `.pyc` ko delete karna safe hai (gitignored build artifact, source origin pe safe) par is session me delete NAHI kiya. `prod_check.py` ka naya non-fatal ORPHAN MODULE TREE warning inhe surface karta rahega — wo warning ab सही diagnosis point karta hai ("check for an unmerged branch").
+
+
+## ADR-131 (2026-07-22) — Canonical Tool Registry = SOLE authority on action risk; batch_harness = first registry-backed family [LOCAL, enforcement OFF]
+**Context:** 5 shadow families live the par tool-identity `unregistered_internal_action` thi + risk-class model-declared (spoofable). Enforcement se pehle ek single canonical, versioned registry chahiye jo authoritative risk classification de — warna model RED ko GREEN keh ke downgrade kar sakta.
+
+**Decision:** `app/agents/harness/registry.py` = **single canonical tool registry** + sole risk authority. Layered ON TOP of shadow, existing `execution_comparison` (MATCH-family) ko NAHI badalta — alag `registry_comparison` verdict add karta.
+- Identity `<domain>.<capability>.<action>` (lowercase, dotted, `^[a-z][a-z0-9]*(?:\.[a-z0-9_]+){1,}$`); version strict semver. `run_dev`/`v1` reject.
+- `ToolDefinition` frozen `extra="forbid"`: risk_class(GREEN/AMBER/RED), side_effect_class, authority(INTERNAL_AUTONOMOUS/OWNER_OS_REQUIRED/APPROVAL_REQUIRED/ALWAYS_REFUSED), allowed_agents, allowed_tenant_scopes, requires_approval, requires_idempotency, timeout_s, sandbox_required, executor_ref, enabled_by_default. Unknown enum → validation error. `public_view()` callables omit karta.
+- APIs: register (identical=idempotent, different=`RegistryConflict`) / get / resolve (None→latest semver) / list_versions / list_tools / is_agent_allowed / is_tenant_scope_allowed / `manifest_hash()` (sha256[:16]) / `evaluate_action()`.
+- `registry_comparison`: REGISTRY_MATCH · UNREGISTERED_TOOL · VERSION_MISMATCH · SCHEMA_MISMATCH · AGENT_NOT_ALLOWED · TENANT_NOT_ALLOWED · IDEMPOTENCY_REQUIRED · DISABLED. Unknown tool = **fail-closed** (would_deny). Model claimed-risk vs registry mismatch → `risk_class_mismatch=True`, **registry wins** (RED→GREEN downgrade impossible).
+- First family: `batch_harness`. Builtin `batch.internal.safe_calculation` v1.0.0 (GREEN·READ_ONLY·INTERNAL_AUTONOMOUS·agents={nikhil}·tenant{__system__}). `run_batch(tool_name=,tool_version=)` → canonical; legacy no-tool_name callers = `batch.execute.<op>` = UNREGISTERED_TOOL (backward-compat intact).
+- Authority boundary: OWNER_OS_REQUIRED = Owner OS ko command route karo, execute NAHI. Registry doosra mutation dispatcher NAHI banta — Owner OS sole authority.
+- Kavach/OpenClaw GREEN read cmds (record-only): `harness.tools`/`harness.tool`/`harness.registry`/`harness.registry.conformance`.
+
+**Verification (real, is session):**
+- REAL `run_batch`: registered tool → execution_comparison=MATCH **+** registry_comparison=REGISTRY_MATCH (GREEN, INTERNAL_AUTONOMOUS, agent+tenant allowed); legacy → MATCH **+** UNREGISTERED_TOOL (fail-closed, execution layer failure me NAHI badla); flags off → **0 records**.
+- Negative (isolated unit, tripwire executor kabhi invoke NAHI): AMBER+APPROVAL → would_require_approval/would_allow=False; RED+ALWAYS_REFUSED → would_deny. + IDEMPOTENCY/AGENT/TENANT/DISABLED/VERSION/SCHEMA/bad-name/conflict/manifest — sab covered.
+- `tests/test_harness_registry.py` = **25 green**; full harness suite **137 green** (8 files); regressions (owner_agent_execution/workflow_fixes_2026/workflow_guards/phase2_upgrades) **41 green**. Cosmetic: `tool_registry_status` metadata now honest ("canonical_registered" jab tool_name diya).
+
+**Rejected/NOT done:** kisi arbitrary function ko auto-register (§8 — sirf explicit builtins); baaki 4 families ko canonical identity dena (unregistered rahenge jab tak unka structured contract na bane); enforcement ON (project NOT READY); registry ko mutation dispatcher banana (Owner OS authority intact).
+
+**Consequence:** Ab ek authoritative, versioned, fail-closed risk-classification layer hai — model risk downgrade nahi kar sakta. `batch_harness` = pehla + akela registry-backed structured family. **Enforcement OFF; overall project NOT READY.** Nothing committed/pushed/deployed; VPS/prod flags untouched; STAFF=31; calling + platform_dial + CODE_EXEC HARD OFF.
+
+
+## ADR-132 (2026-07-22) — batch_harness enforcement path (INERT, canary-prepared); registry-bound executor authoritative [LOCAL, enforce OFF]
+**Context:** Registry (ADR-131) authoritative classification deti thi par execution enforce nahi karti. Enforcement se pehle ek fail-closed decision+execution tier chahiye tha jo exactly-once, single-authoritative-executor, aur owner-gated ho — bina koi arbitrary callable enforce mode me chalaye.
+
+**Decision:** `app/agents/harness/enforce.py` = INERT enforcement pipeline (default OFF; `AGENT_HARNESS_ENFORCE` unset ⇒ resolve_mode kabhi ENFORCE nahi deta).
+- **3 deterministic modes** (`resolve_mode`, fail-closed): OFF (legacy `fn`), SHADOW (legacy `fn` + observe), ENFORCE (legacy `fn` NEVER runs; sirf registry-bound executor). `SHADOW=1`+`ENFORCE=1` = INVALID → OFF. Wildcard agents/loops/tools = rejected in first canary. **Ek hi authoritative executor per mode** — legacy `fn` + harness executor kabhi dono ek item pe nahi.
+- **Enforcement opt-in per exact agent + loop + tool@version** (`AGENT_HARNESS_ENFORCE_AGENTS/LOOPS/TOOLS`). No wildcard.
+- **Executor binding** (`ExecutorBindingRegistry`): explicit `(name,version)→async fn`; koi dynamic import / dotted-path / callable-scan nahi; conflicting bind reject; callables read-API me kabhi expose nahi. Builtin: `batch.internal.safe_calculation@1.0.0` → deterministic side-effect-free executor.
+- **Gate** decision vs execution alag: `evaluate()` PURE (kabhi execute nahi) → frozen `EnforcementDecision`; `execute_registered()` sirf bound executor chalata, live kill-switch atomically re-check, exactly-once = synchronous claim on `enforce:<batch>:<item>:<attempt>`. Denial → executor 0 baar. Duplicate callback → replay, re-run nahi.
+- **Caller-supplied `fn` ENFORCE mode me kabhi authoritative nahi** — registry-bound executor jeetta (attacker `tool_name=safe, fn=malicious` bheje to bhi `malicious` nahi chalta).
+- **Owner OS sole mutation authority intact:** OWNER_OS_REQUIRED / APPROVAL_REQUIRED / ALWAYS_REFUSED / non-GREEN sab yahan DENY; gate doosra dispatcher nahi banta.
+- **Existing controls reuse** (naye nahi): `StopController.admit`/`.killed`/`.check` (budget/kill/stop). Audit events `kind=enforce` (requested/evaluated/denied/started/completed/failed/duplicate_suppressed), no secrets; `harness.explain` ab `layers` breakdown deta; naya GREEN `harness.enforcement` read command.
+- **Initial enforcement candidate = sirf ek GREEN internal read-only batch tool.**
+
+**Verification (real, is session):**
+- REAL `run_batch` ENFORCE (3 items, conc 2): legacy 0, registry executor 3, enforcement_completed 3, duplicate 0, denied 0, aggregate done=3 failed=0.
+- ROLLBACK (sab flags OFF): legacy 3, registry executor 0, enforcement events 0, shadow events 0, audit records 0, identical aggregate.
+- `tests/test_harness_enforce.py` = **50 green** (mode ×9, decision ×18, exec/exactly-once ×7, batch ×11, audit ×6; incl. concurrency-honoured max==2, kill-prevents-starts executor==0, caller-fn-tripwire never runs). Full harness **187 green** (9 files); regressions (owner_agent_execution/workflow_fixes_2026/workflow_guards/phase2_upgrades) **41 green**.
+
+**Rejected/NOT done:** enforcement ON (owner-gated, OFF); baaki 4 families enforce (unregistered); real sandbox backend (SANDBOX_REQUIRED tools deny); wildcard allowlist; `.env` prod values touch; commit/push/deploy.
+
+**Consequence:** `batch_harness` ab **CONDITIONALLY READY for owner-approved LOCAL/INTERNAL enforcement canary** hai; overall project **NOT READY for global enforcement**. Enforcement flags session end pe OFF. Runbook: `docs/runbooks/BATCH_HARNESS_ENFORCEMENT_CANARY.md` (owner approval checkbox). STAFF=31; Kavach non-dispatchable; calling + platform_dial + CODE_EXEC HARD OFF; Owner OS sole mutation authority. Kuch commit/push/deploy nahi; VPS/prod untouched.
+
+
+## ADR-133 (2026-07-22) — dag_engine = 2nd registry-backed family (SHADOW-only); step→tool explicit map, node-id NOT trusted identity [LOCAL, enforce OFF]
+**Context:** dag_engine shadow me `UNREGISTERED_TOOL` tha. Registry-backed banana tha bina koi business step ko galat classify kiye ya arbitrary process-library function auto-register kiye.
+
+**Decision:**
+- DAG process-library steps **explicit** canonical tool identity+version se map hote hain (`dag_shadow.py:DAG_TOOL_MAP`). Node ID aur arbitrary model-provided step labels = **trusted tool identity NAHI**. Sirf ek stable process-library action map me hai; baaki sab `UNREGISTERED_TOOL`. Koi dynamic tool-name construction / callable-scan / fallback-to-registered nahi.
+- Registered step (is slice): naya explicitly-named deterministic read-only step `internal_calculation` (`process_library._exec_internal_calculation`, isolated from business behaviour — NOT promoted business step, NOT temp proof name) → `workflow.dag.internal_calculation@1.0.0` (GREEN · side-effect NONE · INTERNAL_AUTONOMOUS · agents {nikhil,manager} · tenant {__system__} · schema {n:int required, additionalProperties true} kyunki real DAG eff_inputs run-metadata carry karta · no approval/idempotency/sandbox).
+- Strict DAG action envelope (`_valid_envelope`): dag_run_id mandatory, node_id mandatory+bounded, attempt>=0 → malformed = MISSING_CONTEXT diagnostic, kabhi executed-action record nahi, kabhi false legacy failure nahi. Tool-arg validation = registry authoritative `_minimal_schema_check`.
+- **Registry policy authoritative**; DAG engine SHADOW mode me **legacy-authoritative** rehta. process_library.execute_step hi executor; identity+executor agree (spoof-safe).
+- **DAG enforcement PROHIBITED** jab tak alag owner-approved plan na ho: `AGENT_HARNESS_ENFORCE` OFF, dag_engine enforce-loop allowlist me nahi, DAG tool ka koi executor binding nahi.
+- Layered: registered → execution MATCH + registry REGISTRY_MATCH; legacy → MATCH + UNREGISTERED_TOOL; bad-schema → MATCH + SCHEMA_MISMATCH (execution failure me NAHI badla).
+
+**Verification (real, is session):**
+- REAL `dag_engine.advance` → `process_library.execute_step`: registered node `internal_calculation` → dag_status completed, legacy exec 1, harness exec 0, shadow records 1, resolved workflow.dag.internal_calculation@1.0.0, schema/agent/tenant pass, GREEN/INTERNAL_AUTONOMOUS, MATCH+REGISTRY_MATCH, enforcement_applied false, journal 1 node_completed.
+- unregistered `revenue_sweep` node → legacy 1, harness 0, MATCH+UNREGISTERED_TOOL.
+- rollback (flags OFF) → completed, legacy 1, shadow records 0, harness 0.
+- `tests/test_harness_dag_registry.py` = **36 green** (mapping/definitions, envelope, registry-shadow verdicts incl. VERSION/SCHEMA/AGENT/TENANT/AMBER/RED/OWNER_OS/risk-downgrade, real advance exactly-once + journal + gate + shadow-failure-swallowed, Kavach conformance/tool). Full harness **223 green** (10 files); regressions (owner_agent_execution/workflow_fixes_2026/workflow_guards/phase2_upgrades) **41 green**.
+
+**Rejected/NOT done:** koi business step register (scrape/cadence/whatsapp/crm/http etc — write-local/tenant/external), arbitrary process-library auto-register, DAG executor binding, DAG enforcement/canary, temp proof-name promote, wildcard.
+
+**Consequence:** Registry-backed families **2/5** (batch_harness, dag_engine). staff/coordinator/supervisor abhi UNREGISTERED_TOOL. **dag_engine: CONDITIONALLY READY for a future separate canary plan; enforcement OFF.** Overall project NOT READY for global enforcement. STAFF=31; Kavach non-dispatchable; Owner OS sole mutation authority; calling+platform_dial+CODE_EXEC HARD OFF; batch enforcement OFF; DAG enforcement OFF. Kuch commit/push/deploy nahi; `.env`/VPS untouched.
+
+
+## ADR-134 (2026-07-22) — staff.run_member/Nikhil = 3rd registry-backed family (SHADOW); composite is honestly AMBER/EXTERNAL_SEND (usage_alerts customer emails) [LOCAL, enforce OFF]
+**Context:** staff.run_member/nikhil shadow me UNREGISTERED_TOOL tha. Registry-backed banana tha. Graphify ne prove kiya ki `run_nikhil()` = composite (revenue_digest + client_health + usage_alerts), aur **usage_alerts.run_check CUSTOMER ko upsell email bhej sakta hai** (SMTP, `_enabled()`+threshold+dedupe gated). Yani nikhil simple GREEN NAHI hai.
+
+**Decision:**
+- **Honest classification (registry authoritative, §13):** `agent.nikhil.revenue_operations@1.0.0` = **AMBER · EXTERNAL_SEND · APPROVAL_REQUIRED** (agents {nikhil} · tenant {__system__} · requires_approval=true · requires_idempotency=true · cost_class free · budget_scope internal_ops · timeout 120 · schema {requested_by?≤120, scope?, additionalProperties false} · executor_ref app.agents.staff.run_nikhil, NO executor binding). Purani shadow under-classification (WRITE_LOCAL/GREEN) ko EXTERNAL_SEND me correct kiya. Risk ko MATCH ke liye LOWER nahi kiya.
+- **Explicit member→tool map** (`shadow.py:STAFF_TOOL_MAP`): sirf `nikhil`. STAFF membership akela kabhi register nahi karta; baaki 30 members UNREGISTERED_TOOL. No wildcard/function-name/model-identity/auto-registration.
+- **Composite honesty** (`_composite_summary`): shadow record me composite_action, components[client_health/revenue/usage_alerts], components_ok/failed, partial_success, full_success. Ek component me `error` = failure; partial failure ko kabhi full success nahi bataya.
+- **Legacy run_nikhil authoritative** shadow mode me; observer 0 tools/agents chalata. Identity: agent nikhil only (peer+manager denied), tenant __system__ (internal platform sweep). Registry model-provided identity trust nahi karta.
+- **Nikhil enforcement PROHIBITED** jab tak alag approved plan na ho: AMBER/external-send/approval-required → autonomous enforce kabhi nahi, sirf approval-gated path se. Enforce flags OFF; nikhil enforce-allowlist me nahi; koi executor binding nahi.
+
+**Verification (real, is session):**
+- REAL `staff.run_member("nikhil")` dispatcher→observe→registry (3-engine execution SAFELY stubbed — koi customer email nahi): 3 samples, legacy exec 3, harness exec 0, har ek MATCH+REGISTRY_MATCH, AMBER/APPROVAL_REQUIRED, would_require_approval, agent+tenant pass, enforcement_applied false; sample 3 partial_success=true. Peer kavya → UNREGISTERED_TOOL, legacy 1. Rollback (flags OFF) → legacy 1, 0 new records, result unchanged.
+- `tests/test_harness_staff_registry.py` = **48 green** (mapping, def/schema, identity/policy incl AMBER/approval/OWNER_OS/disabled/version/risk-downgrade/idempotency/budget, real run_member exactly-once+REGISTRY_MATCH+exception+observer-failure-swallowed+peer-unregistered+flags-off, composite/partial-failure, STAFF=31, conformance). Full harness **271 green** (11 files); regressions+STAFF-safety (owner_agent_execution/workflow_fixes_2026/workflow_guards/phase2_upgrades/agent_registry/agent_os_routing) **66 green**. Ek pehla test (test_explainable_via_audit) ka predicted_lane GREEN→AMBER update kiya (corrected classification).
+
+**Rejected/NOT done:** saare 31 STAFF register, Boss/manager auto-register, nikhil ko GREEN batana (external-send hai), composite ko atomic primitive batana, sub-operations alag register, DAG/batch enforce rerun, nikhil enforcement/canary, STAFF count change.
+
+**Consequence:** Registry-backed families **3/5** (batch_harness, dag_engine, staff.run_member). coordinator/supervisor abhi UNREGISTERED. **staff.run_member/Nikhil: NOT READY for autonomous enforcement** (AMBER/external-send/approval-required). Overall project NOT READY for global enforcement. STAFF=31 (verified); Kavach non-dispatchable; Owner OS sole mutation authority; calling+platform_dial+CODE_EXEC HARD OFF; all enforcement OFF. Kuch commit/push/deploy nahi; `.env`/VPS untouched.
+
+
+## ADR-135 (2026-07-22) — coordinator structured action contract (CoordinatorPlanV1) + 4th registry-backed family via ONE safe delegation [LOCAL, enforce OFF]
+**Context:** coordinator me koi native structured tool-call contract nahi tha — `_extract_list` LLM prose se JSON/regex nikalta, fallback `[dev,rohan,isha]`. Do executor boundary (`_run_agent`, `_expert_contribution`) — dusra covered nahi tha. Sab actions UNREGISTERED_TOOL.
+
+**Decision:**
+- **Canonical contracts** (`coordinator_contract.py`): `CoordinatorPlanV1`/`CoordinatorActionV1` (frozen extra=forbid, schema_version 1.0) + `CoordinatorActionResultV1` + `CoordinatorPlanComparison`. Closed `CoordinatorActionType` enum (DELEGATE_AGENT/INVOKE_INTERNAL_TOOL/REQUEST_ANALYSIS/REQUEST_REVIEW/SYNTHESIZE/STOP). Raw LLM prose = kabhi executable contract nahi.
+- **Legacy adapter** (`normalize_legacy_plan`): `_extract_list` output → CoordinatorPlanV1 with honest `PlanSource` provenance. Heuristic/fallback kabhi STRUCTURED_NATIVE mark nahi.
+- **Plan comparator** (`compare_plans`): deterministic structured-vs-legacy → `CoordinatorPlanVerdict`. Execution kabhi modify nahi. Teen layer distinct (structured proposal / legacy normalized / actual execution).
+- **Dono executor boundaries covered**: `_run_agent` + naya `_expert_contribution` hook, record-only, distinct `executor_boundary` identity.
+- **Delegation standard** (`agent.delegate.<agent_id>`): target real STAFF member hona chahiye; **Kavach kabhi delegation target nahi**; unknown → invalid; manager valid target par auto-register nahi. STAFF membership akela register nahi karta.
+- **ONE honest registration → coordinator 4/5**: `agent.delegate.dev@1.0.0` (GREEN·READ_ONLY·INTERNAL_AUTONOMOUS·agents{dev}·tenant{__system__}·network restricted) — kyunki downstream `_tool_dev`=`hashtags.research` read-only research hai (no publish/mutate/deploy/exec/external-send; template fallback). Baaki SAB delegations UNREGISTERED (isha LLM-draft, kavya/arjun/meera internal-writes, rohan/swara side-effect `_TOOLS` se bahar). Koi executor binding nahi.
+- Registry authoritative: claimed-GREEN vs registry-AMBER → risk_class_mismatch; AMBER→approval; OWNER_OS/RED→deny; agent.delegate.dev scoped {dev} only (dusra agent → AGENT_NOT_ALLOWED). Flags COORDINATOR_STRUCTURED_PLAN/_SHADOW default OFF; structured planning is shadow-only/mocked (no dual-LLM double cost).
+- **Coordinator enforcement PROHIBITED.**
+
+**Verification (real, is session):**
+- REAL `coordinate(execute=True)` dispatch → `_run_agent`/`_expert_contribution` → observe → registry (planner mocked + `_TOOLS` stubbed safe, no real LLM/network/customer effect): 5 samples, legacy exec dev 3/isha 1/kavya 1, harness exec 0, dev → 3× REGISTRY_MATCH (agent.delegate.dev GREEN), isha/kavya UNREGISTERED_TOOL, executor boundaries {_run_agent:4, _expert_contribution:1}=2/2, external effects 0, enforcement_applied false. Rollback (flags OFF) → legacy dev 1, 0 new records.
+- `tests/test_harness_coordinator_registry.py` = **53 green** (contract validation, legacy normalization, plan comparison, execution safety + both boundaries, delegation identity, registry compat incl AMBER/OWNER_OS/RED/risk-downgrade, conformance). Full harness **324 green** (12 files); regressions+STAFF-safety **66 green**. Ek prior staff-slice test (test_three_families_registered) ka coordinator=="unregistered" assertion update kiya (ab registered).
+
+**Rejected/NOT done:** coordinator ko ek giant tool register karna, `_TOOLS` auto-register, isha/kavya/arjun/meera register (LLM/internal-write downstream), raw prose register, real dual-LLM planning (shadow/mocked only), coordinator enforcement/binding, supervisor migration, regex extraction ko structured path banana.
+
+**Consequence:** Registry-backed families **4/5** (batch_harness, dag_engine, staff.run_member, coordinator). supervisor abhi UNREGISTERED. Coordinator executor boundaries **2/2** covered. **coordinator: STRUCTURED CONTRACT STABLE, BUT NOT READY FOR ENFORCEMENT.** Overall project NOT READY for global enforcement. STAFF=31; Kavach non-dispatchable + never delegation target; Owner OS sole mutation authority; calling+platform_dial+CODE_EXEC HARD OFF; all enforcement OFF. Reusable: `CoordinatorActionV1` delegation contract supervisor migration me reuse hoga. Kuch commit/push/deploy nahi; `.env`/VPS untouched.
+
+
+## ADR-136 (2026-07-22) — supervisor/staff_supervisor reuse CoordinatorActionV1; dev-reuse (GREEN) + rohan (AMBER) registered; staff_supervisor real-graph dep-blocked [LOCAL, enforce OFF]
+**Context:** supervisor family (supervisor.py + staff_supervisor.py) UNREGISTERED_TOOL tha. CoordinatorActionV1 contract ab stable hai — use reuse karna tha, na ki naya language banana.
+
+**Decision:**
+- **CoordinatorActionV1 REUSE** via `SupervisorDecisionV1` (`coordinator_contract.py`, extra=forbid) + `to_coordinator_action()` (actor_id + supervisor metadata bounded args me). Raw prose kabhi action identity nahi. `SelectionSource`: GRAPH_ROUTE/MESSAGE_NAME/NODE_IDENTITY/HEURISTIC/UNKNOWN — HEURISTIC→PARSER_AMBIGUITY, UNKNOWN→MISSING_CONTEXT (registry-trusted nahi).
+- **Graphify:** supervisor.py route∈{data_agent,leads_agent} → data_agent_node (KB+LLM read-only) / leads_agent_node (niche+LLM read-only PLAN, koi send/CRM/call nahi). staff_supervisor.py = langgraph-supervisor graph, selected agent = message `name` (MESSAGE_NAME), gated by USE_LANGGRAPH_SUPERVISOR + langchain-openai/provider.
+- **Actor vs target distinct:** actor_id=manager (delegator), agent_id=target (executor). Manager har tool nahi paata; target explicitly allowed; **Kavach kabhi delegation target nahi**; tenant model-set nahi.
+- **Do honest registration:** (1) data route → **agent.delegate.dev@1.0.0 REUSE** (GREEN read-only) — ek canonical capability coordinator+supervisor dono se invoke, no duplicate policy (§9). (2) leads route → **agent.delegate.rohan@1.0.0 = AMBER / EXTERNAL_SEND / APPROVAL_REQUIRED** — Rohan ka canonical role outreach hai, shared identity broadest capability se classify (is specific node ke read-only hone ke bawajood). **GREEN force NAHI kiya.** Adapter claimed risk EXTERNAL_SEND raise karta taki REGISTRY_MATCH honest ho. Koi executor binding nahi.
+- Route/node agreement check → route_node_mismatch. Baaki agents UNREGISTERED. Enforcement PROHIBITED.
+
+**Verification (real, is session):**
+- REAL `run_supervisor_task` LangGraph (router + `_llm_brain` fixture-stubbed, koi real LLM/customer effect nahi): supervisor.py 3 samples, node exec 3, harness exec 0, dev → REGISTRY_MATCH (agent.delegate.dev GREEN), rohan → REGISTRY_MATCH AMBER would_require_approval, external effects 0, enforcement_applied false. Rollback (flags OFF) → route unchanged, node exec 1, 0 new records.
+- **staff_supervisor.py real graph HONESTLY BLOCKED** (USE_LANGGRAPH_SUPERVISOR unset + langchain-openai/provider) — structured-contract + MESSAGE_NAME selection wired + unit-proven, par real graph nahi chala (§16 honest report).
+- `tests/test_harness_supervisor_registry.py` = **58 green** (contract reuse, supervisor mapping, staff_supervisor selection/provenance, registry incl AMBER/OWNER_OS/RED/risk-downgrade/peer/tenant, real supervisor.py graph ×5, correlation/replay, compatibility). Full harness **382 green** (13 files); regressions+STAFF **66 green**. Do prior-slice tests (staff/coordinator conformance) me `supervisor=="unregistered"` assertion update kiya (ab registered).
+
+**Rejected/NOT done:** CoordinatorActionV1 fork, rohan ko GREEN batana (outreach = AMBER), saare STAFF register, unsafe route register, staff_supervisor real graph ke bina family ko "fully migrated" claim karna (§16), supervisor enforcement/binding/canary, staff_supervisor dep install.
+
+**Consequence:** Sab 5 families shadow-covered + structured-contract-covered. Registry-backed: supervisor.py implementation PROVEN (dev reuse + rohan AMBER); staff_supervisor.py real-graph dep-gated → **family migration PARTIAL**. **supervisor family: STRUCTURED CONTRACT STABLE, BUT NOT READY FOR ENFORCEMENT** (rohan AMBER approval-required — kabhi autonomous nahi; staff_supervisor blocked; no binding). Overall project NOT READY for global enforcement. STAFF=31; Kavach non-dispatchable + never delegation target; Owner OS sole mutation authority; calling+platform_dial+CODE_EXEC HARD OFF; all enforcement OFF. Reuse proven: ek canonical delegation (agent.delegate.dev) multiple orchestrators se. Kuch commit/push/deploy nahi; `.env`/VPS untouched.
+
+
+## ADR-137 (2026-07-22) — staff_supervisor real-graph gap CLOSED (fixture model); five-family conformance validated; global enforcement NOT ready [LOCAL, enforce OFF]
+**Context:** Pichhli slice me staff_supervisor real graph optional-dep-gated tha (proof missing). Consolidated 5-family conformance review chahiye tha (enforcement/PR/production readiness).
+
+**Decision + findings:**
+- **staff_supervisor deps ACTUALLY installed** (langgraph_supervisor, langchain_openai 1.3.3, langchain_core 1.4.8, create_supervisor, fake chat models) — block sirf `USE_LANGGRAPH_SUPERVISOR` flag + provider key tha, missing package NAHI.
+- **REAL graph PROVEN** (§6.2 fixture path): `create_supervisor(...).compile()` constructed + `.run()` invoked (7 turns, 2 samples) with a deterministic local fake `BaseChatModel` (handoff tool-call → dev), koi network/provider call nahi. Routed to `dev` via **MESSAGE_NAME** (STAFF-named message, na ki final supervisor msg na ki prose). REGISTRY_MATCH (agent.delegate.dev GREEN), harness exec 0, external effects 0, enforcement_applied false. Kavach STAFF me nahi → kabhi selectable nahi.
+- **2 bounded §19 fixes:** (a) `staff_supervisor.run` selection extraction ab routed STAFF-named message dhundhta (pehle final supervisor message leta tha → 0 records); (b) per-run `graph_run_id` (pehle constant "staff_supervisor" → cross-run audit-dedup collision). Test locked: `test_staff_supervisor_real_graph_registry_match`.
+- **Tool matrix (manifest a20e2ede196c30ae):** 5 registered — batch.internal.safe_calculation (GREEN/READ_ONLY/bound), workflow.dag.internal_calculation (GREEN/NONE), agent.nikhil.revenue_operations (AMBER/EXTERNAL_SEND/approval), agent.delegate.dev (GREEN, coordinator+supervisor shared), agent.delegate.rohan (AMBER/EXTERNAL_SEND/approval). Sirf batch executor bound (sole enforcement candidate).
+- **Registry policy-wins verified:** AMBER→approval+would_allow False, risk-downgrade→registry wins, peer→AGENT_NOT_ALLOWED, tenant→TENANT_NOT_ALLOWED, unknown→UNREGISTERED, version→VERSION_MISMATCH.
+- **Safety verified:** STAFF=31, Kavach not in STAFF, calling+platform_dial HARD OFF, CODE_EXEC=0, Owner OS sole authority, Kavach 16 GREEN/12 AMBER cmds (enforce.*/kill AMBER-parked).
+- **Rollback verified:** flags OFF → sab 5 family adapters record nothing, batch mode off.
+
+**Verification:** Harness suite **384 green** (13 files), regressions+safety **86 green** (owner_agent_execution/workflow_fixes_2026/workflow_guards/phase2_upgrades/agent_registry/agent_os_routing/owner_os). Conformance report: `docs/reports/AGENT_HARNESS_CONFORMANCE_REVIEW.md`.
+
+**Conformance levels:** batch C4(local), dag/staff/coordinator/supervisor.py/staff_supervisor C2. Coverage: shadow 5/5, structured-contract 5/5, **registry-backed 5/5** (sab families me real REGISTRY_MATCH proof), enforcement-prepared 1 (batch), canary-proven 1 (batch local), production-enforced 0.
+
+**Rejected/NOT done:** naya enforcement enable, batch canary rerun, real-provider LLM call for proof, deploy/commit/push/PR, unsafe tool GREEN, staff_supervisor gap chhupana.
+
+**Consequence:** Sab 5 families shadow + structured-contract + registry-backed (real proof). **Overall: NOT READY FOR GLOBAL ENFORCEMENT** (no prod persistence/multi-worker-idempotency/monitoring/prod-sandbox/prod-canary). Local implementation coherent + testable (470 tests green) → PR-ready. Batch = only enforcement-prepared family (C4 local, canary done+rolled back; no standing authorization). STAFF=31; Kavach non-dispatchable; Owner OS sole authority; calling+platform_dial+CODE_EXEC HARD OFF; all enforcement OFF. Kuch commit/push/deploy nahi; `.env`/VPS untouched. Next: accumulated harness implementation ko reviewable isolated commit/PR ke liye prepare karo.
+
+
+## ADR-138 (2026-07-22) - registry manifest hash made DETERMINISTIC (canonical serialization); a20e2ede/697b56f were non-deterministic fingerprints [fix, no policy change]
+**Context:** Owner-side VPS proof found `registry.manifest_hash()` non-deterministic - the same 5-tool registry produced different hashes across processes (observed `a20e2ede196c30ae` and `697b56f06ed35102`). Root cause: `ToolDefinition.model_dump` serialized `frozenset` fields (allowed_agents, allowed_tenant_scopes) to iteration-order-dependent lists; JSON `sort_keys` sorts dict keys only, not array elements, so PYTHONHASHSEED randomization reordered the arrays -> different SHA. This undermined the manifest as a conformance fingerprint.
+
+**Decision:** Add recursive `canonicalize_manifest_value()` (registry.py): set/frozenset -> deterministically sorted arrays; dict keys sorted; list/tuple order PRESERVED (JSON-Schema `required` may be semantically ordered); enum -> value; unsupported leaf types fail loud (no repr()/object-hash fallback). `manifest_hash()` now dumps `mode="python"` (sets survive) -> canonicalize -> stable JSON (`sort_keys`, `separators=(",",":")`, `ensure_ascii=False`, `allow_nan=False`) -> sha256[:16]. Registration order already independent (sorted keys). Digest family + visible length unchanged.
+
+**New canonical hash:** `1d3b83331cf303e2` - identical across PYTHONHASHSEED {0,1,2,3,42,1000,random}, processes and containers. `a20e2ede196c30ae` and `697b56f06ed35102` are HISTORICAL non-deterministic fingerprints, not authoritative post-fix values.
+
+**Unchanged (no policy drift):** 5 tools; nikhil AMBER/approval, rohan AMBER, dev GREEN/read-only, dag GREEN/NONE, batch GREEN/READ_ONLY; harness mode OFF by default; STAFF=31; CODE_EXEC=0. No enforcement, no tool add/remove, no schema semantic change.
+
+**Tests:** `tests/test_harness_manifest_determinism.py` (38) - cross-process/multi-seed determinism, collection-order independence, ordered-list preservation, semantic drift (name/version/risk/authority/agents/tenants/schema/side-effect/enabled), golden conformance, serialization safety (allow_nan/unicode/None/enum/no-callable exposure).
+
+**Consequence:** manifest is now a stable change/conformance fingerprint. Fix-only; no runtime activation, no enforcement, isolated (registry.py + tests + docs). Deploy of the merged SHA installs code only; all harness flags remain OFF.
+
+## ADR-140 (2026-07-22) — OpenClaw Daily Video Production Cell = REUSE video_ad_cycle [LOCAL Stage 0, flags OFF]
+**Context:** Multi-agent daily video production with customer approval and Postiz publish was requested. The existing `video_ad_cycle`, `video_pipeline`, `content_approval`, `postiz_publish`, and harness registry already formed the correct base; a second media/social/WhatsApp stack or a 32nd persona was rejected.
+
+**Decision:** `app/marketing/video_production/` wraps the existing cycle. Isha handles brief/script/render/review, Zara owns publish, Arnav owns QA/compliance, and Owner OS remains the only mutation authority. The additive state machine binds approval to an exact revision; editing/superseding invalidates earlier approval. WhatsApp review reuses WAHA and stays OFF by default. All production, daily scheduler, customer review, WhatsApp, social publish, harness enforcement, and own-brand flags default OFF. Local FFmpeg/Pillow is authoritative; free EdgeTTS is optional with a safe fallback. No paid provider was added.
+
+**Rollout:** Stage 0 local → Stage 1 shadow → Stage 2 own-brand → Stage 3 one Jiya preview → Stage 4 explicit allowlist. The cell is not production-ready until authenticated browser plus WA/Postiz canaries prove the enabled stages. Rollback is all `VIDEO_*` flags OFF; legacy cycle behavior remains unchanged when the master flag is OFF.
+
+## ADR-141 (2026-07-23) — Video Review is tenant/path/version bound; Stage 3 cohort is explicit; dashboards use local Chart.js [LOCAL READY, PROD OFF]
+**Context:** Authenticated production E2E on `c7d5fa69` proved four valid H.264 files existed, but the customer could see only metadata and could not inspect the artifact. The dashboard also caught `Chart is not defined`, masking a public-CDN dependency failure. ADR-140 requires one Jiya preview before a broader rollout, but a global flag alone did not encode that cohort.
+
+**Decision:**
+- Customer review requires both `VIDEO_CUSTOMER_REVIEW_ENABLED=1` and normalized `VIDEO_CUSTOMER_REVIEW_CLIENTS`. Empty is fail-closed; `*` is an explicit all-tenant Stage-4 choice.
+- Customer media is served only through bearer-authenticated `/api/customer/videos/{id}/media?revision=N`; record lookup is tenant-scoped, revision must match, file must be an existing `.mp4`, and its resolved path must remain under approved media roots. Raw paths are never returned.
+- The browser fetches media with the customer JWT, creates a temporary blob URL, and renders `<video controls>`. Approve/change/reject sends the displayed `expected_revision`; stale decisions fail with 409.
+- Chart.js 4.4.7 is vendored with its MIT license under the Design System static mount. Customer uses local-first with remote disaster-recovery fallbacks; admin and analytics use the pinned local asset directly.
+- No review, WhatsApp, publish, daily scheduler, platform_dial, voice, or billing flag is activated by code.
+
+**Verification:** RED-first contracts followed by 126 targeted/expanded tests; Ruff, secrets, diff, duplicate-route, inline-JS, OpenAPI, and `prod_check.py` all green. Real local browser E2E decoded an authenticated 360x640 MP4 blob at `readyState=4` with zero console errors. Local analytics rendered three non-zero canvases from the vendored runtime. Synthetic data and the local server were cleaned up.
+
+**Consequence:** The isolated slice is ready for review and an owner-authorized deploy, not yet production-ready. Stage 3 GO requires exact-SHA deploy proof and one authenticated read-only Jiya Preview with only the customer review master flag plus Jiya allowlist enabled; WhatsApp/publish/scheduler stay OFF. Rollback is flags OFF plus code revert if necessary.
+
+## ADR-142 (2026-07-23) — Video review decisions preserve terminal semantics; dashboard dependencies bypass stale SW cache [LOCAL READY, PROD OFF]
+**Context:** Adversarial follow-up found that Dashboard Reject reused the generic content-rejection hook and therefore entered `changes_requested`, making a hard rejection eligible for scheduler regeneration. A stale rejected approval could also report a false approve success, revision `0` had a falsy idempotency edge, and the newly local Chart runtime still sat in the service worker cache-first bucket.
+
+**Decision:** Reject first marks the video `held_max_revisions` + `CLIENT_REJECTED` + `final_approved=False`, so the generic hook cannot enqueue regeneration; only Changes reaches `changes_requested`. Dashboard and gated WhatsApp intake verify the approval ledger is still pending, route approval through exact-version `cell.approve_version`, and refuse terminal ledger flips. An already-approved exact revision is idempotent, including revision zero, but a missing `approved_version` is never inferred as zero. Service worker cache is bumped to `leadgen-ai-v5`, and `/design-system/*` always uses network/no-store behavior.
+
+**Verification:** RED-first decision/cache tests, then **132** relevant tests green; Ruff, JS syntax, diff, secrets, duplicate-route, OpenAPI, and `prod_check.py` green. Authenticated local browser decoded the exact MP4 blob (`readyState=4`, 360x640, 2s, controls) and rendered three local Chart canvases with zero console errors. No real decision, send, call, publish, billing mutation, flag flip, commit, push, or deploy occurred.
+
+**Consequence:** Local Stage-3 candidate now preserves decision intent across dashboard and gated WhatsApp paths and is cache-bust safe. Production remains OFF/unmodified until owner-authorized shipping and one read-only Jiya preview canary.
+
+## ADR-143 (2026-07-24) — Creative Automation OS extends Video Production Cell [LOCAL READY, PROD OFF]
+**Context:** Product needs governed static/social/reel creatives, exact-hash approval, licence-gated providers, and performance-learning seams without replacing `video_pipeline` / `video_ad_cycle` / Postiz / OmniRoute / Owner OS.
+
+**Decision:** Add `app/marketing/creative_os/` behind `CREATIVE_OS_ENABLED` (default OFF). CreativeSpec + recipe engine + tenant asset registry + licence allowlist + expanded QA + exact-hash approval + admin Creative Production cockpit. First real provider = deterministic FFmpeg (`video_pipeline`); Qwen-Image / FLUX.1-schnell / Wan2.2 / ComfyUI = fail-closed skeletons (no downloads, no network). Aspect `4:5` added. Learning recommends only — never auto-mutates prompts or spends. Calling remains HARD OFF; Marketing vs Voice stay separate.
+
+**Verification:** `tests/test_creative_os.py` (17) + video/postiz regressions green; `prod_check.py` OK; `check_secrets.py` clean. No production deploy or flag activation.
+
+**Consequence:** Draft PR for owner review. Rollback = `CREATIVE_OS_ENABLED=0`. GPU/lab providers stay blocked until licence + hardware preflight.

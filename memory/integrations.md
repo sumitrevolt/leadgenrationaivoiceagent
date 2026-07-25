@@ -32,7 +32,7 @@ Schema per entry: `Service — purpose | auth env var(s) | rate limits | observe
 - **Stripe** — international payments only | `STRIPE_*` | — | unconfigured → clean 503 (UPI fallback) | webhook signature verified.
 - **Sentry** — error tracking (ARMED in prod) | `SENTRY_DSN` | sample 10% traces | — | FastAPI+Celery+Redis+SQLAlchemy integrations.
 - **rclone → Google Drive** — offsite backups (LIVE; restore drill PROVEN 2026-07-02) | `/root/.config/rclone/rclone.conf` (chmod 600) + `RCLONE_REMOTE=gdrive:leadgen-backups` | free Drive space (data tar kept 47M via excludes) | — | host crons 02:30 pg_backup + 02:45 data tar.
-- **GHCR** — Docker image registry | `GHCR_PAT` (CI secret) | — | — | CI build gated `DEPLOY_ENABLED` (unset = gate-only).
+- **GHCR** — Docker image registry | none — public package; CI build pushes via ephemeral `GITHUB_TOKEN`, VPS pulls anonymously by exact SHA (`GHCR_PAT` retired 2026-07-21) | — | — | CI build gated `DEPLOY_ENABLED` (unset = gate-only).
 - **Qdrant (internal)** — RAG vector store 127.0.0.1:6333, single `kb_main` collection, namespaces | none (localhost) | — | embedder dim auto-detect (fastembed version-proof) | ML-asset rule: baked + off-loop + deadline.
 
 ## Wired-but-OFF (need only env keys)

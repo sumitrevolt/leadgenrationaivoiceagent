@@ -17,10 +17,30 @@ This module is that single canonical layer. It is DERIVE-not-DUPLICATE:
   - governance (autonomy/lane/flag/kill/budget/…)     ← _GOVERNANCE table below
     (the only hand-authored data — none of it existed as data anywhere before)
 
-It is **INERT / additive**: nothing in the running app imports this yet. It adds
-NO runtime behaviour, touches NO compliance gate, and cannot change how any
-agent runs. It exists so Boss (coordinator), Owner OS (control surface) and the
-contract test-suite can all read ONE reconciled truth instead of five.
+⚠️  **LOAD-BEARING — NOT INERT.** (Corrected 2026-07-21; the previous docstring
+claimed "nothing in the running app imports this yet", which is FALSE and was
+dangerous to rely on.) This module is imported at runtime by:
+
+  - ``app.platform.agent_runtime.evaluate_policy()``  (L507)  ← ENFORCEMENT
+  - ``app.platform.agent_runtime.runtime_status()``   (L800)
+  - ``app.platform.agent_status``                     (L189, L218)
+  - ``app.platform.ops_assurance``                    (L82)
+
+``evaluate_policy`` reads ``get_contract()`` as the dispatch source of truth
+(L516) and blocks RED-lane / HARD_OFF agents off ``contract.lane`` (L521).
+
+CONSEQUENCE — read before editing ``_GOVERNANCE`` below: changing an agent's
+``lane`` from RED to GREEN/AMBER here does NOT merely change a report. It
+directly removes the L521 dispatch block for that agent. The RED lane is the
+mechanism that keeps the voice agents (swara/ananya) un-dispatchable. Treat
+every ``_GOVERNANCE`` lane/mode edit as a RED-lane safety change requiring an
+explicit owner mandate, not as documentation.
+
+Invariant tests that must keep passing: L1049 (RED lane ⇒ HARD_OFF) and
+L1055 (AMBER/RED must not default LIVE).
+
+It exists so Boss (coordinator), Owner OS (control surface) and the contract
+test-suite can all read ONE reconciled truth instead of five.
 
 CANONICAL COUNT = 31 (code truth, matches owner_os.py: "manager=Boss is one of
 the 31, not a 32nd agent"). Agent-OS itself (this registry + owner_os control
@@ -116,7 +136,7 @@ class AgentContract:
     default_mode: str
     reasoning: bool  # genuine LLM reasoning vs deterministic job
     trigger_types: tuple[str, ...]
-    primary_flag: str  # env flag that gates it ("" = ungated/core)
+    primary_flag: str  # Agent Runtime eligibility gate ("" = ungated/core)
     prohibited: tuple[str, ...]  # actions this agent must never take
     max_concurrency: int
     run_timeout_s: int
@@ -133,6 +153,9 @@ class AgentContract:
     # derived-at-build (triggers/cadence from JOB_META); default so __init__ stays tidy
     jobs: tuple[str, ...] = field(default_factory=tuple)
     cadences: tuple[str, ...] = field(default_factory=tuple)
+    # Optional scheduler-only env flag (independent of Agent Runtime primary_flag).
+    # Empty = no separate scheduler gate tracked on this contract.
+    scheduler_flag: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         d = {k: getattr(self, k) for k in self.__dataclass_fields__}  # type: ignore[attr-defined]
@@ -187,7 +210,10 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         default_mode=LIVE,
         reasoning=False,
         trigger_types=(_G.SCHEDULED,),
-        primary_flag="OPS_WATCHDOG",
+        # Runtime-only gate (Agent Runtime ops_health_check). Scheduler watchdog
+        # stays on OPS_WATCHDOG — never OR these together for eligibility.
+        primary_flag="OPS_HEALTH_AGENT",
+        scheduler_flag="OPS_WATCHDOG",  # purpose=scheduler; agent_runtime_gate=false
         prohibited=("mutate_infra", "customer_contact"),
         max_concurrency=1,
         run_timeout_s=120,
@@ -224,20 +250,26 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         test_ref="tests/test_agent_registry.py",
     ),
     "nikhil": dict(
-        autonomy=Autonomy.L1_RECOMMEND,
-        lane=Lane.AMBER,
-        default_mode=DRAFT,
+        # Lane GREEN: capability is PURE READ (delivery_assurance.scan_missed_deliverables)
+        # — no remediation/send/publish. Was AMBER historically; reconciled 2026-07-22.
+        autonomy=Autonomy.L0_OBSERVE,
+        lane=Lane.GREEN,
+        default_mode=LIVE,
         reasoning=False,
         trigger_types=(_G.EMBEDDED, _G.SCHEDULED),
-        primary_flag="",
-        prohibited=("mutate_billing_autonomously", "send_dunning_without_approval"),
+        primary_flag="DELIVERY_ASSURANCE_AGENT",
+        prohibited=(
+            "mutate_billing_autonomously",
+            "send_dunning_without_approval",
+            "customer_contact",
+        ),
         max_concurrency=1,
         run_timeout_s=180,
         retry_policy="daily retry",
         idempotency="per-client per-day",
         cost_inr=5.0,
         api_day=50,
-        contact_cap=25,
+        contact_cap=0,
         hb_gap_min=1560,
         useful_gap_min=1560,
         escalation="owner",
@@ -334,7 +366,10 @@ _GOVERNANCE: dict[str, dict[str, Any]] = {
         default_mode=PROPOSAL,
         reasoning=False,
         trigger_types=(_G.SCHEDULED,),
-        primary_flag="SECURITY_AGENT",
+        # Runtime-only gate (Agent Runtime run_security core). Daily scheduler
+        # stays on SECURITY_AGENT — never OR these together for eligibility.
+        primary_flag="SECURITY_POSTURE_AGENT",
+        scheduler_flag="SECURITY_AGENT",  # purpose=scheduler; agent_runtime_gate=false
         prohibited=("disable_compliance_gate", "rotate_secrets_autonomously", "customer_contact"),
         max_concurrency=1,
         run_timeout_s=180,
@@ -847,11 +882,6 @@ CONTROL_PLANE: dict[str, Any] = {
 # so they are fixed, not silently rotting). Each is (locus, drift, canonical).
 KNOWN_DRIFTS: tuple[dict[str, str], ...] = (
     {
-        "locus": "agent_controls.ALIAS_TO_MEMBER['blog']",
-        "drift": "maps blog->ravi, but scheduler_config.JOB_META['blog'].owner=isha",
-        "canonical": "blog job owner = isha (JOB_META = scheduler source of truth); ravi = embedded SEO-pages sub-engine inside the blog job",
-    },
-    {
         "locus": "scheduler_config.JOB_META['social_drain'].owner",
         "drift": "owner=isha, but the publish executor is zara (Social Media Manager)",
         "canonical": "isha triggers social_drain; zara is the publish executor (owner_publishing lane)",
@@ -967,6 +997,7 @@ def build_registry() -> dict[str, AgentContract]:
             test_ref=str(gov["test_ref"]),
             jobs=tuple(jobs),
             cadences=tuple(cadences),
+            scheduler_flag=str(gov.get("scheduler_flag") or ""),
         )
     return out
 
@@ -1067,6 +1098,30 @@ def validate_registry() -> list[str]:
             problems.append(
                 f"{aid}: escalation target '{c.escalation}' is not a known agent or 'owner'"
             )
+
+    # 6. Dispatchable pilots/canary-ready agents MUST have an explicit primary_flag.
+    #    Empty/null = ungated under AGENT_RUNTIME (production Nikhil canary blocker 2026-07-22).
+    #    Allowed empty: RED hard_off / frozen voice only (never pilot-dispatchable).
+    try:
+        from app.platform.agent_runtime import PILOT_AGENTS
+
+        for aid in sorted(PILOT_AGENTS):
+            c = reg.get(aid)
+            if not c:
+                problems.append(f"{aid}: in PILOT_AGENTS but missing registry contract")
+                continue
+            flag = (c.primary_flag or "").strip()
+            if not flag:
+                problems.append(
+                    f"{aid}: dispatchable pilot must have non-empty primary_flag "
+                    "(ungated agents forbidden under AGENT_RUNTIME)"
+                )
+            if c.lane == Lane.RED.value or c.default_mode == HARD_OFF:
+                problems.append(
+                    f"{aid}: RED/hard_off agent must not be in PILOT_AGENTS dispatch allowlist"
+                )
+    except Exception as exc:
+        problems.append(f"pilot_flag_validation_error:{type(exc).__name__}")
 
     return problems
 

@@ -29,8 +29,11 @@ import json
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
+from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 
 from app.api.customer_auth import require_customer
@@ -42,6 +45,10 @@ router = APIRouter(prefix="/api/customer", tags=["Customer Dashboard"])
 
 # Inquiries store (jsonl-first; same path public_site.py writes to).
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
+
+# Only canonical video output roots may be exposed to an authenticated customer.
+# Resolving the candidate before the containment check closes symlink/``..`` escapes.
+_VIDEO_MEDIA_ROOTS = (Path("data/video_ads").resolve(), Path("data/reels").resolve())
 
 
 # --------------------------------------------------------------------------- #
@@ -2315,6 +2322,302 @@ async def customer_approval_council_decide(
     return await boss_council.decide_approval(
         clients_store.canonical_client_id(client_id), approval_id, apply=apply
     )
+
+
+def _customer_video_record(mcid: str, video_ad_id: str) -> dict | None:
+    from app.marketing import video_ad_cycle
+
+    for row in video_ad_cycle.list_for_client(mcid):
+        if str(row.get("id") or "") == str(video_ad_id or ""):
+            return row
+    return None
+
+
+def _resolve_customer_video_path(rec: dict) -> Path | None:
+    raw = str(rec.get("video_path") or "").strip()
+    if not raw:
+        return None
+    try:
+        candidate = Path(raw)
+        if not candidate.is_absolute():
+            candidate = Path.cwd() / candidate
+        resolved = candidate.resolve(strict=True)
+        if not resolved.is_file() or resolved.suffix.lower() != ".mp4":
+            return None
+        for root in _VIDEO_MEDIA_ROOTS:
+            try:
+                resolved.relative_to(root.resolve())
+                return resolved
+            except ValueError:
+                continue
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return None
+
+
+def _customer_video_context(client_id: str) -> tuple[str, bool]:
+    from app.marketing import clients_store
+    from app.marketing.video_production import flags
+
+    mcid = clients_store.canonical_client_id(client_id)
+    return mcid, flags.customer_review_allowed(mcid)
+
+
+@router.get("/videos")
+def customer_videos_list(client_id: str = Depends(require_customer)):
+    """Customer Video Production Cell — own videos only (tenant-isolated)."""
+    try:
+        from app.marketing import video_ad_cycle
+
+        mcid, enabled = _customer_video_context(client_id)
+        if not enabled:
+            return {"ok": True, "enabled": False, "count": 0, "videos": []}
+        rows = video_ad_cycle.list_for_client(mcid)
+        safe = []
+        for r in rows:
+            rid = str(r.get("id") or "")
+            revision = int(r.get("revision") or 0)
+            media_path = _resolve_customer_video_path(r)
+            safe.append(
+                {
+                    "id": rid,
+                    "status": r.get("status"),
+                    "workflow_state": r.get("workflow_state"),
+                    "revision": revision,
+                    "approved_version": r.get("approved_version"),
+                    "caption": r.get("caption"),
+                    "channels": r.get("channels"),
+                    "created_at": r.get("created_at"),
+                    "published_at": r.get("published_at"),
+                    "approval_id": r.get("approval_id"),
+                    "has_video": media_path is not None,
+                    "media_url": (
+                        f"/api/customer/videos/{quote(rid, safe='')}/media?revision={revision}"
+                        if media_path is not None
+                        else None
+                    ),
+                    "aspect_ratio": r.get("aspect_ratio") or "9:16",
+                    "feedback_categories": r.get("feedback_categories") or [],
+                }
+            )
+        return {"ok": True, "enabled": True, "count": len(safe), "videos": safe}
+    except Exception as e:
+        logger.debug("customer videos list failed: %s", e)
+        return {"ok": False, "enabled": False, "count": 0, "videos": []}
+
+
+@router.get("/videos/{video_ad_id}/media")
+def customer_video_media(
+    video_ad_id: str,
+    revision: int = Query(..., ge=0),
+    client_id: str = Depends(require_customer),
+):
+    """Serve an exact customer-owned video version without exposing its path."""
+    mcid, enabled = _customer_video_context(client_id)
+    if not enabled:
+        raise HTTPException(status_code=404, detail="video not found")
+    rec = _customer_video_record(mcid, video_ad_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="video not found")
+    current_revision = int(rec.get("revision") or 0)
+    if current_revision != revision:
+        raise HTTPException(status_code=409, detail="video version changed; refresh review")
+    media_path = _resolve_customer_video_path(rec)
+    if media_path is None:
+        logger.warning("customer video media refused id=%s tenant=%s", video_ad_id, mcid)
+        raise HTTPException(status_code=404, detail="video not found")
+    return FileResponse(
+        media_path,
+        media_type="video/mp4",
+        headers={"Cache-Control": "private, max-age=300, no-transform"},
+    )
+
+
+class VideoFeedbackIn(BaseModel):
+    text: str = Field("", max_length=300)
+    action: str = "changes"  # approve | changes | reject
+    expected_revision: int = Field(..., ge=0)
+
+
+@router.post("/videos/{video_ad_id}/feedback")
+def customer_video_feedback(
+    video_ad_id: str,
+    body: VideoFeedbackIn,
+    client_id: str = Depends(require_customer),
+):
+    """Dashboard video review — same intents as WhatsApp (version-bound)."""
+    from app.marketing import clients_store, content_approval, video_ad_cycle
+    from app.marketing.video_production import cell, flags, states
+    from app.marketing.video_production.feedback import classify_feedback
+
+    mcid = clients_store.canonical_client_id(client_id)
+    if not flags.customer_review_allowed(mcid):
+        raise HTTPException(status_code=403, detail="customer video review disabled")
+    rec = _customer_video_record(mcid, video_ad_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="video nahi mila")
+    current_revision = int(rec.get("revision") or 0)
+    if current_revision != body.expected_revision:
+        raise HTTPException(status_code=409, detail="video version changed; refresh review")
+    action = (body.action or "changes").strip().lower()
+    if action not in {"approve", "changes", "reject"}:
+        raise HTTPException(status_code=422, detail="invalid video feedback action")
+    current_status = str(rec.get("status") or "").strip().lower()
+    approved_version = rec.get("approved_version")
+    try:
+        approved_revision = int(approved_version) if approved_version is not None else None
+    except (TypeError, ValueError):
+        approved_revision = None
+    if current_status != "pending":
+        if (
+            action == "approve"
+            and current_status == "approved"
+            and approved_revision == body.expected_revision
+        ):
+            return {"ok": True, "already_decided": True, "status": "approved"}
+        raise HTTPException(status_code=409, detail="video review already decided; refresh")
+    if action == "approve":
+        out = cell.approve_version(str(video_ad_id), body.expected_revision)
+        if not out.get("ok"):
+            raise HTTPException(status_code=409, detail=str(out.get("error") or "approval failed"))
+        return out
+    text = (body.text or "").strip()
+    classified = classify_feedback(text if action != "reject" else "REJECT")
+    if action == "reject":
+        classified = {"intent": "reject", **{k: v for k, v in classified.items() if k != "intent"}}
+    tok = str(rec.get("token") or "")
+    if not tok:
+        return {"ok": False, "error": "approval token missing"}
+    if classified.get("intent") == "ambiguous" and action == "changes" and not text:
+        return {
+            "ok": False,
+            "ambiguous": True,
+            "clarification": "CHANGES ke saath detail likho (jaise: logo bada karo).",
+        }
+    note = text[:300] or action
+    approval = content_approval.get_by_token(tok)
+    if not approval or str(approval.get("status") or "").strip().lower() != "pending":
+        raise HTTPException(status_code=409, detail="approval already decided; refresh review")
+    if action == "reject":
+        # Terminal first: the generic rejection hook only converts pending videos
+        # to changes_requested, so a hard reject can never enter the regen queue.
+        video_ad_cycle._update(
+            str(video_ad_id),
+            status="held_max_revisions",
+            workflow_state=states.CLIENT_REJECTED,
+            final_approved=False,
+            note=note,
+            revision_tasks=[],
+            feedback_categories=[],
+        )
+    out = content_approval.reject(tok, note=note)
+    if not out.get("ok") or out.get("already_decided"):
+        raise HTTPException(status_code=409, detail="approval already decided; refresh review")
+    video_ad_cycle._update(
+        str(video_ad_id),
+        revision_tasks=classified.get("tasks") or [],
+        feedback_categories=classified.get("categories") or [],
+    )
+    return {"ok": True, "classified": classified, "approval": out}
+
+
+# ---------- Creative Automation OS (ADR-143) — customer review surface ---------- #
+class CreativeFeedbackIn(BaseModel):
+    text: str = Field("", max_length=300)
+    action: str = "changes"  # approve | changes
+    expected_revision: int = Field(..., ge=0)
+
+
+@router.get("/creative-os")
+def customer_creative_os_list(client_id: str = Depends(require_customer)):
+    """Customer-owned Creative OS items — JWT tenant only, no infra leak."""
+    try:
+        from app.marketing import clients_store
+        from app.marketing.creative_os import flags as cflags
+        from app.marketing.creative_os.service import customer_view, list_cockpit
+
+        if not cflags.os_enabled():
+            return {"ok": True, "enabled": False, "count": 0, "creatives": []}
+        mcid = clients_store.canonical_client_id(client_id)
+        out = list_cockpit(mcid, limit=50)
+        items = []
+        for row in out.get("items") or []:
+            view = customer_view(mcid, str(row.get("creative_id") or ""))
+            if view.get("ok"):
+                items.append(view)
+        return {"ok": True, "enabled": True, "count": len(items), "creatives": items}
+    except Exception as e:
+        logger.debug("customer creative-os list failed: %s", e)
+        return {"ok": False, "enabled": False, "count": 0, "creatives": []}
+
+
+@router.get("/creative-os/{creative_id}/media")
+def customer_creative_os_media(
+    creative_id: str,
+    revision: int = Query(..., ge=0),
+    client_id: str = Depends(require_customer),
+):
+    """Serve Creative OS media via authenticated path resolve — no raw path exposure."""
+    from app.marketing import clients_store
+    from app.marketing.creative_os import flags as cflags
+    from app.marketing.creative_os.service import resolve_output_path
+    from app.marketing.creative_os.store import get_record
+
+    if not cflags.os_enabled():
+        raise HTTPException(status_code=404, detail="creative not found")
+    mcid = clients_store.canonical_client_id(client_id)
+    got = get_record(mcid, creative_id)
+    if not got.get("ok"):
+        raise HTTPException(status_code=404, detail="creative not found")
+    rec = got["record"]
+    current_revision = int(rec.get("approval_revision") or 0)
+    if current_revision != revision:
+        raise HTTPException(status_code=409, detail="creative version changed; refresh")
+    resolved = resolve_output_path(mcid, creative_id)
+    if not resolved.get("ok"):
+        raise HTTPException(status_code=404, detail="creative not found")
+    return FileResponse(
+        resolved["path"],
+        media_type="video/mp4",
+        headers={"Cache-Control": "private, max-age=300, no-transform"},
+    )
+
+
+@router.post("/creative-os/{creative_id}/feedback")
+def customer_creative_os_feedback(
+    creative_id: str,
+    body: CreativeFeedbackIn,
+    client_id: str = Depends(require_customer),
+):
+    """Customer approve / request-changes — same exact-hash authority as admin."""
+    from app.marketing import clients_store
+    from app.marketing.creative_os import flags as cflags
+    from app.marketing.creative_os.service import approve_exact, request_changes
+    from app.marketing.creative_os.store import get_record
+
+    if not cflags.os_enabled():
+        raise HTTPException(status_code=403, detail="creative review disabled")
+    mcid = clients_store.canonical_client_id(client_id)
+    got = get_record(mcid, creative_id)
+    if not got.get("ok"):
+        raise HTTPException(status_code=404, detail="creative nahi mila")
+    rec = got["record"]
+    current_revision = int(rec.get("approval_revision") or 0)
+    if current_revision != body.expected_revision:
+        raise HTTPException(status_code=409, detail="creative version changed; refresh")
+    action = (body.action or "changes").strip().lower()
+    if action not in {"approve", "changes"}:
+        raise HTTPException(status_code=422, detail="invalid creative feedback action")
+    if action == "approve":
+        out = approve_exact(mcid, creative_id, actor="customer")
+        if not out.get("ok"):
+            raise HTTPException(status_code=409, detail=str(out.get("error") or "approval failed"))
+        return out
+    note = (body.text or "").strip()[:300] or "changes"
+    out = request_changes(mcid, creative_id, note=note)
+    if not out.get("ok"):
+        raise HTTPException(status_code=409, detail=str(out.get("error") or "changes failed"))
+    return out
 
 
 @router.get("/routing")

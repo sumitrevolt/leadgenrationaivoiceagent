@@ -1,8 +1,8 @@
 """2026-07-19 loop fixes — 3 regression tests for the 72h-verdict open concerns.
 
-Fix 1: self_improve_tick must requeue (short countdown) when tick_slot is denied
-       but flag is ON — prevents the repeated stale-heartbeat / 20-min watchdog
-       revive cycle. Fail-closed preserved (Redis down → apply_async also fails).
+Fix 1: self_improve_tick must stop (without requeue) when tick_slot is denied
+       but flag is ON — denied duplicates must not multiply the queue. The slot
+       owner already schedules the next tick; watchdog revival is single-locked.
 
 Fix 2: VobizClient.get_balance uses split httpx.Timeout (connect=5s, read=10s)
        and downgrades recurring transport errors to WARNING (was ERROR spam).
@@ -21,13 +21,10 @@ import pytest
 
 
 # ============================================================ Fix 1
-class TestSelfImproveTickRequeueOnSlotDenial:
-    """Chain must NOT die when tick_slot is denied (boundary/Redis hiccup) but
-    flag is ON. Short-countdown requeue keeps the chain self-healing without
-    the 20-min watchdog. Fail-closed preserved (Redis down = apply_async fails
-    too, chain dies, watchdog revives when Redis back)."""
+class TestSelfImproveTickSlotDenial:
+    """Denied duplicate ticks must terminate instead of multiplying the queue."""
 
-    def test_requeue_called_with_gap_when_slot_denied_and_flag_on(self, monkeypatch):
+    def test_no_requeue_when_slot_denied_and_flag_on(self, monkeypatch):
         from app.agents import self_improve as si
         from app.tasks import staff_jobs
 
@@ -49,10 +46,7 @@ class TestSelfImproveTickRequeueOnSlotDenial:
 
         staff_jobs.self_improve_tick.run()
 
-        assert queued, "Chain must requeue when slot denied but flag ON"
-        assert (
-            queued[0].get("countdown") == 180
-        ), f"Requeue countdown must be gap_seconds (180), got {queued[0]}"
+        assert not queued, "Denied duplicate must stop; only slot owner may requeue"
 
     def test_no_requeue_when_flag_off(self, monkeypatch):
         from app.agents import self_improve as si
@@ -149,7 +143,9 @@ class TestVobizGetBalanceTimeoutHardening:
             getattr(to, "read", None) == 10.0
         ), f"read timeout must be 10s, got {getattr(to, 'read', None)}"
 
-    def test_transport_error_logged_as_warning_not_error(self, monkeypatch, caplog):
+    def test_transport_error_logged_as_warning_not_error(self, monkeypatch):
+        import logging
+
         import httpx as _httpx_mod
 
         from app.telephony import vobiz_handler
@@ -174,16 +170,30 @@ class TestVobizGetBalanceTimeoutHardening:
         client.auth_token = "TOK"
         client.base_url = "https://api.vobiz.ai/api/v1/Account/AUTH"
 
-        with caplog.at_level(logging.WARNING, logger="app.telephony.vobiz_handler"):
+        records: list[logging.LogRecord] = []
+
+        class _H(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                records.append(record)
+
+        handler = _H()
+        logger = vobiz_handler.logger
+        prev = logger.level
+        logger.addHandler(handler)
+        logger.setLevel(logging.WARNING)
+        try:
             res = asyncio.run(client.get_balance())
+        finally:
+            logger.removeHandler(handler)
+            logger.setLevel(prev)
 
         assert res["status_code"] == 0
         assert "ConnectTimeout" in str(res["body"].get("error", ""))
 
-        error_records = [r for r in caplog.records if r.levelno >= logging.ERROR]
+        error_records = [r for r in records if r.levelno >= logging.ERROR]
         warning_records = [
             r
-            for r in caplog.records
+            for r in records
             if r.levelno == logging.WARNING and "transport error" in r.getMessage().lower()
         ]
         assert not error_records, "ConnectTimeout must NOT log as ERROR (recurring noise)"

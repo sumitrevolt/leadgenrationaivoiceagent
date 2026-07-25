@@ -1,5 +1,5 @@
 # =============================================================================
-# deploy-vps.yml — REAL auto-deploy to the Hostinger VPS (replaces Cloud Run).
+# deploy-vps.yml â€” REAL auto-deploy to the Hostinger VPS (replaces Cloud Run).
 #
 # Flow on every push to main:
 #   1) gate     : fast deterministic checks (import smoke + prod_check + ruff)
@@ -12,7 +12,7 @@
 #   VPS_SSH_KEY  = <private key matching the VPS authorized_keys>
 #   GHCR_PAT     = <classic PAT with read:packages>  (used by the VPS to pull)
 #
-# pytest runs but does NOT block deploys yet (continue-on-error) — flip to a hard
+# pytest runs but does NOT block deploys yet (continue-on-error) â€” flip to a hard
 # gate once the CI test env is stable. The fast checks below DO block.
 # =============================================================================
 name: deploy-vps
@@ -33,41 +33,47 @@ jobs:
   gate:
     name: Gate (import + prod_check + lint)
     runs-on: ubuntu-latest
-    timeout-minutes: 15  # hang guard (full pytest team_pulse area can stall — CLAUDE.md)
+    timeout-minutes: 15  # hang guard (full pytest team_pulse area can stall â€” CLAUDE.md)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install deps (lock file — same as Dockerfile.lock + tests.yml)
+      - name: Install deps (lock file â€” same as Dockerfile.lock + tests.yml)
         run: |
           python -m pip install --upgrade pip
           pip install --no-deps -r requirements.lock.txt
           # -U + PINS zaroori (tests.yml gotcha): lock ke purane pytest/pytest-asyncio
           # ke upar akela `-U pytest` = version-mismatch => "no current event loop"
           # (2026-07-06 pehla blocking run isi se laal hua).
-          pip install -U "pytest==9.0.2" "pytest-asyncio==1.3.0" "pytest-timeout==2.4.0" "httpx==0.27.2" ruff
+          # Locked test stack (pytest 7.4.4 + pytest-asyncio 0.23.4 + httpx 0.28.1 from
+          # the lock — the project's declared/tested pair). The old -U override forced
+          # pytest-asyncio 1.3.0 which, with aiosqlite 0.22.x, amplified an aiosqlite
+          # connection-worker leak (SQLAlchemy #13039) that a Linux cyclic-GC pass
+          # segfaulted on (exit-139). httpx 0.28.1 handled by the conftest TestClient shim.
+          pip install --no-deps "pytest-timeout==2.4.0"
+          pip install ruff
       - name: Import smoke (catches syntax/import/route breakage)
         run: python -c "import app.main; print('import OK')"
       - name: Production check
         run: python scripts/prod_check.py
       - name: Lint (ruff, non-blocking warnings)
         run: ruff check app || true
-      - name: Contract tests (billing/pricing truth — BLOCKING)
+      - name: Contract tests (billing/pricing truth â€” BLOCKING)
         # Deterministic, no-network. Pricing/plan/route regression => deploy blocked.
         run: pytest -q tests/test_billing_truth_2026.py
-      - name: Tests (full suite — BLOCKING, network-free)
+      - name: Tests (full suite â€” BLOCKING, network-free)
         # 2026-07-06: HARD GATE. Full suite proven green (local exit 0) after the
-        # drift-sweep fixed 8 stale tests. Network-marked tests excluded — CI has
+        # drift-sweep fixed 8 stale tests. Network-marked tests excluded â€” CI has
         # no provider keys (same policy as ci.yml/tests.yml). Revert = re-add
         # `continue-on-error: true` on this step.
         env:
           # TelecallerBrain __init__ me key-PRESENCE check hai (CI me real keys
-          # nahi rakhte); saare LLM calls conftest me stubbed — koi network nahi.
+          # nahi rakhte); saare LLM calls conftest me stubbed â€” koi network nahi.
           GROQ_API_KEY: ci-dummy-key-not-real
           # local-dev parity: bina in ke config PROD-defaults leta (global
-          # RateLimitMiddleware arm → suite ke burst pe 429s, turnstile-class gates).
+          # RateLimitMiddleware arm â†’ suite ke burst pe 429s, turnstile-class gates).
           APP_ENV: test
           ENVIRONMENT: development
         run: pytest -q -m "not network" --ignore=tests/integration
@@ -76,7 +82,7 @@ jobs:
     name: Build & push image (GHCR)
     needs: gate
     # Activates only after you set repo variable DEPLOY_ENABLED=true (and the VPS
-    # secrets). Until then, pushes just run the `gate` job — no failing deploys.
+    # secrets). Until then, pushes just run the `gate` job â€” no failing deploys.
     if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -106,72 +112,60 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # ---------------------------------------------------------------------------
+  # Hardened deploy path (credential-hardening-20260721)
+  #   - dedicated identity: VPS_DEPLOY_USER=leadgen-deploy (NOT root), no docker group
+  #   - dedicated key: VPS_SSH_KEY_DEPLOY (ed25519), not the shared root id_rsa
+  #   - NO registry secret: the GHCR package is public -> anonymous pull by exact SHA
+  #   - all privileged work runs in a root-owned, input-validated wrapper
+  #     (/usr/local/sbin/leadgen-deploy-release) reachable only via a scoped sudo
+  #     rule; the wrapper pulls the exact SHA, rolls the celery stack, hard-gates
+  #     alembic, health-gates /health/ready, records the previous image and
+  #     auto-rolls-back on migration or health failure.
+  #   The old root-based secrets (VPS_USER / VPS_SSH_KEY / GHCR_PAT) are retained
+  #   as an emergency rollback path until this path has a proven production run.
+  # ---------------------------------------------------------------------------
   deploy:
     name: Deploy to VPS
     needs: build
     if: ${{ vars.DEPLOY_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    permissions:
+      contents: read
     steps:
-      - name: SSH deploy
+      - name: Preflight (dedicated identity, non-destructive)
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          envs: GHCR_PAT,GITHUB_SHA
+          username: ${{ secrets.VPS_DEPLOY_USER }}
+          key: ${{ secrets.VPS_SSH_KEY_DEPLOY }}
+          request_pty: false
           script_stop: true
           script: |
             set -e
-            export GHCR_PAT="${{ secrets.GHCR_PAT }}"
-            export GITHUB_SHA="${{ github.sha }}"
-            cd /opt/leadgen
-            # --- capture currently-running image for AUTO-ROLLBACK on bad deploy ---
-            PREV_IMG_ID="$(docker inspect leadgen_app --format '{{.Image}}' 2>/dev/null || echo '')"
-            echo "==> prev image id: ${PREV_IMG_ID:-none}"
-            # Shared rollback (used by BOTH migration-failure and health-failure gates).
-            do_rollback() {
-              echo "!!! $1 — AUTO-ROLLBACK to previous image"
-              if [ -n "$PREV_IMG_ID" ]; then
-                docker tag "$PREV_IMG_ID" ghcr.io/sumitrevolt/leadgenrationaivoiceagent:rollback
-                APP_VERSION=rollback COMPOSE_PROFILES=celery docker compose -f docker-compose.vps.yml up -d --remove-orphans || true
-                sleep 8
-                curl -fsS http://127.0.0.1:8000/health/ready >/dev/null 2>&1 && echo "   rolled back, healthy again" || echo "   ROLLBACK ALSO UNHEALTHY — manual check needed"
-              else
-                echo "   no previous image captured — manual rollback (see CLAUDE.md)"
-              fi
-            }
-            echo "==> sync compose + migrations from git"
-            git fetch --all --quiet || true
-            git checkout main --quiet || true
-            git pull --ff-only || true
-            echo "==> login GHCR + pull image ${GITHUB_SHA}"
-            echo "${GHCR_PAT}" | docker login ghcr.io -u sumitrevolt --password-stdin
-            export APP_VERSION="${GITHUB_SHA}"
-            # LIVE stack celery profile ke saath chalta hai (worker+worker-heavy+scheduler).
-            # Profile ke BINA `up --remove-orphans` un containers ko ORPHAN maan ke
-            # REMOVE kar deta — isliye profile yahan explicit hai.
-            export COMPOSE_PROFILES=celery
-            docker compose -f docker-compose.vps.yml pull
-            echo "==> roll the stack (fresh image -> no stale .pyc possible)"
-            docker compose -f docker-compose.vps.yml up -d --remove-orphans
-            # HARD-GATED migrations: failure ko `|| true` se SWALLOW karna khatarnak tha
-            # (half-migrated schema live ja sakta tha, /health phir bhi green). Ab failure
-            # = same auto-rollback jo health-fail pe hota.
-            echo "==> apply migrations (hard-gated: failure -> auto-rollback)"
-            if ! docker compose -f docker-compose.vps.yml run --rm app alembic upgrade head; then
-              do_rollback "MIGRATION FAILED"
-              exit 1
-            fi
-            echo "==> health gate: /health/ready (db+redis) with retries"
-            ok=0
-            for i in $(seq 1 12); do
-              if curl -fsS http://127.0.0.1:8000/health/ready >/dev/null 2>&1; then ok=1; break; fi
-              echo "   not ready yet ($i/12)…"; sleep 5
-            done
-            if [ "$ok" != "1" ]; then
-              do_rollback "HEALTH FAILED"
-              exit 1
-            fi
-            echo "==> HEALTH OK (ready)"
-            docker image prune -f || true
+            SHA="${{ github.sha }}"
+            case "$SHA" in ""|*[!0-9a-f]*) echo "resolved SHA is not lowercase hex"; exit 1;; esac
+            [ "${#SHA}" -eq 40 ] || { echo "resolved SHA is not 40 chars"; exit 1; }
+            echo "==> preflight as $(id -un) for exact SHA $SHA"
+            test -x /usr/local/sbin/leadgen-deploy-release && echo "wrapper present"
+            sudo -n -l | grep -q '/usr/local/sbin/leadgen-deploy-release' && echo "scoped sudo rule present"
+            T="$(curl -s "https://ghcr.io/token?scope=repository:sumitrevolt/leadgenrationaivoiceagent:pull" | grep -o '"token":"[^"]*' | cut -d'"' -f4)"
+            CODE="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $T" -H 'Accept: application/vnd.oci.image.index.v1+json' "https://ghcr.io/v2/sumitrevolt/leadgenrationaivoiceagent/manifests/$SHA")"
+            echo "anonymous GHCR manifest http=$CODE"
+            [ "$CODE" = "200" ] || { echo "exact-SHA image not anonymously reachable"; exit 1; }
+      - name: Deploy exact SHA via root-owned wrapper (auto-rollback inside)
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_DEPLOY_USER }}
+          key: ${{ secrets.VPS_SSH_KEY_DEPLOY }}
+          request_pty: false
+          script_stop: true
+          script: |
+            set -e
+            SHA="${{ github.sha }}"
+            case "$SHA" in ""|*[!0-9a-f]*) echo "bad sha"; exit 1;; esac
+            [ "${#SHA}" -eq 40 ] || { echo "bad sha length"; exit 1; }
+            echo "==> deploying exact SHA $SHA via wrapper (public GHCR anonymous pull; no registry secret)"
+            sudo -n /usr/local/sbin/leadgen-deploy-release "$SHA"

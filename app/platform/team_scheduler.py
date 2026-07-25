@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from contextvars import ContextVar
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
@@ -12,6 +13,9 @@ logger = setup_logger(__name__)
 
 _IST = timezone(timedelta(hours=5, minutes=30))
 _TICK_S = 60
+
+# Active wall-clock budget for mega-jobs that fan out via `_run_content_engine`.
+_active_job_budget: ContextVar[Any] = ContextVar("active_job_budget", default=None)
 
 # --------------------------------------------------------------------------- #
 # Single-instance lock — uvicorn --workers 2 dono workers scheduler start karte
@@ -171,6 +175,7 @@ _last_ran: dict[str, str | None] = {
     "product_one_health": None,  # hourly :20: Product 1 Customer Health + Approval Reminder + SLA Recovery sweep (ungated safety-net, mirrors watchdog/onboard)
     "approval_email_sweep": None,  # hourly :40: bounded pending-approval EMAIL sweep (gated APPROVAL_EMAIL_NOTIFY, single-flight)
     "social_drain": None,  # hourly :10: native social queue drain (gated SOCIAL_ENGINE)
+    "sales_autopilot": None,  # hourly :25: Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
 }
 
 
@@ -403,11 +408,19 @@ async def _run_job(job: str, retry_count: int = 0) -> bool:
     return _ok
 
 
-async def _run_content_engine(name: str, coro) -> bool:
+async def _run_content_engine(name: str, coro, budget=None) -> bool:
     """W1.3: `content` mega-job ke har engine ko isolate karo. Pehle 12 engines ek
     hi try me chain the — pehla throw (e.g. auto_content) baaki engines ko silently
-    skip kar deta tha. Ab har engine ka failure logged + contained; cycle aage chalta."""
+    skip kar deta tha. Ab har engine ka failure logged + contained; cycle aage chalta.
+    Optional ``budget`` / contextvar: SoftTimeLimit se pehle remaining engines skip."""
     try:
+        b = budget if budget is not None else _active_job_budget.get()
+        if b is not None and not b.ok():
+            try:
+                coro.close()
+            except Exception:
+                pass
+            return False
         await coro
         return True
     except Exception as e:
@@ -677,141 +690,157 @@ async def _run_job_inner(job: str) -> bool:
             call_analytics.run_daily_digest()
         elif job == "content":
             from app.marketing import auto_content
+            from app.platform.job_time_budget import JobBudget
 
-            # W1.3: har engine _run_content_engine se guzarta hai — ek engine ka throw
-            # baaki engines ko skip nahi karta (pehle poora chain ek hi try me tha).
-            await _run_content_engine("auto_content", auto_content.run_daily_content())
-            from app.marketing import video_ad_cycle
-
-            # AI video-ad cycle: har 5 din naya video (build_reel) -> client approval ->
-            # multi-channel publish. run_cycle khud interval/publish/regen handle karta
-            # (gated VIDEO_AD_CYCLE; off = inert). Scheduler/worker context = heavy OK.
-            await _run_content_engine("video_ad_cycle", video_ad_cycle.run_cycle())
-            from app.marketing import content_schedule
-
-            await _run_content_engine(
-                "content_schedule", content_schedule.run_due()
-            )  # date-scheduled posts auto-prepare
-            from app.tasks.reporting import run_social_autopost
-
-            # Publish 'ready' posts to connected Meta accounts (MOCK unless
-            # SOCIAL_AUTOPOST=1 + a Page/IG token — inert/safe otherwise).
-            await _run_content_engine("social_autopost", run_social_autopost())
-            from app.marketing import wa_campaign_runner
-
-            await _run_content_engine(
-                "wa_campaign_runner", wa_campaign_runner.run_due()
-            )  # WhatsApp drip/reactivation (inert without creds)
-            from app.marketing import cadence
-
-            await _run_content_engine(
-                "cadence", cadence.run_due()
-            )  # omnichannel cadence advance (gated CADENCE_ENGINE; inert off)
-            from app.marketing import sales_pipeline
-
-            await _run_content_engine(
-                "sales_pipeline", sales_pipeline.run_pipeline()
-            )  # sales deals auto next-action (gated SALES_ENGINE)
-            from app.billing import dunning
-
-            await _run_content_engine(
-                "dunning", dunning.run_due()
-            )  # payment-recovery sweep (gated DUNNING_ENGINE; inert off)
-            from app.marketing import lifecycle_nurture
-
-            await _run_content_engine(
-                "lifecycle_nurture", lifecycle_nurture.run_due()
-            )  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
-            from app.telephony import voice_followup
-
-            await _run_content_engine(
-                "voice_followup", voice_followup.run_due()
-            )  # trial day8/9 + interested follow-up calls (gated VOICE_FOLLOWUP; inert off)
-            from app.marketing import channel_experiments
-
-            await _run_content_engine(
-                "channel_experiments", channel_experiments.run_daily(3)
-            )  # naye approach-channel experiments (gated CHANNEL_EXPERIMENTS)
-            from app.platform import booking_reminders
-
-            await _run_content_engine(
-                "booking_reminders", booking_reminders.run_due()
-            )  # kal ki bookings ke reminders (gated BOOKING_REMINDERS)
-            from app.marketing import review_monitor
-
-            await _run_content_engine(
-                "review_monitor", review_monitor.run_check()
-            )  # naye Google reviews -> AI reply drafts (gated REVIEW_MONITOR)
+            # SoftTimeLimit (540s) se pehle partial-ok — content SoftTimeLimit DLQ (2026-07-23).
+            _content_budget = JobBudget.from_env("CONTENT_TIME_BUDGET_S", label="content")
+            _budget_tok = _active_job_budget.set(_content_budget)
             try:
-                from app.marketing import customer_crm
+                # W1.3: har engine _run_content_engine se guzarta hai — ek engine ka throw
+                # baaki engines ko skip nahi karta (pehle poora chain ek hi try me tha).
+                await _run_content_engine("auto_content", auto_content.run_daily_content())
+                from app.marketing import video_ad_cycle
 
-                await customer_crm.run_wishes_if_enabled()  # birthday/anniversary wish DRAFTS (gated CUSTOMER_WISHES)
-            except Exception:
-                pass
-            try:
-                from app.platform import service_reminders
+                # AI video-ad cycle: har 5 din naya video (build_reel) -> client approval ->
+                # multi-channel publish. run_cycle khud interval/publish/regen handle karta
+                # (gated VIDEO_AD_CYCLE; off = inert). Scheduler/worker context = heavy OK.
+                await _run_content_engine("video_ad_cycle", video_ad_cycle.run_cycle())
+                from app.marketing import content_schedule
 
-                await service_reminders.run_due_if_enabled()  # repeat-service WA reminder DRAFTS (gated SERVICE_REMINDERS)
-            except Exception:
-                pass
-            try:
-                from app.marketing import newsletter
+                await _run_content_engine(
+                    "content_schedule", content_schedule.run_due()
+                )  # date-scheduled posts auto-prepare
+                from app.tasks.reporting import run_social_autopost
 
-                await newsletter.run_due_if_enabled()  # monthly client-newsletter (gated NEWSLETTER_ENGINE; month-dedupe)
-            except Exception:
-                pass
-            try:
-                from app.platform import winback
+                # Publish 'ready' posts to connected Meta accounts (MOCK unless
+                # SOCIAL_AUTOPOST=1 + a Page/IG token — inert/safe otherwise).
+                await _run_content_engine("social_autopost", run_social_autopost())
+                from app.marketing import wa_campaign_runner
 
-                await winback.run_due_if_enabled()  # inactive win-back DRAFTS (gated WINBACK_ENGINE)
-            except Exception:
-                pass
-            try:
-                from app.platform import rank_tracker
+                await _run_content_engine(
+                    "wa_campaign_runner", wa_campaign_runner.run_due()
+                )  # WhatsApp drip/reactivation (inert without creds)
+                from app.marketing import cadence
 
-                await rank_tracker.run_if_enabled()  # local rank tracking sweep (gated RANK_TRACKER, cap lookups)
-            except Exception:
-                pass
-            try:
-                from app.platform import customer_autopilot
+                await _run_content_engine(
+                    "cadence", cadence.run_due()
+                )  # omnichannel cadence advance (gated CADENCE_ENGINE; inert off)
+                from app.marketing import sales_pipeline
 
-                # per-client hands-free drafts: evergreen recycle / NPS survey / stale-inquiry
-                # nudge / daily owner-brief. Har sub-job apne flag ke peeche (EVERGREEN_RECYCLE /
-                # NPS_AUTO / STALE_INQUIRY_NUDGE / OWNER_BRIEF_DAILY) — all DEFAULT-OFF, draft-only.
-                await customer_autopilot.run_all()
-            except Exception:
-                pass
-            try:
-                from app.platform import memory_vault
+                await _run_content_engine(
+                    "sales_pipeline", sales_pipeline.run_pipeline()
+                )  # sales deals auto next-action (gated SALES_ENGINE)
+                from app.billing import dunning
 
-                await memory_vault.sync_if_enabled()  # compounding memory tail-sync (gated MEMORY_VAULT, no LLM)
-            except Exception:
-                pass
-            try:
-                from app.platform import live_notes
+                await _run_content_engine(
+                    "dunning", dunning.run_due()
+                )  # payment-recovery sweep (gated DUNNING_ENGINE; inert off)
+                from app.marketing import lifecycle_nurture
 
-                await live_notes.refresh_if_enabled()  # topic live-notes refresh (gated LIVE_NOTES, max 5/day)
-            except Exception:
-                pass
-            try:
-                from app.agents import sales_team
+                await _run_content_engine(
+                    "lifecycle_nurture", lifecycle_nurture.run_due()
+                )  # signup->paid nurture (gated LIFECYCLE_NURTURE; inert off)
+                from app.telephony import voice_followup
 
-                await sales_team.run_auto(
-                    3
-                )  # 5-agent prospect deep-dives on hot leads (gated SALES_TEAM)
-            except Exception:
-                pass
-            try:
-                # White-label monthly client report — mahine ki 1 tarikh ko hi.
-                # Email sirf CLIENT_REPORTS=1 pe jata (warna file-only) — run_monthly khud gate karta.
-                from datetime import datetime as _dt
+                await _run_content_engine(
+                    "voice_followup", voice_followup.run_due()
+                )  # trial day8/9 + interested follow-up calls (gated VOICE_FOLLOWUP; inert off)
+                from app.marketing import channel_experiments
 
-                if _dt.now().day == 1:
-                    from app.marketing import client_report
+                await _run_content_engine(
+                    "channel_experiments", channel_experiments.run_daily(3)
+                )  # naye approach-channel experiments (gated CHANNEL_EXPERIMENTS)
+                from app.platform import booking_reminders
 
-                    await client_report.run_monthly()
-            except Exception:
-                pass
+                await _run_content_engine(
+                    "booking_reminders", booking_reminders.run_due()
+                )  # kal ki bookings ke reminders (gated BOOKING_REMINDERS)
+                from app.marketing import review_monitor
+
+                await _run_content_engine(
+                    "review_monitor", review_monitor.run_check()
+                )  # naye Google reviews -> AI reply drafts (gated REVIEW_MONITOR)
+                try:
+                    from app.marketing import customer_crm
+
+                    if _content_budget.ok():
+                        await customer_crm.run_wishes_if_enabled()  # birthday/anniversary wish DRAFTS (gated CUSTOMER_WISHES)
+                except Exception:
+                    pass
+                try:
+                    from app.platform import service_reminders
+
+                    if _content_budget.ok():
+                        await service_reminders.run_due_if_enabled()  # repeat-service WA reminder DRAFTS (gated SERVICE_REMINDERS)
+                except Exception:
+                    pass
+                try:
+                    from app.marketing import newsletter
+
+                    if _content_budget.ok():
+                        await newsletter.run_due_if_enabled()  # monthly client-newsletter (gated NEWSLETTER_ENGINE; month-dedupe)
+                except Exception:
+                    pass
+                try:
+                    from app.platform import winback
+
+                    if _content_budget.ok():
+                        await winback.run_due_if_enabled()  # inactive win-back DRAFTS (gated WINBACK_ENGINE)
+                except Exception:
+                    pass
+                try:
+                    from app.platform import rank_tracker
+
+                    if _content_budget.ok():
+                        await rank_tracker.run_if_enabled()  # local rank tracking sweep (gated RANK_TRACKER, cap lookups)
+                except Exception:
+                    pass
+                try:
+                    from app.platform import customer_autopilot
+
+                    # per-client hands-free drafts: evergreen recycle / NPS survey / stale-inquiry
+                    # nudge / daily owner-brief. Har sub-job apne flag ke peeche (EVERGREEN_RECYCLE /
+                    # NPS_AUTO / STALE_INQUIRY_NUDGE / OWNER_BRIEF_DAILY) — all DEFAULT-OFF, draft-only.
+                    if _content_budget.ok():
+                        await customer_autopilot.run_all()
+                except Exception:
+                    pass
+                try:
+                    from app.platform import memory_vault
+
+                    if _content_budget.ok():
+                        await memory_vault.sync_if_enabled()  # compounding memory tail-sync (gated MEMORY_VAULT, no LLM)
+                except Exception:
+                    pass
+                try:
+                    from app.platform import live_notes
+
+                    if _content_budget.ok():
+                        await live_notes.refresh_if_enabled()  # topic live-notes refresh (gated LIVE_NOTES, max 5/day)
+                except Exception:
+                    pass
+                try:
+                    from app.agents import sales_team
+
+                    if _content_budget.ok():
+                        await sales_team.run_auto(
+                            3
+                        )  # 5-agent prospect deep-dives on hot leads (gated SALES_TEAM)
+                except Exception:
+                    pass
+                try:
+                    # White-label monthly client report — mahine ki 1 tarikh ko hi.
+                    # Email sirf CLIENT_REPORTS=1 pe jata (warna file-only) — run_monthly khud gate karta.
+                    from datetime import datetime as _dt
+
+                    if _content_budget.ok() and _dt.now().day == 1:
+                        from app.marketing import client_report
+
+                        await client_report.run_monthly()
+                except Exception:
+                    pass
+            finally:
+                _active_job_budget.reset(_budget_tok)
         elif job == "blog":
             from app.marketing import seo_blog
 
@@ -1221,6 +1250,13 @@ async def _run_job_inner(job: str) -> bool:
             # Never sends without customer consent + provider success; audit +
             # DB idempotency key make repeated runs safe.
             await approval_notifier.run_approval_email_sweep()
+        elif job == "sales_autopilot":
+            from app.platform.sales_autopilot import scheduler as _sales_ap
+
+            # Canary tick. INERT unless SALES_AUTOPILOT_ENABLED=1 (run_tick
+            # returns {enabled:False} immediately). Dry-run default; calling
+            # HARD OFF; Estique/manual_owner_confirmed fail-closed in eligibility.
+            await _sales_ap.run_tick()
         elif job == "social_drain":
             from app.social_engine import engine as _social_engine
 
@@ -1494,6 +1530,9 @@ async def scheduler_loop() -> None:
             if now.minute >= 40 and _last_ran.get("approval_email_sweep") != hour_key:
                 _last_ran["approval_email_sweep"] = hour_key
                 await _run_job("approval_email_sweep")
+            if now.minute >= 25 and _last_ran.get("sales_autopilot") != hour_key:
+                _last_ran["sales_autopilot"] = hour_key
+                await _run_job("sales_autopilot")
             # Native social queue drain — hourly :10 (INERT unless SOCIAL_ENGINE=1).
             if now.minute >= 10 and _last_ran.get("social_drain") != hour_key:
                 _last_ran["social_drain"] = hour_key

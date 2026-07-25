@@ -50,7 +50,8 @@ EXPECTED_GAP_MIN = {
     "hot_queue_brief": 30 * 60,  # daily 08:15 IST, health-gated revenue brief
     "digest": 30 * 60,
     "prospect": 30 * 60,
-    "email_outreach": 24 * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace (90h was a dead-man blind spot)
+    "email_outreach": 24
+    * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace (90h was a dead-man blind spot)
     "pipeline": 30 * 60,
     "email_followup": 24 * 60,  # hourly 9am-7pm; overnight ~14h gap → 24h grace
     "kb_refresh": 8 * 24 * 60,  # weekly Sun
@@ -60,13 +61,16 @@ EXPECTED_GAP_MIN = {
     "saturday_hygiene": 8 * 24 * 60,
     "meter_watch": 180,  # hourly :55 (gated METER_ALERTS), 3h grace
     "process_autostart": 30 * 60,  # daily ~11:30 IST (gated PROCESS_AUTOSTART)
-    "obsidian_push": 30 * 60,  # daily ~02:15 IST: second-brain compact + git push (_run_job heartbeats daily; job body no-ops unless OBSIDIAN_SYNC=1)
+    "obsidian_push": 30
+    * 60,  # daily ~02:15 IST: second-brain compact + git push (_run_job heartbeats daily; job body no-ops unless OBSIDIAN_SYNC=1)
     "revenue_snapshot": 30 * 60,  # daily ~00:15 IST: B1 MRR/churn snapshot (gated REVENUE_TRENDS)
     "flow_cron": 30,  # every 5 min: Flow Runner cron scan (self-gates; beat always heartbeats)
     "afternoon_content": 30 * 60,  # daily 15:00 IST: 2nd content-gen pass (gated AFTERNOON_CONTENT)
-    "evening_prospect": 30 * 60,  # daily 17:00 IST: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
+    "evening_prospect": 30
+    * 60,  # daily 17:00 IST: 3rd free lead-harvest pass (gated EVENING_PROSPECT)
     "self_improve": 30,  # ~20-min tick; 30-min grace — watchdog now flags stale loop (dead-man trio complete)
-    "platform_dial": 30 * 60,  # daily 11:30 IST: self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
+    "platform_dial": 30
+    * 60,  # daily 11:30 IST: self-sale AI cold-call batch (gated PLATFORM_DIAL_DAILY)
     "call_kpi_digest": 30 * 60,  # daily 19:30 IST: Lekha call-KPI digest
     "product_one_health": 180,  # hourly :20 (2026-07-08): Product 1 Customer Health/Approval Reminder/SLA Recovery sweep, 3h grace like meter_watch
     "approval_email_sweep": 180,  # hourly pending-approval EMAIL (gated APPROVAL_EMAIL_NOTIFY); was scheduled but missing from dead-man
@@ -300,6 +304,31 @@ def health() -> dict[str, Any]:
             last = datetime.fromisoformat(str(b.get("at")))
             if last.tzinfo is None:
                 last = last.replace(tzinfo=timezone.utc)
+            # A worker boot inside a heavy-job restart-protection window
+            # intentionally skips and defers the job. Keep that event visible
+            # as scheduled_off for the current IST day instead of surfacing the
+            # previous day's heartbeat as overdue. The marker expires next day.
+            if str(b.get("note") or "") == "boot_grace":
+                try:
+                    from zoneinfo import ZoneInfo
+
+                    ist = ZoneInfo("Asia/Kolkata")
+                    marker_day = last.astimezone(ist).date()
+                    today = _now().astimezone(ist).date()
+                    if marker_day == today and _job_due_today(job):
+                        jobs.append(
+                            {
+                                "job": job,
+                                "last_run": b.get("at"),
+                                "last_ok": b.get("ok"),
+                                "duration_s": b.get("s"),
+                                "status": "scheduled_off",
+                                "note": "boot_grace",
+                            }
+                        )
+                        continue
+                except Exception:
+                    pass
             is_over = _now() - last > timedelta(minutes=gap_min)
             status = "overdue" if is_over else ("ok" if b.get("ok") else "last_failed")
             if is_over:
@@ -311,6 +340,7 @@ def health() -> dict[str, Any]:
                     "last_ok": b.get("ok"),
                     "duration_s": b.get("s"),
                     "status": status,
+                    "note": b.get("note") or "",
                 }
             )
         except Exception:
@@ -341,6 +371,7 @@ def health() -> dict[str, Any]:
     _obs_detail = "OBSIDIAN_SYNC not enabled"
     try:
         from pathlib import Path
+
         if os.getenv("OBSIDIAN_SYNC", "0") in ("1", "true"):
             _vault = Path("data/obsidian_staging")
             if _vault.exists():
@@ -351,15 +382,9 @@ def health() -> dict[str, Any]:
                 _obs_detail = "staging dir missing"
     except Exception as e:
         _obs_detail = str(e)[:100]
-    unhealthy = bool(
-        overdue or backlogged or dead_present or retryable_failed_present
-    )
+    unhealthy = bool(overdue or backlogged or dead_present or retryable_failed_present)
     return {
-        "status": (
-            "degraded"
-            if unhealthy
-            else ("warming_up" if never_ran else "healthy")
-        ),
+        "status": ("degraded" if unhealthy else ("warming_up" if never_ran else "healthy")),
         # Explicit boolean truth for consumers — pehle sirf `status` string tha, jisse
         # `h.get("ok")` KABHI None deta tha (team_pulse._kavya `h.get("ok", True)` = hamesha
         # "OK" bolta tha even jab jobs overdue/queue-backlogged the → false-healthy). Ab

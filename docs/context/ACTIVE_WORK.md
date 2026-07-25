@@ -2,37 +2,24 @@
 
 ---
 
-## WS-1 Delivery assurance operator surface — CLOSED (PARTIAL proof)
+## WS-1 Video Review Stage 3 — DEPLOYED, AUTH CANARY PENDING
 - **ID:** WS-1
-- **Business outcome:** Admin can see missed/at-risk paid customers
-- **Owner:** Delivery Ops / nikhil attribution
-- **Branch:** merged via PR #59 → `d625e48` on main; live under `d32a4934`
-- **Current state:** MERGED + DEPLOYED. Authenticated browser KPI click NOT proven → treat proof as PARTIAL; API/scan PRODUCTION-PROVEN.
-- **Next exact action:** none for WS-1 impl — optional admin UI smoke
-- **Next exact command:** (optional) open Delivery Command Center with admin token; confirm At Risk reflects assurance
+- **Release:** PR #97, merge/deploy SHA `510ed7bc1c7834892f81b9db092d1febb50dad48`, workflow run `30002538121` successful (still in production ancestry; current prod tip `7cab5f60`).
+- **Status:** Exact-SHA five-container production parity was proven at Stage 3 ship. Customer cohort / WhatsApp review / publish / daily video scheduler remain OFF.
+- **Safety:** No customer decision, external send, call, billing mutation, or queue mutation in triage.
+- **Next exact action:** Owner signs in; owner-managed config enables only `VIDEO_CUSTOMER_REVIEW_ENABLED=1` plus `VIDEO_CUSTOMER_REVIEW_CLIENTS=jiya-makeover`; then one authenticated read-only Jiya Preview canary.
 
 ---
 
-## WS-2 Jiya delivery assurance proof and operator recovery flow
+## WS-2 GTM Hot Queue /app/inbox — IN PROGRESS
 - **ID:** WS-2
-- **Business outcome:** Paying customer Jiya reaches honest `proof` / recoverable delivery gaps without fake completion
-- **Exact observed gap:** Delivery ~90%; `proof` HONEST-blocked (Meta customer-page Advanced Access and/or pending approvals). Assurance shows at_risk for paid client without mutating records.
-- **Owner:** Human operator + content/approval path (Zara gated)
-- **Branch or worktree:** TBD when started (new branch from main)
-- **Allowed files:** content approval, social publish handoff, delivery ledger read paths, admin recovery actions already exposed — only when workstream activated
-- **Protected files:** ALL Swara/voice/telephony/STT/TTS/VAD/SIP/WebSocket/call/recording
-- **Acceptance criteria:**
-  - Read-only baseline of Jiya deliverables + assurance item documented
-  - Chosen recovery path (customer approve drafts OR Meta connect OR admin manual-publish proof) executed with ledger evidence
-  - `proof` done OR explicit EXTERNAL blocker residual with evidence
-  - No cross-tenant leakage; no fabricated publish
-- **Safe test-data strategy:** Prefer real Jiya drafts already in queue; no synthetic paid customers; no ledger forge
-- **Dependencies:** Meta Advanced Access for customer pages OR customer approval of `approval_pending`
-- **Current state:** DEFINED ONLY — do not implement until WS-1 closed session ends and no open prod fire
-- **Next exact action:** Inventory Jiya `approval_pending` + channel connect status (read-only)
-- **Next exact command:** `curl.exe -sS https://leadsgenai.in/health` then admin portal approvals for `jiya-makeover` (human)
+- **Status:** Acquire second paid Marketing customer from lead-magnet inquiries with human-controlled outreach.
+- **Next exact action:** Continue `/app/inbox` Hot Queue follow-up; platform_dial and WhatsApp auto-send stay OFF.
 
 ---
 
-## WS-3 (empty)
-Parked LOCAL-ONLY in stash: automation_health ntfy, coordinator rate-cap test, AGENT_24_7 docs.
+## WS-3 OpenClaw Admin Dashboard — LIVE Stage A (GREEN only)
+- **ID:** WS-3
+- **Release:** PR #105 merge `7cab5f609846e2c584edb8322dc684378a15e995` deployed to prod `7cab5f60` via `deploy_vps.sh`.
+- **Status:** Admin `#openclawAdminCard` LIVE. Authenticated GREEN canaries SUCCEEDED; AMBER Stage A REJECTED; RED `calling.enable` REJECTED; calling HARD OFF. Gateway token still EMPTY.
+- **Next exact action:** Separately reviewed Stage B design for production AMBER approvals — do not enable yet. Optional follow-up: NL phrase `enable calling` → RED (word-order gap).

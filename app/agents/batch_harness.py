@@ -99,6 +99,11 @@ async def run_batch(
     concurrency: int = 4,
     ckpt_id: str | None = None,
     label: str = "",
+    agent_id: str = "",
+    tenant_id: str = "",
+    tool_name: str = "",
+    tool_version: str = "",
+    _enforce_gate: Any = None,
 ) -> dict[str, Any]:
     """`fn` (async def fn(item)->dict) ko `items` pe bounded-parallel chalao.
 
@@ -127,25 +132,134 @@ async def run_batch(
     failed = 0
     skipped = 0
 
+    # Enforcement mode resolution (INERT default). ENFORCE only under explicit
+    # per-agent/per-loop/per-tool allowlists (AGENT_HARNESS_ENFORCE_* ); in every
+    # other configuration this stays False and the legacy `fn` path is authoritative.
+    _enforce = False
+    _egate = None
+    _ectx = None
+    enforce_batch_item = None  # bound below only in ENFORCE mode
+    try:
+        from app.agents.harness.contracts import SYSTEM_TENANT as _SYS_TENANT
+        from app.agents.harness.contracts import RunContext as _RunContext
+        from app.agents.harness.enforce import EnforcementGate as _EnforcementGate
+        from app.agents.harness.enforce import HarnessMode as _HarnessMode
+        from app.agents.harness.enforce import enforce_batch_item as _enforce_item
+        from app.agents.harness.enforce import resolve_mode as _resolve_mode
+
+        _mode, _ = _resolve_mode(agent_id=agent_id, source_loop="batch_harness")
+        if _mode is _HarnessMode.ENFORCE:
+            _enforce = True
+            enforce_batch_item = _enforce_item
+            _egate = _enforce_gate or _EnforcementGate()
+            _ectx = _RunContext(
+                run_id=ckpt_id,
+                task_id=ckpt_id,
+                tenant_id=(tenant_id or _SYS_TENANT),
+                agent=(agent_id or "").strip().lower(),
+                actor_id="batch_runner",
+                source_loop="batch_harness",
+            )
+    except Exception as _e:  # any resolver/import failure => safe legacy path
+        _enforce = False
+        logger.debug(f"batch_harness enforce-mode resolution skipped: {_e}")
+
+    def _obs_batch(index, item, *, resumed, ok, summary, err, res, latency):
+        """Record-only harness shadow of one batch item (INERT unless AGENT_HARNESS
+        + AGENT_HARNESS_SHADOW on, agent_id in canary agents, batch_harness in
+        canary loops). NEVER re-runs fn; observes AFTER the semaphore releases;
+        never raises into the batch."""
+        try:
+            from app.agents.harness.adapters import observe_batch_item
+
+            _op = getattr(fn, "__name__", "") or ""
+            observe_batch_item(
+                batch_run_id=ckpt_id,
+                batch_name=(label or ckpt_id),
+                item_id=_item_key(item),
+                item_index=index,
+                attempt=0,
+                agent_id=agent_id,
+                tenant_id=tenant_id,
+                operation_name=_op,
+                operation_arguments=(item if isinstance(item, dict) else {"item": _item_key(item)}),
+                actual_executor=(_op or "batch.fn"),
+                actual_result=(res if err is None else None),
+                actual_error=err,
+                latency_ms=round(latency, 1),
+                checkpoint_state=(
+                    "resume_skipped" if resumed else ("completed" if ok else "failed")
+                ),
+                resumed=resumed,
+                tool_name=(tool_name or None),
+                tool_version=(tool_version or None),
+            )
+        except Exception:
+            pass
+
     async def _run_one(index: int, item: Any) -> None:
         nonlocal done, failed, skipped
         if index in already:
             skipped += 1
+            _obs_batch(
+                index, item, resumed=True, ok=None, summary="", err=None, res=None, latency=0.0
+            )
             return
+        import time as _time
+
+        _t0 = _time.monotonic()
+        ok = True
+        summary = ""
+        _err = None
+        res = None
         async with sem:
-            ok = True
-            summary = ""
-            try:
-                res = await fn(item)
-                if isinstance(res, dict):
-                    ok = bool(res.get("ok", True))
-                    summary = str(res.get("summary") or res.get("result") or "")[:_SUMMARY_CAP]
-                else:
-                    summary = str(res)[:_SUMMARY_CAP]
-            except Exception as e:  # per-item never-raise (one failure != batch death)
-                ok = False
-                summary = f"error: {str(e)[:200]}"
-                logger.debug(f"batch_harness item {index} ({label}) failed: {e}")
+            if _enforce:
+                # ENFORCE mode: the caller-supplied `fn` is NOT authoritative and is
+                # NEVER called. Only the registry-bound executor for the canonical
+                # tool may run, and only if every gate passes. Denied/failed items
+                # execute the bound executor zero times.
+                try:
+                    _eres = await enforce_batch_item(
+                        ctx=_ectx,
+                        batch_run_id=ckpt_id,
+                        item_id=_item_key(item),
+                        item_index=index,
+                        attempt=0,
+                        tool_name=tool_name,
+                        tool_version=tool_version,
+                        item=item,
+                        gate=_egate,
+                    )
+                    res = _eres.get("result")
+                    if _eres.get("ok"):
+                        ok = True
+                        summary = str((res or {}).get("summary") or (res or {}).get("value") or "")[
+                            :_SUMMARY_CAP
+                        ]
+                    else:
+                        ok = False
+                        _err = (
+                            _eres.get("error") or ("denied:" + ",".join(_eres.get("reasons") or []))
+                        )[:200]
+                        summary = f"error: {_err}"
+                except Exception as e:  # gate must never crash the batch
+                    ok = False
+                    _err = f"enforce_gate_error: {str(e)[:180]}"
+                    summary = f"error: {_err}"
+                    logger.debug(f"batch_harness enforce item {index} ({label}) failed: {e}")
+            else:
+                try:
+                    res = await fn(item)
+                    if isinstance(res, dict):
+                        ok = bool(res.get("ok", True))
+                        summary = str(res.get("summary") or res.get("result") or "")[:_SUMMARY_CAP]
+                    else:
+                        summary = str(res)[:_SUMMARY_CAP]
+                except Exception as e:  # per-item never-raise (one failure != batch death)
+                    ok = False
+                    _err = str(e)[:200]
+                    summary = f"error: {_err}"
+                    logger.debug(f"batch_harness item {index} ({label}) failed: {e}")
             if ok:
                 done += 1
             else:
@@ -159,6 +273,20 @@ async def run_batch(
                     "result_summary": summary,
                     "at": _now_iso(),
                 },
+            )
+        # Observe AFTER releasing the semaphore (record-only; never re-runs fn).
+        # SHADOW observation only — ENFORCE mode emits its own enforcement_* audit
+        # events inside enforce_batch_item and must not also shadow-observe.
+        if not _enforce:
+            _obs_batch(
+                index,
+                item,
+                resumed=False,
+                ok=ok,
+                summary=summary,
+                err=_err,
+                res=res,
+                latency=(_time.monotonic() - _t0) * 1000.0,
             )
 
     try:

@@ -455,6 +455,24 @@ async def selfhost_webhook(request: Request) -> dict[str, Any]:
             except Exception as _e:
                 logger.debug("wa selfhost onboarding-interview check err: %s", _e)
             if not handled:
+                # Video Production Cell — customer review replies (flag-gated).
+                try:
+                    from app.marketing.video_production import review_whatsapp
+
+                    vr = review_whatsapp.ingest_inbound(frm, text, mid)
+                    if vr.get("handled"):
+                        handled = True
+                        res["video_review"] = vr.get("intent")
+                        if vr.get("intent") == "ambiguous" and vr.get("clarification"):
+                            try:
+                                from app.integrations.whatsapp_selfhost import SelfHostWhatsApp
+
+                                SelfHostWhatsApp().send_text_message(frm, vr["clarification"])
+                            except Exception:
+                                pass
+                except Exception as _e:
+                    logger.debug("wa selfhost video-review err: %s", _e)
+            if not handled:
                 try:
                     from app.platform import reply_agent
 

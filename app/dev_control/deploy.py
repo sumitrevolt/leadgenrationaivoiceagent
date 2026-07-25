@@ -20,6 +20,7 @@ from datetime import datetime
 from typing import Any
 
 from app.dev_control.service import TaskState, _TRANSITIONS
+from app.dev_control.governor_reviews import review_gate_status
 
 
 def _flag(name: str) -> bool:
@@ -67,6 +68,13 @@ async def promote_to_staging(db, task_id: str, *, tests_passed: bool, test_evide
     task = await db.get(DevTask, task_id)
     if task is None:
         return {"ok": False, "reason": "task_not_found"}
+    review_gate = review_gate_status(task.worker_report)
+    if not review_gate["approved"]:
+        return {
+            "ok": False,
+            "reason": "dual_governor_review_required",
+            "review_gate": review_gate,
+        }
     if not _can(task.state, TaskState.TESTS_RUNNING):
         return {"ok": False, "reason": "illegal_state", "state": task.state}
     task.state = TaskState.TESTS_RUNNING.value
@@ -79,7 +87,7 @@ async def promote_to_staging(db, task_id: str, *, tests_passed: bool, test_evide
         outcome = "tests_failed"
     task.updated_at = datetime.utcnow()
     await db.commit()
-    return {"ok": True, "state": task.state, "outcome": outcome}
+    return {"ok": True, "state": task.state, "outcome": outcome, "review_gate": review_gate}
 
 
 async def request_production_approval(db, task_id: str, *, requested_by: str, staging_evidence: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -88,6 +96,13 @@ async def request_production_approval(db, task_id: str, *, requested_by: str, st
     task = await db.get(DevTask, task_id)
     if task is None:
         return {"ok": False, "reason": "task_not_found"}
+    review_gate = review_gate_status(task.worker_report)
+    if not review_gate["approved"]:
+        return {
+            "ok": False,
+            "reason": "dual_governor_review_required",
+            "review_gate": review_gate,
+        }
     if not _can(task.state, TaskState.PRODUCTION_APPROVAL_REQUIRED):
         return {"ok": False, "reason": "illegal_state", "state": task.state}
     task.state = TaskState.PRODUCTION_APPROVAL_REQUIRED.value
