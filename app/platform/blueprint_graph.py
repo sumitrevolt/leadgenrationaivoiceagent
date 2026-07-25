@@ -184,6 +184,40 @@ _TYPE_ROLE = {
 
 # Required node fields (validated present). Optional fields default to
 # None/empty/UNKNOWN — NEVER invented.
+# --- depth projections (progressive disclosure over ONE registry) ---------
+# L0 = curated owner-facing overview (loads by default, must stay readable)
+# L1 = domain / flow internals (trigger -> ... -> outcome / recovery)
+# L2 = full implementation detail (modules, queues, jobs, integrations)
+DEPTH_LEVELS = (0, 1, 2)
+
+# --- Agent Harness Engineering control surface ----------------------------
+# Each field names a REAL control and is expected to cite its implementation
+# (module/flag/queue). A control left as None means "not represented yet" —
+# it must NEVER be read as "control exists". Honest-Unknown beats a green tick.
+HARNESS_CONTROL_FIELDS = (
+    "trigger_contract",  # how the agent/automation is invoked
+    "input_contract",  # structured arguments accepted
+    "output_contract",  # structured result emitted
+    "policy_gate",  # pre-dispatch policy evaluation point
+    "safety_lane",  # GREEN | AMBER | RED | None
+    "autonomy_level",  # e.g. "operator-triggered" | "scheduled" | None
+    "budget_limit",  # cost/volume cap
+    "rate_limit",  # calls per window
+    "timeout_s",  # per-attempt deadline (int seconds | None)
+    "idempotency",  # dedupe key mechanism
+    "lease",  # claim/lease mechanism for durable work
+    "dlq",  # dead-letter destination
+    "kill_switch",  # hard-stop control
+    "pause_control",  # pause / drain control
+    "heartbeat",  # liveness signal
+    "trace_id",  # correlation/audit id
+    "evaluation",  # scorecard / eval gate
+    "error_capture",  # where failures surface (Sentry/DLQ/log)
+    "recovery",  # how to recover after failure
+    "rollback",  # how to undo
+    "tests",  # test files proving the above
+)
+
 _REQUIRED_NODE_FIELDS = ("id", "title", "layer", "domain", "type", "status", "files", "desc")
 _OPTIONAL_NODE_FIELDS = (
     "role",  # semantic role (NODE_ROLES) | None
@@ -224,6 +258,20 @@ _OPTIONAL_NODE_FIELDS = (
     "production_evidence",
     "last_verified_at",
     "tags",  # list
+    # --- v4 hierarchy / progressive-disclosure fields -------------------
+    # ONE canonical registry, MULTIPLE depth projections. The curated L0
+    # overview nodes act as aggregates whose children are implementation
+    # nodes; the frontend renders L0 by default and lazily expands deeper.
+    "depth_level",  # 0 overview | 1 domain/flow detail | 2 implementation
+    "parent_domain_id",  # derived from `domain` unless overridden
+    "parent_flow_id",  # owning FLOWS id | None
+    "parent_node_id",  # aggregate this node hangs under | None
+    "group_id",  # visual/logical grouping key | None
+    "default_visibility",  # "visible" (L0) | "collapsed" (deeper)
+    "legacy_node_id",  # id in the legacy /app/explorer graph (migration map)
+    "source_provenance",  # "canonical" | "legacy-migrated" | "derived"
+    # --- v4 agent-harness control fields (evidence-linked, never a label) ---
+    *HARNESS_CONTROL_FIELDS,
 )
 
 # lifecycle derivation from the evidence label (honest, not invented)
@@ -378,6 +426,29 @@ def _n(nid, title, layer, domain, ntype, status, files, desc, **extra) -> dict[s
         "last_verified_at": extra.get("last_verified_at"),
         "tags": list(extra.get("tags", [])),
     }
+
+    # --- v4 hierarchy (backward compatible: existing nodes default to L0) ---
+    depth = int(extra.get("depth_level", 0) or 0)
+    parent_node_id = extra.get("parent_node_id")
+    node.update({
+        "depth_level": depth,
+        # a node belongs to its domain unless it explicitly hangs elsewhere
+        "parent_domain_id": extra.get("parent_domain_id", domain),
+        "parent_flow_id": extra.get("parent_flow_id"),
+        "parent_node_id": parent_node_id,
+        "group_id": extra.get("group_id") or parent_node_id or domain,
+        # only the curated overview renders eagerly; deeper detail is lazy
+        "default_visibility": extra.get(
+            "default_visibility", "visible" if depth == 0 else "collapsed"
+        ),
+        "legacy_node_id": extra.get("legacy_node_id"),
+        "source_provenance": extra.get("source_provenance", "canonical"),
+    })
+
+    # --- v4 harness controls (absent = honestly "not represented yet") ---
+    for _cf in HARNESS_CONTROL_FIELDS:
+        node[_cf] = extra.get(_cf)
+
     return node
 
 
@@ -1018,6 +1089,44 @@ FLOWS: list[dict[str, Any]] = [
 ]
 
 
+# --- v4 edge contract ------------------------------------------------------
+# An edge is a runtime relationship, not a decoration. These fields let a
+# connector carry its real contract: what flows, whether it blocks, which
+# queue it rides, and where it goes when it FAILS. All optional (Unknown =
+# None) so every existing 4-key edge literal stays valid.
+EDGE_CONTRACT_FIELDS = (
+    "label",
+    "condition",  # router/branch condition that selects this edge
+    "mode",  # "sync" | "async" | None
+    "queue",  # queue/topic the payload rides
+    "data_contract",  # payload/event shape
+    "on_success",  # node id reached on success | None
+    "on_failure",  # node id reached on failure | None
+    "on_retry",  # node id / policy for retry | None
+    "audit_event",  # audit/telemetry event emitted
+    "propagates_tenant",  # bool | None — tenant context carried across
+    "propagates_idempotency",  # bool | None — dedupe key carried across
+    "evidence",  # file/route proving this connection exists
+)
+
+
+def normalize_edge(e: dict[str, Any]) -> dict[str, Any]:
+    """Return an edge with the full v4 contract surface (missing = None).
+
+    Backward compatible: an existing ``{"source","target","kind"}`` literal
+    normalises to the same edge with honest Unknowns, so the frontend can rely
+    on a stable shape without every edge being hand-annotated.
+    """
+    out = {
+        "source": e.get("source"),
+        "target": e.get("target"),
+        "kind": e.get("kind"),
+    }
+    for f in EDGE_CONTRACT_FIELDS:
+        out[f] = e.get(f)
+    return out
+
+
 def build_graph(*, check_files: bool = False) -> dict[str, Any]:
     """Return the FULL canonical graph payload (ADMIN-only — carries repo file
     paths, flags, runtime keys, tech_refs). ``check_files`` adds a per-node
@@ -1043,9 +1152,12 @@ def build_graph(*, check_files: bool = False) -> dict[str, Any]:
             "required": list(_REQUIRED_NODE_FIELDS),
             "optional": list(_OPTIONAL_NODE_FIELDS),
         },
+        "edge_fields": list(EDGE_CONTRACT_FIELDS),
+        "harness_fields": list(HARNESS_CONTROL_FIELDS),
+        "depth_levels": list(DEPTH_LEVELS),
         "workforce": wf,
         "nodes": nodes,
-        "edges": EDGES,
+        "edges": [normalize_edge(e) for e in EDGES],
         "flows": FLOWS,
         "counts": {
             "nodes": len(NODES),
@@ -1246,6 +1358,34 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             errors.append(f"{n['id']}: bad semantic role {n['role']}")
         if n.get("lifecycle_status") not in (None, "active", "preview", "deprecated"):
             errors.append(f"{n['id']}: bad lifecycle_status {n.get('lifecycle_status')}")
+        # --- v4 hierarchy discipline -------------------------------------
+        if n.get("depth_level") not in DEPTH_LEVELS:
+            errors.append(f"{n['id']}: bad depth_level {n.get('depth_level')}")
+        if n.get("parent_domain_id") not in _DOMAIN_KEYS:
+            errors.append(f"{n['id']}: bad parent_domain_id {n.get('parent_domain_id')}")
+        if n.get("default_visibility") not in ("visible", "collapsed"):
+            errors.append(
+                f"{n['id']}: bad default_visibility {n.get('default_visibility')}"
+            )
+        if n.get("source_provenance") not in ("canonical", "legacy-migrated", "derived"):
+            errors.append(
+                f"{n['id']}: bad source_provenance {n.get('source_provenance')}"
+            )
+        if n.get("parent_node_id") == n["id"]:
+            errors.append(f"{n['id']}: parent_node_id points at itself")
+        # a deeper node must hang off SOMETHING or it can never be reached by
+        # progressive disclosure (this is the "no unreachable detail" gate)
+        if n.get("depth_level", 0) > 0 and not (
+            n.get("parent_node_id") or n.get("parent_flow_id")
+        ):
+            errors.append(
+                f"{n['id']}: depth_level {n['depth_level']} but no parent_node_id/"
+                "parent_flow_id — unreachable in progressive disclosure"
+            )
+        if n.get("safety_lane") not in (None, "GREEN", "AMBER", "RED"):
+            errors.append(f"{n['id']}: bad safety_lane {n.get('safety_lane')}")
+        if n.get("timeout_s") is not None and not isinstance(n["timeout_s"], int):
+            errors.append(f"{n['id']}: timeout_s must be int seconds | None")
         for _lf in ("guards", "approvals", "tags", "admin_links", "customer_links"):
             if not isinstance(n.get(_lf, []), list):
                 errors.append(f"{n['id']}: {_lf} must be a list")
@@ -1258,6 +1398,35 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
         # workforce-truth guard — the stale "18 AI staff" number must never return
         if "18 AI staff" in (n.get("desc", "") + " " + n.get("title", "")):
             errors.append(f"{n['id']}: stale '18 AI staff' workforce number")
+
+    # --- v4 cross-node hierarchy integrity ---------------------------------
+    _flow_id_set = {f["id"] for f in FLOWS}
+    _seen_legacy: dict[str, str] = {}
+    for n in NODES:
+        p = n.get("parent_node_id")
+        if p and p not in idset:
+            errors.append(f"{n['id']}: parent_node_id {p} is not a node")
+        pf = n.get("parent_flow_id")
+        if pf and pf not in _flow_id_set:
+            errors.append(f"{n['id']}: parent_flow_id {pf} is not a flow")
+        lg = n.get("legacy_node_id")
+        if lg:
+            if lg in _seen_legacy:
+                errors.append(
+                    f"{n['id']}: legacy_node_id {lg} already mapped to "
+                    f"{_seen_legacy[lg]} (a legacy node maps to exactly one canonical node)"
+                )
+            _seen_legacy[lg] = n["id"]
+    # parent chains must terminate (no cycles) — otherwise expand/collapse hangs
+    for n in NODES:
+        seen_chain, cur, hops = {n["id"]}, n.get("parent_node_id"), 0
+        while cur and hops < len(NODES) + 1:
+            if cur in seen_chain:
+                errors.append(f"{n['id']}: parent_node_id chain forms a cycle at {cur}")
+                break
+            seen_chain.add(cur)
+            cur = next((m.get("parent_node_id") for m in NODES if m["id"] == cur), None)
+            hops += 1
 
     # edges resolve + degree
     deg = {i: 0 for i in idset}
