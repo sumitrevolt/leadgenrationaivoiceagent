@@ -83,3 +83,16 @@ def test_stale_canary_pause_matcher():
     assert not mod._is_stale_canary(
         {"scheduled_pause": False, "reason": "clear sticky", "by": "prod-kavya-canary"}
     )
+
+
+def test_approval_allowlist_reads_data_file(tmp_path, monkeypatch):
+    from app.platform import approval_notifier as an
+
+    monkeypatch.delenv("APPROVAL_EMAIL_CLIENT_ALLOWLIST", raising=False)
+    monkeypatch.chdir(tmp_path)
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "approval_email_client_allowlist.txt").write_text(
+        "jiya-makeover\n# comment\nleadgenai-self\n", encoding="utf-8"
+    )
+    assert an.approval_client_allowlist() == {"jiya-makeover", "leadgenai-self"}

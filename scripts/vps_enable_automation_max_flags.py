@@ -149,6 +149,11 @@ def main() -> int:
         "docker exec -w /app leadgen_app python "
         "/opt/leadgen/scripts/vps_clear_stale_canary_pauses.py"
     )
+    print(
+        "NEXT: arm approval emails for paying clients without recreate — write "
+        "data/approval_email_client_allowlist.txt (one client_id per line, e.g. jiya-makeover). "
+        "Env APPROVAL_EMAIL_NOTIFY=1 alone is fail-closed with empty allowlist."
+    )
     return 0
 
 

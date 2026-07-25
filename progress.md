@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-25 (Automation-Max continue: approval allowlist + boot_grace recovery)
+Goal: Fix engines that looked ON but were inert (approval emails, morning content).
+Inspected: approval_notifier sweep (not_allowlisted=301); job_heartbeats content=boot_grace; automation_health scheduled_off hides lost defer; Anika events OK.
+Problems Found: (1) APPROVAL_EMAIL_NOTIFY=1 + empty allowlist = zero emails. (2) Same-day boot_grace marker hid content from overdue/recovery all day after recreate killed deferred countdown; 30h gap would not fire either.
+Changed: approval allowlist file sidecar; boot_grace.marker_still_active + lost_defer overdue; prod allowlist=jiya-makeover; run_due re-dispatched content; tests.
+Tests Run: pytest test_scheduler_boot_grace_health + allowlist file + workflow_gaps → 10 passed.
+Verification Evidence: content_health note=boot_grace_lost_defer overdue; run_due started content via celery; allowlist={jiya-makeover}; /health=441cf37a.
+Risks: Surgical hotfixes evaporate on recreate until PR merge+deploy. Content job long-running (LLM 404 fallbacks observed).
+Remaining: Merge PR #135; durable deploy; Estique human send.
+Next Highest Priority: PR merge.
+
+## Loop Run
 Date: 2026-07-25 (Automation-Max follow-on: cadence verify + Kavya unblock + journey gate)
 Goal: Continue fixing problems after Automation-Max Phase-1 — engines actually run, not just flags ON.
 Inspected: cadence_runs.jsonl; owner_agent_controls; staff_jobs apply_async blocks; journeys.ensure_active_defaults; ops_watchdog.

@@ -5,8 +5,8 @@
 ## WS-1 Automation-Max (MAIN GOAL) - PHASE-1 LIVE + follow-on fixes
 - **ID:** WS-1
 - **Business outcome:** Safe automation ON; humans approve high-impact/external only
-- **Evidence:** Flags LIVE; cadence starve FIXED (prod advanced=30); Kavya/Arnav stale canary pauses CLEARED (ops+watchdog unblocked); journey inquiry gate hardened
-- **Current state:** LIVE. Watchdog manual run OK after Kavya resume.
+- **Evidence:** Flags LIVE; cadence OK (Anika events); Kavya/Arnav resumed; approval allowlist=jiya-makeover (file); boot_grace lost-defer → content recovered via run_due
+- **Current state:** LIVE. Content job re-dispatched 11:31Z after morning boot_grace miss.
 - **Next exact action:** Merge PR #135 when CI green; durable deploy with APP_VERSION
 - **Out of scope:** WA auto · dial · reply-auto-send · sales-autopilot
 
