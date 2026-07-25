@@ -1,0 +1,39 @@
+---
+description: CI debugging timebox — evidence-first, no retry-to-green, protect production and required checks
+alwaysApply: false
+globs:
+  - ".github/workflows/**"
+  - "tests/conftest.py"
+  - "**/pytest.ini"
+  - "**/pyproject.toml"
+---
+
+# CI debugging timebox
+
+Use this rule for CI reds, flaky suites, segfault/exit-139, worker leaks, and auto-merge/protection work.
+
+## Hard rules
+
+1. **Evidence before code.** Reproduce or pull the failing log; record exact Python + dependency versions before any patch.
+2. **Instrument before speculation.** Prefer lifecycle/logging instrumentation over guessing the culprit from the last test name.
+3. **Full CI only as final verification.** Local repro/gates first; do not burn Actions minutes to "see if it passes."
+4. **One speculative implementation maximum** per checkpoint. If wrong, revert and choose the next *deterministic* experiment.
+5. **20-minute diagnostic checkpoint.** If the owner is not proven, stop, mark `BLOCKED`/`PARTIAL`, preserve artifacts, state the single next experiment.
+6. **No retry-to-green.** Do not re-run the same failing CI hoping for a flake pass.
+7. **No hide failures.** Do not skip, xfail, deselect, or weaken required checks to obtain green.
+8. **Isolated worktree.** Verify `git worktree list` + branch + SHA before edits; do not touch the primary dirty tree or another agent's files.
+9. **Stop background provers** before mutating the branch. Kill stale pytest/diagnostic processes first.
+10. **Upstream research** when library/runtime behavior is uncertain (official docs/issues), not folklore.
+11. **Preserve production boundaries.** No prod deploy, no calling enable, no billing/tenant/Owner OS authority changes during CI repair.
+12. **Honest status.** End every checkpoint with `COMPLETE`, `PARTIAL`, or `BLOCKED` plus one next action.
+
+## Preferred sequence
+
+`Discover (log/SHA/versions) → Contract (one hypothesis) → Instrument → One full reliable repro → Minimal fix → Local gates → Clean PR → Fresh CI N× same SHA → Merge/protect only after green.`
+
+## aiosqlite worker leak (SQLAlchemy #13039) notes
+
+- Prefer lifecycle instrumentation (create/close/OWNER_NODEID) over prefix bisection slices that hit the separate TestClient/anyio cold-start deadlock.
+- Upstream fix pattern: NullPool for file sqlite, StaticPool for `:memory:`, `await engine.dispose()` on the owning loop, drain fire-and-forget tasks before teardown.
+- Do not "fix" via `gc.disable` / `gc.freeze` / skip / xfail.
+- Document TestClient cold-start deadlock as a **separate** follow-up when isolated slices hang but full suite does not.
