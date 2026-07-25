@@ -2521,6 +2521,105 @@ def customer_video_feedback(
     return {"ok": True, "classified": classified, "approval": out}
 
 
+# ---------- Creative Automation OS (ADR-143) — customer review surface ---------- #
+class CreativeFeedbackIn(BaseModel):
+    text: str = Field("", max_length=300)
+    action: str = "changes"  # approve | changes
+    expected_revision: int = Field(..., ge=0)
+
+
+@router.get("/creative-os")
+def customer_creative_os_list(client_id: str = Depends(require_customer)):
+    """Customer-owned Creative OS items — JWT tenant only, no infra leak."""
+    try:
+        from app.marketing import clients_store
+        from app.marketing.creative_os import flags as cflags
+        from app.marketing.creative_os.service import customer_view, list_cockpit
+
+        if not cflags.os_enabled():
+            return {"ok": True, "enabled": False, "count": 0, "creatives": []}
+        mcid = clients_store.canonical_client_id(client_id)
+        out = list_cockpit(mcid, limit=50)
+        items = []
+        for row in out.get("items") or []:
+            view = customer_view(mcid, str(row.get("creative_id") or ""))
+            if view.get("ok"):
+                items.append(view)
+        return {"ok": True, "enabled": True, "count": len(items), "creatives": items}
+    except Exception as e:
+        logger.debug("customer creative-os list failed: %s", e)
+        return {"ok": False, "enabled": False, "count": 0, "creatives": []}
+
+
+@router.get("/creative-os/{creative_id}/media")
+def customer_creative_os_media(
+    creative_id: str,
+    revision: int = Query(..., ge=0),
+    client_id: str = Depends(require_customer),
+):
+    """Serve Creative OS media via authenticated path resolve — no raw path exposure."""
+    from app.marketing import clients_store
+    from app.marketing.creative_os import flags as cflags
+    from app.marketing.creative_os.service import resolve_output_path
+    from app.marketing.creative_os.store import get_record
+
+    if not cflags.os_enabled():
+        raise HTTPException(status_code=404, detail="creative not found")
+    mcid = clients_store.canonical_client_id(client_id)
+    got = get_record(mcid, creative_id)
+    if not got.get("ok"):
+        raise HTTPException(status_code=404, detail="creative not found")
+    rec = got["record"]
+    current_revision = int(rec.get("approval_revision") or 0)
+    if current_revision != revision:
+        raise HTTPException(status_code=409, detail="creative version changed; refresh")
+    resolved = resolve_output_path(mcid, creative_id)
+    if not resolved.get("ok"):
+        raise HTTPException(status_code=404, detail="creative not found")
+    return FileResponse(
+        resolved["path"],
+        media_type="video/mp4",
+        headers={"Cache-Control": "private, max-age=300, no-transform"},
+    )
+
+
+@router.post("/creative-os/{creative_id}/feedback")
+def customer_creative_os_feedback(
+    creative_id: str,
+    body: CreativeFeedbackIn,
+    client_id: str = Depends(require_customer),
+):
+    """Customer approve / request-changes — same exact-hash authority as admin."""
+    from app.marketing import clients_store
+    from app.marketing.creative_os import flags as cflags
+    from app.marketing.creative_os.service import approve_exact, request_changes
+    from app.marketing.creative_os.store import get_record
+
+    if not cflags.os_enabled():
+        raise HTTPException(status_code=403, detail="creative review disabled")
+    mcid = clients_store.canonical_client_id(client_id)
+    got = get_record(mcid, creative_id)
+    if not got.get("ok"):
+        raise HTTPException(status_code=404, detail="creative nahi mila")
+    rec = got["record"]
+    current_revision = int(rec.get("approval_revision") or 0)
+    if current_revision != body.expected_revision:
+        raise HTTPException(status_code=409, detail="creative version changed; refresh")
+    action = (body.action or "changes").strip().lower()
+    if action not in {"approve", "changes"}:
+        raise HTTPException(status_code=422, detail="invalid creative feedback action")
+    if action == "approve":
+        out = approve_exact(mcid, creative_id, actor="customer")
+        if not out.get("ok"):
+            raise HTTPException(status_code=409, detail=str(out.get("error") or "approval failed"))
+        return out
+    note = (body.text or "").strip()[:300] or "changes"
+    out = request_changes(mcid, creative_id, note=note)
+    if not out.get("ok"):
+        raise HTTPException(status_code=409, detail=str(out.get("error") or "changes failed"))
+    return out
+
+
 @router.get("/routing")
 def customer_routing_get(client_id: str = Depends(require_customer)):
     """Client ki sales team round-robin config."""

@@ -40,3 +40,31 @@ def build_creative_video_task(
     except Exception as e:
         logger.warning(f"[video_jobs] build_creative_video_task unexpected failure: {e}")
         return {"error": str(e)[:200]}
+
+
+@celery_app.task(
+    name="app.tasks.video_jobs.render_creative_os_task",
+    bind=True,
+    max_retries=1,
+    soft_time_limit=300,
+    time_limit=360,
+)
+def render_creative_os_task(
+    self,
+    *,
+    tenant_id: str,
+    creative_id: str,
+    revision: int = 0,
+) -> dict[str, Any]:
+    """Creative Automation OS worker — heavy render + QA for one creative revision.
+
+    Idempotent via Celery task_id ``creative_os:{id}:rev{N}`` set by the enqueue path.
+    Never invoked from the FastAPI web process for production traffic.
+    """
+    try:
+        from app.marketing.creative_os.service import process_generation
+
+        return process_generation(str(tenant_id), str(creative_id))
+    except Exception as e:
+        logger.warning(f"[video_jobs] render_creative_os_task failed: {e}")
+        return {"ok": False, "error": str(e)[:200]}

@@ -19,6 +19,64 @@ def test_build_shape_never_raises():
     assert isinstance(d["jobs"], list)
 
 
+# --------------------------------------------------------------------------- #
+# 2026-07-24: admin ne '841 Aaj ke kaam' ko PENDING boss-work samjha, jabki wo
+# aaj auto ho-CHUKA kaam (events_today) hai. Fix: needs_decision = asli pending
+# approvals backlog (approvals_bridge), taaki boss ko sirf sach dikhe.
+# --------------------------------------------------------------------------- #
+def test_totals_has_needs_decision_field():
+    """events_today = auto-done; needs_decision = asli boss-decision backlog."""
+    d = today_overview.build()
+    assert "needs_decision" in d["totals"]
+    assert isinstance(d["totals"]["needs_decision"], int)
+    assert d["totals"]["needs_decision"] >= 0
+
+
+def test_needs_decision_pulls_from_approvals_bridge(monkeypatch):
+    import app.platform.approvals_bridge as approvals_bridge
+
+    def _drafts(include_decided=False):
+        return {"drafts": [], "counts": {"by_source": {"sales": 3}, "pending": 3}}
+
+    monkeypatch.setattr(approvals_bridge, "list_drafts", _drafts)
+    d = today_overview.build()
+    assert d["totals"]["needs_decision"] == 3
+
+
+def test_needs_decision_fail_open_zero(monkeypatch):
+    """Bridge toote/creds na ho to 0 (fail-open) — kabhi false 'pending' alarm nahi."""
+    import app.platform.approvals_bridge as approvals_bridge
+
+    def _boom(include_decided=False):
+        raise RuntimeError("store down")
+
+    monkeypatch.setattr(approvals_bridge, "list_drafts", _boom)
+    d = today_overview.build()
+    assert d["totals"]["needs_decision"] == 0
+
+
+def test_headline_says_auto_done_not_pending(monkeypatch):
+    """Jab kaam auto ho-chuka ho aur koi approval pending na ho, headline 'KIYE'
+    (past, done) bole + 'kuch atka nahi' — NOT 'pending boss work'."""
+    import app.platform.approvals_bridge as approvals_bridge
+    import app.platform.team as team
+
+    monkeypatch.setattr(
+        approvals_bridge, "list_drafts", lambda include_decided=False: {"counts": {"pending": 0}}
+    )
+    monkeypatch.setattr(
+        team,
+        "team_status",
+        lambda: {
+            "members": [{"key": "rohan", "name": "Rohan", "state": "active", "today_actions": 841}]
+        },
+    )
+    d = today_overview.build()
+    if not d["problems"]:
+        assert "KIYE" in d["headline"]
+        assert "atka nahi" in d["headline"]
+
+
 def test_problems_are_actionable():
     """Every surfaced problem must carry an actionable 'fix' (pattern rule)."""
     for p in today_overview.build().get("problems", []):
