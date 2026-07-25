@@ -133,6 +133,19 @@ def test_apply_is_opt_in():
     assert "if not apply:" in src
 
 
+def test_backfill_reads_the_real_settings_key():
+    """app.config exposes `database_url` lowercase.
+
+    The first production dry run died on `getattr(settings, "DATABASE_URL")`
+    returning empty. Fail-closed caught it (exit 2, nothing written), but the
+    key name is pinned here so it cannot regress.
+    """
+    src = (bf.ROOT / "scripts" / "backfill_interaction_identity.py").read_text(
+        encoding="utf-8")
+    assert 'getattr(settings, "database_url", "")' in src
+    assert "+asyncpg" in src  # async driver must be stripped for the sync engine
+
+
 def test_backfill_uses_coalesce_so_it_never_overwrites():
     src = (bf.ROOT / "scripts" / "backfill_interaction_identity.py").read_text(
         encoding="utf-8")
