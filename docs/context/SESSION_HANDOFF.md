@@ -1,21 +1,24 @@
 ﻿# SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-Continue Automation-Max follow-on fixes (engines actually fire).
+Upgrade OpenClaw automation agents (observe) under Automation-Max.
 
-## Outcome this wave
-1. **Cadence** — LIVE (Anika `cadence_advanced` 30+50 leads).
-2. **Kavya/Arnav** — stale canary pauses cleared (ops/watchdog unblocked).
-3. **APPROVAL_EMAIL_NOTIFY** — was inert: empty allowlist → `not_allowlisted=301`. Armed `data/approval_email_client_allowlist.txt` = `jiya-makeover` + code reads file (no recreate).
-4. **Content morning miss** — boot_grace marker hid job all day from recovery. Fixed: after heavy window, marker → `boot_grace_lost_defer` overdue → `run_due` re-dispatched content (worker started 11:31Z).
+## Outcome
+### OpenClaw Automation-Max observe (PR #135 `a6cbf63`)
+- NEW GREEN: `automation.status`, `automation.agents`
+- `agent.status` for anika/kavya/isha/rohan/neha → `openclaw_automation` package
+- NL → automation status phrases
+- Prod surgical: modules docker-cp'd; `automation.status` SUCCEEDED (allowlist unset = all GREEN)
+- No new STAFF; mutations still AMBER → Owner OS
 
-## Repo
-PR #135 branch — boot_grace recovery + approval allowlist file + tests.
+### Prior wave (still relevant)
+Cadence/Kavya/approval allowlist/boot_grace recovery on same PR.
 
 ## Owner next
 1. Merge https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/135
-2. Deploy with `APP_VERSION=<sha>` (surgical docker-cp evaporates on recreate)
-3. GTM Estique human send; Jiya approve pending drafts in UI
+2. Durable deploy `APP_VERSION=<sha>`
+3. Owner Copilot UI / Gateway: try `automation.status`
+4. GTM Estique human send
 
 ## Out of scope
-Cold email · dial · WA auto · Swara/voice
+New personas · dial · WA auto · Swara voice edits · AMBER auto-approve
