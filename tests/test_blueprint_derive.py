@@ -75,6 +75,27 @@ def test_high_confidence_requires_evidence_and_corroboration():
             assert max(r["domain_votes"].values()) >= bd.MIN_DOMAIN_VOTES, r["legacy_id"]
 
 
+def test_structural_parent_requires_reviewed_ownership():
+    """A specific parent_node_id may not be claimed from AST votes alone.
+
+    "A uses B" is not "A belongs to B". Caught live: `s_council`
+    (app/agents/llm_council.py) scored kb_rag 4-2 only because the LLM council
+    READS the knowledge base, and would have been parented under the RAG node.
+    """
+    for r in _rows():
+        if r["confidence"] == "HIGH" and r["parent_node_id"]:
+            assert r["ownership_domain"], (
+                r["legacy_id"], "structural parent without reviewed ownership")
+
+
+def test_council_is_not_parented_under_rag():
+    """Named regression for the specific false placement that was caught."""
+    for r in _rows():
+        if r["legacy_id"] == "s_council":
+            assert r["classification"] != "IMPORTED_CANONICAL", r
+            assert r["confidence"] != "HIGH", r
+
+
 def test_critical_domains_never_auto_accept_on_ast_alone():
     for r in _rows():
         if r["confidence"] == "HIGH" and r["critical_domain"]:
