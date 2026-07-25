@@ -30,6 +30,7 @@ _ASPECT = {
     "9:16": (720, 1280),
     "1:1": (1080, 1080),
     "16:9": (1280, 720),
+    "4:5": (1080, 1350),  # social feed (IG/FB) — Creative Automation OS ADR-143
 }
 
 
@@ -466,7 +467,7 @@ async def render_creative_video(
     """1 branded creative video banao. Returns {path,...} ya {error}.
     Phase 1: only "generic" has a real implementation; other recipe names
     currently fall back to generic (Phase 2 adds real per-recipe behavior).
-    ``ratio`` ∈ {9:16, 1:1, 16:9} — default vertical reel."""
+    ``ratio`` ∈ {9:16, 1:1, 16:9, 4:5} — default vertical reel."""
     t0 = time.time()
     if ratio not in _ASPECT:
         ratio = "9:16"

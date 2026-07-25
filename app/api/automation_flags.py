@@ -100,6 +100,17 @@ AUTOMATION_FLAGS = [
     "VIDEO_HARNESS_ENFORCE",  # harness evaluate_action must allow mutating video tools
     "VIDEO_HARNESS_SHADOW_ENABLED",  # Stage 1: observe video harness decisions; no enforcement / side effects
     "VIDEO_OWN_BRAND_ENABLED",  # LeadGen AI own-brand canary lane
+    "CREATIVE_OS_ENABLED",  # ADR-143 Creative Automation OS master (default OFF)
+    "CREATIVE_PROVIDER_QWEN_IMAGE",  # Qwen-Image adapter (skeleton; default OFF)
+    "CREATIVE_PROVIDER_FLUX_SCHNELL",  # FLUX.1-schnell only (skeleton; default OFF; flux.dev rejected)
+    "CREATIVE_PROVIDER_WAN22",  # Wan2.2 TI2V GPU worker only (skeleton; default OFF)
+    "CREATIVE_PROVIDER_COMFYUI",  # ComfyUI lab adapter (skeleton; default OFF)
+    "CREATIVE_GPU_LAB_ENABLED",  # GPU lab preflight gate (default OFF)
+    "CREATIVE_COMFYUI_ENABLED",  # isolated ComfyUI lab (default OFF)
+    "CREATIVE_LEARNING_ENABLED",  # performance recommendations only — never auto-mutate/spend (OFF)
+    "CREATIVE_MAX_REVISIONS",  # revision cap (default 3)
+    "CREATIVE_TENANT_DAILY_BUDGET",  # per-tenant generation cap/day (default 20)
+    "CREATIVE_WORKER_TIMEOUT_S",  # generation timeout seconds (default 300)
     "CONTENT_TIME_BUDGET_S",  # content mega-job wall-clock budget (default 420; SoftTimeLimit margin)
     "ONBOARD_TIME_BUDGET_S",  # onboard sweep wall-clock budget (default 300)
     "PROSPECT_TIME_BUDGET_S",  # prospect harvest wall-clock budget (default 300)

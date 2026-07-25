@@ -94,7 +94,14 @@ def _route_video_task(name, args, kwargs, options, task=None, **kw):
     (not the static dict) so it's flag-gated with a safe unset->default-queue
     fallback, matching this project's INERT-default feature convention."""
     try:
-        if name == "app.tasks.video_jobs.build_creative_video_task" and _video_queue_enabled():
+        if (
+            name
+            in (
+                "app.tasks.video_jobs.build_creative_video_task",
+                "app.tasks.video_jobs.render_creative_os_task",
+            )
+            and _video_queue_enabled()
+        ):
             return {"queue": "video"}
     except Exception as _e:
         logger.debug("_route_video_task routing failed, using default queue: %s", _e)
