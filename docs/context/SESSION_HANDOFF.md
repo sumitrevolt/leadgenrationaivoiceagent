@@ -1,24 +1,36 @@
-﻿# SESSION_HANDOFF - overwrite every session end
+# SESSION_HANDOFF - 2026-07-25
 
-## Session objective
-Upgrade OpenClaw automation agents (observe) under Automation-Max.
+## Active
+- **PR #141** still OPEN (`feat/bounce-complaint-outcomes`) - not merged, not on prod.
+- Prod `/health` was **`f096a08d`** (classifier not live yet).
+- **Part B dry-run DONE** on prod DB (`apply=false` only). No merge / deploy / apply / flag flips / push.
 
-## Outcome
-### OpenClaw Automation-Max observe (PR #135 `a6cbf63`)
-- NEW GREEN: `automation.status`, `automation.agents`
-- `agent.status` for anika/kavya/isha/rohan/neha → `openclaw_automation` package
-- NL → automation status phrases
-- Prod surgical: modules docker-cp'd; `automation.status` SUCCEEDED (allowlist unset = all GREEN)
-- No new STAFF; mutations still AMBER → Owner OS
+## Prod DRY-RUN bounce outcome (apply=false)
+How: PR-branch classifier logic against **prod DB** (read-only dry-run). Confirmed dry-run only - **no apply**.
 
-### Prior wave (still relevant)
-Cadence/Kavya/approval allowlist/boot_grace recovery on same PR.
+| metric | count |
+|---|---|
+| candidates (`other` / email / in) | 286 |
+| to_hard_bounce | 0 |
+| to_soft_bounce | 0 |
+| to_complaint | 0 |
+| left_as_other | 286 |
 
-## Owner next
-1. Merge https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/135
-2. Durable deploy `APP_VERSION=<sha>`
-3. Owner Copilot UI / Gateway: try `automation.status`
-4. GTM Estique human send
+Rates vs 2543: all **0.000%**.
 
-## Out of scope
-New personas · dial · WA auto · Swara voice edits · AMBER auto-approve
+### Interpretation
+- **NOT** domain-clean proof - stored history me structural NDR/FBL signals missing (mailer-daemon / DSN / feedback-type).
+- Fail-closed classifier correctly unhe `other` pe chhod deta hai.
+- Soft lex: **25/286** me word "spam" hai, lekin classifier correctly usko alone use nahi karta.
+
+### Recommendation
+- In zeros pe domain mat rokna.
+- Blindly enrichment/outreach enable mat karna.
+- Pehle **merge #141** for forward ingest.
+- `AUTO_EMAIL_OUTREACH` / `EMAIL_ENRICH_SWEEP` **OFF** rakho.
+
+## Next owner action
+Decide merge of PR #141 (forward fix). Optional: raw IMAP/provider log probe agar true historical bounce rate chahiye. `--apply` backfill mat karo jab tak owner na kahe (abhi bhi 0 rows update honge).
+
+## PR comment
+Posted: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/141#issuecomment-5079069396
