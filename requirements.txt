@@ -7,7 +7,7 @@
 fastapi==0.139.2
 uvicorn[standard]==0.51.0
 pydantic==2.13.4
-pydantic-core==2.47.0
+pydantic-core==2.46.4
 pydantic-settings==2.14.2
 email-validator==2.3.0
 python-multipart==0.0.32
