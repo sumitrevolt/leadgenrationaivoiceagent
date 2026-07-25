@@ -1,4 +1,4 @@
-﻿"""Run one proposal through a tool-less trusted governor and submit its verdict.
+"""Run one proposal through a tool-less trusted governor and submit its verdict.
 
 The proposal is untrusted text. The model process receives no repository path,
 tools, LeadGen secrets, or governor signing secret. The parent process validates
