@@ -55,6 +55,42 @@ SCOPE_ALL_OUTREACH = "all_outreach"
 
 _VALID_SCOPES = frozenset({SCOPE_EMAIL_ADDRESS, SCOPE_CHANNEL_CONTACT, SCOPE_ALL_OUTREACH})
 
+# --- suppression write outcomes ---------------------------------------------
+#: Ledger written AND durable cancellation applied.
+RESULT_COMPLETE = "COMPLETE"
+#: An idempotent replay — the event was already recorded.
+RESULT_ALREADY_APPLIED = "ALREADY_APPLIED"
+#: Ledger written, but the durable prospect/follow-up transition did NOT land.
+#: Sending is already blocked (eligibility + pre-provider both read the ledger);
+#: only the cancellation metadata needs repair. Reporting this as success would
+#: hide a real inconsistency, so it is a distinct outcome.
+RESULT_NEEDS_RECONCILIATION = "SUPPRESSED_NEEDS_RECONCILIATION"
+#: Nothing was written. Callers must treat this as "still sendable".
+RESULT_FAILED = "FAILED"
+
+
+def build_event_id(
+    *,
+    source: str,
+    event_type: str,
+    raw_id: str,
+    tenant: str = "",
+) -> str:
+    """Namespace an idempotency key so it cannot collide across contexts.
+
+    A bare provider/message id is NOT globally unique: two providers can emit the
+    same id, the same inbound message can produce both a bounce and a complaint
+    event, and the same raw id can legitimately recur in different tenants.
+    Deduplicating on the bare value would silently drop a real second event.
+    """
+    parts = [
+        str(tenant or "_global"),
+        str(source or "_unknown"),
+        str(event_type or "_unknown"),
+        str(raw_id or ""),
+    ]
+    return "|".join(p.replace("|", "_") for p in parts)
+
 
 def normalize_email(value: object) -> str:
     """Lowercase + strip. The send path used to `.strip()` only while the
@@ -99,6 +135,66 @@ def _store_lock():
         import contextlib
 
         return contextlib.nullcontext()
+
+
+#: Carries the outcome of the most recent suppress() on this thread. `suppress()`
+#: keeps its historical bool contract (many existing callers), while
+#: `suppress_with_result()` exposes the explicit outcome the compliance flow needs.
+_last_result: dict[str, str] = {"value": RESULT_FAILED}
+
+
+def suppress_with_result(*args: object, **kwargs: object) -> str:
+    """`suppress()` but returning the explicit outcome.
+
+    One of RESULT_COMPLETE / RESULT_ALREADY_APPLIED /
+    RESULT_NEEDS_RECONCILIATION / RESULT_FAILED.
+    """
+    ok = suppress(*args, **kwargs)  # type: ignore[arg-type]
+    if not ok:
+        return RESULT_FAILED
+    return _last_result.get("value") or RESULT_COMPLETE
+
+
+def reconcile_suppressions(limit: int = 500) -> dict[str, int]:
+    """Repair contacts whose ledger row landed but whose cancellation did not.
+
+    Bounded, idempotent, and READ-ONLY with respect to outreach — it never sends.
+    Safe to call immediately after a partial failure, from a scheduled job, or
+    from an admin repair command.
+
+    A broader existing suppression is never downgraded: only ALL_OUTREACH rows
+    drive the terminal status, and `mark_status` to an already-terminal value is
+    a no-op.
+    """
+    out = {"scanned": 0, "repaired": 0, "already_ok": 0, "failed": 0}
+    try:
+        from app.platform.sales_autopilot import store as _sa_store
+
+        rows = [r for r in _iter_suppression_rows() if _row_scope(r) == SCOPE_ALL_OUTREACH]
+        seen: set[str] = set()
+        for row in rows[: max(1, int(limit))]:
+            pid = str(row.get("prospect_id") or "")
+            if not pid or pid in seen:
+                continue
+            seen.add(pid)
+            out["scanned"] += 1
+            rec = _sa_store.get_prospect(pid)
+            if rec is None:
+                continue
+            if rec.get("status") == _sa_store.STATUS_OPTED_OUT:
+                out["already_ok"] += 1
+                continue
+            if _cancel_pending_outreach(
+                scope=SCOPE_ALL_OUTREACH,
+                prospect_id=pid,
+                reason=str(row.get("reason") or "reconciled"),
+            ):
+                out["repaired"] += 1
+            else:
+                out["failed"] += 1
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("[email_unsub] reconciliation failed: %s", e)
+    return out
 
 
 def _event_seen(event_id: str) -> bool:
@@ -269,6 +365,7 @@ def suppress(
     ``event_id`` makes provider webhook retries and reply reprocessing idempotent.
     Legacy rows carry no ``scope`` and are read as ``SCOPE_EMAIL_ADDRESS``.
     """
+    _last_result["value"] = RESULT_FAILED
     e = normalize_email(email)
     p = normalize_phone(phone)
     scope = (scope or SCOPE_EMAIL_ADDRESS).strip().lower()
@@ -281,6 +378,7 @@ def suppress(
         return False
     if event_id and _event_seen(str(event_id)):
         logger.debug("[email_unsub] duplicate event_id %s ignored", event_id)
+        _last_result["value"] = RESULT_ALREADY_APPLIED
         return True
     try:
         rec = {
@@ -306,10 +404,15 @@ def suppress(
             _mask_phone(p),
             reason,
         )
-        # Durable cancellation of pending work, as part of the SAME canonical
-        # operation — so no caller can suppress without also stopping the
-        # schedulers, and the business rule lives in exactly one place.
-        _cancel_pending_outreach(scope=scope, prospect_id=str(prospect_id or ""), reason=reason)
+        # SAFETY ORDER: the ledger write above is the load-bearing one — once it
+        # lands, eligibility and the pre-provider recheck both block the send.
+        # Cancellation metadata is a second, separate write; if it fails the
+        # contact is still protected, but the state is inconsistent and must be
+        # reported as such rather than as plain success.
+        _cancelled = _cancel_pending_outreach(
+            scope=scope, prospect_id=str(prospect_id or ""), reason=reason
+        )
+        _last_result["value"] = RESULT_COMPLETE if _cancelled else RESULT_NEEDS_RECONCILIATION
         # Deliverability gate: one-click opt-out = strongest recipient negative signal
         # → feed spam-complaint-rate tracker (auto-pauses outreach at 0.25% over 7d).
         try:
@@ -324,7 +427,7 @@ def suppress(
         return False
 
 
-def _cancel_pending_outreach(*, scope: str, prospect_id: str, reason: str) -> None:
+def _cancel_pending_outreach(*, scope: str, prospect_id: str, reason: str) -> bool:
     """Durably stop scheduled follow-ups for a suppressed contact. Never raises.
 
     There is no pending-follow-up QUEUE to delete from: sales-autopilot follow-ups
@@ -340,7 +443,9 @@ def _cancel_pending_outreach(*, scope: str, prospect_id: str, reason: str) -> No
         because a dead mailbox is not an opt-out.
     """
     if not prospect_id:
-        return
+        # No prospect to transition. Nothing pending exists to cancel, so this
+        # is a complete outcome — not a partial one.
+        return True
     try:
         from app.platform.sales_autopilot import store as _sa_store
 
@@ -363,8 +468,15 @@ def _cancel_pending_outreach(*, scope: str, prospect_id: str, reason: str) -> No
                 suppressed_at=int(time.time()),
                 suppression_scope=scope,
             )
+        return True
     except Exception as e:  # never break the suppression write
-        logger.debug("[email_unsub] pending-outreach cancellation skipped: %s", e)
+        logger.warning(
+            "[email_unsub] cancellation FAILED for prospect=%s (%s) — suppression "
+            "still holds; state needs reconciliation",
+            prospect_id,
+            e,
+        )
+        return False
 
 
 def _row_scope(row: dict[str, object]) -> str:
