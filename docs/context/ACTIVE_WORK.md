@@ -21,8 +21,10 @@
 
 ---
 
-## WS-3 Master Blueprint harness governance - IN PR
+## WS-3 OpenClaw Automation agents (observe) - IN PR
 - **ID:** WS-3
-- **Business outcome:** Agent Harness Standard + conformance auditor in repo (Master Blueprint companion)
-- **Current state:** skill + AGENT.md + AI_WORKFORCE 11/31 sync
-- **Next exact action:** Merge this PR; optional score a loop with harness-conformance-auditor
+- **Business outcome:** Copilot sees Automation-Max agents (Anika/Kavya/Isha/Rohan/Neha) via GREEN commands
+- **Evidence:** `automation.status` + `automation.agents` + `agent.status` openclaw_automation package; tests green
+- **Current state:** Code on PR branch; prod needs module deploy + allowlist append if OPENCLAW_ALLOWED_COMMANDS is pinned
+- **Next exact action:** Merge/deploy; verify Gateway `automation.status` SUCCEEDED
+- **Out of scope:** New STAFF personas · AMBER auto-approve · voice/Swara edits · dial
