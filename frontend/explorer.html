@@ -1033,6 +1033,7 @@ const VIEWS = {
       {id:'owner_os', type:'platform', badge:'OWNER OS', cx:'moderate', sched:'live', title:'Owner OS Dispatch Gate', desc:'scheduler_dispatch_allowed + record_scheduler_skip — per-agent kill/pause board · audit events · gates team_scheduler._run_job AUR staff_jobs OwnerSchedulerGuardedTask dono paths', files:'owner_os.py', x:40, y:2200, w:280, h:100},
       {id:'owner_agent_execution', type:'platform', badge:'V1.1', cx:'moderate', sched:'live', title:'Owner Agent Execution', desc:'Per-agent scheduled-pause / stop-claims / drain / cooperative abort + running-task lease (owner_agent_controls table, ADR-120) · /app/owner Isha strip', files:'owner_agent_execution.py', x:340, y:2200, w:290, h:100},
       {id:'agent_task_queue', type:'platform', badge:'AUDIT QUEUE', cx:'moderate', sched:'every cron run', title:'Agent Task Queue', desc:'Paperclip-style AgentTask bridge · atomic claim · parent delegation/cost roll-up · scheduler run start/done/fail audit', files:'agent_task_queue.py · agent_task.py', x:660, y:2200, w:290, h:100},
+      {id:'sales_autopilot', type:'platform', badge:'SALES', cx:'moderate', sched:'hourly :25', title:'Sales Autopilot', desc:'Policy-driven autonomous sales canary tick · dry-run default · calling HARD OFF · INERT unless SALES_AUTOPILOT_ENABLED · fail-closed eligibility', files:'sales_autopilot_admin.py · team_scheduler.py · staff_jobs.py', flag:'SALES_AUTOPILOT_ENABLED', x:980, y:2200, w:290, h:100},
     ],
     edges: [
       {f:'scheduler_config', t:'beat', lbl:'gates run', style:'sync'},
@@ -1051,6 +1052,7 @@ const VIEWS = {
       {f:'worker', t:'celery_app', lbl:'monitoring', style:'async'},
       {f:'worker', t:'customer_autopilot', lbl:'daily', style:'async'},
       {f:'worker', t:'platform_dial', lbl:'hourly', style:'async'},
+      {f:'worker', t:'sales_autopilot', lbl:'hourly :25', style:'async'},
       {f:'worker', t:'voice_followup', lbl:'min:25', style:'async'},
       {f:'worker', t:'approval_notifier', lbl:'daily gated', style:'async'},
       {f:'approval_notifier', t:'content_approve', lbl:'remind', style:'sync'},
