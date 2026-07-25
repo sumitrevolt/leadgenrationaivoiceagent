@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-25 (Automation-Max follow-on: cadence verify + Kavya unblock + journey gate)
+Goal: Continue fixing problems after Automation-Max Phase-1 — engines actually run, not just flags ON.
+Inspected: cadence_runs.jsonl; owner_agent_controls; staff_jobs apply_async blocks; journeys.ensure_active_defaults; ops_watchdog.
+Problems Found: (1) Cadence starve behind done rows — already fixed; prod verified advanced=30. (2) Kavya+Arnav left on scheduled_pause by canary "clear sticky" → ops/watchdog/engineer_security blocked despite OPS_WATCHDOG=1. (3) ensure_active_defaults treated ANY enabled rule as enough (signup-only would starve inquiry).
+Changed: Prod resume Kavya+Arnav; scripts/vps_clear_stale_canary_pauses.py; journeys inquiry-specific gate; tests; context handoff.
+Tests Run: pytest tests/test_workflow_gaps.py tests/test_automation_max_flags_script.py tests/test_cadence_run_due_active_limit.py → 13 passed.
+Verification Evidence: run_due advanced=30; watchdog dispatch allowed + _run_job True; /health=441cf37a; celery/dlq=0.
+Risks: Surgical hotfixes evaporate on recreate until PR merge+deploy.
+Remaining: Merge PR #135; durable deploy; GTM Estique human send.
+Next Highest Priority: PR merge when CI green.
+
+## Loop Run
 Date: 2026-07-25 (Automation-Max safe flags LIVE + harness blueprint PR)
 Goal: User option-1 safe automation ON prod; ship Master Blueprint harness governance + pin-safe VPS scripts as PR.
 Inspected: Mission Control Band list; printenv in leadgen_app; ADR-097 :latest landmine; origin/main tip 075dea8.

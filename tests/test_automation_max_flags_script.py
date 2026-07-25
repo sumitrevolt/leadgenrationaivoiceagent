@@ -66,3 +66,20 @@ def test_automation_max_safe_keys_exclude_never():
     mod = _load_automation_max()
     overlap = set(mod.WANT_SAFE) & mod.NEVER
     assert overlap == set()
+
+
+def test_stale_canary_pause_matcher():
+    path = SCRIPTS / "vps_clear_stale_canary_pauses.py"
+    spec = importlib.util.spec_from_file_location("vps_clear_stale_canary_pauses", path)
+    assert spec and spec.loader
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    assert mod._is_stale_canary(
+        {"scheduled_pause": True, "reason": "clear sticky", "by": "prod-kavya-canary"}
+    )
+    assert not mod._is_stale_canary(
+        {"scheduled_pause": True, "reason": "owner asked", "by": "sumit"}
+    )
+    assert not mod._is_stale_canary(
+        {"scheduled_pause": False, "reason": "clear sticky", "by": "prod-kavya-canary"}
+    )

@@ -144,6 +144,11 @@ def main() -> int:
     subprocess.run(["bash", "-lc", recreate], check=True)
     print("RECREATE app + celery stack OK")
     print("Verify: /health.version must equal pin (not latest)")
+    print(
+        "NEXT: clear stale canary agent pauses if ops/watchdog still blocked — "
+        "docker exec -w /app leadgen_app python "
+        "/opt/leadgen/scripts/vps_clear_stale_canary_pauses.py"
+    )
     return 0
 
 

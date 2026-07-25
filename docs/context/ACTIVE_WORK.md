@@ -2,12 +2,12 @@
 
 ---
 
-## WS-1 Automation-Max (MAIN GOAL) - PHASE-1 LIVE
+## WS-1 Automation-Max (MAIN GOAL) - PHASE-1 LIVE + follow-on fixes
 - **ID:** WS-1
 - **Business outcome:** Safe automation ON; humans approve high-impact/external only
-- **Evidence:** VPS flags SET 2026-07-25T10:34Z; Band list cleared for OPS/CADENCE; prod `441cf37a`
-- **Current state:** LIVE. Repo ships pin-safe scripts + harness auditor (this PR).
-- **Next exact action:** Observe Anika/cadence drafts; optional `--with-email` later
+- **Evidence:** Flags LIVE; cadence starve FIXED (prod advanced=30); Kavya/Arnav stale canary pauses CLEARED (ops+watchdog unblocked); journey inquiry gate hardened
+- **Current state:** LIVE. Watchdog manual run OK after Kavya resume.
+- **Next exact action:** Merge PR #135 when CI green; durable deploy with APP_VERSION
 - **Out of scope:** WA auto · dial · reply-auto-send · sales-autopilot
 
 ---
