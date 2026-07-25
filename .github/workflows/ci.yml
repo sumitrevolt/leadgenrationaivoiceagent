@@ -135,9 +135,46 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      # Docker Hub is a THIRD-PARTY dependency of a REQUIRED check: a registry
+      # timeout here reds the PR and blocks the merge train even though nothing
+      # is wrong with the code (observed 2026-07-25 on PR #141 —
+      # `registry-1.docker.io ... Client.Timeout exceeded`, exit 125).
+      #
+      # Splitting pull from run is what makes the retry SAFE: only the network
+      # fetch is retried, and it is bounded (4 attempts, exponential backoff,
+      # per-attempt timeout). The container start below then uses `--pull=never`,
+      # so it can NEVER reach the registry — any failure there is a real Redis or
+      # application failure and fails immediately, with no retry masking it.
+      - name: Pull Redis image (bounded retry — registry/network flake ONLY)
+        run: |
+          set -uo pipefail
+          image="redis:7-alpine"
+          attempts=4
+          delay=5
+          # Arithmetic while-loop, NOT `for i in $(seq ...)`: if `seq` were ever
+          # missing the for-loop body would run ZERO times and the step would
+          # exit 0 — a retry wrapper that silently reports success is worse than
+          # no retry at all. This form cannot degrade that way.
+          i=1
+          while [ "$i" -le "$attempts" ]; do
+            if timeout 120 docker pull "$image"; then
+              echo "::notice title=Registry::Pulled $image on attempt $i/$attempts"
+              exit 0
+            fi
+            if [ "$i" -eq "$attempts" ]; then
+              echo "::error title=Registry infrastructure failure::Could not pull $image after $attempts attempts (Docker Hub unreachable). This is NOT an application or test failure."
+              exit 1
+            fi
+            echo "::warning title=Registry infrastructure flake::Pull attempt $i/$attempts failed; retrying in ${delay}s"
+            sleep "$delay"
+            delay=$(( delay * 2 ))
+            i=$(( i + 1 ))
+          done
+          echo "::error title=Registry infrastructure failure::Retry loop exhausted without a definitive result."
+          exit 1
       - name: Start real Redis (AOF everysec, noeviction, persistent volume)
         run: |
-          docker run -d --name redis-audit -p 6379:6379 \
+          docker run -d --name redis-audit -p 6379:6379 --pull=never \
             -v "${{ runner.temp }}/redis-audit-data:/data" \
             redis:7-alpine redis-server \
             --appendonly yes --appendfsync everysec --maxmemory-policy noeviction --dir /data
