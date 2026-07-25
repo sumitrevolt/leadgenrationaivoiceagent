@@ -54,13 +54,12 @@ def test_bounce_message_localparts():
     assert reply_agent._is_bounce_message(
         "postmaster@mx1.hostinger.com", _msg(), "Delivery Status Notification (Failure)"
     )
-    assert reply_agent._is_bounce_message(
-        "bounce@somesender.com", _msg(), "hello"
-    )
+    assert reply_agent._is_bounce_message("bounce@somesender.com", _msg(), "hello")
 
 
 def test_bounce_message_subject_patterns():
-    assert reply_agent._is_bounce_message(
+    # HARD RULE 2026-07-25: subject text alone must NEVER classify as bounce.
+    assert not reply_agent._is_bounce_message(
         "system@example.com", _msg(), "Mail delivery failed: returning message to sender"
     )
     assert not reply_agent._is_bounce_message(
