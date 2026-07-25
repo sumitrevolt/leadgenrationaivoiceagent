@@ -445,6 +445,10 @@ def test_admin_dashboard_openclaw_panel_present():
     assert "/api/admin/owner-os/approvals" in r.text
     assert "/api/admin/owner-os/audit" in r.text
     assert "Owner OS = sole authority" in r.text
+    # Enter (no Shift) → ocRun; Shift+Enter keeps newline in #ocText
+    assert 'id="ocText"' in r.text
+    assert 'e.key!=="Enter"' in r.text
+    assert "window.ocRun()" in r.text
     # Office chat card remains separate — OpenClaw must not replace it with office/ask.
     assert 'id="agentCopilotCard"' in r.text
     assert r.text.index("openclawAdminCard") != r.text.index("agentCopilotCard")

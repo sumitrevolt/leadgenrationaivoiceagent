@@ -284,6 +284,23 @@ def _flag_on(name: str) -> bool:
     return (os.environ.get(name, "") or "").strip().lower() in ("1", "true", "yes", "on")
 
 
+def _pending_decisions() -> int:
+    """Kitne kaam SACH me boss ki manzoori maangte hain (agentic-draft queue).
+
+    Canonical source = approvals_bridge (same count owner_home + Mission Control
+    dikhate hain). Import-safe + never-raise: creds/store na ho to 0 (fail-open,
+    kabhi false-alarm nahi). Yeh 'events_today' (jo agents AAJ kar CHUKE hain) se
+    alag hai — yeh asli 'boss decision chahiye' backlog hai."""
+    try:
+        from app.platform import approvals_bridge
+
+        d = approvals_bridge.list_drafts(include_decided=False) or {}
+        return int((d.get("counts") or {}).get("pending") or 0)
+    except Exception as e:
+        logger.debug(f"[today] pending_decisions failed: {e}")
+        return 0
+
+
 def _ago_minutes(iso: str | None) -> int | None:
     if not iso:
         return None
@@ -315,7 +332,9 @@ def build() -> dict[str, Any]:
     jobs_out: list[dict[str, Any]] = []
     staff_out: list[dict[str, Any]] = []
     flags_off: list[dict[str, str]] = []
-    totals = {"events_today": 0, "working": 0, "staff": 0}
+    # events_today = agents ne AAJ kitne kaam KIYE (done, DB event count) — NOT pending.
+    # needs_decision = asli boss-decision backlog (pending agentic approvals).
+    totals = {"events_today": 0, "working": 0, "staff": 0, "needs_decision": 0}
 
     # ---- 1) Scheduled jobs (dead-man heartbeats) -> Hinglish status ----
     try:
@@ -473,13 +492,24 @@ def build() -> dict[str, Any]:
         if _flag_on(flag):
             problems.append({"kya": info["kya"], "fix": info["fix"]})
 
+    # ---- 5) Asli boss-decision backlog (pending agentic approvals) ----
+    # events_today = auto ho-CHUKA kaam; needs_decision = boss pe atka kaam.
+    # Isse admin ka "841 pending?" wala confusion door hota hai (truth: 841 done).
+    totals["needs_decision"] = _pending_decisions()
+
     # ---- Headline ----
     if problems:
         headline = f"⚠️ {len(problems)} cheez dhyan maangti hai — neeche dekho"
     elif totals["events_today"] > 0:
+        nd = totals["needs_decision"]
+        tail = (
+            f" · {nd} kaam aapki manzoori maang raha hai"
+            if nd > 0
+            else " · kuch bhi aapki manzoori pe atka nahi (sab auto)"
+        )
         headline = (
-            f"✅ Sab theek chal raha hai — aaj team ne {totals['events_today']} kaam kiye"
-            f" ({totals['working']} agent abhi active)"
+            f"✅ Sab theek chal raha hai — aaj team ne {totals['events_today']} kaam KIYE"
+            f" ({totals['working']} agent abhi active){tail}"
         )
     else:
         headline = "🌅 Aaj abhi tak koi kaam log nahi hua (subah ke jobs ka time dekho)"
