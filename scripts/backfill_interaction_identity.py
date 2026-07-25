@@ -109,10 +109,15 @@ def main(argv: list[str]) -> int:
 
     from app.config import settings
 
-    url = getattr(settings, "DATABASE_URL", "") or ""
-    url = url.replace("postgresql+asyncpg://", "postgresql://")
+    # app.config exposes it lowercase (settings.database_url); accept either so
+    # this keeps working if the settings casing ever changes.
+    url = (getattr(settings, "database_url", "")
+           or getattr(settings, "DATABASE_URL", "")
+           or "")
+    url = url.replace("postgresql+asyncpg://", "postgresql://").replace(
+        "+asyncpg", "")
     if not url:
-        print("[backfill] FATAL: no DATABASE_URL")
+        print("[backfill] FATAL: no database_url in app.config.settings")
         return 2
 
     engine = create_engine(url)
