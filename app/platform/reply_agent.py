@@ -1073,10 +1073,16 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                             # exact destination and record an exception — we do NOT
                             # invent a broader permanent record the evidence does
                             # not support.
+                            # Known prospect -> settled cross-channel opt-out.
+                            # Unknown -> QUARANTINE: it blocks sending just as
+                            # hard, but stays visibly unresolved so an admin is
+                            # prompted to reconcile identity. Writing a permanent
+                            # record here would make an unreviewed guess look
+                            # like a verified decision.
                             _scope = (
                                 email_unsub.SCOPE_ALL_OUTREACH
                                 if _pid
-                                else email_unsub.SCOPE_EMAIL_ADDRESS
+                                else email_unsub.SCOPE_QUARANTINE
                             )
                             email_unsub.suppress(
                                 _optout_email,

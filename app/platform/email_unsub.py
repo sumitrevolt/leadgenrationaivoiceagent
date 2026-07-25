@@ -52,8 +52,25 @@ SCOPE_EMAIL_ADDRESS = "email_address"
 SCOPE_CHANNEL_CONTACT = "channel_contact"
 #: Blocks EVERY automated outreach channel for this contact. Explicit opt-out.
 SCOPE_ALL_OUTREACH = "all_outreach"
+#: An UNRESOLVED compliance quarantine — someone asked to stop, but we could not
+#: tie the request to a tenant or prospect. It blocks sending exactly like a
+#: permanent record, but it is NOT a business-policy decision: it is a
+#: conservative hold awaiting admin reconciliation. Collapsing it into
+#: `EMAIL_ADDRESS` would make an unreviewed guess indistinguishable from a
+#: verified opt-out, and nothing would ever prompt anyone to resolve it.
+SCOPE_QUARANTINE = "quarantine"
 
-_VALID_SCOPES = frozenset({SCOPE_EMAIL_ADDRESS, SCOPE_CHANNEL_CONTACT, SCOPE_ALL_OUTREACH})
+_VALID_SCOPES = frozenset(
+    {SCOPE_EMAIL_ADDRESS, SCOPE_CHANNEL_CONTACT, SCOPE_ALL_OUTREACH, SCOPE_QUARANTINE}
+)
+
+#: Scopes that represent a settled decision (as opposed to an open question).
+_PERMANENT_SCOPES = frozenset({SCOPE_EMAIL_ADDRESS, SCOPE_CHANNEL_CONTACT, SCOPE_ALL_OUTREACH})
+
+# --- eligibility states (distinguishable, not one boolean) -------------------
+STATE_NONE = "none"
+STATE_PERMANENT = "permanent"
+STATE_QUARANTINE = "quarantine"
 
 # --- suppression write outcomes ---------------------------------------------
 #: Ledger written AND durable cancellation applied.
@@ -197,6 +214,14 @@ def reconcile_suppressions(limit: int = 500) -> dict[str, int]:
     return out
 
 
+def _append_row(rec: dict[str, object]) -> None:
+    """Append one ledger row under the shared cross-process lock."""
+    _STORE.parent.mkdir(parents=True, exist_ok=True)
+    with _store_lock():
+        with open(_STORE, "a", encoding="utf-8") as f:
+            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
+
 def _event_seen(event_id: str) -> bool:
     """True if a row with this provider/reply event id already exists."""
     if not event_id:
@@ -304,6 +329,12 @@ def _iter_suppression_rows() -> list[dict[str, object]]:
                             "source": str(row.get("source") or ""),
                             "tenant": str(row.get("tenant") or ""),
                             "event_id": str(row.get("event_id") or ""),
+                            # Quarantine lifecycle. Dropping these here would make
+                            # a released hold look active forever — the same
+                            # fixed-key-set bug that silently discarded scope and
+                            # phone before.
+                            "resolution": str(row.get("resolution") or ""),
+                            "evidence": str(row.get("evidence") or ""),
                             "ts": int(row.get("ts") or 0),
                         }
                     )
@@ -484,19 +515,54 @@ def _row_scope(row: dict[str, object]) -> str:
     return str(row.get("scope") or SCOPE_EMAIL_ADDRESS).strip().lower()
 
 
+def _quarantine_resolutions() -> dict[str, str]:
+    """Latest resolution per destination, derived from the append-only ledger.
+
+    Resolution CANNOT be a per-row flag: the ledger is append-only, so the
+    original hold row is never rewritten and would keep blocking forever after a
+    release (and would keep re-resolving as "not yet resolved"). The state of a
+    quarantine is therefore the newest resolution marker for that destination.
+    """
+    out: dict[str, tuple[int, str]] = {}
+    for row in _iter_suppression_rows():
+        res = str(row.get("resolution") or "")
+        if not res:
+            continue
+        dest = normalize_email(row.get("email"))
+        ts = int(row.get("ts") or 0)
+        if dest and (dest not in out or ts >= out[dest][0]):
+            out[dest] = (ts, res)
+    return {k: v[1] for k, v in out.items()}
+
+
+def _row_is_active(row: dict[str, object], resolutions: dict[str, str] | None = None) -> bool:
+    """False once a quarantine for this destination has been RELEASED."""
+    if _row_scope(row) != SCOPE_QUARANTINE:
+        return True
+    res = (resolutions if resolutions is not None else _quarantine_resolutions()).get(
+        normalize_email(row.get("email")), ""
+    )
+    return res != "released"
+
+
 def _row_blocks_email(row: dict[str, object], email: str) -> bool:
     if normalize_email(row.get("email")) != email:
         return False
+    if not _row_is_active(row):
+        return False
     scope = _row_scope(row)
-    if scope in (SCOPE_EMAIL_ADDRESS, SCOPE_ALL_OUTREACH):
+    if scope in (SCOPE_EMAIL_ADDRESS, SCOPE_ALL_OUTREACH, SCOPE_QUARANTINE):
         return True
     return scope == SCOPE_CHANNEL_CONTACT and str(row.get("channel") or "") == "email"
 
 
 def _row_blocks_phone(row: dict[str, object], phone: str, prospect_id: str) -> bool:
+    if not _row_is_active(row):
+        return False
     scope = _row_scope(row)
-    # A dead mailbox must NEVER silence a working phone.
-    if scope == SCOPE_EMAIL_ADDRESS:
+    # A dead mailbox must NEVER silence a working phone. A quarantine is an
+    # email-destination hold for the same reason: we only know the address.
+    if scope in (SCOPE_EMAIL_ADDRESS, SCOPE_QUARANTINE):
         return False
     identity_match = (phone and normalize_phone(row.get("phone")) == phone) or (
         prospect_id and str(row.get("prospect_id") or "") == prospect_id
@@ -535,6 +601,127 @@ def is_phone_suppressed(phone: str = "", prospect_id: str = "") -> bool:
         return any(_row_blocks_phone(r, p, pid) for r in _iter_suppression_rows())
     except Exception:  # pragma: no cover
         return False
+
+
+def suppression_state(
+    *, email: str = "", phone: str = "", prospect_id: str = "", channel: str = "email"
+) -> str:
+    """Explicit eligibility state: STATE_PERMANENT / STATE_QUARANTINE / STATE_NONE.
+
+    `is_contact_suppressed()` remains a boolean for existing callers, but the
+    three conditions are NOT the same thing and must be distinguishable
+    internally: a verified opt-out is a settled decision, while a quarantine is
+    an open question that someone still has to answer.
+    """
+    try:
+        ch = (channel or "email").strip().lower()
+        e = normalize_email(email)
+        p = normalize_phone(phone)
+        pid = str(prospect_id or "")
+        matched: list[dict[str, object]] = []
+        for row in _iter_suppression_rows():
+            if ch == "whatsapp":
+                if _row_blocks_phone(row, p, pid):
+                    matched.append(row)
+            elif _row_blocks_email(row, e) or (
+                pid
+                and _row_scope(row) == SCOPE_ALL_OUTREACH
+                and str(row.get("prospect_id") or "") == pid
+                and _row_is_active(row)
+            ):
+                matched.append(row)
+        if not matched:
+            return STATE_NONE
+        # A settled decision outranks an open question — a real opt-out must not
+        # be downgraded to "quarantine" just because a stray hold also exists.
+        if any(_row_scope(r) in _PERMANENT_SCOPES for r in matched):
+            return STATE_PERMANENT
+        return STATE_QUARANTINE
+    except Exception as e:  # pragma: no cover - fail closed
+        logger.warning("[email_unsub] suppression_state failed: %s", e)
+        return STATE_PERMANENT
+
+
+def resolve_quarantine(
+    destination: str,
+    *,
+    resolution: str,
+    tenant: str = "",
+    prospect_id: str = "",
+    resolved_by: str = "admin",
+    evidence: str = "",
+) -> str:
+    """Convert an unresolved quarantine into a settled outcome. Idempotent.
+
+    ``resolution``:
+      * ``"suppress"``  — confirm it; writes the corresponding permanent record.
+      * ``"released"``  — verified false positive. REQUIRES explicit evidence,
+        because releasing a hold that a real person asked for is the one
+        irreversible mistake available here.
+    """
+    dest = normalize_email(destination)
+    if not dest:
+        return RESULT_FAILED
+    if resolution == "released" and not str(evidence or "").strip():
+        logger.warning("[email_unsub] quarantine release refused: no evidence supplied")
+        return RESULT_FAILED
+    try:
+        # Already resolved (either way) -> idempotent no-op.
+        if _quarantine_resolutions().get(dest):
+            return RESULT_ALREADY_APPLIED
+        has_open_hold = any(
+            _row_scope(r) == SCOPE_QUARANTINE and normalize_email(r.get("email")) == dest
+            for r in _iter_suppression_rows()
+        )
+        if not has_open_hold:
+            return RESULT_ALREADY_APPLIED
+        if resolution == "suppress":
+            scope = SCOPE_ALL_OUTREACH if prospect_id else SCOPE_EMAIL_ADDRESS
+            suppress(
+                dest,
+                reason="quarantine_confirmed",
+                scope=scope,
+                tenant=tenant,
+                prospect_id=prospect_id,
+                source=f"resolved_by:{resolved_by}",
+                event_id=build_event_id(
+                    source="admin", event_type="quarantine_confirm", raw_id=dest, tenant=tenant
+                ),
+            )
+        _append_row(
+            {
+                "email": dest,
+                "phone": "",
+                "scope": SCOPE_QUARANTINE,
+                "channel": "email",
+                "reason": f"quarantine_{resolution}",
+                "source": f"resolved_by:{resolved_by}",
+                "tenant": str(tenant or ""),
+                "prospect_id": str(prospect_id or ""),
+                "event_id": "",
+                "resolution": resolution,
+                "evidence": str(evidence or "")[:300],
+                "ts": int(time.time()),
+            }
+        )
+        return RESULT_COMPLETE
+    except Exception as e:  # pragma: no cover
+        logger.warning("[email_unsub] quarantine resolution failed: %s", e)
+        return RESULT_FAILED
+
+
+def list_quarantined(limit: int = 200) -> list[dict[str, object]]:
+    """Open compliance quarantines awaiting admin reconciliation."""
+    try:
+        out = [
+            r
+            for r in _iter_suppression_rows()
+            if _row_scope(r) == SCOPE_QUARANTINE and _row_is_active(r)
+        ]
+        out.sort(key=lambda r: int(r.get("ts") or 0), reverse=True)
+        return out[: max(1, int(limit))]
+    except Exception:  # pragma: no cover
+        return []
 
 
 def is_contact_suppressed(
@@ -578,4 +765,14 @@ __all__ = [
     "SCOPE_EMAIL_ADDRESS",
     "SCOPE_CHANNEL_CONTACT",
     "SCOPE_ALL_OUTREACH",
+    "SCOPE_QUARANTINE",
+    "suppression_state",
+    "resolve_quarantine",
+    "list_quarantined",
+    "reconcile_suppressions",
+    "build_event_id",
+    "suppress_with_result",
+    "STATE_NONE",
+    "STATE_PERMANENT",
+    "STATE_QUARANTINE",
 ]

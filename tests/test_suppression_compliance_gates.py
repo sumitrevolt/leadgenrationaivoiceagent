@@ -176,9 +176,13 @@ def test_unknown_sender_optout_does_not_create_global_all_outreach(
         if ln.strip()
     ]
     assert rows, "no suppression written"
+    # QUARANTINE, not EMAIL_ADDRESS and certainly not ALL_OUTREACH: it blocks
+    # just as hard but stays visibly unresolved, so an unreviewed guess is never
+    # mistaken for a verified decision.
     assert all(
-        r["scope"] == email_unsub.SCOPE_EMAIL_ADDRESS for r in rows
+        r["scope"] == email_unsub.SCOPE_QUARANTINE for r in rows
     ), f"unresolved identity produced a broader scope than the evidence supports: {rows}"
+    assert email_unsub.SCOPE_ALL_OUTREACH not in {r["scope"] for r in rows}
     # ...and the exception is recorded for admin reconciliation.
     exc = isolated / "unresolved_optouts.jsonl"
     assert exc.exists()
