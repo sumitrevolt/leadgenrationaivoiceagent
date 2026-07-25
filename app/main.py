@@ -419,7 +419,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
+    # Shutdown — owned inquiry BG work must finish (or cancel) BEFORE DB dispose.
+    # Otherwise a checked-out aiosqlite session outlives the engine (SQLAlchemy #13039).
     logger.info("Shutting down application...")
     if _call_processor_task is not None:
         _call_processor_task.cancel()
@@ -435,6 +436,12 @@ async def lifespan(app: FastAPI):
             pass
     if ml_scheduler:
         await stop_training_scheduler()
+    try:
+        from app.platform.inquiry_hooks import drain_inquiry_bg_tasks
+
+        await drain_inquiry_bg_tasks()
+    except Exception as _drain_e:
+        logger.warning(f"inquiry bg drain skipped: {_drain_e}")
     await close_async_db()
     await close_redis_client()
     logger.info("✅ Graceful shutdown complete")

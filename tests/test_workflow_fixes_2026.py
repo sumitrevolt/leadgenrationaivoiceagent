@@ -35,6 +35,10 @@ async def test_inquiry_hooks_runs_cadence_when_enabled(monkeypatch):
             "at": "2026-06-19T10:00:00Z",
         }
         await run_after_inquiry(rec)
+        # Await application-owned registry (determinism) — ownership lives in app.
+        from app.platform.inquiry_hooks import await_inquiry_bg_tasks
+
+        await await_inquiry_bg_tasks(timeout=5.0)
     assert enroll_calls
     assert enroll_calls[0]["source"] == "widget_chat"
 
@@ -94,8 +98,7 @@ def test_process_engine_ensure_alive_revives_stale():
 
 def test_dag_ensure_alive_skips_engine_mismatch(monkeypatch):
     """F-2: stale run whose engine_for is not dag must NOT enqueue process_tick."""
-    from app.agents import dag_engine
-    from app.agents import process_engine
+    from app.agents import dag_engine, process_engine
 
     monkeypatch.setattr(
         dag_engine,
