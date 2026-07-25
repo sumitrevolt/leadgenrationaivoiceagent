@@ -411,6 +411,9 @@ def classify_nl(text: str) -> dict[str, Any]:
         x in low
         for x in (
             "calling enable",
+            "enable calling",
+            "enable calls",
+            "start calling",
             "call chalu",
             "platform_dial",
             "deploy prod",

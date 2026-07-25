@@ -7,6 +7,7 @@ import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.api.auth_deps import get_current_user, require_admin
@@ -118,6 +119,18 @@ def test_enable_calling_refused(monkeypatch, tmp_path):
         json={"key": "platform_dial", "engaged": False, "reason": "test"},
     )
     assert r.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "phrase",
+    ["Enable calling", "enable calls", "start calling", "Call chalu karo"],
+)
+def test_enable_calling_phrase_synonyms_refused(phrase, monkeypatch, tmp_path):
+    _patch_stores(monkeypatch, tmp_path)
+    plan = owner_os.parse_intent(phrase)
+    assert plan["intent"] == "enable_calling", phrase
+    assert plan["risk_level"] == "critical", phrase
+    assert plan["safe_to_execute"] is False, phrase
 
 
 def test_idempotent_command_create(monkeypatch, tmp_path):
