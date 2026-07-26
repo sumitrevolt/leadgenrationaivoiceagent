@@ -239,6 +239,65 @@ def _path_argument(node: ast.Call, name: str) -> ast.AST | None:
     return node.args[0] if node.args else None
 
 
+def _path_taking_writers(tree: ast.Module) -> dict[str, str]:
+    """Module-local helpers that write to a path passed IN as a parameter.
+
+    This closes the scanner's worst blind spot. `consent_ledger.py` and
+    `wa_campaign_runner.py` -- the two most compliance-critical suppression
+    stores in the repo -- produced ZERO findings, because every write goes
+    through local helpers:
+
+        _append(LEDGER_FILE, rec)
+        _write_all(SUPPRESSION_FILE, keep)
+
+    The scanner only recognised a fixed set of stdlib call names, so the
+    authority looked clean when it was merely invisible. Reporting "0 findings"
+    for a Tier 0 compliance store because of that would be exactly the false
+    comfort this whole workstream keeps correcting.
+
+    Returns {function_name: operation}.
+    """
+    out: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        params = {a.arg for a in node.args.args}
+        if not params:
+            continue
+        op: str | None = None
+        for sub in ast.walk(node):
+            if not isinstance(sub, ast.Call):
+                continue
+            nm = getattr(sub.func, "attr", None) or getattr(sub.func, "id", None)
+            if nm not in _CALL_OPERATIONS:
+                continue
+            target = _path_argument(sub, nm)
+            if target is None:
+                continue
+            # Does the write act on one of this function's parameters?
+            names = {getattr(x, "id", None) for x in ast.walk(target) if isinstance(x, ast.Name)}
+            if not (names & params):
+                continue
+            cand = _CALL_OPERATIONS[nm]
+            if nm == "open":
+                mode = "r"
+                if len(sub.args) > 1 and isinstance(sub.args[1], ast.Constant):
+                    mode = str(sub.args[1].value)
+                for kw in sub.keywords:
+                    if kw.arg == "mode" and isinstance(kw.value, ast.Constant):
+                        mode = str(kw.value.value)
+                cand = _mode_to_operation(mode)
+            # Prefer the most destructive operation the helper performs.
+            if op is None or _OP_SEVERITY.get(cand, 0) > _OP_SEVERITY.get(op, 0):
+                op = cand
+        if op:
+            out[node.name] = op
+    return out
+
+
+_OP_SEVERITY = {READ: 0, CREATE: 1, LOCK: 2, APPEND: 3, REWRITE: 4, REPLACE: 4, DELETE: 5}
+
+
 def _mutable_symbols(tree: ast.Module) -> dict[str, str]:
     """Names bound to a mutable-looking path, plus functions returning one.
 
@@ -310,6 +369,7 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
     # would be a scanner that reports a comfortable number instead of a true
     # one -- the exact failure mode this whole workstream keeps hitting.
     symbols = _mutable_symbols(tree)
+    local_writers = _path_taking_writers(tree)
 
     # --- module-level capture of a runtime path (freezes the root at import).
     for node in tree.body:
@@ -344,13 +404,18 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
             continue
         fn = node.func
         name = getattr(fn, "attr", None) or getattr(fn, "id", None)
-        if name not in _CALL_OPERATIONS:
+        if name not in _CALL_OPERATIONS and name not in local_writers:
             continue
         if node.lineno in doc_lines:
             continue
 
-        op = _CALL_OPERATIONS[name]
-        access_mode = name
+        if name in local_writers and name not in _CALL_OPERATIONS:
+            # A module-local helper that writes to the path handed to it.
+            op = local_writers[name]
+            access_mode = f"{name}() [local writer]"
+        else:
+            op = _CALL_OPERATIONS[name]
+            access_mode = name
 
         if name == "open":
             mode = "r"
@@ -370,7 +435,10 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
         # the SECRET recorded as its path expression, and `p.mkdir()` (no args)
         # was skipped entirely -- which is why canonical findings read 0 even
         # though runtime_data.store_dir does exactly that.
-        path_arg = _path_argument(node, name)
+        if name in local_writers and name not in _CALL_OPERATIONS:
+            path_arg = node.args[0] if node.args else None
+        else:
+            path_arg = _path_argument(node, name)
         if path_arg is None:
             continue
 
