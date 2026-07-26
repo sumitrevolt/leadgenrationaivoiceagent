@@ -76,6 +76,10 @@ def _e(**kw: Any) -> dict[str, Any]:
     # rather than being folded into `guarded`.
     kw.setdefault("detached_execution", False)
     kw.setdefault("operational_completion_observable", True)
+    # True where a wrapper legitimately mutates AFTER a successful guarded
+    # release (migrations, feature-enable). Containment then rests on ordering,
+    # not on the wrapper being read-only — so it is stated rather than implied.
+    kw.setdefault("post_parent_mutation", False)
     return kw
 
 
@@ -197,15 +201,26 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         production_capable=True,
         runtime_data_mutation_capable=True,
         independently_invokable=True,
-        operations=["git pull origin main", "compose build", "compose up -d", "alembic upgrade"],
-        first_mutating_operation="git pull origin main",
-        guard_strategy="UNRESOLVED",
-        guarded=False,
-        guard_precedes_mutation=False,
-        exit_code_propagated=False,
-        status=UNGUARDED_PRODUCTION_PATH,
-        evidence="independent chain against /opt/leadgen + docker-compose.vps.yml; "
-        "also runs `alembic upgrade head || true`. Delegation candidate.",
+        direct_or_wrapper="wrapper",
+        canonical_parent=CANONICAL_RELEASE_PARENT,
+        operations=["delegates release", "alembic upgrade", ".env enable", "restart app"],
+        first_mutating_operation="scripts/deploy_vps.sh (delegated)",
+        guard_strategy="CANONICAL_PARENT",
+        guarded=True,
+        guard_location="inherits deploy_vps.sh guard",
+        guard_precedes_mutation=True,
+        exit_code_propagated=True,
+        post_parent_mutation=True,
+        status=GUARDED_BY_CANONICAL_PARENT,
+        evidence="CONSOLIDATED 2026-07-26. Old body was a bare unguarded chain. "
+        "Unlike the other wrappers this one keeps real post-release work: "
+        "`alembic upgrade head` and a .env mutation via vps_flywheel_enable.sh, "
+        "then a no-rebuild restart. Recorded as post_parent_mutation=True rather "
+        "than described as read-only verification, because it is not read-only "
+        "and a comment-vs-code mismatch is what made selfheal unclassifiable. "
+        "Containment holds on ORDERING: nothing mutates before the guarded "
+        "parent, and nothing mutates if it returns 90/91 (proven in "
+        "tests/test_release_wrapper_delegation.py).",
     ),
     _e(
         deployment_id="release.all",
@@ -216,15 +231,21 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         production_capable=True,
         runtime_data_mutation_capable=True,
         independently_invokable=True,
-        operations=["git pull --ff-only", "compose build", "compose up -d"],
-        first_mutating_operation="git pull --ff-only",
-        guard_strategy="UNRESOLVED",
-        guarded=False,
-        guard_precedes_mutation=False,
-        exit_code_propagated=False,
-        status=UNGUARDED_PRODUCTION_PATH,
-        evidence="duplicates deploy_vps.sh semantics (APP_VERSION + celery profile); "
-        "strong delegation candidate",
+        direct_or_wrapper="wrapper",
+        canonical_parent=CANONICAL_RELEASE_PARENT,
+        operations=["delegates release", "read-only skew report"],
+        first_mutating_operation="scripts/deploy_vps.sh (delegated)",
+        guard_strategy="CANONICAL_PARENT",
+        guarded=True,
+        guard_location="inherits deploy_vps.sh guard",
+        guard_precedes_mutation=True,
+        exit_code_propagated=True,
+        status=GUARDED_BY_CANONICAL_PARENT,
+        evidence="CONSOLIDATED 2026-07-26. Its whole purpose — rolling all five "
+        "app-image services to clear :latest skew — is already a property of the "
+        "parent, so only the extra read-only skew report remains. The "
+        "`worker-heavy` hyphen hazard (a wrong service name aborts the entire "
+        "`up`) now exists in one place instead of nine.",
     ),
     *[
         _e(
@@ -236,14 +257,21 @@ ENTRYPOINTS: list[dict[str, Any]] = [
             production_capable=True,
             runtime_data_mutation_capable=True,
             independently_invokable=True,
-            operations=["git pull --ff-only", "compose build", "compose up -d"],
-            first_mutating_operation="git pull --ff-only",
-            guard_strategy="UNRESOLVED",
-            guarded=False,
-            guard_precedes_mutation=False,
-            exit_code_propagated=False,
-            status=UNGUARDED_PRODUCTION_PATH,
-            evidence="one-off ADR release; same shape as deploy_all.sh",
+            direct_or_wrapper="wrapper",
+            canonical_parent=CANONICAL_RELEASE_PARENT,
+            operations=["delegates release", "read-only verification"],
+            first_mutating_operation="scripts/deploy_vps.sh (delegated)",
+            guard_strategy="CANONICAL_PARENT",
+            guarded=True,
+            guard_location="inherits deploy_vps.sh guard",
+            guard_precedes_mutation=True,
+            exit_code_propagated=True,
+            status=GUARDED_BY_CANONICAL_PARENT,
+            evidence="CONSOLIDATED 2026-07-26. Was a frozen fork of the release "
+            "chain pinned to a historical SHA, with no guard. Now delegates; only "
+            "its read-only post-checks remain. deploy_adr097.sh is the sharpest "
+            "case: it exists to ship the image-PROVENANCE guard, yet was itself an "
+            "unguarded release path.",
         )
         for n in ("095", "096", "097")
     ],
@@ -258,14 +286,25 @@ ENTRYPOINTS: list[dict[str, Any]] = [
             production_capable=True,
             runtime_data_mutation_capable=True,
             independently_invokable=True,
-            operations=["git reset --hard", "compose build/up"],
-            first_mutating_operation="git reset --hard origin/main",
-            guard_strategy="UNRESOLVED",
-            guarded=False,
-            guard_precedes_mutation=False,
-            exit_code_propagated=False,
-            status=UNGUARDED_PRODUCTION_PATH,
-            evidence="python remote-command builder embedding reset --hard",
+            direct_or_wrapper="wrapper",
+            canonical_parent=CANONICAL_RELEASE_PARENT,
+            operations=["delegates release", "read-only smoke"],
+            first_mutating_operation="scripts/deploy_vps.sh (delegated)",
+            guard_strategy="CANONICAL_PARENT",
+            guarded=True,
+            guard_location="inherits deploy_vps.sh guard",
+            guard_precedes_mutation=True,
+            exit_code_propagated=True,
+            status=GUARDED_BY_CANONICAL_PARENT,
+            evidence="CONSOLIDATED 2026-07-26. All three EXECUTED (subprocess.run), "
+            "not merely emitted, and all three ran `git reset --hard origin/main` "
+            "against the checkout holding live ledgers. vps_build_deploy.py was "
+            "worse than it looked: each command ran in its OWN shell=True "
+            "subprocess, so its leading `cd /opt/leadgen` did not apply to the "
+            "reset that followed. Now: structured args, shell=False, single parent "
+            "invocation, verbatim exit propagation. Proven by AST analysis in "
+            "tests/test_python_builder_delegation.py (substring scans were "
+            "rejected — they match this very prose).",
         )
         for stem in ("vps_build_deploy", "vps_deploy_dashboard", "vps_deploy_workflow_fix")
     ],
@@ -280,6 +319,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         independently_invokable=True,
         operations=["git reset --hard", "git clone"],
         first_mutating_operation="git reset --hard origin/main (line 25)",
+        bootstrap_classification="EXISTING_HOST_MUTATION_CAPABLE",
         guard_strategy="REQUIRED_NOT_PRESENT",
         guarded=False,
         guard_precedes_mutation=False,
