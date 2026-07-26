@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 cd /opt/leadgen
+# GUARD FIRST — see _runtime_data_guard.sh. `reset --hard` destroys live state.
+. "$(dirname "$0")/_runtime_data_guard.sh"
 git fetch --all -q
 git reset --hard origin/main -q
 echo "COMMIT: $(git log --oneline -1)"
