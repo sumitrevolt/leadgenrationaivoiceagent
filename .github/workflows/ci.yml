@@ -54,6 +54,17 @@ jobs:
           # day-key layer pe hai jo heuristic nahi dekhta). Naya gap = RED.
           IDEM_AUDIT_MAX_GAPS: "117"
         run: python scripts/queue_idempotency_audit.py
+      - name: Runtime-data mutable-path allowlist  # MUST-PASS — allowlist must match live code
+        # Gates on allowlist COHERENCE, which is enforceable today: no stale
+        # entries, no unknown store ids, no operation mismatch, no writer filed
+        # against an immutable store. The undeclared/ambiguous counts are
+        # PRINTED every run so the backlog cannot grow quietly, but they are not
+        # yet a hard gate — the declaration backlog is real, and the honest
+        # options were "print it" or "add a bypass flag". There is no bypass
+        # flag and no --accept-current-state, by design.
+        # Offline, deterministic, no network, no production access.
+        run: python scripts/runtime_data_path_scan.py validate
+
       - name: Dependency vulnerability scan  # MUST-PASS — no known CVEs in dependencies
         run: |
           pip install pip-audit
