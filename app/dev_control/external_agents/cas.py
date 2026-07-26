@@ -27,6 +27,7 @@ local key = KEYS[1]
 local owner = ARGV[1]
 local until_ts = tonumber(ARGV[2])
 local now_ts = tonumber(ARGV[3])
+local ttl_s = tonumber(ARGV[4])
 local cur = redis.call('GET', key)
 if cur then
   local ok, data = pcall(cjson.decode, cur)
@@ -37,6 +38,11 @@ if cur then
   end
 end
 redis.call('SET', key, cjson.encode({owner=owner, until=until_ts}))
+-- Redis TTL >= logical lease so keys do not accumulate forever (logical expiry
+-- still lives in the 'until' field; this is housekeeping only).
+if ttl_s and ttl_s > 0 then
+  redis.call('EXPIRE', key, ttl_s)
+end
 return {1, owner}
 """
 
@@ -45,6 +51,7 @@ local key = KEYS[1]
 local owner = ARGV[1]
 local until_ts = tonumber(ARGV[2])
 local now_ts = tonumber(ARGV[3])
+local ttl_s = tonumber(ARGV[4])
 local cur = redis.call('GET', key)
 if not cur then return 0 end
 local ok, data = pcall(cjson.decode, cur)
@@ -52,8 +59,24 @@ if not ok or type(data) ~= 'table' then return 0 end
 if data['owner'] ~= owner then return 0 end
 if tonumber(data['until'] or 0) <= now_ts then return 0 end
 redis.call('SET', key, cjson.encode({owner=owner, until=until_ts}))
+if ttl_s and ttl_s > 0 then
+  redis.call('EXPIRE', key, ttl_s)
+end
 return 1
 """
+
+# Atomic compare-and-delete for doc locks — avoids the classic GET-then-DELETE
+# TOCTOU where a stale releaser deletes a newer owner's lock after expiry.
+_RELEASE_LOCK_LUA = """
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+"""
+
+# Idempotency keys live long enough for concurrent retries / agent restarts
+# without unbounded Redis growth across the platform lifetime.
+_IDEM_TTL_S = 30 * 24 * 3600
 
 
 @dataclass
@@ -112,10 +135,18 @@ class RedisCasBackend:
 
     def claim_lease(self, mission_id: str, owner: str, *, ttl_s: int, now: float) -> dict[str, Any]:
         until = now + max(1, int(ttl_s))
+        redis_ttl = max(int(ttl_s) * 2, 3600)
         # Redis Lua EVAL (not Python eval) — use execute_command so security_scan
         # does not flag redis-py's .eval helper as unsafe eval/exec.
         out = self._r.execute_command(
-            "EVAL", _LEASE_LUA, 1, _PREFIX + "lease:" + mission_id, owner, until, now
+            "EVAL",
+            _LEASE_LUA,
+            1,
+            _PREFIX + "lease:" + mission_id,
+            owner,
+            until,
+            now,
+            redis_ttl,
         )
         won = int(out[0]) == 1
         if won:
@@ -124,9 +155,17 @@ class RedisCasBackend:
 
     def heartbeat_lease(self, mission_id: str, owner: str, *, ttl_s: int, now: float) -> bool:
         until = now + max(1, int(ttl_s))
+        redis_ttl = max(int(ttl_s) * 2, 3600)
         return bool(
             self._r.execute_command(
-                "EVAL", _HEARTBEAT_LUA, 1, _PREFIX + "lease:" + mission_id, owner, until, now
+                "EVAL",
+                _HEARTBEAT_LUA,
+                1,
+                _PREFIX + "lease:" + mission_id,
+                owner,
+                until,
+                now,
+                redis_ttl,
             )
         )
 
@@ -159,7 +198,8 @@ class RedisCasBackend:
     def register_idempotency(self, key: str, mission_id: str) -> dict[str, Any]:
         rkey = _PREFIX + "idem:" + key
         # SET NX — first writer wins; loser reads the canonical mission id.
-        if self._r.set(rkey, mission_id, nx=True):
+        # EX binds a retention window so the namespace cannot grow forever.
+        if self._r.set(rkey, mission_id, nx=True, ex=_IDEM_TTL_S):
             return {"created": True, "mission_id": mission_id}
         existing = self._r.get(rkey)
         return {"created": False, "mission_id": str(existing or ""), "reused": True}
@@ -178,8 +218,7 @@ class RedisCasBackend:
                 try:
                     return fn()
                 finally:
-                    if self._r.get(lock_key) == token:
-                        self._r.delete(lock_key)
+                    self._r.execute_command("EVAL", _RELEASE_LOCK_LUA, 1, lock_key, token)
             time.sleep(0.01)
         raise RuntimeError("mission_doc_lock_timeout")
 
@@ -322,12 +361,26 @@ def get_backend(*, root: str | None = None) -> CasBackend:
 
 def shared_store_status(*, root: str | None = None) -> dict[str, Any]:
     backend = get_backend(root=root)
+    redis_url_set = bool(
+        (os.environ.get("EXTERNAL_MISSION_REDIS_URL") or os.environ.get("REDIS_URL") or "").strip()
+    )
+    redis_reachable = backend.name == "redis"
+    mixed_risk = redis_url_set and not redis_reachable and backend.name == "filelock"
     return {
         "backend": backend.name,
-        "redis_reachable": backend.name == "redis",
+        "redis_url_configured": redis_url_set,
+        "redis_reachable": redis_reachable,
         "shared_volume_ok": backend.name in {"redis", "filelock"},
+        "mixed_backend_risk": mixed_risk,
         "note": (
-            "Redis preferred for multi-host; filelock is correct across processes "
-            "sharing EXTERNAL_MISSION_DIR / ./data bind-mount"
+            "WARNING: REDIS_URL is set but unreachable — this process fell back to filelock. "
+            "A Redis-using peer will NOT coordinate with this process. Fix Redis or force "
+            "EXTERNAL_MISSION_CAS=filelock on EVERY mission-touching process."
+            if mixed_risk
+            else (
+                "Redis preferred for multi-host; filelock is correct across processes "
+                "sharing EXTERNAL_MISSION_DIR / ./data bind-mount. All peers must resolve "
+                "the SAME backend."
+            )
         ),
     }

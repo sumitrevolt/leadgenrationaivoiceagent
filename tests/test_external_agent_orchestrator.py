@@ -625,3 +625,52 @@ def test_calling_and_dial_flags_untouched_by_orchestrator():
     source = "".join(inspect.getsource(mod) for mod in (policy, orchestrator, store, adapters))
     for forbidden in ("PLATFORM_DIAL_DAILY", "subprocess", "os.system", "docker "):
         assert forbidden not in source
+
+
+def test_cursor_requires_nonempty_allowed_paths():
+    out = _create(allowed_paths=[], idempotency_key="cursor-empty-scope-01")
+    assert out["ok"] is False
+    assert out["reason"] == "cursor_requires_allowed_paths"
+
+
+def test_orchestrator_lifecycle_uses_apply_cas(monkeypatch):
+    """Regression for Claude MEDIUM finding: production path must hit apply_cas."""
+    calls: list[str] = []
+    real = store.apply_cas
+
+    def _wrap(mission_id, **kwargs):
+        calls.append(mission_id)
+        return real(mission_id, **kwargs)
+
+    monkeypatch.setattr(store, "apply_cas", _wrap)
+    mid = _drive_to_review(idempotency_key="apply-cas-path-0001")
+    assert calls, "orchestrator never called store.apply_cas"
+    assert mid in calls
+    # Concurrent cancel vs review-pass from REVIEW_REQUIRED: only one commits.
+    a = store.apply_cas(
+        mid,
+        expected_status=MissionState.REVIEW_REQUIRED,
+        mutate=lambda m: m.transition(MissionState.CANCELLED),
+    )
+    assert a["ok"] is True
+    b = store.apply_cas(
+        mid,
+        expected_status=MissionState.REVIEW_REQUIRED,
+        mutate=lambda m: m.transition(MissionState.REVIEW_PASSED),
+    )
+    assert b["ok"] is False
+    assert b["reason"] == "stale_transition"
+
+
+def test_mixed_backend_risk_flagged_when_redis_url_unreachable(monkeypatch):
+    from app.dev_control.external_agents import cas as cas_mod
+
+    cas_mod.reset_backend()
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/15")  # deliberately dead
+    monkeypatch.setenv("EXTERNAL_MISSION_CAS", "")  # allow redis probe then fallback
+    monkeypatch.setattr(cas_mod, "_sync_redis", lambda: None)
+    status = cas_mod.shared_store_status()
+    assert status["backend"] == "filelock"
+    assert status["mixed_backend_risk"] is True
+    assert "WARNING" in status["note"]
+    cas_mod.reset_backend()

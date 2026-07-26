@@ -102,6 +102,14 @@ def create_mission(
     if (executor or "").strip().lower() not in adapters.known_executors():
         return _fail("unknown_executor", executors=adapters.known_executors())
 
+    # Cursor executors must declare a non-empty allowed scope — empty allowed_paths
+    # would otherwise silently skip the allowed-scope breach check (Claude review).
+    if (executor or "").strip().lower() == adapters.CURSOR and not (allowed_paths or []):
+        return _fail(
+            "cursor_requires_allowed_paths",
+            note="executor-role missions must declare a non-empty allowed_paths scope",
+        )
+
     mission = Mission.create(
         title=title,
         description=description,
@@ -186,18 +194,20 @@ def _wait_for_mission(mission_id: str, idempotency_key: str, *, attempts: int = 
 
 def preflight(mission_id: str, *, evidence: dict[str, Any] | None = None) -> dict[str, Any]:
     _require_enabled()
-    mission = store.get(mission_id)
-    if mission is None:
-        return _fail("mission_not_found")
-    try:
+
+    def _mutate(mission: Mission) -> None:
         mission.transition(MissionState.PREFLIGHT)
-    except InvalidMissionTransition as exc:
-        return _fail(str(exc))
-    mission.blocker = ""
-    mission.add_evidence("preflight", policy.redact(evidence or {}))
-    store.save(mission)
+        mission.blocker = ""
+        mission.add_evidence("preflight", policy.redact(evidence or {}))
+
+    out = store.apply_cas(mission_id, expected_status=MissionState.CREATED, mutate=_mutate)
+    if not out.get("ok"):
+        return _fail(
+            str(out.get("reason") or "preflight_failed"),
+            **{k: v for k, v in out.items() if k not in {"ok", "reason", "mission"}},
+        )
     store.record_event(mission_id, "preflight", evidence)
-    return _ok(mission, packet=adapters.packet_for(mission))
+    return _ok(out["mission"], packet=adapters.packet_for(out["mission"]))
 
 
 def claim(
@@ -208,11 +218,17 @@ def claim(
     if not claimed.get("claimed"):
         detail = {k: v for k, v in claimed.items() if k not in {"claimed", "reason"}}
         return _fail(str(claimed.get("reason") or "claim_failed"), **detail)
-    mission: Mission = claimed["mission"]
-    if mission.status is MissionState.PREFLIGHT:
-        mission.transition(MissionState.CLAIMED)
-        store.save(mission)
-    return _ok(mission, packet=adapters.packet_for(mission))
+
+    # Fold PREFLIGHT -> CLAIMED into a CAS-safe mutation so a concurrent cancel
+    # cannot be overwritten by a stale writer after the lease was taken.
+    def _mutate(mission: Mission) -> None:
+        if mission.status is MissionState.PREFLIGHT:
+            mission.transition(MissionState.CLAIMED)
+
+    out = store.apply_cas(mission_id, mutate=_mutate)
+    if not out.get("ok"):
+        return _fail(str(out.get("reason") or "claim_transition_failed"))
+    return _ok(out["mission"], packet=adapters.packet_for(out["mission"]))
 
 
 def heartbeat(mission_id: str, owner: str, *, ttl_s: int = DEFAULT_LEASE_S) -> dict[str, Any]:
@@ -221,87 +237,120 @@ def heartbeat(mission_id: str, owner: str, *, ttl_s: int = DEFAULT_LEASE_S) -> d
     return {"ok": ok, "reason": "" if ok else "lease_not_owned"}
 
 
-def start(mission_id: str, owner: str) -> dict[str, Any]:
-    _require_enabled()
-    mission = store.get(mission_id)
-    if mission is None:
-        return _fail("mission_not_found")
-    if mission.lease_owner != owner:
-        return _fail("lease_not_owned")
-    try:
-        mission.transition(MissionState.RUNNING, actor_role="executor")
-    except InvalidMissionTransition as exc:
-        return _fail(str(exc))
-    store.save(mission)
-    store.record_event(mission_id, "running", {"owner": owner})
-    return _ok(mission)
-
-
 def submit_result(mission_id: str, owner: str, result: dict[str, Any]) -> dict[str, Any]:
     """Executor hands back its manifest. Scope breach = mission blocked."""
     _require_enabled()
-    mission = store.get(mission_id)
-    if mission is None:
-        return _fail("mission_not_found")
-    if mission.lease_owner != owner:
-        return _fail("lease_not_owned")
+    # Capture adapter verdict under the CAS lock so status + evidence land together.
+    verdict_box: dict[str, Any] = {}
 
-    adapter = adapters.get_adapter(mission.executor)
-    verdict = adapter.validate_result(mission, result)
-    budget = policy.budget_check(
-        mission,
-        tokens_used=int(result.get("tokens_used") or 0),
-        cost_usd=float(result.get("cost_usd") or 0.0),
-    )
-    if not budget["allowed"]:
-        verdict["violations"].append(budget["reason"])
-        verdict["accepted"] = False
+    def _mutate(mission: Mission) -> None:
+        if mission.lease_owner != owner:
+            raise InvalidMissionTransition("lease_not_owned")
+        if mission.status is not MissionState.RUNNING:
+            raise InvalidMissionTransition(
+                f"stale_transition:{mission.status.value}:expected:RUNNING"
+            )
+        adapter = adapters.get_adapter(mission.executor)
+        verdict = adapter.validate_result(mission, result)
+        budget = policy.budget_check(
+            mission,
+            tokens_used=int(result.get("tokens_used") or 0),
+            cost_usd=float(result.get("cost_usd") or 0.0),
+        )
+        if not budget["allowed"]:
+            verdict["violations"].append(budget["reason"])
+            verdict["accepted"] = False
+        verdict_box["verdict"] = verdict
+        mission.add_evidence("result_manifest", verdict["result"])
+        if not verdict["accepted"]:
+            mission.transition(MissionState.BLOCKED, actor_role="executor")
+            mission.blocker = "; ".join(verdict["violations"])[:500]
+            return
+        mission.transition(MissionState.IMPLEMENTED, actor_role="executor")
+        mission.transition(MissionState.TESTING, actor_role="executor")
+        mission.add_evidence("tests", result.get("tests") or [])
+        mission.transition(MissionState.REVIEW_REQUIRED, actor_role="executor")
 
-    mission.add_evidence("result_manifest", verdict["result"])
-    if not verdict["accepted"]:
-        mission.transition(MissionState.BLOCKED, actor_role="executor")
-        mission.blocker = "; ".join(verdict["violations"])[:500]
-        store.save(mission)
-        store.record_event(mission_id, "result_rejected", {"violations": verdict["violations"]})
-        return _fail("result_rejected", violations=verdict["violations"], mission=mission.to_dict())
-
-    mission.transition(MissionState.IMPLEMENTED, actor_role="executor")
-    mission.transition(MissionState.TESTING, actor_role="executor")
-    mission.add_evidence("tests", result.get("tests") or [])
-    mission.transition(MissionState.REVIEW_REQUIRED, actor_role="executor")
-    store.save(mission)
+    out = store.apply_cas(mission_id, mutate=_mutate)
+    if not out.get("ok"):
+        reason = str(out.get("reason") or "submit_result_failed")
+        if reason == "lease_not_owned":
+            return _fail("lease_not_owned")
+        if reason.startswith("stale_transition:"):
+            return _fail("stale_transition", detail=reason)
+        return _fail(reason)
+    mission = out["mission"]
+    verdict = verdict_box.get("verdict") or {}
+    if not verdict.get("accepted", True):
+        store.record_event(mission_id, "result_rejected", {"violations": verdict.get("violations")})
+        return _fail(
+            "result_rejected",
+            violations=verdict.get("violations") or [],
+            mission=mission.to_dict(),
+        )
     store.record_event(
         mission_id, "review_required", {"changed_files": result.get("changed_files")}
     )
     return _ok(mission, review_packet=adapters.get_adapter(mission.reviewer).build_packet(mission))
 
 
+def start(mission_id: str, owner: str) -> dict[str, Any]:
+    _require_enabled()
+
+    def _mutate(mission: Mission) -> None:
+        if mission.lease_owner != owner:
+            raise InvalidMissionTransition("lease_not_owned")
+        mission.transition(MissionState.RUNNING, actor_role="executor")
+
+    out = store.apply_cas(mission_id, expected_status=MissionState.CLAIMED, mutate=_mutate)
+    if not out.get("ok"):
+        reason = str(out.get("reason") or "start_failed")
+        if reason == "lease_not_owned":
+            return _fail("lease_not_owned")
+        return _fail(reason)
+    store.record_event(mission_id, "running", {"owner": owner})
+    return _ok(out["mission"])
+
+
 def submit_review(mission_id: str, review: dict[str, Any]) -> dict[str, Any]:
     """Independent reviewer verdict. Implementer can never self-approve."""
     _require_enabled()
-    mission = store.get(mission_id)
-    if mission is None:
-        return _fail("mission_not_found")
-    if mission.status is not MissionState.REVIEW_REQUIRED:
-        return _fail("not_in_review", status=mission.status.value)
+    checked_box: dict[str, Any] = {}
 
-    checked = adapters.ClaudeAdapter().validate_review(mission, review)
-    if not checked["accepted"]:
-        return _fail("review_rejected", violations=checked["violations"])
+    def _mutate(mission: Mission) -> None:
+        if mission.status is not MissionState.REVIEW_REQUIRED:
+            raise InvalidMissionTransition(f"not_in_review:{mission.status.value}")
+        checked = adapters.ClaudeAdapter().validate_review(mission, review)
+        checked_box["checked"] = checked
+        if not checked["accepted"]:
+            raise InvalidMissionTransition("review_rejected:" + ",".join(checked["violations"]))
+        mission.add_evidence("review", checked["review"], note=checked["verdict"])
+        if checked["verdict"] == "PASS":
+            mission.transition(MissionState.REVIEW_PASSED)
+        elif checked["verdict"] == "CHANGES_REQUIRED":
+            mission.transition(MissionState.CHANGES_REQUESTED)
+        else:
+            mission.transition(MissionState.BLOCKED)
+            mission.blocker = "reviewer BLOCKED"
 
-    mission.add_evidence("review", checked["review"], note=checked["verdict"])
-    if checked["verdict"] == "PASS":
-        mission.transition(MissionState.REVIEW_PASSED)
-    elif checked["verdict"] == "CHANGES_REQUIRED":
-        mission.transition(MissionState.CHANGES_REQUESTED)
-    else:
-        mission.transition(MissionState.BLOCKED)
-        mission.blocker = "reviewer BLOCKED"
-    store.save(mission)
+    out = store.apply_cas(mission_id, expected_status=MissionState.REVIEW_REQUIRED, mutate=_mutate)
+    if not out.get("ok"):
+        reason = str(out.get("reason") or "submit_review_failed")
+        if reason.startswith("review_rejected:"):
+            return _fail(
+                "review_rejected",
+                violations=reason.split(":", 1)[1].split(",") if ":" in reason else [reason],
+            )
+        if reason.startswith("not_in_review:"):
+            return _fail("not_in_review", status=reason.split(":", 1)[1])
+        return _fail(reason)
+    checked = checked_box.get("checked") or {}
     store.record_event(
-        mission_id, "review_" + checked["verdict"].lower(), {"reviewer": review.get("reviewer")}
+        mission_id,
+        "review_" + str(checked.get("verdict") or "").lower(),
+        {"reviewer": review.get("reviewer")},
     )
-    return _ok(mission, verdict=checked["verdict"])
+    return _ok(out["mission"], verdict=checked.get("verdict"))
 
 
 def advance(
@@ -313,9 +362,6 @@ def advance(
 ) -> dict[str, Any]:
     """Drive PR/CI/merge/deploy states. AMBER stops for the owner."""
     _require_enabled()
-    mission = store.get(mission_id)
-    if mission is None:
-        return _fail("mission_not_found")
     target_state = MissionState(target) if not isinstance(target, MissionState) else target
 
     # Review verdicts MUST go through submit_review() so the citation +
@@ -327,32 +373,40 @@ def advance(
             note="REVIEW_PASSED / CHANGES_REQUESTED require submit_review()",
         )
 
-    if policy.approval_required(mission, target_state) and not owner_approved:
-        if mission.status is not MissionState.OWNER_DECISION_REQUIRED:
-            mission.transition(MissionState.OWNER_DECISION_REQUIRED)
-        mission.approval_state = "required"
-        mission.blocker = f"AMBER approval required before {target_state.value}"
-        mission.add_evidence("approval_gate", {"blocked_target": target_state.value})
-        store.save(mission)
+    gate_box: dict[str, Any] = {}
+
+    def _mutate(mission: Mission) -> None:
+        if policy.approval_required(mission, target_state) and not owner_approved:
+            if mission.status is not MissionState.OWNER_DECISION_REQUIRED:
+                mission.transition(MissionState.OWNER_DECISION_REQUIRED)
+            mission.approval_state = "required"
+            mission.blocker = f"AMBER approval required before {target_state.value}"
+            mission.add_evidence("approval_gate", {"blocked_target": target_state.value})
+            gate_box["owner_gate"] = True
+            return
+        if target_state in {MissionState.MERGED, MissionState.VERIFIED, MissionState.COMPLETE}:
+            missing = _missing_evidence(mission, target_state)
+            if missing:
+                gate_box["missing"] = missing
+                raise InvalidMissionTransition("evidence_incomplete")
+        mission.transition(target_state)
+        if owner_approved:
+            mission.approval_state = "approved"
+        if evidence:
+            mission.add_evidence(target_state.value.lower(), policy.redact(evidence))
+
+    out = store.apply_cas(mission_id, mutate=_mutate)
+    if not out.get("ok"):
+        reason = str(out.get("reason") or "advance_failed")
+        if reason == "evidence_incomplete":
+            return _fail("evidence_incomplete", missing=gate_box.get("missing") or [])
+        return _fail(reason)
+    mission = out["mission"]
+    if gate_box.get("owner_gate"):
         store.record_event(mission_id, "owner_decision_required", {"target": target_state.value})
         return _fail(
             "owner_approval_required", mission=mission.to_dict(), target=target_state.value
         )
-
-    if target_state in {MissionState.MERGED, MissionState.VERIFIED, MissionState.COMPLETE}:
-        missing = _missing_evidence(mission, target_state)
-        if missing:
-            return _fail("evidence_incomplete", missing=missing)
-
-    try:
-        mission.transition(target_state)
-    except InvalidMissionTransition as exc:
-        return _fail(str(exc))
-    if owner_approved:
-        mission.approval_state = "approved"
-    if evidence:
-        mission.add_evidence(target_state.value.lower(), policy.redact(evidence))
-    store.save(mission)
     store.record_event(mission_id, "advanced", {"to": target_state.value})
     return _ok(mission)
 
@@ -369,39 +423,41 @@ def _missing_evidence(mission: Mission, target: MissionState) -> list[str]:
 
 def cancel(mission_id: str, *, reason: str = "") -> dict[str, Any]:
     _require_enabled()
-    mission = store.get(mission_id)
-    if mission is None:
-        return _fail("mission_not_found")
-    try:
+
+    def _mutate(mission: Mission) -> None:
         mission.transition(MissionState.CANCELLED)
-    except InvalidMissionTransition as exc:
-        return _fail(str(exc))
-    mission.clear_lease()
-    mission.blocker = (reason or "cancelled")[:500]
-    store.save(mission)
+        mission.clear_lease()
+        mission.blocker = (reason or "cancelled")[:500]
+
+    out = store.apply_cas(mission_id, mutate=_mutate)
+    if not out.get("ok"):
+        return _fail(str(out.get("reason") or "cancel_failed"))
     store.record_event(mission_id, "cancelled", {"reason": reason})
-    return _ok(mission)
+    return _ok(out["mission"])
 
 
 def retry(mission_id: str) -> dict[str, Any]:
     _require_enabled()
-    mission = store.get(mission_id)
-    if mission is None:
-        return _fail("mission_not_found")
-    if not policy.retry_allowed(mission):
-        mission.transition(MissionState.FAILED_TERMINAL)
-        mission.blocker = "retry_budget_exhausted"
-        store.save(mission)
+    exhausted_box: dict[str, Any] = {}
+
+    def _mutate(mission: Mission) -> None:
+        if not policy.retry_allowed(mission):
+            mission.transition(MissionState.FAILED_TERMINAL)
+            mission.blocker = "retry_budget_exhausted"
+            exhausted_box["exhausted"] = True
+            return
+        mission.transition(MissionState.PREFLIGHT)
+        mission.retry_count += 1
+        mission.clear_lease()
+        mission.blocker = ""
+
+    out = store.apply_cas(mission_id, mutate=_mutate)
+    if not out.get("ok"):
+        return _fail(str(out.get("reason") or "retry_failed"))
+    mission = out["mission"]
+    if exhausted_box.get("exhausted"):
         store.record_event(mission_id, "retry_exhausted", {"count": mission.retry_count})
         return _fail("retry_budget_exhausted", mission=mission.to_dict())
-    try:
-        mission.transition(MissionState.PREFLIGHT)
-    except InvalidMissionTransition as exc:
-        return _fail(str(exc))
-    mission.retry_count += 1
-    mission.clear_lease()
-    mission.blocker = ""
-    store.save(mission)
     store.record_event(mission_id, "retry", {"count": mission.retry_count})
     return _ok(mission)
 

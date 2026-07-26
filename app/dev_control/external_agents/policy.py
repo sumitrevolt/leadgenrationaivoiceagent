@@ -78,6 +78,8 @@ AMBER_PATTERNS: tuple[tuple[str, str], ...] = (
 )
 
 #: Repo areas an external mission may never own (frozen / compliance-critical).
+#: '.env' is matched as a prefix deliberately (fail-closed) — that also flags
+#: benign files such as `.env.example`. Prefer that overshoot over leakage.
 PROTECTED_PATH_PREFIXES: tuple[str, ...] = (
     ".env",
     ".github/workflows/deploy",

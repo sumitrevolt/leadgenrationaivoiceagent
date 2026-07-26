@@ -276,3 +276,32 @@ def test_concurrent_transition_one_commits(shared_env):
         ).MissionState.REVIEW_PASSED,
     )
     assert bad["ok"] is False
+
+
+def test_orchestrator_cancel_vs_advance_cas(shared_env):
+    """Production path: race two orchestrator.cancel calls — exactly one commits."""
+    mid = _seed_mission(shared_env["root"], status="REVIEW_PASSED")
+    from app.dev_control.external_agents import cas, store
+
+    script = textwrap.dedent(
+        f"""
+        import json, os, time, random
+        os.environ['EXTERNAL_MISSION_DIR'] = {str(shared_env['root'])!r}
+        os.environ['EXTERNAL_AGENT_ORCHESTRATOR'] = '1'
+        os.environ['EXTERNAL_MISSION_CAS'] = 'filelock'
+        from app.dev_control.external_agents import cas, orchestrator
+        cas.reset_backend()
+        time.sleep(random.uniform(0, 0.05))
+        out = orchestrator.cancel({mid!r}, reason='race')
+        print(json.dumps({{'ok': out.get('ok'), 'reason': out.get('reason'),
+                          'status': (out.get('mission') or {{}}).get('status')}}))
+        """
+    )
+    results = _run_workers(script, shared_env["env"], n=2)
+    ok_rows = [r for r in results if r.get("ok")]
+    assert len(ok_rows) == 1, results
+    assert any(not r.get("ok") for r in results), results
+    cas.reset_backend()
+    final = store.get(mid)
+    assert final is not None
+    assert final.status.value == "CANCELLED"

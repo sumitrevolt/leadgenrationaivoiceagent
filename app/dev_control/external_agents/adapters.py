@@ -168,6 +168,9 @@ class ClaudeAdapter(_BaseAdapter):
         return packet
 
     def validate_review(self, mission: Mission, review: dict[str, Any]) -> dict[str, Any]:
+        # Review separation is a declared-name convention under a shared admin
+        # identity (all routes are require_admin). It prevents the executor
+        # *name* from self-approving; it is not per-agent cryptographic attestation.
         violations: list[str] = []
         if str(review.get("mission_id") or "") != mission.mission_id:
             violations.append("mission_id mismatch")

@@ -251,18 +251,42 @@ def transition_cas(
     mutate: Any = None,
 ) -> dict[str, Any]:
     """Compare-and-set state transition. Stale writers are rejected."""
+
+    def _body(mission: Mission) -> None:
+        mission.transition(target)
+        if mutate:
+            mutate(mission)
+
+    return apply_cas(mission_id, expected_status=expected_status, mutate=_body)
+
+
+def apply_cas(
+    mission_id: str,
+    *,
+    expected_status: MissionState | str | None = None,
+    mutate: Any,
+) -> dict[str, Any]:
+    """Load + mutate + save under the mission doc lock.
+
+    This is the production correctness boundary for orchestrator lifecycle
+    mutations. ``cas_version`` is an audit counter bumped under the same lock —
+    the lock (not optimistic versioning) prevents lost updates. Stale writers
+    that pass an ``expected_status`` are rejected with ``stale_transition``.
+    """
     backend = cas_mod.get_backend(root=str(_root()))
-    expected = (
-        expected_status
-        if isinstance(expected_status, MissionState)
-        else MissionState(expected_status)
-    )
+    expected: MissionState | None = None
+    if expected_status is not None:
+        expected = (
+            expected_status
+            if isinstance(expected_status, MissionState)
+            else MissionState(expected_status)
+        )
 
     def _body() -> dict[str, Any]:
         mission = get(mission_id)
         if mission is None:
             return {"ok": False, "reason": "mission_not_found"}
-        if mission.status is not expected:
+        if expected is not None and mission.status is not expected:
             return {
                 "ok": False,
                 "reason": "stale_transition",
@@ -270,21 +294,28 @@ def transition_cas(
                 "expected": expected.value,
             }
         try:
-            mission.transition(target)
-        except Exception as exc:  # InvalidMissionTransition
-            return {"ok": False, "reason": str(exc)}
-        if mutate:
             mutate(mission)
+        except Exception as exc:  # InvalidMissionTransition / LeaseError / etc.
+            return {"ok": False, "reason": str(exc)}
         with _LOCAL:
             mission.validate()
+            payload = mission.to_dict()
+            payload["cas_version"] = int(payload.get("cas_version") or 0) + 1
+            mission.__dict__["cas_version"] = payload["cas_version"]
+            mission.updated_at = datetime.utcnow().isoformat()
+            payload["updated_at"] = mission.updated_at
             _atomic_write(
                 _mission_path(mission.mission_id),
-                json.dumps(mission.to_dict(), ensure_ascii=False, indent=2),
+                json.dumps(payload, ensure_ascii=False, indent=2),
             )
         record_event(
             mission_id,
-            "transition_cas",
-            {"from": expected.value, "to": target.value, "backend": backend.name},
+            "apply_cas",
+            {
+                "status": mission.status.value,
+                "backend": backend.name,
+                "cas_version": payload["cas_version"],
+            },
         )
         return {"ok": True, "mission": mission}
 
