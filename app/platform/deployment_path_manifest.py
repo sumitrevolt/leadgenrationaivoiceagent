@@ -317,20 +317,29 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         production_capable=True,
         runtime_data_mutation_capable=True,
         independently_invokable=True,
-        operations=["git reset --hard", "git clone"],
-        first_mutating_operation="git reset --hard origin/main (line 25)",
-        bootstrap_classification="EXISTING_HOST_MUTATION_CAPABLE",
-        guard_strategy="REQUIRED_NOT_PRESENT",
-        guarded=False,
-        guard_precedes_mutation=False,
-        exit_code_propagated=False,
-        status=UNGUARDED_PRODUCTION_PATH,
-        evidence='RESOLVED. Line 11: LOCAL_DIR="${LOCAL_DIR:-$HOME/leadgen}" — the '
-        "default IS a sandbox clone, so the comment is true by default. But the value "
-        "is ENV-OVERRIDABLE: `LOCAL_DIR=/opt/leadgen bash hostinger_hermes_bootstrap.sh` "
-        "reaches line 21 `if [ -d $LOCAL_DIR/.git ]` -> line 25 `git reset --hard "
-        "origin/main` against the production checkout. Default-safe is not enforced-safe, "
-        "so this is EXISTING_HOST_MUTATION_CAPABLE and requires protection.",
+        operations=["bootstrap preflight", "git clone (fresh target only)"],
+        first_mutating_operation="git clone (after check-bootstrap)",
+        bootstrap_classification="FRESH_HOST_BOOTSTRAP_ONLY",
+        guard_strategy="BOOTSTRAP_PREFLIGHT",
+        guarded=True,
+        guard_location="before clone/fetch/reset/pip/config-write",
+        guard_precedes_mutation=True,
+        exit_code_propagated=True,
+        status=GUARDED_DIRECTLY,
+        evidence="PROTECTED 2026-07-26. Was EXISTING_HOST_MUTATION_CAPABLE: "
+        'LOCAL_DIR="${LOCAL_DIR:-$HOME/leadgen}" defaults to a sandbox, but is '
+        "env-overridable, so `LOCAL_DIR=/opt/leadgen` reached `git reset --hard "
+        "origin/main` against the production checkout. A default is not a "
+        "restriction and the file's `sandbox` comment enforced nothing. "
+        "Now: `runtime_data_preflight.py check-bootstrap` classifies the target "
+        "before ANY mutation, and the reset branch is DELETED rather than gated — "
+        "an existing installation is refused (92) and the operator is directed to "
+        "the release parent or a protected recovery path, so bootstrap cannot "
+        "become a second deployment implementation. Codes 92/93/94 are distinct "
+        "from the release parent's 90/91. Guarded DIRECTLY, not by Parent A: "
+        "bootstrap may run before a checkout exists, which the release parent "
+        "assumes. Proven behaviourally in tests/test_bootstrap_guard.py, including "
+        "the LOCAL_DIR-override case that was the original defect.",
     ),
     # =========================== PRODUCTION BUT NOT RUNTIME-DATA MUTATION
     _e(

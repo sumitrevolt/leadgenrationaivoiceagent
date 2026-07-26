@@ -211,16 +211,73 @@ def _print_human(report: dict[str, Any], reasons: list[str]) -> None:
         print("\n  DESTRUCTIVE DEPLOY: allowed")
 
 
+def _run_bootstrap_check(args: Any) -> int:
+    """Classify a bootstrap target. Fails closed on every ambiguity.
+
+    There is deliberately no force flag, no ignore-existing-install flag and no
+    emergency bypass. `--authorize-protected-root` only removes the
+    'this path is /opt/leadgen' objection; every other check still has to pass,
+    so it cannot be used to bootstrap over a live installation.
+    """
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    try:
+        from app.platform import bootstrap_target as _bt
+    except Exception as e:  # pragma: no cover - defensive
+        print(f"FATAL: bootstrap classifier unavailable: {e}")
+        return 94  # EXIT_PREFLIGHT_UNAVAILABLE
+
+    target = args.target or os.environ.get("LOCAL_DIR") or ""
+    report = _bt.classify(target, authorize_protected_root=args.authorize_protected_root)
+    code = _bt.exit_code_for(report)
+
+    if args.json:
+        print(json.dumps(report, indent=2, sort_keys=True, default=str))
+    else:
+        print("=== runtime-data preflight (check-bootstrap) ===")
+        print(f"  target          : {report.get('target_raw')!r}")
+        print(f"  resolved        : {report.get('target_resolved')}")
+        print(f"  classification  : {report.get('classification')}")
+        if report["reasons"]:
+            print("\n  BOOTSTRAP: REFUSED")
+            for r in report["reasons"]:
+                print(f"      x {r['code']}: {r['detail']}")
+            if report.get("classification") == _bt.EXISTING_HOST:
+                print(f"\n  {_bt.EXISTING_INSTALL_STATUS}")
+                print("  Use the protected normal-release parent (scripts/deploy_vps.sh)")
+                print("  or an explicitly protected recovery path. Bootstrap will not")
+                print("  become a second deployment implementation.")
+        else:
+            print("\n  BOOTSTRAP: allowed (target proven fresh)")
+    return code
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Runtime-data deployment preflight")
     ap.add_argument(
         "mode",
-        choices=["diagnose", "check-deploy", "check-cutover"],
+        choices=["diagnose", "check-deploy", "check-cutover", "check-bootstrap"],
         nargs="?",
         default="diagnose",
     )
     ap.add_argument("--json", action="store_true", help="machine-readable output")
+    ap.add_argument("--target", help="bootstrap target directory (check-bootstrap only)")
+    ap.add_argument(
+        "--authorize-protected-root",
+        action="store_true",
+        help=(
+            "explicitly authorise a protected production root as a bootstrap target. "
+            "This is NOT a force flag: the target must still be proven empty and pass "
+            "every other check."
+        ),
+    )
     args = ap.parse_args(argv)
+
+    # check-bootstrap answers a different question from the release modes: not
+    # "may we deploy over this installation" but "is this a fresh, safe target".
+    # It therefore does NOT reuse deploy_denied(), whose blockers are all about
+    # an existing installation and would be nonsensical for a fresh host.
+    if args.mode == "check-bootstrap":
+        return _run_bootstrap_check(args)
 
     report = gather()
     reasons = deploy_denied(report)
