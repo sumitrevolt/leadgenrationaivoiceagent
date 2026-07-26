@@ -283,6 +283,53 @@ def test_detached_execution_is_tracked_separately_from_guarding() -> None:
     assert e["exit_code_propagated"] is False
 
 
+def test_operational_risks_never_change_the_guard_count() -> None:
+    """Operational risk and containment must stay in separate ledgers.
+
+    Real risks live outside the runtime-data denominator — an unattended
+    `docker system prune` can delete the ROLLBACK IMAGES the release runbook
+    depends on, and flywheel's `alembic upgrade head || true` swallows a
+    migration failure with no rollback. Neither is checkout-backed data loss.
+    Folding them into the guard count would corrupt the gate in one direction;
+    dropping them would lose them entirely. So: tracked, and asserted to be
+    inert with respect to the count.
+    """
+    before = d.counts()["runtime_data_guard_required_entrypoints"]
+    risky = [e for e in d.ENTRYPOINTS if e["operational_risks"]]
+    assert risky, "operational risks were dropped instead of tracked"
+    for e in risky:
+        # A risk record must never be the reason something looks guarded.
+        assert isinstance(e["operational_risks"], list)
+    assert d.counts()["runtime_data_guard_required_entrypoints"] == before
+
+
+def test_known_operational_risks_are_recorded() -> None:
+    by_id = {e["deployment_id"]: e for e in d.ENTRYPOINTS}
+    assert "SELF_HEAL_ROLLBACK_ASSET_RISK" in by_id["maintenance.selfheal"]["operational_risks"]
+    assert "UNATTENDED_DOCKER_PRUNE" in by_id["maintenance.selfheal"]["operational_risks"]
+    assert "NO_VOLUME_PRUNE_VERIFIED" in by_id["maintenance.selfheal"]["operational_risks"]
+    assert (
+        "RECOVERY_RESULT_PROPAGATION_DEGRADED"
+        in by_id["recovery.ship_recover"]["operational_risks"]
+    )
+
+
+def test_post_parent_mutation_declares_failure_semantics() -> None:
+    """A wrapper that mutates after the parent must state whether that work
+    propagates failure and whether it can be rolled back.
+
+    Guard coverage proves runtime data is contained. It says nothing about
+    whether a half-applied migration can be undone, and conflating the two
+    would let 'guarded' read as 'safe'.
+    """
+    for e in d.ENTRYPOINTS:
+        if not e["post_parent_mutation"]:
+            continue
+        assert e["post_parent_operations"], f"{e['deployment_id']}: undeclared post-parent work"
+        assert isinstance(e["post_parent_failure_propagated"], bool)
+        assert isinstance(e["post_parent_rollback_available"], bool)
+
+
 def test_every_entry_declares_completion_observability() -> None:
     for e in d.ENTRYPOINTS:
         assert isinstance(e["detached_execution"], bool)
