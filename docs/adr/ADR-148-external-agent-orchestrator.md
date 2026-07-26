@@ -1,4 +1,4 @@
-# ADR-145 — External Agent Orchestrator (Cursor + Claude missions)
+# ADR-148 — External Agent Orchestrator (Cursor + Claude missions)
 
 - **Date:** 2026-07-26
 - **Status:** ACCEPTED (code-present, INERT by default)

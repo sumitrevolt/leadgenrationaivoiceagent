@@ -1,6 +1,6 @@
 # Runbook — External Agent Orchestrator (Cursor + Claude missions)
 
-Decision record: `docs/adr/ADR-145-external-agent-orchestrator.md`.
+Decision record: `docs/adr/ADR-148-external-agent-orchestrator.md`.
 Flag: `EXTERNAL_AGENT_ORCHESTRATOR` (default `0`, fully inert).
 
 ## 1. What it is / is not

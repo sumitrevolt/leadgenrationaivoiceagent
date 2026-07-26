@@ -1,36 +1,31 @@
-# SESSION_HANDOFF - 2026-07-25
+# SESSION_HANDOFF - overwrite every session end
 
-## Active
-- **PR #141** still OPEN (`feat/bounce-complaint-outcomes`) - not merged, not on prod.
-- Prod `/health` was **`f096a08d`** (classifier not live yet).
-- **Part B dry-run DONE** on prod DB (`apply=false` only). No merge / deploy / apply / flag flips / push.
+## Session objective
+Turn the manual Cursor + Claude workflow into a policy-driven, evidence-backed mission system under Owner OS / OpenClaw.
 
-## Prod DRY-RUN bounce outcome (apply=false)
-How: PR-branch classifier logic against **prod DB** (read-only dry-run). Confirmed dry-run only - **no apply**.
+## Outcome — External Agent Orchestrator (PR #146, commit `e4cebb1`, base `53b000d0`)
+- New `app/dev_control/external_agents/` — mission schema + validated 23-state lifecycle, GREEN/AMBER/RED lanes (registry wins), CAS leases + heartbeat + stale-worker recovery, path/branch/worktree ownership, budgets/retries, Cursor + Claude adapters validated in code, rollback packages.
+- OpenClaw: `external.missions`, `external.mission_status` — GREEN read-only only. No new STAFF; workforce still 31.
+- Admin: `/api/dev-tasks/missions*` (existing router) + Missions card with filters in `frontend/dev_control.html`.
+- Flag `EXTERNAL_AGENT_ORCHESTRATOR` registered in `AUTOMATION_FLAGS`, default OFF → API 503, OpenClaw `enabled:false`.
+- ADR-148 + `docs/runbooks/EXTERNAL_AGENT_ORCHESTRATOR.md`.
 
-| metric | count |
-|---|---|
-| candidates (`other` / email / in) | 286 |
-| to_hard_bounce | 0 |
-| to_soft_bounce | 0 |
-| to_complaint | 0 |
-| left_as_other | 286 |
+## Evidence
+- `pytest tests/test_external_agent_orchestrator.py -q` → 38 passed
+- 5-suite regression (openclaw copilot, dev_control plane, dev_control claims, omniroute governance, new suite) → 132 passed, exit 0
+- `scripts/prod_check.py` → ALL CHECKS PASSED (1211 routes, 0 collisions, dev-control invariants checked)
+- `scripts/check_secrets.py` → clean; pre-commit detect-secrets/bandit/black/isort/ruff green
+- Dogfood: real mission `msn_a1dc6423…` reached REVIEW_REQUIRED; `force merge…` probe refused RED
+- Prod truth re-probed during session: `/health` = `f096a08d`, environment `production` (browser cache showed a stale `7cab5f60` — CLI is truth)
 
-Rates vs 2543: all **0.000%**.
+## Owner next
+1. Watch PR #146 CI → mark ready → merge (GREEN work; no deploy implied)
+2. **Decide branch protection:** `main` is currently NOT protected (gh api → 404) while `.github/workflows/auto-merge.yml` can enable auto-merge on a labelled PR. Exact `gh api -X PUT` command is in the runbook; agent did not execute it (AMBER).
+3. Optional later: flip `EXTERNAL_AGENT_ORCHESTRATOR=1` in staging first (AMBER)
 
-### Interpretation
-- **NOT** domain-clean proof - stored history me structural NDR/FBL signals missing (mailer-daemon / DSN / feedback-type).
-- Fail-closed classifier correctly unhe `other` pe chhod deta hai.
-- Soft lex: **25/286** me word "spam" hai, lekin classifier correctly usko alone use nahi karta.
+## Not done / blocked
+- Claude Code CLI is installed (v2.1.207) but its OAuth session is expired → non-interactive Claude review mission could not run; independent review was performed by a separate Cursor reviewer agent instead. Re-auth `claude` to restore the Claude executor path.
+- Browser GitHub settings verification needs an owner-signed-in session; branch-protection truth came from authenticated `gh` API instead.
 
-### Recommendation
-- In zeros pe domain mat rokna.
-- Blindly enrichment/outreach enable mat karna.
-- Pehle **merge #141** for forward ingest.
-- `AUTO_EMAIL_OUTREACH` / `EMAIL_ENRICH_SWEEP` **OFF** rakho.
-
-## Next owner action
-Decide merge of PR #141 (forward fix). Optional: raw IMAP/provider log probe agar true historical bounce rate chahiye. `--apply` backfill mat karo jab tak owner na kahe (abhi bhi 0 rows update honge).
-
-## PR comment
-Posted: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/141#issuecomment-5079069396
+## Out of scope (unchanged)
+Calling HARD OFF (`PLATFORM_DIAL_DAILY=0`) · WA auto-send · Swara/voice · sales autopilot · any production deploy
