@@ -42,7 +42,23 @@ cd "$REPO" || { echo "FATAL: $REPO not found"; exit 1; }
 # live invoices, consent, suppression, customer identity and 182 MB of DPDP
 # call recordings still live inside this checkout, so a release that moves
 # HEAD can carry tracked data files over them.
-. "$(dirname "$0")/_runtime_data_guard.sh"
+#
+# The `|| exit 91` is load-bearing and is NOT a stylistic flourish. This script
+# runs under `set -uo pipefail` with NO `-e`, so a FAILED `.` source does not
+# abort it: if _runtime_data_guard.sh were renamed, deleted, or unreadable, the
+# shell would print "No such file or directory", carry on, and reach the
+# `git pull` below completely unguarded. A behavioural harness caught exactly
+# that (tests/test_deploy_parent_behaviour.py) — the textual "guard line comes
+# before git pull" test could not, because the line WAS there and still failed
+# open. 91 = guard unavailable, distinct from 90 = guard ran and denied.
+_guard_sh="$(dirname "$0")/_runtime_data_guard.sh"
+if [ ! -r "$_guard_sh" ]; then
+  echo "FATAL: runtime-data guard not found or unreadable at: $_guard_sh"
+  echo "       Refusing to deploy unguarded. Restore the guard, do not remove the call."
+  exit 91
+fi
+# shellcheck source=scripts/_runtime_data_guard.sh
+. "$_guard_sh" || exit 91
 
 # ---------------------------------------------------------------- resolve sha
 # 2026-07-16 hardening: pull-fail + SHA/HEAD mismatch used to silently rebuild
