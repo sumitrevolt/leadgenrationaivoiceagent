@@ -7,9 +7,31 @@ independent recomputation here.
 
 from __future__ import annotations
 
+import pathlib
+import re
+
 import pytest
 
 from app.platform import deployment_path_manifest as d
+
+_REPO = pathlib.Path(__file__).resolve().parents[1]
+
+
+def _executable_lines(rel: str) -> list[str]:
+    """Source lines with comments and blanks removed.
+
+    Classification must be based on what a script EXECUTES. Twice already a
+    scanner read my own prose — a comment saying "no bypass" — and reported it
+    as a finding. Comments are not evidence in either direction.
+    """
+    text = (_REPO / rel).read_text(encoding="utf-8", errors="replace")
+    out = []
+    for line in text.splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        out.append(s)
+    return out
 
 
 def test_manifest_validates() -> None:
@@ -56,7 +78,15 @@ def test_unknown_counts_as_unguarded() -> None:
         for e in d.ENTRYPOINTS
         if e["status"] == d.UNKNOWN_REQUIRES_REVIEW and not e.get("guarded")
     ]
-    assert unknown_unguarded, "expected unresolved entries at this stage"
+    # NOT "assert unknown_unguarded" — that was a stage assertion, and it broke
+    # the moment the unknowns were actually resolved, punishing progress. The
+    # durable property is the accounting rule: however many unknowns exist,
+    # every guard-required one is inside the unguarded total. Zero is allowed.
+    for e in unknown_unguarded:
+        assert d.requires_guard(e) is True, (
+            f"{e['deployment_id']}: UNKNOWN entries are only permitted to leave "
+            "the guard denominator via evidence, not by assumption"
+        )
     assert c["unguarded_runtime_data_entrypoints"] >= len(unknown_unguarded)
 
 
@@ -127,3 +157,117 @@ def test_gate_is_not_yet_met() -> None:
     assert (
         c["unguarded_runtime_data_entrypoints"] > 0
     ), "if this passes, either the work is done or the manifest is lying"
+
+
+# ------------------------------------------------------------------ unknowns
+
+
+def test_no_unresolved_entrypoints_remain() -> None:
+    """Every entry has an evidence-backed mutation capability.
+
+    `None` means nobody looked. An unattended cron script whose capability was
+    never read is not 'probably fine'.
+    """
+    unresolved = [
+        e["deployment_id"] for e in d.ENTRYPOINTS if e.get("runtime_data_mutation_capable") is None
+    ]
+    assert unresolved == [], f"unresolved mutation capability: {unresolved}"
+
+
+def test_unknown_buckets_sum_to_unknown_total() -> None:
+    c = d.counts()
+    assert (
+        c["unknown_guard_required_entrypoints"] + c["unknown_guard_not_required_entrypoints"]
+        == c["unknown_entrypoints"]
+    )
+
+
+def test_unknowns_inside_denominator_are_counted_as_unguarded() -> None:
+    """A guard-required unknown must never be netted out of the exposure count.
+
+    Guarding against the shape of my earlier errors: a separate 'unknown'
+    bucket would let the gate read zero while unexamined paths sat in it.
+    """
+    c = d.counts()
+    assert c["unknown_guard_required_entrypoints"] <= c["unguarded_runtime_data_entrypoints"]
+
+
+# ------------------------------------------------- classification enforcement
+
+
+def test_selfheal_cannot_prune_volumes() -> None:
+    """`vps_selfheal.sh` is classified NON-runtime-data-mutating.
+
+    That holds only because its prune is scoped to unused images/containers.
+    `docker system prune --volumes` WOULD remove named volumes and invalidate
+    the classification, so the classification is enforced here rather than
+    trusted. Same for any git reset/clean, which would make it a release path.
+    """
+    e = next(x for x in d.ENTRYPOINTS if x["deployment_id"] == "maintenance.selfheal")
+    assert e["runtime_data_mutation_capable"] is False
+    assert d.requires_guard(e) is False
+
+    lines = _executable_lines(e["file"])
+    for line in lines:
+        assert "--volumes" not in line, f"prune now removes volumes: {line}"
+        assert not re.search(
+            r"\bgit\s+(reset|clean|checkout)\b", line
+        ), f"selfheal gained a git mutation, reclassify it: {line}"
+
+
+def test_selfheal_prune_is_actually_present() -> None:
+    """Negative-space check: the classification says prune EXECUTES.
+
+    If a future edit removed it, the evidence string would silently become
+    false. A manifest whose evidence no longer matches source is worse than
+    no manifest.
+    """
+    lines = _executable_lines("scripts/vps_selfheal.sh")
+    assert any("docker system prune" in ln for ln in lines)
+    assert any(re.search(r"\bdocker\s+restart\b", ln) for ln in lines)
+
+
+def test_bootstrap_target_dir_is_env_overridable() -> None:
+    """`hostinger_hermes_bootstrap.sh` is guard-required because of this line.
+
+    Its comment claims a sandbox clone, and the DEFAULT is a sandbox clone.
+    But `LOCAL_DIR` is overridable, so it can be pointed at /opt/leadgen and
+    then `git reset --hard` the production checkout. Default-safe is not
+    enforced-safe. If someone later hard-codes the path, this test fails and
+    the entry should be reclassified rather than left over-restrictive.
+    """
+    e = next(x for x in d.ENTRYPOINTS if x["deployment_id"] == "bootstrap.hermes")
+    assert d.requires_guard(e) is True
+    assert e["status"] == d.UNGUARDED_PRODUCTION_PATH
+
+    lines = _executable_lines(e["file"])
+    assert any(
+        re.search(r'LOCAL_DIR="\$\{LOCAL_DIR:-', ln) for ln in lines
+    ), "LOCAL_DIR is no longer env-overridable — re-evaluate the classification"
+    assert any(re.search(r"\bgit\s+reset\s+--hard\b", ln) for ln in lines)
+
+
+def test_detached_execution_is_tracked_separately_from_guarding() -> None:
+    """Detached delegation is an OPERATIONAL gap, not a containment gap.
+
+    `_ship_vps_recover.sh` inherits the parent's guard (the guard runs before
+    any mutation regardless), but `setsid nohup ... &` means the caller never
+    learns whether the release succeeded. Recording that as `guarded=False`
+    would overstate exposure; ignoring it would hide a real weakness.
+    """
+    e = next(x for x in d.ENTRYPOINTS if x["deployment_id"] == "recovery.ship_recover")
+    assert e["guarded"] is True
+    assert e["guard_precedes_mutation"] is True
+    assert e["detached_execution"] is True
+    assert e["operational_completion_observable"] is False
+    assert e["exit_code_propagated"] is False
+
+
+def test_every_entry_declares_completion_observability() -> None:
+    for e in d.ENTRYPOINTS:
+        assert isinstance(e["detached_execution"], bool)
+        assert isinstance(e["operational_completion_observable"], bool)
+        if e["detached_execution"]:
+            assert (
+                e["operational_completion_observable"] is False
+            ), f"{e['deployment_id']}: detached but claims observable completion"
