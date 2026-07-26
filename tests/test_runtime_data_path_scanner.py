@@ -228,6 +228,107 @@ def test_test_files_are_fixture_only() -> None:
     assert {s.classify(x, {}) for x in f} == {s.FIXTURE_ONLY}
 
 
+# -------------------------------------------- real-repository canonical proof
+
+
+def test_real_repo_canonical_usage_is_detected() -> None:
+    """Canonical count read 0. Verified against actual repository code.
+
+    `runtime_data.store_dir` really does `path.mkdir(...)` on a canonical path.
+    The scanner missed it because it took the path from `args[0]`, and for a
+    METHOD call the path is the receiver — `p.mkdir()` has no args at all.
+    Worse, `p.write_text(secret)` had the SECRET recorded as its path.
+    """
+    import pathlib
+
+    src = (
+        pathlib.Path(__file__).resolve().parents[1] / "app" / "platform" / "runtime_data.py"
+    ).read_text(encoding="utf-8")
+    f = s.scan_python("app/platform/runtime_data.py", src)
+    # Classification is the authoritative layer — discovery only proposes.
+    # Canonical usage here is INDIRECT (`path = store_path(...)` then
+    # `path.mkdir()`), so it is resolved during classify(), not at discovery.
+    classes = {s.classify(x, {}) for x in f}
+    assert s.CANONICAL_RUNTIME_PATH in classes, (
+        "canonical resolver usage in runtime_data.py not detected; " f"got {sorted(classes)}"
+    )
+
+
+def test_method_call_path_is_the_receiver_not_the_content() -> None:
+    """Regression for the defect above — and a secret-safety property.
+
+    If the content argument were read as the path, a token passed to
+    write_text() would end up in scanner output.
+    """
+    f = _py(
+        """
+        from pathlib import Path
+        _P = Path("data/creds.json")
+        def save(token):
+            _P.write_text(token)
+        """
+    )
+    assert f, "method-form write not detected"
+    for x in f:
+        assert "token" not in x["path_expression"]
+        assert "_P" in x["path_expression"] or "_P" == x.get("symbol")
+
+
+def test_mkdir_with_only_keywords_is_detected() -> None:
+    f = _py(
+        """
+        from pathlib import Path
+        _D = Path("data/prospects")
+        def ensure():
+            _D.mkdir(parents=True, exist_ok=True)
+        """
+    )
+    assert s.CREATE in _ops(f)
+
+
+def test_os_replace_still_uses_first_argument() -> None:
+    """The receiver rule must not break function-style calls."""
+    f = _py(
+        """
+        import os
+        def swap():
+            os.replace("data/a.tmp", "data/a.json")
+        """
+    )
+    assert s.REPLACE in _ops(f)
+    assert any("a.tmp" in x["path_expression"] for x in f)
+
+
+# ---------------------------------------------------------------- accounting
+
+
+def test_matrices_reconcile_to_total() -> None:
+    """A wall of read-only references must not hide the real writers."""
+    f = _py(
+        """
+        _S = "data/x.jsonl"
+        def w(): open(_S, "a").write("x")
+        def r(): return open(_S).read()
+        """
+    )
+    m = s.matrices(f)
+    total = sum(b["mutating"] + b["read_only"] for b in m["classification_x_access"].values())
+    assert total == len(f)
+    assert sum(m["production_relevance"].values()) == len(f)
+
+
+def test_fingerprints_are_unique_per_finding() -> None:
+    f = _py(
+        """
+        _S = "data/x.jsonl"
+        def a(): open(_S, "a").write("1")
+        def b(): open(_S, "w").write("2")
+        """
+    )
+    fps = {s.fingerprint(x) for x in f}
+    assert len(fps) == len({(x["operation"], x["file"]) for x in f})
+
+
 def test_output_is_deterministic_and_secret_free() -> None:
     src = '_S = "data/a.jsonl"\nopen(_S, "a").write("x")\n'
     a = s.scan_python("app/x.py", src)

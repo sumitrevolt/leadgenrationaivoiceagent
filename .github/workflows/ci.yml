@@ -55,15 +55,21 @@ jobs:
           IDEM_AUDIT_MAX_GAPS: "117"
         run: python scripts/queue_idempotency_audit.py
       - name: Runtime-data mutable-path allowlist  # MUST-PASS — allowlist must match live code
-        # Gates on allowlist COHERENCE, which is enforceable today: no stale
-        # entries, no unknown store ids, no operation mismatch, no writer filed
-        # against an immutable store. The undeclared/ambiguous counts are
-        # PRINTED every run so the backlog cannot grow quietly, but they are not
-        # yet a hard gate — the declaration backlog is real, and the honest
-        # options were "print it" or "add a bypass flag". There is no bypass
-        # flag and no --accept-current-state, by design.
+        # Schema + allowlist coherence: no stale entries, no unknown store ids,
+        # no operation mismatch, no writer filed against an immutable store.
         # Offline, deterministic, no network, no production access.
         run: python scripts/runtime_data_path_scan.py validate
+
+      - name: Runtime-data debt ratchet  # MUST-PASS — no NEW undeclared writers
+        # Monotonic gate. Existing frozen debt (KNOWN_UNRESOLVED_DEBT) is
+        # tolerated; a new undeclared/ambiguous finding or a classification
+        # regression FAILS. Compared by fingerprint, not by count, because
+        # "one dangerous writer added + one unrelated finding removed" leaves
+        # the count unchanged.
+        # No baseline auto-update here — regenerating is a local, reviewed,
+        # committed action (scripts/runtime_data_baseline_gen.py). There is no
+        # bypass variable and no --accept-current-state anywhere.
+        run: python scripts/runtime_data_path_scan.py ratchet
 
       - name: Dependency vulnerability scan  # MUST-PASS — no known CVEs in dependencies
         run: |

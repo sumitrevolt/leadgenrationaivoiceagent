@@ -101,7 +101,7 @@ ENTRIES: list[dict[str, Any]] = [
         "line_or_symbol": "_STORE",
         "path_pattern": "data/email_suppression.jsonl",
         "store_id": "compliance.email_suppression",
-        "access_modes": ["APPEND", "READ"],
+        "access_modes": ["APPEND", "READ", "CREATE"],
         "reason": (
             "Canonical suppression authority (ADR-144). Losing it re-enables "
             "outreach to opted-out recipients, which is a DPDP breach, not just "
