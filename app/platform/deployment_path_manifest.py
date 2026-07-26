@@ -1,0 +1,450 @@
+"""Semantic deployment-path manifest — one row per logical entry point.
+
+NOT one row per command occurrence. The raw scanner finds 85 mutation-pattern
+occurrences across 38 files; that is candidate discovery, not classification.
+Three files it flagged production-capable turned out to be a CI workflow, a
+throwaway-container restore drill, and an `echo` of operator instructions.
+
+The load-bearing distinction here is:
+
+    requires_runtime_data_guard = production_capable AND runtime_data_mutation_capable
+
+A production-scoped script that writes `.env` is sensitive, but it cannot revert
+the checkout or replace containers — counting it as an unguarded deployment path
+would inflate the denominator and hide the real gap.
+
+Every `evidence` field cites what was READ, not what was pattern-matched.
+This module is DATA and performs no I/O.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+MANIFEST_VERSION = "2026-07-26.1"
+
+# --- operation classes -------------------------------------------------------
+NORMAL_RELEASE = "NORMAL_RELEASE"
+RECOVERY_SELF_HEAL = "RECOVERY_SELF_HEAL"
+DATABASE_RESTORE = "DATABASE_RESTORE"
+BOOTSTRAP_PROVISIONING = "BOOTSTRAP_PROVISIONING"
+SECRET_CONFIG_PREPARATION = "SECRET_CONFIG_PREPARATION"  # pragma: allowlist secret
+MAINTENANCE = "MAINTENANCE"
+TEST_CI = "TEST_CI"
+UNKNOWN_CLASS = "UNKNOWN"
+
+# --- environment scope -------------------------------------------------------
+PRODUCTION = "PRODUCTION"
+TEST_ONLY = "TEST_ONLY"
+LOCAL_DEVELOPMENT = "LOCAL_DEVELOPMENT"
+UNKNOWN_SCOPE = "UNKNOWN"
+
+# --- status ------------------------------------------------------------------
+GUARDED_DIRECTLY = "GUARDED_DIRECTLY"
+GUARDED_BY_CANONICAL_PARENT = "GUARDED_BY_CANONICAL_PARENT"
+PRODUCTION_NON_RUNTIME_MUTATION = "PRODUCTION_NON_RUNTIME_MUTATION"
+NON_PRODUCTION = "NON_PRODUCTION"
+DIAGNOSTIC_ONLY = "DIAGNOSTIC_ONLY"
+UNGUARDED_PRODUCTION_PATH = "UNGUARDED_PRODUCTION_PATH"
+UNKNOWN_REQUIRES_REVIEW = "UNKNOWN_REQUIRES_REVIEW"
+
+VALID_STATUSES = frozenset(
+    {
+        GUARDED_DIRECTLY,
+        GUARDED_BY_CANONICAL_PARENT,
+        PRODUCTION_NON_RUNTIME_MUTATION,
+        NON_PRODUCTION,
+        DIAGNOSTIC_ONLY,
+        UNGUARDED_PRODUCTION_PATH,
+        UNKNOWN_REQUIRES_REVIEW,
+    }
+)
+
+CANONICAL_RELEASE_PARENT = "scripts/deploy_vps.sh"
+
+
+def _e(**kw: Any) -> dict[str, Any]:
+    kw.setdefault("language", "shell")
+    kw.setdefault("direct_or_wrapper", "direct")
+    kw.setdefault("canonical_parent", None)
+    kw.setdefault("guard_location", None)
+    kw.setdefault("fallback_after_denial", False)
+    return kw
+
+
+ENTRYPOINTS: list[dict[str, Any]] = [
+    # ================================================= GUARDED (evidence-backed)
+    _e(
+        deployment_id="release.canonical",
+        file="scripts/deploy_vps.sh",
+        entrypoint="bash scripts/deploy_vps.sh [sha]",
+        operation_class=NORMAL_RELEASE,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=True,
+        independently_invokable=True,
+        operations=["git pull --ff-only", "compose build", "compose up -d"],
+        first_mutating_operation="git pull --ff-only",
+        guard_strategy="DIRECT_PREFLIGHT",
+        guarded=True,
+        guard_location="after `cd $REPO`, before sha resolution / git pull",
+        guard_precedes_mutation=True,
+        exit_code_propagated=True,
+        status=GUARDED_DIRECTLY,
+        evidence="canonical release authority; rolls all 5 app-image services",
+    ),
+    _e(
+        deployment_id="release.mcp_remote",
+        file="scripts/_mcp_deploy_remote.sh",
+        entrypoint="bash scripts/_mcp_deploy_remote.sh",
+        operation_class=NORMAL_RELEASE,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=True,
+        independently_invokable=True,
+        operations=["git fetch", "git reset --hard", "compose up -d"],
+        first_mutating_operation="git reset --hard origin/main",
+        guard_strategy="DIRECT_PREFLIGHT",
+        guarded=True,
+        guard_location="line 8, before git fetch/reset",
+        guard_precedes_mutation=True,
+        exit_code_propagated=True,
+        status=GUARDED_DIRECTLY,
+        evidence="independent reset --hard chain; cannot delegate without changing MCP flow",
+    ),
+    _e(
+        deployment_id="release.pitch",
+        file="scripts/vps_pitch_deploy.sh",
+        entrypoint="bash scripts/vps_pitch_deploy.sh",
+        operation_class=NORMAL_RELEASE,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=True,
+        independently_invokable=True,
+        operations=["git reset --hard", "compose build", "compose up -d"],
+        first_mutating_operation="git reset --hard origin/main",
+        guard_strategy="DIRECT_PREFLIGHT",
+        guarded=True,
+        guard_location="line 5, before git fetch/reset",
+        guard_precedes_mutation=True,
+        exit_code_propagated=True,
+        status=GUARDED_DIRECTLY,
+        evidence="app-only rollout variant; delegation candidate for a later wave",
+    ),
+    _e(
+        deployment_id="release.force_pull",
+        file="scripts/vps_force_pull.py",
+        entrypoint="python scripts/vps_force_pull.py",
+        language="python",
+        operation_class=NORMAL_RELEASE,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=True,
+        independently_invokable=True,
+        operations=["git stash", "git clean (scoped)", "git pull", "compose up -d"],
+        first_mutating_operation="git stash",
+        guard_strategy="DIRECT_PREFLIGHT",
+        guarded=True,
+        guard_location="main() calls preflight_ok() before building the chain",
+        guard_precedes_mutation=True,
+        exit_code_propagated=True,
+        status=GUARDED_DIRECTLY,
+        evidence="behaviourally proven in tests/test_force_pull_guard.py: a denied "
+        "preflight makes subprocess.run a spy that fails the test if reached",
+    ),
+    # ============================================ PARENT-GUARDED (proven delegation)
+    _e(
+        deployment_id="recovery.ship_recover",
+        file="scripts/_ship_vps_recover.sh",
+        entrypoint="bash scripts/_ship_vps_recover.sh",
+        operation_class=RECOVERY_SELF_HEAL,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=True,
+        independently_invokable=True,
+        direct_or_wrapper="wrapper",
+        canonical_parent=CANONICAL_RELEASE_PARENT,
+        operations=["delegates redeploy"],
+        first_mutating_operation="scripts/deploy_vps.sh (delegated)",
+        guard_strategy="CANONICAL_PARENT",
+        guarded=True,
+        guard_location="inherits deploy_vps.sh guard",
+        guard_precedes_mutation=True,
+        exit_code_propagated=False,
+        status=GUARDED_BY_CANONICAL_PARENT,
+        evidence='line 31 runs `setsid nohup bash scripts/deploy_vps.sh "$VER"`. '
+        "Lines 5-6 before it are `cd` and `git rev-parse` — read-only. No "
+        "independent mutation chain, so the parent's guard covers it. NOTE: the "
+        "delegation is detached (setsid nohup &), so the parent's exit status is "
+        "NOT propagated to this wrapper — tracked as a separate weakness.",
+    ),
+    # ================================= UNGUARDED, GENUINELY REQUIRES GUARD
+    _e(
+        deployment_id="release.flywheel",
+        file="scripts/vps_flywheel_deploy.sh",
+        entrypoint="bash scripts/vps_flywheel_deploy.sh",
+        operation_class=NORMAL_RELEASE,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=True,
+        independently_invokable=True,
+        operations=["git pull origin main", "compose build", "compose up -d", "alembic upgrade"],
+        first_mutating_operation="git pull origin main",
+        guard_strategy="UNRESOLVED",
+        guarded=False,
+        guard_precedes_mutation=False,
+        exit_code_propagated=False,
+        status=UNGUARDED_PRODUCTION_PATH,
+        evidence="independent chain against /opt/leadgen + docker-compose.vps.yml; "
+        "also runs `alembic upgrade head || true`. Delegation candidate.",
+    ),
+    _e(
+        deployment_id="release.all",
+        file="scripts/deploy_all.sh",
+        entrypoint="bash scripts/deploy_all.sh",
+        operation_class=NORMAL_RELEASE,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=True,
+        independently_invokable=True,
+        operations=["git pull --ff-only", "compose build", "compose up -d"],
+        first_mutating_operation="git pull --ff-only",
+        guard_strategy="UNRESOLVED",
+        guarded=False,
+        guard_precedes_mutation=False,
+        exit_code_propagated=False,
+        status=UNGUARDED_PRODUCTION_PATH,
+        evidence="duplicates deploy_vps.sh semantics (APP_VERSION + celery profile); "
+        "strong delegation candidate",
+    ),
+    *[
+        _e(
+            deployment_id=f"release.adr{n}",
+            file=f"scripts/deploy_adr{n}.sh",
+            entrypoint=f"bash scripts/deploy_adr{n}.sh",
+            operation_class=NORMAL_RELEASE,
+            environment_scope=PRODUCTION,
+            production_capable=True,
+            runtime_data_mutation_capable=True,
+            independently_invokable=True,
+            operations=["git pull --ff-only", "compose build", "compose up -d"],
+            first_mutating_operation="git pull --ff-only",
+            guard_strategy="UNRESOLVED",
+            guarded=False,
+            guard_precedes_mutation=False,
+            exit_code_propagated=False,
+            status=UNGUARDED_PRODUCTION_PATH,
+            evidence="one-off ADR release; same shape as deploy_all.sh",
+        )
+        for n in ("095", "096", "097")
+    ],
+    *[
+        _e(
+            deployment_id=f"release.builder.{stem}",
+            file=f"scripts/{stem}.py",
+            entrypoint=f"python scripts/{stem}.py",
+            language="python",
+            operation_class=NORMAL_RELEASE,
+            environment_scope=PRODUCTION,
+            production_capable=True,
+            runtime_data_mutation_capable=True,
+            independently_invokable=True,
+            operations=["git reset --hard", "compose build/up"],
+            first_mutating_operation="git reset --hard origin/main",
+            guard_strategy="UNRESOLVED",
+            guarded=False,
+            guard_precedes_mutation=False,
+            exit_code_propagated=False,
+            status=UNGUARDED_PRODUCTION_PATH,
+            evidence="python remote-command builder embedding reset --hard",
+        )
+        for stem in ("vps_build_deploy", "vps_deploy_dashboard", "vps_deploy_workflow_fix")
+    ],
+    _e(
+        deployment_id="bootstrap.hermes",
+        file="scripts/hostinger_hermes_bootstrap.sh",
+        entrypoint="bash scripts/hostinger_hermes_bootstrap.sh",
+        operation_class=BOOTSTRAP_PROVISIONING,
+        environment_scope=UNKNOWN_SCOPE,
+        production_capable=True,
+        runtime_data_mutation_capable=True,
+        independently_invokable=True,
+        operations=["git reset --hard"],
+        first_mutating_operation="git reset --hard origin/main",
+        guard_strategy="UNRESOLVED",
+        guarded=False,
+        guard_precedes_mutation=False,
+        exit_code_propagated=False,
+        status=UNKNOWN_REQUIRES_REVIEW,
+        evidence="comment claims a sandbox clone, not /opt/leadgen — NOT yet verified "
+        "by reading the resolved target path. Unknown + mutation-capable, so it "
+        "counts as requiring a guard until proven otherwise.",
+    ),
+    # =========================== PRODUCTION BUT NOT RUNTIME-DATA MUTATION
+    _e(
+        deployment_id="config.sops_decrypt",
+        file="scripts/sops_decrypt_env.sh",
+        entrypoint="bash scripts/sops_decrypt_env.sh",
+        operation_class=SECRET_CONFIG_PREPARATION,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=False,
+        independently_invokable=True,
+        operations=["write /opt/leadgen/.env"],
+        first_mutating_operation="write .env",
+        guard_strategy="NOT_REQUIRED_NON_RUNTIME_MUTATION",
+        guarded=False,
+        guard_precedes_mutation=False,
+        exit_code_propagated=True,
+        status=PRODUCTION_NON_RUNTIME_MUTATION,
+        evidence="line 68 emits the compose command through `echo` as operator "
+        "guidance; it is never executed. Writes .env only — cannot revert the "
+        "checkout or replace containers. Needs its own config-safety controls "
+        "(atomic write, backup, permissions), tracked separately.",
+    ),
+    # ================================================ NON-PRODUCTION
+    _e(
+        deployment_id="ci.tests_workflow",
+        file=".github/workflows/tests.yml",
+        entrypoint="GitHub Actions job",
+        language="yaml",
+        operation_class=TEST_CI,
+        environment_scope=TEST_ONLY,
+        production_capable=False,
+        runtime_data_mutation_capable=False,
+        independently_invokable=False,
+        operations=["git checkout --orphan", "git clean -fdxq", "git push -f ci-debug"],
+        first_mutating_operation="git checkout --orphan ci-debug",
+        guard_strategy="NOT_REQUIRED_NON_PRODUCTION",
+        guarded=False,
+        guard_precedes_mutation=False,
+        exit_code_propagated=True,
+        status=NON_PRODUCTION,
+        evidence="runs-on: ubuntu-latest; mutates only the runner's ephemeral "
+        "checkout and pushes a ci-debug branch. No /opt/leadgen, no ssh, no "
+        "production compose. The scanner matched the git identity ci@leadsgenai.in.",
+    ),
+    _e(
+        deployment_id="restore.pg_drill",
+        file="scripts/pg_restore_drill.sh",
+        entrypoint="bash scripts/pg_restore_drill.sh (cron)",
+        operation_class=DATABASE_RESTORE,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=False,
+        independently_invokable=True,
+        operations=["docker run --rm temp pg", "docker rm -f <temp>"],
+        first_mutating_operation="docker run -d --rm --name $TMP",
+        guard_strategy="NOT_REQUIRED_NON_RUNTIME_MUTATION",
+        guarded=False,
+        guard_precedes_mutation=False,
+        exit_code_propagated=True,
+        status=DIAGNOSTIC_ONLY,
+        evidence="restores a backup into a THROWAWAY container; its `docker rm -f` "
+        "targets that same temp container. Reads /opt/leadgen/backups. Never "
+        "mutates the production checkout or production services.",
+    ),
+    _e(
+        deployment_id="maintenance.selfheal",
+        file="scripts/vps_selfheal.sh",
+        entrypoint="bash scripts/vps_selfheal.sh (cron)",
+        operation_class=RECOVERY_SELF_HEAL,
+        environment_scope=PRODUCTION,
+        production_capable=True,
+        runtime_data_mutation_capable=None,  # explicitly unresolved
+        independently_invokable=True,
+        operations=["tar backup of data/", "ntfy notifications"],
+        first_mutating_operation="unresolved",
+        guard_strategy="UNRESOLVED",
+        guarded=False,
+        guard_precedes_mutation=False,
+        exit_code_propagated=False,
+        status=UNKNOWN_REQUIRES_REVIEW,
+        evidence="its `docker prune` matches are inside curl NOTIFICATION TEXT, and "
+        "line 110 `tar -czf .../data_$day.tar.gz -C /opt/leadgen data` is a BACKUP "
+        "(read). Whether any real prune/restart executes is NOT yet confirmed. "
+        "Unattended cron makes an unverified answer unacceptable — stays UNKNOWN.",
+    ),
+]
+
+
+def validate() -> list[str]:
+    problems: list[str] = []
+    ids = [e["deployment_id"] for e in ENTRYPOINTS]
+    if len(ids) != len(set(ids)):
+        problems.append("duplicate deployment_id")
+    for e in ENTRYPOINTS:
+        if e["status"] not in VALID_STATUSES:
+            problems.append(f"{e['deployment_id']}: invalid status")
+        if (
+            requires_guard(e)
+            and not e.get("guarded")
+            and e["status"]
+            not in (
+                UNGUARDED_PRODUCTION_PATH,
+                UNKNOWN_REQUIRES_REVIEW,
+            )
+        ):
+            problems.append(f"{e['deployment_id']}: requires a guard but is not marked unguarded")
+        if e.get("guarded") and not e.get("guard_precedes_mutation"):
+            problems.append(f"{e['deployment_id']}: guarded but not before mutation")
+    return problems
+
+
+def requires_guard(e: dict[str, Any]) -> bool:
+    """production_capable AND runtime_data_mutation_capable.
+
+    `None` for mutation-capability means UNRESOLVED, which counts as requiring a
+    guard — an unverified unattended script is not evidence of safety.
+    """
+    if not e.get("production_capable"):
+        return False
+    cap = e.get("runtime_data_mutation_capable")
+    return cap is None or bool(cap)
+
+
+def counts() -> dict[str, int]:
+    req = [e for e in ENTRYPOINTS if requires_guard(e)]
+    out = {
+        "unique_logical_entrypoints": len(ENTRYPOINTS),
+        "production_capable_entrypoints": sum(
+            1 for e in ENTRYPOINTS if e.get("production_capable")
+        ),
+        "runtime_data_guard_required_entrypoints": len(req),
+        "production_non_runtime_mutation_entrypoints": sum(
+            1 for e in ENTRYPOINTS if e["status"] == PRODUCTION_NON_RUNTIME_MUTATION
+        ),
+        "non_production_entrypoints": sum(1 for e in ENTRYPOINTS if e["status"] == NON_PRODUCTION),
+        "diagnostic_only_entrypoints": sum(
+            1 for e in ENTRYPOINTS if e["status"] == DIAGNOSTIC_ONLY
+        ),
+        "directly_guarded_entrypoints": sum(1 for e in req if e["status"] == GUARDED_DIRECTLY),
+        "parent_guarded_entrypoints": sum(
+            1 for e in req if e["status"] == GUARDED_BY_CANONICAL_PARENT
+        ),
+        # An entry that REQUIRES a guard and does not have one is unguarded —
+        # including UNKNOWN_REQUIRES_REVIEW. Leaving unknowns in their own
+        # bucket would let the invariant balance while real exposure hid there,
+        # and would let the release gate read zero before anyone had looked.
+        "unguarded_runtime_data_entrypoints": sum(
+            1
+            for e in req
+            if not e.get("guarded")
+            and e["status"] in (UNGUARDED_PRODUCTION_PATH, UNKNOWN_REQUIRES_REVIEW)
+        ),
+        "unknown_entrypoints": sum(
+            1 for e in ENTRYPOINTS if e["status"] == UNKNOWN_REQUIRES_REVIEW
+        ),
+    }
+    return out
+
+
+__all__ = [
+    "MANIFEST_VERSION",
+    "ENTRYPOINTS",
+    "VALID_STATUSES",
+    "CANONICAL_RELEASE_PARENT",
+    "requires_guard",
+    "counts",
+    "validate",
+]
