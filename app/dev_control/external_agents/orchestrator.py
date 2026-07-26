@@ -282,6 +282,15 @@ def advance(
         return _fail("mission_not_found")
     target_state = MissionState(target) if not isinstance(target, MissionState) else target
 
+    # Review verdicts MUST go through submit_review() so the citation +
+    # review-separation gates cannot be skipped by an admin advance call.
+    if target_state in {MissionState.REVIEW_PASSED, MissionState.CHANGES_REQUESTED}:
+        return _fail(
+            "use_submit_review_endpoint",
+            target=target_state.value,
+            note="REVIEW_PASSED / CHANGES_REQUESTED require submit_review()",
+        )
+
     if policy.approval_required(mission, target_state) and not owner_approved:
         if mission.status is not MissionState.OWNER_DECISION_REQUIRED:
             mission.transition(MissionState.OWNER_DECISION_REQUIRED)

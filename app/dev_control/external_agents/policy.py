@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import os
 import re
+from posixpath import normpath as _posix_normpath
 from typing import Any
 
 from app.dev_control.external_agents.schema import Mission, MissionState, RiskClass
@@ -91,6 +92,24 @@ PROTECTED_PATH_PREFIXES: tuple[str, ...] = (
 _ALWAYS_PROHIBITED = tuple(PROTECTED_PATH_PREFIXES)
 
 
+def canonical_path(raw: Any) -> str:
+    """Collapse ``..`` / ``.`` / ``\\`` and force lowercase so scope checks cannot be bypassed.
+
+    Returns empty string for empty / absolute / drive-letter / escaped-to-root
+    inputs — callers treat those as violations when they appear in changed_files.
+    """
+    p = str(raw or "").strip().replace("\\", "/")
+    if not p:
+        return ""
+    # Absolute / UNC / Windows drive → refuse rather than silently relativise.
+    if p.startswith("/") or p.startswith("//") or (len(p) > 1 and p[1] == ":"):
+        return ""
+    p = _posix_normpath(p).lstrip("./")
+    if not p or p == "." or p.startswith("../") or p == "..":
+        return ""
+    return p.lower()
+
+
 def orchestrator_enabled() -> bool:
     """Master kill-switch. Default OFF — fail closed."""
     return (os.getenv(FLAG) or "0").strip().lower() in ("1", "true", "yes", "on")
@@ -161,11 +180,16 @@ def normalise_prohibited(paths: list[str] | None) -> list[str]:
 def path_violations(mission: Mission, changed_paths: list[str]) -> list[str]:
     """Paths outside the mission's declared ownership (scope breach evidence)."""
     bad: list[str] = []
-    allowed = mission.allowed_paths
-    prohibited = normalise_prohibited(mission.prohibited_paths)
+    allowed = [canonical_path(a) for a in mission.allowed_paths]
+    allowed = [a for a in allowed if a]
+    prohibited = [canonical_path(q) for q in normalise_prohibited(mission.prohibited_paths)]
+    prohibited = [q for q in prohibited if q]
     for raw in changed_paths or []:
-        p = str(raw).strip().replace("\\", "/").lstrip("./")
+        p = canonical_path(raw)
+        # Un-normalisable paths (absolute, drive letter, escaped-to-root) are
+        # themselves a scope breach — report the raw form for the evidence trail.
         if not p:
+            bad.append(str(raw).strip() or "(empty)")
             continue
         if any(p == q or p.startswith(q.rstrip("/") + "/") or p.startswith(q) for q in prohibited):
             bad.append(p)

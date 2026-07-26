@@ -143,12 +143,66 @@ def test_valid_and_invalid_transitions():
 
 def test_executor_cannot_self_complete():
     m = Mission.create(title="t", executor="cursor", reviewer="claude", idempotency_key="12345678")
-    for state in (MissionState.PREFLIGHT, MissionState.CLAIMED, MissionState.RUNNING):
+    for state in (
+        MissionState.PREFLIGHT,
+        MissionState.CLAIMED,
+        MissionState.RUNNING,
+        MissionState.IMPLEMENTED,
+        MissionState.TESTING,
+        MissionState.REVIEW_REQUIRED,
+    ):
         m.transition(state)
+    # Executor-role guard (not just the transition table) must refuse REVIEW_PASSED.
     with pytest.raises(InvalidMissionTransition):
-        m.transition(MissionState.IMPLEMENTED, actor_role="executor") and m.transition(
-            MissionState.COMPLETE, actor_role="executor"
-        )
+        m.transition(MissionState.REVIEW_PASSED, actor_role="executor")
+
+
+def test_path_traversal_cannot_escape_allowed_scope():
+    mission = Mission.create(
+        title="t",
+        executor="cursor",
+        reviewer="claude",
+        idempotency_key="12345678",
+        allowed_paths=["tests/"],
+    )
+    assert "app/billing/x.py" in policy.path_violations(mission, ["tests/../app/billing/x.py"])
+    assert "app/voice_agent/swara.py" in policy.path_violations(
+        mission, ["tests/foo/../../app/voice_agent/swara.py"]
+    )
+
+
+def test_uppercase_protected_paths_are_still_blocked():
+    mission = Mission.create(
+        title="t",
+        executor="cursor",
+        reviewer="claude",
+        idempotency_key="12345678",
+        allowed_paths=["app/voice_agent/free_ai.py"],
+    )
+    assert policy.path_violations(mission, ["APP/VOICE_AGENT/free_ai.py"]) == [
+        "app/voice_agent/free_ai.py"
+    ]
+
+
+def test_absolute_and_drive_letter_paths_are_scope_breaches():
+    mission = Mission.create(
+        title="t",
+        executor="cursor",
+        reviewer="claude",
+        idempotency_key="12345678",
+        allowed_paths=["tests/"],
+    )
+    bad = policy.path_violations(mission, ["/etc/passwd", "C:/Windows/System32"])
+    assert len(bad) == 2
+
+
+def test_advance_cannot_skip_submit_review():
+    mid = _drive_to_review()
+    out = orchestrator.advance(mid, MissionState.REVIEW_PASSED)
+    assert out["ok"] is False and out["reason"] == "use_submit_review_endpoint"
+    assert store.get(mid).status is MissionState.REVIEW_REQUIRED
+    # The legitimate path still works.
+    assert orchestrator.submit_review(mid, _review(mid))["verdict"] == "PASS"
 
 
 # --------------------------------------------------------------- creation
