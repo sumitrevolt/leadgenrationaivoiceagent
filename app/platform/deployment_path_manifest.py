@@ -69,6 +69,13 @@ def _e(**kw: Any) -> dict[str, Any]:
     kw.setdefault("canonical_parent", None)
     kw.setdefault("guard_location", None)
     kw.setdefault("fallback_after_denial", False)
+    # Detached delegation (`setsid nohup ... &`) still inherits the parent's
+    # guard — the guard runs before any mutation either way — but the caller
+    # cannot observe whether the release actually completed. That is an
+    # OPERATIONAL weakness, not a containment one, so it gets its own fields
+    # rather than being folded into `guarded`.
+    kw.setdefault("detached_execution", False)
+    kw.setdefault("operational_completion_observable", True)
     return kw
 
 
@@ -171,6 +178,8 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_location="inherits deploy_vps.sh guard",
         guard_precedes_mutation=True,
         exit_code_propagated=False,
+        detached_execution=True,
+        operational_completion_observable=False,
         status=GUARDED_BY_CANONICAL_PARENT,
         evidence='line 31 runs `setsid nohup bash scripts/deploy_vps.sh "$VER"`. '
         "Lines 5-6 before it are `cd` and `git rev-parse` — read-only. No "
@@ -265,20 +274,23 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         file="scripts/hostinger_hermes_bootstrap.sh",
         entrypoint="bash scripts/hostinger_hermes_bootstrap.sh",
         operation_class=BOOTSTRAP_PROVISIONING,
-        environment_scope=UNKNOWN_SCOPE,
+        environment_scope=PRODUCTION,
         production_capable=True,
         runtime_data_mutation_capable=True,
         independently_invokable=True,
-        operations=["git reset --hard"],
-        first_mutating_operation="git reset --hard origin/main",
-        guard_strategy="UNRESOLVED",
+        operations=["git reset --hard", "git clone"],
+        first_mutating_operation="git reset --hard origin/main (line 25)",
+        guard_strategy="REQUIRED_NOT_PRESENT",
         guarded=False,
         guard_precedes_mutation=False,
         exit_code_propagated=False,
-        status=UNKNOWN_REQUIRES_REVIEW,
-        evidence="comment claims a sandbox clone, not /opt/leadgen — NOT yet verified "
-        "by reading the resolved target path. Unknown + mutation-capable, so it "
-        "counts as requiring a guard until proven otherwise.",
+        status=UNGUARDED_PRODUCTION_PATH,
+        evidence='RESOLVED. Line 11: LOCAL_DIR="${LOCAL_DIR:-$HOME/leadgen}" — the '
+        "default IS a sandbox clone, so the comment is true by default. But the value "
+        "is ENV-OVERRIDABLE: `LOCAL_DIR=/opt/leadgen bash hostinger_hermes_bootstrap.sh` "
+        "reaches line 21 `if [ -d $LOCAL_DIR/.git ]` -> line 25 `git reset --hard "
+        "origin/main` against the production checkout. Default-safe is not enforced-safe, "
+        "so this is EXISTING_HOST_MUTATION_CAPABLE and requires protection.",
     ),
     # =========================== PRODUCTION BUT NOT RUNTIME-DATA MUTATION
     _e(
@@ -351,19 +363,29 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         operation_class=RECOVERY_SELF_HEAL,
         environment_scope=PRODUCTION,
         production_capable=True,
-        runtime_data_mutation_capable=None,  # explicitly unresolved
+        runtime_data_mutation_capable=False,
         independently_invokable=True,
-        operations=["tar backup of data/", "ntfy notifications"],
-        first_mutating_operation="unresolved",
-        guard_strategy="UNRESOLVED",
+        operations=[
+            "docker stop (workers)",
+            "docker restart (rate-limited)",
+            "docker system prune -f --filter until=48h",
+            "tar backup of data/",
+        ],
+        first_mutating_operation="docker stop -t 5 leadgen_worker ... (line 36)",
+        guard_strategy="NOT_REQUIRED_NON_RUNTIME_MUTATION",
         guarded=False,
         guard_precedes_mutation=False,
         exit_code_propagated=False,
-        status=UNKNOWN_REQUIRES_REVIEW,
-        evidence="its `docker prune` matches are inside curl NOTIFICATION TEXT, and "
-        "line 110 `tar -czf .../data_$day.tar.gz -C /opt/leadgen data` is a BACKUP "
-        "(read). Whether any real prune/restart executes is NOT yet confirmed. "
-        "Unattended cron makes an unverified answer unacceptable — stays UNKNOWN.",
+        status=PRODUCTION_NON_RUNTIME_MUTATION,
+        evidence="RESOLVED by reading executable lines. It DOES mutate production: "
+        "line 36 `docker stop` sheds workers, lines 64/77 `docker restart` (rate-"
+        "limited 2/30min), line 92 `docker system prune -f --filter until=48h`. "
+        "But none of that can destroy checkout-backed runtime data: restart is not "
+        "recreate, no git operation exists anywhere in the file, and `prune` WITHOUT "
+        "`--volumes` cannot remove the bind-mounted data dir. Line 110 tar is a "
+        "backup (read). So: production-capable, container-affecting, but NOT "
+        "runtime-data mutating. Guarded by a test asserting `--volumes` never "
+        "appears — adding it would change this classification.",
     ),
 ]
 
@@ -434,6 +456,19 @@ def counts() -> dict[str, int]:
         ),
         "unknown_entrypoints": sum(
             1 for e in ENTRYPOINTS if e["status"] == UNKNOWN_REQUIRES_REVIEW
+        ),
+        # Unknowns split by whether they land INSIDE the guard denominator. A
+        # single "unknowns: 2" number hides which of them is actually exposure:
+        # an unresolved script that cannot touch runtime data is bookkeeping,
+        # one that can is an open hole. Both must be able to reach zero
+        # independently, and the release gate reads only the first.
+        "unknown_guard_required_entrypoints": sum(
+            1 for e in ENTRYPOINTS if e["status"] == UNKNOWN_REQUIRES_REVIEW and requires_guard(e)
+        ),
+        "unknown_guard_not_required_entrypoints": sum(
+            1
+            for e in ENTRYPOINTS
+            if e["status"] == UNKNOWN_REQUIRES_REVIEW and not requires_guard(e)
         ),
     }
     return out
