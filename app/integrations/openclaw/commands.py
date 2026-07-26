@@ -393,6 +393,14 @@ try:
 except Exception:
     pass
 
+# --- External Agent Orchestrator handlers (additive GREEN observe) ---
+try:
+    from app.integrations.openclaw.external_agent_commands import EXTERNAL_AGENT_HANDLERS
+
+    HANDLERS.update(EXTERNAL_AGENT_HANDLERS)
+except Exception:
+    pass
+
 
 def execute_typed_command(
     command: str,

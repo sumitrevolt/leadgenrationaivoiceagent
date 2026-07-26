@@ -76,6 +76,14 @@ try:
 except Exception:
     pass
 
+# --- External Agent Orchestrator observe surface (additive GREEN only) ---
+try:
+    from app.integrations.openclaw.external_agent_commands import EXTERNAL_AGENT_GREEN
+
+    GREEN_COMMANDS = GREEN_COMMANDS | EXTERNAL_AGENT_GREEN
+except Exception:
+    pass
+
 ALL_TYPED = GREEN_COMMANDS | AMBER_COMMANDS | RED_COMMANDS
 
 DEFAULT_STAGE_A_ALLOWLIST = ",".join(sorted(GREEN_COMMANDS))
