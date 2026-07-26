@@ -549,6 +549,91 @@ def _safe_thread_headers(msg: Any) -> tuple[str, str]:
         return "", ""
 
 
+#: Standalone opt-out commands. Deliberately NARROW and deterministic — this
+#: runs before the junk guard, so a loose pattern would suppress real prospects
+#: over a passing mention ("stop by the shop"). Each must appear as a whole word
+#: in the recipient's OWN text, not inside quoted history.
+#: Unambiguous multi-word phrases — safe to match anywhere in the sender's text.
+_OPTOUT_PHRASE_RE = re.compile(
+    r"(?:^|[\s\W])(unsubscribe|remove\s+me|opt[\s-]?out|do\s+not\s+contact"
+    r"|don'?t\s+contact\s+me|take\s+me\s+off)(?:$|[\s\W])",
+    re.IGNORECASE,
+)
+
+#: Bare single-word commands, matched ONLY as a whole line/subject.
+#: "STOP" alone is an opt-out; "please stop by the shop tomorrow" is not — a
+#: substring match here would suppress a live, interested prospect, which is a
+#: worse failure than missing one opt-out (the phrase list above still catches
+#: every conventional wording).
+_OPTOUT_BARE_RE = re.compile(r"^\s*(stop|unsubscribe|remove|end|quit)\s*[.!]?\s*$", re.IGNORECASE)
+
+#: Where a quoted reply chain begins. Everything after the first match is the
+#: sender quoting US, so an opt-out line in our own footer must not be read as
+#: the recipient opting out.
+_QUOTE_BOUNDARY_RE = re.compile(
+    r"(^\s*>)|(-{2,}\s*original message)|(^\s*on .{0,120}\bwrote:)|(_{5,})|(^\s*from:\s)",
+    re.IGNORECASE | re.MULTILINE,
+)
+
+
+def _unquoted_head(body: str, limit: int = 1200) -> str:
+    """The sender's own words: text above any quoted reply chain."""
+    text = str(body or "")
+    m = _QUOTE_BOUNDARY_RE.search(text)
+    if m:
+        text = text[: m.start()]
+    return text[:limit]
+
+
+def _is_explicit_optout(subject: str, body: str) -> bool:
+    """True for an unambiguous opt-out request. Deterministic, no LLM.
+
+    Only the subject and the UNQUOTED head of the body are considered — every
+    outreach mail we send carries "reply REMOVE" in its footer, so scanning the
+    quoted history would make every reply look like an opt-out.
+    """
+    subj = str(subject or "")
+    head = _unquoted_head(body)
+    if _OPTOUT_PHRASE_RE.search(subj) or _OPTOUT_PHRASE_RE.search(head):
+        return True
+    # Bare commands: whole subject, or any line standing entirely on its own.
+    if _OPTOUT_BARE_RE.match(subj):
+        return True
+    return any(_OPTOUT_BARE_RE.match(ln) for ln in head.splitlines())
+
+
+def _record_unresolved_optout(destination: str, subject: str) -> None:
+    """Durable compliance exception when an opt-out cannot be tied to a prospect.
+
+    We know the destination but not who they are. Suppressing that exact address
+    is supported by the evidence; inventing a broader permanent record is not.
+    The exception exists so an admin can reconcile identity later.
+    """
+    try:
+        from app.platform import email_unsub
+
+        # Sits beside the canonical suppression ledger so it moves with it when
+        # the runtime-data root is externalized.
+        path = email_unsub._STORE.parent / "unresolved_optouts.jsonl"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with open(path, "a", encoding="utf-8") as f:
+            f.write(
+                json.dumps(
+                    {
+                        "kind": "UNRESOLVED_OPTOUT",
+                        "destination": destination,
+                        "subject": str(subject or "")[:200],
+                        "at": datetime.now(timezone.utc).isoformat(),
+                        "resolved": False,
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
+    except Exception as e:  # never break triage
+        logger.warning("[reply_agent] unresolved-optout exception write failed: %s", e)
+
+
 def _reply_delivery_key(sender: str, message_id: str) -> str:
     """Stable, PII-minimized idempotency key for one inbound email message."""
     import hashlib
@@ -872,6 +957,36 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                                     "bounced_at": datetime.now(timezone.utc).isoformat(),
                                 },
                             )
+                        # Durable address-level suppression. Marking the prospect
+                        # row dead left the ADDRESS mailable from every other row,
+                        # so the same dead mailbox kept getting mail and kept
+                        # damaging deliverability.
+                        #
+                        # Scope is deliberately NOT global: a hard bounce says the
+                        # mailbox is dead, not that the person opted out, so the
+                        # contact's WhatsApp number must stay reachable. Only an
+                        # explicit opt-out reply escalates to ALL_OUTREACH.
+                        if delivery_kind in ("hard_bounce", "complaint") and bounced_email:
+                            try:
+                                from app.platform import email_unsub
+
+                                email_unsub.suppress(
+                                    bounced_email,
+                                    reason=delivery_kind,
+                                    scope=email_unsub.SCOPE_EMAIL_ADDRESS,
+                                    channel="email",
+                                    prospect_id=str(
+                                        (bp or {}).get("id") or (bp or {}).get("pid") or ""
+                                    ),
+                                    event_id=_reply_delivery_key(
+                                        bounced_email, _safe_thread_headers(msg)[0]
+                                    ),
+                                    source="delivery_report",
+                                )
+                            except Exception as _bsup_err:
+                                logger.warning(
+                                    "[reply_agent] bounce suppression failed: %s", _bsup_err
+                                )
                         if wr.get("paused"):
                             _notify(
                                 "rohan",
@@ -935,6 +1050,56 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
                     res["blocklisted"] = res.get("blocklisted", 0) + 1
                     _mark_imap_seen(M, i)
                     continue
+                # ── COMPLIANCE-FIRST OPT-OUT (2026-07-25) ───────────────────────
+                # MUST run before the junk/bulk guard. That guard drops on
+                # `p is None and _is_bulk_sender(...)` — so an explicit STOP /
+                # REMOVE / UNSUBSCRIBE from anyone we do not already hold as a
+                # prospect was discarded before classification ever ran, and no
+                # suppression was written. An opt-out request is legally binding
+                # whether or not the sender is in our database.
+                #
+                # Deterministic recognizer only — no LLM. Junk mail is still junk;
+                # we merely refuse to throw away the compliance signal inside it.
+                if _is_explicit_optout(subj, body):
+                    _optout_email = (frm or "").strip().lower()
+                    if _optout_email:
+                        try:
+                            from app.platform import email_unsub
+
+                            _pid = str((p or {}).get("id") or (p or {}).get("pid") or "")
+                            # Scope discipline: with a known prospect we have the
+                            # identity needed for a cross-channel opt-out. Without
+                            # one we know ONLY the address, so we suppress that
+                            # exact destination and record an exception — we do NOT
+                            # invent a broader permanent record the evidence does
+                            # not support.
+                            # Known prospect -> settled cross-channel opt-out.
+                            # Unknown -> QUARANTINE: it blocks sending just as
+                            # hard, but stays visibly unresolved so an admin is
+                            # prompted to reconcile identity. Writing a permanent
+                            # record here would make an unreviewed guess look
+                            # like a verified decision.
+                            _scope = (
+                                email_unsub.SCOPE_ALL_OUTREACH
+                                if _pid
+                                else email_unsub.SCOPE_QUARANTINE
+                            )
+                            email_unsub.suppress(
+                                _optout_email,
+                                reason="reply_unsubscribe",
+                                scope=_scope,
+                                prospect_id=_pid,
+                                event_id=_reply_delivery_key(frm, _safe_thread_headers(msg)[0]),
+                                source="reply_agent_precheck",
+                            )
+                            if not _pid:
+                                _record_unresolved_optout(_optout_email, subj)
+                        except Exception as _oe:
+                            logger.warning("[reply_agent] pre-guard opt-out failed: %s", _oe)
+                    res["unsubscribed"] = res.get("unsubscribed", 0) + 1
+                    res["optout_precheck"] = res.get("optout_precheck", 0) + 1
+                    _mark_imap_seen(M, i)
+                    continue
                 # JUNK GUARD (2026-06-12): unknown sender + bulk/marketing mail = skip.
                 # Pehle PayU/Instamojo newsletters "interested" classify hoke FAKE deals
                 # bana rahe the + har newsletter pe LLM classify/draft tokens jalte the.
@@ -994,6 +1159,29 @@ async def run_reply_triage(limit: int = 40) -> dict[str, Any]:
 
                 if intent == "unsubscribe":
                     res["unsubscribed"] += 1
+                    # DURABLE CROSS-CHANNEL SUPPRESSION. Every outreach mail tells
+                    # the recipient to "reply REMOVE" — but until now that reply
+                    # only marked the prospect row dead. The address stayed
+                    # mailable from any other prospect row and WhatsApp was
+                    # untouched, so the opt-out mechanism we advertise did not
+                    # actually work at the list level. Write the canonical
+                    # ALL_OUTREACH row; `event_id` makes reprocessing the same
+                    # message idempotent.
+                    try:
+                        from app.platform import email_unsub
+
+                        _mid = _safe_thread_headers(msg)[0]
+                        email_unsub.suppress(
+                            frm or "",
+                            reason="reply_unsubscribe",
+                            scope=email_unsub.SCOPE_ALL_OUTREACH,
+                            prospect_id=str(pid or ""),
+                            event_id=(_reply_delivery_key(frm or "", _mid) if _mid else ""),
+                            source="reply_agent",
+                        )
+                    except Exception as _sup_err:  # never break triage
+                        # No address in the log line — this path handles PII.
+                        logger.warning("[reply_agent] suppression write failed: %s", _sup_err)
                     # Deliverability gate: unsubscribe-reply = recipient negative signal.
                     # Feed spam-complaint-rate tracker (auto-pauses at 0.25% over 7d).
                     try:
