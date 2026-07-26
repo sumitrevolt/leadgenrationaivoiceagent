@@ -1,36 +1,26 @@
-# SESSION_HANDOFF - 2026-07-25
+# SESSION_HANDOFF - overwrite every session end
 
-## Active
-- **PR #141** still OPEN (`feat/bounce-complaint-outcomes`) - not merged, not on prod.
-- Prod `/health` was **`f096a08d`** (classifier not live yet).
-- **Part B dry-run DONE** on prod DB (`apply=false` only). No merge / deploy / apply / flag flips / push.
+## Session objective
+Complete real Claude review for PR #146 (auth + mission + corrective cycle + re-review).
 
-## Prod DRY-RUN bounce outcome (apply=false)
-How: PR-branch classifier logic against **prod DB** (read-only dry-run). Confirmed dry-run only - **no apply**.
+## Outcome — PARTIAL (Claude PASS; PR still DRAFT pending owner ready-for-review decision)
+- Claude OAuth restored via `claude auth login` (system browser had session; Cursor browser hit login wall first).
+- Auth proof: `claude -p "Return only: AUTH_OK"` → `AUTH_OK` exit 0 (v2.1.207).
+- Cycle 1 mission `msn_52af39c9ffcd4f04` @ `5ce91faa` → CHANGES_REQUIRED (MEDIUM: orchestrator unused apply_cas).
+- Fix commit `5a3c632`: store.apply_cas wired into lifecycle; Redis lock-release Lua; TTLs; cursor allowed_paths; mixed_backend_risk; 51 tests.
+- Cycle 2 mission `msn_de710b3527d046f4` @ `5a3c632` → **PASS** via submit_review → REVIEW_PASSED. Remaining findings LOW/NIT only.
+- PR stays DRAFT. Flag OFF. No merge/deploy. Calling HARD OFF.
 
-| metric | count |
-|---|---|
-| candidates (`other` / email / in) | 286 |
-| to_hard_bounce | 0 |
-| to_soft_bounce | 0 |
-| to_complaint | 0 |
-| left_as_other | 286 |
+## Head
+- Local/remote: `5a3c632d4eec1c67d1f75d7c03970fb60c528b6e`
+- Base: `53b000d04742b11ad3a12089963011206286dc5e`
+- PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/146 (draft)
+- Prod `/health`: `f096a08d`
 
-Rates vs 2543: all **0.000%**.
+## Owner next
+1. Confirm CI green on `5a3c632`.
+2. Owner decision only: mark PR ready for review (NOT merge/deploy).
+3. Optional later: address remaining LOW findings in a follow-up slice.
 
-### Interpretation
-- **NOT** domain-clean proof - stored history me structural NDR/FBL signals missing (mailer-daemon / DSN / feedback-type).
-- Fail-closed classifier correctly unhe `other` pe chhod deta hai.
-- Soft lex: **25/286** me word "spam" hai, lekin classifier correctly usko alone use nahi karta.
-
-### Recommendation
-- In zeros pe domain mat rokna.
-- Blindly enrichment/outreach enable mat karna.
-- Pehle **merge #141** for forward ingest.
-- `AUTO_EMAIL_OUTREACH` / `EMAIL_ENRICH_SWEEP` **OFF** rakho.
-
-## Next owner action
-Decide merge of PR #141 (forward fix). Optional: raw IMAP/provider log probe agar true historical bounce rate chahiye. `--apply` backfill mat karo jab tak owner na kahe (abhi bhi 0 rows update honge).
-
-## PR comment
-Posted: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/141#issuecomment-5079069396
+## Out of scope
+Flag flip · merge · deploy · auto-merge · calling · Swara · outreach · billing
