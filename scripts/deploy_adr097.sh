@@ -1,26 +1,33 @@
 #!/usr/bin/env bash
 # deploy_adr097.sh — deploy 3c5a248 (image-provenance guard). Self-verifying:
 # the guard must log "Image provenance OK", NOT the unversioned alert.
+#
+# CONSOLIDATED 2026-07-26: local pull/build/up chain removed in favour of the
+# guarded canonical parent. Note the irony this script exists to fix — ADR-097
+# was about images of UNKNOWN provenance reaching production; the script that
+# deployed that fix was itself an unguarded release path.
+#
+# No fallback: parent denial (90) or unavailability (91) exits immediately.
 set -o pipefail
 VER=3c5a248
-cd /opt/leadgen || exit 1
 
-echo "===PULL==="
-git pull --ff-only 2>&1 | tail -2
-echo "POST_SHA=$(git rev-parse --short HEAD)"
+# shellcheck source=scripts/_deploy_parent_delegate.sh
+_delegate="$(dirname "$0")/_deploy_parent_delegate.sh"
+if [ ! -r "$_delegate" ]; then
+  echo "FATAL: delegation helper missing: $_delegate"
+  exit 91
+fi
+. "$_delegate" || exit 91
 
-echo "===BUILD==="
-APP_VERSION=$VER docker compose -f docker-compose.vps.yml build app > /tmp/adr097_build.log 2>&1
-BUILD_RC=$?
-echo "BUILD_RC=$BUILD_RC"
-if [ "$BUILD_RC" -ne 0 ]; then echo "BUILD FAILED - ABORT"; tail -8 /tmp/adr097_build.log; exit 1; fi
+echo "===DELEGATING TO CANONICAL PARENT (guarded)==="
+delegate_to_parent "$VER"
+_rc=$?
+if [ "$_rc" -ne 0 ]; then
+  echo "PARENT_RC=$_rc — aborting. (90=guard denied, 91=guard/parent unavailable)"
+  exit "$_rc"
+fi
 
-echo "===UP==="
-APP_VERSION=$VER docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker scheduler > /tmp/adr097_up.log 2>&1
-echo "UP_RC=$?"
-tail -6 /tmp/adr097_up.log
-
-sleep 22
+# ------------------------------------------------- read-only verification
 echo "===HEALTH x2==="
 curl -s -m 10 127.0.0.1:8000/health; echo
 sleep 3
