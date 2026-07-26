@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.platform import runtime_data_allowlist as _allow  # noqa: E402
+from app.platform import runtime_data_ratchet as _ratchet  # noqa: E402
 from app.platform import runtime_data_scan as _scan  # noqa: E402
 
 REPO = Path(__file__).resolve().parents[1]
@@ -57,12 +58,13 @@ def _print_actionable(findings: list[dict], limit: int = 40) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Runtime-data mutable-path scanner")
-    ap.add_argument("mode", choices=["scan", "validate"], nargs="?", default="scan")
+    ap.add_argument("mode", choices=["scan", "validate", "ratchet"], nargs="?", default="scan")
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     args = ap.parse_args(argv)
 
     findings, summary, cov = _run_scan()
     problems = _allow.validate(findings=findings)
+    verdict = _ratchet.evaluate(findings)
 
     if args.json:
         # No secrets, no records, no env values — path metadata only.
@@ -71,7 +73,11 @@ def main(argv: list[str] | None = None) -> int:
                 {
                     "summary": summary,
                     "coverage": cov,
+                    "matrices": _scan.matrices(findings),
                     "allowlist_problems": problems,
+                    "ratchet": {
+                        k: (len(v) if isinstance(v, list) else v) for k, v in verdict.items()
+                    },
                     "findings": findings,
                 },
                 indent=2,
@@ -96,11 +102,28 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.mode == "scan":
         return 0
-    # `validate` gates on allowlist COHERENCE, which is enforceable today.
-    # The zero-undeclared gate is reported but not yet enforced, because the
-    # declaration backlog is real and pretending otherwise would either block
-    # every build or require a bypass flag. The count is printed every run so
-    # it cannot quietly grow.
+
+    if args.mode == "ratchet":
+        # Monotonic: existing frozen debt is tolerated, NEW unresolved debt and
+        # classification regressions are not. Counts alone would not catch
+        # "one dangerous writer added, one unrelated finding removed" — the
+        # comparison is over fingerprints, so that trade shows up.
+        print("\n=== debt ratchet ===")
+        print(f"  baseline fingerprints : {verdict['baseline_fingerprints']}")
+        print(f"  unresolved now        : {verdict['unresolved_now']}")
+        print(f"  newly unresolved      : {len(verdict['new_unresolved'])}")
+        print(f"  regressions           : {len(verdict['regressions'])}")
+        print(f"  resolved since baseline: {len(verdict['resolved'])}")
+        print(f"  removed since baseline : {len(verdict['removed'])}")
+        if not verdict["ok"]:
+            print("\n  RATCHET FAILED — new debt or classification regression:\n")
+            for block in _ratchet.format_failures(verdict):
+                print(block + "\n")
+            return 1
+        print("\n  RATCHET OK — no new unresolved findings, no regressions")
+        return 0
+
+    # `validate` gates on schema + allowlist coherence + baseline integrity.
     return 1 if problems else 0
 
 

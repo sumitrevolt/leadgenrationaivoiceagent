@@ -204,6 +204,41 @@ def _docstring_nodes(tree: ast.Module) -> set[int]:
     return lines
 
 
+# Names that, as an attribute call, take the path as the RECEIVER.
+_RECEIVER_PATH_CALLS = frozenset(
+    {
+        "write_text",
+        "write_bytes",
+        "read_text",
+        "read_bytes",
+        "unlink",
+        "mkdir",
+        "touch",
+        "truncate",
+        "replace",
+        "rename",
+    }
+)
+
+# Module names that make an attribute call function-style instead.
+#
+# `path` is NOT in this list. Including it (thinking of `os.path`) discarded the
+# receiver of every `path.mkdir()` / `path.write_text()` in the repo, because
+# `path` is overwhelmingly a variable name for an actual path rather than a
+# module alias. That single word was why canonical findings read 0.
+_PATH_MODULES = frozenset({"os", "shutil", "sqlite3", "shelve", "dbm"})
+
+
+def _path_argument(node: ast.Call, name: str) -> ast.AST | None:
+    """Return the sub-expression that is actually the PATH."""
+    fn = node.func
+    if isinstance(fn, ast.Attribute) and name in _RECEIVER_PATH_CALLS:
+        base = getattr(fn.value, "id", None)
+        if base not in _PATH_MODULES:
+            return fn.value  # p.write_text(data) -> p
+    return node.args[0] if node.args else None
+
+
 def _mutable_symbols(tree: ast.Module) -> dict[str, str]:
     """Names bound to a mutable-looking path, plus functions returning one.
 
@@ -232,7 +267,15 @@ def _mutable_symbols(tree: ast.Module) -> dict[str, str]:
                 continue
 
             expr = _expr_source(value)
-            if _looks_mutable(_literal_strings(value), expr) or _refs(value, syms):
+            # Canonical assignments count as mutable-path symbols too. Without
+            # this, `path = store_path(...)` never enters the symbol table, so
+            # the `path.mkdir()` on the next line is invisible — which is why
+            # canonical findings read 0 even for runtime_data.py itself.
+            if (
+                _looks_mutable(_literal_strings(value), expr)
+                or _refs(value, syms)
+                or _uses_canonical_resolver(value)
+            ):
                 for t in targets:
                     tname = getattr(t, "id", None) or getattr(t, "attr", None)
                     if tname:
@@ -319,9 +362,15 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
             op = _mode_to_operation(mode)
             access_mode = f"open({mode!r})"
 
-        # `json.dump(obj, fh)` writes through an already-open handle; the path
-        # finding belongs to the open() call, not here.
-        path_arg = node.args[0] if node.args else None
+        # WHERE the path lives depends on call shape, and getting this wrong is
+        # not a near-miss:
+        #   os.replace(src, dst) / open(p) / sqlite3.connect(p)  -> args[0]
+        #   p.write_text(data) / p.mkdir() / p.unlink()          -> func.value
+        # Reading args[0] for the method form meant `p.write_text(secret)` had
+        # the SECRET recorded as its path expression, and `p.mkdir()` (no args)
+        # was skipped entirely -- which is why canonical findings read 0 even
+        # though runtime_data.store_dir does exactly that.
+        path_arg = _path_argument(node, name)
         if path_arg is None:
             continue
 
@@ -520,6 +569,15 @@ def classify(finding: dict[str, Any], allowlist_index: dict[str, dict[str, Any]]
     if finding.get("canonical_resolver_used"):
         return CANONICAL_RUNTIME_PATH
 
+    # Canonical usage is usually INDIRECT: `path = store_path(...)` on one line
+    # and `path.mkdir()` on the next. The call site alone shows only `path`, so
+    # checking it kept canonical at 0 even for runtime_data.py itself, which is
+    # the most canonical module in the repo.
+    resolved = str(finding.get("resolved_pattern") or "")
+    if any(fn + "(" in resolved for fn in _CANONICAL_FUNCS) or "runtime_root(" in resolved:
+        finding["canonical_resolver_used"] = True
+        return CANONICAL_RUNTIME_PATH
+
     file = finding["file"]
     # Both, because a literal finding carries its path in path_expression while
     # a symbol-resolved one carries it in resolved_pattern.
@@ -609,6 +667,70 @@ def scan_repo(root: Path, allowlist: list[dict[str, Any]] | None = None) -> list
     return findings
 
 
+_NORMALISE_RE = re.compile(r"\s+")
+
+
+def normalized_path(finding: dict[str, Any]) -> str:
+    """Path identity that survives cosmetic edits.
+
+    Uses the symbol DEFINITION when there is one, because the call site
+    (`open(_STORE)`) carries no path. Whitespace collapsed, quotes unified.
+    """
+    raw = finding.get("resolved_pattern") or finding.get("path_expression") or ""
+    return _NORMALISE_RE.sub(" ", str(raw).replace('"', "'")).strip()[:160]
+
+
+def fingerprint(finding: dict[str, Any]) -> str:
+    """Stable identity for ratcheting.
+
+    Line number is DELIBERATELY excluded. A finding that moves because an
+    import was added above it is the same finding; treating it as new would
+    mean every unrelated edit invents debt, and a ratchet that cries wolf is a
+    ratchet people disable.
+    """
+    parts = [
+        finding["file"],
+        str(finding.get("symbol") or ""),
+        finding["operation"],
+        normalized_path(finding),
+        finding.get("classification", ""),
+        str(finding.get("store_id") or ""),
+    ]
+    import hashlib
+
+    return "f_" + hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()[:20]
+
+
+def matrices(findings: list[dict[str, Any]]) -> dict[str, Any]:
+    """Cross-tabs so a pile of read-only references cannot hide real writers.
+
+    "506 mutating" on its own says nothing about WHICH classifications those
+    mutations sit in -- undeclared writers and fixture writers are not the
+    same risk at all.
+    """
+    by_class_mut: dict[str, dict[str, int]] = {}
+    by_store: dict[str, dict[str, int]] = {}
+    for f in findings:
+        cls = f["classification"]
+        bucket = by_class_mut.setdefault(cls, {"mutating": 0, "read_only": 0})
+        key = "mutating" if f["operation"] in MUTATING_OPERATIONS else "read_only"
+        bucket[key] += 1
+        sid = f.get("store_id")
+        if sid:
+            by_store.setdefault(sid, {}).setdefault(f["operation"], 0)
+            by_store[sid][f["operation"]] += 1
+
+    prod = {"production": 0, "non_production": 0}
+    for f in findings:
+        prod["production" if f.get("production_relevant") else "non_production"] += 1
+
+    return {
+        "classification_x_access": by_class_mut,
+        "store_x_operation": by_store,
+        "production_relevance": prod,
+    }
+
+
 def summarise(findings: list[dict[str, Any]]) -> dict[str, int]:
     out = {c: 0 for c in CLASSIFICATIONS}
     for f in findings:
@@ -636,4 +758,7 @@ __all__ = [
     "scan_repo",
     "classify",
     "summarise",
+    "fingerprint",
+    "normalized_path",
+    "matrices",
 ]

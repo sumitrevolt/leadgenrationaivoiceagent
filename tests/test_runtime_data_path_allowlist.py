@@ -52,6 +52,28 @@ def test_shipped_allowlist_is_coherent(findings) -> None:
     assert problems == [], "allowlist problems:\n  " + "\n  ".join(problems)
 
 
+def test_store_family_count_is_derived_not_typed() -> None:
+    """I reported "4 store families" while listing five names.
+
+    The count must come from the data, and the names must reconcile with it —
+    a summary that disagrees with its own list is how a wrong number survives
+    a review.
+    """
+    entries = al.load()
+    families = {e["store_id"] for e in entries}
+    assert len(entries) == 9
+    assert len(families) == 5, sorted(families)
+    assert families == {
+        "billing.invoices",
+        "billing.upi_payments",
+        "compliance.dpdp_audit",
+        "compliance.email_suppression",
+        "customers.identity",
+    }
+    # No alias: five distinct manifest authorities, not four with a rename.
+    assert len({f.split(".")[0] for f in families}) == 3
+
+
 def test_every_entry_maps_to_a_real_store_family() -> None:
     known = {s["store_id"] for s in manifest.STORES}
     for e in al.load():
