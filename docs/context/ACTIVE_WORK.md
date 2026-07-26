@@ -24,9 +24,9 @@
 ## WS-3 External Agent Orchestrator (Cursor+Claude missions) - IN PR #146
 - **ID:** WS-3
 - **Business outcome:** Cursor/Claude work is dispatched with leases, path ownership, independent review and evidence instead of manual coordination
-- **Evidence:** ADR-148 + Redis/FileLock CAS + path identity; 47 targeted tests (incl. 5 multiprocess); local prod_check PASS; ruleset 19718692 active
-- **Current state:** Draft PR #146 head `b12e85d1` (base 53b000d0); flag OFF; foundation only (no autonomous Cursor/Claude invoke); Claude OAuth expired → review BLOCKED
-- **Next exact action:** Owner `claude` OAuth refresh → bounded Claude review PASS; confirm CI `prod_check + pytest` green after segfault re-run; keep DRAFT
+- **Evidence:** ADR-148 + apply_cas lifecycle; 51 targeted tests; real Claude PASS `msn_de710b3527d046f4` @ `5a3c632`; CI green; ruleset 19718692 active
+- **Current state:** Draft PR #146 head `5a3c632`; flag OFF; foundation only; Claude review PASS (cycle 2 after MEDIUM fix)
+- **Next exact action:** Owner decision only — mark PR ready for review (NOT merge/deploy/flag flip)
 - **Out of scope:** flag flip · merge · deploy · auto-merge · voice/Swara · dial
 
 ---

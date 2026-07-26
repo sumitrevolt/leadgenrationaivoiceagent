@@ -1,27 +1,26 @@
 # SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-PR #146 closure gate: distributed CAS, path identity, CI green, Claude proof. Keep draft.
+Complete real Claude review for PR #146 (auth + mission + corrective cycle + re-review).
 
-## Outcome — PARTIAL (PR stays DRAFT)
-- Cross-process CAS: Redis preferred, portalocker FileLock on shared `./data`. RLock is local optimization only.
-- Path identity preserves `.github` / `.env` / `.config` (no `lstrip("./")`).
-- 47 targeted tests (42 unit + 5 multiprocess) green locally.
-- CI head `b12e85d1`: Lint/secrets PASS (Redis EVAL false-positive fixed via `execute_command`). `prod_check + pytest` hit runner segfault (exit 139) mid-suite — flaky native/torch crash, not a targeted-suite assertion fail. Re-run requested.
-- Claude OAuth still expired → dual-agent Claude proof BLOCKED (not faked).
-- Ruleset `19718692` active (3 required checks). Classic branch protection API 404. AMBER hardening packaged, not applied.
+## Outcome — PARTIAL (Claude PASS; PR still DRAFT pending owner ready-for-review decision)
+- Claude OAuth restored via `claude auth login` (system browser had session; Cursor browser hit login wall first).
+- Auth proof: `claude -p "Return only: AUTH_OK"` → `AUTH_OK` exit 0 (v2.1.207).
+- Cycle 1 mission `msn_52af39c9ffcd4f04` @ `5ce91faa` → CHANGES_REQUIRED (MEDIUM: orchestrator unused apply_cas).
+- Fix commit `5a3c632`: store.apply_cas wired into lifecycle; Redis lock-release Lua; TTLs; cursor allowed_paths; mixed_backend_risk; 51 tests.
+- Cycle 2 mission `msn_de710b3527d046f4` @ `5a3c632` → **PASS** via submit_review → REVIEW_PASSED. Remaining findings LOW/NIT only.
+- PR stays DRAFT. Flag OFF. No merge/deploy. Calling HARD OFF.
 
 ## Head
-- Local/remote: `b12e85d1e308f484e0052805dfbc86582f439ad8` on `feat/external-agent-orchestrator`
+- Local/remote: `5a3c632d4eec1c67d1f75d7c03970fb60c528b6e`
 - Base: `53b000d04742b11ad3a12089963011206286dc5e`
-- Prior closure: `c6a1c638` (security_scan fail) → `b12e85d1` (lint fix)
 - PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/146 (draft)
-- Prod `/health`: `f096a08d` (calling HARD OFF)
+- Prod `/health`: `f096a08d`
 
 ## Owner next
-1. Run `claude` interactively once to refresh OAuth (do not paste tokens), then ask Cursor to run the bounded Claude review mission against head `b12e85d1`.
-2. Confirm `prod_check + pytest` green after re-run (or isolate segfault if reproducible).
-3. Keep PR #146 draft until Claude review PASS + required checks green.
+1. Confirm CI green on `5a3c632`.
+2. Owner decision only: mark PR ready for review (NOT merge/deploy).
+3. Optional later: address remaining LOW findings in a follow-up slice.
 
 ## Out of scope
-Flag flip · merge · deploy · auto-merge label · calling · Swara · outreach · billing
+Flag flip · merge · deploy · auto-merge · calling · Swara · outreach · billing
