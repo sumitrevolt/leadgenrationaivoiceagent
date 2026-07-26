@@ -30,7 +30,40 @@ DESTRUCTIVE = re.compile(
 )
 
 #: Scripts that ALREADY guard, or are being brought under the guard now.
-GUARDED_NOW = ("_mcp_deploy_remote.sh", "vps_pitch_deploy.sh")
+#: `deploy_vps.sh` is the CANONICAL NORMAL-RELEASE parent.
+GUARDED_NOW = ("_mcp_deploy_remote.sh", "vps_pitch_deploy.sh", "deploy_vps.sh")
+
+#: Python entry points that guard by calling the preflight directly rather than
+#: sourcing the shell helper. Their protection is proven BEHAVIOURALLY in
+#: tests/test_force_pull_guard.py (a denied preflight makes subprocess.run fail
+#: the test if reached), which is stronger evidence than line ordering.
+PY_GUARDED = {"vps_force_pull.py": "tests/test_force_pull_guard.py"}
+
+#: Evidence-based reclassification. The pattern scanner marks a file
+#: "production-capable" when it mentions /opt/leadgen, docker-compose.vps.yml,
+#: leadsgenai.in or the VPS IP. That heuristic produced false positives, and a
+#: heuristic must not decide guard policy — reading the file must.
+RECLASSIFIED = {
+    ".github/workflows/tests.yml": (
+        "TEST_ONLY — runs-on: ubuntu-latest; its `git clean -fdxq` and "
+        "`git checkout --orphan ci-debug` act on the RUNNER's ephemeral checkout "
+        "and push to a ci-debug branch. No /opt/leadgen, no ssh, no production "
+        "compose. The scanner matched only the git config email ci@leadsgenai.in."
+    ),
+    "pg_restore_drill.sh": (
+        "DATABASE_RESTORE — restores a backup into a THROWAWAY container "
+        "(`docker run -d --rm --name $TMP`) and its `docker rm -f` targets that "
+        "same temp container. It never touches the production checkout or "
+        "production services. Needs its own backup preconditions, NOT the "
+        "normal-release parent."
+    ),
+    "sops_decrypt_env.sh": (
+        "SECRET_CONFIG_PREPARATION — writes /opt/leadgen/.env. Its only "
+        "`docker compose` string is inside an echo instructing the operator what "
+        "to run next; it is not an executed command. Mutates configuration, not "
+        "release or runtime state."
+    ),
+}
 
 #: Known-destructive paths not yet guarded. Each entry is debt with an owner,
 #: not an exemption: the accompanying test asserts the list only shrinks.
@@ -39,7 +72,6 @@ UNGUARDED_DEBT = {
     "vps_build_deploy.py": "python remote-command builder — wave 2",
     "vps_deploy_dashboard.py": "python remote-command builder — wave 2",
     "vps_deploy_workflow_fix.py": "python remote-command builder — wave 2",
-    "vps_force_pull.py": "contains `git clean -fd` — wave 2, HIGH priority",
     "vps_deploy_automation_fix.py": "git pull || true — wave 2",
     "vps_deploy_smoke.py": "git pull — wave 2",
     "vps_flywheel_deploy.sh": "git pull — wave 2",
@@ -47,7 +79,6 @@ UNGUARDED_DEBT = {
     "deploy_adr096.sh": "one-off ADR deploy — wave 2",
     "deploy_adr097.sh": "one-off ADR deploy — wave 2",
     "deploy_all.sh": "git pull — wave 2",
-    "deploy_vps.sh": "canonical deploy; uses --ff-only which ABORTS on dirty data — wave 2",
     # --- container-replacement paths -------------------------------------
     # Found only when the scan included `docker compose up -d`. Recreating a
     # container does not by itself revert data/, but these scripts run against
@@ -162,7 +193,7 @@ def test_no_undeclared_destructive_script() -> None:
     This is the anti-drift check: the previous working list of three was wrong,
     and nothing caught it.
     """
-    known = set(GUARDED_NOW) | set(UNGUARDED_DEBT)
+    known = set(GUARDED_NOW) | set(UNGUARDED_DEBT) | set(PY_GUARDED)
     undeclared: list[str] = []
     for path in sorted(SCRIPTS.glob("*")):
         if path.suffix not in {".sh", ".py"} or path.name in {GUARD, PREFLIGHT}:
@@ -178,6 +209,25 @@ def test_no_undeclared_destructive_script() -> None:
     )
 
 
-def test_highest_risk_debt_is_flagged() -> None:
-    """`git clean -fd` deletes untracked files outright — it must stay visible."""
-    assert "HIGH priority" in UNGUARDED_DEBT["vps_force_pull.py"]
+def test_reclassified_paths_are_not_treated_as_release_paths() -> None:
+    """A pattern match is not evidence of operation class.
+
+    Each entry here was marked production-capable by the scanner heuristic and
+    then reclassified by READING the file. Routing them through the
+    normal-release parent would break their semantics — a restore drill is not
+    a release, and CI is not production.
+    """
+    for name, reason in RECLASSIFIED.items():
+        assert reason.strip(), name
+        assert name.split("/")[-1] not in GUARDED_NOW, (
+            f"{name} was reclassified as non-release but is listed as a "
+            "normal-release guarded path"
+        )
+
+
+def test_canonical_release_parent_is_guarded() -> None:
+    """deploy_vps.sh is the normal-release authority and must be protected."""
+    assert "deploy_vps.sh" in GUARDED_NOW
+    text = _text(SCRIPTS / "deploy_vps.sh")
+    g, d = _guard_line(text), _first_destructive_line(text)
+    assert g is not None and d is not None and g < d

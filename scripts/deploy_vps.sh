@@ -33,6 +33,17 @@ DRY_RUN="${DRY_RUN:-0}"
 
 cd "$REPO" || { echo "FATAL: $REPO not found"; exit 1; }
 
+# ---------------------------------------------------- runtime-data guard
+# CANONICAL NORMAL-RELEASE PARENT. This is the protected entry point for
+# ordinary production releases; recovery, database-restore, bootstrap and
+# config-preparation keep their own parents because their semantics differ.
+#
+# Must precede the `git pull` below and every Compose rollout further down:
+# live invoices, consent, suppression, customer identity and 182 MB of DPDP
+# call recordings still live inside this checkout, so a release that moves
+# HEAD can carry tracked data files over them.
+. "$(dirname "$0")/_runtime_data_guard.sh"
+
 # ---------------------------------------------------------------- resolve sha
 # 2026-07-16 hardening: pull-fail + SHA/HEAD mismatch used to silently rebuild
 # whatever dirty tree was on disk while claiming a different APP_VERSION in the
