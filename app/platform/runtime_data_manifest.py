@@ -61,6 +61,9 @@ TIER_2 = "tier2"  # retention-sensitive artifacts
 TIER_3 = "tier3"  # rebuildable
 TIER_NONE = "none"  # not a file-cutover concern
 
+#: Disjoint buckets — every store has exactly one, so they must sum to len(STORES).
+TIERS = (TIER_0, TIER_1, TIER_2, TIER_3, TIER_NONE)
+
 
 def _e(**kw: Any) -> dict[str, Any]:
     return kw
@@ -232,20 +235,32 @@ STORES: list[dict[str, Any]] = [
         evidence="18,100 records; whole-file rewrite on update",
     ),
     _e(
-        store_id="sales.autopilot_state",
-        display_name="Sales-autopilot prospects + attempts",
-        legacy_paths=["data/sales_autopilot/"],
+        store_id="automation.autopilot_tick",
+        display_name="Sales-autopilot scheduler tick marker",
+        legacy_paths=["data/sales_autopilot/last_tick.json"],
         writer_modules=["app/platform/sales_autopilot/store.py:21"],
-        production_activity="UNKNOWN",
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=120,
+        last_write="2026-07-25",
         current_authority="FILE",
-        business_category="sales",
-        durability_class="authoritative",
-        target_runtime_subpath="sales/autopilot/",
+        business_category="automation",
+        durability_class="resumable-operational",
+        production_active=True,
+        mutable=True,
+        # Losing a tick marker costs one re-run of an INERT engine. That is a
+        # documented-safe loss, which is what keeps it off the blocker list.
+        authoritative_or_required=False,
+        inside_checkout=True,
+        externally_protected=False,
+        target_runtime_subpath="automation/autopilot/last_tick.json",
         migration_tier=TIER_1,
-        migration_state=UNKNOWN,
-        deployment_blocker=True,
-        evidence="engine INERT in prod (SALES_AUTOPILOT_ENABLED unset); "
-        "holds durable opt-out cancellation state from PR #144",
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=False,
+        blocker_reason="resumable tick marker; engine INERT (SALES_AUTOPILOT_ENABLED unset)",
+        evidence="production `ls` 2026-07-26 shows the directory holds exactly ONE file, "
+        "last_tick.json (120 bytes). The prospects/attempts/policy stores this entry "
+        "previously assumed do not exist as files in production — the directory is not "
+        "a multi-store family.",
     ),
     _e(
         store_id="content.approvals",
@@ -401,12 +416,22 @@ STORES: list[dict[str, Any]] = [
         business_category="compliance",
         durability_class="retention-sensitive-artifact",
         retention_policy="90 days (DPDP) — enforcement not verified",
+        production_active=True,
+        mutable=True,
+        authoritative_or_required=True,
+        inside_checkout=True,
+        externally_protected=False,
         target_runtime_subpath="artifacts/call_recordings/",
         migration_tier=TIER_2,
         migration_state=LEGACY_IN_CHECKOUT,
-        deployment_blocker=False,
-        evidence="182 MB. Personal data. NOT an ordinary disposable artifact — "
-        "large-binary migration needs its own capacity/retention analysis",
+        deployment_blocker=True,
+        blocker_reason="DPDP personal data with a 90-day retention duty, living inside "
+        "the Git checkout — `git reset --hard` would destroy customer call evidence",
+        evidence="182 MB. Personal data. NOT an ordinary disposable artifact. "
+        "Originally recorded here as non-blocking; the manifest validator rejected that, "
+        "because it is production-active, mutable, required and unprotected inside the "
+        "checkout. Tier 2 governs the MIGRATION ORDER (large binaries need their own "
+        "capacity/retention plan), not whether destructive deploy may proceed.",
     ),
     _e(
         store_id="artifacts.generated_media",
@@ -460,6 +485,64 @@ STORES: list[dict[str, Any]] = [
         evidence="static PDFs unmodified since Jun 8 / Jun 25 — documents, not ledgers",
     ),
 ]
+
+
+def _flag(store: dict[str, Any], field: str, default: bool) -> bool:
+    """Explicit boolean if present, else derived from evidence already recorded."""
+    if field in store:
+        return bool(store[field])
+    return default
+
+
+def derived_blocker(store: dict[str, Any]) -> bool:
+    """A store blocks destructive deployment when ALL of these hold.
+
+    This exists so `deployment_blocker` cannot be *understated* by hand. A
+    rebuildable cache or a documented-safe loss may sit inside the checkout
+    without blocking; an UNKNOWN active mutable store may not.
+    """
+    state = store.get("migration_state")
+    if state in (FALLBACK_ONLY, DATABASE_AUTHORITY, STATIC_ASSET, REBUILDABLE_CACHE):
+        return False
+    active = _flag(
+        store, "production_active", store.get("production_activity") == "PRODUCTION_ACTIVE"
+    )
+    mutable = _flag(store, "mutable", store.get("durability_class") != "static-asset")
+    required = _flag(
+        store,
+        "authoritative_or_required",
+        store.get("durability_class")
+        in ("authoritative", "operational-telemetry", "retention-sensitive-artifact"),
+    )
+    inside = _flag(store, "inside_checkout", bool(store.get("legacy_paths")))
+    protected = _flag(store, "externally_protected", False)
+    if state == UNKNOWN and active and mutable and inside and not protected:
+        return True
+    return bool(active and mutable and required and inside and not protected)
+
+
+def validate() -> list[str]:
+    """Structural problems in the manifest itself. Empty list == consistent."""
+    problems: list[str] = []
+    ids = [s["store_id"] for s in STORES]
+    if len(ids) != len(set(ids)):
+        problems.append("duplicate store_id")
+    tier_total = sum(1 for s in STORES if s.get("migration_tier") in TIERS)
+    if tier_total != len(STORES):
+        problems.append(f"tier buckets cover {tier_total} of {len(STORES)} stores")
+    for s in STORES:
+        if s.get("migration_state") not in VALID_STATES:
+            problems.append(f"{s['store_id']}: invalid migration_state")
+        if s.get("migration_tier") not in TIERS:
+            problems.append(f"{s['store_id']}: invalid migration_tier")
+        want = derived_blocker(s)
+        got = bool(s.get("deployment_blocker"))
+        if want and not got:
+            problems.append(
+                f"{s['store_id']}: deployment_blocker=False but evidence says it blocks "
+                f"({s.get('blocker_reason') or 'no reason recorded'})"
+            )
+    return problems
 
 
 def by_state(state: str) -> list[dict[str, Any]]:
