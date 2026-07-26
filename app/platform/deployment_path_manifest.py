@@ -80,6 +80,12 @@ def _e(**kw: Any) -> dict[str, Any]:
     # release (migrations, feature-enable). Containment then rests on ordering,
     # not on the wrapper being read-only — so it is stated rather than implied.
     kw.setdefault("post_parent_mutation", False)
+    kw.setdefault("post_parent_operations", [])
+    kw.setdefault("post_parent_failure_propagated", True)
+    kw.setdefault("post_parent_rollback_available", True)
+    # Risks that are real but are NOT runtime-data containment gaps. Kept in a
+    # separate field so they can never inflate or deflate the guard count.
+    kw.setdefault("operational_risks", [])
     return kw
 
 
@@ -184,6 +190,7 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         exit_code_propagated=False,
         detached_execution=True,
         operational_completion_observable=False,
+        operational_risks=["RECOVERY_RESULT_PROPAGATION_DEGRADED"],
         status=GUARDED_BY_CANONICAL_PARENT,
         evidence='line 31 runs `setsid nohup bash scripts/deploy_vps.sh "$VER"`. '
         "Lines 5-6 before it are `cd` and `git rev-parse` — read-only. No "
@@ -211,6 +218,14 @@ ENTRYPOINTS: list[dict[str, Any]] = [
         guard_precedes_mutation=True,
         exit_code_propagated=True,
         post_parent_mutation=True,
+        post_parent_operations=["alembic upgrade head", ".env mutation", "restart app"],
+        # `alembic upgrade head || true` swallows a migration failure, and a
+        # partially-applied migration has no automatic rollback. Guard coverage
+        # proves containment of runtime data; it does not prove this is
+        # operationally safe, so the two are recorded separately.
+        post_parent_failure_propagated=False,
+        post_parent_rollback_available=False,
+        operational_risks=["FLYWHEEL_MIGRATION_FAILURE_SWALLOWED"],
         status=GUARDED_BY_CANONICAL_PARENT,
         evidence="CONSOLIDATED 2026-07-26. Old body was a bare unguarded chain. "
         "Unlike the other wrappers this one keeps real post-release work: "
@@ -421,6 +436,17 @@ ENTRYPOINTS: list[dict[str, Any]] = [
             "tar backup of data/",
         ],
         first_mutating_operation="docker stop -t 5 leadgen_worker ... (line 36)",
+        # Out of the runtime-data denominator, but NOT risk-free. An unattended
+        # `docker system prune` can remove stopped containers, unused networks,
+        # unused images and build cache — which includes the ROLLBACK images the
+        # release runbook depends on. That is a recovery-posture risk, not a
+        # checkout-backed data-loss risk, so it is tracked here rather than
+        # smuggled back into the guard count where it would distort the gate.
+        operational_risks=[
+            "SELF_HEAL_ROLLBACK_ASSET_RISK",
+            "UNATTENDED_DOCKER_PRUNE",
+            "NO_VOLUME_PRUNE_VERIFIED",
+        ],
         guard_strategy="NOT_REQUIRED_NON_RUNTIME_MUTATION",
         guarded=False,
         guard_precedes_mutation=False,
