@@ -264,6 +264,16 @@ def health() -> dict[str, Any]:
                 beats = json.load(f) or {}
     except Exception:
         beats = {}
+    # ONE authoritative instant for the whole evaluation.
+    #
+    # `marker_still_active(now=_now())` already used the injected seam, but
+    # `_job_due_today()` / `_job_due_yet()` read the wall clock independently —
+    # so a single classification could combine two different instants, and (since
+    # they answer weekday/window questions) two different DAYS. That made the
+    # result depend on when the process happened to run, which is why
+    # test_same_day_boot_grace_after_window_is_recoverable began failing on a
+    # real-world date change rather than on any code change.
+    now = _now()
     jobs: list[dict[str, Any]] = []
     overdue: list[str] = []
     never_ran: list[str] = []
@@ -287,7 +297,7 @@ def health() -> dict[str, Any]:
                     continue
             except Exception:
                 pass
-        if not b and (not _job_due_today(job) or not _job_due_yet(job)):
+        if not b and (not _job_due_today(job, now=now) or not _job_due_yet(job, now=now)):
             jobs.append(
                 {
                     "job": job,
@@ -315,7 +325,7 @@ def health() -> dict[str, Any]:
                 try:
                     from app.platform.boot_grace import marker_still_active
 
-                    if marker_still_active(job, last, now=_now()) and _job_due_today(job):
+                    if marker_still_active(job, last, now=now) and _job_due_today(job, now=now):
                         jobs.append(
                             {
                                 "job": job,
@@ -327,7 +337,7 @@ def health() -> dict[str, Any]:
                             }
                         )
                         continue
-                    if _job_due_today(job) and _job_due_yet(job):
+                    if _job_due_today(job, now=now) and _job_due_yet(job, now=now):
                         overdue.append(job)
                         jobs.append(
                             {
@@ -342,7 +352,9 @@ def health() -> dict[str, Any]:
                         continue
                 except Exception:
                     pass
-            is_over = _now() - last > timedelta(minutes=gap_min)
+            # Captured instant, not a fresh read: re-reading here would let a
+            # long evaluation compare different jobs against different "now"s.
+            is_over = now - last > timedelta(minutes=gap_min)
             status = "overdue" if is_over else ("ok" if b.get("ok") else "last_failed")
             if is_over:
                 overdue.append(job)
