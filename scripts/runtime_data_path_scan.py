@@ -22,6 +22,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.platform import runtime_data_allowlist as _allow  # noqa: E402
+from app.platform import runtime_data_groups as _groups  # noqa: E402
 from app.platform import runtime_data_ratchet as _ratchet  # noqa: E402
 from app.platform import runtime_data_scan as _scan  # noqa: E402
 
@@ -58,13 +59,53 @@ def _print_actionable(findings: list[dict], limit: int = 40) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Runtime-data mutable-path scanner")
-    ap.add_argument("mode", choices=["scan", "validate", "ratchet"], nargs="?", default="scan")
+    ap.add_argument(
+        "mode",
+        choices=["scan", "validate", "ratchet", "groups"],
+        nargs="?",
+        default="scan",
+    )
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     args = ap.parse_args(argv)
 
     findings, summary, cov = _run_scan()
     problems = _allow.validate(findings=findings)
     verdict = _ratchet.evaluate(findings)
+
+    if args.mode == "groups":
+        # Analytical only: proposes candidates, declares nothing.
+        groups = _groups.build(findings)
+        rec = _groups.reconcile(findings)
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "reconciliation": rec,
+                        "groups": [
+                            {**g, "classifications": sorted(g["classifications"])} for g in groups
+                        ],
+                    },
+                    indent=2,
+                    sort_keys=True,
+                    default=str,
+                )
+            )
+            return 0
+        print("=== declaration groups ===")
+        for k in sorted(rec):
+            print(f"  {k:<40} {rec[k]}")
+        conf: dict[str, int] = {}
+        for g in groups:
+            conf[g["confidence"]] = conf.get(g["confidence"], 0) + 1
+        print(f"\n  groups: {len(groups)}   confidence: {conf}")
+        print("\n  top mutating groups:")
+        for g in groups[:25]:
+            print(
+                f"  [{g['confidence']:<9}] {g['mutating_count']:>3} mut  "
+                f"{g['path_root'][:32]:<32} {g['module'][:38]:<38} "
+                f"{','.join(g['probable_store_ids']) or '<no candidate>'}"
+            )
+        return 0
 
     if args.json:
         # No secrets, no records, no env values — path metadata only.
