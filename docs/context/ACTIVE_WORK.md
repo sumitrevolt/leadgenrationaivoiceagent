@@ -21,7 +21,17 @@
 
 ---
 
-## WS-3 OpenClaw Automation agents (observe) - IN PR
+## WS-3 External Agent Orchestrator (Cursor+Claude missions) - IN PR #146
+- **ID:** WS-3
+- **Business outcome:** Cursor/Claude work is dispatched with leases, path ownership, independent review and evidence instead of manual coordination
+- **Evidence:** ADR-148 + apply_cas lifecycle; 51 targeted tests; real Claude PASS `msn_de710b3527d046f4` @ `5a3c632`; CI green; ruleset 19718692 active
+- **Current state:** Draft PR #146 head `5a3c632`; flag OFF; foundation only; Claude review PASS (cycle 2 after MEDIUM fix)
+- **Next exact action:** Owner decision only — mark PR ready for review (NOT merge/deploy/flag flip)
+- **Out of scope:** flag flip · merge · deploy · auto-merge · voice/Swara · dial
+
+---
+
+## WS-3b OpenClaw Automation agents (observe) - MERGED (#135)
 - **ID:** WS-3
 - **Business outcome:** Copilot sees Automation-Max agents (Anika/Kavya/Isha/Rohan/Neha) via GREEN commands
 - **Evidence:** `automation.status` + `automation.agents` + `agent.status` openclaw_automation package; tests green
