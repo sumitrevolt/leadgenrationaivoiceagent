@@ -151,12 +151,22 @@ def test_guarded_entries_precede_mutation(deployment_id: str) -> None:
     assert e["fallback_after_denial"] is False
 
 
-def test_gate_is_not_yet_met() -> None:
-    """The Foundation gate requires zero unguarded. It is not zero today."""
+def test_deployment_guard_graph_has_no_gaps() -> None:
+    """The Foundation gate: every guard-required entry point is guarded.
+
+    This replaces an earlier `assert unguarded > 0` scaffold. That assertion
+    described a STAGE rather than a property, so it failed the moment the last
+    gap was closed — punishing the progress it was meant to track. It is the
+    second time that shape bit me, so the rule is now explicit: assert what
+    must always hold, not where the work happens to be.
+    """
     c = d.counts()
-    assert (
-        c["unguarded_runtime_data_entrypoints"] > 0
-    ), "if this passes, either the work is done or the manifest is lying"
+    unguarded = [
+        e["deployment_id"] for e in d.ENTRYPOINTS if d.requires_guard(e) and not e.get("guarded")
+    ]
+    assert c["unguarded_runtime_data_entrypoints"] == 0, f"unguarded: {unguarded}"
+    assert c["unknown_guard_required_entrypoints"] == 0
+    assert unguarded == []
 
 
 # ------------------------------------------------------------------ unknowns
@@ -238,13 +248,23 @@ def test_bootstrap_target_dir_is_env_overridable() -> None:
     """
     e = next(x for x in d.ENTRYPOINTS if x["deployment_id"] == "bootstrap.hermes")
     assert d.requires_guard(e) is True
-    assert e["status"] == d.UNGUARDED_PRODUCTION_PATH
+    # NOT pinned to UNGUARDED_PRODUCTION_PATH — that was a stage assertion and
+    # it broke the moment the gap was closed. Third time this shape has bitten
+    # me. The durable property is: while LOCAL_DIR is overridable this entry
+    # requires a guard, and it must HAVE one.
+    assert e["guarded"] is True, "bootstrap is guard-required but unguarded"
+    assert e["guard_precedes_mutation"] is True
 
     lines = _executable_lines(e["file"])
     assert any(
         re.search(r'LOCAL_DIR="\$\{LOCAL_DIR:-', ln) for ln in lines
     ), "LOCAL_DIR is no longer env-overridable — re-evaluate the classification"
-    assert any(re.search(r"\bgit\s+reset\s+--hard\b", ln) for ln in lines)
+    # The `git reset --hard` this entry was created for is now DELETED, not
+    # gated — see tests/test_bootstrap_guard.py. Asserting its presence here
+    # would lock in the very command the protection removed.
+    assert not any(
+        re.search(r"\bgit\s+reset\s+--hard\b", ln) for ln in lines
+    ), "the destructive reset came back"
 
 
 def test_detached_execution_is_tracked_separately_from_guarding() -> None:
