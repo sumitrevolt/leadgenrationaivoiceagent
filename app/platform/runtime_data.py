@@ -83,8 +83,53 @@ def is_production() -> bool:
     return _app_env() in {"production", "prod"}
 
 
+#: Host-side path. NEVER passed to application code — the container sees
+#: ENV_KEY. Declared here so the deployment preflight can validate both halves
+#: of the mount from one authority.
+HOST_ENV_KEY = "LEADGEN_RUNTIME_DATA_HOST_DIR"
+
+#: Canonical subdirectories. A ledger and its lock share a mount by construction.
+STORE_CATEGORIES = (
+    "billing",
+    "compliance",
+    "governance",
+    "customers",
+    "sales",
+    "communications",
+    "content",
+    "delivery",
+    "automation",
+    "audit",
+    "artifacts",
+    "cache",
+    "locks",
+    "migration",
+)
+
+
 def _configured() -> str:
-    return (os.environ.get(ENV_KEY) or os.environ.get(LEGACY_ENV_KEY) or "").strip()
+    """Canonical value, with legacy fallback and production conflict rejection.
+
+    `DATA_DIR` predates this module (eval_gate, ml_training, lead_usage and
+    meter_watch already read it), so it is honoured rather than competed with.
+    But two settings that DISAGREE in production is exactly the ambiguity that
+    puts mutable state somewhere nobody expects — that fails closed.
+    """
+    canonical = (os.environ.get(ENV_KEY) or "").strip()
+    legacy = (os.environ.get(LEGACY_ENV_KEY) or "").strip()
+    if canonical and legacy and is_production():
+        if Path(canonical).expanduser() != Path(legacy).expanduser():
+            raise RuntimeDataError(
+                f"{ENV_KEY} and {LEGACY_ENV_KEY} are both set and disagree "
+                f"({canonical!r} vs {legacy!r}). Refusing to guess which one holds "
+                "production state."
+            )
+    if canonical:
+        return canonical
+    if legacy:
+        logger.warning("[runtime_data] %s is deprecated; set %s instead.", LEGACY_ENV_KEY, ENV_KEY)
+        return legacy
+    return ""
 
 
 def runtime_root(*, validate: bool = True) -> Path:
