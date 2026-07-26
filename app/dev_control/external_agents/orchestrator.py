@@ -122,9 +122,28 @@ def create_mission(
         priority=priority,
     )
 
+    # Atomic first-writer-wins BEFORE any side effects. Concurrent creator with
+    # the same key loses and returns the winner's mission — no duplicate docs.
+    reg = store.register_idempotency(idempotency_key, mission.mission_id)
+    if not reg.get("created"):
+        winner = _wait_for_mission(str(reg.get("mission_id") or ""), idempotency_key)
+        if winner:
+            return _ok(winner, reused=True)
+        return _fail("idempotency_race", detail=reg)
+
+    # Persist the winning shell immediately so concurrent losers can resolve it
+    # before we run ownership / path-lock checks.
+    store.save(mission)
+
     conflict = policy.ownership_conflict(mission, store.list_missions(limit=500))
     if conflict.get("conflict"):
         store.record_event(mission.mission_id, "ownership_conflict", conflict)
+        try:
+            mission.transition(MissionState.CANCELLED)
+            mission.blocker = "ownership_conflict_after_create"
+            store.save(mission)
+        except Exception:
+            pass
         return _fail("ownership_conflict", conflict=conflict)
 
     if mission.allowed_paths:
@@ -136,13 +155,30 @@ def create_mission(
         "classification", classification | {"risk_class": classification["risk_class"].value}
     )
     store.save(mission)
-    store.register_idempotency(idempotency_key, mission.mission_id)
     store.record_event(
         mission.mission_id,
         "created",
-        {"risk": mission.risk_class.value, "executor": mission.executor},
+        {
+            "risk": mission.risk_class.value,
+            "executor": mission.executor,
+            "cas": store.persistence_report().get("backend"),
+        },
     )
     return _ok(mission, reused=False, classification=classification["reason"])
+
+
+def _wait_for_mission(mission_id: str, idempotency_key: str, *, attempts: int = 50):
+    """Loser of an idempotency race waits briefly for the winner's document."""
+    import time
+
+    for _ in range(max(1, attempts)):
+        winner = store.get(mission_id) if mission_id else None
+        if winner is None:
+            winner = store.find_by_idempotency_key(idempotency_key)
+        if winner:
+            return winner
+        time.sleep(0.02)
+    return None
 
 
 # ---------------------------------------------------------------- lifecycle

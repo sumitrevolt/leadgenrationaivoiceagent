@@ -161,11 +161,11 @@ def _norm_paths(values: Any) -> list[str]:
     if isinstance(values, str):
         values = [values]
     # Local import keeps schema free of a policy circular dependency at import time.
-    from app.dev_control.external_agents.policy import canonical_path
+    from app.dev_control.external_agents.policy import normalize_repo_path
 
     out: list[str] = []
     for raw in values:
-        p = canonical_path(raw)
+        p = normalize_repo_path(raw)
         if p and p not in out:
             out.append(p)
     return out

@@ -93,21 +93,36 @@ _ALWAYS_PROHIBITED = tuple(PROTECTED_PATH_PREFIXES)
 
 
 def canonical_path(raw: Any) -> str:
-    """Collapse ``..`` / ``.`` / ``\\`` and force lowercase so scope checks cannot be bypassed.
+    """Normalise a repository-relative path for ownership / overlap comparison.
 
-    Returns empty string for empty / absolute / drive-letter / escaped-to-root
-    inputs — callers treat those as violations when they appear in changed_files.
+    Rules (deliberately NOT ``lstrip('./')``, which would collapse ``.github``
+    into ``github``):
+      * backslashes → forward slashes
+      * strip only literal repeated ``./`` prefixes
+      * ``posixpath.normpath`` to collapse ``..`` / ``.``
+      * reject absolute, UNC, drive-letter and root-escape paths (return "")
+      * lowercase for comparison identity only (stored display form comes from
+        ``normalize_repo_path``)
     """
+    return normalize_repo_path(raw).lower() if normalize_repo_path(raw) else ""
+
+
+def normalize_repo_path(raw: Any) -> str:
+    """Display-safe repo-relative path: preserves ``.github``, ``.env``, ``.config``."""
     p = str(raw or "").strip().replace("\\", "/")
     if not p:
         return ""
-    # Absolute / UNC / Windows drive → refuse rather than silently relativise.
     if p.startswith("/") or p.startswith("//") or (len(p) > 1 and p[1] == ":"):
         return ""
-    p = _posix_normpath(p).lstrip("./")
-    if not p or p == "." or p.startswith("../") or p == "..":
+    # Strip only literal "./" prefixes — never strip a leading '.' of a name.
+    while p.startswith("./"):
+        p = p[2:]
+    p = _posix_normpath(p)
+    if p.startswith("./"):
+        p = p[2:]
+    if not p or p == "." or p == ".." or p.startswith("../"):
         return ""
-    return p.lower()
+    return p
 
 
 def orchestrator_enabled() -> bool:
@@ -180,22 +195,30 @@ def normalise_prohibited(paths: list[str] | None) -> list[str]:
 def path_violations(mission: Mission, changed_paths: list[str]) -> list[str]:
     """Paths outside the mission's declared ownership (scope breach evidence)."""
     bad: list[str] = []
-    allowed = [canonical_path(a) for a in mission.allowed_paths]
-    allowed = [a for a in allowed if a]
-    prohibited = [canonical_path(q) for q in normalise_prohibited(mission.prohibited_paths)]
-    prohibited = [q for q in prohibited if q]
+    allowed_keys = {canonical_path(a) for a in mission.allowed_paths if canonical_path(a)}
+    prohibited_keys = {
+        canonical_path(q)
+        for q in normalise_prohibited(mission.prohibited_paths)
+        if canonical_path(q)
+    }
     for raw in changed_paths or []:
-        p = canonical_path(raw)
+        display = normalize_repo_path(raw)
+        key = canonical_path(raw)
         # Un-normalisable paths (absolute, drive letter, escaped-to-root) are
         # themselves a scope breach — report the raw form for the evidence trail.
-        if not p:
+        if not key:
             bad.append(str(raw).strip() or "(empty)")
             continue
-        if any(p == q or p.startswith(q.rstrip("/") + "/") or p.startswith(q) for q in prohibited):
-            bad.append(p)
+        if any(
+            key == q or key.startswith(q.rstrip("/") + "/") or key.startswith(q)
+            for q in prohibited_keys
+        ):
+            bad.append(display or key)
             continue
-        if allowed and not any(p == a or p.startswith(a.rstrip("/") + "/") for a in allowed):
-            bad.append(p)
+        if allowed_keys and not any(
+            key == a or key.startswith(a.rstrip("/") + "/") for a in allowed_keys
+        ):
+            bad.append(display or key)
     return sorted(set(bad))
 
 
@@ -213,9 +236,10 @@ def ownership_conflict(mission: Mission, others: list[Mission]) -> dict[str, Any
             MissionState.ROLLED_BACK,
         }
     ]
-    mine = set(mission.allowed_paths)
+    mine = {canonical_path(p) for p in mission.allowed_paths if canonical_path(p)}
     for other in live:
-        clash = sorted(mine & set(other.allowed_paths))
+        theirs = {canonical_path(p) for p in other.allowed_paths if canonical_path(p)}
+        clash = sorted(mine & theirs)
         if clash:
             return {"conflict": True, "kind": "paths", "with": other.mission_id, "paths": clash}
         if mission.branch and mission.branch == other.branch:

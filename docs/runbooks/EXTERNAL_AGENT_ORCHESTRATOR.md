@@ -1,4 +1,4 @@
-# Runbook — External Agent Orchestrator (Cursor + Claude missions)
+﻿# Runbook — External Agent Orchestrator (Cursor + Claude missions)
 
 Decision record: `docs/adr/ADR-148-external-agent-orchestrator.md`.
 Flag: `EXTERNAL_AGENT_ORCHESTRATOR` (default `0`, fully inert).
@@ -14,11 +14,14 @@ Flag: `EXTERNAL_AGENT_ORCHESTRATOR` (default `0`, fully inert).
 Owner OS remains the sole action authority. OpenClaw remains the orchestration
 edge and only gains two **GREEN read-only** commands.
 
+Honest naming: this is a **safe orchestration foundation**. It records and
+validates missions; it does **not** autonomously invoke Cursor or Claude.
+
 ## 2. Enable (local / staging first)
 
 ```bat
 set EXTERNAL_AGENT_ORCHESTRATOR=1
-.venv\Scripts\python.exe -m pytest tests/test_external_agent_orchestrator.py -q
+.venv\Scripts\python.exe -m pytest tests/test_external_agent_orchestrator.py tests/test_external_agent_multiprocess.py -q
 ```
 
 Admin cockpit: `/dev-control` → "External agent missions" card
@@ -32,7 +35,7 @@ runtime behaviour on its own (no scheduler job, no worker, no outbound path).
 ```text
 POST /api/dev-tasks/missions                 # create (RED refused here)
 POST /api/dev-tasks/missions/{id}/preflight  # returns the executor packet
-POST /api/dev-tasks/missions/{id}/claim      # single-owner lease
+POST /api/dev-tasks/missions/{id}/claim      # single-owner lease (cross-process CAS)
 POST /api/dev-tasks/missions/{id}/start
 POST /api/dev-tasks/missions/{id}/heartbeat  # keep the lease alive
 POST /api/dev-tasks/missions/{id}/result     # manifest; scope breach = BLOCKED
@@ -41,61 +44,46 @@ POST /api/dev-tasks/missions/{id}/advance    # PR_OPEN → CI_RUNNING → MERGE_
 GET  /api/dev-tasks/missions/{id}/rollback   # rollback package (never executes)
 ```
 
-Rules the code enforces (not conventions):
+## 4. Persistence and cross-process correctness
 
-- Executor may only drive RUNNING/IMPLEMENTED/TESTING/REVIEW_REQUIRED/BLOCKED.
-- Reviewer must differ from executor and must attach citations.
-- Changed files outside `allowed_paths`, or inside protected paths
-  (`app/voice_agent/`, `app/telephony/`, `app/billing/`, `.env`,
-  `alembic/versions/`, deploy workflows, `docker-compose.vps.yml`) → BLOCKED.
-- Two live missions cannot share a path, branch or worktree.
-- AMBER stops at `OWNER_DECISION_REQUIRED` before MERGE_QUEUED/MERGED/deploy.
-- MERGED/VERIFIED/COMPLETE require result + review (+ tests, + rollback plan).
+Correctness boundary is **not** `threading.RLock`.
 
-## 4. Recovery
+| Backend | When | Topology |
+|---------|------|----------|
+| Redis (`REDIS_URL` / `EXTERNAL_MISSION_REDIS_URL`) | preferred when reachable | multi-container / multi-host |
+| portalocker file locks under `data/external_missions/.locks/` | fallback | processes sharing `EXTERNAL_MISSION_DIR` |
+
+Production evidence: `docker-compose.vps.yml` bind-mounts `./data:/app/data` into
+app, worker, scheduler, worker-heavy and worker-video — FileLock CAS on that path
+is shared across those containers on one VPS host. Redeploy preserves `./data`.
+Windows Cursor and Claude Code only share state when they use the same
+`EXTERNAL_MISSION_DIR` (or the same Redis).
+
+## 5. Recovery
 
 | Symptom | Action |
 |---------|--------|
-| Worker died mid-mission | `POST /api/dev-tasks/missions/recover-stale` → expired leases become `FAILED_RETRYABLE` with evidence |
-| Mission wedged | `POST /missions/{id}/retry` (respects `retry_policy.max_retries`, then `FAILED_TERMINAL`) |
+| Worker died mid-mission | `POST /api/dev-tasks/missions/recover-stale` |
+| Mission wedged | `POST /missions/{id}/retry` |
 | Wrong mission | `POST /missions/{id}/cancel` |
-| Need to undo shipped work | `GET /missions/{id}/rollback` → run the documented plan manually |
-| Kill everything | unset `EXTERNAL_AGENT_ORCHESTRATOR` → API 503, OpenClaw reports `enabled:false` |
+| Need to undo shipped work | `GET /missions/{id}/rollback` (manual runbook) |
+| Kill everything | unset `EXTERNAL_AGENT_ORCHESTRATOR` |
 
 Event audit: `data/external_missions/events.jsonl` (redacted, append-only).
 
-## 5. OpenClaw (Owner Copilot)
+## 6. OpenClaw (Owner Copilot)
 
 GREEN read-only: `external.missions`, `external.mission_status`.
 No AMBER/RED command is added. Workforce stays 31 agents.
 
-## 6. Owner decision pending — branch protection
+## 7. Owner decision — branch ruleset hardening (AMBER)
 
-Verified 2026-07-26 with `gh api repos/sumitrevolt/leadgenrationaivoiceagent/branches/main/protection`
-→ **404 "Branch not protected"**, while `.github/workflows/auto-merge.yml` can flip
-GitHub auto-merge on any PR labelled `auto-merge`. That means auto-merge has no
-required-check floor today.
+Classic `branches/main/protection` returns 404, but an **active repository
+ruleset** already protects `main` (id `19718692`): required checks
+`Lint + syntax + secrets`, `prod_check + pytest`, `harness real-redis integration`,
+strict up-to-date, force-push/deletion blocked, no bypass actors.
 
-This is a repo-configuration change (AMBER) — **not executed by the agent**.
-Exact command for the owner to run:
-
-```bash
-gh api -X PUT repos/sumitrevolt/leadgenrationaivoiceagent/branches/main/protection \
-  --input - <<'JSON'
-{
-  "required_status_checks": {
-    "strict": true,
-    "contexts": ["Gate (import + prod_check + lint)", "test"]
-  },
-  "enforce_admins": false,
-  "required_pull_request_reviews": null,
-  "restrictions": null,
-  "allow_force_pushes": false,
-  "allow_deletions": false
-}
-JSON
-```
-
-Verify afterwards with the same GET; confirm the exact check names from a recent
-run (`gh api repos/.../commits/main/check-runs`) before applying, otherwise a
-typo'd context name will block every merge.
+Optional hardening (add `test` + `GitGuardian Security Checks`, enable
+conversation resolution) is prepared in
+`docs/runbooks/BRANCH_PROTECTION_AMBER_PACKAGE.md` — **not applied** without
+owner authorization.

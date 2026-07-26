@@ -87,9 +87,16 @@ Surfaces:
 
 ## Open items (owner decisions, NOT taken here)
 
-1. `main` currently has **no branch protection** (`gh api .../branches/main/protection`
-   → 404) while `auto-merge.yml` can flip GitHub auto-merge on a labelled PR.
-   Auto-merge therefore has no required-check floor. Enabling protection is a
-   repo-configuration change = AMBER; the exact command is in
-   `docs/runbooks/EXTERNAL_AGENT_ORCHESTRATOR.md`.
+1. Optional ruleset hardening (add `test` + GitGuardian contexts, conversation
+   resolution) — package in `docs/runbooks/BRANCH_PROTECTION_AMBER_PACKAGE.md`.
+   Note: classic branch-protection API returns 404, but ruleset `19718692` is
+   already active with three required checks. Do not claim "no floor".
 2. Flag flip in production (AMBER).
+3. Claude Code OAuth re-auth on the operator machine (required before a real
+   Claude dual-agent proof can be recorded).
+
+## Closure note (2026-07-26)
+
+CAS moved from process-local mutex to Redis-or-portalocker (see runbook §4).
+Path identity no longer uses `lstrip("./")`. Multiprocess tests added.
+Automation boundary remains "foundation", not unattended invocation.

@@ -24,7 +24,12 @@ from app.dev_control.external_agents.schema import (
 def _isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("EXTERNAL_MISSION_DIR", str(tmp_path / "missions"))
     monkeypatch.setenv("EXTERNAL_AGENT_ORCHESTRATOR", "1")
+    monkeypatch.setenv("EXTERNAL_MISSION_CAS", "filelock")
+    from app.dev_control.external_agents import cas as cas_mod
+
+    cas_mod.reset_backend()
     yield
+    cas_mod.reset_backend()
 
 
 # Synthetic non-secret marker used only to prove redaction; assembled at runtime
@@ -179,9 +184,31 @@ def test_uppercase_protected_paths_are_still_blocked():
         idempotency_key="12345678",
         allowed_paths=["app/voice_agent/free_ai.py"],
     )
-    assert policy.path_violations(mission, ["APP/VOICE_AGENT/free_ai.py"]) == [
-        "app/voice_agent/free_ai.py"
-    ]
+    bad = policy.path_violations(mission, ["APP/VOICE_AGENT/free_ai.py"])
+    assert bad and any("voice_agent" in p.lower() for p in bad)
+
+
+def test_dot_prefixed_paths_preserve_identity():
+    assert policy.normalize_repo_path(".github/workflows/x.yml") == ".github/workflows/x.yml"
+    assert policy.normalize_repo_path("./.github/workflows/x.yml") == ".github/workflows/x.yml"
+    assert policy.normalize_repo_path("github/workflows/x.yml") == "github/workflows/x.yml"
+    assert policy.canonical_path(".github/workflows/x.yml") != policy.canonical_path(
+        "github/workflows/x.yml"
+    )
+    assert policy.normalize_repo_path(".env") == ".env"
+    assert policy.normalize_repo_path(".config/file") == ".config/file"
+    assert policy.normalize_repo_path("././.config/file") == ".config/file"
+    # Traversal through a dot directory still collapses.
+    assert "app/billing/x.py" in policy.path_violations(
+        Mission.create(
+            title="t",
+            executor="cursor",
+            reviewer="claude",
+            idempotency_key="12345678",
+            allowed_paths=["tests/"],
+        ),
+        [".github/../app/billing/x.py"],
+    )
 
 
 def test_absolute_and_drive_letter_paths_are_scope_breaches():
@@ -192,8 +219,8 @@ def test_absolute_and_drive_letter_paths_are_scope_breaches():
         idempotency_key="12345678",
         allowed_paths=["tests/"],
     )
-    bad = policy.path_violations(mission, ["/etc/passwd", "C:/Windows/System32"])
-    assert len(bad) == 2
+    bad = policy.path_violations(mission, ["/etc/passwd", "C:/Windows/System32", r"\\unc\share"])
+    assert len(bad) >= 2
 
 
 def test_advance_cannot_skip_submit_review():

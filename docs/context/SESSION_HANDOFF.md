@@ -1,31 +1,25 @@
 # SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-Turn the manual Cursor + Claude workflow into a policy-driven, evidence-backed mission system under Owner OS / OpenClaw.
+Close PR #146 admin gaps: distributed CAS, path identity, evidence sync. Keep draft.
 
-## Outcome — External Agent Orchestrator (PR #146, commit `e4cebb1`, base `53b000d0`)
-- New `app/dev_control/external_agents/` — mission schema + validated 23-state lifecycle, GREEN/AMBER/RED lanes (registry wins), CAS leases + heartbeat + stale-worker recovery, path/branch/worktree ownership, budgets/retries, Cursor + Claude adapters validated in code, rollback packages.
-- OpenClaw: `external.missions`, `external.mission_status` — GREEN read-only only. No new STAFF; workforce still 31.
-- Admin: `/api/dev-tasks/missions*` (existing router) + Missions card with filters in `frontend/dev_control.html`.
-- Flag `EXTERNAL_AGENT_ORCHESTRATOR` registered in `AUTOMATION_FLAGS`, default OFF → API 503, OpenClaw `enabled:false`.
-- ADR-148 + `docs/runbooks/EXTERNAL_AGENT_ORCHESTRATOR.md`.
+## Outcome — PARTIAL (PR stays DRAFT)
+- Cross-process CAS: Redis preferred, portalocker FileLock on shared `./data` fallback. `threading.RLock` is no longer the correctness boundary.
+- Path identity: `normalize_repo_path` preserves `.github` / `.env` / `.config`; comparison uses lowercase keys without `lstrip("./")`.
+- Multiprocess tests: concurrent claim (1 winner), concurrent idempotent create, heartbeat owner-only, stale recovery + old-owner blocked, concurrent transition CAS.
+- Targeted suite: 47 tests (42 unit + 5 multiprocess). Regression suites green. prod_check PASS. secrets clean.
+- Branch truth: classic protection 404, but **active ruleset 19718692** already requires 3 checks. AMBER optional hardening packaged, not applied.
+- Claude OAuth still expired → dual-agent Claude proof BLOCKED (not faked).
 
-## Evidence
-- `pytest tests/test_external_agent_orchestrator.py -q` → 38 passed
-- 5-suite regression (openclaw copilot, dev_control plane, dev_control claims, omniroute governance, new suite) → 132 passed, exit 0
-- `scripts/prod_check.py` → ALL CHECKS PASSED (1211 routes, 0 collisions, dev-control invariants checked)
-- `scripts/check_secrets.py` → clean; pre-commit detect-secrets/bandit/black/isort/ruff green
-- Dogfood: real mission `msn_a1dc6423…` reached REVIEW_REQUIRED; `force merge…` probe refused RED
-- Prod truth re-probed during session: `/health` = `f096a08d`, environment `production` (browser cache showed a stale `7cab5f60` — CLI is truth)
+## Head
+Local/remote before push of this closure: will be new commit on `feat/external-agent-orchestrator`.
+Previous head: `1a6eb0736edce205316b269eaffc508575bf8bbd`.
+PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/146 (draft).
 
 ## Owner next
-1. Watch PR #146 CI → mark ready → merge (GREEN work; no deploy implied)
-2. **Decide branch protection:** `main` is currently NOT protected (gh api → 404) while `.github/workflows/auto-merge.yml` can enable auto-merge on a labelled PR. Exact `gh api -X PUT` command is in the runbook; agent did not execute it (AMBER).
-3. Optional later: flip `EXTERNAL_AGENT_ORCHESTRATOR=1` in staging first (AMBER)
+1. Run `claude` interactively once to refresh OAuth, then ask Cursor to run the bounded Claude review mission against the new head.
+2. Review `docs/runbooks/BRANCH_PROTECTION_AMBER_PACKAGE.md` — apply or skip.
+3. Keep PR #146 draft until Claude review PASS.
 
-## Not done / blocked
-- Claude Code CLI is installed (v2.1.207) but its OAuth session is expired → non-interactive Claude review mission could not run; independent review was performed by a separate Cursor reviewer agent instead. Re-auth `claude` to restore the Claude executor path.
-- Browser GitHub settings verification needs an owner-signed-in session; branch-protection truth came from authenticated `gh` API instead.
-
-## Out of scope (unchanged)
-Calling HARD OFF (`PLATFORM_DIAL_DAILY=0`) · WA auto-send · Swara/voice · sales autopilot · any production deploy
+## Out of scope
+Flag flip · merge · deploy · auto-merge label · calling · Swara · outreach

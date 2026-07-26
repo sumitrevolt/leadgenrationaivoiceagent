@@ -1,10 +1,22 @@
-"""Durable-enough mission store (repo-native JSON files, no new dependency).
+"""Mission persistence with cross-process CAS as the correctness boundary.
 
-Mirrors the `delivery_ledger` pattern already used in this repo: one JSON
-document per mission plus an append-only event log, written atomically via
-``os.replace``. A process-wide lock serialises read-modify-write so lease
-acquisition is a real compare-and-set within one worker; cross-process file
-ownership still uses the existing Redis-backed ``app.dev_control.locks``.
+JSON documents under ``EXTERNAL_MISSION_DIR`` (default ``data/external_missions``)
+are the payload store. Production VPS containers share ``./data:/app/data``, so
+the directory is visible to app/worker/scheduler. Lease claim, idempotency
+registration and document mutation are serialised by ``cas.get_backend()``
+(Redis when reachable, else portalocker file locks) — never by a process-local
+mutex alone.
+
+Topology facts (verified against ``docker-compose.vps.yml``):
+  * ``./data`` is bind-mounted into app, worker, scheduler, worker-heavy,
+    worker-video — so FileLock CAS on ``data/external_missions/.locks/`` is
+    shared across those containers on one VPS host.
+  * Redis (``REDIS_URL``) is the preferred multi-container CAS backend when
+    reachable; same pattern as ``dev_control.locks.RedisOwnershipLock``.
+  * A Windows Cursor session and a Claude Code session only share state when
+    they point at the same ``EXTERNAL_MISSION_DIR`` (or the same Redis).
+  * Redeploy preserves ``./data``; container replacement does not wipe the
+    mission store. JSON alone without the CAS backend is NOT distributed-safe.
 """
 
 from __future__ import annotations
@@ -17,11 +29,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from app.dev_control.external_agents import cas as cas_mod
 from app.dev_control.external_agents.policy import redact
 from app.dev_control.external_agents.schema import TERMINAL_STATES, Mission, MissionState
 
 DEFAULT_ROOT = "data/external_missions"
-_MUTEX = threading.RLock()
+# Local optimisation only — held INSIDE an already-acquired CAS lock.
+_LOCAL = threading.RLock()
 
 
 def _root() -> Path:
@@ -37,10 +51,6 @@ def _events_path() -> Path:
     return _root() / "events.jsonl"
 
 
-def _index_path() -> Path:
-    return _root() / "idempotency.json"
-
-
 def _atomic_write(path: Path, text: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
@@ -49,7 +59,7 @@ def _atomic_write(path: Path, text: str) -> None:
             fh.write(text)
         os.replace(tmp, path)
     finally:
-        if os.path.exists(tmp):  # pragma: no cover - replace already moved it
+        if os.path.exists(tmp):  # pragma: no cover
             os.unlink(tmp)
 
 
@@ -74,13 +84,26 @@ def record_event(mission_id: str, event: str, detail: Any = None) -> None:
 
 
 def save(mission: Mission) -> Mission:
-    with _MUTEX:
-        mission.validate()
-        _atomic_write(
-            _mission_path(mission.mission_id),
-            json.dumps(mission.to_dict(), ensure_ascii=False, indent=2),
-        )
-    return mission
+    backend = cas_mod.get_backend(root=str(_root()))
+
+    def _write() -> Mission:
+        with _LOCAL:
+            mission.validate()
+            payload = mission.to_dict()
+            payload["cas_version"] = int(payload.get("cas_version") or 0) + 1
+            # Reflect the bumped version back onto the object for subsequent CAS.
+            if hasattr(mission, "cas_version"):
+                mission.cas_version = payload["cas_version"]  # type: ignore[attr-defined]
+            else:
+                # Missions created before the field existed — stamp via dict roundtrip.
+                mission.__dict__["cas_version"] = payload["cas_version"]
+            _atomic_write(
+                _mission_path(mission.mission_id),
+                json.dumps(payload, ensure_ascii=False, indent=2),
+            )
+            return mission
+
+    return backend.with_mission_lock(mission.mission_id, _write)
 
 
 def get(mission_id: str) -> Mission | None:
@@ -117,90 +140,220 @@ def list_missions(
 # ---------------- idempotency ----------------
 
 
-def _load_index() -> dict[str, str]:
-    path = _index_path()
-    if not path.exists():
-        return {}
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return {str(k): str(v) for k, v in data.items()} if isinstance(data, dict) else {}
-    except Exception:
-        return {}
-
-
 def find_by_idempotency_key(key: str) -> Mission | None:
-    mission_id = _load_index().get((key or "").strip())
+    backend = cas_mod.get_backend(root=str(_root()))
+    mission_id = backend.get_idempotency((key or "").strip())
     return get(mission_id) if mission_id else None
 
 
-def register_idempotency(key: str, mission_id: str) -> None:
-    with _MUTEX:
-        index = _load_index()
-        index[(key or "").strip()] = mission_id
-        _atomic_write(_index_path(), json.dumps(index, ensure_ascii=False, indent=2))
+def register_idempotency(key: str, mission_id: str) -> dict[str, Any]:
+    """Atomic first-writer-wins registration across processes."""
+    backend = cas_mod.get_backend(root=str(_root()))
+    return backend.register_idempotency((key or "").strip(), mission_id)
 
 
 # ---------------- leases ----------------
 
 
+def _apply_lease_to_mission(mission: Mission, owner: str, until: float) -> None:
+    mission.lease_owner = owner
+    mission.lease_expiry = datetime.utcfromtimestamp(until).isoformat()
+    mission.last_heartbeat = datetime.utcnow().isoformat()
+    mission.updated_at = mission.last_heartbeat
+
+
 def claim(
     mission_id: str, owner: str, *, ttl_s: int = 900, now: datetime | None = None
 ) -> dict[str, Any]:
-    """Compare-and-set lease acquisition. Only one owner can win."""
-    with _MUTEX:
+    """Cross-process compare-and-set lease. Exactly one owner can win."""
+    backend = cas_mod.get_backend(root=str(_root()))
+    now_dt = now or datetime.utcnow()
+    now_ts = now_dt.timestamp()
+
+    def _body() -> dict[str, Any]:
         mission = get(mission_id)
         if mission is None:
             return {"claimed": False, "reason": "mission_not_found"}
         if mission.status in TERMINAL_STATES:
-            return {"claimed": False, "reason": "mission_terminal", "status": mission.status.value}
-        if mission.lease_active(now) and mission.lease_owner != owner:
-            return {"claimed": False, "reason": "lease_held", "lease_owner": mission.lease_owner}
-        mission.set_lease(owner, ttl_s, now)
-        save(mission)
-        record_event(mission_id, "lease_claimed", {"owner": owner, "ttl_s": ttl_s})
-        return {"claimed": True, "mission": mission}
+            return {
+                "claimed": False,
+                "reason": "mission_terminal",
+                "status": mission.status.value,
+            }
+        result = backend.claim_lease(mission_id, owner, ttl_s=ttl_s, now=now_ts)
+        if not result.get("claimed"):
+            return result
+        _apply_lease_to_mission(mission, owner, float(result["until"]))
+        # Persist under the same mission doc lock we already hold.
+        with _LOCAL:
+            mission.validate()
+            _atomic_write(
+                _mission_path(mission.mission_id),
+                json.dumps(mission.to_dict(), ensure_ascii=False, indent=2),
+            )
+        record_event(
+            mission_id, "lease_claimed", {"owner": owner, "ttl_s": ttl_s, "backend": backend.name}
+        )
+        return {"claimed": True, "mission": mission, "backend": backend.name}
+
+    return backend.with_mission_lock(mission_id, _body)
 
 
 def heartbeat(
     mission_id: str, owner: str, *, ttl_s: int = 900, now: datetime | None = None
 ) -> bool:
-    """Extend only a lease the caller owns; steals return False."""
-    with _MUTEX:
-        mission = get(mission_id)
-        if mission is None or mission.lease_owner != owner or not mission.lease_active(now):
-            return False
-        mission.set_lease(owner, ttl_s, now)
-        save(mission)
-        return True
+    backend = cas_mod.get_backend(root=str(_root()))
+    now_dt = now or datetime.utcnow()
+    if not backend.heartbeat_lease(mission_id, owner, ttl_s=ttl_s, now=now_dt.timestamp()):
+        return False
 
-
-def release(mission_id: str, owner: str) -> bool:
-    with _MUTEX:
+    def _body() -> bool:
         mission = get(mission_id)
         if mission is None or mission.lease_owner != owner:
             return False
-        mission.clear_lease()
-        save(mission)
-        record_event(mission_id, "lease_released", {"owner": owner})
+        _apply_lease_to_mission(mission, owner, now_dt.timestamp() + max(1, int(ttl_s)))
+        with _LOCAL:
+            _atomic_write(
+                _mission_path(mission.mission_id),
+                json.dumps(mission.to_dict(), ensure_ascii=False, indent=2),
+            )
         return True
+
+    return bool(backend.with_mission_lock(mission_id, _body))
+
+
+def release(mission_id: str, owner: str) -> bool:
+    backend = cas_mod.get_backend(root=str(_root()))
+    if not backend.release_lease(mission_id, owner):
+        return False
+
+    def _body() -> bool:
+        mission = get(mission_id)
+        if mission is None:
+            return False
+        mission.clear_lease()
+        with _LOCAL:
+            _atomic_write(
+                _mission_path(mission.mission_id),
+                json.dumps(mission.to_dict(), ensure_ascii=False, indent=2),
+            )
+        record_event(mission_id, "lease_released", {"owner": owner, "backend": backend.name})
+        return True
+
+    return bool(backend.with_mission_lock(mission_id, _body))
+
+
+def transition_cas(
+    mission_id: str,
+    expected_status: MissionState | str,
+    target: MissionState,
+    *,
+    mutate: Any = None,
+) -> dict[str, Any]:
+    """Compare-and-set state transition. Stale writers are rejected."""
+    backend = cas_mod.get_backend(root=str(_root()))
+    expected = (
+        expected_status
+        if isinstance(expected_status, MissionState)
+        else MissionState(expected_status)
+    )
+
+    def _body() -> dict[str, Any]:
+        mission = get(mission_id)
+        if mission is None:
+            return {"ok": False, "reason": "mission_not_found"}
+        if mission.status is not expected:
+            return {
+                "ok": False,
+                "reason": "stale_transition",
+                "current": mission.status.value,
+                "expected": expected.value,
+            }
+        try:
+            mission.transition(target)
+        except Exception as exc:  # InvalidMissionTransition
+            return {"ok": False, "reason": str(exc)}
+        if mutate:
+            mutate(mission)
+        with _LOCAL:
+            mission.validate()
+            _atomic_write(
+                _mission_path(mission.mission_id),
+                json.dumps(mission.to_dict(), ensure_ascii=False, indent=2),
+            )
+        record_event(
+            mission_id,
+            "transition_cas",
+            {"from": expected.value, "to": target.value, "backend": backend.name},
+        )
+        return {"ok": True, "mission": mission}
+
+    return backend.with_mission_lock(mission_id, _body)
 
 
 def recover_stale(*, now: datetime | None = None) -> list[dict[str, Any]]:
     """Reclaim missions whose worker died: expired lease + in-flight status."""
+    backend = cas_mod.get_backend(root=str(_root()))
     recovered: list[dict[str, Any]] = []
     in_flight = {MissionState.CLAIMED, MissionState.RUNNING, MissionState.TESTING}
-    with _MUTEX:
-        for mission in list_missions(limit=1000):
-            if mission.status not in in_flight or mission.lease_active(now):
-                continue
-            previous = mission.status.value
-            mission.clear_lease()
-            mission.transition(MissionState.FAILED_RETRYABLE)
-            mission.blocker = f"stale_lease_recovered_from:{previous}"
-            mission.add_evidence(
-                "recovery", {"from": previous}, note="lease expired; worker presumed dead"
-            )
-            save(mission)
-            record_event(mission.mission_id, "stale_lease_recovered", {"from": previous})
-            recovered.append({"mission_id": mission.mission_id, "from": previous})
+    now_dt = now or datetime.utcnow()
+    now_ts = now_dt.timestamp()
+
+    for mission in list_missions(limit=1000):
+        if mission.status not in in_flight:
+            continue
+        lease = backend.get_lease(mission.mission_id)
+        # Prefer CAS lease record; fall back to mission document expiry.
+        active = False
+        if lease is not None:
+            active = lease.until > now_ts
+        else:
+            active = mission.lease_active(now_dt)
+        if active:
+            continue
+
+        def _recover(
+            mid: str = mission.mission_id, prev: str = mission.status.value
+        ) -> dict[str, Any]:
+            m = get(mid)
+            if m is None or m.status not in in_flight:
+                return {"ok": False}
+            # Re-check lease under the doc lock.
+            live = backend.get_lease(mid)
+            if live is not None and live.until > now_ts:
+                return {"ok": False, "reason": "lease_became_active"}
+            m.clear_lease()
+            m.transition(MissionState.FAILED_RETRYABLE)
+            m.blocker = f"stale_lease_recovered_from:{prev}"
+            m.add_evidence("recovery", {"from": prev}, note="lease expired; worker presumed dead")
+            with _LOCAL:
+                _atomic_write(
+                    _mission_path(m.mission_id),
+                    json.dumps(m.to_dict(), ensure_ascii=False, indent=2),
+                )
+            record_event(mid, "stale_lease_recovered", {"from": prev, "backend": backend.name})
+            return {"ok": True, "mission_id": mid, "from": prev}
+
+        out = backend.with_mission_lock(mission.mission_id, _recover)
+        if out.get("ok"):
+            recovered.append({"mission_id": out["mission_id"], "from": out["from"]})
     return recovered
+
+
+def persistence_report() -> dict[str, Any]:
+    """Operator-facing evidence about the store topology."""
+    root = _root()
+    status = cas_mod.shared_store_status(root=str(root))
+    return {
+        **status,
+        "mission_dir": str(root.resolve()) if root.exists() else str(root),
+        "exists": root.exists(),
+        "vps_bind_mount": "./data:/app/data (docker-compose.vps.yml) — shared by app/worker/scheduler",
+        "survives_redeploy": True,
+        "windows_cursor_claude_share": (
+            "only if both processes set EXTERNAL_MISSION_DIR to the same path "
+            "(or both use the same REDIS_URL)"
+        ),
+        "correctness_boundary": status["backend"],
+        "thread_mutex_is_not_correctness_boundary": True,
+    }
