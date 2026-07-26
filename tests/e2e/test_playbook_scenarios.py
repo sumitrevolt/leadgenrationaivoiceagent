@@ -17,6 +17,7 @@ CODE (not a tautology that sets a value then asserts it). Each test is:
 
 Run: .venv\\Scripts\\python.exe -m pytest tests/e2e/ -q
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -170,7 +171,10 @@ def test_e2e_scheduler_health_contract_and_future_window(monkeypatch, tmp_path):
 
     # Force one job's window to be "not due yet" and confirm it is suppressed.
     future = {"obsidian_push"}
-    monkeypatch.setattr(ah, "_job_due_yet", lambda job: job not in future)
+    # `**_kw` absorbs the injected `now=` — health() now threads one captured
+    # timestamp into every scheduling helper so a single classification cannot
+    # combine two different instants.
+    monkeypatch.setattr(ah, "_job_due_yet", lambda job, **_kw: job not in future)
 
     h = ah.health()
     assert {"jobs", "never_ran", "overdue"} <= set(h)
@@ -249,7 +253,7 @@ def test_e2e_idempotency_dedupes_retry():
 
     key = "test:inv-2026-06-25-001"
     assert asyncio.run(idempotency.seen_before(key)) is False  # first time
-    assert asyncio.run(idempotency.seen_before(key)) is True   # duplicate
+    assert asyncio.run(idempotency.seen_before(key)) is True  # duplicate
     # forget() clears the claim so a legitimate re-process can occur
     asyncio.run(idempotency.forget(key))
     assert asyncio.run(idempotency.seen_before(key)) is False
