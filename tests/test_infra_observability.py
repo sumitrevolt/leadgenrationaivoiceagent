@@ -140,7 +140,9 @@ def test_automation_health_suppresses_future_scheduled_never_ran(tmp_path, monke
     monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "runs.jsonl"))
     monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "beats.json"))
 
-    def fake_due_yet(job):
+    def fake_due_yet(job, **_kw):
+        # `**_kw` absorbs the injected `now=` — health() threads one captured
+        # timestamp into every scheduling helper.
         return job not in {"obsidian_push", "engineer_dbre", "engineer_dataquality"}
 
     monkeypatch.setattr(ah, "_job_due_yet", fake_due_yet)
