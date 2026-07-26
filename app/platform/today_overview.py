@@ -64,32 +64,51 @@ _DUE_AFTER_IST: dict[str, tuple[int, int]] = {
 }
 
 
-def _job_due_today(job: str) -> bool:
+def _ist_now(now: datetime | None = None) -> datetime:
+    """Resolve ONE IST timestamp for a scheduling decision.
+
+    ``now`` is threaded from the caller so a single logical evaluation cannot mix
+    an injected timestamp with an independent wall-clock read. Callers that pass
+    nothing keep the previous behaviour exactly.
+
+    A naive ``now`` is rejected rather than silently compared: mixing naive and
+    aware datetimes here would produce a wrong schedule decision, not an error.
+    """
+    if now is not None:
+        if now.tzinfo is None:
+            raise ValueError("scheduling decisions require a timezone-aware timestamp")
+        try:
+            from zoneinfo import ZoneInfo
+
+            return now.astimezone(ZoneInfo("Asia/Kolkata"))
+        except Exception:
+            return now.astimezone(timezone.utc)
     try:
         from zoneinfo import ZoneInfo
 
-        wd = datetime.now(ZoneInfo("Asia/Kolkata")).weekday()
+        return datetime.now(ZoneInfo("Asia/Kolkata"))
     except Exception:
-        wd = datetime.now(timezone.utc).weekday()
+        return datetime.now(timezone.utc)
+
+
+def _job_due_today(job: str, *, now: datetime | None = None) -> bool:
+    wd = _ist_now(now).weekday()
     if job not in _WEEKLY_ON:
         return True
     return wd == _WEEKLY_ON[job]
 
 
-def _job_due_yet(job: str) -> bool:
+def _job_due_yet(job: str, *, now: datetime | None = None) -> bool:
     """True only when today's scheduled window has started in IST."""
-    if not _job_due_today(job):
+    # Reuse the SAME resolved instant for both the weekday and the window check —
+    # resolving twice could straddle midnight and answer for two different days.
+    current = _ist_now(now)
+    if not _job_due_today(job, now=current):
         return False
-    try:
-        from zoneinfo import ZoneInfo
-
-        now = datetime.now(ZoneInfo("Asia/Kolkata"))
-    except Exception:
-        now = datetime.now(timezone.utc)
     due = _DUE_AFTER_IST.get(job)
     if not due:
         return True
-    return (now.hour, now.minute) >= due
+    return (current.hour, current.minute) >= due
 
 
 # Har scheduled job ka insaani naam + "yeh kya karta hai" — admin-friendly.
