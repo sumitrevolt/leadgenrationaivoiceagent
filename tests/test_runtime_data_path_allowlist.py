@@ -52,6 +52,39 @@ def test_shipped_allowlist_is_coherent(findings) -> None:
     assert problems == [], "allowlist problems:\n  " + "\n  ".join(problems)
 
 
+def test_dpdp_requests_entry_declares_the_atomic_replace(findings) -> None:
+    """The DPDP requests store is rewritten atomically, and the entry says so.
+
+    `_atomic_write_lines(path, lines)` writes `path + ".tmp_dpdp"` and then
+    `os.replace(tmp, path)`. The entry declared only APPEND/READ/CREATE, so a
+    destructive operation on a Tier-0 statutory store was undeclared until the
+    path-role fix made the destination visible. This test fails if REPLACE is
+    dropped, if the entry drifts onto the audit file, or if the temp companion
+    is mistaken for the durable authority.
+    """
+    entry = next(
+        e for e in al.load() if e["allowlist_id"] == "compliance.dpdp_requests.store"
+    )
+    assert "REPLACE" in entry["access_modes"]
+    assert entry["file"] == "app/platform/dpdp.py"
+    assert entry["line_or_symbol"] == "_REQUESTS_FILE"
+    # Must bind to the requests file, never the sibling audit file.
+    assert entry["path_pattern"] == "data/dpdp_requests.jsonl"
+
+    real = [
+        f
+        for f in findings
+        if f.get("file") == "app/platform/dpdp.py"
+        and f.get("symbol") == "_REQUESTS_FILE"
+        and f.get("operation") == scan.REPLACE
+    ]
+    assert real, "no real REPLACE finding binds this entry"
+    # The durable authority, not the temporary companion.
+    for f in real:
+        assert ".tmp_dpdp" not in str(f.get("resolved_path") or "")
+        assert "dpdp_audit" not in str(f.get("resolved_path") or "")
+
+
 def test_store_family_count_is_derived_not_typed() -> None:
     """I reported "4 store families" while listing five names.
 

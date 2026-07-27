@@ -229,13 +229,197 @@ _RECEIVER_PATH_CALLS = frozenset(
 _PATH_MODULES = frozenset({"os", "shutil", "sqlite3", "shelve", "dbm"})
 
 
-def _path_argument(node: ast.Call, name: str) -> ast.AST | None:
-    """Return the sub-expression that is actually the PATH."""
+# ======================================================== path provenance
+#
+# `_mutable_symbols` answers roughly "has this name participated in mutable-path
+# analysis". That is DISCOVERY. It was wrongly used as receiver PROOF, and the
+# difference is not academic: it let `agent_config` (a prompt builder's return
+# value), `action = candidates[0]` and `out["path"]` authorise destructive
+# filesystem operations on real modules.
+#
+# Provenance is a separate authority. Transitive resolution is allowed, but only
+# along PATH-PRESERVING edges, so the real alias chain
+#     path -> _CLIENTS_FILE -> os.path.join("data", "marketing_clients.jsonl")
+# still resolves while an unknown call result never does.
+
+PROVEN_STATIC_PATH = "PROVEN_STATIC_PATH"
+PROVEN_PATH_ALIAS = "PROVEN_PATH_ALIAS"
+PROVEN_DYNAMIC_PATH_PATTERN = "PROVEN_DYNAMIC_PATH_PATTERN"
+AMBIGUOUS_PATH = "AMBIGUOUS_PATH"
+NOT_PATH = "NOT_PATH"
+CYCLE_DETECTED = "CYCLE_DETECTED"
+UNSUPPORTED_EXPRESSION = "UNSUPPORTED_EXPRESSION"
+
+_PROVEN = frozenset({PROVEN_STATIC_PATH, PROVEN_PATH_ALIAS, PROVEN_DYNAMIC_PATH_PATTERN})
+
+_PATH_CONSTRUCTORS = frozenset({"Path", "PurePath", "PosixPath", "WindowsPath"})
+# `.parent` stays a path; `.name`/`.stem`/`.suffix` are strings and must not.
+_PATH_PRESERVING_ATTRS = frozenset({"parent", "absolute", "resolve", "expanduser"})
+
+
+def _is_path_literal(value: str) -> bool:
+    """A string is path evidence only on shape, never on the variable holding it."""
+    v = value.replace("\\", "/")
+    if v in {"data", "runtime-data"}:
+        return True
+    return bool(_MUTABLE_ROOT_RE.search(v))
+
+
+def path_provenance(
+    node: ast.AST,
+    table: dict[str, ast.AST] | None = None,
+    _visited: frozenset[str] = frozenset(),
+    _depth: int = 0,
+) -> str:
+    """Status for one expression. Only PROVEN_* may authorise a filesystem op."""
+    table = table or {}
+    if _depth > 8:
+        return UNSUPPORTED_EXPRESSION
+
+    if isinstance(node, ast.Constant):
+        if isinstance(node.value, str):
+            return PROVEN_STATIC_PATH if _is_path_literal(node.value) else NOT_PATH
+        return NOT_PATH
+
+    if isinstance(node, ast.Name):
+        if node.id in _visited:
+            return CYCLE_DETECTED
+        src = table.get(node.id)
+        if src is None:
+            return NOT_PATH
+        inner = path_provenance(src, table, _visited | {node.id}, _depth + 1)
+        return PROVEN_PATH_ALIAS if inner in _PROVEN else inner
+
+    if isinstance(node, ast.Call):
+        fname = getattr(node.func, "id", None) or getattr(node.func, "attr", None)
+        if fname in _PATH_CONSTRUCTORS:
+            return PROVEN_STATIC_PATH
+        if fname in _CANONICAL_FUNCS or fname == "runtime_root":
+            return PROVEN_STATIC_PATH
+        if fname == "join" and isinstance(node.func, ast.Attribute):
+            base = getattr(node.func.value, "attr", None) or getattr(
+                node.func.value, "id", None
+            )
+            if base == "path":  # os.path.join
+                for a in node.args:
+                    if path_provenance(a, table, _visited, _depth + 1) in _PROVEN:
+                        return PROVEN_STATIC_PATH
+                return NOT_PATH
+        # Any other call: an unknown return contract proves nothing.
+        return UNSUPPORTED_EXPRESSION
+
+    if isinstance(node, ast.BinOp):
+        left = path_provenance(node.left, table, _visited, _depth + 1)
+        if isinstance(node.op, ast.Div):
+            return PROVEN_STATIC_PATH if left in _PROVEN else left
+        if isinstance(node.op, ast.Add):  # STORE + ".lock"
+            return PROVEN_PATH_ALIAS if left in _PROVEN else NOT_PATH
+        return NOT_PATH
+
+    if isinstance(node, ast.JoinedStr):  # f"{STORE}.tmp"
+        for part in node.values:
+            if isinstance(part, ast.FormattedValue):
+                if path_provenance(part.value, table, _visited, _depth + 1) in _PROVEN:
+                    return PROVEN_DYNAMIC_PATH_PATTERN
+        return NOT_PATH
+
+    if isinstance(node, ast.Attribute):
+        if node.attr in _PATH_PRESERVING_ATTRS:
+            return path_provenance(node.value, table, _visited, _depth + 1)
+        return NOT_PATH  # .name/.stem/.suffix and arbitrary attributes
+
+    if isinstance(node, ast.IfExp):
+        # `store_path(*segments) if segments else runtime_root()` — the value is
+        # one of two expressions, so it is proven exactly when BOTH are. Half a
+        # proof is not a proof: accepting a single proven branch would let an
+        # arbitrary receiver through on the other one, which is the failure this
+        # authority exists to prevent. With no arm at all the ternary fell to
+        # UNSUPPORTED_EXPRESSION and the canonical `store_dir` mkdir vanished.
+        body = path_provenance(node.body, table, _visited, _depth + 1)
+        orelse = path_provenance(node.orelse, table, _visited, _depth + 1)
+        if body in _PROVEN and orelse in _PROVEN:
+            return PROVEN_PATH_ALIAS
+        if body in _PROVEN or orelse in _PROVEN:
+            return AMBIGUOUS_PATH
+        return NOT_PATH
+
+    # Subscripts, awaits, comprehensions, dict access: no proof.
+    return UNSUPPORTED_EXPRESSION
+
+
+def _provenance_table(tree: ast.Module) -> dict[str, ast.AST]:
+    """symbol -> assignment expression, kept ONLY for path-preserving RHS.
+
+    Fixed point over a few passes so multi-hop aliases resolve, while a name
+    assigned from an unknown call never enters the table at all.
+    """
+    assigns: list[tuple[str, ast.AST]] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            targets, value = node.targets, node.value
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            targets, value = [node.target], node.value
+        else:
+            continue
+        for t in targets:
+            name = getattr(t, "id", None)
+            if name:
+                assigns.append((name, value))
+
+    table: dict[str, ast.AST] = {}
+    for _ in range(4):
+        changed = False
+        for name, value in assigns:
+            if name in table:
+                continue
+            if path_provenance(value, table) in _PROVEN:
+                table[name] = value
+                changed = True
+        if not changed:
+            break
+    return table
+
+
+def _receiver_is_pathlike(recv: ast.AST, symbols: dict[str, ast.AST] | None) -> bool:
+    """Is this receiver PROVEN to be a path?
+
+    A method name is not evidence. `text.replace(a, b)`, `items.remove(x)` and
+    `stream.write(data)` all look like file APIs and none of them touch a
+    filesystem. Treating the name as proof classified a prompt builder as a
+    REPLACE writer and turned a READ into a destructive operation — a
+    regression, not new visibility, and one a capability record must never
+    launder.
+
+    Accepted proof: a Path construction, a `/` composition, a `.parent` chain
+    from a proven path, a canonical-resolver call, or a symbol that resolves to
+    a path expression. A variable NAME (`path`, `out`, `config`) proves nothing.
+
+    `symbols` here is the PROVENANCE table, never `_mutable_symbols`. Passing
+    the discovery table was the defect: it made any name that had merely
+    touched mutable-path analysis look like a proven path.
+    """
+    return path_provenance(recv, symbols or {}) in _PROVEN
+
+
+def _path_argument(
+    node: ast.Call, name: str, symbols: dict[str, str] | None = None
+) -> ast.AST | None:
+    """Return the sub-expression that is actually the PATH, or None.
+
+    Four dispatch categories, deliberately separate:
+      * module-qualified stdlib function (`os.replace(src, dst)`) -> args
+      * proven Path-like receiver (`p.write_text(x)`)             -> receiver
+      * bare local helper                                         -> caller
+      * arbitrary object method                                   -> NO finding
+    """
     fn = node.func
     if isinstance(fn, ast.Attribute) and name in _RECEIVER_PATH_CALLS:
         base = getattr(fn.value, "id", None)
-        if base not in _PATH_MODULES:
-            return fn.value  # p.write_text(data) -> p
+        if base in _PATH_MODULES:
+            return node.args[0] if node.args else None
+        if not _receiver_is_pathlike(fn.value, symbols):
+            return None  # arbitrary receiver — the method name proves nothing
+        return fn.value  # p.write_text(data) -> p
     return node.args[0] if node.args else None
 
 
@@ -255,44 +439,222 @@ def _path_taking_writers(tree: ast.Module) -> dict[str, str]:
     for a Tier 0 compliance store because of that would be exactly the false
     comfort this whole workstream keeps correcting.
 
-    Returns {function_name: operation}.
+    Returns {name: {"operation", "path_param", "path_index", "confidence"}}.
+
+    WHICH parameter is the path matters as much as whether one is written. The
+    first version recorded only the operation and then took `args[0]` at the
+    call site, so `def write_text(content, destination)` would have had the
+    CONTENT read as the path — a wrong finding and a secret-leak surface in one.
+    The parameter is therefore derived from the write target itself.
     """
-    out: dict[str, str] = {}
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
+    # STRUCTURAL method detection. `self` is a receiver, never a call-site path
+    # argument: `aq.queue_task(action)` had `self` chosen as the path parameter,
+    # so `action` (position 0 at the call site) was read as a filesystem path.
+    # Detected from AST structure + decorators, not from the parameter's name,
+    # so a module-level function that happens to call something `self` is
+    # unaffected.
+    methods: dict[int, str] = {}
+    for cls in ast.walk(tree):
+        if not isinstance(cls, ast.ClassDef):
             continue
-        params = {a.arg for a in node.args.args}
-        if not params:
+        for item in cls.body:
+            if not isinstance(item, ast.FunctionDef | ast.AsyncFunctionDef):
+                continue
+            decs = {getattr(d, "id", None) or getattr(d, "attr", None) for d in item.decorator_list}
+            if "staticmethod" in decs:
+                methods[id(item)] = "STATIC_METHOD"
+            elif "classmethod" in decs:
+                methods[id(item)] = "CLASS_METHOD"
+            else:
+                methods[id(item)] = "INSTANCE_METHOD"
+
+    # Scope: only functions that are actually reachable by a BARE module-level
+    # name may enter the registry. A closure defined inside another function is
+    # invisible outside it, so registering it globally lets an inner `_append`
+    # claim every unrelated `_append(...)` call site in the file.
+    nested: set[int] = set()
+    for fn_node in ast.walk(tree):
+        if not isinstance(fn_node, ast.FunctionDef | ast.AsyncFunctionDef):
             continue
-        op: str | None = None
-        for sub in ast.walk(node):
-            if not isinstance(sub, ast.Call):
+        for desc in ast.walk(fn_node):
+            if desc is fn_node:
                 continue
-            nm = getattr(sub.func, "attr", None) or getattr(sub.func, "id", None)
-            if nm not in _CALL_OPERATIONS:
+            if isinstance(desc, ast.FunctionDef | ast.AsyncFunctionDef):
+                nested.add(id(desc))
+
+    out: dict[str, dict[str, Any]] = {}
+    for _ in range(2):  # second pass lets a helper inherit from a nested helper
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef):
                 continue
-            target = _path_argument(sub, nm)
-            if target is None:
+            kind = methods.get(id(node), "MODULE_FUNCTION")
+            positional = [a.arg for a in node.args.args]
+            # Drop the implicit receiver for instance/class methods only.
+            # Static methods keep every explicit parameter.
+            if kind in ("INSTANCE_METHOD", "CLASS_METHOD") and positional:
+                positional = positional[1:]
+            names = positional + [a.arg for a in node.args.kwonlyargs]
+            params = set(names)
+            if not params:
                 continue
-            # Does the write act on one of this function's parameters?
-            names = {getattr(x, "id", None) for x in ast.walk(target) if isinstance(x, ast.Name)}
-            if not (names & params):
-                continue
-            cand = _CALL_OPERATIONS[nm]
-            if nm == "open":
-                mode = "r"
-                if len(sub.args) > 1 and isinstance(sub.args[1], ast.Constant):
-                    mode = str(sub.args[1].value)
-                for kw in sub.keywords:
-                    if kw.arg == "mode" and isinstance(kw.value, ast.Constant):
-                        mode = str(kw.value.value)
-                cand = _mode_to_operation(mode)
-            # Prefer the most destructive operation the helper performs.
-            if op is None or _OP_SEVERITY.get(cand, 0) > _OP_SEVERITY.get(op, 0):
-                op = cand
-        if op:
-            out[node.name] = op
+
+            best: dict[str, Any] | None = None
+            bindings: list[dict[str, Any]] = []
+            for sub in ast.walk(node):
+                if not isinstance(sub, ast.Call):
+                    continue
+                nm = getattr(sub.func, "attr", None) or getattr(sub.func, "id", None)
+                if nm is None:
+                    continue
+
+                # A bare local call wins over a same-named stdlib entry: a
+                # helper called `write_text` is this module's function, not
+                # Path.write_text, and routing it through the stdlib rule read
+                # its CONTENT argument as the path.
+                local_first = isinstance(sub.func, ast.Name) and nm in out and nm != node.name
+
+                if nm in _CALL_OPERATIONS and not local_first:
+                    # Inside a helper the parameters ARE the path evidence, so
+                    # they count as proof for the receiver test.
+                    # Inside a helper body the PARAMETERS are the path evidence
+                    # (the helper's own contract), so they seed the provenance
+                    # table for this analysis only.
+                    target = _path_argument(
+                        sub, nm, {p: ast.Constant(value="data/<param>") for p in params}
+                    )
+                    cand = _CALL_OPERATIONS[nm]
+                    if nm in _ARG_ROLES and isinstance(sub.func, ast.Attribute):
+                        # Two-path APIs have a fixed source/destination
+                        # contract. `shutil.copyfile(src, DST)` and
+                        # `os.replace(tmp, DST)` both put the authority in
+                        # arg1; reading arg0 bound a helper's mutation to the
+                        # file it merely READS (studio_media `src_path`).
+                        roles = _ARG_ROLES[nm]
+                        dest_idx = [i for i, r in enumerate(roles) if r == _DEST]
+                        picked = None
+                        for i in dest_idx:
+                            if i < len(sub.args) and any(
+                                isinstance(x, ast.Name) and x.id in params
+                                for x in ast.walk(sub.args[i])
+                            ):
+                                picked = sub.args[i]
+                                break
+                        # No parameter reaches the DESTINATION slot => this
+                        # helper does not take its write target as an argument.
+                        target = picked
+                    if nm == "open":
+                        mode = "r"
+                        if len(sub.args) > 1 and isinstance(sub.args[1], ast.Constant):
+                            mode = str(sub.args[1].value)
+                        for kw in sub.keywords:
+                            if kw.arg == "mode" and isinstance(kw.value, ast.Constant):
+                                mode = str(kw.value.value)
+                        cand = _mode_to_operation(mode)
+                elif local_first or (nm in out and nm != node.name):
+                    # Nested local helper: inherit its semantics, following the
+                    # argument that lands in ITS path position.
+                    inner = out[nm]
+                    target = _arg_for_param(sub, inner["path_param"], inner["path_index"])
+                    cand = inner["operation"]
+                else:
+                    continue
+
+                if target is None:
+                    continue
+                hit = next(
+                    (
+                        x.id
+                        for x in ast.walk(target)
+                        if isinstance(x, ast.Name) and x.id in params
+                    ),
+                    None,
+                )
+                if hit is None:
+                    continue
+                role = _binding_role(cand)
+                binding = {
+                    "param": hit,
+                    "index": names.index(hit),
+                    "role": role,
+                    "operation": cand,
+                }
+                if binding not in bindings:
+                    bindings.append(binding)
+                if cand in MUTATING_OPERATIONS and role != _DEST:
+                    # A MUTATION may only be projected onto the destination
+                    # slot. A SOURCE / TEMPORARY / companion binding is real
+                    # and stays in `path_bindings`, but binding a write to it
+                    # is what marked a read-only argument as a rewrite.
+                    # (A READ legitimately binds to a SOURCE — that is its
+                    # authority — so the gate is mutation-specific.)
+                    continue
+                if best is None or _OP_SEVERITY.get(cand, 0) > _OP_SEVERITY.get(
+                    best["operation"], 0
+                ):
+                    best = {
+                        "operation": cand,
+                        "path_param": hit,
+                        "path_index": names.index(hit),
+                        "confidence": "high",
+                    }
+            if best and kind == "MODULE_FUNCTION" and id(node) not in nested:
+                # Only BARE local functions enter the registry. A method is
+                # reachable only as `obj.name(...)`, and resolving an attribute
+                # call through a global name map is how an unrelated class
+                # method contaminated a module helper.
+                #
+                # Compatibility projection: legacy `path_param` / `path_index`
+                # survive only while exactly ONE unambiguous destination exists.
+                # Consumers migrate to `path_bindings`; until then an ambiguous
+                # helper is reported without a projected authority rather than
+                # having one guessed for it.
+                dests = {b["param"] for b in bindings if b["role"] == _DEST}
+                record = dict(best)
+                record["path_bindings"] = bindings
+                if best["operation"] in MUTATING_OPERATIONS and len(dests) != 1:
+                    record["confidence"] = "ambiguous_destination"
+                out.setdefault(node.name, record)
     return out
+
+
+_SOURCE = "SOURCE"
+_DEST = "DESTINATION_AUTHORITY"
+_TEMPORARY = "TEMPORARY"
+_COMPANION = "LOCK_OR_COMPANION"
+
+# Fixed argument contracts for two-path APIs. Position -> role.
+# The destination is the authority; the other slot is read or discarded, and
+# treating it as the write target is how a helper's mutation got bound to the
+# file it only READS.
+_ARG_ROLES: dict[str, tuple[str, ...]] = {
+    "copyfile": (_SOURCE, _DEST),
+    "copy": (_SOURCE, _DEST),
+    "copy2": (_SOURCE, _DEST),
+    "copytree": (_SOURCE, _DEST),
+    "move": (_SOURCE, _DEST),
+    "replace": (_TEMPORARY, _DEST),
+    "rename": (_TEMPORARY, _DEST),
+}
+
+
+def _binding_role(operation: str) -> str:
+    """Role of a single-path binding, derived from what the call DOES."""
+    return _DEST if operation in MUTATING_OPERATIONS else _SOURCE
+
+
+def _arg_for_param(call: ast.Call, name: str, index: int) -> ast.AST | None:
+    """Argument bound to a named parameter — keyword first, then position.
+
+    Keyword call sites are normal for these helpers
+    (`_write_all(records=items, destination=STORE)`), and positional-only
+    lookup silently missed every one of them.
+    """
+    for kw in call.keywords:
+        if kw.arg == name:
+            return kw.value
+    if 0 <= index < len(call.args):
+        return call.args[index]
+    return None
 
 
 _OP_SEVERITY = {READ: 0, CREATE: 1, LOCK: 2, APPEND: 3, REWRITE: 4, REPLACE: 4, DELETE: 5}
@@ -369,6 +731,10 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
     # would be a scanner that reports a comfortable number instead of a true
     # one -- the exact failure mode this whole workstream keeps hitting.
     symbols = _mutable_symbols(tree)
+    # Discovery (`symbols`) and PROOF (`provenance`) are deliberately separate
+    # tables. Only the provenance table may authorise a receiver-method
+    # filesystem operation.
+    provenance = _provenance_table(tree)
     local_writers = _path_taking_writers(tree)
 
     # --- module-level capture of a runtime path (freezes the root at import).
@@ -409,13 +775,24 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
         if node.lineno in doc_lines:
             continue
 
-        if name in local_writers and name not in _CALL_OPERATIONS:
+        # Same local-first rule as the inference pass: a bare `write_text(...)`
+        # is this module's helper, not Path.write_text.
+        # Local-helper inference requires a BARE call. `aq.queue_task(action)`
+        # is an attribute call on another object and must never be resolved
+        # through the local-helper registry; the old `name not in
+        # _CALL_OPERATIONS` escape hatch let exactly that through.
+        use_local = isinstance(fn, ast.Name) and name in local_writers
+        if use_local:
             # A module-local helper that writes to the path handed to it.
-            op = local_writers[name]
+            op = local_writers[name]["operation"]
             access_mode = f"{name}() [local writer]"
-        else:
+        elif name in _CALL_OPERATIONS:
             op = _CALL_OPERATIONS[name]
             access_mode = name
+        else:
+            # An attribute call whose name merely matches a local helper.
+            # Not a filesystem operation, and not ours to guess.
+            continue
 
         if name == "open":
             mode = "r"
@@ -435,10 +812,14 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
         # the SECRET recorded as its path expression, and `p.mkdir()` (no args)
         # was skipped entirely -- which is why canonical findings read 0 even
         # though runtime_data.store_dir does exactly that.
-        if name in local_writers and name not in _CALL_OPERATIONS:
-            path_arg = node.args[0] if node.args else None
+        if use_local:
+            # Follow the helper's DECLARED path parameter — by keyword if the
+            # call site uses one. Taking args[0] blindly would read the content
+            # argument of a content-first helper as a filesystem path.
+            spec = local_writers[name]
+            path_arg = _arg_for_param(node, spec["path_param"], spec["path_index"])
         else:
-            path_arg = _path_argument(node, name)
+            path_arg = _path_argument(node, name, provenance)
         if path_arg is None:
             continue
 
