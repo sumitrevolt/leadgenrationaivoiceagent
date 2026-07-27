@@ -122,6 +122,14 @@ def _sandbox(tmp_path: pathlib.Path, *, preflight_exit: int) -> tuple[pathlib.Pa
     for name in ("git", "docker", "curl"):
         _stub(binmock / name, log)
 
+    # The parent also runs `python3 scripts/prod_check.py --deployment` before
+    # any mutating step. It is a hardcoded `python3` (deliberately NOT
+    # PYTHON_BIN, which drives the preflight), and the sandbox repo holds only
+    # the two scripts under test — so without a stub the gate fails, the parent
+    # exits 1, and every assertion past it becomes vacuous. Stubbing it records
+    # WHETHER it ran and in what order, which is what this harness measures.
+    _stub(binmock / "python3", log)
+
     # The guard runs `${PYTHON_BIN:-python3} runtime_data_preflight.py check-deploy`.
     # Driving the verdict through this stub lets us test both branches without
     # touching real production state or the real preflight's blockers.
@@ -219,8 +227,17 @@ def test_permitted_preflight_reaches_git_pull(tmp_path: pathlib.Path) -> None:
 def test_guard_runs_before_the_first_recorded_command(tmp_path: pathlib.Path) -> None:
     """Ordering proven by execution, not by line numbers.
 
-    On the permitted path the preflight stub is recorded too, so we can assert
-    it precedes every mutating command rather than trusting the source order.
+    BOTH release gates are asserted, in the order the parent actually runs them:
+
+        runtime_data_preflight check-deploy   (sourced guard, exit 90 on denial)
+            before
+        prod_check.py --deployment            (canonical deployment gate)
+            before
+        the first mutating command
+
+    Asserting only the first gate would let the second one be moved below
+    `git pull`, or dropped entirely, with this harness still green — and a gate
+    that runs after the checkout has already moved protects nothing.
     """
     script, log = _sandbox(tmp_path, preflight_exit=0)
     _run(script, tmp_path)
@@ -232,6 +249,18 @@ def test_guard_runs_before_the_first_recorded_command(tmp_path: pathlib.Path) ->
     )
     assert preflight_idx is not None, f"preflight never ran:\n{lines}"
 
+    deployment_gate_idx = next(
+        (
+            i
+            for i, ln in enumerate(lines)
+            if ln.startswith("python3") and "prod_check.py" in ln and "--deployment" in ln
+        ),
+        None,
+    )
+    assert (
+        deployment_gate_idx is not None
+    ), f"the deployment gate `prod_check.py --deployment` never ran:\n{lines}"
+
     mutating_idx = [
         i for i, ln in enumerate(lines) if any(ln.startswith(m.split()[0]) for m in _MUTATING)
     ]
@@ -239,6 +268,13 @@ def test_guard_runs_before_the_first_recorded_command(tmp_path: pathlib.Path) ->
     assert preflight_idx < min(
         mutating_idx
     ), f"a mutating command ran BEFORE the preflight:\n{lines}"
+    assert deployment_gate_idx < min(
+        mutating_idx
+    ), f"a mutating command ran BEFORE the deployment gate:\n{lines}"
+    assert preflight_idx < deployment_gate_idx, (
+        "the runtime-data guard must be the first gate — it is sourced before "
+        f"the deployment gate in the parent:\n{lines}"
+    )
 
 
 @requires_bash

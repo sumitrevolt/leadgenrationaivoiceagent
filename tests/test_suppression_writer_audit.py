@@ -12,6 +12,7 @@ is the only way to catch a bypass that has not been written yet.
 
 from __future__ import annotations
 
+import ast
 import re
 from pathlib import Path
 
@@ -25,16 +26,47 @@ LEDGER = "email_suppression.jsonl"
 #: Only this module may name the ledger path.
 CANONICAL_MODULE = "email_unsub.py"
 
+#: Declarative governance metadata that DESCRIBES the ledger without accessing
+#: it: the runtime-data allowlist and store manifest record owner, migration
+#: tier, cutover target and review condition for every legacy store, and the
+#: suppression ledger is one of them. Naming a path in a data table is not a
+#: runtime bypass — it is the opposite, it is the path being placed under
+#: review.
+#:
+#: EXACT FILENAMES, never a directory prefix. Excluding `app/platform/**` would
+#: have exempted the whole folder the canonical service lives in, so a real
+#: `open("data/email_suppression.jsonl", "a")` added next door would pass this
+#: audit unnoticed. The exemption is verified below, not merely asserted:
+#: test_governance_metadata_exemption_is_minimal_and_declarative proves each
+#: entry still needs the exemption and cannot perform I/O at all.
+GOVERNANCE_METADATA_MODULES = frozenset(
+    {
+        "runtime_data_allowlist_entries.py",
+        "runtime_data_manifest.py",
+    }
+)
+
+#: Imports a purely declarative module may use. Anything able to reach a
+#: filesystem (os, pathlib, shutil, json, aiofiles, sqlite3, ...) disqualifies
+#: it from the exemption.
+_DECLARATIVE_IMPORT_ROOTS = frozenset({"__future__", "typing"})
+
 
 def _py_files() -> list[Path]:
     return [p for p in APP.rglob("*.py") if p.is_file()]
 
 
 def test_only_canonical_module_names_the_ledger_path() -> None:
-    """Nothing outside email_unsub.py may reference the ledger file directly."""
+    """No EXECUTABLE module outside email_unsub.py may reference the ledger.
+
+    Declarative governance tables are exempt by exact filename only; every
+    module that can actually run I/O stays in scope.
+    """
     offenders: list[str] = []
     for path in _py_files():
         if path.name == CANONICAL_MODULE:
+            continue
+        if path.name in GOVERNANCE_METADATA_MODULES:
             continue
         try:
             text = path.read_text(encoding="utf-8", errors="ignore")
@@ -48,6 +80,57 @@ def test_only_canonical_module_names_the_ledger_path() -> None:
         "this bypasses the shared lock, idempotency, scope validation and "
         "cancellation:\n  " + "\n  ".join(offenders)
     )
+
+
+def test_governance_metadata_exemption_is_minimal_and_declarative() -> None:
+    """The exemption list must earn itself, every run.
+
+    An exception list that is never re-checked is how a structural guard dies:
+    the entry survives long after the module it excused has grown a writer, and
+    the audit above then reports success for a file nobody is auditing.
+
+    So each entry must (1) be an exact filename resolving to exactly one module,
+    (2) still actually name the ledger — a stale exemption gets deleted, not
+    kept — and (3) be provably incapable of touching a filesystem: imports
+    limited to `__future__`/`typing` and no `open()` anywhere. The check is on
+    the AST, because both modules quote `os.replace` and `write_text` inside
+    their evidence PROSE, and a token scan would take that prose for code.
+    """
+    assert GOVERNANCE_METADATA_MODULES == {
+        "runtime_data_allowlist_entries.py",
+        "runtime_data_manifest.py",
+    }, "the exemption list changed — a new entry needs its own justification"
+    assert CANONICAL_MODULE not in GOVERNANCE_METADATA_MODULES
+
+    for name in sorted(GOVERNANCE_METADATA_MODULES):
+        assert "/" not in name and "\\" not in name and "*" not in name, (
+            f"{name}: exemptions are exact filenames — a path prefix or glob "
+            "would exempt modules nobody reviewed"
+        )
+        matches = [p for p in _py_files() if p.name == name]
+        assert len(matches) == 1, f"{name}: expected exactly one module, found {matches}"
+        path = matches[0]
+        text = path.read_text(encoding="utf-8", errors="ignore")
+
+        assert LEDGER in text, (
+            f"{name} no longer names the ledger — delete the exemption instead "
+            "of leaving a blanket hole in the audit"
+        )
+
+        tree = ast.parse(text)
+        roots: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                roots |= {a.name.split(".")[0] for a in node.names}
+            elif isinstance(node, ast.ImportFrom):
+                roots.add((node.module or "").split(".")[0])
+            elif isinstance(node, ast.Call) and getattr(node.func, "id", None) == "open":
+                raise AssertionError(f"{name} calls open() — it is not declarative metadata")
+        extra = roots - _DECLARATIVE_IMPORT_ROOTS
+        assert not extra, (
+            f"{name} imports {sorted(extra)} — a module that can reach a "
+            "filesystem does not qualify for the declarative exemption"
+        )
 
 
 def test_suppression_writes_go_through_the_canonical_service() -> None:
