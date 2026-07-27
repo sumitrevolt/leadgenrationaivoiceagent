@@ -20,7 +20,12 @@ from typing import Any
 
 # Bumped whenever detection SEMANTICS change (new call shapes, new inference).
 # Cosmetic edits must not bump it, and a semantic change must not skip it.
-SCANNER_ENGINE_VERSION = "2026-07-26.3-local-helper-inference"
+SCANNER_ENGINE_VERSION = "2026-07-27.4-scope-path-roles-canonical-provenance"
+
+# Historic engine versions, pinned as literals. A record must keep the version
+# it was approved against; interpolating the live constant would silently
+# rewrite history every time the scanner changes.
+_ENGINE_2026_07_26_3 = "2026-07-26.3-local-helper-inference"
 SCANNER_SCHEMA_VERSION = "2026-07-26.1"
 CLASSIFICATION_VERSION = "2026-07-26.2"
 
@@ -31,7 +36,7 @@ CHANGES: list[dict[str, Any]] = [
     {
         "change_id": "bce-2026-07-26-local-helper-inference",
         "old_scanner_version": "2026-07-26.2-receiver-path",
-        "new_scanner_version": SCANNER_ENGINE_VERSION,
+        "new_scanner_version": _ENGINE_2026_07_26_3,
         "old_baseline_count": 691,
         "new_baseline_count": 881,
         "added_fingerprints": 190,
@@ -60,6 +65,71 @@ CHANGES: list[dict[str, Any]] = [
             "authorities that the Tier 0 report had shown as 0 findings -- which meant "
             "no DETECTION, not no debt. The expansion is newly visible debt, not new "
             "debt: no application code changed in the same commit."
+        ),
+    },
+    {
+        "change_id": "bce-2026-07-27-helper-scope-path-roles-canonical-provenance",
+        "old_scanner_version": _ENGINE_2026_07_26_3,
+        "new_scanner_version": SCANNER_ENGINE_VERSION,
+        "old_baseline_count": 881,
+        "new_baseline_count": 834,
+        "added_fingerprints": 9,
+        "removed_fingerprints": 56,
+        "reason": (
+            "helper scope, source/destination path roles and conditional path "
+            "provenance corrected; net CONTRACTION, not an expansion"
+        ),
+        "detector_change": (
+            "Five semantic corrections. (1) `ast.IfExp` provenance: a value is a "
+            "proven path when BOTH branches are, which restored the canonical "
+            "`runtime_data.store_dir` mkdir that had vanished entirely. "
+            "(2) Bound-method receivers: class methods no longer enter the bare-helper "
+            "registry, so `aq.queue_task(action)` stopped resolving to an unrelated "
+            "module helper. (3) Scope: only module-level functions register, so a "
+            "closure cannot claim same-named call sites elsewhere in the file. "
+            "(4) Attribute/local separation: local-helper inference requires an "
+            "`ast.Name` call. (5) Path roles: two-path APIs have fixed contracts "
+            "(`shutil.copyfile(SOURCE, DEST)`, `os.replace(TEMP, DEST)`), and a "
+            "MUTATION may only be projected onto the DESTINATION slot."
+        ),
+        "affected_files": [
+            "app/platform/runtime_data.py",
+            "app/agents/staff.py",
+            "app/agents/self_improve.py",
+            "app/agents/rl/reward.py",
+            "app/api/studio_media.py",
+            "app/api/minisite_builder.py",
+            "app/marketing/jingle.py",
+            "app/ml/agent_brain.py",
+            "app/platform/agent_runtime.py",
+            "app/platform/growth_engine.py",
+            "app/platform/rank_tracker.py",
+            "app/platform/dpdp.py",
+        ],
+        "affected_store_candidates": [
+            "compliance.dpdp_audit",
+            "customers.identity",
+        ],
+        "review_status": REVIEW_APPROVED,
+        "evidence": (
+            "9 added / 56 removed / 825 unchanged; 881 + 9 - 56 = 834, and the scanner "
+            "sets reconcile exactly. Of the 9 added, 7 are ONE-TO-ONE REPLACEMENTS of a "
+            "removed fingerprint at the same file+symbol whose operation was corrected "
+            "upward once the atomic-rewrite DESTINATION became visible: "
+            "staff.py:_JSONL_ROTATE_DIR READ->REPLACE, "
+            "agent_runtime.py:_STATE_PATH and :_USAGE_PATH CREATE->REPLACE, "
+            "growth_engine.py:_PULSE_FILE and :pulse_file CREATE->REPLACE, "
+            "rank_tracker.py:_CONFIG_FILE CREATE->REPLACE, "
+            "rl/reward.py:_REWARDS APPEND->REWRITE. The other 2 are genuine new "
+            "visibility (minisite_builder.py and jingle.py atomic rewrites). "
+            "The remaining 49 removals are false positives the role model retired -- "
+            "18 were TEMPORARY companions (`tmp`) or `str.replace` receivers previously "
+            "read as durable authorities. Ratchet regressions = 0. "
+            "Separately, the controlled DPDP entry compliance.dpdp_requests.store had "
+            "its declared operation set corrected to include REPLACE "
+            "(`_atomic_write_lines` -> `os.replace(tmp, path)`); that is an existing "
+            "controlled authority whose declaration was under-stated, NOT newly "
+            "discovered uncontrolled debt, and it is therefore absent from this baseline."
         ),
     },
 ]

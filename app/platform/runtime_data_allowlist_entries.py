@@ -136,7 +136,12 @@ ENTRIES: list[dict[str, Any]] = [
         "line_or_symbol": "_REQUESTS_FILE",
         "path_pattern": "data/dpdp_requests.jsonl",
         "store_id": "compliance.dpdp_audit",
-        "access_modes": ["APPEND", "READ", "CREATE"],
+        # REPLACE added 2026-07-27 (owner-authorised operation correction, not a
+        # new store): `_atomic_write_lines(path, lines)` writes
+        # `path + ".tmp_dpdp"` and then `os.replace(tmp, path)` — the durable
+        # authority is rewritten atomically. The entry always covered this file;
+        # only the declared operation set was under-stated.
+        "access_modes": ["APPEND", "READ", "CREATE", "REPLACE"],
         "reason": (
             "Data-subject access/erasure requests. Same statutory authority as the "
             "audit trail, so one logical family covers both files."
