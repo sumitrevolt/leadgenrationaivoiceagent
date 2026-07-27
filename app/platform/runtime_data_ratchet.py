@@ -27,6 +27,7 @@ from __future__ import annotations
 from typing import Any
 
 from app.platform import runtime_data_baseline as _baseline
+from app.platform import runtime_data_baseline_changes as _changes
 from app.platform import runtime_data_scan as _scan
 
 # Classifications that represent unresolved debt.
@@ -116,15 +117,26 @@ def evaluate(findings: list[dict[str, Any]]) -> dict[str, Any]:
         and f["classification"] not in UNRESOLVED
     ]
 
+    # Baseline expansions must be accounted for, not merely absorbed. Saying
+    # "new unresolved = 0" right after replacing the baseline describes the
+    # state AFTER accepting the expansion — which is exactly the impression I
+    # gave when it went 691 -> 881.
+    governed, gov_detail = _changes.expansion_is_governed(len(base))
+    change_problems = _changes.validate()
+
     return {
         "baseline_fingerprints": len(base),
+        "baseline_governed": governed,
+        "baseline_governance_detail": gov_detail,
+        "change_record_problems": change_problems,
+        "scanner_engine_version": _changes.SCANNER_ENGINE_VERSION,
         "current_findings": len(findings),
         "new_unresolved": new_unresolved,
         "regressions": regressions,
         "removed": removed,
         "resolved": resolved,
         "unresolved_now": sum(1 for f in findings if f["classification"] in UNRESOLVED),
-        "ok": not new_unresolved and not regressions,
+        "ok": (not new_unresolved and not regressions and governed and not change_problems),
     }
 
 
@@ -143,6 +155,17 @@ def format_failures(verdict: dict[str, Any], limit: int = 30) -> list[str]:
                 _scan.normalized_path(f)[:110],
             )
         )
+    if not verdict.get("baseline_governed", True):
+        out.append(
+            "UNGOVERNED_BASELINE_EXPANSION\n  detail: {}\n"
+            "  action: add a reviewed record to runtime_data_baseline_changes.CHANGES "
+            "naming the detector change and the exact added fingerprints. Regenerating "
+            "the baseline is not the same as accounting for it.".format(
+                verdict.get("baseline_governance_detail")
+            )
+        )
+    for p in verdict.get("change_record_problems", []):
+        out.append(f"BASELINE_CHANGE_RECORD_INVALID\n  {p}")
     for r in verdict["regressions"][:limit]:
         out.append(
             "CLASSIFICATION_REGRESSION\n  file: {}:{}\n  symbol: {}\n  operation: {}\n"
