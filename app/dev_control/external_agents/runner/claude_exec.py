@@ -165,31 +165,14 @@ def extract_usage_from_cli_json(stdout: str) -> dict[str, float | int]:
 
 
 def extract_review_manifest(stdout: str, mission_id: str) -> dict[str, Any]:
-    try:
-        outer = json.loads(stdout)
-    except json.JSONDecodeError as exc:
-        raise ProcessSafetyError("claude_output_not_json") from exc
-    text = outer.get("result") if isinstance(outer, dict) else stdout
-    if isinstance(text, dict):
-        data = text
-    else:
-        s = str(text)
-        start = s.find("{")
-        if start < 0:
-            raise ProcessSafetyError("claude_review_not_json")
-        depth = 0
-        end = -1
-        for i, ch in enumerate(s[start:], start):
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    end = i + 1
-                    break
-        if end < 0:
-            raise ProcessSafetyError("claude_review_not_json")
-        data = json.loads(s[start:end])
+    """Legacy helper — prefer ``recover_independent_review`` on the live path.
+
+    Kept for unit tests that exercise envelope parsing in isolation. Live
+    ``invoke_claude_review`` MUST NOT call this directly.
+    """
+    from app.dev_control.external_agents.runner.review_parse import parse_claude_cli_envelope
+
+    data = parse_claude_cli_envelope(stdout)
     if str(data.get("mission_id") or "") != mission_id:
         raise ProcessSafetyError("claude_mission_id_mismatch")
     if str(data.get("reviewer") or "").lower() != "claude":
@@ -209,12 +192,20 @@ def invoke_claude_review(
     allowed_root: str,
     timeout_s: int = 600,
     heartbeat=None,
-) -> tuple[ProcessResult, dict[str, Any] | None]:
+    expected_head: str | None = None,
+) -> tuple[ProcessResult, dict[str, Any] | None, dict[str, Any]]:
+    """Run Claude review via the canonical ``review_parse`` ingestion path.
+
+    Returns ``(process, review_manifest|None, parse_evidence)``.
+    """
+    from app.dev_control.external_agents.runner.review_parse import recover_independent_review
+
     auth = auth_ok()
     if not auth.get("ok"):
         raise ProcessSafetyError("claude_auth_unavailable")
     workspace_path = Path(mission.worktree).resolve()
     workspace = str(workspace_path)
+    head = (expected_head or mission.base_sha or "").strip()
     prompt_path = workspace_path / ".external_agent_runner_review_prompt.txt"
     prompt_path.write_text(
         build_review_prompt(mission, result_manifest=result_manifest, diff_text=diff_text),
@@ -243,10 +234,21 @@ def invoke_claude_review(
                 prompt_path.unlink()
         except Exception:
             pass
-    manifest = None
-    if result.exit_code == 0 and not result.timed_out and not result.cancelled:
-        try:
-            manifest = extract_review_manifest(result.stdout, mission.mission_id)
-        except ProcessSafetyError:
-            manifest = None
-    return result, manifest
+    recovered = recover_independent_review(
+        result.stdout or "",
+        mission_id=mission.mission_id,
+        expected_head=head,
+        exit_code=int(result.exit_code if result.exit_code is not None else -1),
+        timed_out=bool(result.timed_out),
+        cancelled=bool(result.cancelled),
+        truncated=bool(getattr(result, "truncated", False)),
+    )
+    evidence = {
+        "transport": recovered.get("transport"),
+        "parser": recovered.get("parser"),
+        "recovery_source": recovered.get("recovery_source"),
+        "reason": recovered.get("reason"),
+        "recovered_verdict": recovered.get("recovered_verdict"),
+    }
+    manifest = recovered.get("rich") if recovered.get("ok") else None
+    return result, manifest, evidence

@@ -207,8 +207,14 @@ def test_review_recovery_separates_transport_and_verdict():
     env_pass = json.dumps({"result": json.dumps(inner_pass)})
     bad_proc = recover_independent_review(env_pass, mission_id=mid, expected_head=head, exit_code=1)
     assert bad_proc["ok"] is False
-    assert bad_proc["reason"] == "process_integrity_failed"
-    assert bad_proc["recovered_verdict"] is None
+    assert bad_proc["reason"] == "failed_process_cannot_pass"
+    assert bad_proc["recovered_verdict"] == "PASS"
+
+    # Nonzero exit may conservatively preserve CHANGES_REQUIRED after validation.
+    cons = recover_independent_review(envelope, mission_id=mid, expected_head=head, exit_code=1)
+    assert cons["ok"] is True
+    assert cons["recovered_verdict"] == "CHANGES_REQUIRED"
+    assert cons["parser"]["status"] == "ok_conservative"
 
     # Wrong mission refused.
     wrong = recover_independent_review(

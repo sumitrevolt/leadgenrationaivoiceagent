@@ -314,13 +314,14 @@ def run_mission_once(
     review_timeout = wall_timeout_s(mission, min(600, timeout_s))
     hb2 = _hb_factory()
     try:
-        rproc, review = claude_exec.invoke_claude_review(
+        rproc, review, parse_ev = claude_exec.invoke_claude_review(
             mission,
             result_manifest=manifest,
             diff_text=diff,
             allowed_root=root,
             timeout_s=review_timeout,
             heartbeat=hb2,
+            expected_head=mission.base_sha or "",
         )
     except ProcessSafetyError as exc:
         return {"ok": False, "reason": str(exc), "evidence": evidence}
@@ -334,9 +335,15 @@ def run_mission_once(
         "stderr_tail": (rproc.stderr or "")[-500:],
         "stdout_tail": (rproc.stdout or "")[-500:],
         "termination_reason": rproc.termination_reason,
+        "truncated": bool(getattr(rproc, "truncated", False)),
+        "parse": parse_ev,
     }
     if not review:
-        return {"ok": False, "reason": "review_manifest_missing", "evidence": evidence}
+        return {
+            "ok": False,
+            "reason": parse_ev.get("reason") or "review_manifest_missing",
+            "evidence": evidence,
+        }
 
     review_usage = claude_exec.extract_usage_from_cli_json(rproc.stdout or "")
     review_budget = policy.budget_check(
@@ -428,13 +435,14 @@ def run_review_once(
         cancel_check=lambda: _mission_cancelled(mission_id),
     )
     try:
-        rproc, review = claude_exec.invoke_claude_review(
+        rproc, review, parse_ev = claude_exec.invoke_claude_review(
             mission,
             result_manifest=manifest,
             diff_text=diff,
             allowed_root=root,
             timeout_s=review_timeout,
             heartbeat=hb,
+            expected_head=mission.base_sha or "",
         )
     except ProcessSafetyError as exc:
         return {"ok": False, "reason": str(exc), "evidence": evidence}
@@ -446,9 +454,15 @@ def run_review_once(
         "pid": rproc.pid,
         "stderr_tail": (rproc.stderr or "")[-500:],
         "stdout_tail": (rproc.stdout or "")[-500:],
+        "truncated": bool(getattr(rproc, "truncated", False)),
+        "parse": parse_ev,
     }
     if not review:
-        return {"ok": False, "reason": "review_manifest_missing", "evidence": evidence}
+        return {
+            "ok": False,
+            "reason": parse_ev.get("reason") or "review_manifest_missing",
+            "evidence": evidence,
+        }
     if not review.get("citations"):
         review["citations"] = list(review.get("findings") or ["runner_auto_review"])[:5]
     if not review.get("findings"):
