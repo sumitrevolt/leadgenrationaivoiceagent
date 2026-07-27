@@ -160,6 +160,42 @@ def test_operation_mismatch_rejected(findings) -> None:
     assert any("operation mismatch" in p for p in problems)
 
 
+def test_declared_path_must_match_the_code() -> None:
+    """The .json / .jsonl discrepancy that an outside reader caught.
+
+    I declared `data/marketing_clients.json` for a store whose code says
+    `os.path.join("data", "marketing_clients.jsonl")`. Every other check passed
+    because nothing compared the declared PATH to the source. A substring test
+    would still have missed it -- `.json` is a prefix of `.jsonl` -- so the
+    basename must be followed by a non-filename character.
+    """
+    problems = al.validate([_entry(path_pattern="data/marketing_clients.json")])
+    assert any("does not match the code" in p for p in problems)
+
+    ok = al.validate([_entry(path_pattern="data/invoices.jsonl")])
+    assert not any("does not match the code" in p for p in ok)
+
+
+def test_identity_store_is_jsonl_single_authority() -> None:
+    """There is ONE customer registry file, and it is `.jsonl`.
+
+    Resolved from code rather than from the name: clients_store.py binds
+    `marketing_clients.jsonl`, the manifest's legacy_paths list the same file
+    plus its `.lock`, and both dashboard modules document `.jsonl` as the read
+    source. No `.json` store exists, so this was a reporting error, not a dual
+    store or a drift.
+    """
+    entries = {e["allowlist_id"]: e for e in al.load()}
+    assert entries["customers.identity.store"]["path_pattern"].endswith(".jsonl")
+    assert entries["customers.identity.atomic_tmp"]["path_pattern"].endswith(".jsonl.tmp")
+
+    src = (_REPO / "app" / "marketing" / "clients_store.py").read_text(encoding="utf-8")
+    assert "marketing_clients.jsonl" in src
+    # The bare `.json` form must not exist anywhere as a real path literal.
+    assert '"marketing_clients.json"' not in src
+    assert "'marketing_clients.json'" not in src
+
+
 def test_missing_file_rejected() -> None:
     problems = al.validate([_entry(file="app/gone/away.py")])
     assert any("no longer exists" in p for p in problems)
