@@ -176,7 +176,7 @@ prompt_toolkit==3.0.52
 propcache==0.5.2
 Protego==0.6.2
 proto-plus==1.28.1
-protobuf==4.25.9
+protobuf==7.35.1
 psutil==7.2.2
 psycopg2-binary==2.9.12
 ptyprocess==0.7.0
