@@ -16,10 +16,7 @@ from app.dev_control.external_agents.runner.process_safe import (
 )
 from app.dev_control.external_agents.schema import Mission
 
-DEFAULT_CURSOR_CANDIDATES = (
-    r"C:\Users\Ratanshila\AppData\Local\cursor-agent\agent.cmd",
-    r"C:\Users\Ratanshila\AppData\Local\cursor-agent\agent.ps1",
-)
+DEFAULT_CURSOR_CANDIDATES = ()  # resolved dynamically from LOCALAPPDATA
 
 
 def resolve_cursor_executable() -> str:
@@ -32,7 +29,16 @@ def resolve_cursor_executable() -> str:
     which = shutil.which("agent") or shutil.which("agent.cmd")
     if which:
         return which
-    for cand in DEFAULT_CURSOR_CANDIDATES:
+    local = (os.environ.get("LOCALAPPDATA") or "").strip()
+    candidates: list[str] = []
+    if local:
+        candidates.extend(
+            [
+                str(Path(local) / "cursor-agent" / "agent.cmd"),
+                str(Path(local) / "cursor-agent" / "agent.ps1"),
+            ]
+        )
+    for cand in candidates:
         if Path(cand).is_file():
             return cand
     raise ProcessSafetyError("cursor_cli_unavailable")

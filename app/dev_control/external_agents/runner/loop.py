@@ -7,7 +7,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from app.dev_control.external_agents import adapters, orchestrator, store
+from app.dev_control.external_agents import adapters, orchestrator, policy, store
 from app.dev_control.external_agents.runner import authorize, claude_exec, cursor_exec, eligibility
 from app.dev_control.external_agents.runner.flags import runner_enabled
 from app.dev_control.external_agents.runner.process_safe import (
@@ -18,7 +18,62 @@ from app.dev_control.external_agents.runner.worktrees import (
     allowed_worktree_root,
     ensure_mission_worktree,
 )
-from app.dev_control.external_agents.schema import MissionState
+from app.dev_control.external_agents.schema import Mission, MissionState
+
+
+def wall_timeout_s(mission: Mission, requested: int) -> int:
+    """Hard wall-clock bound from mission budgets (token/cost CLI caps are unavailable)."""
+    caps = [max(30, int(requested))]
+    if mission.max_runtime_s:
+        caps.append(max(30, int(mission.max_runtime_s)))
+    # Cheap heuristic when cost budget is tiny: keep the window short.
+    if mission.cost_budget_usd and float(mission.cost_budget_usd) > 0:
+        caps.append(max(30, min(600, int(float(mission.cost_budget_usd) * 120))))
+    # Token budget: ~assume 50 tok/s worst-case free-stack burn → seconds floor.
+    if mission.token_budget:
+        caps.append(max(30, min(int(requested), int(mission.token_budget) // 50)))
+    return max(30, min(caps))
+
+
+def observed_changed_files(mission_worktree: str, base_sha: str) -> list[str]:
+    """Trust git observation over the agent's self-reported changed_files list."""
+    files: set[str] = set()
+    try:
+        for args in (
+            ["git", "-C", mission_worktree, "diff", "--name-only", f"{base_sha}...HEAD"],
+            ["git", "-C", mission_worktree, "diff", "--name-only", "--"],
+            ["git", "-C", mission_worktree, "diff", "--cached", "--name-only", "--"],
+            [
+                "git",
+                "-C",
+                mission_worktree,
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+            ],
+        ):
+            out = subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                shell=False,
+                timeout=60,
+                check=False,
+            )
+            for line in (out.stdout or "").splitlines():
+                p = line.strip().replace("\\", "/")
+                if p:
+                    files.add(p)
+    except Exception:
+        return []
+    return sorted(files)
+
+
+def _mission_cancelled(mission_id: str) -> bool:
+    m = store.get(mission_id)
+    return m is not None and m.status is MissionState.CANCELLED
 
 
 def _diff_for_mission(mission_worktree: str, base_sha: str) -> str:
@@ -146,17 +201,24 @@ def run_mission_once(
     mission = store.get(mission_id)
     assert mission is not None
     packet = adapters.packet_for(mission)
+    exec_timeout = wall_timeout_s(mission, timeout_s)
 
-    hb = HeartbeatController(
-        interval_s=25.0,
-        beat=lambda: bool(orchestrator.heartbeat(mission_id, owner, ttl_s=timeout_s).get("ok")),
-    )
+    def _hb_factory() -> HeartbeatController:
+        return HeartbeatController(
+            interval_s=25.0,
+            beat=lambda: bool(
+                orchestrator.heartbeat(mission_id, owner, ttl_s=exec_timeout).get("ok")
+            ),
+            cancel_check=lambda: _mission_cancelled(mission_id),
+        )
+
+    hb = _hb_factory()
 
     # ---- executor ----
     try:
         if mission.executor == "cursor":
             proc, manifest = cursor_exec.invoke_cursor(
-                mission, packet, allowed_root=root, timeout_s=timeout_s, heartbeat=hb
+                mission, packet, allowed_root=root, timeout_s=exec_timeout, heartbeat=hb
             )
         else:
             return {
@@ -197,6 +259,30 @@ def run_mission_once(
         orchestrator.submit_result(mission_id, owner, bad)
         return {"ok": False, "reason": "executor_failed", "evidence": evidence}
 
+    # Prefer git-observed paths over agent self-report for scope enforcement.
+    observed = observed_changed_files(mission.worktree, mission.base_sha or "HEAD")
+    if observed:
+        manifest = dict(manifest)
+        reported = [str(x) for x in (manifest.get("changed_files") or [])]
+        manifest["changed_files"] = sorted(set(reported) | set(observed))
+        manifest["evidence"] = dict(manifest.get("evidence") or {})
+        manifest["evidence"]["observed_changed_files"] = observed
+    breach = policy.path_violations(mission, list(manifest.get("changed_files") or []))
+    if breach:
+        manifest = dict(manifest)
+        manifest["scope_breach"] = True
+        evidence["scope_breach_observed"] = breach
+
+    # Wall-clock budget (token/cost CLI caps are unavailable on free CLIs).
+    budget = policy.budget_check(mission, tokens_used=0, cost_usd=0.0)
+    if float(proc.duration_s or 0) > float(mission.max_runtime_s or exec_timeout):
+        return {
+            "ok": False,
+            "reason": "wall_clock_budget_exceeded",
+            "evidence": evidence,
+        }
+    evidence["budget"] = budget
+
     sr = orchestrator.submit_result(mission_id, owner, manifest)
     evidence["submit_result"] = {
         "ok": sr.get("ok"),
@@ -212,17 +298,15 @@ def run_mission_once(
         return {"ok": False, "reason": "reviewer_not_claude", "evidence": evidence}
 
     diff = _diff_for_mission(mission.worktree, mission.base_sha or "HEAD")
-    hb2 = HeartbeatController(
-        interval_s=25.0,
-        beat=lambda: bool(orchestrator.heartbeat(mission_id, owner, ttl_s=timeout_s).get("ok")),
-    )
+    review_timeout = wall_timeout_s(mission, min(600, timeout_s))
+    hb2 = _hb_factory()
     try:
         rproc, review = claude_exec.invoke_claude_review(
             mission,
             result_manifest=manifest,
             diff_text=diff,
             allowed_root=root,
-            timeout_s=min(600, timeout_s),
+            timeout_s=review_timeout,
             heartbeat=hb2,
         )
     except ProcessSafetyError as exc:
@@ -308,9 +392,13 @@ def run_review_once(
         orchestrator.heartbeat(mission_id, owner, ttl_s=timeout_s)
     evidence: dict[str, Any] = {"owner": owner, "resumed_review": True}
     diff = _diff_for_mission(mission.worktree, mission.base_sha or "HEAD")
+    review_timeout = wall_timeout_s(mission, timeout_s)
     hb = HeartbeatController(
         interval_s=25.0,
-        beat=lambda: bool(orchestrator.heartbeat(mission_id, owner, ttl_s=timeout_s).get("ok")),
+        beat=lambda: bool(
+            orchestrator.heartbeat(mission_id, owner, ttl_s=review_timeout).get("ok")
+        ),
+        cancel_check=lambda: _mission_cancelled(mission_id),
     )
     try:
         rproc, review = claude_exec.invoke_claude_review(
@@ -318,7 +406,7 @@ def run_review_once(
             result_manifest=manifest,
             diff_text=diff,
             allowed_root=root,
-            timeout_s=timeout_s,
+            timeout_s=review_timeout,
             heartbeat=hb,
         )
     except ProcessSafetyError as exc:

@@ -57,6 +57,7 @@ def ensure_mission_worktree(
         )
         if out.returncode != 0 or out.stdout.strip() != branch:
             raise ProcessSafetyError("existing_worktree_branch_mismatch")
+        _disable_push_remotes(wt)
         return {"ok": True, "created": False, "worktree": str(wt), "branch": branch}
 
     wt.parent.mkdir(parents=True, exist_ok=True)
@@ -83,4 +84,40 @@ def ensure_mission_worktree(
         )
         if completed.returncode != 0:
             raise ProcessSafetyError(f"worktree_create_failed:{completed.stderr.strip()[:200]}")
+    _disable_push_remotes(wt)
     return {"ok": True, "created": True, "worktree": str(wt), "branch": branch}
+
+
+def _disable_push_remotes(wt: Path) -> None:
+    """Strip remotes so a trusted Cursor session cannot push from the mission worktree."""
+    listed = subprocess.run(
+        ["git", "-C", str(wt), "remote"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        shell=False,
+        timeout=30,
+        check=False,
+    )
+    for name in (listed.stdout or "").splitlines():
+        name = name.strip()
+        if not name:
+            continue
+        subprocess.run(
+            ["git", "-C", str(wt), "remote", "remove", name],
+            capture_output=True,
+            text=True,
+            shell=False,
+            timeout=30,
+            check=False,
+        )
+    # Also re-disable when reusing an existing worktree.
+    subprocess.run(
+        ["git", "-C", str(wt), "config", "remote.pushDefault", ""],
+        capture_output=True,
+        text=True,
+        shell=False,
+        timeout=15,
+        check=False,
+    )

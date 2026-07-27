@@ -213,6 +213,97 @@ def test_claude_review_extract():
     assert man["verdict"] == "PASS"
 
 
+def test_wall_timeout_respects_mission_caps():
+    from app.dev_control.external_agents.runner.loop import wall_timeout_s
+
+    m = Mission.create(
+        title="t",
+        executor="cursor",
+        reviewer="claude",
+        idempotency_key="wall-" + os.urandom(3).hex(),
+        allowed_paths=["tests/x.py"],
+        branch="feat/ext-wall",
+        worktree=str(Path(os.environ["EXTERNAL_AGENT_WORKTREE_ROOT"]) / "wall"),
+        max_runtime_s=120,
+        token_budget=5000,
+        cost_budget_usd=1.0,
+    )
+    assert wall_timeout_s(m, 900) <= 120
+
+
+def test_heartbeat_cancels_on_failed_beat():
+    import time
+
+    from app.dev_control.external_agents.runner.process_safe import HeartbeatController
+
+    beats = {"n": 0}
+
+    def bad_beat():
+        beats["n"] += 1
+        return False
+
+    hb = HeartbeatController(interval_s=0.05, beat=bad_beat)
+    hb.start()
+    time.sleep(0.2)
+    hb.stop()
+    assert hb.cancelled is True
+    assert beats["n"] >= 1
+
+
+def test_observed_changed_files_reads_git(tmp_path):
+    import subprocess
+
+    from app.dev_control.external_agents.runner.loop import observed_changed_files
+
+    repo = tmp_path / "r"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "t@t"], cwd=repo, check=True, capture_output=True
+    )
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo, check=True, capture_output=True)
+    (repo / "a.txt").write_text("1", encoding="utf-8")
+    subprocess.run(["git", "add", "a.txt"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "i"], cwd=repo, check=True, capture_output=True)
+    sha = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip()
+    (repo / "b.txt").write_text("2", encoding="utf-8")
+    files = observed_changed_files(str(repo), sha)
+    assert "b.txt" in files
+
+
+def test_terminate_uses_taskkill_on_windows(monkeypatch):
+    import subprocess as sp
+
+    from app.dev_control.external_agents.runner import process_safe
+
+    calls = []
+
+    class FakeProc:
+        pid = 4242
+
+        def poll(self):
+            return None
+
+        def wait(self, timeout=None):
+            return 0
+
+        def kill(self):
+            return None
+
+        def send_signal(self, *_a, **_k):
+            return None
+
+    def fake_run(argv, **kwargs):
+        calls.append(argv)
+        return sp.CompletedProcess(argv, 0, "", "")
+
+    monkeypatch.setattr(process_safe.os, "name", "nt")
+    monkeypatch.setattr(process_safe.subprocess, "run", fake_run)
+    process_safe._terminate(FakeProc())
+    assert calls and calls[0][:2] == ["taskkill", "/PID"]
+    assert "/T" in calls[0]
+
+
 def test_run_mission_once_refuses_when_runner_off(monkeypatch):
     from app.dev_control.external_agents.runner import loop
 

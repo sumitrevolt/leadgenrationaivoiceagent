@@ -109,8 +109,15 @@ class HeartbeatController:
                 ok = bool(self.beat())
                 if ok:
                     self.beats += 1
+                else:
+                    # Lost/stolen lease or heartbeat refusal → cancel child promptly.
+                    self.cancelled = True
+                    self._stop.set()
+                    return
             except Exception:
-                pass
+                self.cancelled = True
+                self._stop.set()
+                return
 
 
 def sanitize_env(extra: dict[str, str] | None = None) -> dict[str, str]:
@@ -202,13 +209,50 @@ def run_allowlisted(
             errors="replace",
             shell=False,
         )
-        try:
-            stdout, stderr = proc.communicate(
-                input=input_text or None, timeout=max(1, int(timeout_s))
-            )
-        except subprocess.TimeoutExpired:
-            _terminate(proc)
-            stdout, stderr = proc.communicate(timeout=10)
+        # Slice communicate so lease-loss / cancel can terminate mid-run.
+        remaining = max(1, int(timeout_s))
+        stdout = ""
+        stderr = ""
+        timed_out = False
+        cancelled = False
+        termination_reason = "exited"
+        first_input = input_text or None
+        while True:
+            if cancel_event and cancel_event.is_set():
+                _terminate(proc)
+                cancelled = True
+                termination_reason = "cancelled"
+                break
+            if heartbeat and heartbeat.cancelled:
+                _terminate(proc)
+                cancelled = True
+                termination_reason = "cancelled_via_heartbeat"
+                break
+            slice_s = min(5, remaining)
+            try:
+                stdout, stderr = proc.communicate(input=first_input, timeout=slice_s)
+                first_input = None
+                break
+            except subprocess.TimeoutExpired:
+                first_input = None
+                remaining -= slice_s
+                if remaining <= 0:
+                    _terminate(proc)
+                    try:
+                        stdout, stderr = proc.communicate(timeout=10)
+                    except Exception:
+                        stdout, stderr = "", ""
+                    timed_out = True
+                    termination_reason = "timeout"
+                    break
+        if cancelled or timed_out:
+            try:
+                if proc.poll() is None:
+                    _terminate(proc)
+                if not (stdout or stderr):
+                    stdout, stderr = proc.communicate(timeout=5)
+            except Exception:
+                pass
             out, trunc = _cap(stdout or "")
             err, trunc2 = _cap(stderr or "")
             return ProcessResult(
@@ -216,32 +260,11 @@ def run_allowlisted(
                 stdout=out,
                 stderr=err,
                 duration_s=round(time.time() - t0, 3),
-                timed_out=True,
-                termination_reason="timeout",
+                timed_out=timed_out,
+                cancelled=cancelled,
+                termination_reason=termination_reason,
                 pid=proc.pid,
                 truncated=trunc or trunc2,
-            )
-        if cancel_event and cancel_event.is_set():
-            _terminate(proc)
-            return ProcessResult(
-                exit_code=proc.returncode if proc.returncode is not None else -1,
-                stdout=_cap(stdout or "")[0],
-                stderr=_cap(stderr or "")[0],
-                duration_s=round(time.time() - t0, 3),
-                cancelled=True,
-                termination_reason="cancelled",
-                pid=proc.pid,
-            )
-        if heartbeat and heartbeat.cancelled:
-            _terminate(proc)
-            return ProcessResult(
-                exit_code=proc.returncode if proc.returncode is not None else -1,
-                stdout=_cap(stdout or "")[0],
-                stderr=_cap(stderr or "")[0],
-                duration_s=round(time.time() - t0, 3),
-                cancelled=True,
-                termination_reason="cancelled_via_heartbeat",
-                pid=proc.pid,
             )
         out, trunc = _cap(stdout or "")
         err, trunc2 = _cap(stderr or "")
@@ -260,16 +283,33 @@ def run_allowlisted(
 
 
 def _terminate(proc: subprocess.Popen[str]) -> None:
+    """Kill the child and, on Windows, the full process tree (agent.cmd → node)."""
     try:
-        if proc.poll() is None:
-            if os.name == "nt":
-                proc.terminate()
-            else:
-                proc.send_signal(signal.SIGTERM)
+        if proc.poll() is not None:
+            return
+        if os.name == "nt" and proc.pid:
+            # Parent-process privilege (not executor allowlist): taskkill /T.
+            subprocess.run(
+                ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+                capture_output=True,
+                text=True,
+                shell=False,
+                timeout=30,
+                check=False,
+            )
             try:
                 proc.wait(timeout=5)
             except subprocess.TimeoutExpired:
                 proc.kill()
+            return
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)  # type: ignore[attr-defined]
+        except Exception:
+            proc.send_signal(signal.SIGTERM)
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
     except Exception:
         try:
             proc.kill()
