@@ -28,9 +28,19 @@ from app.dev_control.external_agents.runner.process_safe import (
     ProcessSafetyError,
     run_allowlisted,
 )
+from app.dev_control.external_agents.runner.review_parse import _extract_json_object
 from app.dev_control.external_agents.schema import Mission
 
 _VERSION_DIR_RE = re.compile(r"^\d{4}\.\d{1,2}\.\d{1,2}(-\d{2}-\d{2}-\d{2})?-[a-f0-9]+$", re.I)
+
+# Written by the executor inside the worktree — preferred over chat-envelope parse.
+RESULT_MANIFEST_FILENAME = ".external_agent_result_manifest.json"
+RUNNER_CONTROL_FILES = frozenset(
+    {
+        RESULT_MANIFEST_FILENAME,
+        ".external_agent_runner_prompt.txt",
+    }
+)
 
 
 def _cursor_agent_home() -> Path | None:
@@ -152,12 +162,7 @@ def build_cursor_argv(*, workspace: str, print_mode: bool = True) -> list[str]:
 
 def build_executor_prompt(mission: Mission, packet: dict[str, Any]) -> str:
     allowed = "\n".join(f"- {p}" for p in mission.allowed_paths)
-    return (
-        "You are the Cursor executor for LeadGen External Agent Orchestrator.\n"
-        "Implement ONLY the mission below. Stay inside allowed_paths.\n"
-        "Do NOT touch voice, telephony, billing, .env, deploy workflows, or customer data.\n"
-        "Do NOT commit or push unless the mission explicitly requires it (this dogfood does not).\n"
-        "When finished, your FINAL message must be EXACTLY one JSON object matching:\n"
+    manifest_schema = (
         "{\n"
         f'  "mission_id": "{mission.mission_id}",\n'
         '  "executor": "cursor",\n'
@@ -167,7 +172,19 @@ def build_executor_prompt(mission: Mission, packet: dict[str, Any]) -> str:
         '  "summary": "...",\n'
         '  "evidence": {},\n'
         '  "scope_breach": false\n'
-        "}\n\n"
+        "}"
+    )
+    return (
+        "You are the Cursor executor for LeadGen External Agent Orchestrator.\n"
+        "Implement ONLY the mission below. Stay inside allowed_paths.\n"
+        "Do NOT touch voice, telephony, billing, .env, deploy workflows, or customer data.\n"
+        "Do NOT commit or push unless the mission explicitly requires it (this dogfood does not).\n"
+        f"REQUIRED COMPLETION CONTRACT: write the file `{RESULT_MANIFEST_FILENAME}` at the "
+        "worktree root containing EXACTLY one JSON object matching this schema "
+        "(mission_id and executor must match exactly):\n"
+        f"{manifest_schema}\n"
+        "Do not invent alternate field names. Writing that file is mandatory and is how "
+        "the runner accepts your result (chat text alone is insufficient).\n\n"
         f"MISSION_ID={mission.mission_id}\n"
         f"TITLE={mission.title}\n"
         f"DESCRIPTION={mission.description}\n"
@@ -179,11 +196,39 @@ def build_executor_prompt(mission: Mission, packet: dict[str, Any]) -> str:
     )
 
 
+def _validate_result_manifest(data: Any, mission_id: str) -> dict[str, Any]:
+    if not isinstance(data, dict):
+        raise ProcessSafetyError("cursor_manifest_invalid")
+    if str(data.get("mission_id") or "") != mission_id:
+        raise ProcessSafetyError("cursor_mission_id_mismatch")
+    if str(data.get("executor") or "").lower() != "cursor":
+        raise ProcessSafetyError("cursor_executor_mismatch")
+    return data
+
+
+def load_result_manifest_file(workspace: str | Path, mission_id: str) -> dict[str, Any]:
+    """Load + validate the worktree result-manifest file (preferred contract)."""
+    path = Path(workspace) / RESULT_MANIFEST_FILENAME
+    if not path.is_file():
+        raise ProcessSafetyError("cursor_result_file_missing")
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise ProcessSafetyError("cursor_result_file_unreadable") from exc
+    try:
+        data = json.loads(raw.strip())
+    except json.JSONDecodeError as exc:
+        raise ProcessSafetyError("cursor_result_file_not_json") from exc
+    return _validate_result_manifest(data, mission_id)
+
+
 def extract_result_manifest(stdout: str, mission_id: str) -> dict[str, Any]:
     """Parse Cursor agent JSON envelope into a result manifest.
 
-    Fail-closed: the entire stdout must be one JSON value (no surrounding prose).
-    Cursor may still wrap the mission manifest in ``{result: ...}``.
+    Fail-closed on outer stdout: the entire stdout must be one JSON value
+    (no surrounding prose). Cursor may wrap the mission manifest in
+    ``{result: ...}``; the inner ``result`` string may contain leading prose,
+    in which case the first JSON object is extracted (same as Claude review).
     """
     text = stdout.strip()
     try:
@@ -197,19 +242,17 @@ def extract_result_manifest(stdout: str, mission_id: str) -> dict[str, Any]:
         if isinstance(inner, str):
             try:
                 data = json.loads(inner.strip())
-            except json.JSONDecodeError as exc:
-                raise ProcessSafetyError("cursor_result_not_json") from exc
+            except json.JSONDecodeError:
+                # Agent often prepends prose inside the result string.
+                try:
+                    data = _extract_json_object(inner)
+                except ProcessSafetyError as exc:
+                    raise ProcessSafetyError("cursor_result_not_json") from exc
         elif isinstance(inner, dict):
             data = inner
         else:
             raise ProcessSafetyError("cursor_result_not_json")
-    if not isinstance(data, dict):
-        raise ProcessSafetyError("cursor_manifest_invalid")
-    if str(data.get("mission_id") or "") != mission_id:
-        raise ProcessSafetyError("cursor_mission_id_mismatch")
-    if str(data.get("executor") or "").lower() != "cursor":
-        raise ProcessSafetyError("cursor_executor_mismatch")
-    return data
+    return _validate_result_manifest(data, mission_id)
 
 
 def invoke_cursor(
@@ -219,15 +262,23 @@ def invoke_cursor(
     allowed_root: str,
     timeout_s: int = 900,
     heartbeat=None,
-) -> tuple[ProcessResult, dict[str, Any] | None]:
+) -> tuple[ProcessResult, dict[str, Any] | None, str | None]:
+    """Run Cursor; return ``(process, manifest|None, parse_error|None)``."""
     workspace = Path(mission.worktree).resolve()
     prompt_path = workspace / ".external_agent_runner_prompt.txt"
+    manifest_path = workspace / RESULT_MANIFEST_FILENAME
+    try:
+        if manifest_path.exists():
+            manifest_path.unlink()
+    except OSError:
+        pass
     prompt_path.write_text(build_executor_prompt(mission, packet), encoding="utf-8")
     # Short argv — agent reads the prompt file (avoids Windows command-line limits).
     short = (
         f"Read the file .external_agent_runner_prompt.txt in this workspace and execute "
-        f"that mission exactly. Stay inside allowed_paths. When done, respond with ONLY "
-        f"the required JSON result manifest (mission_id={mission.mission_id})."
+        f"that mission exactly. Stay inside allowed_paths. When finished you MUST write "
+        f"{RESULT_MANIFEST_FILENAME} at the worktree root with the exact JSON schema from "
+        f"the prompt (mission_id={mission.mission_id}, executor=cursor)."
     )
     argv = build_cursor_argv(workspace=str(workspace)) + [short]
     result = run_allowlisted(
@@ -246,9 +297,15 @@ def invoke_cursor(
     except Exception:
         pass
     manifest = None
+    parse_error: str | None = None
     if result.exit_code == 0 and not result.timed_out and not result.cancelled:
+        # Prefer durable worktree file over chat-envelope parse.
         try:
-            manifest = extract_result_manifest(result.stdout, mission.mission_id)
-        except ProcessSafetyError:
-            manifest = None
-    return result, manifest
+            manifest = load_result_manifest_file(workspace, mission.mission_id)
+        except ProcessSafetyError as file_exc:
+            try:
+                manifest = extract_result_manifest(result.stdout, mission.mission_id)
+            except ProcessSafetyError as stdout_exc:
+                parse_error = f"{file_exc};{stdout_exc}"
+                manifest = None
+    return result, manifest, parse_error

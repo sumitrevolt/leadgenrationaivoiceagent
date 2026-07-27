@@ -14,8 +14,10 @@ Local/Windows canary that, for one GREEN mission:
 1. Checks eligibility + Owner OS-style GREEN authorization evidence
 2. Allocates/verifies dedicated branch + worktree under `EXTERNAL_AGENT_WORKTREE_ROOT`
 3. Claims lease, starts mission, emits heartbeats
-4. Invokes **Cursor Agent CLI** (`agent -p --print --trust --workspace …`)
-5. Validates result manifest → `submit_result`
+4. Invokes **Cursor Agent CLI** via `node.exe` + `index.js` (never `agent.cmd`) with
+   `--print --trust --workspace …` under redirected HOME/USERPROFILE profiles
+5. Prefers worktree file `.external_agent_result_manifest.json` for the result
+   contract; falls back to Cursor JSON envelope parse → `submit_result`
 6. Invokes **Claude Code CLI** read-only review → `submit_review`
 7. Stops at PR/CI / owner-decision boundaries (does not merge/deploy)
 
