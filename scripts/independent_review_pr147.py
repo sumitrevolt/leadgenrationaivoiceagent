@@ -137,6 +137,7 @@ Verdict rules:
 - MEDIUM safety uncertainty that is unproven => CHANGES_REQUIRED (blocks ready_for_review)
 - ready_for_review true ONLY if verdict PASS and no CRITICAL/HIGH/MEDIUM findings
 - Do not invent findings; if area is unproven, add MEDIUM finding saying unproven
+- Keep the JSON compact: at most 12 findings; evidence strings <= 400 chars each; no full file dumps
 """
 
 
@@ -355,6 +356,7 @@ def main() -> int:
             timeout_s=TIMEOUT_S,
             heartbeat=hb,
             env_profile="claude",
+            max_output_bytes=2 * 1024 * 1024,
         )
     finally:
         try:
@@ -431,7 +433,23 @@ def main() -> int:
         try:
             rich = extract_review_manifest(proc.stdout, mid)
         except Exception as exc:
-            print(json.dumps({"ok": False, "reason": f"parse_failed:{exc}"}))
+            dump = {
+                "ok": False,
+                "reason": f"parse_failed:{exc}",
+                "stdout_len": len(proc.stdout or ""),
+                "stderr_len": len(proc.stderr or ""),
+                "truncated": proc.truncated,
+                "exit_code": proc.exit_code,
+                "stdout_tail": (proc.stdout or "")[-2000:],
+                "stderr_tail": (proc.stderr or "")[-800:],
+            }
+            dump_path = Path(os.environ.get("TEMP", ".")) / f"pr147_review_parse_fail_{mid}.json"
+            try:
+                dump_path.write_text(json.dumps(dump, indent=2), encoding="utf-8")
+                dump["dump_path"] = str(dump_path)
+            except Exception:
+                pass
+            print(json.dumps(dump, indent=2))
             return 1
 
     # Enforce identity fields.
