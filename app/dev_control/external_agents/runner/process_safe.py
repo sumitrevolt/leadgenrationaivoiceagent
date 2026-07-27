@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import signal
 import subprocess
 import threading
@@ -14,7 +15,7 @@ from typing import Any, Callable
 MAX_OUTPUT_BYTES = 512 * 1024
 DEFAULT_TIMEOUT_S = 900
 
-# Only these basename executables may be invoked.
+# Only these basename executables may be invoked by the runner.
 _ALLOWED_BASENAMES = frozenset(
     {
         "claude",
@@ -24,42 +25,78 @@ _ALLOWED_BASENAMES = frozenset(
         "agent.ps1",
         "cursor-agent",
         "cursor-agent.cmd",
+        # Test-only helper (CI/local real-process suite). Production path never
+        # selects these; argv must also resolve to the owned helper script.
+        "python",
+        "python.exe",
+        "py",
+        "py.exe",
     }
 )
 
-_ENV_ALLOW = frozenset(
+# Deny-by-default OS scaffolding — no credential prefixes, no wildcards.
+_OS_BASE_ENV = frozenset(
     {
-        "APPDATA",
-        "HOME",
-        "HOMEDRIVE",
-        "HOMEPATH",
-        "LOCALAPPDATA",
         "PATH",
         "PATHEXT",
-        "PROGRAMDATA",
-        "PROGRAMFILES",
-        "PROGRAMFILES(X86)",
         "SYSTEMDRIVE",
         "SYSTEMROOT",
+        "WINDIR",
         "TEMP",
         "TMP",
-        "USERDOMAIN",
-        "USERNAME",
-        "USERPROFILE",
-        "WINDIR",
-        "COMSPEC",
         "OS",
+        "COMSPEC",
         "NUMBER_OF_PROCESSORS",
         "PROCESSOR_ARCHITECTURE",
         "PROCESSOR_IDENTIFIER",
-        "CURSOR_API_KEY",  # Cursor agent auth (value never logged)
-        "CURSOR_AGENT",
+        "PROGRAMDATA",
+        "PROGRAMFILES",
+        "PROGRAMFILES(X86)",
         "TERM",
         "NO_COLOR",
         "LANG",
         "LC_ALL",
+        "PYTHONUTF8",
+        "PYTHONIOENCODING",
     }
 )
+
+# Profile dirs for local CLI auth stores (OAuth/keychain files) — not raw API keys.
+_AUTH_PROFILE_ENV = frozenset(
+    {
+        "APPDATA",
+        "LOCALAPPDATA",
+        "HOME",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "USERPROFILE",
+        "USERDOMAIN",
+        "USERNAME",
+    }
+)
+
+# Explicit secret-shaped names that must never be forwarded even if allowlisted by mistake.
+_SECRET_NAME_DENY = (
+    "API_KEY",
+    "TOKEN",
+    "SECRET",
+    "PASSWORD",
+    "PASSWD",
+    "DATABASE_URL",
+    "DB_URL",
+    "PRIVATE_KEY",
+    "ACCESS_KEY",
+)
+
+_ENV_PROFILES: dict[str, frozenset[str]] = {
+    "minimal": _OS_BASE_ENV,
+    "helper": _OS_BASE_ENV | frozenset({"PYTHONPATH"}),
+    # Claude Code authenticates via local profile dirs (not env wildcards).
+    "claude": _OS_BASE_ENV | _AUTH_PROFILE_ENV,
+    # Cursor Agent: local install under LOCALAPPDATA; optional exact key only if
+    # EXTERNAL_AGENT_PASS_CURSOR_API_KEY=1 (never logged).
+    "cursor": _OS_BASE_ENV | _AUTH_PROFILE_ENV,
+}
 
 
 class ProcessSafetyError(RuntimeError):
@@ -110,7 +147,6 @@ class HeartbeatController:
                 if ok:
                     self.beats += 1
                 else:
-                    # Lost/stolen lease or heartbeat refusal → cancel child promptly.
                     self.cancelled = True
                     self._stop.set()
                     return
@@ -120,42 +156,117 @@ class HeartbeatController:
                 return
 
 
-def sanitize_env(extra: dict[str, str] | None = None) -> dict[str, str]:
+def _is_secret_name(name: str) -> bool:
+    ku = name.upper()
+    if ku.startswith(("AWS_", "AZURE_", "GOOGLE_", "GCP_")):
+        return True
+    if ku in {"GITHUB_TOKEN", "GH_TOKEN", "OPENAI_API_KEY", "ANTHROPIC_API_KEY"}:
+        return True
+    return any(tok in ku for tok in _SECRET_NAME_DENY)
+
+
+def sanitize_env(
+    extra: dict[str, str] | None = None,
+    *,
+    profile: str = "minimal",
+) -> dict[str, str]:
+    """Build a deny-by-default child environment.
+
+    No ``CURSOR_*`` / ``CLAUDE_*`` wildcards. Credentials prefer local CLI
+    profile directories; optional ``CURSOR_API_KEY`` only when explicitly gated.
+    """
+    allowed = _ENV_PROFILES.get(profile)
+    if allowed is None:
+        raise ProcessSafetyError(f"unknown_env_profile:{profile}")
     base: dict[str, str] = {}
     for k, v in os.environ.items():
         ku = k.upper()
-        if ku in _ENV_ALLOW or ku.startswith("CURSOR_") or ku.startswith("CLAUDE_"):
+        if _is_secret_name(ku):
+            continue
+        if ku in allowed:
             base[k] = v
+    # Exact optional Cursor key — never wildcard, never logged.
+    if profile == "cursor" and (os.getenv("EXTERNAL_AGENT_PASS_CURSOR_API_KEY") or "").strip() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }:
+        key = os.environ.get("CURSOR_API_KEY")
+        if key:
+            base["CURSOR_API_KEY"] = key
     if extra:
         for k, v in extra.items():
             ku = k.upper()
-            if (
-                ku not in _ENV_ALLOW
-                and not ku.startswith("CURSOR_")
-                and not ku.startswith("CLAUDE_")
+            if _is_secret_name(ku):
+                raise ProcessSafetyError(f"env_injection_refused:{k}")
+            if ku not in allowed and not (
+                profile == "cursor"
+                and ku == "CURSOR_API_KEY"
+                and (os.getenv("EXTERNAL_AGENT_PASS_CURSOR_API_KEY") or "").strip()
+                in {"1", "true", "yes", "on"}
             ):
                 raise ProcessSafetyError(f"env_injection_refused:{k}")
             base[k] = v
     return base
 
 
-def assert_safe_argv(argv: list[str]) -> None:
+HELPER_SCRIPT_NAME = "process_helper.py"
+
+
+def resolve_executable(exe: str) -> str:
+    """Resolve argv[0] to an absolute path; refuse PATH-relative hijack surfaces.
+
+    Callers (Cursor/Claude resolvers, tests) must pass an absolute path. Relative
+    basenames are resolved once via ``shutil.which`` then re-checked against the
+    allowlist — production paths always prefer absolute resolution up-front.
+    """
+    if not exe or not isinstance(exe, str):
+        raise ProcessSafetyError("executable_required")
+    path = Path(exe)
+    if path.is_absolute():
+        resolved = path.resolve()
+    else:
+        found = shutil.which(exe)
+        if not found:
+            raise ProcessSafetyError(f"executable_not_found:{exe}")
+        resolved = Path(found).resolve()
+    if not resolved.exists():
+        raise ProcessSafetyError(f"executable_missing:{resolved}")
+    name = resolved.name.lower()
+    if name not in _ALLOWED_BASENAMES:
+        raise ProcessSafetyError(f"executable_not_allowlisted:{name}")
+    return str(resolved)
+
+
+def assert_safe_argv(argv: list[str], *, allowed_root: str | None = None) -> None:
     if not argv or not isinstance(argv, list):
         raise ProcessSafetyError("argv_required")
     if any(not isinstance(a, str) for a in argv):
         raise ProcessSafetyError("argv_must_be_strings")
-    # Defense in depth: never shell=True. Refuse classic shell chaining tokens only
-    # (single | inside JSON/prompt text is allowed — prompts are not shell-eval'd).
     for a in argv:
         if any(tok in a for tok in ("&&", "||", "`", "$(", "${", "\n", "\r")):
             raise ProcessSafetyError("shell_metachar_refused")
         if ";" in a and not a.startswith("--") and "PASS" not in a:
-            # Allow JSON/verdict text; refuse `;` command chaining shapes.
             if "; " in a or a.strip().startswith(";"):
                 raise ProcessSafetyError("shell_metachar_refused")
     exe = Path(argv[0]).name.lower()
     if exe not in _ALLOWED_BASENAMES:
         raise ProcessSafetyError(f"executable_not_allowlisted:{exe}")
+    # Python is only for the owned test helper script — never arbitrary -c.
+    if exe in {"python", "python.exe", "py", "py.exe"}:
+        if len(argv) < 2 or argv[1] in {"-c", "-m"}:
+            raise ProcessSafetyError("python_helper_script_required")
+        script = Path(argv[1]).resolve()
+        if script.name != HELPER_SCRIPT_NAME:
+            raise ProcessSafetyError("python_helper_name_refused")
+        parts = {p.lower() for p in script.parts}
+        # Owned fixture identity — helper lives under tests/fixtures, not inside
+        # the mission worktree (cwd). Do not require script ⊆ allowed_root.
+        if "fixtures" not in parts or "external_agent_runner" not in parts:
+            raise ProcessSafetyError("python_helper_path_refused")
+        if not script.is_file():
+            raise ProcessSafetyError("python_helper_missing")
 
 
 def assert_worktree_allowed(cwd: str, *, allowed_root: str) -> Path:
@@ -177,6 +288,39 @@ def _cap(text: str, limit: int = MAX_OUTPUT_BYTES) -> tuple[str, bool]:
     return raw[:limit].decode("utf-8", errors="replace") + "\n…[truncated]", True
 
 
+def _bounded_pipe_reader(
+    pipe: Any,
+    *,
+    limit: int,
+    chunks: list[str],
+    truncated: list[bool],
+) -> None:
+    """Drain a pipe forever (avoid deadlock) while retaining at most ``limit`` bytes."""
+    total = 0
+    try:
+        while True:
+            data = pipe.read(65536)
+            if not data:
+                break
+            raw = data.encode("utf-8", errors="replace") if isinstance(data, str) else data
+            if total >= limit:
+                truncated[0] = True
+                continue
+            room = limit - total
+            if len(raw) <= room:
+                chunks.append(
+                    data if isinstance(data, str) else raw.decode("utf-8", errors="replace")
+                )
+                total += len(raw)
+            else:
+                keep = raw[:room].decode("utf-8", errors="replace")
+                chunks.append(keep)
+                total = limit
+                truncated[0] = True
+    except Exception:
+        pass
+
+
 def run_allowlisted(
     argv: list[str],
     *,
@@ -185,20 +329,22 @@ def run_allowlisted(
     input_text: str = "",
     timeout_s: int = DEFAULT_TIMEOUT_S,
     env_extra: dict[str, str] | None = None,
+    env_profile: str = "minimal",
     heartbeat: HeartbeatController | None = None,
     cancel_event: threading.Event | None = None,
 ) -> ProcessResult:
     """Spawn an allowlisted executable with shell=False and bounded I/O."""
-    assert_safe_argv(argv)
+    assert_safe_argv(argv, allowed_root=allowed_root)
+    resolved_argv = [resolve_executable(argv[0]), *argv[1:]]
     work = assert_worktree_allowed(cwd, allowed_root=allowed_root)
-    env = sanitize_env(env_extra)
+    env = sanitize_env(env_extra, profile=env_profile)
     t0 = time.time()
     if heartbeat:
         heartbeat.start()
     proc: subprocess.Popen[str] | None = None
     try:
         proc = subprocess.Popen(
-            argv,
+            resolved_argv,
             cwd=str(work),
             env=env,
             stdin=subprocess.PIPE,
@@ -210,14 +356,39 @@ def run_allowlisted(
             shell=False,
             start_new_session=(os.name != "nt"),
         )
-        # Slice communicate so lease-loss / cancel can terminate mid-run.
+        out_chunks: list[str] = []
+        err_chunks: list[str] = []
+        out_trunc = [False]
+        err_trunc = [False]
+        readers = [
+            threading.Thread(
+                target=_bounded_pipe_reader,
+                args=(proc.stdout,),
+                kwargs={"limit": MAX_OUTPUT_BYTES, "chunks": out_chunks, "truncated": out_trunc},
+                daemon=True,
+                name="ext-agent-stdout",
+            ),
+            threading.Thread(
+                target=_bounded_pipe_reader,
+                args=(proc.stderr,),
+                kwargs={"limit": MAX_OUTPUT_BYTES, "chunks": err_chunks, "truncated": err_trunc},
+                daemon=True,
+                name="ext-agent-stderr",
+            ),
+        ]
+        for t in readers:
+            t.start()
+        if proc.stdin is not None:
+            try:
+                if input_text:
+                    proc.stdin.write(input_text)
+                proc.stdin.close()
+            except Exception:
+                pass
         remaining = max(1, int(timeout_s))
-        stdout = ""
-        stderr = ""
         timed_out = False
         cancelled = False
         termination_reason = "exited"
-        first_input = input_text or None
         while True:
             if cancel_event and cancel_event.is_set():
                 _terminate(proc)
@@ -229,53 +400,50 @@ def run_allowlisted(
                 cancelled = True
                 termination_reason = "cancelled_via_heartbeat"
                 break
-            slice_s = min(5, remaining)
+            slice_s = min(1.0, float(remaining))
             try:
-                stdout, stderr = proc.communicate(input=first_input, timeout=slice_s)
-                first_input = None
+                proc.wait(timeout=slice_s)
                 break
             except subprocess.TimeoutExpired:
-                first_input = None
-                remaining -= slice_s
+                remaining -= int(max(1, round(slice_s)))
                 if remaining <= 0:
                     _terminate(proc)
-                    try:
-                        stdout, stderr = proc.communicate(timeout=10)
-                    except Exception:
-                        stdout, stderr = "", ""
                     timed_out = True
                     termination_reason = "timeout"
                     break
+        for t in readers:
+            t.join(timeout=5)
+        stdout = "".join(out_chunks)
+        stderr = "".join(err_chunks)
+        if out_trunc[0] and not stdout.endswith("\n…[truncated]"):
+            stdout = stdout + "\n…[truncated]"
+        if err_trunc[0] and not stderr.endswith("\n…[truncated]"):
+            stderr = stderr + "\n…[truncated]"
+        trunc = bool(out_trunc[0] or err_trunc[0])
         if cancelled or timed_out:
             try:
                 if proc.poll() is None:
                     _terminate(proc)
-                if not (stdout or stderr):
-                    stdout, stderr = proc.communicate(timeout=5)
             except Exception:
                 pass
-            out, trunc = _cap(stdout or "")
-            err, trunc2 = _cap(stderr or "")
             return ProcessResult(
                 exit_code=proc.returncode if proc.returncode is not None else -1,
-                stdout=out,
-                stderr=err,
+                stdout=stdout,
+                stderr=stderr,
                 duration_s=round(time.time() - t0, 3),
                 timed_out=timed_out,
                 cancelled=cancelled,
                 termination_reason=termination_reason,
                 pid=proc.pid,
-                truncated=trunc or trunc2,
+                truncated=trunc,
             )
-        out, trunc = _cap(stdout or "")
-        err, trunc2 = _cap(stderr or "")
         return ProcessResult(
             exit_code=int(proc.returncode if proc.returncode is not None else -1),
-            stdout=out,
-            stderr=err,
+            stdout=stdout,
+            stderr=stderr,
             duration_s=round(time.time() - t0, 3),
             pid=proc.pid,
-            truncated=trunc or trunc2,
+            truncated=trunc,
             termination_reason="exited",
         )
     finally:

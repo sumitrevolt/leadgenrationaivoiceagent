@@ -1,4 +1,11 @@
-"""Cursor Agent CLI executor — real non-interactive invocation."""
+"""Cursor Agent CLI executor — real non-interactive invocation.
+
+``--trust`` is required by Cursor Agent non-interactive print mode for a
+pre-provisioned workspace. Containment is NOT provided by --trust itself; it
+comes from: dedicated feat/ext-* worktree, deny-by-default env (no secret
+wildcards), allowlisted argv, post-run git-observed path scope checks,
+pushurl disabled://no-push on the worktree, and dual-flag inert defaults.
+"""
 
 from __future__ import annotations
 
@@ -89,46 +96,29 @@ def build_executor_prompt(mission: Mission, packet: dict[str, Any]) -> str:
 
 
 def extract_result_manifest(stdout: str, mission_id: str) -> dict[str, Any]:
-    """Parse Cursor agent JSON envelope into a result manifest."""
+    """Parse Cursor agent JSON envelope into a result manifest.
+
+    Fail-closed: the entire stdout must be one JSON value (no surrounding prose).
+    Cursor may still wrap the mission manifest in ``{result: ...}``.
+    """
     text = stdout.strip()
-    data: Any
     try:
-        data = json.loads(text)
-    except json.JSONDecodeError:
-        # Find last JSON object in text
-        start = text.rfind("{")
-        if start < 0:
-            raise ProcessSafetyError("cursor_output_not_json")
-        depth = 0
-        end = -1
-        for i, ch in enumerate(text[start:], start):
-            if ch == "{":
-                depth += 1
-            elif ch == "}":
-                depth -= 1
-                if depth == 0:
-                    end = i + 1
-                    break
-        if end < 0:
-            raise ProcessSafetyError("cursor_output_not_json")
-        data = json.loads(text[start:end])
+        data: Any = json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise ProcessSafetyError("cursor_output_not_json") from exc
 
     # Cursor agent may wrap in {result: "..."} or {result: {...}}
     if isinstance(data, dict) and "result" in data and "mission_id" not in data:
         inner = data["result"]
         if isinstance(inner, str):
             try:
-                data = json.loads(inner)
-            except json.JSONDecodeError:
-                # search inside string
-                s = inner.find("{")
-                e = inner.rfind("}")
-                if s >= 0 and e > s:
-                    data = json.loads(inner[s : e + 1])
-                else:
-                    raise ProcessSafetyError("cursor_result_not_json")
+                data = json.loads(inner.strip())
+            except json.JSONDecodeError as exc:
+                raise ProcessSafetyError("cursor_result_not_json") from exc
         elif isinstance(inner, dict):
             data = inner
+        else:
+            raise ProcessSafetyError("cursor_result_not_json")
     if not isinstance(data, dict):
         raise ProcessSafetyError("cursor_manifest_invalid")
     if str(data.get("mission_id") or "") != mission_id:
@@ -162,6 +152,7 @@ def invoke_cursor(
         allowed_root=allowed_root,
         timeout_s=timeout_s,
         heartbeat=heartbeat,
+        env_profile="cursor",
     )
     try:
         prompt_path.unlink(missing_ok=True)  # type: ignore[arg-type]

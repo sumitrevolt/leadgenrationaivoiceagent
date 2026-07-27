@@ -70,7 +70,7 @@ def build_claude_argv(prompt: str, *, add_dir: str) -> list[str]:
         "--permission-mode",
         "plan",
         "--disallowedTools",
-        "Write,Edit,NotebookEdit",
+        "Write,Edit,NotebookEdit,Bash",
         "--add-dir",
         add_dir,
     ]
@@ -222,6 +222,7 @@ def invoke_claude_review(
             allowed_root=allowed_root,
             timeout_s=timeout_s,
             heartbeat=heartbeat,
+            env_profile="claude",
         )
     finally:
         try:

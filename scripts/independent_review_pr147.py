@@ -28,7 +28,10 @@ ALLOWED_PATHS = [
     "frontend/dev_control.html",
     "scripts/dogfood_external_agent_runner.py",
     "scripts/external_agent_runner.py",
+    "scripts/independent_review_pr147.py",
     "tests/test_external_agent_runner.py",
+    "tests/test_external_agent_runner_real_subprocess.py",
+    "tests/fixtures/external_agent_runner/",
     "docs/adr/ADR-149-external-agent-runner.md",
     "docs/runbooks/EXTERNAL_AGENT_RUNNER.md",
     "docs/context/ACTIVE_WORK.md",
@@ -69,10 +72,16 @@ PR={PR}
 If git HEAD is not exactly {head}, return verdict BLOCKED.
 
 Mandatory review areas (cite file:line or symbol for each real finding):
+0) FOURTH-CYCLE CLOSURE (must prove both):
+   - Child env is deny-by-default (no CURSOR_*/CLAUDE_* wildcards); secret names stripped;
+     Claude review disallows Write,Edit,NotebookEdit,Bash.
+   - Real non-mocked subprocess integration tests exist (helper-based) covering env isolation,
+     argv injection-as-data, timeout/cancel/lease-loss process-tree kill, output cap,
+     stdout/stderr concurrency, malformed manifests, path escape, executable identity.
 1) Authority/gating: Owner OS auth real vs bypassable; GREEN-only unattended; AMBER parks; RED refuse; runner requires orchestrator; both flags default OFF; API cannot bypass eligibility.
 2) Command construction: executable allowlist; no user-controlled exe; no shell concatenation; argv arrays; Windows quoting; prompt file safety; env allowlist; PATH hijack; cwd/worktree root validation.
 3) Cursor invocation: agent.cmd contract; --trust implications; workspace; JSON parsing; allowed-path containment; extra text in output; auth/availability.
-4) Claude invocation: non-interactive; plan/read-only; disallowed tools; JSON validation; auth-before-run; timeout/kill; token/cost budget enforcement.
+4) Claude invocation: non-interactive; plan/read-only; disallowed tools including Bash; JSON validation; auth-before-run; timeout/kill; token/cost budget enforcement.
 5) Process lifecycle: heartbeat vs lease TTL; cancel race; lease-loss; child cleanup; Windows process-tree kill; timeout; stdout/stderr deadlock; output cap; encoding; late/stale result rejection.
 6) Concurrency: dual claim; CAS; worktree/branch conflict; executor/reviewer overlap; Redis/FileLock mix; crash between process end and submit_result.
 7) Security: prompt injection; hostile repo/test output; secret redaction; log leakage; Windows junction/symlink escape; UNC/drive traversal; env secret inheritance; destructive git prevention.
@@ -345,6 +354,7 @@ def main() -> int:
             allowed_root=str(ROOT.parent.resolve()),
             timeout_s=TIMEOUT_S,
             heartbeat=hb,
+            env_profile="claude",
         )
     finally:
         try:
