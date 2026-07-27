@@ -22,28 +22,32 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 _PREFIX = "extmsn:"
+# Persist backend identity inside the lease payload so a peer on another
+# backend cannot silently renew or steal the same mission.
 _LEASE_LUA = """
 local key = KEYS[1]
 local owner = ARGV[1]
 local until_ts = tonumber(ARGV[2])
 local now_ts = tonumber(ARGV[3])
 local ttl_s = tonumber(ARGV[4])
+local backend = ARGV[5]
 local cur = redis.call('GET', key)
 if cur then
   local ok, data = pcall(cjson.decode, cur)
   if ok and type(data) == 'table' then
+    if data['backend'] and data['backend'] ~= '' and data['backend'] ~= backend then
+      return {0, 'backend_mismatch', tostring(data['backend'] or '')}
+    end
     if data['owner'] ~= owner and tonumber(data['until'] or 0) > now_ts then
-      return {0, tostring(data['owner'] or '')}
+      return {0, 'lease_held', tostring(data['owner'] or '')}
     end
   end
 end
-redis.call('SET', key, cjson.encode({owner=owner, until=until_ts}))
--- Redis TTL >= logical lease so keys do not accumulate forever (logical expiry
--- still lives in the 'until' field; this is housekeeping only).
+redis.call('SET', key, cjson.encode({owner=owner, until=until_ts, backend=backend}))
 if ttl_s and ttl_s > 0 then
   redis.call('EXPIRE', key, ttl_s)
 end
-return {1, owner}
+return {1, owner, backend}
 """
 
 _HEARTBEAT_LUA = """
@@ -52,13 +56,15 @@ local owner = ARGV[1]
 local until_ts = tonumber(ARGV[2])
 local now_ts = tonumber(ARGV[3])
 local ttl_s = tonumber(ARGV[4])
+local backend = ARGV[5]
 local cur = redis.call('GET', key)
 if not cur then return 0 end
 local ok, data = pcall(cjson.decode, cur)
 if not ok or type(data) ~= 'table' then return 0 end
 if data['owner'] ~= owner then return 0 end
+if data['backend'] and data['backend'] ~= '' and data['backend'] ~= backend then return 0 end
 if tonumber(data['until'] or 0) <= now_ts then return 0 end
-redis.call('SET', key, cjson.encode({owner=owner, until=until_ts}))
+redis.call('SET', key, cjson.encode({owner=owner, until=until_ts, backend=backend}))
 if ttl_s and ttl_s > 0 then
   redis.call('EXPIRE', key, ttl_s)
 end
@@ -83,6 +89,11 @@ _IDEM_TTL_S = 30 * 24 * 3600
 class LeaseRecord:
     owner: str
     until: float  # unix epoch seconds
+    backend: str = ""
+
+
+class CasBackendError(RuntimeError):
+    """Fail-closed coordination configuration / availability error."""
 
 
 class CasBackend(Protocol):
@@ -105,6 +116,33 @@ class CasBackend(Protocol):
     def with_mission_lock(self, mission_id: str, fn: Any) -> Any: ...
 
     def with_index_lock(self, fn: Any) -> Any: ...
+
+
+def resolve_coordination_mode() -> str:
+    """Return ``redis`` or ``local-file``. Never infer fallback from a failed probe.
+
+    Precedence:
+    1. ``EXTERNAL_AGENT_COORDINATION_BACKEND`` = redis|local-file|required-file
+    2. ``EXTERNAL_MISSION_CAS`` = redis|filelock (compat)
+    3. If ``REDIS_URL`` / ``EXTERNAL_MISSION_REDIS_URL`` is set → ``redis`` (fail-closed)
+    4. Else ``local-file`` (explicit single-host / test default)
+    """
+    explicit = (os.getenv("EXTERNAL_AGENT_COORDINATION_BACKEND") or "").strip().lower()
+    if explicit in {"local-file", "required-file"}:
+        return "local-file"
+    if explicit == "redis":
+        return "redis"
+    legacy = (os.getenv("EXTERNAL_MISSION_CAS") or "").strip().lower()
+    if legacy in {"filelock", "local-file", "required-file"}:
+        return "local-file"
+    if legacy == "redis":
+        return "redis"
+    redis_url = (
+        os.environ.get("EXTERNAL_MISSION_REDIS_URL") or os.environ.get("REDIS_URL") or ""
+    ).strip()
+    if redis_url:
+        return "redis"
+    return "local-file"
 
 
 def _sync_redis():
@@ -147,11 +185,26 @@ class RedisCasBackend:
             until,
             now,
             redis_ttl,
+            self.name,
         )
         won = int(out[0]) == 1
         if won:
-            return {"claimed": True, "owner": owner, "until": until}
-        return {"claimed": False, "reason": "lease_held", "lease_owner": str(out[1] or "")}
+            return {"claimed": True, "owner": owner, "until": until, "backend": self.name}
+        reason = str(out[1] or "lease_held")
+        detail = str(out[2] or "") if len(out) > 2 else ""
+        if reason == "backend_mismatch":
+            return {
+                "claimed": False,
+                "reason": "backend_mismatch",
+                "lease_backend": detail,
+                "backend": self.name,
+            }
+        return {
+            "claimed": False,
+            "reason": "lease_held",
+            "lease_owner": detail or reason,
+            "backend": self.name,
+        }
 
     def heartbeat_lease(self, mission_id: str, owner: str, *, ttl_s: int, now: float) -> bool:
         until = now + max(1, int(ttl_s))
@@ -166,6 +219,7 @@ class RedisCasBackend:
                 until,
                 now,
                 redis_ttl,
+                self.name,
             )
         )
 
@@ -190,7 +244,9 @@ class RedisCasBackend:
         try:
             data = json.loads(cur)
             return LeaseRecord(
-                owner=str(data.get("owner") or ""), until=float(data.get("until") or 0)
+                owner=str(data.get("owner") or ""),
+                until=float(data.get("until") or 0),
+                backend=str(data.get("backend") or self.name),
             )
         except Exception:
             return None
@@ -253,21 +309,30 @@ class FileLockCasBackend:
     def claim_lease(self, mission_id: str, owner: str, *, ttl_s: int, now: float) -> dict[str, Any]:
         with self._flock(f"lease-{mission_id}"):
             cur = self.get_lease(mission_id)
+            if cur and cur.backend and cur.backend != self.name:
+                return {
+                    "claimed": False,
+                    "reason": "backend_mismatch",
+                    "lease_backend": cur.backend,
+                    "backend": self.name,
+                }
             if cur and cur.owner != owner and cur.until > now:
                 return {"claimed": False, "reason": "lease_held", "lease_owner": cur.owner}
             until = now + max(1, int(ttl_s))
             with open(self._lease_path(mission_id), "w", encoding="utf-8") as fh:
-                json.dump({"owner": owner, "until": until}, fh)
-            return {"claimed": True, "owner": owner, "until": until}
+                json.dump({"owner": owner, "until": until, "backend": self.name}, fh)
+            return {"claimed": True, "owner": owner, "until": until, "backend": self.name}
 
     def heartbeat_lease(self, mission_id: str, owner: str, *, ttl_s: int, now: float) -> bool:
         with self._flock(f"lease-{mission_id}"):
             cur = self.get_lease(mission_id)
             if not cur or cur.owner != owner or cur.until <= now:
                 return False
+            if cur.backend and cur.backend != self.name:
+                return False
             until = now + max(1, int(ttl_s))
             with open(self._lease_path(mission_id), "w", encoding="utf-8") as fh:
-                json.dump({"owner": owner, "until": until}, fh)
+                json.dump({"owner": owner, "until": until, "backend": self.name}, fh)
             return True
 
     def release_lease(self, mission_id: str, owner: str) -> bool:
@@ -288,7 +353,9 @@ class FileLockCasBackend:
         try:
             data = json.loads(open(path, encoding="utf-8").read())
             return LeaseRecord(
-                owner=str(data.get("owner") or ""), until=float(data.get("until") or 0)
+                owner=str(data.get("owner") or ""),
+                until=float(data.get("until") or 0),
+                backend=str(data.get("backend") or self.name),
             )
         except Exception:
             return None
@@ -344,13 +411,15 @@ def reset_backend() -> None:
 
 
 def get_backend(*, root: str | None = None) -> CasBackend:
-    """Prefer Redis; else file-lock on the mission root. Never thread-only."""
+    """Resolve coordination backend from explicit mode — never silent Redis→FileLock."""
     global _BACKEND
     if _BACKEND is not None:
         return _BACKEND
-    forced = (os.getenv("EXTERNAL_MISSION_CAS") or "").strip().lower()
-    redis_client = None if forced == "filelock" else _sync_redis()
-    if redis_client is not None and forced != "filelock":
+    mode = resolve_coordination_mode()
+    if mode == "redis":
+        redis_client = _sync_redis()
+        if redis_client is None:
+            raise CasBackendError("redis_coordination_unavailable")
         _BACKEND = RedisCasBackend(redis_client)
         return _BACKEND
     mission_root = root or os.getenv("EXTERNAL_MISSION_DIR") or "data/external_missions"
@@ -360,27 +429,36 @@ def get_backend(*, root: str | None = None) -> CasBackend:
 
 
 def shared_store_status(*, root: str | None = None) -> dict[str, Any]:
-    backend = get_backend(root=root)
+    mode = resolve_coordination_mode()
     redis_url_set = bool(
         (os.environ.get("EXTERNAL_MISSION_REDIS_URL") or os.environ.get("REDIS_URL") or "").strip()
     )
-    redis_reachable = backend.name == "redis"
-    mixed_risk = redis_url_set and not redis_reachable and backend.name == "filelock"
+    try:
+        backend = get_backend(root=root)
+        reachable = True
+        err = None
+    except CasBackendError as exc:
+        backend = None
+        reachable = False
+        err = str(exc)
     return {
-        "backend": backend.name,
+        "mode": mode,
+        "backend": backend.name if backend else "unavailable",
         "redis_url_configured": redis_url_set,
-        "redis_reachable": redis_reachable,
-        "shared_volume_ok": backend.name in {"redis", "filelock"},
-        "mixed_backend_risk": mixed_risk,
+        "redis_reachable": bool(backend and backend.name == "redis"),
+        "shared_volume_ok": bool(backend and backend.name in {"redis", "filelock"}),
+        "mixed_backend_risk": False,
+        "distributed": mode == "redis",
+        "error": err,
         "note": (
-            "WARNING: REDIS_URL is set but unreachable — this process fell back to filelock. "
-            "A Redis-using peer will NOT coordinate with this process. Fix Redis or force "
-            "EXTERNAL_MISSION_CAS=filelock on EVERY mission-touching process."
-            if mixed_risk
+            "Redis coordination required but unreachable — runner/CAS fail-closed "
+            "(no FileLock fallback)."
+            if mode == "redis" and not reachable
             else (
-                "Redis preferred for multi-host; filelock is correct across processes "
-                "sharing EXTERNAL_MISSION_DIR / ./data bind-mount. All peers must resolve "
-                "the SAME backend."
+                "local-file mode: single-host / shared EXTERNAL_MISSION_DIR only — "
+                "not multi-host distributed coordination."
+                if mode == "local-file"
+                else "Redis coordination backend active."
             )
         ),
     }
