@@ -94,17 +94,23 @@ def test_store_family_count_is_derived_not_typed() -> None:
     """
     entries = al.load()
     families = {e["store_id"] for e in entries}
-    assert len(entries) == 9
-    assert len(families) == 5, sorted(families)
+    # Derived facts, re-pinned when a family is genuinely added:
+    # 2026-07-27 +2 entries / +1 family for devcontrol.external_missions.
+    assert len(entries) == 11
+    assert len(families) == 6, sorted(families)
+    # Every entry must name a family that the manifest actually knows.
+    known = {s["store_id"] for s in manifest.STORES}
+    assert families <= known, sorted(families - known)
     assert families == {
         "billing.invoices",
         "billing.upi_payments",
         "compliance.dpdp_audit",
         "compliance.email_suppression",
         "customers.identity",
+        "devcontrol.external_missions",
     }
-    # No alias: five distinct manifest authorities, not four with a rename.
-    assert len({f.split(".")[0] for f in families}) == 3
+    # No alias: distinct manifest authorities, not renames of one another.
+    assert len({f.split(".")[0] for f in families}) == 4
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -352,5 +358,30 @@ def test_store_manifest_still_validates() -> None:
     # it means a store family was silently added or a blocker silently dropped,
     # which must happen through an evidence-backed manifest edit, not as a
     # side effect of building a scanner.
-    assert counts["unique_families"] == 22
-    assert counts["deployment_blockers"] == 16
+    # 2026-07-27: 22 -> 23 / 16 -> 17 via an evidence-backed manifest edit for
+    # devcontrol.external_missions (PR #147). It is a blocker because its root,
+    # EXTERNAL_MISSION_DIR, defaults to data/external_missions INSIDE the
+    # checkout, so migration_state stays LEGACY_IN_CHECKOUT until production is
+    # proven to point it at a mounted root.
+    # 2026-07-27, second evidence-backed edit: +4 calling-safety families
+    # (23 -> 27, 17 -> 21). Each defaults inside the checkout, so each blocks.
+    assert counts["unique_families"] == 27
+    assert counts["deployment_blockers"] == 21
+    by_id = {s["store_id"]: s for s in manifest.STORES}
+    ext = by_id["devcontrol.external_missions"]
+    assert ext["migration_tier"] == manifest.TIER_1
+    assert manifest.derived_blocker(ext) is True
+    # Calling-safety controls are Tier 0 and must every one of them block a
+    # destructive deploy: losing the file returns the control to its default.
+    for sid in (
+        "telephony.calling_safety_config",
+        "telephony.dial_suppression",
+        "telephony.voice_kill_switch",
+    ):
+        assert by_id[sid]["migration_tier"] == manifest.TIER_0, sid
+        assert manifest.derived_blocker(by_id[sid]) is True, sid
+    rec = by_id["telephony.call_recordings"]
+    assert rec["migration_tier"] == manifest.TIER_2
+    assert manifest.derived_blocker(rec) is True
+    # The audit ledger stays OUT until it has its own reader/writer evidence.
+    assert "telephony.dial_suppression_audit" not in by_id

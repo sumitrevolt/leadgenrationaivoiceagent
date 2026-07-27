@@ -484,6 +484,133 @@ STORES: list[dict[str, Any]] = [
         deployment_blocker=False,
         evidence="static PDFs unmodified since Jun 8 / Jun 25 — documents, not ledgers",
     ),
+    # ---------------------------------------------------------------- TIER 1
+    _e(
+        store_id="devcontrol.external_missions",
+        display_name="External agent mission state (EXTERNAL_MISSION_DIR)",
+        legacy_paths=["data/external_missions/"],
+        writer_modules=[
+            "app/dev_control/external_agents/cas.py:426",
+            "app/dev_control/external_agents/store.py:_mission_path",
+        ],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="dev-control",
+        durability_class="authoritative",
+        target_runtime_subpath="external_missions/",
+        migration_tier=TIER_1,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=True,
+        evidence=(
+            "Root is EXTERNAL_MISSION_DIR, defaulting to data/external_missions — "
+            "INSIDE the checkout. Per-mission JSON is durable state written via "
+            "_atomic_write -> os.replace(tmp, path) from six call sites, plus an "
+            "events log beside it. The module's own docstring notes container "
+            "replacement does not preserve ./data, so a deploy that resets the "
+            "checkout destroys in-flight missions. Not marked cutover-complete: "
+            "no evidence yet that production sets the variable to a mounted root."
+        ),
+    ),
+    # ------------------------------------------------ TIER 0 — calling safety
+    # Found 2026-07-27 by the path-return-helper provenance pass. Every one of
+    # these defaults INSIDE the checkout, so a deploy that resets the tree drops
+    # the file and each control silently returns to its permissive default.
+    # "Calling is HARD OFF" is not mitigation: platform_dial.json IS one of the
+    # three layers holding it off.
+    _e(
+        store_id="telephony.calling_safety_config",
+        display_name="Calling-safety operator config (platform dial + dial test mode)",
+        legacy_paths=["data/platform_dial.json", "data/dial_test_mode.json"],
+        writer_modules=[
+            "app/platform/platform_dial.py:_cfg_path",
+            "app/telephony/dial_gate.py:_cfg_path",
+        ],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="telephony",
+        durability_class="authoritative",
+        target_runtime_subpath="telephony/",
+        migration_tier=TIER_0,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=True,
+        evidence=(
+            "PLATFORM_DIAL_CONFIG -> data/platform_dial.json and "
+            "DIAL_TEST_MODE_CONFIG -> data/dial_test_mode.json. One family: "
+            "operator-controlled calling-safety configuration, shared cutover "
+            "boundary, coordinated rollback, no independent retention ledger. "
+            "platform_dial.json carries the `enabled:false` half of the "
+            "USER-MANDATE 3-layer platform_dial kill."
+        ),
+    ),
+    _e(
+        store_id="telephony.dial_suppression",
+        display_name="Dial suppression / blocklist",
+        legacy_paths=["data/dial_blocklist.json"],
+        writer_modules=[
+            "app/telephony/call_feedback.py:_save",
+            "app/telephony/dial_gate.py:_blocklist_path",
+        ],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="compliance",
+        durability_class="authoritative",
+        target_runtime_subpath="telephony/dial_blocklist.json",
+        migration_tier=TIER_0,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=True,
+        evidence=(
+            "DIAL_BLOCKLIST_FILE -> data/dial_blocklist.json. dial_gate.py reads "
+            "it and call_feedback.py._save() writes it atomically "
+            "(tmp.write_text -> os.replace(tmp, p)); call_feedback's own comment "
+            "says 'dial_gate ke saath SAME env/naam — single source'. Suppression "
+            "is Tier 0. The audit ledger DIAL_BLOCKLIST_AUDIT is deliberately NOT "
+            "folded in here — it needs its own reader/writer evidence first."
+        ),
+    ),
+    _e(
+        store_id="telephony.voice_kill_switch",
+        display_name="Voice launch kill switch",
+        legacy_paths=["data/voice_launch_kill.json"],
+        writer_modules=["app/telephony/voice_launch.py:_kill_file"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="telephony",
+        durability_class="authoritative",
+        target_runtime_subpath="telephony/voice_launch_kill.json",
+        migration_tier=TIER_0,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=True,
+        evidence=(
+            "VOICE_LAUNCH_KILL_FILE -> data/voice_launch_kill.json. Kept separate "
+            "from calling_safety_config: emergency semantics, independent toggle "
+            "lifecycle, stricter fail-closed requirement, separate incident "
+            "evidence. Its docstring states the file exists so the kill can flip "
+            "'container-recreate ke bina — data/ bind-mount', which is exactly why "
+            "losing the file must not disengage the kill."
+        ),
+    ),
+    # ------------------------------------------------------ TIER 2 — retention
+    _e(
+        store_id="telephony.call_recordings",
+        display_name="Call recordings (retention-governed)",
+        legacy_paths=["data/recordings/"],
+        writer_modules=["app/telephony/voice_launch.py:_recordings_dir"],
+        production_activity="PRODUCTION_ACTIVE",
+        current_authority="FILE",
+        business_category="compliance",
+        durability_class="authoritative",
+        target_runtime_subpath="telephony/recordings/",
+        migration_tier=TIER_2,
+        migration_state=LEGACY_IN_CHECKOUT,
+        deployment_blocker=True,
+        retention_governed=True,
+        evidence=(
+            "RECORDINGS_DIR -> data/recordings. Retention-governed evidence; the "
+            "retention window is set by policy elsewhere and is NOT restated here, "
+            "because inventing a number the code does not contain would be "
+            "fabricated evidence."
+        ),
+    ),
 ]
 
 

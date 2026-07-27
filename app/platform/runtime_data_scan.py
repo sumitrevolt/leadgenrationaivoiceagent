@@ -305,8 +305,38 @@ def path_provenance(
                     if path_provenance(a, table, _visited, _depth + 1) in _PROVEN:
                         return PROVEN_STATIC_PATH
                 return NOT_PATH
+        if _is_env_read(node):
+            # `os.getenv("X", "data/store")` — configurable root with a
+            # statically bounded default is a path PATTERN, not a fixed path.
+            # A default that is not itself a path proves nothing, and an env
+            # read with NO default is unbounded, so it stays ENV_READ and only
+            # a fallback elsewhere (`... or "data/store"`) can bound it.
+            default = node.args[1] if len(node.args) > 1 else None
+            if default is not None and path_provenance(
+                default, table, _visited, _depth + 1
+            ) in _PROVEN:
+                return PROVEN_DYNAMIC_PATH_PATTERN
+            return _ENV_READ
+        if isinstance(node.func, ast.Name):
+            # A locally defined path-returning helper. The proof comes from
+            # every reachable return in its body, never from its name.
+            helper = (table.get(_HELPERS) or {}).get(node.func.id)
+            if helper is not None:
+                return helper
         # Any other call: an unknown return contract proves nothing.
         return UNSUPPORTED_EXPRESSION
+
+    if isinstance(node, ast.BoolOp) and isinstance(node.op, ast.Or):
+        # `os.getenv("X") or DEFAULT` — the value is the first truthy operand,
+        # so it is bounded only when the LAST operand is proven. Anything else
+        # in the chain must be an env read or itself proven, otherwise an
+        # arbitrary object could reach a filesystem call.
+        vals = [path_provenance(v, table, _visited, _depth + 1) for v in node.values]
+        if vals[-1] not in _PROVEN:
+            return NOT_PATH
+        if all(v in _PROVEN or v == _ENV_READ for v in vals[:-1]):
+            return PROVEN_DYNAMIC_PATH_PATTERN
+        return AMBIGUOUS_PATH
 
     if isinstance(node, ast.BinOp):
         left = path_provenance(node.left, table, _visited, _depth + 1)
@@ -347,6 +377,210 @@ def path_provenance(
     return UNSUPPORTED_EXPRESSION
 
 
+#: Reserved table key. Not a valid Python identifier, so it can never collide
+#: with a symbol name discovered in the module.
+_HELPERS = "\x00path_return_helpers"
+
+#: Internal, NOT in _PROVEN: an unbounded environment read. It can only become
+#: a path when something else supplies a proven default.
+_ENV_READ = "ENV_READ"
+
+
+def _is_env_read(node: ast.Call) -> bool:
+    """`os.getenv(...)` / `os.environ.get(...)` — structural, not by name alone."""
+    fn = node.func
+    if not isinstance(fn, ast.Attribute):
+        return False
+    if fn.attr == "getenv":
+        return getattr(fn.value, "id", None) == "os"
+    if fn.attr == "get":
+        base = fn.value
+        return getattr(base, "attr", None) == "environ" or (
+            getattr(base, "id", None) == "environ"
+        )
+    return False
+
+
+def _path_return_helpers(
+    tree: ast.Module, table: dict[str, Any]
+) -> dict[str, str]:
+    """Module-level functions PROVEN to return a path, by analysing their returns.
+
+    A helper qualifies only when every reachable `return <value>` resolves to a
+    PROVEN_* status. One non-path branch makes the whole function AMBIGUOUS_PATH,
+    and an unknown call supplying the root leaves it UNSUPPORTED_EXPRESSION —
+    the function name, its docstring and its annotation are never evidence.
+
+    Two passes so `def a(): return b()` can see `b`, with the in-progress set
+    guarding mutual recursion (`a -> b -> a`) instead of hanging.
+    """
+    funcs = {
+        f.name: f
+        for f in tree.body
+        if isinstance(f, ast.FunctionDef | ast.AsyncFunctionDef)
+    }
+    out: dict[str, str] = {}
+    for _ in range(3):
+        changed = False
+        for name, fn in funcs.items():
+            if name in out:
+                continue
+            returns = [
+                n
+                for n in ast.walk(fn)
+                if isinstance(n, ast.Return) and n.value is not None
+            ]
+            if not returns:
+                continue
+            local = dict(table)
+            local[_HELPERS] = {k: v for k, v in out.items() if k != name}
+            for sub in ast.walk(fn):
+                if isinstance(sub, ast.Assign) and len(sub.targets) == 1:
+                    tgt = getattr(sub.targets[0], "id", None)
+                    if tgt and path_provenance(sub.value, local) in _PROVEN:
+                        local[tgt] = sub.value
+            statuses = {path_provenance(r.value, local) for r in returns}
+            if not statuses <= _PROVEN:
+                if statuses & _PROVEN:
+                    verdict = AMBIGUOUS_PATH
+                elif CYCLE_DETECTED in statuses:
+                    verdict = CYCLE_DETECTED
+                else:
+                    verdict = UNSUPPORTED_EXPRESSION
+            elif PROVEN_DYNAMIC_PATH_PATTERN in statuses:
+                verdict = PROVEN_DYNAMIC_PATH_PATTERN
+            elif statuses == {PROVEN_STATIC_PATH}:
+                verdict = PROVEN_STATIC_PATH
+            else:
+                verdict = PROVEN_PATH_ALIAS
+            out[name] = verdict
+            changed = True
+        if not changed:
+            break
+    # Only PROVEN verdicts may authorise anything downstream; keeping the
+    # negative ones would let AMBIGUOUS leak in as a truthy lookup hit.
+    return {k: v for k, v in out.items() if v in _PROVEN}
+
+
+def _pattern_of(node: ast.AST, helpers: dict[str, str], _depth: int = 0) -> str:
+    """Bounded, value-free rendering of a proven path expression.
+
+    Emits STRUCTURE only: env-var NAMES, static fallbacks and `<*>` for anything
+    interpolated. Mission ids, payloads and real environment values must never
+    reach a finding, a fingerprint or the baseline file.
+    """
+    if _depth > 6:
+        return "<*>"
+    if isinstance(node, ast.Constant):
+        return str(node.value) if isinstance(node.value, str) else "<*>"
+    if isinstance(node, ast.Call):
+        if _is_env_read(node):
+            var = node.args[0].value if node.args and isinstance(
+                node.args[0], ast.Constant
+            ) else "?"
+            dflt = (
+                _pattern_of(node.args[1], helpers, _depth + 1)
+                if len(node.args) > 1
+                else "<unset>"
+            )
+            return f"<${var}|{dflt}>"
+        fname = getattr(node.func, "id", None)
+        if fname in helpers:
+            # Expand a nested proven helper so the pattern reaches the env var
+            # and its static fallback instead of stopping at `<_root>`.
+            return helpers[fname] or f"<{fname}>"
+        if getattr(node.func, "attr", None) == "join" or fname in _PATH_CONSTRUCTORS:
+            parts = [_pattern_of(a, helpers, _depth + 1) for a in node.args]
+            return "/".join(p for p in parts if p)
+        return "<*>"
+    if isinstance(node, ast.Name):
+        return helpers.get(node.id) or "<*>"
+    if isinstance(node, ast.BoolOp):
+        # `os.getenv("X") or DEFAULT` — render the env var WITH its real
+        # fallback. Taking the first operand alone left the default as
+        # `<unset>` even though the code plainly supplies one.
+        pats = [_pattern_of(v, helpers, _depth + 1) for v in node.values]
+        useful = [p for p in pats if p and p != "<*>"]
+        if not useful:
+            return "<*>"
+        fallback = useful[-1]
+        for p in useful[:-1]:
+            if p.startswith("<$") and p.endswith("|<unset>>"):
+                return p[: -len("|<unset>>")] + f"|{fallback}>"
+        return useful[0]
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div):
+        return (
+            f"{_pattern_of(node.left, helpers, _depth + 1)}/"
+            f"{_pattern_of(node.right, helpers, _depth + 1)}"
+        )
+    if isinstance(node, ast.JoinedStr):
+        out = []
+        for part in node.values:
+            if isinstance(part, ast.Constant) and isinstance(part.value, str):
+                out.append(part.value)
+            else:
+                out.append("<*>")  # never the interpolated VALUE
+        return "".join(out)
+    return "<*>"
+
+
+def _helper_patterns(tree: ast.Module, proven: dict[str, str]) -> dict[str, str]:
+    """Bounded pattern per proven helper, expanding nested helpers.
+
+    Two passes so `_mission_path` renders `_root`'s env pattern rather than
+    stopping at an opaque `<_root>`.
+    """
+    out: dict[str, str] = {}
+    for _ in range(2):
+        for name, status in proven.items():
+            out[name] = _helper_pattern(tree, name, status, out)
+    return out
+
+
+def _helper_pattern(
+    tree: ast.Module, name: str, status: str, resolved: dict[str, str] | None = None
+) -> str:
+    """Bounded pattern for one proven path-returning helper."""
+    helpers = {name}
+    for fn in tree.body:
+        if not isinstance(fn, ast.FunctionDef | ast.AsyncFunctionDef):
+            continue
+        if fn.name != name:
+            continue
+        local: dict[str, ast.AST] = {}
+        for sub in ast.walk(fn):
+            if isinstance(sub, ast.Assign) and len(sub.targets) == 1:
+                tgt = getattr(sub.targets[0], "id", None)
+                if tgt:
+                    local[tgt] = sub.value
+        others = {
+            f.name: (resolved or {}).get(f.name, "")
+            for f in tree.body
+            if isinstance(f, ast.FunctionDef | ast.AsyncFunctionDef)
+            and f.name not in helpers
+        }
+        # Module-level string constants, so `... or DEFAULT_ROOT` renders the
+        # literal fallback the code actually ships rather than `<*>`.
+        for mod in tree.body:
+            if isinstance(mod, ast.Assign) and len(mod.targets) == 1:
+                tgt = getattr(mod.targets[0], "id", None)
+                if tgt and isinstance(mod.value, ast.Constant) and isinstance(
+                    mod.value.value, str
+                ):
+                    others.setdefault(tgt, mod.value.value)
+        for n in ast.walk(fn):
+            if isinstance(n, ast.Return) and n.value is not None:
+                val = n.value
+                # One hop through a local alias so `p = _root() / x; return p`
+                # renders the composed pattern rather than the bare name.
+                if isinstance(val, ast.Name) and val.id in local:
+                    val = local[val.id]
+                pat = _pattern_of(val, others)
+                if pat and pat != "<*>":
+                    return pat
+    return status
+
+
 def _provenance_table(tree: ast.Module) -> dict[str, ast.AST]:
     """symbol -> assignment expression, kept ONLY for path-preserving RHS.
 
@@ -366,7 +600,11 @@ def _provenance_table(tree: ast.Module) -> dict[str, ast.AST]:
             if name:
                 assigns.append((name, value))
 
-    table: dict[str, ast.AST] = {}
+    table: dict[str, Any] = {}
+    # Helpers first: `path = _mission_path(id)` can only resolve once the
+    # scanner knows what `_mission_path` returns. Recomputed after the symbol
+    # fixed point so a helper that reads a module constant sees it.
+    table[_HELPERS] = _path_return_helpers(tree, {})
     for _ in range(4):
         changed = False
         for name, value in assigns:
@@ -377,6 +615,7 @@ def _provenance_table(tree: ast.Module) -> dict[str, ast.AST]:
                 changed = True
         if not changed:
             break
+    table[_HELPERS] = _path_return_helpers(tree, {k: v for k, v in table.items() if k != _HELPERS})
     return table
 
 
@@ -735,6 +974,14 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
     # tables. Only the provenance table may authorise a receiver-method
     # filesystem operation.
     provenance = _provenance_table(tree)
+    # A proven path-returning helper gets a BOUNDED pattern, so a finding whose
+    # call site is `_mission_path(id)` carries the store it actually writes
+    # instead of an opaque source expression. The pattern names the env var and
+    # its static fallback -- never a runtime value, id or payload.
+    # Overwrites, not setdefault: discovery may already hold the raw source
+    # expression, and a PROVEN bounded pattern is strictly better evidence than
+    # `_root() / f'{safe}.json'`.
+    symbols.update(_helper_patterns(tree, provenance.get(_HELPERS) or {}))
     local_writers = _path_taking_writers(tree)
 
     # --- module-level capture of a runtime path (freezes the root at import).

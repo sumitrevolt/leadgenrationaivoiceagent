@@ -324,9 +324,18 @@ def kill_switch_board() -> dict[str, Any]:
     except Exception:
         pass
     try:
-        from app.telephony.voice_launch import admin_kill_engaged
+        from app.telephony.voice_launch import admin_kill_status
 
-        board["voice_launch_kill"]["engaged"] = bool(admin_kill_engaged())
+        # Evaluate ONCE, then read .engaged explicitly. AdminKillStatus has no
+        # __bool__ on purpose: bool(status) would be True even when disengaged,
+        # so the board would report "engaged" forever.
+        _kill = admin_kill_status()
+        board["voice_launch_kill"]["engaged"] = _kill.engaged
+        # source/reason turn an ambiguous "false" into an actionable one:
+        # ENV_DISENGAGED (someone chose this) reads very differently from
+        # MISSING or MALFORMED (we cannot tell, so the kill is held ON).
+        board["voice_launch_kill"]["source"] = _kill.source
+        board["voice_launch_kill"]["reason"] = _kill.reason
         board["voice_launch_kill"]["can_toggle"] = True
     except Exception:
         pass

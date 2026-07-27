@@ -60,6 +60,21 @@ fi
 # shellcheck source=scripts/_runtime_data_guard.sh
 . "$_guard_sh" || exit 91
 
+# ------------------------------------------------- canonical deployment gate
+# Must precede EVERY mutating step (git pull, build, compose, restart) and both
+# sha-resolution branches — putting it inside one branch would let an explicit
+# APP_VERSION skip the gate entirely.
+# One authority: the same checker CI runs, plus the deploy-only gates. A private
+# voice-kill check in this script would be a second authority and a bypass
+# waiting to happen, so the classification stays in prod_check.py.
+# VOICE_LAUNCH_KILL is read there from the environment; it is never echoed.
+echo "=== preflight: prod_check.py --deployment ==="
+if ! python3 scripts/prod_check.py --deployment; then
+  echo "FATAL: deployment preflight failed — refusing to deploy."
+  echo "       No remote, image or container action has been taken."
+  exit 1
+fi
+
 # ---------------------------------------------------------------- resolve sha
 # 2026-07-16 hardening: pull-fail + SHA/HEAD mismatch used to silently rebuild
 # whatever dirty tree was on disk while claiming a different APP_VERSION in the

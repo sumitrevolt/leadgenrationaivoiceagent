@@ -20,12 +20,13 @@ from typing import Any
 
 # Bumped whenever detection SEMANTICS change (new call shapes, new inference).
 # Cosmetic edits must not bump it, and a semantic change must not skip it.
-SCANNER_ENGINE_VERSION = "2026-07-27.4-scope-path-roles-canonical-provenance"
+SCANNER_ENGINE_VERSION = "2026-07-27.5-local-path-return-helper-provenance"
 
 # Historic engine versions, pinned as literals. A record must keep the version
 # it was approved against; interpolating the live constant would silently
 # rewrite history every time the scanner changes.
 _ENGINE_2026_07_26_3 = "2026-07-26.3-local-helper-inference"
+_ENGINE_2026_07_27_4 = "2026-07-27.4-scope-path-roles-canonical-provenance"
 SCANNER_SCHEMA_VERSION = "2026-07-26.1"
 CLASSIFICATION_VERSION = "2026-07-26.2"
 
@@ -70,7 +71,7 @@ CHANGES: list[dict[str, Any]] = [
     {
         "change_id": "bce-2026-07-27-helper-scope-path-roles-canonical-provenance",
         "old_scanner_version": _ENGINE_2026_07_26_3,
-        "new_scanner_version": SCANNER_ENGINE_VERSION,
+        "new_scanner_version": _ENGINE_2026_07_27_4,
         "old_baseline_count": 881,
         "new_baseline_count": 834,
         "added_fingerprints": 9,
