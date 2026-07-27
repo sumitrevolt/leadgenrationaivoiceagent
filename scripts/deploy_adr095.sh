@@ -1,40 +1,45 @@
 #!/usr/bin/env bash
-# deploy_adr095.sh — deploy 91e7d37 to VPS. Buffers build log to /tmp (SSH tunnel
-# dies on verbose build output) and uses `set -o pipefail` so a piped build cannot
-# mask a non-zero exit code (known landmine).
+# deploy_adr095.sh — deploy 91e7d37 to VPS.
+#
+# CONSOLIDATED 2026-07-26: this script used to carry its OWN copy of the
+# release chain — `cd /opt/leadgen`, `git pull --ff-only`, `compose build`,
+# `compose up -d`. That chain never touched the runtime-data guard, so running
+# this file deployed straight over the live invoice / consent / suppression
+# ledgers and the DPDP call recordings that still sit inside the checkout.
+#
+# The mutation chain is now delegated to the canonical parent (deploy_vps.sh),
+# which is guarded. Everything below the delegation is READ-ONLY verification
+# and is unchanged.
+#
+# There is deliberately NO fallback to the old chain: if the parent denies
+# (90) or is unavailable (91), this script exits with that exact status and
+# does nothing else.
 set -o pipefail
 VER=91e7d37
-cd /opt/leadgen || exit 1
 
-echo "===PRE_SHA==="
-git rev-parse HEAD
+# shellcheck source=scripts/_deploy_parent_delegate.sh
+_delegate="$(dirname "$0")/_deploy_parent_delegate.sh"
+if [ ! -r "$_delegate" ]; then
+  echo "FATAL: delegation helper missing: $_delegate"
+  exit 91
+fi
+. "$_delegate" || exit 91
 
-echo "===PULL==="
-git pull --ff-only 2>&1 | tail -5
-echo "PULL_RC=${PIPESTATUS[0]}"
+echo "===DELEGATING TO CANONICAL PARENT (guarded)==="
+delegate_to_parent "$VER"
+_rc=$?
+if [ "$_rc" -ne 0 ]; then
+  echo "PARENT_RC=$_rc — aborting. (90=guard denied, 91=guard/parent unavailable)"
+  echo "No local git/compose fallback exists by design."
+  exit "$_rc"
+fi
 
-echo "===POST_SHA==="
-git rev-parse HEAD
-
+# ------------------------------------------------- read-only verification
+# Preserved from the original script. Nothing here mutates the checkout or
+# replaces a container.
 echo "===MIGRATION_STATE (read-only)==="
 docker exec leadgen_app alembic current 2>&1 | tail -3
 docker exec leadgen_app alembic heads 2>&1 | tail -3
-
-echo "===BUILD (log -> /tmp/adr095_build.log)==="
-APP_VERSION=$VER docker compose -f docker-compose.vps.yml build app > /tmp/adr095_build.log 2>&1
-BUILD_RC=$?
-echo "BUILD_RC=$BUILD_RC"
-tail -5 /tmp/adr095_build.log
-if [ "$BUILD_RC" -ne 0 ]; then echo "BUILD FAILED - ABORT"; exit 1; fi
-
-echo "===UP (app + worker + scheduler: the fix runs in the WORKER)==="
-APP_VERSION=$VER docker compose -f docker-compose.vps.yml --profile celery up -d --no-deps app worker scheduler > /tmp/adr095_up.log 2>&1
-UP_RC=$?
-echo "UP_RC=$UP_RC"
-tail -12 /tmp/adr095_up.log
-
-echo "===SETTLE==="
-sleep 18
 
 echo "===HEALTH x2==="
 curl -s -m 10 127.0.0.1:8000/health; echo

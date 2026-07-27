@@ -1,0 +1,391 @@
+"""The allowlist must stay tied to live code and to real store families.
+
+An allowlist nobody re-checks becomes a record of what used to be true. Each
+check here corresponds to a way that has already gone wrong somewhere in this
+repo: a path moved and the note didn't, an id was typo'd, a writer was filed as
+read-only.
+"""
+
+from __future__ import annotations
+
+import copy
+import pathlib
+
+import pytest
+
+from app.platform import runtime_data_allowlist as al
+from app.platform import runtime_data_manifest as manifest
+from app.platform import runtime_data_scan as scan
+
+_REPO = pathlib.Path(__file__).resolve().parents[1]
+
+
+@pytest.fixture(scope="module")
+def findings():
+    return scan.scan_repo(_REPO, allowlist=al.load())
+
+
+def _entry(**over):
+    base = {
+        "allowlist_id": "x.y",
+        "file": "app/billing/gst_invoice.py",
+        "line_or_symbol": "_STORE",
+        "path_pattern": "data/invoices.jsonl",
+        "store_id": "billing.invoices",
+        "access_modes": ["APPEND"],
+        "reason": "r",
+        "migration_tier": 0,
+        "target_change_set": "wave-0",
+        "owner": "billing",
+        "production_relevance": "LIVE",
+        "review_condition": "c",
+    }
+    base.update(over)
+    return base
+
+
+# ------------------------------------------------------------------- shipped
+
+
+def test_shipped_allowlist_is_coherent(findings) -> None:
+    problems = al.validate(findings=findings)
+    assert problems == [], "allowlist problems:\n  " + "\n  ".join(problems)
+
+
+def test_dpdp_requests_entry_declares_the_atomic_replace(findings) -> None:
+    """The DPDP requests store is rewritten atomically, and the entry says so.
+
+    `_atomic_write_lines(path, lines)` writes `path + ".tmp_dpdp"` and then
+    `os.replace(tmp, path)`. The entry declared only APPEND/READ/CREATE, so a
+    destructive operation on a Tier-0 statutory store was undeclared until the
+    path-role fix made the destination visible. This test fails if REPLACE is
+    dropped, if the entry drifts onto the audit file, or if the temp companion
+    is mistaken for the durable authority.
+    """
+    entry = next(e for e in al.load() if e["allowlist_id"] == "compliance.dpdp_requests.store")
+    assert "REPLACE" in entry["access_modes"]
+    assert entry["file"] == "app/platform/dpdp.py"
+    assert entry["line_or_symbol"] == "_REQUESTS_FILE"
+    # Must bind to the requests file, never the sibling audit file.
+    assert entry["path_pattern"] == "data/dpdp_requests.jsonl"
+
+    real = [
+        f
+        for f in findings
+        if f.get("file") == "app/platform/dpdp.py"
+        and f.get("symbol") == "_REQUESTS_FILE"
+        and f.get("operation") == scan.REPLACE
+    ]
+    assert real, "no real REPLACE finding binds this entry"
+    # The durable authority, not the temporary companion.
+    for f in real:
+        assert ".tmp_dpdp" not in str(f.get("resolved_path") or "")
+        assert "dpdp_audit" not in str(f.get("resolved_path") or "")
+
+
+def test_store_family_count_is_derived_not_typed() -> None:
+    """I reported "4 store families" while listing five names.
+
+    The count must come from the data, and the names must reconcile with it —
+    a summary that disagrees with its own list is how a wrong number survives
+    a review.
+    """
+    entries = al.load()
+    families = {e["store_id"] for e in entries}
+    # Derived facts, re-pinned when a family is genuinely added:
+    # 2026-07-27 +2 entries / +1 family for devcontrol.external_missions.
+    # 2026-07-28 +5 entries / +2 families: the two external-mission call-site
+    # entries (same family, previously undeclared modes) and the calling-safety
+    # writers this branch authored — telephony.voice_kill_switch (authority +
+    # atomic temp) and telephony.call_recordings.
+    assert len(entries) == 16
+    assert len(families) == 8, sorted(families)
+    # Every entry must name a family that the manifest actually knows.
+    known = {s["store_id"] for s in manifest.STORES}
+    assert families <= known, sorted(families - known)
+    assert families == {
+        "billing.invoices",
+        "billing.upi_payments",
+        "compliance.dpdp_audit",
+        "compliance.email_suppression",
+        "customers.identity",
+        "devcontrol.external_missions",
+        "telephony.call_recordings",
+        "telephony.voice_kill_switch",
+    }
+    # No alias: distinct manifest authorities, not renames of one another.
+    assert len({f.split(".")[0] for f in families}) == 5
+
+
+def test_every_entry_maps_to_a_real_store_family() -> None:
+    known = {s["store_id"] for s in manifest.STORES}
+    for e in al.load():
+        assert e["store_id"] in known, f"{e['allowlist_id']} -> {e['store_id']}"
+
+
+def test_no_blanket_file_entries() -> None:
+    """A whole-file exception would excuse writes nobody reviewed."""
+    for e in al.load():
+        assert e["line_or_symbol"] not in ("*", "", None)
+        assert not str(e["line_or_symbol"]).startswith("*")
+
+
+def test_locks_map_to_the_store_they_protect() -> None:
+    """A lock is not its own logical store, and must not drift from its data."""
+    by_id = {e["allowlist_id"]: e for e in al.load()}
+    lock = by_id["billing.invoices.lock"]
+    data = by_id["billing.invoices.store"]
+    assert lock["store_id"] == data["store_id"]
+
+
+# ------------------------------------------------------------ rejection cases
+
+
+def test_unknown_store_id_rejected() -> None:
+    problems = al.validate([_entry(store_id="does.not.exist")])
+    assert any("unknown store_id" in p for p in problems)
+
+
+def test_missing_owner_rejected() -> None:
+    e = _entry()
+    del e["owner"]
+    assert any("missing required fields" in p for p in al.validate([e]))
+
+
+def test_missing_migration_wave_rejected() -> None:
+    e = _entry()
+    del e["migration_tier"]
+    assert any("missing required fields" in p for p in al.validate([e]))
+
+
+def test_missing_review_condition_rejected() -> None:
+    e = _entry()
+    del e["review_condition"]
+    assert any("missing required fields" in p for p in al.validate([e]))
+
+
+def test_duplicate_entries_rejected() -> None:
+    e = _entry()
+    problems = al.validate([e, copy.deepcopy(e)])
+    assert any("duplicate allowlist_id" in p for p in problems)
+
+
+def test_writer_against_immutable_store_rejected() -> None:
+    problems = al.validate([_entry(store_id="static.legal_documents", access_modes=["REWRITE"])])
+    assert any("immutable store" in p for p in problems)
+
+
+def test_production_writer_filed_as_fixture_rejected() -> None:
+    problems = al.validate([_entry(production_relevance="FIXTURE")])
+    assert any("filed as FIXTURE" in p for p in problems)
+
+
+def test_stale_entry_rejected(findings) -> None:
+    """The entry survives; the code it excused does not."""
+    stale = _entry(
+        allowlist_id="stale.one",
+        file="app/billing/gst_invoice.py",
+        line_or_symbol="_SYMBOL_THAT_DOES_NOT_EXIST",
+    )
+    problems = al.validate([stale], findings=findings)
+    assert any("STALE" in p for p in problems)
+
+
+def test_operation_mismatch_rejected(findings) -> None:
+    """Declaring READ over code that appends must not pass.
+
+    This check found real mismatches in the first draft of the shipped
+    allowlist — parent-directory CREATE calls that the entries had not
+    declared — which is precisely why it exists.
+    """
+    narrow = _entry(allowlist_id="narrow", access_modes=["READ"])
+    problems = al.validate([narrow], findings=findings)
+    assert any("operation mismatch" in p for p in problems)
+
+
+def test_declared_path_must_match_the_code() -> None:
+    """The .json / .jsonl discrepancy that an outside reader caught.
+
+    I declared `data/marketing_clients.json` for a store whose code says
+    `os.path.join("data", "marketing_clients.jsonl")`. Every other check passed
+    because nothing compared the declared PATH to the source. A substring test
+    would still have missed it -- `.json` is a prefix of `.jsonl` -- so the
+    basename must be followed by a non-filename character.
+    """
+    problems = al.validate([_entry(path_pattern="data/marketing_clients.json")])
+    assert any("does not match the code" in p for p in problems)
+
+    ok = al.validate([_entry(path_pattern="data/invoices.jsonl")])
+    assert not any("does not match the code" in p for p in ok)
+
+
+def test_identity_store_is_jsonl_single_authority() -> None:
+    """There is ONE customer registry file, and it is `.jsonl`.
+
+    Resolved from code rather than from the name: clients_store.py binds
+    `marketing_clients.jsonl`, the manifest's legacy_paths list the same file
+    plus its `.lock`, and both dashboard modules document `.jsonl` as the read
+    source. No `.json` store exists, so this was a reporting error, not a dual
+    store or a drift.
+    """
+    entries = {e["allowlist_id"]: e for e in al.load()}
+    assert entries["customers.identity.store"]["path_pattern"].endswith(".jsonl")
+    assert entries["customers.identity.atomic_tmp"]["path_pattern"].endswith(".jsonl.tmp")
+
+    src = (_REPO / "app" / "marketing" / "clients_store.py").read_text(encoding="utf-8")
+    assert "marketing_clients.jsonl" in src
+    # The bare `.json` form must not exist anywhere as a real path literal.
+    assert '"marketing_clients.json"' not in src
+    assert "'marketing_clients.json'" not in src
+
+
+# ------------------------------------------- finding binding (PRIMARY proof)
+
+
+def test_every_shipped_entry_binds_to_a_real_finding(findings) -> None:
+    """The durable invariant: a declaration must describe detected code.
+
+    Text search alone is not evidence — a comment, docstring, error message or
+    dead constant satisfies it. That is exactly how `marketing_clients.json`
+    survived: the module genuinely contains that substring, inside `.jsonl`.
+    """
+    problems = al._check_finding_binding(al.load(), findings)
+    assert problems == [], "\n  ".join(problems)
+
+
+def test_unbound_entry_is_rejected(findings) -> None:
+    ghost = _entry(allowlist_id="ghost", line_or_symbol="_NO_SUCH_SYMBOL")
+    problems = al._check_finding_binding([ghost], findings)
+    assert any("declaration is unbound" in p for p in problems)
+
+
+def test_path_mismatch_against_findings_is_rejected(findings) -> None:
+    """`.json` must not bind to a `.jsonl` finding."""
+    bad = _entry(
+        allowlist_id="typo",
+        file="app/marketing/clients_store.py",
+        line_or_symbol="path",
+        path_pattern="data/marketing_clients.json",
+        store_id="customers.identity",
+        access_modes=["REWRITE", "READ", "CREATE", "APPEND"],
+    )
+    problems = al._check_finding_binding([bad], findings)
+    assert any("does not match any detected path" in p for p in problems)
+
+
+def test_conflicting_store_claims_are_rejected(findings) -> None:
+    a = _entry(allowlist_id="a", store_id="billing.invoices")
+    b = _entry(allowlist_id="b", store_id="compliance.dpdp_audit")
+    problems = al._check_finding_binding([a, b], findings)
+    assert any("conflicting store ids" in p for p in problems)
+
+
+@pytest.mark.parametrize(
+    "declared,detected,expected",
+    [
+        ("data/marketing_clients.jsonl", "os.path.join('data', 'marketing_clients.jsonl')", True),
+        ("data/marketing_clients.json", "os.path.join('data', 'marketing_clients.jsonl')", False),
+        (
+            "data/marketing_clients.jsonl.tmp",
+            "os.path.join('data', 'marketing_clients.jsonl')",
+            True,
+        ),
+        (
+            "data/marketing_clients.jsonl.lock",
+            "os.path.join('data', 'marketing_clients.jsonl')",
+            True,
+        ),
+        ("data/client", "data/client_secrets.jsonl", False),
+        ("data/x.jsonl", "Path('data') / 'x.jsonl'", True),
+        ("data//x.jsonl", "./data/x.jsonl", True),
+    ],
+)
+def test_path_component_boundaries(declared: str, detected: str, expected: bool) -> None:
+    """Prefix matching is unsafe, and not hypothetically so."""
+    assert al.path_components_match(declared, detected) is expected
+
+
+def test_text_only_occurrence_does_not_bind(findings) -> None:
+    """A basename that exists ONLY in prose must not satisfy a declaration.
+
+    The secondary source-text check would accept this; the finding binding is
+    what refuses it.
+    """
+    prose_only = _entry(
+        allowlist_id="prose",
+        file="app/platform/runtime_data_allowlist.py",  # mentions paths in docstrings
+        line_or_symbol="_NOT_A_REAL_SYMBOL",
+        path_pattern="data/marketing_clients.jsonl",
+    )
+    problems = al._check_finding_binding([prose_only], findings)
+    assert any("unbound" in p for p in problems)
+
+
+def test_missing_file_rejected() -> None:
+    problems = al.validate([_entry(file="app/gone/away.py")])
+    assert any("no longer exists" in p for p in problems)
+
+
+# --------------------------------------------------------------- gate shape
+
+
+def test_coverage_counters_are_derived(findings) -> None:
+    cov = al.coverage(findings)
+    assert set(cov) >= {
+        "undeclared_mutable_paths",
+        "ambiguous_mutable_paths",
+        "declared_legacy_writes",
+        "declared_legacy_reads",
+    }
+    for v in cov.values():
+        assert isinstance(v, int)
+
+
+def test_declared_entries_actually_reclassify_findings(findings) -> None:
+    """Anti-vacuity: the allowlist must CHANGE the outcome.
+
+    Without this, every rejection test above could pass against an allowlist
+    that the scanner ignores entirely.
+    """
+    with_list = al.coverage(findings)
+    without = al.coverage(scan.scan_repo(_REPO, allowlist=[]))
+    assert with_list["declared_legacy_writes"] > 0
+    assert without["declared_legacy_writes"] == 0
+    assert with_list["undeclared_mutable_paths"] < without["undeclared_mutable_paths"]
+
+
+def test_store_manifest_still_validates() -> None:
+    """Regression: the scanner batch must not disturb store accounting."""
+    assert manifest.validate() == []
+    counts = manifest.counts()
+    # The scanner batch is discovery + declaration only. If either number moves
+    # it means a store family was silently added or a blocker silently dropped,
+    # which must happen through an evidence-backed manifest edit, not as a
+    # side effect of building a scanner.
+    # 2026-07-27: 22 -> 23 / 16 -> 17 via an evidence-backed manifest edit for
+    # devcontrol.external_missions (PR #147). It is a blocker because its root,
+    # EXTERNAL_MISSION_DIR, defaults to data/external_missions INSIDE the
+    # checkout, so migration_state stays LEGACY_IN_CHECKOUT until production is
+    # proven to point it at a mounted root.
+    # 2026-07-27, second evidence-backed edit: +4 calling-safety families
+    # (23 -> 27, 17 -> 21). Each defaults inside the checkout, so each blocks.
+    assert counts["unique_families"] == 27
+    assert counts["deployment_blockers"] == 21
+    by_id = {s["store_id"]: s for s in manifest.STORES}
+    ext = by_id["devcontrol.external_missions"]
+    assert ext["migration_tier"] == manifest.TIER_1
+    assert manifest.derived_blocker(ext) is True
+    # Calling-safety controls are Tier 0 and must every one of them block a
+    # destructive deploy: losing the file returns the control to its default.
+    for sid in (
+        "telephony.calling_safety_config",
+        "telephony.dial_suppression",
+        "telephony.voice_kill_switch",
+    ):
+        assert by_id[sid]["migration_tier"] == manifest.TIER_0, sid
+        assert manifest.derived_blocker(by_id[sid]) is True, sid
+    rec = by_id["telephony.call_recordings"]
+    assert rec["migration_tier"] == manifest.TIER_2
+    assert manifest.derived_blocker(rec) is True
+    # The audit ledger stays OUT until it has its own reader/writer evidence.
+    assert "telephony.dial_suppression_audit" not in by_id

@@ -54,6 +54,10 @@ jobs:
           # day-key layer pe hai jo heuristic nahi dekhta). Naya gap = RED.
           IDEM_AUDIT_MAX_GAPS: "117"
         run: python scripts/queue_idempotency_audit.py
+      # NOTE: the two runtime-data gates live in the `tests` job, not here.
+      # They import app.platform (-> pydantic) and this job installs only ruff,
+      # so here they could never do anything but ModuleNotFoundError.
+
       - name: Dependency vulnerability scan  # MUST-PASS — no known CVEs in dependencies
         run: |
           pip install pip-audit
@@ -103,6 +107,24 @@ jobs:
           # pydantic-core forward (2.47.0), past what pydantic 2.13.4 needs (==2.46.4),
           # breaking app.main import in prod_check. Re-pin to the lock version.
           pip install --no-deps --force-reinstall "pydantic-core==2.46.4"
+      - name: Runtime-data mutable-path allowlist  # MUST-PASS — allowlist must match live code
+        # Schema + allowlist coherence: no stale entries, no unknown store ids,
+        # no operation mismatch, no writer filed against an immutable store.
+        # Offline, deterministic, no network, no production access.
+        # Lives here (not in the lint job) because it imports app.platform.
+        run: python scripts/runtime_data_path_scan.py validate
+
+      - name: Runtime-data debt ratchet  # MUST-PASS — no NEW undeclared writers
+        # Monotonic gate. Existing frozen debt (KNOWN_UNRESOLVED_DEBT) is
+        # tolerated; a new undeclared/ambiguous finding or a classification
+        # regression FAILS. Compared by fingerprint, not by count, because
+        # "one dangerous writer added + one unrelated finding removed" leaves
+        # the count unchanged.
+        # No baseline auto-update here — regenerating is a local, reviewed,
+        # committed action (scripts/runtime_data_baseline_gen.py). There is no
+        # bypass variable and no --accept-current-state anywhere.
+        run: python scripts/runtime_data_path_scan.py ratchet
+
       - name: Production readiness check
         run: python scripts/prod_check.py
       - name: Pytest (skip network/LLM-key tests)

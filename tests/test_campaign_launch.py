@@ -201,9 +201,7 @@ def test_run_campaign_task_no_prospects_never_dials(monkeypatch, fake_redis):
     monkeypatch.setattr(
         "app.telephony.campaign_compliance.trai_window_ok", lambda *a, **k: (True, "")
     )
-    monkeypatch.setattr(
-        "app.telephony.campaign_compliance.readiness_ok", lambda: (True, 100, [])
-    )
+    monkeypatch.setattr("app.telephony.campaign_compliance.readiness_ok", lambda: (True, 100, []))
     monkeypatch.setattr(ct, "get_db_session", lambda: _fake_ctx(object()))
     monkeypatch.setattr(ct, "_get_campaign_prospects", lambda db, limit, niche: [])
     dial_called = []
@@ -224,9 +222,7 @@ def test_run_campaign_task_marks_placed_leads_and_releases_lock(monkeypatch, fak
     monkeypatch.setattr(
         "app.telephony.campaign_compliance.trai_window_ok", lambda *a, **k: (True, "")
     )
-    monkeypatch.setattr(
-        "app.telephony.campaign_compliance.readiness_ok", lambda: (True, 100, [])
-    )
+    monkeypatch.setattr("app.telephony.campaign_compliance.readiness_ok", lambda: (True, 100, []))
 
     class _FakeLead:
         id = "lead_1"
@@ -297,8 +293,30 @@ class _FakeCampaignLead:
         self.niche = "salon"
 
 
+@pytest.fixture
+def kill_disengaged(monkeypatch):
+    """Opt-in: state the calling-safety precondition for tests about OTHER gates.
+
+    The admin kill reader is fail-CLOSED — a missing, unreadable or malformed
+    authority file ENGAGES the kill. The dialer tests below predate that and
+    silently relied on "no kill file" meaning "safe to dial", so they were
+    asserting call_attempts bookkeeping against a run in which no provider was
+    ever invoked. Their failure was the reader working, not the bookkeeping
+    breaking.
+
+    ENV is final in the reader, so `0` is the explicit, valid, disengaged
+    authority — the same shape tests/test_voice_launch.py already uses.
+
+    Deliberately NOT autouse: a global disengage would re-open the fail-open
+    hole for every future test in this file. The tests that PROVE an absent or
+    malformed authority blocks dialing live in
+    tests/test_voice_launch_kill_failclosed.py and must never take this fixture.
+    """
+    monkeypatch.setenv("VOICE_LAUNCH_KILL", "0")
+
+
 def test_dial_vobiz_campaign_marks_call_attempts_inline_per_lead(
-    monkeypatch, fake_campaign_db
+    kill_disengaged, monkeypatch, fake_campaign_db
 ):
     """Each placed call commits its own Lead.call_attempts update immediately
     (fire_calls.py-style crash-safety) — not one batched update after the
@@ -338,7 +356,7 @@ def test_dial_vobiz_campaign_marks_call_attempts_inline_per_lead(
 
 
 def test_dial_vobiz_campaign_earlier_commits_survive_mid_loop_failure(
-    monkeypatch, fake_campaign_db
+    kill_disengaged, monkeypatch, fake_campaign_db
 ):
     """If the 2nd call blows up mid-loop, lead_1's mark_called commit must
     already have happened — proving a crash/kill after this point does not
@@ -377,7 +395,9 @@ def test_dial_vobiz_campaign_earlier_commits_survive_mid_loop_failure(
     assert len(fake_campaign_db.updates) == 1
 
 
-def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(monkeypatch):
+def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(
+    kill_disengaged, monkeypatch
+):
     """The mocked-query tests above (fake_campaign_db) only record the update
     dict passed to .update() — they never execute real SQL, so they can't
     catch `Lead.call_attempts + 1` compiling to `NULL + 1 = NULL` for a
@@ -418,8 +438,7 @@ def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(monke
         session.commit()
         session.expire_all()
         assert (
-            session.query(Lead).filter(Lead.id == "lead_null_attempts").one().call_attempts
-            is None
+            session.query(Lead).filter(Lead.id == "lead_null_attempts").one().call_attempts is None
         ), "test setup failed to produce a real NULL row"
 
         class _FakeVobizClient:
@@ -438,9 +457,7 @@ def test_dial_vobiz_campaign_increments_null_call_attempts_against_real_db(monke
 
         monkeypatch.setattr(ct.asyncio, "sleep", _fast_sleep)
 
-        asyncio.run(
-            ct._dial_vobiz_campaign(session, [lead], False, "promotional", "", False)
-        )
+        asyncio.run(ct._dial_vobiz_campaign(session, [lead], False, "promotional", "", False))
 
         session.expire_all()
         refreshed = session.query(Lead).filter(Lead.id == "lead_null_attempts").one()
@@ -461,9 +478,7 @@ def test_run_campaign_task_never_raises_on_dial_exception(monkeypatch, fake_redi
     monkeypatch.setattr(
         "app.telephony.campaign_compliance.trai_window_ok", lambda *a, **k: (True, "")
     )
-    monkeypatch.setattr(
-        "app.telephony.campaign_compliance.readiness_ok", lambda: (True, 100, [])
-    )
+    monkeypatch.setattr("app.telephony.campaign_compliance.readiness_ok", lambda: (True, 100, []))
 
     class _FakeLead:
         id = "lead_1"
@@ -508,16 +523,26 @@ def test_process_callbacks_handles_null_call_attempts_against_real_db(monkeypatc
     session = Session()
     try:
         now = datetime.utcnow()
-        session.add_all([
-            Lead(
-                id="cb_1", company_name="A", phone="9876500001", niche="salon",
-                status=LeadStatus.CALLBACK, next_call_at=now,
-            ),
-            Lead(
-                id="cb_2", company_name="B", phone="9876500002", niche="salon",
-                status=LeadStatus.CALLBACK, next_call_at=now,
-            ),
-        ])
+        session.add_all(
+            [
+                Lead(
+                    id="cb_1",
+                    company_name="A",
+                    phone="9876500001",
+                    niche="salon",
+                    status=LeadStatus.CALLBACK,
+                    next_call_at=now,
+                ),
+                Lead(
+                    id="cb_2",
+                    company_name="B",
+                    phone="9876500002",
+                    niche="salon",
+                    status=LeadStatus.CALLBACK,
+                    next_call_at=now,
+                ),
+            ]
+        )
         session.commit()
         # cb_2 gets a genuine NULL call_attempts (bulk-imported row) — see the
         # note in test_dial_vobiz_campaign_increments_null_call_attempts_

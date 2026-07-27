@@ -2,6 +2,11 @@
 set -e
 cd /opt/leadgen
 
+# GUARD FIRST — `git reset --hard` below reverts tracked files under data/,
+# which is where live invoices, consent, suppression and customer identity
+# currently live. The preflight must deny before anything is mutated.
+. "$(dirname "$0")/_runtime_data_guard.sh"
+
 echo "=== [1/6] git pull ==="
 git fetch --all --tags
 git reset --hard origin/main

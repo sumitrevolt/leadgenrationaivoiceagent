@@ -33,6 +33,48 @@ DRY_RUN="${DRY_RUN:-0}"
 
 cd "$REPO" || { echo "FATAL: $REPO not found"; exit 1; }
 
+# ---------------------------------------------------- runtime-data guard
+# CANONICAL NORMAL-RELEASE PARENT. This is the protected entry point for
+# ordinary production releases; recovery, database-restore, bootstrap and
+# config-preparation keep their own parents because their semantics differ.
+#
+# Must precede the `git pull` below and every Compose rollout further down:
+# live invoices, consent, suppression, customer identity and 182 MB of DPDP
+# call recordings still live inside this checkout, so a release that moves
+# HEAD can carry tracked data files over them.
+#
+# The `|| exit 91` is load-bearing and is NOT a stylistic flourish. This script
+# runs under `set -uo pipefail` with NO `-e`, so a FAILED `.` source does not
+# abort it: if _runtime_data_guard.sh were renamed, deleted, or unreadable, the
+# shell would print "No such file or directory", carry on, and reach the
+# `git pull` below completely unguarded. A behavioural harness caught exactly
+# that (tests/test_deploy_parent_behaviour.py) — the textual "guard line comes
+# before git pull" test could not, because the line WAS there and still failed
+# open. 91 = guard unavailable, distinct from 90 = guard ran and denied.
+_guard_sh="$(dirname "$0")/_runtime_data_guard.sh"
+if [ ! -r "$_guard_sh" ]; then
+  echo "FATAL: runtime-data guard not found or unreadable at: $_guard_sh"
+  echo "       Refusing to deploy unguarded. Restore the guard, do not remove the call."
+  exit 91
+fi
+# shellcheck source=scripts/_runtime_data_guard.sh
+. "$_guard_sh" || exit 91
+
+# ------------------------------------------------- canonical deployment gate
+# Must precede EVERY mutating step (git pull, build, compose, restart) and both
+# sha-resolution branches — putting it inside one branch would let an explicit
+# APP_VERSION skip the gate entirely.
+# One authority: the same checker CI runs, plus the deploy-only gates. A private
+# voice-kill check in this script would be a second authority and a bypass
+# waiting to happen, so the classification stays in prod_check.py.
+# VOICE_LAUNCH_KILL is read there from the environment; it is never echoed.
+echo "=== preflight: prod_check.py --deployment ==="
+if ! python3 scripts/prod_check.py --deployment; then
+  echo "FATAL: deployment preflight failed — refusing to deploy."
+  echo "       No remote, image or container action has been taken."
+  exit 1
+fi
+
 # ---------------------------------------------------------------- resolve sha
 # 2026-07-16 hardening: pull-fail + SHA/HEAD mismatch used to silently rebuild
 # whatever dirty tree was on disk while claiming a different APP_VERSION in the
