@@ -1,29 +1,25 @@
 # SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-Build first real unattended local Cursor→Claude runner slice on merged PR #146 foundation.
+PR #147 fourth (final authorized) review/fix cycle — credential isolation + real subprocess proof.
 
-## Outcome — COMPLETE (local dogfood; draft PR pending push)
-- Worktree: `C:\Users\Ratanshila\Documents\_leadgen_worktrees\lg-external-runner`
-- Branch: `feat/external-agent-runner-v1` from `origin/main` @ `e64b8a9d`
-- Flag: `EXTERNAL_AGENT_RUNNER` (default OFF; requires orchestrator ON)
-- Continuous dogfood: mission `msn_b2a592093c484efa` → Cursor Agent CLI implement → Claude review → `REVIEW_PASSED`
-- Artifact: `lg-dogfood-a061f8` / `feat/ext-dogfood-a061f8` / `STATUS.txt` = `RUNNER_DOGFOOD_OK`
-- Tests: runner+orchestrator+multiprocess 66; OpenClaw/OwnerOS/dev-control regression green; `prod_check` OK; secrets OK; Bandit OK
-- Prod `/health`: `f096a08d` — NOT DEPLOYED; orchestrator OFF; runner OFF; calling HARD OFF
+## Outcome — IN PROGRESS (pre-Claude-4)
+- MEDIUM1 fixed: deny-by-default child env; no CURSOR_*/CLAUDE_* wildcards; Claude disallows Bash
+- MEDIUM2 fixed: owned `process_helper.py` + real non-mocked integration suite
+- Local gates green (runner/orchestrator/multiprocess/OpenClaw/OwnerOS/dev-control/auth + prod_check/secrets/security_scan/ruff/bandit)
+- Awaiting commit/push + fourth Claude independent review before ready-for-review
 
-## Head
-- Base: `e64b8a9d10bcf6084488b34f886f77a5752f13f8` (merged #146)
-- Branch tip: `1aee55096156b7eb66395a85926a3407a508ff76`
-- Draft PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/147
-- Prod: `f096a08d`
+## Review ledger
+1. `msn_fd262f6768144412` @ `ad3faf42` → CHANGES_REQUIRED → fixed `fb52733`
+2. `msn_68bfb89f59bf4f20` @ `fb52733` → CHANGES_REQUIRED (HIGH remote-remove) → fixed `f9bcd0de`
+3. `msn_21a18d1ed014444c` @ `f9bcd0de` → CHANGES_REQUIRED (env + mocked subprocess)
+4. Cycle 4 authorized — fix landing; Claude-4 mission pending after push
 
-## Owner next (separate gates — do not combine)
-1. Merge runner PR (draft first)
-2. Deploy code with flags still OFF
-3. Windows/local canary enablement
-4. Production orchestrator enablement
-5. Production runner enablement
+## Head (pre-commit)
+- Branch: `feat/external-agent-runner-v1`
+- Tip before cycle-4 commit: `f9bcd0de049d2946adfc583419ff0f19316f6bcb`
+- PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/147 (draft)
+- Prod: `f096a08d` (NOT this branch)
 
-## Out of scope
-Prod flag flip · merge of dogfood worktree · deploy · calling · Swara · outreach · billing
+## Safety
+No merge · no deploy · prod orchestrator/runner OFF · calling HARD OFF · no 5th cycle without owner auth

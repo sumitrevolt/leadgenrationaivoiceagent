@@ -38,9 +38,20 @@ set EXTERNAL_AGENT_WORKTREE_ROOT=C:\Users\Ratanshila\Documents\_leadgen_worktree
 .venv\Scripts\python.exe scripts\external_agent_runner.py --mission-id msn_...
 ```
 
-Credential boundary: child processes inherit only an allowlisted env plus `CURSOR_*` /
-`CLAUDE_*` (including `CURSOR_API_KEY` when set). Prefer short-lived operator tokens;
-never bake secrets into images.
+Credential boundary (deny-by-default): child processes receive only an explicit
+OS scaffolding allowlist (`PATH`, `SYSTEMROOT`, locale, temp, and profile-dir
+keys needed for local Cursor/Claude auth stores). There is **no** `CURSOR_*` /
+`CLAUDE_*` wildcard inheritance. Optional exact `CURSOR_API_KEY` is forwarded
+only when `EXTERNAL_AGENT_PASS_CURSOR_API_KEY=1`. Prefer CLI local credential
+stores over env keys; never log credential values.
+
+`--trust` is required by Cursor Agent non-interactive print mode for a
+pre-provisioned workspace. Containment is **not** provided by `--trust`; it
+comes from the dedicated `feat/ext-*` worktree, deny-by-default env, allowlisted
+argv, post-run git-observed path scope, worktree `pushurl=disabled://no-push`,
+and dual-flag inert defaults.
+
+Claude read-only review disallows `Write,Edit,NotebookEdit,Bash`.
 
 Admin: `/dev-control` missions card shows runner ENABLED/OFF badge.
 

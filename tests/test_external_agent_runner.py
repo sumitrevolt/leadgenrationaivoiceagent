@@ -134,6 +134,31 @@ def test_env_injection_refused():
         sanitize_env({"MALICIOUS_SECRET": "x"})
 
 
+def test_env_deny_by_default_no_cursor_claude_wildcard(monkeypatch):
+    monkeypatch.setenv("CURSOR_TEST_SECRET", "leak-cursor-" + os.urandom(2).hex())
+    monkeypatch.setenv("CLAUDE_TEST_SECRET", "leak-claude-" + os.urandom(2).hex())
+    monkeypatch.setenv("GH_TOKEN", "leak-gh-" + os.urandom(2).hex())
+    monkeypatch.setenv("DATABASE_URL", "postgres://x")
+    monkeypatch.setenv("AWS_SECRET_ACCESS_KEY", "aws-" + os.urandom(2).hex())
+    env = sanitize_env(profile="cursor")
+    assert "CURSOR_TEST_SECRET" not in env
+    assert "CLAUDE_TEST_SECRET" not in env
+    assert "GH_TOKEN" not in env
+    assert "DATABASE_URL" not in env
+    assert "AWS_SECRET_ACCESS_KEY" not in env
+    assert not any(k.upper().startswith("CURSOR_") for k in env if k.upper() != "CURSOR_API_KEY")
+    assert not any(k.upper().startswith("CLAUDE_") for k in env)
+
+
+def test_claude_disallows_bash():
+    from app.dev_control.external_agents.runner.claude_exec import build_claude_argv
+
+    argv = build_claude_argv("review please", add_dir="C:/tmp/wt")
+    joined = " ".join(argv)
+    assert "Bash" in joined
+    assert "--disallowedTools" in argv
+
+
 def test_worktree_outside_root_refused(tmp_path):
     with pytest.raises(ProcessSafetyError):
         assert_worktree_allowed(str(tmp_path / "nope"), allowed_root=str(tmp_path / "root"))
