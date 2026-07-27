@@ -14,7 +14,8 @@ Build first real unattended local Cursor→Claude runner slice on merged PR #146
 
 ## Head
 - Base: `e64b8a9d10bcf6084488b34f886f77a5752f13f8` (merged #146)
-- Branch tip: (commit after this handoff write)
+- Branch tip: `1aee55096156b7eb66395a85926a3407a508ff76`
+- Draft PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/147
 - Prod: `f096a08d`
 
 ## Owner next (separate gates — do not combine)
