@@ -112,7 +112,12 @@ def build_review_prompt(
 
 
 def extract_usage_from_cli_json(stdout: str) -> dict[str, float | int]:
-    """Parse token/cost fields from Cursor/Claude ``--output-format json`` envelopes."""
+    """Parse token/cost fields from Cursor/Claude ``--output-format json`` envelopes.
+
+    Budget tokens = input + output (+ cache *writes*). Cache *reads* are excluded —
+    Cursor/Claude envelopes often report hundreds of thousands of cache-read tokens
+    that would false-trip ``token_budget`` on tiny GREEN missions.
+    """
     tokens = 0
     cost = 0.0
     try:
@@ -126,11 +131,9 @@ def extract_usage_from_cli_json(stdout: str) -> dict[str, float | int]:
         for k in (
             "input_tokens",
             "output_tokens",
-            "cache_read_input_tokens",
             "cache_creation_input_tokens",
             "inputTokens",
             "outputTokens",
-            "cacheReadTokens",
             "cacheWriteTokens",
         ):
             try:
@@ -152,7 +155,6 @@ def extract_usage_from_cli_json(stdout: str) -> dict[str, float | int]:
                 for k in (
                     "inputTokens",
                     "outputTokens",
-                    "cacheReadInputTokens",
                     "cacheCreationInputTokens",
                 ):
                     try:
