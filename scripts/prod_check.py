@@ -14,7 +14,9 @@ Checks:
 Exit code 0 = ready, 1 = problems found.
 """
 
+import argparse
 import ast
+import os
 import pathlib
 import sys
 
@@ -244,6 +246,62 @@ def _automation_wiring_gaps() -> list[str]:
     return gaps
 
 
+#: Kept local on purpose: coupling the deployment gate to app.telephony would
+#: drag the runtime import graph into a script that must stay light.
+_VLK_TRUE = ("1", "true", "yes", "on")
+_VLK_FALSE = ("0", "false", "no", "off")
+
+
+def classify_voice_launch_kill_env(value: str | None) -> str:
+    """Class of the raw VOICE_LAUNCH_KILL setting. Pure: no I/O, no logging.
+
+    Returns one of UNSET / TRUE_TOKEN / FALSE_TOKEN / INVALID_TOKEN. The value
+    itself is never returned, logged or embedded in a message.
+    """
+    v = (value or "").strip().lower()
+    if not v:
+        return "UNSET"
+    if v in _VLK_TRUE:
+        return "TRUE_TOKEN"
+    if v in _VLK_FALSE:
+        return "FALSE_TOKEN"
+    return "INVALID_TOKEN"
+
+
+def check_voice_launch_kill_env() -> dict[str, str]:
+    """Deployment gate for the voice kill switch ENV authority.
+
+    Preflight is STRICTER than runtime, and deliberately so:
+
+      * TRUE_TOKEN  — kill explicitly engaged. The only shippable state.
+      * UNSET       — deployment cannot prove explicit calling refusal.
+      * FALSE_TOKEN — runtime treats this as ENV_DISENGAGED, which means the
+                      file-based emergency toggle is INERT: an operator could
+                      write {"kill": true} and nothing would happen. Shipping
+                      that silently is the hazard, so it blocks rather than warns.
+      * INVALID_TOKEN — the reader fails closed on it, but malformed config
+                      must not reach production.
+
+    Classifies the ENV layer only; it never reads, writes or creates the kill file.
+    """
+    classification = classify_voice_launch_kill_env(os.environ.get("VOICE_LAUNCH_KILL"))
+    reason = {
+        "TRUE_TOKEN": "EXPLICITLY_ENGAGED",
+        "UNSET": "ENV_NOT_CONFIGURED",
+        "FALSE_TOKEN": "ENV_EXPLICITLY_DISENGAGED",
+        "INVALID_TOKEN": "ENV_INVALID",
+    }[classification]
+    status = "PASS" if classification == "TRUE_TOKEN" else "BLOCKER"
+    if status == "BLOCKER":
+        PROBLEMS.append(f"voice_launch_kill_env: {classification} ({reason})")
+    return {
+        "check": "voice_launch_kill_env",
+        "classification": classification,
+        "status": status,
+        "reason": reason,
+    }
+
+
 def check_production_config() -> None:
     """Sanity-check settings for production deploys."""
     try:
@@ -337,9 +395,24 @@ def check_dev_control_invariants() -> None:
         print(f"[+] dev-control invariants skipped ({type(e).__name__}: {e})")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    # Two modes, ONE checker. `--deployment` is explicit rather than inferred
+    # from APP_ENV: an implicit signal would either never fire (CI is not
+    # production) or fire everywhere, and a gate that never runs is worse than
+    # no gate because it reads as green.
+    parser = argparse.ArgumentParser(
+        prog="prod_check.py",
+        description="Repository readiness check; --deployment adds the pre-deploy gates.",
+    )
+    parser.add_argument(
+        "--deployment",
+        action="store_true",
+        help="run the additional gates required before an actual production deploy",
+    )
+    args = parser.parse_args(argv)
+
     print("=" * 56)
-    print("PRODUCTION READINESS CHECK")
+    print("PRODUCTION READINESS CHECK" + (" — DEPLOYMENT MODE" if args.deployment else ""))
     print("=" * 56)
     check_sources_parse()
     check_stale_pycache()
@@ -350,6 +423,11 @@ def main() -> int:
     check_explorer_drift()
     check_api_docs_drift()
     check_dev_control_invariants()
+    if args.deployment:
+        # Deployment-only: an unset VOICE_LAUNCH_KILL is fine for a readiness
+        # run, but it is not fine for an actual deploy.
+        _vk = check_voice_launch_kill_env()
+        print(f"[+] voice_launch_kill_env: {_vk['classification']} ({_vk['status']})")
     print("-" * 56)
     # Warnings print BEFORE the verdict so they are visible on a passing run too —
     # a warning that only shows on failure is a warning nobody reads.
