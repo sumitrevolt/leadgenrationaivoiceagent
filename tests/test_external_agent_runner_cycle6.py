@@ -200,3 +200,59 @@ def test_heartbeat_lease_safety_ratio():
         heartbeat_interval_s=plan["heartbeat_interval_s"],
     )
     assert check["ok"] is True
+
+
+def test_amber_boolean_alone_refused_requires_decision_id(tmp_path, monkeypatch):
+    """Finding 5: admin boolean cannot authorize AMBER; Owner OS decision id required."""
+    from app.dev_control.external_agents import approval as amber_approval
+    from app.dev_control.external_agents import orchestrator, store
+    from app.platform import approvals_bridge
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data").mkdir()
+    created = orchestrator.create_mission(
+        title="prepare alembic migration for billing schema",
+        description="AMBER test",
+        executor="cursor",
+        reviewer="claude",
+        idempotency_key="amber-bool-" + os.urandom(4).hex(),
+        declared_risk="AMBER",
+        allowed_paths=["tests/fixtures/external_agent_runner/"],
+        branch="feat/ext-amber-bool",
+        worktree=str(tmp_path / "wt"),
+        base_sha="e64b8a9d10bcf6084488b34f886f77a5752f13f8",  # pragma: allowlist secret
+    )
+    mid = created["mission"]["mission_id"]
+    mission = store.get(mid)
+    assert mission is not None
+    assert mission.risk_class is RiskClass.AMBER
+    for state in (
+        MissionState.PREFLIGHT,
+        MissionState.CLAIMED,
+        MissionState.RUNNING,
+        MissionState.IMPLEMENTED,
+        MissionState.TESTING,
+        MissionState.REVIEW_REQUIRED,
+        MissionState.REVIEW_PASSED,
+        MissionState.PR_OPEN,
+        MissionState.CI_RUNNING,
+    ):
+        mission.transition(state)
+    store.save(mission)
+    denied = orchestrator.advance(mid, MissionState.MERGE_QUEUED, owner_approved=True)
+    assert denied["ok"] is False
+    req = amber_approval.request_amber_approval(
+        store.get(mid), target_state=MissionState.MERGE_QUEUED, actor="admin"
+    )
+    assert req["ok"]
+    approvals_bridge.decide(
+        "owner_os_verification",
+        req["approval_decision_id"],
+        "approve",
+        by="owner",
+        reason="ok",
+    )
+    ok = orchestrator.advance(
+        mid, MissionState.MERGE_QUEUED, approval_decision_id=req["approval_decision_id"]
+    )
+    assert ok["ok"] is True

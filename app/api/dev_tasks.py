@@ -602,7 +602,9 @@ class MissionReviewRequest(BaseModel):
 class MissionAdvanceRequest(BaseModel):
     target: str = Field(..., min_length=3, max_length=40)
     evidence: dict[str, Any] = Field(default_factory=dict)
+    # Deprecated: boolean alone never authorizes AMBER — use approval_decision_id.
     owner_approved: bool = False
+    approval_decision_id: str | None = Field(None, max_length=80)
 
 
 def _missions():
@@ -702,6 +704,7 @@ async def mission_advance(
             body.target,
             evidence=body.evidence,
             owner_approved=body.owner_approved,
+            approval_decision_id=body.approval_decision_id,
         )
     )
 

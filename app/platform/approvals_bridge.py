@@ -122,6 +122,7 @@ def create_verification_approval(
     by: str = "admin",
     ttl_hours: int = 24,
     note: str = "Internal disposable approval — no external side effects",
+    meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Create a disposable internal approval with ZERO external side effects.
 
@@ -150,6 +151,9 @@ def create_verification_approval(
         "expires_at": expires.isoformat(),
         "status": "pending",
     }
+    if isinstance(meta, dict) and meta:
+        # Binding fields for External Agent AMBER (and similar) — still one ledger.
+        row["meta"] = meta
     try:
         os.makedirs("data", exist_ok=True)
         with open(_VERIFICATION, "a", encoding="utf-8") as f:
@@ -157,6 +161,22 @@ def create_verification_approval(
     except Exception as e:
         return {"ok": False, "error": f"write_failed:{type(e).__name__}"}
     return {"ok": True, "draft": row, "id": item_id, "source": "owner_os_verification"}
+
+
+def get_verification_draft(item_id: str) -> dict[str, Any] | None:
+    """Latest verification draft row for ``item_id`` (append-only JSONL)."""
+    want = str(item_id or "").strip()
+    if not want:
+        return None
+    found: dict[str, Any] | None = None
+    try:
+        for r in _read_jsonl(_VERIFICATION):
+            iid = str(r.get("id") or r.get("item_id") or "")
+            if iid == want:
+                found = r
+    except Exception:
+        return found
+    return found
 
 
 def _drafts_verification(smap: dict) -> list[dict[str, Any]]:
