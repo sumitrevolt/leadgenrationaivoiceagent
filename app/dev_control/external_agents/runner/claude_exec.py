@@ -102,6 +102,57 @@ def build_review_prompt(
     )
 
 
+def extract_usage_from_cli_json(stdout: str) -> dict[str, float | int]:
+    """Parse token/cost fields from Cursor/Claude ``--output-format json`` envelopes."""
+    tokens = 0
+    cost = 0.0
+    try:
+        outer = json.loads(stdout)
+    except Exception:
+        return {"tokens_used": 0, "cost_usd": 0.0}
+    if not isinstance(outer, dict):
+        return {"tokens_used": 0, "cost_usd": 0.0}
+    usage = outer.get("usage") or {}
+    if isinstance(usage, dict):
+        for k in (
+            "input_tokens",
+            "output_tokens",
+            "cache_read_input_tokens",
+            "cache_creation_input_tokens",
+            "inputTokens",
+            "outputTokens",
+            "cacheReadTokens",
+            "cacheWriteTokens",
+        ):
+            try:
+                tokens += int(usage.get(k) or 0)
+            except Exception:
+                pass
+    try:
+        cost = float(outer.get("total_cost_usd") or outer.get("cost_usd") or 0.0)
+    except Exception:
+        cost = 0.0
+    mu = outer.get("modelUsage") or {}
+    if isinstance(mu, dict):
+        for meta in mu.values():
+            if isinstance(meta, dict):
+                try:
+                    cost += float(meta.get("costUSD") or 0.0)
+                except Exception:
+                    pass
+                for k in (
+                    "inputTokens",
+                    "outputTokens",
+                    "cacheReadInputTokens",
+                    "cacheCreationInputTokens",
+                ):
+                    try:
+                        tokens += int(meta.get(k) or 0)
+                    except Exception:
+                        pass
+    return {"tokens_used": tokens, "cost_usd": cost}
+
+
 def extract_review_manifest(stdout: str, mission_id: str) -> dict[str, Any]:
     try:
         outer = json.loads(stdout)

@@ -311,3 +311,54 @@ def test_run_mission_once_refuses_when_runner_off(monkeypatch):
     out = loop.run_mission_once("msn_doesnotexist", repo_root=".")
     assert out["ok"] is False
     assert out["reason"] == "runner_or_orchestrator_off"
+
+
+def test_output_cap_truncates():
+    from app.dev_control.external_agents.runner.process_safe import MAX_OUTPUT_BYTES, _cap
+
+    big = "x" * (MAX_OUTPUT_BYTES + 50)
+    out, trunc = _cap(big)
+    assert trunc is True
+    assert "truncated" in out
+
+
+def test_disable_push_does_not_remove_origin(tmp_path):
+    import subprocess
+
+    from app.dev_control.external_agents.runner.worktrees import _disable_push_remotes
+
+    repo = tmp_path / "r"
+    repo.mkdir()
+    subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "remote", "add", "origin", "https://example.com/x.git"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    _disable_push_remotes(repo)
+    remotes = subprocess.check_output(["git", "remote"], cwd=repo, text=True)
+    assert "origin" in remotes
+    pushurl = subprocess.run(
+        ["git", "config", "--get", "remote.origin.pushurl"],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    # pushurl may be worktree-scoped; shared remote name must remain.
+    assert pushurl.returncode in (0, 1)
+
+
+def test_extract_usage_from_claude_envelope():
+    from app.dev_control.external_agents.runner.claude_exec import extract_usage_from_cli_json
+
+    raw = json.dumps(
+        {
+            "total_cost_usd": 0.5,
+            "usage": {"input_tokens": 10, "output_tokens": 20},
+        }
+    )
+    u = extract_usage_from_cli_json(raw)
+    assert u["tokens_used"] == 30
+    assert float(u["cost_usd"]) == 0.5

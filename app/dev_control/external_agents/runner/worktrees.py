@@ -89,7 +89,20 @@ def ensure_mission_worktree(
 
 
 def _disable_push_remotes(wt: Path) -> None:
-    """Strip remotes so a trusted Cursor session cannot push from the mission worktree."""
+    """Prevent push from this worktree without mutating shared remotes.
+
+    Linked worktrees share ``remote.*`` with the primary repo. Never
+    ``git remote remove`` here — that would delete origin for every worktree.
+    Instead enable worktree-local config and set a disabled pushurl.
+    """
+    subprocess.run(
+        ["git", "-C", str(wt), "config", "extensions.worktreeConfig", "true"],
+        capture_output=True,
+        text=True,
+        shell=False,
+        timeout=15,
+        check=False,
+    )
     listed = subprocess.run(
         ["git", "-C", str(wt), "remote"],
         capture_output=True,
@@ -105,19 +118,18 @@ def _disable_push_remotes(wt: Path) -> None:
         if not name:
             continue
         subprocess.run(
-            ["git", "-C", str(wt), "remote", "remove", name],
+            [
+                "git",
+                "-C",
+                str(wt),
+                "config",
+                "--worktree",
+                f"remote.{name}.pushurl",
+                "disabled://no-push",
+            ],
             capture_output=True,
             text=True,
             shell=False,
             timeout=30,
             check=False,
         )
-    # Also re-disable when reusing an existing worktree.
-    subprocess.run(
-        ["git", "-C", str(wt), "config", "remote.pushDefault", ""],
-        capture_output=True,
-        text=True,
-        shell=False,
-        timeout=15,
-        check=False,
-    )

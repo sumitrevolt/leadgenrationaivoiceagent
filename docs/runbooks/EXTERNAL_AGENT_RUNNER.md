@@ -38,6 +38,10 @@ set EXTERNAL_AGENT_WORKTREE_ROOT=C:\Users\Ratanshila\Documents\_leadgen_worktree
 .venv\Scripts\python.exe scripts\external_agent_runner.py --mission-id msn_...
 ```
 
+Credential boundary: child processes inherit only an allowlisted env plus `CURSOR_*` /
+`CLAUDE_*` (including `CURSOR_API_KEY` when set). Prefer short-lived operator tokens;
+never bake secrets into images.
+
 Admin: `/dev-control` missions card shows runner ENABLED/OFF badge.
 
 API: `POST /api/dev-tasks/missions/{id}/run-runner` (admin, dual-flag gated).

@@ -273,14 +273,25 @@ def run_mission_once(
         manifest["scope_breach"] = True
         evidence["scope_breach_observed"] = breach
 
-    # Wall-clock budget (token/cost CLI caps are unavailable on free CLIs).
-    budget = policy.budget_check(mission, tokens_used=0, cost_usd=0.0)
+    # Wall-clock + measured CLI usage budget (when envelope provides it).
+    usage = claude_exec.extract_usage_from_cli_json(proc.stdout or "")
+    manifest = dict(manifest)
+    manifest["tokens_used"] = int(usage.get("tokens_used") or 0)
+    manifest["cost_usd"] = float(usage.get("cost_usd") or 0.0)
+    budget = policy.budget_check(
+        mission,
+        tokens_used=int(manifest["tokens_used"]),
+        cost_usd=float(manifest["cost_usd"]),
+    )
     if float(proc.duration_s or 0) > float(mission.max_runtime_s or exec_timeout):
         return {
             "ok": False,
             "reason": "wall_clock_budget_exceeded",
             "evidence": evidence,
         }
+    if not budget.get("allowed"):
+        evidence["budget"] = budget
+        return {"ok": False, "reason": budget.get("reason"), "evidence": evidence}
     evidence["budget"] = budget
 
     sr = orchestrator.submit_result(mission_id, owner, manifest)
@@ -324,6 +335,20 @@ def run_mission_once(
     }
     if not review:
         return {"ok": False, "reason": "review_manifest_missing", "evidence": evidence}
+
+    review_usage = claude_exec.extract_usage_from_cli_json(rproc.stdout or "")
+    review_budget = policy.budget_check(
+        mission,
+        tokens_used=int(review_usage.get("tokens_used") or 0),
+        cost_usd=float(review_usage.get("cost_usd") or 0.0),
+    )
+    evidence["review_budget"] = review_budget
+    if not review_budget.get("allowed"):
+        return {
+            "ok": False,
+            "reason": review_budget.get("reason"),
+            "evidence": evidence,
+        }
 
     # Ensure citations exist for adapter
     if not review.get("citations"):

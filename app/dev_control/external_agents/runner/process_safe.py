@@ -208,6 +208,7 @@ def run_allowlisted(
             encoding="utf-8",
             errors="replace",
             shell=False,
+            start_new_session=(os.name != "nt"),
         )
         # Slice communicate so lease-loss / cancel can terminate mid-run.
         remaining = max(1, int(timeout_s))
