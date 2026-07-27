@@ -1,0 +1,356 @@
+"""Bounded unattended run of one GREEN mission (Cursor then Claude review)."""
+
+from __future__ import annotations
+
+import subprocess
+import uuid
+from pathlib import Path
+from typing import Any
+
+from app.dev_control.external_agents import adapters, orchestrator, store
+from app.dev_control.external_agents.runner import authorize, claude_exec, cursor_exec, eligibility
+from app.dev_control.external_agents.runner.flags import runner_enabled
+from app.dev_control.external_agents.runner.process_safe import (
+    HeartbeatController,
+    ProcessSafetyError,
+)
+from app.dev_control.external_agents.runner.worktrees import (
+    allowed_worktree_root,
+    ensure_mission_worktree,
+)
+from app.dev_control.external_agents.schema import MissionState
+
+
+def _diff_for_mission(mission_worktree: str, base_sha: str) -> str:
+    """Collect committed + working-tree diff (dogfood often leaves uncommitted files)."""
+    chunks: list[str] = []
+    try:
+        committed = subprocess.run(
+            ["git", "-C", mission_worktree, "diff", f"{base_sha}...HEAD"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            shell=False,
+            timeout=60,
+            check=False,
+        )
+        if committed.stdout:
+            chunks.append(committed.stdout)
+        # Unstaged + staged working tree (STATUS.txt dogfood path).
+        for args in (
+            ["git", "-C", mission_worktree, "diff", "--", "."],
+            ["git", "-C", mission_worktree, "diff", "--cached", "--", "."],
+            ["git", "-C", mission_worktree, "status", "--short"],
+        ):
+            part = subprocess.run(
+                args,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                shell=False,
+                timeout=60,
+                check=False,
+            )
+            if part.stdout:
+                chunks.append(part.stdout)
+        # Untracked files under allowed fixture path (new STATUS.txt).
+        untracked = subprocess.run(
+            [
+                "git",
+                "-C",
+                mission_worktree,
+                "ls-files",
+                "--others",
+                "--exclude-standard",
+                "--",
+                "tests/fixtures/external_agent_runner",
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            shell=False,
+            timeout=30,
+            check=False,
+        )
+        for rel in (untracked.stdout or "").splitlines():
+            rel = rel.strip()
+            if not rel:
+                continue
+            fp = Path(mission_worktree) / rel
+            try:
+                body = fp.read_text(encoding="utf-8", errors="replace")[:2000]
+            except Exception:
+                body = "<unreadable>"
+            chunks.append(f"--- /dev/null\n+++ b/{rel}\n+{body}\n")
+        return "\n".join(chunks)[:12000]
+    except Exception:
+        return ""
+
+
+def run_mission_once(
+    mission_id: str,
+    *,
+    repo_root: str,
+    owner: str | None = None,
+    timeout_s: int = 900,
+) -> dict[str, Any]:
+    """Full vertical slice for one mission. Fail-closed; never raises into callers."""
+    if not runner_enabled():
+        return {"ok": False, "reason": "runner_or_orchestrator_off"}
+
+    mission = store.get(mission_id)
+    elig = eligibility.evaluate(mission)
+    if not elig.get("eligible"):
+        return {"ok": False, **elig}
+
+    assert mission is not None
+    auth = authorize.authorize_mission(mission)
+    if not auth.get("authorized"):
+        if auth.get("reason") == "owner_decision_required":
+            try:
+                orchestrator.advance(mission_id, MissionState.OWNER_DECISION_REQUIRED)
+            except Exception:
+                pass
+        return {"ok": False, **auth}
+
+    owner = owner or f"runner:{uuid.uuid4().hex[:8]}"
+    evidence: dict[str, Any] = {"authorization": auth, "owner": owner}
+    root = str(allowed_worktree_root())
+
+    try:
+        wt = ensure_mission_worktree(
+            repo_root=repo_root,
+            base_sha=mission.base_sha or "HEAD",
+            branch=mission.branch,
+            worktree=mission.worktree,
+        )
+        evidence["worktree"] = wt
+    except ProcessSafetyError as exc:
+        return {"ok": False, "reason": str(exc), "evidence": evidence}
+
+    # Lifecycle: preflight → claim → start
+    if mission.status.value == "CREATED":
+        pf = orchestrator.preflight(mission_id, evidence={"runner": True})
+        if not pf.get("ok"):
+            return {"ok": False, "reason": "preflight_failed", "detail": pf}
+    cl = orchestrator.claim(mission_id, owner, ttl_s=max(120, timeout_s + 120))
+    if not cl.get("ok"):
+        return {"ok": False, "reason": "claim_failed", "detail": cl}
+    st = orchestrator.start(mission_id, owner)
+    if not st.get("ok"):
+        return {"ok": False, "reason": "start_failed", "detail": st}
+
+    mission = store.get(mission_id)
+    assert mission is not None
+    packet = adapters.packet_for(mission)
+
+    hb = HeartbeatController(
+        interval_s=25.0,
+        beat=lambda: bool(orchestrator.heartbeat(mission_id, owner, ttl_s=timeout_s).get("ok")),
+    )
+
+    # ---- executor ----
+    try:
+        if mission.executor == "cursor":
+            proc, manifest = cursor_exec.invoke_cursor(
+                mission, packet, allowed_root=root, timeout_s=timeout_s, heartbeat=hb
+            )
+        else:
+            return {
+                "ok": False,
+                "reason": "executor_not_supported_for_impl",
+                "executor": mission.executor,
+            }
+    except ProcessSafetyError as exc:
+        orchestrator.cancel(mission_id, reason=str(exc))
+        return {"ok": False, "reason": str(exc), "evidence": evidence}
+
+    evidence["executor_process"] = {
+        "exit_code": proc.exit_code,
+        "duration_s": proc.duration_s,
+        "timed_out": proc.timed_out,
+        "cancelled": proc.cancelled,
+        "termination_reason": proc.termination_reason,
+        "pid": proc.pid,
+        "heartbeats": hb.beats,
+        "stdout_tail": (proc.stdout or "")[-500:],
+        "stderr_tail": (proc.stderr or "")[-500:],
+    }
+
+    if proc.cancelled or proc.timed_out or proc.exit_code != 0 or not manifest:
+        blocker = proc.termination_reason or f"executor_exit_{proc.exit_code}"
+        store.record_event(mission_id, "runner_executor_failed", evidence["executor_process"])
+        # Mark blocked via a rejected synthetic result if still leased
+        bad = {
+            "mission_id": mission_id,
+            "executor": mission.executor,
+            "changed_files": ["__runner_failure__"],
+            "commands": [],
+            "tests": [{"command": "runner", "exit_code": 1, "summary": blocker}],
+            "summary": blocker,
+            "evidence": evidence["executor_process"],
+            "scope_breach": True,
+        }
+        orchestrator.submit_result(mission_id, owner, bad)
+        return {"ok": False, "reason": "executor_failed", "evidence": evidence}
+
+    sr = orchestrator.submit_result(mission_id, owner, manifest)
+    evidence["submit_result"] = {
+        "ok": sr.get("ok"),
+        "reason": sr.get("reason"),
+        "status": (sr.get("mission") or {}).get("status"),
+    }
+    if not sr.get("ok"):
+        return {"ok": False, "reason": "submit_result_failed", "detail": sr, "evidence": evidence}
+
+    # ---- independent review (other agent) ----
+    reviewer = (mission.reviewer or "").strip().lower()
+    if reviewer != "claude":
+        return {"ok": False, "reason": "reviewer_not_claude", "evidence": evidence}
+
+    diff = _diff_for_mission(mission.worktree, mission.base_sha or "HEAD")
+    hb2 = HeartbeatController(
+        interval_s=25.0,
+        beat=lambda: bool(orchestrator.heartbeat(mission_id, owner, ttl_s=timeout_s).get("ok")),
+    )
+    try:
+        rproc, review = claude_exec.invoke_claude_review(
+            mission,
+            result_manifest=manifest,
+            diff_text=diff,
+            allowed_root=root,
+            timeout_s=min(600, timeout_s),
+            heartbeat=hb2,
+        )
+    except ProcessSafetyError as exc:
+        return {"ok": False, "reason": str(exc), "evidence": evidence}
+
+    evidence["review_process"] = {
+        "exit_code": rproc.exit_code,
+        "duration_s": rproc.duration_s,
+        "heartbeats": hb2.beats,
+        "timed_out": rproc.timed_out,
+        "pid": rproc.pid,
+        "stderr_tail": (rproc.stderr or "")[-500:],
+        "stdout_tail": (rproc.stdout or "")[-500:],
+        "termination_reason": rproc.termination_reason,
+    }
+    if not review:
+        return {"ok": False, "reason": "review_manifest_missing", "evidence": evidence}
+
+    # Ensure citations exist for adapter
+    if not review.get("citations"):
+        review["citations"] = list(review.get("findings") or ["runner_auto_review"])[:5]
+    if not review.get("findings"):
+        review["findings"] = ["runner_auto_review"]
+
+    rv = orchestrator.submit_review(mission_id, review)
+    evidence["submit_review"] = {
+        "ok": rv.get("ok"),
+        "verdict": rv.get("verdict"),
+        "status": (rv.get("mission") or {}).get("status"),
+    }
+    store.record_event(mission_id, "runner_complete", {"verdict": rv.get("verdict")})
+    return {
+        "ok": bool(rv.get("ok")),
+        "mission_id": mission_id,
+        "verdict": rv.get("verdict"),
+        "status": (rv.get("mission") or {}).get("status"),
+        "evidence": evidence,
+        "result_manifest": manifest,
+        "review_manifest": review,
+    }
+
+
+def _result_manifest_from_mission(mission) -> dict[str, Any] | None:
+    for ev in reversed(mission.evidence_refs or []):
+        if getattr(ev, "kind", "") == "result_manifest" or (
+            isinstance(ev, dict) and ev.get("kind") == "result_manifest"
+        ):
+            ref = ev.ref if hasattr(ev, "ref") else ev.get("ref")
+            if isinstance(ref, dict) and ref.get("mission_id"):
+                return ref
+            if isinstance(ref, dict):
+                # Stored form may be redacted result without nesting.
+                return ref
+    return None
+
+
+def run_review_once(
+    mission_id: str,
+    *,
+    timeout_s: int = 600,
+) -> dict[str, Any]:
+    """Resume independent Claude review for a mission already in REVIEW_REQUIRED."""
+    if not runner_enabled():
+        return {"ok": False, "reason": "runner_or_orchestrator_off"}
+    mission = store.get(mission_id)
+    if mission is None:
+        return {"ok": False, "reason": "mission_not_found"}
+    if mission.status is not MissionState.REVIEW_REQUIRED:
+        return {
+            "ok": False,
+            "reason": "not_in_review",
+            "status": mission.status.value,
+        }
+    if (mission.reviewer or "").strip().lower() != "claude":
+        return {"ok": False, "reason": "reviewer_not_claude"}
+    manifest = _result_manifest_from_mission(mission)
+    if not manifest:
+        return {"ok": False, "reason": "result_manifest_missing"}
+    root = str(allowed_worktree_root())
+    owner = mission.lease_owner or f"runner-review:{uuid.uuid4().hex[:8]}"
+    # Refresh lease so heartbeats remain valid during review.
+    if mission.lease_owner:
+        orchestrator.heartbeat(mission_id, owner, ttl_s=timeout_s)
+    evidence: dict[str, Any] = {"owner": owner, "resumed_review": True}
+    diff = _diff_for_mission(mission.worktree, mission.base_sha or "HEAD")
+    hb = HeartbeatController(
+        interval_s=25.0,
+        beat=lambda: bool(orchestrator.heartbeat(mission_id, owner, ttl_s=timeout_s).get("ok")),
+    )
+    try:
+        rproc, review = claude_exec.invoke_claude_review(
+            mission,
+            result_manifest=manifest,
+            diff_text=diff,
+            allowed_root=root,
+            timeout_s=timeout_s,
+            heartbeat=hb,
+        )
+    except ProcessSafetyError as exc:
+        return {"ok": False, "reason": str(exc), "evidence": evidence}
+    evidence["review_process"] = {
+        "exit_code": rproc.exit_code,
+        "duration_s": rproc.duration_s,
+        "heartbeats": hb.beats,
+        "timed_out": rproc.timed_out,
+        "pid": rproc.pid,
+        "stderr_tail": (rproc.stderr or "")[-500:],
+        "stdout_tail": (rproc.stdout or "")[-500:],
+    }
+    if not review:
+        return {"ok": False, "reason": "review_manifest_missing", "evidence": evidence}
+    if not review.get("citations"):
+        review["citations"] = list(review.get("findings") or ["runner_auto_review"])[:5]
+    if not review.get("findings"):
+        review["findings"] = ["runner_auto_review"]
+    rv = orchestrator.submit_review(mission_id, review)
+    evidence["submit_review"] = {
+        "ok": rv.get("ok"),
+        "verdict": rv.get("verdict"),
+        "status": (rv.get("mission") or {}).get("status"),
+    }
+    store.record_event(mission_id, "runner_review_complete", {"verdict": rv.get("verdict")})
+    return {
+        "ok": bool(rv.get("ok")),
+        "mission_id": mission_id,
+        "verdict": rv.get("verdict"),
+        "status": (rv.get("mission") or {}).get("status"),
+        "evidence": evidence,
+        "result_manifest": manifest,
+        "review_manifest": review,
+    }

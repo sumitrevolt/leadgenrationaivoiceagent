@@ -622,11 +622,13 @@ def _mission_result(out: dict[str, Any], *, conflict_status: int = 409) -> dict[
 @router.get("/missions/status")
 async def missions_status(_user=Depends(require_admin)) -> dict[str, Any]:
     from app.dev_control.external_agents import orchestrator, policy
+    from app.dev_control.external_agents.runner import runner_status
 
     return {
         "enabled": policy.orchestrator_enabled(),
         "summary": orchestrator.summary() if policy.orchestrator_enabled() else {},
         "flag": policy.FLAG,
+        "runner": runner_status(),
     }
 
 
@@ -725,3 +727,24 @@ async def missions_recover_stale(_user=Depends(require_admin)) -> dict[str, Any]
 
     _missions()
     return {"recovered": _mstore.recover_stale()}
+
+
+@router.post("/missions/{mission_id}/run-runner")
+async def mission_run_runner(mission_id: str, _user=Depends(require_admin)) -> dict[str, Any]:
+    """Local/Windows unattended runner invoke (dual-flag gated). Never deploys."""
+    from pathlib import Path
+
+    from app.dev_control.external_agents.runner import run_mission_once
+    from app.dev_control.external_agents.runner.flags import runner_enabled
+
+    _missions()
+    if not runner_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="EXTERNAL_AGENT_RUNNER disabled (or orchestrator off)",
+        )
+    repo_root = str(Path(__file__).resolve().parents[2])
+    out = run_mission_once(mission_id, repo_root=repo_root)
+    if not out.get("ok"):
+        raise HTTPException(status_code=409, detail=out)
+    return out
