@@ -501,7 +501,25 @@ def test_amber_mission_requires_owner_approval_before_merge():
     assert blocked["ok"] is False and blocked["reason"] == "owner_approval_required"
     assert store.get(mid).status is MissionState.OWNER_DECISION_REQUIRED
 
-    approved = orchestrator.advance(mid, MissionState.MERGE_QUEUED, owner_approved=True)
+    # Boolean alone must not authorize AMBER.
+    still = orchestrator.advance(mid, MissionState.MERGE_QUEUED, owner_approved=True)
+    assert still["ok"] is False
+    assert still.get("reason") in {"owner_approval_required", "approval_decision_id_required"} or (
+        still.get("detail") or still
+    )
+
+    from app.dev_control.external_agents import approval as amber_approval
+    from app.platform import approvals_bridge
+
+    mission = store.get(mid)
+    assert mission is not None
+    req = amber_approval.request_amber_approval(
+        mission, target_state=MissionState.MERGE_QUEUED, actor="admin"
+    )
+    assert req["ok"] is True
+    did = req["approval_decision_id"]
+    approvals_bridge.decide("owner_os_verification", did, "approve", by="owner", reason="amber ok")
+    approved = orchestrator.advance(mid, MissionState.MERGE_QUEUED, approval_decision_id=did)
     assert approved["ok"] and store.get(mid).approval_state == "approved"
 
 
