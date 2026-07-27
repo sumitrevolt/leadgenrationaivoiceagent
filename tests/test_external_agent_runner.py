@@ -460,3 +460,16 @@ def test_extract_usage_from_claude_envelope():
     u = extract_usage_from_cli_json(raw)
     assert u["tokens_used"] == 30
     assert float(u["cost_usd"]) == 0.5
+    # Cache reads must not inflate the budget counter (Cursor dogfood false-trip).
+    cursorish = json.dumps(
+        {
+            "usage": {
+                "inputTokens": 100,
+                "outputTokens": 50,
+                "cacheReadTokens": 500_000,
+                "cacheWriteTokens": 0,
+            }
+        }
+    )
+    u2 = extract_usage_from_cli_json(cursorish)
+    assert u2["tokens_used"] == 150
