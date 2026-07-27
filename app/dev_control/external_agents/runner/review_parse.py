@@ -128,11 +128,14 @@ def recover_independent_review(
     cancelled: bool = False,
     truncated: bool = False,
 ) -> dict[str, Any]:
-    """Separate transport integrity from recovered verdict.
+    """Canonical review ingestion — transport integrity separate from verdict.
 
-    Returns a structured record. ``ok`` is True only when process integrity
-    holds AND a validated review object is recovered. A recovered PASS never
-    overrides a failed process.
+    Rules:
+    - exit 0 + valid manifest → eligible (any verdict)
+    - nonzero / cancelled / timed-out + recovered CHANGES_REQUIRED|BLOCKED →
+      may be preserved as a conservative verdict after validation
+    - nonzero exit never yields PASS
+    - truncated output never yields PASS
     """
     transport = {
         "exit_code": int(exit_code),
@@ -151,27 +154,50 @@ def recover_independent_review(
         "recovered_verdict": None,
         "recovery_source": None,
     }
-    if not transport["process_ok"]:
-        record["parser"]["status"] = "skipped_process_integrity"
-        record["reason"] = "process_integrity_failed"
-        return record
 
     try:
         raw = parse_claude_cli_envelope(stdout)
         rich = validate_recovered_review(raw, mission_id=mission_id, expected_head=expected_head)
-        record["parser"]["status"] = "ok"
-        record["rich"] = rich
-        record["recovered_verdict"] = rich["verdict"]
-        record["recovery_source"] = "claude_cli_envelope"
-        record["ok"] = True
-        return record
     except ProcessSafetyError as exc:
         record["parser"]["status"] = "parse_failed"
         record["parser"]["error"] = str(exc)
-        record["reason"] = f"parse_failed:{exc}"
+        record["reason"] = (
+            "process_integrity_failed" if not transport["process_ok"] else f"parse_failed:{exc}"
+        )
         return record
     except Exception as exc:  # noqa: BLE001 — evidence boundary
         record["parser"]["status"] = "parse_failed"
         record["parser"]["error"] = type(exc).__name__
         record["reason"] = f"parse_failed:{type(exc).__name__}"
         return record
+
+    verdict = rich["verdict"]
+    if truncated and verdict == "PASS":
+        record["parser"]["status"] = "refused_truncated_pass"
+        record["reason"] = "truncated_output_cannot_pass"
+        record["recovered_verdict"] = verdict
+        return record
+    if not transport["process_ok"]:
+        if verdict == "PASS":
+            record["parser"]["status"] = "refused_failed_process_pass"
+            record["reason"] = "failed_process_cannot_pass"
+            record["recovered_verdict"] = verdict
+            return record
+        if verdict not in {"CHANGES_REQUIRED", "BLOCKED"}:
+            record["parser"]["status"] = "skipped_process_integrity"
+            record["reason"] = "process_integrity_failed"
+            return record
+        # Conservative recovery: keep CHANGES_REQUIRED / BLOCKED only.
+        record["parser"]["status"] = "ok_conservative"
+        record["rich"] = rich
+        record["recovered_verdict"] = verdict
+        record["recovery_source"] = "claude_cli_envelope_conservative"
+        record["ok"] = True
+        return record
+
+    record["parser"]["status"] = "ok"
+    record["rich"] = rich
+    record["recovered_verdict"] = verdict
+    record["recovery_source"] = "claude_cli_envelope"
+    record["ok"] = True
+    return record
