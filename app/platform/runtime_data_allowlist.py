@@ -98,10 +98,47 @@ def validate(
         src = Path(__file__).resolve().parents[2] / e["file"]
         if not src.is_file():
             problems.append(f"{eid}: file no longer exists: {e['file']}")
+        else:
+            problems.extend(_check_path_pattern(eid, e, src))
 
     if findings is not None:
         problems.extend(_check_liveness(entries, findings))
     return problems
+
+
+def _check_path_pattern(eid: str, entry: dict[str, Any], src: Path) -> list[str]:
+    """The declared path must actually appear in the module.
+
+    THIS CHECK EXISTS BECAUSE I GOT IT WRONG. I declared
+    `data/marketing_clients.json` for a store whose code says
+    `os.path.join("data", "marketing_clients.jsonl")` -- one missing `l`. Every
+    other validation passed, because nothing compared the declared PATH against
+    the source. An allowlist whose path can be wrong is a document that only
+    looks like evidence, and it took an outside reader spotting the mismatch.
+
+    A plain substring test would not have caught it either: "marketing_clients
+    .json" IS a prefix of "...jsonl". So the basename must be followed by a
+    non-filename character.
+    """
+    import re
+
+    raw = str(entry.get("path_pattern") or "")
+    # `.tmp` / `.lock` companions are derived in code (`path + ".tmp"`), so the
+    # thing to look for is the store file they hang off.
+    core = re.sub(r"\.(tmp|lock)$", "", raw)
+    basename = core.rsplit("/", 1)[-1]
+    if not basename:
+        return [f"{eid}: empty path_pattern"]
+
+    text = src.read_text(encoding="utf-8", errors="replace")
+    # Trailing boundary: quote, whitespace, or anything that is not a filename
+    # character. This is what distinguishes `.json` from `.jsonl`.
+    if not re.search(re.escape(basename) + r"(?![A-Za-z0-9_])", text):
+        return [
+            f"{eid}: path_pattern {raw!r} does not appear in {entry['file']} — "
+            "the declared path does not match the code"
+        ]
+    return []
 
 
 def _check_liveness(entries: list[dict[str, Any]], findings: list[dict[str, Any]]) -> list[str]:

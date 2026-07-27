@@ -151,7 +151,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "customers.identity.store",
         "file": "app/marketing/clients_store.py",
         "line_or_symbol": "path",
-        "path_pattern": "data/marketing_clients.json",
+        "path_pattern": "data/marketing_clients.jsonl",
         "store_id": "customers.identity",
         "access_modes": ["REWRITE", "READ", "CREATE", "APPEND"],
         "reason": (
@@ -168,7 +168,7 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "customers.identity.atomic_tmp",
         "file": "app/marketing/clients_store.py",
         "line_or_symbol": "tmp",
-        "path_pattern": "data/marketing_clients.json.tmp",
+        "path_pattern": "data/marketing_clients.jsonl.tmp",
         "store_id": "customers.identity",
         "access_modes": ["REWRITE", "REPLACE"],
         "reason": (
