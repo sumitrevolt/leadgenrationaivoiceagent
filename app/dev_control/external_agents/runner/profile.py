@@ -115,9 +115,38 @@ def prepare_executor_profile(kind: ExecutorKind) -> dict[str, Any]:
     if kind == "cursor":
         # Writable compile cache only — do not mirror full user LocalAppData.
         (local / "cursor-compile-cache").mkdir(parents=True, exist_ok=True)
-        (home / ".cursor").mkdir(parents=True, exist_ok=True)
+        cursor_home = home / ".cursor"
+        cursor_home.mkdir(parents=True, exist_ok=True)
+        # Minimal Agent CLI auth/state — not chats/extensions/projects.
+        src_cursor = Path.home() / ".cursor"
+        for name in ("agent-cli-state.json", "cli-config.json", "argv.json"):
+            src = src_cursor / name
+            how = _safe_link_or_copy(src, cursor_home / name) if src.exists() else "absent"
+            evidence["material"][f".cursor/{name}"] = how
+        # Desktop Cursor auth.json (Roaming) — exact file only.
+        src_auth = (
+            Path(os.environ.get("APPDATA") or (Path.home() / "AppData" / "Roaming"))
+            / "Cursor"
+            / "auth.json"
+        )
+        dst_auth_dir = appdata / "Cursor"
+        dst_auth_dir.mkdir(parents=True, exist_ok=True)
+        how = (
+            _safe_link_or_copy(src_auth, dst_auth_dir / "auth.json")
+            if src_auth.exists()
+            else "absent"
+        )
+        evidence["material"]["APPDATA/Cursor/auth.json"] = how
         evidence["material"]["cursor-compile-cache"] = "empty_dir"
-        evidence["material"][".cursor"] = "empty_dir"
+        evidence["excluded_home_trees"] = [
+            ".cursor/chats",
+            ".cursor/extensions",
+            ".cursor/projects",
+            ".cursor/browser-logs",
+            "APPDATA/Cursor/Cache",
+            "APPDATA/Cursor/CachedData",
+            "APPDATA/Cursor/GPUCache",
+        ]
         evidence["trust_rationale"] = (
             "KEEP --trust: Cursor Agent non-interactive print mode requires it; "
             "containment is dedicated worktree + redirected profile env + deny-by-default "
