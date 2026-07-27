@@ -359,11 +359,14 @@ def run_mission_once(
             "evidence": evidence,
         }
 
-    # Ensure citations exist for adapter
-    if not review.get("citations"):
-        review["citations"] = list(review.get("findings") or ["runner_auto_review"])[:5]
-    if not review.get("findings"):
-        review["findings"] = ["runner_auto_review"]
+    # Missing citations stay missing — never fabricate provenance.
+    if not (review.get("citations") or []):
+        review = dict(review)
+        review["evidence_status"] = "MISSING"
+        review.setdefault(
+            "evidence_absence_reason",
+            "Reviewer did not provide supporting evidence",
+        )
 
     rv = orchestrator.submit_review(mission_id, review)
     evidence["submit_review"] = {
@@ -463,10 +466,13 @@ def run_review_once(
             "reason": parse_ev.get("reason") or "review_manifest_missing",
             "evidence": evidence,
         }
-    if not review.get("citations"):
-        review["citations"] = list(review.get("findings") or ["runner_auto_review"])[:5]
-    if not review.get("findings"):
-        review["findings"] = ["runner_auto_review"]
+    if not (review.get("citations") or []):
+        review = dict(review)
+        review["evidence_status"] = "MISSING"
+        review.setdefault(
+            "evidence_absence_reason",
+            "Reviewer did not provide supporting evidence",
+        )
     rv = orchestrator.submit_review(mission_id, review)
     evidence["submit_review"] = {
         "ok": rv.get("ok"),

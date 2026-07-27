@@ -102,3 +102,44 @@ def test_live_invoke_claude_uses_review_parse(monkeypatch, tmp_path):
     assert review is not None
     assert review["verdict"] == "PASS"
     assert evidence.get("parser", {}).get("status") == "ok"
+
+
+def test_empty_citations_not_fabricated_as_runner_auto_review():
+    """Finding 2: missing citations stay missing — no synthetic runner_auto_review."""
+    src = Path("app/dev_control/external_agents/runner/loop.py").read_text(encoding="utf-8")
+    assert "runner_auto_review" not in src
+
+    from app.dev_control.external_agents import adapters
+
+    mission = Mission(
+        mission_id="msn_citegate000001",
+        title="t",
+        description="d",
+        executor="cursor",
+        reviewer="claude",
+        risk_class=RiskClass.GREEN,
+        idempotency_key="cite-gate-key-01",
+        allowed_paths=["tests/fixtures/external_agent_runner/"],
+        status=MissionState.REVIEW_REQUIRED,
+    )
+    review = {
+        "mission_id": mission.mission_id,
+        "reviewer": "claude",
+        "verdict": "PASS",
+        "findings": [],
+        "citations": [],
+        "evidence_status": "MISSING",
+    }
+    checked = adapters.get_adapter("claude").validate_review(mission, review)
+    assert checked["accepted"] is False
+    assert any(
+        "cite" in v.lower() or "evidence" in v.lower() or "PASS" in v for v in checked["violations"]
+    )
+    assert "runner_auto_review" not in json.dumps(checked)
+
+    synth = dict(review, citations=["runner_auto_review"], evidence_status="")
+    synth_checked = adapters.get_adapter("claude").validate_review(mission, synth)
+    assert synth_checked["accepted"] is False
+    assert any(
+        "synthetic" in v.lower() or "runner_auto_review" in v for v in synth_checked["violations"]
+    )

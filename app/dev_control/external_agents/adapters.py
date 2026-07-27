@@ -182,8 +182,19 @@ class ClaudeAdapter(_BaseAdapter):
         verdict = str(review.get("verdict") or "").upper()
         if verdict not in {"PASS", "CHANGES_REQUIRED", "BLOCKED"}:
             violations.append("verdict must be PASS|CHANGES_REQUIRED|BLOCKED")
-        if not (review.get("citations") or []):
-            violations.append("review must cite code, tests or command evidence")
+        citations = list(review.get("citations") or [])
+        evidence_status = str(review.get("evidence_status") or "").upper()
+        if not citations:
+            if evidence_status == "MISSING":
+                # Explicit absence — PASS is never allowed; other verdicts stay invalid
+                # for the adapter accept gate (submit_review still records the attempt).
+                violations.append("review evidence_status=MISSING without citations")
+            else:
+                violations.append("review must cite code, tests or command evidence")
+        if any(str(c).strip().lower() == "runner_auto_review" for c in citations):
+            violations.append("synthetic citation runner_auto_review is forbidden")
+        if verdict == "PASS" and not citations:
+            violations.append("PASS requires concrete citations")
         return {
             "accepted": not violations,
             "verdict": verdict,
