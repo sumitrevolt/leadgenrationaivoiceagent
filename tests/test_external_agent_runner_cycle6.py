@@ -177,3 +177,26 @@ def test_local_file_mode_claims_and_records_backend(monkeypatch, tmp_path):
     lease = be.get_lease("msn_backendlocal001")
     assert lease is not None and lease.backend == "filelock"
     cas_mod.reset_backend()
+
+
+def test_heartbeat_lease_safety_ratio():
+    """Finding 4: interval must be <= lease_ttl / 3; unsafe configs refused."""
+    from app.dev_control.external_agents.runner.lease_contract import (
+        derive_lease_and_interval,
+        validate_heartbeat_contract,
+    )
+
+    assert validate_heartbeat_contract(lease_ttl_s=90, heartbeat_interval_s=25)["ok"] is True
+    bad = validate_heartbeat_contract(lease_ttl_s=30, heartbeat_interval_s=25)
+    assert bad["ok"] is False
+    assert bad["reason"] == "heartbeat_interval_exceeds_lease_safety_ratio"
+    assert validate_heartbeat_contract(lease_ttl_s=0, heartbeat_interval_s=5)["ok"] is False
+    plan = derive_lease_and_interval(30, preferred_interval_s=25)
+    assert plan["ok"] is True
+    assert plan["lease_ttl_s"] >= 75  # 25 * 3
+    assert plan["heartbeat_interval_s"] <= plan["lease_ttl_s"] / 3
+    check = validate_heartbeat_contract(
+        lease_ttl_s=plan["lease_ttl_s"],
+        heartbeat_interval_s=plan["heartbeat_interval_s"],
+    )
+    assert check["ok"] is True

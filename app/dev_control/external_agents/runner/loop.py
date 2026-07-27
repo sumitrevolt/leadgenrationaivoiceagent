@@ -10,6 +10,7 @@ from typing import Any
 from app.dev_control.external_agents import adapters, orchestrator, policy, store
 from app.dev_control.external_agents.runner import authorize, claude_exec, cursor_exec, eligibility
 from app.dev_control.external_agents.runner.flags import runner_enabled
+from app.dev_control.external_agents.runner.lease_contract import derive_lease_and_interval
 from app.dev_control.external_agents.runner.process_safe import (
     HeartbeatController,
     ProcessSafetyError,
@@ -202,13 +203,23 @@ def run_mission_once(
     assert mission is not None
     packet = adapters.packet_for(mission)
     exec_timeout = wall_timeout_s(mission, timeout_s)
+    lease_plan = derive_lease_and_interval(exec_timeout)
+    if not lease_plan.get("ok"):
+        return {
+            "ok": False,
+            "reason": lease_plan.get("reason") or "lease_heartbeat_contract_invalid",
+            "evidence": {**evidence, "lease_plan": lease_plan},
+        }
+    lease_ttl = int(lease_plan["lease_ttl_s"])
+    hb_interval = float(lease_plan["heartbeat_interval_s"])
+    evidence["lease_contract"] = lease_plan
+    # Re-claim / renew with contract-safe TTL (initial claim used timeout_s floor).
+    orchestrator.heartbeat(mission_id, owner, ttl_s=lease_ttl)
 
     def _hb_factory() -> HeartbeatController:
         return HeartbeatController(
-            interval_s=25.0,
-            beat=lambda: bool(
-                orchestrator.heartbeat(mission_id, owner, ttl_s=exec_timeout).get("ok")
-            ),
+            interval_s=hb_interval,
+            beat=lambda: bool(orchestrator.heartbeat(mission_id, owner, ttl_s=lease_ttl).get("ok")),
             cancel_check=lambda: _mission_cancelled(mission_id),
         )
 
@@ -424,17 +435,24 @@ def run_review_once(
         return {"ok": False, "reason": "result_manifest_missing"}
     root = str(allowed_worktree_root())
     owner = mission.lease_owner or f"runner-review:{uuid.uuid4().hex[:8]}"
+    review_timeout = wall_timeout_s(mission, timeout_s)
+    lease_plan = derive_lease_and_interval(review_timeout)
+    if not lease_plan.get("ok"):
+        return {"ok": False, "reason": lease_plan.get("reason"), "lease_plan": lease_plan}
+    lease_ttl = int(lease_plan["lease_ttl_s"])
+    hb_interval = float(lease_plan["heartbeat_interval_s"])
     # Refresh lease so heartbeats remain valid during review.
     if mission.lease_owner:
-        orchestrator.heartbeat(mission_id, owner, ttl_s=timeout_s)
-    evidence: dict[str, Any] = {"owner": owner, "resumed_review": True}
+        orchestrator.heartbeat(mission_id, owner, ttl_s=lease_ttl)
+    evidence: dict[str, Any] = {
+        "owner": owner,
+        "resumed_review": True,
+        "lease_contract": lease_plan,
+    }
     diff = _diff_for_mission(mission.worktree, mission.base_sha or "HEAD")
-    review_timeout = wall_timeout_s(mission, timeout_s)
     hb = HeartbeatController(
-        interval_s=25.0,
-        beat=lambda: bool(
-            orchestrator.heartbeat(mission_id, owner, ttl_s=review_timeout).get("ok")
-        ),
+        interval_s=hb_interval,
+        beat=lambda: bool(orchestrator.heartbeat(mission_id, owner, ttl_s=lease_ttl).get("ok")),
         cancel_check=lambda: _mission_cancelled(mission_id),
     )
     try:
