@@ -186,6 +186,53 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": "Temp and target must stay on ONE filesystem.",
     },
+    # --- external agent missions (PR #147, dev-control) -----------------------
+    # Arrived on main after this branch's baseline was frozen. The ratchet found
+    # them the first time it actually executed in CI, so they are classified
+    # here rather than absorbed into the debt baseline: they are NEW code, and
+    # baseline growth without a detector change is new debt, not new sight.
+    {
+        "allowlist_id": "devcontrol.external_missions.root",
+        "file": "app/dev_control/external_agents/cas.py",
+        "line_or_symbol": "mission_root",
+        "path_pattern": "data/external_missions",
+        "store_id": "devcontrol.external_missions",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Root directory for external-agent mission state. Created on demand by "
+            "the file-lock CAS backend; overridable via EXTERNAL_MISSION_DIR."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "dev-control",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "EXTERNAL_MISSION_DIR must resolve OUTSIDE the checkout in production, "
+            "or move behind app/platform/runtime_data.py. The module's own docstring "
+            "notes container replacement does not preserve ./data."
+        ),
+    },
+    {
+        "allowlist_id": "devcontrol.external_missions.store",
+        "file": "app/dev_control/external_agents/store.py",
+        "line_or_symbol": "_mission_path",
+        "path_pattern": "data/external_missions",
+        "store_id": "devcontrol.external_missions",
+        "access_modes": ["REPLACE"],
+        "reason": (
+            "Per-mission JSON documents (<root>/<mission_id>.json), written via "
+            "_atomic_write -> os.replace(tmp, path) from six call sites "
+            "(save/claim/heartbeat/complete/fail/sweep)."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "dev-control",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Atomic temp and target must stay on one filesystem; a deploy that "
+            "resets the checkout must not destroy in-flight mission state."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

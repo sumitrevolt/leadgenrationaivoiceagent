@@ -253,20 +253,99 @@ def _kill_file() -> Path:
     return Path(_env("VOICE_LAUNCH_KILL_FILE", "data/voice_launch_kill.json"))
 
 
-def admin_kill_engaged() -> bool:
-    """Global admin kill switch. Env ``VOICE_LAUNCH_KILL=1`` (final) warna
-    data-file ``{"kill": true}`` (container-recreate ke bina flip — data/ bind-mount).
-    Kill engaged => koi bhi outbound call INELIGIBLE (fail-safe)."""
-    v = _env("VOICE_LAUNCH_KILL").lower()
-    if v in ("1", "true", "yes", "on"):
-        return True
-    if v in ("0", "false", "no", "off"):
-        return False
+@dataclass(frozen=True)
+class AdminKillStatus:
+    """Kill decision plus WHY, with no raw value in it.
+
+    Deliberately has no ``__bool__``: `owner_os` wraps the old call in
+    ``bool(...)``, so a status object leaking into that position would report
+    "engaged" forever. Engagement must be read from ``.engaged``.
+    """
+
+    engaged: bool
+    source: str
+    reason: str
+
+
+_KILL_TRUE = ("1", "true", "yes", "on")
+_KILL_FALSE = ("0", "false", "no", "off")
+
+
+def _kill_file_status() -> AdminKillStatus:
+    """File fallback. EVERY failure engages the kill.
+
+    An emergency switch whose file went missing must not read as "disengaged" —
+    that is how a deploy that resets the checkout silently re-arms dialling.
+    """
+    from app.platform import runtime_data as _rd
+
     try:
-        data = json.loads(_kill_file().read_text(encoding="utf-8"))
-        return bool(isinstance(data, dict) and data.get("kill"))
+        p = _kill_file()
     except Exception:
-        return False
+        return AdminKillStatus(True, "FILE", "INVALID_PATH")
+
+    if _rd.is_production():
+        try:
+            if not p.is_absolute():
+                return AdminKillStatus(True, "FILE", "INVALID_PATH")
+            # Symlink-aware: resolve() before the containment test, so a link
+            # pointing back into the checkout cannot wear a disguise.
+            resolved = p.resolve()
+            if _rd._is_inside(resolved, _rd._repo_root()):
+                return AdminKillStatus(True, "FILE", "OUTSIDE_RUNTIME_ROOT")
+            if resolved.exists() and not resolved.is_file():
+                return AdminKillStatus(True, "FILE", "INVALID_PATH")
+        except Exception:
+            return AdminKillStatus(True, "FILE", "INVALID_PATH")
+
+    try:
+        raw = p.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return AdminKillStatus(True, "FILE", "MISSING")
+    except (PermissionError, OSError):
+        return AdminKillStatus(True, "FILE", "UNREADABLE")
+    except Exception:
+        return AdminKillStatus(True, "FILE", "UNREADABLE")
+
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return AdminKillStatus(True, "FILE", "MALFORMED")
+
+    # STRICT: a real bool only. `bool(data.get("kill"))` accepted {"kill": 1}
+    # and {"kill": "false"} — a safety switch cannot run on truthiness.
+    # isinstance is exact here: isinstance(1, bool) is False, so the integer
+    # payloads that truthiness used to accept still fail.
+    if not isinstance(data, dict) or not isinstance(data.get("kill"), bool):
+        return AdminKillStatus(True, "FILE", "INVALID_SCHEMA")
+
+    if data["kill"]:
+        return AdminKillStatus(True, "FILE", "FILE_ENGAGED")
+    return AdminKillStatus(False, "FILE", "FILE_DISENGAGED")
+
+
+def admin_kill_status() -> AdminKillStatus:
+    """Global admin kill switch, fail-CLOSED, with a non-secret reason.
+
+    ENV ``VOICE_LAUNCH_KILL`` is FINAL when it carries a recognised token; the
+    data-file is only the fallback (container-recreate ke bina flip — data/
+    bind-mount). A non-empty UNRECOGNISED token engages rather than falling
+    through, because "VOICE_LAUNCH_KILL=maybe" is a misconfiguration, not a
+    licence to dial.
+    """
+    v = _env("VOICE_LAUNCH_KILL").strip().lower()
+    if v in _KILL_TRUE:
+        return AdminKillStatus(True, "ENV", "ENV_ENGAGED")
+    if v in _KILL_FALSE:
+        return AdminKillStatus(False, "ENV", "ENV_DISENGAGED")
+    if v:
+        return AdminKillStatus(True, "ENV", "INVALID_ENV_VALUE")
+    return _kill_file_status()
+
+
+def admin_kill_engaged() -> bool:
+    """Boolean wrapper — the three execution call sites keep a real bool."""
+    return admin_kill_status().engaged
 
 
 def daily_cap(kind: str = "campaign") -> int:
@@ -692,14 +771,51 @@ async def get_campaign_state() -> str:
 def set_kill(on: bool) -> bool:
     """Admin global kill switch write (data-file; container-recreate ke bina flip).
     Env VOICE_LAUNCH_KILL, agar set ho, iske UPAR final rehta hai. Returns success."""
+    tmp = None
     try:
         p = _kill_file()
+
+        # Validate BEFORE any filesystem mutation: in production a checkout-local
+        # or outside-root target must be refused without creating anything.
+        pre = _kill_file_status()
+        if pre.reason in ("INVALID_PATH", "OUTSIDE_RUNTIME_ROOT"):
+            logger.warning("[voice_launch] set_kill refused (%s)", pre.reason)
+            return False
+
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps({"kill": bool(on)}), encoding="utf-8")
+        payload = json.dumps({"kill": bool(on)})
+
+        # Same directory: os.replace is only atomic within one filesystem, and a
+        # temp in TMPDIR can land on a different mount.
+        tmp = p.with_name(p.name + ".tmp_kill")
+        with open(tmp, "w", encoding="utf-8") as fh:
+            fh.write(payload)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(tmp, p)
+        tmp = None
+
+        # Best-effort directory fsync so the rename itself survives a crash.
+        # Not supported on Windows; never fatal.
+        try:
+            dfd = os.open(str(p.parent), os.O_RDONLY)
+            try:
+                os.fsync(dfd)
+            finally:
+                os.close(dfd)
+        except (AttributeError, OSError):
+            pass
         return True
     except Exception as e:
         logger.warning(f"[voice_launch] set_kill failed ({e})")
         return False
+    finally:
+        # A surviving temp must never be mistaken for the authority.
+        if tmp is not None:
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
 
 
 async def launch_status() -> dict[str, Any]:
@@ -710,9 +826,15 @@ async def launch_status() -> dict[str, Any]:
     remaining = None if attempts < 0 else max(0, cap - attempts)
     test_attempts = await attempts_today("test")
     rec_ok, rec_reason = recording_gate_ok()
+    _kill_status = admin_kill_status()
     return {
         "campaign_enabled": campaign_enabled(),
-        "admin_kill_engaged": admin_kill_engaged(),
+        # Single evaluation: the file is read once per status request, and the
+        # reason travels with the flag so an operator sees WHY it is engaged
+        # (MALFORMED reads very differently from FILE_ENGAGED).
+        "admin_kill_engaged": _kill_status.engaged,
+        "admin_kill_source": _kill_status.source,
+        "admin_kill_reason": _kill_status.reason,
         "daily_cap": cap,
         "attempts_today": attempts,
         "remaining_today": remaining,
@@ -785,6 +907,8 @@ __all__ = [
     "disposition_is_connect",
     "campaign_enabled",
     "admin_kill_engaged",
+    "admin_kill_status",
+    "AdminKillStatus",
     "daily_cap",
     "concurrency_limit",
     "training_batch_size",

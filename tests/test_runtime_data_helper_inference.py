@@ -30,6 +30,90 @@ def _ops(findings):
     return {f["operation"] for f in findings}
 
 
+# --------------------------------------- local path-return helper provenance
+
+
+def _helpers_of(src: str) -> dict:
+    return s._path_return_helpers(ast.parse(textwrap.dedent(src)), {})
+
+
+def test_env_root_with_static_fallback_is_a_bounded_pattern() -> None:
+    h = _helpers_of(
+        """
+        def root():
+            return os.getenv("STORE_DIR", "data/store")
+        """
+    )
+    assert h["root"] == s.PROVEN_DYNAMIC_PATH_PATTERN
+
+
+def test_nested_path_return_helper_resolves() -> None:
+    src = """
+        def root():
+            return os.getenv("STORE_DIR", "data/store")
+        def item_path(item_id):
+            return os.path.join(root(), f"{item_id}.json")
+    """
+    h = _helpers_of(src)
+    assert "item_path" in h
+    tree = ast.parse(textwrap.dedent(src))
+    pat = s._helper_patterns(tree, h)["item_path"]
+    assert "STORE_DIR" in pat and "data/store" in pat
+    # The interpolated id is STRUCTURE only — never a runtime value.
+    assert "item_id" not in pat
+
+
+def test_conflicting_returns_prove_nothing() -> None:
+    """One path branch and one unknown branch is not a path."""
+    assert (
+        _helpers_of(
+            """
+            def maybe_path(flag):
+                if flag:
+                    return Path("data/store")
+                return build_prompt()
+            """
+        )
+        == {}
+    )
+
+
+def test_unknown_call_supplying_the_root_proves_nothing() -> None:
+    assert _helpers_of("def root():\n    return fetch_root()\n") == {}
+
+
+def test_mutually_recursive_helpers_terminate_without_proof() -> None:
+    assert _helpers_of("def a(): return b()\ndef b(): return a()\n") == {}
+
+
+def test_helper_name_is_not_evidence() -> None:
+    """`_root` returning an upper-cased string is not a path."""
+    assert (
+        _helpers_of(
+            """
+            def _root(x):
+                '''Returns the storage root.'''
+                return x.upper()
+            """
+        )
+        == {}
+    )
+
+
+def test_env_read_without_a_default_is_unbounded() -> None:
+    """No fallback means nothing bounds the value, so it is not proven."""
+    assert _helpers_of('def root():\n    return os.getenv("STORE_DIR")\n') == {}
+
+
+def test_helper_pattern_never_leaks_environment_values(monkeypatch) -> None:
+    monkeypatch.setenv("STORE_DIR", "/secret/real/location")
+    src = 'def root():\n    return os.getenv("STORE_DIR", "data/store")\n'
+    tree = ast.parse(src)
+    pat = s._helper_patterns(tree, s._path_return_helpers(tree, {}))["root"]
+    assert "/secret/real/location" not in pat
+    assert "STORE_DIR" in pat
+
+
 # ------------------------------------------ conditional path provenance (v1)
 
 

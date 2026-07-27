@@ -51,6 +51,26 @@ class _FakeRedis:
             self.ttl.pop(k, None)
 
 
+@pytest.fixture
+def kill_disengaged(_clean_env, monkeypatch):
+    """Opt-in: disengage the admin kill for tests about OTHER gates.
+
+    Depends on `_clean_env` explicitly: that autouse fixture DELETES
+    VOICE_LAUNCH_KILL, so without the ordering dependency it could wipe this
+    setting right after it is applied.
+
+    The kill reader is fail-CLOSED — a missing/unreadable/malformed authority
+    file engages it. These tests predate that and relied on "no kill file"
+    meaning "safe to dial", which is exactly the assumption this workstream
+    removed. Rather than weaken the reader, each affected test now states its
+    precondition explicitly.
+
+    Deliberately NOT autouse: a global disengage would silently re-open the
+    fail-open hole for every future test in this file.
+    """
+    monkeypatch.setenv("VOICE_LAUNCH_KILL", "0")
+
+
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     monkeypatch.setenv("VOICE_LAUNCH_CAMPAIGN", "1")
@@ -166,17 +186,17 @@ def test_admin_kill_switch_blocks_everything(monkeypatch):
     assert res.eligible is False and res.reason == SkipReason.ADMIN_KILL
 
 
-def test_no_phone_ineligible():
+def test_no_phone_ineligible(kill_disengaged):
     res = _run(vl.is_lead_eligible_for_voice_call("", "promotional"))
     assert res.eligible is False and res.reason == SkipReason.NO_PHONE
 
 
-def test_invalid_phone_ineligible():
+def test_invalid_phone_ineligible(kill_disengaged):
     res = _run(vl.is_lead_eligible_for_voice_call("12345", "promotional"))
     assert res.eligible is False and res.reason == SkipReason.INVALID_PHONE
 
 
-def test_promotional_blocked_by_dial_test_mode(monkeypatch):
+def test_promotional_blocked_by_dial_test_mode(kill_disengaged, monkeypatch):
     # dial_gate test-mode ON (default) + not allowlisted => promotional blocked
     monkeypatch.setenv("DIAL_TEST_MODE", "1")
     monkeypatch.setenv("DIAL_TEST_ALLOWLIST", "")
@@ -185,7 +205,7 @@ def test_promotional_blocked_by_dial_test_mode(monkeypatch):
     assert res.reason == SkipReason.DIAL_TEST_MODE
 
 
-def test_allowlisted_promotional_reaches_compliance(monkeypatch):
+def test_allowlisted_promotional_reaches_compliance(kill_disengaged, monkeypatch):
     # allowlisted in dial_gate AND compliance -> eligibility decided by compliance.
     # Keep DLT unapproved so promotional is blocked at compliance (DLT), proving
     # the compliance chokepoint is actually consulted (not bypassed).
@@ -204,7 +224,7 @@ def test_allowlisted_promotional_reaches_compliance(monkeypatch):
 # --------------------------------------------------------------------------- #
 # Campaign-state resolver
 # --------------------------------------------------------------------------- #
-def test_state_disabled_when_flag_off(monkeypatch):
+def test_state_disabled_when_flag_off(kill_disengaged, monkeypatch):
     monkeypatch.setenv("VOICE_LAUNCH_CAMPAIGN", "0")
     assert vl.resolve_campaign_state(configured=CampaignState.RUNNING) == CampaignState.DRAFT
 
@@ -217,7 +237,7 @@ def test_state_admin_kill_precedence(monkeypatch):
     )
 
 
-def test_state_precedence_chain(monkeypatch):
+def test_state_precedence_chain(kill_disengaged, monkeypatch):
     monkeypatch.setenv("VOICE_LAUNCH_CAMPAIGN", "1")
     assert (
         vl.resolve_campaign_state(configured=CampaignState.RUNNING, compliance_ok=False)
@@ -369,11 +389,11 @@ def test_dialer_kill_switch_blocks_before_any_call(monkeypatch):
     assert out.get("state") == "paused_by_admin"
 
 
-def test_dialer_enforces_daily_cap(monkeypatch):
+def test_dialer_enforces_daily_cap(kill_disengaged, monkeypatch):
     fake = _FakeRedis()
     calling = _wire_dialer(monkeypatch, fake)
     monkeypatch.setenv("VOICE_LAUNCH_CAMPAIGN", "1")
-    monkeypatch.delenv("VOICE_LAUNCH_KILL", raising=False)
+    monkeypatch.setenv("VOICE_LAUNCH_KILL", "0")
     monkeypatch.setenv("VOICE_DAILY_CALL_CAP", "3")
     out = _run(
         calling._dial_vobiz_campaign(_fake_db(), _prospects(5), False, "promotional", "", True)
@@ -383,11 +403,11 @@ def test_dialer_enforces_daily_cap(monkeypatch):
     assert _run(vl.attempts_today("campaign")) == 3
 
 
-def test_dialer_training_pause_at_boundary(monkeypatch):
+def test_dialer_training_pause_at_boundary(kill_disengaged, monkeypatch):
     fake = _FakeRedis()
     calling = _wire_dialer(monkeypatch, fake)
     monkeypatch.setenv("VOICE_LAUNCH_CAMPAIGN", "1")
-    monkeypatch.delenv("VOICE_LAUNCH_KILL", raising=False)
+    monkeypatch.setenv("VOICE_LAUNCH_KILL", "0")
     monkeypatch.setenv("VOICE_DAILY_CALL_CAP", "100")
     monkeypatch.setenv("VOICE_TRAIN_BATCH", "5")  # min batch floor is 5 -> pause at call 5
     out = _run(
@@ -397,11 +417,11 @@ def test_dialer_training_pause_at_boundary(monkeypatch):
     assert out.get("state") == "paused_for_training"
 
 
-def test_dialer_inert_when_flag_off_does_not_call_spine(monkeypatch):
+def test_dialer_inert_when_flag_off_does_not_call_spine(kill_disengaged, monkeypatch):
     fake = _FakeRedis()
     calling = _wire_dialer(monkeypatch, fake)
     monkeypatch.delenv("VOICE_LAUNCH_CAMPAIGN", raising=False)  # spine OFF
-    monkeypatch.delenv("VOICE_LAUNCH_KILL", raising=False)
+    monkeypatch.setenv("VOICE_LAUNCH_KILL", "0")
 
     def _boom(*a, **k):
         raise AssertionError("eligibility must NOT run when spine is INERT")
