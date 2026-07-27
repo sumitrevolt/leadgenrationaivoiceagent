@@ -73,16 +73,23 @@ PR={PR}
 If git HEAD is not exactly {head}, return verdict BLOCKED.
 
 Mandatory review areas (cite file:line or symbol for each real finding):
-0) FOURTH-CYCLE CLOSURE (must prove both):
-   - Child env is deny-by-default (no CURSOR_*/CLAUDE_* wildcards); secret names stripped;
-     Claude review disallows Write,Edit,NotebookEdit,Bash.
-   - Real non-mocked subprocess integration tests exist (helper-based) covering env isolation,
-     argv injection-as-data, timeout/cancel/lease-loss process-tree kill, output cap,
-     stdout/stderr concurrency, malformed manifests, path escape, executable identity.
+0) FIFTH-CYCLE CLOSURE (must prove ALL four — these were the remaining MEDIUMs):
+   A) Real Windows `.cmd`/`.ps1` argv-as-data: runner never launches `agent.cmd`; prefers
+      `node.exe`+`index.js` (or `powershell -File`); owned argv-capture fixtures + tests prove
+      metacharacters/`%VAR%`/`!VAR!` remain inert data; no secondary command.
+   B) `--trust` + profile containment: HOME/USERPROFILE/APPDATA/LOCALAPPDATA redirected to
+      runner-owned profiles; minimal auth hardlinks only; KEEP/REMOVE/BLOCKED decision explicit
+      in code/docs with evidence; prohibited canaries covered by tests.
+   C) Fresh dogfood on THIS head (or ancestor tip that includes these fixes): real Cursor+Claude,
+      lease/heartbeats, RESULT_SUBMITTED→REVIEW_PASSED (or honest CHANGES_REQUIRED), no manual
+      copy-paste, dogfood worktree unmerged; prefer `.external_agent_result_manifest.json` contract.
+   D) Cycle-4 parser integrity: process exit/parse_failed preserved separately from recovered
+      CHANGES_REQUIRED; recovery refuses unrelated JSON / wrong mission/head; failed process
+      cannot yield automatic PASS without explicit validated policy.
 1) Authority/gating: Owner OS auth real vs bypassable; GREEN-only unattended; AMBER parks; RED refuse; runner requires orchestrator; both flags default OFF; API cannot bypass eligibility.
 2) Command construction: executable allowlist; no user-controlled exe; no shell concatenation; argv arrays; Windows quoting; prompt file safety; env allowlist; PATH hijack; cwd/worktree root validation.
-3) Cursor invocation: agent.cmd contract; --trust implications; workspace; JSON parsing; allowed-path containment; extra text in output; auth/availability.
-4) Claude invocation: non-interactive; plan/read-only; disallowed tools including Bash; JSON validation; auth-before-run; timeout/kill; token/cost budget enforcement.
+3) Cursor invocation: no agent.cmd; --trust decision; workspace; file+envelope JSON parsing; allowed-path containment; auth/availability.
+4) Claude invocation: non-interactive; plan/read-only; disallowed tools including Bash; JSON validation; auth-before-run; timeout/kill; token/cost budget (cache-read excluded from budget).
 5) Process lifecycle: heartbeat vs lease TTL; cancel race; lease-loss; child cleanup; Windows process-tree kill; timeout; stdout/stderr deadlock; output cap; encoding; late/stale result rejection.
 6) Concurrency: dual claim; CAS; worktree/branch conflict; executor/reviewer overlap; Redis/FileLock mix; crash between process end and submit_result.
 7) Security: prompt injection; hostile repo/test output; secret redaction; log leakage; Windows junction/symlink escape; UNC/drive traversal; env secret inheritance; destructive git prevention.
