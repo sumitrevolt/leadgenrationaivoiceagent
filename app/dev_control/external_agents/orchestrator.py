@@ -75,6 +75,7 @@ def create_mission(
     rollback_plan: str = "",
     parent_goal_id: str = "",
     priority: int = 50,
+    token_budget: int | None = None,
     lock: Any = None,
 ) -> dict[str, Any]:
     _require_enabled()
@@ -110,25 +111,28 @@ def create_mission(
             note="executor-role missions must declare a non-empty allowed_paths scope",
         )
 
-    mission = Mission.create(
-        title=title,
-        description=description,
-        executor=executor.strip().lower(),
-        reviewer=reviewer.strip().lower(),
-        risk_class=classification["risk_class"],
-        idempotency_key=idempotency_key,
-        allowed_paths=allowed_paths or [],
-        prohibited_paths=policy.normalise_prohibited(prohibited_paths),
-        branch=branch,
-        worktree=worktree,
-        base_sha=base_sha,
-        acceptance_criteria=acceptance_criteria or [],
-        required_tests=required_tests or [],
-        required_checks=required_checks or [],
-        rollback_plan=rollback_plan,
-        parent_goal_id=parent_goal_id,
-        priority=priority,
-    )
+    create_kwargs: dict[str, Any] = {
+        "title": title,
+        "description": description,
+        "executor": executor.strip().lower(),
+        "reviewer": reviewer.strip().lower(),
+        "risk_class": classification["risk_class"],
+        "idempotency_key": idempotency_key,
+        "allowed_paths": allowed_paths or [],
+        "prohibited_paths": policy.normalise_prohibited(prohibited_paths),
+        "branch": branch,
+        "worktree": worktree,
+        "base_sha": base_sha,
+        "acceptance_criteria": acceptance_criteria or [],
+        "required_tests": required_tests or [],
+        "required_checks": required_checks or [],
+        "rollback_plan": rollback_plan,
+        "parent_goal_id": parent_goal_id,
+        "priority": priority,
+    }
+    if token_budget is not None:
+        create_kwargs["token_budget"] = int(token_budget)
+    mission = Mission.create(**create_kwargs)
 
     # Atomic first-writer-wins BEFORE any side effects. Concurrent creator with
     # the same key loses and returns the winner's mission — no duplicate docs.
@@ -359,6 +363,7 @@ def advance(
     *,
     evidence: dict[str, Any] | None = None,
     owner_approved: bool = False,
+    approval_decision_id: str | None = None,
 ) -> dict[str, Any]:
     """Drive PR/CI/merge/deploy states. AMBER stops for the owner."""
     _require_enabled()
@@ -376,22 +381,71 @@ def advance(
     gate_box: dict[str, Any] = {}
 
     def _mutate(mission: Mission) -> None:
-        if policy.approval_required(mission, target_state) and not owner_approved:
-            if mission.status is not MissionState.OWNER_DECISION_REQUIRED:
-                mission.transition(MissionState.OWNER_DECISION_REQUIRED)
-            mission.approval_state = "required"
-            mission.blocker = f"AMBER approval required before {target_state.value}"
-            mission.add_evidence("approval_gate", {"blocked_target": target_state.value})
-            gate_box["owner_gate"] = True
-            return
+        if policy.approval_required(mission, target_state):
+            # Request-body boolean alone is never sufficient (Owner OS ledger).
+            if owner_approved and not (approval_decision_id or "").strip():
+                gate_box["owner_gate"] = True
+                gate_box["reason"] = "approval_decision_id_required"
+                if mission.status is not MissionState.OWNER_DECISION_REQUIRED:
+                    mission.transition(MissionState.OWNER_DECISION_REQUIRED)
+                mission.approval_state = "required"
+                mission.blocker = (
+                    f"AMBER requires Owner OS approval_decision_id before {target_state.value}"
+                )
+                mission.add_evidence(
+                    "approval_gate",
+                    {"blocked_target": target_state.value, "boolean_alone_refused": True},
+                )
+                return
+            from app.dev_control.external_agents import approval as amber_approval
+
+            verified = amber_approval.assert_amber_approved(
+                str(approval_decision_id or ""),
+                mission,
+                target_state=target_state,
+                head_sha=mission.base_sha,
+            )
+            if not verified.get("ok"):
+                if mission.status is not MissionState.OWNER_DECISION_REQUIRED:
+                    mission.transition(MissionState.OWNER_DECISION_REQUIRED)
+                mission.approval_state = "required"
+                mission.blocker = (
+                    f"AMBER approval required before {target_state.value}: "
+                    f"{verified.get('reason')}"
+                )
+                mission.add_evidence(
+                    "approval_gate",
+                    {
+                        "blocked_target": target_state.value,
+                        "reason": verified.get("reason"),
+                        "approval_decision_id": approval_decision_id,
+                    },
+                )
+                gate_box["owner_gate"] = True
+                gate_box["reason"] = verified.get("reason")
+                return
+            gate_box["amber_verified"] = verified
         if target_state in {MissionState.MERGED, MissionState.VERIFIED, MissionState.COMPLETE}:
             missing = _missing_evidence(mission, target_state)
             if missing:
                 gate_box["missing"] = missing
                 raise InvalidMissionTransition("evidence_incomplete")
         mission.transition(target_state)
-        if owner_approved:
+        if gate_box.get("amber_verified"):
             mission.approval_state = "approved"
+            mission.add_evidence(
+                "amber_approval",
+                policy.redact(
+                    {
+                        "approval_decision_id": gate_box["amber_verified"].get(
+                            "approval_decision_id"
+                        ),
+                        "binding_hash": (gate_box["amber_verified"].get("binding") or {}).get(
+                            "binding_hash"
+                        ),
+                    }
+                ),
+            )
         if evidence:
             mission.add_evidence(target_state.value.lower(), policy.redact(evidence))
 
@@ -403,11 +457,34 @@ def advance(
         return _fail(reason)
     mission = out["mission"]
     if gate_box.get("owner_gate"):
-        store.record_event(mission_id, "owner_decision_required", {"target": target_state.value})
-        return _fail(
-            "owner_approval_required", mission=mission.to_dict(), target=target_state.value
+        store.record_event(
+            mission_id,
+            "owner_decision_required",
+            {"target": target_state.value, "reason": gate_box.get("reason")},
         )
-    store.record_event(mission_id, "advanced", {"to": target_state.value})
+        return _fail(
+            "owner_approval_required",
+            mission=mission.to_dict(),
+            target=target_state.value,
+            approval_reason=gate_box.get("reason") or "owner_approval_required",
+        )
+    if gate_box.get("amber_verified"):
+        from app.dev_control.external_agents import approval as amber_approval
+
+        amber_approval.consume_amber_approval(
+            str(gate_box["amber_verified"].get("approval_decision_id") or ""),
+            actor="orchestrator",
+        )
+    store.record_event(
+        mission_id,
+        "advanced",
+        {
+            "to": target_state.value,
+            "approval_decision_id": (gate_box.get("amber_verified") or {}).get(
+                "approval_decision_id"
+            ),
+        },
+    )
     return _ok(mission)
 
 

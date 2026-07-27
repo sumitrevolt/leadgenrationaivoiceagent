@@ -5,9 +5,8 @@
 ## WS-1 Automation-Max (MAIN GOAL) - PHASE-1 LIVE + follow-on fixes
 - **ID:** WS-1
 - **Business outcome:** Safe automation ON; humans approve high-impact/external only
-- **Evidence:** Flags LIVE; cadence OK (Anika events); Kavya/Arnav resumed; approval allowlist=jiya-makeover (file); boot_grace lost-defer → content recovered via run_due
-- **Current state:** LIVE. Content job re-dispatched 11:31Z after morning boot_grace miss.
-- **Next exact action:** Merge PR #135 when CI green; durable deploy with APP_VERSION
+- **Current state:** LIVE on prod ancestry; not this session's focus
+- **Next exact action:** Owner ops as needed
 - **Out of scope:** WA auto · dial · reply-auto-send · sales-autopilot
 
 ---
@@ -21,20 +20,10 @@
 
 ---
 
-## WS-3 External Agent Orchestrator (Cursor+Claude missions) - IN PR #146
+## WS-3 External Agent Runner v1 (post #146) - DRAFT PR
 - **ID:** WS-3
-- **Business outcome:** Cursor/Claude work is dispatched with leases, path ownership, independent review and evidence instead of manual coordination
-- **Evidence:** ADR-148 + apply_cas lifecycle; 51 targeted tests; real Claude PASS `msn_de710b3527d046f4` @ `5a3c632`; CI green; ruleset 19718692 active
-- **Current state:** Draft PR #146 head `5a3c632`; flag OFF; foundation only; Claude review PASS (cycle 2 after MEDIUM fix)
-- **Next exact action:** Owner decision only — mark PR ready for review (NOT merge/deploy/flag flip)
-- **Out of scope:** flag flip · merge · deploy · auto-merge · voice/Swara · dial
-
----
-
-## WS-3b OpenClaw Automation agents (observe) - MERGED (#135)
-- **ID:** WS-3
-- **Business outcome:** Copilot sees Automation-Max agents (Anika/Kavya/Isha/Rohan/Neha) via GREEN commands
-- **Evidence:** `automation.status` + `automation.agents` + `agent.status` openclaw_automation package; tests green
-- **Current state:** Code on PR branch; prod needs module deploy + allowlist append if OPENCLAW_ALLOWED_COMMANDS is pinned
-- **Next exact action:** Merge/deploy; verify Gateway `automation.status` SUCCEEDED
-- **Out of scope:** New STAFF personas · AMBER auto-approve · voice/Swara edits · dial
+- **Business outcome:** Unattended GREEN Cursor→Claude invocation with lease/heartbeat/review on local canary
+- **Evidence:** ADR-149; dogfood `msn_b2a592093c484efa` REVIEW_PASSED; `EXTERNAL_AGENT_RUNNER` default OFF; 66 external-agent tests + regressions green
+- **Current state:** Code on `feat/external-agent-runner-v1` worktree `lg-external-runner`; foundation #146 merged at `e64b8a9d`; prod still `f096a08d` flags OFF
+- **Next exact action:** Owner decision — merge runner PR only (NOT deploy/flag flip). Then separate Windows canary enablement.
+- **Out of scope:** prod runner enable · deploy · calling · Swara · dogfood merge

@@ -56,6 +56,7 @@
   <div class="card">
     <h2>External agent missions <span class="sub" id="m_flag">—</span></h2>
     <div class="sub" style="margin-bottom:10px">Cursor = engineering executor · Claude = admin/reviewer · Owner OS = sole authority. GREEN auto-progresses to PR/CI; AMBER stops for owner; RED is refused at creation.</div>
+    <div class="sub" id="m_runner" style="margin-bottom:10px">runner —</div>
     <div class="actions" style="margin-bottom:10px" id="m_filters"></div>
     <div style="overflow:auto"><table id="missions"></table></div>
   </div>
@@ -107,6 +108,11 @@ async function loadMissions(){
   }
   const s = st.body.summary||{};
   flag.textContent = "active · "+(s.total||0)+" missions · cursor "+(s.cursor||0)+" · claude "+(s.claude||0)+" · owner action "+(s.owner_action_required||0);
+  const rn = st.body.runner||{};
+  const rb = document.getElementById("m_runner");
+  if(rb){
+    rb.innerHTML = "runner <span class=\"pill "+(rn.runner_enabled?"ok":"no")+"\">"+(rn.runner_enabled?"ENABLED":"OFF")+"</span> · badge <code>"+esc(rn.environment_badge||"dormant")+"</code> · active "+esc((rn.active_missions||[]).length)+" · root <code>"+esc((rn.worktree_root||"").slice(-40))+"</code>";
+  }
   const r = await api("/missions?limit=100"); if(r.status!==200) return;
   const rows=(r.body.missions||[]).filter(missionMatches).map(function(m){
     const risk = m.risk_class==="GREEN" ? "ok" : (m.risk_class==="RED" ? "no" : "");

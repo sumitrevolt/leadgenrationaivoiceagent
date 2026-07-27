@@ -166,7 +166,10 @@ def claim(
     mission_id: str, owner: str, *, ttl_s: int = 900, now: datetime | None = None
 ) -> dict[str, Any]:
     """Cross-process compare-and-set lease. Exactly one owner can win."""
-    backend = cas_mod.get_backend(root=str(_root()))
+    try:
+        backend = cas_mod.get_backend(root=str(_root()))
+    except cas_mod.CasBackendError as exc:
+        return {"claimed": False, "reason": str(exc), "backend": "unavailable"}
     now_dt = now or datetime.utcnow()
     now_ts = now_dt.timestamp()
 

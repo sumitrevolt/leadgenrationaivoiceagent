@@ -199,7 +199,7 @@ class Mission:
     required_tests: list[str] = field(default_factory=list)
     required_checks: list[str] = field(default_factory=list)
     max_runtime_s: int = 3600
-    token_budget: int = 200_000
+    token_budget: int = 1_000_000
     cost_budget_usd: float = 0.0
     retry_policy: dict[str, Any] = field(
         default_factory=lambda: {"max_retries": 2, "backoff_s": 60}

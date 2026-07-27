@@ -25,6 +25,7 @@ def _isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("EXTERNAL_MISSION_DIR", str(tmp_path / "missions"))
     monkeypatch.setenv("EXTERNAL_AGENT_ORCHESTRATOR", "1")
     monkeypatch.setenv("EXTERNAL_MISSION_CAS", "filelock")
+    monkeypatch.setenv("EXTERNAL_AGENT_COORDINATION_BACKEND", "local-file")
     from app.dev_control.external_agents import cas as cas_mod
 
     cas_mod.reset_backend()
@@ -500,7 +501,25 @@ def test_amber_mission_requires_owner_approval_before_merge():
     assert blocked["ok"] is False and blocked["reason"] == "owner_approval_required"
     assert store.get(mid).status is MissionState.OWNER_DECISION_REQUIRED
 
-    approved = orchestrator.advance(mid, MissionState.MERGE_QUEUED, owner_approved=True)
+    # Boolean alone must not authorize AMBER.
+    still = orchestrator.advance(mid, MissionState.MERGE_QUEUED, owner_approved=True)
+    assert still["ok"] is False
+    assert still.get("reason") in {"owner_approval_required", "approval_decision_id_required"} or (
+        still.get("detail") or still
+    )
+
+    from app.dev_control.external_agents import approval as amber_approval
+    from app.platform import approvals_bridge
+
+    mission = store.get(mid)
+    assert mission is not None
+    req = amber_approval.request_amber_approval(
+        mission, target_state=MissionState.MERGE_QUEUED, actor="admin"
+    )
+    assert req["ok"] is True
+    did = req["approval_decision_id"]
+    approvals_bridge.decide("owner_os_verification", did, "approve", by="owner", reason="amber ok")
+    approved = orchestrator.advance(mid, MissionState.MERGE_QUEUED, approval_decision_id=did)
     assert approved["ok"] and store.get(mid).approval_state == "approved"
 
 
@@ -667,10 +686,14 @@ def test_mixed_backend_risk_flagged_when_redis_url_unreachable(monkeypatch):
 
     cas_mod.reset_backend()
     monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/15")  # deliberately dead
-    monkeypatch.setenv("EXTERNAL_MISSION_CAS", "")  # allow redis probe then fallback
+    monkeypatch.delenv("EXTERNAL_MISSION_CAS", raising=False)
+    monkeypatch.delenv("EXTERNAL_AGENT_COORDINATION_BACKEND", raising=False)
     monkeypatch.setattr(cas_mod, "_sync_redis", lambda: None)
     status = cas_mod.shared_store_status()
-    assert status["backend"] == "filelock"
-    assert status["mixed_backend_risk"] is True
-    assert "WARNING" in status["note"]
+    assert status["mode"] == "redis"
+    assert status["backend"] == "unavailable"
+    assert status["mixed_backend_risk"] is False
+    assert "fail-closed" in status["note"].lower() or "unavailable" in (status.get("error") or "")
+    with pytest.raises(cas_mod.CasBackendError):
+        cas_mod.get_backend()
     cas_mod.reset_backend()

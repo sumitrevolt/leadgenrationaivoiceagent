@@ -155,6 +155,7 @@ AUTOMATION_FLAGS = [
     "LLM_BUDGET_GUARD",  # per-scope LLM daily cost/usage cap + kill-switch — OFF default, fail-open
     "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
     "EXTERNAL_AGENT_ORCHESTRATOR",  # Cursor/Claude mission orchestrator (records only; no shell/deploy/send) — OFF default
+    "EXTERNAL_AGENT_RUNNER",  # unattended Cursor/Claude CLI invocation (needs ORCHESTRATOR too); local/Windows canary — OFF default
     "DEV_ORCHESTRATOR",  # Claude-managed engineering task ledger; draft-safe and OFF by default
     "DEV_WORKER_ENABLED",  # arms the draft-only dev-task Celery runner (needs DEV_ORCHESTRATOR too) — OFF default
     "AUTO_APPLY_PATCH",  # dev-control hard gate: patch application is REFUSED regardless; OFF default
