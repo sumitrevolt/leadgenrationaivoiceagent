@@ -23,6 +23,10 @@ TIMEOUT_S = 1200
 
 ALLOWED_PATHS = [
     "app/dev_control/external_agents/runner/",
+    "app/dev_control/external_agents/approval.py",
+    "app/dev_control/external_agents/cas.py",
+    "app/dev_control/external_agents/adapters.py",
+    "app/dev_control/external_agents/orchestrator.py",
     "app/api/dev_tasks.py",
     "app/api/automation_flags.py",
     "frontend/dev_control.html",
@@ -73,28 +77,24 @@ PR={PR}
 If git HEAD is not exactly {head}, return verdict BLOCKED.
 
 Mandatory review areas (cite file:line or symbol for each real finding):
-0) FIFTH-CYCLE CLOSURE (must prove ALL four — these were the remaining MEDIUMs):
-   A) Real Windows `.cmd`/`.ps1` argv-as-data: runner never launches `agent.cmd`; prefers
-      `node.exe`+`index.js` (or `powershell -File`); owned argv-capture fixtures + tests prove
-      metacharacters/`%VAR%`/`!VAR!` remain inert data; no secondary command.
-   B) `--trust` + profile containment: HOME/USERPROFILE/APPDATA/LOCALAPPDATA redirected to
-      runner-owned profiles; minimal auth hardlinks only; KEEP/REMOVE/BLOCKED decision explicit
-      in code/docs with evidence; prohibited canaries covered by tests.
-   C) Fresh dogfood on THIS head (or ancestor tip that includes these fixes): real Cursor+Claude,
-      lease/heartbeats, RESULT_SUBMITTED→REVIEW_PASSED (or honest CHANGES_REQUIRED), no manual
-      copy-paste, dogfood worktree unmerged; prefer `.external_agent_result_manifest.json` contract.
-   D) Cycle-4 parser integrity: process exit/parse_failed preserved separately from recovered
-      CHANGES_REQUIRED; recovery refuses unrelated JSON / wrong mission/head; failed process
-      cannot yield automatic PASS without explicit validated policy.
+0) SIXTH-CYCLE CLOSURE (must prove ALL five — Claude-5 residuals):
+   1) Live Claude review uses ``review_parse.recover_independent_review`` (not ad-hoc
+      extract_review_manifest) on run_mission_once / invoke_claude_review.
+   2) No ``runner_auto_review`` synthetic citation backfill; empty evidence stays MISSING;
+      PASS requires concrete citations.
+   3) Redis coordination is fail-closed (EXTERNAL_AGENT_COORDINATION_BACKEND); no silent
+      FileLock fallback when Redis is required; backend identity on leases.
+   4) Heartbeat interval <= lease_ttl/3 via lease_contract.derive_lease_and_interval.
+   5) AMBER advance requires Owner OS ``approval_decision_id`` binding — boolean alone refused.
 1) Authority/gating: Owner OS auth real vs bypassable; GREEN-only unattended; AMBER parks; RED refuse; runner requires orchestrator; both flags default OFF; API cannot bypass eligibility.
 2) Command construction: executable allowlist; no user-controlled exe; no shell concatenation; argv arrays; Windows quoting; prompt file safety; env allowlist; PATH hijack; cwd/worktree root validation.
 3) Cursor invocation: no agent.cmd; --trust decision; workspace; file+envelope JSON parsing; allowed-path containment; auth/availability.
-4) Claude invocation: non-interactive; plan/read-only; disallowed tools including Bash; JSON validation; auth-before-run; timeout/kill; token/cost budget (cache-read excluded from budget).
-5) Process lifecycle: heartbeat vs lease TTL; cancel race; lease-loss; child cleanup; Windows process-tree kill; timeout; stdout/stderr deadlock; output cap; encoding; late/stale result rejection.
-6) Concurrency: dual claim; CAS; worktree/branch conflict; executor/reviewer overlap; Redis/FileLock mix; crash between process end and submit_result.
+4) Claude invocation: non-interactive; plan/read-only; disallowed tools including Bash; canonical review_parse; auth-before-run; timeout/kill; token/cost budget (cache-read excluded).
+5) Process lifecycle: heartbeat vs lease TTL contract; cancel race; lease-loss; child cleanup; Windows process-tree kill; timeout; stdout/stderr deadlock; output cap; encoding; late/stale result rejection.
+6) Concurrency: dual claim; CAS; worktree/branch conflict; executor/reviewer overlap; Redis/FileLock explicit modes; crash between process end and submit_result.
 7) Security: prompt injection; hostile repo/test output; secret redaction; log leakage; Windows junction/symlink escape; UNC/drive traversal; env secret inheritance; destructive git prevention.
 8) Dogfood validity: real Cursor+Claude CLIs; no manual copy-paste; lease/heartbeats; manifest validation; dogfood worktree not merged; reproducibility caveats.
-9) API/UI: require_admin; runner endpoint exposure; status leakage; disabled-state; cancellation controls.
+9) API/UI: require_admin; runner endpoint exposure; status leakage; disabled-state; cancellation controls; AMBER approval_decision_id.
 10) Tests: unit vs integration; mocks hiding subprocess defects; cancel/timeout; Redis; Windows process; overflow; malformed JSON; injection; symlink; auth/binary unavailable.
 
 Also read the unified diff file at: {diff_path}
