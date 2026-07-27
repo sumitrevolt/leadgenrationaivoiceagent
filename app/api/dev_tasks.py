@@ -731,7 +731,11 @@ async def missions_recover_stale(_user=Depends(require_admin)) -> dict[str, Any]
 
 @router.post("/missions/{mission_id}/run-runner")
 async def mission_run_runner(mission_id: str, _user=Depends(require_admin)) -> dict[str, Any]:
-    """Local/Windows unattended runner invoke (dual-flag gated). Never deploys."""
+    """Local/Windows unattended runner invoke (dual-flag gated). Never deploys.
+
+    Heavy CLI work runs in a threadpool — web event loop must not block.
+    """
+    import asyncio
     from pathlib import Path
 
     from app.dev_control.external_agents.runner import run_mission_once
@@ -744,7 +748,7 @@ async def mission_run_runner(mission_id: str, _user=Depends(require_admin)) -> d
             detail="EXTERNAL_AGENT_RUNNER disabled (or orchestrator off)",
         )
     repo_root = str(Path(__file__).resolve().parents[2])
-    out = run_mission_once(mission_id, repo_root=repo_root)
+    out = await asyncio.to_thread(run_mission_once, mission_id, repo_root=repo_root)
     if not out.get("ok"):
         raise HTTPException(status_code=409, detail=out)
     return out

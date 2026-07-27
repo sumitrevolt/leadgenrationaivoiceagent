@@ -213,6 +213,20 @@ def main() -> int:
     )
 
     cas.reset_backend()
+    # Cancel leftover live missions in this review store so paths are free.
+    for stale in store.list_missions(limit=200):
+        if stale.status.value in {
+            "COMPLETE",
+            "CANCELLED",
+            "FAILED_TERMINAL",
+            "ROLLED_BACK",
+        }:
+            continue
+        try:
+            orchestrator.cancel(stale.mission_id, reason="pr147_review_preflight_cleanup")
+        except Exception:
+            pass
+
     auth = auth_ok()
     if not auth.get("ok"):
         print(json.dumps({"ok": False, "reason": "claude_auth_unavailable", "auth": auth}))
