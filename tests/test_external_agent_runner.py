@@ -150,10 +150,11 @@ def test_env_deny_by_default_no_cursor_claude_wildcard(monkeypatch):
     assert not any(k.upper().startswith("CLAUDE_") for k in env)
 
 
-def test_claude_disallows_bash():
-    from app.dev_control.external_agents.runner.claude_exec import build_claude_argv
+def test_claude_disallows_bash(monkeypatch):
+    from app.dev_control.external_agents.runner import claude_exec
 
-    argv = build_claude_argv("review please", add_dir="C:/tmp/wt")
+    monkeypatch.setattr(claude_exec, "resolve_claude_executable", lambda: "claude")
+    argv = claude_exec.build_claude_argv("review please", add_dir="C:/tmp/wt")
     joined = " ".join(argv)
     assert "Bash" in joined
     assert "--disallowedTools" in argv
