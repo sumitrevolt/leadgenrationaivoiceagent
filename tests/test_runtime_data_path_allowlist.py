@@ -196,6 +196,88 @@ def test_identity_store_is_jsonl_single_authority() -> None:
     assert "'marketing_clients.json'" not in src
 
 
+# ------------------------------------------- finding binding (PRIMARY proof)
+
+
+def test_every_shipped_entry_binds_to_a_real_finding(findings) -> None:
+    """The durable invariant: a declaration must describe detected code.
+
+    Text search alone is not evidence — a comment, docstring, error message or
+    dead constant satisfies it. That is exactly how `marketing_clients.json`
+    survived: the module genuinely contains that substring, inside `.jsonl`.
+    """
+    problems = al._check_finding_binding(al.load(), findings)
+    assert problems == [], "\n  ".join(problems)
+
+
+def test_unbound_entry_is_rejected(findings) -> None:
+    ghost = _entry(allowlist_id="ghost", line_or_symbol="_NO_SUCH_SYMBOL")
+    problems = al._check_finding_binding([ghost], findings)
+    assert any("declaration is unbound" in p for p in problems)
+
+
+def test_path_mismatch_against_findings_is_rejected(findings) -> None:
+    """`.json` must not bind to a `.jsonl` finding."""
+    bad = _entry(
+        allowlist_id="typo",
+        file="app/marketing/clients_store.py",
+        line_or_symbol="path",
+        path_pattern="data/marketing_clients.json",
+        store_id="customers.identity",
+        access_modes=["REWRITE", "READ", "CREATE", "APPEND"],
+    )
+    problems = al._check_finding_binding([bad], findings)
+    assert any("does not match any detected path" in p for p in problems)
+
+
+def test_conflicting_store_claims_are_rejected(findings) -> None:
+    a = _entry(allowlist_id="a", store_id="billing.invoices")
+    b = _entry(allowlist_id="b", store_id="compliance.dpdp_audit")
+    problems = al._check_finding_binding([a, b], findings)
+    assert any("conflicting store ids" in p for p in problems)
+
+
+@pytest.mark.parametrize(
+    "declared,detected,expected",
+    [
+        ("data/marketing_clients.jsonl", "os.path.join('data', 'marketing_clients.jsonl')", True),
+        ("data/marketing_clients.json", "os.path.join('data', 'marketing_clients.jsonl')", False),
+        (
+            "data/marketing_clients.jsonl.tmp",
+            "os.path.join('data', 'marketing_clients.jsonl')",
+            True,
+        ),
+        (
+            "data/marketing_clients.jsonl.lock",
+            "os.path.join('data', 'marketing_clients.jsonl')",
+            True,
+        ),
+        ("data/client", "data/client_secrets.jsonl", False),
+        ("data/x.jsonl", "Path('data') / 'x.jsonl'", True),
+        ("data//x.jsonl", "./data/x.jsonl", True),
+    ],
+)
+def test_path_component_boundaries(declared: str, detected: str, expected: bool) -> None:
+    """Prefix matching is unsafe, and not hypothetically so."""
+    assert al.path_components_match(declared, detected) is expected
+
+
+def test_text_only_occurrence_does_not_bind(findings) -> None:
+    """A basename that exists ONLY in prose must not satisfy a declaration.
+
+    The secondary source-text check would accept this; the finding binding is
+    what refuses it.
+    """
+    prose_only = _entry(
+        allowlist_id="prose",
+        file="app/platform/runtime_data_allowlist.py",  # mentions paths in docstrings
+        line_or_symbol="_NOT_A_REAL_SYMBOL",
+        path_pattern="data/marketing_clients.jsonl",
+    )
+    problems = al._check_finding_binding([prose_only], findings)
+    assert any("unbound" in p for p in problems)
+
+
 def test_missing_file_rejected() -> None:
     problems = al.validate([_entry(file="app/gone/away.py")])
     assert any("no longer exists" in p for p in problems)

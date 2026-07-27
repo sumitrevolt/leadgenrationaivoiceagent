@@ -103,6 +103,9 @@ def validate(
 
     if findings is not None:
         problems.extend(_check_liveness(entries, findings))
+        # PRIMARY evidence. The source-text basename check above is secondary
+        # defence only — it passes on comments, docstrings and dead constants.
+        problems.extend(_check_finding_binding(entries, findings))
     return problems
 
 
@@ -139,6 +142,204 @@ def _check_path_pattern(eid: str, entry: dict[str, Any], src: Path) -> list[str]
             "the declared path does not match the code"
         ]
     return []
+
+
+def path_components_match(declared: str, detected: str) -> bool:
+    """Compare two path expressions on COMPONENT boundaries.
+
+    Prefix matching is unsafe here and that is not hypothetical: `.json` is a
+    prefix of `.jsonl`, and `data/client` is a prefix of `data/client_secrets`.
+    A companion `.tmp` / `.lock` is matched against the store file it hangs off,
+    because code derives it as `path + ".tmp"` and the literal never appears.
+    """
+    import re
+
+    def norm(s: str) -> str:
+        s = str(s).replace("\\", "/").replace('"', "'")
+        s = re.sub(r"/{2,}", "/", s)
+        s = re.sub(r"(?<![.\w])\./", "", s)
+        return s
+
+    core = re.sub(r"\.(tmp|lock)$", "", norm(declared))
+    basename = core.rsplit("/", 1)[-1]
+    if not basename:
+        return False
+    # Trailing boundary is the whole point: no [A-Za-z0-9_] may follow.
+    return bool(re.search(re.escape(basename) + r"(?![A-Za-z0-9_])", norm(detected)))
+
+
+_SYMBOL_TABLES: dict[str, dict[str, str]] = {}
+
+
+def _symbol_table(file: str) -> dict[str, str]:
+    """Module symbol -> path expression, cached per file."""
+    if file in _SYMBOL_TABLES:
+        return _SYMBOL_TABLES[file]
+    import ast
+
+    table: dict[str, str] = {}
+    src = Path(__file__).resolve().parents[2] / file
+    try:
+        table = _scan._mutable_symbols(ast.parse(src.read_text(encoding="utf-8")))
+    except Exception:  # pragma: no cover - defensive
+        table = {}
+    _SYMBOL_TABLES[file] = table
+    return table
+
+
+def _resolved_path_of(finding: dict[str, Any], depth: int = 4) -> str:
+    """Follow a symbol chain until a real path expression appears.
+
+    A finding on `open(path, ...)` normalizes to `path`, whose definition is
+    `_CLIENTS_FILE`, whose definition is
+    `os.path.join('data', 'marketing_clients.jsonl')`. Only the last of those
+    carries the filename, so binding has to walk the chain — one hop is not
+    enough, and stopping early is how a declaration ends up compared against a
+    variable name instead of a path.
+    """
+    import re
+
+    expr = _scan.normalized_path(finding)
+    table = _symbol_table(finding["file"])
+    for _ in range(depth):
+        m = re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", expr.strip())
+        if not m or m.group(0) not in table:
+            break
+        expr = table[m.group(0)]
+    return expr
+
+
+_COMPANION_DERIVATION = None  # compiled lazily below
+
+
+def _companion_of_primary(
+    entry: dict[str, Any], finding: dict[str, Any], findings: list[dict[str, Any]]
+) -> bool:
+    """Is this finding a `.lock`/`.tmp` DERIVED from the entry's primary store?
+
+    A companion literal never appears in code — it is built as
+    `_STORE + '.lock'` or `target.with_suffix(...)`. So the binding cannot look
+    for the filename; it must prove the derivation:
+
+      1. the entry declares a `.tmp` / `.lock` companion,
+      2. the detected expression is a suffix derivation, and
+      3. the symbol it derives FROM resolves, in the same file, to the declared
+         primary store.
+
+    Step 3 is what stops an unrelated `.lock` in the same module being mapped
+    onto this authority by resemblance, and what keeps a lock from drifting to
+    a different store id than the data it protects.
+    """
+    import re
+
+    global _COMPANION_DERIVATION
+    if _COMPANION_DERIVATION is None:
+        _COMPANION_DERIVATION = re.compile(
+            r"(?P<base>[A-Za-z_][A-Za-z0-9_]*)\s*(?:\+\s*['\"]\.(?:lock|tmp)['\"]"
+            r"|\.with_suffix\()"
+        )
+
+    declared = str(entry.get("path_pattern") or "")
+    if not re.search(r"\.(tmp|lock)$", declared):
+        return False
+
+    detected = _scan.normalized_path(finding)
+    m = _COMPANION_DERIVATION.search(detected)
+    if not m:
+        return False
+
+    primary = re.sub(r"\.(tmp|lock)$", "", declared)
+    base_symbol = m.group("base")
+
+    # The base symbol must itself resolve to the declared primary store,
+    # somewhere in this same file.
+    for other in findings:
+        if other["file"] != finding["file"]:
+            continue
+        if other.get("symbol") == base_symbol or base_symbol in str(
+            other.get("path_expression", "")
+        ):
+            if path_components_match(primary, _resolved_path_of(other)):
+                return True
+    # The base symbol may be defined without ever producing its own finding
+    # (a bare module constant). Fall back to the module's symbol table, still
+    # requiring that it resolves to the DECLARED primary store.
+    table = _symbol_table(finding["file"])
+    seen = base_symbol
+    for _ in range(4):
+        nxt = table.get(seen)
+        if nxt is None:
+            break
+        if path_components_match(primary, nxt):
+            return True
+        m2 = re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", nxt.strip())
+        if not m2:
+            break
+        seen = m2.group(0)
+    return False
+
+
+def _check_finding_binding(
+    entries: list[dict[str, Any]], findings: list[dict[str, Any]]
+) -> list[str]:
+    """PRIMARY evidence: every entry must bind to a real scanner finding.
+
+    Searching the module text for the declared basename is not enough, because
+    a comment, a docstring, an error message or a dead constant satisfies it.
+    That is how `data/marketing_clients.json` survived: the file legitimately
+    contains that substring inside `marketing_clients.jsonl`.
+
+    So the entry must match a FINDING whose file, symbol, operation and
+    normalized resolved path all agree, and that finding must not be a fixture
+    or a static asset.
+    """
+    problems: list[str] = []
+    claims: dict[str, set[str]] = {}
+
+    for e in entries:
+        eid = e["allowlist_id"]
+        key = f"{e['file']}:{e['line_or_symbol']}"
+        matched = [
+            f
+            for f in findings
+            if f["file"] == e["file"]
+            and (
+                str(f.get("symbol")) == str(e["line_or_symbol"]) or f["line"] == e["line_or_symbol"]
+            )
+        ]
+        if not matched:
+            problems.append(f"{eid}: no scanner finding at {key} — declaration is unbound")
+            continue
+
+        path_ok = [
+            f
+            for f in matched
+            if path_components_match(e["path_pattern"], _resolved_path_of(f))
+            or _companion_of_primary(e, f, findings)
+        ]
+        if not path_ok:
+            observed = sorted({_scan.normalized_path(f)[:70] for f in matched})
+            problems.append(
+                f"{eid}: declared path {e['path_pattern']!r} does not match any detected "
+                f"path at {key}; detected {observed}"
+            )
+            continue
+
+        for f in path_ok:
+            cls = f["classification"]
+            if cls in (_scan.FIXTURE_ONLY, _scan.STATIC_ASSET):
+                problems.append(
+                    f"{eid}: bound to a {cls} finding — an allowlist entry must "
+                    "describe production state"
+                )
+            if e["production_relevance"] == "LIVE" and not f.get("production_relevant"):
+                problems.append(f"{eid}: declared LIVE but the finding is not production-relevant")
+            claims.setdefault(_scan.fingerprint(f), set()).add(e["store_id"])
+
+    for fp, stores in claims.items():
+        if len(stores) > 1:
+            problems.append(f"finding {fp} is claimed by conflicting store ids: {sorted(stores)}")
+    return problems
 
 
 def _check_liveness(entries: list[dict[str, Any]], findings: list[dict[str, Any]]) -> list[str]:
