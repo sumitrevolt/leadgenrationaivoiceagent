@@ -23,6 +23,7 @@ def main() -> int:
     os.environ["EXTERNAL_AGENT_ORCHESTRATOR"] = "1"
     os.environ["EXTERNAL_AGENT_RUNNER"] = "1"
     os.environ["EXTERNAL_MISSION_CAS"] = "filelock"
+    os.environ["EXTERNAL_AGENT_COORDINATION_BACKEND"] = "local-file"
     os.environ.setdefault(
         "EXTERNAL_MISSION_DIR",
         str(Path(os.environ.get("TEMP", ROOT / "data")) / "ext_missions_dogfood"),

@@ -26,6 +26,7 @@ def _iso(tmp_path, monkeypatch):
     monkeypatch.setenv("EXTERNAL_AGENT_ORCHESTRATOR", "1")
     monkeypatch.setenv("EXTERNAL_AGENT_RUNNER", "1")
     monkeypatch.setenv("EXTERNAL_MISSION_CAS", "filelock")
+    monkeypatch.setenv("EXTERNAL_AGENT_COORDINATION_BACKEND", "local-file")
     monkeypatch.setenv("EXTERNAL_AGENT_WORKTREE_ROOT", str(tmp_path / "wts"))
     from app.dev_control.external_agents import cas as cas_mod
 

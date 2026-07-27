@@ -25,6 +25,7 @@ def _isolated(tmp_path, monkeypatch):
     monkeypatch.setenv("EXTERNAL_MISSION_DIR", str(tmp_path / "missions"))
     monkeypatch.setenv("EXTERNAL_AGENT_ORCHESTRATOR", "1")
     monkeypatch.setenv("EXTERNAL_MISSION_CAS", "filelock")
+    monkeypatch.setenv("EXTERNAL_AGENT_COORDINATION_BACKEND", "local-file")
     from app.dev_control.external_agents import cas as cas_mod
 
     cas_mod.reset_backend()
@@ -667,10 +668,14 @@ def test_mixed_backend_risk_flagged_when_redis_url_unreachable(monkeypatch):
 
     cas_mod.reset_backend()
     monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/15")  # deliberately dead
-    monkeypatch.setenv("EXTERNAL_MISSION_CAS", "")  # allow redis probe then fallback
+    monkeypatch.delenv("EXTERNAL_MISSION_CAS", raising=False)
+    monkeypatch.delenv("EXTERNAL_AGENT_COORDINATION_BACKEND", raising=False)
     monkeypatch.setattr(cas_mod, "_sync_redis", lambda: None)
     status = cas_mod.shared_store_status()
-    assert status["backend"] == "filelock"
-    assert status["mixed_backend_risk"] is True
-    assert "WARNING" in status["note"]
+    assert status["mode"] == "redis"
+    assert status["backend"] == "unavailable"
+    assert status["mixed_backend_risk"] is False
+    assert "fail-closed" in status["note"].lower() or "unavailable" in (status.get("error") or "")
+    with pytest.raises(cas_mod.CasBackendError):
+        cas_mod.get_backend()
     cas_mod.reset_backend()

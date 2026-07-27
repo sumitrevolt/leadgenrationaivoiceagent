@@ -143,3 +143,37 @@ def test_empty_citations_not_fabricated_as_runner_auto_review():
     assert any(
         "synthetic" in v.lower() or "runner_auto_review" in v for v in synth_checked["violations"]
     )
+
+
+def test_redis_required_does_not_fallback_to_filelock(monkeypatch, tmp_path):
+    """Finding 3: redis mode + Redis down → fail closed, no FileLock claim."""
+    from app.dev_control.external_agents import cas as cas_mod
+
+    cas_mod.reset_backend()
+    monkeypatch.setenv("EXTERNAL_AGENT_COORDINATION_BACKEND", "redis")
+    monkeypatch.setenv("REDIS_URL", "redis://127.0.0.1:1/15")
+    monkeypatch.setattr(cas_mod, "_sync_redis", lambda: None)
+    with pytest.raises(cas_mod.CasBackendError, match="redis_coordination_unavailable"):
+        cas_mod.get_backend(root=str(tmp_path / "missions"))
+    status = cas_mod.shared_store_status(root=str(tmp_path / "missions"))
+    assert status["backend"] == "unavailable"
+    assert status["mixed_backend_risk"] is False
+    cas_mod.reset_backend()
+
+
+def test_local_file_mode_claims_and_records_backend(monkeypatch, tmp_path):
+    from app.dev_control.external_agents import cas as cas_mod
+
+    cas_mod.reset_backend()
+    monkeypatch.setenv("EXTERNAL_AGENT_COORDINATION_BACKEND", "local-file")
+    monkeypatch.delenv("REDIS_URL", raising=False)
+    root = tmp_path / "missions"
+    root.mkdir()
+    be = cas_mod.get_backend(root=str(root))
+    assert be.name == "filelock"
+    claim = be.claim_lease("msn_backendlocal001", "owner-a", ttl_s=60, now=1_700_000_000.0)
+    assert claim["claimed"] is True
+    assert claim["backend"] == "filelock"
+    lease = be.get_lease("msn_backendlocal001")
+    assert lease is not None and lease.backend == "filelock"
+    cas_mod.reset_backend()
