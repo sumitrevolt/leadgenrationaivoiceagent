@@ -113,6 +113,7 @@ def main() -> int:
         acceptance_criteria=["STATUS.txt exists with RUNNER_DOGFOOD_OK"],
         required_tests=[],
         rollback_plan="Delete STATUS.txt and remove dogfood worktree",
+        token_budget=2_000_000,
     )
     if not created.get("ok"):
         print(json.dumps({"ok": False, "create": created}, indent=2))

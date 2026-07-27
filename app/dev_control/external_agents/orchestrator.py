@@ -75,6 +75,7 @@ def create_mission(
     rollback_plan: str = "",
     parent_goal_id: str = "",
     priority: int = 50,
+    token_budget: int | None = None,
     lock: Any = None,
 ) -> dict[str, Any]:
     _require_enabled()
@@ -110,25 +111,28 @@ def create_mission(
             note="executor-role missions must declare a non-empty allowed_paths scope",
         )
 
-    mission = Mission.create(
-        title=title,
-        description=description,
-        executor=executor.strip().lower(),
-        reviewer=reviewer.strip().lower(),
-        risk_class=classification["risk_class"],
-        idempotency_key=idempotency_key,
-        allowed_paths=allowed_paths or [],
-        prohibited_paths=policy.normalise_prohibited(prohibited_paths),
-        branch=branch,
-        worktree=worktree,
-        base_sha=base_sha,
-        acceptance_criteria=acceptance_criteria or [],
-        required_tests=required_tests or [],
-        required_checks=required_checks or [],
-        rollback_plan=rollback_plan,
-        parent_goal_id=parent_goal_id,
-        priority=priority,
-    )
+    create_kwargs: dict[str, Any] = {
+        "title": title,
+        "description": description,
+        "executor": executor.strip().lower(),
+        "reviewer": reviewer.strip().lower(),
+        "risk_class": classification["risk_class"],
+        "idempotency_key": idempotency_key,
+        "allowed_paths": allowed_paths or [],
+        "prohibited_paths": policy.normalise_prohibited(prohibited_paths),
+        "branch": branch,
+        "worktree": worktree,
+        "base_sha": base_sha,
+        "acceptance_criteria": acceptance_criteria or [],
+        "required_tests": required_tests or [],
+        "required_checks": required_checks or [],
+        "rollback_plan": rollback_plan,
+        "parent_goal_id": parent_goal_id,
+        "priority": priority,
+    }
+    if token_budget is not None:
+        create_kwargs["token_budget"] = int(token_budget)
+    mission = Mission.create(**create_kwargs)
 
     # Atomic first-writer-wins BEFORE any side effects. Concurrent creator with
     # the same key loses and returns the winner's mission — no duplicate docs.
