@@ -40,16 +40,19 @@ set EXTERNAL_AGENT_WORKTREE_ROOT=C:\Users\Ratanshila\Documents\_leadgen_worktree
 
 Credential boundary (deny-by-default): child processes receive only an explicit
 OS scaffolding allowlist (`PATH`, `SYSTEMROOT`, locale, temp, and profile-dir
-keys needed for local Cursor/Claude auth stores). There is **no** `CURSOR_*` /
-`CLAUDE_*` wildcard inheritance. Optional exact `CURSOR_API_KEY` is forwarded
-only when `EXTERNAL_AGENT_PASS_CURSOR_API_KEY=1`. Prefer CLI local credential
-stores over env keys; never log credential values.
+keys). There is **no** `CURSOR_*` / `CLAUDE_*` wildcard inheritance. Optional
+exact `CURSOR_API_KEY` only when `EXTERNAL_AGENT_PASS_CURSOR_API_KEY=1`.
 
-`--trust` is required by Cursor Agent non-interactive print mode for a
-pre-provisioned workspace. Containment is **not** provided by `--trust`; it
-comes from the dedicated `feat/ext-*` worktree, deny-by-default env, allowlisted
-argv, post-run git-observed path scope, worktree `pushurl=disabled://no-push`,
-and dual-flag inert defaults.
+**Profile containment:** Cursor/Claude children get redirected
+`HOME`/`USERPROFILE`/`APPDATA`/`LOCALAPPDATA`/`TEMP` under
+`EXTERNAL_AGENT_PROFILE_ROOT` (default: `%TEMP%/leadgen_ext_agent_profiles`).
+Claude receives only linked `.credentials.json` (+ optional `settings.json`) —
+not projects/history/shell-snapshots. Cursor gets an empty `.cursor` home plus
+writable `cursor-compile-cache` (agent binary stays absolute under real install).
+
+**`--trust` decision: KEEP.** Required by Cursor Agent non-interactive print
+mode. Containment is worktree + profile redirect + deny-by-default env + path
+scope + pushurl disabled — not the `--trust` flag itself.
 
 Claude read-only review disallows `Write,Edit,NotebookEdit,Bash`.
 

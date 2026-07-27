@@ -34,6 +34,13 @@ _ALLOWED_BASENAMES = frozenset(
         "python3",
         "py",
         "py.exe",
+        # Windows wrapper capture fixtures (tests only — path-gated below).
+        "argv_capture.cmd",
+        "argv_capture.ps1",
+        "powershell",
+        "powershell.exe",
+        "node",
+        "node.exe",
     }
 )
 
@@ -201,6 +208,8 @@ def sanitize_env(
 
     No ``CURSOR_*`` / ``CLAUDE_*`` wildcards. Credentials prefer local CLI
     profile directories; optional ``CURSOR_API_KEY`` only when explicitly gated.
+    Cursor/Claude profiles redirect HOME/USERPROFILE/APPDATA/LOCALAPPDATA to
+    dedicated runner-owned trees (see ``profile.prepare_executor_profile``).
     """
     allowed = _ENV_PROFILES.get(profile)
     if allowed is None:
@@ -235,10 +244,21 @@ def sanitize_env(
             ):
                 raise ProcessSafetyError(f"env_injection_refused:{k}")
             base[k] = v
+    # Dedicated profile redirection for real executors (not helper/minimal).
+    if profile in {"cursor", "claude"}:
+        from app.dev_control.external_agents.runner.profile import apply_profile_env
+
+        base = apply_profile_env(base, profile)  # type: ignore[arg-type]
     return base
 
 
 HELPER_SCRIPT_NAME = "process_helper.py"
+_WRAPPER_FIXTURE_NAMES = frozenset({"argv_capture.cmd", "argv_capture.ps1"})
+
+
+def _is_fixture_path(path: Path) -> bool:
+    parts = {p.lower() for p in path.resolve().parts}
+    return "fixtures" in parts and "external_agent_runner" in parts
 
 
 def resolve_executable(exe: str) -> str:
@@ -274,12 +294,22 @@ def assert_safe_argv(argv: list[str], *, allowed_root: str | None = None) -> Non
     for a in argv:
         if any(tok in a for tok in ("&&", "||", "`", "$(", "${", "\n", "\r")):
             raise ProcessSafetyError("shell_metachar_refused")
+        # Block cmd.exe %VAR% / delayed !VAR! expansion surfaces before spawn.
+        if "%" in a and any(a[i + 1 :].find("%") > 0 for i, ch in enumerate(a) if ch == "%"):
+            raise ProcessSafetyError("env_expansion_refused")
+        if "!" in a and any(a[i + 1 :].find("!") > 0 for i, ch in enumerate(a) if ch == "!"):
+            raise ProcessSafetyError("delayed_expansion_refused")
         if ";" in a and not a.startswith("--") and "PASS" not in a:
             if "; " in a or a.strip().startswith(";"):
                 raise ProcessSafetyError("shell_metachar_refused")
     exe = Path(argv[0]).name.lower()
     if not _is_allowed_executable_name(exe):
         raise ProcessSafetyError(f"executable_not_allowlisted:{exe}")
+    # .cmd/.bat re-parse &|<>^ via cmd.exe — refuse those tokens for batch wrappers.
+    if exe.endswith((".cmd", ".bat")):
+        for a in argv[1:]:
+            if any(ch in a for ch in ("&", "|", "<", ">", "^")):
+                raise ProcessSafetyError("cmd_metachar_refused")
     # Python is only for the owned test helper script — never arbitrary -c.
     if _is_python_executable_name(exe):
         if len(argv) < 2 or argv[1] in {"-c", "-m"}:
@@ -287,13 +317,52 @@ def assert_safe_argv(argv: list[str], *, allowed_root: str | None = None) -> Non
         script = Path(argv[1]).resolve()
         if script.name != HELPER_SCRIPT_NAME:
             raise ProcessSafetyError("python_helper_name_refused")
-        parts = {p.lower() for p in script.parts}
         # Owned fixture identity — helper lives under tests/fixtures, not inside
         # the mission worktree (cwd). Do not require script ⊆ allowed_root.
-        if "fixtures" not in parts or "external_agent_runner" not in parts:
+        if not _is_fixture_path(script):
             raise ProcessSafetyError("python_helper_path_refused")
         if not script.is_file():
             raise ProcessSafetyError("python_helper_missing")
+    # Direct .cmd/.ps1 capture wrappers — fixtures only.
+    if exe in _WRAPPER_FIXTURE_NAMES:
+        wrapper = Path(argv[0]).resolve()
+        if not _is_fixture_path(wrapper) or not wrapper.is_file():
+            raise ProcessSafetyError("wrapper_fixture_path_refused")
+    # node.exe only when hosting cursor-agent index.js under versions/.
+    if exe in {"node", "node.exe"}:
+        if len(argv) < 2:
+            raise ProcessSafetyError("node_index_required")
+        index = Path(argv[1]).resolve()
+        parts = {p.lower() for p in index.parts}
+        if (
+            index.name.lower() != "index.js"
+            or "cursor-agent" not in parts
+            or "versions" not in parts
+        ):
+            raise ProcessSafetyError("node_cursor_index_refused")
+        if not index.is_file():
+            raise ProcessSafetyError("node_cursor_index_missing")
+    # PowerShell may host argv_capture.ps1 (fixtures) or cursor-agent/*.ps1.
+    if exe in {"powershell", "powershell.exe"}:
+        try:
+            file_idx = next(i for i, a in enumerate(argv) if a.lower() == "-file")
+        except StopIteration as exc:
+            raise ProcessSafetyError("powershell_file_required") from exc
+        if file_idx + 1 >= len(argv):
+            raise ProcessSafetyError("powershell_file_required")
+        script = Path(argv[file_idx + 1]).resolve()
+        name = script.name.lower()
+        parts = {p.lower() for p in script.parts}
+        if name == "argv_capture.ps1":
+            if not _is_fixture_path(script):
+                raise ProcessSafetyError("powershell_wrapper_refused")
+        elif name in {"agent.ps1", "cursor-agent.ps1"}:
+            if "cursor-agent" not in parts:
+                raise ProcessSafetyError("powershell_cursor_ps1_refused")
+        else:
+            raise ProcessSafetyError("powershell_script_refused")
+        if not script.is_file():
+            raise ProcessSafetyError("powershell_script_missing")
 
 
 def assert_worktree_allowed(cwd: str, *, allowed_root: str) -> Path:

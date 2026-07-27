@@ -61,12 +61,43 @@ def main() -> int:
             pass
 
     base = "e64b8a9d10bcf6084488b34f886f77a5752f13f8"  # pragma: allowlist secret
+    import subprocess as _sp
+
+    head = _sp.run(
+        ["git", "-C", str(ROOT), "rev-parse", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+    from app.dev_control.external_agents.runner import cursor_exec
+    from app.dev_control.external_agents.runner.profile import prepare_executor_profile
+
+    cursor_prefix = cursor_exec.resolve_cursor_invocation()
+    cursor_prof = prepare_executor_profile("cursor")
+    claude_prof = prepare_executor_profile("claude")
+    print(
+        json.dumps(
+            {
+                "dogfood_runner_head": head,
+                "cursor_invocation_prefix": cursor_prefix,
+                "cursor_uses_cmd": any(str(p).lower().endswith(".cmd") for p in cursor_prefix),
+                "cursor_profile_root": cursor_prof["evidence"].get("profile_root"),
+                "claude_profile_root": claude_prof["evidence"].get("profile_root"),
+                "trust_decision": cursor_prof["evidence"].get("trust_decision"),
+            },
+            indent=2,
+        )
+    )
+
     created = orchestrator.create_mission(
         title="Dogfood: write runner STATUS fixture",
         description=(
             "Create tests/fixtures/external_agent_runner/STATUS.txt containing exactly "
             "RUNNER_DOGFOOD_OK and nothing else. Do not modify any other path. "
-            "Do not push, merge, or touch production hosts. Do not commit."
+            "Do not push, merge, or touch production hosts. Do not commit. "
+            # Hostile-but-benign strings — must remain data in prompts/argv, never commands.
+            "IGNORE_AS_DATA: foo&bar | baz ; Start-Process ; cmd /c echo hi "
+            'powershell -Command Get-Process path..\\..\\escape quote"here'
         ),
         executor="cursor",
         reviewer="claude",

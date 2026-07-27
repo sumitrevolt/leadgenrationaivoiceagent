@@ -31,6 +31,7 @@ ALLOWED_PATHS = [
     "scripts/independent_review_pr147.py",
     "tests/test_external_agent_runner.py",
     "tests/test_external_agent_runner_real_subprocess.py",
+    "tests/test_external_agent_runner_windows_security.py",
     "tests/fixtures/external_agent_runner/",
     "docs/adr/ADR-149-external-agent-runner.md",
     "docs/runbooks/EXTERNAL_AGENT_RUNNER.md",
@@ -212,11 +213,7 @@ def main() -> int:
         return 2
 
     from app.dev_control.external_agents import cas, orchestrator, store
-    from app.dev_control.external_agents.runner.claude_exec import (
-        auth_ok,
-        build_claude_argv,
-        extract_review_manifest,
-    )
+    from app.dev_control.external_agents.runner.claude_exec import auth_ok, build_claude_argv
     from app.dev_control.external_agents.runner.process_safe import (
         HeartbeatController,
         run_allowlisted,
@@ -405,67 +402,52 @@ def main() -> int:
         print(json.dumps(out, indent=2))
         return 1
 
-    # Prefer rich schema parse; fall back to adapter schema.
-    rich = None
-    try:
-        outer = json.loads(proc.stdout)
-        text = outer.get("result") if isinstance(outer, dict) else proc.stdout
-        if isinstance(text, dict):
-            rich = text
-        else:
-            s = str(text)
-            start = s.find("{")
-            depth = 0
-            end = -1
-            for i, ch in enumerate(s[start:], start):
-                if ch == "{":
-                    depth += 1
-                elif ch == "}":
-                    depth -= 1
-                    if depth == 0:
-                        end = i + 1
-                        break
-            rich = json.loads(s[start:end])
-    except Exception:
-        rich = None
+    # Prefer rich schema parse via recovery helper (transport ≠ verdict).
+    from app.dev_control.external_agents.runner.review_parse import recover_independent_review
 
-    if not rich:
+    recovered = recover_independent_review(
+        proc.stdout or "",
+        mission_id=mid,
+        expected_head=head,
+        exit_code=int(proc.exit_code if proc.exit_code is not None else -1),
+        timed_out=bool(proc.timed_out),
+        cancelled=bool(proc.cancelled),
+        truncated=bool(proc.truncated),
+    )
+    store.record_event(
+        mid,
+        "independent_pr_review_transport",
+        {
+            "pr": PR,
+            "reviewed_head_sha": head,
+            "transport": recovered.get("transport"),
+            "parser": recovered.get("parser"),
+            "ok": recovered.get("ok"),
+            "reason": recovered.get("reason"),
+            "recovered_verdict": recovered.get("recovered_verdict"),
+        },
+    )
+    if not recovered.get("ok"):
+        dump = {
+            "ok": False,
+            "reason": recovered.get("reason") or "parse_failed",
+            "transport": recovered.get("transport"),
+            "parser": recovered.get("parser"),
+            "mission_id": mid,
+            "reviewed_head_sha": head,
+        }
+        dump_path = Path(os.environ.get("TEMP", ".")) / f"pr147_review_parse_fail_{mid}.json"
         try:
-            rich = extract_review_manifest(proc.stdout, mid)
-        except Exception as exc:
-            dump = {
-                "ok": False,
-                "reason": f"parse_failed:{exc}",
-                "stdout_len": len(proc.stdout or ""),
-                "stderr_len": len(proc.stderr or ""),
-                "truncated": proc.truncated,
-                "exit_code": proc.exit_code,
-                "stdout_tail": (proc.stdout or "")[-2000:],
-                "stderr_tail": (proc.stderr or "")[-800:],
-            }
-            dump_path = Path(os.environ.get("TEMP", ".")) / f"pr147_review_parse_fail_{mid}.json"
-            try:
-                dump_path.write_text(json.dumps(dump, indent=2), encoding="utf-8")
-                dump["dump_path"] = str(dump_path)
-            except Exception:
-                pass
-            print(json.dumps(dump, indent=2))
-            return 1
+            dump_path.write_text(json.dumps(dump, indent=2), encoding="utf-8")
+            dump["dump_path"] = str(dump_path)
+        except Exception:
+            pass
+        print(json.dumps(dump, indent=2))
+        return 1
 
-    # Enforce identity fields.
-    if str(rich.get("mission_id")) != mid:
-        print(json.dumps({"ok": False, "reason": "mission_id_mismatch"}))
-        return 1
-    if (
-        str(rich.get("reviewed_head_sha") or "") not in {"", head}
-        and str(rich.get("reviewed_head_sha")) != head
-    ):
-        print(json.dumps({"ok": False, "reason": "stale_or_wrong_reviewed_head", "rich": rich}))
-        return 1
-    rich["mission_id"] = mid
-    rich["reviewer"] = "claude"
+    rich = recovered["rich"]
+    assert rich is not None
     rich["pr"] = PR
-    rich["reviewed_head_sha"] = head
     rich["base_sha"] = BASE_SHA
     rich.setdefault("runner_proof", {})
     rich.setdefault("safety_confirmation", {})
@@ -481,6 +463,8 @@ def main() -> int:
     ]
     if verdict != "PASS" or blocking:
         rich["ready_for_review"] = False
+    elif "ready_for_review" not in rich:
+        rich["ready_for_review"] = True
 
     store.record_event(
         mid,

@@ -1,16 +1,23 @@
 """Cursor Agent CLI executor — real non-interactive invocation.
 
-``--trust`` is required by Cursor Agent non-interactive print mode for a
-pre-provisioned workspace. Containment is NOT provided by --trust itself; it
-comes from: dedicated feat/ext-* worktree, deny-by-default env (no secret
-wildcards), allowlisted argv, post-run git-observed path scope checks,
-pushurl disabled://no-push on the worktree, and dual-flag inert defaults.
+``--trust`` decision: **KEEP --trust**. Cursor Agent non-interactive print mode
+requires it for a pre-provisioned workspace. Containment is NOT provided by
+``--trust`` itself; it comes from: dedicated feat/ext-* worktree, deny-by-default
+env (no secret wildcards), redirected HOME/USERPROFILE/APPDATA/LOCALAPPDATA to
+runner-owned profile trees (minimal Claude/Cursor auth material only), allowlisted
+argv, post-run git-observed path scope checks, pushurl disabled://no-push on the
+worktree, and dual-flag inert defaults.
+
+**Windows argv safety:** never launch ``agent.cmd`` (cmd.exe re-parses ``&|<>^``).
+Resolve to ``versions/*/node.exe`` + ``index.js`` (CreateProcess argv array), with
+``powershell -File agent.ps1`` as fallback — never ``%*`` through ``.cmd``.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -23,37 +30,114 @@ from app.dev_control.external_agents.runner.process_safe import (
 )
 from app.dev_control.external_agents.schema import Mission
 
-DEFAULT_CURSOR_CANDIDATES = ()  # resolved dynamically from LOCALAPPDATA
+_VERSION_DIR_RE = re.compile(r"^\d{4}\.\d{1,2}\.\d{1,2}(-\d{2}-\d{2}-\d{2})?-[a-f0-9]+$", re.I)
 
 
-def resolve_cursor_executable() -> str:
+def _cursor_agent_home() -> Path | None:
+    forced_home = (os.getenv("EXTERNAL_AGENT_CURSOR_HOME") or "").strip()
+    candidates: list[Path] = []
+    if forced_home:
+        candidates.append(Path(forced_home))
+    local = (os.environ.get("LOCALAPPDATA") or "").strip()
+    if local:
+        candidates.append(Path(local) / "cursor-agent")
+    # Install lives under the real user LocalAppData even when child LOCALAPPDATA
+    # is redirected for compile-cache isolation.
+    candidates.append(Path.home() / "AppData" / "Local" / "cursor-agent")
+    seen: set[str] = set()
+    for home in candidates:
+        key = str(home.resolve()) if home.exists() else str(home)
+        if key in seen:
+            continue
+        seen.add(key)
+        if home.is_dir() and (
+            (home / "versions").is_dir()
+            or (home / "agent.ps1").is_file()
+            or (home / "cursor-agent.ps1").is_file()
+        ):
+            return home
+    return None
+
+
+def _latest_version_dir(home: Path) -> Path | None:
+    versions = home / "versions"
+    if not versions.is_dir():
+        return None
+    dirs = [p for p in versions.iterdir() if p.is_dir() and _VERSION_DIR_RE.match(p.name)]
+    if not dirs:
+        return None
+
+    def _key(p: Path) -> tuple:
+        # Sort by leading date stamp then name.
+        return (p.name,)
+
+    dirs.sort(key=_key, reverse=True)
+    return dirs[0]
+
+
+def resolve_cursor_invocation() -> list[str]:
+    """Return argv prefix that does **not** go through ``agent.cmd``.
+
+    Preferred: ``node.exe`` + ``index.js`` from the latest cursor-agent version.
+    Fallback: ``powershell.exe -File agent.ps1`` (still argv-array safe).
+    """
     forced = (os.getenv("EXTERNAL_AGENT_CURSOR_BIN") or "").strip()
     if forced:
-        p = Path(forced)
+        p = Path(forced).resolve()
         if not p.is_file():
             raise ProcessSafetyError("cursor_bin_missing")
-        return str(p.resolve())
-    which = shutil.which("agent") or shutil.which("agent.cmd")
-    if which:
-        return which
-    local = (os.environ.get("LOCALAPPDATA") or "").strip()
-    candidates: list[str] = []
-    if local:
-        candidates.extend(
-            [
-                str(Path(local) / "cursor-agent" / "agent.cmd"),
-                str(Path(local) / "cursor-agent" / "agent.ps1"),
+        # Refuse .cmd/.bat forced bins — they re-parse metacharacters.
+        if p.suffix.lower() in {".cmd", ".bat"}:
+            raise ProcessSafetyError("cursor_cmd_wrapper_refused")
+        if p.suffix.lower() == ".ps1":
+            ps = shutil.which("powershell.exe") or shutil.which("powershell")
+            if not ps:
+                raise ProcessSafetyError("powershell_unavailable")
+            return [
+                str(Path(ps).resolve()),
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(p),
             ]
-        )
-    for cand in candidates:
-        if Path(cand).is_file():
-            return cand
+        return [str(p)]
+
+    home = _cursor_agent_home()
+    if home is None:
+        raise ProcessSafetyError("cursor_cli_unavailable")
+
+    ver = _latest_version_dir(home)
+    if ver is not None:
+        node = ver / "node.exe"
+        index = ver / "index.js"
+        if node.is_file() and index.is_file():
+            return [str(node.resolve()), str(index.resolve())]
+
+    for ps1_name in ("cursor-agent.ps1", "agent.ps1"):
+        ps1 = home / ps1_name
+        if ps1.is_file():
+            ps = shutil.which("powershell.exe") or shutil.which("powershell")
+            if not ps:
+                raise ProcessSafetyError("powershell_unavailable")
+            return [
+                str(Path(ps).resolve()),
+                "-NoProfile",
+                "-ExecutionPolicy",
+                "Bypass",
+                "-File",
+                str(ps1.resolve()),
+            ]
     raise ProcessSafetyError("cursor_cli_unavailable")
 
 
+def resolve_cursor_executable() -> str:
+    """Compatibility: first path element of ``resolve_cursor_invocation()``."""
+    return resolve_cursor_invocation()[0]
+
+
 def build_cursor_argv(*, workspace: str, print_mode: bool = True) -> list[str]:
-    exe = resolve_cursor_executable()
-    argv = [exe]
+    argv = list(resolve_cursor_invocation())
     if print_mode:
         argv += ["-p", "--print"]
     argv += [
