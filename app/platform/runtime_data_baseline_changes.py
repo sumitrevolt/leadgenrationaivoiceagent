@@ -133,6 +133,81 @@ CHANGES: list[dict[str, Any]] = [
             "discovered uncontrolled debt, and it is therefore absent from this baseline."
         ),
     },
+    {
+        "change_id": "bce-2026-07-27-local-path-return-helper-provenance",
+        "old_scanner_version": _ENGINE_2026_07_27_4,
+        "new_scanner_version": SCANNER_ENGINE_VERSION,
+        "old_baseline_count": 834,
+        "new_baseline_count": 839,
+        "added_fingerprints": 25,
+        "removed_fingerprints": 20,
+        "reason": (
+            "local path-return helper provenance, bounded env-read patterns and "
+            "`or`-fallback rendering; the engine version was bumped without this "
+            "record and the ratchet caught the gap"
+        ),
+        "detector_change": (
+            "Three semantic additions. (1) A module-level function whose every "
+            "reachable return is a proven path now resolves at its CALL SITES, so "
+            "`_ckpt_path()` and `_cursor_path()` carry the store they open instead "
+            "of an unknown return contract. (2) `os.getenv('X', 'data/store')` is a "
+            "bounded path PATTERN — an env read with no default stays unbounded, so "
+            "only a static default can bound it. (3) `os.getenv('X') or DEFAULT` "
+            "renders the env var WITH its real fallback. Findings therefore carry "
+            "`<$VAR|static/default>` structure instead of raw source text; env "
+            "VALUES, mission ids and payloads never enter a finding or a fingerprint."
+        ),
+        "affected_files": [
+            "app/agents/batch_harness.py",
+            "app/agents/dag_engine.py",
+            "app/agents/process_engine.py",
+            "app/api/minisite_builder.py",
+            "app/api/studio_media.py",
+            "app/marketing/brand_kit.py",
+            "app/marketing/creative_os/store.py",
+            "app/marketing/crm_lite.py",
+            "app/marketing/product_catalog.py",
+            "app/marketing/product_one_delivery.py",
+            "app/platform/client_snapshots.py",
+            "app/platform/icp_generator.py",
+            "app/platform/memory_vault.py",
+            "app/platform/office_briefing.py",
+            "app/platform/platform_dial.py",
+            "app/platform/proposal_tracking.py",
+            "app/telephony/call_feedback.py",
+            "app/telephony/dial_gate.py",
+        ],
+        "affected_store_candidates": [
+            "telephony.calling_safety_config",
+            "telephony.dial_suppression",
+        ],
+        "review_status": REVIEW_APPROVED,
+        "evidence": (
+            "25 added / 20 removed / 814 unchanged; 834 + 25 - 20 = 839 and the "
+            "scanner sets reconcile exactly. Of the 25 added, 20 are ONE-TO-ONE "
+            "RE-RENDERINGS: every one sits in a file that also lost exactly one "
+            "fingerprint at the same file+symbol+operation, the only difference "
+            "being the bounded pattern replacing the raw source expression. The "
+            "remaining 5 have no paired removal and are genuine new sight, all of "
+            "them `os.getenv(VAR, 'data/...')` roots that previously resolved to "
+            "NOT_PATH and so produced no finding at all: platform_dial.py:_cfg_path "
+            "READ, call_feedback.py:_blocklist_path READ plus its CREATE call site, "
+            "dial_gate.py:_cfg_path READ and :_blocklist_path READ. Those are the "
+            "Tier 0 calling-safety families the manifest records as "
+            "LEGACY_IN_CHECKOUT deployment blockers, which is why they are booked "
+            "as KNOWN UNRESOLVED DEBT here and NOT as approvals. "
+            "The expansion is newly visible debt, not new debt: none of the 18 "
+            "files was modified by the commit that changed the engine, and running "
+            "the PREVIOUS engine against this same tree (parent commit, post-merge) "
+            "produced none of these fingerprints. "
+            "Deliberately absent: the writers this branch actually AUTHORED — the "
+            "voice kill-switch reader/writer/temp companion and the external-agent "
+            "mission call sites. Booking those here would let a change record "
+            "launder new debt as improved detection, so they are classified in the "
+            "controlled allowlist instead (telephony.voice_kill_switch.*, "
+            "telephony.call_recordings.dir, devcontrol.external_missions.*)."
+        ),
+    },
 ]
 
 
