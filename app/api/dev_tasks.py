@@ -18,13 +18,13 @@ from app.api.auth_deps import require_admin
 from app.dev_control import delivery as _delivery
 from app.dev_control import deploy as _deploy
 from app.dev_control import reconcile as _reconcile
-from app.dev_control.registry import MODEL_CATALOG, route_preview
 from app.dev_control.governor_auth import governor_auth_status, verify_governor_attestation
 from app.dev_control.governor_reviews import (
     load_worker_report,
     record_governor_review,
     review_gate_status,
 )
+from app.dev_control.registry import MODEL_CATALOG, route_preview
 from app.dev_control.service import TaskState
 from app.models.base import get_async_db
 from app.models.dev_task import DevTask
@@ -198,7 +198,10 @@ async def transition_task(
     task = await db.get(DevTask, task_id)
     if not task:
         raise HTTPException(status_code=404, detail="task not found")
-    if body.state in _DUAL_REVIEW_GATED_STATES and not review_gate_status(task.worker_report)["approved"]:
+    if (
+        body.state in _DUAL_REVIEW_GATED_STATES
+        and not review_gate_status(task.worker_report)["approved"]
+    ):
         raise HTTPException(status_code=409, detail="dual_governor_review_required")
     from app.dev_control.service import InvalidTransition, transition
 
@@ -552,4 +555,203 @@ async def finalize_delivery(
     )
     if not out.get("ok"):
         raise HTTPException(status_code=409, detail=out.get("reason", "cannot_finalize"))
+    return out
+
+
+# ---------------------------------------------------------------------------
+# External Agent Orchestrator (Cursor / Claude missions) — same control plane,
+# separate INERT flag. Owner OS stays the sole action authority; these routes
+# only record missions, leases, evidence and verdicts.
+# ---------------------------------------------------------------------------
+
+
+class CreateMissionRequest(BaseModel):
+    idempotency_key: str = Field(..., min_length=8, max_length=180)
+    title: str = Field(..., min_length=3, max_length=300)
+    executor: Literal["cursor", "claude"]
+    reviewer: str = Field(..., min_length=2, max_length=60)
+    description: str = Field("", max_length=4000)
+    declared_risk: Literal["GREEN", "AMBER", "RED"] | None = None
+    allowed_paths: list[str] = Field(default_factory=list, max_length=100)
+    prohibited_paths: list[str] = Field(default_factory=list, max_length=100)
+    branch: str = Field("", max_length=180)
+    worktree: str = Field("", max_length=500)
+    base_sha: str = Field("", max_length=64)
+    acceptance_criteria: list[str] = Field(default_factory=list, max_length=20)
+    required_tests: list[str] = Field(default_factory=list, max_length=20)
+    required_checks: list[str] = Field(default_factory=list, max_length=20)
+    rollback_plan: str = Field("", max_length=2000)
+    parent_goal_id: str = Field("", max_length=80)
+    priority: int = Field(50, ge=1, le=100)
+
+
+class MissionLeaseRequest(BaseModel):
+    owner: str = Field(..., min_length=2, max_length=120)
+    ttl_s: int = Field(900, ge=30, le=21600)
+
+
+class MissionResultRequest(BaseModel):
+    owner: str = Field(..., min_length=2, max_length=120)
+    result: dict[str, Any] = Field(default_factory=dict)
+
+
+class MissionReviewRequest(BaseModel):
+    review: dict[str, Any] = Field(default_factory=dict)
+
+
+class MissionAdvanceRequest(BaseModel):
+    target: str = Field(..., min_length=3, max_length=40)
+    evidence: dict[str, Any] = Field(default_factory=dict)
+    # Deprecated: boolean alone never authorizes AMBER — use approval_decision_id.
+    owner_approved: bool = False
+    approval_decision_id: str | None = Field(None, max_length=80)
+
+
+def _missions():
+    from app.dev_control.external_agents import orchestrator, policy
+
+    if not policy.orchestrator_enabled():
+        raise HTTPException(status_code=503, detail="EXTERNAL_AGENT_ORCHESTRATOR is disabled")
+    return orchestrator
+
+
+def _mission_result(out: dict[str, Any], *, conflict_status: int = 409) -> dict[str, Any]:
+    if not out.get("ok"):
+        raise HTTPException(status_code=conflict_status, detail=out)
+    return out
+
+
+@router.get("/missions/status")
+async def missions_status(_user=Depends(require_admin)) -> dict[str, Any]:
+    from app.dev_control.external_agents import orchestrator, policy
+    from app.dev_control.external_agents.runner import runner_status
+
+    return {
+        "enabled": policy.orchestrator_enabled(),
+        "summary": orchestrator.summary() if policy.orchestrator_enabled() else {},
+        "flag": policy.FLAG,
+        "runner": runner_status(),
+    }
+
+
+@router.get("/missions")
+async def list_missions(
+    limit: int = Query(100, ge=1, le=500), _user=Depends(require_admin)
+) -> dict[str, Any]:
+    orchestrator = _missions()
+    return {"missions": orchestrator.dashboard_rows(limit=limit)}
+
+
+@router.post("/missions")
+async def create_mission(
+    body: CreateMissionRequest, _user=Depends(require_admin)
+) -> dict[str, Any]:
+    orchestrator = _missions()
+    out = orchestrator.create_mission(**body.model_dump())
+    if not out.get("ok"):
+        # RED refusals are a policy decision, not a server error.
+        raise HTTPException(status_code=422 if out.get("refused") else 409, detail=out)
+    return out
+
+
+@router.post("/missions/{mission_id}/preflight")
+async def mission_preflight(mission_id: str, _user=Depends(require_admin)) -> dict[str, Any]:
+    return _mission_result(_missions().preflight(mission_id))
+
+
+@router.post("/missions/{mission_id}/claim")
+async def mission_claim(
+    mission_id: str, body: MissionLeaseRequest, _user=Depends(require_admin)
+) -> dict[str, Any]:
+    return _mission_result(_missions().claim(mission_id, body.owner, ttl_s=body.ttl_s))
+
+
+@router.post("/missions/{mission_id}/heartbeat")
+async def mission_heartbeat(
+    mission_id: str, body: MissionLeaseRequest, _user=Depends(require_admin)
+) -> dict[str, Any]:
+    return _mission_result(_missions().heartbeat(mission_id, body.owner, ttl_s=body.ttl_s))
+
+
+@router.post("/missions/{mission_id}/start")
+async def mission_start(
+    mission_id: str, body: MissionLeaseRequest, _user=Depends(require_admin)
+) -> dict[str, Any]:
+    return _mission_result(_missions().start(mission_id, body.owner))
+
+
+@router.post("/missions/{mission_id}/result")
+async def mission_result(
+    mission_id: str, body: MissionResultRequest, _user=Depends(require_admin)
+) -> dict[str, Any]:
+    return _mission_result(_missions().submit_result(mission_id, body.owner, body.result))
+
+
+@router.post("/missions/{mission_id}/review")
+async def mission_review(
+    mission_id: str, body: MissionReviewRequest, _user=Depends(require_admin)
+) -> dict[str, Any]:
+    return _mission_result(_missions().submit_review(mission_id, body.review))
+
+
+@router.post("/missions/{mission_id}/advance")
+async def mission_advance(
+    mission_id: str, body: MissionAdvanceRequest, _user=Depends(require_admin)
+) -> dict[str, Any]:
+    return _mission_result(
+        _missions().advance(
+            mission_id,
+            body.target,
+            evidence=body.evidence,
+            owner_approved=body.owner_approved,
+            approval_decision_id=body.approval_decision_id,
+        )
+    )
+
+
+@router.post("/missions/{mission_id}/cancel")
+async def mission_cancel(mission_id: str, _user=Depends(require_admin)) -> dict[str, Any]:
+    return _mission_result(_missions().cancel(mission_id, reason="cancelled via admin API"))
+
+
+@router.post("/missions/{mission_id}/retry")
+async def mission_retry(mission_id: str, _user=Depends(require_admin)) -> dict[str, Any]:
+    return _mission_result(_missions().retry(mission_id))
+
+
+@router.get("/missions/{mission_id}/rollback")
+async def mission_rollback(mission_id: str, _user=Depends(require_admin)) -> dict[str, Any]:
+    return _mission_result(_missions().rollback_package(mission_id), conflict_status=404)
+
+
+@router.post("/missions/recover-stale")
+async def missions_recover_stale(_user=Depends(require_admin)) -> dict[str, Any]:
+    from app.dev_control.external_agents import store as _mstore
+
+    _missions()
+    return {"recovered": _mstore.recover_stale()}
+
+
+@router.post("/missions/{mission_id}/run-runner")
+async def mission_run_runner(mission_id: str, _user=Depends(require_admin)) -> dict[str, Any]:
+    """Local/Windows unattended runner invoke (dual-flag gated). Never deploys.
+
+    Heavy CLI work runs in a threadpool — web event loop must not block.
+    """
+    import asyncio
+    from pathlib import Path
+
+    from app.dev_control.external_agents.runner import run_mission_once
+    from app.dev_control.external_agents.runner.flags import runner_enabled
+
+    _missions()
+    if not runner_enabled():
+        raise HTTPException(
+            status_code=503,
+            detail="EXTERNAL_AGENT_RUNNER disabled (or orchestrator off)",
+        )
+    repo_root = str(Path(__file__).resolve().parents[2])
+    out = await asyncio.to_thread(run_mission_once, mission_id, repo_root=repo_root)
+    if not out.get("ok"):
+        raise HTTPException(status_code=409, detail=out)
     return out

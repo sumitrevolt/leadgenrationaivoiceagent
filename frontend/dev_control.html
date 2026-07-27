@@ -52,6 +52,14 @@
   <div class="card"><h2>Model catalog</h2><div style="overflow:auto"><table id="models"></table></div></div>
 
   <div class="card"><h2>Tasks</h2><div style="overflow:auto"><table id="tasks"></table></div></div>
+
+  <div class="card">
+    <h2>External agent missions <span class="sub" id="m_flag">—</span></h2>
+    <div class="sub" style="margin-bottom:10px">Cursor = engineering executor · Claude = admin/reviewer · Owner OS = sole authority. GREEN auto-progresses to PR/CI; AMBER stops for owner; RED is refused at creation.</div>
+    <div class="sub" id="m_runner" style="margin-bottom:10px">runner —</div>
+    <div class="actions" style="margin-bottom:10px" id="m_filters"></div>
+    <div style="overflow:auto"><table id="missions"></table></div>
+  </div>
 </main>
 <script>
 function token(){ return localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || ""; }
@@ -71,8 +79,66 @@ async function loadAll(){
   document.getElementById("kpis").innerHTML=k.map(x=>`<div class="kpi"><div class="n">${esc(x[1]??0)}</div><div class="l">${esc(x[0])}</div></div>`).join("");
   const g=st.body.deploy_gate||{};
   document.getElementById("gate").innerHTML=`mode <code>${esc(g.deploy_mode)}</code> · code deploys: <span class="pill ${g.auto_deploy_executed_by_code?'no':'ok'}">${g.auto_deploy_executed_by_code?'YES':'never'}</span> · approval token: <span class="pill ${g.approval_token_configured?'ok':'no'}">${g.approval_token_configured?'configured':'unset'}</span> · runbook <code>${esc(g.runbook)}</code>`;
-  loadModels(); loadTasks();
+  loadModels(); loadTasks(); loadMissions();
 }
+
+var MISSION_FILTER = "all";
+var MISSION_FILTERS = [["all","All"],["running","Running"],["blocked","Blocked"],["approval","Approval required"],["failed","Failed"],["complete","Completed"],["cursor","Cursor"],["claude","Claude"],["GREEN","GREEN"],["AMBER","AMBER"],["RED","RED"]];
+function setMissionFilter(f){ MISSION_FILTER=f; loadMissions(); }
+function missionMatches(m){
+  var f=MISSION_FILTER; if(f==="all") return true;
+  if(f==="running") return ["PREFLIGHT","CLAIMED","RUNNING","IMPLEMENTED","TESTING","REVIEW_REQUIRED","PR_OPEN","CI_RUNNING","MERGE_QUEUED","CANARY_RUNNING"].indexOf(m.status)>=0;
+  if(f==="blocked") return m.status==="BLOCKED"||m.status==="CHANGES_REQUESTED";
+  if(f==="approval") return !!m.owner_action_required;
+  if(f==="failed") return m.status==="FAILED_RETRYABLE"||m.status==="FAILED_TERMINAL"||m.status==="ROLLED_BACK";
+  if(f==="complete") return m.status==="COMPLETE";
+  if(f==="cursor"||f==="claude") return m.executor===f;
+  return m.risk_class===f;
+}
+async function loadMissions(){
+  document.getElementById("m_filters").innerHTML = MISSION_FILTERS.map(function(x){
+    return '<button class="'+(MISSION_FILTER===x[0]?"":"ghost")+'" onclick="setMissionFilter(\''+x[0]+'\')">'+esc(x[1])+'</button>';
+  }).join(" ");
+  const st = await api("/missions/status");
+  const flag = document.getElementById("m_flag");
+  if(st.status!==200 || !(st.body||{}).enabled){
+    flag.textContent = "EXTERNAL_AGENT_ORCHESTRATOR is OFF — missions dormant";
+    document.getElementById("missions").innerHTML = '<tr><td class="muted">no missions (flag off)</td></tr>';
+    return;
+  }
+  const s = st.body.summary||{};
+  flag.textContent = "active · "+(s.total||0)+" missions · cursor "+(s.cursor||0)+" · claude "+(s.claude||0)+" · owner action "+(s.owner_action_required||0);
+  const rn = st.body.runner||{};
+  const rb = document.getElementById("m_runner");
+  if(rb){
+    rb.innerHTML = "runner <span class=\"pill "+(rn.runner_enabled?"ok":"no")+"\">"+(rn.runner_enabled?"ENABLED":"OFF")+"</span> · badge <code>"+esc(rn.environment_badge||"dormant")+"</code> · active "+esc((rn.active_missions||[]).length)+" · root <code>"+esc((rn.worktree_root||"").slice(-40))+"</code>";
+  }
+  const r = await api("/missions?limit=100"); if(r.status!==200) return;
+  const rows=(r.body.missions||[]).filter(missionMatches).map(function(m){
+    const risk = m.risk_class==="GREEN" ? "ok" : (m.risk_class==="RED" ? "no" : "");
+    return '<tr>'+
+      '<td class="muted">'+esc(m.mission_id.slice(0,10))+'</td>'+
+      '<td>'+esc(m.title).slice(0,50)+'</td>'+
+      '<td>'+esc(m.executor)+' → '+esc(m.reviewer)+'</td>'+
+      '<td><span class="pill '+risk+'">'+esc(m.risk_class)+'</span></td>'+
+      '<td><span class="pill">'+esc(m.status)+'</span></td>'+
+      '<td class="muted">'+esc(m.branch||"-")+'</td>'+
+      '<td>'+esc((m.changed_files||[]).length)+' files</td>'+
+      '<td>'+esc(m.tests)+'</td>'+
+      '<td class="muted">'+esc(m.last_heartbeat? m.last_heartbeat.slice(11,19):"-")+'</td>'+
+      '<td>'+(m.owner_action_required?'<span class="pill no">owner</span>':esc(m.approval_state))+'</td>'+
+      '<td class="muted">'+esc(m.blocker||"-").slice(0,40)+'</td>'+
+      '<td>'+esc(m.evidence_count)+'</td>'+
+      '<td><span class="pill '+(m.rollback_available?"ok":"no")+'">'+(m.rollback_available?"yes":"no")+'</span></td>'+
+      '<td class="actions"><button class="ghost" onclick="missionRollback(\''+m.mission_id+'\')">rollback</button> <button class="bad" onclick="missionCancel(\''+m.mission_id+'\')">cancel</button></td>'+
+    '</tr>';
+  }).join("");
+  document.getElementById("missions").innerHTML =
+    '<tr><th>id</th><th>title</th><th>executor→reviewer</th><th>risk</th><th>state</th><th>branch</th><th>changed</th><th>tests</th><th>heartbeat</th><th>approval</th><th>blocker</th><th>evidence</th><th>rollback</th><th>actions</th></tr>'+
+    (rows||'<tr><td colspan=14 class="muted">no missions for this filter</td></tr>');
+}
+async function missionRollback(id){ const r=await api("/missions/"+id+"/rollback"); alert("Rollback package:\n"+JSON.stringify(r.body,null,2)); }
+async function missionCancel(id){ if(!confirm("Cancel mission "+id+"?")) return; const r=await api("/missions/"+id+"/cancel",{method:"POST"}); if(r.status>=400) alert("Failed: "+JSON.stringify(r.body)); loadMissions(); }
 async function loadModels(){
   const r=await api("/models"); if(r.status!==200) return;
   const rows=(r.body.models||[]).map(m=>`<tr><td>${esc(m.alias)}</td><td><code>${esc(m.model)}</code></td><td><span class="pill ${m.configured?'ok':'no'}">${m.configured?'yes':'no'}</span></td><td>${esc(m.privacy)}</td><td>$${esc(m.cost_input_usd_per_million)}/$${esc(m.cost_output_usd_per_million)} per M</td></tr>`).join("");
