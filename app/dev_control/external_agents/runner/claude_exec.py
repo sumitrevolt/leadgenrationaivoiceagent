@@ -32,6 +32,8 @@ def auth_ok() -> dict[str, Any]:
             [exe, "auth", "status"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             shell=False,
             timeout=30,
             check=False,
@@ -40,6 +42,8 @@ def auth_ok() -> dict[str, Any]:
             [exe, "-p", "Return only: AUTH_OK"],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             shell=False,
             timeout=60,
             check=False,
@@ -48,13 +52,18 @@ def auth_ok() -> dict[str, Any]:
         return {"ok": False, "reason": f"auth_probe_failed:{type(exc).__name__}"}
     logged_in = "loggedIn" in (st.stdout or "") and "true" in (st.stdout or "").lower()
     auth_line = (probe.stdout or "").strip().splitlines()[-1:] or [""]
-    ok = probe.returncode == 0 and auth_line[-1].strip() == "AUTH_OK"
+    # Envelope JSON may wrap AUTH_OK — accept substring match on last lines.
+    probe_text = (probe.stdout or "").strip()
+    ok = probe.returncode == 0 and (
+        auth_line[-1].strip() == "AUTH_OK" or "AUTH_OK" in probe_text.splitlines()[-3:]
+    )
     return {
-        "ok": ok and (logged_in or ok),
+        "ok": bool(ok or logged_in),
         "version_probe_exit": probe.returncode,
         "auth_status_exit": st.returncode,
         # Never return raw stdout (may include email); only booleans.
         "auth_ok": ok,
+        "logged_in": logged_in,
     }
 
 
