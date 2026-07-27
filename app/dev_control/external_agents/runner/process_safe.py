@@ -31,10 +31,35 @@ _ALLOWED_BASENAMES = frozenset(
         # selects these; argv must also resolve to the owned helper script.
         "python",
         "python.exe",
+        "python3",
         "py",
         "py.exe",
     }
 )
+
+# Linux CI often resolves to python3.12 / python3.11 — allow versioned python3.*
+_PYTHON_VERSIONED = ("python3.",)
+
+
+def _is_allowed_executable_name(name: str) -> bool:
+    n = name.lower()
+    if n in _ALLOWED_BASENAMES:
+        return True
+    return any(
+        n.startswith(prefix) and n[len(prefix) :].replace(".", "").isdigit()
+        for prefix in _PYTHON_VERSIONED
+    )
+
+
+def _is_python_executable_name(name: str) -> bool:
+    n = name.lower()
+    if n in {"python", "python.exe", "python3", "py", "py.exe"}:
+        return True
+    return any(
+        n.startswith(prefix) and n[len(prefix) :].replace(".", "").isdigit()
+        for prefix in _PYTHON_VERSIONED
+    )
+
 
 # Deny-by-default OS scaffolding — no credential prefixes, no wildcards.
 _OS_BASE_ENV = frozenset(
@@ -236,7 +261,7 @@ def resolve_executable(exe: str) -> str:
     if not resolved.exists():
         raise ProcessSafetyError(f"executable_missing:{resolved}")
     name = resolved.name.lower()
-    if name not in _ALLOWED_BASENAMES:
+    if not _is_allowed_executable_name(name):
         raise ProcessSafetyError(f"executable_not_allowlisted:{name}")
     return str(resolved)
 
@@ -253,10 +278,10 @@ def assert_safe_argv(argv: list[str], *, allowed_root: str | None = None) -> Non
             if "; " in a or a.strip().startswith(";"):
                 raise ProcessSafetyError("shell_metachar_refused")
     exe = Path(argv[0]).name.lower()
-    if exe not in _ALLOWED_BASENAMES:
+    if not _is_allowed_executable_name(exe):
         raise ProcessSafetyError(f"executable_not_allowlisted:{exe}")
     # Python is only for the owned test helper script — never arbitrary -c.
-    if exe in {"python", "python.exe", "py", "py.exe"}:
+    if _is_python_executable_name(exe):
         if len(argv) < 2 or argv[1] in {"-c", "-m"}:
             raise ProcessSafetyError("python_helper_script_required")
         script = Path(argv[1]).resolve()
