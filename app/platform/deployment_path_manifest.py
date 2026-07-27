@@ -28,7 +28,9 @@ NORMAL_RELEASE = "NORMAL_RELEASE"
 RECOVERY_SELF_HEAL = "RECOVERY_SELF_HEAL"
 DATABASE_RESTORE = "DATABASE_RESTORE"
 BOOTSTRAP_PROVISIONING = "BOOTSTRAP_PROVISIONING"
-SECRET_CONFIG_PREPARATION = "SECRET_CONFIG_PREPARATION"  # pragma: allowlist secret
+# nosecret — a classification label whose value equals its own name, not a credential.
+# `# pragma: allowlist secret` covers GitGuardian; scripts/check_secrets.py wants `nosecret`.
+SECRET_CONFIG_PREPARATION = "SECRET_CONFIG_PREPARATION"  # pragma: allowlist secret  nosecret
 MAINTENANCE = "MAINTENANCE"
 TEST_CI = "TEST_CI"
 UNKNOWN_CLASS = "UNKNOWN"
