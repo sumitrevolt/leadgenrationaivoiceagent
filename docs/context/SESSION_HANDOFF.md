@@ -1,36 +1,21 @@
-# SESSION_HANDOFF - 2026-07-25
+# SESSION_HANDOFF - overwrite every session end
 
-## Active
-- **PR #141** still OPEN (`feat/bounce-complaint-outcomes`) - not merged, not on prod.
-- Prod `/health` was **`f096a08d`** (classifier not live yet).
-- **Part B dry-run DONE** on prod DB (`apply=false` only). No merge / deploy / apply / flag flips / push.
+## Session objective
+PR #147 fifth (final authorized) security-closure cycle — cmd/ps1 argv, profile containment, fresh dogfood.
 
-## Prod DRY-RUN bounce outcome (apply=false)
-How: PR-branch classifier logic against **prod DB** (read-only dry-run). Confirmed dry-run only - **no apply**.
+## Outcome — IN PROGRESS
+- Cycle-5 code staged/committing: node.exe Cursor path (bypass agent.cmd), profile redirect, review_parse recovery, Windows wrapper tests
+- Dogfood + Claude-5 review pending after push
+- PR remains DRAFT until Claude-5 PASS
 
-| metric | count |
-|---|---|
-| candidates (`other` / email / in) | 286 |
-| to_hard_bounce | 0 |
-| to_soft_bounce | 0 |
-| to_complaint | 0 |
-| left_as_other | 286 |
+## Prior ledger
+4. `msn_74bdc44bb5614913` @ `653663e` → CHANGES_REQUIRED (3 MEDIUM) — transport parse_failed separately evidenced
 
-Rates vs 2543: all **0.000%**.
+## Head
+- Branch: `feat/external-agent-runner-v1`
+- Pre-cycle-5 tip: `1c55a0be1c36cd026adc374276a72a1dedaa1844`
+- PR: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/147 (draft)
+- Prod: `f096a08d`
 
-### Interpretation
-- **NOT** domain-clean proof - stored history me structural NDR/FBL signals missing (mailer-daemon / DSN / feedback-type).
-- Fail-closed classifier correctly unhe `other` pe chhod deta hai.
-- Soft lex: **25/286** me word "spam" hai, lekin classifier correctly usko alone use nahi karta.
-
-### Recommendation
-- In zeros pe domain mat rokna.
-- Blindly enrichment/outreach enable mat karna.
-- Pehle **merge #141** for forward ingest.
-- `AUTO_EMAIL_OUTREACH` / `EMAIL_ENRICH_SWEEP` **OFF** rakho.
-
-## Next owner action
-Decide merge of PR #141 (forward fix). Optional: raw IMAP/provider log probe agar true historical bounce rate chahiye. `--apply` backfill mat karo jab tak owner na kahe (abhi bhi 0 rows update honge).
-
-## PR comment
-Posted: https://github.com/sumitrevolt/leadgenrationaivoiceagent/pull/141#issuecomment-5079069396
+## Safety
+No merge · no deploy · flags OFF · calling HARD OFF · no 6th cycle without owner auth

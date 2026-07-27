@@ -247,3 +247,7 @@ artifacts/local/
 config/openclaw/.local/
 # ...but the plugin manifest IS source and must be tracked
 !config/openclaw/plugins/**/openclaw.plugin.json
+
+tests/fixtures/external_agent_runner/_captured_argv_*.json
+.external_agent_result_manifest.json
+.external_agent_runner_prompt.txt
