@@ -62,9 +62,7 @@ def test_dpdp_requests_entry_declares_the_atomic_replace(findings) -> None:
     dropped, if the entry drifts onto the audit file, or if the temp companion
     is mistaken for the durable authority.
     """
-    entry = next(
-        e for e in al.load() if e["allowlist_id"] == "compliance.dpdp_requests.store"
-    )
+    entry = next(e for e in al.load() if e["allowlist_id"] == "compliance.dpdp_requests.store")
     assert "REPLACE" in entry["access_modes"]
     assert entry["file"] == "app/platform/dpdp.py"
     assert entry["line_or_symbol"] == "_REQUESTS_FILE"
@@ -96,8 +94,12 @@ def test_store_family_count_is_derived_not_typed() -> None:
     families = {e["store_id"] for e in entries}
     # Derived facts, re-pinned when a family is genuinely added:
     # 2026-07-27 +2 entries / +1 family for devcontrol.external_missions.
-    assert len(entries) == 11
-    assert len(families) == 6, sorted(families)
+    # 2026-07-28 +5 entries / +2 families: the two external-mission call-site
+    # entries (same family, previously undeclared modes) and the calling-safety
+    # writers this branch authored — telephony.voice_kill_switch (authority +
+    # atomic temp) and telephony.call_recordings.
+    assert len(entries) == 16
+    assert len(families) == 8, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -108,9 +110,11 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "compliance.email_suppression",
         "customers.identity",
         "devcontrol.external_missions",
+        "telephony.call_recordings",
+        "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    assert len({f.split(".")[0] for f in families}) == 4
+    assert len({f.split(".")[0] for f in families}) == 5
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:

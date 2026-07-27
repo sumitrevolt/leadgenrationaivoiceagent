@@ -233,6 +233,124 @@ ENTRIES: list[dict[str, Any]] = [
             "resets the checkout must not destroy in-flight mission state."
         ),
     },
+    {
+        "allowlist_id": "devcontrol.external_missions.mission_call_sites",
+        "file": "app/dev_control/external_agents/store.py",
+        "line_or_symbol": "path",
+        "path_pattern": "data/external_missions",
+        "store_id": "devcontrol.external_missions",
+        "access_modes": ["CREATE", "READ"],
+        "reason": (
+            "The same per-mission documents as devcontrol.external_missions.store, "
+            "reached through `path = _mission_path(mission_id)` at the create and "
+            "load call sites. One store, not a second family: the REPLACE entry "
+            "declared the writer and left the directory creation and the two reads "
+            "undeclared."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "dev-control",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Must move with devcontrol.external_missions.store — a read that "
+            "outlives its writer's root points at an empty directory and reports "
+            "'no such mission' instead of failing."
+        ),
+    },
+    {
+        "allowlist_id": "devcontrol.external_missions.events",
+        "file": "app/dev_control/external_agents/store.py",
+        "line_or_symbol": "p",
+        "path_pattern": "data/external_missions/events.jsonl",
+        "store_id": "devcontrol.external_missions",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Mission event log written beside the per-mission documents "
+            "(`_events_path() -> _root() / 'events.jsonl'`). Same root, same "
+            "cutover boundary, so it is not its own family."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "dev-control",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Append-only history; the events log must not be split from the "
+            "mission documents it narrates."
+        ),
+    },
+    # --- calling safety (this branch) ---------------------------------------
+    # The manifest gained telephony.voice_kill_switch and telephony.call_recordings
+    # in the same commit that rewrote the kill-switch reader and writer. Families
+    # without entries left those writers UNDECLARED, so they are classified here
+    # rather than absorbed into the debt baseline: writers authored by the change
+    # under review are new debt, not newly visible debt.
+    {
+        "allowlist_id": "telephony.voice_kill_switch.authority",
+        "file": "app/telephony/voice_launch.py",
+        "line_or_symbol": "p",
+        "path_pattern": "data/voice_launch_kill.json",
+        "store_id": "telephony.voice_kill_switch",
+        "access_modes": ["READ", "CREATE"],
+        "reason": (
+            "Emergency kill-switch authority file (VOICE_LAUNCH_KILL_FILE, "
+            "defaulting INSIDE the checkout). Read by admin_kill_status() and "
+            "created by the writer before the atomic flip."
+        ),
+        "migration_tier": 0,
+        "target_change_set": "runtime-data-cutover-wave-0",
+        "owner": "telephony",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "The reader must stay FAIL-CLOSED: missing, unreadable, malformed or "
+            "out-of-root all ENGAGE the kill. Any path change must keep the file "
+            "outside a tree that a deploy resets, or losing it silently "
+            "disengages an emergency control."
+        ),
+    },
+    {
+        "allowlist_id": "telephony.voice_kill_switch.atomic_tmp",
+        "file": "app/telephony/voice_launch.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": "data/voice_launch_kill.json.tmp",
+        "store_id": "telephony.voice_kill_switch",
+        "access_modes": ["REWRITE", "REPLACE", "DELETE"],
+        "reason": (
+            "Same-directory temp companion for the kill-switch flip "
+            "(`p.with_name(p.name + '.tmp_kill')` -> fsync -> os.replace), plus "
+            "the stale-temp cleanup. A temp file is not its own logical family."
+        ),
+        "migration_tier": 0,
+        "target_change_set": "runtime-data-cutover-wave-0",
+        "owner": "telephony",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Temp and target must stay on ONE filesystem or os.replace stops "
+            "being atomic and an interrupted flip leaves truncated JSON — which "
+            "the fail-closed reader treats as ENGAGED, so the failure mode is "
+            "safe but must not become routine."
+        ),
+    },
+    {
+        "allowlist_id": "telephony.call_recordings.dir",
+        "file": "app/telephony/voice_launch.py",
+        "line_or_symbol": "d",
+        "path_pattern": "data/recordings",
+        "store_id": "telephony.call_recordings",
+        "access_modes": ["CREATE"],
+        "reason": (
+            "Recording directory (RECORDINGS_DIR) created on demand by the "
+            "recording-path health probe. Retention-governed evidence."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "runtime-data-cutover-wave-2",
+        "owner": "compliance",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "90-day recording retention is governed by policy elsewhere; a path "
+            "change must carry the retention sweep with it, and recordings must "
+            "not live in a tree a deploy resets."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

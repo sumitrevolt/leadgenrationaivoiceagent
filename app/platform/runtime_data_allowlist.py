@@ -180,7 +180,23 @@ def _symbol_table(file: str) -> dict[str, str]:
     table: dict[str, str] = {}
     src = Path(__file__).resolve().parents[2] / file
     try:
-        table = _scan._mutable_symbols(ast.parse(src.read_text(encoding="utf-8")))
+        tree = ast.parse(src.read_text(encoding="utf-8"))
+        table = _scan._mutable_symbols(tree)
+        # Built the SAME way `scan_python` builds its symbol map, because a
+        # table assembled differently means the evidence walker cannot see what
+        # the scanner has already proved. A proven path-returning helper
+        # contributes its BOUNDED pattern (env var + static fallback), never a
+        # runtime value, so `p = _kill_file()` is compared against the store the
+        # call opens instead of against the literal text `_kill_file()`.
+        helpers = _scan._provenance_table(tree).get(_scan._HELPERS) or {}
+        for name, pattern in _scan._helper_patterns(tree, helpers).items():
+            # Only an INFORMATIVE pattern may displace what the plain symbol
+            # walk already found. A helper whose root comes from a local wrapper
+            # renders as an opaque `<_env>`, and taking that over the assignment
+            # text would replace a path containing the real filename with a
+            # placeholder — resolution going backwards, not forwards.
+            if any(mark in pattern for mark in ("/", "<$", ".")) or name not in table:
+                table[name] = pattern
     except Exception:  # pragma: no cover - defensive
         table = {}
     _SYMBOL_TABLES[file] = table
@@ -202,10 +218,20 @@ def _resolved_path_of(finding: dict[str, Any], depth: int = 4) -> str:
     expr = _scan.normalized_path(finding)
     table = _symbol_table(finding["file"])
     for _ in range(depth):
-        m = re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", expr.strip())
-        if not m or m.group(0) not in table:
+        text = expr.strip()
+        bare = re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", text)
+        # One hop through a path-returning helper CALL. `p = _kill_file()` and
+        # `path = _mission_path(mission_id)` are not symbols, so the identifier
+        # walk stopped on the call text and a declaration ended up compared
+        # against `_kill_file()` rather than the store file it opens. Only
+        # helpers the scanner has already PROVEN are in the table, and the
+        # argument list is discarded — a runtime id must never reach a
+        # declaration comparison.
+        call = None if bare else re.fullmatch(r"([A-Za-z_][A-Za-z0-9_]*)\([^()]*\)", text)
+        name = bare.group(0) if bare else (call.group(1) if call else None)
+        if name is None or name not in table:
             break
-        expr = table[m.group(0)]
+        expr = table[name]
     return expr
 
 
@@ -235,8 +261,15 @@ def _companion_of_primary(
     global _COMPANION_DERIVATION
     if _COMPANION_DERIVATION is None:
         _COMPANION_DERIVATION = re.compile(
-            r"(?P<base>[A-Za-z_][A-Za-z0-9_]*)\s*(?:\+\s*['\"]\.(?:lock|tmp)['\"]"
-            r"|\.with_suffix\()"
+            # A suffixed temp name (`.tmp_kill`, `.tmp_dpdp`) is still a temp
+            # companion; requiring the literal `.tmp` meant a module that
+            # disambiguates its own temp files fell out of companion binding.
+            # `p.with_name(...)` is the third derivation shape in this repo.
+            r"(?P<base>[A-Za-z_][A-Za-z0-9_]*)\s*(?:"
+            r"\+\s*['\"]\.(?:lock|tmp)[A-Za-z0-9_]*['\"]"
+            r"|\.with_suffix\("
+            r"|\.with_name\("
+            r")"
         )
 
     declared = str(entry.get("path_pattern") or "")
