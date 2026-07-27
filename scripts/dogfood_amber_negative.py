@@ -25,12 +25,32 @@ def main() -> int:
         Path(r"C:\Users\Ratanshila\Documents\_leadgen_worktrees")
     )
 
-    from app.dev_control.external_agents import cas, orchestrator
+    from app.dev_control import locks as path_locks
+    from app.dev_control.external_agents import cas, orchestrator, store
     from app.dev_control.external_agents.runner import run_mission_once
     from app.dev_control.external_agents.runner.authorize import authorize_mission
     from app.dev_control.external_agents.schema import RiskClass
 
     cas.reset_backend()
+    terminal = {
+        "COMPLETE",
+        "CANCELLED",
+        "FAILED_TERMINAL",
+        "ROLLED_BACK",
+        "REFUSED",
+    }
+    for stale in store.list_missions(limit=200):
+        if stale.status.value in terminal:
+            continue
+        try:
+            orchestrator.cancel(stale.mission_id, reason="amber_neg_preflight_cleanup")
+        except Exception:
+            pass
+        try:
+            path_locks.get_lock().release(stale.mission_id, stale.allowed_paths)
+        except Exception:
+            pass
+
     created = orchestrator.create_mission(
         title="prepare alembic migration for invoice numbering",
         description="AMBER negative dogfood — must park without child process",
