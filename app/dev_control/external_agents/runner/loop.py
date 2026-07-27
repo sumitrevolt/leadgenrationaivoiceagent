@@ -217,7 +217,7 @@ def run_mission_once(
     # ---- executor ----
     try:
         if mission.executor == "cursor":
-            proc, manifest = cursor_exec.invoke_cursor(
+            proc, manifest, parse_error = cursor_exec.invoke_cursor(
                 mission, packet, allowed_root=root, timeout_s=exec_timeout, heartbeat=hb
             )
         else:
@@ -240,6 +240,8 @@ def run_mission_once(
         "heartbeats": hb.beats,
         "stdout_tail": (proc.stdout or "")[-500:],
         "stderr_tail": (proc.stderr or "")[-500:],
+        "truncated": bool(getattr(proc, "truncated", False)),
+        "manifest_parse_error": parse_error,
     }
 
     if proc.cancelled or proc.timed_out or proc.exit_code != 0 or not manifest:

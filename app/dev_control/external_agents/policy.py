@@ -194,6 +194,15 @@ def normalise_prohibited(paths: list[str] | None) -> list[str]:
     return out
 
 
+#: Runner-owned control files at worktree root — not mission deliverables.
+_RUNNER_CONTROL_BASENAMES = frozenset(
+    {
+        ".external_agent_result_manifest.json",
+        ".external_agent_runner_prompt.txt",
+    }
+)
+
+
 def path_violations(mission: Mission, changed_paths: list[str]) -> list[str]:
     """Paths outside the mission's declared ownership (scope breach evidence)."""
     bad: list[str] = []
@@ -210,6 +219,10 @@ def path_violations(mission: Mission, changed_paths: list[str]) -> list[str]:
         # themselves a scope breach — report the raw form for the evidence trail.
         if not key:
             bad.append(str(raw).strip() or "(empty)")
+            continue
+        base = key.rsplit("/", 1)[-1]
+        if base in _RUNNER_CONTROL_BASENAMES and "/" not in key.strip("/"):
+            # Worktree-root runner control files are exempt from scope breach.
             continue
         if any(
             key == q or key.startswith(q.rstrip("/") + "/") or key.startswith(q)

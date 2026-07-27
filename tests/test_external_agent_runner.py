@@ -193,6 +193,78 @@ def test_process_argv_allowlist_ok():
     assert_safe_argv(["agent.cmd", "-p", "--print", "--workspace", "C:/wt"])
 
 
+def test_cursor_result_manifest_file_preferred(tmp_path):
+    from app.dev_control.external_agents.runner import cursor_exec
+
+    mid = "msn_filemanifest01"
+    payload = {
+        "mission_id": mid,
+        "executor": "cursor",
+        "changed_files": ["tests/fixtures/external_agent_runner/STATUS.txt"],
+        "commands": [],
+        "tests": [],
+        "summary": "from-file",
+        "evidence": {},
+        "scope_breach": False,
+    }
+    (tmp_path / cursor_exec.RESULT_MANIFEST_FILENAME).write_text(
+        json.dumps(payload), encoding="utf-8"
+    )
+    man = cursor_exec.load_result_manifest_file(tmp_path, mid)
+    assert man["summary"] == "from-file"
+
+
+def test_cursor_result_inner_prose_extractable():
+    from app.dev_control.external_agents.runner import cursor_exec
+    from app.dev_control.external_agents.runner.process_safe import ProcessSafetyError
+
+    mid = "msn_innerprose0001"
+    inner = "Done.\n" + json.dumps(
+        {
+            "mission_id": mid,
+            "executor": "cursor",
+            "changed_files": ["tests/fixtures/external_agent_runner/STATUS.txt"],
+            "commands": [],
+            "tests": [],
+            "summary": "ok",
+            "evidence": {},
+            "scope_breach": False,
+        }
+    )
+    raw = json.dumps({"result": inner})
+    man = cursor_exec.extract_result_manifest(raw, mid)
+    assert man["summary"] == "ok"
+    # Outer stdout with prose still fail-closed.
+    with pytest.raises(ProcessSafetyError, match="cursor_output_not_json"):
+        cursor_exec.extract_result_manifest("Here:\n" + raw, mid)
+
+
+def test_runner_control_files_not_scope_breach():
+    from app.dev_control.external_agents import policy
+    from app.dev_control.external_agents.schema import Mission, RiskClass
+
+    mission = Mission(
+        mission_id="msn_scopeexempt0001",
+        title="t",
+        description="d",
+        executor="cursor",
+        reviewer="claude",
+        risk_class=RiskClass.GREEN,
+        idempotency_key="scope-exempt-1",
+        allowed_paths=["tests/fixtures/external_agent_runner/"],
+    )
+    bad = policy.path_violations(
+        mission,
+        [
+            "tests/fixtures/external_agent_runner/STATUS.txt",
+            ".external_agent_result_manifest.json",
+            ".external_agent_runner_prompt.txt",
+            "README.md",
+        ],
+    )
+    assert bad == ["README.md"]
+
+
 def test_cursor_manifest_extract():
     from app.dev_control.external_agents.runner import cursor_exec
 

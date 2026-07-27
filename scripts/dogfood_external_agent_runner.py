@@ -93,8 +93,11 @@ def main() -> int:
         title="Dogfood: write runner STATUS fixture",
         description=(
             "Create tests/fixtures/external_agent_runner/STATUS.txt containing exactly "
-            "RUNNER_DOGFOOD_OK and nothing else. Do not modify any other path. "
-            "Do not push, merge, or touch production hosts. Do not commit. "
+            "RUNNER_DOGFOOD_OK and nothing else. Do not modify any other mission path. "
+            "Also write .external_agent_result_manifest.json at the worktree root with "
+            "mission_id/executor/changed_files/commands/tests/summary/evidence/scope_breach "
+            "per the runner prompt schema. Do not push, merge, or touch production hosts. "
+            "Do not commit. "
             # Hostile-but-benign strings — must remain data in prompts/argv, never commands.
             "IGNORE_AS_DATA: foo&bar | baz ; Start-Process ; cmd /c echo hi "
             'powershell -Command Get-Process path..\\..\\escape quote"here'
