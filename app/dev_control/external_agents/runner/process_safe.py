@@ -14,6 +14,8 @@ from typing import Any, Callable
 
 MAX_OUTPUT_BYTES = 512 * 1024
 DEFAULT_TIMEOUT_S = 900
+# Independent reviews of large PR diffs may need a higher ceiling (still hard-capped).
+_MAX_OUTPUT_HARD_CAP = 4 * 1024 * 1024
 
 # Only these basename executables may be invoked by the runner.
 _ALLOWED_BASENAMES = frozenset(
@@ -332,12 +334,15 @@ def run_allowlisted(
     env_profile: str = "minimal",
     heartbeat: HeartbeatController | None = None,
     cancel_event: threading.Event | None = None,
+    max_output_bytes: int | None = None,
 ) -> ProcessResult:
     """Spawn an allowlisted executable with shell=False and bounded I/O."""
     assert_safe_argv(argv, allowed_root=allowed_root)
     resolved_argv = [resolve_executable(argv[0]), *argv[1:]]
     work = assert_worktree_allowed(cwd, allowed_root=allowed_root)
     env = sanitize_env(env_extra, profile=env_profile)
+    out_limit = MAX_OUTPUT_BYTES if max_output_bytes is None else int(max_output_bytes)
+    out_limit = max(64 * 1024, min(_MAX_OUTPUT_HARD_CAP, out_limit))
     t0 = time.time()
     if heartbeat:
         heartbeat.start()
@@ -364,14 +369,14 @@ def run_allowlisted(
             threading.Thread(
                 target=_bounded_pipe_reader,
                 args=(proc.stdout,),
-                kwargs={"limit": MAX_OUTPUT_BYTES, "chunks": out_chunks, "truncated": out_trunc},
+                kwargs={"limit": out_limit, "chunks": out_chunks, "truncated": out_trunc},
                 daemon=True,
                 name="ext-agent-stdout",
             ),
             threading.Thread(
                 target=_bounded_pipe_reader,
                 args=(proc.stderr,),
-                kwargs={"limit": MAX_OUTPUT_BYTES, "chunks": err_chunks, "truncated": err_trunc},
+                kwargs={"limit": out_limit, "chunks": err_chunks, "truncated": err_trunc},
                 daemon=True,
                 name="ext-agent-stderr",
             ),
