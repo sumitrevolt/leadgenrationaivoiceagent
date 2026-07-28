@@ -10,13 +10,13 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 ## Sprint goal (LOCKED)
 **Automation-Max** — safe engines auto; human only for publish / money / dial / bulk WA.
 
-## Automation-Max (PRODUCTION-PROVEN 2026-07-25)
+## Automation-Max (flags proven 2026-07-25; ASSUMED since)
 VPS `.env` SET: `OPS_WATCHDOG=1` · `CADENCE_ENGINE=1` · `JOURNEY_ENGINE=1` · `APPROVAL_EMAIL_NOTIFY=1`.
 Cold email NOT enabled. NEVER untouched: WA auto-send · platform_dial · reply-auto-send · sales-autopilot.
 Script: `scripts/vps_enable_automation_max_flags.py` (ADR-097 pin-safe recreate).
 Backup: `/opt/leadgen/.env.bak_automation_max`
 Mission Control Band list: only `AUTO_EMAIL_OUTREACH` remains OFF (by design).
-Label: PRODUCTION-PROVEN
+Label: **ASSUMED** — these `.env` values were proven on 2026-07-25 and NOT re-probed on 2026-07-28. See "Calling / flag posture" below.
 
 > **Read this section before trusting any SHA elsewhere in the repo.** On
 > 2026-07-25 an agent used a stale local `origin/main` ref and concluded PR #125
@@ -103,12 +103,12 @@ Label: PRODUCTION-PROVEN
 Label: CODE-PRESENT on `origin/main` (not independently re-proven on prod image `7cab5f60`)
 
 ## OpenClaw
-Stage A ON (`OPENCLAW_ENABLED=1` on production `7cab5f60`). Admin Dashboard `#openclawAdminCard` LIVE. GREEN-only allowlist; AMBER rejected in Stage A; RED refuse intact for matched phrases (`calling enable`); `OPENCLAW_ALLOW_RED_ACTIONS=0`; Gateway token EMPTY (browser super-admin path). Owner OS sole authority.
-Label: PRODUCTION-PROVEN (Stage A ON + Admin panel)
+Stage A ON (`OPENCLAW_ENABLED=1`). Admin Dashboard `#openclawAdminCard` LIVE. GREEN-only allowlist; AMBER rejected in Stage A; RED refuse intact for matched phrases (`calling enable`); `OPENCLAW_ALLOW_RED_ACTIONS=0`; Gateway token EMPTY (browser super-admin path). Owner OS sole authority.
+Label: **ASSUMED** — proven on image `7cab5f60`, which is two deploys behind the running build `dd193a69`, and NOT re-probed on 2026-07-28. See "Calling / flag posture" above.
 
 ## Calling
 HARD OFF. `PLATFORM_DIAL_DAILY=0`. Unchanged by OpenClaw Admin deploy.
-Label: PRODUCTION-PROVEN
+Label: **ASSUMED** — last probed 2026-07-25 on image `7cab5f60`; NOT re-probed on 2026-07-28. The §5 mandate that calling stays HARD OFF is unchanged and unconditional; what is unverified is only whether the host still *matches* it. Re-probe the container env before any action that depends on the flag, and treat a mismatch as an incident rather than as permission.
 
 ## Agent workforce
 Canonical workforce remains **31 agents**. OpenClaw/Boss is Owner OS Copilot surface — **not** a 32nd agent.
