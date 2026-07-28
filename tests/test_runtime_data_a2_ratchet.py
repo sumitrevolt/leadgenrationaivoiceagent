@@ -32,7 +32,6 @@ from app.platform import runtime_data_allowlist as allowlist
 from app.platform import runtime_data_baseline as baseline
 from app.platform import runtime_data_manifest as manifest
 from tests.test_runtime_data_a1_ratchet import (
-    A1_STORE_IDS,
     EXPECTED_ALLOWLIST_ENTRIES,
     EXPECTED_BASELINE_FINGERPRINTS,
     EXPECTED_BLOCKERS,
@@ -280,14 +279,15 @@ def test_the_retired_constant_scanner_would_catch_a_regression():
 
 
 # --------------------------------------------------------------- manifest
-def test_exactly_the_a1_and_a2_rows_have_moved_state():
-    """The single exact global assertion, owned by the newest wave.
+def test_the_a2_rows_are_still_dual_read():
+    """A2's own rows, asserted by A2's own file.
 
-    A3 has not landed, so any additional row in DUAL_READ_PRE_CUTOVER means a
-    manifest state ran ahead of its code.
+    This was `moved == A1 | A2` while A2 was the newest wave. It is a subset
+    assertion now that A3 has landed — NOT a relaxation: the exact global set
+    is asserted by `test_runtime_data_a3_ratchet.py`.
     """
     moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
-    assert moved == set(A1_STORE_IDS) | set(A2_STORE_IDS), moved
+    assert set(A2_STORE_IDS) <= moved, set(A2_STORE_IDS) - moved
 
 
 def test_manifest_still_validates():

@@ -44,12 +44,16 @@ def _hermetic_email_verify(monkeypatch):
 def _isolated_email_suppression(monkeypatch, tmp_path):
     from app.platform import email_unsub
 
-    monkeypatch.setattr(email_unsub, "_STORE", tmp_path / "email_suppression.jsonl")
+    monkeypatch.setattr(email_unsub, "_store_path", lambda: tmp_path / "email_suppression.jsonl")
 
 
 @pytest.fixture(autouse=True)
 def _isolated_review_decisions(monkeypatch, tmp_path):
-    monkeypatch.setattr(auto_outreach, "_REVIEW_DECISION_FILE", os.path.join(str(tmp_path), "review_decisions.jsonl"))
+    monkeypatch.setattr(
+        auto_outreach,
+        "_REVIEW_DECISION_FILE",
+        os.path.join(str(tmp_path), "review_decisions.jsonl"),
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -263,7 +267,12 @@ class TestRun:
         email_unsub.suppress("blocked@site.in", "one_click")
         _seed(
             tmp_prospects,
-            {"id": "blocked", "business_name": "Blocked", "email": "blocked@site.in", "status": "ready"},
+            {
+                "id": "blocked",
+                "business_name": "Blocked",
+                "email": "blocked@site.in",
+                "status": "ready",
+            },
         )
         _seed(
             tmp_prospects,
@@ -344,7 +353,12 @@ class TestStats:
         )
         _seed(
             tmp_prospects,
-            {"id": "blocked", "business_name": "Blocked", "email": "blocked@x.in", "status": "ready"},
+            {
+                "id": "blocked",
+                "business_name": "Blocked",
+                "email": "blocked@x.in",
+                "status": "ready",
+            },
         )
         stats = auto_outreach.outreach_stats()
         assert stats["pending_total"] == 2
@@ -401,7 +415,12 @@ class TestStats:
         )
         _seed(
             tmp_prospects,
-            {"id": "blocked", "business_name": "Blocked", "email": "blocked@x.in", "status": "ready"},
+            {
+                "id": "blocked",
+                "business_name": "Blocked",
+                "email": "blocked@x.in",
+                "status": "ready",
+            },
         )
         monkeypatch.setattr(email_warmup, "bounce_rate_7d", lambda: (0.5, 100, 1))
         monkeypatch.setattr(
@@ -509,7 +528,12 @@ class TestStats:
         )
         _seed(
             tmp_prospects,
-            {"id": "blocked", "business_name": "Blocked", "email": "blocked@x.in", "status": "ready"},
+            {
+                "id": "blocked",
+                "business_name": "Blocked",
+                "email": "blocked@x.in",
+                "status": "ready",
+            },
         )
         _seed(
             tmp_prospects,
@@ -530,10 +554,18 @@ class TestStats:
 
     def test_review_decisions_are_append_only_latest_state_and_counts(self):
         first = auto_outreach.record_review_decision(
-            "Local@X.in", "reviewed_skip", note="bad fit", bucket="priority_local_smb", reviewer="admin"
+            "Local@X.in",
+            "reviewed_skip",
+            note="bad fit",
+            bucket="priority_local_smb",
+            reviewer="admin",
         )
         second = auto_outreach.record_review_decision(
-            "local@x.in", "reviewed_sent", note="manual email sent", bucket="priority_local_smb", reviewer="sunny"
+            "local@x.in",
+            "reviewed_sent",
+            note="manual email sent",
+            bucket="priority_local_smb",
+            reviewer="sunny",
         )
         other = auto_outreach.record_review_decision(
             "other@x.in", "reviewed_suppress", note="complaint risk", bucket="review_unknown_fit"
@@ -746,9 +778,7 @@ class TestFollowupRun:
         assert int(s2.get("followup_count")) == 2
 
     @pytest.mark.asyncio
-    async def test_skips_suppressed_followup_candidates(
-        self, monkeypatch, tmp_prospects, no_sleep
-    ):
+    async def test_skips_suppressed_followup_candidates(self, monkeypatch, tmp_prospects, no_sleep):
         monkeypatch.setattr(app_settings, "auto_email_outreach", True, raising=False)
         monkeypatch.setattr(app_settings, "smtp_user", "user@leadsgenai.in", raising=False)
         monkeypatch.setattr(app_settings, "smtp_password", "x", raising=False)

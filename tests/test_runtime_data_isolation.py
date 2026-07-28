@@ -87,7 +87,7 @@ def test_case_A_repository_data_cannot_suppress(isolated_runtime: Path, tmp_path
 
     _seed_repo_style_legacy_suppression(tmp_path, "victim@example.com")
     # The canonical store lives under the isolated runtime root, and is empty.
-    email_unsub._STORE = isolated_runtime / "compliance" / "email_suppression.jsonl"
+    email_unsub._store_path = lambda: isolated_runtime / "compliance" / "email_suppression.jsonl"
 
     assert (
         email_unsub.is_suppressed("victim@example.com") is False
@@ -103,7 +103,7 @@ def test_case_B_isolated_root_suppression_is_respected(isolated_runtime: Path, t
 
     store = isolated_runtime / "compliance" / "email_suppression.jsonl"
     store.parent.mkdir(parents=True, exist_ok=True)
-    email_unsub._STORE = store
+    email_unsub._store_path = lambda: store
     email_unsub.suppress("blocked@example.com", scope=email_unsub.SCOPE_ALL_OUTREACH)
 
     assert email_unsub.is_suppressed("blocked@example.com") is True

@@ -129,7 +129,9 @@ STORES: list[dict[str, Any]] = [
         concurrency_model="multi-process (filelock)",
         target_runtime_subpath="compliance/email_suppression.jsonl",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A3 (2026-07-28): writers resolve through runtime_data_authority.
+        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="PR #144 canonical authority; lock MUST colocate with ledger",
     ),
@@ -199,7 +201,9 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="compliance/dpdp_audit.jsonl",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A3 (2026-07-28): writers resolve through runtime_data_authority.
+        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="app/models/compliance_audit.py declares compliance_audit_logs but "
         "the table does not exist in production — verified architecture gap",
