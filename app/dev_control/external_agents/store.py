@@ -25,7 +25,7 @@ import json
 import os
 import tempfile
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -155,6 +155,25 @@ def register_idempotency(key: str, mission_id: str) -> dict[str, Any]:
 # ---------------- leases ----------------
 
 
+def _utc_epoch(dt: datetime) -> float:
+    """Epoch seconds for a NAIVE datetime that holds UTC wall-clock.
+
+    `dt.timestamp()` on a naive datetime asks the OS to interpret it as LOCAL
+    time. Everything in this module produces naive UTC (`datetime.utcnow()`), so
+    calling `.timestamp()` on that value shifts every lease window by the host's
+    UTC offset — five and a half hours on the IST hosts this project runs on,
+    which put `lease_expiry` in the PAST the moment a lease was taken.
+
+    Why it survived: the CAS backend compares `cur.until > now` with both sides
+    coming from the same shifted call, so the layer that would have caught the
+    error shared it. What broke was `Mission.lease_active()`, which compares the
+    rendered `lease_expiry` against a correct `utcnow()` — and therefore reported
+    every live lease as expired, inviting a second runner to claim a mission that
+    was still executing.
+    """
+    return dt.replace(tzinfo=timezone.utc).timestamp()
+
+
 def _apply_lease_to_mission(mission: Mission, owner: str, until: float) -> None:
     mission.lease_owner = owner
     mission.lease_expiry = datetime.utcfromtimestamp(until).isoformat()
@@ -171,7 +190,7 @@ def claim(
     except cas_mod.CasBackendError as exc:
         return {"claimed": False, "reason": str(exc), "backend": "unavailable"}
     now_dt = now or datetime.utcnow()
-    now_ts = now_dt.timestamp()
+    now_ts = _utc_epoch(now_dt)
 
     def _body() -> dict[str, Any]:
         mission = get(mission_id)
@@ -207,14 +226,14 @@ def heartbeat(
 ) -> bool:
     backend = cas_mod.get_backend(root=str(_root()))
     now_dt = now or datetime.utcnow()
-    if not backend.heartbeat_lease(mission_id, owner, ttl_s=ttl_s, now=now_dt.timestamp()):
+    if not backend.heartbeat_lease(mission_id, owner, ttl_s=ttl_s, now=_utc_epoch(now_dt)):
         return False
 
     def _body() -> bool:
         mission = get(mission_id)
         if mission is None or mission.lease_owner != owner:
             return False
-        _apply_lease_to_mission(mission, owner, now_dt.timestamp() + max(1, int(ttl_s)))
+        _apply_lease_to_mission(mission, owner, _utc_epoch(now_dt) + max(1, int(ttl_s)))
         with _LOCAL:
             _atomic_write(
                 _mission_path(mission.mission_id),
@@ -331,7 +350,7 @@ def recover_stale(*, now: datetime | None = None) -> list[dict[str, Any]]:
     recovered: list[dict[str, Any]] = []
     in_flight = {MissionState.CLAIMED, MissionState.RUNNING, MissionState.TESTING}
     now_dt = now or datetime.utcnow()
-    now_ts = now_dt.timestamp()
+    now_ts = _utc_epoch(now_dt)
 
     for mission in list_missions(limit=1000):
         if mission.status not in in_flight:
