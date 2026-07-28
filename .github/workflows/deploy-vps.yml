@@ -70,13 +70,27 @@ jobs:
         # `continue-on-error: true` on this step.
         env:
           # TelecallerBrain __init__ me key-PRESENCE check hai (CI me real keys
-          # nahi rakhte); saare LLM calls conftest me stubbed â€” koi network nahi.
+          # nahi rakhte); saare LLM calls conftest me stubbed — koi network nahi.
           GROQ_API_KEY: ci-dummy-key-not-real
           # local-dev parity: bina in ke config PROD-defaults leta (global
-          # RateLimitMiddleware arm â†’ suite ke burst pe 429s, turnstile-class gates).
+          # RateLimitMiddleware arm → suite ke burst pe 429s, turnstile-class gates).
           APP_ENV: test
           ENVIRONMENT: development
-        run: pytest -q -m "not network" --ignore=tests/integration
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          TOKENIZERS_PARALLELISM: "false"
+          PYTHONFAULTHANDLER: "1"
+        # Same process-shard strategy as ci.yml (exit-139 containment).
+        run: |
+          pip install --no-deps "pytest-split==0.9.0"
+          set -e
+          for group in 1 2 3; do
+            echo "::group::pytest shard ${group}/3"
+            pytest -q -m "not network" --ignore=tests/integration \
+              --splits 3 --group "${group}"
+            echo "::endgroup::"
+          done
 
   build:
     name: Build & push image (GHCR)

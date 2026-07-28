@@ -25,7 +25,11 @@ _REPO = pathlib.Path(__file__).resolve().parents[1]
 
 @pytest.fixture(scope="module")
 def current():
-    return scan.scan_repo(_REPO, allowlist=al.load())
+    # Full-repo AST walk is GC-heavy; keep it out of the parent pytest process
+    # (CI exit-139 cyclic-GC class — 2026-07-28). Child failure still fails CI.
+    from tests._runtime_data_scan_subprocess import scan_repo_in_subprocess
+
+    return scan_repo_in_subprocess(_REPO)
 
 
 def test_change_log_is_coherent() -> None:

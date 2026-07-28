@@ -21,7 +21,9 @@ _REPO = pathlib.Path(__file__).resolve().parents[1]
 
 @pytest.fixture(scope="module")
 def current():
-    return scan.scan_repo(_REPO, allowlist=al.load())
+    from tests._runtime_data_scan_subprocess import scan_repo_in_subprocess
+
+    return scan_repo_in_subprocess(_REPO)
 
 
 def _f(**over):
