@@ -15,7 +15,7 @@ class TestPayInfo:
         from app.config import settings
         from app.platform import upi_config as uc
 
-        monkeypatch.setattr(uc, "_STORE", str(tmp_path / "missing_upi.json"))
+        monkeypatch.setattr(uc, "_STORE", lambda: str(tmp_path / "missing_upi.json"))
         monkeypatch.delenv("UPI_VPA", raising=False)
         monkeypatch.setattr(settings, "upi_vpa", "", raising=False)
         res = client.get("/api/public/pay-info")
@@ -49,12 +49,13 @@ class TestPayInfo:
         assert "<svg" in data["qr_svg"]
         keys = {p["key"] for p in data["packages"]}
         # Exactly the 2 public plans — neither less, neither more without ADR.
-        assert {"starter", "advanced"} <= keys, (
-            f"public pay-info must show exactly the public pricing plans; got {keys}"
-        )
-        assert "growth" not in keys, (
-            "legacy 'growth' plan must NOT appear on public pricing — ADR-009/2026-06-11"
-        )
+        assert {
+            "starter",
+            "advanced",
+        } <= keys, f"public pay-info must show exactly the public pricing plans; got {keys}"
+        assert (
+            "growth" not in keys
+        ), "legacy 'growth' plan must NOT appear on public pricing — ADR-009/2026-06-11"
         for p in data["packages"]:
             assert p["name"] and p["price_inr_month"] > 0
 
@@ -103,8 +104,8 @@ class TestUpiSelfServeWiring:
         html = pathlib.Path("frontend/website/index.html").read_text(encoding="utf-8")
         assert "/api/upi/submit" in html
         assert 'id="payRefForm"' in html
-        assert "data-plan-key=\"starter\"" in html
-        assert "data-plan-key=\"advanced\"" in html
+        assert 'data-plan-key="starter"' in html
+        assert 'data-plan-key="advanced"' in html
 
     def test_admin_dashboard_has_self_serve_queue_panel(self):
         import pathlib

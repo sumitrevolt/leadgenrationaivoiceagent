@@ -274,13 +274,15 @@ def test_path_mismatch_against_findings_is_rejected(findings) -> None:
     bad = _entry(
         allowlist_id="typo",
         file="app/marketing/clients_store.py",
-        line_or_symbol="path",
+        line_or_symbol="_CLIENTS_FILE",
         path_pattern="data/marketing_clients.json",
         store_id="customers.identity",
         access_modes=["REWRITE", "READ", "CREATE", "APPEND"],
     )
     problems = al._check_finding_binding([bad], findings)
-    assert any("does not match any detected path" in p for p in problems)
+    assert any(
+        "does not match any detected path" in p or "declaration is unbound" in p for p in problems
+    )
 
 
 def test_conflicting_store_claims_are_rejected(findings) -> None:

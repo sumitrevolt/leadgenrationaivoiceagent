@@ -15,7 +15,7 @@ import pytest
 def test_add_client_logs_customer_created(monkeypatch, tmp_path):
     from app.marketing import clients_store
 
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "clients.jsonl"))
     events = []
     monkeypatch.setattr(
         "app.marketing.delivery_ledger.log_event",

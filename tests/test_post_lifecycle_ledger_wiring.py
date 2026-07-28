@@ -27,7 +27,7 @@ def tmp_store(monkeypatch, tmp_path):
     """clients_store + auto_content file paths -> tmp_path (mirrors test_clients.py)."""
     clients_file = os.path.join(str(tmp_path), "marketing_clients.jsonl")
     queue_dir = os.path.join(str(tmp_path), "content_queue")
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", clients_file)
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: clients_file)
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: queue_dir)
     return tmp_path
 

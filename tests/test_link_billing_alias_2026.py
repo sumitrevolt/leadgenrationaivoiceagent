@@ -18,7 +18,7 @@ OTHER = "other-tenant-9f3a"
 
 def _seed(monkeypatch, tmp_path, rows):
     path = str(tmp_path / "marketing_clients.jsonl")
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", path)
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: path)
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         for r in rows:

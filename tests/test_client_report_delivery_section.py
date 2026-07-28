@@ -15,7 +15,9 @@ def _redirect(monkeypatch, tmp_path):
     monkeypatch.setattr(
         delivery_ledger, "_CONTENT_QUEUE_DIR", lambda: str(tmp_path / "content_queue")
     )
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "marketing_clients.jsonl"))
+    monkeypatch.setattr(
+        clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "marketing_clients.jsonl")
+    )
     monkeypatch.setattr(client_report, "_OUT_DIR", str(tmp_path / "client_reports"))
 
 

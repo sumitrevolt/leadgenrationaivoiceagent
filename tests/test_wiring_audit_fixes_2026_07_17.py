@@ -48,7 +48,7 @@ def test_default_platforms_skips_postiz_without_client_channels(monkeypatch, tmp
     from app.marketing import clients_store, postiz_publish
     from app.social_engine import engine, vault
 
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "clients.jsonl"))
     monkeypatch.setattr(clients_store, "get_client", lambda cid: {"id": cid, "phone": ""})
     monkeypatch.setattr(postiz_publish, "enabled", lambda: True)
     monkeypatch.setattr(postiz_publish, "effective_integration_ids", lambda c=None: [])
@@ -152,12 +152,8 @@ def test_customer_social_status_ownership_and_hands_free(monkeypatch):
     monkeypatch.setenv("SOCIAL_PREFS_HONOR", "1")
     monkeypatch.setattr(se, "enabled", lambda: True)
     monkeypatch.setattr(postiz_publish, "enabled", lambda: True)
-    monkeypatch.setattr(
-        postiz_publish, "effective_integration_ids", lambda client=None: ["ch1"]
-    )
-    monkeypatch.setattr(
-        postiz_publish, "integrations_source", lambda client=None: "social_config"
-    )
+    monkeypatch.setattr(postiz_publish, "effective_integration_ids", lambda client=None: ["ch1"])
+    monkeypatch.setattr(postiz_publish, "integrations_source", lambda client=None: "social_config")
     monkeypatch.setattr(WhatsAppProvider, "_sender_configured", staticmethod(lambda: False))
     monkeypatch.setattr(
         client_config, "get", lambda cid: {"approval_mode": "auto", "configured": True}

@@ -6,6 +6,7 @@ Real file I/O against tmp-path-redirected clients_store/brand_kit (not mocks) �
 this is the only way to actually prove the privileged-field-ignored contract
 (advisor's concern: don't just trust the Pydantic model, prove plan/status/
 trial/niche never reach the client record even if present in the raw body)."""
+
 import os
 
 from fastapi.testclient import TestClient
@@ -20,7 +21,9 @@ def _override_customer(app, cid):
 
 
 def _redirect_stores(monkeypatch, tmp_path):
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", os.path.join(str(tmp_path), "clients.jsonl"))
+    monkeypatch.setattr(
+        clients_store, "_CLIENTS_FILE", lambda: os.path.join(str(tmp_path), "clients.jsonl")
+    )
     monkeypatch.setattr(brand_kit, "_BRAND_DIR", os.path.join(str(tmp_path), "brand_kits"))
 
 
@@ -29,7 +32,10 @@ def test_get_profile_prefills_current_values(monkeypatch, tmp_path):
 
     _redirect_stores(monkeypatch, tmp_path)
     rec = clients_store.add_client(
-        "Sharma Solar", "solar_residential", phone="9812345678", city="Pune",
+        "Sharma Solar",
+        "solar_residential",
+        phone="9812345678",
+        city="Pune",
         socials={"instagram": "@sharma_solar"},
     )
     _override_customer(app, rec["id"])
@@ -54,14 +60,17 @@ def test_post_profile_saves_business_fields_and_socials(monkeypatch, tmp_path):
     _override_customer(app, rec["id"])
 
     with TestClient(app) as c:
-        resp = c.post("/api/customer/profile", json={
-            "business_name": "New Name Pvt Ltd",
-            "city": "Mumbai",
-            "phone": "9111111111",
-            "instagram": "@newname",
-            "facebook": "fb.com/newname",
-            "gbp": "goo.gl/maps/xyz",
-        })
+        resp = c.post(
+            "/api/customer/profile",
+            json={
+                "business_name": "New Name Pvt Ltd",
+                "city": "Mumbai",
+                "phone": "9111111111",
+                "instagram": "@newname",
+                "facebook": "fb.com/newname",
+                "gbp": "goo.gl/maps/xyz",
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
 
@@ -82,12 +91,15 @@ def test_post_profile_saves_brand_tagline_colors_logo(monkeypatch, tmp_path):
     _override_customer(app, rec["id"])
 
     with TestClient(app) as c:
-        resp = c.post("/api/customer/profile", json={
-            "tagline": "Roshni bhi, bachat bhi",
-            "primary_color": "#6d28d9",
-            "accent_color": "#f59e0b",
-            "logo_text": "BB",
-        })
+        resp = c.post(
+            "/api/customer/profile",
+            json={
+                "tagline": "Roshni bhi, bachat bhi",
+                "primary_color": "#6d28d9",
+                "accent_color": "#f59e0b",
+                "logo_text": "BB",
+            },
+        )
     assert resp.json()["ok"] is True
 
     saved = clients_store.get_client(rec["id"])
@@ -129,26 +141,31 @@ def test_post_profile_ignores_privileged_fields_even_if_present_in_raw_body(monk
     from app.main import app
 
     _redirect_stores(monkeypatch, tmp_path)
-    rec = clients_store.add_client("Privilege Test Biz", "general", phone="9000000004", plan="starter")
+    rec = clients_store.add_client(
+        "Privilege Test Biz", "general", phone="9000000004", plan="starter"
+    )
     clients_store.update_client(rec["id"], status="active")
     _override_customer(app, rec["id"])
 
     with TestClient(app) as c:
-        resp = c.post("/api/customer/profile", json={
-            "business_name": "Renamed Biz",
-            "plan": "advanced",       # not a declared field -> FastAPI drops it
-            "status": "dead",         # not a declared field -> FastAPI drops it
-            "trial": False,           # not a declared field -> FastAPI drops it
-            "niche": "gym_fitness",   # not a declared field -> FastAPI drops it
-        })
+        resp = c.post(
+            "/api/customer/profile",
+            json={
+                "business_name": "Renamed Biz",
+                "plan": "advanced",  # not a declared field -> FastAPI drops it
+                "status": "dead",  # not a declared field -> FastAPI drops it
+                "trial": False,  # not a declared field -> FastAPI drops it
+                "niche": "gym_fitness",  # not a declared field -> FastAPI drops it
+            },
+        )
     assert resp.status_code == 200
     assert resp.json()["ok"] is True
 
     saved = clients_store.get_client(rec["id"])
     assert saved["business_name"] == "Renamed Biz"  # the real, allowed field DID save
-    assert saved["plan"] == "starter"    # unchanged — privileged field ignored
-    assert saved["status"] == "active"   # unchanged
-    assert saved["niche"] == "general"   # unchanged
+    assert saved["plan"] == "starter"  # unchanged — privileged field ignored
+    assert saved["status"] == "active"  # unchanged
+    assert saved["niche"] == "general"  # unchanged
     app.dependency_overrides.clear()
 
 

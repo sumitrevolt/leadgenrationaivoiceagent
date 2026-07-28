@@ -23,7 +23,7 @@ def _setup_client(tmp_path, monkeypatch):
     """Tmp clients_store + brand_kit + ek test client (brand colors ke saath)."""
     from app.marketing import brand_frames, brand_kit, clients_store
 
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "clients.jsonl"))
     monkeypatch.setattr(brand_kit, "_BRAND_DIR", str(tmp_path / "brand_kits"))
     monkeypatch.setattr(brand_frames, "_LOGOS_DIR", str(tmp_path / "logos"))
     rec = clients_store.add_client(

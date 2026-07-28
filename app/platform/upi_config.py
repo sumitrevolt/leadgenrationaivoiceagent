@@ -13,12 +13,25 @@ import logging
 import os
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from urllib.parse import quote
 
 logger = logging.getLogger(__name__)
 
-_STORE = os.path.join("data", "platform_upi.json")
 _VPA_RE = re.compile(r"^[^\s@]+@[^\s@]+$")
+
+
+def _STORE() -> str:
+    """Platform UPI VPA config — same store family as upi_payments, sibling file."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="billing.upi_payments",
+            legacy_path=Path("data") / "platform_upi.json",
+            target_segments=("billing", "platform_upi.json"),
+        )
+    )
 
 
 def _valid_vpa(vpa: str) -> bool:
@@ -28,8 +41,9 @@ def _valid_vpa(vpa: str) -> bool:
 
 def _read_store() -> dict:
     try:
-        if os.path.isfile(_STORE):
-            with open(_STORE, encoding="utf-8") as f:
+        # Resolver at each I/O site — binding to a local unbinds the allowlist.
+        if os.path.isfile(_STORE()):
+            with open(_STORE(), encoding="utf-8") as f:
                 data = json.load(f)
             return data if isinstance(data, dict) else {}
     except Exception as e:
@@ -39,8 +53,8 @@ def _read_store() -> dict:
 
 def _write_store(data: dict) -> bool:
     try:
-        os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
-        with open(_STORE, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(_STORE()) or ".", exist_ok=True)
+        with open(_STORE(), "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:

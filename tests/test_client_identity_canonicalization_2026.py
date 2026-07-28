@@ -24,7 +24,9 @@ BILL_ID = "d79d690f61b3"
 
 
 def _seed_marketing_client(monkeypatch, tmp_path):
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "marketing_clients.jsonl"))
+    monkeypatch.setattr(
+        clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "marketing_clients.jsonl")
+    )
     rec = {
         "id": MKT_ID,
         "business_name": "Jiya Makeover Studio",

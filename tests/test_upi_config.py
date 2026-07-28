@@ -17,7 +17,7 @@ def test_get_vpa_env_wins(tmp_path, monkeypatch):
 
     store = tmp_path / "platform_upi.json"
     store.write_text(json.dumps({"vpa": "file@ybl"}), encoding="utf-8")
-    monkeypatch.setattr(uc, "_STORE", str(store))
+    monkeypatch.setattr(uc, "_STORE", lambda: str(store))
     monkeypatch.setenv("UPI_VPA", "env@okhdfcbank")
     assert uc.get_vpa() == "env@okhdfcbank"
     assert uc.source() == "env"
@@ -28,7 +28,7 @@ def test_get_vpa_file_fallback(tmp_path, monkeypatch):
 
     store = tmp_path / "platform_upi.json"
     store.write_text(json.dumps({"vpa": "shop@ybl"}), encoding="utf-8")
-    monkeypatch.setattr(uc, "_STORE", str(store))
+    monkeypatch.setattr(uc, "_STORE", lambda: str(store))
     monkeypatch.delenv("UPI_VPA", raising=False)
     monkeypatch.setattr("app.config.settings.upi_vpa", "", raising=False)
     assert uc.get_vpa() == "shop@ybl"
@@ -38,7 +38,7 @@ def test_get_vpa_file_fallback(tmp_path, monkeypatch):
 def test_set_vpa_rejects_invalid(tmp_path, monkeypatch):
     from app.platform import upi_config as uc
 
-    monkeypatch.setattr(uc, "_STORE", str(tmp_path / "platform_upi.json"))
+    monkeypatch.setattr(uc, "_STORE", lambda: str(tmp_path / "platform_upi.json"))
     out = uc.set_vpa("not-a-vpa")
     assert out["ok"] is False
 
@@ -47,7 +47,7 @@ def test_configure_endpoint_with_admin_override(tmp_path, monkeypatch):
     from app.api.admin import require_admin
     from app.platform import upi_config as uc
 
-    monkeypatch.setattr(uc, "_STORE", str(tmp_path / "platform_upi.json"))
+    monkeypatch.setattr(uc, "_STORE", lambda: str(tmp_path / "platform_upi.json"))
     monkeypatch.delenv("UPI_VPA", raising=False)
     monkeypatch.setattr("app.config.settings.upi_vpa", "", raising=False)
     app.dependency_overrides[require_admin] = lambda: {"username": "test"}
@@ -67,7 +67,7 @@ def test_pay_info_uses_file_vpa(tmp_path, monkeypatch):
 
     store = tmp_path / "platform_upi.json"
     store.write_text(json.dumps({"vpa": "9876543210@ybl"}), encoding="utf-8")
-    monkeypatch.setattr(uc, "_STORE", str(store))
+    monkeypatch.setattr(uc, "_STORE", lambda: str(store))
     monkeypatch.delenv("UPI_VPA", raising=False)
     monkeypatch.setattr("app.config.settings.upi_vpa", "", raising=False)
     r = client.get("/api/public/pay-info")
