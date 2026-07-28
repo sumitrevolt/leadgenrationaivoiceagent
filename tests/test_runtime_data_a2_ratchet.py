@@ -32,7 +32,6 @@ from app.platform import runtime_data_allowlist as allowlist
 from app.platform import runtime_data_baseline as baseline
 from app.platform import runtime_data_manifest as manifest
 from tests.test_runtime_data_a1_ratchet import (
-    A1_STORE_IDS,
     EXPECTED_ALLOWLIST_ENTRIES,
     EXPECTED_BASELINE_FINGERPRINTS,
     EXPECTED_BLOCKERS,
