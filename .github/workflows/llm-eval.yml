@@ -75,7 +75,7 @@ jobs:
           if [ -f evals/test_rag_quality.py ]; then echo "have=1" >> "$GITHUB_OUTPUT";
           else echo "have=0" >> "$GITHUB_OUTPUT"; echo "no evals/test_rag_quality.py — skipping"; fi
 
-      - uses: actions/setup-python@v6
+      - uses: actions/setup-python@v7
         if: steps.cfg.outputs.have == '1'
         with:
           python-version: "3.12"
