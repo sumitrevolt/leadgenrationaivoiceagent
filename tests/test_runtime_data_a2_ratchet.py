@@ -31,6 +31,7 @@ import pytest
 from app.platform import runtime_data_allowlist as allowlist
 from app.platform import runtime_data_baseline as baseline
 from app.platform import runtime_data_manifest as manifest
+from tests.runtime_data_waves import A2_STORE_IDS
 from tests.test_runtime_data_a1_ratchet import (
     EXPECTED_ALLOWLIST_ENTRIES,
     EXPECTED_BASELINE_FINGERPRINTS,
@@ -39,15 +40,6 @@ from tests.test_runtime_data_a1_ratchet import (
 )
 
 REPO = Path(__file__).resolve().parents[1]
-
-#: The stores A2 migrated.
-A2_STORE_IDS = frozenset(
-    {
-        "compliance.wa_suppression",
-        "compliance.consent_ledger",
-        "compliance.voice_suppression",
-    }
-)
 
 #: Their production writer/reader modules.
 A2_MODULES = (
@@ -283,8 +275,8 @@ def test_the_a2_rows_are_still_dual_read():
     """A2's own rows, asserted by A2's own file.
 
     This was `moved == A1 | A2` while A2 was the newest wave. It is a subset
-    assertion now that A3 has landed — NOT a relaxation: the exact global set
-    is asserted by `test_runtime_data_a3_ratchet.py`.
+    assertion now that later waves have landed — NOT a relaxation: the exact
+    global set is asserted once in ``test_runtime_data_waves.py``.
     """
     moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
     assert set(A2_STORE_IDS) <= moved, set(A2_STORE_IDS) - moved

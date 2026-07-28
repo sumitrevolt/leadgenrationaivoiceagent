@@ -20,17 +20,9 @@ import pytest
 from app.platform import runtime_data_allowlist as allowlist
 from app.platform import runtime_data_baseline as baseline
 from app.platform import runtime_data_manifest as manifest
+from tests.runtime_data_waves import A1_STORE_IDS, all_declared_store_ids
 
 REPO = Path(__file__).resolve().parents[1]
-
-#: The stores A1 migrated — and the only rows this commit may have touched.
-A1_STORE_IDS = frozenset(
-    {
-        "telephony.voice_kill_switch",
-        "telephony.calling_safety_config",
-        "telephony.dial_suppression",
-    }
-)
 
 #: Their production writer/reader modules.
 A1_MODULES = (
@@ -237,10 +229,8 @@ def test_the_three_a1_rows_are_still_dual_read():
 
     This was `moved == A1_STORE_IDS` while A1 was the newest wave. It is a
     subset assertion now that later waves have landed — NOT a relaxation: the
-    exact global set is asserted by the newest wave's ratchet
-    (`test_runtime_data_a3_ratchet.py`), which is the only file that can know
-    the current total. Splitting it that way keeps one exact assertion in the
-    repo instead of N files that each have to be edited to add a wave.
+    exact global set is asserted once in ``test_runtime_data_waves.py`` as the
+    union of every wave declared in ``runtime_data_waves.py``.
     """
     moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
     assert set(A1_STORE_IDS) <= moved, set(A1_STORE_IDS) - moved
@@ -249,13 +239,10 @@ def test_the_three_a1_rows_are_still_dual_read():
 def test_no_unmigrated_tier0_row_was_touched():
     """Every Tier-0 store outside a landed wave must still be LEGACY_IN_CHECKOUT.
 
-    Landed = A1 | A2 | A3. A state that runs ahead of the code is exactly the
-    false claim this manifest exists to prevent.
+    Landed = union of every wave in the registry. A state that runs ahead of
+    the code is exactly the false claim this manifest exists to prevent.
     """
-    from tests.test_runtime_data_a2_ratchet import A2_STORE_IDS
-    from tests.test_runtime_data_a3_ratchet import A3_STORE_IDS
-
-    landed = set(A1_STORE_IDS) | set(A2_STORE_IDS) | set(A3_STORE_IDS)
+    landed = set(all_declared_store_ids())
     still_legacy = {
         s["store_id"]
         for s in manifest.STORES

@@ -613,8 +613,9 @@ def _record_unresolved_optout(destination: str, subject: str) -> None:
         from app.platform import email_unsub
 
         # Sits beside the canonical suppression ledger so it moves with it when
-        # the runtime-data root is externalized.
-        path = email_unsub._STORE.parent / "unresolved_optouts.jsonl"
+        # the runtime-data root is externalized. Call the resolver — the retired
+        # ``_STORE`` shim freezes a Path that fixtures can no longer redirect.
+        path = email_unsub._store_path().parent / "unresolved_optouts.jsonl"
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "a", encoding="utf-8") as f:
             f.write(
