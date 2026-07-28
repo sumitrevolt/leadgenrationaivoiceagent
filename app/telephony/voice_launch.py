@@ -66,9 +66,7 @@ class CampaignState(str, Enum):
 
 
 # States in which the dial loop is allowed to place NEW calls.
-_DIALABLE_STATES = frozenset(
-    {CampaignState.TEST_MODE, CampaignState.PILOT, CampaignState.RUNNING}
-)
+_DIALABLE_STATES = frozenset({CampaignState.TEST_MODE, CampaignState.PILOT, CampaignState.RUNNING})
 
 
 def state_is_dialable(state: CampaignState) -> bool:
@@ -250,7 +248,27 @@ def campaign_enabled() -> bool:
 
 
 def _kill_file() -> Path:
-    return Path(_env("VOICE_LAUNCH_KILL_FILE", "data/voice_launch_kill.json"))
+    """Resolved per call, never captured at import.
+
+    The runtime-data cutover can move this store to the external root; a path
+    frozen at import could never follow it. VOICE_LAUNCH_KILL_FILE keeps its
+    current precedence before the cutover, and after it the authority refuses an
+    override that points anywhere but the canonical target — a forgotten
+    `VOICE_LAUNCH_KILL_FILE=data/...` must not route an emergency control back
+    into a checkout a deploy can reset.
+
+    This may RAISE (stale override after cutover). Every caller treats that as
+    INVALID_PATH, which engages the kill: an unresolvable authority is exactly
+    the case where dialling must not proceed.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="telephony.voice_kill_switch",
+        legacy_path=Path("data/voice_launch_kill.json"),
+        target_segments=("telephony", "voice_launch_kill.json"),
+        override_env="VOICE_LAUNCH_KILL_FILE",
+    )
 
 
 @dataclass(frozen=True)
@@ -849,7 +867,9 @@ async def launch_status() -> dict[str, Any]:
         "recording_reason": rec_reason,
         "state": await get_campaign_state(),
         "dispositions_today": await disposition_counts_today("campaign"),
-        "nup_today": (await disposition_counts_today("campaign")).get(VoiceDisposition.NUP.value, 0),
+        "nup_today": (await disposition_counts_today("campaign")).get(
+            VoiceDisposition.NUP.value, 0
+        ),
     }
 
 
@@ -869,7 +889,9 @@ def resolve_campaign_state(
     Precedence (safest first): admin kill > campaign disabled > compliance block >
     circuit breaker > daily limit > training pause > configured/running."""
     try:
-        cfg = configured if isinstance(configured, CampaignState) else CampaignState(str(configured))
+        cfg = (
+            configured if isinstance(configured, CampaignState) else CampaignState(str(configured))
+        )
     except Exception:
         cfg = CampaignState.DRAFT
     cap = cap if cap is not None else daily_cap("campaign")
