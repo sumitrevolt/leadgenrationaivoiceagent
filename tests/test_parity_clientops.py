@@ -76,7 +76,7 @@ def test_speed_to_lead_empty_store(tmp_path, monkeypatch):
 def test_content_approval_flow(tmp_path, monkeypatch):
     from app.marketing import content_approval as ca
 
-    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "approvals.jsonl"))
+    monkeypatch.setattr(ca, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
 
     res = ca.submit("client-1", {"caption": "Diwali offer 20% off", "title": "Diwali post"})
     assert res["ok"] is True
@@ -99,7 +99,7 @@ def test_content_approval_flow(tmp_path, monkeypatch):
 def test_content_approval_reject_and_unknown(tmp_path, monkeypatch):
     from app.marketing import content_approval as ca
 
-    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "approvals.jsonl"))
+    monkeypatch.setattr(ca, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
 
     res = ca.submit("client-2", {"caption": "post"})
     rej = ca.reject(res["approval"]["token"], note="Logo bada karo")
@@ -118,7 +118,7 @@ def test_content_approval_reject_and_unknown(tmp_path, monkeypatch):
 def test_content_approval_decide_by_id(tmp_path, monkeypatch):
     from app.marketing import content_approval as ca
 
-    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "approvals.jsonl"))
+    monkeypatch.setattr(ca, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
 
     res = ca.submit("client-admin", {"caption": "Admin decide test", "title": "Post"})
     aid = res["approval"]["id"]
@@ -329,10 +329,10 @@ def test_list_approvals_enriches_business_name(tmp_path, monkeypatch):
     import asyncio
 
     from app.api import clientops
-    from app.marketing import content_approval as ca
     from app.marketing import clients_store
+    from app.marketing import content_approval as ca
 
-    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "approvals.jsonl"))
+    monkeypatch.setattr(ca, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
     ca.submit("known-1", {"title": "Diwali post", "caption": "20% off"})
     ca.submit("deleted-99", {"title": "Old post", "caption": "gone client"})
 
@@ -367,10 +367,10 @@ def test_list_approvals_enrichment_never_raises_on_store_failure(tmp_path, monke
     import asyncio
 
     from app.api import clientops
-    from app.marketing import content_approval as ca
     from app.marketing import clients_store
+    from app.marketing import content_approval as ca
 
-    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "approvals2.jsonl"))
+    monkeypatch.setattr(ca, "_FILE", lambda: str(tmp_path / "approvals2.jsonl"))
     ca.submit("client-z", {"title": "Post", "caption": "x"})
 
     def _boom(status=None, product=None):
@@ -389,7 +389,7 @@ def test_list_approvals_enrichment_never_raises_on_store_failure(tmp_path, monke
 def test_approval_decide_for_client(tmp_path, monkeypatch):
     from app.marketing import content_approval as ca
 
-    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "ap.jsonl"))
+    monkeypatch.setattr(ca, "_FILE", lambda: str(tmp_path / "ap.jsonl"))
     sub = ca.submit("client-x", {"title": "Test", "caption": "Hello"})
     assert sub["ok"] is True
     aid = sub["approval"]["id"]

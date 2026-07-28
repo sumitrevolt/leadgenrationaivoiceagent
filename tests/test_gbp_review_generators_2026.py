@@ -28,10 +28,12 @@ CLIENT = {
 
 
 def _iso(monkeypatch, tmp_path):
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "content_queue"))
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "content_queue"))
     monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
-    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", str(tmp_path / "ledger"))
-    monkeypatch.setattr(delivery_ledger, "_CONTENT_QUEUE_DIR", str(tmp_path / "content_queue"))
+    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", lambda: str(tmp_path / "ledger"))
+    monkeypatch.setattr(
+        delivery_ledger, "_CONTENT_QUEUE_DIR", lambda: str(tmp_path / "content_queue")
+    )
     monkeypatch.setattr(product_one_delivery, "_DELIVERY_DIR", str(tmp_path / "p1"))
     monkeypatch.setattr(product_one_delivery, "_REPORT_DIR", str(tmp_path / "reports"))
     monkeypatch.setattr(product_one_delivery, "_GBP_AUDIT_DIR", str(tmp_path / "gbp"))
@@ -56,7 +58,11 @@ def test_generate_gbp_pack_creates_gbp_item_and_self_guards(monkeypatch, tmp_pat
     _iso(monkeypatch, tmp_path)
     n = asyncio.run(auto_content.generate_gbp_pack(CLIENT))
     assert n == 1
-    gbp = [i for i in auto_content.list_queue("gr-test", limit=50) if str(i.get("type")).lower() == "gbp"]
+    gbp = [
+        i
+        for i in auto_content.list_queue("gr-test", limit=50)
+        if str(i.get("type")).lower() == "gbp"
+    ]
     assert len(gbp) == 1
     assert len(gbp[0]["caption"]) >= 10  # passes _caption_ok min length
     # self-guard: second run must not duplicate
@@ -105,7 +111,9 @@ def test_generate_poster_pack_reaches_target_and_self_guards(monkeypatch, tmp_pa
     n = asyncio.run(auto_content.generate_poster_pack(CLIENT, target=4))
     assert n == 4  # started with 0
     posters = [
-        i for i in auto_content.list_queue("gr-test", limit=200) if str(i.get("type")).lower() == "poster"
+        i
+        for i in auto_content.list_queue("gr-test", limit=200)
+        if str(i.get("type")).lower() == "poster"
     ]
     assert len(posters) == 4
     assert all(str(p.get("svg") or "").strip() for p in posters)  # real SVG only

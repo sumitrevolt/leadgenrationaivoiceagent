@@ -8,6 +8,7 @@ Fix: `_trim_jsonl` keeps the newest `max_lines` (atomic rewrite, best-effort) an
 `_prune_jsonl_stores` trims all four stores; `run_ops` calls it alongside the existing
 prunes.
 """
+
 from __future__ import annotations
 
 import app.agents.staff as staff
@@ -48,7 +49,7 @@ def test_prune_jsonl_stores_trims_files_and_queue_dir(tmp_path, monkeypatch):
     _write_lines(fq, 40, key="j")
 
     monkeypatch.setattr(staff, "_JSONL_ROTATE_FILES", [str(f1)])
-    monkeypatch.setattr(staff, "_JSONL_ROTATE_DIR", str(qdir))
+    monkeypatch.setattr(staff, "_JSONL_ROTATE_DIR", lambda: str(qdir))
 
     removed = staff._prune_jsonl_stores(max_lines=10)
     assert removed == (50 - 10) + (40 - 10)  # 40 + 30 = 70

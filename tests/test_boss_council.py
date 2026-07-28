@@ -115,7 +115,7 @@ def test_decide_hot_queue_applies_park(monkeypatch, tmp_path):
 def test_escalate_for_client_flags_needs_admin(tmp_path, monkeypatch):
     from app.marketing import content_approval as ca
 
-    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "approvals.jsonl"), raising=False)
+    monkeypatch.setattr(ca, "_FILE", lambda: str(tmp_path / "approvals.jsonl"), raising=False)
     sub = ca.submit("c1", {"title": "Offer", "caption": "50% off today"})
     assert sub.get("ok")
     aid = sub["approval"]["id"]

@@ -2,8 +2,8 @@
 Tests: referral_kit + evergreen (last 2 free-buildable marketing features).
 
 No network — free_ai.chat is monkeypatched to ("","") so every path exercises
-the deterministic TEMPLATE / never-empty fallback. File consts (_REFERRALS_FILE,
-auto_content._QUEUE_DIR) tmp_path pe redirect hote hain — real data/ na chhue.
+the deterministic TEMPLATE / never-empty fallback. File path resolvers (_REFERRALS_FILE, auto_content._QUEUE_DIR) tmp_path pe redirect
+hote hain — real data/ na chhue.
 """
 
 import json
@@ -126,12 +126,12 @@ class TestReferralRecordStats:
 
 class TestRecyclableItems:
     def test_empty_queue_returns_empty(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+        monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
         assert evergreen.recyclable_items("client-x") == []
 
     def test_picks_only_old_posted_or_approved(self, monkeypatch, tmp_path):
         qdir = str(tmp_path / "queue")
-        monkeypatch.setattr(auto_content, "_QUEUE_DIR", qdir)
+        monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: qdir)
         os.makedirs(qdir, exist_ok=True)
         cid = "c1"
         from datetime import datetime, timedelta, timezone
@@ -182,20 +182,20 @@ class TestRecyclableItems:
 class TestRecycleForClient:
     @pytest.mark.asyncio
     async def test_empty_queue_no_crash_noop(self, monkeypatch, tmp_path, no_llm):
-        monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+        monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
         out = await evergreen.recycle_for_client({"id": "nobody", "business_name": "X"})
         assert out == []
 
     @pytest.mark.asyncio
     async def test_no_client_id_noop(self, monkeypatch, tmp_path, no_llm):
-        monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+        monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
         assert await evergreen.recycle_for_client({}) == []
         assert await evergreen.recycle_for_client(None) == []
 
     @pytest.mark.asyncio
     async def test_recycles_old_item_into_new_draft(self, monkeypatch, tmp_path, no_llm):
         qdir = str(tmp_path / "queue")
-        monkeypatch.setattr(auto_content, "_QUEUE_DIR", qdir)
+        monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: qdir)
         os.makedirs(qdir, exist_ok=True)
         cid = "c2"
         from datetime import datetime, timedelta, timezone

@@ -28,7 +28,7 @@ def tmp_store(monkeypatch, tmp_path):
     clients_file = os.path.join(str(tmp_path), "marketing_clients.jsonl")
     queue_dir = os.path.join(str(tmp_path), "content_queue")
     monkeypatch.setattr(clients_store, "_CLIENTS_FILE", clients_file)
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", queue_dir)
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: queue_dir)
     return tmp_path
 
 
@@ -113,11 +113,13 @@ class TestMarkItemLedgerWiring:
 class TestContentApprovalLedgerWiring:
     def test_customer_portal_approve_logs_post_approved(self, tmp_path, monkeypatch, logged_events):
         monkeypatch.setattr(
-            content_approval, "_FILE", os.path.join(str(tmp_path), "content_approvals.jsonl")
+            content_approval,
+            "_FILE",
+            lambda: os.path.join(str(tmp_path), "content_approvals.jsonl"),
         )
         # enqueue_approved touches the real client queue file too — redirect it.
         monkeypatch.setattr(
-            auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue")
+            auto_content, "_QUEUE_DIR", lambda: os.path.join(str(tmp_path), "content_queue")
         )
 
         sub = content_approval.submit(
@@ -135,10 +137,12 @@ class TestContentApprovalLedgerWiring:
         self, tmp_path, monkeypatch, logged_events
     ):
         monkeypatch.setattr(
-            content_approval, "_FILE", os.path.join(str(tmp_path), "content_approvals.jsonl")
+            content_approval,
+            "_FILE",
+            lambda: os.path.join(str(tmp_path), "content_approvals.jsonl"),
         )
         monkeypatch.setattr(
-            auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue")
+            auto_content, "_QUEUE_DIR", lambda: os.path.join(str(tmp_path), "content_queue")
         )
 
         sub = content_approval.submit("c-portal-2", {"title": "Rejected Post"})
@@ -152,10 +156,12 @@ class TestContentApprovalLedgerWiring:
         self, tmp_path, monkeypatch, logged_events
     ):
         monkeypatch.setattr(
-            content_approval, "_FILE", os.path.join(str(tmp_path), "content_approvals.jsonl")
+            content_approval,
+            "_FILE",
+            lambda: os.path.join(str(tmp_path), "content_approvals.jsonl"),
         )
         monkeypatch.setattr(
-            auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue")
+            auto_content, "_QUEUE_DIR", lambda: os.path.join(str(tmp_path), "content_queue")
         )
 
         sub = content_approval.submit("c-portal-3", {"title": "Once Only"})

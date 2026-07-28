@@ -76,7 +76,7 @@ async def test_seed_client_content_appends_to_queue(
 ) -> None:
     from app.marketing import auto_content
 
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
     _disable_extended_packs(monkeypatch, auto_content)
     submitted = _stub_packet_deps(monkeypatch)
 
@@ -102,7 +102,7 @@ async def test_seed_client_content_is_idempotent(
     """date+type dedupe → re-run (or daily job) does NOT double the queue."""
     from app.marketing import auto_content
 
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
     _disable_extended_packs(monkeypatch, auto_content)
     _stub_packet_deps(monkeypatch)
 
@@ -126,7 +126,7 @@ async def test_auto_onboard_populates_content_queue(
     """The actual fix: after onboarding, the customer's queue is non-empty."""
     from app.marketing import auto_content, clients_store, onboarding
 
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
     _disable_extended_packs(monkeypatch, auto_content)
     _stub_packet_deps(monkeypatch)
 

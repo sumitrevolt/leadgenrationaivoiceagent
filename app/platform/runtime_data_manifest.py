@@ -286,7 +286,7 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="content/content_approvals.jsonl",
         migration_tier=TIER_1,
-        migration_state=LEGACY_IN_CHECKOUT,
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
     ),
     _e(
@@ -303,7 +303,7 @@ STORES: list[dict[str, Any]] = [
         tenant_scope="per-tenant filename",
         target_runtime_subpath="content/queue/",
         migration_tier=TIER_1,
-        migration_state=LEGACY_IN_CHECKOUT,
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="concurrency redesign is a SEPARATE PR; this entry is path-only",
     ),
@@ -320,7 +320,7 @@ STORES: list[dict[str, Any]] = [
         tenant_scope="per-tenant filename",
         target_runtime_subpath="delivery/ledger/",
         migration_tier=TIER_1,
-        migration_state=LEGACY_IN_CHECKOUT,
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
     ),
     _e(

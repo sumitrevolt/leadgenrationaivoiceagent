@@ -18,19 +18,35 @@ TEMPLATE = Path(__file__).resolve().parents[1] / "frontend" / "customer_dashboar
 
 
 def _redirect(monkeypatch, tmp_path):
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue"))
-    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", os.path.join(str(tmp_path), "delivery_ledger"))
-    monkeypatch.setattr(delivery_ledger, "_CONTENT_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue"))
+    monkeypatch.setattr(
+        auto_content, "_QUEUE_DIR", lambda: os.path.join(str(tmp_path), "content_queue")
+    )
+    monkeypatch.setattr(
+        delivery_ledger, "_LEDGER_DIR", lambda: os.path.join(str(tmp_path), "delivery_ledger")
+    )
+    monkeypatch.setattr(
+        delivery_ledger, "_CONTENT_QUEUE_DIR", lambda: os.path.join(str(tmp_path), "content_queue")
+    )
 
 
 def _seed_item(cid: str, item_id: str = "it1", status: str = "approved"):
     path = auto_content._queue_path(cid)
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
-        f.write(json.dumps({
-            "id": item_id, "client_id": cid, "date": "2026-07-07", "type": "post",
-            "title": "Test Post", "caption": "Ek behtareen offer aaj hi le lo!", "status": status,
-        }) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "id": item_id,
+                    "client_id": cid,
+                    "date": "2026-07-07",
+                    "type": "post",
+                    "title": "Test Post",
+                    "caption": "Ek behtareen offer aaj hi le lo!",
+                    "status": status,
+                }
+            )
+            + "\n"
+        )
 
 
 def _read_item(cid: str, item_id: str) -> dict:

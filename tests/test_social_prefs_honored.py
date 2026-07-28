@@ -18,7 +18,7 @@ def ac(tmp_path, monkeypatch):
     from app.marketing import auto_content
     from app.social_engine import client_config
 
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "content_queue"))
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "content_queue"))
     monkeypatch.setattr(auto_content, "AUTO_SEED_SELF", False)
     monkeypatch.setattr(client_config, "_PATH", str(tmp_path / "social_config.jsonl"))
     monkeypatch.delenv("CONTENT_APPROVAL_AUTO", raising=False)
@@ -71,7 +71,13 @@ def test_daily_run_skips_cadence_off_but_keeps_unconfigured(ac, monkeypatch):
 
     monkeypatch.setenv("SOCIAL_PREFS_HONOR", "1")
     clients = [
-        {"id": "cli_off", "business_name": "Off", "niche": "salon", "plan": "starter", "status": "active"},
+        {
+            "id": "cli_off",
+            "business_name": "Off",
+            "niche": "salon",
+            "plan": "starter",
+            "status": "active",
+        },
         {
             "id": "cli_plain",
             "business_name": "Plain",
@@ -107,13 +113,17 @@ def test_channels_stamped_on_items_when_configured(ac, monkeypatch):
     client_config.save("cli_ch", channels=["instagram", "whatsapp"])
 
     items = asyncio.run(
-        ac.generate_for_client({"id": "cli_ch", "business_name": "Ch", "niche": "salon"}, day=date(2026, 7, 6))
+        ac.generate_for_client(
+            {"id": "cli_ch", "business_name": "Ch", "niche": "salon"}, day=date(2026, 7, 6)
+        )
     )
     assert items
     assert all(item.get("channels") == ["instagram", "whatsapp"] for item in items)
 
     plain = asyncio.run(
-        ac.generate_for_client({"id": "cli_plain", "business_name": "Plain", "niche": "salon"}, day=date(2026, 7, 6))
+        ac.generate_for_client(
+            {"id": "cli_plain", "business_name": "Plain", "niche": "salon"}, day=date(2026, 7, 6)
+        )
     )
     assert plain
     assert all("channels" not in item for item in plain)
@@ -124,7 +134,15 @@ def test_review_mode_submits_to_approval_queue(ac, monkeypatch):
     from app.social_engine import client_config
 
     monkeypatch.setenv("SOCIAL_PREFS_HONOR", "1")
-    clients = [{"id": "cli_rev", "business_name": "Rev", "niche": "salon", "plan": "starter", "status": "active"}]
+    clients = [
+        {
+            "id": "cli_rev",
+            "business_name": "Rev",
+            "niche": "salon",
+            "plan": "starter",
+            "status": "active",
+        }
+    ]
     monkeypatch.setattr(ac, "clients_store", _fake_store(clients))
     client_config.save("cli_rev", cadence="daily", approval_mode="review")
 
@@ -133,7 +151,9 @@ def test_review_mode_submits_to_approval_queue(ac, monkeypatch):
 
     submitted: list[str] = []
     monkeypatch.setattr(ac, "generate_for_client", fake_generate)
-    monkeypatch.setattr(content_approval, "submit", lambda cid, content: submitted.append(cid) or {"ok": True})
+    monkeypatch.setattr(
+        content_approval, "submit", lambda cid, content: submitted.append(cid) or {"ok": True}
+    )
 
     result = asyncio.run(ac.run_daily_content())
     assert result["clients"] == 1
@@ -143,7 +163,15 @@ def test_review_mode_submits_to_approval_queue(ac, monkeypatch):
 def test_default_off_ignores_prefs(ac, monkeypatch):
     from app.social_engine import client_config
 
-    clients = [{"id": "cli_off", "business_name": "Off", "niche": "salon", "plan": "starter", "status": "active"}]
+    clients = [
+        {
+            "id": "cli_off",
+            "business_name": "Off",
+            "niche": "salon",
+            "plan": "starter",
+            "status": "active",
+        }
+    ]
     monkeypatch.setattr(ac, "clients_store", _fake_store(clients))
     client_config.save("cli_off", cadence="off")
 
@@ -162,7 +190,15 @@ def test_default_off_ignores_prefs(ac, monkeypatch):
 def test_kill_switch_ignores_prefs(ac, monkeypatch):
     from app.social_engine import client_config
 
-    clients = [{"id": "cli_off", "business_name": "Off", "niche": "salon", "plan": "starter", "status": "active"}]
+    clients = [
+        {
+            "id": "cli_off",
+            "business_name": "Off",
+            "niche": "salon",
+            "plan": "starter",
+            "status": "active",
+        }
+    ]
     monkeypatch.setattr(ac, "clients_store", _fake_store(clients))
     client_config.save("cli_off", cadence="off")
     monkeypatch.setenv("SOCIAL_PREFS_HONOR", "0")

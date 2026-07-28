@@ -8,6 +8,7 @@ Ensures the narrow amendment method:
   - captures the previous URL in evidence_url_history for audit
   - emits an `evidence_amended` audit event (NOT a fresh `post_published`)
 """
+
 from __future__ import annotations
 
 import os
@@ -15,7 +16,8 @@ import tempfile
 
 import pytest
 
-from app.marketing import content_approval as ca, delivery_ledger as dl
+from app.marketing import content_approval as ca
+from app.marketing import delivery_ledger as dl
 
 
 @pytest.fixture()
@@ -23,14 +25,15 @@ def isolated_store(monkeypatch, tmp_path):
     """Redirect approval jsonl + ledger dir to a per-test tmp dir."""
     approvals_file = tmp_path / "content_approvals.jsonl"
     ledger_dir = tmp_path / "delivery_ledger"
-    monkeypatch.setattr(ca, "_FILE", str(approvals_file))
-    monkeypatch.setattr(dl, "_LEDGER_DIR", str(ledger_dir))
+    monkeypatch.setattr(ca, "_FILE", lambda: str(approvals_file))
+    monkeypatch.setattr(dl, "_LEDGER_DIR", lambda: str(ledger_dir))
     yield tmp_path
 
 
 def _seed_published_record(tmp_path, *, evidence_url="https://leadsgenai.in/x") -> str:
     """Write one published approval directly to the jsonl store."""
     import json
+
     approvals_file = os.path.join(str(tmp_path), "content_approvals.jsonl")
     aid = "test-aid-001"
     rec = {
@@ -108,13 +111,22 @@ def test_rejects_oversized_url(isolated_store):
 def test_refuses_on_non_published(isolated_store):
     """Only `published` records can have evidence_url amended."""
     import json
+
     aid = "pending-aid"
     approvals_file = os.path.join(str(isolated_store), "content_approvals.jsonl")
     with open(approvals_file, "w", encoding="utf-8") as f:
-        f.write(json.dumps({
-            "id": aid, "client_id": "cust-a", "token": "t", "status": "pending",
-            "content": {"id": "c1", "client_id": "cust-a"},
-        }) + "\n")
+        f.write(
+            json.dumps(
+                {
+                    "id": aid,
+                    "client_id": "cust-a",
+                    "token": "t",
+                    "status": "pending",
+                    "content": {"id": "c1", "client_id": "cust-a"},
+                }
+            )
+            + "\n"
+        )
 
     r = ca.update_evidence_url(aid, "https://leadsgenai.in/x")
     assert r["ok"] is False
@@ -162,6 +174,7 @@ def test_history_capped_at_5(isolated_store):
 # Audit-history PRIVACY (2026-07-11 P0 evidence-history redaction loop)
 # --------------------------------------------------------------------------- #
 
+
 def test_history_never_contains_raw_client_id(isolated_store):
     """History must not retain a URL containing `client_id=<tenant>` — even
     though the field is called history, tenant-bearing raw URLs are still PII."""
@@ -183,6 +196,7 @@ def test_history_never_contains_raw_client_id(isolated_store):
     assert "[REDACTED]" in entry["old_url_redacted"]
     # Fingerprint is deterministic + non-reversible
     import hashlib
+
     expected = hashlib.sha256(
         b"https://leadsgenai.in/app/dashboard?client_id=jiya-makeover&item=x"
     ).hexdigest()[:16]
@@ -213,8 +227,10 @@ def test_redact_url_covers_all_sensitive_keys():
 # migrate_evidence_urls tests
 # --------------------------------------------------------------------------- #
 
+
 def _seed_multiple_records(tmp_path, records):
     import json
+
     approvals_file = os.path.join(str(tmp_path), "content_approvals.jsonl")
     os.makedirs(os.path.dirname(approvals_file) or ".", exist_ok=True)
     with open(approvals_file, "w", encoding="utf-8") as f:
@@ -223,24 +239,37 @@ def _seed_multiple_records(tmp_path, records):
 
 
 def test_migration_dry_run_reports_counts_without_mutating(isolated_store):
-    _seed_multiple_records(isolated_store, [
-        {"id": "a1", "client_id": "cust-a", "token": "t1", "status": "published",
-         "publish_channel": "customer_dashboard",
-         "published_at": "2026-07-11T10:00:00+00:00",
-         "evidence_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
-         "content": {"id": "c1", "client_id": "cust-a"}},
-        {"id": "b1", "client_id": "cust-b", "token": "t2", "status": "published",
-         "publish_channel": "customer_dashboard",
-         "published_at": "2026-07-11T10:00:00+00:00",
-         "evidence_url": "https://leadsgenai.in/app/dashboard#delivery/b1",  # already clean
-         "content": {"id": "c2", "client_id": "cust-b"}},
-    ])
+    _seed_multiple_records(
+        isolated_store,
+        [
+            {
+                "id": "a1",
+                "client_id": "cust-a",
+                "token": "t1",
+                "status": "published",
+                "publish_channel": "customer_dashboard",
+                "published_at": "2026-07-11T10:00:00+00:00",
+                "evidence_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
+                "content": {"id": "c1", "client_id": "cust-a"},
+            },
+            {
+                "id": "b1",
+                "client_id": "cust-b",
+                "token": "t2",
+                "status": "published",
+                "publish_channel": "customer_dashboard",
+                "published_at": "2026-07-11T10:00:00+00:00",
+                "evidence_url": "https://leadsgenai.in/app/dashboard#delivery/b1",  # already clean
+                "content": {"id": "c2", "client_id": "cust-b"},
+            },
+        ],
+    )
 
     r = ca.migrate_evidence_urls(dry_run=True)
     assert r["dry_run"] is True
     assert r["records_scanned"] == 2
     assert r["active_urls_matched"] == 1  # only a1
-    assert r["already_clean"] == 1        # b1
+    assert r["already_clean"] == 1  # b1
     assert r["active_urls_rewritten"] == 0, "dry-run must not mutate"
 
     # Confirm no mutation
@@ -249,13 +278,21 @@ def test_migration_dry_run_reports_counts_without_mutating(isolated_store):
 
 
 def test_migration_execute_rewrites_and_is_idempotent(isolated_store):
-    _seed_multiple_records(isolated_store, [
-        {"id": "a1", "client_id": "cust-a", "token": "t1", "status": "published",
-         "publish_channel": "customer_dashboard",
-         "published_at": "2026-07-11T10:00:00+00:00",
-         "evidence_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
-         "content": {"id": "c1", "client_id": "cust-a"}},
-    ])
+    _seed_multiple_records(
+        isolated_store,
+        [
+            {
+                "id": "a1",
+                "client_id": "cust-a",
+                "token": "t1",
+                "status": "published",
+                "publish_channel": "customer_dashboard",
+                "published_at": "2026-07-11T10:00:00+00:00",
+                "evidence_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
+                "content": {"id": "c1", "client_id": "cust-a"},
+            },
+        ],
+    )
 
     r = ca.migrate_evidence_urls(dry_run=False)
     assert r["active_urls_rewritten"] == 1
@@ -266,7 +303,9 @@ def test_migration_execute_rewrites_and_is_idempotent(isolated_store):
     assert "client_id=" not in latest["a1"]["evidence_url"]
     assert "cust-a" not in latest["a1"]["evidence_url"]
     assert latest["a1"]["status"] == "published", "status must be preserved"
-    assert latest["a1"]["published_at"] == "2026-07-11T10:00:00+00:00", "timestamp must be preserved"
+    assert (
+        latest["a1"]["published_at"] == "2026-07-11T10:00:00+00:00"
+    ), "timestamp must be preserved"
 
     # Idempotent: re-run should produce 0 new rewrites
     r2 = ca.migrate_evidence_urls(dry_run=False)
@@ -275,18 +314,31 @@ def test_migration_execute_rewrites_and_is_idempotent(isolated_store):
 
 
 def test_migration_scope_by_client_id(isolated_store):
-    _seed_multiple_records(isolated_store, [
-        {"id": "a1", "client_id": "cust-a", "token": "t1", "status": "published",
-         "publish_channel": "customer_dashboard",
-         "published_at": "2026-07-11T10:00:00+00:00",
-         "evidence_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
-         "content": {"id": "c1", "client_id": "cust-a"}},
-        {"id": "b1", "client_id": "cust-b", "token": "t2", "status": "published",
-         "publish_channel": "customer_dashboard",
-         "published_at": "2026-07-11T10:00:00+00:00",
-         "evidence_url": "https://leadsgenai.in/x?client_id=cust-b&item=b1",
-         "content": {"id": "c2", "client_id": "cust-b"}},
-    ])
+    _seed_multiple_records(
+        isolated_store,
+        [
+            {
+                "id": "a1",
+                "client_id": "cust-a",
+                "token": "t1",
+                "status": "published",
+                "publish_channel": "customer_dashboard",
+                "published_at": "2026-07-11T10:00:00+00:00",
+                "evidence_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
+                "content": {"id": "c1", "client_id": "cust-a"},
+            },
+            {
+                "id": "b1",
+                "client_id": "cust-b",
+                "token": "t2",
+                "status": "published",
+                "publish_channel": "customer_dashboard",
+                "published_at": "2026-07-11T10:00:00+00:00",
+                "evidence_url": "https://leadsgenai.in/x?client_id=cust-b&item=b1",
+                "content": {"id": "c2", "client_id": "cust-b"},
+            },
+        ],
+    )
 
     r = ca.migrate_evidence_urls(dry_run=False, client_id="cust-a")
     assert r["records_scanned"] == 1  # scope filtered to cust-a
@@ -300,17 +352,29 @@ def test_migration_scope_by_client_id(isolated_store):
 def test_migration_migrates_legacy_history_entries(isolated_store):
     """Pre-2026-07-11 history entries had `old_url` field with raw URL. Migrate
     to fingerprint + redacted form."""
-    _seed_multiple_records(isolated_store, [
-        {"id": "a1", "client_id": "cust-a", "token": "t1", "status": "published",
-         "publish_channel": "customer_dashboard",
-         "published_at": "2026-07-11T10:00:00+00:00",
-         "evidence_url": "https://leadsgenai.in/app/dashboard#delivery/a1",  # active already clean
-         "evidence_url_history": [
-             {"old_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
-              "changed_at": "2026-07-11T09:00:00+00:00", "actor_id": "admin", "reason": "old"},
-         ],
-         "content": {"id": "c1", "client_id": "cust-a"}},
-    ])
+    _seed_multiple_records(
+        isolated_store,
+        [
+            {
+                "id": "a1",
+                "client_id": "cust-a",
+                "token": "t1",
+                "status": "published",
+                "publish_channel": "customer_dashboard",
+                "published_at": "2026-07-11T10:00:00+00:00",
+                "evidence_url": "https://leadsgenai.in/app/dashboard#delivery/a1",  # active already clean
+                "evidence_url_history": [
+                    {
+                        "old_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
+                        "changed_at": "2026-07-11T09:00:00+00:00",
+                        "actor_id": "admin",
+                        "reason": "old",
+                    },
+                ],
+                "content": {"id": "c1", "client_id": "cust-a"},
+            },
+        ],
+    )
 
     r = ca.migrate_evidence_urls(dry_run=False)
     assert r["history_entries_matched"] == 1
@@ -326,13 +390,21 @@ def test_migration_migrates_legacy_history_entries(isolated_store):
 
 def test_migration_publication_counters_unchanged(isolated_store, monkeypatch):
     """Migration must not fire fresh post_published ledger events."""
-    _seed_multiple_records(isolated_store, [
-        {"id": "a1", "client_id": "cust-a", "token": "t1", "status": "published",
-         "publish_channel": "customer_dashboard",
-         "published_at": "2026-07-11T10:00:00+00:00",
-         "evidence_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
-         "content": {"id": "c1", "client_id": "cust-a"}},
-    ])
+    _seed_multiple_records(
+        isolated_store,
+        [
+            {
+                "id": "a1",
+                "client_id": "cust-a",
+                "token": "t1",
+                "status": "published",
+                "publish_channel": "customer_dashboard",
+                "published_at": "2026-07-11T10:00:00+00:00",
+                "evidence_url": "https://leadsgenai.in/x?client_id=cust-a&item=a1",
+                "content": {"id": "c1", "client_id": "cust-a"},
+            },
+        ],
+    )
     events = []
     monkeypatch.setattr(dl, "log_event", lambda cid, event, **kw: events.append(event) or True)
 
