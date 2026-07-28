@@ -52,7 +52,7 @@ jobs:
       # env.py _sync_url(): settings.database_url (pydantic reads this env) -> Postgres service.
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/leadgen_test"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
