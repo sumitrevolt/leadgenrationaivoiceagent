@@ -278,9 +278,14 @@ def _audit(
             "actor": (actor or "admin")[:80],
         }
         rec.update({k: v for k, v in extra.items() if v is not None})
-        audit_path = _AUDIT_FILE()
-        os.makedirs(os.path.dirname(audit_path) or ".", exist_ok=True)
-        with open(audit_path, "a", encoding="utf-8") as f:
+        # Resolver called at each site rather than bound to a local. The local
+        # was correct behaviour and wrong evidence: `runtime_data_scan`
+        # attributes a finding to the expression it sees, so `open(audit_path)`
+        # reports the bare name `audit_path` and the allowlist entry declaring
+        # `_AUDIT_FILE` stopped binding — which turned main red with
+        # "STALE - no live finding at app/platform/dpdp.py:_AUDIT_FILE".
+        os.makedirs(os.path.dirname(_AUDIT_FILE()) or ".", exist_ok=True)
+        with open(_AUDIT_FILE(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:  # pragma: no cover - defensive
         logger.warning(f"[dpdp] audit write failed: {e}")
@@ -579,9 +584,8 @@ def record_request(
         "status": "pending",
     }
     try:
-        requests_path = _REQUESTS_FILE()
-        os.makedirs(os.path.dirname(requests_path) or ".", exist_ok=True)
-        with open(requests_path, "a", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(_REQUESTS_FILE()) or ".", exist_ok=True)
+        with open(_REQUESTS_FILE(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
         logger.warning(f"[dpdp] request write failed: {e}")
@@ -619,12 +623,17 @@ def mark_request_done(request_id: str, actor: str = "admin") -> dict[str, Any]:
     rid = str(request_id or "").strip()
     if not rid:
         return {"ok": False, "error": "request_id chahiye."}
+    # Probe the authority first so an unresolvable root fails closed rather than
+    # raising mid-rewrite. The result is deliberately DISCARDED: passing it to the
+    # I/O calls below would make `runtime_data_scan` attribute those accesses to
+    # the local name instead of `_REQUESTS_FILE`, which is what unbound the
+    # allowlist declaration and turned main red.
     try:
-        requests_path = _REQUESTS_FILE()
+        _REQUESTS_FILE()
     except Exception as e:
         logger.warning(f"[dpdp] requests authority unresolvable: {e}")
         return {"ok": False, "error": "requests store unreadable."}
-    lines = _read_raw_lines(requests_path)
+    lines = _read_raw_lines(_REQUESTS_FILE())
     if lines is None:
         return {"ok": False, "error": "requests store unreadable."}
     out_lines: list[str] = []
@@ -649,7 +658,7 @@ def mark_request_done(request_id: str, actor: str = "admin") -> dict[str, Any]:
     if not found:
         return {"ok": False, "error": f"request {rid} nahi mili (ya already done)."}
     try:
-        _atomic_write_lines(requests_path, out_lines)
+        _atomic_write_lines(_REQUESTS_FILE(), out_lines)
     except Exception as e:
         logger.warning(f"[dpdp] request update failed: {e}")
         return {"ok": False, "error": "update save nahi hua."}
