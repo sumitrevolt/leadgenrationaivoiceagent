@@ -31,7 +31,7 @@ def isolated_store(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     on the VPS would write into the live suppression ledger.
     """
     store = tmp_path / "email_suppression.jsonl"
-    monkeypatch.setattr(email_unsub, "_STORE", store)
+    monkeypatch.setattr(email_unsub, "_store_path", lambda: store)
     return store
 
 

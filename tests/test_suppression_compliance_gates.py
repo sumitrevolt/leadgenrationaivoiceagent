@@ -28,7 +28,7 @@ from app.platform.sales_autopilot import store as _sa_store
 
 @pytest.fixture(autouse=True)
 def isolated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    monkeypatch.setattr(email_unsub, "_STORE", tmp_path / "email_suppression.jsonl")
+    monkeypatch.setattr(email_unsub, "_store_path", lambda: tmp_path / "email_suppression.jsonl")
     monkeypatch.setattr(_sa_store, "_PROSPECTS_FILE", str(tmp_path / "prospects.json"))
     monkeypatch.setattr(_followups, "_hours_since", lambda _ts: 1e9)
     return tmp_path
