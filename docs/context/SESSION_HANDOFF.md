@@ -7,10 +7,12 @@ Reconcile control-plane docs (ACTIVE_WORK + SESSION_HANDOFF) with verified repos
 Docs rewritten to match verified facts. This branch changes documentation only — no code, tests, CI, flags, data or remote host.
 
 ## Evidence classes
-Every fact below is tagged with how it was obtained, because the two classes are not equally checkable by a reviewer:
+Every fact below is tagged with how it was obtained, because these classes are not equally checkable by a reviewer. Use the same four names in `ACTIVE_WORK.md` and `CURRENT_STATE.md`:
 
 - **GIT_VERIFIED** — reproducible from this repository (`git`, `gh`) by anyone.
 - **DIRECT_HOST_VERIFIED** — observed from the live host over direct HTTPS at a stated timestamp. NOT reproducible from the repo, and NOT confirmable from GitHub. Treat as a dated observation, not a repo invariant.
+- **LOCAL_ARTIFACT** — read from an untracked file on the machine that ran the session (`_recovery/…`). Nobody else can open it; re-run the producing command instead.
+- **ASSUMED** — carried forward from an earlier session and NOT re-checked here.
 
 ## Head
 - Running build: `dd193a69` — **DIRECT_HOST_VERIFIED** (`GET https://leadsgenai.in/health` over direct HTTPS from a non-browser client, 2026-07-28T02:40:07Z: `environment: production`, `status: healthy`)
@@ -46,7 +48,7 @@ calling HARD OFF · `PLATFORM_DIAL_DAILY=0` · `WHATSAPP_AUTO_SEND=0` · `EXTERN
 4. **GIT_VERIFIED** — the running build is a direct ancestor of main and contains 0 commits main lacks; the only divergence is "main is newer". The exact gap was 36 commits on 2026-07-28 and increases with every merge — including the merge of this PR — so re-derive it rather than quoting it: `git fetch origin && git rev-list --count dd193a69..origin/main`.
 5. **GIT_VERIFIED** — two feature PRs are open (#161, #162), plus Dependabot PRs. See the Open pull requests section for why this is stated by name and not by count.
 6. **GIT_VERIFIED** — the A2 compliance work that was uncommitted WIP earlier in this session is now committed and pushed as PR #162 (`feat/runtime-data-a2-compliance`). The recovery patch taken before it was committed remains at `_recovery/wip_a2_compliance_20260728.patch` (untracked, local only).
-7. **LOCAL_TOOL_OUTPUT** — captured at `_recovery/preflight_20260728.txt`, which is UNTRACKED and not in any commit, so a fresh clone cannot open it. Re-runnable by anyone with `python scripts/runtime_data_preflight.py`; the numbers below are also re-derivable straight from `app/platform/runtime_data_manifest.py`:
+7. **LOCAL_ARTIFACT** — captured at `_recovery/preflight_20260728.txt`, which is UNTRACKED and not in any commit, so a fresh clone cannot open it. Re-runnable by anyone with `python scripts/runtime_data_preflight.py`; the numbers below are also re-derivable straight from `app/platform/runtime_data_manifest.py`:
    - mode: `LEGACY_CHECKOUT_BACKED`
    - manifest version: `2026-07-26.1`
    - cutover gate: `False`
@@ -68,9 +70,10 @@ calling HARD OFF · `PLATFORM_DIAL_DAILY=0` · `WHATSAPP_AUTO_SEND=0` · `EXTERN
 These are recorded here because they came out of this session and have no other home yet. Promote them into `ACTIVE_WORK.md` if they survive a session without being done.
 
 1. **Check the VPS copy of `data/wa_suppression.jsonl` for test rows.** The local copy has four. If production carries them too, real numbers are sitting in a suppression list for no reason — a suppressed number that should not be suppressed is a lost customer, silently.
-2. **Explain the worker restart** behind the 22h28m / 1h43m uptime split (see the health note). Container/worker logs, not guesswork.
-3. **Add `_recovery/` to `.gitignore`.** It is untracked but not ignored, and it holds full agent session transcripts. Any `git add -A` would commit them — and CLAUDE.md §8 already forbids `git add -A` precisely because that mistake is easy.
+2. **Explain the worker-uptime split** (22h28m / 1h43m, same version). Container/worker logs, not guesswork. One arithmetic hint for whoever picks it up: 22h28m before the 02:40:07Z probe puts that process start around 2026-07-27T04:12Z, which is ~18 minutes BEFORE the `dd193a69` merge commit (04:30:18Z) — so "it has been up since the deploy" does not fit, and the reading needs checking rather than assuming.
+3. **Add `_recovery/` to `.gitignore`.** It is untracked and not ignored. `*.log` is already ignored, so the session transcripts themselves are safe; what a `git add -A` would actually sweep in is the `.patch` / `.diff` / `.txt` / PR-body files, including full diffs of unmerged work. CLAUDE.md §8 already forbids `git add -A` precisely because that mistake is easy.
 4. **`data/wa_failures.jsonl` classification** — filed in `memory/backlog.md` on the PR #162 branch; will land with it.
+5. **`docs/context/PRODUCTION_TRUTH.md` is two deploys stale** — it still asserts `d32a4934` as the production SHA (verified 2026-07-20, PRODUCTION-PROVEN) and that all five app-image services run that tag. It is outside the protocol's 1-2-3 read order so it was left untouched here, but a file named PRODUCTION_TRUTH disagreeing with CURRENT_STATE is the exact hazard this session was cleaning up. Correct it or delete it.
 
 ## Next session
 Read this file, then re-probe `/health` directly (**never** in a browser — see the cache hazard) and re-run `git fetch` before asserting any SHA. Neither open PR authorises a deployment; runtime-data blockers are 21 and a destructive deploy is DENIED.

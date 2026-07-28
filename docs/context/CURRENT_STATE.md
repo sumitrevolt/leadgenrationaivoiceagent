@@ -1,9 +1,11 @@
 ﻿# CURRENT_STATE - LeadGen AI (operational truth)
 
-Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN
+Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN | DIRECT_HOST_VERIFIED | GIT_VERIFIED | ASSUMED
+(`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-07-28T02:40Z — `/health` re-probed over direct HTTPS (no browser). **The SHA in this file was wrong for three days**; see Production SHA below.
+2026-07-28T02:40Z — `/health` re-probed over direct HTTPS (no browser).
+**This file went 3 days un-re-verified, and was demonstrably WRONG for about 1 of them** — `441cf37a` stopped being the running build when `dd193a69` merged on 2026-07-27T04:30Z. Those are different durations; conflating them overstates the failure and understates the cause, which was not re-probing.
 
 ## Sprint goal (LOCKED)
 **Automation-Max** — safe engines auto; human only for publish / money / dial / bulk WA.
@@ -24,7 +26,7 @@ Label: PRODUCTION-PROVEN
 ## Production SHA
 `dd193a69` — merge commit of PR #147 (External Agent Runner v1), merged 2026-07-27.
 Observed 2026-07-28T02:40:07Z: `GET https://leadsgenai.in/health` over direct HTTPS from a non-browser client returns `{"version":"dd193a69","environment":"production","status":"healthy"}`.
-Previous entry in this file said `441cf37a` and had been wrong since at least 2026-07-27. **`441cf37a` is NOT the running build.** Rollback reference is now `dd193a69` itself until the next deploy.
+Previous entry in this file said `441cf37a`, which stopped being true when `dd193a69` merged (2026-07-27T04:30Z). **`441cf37a` is NOT the running build.** Rollback reference is now `dd193a69` itself until the next deploy.
 Per-container `APP_VERSION` across the five app-image services was NOT re-checked this session — do not restate the old "zero skew" claim without probing.
 Label: DIRECT_HOST_VERIFIED (2026-07-28T02:40:07Z, direct HTTPS, no browser cache in path)
 
@@ -47,12 +49,15 @@ Container/soak numbers from the 2026-07-25 deploy are NOT restated here because 
 Label: PARTIAL (health DIRECT_HOST_VERIFIED; worker restart UNKNOWN)
 
 ## Newly-live-but-inert (shipped 2026-07-25, never previously run in prod)
-The autonomous sales engine and Creative OS Phase-1 are now ON DISK in production but gated OFF. Verified in the running containers:
+The autonomous sales engine and Creative OS Phase-1 are now ON DISK in production but gated OFF. Verified in the running containers **on 2026-07-25 and NOT re-probed on 2026-07-28** — `/health` returns no feature flags, so nothing below was re-confirmed this session (ASSUMED):
 - `SALES_AUTOPILOT_ENABLED` — **unset in both `app` and `scheduler`** → engine fully inert (master gate, `app/api/automation_flags.py:378`)
 - `sales_autopilot` is in `RUN_DUE_EXCLUDE` → recovery never auto-enqueues it
 - `WHATSAPP_AUTO_SEND=0`, `PLATFORM_DIAL_DAILY=0` (calling HARD OFF)
 - Zero autopilot activity in scheduler/worker logs since deploy
-Do NOT treat these as live capabilities. Label: CODE-PRESENT (inert)
+Do NOT treat these as live capabilities. Label: CODE-PRESENT (inert) as of 2026-07-25 | ASSUMED as of 2026-07-28
+
+## Calling / flag posture — read this before quoting any flag from this file
+Every flag value in this document was probed on 2026-07-25, not on 2026-07-28. `/health` exposes version, environment, status and uptime only, so a `/health` probe can never confirm one. Treat all of them as **ASSUMED** and re-probe the container env before acting on one. Nothing in this session's changes altered a flag.
 
 ## Migration
 The `510ed7bc` Video Review Stage 3 deploy completed its hard-gated transactional Alembic step successfully; OpenClaw Admin `7cab5f60` introduced no migration.
