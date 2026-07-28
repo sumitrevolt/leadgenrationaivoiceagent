@@ -16,7 +16,7 @@ import os
 def test_gst_invoice_store_is_redirected_away_from_repo_data():
     from app.billing import gst_invoice
 
-    p = os.path.abspath(gst_invoice._STORE)
+    p = os.path.abspath(gst_invoice._STORE())
     assert os.path.abspath(os.path.join("data", "invoices.jsonl")) != p
     assert not p.startswith(os.path.abspath("data"))
 
@@ -24,7 +24,7 @@ def test_gst_invoice_store_is_redirected_away_from_repo_data():
 def test_upi_payments_store_is_redirected_away_from_repo_data():
     from app.platform import upi_payments
 
-    p = os.path.abspath(upi_payments._STORE)
+    p = os.path.abspath(upi_payments._STORE())
     assert not p.startswith(os.path.abspath("data"))
 
 
@@ -39,7 +39,7 @@ def test_invoice_write_lands_in_tmp_not_repo(tmp_path):
 
     rec = gst_invoice.create_invoice("iso_test_client", "starter", amount_inr=1999)
     assert rec.get("number")
-    assert os.path.exists(gst_invoice._STORE)
+    assert os.path.exists(gst_invoice._STORE())
 
     if before_mtime is not None:
         assert os.path.getmtime(real) == before_mtime

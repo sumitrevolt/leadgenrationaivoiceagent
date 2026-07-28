@@ -27,7 +27,6 @@ from typing import Any
 
 import pytest
 
-
 # --------------------------------------------------------------------------- #
 # Gap 1 — re-nudge sweep (24h gap + max-3 cap + flag gate)                     #
 # --------------------------------------------------------------------------- #
@@ -59,14 +58,12 @@ async def test_renudge_sends_once_then_respects_24h_gap(
 ) -> None:
     from app.marketing import clients_store, onboarding
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
     _patch_state_file(monkeypatch, tmp_path)
     monkeypatch.setenv("KB_INTERVIEW_RENUDGE", "1")
     sent = _capture_sends(monkeypatch)
 
-    c = clients_store.add_client(
-        business_name="Stuck Biz", niche="general", phone="9800000001"
-    )
+    c = clients_store.add_client(business_name="Stuck Biz", niche="general", phone="9800000001")
     clients_store.update_client(c["id"], awaiting_kb_interview=True)
 
     t0 = datetime(2026, 7, 5, 9, 0, tzinfo=timezone.utc)
@@ -77,44 +74,34 @@ async def test_renudge_sends_once_then_respects_24h_gap(
     assert len(sent) == 1
 
     # Same day, only a few hours later -> still inside the 24h window -> NO resend.
-    monkeypatch.setattr(
-        onboarding, "_now_utc", lambda: t0 + timedelta(hours=5)
-    )
+    monkeypatch.setattr(onboarding, "_now_utc", lambda: t0 + timedelta(hours=5))
     r2 = await onboarding._renudge_awaiting_interviews()
     assert r2["renudged"] == 0
     assert len(sent) == 1
 
     # Just past 24h -> allowed again.
-    monkeypatch.setattr(
-        onboarding, "_now_utc", lambda: t0 + timedelta(hours=24, minutes=1)
-    )
+    monkeypatch.setattr(onboarding, "_now_utc", lambda: t0 + timedelta(hours=24, minutes=1))
     r3 = await onboarding._renudge_awaiting_interviews()
     assert r3["renudged"] == 1
     assert len(sent) == 2
 
 
 @pytest.mark.asyncio
-async def test_renudge_caps_at_three_total(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+async def test_renudge_caps_at_three_total(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from app.marketing import clients_store, onboarding
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
     _patch_state_file(monkeypatch, tmp_path)
     monkeypatch.setenv("KB_INTERVIEW_RENUDGE", "1")
     sent = _capture_sends(monkeypatch)
 
-    c = clients_store.add_client(
-        business_name="Stubborn Biz", niche="general", phone="9800000002"
-    )
+    c = clients_store.add_client(business_name="Stubborn Biz", niche="general", phone="9800000002")
     clients_store.update_client(c["id"], awaiting_kb_interview=True)
 
     base = datetime(2026, 7, 5, 9, 0, tzinfo=timezone.utc)
     # Advance 25h each round so the 24h gap never blocks — only the max-3 cap should.
     for i in range(6):
-        monkeypatch.setattr(
-            onboarding, "_now_utc", lambda i=i: base + timedelta(hours=25 * i)
-        )
+        monkeypatch.setattr(onboarding, "_now_utc", lambda i=i: base + timedelta(hours=25 * i))
         await onboarding._renudge_awaiting_interviews()
 
     assert len(sent) == onboarding._RENUDGE_MAX == 3
@@ -126,19 +113,15 @@ async def test_renudge_caps_at_three_total(
 
 
 @pytest.mark.asyncio
-async def test_renudge_flag_off_is_inert(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+async def test_renudge_flag_off_is_inert(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     from app.marketing import clients_store, onboarding
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
     _patch_state_file(monkeypatch, tmp_path)
     monkeypatch.setenv("KB_INTERVIEW_RENUDGE", "0")
     sent = _capture_sends(monkeypatch)
 
-    c = clients_store.add_client(
-        business_name="Off Biz", niche="general", phone="9800000003"
-    )
+    c = clients_store.add_client(business_name="Off Biz", niche="general", phone="9800000003")
     clients_store.update_client(c["id"], awaiting_kb_interview=True)
 
     r = await onboarding._renudge_awaiting_interviews()
@@ -152,15 +135,13 @@ async def test_renudge_skips_clients_not_awaiting(
 ) -> None:
     from app.marketing import clients_store, onboarding
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
     _patch_state_file(monkeypatch, tmp_path)
     monkeypatch.setenv("KB_INTERVIEW_RENUDGE", "1")
     sent = _capture_sends(monkeypatch)
 
     # awaiting flag NOT set -> must never be nudged.
-    clients_store.add_client(
-        business_name="Seeded Biz", niche="general", phone="9800000004"
-    )
+    clients_store.add_client(business_name="Seeded Biz", niche="general", phone="9800000004")
     r = await onboarding._renudge_awaiting_interviews()
     assert r["renudged"] == 0
     assert len(sent) == 0
@@ -174,7 +155,7 @@ async def test_capture_clears_renudge_state(
     who replies late doesn't leave stale counter state."""
     from app.marketing import clients_store, onboarding
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
     _patch_state_file(monkeypatch, tmp_path)
     monkeypatch.setenv("KB_INTERVIEW_RENUDGE", "1")
     _capture_sends(monkeypatch)
@@ -183,13 +164,9 @@ async def test_capture_clears_renudge_state(
         def add_documents(self, docs, source="", namespace=""):
             return len(docs)
 
-    monkeypatch.setattr(
-        "app.voice_agent.knowledge_base.get_knowledge_base", lambda: _FakeKB()
-    )
+    monkeypatch.setattr("app.voice_agent.knowledge_base.get_knowledge_base", lambda: _FakeKB())
 
-    c = clients_store.add_client(
-        business_name="Reply Biz", niche="general", phone="9800000005"
-    )
+    c = clients_store.add_client(business_name="Reply Biz", niche="general", phone="9800000005")
     clients_store.update_client(c["id"], awaiting_kb_interview=True)
 
     t0 = datetime(2026, 7, 5, 9, 0, tzinfo=timezone.utc)
@@ -216,7 +193,7 @@ async def test_kb_info_writes_client_namespace_and_clears_flag(
     from app.api import customer_dashboard as cd
     from app.marketing import clients_store
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
     c = clients_store.add_client(
         business_name="Jiya Makeover", niche="beauty_makeover", phone="8712928847"
     )
@@ -230,9 +207,7 @@ async def test_kb_info_writes_client_namespace_and_clears_flag(
             kb_calls.append({"docs": docs, "source": source, "namespace": namespace})
             return len(docs)
 
-    monkeypatch.setattr(
-        "app.voice_agent.knowledge_base.get_knowledge_base", lambda: _FakeKB()
-    )
+    monkeypatch.setattr("app.voice_agent.knowledge_base.get_knowledge_base", lambda: _FakeKB())
 
     body = cd.KbInfoIn(text="Bridal makeover + hair spa, Nagpur. USP: 10 saal ka experience.")
     # client_id injected as the resolved JWT sub (require_customer output).
@@ -260,10 +235,8 @@ async def test_kb_info_is_idor_safe_writes_only_own_namespace(
     from app.api import customer_dashboard as cd
     from app.marketing import clients_store
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
-    me = clients_store.add_client(
-        business_name="Me Biz", niche="general", phone="9800000010"
-    )
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
+    me = clients_store.add_client(business_name="Me Biz", niche="general", phone="9800000010")
     victim = clients_store.add_client(
         business_name="Victim Biz", niche="general", phone="9800000011"
     )
@@ -276,9 +249,7 @@ async def test_kb_info_is_idor_safe_writes_only_own_namespace(
             kb_calls.append({"namespace": namespace})
             return len(docs)
 
-    monkeypatch.setattr(
-        "app.voice_agent.knowledge_base.get_knowledge_base", lambda: _FakeKB()
-    )
+    monkeypatch.setattr("app.voice_agent.knowledge_base.get_knowledge_base", lambda: _FakeKB())
 
     body = cd.KbInfoIn(text="Poaching victim ki KB likhne ki koshish (should not happen).")
     # Authenticated as `me` -> require_customer resolves my id, not victim's.

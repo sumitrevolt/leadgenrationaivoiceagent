@@ -18,7 +18,9 @@ from app.marketing import clients_store, mini_site
 def tmp_store(monkeypatch, tmp_path):
     """clients_store + brand_kit ke file paths tmp_path pe redirect."""
     monkeypatch.setattr(
-        clients_store, "_CLIENTS_FILE", os.path.join(str(tmp_path), "marketing_clients.jsonl")
+        clients_store,
+        "_CLIENTS_FILE",
+        lambda: os.path.join(str(tmp_path), "marketing_clients.jsonl"),
     )
     try:
         from app.marketing import brand_kit
@@ -64,7 +66,7 @@ class TestSlug:
         # Simulate an OLD record written without a slug, then ensure it backfills.
         import json
 
-        path = clients_store._CLIENTS_FILE
+        path = clients_store._CLIENTS_FILE()
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as f:
             f.write(

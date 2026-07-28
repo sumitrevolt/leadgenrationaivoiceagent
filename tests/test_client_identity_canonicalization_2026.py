@@ -36,7 +36,7 @@ def _seed_marketing_client(monkeypatch, tmp_path):
         "status": "active",
         "billing_client_ids": [BILL_ID],
     }
-    path = clients_store._CLIENTS_FILE
+    path = clients_store._CLIENTS_FILE()
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(rec) + "\n")

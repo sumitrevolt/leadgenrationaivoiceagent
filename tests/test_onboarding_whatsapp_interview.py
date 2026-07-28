@@ -27,7 +27,7 @@ async def test_auto_onboard_sets_awaiting_flag_when_no_website(
     from app.marketing import auto_content, clients_store, onboarding
 
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
 
     client = clients_store.add_client(
         business_name="No Website Biz", niche="general", phone="9812345678"
@@ -61,7 +61,7 @@ async def test_auto_onboard_skips_flag_when_website_seeded(
     from app.marketing import auto_content, clients_store, onboarding
 
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
 
     client = clients_store.add_client(
         business_name="Has Website Biz", niche="general", phone="9812345679"
@@ -94,7 +94,7 @@ async def test_try_capture_onboarding_reply_matches_by_phone_and_clears_flag(
 ) -> None:
     from app.marketing import clients_store, onboarding
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
 
     client = clients_store.add_client(
         business_name="Pending Interview Biz", niche="general", phone="9812345680"
@@ -129,7 +129,7 @@ async def test_try_capture_onboarding_reply_ignores_unknown_sender(
 ) -> None:
     from app.marketing import clients_store, onboarding
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
     client = clients_store.add_client(
         business_name="Someone Else Biz", niche="general", phone="9812345681"
     )
@@ -151,7 +151,7 @@ async def test_try_capture_onboarding_reply_ignores_client_not_awaiting(
 ) -> None:
     from app.marketing import clients_store, onboarding
 
-    clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
+    clients_store._CLIENTS_FILE = lambda: str(tmp_path / "clients.jsonl")
     clients_store.add_client(
         business_name="Already Seeded Biz", niche="general", phone="9812345682"
     )

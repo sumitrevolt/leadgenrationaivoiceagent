@@ -36,7 +36,7 @@ def _seed_client(cid: str, **fields):
         "slug": cid,
         **fields,
     }
-    path = clients_store._CLIENTS_FILE
+    path = clients_store._CLIENTS_FILE()
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(rec) + "\n")
