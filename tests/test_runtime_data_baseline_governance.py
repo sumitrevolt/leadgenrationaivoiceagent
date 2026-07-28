@@ -25,7 +25,18 @@ _REPO = pathlib.Path(__file__).resolve().parents[1]
 
 @pytest.fixture(scope="module")
 def current():
-    return scan.scan_repo(_REPO, allowlist=al.load())
+    # Full-repo AST walk is GC-heavy; CI intermittently SIGSEGVs during
+    # cyclic collection mid-scan (exit 139, ~7% of full-suite runs —
+    # 2026-07-28 baseline). Freeze the collector around the walk so the
+    # fixture stops being the crash amplifier; required checks stay intact.
+    import gc
+
+    gc.collect()
+    gc.freeze()
+    try:
+        return scan.scan_repo(_REPO, allowlist=al.load())
+    finally:
+        gc.unfreeze()
 
 
 def test_change_log_is_coherent() -> None:

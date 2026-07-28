@@ -70,12 +70,17 @@ jobs:
         # `continue-on-error: true` on this step.
         env:
           # TelecallerBrain __init__ me key-PRESENCE check hai (CI me real keys
-          # nahi rakhte); saare LLM calls conftest me stubbed â€” koi network nahi.
+          # nahi rakhte); saare LLM calls conftest me stubbed — koi network nahi.
           GROQ_API_KEY: ci-dummy-key-not-real
           # local-dev parity: bina in ke config PROD-defaults leta (global
-          # RateLimitMiddleware arm â†’ suite ke burst pe 429s, turnstile-class gates).
+          # RateLimitMiddleware arm → suite ke burst pe 429s, turnstile-class gates).
           APP_ENV: test
           ENVIRONMENT: development
+          OMP_NUM_THREADS: "1"
+          MKL_NUM_THREADS: "1"
+          OPENBLAS_NUM_THREADS: "1"
+          TOKENIZERS_PARALLELISM: "false"
+          PYTHONFAULTHANDLER: "1"
         run: pytest -q -m "not network" --ignore=tests/integration
 
   build:

@@ -140,6 +140,9 @@ jobs:
           MKL_NUM_THREADS: "1"
           OPENBLAS_NUM_THREADS: "1"
           TOKENIZERS_PARALLELISM: "false"
+          # Next exit-139 must leave a Python dump (cyclic-GC SIGSEGV class,
+          # 2026-07-28). Does not weaken the required suite.
+          PYTHONFAULTHANDLER: "1"
         run: pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60
 
 
