@@ -62,12 +62,18 @@ RETIRED_CONSTANTS = ("_STORE", "_AUDIT_FILE", "_REQUESTS_FILE")
 OUT_OF_SCOPE: dict[str, dict[str, str]] = {
     "app/platform/email_unsub.py": {},
     "app/platform/dpdp.py": {
-        "join-with-data-root": (
-            "Subject-data JSONL stores (_STORES / _CRM_DIR) scanned for erasure "
-            "discovery — other families, not compliance.dpdp_audit. Folding them "
-            "into this wave would migrate stores nobody classified under the "
-            "audit row."
-        ),
+        # Subject-data JSONL stores (_STORES / _CRM_DIR) scanned for erasure
+        # discovery — other families, not compliance.dpdp_audit. Folding them
+        # into this wave would migrate stores nobody classified under the audit
+        # row. A2's scanner reconstructs literal joins, so each path is named.
+        "data/inquiries.jsonl": "erasure-scan subject store (not dpdp_audit)",
+        "data/prospects.jsonl": "erasure-scan subject store (not dpdp_audit)",
+        "data/widget_chats.jsonl": "erasure-scan subject store (not dpdp_audit)",
+        "data/reply_drafts.jsonl": "erasure-scan subject store (not dpdp_audit)",
+        "data/cadence_leads.jsonl": "erasure-scan subject store (not dpdp_audit)",
+        "data/dialer_logs.jsonl": "erasure-scan subject store (not dpdp_audit)",
+        "data/customer_wish_drafts.jsonl": "erasure-scan subject store (not dpdp_audit)",
+        "data/crm": "erasure-scan CRM dir (not dpdp_audit)",
     },
 }
 
