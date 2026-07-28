@@ -5,6 +5,7 @@ import time
 
 import pytest
 
+from app.marketing import wa_campaign_runner
 from app.telephony import consent_ledger as cl
 
 
@@ -19,6 +20,14 @@ def _tmp_stores(tmp_path, monkeypatch):
     """
     monkeypatch.setattr(cl, "ledger_path", lambda: tmp_path / "consent_ledger.jsonl")
     monkeypatch.setattr(cl, "suppression_path", lambda: tmp_path / "voice_suppression.jsonl")
+    # `record_opt_out` cross-channel-propagates into wa_campaign_runner.suppress()
+    # (TCCCPR: a revocation applies to every commercial channel). Without this
+    # third patch that write lands in the REPOSITORY's data/wa_suppression.jsonl
+    # — which is not hypothetical: four of this file's test numbers are already
+    # committed there. Isolating two of the three stores is not isolation.
+    monkeypatch.setattr(
+        wa_campaign_runner, "_suppression_path", lambda: str(tmp_path / "wa_suppression.jsonl")
+    )
     monkeypatch.setattr(cl, "RECORDINGS_DIR", tmp_path / "recordings")
     yield
 
