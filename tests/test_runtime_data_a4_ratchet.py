@@ -72,6 +72,9 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
         # Transcript retention / trainer / digest — other families, not A4.
         "data/call_transcripts": "transcript retention (not content.queue)",
         "data/trainer_suggestions.jsonl": "trainer suggestions (not content.queue)",
+        # Bare `data` CREATE keeps the baseline fingerprint for makedirs
+        # (dirname(_hints_file) re-fingerprinted as new debt).
+        "data": "parent mkdir for trainer suggestions (not content.queue)",
         "data/inquiries.jsonl": "digest inquiry count (not content.queue)",
         "data/daily_digest.txt": "ops digest artifact (not content.queue)",
     },

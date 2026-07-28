@@ -337,3 +337,47 @@ def test_output_is_deterministic_and_secret_free() -> None:
     for f in a:
         assert "PASSWORD" not in str(f).upper()
         assert "SECRET" not in str(f).upper()
+
+
+def test_os_path_attr_is_not_a_mutable_symbol_ref() -> None:
+    """``os.path.join`` must not bind to a local Name ``path``.
+
+    A READ-only ``path = join("data", "inquiries.jsonl")`` previously made every
+    ``os.path.*`` write look like an inquiries mutation (A4 staff._trim_jsonl).
+    """
+    f = _py(
+        """
+        import os
+        from pathlib import Path
+
+        def queue_dir():
+            return str(
+                resolve_store_path(
+                    store_id="content.queue",
+                    legacy_path=Path("data") / "content_queue",
+                    target_segments=("content", "queue"),
+                )
+            )
+
+        def trim(target):
+            os.replace(target + ".tmp", target)
+
+        def read_inquiries():
+            path = os.path.join("data", "inquiries.jsonl")
+            return open(path).read()
+
+        def prune(name):
+            trim(os.path.join(queue_dir(), name))
+        """
+    )
+    replaces = [x for x in f if x["operation"] == s.REPLACE]
+    assert replaces, "trim via os.path.join(queue_dir(), name) not detected"
+    for x in replaces:
+        assert x.get("symbol") != "path", x
+        assert "inquiries" not in str(x.get("resolved_pattern") or ""), x
+    # Pre-fix control: if Attribute.attr matched, inquiries would own this write.
+    assert not any(
+        x.get("symbol") == "path" and "inquiries" in str(x.get("resolved_pattern") or "")
+        for x in f
+        if x["operation"] == s.REPLACE
+    )

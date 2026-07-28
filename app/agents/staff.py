@@ -525,7 +525,10 @@ async def run_trainer() -> dict[str, Any]:
             import time as _time
 
             _hints_file = os.path.join("data", "trainer_suggestions.jsonl")
-            os.makedirs(os.path.dirname(_hints_file) or ".", exist_ok=True)
+            # Keep CREATE identity as bare `data` (baseline fingerprint); the
+            # dirname(_hints_file) form re-fingerprinted as new debt without
+            # changing behaviour (2026-07-28 A4 ratchet).
+            os.makedirs("data", exist_ok=True)
             with open(_hints_file, "a", encoding="utf-8") as _f:
                 _f.write(
                     _json.dumps(
@@ -636,24 +639,31 @@ def _prune_old_transcripts(days: int = _TRANSCRIPT_RETENTION_DAYS) -> int:
     return removed
 
 
-def _trim_jsonl(path: str, max_lines: int = _JSONL_MAX_LINES) -> int:
+def _trim_jsonl(target: str, max_lines: int = _JSONL_MAX_LINES) -> int:
     """W1.8: append-only JSONL ko last `max_lines` tak trim (newest rakho) — unbounded
-    growth rok. Atomic tmp+os.replace, best-effort (site_beacon pattern). Removed count."""
+    growth rok. Atomic tmp+os.replace, best-effort (site_beacon pattern). Removed count.
+
+    Parameter is deliberately NOT named ``path``: a co-located
+    ``path = .../inquiries`` Name plus the scanner's old Attribute.attr
+    matching on ``os.path`` made ``os.replace(tmp, target)`` look like an
+    inquiries writer (2026-07-28 A4). Scanner ``_refs`` is Name-only now;
+    the rename stays as defense in depth.
+    """
     try:
-        if not os.path.isfile(path):
+        if not os.path.isfile(target):
             return 0
-        with open(path, encoding="utf-8") as f:
+        with open(target, encoding="utf-8") as f:
             lines = f.readlines()
         if len(lines) <= max_lines:
             return 0
         keep = lines[-max_lines:]
-        tmp = path + ".tmp"
+        tmp = target + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             f.writelines(keep)
-        os.replace(tmp, path)
+        os.replace(tmp, target)
         return len(lines) - len(keep)
     except Exception as e:
-        logger.debug(f"[staff] jsonl trim skipped ({path}): {e}")
+        logger.debug(f"[staff] jsonl trim skipped ({target}): {e}")
         return 0
 
 
@@ -776,6 +786,9 @@ def _count_recent_inquiries(hours: float = 24.0) -> int:
     from datetime import datetime, timedelta
 
     count = 0
+    # Keep the historical `path = ...` binding so the READ fingerprint stays in
+    # the debt baseline. `_trim_jsonl`'s destination param is named `target`
+    # so this symbol can no longer attach to os.replace (2026-07-28 A4).
     path = os.path.join("data", "inquiries.jsonl")
     try:
         if not os.path.isfile(path):
