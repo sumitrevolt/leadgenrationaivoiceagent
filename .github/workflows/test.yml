@@ -78,7 +78,7 @@ jobs:
       - name: Check for secrets
         # Pinned (was @main — mutable ref for a security tool). Dependabot github-actions
         # weekly keeps it fresh. TODO: bump via dependabot.
-        uses: trufflesecurity/trufflehog@v3.95.9
+        uses: trufflesecurity/trufflehog@v3.96.0
         with:
           path: ./
           base: ${{ github.event.repository.default_branch }}
