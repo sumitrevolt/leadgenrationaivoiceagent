@@ -37,9 +37,16 @@ def _recording_url(session_id: str | None, started_at: str | None) -> str | None
         return None
     for ext in _REC_EXTS:
         fn = f"webcall_{sid}.{ext}"
-        if os.path.isfile(os.path.join("data", "call_recordings", day, fn)):
+        if os.path.isfile(os.path.join(_CALL_RECORDINGS_DIR(), day, fn)):
             return f"/api/admin/call-recordings/{day}/{fn}"
     return None
+
+
+def _CALL_RECORDINGS_DIR() -> str:
+    """Call recordings root — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_recordings_dir
+
+    return str(call_recordings_dir())
 
 
 @router.get("", summary="List saved web test-call transcripts (all browsers)")

@@ -11,7 +11,12 @@ import os
 from pathlib import Path
 from typing import Any
 
-_TRANSCRIPTS = Path("data") / "call_transcripts"
+
+def _TRANSCRIPTS() -> Path:
+    """Call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return call_transcripts_dir()
 
 
 async def transcribe_eval_provider(
@@ -65,9 +70,9 @@ async def _local_whisper(wav_bytes: bytes, language: str) -> tuple[str, str]:
 def list_transcript_fixtures(limit: int = 20) -> list[dict[str, Any]]:
     """Load recent transcript JSONL rows (text-only fixtures)."""
     out: list[dict[str, Any]] = []
-    if not _TRANSCRIPTS.is_dir():
+    if not _TRANSCRIPTS().is_dir():
         return out
-    files = sorted(_TRANSCRIPTS.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+    files = sorted(_TRANSCRIPTS().glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
     for fp in files:
         try:
             for line in fp.read_text(encoding="utf-8", errors="ignore").splitlines():

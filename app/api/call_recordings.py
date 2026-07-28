@@ -25,8 +25,14 @@ from app.api.auth_deps import require_admin
 
 router = APIRouter(prefix="/api/admin/call-recordings", tags=["Call Recordings"])
 
-_REC_DIR = os.path.join("data", "call_recordings")
 _IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def _REC_DIR() -> str:
+    """Call recordings root — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_recordings_dir
+
+    return str(call_recordings_dir())
 
 
 def _mtime(path: str) -> float:
@@ -44,6 +50,7 @@ def _fmt_ist(epoch: float) -> str:
         return datetime.fromtimestamp(epoch, tz=timezone.utc).astimezone(_IST).strftime("%H:%M:%S")
     except Exception:
         return ""
+
 
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 # Mixed conversation (primary)
@@ -107,21 +114,21 @@ async def list_recordings(_user=Depends(require_admin)) -> dict:
       ]
     }
     """
-    if not os.path.isdir(_REC_DIR):
+    if not os.path.isdir(_REC_DIR()):
         return {"total_sessions": 0, "dates": []}
 
     dates_out: list[dict] = []
 
     try:
         day_names = sorted(
-            (d for d in os.listdir(_REC_DIR) if _DATE_RE.match(d)),
+            (d for d in os.listdir(_REC_DIR()) if _DATE_RE.match(d)),
             reverse=True,
         )
     except Exception:
         return {"total_sessions": 0, "dates": []}
 
     for date in day_names:
-        day_dir = os.path.join(_REC_DIR, date)
+        day_dir = os.path.join(_REC_DIR(), date)
         if not os.path.isdir(day_dir):
             continue
 
@@ -208,7 +215,7 @@ async def serve_recording(date: str, filename: str, _user=Depends(require_admin)
     if not _SERVE_RE.match(filename):
         raise HTTPException(status_code=400, detail="Invalid filename")
 
-    path = os.path.join(_REC_DIR, date, filename)
+    path = os.path.join(_REC_DIR(), date, filename)
     if not os.path.isfile(path):
         raise HTTPException(status_code=404, detail="Recording not found")
 

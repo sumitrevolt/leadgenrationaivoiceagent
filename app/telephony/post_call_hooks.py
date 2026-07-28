@@ -21,6 +21,13 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 
+def _CALL_TRANSCRIPTS_DIR() -> str:
+    """Call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return str(call_transcripts_dir())
+
+
 def classify_stream_outcome(
     *,
     user_turns: int,
@@ -70,9 +77,13 @@ async def meter_call_completion(
         # ENTERPRISE FIX (2026-07-10): call-minute billing failure WAS debug-level —
         # invisible in production. Ab WARNING so ops knows immediately (call completed
         # but billing ledger never got the record = revenue leakage).
-        logger.warning("[post_call] meter_call_completion FAILED — billing record LOST for call_id=%s duration=%s (%s: %s)",
-                       cid_key, duration_seconds, type(e).__name__, e,
-                       )
+        logger.warning(
+            "[post_call] meter_call_completion FAILED — billing record LOST for call_id=%s duration=%s (%s: %s)",
+            cid_key,
+            duration_seconds,
+            type(e).__name__,
+            e,
+        )
         return False
 
     # Obsidian second-brain — append call summary (INERT if OBSIDIAN_SYNC unset).
@@ -167,9 +178,10 @@ async def apply_qualified_downstream(
     # to their number with the trial link is consented/transactional, not bulk.
     # Best-effort, no-ops until the WA engine is armed. Gated POST_CALL_WHATSAPP
     # (default ON). Never raises.
-    if (
-        (phone or "").strip()
-        and os.environ.get("POST_CALL_WHATSAPP", "1").strip().lower() not in ("0", "false", "no")
+    if (phone or "").strip() and os.environ.get("POST_CALL_WHATSAPP", "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
     ):
         try:
             from app.integrations.whatsapp import get_whatsapp_sender
@@ -265,15 +277,18 @@ def persist_transcript(
         }
         if extra:
             rec.update(extra)
-        out_dir = os.path.join("data", "call_transcripts")
+        out_dir = _CALL_TRANSCRIPTS_DIR()
         os.makedirs(out_dir, exist_ok=True)
         path = os.path.join(out_dir, ended.strftime("%Y-%m-%d") + ".jsonl")
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
-        logger.warning("[post_call] persist_transcript FAILED for call_id=%s — transcript LOST (%s: %s)",
-                       str(call_id or "")[:40], type(e).__name__, e,
-                       )
+        logger.warning(
+            "[post_call] persist_transcript FAILED for call_id=%s — transcript LOST (%s: %s)",
+            str(call_id or "")[:40],
+            type(e).__name__,
+            e,
+        )
 
 
 async def auto_qualify_and_downstream(
@@ -318,7 +333,9 @@ async def auto_qualify_and_downstream(
             from app.agents.rl import reward as _rl_reward
 
             _rl_reward.record_reward(
-                "voice", niche or "general", _rl_reward.voice_reward(q),
+                "voice",
+                niche or "general",
+                _rl_reward.voice_reward(q),
                 ref=str(call_id or rec.get("ts", "")),
                 context={"niche": niche, "city": city},
             )
@@ -545,9 +562,7 @@ async def persist_call_log(
         with get_db_session() as db:
             # Idempotency: skip if a row for this call_sid already exists.
             if row.call_sid:
-                exists = (
-                    db.query(CallLog.id).filter(CallLog.call_sid == row.call_sid).first()
-                )
+                exists = db.query(CallLog.id).filter(CallLog.call_sid == row.call_sid).first()
                 if exists:
                     return
             # FK-safe: link client_id only when it really exists in `clients`,

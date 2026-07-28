@@ -69,8 +69,6 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
         "data/self_improve_runs.jsonl": "ops rotation list (not content.queue)",
         "data/content_feedback.jsonl": "ops rotation list (not content.queue)",
         "data/reply_drafts.jsonl": "ops rotation list (not content.queue)",
-        # Transcript retention / trainer / digest — other families, not A4.
-        "data/call_transcripts": "transcript retention (not content.queue)",
         "data/trainer_suggestions.jsonl": "trainer suggestions (not content.queue)",
         # Bare `data` CREATE keeps the baseline fingerprint for makedirs
         # (dirname(_hints_file) re-fingerprinted as new debt).

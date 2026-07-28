@@ -26,6 +26,14 @@ _COUNTER = os.path.join(_DIR, "interaction_counter.json")
 _PROPOSALS = os.path.join(_DIR, "proposals.jsonl")
 _DECISIONS = os.path.join(_DIR, "proposal_decisions.jsonl")
 
+
+def _call_transcripts() -> str:
+    """Call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return str(call_transcripts_dir())
+
+
 _TYPE_SCRIPT_MAP: dict[str, tuple[str, str]] = {
     "email_variant": ("cold_email", "email"),
     "call_opening": ("voice_opening", "voice"),
@@ -102,7 +110,7 @@ def count_interactions() -> int:
     for p in paths:
         total += len(_read_jsonl(p, 10000))
     try:
-        tdir = os.path.join("data", "call_transcripts")
+        tdir = str(_call_transcripts())
         if os.path.isdir(tdir):
             for fn in os.listdir(tdir):
                 if fn.endswith(".jsonl"):
@@ -163,7 +171,9 @@ async def _gather_inputs() -> dict[str, Any]:
     try:
         from app.agents import live_eval
 
-        snap["voice_eval"] = live_eval.eval_recent_calls(10)  # sync fn — await here raised TypeError (swallowed), input always dropped
+        snap["voice_eval"] = live_eval.eval_recent_calls(
+            10
+        )  # sync fn — await here raised TypeError (swallowed), input always dropped
     except Exception:
         pass
     try:

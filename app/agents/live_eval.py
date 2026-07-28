@@ -37,7 +37,14 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_TRANSCRIPTS_DIR = Path("data") / "call_transcripts"
+
+def _TRANSCRIPTS_DIR() -> Path:
+    """Live call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return call_transcripts_dir()
+
+
 _QA_DENT = 0.5  # qa_checks findings can dent the deterministic score by up to 50%
 
 
@@ -96,7 +103,7 @@ def _load_recent_transcripts(n: int = 5, *, base_dir: Path | None = None) -> lis
     """Last N live call records (newest files, tail). Never raises -> []."""
     out: list[dict[str, Any]] = []
     try:
-        d = base_dir or _TRANSCRIPTS_DIR
+        d = base_dir or _TRANSCRIPTS_DIR()
         if not d.is_dir():
             return out
         for fp in sorted(d.glob("*.jsonl"))[-3:]:  # last few day-files is plenty
@@ -206,7 +213,7 @@ async def llm_judge_transcript(messages: list[dict[str, Any]]) -> dict[str, Any]
         m = re.search(r"score\s*[:=]\s*([01](?:\.\d+)?)", text, re.IGNORECASE)
         score = max(0.0, min(1.0, float(m.group(1)))) if m else None
         rm = re.search(r"rationale\s*[:=]\s*(.+)", text, re.IGNORECASE | re.DOTALL)
-        rationale = (rm.group(1).strip()[:300] if rm else text.strip()[:300])
+        rationale = rm.group(1).strip()[:300] if rm else text.strip()[:300]
         return {"available": True, "score": score, "rationale": rationale, "provider": prov}
     except Exception as exc:  # pragma: no cover
         logger.debug("live_eval.llm_judge error: %s", exc)

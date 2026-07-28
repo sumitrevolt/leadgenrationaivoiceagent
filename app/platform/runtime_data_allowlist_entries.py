@@ -343,7 +343,9 @@ ENTRIES: list[dict[str, Any]] = [
         "access_modes": ["CREATE"],
         "reason": (
             "Recording directory (RECORDINGS_DIR) created on demand by the "
-            "recording-path health probe. Retention-governed evidence."
+            "recording-path health probe. Retention-governed evidence. A9 wires "
+            "the default through resolve_store_path; bytes still live in-checkout "
+            "until host cutover."
         ),
         "migration_tier": 2,
         "target_change_set": "runtime-data-cutover-wave-2",

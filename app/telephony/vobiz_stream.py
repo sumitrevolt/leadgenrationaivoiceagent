@@ -88,6 +88,20 @@ from app.voice_agent.turn_metrics import record_turn as _record_turn_metric
 logger = setup_logger(__name__)
 
 
+def _CALL_TRANSCRIPTS_DIR() -> str:
+    """Call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return str(call_transcripts_dir())
+
+
+def _CALL_RECORDINGS_DIR():
+    """Mixed conversation WAVs — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_recordings_dir
+
+    return call_recordings_dir()
+
+
 # --------------------------------------------------------------------------- #
 # Capability detection — light (find_spec does NOT import the heavy module).
 # --------------------------------------------------------------------------- #
@@ -3450,7 +3464,7 @@ class VobizStreamSession:
                     rec["turn_rollup"] = _tm_rollup(self._turn_metrics)
                 except Exception:
                     pass
-            out_dir = os.path.join("data", "call_transcripts")
+            out_dir = _CALL_TRANSCRIPTS_DIR()
             os.makedirs(out_dir, exist_ok=True)
             path = os.path.join(out_dir, ended.strftime("%Y-%m-%d") + ".jsonl")
             with open(path, "a", encoding="utf-8") as f:
@@ -3627,10 +3641,9 @@ class VobizStreamSession:
         try:
             import uuid as _uuid
             import wave
-            from pathlib import Path
 
             ended = datetime.now(timezone.utc)
-            day_dir = Path("data") / "call_recordings" / ended.strftime("%Y-%m-%d")
+            day_dir = _CALL_RECORDINGS_DIR() / ended.strftime("%Y-%m-%d")
             day_dir.mkdir(parents=True, exist_ok=True)
             uid = (self.stream_sid or _uuid.uuid4().hex[:8]).replace("/", "_")
 
