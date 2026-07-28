@@ -51,54 +51,35 @@ cd "$REPO" || { echo "FATAL: $REPO not found"; exit 1; }
 # that (tests/test_deploy_parent_behaviour.py) — the textual "guard line comes
 # before git pull" test could not, because the line WAS there and still failed
 # open. 91 = guard unavailable, distinct from 90 = guard ran and denied.
-_guard_sh="$(dirname "$0")/_runtime_data_guard.sh"
-if [ ! -r "$_guard_sh" ]; then
-  echo "FATAL: runtime-data guard not found or unreadable at: $_guard_sh"
-  echo "       Refusing to deploy unguarded. Restore the guard, do not remove the call."
-  exit 91
-fi
-# shellcheck source=scripts/_runtime_data_guard.sh
-. "$_guard_sh" || exit 91
+_script_dir="$(cd "$(dirname "$0")" && pwd)"
+for _dep in _deploy_gate_container.sh _deploy_candidate.sh _runtime_data_guard.sh; do
+  if [ ! -r "$_script_dir/$_dep" ]; then
+    echo "FATAL: release helper not found or unreadable at: $_script_dir/$_dep"
+    echo "       Refusing to deploy unguarded. Restore it, do not remove the call."
+    exit 91
+  fi
+done
+# shellcheck source=scripts/_deploy_gate_container.sh
+. "$_script_dir/_deploy_gate_container.sh" || exit 91
+# shellcheck source=scripts/_deploy_candidate.sh
+. "$_script_dir/_deploy_candidate.sh" || exit 91
 
-# ------------------------------------------------- canonical deployment gate
-# Must precede EVERY mutating step (git pull, build, compose, restart) and both
-# sha-resolution branches — putting it inside one branch would let an explicit
-# APP_VERSION skip the gate entirely.
-# One authority: the same checker CI runs, plus the deploy-only gates. A private
-# voice-kill check in this script would be a second authority and a bypass
-# waiting to happen, so the classification stays in prod_check.py.
-# VOICE_LAUNCH_KILL is read there from the environment; it is never echoed.
-echo "=== preflight: prod_check.py --deployment ==="
-if ! python3 scripts/prod_check.py --deployment; then
-  echo "FATAL: deployment preflight failed — refusing to deploy."
-  echo "       No remote, image or container action has been taken."
-  exit 1
-fi
+# ------------------------------------------------- isolated candidate release
+# The live checkout is NOT touched until both gates have passed. `git fetch`
+# updates the object database only; the release sha is then materialised in its
+# own detached worktree, away from the production ledgers that still live in
+# /opt/leadgen/data. This is what lets the runtime-data guard keep its original
+# contract — it runs BEFORE the first destructive command on the live checkout —
+# while the gates still read the code that is actually about to ship.
+candidate_fetch "$REPO" || exit 2
 
-# ---------------------------------------------------------------- resolve sha
-# 2026-07-16 hardening: pull-fail + SHA/HEAD mismatch used to silently rebuild
-# whatever dirty tree was on disk while claiming a different APP_VERSION in the
-# log header (dep3 incident). Abort loudly instead.
 if [ "${1:-}" != "" ]; then
-  if ! VER="$(git rev-parse --short "$1" 2>/dev/null)"; then
-    echo "FATAL: git object '$1' not found in $REPO — fetch/pull first, then retry."
-    exit 2
-  fi
-  HEAD_SHA="$(git rev-parse --short HEAD)"
-  if [ "$VER" != "$HEAD_SHA" ]; then
-    echo "FATAL: requested APP_VERSION=$VER but REPO HEAD=$HEAD_SHA."
-    echo "       Checkout/pull that sha first, then re-run. Refusing silent code/tag skew."
-    exit 2
-  fi
+  CANDIDATE_REF="$1"
 else
-  echo "=== git pull --ff-only ==="
-  if ! git pull --ff-only; then
-    echo "FATAL: git pull --ff-only failed — refusing to deploy stale/dirty HEAD."
-    echo "       Resolve the pull (backup live data/*, no reset --hard), then retry."
-    exit 2
-  fi
-  VER="$(git rev-parse --short HEAD)"
+  CANDIDATE_REF="origin/main"
 fi
+CANDIDATE_SHA="$(candidate_resolve "$REPO" "$CANDIDATE_REF")" || exit 2
+VER="$(git -C "$REPO" rev-parse --short "$CANDIDATE_SHA")"
 
 # Hard refusal: never let the compose `:-latest` fallback decide for us.
 case "$(printf '%s' "$VER" | tr '[:upper:]' '[:lower:]')" in
@@ -108,10 +89,44 @@ case "$(printf '%s' "$VER" | tr '[:upper:]' '[:lower:]')" in
     exit 2
     ;;
 esac
+
+echo "=== CANDIDATE $VER ($CANDIDATE_SHA) from $CANDIDATE_REF ==="
+CANDIDATE_DIR="$(candidate_add "$REPO" "$CANDIDATE_SHA")" || exit 2
+echo "CANDIDATE_DIR=$CANDIDATE_DIR"
+echo "LIVE_SHA=$(git -C "$REPO" rev-parse --short HEAD) (unchanged until both gates pass)"
+
+# ------------------------------------------------------- runtime-data guard
+# Same decision, same blockers, same exit 90 — executed in the pinned image
+# because the host cannot import the application. The guard reads the CANDIDATE
+# source and the LIVE data (mounted read-only): a candidate's own empty `data/`
+# would report a clean system that does not exist.
+RUNTIME_DATA_GATE_CANDIDATE="$CANDIDATE_DIR"
+RUNTIME_DATA_GATE_REPO="$REPO"
+export RUNTIME_DATA_GATE_CANDIDATE RUNTIME_DATA_GATE_REPO
+# shellcheck source=scripts/_runtime_data_guard.sh
+. "$_script_dir/_runtime_data_guard.sh" || exit 91
+
+# Proof that the calling-safety environment reaches the gate container at all.
+# Booleans only — the token itself is never printed. Without this, a missing
+# `.env` injection would surface as "VOICE_LAUNCH_KILL: UNSET" and get "fixed"
+# by exporting it in the operator's shell, proving nothing about production.
+echo "=== gate environment proof (booleans only, no values) ==="
+gate_kill_env_proof "$CANDIDATE_DIR" "$REPO" || {
+  echo "FATAL: could not prove the gate container environment. Refusing to deploy."
+  exit 92
+}
+
+# ---------------------------------------------------------------- resolve sha
+# 2026-07-16 hardening: pull-fail + SHA/HEAD mismatch used to silently rebuild
+# whatever dirty tree was on disk while claiming a different APP_VERSION in the
+# log header (dep3 incident). The sha is now resolved BEFORE anything runs, from
+# the fetched object database, and the candidate worktree has already proven it
+# is at exactly that commit — so there is no window in which the tag and the
+# tree can disagree.
 echo "=== DEPLOY $VER (services: $SERVICES) ==="
-echo "REPO_SHA=$(git rev-parse --short HEAD)"
-if [ "$(git rev-parse --short HEAD)" != "$VER" ]; then
-  echo "FATAL: REPO_SHA != APP_VERSION after resolve — aborting before build."
+echo "CANDIDATE_SHA=$CANDIDATE_SHA"
+if [ "$(git -C "$CANDIDATE_DIR" rev-parse HEAD)" != "$CANDIDATE_SHA" ]; then
+  echo "FATAL: candidate tree drifted from $CANDIDATE_SHA — aborting before build."
   exit 2
 fi
 
@@ -161,16 +176,65 @@ if [ "$DRY_RUN" = "1" ]; then
   exit 0
 fi
 
-# --------------------------------------------------------------------- build
-echo "=== BUILD (log: /tmp/deploy_build.log) ==="
-APP_VERSION="$VER" docker compose -f "$COMPOSE" build app > /tmp/deploy_build.log 2>&1
+# ----------------------------------------------------- build candidate image
+# Built from the CANDIDATE worktree, tagged with the exact release sha. A build
+# creates an image; it replaces no container and moves no HEAD, so production is
+# still untouched at this point and a build failure costs nothing.
+echo "=== BUILD candidate $VER (log: /tmp/deploy_build.log) ==="
+APP_VERSION="$VER" docker compose \
+  --project-directory "$CANDIDATE_DIR" \
+  -f "$CANDIDATE_DIR/$COMPOSE" \
+  build app > /tmp/deploy_build.log 2>&1
 BUILD_RC=$?
 echo "BUILD_RC=$BUILD_RC"
 if [ "$BUILD_RC" -ne 0 ]; then
-  echo "FATAL: build failed — NOTHING restarted (prod untouched). Tail:"
+  echo "FATAL: candidate build failed — NOTHING restarted, live checkout NOT moved. Tail:"
   tail -15 /tmp/deploy_build.log
   exit 1
 fi
+
+CANDIDATE_IMAGE="ghcr.io/sumitrevolt/leadgenrationaivoiceagent:$VER"
+if ! docker image inspect "$CANDIDATE_IMAGE" >/dev/null 2>&1; then
+  echo "FATAL: build reported success but $CANDIDATE_IMAGE does not exist."
+  echo "       Refusing to continue on an image that cannot be proven."
+  exit 1
+fi
+
+# ------------------------------------------------- canonical deployment gate
+# Runs in the CANDIDATE image, so the dependencies, the code and the classifier
+# are the ones about to serve traffic. One authority: the same checker CI runs,
+# plus the deploy-only gates. A private voice-kill check in this script would be
+# a second authority and a bypass waiting to happen, so the classification stays
+# in prod_check.py. VOICE_LAUNCH_KILL is read there from the environment; it is
+# never echoed.
+echo "=== deployment gate: prod_check.py --deployment (candidate image) ==="
+if ! gate_run_image "$CANDIDATE_IMAGE" "$CANDIDATE_DIR" "$REPO" scripts/prod_check.py --deployment; then
+  echo "FATAL: deployment gate failed — refusing to deploy."
+  echo "       The live checkout has NOT moved and no container was replaced."
+  exit 1
+fi
+
+# ------------------------------------------------ live checkout, ff-only only
+# Both gates have now passed against this exact sha. Only here does the live
+# checkout — the one holding the production ledgers — move, and only forwards.
+echo "=== live checkout: git pull --ff-only ==="
+# Plain `git pull` on purpose: cwd is already $REPO, and the guard-ordering
+# suite matches this exact destructive literal to prove the guard precedes it.
+# A `-C "$REPO"` form would hide the release's one destructive command from the
+# check whose entire job is to find it.
+if ! git pull --ff-only; then
+  echo "FATAL: git pull --ff-only failed — refusing to deploy stale/dirty HEAD."
+  echo "       Resolve the pull (backup live data/*, no reset --hard), then retry."
+  echo "       No container has been replaced."
+  exit 2
+fi
+LIVE_SHA="$(git -C "$REPO" rev-parse HEAD)"
+if [ "$LIVE_SHA" != "$CANDIDATE_SHA" ]; then
+  echo "FATAL: live checkout is at $LIVE_SHA but the gated release is $CANDIDATE_SHA."
+  echo "       Refusing to start containers on code that was never gated."
+  exit 2
+fi
+echo "LIVE_SHA=$(git -C "$REPO" rev-parse --short HEAD) (gated)"
 
 # ------------------------------------------------------------------------ up
 echo "=== UP (all app-image services — prevents skew) ==="
