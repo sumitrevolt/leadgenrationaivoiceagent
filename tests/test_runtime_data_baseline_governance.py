@@ -25,18 +25,11 @@ _REPO = pathlib.Path(__file__).resolve().parents[1]
 
 @pytest.fixture(scope="module")
 def current():
-    # Full-repo AST walk is GC-heavy; CI intermittently SIGSEGVs during
-    # cyclic collection mid-scan (exit 139, ~7% of full-suite runs —
-    # 2026-07-28 baseline). Freeze the collector around the walk so the
-    # fixture stops being the crash amplifier; required checks stay intact.
-    import gc
+    # Full-repo AST walk is GC-heavy; keep it out of the parent pytest process
+    # (CI exit-139 cyclic-GC class — 2026-07-28). Child failure still fails CI.
+    from tests._runtime_data_scan_subprocess import scan_repo_in_subprocess
 
-    gc.collect()
-    gc.freeze()
-    try:
-        return scan.scan_repo(_REPO, allowlist=al.load())
-    finally:
-        gc.unfreeze()
+    return scan_repo_in_subprocess(_REPO)
 
 
 def test_change_log_is_coherent() -> None:

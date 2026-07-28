@@ -81,7 +81,16 @@ jobs:
           OPENBLAS_NUM_THREADS: "1"
           TOKENIZERS_PARALLELISM: "false"
           PYTHONFAULTHANDLER: "1"
-        run: pytest -q -m "not network" --ignore=tests/integration
+        # Same process-shard strategy as ci.yml (exit-139 containment).
+        run: |
+          pip install --no-deps "pytest-split==0.9.0"
+          set -e
+          for group in 1 2 3; do
+            echo "::group::pytest shard ${group}/3"
+            pytest -q -m "not network" --ignore=tests/integration \
+              --splits 3 --group "${group}"
+            echo "::endgroup::"
+          done
 
   build:
     name: Build & push image (GHCR)
