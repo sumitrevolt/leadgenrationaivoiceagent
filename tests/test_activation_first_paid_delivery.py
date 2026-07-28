@@ -31,6 +31,7 @@ Test cases lock:
  16. Exact timestamps NEVER appear in the result
  17. Cache TTL doesn't preserve stale probe results beyond documented window
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -59,7 +60,11 @@ def _install_stubs(monkeypatch, clients, state_by_id, ledger_summary_by_id=None)
 
     def _plan_paid(c):
         return str(c.get("plan") or "").strip().lower() not in (
-            "", "trial", "free", "none", "pending",
+            "",
+            "trial",
+            "free",
+            "none",
+            "pending",
         )
 
     def _status(cid, client=None):
@@ -73,6 +78,7 @@ def _install_stubs(monkeypatch, clients, state_by_id, ledger_summary_by_id=None)
     # delivery_ledger is imported lazily inside _customer_outcome_class; stub it.
     try:
         import app.marketing.delivery_ledger as real_ledger
+
         monkeypatch.setattr(
             real_ledger, "summary", lambda cid: ledger_summary_by_id.get(str(cid), {}) or {}
         )
@@ -87,7 +93,16 @@ def _customer(cid, hours_ago, plan="starter"):
     return {"id": cid, "status": "active", "plan": plan, "created_at": _dt_iso(hours_ago)}
 
 
-def _state(*, setup=False, generated=0, waiting=0, scheduled=0, published=0, deliverables=None, deliverable_pct=0):
+def _state(
+    *,
+    setup=False,
+    generated=0,
+    waiting=0,
+    scheduled=0,
+    published=0,
+    deliverables=None,
+    deliverable_pct=0,
+):
     """Compose a customer_delivery_status shape."""
     return {
         "setup_checks": {"business": setup, "brand": setup},
@@ -104,6 +119,7 @@ def _state(*, setup=False, generated=0, waiting=0, scheduled=0, published=0, del
 # 1. NEUTRAL when no paid customers exist
 # --------------------------------------------------------------------------- #
 
+
 def test_1_no_paid_customers_returns_neutral(monkeypatch):
     _install_stubs(monkeypatch, clients=[], state_by_id={})
     r = activation._first_paid_delivery()
@@ -114,6 +130,7 @@ def test_1_no_paid_customers_returns_neutral(monkeypatch):
 # --------------------------------------------------------------------------- #
 # 2. <24h grace: setup only → OK
 # --------------------------------------------------------------------------- #
+
 
 def test_2_fresh_customer_with_setup_only_is_ok_within_grace(monkeypatch):
     _install_stubs(
@@ -131,6 +148,7 @@ def test_2_fresh_customer_with_setup_only_is_ok_within_grace(monkeypatch):
 # --------------------------------------------------------------------------- #
 # 3. ≥24h with setup only → WARN on generated SLA
 # --------------------------------------------------------------------------- #
+
 
 def test_3_stale_customer_with_setup_only_warns_on_generated_sla(monkeypatch):
     """Jiya-shape BEFORE the live draft was generated: 4 days old, setup done,
@@ -153,6 +171,7 @@ def test_3_stale_customer_with_setup_only_warns_on_generated_sla(monkeypatch):
 # 4. ≥24h with generated draft but admin-only → WARN on visible SLA
 # --------------------------------------------------------------------------- #
 
+
 def test_4_generated_draft_admin_only_still_warns_on_visible_sla(monkeypatch):
     """Jiya-shape AFTER draft was generated: draft exists in content_queue
     but customer visibility not verified. Probe must still WARN on visible SLA
@@ -174,6 +193,7 @@ def test_4_generated_draft_admin_only_still_warns_on_visible_sla(monkeypatch):
 # 5. ≥72h with customer-visible artifact → OK on visible tier
 # --------------------------------------------------------------------------- #
 
+
 def test_5_visible_artifact_satisfies_visible_sla(monkeypatch):
     _install_stubs(
         monkeypatch,
@@ -189,6 +209,7 @@ def test_5_visible_artifact_satisfies_visible_sla(monkeypatch):
 # --------------------------------------------------------------------------- #
 # 6. ≥7d without evidence-backed completed → WARN
 # --------------------------------------------------------------------------- #
+
 
 def test_6_stale_7d_without_evidence_warns(monkeypatch):
     _install_stubs(
@@ -207,6 +228,7 @@ def test_6_stale_7d_without_evidence_warns(monkeypatch):
 # 7. ≥7d with posts_published > 0 → OK
 # --------------------------------------------------------------------------- #
 
+
 def test_7_evidence_backed_satisfies_all_slas(monkeypatch):
     _install_stubs(
         monkeypatch,
@@ -222,18 +244,27 @@ def test_7_evidence_backed_satisfies_all_slas(monkeypatch):
 # 8. Evidence-backed via evidence_url on a deliverable → OK
 # --------------------------------------------------------------------------- #
 
+
 def test_8_evidence_url_on_non_setup_deliverable_counts_as_completed(monkeypatch):
     """Manual-publish fallback: admin uploads screenshot URL on `proof` or
     `social_posts` deliverable. Must count as evidence-backed completion."""
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=24 * 10)],
-        state_by_id={"c1": _state(
-            setup=True, generated=1, waiting=1,
-            deliverables=[
-                {"id": "proof", "status": "done", "evidence_url": "https://leadsgenai.in/proof/x.png"},
-            ],
-        )},
+        state_by_id={
+            "c1": _state(
+                setup=True,
+                generated=1,
+                waiting=1,
+                deliverables=[
+                    {
+                        "id": "proof",
+                        "status": "done",
+                        "evidence_url": "https://leadsgenai.in/proof/x.png",
+                    },
+                ],
+            )
+        },
     )
     r = activation._first_paid_delivery()
     assert r["status"] == activation._OK
@@ -244,6 +275,7 @@ def test_8_evidence_url_on_non_setup_deliverable_counts_as_completed(monkeypatch
 # 9. business_profile + brand_kit alone NEVER count as customer-value
 # --------------------------------------------------------------------------- #
 
+
 def test_9_business_profile_and_brand_kit_alone_do_not_count_as_delivery(monkeypatch):
     """Even if the deliverables list marks business_profile + brand_kit `done`
     with an evidence_url (defensive), they must NEVER satisfy the
@@ -251,13 +283,15 @@ def test_9_business_profile_and_brand_kit_alone_do_not_count_as_delivery(monkeyp
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=24 * 10)],
-        state_by_id={"c1": _state(
-            setup=True,
-            deliverables=[
-                {"id": "business_profile", "status": "done", "evidence_url": "https://x/y"},
-                {"id": "brand_kit", "status": "done", "evidence_url": "https://x/z"},
-            ],
-        )},
+        state_by_id={
+            "c1": _state(
+                setup=True,
+                deliverables=[
+                    {"id": "business_profile", "status": "done", "evidence_url": "https://x/y"},
+                    {"id": "brand_kit", "status": "done", "evidence_url": "https://x/z"},
+                ],
+            )
+        },
     )
     r = activation._first_paid_delivery()
     assert r["status"] == activation._WARN
@@ -269,22 +303,25 @@ def test_9_business_profile_and_brand_kit_alone_do_not_count_as_delivery(monkeyp
 # 10. Stage field alone doesn't count
 # --------------------------------------------------------------------------- #
 
+
 def test_10_stage_field_alone_does_not_count_as_delivery(monkeypatch):
     """A customer whose stage moved to 'renewal_ready' but has no generated /
     visible / completed persisted evidence must still WARN — stage labels lie."""
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=96)],
-        state_by_id={"c1": {
-            "stage": "renewal_ready",  # label present but no evidence
-            "deliverable_completion_pct": 60,
-            "setup_checks": {"business": True, "brand": True},
-            "content_generated": 0,
-            "posts_waiting_for_approval": 0,
-            "posts_scheduled": 0,
-            "posts_published": 0,
-            "deliverables": [],
-        }},
+        state_by_id={
+            "c1": {
+                "stage": "renewal_ready",  # label present but no evidence
+                "deliverable_completion_pct": 60,
+                "setup_checks": {"business": True, "brand": True},
+                "content_generated": 0,
+                "posts_waiting_for_approval": 0,
+                "posts_scheduled": 0,
+                "posts_published": 0,
+                "deliverables": [],
+            }
+        },
     )
     r = activation._first_paid_delivery()
     assert r["status"] == activation._WARN
@@ -295,21 +332,24 @@ def test_10_stage_field_alone_does_not_count_as_delivery(monkeypatch):
 # 11. Percentage alone doesn't count
 # --------------------------------------------------------------------------- #
 
+
 def test_11_deliverable_completion_pct_alone_does_not_grant_ok(monkeypatch):
     """The old probe treated deliverable_completion_pct > 0 as progress. New
     probe ignores the label — only persisted artifacts count."""
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=96)],
-        state_by_id={"c1": {
-            "deliverable_completion_pct": 99,  # inflated label
-            "setup_checks": {"business": True},
-            "content_generated": 0,
-            "posts_waiting_for_approval": 0,
-            "posts_scheduled": 0,
-            "posts_published": 0,
-            "deliverables": [],
-        }},
+        state_by_id={
+            "c1": {
+                "deliverable_completion_pct": 99,  # inflated label
+                "setup_checks": {"business": True},
+                "content_generated": 0,
+                "posts_waiting_for_approval": 0,
+                "posts_scheduled": 0,
+                "posts_published": 0,
+                "deliverables": [],
+            }
+        },
     )
     r = activation._first_paid_delivery()
     assert r["status"] == activation._WARN
@@ -318,6 +358,7 @@ def test_11_deliverable_completion_pct_alone_does_not_grant_ok(monkeypatch):
 # --------------------------------------------------------------------------- #
 # 12. Trial customer never counts
 # --------------------------------------------------------------------------- #
+
 
 def test_12_trial_customer_not_counted(monkeypatch):
     _install_stubs(
@@ -334,6 +375,7 @@ def test_12_trial_customer_not_counted(monkeypatch):
 # 13. Wholesale eval failure → WARN with sanitized message
 # --------------------------------------------------------------------------- #
 
+
 def test_13_wholesale_eval_failure_returns_warn_with_sanitized_type(monkeypatch):
     import app.marketing.clients_store as real_store
 
@@ -343,7 +385,7 @@ def test_13_wholesale_eval_failure_returns_warn_with_sanitized_type(monkeypatch)
     def _boom(*a, **kw):
         # sensitive-looking message that MUST NOT reach the response
         raise _CustomDBError(
-            "postgres://leadgen:S3cretP@ss@10.0.0.42:5432/leadgen_db offline; "
+            "postgres://leadgen:S3cretP@ss@10.0.0.42:5432/leadgen_db offline; "  # pragma: allowlist secret
             "SELECT * FROM clients WHERE email='jiya@example.com'"
         )
 
@@ -361,6 +403,7 @@ def test_13_wholesale_eval_failure_returns_warn_with_sanitized_type(monkeypatch)
 # 14. Exception with credentials/SQL/IP/customer_id/email leaks NONE of them
 # --------------------------------------------------------------------------- #
 
+
 def test_14_no_credentials_or_pii_leak_via_exception_path(monkeypatch):
     import app.marketing.clients_store as real_store
 
@@ -377,8 +420,14 @@ def test_14_no_credentials_or_pii_leak_via_exception_path(monkeypatch):
     r = activation._first_paid_delivery()
     blob = str(r)
     for forbidden in (
-        "postgres://", "P@sw0rd_9!", "172.17.0.2", "5432", "leadgen_db",
-        "jiya-makeover", "sumit@leadsgenai.in", "sk-live-ABC123DEF",
+        "postgres://",
+        "P@sw0rd_9!",
+        "172.17.0.2",
+        "5432",
+        "leadgen_db",
+        "jiya-makeover",
+        "sumit@leadsgenai.in",
+        "sk-live-ABC123DEF",
         "SELECT *",
     ):
         assert forbidden not in blob, f"exception-path leak: {forbidden!r} appears in result"
@@ -387,6 +436,7 @@ def test_14_no_credentials_or_pii_leak_via_exception_path(monkeypatch):
 # --------------------------------------------------------------------------- #
 # 15. Result exposes only aggregate counts + bucket strings
 # --------------------------------------------------------------------------- #
+
 
 def test_15_result_exposes_only_aggregate_counts_and_bucket_strings(monkeypatch):
     _install_stubs(
@@ -422,6 +472,7 @@ def test_15_result_exposes_only_aggregate_counts_and_bucket_strings(monkeypatch)
 # 16. Exact timestamps NEVER appear
 # --------------------------------------------------------------------------- #
 
+
 def test_16_no_iso_timestamp_in_result(monkeypatch):
     _install_stubs(
         monkeypatch,
@@ -438,6 +489,7 @@ def test_16_no_iso_timestamp_in_result(monkeypatch):
 # --------------------------------------------------------------------------- #
 # 17. Cache does not preserve stale results beyond TTL
 # --------------------------------------------------------------------------- #
+
 
 def test_17_cache_ttl_bounded(monkeypatch):
     """Within TTL: single evaluation. After TTL simulate: fresh evaluation."""
@@ -472,6 +524,7 @@ def test_17_cache_ttl_bounded(monkeypatch):
 # Cross-tenant safety (paranoid guardrail)
 # --------------------------------------------------------------------------- #
 
+
 def test_18_cross_tenant_artifact_never_counted_for_wrong_customer(monkeypatch):
     """customer_delivery_status stub deliberately returns SAME artifacts for
     both customer IDs. Each customer must be scored on its OWN state only —
@@ -502,6 +555,7 @@ def test_18_cross_tenant_artifact_never_counted_for_wrong_customer(monkeypatch):
 # Wiring guardrails
 # --------------------------------------------------------------------------- #
 
+
 def test_wiring_probe_in_probes_tuple():
     assert activation._first_paid_delivery in activation._PROBES
     assert "first_paid_delivery" in activation._PROBE_BY_KEY
@@ -513,19 +567,26 @@ def test_wiring_probe_in_probes_tuple():
 # Plan-level vs item-level accounting distinction (2026-07-11 P0)
 # --------------------------------------------------------------------------- #
 
+
 def test_19_item_level_delivery_does_not_imply_plan_complete(monkeypatch):
     """Jiya-shape: 1 published item + 4/10 deliverables done (40%). ITEM-level
     counter increments; PLAN-level counter does NOT."""
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=96)],
-        state_by_id={"c1": _state(
-            setup=True, generated=1, waiting=1, published=1, deliverable_pct=40,
-        )},
+        state_by_id={
+            "c1": _state(
+                setup=True,
+                generated=1,
+                waiting=1,
+                published=1,
+                deliverable_pct=40,
+            )
+        },
     )
     r = activation._first_paid_delivery()
     assert r["checks"]["with_evidence_backed_delivery"] == 1  # item-level: ≥1 published
-    assert r["checks"]["with_completed_plan"] == 0            # plan-level: NOT complete
+    assert r["checks"]["with_completed_plan"] == 0  # plan-level: NOT complete
     assert r["checks"]["plan_completion_distribution"]["26-50%"] == 1
     assert r["checks"]["plan_completion_distribution"]["100%"] == 0
 
@@ -535,9 +596,15 @@ def test_20_full_plan_completion_counted_separately(monkeypatch):
     _install_stubs(
         monkeypatch,
         clients=[_customer("c1", hours_ago=96)],
-        state_by_id={"c1": _state(
-            setup=True, generated=12, waiting=0, published=12, deliverable_pct=100,
-        )},
+        state_by_id={
+            "c1": _state(
+                setup=True,
+                generated=12,
+                waiting=0,
+                published=12,
+                deliverable_pct=100,
+            )
+        },
     )
     r = activation._first_paid_delivery()
     assert r["checks"]["with_evidence_backed_delivery"] == 1
@@ -573,7 +640,11 @@ def test_21_plan_distribution_covers_all_paid_customers(monkeypatch):
 def test_22_result_shape_includes_new_plan_accounting_fields():
     """Contract lock: downstream consumers can rely on these keys existing."""
     empty = activation._EMPTY_CHECKS
-    for k in ("with_evidence_backed_delivery", "with_completed_plan", "plan_completion_distribution"):
+    for k in (
+        "with_evidence_backed_delivery",
+        "with_completed_plan",
+        "plan_completion_distribution",
+    ):
         assert k in empty, f"missing key: {k}"
     dist = empty["plan_completion_distribution"]
     assert set(dist.keys()) == {"0%", "1-25%", "26-50%", "51-75%", "76-99%", "100%"}
@@ -587,15 +658,16 @@ def test_23_payment_evidence_accepts_current_or_legacy_invoice_identity(monkeypa
         '{"number":"INV/2026-27/0001","client_id":"old-client-id","gateway":"upi"}\n',
         encoding="utf-8",
     )
-    monkeypatch.setattr(gst_invoice, "_STORE", str(store))
+    monkeypatch.setattr(gst_invoice, "_STORE", lambda: str(store))
 
     assert activation._client_has_payment_evidence({"id": "old-client-id"}) is True
-    assert activation._client_has_payment_evidence(
-        {"id": "current-client-id", "billing_client_ids": ["old-client-id"]}
-    ) is True
-    assert activation._client_has_payment_evidence(
-        {"id": "plan-only", "plan": "starter"}
-    ) is False
+    assert (
+        activation._client_has_payment_evidence(
+            {"id": "current-client-id", "billing_client_ids": ["old-client-id"]}
+        )
+        is True
+    )
+    assert activation._client_has_payment_evidence({"id": "plan-only", "plan": "starter"}) is False
 
 
 def test_24_probe_ignores_active_plan_without_payment_evidence(monkeypatch):
@@ -622,6 +694,7 @@ def test_wiring_readiness_shape_stable(monkeypatch):
     """All 16 probes must return dicts with the canonical shape when the
     new probe runs alongside them."""
     import app.marketing.clients_store as real_store
+
     monkeypatch.setattr(real_store, "list_clients", lambda *a, **kw: [])
     activation._FIRST_PAID_CACHE.clear()
     activation._FIRST_PAID_CACHE.update({"at": 0.0, "result": None})
@@ -629,4 +702,9 @@ def test_wiring_readiness_shape_stable(monkeypatch):
     items = [p() for p in activation._PROBES]
     for it in items:
         assert set(it.keys()) >= {"key", "label", "status", "env_vars", "checks", "action"}
-        assert it["status"] in (activation._OK, activation._WARN, activation._NEUTRAL, activation._BLOCKER)
+        assert it["status"] in (
+            activation._OK,
+            activation._WARN,
+            activation._NEUTRAL,
+            activation._BLOCKER,
+        )

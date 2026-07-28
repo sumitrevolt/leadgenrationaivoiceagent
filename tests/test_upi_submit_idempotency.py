@@ -24,7 +24,7 @@ def _isolated_store(tmp_path, monkeypatch):
     """Point the module store at a fresh file per test — no cross-test bleed."""
     import app.platform.upi_payments as upi_mod
 
-    monkeypatch.setattr(upi_mod, "_STORE", str(tmp_path / "upi_payments.json"))
+    monkeypatch.setattr(upi_mod, "_STORE", lambda: str(tmp_path / "upi_payments.json"))
     # Disable auto-activate + notify side-effects so we can isolate submit logic.
     monkeypatch.setattr(upi_mod, "_notify_admin", lambda rec: None)
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "0")

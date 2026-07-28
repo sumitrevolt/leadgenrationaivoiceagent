@@ -14,7 +14,7 @@ import os
 def _patch_inv(tmp_path, monkeypatch):
     from app.billing import gst_invoice
 
-    monkeypatch.setattr(gst_invoice, "_STORE", str(tmp_path / "invoices.jsonl"))
+    monkeypatch.setattr(gst_invoice, "_STORE", lambda: str(tmp_path / "invoices.jsonl"))
     monkeypatch.delenv("AUTO_INVOICE", raising=False)
     monkeypatch.delenv("GST_GSTIN", raising=False)
     return gst_invoice

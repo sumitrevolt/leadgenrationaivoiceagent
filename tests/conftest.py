@@ -590,8 +590,8 @@ def _isolate_billing_stores(monkeypatch, tmp_path):
     from app.billing import gst_invoice
     from app.platform import upi_payments
 
-    monkeypatch.setattr(gst_invoice, "_STORE", str(tmp_path / "_iso_invoices.jsonl"))
-    monkeypatch.setattr(upi_payments, "_STORE", str(tmp_path / "_iso_upi_payments.json"))
+    monkeypatch.setattr(gst_invoice, "_STORE", lambda: str(tmp_path / "_iso_invoices.jsonl"))
+    monkeypatch.setattr(upi_payments, "_STORE", lambda: str(tmp_path / "_iso_upi_payments.json"))
     yield
 
 

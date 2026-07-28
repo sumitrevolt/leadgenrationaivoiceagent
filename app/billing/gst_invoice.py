@@ -27,13 +27,53 @@ import json
 import os
 import threading
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_STORE = os.path.join("data", "invoices.jsonl")
+
+def _STORE() -> str:
+    """GST invoice ledger — resolved per call, never frozen at import."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="billing.invoices",
+            legacy_path=Path("data") / "invoices.jsonl",
+            target_segments=("billing", "invoices.jsonl"),
+        )
+    )
+
+
+def _lock_path() -> str:
+    """Lock beside the ACTIVE invoice ledger (follows monkeypatched ``_STORE``)."""
+    from app.platform import runtime_data_authority as _auth
+
+    store = _STORE()
+    auth_store = str(
+        _auth.resolve_store_path(
+            store_id="billing.invoices",
+            legacy_path=Path("data") / "invoices.jsonl",
+            target_segments=("billing", "invoices.jsonl"),
+        )
+    )
+    try:
+        same = os.path.normpath(store) == os.path.normpath(auth_store)
+    except Exception:
+        same = False
+    if same:
+        return str(
+            _auth.resolve_lock_path(
+                store_id="billing.invoices",
+                legacy_path=Path("data") / "invoices.jsonl",
+                target_segments=("billing", "invoices.jsonl"),
+            )
+        )
+    return store + ".lock"
+
 
 SAC_CODE = "998313"  # IT/cloud services (SaaS)
 GST_RATE = 0.18
@@ -68,8 +108,10 @@ def fy_label(when: datetime | None = None) -> str:
 def _read() -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
     try:
-        if os.path.exists(_STORE):
-            with open(_STORE, encoding="utf-8") as f:
+        # Resolver at each I/O site — binding to a local re-attributes the
+        # scanner finding and unbinds the allowlist (A3 lesson).
+        if os.path.exists(_STORE()):
+            with open(_STORE(), encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         try:
@@ -83,8 +125,8 @@ def _read() -> list[dict[str, Any]]:
 
 def _append(rec: dict[str, Any]) -> None:
     try:
-        os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
-        with open(_STORE, "a", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(_STORE()) or ".", exist_ok=True)
+        with open(_STORE(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
     except Exception as e:
         logger.warning(f"[invoice] append failed: {e}")
@@ -123,15 +165,15 @@ def _reserve_number_and_append(inv: dict[str, Any], fy: str) -> None:
     safe via an flock on a sidecar lock file (Linux/prod, e.g. Celery prefork + uvicorn
     workers); the threading.Lock covers in-process; both degrade gracefully where flock
     is unavailable (Windows dev)."""
-    lock_path = _STORE + ".lock"
+    # Resolver at each I/O site — do not bind to a local (A3 allowlist lesson).
     with _LOCK:
         fh = None
         try:
-            os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
+            os.makedirs(os.path.dirname(_STORE()) or ".", exist_ok=True)
             try:
                 import fcntl
 
-                fh = open(lock_path, "w")
+                fh = open(_lock_path(), "w")
                 fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
             except Exception:
                 fh = None  # no fcntl (Windows) — in-process _LOCK still applies

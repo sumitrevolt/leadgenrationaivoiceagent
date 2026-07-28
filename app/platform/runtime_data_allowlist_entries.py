@@ -27,6 +27,8 @@ ENTRIES: list[dict[str, Any]] = [
     {
         "allowlist_id": "billing.invoices.store",
         "file": "app/billing/gst_invoice.py",
+        # `_STORE` until wave A5 retired the module constant. The declaration must
+        # name the symbol the SCANNER emits, which is now the resolver function.
         "line_or_symbol": "_STORE",
         "path_pattern": "data/invoices.jsonl",
         "store_id": "billing.invoices",
@@ -47,10 +49,10 @@ ENTRIES: list[dict[str, Any]] = [
     {
         "allowlist_id": "billing.invoices.lock",
         "file": "app/billing/gst_invoice.py",
-        "line_or_symbol": "lock_path",
+        "line_or_symbol": "_lock_path",
         "path_pattern": "data/invoices.jsonl.lock",
         "store_id": "billing.invoices",
-        "access_modes": ["LOCK"],
+        "access_modes": ["LOCK", "CREATE", "REWRITE"],
         "reason": (
             "Cross-process lock for the invoice ledger. Mapped to the SAME store "
             "as the data it protects, not a separate family."
@@ -157,7 +159,7 @@ ENTRIES: list[dict[str, Any]] = [
     {
         "allowlist_id": "customers.identity.store",
         "file": "app/marketing/clients_store.py",
-        "line_or_symbol": "path",
+        "line_or_symbol": "_CLIENTS_FILE",
         "path_pattern": "data/marketing_clients.jsonl",
         "store_id": "customers.identity",
         "access_modes": ["REWRITE", "READ", "CREATE", "APPEND"],
@@ -177,7 +179,7 @@ ENTRIES: list[dict[str, Any]] = [
         "line_or_symbol": "tmp",
         "path_pattern": "data/marketing_clients.jsonl.tmp",
         "store_id": "customers.identity",
-        "access_modes": ["REWRITE", "REPLACE"],
+        "access_modes": ["REWRITE", "REPLACE", "CREATE"],
         "reason": (
             "Atomic-rewrite temp file for the customer registry. A temp file is not "
             "its own logical family."

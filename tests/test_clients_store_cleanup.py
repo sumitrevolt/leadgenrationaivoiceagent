@@ -11,7 +11,7 @@ from app.marketing import clients_store as cs
 
 @pytest.fixture(autouse=True)
 def _isolated(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(cs, "_CLIENTS_FILE", str(tmp_path / "marketing_clients.jsonl"))
+    monkeypatch.setattr(cs, "_CLIENTS_FILE", lambda: str(tmp_path / "marketing_clients.jsonl"))
 
 
 def test_delete_client_removes_one():

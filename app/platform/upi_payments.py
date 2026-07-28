@@ -16,10 +16,22 @@ import json
 import logging
 import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_STORE = os.path.join("data", "upi_payments.json")
+
+def _STORE() -> str:
+    """UPI payment records — resolved per call, never frozen at import."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="billing.upi_payments",
+            legacy_path=Path("data") / "upi_payments.json",
+            target_segments=("billing", "upi_payments.json"),
+        )
+    )
 
 
 def _now_iso() -> str:
@@ -29,8 +41,9 @@ def _now_iso() -> str:
 def _read_store() -> list[dict]:
     """Read the payment records list. Never raises — bad/missing file → []."""
     try:
-        if os.path.isfile(_STORE):
-            with open(_STORE, encoding="utf-8") as f:
+        # Resolver at each I/O site — binding to a local unbinds the allowlist.
+        if os.path.isfile(_STORE()):
+            with open(_STORE(), encoding="utf-8") as f:
                 data = json.load(f)
             return data if isinstance(data, list) else []
     except Exception as e:
@@ -41,8 +54,8 @@ def _read_store() -> list[dict]:
 def _write_store(rows: list[dict]) -> bool:
     """Persist the records list. Never raises — returns False on failure."""
     try:
-        os.makedirs(os.path.dirname(_STORE) or ".", exist_ok=True)
-        with open(_STORE, "w", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(_STORE()) or ".", exist_ok=True)
+        with open(_STORE(), "w", encoding="utf-8") as f:
             json.dump(rows, f, ensure_ascii=False, indent=2)
         return True
     except Exception as e:
@@ -53,7 +66,7 @@ def _write_store(rows: list[dict]) -> bool:
 def _make_id(existing: list[dict], upi_ref: str) -> str:
     """Deterministic-ish id: counter + short hash of upi_ref (no uuid/random)."""
     try:
-        h = hashlib.sha1((upi_ref or "").encode("utf-8")).hexdigest()[:8]
+        h = hashlib.sha1((upi_ref or "").encode("utf-8"), usedforsecurity=False).hexdigest()[:8]
     except Exception:
         h = "00000000"
     return f"upi_{len(existing) + 1}_{h}"
@@ -150,9 +163,7 @@ def _min_plan_price(plan_key: str) -> float | None:
     return None
 
 
-def _try_activate(
-    client_id: str, plan: str, amount: float = 0, enforce_floor: bool = True
-) -> bool:
+def _try_activate(client_id: str, plan: str, amount: float = 0, enforce_floor: bool = True) -> bool:
     """Best-effort plan activation. Never raises — returns activation success bool.
 
     Validates the plan against the canonical activatable set BEFORE provisioning so a
@@ -347,7 +358,8 @@ def submit_payment(
         try:
             existing = next(
                 (
-                    r for r in rows
+                    r
+                    for r in rows
                     if (r.get("upi_ref") or "").strip() == ref_s
                     and (not cid or (r.get("client_id") or "").strip() == cid)
                     and (r.get("plan") or "").strip() == plan_s
@@ -359,7 +371,10 @@ def submit_payment(
         if existing is not None:
             logger.info(
                 "upi_payments duplicate submit ignored — ref=%s plan=%s cid=%s existing_id=%s",
-                ref_s, plan_s, cid or "-", existing.get("id"),
+                ref_s,
+                plan_s,
+                cid or "-",
+                existing.get("id"),
             )
             # Signal to caller that this is a replay so FE can show a friendlier
             # "aapki payment already dekh liye" state instead of duplicate success.
