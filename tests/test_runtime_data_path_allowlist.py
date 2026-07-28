@@ -381,6 +381,8 @@ def test_store_manifest_still_validates() -> None:
     # follow the shared authority) but bytes have not moved — still a blocker.
     # 2026-07-27, second evidence-backed edit: +4 calling-safety families
     # (23 -> 27, 17 -> 21). Each defaults inside the checkout, so each blocks.
+    # A7 (2026-07-29): sales.prospects -> DUAL_READ_PRE_CUTOVER (code-only;
+    # ~20MB JSONL host cutover is a separate PR — blockers stay 21).
     assert counts["unique_families"] == 27
     assert counts["deployment_blockers"] == 21
     by_id = {s["store_id"]: s for s in manifest.STORES}
@@ -388,6 +390,10 @@ def test_store_manifest_still_validates() -> None:
     assert ext["migration_tier"] == manifest.TIER_1
     assert ext["migration_state"] == manifest.DUAL_READ_PRE_CUTOVER
     assert manifest.derived_blocker(ext) is True
+    prospects = by_id["sales.prospects"]
+    assert prospects["migration_tier"] == manifest.TIER_1
+    assert prospects["migration_state"] == manifest.DUAL_READ_PRE_CUTOVER
+    assert manifest.derived_blocker(prospects) is True
     # Calling-safety controls are Tier 0 and must every one of them block a
     # destructive deploy: losing the file returns the control to its default.
     for sid in (

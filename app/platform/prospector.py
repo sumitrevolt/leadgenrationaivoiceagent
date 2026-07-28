@@ -28,14 +28,31 @@ import urllib.parse
 import urllib.request
 import uuid
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Append-only store — public_site.py ke inquiries.jsonl jaisa pattern.
-_PROSPECTS_FILE = os.path.join("data", "prospects.jsonl")
+
+def _PROSPECTS_FILE() -> str:
+    """Prospect JSONL store — resolved per call, never frozen at import.
+
+    ~20MB / 18k records; whole-file rewrite on update. Bytes stay in-checkout
+    until a separate host cutover — this resolver only makes the CODE follow
+    LEADGEN_RUNTIME_DATA_ROOT when cutover is later activated.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="sales.prospects",
+            legacy_path=Path("data") / "prospects.jsonl",
+            target_segments=("sales", "prospects.jsonl"),
+        )
+    )
+
 
 # Allowed pipeline statuses.
 VALID_STATUSES = ("ready", "sent", "replied", "client", "dead")
@@ -445,9 +462,10 @@ def _read_all() -> list[dict[str, Any]]:
     """Saare prospects (parse-safe; corrupt lines skip)."""
     out: list[dict[str, Any]] = []
     try:
-        if not os.path.isfile(_PROSPECTS_FILE):
+        # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
+        if not os.path.isfile(_PROSPECTS_FILE()):
             return out
-        with open(_PROSPECTS_FILE, encoding="utf-8") as f:
+        with open(_PROSPECTS_FILE(), encoding="utf-8") as f:
             for ln in f:
                 try:
                     rec = json.loads(ln)
@@ -513,8 +531,8 @@ def _append(rec: dict[str, Any]) -> bool:
         _now = datetime.utcnow().isoformat() + "Z"
         rec.setdefault("created_at", _now)
         rec.setdefault("updated_at", _now)
-        os.makedirs(os.path.dirname(_PROSPECTS_FILE) or ".", exist_ok=True)
-        with open(_PROSPECTS_FILE, "a", encoding="utf-8") as f:
+        os.makedirs(os.path.dirname(_PROSPECTS_FILE()) or ".", exist_ok=True)
+        with open(_PROSPECTS_FILE(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
         # Mirror into the relational DB too (best-effort, never blocks the jsonl write).
         try:
@@ -635,12 +653,12 @@ def set_prospect_fields(pid: str, fields: dict[str, Any]) -> bool:
                 break
         if not found:
             return False
-        os.makedirs(os.path.dirname(_PROSPECTS_FILE) or ".", exist_ok=True)
-        tmp = _PROSPECTS_FILE + ".tmp"
+        os.makedirs(os.path.dirname(_PROSPECTS_FILE()) or ".", exist_ok=True)
+        tmp = _PROSPECTS_FILE() + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             for r in rows:
                 f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
-        os.replace(tmp, _PROSPECTS_FILE)
+        os.replace(tmp, _PROSPECTS_FILE())
         return True
     except Exception as e:
         logger.warning(f"[prospector] set_prospect_fields failed: {e}")
@@ -668,12 +686,12 @@ def set_prospect_fields_bulk(updates: dict[str, dict[str, Any]]) -> int:
                 n += 1
         if n == 0:
             return 0
-        os.makedirs(os.path.dirname(_PROSPECTS_FILE) or ".", exist_ok=True)
-        tmp = _PROSPECTS_FILE + ".tmp"
+        os.makedirs(os.path.dirname(_PROSPECTS_FILE()) or ".", exist_ok=True)
+        tmp = _PROSPECTS_FILE() + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             for r in rows:
                 f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
-        os.replace(tmp, _PROSPECTS_FILE)
+        os.replace(tmp, _PROSPECTS_FILE())
         return n
     except Exception as e:
         logger.warning(f"[prospector] set_prospect_fields_bulk failed: {e}")
@@ -700,12 +718,12 @@ def mark_prospect(pid: str, status: str) -> bool:
                 break
         if not found:
             return False
-        os.makedirs(os.path.dirname(_PROSPECTS_FILE) or ".", exist_ok=True)
-        tmp = _PROSPECTS_FILE + ".tmp"
+        os.makedirs(os.path.dirname(_PROSPECTS_FILE()) or ".", exist_ok=True)
+        tmp = _PROSPECTS_FILE() + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             for r in rows:
                 f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
-        os.replace(tmp, _PROSPECTS_FILE)
+        os.replace(tmp, _PROSPECTS_FILE())
         return True
     except Exception as e:
         logger.warning(f"[prospector] mark_prospect failed: {e}")

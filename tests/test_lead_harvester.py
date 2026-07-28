@@ -97,7 +97,7 @@ def test_run_harvest_dedupe_and_persist(tmp_path, monkeypatch):
     from app.platform import prospector
 
     # store -> tmp (DB mirror off)
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "prospects.jsonl"))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(tmp_path / "prospects.jsonl"))
     monkeypatch.setattr(prospector, "_persist_prospect_to_db", lambda rec: True)
     # seed existing prospect (dedupe target)
     prospector._append(
