@@ -61,7 +61,12 @@ fi
 # here so the blocker list is on the operator's screen BEFORE the refusal, not
 # discovered afterwards in a runbook.
 echo "=== runtime-data preflight (diagnose — read-only, decides nothing) ==="
-gate_run "${_guard_candidate}" "${_guard_live}" scripts/runtime_data_preflight.py diagnose || true
+if ! gate_run "${_guard_candidate}" "${_guard_live}" scripts/runtime_data_preflight.py diagnose; then
+  # Explicitly non-fatal, and written as a branch rather than `|| true`:
+  # this guard forbids `|| true` on principle, and a reader must be able to see
+  # at a glance that ONLY the report is optional. The decision below is not.
+  echo "WARN: diagnose report unavailable — the check-deploy decision still stands."
+fi
 
 echo "=== runtime-data preflight (check-deploy) ==="
 if ! gate_run "${_guard_candidate}" "${_guard_live}" scripts/runtime_data_preflight.py check-deploy; then

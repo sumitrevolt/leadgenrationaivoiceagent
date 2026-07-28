@@ -52,7 +52,7 @@ def test_disk_guard_runs_before_the_actual_build():
     problem that already happened."""
     t = _text()
     guard_idx = t.index("=== DISK GUARD")
-    build_idx = t.index('docker compose -f "$COMPOSE" build app')
+    build_idx = t.index("=== BUILD candidate")
     assert guard_idx < build_idx
 
 
@@ -63,7 +63,7 @@ def test_dry_run_exits_zero_before_any_build_or_up_command():
     never rmi/prune/builder prune."""
     t = _text()
     dry_run_exit_idx = t.index('echo "DRY_RUN=1 -> would build+up')
-    build_idx = t.index('docker compose -f "$COMPOSE" build app')
+    build_idx = t.index("=== BUILD candidate")
     up_idx = t.index('docker compose -f "$COMPOSE" --profile celery')
     assert dry_run_exit_idx < build_idx
     assert dry_run_exit_idx < up_idx
@@ -141,26 +141,51 @@ def test_retention_never_uses_rmi_force_flag():
     assert "docker rmi --force" not in joined
 
 
-def test_pull_fail_aborts_before_build():
+def test_pull_fail_aborts_before_container_replacement():
     """2026-07-16: pull-fail used to fall through and rebuild stale HEAD while
-    the log header claimed a different APP_VERSION. Abort must precede build."""
+    the log header claimed a different APP_VERSION.
+
+    Since 2026-07-28 the build happens BEFORE the pull, against an isolated
+    candidate worktree — a build replaces no container and moves no HEAD, so the
+    property that matters is no longer "abort before build" but "abort before
+    anything is replaced". Asserting the old order would now demand that the
+    gates run against code nobody has checked out.
+    """
     t = _text()
     assert "git pull --ff-only failed" in t
     assert "refusing to deploy stale" in t
     pull_fail_idx = t.index("git pull --ff-only failed")
-    build_idx = t.index('docker compose -f "$COMPOSE" build app')
-    assert pull_fail_idx < build_idx
+    up_idx = t.index("=== UP (all app-image services")
+    assert pull_fail_idx < up_idx
     # Must not mask pull exit via `| tail` (pipefail alone is not enough without -e)
-    resolve = t[t.index("resolve sha") : build_idx]
-    assert "git pull --ff-only 2>&1 | tail" not in resolve
+    pull_block = t[t.index("live checkout, ff-only") : up_idx]
+    assert "git pull --ff-only 2>&1 | tail" not in pull_block
 
 
-def test_sha_arg_must_match_repo_head():
-    """Explicit APP_VERSION arg that does not match HEAD = abort (no silent skew)."""
+def test_gated_sha_and_live_head_must_agree_before_containers_start():
+    """No silent code/tag skew — restated for the isolated-candidate flow.
+
+    The old invariant was "an explicit APP_VERSION arg must already equal live
+    HEAD". That is now impossible by construction: the release sha is resolved
+    from the fetched object database and gated in its own worktree precisely so
+    the live checkout can stay put until the gates pass. The equivalent, and
+    stronger, guarantee is asserted instead — the candidate is proven to be at
+    the release sha, and the live checkout is proven to equal the GATED sha
+    before a single container is replaced.
+    """
     t = _text()
-    assert "requested APP_VERSION=" in t
-    assert "Refusing silent code/tag skew" in t
-    assert "REPO_SHA != APP_VERSION" in t or "REPO_SHA != APP_VERSION" in t
+    assert "candidate tree drifted from" in t
+    assert "Refusing to start containers on code that was never gated." in t
+    # The worktree's own sha proof lives in the candidate helper, which is where
+    # the worktree is created — asserting it here keeps the two halves of the
+    # invariant from drifting apart.
+    candidate_helper = (REPO_ROOT / "scripts" / "_deploy_candidate.sh").read_text(encoding="utf-8")
+    assert "Refusing to gate one tree and deploy another." in candidate_helper
+
+    drift_idx = t.index("candidate tree drifted from")
+    live_check_idx = t.index("Refusing to start containers on code that was never gated.")
+    up_idx = t.index("=== UP (all app-image services")
+    assert drift_idx < live_check_idx < up_idx
 
 
 def test_compose_up_has_bounded_recreate_retry():
