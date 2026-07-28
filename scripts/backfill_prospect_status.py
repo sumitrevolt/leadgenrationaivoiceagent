@@ -154,7 +154,7 @@ def main(argv: list[str]) -> int:
 
     from app.platform import prospector
 
-    store = pathlib.Path(prospector._PROSPECTS_FILE)
+    store = pathlib.Path(prospector._PROSPECTS_FILE())
     if not store.is_file():
         print(
             f"[backfill] FATAL: prospect store not found at {store} "

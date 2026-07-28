@@ -67,7 +67,7 @@ def _no_warmup_side_effect(monkeypatch):
 def tmp_prospects(monkeypatch, tmp_path):
     """prospects.jsonl ko tmp_path pe le jao."""
     pfile = os.path.join(str(tmp_path), "prospects.jsonl")
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", pfile)
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: pfile)
     return pfile
 
 

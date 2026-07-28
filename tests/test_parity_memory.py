@@ -238,7 +238,7 @@ def test_prep_brief_llm_and_fallback(tmp_path, monkeypatch):
             }
         ],
     )
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(pfile))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(pfile))
 
     import app.voice_agent.free_ai as free_ai
 

@@ -50,7 +50,7 @@ def _read_store(path) -> dict[str, dict]:
 @pytest.fixture
 def store(tmp_path, monkeypatch):
     path = tmp_path / "prospects.jsonl"
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(path))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(path))
     return path
 
 

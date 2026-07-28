@@ -91,7 +91,7 @@ def test_extract_bounced_email_no_match_returns_empty():
 
 def test_append_sets_timestamps(tmp_path, monkeypatch):
     f = tmp_path / "prospects.jsonl"
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(f))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(f))
     assert prospector._append({"id": "t1", "business_name": "Test Biz", "phone": ""})
     rec = json.loads(f.read_text(encoding="utf-8").strip())
     assert rec["created_at"] and rec["updated_at"]
@@ -99,7 +99,7 @@ def test_append_sets_timestamps(tmp_path, monkeypatch):
 
 def test_mark_prospect_bumps_updated_at(tmp_path, monkeypatch):
     f = tmp_path / "prospects.jsonl"
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(f))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(f))
     prospector._append({"id": "t2", "business_name": "B", "phone": "", "status": "ready"})
     assert prospector.mark_prospect("t2", "hot") or True  # invalid status => False ok
     rows = [json.loads(l) for l in f.read_text(encoding="utf-8").splitlines() if l.strip()]

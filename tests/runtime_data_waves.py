@@ -68,6 +68,13 @@ A6_STORE_IDS = frozenset(
     }
 )
 
+#: Stores A7 migrated (sales prospect JSONL — large file, code-only this wave).
+A7_STORE_IDS = frozenset(
+    {
+        "sales.prospects",
+    }
+)
+
 #: Stores A8 migrated (external agent mission root — EXTERNAL_MISSION_DIR).
 A8_STORE_IDS = frozenset(
     {
@@ -84,6 +91,7 @@ WAVE_STORE_IDS: dict[str, frozenset[str]] = {
     "A4": A4_STORE_IDS,
     "A5": A5_STORE_IDS,
     "A6": A6_STORE_IDS,
+    "A7": A7_STORE_IDS,
     "A8": A8_STORE_IDS,
 }
 
