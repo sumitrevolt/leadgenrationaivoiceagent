@@ -18,7 +18,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from app.config import settings
-from app.utils.logger import setup_logger, redact_url
+from app.utils.logger import redact_url, setup_logger
 
 logger = setup_logger(__name__)
 
@@ -331,6 +331,7 @@ async def verify_api_key(api_key: str | None = Depends(API_KEY_HEADER)) -> dict 
         return None
 
     import hmac
+
     # Use a dedicated API key env var — NEVER compare against secret_key
     # (session-signing key). Use hmac.compare_digest to prevent timing attacks.
     _admin_api_key = os.environ.get("ADMIN_API_KEY", "").strip()
@@ -731,13 +732,21 @@ class RouteHitMiddleware(BaseHTTPMiddleware):
     @staticmethod
     def _route_path(request: Request) -> str:
         # Route template (path_format) is populated only AFTER routing. Fall back
-        # to the raw path when no route matched (404s etc.).
+        # to the raw path when no route matched (404s etc.). Never touch `.path`
+        # on a FastAPI `_IncludedRouter` (AttributeError masks the real failure
+        # in Sentry — 2026-07-14).
         try:
             route = request.scope.get("route")
-            tmpl = getattr(route, "path_format", None)
-            if tmpl:
-                return str(tmpl)
-        except (KeyError, AttributeError, TypeError) as _e:
+            if route is not None:
+                tmpl = getattr(route, "path_format", None)
+                if tmpl:
+                    return str(tmpl)
+                # Some Starlette routes expose `.path`; lazy include wrappers do not.
+                if type(route).__name__ != "_IncludedRouter":
+                    plain = getattr(route, "path", None)
+                    if plain:
+                        return str(plain)
+        except Exception as _e:
             logger.debug("RouteHitMiddleware route template lookup failed: %s", _e)
         try:
             return request.url.path

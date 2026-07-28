@@ -130,6 +130,31 @@ def _route_kb_refresh_task(name, args, kwargs, options, task=None, **kw):
     return None
 
 
+def _route_self_improve_task(name, args, kwargs, options, task=None, **kw):
+    """Router: self-improve tick/revive → heavy when CELERY_HEAVY_QUEUE=1.
+
+    2026-07-28 prod evidence: leadgen_worker (2g, concurrency=4) took 14
+    memcg OOM/SIGKILL in 24h while SELF_IMPROVE_LOOP=1. worker_max_memory_per_child
+    only recycles *between* tasks; a single LLM-heavy tick can grow past the
+    shared cgroup before recycle, and four forks amplify that. worker-heavy is
+    concurrency=1 + 2500m — the right isolation for this continuous chain.
+    Flag OFF keeps today's default-queue behaviour (local/dev without heavy).
+    """
+    try:
+        if (
+            name
+            in (
+                "app.tasks.staff_jobs.self_improve_tick",
+                "app.tasks.staff_jobs.self_improve_revive",
+            )
+            and _heavy_queue_enabled()
+        ):
+            return {"queue": "heavy"}
+    except Exception as _e:
+        logger.debug("_route_self_improve_task routing failed, using default queue: %s", _e)
+    return None
+
+
 # Production-ready configuration
 celery_app.conf.update(
     # Serialization
@@ -149,6 +174,7 @@ celery_app.conf.update(
         _route_staff_task,
         _route_video_task,
         _route_kb_refresh_task,
+        _route_self_improve_task,
         {
             "app.tasks.scraping.*": {"queue": "scraping"},
             "app.tasks.calling.*": {"queue": "calling"},
@@ -172,8 +198,10 @@ celery_app.conf.update(
     result_extended=True,  # Store task metadata
     # Worker settings
     worker_prefetch_multiplier=1,  # Disable prefetch for fair scheduling
-    worker_max_tasks_per_child=1000,  # Restart worker after N tasks (memory leaks)
-    worker_max_memory_per_child=512000,  # 512MB memory limit
+    worker_max_tasks_per_child=100,  # Restart sooner — long-lived forks accumulate RSS
+    # KiB. Recycle only runs BETWEEN tasks; still lower than the 2g cgroup so a
+    # quiet child is replaced before four of them sum past the memcg (2026-07-28).
+    worker_max_memory_per_child=350000,  # ~350MB
     worker_disable_rate_limits=False,
     # Task execution limits
     task_time_limit=600,  # Hard limit: 10 minutes
