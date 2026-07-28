@@ -98,7 +98,9 @@ ENTRIES: list[dict[str, Any]] = [
     {
         "allowlist_id": "compliance.email_suppression.store",
         "file": "app/platform/email_unsub.py",
-        "line_or_symbol": "_STORE",
+        # `_STORE` until wave A3 retired the module constant. The declaration must
+        # name the symbol the SCANNER emits, which is now the resolver function.
+        "line_or_symbol": "_store_path",
         "path_pattern": "data/email_suppression.jsonl",
         "store_id": "compliance.email_suppression",
         "access_modes": ["APPEND", "READ", "CREATE"],

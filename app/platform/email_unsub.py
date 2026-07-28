@@ -287,10 +287,13 @@ def reconcile_suppressions(limit: int = 500) -> dict[str, int]:
 
 def _append_row(rec: dict[str, object]) -> None:
     """Append one ledger row under the shared cross-process lock."""
-    store = _store_path()
-    store.parent.mkdir(parents=True, exist_ok=True)
+    # Resolver called at each site, not bound to a local: `runtime_data_scan`
+    # attributes a finding to the expression it sees, so `open(store, ...)`
+    # reported the bare name `store` and the allowlist entry declaring this
+    # module's store stopped binding — the failure that turned main red.
+    _store_path().parent.mkdir(parents=True, exist_ok=True)
     with _store_lock():
-        with open(store, "a", encoding="utf-8") as f:
+        with open(_store_path(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
@@ -379,14 +382,16 @@ def _iter_suppression_rows() -> list[dict[str, object]] | None:
     An empty list means the file is missing or has no usable rows — that is a
     legitimate not-suppressed answer. None means we cannot trust any answer.
     """
-    store = _store_or_none()
-    if store is None:
+    # Probe for an unresolvable authority (None => cannot trust any answer), then
+    # resolve at the I/O sites so the scanner keeps seeing `_store_path` rather
+    # than a local name. See _append_row for why that matters.
+    if _store_or_none() is None:
         return None
     rows: list[dict[str, object]] = []
     try:
-        if not store.is_file():
+        if not _store_path().is_file():
             return rows
-        with open(store, encoding="utf-8") as f:
+        with open(_store_path(), encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -517,10 +522,9 @@ def suppress(
             "event_id": str(event_id or ""),
             "ts": int(time.time()),
         }
-        store = _store_path()
-        store.parent.mkdir(parents=True, exist_ok=True)
+        _store_path().parent.mkdir(parents=True, exist_ok=True)
         with _store_lock():
-            with open(store, "a", encoding="utf-8") as f:
+            with open(_store_path(), "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         logger.info(
             "[email_unsub] suppressed scope=%s email=%s phone=%s (%s)",
