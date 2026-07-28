@@ -41,7 +41,57 @@ logger = setup_logger(__name__)
 _SECRET = (
     os.environ.get("EMAIL_UNSUB_SECRET") or os.environ.get("SECRET_KEY") or "leadsgenai-unsub-v1"
 ).encode()
-_STORE = Path("data") / "email_suppression.jsonl"
+
+
+def _store_path() -> Path:
+    """Unified suppression ledger — resolved per call, never captured at import.
+
+    A module-level constant froze this path when the module was first imported,
+    which is exactly what makes a store impossible to redirect from a fixture
+    that runs later and impossible to follow a runtime-data cutover.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="compliance.email_suppression",
+        legacy_path=Path("data") / "email_suppression.jsonl",
+        target_segments=("compliance", "email_suppression.jsonl"),
+    )
+
+
+def _store_or_none() -> Path | None:
+    """Active ledger path, or None if the authority cannot be resolved.
+
+    Missing file → callers treat as not-suppressed (a legitimate answer).
+    Unresolvable authority → callers fail CLOSED (an outage is not consent).
+    """
+    try:
+        return _store_path()
+    except Exception as exc:  # noqa: BLE001 — any resolution failure is the same verdict
+        logger.error("[email_unsub] compliance.email_suppression authority UNRESOLVABLE: %s", exc)
+        return None
+
+
+def __getattr__(name: str) -> Path:
+    """DEPRECATED shim: ``email_unsub._STORE`` as a Path attribute.
+
+    ``app/platform/reply_agent.py`` still reads ``_STORE.parent`` (outside this
+    wave's allowed_paths). ``from email_unsub import _STORE`` freezes the Path
+    once; this shim cannot deliver operation-time resolution to that form.
+    Call ``_store_path()`` instead.
+    """
+    import warnings
+
+    if name == "_STORE":
+        message = (
+            "email_unsub._STORE as a Path attribute is deprecated and does NOT "
+            "track later environment changes; call _store_path() instead."
+        )
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
+        logger.error("FROZEN COMPLIANCE PATH: %s", message)
+        return _store_path()
+    raise AttributeError(name)
+
 
 # --- canonical suppression scopes -------------------------------------------
 #: Blocks the exact normalized email address only (hard bounce, invalid mailbox).
@@ -137,17 +187,35 @@ def _mask_phone(value: str) -> str:
 
 
 def _store_lock():
-    """Best-effort cross-process lock — app/worker/scheduler share ./data.
+    """Best-effort cross-process lock colocated with the ACTIVE ledger.
 
-    Falls back to a no-op so a lock timeout degrades to an unlocked append
-    rather than dropping a suppression on the floor. Losing a suppression write
-    is worse than an interleaved line: the ledger is append-only and readers
-    tolerate duplicates.
+    Uses ``resolve_lock_path`` so the lock and the ledger share one root — a
+    lock beside the legacy file while data lives externally coordinates
+    nothing across five containers. When tests redirect ``_STORE``, the lock
+    follows that redirected ledger instead.
     """
     try:
         from filelock import FileLock
 
-        return FileLock(str(_STORE) + ".lock", timeout=5)
+        from app.platform import runtime_data_authority as _auth
+
+        store = _store_path()
+        auth_store = _auth.resolve_store_path(
+            store_id="compliance.email_suppression",
+            legacy_path=Path("data") / "email_suppression.jsonl",
+            target_segments=("compliance", "email_suppression.jsonl"),
+        )
+        auth_lock = _auth.resolve_lock_path(
+            store_id="compliance.email_suppression",
+            legacy_path=Path("data") / "email_suppression.jsonl",
+            target_segments=("compliance", "email_suppression.jsonl"),
+        )
+        try:
+            same = store.expanduser().resolve() == Path(auth_store).expanduser().resolve()
+        except Exception:
+            same = False
+        lock_path = auth_lock if same else store.with_suffix(store.suffix + ".lock")
+        return FileLock(str(lock_path), timeout=5)
     except Exception:  # pragma: no cover - filelock always present in prod
         import contextlib
 
@@ -187,7 +255,10 @@ def reconcile_suppressions(limit: int = 500) -> dict[str, int]:
     try:
         from app.platform.sales_autopilot import store as _sa_store
 
-        rows = [r for r in _iter_suppression_rows() if _row_scope(r) == SCOPE_ALL_OUTREACH]
+        all_rows = _iter_suppression_rows()
+        if all_rows is None:
+            return out
+        rows = [r for r in all_rows if _row_scope(r) == SCOPE_ALL_OUTREACH]
         seen: set[str] = set()
         for row in rows[: max(1, int(limit))]:
             pid = str(row.get("prospect_id") or "")
@@ -216,9 +287,10 @@ def reconcile_suppressions(limit: int = 500) -> dict[str, int]:
 
 def _append_row(rec: dict[str, object]) -> None:
     """Append one ledger row under the shared cross-process lock."""
-    _STORE.parent.mkdir(parents=True, exist_ok=True)
+    store = _store_path()
+    store.parent.mkdir(parents=True, exist_ok=True)
     with _store_lock():
-        with open(_STORE, "a", encoding="utf-8") as f:
+        with open(store, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
@@ -227,7 +299,13 @@ def _event_seen(event_id: str) -> bool:
     if not event_id:
         return False
     try:
-        return any(str(r.get("event_id") or "") == event_id for r in _iter_suppression_rows())
+        rows = _iter_suppression_rows()
+        if rows is None:
+            # Unresolvable authority: treat as unseen so suppress() still
+            # attempts a write (which will itself fail closed), rather than
+            # claiming a duplicate that we cannot verify.
+            return False
+        return any(str(r.get("event_id") or "") == event_id for r in rows)
     except Exception:  # pragma: no cover
         return False
 
@@ -295,13 +373,20 @@ def footer_html(email: str) -> str:
     )
 
 
-def _iter_suppression_rows() -> list[dict[str, object]]:
-    """Best-effort JSONL reader for ops/dashboard use. Never raises."""
+def _iter_suppression_rows() -> list[dict[str, object]] | None:
+    """Best-effort JSONL reader. None = authority unresolvable (fail closed).
+
+    An empty list means the file is missing or has no usable rows — that is a
+    legitimate not-suppressed answer. None means we cannot trust any answer.
+    """
+    store = _store_or_none()
+    if store is None:
+        return None
     rows: list[dict[str, object]] = []
     try:
-        if not _STORE.is_file():
+        if not store.is_file():
             return rows
-        with open(_STORE, encoding="utf-8") as f:
+        with open(store, encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -348,9 +433,15 @@ def _iter_suppression_rows() -> list[dict[str, object]]:
 def suppressed_emails() -> set[str]:
     """Return normalized suppressed emails for bulk send filtering. Never raises."""
     try:
+        rows = _iter_suppression_rows()
+        if rows is None:
+            # Decision APIs (is_suppressed / is_contact_suppressed) fail CLOSED
+            # when the authority is unresolvable. This bulk set cannot invent
+            # every address; callers that gate a send must use those APIs.
+            return set()
         # Blank-guarded: phone-only / prospect-only rows carry no email, and an
         # empty string in this set would make `"" in suppressed_emails()` true.
-        return {e for r in _iter_suppression_rows() if (e := normalize_email(r.get("email")))}
+        return {e for r in rows if (e := normalize_email(r.get("email")))}
     except Exception:  # pragma: no cover
         return set()
 
@@ -362,6 +453,8 @@ def list_suppressed(limit: int = 500) -> list[dict[str, object]]:
     except Exception:
         n = 500
     rows = _iter_suppression_rows()
+    if rows is None:
+        return []
     rows.sort(key=lambda r: int(r.get("ts") or 0), reverse=True)
     return rows[:n]
 
@@ -424,9 +517,10 @@ def suppress(
             "event_id": str(event_id or ""),
             "ts": int(time.time()),
         }
-        _STORE.parent.mkdir(parents=True, exist_ok=True)
+        store = _store_path()
+        store.parent.mkdir(parents=True, exist_ok=True)
         with _store_lock():
-            with open(_STORE, "a", encoding="utf-8") as f:
+            with open(store, "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         logger.info(
             "[email_unsub] suppressed scope=%s email=%s phone=%s (%s)",
@@ -524,7 +618,10 @@ def _quarantine_resolutions() -> dict[str, str]:
     quarantine is therefore the newest resolution marker for that destination.
     """
     out: dict[str, tuple[int, str]] = {}
-    for row in _iter_suppression_rows():
+    rows = _iter_suppression_rows()
+    if rows is None:
+        return {}
+    for row in rows:
         res = str(row.get("resolution") or "")
         if not res:
             continue
@@ -575,12 +672,19 @@ def _row_blocks_phone(row: dict[str, object], phone: str, prospect_id: str) -> b
 
 
 def is_suppressed(email: str) -> bool:
-    """True if this email must not receive automated outreach. Never raises."""
+    """True if this email must not receive automated outreach. Never raises.
+
+    Missing ledger file → not suppressed (a missing file is an answer).
+    Unresolvable authority → suppressed (an outage is not consent).
+    """
     e = normalize_email(email)
     if not e:
         return False
     try:
-        return any(_row_blocks_email(r, e) for r in _iter_suppression_rows())
+        rows = _iter_suppression_rows()
+        if rows is None:
+            return True
+        return any(_row_blocks_email(r, e) for r in rows)
     except Exception:  # pragma: no cover
         return False
 
@@ -592,13 +696,18 @@ def is_phone_suppressed(phone: str = "", prospect_id: str = "") -> bool:
     opt-out arriving by email knows the address and prospect but often not the
     number — without the prospect fallback a cross-channel opt-out would be
     unenforceable on WhatsApp, which is exactly the invariant this exists for.
+
+    Unresolvable authority → suppressed (fail closed).
     """
     p = normalize_phone(phone)
     pid = str(prospect_id or "")
     if not p and not pid:
         return False
     try:
-        return any(_row_blocks_phone(r, p, pid) for r in _iter_suppression_rows())
+        rows = _iter_suppression_rows()
+        if rows is None:
+            return True
+        return any(_row_blocks_phone(r, p, pid) for r in rows)
     except Exception:  # pragma: no cover
         return False
 
@@ -612,14 +721,19 @@ def suppression_state(
     three conditions are NOT the same thing and must be distinguishable
     internally: a verified opt-out is a settled decision, while a quarantine is
     an open question that someone still has to answer.
+
+    Unresolvable authority → STATE_PERMANENT (fail closed).
     """
     try:
         ch = (channel or "email").strip().lower()
         e = normalize_email(email)
         p = normalize_phone(phone)
         pid = str(prospect_id or "")
+        rows = _iter_suppression_rows()
+        if rows is None:
+            return STATE_PERMANENT
         matched: list[dict[str, object]] = []
-        for row in _iter_suppression_rows():
+        for row in rows:
             if ch == "whatsapp":
                 if _row_blocks_phone(row, p, pid):
                     matched.append(row)
@@ -666,12 +780,24 @@ def resolve_quarantine(
         logger.warning("[email_unsub] quarantine release refused: no evidence supplied")
         return RESULT_FAILED
     try:
+        rows = _iter_suppression_rows()
+        if rows is None:
+            return RESULT_FAILED
         # Already resolved (either way) -> idempotent no-op.
-        if _quarantine_resolutions().get(dest):
+        resolutions: dict[str, tuple[int, str]] = {}
+        for row in rows:
+            res = str(row.get("resolution") or "")
+            if not res:
+                continue
+            d = normalize_email(row.get("email"))
+            ts = int(row.get("ts") or 0)
+            if d and (d not in resolutions or ts >= resolutions[d][0]):
+                resolutions[d] = (ts, res)
+        if resolutions.get(dest):
             return RESULT_ALREADY_APPLIED
         has_open_hold = any(
             _row_scope(r) == SCOPE_QUARANTINE and normalize_email(r.get("email")) == dest
-            for r in _iter_suppression_rows()
+            for r in rows
         )
         if not has_open_hold:
             return RESULT_ALREADY_APPLIED
@@ -713,11 +839,10 @@ def resolve_quarantine(
 def list_quarantined(limit: int = 200) -> list[dict[str, object]]:
     """Open compliance quarantines awaiting admin reconciliation."""
     try:
-        out = [
-            r
-            for r in _iter_suppression_rows()
-            if _row_scope(r) == SCOPE_QUARANTINE and _row_is_active(r)
-        ]
+        rows = _iter_suppression_rows()
+        if rows is None:
+            return []
+        out = [r for r in rows if _row_scope(r) == SCOPE_QUARANTINE and _row_is_active(r)]
         out.sort(key=lambda r: int(r.get("ts") or 0), reverse=True)
         return out[: max(1, int(limit))]
     except Exception:  # pragma: no cover
@@ -727,7 +852,10 @@ def list_quarantined(limit: int = 200) -> list[dict[str, object]]:
 def is_contact_suppressed(
     *, email: str = "", phone: str = "", prospect_id: str = "", channel: str = "email"
 ) -> bool:
-    """Single entry point for eligibility checks on either channel. Never raises."""
+    """Single entry point for eligibility checks on either channel. Never raises.
+
+    Unresolvable authority → suppressed (fail closed).
+    """
     ch = (channel or "email").strip().lower()
     if ch == "whatsapp":
         return is_phone_suppressed(phone=phone, prospect_id=prospect_id)
@@ -739,9 +867,12 @@ def is_contact_suppressed(
     if not pid:
         return False
     try:
+        rows = _iter_suppression_rows()
+        if rows is None:
+            return True
         return any(
             _row_scope(r) == SCOPE_ALL_OUTREACH and str(r.get("prospect_id") or "") == pid
-            for r in _iter_suppression_rows()
+            for r in rows
         )
     except Exception:  # pragma: no cover
         return False

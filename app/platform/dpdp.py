@@ -70,8 +70,45 @@ _STORES: dict[str, str] = {
 }
 _CRM_DIR = os.path.join("data", "crm")  # per-client end-customer CRM (crm_lite)
 
-_AUDIT_FILE = os.path.join("data", "dpdp_audit.jsonl")
-_REQUESTS_FILE = os.path.join("data", "dpdp_requests.jsonl")
+
+def _AUDIT_FILE() -> str:
+    """DPDP audit log — resolved per call, never captured at import.
+
+    The function name keeps the allowlist symbol stable. Subject hashes only;
+    never plaintext PII.
+    """
+    from pathlib import Path
+
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="compliance.dpdp_audit",
+            legacy_path=Path("data") / "dpdp_audit.jsonl",
+            target_segments=("compliance", "dpdp_audit.jsonl"),
+        )
+    )
+
+
+def _REQUESTS_FILE() -> str:
+    """DPDP request intake — sibling of the audit log under the same store id.
+
+    One manifest row covers both files; they stay two resolvers so a cutover
+    cannot collapse requests into the audit path. The requests file lives
+    beside the audit target (`compliance/dpdp_requests.jsonl`).
+    """
+    from pathlib import Path
+
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="compliance.dpdp_audit",
+            legacy_path=Path("data") / "dpdp_requests.jsonl",
+            target_segments=("compliance", "dpdp_requests.jsonl"),
+        )
+    )
+
 
 REQUEST_TYPES = ("access", "erasure", "correction")
 
@@ -125,10 +162,10 @@ def _values_of(rec: Any, depth: int = 0) -> list[str]:
         if isinstance(rec, dict):
             for v in rec.values():
                 out.extend(_values_of(v, depth + 1))
-        elif isinstance(rec, (list, tuple)):
+        elif isinstance(rec, list | tuple):
             for v in rec:
                 out.extend(_values_of(v, depth + 1))
-        elif isinstance(rec, (str, int, float)) and not isinstance(rec, bool):
+        elif isinstance(rec, str | int | float) and not isinstance(rec, bool):
             out.append(str(rec))
     except Exception:
         pass
@@ -172,7 +209,7 @@ def _mask_record(rec: dict[str, Any]) -> dict[str, Any]:
     try:
         for k, v in rec.items():
             kl = str(k).lower()
-            if not isinstance(v, (str, int, float)) or isinstance(v, bool):
+            if not isinstance(v, str | int | float) or isinstance(v, bool):
                 continue
             s = str(v)
             if "email" in kl or ("@" in s and "." in s and len(s) < 80):
@@ -241,8 +278,9 @@ def _audit(
             "actor": (actor or "admin")[:80],
         }
         rec.update({k: v for k, v in extra.items() if v is not None})
-        os.makedirs(os.path.dirname(_AUDIT_FILE) or ".", exist_ok=True)
-        with open(_AUDIT_FILE, "a", encoding="utf-8") as f:
+        audit_path = _AUDIT_FILE()
+        os.makedirs(os.path.dirname(audit_path) or ".", exist_ok=True)
+        with open(audit_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:  # pragma: no cover - defensive
         logger.warning(f"[dpdp] audit write failed: {e}")
@@ -541,8 +579,9 @@ def record_request(
         "status": "pending",
     }
     try:
-        os.makedirs(os.path.dirname(_REQUESTS_FILE) or ".", exist_ok=True)
-        with open(_REQUESTS_FILE, "a", encoding="utf-8") as f:
+        requests_path = _REQUESTS_FILE()
+        os.makedirs(os.path.dirname(requests_path) or ".", exist_ok=True)
+        with open(requests_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
         logger.warning(f"[dpdp] request write failed: {e}")
@@ -554,7 +593,11 @@ def record_request(
 def list_requests(status: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
     """Saved requests (newest first). Optional status filter. Never raises."""
     rows: list[dict[str, Any]] = []
-    lines = _read_raw_lines(_REQUESTS_FILE)
+    try:
+        lines = _read_raw_lines(_REQUESTS_FILE())
+    except Exception as e:
+        logger.warning(f"[dpdp] requests authority unresolvable: {e}")
+        return []
     for ln in lines or []:
         ln = ln.strip()
         if not ln:
@@ -576,7 +619,12 @@ def mark_request_done(request_id: str, actor: str = "admin") -> dict[str, Any]:
     rid = str(request_id or "").strip()
     if not rid:
         return {"ok": False, "error": "request_id chahiye."}
-    lines = _read_raw_lines(_REQUESTS_FILE)
+    try:
+        requests_path = _REQUESTS_FILE()
+    except Exception as e:
+        logger.warning(f"[dpdp] requests authority unresolvable: {e}")
+        return {"ok": False, "error": "requests store unreadable."}
+    lines = _read_raw_lines(requests_path)
     if lines is None:
         return {"ok": False, "error": "requests store unreadable."}
     out_lines: list[str] = []
@@ -601,7 +649,7 @@ def mark_request_done(request_id: str, actor: str = "admin") -> dict[str, Any]:
     if not found:
         return {"ok": False, "error": f"request {rid} nahi mili (ya already done)."}
     try:
-        _atomic_write_lines(_REQUESTS_FILE, out_lines)
+        _atomic_write_lines(requests_path, out_lines)
     except Exception as e:
         logger.warning(f"[dpdp] request update failed: {e}")
         return {"ok": False, "error": "update save nahi hua."}

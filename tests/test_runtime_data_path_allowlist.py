@@ -61,6 +61,10 @@ def test_dpdp_requests_entry_declares_the_atomic_replace(findings) -> None:
     path-role fix made the destination visible. This test fails if REPLACE is
     dropped, if the entry drifts onto the audit file, or if the temp companion
     is mistaken for the durable authority.
+
+    A3 turned `_REQUESTS_FILE` into a per-call resolver function; the allowlist
+    symbol name is unchanged, and REPLACE findings must still bind to the
+    requests file (never the sibling audit log).
     """
     entry = next(e for e in al.load() if e["allowlist_id"] == "compliance.dpdp_requests.store")
     assert "REPLACE" in entry["access_modes"]
@@ -73,8 +77,12 @@ def test_dpdp_requests_entry_declares_the_atomic_replace(findings) -> None:
         f
         for f in findings
         if f.get("file") == "app/platform/dpdp.py"
-        and f.get("symbol") == "_REQUESTS_FILE"
         and f.get("operation") == scan.REPLACE
+        and (
+            f.get("symbol") == "_REQUESTS_FILE"
+            or "dpdp_requests" in str(f.get("resolved_path") or "")
+            or "dpdp_requests" in str(f.get("path_expression") or "")
+        )
     ]
     assert real, "no real REPLACE finding binds this entry"
     # The durable authority, not the temporary companion.
