@@ -60,8 +60,15 @@ class _FakeClient:
 
 @pytest.fixture(autouse=True)
 def _clear_env(monkeypatch):
-    for k in ("WAHA_BASE_URL", "WAHA_API_KEY", "WAHA_SESSION", "WHATSAPP_PROVIDER",
-              "WHATSAPP_AUTO_SEND", "WHATSAPP_BUSINESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID"):
+    for k in (
+        "WAHA_BASE_URL",
+        "WAHA_API_KEY",
+        "WAHA_SESSION",
+        "WHATSAPP_PROVIDER",
+        "WHATSAPP_AUTO_SEND",
+        "WHATSAPP_BUSINESS_TOKEN",
+        "WHATSAPP_PHONE_NUMBER_ID",
+    ):
         monkeypatch.delenv(k, raising=False)
     # settings may carry values from a real .env — neutralise for deterministic tests
     from app.config import settings
@@ -159,7 +166,10 @@ def test_chat_id_adds_india_cc():
 
 
 def test_template_renders_placeholders():
-    assert wahost._render("Namaste {{1}}, offer {{2}}", ["Ramesh", "20%"]) == "Namaste Ramesh, offer 20%"
+    assert (
+        wahost._render("Namaste {{1}}, offer {{2}}", ["Ramesh", "20%"])
+        == "Namaste Ramesh, offer 20%"
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -182,7 +192,9 @@ def test_suppressed_number_skipped_on_selfhost(monkeypatch, tmp_path):
     os.makedirs("data", exist_ok=True)
     from app.marketing import wa_campaign_runner as runner
 
-    monkeypatch.setattr(runner, "_SUPPRESSION_FILE", os.path.join("data", "supp.jsonl"))
+    # Resolver function, not a constant — the constant is gone so that the path
+    # can follow a cutover instead of being frozen at import time.
+    monkeypatch.setattr(runner, "_suppression_path", lambda: os.path.join("data", "supp.jsonl"))
     runner.suppress("9876543210", "opt_out")
     monkeypatch.setattr(wahost.httpx, "AsyncClient", _FakeClient)
     monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")

@@ -103,13 +103,15 @@ def _db_is_suppressed(phone_key: str) -> bool | None:
 
         from app.config import settings
 
-        dsn = (getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", ""))
+        dsn = getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", "")
         dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
             "postgresql+psycopg2://", "postgresql://"
         )
         conn = psycopg2.connect(dsn)
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM opt_out_suppression WHERE phone_key=%s LIMIT 1", (phone_key,))
+            cur.execute(
+                "SELECT 1 FROM opt_out_suppression WHERE phone_key=%s LIMIT 1", (phone_key,)
+            )
             found = cur.fetchone() is not None
         conn.close()
         return found
@@ -127,7 +129,7 @@ def _db_add_suppression(phone_key: str, reason: str, channel: str) -> bool:
 
         from app.config import settings
 
-        dsn = (getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", ""))
+        dsn = getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", "")
         dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
             "postgresql+psycopg2://", "postgresql://"
         )
@@ -157,7 +159,7 @@ def _db_remove_suppression(phone_key: str) -> bool:
 
         from app.config import settings
 
-        dsn = (getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", ""))
+        dsn = getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", "")
         dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
             "postgresql+psycopg2://", "postgresql://"
         )
@@ -173,8 +175,90 @@ def _db_remove_suppression(phone_key: str) -> bool:
 
 
 # Stores (tests monkeypatch these module attrs)
-LEDGER_FILE = Path("data") / "consent_ledger.jsonl"
-SUPPRESSION_FILE = Path("data") / "voice_suppression.jsonl"
+def ledger_path() -> Path:
+    """Consent ledger — resolved per call, never captured at import.
+
+    DPDP audit trail. A module-level constant froze this path when the module
+    was first imported, which is what makes a store impossible to move and
+    impossible to redirect from a fixture that runs later.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="compliance.consent_ledger",
+        legacy_path=Path("data") / "consent_ledger.jsonl",
+        target_segments=("compliance", "consent_ledger.jsonl"),
+    )
+
+
+def suppression_path() -> Path:
+    """Voice suppression list — a SEPARATE store from the consent ledger.
+
+    They share this module, not an identity: an opt-out must be able to move,
+    be verified and be rolled back independently of the audit trail that
+    explains it.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="compliance.voice_suppression",
+        legacy_path=Path("data") / "voice_suppression.jsonl",
+        target_segments=("compliance", "voice_suppression.jsonl"),
+    )
+
+
+def _suppression_path_or_none() -> Path | None:
+    """The resolved suppression path, or None if the authority cannot be resolved.
+
+    Before the runtime-data migration this could not fail: the path was a module
+    constant, so the only errors were I/O errors on a file that legitimately may
+    not exist yet. `resolve_store_path` introduces a genuinely new failure mode —
+    a misconfigured runtime root, an unsafe segment, a path escaping the root, or
+    (after cutover) an override pointing somewhere other than the canonical
+    target all raise `RuntimeDataError`.
+
+    Callers must therefore distinguish "this number is not on the list" from
+    "there is no list I am allowed to trust", because the blanket
+    `except Exception: return False` that was safe around a constant would turn
+    the second case into the first — answering "not suppressed" for a number
+    that may well be. That is TCCCPR fail-OPEN, and this module's own comments
+    call it illegal.
+    """
+    try:
+        return suppression_path()
+    except Exception as exc:  # noqa: BLE001 — any resolution failure is the same verdict
+        logger.error("compliance.voice_suppression authority UNRESOLVABLE: %s", exc)
+        return None
+
+
+def __getattr__(name: str) -> Path:
+    """DEPRECATED transitional shim for the old module constants.
+
+    `from consent_ledger import LEDGER_FILE` calls this ONCE and freezes the
+    result in the importing module, so this shim cannot deliver operation-time
+    resolution to that form. It exists only so an unnoticed external consumer
+    fails loudly-late rather than silently, and a test asserts that no code in
+    this repository imports these names. Call `ledger_path()` /
+    `suppression_path()` instead.
+
+    It logs at ERROR as well as warning. `pyproject.toml` sets
+    `filterwarnings = ["ignore::DeprecationWarning", ...]`, so under the test
+    suite the warning alone is swallowed — a tripwire nobody can hear is not a
+    tripwire, and this store decides whether a person may be contacted.
+    """
+    import warnings
+
+    if name in ("LEDGER_FILE", "SUPPRESSION_FILE"):
+        message = (
+            f"consent_ledger.{name} is deprecated and does NOT track later "
+            "environment changes; call ledger_path()/suppression_path() instead."
+        )
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
+        logger.error("FROZEN COMPLIANCE PATH: %s", message)
+        return ledger_path() if name == "LEDGER_FILE" else suppression_path()
+    raise AttributeError(name)
+
+
 RECORDINGS_DIR = Path("data") / "recordings"
 
 DEFAULT_RETENTION_DAYS = 90  # TRAI/QoS guidance: call recordings 90 din, fir delete
@@ -268,7 +352,7 @@ def record_consent(
         "client_id": (client_id or "")[:60],
         "at": _now(),
     }
-    _append(LEDGER_FILE, rec)
+    _append(ledger_path(), rec)
     return rec
 
 
@@ -281,7 +365,7 @@ def has_consent(phone: str, scope: str = "voice_promo", max_age_days: int | None
         if not k or is_suppressed(k):
             return False
         latest: str | None = None
-        for it in _read(LEDGER_FILE):
+        for it in _read(ledger_path()):
             if it.get("phone") == k and it.get("type") == "consent":
                 if it.get("scope") in (scope, "all"):
                     at = str(it.get("at") or "")
@@ -308,7 +392,7 @@ def ledger_for(phone: str, limit: int = 100) -> list[dict]:
         k = _key(phone)
         if not k:
             return []
-        items = [it for it in _read(LEDGER_FILE) if it.get("phone") == k]
+        items = [it for it in _read(ledger_path()) if it.get("phone") == k]
         return items[-limit:][::-1]
     except Exception:
         return []
@@ -333,13 +417,32 @@ def record_opt_out(
         "call_id": (call_id or "")[:60],
         "at": _now(),
     }
-    _append(LEDGER_FILE, rec)
+    try:
+        _append(ledger_path(), rec)
+    except Exception as exc:  # noqa: BLE001 — the audit write must not abort the opt-out
+        logger.error(f"opt-out LEDGER write failed for ***{k[-4:]}: {exc}")
+
+    # Guard, then resolve at each call site. Binding the path to a local and
+    # reusing it would be better for one property (a cutover landing between the
+    # read and the write cannot then split the operation across two authorities)
+    # and worse for another: `runtime_data_scan` attributes a finding to the
+    # expression it sees, so `_append(local_var, ...)` reports a bare name where
+    # `_append(suppression_path(), ...)` reports the resolver, and this store
+    # loses its identity in the repo's own debt ledger. The split-brain needs a
+    # live cutover to happen at all, and the preflight still says DENIED, so the
+    # cheap half is taken now and the rest is deferred to a change that teaches
+    # the scanner to follow a locally-bound resolver result first.
     suppressed = True
-    if not is_suppressed(k):
+    if _suppression_path_or_none() is None:
+        # Cannot even name the store: do not claim a suppression that has no
+        # home. Same fail-CLOSED contract as a failed write, below.
+        logger.error(f"opt-out suppression UNRESOLVABLE for ***{k[-4:]} — NOT suppressed")
+        suppressed = False
+    elif not is_suppressed(k):
         # Dual-write: DB (concurrent-safe) + JSONL (audit trail)
         db_ok = _db_add_suppression(k, rec["reason"], rec["channel"])
         jsonl_ok = _append(
-            SUPPRESSION_FILE,
+            suppression_path(),
             {"phone": k, "reason": rec["reason"], "channel": rec["channel"], "at": rec["at"]},
         )
         ok = db_ok or jsonl_ok  # either path sufficient
@@ -383,7 +486,15 @@ def record_opt_out(
 
 def is_suppressed(phone: str) -> bool:
     """True agar number opt-out suppression list par hai. Never raises.
-    CONSENT_DB=1 pe Postgres check (concurrent-safe); warna JSONL fallback."""
+    CONSENT_DB=1 pe Postgres check (concurrent-safe); warna JSONL fallback.
+
+    Returns True when the suppression authority cannot be RESOLVED. "I cannot
+    reach the opt-out list" must never be answered as "this person did not opt
+    out" — the caller is about to decide whether to contact somebody, and the
+    only safe answer without the list is "do not". A missing or empty file is
+    different and still reads as not-suppressed: that is an answer, not an
+    outage.
+    """
     try:
         k = _key(phone)
         if not k:
@@ -396,7 +507,9 @@ def is_suppressed(phone: str) -> bool:
         db_result = _db_is_suppressed(k)
         if db_result:
             return True
-        return any(it.get("phone") == k for it in _read(SUPPRESSION_FILE))
+        if _suppression_path_or_none() is None:
+            return True  # fail-CLOSED: no trustworthy list => treat as suppressed
+        return any(it.get("phone") == k for it in _read(suppression_path()))
     except Exception:
         return False
 
@@ -423,12 +536,12 @@ def last_opt_out_at(phone: str) -> str | None:
         if not k:
             return None
         latest: str | None = None
-        for it in _read(SUPPRESSION_FILE):
+        for it in _read(suppression_path()):
             if it.get("phone") == k:
                 at = str(it.get("at") or "")
                 if at and (latest is None or at > latest):
                     latest = at
-        for it in _read(LEDGER_FILE):
+        for it in _read(ledger_path()):
             if it.get("phone") == k and it.get("type") == "opt_out":
                 at = str(it.get("at") or "")
                 if at and (latest is None or at > latest):
@@ -521,18 +634,30 @@ def opt_back_in(
             "cooloff_days": _cooloff_days() if cooloff_days is None else cooloff_days,
             "error": "reconsent_cooloff",
         }
+    # Guard first — see record_opt_out for why the resolver is still called at
+    # each site rather than bound to a local.
+    if _suppression_path_or_none() is None:
+        # Refuse. Removing somebody from a suppression list is the one direction
+        # that makes a number contactable again; doing it while unable to name
+        # the list is how an opt-out silently stops being honoured.
+        logger.error(f"re-consent REFUSED ***{k[-4:]} — suppression authority unresolvable")
+        return {
+            "phone": k,
+            "suppressed": True,
+            "error": "suppression_authority_unavailable",
+        }
     # Remove from DB (concurrent-safe) + JSONL
     _db_remove_suppression(k)
-    items = _read(SUPPRESSION_FILE)
+    items = _read(suppression_path())
     keep = [i for i in items if i.get("phone") != k]
     if len(keep) != len(items):
-        _write_all(SUPPRESSION_FILE, keep)
+        _write_all(suppression_path(), keep)
     rec = record_consent(k, scope="all", source=source, proof=proof)
     if force and reconsent_blocked(k, cooloff_days=cooloff_days):
         # Override is a compliance event — leave an audit breadcrumb in the ledger.
         try:
             _append(
-                LEDGER_FILE,
+                ledger_path(),
                 {
                     "type": "reconsent_override",
                     "phone": k,
@@ -548,7 +673,7 @@ def opt_back_in(
 
 def suppression_list(limit: int = 500) -> list[dict]:
     try:
-        return _read(SUPPRESSION_FILE)[-limit:][::-1]
+        return _read(suppression_path())[-limit:][::-1]
     except Exception:
         return []
 
@@ -613,7 +738,7 @@ __all__ = [
     "reconsent_blocked",
     "suppression_list",
     "retention_sweep",
-    "LEDGER_FILE",
-    "SUPPRESSION_FILE",
+    "ledger_path",
+    "suppression_path",
     "RECORDINGS_DIR",
 ]

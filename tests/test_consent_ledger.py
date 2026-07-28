@@ -5,14 +5,32 @@ import time
 
 import pytest
 
+from app.marketing import wa_campaign_runner
 from app.telephony import consent_ledger as cl
 
 
 @pytest.fixture(autouse=True)
 def _tmp_stores(tmp_path, monkeypatch):
-    """Har test apne tmp jsonl stores pe chale (real data/ untouched)."""
-    monkeypatch.setattr(cl, "LEDGER_FILE", tmp_path / "consent_ledger.jsonl")
-    monkeypatch.setattr(cl, "SUPPRESSION_FILE", tmp_path / "voice_suppression.jsonl")
+    """Har test apne tmp jsonl stores pe chale (real data/ untouched).
+
+    The resolver FUNCTIONS are patched, not module constants. The constants are
+    gone precisely because a path frozen at import cannot be redirected by a
+    fixture that runs later — patching a leftover constant here would leave the
+    production code writing into the repository's own `data/` during CI.
+    """
+    monkeypatch.setattr(cl, "ledger_path", lambda: tmp_path / "consent_ledger.jsonl")
+    monkeypatch.setattr(cl, "suppression_path", lambda: tmp_path / "voice_suppression.jsonl")
+    # `record_opt_out` cross-channel-propagates into wa_campaign_runner.suppress()
+    # (TCCCPR: a revocation applies to every commercial channel). Without this
+    # third patch that write lands in the working copy's data/wa_suppression.jsonl
+    # — which is not hypothetical: four of this file's test numbers are sitting in
+    # that file right now. It is gitignored, so the damage never reached a commit,
+    # but "gitignored" is not "isolated": on the VPS that same path IS the
+    # authoritative suppression list. Isolating two of three stores is not
+    # isolation.
+    monkeypatch.setattr(
+        wa_campaign_runner, "_suppression_path", lambda: str(tmp_path / "wa_suppression.jsonl")
+    )
     monkeypatch.setattr(cl, "RECORDINGS_DIR", tmp_path / "recordings")
     yield
 

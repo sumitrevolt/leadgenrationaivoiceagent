@@ -67,8 +67,21 @@ def _uncontrolled_path_findings(module_path: str) -> list[tuple[int, str]]:
       * any string literal that names a checkout-relative `data/...` path;
       * `os.path.join("data", ...)` / `Path("data", ...)`, where no single
         literal contains a separator and a substring scan would see nothing.
+
+    A data-rooted join is reported by its RECONSTRUCTED path (`data/x.jsonl`)
+    whenever every segment is a literal, including segments contributed by
+    `Path("data") / "x"`. It degrades to the bare kind `join-with-data-root`
+    only when a segment is computed. The reconstruction matters: an exclusion
+    list can only name what the detector names, and a finding reported as an
+    anonymous kind forces a caller to exclude every join in the module at once
+    — which is the hole this test exists to close.
     """
     tree = ast.parse((REPO / module_path).read_text(encoding="utf-8"))
+
+    parents: dict[int, ast.AST] = {}
+    for node in ast.walk(tree):
+        for child in ast.iter_child_nodes(node):
+            parents[id(child)] = node
 
     exempt: set[int] = set()
     for node in ast.walk(tree):
@@ -88,6 +101,33 @@ def _uncontrolled_path_findings(module_path: str) -> list[tuple[int, str]]:
                         if isinstance(sub, ast.Constant):
                             exempt.add(id(sub))
 
+    def _render_join(call: ast.Call) -> str:
+        """`data/...` rebuilt from literal segments, or the bare kind."""
+        segments: list[str] = []
+        for arg in call.args:
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                segments.append(arg.value.replace("\\", "/").strip("/"))
+            else:
+                return "join-with-data-root"
+        # Absorb `Path("data") / "sub" / "file"` — the divisions are the
+        # remaining segments and they sit ABOVE the call in the tree.
+        node: ast.AST = call
+        while True:
+            parent = parents.get(id(node))
+            if (
+                isinstance(parent, ast.BinOp)
+                and isinstance(parent.op, ast.Div)
+                and parent.left is node
+            ):
+                right = parent.right
+                if not (isinstance(right, ast.Constant) and isinstance(right.value, str)):
+                    return "join-with-data-root"
+                segments.append(right.value.replace("\\", "/").strip("/"))
+                node = parent
+                continue
+            break
+        return "/".join(s for s in segments if s)
+
     findings: list[tuple[int, str]] = []
 
     for node in ast.walk(tree):
@@ -100,7 +140,7 @@ def _uncontrolled_path_findings(module_path: str) -> list[tuple[int, str]]:
                 and first.value.strip("/\\") == "data"
                 and id(first) not in exempt
             ):
-                findings.append((getattr(node, "lineno", -1), "join-with-data-root"))
+                findings.append((getattr(node, "lineno", -1), _render_join(node)))
         if (
             isinstance(node, ast.Constant)
             and isinstance(node.value, str)
@@ -170,35 +210,55 @@ def test_the_ratchet_would_actually_catch_a_regression(tmp_path):
         "import os\n"
         "from pathlib import Path\n"
         "A = Path('data/dial_blocklist.json')\n"
-        "B = os.path.join('data', 'platform_dial.json')\n",
+        "B = os.path.join('data', 'platform_dial.json')\n"
+        "C = Path('data') / 'recordings'\n"
+        "D = os.path.join('data', compute_name())\n",
         encoding="utf-8",
     )
     # The scanner joins against REPO; an absolute path makes that a no-op, so
     # the sample can live in tmp_path and still exercise the real implementation.
     findings = _uncontrolled_path_findings(str(sample))
-    kinds = {kind for _, kind in findings}
-    assert len(findings) == 2, findings
-    assert "join-with-data-root" in kinds, "the os.path.join('data', ...) shape slipped through"
-    assert any(v == "data/dial_blocklist.json" for _, v in findings)
+    values = {value for _, value in findings}
+    assert len(findings) == 4, findings
+    assert "data/dial_blocklist.json" in values, "the plain literal slipped through"
+    assert (
+        "data/platform_dial.json" in values
+    ), "the os.path.join('data', ...) shape slipped through"
+    assert "data/recordings" in values, "the Path('data') / 'sub' shape slipped through"
+    assert "join-with-data-root" in values, (
+        "a join with a COMPUTED segment must still be reported — degrading to the "
+        "bare kind is what keeps an unnameable path from being silently dropped"
+    )
 
 
 # ------------------------------------------------------------------ manifest
-def test_exactly_the_three_a1_rows_moved_state():
-    moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
-    assert moved == set(A1_STORE_IDS), moved
+def test_the_three_a1_rows_are_still_dual_read():
+    """A1's own rows, asserted by A1's own file.
 
-
-def test_no_a2_or_a3_row_was_touched():
-    """Every other Tier-0 store must still be LEGACY_IN_CHECKOUT.
-
-    A2 (compliance) and A3 (billing/customers) have not been migrated, and a
-    state that runs ahead of the code is exactly the false claim this manifest
-    exists to prevent.
+    This was `moved == A1_STORE_IDS` while A1 was the newest wave. It is a
+    subset assertion now that A2 has landed — NOT a relaxation: the exact
+    global set is asserted by the newest wave's ratchet
+    (`test_runtime_data_a2_ratchet.py`), which is the only file that can know
+    the current total. Splitting it that way keeps one exact assertion in the
+    repo instead of N files that each have to be edited to add a wave.
     """
+    moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
+    assert set(A1_STORE_IDS) <= moved, set(A1_STORE_IDS) - moved
+
+
+def test_no_unmigrated_tier0_row_was_touched():
+    """Every Tier-0 store outside a landed wave must still be LEGACY_IN_CHECKOUT.
+
+    A3 (billing/customers) has not been migrated, and a state that runs ahead
+    of the code is exactly the false claim this manifest exists to prevent.
+    """
+    from tests.test_runtime_data_a2_ratchet import A2_STORE_IDS
+
+    landed = set(A1_STORE_IDS) | set(A2_STORE_IDS)
     still_legacy = {
         s["store_id"]
         for s in manifest.STORES
-        if s.get("migration_tier") == manifest.TIER_0 and s["store_id"] not in A1_STORE_IDS
+        if s.get("migration_tier") == manifest.TIER_0 and s["store_id"] not in landed
     }
     for store_id in still_legacy:
         row = next(s for s in manifest.STORES if s["store_id"] == store_id)
