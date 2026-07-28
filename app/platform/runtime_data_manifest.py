@@ -448,9 +448,15 @@ STORES: list[dict[str, Any]] = [
         authoritative_or_required=True,
         inside_checkout=True,
         externally_protected=False,
+        writer_modules=[
+            "app/platform/runtime_recording_paths.py:call_recordings_dir",
+            "app/platform/runtime_recording_paths.py:call_transcripts_dir",
+        ],
         target_runtime_subpath="artifacts/call_recordings/",
         migration_tier=TIER_2,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A9 (2026-07-29) — code follows shared authority; host byte copy is a
+        # separate CUTOVER_COMPLETE step. DUAL_READ stays a blocker until then.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         blocker_reason="DPDP personal data with a 90-day retention duty, living inside "
         "the Git checkout — `git reset --hard` would destroy customer call evidence",
@@ -629,14 +635,18 @@ STORES: list[dict[str, Any]] = [
         store_id="telephony.call_recordings",
         display_name="Call recordings (retention-governed)",
         legacy_paths=["data/recordings/"],
-        writer_modules=["app/telephony/voice_launch.py:_recordings_dir"],
+        writer_modules=[
+            "app/platform/runtime_recording_paths.py:telephony_recordings_dir",
+            "app/telephony/voice_launch.py:_recordings_dir",
+        ],
         production_activity="PRODUCTION_ACTIVE",
         current_authority="FILE",
         business_category="compliance",
         durability_class="authoritative",
         target_runtime_subpath="telephony/recordings/",
         migration_tier=TIER_2,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A9 (2026-07-29) — RECORDINGS_DIR override preserved; code-only flip.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         retention_governed=True,
         evidence=(

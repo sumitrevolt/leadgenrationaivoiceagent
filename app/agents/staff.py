@@ -178,7 +178,7 @@ def _real_transcript_turns(max_per_niche: int = 6, files_n: int = 2) -> dict[str
     skip + dedupe + bounded. Never-raise → {}."""
     out: dict[str, list[str]] = {}
     try:
-        d = os.path.join("data", "call_transcripts")
+        d = str(_TRANSCRIPTS_DIR())
         try:
             files = [os.path.join(d, f) for f in os.listdir(d) if f.endswith(".jsonl")]
         except Exception:
@@ -365,7 +365,7 @@ async def run_trainer() -> dict[str, Any]:
     from app.platform import team
 
     try:
-        out_dir = os.path.join("data", "call_transcripts")
+        out_dir = str(_TRANSCRIPTS_DIR())
         files: list[str] = []
         try:
             files = [os.path.join(out_dir, f) for f in os.listdir(out_dir) if f.endswith(".jsonl")]
@@ -555,7 +555,13 @@ async def run_trainer() -> dict[str, Any]:
 # --------------------------------------------------------------------------- #
 # kavya — ops health snapshot + data retention
 # --------------------------------------------------------------------------- #
-_TRANSCRIPTS_DIR = os.path.join("data", "call_transcripts")
+def _TRANSCRIPTS_DIR() -> str:
+    """Call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return str(call_transcripts_dir())
+
+
 _EVENT_RETENTION_DAYS = 60
 _TRANSCRIPT_RETENTION_DAYS = 90
 
@@ -626,8 +632,8 @@ def _prune_old_transcripts(days: int = _TRANSCRIPT_RETENTION_DAYS) -> int:
     removed = 0
     try:
         cutoff_ts = time.time() - max(1, int(days)) * 86400
-        for fname in os.listdir(_TRANSCRIPTS_DIR):
-            fpath = os.path.join(_TRANSCRIPTS_DIR, fname)
+        for fname in os.listdir(_TRANSCRIPTS_DIR()):
+            fpath = os.path.join(_TRANSCRIPTS_DIR(), fname)
             try:
                 if os.path.isfile(fpath) and os.path.getmtime(fpath) < cutoff_ts:
                     os.remove(fpath)

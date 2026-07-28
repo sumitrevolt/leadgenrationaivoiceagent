@@ -29,7 +29,14 @@ logger = setup_logger(__name__)
 _QUALIFICATIONS = os.path.join("data", "call_qualifications.jsonl")
 _DIALER_LOGS = os.path.join("data", "dialer_logs.jsonl")
 _CADENCE_RUNS = os.path.join("data", "cadence_runs.jsonl")
-_TRANSCRIPTS_DIR = os.path.join("data", "call_transcripts")
+
+
+def _TRANSCRIPTS_DIR() -> str:
+    """Live call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return str(call_transcripts_dir())
+
 
 _RECENT_N = 50  # context me kitne recent records
 
@@ -57,12 +64,12 @@ def _read_call_transcripts(limit: int = _RECENT_N) -> list[dict[str, Any]]:
     """LIVE Vobiz stream transcripts (data/call_transcripts/YYYY-MM-DD.jsonl). Never raises."""
     out: list[dict[str, Any]] = []
     try:
-        if not os.path.isdir(_TRANSCRIPTS_DIR):
+        if not os.path.isdir(_TRANSCRIPTS_DIR()):
             return out
-        files = sorted(f for f in os.listdir(_TRANSCRIPTS_DIR) if f.endswith(".jsonl"))
+        files = sorted(f for f in os.listdir(_TRANSCRIPTS_DIR()) if f.endswith(".jsonl"))
         # Last ~14 daily files (newest last for tail read)
         for name in files[-14:]:
-            fp = os.path.join(_TRANSCRIPTS_DIR, name)
+            fp = os.path.join(_TRANSCRIPTS_DIR(), name)
             try:
                 with open(fp, encoding="utf-8") as f:
                     for ln in f:

@@ -15,14 +15,28 @@ def isolated_store(tmp_path, monkeypatch):
     path = tmp_path / "web_call_sessions.jsonl"
     tdir = tmp_path / "call_transcripts"
     monkeypatch.setattr(store, "_STORE", path)
-    monkeypatch.setattr(store, "_TRANSCRIPTS_DIR", tdir)
+    monkeypatch.setattr(store, "_TRANSCRIPTS_DIR", lambda: tdir)
     return path
 
 
 def test_append_requires_valid_lead_key(isolated_store):
     sid = "sess-abc12345"
-    assert store.append_session({"session_id": sid, "lead_key": "short", "turns": [{"role": "user", "text": "hi"}]}) is False
-    assert store.append_session({"session_id": sid, "lead_key": "wc_testuser01", "turns": [{"role": "user", "text": "hi"}]}) is True
+    assert (
+        store.append_session(
+            {"session_id": sid, "lead_key": "short", "turns": [{"role": "user", "text": "hi"}]}
+        )
+        is False
+    )
+    assert (
+        store.append_session(
+            {
+                "session_id": sid,
+                "lead_key": "wc_testuser01",
+                "turns": [{"role": "user", "text": "hi"}],
+            }
+        )
+        is True
+    )
     assert isolated_store.is_file()
 
 
@@ -49,7 +63,9 @@ def test_list_newest_first_and_optional_turns(isolated_store):
 def test_get_session_scoped_to_lead(isolated_store):
     lead = "wc_ownerkey01"
     sid = "sess-owner-01"
-    store.append_session({"session_id": sid, "lead_key": lead, "turns": [{"role": "bot", "text": "namaste"}]})
+    store.append_session(
+        {"session_id": sid, "lead_key": lead, "turns": [{"role": "bot", "text": "namaste"}]}
+    )
     row = store.get_session(sid, lead)
     assert row and row["session_id"] == sid
     assert store.get_session(sid, "wc_otherkey9") is None

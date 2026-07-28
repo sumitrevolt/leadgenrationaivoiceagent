@@ -31,7 +31,15 @@ _REPLY_DRAFTS = os.path.join("data", "reply_drafts.jsonl")
 _WIDGET_CHATS = os.path.join("data", "widget_chats.jsonl")
 _INQUIRIES = os.path.join("data", "inquiries.jsonl")
 _OUR_REPLIES = os.path.join("data", "conversation_replies.jsonl")
-_CALL_TRANSCRIPTS_DIR = os.path.join("data", "call_transcripts")
+
+
+def _CALL_TRANSCRIPTS_DIR() -> str:
+    """Call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return str(call_transcripts_dir())
+
+
 _CADENCE_RUNS = os.path.join("data", "cadence_runs.jsonl")
 _INTERACTIONS = os.path.join("data", "interactions.jsonl")
 
@@ -215,7 +223,7 @@ def _collect_messages() -> list[dict[str, Any]]:
 
     # 5) voice call transcripts (disposition summary)
     try:
-        tdir = _CALL_TRANSCRIPTS_DIR
+        tdir = _CALL_TRANSCRIPTS_DIR()
         if os.path.isdir(tdir):
             for fn in sorted(os.listdir(tdir), reverse=True)[:40]:
                 if not fn.endswith(".jsonl"):

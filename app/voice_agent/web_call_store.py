@@ -16,10 +16,16 @@ from pathlib import Path
 from typing import Any
 
 _STORE = Path("data") / "web_call_sessions.jsonl"
-_TRANSCRIPTS_DIR = Path("data") / "call_transcripts"
 _LOCK = threading.Lock()
 _LEAD_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
 _SID_RE = re.compile(r"^[a-zA-Z0-9_-]{8,64}$")
+
+
+def _TRANSCRIPTS_DIR() -> Path:
+    """Training transcript dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return call_transcripts_dir()
 
 
 def _now_iso() -> str:
@@ -54,10 +60,12 @@ def _turns_to_messages(turns: list[Any] | None) -> list[dict[str, str]]:
 def _training_transcript_exists(session_id: str) -> bool:
     """Dedupe — same web session do baar training me na aaye."""
     sid = (session_id or "").strip()
-    if not sid or not _TRANSCRIPTS_DIR.is_dir():
+    if not sid or not _TRANSCRIPTS_DIR().is_dir():
         return False
     try:
-        files = sorted(_TRANSCRIPTS_DIR.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+        files = sorted(
+            _TRANSCRIPTS_DIR().glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True
+        )
         for fp in files[:21]:
             with open(fp, encoding="utf-8") as f:
                 for line in f:
@@ -110,8 +118,8 @@ def mirror_session_to_training_transcript(row: dict[str, Any]) -> bool:
             "flow": row.get("flow") or "qualify",
             "lead_key": row.get("lead_key"),
         }
-        _TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
-        out = _TRANSCRIPTS_DIR / f"{day}.jsonl"
+        _TRANSCRIPTS_DIR().mkdir(parents=True, exist_ok=True)
+        out = _TRANSCRIPTS_DIR() / f"{day}.jsonl"
         with _LOCK:
             with open(out, "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
@@ -306,7 +314,9 @@ def count_sessions() -> int:
     try:
         with _LOCK:
             return sum(
-                1 for ln in _STORE.read_text(encoding="utf-8", errors="ignore").splitlines() if ln.strip()
+                1
+                for ln in _STORE.read_text(encoding="utf-8", errors="ignore").splitlines()
+                if ln.strip()
             )
     except Exception:
         return 0

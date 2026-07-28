@@ -188,7 +188,7 @@ def _seed_insights(tmp_path, monkeypatch):
             }
         ],
     )
-    monkeypatch.setattr(ci, "_TRANSCRIPTS_DIR", str(tdir))
+    monkeypatch.setattr(ci, "_TRANSCRIPTS_DIR", lambda: str(tdir))
     return ci
 
 

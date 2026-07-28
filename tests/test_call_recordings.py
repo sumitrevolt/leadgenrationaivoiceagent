@@ -22,7 +22,7 @@ def test_call_recordings_sorted_by_call_time(tmp_path, monkeypatch):
     os.utime(old_file, (old_ts, old_ts))
     os.utime(new_file, (new_ts, new_ts))
 
-    monkeypatch.setattr(cr, "_REC_DIR", str(tmp_path))
+    monkeypatch.setattr(cr, "_REC_DIR", lambda: str(tmp_path))
 
     out = asyncio.run(cr.list_recordings())
     assert out["total_sessions"] == 2

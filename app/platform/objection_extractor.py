@@ -60,7 +60,9 @@ async def extract_from_transcript(
     return found
 
 
-async def extract_from_reply(text: str, *, niche: str = "general", intent: str = "") -> list[dict[str, Any]]:
+async def extract_from_reply(
+    text: str, *, niche: str = "general", intent: str = ""
+) -> list[dict[str, Any]]:
     if not _enabled() or not text:
         return []
     if intent in ("objection", "not_interested", "unsubscribe") or _OBJECTION_CUES.search(text):
@@ -87,9 +89,7 @@ async def _ingest_qdrant(records: list[dict[str, Any]], niche: str) -> None:
         kb = KnowledgeBase()
         ns = f"objections:{niche or 'general'}"
         docs = [
-            f"Objection ({r.get('source')}): {r.get('text', '')}"
-            for r in records
-            if r.get("text")
+            f"Objection ({r.get('source')}): {r.get('text', '')}" for r in records if r.get("text")
         ]
         if docs:
             kb.add_documents(docs, source="objection_extractor", namespace=ns)
@@ -98,9 +98,11 @@ async def _ingest_qdrant(records: list[dict[str, Any]], niche: str) -> None:
 
 
 async def scan_recent_transcripts(limit: int = 20) -> dict[str, Any]:
-    """Batch scan data/call_transcripts/*.jsonl for objections."""
+    """Batch scan call_transcripts/*.jsonl for objections."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
     total = 0
-    tdir = Path("data") / "call_transcripts"
+    tdir = call_transcripts_dir()
     if not tdir.is_dir():
         return {"ok": True, "extracted": 0}
     files = sorted(tdir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)[:limit]

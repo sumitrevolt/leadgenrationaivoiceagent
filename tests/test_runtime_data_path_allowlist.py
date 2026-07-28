@@ -405,6 +405,11 @@ def test_store_manifest_still_validates() -> None:
         assert manifest.derived_blocker(by_id[sid]) is True, sid
     rec = by_id["telephony.call_recordings"]
     assert rec["migration_tier"] == manifest.TIER_2
+    assert rec["migration_state"] == manifest.DUAL_READ_PRE_CUTOVER
     assert manifest.derived_blocker(rec) is True
+    arts = by_id["artifacts.call_recordings"]
+    assert arts["migration_tier"] == manifest.TIER_2
+    assert arts["migration_state"] == manifest.DUAL_READ_PRE_CUTOVER
+    assert manifest.derived_blocker(arts) is True
     # The audit ledger stays OUT until it has its own reader/writer evidence.
     assert "telephony.dial_suppression_audit" not in by_id

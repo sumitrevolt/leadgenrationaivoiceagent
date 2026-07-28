@@ -92,13 +92,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
             "production stat/size evidence first. Tracked in memory/backlog.md."
         ),
     },
-    "app/telephony/consent_ledger.py": {
-        "data/recordings": (
-            "telephony.call_recordings — Tier 2, retention-governed, and not an "
-            "A2 store. It shares this module with the ledger by accident of "
-            "layout, not by ownership."
-        ),
-    },
+    "app/telephony/consent_ledger.py": {},
 }
 
 

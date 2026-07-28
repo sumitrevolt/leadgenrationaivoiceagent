@@ -837,14 +837,14 @@ class TestDataRetention:
         old_ts = time.time() - 100 * 86400  # 100 din purani (>90 cutoff)
         os.utime(str(old_f), (old_ts, old_ts))
 
-        monkeypatch.setattr(staff, "_TRANSCRIPTS_DIR", str(tmp_path))
+        monkeypatch.setattr(staff, "_TRANSCRIPTS_DIR", lambda: str(tmp_path))
         assert staff._prune_old_transcripts() == 1
         assert not old_f.exists()
         assert new_f.exists()
         # dobara chalao => ab kuch nahi bacha prune karne ko
         assert staff._prune_old_transcripts() == 0
         # missing dir => 0, KABHI raise nahi
-        monkeypatch.setattr(staff, "_TRANSCRIPTS_DIR", str(tmp_path / "nahi-hai"))
+        monkeypatch.setattr(staff, "_TRANSCRIPTS_DIR", lambda: str(tmp_path / "nahi-hai"))
         assert staff._prune_old_transcripts() == 0
 
 
