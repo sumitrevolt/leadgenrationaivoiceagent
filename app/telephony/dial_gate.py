@@ -32,7 +32,19 @@ logger = setup_logger(__name__)
 
 
 def _cfg_path() -> Path:
-    return Path(os.environ.get("DIAL_TEST_MODE_CONFIG", "data/dial_test_mode.json"))
+    """Resolved per call — the other half of the calling-safety config family.
+
+    Same store id as `platform_dial.json`, so both files move together or not
+    at all.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="telephony.calling_safety_config",
+        legacy_path=Path("data/dial_test_mode.json"),
+        target_segments=("telephony", "dial_test_mode.json"),
+        override_env="DIAL_TEST_MODE_CONFIG",
+    )
 
 
 def _file_cfg() -> dict:
@@ -88,7 +100,20 @@ def allowlist() -> set[str]:
 
 
 def _blocklist_path() -> Path:
-    return Path(os.environ.get("DIAL_BLOCKLIST_FILE", "data/dial_blocklist.json"))
+    """Reader half of the suppression store. Creates nothing.
+
+    A missing blocklist is a legitimate state (no number has ever been
+    suppressed), so resolution must not bring the file or its parent into
+    existence — only a real write does that.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="telephony.dial_suppression",
+        legacy_path=Path("data/dial_blocklist.json"),
+        target_segments=("telephony", "dial_blocklist.json"),
+        override_env="DIAL_BLOCKLIST_FILE",
+    )
 
 
 def _blocklist() -> dict:
@@ -192,7 +217,10 @@ def check(to: str, call_type: str = "transactional") -> tuple[bool, str]:
         if n and n in allowlist():
             return True, "allowlisted"
         if test_mode():
-            return False, "dial_test_mode: promotional calls sirf allowlist numbers pe (owner mandate 2026-07-05)"
+            return (
+                False,
+                "dial_test_mode: promotional calls sirf allowlist numbers pe (owner mandate 2026-07-05)",
+            )
         lb = learned_block_reason(to)
         if lb:
             return False, f"dial_blocklist: {lb} (self-learned from call outcomes)"

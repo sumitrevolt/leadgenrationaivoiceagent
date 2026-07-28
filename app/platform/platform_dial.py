@@ -17,7 +17,21 @@ _DEFAULT_LIMIT = 15
 
 
 def _cfg_path() -> Path:
-    return Path(os.environ.get("PLATFORM_DIAL_CONFIG", "data/platform_dial.json"))
+    """Resolved per call — one half of the calling-safety config family.
+
+    `platform_dial.json` and `dial_test_mode.json` share ONE store id, so the
+    authority resolves both through the same mode and root by construction.
+    One file canonical and the other legacy would mean the operator's dial kill
+    and the test-mode allowlist disagreed about which deployment they belong to.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="telephony.calling_safety_config",
+        legacy_path=Path("data/platform_dial.json"),
+        target_segments=("telephony", "platform_dial.json"),
+        override_env="PLATFORM_DIAL_CONFIG",
+    )
 
 
 def _file_cfg() -> dict:
@@ -50,7 +64,7 @@ def dial_limit() -> int:
 
 
 def dial_niche() -> str:
-    """"all" = poora harvested pool; ya ek specific niche key."""
+    """ "all" = poora harvested pool; ya ek specific niche key."""
     raw = (os.environ.get("PLATFORM_DIAL_NICHE", "") or "").strip()
     if not raw:
         raw = str(_file_cfg().get("niche") or "").strip()

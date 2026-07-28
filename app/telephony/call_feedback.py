@@ -41,8 +41,17 @@ def enabled() -> bool:
 
 
 def _blocklist_path() -> Path:
-    # dial_gate ke saath SAME env/naam — single source.
-    return Path(os.environ.get("DIAL_BLOCKLIST_FILE", "data/dial_blocklist.json"))
+    # dial_gate ke saath SAME env/naam AUR same store id — single source.
+    # Writer half: `_save()` creates the parent directory, this resolver does
+    # not, so a read can never conjure an empty suppression list into existence.
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="telephony.dial_suppression",
+        legacy_path=Path("data/dial_blocklist.json"),
+        target_segments=("telephony", "dial_blocklist.json"),
+        override_env="DIAL_BLOCKLIST_FILE",
+    )
 
 
 def _audit_path() -> Path:
@@ -158,7 +167,13 @@ def record_ivr_confirmed(
             f"prefix-block {'ACTIVE' if active else 'inactive'}, prospect_tagged={tagged})"
         )
         out.update(
-            {"ok": True, "phone": n, "prefix_hits": hits, "prefix_active": active, "prospect_tagged": tagged}
+            {
+                "ok": True,
+                "phone": n,
+                "prefix_hits": hits,
+                "prefix_active": active,
+                "prospect_tagged": tagged,
+            }
         )
         return out
     except Exception as e:
