@@ -24,24 +24,15 @@ import pytest
 from app.platform import runtime_data_allowlist as allowlist
 from app.platform import runtime_data_baseline as baseline
 from app.platform import runtime_data_manifest as manifest
+from tests.runtime_data_waves import A3_STORE_IDS
 from tests.test_runtime_data_a1_ratchet import (
-    A1_STORE_IDS,
     EXPECTED_ALLOWLIST_ENTRIES,
     EXPECTED_BASELINE_FINGERPRINTS,
     EXPECTED_BLOCKERS,
     _uncontrolled_path_findings,
 )
-from tests.test_runtime_data_a2_ratchet import A2_STORE_IDS
 
 REPO = Path(__file__).resolve().parents[1]
-
-#: The stores A3 migrated.
-A3_STORE_IDS = frozenset(
-    {
-        "compliance.email_suppression",
-        "compliance.dpdp_audit",
-    }
-)
 
 #: Their production writer modules.
 A3_MODULES = (
@@ -129,14 +120,14 @@ def test_a3_modules_resolve_at_call_time_not_import_time(module_path):
 
 
 # --------------------------------------------------------------- manifest
-def test_exactly_the_dual_read_set_is_a1_plus_a2_plus_a3():
-    """The single exact global assertion, owned by the newest wave.
+def test_the_a3_rows_are_still_dual_read():
+    """A3's own rows, asserted by A3's own file.
 
-    After rebasing onto main (A2 landed), the honest exact set is A1 | A2 | A3.
-    A2's own ratchet keeps a subset assertion; only this file pins the total.
+    Subset only — the exact global set is asserted once in
+    ``test_runtime_data_waves.py`` as the union of every declared wave.
     """
     moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
-    assert moved == set(A1_STORE_IDS) | set(A2_STORE_IDS) | set(A3_STORE_IDS), moved
+    assert set(A3_STORE_IDS) <= moved, set(A3_STORE_IDS) - moved
 
 
 def test_manifest_still_validates():
