@@ -43,7 +43,7 @@ def test_time_budget_breaks_query_loop_gracefully(monkeypatch, tmp_path):
     monkeypatch.setenv("PROSPECT_TIME_BUDGET_S", "150")
     monkeypatch.setenv("PROSPECT_MAX_QUERIES", "10")
     monkeypatch.setattr(prospector, "time", _FakeTime)
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "prospects.jsonl"))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(tmp_path / "prospects.jsonl"))
     monkeypatch.setattr(prospector, "_read_all", lambda: [])
     monkeypatch.setattr(
         prospector,
@@ -83,7 +83,7 @@ def test_full_budget_runs_all_queries(monkeypatch, tmp_path):
 
     monkeypatch.delenv("PROSPECT_TIME_BUDGET_S", raising=False)
     monkeypatch.setenv("PROSPECT_MAX_QUERIES", "3")
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "prospects.jsonl"))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(tmp_path / "prospects.jsonl"))
     monkeypatch.setattr(prospector, "_read_all", lambda: [])
     monkeypatch.setattr(
         prospector,

@@ -40,7 +40,7 @@ def test_import_rows_mapping_dedupe(tmp_path, monkeypatch):
     from app.platform import prospect_lists as pl
     from app.platform import prospector
 
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "p.jsonl"))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(tmp_path / "p.jsonl"))
     rows = [
         {
             "Company": "Sharma Solar",
@@ -66,7 +66,7 @@ def test_import_csv_text(tmp_path, monkeypatch):
     from app.platform import prospect_lists as pl
     from app.platform import prospector
 
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "p.jsonl"))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(tmp_path / "p.jsonl"))
     csv_text = "Company,Email,City\nGym X,owner@gymx.in,Nashik\n"
     res = pl.import_csv_text(csv_text)
     assert res["added"] == 1
@@ -76,7 +76,7 @@ def test_search_filters_and_lists(tmp_path, monkeypatch):
     from app.platform import prospect_lists as pl
     from app.platform import prospector
 
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "p.jsonl"))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(tmp_path / "p.jsonl"))
     monkeypatch.setattr(pl, "_LISTS", str(tmp_path / "lists.jsonl"))
     pl.import_rows(
         [

@@ -239,7 +239,7 @@ STORES: list[dict[str, Any]] = [
         store_id="sales.prospects",
         display_name="Prospect store",
         legacy_paths=["data/prospects.jsonl"],
-        writer_modules=["app/platform/prospector.py:38"],
+        writer_modules=["app/platform/prospector.py"],
         production_activity="PRODUCTION_ACTIVE",
         size_bytes=20332879,
         last_write="2026-07-25",
@@ -248,7 +248,10 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="sales/prospects.jsonl",
         migration_tier=TIER_1,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A7 (2026-07-29): writers resolve through runtime_data_authority.
+        # Bytes have not moved (~20MB JSONL) — DUAL_READ_PRE_CUTOVER stays a blocker.
+        # Host cutover is a SEPARATE PR; this wave is code-only.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="18,100 records; whole-file rewrite on update",
     ),

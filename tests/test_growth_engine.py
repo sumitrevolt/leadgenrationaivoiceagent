@@ -35,7 +35,7 @@ def tmp_env(monkeypatch, tmp_path):
     monkeypatch.setattr(growth_engine, "_PULSE_FILE", pulse)
     monkeypatch.setattr(growth_engine, "_HISTORY_FILE", hist)
     monkeypatch.setattr(growth_engine, "_INQUIRIES_FILE", inq)
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", pros)
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: pros)
     # DB off — team.log_event / team_status silently no-op (no DB needed).
     monkeypatch.setattr(team, "_db", lambda: None)
     # collect_metrics blog/clients/content ko REAL data/ se padhta hai — full-suite me

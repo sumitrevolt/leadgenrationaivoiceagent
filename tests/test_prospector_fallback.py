@@ -1,4 +1,5 @@
 """Rohan prospector reliability contracts."""
+
 from __future__ import annotations
 
 import asyncio
@@ -10,7 +11,7 @@ def test_google_empty_response_falls_back_to_osm_off_loop(monkeypatch, tmp_path)
     from app.platform import prospector, team
 
     class _EmptyGoogle:
-        api_key = "test-key"  # nosecret
+        api_key = "test-key"  # pragma: allowlist secret
 
         async def search_businesses(self, **_kwargs):
             return []
@@ -20,19 +21,23 @@ def test_google_empty_response_falls_back_to_osm_off_loop(monkeypatch, tmp_path)
 
     def _osm(_query, _city, _limit):
         osm_threads.append(threading.current_thread().name)
-        return [{
-            "business_name": "Pune Solar Works",
-            "phone": "+919876543210",
-            "address": "Pune",
-            "website": "",
-        }]
+        return [
+            {
+                "business_name": "Pune Solar Works",
+                "phone": "+919876543210",
+                "address": "Pune",
+                "website": "",
+            }
+        ]
 
     monkeypatch.setattr(google_maps, "GoogleMapsScraper", _EmptyGoogle)
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "prospects.jsonl"))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(tmp_path / "prospects.jsonl"))
     monkeypatch.setattr(prospector, "_read_all", lambda: [])
-    monkeypatch.setattr(prospector, "_targets", lambda: [{
-        "niche": "solar_residential", "query": "solar installer", "cities": ["Pune"]
-    }])
+    monkeypatch.setattr(
+        prospector,
+        "_targets",
+        lambda: [{"niche": "solar_residential", "query": "solar installer", "cities": ["Pune"]}],
+    )
     monkeypatch.setattr(prospector, "_osm_search", _osm)
     monkeypatch.setattr(prospector, "_append", lambda row: stored.append(row) or True)
     monkeypatch.setattr(prospector, "_phone_type", lambda _phone: "mobile")
@@ -74,12 +79,18 @@ def test_query_budget_caps_slow_provider_fallback_chain(monkeypatch, tmp_path):
         return None
 
     monkeypatch.setenv("PROSPECT_MAX_QUERIES", "2")
-    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", str(tmp_path / "prospects.jsonl"))
+    monkeypatch.setattr(prospector, "_PROSPECTS_FILE", lambda: str(tmp_path / "prospects.jsonl"))
     monkeypatch.setattr(prospector, "_read_all", lambda: [])
     monkeypatch.setattr(
         prospector,
         "_targets",
-        lambda: [{"niche": "solar_residential", "query": "solar installer", "cities": ["Pune", "Mumbai", "Nagpur"]}],
+        lambda: [
+            {
+                "niche": "solar_residential",
+                "query": "solar installer",
+                "cities": ["Pune", "Mumbai", "Nagpur"],
+            }
+        ],
     )
     monkeypatch.setattr(prospector, "_osm_search", _osm)
     monkeypatch.setattr(prospector.asyncio, "sleep", _no_sleep)
