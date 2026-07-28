@@ -35,6 +35,13 @@ logger = setup_logger(__name__)
 _IST = timezone(timedelta(hours=5, minutes=30))
 
 
+def _call_transcripts_dir() -> str:
+    """Call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return str(call_transcripts_dir())
+
+
 # --------------------------------------------------------------------------- #
 # Company roster — the AI staff. Fixed, code-defined (roles change via code).
 # --------------------------------------------------------------------------- #
@@ -885,7 +892,7 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
         try:
             import os
 
-            log = os.path.join("data", "call_transcripts")
+            log = _call_transcripts_dir()
             count = sum(1 for _ in os.scandir(log)) if os.path.isdir(log) else 0
             return f"inbound transcripts {count} sessions logged"
         except Exception:

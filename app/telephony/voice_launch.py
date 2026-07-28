@@ -733,7 +733,21 @@ async def record_provider_result(placed: bool, error: str = "") -> bool:
 # Recording pipeline gate (block dials if MANDATORY recording path unhealthy)
 # --------------------------------------------------------------------------- #
 def _recordings_dir() -> Path:
-    return Path(_env("RECORDINGS_DIR", "data/recordings"))
+    """Retention-governed recordings dir — resolved per call, never frozen at import.
+
+    RECORDINGS_DIR keeps its current override precedence before cutover; after
+    cutover the shared authority refuses an override that points anywhere but
+    the canonical target. Inlined (not delegated) so the path scanner still
+    binds the CREATE at ``recording_path_healthy`` to this store's legacy path.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="telephony.call_recordings",
+        legacy_path=Path("data") / "recordings",
+        target_segments=("telephony", "recordings"),
+        override_env="RECORDINGS_DIR",
+    )
 
 
 def recording_required() -> bool:

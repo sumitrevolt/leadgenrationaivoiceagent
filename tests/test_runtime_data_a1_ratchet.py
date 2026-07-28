@@ -159,13 +159,7 @@ OUT_OF_SCOPE: dict[str, dict[str, str]] = {
             "nobody has classified."
         ),
     },
-    "app/telephony/voice_launch.py": {
-        "data/recordings": (
-            "telephony.call_recordings — Tier 2, retention-governed, and not an "
-            "A1 store. It shares this module with the kill switch by accident of "
-            "layout, not by ownership."
-        ),
-    },
+    "app/telephony/voice_launch.py": {},
 }
 
 

@@ -82,6 +82,14 @@ A8_STORE_IDS = frozenset(
     }
 )
 
+#: Stores A9 migrated (call recordings + transcripts — last LEGACY blockers).
+A9_STORE_IDS = frozenset(
+    {
+        "artifacts.call_recordings",
+        "telephony.call_recordings",
+    }
+)
+
 #: wave name → frozenset of store ids. Add a new wave here; do not invent a
 #: second exact-global assertion in that wave's own ratchet.
 WAVE_STORE_IDS: dict[str, frozenset[str]] = {
@@ -93,6 +101,7 @@ WAVE_STORE_IDS: dict[str, frozenset[str]] = {
     "A6": A6_STORE_IDS,
     "A7": A7_STORE_IDS,
     "A8": A8_STORE_IDS,
+    "A9": A9_STORE_IDS,
 }
 
 

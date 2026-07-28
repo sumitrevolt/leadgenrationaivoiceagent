@@ -110,7 +110,7 @@ def test_conversations_aggregate_and_reply_draft(tmp_path, monkeypatch):
     monkeypatch.setattr(cv, "_WIDGET_CHATS", str(tmp_path / "widget_chats.jsonl"))
     monkeypatch.setattr(cv, "_INQUIRIES", str(tmp_path / "inquiries.jsonl"))
     monkeypatch.setattr(cv, "_OUR_REPLIES", str(tmp_path / "conversation_replies.jsonl"))
-    monkeypatch.setattr(cv, "_CALL_TRANSCRIPTS_DIR", str(tmp_path / "call_transcripts"))
+    monkeypatch.setattr(cv, "_CALL_TRANSCRIPTS_DIR", lambda: str(tmp_path / "call_transcripts"))
     monkeypatch.setattr(cv, "_CADENCE_RUNS", str(tmp_path / "cadence_runs.jsonl"))
     monkeypatch.setattr(cv, "_INTERACTIONS", str(tmp_path / "interactions.jsonl"))
 

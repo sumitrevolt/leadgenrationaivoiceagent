@@ -32,6 +32,14 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["Admin Ops"])
 
+
+def _call_transcripts_root() -> str:
+    """Call transcripts dir — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_transcripts_dir
+
+    return str(call_transcripts_dir())
+
+
 _BASE = (
     "/app"
     if os.path.isdir("/app")
@@ -262,7 +270,7 @@ def _load_call_transcript(call_id: str) -> dict | None:
     import json
     import os
 
-    root = os.path.join("data", "call_transcripts")
+    root = _call_transcripts_root()
     if not os.path.isdir(root):
         return None
     files = sorted(f for f in os.listdir(root) if f.endswith(".jsonl"))

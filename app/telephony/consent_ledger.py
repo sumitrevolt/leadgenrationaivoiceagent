@@ -256,10 +256,27 @@ def __getattr__(name: str) -> Path:
         warnings.warn(message, DeprecationWarning, stacklevel=2)
         logger.error("FROZEN COMPLIANCE PATH: %s", message)
         return ledger_path() if name == "LEDGER_FILE" else suppression_path()
+    if name == "RECORDINGS_DIR":
+        message = (
+            "consent_ledger.RECORDINGS_DIR is deprecated and does NOT track later "
+            "environment changes; call recordings_dir() instead."
+        )
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
+        logger.error("FROZEN COMPLIANCE PATH: %s", message)
+        return recordings_dir()
     raise AttributeError(name)
 
 
-RECORDINGS_DIR = Path("data") / "recordings"
+def recordings_dir() -> Path:
+    """Retention-governed telephony recordings — resolved per call, never frozen at import.
+
+    Same store as ``voice_launch._recordings_dir`` (telephony.call_recordings /
+    RECORDINGS_DIR). Import-time Path constants cannot follow a cutover.
+    """
+    from app.platform.runtime_recording_paths import telephony_recordings_dir
+
+    return telephony_recordings_dir()
+
 
 DEFAULT_RETENTION_DAYS = 90  # TRAI/QoS guidance: call recordings 90 din, fir delete
 
@@ -703,7 +720,7 @@ def retention_sweep(days: int | None = None) -> dict[str, Any]:
             "deleted": 0,
             "errors": 0,
         }
-        root = RECORDINGS_DIR
+        root = recordings_dir()
         if not root.exists():
             return result
         cutoff = _time.time() - days * 86400
@@ -740,5 +757,5 @@ __all__ = [
     "retention_sweep",
     "ledger_path",
     "suppression_path",
-    "RECORDINGS_DIR",
+    "recordings_dir",
 ]

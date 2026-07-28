@@ -55,6 +55,14 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+
+def _CALL_RECORDINGS_DIR() -> str:
+    """Web/phone call recordings root — resolved per call, never frozen at import."""
+    from app.platform.runtime_recording_paths import call_recordings_dir
+
+    return str(call_recordings_dir())
+
+
 router = APIRouter(prefix="/web-call", tags=["Web Call (Test Mode)"])
 
 
@@ -923,7 +931,7 @@ async def web_call_recording_upload(
 
     try:
         ext = _rec_ext(blob)
-        rec_dir = os.path.join("data", "call_recordings", day)
+        rec_dir = os.path.join(_CALL_RECORDINGS_DIR(), day)
         out = os.path.join(rec_dir, f"webcall_{sid}.{ext}")
         await asyncio.to_thread(_write_recording_sync, rec_dir, out, blob)
         return {"ok": True, "date": day, "file": f"webcall_{sid}.{ext}", "bytes": len(blob)}
@@ -1518,6 +1526,8 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     _user_text=user_text,
                     _tcbrain=tcbrain,
                     _use_stream=use_llm_stream,
+                    _turn_timing=_turn_timing,
+                    _websocket=websocket,
                 ) -> str:
                     nonlocal tc_reply
                     if _use_stream:
@@ -1534,24 +1544,28 @@ async def web_call_ws(websocket: WebSocket) -> None:
                     if tc_reply:
                         _t_tts = time.monotonic()
                         await _send_tcbrain_sentence_chunks(
-                            websocket,
+                            _websocket,
                             sentences=_split_sentences(tc_reply),
-                            user_text=user_text,
+                            user_text=_user_text,
                             full_reply=tc_reply,
                             llm_stream=False,
                             timing=_turn_timing,
                         )
                         _turn_timing["tts_ms"] = int((time.monotonic() - _t_tts) * 1000)
-                    signal_payload = _close_signal_payload(tcbrain)
+                    signal_payload = _close_signal_payload(_tcbrain)
                     if signal_payload:
                         try:
-                            await websocket.send_json(signal_payload)
+                            await _websocket.send_json(signal_payload)
                         except Exception:
                             pass
                     return tc_reply
 
                 async def _brain_turn_stream(
-                    _websocket=websocket, _history=history, _user_text=user_text, _tcbrain=tcbrain, _turn_timing=_turn_timing
+                    _websocket=websocket,
+                    _history=history,
+                    _user_text=user_text,
+                    _tcbrain=tcbrain,
+                    _turn_timing=_turn_timing,
                 ) -> str:
                     nonlocal tc_reply
                     streamed: list[str] = []

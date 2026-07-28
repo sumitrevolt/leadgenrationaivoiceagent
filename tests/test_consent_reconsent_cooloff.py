@@ -22,7 +22,7 @@ def _tmp_stores(tmp_path, monkeypatch):
     monkeypatch.setattr(
         wa_campaign_runner, "_suppression_path", lambda: str(tmp_path / "wa_suppression.jsonl")
     )
-    monkeypatch.setattr(cl, "RECORDINGS_DIR", tmp_path / "recordings")
+    monkeypatch.setattr(cl, "recordings_dir", lambda: tmp_path / "recordings")
     monkeypatch.delenv("RECONSENT_COOLOFF_DAYS", raising=False)
     yield
 
