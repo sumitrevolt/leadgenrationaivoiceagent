@@ -216,16 +216,21 @@ def __getattr__(name: str) -> Path:
     fails loudly-late rather than silently, and a test asserts that no code in
     this repository imports these names. Call `ledger_path()` /
     `suppression_path()` instead.
+
+    It logs at ERROR as well as warning. `pyproject.toml` sets
+    `filterwarnings = ["ignore::DeprecationWarning", ...]`, so under the test
+    suite the warning alone is swallowed — a tripwire nobody can hear is not a
+    tripwire, and this store decides whether a person may be contacted.
     """
     import warnings
 
     if name in ("LEDGER_FILE", "SUPPRESSION_FILE"):
-        warnings.warn(
+        message = (
             f"consent_ledger.{name} is deprecated and does NOT track later "
-            "environment changes; call ledger_path()/suppression_path() instead.",
-            DeprecationWarning,
-            stacklevel=2,
+            "environment changes; call ledger_path()/suppression_path() instead."
         )
+        warnings.warn(message, DeprecationWarning, stacklevel=2)
+        logger.error("FROZEN COMPLIANCE PATH: %s", message)
         return ledger_path() if name == "LEDGER_FILE" else suppression_path()
     raise AttributeError(name)
 

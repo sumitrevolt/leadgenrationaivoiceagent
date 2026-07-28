@@ -31,7 +31,13 @@ import pytest
 from app.platform import runtime_data_allowlist as allowlist
 from app.platform import runtime_data_baseline as baseline
 from app.platform import runtime_data_manifest as manifest
-from tests.test_runtime_data_a1_ratchet import A1_STORE_IDS, _uncontrolled_path_findings
+from tests.test_runtime_data_a1_ratchet import (
+    A1_STORE_IDS,
+    EXPECTED_ALLOWLIST_ENTRIES,
+    EXPECTED_BASELINE_FINGERPRINTS,
+    EXPECTED_BLOCKERS,
+    _uncontrolled_path_findings,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -61,11 +67,15 @@ A2_RESOLVERS = {
 #: Deleted constants. Any repository code still importing these is a defect.
 RETIRED_CONSTANTS = ("LEDGER_FILE", "SUPPRESSION_FILE", "_SUPPRESSION_FILE")
 
-#: Counts pinned so a "small cleanup" cannot quietly relax a neighbouring
-#: control. Unchanged from A1 on purpose — see the blocker-count test below.
-EXPECTED_BLOCKERS = 21
-EXPECTED_ALLOWLIST_ENTRIES = 16
-EXPECTED_BASELINE_FINGERPRINTS = 839
+#: Roots scanned for reintroduced constants. Wider than the migrated modules on
+#: purpose: the damage from a frozen compliance path does not depend on which
+#: directory froze it.
+SCANNED_ROOTS = ("app", "scripts", "tests", "alembic")
+
+# The pinned counts (EXPECTED_BLOCKERS / EXPECTED_ALLOWLIST_ENTRIES /
+# EXPECTED_BASELINE_FINGERPRINTS) are imported from the A1 ratchet rather than
+# restated here. Two copies of a pinned number drift, and the drift always
+# resolves in favour of whichever copy the failing test happens to read.
 
 #: Paths that live in an A2 module but belong to a store A2 did NOT migrate.
 #: An exclusion list, not an amnesty: the assertion requires the observed set to
@@ -131,7 +141,21 @@ def test_a2_modules_resolve_at_call_time_not_import_time(module_path):
     for resolver in A2_RESOLVERS[module_path]:
         assert resolver in functions, f"{module_path} must expose {resolver}() as a function"
 
-    for node in tree.body:
+    # Module level includes the bodies of top-level `try:` / `if:` blocks — a
+    # constant reintroduced under `if TYPE_CHECKING:` or a try/except import
+    # fallback is bound at import just the same, and walking only `tree.body`
+    # would step straight over it.
+    def _module_level(body: list[ast.stmt]):
+        for node in body:
+            yield node
+            if isinstance(node, ast.If | ast.Try):
+                yield from _module_level(node.body)
+                yield from _module_level(getattr(node, "orelse", []))
+                yield from _module_level(getattr(node, "finalbody", []))
+                for handler in getattr(node, "handlers", []):
+                    yield from _module_level(handler.body)
+
+    for node in _module_level(tree.body):
         targets = []
         if isinstance(node, ast.Assign):
             targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
@@ -144,35 +168,115 @@ def test_a2_modules_resolve_at_call_time_not_import_time(module_path):
             )
 
 
+def _retired_constant_offenders(rel: str, text: str) -> list[str]:
+    """The three reintroduction shapes, on ANY receiver. Never raises."""
+    try:
+        tree = ast.parse(text)
+    except SyntaxError:
+        return []
+    found: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name in RETIRED_CONSTANTS:
+                    found.append(f"{rel}:{node.lineno} imports {alias.name}")
+        elif isinstance(node, ast.Attribute) and node.attr in RETIRED_CONSTANTS:
+            found.append(f"{rel}:{node.lineno} reads .{node.attr}")
+        elif (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "getattr"
+            and len(node.args) >= 2
+            and isinstance(node.args[1], ast.Constant)
+            and node.args[1].value in RETIRED_CONSTANTS
+        ):
+            found.append(f"{rel}:{node.lineno} getattr({node.args[1].value!r})")
+    return found
+
+
 def test_no_repository_code_imports_the_retired_constants():
     """The deprecation shim is a tripwire, not a supported call style.
 
     `from consent_ledger import LEDGER_FILE` resolves ONCE and the importing
     module then holds a frozen Path forever, so the shim cannot deliver
-    operation-time resolution to that form. Scanning imports (not substrings)
-    keeps the prose in these very docstrings from failing the test.
+    operation-time resolution to that form. Matching on the AST rather than on
+    raw text keeps the prose in these very docstrings from failing the test.
+
+    Three shapes are caught, on ANY receiver:
+      * `from <module> import LEDGER_FILE`
+      * `<anything>.LEDGER_FILE`
+      * `getattr(<anything>, "LEDGER_FILE")`
+
+    Receiver names are deliberately NOT allowlisted. An earlier version accepted
+    only `cl` / `consent_ledger` / `runner`, which missed 8 of the 28 real
+    import aliases in this repository — an allowlist of variable names is a
+    guess about how the next author will spell things.
+
+    The text pre-filter is not an optimisation for its own sake: an identifier
+    cannot appear in a module's AST unless it appears in that module's source
+    text, so gating on `in text` is exactly equivalent and drops the parse count
+    from ~1000 files to ~3. The unfiltered version segfaulted CI twice inside
+    `ast.parse` during garbage collection (exit 139, no assertion failure) in a
+    process holding ~155 native extension modules. Cheapness here is a
+    stability property, not a nicety.
     """
     offenders: list[str] = []
-    for path in sorted((REPO / "app").rglob("*.py")) + sorted((REPO / "scripts").rglob("*.py")):
-        if "__pycache__" in path.parts:
+    scanned = 0
+    parsed = 0
+    for root in SCANNED_ROOTS:
+        root_dir = REPO / root
+        if not root_dir.is_dir():
             continue
-        rel = path.relative_to(REPO).as_posix()
-        if rel == "app/telephony/consent_ledger.py":
-            continue  # defines the shim
-        try:
-            tree = ast.parse(path.read_text(encoding="utf-8"))
-        except (SyntaxError, UnicodeDecodeError):
-            continue
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom):
-                for alias in node.names:
-                    if alias.name in RETIRED_CONSTANTS:
-                        offenders.append(f"{rel}:{node.lineno} imports {alias.name}")
-            elif isinstance(node, ast.Attribute) and node.attr in RETIRED_CONSTANTS:
-                value = node.value
-                if isinstance(value, ast.Name) and value.id in {"cl", "consent_ledger", "runner"}:
-                    offenders.append(f"{rel}:{node.lineno} reads .{node.attr}")
+        for path in sorted(root_dir.rglob("*.py")):
+            if "__pycache__" in path.parts:
+                continue
+            rel = path.relative_to(REPO).as_posix()
+            if rel in ("app/telephony/consent_ledger.py", "tests/test_runtime_data_a2_ratchet.py"):
+                continue  # define the shim / name the constants as data
+            scanned += 1
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            if not any(const in text for const in RETIRED_CONSTANTS):
+                continue
+            parsed += 1
+            offenders.extend(_retired_constant_offenders(rel, text))
+    assert scanned > 200, f"the scan walked only {scanned} files — it is not looking at the repo"
+    assert parsed <= 25, (
+        f"the text pre-filter stopped working: {parsed} of {scanned} files reached ast.parse. "
+        "That is the shape that segfaulted CI; if the constants really are named in that many "
+        "files, find out why before raising this bound"
+    )
     assert not offenders, offenders
+
+
+def test_the_retired_constant_scanner_would_catch_a_regression():
+    """Anti-vacuity: a scanner that finds nothing anywhere proves nothing.
+
+    Every shape it claims to catch is exercised on purpose, together with the
+    two shapes it must NOT flag — a docstring mentioning the name, and a
+    same-named attribute belonging to some unrelated object is deliberately
+    still flagged, because a false positive there costs a rename and a false
+    negative costs a frozen compliance path.
+    """
+    sample = (
+        '"""A docstring naming LEDGER_FILE must not count."""\n'
+        "from app.telephony.consent_ledger import LEDGER_FILE\n"
+        "from app.marketing.wa_campaign_runner import _SUPPRESSION_FILE as X\n"
+        "a = some_unexpected_alias.SUPPRESSION_FILE\n"
+        "b = app.telephony.consent_ledger.LEDGER_FILE\n"
+        'c = getattr(mod, "SUPPRESSION_FILE")\n'
+        'd = "SUPPRESSION_FILE"\n'
+    )
+    found = _retired_constant_offenders("sample.py", sample)
+    assert len(found) == 5, found
+    assert sum("imports" in f for f in found) == 2, found
+    assert sum("reads ." in f for f in found) == 2, found
+    assert sum("getattr(" in f for f in found) == 1, found
+
+    clean = '"""Only prose about LEDGER_FILE here."""\nx = 1\n'
+    assert _retired_constant_offenders("clean.py", clean) == []
 
 
 # --------------------------------------------------------------- manifest
