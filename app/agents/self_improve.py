@@ -1006,11 +1006,36 @@ def _acquire_revive_lock() -> bool:
 def ensure_alive() -> dict[str, Any]:
     """Watchdog hook (light, sync): flag ON + heartbeat stale → Celery tick enqueue.
     Web process me kabhi inline run nahi (prod-down lesson). Single-chain locked —
-    concurrent/repeat revivals chain multiply nahi karte."""
+    concurrent/repeat revivals chain multiply nahi karte.
+
+    Cap-aware (2026-07-28 prod OOM correlation): after ``daily_cap``/``budget_cap``
+    the owner chain deliberately requeues with a ~3600s countdown. Heartbeat is
+    fresh at the skip, then goes quiet for up to an hour — the old
+    ``max(900, gap*4)`` stale window treated that intentional sleep as death and
+    seeded a parallel chain every ~15 minutes. Those revives mostly hit
+    ``tick_slot`` (owner still holds ``next_allowed``) or re-hit the cap, but
+    every receive still costs worker RSS and correlated with cgroup OOM. Do not
+    revive while the same calendar day is still cap-paused, or while Redis says
+    a future tick is already scheduled.
+    """
     if not enabled():
         return {"enabled": False}
     try:
         st = _load_state()
+        status = str(st.get("status") or "")
+        day = _now().strftime("%Y-%m-%d")
+        if status in ("daily_cap", "budget_cap") and str(st.get("day") or "") == day:
+            return {"enabled": True, "alive": True, "paused": status}
+
+        r = _redis_client()
+        if r is not None:
+            try:
+                next_allowed = float(_redis_value(r.get(_TICK_NEXT_ALLOWED_KEY)) or 0)
+                if next_allowed and time.time() < (next_allowed - _TICK_ETA_SKEW_S):
+                    return {"enabled": True, "alive": True, "scheduled": True}
+            except Exception:
+                pass
+
         last = float(st.get("last_tick", 0) or 0)
         stale = (time.time() - last) > max(900, gap_seconds() * 4)
         if not stale:
