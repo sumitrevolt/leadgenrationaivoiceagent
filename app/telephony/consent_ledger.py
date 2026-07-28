@@ -103,13 +103,15 @@ def _db_is_suppressed(phone_key: str) -> bool | None:
 
         from app.config import settings
 
-        dsn = (getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", ""))
+        dsn = getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", "")
         dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
             "postgresql+psycopg2://", "postgresql://"
         )
         conn = psycopg2.connect(dsn)
         with conn.cursor() as cur:
-            cur.execute("SELECT 1 FROM opt_out_suppression WHERE phone_key=%s LIMIT 1", (phone_key,))
+            cur.execute(
+                "SELECT 1 FROM opt_out_suppression WHERE phone_key=%s LIMIT 1", (phone_key,)
+            )
             found = cur.fetchone() is not None
         conn.close()
         return found
@@ -127,7 +129,7 @@ def _db_add_suppression(phone_key: str, reason: str, channel: str) -> bool:
 
         from app.config import settings
 
-        dsn = (getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", ""))
+        dsn = getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", "")
         dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
             "postgresql+psycopg2://", "postgresql://"
         )
@@ -157,7 +159,7 @@ def _db_remove_suppression(phone_key: str) -> bool:
 
         from app.config import settings
 
-        dsn = (getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", ""))
+        dsn = getattr(settings, "database_url", "") or os.environ.get("DATABASE_URL", "")
         dsn = dsn.replace("postgresql+asyncpg://", "postgresql://").replace(
             "postgresql+psycopg2://", "postgresql://"
         )
@@ -173,8 +175,61 @@ def _db_remove_suppression(phone_key: str) -> bool:
 
 
 # Stores (tests monkeypatch these module attrs)
-LEDGER_FILE = Path("data") / "consent_ledger.jsonl"
-SUPPRESSION_FILE = Path("data") / "voice_suppression.jsonl"
+def ledger_path() -> Path:
+    """Consent ledger — resolved per call, never captured at import.
+
+    DPDP audit trail. A module-level constant froze this path when the module
+    was first imported, which is what makes a store impossible to move and
+    impossible to redirect from a fixture that runs later.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="compliance.consent_ledger",
+        legacy_path=Path("data") / "consent_ledger.jsonl",
+        target_segments=("compliance", "consent_ledger.jsonl"),
+    )
+
+
+def suppression_path() -> Path:
+    """Voice suppression list — a SEPARATE store from the consent ledger.
+
+    They share this module, not an identity: an opt-out must be able to move,
+    be verified and be rolled back independently of the audit trail that
+    explains it.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="compliance.voice_suppression",
+        legacy_path=Path("data") / "voice_suppression.jsonl",
+        target_segments=("compliance", "voice_suppression.jsonl"),
+    )
+
+
+def __getattr__(name: str) -> Path:
+    """DEPRECATED transitional shim for the old module constants.
+
+    `from consent_ledger import LEDGER_FILE` calls this ONCE and freezes the
+    result in the importing module, so this shim cannot deliver operation-time
+    resolution to that form. It exists only so an unnoticed external consumer
+    fails loudly-late rather than silently, and a test asserts that no code in
+    this repository imports these names. Call `ledger_path()` /
+    `suppression_path()` instead.
+    """
+    import warnings
+
+    if name in ("LEDGER_FILE", "SUPPRESSION_FILE"):
+        warnings.warn(
+            f"consent_ledger.{name} is deprecated and does NOT track later "
+            "environment changes; call ledger_path()/suppression_path() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return ledger_path() if name == "LEDGER_FILE" else suppression_path()
+    raise AttributeError(name)
+
+
 RECORDINGS_DIR = Path("data") / "recordings"
 
 DEFAULT_RETENTION_DAYS = 90  # TRAI/QoS guidance: call recordings 90 din, fir delete
@@ -268,7 +323,7 @@ def record_consent(
         "client_id": (client_id or "")[:60],
         "at": _now(),
     }
-    _append(LEDGER_FILE, rec)
+    _append(ledger_path(), rec)
     return rec
 
 
@@ -281,7 +336,7 @@ def has_consent(phone: str, scope: str = "voice_promo", max_age_days: int | None
         if not k or is_suppressed(k):
             return False
         latest: str | None = None
-        for it in _read(LEDGER_FILE):
+        for it in _read(ledger_path()):
             if it.get("phone") == k and it.get("type") == "consent":
                 if it.get("scope") in (scope, "all"):
                     at = str(it.get("at") or "")
@@ -308,7 +363,7 @@ def ledger_for(phone: str, limit: int = 100) -> list[dict]:
         k = _key(phone)
         if not k:
             return []
-        items = [it for it in _read(LEDGER_FILE) if it.get("phone") == k]
+        items = [it for it in _read(ledger_path()) if it.get("phone") == k]
         return items[-limit:][::-1]
     except Exception:
         return []
@@ -333,13 +388,13 @@ def record_opt_out(
         "call_id": (call_id or "")[:60],
         "at": _now(),
     }
-    _append(LEDGER_FILE, rec)
+    _append(ledger_path(), rec)
     suppressed = True
     if not is_suppressed(k):
         # Dual-write: DB (concurrent-safe) + JSONL (audit trail)
         db_ok = _db_add_suppression(k, rec["reason"], rec["channel"])
         jsonl_ok = _append(
-            SUPPRESSION_FILE,
+            suppression_path(),
             {"phone": k, "reason": rec["reason"], "channel": rec["channel"], "at": rec["at"]},
         )
         ok = db_ok or jsonl_ok  # either path sufficient
@@ -396,7 +451,7 @@ def is_suppressed(phone: str) -> bool:
         db_result = _db_is_suppressed(k)
         if db_result:
             return True
-        return any(it.get("phone") == k for it in _read(SUPPRESSION_FILE))
+        return any(it.get("phone") == k for it in _read(suppression_path()))
     except Exception:
         return False
 
@@ -423,12 +478,12 @@ def last_opt_out_at(phone: str) -> str | None:
         if not k:
             return None
         latest: str | None = None
-        for it in _read(SUPPRESSION_FILE):
+        for it in _read(suppression_path()):
             if it.get("phone") == k:
                 at = str(it.get("at") or "")
                 if at and (latest is None or at > latest):
                     latest = at
-        for it in _read(LEDGER_FILE):
+        for it in _read(ledger_path()):
             if it.get("phone") == k and it.get("type") == "opt_out":
                 at = str(it.get("at") or "")
                 if at and (latest is None or at > latest):
@@ -523,16 +578,16 @@ def opt_back_in(
         }
     # Remove from DB (concurrent-safe) + JSONL
     _db_remove_suppression(k)
-    items = _read(SUPPRESSION_FILE)
+    items = _read(suppression_path())
     keep = [i for i in items if i.get("phone") != k]
     if len(keep) != len(items):
-        _write_all(SUPPRESSION_FILE, keep)
+        _write_all(suppression_path(), keep)
     rec = record_consent(k, scope="all", source=source, proof=proof)
     if force and reconsent_blocked(k, cooloff_days=cooloff_days):
         # Override is a compliance event — leave an audit breadcrumb in the ledger.
         try:
             _append(
-                LEDGER_FILE,
+                ledger_path(),
                 {
                     "type": "reconsent_override",
                     "phone": k,
@@ -548,7 +603,7 @@ def opt_back_in(
 
 def suppression_list(limit: int = 500) -> list[dict]:
     try:
-        return _read(SUPPRESSION_FILE)[-limit:][::-1]
+        return _read(suppression_path())[-limit:][::-1]
     except Exception:
         return []
 
@@ -613,7 +668,7 @@ __all__ = [
     "reconsent_blocked",
     "suppression_list",
     "retention_sweep",
-    "LEDGER_FILE",
-    "SUPPRESSION_FILE",
+    "ledger_path",
+    "suppression_path",
     "RECORDINGS_DIR",
 ]

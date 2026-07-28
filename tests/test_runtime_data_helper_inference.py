@@ -515,19 +515,24 @@ def test_real_consent_ledger_helpers_are_inferred() -> None:
 
     findings = s.scan_python("app/telephony/consent_ledger.py", src)
     symbols = {f.get("symbol") for f in findings}
-    assert "LEDGER_FILE" in symbols
-    assert "SUPPRESSION_FILE" in symbols
+    # A2 replaced the LEDGER_FILE / SUPPRESSION_FILE constants with resolver
+    # CALLS. The scanner must keep seeing the writes through that shape too —
+    # a detector that only recognised module constants would have gone quiet on
+    # the repo's two most compliance-critical stores the moment they migrated,
+    # and reported that silence as zero findings.
+    assert "ledger_path" in symbols
+    assert "suppression_path" in symbols
     # The retention sweep really does rewrite the voice suppression list.
     assert any(
-        f.get("symbol") == "SUPPRESSION_FILE" and f["operation"] == s.REWRITE
-        for f in findings
+        f.get("symbol") == "suppression_path" and f["operation"] == s.REWRITE for f in findings
     )
 
 
 def test_real_wa_campaign_runner_helpers_are_inferred() -> None:
     src = (_REPO / "app" / "marketing" / "wa_campaign_runner.py").read_text(encoding="utf-8")
     findings = s.scan_python("app/marketing/wa_campaign_runner.py", src)
-    suppression = [f for f in findings if f.get("symbol") == "_SUPPRESSION_FILE"]
+    # Resolver call, not a constant, since A2 — see the consent-ledger test above.
+    suppression = [f for f in findings if f.get("symbol") == "_suppression_path"]
     assert suppression, "WhatsApp suppression writers not detected"
     assert {f["operation"] for f in suppression} & {s.APPEND, s.REWRITE}
 

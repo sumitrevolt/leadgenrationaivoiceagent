@@ -260,7 +260,7 @@ def test_automation_health_audit_anomalies_uses_real_dlq_depth(tmp_path, monkeyp
 def test_automation_health_audit_optout_check_uses_real_ledger_not_dead_file(tmp_path, monkeypatch):
     """The old check watched data/dnd_cache.json — a file no code path ever
     writes — so it always false-flagged opt-out enforcement as stale. It must
-    now check the real store (app.telephony.consent_ledger.SUPPRESSION_FILE)
+    now check the real store (app.telephony.consent_ledger.suppression_path())
     is writable; a quiet day with zero new opt-outs is healthy, not stale."""
     aha = _load_automation_health_audit()
     data_dir = tmp_path / "data"
@@ -270,7 +270,9 @@ def test_automation_health_audit_optout_check_uses_real_ledger_not_dead_file(tmp
 
     from app.telephony import consent_ledger
 
-    monkeypatch.setattr(consent_ledger, "SUPPRESSION_FILE", data_dir / "voice_suppression.jsonl")
+    monkeypatch.setattr(
+        consent_ledger, "suppression_path", lambda: data_dir / "voice_suppression.jsonl"
+    )
 
     out = aha.check_compliance()
     assert out["optout_enforced"] is True
@@ -286,7 +288,9 @@ def test_automation_health_audit_optout_check_flags_unwritable_store(tmp_path, m
 
     # Parent dir does not exist -> not writable -> unhealthy.
     monkeypatch.setattr(
-        consent_ledger, "SUPPRESSION_FILE", tmp_path / "does_not_exist" / "voice_suppression.jsonl"
+        consent_ledger,
+        "suppression_path",
+        lambda: tmp_path / "does_not_exist" / "voice_suppression.jsonl",
     )
 
     out = aha.check_compliance()

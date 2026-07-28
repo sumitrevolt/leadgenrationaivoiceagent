@@ -146,7 +146,7 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="compliance/wa_suppression.jsonl",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="read by unified eligibility; caused a PR #144 CI pollution incident",
     ),
@@ -164,7 +164,7 @@ STORES: list[dict[str, Any]] = [
         retention_policy="regulatory",
         target_runtime_subpath="compliance/consent_ledger.jsonl",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
     ),
     _e(
@@ -180,7 +180,7 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="compliance/voice_suppression.jsonl",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="currently EMPTY (0 bytes) — empty is not the same as absent; "
         "the file is the authority and must survive cutover",
