@@ -218,7 +218,11 @@ fi
 # Both gates have now passed against this exact sha. Only here does the live
 # checkout — the one holding the production ledgers — move, and only forwards.
 echo "=== live checkout: git pull --ff-only ==="
-if ! git -C "$REPO" pull --ff-only; then
+# Plain `git pull` on purpose: cwd is already $REPO, and the guard-ordering
+# suite matches this exact destructive literal to prove the guard precedes it.
+# A `-C "$REPO"` form would hide the release's one destructive command from the
+# check whose entire job is to find it.
+if ! git pull --ff-only; then
   echo "FATAL: git pull --ff-only failed — refusing to deploy stale/dirty HEAD."
   echo "       Resolve the pull (backup live data/*, no reset --hard), then retry."
   echo "       No container has been replaced."
