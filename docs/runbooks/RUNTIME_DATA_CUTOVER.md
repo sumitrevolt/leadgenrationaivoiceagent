@@ -20,7 +20,9 @@ So the release's one destructive command operates on the directory holding the c
 
 `manifest.blocking_stores()` counts every row whose `migration_state` is in `BLOCKING_STATES`. Both `LEGACY_IN_CHECKOUT` **and** `DUAL_READ_PRE_CUTOVER` block. A store stops blocking only at `CUTOVER_COMPLETE`.
 
-So the deploy unblocks when **all** blocking stores reach `CUTOVER_COMPLETE` — not when the code is resolver-ready, and not when the bytes have been copied. As of 2026-07-28 that is **21 stores**, of which 6 are resolver-ready (`DUAL_READ_PRE_CUTOVER`, waves A1 + A2) and 15 are still `LEGACY_IN_CHECKOUT`.
+So the deploy unblocks when **all** blocking stores reach `CUTOVER_COMPLETE` — not when the code is resolver-ready, and not when the bytes have been copied.
+
+As of 2026-07-28, `scripts/runtime_data_cutover.py status` reports **21 blocking stores**: 6 resolver-ready (`DUAL_READ_PRE_CUTOVER`, waves A1 + A2) and 15 still `LEGACY_IN_CHECKOUT`. Note that the manifest holds **16** `LEGACY_IN_CHECKOUT` rows in total — one of them carries `deployment_blocker=False` and so is not in the 21. Read the count from `status`, not by adding up states by hand; the blocker set is defined by `BLOCKING_STATES` **and** the per-row `deployment_blocker` flag, and only the tool applies both.
 
 ## The ordering that is NOT optional
 
