@@ -5,7 +5,9 @@ from fastapi.testclient import TestClient
 
 def _wire_tmp(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "app.marketing.clients_store._CLIENTS_FILE", str(tmp_path / "clients.jsonl"), raising=False
+        "app.marketing.clients_store._CLIENTS_FILE",
+        lambda: str(tmp_path / "clients.jsonl"),
+        raising=False,
     )
     monkeypatch.setattr(
         "app.marketing.auto_content._QUEUE_DIR",

@@ -47,7 +47,7 @@ def test_payment_qr_pack_with_client(tmp_path, monkeypatch):
     from app.marketing import clients_store
     from app.marketing.upi_qr import payment_qr_pack
 
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "clients.jsonl"))
     monkeypatch.setattr(clients_store, "brand_kit", None)
     rec = clients_store.add_client("Sharma Solar", "solar", phone="9876500001")
     cid = rec["id"]
@@ -150,7 +150,7 @@ def test_reviews_widget_approved_only(tmp_path, monkeypatch):
     from app.marketing import clients_store, reviews_widget
 
     monkeypatch.setattr(mb, "_REVIEWS_DIR", str(tmp_path / "reviews"))
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "clients.jsonl"))
     monkeypatch.setattr(clients_store, "brand_kit", None)
 
     slug = "test-biz"

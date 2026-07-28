@@ -15,7 +15,9 @@ def _redirect(monkeypatch, tmp_path):
     monkeypatch.setattr(
         delivery_ledger, "_CONTENT_QUEUE_DIR", lambda: str(tmp_path / "content_queue")
     )
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "marketing_clients.jsonl"))
+    monkeypatch.setattr(
+        clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "marketing_clients.jsonl")
+    )
     monkeypatch.setattr(client_report, "_OUT_DIR", str(tmp_path / "client_reports"))
 
 
@@ -34,7 +36,7 @@ def _seed_client(cid: str, **fields):
         "slug": cid,
         **fields,
     }
-    path = clients_store._CLIENTS_FILE
+    path = clients_store._CLIENTS_FILE()
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(rec) + "\n")

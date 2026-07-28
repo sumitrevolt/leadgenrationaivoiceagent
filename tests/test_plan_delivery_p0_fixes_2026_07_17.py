@@ -8,7 +8,9 @@ from pathlib import Path
 def test_branded_posters_count_excludes_festival(monkeypatch, tmp_path):
     """Festival SVG/text must NOT pad the '4 branded posters' entitlement."""
     monkeypatch.setattr(
-        "app.marketing.clients_store._CLIENTS_FILE", str(tmp_path / "clients.jsonl"), raising=False
+        "app.marketing.clients_store._CLIENTS_FILE",
+        lambda: str(tmp_path / "clients.jsonl"),
+        raising=False,
     )
     monkeypatch.setattr(
         "app.marketing.auto_content._QUEUE_DIR",
@@ -108,7 +110,9 @@ def test_safe_client_phone_rejects_placeholder():
 
 def test_resolve_client_by_billing_alias(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "app.marketing.clients_store._CLIENTS_FILE", str(tmp_path / "clients.jsonl"), raising=False
+        "app.marketing.clients_store._CLIENTS_FILE",
+        lambda: str(tmp_path / "clients.jsonl"),
+        raising=False,
     )
     from app.marketing import clients_store
 
@@ -136,7 +140,9 @@ def test_build_report_uses_marketing_id_not_billing_alias(monkeypatch, tmp_path)
     import asyncio
 
     monkeypatch.setattr(
-        "app.marketing.clients_store._CLIENTS_FILE", str(tmp_path / "clients.jsonl"), raising=False
+        "app.marketing.clients_store._CLIENTS_FILE",
+        lambda: str(tmp_path / "clients.jsonl"),
+        raising=False,
     )
     monkeypatch.setattr(
         "app.marketing.client_report._OUT_DIR", str(tmp_path / "client_reports"), raising=False

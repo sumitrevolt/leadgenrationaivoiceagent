@@ -17,8 +17,8 @@ Har client ka ek unique `slug` (kebab-case business_name + 4-char id suffix)
 hota hai — mini-site /b/{slug} ke liye. Slug idempotently backfill hota hai jab
 client list/fetch hota hai (purane records bhi turant slug pa jaate hain).
 
-Pure stdlib, file-based, KABHI raise nahi karta. Module-level path const
-`_CLIENTS_FILE` test-monkeypatch ke liye exposed hai.
+Pure stdlib, file-based, KABHI raise nahi karta. Module-level path resolver
+``_CLIENTS_FILE()`` test-monkeypatch ke liye exposed hai (call-time, not import-time).
 """
 
 from __future__ import annotations
@@ -28,14 +28,26 @@ import os
 import re
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Tests isse monkeypatch karte hain (tmp path). Hamesha is const ke through padho.
-_CLIENTS_FILE = os.path.join("data", "marketing_clients.jsonl")
+
+def _CLIENTS_FILE() -> str:
+    """Marketing client registry — resolved per call, never frozen at import."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="customers.identity",
+            legacy_path=Path("data") / "marketing_clients.jsonl",
+            target_segments=("customers", "marketing_clients.jsonl"),
+        )
+    )
+
 
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{6}$")
 
@@ -135,11 +147,11 @@ def _read_all() -> list[dict[str, Any]]:
     in-memory records me slug set ho jaata hai (read kabhi raise nahi).
     """
     rows: list[dict[str, Any]] = []
-    path = _CLIENTS_FILE
     try:
-        if not os.path.isfile(path):
+        # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
+        if not os.path.isfile(_CLIENTS_FILE()):
             return rows
-        with open(path, encoding="utf-8") as f:
+        with open(_CLIENTS_FILE(), encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -179,14 +191,41 @@ def _read_all() -> list[dict[str, Any]]:
 
 def _file_lock(path: str):
     """Best-effort cross-process lock for `path` (web + worker + scheduler share
-    `data/`). Falls back to a no-op contextmanager if `filelock` isn't installed
-    or the lock can't be acquired in time — module contract is "never raise",
-    so an unlocked write is preferred over a crash (production audit 2026-07-01,
-    F-DB5: closes the _append/_rewrite race, doesn't guarantee zero-race)."""
+    the active runtime-data root). Falls back to a no-op contextmanager if `filelock`
+    isn't installed or the lock can't be acquired in time — module contract is
+    "never raise", so an unlocked write is preferred over a crash (production audit
+    2026-07-01, F-DB5: closes the _append/_rewrite race, doesn't guarantee zero-race).
+
+    Lock colocates with the ACTIVE ledger via ``resolve_lock_path`` when ``path``
+    is the authority path; monkeypatched test paths keep ``path + ".lock"``.
+    """
     try:
         from filelock import FileLock
 
-        return FileLock(path + ".lock", timeout=5)
+        from app.platform import runtime_data_authority as _auth
+
+        auth_store = str(
+            _auth.resolve_store_path(
+                store_id="customers.identity",
+                legacy_path=Path("data") / "marketing_clients.jsonl",
+                target_segments=("customers", "marketing_clients.jsonl"),
+            )
+        )
+        try:
+            same = os.path.normpath(path) == os.path.normpath(auth_store)
+        except Exception:
+            same = False
+        if same:
+            lock = str(
+                _auth.resolve_lock_path(
+                    store_id="customers.identity",
+                    legacy_path=Path("data") / "marketing_clients.jsonl",
+                    target_segments=("customers", "marketing_clients.jsonl"),
+                )
+            )
+        else:
+            lock = path + ".lock"
+        return FileLock(lock, timeout=5)
     except Exception:
         import contextlib
 
@@ -194,32 +233,55 @@ def _file_lock(path: str):
 
 
 def _append(rec: dict[str, Any]) -> None:
-    path = _CLIENTS_FILE
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
+    os.makedirs(os.path.dirname(_CLIENTS_FILE()) or ".", exist_ok=True)
     try:
-        with _file_lock(path):
-            with open(path, "a", encoding="utf-8") as f:
+        with _file_lock(_CLIENTS_FILE()):
+            with open(_CLIENTS_FILE(), "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:  # lock timeout etc. — fall back to unlocked append
         logger.debug(f"[clients_store] _append lock skip: {e}")
-        with open(path, "a", encoding="utf-8") as f:
+        with open(_CLIENTS_FILE(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
 
 def _rewrite(rows: list[dict[str, Any]]) -> None:
     """Poori file dobara likho (status/update ke liye). Atomic-ish."""
-    path = _CLIENTS_FILE
-    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-    tmp = path + ".tmp"
+    from app.platform import runtime_data_authority as _auth
+
+    # Active path resolved per call; tmp companion colocates via resolve_temp_path
+    # when on the authority path, else follows a monkeypatched redirect.
+    auth_store = str(
+        _auth.resolve_store_path(
+            store_id="customers.identity",
+            legacy_path=Path("data") / "marketing_clients.jsonl",
+            target_segments=("customers", "marketing_clients.jsonl"),
+        )
+    )
+    os.makedirs(os.path.dirname(_CLIENTS_FILE()) or ".", exist_ok=True)
+    try:
+        same = os.path.normpath(_CLIENTS_FILE()) == os.path.normpath(auth_store)
+    except Exception:
+        same = False
+    if same:
+        tmp = str(
+            _auth.resolve_temp_path(
+                store_id="customers.identity",
+                legacy_path=Path("data") / "marketing_clients.jsonl",
+                target_segments=("customers", "marketing_clients.jsonl"),
+            )
+        )
+    else:
+        tmp = _CLIENTS_FILE() + ".tmp"
 
     def _do_write() -> None:
         with open(tmp, "w", encoding="utf-8") as f:
             for r in rows:
                 f.write(json.dumps(r, ensure_ascii=False) + "\n")
-        os.replace(tmp, path)
+        os.replace(tmp, _CLIENTS_FILE())
 
     try:
-        with _file_lock(path):
+        with _file_lock(_CLIENTS_FILE()):
             _do_write()
     except Exception as e:  # lock timeout etc. — fall back to unlocked rewrite
         logger.debug(f"[clients_store] _rewrite lock skip: {e}")

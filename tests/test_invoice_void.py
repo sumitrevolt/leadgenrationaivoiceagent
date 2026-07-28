@@ -19,7 +19,7 @@ def inv(monkeypatch, tmp_path):
     """gst_invoice with an isolated store (module-attr patch, prod file untouched)."""
     from app.billing import gst_invoice as mod
 
-    monkeypatch.setattr(mod, "_STORE", str(tmp_path / "invoices.jsonl"))
+    monkeypatch.setattr(mod, "_STORE", lambda: str(tmp_path / "invoices.jsonl"))
     monkeypatch.delenv("GST_GSTIN", raising=False)
     monkeypatch.delenv("AUTO_INVOICE", raising=False)
     return mod
@@ -37,7 +37,7 @@ def test_void_marks_invoice_and_preserves_original_row(inv):
     assert out["ok"] is True
     assert out["number"] == rec["number"]
     # Original invoice line is still physically present (append-only, no rewrite).
-    raw = open(inv._STORE, encoding="utf-8").read()
+    raw = open(inv._STORE(), encoding="utf-8").read()
     assert rec["number"] in raw
     lines = [json.loads(x) for x in raw.splitlines() if x.strip()]
     assert any(r.get("kind") == "void" and r.get("voids") == rec["number"] for r in lines)
@@ -57,7 +57,7 @@ def test_double_void_is_idempotent(inv):
     assert second.get("deduped") is True
     # Only ONE void marker in the store.
     lines = [
-        json.loads(x) for x in open(inv._STORE, encoding="utf-8").read().splitlines() if x.strip()
+        json.loads(x) for x in open(inv._STORE(), encoding="utf-8").read().splitlines() if x.strip()
     ]
     assert sum(1 for r in lines if r.get("kind") == "void") == 1
 
@@ -120,7 +120,7 @@ def test_admin_void_route_wired(client, monkeypatch, tmp_path):
     """POST /api/growth/revenue/invoice-void — admin route exists and voids."""
     from app.billing import gst_invoice as mod
 
-    monkeypatch.setattr(mod, "_STORE", str(tmp_path / "invoices.jsonl"))
+    monkeypatch.setattr(mod, "_STORE", lambda: str(tmp_path / "invoices.jsonl"))
     rec = mod.create_invoice("c9", "starter", amount_inr=1999)
     resp = client.post(
         "/api/growth/revenue/invoice-void",

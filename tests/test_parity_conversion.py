@@ -204,7 +204,7 @@ def test_trial_status_active_expired():
 def test_clients_store_trial_fields(tmp_path, monkeypatch):
     from app.marketing import clients_store
 
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "clients.jsonl"))
     monkeypatch.setattr(clients_store, "brand_kit", None)  # no real data/ side-effect
     rec = clients_store.add_client("Trial Biz", "solar", phone="9876500001")
     cid = rec["id"]

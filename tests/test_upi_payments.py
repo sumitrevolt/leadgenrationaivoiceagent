@@ -14,7 +14,7 @@ def up(tmp_path, monkeypatch):
     """upi_payments module with its store pointed at a tmp file."""
     from app.platform import upi_payments as mod
 
-    monkeypatch.setattr(mod, "_STORE", str(tmp_path / "upi_payments.json"))
+    monkeypatch.setattr(mod, "_STORE", lambda: str(tmp_path / "upi_payments.json"))
     monkeypatch.delenv("UPI_AUTO_ACTIVATE", raising=False)
     return mod
 
@@ -59,7 +59,9 @@ def test_decide_approve_flips_to_approved(up, monkeypatch):
     from app.billing import usage
 
     calls: list[tuple] = []
-    monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: calls.append((cid, plan)) or True)
+    monkeypatch.setattr(
+        usage, "activate_plan", lambda cid, plan, **kw: calls.append((cid, plan)) or True
+    )
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
 
     sub = up.submit_payment("cli_9", "advanced", "TXN999", amount=5999)
@@ -167,7 +169,9 @@ def test_auto_activate_nudges_founder_spot_check(up, monkeypatch):
         lambda pid, cid, plan, amount: nudged.append((pid, cid, plan, amount)),
     )
 
-    out = up.submit_payment("cli_nudge", "advanced", "TXNNUDGE", amount=5999, payer_contact="9999999999")
+    out = up.submit_payment(
+        "cli_nudge", "advanced", "TXNNUDGE", amount=5999, payer_contact="9999999999"
+    )
 
     assert out["status"] == "auto_activated"
     assert len(nudged) == 1
@@ -347,8 +351,10 @@ def test_auto_activate_marks_matching_voice_deal_won(up, monkeypatch, sp):
     deal flipped to 'won' — "finalize the deal" — not left stuck forever."""
     from app.billing import usage
 
-    sp.upsert_deal({"phone": "9876543210", "business_name": "Voice Lead", "niche": "ai_marketing"},
-                   stage="negotiating")
+    sp.upsert_deal(
+        {"phone": "9876543210", "business_name": "Voice Lead", "niche": "ai_marketing"},
+        stage="negotiating",
+    )
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
@@ -392,7 +398,9 @@ def test_mark_deal_won_never_raises_on_storage_failure(up, monkeypatch):
 def test_mark_deal_won_does_not_resurrect_lost_deal(up, sp):
     """A deal already marked lost must stay lost — a coincidental phone reuse
     (e.g. a different plan/signup) must not silently revive a churned deal."""
-    deal = sp.upsert_deal({"phone": "9111111111", "business_name": "Churned Co"}, stage="negotiating")
+    deal = sp.upsert_deal(
+        {"phone": "9111111111", "business_name": "Churned Co"}, stage="negotiating"
+    )
     sp.set_stage(deal["id"], "lost")
 
     up._mark_deal_won("9111111111")

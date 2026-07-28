@@ -39,7 +39,7 @@ def _override_customer(app, cid):
 
 def _redirect_stores(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        clients_store, "_CLIENTS_FILE", os.path.join(str(tmp_path), "clients.jsonl")
+        clients_store, "_CLIENTS_FILE", lambda: os.path.join(str(tmp_path), "clients.jsonl")
     )
     monkeypatch.setattr(
         auto_content, "_QUEUE_DIR", lambda: os.path.join(str(tmp_path), "content_queue")

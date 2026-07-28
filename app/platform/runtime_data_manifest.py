@@ -82,7 +82,7 @@ STORES: list[dict[str, Any]] = [
         store_id="billing.invoices",
         display_name="GST invoice ledger (Rule-46 sequential)",
         legacy_paths=["data/invoices.jsonl"],
-        writer_modules=["app/billing/gst_invoice.py:36"],
+        writer_modules=["app/billing/gst_invoice.py"],
         production_activity="PRODUCTION_ACTIVE",
         size_bytes=14144,
         last_write="2026-07-18",
@@ -92,15 +92,17 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="billing/invoices.jsonl",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A5 (2026-07-29): writers resolve through runtime_data_authority.
+        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="25 lines; Rule-46 sequential numbering is a legal requirement",
     ),
     _e(
         store_id="billing.upi_payments",
         display_name="UPI payment records",
-        legacy_paths=["data/upi_payments.json"],
-        writer_modules=["app/platform/upi_payments.py:22"],
+        legacy_paths=["data/upi_payments.json", "data/platform_upi.json"],
+        writer_modules=["app/platform/upi_payments.py", "app/platform/upi_config.py"],
         production_activity="PRODUCTION_ACTIVE",
         size_bytes=835,
         last_write="2026-07-18",
@@ -110,9 +112,12 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="billing/upi_payments.json",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A5 (2026-07-29): writers resolve through runtime_data_authority.
+        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
-        evidence="UPI is the primary payment path (Stripe intl-only)",
+        evidence="UPI is the primary payment path (Stripe intl-only); "
+        "platform_upi.json is the sibling VPA config under the same store id",
     ),
     _e(
         store_id="compliance.email_suppression",
@@ -212,7 +217,7 @@ STORES: list[dict[str, Any]] = [
         store_id="customers.identity",
         display_name="Marketing client / customer registry",
         legacy_paths=["data/marketing_clients.jsonl", "data/marketing_clients.jsonl.lock"],
-        writer_modules=["app/marketing/clients_store.py:38"],
+        writer_modules=["app/marketing/clients_store.py"],
         production_activity="PRODUCTION_ACTIVE",
         size_bytes=4180,
         last_write="2026-07-26",
@@ -223,7 +228,9 @@ STORES: list[dict[str, Any]] = [
         concurrency_model="multi-process (best-effort filelock)",
         target_runtime_subpath="customers/marketing_clients.jsonl",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A5 (2026-07-29): writers resolve through runtime_data_authority.
+        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="8 JSONL rows vs 1 DB row; written TODAY; known read-time-rewrite defect",
     ),

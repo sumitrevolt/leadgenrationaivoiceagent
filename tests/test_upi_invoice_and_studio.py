@@ -36,7 +36,7 @@ def test_upi_decide_fires_gst_invoice(tmp_path, monkeypatch):
 
     # Isolate the payment store (never touch real data/upi_payments.json).
     store = tmp_path / "upi_payments.json"
-    monkeypatch.setattr(upi_payments, "_STORE", str(store))
+    monkeypatch.setattr(upi_payments, "_STORE", lambda: str(store))
 
     # Force activation success (real usage.activate_plan needs a DB row).
     monkeypatch.setattr(upi_payments, "_try_activate", lambda *a, **k: True)
@@ -79,7 +79,7 @@ def test_upi_invoice_hook_never_raises(tmp_path, monkeypatch):
     from app.billing import gst_invoice
     from app.platform import upi_payments
 
-    monkeypatch.setattr(upi_payments, "_STORE", str(tmp_path / "upi.json"))
+    monkeypatch.setattr(upi_payments, "_STORE", lambda: str(tmp_path / "upi.json"))
     monkeypatch.setattr(upi_payments, "_try_activate", lambda *a, **k: True)
     monkeypatch.setattr(upi_payments, "_trigger_onboarding", lambda *a, **k: None)
     monkeypatch.setattr(upi_payments, "_mark_deal_won", lambda *a, **k: None)
@@ -105,7 +105,7 @@ def _seed_client(
     """Create an isolated marketing client and return (client_id, auth_headers)."""
     from app.marketing import clients_store
 
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "clients.jsonl"))
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "clients.jsonl"))
     rec = clients_store.add_client(
         business_name=business_name,
         niche=niche,

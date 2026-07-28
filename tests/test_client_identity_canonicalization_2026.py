@@ -24,7 +24,9 @@ BILL_ID = "d79d690f61b3"
 
 
 def _seed_marketing_client(monkeypatch, tmp_path):
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "marketing_clients.jsonl"))
+    monkeypatch.setattr(
+        clients_store, "_CLIENTS_FILE", lambda: str(tmp_path / "marketing_clients.jsonl")
+    )
     rec = {
         "id": MKT_ID,
         "business_name": "Jiya Makeover Studio",
@@ -34,7 +36,7 @@ def _seed_marketing_client(monkeypatch, tmp_path):
         "status": "active",
         "billing_client_ids": [BILL_ID],
     }
-    path = clients_store._CLIENTS_FILE
+    path = clients_store._CLIENTS_FILE()
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
     with open(path, "a", encoding="utf-8") as f:
         f.write(json.dumps(rec) + "\n")

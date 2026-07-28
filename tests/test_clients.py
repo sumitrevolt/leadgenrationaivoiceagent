@@ -33,7 +33,7 @@ def tmp_store(monkeypatch, tmp_path):
     clients_file = os.path.join(str(tmp_path), "marketing_clients.jsonl")
     queue_dir = os.path.join(str(tmp_path), "content_queue")
     brand_dir = os.path.join(str(tmp_path), "brand_kits")
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", clients_file)
+    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", lambda: clients_file)
     monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: queue_dir)
     # brand_kit mirror bhi tmp me rahe (real data dir na chhue)
     try:
