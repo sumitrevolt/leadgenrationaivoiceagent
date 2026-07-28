@@ -207,6 +207,30 @@ def suppression_path() -> Path:
     )
 
 
+def _suppression_path_or_none() -> Path | None:
+    """The resolved suppression path, or None if the authority cannot be resolved.
+
+    Before the runtime-data migration this could not fail: the path was a module
+    constant, so the only errors were I/O errors on a file that legitimately may
+    not exist yet. `resolve_store_path` introduces a genuinely new failure mode —
+    a misconfigured runtime root, an unsafe segment, a path escaping the root, or
+    (after cutover) an override pointing somewhere other than the canonical
+    target all raise `RuntimeDataError`.
+
+    Callers must therefore distinguish "this number is not on the list" from
+    "there is no list I am allowed to trust", because the blanket
+    `except Exception: return False` that was safe around a constant would turn
+    the second case into the first — answering "not suppressed" for a number
+    that may well be. That is TCCCPR fail-OPEN, and this module's own comments
+    call it illegal.
+    """
+    try:
+        return suppression_path()
+    except Exception as exc:  # noqa: BLE001 — any resolution failure is the same verdict
+        logger.error("compliance.voice_suppression authority UNRESOLVABLE: %s", exc)
+        return None
+
+
 def __getattr__(name: str) -> Path:
     """DEPRECATED transitional shim for the old module constants.
 
@@ -393,9 +417,28 @@ def record_opt_out(
         "call_id": (call_id or "")[:60],
         "at": _now(),
     }
-    _append(ledger_path(), rec)
+    try:
+        _append(ledger_path(), rec)
+    except Exception as exc:  # noqa: BLE001 — the audit write must not abort the opt-out
+        logger.error(f"opt-out LEDGER write failed for ***{k[-4:]}: {exc}")
+
+    # Guard, then resolve at each call site. Binding the path to a local and
+    # reusing it would be better for one property (a cutover landing between the
+    # read and the write cannot then split the operation across two authorities)
+    # and worse for another: `runtime_data_scan` attributes a finding to the
+    # expression it sees, so `_append(local_var, ...)` reports a bare name where
+    # `_append(suppression_path(), ...)` reports the resolver, and this store
+    # loses its identity in the repo's own debt ledger. The split-brain needs a
+    # live cutover to happen at all, and the preflight still says DENIED, so the
+    # cheap half is taken now and the rest is deferred to a change that teaches
+    # the scanner to follow a locally-bound resolver result first.
     suppressed = True
-    if not is_suppressed(k):
+    if _suppression_path_or_none() is None:
+        # Cannot even name the store: do not claim a suppression that has no
+        # home. Same fail-CLOSED contract as a failed write, below.
+        logger.error(f"opt-out suppression UNRESOLVABLE for ***{k[-4:]} — NOT suppressed")
+        suppressed = False
+    elif not is_suppressed(k):
         # Dual-write: DB (concurrent-safe) + JSONL (audit trail)
         db_ok = _db_add_suppression(k, rec["reason"], rec["channel"])
         jsonl_ok = _append(
@@ -443,7 +486,15 @@ def record_opt_out(
 
 def is_suppressed(phone: str) -> bool:
     """True agar number opt-out suppression list par hai. Never raises.
-    CONSENT_DB=1 pe Postgres check (concurrent-safe); warna JSONL fallback."""
+    CONSENT_DB=1 pe Postgres check (concurrent-safe); warna JSONL fallback.
+
+    Returns True when the suppression authority cannot be RESOLVED. "I cannot
+    reach the opt-out list" must never be answered as "this person did not opt
+    out" — the caller is about to decide whether to contact somebody, and the
+    only safe answer without the list is "do not". A missing or empty file is
+    different and still reads as not-suppressed: that is an answer, not an
+    outage.
+    """
     try:
         k = _key(phone)
         if not k:
@@ -456,6 +507,8 @@ def is_suppressed(phone: str) -> bool:
         db_result = _db_is_suppressed(k)
         if db_result:
             return True
+        if _suppression_path_or_none() is None:
+            return True  # fail-CLOSED: no trustworthy list => treat as suppressed
         return any(it.get("phone") == k for it in _read(suppression_path()))
     except Exception:
         return False
@@ -580,6 +633,18 @@ def opt_back_in(
             "days_since_opt_out": elapsed,
             "cooloff_days": _cooloff_days() if cooloff_days is None else cooloff_days,
             "error": "reconsent_cooloff",
+        }
+    # Guard first — see record_opt_out for why the resolver is still called at
+    # each site rather than bound to a local.
+    if _suppression_path_or_none() is None:
+        # Refuse. Removing somebody from a suppression list is the one direction
+        # that makes a number contactable again; doing it while unable to name
+        # the list is how an opt-out silently stops being honoured.
+        logger.error(f"re-consent REFUSED ***{k[-4:]} — suppression authority unresolvable")
+        return {
+            "phone": k,
+            "suppressed": True,
+            "error": "suppression_authority_unavailable",
         }
     # Remove from DB (concurrent-safe) + JSONL
     _db_remove_suppression(k)
