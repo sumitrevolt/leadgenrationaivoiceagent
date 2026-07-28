@@ -104,11 +104,11 @@ Label: CODE-PRESENT on `origin/main` (not independently re-proven on prod image 
 
 ## OpenClaw
 Stage A ON (`OPENCLAW_ENABLED=1`). Admin Dashboard `#openclawAdminCard` LIVE. GREEN-only allowlist; AMBER rejected in Stage A; RED refuse intact for matched phrases (`calling enable`); `OPENCLAW_ALLOW_RED_ACTIONS=0`; Gateway token EMPTY (browser super-admin path). Owner OS sole authority.
-Label: **ASSUMED** — proven on image `7cab5f60`, which is two deploys behind the running build `dd193a69`, and NOT re-probed on 2026-07-28. See "Calling / flag posture" above.
+Label: **ASSUMED** — proven on the older image `7cab5f60`, not on the currently observed build `dd193a69`, and NOT re-probed on 2026-07-28. (`7cab5f60` is a verified git ancestor of `dd193a69`; how many DEPLOYS separate them is not derivable from this repo — deploys are not tagged — so no count is asserted.) See "Calling / flag posture" above.
 
 ## Calling
 HARD OFF. `PLATFORM_DIAL_DAILY=0`. Unchanged by OpenClaw Admin deploy.
-Label: **ASSUMED** — last probed 2026-07-25 on image `7cab5f60`; NOT re-probed on 2026-07-28. The §5 mandate that calling stays HARD OFF is unchanged and unconditional; what is unverified is only whether the host still *matches* it. Re-probe the container env before any action that depends on the flag, and treat a mismatch as an incident rather than as permission.
+Label: **ASSUMED** — last probed 2026-07-25 on the older image `7cab5f60`, not on the currently observed build `dd193a69`; NOT re-probed on 2026-07-28. The §5 mandate that calling stays HARD OFF is unchanged and unconditional; what is unverified is only whether the host still *matches* it. Re-probe the container env before any action that depends on the flag, and treat a mismatch as an incident rather than as permission.
 
 ## Agent workforce
 Canonical workforce remains **31 agents**. OpenClaw/Boss is Owner OS Copilot surface — **not** a 32nd agent.
