@@ -8,13 +8,20 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.marketing import wa_campaign_runner
 from app.telephony import consent_ledger as cl
 
 
 @pytest.fixture(autouse=True)
 def _tmp_stores(tmp_path, monkeypatch):
-    monkeypatch.setattr(cl, "LEDGER_FILE", tmp_path / "consent_ledger.jsonl")
-    monkeypatch.setattr(cl, "SUPPRESSION_FILE", tmp_path / "voice_suppression.jsonl")
+    # Resolver functions, not constants — see test_consent_ledger.py for why.
+    # The WhatsApp store is patched too because record_opt_out cross-propagates
+    # there; leaving it out writes into the repository's own data/ directory.
+    monkeypatch.setattr(cl, "ledger_path", lambda: tmp_path / "consent_ledger.jsonl")
+    monkeypatch.setattr(cl, "suppression_path", lambda: tmp_path / "voice_suppression.jsonl")
+    monkeypatch.setattr(
+        wa_campaign_runner, "_suppression_path", lambda: str(tmp_path / "wa_suppression.jsonl")
+    )
     monkeypatch.setattr(cl, "RECORDINGS_DIR", tmp_path / "recordings")
     monkeypatch.delenv("RECONSENT_COOLOFF_DAYS", raising=False)
     yield
@@ -28,8 +35,8 @@ def _seed_opt_out(phone: str, days_ago: float):
     """Write a suppression + ledger opt_out entry with a backdated timestamp."""
     k = cl._key(phone)
     at = _iso(days_ago)
-    cl._append(cl.SUPPRESSION_FILE, {"phone": k, "reason": "test", "channel": "voice", "at": at})
-    cl._append(cl.LEDGER_FILE, {"type": "opt_out", "phone": k, "reason": "test", "at": at})
+    cl._append(cl.suppression_path(), {"phone": k, "reason": "test", "channel": "voice", "at": at})
+    cl._append(cl.ledger_path(), {"type": "opt_out", "phone": k, "reason": "test", "at": at})
 
 
 # ----------------------------- helpers ----------------------------- #

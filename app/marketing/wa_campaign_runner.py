@@ -34,8 +34,33 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 _TEMPLATES_FILE = os.path.join("data", "wa_templates.jsonl")
-_SUPPRESSION_FILE = os.path.join("data", "wa_suppression.jsonl")
 _CAMPAIGN_FILE = os.path.join("data", "wa_campaigns.jsonl")
+
+
+def _suppression_path() -> str:
+    """WhatsApp suppression ledger — resolved per call, never at import.
+
+    A module-level constant freezes the path when this module is first imported,
+    which is exactly what makes a store impossible to move (and impossible to
+    redirect from a fixture that runs later). This is a Tier-0 compliance
+    authority: opting a number back in by accident is a TCCCPR problem, not a
+    tidiness problem.
+
+    Returns `str` because every caller here passes it straight to the module's
+    own `_read`/`_append`/`_write_all` helpers, which have always taken strings.
+    """
+    from pathlib import Path
+
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="compliance.wa_suppression",
+            legacy_path=Path("data") / "wa_suppression.jsonl",
+            target_segments=("compliance", "wa_suppression.jsonl"),
+        )
+    )
+
 
 # Auto-suppress a number after this many recorded delivery failures.
 _FAIL_SUPPRESS_THRESHOLD = 3
@@ -195,10 +220,22 @@ def template_is_approved(name: str, language: str = "en") -> bool:
 # Suppression list (opt-out / blocked / bounced)
 # --------------------------------------------------------------------------- #
 def is_suppressed(phone: str) -> bool:
+    """True if this number must not be messaged.
+
+    Returns True when the suppression store cannot be RESOLVED. The caller is
+    about to decide whether to send; without a trustworthy opt-out list the only
+    safe answer is "do not". A missing or empty file still reads as
+    not-suppressed — that is an answer, not an outage.
+    """
     d = _digits(phone)
     if not d:
         return False
-    for it in _read(_SUPPRESSION_FILE):
+    try:
+        _suppression_path()
+    except Exception as exc:  # noqa: BLE001 — any resolution failure is the same verdict
+        logger.error("compliance.wa_suppression authority UNRESOLVABLE: %s", exc)
+        return True
+    for it in _read(_suppression_path()):
         if it.get("phone") == d:
             return True
     return False
@@ -209,8 +246,18 @@ def suppress(phone: str, reason: str = "opt_out") -> dict[str, Any]:
     d = _digits(phone)
     if not d:
         return {"error": "bad_phone"}
+    # Guard first, then resolve at the call site — see consent_ledger.record_opt_out
+    # for why the resolver expression is kept visible to the path scanner.
+    try:
+        _suppression_path()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("wa suppress FAILED (authority unresolvable) for ***%s: %s", d[-4:], exc)
+        return {"phone": d, "suppressed": False, "error": "suppression_authority_unavailable"}
     if not is_suppressed(d):
-        _append(_SUPPRESSION_FILE, {"phone": d, "reason": (reason or "opt_out")[:60], "at": _now()})
+        _append(
+            _suppression_path(),
+            {"phone": d, "reason": (reason or "opt_out")[:60], "at": _now()},
+        )
     return {"phone": d, "suppressed": True, "reason": reason}
 
 
@@ -218,16 +265,16 @@ def unsuppress(phone: str) -> bool:
     d = _digits(phone)
     if not d:
         return False
-    items = _read(_SUPPRESSION_FILE)
+    items = _read(_suppression_path())
     keep = [i for i in items if i.get("phone") != d]
     if len(keep) != len(items):
-        _write_all(_SUPPRESSION_FILE, keep)
+        _write_all(_suppression_path(), keep)
         return True
     return False
 
 
 def list_suppressed(limit: int = 500) -> list[dict]:
-    return _read(_SUPPRESSION_FILE)[-limit:][::-1]
+    return _read(_suppression_path())[-limit:][::-1]
 
 
 def record_failure(phone: str, reason: str = "send_failed") -> None:
