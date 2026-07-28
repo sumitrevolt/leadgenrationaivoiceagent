@@ -43,8 +43,8 @@ def test_llm_metrics_record_and_stats(tmp_path, monkeypatch):
 def test_automation_health_heartbeat_and_overdue(tmp_path, monkeypatch):
     from app.platform import automation_health as ah
 
-    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "runs.jsonl"))
-    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "beats.json"))
+    monkeypatch.setattr(ah, "_RUNS", lambda: str(tmp_path / "runs.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "beats.json"))
     monkeypatch.delenv("AUTOMATION_HEALTH_ALERTS", raising=False)
 
     # fresh = sab never_ran
@@ -60,11 +60,11 @@ def test_automation_health_heartbeat_and_overdue(tmp_path, monkeypatch):
     # growth ko 3 ghante purana kar do -> overdue (gap 60 min)
     import json
 
-    beats = json.load(open(ah._BEATS, encoding="utf-8"))
+    beats = json.load(open(ah._BEATS(), encoding="utf-8"))
     beats["growth"]["at"] = (datetime.now(timezone.utc) - timedelta(hours=3)).isoformat(
         timespec="seconds"
     )
-    json.dump(beats, open(ah._BEATS, "w", encoding="utf-8"))
+    json.dump(beats, open(ah._BEATS(), "w", encoding="utf-8"))
     h2 = ah.health()
     assert "growth" in h2["overdue"] and h2["status"] == "degraded"
 
@@ -76,8 +76,8 @@ def test_automation_health_heartbeat_and_overdue(tmp_path, monkeypatch):
 def test_automation_health_failed_run(tmp_path, monkeypatch):
     from app.platform import automation_health as ah
 
-    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "r.jsonl"))
-    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "b.json"))
+    monkeypatch.setattr(ah, "_RUNS", lambda: str(tmp_path / "r.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "b.json"))
     ah.record_run("content", False, 1.0, "boom")
     h = ah.health()
     c = next(j for j in h["jobs"] if j["job"] == "content")
@@ -91,8 +91,8 @@ def test_self_improve_tick_records_automation_heartbeat(tmp_path, monkeypatch):
     from app.platform import automation_health as ah
     from app.tasks import staff_jobs
 
-    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "runs.jsonl"))
-    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "beats.json"))
+    monkeypatch.setattr(ah, "_RUNS", lambda: str(tmp_path / "runs.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "beats.json"))
     monkeypatch.setenv("SELF_IMPROVE_LOOP", "1")
 
     async def fake_run_once():
@@ -116,7 +116,7 @@ def test_self_improve_tick_records_automation_heartbeat(tmp_path, monkeypatch):
     j = next(job for job in h["jobs"] if job["job"] == "self_improve")
     assert j["status"] == "ok"
     assert "self_improve" not in h["never_ran"]
-    beats = json.load(open(ah._BEATS, encoding="utf-8"))
+    beats = json.load(open(ah._BEATS(), encoding="utf-8"))
     assert beats["self_improve"]["note"] == "daily_cap"
 
 
@@ -137,8 +137,8 @@ def test_automation_health_covers_durable_engineer_jobs():
 def test_automation_health_suppresses_future_scheduled_never_ran(tmp_path, monkeypatch):
     from app.platform import automation_health as ah
 
-    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "runs.jsonl"))
-    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "beats.json"))
+    monkeypatch.setattr(ah, "_RUNS", lambda: str(tmp_path / "runs.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "beats.json"))
 
     def fake_due_yet(job, **_kw):
         # `**_kw` absorbs the injected `now=` — health() threads one captured

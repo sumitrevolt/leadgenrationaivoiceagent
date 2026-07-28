@@ -91,8 +91,12 @@ def test_e2e_whatsapp_followup_is_draft_only(monkeypatch, tmp_path):
     """Cadence enroll works; WhatsApp step stays a DRAFT (no auto-send = ban-safe)."""
     from app.marketing import cadence
 
-    monkeypatch.setattr(cadence, "_LEADS", str(tmp_path / "cadence_leads.jsonl"), raising=False)
-    monkeypatch.setattr(cadence, "_RUNS", str(tmp_path / "cadence_runs.jsonl"), raising=False)
+    monkeypatch.setattr(
+        cadence, "_LEADS", lambda: str(tmp_path / "cadence_leads.jsonl"), raising=False
+    )
+    monkeypatch.setattr(
+        cadence, "_RUNS", lambda: str(tmp_path / "cadence_runs.jsonl"), raising=False
+    )
 
     lead = {"business_name": "Verma Salon", "phone": "+919999900002", "niche": "salon"}
     enrolled = cadence.enroll(lead)
@@ -166,8 +170,8 @@ def test_e2e_scheduler_health_contract_and_future_window(monkeypatch, tmp_path):
     window hasn't started yet is 'scheduled_off' (not a false 'problem')."""
     from app.platform import automation_health as ah
 
-    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "runs.jsonl"))
-    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "beats.json"))
+    monkeypatch.setattr(ah, "_RUNS", lambda: str(tmp_path / "runs.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "beats.json"))
 
     # Force one job's window to be "not due yet" and confirm it is suppressed.
     future = {"obsidian_push"}

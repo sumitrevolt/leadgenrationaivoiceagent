@@ -245,7 +245,7 @@ async def test_outbound_interaction_record_promotes_lead(async_db, monkeypatch, 
     from app.platform import interaction_log
 
     # Do not pollute the repo's data/interactions.jsonl during the test.
-    monkeypatch.setattr(interaction_log, "_JSONL", str(tmp_path / "interactions.jsonl"))
+    monkeypatch.setattr(interaction_log, "_JSONL", lambda: str(tmp_path / "interactions.jsonl"))
 
     async with get_async_session() as s:
         s.add(_lead("lead-fwd", email="fwd@example.com"))

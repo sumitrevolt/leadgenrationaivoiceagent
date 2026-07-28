@@ -212,8 +212,8 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": (
             "EXTERNAL_MISSION_DIR must resolve OUTSIDE the checkout in production, "
-            "or move behind app/platform/runtime_data.py. The module's own docstring "
-            "notes container replacement does not preserve ./data."
+            "or cutover via app/platform/runtime_data_authority (A8 wires the default "
+            "through resolve_store_path; bytes still live in-checkout until cutover)."
         ),
     },
     {

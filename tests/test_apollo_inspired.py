@@ -107,8 +107,8 @@ def test_search_filters_and_lists(tmp_path, monkeypatch):
     # enroll to cadence (cadence store bhi tmp)
     from app.marketing import cadence
 
-    monkeypatch.setattr(cadence, "_LEADS", str(tmp_path / "cl.jsonl"))
-    monkeypatch.setattr(cadence, "_RUNS", str(tmp_path / "cr.jsonl"))
+    monkeypatch.setattr(cadence, "_LEADS", lambda: str(tmp_path / "cl.jsonl"))
+    monkeypatch.setattr(cadence, "_RUNS", lambda: str(tmp_path / "cr.jsonl"))
     enr = pl.enroll_list_to_cadence(lists[0]["id"])
     assert enr["ok"] is True and enr["enrolled"] == 1
     # missing list graceful
@@ -118,11 +118,11 @@ def test_search_filters_and_lists(tmp_path, monkeypatch):
 def test_cadence_step_stats(tmp_path, monkeypatch):
     from app.marketing import cadence
 
-    monkeypatch.setattr(cadence, "_LEADS", str(tmp_path / "l.jsonl"))
-    monkeypatch.setattr(cadence, "_RUNS", str(tmp_path / "r.jsonl"))
-    cadence._append(cadence._RUNS, {"channel": "email", "action": "intro"})
-    cadence._append(cadence._RUNS, {"channel": "email", "action": "intro"})
-    cadence._append(cadence._RUNS, {"channel": "sms", "action": "reminder"})
+    monkeypatch.setattr(cadence, "_LEADS", lambda: str(tmp_path / "l.jsonl"))
+    monkeypatch.setattr(cadence, "_RUNS", lambda: str(tmp_path / "r.jsonl"))
+    cadence._append(cadence._RUNS(), {"channel": "email", "action": "intro"})
+    cadence._append(cadence._RUNS(), {"channel": "email", "action": "intro"})
+    cadence._append(cadence._RUNS(), {"channel": "sms", "action": "reminder"})
     st = cadence.stats()
     assert st["step_touches"]["email:intro"] == 2
     assert st["step_touches"]["sms:reminder"] == 1
