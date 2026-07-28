@@ -29,7 +29,7 @@ from app.platform.sales_autopilot import store as _sa_store
 @pytest.fixture(autouse=True)
 def isolated_stores(monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
     """Isolate BOTH the suppression ledger and the autopilot prospect store."""
-    monkeypatch.setattr(email_unsub, "_STORE", tmp_path / "email_suppression.jsonl")
+    monkeypatch.setattr(email_unsub, "_store_path", lambda: tmp_path / "email_suppression.jsonl")
     monkeypatch.setattr(_sa_store, "_PROSPECTS_FILE", str(tmp_path / "prospects.json"))
     # `upsert_prospect` stamps updated_at=now, so a seeded "ancient" timestamp is
     # always overwritten and no follow-up is ever due. Age is not what these
@@ -141,7 +141,8 @@ def _child_append(store_path: str, event_id: str, barrier_dir: str) -> None:
 
     from app.platform import email_unsub as eu
 
-    eu._STORE = _P(store_path)
+    path = _P(store_path)
+    eu._store_path = lambda p=path: p  # type: ignore[assignment]
     # Cancellation touches another store; irrelevant here and keeps the child pure.
     eu._cancel_pending_outreach = lambda **_k: None  # type: ignore[assignment]
     eu.suppress(
@@ -185,7 +186,7 @@ def test_lock_is_file_based_not_in_process() -> None:
         "an in-process lock cannot coordinate five containers sharing ./data"
     )
     # Lock file must sit next to the shared ledger, not in a process-local dir.
-    assert str(getattr(lock, "lock_file", "")).startswith(str(email_unsub._STORE))
+    assert str(getattr(lock, "lock_file", "")).startswith(str(email_unsub._store_path()))
 
 
 def test_lock_timeout_fails_open_to_an_unlocked_append(monkeypatch, isolated_stores: Path) -> None:

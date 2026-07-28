@@ -48,7 +48,7 @@ def test_headers_are_rfc8058_one_click():
 def test_suppress_then_is_suppressed(tmp_path, monkeypatch):
     from app.platform import email_unsub as eu
 
-    monkeypatch.setattr(eu, "_STORE", tmp_path / "sup.jsonl")
+    monkeypatch.setattr(eu, "_store_path", lambda: tmp_path / "sup.jsonl")
     assert eu.is_suppressed("x@y.com") is False
     assert eu.suppress("X@Y.com", "one_click") is True
     assert eu.is_suppressed("x@y.com") is True  # case-normalized match
@@ -59,9 +59,11 @@ def test_list_suppressed_and_bulk_set_are_never_raise(tmp_path, monkeypatch):
     from app.platform import email_unsub as eu
 
     store = tmp_path / "sup.jsonl"
-    monkeypatch.setattr(eu, "_STORE", store)
+    monkeypatch.setattr(eu, "_store_path", lambda: store)
     store.parent.mkdir(parents=True, exist_ok=True)
-    store.write_text('not-json\n{"email":"old@x.in","reason":"one_click","ts":1}\n', encoding="utf-8")
+    store.write_text(
+        'not-json\n{"email":"old@x.in","reason":"one_click","ts":1}\n', encoding="utf-8"
+    )
 
     assert eu.suppress("New@X.in", "reply_unsubscribe") is True
     rows = eu.list_suppressed()

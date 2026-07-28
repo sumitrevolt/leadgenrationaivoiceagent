@@ -22,8 +22,8 @@ def _patch_stores(tmp_path, monkeypatch):
     }
     monkeypatch.setattr(dpdp, "_STORES", stores)
     monkeypatch.setattr(dpdp, "_CRM_DIR", str(tmp_path / "crm"))
-    monkeypatch.setattr(dpdp, "_AUDIT_FILE", str(tmp_path / "dpdp_audit.jsonl"))
-    monkeypatch.setattr(dpdp, "_REQUESTS_FILE", str(tmp_path / "dpdp_requests.jsonl"))
+    monkeypatch.setattr(dpdp, "_AUDIT_FILE", lambda: str(tmp_path / "dpdp_audit.jsonl"))
+    monkeypatch.setattr(dpdp, "_REQUESTS_FILE", lambda: str(tmp_path / "dpdp_requests.jsonl"))
     return dpdp, stores
 
 
