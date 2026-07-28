@@ -140,7 +140,24 @@ jobs:
           MKL_NUM_THREADS: "1"
           OPENBLAS_NUM_THREADS: "1"
           TOKENIZERS_PARALLELISM: "false"
-        run: pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60
+          # Next exit-139 must leave a Python dump (cyclic-GC SIGSEGV class,
+          # 2026-07-28). Does not weaken the required suite.
+          PYTHONFAULTHANDLER: "1"
+        # Three sequential process shards: same required suite, shorter
+        # per-process heap lifetime. Cyclic-GC SIGSEGV (exit 139) has hit
+        # scan_repo, markitdown, AND team.log_event frames — one long-lived
+        # pytest process concentrates native-extension GC risk; shards
+        # contain blast radius without skipping or xfailing anything.
+        run: |
+          pip install --no-deps "pytest-split==0.9.0"
+          set -e
+          for group in 1 2 3; do
+            echo "::group::pytest shard ${group}/3"
+            pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
+              --splits 3 --group "${group}"
+            echo "::endgroup::"
+          done
+
 
 
   # Mandatory real-Redis integration gate for the durable harness audit backend.
