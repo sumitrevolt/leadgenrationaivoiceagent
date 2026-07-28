@@ -7,7 +7,7 @@
 #
 # Timeout: `-t 8` must stay under compose healthcheck `timeout` (15s).
 # Broken pipe / Error / empty / no pong → exit 1.
-# No pipelines: /bin/sh on slim images lacks `pipefail`; capture then match.
+# No pipelines: slim /bin/sh cannot harden pipelines; capture then match.
 set -eu
 
 DEST="celery@${HOSTNAME:?HOSTNAME unset}"

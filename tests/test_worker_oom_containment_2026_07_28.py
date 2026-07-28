@@ -73,8 +73,9 @@ def test_healthcheck_script_targets_this_hostname_only():
     assert "celery@${HOSTNAME" in script
     assert "broken" in script.lower() and "pipe" in script.lower()
     assert "-t 8" in script
-    # Capture-then-match: slim /bin/sh has no pipefail, so no critical pipelines.
-    assert "pipefail" not in script
+    # Capture-then-match: no pipeline hardening; fail closed via case on OUT.
+    assert "set -o pipefail" not in script
+    assert "| grep" not in script
     assert 'case "$OUT"' in script
     # Broadcast ping without -d must not be the sole probe.
     assert "inspect ping -t 8 2>&1)" not in script.replace(" ", "")
