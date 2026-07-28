@@ -54,8 +54,8 @@ def _patch_stores(monkeypatch, tmp_path):
     monkeypatch.setattr(si, "_STATE", str(tmp_path / "state.json"))
     monkeypatch.setattr(si, "_QUEUE", str(tmp_path / "queue.jsonl"))
     monkeypatch.setattr(si, "_RUNS", str(tmp_path / "runs.jsonl"))
-    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "job_runs.jsonl"))
-    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "job_heartbeats.json"))
+    monkeypatch.setattr(ah, "_RUNS", lambda: str(tmp_path / "job_runs.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "job_heartbeats.json"))
     monkeypatch.setattr(sl, "_USES", str(tmp_path / "uses.jsonl"))
     monkeypatch.setattr(sl, "_LESSONS", str(tmp_path / "lessons.jsonl"))
     return si
@@ -148,7 +148,7 @@ def test_selfimprove_run_once_learns_and_chains(tmp_path, monkeypatch):
     assert st["recent_runs"][0]["action"] == "scrape_leads"
     from app.platform import automation_health as ah
 
-    with open(ah._BEATS, encoding="utf-8") as f:
+    with open(ah._BEATS(), encoding="utf-8") as f:
         beats = json.load(f)
     assert beats["self_improve"]["ok"] is True
     assert "scrape_leads" in beats["self_improve"]["note"]
@@ -157,7 +157,7 @@ def test_selfimprove_run_once_learns_and_chains(tmp_path, monkeypatch):
     monkeypatch.setenv("SELF_IMPROVE_MAX_PER_DAY", "1")
     out2 = asyncio.run(si.run_once())
     assert out2.get("skipped") == "daily_cap"
-    with open(ah._BEATS, encoding="utf-8") as f:
+    with open(ah._BEATS(), encoding="utf-8") as f:
         beats = json.load(f)
     assert beats["self_improve"]["note"] == "daily_cap"
 
@@ -322,8 +322,12 @@ def test_reflect_grounds_on_prior_lessons_and_winning_traces(tmp_path, monkeypat
     from app.voice_agent import free_ai
 
     # recent runs (outcome_value ke saath taaki replay top-reward action pe ground ho)
-    si._append(si._RUNS, {"action": "seo_pages", "ok": True, "detail": "2 pages", "outcome_value": 0.9})
-    si._append(si._RUNS, {"action": "scrape_leads", "ok": True, "detail": "covered", "outcome_value": 0.5})
+    si._append(
+        si._RUNS, {"action": "seo_pages", "ok": True, "detail": "2 pages", "outcome_value": 0.9}
+    )
+    si._append(
+        si._RUNS, {"action": "scrape_leads", "ok": True, "detail": "covered", "outcome_value": 0.5}
+    )
 
     # WIRE B: loop ka apna prior lesson (reflexion memory)
     sl.record_lesson("self_improve", "MARKER_PRIOR_LESSON seo_pages best perform kar raha")
@@ -389,13 +393,22 @@ def test_voice_learn_records_brain_lesson_and_dedupes(tmp_path, monkeypatch):
                 "qa_finding_count": 2,
                 "qa_findings": ["repeat", "off-topic"],
             },
-            {"call_id": "call-ok-1", "niche": "solar", "score": 0.9, "qa_finding_count": 0, "qa_findings": []},
+            {
+                "call_id": "call-ok-1",
+                "niche": "solar",
+                "score": 0.9,
+                "qa_finding_count": 0,
+                "qa_findings": [],
+            },
         ],
     }
     monkeypatch.setattr(live_eval, "eval_recent_calls", lambda n, **k: report)
 
     async def fake_chat(system, messages, **kw):
-        return ("Customer ka exact sawaal sun ke ek-line KB-grounded jawab de, repeat mat kar.", "mock")
+        return (
+            "Customer ka exact sawaal sun ke ek-line KB-grounded jawab de, repeat mat kar.",
+            "mock",
+        )
 
     monkeypatch.setattr(free_ai, "chat", fake_chat)
 
@@ -428,8 +441,20 @@ def test_voice_learn_clean_calls_no_lesson_spam(tmp_path, monkeypatch):
         "n": 2,
         "mean_score": 0.95,
         "per_call": [
-            {"call_id": "c1", "niche": "gym", "score": 0.95, "qa_finding_count": 0, "qa_findings": []},
-            {"call_id": "c2", "niche": "gym", "score": 0.9, "qa_finding_count": 0, "qa_findings": []},
+            {
+                "call_id": "c1",
+                "niche": "gym",
+                "score": 0.95,
+                "qa_finding_count": 0,
+                "qa_findings": [],
+            },
+            {
+                "call_id": "c2",
+                "niche": "gym",
+                "score": 0.9,
+                "qa_finding_count": 0,
+                "qa_findings": [],
+            },
         ],
     }
     monkeypatch.setattr(live_eval, "eval_recent_calls", lambda n, **k: report)

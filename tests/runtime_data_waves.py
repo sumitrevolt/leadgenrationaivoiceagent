@@ -59,6 +59,22 @@ A5_STORE_IDS = frozenset(
     }
 )
 
+#: Stores A6 migrated (ops telemetry: cadence / job runs / interactions JSONL).
+A6_STORE_IDS = frozenset(
+    {
+        "automation.cadence_runs",
+        "automation.job_runs",
+        "communications.interactions",
+    }
+)
+
+#: Stores A8 migrated (external agent mission root — EXTERNAL_MISSION_DIR).
+A8_STORE_IDS = frozenset(
+    {
+        "devcontrol.external_missions",
+    }
+)
+
 #: wave name → frozenset of store ids. Add a new wave here; do not invent a
 #: second exact-global assertion in that wave's own ratchet.
 WAVE_STORE_IDS: dict[str, frozenset[str]] = {
@@ -67,6 +83,8 @@ WAVE_STORE_IDS: dict[str, frozenset[str]] = {
     "A3": A3_STORE_IDS,
     "A4": A4_STORE_IDS,
     "A5": A5_STORE_IDS,
+    "A6": A6_STORE_IDS,
+    "A8": A8_STORE_IDS,
 }
 
 

@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 from app.utils.logger import setup_logger
@@ -24,8 +25,32 @@ logger = setup_logger(__name__)
 
 from app.platform.today_overview import _WEEKLY_ON, _job_due_today, _job_due_yet  # noqa: E402
 
-_RUNS = os.path.join("data", "job_runs.jsonl")
-_BEATS = os.path.join("data", "job_heartbeats.json")
+
+def _RUNS() -> str:
+    """Scheduler job-run jsonl — resolved per call, never frozen at import."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="automation.job_runs",
+            legacy_path=Path("data") / "job_runs.jsonl",
+            target_segments=("automation", "job_runs.jsonl"),
+        )
+    )
+
+
+def _BEATS() -> str:
+    """Latest-per-job heartbeat snapshot — sibling under the same store family."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="automation.job_runs",
+            legacy_path=Path("data") / "job_heartbeats.json",
+            target_segments=("automation", "job_heartbeats.json"),
+        )
+    )
+
 
 # job -> max-gap (minutes) jiske baad OVERDUE (cadence + generous grace)
 EXPECTED_GAP_MIN = {
@@ -132,27 +157,28 @@ def record_run(
             rec["trigger"] = str(trigger)[:20]
         if started_at:
             rec["started_at"] = str(started_at)[:40]
-        os.makedirs(os.path.dirname(_RUNS) or ".", exist_ok=True)
-        with open(_RUNS, "a", encoding="utf-8") as f:
+        # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
+        os.makedirs(os.path.dirname(_RUNS()) or ".", exist_ok=True)
+        with open(_RUNS(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         # latest-per-job snapshot (fast reads) — READ-MODIFY-WRITE, isliye
         # cross-process lock + atomic replace (web 2 workers + celery workers
         # ek saath record_run kar sakte = snapshot corrupt ho sakta tha).
         from app.utils.file_lock import file_lock
 
-        with file_lock(_BEATS):
+        with file_lock(_BEATS()):
             beats: dict[str, Any] = {}
             try:
-                if os.path.exists(_BEATS):
-                    with open(_BEATS, encoding="utf-8") as f:
+                if os.path.exists(_BEATS()):
+                    with open(_BEATS(), encoding="utf-8") as f:
                         beats = json.load(f) or {}
             except Exception:
                 beats = {}
             beats[rec["job"]] = rec
-            tmp = f"{_BEATS}.tmp.{os.getpid()}"
+            tmp = f"{_BEATS()}.tmp.{os.getpid()}"
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(beats, f, ensure_ascii=False)
-            os.replace(tmp, _BEATS)
+            os.replace(tmp, _BEATS())
     except Exception:
         pass
 
@@ -196,13 +222,13 @@ def run_history(
         limit = max(1, min(int(limit or 100), 500))
     except Exception:
         limit = 100
-    if not os.path.exists(_RUNS):
+    if not os.path.exists(_RUNS()):
         return []
     job_f = (job or "").strip().lower()
     status_f = (status or "").strip().lower()
     # tail se limit ka multiple padho (bounded) taaki filter ke baad bhi kaafi bache
     hard = max(limit * 5, 500) if failures_first else max(limit * 3, limit)
-    raw = _tail_lines(_RUNS, min(hard, 5000))
+    raw = _tail_lines(_RUNS(), min(hard, 5000))
     out: list[dict[str, Any]] = []
     for line in reversed(raw):  # file chronological => reversed = newest-first
         line = line.strip()
@@ -259,8 +285,8 @@ def health() -> dict[str, Any]:
     """Per-job: last run, ok, overdue? + overall status. Kabhi raise nahi."""
     beats: dict[str, Any] = {}
     try:
-        if os.path.exists(_BEATS):
-            with open(_BEATS, encoding="utf-8") as f:
+        if os.path.exists(_BEATS()):
+            with open(_BEATS(), encoding="utf-8") as f:
                 beats = json.load(f) or {}
     except Exception:
         beats = {}

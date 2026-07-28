@@ -377,8 +377,8 @@ def test_store_manifest_still_validates() -> None:
     # 2026-07-27: 22 -> 23 / 16 -> 17 via an evidence-backed manifest edit for
     # devcontrol.external_missions (PR #147). It is a blocker because its root,
     # EXTERNAL_MISSION_DIR, defaults to data/external_missions INSIDE the
-    # checkout, so migration_state stays LEGACY_IN_CHECKOUT until production is
-    # proven to point it at a mounted root.
+    # checkout. A8 (2026-07-29) moved the row to DUAL_READ_PRE_CUTOVER (writers
+    # follow the shared authority) but bytes have not moved — still a blocker.
     # 2026-07-27, second evidence-backed edit: +4 calling-safety families
     # (23 -> 27, 17 -> 21). Each defaults inside the checkout, so each blocks.
     assert counts["unique_families"] == 27
@@ -386,6 +386,7 @@ def test_store_manifest_still_validates() -> None:
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]
     assert ext["migration_tier"] == manifest.TIER_1
+    assert ext["migration_state"] == manifest.DUAL_READ_PRE_CUTOVER
     assert manifest.derived_blocker(ext) is True
     # Calling-safety controls are Tier 0 and must every one of them block a
     # destructive deploy: losing the file returns the control to its default.

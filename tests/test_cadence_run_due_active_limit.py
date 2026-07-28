@@ -11,8 +11,8 @@ from app.marketing import cadence
 def test_run_due_skips_leading_done_rows(tmp_path, monkeypatch):
     leads = tmp_path / "leads.jsonl"
     runs = tmp_path / "runs.jsonl"
-    monkeypatch.setattr(cadence, "_LEADS", str(leads))
-    monkeypatch.setattr(cadence, "_RUNS", str(runs))
+    monkeypatch.setattr(cadence, "_LEADS", lambda: str(leads))
+    monkeypatch.setattr(cadence, "_RUNS", lambda: str(runs))
     monkeypatch.setenv("CADENCE_ENGINE", "1")
     monkeypatch.setattr(
         cadence,
@@ -26,7 +26,7 @@ def test_run_due_skips_leading_done_rows(tmp_path, monkeypatch):
     # 5 done rows first (prod shape) then 1 active still mid-sequence
     for i in range(5):
         cadence._append(
-            cadence._LEADS,
+            cadence._LEADS(),
             {
                 "id": f"done{i}",
                 "business_name": f"Done {i}",
@@ -36,7 +36,7 @@ def test_run_due_skips_leading_done_rows(tmp_path, monkeypatch):
             },
         )
     cadence._append(
-        cadence._LEADS,
+        cadence._LEADS(),
         {
             "id": "active1",
             "business_name": "Active Biz",
@@ -52,6 +52,6 @@ def test_run_due_skips_leading_done_rows(tmp_path, monkeypatch):
     assert out["advanced"] >= 1
     assert out.get("examined_active", 0) >= 1
 
-    rows = cadence._read(cadence._LEADS)
+    rows = cadence._read(cadence._LEADS())
     active = next(r for r in rows if r["id"] == "active1")
     assert int(active.get("step_idx", 0)) > 2 or active.get("status") == "done"
