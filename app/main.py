@@ -47,6 +47,32 @@ from app.utils.logger import setup_logger
 # Setup logging
 logger = setup_logger(__name__)
 
+
+def _sentry_before_send(event, hint):
+    """Drop only the secondary `_IncludedRouter.path` AttributeError mask.
+
+    2026-07-14: after a real request exception, code that touched
+    ``scope['route'].path`` on a FastAPI lazy include raised
+    ``AttributeError: '_IncludedRouter' object has no attribute 'path'``.
+    Sentry then flooded with the mask while the original ImportError was
+    buried. We drop *only* that exact secondary AttributeError when a
+    chained original exists — every other event (including a bare
+    IncludedRouter error with no cause) is preserved.
+    """
+    exc_info = hint.get("exc_info") if hint else None
+    if not exc_info or len(exc_info) < 2:
+        return event
+    exc = exc_info[1]
+    if type(exc) is not AttributeError:
+        return event
+    if str(exc) != "'_IncludedRouter' object has no attribute 'path'":
+        return event
+    # Secondary only: must wrap / follow another exception.
+    if getattr(exc, "__cause__", None) is None and getattr(exc, "__context__", None) is None:
+        return event
+    return None
+
+
 # Initialize Sentry for error tracking in production
 if settings.sentry_dsn and settings.app_env == "production":
     try:
@@ -63,7 +89,9 @@ if settings.sentry_dsn and settings.app_env == "production":
             traces_sample_rate=0.1,  # 10% of transactions for performance monitoring
             profiles_sample_rate=0.1,  # 10% of sampled transactions for profiling
             integrations=[
-                FastApiIntegration(transaction_style="endpoint"),
+                # "url" avoids FastAPIIntegration reading lazy `_IncludedRouter.path`
+                # (2026-07-14 Sentry flood: secondary AttributeError masked ImportError).
+                FastApiIntegration(transaction_style="url"),
                 SqlalchemyIntegration(),
                 RedisIntegration(),
                 CeleryIntegration(),
@@ -72,6 +100,7 @@ if settings.sentry_dsn and settings.app_env == "production":
             send_default_pii=False,
             # Attach stack traces for all log messages at ERROR level or higher
             attach_stacktrace=True,
+            before_send=_sentry_before_send,
             # Filter out health check endpoints from transactions
             before_send_transaction=lambda event, hint: (
                 None
