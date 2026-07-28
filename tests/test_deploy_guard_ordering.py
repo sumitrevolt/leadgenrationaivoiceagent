@@ -103,6 +103,10 @@ UNGUARDED_DEBT = {
     "vps_post_deploy_verify.py": "post-deploy verification — classify as diagnostic — wave 2",
     "vps_prod_finish.sh": "container replacement — wave 2",
     "vps_production_harden.sh": "container replacement — wave 2",
+    # Cutover tooling ships the plan/copy/verify/activate parent cited by
+    # deploy_vps.sh. It can mutate production bytes outside git; treat as
+    # known debt until it sources _runtime_data_guard.sh like other parents.
+    "runtime_data_cutover.py": "cutover parent — guard then shrink — wave A5",
 }
 
 
