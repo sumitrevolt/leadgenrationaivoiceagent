@@ -25,7 +25,7 @@ Fact tags: **GIT_VERIFIED** = reproducible from this repo. **DIRECT_HOST_VERIFIE
 ## WS-3 Runtime-data authority — A2 compliance wave in review
 - **ID:** WS-3
 - **Business outcome:** Move stores onto the runtime-data authority resolver; cut over only when the preflight allows it
-- **Current state:** A1 (telephony) is merged in `origin/main` `6a504321`. A2 (compliance) is committed and pushed as **PR #162** (`feat/runtime-data-a2-compliance`), Draft, moving `compliance.wa_suppression`, `compliance.consent_ledger` and `compliance.voice_suppression` onto the resolver. Six stores are now `DUAL_READ_PRE_CUTOVER` and the blocker count is **unchanged at 21** — resolver-ready is not data-safe, and a drop to 18 would be a false green. Preflight (**LOCAL_ARTIFACT** `_recovery/preflight_20260728.txt`, re-run after A2 as `_recovery/preflight_after_a2.txt` with identical numbers; both untracked — re-run `python scripts/runtime_data_preflight.py` yourself):
+- **Current state:** A1 (telephony) is merged in `origin/main` `6a504321`. A2 (compliance) is committed and pushed as **PR #162** (`feat/runtime-data-a2-compliance`) — read its state from GitHub, not from here — moving `compliance.wa_suppression`, `compliance.consent_ledger` and `compliance.voice_suppression` onto the resolver. Six stores are now `DUAL_READ_PRE_CUTOVER` and the blocker count is **unchanged at 21** — resolver-ready is not data-safe, and a drop to 18 would be a false green. Preflight (**LOCAL_ARTIFACT** `_recovery/preflight_20260728.txt`, re-run after A2 as `_recovery/preflight_after_a2.txt` with identical numbers; both untracked — re-run `python scripts/runtime_data_preflight.py` yourself):
   ```
   mode              : LEGACY_CHECKOUT_BACKED
   manifest version  : 2026-07-26.1
