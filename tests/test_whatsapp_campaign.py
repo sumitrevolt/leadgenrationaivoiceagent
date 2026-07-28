@@ -30,12 +30,24 @@ def _isolate_data(monkeypatch, tmp_path):
     monkeypatch.chdir(tmp_path)
     os.makedirs("data", exist_ok=True)
     monkeypatch.setattr(runner, "_TEMPLATES_FILE", os.path.join("data", "wa_templates.jsonl"))
-    monkeypatch.setattr(runner, "_SUPPRESSION_FILE", os.path.join("data", "wa_suppression.jsonl"))
+    # Suppression resolves through a function now, not a constant: a path frozen
+    # at import cannot be redirected by a fixture that runs later.
+    monkeypatch.setattr(
+        runner, "_suppression_path", lambda: os.path.join("data", "wa_suppression.jsonl")
+    )
     monkeypatch.setattr(runner, "_CAMPAIGN_FILE", os.path.join("data", "wa_campaigns.jsonl"))
     monkeypatch.setattr(wac, "_CAP_FILE", os.path.join("data", "counter.json"))
-    for k in ("WHATSAPP_AUTO_SEND", "WHATSAPP_DAILY_CAP", "WHATSAPP_SEND_DELAY_S", "WHATSAPP_PROVIDER", "WAHA_BASE_URL", "WAHA_API_KEY"):
+    for k in (
+        "WHATSAPP_AUTO_SEND",
+        "WHATSAPP_DAILY_CAP",
+        "WHATSAPP_SEND_DELAY_S",
+        "WHATSAPP_PROVIDER",
+        "WAHA_BASE_URL",
+        "WAHA_API_KEY",
+    ):
         monkeypatch.delenv(k, raising=False)
     from app.config import settings
+
     monkeypatch.setattr(settings, "whatsapp_provider", "cloud", raising=False)
     monkeypatch.setattr(settings, "waha_base_url", "", raising=False)
     yield
@@ -88,9 +100,7 @@ def _enable_live(monkeypatch, sleeps):
     monkeypatch.setattr(wac, "creds_present", lambda: True)
     monkeypatch.setattr("app.integrations.whatsapp.WhatsAppIntegration", _FakeWA)
     # Force cloud provider so selfhost backend is not selected (netguard blocks waha in tests)
-    monkeypatch.setattr(
-        "app.integrations.whatsapp_selfhost.is_active_provider", lambda: False
-    )
+    monkeypatch.setattr("app.integrations.whatsapp_selfhost.is_active_provider", lambda: False)
 
     async def _no_sleep(s):
         sleeps.append(s)

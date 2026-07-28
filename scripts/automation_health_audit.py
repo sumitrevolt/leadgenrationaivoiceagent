@@ -74,7 +74,11 @@ def _flag(name: str, default: bool = False) -> bool:
 
 def _known_heartbeat_times(beats: dict[str, Any]) -> list[datetime]:
     rows: list[datetime] = []
-    known = set(getattr(automation_health, "EXPECTED_GAP_MIN", {}).keys()) if automation_health else set()
+    known = (
+        set(getattr(automation_health, "EXPECTED_GAP_MIN", {}).keys())
+        if automation_health
+        else set()
+    )
     for job, rec in beats.items():
         if known and job not in known:
             continue
@@ -117,7 +121,9 @@ def check_alive() -> dict[str, Any]:
                 if last_tick_time.tzinfo is None:
                     last_tick_time = last_tick_time.replace(tzinfo=timezone.utc)
             else:
-                last_tick_time = datetime.fromtimestamp(float(state.get("last_tick", 0)), timezone.utc)
+                last_tick_time = datetime.fromtimestamp(
+                    float(state.get("last_tick", 0)), timezone.utc
+                )
             last_tick_min = int(((_now() - last_tick_time).total_seconds()) / 60)
 
             if last_tick_min < 10:
@@ -180,7 +186,7 @@ def check_budget() -> dict[str, Any]:
     total_cost = sum(float(r.get("cost", 0)) for r in today_runs)
     cap = float(os.environ.get("SELFIMPROVE_COST_CAP", "50"))
 
-    percent = int((total_cost / cap * 100)) if cap > 0 else 0
+    percent = int(total_cost / cap * 100) if cap > 0 else 0
 
     status = "green"
     if percent > 80:
@@ -266,7 +272,10 @@ def check_approvals() -> dict[str, Any]:
 
     if pending:
         oldest = min(pending, key=lambda x: x.get("at", "9999"))
-        oldest_min = int(((_now() - datetime.fromisoformat(oldest["at"].replace("Z", "+00:00"))).total_seconds()) / 60)
+        oldest_min = int(
+            ((_now() - datetime.fromisoformat(oldest["at"].replace("Z", "+00:00"))).total_seconds())
+            / 60
+        )
     else:
         oldest_min = 0
 
@@ -300,10 +309,9 @@ def check_next_action() -> dict[str, Any]:
 
     try:
         stats = skill_library.stats() if skill_library else {}
-        next_pick = max(
-            stats.items(),
-            key=lambda kv: kv[1].get("rate", 0.5)
-        )[0] if stats else "unknown"
+        next_pick = (
+            max(stats.items(), key=lambda kv: kv[1].get("rate", 0.5))[0] if stats else "unknown"
+        )
     except Exception:
         next_pick = "unknown"
 
@@ -328,6 +336,7 @@ def check_dlq_status() -> dict[str, Any]:
 
     try:
         import redis as _redis
+
         from app.config import settings
 
         r = _redis.Redis.from_url(str(settings.redis_url), socket_timeout=2)
@@ -378,9 +387,11 @@ def _optout_ledger_writable() -> bool:
     with zero new opt-outs is healthy, not stale — so check the real store
     is reachable/writable instead of guessing from file age."""
     try:
-        from app.telephony.consent_ledger import SUPPRESSION_FILE
+        from app.telephony.consent_ledger import suppression_path
 
-        d = SUPPRESSION_FILE.parent
+        # Resolved per call, not imported as a constant: an audit that froze the
+        # path at import would keep reporting on the pre-cutover location.
+        d = suppression_path().parent
         return os.path.isdir(d) and os.access(d, os.W_OK)
     except Exception:
         return False
@@ -462,7 +473,9 @@ def format_daily_check_human() -> str:
     # 2. BUDGET
     icon = status_icons.get(budget["status"], "?")
     output.append(f"2. BUDGET {icon}")
-    output.append(f"   Today Spend: ${budget['spent']:.2f} / ${budget['cap']:.2f} ({budget['percent']}%)")
+    output.append(
+        f"   Today Spend: ${budget['spent']:.2f} / ${budget['cap']:.2f} ({budget['percent']}%)"
+    )
     output.append(f"   Estimated EOD: ${budget['estimated_eod']:.2f}")
     if budget["top_actions"]:
         output.append("   Top actions by cost:")
@@ -493,7 +506,9 @@ def format_daily_check_human() -> str:
         if anomalies["low_success_actions"]:
             output.append("   Low-Success Actions (<50%):")
             for a in anomalies["low_success_actions"]:
-                output.append(f"     • {a['action']}: {a['success_rate']*100:.1f}% ({a['uses']} uses)")
+                output.append(
+                    f"     • {a['action']}: {a['success_rate']*100:.1f}% ({a['uses']} uses)"
+                )
     output.append("")
 
     # 5. NEXT ACTION
@@ -517,10 +532,7 @@ def format_daily_check_human() -> str:
     output.append("")
 
     # VERDICT
-    all_statuses = [
-        alive["status"], budget["status"], anomalies["status"],
-        compliance["status"]
-    ]
+    all_statuses = [alive["status"], budget["status"], anomalies["status"], compliance["status"]]
     if approvals.get("enabled"):
         all_statuses.append(approvals["status"])
 
@@ -533,7 +545,11 @@ def format_daily_check_human() -> str:
     }
     verdict = _daily_check_verdict(checks_for_verdict)
     verdict_icon = status_icons.get(verdict, "?")
-    verdict_text = "All green — loop healthy" if verdict == "green" else "Issues detected — investigate" if verdict == "red" else "Minor issues — monitor"
+    verdict_text = (
+        "All green — loop healthy"
+        if verdict == "green"
+        else "Issues detected — investigate" if verdict == "red" else "Minor issues — monitor"
+    )
 
     output.append("═══════════════════════════════════════════════════════════")
     output.append(f"VERDICT: {verdict_icon} {verdict_text.upper()}")
@@ -573,11 +589,14 @@ def format_daily_check_json() -> str:
         "next_action": check_next_action(),
         "compliance": check_compliance(),
     }
-    return json.dumps({
-        "timestamp": _now().isoformat(),
-        "checks": checks,
-        "verdict": _daily_check_verdict(checks),
-    }, indent=2)
+    return json.dumps(
+        {
+            "timestamp": _now().isoformat(),
+            "checks": checks,
+            "verdict": _daily_check_verdict(checks),
+        },
+        indent=2,
+    )
 
 
 def format_weekly_audit_human() -> str:
@@ -645,61 +664,40 @@ def main():
     """CLI entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(
-        description="Automation Loop Health Audit"
+    parser = argparse.ArgumentParser(description="Automation Loop Health Audit")
+    parser.add_argument("--daily-check", action="store_true", help="Quick standup check (5 min)")
+    parser.add_argument("--weekly-audit", action="store_true", help="Full weekly audit (15 min)")
+    parser.add_argument(
+        "--monthly-report", action="store_true", help="Monthly deep-dive report (1 hour)"
     )
     parser.add_argument(
-        "--daily-check",
-        action="store_true",
-        help="Quick standup check (5 min)"
+        "--anomalies", action="store_true", help="Detect issues (cost spike, low success, etc.)"
     )
     parser.add_argument(
-        "--weekly-audit",
-        action="store_true",
-        help="Full weekly audit (15 min)"
+        "--approvals-pending", action="store_true", help="Show pending approval queue"
     )
+    parser.add_argument("--dlq-status", action="store_true", help="Show dead-letter queue")
+    parser.add_argument("--llm-status", action="store_true", help="Show LLM provider metrics")
+    parser.add_argument("--compliance-check", action="store_true", help="Full compliance audit")
     parser.add_argument(
-        "--monthly-report",
-        action="store_true",
-        help="Monthly deep-dive report (1 hour)"
-    )
-    parser.add_argument(
-        "--anomalies",
-        action="store_true",
-        help="Detect issues (cost spike, low success, etc.)"
-    )
-    parser.add_argument(
-        "--approvals-pending",
-        action="store_true",
-        help="Show pending approval queue"
-    )
-    parser.add_argument(
-        "--dlq-status",
-        action="store_true",
-        help="Show dead-letter queue"
-    )
-    parser.add_argument(
-        "--llm-status",
-        action="store_true",
-        help="Show LLM provider metrics"
-    )
-    parser.add_argument(
-        "--compliance-check",
-        action="store_true",
-        help="Full compliance audit"
-    )
-    parser.add_argument(
-        "--format",
-        choices=["human", "json"],
-        default="human",
-        help="Output format"
+        "--format", choices=["human", "json"], default="human", help="Output format"
     )
 
     args = parser.parse_args()
 
     # Default to daily-check if nothing specified
-    if not any([args.daily_check, args.weekly_audit, args.monthly_report, args.anomalies,
-                args.approvals_pending, args.dlq_status, args.llm_status, args.compliance_check]):
+    if not any(
+        [
+            args.daily_check,
+            args.weekly_audit,
+            args.monthly_report,
+            args.anomalies,
+            args.approvals_pending,
+            args.dlq_status,
+            args.llm_status,
+            args.compliance_check,
+        ]
+    ):
         args.daily_check = True
 
     # Execute
