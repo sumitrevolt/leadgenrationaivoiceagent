@@ -220,9 +220,21 @@ def template_is_approved(name: str, language: str = "en") -> bool:
 # Suppression list (opt-out / blocked / bounced)
 # --------------------------------------------------------------------------- #
 def is_suppressed(phone: str) -> bool:
+    """True if this number must not be messaged.
+
+    Returns True when the suppression store cannot be RESOLVED. The caller is
+    about to decide whether to send; without a trustworthy opt-out list the only
+    safe answer is "do not". A missing or empty file still reads as
+    not-suppressed — that is an answer, not an outage.
+    """
     d = _digits(phone)
     if not d:
         return False
+    try:
+        _suppression_path()
+    except Exception as exc:  # noqa: BLE001 — any resolution failure is the same verdict
+        logger.error("compliance.wa_suppression authority UNRESOLVABLE: %s", exc)
+        return True
     for it in _read(_suppression_path()):
         if it.get("phone") == d:
             return True
@@ -234,6 +246,13 @@ def suppress(phone: str, reason: str = "opt_out") -> dict[str, Any]:
     d = _digits(phone)
     if not d:
         return {"error": "bad_phone"}
+    # Guard first, then resolve at the call site — see consent_ledger.record_opt_out
+    # for why the resolver expression is kept visible to the path scanner.
+    try:
+        _suppression_path()
+    except Exception as exc:  # noqa: BLE001
+        logger.error("wa suppress FAILED (authority unresolvable) for ***%s: %s", d[-4:], exc)
+        return {"phone": d, "suppressed": False, "error": "suppression_authority_unavailable"}
     if not is_suppressed(d):
         _append(
             _suppression_path(),
