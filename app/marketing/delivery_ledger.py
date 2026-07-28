@@ -22,12 +22,13 @@ Design (mirrors clients_store.py conventions — jsonl-first, never-raise):
     (content_queue, delivery_state, inquiries) so EXISTING customers aren't blank
     on day one. Idempotent (per-event `key` + a marker file).
 
-The ledger APPEND is always-on, additive, never-raise — it RECORDS what happened,
+The ledger APPEND is always-on, additive — it RECORDS what happened,
 it does NOT send anything. WhatsApp/social PUSH stays gated in
 customer_delivery.py / social_engine (ban-safety). Visible value = this PULL log.
 
-Module-level path consts (`_LEDGER_DIR`, `_CONTENT_QUEUE_DIR`) are exposed for
-test monkeypatch.
+Path resolvers (`_LEDGER_DIR`, `_CONTENT_QUEUE_DIR`) are call-time functions —
+test monkeypatch returns a tmp dir string. Unresolvable authority must REPORT
+FAILURE (writes return False; reads raise), never silently look empty.
 """
 
 from __future__ import annotations
@@ -35,15 +36,39 @@ from __future__ import annotations
 import json
 import os
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 from typing import Any
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-# Test-monkeypatchable — always read through these consts (mirror clients_store).
-_LEDGER_DIR = os.path.join("data", "delivery_ledger")
-_CONTENT_QUEUE_DIR = os.path.join("data", "content_queue")
+
+def _LEDGER_DIR() -> str:
+    """Per-tenant delivery ledger directory — resolved per call, never frozen at import."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="delivery.ledger",
+            legacy_path=Path("data") / "delivery_ledger",
+            target_segments=("delivery", "ledger"),
+        )
+    )
+
+
+def _CONTENT_QUEUE_DIR() -> str:
+    """Content queue directory (backfill source) — same store id as auto_content/staff."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="content.queue",
+            legacy_path=Path("data") / "content_queue",
+            target_segments=("content", "queue"),
+        )
+    )
+
 
 # --------------------------------------------------------------------------- #
 # Canonical event vocabulary (mission Phase 4). event -> (icon, customer_hi,
@@ -230,12 +255,30 @@ _FAILURE_EVENTS = {"post_failed", "automation_failed"}
 # --------------------------------------------------------------------------- #
 # Low-level file helpers (best-effort lock, never raise — mirror clients_store).
 # --------------------------------------------------------------------------- #
+def _safe_stem(cid: str) -> str:
+    """Refuse a tenant id that would place the file outside its own store.
+
+    The ledger filename IS the tenant boundary: `data/delivery_ledger/<cid>.jsonl`.
+    An id of `../email_suppression` resolved to a real compliance file, so this
+    guard covers reads as well as writes — a traversal read is a cross-tenant
+    leak, not a harmless miss.
+
+    Deliberately REFUSES rather than coercing. `auto_content._safe_id` rewrites
+    offending characters, which stops the escape but silently files a tenant's
+    rows under a different name; for a customer's delivery history that
+    misplacement is itself the bug.
+    """
+    from app.platform.runtime_data import _safe_segment
+
+    return _safe_segment(cid)
+
+
 def _ledger_path(cid: str) -> str:
-    return os.path.join(_LEDGER_DIR, f"{cid}.jsonl")
+    return os.path.join(_LEDGER_DIR(), f"{_safe_stem(cid)}.jsonl")
 
 
 def _marker_path(cid: str) -> str:
-    return os.path.join(_LEDGER_DIR, f"{cid}.backfilled")
+    return os.path.join(_LEDGER_DIR(), f"{_safe_stem(cid)}.backfilled")
 
 
 def _lock(path: str):
@@ -250,13 +293,26 @@ def _lock(path: str):
 
 
 def _read_events(cid: str) -> list[dict[str, Any]]:
-    """All raw events for a client (parse-safe; corrupt lines skip). Never raises."""
-    path = _ledger_path(str(cid or "").strip())
+    """All raw events for a client (parse-safe; corrupt lines skip).
+
+    Missing file → []. Unresolvable authority → raises (never looks like
+    "customer has no history").
+    """
+    from app.platform import runtime_data as _rd
+
+    try:
+        # Probe then re-resolve at each I/O site — no local bind.
+        _LEDGER_DIR()
+    except Exception as exc:
+        logger.error("delivery_ledger authority UNRESOLVABLE (%s): %s", cid, exc)
+        if isinstance(exc, _rd.RuntimeDataError):
+            raise
+        raise _rd.RuntimeDataError(f"delivery.ledger authority unresolvable: {exc}") from exc
     out: list[dict[str, Any]] = []
     try:
-        if not os.path.isfile(path):
+        if not os.path.isfile(_ledger_path(str(cid or "").strip())):
             return out
-        with open(path, encoding="utf-8") as f:
+        with open(_ledger_path(str(cid or "").strip()), encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -267,6 +323,8 @@ def _read_events(cid: str) -> list[dict[str, Any]]:
                         out.append(rec)
                 except Exception:
                     continue
+    except _rd.RuntimeDataError:
+        raise
     except Exception as exc:  # pragma: no cover
         logger.warning("delivery_ledger read err (%s): %s", cid, exc)
     return out
@@ -315,7 +373,9 @@ def log_event(
     if not cid or event not in EVENT_TYPES:
         return False
     try:
-        os.makedirs(_LEDGER_DIR, exist_ok=True)
+        # Probe then re-resolve at each I/O site — no local bind.
+        _LEDGER_DIR()
+        os.makedirs(_LEDGER_DIR(), exist_ok=True)
         if key and str(key) in _existing_keys(cid):
             return False
         rec: dict[str, Any] = {
@@ -333,17 +393,21 @@ def log_event(
                 rec["meta"] = json.loads(json.dumps(meta, ensure_ascii=False, default=str))
             except Exception:
                 pass
-        path = _ledger_path(cid)
         try:
-            with _lock(path):
-                with open(path, "a", encoding="utf-8") as f:
+            with _lock(_ledger_path(cid)):
+                with open(_ledger_path(cid), "a", encoding="utf-8") as f:
                     f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         except Exception:  # lock timeout etc. — fall back to unlocked append
-            with open(path, "a", encoding="utf-8") as f:
+            with open(_ledger_path(cid), "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec, ensure_ascii=False) + "\n")
         return True
     except Exception as exc:
-        logger.warning("delivery_ledger log_event err (%s/%s): %s", cid, event, exc)
+        from app.platform import runtime_data as _rd
+
+        if isinstance(exc, _rd.RuntimeDataError):
+            logger.error("delivery_ledger authority UNRESOLVABLE (%s/%s): %s", cid, event, exc)
+        else:
+            logger.warning("delivery_ledger log_event err (%s/%s): %s", cid, event, exc)
         return False
 
 
@@ -492,12 +556,12 @@ def admin_view(client_id: str, limit: int = 80) -> dict[str, Any]:
 def _backfill_content_queue(cid: str) -> int:
     """content_queue/<cid>.jsonl -> post_draft_created / post_approved /
     post_published events (keyed by row index so re-runs don't duplicate)."""
-    path = os.path.join(_CONTENT_QUEUE_DIR, f"{cid}.jsonl")
     n = 0
     try:
-        if not os.path.isfile(path):
+        _CONTENT_QUEUE_DIR()
+        if not os.path.isfile(os.path.join(_CONTENT_QUEUE_DIR(), f"{cid}.jsonl")):
             return 0
-        with open(path, encoding="utf-8") as f:
+        with open(os.path.join(_CONTENT_QUEUE_DIR(), f"{cid}.jsonl"), encoding="utf-8") as f:
             for i, line in enumerate(f):
                 line = line.strip()
                 if not line:
@@ -523,7 +587,12 @@ def _backfill_content_queue(cid: str) -> int:
                 ):
                     n += 1
     except Exception as exc:  # pragma: no cover
-        logger.warning("backfill content_queue err (%s): %s", cid, exc)
+        from app.platform import runtime_data as _rd
+
+        if isinstance(exc, _rd.RuntimeDataError):
+            logger.error("backfill content_queue authority UNRESOLVABLE (%s): %s", cid, exc)
+        else:
+            logger.warning("backfill content_queue err (%s): %s", cid, exc)
     return n
 
 
@@ -563,8 +632,8 @@ def backfill_from_sources(cid: str, *, force: bool = False) -> dict[str, Any]:
     if not cid:
         return res
     try:
-        marker = _marker_path(cid)
-        if not force and os.path.isfile(marker):
+        _LEDGER_DIR()
+        if not force and os.path.isfile(_marker_path(cid)):
             res["skipped"] = True
             return res
         from app.marketing import clients_store
@@ -573,14 +642,20 @@ def backfill_from_sources(cid: str, *, force: bool = False) -> dict[str, Any]:
         written = _backfill_lifecycle(cid, client) + _backfill_content_queue(cid)
         res["written"] = written
         try:
-            os.makedirs(_LEDGER_DIR, exist_ok=True)
-            with open(marker, "w", encoding="utf-8") as f:
+            os.makedirs(_LEDGER_DIR(), exist_ok=True)
+            with open(_marker_path(cid), "w", encoding="utf-8") as f:
                 f.write(datetime.now(timezone.utc).isoformat(timespec="seconds"))
         except Exception:
             pass
     except Exception as exc:
-        logger.warning("backfill_from_sources err (%s): %s", cid, exc)
-        res["error"] = str(exc)
+        from app.platform import runtime_data as _rd
+
+        if isinstance(exc, _rd.RuntimeDataError):
+            logger.error("backfill_from_sources authority UNRESOLVABLE (%s): %s", cid, exc)
+            res["error"] = "delivery_ledger_authority_unavailable"
+        else:
+            logger.warning("backfill_from_sources err (%s): %s", cid, exc)
+            res["error"] = str(exc)
     return res
 
 

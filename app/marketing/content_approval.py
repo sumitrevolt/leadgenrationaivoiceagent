@@ -11,7 +11,7 @@ har content piece ka approval record banata hai + client ko bhejne ka WhatsApp
 
 Store: data/content_approvals.jsonl — append-on-update, latest line per id wins
 (minisite_builder config pattern — lock-free, multi-worker safe enough).
-Pure stdlib + file IO. NEVER raises.
+Pure stdlib + file IO. NEVER raises. Test-monkeypatch: `_FILE` (call-time resolver).
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ import secrets
 import time
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 from urllib.parse import quote
 
@@ -29,7 +30,19 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_FILE = os.path.join("data", "content_approvals.jsonl")
+
+def _FILE() -> str:
+    """Content approvals ledger — resolved per call, never frozen at import."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="content.approvals",
+            legacy_path=Path("data") / "content_approvals.jsonl",
+            target_segments=("content", "content_approvals.jsonl"),
+        )
+    )
+
 
 _STATUSES = {"pending", "approved", "rejected"}
 
@@ -82,19 +95,28 @@ def _site_base() -> str:
 
 def _append(rec: dict[str, Any]) -> None:
     try:
-        os.makedirs(os.path.dirname(_FILE) or ".", exist_ok=True)
-        with open(_FILE, "a", encoding="utf-8") as f:
+        # Probe then re-resolve at each I/O site (no local bind).
+        _FILE()
+        os.makedirs(os.path.dirname(_FILE()) or ".", exist_ok=True)
+        with open(_FILE(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
     except Exception as e:
+        from app.platform import runtime_data as _rd
+
+        if isinstance(e, _rd.RuntimeDataError):
+            logger.error("[content_approval] content.approvals authority UNRESOLVABLE: %s", e)
+            raise
         logger.warning(f"[content_approval] append failed: {e}")
 
 
 def _read_all() -> list[dict[str, Any]]:
+    """All approval rows. Unresolvable authority → [] (NEVER read as approved)."""
     out: list[dict[str, Any]] = []
     try:
-        if not os.path.isfile(_FILE):
+        _FILE()
+        if not os.path.isfile(_FILE()):
             return out
-        with open(_FILE, encoding="utf-8") as f:
+        with open(_FILE(), encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
                 if not line:
@@ -106,7 +128,12 @@ def _read_all() -> list[dict[str, Any]]:
                 if isinstance(rec, dict):
                     out.append(rec)
     except Exception as e:
-        logger.debug(f"[content_approval] read skip: {e}")
+        from app.platform import runtime_data as _rd
+
+        if isinstance(e, _rd.RuntimeDataError):
+            logger.error("[content_approval] content.approvals authority UNRESOLVABLE: %s", e)
+        else:
+            logger.debug(f"[content_approval] read skip: {e}")
     return out
 
 

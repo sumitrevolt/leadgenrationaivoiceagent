@@ -41,12 +41,22 @@ A3_STORE_IDS = frozenset(
     }
 )
 
+#: Stores A4 migrated (customer delivery: content queue/approvals + delivery ledger).
+A4_STORE_IDS = frozenset(
+    {
+        "content.queue",
+        "content.approvals",
+        "delivery.ledger",
+    }
+)
+
 #: wave name → frozenset of store ids. Add a new wave here; do not invent a
 #: second exact-global assertion in that wave's own ratchet.
 WAVE_STORE_IDS: dict[str, frozenset[str]] = {
     "A1": A1_STORE_IDS,
     "A2": A2_STORE_IDS,
     "A3": A3_STORE_IDS,
+    "A4": A4_STORE_IDS,
 }
 
 

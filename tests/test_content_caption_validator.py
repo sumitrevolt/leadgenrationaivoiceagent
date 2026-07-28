@@ -5,6 +5,7 @@ no output check, so a caption carrying a BANNED phrase (brand/compliance risk) o
 length could reach a human's review queue. Fix: `_caption_ok` (length + `staff.BANNED`
 reuse, fail-open) gates the write; failing items are skipped + logged.
 """
+
 from __future__ import annotations
 
 import app.agents.staff as staff
@@ -20,14 +21,24 @@ def test_caption_ok_rules(monkeypatch):
 
 
 def test_append_items_rejects_bad_caption(monkeypatch, tmp_path):
-    monkeypatch.setattr(ac, "_QUEUE_DIR", str(tmp_path))
+    monkeypatch.setattr(ac, "_QUEUE_DIR", lambda: str(tmp_path))
     monkeypatch.setattr(staff, "BANNED", ["guaranteed results"])
     items = [
-        {"id": "1", "date": "2026-07-06", "type": "post",
-         "caption": "This gives guaranteed results fast!", "status": "draft"},
+        {
+            "id": "1",
+            "date": "2026-07-06",
+            "type": "post",
+            "caption": "This gives guaranteed results fast!",
+            "status": "draft",
+        },
         {"id": "2", "date": "2026-07-06", "type": "poster", "svg": "<svg/>", "status": "draft"},
-        {"id": "3", "date": "2026-07-06", "type": "reel",
-         "caption": "A perfectly fine caption for a local business today.", "status": "draft"},
+        {
+            "id": "3",
+            "date": "2026-07-06",
+            "type": "reel",
+            "caption": "A perfectly fine caption for a local business today.",
+            "status": "draft",
+        },
     ]
     added = ac._append_items("client1", items)
     written = (tmp_path / "client1.jsonl").read_text(encoding="utf-8")

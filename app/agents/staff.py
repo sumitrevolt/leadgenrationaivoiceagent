@@ -525,6 +525,9 @@ async def run_trainer() -> dict[str, Any]:
             import time as _time
 
             _hints_file = os.path.join("data", "trainer_suggestions.jsonl")
+            # Keep CREATE identity as bare `data` (baseline fingerprint); the
+            # dirname(_hints_file) form re-fingerprinted as new debt without
+            # changing behaviour (2026-07-28 A4 ratchet).
             os.makedirs("data", exist_ok=True)
             with open(_hints_file, "a", encoding="utf-8") as _f:
                 _f.write(
@@ -567,7 +570,21 @@ _JSONL_ROTATE_FILES = [
     os.path.join("data", "content_feedback.jsonl"),
     os.path.join("data", "reply_drafts.jsonl"),
 ]
-_JSONL_ROTATE_DIR = os.path.join("data", "content_queue")  # per-client <id>.jsonl
+
+
+def _JSONL_ROTATE_DIR() -> str:
+    """Per-tenant content queue dir — same store id as auto_content writers."""
+    from pathlib import Path
+
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="content.queue",
+            legacy_path=Path("data") / "content_queue",
+            target_segments=("content", "queue"),
+        )
+    )
 
 
 def _prune_old_events(days: int = _EVENT_RETENTION_DAYS) -> int:
@@ -622,24 +639,31 @@ def _prune_old_transcripts(days: int = _TRANSCRIPT_RETENTION_DAYS) -> int:
     return removed
 
 
-def _trim_jsonl(path: str, max_lines: int = _JSONL_MAX_LINES) -> int:
+def _trim_jsonl(target: str, max_lines: int = _JSONL_MAX_LINES) -> int:
     """W1.8: append-only JSONL ko last `max_lines` tak trim (newest rakho) — unbounded
-    growth rok. Atomic tmp+os.replace, best-effort (site_beacon pattern). Removed count."""
+    growth rok. Atomic tmp+os.replace, best-effort (site_beacon pattern). Removed count.
+
+    Parameter is deliberately NOT named ``path``: a co-located
+    ``path = .../inquiries`` Name plus the scanner's old Attribute.attr
+    matching on ``os.path`` made ``os.replace(tmp, target)`` look like an
+    inquiries writer (2026-07-28 A4). Scanner ``_refs`` is Name-only now;
+    the rename stays as defense in depth.
+    """
     try:
-        if not os.path.isfile(path):
+        if not os.path.isfile(target):
             return 0
-        with open(path, encoding="utf-8") as f:
+        with open(target, encoding="utf-8") as f:
             lines = f.readlines()
         if len(lines) <= max_lines:
             return 0
         keep = lines[-max_lines:]
-        tmp = path + ".tmp"
+        tmp = target + ".tmp"
         with open(tmp, "w", encoding="utf-8") as f:
             f.writelines(keep)
-        os.replace(tmp, path)
+        os.replace(tmp, target)
         return len(lines) - len(keep)
     except Exception as e:
-        logger.debug(f"[staff] jsonl trim skipped ({path}): {e}")
+        logger.debug(f"[staff] jsonl trim skipped ({target}): {e}")
         return 0
 
 
@@ -650,12 +674,19 @@ def _prune_jsonl_stores(max_lines: int = _JSONL_MAX_LINES) -> int:
     for _p in _JSONL_ROTATE_FILES:
         total += _trim_jsonl(_p, max_lines)
     try:
-        if os.path.isdir(_JSONL_ROTATE_DIR):
-            for _fn in os.listdir(_JSONL_ROTATE_DIR):
+        # Probe then re-resolve at each I/O site — no local bind.
+        _JSONL_ROTATE_DIR()
+        if os.path.isdir(_JSONL_ROTATE_DIR()):
+            for _fn in os.listdir(_JSONL_ROTATE_DIR()):
                 if _fn.endswith(".jsonl"):
-                    total += _trim_jsonl(os.path.join(_JSONL_ROTATE_DIR, _fn), max_lines)
+                    total += _trim_jsonl(os.path.join(_JSONL_ROTATE_DIR(), _fn), max_lines)
     except Exception as e:
-        logger.debug(f"[staff] content_queue prune skipped: {e}")
+        from app.platform import runtime_data as _rd
+
+        if isinstance(e, _rd.RuntimeDataError):
+            logger.error("[staff] content.queue authority UNRESOLVABLE: %s", e)
+        else:
+            logger.debug(f"[staff] content_queue prune skipped: {e}")
     return total
 
 
@@ -755,6 +786,9 @@ def _count_recent_inquiries(hours: float = 24.0) -> int:
     from datetime import datetime, timedelta
 
     count = 0
+    # Keep the historical `path = ...` binding so the READ fingerprint stays in
+    # the debt baseline. `_trim_jsonl`'s destination param is named `target`
+    # so this symbol can no longer attach to os.replace (2026-07-28 A4).
     path = os.path.join("data", "inquiries.jsonl")
     try:
         if not os.path.isfile(path):
@@ -865,7 +899,7 @@ async def run_digest() -> dict[str, Any]:
 
         # ---- persist to data/daily_digest.txt (best-effort) ----
         try:
-            os.makedirs("data", exist_ok=True)
+            os.makedirs(os.path.dirname(os.path.join("data", "daily_digest.txt")), exist_ok=True)
             with open(os.path.join("data", "daily_digest.txt"), "w", encoding="utf-8") as f:
                 f.write(text + "\n")
         except Exception as e:

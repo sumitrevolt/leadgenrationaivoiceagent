@@ -27,7 +27,7 @@ def ca(monkeypatch):
     from app.marketing import content_approval as _ca
 
     td = tempfile.mkdtemp()
-    monkeypatch.setattr(_ca, "_FILE", os.path.join(td, "content_approvals.jsonl"))
+    monkeypatch.setattr(_ca, "_FILE", lambda: os.path.join(td, "content_approvals.jsonl"))
     return _ca
 
 
@@ -41,9 +41,18 @@ def _submit(ca, cid="clientA") -> str:
 # Enum + transitions basics                                                    #
 # --------------------------------------------------------------------------- #
 def test_extended_status_set_contains_all_canonical_states(ca):
-    for s in ("pending", "ready_for_review", "changes_requested", "approved",
-              "rejected", "scheduled", "publishing", "published",
-              "partially_published", "cancelled"):
+    for s in (
+        "pending",
+        "ready_for_review",
+        "changes_requested",
+        "approved",
+        "rejected",
+        "scheduled",
+        "publishing",
+        "published",
+        "partially_published",
+        "cancelled",
+    ):
         assert s in ca._EXTENDED_STATUSES
 
 
@@ -101,7 +110,8 @@ def test_cancelled_is_terminal_and_ledger_emits(ca, monkeypatch):
 
     captured: list[tuple[str, str]] = []
     monkeypatch.setattr(
-        delivery_ledger, "log_event",
+        delivery_ledger,
+        "log_event",
         lambda cid, ev, detail="", **kw: captured.append((cid, ev)),
     )
     aid = _submit(ca, cid="clientA")
@@ -119,9 +129,11 @@ def test_partially_published_can_recover_to_publishing(ca):
     aid = _submit(ca)
     assert ca.transition(aid, "approved")["ok"]
     assert ca.transition(aid, "publishing")["ok"]
-    assert ca.transition(aid, "partially_published",
-                         extra={"platforms_published": ["facebook"],
-                                "platforms_pending": ["instagram"]})["ok"]
+    assert ca.transition(
+        aid,
+        "partially_published",
+        extra={"platforms_published": ["facebook"], "platforms_pending": ["instagram"]},
+    )["ok"]
     # A retry can move it back to publishing (multi-platform recovery).
     r = ca.transition(aid, "publishing")
     assert r["ok"] is True

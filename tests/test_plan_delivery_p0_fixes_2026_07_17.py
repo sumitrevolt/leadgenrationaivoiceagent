@@ -11,17 +11,23 @@ def test_branded_posters_count_excludes_festival(monkeypatch, tmp_path):
         "app.marketing.clients_store._CLIENTS_FILE", str(tmp_path / "clients.jsonl"), raising=False
     )
     monkeypatch.setattr(
-        "app.marketing.auto_content._QUEUE_DIR", str(tmp_path / "content_queue"), raising=False
+        "app.marketing.auto_content._QUEUE_DIR",
+        lambda: str(tmp_path / "content_queue"),
+        raising=False,
     )
     monkeypatch.setattr(
-        "app.marketing.content_approval._FILE", str(tmp_path / "approvals.jsonl"), raising=False
+        "app.marketing.content_approval._FILE",
+        lambda: str(tmp_path / "approvals.jsonl"),
+        raising=False,
     )
     monkeypatch.setattr(
-        "app.marketing.delivery_ledger._LEDGER_DIR", str(tmp_path / "delivery_ledger"), raising=False
+        "app.marketing.delivery_ledger._LEDGER_DIR",
+        lambda: str(tmp_path / "delivery_ledger"),
+        raising=False,
     )
     monkeypatch.setattr(
         "app.marketing.delivery_ledger._CONTENT_QUEUE_DIR",
-        str(tmp_path / "content_queue"),
+        lambda: str(tmp_path / "content_queue"),
         raising=False,
     )
     monkeypatch.setattr(
@@ -48,10 +54,42 @@ def test_branded_posters_count_excludes_festival(monkeypatch, tmp_path):
         "created_at": "2026-07-07T00:00:00+00:00",
     }
     items = [
-        {"id": "p1", "client_id": "c1", "date": "2026-07-01", "type": "poster", "title": "P", "status": "draft", "created_at": "2026-07-01T00:00:00+00:00"},
-        {"id": "f1", "client_id": "c1", "date": "2026-07-02", "type": "festival", "title": "F1", "status": "draft", "created_at": "2026-07-02T00:00:00+00:00"},
-        {"id": "f2", "client_id": "c1", "date": "2026-07-03", "type": "festival", "title": "F2", "status": "draft", "created_at": "2026-07-03T00:00:00+00:00"},
-        {"id": "f3", "client_id": "c1", "date": "2026-07-04", "type": "festival", "title": "F3", "status": "draft", "created_at": "2026-07-04T00:00:00+00:00"},
+        {
+            "id": "p1",
+            "client_id": "c1",
+            "date": "2026-07-01",
+            "type": "poster",
+            "title": "P",
+            "status": "draft",
+            "created_at": "2026-07-01T00:00:00+00:00",
+        },
+        {
+            "id": "f1",
+            "client_id": "c1",
+            "date": "2026-07-02",
+            "type": "festival",
+            "title": "F1",
+            "status": "draft",
+            "created_at": "2026-07-02T00:00:00+00:00",
+        },
+        {
+            "id": "f2",
+            "client_id": "c1",
+            "date": "2026-07-03",
+            "type": "festival",
+            "title": "F2",
+            "status": "draft",
+            "created_at": "2026-07-03T00:00:00+00:00",
+        },
+        {
+            "id": "f3",
+            "client_id": "c1",
+            "date": "2026-07-04",
+            "type": "festival",
+            "title": "F3",
+            "status": "draft",
+            "created_at": "2026-07-04T00:00:00+00:00",
+        },
     ]
     assert auto_content._append_items("c1", items) == 4
     state = product_one_delivery.customer_delivery_status("c1", c)
@@ -104,7 +142,9 @@ def test_build_report_uses_marketing_id_not_billing_alias(monkeypatch, tmp_path)
         "app.marketing.client_report._OUT_DIR", str(tmp_path / "client_reports"), raising=False
     )
     monkeypatch.setattr(
-        "app.marketing.delivery_ledger._LEDGER_DIR", str(tmp_path / "delivery_ledger"), raising=False
+        "app.marketing.delivery_ledger._LEDGER_DIR",
+        lambda: str(tmp_path / "delivery_ledger"),
+        raising=False,
     )
 
     from app.marketing import client_report, clients_store, delivery_ledger
@@ -130,13 +170,27 @@ def test_build_report_uses_marketing_id_not_billing_alias(monkeypatch, tmp_path)
 
 def test_append_items_detailed_returns_only_new_rows(monkeypatch, tmp_path):
     monkeypatch.setattr(
-        "app.marketing.auto_content._QUEUE_DIR", str(tmp_path / "content_queue"), raising=False
+        "app.marketing.auto_content._QUEUE_DIR",
+        lambda: str(tmp_path / "content_queue"),
+        raising=False,
     )
     from app.marketing import auto_content
 
     items = [
-        {"id": "a", "date": "2026-07-17", "type": "post", "caption": "Hello world caption ok", "status": "draft"},
-        {"id": "b", "date": "2026-07-17", "type": "whatsapp", "caption": "WA promo caption ok", "status": "draft"},
+        {
+            "id": "a",
+            "date": "2026-07-17",
+            "type": "post",
+            "caption": "Hello world caption ok",
+            "status": "draft",
+        },
+        {
+            "id": "b",
+            "date": "2026-07-17",
+            "type": "whatsapp",
+            "caption": "WA promo caption ok",
+            "status": "draft",
+        },
     ]
     n1, added1 = auto_content._append_items_detailed("c1", items)
     assert n1 == 2 and len(added1) == 2

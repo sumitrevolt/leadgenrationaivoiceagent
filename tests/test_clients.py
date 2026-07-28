@@ -4,8 +4,8 @@ Tests: marketing clients_store + auto_content engine (per-client social media).
 
 No network — post_generator.free_ai.chat monkeypatched to ("","") so every
 content piece exercises the TEMPLATE fallback (never-empty guarantee). File
-paths are redirected to tmp_path via the module-level _CLIENTS_FILE / _QUEUE_DIR
-constants so tests never touch the real data/ dir.
+paths are redirected to tmp_path via _CLIENTS_FILE (module-level) and
+auto_content._QUEUE_DIR (call-time resolver) so tests never touch the real data/ dir.
 """
 
 import os
@@ -34,7 +34,7 @@ def tmp_store(monkeypatch, tmp_path):
     queue_dir = os.path.join(str(tmp_path), "content_queue")
     brand_dir = os.path.join(str(tmp_path), "brand_kits")
     monkeypatch.setattr(clients_store, "_CLIENTS_FILE", clients_file)
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", queue_dir)
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: queue_dir)
     # brand_kit mirror bhi tmp me rahe (real data dir na chhue)
     try:
         from app.marketing import brand_kit

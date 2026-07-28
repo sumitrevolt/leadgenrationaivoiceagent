@@ -1,4 +1,5 @@
 """Tests for client delivery field sync + delivery cockpit revenue fix (ADR-064)."""
+
 import pytest
 
 
@@ -52,6 +53,7 @@ def test_delivery_cockpit_revenue_from_clients(monkeypatch):
             {"id": "c2", "business_name": "Biz2", "plan": "trial", "status": "trial"},
         ],
     )
+
     # Mock _client_mrr to return known values
     def _mock_mrr(c):
         plan = c.get("plan", "")
@@ -96,8 +98,8 @@ def test_approvals_has_schedule_and_publish(monkeypatch, tmp_path):
 
     approvals_file = tmp_path / "content_approvals.jsonl"
     ledger_dir = tmp_path / "delivery_ledger"
-    monkeypatch.setattr(content_approval, "_FILE", str(approvals_file))
-    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", str(ledger_dir))
+    monkeypatch.setattr(content_approval, "_FILE", lambda: str(approvals_file))
+    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", lambda: str(ledger_dir))
     monkeypatch.setattr(
         "app.marketing.auto_content.enqueue_approved",
         lambda client_id, content, approval_id="": True,
@@ -108,7 +110,9 @@ def test_approvals_has_schedule_and_publish(monkeypatch, tmp_path):
     assert result["ok"] is False
     assert "approval nahi mila" in str(result.get("error", ""))
 
-    submitted = content_approval.submit("client_delivery", {"title": "July Offer", "caption": "Book now"})
+    submitted = content_approval.submit(
+        "client_delivery", {"title": "July Offer", "caption": "Book now"}
+    )
     assert submitted["ok"] is True
     approved = content_approval.approve(submitted["approval"]["token"])
     assert approved["ok"] is True
@@ -120,7 +124,9 @@ def test_approvals_has_schedule_and_publish(monkeypatch, tmp_path):
     assert latest["status"] == "scheduled"
     assert latest["scheduled_date"] == "2026-07-15"
 
-    published = content_approval.mark_published(approval_id, channel="instagram", evidence_url="https://example.com/post")
+    published = content_approval.mark_published(
+        approval_id, channel="instagram", evidence_url="https://example.com/post"
+    )
     assert published == {"ok": True, "id": approval_id, "status": "published"}
     latest = content_approval.list_all("client_delivery")[0]
     assert latest["status"] == "published"
@@ -137,5 +143,7 @@ def test_approvals_has_schedule_and_publish(monkeypatch, tmp_path):
     latest = content_approval.list_all("client_delivery")[0]
     assert latest["status"] == "failed"
     assert latest["error_message"] == "Meta token expired"
-    event_names = [e["event"] for e in delivery_ledger.timeline("client_delivery", customer_only=True)]
+    event_names = [
+        e["event"] for e in delivery_ledger.timeline("client_delivery", customer_only=True)
+    ]
     assert "post_failed" in event_names

@@ -45,7 +45,7 @@ async def _coro(value):
 def iso(monkeypatch, tmp_path):
     monkeypatch.setattr(V, "_FILE", str(tmp_path / "video_ads.jsonl"))
     monkeypatch.setattr(V, "_STATE", str(tmp_path / ".cycle.json"))
-    monkeypatch.setattr(content_approval, "_FILE", str(tmp_path / "approvals.jsonl"))
+    monkeypatch.setattr(content_approval, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
     monkeypatch.setattr(clients_store, "get_client", lambda cid: CLIENT if cid == "c1" else {})
     monkeypatch.setattr(clients_store, "list_clients", lambda status=None: [CLIENT])
     monkeypatch.setattr(clients_store, "product_lane", lambda c: "marketing")

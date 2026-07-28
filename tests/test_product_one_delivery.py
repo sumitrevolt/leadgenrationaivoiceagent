@@ -4,13 +4,39 @@ from fastapi.testclient import TestClient
 
 
 def _wire_tmp(monkeypatch, tmp_path):
-    monkeypatch.setattr("app.marketing.clients_store._CLIENTS_FILE", str(tmp_path / "clients.jsonl"), raising=False)
-    monkeypatch.setattr("app.marketing.auto_content._QUEUE_DIR", str(tmp_path / "content_queue"), raising=False)
-    monkeypatch.setattr("app.marketing.content_approval._FILE", str(tmp_path / "approvals.jsonl"), raising=False)
-    monkeypatch.setattr("app.marketing.delivery_ledger._LEDGER_DIR", str(tmp_path / "delivery_ledger"), raising=False)
-    monkeypatch.setattr("app.marketing.delivery_ledger._CONTENT_QUEUE_DIR", str(tmp_path / "content_queue"), raising=False)
-    monkeypatch.setattr("app.marketing.product_one_delivery._DELIVERY_DIR", str(tmp_path / "product_one_delivery"), raising=False)
-    monkeypatch.setattr("app.marketing.product_one_delivery._REPORT_DIR", str(tmp_path / "client_reports"), raising=False)
+    monkeypatch.setattr(
+        "app.marketing.clients_store._CLIENTS_FILE", str(tmp_path / "clients.jsonl"), raising=False
+    )
+    monkeypatch.setattr(
+        "app.marketing.auto_content._QUEUE_DIR",
+        lambda: str(tmp_path / "content_queue"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.content_approval._FILE",
+        lambda: str(tmp_path / "approvals.jsonl"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.delivery_ledger._LEDGER_DIR",
+        lambda: str(tmp_path / "delivery_ledger"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.delivery_ledger._CONTENT_QUEUE_DIR",
+        lambda: str(tmp_path / "content_queue"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.product_one_delivery._DELIVERY_DIR",
+        str(tmp_path / "product_one_delivery"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.product_one_delivery._REPORT_DIR",
+        str(tmp_path / "client_reports"),
+        raising=False,
+    )
 
 
 def _client(**overrides):
@@ -37,7 +63,9 @@ def test_new_paid_customer_gets_pipeline_and_pending_deliverables(monkeypatch, t
     _wire_tmp(monkeypatch, tmp_path)
     from app.marketing import clients_store, product_one_delivery
 
-    c = clients_store.add_client("Rahul Mobile Shop", "mobile", city="Nashik", phone="9999999999", plan="starter")
+    c = clients_store.add_client(
+        "Rahul Mobile Shop", "mobile", city="Nashik", phone="9999999999", plan="starter"
+    )
     state = product_one_delivery.customer_delivery_status(c["id"], c)
 
     assert state["stage"] == "onboarding_pending"
@@ -55,7 +83,18 @@ def test_completed_setup_with_content_moves_to_approval_pending(monkeypatch, tmp
     items = []
     for i in range(16):
         typ = "poster" if i < 4 else "post"
-        items.append({"id": f"it{i}", "client_id": "c1", "date": f"2026-07-{i+1:02d}", "type": typ, "title": f"Item {i}", "caption": "Nice offer", "status": "draft", "created_at": f"2026-07-07T00:00:{i:02d}+00:00"})
+        items.append(
+            {
+                "id": f"it{i}",
+                "client_id": "c1",
+                "date": f"2026-07-{i+1:02d}",
+                "type": typ,
+                "title": f"Item {i}",
+                "caption": "Nice offer",
+                "status": "draft",
+                "created_at": f"2026-07-07T00:00:{i:02d}+00:00",
+            }
+        )
     assert auto_content._append_items("c1", items) == 16
     content_approval.submit("c1", {"title": "Approval post", "caption": "Approve this"})
 
@@ -74,7 +113,9 @@ def test_failed_automation_log_is_admin_friendly(monkeypatch, tmp_path):
     from app.marketing import delivery_ledger, product_one_delivery
 
     c = _client()
-    delivery_ledger.log_event("c1", "post_failed", detail="Instagram publishing failed because token expired")
+    delivery_ledger.log_event(
+        "c1", "post_failed", detail="Instagram publishing failed because token expired"
+    )
 
     rows = product_one_delivery.customer_delivery_status("c1", c)["automation_events"]
 
@@ -107,11 +148,13 @@ def test_workflow_catalog_covers_prompt_workflows(monkeypatch, tmp_path):
 
 def test_run_workflow_records_admin_friendly_metadata(monkeypatch, tmp_path):
     _wire_tmp(monkeypatch, tmp_path)
-    from app.marketing import product_one_delivery
-
     import asyncio
 
-    monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: _client(), raising=False)
+    from app.marketing import product_one_delivery
+
+    monkeypatch.setattr(
+        "app.marketing.clients_store.get_client", lambda cid: _client(), raising=False
+    )
     out = asyncio.run(product_one_delivery.run_workflow("c1", "onboarding_reminder", owner="Sumit"))
 
     assert out["ok"] is True
@@ -127,7 +170,9 @@ def test_customer_proof_has_safe_notes_and_monthly_plan(monkeypatch, tmp_path):
     _wire_tmp(monkeypatch, tmp_path)
     from app.marketing import delivery_ledger, product_one_delivery
 
-    delivery_ledger.log_event("c1", "post_failed", detail="Traceback token expired for IG_API_SECRET")
+    delivery_ledger.log_event(
+        "c1", "post_failed", detail="Traceback token expired for IG_API_SECRET"
+    )
     state = product_one_delivery.customer_delivery_status("c1", _client())
 
     notes = state["customer_status_notes"]
@@ -138,9 +183,9 @@ def test_customer_proof_has_safe_notes_and_monthly_plan(monkeypatch, tmp_path):
 
 def test_manual_publish_action_records_proof(monkeypatch, tmp_path):
     _wire_tmp(monkeypatch, tmp_path)
-    from app.marketing import product_one_delivery
-
     import asyncio
+
+    from app.marketing import product_one_delivery
 
     out = asyncio.run(
         product_one_delivery.record_manual_action(
@@ -164,8 +209,14 @@ def test_admin_and_customer_delivery_endpoints(monkeypatch, tmp_path):
     from app.api.customer_auth import require_customer
     from app.main import app
 
-    monkeypatch.setattr("app.marketing.clients_store.list_clients", lambda status=None, product=None: [_client()], raising=False)
-    monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: _client(), raising=False)
+    monkeypatch.setattr(
+        "app.marketing.clients_store.list_clients",
+        lambda status=None, product=None: [_client()],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.clients_store.get_client", lambda cid: _client(), raising=False
+    )
     app.dependency_overrides[require_admin] = lambda: {"username": "admin"}
     app.dependency_overrides[require_customer] = lambda: "c1"
 
@@ -174,7 +225,11 @@ def test_admin_and_customer_delivery_endpoints(monkeypatch, tmp_path):
         customer = client.get("/api/customer/delivery-proof")
 
     assert admin.status_code == 200
-    assert admin.json()["customers"][0]["current_delivery_stage"] in {"setup_in_progress", "content_ready", "approval_pending"}
+    assert admin.json()["customers"][0]["current_delivery_stage"] in {
+        "setup_in_progress",
+        "content_ready",
+        "approval_pending",
+    }
     assert customer.status_code == 200
     body = customer.json()
     assert body["ok"] is True
@@ -216,8 +271,14 @@ def test_acceptance_test_5_monthly_proof_round_trip(monkeypatch, tmp_path):
 
     # --- 1. Set up a single paid customer (the one paying customer jiya-style) ---
     client_rec = _client()
-    monkeypatch.setattr("app.marketing.clients_store.list_clients", lambda status=None, product=None: [client_rec], raising=False)
-    monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: client_rec, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.clients_store.list_clients",
+        lambda status=None, product=None: [client_rec],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.clients_store.get_client", lambda cid: client_rec, raising=False
+    )
 
     app.dependency_overrides[require_admin] = lambda: {"username": "admin"}
     app.dependency_overrides[require_customer] = lambda: client_rec["id"]
@@ -227,41 +288,71 @@ def test_acceptance_test_5_monthly_proof_round_trip(monkeypatch, tmp_path):
         # Day-1: brand kit ready, business profile captured
         r = client.post(
             f"/api/admin/clients/{client_rec['id']}/delivery-action",
-            json={"action": "manual_task_done", "deliverable_id": "business_profile", "owner": "ops-team", "note": "Customer call captured"},
+            json={
+                "action": "manual_task_done",
+                "deliverable_id": "business_profile",
+                "owner": "ops-team",
+                "note": "Customer call captured",
+            },
         )
         assert r.status_code == 200 and r.json().get("ok") is True, r.text
 
         r = client.post(
             f"/api/admin/clients/{client_rec['id']}/delivery-action",
-            json={"action": "manual_task_done", "deliverable_id": "brand_kit", "owner": "ops-team", "note": "Brand kit ready"},
+            json={
+                "action": "manual_task_done",
+                "deliverable_id": "brand_kit",
+                "owner": "ops-team",
+                "note": "Brand kit ready",
+            },
         )
         assert r.status_code == 200 and r.json().get("ok") is True
 
         # Day-3: content generated
         r = client.post(
             f"/api/admin/clients/{client_rec['id']}/delivery-action",
-            json={"action": "generate_content", "deliverable_id": "social_posts", "owner": "ai-agent", "note": "12 captions generated"},
+            json={
+                "action": "generate_content",
+                "deliverable_id": "social_posts",
+                "owner": "ai-agent",
+                "note": "12 captions generated",
+            },
         )
         assert r.status_code == 200 and r.json().get("ok") is True
 
         # Day-5: approval received
         r = client.post(
             f"/api/admin/clients/{client_rec['id']}/delivery-action",
-            json={"action": "approve_pending", "deliverable_id": "social_posts", "owner": "customer", "note": "Customer approved"},
+            json={
+                "action": "approve_pending",
+                "deliverable_id": "social_posts",
+                "owner": "customer",
+                "note": "Customer approved",
+            },
         )
         assert r.status_code == 200 and r.json().get("ok") is True
 
         # Day-7: manual publish proof (auto-publish gated off, manual is the path)
         r = client.post(
             f"/api/admin/clients/{client_rec['id']}/delivery-action",
-            json={"action": "publish_manual", "deliverable_id": "proof", "owner": "ops-team", "note": "Posted via Postiz - screenshot saved"},
+            json={
+                "action": "publish_manual",
+                "deliverable_id": "proof",
+                "owner": "ops-team",
+                "note": "Posted via Postiz - screenshot saved",
+            },
         )
         assert r.status_code == 200 and r.json().get("ok") is True
 
         # Day-30: monthly report generated
         r = client.post(
             f"/api/admin/clients/{client_rec['id']}/delivery-action",
-            json={"action": "monthly_report", "deliverable_id": "monthly_report", "owner": "ops-team", "note": "July 2026 monthly report sent"},
+            json={
+                "action": "monthly_report",
+                "deliverable_id": "monthly_report",
+                "owner": "ops-team",
+                "note": "July 2026 monthly report sent",
+            },
         )
         assert r.status_code == 200 and r.json().get("ok") is True
 
@@ -271,28 +362,38 @@ def test_acceptance_test_5_monthly_proof_round_trip(monkeypatch, tmp_path):
         # Admin customer card uses `id` as the customer identifier.
         my_row = next(c for c in admin_cockpit["customers"] if c["id"] == client_rec["id"])
         # Customer has at least the proof deliverable done (manual publish + monthly report)
-        assert my_row["current_delivery_stage"] in {"published", "report_sent", "renewal_ready"}, my_row
+        assert my_row["current_delivery_stage"] in {
+            "published",
+            "report_sent",
+            "renewal_ready",
+        }, my_row
         # Next action must be a customer-safe string, not a technical status code
         assert my_row["next_action"]
         for forbidden in ("cron", "queue", "worker", "exception", "stack", "env var"):
-            assert forbidden not in my_row["next_action"].lower(), (
-                f"admin next_action leaked technical wording: {forbidden!r} in {my_row['next_action']!r}"
-            )
+            assert (
+                forbidden not in my_row["next_action"].lower()
+            ), f"admin next_action leaked technical wording: {forbidden!r} in {my_row['next_action']!r}"
 
         # --- 4. Admin delivery-logs filter ties back to this customer ---
         logs_resp = client.get(f"/api/admin/delivery-logs?client_id={client_rec['id']}").json()
         assert logs_resp["ok"] is True
-        assert logs_resp["count"] >= 5  # business_profile + brand_kit + social_posts(gen) + social_posts(approve) + proof + monthly_report
+        assert (
+            logs_resp["count"] >= 5
+        )  # business_profile + brand_kit + social_posts(gen) + social_posts(approve) + proof + monthly_report
         # Every log row references our customer
         assert all(ev.get("customer_id") == client_rec["id"] for ev in logs_resp["events"])
 
         # Filter "manual action required" returns only events with that filter
         manual_resp = client.get("/api/admin/delivery-logs?filter=manual_action_required").json()
         # Either empty (no manual_required right now) or all rows are status=manual_required
-        assert all(
-            "manual" in str(ev.get("status", "")).lower() or "manual" in str(ev.get("customer_message", "")).lower()
-            for ev in manual_resp["events"]
-        ) or manual_resp["count"] == 0
+        assert (
+            all(
+                "manual" in str(ev.get("status", "")).lower()
+                or "manual" in str(ev.get("customer_message", "")).lower()
+                for ev in manual_resp["events"]
+            )
+            or manual_resp["count"] == 0
+        )
 
         # --- 5. Customer sees the proof ---
         customer_proof = client.get("/api/customer/delivery-proof").json()
@@ -300,11 +401,15 @@ def test_acceptance_test_5_monthly_proof_round_trip(monkeypatch, tmp_path):
 
         # All 10 deliverables exist
         deliverable_ids = {d["id"] for d in customer_proof["deliverables"]}
-        assert len(deliverable_ids) == 10, f"expected 10 deliverables, got {len(deliverable_ids)}: {deliverable_ids}"
+        assert (
+            len(deliverable_ids) == 10
+        ), f"expected 10 deliverables, got {len(deliverable_ids)}: {deliverable_ids}"
 
         # The proof deliverable is now marked done (we manually published)
         proof_d = next(d for d in customer_proof["deliverables"] if d["id"] == "proof")
-        assert proof_d["status"] == "done", f"proof should be done after publish_manual, got {proof_d}"
+        assert (
+            proof_d["status"] == "done"
+        ), f"proof should be done after publish_manual, got {proof_d}"
 
         # The monthly_report deliverable is done
         report_d = next(d for d in customer_proof["deliverables"] if d["id"] == "monthly_report")
@@ -354,12 +459,18 @@ def test_health_status_red_for_blank_timeline_paid_customer(monkeypatch, tmp_pat
 
 def test_health_status_green_for_fully_delivered_customer(monkeypatch, tmp_path):
     _wire_tmp(monkeypatch, tmp_path)
-    from app.marketing import product_one_delivery
-
     import asyncio
 
-    asyncio.run(product_one_delivery.record_manual_action("c1", "generate_content", owner="ai-agent"))
-    asyncio.run(product_one_delivery.record_manual_action("c1", "publish_manual", note="Posted via Postiz", owner="ops-team"))
+    from app.marketing import product_one_delivery
+
+    asyncio.run(
+        product_one_delivery.record_manual_action("c1", "generate_content", owner="ai-agent")
+    )
+    asyncio.run(
+        product_one_delivery.record_manual_action(
+            "c1", "publish_manual", note="Posted via Postiz", owner="ops-team"
+        )
+    )
     asyncio.run(product_one_delivery.record_manual_action("c1", "monthly_report", owner="ops-team"))
 
     state = product_one_delivery.customer_delivery_status("c1", _client())
@@ -377,7 +488,13 @@ def test_approval_escalation_levels_from_age(monkeypatch, tmp_path):
 
     def _approval(aid: str, hours_old: float) -> dict:
         created = (datetime.now(timezone.utc) - timedelta(hours=hours_old)).isoformat()
-        return {"id": aid, "client_id": "c1", "status": "pending", "created_at": created, "token": aid}
+        return {
+            "id": aid,
+            "client_id": "c1",
+            "status": "pending",
+            "created_at": created,
+            "token": aid,
+        }
 
     content_approval._append(_approval("a_normal", 1))
     content_approval._append(_approval("a_stale", 30))
@@ -407,9 +524,17 @@ def test_delivery_cockpit_sorts_red_customers_first(monkeypatch, tmp_path):
     red = _client(id="c_red", business_name="Red Shop")
 
     # Deliver everything for the green customer BEFORE the cockpit call.
-    asyncio.run(product_one_delivery.record_manual_action("c_green", "generate_content", owner="ai-agent"))
-    asyncio.run(product_one_delivery.record_manual_action("c_green", "publish_manual", note="Posted", owner="ops-team"))
-    asyncio.run(product_one_delivery.record_manual_action("c_green", "monthly_report", owner="ops-team"))
+    asyncio.run(
+        product_one_delivery.record_manual_action("c_green", "generate_content", owner="ai-agent")
+    )
+    asyncio.run(
+        product_one_delivery.record_manual_action(
+            "c_green", "publish_manual", note="Posted", owner="ops-team"
+        )
+    )
+    asyncio.run(
+        product_one_delivery.record_manual_action("c_green", "monthly_report", owner="ops-team")
+    )
 
     # List order deliberately puts the healthy customer FIRST — sort must fix it.
     monkeypatch.setattr(
@@ -432,7 +557,9 @@ def test_sla_recovery_sweep_is_idempotent_and_never_sends_messages(monkeypatch, 
     from app.marketing import auto_content, clients_store, delivery_ledger, product_one_delivery
 
     client_rec = _client()
-    monkeypatch.setattr(clients_store, "list_clients", lambda status=None, product=None: [client_rec], raising=False)
+    monkeypatch.setattr(
+        clients_store, "list_clients", lambda status=None, product=None: [client_rec], raising=False
+    )
     monkeypatch.setattr(clients_store, "get_client", lambda cid: client_rec, raising=False)
 
     calls = {"n": 0}
@@ -483,10 +610,19 @@ def test_integration_readiness_scopes_vobiz_failure_to_voice_customers_only(monk
     monkeypatch.setattr(
         integration_health,
         "snapshot",
-        lambda hours=6: {"integrations": {"vobiz": {"fail": 5, "ok": 1, "fail_rate": 0.83, "last_error": "SIP timeout"}}},
+        lambda hours=6: {
+            "integrations": {
+                "vobiz": {"fail": 5, "ok": 1, "fail_rate": 0.83, "last_error": "SIP timeout"}
+            }
+        },
         raising=False,
     )
-    monkeypatch.setattr(automation_health, "health", lambda: {"overdue": [], "queue_backlogged": False, "queue": {}}, raising=False)
+    monkeypatch.setattr(
+        automation_health,
+        "health",
+        lambda: {"overdue": [], "queue_backlogged": False, "queue": {}},
+        raising=False,
+    )
 
     marketing_client = _client(id="c_mkt", product="marketing")
     voice_client = _client(id="c_voice", product="voice")
@@ -513,10 +649,19 @@ def test_integration_readiness_all_paid_scope_affects_everyone(monkeypatch, tmp_
     monkeypatch.setattr(
         integration_health,
         "snapshot",
-        lambda hours=6: {"integrations": {"smtp": {"fail": 4, "ok": 0, "fail_rate": 1.0, "last_error": "auth failed"}}},
+        lambda hours=6: {
+            "integrations": {
+                "smtp": {"fail": 4, "ok": 0, "fail_rate": 1.0, "last_error": "auth failed"}
+            }
+        },
         raising=False,
     )
-    monkeypatch.setattr(automation_health, "health", lambda: {"overdue": [], "queue_backlogged": False, "queue": {}}, raising=False)
+    monkeypatch.setattr(
+        automation_health,
+        "health",
+        lambda: {"overdue": [], "queue_backlogged": False, "queue": {}},
+        raising=False,
+    )
 
     c1 = _client(id="c1", product="marketing")
     c2 = _client(id="c2", product="voice")
@@ -540,10 +685,19 @@ def test_integration_readiness_ops_only_scope_has_no_customer_impact(monkeypatch
     monkeypatch.setattr(
         integration_health,
         "snapshot",
-        lambda hours=6: {"integrations": {"places": {"fail": 10, "ok": 0, "fail_rate": 1.0, "last_error": "quota"}}},
+        lambda hours=6: {
+            "integrations": {
+                "places": {"fail": 10, "ok": 0, "fail_rate": 1.0, "last_error": "quota"}
+            }
+        },
         raising=False,
     )
-    monkeypatch.setattr(automation_health, "health", lambda: {"overdue": [], "queue_backlogged": False, "queue": {}}, raising=False)
+    monkeypatch.setattr(
+        automation_health,
+        "health",
+        lambda: {"overdue": [], "queue_backlogged": False, "queue": {}},
+        raising=False,
+    )
     monkeypatch.setattr(
         "app.marketing.clients_store.list_clients",
         lambda status=None, product=None: [_client()],
@@ -563,11 +717,17 @@ def test_integration_readiness_scheduler_backlog_affects_all_paid_customers(monk
     from app.marketing import product_one_delivery
     from app.platform import automation_health, integration_health
 
-    monkeypatch.setattr(integration_health, "snapshot", lambda hours=6: {"integrations": {}}, raising=False)
+    monkeypatch.setattr(
+        integration_health, "snapshot", lambda hours=6: {"integrations": {}}, raising=False
+    )
     monkeypatch.setattr(
         automation_health,
         "health",
-        lambda: {"overdue": ["content"], "queue_backlogged": True, "queue": {"celery": 120, "heavy": 5}},
+        lambda: {
+            "overdue": ["content"],
+            "queue_backlogged": True,
+            "queue": {"celery": 120, "heavy": 5},
+        },
         raising=False,
     )
     monkeypatch.setattr(
@@ -592,10 +752,19 @@ def test_integration_readiness_ledger_event_is_idempotent_per_day(monkeypatch, t
     monkeypatch.setattr(
         integration_health,
         "snapshot",
-        lambda hours=6: {"integrations": {"whatsapp": {"fail": 6, "ok": 0, "fail_rate": 1.0, "last_error": "token expired"}}},
+        lambda hours=6: {
+            "integrations": {
+                "whatsapp": {"fail": 6, "ok": 0, "fail_rate": 1.0, "last_error": "token expired"}
+            }
+        },
         raising=False,
     )
-    monkeypatch.setattr(automation_health, "health", lambda: {"overdue": [], "queue_backlogged": False, "queue": {}}, raising=False)
+    monkeypatch.setattr(
+        automation_health,
+        "health",
+        lambda: {"overdue": [], "queue_backlogged": False, "queue": {}},
+        raising=False,
+    )
     monkeypatch.setattr(
         "app.marketing.clients_store.list_clients",
         lambda status=None, product=None: [_client(id="c1")],
@@ -615,8 +784,15 @@ def test_delivery_cockpit_includes_integration_health(monkeypatch, tmp_path):
     from app.marketing import product_one_delivery
     from app.platform import automation_health, integration_health
 
-    monkeypatch.setattr(integration_health, "snapshot", lambda hours=6: {"integrations": {}}, raising=False)
-    monkeypatch.setattr(automation_health, "health", lambda: {"overdue": [], "queue_backlogged": False, "queue": {}}, raising=False)
+    monkeypatch.setattr(
+        integration_health, "snapshot", lambda hours=6: {"integrations": {}}, raising=False
+    )
+    monkeypatch.setattr(
+        automation_health,
+        "health",
+        lambda: {"overdue": [], "queue_backlogged": False, "queue": {}},
+        raising=False,
+    )
     monkeypatch.setattr(
         "app.marketing.clients_store.list_clients",
         lambda status=None, product=None: [_client()],
@@ -637,7 +813,13 @@ def test_gbp_url_alone_is_not_done_until_scored_audit(monkeypatch, tmp_path):
     gbp_dir.mkdir()
     monkeypatch.setattr(product_one_delivery, "_GBP_AUDIT_DIR", str(gbp_dir), raising=False)
 
-    c = _client(socials={"instagram": "rahulmobile", "facebook": "", "gbp": "https://maps.google.com/?cid=1"})
+    c = _client(
+        socials={
+            "instagram": "rahulmobile",
+            "facebook": "",
+            "gbp": "https://maps.google.com/?cid=1",
+        }
+    )
     state = product_one_delivery.customer_delivery_status("c1", c)
     by_id = {d["id"]: d for d in state["deliverables"]}
     assert by_id["gbp_suggestions"]["status"] == "in_progress"
