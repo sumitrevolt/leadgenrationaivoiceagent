@@ -1,9 +1,11 @@
 ﻿# CURRENT_STATE - LeadGen AI (operational truth)
 
-Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN
+Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | PARTIAL | STALE | UNKNOWN | DIRECT_HOST_VERIFIED | GIT_VERIFIED | ASSUMED
+(`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-07-25T10:34Z (Automation-Max safe flags LIVE on prod; `/health`=`441cf37a` after `:latest` skew self-heal).
+2026-07-28T02:40Z — `/health` re-probed over direct HTTPS (no browser).
+**This file went 3 days un-re-verified, and was demonstrably WRONG for about 1 of them** — `441cf37a` stopped being the running build when `dd193a69` merged on 2026-07-27T04:30Z. Those are different durations; conflating them overstates the failure and understates the cause, which was not re-probing.
 
 ## Sprint goal (LOCKED)
 **Automation-Max** — safe engines auto; human only for publish / money / dial / bulk WA.
@@ -22,29 +24,40 @@ Label: PRODUCTION-PROVEN
 > `git fetch` and re-probe `/health` rather than trusting a checked-in number.
 
 ## Production SHA
-`441cf37a` (`441cf37a109f1a7a51c60dd96032c8251ca647f6`) — blueprint detail-import PR #133 merge; PRODUCTION-PROVEN via `scripts/deploy_vps.sh` (2026-07-25T09:27Z).
-Previous runtime SHA: `d114f942` (Master Blueprint PR #125 squash merge) — rollback reference.
-Verified: on-box `127.0.0.1:8000/health` and `https://leadsgenai.in/health` both report `441cf37a`.
-Zero version skew — all five app-image services (`app`, `worker`, `scheduler`, `worker-heavy`, `worker-video`) run `APP_VERSION=441cf37a` on image `:441cf37a`.
-Label: PRODUCTION-PROVEN
+`dd193a69` — merge commit of PR #147 (External Agent Runner v1), merged 2026-07-27.
+Observed 2026-07-28T02:40:07Z: `GET https://leadsgenai.in/health` over direct HTTPS from a non-browser client returns `{"version":"dd193a69","environment":"production","status":"healthy"}`.
+Previous entry in this file said `441cf37a`, which stopped being true when `dd193a69` merged (2026-07-27T04:30Z). **`441cf37a` is NOT the running build.** Rollback reference is now `dd193a69` itself until the next deploy.
+Per-container `APP_VERSION` across the five app-image services was NOT re-checked this session — do not restate the old "zero skew" claim without probing.
+Label: DIRECT_HOST_VERIFIED (2026-07-28T02:40:07Z, direct HTTPS, no browser cache in path)
+
+> **Verify this the same way.** Loading `/health` in Chrome on 2026-07-28 returned a
+> FIVE-DAY-OLD cached body (`47d2fe3c`, uptime frozen at `0h 9m 10s`) and silently
+> stripped the cache-busting query string — a service worker answering from cache.
+> That is the most likely reason a wrong SHA survived in this file for days.
+> Use `curl` or any non-browser client. Never a browser tab.
 
 ## Origin/main
-`441cf37a` — **equal to production** as of this deploy.
-That deploy closed a ~21-commit backlog (`d114f942..441cf37a`, 102 files, +11,069/−279): the pydantic-core lock repair (#129), Master Blueprint v4 hierarchy/harness/reconcilers (#128, #130, #131, #132, #133), the autonomous sales engine (#124), Creative OS Phase-1 (#116), entitlement-assurance admin API (#121) and an OmniRoute governor change (#113).
-Label: PRODUCTION-PROVEN
+`6a504321` — merge of PR #160 (`feat/runtime-data-a1-telephony`). **NOT equal to production.**
+`dd193a69` is a direct ancestor of main: main is ahead, production holds zero commits main lacks. Re-derive the exact gap rather than trusting a number written here:
+`git fetch origin && git rev-list --count dd193a69..origin/main`
+Label: GIT_VERIFIED (2026-07-28)
 
 ## Production health
-`/health` 200 at exact `441cf37a`; environment `production`; status `healthy` (re-probed 2026-07-25T09:29Z).
-Post-deploy soak: 33 containers running, 0 restarting/exited, all five redeployed services `healthy`, zero ERROR/Traceback in `app`/`worker`/`scheduler` logs, `celery` + `dlq:failed_tasks` + `dlq:dead` all 0.
-Label: PRODUCTION-PROVEN
+`status: healthy`, `environment: production` at `dd193a69` (2026-07-28T02:40:07Z, direct HTTPS).
+**Unresolved observation:** two probes 76 seconds apart returned uptimes of `22h 28m` and `1h 43m` at the same version. The straightforward reading is per-process uptime under `WEB_CONCURRENCY=2`, which would mean one of the two workers has a start time ~1h43m before the probe. Why is unknown — container/worker logs were not inspected. This repo has had restart-storm prod-downs before, so treat it as an open item, not as proven-benign and not as a proven incident.
+Container/soak numbers from the 2026-07-25 deploy are NOT restated here because they were not re-measured.
+Label: PARTIAL (health DIRECT_HOST_VERIFIED; worker restart UNKNOWN)
 
 ## Newly-live-but-inert (shipped 2026-07-25, never previously run in prod)
-The autonomous sales engine and Creative OS Phase-1 are now ON DISK in production but gated OFF. Verified in the running containers:
+The autonomous sales engine and Creative OS Phase-1 are now ON DISK in production but gated OFF. Verified in the running containers **on 2026-07-25 and NOT re-probed on 2026-07-28** — `/health` returns no feature flags, so nothing below was re-confirmed this session (ASSUMED):
 - `SALES_AUTOPILOT_ENABLED` — **unset in both `app` and `scheduler`** → engine fully inert (master gate, `app/api/automation_flags.py:378`)
 - `sales_autopilot` is in `RUN_DUE_EXCLUDE` → recovery never auto-enqueues it
 - `WHATSAPP_AUTO_SEND=0`, `PLATFORM_DIAL_DAILY=0` (calling HARD OFF)
 - Zero autopilot activity in scheduler/worker logs since deploy
-Do NOT treat these as live capabilities. Label: CODE-PRESENT (inert)
+Do NOT treat these as live capabilities. Label: CODE-PRESENT (inert) as of 2026-07-25 | ASSUMED as of 2026-07-28
+
+## Calling / flag posture — read this before quoting any flag from this file
+Every flag value in this document was probed on 2026-07-25, not on 2026-07-28. `/health` exposes version, environment, status and uptime only, so a `/health` probe can never confirm one. Treat all of them as **ASSUMED** and re-probe the container env before acting on one. Nothing in this session's changes altered a flag.
 
 ## Migration
 The `510ed7bc` Video Review Stage 3 deploy completed its hard-gated transactional Alembic step successfully; OpenClaw Admin `7cab5f60` introduced no migration.
