@@ -7,6 +7,7 @@ per-job success/fail counts + duration, recorded at the ONE common completion pa
 /metrics in the existing dependency-free text-exposition style (prometheus_client is
 not vendored). Flag-gated exposition, fail-open.
 """
+
 from __future__ import annotations
 
 import app.platform.job_metrics as jm
@@ -45,8 +46,8 @@ def test_record_run_wires_job_metrics(monkeypatch, tmp_path):
 
     calls = []
     monkeypatch.setattr(jm, "record", lambda job, ok, seconds=0.0: calls.append((job, ok, seconds)))
-    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "runs.jsonl"))
-    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "beats.json"))
+    monkeypatch.setattr(ah, "_RUNS", lambda: str(tmp_path / "runs.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "beats.json"))
 
     ah.record_run("testjob", True, 1.25)
 

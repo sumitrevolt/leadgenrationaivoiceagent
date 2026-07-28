@@ -334,7 +334,7 @@ STORES: list[dict[str, Any]] = [
         store_id="automation.job_runs",
         display_name="Scheduler job-run telemetry",
         legacy_paths=["data/job_runs.jsonl", "data/job_heartbeats.json"],
-        writer_modules=["app/platform/automation_health.py:27"],
+        writer_modules=["app/platform/automation_health.py"],
         production_activity="PRODUCTION_ACTIVE",
         size_bytes=27919768,
         last_write="2026-07-26",
@@ -344,7 +344,9 @@ STORES: list[dict[str, Any]] = [
         retention_policy="NONE DEFINED — unbounded growth",
         target_runtime_subpath="automation/job_runs.jsonl",
         migration_tier=TIER_1,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A6 (2026-07-29): writers resolve through runtime_data_authority.
+        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="27.9 MB and growing daily; needs a retention decision, " "not just relocation",
     ),
@@ -352,7 +354,7 @@ STORES: list[dict[str, Any]] = [
         store_id="automation.cadence_runs",
         display_name="Cadence run telemetry",
         legacy_paths=["data/cadence_runs.jsonl", "data/cadence_leads.jsonl"],
-        writer_modules=["app/marketing/cadence.py:25", "app/marketing/cadence.py:26"],
+        writer_modules=["app/marketing/cadence.py"],
         production_activity="PRODUCTION_ACTIVE",
         size_bytes=11844399,
         last_write="2026-07-26",
@@ -362,7 +364,9 @@ STORES: list[dict[str, Any]] = [
         retention_policy="NONE DEFINED",
         target_runtime_subpath="automation/cadence_runs.jsonl",
         migration_tier=TIER_1,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A6 (2026-07-29): writers resolve through runtime_data_authority.
+        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
     ),
     # ------------------------------------------------------- UNRESOLVED
@@ -370,7 +374,7 @@ STORES: list[dict[str, Any]] = [
         store_id="communications.interactions",
         display_name="Omnichannel interaction log",
         legacy_paths=["data/interactions.jsonl"],
-        writer_modules=["app/platform/interaction_log.py:21"],
+        writer_modules=["app/platform/interaction_log.py"],
         production_activity="PRODUCTION_ACTIVE",
         size_bytes=1167941,
         last_write="2026-07-25",
@@ -380,7 +384,9 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="communications/interactions.jsonl",
         migration_tier=TIER_1,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A6 (2026-07-29): JSONL path resolves through runtime_data_authority;
+        # DB dual-write unchanged. Bytes have not moved — still a blocker.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence="NEITHER store is safe to delete. DB has resolved identity and drives "
         "lead_status_history; JSONL is the ONLY store with email/phone and the only one "
@@ -508,8 +514,8 @@ STORES: list[dict[str, Any]] = [
         display_name="External agent mission state (EXTERNAL_MISSION_DIR)",
         legacy_paths=["data/external_missions/"],
         writer_modules=[
-            "app/dev_control/external_agents/cas.py:426",
-            "app/dev_control/external_agents/store.py:_mission_path",
+            "app/dev_control/external_agents/cas.py",
+            "app/dev_control/external_agents/store.py",
         ],
         production_activity="PRODUCTION_ACTIVE",
         current_authority="FILE",
@@ -517,7 +523,9 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="external_missions/",
         migration_tier=TIER_1,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A8 (2026-07-29): default root resolves through runtime_data_authority
+        # with EXTERNAL_MISSION_DIR override. Bytes have not moved — still a blocker.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence=(
             "Root is EXTERNAL_MISSION_DIR, defaulting to data/external_missions — "

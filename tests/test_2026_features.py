@@ -189,7 +189,7 @@ def test_niche_prospector_targets(tmp_path, monkeypatch):
     monkeypatch.setattr(niche_prospector, "_CURSOR", str(tmp_path / "cur.json"))
     targets = niche_prospector.build_targets(batch=3, max_keywords=2)
     assert targets  # NICHES me keywords hain -> non-empty
-    assert all(set(("niche", "query", "cities")).issubset(t) for t in targets)
+    assert all({"niche", "query", "cities"}.issubset(t) for t in targets)
     assert 1 <= len({t["niche"] for t in targets}) <= 3
     assert len(niche_prospector._all_niche_keys(tier="S")) >= 1
     # cursor rotation advances
@@ -276,8 +276,8 @@ def test_seo_page_gen():
 def test_cadence_orchestrator(tmp_path, monkeypatch):
     from app.marketing import cadence
 
-    monkeypatch.setattr(cadence, "_LEADS", str(tmp_path / "cl.jsonl"))
-    monkeypatch.setattr(cadence, "_RUNS", str(tmp_path / "cr.jsonl"))
+    monkeypatch.setattr(cadence, "_LEADS", lambda: str(tmp_path / "cl.jsonl"))
+    monkeypatch.setattr(cadence, "_RUNS", lambda: str(tmp_path / "cr.jsonl"))
     rec = cadence.enroll(
         {
             "business_name": "Test",

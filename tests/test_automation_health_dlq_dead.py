@@ -22,8 +22,8 @@ from app.platform import automation_health as ah
 
 
 def _empty_beats(tmp_path, monkeypatch):
-    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "beats.json"))
-    with open(ah._BEATS, "w", encoding="utf-8") as f:
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "beats.json"))
+    with open(ah._BEATS(), "w", encoding="utf-8") as f:
         json.dump({}, f)
 
 
@@ -32,9 +32,7 @@ def test_dead_tasks_present_marks_degraded_even_with_no_backlog(tmp_path, monkey
     dead=4 (retry-exhausted, sitting in dlq:dead) — celery/heavy queues are
     empty (no backlog), yet this MUST be degraded/ok=False, not healthy."""
     _empty_beats(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 0, "dead": 4}
-    )
+    monkeypatch.setattr(ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 0, "dead": 4})
     h = ah.health()
     assert h["dead_tasks_present"] is True
     assert h["retryable_failed_present"] is False
@@ -47,9 +45,7 @@ def test_retryable_failed_present_marks_degraded(tmp_path, monkeypatch):
     or stuck because the sweep is disabled/deferred) must also degrade the
     verdict, independent of dead."""
     _empty_beats(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 3, "dead": 0}
-    )
+    monkeypatch.setattr(ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 3, "dead": 0})
     h = ah.health()
     assert h["dead_tasks_present"] is False
     assert h["retryable_failed_present"] is True
@@ -59,9 +55,7 @@ def test_retryable_failed_present_marks_degraded(tmp_path, monkeypatch):
 
 def test_zero_dead_and_dlq_with_no_backlog_stays_healthy(tmp_path, monkeypatch):
     _empty_beats(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 0, "dead": 0}
-    )
+    monkeypatch.setattr(ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 0, "dead": 0})
     h = ah.health()
     assert h["dead_tasks_present"] is False
     assert h["retryable_failed_present"] is False
@@ -92,20 +86,14 @@ def test_redis_unreachable_unknown_dlq_dead_does_not_falsely_degrade(tmp_path, m
 
 def test_queue_available_true_when_redis_answers(tmp_path, monkeypatch):
     _empty_beats(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 0, "dead": 0}
-    )
+    monkeypatch.setattr(ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 0, "dead": 0})
     h = ah.health()
     assert h["queue_available"] is True
 
 
-def test_both_dead_and_retryable_failed_present_still_single_degraded_status(
-    tmp_path, monkeypatch
-):
+def test_both_dead_and_retryable_failed_present_still_single_degraded_status(tmp_path, monkeypatch):
     _empty_beats(tmp_path, monkeypatch)
-    monkeypatch.setattr(
-        ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 2, "dead": 1}
-    )
+    monkeypatch.setattr(ah, "queue_depth", lambda: {"celery": 0, "heavy": 0, "dlq": 2, "dead": 1})
     h = ah.health()
     assert h["dead_tasks_present"] is True
     assert h["retryable_failed_present"] is True

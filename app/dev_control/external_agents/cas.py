@@ -422,7 +422,22 @@ def get_backend(*, root: str | None = None) -> CasBackend:
             raise CasBackendError("redis_coordination_unavailable")
         _BACKEND = RedisCasBackend(redis_client)
         return _BACKEND
-    mission_root = root or os.getenv("EXTERNAL_MISSION_DIR") or "data/external_missions"
+    if root:
+        mission_root = root
+    else:
+        from pathlib import Path
+
+        from app.platform import runtime_data_authority as _auth
+
+        # Keep the local name `mission_root` — allowlist binds to it (A3 lesson).
+        mission_root = str(
+            _auth.resolve_store_path(
+                store_id="devcontrol.external_missions",
+                legacy_path=Path("data") / "external_missions",
+                target_segments=("external_missions",),
+                override_env="EXTERNAL_MISSION_DIR",
+            )
+        )
     os.makedirs(mission_root, exist_ok=True)
     _BACKEND = FileLockCasBackend(mission_root)
     return _BACKEND

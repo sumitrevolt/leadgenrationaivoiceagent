@@ -35,8 +35,8 @@ def test_telephony_readiness_watch_never_raises(tmp_path, monkeypatch):
 def test_queue_depth_defensive_and_health_shape(tmp_path, monkeypatch):
     from app.platform import automation_health as ah
 
-    monkeypatch.setattr(ah, "_RUNS", str(tmp_path / "r.jsonl"))
-    monkeypatch.setattr(ah, "_BEATS", str(tmp_path / "b.json"))
+    monkeypatch.setattr(ah, "_RUNS", lambda: str(tmp_path / "r.jsonl"))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(tmp_path / "b.json"))
     q = ah.queue_depth()  # Redis na ho -> -1, kabhi raise nahi
     # contract: core keys hamesha; extra queues (heavy/dead) additive allowed
     assert {"celery", "dlq"}.issubset(set(q.keys()))

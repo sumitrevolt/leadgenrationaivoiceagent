@@ -16,14 +16,39 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_LEADS = os.path.join("data", "cadence_leads.jsonl")
-_RUNS = os.path.join("data", "cadence_runs.jsonl")
+
+def _LEADS() -> str:
+    """Cadence per-lead state — resolved per call, never frozen at import."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="automation.cadence_runs",
+            legacy_path=Path("data") / "cadence_leads.jsonl",
+            target_segments=("automation", "cadence_leads.jsonl"),
+        )
+    )
+
+
+def _RUNS() -> str:
+    """Cadence step-run drafts — sibling file under the same store family."""
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="automation.cadence_runs",
+            legacy_path=Path("data") / "cadence_runs.jsonl",
+            target_segments=("automation", "cadence_runs.jsonl"),
+        )
+    )
+
 
 # The cadence (2026 multi-touch). day = enroll ke kitne din baad.
 DEFAULT_CADENCE: list[dict[str, Any]] = [
@@ -87,7 +112,8 @@ def enroll(lead: dict[str, Any]) -> dict[str, Any]:
     biz = (lead.get("business_name") or lead.get("name") or "Business").strip()
     phone = "".join(c for c in str(lead.get("phone") or "") if c.isdigit())[-10:]
     email = (lead.get("email") or "").strip().lower()
-    rows = _read(_LEADS)
+    # Resolver at each I/O site — binding to a local unbinds the allowlist (A3).
+    rows = _read(_LEADS())
     for r in rows:
         if (phone and r.get("phone") == phone) or (email and r.get("email") == email):
             return r  # already enrolled
@@ -103,7 +129,7 @@ def enroll(lead: dict[str, Any]) -> dict[str, Any]:
         "enrolled_at": _now().isoformat(),
     }
     rows.append(rec)
-    _write_all(_LEADS, rows)
+    _write_all(_LEADS(), rows)
     return rec
 
 
@@ -173,7 +199,7 @@ async def run_due(limit: int = 100) -> dict[str, Any]:
     """
     if not _enabled():
         return {"ok": False, "reason": "CADENCE_ENGINE off"}
-    rows = _read(_LEADS)
+    rows = _read(_LEADS())
     advanced = 0
     examined_active = 0
     for rec in rows:
@@ -193,7 +219,7 @@ async def run_due(limit: int = 100) -> dict[str, Any]:
             step = DEFAULT_CADENCE[idx]
             res = await _execute_step(rec, step)
             _append(
-                _RUNS,
+                _RUNS(),
                 {
                     "lead_id": rec["id"],
                     "business_name": rec["business_name"],
@@ -210,7 +236,7 @@ async def run_due(limit: int = 100) -> dict[str, Any]:
                 rec["status"] = "done"
             advanced += 1
     if advanced:
-        _write_all(_LEADS, rows)
+        _write_all(_LEADS(), rows)
     active = sum(1 for r in rows if r.get("status") == "active")
     if advanced:
         # Staff-visibility (2026-07-01): omnichannel cadence runs on a schedule
@@ -236,16 +262,16 @@ async def run_due(limit: int = 100) -> dict[str, Any]:
 
 
 def list_runs(limit: int = 50) -> list[dict[str, Any]]:
-    return list(reversed(_read(_RUNS)))[:limit]
+    return list(reversed(_read(_RUNS())))[:limit]
 
 
 def stats() -> dict[str, Any]:
-    rows = _read(_LEADS)
+    rows = _read(_LEADS())
     # Apollo-style per-step analytics: har channel/action pe kitne touches gaye
     # (sequence ka kaunsa step kitna chala — drop-off saaf dikhta).
     step_counts: dict[str, int] = {}
     try:
-        for r in _read(_RUNS):
+        for r in _read(_RUNS()):
             key = f"{r.get('channel', '?')}:{r.get('action', '?')}"
             step_counts[key] = step_counts.get(key, 0) + 1
     except Exception:

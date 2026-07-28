@@ -33,13 +33,20 @@ from app.dev_control.external_agents import cas as cas_mod
 from app.dev_control.external_agents.policy import redact
 from app.dev_control.external_agents.schema import TERMINAL_STATES, Mission, MissionState
 
-DEFAULT_ROOT = "data/external_missions"
 # Local optimisation only — held INSIDE an already-acquired CAS lock.
 _LOCAL = threading.RLock()
 
 
 def _root() -> Path:
-    return Path(os.getenv("EXTERNAL_MISSION_DIR") or DEFAULT_ROOT)
+    """Mission store root — EXTERNAL_MISSION_DIR override, else shared authority."""
+    from app.platform import runtime_data_authority as _auth
+
+    return _auth.resolve_store_path(
+        store_id="devcontrol.external_missions",
+        legacy_path=Path("data") / "external_missions",
+        target_segments=("external_missions",),
+        override_env="EXTERNAL_MISSION_DIR",
+    )
 
 
 def _mission_path(mission_id: str) -> Path:

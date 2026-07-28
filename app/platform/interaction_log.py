@@ -12,13 +12,29 @@ import json
 import os
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
-_JSONL = os.path.join("data", "interactions.jsonl")
+
+def _JSONL() -> str:
+    """Omnichannel interaction JSONL audit — resolved per call, never frozen at import.
+
+    DB dual-write stays in ``record()``; only this file path follows the shared
+    runtime-data authority.
+    """
+    from app.platform import runtime_data_authority as _auth
+
+    return str(
+        _auth.resolve_store_path(
+            store_id="communications.interactions",
+            legacy_path=Path("data") / "interactions.jsonl",
+            target_segments=("communications", "interactions.jsonl"),
+        )
+    )
 
 
 def _enabled() -> bool:
@@ -62,8 +78,10 @@ async def record(
         "occurred_at": _now().isoformat(),
     }
     try:
-        os.makedirs("data", exist_ok=True)
-        with open(_JSONL, "a", encoding="utf-8") as f:
+        # Resolver at each I/O site — derive dir from the active file (A4 lesson:
+        # bare os.makedirs("data") is a permanent hole for the next literal).
+        os.makedirs(os.path.dirname(_JSONL()) or ".", exist_ok=True)
+        with open(_JSONL(), "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
     except Exception:
         pass
@@ -163,8 +181,8 @@ def list_for_phone(phone: str, limit: int = 50) -> list[dict[str, Any]]:
         return []
     rows: list[dict[str, Any]] = []
     try:
-        if os.path.isfile(_JSONL):
-            with open(_JSONL, encoding="utf-8") as f:
+        if os.path.isfile(_JSONL()):
+            with open(_JSONL(), encoding="utf-8") as f:
                 for line in f:
                     if line.strip():
                         try:

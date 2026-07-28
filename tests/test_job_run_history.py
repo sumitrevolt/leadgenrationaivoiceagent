@@ -26,8 +26,8 @@ def ah(tmp_path, monkeypatch):
     """automation_health with isolated jsonl + snapshot paths (no real data/ writes)."""
     from app.platform import automation_health as _ah
 
-    monkeypatch.setattr(_ah, "_RUNS", str(tmp_path / "job_runs.jsonl"))
-    monkeypatch.setattr(_ah, "_BEATS", str(tmp_path / "job_heartbeats.json"))
+    monkeypatch.setattr(_ah, "_RUNS", lambda: str(tmp_path / "job_runs.jsonl"))
+    monkeypatch.setattr(_ah, "_BEATS", lambda: str(tmp_path / "job_heartbeats.json"))
     return _ah
 
 
@@ -40,7 +40,7 @@ def test_record_run_old_positional_signature_still_works(ah):
     """Old callers `record_run(job, ok, seconds, note)` must not break and must
     write the OLD shape (no enriched keys) so pre-existing records stay readable."""
     ah.record_run("growth", True, 1.5, "all good")
-    lines = open(ah._RUNS, encoding="utf-8").read().splitlines()
+    lines = open(ah._RUNS(), encoding="utf-8").read().splitlines()
     assert len(lines) == 1
     rec = json.loads(lines[0])
     assert rec["job"] == "growth" and rec["ok"] is True and rec["s"] == 1.5
@@ -61,14 +61,14 @@ def test_record_run_enriched_round_trip(ah):
         trigger="scheduler",
         started_at="2026-07-07T10:00:00+00:00",
     )
-    rec = json.loads(open(ah._RUNS, encoding="utf-8").read().splitlines()[-1])
+    rec = json.loads(open(ah._RUNS(), encoding="utf-8").read().splitlines()[-1])
     assert rec["job"] == "content" and rec["ok"] is False
     assert rec["error_class"] == "ValueError"
     assert rec["trigger"] == "scheduler"
     assert rec["started_at"] == "2026-07-07T10:00:00+00:00"
     assert len(rec["error_message"]) <= 300  # capped
     # snapshot (latest-per-job) also carries the error_class for free
-    beats = json.load(open(ah._BEATS, encoding="utf-8"))
+    beats = json.load(open(ah._BEATS(), encoding="utf-8"))
     assert beats["content"]["error_class"] == "ValueError"
 
 

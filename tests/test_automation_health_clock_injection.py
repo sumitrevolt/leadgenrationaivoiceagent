@@ -142,7 +142,7 @@ def test_health_result_is_independent_of_wall_clock(monkeypatch, tmp_path) -> No
         % marker.isoformat(),
         encoding="utf-8",
     )
-    monkeypatch.setattr(ah, "_BEATS", str(beats))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(beats))
 
     def _rows_for(pinned: datetime):
         monkeypatch.setattr(ah, "_now", lambda: pinned)

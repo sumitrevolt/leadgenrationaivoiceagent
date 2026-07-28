@@ -11,7 +11,7 @@ def _wire_beats(tmp_path, monkeypatch, beat: dict):
 
     path = tmp_path / "beats.json"
     path.write_text(json.dumps(beat), encoding="utf-8")
-    monkeypatch.setattr(ah, "_BEATS", str(path))
+    monkeypatch.setattr(ah, "_BEATS", lambda: str(path))
     monkeypatch.setattr(
         ah,
         "queue_depth",
