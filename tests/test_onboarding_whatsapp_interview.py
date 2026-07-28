@@ -26,7 +26,7 @@ async def test_auto_onboard_sets_awaiting_flag_when_no_website(
 ) -> None:
     from app.marketing import auto_content, clients_store, onboarding
 
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
     clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
 
     client = clients_store.add_client(
@@ -60,7 +60,7 @@ async def test_auto_onboard_skips_flag_when_website_seeded(
 ) -> None:
     from app.marketing import auto_content, clients_store, onboarding
 
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", str(tmp_path / "queue"))
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(tmp_path / "queue"))
     clients_store._CLIENTS_FILE = str(tmp_path / "clients.jsonl")
 
     client = clients_store.add_client(
@@ -109,9 +109,7 @@ async def test_try_capture_onboarding_reply_matches_by_phone_and_clears_flag(
             kb_calls.append({"docs": docs, "source": source, "namespace": namespace})
             return len(docs)
 
-    monkeypatch.setattr(
-        "app.voice_agent.knowledge_base.get_knowledge_base", lambda: _FakeKB()
-    )
+    monkeypatch.setattr("app.voice_agent.knowledge_base.get_knowledge_base", lambda: _FakeKB())
 
     # WhatsApp sender formats numbers with a country code / spaces — must still match.
     handled = await onboarding.try_capture_onboarding_reply(

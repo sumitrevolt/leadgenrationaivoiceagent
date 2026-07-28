@@ -34,7 +34,7 @@ def test_e2e_content_approval_workflow(monkeypatch, tmp_path):
     """submit() → pending → approve(token) → approved, idempotent on re-approve."""
     from app.marketing import content_approval as ca
 
-    monkeypatch.setattr(ca, "_FILE", str(tmp_path / "content_approvals.jsonl"))
+    monkeypatch.setattr(ca, "_FILE", lambda: str(tmp_path / "content_approvals.jsonl"))
 
     res = ca.submit("client-1", {"caption": "Diwali offer 20% off", "type": "post"})
     assert res["ok"] is True

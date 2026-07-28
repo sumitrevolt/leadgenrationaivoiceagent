@@ -5,10 +5,11 @@ Covers (1) each of the 7 reachable states of
 fixtures; (2) the at-risk 7d-value / 24h-failure branches; (3) the time-window
 boundaries of `delivery_ledger.recent_counts()` (the additive windowed helper
 that feeds delivery_health) written as temp jsonl through the module's own
-`_LEDGER_DIR` path (same monkeypatch style as the other ledger tests); (4) the
+`_LEDGER_DIR` call-time resolver (same monkeypatch style as the other ledger tests); (4) the
 _build_command_center wiring — new `at_risk_count`/`benefit_this_week` scalars +
 per-customer `health` — AND that every pre-existing response field is still
 present (frontends depend on them)."""
+
 import json
 import os
 from datetime import datetime, timedelta, timezone
@@ -55,7 +56,14 @@ def _recent(value=False, failures=0):
 
 
 def _assert_shape(h):
-    assert set(h.keys()) >= {"state", "label_hi", "reason", "next_action", "next_action_hint", "tone"}
+    assert set(h.keys()) >= {
+        "state",
+        "label_hi",
+        "reason",
+        "next_action",
+        "next_action_hint",
+        "tone",
+    }
     assert h["next_action"] in _VALID_ACTIONS
     assert h["tone"] in {"ok", "warn", "err", "muted"}
 
@@ -225,7 +233,7 @@ def _write_events(dir_path, cid, events):
 def test_recent_counts_value_window_7d_boundary(monkeypatch, tmp_path):
     from app.marketing import delivery_ledger as dl
 
-    monkeypatch.setattr(dl, "_LEDGER_DIR", str(tmp_path))
+    monkeypatch.setattr(dl, "_LEDGER_DIR", lambda: str(tmp_path))
     now = datetime.now(timezone.utc)
     _write_events(tmp_path, "c_in", [("post_published", _iso(now - timedelta(days=6)))])
     _write_events(tmp_path, "c_out", [("post_published", _iso(now - timedelta(days=8)))])
@@ -236,7 +244,7 @@ def test_recent_counts_value_window_7d_boundary(monkeypatch, tmp_path):
 def test_recent_counts_failures_24h_boundary(monkeypatch, tmp_path):
     from app.marketing import delivery_ledger as dl
 
-    monkeypatch.setattr(dl, "_LEDGER_DIR", str(tmp_path))
+    monkeypatch.setattr(dl, "_LEDGER_DIR", lambda: str(tmp_path))
     now = datetime.now(timezone.utc)
     _write_events(tmp_path, "f_in", [("post_failed", _iso(now - timedelta(hours=23)))])
     _write_events(tmp_path, "f_out", [("automation_failed", _iso(now - timedelta(hours=25)))])
@@ -247,7 +255,7 @@ def test_recent_counts_failures_24h_boundary(monkeypatch, tmp_path):
 def test_recent_counts_events_in_window_and_z_suffix(monkeypatch, tmp_path):
     from app.marketing import delivery_ledger as dl
 
-    monkeypatch.setattr(dl, "_LEDGER_DIR", str(tmp_path))
+    monkeypatch.setattr(dl, "_LEDGER_DIR", lambda: str(tmp_path))
     now = datetime.now(timezone.utc)
     # trailing-Z stamps must parse too (older backfill / external writers)
     z_stamp = (now - timedelta(days=1)).isoformat(timespec="seconds").replace("+00:00", "Z")
@@ -268,7 +276,7 @@ def test_recent_counts_events_in_window_and_z_suffix(monkeypatch, tmp_path):
 def test_recent_counts_missing_file_is_all_zero(monkeypatch, tmp_path):
     from app.marketing import delivery_ledger as dl
 
-    monkeypatch.setattr(dl, "_LEDGER_DIR", str(tmp_path))
+    monkeypatch.setattr(dl, "_LEDGER_DIR", lambda: str(tmp_path))
     r = dl.recent_counts("does_not_exist")
     assert r["events_in_window"] == 0
     assert r["value_events_in_window"] is False
@@ -320,17 +328,25 @@ def test_command_center_adds_at_risk_and_benefit_scalars(monkeypatch):
     clients = [_cc_client("risk1"), _cc_client("ok1")]
     summaries = {
         "risk1": {
-            "events_total": 5, "posts_created": 3, "posts_approved": 1, "posts_published": 1,
-            "value_delivered": True, "automation_failures": 0,
+            "events_total": 5,
+            "posts_created": 3,
+            "posts_approved": 1,
+            "posts_published": 1,
+            "value_delivered": True,
+            "automation_failures": 0,
         },
         "ok1": {
-            "events_total": 5, "posts_created": 3, "posts_approved": 1, "posts_published": 1,
-            "value_delivered": True, "automation_failures": 0,
+            "events_total": 5,
+            "posts_created": 3,
+            "posts_approved": 1,
+            "posts_published": 1,
+            "value_delivered": True,
+            "automation_failures": 0,
         },
     }
     recents = {
         "risk1": {"value_events_in_window": False, "failures_24h": 0},  # no value 7d → at_risk
-        "ok1": {"value_events_in_window": True, "failures_24h": 0},     # value 7d → delivered
+        "ok1": {"value_events_in_window": True, "failures_24h": 0},  # value 7d → delivered
     }
     _patch_cc(monkeypatch, clients, summaries, recents, [])
 
@@ -364,8 +380,12 @@ def test_command_center_existing_fields_unchanged(monkeypatch):
 
     # all original summary scalars still present
     for key in (
-        "total_customers", "paying_customers", "stuck_in_setup", "receiving_value",
-        "failed_automation_count", "pending_approvals_total",
+        "total_customers",
+        "paying_customers",
+        "stuck_in_setup",
+        "receiving_value",
+        "failed_automation_count",
+        "pending_approvals_total",
     ):
         assert key in out["summary"], f"missing summary.{key}"
     # new scalars added
@@ -375,8 +395,15 @@ def test_command_center_existing_fields_unchanged(monkeypatch):
     # all original per_customer keys still present
     row = out["per_customer"][0]
     for key in (
-        "id", "business_name", "plan", "product", "mrr", "setup_done",
-        "value_delivered", "automation_failures", "pending_approvals",
+        "id",
+        "business_name",
+        "plan",
+        "product",
+        "mrr",
+        "setup_done",
+        "value_delivered",
+        "automation_failures",
+        "pending_approvals",
     ):
         assert key in row, f"missing per_customer.{key}"
     assert "health" in row  # new additive field

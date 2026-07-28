@@ -14,6 +14,7 @@ synthetic-client-only in these tests. Covers:
 Pure-python: clients_store / delivery_ledger / customer_auth are all
 monkeypatched -- no network, no real DB, no real customer touched.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -33,7 +34,12 @@ def test_password_reset_rejects_short_password():
     from app.api import admin_ops
 
     with pytest.raises(HTTPException) as exc:
-        _run(admin_ops.client_password_reset("client-1", {"password": "short"}))
+        _run(
+            admin_ops.client_password_reset(
+                "client-1",
+                {"password": "short"},  # pragma: allowlist secret
+            )
+        )
     assert exc.value.status_code == 400
     assert "8" in exc.value.detail
 
@@ -45,7 +51,12 @@ def test_password_reset_rejects_missing_client(monkeypatch):
     monkeypatch.setattr(clients_store, "get_client", lambda cid: None)
 
     with pytest.raises(HTTPException) as exc:
-        _run(admin_ops.client_password_reset("no-such-client", {"password": "longenoughpw"}))
+        _run(
+            admin_ops.client_password_reset(
+                "no-such-client",
+                {"password": "longenoughpw"},  # pragma: allowlist secret
+            )
+        )
     assert exc.value.status_code == 404
 
 
@@ -53,10 +64,17 @@ def test_password_reset_rejects_missing_email(monkeypatch):
     from app.api import admin_ops
     from app.marketing import clients_store
 
-    monkeypatch.setattr(clients_store, "get_client", lambda cid: {"id": cid, "business_name": "No Email Biz"})
+    monkeypatch.setattr(
+        clients_store, "get_client", lambda cid: {"id": cid, "business_name": "No Email Biz"}
+    )
 
     with pytest.raises(HTTPException) as exc:
-        _run(admin_ops.client_password_reset("client-noemail", {"password": "longenoughpw"}))
+        _run(
+            admin_ops.client_password_reset(
+                "client-noemail",
+                {"password": "longenoughpw"},  # pragma: allowlist secret
+            )
+        )
     assert exc.value.status_code == 400
     assert "email" in exc.value.detail.lower()
 
@@ -68,18 +86,28 @@ def test_password_reset_success_registers_login_and_logs_audit(tmp_path, monkeyp
     monkeypatch.setattr(
         clients_store,
         "get_client",
-        lambda cid: {"id": cid, "business_name": "Sharma Solar", "email": "owner@sharmasolar.example"},
+        lambda cid: {
+            "id": cid,
+            "business_name": "Sharma Solar",
+            "email": "owner@sharmasolar.example",
+        },
     )
-    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", str(tmp_path / "ledger"))
+    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", lambda: str(tmp_path / "ledger"))
 
     calls = []
     monkeypatch.setattr(
         customer_auth,
         "register_login",
-        lambda email, password, client_id, **kw: calls.append((email, password, client_id)) or {"ok": True},
+        lambda email, password, client_id, **kw: calls.append((email, password, client_id))
+        or {"ok": True},
     )
 
-    result = _run(admin_ops.client_password_reset("client-42", {"password": "NewPassw0rd!"}))
+    result = _run(
+        admin_ops.client_password_reset(
+            "client-42",
+            {"password": "NewPassw0rd!"},  # pragma: allowlist secret
+        )
+    )
     assert result == {"ok": True}
     assert calls == [("owner@sharmasolar.example", "NewPassw0rd!", "client-42")]
 
@@ -110,7 +138,12 @@ def test_password_reset_ledger_failure_is_fail_open(tmp_path, monkeypatch):
 
     monkeypatch.setattr(delivery_ledger, "log_event", _boom)
 
-    result = _run(admin_ops.client_password_reset("client-x", {"password": "LongEnoughPw1"}))
+    result = _run(
+        admin_ops.client_password_reset(
+            "client-x",
+            {"password": "LongEnoughPw1"},  # pragma: allowlist secret
+        )
+    )
     assert result == {"ok": True}
 
 
@@ -135,7 +168,7 @@ def test_onboard_scrape_queues_task_and_logs_audit(tmp_path, monkeypatch):
     monkeypatch.setattr(
         clients_store, "get_client", lambda cid: {"id": cid, "business_name": "Verma Gym"}
     )
-    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", str(tmp_path / "ledger2"))
+    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", lambda: str(tmp_path / "ledger2"))
 
     bg = BackgroundTasks()
     result = _run(admin_ops.client_onboard_scrape("client-77", bg))

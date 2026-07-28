@@ -92,7 +92,7 @@ def ca(monkeypatch):
     from app.marketing import content_approval as _ca
 
     td = tempfile.mkdtemp()
-    monkeypatch.setattr(_ca, "_FILE", os.path.join(td, "approvals.jsonl"))
+    monkeypatch.setattr(_ca, "_FILE", lambda: os.path.join(td, "approvals.jsonl"))
     return _ca
 
 
@@ -129,17 +129,20 @@ def test_replace_media_requires_url_or_path(ca):
 
 def test_replace_media_rejects_bad_type(ca):
     aid = _submit(ca)
-    r = ca.replace_media(aid, media_url="https://x/y.mp4",
-                         media_type="hologram", actor="customer")
+    r = ca.replace_media(aid, media_url="https://x/y.mp4", media_type="hologram", actor="customer")
     assert r["ok"] is False
     assert r["error"] == "invalid_media_type"
 
 
 def test_replace_media_happy_path(ca):
     aid = _submit(ca)
-    r = ca.replace_media(aid, media_url="https://cdn.example.com/new.jpg",
-                         media_type="image", actor="customer",
-                         note="better resolution")
+    r = ca.replace_media(
+        aid,
+        media_url="https://cdn.example.com/new.jpg",
+        media_type="image",
+        actor="customer",
+        note="better resolution",
+    )
     assert r["ok"] is True
     latest = ca._latest_states()[aid]
     assert latest["content"]["media"]["url"] == "https://cdn.example.com/new.jpg"
@@ -163,7 +166,9 @@ def test_change_scheduled_time_rejects_malformed(ca):
 
 def test_change_scheduled_time_happy_path(ca):
     aid = _submit(ca)
-    future = (datetime.datetime.utcnow() + datetime.timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%S")
+    future = (datetime.datetime.utcnow() + datetime.timedelta(hours=6)).strftime(
+        "%Y-%m-%dT%H:%M:%S"
+    )
     r = ca.change_scheduled_time(aid, future, tz="Asia/Kolkata", actor="customer")
     assert r["ok"] is True
     latest = ca._latest_states()[aid]
@@ -188,16 +193,18 @@ def test_store_accepts_media_assets_and_approval_status(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "_PATH", str(tmp_path / "jobs.jsonl"))
     monkeypatch.setattr(store, "_mirror", lambda job: None)
 
-    jid = store.enqueue({
-        "client_id": "cA",
-        "platform": "instagram",
-        "caption": "hi",
-        "media_assets": [
-            {"url": "https://cdn/x.jpg", "type": "image"},
-            {"url": "https://cdn/y.jpg", "type": "image"},
-        ],
-        "approval_status": "approved",
-    })
+    jid = store.enqueue(
+        {
+            "client_id": "cA",
+            "platform": "instagram",
+            "caption": "hi",
+            "media_assets": [
+                {"url": "https://cdn/x.jpg", "type": "image"},
+                {"url": "https://cdn/y.jpg", "type": "image"},
+            ],
+            "approval_status": "approved",
+        }
+    )
     assert jid
     row = store.get(jid)
     assert isinstance(row.get("media_assets"), list)
@@ -212,8 +219,7 @@ def test_store_backfills_empty_new_fields(monkeypatch, tmp_path):
     monkeypatch.setattr(store, "_PATH", str(tmp_path / "jobs.jsonl"))
     monkeypatch.setattr(store, "_mirror", lambda job: None)
 
-    jid = store.enqueue({"client_id": "cA", "platform": "facebook",
-                         "caption": "old-shape call"})
+    jid = store.enqueue({"client_id": "cA", "platform": "facebook", "caption": "old-shape call"})
     row = store.get(jid)
     assert row.get("media_assets") == []
     assert row.get("approval_status") == ""

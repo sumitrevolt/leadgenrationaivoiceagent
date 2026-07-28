@@ -67,7 +67,7 @@ def client(monkeypatch, tmp_path):
     )
     monkeypatch.setattr(video_ad_cycle, "_FILE", str(tmp_path / "video_ads.jsonl"))
     monkeypatch.setattr(video_ad_cycle, "_STATE", str(tmp_path / ".cycle.json"))
-    monkeypatch.setattr(content_approval, "_FILE", str(tmp_path / "approvals.jsonl"))
+    monkeypatch.setattr(content_approval, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
 
     with TestClient(app) as c:
         yield c

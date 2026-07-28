@@ -74,7 +74,13 @@ _MUTABLE_ROOT_RE = re.compile(
 
 # Canonical resolver surface. Paths built through these are already correct.
 _CANONICAL_MODULE = "runtime_data"
-_CANONICAL_FUNCS = frozenset({"store_path", "store_dir", "lock_path", "runtime_data_path"})
+# resolve_store_path is the dual-read authority resolver (A1–A4 writers).
+# It MUST be listed explicitly: a naive `"store_path(" in text` match would
+# also hit inside `resolve_store_path(` and falsely mark unresolved debt as
+# CANONICAL (2026-07-28 A4 ratchet incident).
+_CANONICAL_FUNCS = frozenset(
+    {"store_path", "store_dir", "lock_path", "runtime_data_path", "resolve_store_path"}
+)
 
 # Directories excluded from scanning entirely (not source of production truth).
 _SKIP_DIRS = frozenset(
@@ -296,10 +302,15 @@ def path_provenance(
             return PROVEN_STATIC_PATH
         if fname in _CANONICAL_FUNCS or fname == "runtime_root":
             return PROVEN_STATIC_PATH
+        # `str(<proven path>)` preserves path-ness (A4 dual-read helpers wrap
+        # resolve_store_path in str() for the historical str API).
+        if fname == "str" and len(node.args) == 1:
+            inner = path_provenance(node.args[0], table, _visited, _depth + 1)
+            if inner in _PROVEN:
+                return PROVEN_PATH_ALIAS
+            return inner if inner != NOT_PATH else UNSUPPORTED_EXPRESSION
         if fname == "join" and isinstance(node.func, ast.Attribute):
-            base = getattr(node.func.value, "attr", None) or getattr(
-                node.func.value, "id", None
-            )
+            base = getattr(node.func.value, "attr", None) or getattr(node.func.value, "id", None)
             if base == "path":  # os.path.join
                 for a in node.args:
                     if path_provenance(a, table, _visited, _depth + 1) in _PROVEN:
@@ -312,9 +323,10 @@ def path_provenance(
             # read with NO default is unbounded, so it stays ENV_READ and only
             # a fallback elsewhere (`... or "data/store"`) can bound it.
             default = node.args[1] if len(node.args) > 1 else None
-            if default is not None and path_provenance(
-                default, table, _visited, _depth + 1
-            ) in _PROVEN:
+            if (
+                default is not None
+                and path_provenance(default, table, _visited, _depth + 1) in _PROVEN
+            ):
                 return PROVEN_DYNAMIC_PATH_PATTERN
             return _ENV_READ
         if isinstance(node.func, ast.Name):
@@ -395,15 +407,11 @@ def _is_env_read(node: ast.Call) -> bool:
         return getattr(fn.value, "id", None) == "os"
     if fn.attr == "get":
         base = fn.value
-        return getattr(base, "attr", None) == "environ" or (
-            getattr(base, "id", None) == "environ"
-        )
+        return getattr(base, "attr", None) == "environ" or (getattr(base, "id", None) == "environ")
     return False
 
 
-def _path_return_helpers(
-    tree: ast.Module, table: dict[str, Any]
-) -> dict[str, str]:
+def _path_return_helpers(tree: ast.Module, table: dict[str, Any]) -> dict[str, str]:
     """Module-level functions PROVEN to return a path, by analysing their returns.
 
     A helper qualifies only when every reachable `return <value>` resolves to a
@@ -414,22 +422,14 @@ def _path_return_helpers(
     Two passes so `def a(): return b()` can see `b`, with the in-progress set
     guarding mutual recursion (`a -> b -> a`) instead of hanging.
     """
-    funcs = {
-        f.name: f
-        for f in tree.body
-        if isinstance(f, ast.FunctionDef | ast.AsyncFunctionDef)
-    }
+    funcs = {f.name: f for f in tree.body if isinstance(f, ast.FunctionDef | ast.AsyncFunctionDef)}
     out: dict[str, str] = {}
     for _ in range(3):
         changed = False
         for name, fn in funcs.items():
             if name in out:
                 continue
-            returns = [
-                n
-                for n in ast.walk(fn)
-                if isinstance(n, ast.Return) and n.value is not None
-            ]
+            returns = [n for n in ast.walk(fn) if isinstance(n, ast.Return) and n.value is not None]
             if not returns:
                 continue
             local = dict(table)
@@ -475,20 +475,42 @@ def _pattern_of(node: ast.AST, helpers: dict[str, str], _depth: int = 0) -> str:
         return str(node.value) if isinstance(node.value, str) else "<*>"
     if isinstance(node, ast.Call):
         if _is_env_read(node):
-            var = node.args[0].value if node.args and isinstance(
-                node.args[0], ast.Constant
-            ) else "?"
+            var = (
+                node.args[0].value if node.args and isinstance(node.args[0], ast.Constant) else "?"
+            )
             dflt = (
-                _pattern_of(node.args[1], helpers, _depth + 1)
-                if len(node.args) > 1
-                else "<unset>"
+                _pattern_of(node.args[1], helpers, _depth + 1) if len(node.args) > 1 else "<unset>"
             )
             return f"<${var}|{dflt}>"
         fname = getattr(node.func, "id", None)
+        fattr = getattr(node.func, "attr", None)
+        # `str(<path>)` is a no-op for structure — unwrap so A4 dual-read
+        # helpers that wrap resolve_store_path still render the resolver.
+        if fname == "str" and len(node.args) == 1:
+            return _pattern_of(node.args[0], helpers, _depth + 1)
         if fname in helpers:
             # Expand a nested proven helper so the pattern reaches the env var
             # and its static fallback instead of stopping at `<_root>`.
             return helpers[fname] or f"<{fname}>"
+        # Canonical resolvers must render by name so classify / fingerprints
+        # can see them. Falling through to `<*>` previously left the pattern
+        # as the provenance status string ("PROVEN_STATIC_PATH") — fingerprint
+        # poison (2026-07-28 A4).
+        canon = fname or fattr
+        if canon in _CANONICAL_FUNCS or canon == "runtime_root":
+            # resolve_store_path keeps the legacy_path basename visible so
+            # allowlist binding can still prove which store the dual-read
+            # helper covers (path_components_match on email_suppression.jsonl).
+            # Opaque `resolve_store_path(...)` alone unbound every A3/A4 entry.
+            if canon == "resolve_store_path":
+                legacy = ""
+                for kw in node.keywords:
+                    if kw.arg == "legacy_path":
+                        legacy = _pattern_of(kw.value, helpers, _depth + 1)
+                        break
+                if legacy and legacy != "<*>":
+                    return f"resolve_store_path(... legacy={legacy})"
+            return f"{canon}(...)"
         if getattr(node.func, "attr", None) == "join" or fname in _PATH_CONSTRUCTORS:
             parts = [_pattern_of(a, helpers, _depth + 1) for a in node.args]
             return "/".join(p for p in parts if p)
@@ -556,17 +578,14 @@ def _helper_pattern(
         others = {
             f.name: (resolved or {}).get(f.name, "")
             for f in tree.body
-            if isinstance(f, ast.FunctionDef | ast.AsyncFunctionDef)
-            and f.name not in helpers
+            if isinstance(f, ast.FunctionDef | ast.AsyncFunctionDef) and f.name not in helpers
         }
         # Module-level string constants, so `... or DEFAULT_ROOT` renders the
         # literal fallback the code actually ships rather than `<*>`.
         for mod in tree.body:
             if isinstance(mod, ast.Assign) and len(mod.targets) == 1:
                 tgt = getattr(mod.targets[0], "id", None)
-                if tgt and isinstance(mod.value, ast.Constant) and isinstance(
-                    mod.value.value, str
-                ):
+                if tgt and isinstance(mod.value, ast.Constant) and isinstance(mod.value.value, str):
                     others.setdefault(tgt, mod.value.value)
         for n in ast.walk(fn):
             if isinstance(n, ast.Return) and n.value is not None:
@@ -801,11 +820,7 @@ def _path_taking_writers(tree: ast.Module) -> dict[str, str]:
                 if target is None:
                     continue
                 hit = next(
-                    (
-                        x.id
-                        for x in ast.walk(target)
-                        if isinstance(x, ast.Name) and x.id in params
-                    ),
+                    (x.id for x in ast.walk(target) if isinstance(x, ast.Name) and x.id in params),
                     None,
                 )
                 if hit is None:
@@ -918,8 +933,10 @@ def _mutable_symbols(tree: ast.Module) -> dict[str, str]:
                 for sub in ast.walk(node):
                     if isinstance(sub, ast.Return) and sub.value is not None:
                         expr = _expr_source(sub.value)
-                        if _looks_mutable(_literal_strings(sub.value), expr) or _refs(
-                            sub.value, syms
+                        if (
+                            _looks_mutable(_literal_strings(sub.value), expr)
+                            or _refs(sub.value, syms)
+                            or _uses_canonical_resolver(sub.value)
                         ):
                             syms.setdefault(node.name, expr[:120])
                 continue
@@ -944,12 +961,18 @@ def _mutable_symbols(tree: ast.Module) -> dict[str, str]:
 
 
 def _refs(node: ast.AST, syms: dict[str, str]) -> bool:
-    """Does this expression reference an already-known mutable symbol?"""
+    """Does this expression reference an already-known mutable symbol?
+
+    Only ``ast.Name`` bindings count. Matching ``Attribute.attr`` made every
+    ``os.path.join(...)`` look like a reference to a local symbol named
+    ``path`` (e.g. a READ-only ``path = join("data", "inquiries.jsonl")``),
+    which then re-fingerprinted dynamic writers as that unrelated store
+    (2026-07-28 A4 false REPLACE on staff._trim_jsonl).
+    """
     if not syms:
         return False
     for sub in ast.walk(node):
-        name = getattr(sub, "id", None) or getattr(sub, "attr", None)
-        if name and name in syms:
+        if isinstance(sub, ast.Name) and sub.id in syms:
             return True
     return False
 
@@ -1077,11 +1100,25 @@ def scan_python(rel: str, text: str) -> list[dict[str, Any]]:
         via_symbol = None
         if not matched and _refs(path_arg, symbols):
             for sub in ast.walk(path_arg):
-                nm = getattr(sub, "id", None) or getattr(sub, "attr", None)
-                if nm in symbols:
-                    via_symbol = nm
+                # Name-only: see `_refs`. Attribute.attr must not bind `os.path`.
+                if isinstance(sub, ast.Name) and sub.id in symbols:
+                    via_symbol = sub.id
                     matched = "symbol"
                     break
+
+        # Dual-read helpers: call site is `_queue_path(...)` / `_ledger_path(...)`
+        # while the definition wraps `resolve_store_path`. Expand one hop of
+        # symbol definitions so the canonical bit is not lost.
+        if not canonical and via_symbol:
+            hay = symbols.get(via_symbol) or ""
+            for hname, hexpr in symbols.items():
+                if hname != via_symbol and hname in hay:
+                    hay = f"{hay} {hexpr}"
+            if any(
+                re.search(rf"(?<!\w){re.escape(fn)}\(", hay)
+                for fn in (set(_CANONICAL_FUNCS) | {"runtime_root"})
+            ):
+                canonical = True
 
         if not matched and not canonical:
             continue
@@ -1269,8 +1306,14 @@ def classify(finding: dict[str, Any], allowlist_index: dict[str, dict[str, Any]]
     # and `path.mkdir()` on the next. The call site alone shows only `path`, so
     # checking it kept canonical at 0 even for runtime_data.py itself, which is
     # the most canonical module in the repo.
+    #
+    # Match function names at a token boundary — NEVER bare `store_path(` as a
+    # substring, or `resolve_store_path(` falsely collapses to CANONICAL while
+    # the call is still unresolved for fingerprint purposes.
     resolved = str(finding.get("resolved_pattern") or "")
-    if any(fn + "(" in resolved for fn in _CANONICAL_FUNCS) or "runtime_root(" in resolved:
+    _canon_names = set(_CANONICAL_FUNCS) | {"runtime_root"}
+    # Lookbehind is word-char only — MUST allow `rd.store_path(` (dot prefix).
+    if any(re.search(rf"(?<!\w){re.escape(fn)}\(", resolved) for fn in _canon_names):
         finding["canonical_resolver_used"] = True
         return CANONICAL_RUNTIME_PATH
 

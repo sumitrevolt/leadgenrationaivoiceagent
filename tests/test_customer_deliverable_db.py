@@ -1,4 +1,5 @@
 """Tests for Customer Deliverable DB initialization, lazy-syncing, and querying."""
+
 import asyncio
 import json
 
@@ -29,9 +30,7 @@ def _iso_db(monkeypatch):
 
     import app.models.base as base_mod
 
-    engine = create_engine(
-        "sqlite:///:memory:", connect_args={"check_same_thread": False}
-    )
+    engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
     Session = sessionmaker(bind=engine)
     base_mod.Base.metadata.create_all(bind=engine)
     monkeypatch.setattr(base_mod, "_engine", engine)
@@ -50,7 +49,11 @@ def test_initialize_and_sync_deliverables(monkeypatch):
         initialize_deliverables_for_client(session, client_id, "starter", "2026-07")
         session.commit()
 
-        rows = session.query(CustomerDeliverable).filter(CustomerDeliverable.client_id == client_id).all()
+        rows = (
+            session.query(CustomerDeliverable)
+            .filter(CustomerDeliverable.client_id == client_id)
+            .all()
+        )
         assert len(rows) == len(DELIVERABLES)
         assert {r.deliverable_type for r in rows} == {d[0] for d in DELIVERABLES}
         assert any(r.channel == DeliverableChannel.DASHBOARD for r in rows)
@@ -82,8 +85,12 @@ def test_initialize_and_sync_deliverables(monkeypatch):
             "whatsapp_phone": "917498797259",
             "onboarding": {"complete": True},
         }
-        monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: fake_client, raising=False)
-        monkeypatch.setattr("app.marketing.delivery_ledger.timeline", lambda cid, **kwargs: [], raising=False)
+        monkeypatch.setattr(
+            "app.marketing.clients_store.get_client", lambda cid: fake_client, raising=False
+        )
+        monkeypatch.setattr(
+            "app.marketing.delivery_ledger.timeline", lambda cid, **kwargs: [], raising=False
+        )
 
         status_res = customer_delivery_status(client_id)
         assert status_res["ok"] is True
@@ -128,7 +135,11 @@ def test_initialize_normalizes_legacy_deliverable_types(monkeypatch):
 
         initialize_deliverables_for_client(session, client_id, "starter", "2026-07")
 
-        rows = session.query(CustomerDeliverable).filter(CustomerDeliverable.client_id == client_id).all()
+        rows = (
+            session.query(CustomerDeliverable)
+            .filter(CustomerDeliverable.client_id == client_id)
+            .all()
+        )
         assert any(r.id == "legacy-1" and r.deliverable_type == "business_profile" for r in rows)
         assert {r.deliverable_type for r in rows} == {d[0] for d in DELIVERABLES}
     finally:
@@ -176,11 +187,16 @@ def test_sync_customer_deliverable_status_updates_existing_row(monkeypatch):
 def test_record_manual_action_syncs_monthly_report_row(monkeypatch, tmp_path):
     Session = _iso_db(monkeypatch)
     client_id = "manual-sync-client"
-    monkeypatch.setattr("app.marketing.product_one_delivery._DELIVERY_DIR", str(tmp_path / "product_one_delivery"), raising=False)
+    monkeypatch.setattr(
+        "app.marketing.product_one_delivery._DELIVERY_DIR",
+        str(tmp_path / "product_one_delivery"),
+        raising=False,
+    )
 
     session = Session()
     try:
         initialize_deliverables_for_client(session, client_id, "starter", "2026-07")
+
         async def _fake_report(cid, send=False):
             return {"ok": True, "client_id": cid, "sent": send}
 
@@ -190,7 +206,11 @@ def test_record_manual_action_syncs_monthly_report_row(monkeypatch, tmp_path):
             raising=False,
         )
 
-        out = asyncio.run(record_manual_action(client_id, "monthly_report", note="July report sent", owner="ops-team"))
+        out = asyncio.run(
+            record_manual_action(
+                client_id, "monthly_report", note="July report sent", owner="ops-team"
+            )
+        )
         assert out["ok"] is True
 
         row = (
@@ -212,8 +232,16 @@ def test_record_manual_action_syncs_monthly_report_row(monkeypatch, tmp_path):
 def test_content_mark_item_syncs_social_and_proof_rows(monkeypatch, tmp_path):
     Session = _iso_db(monkeypatch)
     client_id = "content-sync-client"
-    monkeypatch.setattr("app.marketing.auto_content._QUEUE_DIR", str(tmp_path / "content_queue"), raising=False)
-    monkeypatch.setattr("app.marketing.delivery_ledger._LEDGER_DIR", str(tmp_path / "delivery_ledger"), raising=False)
+    monkeypatch.setattr(
+        "app.marketing.auto_content._QUEUE_DIR",
+        lambda: str(tmp_path / "content_queue"),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.delivery_ledger._LEDGER_DIR",
+        lambda: str(tmp_path / "delivery_ledger"),
+        raising=False,
+    )
 
     session = Session()
     try:
@@ -241,7 +269,9 @@ def test_content_mark_item_syncs_social_and_proof_rows(monkeypatch, tmp_path):
 
         rows = {
             r.deliverable_type: r
-            for r in session.query(CustomerDeliverable).filter(CustomerDeliverable.client_id == client_id).all()
+            for r in session.query(CustomerDeliverable)
+            .filter(CustomerDeliverable.client_id == client_id)
+            .all()
         }
         session.refresh(rows["social_posts"])
         session.refresh(rows["proof"])
@@ -318,8 +348,14 @@ def test_delivery_cockpit_includes_db_audit(monkeypatch):
         "brand": {"primary": "#111111", "logo_text": "Audit"},
         "socials": {"instagram": "audit"},
     }
-    monkeypatch.setattr("app.marketing.clients_store.list_clients", lambda status=None, product=None: [fake_client], raising=False)
-    monkeypatch.setattr("app.marketing.delivery_ledger.timeline", lambda cid, **kwargs: [], raising=False)
+    monkeypatch.setattr(
+        "app.marketing.clients_store.list_clients",
+        lambda status=None, product=None: [fake_client],
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.marketing.delivery_ledger.timeline", lambda cid, **kwargs: [], raising=False
+    )
     monkeypatch.setattr("app.marketing.delivery_ledger.summary", lambda cid: {}, raising=False)
     monkeypatch.setattr(
         "app.marketing.product_one_delivery.integration_readiness",
@@ -358,12 +394,24 @@ def test_api_customer_delivery_proof_endpoint(monkeypatch):
         "plan": "starter",
         "product": "marketing",
     }
-    monkeypatch.setattr("app.marketing.clients_store.get_client", lambda cid: fake_client, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.clients_store.get_client", lambda cid: fake_client, raising=False
+    )
     monkeypatch.setattr(
         "app.marketing.delivery_ledger.timeline",
         lambda cid, **kwargs: [
-            {"at": "2026-07-09T10:00:00+00:00", "event": "post_published", "label": "Post published", "detail": "Instagram offer post"},
-            {"at": "2026-07-08T10:00:00+00:00", "event": "post_approved", "label": "Post approved", "detail": "Monsoon makeup post"},
+            {
+                "at": "2026-07-09T10:00:00+00:00",
+                "event": "post_published",
+                "label": "Post published",
+                "detail": "Instagram offer post",
+            },
+            {
+                "at": "2026-07-08T10:00:00+00:00",
+                "event": "post_approved",
+                "label": "Post approved",
+                "detail": "Monsoon makeup post",
+            },
         ],
         raising=False,
     )
@@ -374,7 +422,10 @@ def test_api_customer_delivery_proof_endpoint(monkeypatch):
                 "id": "appr123",
                 "status": "pending",
                 "created_at": "2026-07-09T09:00:00",
-                "content": {"title": "Bridal makeup offer", "caption": "Book your bridal look this week."},
+                "content": {
+                    "title": "Bridal makeup offer",
+                    "caption": "Book your bridal look this week.",
+                },
             }
         ],
         raising=False,

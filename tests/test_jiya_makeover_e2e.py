@@ -193,7 +193,7 @@ def test_delivery_ledger_event_logging(tmp_path, monkeypatch):
     """Verify delivery ledger can log new events for jiya-makeover."""
     from app.marketing import delivery_ledger
 
-    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", str(tmp_path / "delivery_ledger"))
+    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", lambda: str(tmp_path / "delivery_ledger"))
     before = len(delivery_ledger.timeline("jiya-makeover"))
 
     assert (

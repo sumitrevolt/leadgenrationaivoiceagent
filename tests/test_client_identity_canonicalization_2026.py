@@ -108,7 +108,7 @@ def test_approval_banner_uses_marketing_id(monkeypatch, tmp_path):
     from app.api import customer_dashboard_builders as builders
     from app.marketing import content_approval
 
-    monkeypatch.setattr(content_approval, "_FILE", str(tmp_path / "approvals.jsonl"))
+    monkeypatch.setattr(content_approval, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
     submitted = content_approval.submit(MKT_ID, {"title": "Bridal look", "caption": "test"})
     assert submitted.get("ok") is True
     assert (submitted.get("approval") or {}).get("id")
@@ -125,7 +125,7 @@ def test_customer_can_decide_approval_via_billing_alias(monkeypatch, tmp_path):
     _seed_marketing_client(monkeypatch, tmp_path)
     from app.marketing import content_approval
 
-    monkeypatch.setattr(content_approval, "_FILE", str(tmp_path / "approvals.jsonl"))
+    monkeypatch.setattr(content_approval, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
     submitted = content_approval.submit(MKT_ID, {"title": "Festive offer", "caption": "sale"})
     assert submitted.get("ok") is True
     approval_id = (submitted.get("approval") or {}).get("id")
@@ -148,7 +148,7 @@ def test_pending_endpoint_sees_marketing_approvals(monkeypatch, tmp_path):
     _seed_marketing_client(monkeypatch, tmp_path)
     from app.marketing import content_approval
 
-    monkeypatch.setattr(content_approval, "_FILE", str(tmp_path / "approvals.jsonl"))
+    monkeypatch.setattr(content_approval, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
     content_approval.submit(MKT_ID, {"title": "Reel idea", "caption": "before/after"})
 
     # Billing alias alone finds nothing (proves keying)

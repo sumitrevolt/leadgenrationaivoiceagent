@@ -11,8 +11,10 @@ OTHER = "2026-06"
 
 
 def _redirect(monkeypatch, tmp_path):
-    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", str(tmp_path / "delivery_ledger"))
-    monkeypatch.setattr(delivery_ledger, "_CONTENT_QUEUE_DIR", str(tmp_path / "content_queue"))
+    monkeypatch.setattr(delivery_ledger, "_LEDGER_DIR", lambda: str(tmp_path / "delivery_ledger"))
+    monkeypatch.setattr(
+        delivery_ledger, "_CONTENT_QUEUE_DIR", lambda: str(tmp_path / "content_queue")
+    )
     monkeypatch.setattr(clients_store, "_CLIENTS_FILE", str(tmp_path / "marketing_clients.jsonl"))
     monkeypatch.setattr(client_report, "_OUT_DIR", str(tmp_path / "client_reports"))
 
@@ -72,7 +74,9 @@ def test_next_actions_rules():
     assert any("profile link" in a for a in actions)
 
     good = {"posts_created": 4, "posts_approved": 4, "posts_published": 4, "posts_failed": 0}
-    assert client_report._next_actions(good, {"socials": {"instagram": "@x"}})[0].startswith("Sab set")
+    assert client_report._next_actions(good, {"socials": {"instagram": "@x"}})[0].startswith(
+        "Sab set"
+    )
 
 
 def test_build_report_adds_delivery_section_and_keeps_event(monkeypatch, tmp_path):
@@ -102,7 +106,11 @@ def test_build_report_adds_delivery_section_and_keeps_event(monkeypatch, tmp_pat
     html = open(result["path"], encoding="utf-8").read()
     assert "AI team ne is mahine kya kiya" in html
     assert "Agle steps" in html
-    assert ("cbuild", "weekly_report_generated", {"detail": MONTH, "key": f"report:cbuild:{MONTH}"}) in logged
+    assert (
+        "cbuild",
+        "weekly_report_generated",
+        {"detail": MONTH, "key": f"report:cbuild:{MONTH}"},
+    ) in logged
 
 
 def test_build_report_delivery_failure_keeps_ok_true(monkeypatch, tmp_path):

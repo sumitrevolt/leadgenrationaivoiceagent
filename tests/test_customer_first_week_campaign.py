@@ -38,8 +38,12 @@ def _override_customer(app, cid):
 
 
 def _redirect_stores(monkeypatch, tmp_path):
-    monkeypatch.setattr(clients_store, "_CLIENTS_FILE", os.path.join(str(tmp_path), "clients.jsonl"))
-    monkeypatch.setattr(auto_content, "_QUEUE_DIR", os.path.join(str(tmp_path), "content_queue"))
+    monkeypatch.setattr(
+        clients_store, "_CLIENTS_FILE", os.path.join(str(tmp_path), "clients.jsonl")
+    )
+    monkeypatch.setattr(
+        auto_content, "_QUEUE_DIR", lambda: os.path.join(str(tmp_path), "content_queue")
+    )
 
 
 def _write_queue(cid: str, items: list[dict]):
@@ -82,10 +86,20 @@ def test_upcoming_items_skip_enqueue(monkeypatch, tmp_path):
     _redirect_stores(monkeypatch, tmp_path)
     rec = clients_store.add_client("Guard Biz", "general", phone="9000000011")
     today_s = date.today().strftime("%Y-%m-%d")
-    _write_queue(rec["id"], [
-        {"id": "a1", "client_id": rec["id"], "date": today_s, "type": "post",
-         "title": "T", "caption": "Aaj ka post — dandruff-free hair offer!", "status": "draft"},
-    ])
+    _write_queue(
+        rec["id"],
+        [
+            {
+                "id": "a1",
+                "client_id": rec["id"],
+                "date": today_s,
+                "type": "post",
+                "title": "T",
+                "caption": "Aaj ka post — dandruff-free hair offer!",
+                "status": "draft",
+            },
+        ],
+    )
     calls: list[str] = []
     _patch_seed_task(monkeypatch, calls)
     _override_customer(app, rec["id"])
@@ -133,12 +147,33 @@ def test_upcoming_item_count_counts_only_future_nonskipped(monkeypatch, tmp_path
     y = (today - timedelta(days=1)).strftime("%Y-%m-%d")
     t = today.strftime("%Y-%m-%d")
     tm = (today + timedelta(days=1)).strftime("%Y-%m-%d")
-    _write_queue(cid, [
-        {"id": "p1", "client_id": cid, "date": y, "type": "post", "status": "draft"},      # past → nahi
-        {"id": "p2", "client_id": cid, "date": t, "type": "poster", "status": "skipped"},  # skipped → nahi
-        {"id": "p3", "client_id": cid, "date": t, "type": "post", "status": "draft"},      # haan
-        {"id": "p4", "client_id": cid, "date": tm, "type": "reel", "status": "approved"},  # haan
-    ])
+    _write_queue(
+        cid,
+        [
+            {
+                "id": "p1",
+                "client_id": cid,
+                "date": y,
+                "type": "post",
+                "status": "draft",
+            },  # past → nahi
+            {
+                "id": "p2",
+                "client_id": cid,
+                "date": t,
+                "type": "poster",
+                "status": "skipped",
+            },  # skipped → nahi
+            {"id": "p3", "client_id": cid, "date": t, "type": "post", "status": "draft"},  # haan
+            {
+                "id": "p4",
+                "client_id": cid,
+                "date": tm,
+                "type": "reel",
+                "status": "approved",
+            },  # haan
+        ],
+    )
     assert auto_content.upcoming_item_count(cid) == 2
     assert auto_content.upcoming_item_count("missing-client") == 0
 
