@@ -53,7 +53,14 @@ VALID_STATES = frozenset(
 #: States that BLOCK a destructive production deployment. A store here still
 #: holds live authority inside the Git checkout, so `git reset --hard` destroys
 #: it. UNKNOWN blocks too: "we did not check" is not evidence of safety.
-BLOCKING_STATES = frozenset({LEGACY_IN_CHECKOUT, COPIED_NOT_VERIFIED, UNKNOWN})
+#: DUAL_READ_PRE_CUTOVER blocks too (added 2026-07-28, A1). The state means the
+#: CODE can follow a cutover — the DATA has not moved, so the authoritative copy
+#: is still inside the checkout and `git reset --hard` still destroys it.
+#: Excluding it would have dropped the blocker count from 21 to 18 the moment a
+#: resolver landed, which is a false green: resolver-ready is not data-safe.
+BLOCKING_STATES = frozenset(
+    {LEGACY_IN_CHECKOUT, DUAL_READ_PRE_CUTOVER, COPIED_NOT_VERIFIED, UNKNOWN}
+)
 
 TIER_0 = "tier0"  # money, consent, suppression, audit, identity
 TIER_1 = "tier1"  # operational business state
@@ -531,7 +538,11 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="telephony/",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A1 (2026-07-28): the writers now resolve through
+        # runtime_data_authority, so the CODE can follow a cutover. The DATA has
+        # not moved and the runtime root is unset, so the legacy files remain
+        # authoritative — which is exactly what DUAL_READ_PRE_CUTOVER records.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence=(
             "PLATFORM_DIAL_CONFIG -> data/platform_dial.json and "
@@ -556,7 +567,8 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="telephony/dial_blocklist.json",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A1 (2026-07-28) — see telephony.calling_safety_config above.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence=(
             "DIAL_BLOCKLIST_FILE -> data/dial_blocklist.json. dial_gate.py reads "
@@ -578,7 +590,8 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="telephony/voice_launch_kill.json",
         migration_tier=TIER_0,
-        migration_state=LEGACY_IN_CHECKOUT,
+        # A1 (2026-07-28) — see telephony.calling_safety_config above.
+        migration_state=DUAL_READ_PRE_CUTOVER,
         deployment_blocker=True,
         evidence=(
             "VOICE_LAUNCH_KILL_FILE -> data/voice_launch_kill.json. Kept separate "

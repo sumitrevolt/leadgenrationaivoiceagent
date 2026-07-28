@@ -1,0 +1,250 @@
+"""A1 ratchet — the three migrated stores must stay migrated.
+
+The repo-wide debt ratchet only forbids GROWTH: existing findings are tolerated
+because 1000+ of them predate the workstream. That is the right rule for the
+backlog and the wrong rule for a store that has just been migrated, where the
+honest target is zero and it must stay zero.
+
+So this file asserts the stronger property for A1 only: the five writer modules
+carry NO uncontrolled in-checkout runtime path, and exactly three manifest rows
+moved state.
+"""
+
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+import pytest
+
+from app.platform import runtime_data_allowlist as allowlist
+from app.platform import runtime_data_baseline as baseline
+from app.platform import runtime_data_manifest as manifest
+
+REPO = Path(__file__).resolve().parents[1]
+
+#: The stores A1 migrated — and the only rows this commit may have touched.
+A1_STORE_IDS = frozenset(
+    {
+        "telephony.voice_kill_switch",
+        "telephony.calling_safety_config",
+        "telephony.dial_suppression",
+    }
+)
+
+#: Their production writer/reader modules.
+A1_MODULES = (
+    "app/telephony/voice_launch.py",
+    "app/platform/platform_dial.py",
+    "app/telephony/dial_gate.py",
+    "app/telephony/call_feedback.py",
+)
+
+#: Counts pinned so a "small cleanup" cannot quietly relax the controls this
+#: migration depends on.
+#: 21 BEFORE and AFTER A1. The code can now follow a cutover; the data has not
+#: moved, so every store is still destroyable by a `git reset --hard` and still
+#: blocks a destructive deploy. A count that fell to 18 here would be a false
+#: green — resolver-ready is not data-safe.
+EXPECTED_BLOCKERS = 21
+EXPECTED_ALLOWLIST_ENTRIES = 16
+EXPECTED_BASELINE_FINGERPRINTS = 839
+
+
+def _uncontrolled_path_findings(module_path: str) -> list[tuple[int, str]]:
+    """In-checkout runtime paths that the code would actually open.
+
+    Deliberately AST-based. These modules NAME their stores in prose — a line
+    scan flagged the docstrings that explain the very rule being enforced, which
+    is a false positive with the same shape as the bug it was hunting.
+
+    Not counted:
+      * docstrings — prose, never a path the code opens;
+      * the declared `legacy_path=` argument — that IS the controlled reference,
+        and the authority needs it to keep pre-cutover behaviour identical.
+
+    Counted:
+      * any string literal that names a checkout-relative `data/...` path;
+      * `os.path.join("data", ...)` / `Path("data", ...)`, where no single
+        literal contains a separator and a substring scan would see nothing.
+    """
+    tree = ast.parse((REPO / module_path).read_text(encoding="utf-8"))
+
+    exempt: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Module | ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
+            body = getattr(node, "body", [])
+            if (
+                body
+                and isinstance(body[0], ast.Expr)
+                and isinstance(body[0].value, ast.Constant)
+                and isinstance(body[0].value.value, str)
+            ):
+                exempt.add(id(body[0].value))
+        if isinstance(node, ast.Call):
+            for kw in node.keywords:
+                if kw.arg == "legacy_path":
+                    for sub in ast.walk(kw.value):
+                        if isinstance(sub, ast.Constant):
+                            exempt.add(id(sub))
+
+    findings: list[tuple[int, str]] = []
+
+    for node in ast.walk(tree):
+        # `os.path.join("data", "x.json")` / `Path("data", "x.json")`
+        if isinstance(node, ast.Call):
+            first = node.args[0] if node.args else None
+            if (
+                isinstance(first, ast.Constant)
+                and isinstance(first.value, str)
+                and first.value.strip("/\\") == "data"
+                and id(first) not in exempt
+            ):
+                findings.append((getattr(node, "lineno", -1), "join-with-data-root"))
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in exempt
+        ):
+            value = node.value.replace("\\", "/")
+            if value.startswith("data/") or "/data/" in value:
+                findings.append((getattr(node, "lineno", -1), node.value))
+
+    return findings
+
+
+#: Paths that live in an A1 module but belong to a store A1 did NOT migrate.
+#: Each entry names the owning store and why it is not in this wave. This is an
+#: exclusion list, not an amnesty: the assertion below requires the observed set
+#: to equal it exactly, so a NEW literal cannot hide behind an old one, and a
+#: path that later gets migrated must be delisted or the test fails.
+OUT_OF_SCOPE: dict[str, dict[str, str]] = {
+    "app/telephony/call_feedback.py": {
+        "data/dial_blocklist_audit.jsonl": (
+            "DIAL_BLOCKLIST_AUDIT. The manifest deliberately keeps this audit "
+            "ledger OUT of telephony.dial_suppression until it has its own "
+            "reader/writer evidence — folding it in here would migrate a store "
+            "nobody has classified."
+        ),
+    },
+    "app/telephony/voice_launch.py": {
+        "data/recordings": (
+            "telephony.call_recordings — Tier 2, retention-governed, and not an "
+            "A1 store. It shares this module with the kill switch by accident of "
+            "layout, not by ownership."
+        ),
+    },
+}
+
+
+@pytest.mark.parametrize("module_path", A1_MODULES)
+def test_a1_writer_modules_have_zero_uncontrolled_runtime_paths(module_path):
+    """Zero for the A1 stores — and every survivor named, with its owner.
+
+    'Zero findings in these files' would have been a nicer sentence and a false
+    one: two A1 modules also host stores from later waves. Claiming those away
+    silently is precisely the overclaim this workstream keeps catching.
+    """
+    declared = OUT_OF_SCOPE.get(module_path, {})
+    observed = {value for _, value in _uncontrolled_path_findings(module_path)}
+
+    undeclared = sorted(observed - set(declared))
+    assert not undeclared, f"{module_path} still opens an unclassified checkout path: {undeclared}"
+
+    stale = sorted(set(declared) - observed)
+    assert not stale, (
+        f"{module_path}: {stale} no longer appears — delete the exclusion rather "
+        "than leaving a hole the next literal can hide in"
+    )
+
+
+def test_the_ratchet_would_actually_catch_a_regression(tmp_path):
+    """Anti-vacuity: a scanner that finds nothing anywhere proves nothing.
+
+    An earlier canary in this repo passed only because execution stopped at step
+    one, so a detector is not trusted here until it is shown failing on purpose.
+    """
+    sample = tmp_path / "regression.py"
+    sample.write_text(
+        '"""A docstring naming data/dial_blocklist.json must NOT count."""\n'
+        "import os\n"
+        "from pathlib import Path\n"
+        "A = Path('data/dial_blocklist.json')\n"
+        "B = os.path.join('data', 'platform_dial.json')\n",
+        encoding="utf-8",
+    )
+    # The scanner joins against REPO; an absolute path makes that a no-op, so
+    # the sample can live in tmp_path and still exercise the real implementation.
+    findings = _uncontrolled_path_findings(str(sample))
+    kinds = {kind for _, kind in findings}
+    assert len(findings) == 2, findings
+    assert "join-with-data-root" in kinds, "the os.path.join('data', ...) shape slipped through"
+    assert any(v == "data/dial_blocklist.json" for _, v in findings)
+
+
+# ------------------------------------------------------------------ manifest
+def test_exactly_the_three_a1_rows_moved_state():
+    moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
+    assert moved == set(A1_STORE_IDS), moved
+
+
+def test_no_a2_or_a3_row_was_touched():
+    """Every other Tier-0 store must still be LEGACY_IN_CHECKOUT.
+
+    A2 (compliance) and A3 (billing/customers) have not been migrated, and a
+    state that runs ahead of the code is exactly the false claim this manifest
+    exists to prevent.
+    """
+    still_legacy = {
+        s["store_id"]
+        for s in manifest.STORES
+        if s.get("migration_tier") == manifest.TIER_0 and s["store_id"] not in A1_STORE_IDS
+    }
+    for store_id in still_legacy:
+        row = next(s for s in manifest.STORES if s["store_id"] == store_id)
+        assert row["migration_state"] == manifest.LEGACY_IN_CHECKOUT, store_id
+
+
+def test_manifest_still_validates():
+    assert manifest.validate() == []
+
+
+def test_migrating_the_code_does_not_reduce_the_blocker_count():
+    """The A1 stores are STILL blockers, and that is the honest answer.
+
+    Their writers can now follow a cutover, but their authoritative bytes are
+    still at /opt/leadgen/data. Until those bytes are copied, verified and
+    activated, a destructive deploy still destroys them — so DUAL_READ_PRE_CUTOVER
+    is a blocking state and the count stays at 21.
+    """
+    blocking = manifest.blocking_stores()
+    assert len(blocking) == EXPECTED_BLOCKERS, sorted(s["store_id"] for s in blocking)
+    assert A1_STORE_IDS <= {s["store_id"] for s in blocking}
+    assert manifest.DUAL_READ_PRE_CUTOVER in manifest.BLOCKING_STATES
+
+
+def test_no_allowlist_or_baseline_relaxation():
+    """The migration must not buy its green by loosening a neighbouring control."""
+    assert len(allowlist.load()) == EXPECTED_ALLOWLIST_ENTRIES
+    assert len(baseline.ENTRIES) == EXPECTED_BASELINE_FINGERPRINTS
+
+
+def test_deployment_still_denied_with_the_root_unset(monkeypatch):
+    """Three migrated stores do not authorise a deploy — nothing has moved yet."""
+    import importlib.util
+
+    monkeypatch.delenv("LEADGEN_RUNTIME_DATA_DIR", raising=False)
+    monkeypatch.delenv("LEADGEN_RUNTIME_DATA_HOST_DIR", raising=False)
+    monkeypatch.delenv("RUNTIME_DATA_CUTOVER_ENABLED", raising=False)
+    monkeypatch.setenv("APP_ENV", "production")
+
+    spec = importlib.util.spec_from_file_location(
+        "_pf", REPO / "scripts" / "runtime_data_preflight.py"
+    )
+    pf = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(pf)
+
+    reasons = pf.deploy_denied(pf.gather())
+    assert reasons, "a deploy must not be permitted before the cutover"
+    assert any(r.startswith("MODE_") for r in reasons)
+    assert "CUTOVER_GATE_DISABLED" in reasons
