@@ -28,12 +28,13 @@ Mount in main.py with:
 import json
 import logging
 import os
+import re
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query, Request
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
 from app.api.customer_auth import require_customer
@@ -2411,8 +2412,13 @@ def customer_video_media(
     video_ad_id: str,
     revision: int = Query(..., ge=0),
     client_id: str = Depends(require_customer),
+    range_header: str | None = Header(None, alias="Range"),
 ):
-    """Serve an exact customer-owned video version without exposing its path."""
+    """Serve an exact customer-owned video version with HTTP Range (seek) support.
+
+    Starlette FileResponse lacks reliable Range for HTML5 video scrubbing — stream
+    bytes ourselves while keeping the revision gate fail-closed.
+    """
     mcid, enabled = _customer_video_context(client_id)
     if not enabled:
         raise HTTPException(status_code=404, detail="video not found")
@@ -2426,10 +2432,97 @@ def customer_video_media(
     if media_path is None:
         logger.warning("customer video media refused id=%s tenant=%s", video_ad_id, mcid)
         raise HTTPException(status_code=404, detail="video not found")
-    return FileResponse(
-        media_path,
+
+    file_size = media_path.stat().st_size
+    filename = f"video_ad_{video_ad_id}.mp4"
+    base_headers = {
+        "Content-Type": "video/mp4",
+        "Content-Disposition": f'inline; filename="{filename}"',
+        "Accept-Ranges": "bytes",
+        "Cache-Control": "private, max-age=300, no-transform",
+    }
+
+    def _unsatisfiable() -> Response:
+        return Response(
+            status_code=416,
+            headers={
+                "Content-Range": f"bytes */{file_size}",
+                **base_headers,
+            },
+        )
+
+    if range_header:
+        range_str = range_header.strip()
+        if "," in range_str:
+            return _unsatisfiable()
+
+        m_start_end = re.match(r"^bytes=(\d+)-(\d+)$", range_str)
+        m_open_end = re.match(r"^bytes=(\d+)-$", range_str)
+        m_suffix = re.match(r"^bytes=-(\d+)$", range_str)
+
+        start: int | None = None
+        end: int | None = None
+        if m_start_end:
+            start = int(m_start_end.group(1))
+            end = int(m_start_end.group(2))
+        elif m_open_end:
+            start = int(m_open_end.group(1))
+            end = file_size - 1
+        elif m_suffix:
+            suffix_len = int(m_suffix.group(1))
+            if suffix_len == 0:
+                return _unsatisfiable()
+            start = max(0, file_size - suffix_len)
+            end = file_size - 1
+        else:
+            return _unsatisfiable()
+
+        if start < 0 or start >= file_size or end < start:
+            return _unsatisfiable()
+
+        end = min(end, file_size - 1)
+        content_length = end - start + 1
+        headers = {
+            **base_headers,
+            "Content-Range": f"bytes {start}-{end}/{file_size}",
+            "Content-Length": str(content_length),
+        }
+
+        def iter_range():
+            with open(media_path, "rb") as f:
+                f.seek(start)
+                remaining = content_length
+                chunk_size = 64 * 1024
+                while remaining > 0:
+                    read_bytes = f.read(min(chunk_size, remaining))
+                    if not read_bytes:
+                        break
+                    remaining -= len(read_bytes)
+                    yield read_bytes
+
+        return StreamingResponse(
+            iter_range(),
+            status_code=206,
+            headers=headers,
+            media_type="video/mp4",
+        )
+
+    headers = {
+        **base_headers,
+        "Content-Length": str(file_size),
+    }
+
+    def iter_full():
+        with open(media_path, "rb") as f:
+            chunk_size = 64 * 1024
+            while chunk := f.read(chunk_size):
+                yield chunk
+
+    return StreamingResponse(
+        iter_full(),
+        status_code=200,
+        headers=headers,
         media_type="video/mp4",
-        headers={"Cache-Control": "private, max-age=300, no-transform"},
     )
 
 
