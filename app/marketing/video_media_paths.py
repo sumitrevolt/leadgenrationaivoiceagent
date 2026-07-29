@@ -206,10 +206,69 @@ def observe_content_identity(path: str) -> dict[str, Any]:
     }
 
 
+def open_verified_media(path: str) -> dict[str, Any]:
+    """Open once, hash from that descriptor, and hand the SAME fh back.
+
+    Returns ``{"ok": True, "fh", "sha256", "bytes", "etag"}``. The caller owns
+    ``fh`` and MUST close it (deterministically, including on client disconnect).
+
+    Hashing through one ``open()`` and then re-``open()``-ing the path to stream
+    would let a path replacement between the two serve bytes that do not match
+    the advertised ETag. Streaming from this descriptor pins the inode for the
+    life of the response.
+
+    NOTE: this closes *path replacement*. In-place mutation of the already-open
+    inode is only fully closed once publishing consumes the immutable snapshot
+    (Stage 2) — do not describe this as complete TOCTOU protection.
+    """
+    resolved = resolve_video_media_file(path)
+    if resolved is None:
+        return {"ok": False, "error": "content_unverifiable"}
+    fh = None
+    try:
+        fh = open(resolved, "rb")
+        before = os.fstat(fh.fileno())
+        if not stat.S_ISREG(before.st_mode):
+            fh.close()
+            return {"ok": False, "error": "content_unverifiable"}
+        h = hashlib.sha256()
+        size = 0
+        while chunk := fh.read(_HASH_CHUNK):
+            h.update(chunk)
+            size += len(chunk)
+        after = os.fstat(fh.fileno())
+        if (before.st_ino, before.st_dev, before.st_size, before.st_mtime_ns) != (
+            after.st_ino,
+            after.st_dev,
+            after.st_size,
+            after.st_mtime_ns,
+        ) or size != after.st_size:
+            fh.close()
+            return {"ok": False, "error": "content_changed_during_read"}
+        fh.seek(0)
+    except OSError:
+        if fh is not None:
+            try:
+                fh.close()
+            except OSError:
+                pass
+        return {"ok": False, "error": "content_unverifiable"}
+
+    digest = h.hexdigest()
+    return {
+        "ok": True,
+        "fh": fh,
+        "sha256": digest,
+        "bytes": size,
+        "etag": f'"sha256-{digest}"',
+    }
+
+
 __all__ = [
     "approved_media_dir",
     "media_roots",
     "observe_content_identity",
+    "open_verified_media",
     "reels_dir",
     "resolve_video_media_file",
     "video_ads_dir",
