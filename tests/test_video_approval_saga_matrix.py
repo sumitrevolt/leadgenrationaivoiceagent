@@ -271,10 +271,10 @@ def test_enqueue_ok_delivery_fails_then_recovery_does_not_duplicate(
     broken["on"] = False
     assert SAGA.recover("vid-preview-1")["ok"] is True
     assert _rec()["approval_effects"] == SAGA.EFFECTS_EMITTED
-    # Known, documented consequence: the retry re-runs the whole effects block,
-    # so enqueue is attempted twice. It stays ONE queue item because
-    # auto_content.enqueue_approved is keyed on the approval id.
-    assert ev["enqueue"] == 2
+    # Per-effect markers: the already-emitted enqueue is NOT re-invoked when
+    # only the delivery effect is retried (this asserted 2 before the effects
+    # gate split them apart).
+    assert ev["enqueue"] == 1
     assert ev["delivery"] == 1
     assert ev["provider"] == 0
 
