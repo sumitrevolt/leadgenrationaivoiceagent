@@ -122,7 +122,14 @@ class AutoTrainer:
         tenant_id: str = None,
     ):
         self.models_dir = Path(models_dir)
-        self.models_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            self.models_dir.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            # Deploy-gate containers mount the candidate checkout read-only.
+            # Import-time readiness must still succeed; writers create the dir
+            # on first real training run.
+            if getattr(exc, "errno", None) not in {30, 13}:  # EROFS, EACCES
+                raise
         self.tenant_id = tenant_id
 
         self.data_pipeline = data_pipeline or ConversationDataPipeline()
