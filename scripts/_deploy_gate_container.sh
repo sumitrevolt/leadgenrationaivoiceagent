@@ -91,6 +91,31 @@ gate_run_image() {
     return 92
   fi
 
+  # External runtime root (cutover). `.env` tells the app where the marker lives
+  # INSIDE the container (`LEADGEN_RUNTIME_DATA_DIR`); the matching host path
+  # (`LEADGEN_RUNTIME_DATA_HOST_DIR`) must be bind-mounted or check-deploy will
+  # report MARKER_ABSENT / EXTERNAL_ROOT_UNVERIFIED even after a valid host
+  # activate — which is exactly the false DENY that blocked the first
+  # post-cutover canonical deploy (2026-07-29).
+  local host_runtime app_runtime
+  host_runtime="${LEADGEN_RUNTIME_DATA_HOST_DIR:-}"
+  app_runtime="${LEADGEN_RUNTIME_DATA_DIR:-}"
+  if [ -z "$host_runtime" ]; then
+    host_runtime="$(grep -E '^LEADGEN_RUNTIME_DATA_HOST_DIR=' "$repo/.env" | head -n1 | cut -d= -f2- | tr -d '\r' || true)"
+  fi
+  if [ -z "$app_runtime" ]; then
+    app_runtime="$(grep -E '^LEADGEN_RUNTIME_DATA_DIR=' "$repo/.env" | head -n1 | cut -d= -f2- | tr -d '\r' || true)"
+  fi
+  local -a runtime_mount=()
+  if [ -n "$host_runtime" ] && [ -n "$app_runtime" ]; then
+    if [ ! -d "$host_runtime" ]; then
+      echo "FATAL: LEADGEN_RUNTIME_DATA_HOST_DIR='$host_runtime' is not a directory." >&2
+      echo "       Refusing to run the gate against a missing external root." >&2
+      return 92
+    fi
+    runtime_mount=(-v "$host_runtime:$app_runtime:ro")
+  fi
+
   docker run --rm \
     --read-only \
     --tmpfs /tmp \
@@ -100,6 +125,7 @@ gate_run_image() {
     -e PYTHONPATH=/repo \
     -v "$candidate:/repo:ro" \
     -v "$repo/data:/repo/data:ro" \
+    "${runtime_mount[@]}" \
     -w /repo \
     "$image" \
     python "$@"
