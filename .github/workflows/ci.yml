@@ -143,18 +143,31 @@ jobs:
           # Next exit-139 must leave a Python dump (cyclic-GC SIGSEGV class,
           # 2026-07-28). Does not weaken the required suite.
           PYTHONFAULTHANDLER: "1"
-        # Three sequential process shards: same required suite, shorter
-        # per-process heap lifetime. Cyclic-GC SIGSEGV (exit 139) has hit
-        # scan_repo, markitdown, AND team.log_event frames — one long-lived
-        # pytest process concentrates native-extension GC risk; shards
-        # contain blast radius without skipping or xfailing anything.
+        # Four sequential process shards + one exit-139 retry per shard: same
+        # required suite, shorter per-process heap lifetime. Cyclic-GC SIGSEGV
+        # (exit 139, Garbage-collecting top frame) has hit fixture setup,
+        # scan_repo, markitdown, and team.log_event — one long-lived pytest
+        # process concentrates native-extension GC risk. Shards + a single
+        # retry contain blast radius without skipping or xfailing anything.
         run: |
           pip install --no-deps "pytest-split==0.9.0"
-          set -e
-          for group in 1 2 3; do
-            echo "::group::pytest shard ${group}/3"
+          set -euo pipefail
+          for group in 1 2 3 4; do
+            echo "::group::pytest shard ${group}/4"
+            set +e
             pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
-              --splits 3 --group "${group}"
+              --splits 4 --group "${group}"
+            rc=$?
+            if [ "$rc" -eq 139 ]; then
+              echo "::warning title=exit-139::shard ${group}/4 cyclic-GC SIGSEGV; one retry (no skip)"
+              pytest -m "not network" -q --no-header -p no:cacheprovider --timeout=60 \
+                --splits 4 --group "${group}"
+              rc=$?
+            fi
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              exit "$rc"
+            fi
             echo "::endgroup::"
           done
 

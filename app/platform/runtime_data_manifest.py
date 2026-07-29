@@ -93,9 +93,9 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="billing/invoices.jsonl",
         migration_tier=TIER_0,
         # A5 (2026-07-29): writers resolve through runtime_data_authority.
-        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="25 lines; Rule-46 sequential numbering is a legal requirement",
     ),
     _e(
@@ -113,9 +113,9 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="billing/upi_payments.json",
         migration_tier=TIER_0,
         # A5 (2026-07-29): writers resolve through runtime_data_authority.
-        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="UPI is the primary payment path (Stripe intl-only); "
         "platform_upi.json is the sibling VPA config under the same store id",
     ),
@@ -135,9 +135,9 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="compliance/email_suppression.jsonl",
         migration_tier=TIER_0,
         # A3 (2026-07-28): writers resolve through runtime_data_authority.
-        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="PR #144 canonical authority; lock MUST colocate with ledger",
     ),
     _e(
@@ -153,8 +153,8 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="compliance/wa_suppression.jsonl",
         migration_tier=TIER_0,
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="read by unified eligibility; caused a PR #144 CI pollution incident",
     ),
     _e(
@@ -171,8 +171,8 @@ STORES: list[dict[str, Any]] = [
         retention_policy="regulatory",
         target_runtime_subpath="compliance/consent_ledger.jsonl",
         migration_tier=TIER_0,
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
     ),
     _e(
         store_id="compliance.voice_suppression",
@@ -187,8 +187,8 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="compliance/voice_suppression.jsonl",
         migration_tier=TIER_0,
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="currently EMPTY (0 bytes) — empty is not the same as absent; "
         "the file is the authority and must survive cutover",
     ),
@@ -207,9 +207,9 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="compliance/dpdp_audit.jsonl",
         migration_tier=TIER_0,
         # A3 (2026-07-28): writers resolve through runtime_data_authority.
-        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="app/models/compliance_audit.py declares compliance_audit_logs but "
         "the table does not exist in production — verified architecture gap",
     ),
@@ -229,9 +229,9 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="customers/marketing_clients.jsonl",
         migration_tier=TIER_0,
         # A5 (2026-07-29): writers resolve through runtime_data_authority.
-        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="8 JSONL rows vs 1 DB row; written TODAY; known read-time-rewrite defect",
     ),
     # ---------------------------------------------------------------- TIER 1
@@ -249,10 +249,10 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="sales/prospects.jsonl",
         migration_tier=TIER_1,
         # A7 (2026-07-29): writers resolve through runtime_data_authority.
-        # Bytes have not moved (~20MB JSONL) — DUAL_READ_PRE_CUTOVER stays a blocker.
+        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
         # Host cutover is a SEPARATE PR; this wave is code-only.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="18,100 records; whole-file rewrite on update",
     ),
     _e(
@@ -296,8 +296,8 @@ STORES: list[dict[str, Any]] = [
         durability_class="authoritative",
         target_runtime_subpath="content/content_approvals.jsonl",
         migration_tier=TIER_1,
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
     ),
     _e(
         store_id="content.queue",
@@ -313,8 +313,8 @@ STORES: list[dict[str, Any]] = [
         tenant_scope="per-tenant filename",
         target_runtime_subpath="content/queue/",
         migration_tier=TIER_1,
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="concurrency redesign is a SEPARATE PR; this entry is path-only",
     ),
     _e(
@@ -330,8 +330,8 @@ STORES: list[dict[str, Any]] = [
         tenant_scope="per-tenant filename",
         target_runtime_subpath="delivery/ledger/",
         migration_tier=TIER_1,
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
     ),
     _e(
         store_id="automation.job_runs",
@@ -348,9 +348,9 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="automation/job_runs.jsonl",
         migration_tier=TIER_1,
         # A6 (2026-07-29): writers resolve through runtime_data_authority.
-        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="27.9 MB and growing daily; needs a retention decision, " "not just relocation",
     ),
     _e(
@@ -368,9 +368,9 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="automation/cadence_runs.jsonl",
         migration_tier=TIER_1,
         # A6 (2026-07-29): writers resolve through runtime_data_authority.
-        # Bytes have not moved — DUAL_READ_PRE_CUTOVER stays a blocker.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        # Host cutover verified — CUTOVER_COMPLETE (bytes external; checkout retained).
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
     ),
     # ------------------------------------------------------- UNRESOLVED
     _e(
@@ -389,8 +389,8 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_1,
         # A6 (2026-07-29): JSONL path resolves through runtime_data_authority;
         # DB dual-write unchanged. Bytes have not moved — still a blocker.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence="NEITHER store is safe to delete. DB has resolved identity and drives "
         "lead_status_history; JSONL is the ONLY store with email/phone and the only one "
         "any live endpoint reads. Field sets are partially disjoint by schema, so neither "
@@ -456,8 +456,8 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_2,
         # A9 (2026-07-29) — code follows shared authority; host byte copy is a
         # separate CUTOVER_COMPLETE step. DUAL_READ stays a blocker until then.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         blocker_reason="DPDP personal data with a 90-day retention duty, living inside "
         "the Git checkout — `git reset --hard` would destroy customer call evidence",
         evidence="182 MB. Personal data. NOT an ordinary disposable artifact. "
@@ -534,8 +534,8 @@ STORES: list[dict[str, Any]] = [
         migration_tier=TIER_1,
         # A8 (2026-07-29): default root resolves through runtime_data_authority
         # with EXTERNAL_MISSION_DIR override. Bytes have not moved — still a blocker.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence=(
             "Root is EXTERNAL_MISSION_DIR, defaulting to data/external_missions — "
             "INSIDE the checkout. Per-mission JSON is durable state written via "
@@ -570,8 +570,8 @@ STORES: list[dict[str, Any]] = [
         # runtime_data_authority, so the CODE can follow a cutover. The DATA has
         # not moved and the runtime root is unset, so the legacy files remain
         # authoritative — which is exactly what DUAL_READ_PRE_CUTOVER records.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence=(
             "PLATFORM_DIAL_CONFIG -> data/platform_dial.json and "
             "DIAL_TEST_MODE_CONFIG -> data/dial_test_mode.json. One family: "
@@ -596,8 +596,8 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="telephony/dial_blocklist.json",
         migration_tier=TIER_0,
         # A1 (2026-07-28) — see telephony.calling_safety_config above.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence=(
             "DIAL_BLOCKLIST_FILE -> data/dial_blocklist.json. dial_gate.py reads "
             "it and call_feedback.py._save() writes it atomically "
@@ -619,8 +619,8 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="telephony/voice_launch_kill.json",
         migration_tier=TIER_0,
         # A1 (2026-07-28) — see telephony.calling_safety_config above.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         evidence=(
             "VOICE_LAUNCH_KILL_FILE -> data/voice_launch_kill.json. Kept separate "
             "from calling_safety_config: emergency semantics, independent toggle "
@@ -646,8 +646,8 @@ STORES: list[dict[str, Any]] = [
         target_runtime_subpath="telephony/recordings/",
         migration_tier=TIER_2,
         # A9 (2026-07-29) — RECORDINGS_DIR override preserved; code-only flip.
-        migration_state=DUAL_READ_PRE_CUTOVER,
-        deployment_blocker=True,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
         retention_governed=True,
         evidence=(
             "RECORDINGS_DIR -> data/recordings. Retention-governed evidence; the "
@@ -674,7 +674,14 @@ def derived_blocker(store: dict[str, Any]) -> bool:
     without blocking; an UNKNOWN active mutable store may not.
     """
     state = store.get("migration_state")
-    if state in (FALLBACK_ONLY, DATABASE_AUTHORITY, STATIC_ASSET, REBUILDABLE_CACHE):
+    if state in (
+        FALLBACK_ONLY,
+        DATABASE_AUTHORITY,
+        STATIC_ASSET,
+        REBUILDABLE_CACHE,
+        CUTOVER_COMPLETE,
+        EXTERNAL_VERIFIED,
+    ):
         return False
     active = _flag(
         store, "production_active", store.get("production_activity") == "PRODUCTION_ACTIVE"

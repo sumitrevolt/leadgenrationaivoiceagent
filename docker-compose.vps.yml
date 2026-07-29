@@ -64,6 +64,8 @@ services:
       # chahiye to host wapas `@db:5432` karo (revert).
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
       CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
       CELERY_HEAVY_QUEUE: "1"   # app bhi sender hai (API dlq retry/sweep dispatch) — routing consistent rahe
       # In-stack Qdrant DNS — .env ka 127.0.0.1 override (container localhost trap)
@@ -85,6 +87,7 @@ services:
         condition: service_started
     volumes:
       - ./data:/app/data        # persisted app data (brains, jsonl stores, logos)
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
       - ./logs:/app/logs
     restart: unless-stopped
     healthcheck:
@@ -269,6 +272,8 @@ services:
       # ke andar khud container hote (galat). PgBouncer session-mode pool ke through.
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
       CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
       RUN_IN_PROCESS_SCHEDULER: "0"
       CELERY_HEAVY_QUEUE: "1"   # heavy staff-jobs alag 'heavy' queue me (worker-heavy consume karta)
@@ -283,6 +288,7 @@ services:
         condition: service_healthy
     volumes:
       - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
       - ./logs:/app/logs
     restart: unless-stopped
     healthcheck:
@@ -321,6 +327,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
       CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
       RUN_IN_PROCESS_SCHEDULER: "0"
       CELERY_HEAVY_QUEUE: "1"
@@ -335,6 +343,7 @@ services:
         condition: service_healthy
     volumes:
       - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
       - ./logs:/app/logs
     restart: unless-stopped
     healthcheck:
@@ -374,6 +383,8 @@ services:
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
       CACHE_REDIS_URL: redis://redis-cache:6379/0
       RUN_IN_PROCESS_SCHEDULER: "0"
       QDRANT_URL: http://qdrant:6333
@@ -386,6 +397,7 @@ services:
         condition: service_healthy
     volumes:
       - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
       - ./logs:/app/logs
     restart: unless-stopped
     healthcheck:
@@ -418,11 +430,14 @@ services:
     # same bind-mount the app + worker use.
     volumes:
       - ./data:/app/data
+      - ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}:/var/lib/leadgen/runtime
       - ./logs:/app/logs
     env_file: .env
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-leadgen}:${POSTGRES_PASSWORD:-leadgen}@pgbouncer:6432/${POSTGRES_DB:-leadgen}
       REDIS_URL: redis://redis:6379/0
+      LEADGEN_RUNTIME_DATA_DIR: ${LEADGEN_RUNTIME_DATA_DIR:-/var/lib/leadgen/runtime}
+      LEADGEN_RUNTIME_DATA_HOST_DIR: ${LEADGEN_RUNTIME_DATA_HOST_DIR:-/opt/leadgen-runtime}
       CACHE_REDIS_URL: redis://redis-cache:6379/0   # evictable cache only (app.cache.Cache); unset = main redis fallback
       CELERY_HEAVY_QUEUE: "1"   # beat = SENDER — routing yahi evaluate hota hai
     depends_on:

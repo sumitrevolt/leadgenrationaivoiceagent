@@ -4,7 +4,16 @@ Production-ready test fixtures with proper async handling
 """
 
 import asyncio
+import gc
 import os
+
+# CI exit-139 containment (2026-07-28/29): intermittent SIGSEGV during cyclic GC
+# while native extensions (torch/av/numpy/…) are loaded. Disabling *automatic*
+# collection for the short-lived GitHub Actions process reduces GC dice-rolls
+# without skipping or xfailing any required test. Explicit gc.collect() still
+# runs. See memory/incidents.md (exit 139 ledger).
+if os.environ.get("GITHUB_ACTIONS") == "true":
+    gc.disable()
 
 # TESTS ME AUTOMATION HAMESHA OFF (app.main import se PEHLE set karna zaroori):
 # TestClient(app) startup pe in-process team_scheduler chal jaata tha aur fresh
