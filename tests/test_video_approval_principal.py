@@ -368,6 +368,92 @@ def test_conflicting_principal_cannot_overwrite_the_original_actor(preview_clien
     assert after["approved_at"] == before["approved_at"]
 
 
+# --- admin HTTP surface ---------------------------------------------------
+
+
+def test_admin_approve_route_is_actually_executable(preview_client, monkeypatch):
+    """Executes the admin route, not just its imports.
+
+    This test exists because the first cut of that route raised HTTPException
+    without importing it. Ruff, prod_check and the whole video suite stayed
+    green — nothing CALLED the route, and an import-time gate cannot see a name
+    that is only resolved on request. Every refusal branch is exercised here.
+    """
+    from app.api.auth_deps import require_admin
+    from app.main import app as fastapi_app
+
+    class _Admin:
+        id = "u-admin-1"
+        email = "root@example.com"
+
+        def can_access_admin(self):
+            return True
+
+    async def _as_admin():
+        return _Admin()
+
+    fastapi_app.dependency_overrides[require_admin] = _as_admin
+    c, artifact = preview_client
+    try:
+        # missing hash -> 400, and the handler must not blow up on a bare name
+        bad = c.post("/api/clientops/video-production/vid-preview-1/approve", json={})
+        assert bad.status_code == 400
+        assert "expected_content_sha256" in bad.text
+
+        # unknown record -> 404
+        missing = c.post(
+            "/api/clientops/video-production/nope/approve",
+            json={"expected_revision": 0, "expected_content_sha256": "a" * 64},
+        )
+        assert missing.status_code == 404
+
+        # real approval records the admin subject, not the literal "admin"
+        from app.marketing import video_ad_cycle as V
+
+        digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        ok = c.post(
+            "/api/clientops/video-production/vid-preview-1/approve",
+            json={"expected_revision": 0, "expected_content_sha256": digest},
+        )
+        assert ok.status_code == 200, ok.text
+        rec = (V._latest() or {}).get("vid-preview-1") or {}
+        assert rec["approval_actor"] == "user:u-admin-1"
+        assert rec["approval_principal_type"] == "admin_account"
+    finally:
+        fastapi_app.dependency_overrides.pop(require_admin, None)
+
+
+def test_admin_route_refuses_when_identity_has_no_stable_id(preview_client):
+    from app.api.auth_deps import require_admin
+    from app.main import app as fastapi_app
+
+    class _NoId:
+        email = "root@example.com"
+
+        def can_access_admin(self):
+            return True
+
+    async def _as_admin():
+        return _NoId()
+
+    fastapi_app.dependency_overrides[require_admin] = _as_admin
+    c, artifact = preview_client
+    try:
+        digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+        r = c.post(
+            "/api/clientops/video-production/vid-preview-1/approve",
+            json={"expected_revision": 0, "expected_content_sha256": digest},
+        )
+        assert r.status_code == 403
+        # The app's exception handler reshapes the body, so assert on the
+        # payload rather than assuming FastAPI's default `detail` key.
+        assert "approver_identity_unavailable" in r.text
+        # and nothing sensitive rides along with the refusal
+        assert "root@example.com" not in r.text
+    finally:
+        fastapi_app.dependency_overrides.pop(require_admin, None)
+
+
 # --- leakage --------------------------------------------------------------
 
 
