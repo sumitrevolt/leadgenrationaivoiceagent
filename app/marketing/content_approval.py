@@ -363,6 +363,29 @@ def persist_decision(
 
 def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
     try:
+        # CONTAINMENT (Stage 3B-close). A video approval must not be decided by
+        # this legacy callback path at all. Four production entrypoints reach
+        # here — the unauthenticated GET link, decide_for_client (customer
+        # portal + boss_council) and decide_by_id (product_one_delivery
+        # automation) — none of which carries a principal or a transaction.
+        #
+        # The refusal is BEFORE persist_decision, so no decision bytes, no
+        # queue item and no delivery-ledger row are written for a refused video.
+        # REJECT is unaffected: refusing to reject would trap a customer with
+        # content they do not want.
+        if status == "approved":
+            rec_pre = get_by_token(token) or {}
+            if str((rec_pre.get("content") or {}).get("type") or "") == "video_ad":
+                logger.warning(
+                    "[content_approval] video approval REFUSED via legacy path (%s)",
+                    str(rec_pre.get("id") or "")[:40],
+                )
+                return {
+                    "ok": False,
+                    "error": "approval_token_regeneration_required",
+                    "detail": "video approval must go through the coordinated approval path",
+                }
+
         persisted = persist_decision(token, status, note)
         if not persisted.get("ok"):
             return persisted
@@ -418,7 +441,11 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
                 "isha",
                 "content_approval",
                 f"Client {merged.get('client_id')} ne content {status} kiya"
-                + (f" — note: {update['note']}" if update["note"] else ""),
+                # `update` used to be a local of this function; the Stage 3A
+                # split moved it into persist_decision and left this reference
+                # dangling, so every team event raised NameError into the
+                # swallow below and silently stopped being logged.
+                + (f" — note: {merged.get('note')}" if merged.get("note") else ""),
                 meta={"approval_id": merged.get("id"), "status": status},
             )
         except Exception:
@@ -803,11 +830,20 @@ def list_all(client_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
 
 def decision_html(result: dict[str, Any], action: str) -> str:
     """Tiny Hinglish HTML — public approve/reject link ka response page."""
+    reason = str(result.get("error") or "")
     if not result.get("ok"):
-        title, body = (
-            "Link sahi nahi",
-            "Yeh approval link galat ya expire ho chuka hai. Apni agency se naya link maang lo.",
-        )
+        if reason == "approval_token_regeneration_required":
+            title, body = (
+                "Naya link chahiye",
+                "Is video ka approval link purana hai. Dashboard se approve karein — "
+                "hum naya secure link bhej rahe hain.",
+            )
+        else:
+            title, body = (
+                "Link sahi nahi",
+                "Yeh approval link galat ya expire ho chuka hai. "
+                "Apni agency se naya link maang lo.",
+            )
         emoji = "🤔"
     elif result.get("already_decided"):
         st = (result.get("approval") or {}).get("status")
@@ -830,7 +866,9 @@ def decision_html(result: dict[str, Any], action: str) -> str:
         f"<div style='font-size:56px'>{emoji}</div>"
         f"<h2 style='margin:12px 0 8px'>{title}</h2>"
         f"<p style='color:#94a3b8;line-height:1.5'>{body}</p>"
-        "</div></body></html>"
+        # Machine-readable refusal reason. Non-sensitive by construction (a
+        # fixed vocabulary of codes) and never the credential itself.
+        + (f"<!--reason:{reason}-->" if reason else "") + "</div></body></html>"
     )
 
 

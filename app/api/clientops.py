@@ -137,12 +137,38 @@ async def public_approve(
     action: str = Query("approve", max_length=10),
     note: str = Query("", max_length=300),
 ):
-    """Client ka 1-click approve/reject (PUBLIC, rate-limited) — Hinglish HTML."""
+    """Client ka 1-click approve/reject (PUBLIC, rate-limited) — Hinglish HTML.
+
+    CONTAINMENT (Stage 3B-close): a VIDEO approval may no longer be decided
+    here. This route is unauthenticated and the token carries no binding to
+    tenant, record, revision or content hash, so possession of a URL used to be
+    enough to mark a video finally approved and publishable.
+
+    The refusal happens BEFORE any decision is persisted — not after — so the
+    approval record and the video record are left byte-identical.
+    """
     from fastapi.responses import HTMLResponse
 
     from app.marketing import content_approval
 
     act = "reject" if action == "reject" else "approve"
+
+    if act == "approve":
+        rec = content_approval.get_by_token(token) or {}
+        if str((rec.get("content") or {}).get("type") or "") == "video_ad":
+            refusal = {
+                "ok": False,
+                "error": "approval_token_regeneration_required",
+                "detail": (
+                    "Is video ka approval link purana hai. Dashboard se approve "
+                    "karein — hum naya secure link bhej rahe hain."
+                ),
+            }
+            return HTMLResponse(
+                content_approval.decision_html(refusal, act),
+                status_code=409,
+            )
+
     if act == "reject":
         result = content_approval.reject(token, note)
     else:

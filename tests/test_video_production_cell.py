@@ -24,7 +24,7 @@ def _principal(tenant: str):
     """Server-created principal, same helper the customer route uses."""
     from app.marketing.video_production.approval_principal import from_customer_session
 
-    return from_customer_session(tenant)
+    return from_customer_session(tenant, tenant_verified=True, revocation_verified=True)
 
 
 def test_flags_default_off(monkeypatch):
@@ -112,9 +112,20 @@ def test_state_transitions_and_publish_gate(monkeypatch, tmp_path):
         "final_approved": True,
         "approved_content_sha256": digest,
         "approved_content_bytes": size,
+        # Stage 3B-close: publish eligibility requires a finalized saga-owned
+        # snapshot identity. Without it this record is exactly the legacy shape
+        # an uncoordinated writer produced, and it must refuse.
+        "approval_txn_state": "finalized",
+        "approval_txn": "t" * 64,
+        "approval_snapshot_path": str(artifact) + ".snap",
+        "approval_snapshot_sha256": digest,
+        "approval_snapshot_bytes": size,
     }
     gate = assert_can_publish(approved)
     assert gate["ok"] is True
+
+    uncoordinated = {k: v for k, v in approved.items() if not k.startswith("approval_txn")}
+    assert assert_can_publish(uncoordinated)["error"] == "approval_not_finalized"
 
     mismatch = {**approved, "approved_version": 1}
     assert assert_can_publish(mismatch)["ok"] is False

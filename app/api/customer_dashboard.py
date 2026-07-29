@@ -35,6 +35,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from app.api.customer_auth import require_customer
@@ -2605,11 +2606,44 @@ class VideoFeedbackIn(BaseModel):
     expected_content_sha256: str = Field("", max_length=64)
 
 
+async def _approval_session_facts(client_id: str, creds) -> tuple[bool, bool]:
+    """Establish, server-side, the two facts ``require_customer`` does not.
+
+    Returns ``(tenant_verified, revocation_verified)``. Both are POSITIVE
+    checks: an error anywhere yields False, so approval fails closed. The read
+    paths deliberately keep their existing fail-open behaviour — this stricter
+    rule applies only to the approval mutation.
+    """
+    tenant_verified = False
+    try:
+        from app.marketing import clients_store
+
+        rec = clients_store.resolve_client(client_id)
+        tenant_verified = bool(rec and str(rec.get("id") or "").strip())
+    except Exception:
+        tenant_verified = False
+
+    revocation_verified = False
+    try:
+        from app.cache import get_redis_client
+
+        token = getattr(creds, "credentials", "") or ""
+        if token:
+            redis_client = await get_redis_client()
+            revoked = await redis_client.exists(f"customer:logout:{token[:20]}")
+            revocation_verified = not revoked
+    except Exception:
+        # Store unreachable => we cannot prove the session is still valid.
+        revocation_verified = False
+    return tenant_verified, revocation_verified
+
+
 @router.post("/videos/{video_ad_id}/feedback")
-def customer_video_feedback(
+async def customer_video_feedback(
     video_ad_id: str,
     body: VideoFeedbackIn,
     client_id: str = Depends(require_customer),
+    creds: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
 ):
     """Dashboard video review — same intents as WhatsApp (version-bound)."""
     from app.marketing import clients_store, content_approval, video_ad_cycle
@@ -2666,9 +2700,14 @@ def customer_video_feedback(
         )
 
         # Server-constructed from the verified session. `mcid` is the canonical
-        # tenant from require_customer, never request input.
+        # tenant from require_customer, never request input. Tenant existence
+        # and session revocation are proven POSITIVELY here — require_customer's
+        # revocation check fails open, which is not acceptable for a mutation.
+        tenant_ok, revocation_ok = await _approval_session_facts(mcid, creds)
         try:
-            principal = from_customer_session(mcid)
+            principal = from_customer_session(
+                mcid, tenant_verified=tenant_ok, revocation_verified=revocation_ok
+            )
         except PrincipalRefused as exc:
             raise HTTPException(status_code=exc.status, detail=exc.code) from None
         out = cell.approve_version(
