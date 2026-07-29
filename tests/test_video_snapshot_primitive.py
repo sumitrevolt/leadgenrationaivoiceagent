@@ -127,12 +127,30 @@ def test_snapshot_module_uses_no_private_cross_module_constants():
     assert "from app.marketing.media_limits import" in body
 
 
-def test_limit_authority_matches_upload_path_constant():
-    """media_limits is the authority; pin it to the historical upload cap so
-    the two cannot drift apart."""
-    from app.api.contentplus import _UPLOAD_MAX_BYTES
+def test_upload_path_consumes_the_authority_not_a_duplicate(monkeypatch):
+    """Single source of truth: contentplus must READ media_limits, not hold a
+    second constant that merely happens to be equal."""
+    from app.api import contentplus
 
-    assert ML.max_upload_bytes() == _UPLOAD_MAX_BYTES
+    body = open(contentplus.__file__, encoding="utf-8").read()
+    assert "from app.marketing.media_limits import max_upload_bytes" in body
+    assert "= 200 * 1024 * 1024" not in body  # no independent definition
+
+    # Change the authority; the upload path must follow.
+    monkeypatch.setenv("MEDIA_UPLOAD_MAX_MB", "7")
+    assert ML.max_upload_bytes() == 7 * 1024 * 1024
+    assert contentplus._upload_max_bytes() == 7 * 1024 * 1024
+    assert S.max_snapshot_bytes() == 7 * 1024 * 1024  # snapshot follows too
+
+
+def test_invalid_config_fails_closed_for_both_upload_and_snapshot(monkeypatch):
+    monkeypatch.setenv("MEDIA_UPLOAD_MAX_MB", "not-a-number")
+    from app.api import contentplus
+
+    with pytest.raises(ML.MediaLimitConfigError):
+        contentplus._upload_max_bytes()
+    with pytest.raises(ML.MediaLimitConfigError):
+        S.max_snapshot_bytes()
 
 
 def test_snapshot_ceiling_defaults_to_upload_ceiling():
