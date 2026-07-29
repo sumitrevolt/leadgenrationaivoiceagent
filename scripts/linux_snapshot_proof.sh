@@ -8,6 +8,7 @@ mkdir -p /work/app/marketing/video_production /work/app/utils /work/tests
 : > /work/app/marketing/video_production/__init__.py
 : > /work/app/utils/__init__.py
 cp /src/app/marketing/video_media_paths.py /work/app/marketing/
+cp /src/app/marketing/media_limits.py /work/app/marketing/
 cp /src/app/marketing/video_production/snapshot.py /work/app/marketing/video_production/
 # app/utils/logger.py pulls app.config (pydantic-settings). The POSIX proof is
 # about filesystem semantics, not logging, so the harness stubs setup_logger

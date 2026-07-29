@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 
+from app.marketing import media_limits as ML
 from app.marketing.video_production import snapshot as S
 
 # ruff: noqa: F811  (pytest resolves the imported fixture by parameter name)
@@ -118,21 +119,58 @@ def test_interruption_cleans_temp(env, monkeypatch, boom_at):
 
 
 # 5. size and disk-headroom budgets refuse
-def test_size_ceiling_defaults_to_existing_upload_cap():
-    """Budget is sourced from the project's existing video upload contract."""
+def test_snapshot_module_uses_no_private_cross_module_constants():
+    body = open(S.__file__, encoding="utf-8").read()
+    assert "_UPLOAD_MAX_BYTES" not in body
+    assert "contentplus" not in body
+    assert "staff" not in body
+    assert "from app.marketing.media_limits import" in body
+
+
+def test_limit_authority_matches_upload_path_constant():
+    """media_limits is the authority; pin it to the historical upload cap so
+    the two cannot drift apart."""
     from app.api.contentplus import _UPLOAD_MAX_BYTES
 
-    assert S.max_snapshot_bytes() == _UPLOAD_MAX_BYTES
+    assert ML.max_upload_bytes() == _UPLOAD_MAX_BYTES
 
 
-def test_free_floor_defaults_to_platform_disk_alert_threshold():
-    assert S.min_free_percent() == 10.0  # app/agents/staff.py disk_free_pct < 10.0
+def test_snapshot_ceiling_defaults_to_upload_ceiling():
+    assert S.max_snapshot_bytes() == ML.max_upload_bytes()
 
 
-@pytest.mark.parametrize("bad", ["0", "-5", "9999", "abc", "12.5"])
+def test_free_floor_default():
+    assert S.min_free_percent() == 10.0
+
+
+def test_override_may_tighten_but_never_raise_the_ceiling(monkeypatch):
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MAX_MB", "50")
+    assert S.max_snapshot_bytes() == 50 * 1024 * 1024  # tighter: allowed
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MAX_MB", "201")  # above the 200 MB cap
+    with pytest.raises(ML.MediaLimitConfigError):
+        S.max_snapshot_bytes()
+
+
+def test_artifact_over_canonical_upload_cap_cannot_be_accepted(env, monkeypatch):
+    """201 MB artifact vs a 200 MB canonical cap — refused even if someone
+    tries to widen VIDEO_SNAPSHOT_MAX_MB."""
+    big = env["source"].parent / "big.mp4"
+    with open(big, "wb") as fh:  # sparse: st_size is 201 MB, disk cost ~0
+        fh.truncate(201 * 1024 * 1024)
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MAX_MB", "2048")
+    out = _prepare(env, source_path=str(big), expected_sha256="c" * 64)
+    assert out["ok"] is False and out["error"] == "snapshot_config_invalid"
+
+    monkeypatch.delenv("VIDEO_SNAPSHOT_MAX_MB", raising=False)
+    out = _prepare(env, source_path=str(big), expected_sha256="c" * 64)
+    assert out["ok"] is False and out["error"] == "source_size_out_of_bounds"
+    assert _temps(env) == []
+
+
+@pytest.mark.parametrize("bad", ["0", "-5", "9999", "abc", "12.5", "201"])
 def test_invalid_size_config_fails_closed(env, monkeypatch, bad):
     monkeypatch.setenv("VIDEO_SNAPSHOT_MAX_MB", bad)
-    with pytest.raises(S.SnapshotConfigError):
+    with pytest.raises(ML.MediaLimitConfigError):
         S.max_snapshot_bytes()
     out = _prepare(env)
     assert out["ok"] is False and out["error"] == "snapshot_config_invalid"
@@ -142,24 +180,57 @@ def test_invalid_size_config_fails_closed(env, monkeypatch, bad):
 @pytest.mark.parametrize("bad", ["0", "95", "-1", "nope"])
 def test_invalid_free_pct_config_fails_closed(env, monkeypatch, bad):
     monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", bad)
-    with pytest.raises(S.SnapshotConfigError):
+    with pytest.raises(ML.MediaLimitConfigError):
         S.min_free_percent()
     assert _prepare(env)["error"] == "snapshot_config_invalid"
 
 
 def test_oversized_source_refused(env, monkeypatch):
-    monkeypatch.setenv("VIDEO_SNAPSHOT_MAX_MB", "1")
     monkeypatch.setattr(S, "max_snapshot_bytes", lambda: 16)
     out = _prepare(env)
     assert out["ok"] is False and out["error"] == "source_size_out_of_bounds"
     assert _temps(env) == []
 
 
-def test_insufficient_disk_headroom_refused(env, monkeypatch):
-    monkeypatch.setattr(S, "_disk_free_total", lambda p: (5, 100))  # 5% free
+def test_projected_free_crossing_threshold_refuses(env, monkeypatch):
+    """Currently ABOVE the floor, but the copy would take it below."""
+    size = env["source"].stat().st_size
+    total = size * 100
+    free = int(total * 0.105)  # 10.5% now; the copy costs 1% -> 9.5% after
+    monkeypatch.setattr(S, "_disk_free_total", lambda p: (free, total))
+    assert free / total * 100.0 > S.min_free_percent()  # admissible right now
     out = _prepare(env)
     assert out["ok"] is False and out["error"] == "insufficient_disk_headroom"
     assert _temps(env) == []
+
+
+def test_projected_free_exactly_at_threshold_is_admitted(env, monkeypatch):
+    """Documented boundary: >= floor passes; the floor itself is admissible."""
+    size = env["source"].stat().st_size
+    total = size * 100
+    free = size + int(total * 0.10)  # exactly 10.0% remains after the copy
+    monkeypatch.setattr(S, "_disk_free_total", lambda p: (free, total))
+    assert _prepare(env)["ok"] is True
+
+
+def test_disk_state_unavailable_fails_closed(env, monkeypatch):
+    monkeypatch.setattr(S, "_disk_free_total", lambda p: (-1, -1))
+    out = _prepare(env)
+    assert out["ok"] is False and out["error"] == "disk_state_unavailable"
+    assert _temps(env) == []
+
+
+def test_disk_usage_is_queried_on_the_destination_filesystem(env, monkeypatch):
+    seen = []
+
+    def _spy(path):
+        seen.append(str(path))
+        return (10**12, 10**12)
+
+    monkeypatch.setattr(S, "_disk_free_total", _spy)
+    assert _prepare(env)["ok"] is True
+    assert seen and str(env["approved"]) in seen[0]
+    assert str(env["source"].parent) not in seen[0]
 
 
 def test_empty_source_refused(env):
