@@ -132,12 +132,16 @@ def _configured() -> str:
     return ""
 
 
-def runtime_root(*, validate: bool = True) -> Path:
+def runtime_root(*, validate: bool = True, require_writable: bool = True) -> Path:
     """Resolve the runtime-data root. Never cached — see module docstring.
 
     Fails CLOSED in production: an unset, relative, missing, unwritable, or
     inside-the-checkout path raises rather than silently falling back to the
     repository, because that fallback is exactly the bug this module removes.
+
+    ``require_writable=False`` is for the deploy-gate container, which mounts the
+    external root read-only on purpose (it must see the cutover marker without
+    being able to mutate production bytes). Live writers keep the default.
     """
     configured = _configured()
     prod = is_production()
@@ -173,7 +177,7 @@ def runtime_root(*, validate: bool = True) -> Path:
                 f"({_repo_root()}). Mutable state there is destroyed by "
                 "`git reset --hard` and blocks `git pull --ff-only`."
             )
-        if not os.access(root, os.W_OK):
+        if require_writable and not os.access(root, os.W_OK):
             raise RuntimeDataError(f"{ENV_KEY}={configured!r} is not writable by this user.")
     else:
         root.mkdir(parents=True, exist_ok=True)
