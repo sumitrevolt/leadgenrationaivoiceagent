@@ -2470,12 +2470,16 @@ def customer_video_media(
         logger.warning("customer video media refused id=%s tenant=%s", video_ad_id, mcid)
         raise HTTPException(status_code=404, detail="video not found")
 
-    # Strong validator over the EXACT bytes, same identity the preview returned.
-    from app.marketing.video_media_paths import observe_content_identity
+    # ONE descriptor for identity AND streaming. Hashing via one open() and then
+    # re-open()ing the path to stream would let a path replacement in between
+    # serve bytes that do not match the advertised ETag.
+    from app.marketing.video_media_paths import open_verified_media
 
-    observed = observe_content_identity(str(rec.get("video_path") or ""))
-    if not observed.get("ok"):
-        raise HTTPException(status_code=409, detail=str(observed.get("error") or "unverifiable"))
+    opened = open_verified_media(str(rec.get("video_path") or ""))
+    if not opened.get("ok"):
+        raise HTTPException(status_code=409, detail=str(opened.get("error") or "unverifiable"))
+    media_fh = opened["fh"]
+    observed = {"sha256": opened["sha256"], "bytes": opened["bytes"], "etag": opened["etag"]}
 
     file_size = int(observed["bytes"])
     filename = f"video_ad_{video_ad_id}.mp4"
@@ -2489,6 +2493,10 @@ def customer_video_media(
     }
 
     def _unsatisfiable() -> Response:
+        try:
+            media_fh.close()
+        except OSError:
+            pass
         return Response(
             status_code=416,
             headers={
@@ -2535,16 +2543,24 @@ def customer_video_media(
         }
 
         def iter_range():
-            with open(media_path, "rb") as f:
-                f.seek(start)
+            # Same descriptor the ETag was computed from — no re-open, so a path
+            # replacement cannot change the bytes served. Closed deterministically
+            # on completion, exception, or client disconnect (GeneratorExit).
+            try:
+                media_fh.seek(start)
                 remaining = content_length
                 chunk_size = 64 * 1024
                 while remaining > 0:
-                    read_bytes = f.read(min(chunk_size, remaining))
+                    read_bytes = media_fh.read(min(chunk_size, remaining))
                     if not read_bytes:
                         break
                     remaining -= len(read_bytes)
                     yield read_bytes
+            finally:
+                try:
+                    media_fh.close()
+                except OSError:
+                    pass
 
         return StreamingResponse(
             iter_range(),
@@ -2559,10 +2575,17 @@ def customer_video_media(
     }
 
     def iter_full():
-        with open(media_path, "rb") as f:
+        # Same descriptor the ETag was computed from (see iter_range).
+        try:
+            media_fh.seek(0)
             chunk_size = 64 * 1024
-            while chunk := f.read(chunk_size):
+            while chunk := media_fh.read(chunk_size):
                 yield chunk
+        finally:
+            try:
+                media_fh.close()
+            except OSError:
+                pass
 
     return StreamingResponse(
         iter_full(),
