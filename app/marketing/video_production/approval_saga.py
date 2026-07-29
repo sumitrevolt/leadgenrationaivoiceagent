@@ -492,10 +492,15 @@ def recover(record_id: str) -> dict[str, Any]:
 
 
 def is_publishable(rec: dict[str, Any]) -> bool:
-    """Only a finalized transaction may publish. Records with no saga state at
-    all are legacy and handled by the existing publish-gate checks."""
-    state = str((rec or {}).get("approval_txn_state") or "")
-    return state == "" or state == TXN_FINALIZED
+    """Only a FINALIZED transaction may publish.
+
+    This previously also returned True for a record with no saga state at all,
+    on the theory that legacy records were "handled by the existing publish-gate
+    checks". They were not: the gate never called this function, and a legacy
+    hash-only record passed. An absent transaction is now a refusal, so a
+    record that was never coordinated needs re-approval rather than a backfill.
+    """
+    return str((rec or {}).get("approval_txn_state") or "") == TXN_FINALIZED
 
 
 __all__ = [

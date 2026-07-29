@@ -356,13 +356,24 @@ def on_approved(approval_rec: dict[str, Any]) -> bool:
                     txn_state,
                 )
                 return True
-            if rec.get("status") == "pending":
-                out = record_approval(
-                    rid,
-                    int(rec.get("revision") or 0),
-                    actor=str(approval_rec.get("decided_by") or "") or APPROVAL_ACTOR_TOKEN,
-                )
-                return bool(out.get("ok"))
+            # CONTAINMENT (Stage 3B-close). This branch used to call
+            # record_approval for an UNCOORDINATED transaction, which made every
+            # caller of content_approval._decide a full approval authority:
+            # the unauthenticated GET /api/clientops/approve/{token} link,
+            # decide_for_client (customer portal + boss_council) and
+            # decide_by_id (product_one_delivery automation). Four entrypoints,
+            # no principal, no snapshot, and a hash taken at approval time
+            # rather than of the bytes anyone previewed.
+            #
+            # on_approved is the single choke point for all four, so the refusal
+            # lives here rather than on any one route. Video approval may only
+            # be finalized by approval_saga.approve().
+            logger.warning(
+                "[video_ad] on_approved REFUSED — uncoordinated approval (%s); "
+                "video approval must go through approval_saga.approve",
+                str(rid)[:40],
+            )
+            return False
         return False
     except Exception as e:
         logger.debug(f"[video_ad] on_approved skip: {e}")

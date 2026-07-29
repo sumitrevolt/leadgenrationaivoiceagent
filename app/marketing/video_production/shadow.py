@@ -163,6 +163,17 @@ def _compare_publish_gate(case: str) -> dict[str, Any]:
         # SUCCESS row stays a success without any file existing on disk.
         "approved_content_sha256": _SHADOW_OBSERVED_SHA256,
         "approved_content_bytes": _SHADOW_OBSERVED_BYTES,
+        # Stage 3B-close: publish eligibility also requires a FINALIZED
+        # saga-owned snapshot identity. The `approval_present` scenario exists
+        # to prove the gate's OK path, so its fixture must now be a properly
+        # COORDINATED approval — otherwise the row would be asserting that an
+        # uncoordinated legacy record publishes, which is the bypass itself.
+        # The refusal cases below all still refuse, for their own reasons.
+        "approval_txn_state": "finalized",
+        "approval_txn": "shadow-fixture-txn",
+        "approval_snapshot_path": "data/approved_media/fixture.snap.mp4",
+        "approval_snapshot_sha256": _SHADOW_OBSERVED_SHA256,
+        "approval_snapshot_bytes": _SHADOW_OBSERVED_BYTES,
     }
     if case == "missing_approval":
         rec = {**approved, "status": "pending", "workflow_state": states.CLIENT_REVIEW_PENDING}

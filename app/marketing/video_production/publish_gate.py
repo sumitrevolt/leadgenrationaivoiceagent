@@ -115,14 +115,64 @@ def evaluate_publish_gate(
                 "approved_version": rec.get("approved_version"),
             }
 
+        # Saga eligibility — the LAST gate, and the one that closes the bypass.
+        # Every check above reads fields on a mutable record that four
+        # uncoordinated callers could write. Only a finalized transaction that
+        # owns an immutable snapshot may publish.
+        eligible = _saga_eligibility(rec, approved_hash=approved_hash)
+        if not eligible["ok"]:
+            return eligible
+
         return {
             "ok": True,
             "version": int(rec.get("revision") or 0),
             "content_sha256": live_hash,
             "content_bytes": live_size,
+            "snapshot_path": str(rec.get("approval_snapshot_path") or ""),
         }
     except Exception as e:
         return {"ok": False, "error": str(e)[:160]}
+
+
+def _saga_eligibility(rec: dict[str, Any], *, approved_hash: str) -> dict[str, Any]:
+    """Publish eligibility from the approval transaction. Fail-closed.
+
+    Deliberately NOT a second publish state machine: this is one step inside the
+    single evaluator, and it delegates the state decision to
+    ``approval_saga.is_publishable`` so there is one definition of "finalized".
+
+    There is no fallback to ``final_approved``, to the mutable ``video_path``,
+    to a re-hash at publish time, or to the legacy hash-only shape. A record
+    that predates the saga is NOT publishable — it needs re-approval, which is
+    a deliberate human act, not a backfill.
+    """
+    from app.marketing.video_production.approval_saga import TXN_FINALIZED, is_publishable
+
+    state = str(rec.get("approval_txn_state") or "")
+    if state != TXN_FINALIZED or not is_publishable(rec):
+        return {
+            "ok": False,
+            "error": "approval_not_finalized",
+            "txn_state": state or "absent",
+            "remedy": "re-approval required — approval was not saga-coordinated",
+        }
+    if not str(rec.get("approval_txn") or "").strip():
+        return {"ok": False, "error": "approval_not_finalized", "txn_state": "txn_id_missing"}
+
+    snap_path = str(rec.get("approval_snapshot_path") or "").strip()
+    snap_hash = str(rec.get("approval_snapshot_sha256") or "").strip().lower()
+    snap_bytes = rec.get("approval_snapshot_bytes")
+    if not snap_path or len(snap_hash) != 64 or snap_bytes in (None, ""):
+        return {"ok": False, "error": "approval_snapshot_missing"}
+
+    # The snapshot is the artifact the approval actually bound. If it disagrees
+    # with the approved digest the two records describe different bytes.
+    if snap_hash != approved_hash:
+        return {"ok": False, "error": "approval_snapshot_mismatch"}
+    approved_size = rec.get("approved_content_bytes")
+    if approved_size is not None and int(approved_size) != int(snap_bytes):
+        return {"ok": False, "error": "approval_snapshot_mismatch"}
+    return {"ok": True}
 
 
 def assert_can_publish(rec: dict[str, Any]) -> dict[str, Any]:
@@ -143,8 +193,15 @@ def mark_version_approved(
     *,
     video_path: str = "",
     actor: str = "",
-) -> None:
-    """COMPATIBILITY WRAPPER — delegates to ``video_ad_cycle.record_approval``.
+) -> dict[str, Any]:
+    """RETIRED (Stage 3B-close) — refuses. Kept only so callers fail loudly.
+
+    This was a second writer into ``record_approval`` reachable with a free-form
+    ``actor`` string and no transaction, i.e. the same bypass shape as the
+    legacy token callback. It has no production caller (``cell.py`` imported it
+    but never called it), so refusing costs nothing and removes the seam.
+
+    Video approval is finalized only by ``approval_saga.approve``.
 
     There is exactly one implementation of approval mutation and it lives in
     ``video_ad_cycle`` (the module that owns ``_update`` and ``_latest``).
@@ -153,28 +210,15 @@ def mark_version_approved(
     DIFFERENT → refused (``approval_video_path_mismatch``); silently hashing
     caller-selected bytes instead of record-selected bytes is the whole attack.
     """
-    try:
-        from app.marketing import video_ad_cycle
-
-        if video_path:
-            from app.marketing.video_media_paths import resolve_video_media_file
-
-            rec = (video_ad_cycle._latest() or {}).get(str(rec_id)) or {}
-            supplied = resolve_video_media_file(video_path)
-            of_record = resolve_video_media_file(str(rec.get("video_path") or ""))
-            if supplied is None or of_record is None or supplied != of_record:
-                logger.warning(
-                    "[video_ad] approval refused — approval_video_path_mismatch (%s)",
-                    str(rec_id)[:40],
-                )
-                return
-        video_ad_cycle.record_approval(
-            rec_id,
-            int(revision),
-            actor=str(actor or "") or video_ad_cycle.APPROVAL_ACTOR_ADMIN,
-        )
-    except Exception:
-        pass
+    logger.warning(
+        "[video_ad] mark_version_approved REFUSED — retired uncoordinated writer (%s)",
+        str(rec_id)[:40],
+    )
+    return {
+        "ok": False,
+        "error": "uncoordinated_approval_writer_retired",
+        "remedy": "use approval_saga.approve with an ApprovalPrincipal",
+    }
 
 
 __all__ = [

@@ -52,6 +52,18 @@ def _rec(video, **over):
         "video_path": str(video),
     }
     rec.update(over)
+    # Stage 3B-close: publish eligibility now also requires a FINALIZED
+    # saga-owned snapshot identity. These tests are about CONTENT-HASH
+    # behaviour, so the coordinated identity is supplied by default and mirrors
+    # whatever approved digest the test chose. A test that wants to exercise the
+    # uncoordinated case overrides approval_txn_state explicitly.
+    approved = str(rec.get("approved_content_sha256") or "")
+    if approved and "approval_txn_state" not in over:
+        rec.setdefault("approval_txn_state", "finalized")
+        rec.setdefault("approval_txn", "t" * 64)
+        rec.setdefault("approval_snapshot_path", str(video) + ".snap")
+        rec.setdefault("approval_snapshot_sha256", approved)
+        rec.setdefault("approval_snapshot_bytes", rec.get("approved_content_bytes") or 0)
     return rec
 
 
@@ -197,27 +209,25 @@ def test_canonical_writer_persists_hash_and_identity(video, writer):
     assert writer["approved_at"] and writer["status"] == "approved"
 
 
-def test_wrapper_delegates_to_canonical_writer(video, writer):
-    """publish_gate.mark_version_approved must not have its own implementation."""
-    pg.mark_version_approved("va_1", 0, actor="admin")
-    digest, _ = pg.hash_video_file(str(video))
-    assert writer["approved_content_sha256"] == digest
-    assert writer["approved_by"] == "admin"
+def test_wrapper_is_retired_and_writes_nothing(video, writer):
+    """INVERTED (Stage 3B-close).
 
-
-def test_wrapper_path_omitted_uses_record_path(video, writer):
-    """Case 1 — omitted → authoritative record path is hashed."""
-    pg.mark_version_approved("va_1", 0, actor="admin")
-    digest, _ = pg.hash_video_file(str(video))
-    assert writer["approved_content_sha256"] == digest
-
-
-def test_wrapper_path_canonically_equal_is_allowed(video, writer):
-    """Case 2 — supplied but canonically equal → compatibility accepted."""
-    equal = str(video.parent / "." / video.name)  # same file, different spelling
-    pg.mark_version_approved("va_1", 0, video_path=equal, actor="admin")
-    digest, _ = pg.hash_video_file(str(video))
-    assert writer["approved_content_sha256"] == digest
+    These three tests used to assert that ``mark_version_approved`` correctly
+    performed an approval with a free-form ``actor`` string and no transaction.
+    That is the same uncoordinated-writer shape as the legacy token callback, so
+    the wrapper is retired rather than fixed. Its original safety intent (never
+    hash caller-selected bytes) is now satisfied absolutely: it writes nothing
+    at all, for any argument combination.
+    """
+    for kwargs in (
+        {"actor": "admin"},
+        {"actor": "admin", "video_path": str(video)},
+        {"actor": "admin", "video_path": str(video.parent / "." / video.name)},
+    ):
+        out = pg.mark_version_approved("va_1", 0, **kwargs)
+        assert out["ok"] is False
+        assert out["error"] == "uncoordinated_approval_writer_retired"
+    assert writer == {}, "retired wrapper must never reach the canonical writer"
 
 
 def test_wrapper_path_mismatch_refuses(video, writer, tmp_path, monkeypatch):

@@ -44,6 +44,23 @@ def preview_client(monkeypatch, tmp_path):
     monkeypatch.setattr(V, "_FILE", str(tmp_path / "video_ads.jsonl"))
     monkeypatch.setattr(V, "_STATE", str(tmp_path / ".cycle.json"))
     monkeypatch.setattr(clients_store, "canonical_client_id", lambda cid: str(cid or "").strip())
+    # Stage 3B-close: approval now requires two POSITIVE server-side facts that
+    # require_customer does not establish — the tenant really resolves, and the
+    # logout blacklist was actually reachable (its check fails OPEN, which is
+    # not acceptable for a mutation). Both are stubbed here so this fixture
+    # represents a healthy authenticated session.
+    monkeypatch.setattr(
+        clients_store, "resolve_client", lambda cid: {"id": str(cid or "").strip()}, raising=False
+    )
+
+    class _Redis:
+        async def exists(self, _key):
+            return 0
+
+    async def _get_redis():
+        return _Redis()
+
+    monkeypatch.setattr("app.cache.get_redis_client", _get_redis)
 
     from app.marketing import auto_content, content_approval
 
@@ -72,6 +89,12 @@ def preview_client(monkeypatch, tmp_path):
         }
     )
     with TestClient(app) as c:
+        # require_customer is overridden, but the approval path ALSO reads the
+        # bearer credential directly to re-check the logout blacklist. Without a
+        # header there is no credential to verify, and approval correctly fails
+        # closed — so a healthy session must actually present one.
+        _fixture_auth = "Bearer fixture-session-token"  # nosecret - test fixture
+        c.headers.update({"Authorization": _fixture_auth})
         yield c, artifact
     app.dependency_overrides.clear()
 

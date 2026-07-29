@@ -41,6 +41,30 @@ async def _coro(value):
     return value
 
 
+def _saga_approve(rid: str, tenant: str = "c1", revision: int = 0) -> dict:
+    """Drive a REAL coordinated approval.
+
+    Stage 3B-close retired the ``on_approved`` shortcut these tests used to call:
+    an uncoordinated approval is now refused, because four production
+    entrypoints reached it without a principal or a transaction. Tests whose
+    subject is publishing (not the approval mechanism) approve properly here.
+    """
+    from app.marketing.video_production import approval_saga
+    from app.marketing.video_production.approval_principal import from_customer_session
+    from app.marketing.video_production.publish_gate import hash_video_file
+
+    rec = (V._latest() or {}).get(rid) or {}
+    digest, _size = hash_video_file(str(rec.get("video_path") or ""))
+    return approval_saga.approve(
+        record_id=rid,
+        expected_revision=revision,
+        expected_sha256=digest,
+        # Session facts are the customer ROUTE's job to establish; this helper
+        # exercises the saga, so it supplies an already-verified session.
+        principal=from_customer_session(tenant, tenant_verified=True, revocation_verified=True),
+    )
+
+
 @pytest.fixture
 def iso(monkeypatch, tmp_path):
     monkeypatch.setattr(V, "_FILE", str(tmp_path / "video_ads.jsonl"))
@@ -91,8 +115,8 @@ def test_approve_hook_then_publish(iso, monkeypatch):
     monkeypatch.setattr(postiz_publish, "enabled", lambda: True)
     monkeypatch.setattr(postiz_publish, "publish_video", _pz)
     asyncio.run(V.generate_for_client("c1"))
-    aid = V.list_for_client("c1")[0]["approval_id"]
-    assert V.on_approved({"id": aid}) is True
+    rid = V.list_for_client("c1")[0]["id"]
+    assert _saga_approve(rid)["ok"] is True
     assert V.list_for_client("c1")[0]["status"] == "approved"
     pd = asyncio.run(V.publish_due())
     assert pd["published"] == 1
@@ -110,11 +134,20 @@ def test_changes_requested_and_regen(iso):
     assert any(int(r.get("revision") or 0) == 1 for r in V.list_for_client("c1"))
 
 
-def test_approve_via_content_approval_triggers_hook(iso):
+def test_approve_via_content_approval_is_refused(iso):
+    """INVERTED (Stage 3B-close). This test used to assert the bypass.
+
+    The WA/link path reaching ``content_approval.approve`` was a full approval
+    authority for video: unauthenticated, no principal, no transaction, and the
+    content hash taken at approval time rather than of previewed bytes. It must
+    now refuse and leave the record pending.
+    """
     asyncio.run(V.generate_for_client("c1"))
     tok = V.list_for_client("c1")[0]["token"]
-    content_approval.approve(tok)
-    assert V.list_for_client("c1")[0]["status"] == "approved"
+    out = content_approval.approve(tok)
+    assert out["ok"] is False
+    assert out["error"] == "approval_token_regeneration_required"
+    assert V.list_for_client("c1")[0]["status"] == "pending"
 
 
 def test_reject_via_content_approval_triggers_changes(iso):
@@ -138,8 +171,7 @@ def test_publish_no_channel_marks_failed(iso, monkeypatch):
     # postiz off (iso default) + telegram removed -> koi auto channel nahi -> publish_failed
     monkeypatch.setattr(postiz_publish, "enabled", lambda: False)
     asyncio.run(V.generate_for_client("c1"))
-    aid = V.list_for_client("c1")[0]["approval_id"]
-    V.on_approved({"id": aid})
+    _saga_approve(V.list_for_client("c1")[0]["id"])
     pd = asyncio.run(V.publish_due())
     assert pd["ran"] is True
     assert V.list_for_client("c1")[0]["status"] in ("published", "publish_failed")

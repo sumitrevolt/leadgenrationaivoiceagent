@@ -155,7 +155,12 @@ def test_snapshot_failure_leaves_no_approval(preview_client, monkeypatch):
     rec = _rec()
     assert rec.get("approval_txn_state") in (None, "")
     assert rec.get("final_approved") is not True
-    assert SAGA.is_publishable(rec) is True  # no saga state == legacy path
+    # INVERTED (Stage 3B-close). This asserted "no saga state == legacy path ==
+    # publishable", which is precisely the hole the audit found: the publish
+    # gate never called this function, so a legacy hash-only record published.
+    # An absent transaction is now a refusal, which also matches this test's own
+    # name — a failed snapshot must leave nothing publishable.
+    assert SAGA.is_publishable(rec) is False
 
 
 def test_decision_write_failure_compensates_and_is_not_publishable(preview_client, monkeypatch):
@@ -234,6 +239,7 @@ def test_conflicting_transaction_refuses_after_finalization(preview_client):
 
     class _U:
         id = "someone-else"
+        role = "super_admin"  # holds approve_customer_video_on_behalf
 
         def can_access_admin(self):
             return True

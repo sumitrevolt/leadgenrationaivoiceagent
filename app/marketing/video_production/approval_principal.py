@@ -136,17 +136,39 @@ class ApprovalPrincipal:
 # --------------------------------------------------------------------------
 
 
-def from_customer_session(client_id: str) -> ApprovalPrincipal:
+def from_customer_session(
+    client_id: str,
+    *,
+    tenant_verified: bool = False,
+    revocation_verified: bool = False,
+) -> ApprovalPrincipal:
     """``require_customer`` returns a canonical client id and nothing else.
 
     The customer credential row (email / client_id / password_hash) has no
     per-user primary key, so two humans on one account are indistinguishable to
     the auth system. Claiming individual attribution here would be a lie in the
     audit trail — the principal is therefore explicitly TENANT-scoped.
+
+    Two facts the session dependency does NOT establish must be supplied by the
+    caller, and both default to False so an un-updated caller fails closed:
+
+    ``tenant_verified``
+        ``clients_store.canonical_client_id`` falls back to echoing its input
+        when resolution fails, so a "canonical" id is not proof the tenant
+        exists.
+    ``revocation_verified``
+        ``require_customer``'s logout-blacklist check fails OPEN when Redis is
+        unavailable (it logs "allowing request"). Fail-open is defensible for a
+        read; it is not defensible for an approval mutation, so approval
+        requires a POSITIVE revocation check.
     """
     cid = str(client_id or "").strip()
     if not cid:
         raise PrincipalRefused("approver_identity_unavailable", status=401)
+    if not tenant_verified:
+        raise PrincipalRefused("approval_tenant_unresolved")
+    if not revocation_verified:
+        raise PrincipalRefused("approval_session_unverified", status=401)
     return ApprovalPrincipal(
         subject_id=f"tenant:{cid}",
         tenant_id=cid,
@@ -157,14 +179,48 @@ def from_customer_session(client_id: str) -> ApprovalPrincipal:
     )
 
 
+#: Approving another tenant's content on their behalf is a distinct authority
+#: from "can reach the admin console". Only this capability grants it.
+CAP_APPROVE_ON_BEHALF = "approve_customer_video_on_behalf"
+
+
+def _has_on_behalf_capability(user: Any) -> bool:
+    """Server-side capability check. Never a request field, never an identity.
+
+    ``require_admin`` proves the caller may use the admin surface — that is
+    AUTHENTICATION plus surface access, not authority over a specific tenant's
+    content. Today only ``super_admin`` carries the capability; an ordinary
+    ``admin`` refuses until a permission model grants it explicitly.
+
+    Deliberately role-based, never person-based: no email, display name or
+    individual account is special-cased here.
+    """
+    try:
+        role = getattr(user, "role", "")
+        role = str(getattr(role, "value", role) or "").strip().lower()
+    except Exception:
+        return False
+    if role != "super_admin":
+        return False
+    # An explicit grant may narrow further later; absence must not widen.
+    try:
+        grants = getattr(user, "preferences", None) or {}
+        if isinstance(grants, dict) and CAP_APPROVE_ON_BEHALF in grants:
+            return bool(grants[CAP_APPROVE_ON_BEHALF])
+    except Exception:
+        return False
+    return True
+
+
 def from_admin_user(user: Any, *, tenant_id: str) -> ApprovalPrincipal:
     """``require_admin`` returns the User ORM row, which DOES carry a stable
     ``User.id`` (uuid string, loaded from the DB, not from the token).
 
-    Capability is derived from ``can_access_admin()`` — platform-level admin
-    authority. A member who only passed ``require_admin`` through an RBAC module
-    grant is NOT given approval authority here: passing a path check is not the
-    same as holding approval authority over a tenant's content.
+    A stable subject is necessary but NOT sufficient. The read-only audit
+    falsified the earlier reading of this resolver: it took ``tenant_id`` from
+    the target record and ASSIGNED it, which authorizes nothing — every platform
+    admin could approve every tenant's video. Cross-tenant approval now requires
+    an explicit capability.
     """
     uid = str(getattr(user, "id", "") or "").strip()
     if not uid:
@@ -174,19 +230,15 @@ def from_admin_user(user: Any, *, tenant_id: str) -> ApprovalPrincipal:
     tid = str(tenant_id or "").strip()
     if not tid:
         raise PrincipalRefused("approval_tenant_unresolved")
-    try:
-        platform_admin = bool(user.can_access_admin())
-    except Exception:
-        platform_admin = False
+    if not _has_on_behalf_capability(user):
+        raise PrincipalRefused("admin_approval_capability_missing")
     return ApprovalPrincipal(
         subject_id=f"user:{uid}",
         tenant_id=tid,
         principal_type=PrincipalType.ADMIN_ACCOUNT,
         channel=ApprovalChannel.ADMIN,
         auth_evidence_type=AuthEvidence.ADMIN_SESSION,
-        approval_capability=(
-            ApprovalCapability.APPROVE if platform_admin else ApprovalCapability.NONE
-        ),
+        approval_capability=ApprovalCapability.APPROVE,
     )
 
 
