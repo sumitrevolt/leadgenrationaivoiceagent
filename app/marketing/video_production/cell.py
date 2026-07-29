@@ -146,11 +146,15 @@ def approve_version(
     video_ad_id: str,
     expected_revision: int | None = None,
     *,
-    actor: str = "",
+    principal: Any = None,
     expected_sha256: str = "",
-    channel: str = "admin",
 ) -> dict[str, Any]:
-    """Bind approval to exact version AND exact content bytes — fail if mismatch."""
+    """Bind approval to exact version AND exact content bytes — fail if mismatch.
+
+    ``principal`` is a server-created ``ApprovalPrincipal``. The old ``actor``
+    and ``channel`` strings are gone: they let each surface name itself, and the
+    audit trail recorded a WhatsApp phone reply as ``"admin"``.
+    """
     from app.marketing import content_approval, video_ad_cycle
 
     rec = None
@@ -191,8 +195,13 @@ def approve_version(
     # which called record_approval, and then this function called it AGAIN
     # (two writes per click, second overwriting approved_at). The coordinator
     # owns the sequence and never re-enters this function.
-    from app.marketing.video_ad_cycle import APPROVAL_ACTOR_ADMIN
     from app.marketing.video_production import approval_saga
+
+    # No caller-supplied actor. A surface that cannot produce a trusted
+    # principal (WhatsApp inbound, harness executor) fails closed here rather
+    # than approving as the literal "admin".
+    if principal is None:
+        return {"ok": False, "error": "approver_identity_unavailable", "status": 403}
 
     observed = str(expected_sha256 or "").strip().lower()
     if not observed:
@@ -206,8 +215,7 @@ def approve_version(
         record_id=str(video_ad_id),
         expected_revision=rev,
         expected_sha256=observed,
-        actor_subject=str(actor or "") or APPROVAL_ACTOR_ADMIN,
-        channel=str(channel or "admin"),
+        principal=principal,
     )
 
 

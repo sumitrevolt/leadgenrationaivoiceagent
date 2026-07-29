@@ -230,12 +230,21 @@ def test_conflicting_transaction_refuses_after_finalization(preview_client):
     assert _approve(c, _digest(artifact)).status_code == 200
     finalized = _rec()
 
+    from app.marketing.video_production import approval_principal as P
+
+    class _U:
+        id = "someone-else"
+
+        def can_access_admin(self):
+            return True
+
     out = SAGA.approve(
         record_id="vid-preview-1",
         expected_revision=0,
         expected_sha256=_digest(artifact),
-        actor_subject="admin:someone-else",  # different actor => different txn
-        channel="clientops",
+        # A DIFFERENT principal => a different transaction id. Same tenant, so
+        # the refusal proves transaction conflict rather than tenant mismatch.
+        principal=P.from_admin_user(_U(), tenant_id="fixture-tenant-p"),
     )
     assert out["ok"] is False
     assert out["error"] == "approval_transaction_conflict"

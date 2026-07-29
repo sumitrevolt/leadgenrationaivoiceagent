@@ -2660,12 +2660,22 @@ def customer_video_feedback(
             )
         if observed["sha256"] != expected_hash:
             raise HTTPException(status_code=409, detail="approval_content_changed")
+        from app.marketing.video_production.approval_principal import (
+            PrincipalRefused,
+            from_customer_session,
+        )
+
+        # Server-constructed from the verified session. `mcid` is the canonical
+        # tenant from require_customer, never request input.
+        try:
+            principal = from_customer_session(mcid)
+        except PrincipalRefused as exc:
+            raise HTTPException(status_code=exc.status, detail=exc.code) from None
         out = cell.approve_version(
             str(video_ad_id),
             body.expected_revision,
-            actor=f"customer:{mcid}",
+            principal=principal,
             expected_sha256=expected_hash,
-            channel="customer_dashboard",
         )
         if not out.get("ok"):
             raise HTTPException(status_code=409, detail=str(out.get("error") or "approval failed"))

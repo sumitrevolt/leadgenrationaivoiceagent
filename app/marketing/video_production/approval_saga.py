@@ -60,9 +60,10 @@ def transaction_id(
     explicit types has no such ambiguity, and ``schema`` lets the shape evolve
     without silently reusing an old id.
 
-    Every field is validated first — a raw token, phone number, email or
-    filesystem path must never reach this function, so callers pass a stable
-    internal subject only.
+    ``actor_subject`` must be a stable internal id. The checks below are a
+    TRIPWIRE against a resolver regression, not the trust boundary — a string
+    containing no ``@`` can still be untrusted or PII. Trust comes from the fact
+    that :mod:`approval_principal` built the value from an authenticated object.
     """
     fields = {
         "schema": TXN_SCHEMA,
@@ -161,12 +162,21 @@ def emit_post_finalization_effects(rec_id: str, approval: dict[str, Any]) -> dic
     content = approval.get("content") or {}
     title = str(content.get("title") or content.get("occasion") or "")
 
+    approval_id = str(approval.get("id") or "")
+
     def _enqueue() -> None:
         from app.marketing import auto_content
 
-        # The queue item id IS the approval id, so a repeat call addresses the
-        # same row rather than creating a second one.
-        auto_content.enqueue_approved(client_id, content, str(approval.get("id") or ""))
+        # auto_content dedupes on ``date|type``, which is DATE-BOUNDED: a retry
+        # after local-date rollover would produce a SECOND durable row. The
+        # approval id is the stable identity, so check it explicitly first.
+        # Serialised by the transaction lock; the date|type rule still covers
+        # any concurrent writer.
+        if approval_id:
+            for row in auto_content.list_queue(client_id, limit=500) or []:
+                if str(row.get("approval_id") or "") == approval_id:
+                    return
+        auto_content.enqueue_approved(client_id, content, approval_id)
 
     def _delivery() -> None:
         from app.marketing import delivery_ledger
@@ -225,22 +235,40 @@ def approve(
     record_id: str,
     expected_revision: int,
     expected_sha256: str,
-    actor_subject: str,
-    channel: str,
+    principal: Any,
 ) -> dict[str, Any]:
     """LAYER B — the one coordinated customer approval path.
+
+    Takes a server-created :class:`ApprovalPrincipal`, never a caller-supplied
+    actor string: the previous signature let every surface name itself, and
+    three of four named themselves ``"admin"``.
 
     Only step 10 (finalize) touches the customer-visible approved fields, so a
     transaction that dies earlier leaves the record non-approved and the
     publish gate refusing.
     """
     from app.marketing import content_approval, video_ad_cycle
+    from app.marketing.video_production.approval_principal import ApprovalPrincipal
     from app.marketing.video_production.snapshot import prepare_snapshot
+
+    # Identity is checked BEFORE the record is even looked up, and long before
+    # a snapshot is written: a failed identity must leave no artifact.
+    if not isinstance(principal, ApprovalPrincipal):
+        return {"ok": False, "error": "approver_identity_unavailable", "status": 401}
+    if not principal.can_approve:
+        return {"ok": False, "error": "approval_not_permitted", "status": 403}
 
     rec = (video_ad_cycle._latest() or {}).get(str(record_id)) or {}
     if not rec:
         return {"ok": False, "error": "video_ad_not_found"}
     tenant_id = str(rec.get("client_id") or "")
+
+    # Wrong tenant fails here — before snapshot, before any store write.
+    if not tenant_id or principal.tenant_id != tenant_id:
+        return {"ok": False, "error": "approval_tenant_mismatch", "status": 403}
+
+    actor_subject = principal.subject_id
+    channel = principal.channel.value
 
     try:
         txn = transaction_id(
@@ -322,6 +350,9 @@ def approve(
             approval_snapshot_bytes=snap["bytes"],
             approval_actor=str(actor_subject)[:64],
             approval_channel=str(channel)[:32],
+            approval_principal_type=principal.principal_type.value,
+            approval_evidence_type=principal.auth_evidence_type.value,
+            approval_evidence_ref=str(principal.evidence_ref or "")[:64],
             approval_prepared_at=video_ad_cycle._now(),
         ):
             return {"ok": False, "error": "prepared_write_failed", "txn_id": txn}
