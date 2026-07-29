@@ -384,8 +384,34 @@ async def _tg_send_video(chat_id: str, video_path: str, caption: str = "") -> di
         return {"sent": False, "reason": str(e)[:120]}
 
 
+def _resolve_publish_client(cid: str) -> dict[str, Any] | None:
+    """Resolve the publish tenant, distinguishing "no client" from "not found".
+
+    Returns ``{}`` when there is genuinely no client id on the record (the
+    own-brand / admin publish context that ``postiz_publish._is_own_brand``
+    expects), and ``None`` when a REAL id was present but resolved to nothing.
+    That second case previously collapsed into ``{}`` via
+    ``get_client(cid) or {}``, which downstream reads as own-brand — the
+    cross-customer leak this function exists to prevent.
+
+    A lookup that RAISES is also ``None``: an unverifiable tenant is not a
+    licence to publish.
+    """
+    cid = str(cid or "").strip()
+    if not cid:
+        return {}
+    try:
+        from app.marketing import clients_store
+
+        rec = clients_store.resolve_client(cid) or clients_store.get_client(cid)
+    except Exception as exc:
+        logger.warning(f"[video_ad] tenant lookup failed ({cid[:40]}): {exc}")
+        return None
+    return rec or None
+
+
 async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
-    from app.marketing import clients_store
+    from app.marketing import clients_store  # noqa: F401  (kept for downstream use)
 
     # Publish gate: when Video Production Cell master is ON → fail-closed on
     # gate errors. When OFF → legacy VIDEO_AD_CYCLE fail-open if gate import fails.
@@ -412,7 +438,17 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
         logger.debug(f"[video_ad] publish_gate skip (fail-open legacy): {e}")
 
     cid = str(rec.get("client_id") or "")
-    client = clients_store.get_client(cid) or {}
+    client = _resolve_publish_client(cid)
+    if client is None:
+        # Unresolved tenant — the record names a client id that no longer
+        # resolves. Falling through with `{}` would read as "own-brand, no
+        # client" downstream (postiz_publish._is_own_brand) and fan this
+        # customer's video out to the CORPORATE channels. Fail CLOSED.
+        logger.warning(f"[video_ad] publish refused — unresolved tenant: {cid[:40]}")
+        return {
+            "any_sent": False,
+            "channels": {"tenant": {"ok": False, "error": "unresolved_tenant"}},
+        }
     caption = str(rec.get("caption") or "")
     video_path = str(rec.get("video_path") or "")
     # SOCIAL_ENGINE on -> durable native engine (Redis/Celery queue + provider adapters)
