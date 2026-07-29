@@ -35,6 +35,11 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+# The limit authority is app/marketing/media_limits.py — a PUBLIC module both
+# the upload and snapshot paths can consume. This module reaches into no other
+# module's private constants.
+from app.marketing.media_limits import MediaLimitConfigError as SnapshotConfigError
+from app.marketing.media_limits import max_snapshot_bytes, min_free_percent
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -47,55 +52,6 @@ _CHUNK = 1024 * 1024
 # the on-disk name is canonical and collision-free by construction.
 _IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
-
-
-class SnapshotConfigError(ValueError):
-    """Configuration is out of contract — callers must fail closed."""
-
-
-def max_snapshot_bytes() -> int:
-    """Ceiling for one approved artifact.
-
-    Default = the project's EXISTING video upload cap
-    (``app/api/contentplus.py:_UPLOAD_MAX_BYTES``, 200 MB) so the snapshot
-    cannot accept something the upload path would already have refused.
-    Override with ``VIDEO_SNAPSHOT_MAX_MB`` (1..2048). Invalid values raise —
-    a mis-typed limit must not silently widen the budget.
-    """
-    try:
-        from app.api.contentplus import _UPLOAD_MAX_BYTES as _default
-    except Exception:  # pragma: no cover - defensive
-        _default = 200 * 1024 * 1024
-    raw = os.getenv("VIDEO_SNAPSHOT_MAX_MB", "").strip()
-    if not raw:
-        return int(_default)
-    try:
-        mb = int(raw)
-    except ValueError as exc:
-        raise SnapshotConfigError(f"VIDEO_SNAPSHOT_MAX_MB not an integer: {raw!r}") from exc
-    if not 1 <= mb <= 2048:
-        raise SnapshotConfigError(f"VIDEO_SNAPSHOT_MAX_MB out of range 1..2048: {mb}")
-    return mb * 1024 * 1024
-
-
-def min_free_percent() -> float:
-    """Free-space floor that must survive the copy.
-
-    Default 10.0 — the same threshold the platform health agent already treats
-    as a disk alert (``app/agents/staff.py`` ``disk_free_pct < 10.0``), so the
-    snapshot will not be the thing that drives the box into its own alarm.
-    Override with ``VIDEO_SNAPSHOT_MIN_FREE_PCT`` (1..90). Invalid values raise.
-    """
-    raw = os.getenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "").strip()
-    if not raw:
-        return 10.0
-    try:
-        pct = float(raw)
-    except ValueError as exc:
-        raise SnapshotConfigError(f"VIDEO_SNAPSHOT_MIN_FREE_PCT not a number: {raw!r}") from exc
-    if not 1.0 <= pct <= 90.0:
-        raise SnapshotConfigError(f"VIDEO_SNAPSHOT_MIN_FREE_PCT out of range 1..90: {pct}")
-    return pct
 
 
 def _valid_identifier(value: Any) -> str | None:
@@ -238,11 +194,18 @@ def prepare_snapshot(
                 return {"ok": False, "error": "source_not_regular_file"}
             if st_before.st_size <= 0 or st_before.st_size > size_ceiling:
                 return {"ok": False, "error": "source_size_out_of_bounds"}
+            # PROJECTED floor on the DESTINATION filesystem (dest_dir, not the
+            # repo or the source): the copy must still leave the box above the
+            # configured percentage once the bytes have landed. The temp file
+            # and the final name are the same inode via os.replace, so peak
+            # usage is one artifact, not two.
             free, total = _disk_free_total(dest_dir)
-            if total > 0:
-                remaining_pct = (free - st_before.st_size) / total * 100.0
-                if remaining_pct < free_floor_pct:
-                    return {"ok": False, "error": "insufficient_disk_headroom"}
+            if total <= 0 or free < 0:
+                # Cannot see the filesystem => cannot promise the floor holds.
+                return {"ok": False, "error": "disk_state_unavailable"}
+            projected_free = free - st_before.st_size
+            if projected_free < 0 or (projected_free / total * 100.0) < free_floor_pct:
+                return {"ok": False, "error": "insufficient_disk_headroom"}
 
             fd, tmp_name = tempfile.mkstemp(dir=dest_dir, prefix=".snap-", suffix=".part")
             tmp_path = Path(tmp_name)
