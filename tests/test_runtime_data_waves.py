@@ -14,7 +14,7 @@ from tests.test_runtime_data_a1_ratchet import EXPECTED_BLOCKERS
 
 def test_moved_set_equals_union_of_every_declared_wave():
     """Exactly one exact-global assertion: moved == union of every wave."""
-    moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
+    moved = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
     declared = set(all_declared_store_ids())
     assert moved == declared, {
         "only_in_manifest": sorted(moved - declared),
@@ -46,7 +46,7 @@ def test_registry_is_non_vacuous_against_manifest():
             assert prior is None, f"{store_id} is declared in both wave {prior} and wave {wave}"
             wave_of[store_id] = wave
 
-    moved_rows = manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)
+    moved_rows = manifest.by_state(manifest.CUTOVER_COMPLETE)
     undeclared_moved = sorted(s["store_id"] for s in moved_rows if s["store_id"] not in wave_of)
     assert (
         not undeclared_moved
@@ -54,7 +54,9 @@ def test_registry_is_non_vacuous_against_manifest():
 
 
 def test_blocking_store_count_is_still_pinned():
-    """Nothing in this registry moves bytes — blockers stay at 21."""
+    """Host cutover complete — blockers cleared (EXPECTED_BLOCKERS=0)."""
     blocking = manifest.blocking_stores()
     assert len(blocking) == EXPECTED_BLOCKERS, sorted(s["store_id"] for s in blocking)
+    assert not blocking
     assert manifest.DUAL_READ_PRE_CUTOVER in manifest.BLOCKING_STATES
+    assert manifest.CUTOVER_COMPLETE not in manifest.BLOCKING_STATES

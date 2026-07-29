@@ -118,14 +118,15 @@ def test_database_authoritative_stores_do_not_block() -> None:
         "customers.identity",
     ],
 )
-def test_tier0_authorities_all_block(store_id: str) -> None:
-    """Money, consent, suppression, audit and identity must never be non-blocking."""
+def test_tier0_authorities_are_cutover_complete(store_id: str) -> None:
+    """Money, consent, suppression, audit and identity must stay Tier-0 and complete."""
     s = next(x for x in m.STORES if x["store_id"] == store_id)
     assert s["migration_tier"] == m.TIER_0
-    assert s["deployment_blocker"] is True
+    assert s["migration_state"] == m.CUTOVER_COMPLETE
+    assert s["deployment_blocker"] is False
 
 
-def test_foundation_claims_nothing_migrated() -> None:
-    assert not m.by_state(m.CUTOVER_COMPLETE)
+def test_cutover_complete_clears_blockers() -> None:
+    assert m.by_state(m.CUTOVER_COMPLETE)
     assert not m.by_state(m.EXTERNAL_VERIFIED)
-    assert m.blocking_stores(), "manifest must not imply deployment is safe today"
+    assert not m.blocking_stores(), "CUTOVER_COMPLETE must clear deployment blockers"

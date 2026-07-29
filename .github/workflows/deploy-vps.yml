@@ -84,11 +84,23 @@ jobs:
         # Same process-shard strategy as ci.yml (exit-139 containment).
         run: |
           pip install --no-deps "pytest-split==0.9.0"
-          set -e
-          for group in 1 2 3; do
-            echo "::group::pytest shard ${group}/3"
+          set -euo pipefail
+          for group in 1 2 3 4; do
+            echo "::group::pytest shard ${group}/4"
+            set +e
             pytest -q -m "not network" --ignore=tests/integration \
-              --splits 3 --group "${group}"
+              --splits 4 --group "${group}"
+            rc=$?
+            if [ "$rc" -eq 139 ]; then
+              echo "::warning title=exit-139::shard ${group}/4 cyclic-GC SIGSEGV; one retry (no skip)"
+              pytest -q -m "not network" --ignore=tests/integration \
+                --splits 4 --group "${group}"
+              rc=$?
+            fi
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              exit "$rc"
+            fi
             echo "::endgroup::"
           done
 

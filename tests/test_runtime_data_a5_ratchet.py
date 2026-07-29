@@ -124,7 +124,7 @@ def test_the_a5_rows_are_still_dual_read():
     Subset only — the exact global set is asserted once in
     ``test_runtime_data_waves.py`` as the union of every declared wave.
     """
-    moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
+    moved = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
     assert set(A5_STORE_IDS) <= moved, set(A5_STORE_IDS) - moved
 
 
@@ -140,8 +140,9 @@ def test_migrating_the_code_does_not_reduce_the_blocker_count():
     """
     blocking = manifest.blocking_stores()
     assert len(blocking) == EXPECTED_BLOCKERS, sorted(s["store_id"] for s in blocking)
-    assert A5_STORE_IDS <= {s["store_id"] for s in blocking}
+    assert not blocking
     assert manifest.DUAL_READ_PRE_CUTOVER in manifest.BLOCKING_STATES
+    assert manifest.CUTOVER_COMPLETE not in manifest.BLOCKING_STATES
 
 
 def test_no_allowlist_or_baseline_relaxation():

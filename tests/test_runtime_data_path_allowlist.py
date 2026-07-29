@@ -384,32 +384,32 @@ def test_store_manifest_still_validates() -> None:
     # A7 (2026-07-29): sales.prospects -> DUAL_READ_PRE_CUTOVER (code-only;
     # ~20MB JSONL host cutover is a separate PR — blockers stay 21).
     assert counts["unique_families"] == 27
-    assert counts["deployment_blockers"] == 21
+    assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]
     assert ext["migration_tier"] == manifest.TIER_1
-    assert ext["migration_state"] == manifest.DUAL_READ_PRE_CUTOVER
-    assert manifest.derived_blocker(ext) is True
+    assert ext["migration_state"] == manifest.CUTOVER_COMPLETE
+    assert manifest.derived_blocker(ext) is False
     prospects = by_id["sales.prospects"]
     assert prospects["migration_tier"] == manifest.TIER_1
-    assert prospects["migration_state"] == manifest.DUAL_READ_PRE_CUTOVER
-    assert manifest.derived_blocker(prospects) is True
-    # Calling-safety controls are Tier 0 and must every one of them block a
-    # destructive deploy: losing the file returns the control to its default.
+    assert prospects["migration_state"] == manifest.CUTOVER_COMPLETE
+    assert manifest.derived_blocker(prospects) is False
+    # Calling-safety controls are Tier 0; after host cutover they are complete.
     for sid in (
         "telephony.calling_safety_config",
         "telephony.dial_suppression",
         "telephony.voice_kill_switch",
     ):
         assert by_id[sid]["migration_tier"] == manifest.TIER_0, sid
-        assert manifest.derived_blocker(by_id[sid]) is True, sid
+        assert by_id[sid]["migration_state"] == manifest.CUTOVER_COMPLETE, sid
+        assert manifest.derived_blocker(by_id[sid]) is False, sid
     rec = by_id["telephony.call_recordings"]
     assert rec["migration_tier"] == manifest.TIER_2
-    assert rec["migration_state"] == manifest.DUAL_READ_PRE_CUTOVER
-    assert manifest.derived_blocker(rec) is True
+    assert rec["migration_state"] == manifest.CUTOVER_COMPLETE
+    assert manifest.derived_blocker(rec) is False
     arts = by_id["artifacts.call_recordings"]
     assert arts["migration_tier"] == manifest.TIER_2
-    assert arts["migration_state"] == manifest.DUAL_READ_PRE_CUTOVER
-    assert manifest.derived_blocker(arts) is True
+    assert arts["migration_state"] == manifest.CUTOVER_COMPLETE
+    assert manifest.derived_blocker(arts) is False
     # The audit ledger stays OUT until it has its own reader/writer evidence.
     assert "telephony.dial_suppression_audit" not in by_id

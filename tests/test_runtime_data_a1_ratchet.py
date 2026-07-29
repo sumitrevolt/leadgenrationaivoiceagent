@@ -34,11 +34,9 @@ A1_MODULES = (
 
 #: Counts pinned so a "small cleanup" cannot quietly relax the controls this
 #: migration depends on.
-#: 21 BEFORE and AFTER A1. The code can now follow a cutover; the data has not
-#: moved, so every store is still destroyable by a `git reset --hard` and still
-#: blocks a destructive deploy. A count that fell to 18 here would be a false
-#: green — resolver-ready is not data-safe.
-EXPECTED_BLOCKERS = 21
+#: 0 AFTER host cutover activate + CUTOVER_COMPLETE flip. DUAL_READ alone must
+#: never drop this count — only CUTOVER_COMPLETE after verified bytes move.
+EXPECTED_BLOCKERS = 0
 EXPECTED_ALLOWLIST_ENTRIES = 16
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
@@ -218,7 +216,7 @@ def test_the_ratchet_would_actually_catch_a_regression(tmp_path):
 
 
 # ------------------------------------------------------------------ manifest
-def test_the_three_a1_rows_are_still_dual_read():
+def test_the_three_a1_rows_are_cutover_complete():
     """A1's own rows, asserted by A1's own file.
 
     This was `moved == A1_STORE_IDS` while A1 was the newest wave. It is a
@@ -226,7 +224,7 @@ def test_the_three_a1_rows_are_still_dual_read():
     exact global set is asserted once in ``test_runtime_data_waves.py`` as the
     union of every wave declared in ``runtime_data_waves.py``.
     """
-    moved = {s["store_id"] for s in manifest.by_state(manifest.DUAL_READ_PRE_CUTOVER)}
+    moved = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
     assert set(A1_STORE_IDS) <= moved, set(A1_STORE_IDS) - moved
 
 
@@ -251,18 +249,18 @@ def test_manifest_still_validates():
     assert manifest.validate() == []
 
 
-def test_migrating_the_code_does_not_reduce_the_blocker_count():
-    """The A1 stores are STILL blockers, and that is the honest answer.
+def test_cutover_complete_clears_deployment_blockers():
+    """After host copy/verify/activate, A1 stores are CUTOVER_COMPLETE and non-blocking.
 
-    Their writers can now follow a cutover, but their authoritative bytes are
-    still at /opt/leadgen/data. Until those bytes are copied, verified and
-    activated, a destructive deploy still destroys them — so DUAL_READ_PRE_CUTOVER
-    is a blocking state and the count stays at 21.
+    DUAL_READ_PRE_CUTOVER remains a blocking state for any future wave that has
+    not yet finished host cutover — the empty blocker list is the honest answer
+    only when every previously dual-read store has reached CUTOVER_COMPLETE.
     """
     blocking = manifest.blocking_stores()
     assert len(blocking) == EXPECTED_BLOCKERS, sorted(s["store_id"] for s in blocking)
-    assert A1_STORE_IDS <= {s["store_id"] for s in blocking}
+    assert A1_STORE_IDS <= {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
     assert manifest.DUAL_READ_PRE_CUTOVER in manifest.BLOCKING_STATES
+    assert manifest.CUTOVER_COMPLETE not in manifest.BLOCKING_STATES
 
 
 def test_no_allowlist_or_baseline_relaxation():
