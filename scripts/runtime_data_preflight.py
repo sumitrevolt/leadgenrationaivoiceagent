@@ -131,7 +131,9 @@ def gather() -> dict[str, Any]:
     report["app_path_configured"] = bool(app_raw)
     report["app_path"] = app_raw or None
     try:
-        report["resolved_runtime_root"] = str(rd.runtime_root())
+        # Gate containers mount the external root :ro on purpose; writability is
+        # a live-writer concern, not a marker-visibility concern.
+        report["resolved_runtime_root"] = str(rd.runtime_root(require_writable=False))
         report["resolver_ok"] = True
     except rd.RuntimeDataError as e:
         report["resolver_ok"] = False
