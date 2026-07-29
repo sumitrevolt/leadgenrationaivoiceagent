@@ -327,15 +327,19 @@ def test_customer_video_approve_revision_zero_is_idempotent(client, monkeypatch,
         }
     )
 
-    first = client.post(
-        "/api/customer/videos/video-approve-v0/feedback",
-        json={"action": "approve", "expected_revision": 0},
-    )
+    # Approve is now bound to the previewed digest as well as the revision.
+    import hashlib
+
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    approve_body = {
+        "action": "approve",
+        "expected_revision": 0,
+        "expected_content_sha256": digest,
+    }
+
+    first = client.post("/api/customer/videos/video-approve-v0/feedback", json=approve_body)
     assert first.status_code == 200 and first.json()["ok"] is True
-    retry = client.post(
-        "/api/customer/videos/video-approve-v0/feedback",
-        json={"action": "approve", "expected_revision": 0},
-    )
+    retry = client.post("/api/customer/videos/video-approve-v0/feedback", json=approve_body)
     assert retry.status_code == 200
     assert retry.json()["ok"] is True
     assert retry.json()["already_decided"] is True

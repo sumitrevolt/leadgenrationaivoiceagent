@@ -3315,10 +3315,26 @@ async function videoFeedback(id, action, revision){
     text=window.prompt("Kya badalna hai? (jaise: logo bada karo, price update)")||"";
     if(!text.trim()) return;
   }
+  // Approve must carry the digest of the artifact actually previewed, so an
+  // in-place re-render between preview and approve is refused server-side.
+  var payload={action:action, text:text, expected_revision:revision};
+  if(action==="approve"){
+    try{
+      const pv=await fetch("/api/customer/videos/"+encodeURIComponent(id)+"/preview",
+        {headers:billAuthHdr()});
+      const pd=await pv.json().catch(function(){return {};});
+      if(!pv.ok||!pd.ok||!pd.content_sha256){
+        alert("Video verify nahi ho paya — page refresh karke dobara try karo.");
+        return;
+      }
+      payload.expected_content_sha256=pd.content_sha256;
+      payload.expected_revision=pd.revision;
+    }catch(e){ alert("Video verify nahi ho paya — refresh karo."); return; }
+  }
   try{
     const r=await fetch("/api/customer/videos/"+encodeURIComponent(id)+"/feedback",{
       method:"POST", headers:Object.assign({"Content-Type":"application/json"}, billAuthHdr()),
-      body:JSON.stringify({action:action, text:text, expected_revision:revision})
+      body:JSON.stringify(payload)
     });
     const d=await r.json().catch(function(){return {};});
     if(!r.ok||!d.ok){ alert(d.clarification||videoErrorMessage(d,"Fail")); return; }

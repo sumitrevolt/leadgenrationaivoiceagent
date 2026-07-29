@@ -2404,6 +2404,46 @@ def customer_videos_list(client_id: str = Depends(require_customer)):
         return {"ok": False, "enabled": False, "count": 0, "videos": []}
 
 
+@router.get("/videos/{video_ad_id}/preview")
+def customer_video_preview(
+    video_ad_id: str,
+    client_id: str = Depends(require_customer),
+):
+    """Identity of the EXACT artifact the customer is about to review.
+
+    Hashes only THIS video (never the whole list) through a single descriptor.
+    The customer approves the revision + digest returned here, so an in-place
+    re-render between preview and approve is detectable. No filesystem path is
+    ever exposed.
+    """
+    mcid, enabled = _customer_video_context(client_id)
+    if not enabled:
+        raise HTTPException(status_code=404, detail="video not found")
+    rec = _customer_video_record(mcid, video_ad_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="video not found")
+
+    from app.marketing.video_media_paths import observe_content_identity
+
+    observed = observe_content_identity(str(rec.get("video_path") or ""))
+    if not observed.get("ok"):
+        raise HTTPException(status_code=409, detail=str(observed.get("error") or "unverifiable"))
+    return {
+        "ok": True,
+        "id": str(rec.get("id") or ""),
+        "revision": int(rec.get("revision") or 0),
+        "status": rec.get("status"),
+        "caption": rec.get("caption"),
+        "content_sha256": observed["sha256"],
+        "content_bytes": observed["bytes"],
+        "etag": observed["etag"],
+        "media_url": (
+            f"/api/customer/videos/{quote(str(rec.get('id') or ''), safe='')}"
+            f"/media?revision={int(rec.get('revision') or 0)}"
+        ),
+    }
+
+
 @router.get("/videos/{video_ad_id}/media")
 def customer_video_media(
     video_ad_id: str,
@@ -2430,13 +2470,22 @@ def customer_video_media(
         logger.warning("customer video media refused id=%s tenant=%s", video_ad_id, mcid)
         raise HTTPException(status_code=404, detail="video not found")
 
-    file_size = media_path.stat().st_size
+    # Strong validator over the EXACT bytes, same identity the preview returned.
+    from app.marketing.video_media_paths import observe_content_identity
+
+    observed = observe_content_identity(str(rec.get("video_path") or ""))
+    if not observed.get("ok"):
+        raise HTTPException(status_code=409, detail=str(observed.get("error") or "unverifiable"))
+
+    file_size = int(observed["bytes"])
     filename = f"video_ad_{video_ad_id}.mp4"
     base_headers = {
         "Content-Type": "video/mp4",
         "Content-Disposition": f'inline; filename="{filename}"',
         "Accept-Ranges": "bytes",
         "Cache-Control": "private, max-age=300, no-transform",
+        "ETag": observed["etag"],
+        "X-Content-SHA256": observed["sha256"],
     }
 
     def _unsatisfiable() -> Response:
@@ -2527,6 +2576,10 @@ class VideoFeedbackIn(BaseModel):
     text: str = Field("", max_length=300)
     action: str = "changes"  # approve | changes | reject
     expected_revision: int = Field(..., ge=0)
+    # Required for action="approve": the digest the customer actually previewed.
+    # Optional here so changes/reject keep working; the approve branch enforces
+    # presence and shape, fail-closed.
+    expected_content_sha256: str = Field("", max_length=64)
 
 
 @router.post("/videos/{video_ad_id}/feedback")
@@ -2567,6 +2620,23 @@ def customer_video_feedback(
             return {"ok": True, "already_decided": True, "status": "approved"}
         raise HTTPException(status_code=409, detail="video review already decided; refresh")
     if action == "approve":
+        # Bind the approval to the bytes the customer actually previewed. Every
+        # refusal below happens BEFORE any ledger write, record update, snapshot
+        # or provider call.
+        import re as _re
+
+        from app.marketing.video_media_paths import observe_content_identity
+
+        expected_hash = str(body.expected_content_sha256 or "").strip().lower()
+        if not _re.fullmatch(r"[0-9a-f]{64}", expected_hash):
+            raise HTTPException(status_code=400, detail="expected_content_sha256 required (64-hex)")
+        observed = observe_content_identity(str(rec.get("video_path") or ""))
+        if not observed.get("ok"):
+            raise HTTPException(
+                status_code=409, detail=str(observed.get("error") or "content_unverifiable")
+            )
+        if observed["sha256"] != expected_hash:
+            raise HTTPException(status_code=409, detail="approval_content_changed")
         out = cell.approve_version(
             str(video_ad_id), body.expected_revision, actor=f"customer:{mcid}"
         )
