@@ -110,6 +110,23 @@ def _txn_lock(txn_id: str):
         return contextlib.nullcontext()
 
 
+def _safe_update(rec_id: str, **fields: Any) -> bool:
+    """Durable record write that never escapes as an unhandled error.
+
+    A store failure must become a CONTROLLED refusal (409), never a generic
+    500 — and never a silently-ignored write either, so the caller decides what
+    the transaction state should be.
+    """
+    from app.marketing import video_ad_cycle
+
+    try:
+        video_ad_cycle._update(rec_id, **fields)
+        return True
+    except Exception as exc:
+        logger.warning("[saga] record write failed (%s): %s", str(rec_id)[:40], exc)
+        return False
+
+
 def emit_post_finalization_effects(rec_id: str, approval: dict[str, Any]) -> dict[str, Any]:
     """LAYER C — side effects, exactly once, only AFTER finalization.
 
@@ -138,10 +155,13 @@ def emit_post_finalization_effects(rec_id: str, approval: dict[str, Any]) -> dic
         delivery_ledger.log_event(client_id, "post_approved", detail=title)
     except Exception as exc:
         logger.warning("[saga] effects failed (%s): %s", str(rec_id)[:40], exc)
-        video_ad_cycle._update(rec_id, approval_effects=EFFECTS_FAILED)
+        _safe_update(rec_id, approval_effects=EFFECTS_FAILED)
         return {"ok": False, "error": "effects_failed", "retryable": True}
 
-    video_ad_cycle._update(rec_id, approval_effects=EFFECTS_EMITTED)
+    if not _safe_update(rec_id, approval_effects=EFFECTS_EMITTED):
+        # Effects ran but the marker did not land — retryable, and the retry is
+        # keyed on the approval id so it cannot create a second queue item.
+        return {"ok": False, "error": "effects_state_write_failed", "retryable": True}
     return {"ok": True, "already_emitted": False}
 
 
@@ -235,8 +255,10 @@ def approve(
         if not snap.get("ok"):
             return {"ok": False, "error": snap.get("error") or "snapshot_failed"}
 
-        # 6. prepared (still NOT approved to any customer-visible surface)
-        video_ad_cycle._update(
+        # 6. prepared (still NOT approved to any customer-visible surface).
+        # If this write fails the transaction never starts: the snapshot is an
+        # unreferenced artifact, reused on retry, and nothing is publishable.
+        if not _safe_update(
             record_id,
             approval_txn=txn,
             approval_txn_state=TXN_PREPARED,
@@ -246,31 +268,38 @@ def approve(
             approval_actor=str(actor_subject)[:64],
             approval_channel=str(channel)[:32],
             approval_prepared_at=video_ad_cycle._now(),
-        )
+        ):
+            return {"ok": False, "error": "prepared_write_failed", "txn_id": txn}
 
         # 7. decision bytes only — no callbacks, no effects
         decided = content_approval.persist_decision(token, "approved", txn_id=txn)
         if not decided.get("ok"):
-            video_ad_cycle._update(
+            if not _safe_update(
                 record_id,
                 approval_txn_state=TXN_COMPENSATED,
                 approval_failure_reason="decision_write_failed",
-            )
+            ):
+                # Compensation itself could not be written. Leave the record in
+                # PREPARED so recovery surfaces it — never guess it away.
+                return {"ok": False, "error": "compensation_write_failed", "txn_id": txn}
             return {"ok": False, "error": "decision_write_failed", "txn_id": txn}
 
-        # 8. decision recorded
-        video_ad_cycle._update(record_id, approval_txn_state=TXN_DECISION_RECORDED)
+        # 8. decision recorded. The decision IS durable now, so a failure here
+        # must leave PREPARED for recovery to finalize — not compensate.
+        if not _safe_update(record_id, approval_txn_state=TXN_DECISION_RECORDED):
+            return {"ok": False, "error": "state_write_failed", "txn_id": txn}
 
         # 9-10. finalize the canonical video approval
         bound = video_ad_cycle.record_approval(
             str(record_id), int(expected_revision), actor=str(actor_subject)
         )
         if not bound.get("ok"):
-            video_ad_cycle._update(
+            if not _safe_update(
                 record_id,
                 approval_txn_state=TXN_COMPENSATED,
                 approval_failure_reason=str(bound.get("error") or "finalize_failed"),
-            )
+            ):
+                return {"ok": False, "error": "compensation_write_failed", "txn_id": txn}
             return {
                 "ok": False,
                 "error": "finalize_failed",
@@ -278,12 +307,15 @@ def approve(
                 "txn_id": txn,
             }
 
-        video_ad_cycle._update(
+        if not _safe_update(
             record_id,
             approval_txn_state=TXN_FINALIZED,
             approval_effects=EFFECTS_PENDING,
             approval_finalized_at=video_ad_cycle._now(),
-        )
+        ):
+            # record_approval already wrote the approved fields but the
+            # transaction marker did not land — recovery resolves it.
+            return {"ok": False, "error": "finalize_state_write_failed", "txn_id": txn}
 
         # 11. effects, exactly once, after finalization
         effects = emit_post_finalization_effects(record_id, decided["approval"])
