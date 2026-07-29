@@ -18,7 +18,13 @@ root here is therefore resolved **per call**, from:
 
 from __future__ import annotations
 
+import hashlib
+import os
+import stat
 from pathlib import Path
+from typing import Any
+
+_HASH_CHUNK = 1024 * 1024  # stream HD video; never read a whole render into RAM
 
 # app/marketing/video_media_paths.py -> repo root is three parents up.
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -154,9 +160,56 @@ def resolve_video_media_file(path: str) -> Path | None:
     return resolved
 
 
+def observe_content_identity(path: str) -> dict[str, Any]:
+    """Read the artifact ONCE through a single descriptor and describe it.
+
+    Returns ``{"ok": True, "sha256": ..., "bytes": ..., "etag": ...}`` or
+    ``{"ok": False, "error": ...}``. The digest is computed from the SAME open
+    file descriptor whose ``fstat`` is captured before and after, so a swap
+    during the read is detected (``content_changed_during_read``) rather than
+    producing a digest for bytes nobody ever served.
+
+    Size and mtime are NOT treated as identity — they are only used to detect
+    that the underlying inode changed mid-read. The digest is the identity.
+    """
+    resolved = resolve_video_media_file(path)
+    if resolved is None:
+        return {"ok": False, "error": "content_unverifiable"}
+    try:
+        with open(resolved, "rb") as fh:
+            before = os.fstat(fh.fileno())
+            if not stat.S_ISREG(before.st_mode):
+                return {"ok": False, "error": "content_unverifiable"}
+            h = hashlib.sha256()
+            size = 0
+            while chunk := fh.read(_HASH_CHUNK):
+                h.update(chunk)
+                size += len(chunk)
+            after = os.fstat(fh.fileno())
+        if (before.st_ino, before.st_dev, before.st_size, before.st_mtime_ns) != (
+            after.st_ino,
+            after.st_dev,
+            after.st_size,
+            after.st_mtime_ns,
+        ) or size != after.st_size:
+            return {"ok": False, "error": "content_changed_during_read"}
+    except OSError:
+        return {"ok": False, "error": "content_unverifiable"}
+
+    digest = h.hexdigest()
+    return {
+        "ok": True,
+        "sha256": digest,
+        "bytes": size,
+        # Strong validator derived from the exact bytes (no W/ prefix).
+        "etag": f'"sha256-{digest}"',
+    }
+
+
 __all__ = [
     "approved_media_dir",
     "media_roots",
+    "observe_content_identity",
     "reels_dir",
     "resolve_video_media_file",
     "video_ads_dir",
