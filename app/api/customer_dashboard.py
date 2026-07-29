@@ -2661,7 +2661,11 @@ def customer_video_feedback(
         if observed["sha256"] != expected_hash:
             raise HTTPException(status_code=409, detail="approval_content_changed")
         out = cell.approve_version(
-            str(video_ad_id), body.expected_revision, actor=f"customer:{mcid}"
+            str(video_ad_id),
+            body.expected_revision,
+            actor=f"customer:{mcid}",
+            expected_sha256=expected_hash,
+            channel="customer_dashboard",
         )
         if not out.get("ok"):
             raise HTTPException(status_code=409, detail=str(out.get("error") or "approval failed"))

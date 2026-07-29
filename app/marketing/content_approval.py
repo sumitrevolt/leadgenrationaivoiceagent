@@ -232,13 +232,31 @@ def get_by_token(token: str) -> dict[str, Any] | None:
         return None
 
 
-def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
+def persist_decision(
+    token: str, status: str, note: str = "", *, txn_id: str = ""
+) -> dict[str, Any]:
+    """LAYER A — persist ONLY the content-approval decision.
+
+    No callback, no enqueue, no delivery-ledger event, no video-record
+    mutation. Idempotent on ``txn_id``: replaying the same transaction returns
+    the existing decision instead of appending a second one.
+
+    Returns ``{"ok", "already_decided", "approval", "txn_id"}``.
+    """
     try:
         rec = get_by_token(token)
         if rec is None:
             return {"ok": False, "error": "approval nahi mila (galat ya purana link)."}
         if rec.get("status") in ("approved", "rejected"):
-            return {"ok": True, "already_decided": True, "approval": rec}
+            # Same transaction replaying => idempotent success with evidence.
+            existing_txn = str(rec.get("approval_txn") or "")
+            return {
+                "ok": True,
+                "already_decided": True,
+                "approval": rec,
+                "txn_id": existing_txn,
+                "txn_match": bool(txn_id) and existing_txn == txn_id,
+            }
         update = {
             "id": rec["id"],
             "token": rec.get("token"),
@@ -247,8 +265,28 @@ def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
             "note": str(note or "").strip()[:300],
             "decided_at": _now(),
         }
+        if txn_id:
+            update["approval_txn"] = str(txn_id)[:64]
         _append(update)
-        merged = {**rec, **update}
+        return {
+            "ok": True,
+            "already_decided": False,
+            "approval": {**rec, **update},
+            "txn_id": str(txn_id or ""),
+        }
+    except Exception as e:
+        logger.warning(f"[content_approval] persist_decision failed: {e}")
+        return {"ok": False, "error": str(e)[:160]}
+
+
+def _decide(token: str, status: str, note: str = "") -> dict[str, Any]:
+    try:
+        persisted = persist_decision(token, status, note)
+        if not persisted.get("ok"):
+            return persisted
+        if persisted.get("already_decided"):
+            return {"ok": True, "already_decided": True, "approval": persisted["approval"]}
+        merged = persisted["approval"]
         if status == "approved":
             try:
                 from app.marketing import auto_content

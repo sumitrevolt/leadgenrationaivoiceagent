@@ -342,7 +342,21 @@ def on_approved(approval_rec: dict[str, Any]) -> bool:
         if not aid:
             return False
         for rid, rec in _latest().items():
-            if str(rec.get("approval_id") or "") == aid and rec.get("status") == "pending":
+            if str(rec.get("approval_id") or "") != aid:
+                continue
+            # A saga-coordinated request already owns this record. Do NOT
+            # silently no-op: report explicitly that the coordinator handled it,
+            # with the transaction as evidence, so a caller can tell
+            # "already coordinated" apart from "nothing matched".
+            txn_state = str(rec.get("approval_txn_state") or "")
+            if txn_state:
+                logger.info(
+                    "[video_ad] on_approved skipped — already coordinated (%s, txn_state=%s)",
+                    str(rid)[:40],
+                    txn_state,
+                )
+                return True
+            if rec.get("status") == "pending":
                 out = record_approval(
                     rid,
                     int(rec.get("revision") or 0),

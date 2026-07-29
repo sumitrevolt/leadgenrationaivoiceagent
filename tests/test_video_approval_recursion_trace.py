@@ -19,7 +19,8 @@ import pytest
 from tests.test_video_preview_identity import preview_client  # noqa: F401
 
 
-def test_single_approval_currently_writes_twice(preview_client, monkeypatch):
+def test_single_approval_performs_exactly_one_write(preview_client, monkeypatch):
+    """One customer click => exactly one approval mutation."""
     c, artifact = preview_client
     from app.marketing import video_ad_cycle as V
 
@@ -39,8 +40,29 @@ def test_single_approval_currently_writes_twice(preview_client, monkeypatch):
         },
     )
     assert r.status_code == 200
+    assert len(calls) == 1, f"expected exactly one approval write, saw {len(calls)}"
 
-    # DOCUMENTS THE DEFECT: expected 1, actual 2 (callback + direct call).
-    assert len(calls) == 2, f"expected the known double-write, saw {len(calls)}"
-    actors = [k.get("actor") for _, k in calls]
-    assert len(set(actors)) > 0
+
+def test_single_approval_appends_one_decision_and_keeps_timestamp(preview_client, monkeypatch):
+    """No duplicate ledger decision, and approved_at is not overwritten."""
+    c, artifact = preview_client
+    from app.marketing import video_ad_cycle as V
+
+    updates = []
+    real_update = V._update
+    monkeypatch.setattr(
+        V, "_update", lambda rid, **f: (updates.append(f), real_update(rid, **f))[1]
+    )
+
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    r = c.post(
+        "/api/customer/videos/vid-preview-1/feedback",
+        json={
+            "action": "approve",
+            "expected_revision": 0,
+            "expected_content_sha256": digest,
+        },
+    )
+    assert r.status_code == 200
+    stamped = [u.get("approved_at") for u in updates if u.get("approved_at")]
+    assert len(stamped) == 1, f"approved_at written {len(stamped)}x (overwrite)"
