@@ -110,6 +110,20 @@ def _txn_lock(txn_id: str):
         return contextlib.nullcontext()
 
 
+def effect_key(txn_id: str, effect_name: str) -> str:
+    """Deterministic per-effect idempotency key: SHA-256 over txn + effect.
+
+    Per-effect, not per-transaction: one shared key would let a retry of a
+    FAILED effect be skipped because a DIFFERENT effect had already used it.
+    """
+    payload = json.dumps(
+        {"schema": TXN_SCHEMA, "txn": str(txn_id or ""), "effect": str(effect_name or "")},
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()[:32]
+
+
 def _safe_update(rec_id: str, **fields: Any) -> bool:
     """Durable record write that never escapes as an unhandled error.
 
@@ -142,27 +156,68 @@ def emit_post_finalization_effects(rec_id: str, approval: dict[str, Any]) -> dic
     if str(rec.get("approval_txn_state") or "") != TXN_FINALIZED:
         return {"ok": False, "error": "effects_before_finalization"}
 
+    txn = str(rec.get("approval_txn") or "")
     client_id = str(approval.get("client_id") or "")
     content = approval.get("content") or {}
-    try:
+    title = str(content.get("title") or content.get("occasion") or "")
+
+    def _enqueue() -> None:
         from app.marketing import auto_content
 
+        # The queue item id IS the approval id, so a repeat call addresses the
+        # same row rather than creating a second one.
         auto_content.enqueue_approved(client_id, content, str(approval.get("id") or ""))
 
+    def _delivery() -> None:
         from app.marketing import delivery_ledger
 
-        title = str(content.get("title") or content.get("occasion") or "")
-        delivery_ledger.log_event(client_id, "post_approved", detail=title)
-    except Exception as exc:
-        logger.warning("[saga] effects failed (%s): %s", str(rec_id)[:40], exc)
+        # log_event(key=...) skips when an event with this key already exists
+        # for the client — the idempotency lives DOWNSTREAM, so it holds even
+        # if our local marker write dies after the ledger write.
+        delivery_ledger.log_event(
+            client_id,
+            "post_approved",
+            detail=title,
+            key=effect_key(txn, "delivery_ledger"),
+        )
+
+    outcomes: dict[str, str] = {}
+    failed = False
+    for name, fn in (("enqueue", _enqueue), ("delivery_ledger", _delivery)):
+        marker = f"approval_effect_{name}"
+        if str(rec.get(marker) or "") == EFFECTS_EMITTED:
+            outcomes[name] = "already_emitted"
+            continue
+        try:
+            fn()
+        except Exception as exc:
+            logger.warning("[saga] effect %s failed (%s): %s", name, str(rec_id)[:40], exc)
+            # One effect failing must NOT mark any other effect emitted.
+            _safe_update(rec_id, **{marker: EFFECTS_FAILED})
+            outcomes[name] = "failed"
+            failed = True
+            continue
+        if not _safe_update(rec_id, **{marker: EFFECTS_EMITTED}):
+            # Downstream write happened but the marker did not land. A retry
+            # re-invokes the effect, and the downstream idempotency key means
+            # the durable output stays exactly one.
+            outcomes[name] = "emitted_marker_lost"
+            failed = True
+            continue
+        outcomes[name] = "emitted"
+
+    if failed:
         _safe_update(rec_id, approval_effects=EFFECTS_FAILED)
-        return {"ok": False, "error": "effects_failed", "retryable": True}
+        return {"ok": False, "error": "effects_failed", "retryable": True, "effects": outcomes}
 
     if not _safe_update(rec_id, approval_effects=EFFECTS_EMITTED):
-        # Effects ran but the marker did not land — retryable, and the retry is
-        # keyed on the approval id so it cannot create a second queue item.
-        return {"ok": False, "error": "effects_state_write_failed", "retryable": True}
-    return {"ok": True, "already_emitted": False}
+        return {
+            "ok": False,
+            "error": "effects_state_write_failed",
+            "retryable": True,
+            "effects": outcomes,
+        }
+    return {"ok": True, "already_emitted": False, "effects": outcomes}
 
 
 def approve(
