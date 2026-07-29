@@ -51,12 +51,17 @@ def iso(monkeypatch, tmp_path):
     monkeypatch.setattr(clients_store, "product_lane", lambda c: "marketing")
     monkeypatch.setattr(team, "log_event", lambda *a, **k: None)
 
+    from app.marketing import video_pipeline
+
+    # SERVABLE == APPROVABLE == PUBLISHABLE media root.
+    _render_root = tmp_path / "reels"
+    _render_root.mkdir(exist_ok=True)
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(_render_root))
+
     async def _fake_reel(**kw):
-        p = tmp_path / "reel.mp4"
+        p = _render_root / "reel.mp4"
         p.write_bytes(b"x")
         return {"path": str(p), "slides": kw.get("slides"), "size_kb": 1}
-
-    from app.marketing import video_pipeline
 
     monkeypatch.setattr(video_pipeline, "render_creative_video", _fake_reel)
 

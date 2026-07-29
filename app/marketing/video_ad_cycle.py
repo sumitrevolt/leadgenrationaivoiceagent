@@ -272,25 +272,83 @@ async def generate_for_client(
 
 
 # ------------------------------- approve / change hooks --------------------- #
+
+# Canonical actor identities. An approval always has SOMEONE behind it; storing
+# an empty actor would make the audit trail lie, so callers that cannot resolve
+# a richer identity use one of these explicit contracts.
+APPROVAL_ACTOR_TOKEN = "customer:approval_token"  # signed review-link holder
+APPROVAL_ACTOR_ADMIN = "admin"  # admin acting on behalf of the customer
+
+
+def record_approval(rec_id: str, revision: int, *, actor: str) -> dict[str, Any]:
+    """THE approval writer. Every approval path must go through this function.
+
+    Loads the authoritative record by id, takes ``video_path`` from that record
+    (never from a caller argument), validates it against the canonical media
+    roots, streams a SHA-256 of the exact approval-time bytes, and persists the
+    approval atomically through ``_update``.
+
+    Fails WITHOUT marking approval when the content cannot be verified — a
+    record we cannot hash must not become publishable.
+    """
+    from app.marketing.video_production import states
+    from app.marketing.video_production.publish_gate import hash_video_file
+
+    rid = str(rec_id or "").strip()
+    who = str(actor or "").strip()
+    if not rid:
+        return {"ok": False, "error": "rec_id required"}
+    if not who:
+        return {"ok": False, "error": "approver_identity_required"}
+
+    rec = _latest().get(rid)
+    if not rec:
+        return {"ok": False, "error": "video_ad_not_found"}
+
+    digest, size = hash_video_file(str(rec.get("video_path") or ""))
+    if not digest:
+        return {"ok": False, "error": "content_unverifiable"}
+
+    _update(
+        rid,
+        status="approved",
+        workflow_state=states.APPROVED,
+        approved_version=int(revision),
+        final_approved=True,
+        approved_content_sha256=digest,
+        approved_content_bytes=size,
+        approved_by=who[:64],
+        approved_at=_now(),
+        decided_at=_now(),
+    )
+    return {
+        "ok": True,
+        "revision": int(revision),
+        "content_sha256": digest,
+        "content_bytes": size,
+        "approved_by": who[:64],
+    }
+
+
 def on_approved(approval_rec: dict[str, Any]) -> bool:
     """content_approval._decide(approved) se call (FAST, sync). Hamare video_ad rec
-    ko approved (pending-publish) mark karta — actual publish scheduler karta."""
+    ko approved (pending-publish) mark karta — actual publish scheduler karta.
+
+    Delegates to :func:`record_approval` — this function must never write
+    approval fields itself, or the content hash silently stops being recorded.
+    """
     try:
         aid = str(approval_rec.get("id") or "")
         if not aid:
             return False
         for rid, rec in _latest().items():
             if str(rec.get("approval_id") or "") == aid and rec.get("status") == "pending":
-                rev = int(rec.get("revision") or 0)
-                _update(
+                out = record_approval(
                     rid,
-                    status="approved",
-                    workflow_state="APPROVED",
-                    approved_version=rev,
-                    final_approved=True,
-                    decided_at=_now(),
+                    int(rec.get("revision") or 0),
+                    actor=str(approval_rec.get("decided_by") or "") or APPROVAL_ACTOR_TOKEN,
                 )
-                return True
+                return bool(out.get("ok"))
         return False
     except Exception as e:
         logger.debug(f"[video_ad] on_approved skip: {e}")

@@ -15,7 +15,7 @@ from typing import Any
 
 from app.marketing.video_production import flags, states
 from app.marketing.video_production.feedback import classify_feedback
-from app.marketing.video_production.publish_gate import assert_can_publish
+from app.marketing.video_production.publish_gate import evaluate_publish_gate
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -141,17 +141,28 @@ def _compare_brief(niche: str, language: str) -> dict[str, Any]:
     }
 
 
+# Deterministic synthetic content identity. The shadow matrix must never touch
+# the filesystem (zero-side-effect + repeatability), so it evaluates the PURE
+# gate with a fixed observation instead of hashing a real artifact.
+_SHADOW_OBSERVED_SHA256 = "5" * 64
+_SHADOW_OBSERVED_BYTES = 2048
+
+
 def _compare_publish_gate(case: str) -> dict[str, Any]:
     approved = {
         "status": "approved",
         "workflow_state": states.APPROVED,
         "approval_id": "fixture-approval-1",
-        "video_path": "fixture.mp4",
+        "video_path": "data/video_ads/fixture.mp4",
         "revision": 0,
         "approved_version": 0,
         "final_approved": True,
         "client_id": "fixture-tenant-a",
         "id": "fixture-video-project-a",
+        # Stored identity matches the synthetic observation, so the intended
+        # SUCCESS row stays a success without any file existing on disk.
+        "approved_content_sha256": _SHADOW_OBSERVED_SHA256,
+        "approved_content_bytes": _SHADOW_OBSERVED_BYTES,
     }
     if case == "missing_approval":
         rec = {**approved, "status": "pending", "workflow_state": states.CLIENT_REVIEW_PENDING}
@@ -170,7 +181,12 @@ def _compare_publish_gate(case: str) -> dict[str, Any]:
         rec = approved
         expect_ok = False
 
-    gate = assert_can_publish(rec)
+    # PURE evaluation only — no hashing, no file access, no mutation.
+    gate = evaluate_publish_gate(
+        rec,
+        observed_sha256=_SHADOW_OBSERVED_SHA256,
+        observed_bytes=_SHADOW_OBSERVED_BYTES,
+    )
     ok = bool(gate.get("ok")) == expect_ok
     if not ok:
         bump("decision_mismatches")

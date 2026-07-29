@@ -122,7 +122,9 @@ def test_customer_video_media_is_tenant_scoped_path_safe_and_version_bound(
     media.parent.mkdir(parents=True)
     payload = b"safe-fixture-mp4"
     media.write_bytes(payload)
-    monkeypatch.setattr(customer_dashboard, "_VIDEO_MEDIA_ROOTS", (allowed.resolve(),))
+    from app.marketing import video_pipeline
+
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(allowed))
     V._append(
         {
             "id": "video-own-v3",
@@ -296,10 +298,17 @@ def test_customer_video_changes_stays_revision_request_not_terminal(client):
     assert rec["workflow_state"] == states.CHANGES_REQUESTED
 
 
-def test_customer_video_approve_revision_zero_is_idempotent(client):
-    from app.marketing import content_approval
+def test_customer_video_approve_revision_zero_is_idempotent(client, monkeypatch, tmp_path):
+    from app.marketing import content_approval, video_pipeline
     from app.marketing import video_ad_cycle as V
     from app.marketing.video_production import states
+
+    # Approval binds to real bytes, so the artifact must exist in-root.
+    root = tmp_path / "approve_reels"
+    root.mkdir()
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(root))
+    artifact = root / "approve.mp4"
+    artifact.write_bytes(b"approve-fixture" * 32)
 
     submitted = content_approval.submit(
         "fixture-tenant-a", {"type": "video_ad", "title": "Fixture preview"}
@@ -314,7 +323,7 @@ def test_customer_video_approve_revision_zero_is_idempotent(client):
             "status": "pending",
             "workflow_state": states.CLIENT_REVIEW_PENDING,
             "revision": 0,
-            "video_path": "data/video_ads/fixture-tenant-a/approve.mp4",
+            "video_path": str(artifact),
         }
     )
 

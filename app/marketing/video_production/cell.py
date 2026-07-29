@@ -142,8 +142,13 @@ async def render_and_queue_review(
     return r
 
 
-def approve_version(video_ad_id: str, expected_revision: int | None = None) -> dict[str, Any]:
-    """Bind approval to exact version — fail if mismatch."""
+def approve_version(
+    video_ad_id: str,
+    expected_revision: int | None = None,
+    *,
+    actor: str = "",
+) -> dict[str, Any]:
+    """Bind approval to exact version AND exact content bytes — fail if mismatch."""
     from app.marketing import content_approval, video_ad_cycle
 
     rec = None
@@ -190,8 +195,14 @@ def approve_version(video_ad_id: str, expected_revision: int | None = None) -> d
         }
     if approval_status != "approved":
         return {"ok": False, "error": "approval_not_approved", "status": approval_status}
-    mark_version_approved(str(video_ad_id), rev)
-    return out
+    from app.marketing.video_ad_cycle import APPROVAL_ACTOR_ADMIN, record_approval
+
+    bound = record_approval(str(video_ad_id), rev, actor=str(actor or "") or APPROVAL_ACTOR_ADMIN)
+    if not bound.get("ok"):
+        # Content could not be hashed — refuse rather than leave an approval
+        # the publish gate would later reject as unverifiable.
+        return {"ok": False, "error": bound.get("error") or "content_unverifiable"}
+    return {**out, "approval_binding": bound}
 
 
 async def schedule_approved(video_ad_id: str) -> dict[str, Any]:

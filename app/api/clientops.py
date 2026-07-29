@@ -426,7 +426,7 @@ async def video_production_approve(
     """Version-bound approve (admin/support)."""
     from app.marketing.video_production import cell
 
-    return cell.approve_version(video_ad_id, body.expected_revision)
+    return cell.approve_version(video_ad_id, body.expected_revision, actor="admin")
 
 
 # --------------- Creative Automation OS (ADR-143, flag-gated) --------------- #

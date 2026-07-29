@@ -71,14 +71,26 @@ def test_feedback_approve_changes_reject_ambiguous():
     assert "pricing" in price["categories"]
 
 
-def test_state_transitions_and_publish_gate():
+def test_state_transitions_and_publish_gate(monkeypatch, tmp_path):
+    from app.marketing import video_pipeline
+    from app.marketing.video_production.publish_gate import hash_video_file
+
+    # Publish-eligible means the artifact really exists under the configured
+    # media root (SERVABLE == APPROVABLE == PUBLISHABLE).
+    root = tmp_path / "reels"
+    root.mkdir()
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(root))
+    artifact = root / "x.mp4"
+    artifact.write_bytes(b"real-bytes" * 64)
+    digest, size = hash_video_file(str(artifact))
+
     assert states.can_transition(states.RENDERED, states.INTERNAL_QA)
     assert not states.can_transition(states.CLIENT_REVIEW_PENDING, states.PUBLISHED)
     rec = {
         "status": "pending",
         "workflow_state": states.CLIENT_REVIEW_PENDING,
         "approval_id": "a1",
-        "video_path": "/tmp/x.mp4",
+        "video_path": "data/video_ads/x.mp4",  # writer-contract shape
     }
     ok, reason = states.publish_allowed(rec)
     assert ok is False and "publish_blocked" in reason
@@ -87,10 +99,12 @@ def test_state_transitions_and_publish_gate():
         "status": "approved",
         "workflow_state": states.APPROVED,
         "approval_id": "a1",
-        "video_path": "/tmp/x.mp4",
+        "video_path": str(artifact),
         "revision": 0,
         "approved_version": 0,
         "final_approved": True,
+        "approved_content_sha256": digest,
+        "approved_content_bytes": size,
     }
     gate = assert_can_publish(approved)
     assert gate["ok"] is True
@@ -280,8 +294,14 @@ def iso_video(monkeypatch, tmp_path):
     monkeypatch.setattr(clients_store, "product_lane", lambda c: "marketing")
     monkeypatch.setattr(team, "log_event", lambda *a, **k: None)
 
+    # SERVABLE == APPROVABLE == PUBLISHABLE media root: the fake renderer must
+    # write where the real one does, or the artifact is unservable by contract.
+    _render_root = tmp_path / "reels"
+    _render_root.mkdir(exist_ok=True)
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(_render_root))
+
     async def _fake_reel(**kw):
-        p = tmp_path / "reel.mp4"
+        p = _render_root / "reel.mp4"
         p.write_bytes(b"x" * 2000)
         return {"path": str(p), "slides": kw.get("slides"), "size_kb": 2}
 

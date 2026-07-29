@@ -32,7 +32,9 @@ def media_client(monkeypatch, tmp_path):
 
     allowed = tmp_path / "video_ads"
     allowed.mkdir(parents=True)
-    monkeypatch.setattr(customer_dashboard, "_VIDEO_MEDIA_ROOTS", (allowed.resolve(),))
+    from app.marketing import video_pipeline
+
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(allowed))
     monkeypatch.setattr(video_ad_cycle, "_FILE", str(tmp_path / "video_ads.jsonl"))
     monkeypatch.setattr(video_ad_cycle, "_STATE", str(tmp_path / ".cycle.json"))
     monkeypatch.setattr(clients_store, "canonical_client_id", lambda cid: str(cid or "").strip())
