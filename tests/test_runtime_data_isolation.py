@@ -189,9 +189,12 @@ def test_manifest_required_fields_present() -> None:
         assert not missing, f"{s.get('store_id')} missing {missing}"
 
 
-def test_no_production_store_claims_cutover_complete() -> None:
-    """The Foundation PR must not mark anything migrated."""
-    assert not manifest.by_state(manifest.CUTOVER_COMPLETE)
+def test_declared_waves_are_cutover_complete() -> None:
+    """After host cutover, declared wave stores are CUTOVER_COMPLETE."""
+    from tests.runtime_data_waves import all_declared_store_ids
+
+    complete = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
+    assert set(all_declared_store_ids()) <= complete
     assert not manifest.by_state(manifest.EXTERNAL_VERIFIED)
 
 
@@ -216,18 +219,18 @@ def test_rebuildable_cache_is_not_a_blocker() -> None:
         assert s["deployment_blocker"] is False
 
 
-def test_blocking_stores_are_non_empty_today() -> None:
-    """Foundation PR must NOT make deployment look safe."""
+def test_blocking_stores_cleared_after_cutover_complete() -> None:
+    """CUTOVER_COMPLETE stores no longer block; critical ids are complete."""
     blockers = manifest.blocking_stores()
-    assert blockers, "manifest claims nothing blocks deployment — that is wrong today"
-    ids = {s["store_id"] for s in blockers}
+    assert not blockers, sorted(s["store_id"] for s in blockers)
+    complete = {s["store_id"] for s in manifest.by_state(manifest.CUTOVER_COMPLETE)}
     for critical in (
         "billing.invoices",
         "compliance.email_suppression",
         "compliance.consent_ledger",
         "customers.identity",
     ):
-        assert critical in ids, f"{critical} must block destructive deployment"
+        assert critical in complete, f"{critical} must be CUTOVER_COMPLETE"
 
 
 def test_counts_are_derived_not_asserted() -> None:
@@ -242,7 +245,8 @@ def test_interactions_is_not_silently_tiered_as_resolved() -> None:
     """Dual-authority must be visible, not laundered into a normal tier."""
     row = next(s for s in manifest.STORES if s["store_id"] == "communications.interactions")
     assert row["current_authority"] == "DUAL_WRITE_DRIFTED"
-    assert row["deployment_blocker"] is True
+    assert row["migration_state"] == manifest.CUTOVER_COMPLETE
+    assert row["deployment_blocker"] is False
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX path semantics")
