@@ -101,6 +101,14 @@ def evaluate_publish_gate(
                 "error": "approval_hash_missing",
                 "remedy": "re-approval required — this approval predates content binding",
             }
+
+        # Saga eligibility BEFORE observation. Stage 3C: only a finalized
+        # transaction that owns an immutable snapshot may be observed at all —
+        # never hash the mutable ``video_path`` as a publish identity.
+        eligible = _saga_eligibility(rec, approved_hash=approved_hash)
+        if not eligible["ok"]:
+            return eligible
+
         live_hash = str(observed_sha256 or "").strip().lower()
         live_size = int(observed_bytes or 0)
         if not live_hash:
@@ -114,14 +122,10 @@ def evaluate_publish_gate(
                 "error": "content_hash_mismatch",
                 "approved_version": rec.get("approved_version"),
             }
-
-        # Saga eligibility — the LAST gate, and the one that closes the bypass.
-        # Every check above reads fields on a mutable record that four
-        # uncoordinated callers could write. Only a finalized transaction that
-        # owns an immutable snapshot may publish.
-        eligible = _saga_eligibility(rec, approved_hash=approved_hash)
-        if not eligible["ok"]:
-            return eligible
+        snap_hash = str(rec.get("approval_snapshot_sha256") or "").strip().lower()
+        snap_bytes = rec.get("approval_snapshot_bytes")
+        if live_hash != snap_hash or int(snap_bytes) != live_size:
+            return {"ok": False, "error": "approval_snapshot_mismatch"}
 
         return {
             "ok": True,
@@ -129,6 +133,7 @@ def evaluate_publish_gate(
             "content_sha256": live_hash,
             "content_bytes": live_size,
             "snapshot_path": str(rec.get("approval_snapshot_path") or ""),
+            "approval_txn": str(rec.get("approval_txn") or ""),
         }
     except Exception as e:
         return {"ok": False, "error": str(e)[:160]}
@@ -176,12 +181,14 @@ def _saga_eligibility(rec: dict[str, Any], *, approved_hash: str) -> dict[str, A
 
 
 def assert_can_publish(rec: dict[str, Any]) -> dict[str, Any]:
-    """REAL gate: observe the artifact (read-only), then evaluate purely.
+    """REAL gate: observe the FINALIZED SNAPSHOT (read-only), then evaluate.
 
+    Stage 3C: the mutable ``video_path`` is never hashed for publish eligibility.
     The only production entry point. Never raises.
     """
     try:
-        live_hash, live_size = hash_video_file(str(rec.get("video_path") or ""))
+        snap_path = str(rec.get("approval_snapshot_path") or "")
+        live_hash, live_size = hash_video_file(snap_path)
     except Exception as e:  # pragma: no cover - defensive
         return {"ok": False, "error": str(e)[:160]}
     return evaluate_publish_gate(rec, observed_sha256=live_hash, observed_bytes=live_size)

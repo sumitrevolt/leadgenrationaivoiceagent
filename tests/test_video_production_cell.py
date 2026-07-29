@@ -117,7 +117,7 @@ def test_state_transitions_and_publish_gate(monkeypatch, tmp_path):
         # an uncoordinated writer produced, and it must refuse.
         "approval_txn_state": "finalized",
         "approval_txn": "t" * 64,
-        "approval_snapshot_path": str(artifact) + ".snap",
+        "approval_snapshot_path": str(artifact),
         "approval_snapshot_sha256": digest,
         "approval_snapshot_bytes": size,
     }
