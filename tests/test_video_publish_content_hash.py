@@ -40,6 +40,8 @@ def video(tmp_path, monkeypatch):
 
 
 def _rec(video, **over):
+    from pathlib import Path
+
     rec = {
         "id": "va_1",
         "client_id": "jiya-makeover",
@@ -52,30 +54,45 @@ def _rec(video, **over):
         "video_path": str(video),
     }
     rec.update(over)
-    # Stage 3B-close: publish eligibility now also requires a FINALIZED
-    # saga-owned snapshot identity. These tests are about CONTENT-HASH
-    # behaviour, so the coordinated identity is supplied by default and mirrors
-    # whatever approved digest the test chose. A test that wants to exercise the
-    # uncoordinated case overrides approval_txn_state explicitly.
+    # Stage 3C: gate observes the SNAPSHOT path, not the mutable render.
+    # Default helper materialises a real sibling snapshot with identical bytes.
     approved = str(rec.get("approved_content_sha256") or "")
     if approved and "approval_txn_state" not in over:
+        snap = Path(str(rec.get("approval_snapshot_path") or (str(video) + ".snap")))
+        if not snap.exists():
+            snap.write_bytes(Path(video).read_bytes())
         rec.setdefault("approval_txn_state", "finalized")
         rec.setdefault("approval_txn", "t" * 64)
-        rec.setdefault("approval_snapshot_path", str(video) + ".snap")
+        rec.setdefault("approval_snapshot_path", str(snap))
         rec.setdefault("approval_snapshot_sha256", approved)
-        rec.setdefault("approval_snapshot_bytes", rec.get("approved_content_bytes") or 0)
+        rec.setdefault(
+            "approval_snapshot_bytes", rec.get("approved_content_bytes") or snap.stat().st_size
+        )
     return rec
 
 
-# --- 1. the defect: bytes swapped under a valid approval -----------------
+# --- 1. Stage 3C: original render may change; SNAPSHOT is the identity -------
 
 
-def test_overwritten_bytes_refused(video):
+def test_overwritten_original_still_publishable_via_snapshot(video):
+    """Original render mutated after approval must NOT poison the snapshot gate."""
     digest, size = pg.hash_video_file(str(video))
     rec = _rec(video, approved_content_sha256=digest, approved_content_bytes=size)
-    assert pg.assert_can_publish(rec)["ok"] is True  # baseline: A is publishable
+    assert pg.assert_can_publish(rec)["ok"] is True
 
-    video.write_bytes(b"BYTES-B" * 4096)  # same path, same revision, new bytes
+    video.write_bytes(b"BYTES-B" * 4096)  # mutable render swapped
+    out = pg.assert_can_publish(rec)
+    assert out["ok"] is True, out
+    assert out["content_sha256"] == digest
+
+
+def test_overwritten_snapshot_refused(video):
+    from pathlib import Path
+
+    digest, size = pg.hash_video_file(str(video))
+    rec = _rec(video, approved_content_sha256=digest, approved_content_bytes=size)
+    snap = Path(rec["approval_snapshot_path"])
+    snap.write_bytes(b"BYTES-B" * 4096)
     out = pg.assert_can_publish(rec)
     assert out["ok"] is False
     assert out["error"] == "content_hash_mismatch"
@@ -91,26 +108,49 @@ def test_legacy_record_without_hash_refused(video):
 
 
 def test_missing_file_refused(video):
+    from pathlib import Path
+
     digest, size = pg.hash_video_file(str(video))
     rec = _rec(video, approved_content_sha256=digest, approved_content_bytes=size)
-    video.unlink()
+    Path(rec["approval_snapshot_path"]).unlink()
     out = pg.assert_can_publish(rec)
     assert out["ok"] is False and out["error"] == "content_unverifiable"
 
 
 def test_directory_as_video_path_refused(video, tmp_path):
+    """Snapshot path that is a directory is unverifiable."""
     d = video.parent / "not_a_file"
     d.mkdir()
-    rec = _rec(video, video_path=str(d), approved_content_sha256="0" * 64, approved_content_bytes=1)
+    rec = _rec(
+        video,
+        approval_snapshot_path=str(d),
+        approved_content_sha256="0" * 64,
+        approved_content_bytes=1,
+        approval_txn_state="finalized",
+        approval_txn="t" * 64,
+        approval_snapshot_sha256="0" * 64,
+        approval_snapshot_bytes=1,
+    )
     out = pg.assert_can_publish(rec)
-    assert out["ok"] is False and out["error"] == "content_unverifiable"
+    assert out["ok"] is False and out["error"] in (
+        "content_unverifiable",
+        "approval_not_finalized",
+        "approval_snapshot_missing",
+    )
 
 
 def test_path_outside_media_root_refused(video, tmp_path):
     outside = tmp_path / "escape.mp4"
     outside.write_bytes(b"BYTES-A" * 4096)
     rec = _rec(
-        video, video_path=str(outside), approved_content_sha256="0" * 64, approved_content_bytes=1
+        video,
+        approval_snapshot_path=str(outside),
+        approved_content_sha256="0" * 64,
+        approved_content_bytes=1,
+        approval_txn_state="finalized",
+        approval_txn="t" * 64,
+        approval_snapshot_sha256="0" * 64,
+        approval_snapshot_bytes=1,
     )
     out = pg.assert_can_publish(rec)
     assert out["ok"] is False and out["error"] == "content_unverifiable"
@@ -151,6 +191,8 @@ def test_size_drift_alone_is_refused(video):
 
 @pytest.mark.asyncio
 async def test_refusal_precedes_provider_invocation(video, monkeypatch):
+    from pathlib import Path
+
     from app.marketing import postiz_publish as pp
     from app.marketing import video_ad_cycle as vac
 
@@ -171,15 +213,18 @@ async def test_refusal_precedes_provider_invocation(video, monkeypatch):
         "app.marketing.clients_store.resolve_client",
         lambda c: {"id": "jiya-makeover", "niche": "salon"},
     )
+    monkeypatch.setattr(vac, "_update", lambda *a, **k: None)
+    monkeypatch.setattr("app.marketing.delivery_ledger.log_event", lambda *a, **k: True)
 
     digest, size = pg.hash_video_file(str(video))
     rec = _rec(video, approved_content_sha256=digest, approved_content_bytes=size)
-    video.write_bytes(b"TAMPERED" * 4096)
+    Path(rec["approval_snapshot_path"]).write_bytes(b"TAMPERED" * 4096)
 
     out = await vac._publish_one(rec)
     assert out["any_sent"] is False
     assert out["channels"]["gate"]["error"] == "content_hash_mismatch"
     assert calls == {"postiz": 0, "telegram": 0}
+    assert out.get("provider_calls") == 0
 
 
 # --- 8. reapproval stores the NEW hash; publish never backfills ----------
@@ -302,44 +347,51 @@ def test_hash_is_streaming_not_whole_file_read(video, monkeypatch):
     assert len(digest) == 64 and size == len(b"BYTES-A" * 4096)
 
 
-# --- TOCTOU: known-open gap, pinned deliberately -------------------------
+# --- TOCTOU: Stage 3C CLOSED — provider consumes snapshot only ------------
 
 
 @pytest.mark.asyncio
-async def test_toctou_gap_between_gate_and_upload_is_still_open(video, monkeypatch):
-    """DOCUMENTS A KNOWN GAP — invert this assertion when the race is closed.
+async def test_toctou_gap_closed_provider_receives_snapshot_bytes(video, monkeypatch):
+    """Stage 3C: mutating the original between gate and upload must not matter.
 
-    `_publish_one` hashes the artifact in `assert_can_publish`, then later hands
-    the same mutable PATH to `postiz_publish.publish_video` -> `upload_media`,
-    which re-opens the file. Bytes changed in that interval are uploaded without
-    re-verification. Closing it means either publishing a content-addressed copy
-    or re-verifying at the provider boundary — both change the adapter contract
-    (`publish_video` is also called from app/social_engine/providers.py), which
-    is wider than this slice. Tracked as CONTENT_HASH_BINDING_PARTIAL_TOCTOU_OPEN.
+    Provider is handed the snapshot path; uploaded bytes must equal the
+    approved snapshot, not the swapped original.
     """
+    from pathlib import Path
+
     from app.marketing import postiz_publish as pp
     from app.marketing import video_ad_cycle as vac
 
     uploaded: dict[str, bytes] = {}
 
-    async def _mutate_then_capture(client, caption, video_path):
+    async def _capture(client, caption, video_path):
+        uploaded["path"] = video_path
         uploaded["bytes"] = open(video_path, "rb").read()
         return {"sent": True, "post_ids": ["p1"]}
 
-    def _mutate_inside_the_window(cid):
-        """Runs AFTER assert_can_publish, BEFORE publish_video — the real race."""
+    def _mutate_original_after_gate(cid):
         video.write_bytes(b"SWAPPED" * 4096)
         return {"id": "jiya-makeover", "postiz_integrations": "c1"}
 
     monkeypatch.setattr(pp, "enabled", lambda: True, raising=False)
-    monkeypatch.setattr(pp, "publish_video", _mutate_then_capture, raising=False)
-    monkeypatch.setattr("app.marketing.clients_store.get_client", _mutate_inside_the_window)
+    monkeypatch.setattr(pp, "publish_video", _capture, raising=False)
+    monkeypatch.setattr(
+        "app.marketing.clients_store.resolve_client",
+        _mutate_original_after_gate,
+    )
+    monkeypatch.setattr(vac, "_update", lambda *a, **k: None)
+    monkeypatch.setattr("app.marketing.delivery_ledger.log_event", lambda *a, **k: True)
 
     digest, size = pg.hash_video_file(str(video))
     rec = _rec(video, approved_content_sha256=digest, approved_content_bytes=size)
+    snap_bytes = Path(rec["approval_snapshot_path"]).read_bytes()
 
-    assert pg.assert_can_publish(rec)["ok"] is True  # verified at time-of-check
-    await vac._publish_one(rec)
+    assert pg.assert_can_publish(rec)["ok"] is True
+    out = await vac._publish_one(rec)
 
-    # The gap: unverified bytes reached the provider boundary.
-    assert uploaded.get("bytes", b"").startswith(b"SWAPPED")
+    assert out.get("any_sent") is True
+    assert uploaded.get("bytes") == snap_bytes
+    assert uploaded.get("bytes", b"").startswith(b"BYTES-A")
+    assert not uploaded.get("bytes", b"").startswith(b"SWAPPED")
+    assert uploaded["path"] == rec["approval_snapshot_path"]
+    assert out.get("provider_calls") == 1

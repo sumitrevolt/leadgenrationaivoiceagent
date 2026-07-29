@@ -359,7 +359,8 @@ def test_saga_finalized_record_is_publishable(iso, monkeypatch):
     monkeypatch.setenv("VIDEO_SOCIAL_PUBLISH_ENABLED", "1")
     raw = iso["artifact"].read_bytes()
     digest = hashlib.sha256(raw).hexdigest()
-    snap = iso["tmp"] / "snap_ok.mp4"
+    # Stage 3C: snapshot must live inside the media authority (same root).
+    snap = iso["artifact"].parent / "snap_ok.mp4"
     snap.write_bytes(raw)
     rec = _legacy_approved_record(iso["artifact"])
     rec.update(

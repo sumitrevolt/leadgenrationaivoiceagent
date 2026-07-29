@@ -494,7 +494,21 @@ def _resolve_publish_client(cid: str) -> dict[str, Any] | None:
 
 
 async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
+    """Publish ONE approved video through Postiz/Telegram/engine.
+
+    Stage 3C contract:
+      * gate must be finalized + snapshot-bound
+      * providers receive ONLY the immutable snapshot path
+      * snapshot is re-hashed immediately before provider invocation
+      * mutable ``video_path`` is never opened for upload
+      * idempotency key is canonical JSON (not path/filename)
+    """
     from app.marketing import clients_store  # noqa: F401  (kept for downstream use)
+    from app.marketing.video_production.publish_snapshot import (
+        canonical_publish_identity,
+        publish_idempotency_key,
+        verify_snapshot_descriptor,
+    )
 
     # Publish gate: when Video Production Cell master is ON → fail-closed on
     # gate errors. When OFF → legacy VIDEO_AD_CYCLE fail-open if gate import fails.
@@ -510,15 +524,18 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
 
         gate = assert_can_publish(rec)
         if not gate.get("ok"):
-            return {"any_sent": False, "channels": {"gate": gate}}
+            return {"any_sent": False, "channels": {"gate": gate}, "provider_calls": 0}
     except Exception as e:
         if _prod_cell:
             logger.warning(f"[video_ad] publish_gate fail-closed (cell ON): {e}")
             return {
                 "any_sent": False,
                 "channels": {"gate": {"ok": False, "error": f"gate_exception:{str(e)[:120]}"}},
+                "provider_calls": 0,
             }
         logger.debug(f"[video_ad] publish_gate skip (fail-open legacy): {e}")
+        gate = {"ok": False, "error": "gate_unavailable"}
+        return {"any_sent": False, "channels": {"gate": gate}, "provider_calls": 0}
 
     cid = str(rec.get("client_id") or "")
     client = _resolve_publish_client(cid)
@@ -531,11 +548,93 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
         return {
             "any_sent": False,
             "channels": {"tenant": {"ok": False, "error": "unresolved_tenant"}},
+            "provider_calls": 0,
         }
+
+    snap_path = str(gate.get("snapshot_path") or "")
+    snap_sha = str(gate.get("content_sha256") or "")
+    snap_bytes = int(gate.get("content_bytes") or 0)
+    rid = str(rec.get("id") or "")
     caption = str(rec.get("caption") or "")
-    video_path = str(rec.get("video_path") or "")
-    # SOCIAL_ENGINE on -> durable native engine (Redis/Celery queue + provider adapters)
-    # ko handoff; engine khud Telegram/Meta/GBP/LinkedIn/X/YouTube/Postiz pe deliver karta.
+
+    identity = canonical_publish_identity(
+        tenant=cid,
+        video_id=rid,
+        approval_txn=str(gate.get("approval_txn") or rec.get("approval_txn") or ""),
+        revision=int(gate.get("version") or rec.get("revision") or 0),
+        snapshot_sha256=snap_sha,
+        snapshot_bytes=snap_bytes,
+        channel="postiz",
+    )
+    idem_key = publish_idempotency_key(identity)
+
+    # Durable exactly-once: prior successful attempt with the same key returns
+    # stored evidence without another provider invocation.
+    prior_key = str(rec.get("publish_idempotency_key") or "")
+    prior_result = rec.get("publish_result")
+    if (
+        prior_key == idem_key
+        and isinstance(prior_result, dict)
+        and (
+            str(rec.get("status") or "") == "published"
+            or prior_result.get("any_sent")
+            or prior_result.get("postiz", {}).get("sent")
+        )
+    ):
+        return {
+            "any_sent": True,
+            "channels": (
+                prior_result
+                if "postiz" in prior_result or "telegram" in prior_result
+                else prior_result
+            ),
+            "idempotent": True,
+            "provider_calls": 0,
+            "publish_idempotency_key": idem_key,
+        }
+
+    # Claim the attempt before any provider call (best-effort durable mark).
+    try:
+        if prior_key == idem_key and str(rec.get("publish_attempt_state") or "") == "in_flight":
+            # Concurrent duplicate — do not start a second provider call.
+            return {
+                "any_sent": False,
+                "channels": {"idempotency": {"ok": False, "error": "publish_in_flight"}},
+                "provider_calls": 0,
+                "publish_idempotency_key": idem_key,
+            }
+        _update(
+            rid,
+            publish_idempotency_key=idem_key,
+            publish_attempt_state="in_flight",
+            publish_attempt_identity=identity,
+        )
+    except Exception as exc:
+        logger.warning("[video_ad] publish claim write failed (%s): %s", rid[:40], exc)
+
+    verified = verify_snapshot_descriptor(
+        snapshot_path=snap_path,
+        expected_sha256=snap_sha,
+        expected_bytes=snap_bytes,
+    )
+    if not verified.get("ok"):
+        try:
+            _update(rid, publish_attempt_state="refused", publish_result={"gate": verified})
+        except Exception:
+            pass
+        return {
+            "any_sent": False,
+            "channels": {"snapshot": verified},
+            "provider_calls": 0,
+            "publish_idempotency_key": idem_key,
+        }
+
+    provider_path = str(verified["snapshot_path"])
+    provider_calls = 0
+    result: dict[str, Any] = {}
+    any_sent = False
+
+    # SOCIAL_ENGINE handoff — snapshot path only (never mutable video_path).
     try:
         from app.social_engine import engine as _social_engine
 
@@ -545,25 +644,37 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
                 from app.storage.minio_client import get_storage
 
                 _storage = get_storage()
-                if video_path and os.path.isfile(video_path):
-                    _key = f"video_ads/{cid}/{os.path.basename(video_path)}"
-                    with open(video_path, "rb") as _fh:
+                if provider_path and os.path.isfile(provider_path):
+                    _key = f"video_ads/{cid}/{os.path.basename(provider_path)}"
+                    with open(provider_path, "rb") as _fh:
                         _vdata = _fh.read()
                     await _storage.put(_key, _vdata, content_type="video/mp4")
                     media_url = _storage.public_url(_key)
+                    provider_calls += 1
             except Exception as _ue:
                 logger.debug(f"[video_ad] MinIO upload skip (fail-open): {_ue}")
             ids = _social_engine.enqueue_publish(
-                cid, caption=caption, media_path=video_path, media_url=media_url, media_type="video"
+                cid,
+                caption=caption,
+                media_path=provider_path,
+                media_url=media_url,
+                media_type="video",
             )
-            return {"any_sent": bool(ids), "channels": {"engine": {"queued_jobs": ids}}}
+            provider_calls += 1
+            out = {
+                "any_sent": bool(ids),
+                "channels": {"engine": {"queued_jobs": ids}},
+                "provider_calls": provider_calls,
+                "publish_idempotency_key": idem_key,
+            }
+            _finalize_publish_attempt(rid, idem_key, identity, out)
+            return out
     except Exception as e:
         logger.warning(f"[video_ad] social_engine handoff skip: {e}")
-    result: dict[str, Any] = {}
-    any_sent = False
-    # 1) Telegram native (free) — self-contained sendVideo (telegram_publish optional).
+
+    # 1) Telegram native — snapshot path only.
     chat_id = str(client.get("telegram_chat_id") or "").strip()
-    if chat_id and video_path:
+    if chat_id and provider_path:
         try:
             sender = None
             try:
@@ -573,25 +684,97 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             except Exception:
                 sender = None
             tg = (
-                await sender(chat_id, video_path, caption)
+                await sender(chat_id, provider_path, caption)
                 if sender
-                else await _tg_send_video(chat_id, video_path, caption)
+                else await _tg_send_video(chat_id, provider_path, caption)
             )
+            provider_calls += 1
             result["telegram"] = tg
             any_sent = any_sent or bool(tg.get("sent"))
         except Exception as e:
             result["telegram"] = {"sent": False, "reason": str(e)[:120]}
-    # 2) Postiz (FB/IG/YT/LinkedIn) — gated POSTIZ_API_KEY
+
+    # 2) Postiz — gated POSTIZ_API_KEY; snapshot path only.
     try:
         from app.marketing import postiz_publish
 
         if postiz_publish.enabled():
-            pz = await postiz_publish.publish_video(client, caption, video_path)
+            # Final re-verify immediately before the adapter opens the file.
+            again = verify_snapshot_descriptor(
+                snapshot_path=provider_path,
+                expected_sha256=snap_sha,
+                expected_bytes=snap_bytes,
+            )
+            if not again.get("ok"):
+                result["postiz"] = {"sent": False, "reason": again.get("error")}
+                out = {
+                    "any_sent": any_sent,
+                    "channels": result,
+                    "provider_calls": provider_calls,
+                    "publish_idempotency_key": idem_key,
+                }
+                _finalize_publish_attempt(rid, idem_key, identity, out, state="refused")
+                return out
+            pz = await postiz_publish.publish_video(client, caption, provider_path)
+            provider_calls += 1
             result["postiz"] = pz
             any_sent = any_sent or bool(pz.get("sent"))
     except Exception as e:
         result["postiz"] = {"sent": False, "reason": str(e)[:120]}
-    return {"any_sent": any_sent, "channels": result}
+
+    out = {
+        "any_sent": any_sent,
+        "channels": result,
+        "provider_calls": provider_calls,
+        "publish_idempotency_key": idem_key,
+        "publish_identity": identity,
+    }
+    _finalize_publish_attempt(
+        rid, idem_key, identity, out, state="succeeded" if any_sent else "failed"
+    )
+    return out
+
+
+def _finalize_publish_attempt(
+    rid: str,
+    idem_key: str,
+    identity: dict[str, Any],
+    out: dict[str, Any],
+    *,
+    state: str | None = None,
+) -> None:
+    """Persist attempt evidence + keyed delivery-ledger event. Never raises."""
+    try:
+        st = state or ("succeeded" if out.get("any_sent") else "failed")
+        _update(
+            rid,
+            publish_idempotency_key=idem_key,
+            publish_attempt_state=st,
+            publish_attempt_identity=identity,
+            publish_result=out.get("channels") or {},
+        )
+    except Exception as exc:
+        logger.warning("[video_ad] publish finalize write failed (%s): %s", rid[:40], exc)
+    try:
+        from app.marketing.delivery_ledger import log_event
+
+        cid = str(identity.get("tenant") or "")
+        event = "post_published" if out.get("any_sent") else "post_failed"
+        log_event(
+            cid,
+            event,
+            detail=f"video:{identity.get('video_id')}:r{identity.get('revision')}",
+            meta={
+                "publish_idempotency_key": idem_key,
+                "snapshot_sha256": identity.get("snapshot_sha256"),
+                "approval_txn": identity.get("approval_txn"),
+                "provider_calls": out.get("provider_calls"),
+            },
+            actor="video_ad_publish",
+            key=idem_key[:160],
+        )
+    except Exception as exc:
+        logger.debug("[video_ad] delivery_ledger publish evidence skip: %s", exc)
 
 
 async def publish_due(limit: int = 20) -> dict[str, Any]:
