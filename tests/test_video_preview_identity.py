@@ -45,9 +45,16 @@ def preview_client(monkeypatch, tmp_path):
     monkeypatch.setattr(V, "_STATE", str(tmp_path / ".cycle.json"))
     monkeypatch.setattr(clients_store, "canonical_client_id", lambda cid: str(cid or "").strip())
 
-    from app.marketing import content_approval
+    from app.marketing import auto_content, content_approval
 
     monkeypatch.setattr(content_approval, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
+    # Approval emits a queue row. Without this every consumer of this fixture
+    # wrote fixture tenants into the REPO's data/content_queue, where they
+    # survived between runs — and auto_content dedupes on date|type, so a
+    # leftover row silently suppresses a later enqueue.
+    queue_dir = tmp_path / "content_queue"
+    queue_dir.mkdir()
+    monkeypatch.setattr(auto_content, "_QUEUE_DIR", lambda: str(queue_dir))
     submitted = content_approval.submit(TENANT, {"type": "video_ad", "title": "Preview fixture"})
     approval = submitted["approval"]
 

@@ -20,6 +20,13 @@ from app.marketing.video_production.cell import approve_version, ops_summary
 from app.marketing.video_production.profiles import ratios_for_channels, resolve_profile
 
 
+def _principal(tenant: str):
+    """Server-created principal, same helper the customer route uses."""
+    from app.marketing.video_production.approval_principal import from_customer_session
+
+    return from_customer_session(tenant)
+
+
 def test_flags_default_off(monkeypatch):
     for k in (
         "VIDEO_PRODUCTION_ENABLED",
@@ -181,9 +188,10 @@ def test_approve_version_mismatch(iso_video):
 
     r = asyncio.run(V.generate_for_client("c1"))
     assert r["ok"]
-    bad = approve_version(r["id"], expected_revision=99)
+    who = _principal("c1")
+    bad = approve_version(r["id"], expected_revision=99, principal=who)
     assert bad["ok"] is False and bad["error"] == "version_mismatch"
-    good = approve_version(r["id"], expected_revision=0)
+    good = approve_version(r["id"], expected_revision=0, principal=who)
     assert good.get("ok") is True
     rows = V.list_for_client("c1")
     assert rows[0]["status"] == "approved"
@@ -208,7 +216,10 @@ def test_approve_version_never_flips_an_already_rejected_approval(iso_video):
         workflow_state=states.CLIENT_REVIEW_PENDING,
         final_approved=False,
     )
-    out = approve_version(r["id"], expected_revision=0)
+    # A VALID principal is supplied deliberately: the point of this test is
+    # reject terminality, and an identity refusal would mask whether the
+    # terminality check still runs.
+    out = approve_version(r["id"], expected_revision=0, principal=_principal("c1"))
     assert out["ok"] is False
     assert out["error"] == "approval_already_decided"
     rec = next(row for row in V.list_all() if row["id"] == r["id"])
@@ -454,7 +465,15 @@ def test_wa_inbound_never_reports_approve_for_rejected_ledger(monkeypatch, iso_v
 
     out = review_whatsapp.ingest_inbound("919876543210", "APPROVE", "mid-stale")
     assert out.get("handled") is False
-    assert out.get("reason") == "approval_already_decided"
+    # COVERAGE SHIFT (Stage 3B), recorded rather than silently re-baselined:
+    # WhatsApp now fails at the identity boundary, so it can no longer reach
+    # the reject-terminality check and the reason changed. The invariant this
+    # test exists for — WA never reports approve for a terminal ledger, and
+    # writes nothing — still holds and is asserted below. Terminality itself is
+    # proven with a valid principal in
+    # test_approve_version_never_flips_an_already_rejected_approval.
+    assert out.get("reason") == "whatsapp_approval_identity_unavailable"
+    assert out.get("intent") == "approve"
     rec = next(row for row in V.list_all() if row["id"] == made["id"])
     assert rec.get("approved_version") is None
     assert rec.get("final_approved") is False

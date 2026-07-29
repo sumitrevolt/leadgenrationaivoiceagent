@@ -417,16 +417,45 @@ async def video_production_generate(body: VideoCellGenIn, _user=Depends(require_
 
 class VideoApproveIn(BaseModel):
     expected_revision: int | None = None
+    #: The admin must have previewed the exact bytes, same as a customer.
+    expected_content_sha256: str = ""
 
 
 @router.post("/video-production/{video_ad_id}/approve")
 async def video_production_approve(
-    video_ad_id: str, body: VideoApproveIn, _user=Depends(require_admin)
+    video_ad_id: str, body: VideoApproveIn, user=Depends(require_admin)
 ):
-    """Version-bound approve (admin/support)."""
-    from app.marketing.video_production import cell
+    """Version-bound approve (admin/support).
 
-    return cell.approve_version(video_ad_id, body.expected_revision, actor="admin")
+    Previously this discarded the authenticated ``User`` and approved as the
+    literal string ``"admin"``, so the ledger could not say WHICH admin acted.
+    The User row carries a stable ``User.id``, so a real principal is built from
+    it. No caller-supplied actor is accepted.
+    """
+    import re as _re
+
+    from app.marketing import video_ad_cycle
+    from app.marketing.video_production import cell
+    from app.marketing.video_production.approval_principal import PrincipalRefused, from_admin_user
+
+    expected_hash = str(body.expected_content_sha256 or "").strip().lower()
+    if not _re.fullmatch(r"[0-9a-f]{64}", expected_hash):
+        raise HTTPException(status_code=400, detail="expected_content_sha256 required (64-hex)")
+
+    rec = (video_ad_cycle._latest() or {}).get(str(video_ad_id)) or {}
+    if not rec:
+        raise HTTPException(status_code=404, detail="video_ad_not_found")
+    try:
+        principal = from_admin_user(user, tenant_id=str(rec.get("client_id") or ""))
+    except PrincipalRefused as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.code) from None
+
+    return cell.approve_version(
+        video_ad_id,
+        body.expected_revision,
+        principal=principal,
+        expected_sha256=expected_hash,
+    )
 
 
 # --------------- Creative Automation OS (ADR-143, flag-gated) --------------- #

@@ -305,8 +305,32 @@ def ingest_inbound(from_phone: str, text: str, message_id: str = "") -> dict[str
         tok = str(rec.get("token") or "")
         if intent == "approve" and tok:
             from app.marketing.video_production import cell
+            from app.marketing.video_production.approval_principal import (
+                PrincipalRefused,
+                from_whatsapp_inbound,
+            )
 
-            approved = cell.approve_version(str(rec.get("id") or ""), int(rec.get("revision") or 0))
+            # Controlled refusal, by design. The route that reaches here is the
+            # WAHA self-host webhook, authenticated by a shared static token —
+            # not per-message provider authenticity — and the sender phone is
+            # routing data, not an approver identity. There is also no review
+            # token bound to record/revision/hash. Previously this approved
+            # anyway and the ledger recorded it as "admin".
+            try:
+                principal = from_whatsapp_inbound(from_phone=from_phone, tenant_id=cid)
+            except PrincipalRefused as exc:
+                logger.info("[wa-review] approval refused: %s", exc.code)
+                return {
+                    "handled": False,
+                    "intent": "approve",
+                    "reason": exc.code,
+                    "video_ad_id": rec.get("id"),
+                    "client_id": cid,
+                }
+
+            approved = cell.approve_version(
+                str(rec.get("id") or ""), int(rec.get("revision") or 0), principal=principal
+            )
             if not approved.get("ok"):
                 return {
                     "handled": False,

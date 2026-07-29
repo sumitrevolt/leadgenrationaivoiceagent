@@ -219,6 +219,88 @@ def submit(client_id: str, content: dict[str, Any]) -> dict[str, Any]:
         return {"ok": False, "error": str(e)[:160]}
 
 
+#: How long a newly issued, content-bound approval token stays valid.
+BOUND_TOKEN_TTL_SECONDS = 7 * 24 * 3600
+
+
+def bind_token_to_content(
+    approval_id: str,
+    *,
+    tenant_id: str,
+    record_id: str,
+    revision: int,
+    sha256: str,
+    size_bytes: int = 0,
+    issued_by: str = "",
+    channel: str = "approval_link",
+    ttl_seconds: int = BOUND_TOKEN_TTL_SECONDS,
+) -> dict[str, Any]:
+    """Bind an approval token to the EXACT content its recipient will see.
+
+    Issuance — not consumption — is where the binding has to happen: a token
+    that carries no revision or hash cannot be made safe later by checking
+    harder at the door. Backfilling these fields onto an existing token would
+    assert a content identity nobody was ever shown, so legacy tokens are
+    refused for regeneration instead.
+
+    The token STRING is not returned or logged here; the caller already holds
+    it. ``token_record_id`` is the non-secret handle for audit.
+    """
+    import time as _time
+
+    aid = str(approval_id or "").strip()
+    digest = str(sha256 or "").strip().lower()
+    if not aid:
+        return {"ok": False, "error": "approval_id required"}
+    if len(digest) != 64:
+        return {"ok": False, "error": "sha256 must be 64-hex"}
+    tid = str(tenant_id or "").strip()
+    rid = str(record_id or "").strip()
+    if not tid or not rid:
+        return {"ok": False, "error": "tenant_id and record_id required"}
+    fields = {
+        "id": aid,
+        "token_record_id": f"atr_{aid}",
+        "bound_tenant": tid,
+        "bound_record_id": rid,
+        "bound_revision": int(revision),
+        "bound_sha256": digest,
+        "bound_bytes": int(size_bytes or 0),
+        "bound_channel": str(channel or "")[:32],
+        "issued_by": str(issued_by or "")[:64],
+        "expires_at": int(_time.time()) + int(ttl_seconds),
+        "bound_at": _now(),
+    }
+    # Append-on-update store: the latest line merges over the earlier state.
+    _append(fields)
+    return {"ok": True, "token_record_id": fields["token_record_id"]}
+
+
+def token_is_expired(record: dict[str, Any]) -> bool:
+    """Absent or unparsable expiry counts as EXPIRED — an unbounded token must
+    never be treated as merely 'not yet expired'."""
+    import time as _time
+
+    try:
+        exp = int((record or {}).get("expires_at") or 0)
+    except Exception:
+        return True
+    return exp <= 0 or exp <= int(_time.time())
+
+
+def mark_token_consumed(approval_id: str) -> bool:
+    """One-time use marker. Best-effort; the saga's transaction identity is the
+    authoritative replay guard, this only shortens the window."""
+    try:
+        aid = str(approval_id or "").strip()
+        if not aid:
+            return False
+        _append({"id": aid, "consumed_at": _now()})
+        return True
+    except Exception:
+        return False
+
+
 def get_by_token(token: str) -> dict[str, Any] | None:
     try:
         token = str(token or "").strip()
