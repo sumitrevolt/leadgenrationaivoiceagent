@@ -108,8 +108,10 @@ def test_generate_creates_pending(iso):
 def test_approve_hook_then_publish(iso, monkeypatch):
     sent = {}
 
-    async def _pz(client, caption, video_path=""):
-        sent["x"] = (client.get("id"), video_path)
+    async def _pz(client, caption, video_path="", *, video_file=None, filename="video.mp4", **kw):
+        # Stage 3C: provider must receive the verified descriptor, not a path reopen.
+        assert video_file is not None
+        sent["x"] = (client.get("id"), "fileobj", filename)
         return {"sent": True}
 
     monkeypatch.setattr(postiz_publish, "enabled", lambda: True)
@@ -121,6 +123,7 @@ def test_approve_hook_then_publish(iso, monkeypatch):
     pd = asyncio.run(V.publish_due())
     assert pd["published"] == 1
     assert sent["x"][0] == "c1"
+    assert sent["x"][1] == "fileobj"
     assert V.list_for_client("c1")[0]["status"] == "published"
 
 

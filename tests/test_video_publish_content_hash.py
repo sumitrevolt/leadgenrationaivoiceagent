@@ -208,7 +208,7 @@ async def test_refusal_precedes_provider_invocation(video, monkeypatch):
 
     monkeypatch.setattr(pp, "enabled", lambda: True, raising=False)
     monkeypatch.setattr(pp, "publish_video", _spy_postiz, raising=False)
-    monkeypatch.setattr(vac, "_telegram_send_video", _spy_tg, raising=False)
+    monkeypatch.setattr(vac, "_tg_send_video", _spy_tg, raising=False)
     monkeypatch.setattr(
         "app.marketing.clients_store.resolve_client",
         lambda c: {"id": "jiya-makeover", "niche": "salon"},
@@ -364,9 +364,17 @@ async def test_toctou_gap_closed_provider_receives_snapshot_bytes(video, monkeyp
 
     uploaded: dict[str, bytes] = {}
 
-    async def _capture(client, caption, video_path):
-        uploaded["path"] = video_path
-        uploaded["bytes"] = open(video_path, "rb").read()
+    async def _capture(
+        client, caption, video_path="", *, video_file=None, filename="video.mp4", **kw
+    ):
+        if video_file is not None:
+            video_file.seek(0)
+            uploaded["bytes"] = video_file.read()
+            uploaded["path"] = "fileobj"
+            video_file.seek(0)
+        else:
+            uploaded["path"] = video_path
+            uploaded["bytes"] = open(video_path, "rb").read()
         return {"sent": True, "post_ids": ["p1"]}
 
     def _mutate_original_after_gate(cid):
@@ -393,5 +401,6 @@ async def test_toctou_gap_closed_provider_receives_snapshot_bytes(video, monkeyp
     assert uploaded.get("bytes") == snap_bytes
     assert uploaded.get("bytes", b"").startswith(b"BYTES-A")
     assert not uploaded.get("bytes", b"").startswith(b"SWAPPED")
-    assert uploaded["path"] == rec["approval_snapshot_path"]
+    assert uploaded["path"] == "fileobj"
     assert out.get("provider_calls") == 1
+    assert out.get("external_exactly_once") is False
