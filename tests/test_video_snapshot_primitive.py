@@ -10,10 +10,14 @@ from __future__ import annotations
 import hashlib
 import os
 import threading
+from pathlib import Path
 
 import pytest
 
 from app.marketing.video_production import snapshot as S
+
+# ruff: noqa: F811  (pytest resolves the imported fixture by parameter name)
+from tests.test_video_preview_identity import preview_client  # noqa: F401
 
 TENANT = "jiya-makeover"
 REC = "va-snap-1"
@@ -114,15 +118,45 @@ def test_interruption_cleans_temp(env, monkeypatch, boom_at):
 
 
 # 5. size and disk-headroom budgets refuse
+def test_size_ceiling_defaults_to_existing_upload_cap():
+    """Budget is sourced from the project's existing video upload contract."""
+    from app.api.contentplus import _UPLOAD_MAX_BYTES
+
+    assert S.max_snapshot_bytes() == _UPLOAD_MAX_BYTES
+
+
+def test_free_floor_defaults_to_platform_disk_alert_threshold():
+    assert S.min_free_percent() == 10.0  # app/agents/staff.py disk_free_pct < 10.0
+
+
+@pytest.mark.parametrize("bad", ["0", "-5", "9999", "abc", "12.5"])
+def test_invalid_size_config_fails_closed(env, monkeypatch, bad):
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MAX_MB", bad)
+    with pytest.raises(S.SnapshotConfigError):
+        S.max_snapshot_bytes()
+    out = _prepare(env)
+    assert out["ok"] is False and out["error"] == "snapshot_config_invalid"
+    assert _temps(env) == []
+
+
+@pytest.mark.parametrize("bad", ["0", "95", "-1", "nope"])
+def test_invalid_free_pct_config_fails_closed(env, monkeypatch, bad):
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", bad)
+    with pytest.raises(S.SnapshotConfigError):
+        S.min_free_percent()
+    assert _prepare(env)["error"] == "snapshot_config_invalid"
+
+
 def test_oversized_source_refused(env, monkeypatch):
-    monkeypatch.setattr(S, "_MAX_SNAPSHOT_BYTES", 16)
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MAX_MB", "1")
+    monkeypatch.setattr(S, "max_snapshot_bytes", lambda: 16)
     out = _prepare(env)
     assert out["ok"] is False and out["error"] == "source_size_out_of_bounds"
     assert _temps(env) == []
 
 
 def test_insufficient_disk_headroom_refused(env, monkeypatch):
-    monkeypatch.setattr(S, "_free_bytes", lambda p: S._DISK_HEADROOM_BYTES)
+    monkeypatch.setattr(S, "_disk_free_total", lambda p: (5, 100))  # 5% free
     out = _prepare(env)
     assert out["ok"] is False and out["error"] == "insufficient_disk_headroom"
     assert _temps(env) == []
@@ -189,15 +223,40 @@ def test_distinct_revisions_do_not_collide(env):
 # 10. traversal identifiers are neutralised
 @pytest.mark.parametrize(
     "tenant,record",
-    [("../../etc", "va-1"), ("t", "../../../evil"), ("a/b", "c\\d"), ("", "")],
+    [
+        ("../../etc", "va-1"),
+        ("t", "../../../evil"),
+        ("a/b", "c-d"),
+        ("a", "c\\d"),
+        ("", "va-1"),
+        ("t", ""),
+        ("..", "va-1"),
+        (".", "va-1"),
+        ("t\x00x", "va-1"),
+        ("t", "va\nnewline"),
+        ("-leading", "va-1"),
+        ("a" * 65, "va-1"),
+    ],
 )
-def test_traversal_identifiers_refused(env, tenant, record):
+def test_invalid_identifiers_are_REFUSED_not_sanitized(env, tenant, record):
+    """Refusal, not silent rewriting. Sanitizing would collide distinct tenants
+    onto one directory and turn traversal input into a valid in-root name."""
     out = _prepare(env, tenant_id=tenant, record_id=record)
+    assert out["ok"] is False and out["error"] == "invalid_identifier"
+    assert not env["approved"].exists() or list(env["approved"].rglob("*.mp4")) == []
+
+
+def test_negative_revision_refused(env):
+    out = _prepare(env, revision=-1)
+    assert out["ok"] is False and out["error"] == "invalid_identifier"
+
+
+def test_accepted_identifier_is_the_identity_mapping(env):
+    """No transformation: what goes in is what lands on disk (collision-free)."""
+    out = _prepare(env, tenant_id="Tenant_9-x", record_id="va_Rec-7")
     assert out["ok"] is True
-    installed = os.path.realpath(out["path"])
-    root = os.path.realpath(env["approved"])
-    assert installed.startswith(root + os.sep)  # never escapes the approved root
-    assert ".." not in os.path.relpath(installed, root)
+    assert os.path.basename(os.path.dirname(out["path"])) == "Tenant_9-x"
+    assert os.path.basename(out["path"]).startswith("va_Rec-7.r0.")
 
 
 def test_invalid_expected_hash_refused(env):
@@ -249,3 +308,41 @@ def test_module_does_not_delete_finalized_snapshots():
     assert "os.link(" not in body
     # the only unlink is the temp-artifact cleanup
     assert body.count("os.unlink(") == 1 and "os.unlink(tmp_path)" in body
+
+
+# --- preflight: root authority + no path leakage -------------------------
+
+
+def test_snapshot_root_comes_from_runtime_data_authority(monkeypatch):
+    """approved_media_dir() must derive from the authority, not a CWD guess."""
+    from app.marketing import video_media_paths as vmp
+
+    seen = {}
+
+    def _fake_authority(store_id, legacy, segments):
+        seen["store_id"] = store_id
+        seen["segments"] = segments
+        return Path("/srv/runtime") / "artifacts" / "video_ads"
+
+    monkeypatch.setattr(vmp, "_authority_path", _fake_authority)
+    root = vmp.approved_media_dir()
+    assert seen["store_id"] == "artifacts.video_ads"
+    assert str(root).replace("\\", "/").endswith("artifacts/video_ads/_approved")
+    # container/VPS safe: the authority's own root is used verbatim and the
+    # process CWD never leaks into it.
+    assert str(root).replace("\\", "/").startswith("/srv/runtime/")
+    assert str(Path.cwd()) not in str(root)
+
+
+def test_snapshot_path_and_layout_never_reach_customer_response(preview_client):
+    """No filesystem path or tenant directory layout in customer JSON."""
+    c, artifact = preview_client
+    for url in (
+        "/api/customer/videos",
+        "/api/customer/videos/vid-preview-1/preview",
+    ):
+        body = c.get(url).text
+        assert "_approved" not in body
+        assert str(artifact) not in body
+        assert "video_path" not in body
+        assert "/reels/" not in body and "\\reels\\" not in body

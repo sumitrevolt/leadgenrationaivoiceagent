@@ -40,21 +40,72 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 _CHUNK = 1024 * 1024
-_MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024 * 1024  # 2 GiB ceiling for one render
-_DISK_HEADROOM_BYTES = 512 * 1024 * 1024  # keep 512 MiB free after the copy
-_SAFE_COMPONENT = re.compile(r"[^A-Za-z0-9_-]+")
+
+# Identifiers are VALIDATED, never rewritten. Silent sanitization would map
+# "../../etc" and "a/b" onto in-root names, and two different tenants could
+# collide on one directory. The accepted alphabet is the identity mapping, so
+# the on-disk name is canonical and collision-free by construction.
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
-def _safe_component(value: Any, *, fallback: str = "unknown") -> str:
-    """Path-safe identifier: traversal, separators and NUL cannot survive."""
-    text = _SAFE_COMPONENT.sub("-", str(value or "").strip())
-    text = text.strip("-")[:64]
-    return text or fallback
+class SnapshotConfigError(ValueError):
+    """Configuration is out of contract — callers must fail closed."""
+
+
+def max_snapshot_bytes() -> int:
+    """Ceiling for one approved artifact.
+
+    Default = the project's EXISTING video upload cap
+    (``app/api/contentplus.py:_UPLOAD_MAX_BYTES``, 200 MB) so the snapshot
+    cannot accept something the upload path would already have refused.
+    Override with ``VIDEO_SNAPSHOT_MAX_MB`` (1..2048). Invalid values raise —
+    a mis-typed limit must not silently widen the budget.
+    """
+    try:
+        from app.api.contentplus import _UPLOAD_MAX_BYTES as _default
+    except Exception:  # pragma: no cover - defensive
+        _default = 200 * 1024 * 1024
+    raw = os.getenv("VIDEO_SNAPSHOT_MAX_MB", "").strip()
+    if not raw:
+        return int(_default)
+    try:
+        mb = int(raw)
+    except ValueError as exc:
+        raise SnapshotConfigError(f"VIDEO_SNAPSHOT_MAX_MB not an integer: {raw!r}") from exc
+    if not 1 <= mb <= 2048:
+        raise SnapshotConfigError(f"VIDEO_SNAPSHOT_MAX_MB out of range 1..2048: {mb}")
+    return mb * 1024 * 1024
+
+
+def min_free_percent() -> float:
+    """Free-space floor that must survive the copy.
+
+    Default 10.0 — the same threshold the platform health agent already treats
+    as a disk alert (``app/agents/staff.py`` ``disk_free_pct < 10.0``), so the
+    snapshot will not be the thing that drives the box into its own alarm.
+    Override with ``VIDEO_SNAPSHOT_MIN_FREE_PCT`` (1..90). Invalid values raise.
+    """
+    raw = os.getenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "").strip()
+    if not raw:
+        return 10.0
+    try:
+        pct = float(raw)
+    except ValueError as exc:
+        raise SnapshotConfigError(f"VIDEO_SNAPSHOT_MIN_FREE_PCT not a number: {raw!r}") from exc
+    if not 1.0 <= pct <= 90.0:
+        raise SnapshotConfigError(f"VIDEO_SNAPSHOT_MIN_FREE_PCT out of range 1..90: {pct}")
+    return pct
+
+
+def _valid_identifier(value: Any) -> str | None:
+    text = str(value or "")
+    return text if _IDENTIFIER_RE.match(text) else None
 
 
 def snapshot_filename(record_id: str, revision: int, digest: str) -> str:
-    return f"{_safe_component(record_id)}.r{int(revision)}.{digest}.mp4"
+    """Caller must have validated ``record_id`` — this does not sanitize."""
+    return f"{record_id}.r{int(revision)}.{digest}.mp4"
 
 
 def _open_source(resolved: Path):
@@ -68,11 +119,13 @@ def _fstat_identity(st: os.stat_result) -> tuple:
     return (st.st_ino, st.st_dev, st.st_size, st.st_mtime_ns)
 
 
-def _free_bytes(path: Path) -> int:
+def _disk_free_total(path: Path) -> tuple[int, int]:
+    """(free, total) bytes, or (-1, -1) when the platform will not say."""
     try:
-        return int(shutil.disk_usage(path).free)
+        du = shutil.disk_usage(path)
+        return int(du.free), int(du.total)
     except OSError:
-        return -1
+        return -1, -1
 
 
 def _digest_file(path: Path) -> tuple[str, int]:
@@ -132,12 +185,31 @@ def prepare_snapshot(
     if not _SHA256_RE.match(expected):
         return {"ok": False, "error": "expected_sha256_invalid"}
 
+    # REFUSE bad identifiers; never rewrite them into something in-root.
+    tenant = _valid_identifier(tenant_id)
+    record = _valid_identifier(record_id)
+    if tenant is None or record is None:
+        return {"ok": False, "error": "invalid_identifier"}
+    try:
+        rev = int(revision)
+    except (TypeError, ValueError):
+        return {"ok": False, "error": "invalid_identifier"}
+    if rev < 0:
+        return {"ok": False, "error": "invalid_identifier"}
+
+    try:
+        size_ceiling = max_snapshot_bytes()
+        free_floor_pct = min_free_percent()
+    except SnapshotConfigError as exc:
+        logger.warning("[snapshot] refused — bad configuration: %s", exc)
+        return {"ok": False, "error": "snapshot_config_invalid"}
+
     resolved = resolve_video_media_file(source_path)
     if resolved is None:
         return {"ok": False, "error": "source_unverifiable"}
 
-    dest_dir = approved_media_dir() / _safe_component(tenant_id, fallback="tenant")
-    final_path = dest_dir / snapshot_filename(record_id, revision, expected)
+    dest_dir = approved_media_dir() / tenant
+    final_path = dest_dir / snapshot_filename(record, rev, expected)
 
     # Idempotent reuse: an existing snapshot is trusted only after re-verifying
     # its bytes. A same-name file whose digest disagrees is REFUSED, never
@@ -164,11 +236,13 @@ def prepare_snapshot(
             st_before = os.fstat(src.fileno())
             if not stat.S_ISREG(st_before.st_mode):
                 return {"ok": False, "error": "source_not_regular_file"}
-            if st_before.st_size <= 0 or st_before.st_size > _MAX_SNAPSHOT_BYTES:
+            if st_before.st_size <= 0 or st_before.st_size > size_ceiling:
                 return {"ok": False, "error": "source_size_out_of_bounds"}
-            free = _free_bytes(dest_dir)
-            if free >= 0 and free - st_before.st_size < _DISK_HEADROOM_BYTES:
-                return {"ok": False, "error": "insufficient_disk_headroom"}
+            free, total = _disk_free_total(dest_dir)
+            if total > 0:
+                remaining_pct = (free - st_before.st_size) / total * 100.0
+                if remaining_pct < free_floor_pct:
+                    return {"ok": False, "error": "insufficient_disk_headroom"}
 
             fd, tmp_name = tempfile.mkstemp(dir=dest_dir, prefix=".snap-", suffix=".part")
             tmp_path = Path(tmp_name)
@@ -220,7 +294,7 @@ def prepare_snapshot(
             "reused": False,
         }
     except OSError as exc:
-        logger.warning("[snapshot] refused (%s): %s", _safe_component(record_id), exc)
+        logger.warning("[snapshot] refused (%s): %s", record, exc)
         return {"ok": False, "error": "snapshot_io_error"}
     finally:
         if tmp_path is not None:
