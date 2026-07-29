@@ -47,9 +47,10 @@ router = APIRouter(prefix="/api/customer", tags=["Customer Dashboard"])
 # Inquiries store (jsonl-first; same path public_site.py writes to).
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
-# Only canonical video output roots may be exposed to an authenticated customer.
-# Resolving the candidate before the containment check closes symlink/``..`` escapes.
-_VIDEO_MEDIA_ROOTS = (Path("data/video_ads").resolve(), Path("data/reels").resolve())
+# Media-root authority for the customer serve path lives in
+# app/marketing/video_media_paths.py (resolve_video_media_file). It is shared
+# with approval and publishing so the same artifact cannot be servable but
+# unapprovable, or vice versa. There is deliberately no local roots constant.
 
 
 # --------------------------------------------------------------------------- #
@@ -2338,22 +2339,18 @@ def _resolve_customer_video_path(rec: dict) -> Path | None:
     raw = str(rec.get("video_path") or "").strip()
     if not raw:
         return None
+    # SERVABLE == APPROVABLE == SNAPSHOTTABLE == PUBLISHABLE: one media-root
+    # authority for all four, so a file the publish gate rejects can never be
+    # served, and vice versa. A second local definition would drift.
     try:
-        candidate = Path(raw)
-        if not candidate.is_absolute():
-            candidate = Path.cwd() / candidate
-        resolved = candidate.resolve(strict=True)
-        if not resolved.is_file() or resolved.suffix.lower() != ".mp4":
+        from app.marketing.video_media_paths import resolve_video_media_file
+
+        resolved = resolve_video_media_file(raw)
+        if resolved is None or resolved.suffix.lower() != ".mp4":
             return None
-        for root in _VIDEO_MEDIA_ROOTS:
-            try:
-                resolved.relative_to(root.resolve())
-                return resolved
-            except ValueError:
-                continue
+        return resolved
     except (OSError, RuntimeError, ValueError):
         return None
-    return None
 
 
 def _customer_video_context(client_id: str) -> tuple[str, bool]:
@@ -2570,7 +2567,9 @@ def customer_video_feedback(
             return {"ok": True, "already_decided": True, "status": "approved"}
         raise HTTPException(status_code=409, detail="video review already decided; refresh")
     if action == "approve":
-        out = cell.approve_version(str(video_ad_id), body.expected_revision)
+        out = cell.approve_version(
+            str(video_ad_id), body.expected_revision, actor=f"customer:{mcid}"
+        )
         if not out.get("ok"):
             raise HTTPException(status_code=409, detail=str(out.get("error") or "approval failed"))
         return out
