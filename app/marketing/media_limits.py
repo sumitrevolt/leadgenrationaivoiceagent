@@ -13,9 +13,9 @@ from __future__ import annotations
 
 import os
 
-# Canonical video upload ceiling. Historically defined as
-# `app/api/contentplus.py:_UPLOAD_MAX_BYTES`; kept byte-identical here and
-# pinned by test so the two cannot drift apart.
+# Canonical video upload ceiling. `app/api/contentplus.py` now CONSUMES this
+# (its `_UPLOAD_MAX_BYTES` is a compatibility alias, not a second definition),
+# so there is one value, not two that happen to agree.
 _UPLOAD_MAX_BYTES_DEFAULT = 200 * 1024 * 1024  # 200 MB
 
 # Free-space floor, as a percentage of the destination filesystem. Matches the
