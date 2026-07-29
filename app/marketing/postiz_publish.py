@@ -342,17 +342,40 @@ async def live_integrations_summary() -> dict[str, Any]:
         return {"ok": False, "channels": [], "youtube_refresh_needed": False}
 
 
-async def upload_media(path: str) -> dict[str, Any] | None:
-    """Local file Postiz pe upload (IG/YT/TikTok verified-URL maangte) → media obj."""
-    if not enabled() or not path or not os.path.isfile(path):
+async def upload_media(
+    path: str = "",
+    *,
+    fileobj: Any | None = None,
+    filename: str = "video.mp4",
+) -> dict[str, Any] | None:
+    """Upload bytes to Postiz.
+
+    Prefer an already-open ``fileobj`` (Stage 3C verified descriptor). Path-based
+    open remains for legacy callers (text/image flows) but the video-ad publish
+    path MUST pass ``fileobj`` so the snapshot is never re-opened.
+    """
+    if not enabled():
         return None
+    fh = fileobj
+    owns_fh = False
     try:
         import httpx
 
-        with open(path, "rb") as fh:
-            files = {"file": (os.path.basename(path), fh, "video/mp4")}
-            async with httpx.AsyncClient(timeout=120) as cx:
-                r = await cx.post(f"{_base()}/public/v1/upload", headers=_headers(), files=files)
+        if fh is None:
+            if not path or not os.path.isfile(path):
+                return None
+            fh = open(path, "rb")
+            owns_fh = True
+            name = os.path.basename(path) or filename
+        else:
+            name = filename or (os.path.basename(path) if path else "video.mp4")
+            try:
+                fh.seek(0)
+            except (OSError, AttributeError):
+                pass
+        files = {"file": (name, fh, "video/mp4")}
+        async with httpx.AsyncClient(timeout=120) as cx:
+            r = await cx.post(f"{_base()}/public/v1/upload", headers=_headers(), files=files)
         if r.status_code // 100 == 2:
             j = r.json()
             obj = j[0] if isinstance(j, list) and j else j
@@ -361,10 +384,24 @@ async def upload_media(path: str) -> dict[str, Any] | None:
         logger.warning(f"[postiz] upload {r.status_code}: {r.text[:140]}")
     except Exception as e:
         logger.warning(f"[postiz] upload failed: {e}")
+    finally:
+        if owns_fh and fh is not None:
+            try:
+                fh.close()
+            except Exception:
+                pass
     return None
 
 
-async def publish_video(client: dict[str, Any], caption: str, video_path: str) -> dict[str, Any]:
+async def publish_video(
+    client: dict[str, Any],
+    caption: str,
+    video_path: str = "",
+    *,
+    video_file: Any | None = None,
+    filename: str = "video.mp4",
+    idempotency_key: str | None = None,
+) -> dict[str, Any]:
     """Video+caption (ya text-only, video_path="" ho to) ko client ke configured
     Postiz channels pe ABHI post karo. Inert agar key/integration-ids missing.
     Returns {sent, channels, post_id, post_ids, post_url, reason}.  Postiz's
@@ -372,11 +409,14 @@ async def publish_video(client: dict[str, Any], caption: str, video_path: str) -
     ids is mandatory launch evidence (``sent=True`` alone only proves that the
     request was accepted, not which provider records were created).
 
-    2026-07-04 fix: pehle video_path na hone pe hard-fail karta tha ("media
-    upload fail") — isliye daily auto_content captions (jo text-only hote,
-    koi video file nahi) kabhi publish nahi hote the, sirf video_ad_cycle ke
-    actual rendered videos hi jaate. Ab video_path khali ho to text-only post
-    (Postiz API "image" field optional hai) bhejta hai."""
+    Stage 3C: pass ``video_file`` (verified descriptor). The adapter must not
+    reopen ``video_path`` when ``video_file`` is supplied.
+
+    Idempotency: Postiz public API does not document an idempotency-key
+    contract. ``idempotency_key`` is accepted for forward compatibility and
+    recorded in the return meta, but is NOT sent as a provider guarantee and
+    does NOT make external publication exactly-once.
+    """
     if not enabled():
         return {"sent": False, "reason": "POSTIZ_API_KEY unset"}
     ids = _integration_ids(client)
@@ -388,7 +428,7 @@ async def publish_video(client: dict[str, Any], caption: str, video_path: str) -
     # means no per-platform special-casing happens, same as before either fix
     # existed).
     platform_map = await _fetch_integration_platforms()
-    has_media = bool(video_path)
+    has_media = bool(video_file is not None or video_path)
     board = _pinterest_board()
     selection = select_publish_channels(ids, platform_map, has_media=has_media, board=board)
     if not selection.get("ok"):
@@ -397,13 +437,22 @@ async def publish_video(client: dict[str, Any], caption: str, video_path: str) -
             "channels": [],
             "skipped": selection.get("skipped") or [],
             "reason": str(selection.get("reason") or "no_eligible_channels"),
+            "provider_idempotency": False,
         }
     ids = list(selection.get("channels") or [])
     media_list: list[dict[str, Any]] = []
-    if video_path:
-        media = await upload_media(video_path)
+    if video_file is not None or video_path:
+        media = await upload_media(
+            video_path if video_file is None else "",
+            fileobj=video_file,
+            filename=filename or (os.path.basename(video_path) if video_path else "video.mp4"),
+        )
         if media is None:
-            return {"sent": False, "reason": "media upload fail (ya file missing)"}
+            return {
+                "sent": False,
+                "reason": "media upload fail (ya file missing)",
+                "provider_idempotency": False,
+            }
         media_list = [media]
     caption_clean = (caption or "").strip()
     value = [{"content": caption_clean[:2000], "image": media_list}]
@@ -443,6 +492,9 @@ async def publish_video(client: dict[str, Any], caption: str, video_path: str) -
             {"integration": {"id": i}, "value": value, "settings": _settings_for(i)} for i in ids
         ],
     }
+    # Note: idempotency_key is intentionally NOT forwarded — Postiz docs do not
+    # accept/enforce it. Local reservation is the only exactly-once guarantee.
+    _ = idempotency_key
     try:
         import httpx
 
@@ -481,11 +533,12 @@ async def publish_video(client: dict[str, Any], caption: str, video_path: str) -
             "post_id": post_ids[0] if post_ids else "",
             "post_ids": post_ids,
             "post_url": post_urls[0] if post_urls else "",
+            "provider_idempotency": False,
             **({} if ok else {"reason": f"{r.status_code}: {r.text[:160]}"}),
         }
     except Exception as e:
         logger.warning(f"[postiz] publish failed: {e}")
-        return {"sent": False, "reason": str(e)[:150]}
+        return {"sent": False, "reason": str(e)[:150], "provider_idempotency": False}
 
 
 def effective_integration_ids(client: dict[str, Any] | None = None) -> list[str]:

@@ -1,19 +1,21 @@
-"""Stage 3C adversarial proofs — provider must consume the immutable snapshot.
+"""Stage 3C adversarial proofs — provider streams a verified snapshot descriptor.
 
 Red-first: every refusal path leaves provider counters at zero; the success
-path permits exactly one fake-provider call with the snapshot identity.
-Durable exactly-once is proven via the publish idempotency key + stored
-``publish_result``, not merely a mock spy count.
+path permits exactly one fake-provider call reading the already-open fd.
+Local reservation is durable; external exactly-once is NOT claimed (Postiz
+has no documented provider idempotency key).
 """
 
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 
 import pytest
 
 from app.marketing.video_production import publish_gate as pg
+from app.marketing.video_production import publish_snapshot as ps
 from app.marketing.video_production import states
 from app.marketing.video_production.publish_snapshot import (
     canonical_publish_identity,
@@ -78,7 +80,13 @@ def publish_env(monkeypatch, iso):
     from app.marketing import postiz_publish as pp
     from app.marketing import video_ad_cycle as vac
 
-    store: dict = {"rec": _finalized(iso), "provider": 0, "uploaded": b"", "path": ""}
+    store: dict = {
+        "rec": _finalized(iso),
+        "provider": 0,
+        "uploaded": b"",
+        "path_reopen": 0,
+        "used_fileobj": False,
+    }
 
     def _latest():
         return {store["rec"]["id"]: store["rec"]}
@@ -87,11 +95,18 @@ def publish_env(monkeypatch, iso):
         if store["rec"].get("id") == rid:
             store["rec"].update(fields)
 
-    async def _spy(client, caption, video_path):
+    async def _spy(client, caption, video_path="", *, video_file=None, filename="video.mp4", **kw):
         store["provider"] += 1
-        store["path"] = video_path
-        store["uploaded"] = Path(video_path).read_bytes()
-        return {"sent": True, "post_ids": ["p1"]}
+        if video_file is None:
+            # Path reopen is a Stage 3C contract failure.
+            store["path_reopen"] += 1
+            store["uploaded"] = Path(video_path).read_bytes() if video_path else b""
+        else:
+            store["used_fileobj"] = True
+            video_file.seek(0)
+            store["uploaded"] = video_file.read()
+            video_file.seek(0)
+        return {"sent": True, "post_ids": ["p1"], "provider_idempotency": False}
 
     monkeypatch.setattr(pp, "enabled", lambda: True, raising=False)
     monkeypatch.setattr(pp, "publish_video", _spy, raising=False)
@@ -118,9 +133,11 @@ async def test_1_original_modified_after_approval_uploads_snapshot(iso, publish_
     iso["original"].write_bytes(b"FAKE-ORIGINAL" * 2048)
     out = await vac._publish_one(publish_env["rec"])
     assert out["any_sent"] is True
-    assert publish_env["uploaded"] == iso["snap"].read_bytes()
     assert publish_env["uploaded"].startswith(b"SNAPSHOT-BYTES")
+    assert publish_env["used_fileobj"] is True
+    assert publish_env["path_reopen"] == 0
     assert publish_env["provider"] == 1
+    assert out.get("external_exactly_once") is False
 
 
 @pytest.mark.asyncio
@@ -135,10 +152,10 @@ async def test_2_original_replaced_between_gate_and_upload(iso, publish_env, mon
     out = await vac._publish_one(publish_env["rec"])
     assert out["any_sent"] is True
     assert publish_env["uploaded"].startswith(b"SNAPSHOT-BYTES")
-    assert publish_env["path"] == str(iso["snap"])
+    assert publish_env["path_reopen"] == 0
 
 
-# --- 3-6: snapshot integrity refusals --------------------------------------
+# --- 3-6: snapshot integrity / descriptor TOCTOU --------------------------
 
 
 @pytest.mark.asyncio
@@ -153,42 +170,70 @@ async def test_3_snapshot_modified_after_finalization_refuses(iso, publish_env):
 
 
 @pytest.mark.asyncio
-async def test_4_snapshot_replaced_after_gate_before_upload_refuses(iso, publish_env, monkeypatch):
-    from app.marketing import postiz_publish as pp
+async def test_4_path_replaced_after_descriptor_open_still_uploads_verified_bytes(
+    iso, publish_env, monkeypatch
+):
+    """Adversarial #4 (locked): path replace AFTER verified open must not matter.
+
+    Provider receives bytes from the already-open descriptor. A second path
+    open for that snapshot is a test failure.
+
+    Note: in-place overwrite of an already-open Windows file shares the inode
+    with the fd — that is NOT path replacement. This test renames the path to
+    a new inode when the OS allows it; otherwise it still proves no reopen.
+    """
     from app.marketing import video_ad_cycle as vac
-    from app.marketing.video_production import publish_snapshot as ps
 
-    real_verify = ps.verify_snapshot_descriptor
-    calls = {"n": 0}
+    real_open = ps.open_verified_snapshot
+    expected = iso["snap"].read_bytes()
 
-    def _verify_then_tamper(**kwargs):
-        calls["n"] += 1
-        out = real_verify(**kwargs)
-        if calls["n"] == 1 and out.get("ok"):
-            # After gate/claim verify, before provider: corrupt snapshot.
-            iso["snap"].write_bytes(b"LATE-SWAP" * 2048)
+    def _open_then_replace_path(**kwargs):
+        out = real_open(**kwargs)
+        if out.get("ok"):
+            # Capture fd bytes before any filesystem swap.
+            pos = out["fh"].tell()
+            out["fh"].seek(0)
+            publish_env["fd_bytes"] = out["fh"].read()
+            out["fh"].seek(pos)
+            try:
+                stale = iso["snap"].with_name(iso["snap"].name + ".stale")
+                os.replace(str(iso["snap"]), str(stale))
+                iso["snap"].write_bytes(b"LATE-SWAP-SHOULD-NOT-UPLOAD" * 128)
+                publish_env["path_replaced"] = True
+            except OSError:
+                # Windows often refuses rename/unlink of an open file. A sibling
+                # decoy stands in for what a naive path-reopen would bind to.
+                publish_env["path_replaced"] = False
+                (iso["snap"].parent / "decoy_reopen.mp4").write_bytes(
+                    b"LATE-SWAP-SHOULD-NOT-UPLOAD" * 128
+                )
         return out
 
-    monkeypatch.setattr(ps, "verify_snapshot_descriptor", _verify_then_tamper)
-    # _publish_one imports the symbol — patch module used by vac
-    monkeypatch.setattr(
-        "app.marketing.video_ad_cycle.verify_snapshot_descriptor",
-        _verify_then_tamper,
-        raising=False,
-    )
-    # Re-bind via publish_snapshot import path inside _publish_one
-    import app.marketing.video_production.publish_snapshot as psm
+    monkeypatch.setattr(ps, "open_verified_snapshot", _open_then_replace_path)
 
-    monkeypatch.setattr(psm, "verify_snapshot_descriptor", _verify_then_tamper)
+    snap_resolved = str(iso["snap"].resolve())
+    real_os_open = os.open
 
-    async def _should_never(*a, **k):
-        publish_env["provider"] += 1
-        return {"sent": True}
+    def _guarded_os_open(path, flags, *a, **k):
+        p = os.path.normcase(os.path.abspath(str(path)))
+        target = os.path.normcase(os.path.abspath(snap_resolved))
+        if p == target:
+            publish_env.setdefault("os_open_snap", 0)
+            publish_env["os_open_snap"] += 1
+            if publish_env["os_open_snap"] > 1:
+                raise AssertionError("second path open of snapshot is a Stage 3C failure")
+        return real_os_open(path, flags, *a, **k)
 
-    monkeypatch.setattr(pp, "publish_video", _should_never, raising=False)
+    monkeypatch.setattr(os, "open", _guarded_os_open)
+
     out = await vac._publish_one(publish_env["rec"])
-    assert out["any_sent"] is False
-    assert publish_env["provider"] == 0
+    assert out["any_sent"] is True, out
+    assert publish_env["fd_bytes"] == expected
+    assert publish_env["uploaded"] == expected
+    assert publish_env["used_fileobj"] is True
+    assert publish_env["path_reopen"] == 0
+    assert publish_env["provider"] == 1
+    assert publish_env.get("os_open_snap", 0) == 1
 
 
 @pytest.mark.asyncio
@@ -273,32 +318,48 @@ async def test_10_unresolved_tenant_preserves_pr179(iso, publish_env, monkeypatc
     assert publish_env["provider"] == 0
 
 
-# --- 11-15: failure / idempotency / counters --------------------------------
+# --- 11-15: failure / local reservation / counters -------------------------
 
 
 @pytest.mark.asyncio
-async def test_11_provider_failure_leaves_retryable_state(iso, publish_env, monkeypatch):
+async def test_11_known_provider_failure_is_publish_failed(iso, publish_env, monkeypatch):
     from app.marketing import postiz_publish as pp
     from app.marketing import video_ad_cycle as vac
 
     async def _fail(*a, **k):
         publish_env["provider"] += 1
-        return {"sent": False, "reason": "provider_down"}
+        return {"sent": False, "reason": "provider_down", "provider_idempotency": False}
 
     monkeypatch.setattr(pp, "publish_video", _fail, raising=False)
     out = await vac._publish_one(publish_env["rec"])
     assert out["any_sent"] is False
-    assert publish_env["rec"].get("publish_attempt_state") == "failed"
-    assert publish_env["rec"].get("publish_idempotency_key")
-    # Retryable: same key, not succeeded — a later call may try again.
-    assert publish_env["rec"].get("status") != "published"
+    assert publish_env["rec"].get("publish_attempt_state") == ps.PUBLISH_FAILED
+    assert out.get("external_exactly_once") is False
 
 
 @pytest.mark.asyncio
-async def test_12_concurrent_duplicate_claims_single_attempt(iso, publish_env):
+async def test_11b_crash_after_provider_start_is_outcome_unknown(iso, publish_env, monkeypatch):
+    from app.marketing import postiz_publish as pp
     from app.marketing import video_ad_cycle as vac
 
-    publish_env["rec"]["publish_attempt_state"] = "in_flight"
+    async def _boom(*a, **k):
+        publish_env["provider"] += 1
+        raise RuntimeError("connection dropped after accept")
+
+    monkeypatch.setattr(pp, "publish_video", _boom, raising=False)
+    out = await vac._publish_one(publish_env["rec"])
+    assert out["any_sent"] is False
+    assert publish_env["rec"].get("publish_attempt_state") == ps.PUBLISH_OUTCOME_UNKNOWN
+    # Blind retry must refuse.
+    again = await vac._publish_one(publish_env["rec"])
+    assert again["channels"]["idempotency"]["error"] == "publish_outcome_unknown"
+    assert publish_env["provider"] == 1
+
+
+@pytest.mark.asyncio
+async def test_12_concurrent_duplicate_shares_one_reservation(iso, publish_env):
+    from app.marketing import video_ad_cycle as vac
+
     identity = canonical_publish_identity(
         tenant="jiya-makeover",
         video_id="va_1",
@@ -309,26 +370,26 @@ async def test_12_concurrent_duplicate_claims_single_attempt(iso, publish_env):
         channel="postiz",
     )
     publish_env["rec"]["publish_idempotency_key"] = publish_idempotency_key(identity)
+    publish_env["rec"]["publish_attempt_state"] = ps.PROVIDER_INFLIGHT
     out = await vac._publish_one(publish_env["rec"])
     assert out["any_sent"] is False
-    assert out["channels"]["idempotency"]["error"] == "publish_in_flight"
+    assert out["channels"]["idempotency"]["error"] == "publish_reservation_held"
     assert publish_env["provider"] == 0
 
 
 @pytest.mark.asyncio
-async def test_13_repeated_success_returns_evidence_without_provider(iso, publish_env):
+async def test_13_repeated_success_returns_local_evidence_without_provider(iso, publish_env):
     from app.marketing import video_ad_cycle as vac
 
     first = await vac._publish_one(publish_env["rec"])
     assert first["any_sent"] is True and publish_env["provider"] == 1
-    # Simulate durable success on the record (publish_due would set status).
-    publish_env["rec"]["status"] = "published"
-    publish_env["rec"]["publish_result"] = first["channels"]
+    assert publish_env["rec"].get("publish_attempt_state") == ps.PUBLISHED
     second = await vac._publish_one(publish_env["rec"])
-    assert second.get("idempotent") is True
+    assert second.get("idempotent_local") is True
     assert second["any_sent"] is True
-    assert publish_env["provider"] == 1  # no second provider call
+    assert publish_env["provider"] == 1
     assert second.get("provider_calls") == 0
+    assert second.get("external_exactly_once") is False
 
 
 @pytest.mark.asyncio
@@ -343,14 +404,17 @@ async def test_14_every_refusal_provider_counter_zero(iso, publish_env):
 
 
 @pytest.mark.asyncio
-async def test_15_success_exactly_one_provider_call_with_snapshot(iso, publish_env):
+async def test_15_success_one_provider_call_from_verified_descriptor(iso, publish_env):
     from app.marketing import video_ad_cycle as vac
 
     out = await vac._publish_one(publish_env["rec"])
     assert out["any_sent"] is True
     assert publish_env["provider"] == 1
     assert out.get("provider_calls") == 1
-    assert publish_env["path"] == str(iso["snap"])
+    assert publish_env["used_fileobj"] is True
+    assert publish_env["path_reopen"] == 0
     assert publish_env["uploaded"] == iso["snap"].read_bytes()
     assert publish_env["rec"].get("publish_idempotency_key", "").startswith("vap:")
-    assert publish_env["rec"].get("publish_attempt_state") == "succeeded"
+    assert publish_env["rec"].get("publish_attempt_state") == ps.PUBLISHED
+    assert out.get("external_exactly_once") is False
+    assert ps.PROVIDER_ACCEPTS_IDEMPOTENCY_KEY is False
