@@ -147,6 +147,8 @@ def approve_version(
     expected_revision: int | None = None,
     *,
     actor: str = "",
+    expected_sha256: str = "",
+    channel: str = "admin",
 ) -> dict[str, Any]:
     """Bind approval to exact version AND exact content bytes — fail if mismatch."""
     from app.marketing import content_approval, video_ad_cycle
@@ -183,26 +185,30 @@ def approve_version(
     tok = str(rec.get("token") or "")
     if not tok:
         return {"ok": False, "error": "missing_token"}
-    out = content_approval.approve(tok)
-    if not out.get("ok"):
-        return out
-    approval_status = str((out.get("approval") or {}).get("status") or "").strip().lower()
-    if out.get("already_decided") and approval_status != "approved":
-        return {
-            "ok": False,
-            "error": "approval_already_decided",
-            "status": approval_status or "unknown",
-        }
-    if approval_status != "approved":
-        return {"ok": False, "error": "approval_not_approved", "status": approval_status}
-    from app.marketing.video_ad_cycle import APPROVAL_ACTOR_ADMIN, record_approval
 
-    bound = record_approval(str(video_ad_id), rev, actor=str(actor or "") or APPROVAL_ACTOR_ADMIN)
-    if not bound.get("ok"):
-        # Content could not be hashed — refuse rather than leave an approval
-        # the publish gate would later reject as unverifiable.
-        return {"ok": False, "error": bound.get("error") or "content_unverifiable"}
-    return {**out, "approval_binding": bound}
+    # ONE coordinated path. approve_version no longer calls
+    # content_approval.approve() — that fired _decide's on_approved callback,
+    # which called record_approval, and then this function called it AGAIN
+    # (two writes per click, second overwriting approved_at). The coordinator
+    # owns the sequence and never re-enters this function.
+    from app.marketing.video_ad_cycle import APPROVAL_ACTOR_ADMIN
+    from app.marketing.video_production import approval_saga
+
+    observed = str(expected_sha256 or "").strip().lower()
+    if not observed:
+        from app.marketing.video_production.publish_gate import hash_video_file
+
+        observed, _size = hash_video_file(str(rec.get("video_path") or ""))
+        if not observed:
+            return {"ok": False, "error": "content_unverifiable"}
+
+    return approval_saga.approve(
+        record_id=str(video_ad_id),
+        expected_revision=rev,
+        expected_sha256=observed,
+        actor_subject=str(actor or "") or APPROVAL_ACTOR_ADMIN,
+        channel=str(channel or "admin"),
+    )
 
 
 async def schedule_approved(video_ad_id: str) -> dict[str, Any]:
