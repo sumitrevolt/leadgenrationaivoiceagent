@@ -70,6 +70,12 @@ def _is_own_brand(client: dict[str, Any] | None) -> bool:
 
     Customer records MUST NOT inherit ``POSTIZ_INTEGRATIONS`` / vault globals —
     that posted customer copy onto corporate FB/IG (audit 2026-07-17).
+
+    NOTE: an empty/falsy client legitimately means "own-brand, no client
+    context" at this boundary (see tests/test_postiz_config.py publish_video
+    calls). Callers that resolved a REAL customer id and got nothing back must
+    therefore refuse BEFORE reaching here — see
+    ``video_ad_cycle._resolve_publish_client``.
     """
     if not client:
         return True
