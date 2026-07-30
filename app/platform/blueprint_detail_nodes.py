@@ -17,6 +17,7 @@ imported here. Status is ``CODE-PRESENT``: the source exists and is reachable,
 which is all the evidence proves. Nothing is marked live, and harness controls
 stay ``None`` unless independently proven.
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -142,6 +143,81 @@ DETAIL_NODE_SPECS: list[tuple] = [
             "safety_lane": "GREEN",
         },
     ),
+    # --- New canonical L1 detail (not legacy-migrated; CODE-PRESENT / inert) ---
+    (
+        "detail_sales_autopilot",
+        "Sales Autopilot (canary)",
+        3,
+        "email_outreach",
+        "engine",
+        "CODE-PRESENT",
+        [
+            "app/platform/sales_autopilot/send.py",
+            "app/api/sales_autopilot_admin.py",
+            "app/platform/sales_autopilot/scheduler.py",
+        ],
+        "Allowlisted sales canary engine. Master flag OFF + RUN_DUE_EXCLUDE; "
+        "not live until owner enables SALES_AUTOPILOT_ENABLED with dry-run.",
+        {
+            "depth_level": 1,
+            "source_provenance": "canonical",
+            "flags": [
+                "SALES_AUTOPILOT_ENABLED",
+                "SALES_AUTOPILOT_DRY_RUN",
+                "SALES_AUTOPILOT_WHATSAPP_ENABLED",
+                "SALES_AUTOPILOT_EMAIL_ENABLED",
+            ],
+            "safety_lane": "AMBER",
+            "admin_links": ["/api/sales-autopilot/summary"],
+        },
+    ),
+    (
+        "detail_creative_os",
+        "Creative Automation OS",
+        3,
+        "content_gen",
+        "engine",
+        "CODE-PRESENT",
+        [
+            "app/marketing/creative_os/service.py",
+            "app/marketing/creative_os/brief.py",
+            "app/marketing/creative_os/licence.py",
+        ],
+        "ADR-143 Creative OS — extends video_ad_cycle/Postiz; CREATIVE_OS_ENABLED "
+        "defaults OFF; providers return provider_unavailable until provisioned.",
+        {
+            "depth_level": 1,
+            "source_provenance": "canonical",
+            "flags": [
+                "CREATIVE_OS_ENABLED",
+                "CREATIVE_GPU_LAB_ENABLED",
+            ],
+            "safety_lane": "RED",
+        },
+    ),
+    (
+        "detail_owner_email_canary",
+        "Owner inbox email canary",
+        3,
+        "email_outreach",
+        "engine",
+        "CODE-PRESENT",
+        [
+            "app/api/owner_email_canary.py",
+            "app/platform/owner_email_canary.py",
+        ],
+        "Super-admin one-shot owner-inbox email canary with preflight + ledger "
+        "(PR #187). Not bulk outreach.",
+        {
+            "depth_level": 1,
+            "source_provenance": "canonical",
+            "safety_lane": "AMBER",
+            "admin_links": [
+                "/api/admin/owner-email-canary/preflight",
+                "/api/admin/owner-email-canary/last",
+            ],
+        },
+    ),
 ]
 
 
@@ -156,6 +232,7 @@ def build_detail_nodes(node_factory) -> list[dict[str, Any]]:
     for nid, title, layer, domain, ntype, status, files, desc, extra in DETAIL_NODE_SPECS:
         extra = dict(extra)
         extra.setdefault("default_visibility", "collapsed")
-        out.append(node_factory(nid, title, layer, domain, ntype, status,
-                                list(files), desc, **extra))
+        out.append(
+            node_factory(nid, title, layer, domain, ntype, status, list(files), desc, **extra)
+        )
     return out
