@@ -29,14 +29,14 @@ logger = setup_logger(__name__)
 
 
 def _client_ip(request: Request) -> str:
-    """Real client IP — proxy headers first (Caddy), warna socket peer."""
-    xff = request.headers.get("x-forwarded-for")
-    if xff:
-        return xff.split(",")[0].strip()
-    xri = request.headers.get("x-real-ip")
-    if xri:
-        return xri.strip()
-    return request.client.host if request.client else "unknown"
+    """Canonical trusted client IP — MUST match ``app.middleware._real_client_ip``.
+
+    SECURITY: rightmost X-Forwarded-For only. Leftmost is client-spoofable
+    (CWE-20). Lazy import avoids any future circular import with middleware.
+    """
+    from app.middleware import _real_client_ip
+
+    return _real_client_ip(request)
 
 
 def rate_limit(prefix: str, max_requests: int = 30, window_seconds: int = 60):

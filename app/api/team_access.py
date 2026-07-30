@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth_deps import get_current_user, require_admin, require_super_admin
+from app.api.ratelimit import rate_limit
 from app.models.base import get_async_db
 from app.models.user import User, UserRole, UserStatus
 from app.platform import rbac
@@ -184,7 +185,13 @@ class ChangePasswordIn(BaseModel):
     new_password: str = Field(min_length=8)
 
 
-@router.post("/auth/change-password")
+# Defense-in-depth: password-verify write stays under route ``rate_limit``
+# (same 5/300 budget as customer change-password) in addition to the global
+# flat middleware — no prefix bypass.
+@router.post(
+    "/auth/change-password",
+    dependencies=[Depends(rate_limit("team_pw_change", 5, 300))],
+)
 async def change_own_password(
     body: ChangePasswordIn,
     user: User = Depends(get_current_user),
