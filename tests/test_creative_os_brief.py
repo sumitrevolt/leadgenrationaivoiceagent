@@ -149,6 +149,33 @@ def test_unverified_price_in_copy_is_refused(store, copy):
     assert out["reason"] == "unverified_price"
 
 
+def test_unverified_price_in_business_name_is_refused(store):
+    out = B.resolve_brief(
+        tenant_id="acme01",
+        objective="general",
+        business_name="Acme — sirf ₹1,299",
+        niche="general",
+    )
+    assert out["outcome"] == B.OUTCOME_NEEDS_INPUT
+    assert out["reason"] == "unverified_price"
+
+
+def test_unverified_price_in_niche_is_refused(store):
+    out = B.resolve_brief(
+        tenant_id="acme01",
+        objective="general",
+        niche="salon from ₹999",
+    )
+    assert out["outcome"] == B.OUTCOME_NEEDS_INPUT
+    assert out["reason"] == "unverified_price"
+
+
+def test_entitlement_refuses_empty_plan_catalog(store, monkeypatch):
+    monkeypatch.setattr(B, "_plan_catalog", lambda: {})
+    out = B.entitlement_gate("acme01")
+    assert out["ok"] is False and out["reason"] == "catalog_unavailable"
+
+
 def test_verified_price_in_copy_passes(store):
     out = B.resolve_brief(tenant_id="acme01", objective="offer", offer="Haircut ₹499 only")
     assert out["ok"] is True
