@@ -11,6 +11,7 @@ from typing import Any
 from app.marketing.creative_os import flags
 from app.marketing.creative_os.approval import bind_approval, can_publish_to_postiz
 from app.marketing.creative_os.assets import get_asset, register_asset, sha256_file
+from app.marketing.creative_os.brief import resolve_brief
 from app.marketing.creative_os.budget import count_attempts_today, record_attempt
 from app.marketing.creative_os.licence import assert_provider_allowed
 from app.marketing.creative_os.providers import generate_with_fallback
@@ -94,6 +95,27 @@ def enqueue_generate(
     try:
         if not flags.os_enabled():
             return {"ok": False, "error": "CREATIVE_OS_ENABLED off"}
+
+        # Fail-closed customer brief: entitlement + verified brand facts before any queue write.
+        # Missing required fields → NEEDS_CUSTOMER_INPUT (never fabricate a generic video).
+        brief_out = resolve_brief(
+            tenant_id=tenant_id,
+            objective=niche or business_name or "general",
+            platform=platform,
+            aspect_ratio=aspect_ratio,
+            language=language,
+            offer=offer,
+            cta=cta,
+            brand_revision=brand_revision,
+        )
+        if not brief_out.get("ok"):
+            return {
+                "ok": False,
+                "outcome": brief_out.get("outcome") or "blocked",
+                "error": str(brief_out.get("error") or brief_out.get("reason") or "brief_blocked"),
+                "reason": brief_out.get("reason"),
+                "missing": list(brief_out.get("missing") or []),
+            }
 
         allow = recipe_allowed(recipe, source_asset_ids=source_asset_ids or [])
         if not allow.get("ok"):
