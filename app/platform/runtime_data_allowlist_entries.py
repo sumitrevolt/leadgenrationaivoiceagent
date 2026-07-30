@@ -360,10 +360,10 @@ ENTRIES: list[dict[str, Any]] = [
     {
         "allowlist_id": "ops.owner_email_canary.dir",
         "file": "app/platform/owner_email_canary.py",
-        "line_or_symbol": "d",
+        "line_or_symbol": "path",
         "path_pattern": "data/owner_email_canary",
         "store_id": "ops.owner_email_canary",
-        "access_modes": ["CREATE"],
+        "access_modes": ["CREATE", "READ"],
         "reason": (
             "Directory for append-only owner-inbox email canary attempts. "
             "Created on demand before the first canary write. Recipient is "

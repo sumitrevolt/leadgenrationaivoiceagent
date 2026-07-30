@@ -7,11 +7,15 @@ entry; this module never accepts a prospect list.
 Safety:
   - one recipient only (bulk-shaped addresses refused)
   - suppression fail-closed
-  - attempt persisted BEFORE provider
+  - attempt claimed under file-lock BEFORE provider (lock released before I/O)
   - idempotency key ⇒ duplicate request does not re-send
-  - missing SMTP/API ⇒ FAILED, provider_called=false
+  - hard daily provider-attempt cap of 1 (pending claims count)
+  - missing SMTP/API ⇒ FAILED, provider_called=false (does not consume cap)
+  - provider_called + not sent ⇒ UNKNOWN_REQUIRES_REVIEW (EmailSender collapses
+    errors to False — never treat as SKIPPED / never blind-retry)
   - timeout ⇒ UNKNOWN_REQUIRES_REVIEW, no blind retry
   - recipient never logged in cleartext (masked only)
+  - CANONICAL runtime-data: RuntimeDataError surfaces (no checkout fallback)
 """
 
 from __future__ import annotations
@@ -21,6 +25,7 @@ import hashlib
 import json
 import os
 import time
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -37,26 +42,31 @@ UNKNOWN_REQUIRES_REVIEW = "UNKNOWN_REQUIRES_REVIEW"
 
 _CANARY_SUBJECT = "LeadGen AI — owner inbox canary (one-shot)"
 _TIMEOUT_S = float(os.getenv("OWNER_EMAIL_CANARY_TIMEOUT_S", "30") or "30")
+# Reputation safety: at most one provider attempt (or pending claim) per UTC day.
+_DAILY_PROVIDER_CAP = 1
 
 
-def _store_dir() -> Path:
+def _attempts_path(*, create: bool = False) -> Path:
+    """Resolve attempts.jsonl. ``create`` only on write paths — never on GET/preflight."""
     from app.platform import runtime_data_authority as _auth
 
-    try:
-        p = _auth.resolve_store_path(
+    # RuntimeDataError must propagate in CANONICAL (and any misconfig) —
+    # do NOT swallow into checkout fallback.
+    path = Path(
+        _auth.resolve_store_path(
             store_id="ops.owner_email_canary",
             legacy_path=Path("data") / "owner_email_canary" / "attempts.jsonl",
             target_segments=("ops", "owner_email_canary", "attempts.jsonl"),
         )
-        return Path(p).parent
-    except Exception:
-        return Path("data") / "owner_email_canary"
+    )
+    if create:
+        path.parent.mkdir(parents=True, exist_ok=True)
+    return path
 
 
-def _attempts_path() -> Path:
-    d = _store_dir()
-    d.mkdir(parents=True, exist_ok=True)
-    return d / "attempts.jsonl"
+def _lock_target() -> str:
+    """Active attempts path string for ``file_lock`` (sidecar beside authority)."""
+    return str(_attempts_path(create=False))
 
 
 def mask_email(email: str) -> str:
@@ -79,14 +89,19 @@ def is_one_to_one(email: str) -> bool:
     return True
 
 
+def _utc_day_start_ts() -> float:
+    now = datetime.now(timezone.utc)
+    return datetime(now.year, now.month, now.day, tzinfo=timezone.utc).timestamp()
+
+
 def _append_attempt(row: dict[str, Any]) -> None:
-    path = _attempts_path()
+    path = _attempts_path(create=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 def _iter_attempts() -> list[dict[str, Any]]:
-    path = _attempts_path()
+    path = _attempts_path(create=False)
     if not path.exists():
         return []
     out: list[dict[str, Any]] = []
@@ -128,7 +143,7 @@ def latest_status(key: str) -> dict[str, Any] | None:
 
 
 def _update_attempt(key: str, **fields: Any) -> None:
-    """Rewrite last matching attempt status (append-only ledger + status marker)."""
+    """Append-only status marker (does not rewrite history)."""
     row = {
         "idempotency_key": str(key),
         "event": "status",
@@ -136,6 +151,38 @@ def _update_attempt(key: str, **fields: Any) -> None:
         **fields,
     }
     _append_attempt(row)
+
+
+def _provider_slot_taken_today() -> bool:
+    """True if a pending claim or any provider-called row already holds today's slot."""
+    day0 = _utc_day_start_ts()
+    pending: set[str] = set()
+    finalized: dict[str, dict[str, Any]] = {}
+    provider_keys: set[str] = set()
+    for row in _iter_attempts():
+        if float(row.get("ts") or 0) < day0:
+            continue
+        k = str(row.get("idempotency_key") or "")
+        if not k:
+            continue
+        if row.get("provider_called"):
+            provider_keys.add(k)
+        if row.get("event") == "attempt" and str(row.get("outcome") or "") == "pending":
+            pending.add(k)
+        if row.get("event") == "status":
+            finalized[k] = row
+            if row.get("provider_called"):
+                provider_keys.add(k)
+    if provider_keys:
+        return True
+    for k in pending:
+        fin = finalized.get(k)
+        if fin is None:
+            return True  # still in-flight — counts toward cap
+        if fin.get("provider_called"):
+            return True
+        # Definite no-provider finalization released the slot.
+    return False
 
 
 def _smtp_or_api_configured() -> dict[str, Any]:
@@ -183,37 +230,51 @@ def _flag_bool(name: str) -> bool:
 
 
 def preflight() -> dict[str, Any]:
-    """Read-only readiness. Never includes a recipient address."""
-    cfg = _smtp_or_api_configured()
-    dns = _dns_truth()
-    attempts = [a for a in _iter_attempts() if a.get("event") == "attempt"]
-    last = attempts[-1] if attempts else None
-    return {
-        "ok": True,
-        "canary": "owner_inbox_one_shot",
-        "auto_email_outreach_enabled": _flag_bool("AUTO_EMAIL_OUTREACH"),
-        "sales_autopilot_email_enabled": _flag_bool("SALES_AUTOPILOT_EMAIL_ENABLED"),
-        "smtp": cfg,
-        "dns": dns,
-        "suppression_module": "email_unsub",
-        "attempt_count": len(attempts),
-        "last_attempt": (
-            {
-                "outcome": last.get("outcome"),
-                "to_masked": last.get("to_masked"),
-                "idempotency_key": last.get("idempotency_key"),
-                "provider_called": last.get("provider_called"),
-            }
-            if last
-            else None
-        ),
-        "bulk_outreach_required": False,
-        "notes": [
-            "Does not enable AUTO_EMAIL_OUTREACH",
-            "Exactly one owner-controlled inbox per confirmed send",
-            "Refresh with same idempotency_key will not resend",
-        ],
-    }
+    """Read-only readiness. Never creates dirs; never includes a recipient address."""
+    from app.platform import runtime_data as rd
+
+    try:
+        cfg = _smtp_or_api_configured()
+        dns = _dns_truth()
+        attempts = [a for a in _iter_attempts() if a.get("event") == "attempt"]
+        last = attempts[-1] if attempts else None
+        return {
+            "ok": True,
+            "canary": "owner_inbox_one_shot",
+            "auto_email_outreach_enabled": _flag_bool("AUTO_EMAIL_OUTREACH"),
+            "sales_autopilot_email_enabled": _flag_bool("SALES_AUTOPILOT_EMAIL_ENABLED"),
+            "smtp": cfg,
+            "dns": dns,
+            "suppression_module": "email_unsub",
+            "attempt_count": len(attempts),
+            "last_attempt": (
+                {
+                    "outcome": last.get("outcome"),
+                    "to_masked": last.get("to_masked"),
+                    "idempotency_key": last.get("idempotency_key"),
+                    "provider_called": last.get("provider_called"),
+                }
+                if last
+                else None
+            ),
+            "daily_provider_cap": _DAILY_PROVIDER_CAP,
+            "bulk_outreach_required": False,
+            "notes": [
+                "Does not enable AUTO_EMAIL_OUTREACH",
+                "Exactly one owner-controlled inbox per confirmed send",
+                "Refresh with same idempotency_key will not resend",
+            ],
+        }
+    except rd.RuntimeDataError as e:
+        logger.error("[owner_email_canary] preflight authority refused: %s", type(e).__name__)
+        return {
+            "ok": False,
+            "canary": "owner_inbox_one_shot",
+            "outcome": BLOCKED,
+            "reason": "runtime_data_authority_refused",
+            "error_type": type(e).__name__,
+            "bulk_outreach_required": False,
+        }
 
 
 def _suppressed(email: str) -> bool:
@@ -280,6 +341,81 @@ async def _provider_send(to: str, timeout_s: float) -> dict[str, Any]:
     }
 
 
+def _claim_under_lock(
+    *,
+    idem: str,
+    to: str,
+    actor_id: str,
+) -> dict[str, Any]:
+    """Atomically check idempotency/cap/config and append pending. No network I/O."""
+    from app.platform import runtime_data as rd
+    from app.utils.file_lock import file_lock
+
+    try:
+        lock_path = _lock_target()
+    except rd.RuntimeDataError:
+        raise
+
+    with file_lock(lock_path) as locked:
+        if not locked:
+            return {
+                "claimed": False,
+                "lock_failed": True,
+                "reason": "idempotency_lock_unavailable",
+            }
+        existing = find_by_idempotency(idem)
+        if existing:
+            prior = latest_status(idem) or existing
+            return {
+                "claimed": False,
+                "duplicate": True,
+                "prior_outcome": prior.get("outcome") or existing.get("outcome"),
+            }
+
+        cfg = _smtp_or_api_configured()
+        if not cfg["send_path_ready"]:
+            # Definite no-config — persist for audit, do NOT consume provider slot.
+            _append_attempt(
+                {
+                    "event": "attempt",
+                    "ts": time.time(),
+                    "idempotency_key": idem,
+                    "to_masked": mask_email(to),
+                    "to_hash": hashlib.sha256(to.lower().encode()).hexdigest()[:16],
+                    "actor_id": str(actor_id or "")[:64],
+                    "outcome": FAILED,
+                    "reason": "smtp_not_configured",
+                    "provider_called": False,
+                }
+            )
+            return {
+                "claimed": False,
+                "config_failed": True,
+                "reason": "smtp_not_configured",
+            }
+
+        if _provider_slot_taken_today():
+            return {
+                "claimed": False,
+                "capped": True,
+                "reason": "daily_provider_attempt_cap",
+            }
+
+        _append_attempt(
+            {
+                "event": "attempt",
+                "ts": time.time(),
+                "idempotency_key": idem,
+                "to_masked": mask_email(to),
+                "to_hash": hashlib.sha256(to.lower().encode()).hexdigest()[:16],
+                "actor_id": str(actor_id or "")[:64],
+                "outcome": "pending",
+                "provider_called": False,
+            }
+        )
+        return {"claimed": True}
+
+
 async def send_canary(
     *,
     to_email: str,
@@ -288,6 +424,8 @@ async def send_canary(
     actor_id: str = "",
 ) -> dict[str, Any]:
     """Send exactly one owner-inbox canary. Never raises."""
+    from app.platform import runtime_data as rd
+
     result: dict[str, Any] = {
         "ok": False,
         "outcome": BLOCKED,
@@ -307,16 +445,6 @@ async def send_canary(
             return result
         result["idempotency_key"] = idem
 
-        existing = find_by_idempotency(idem)
-        if existing:
-            prior = latest_status(idem) or existing
-            result["ok"] = True
-            result["outcome"] = DUPLICATE
-            result["reason"] = "idempotent_replay"
-            result["prior_outcome"] = prior.get("outcome") or existing.get("outcome")
-            result["provider_called"] = False
-            return result
-
         to = str(to_email or "").strip()
         if not is_one_to_one(to):
             result["outcome"] = SKIPPED
@@ -328,20 +456,47 @@ async def send_canary(
             result["reason"] = "suppressed"
             return result
 
-        # Persist BEFORE provider.
-        _append_attempt(
-            {
-                "event": "attempt",
-                "ts": time.time(),
-                "idempotency_key": idem,
-                "to_masked": mask_email(to),
-                "to_hash": hashlib.sha256(to.lower().encode()).hexdigest()[:16],
-                "actor_id": str(actor_id or "")[:64],
-                "outcome": "pending",
-                "provider_called": False,
-            }
-        )
+        try:
+            claim = _claim_under_lock(idem=idem, to=to, actor_id=actor_id)
+        except rd.RuntimeDataError as e:
+            logger.error("[owner_email_canary] send authority refused: %s", type(e).__name__)
+            result["outcome"] = BLOCKED
+            result["reason"] = "runtime_data_authority_refused"
+            result["error_type"] = type(e).__name__
+            return result
 
+        if claim.get("duplicate"):
+            result["ok"] = True
+            result["outcome"] = DUPLICATE
+            result["reason"] = "idempotent_replay"
+            result["prior_outcome"] = claim.get("prior_outcome")
+            result["provider_called"] = False
+            return result
+
+        if claim.get("config_failed"):
+            result["outcome"] = FAILED
+            result["reason"] = str(claim.get("reason") or "smtp_not_configured")
+            result["provider_called"] = False
+            return result
+
+        if claim.get("capped"):
+            result["outcome"] = BLOCKED
+            result["reason"] = str(claim.get("reason") or "daily_provider_attempt_cap")
+            result["provider_called"] = False
+            return result
+
+        if claim.get("lock_failed"):
+            result["outcome"] = BLOCKED
+            result["reason"] = str(claim.get("reason") or "idempotency_lock_unavailable")
+            result["provider_called"] = False
+            return result
+
+        if not claim.get("claimed"):
+            result["outcome"] = FAILED
+            result["reason"] = "claim_failed"
+            return result
+
+        # Lock released — provider I/O outside the lock.
         try:
             res = await _provider_send(to, _TIMEOUT_S)
         except asyncio.TimeoutError:
@@ -356,13 +511,14 @@ async def send_canary(
             result["provider_called"] = True
             return result
         except Exception as e:
+            # Provider was entered; treat as ambiguous for retry safety.
             _update_attempt(
                 idem,
-                outcome=FAILED,
+                outcome=UNKNOWN_REQUIRES_REVIEW,
                 reason=type(e).__name__,
                 provider_called=True,
             )
-            result["outcome"] = FAILED
+            result["outcome"] = UNKNOWN_REQUIRES_REVIEW
             result["reason"] = type(e).__name__
             result["provider_called"] = True
             return result
@@ -376,12 +532,14 @@ async def send_canary(
             "list_unsubscribe_attached": bool(res.get("list_unsubscribe_attached")),
         }
 
-        if mode == "smtp_not_configured":
+        if mode == "smtp_not_configured" or not called:
+            # Definite no-provider (race after claim) — release slot semantics via status.
             _update_attempt(
                 idem, outcome=FAILED, reason="smtp_not_configured", provider_called=False
             )
             result["outcome"] = FAILED
             result["reason"] = "smtp_not_configured"
+            result["provider_called"] = False
             return result
 
         if res.get("sent"):
@@ -390,11 +548,21 @@ async def send_canary(
             result["outcome"] = SENT
             return result
 
+        # EmailSender collapses provider exceptions/timeouts to False — ambiguous.
         _update_attempt(
-            idem, outcome=SKIPPED, reason=mode or "provider_refused", provider_called=called
+            idem,
+            outcome=UNKNOWN_REQUIRES_REVIEW,
+            reason=mode or "provider_false_ambiguous",
+            provider_called=True,
         )
-        result["outcome"] = SKIPPED
-        result["reason"] = mode or "provider_refused"
+        result["outcome"] = UNKNOWN_REQUIRES_REVIEW
+        result["reason"] = mode or "provider_false_ambiguous"
+        return result
+    except rd.RuntimeDataError as e:
+        logger.error("[owner_email_canary] authority refused: %s", type(e).__name__)
+        result["outcome"] = BLOCKED
+        result["reason"] = "runtime_data_authority_refused"
+        result["error_type"] = type(e).__name__
         return result
     except Exception as e:  # pragma: no cover
         result["outcome"] = FAILED
