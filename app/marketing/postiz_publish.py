@@ -381,9 +381,16 @@ async def upload_media(
             obj = j[0] if isinstance(j, list) and j else j
             if isinstance(obj, dict) and (obj.get("path") or obj.get("id")):
                 return {"id": obj.get("id") or "", "path": obj.get("path") or ""}
+        # 5xx: remote may have stored the object — surface as ambiguous to caller.
+        if int(r.status_code) >= 500:
+            raise RuntimeError(f"postiz_upload_ambiguous:{r.status_code}")
         logger.warning(f"[postiz] upload {r.status_code}: {r.text[:140]}")
+    except RuntimeError:
+        raise
     except Exception as e:
+        # Transport drop after the upload request left this process is ambiguous.
         logger.warning(f"[postiz] upload failed: {e}")
+        raise RuntimeError(f"postiz_upload_ambiguous:{e}") from e
     finally:
         if owns_fh and fh is not None:
             try:
@@ -418,10 +425,20 @@ async def publish_video(
     does NOT make external publication exactly-once.
     """
     if not enabled():
-        return {"sent": False, "reason": "POSTIZ_API_KEY unset"}
+        return {
+            "sent": False,
+            "outcome": "failed",
+            "reason": "POSTIZ_API_KEY unset",
+            "provider_idempotency": False,
+        }
     ids = _integration_ids(client)
     if not ids:
-        return {"sent": False, "reason": "koi postiz_integrations id nahi (client/env)"}
+        return {
+            "sent": False,
+            "outcome": "failed",
+            "reason": "koi postiz_integrations id nahi (client/env)",
+            "provider_idempotency": False,
+        }
     # Platform map (id -> identifier e.g. "youtube") — needed both to skip
     # media-required platforms on text-only posts AND to build YouTube's own
     # required settings below. Best-effort; empty dict on failure (fine, just
@@ -434,6 +451,7 @@ async def publish_video(
     if not selection.get("ok"):
         return {
             "sent": False,
+            "outcome": "failed",
             "channels": [],
             "skipped": selection.get("skipped") or [],
             "reason": str(selection.get("reason") or "no_eligible_channels"),
@@ -442,14 +460,26 @@ async def publish_video(
     ids = list(selection.get("channels") or [])
     media_list: list[dict[str, Any]] = []
     if video_file is not None or video_path:
-        media = await upload_media(
-            video_path if video_file is None else "",
-            fileobj=video_file,
-            filename=filename or (os.path.basename(video_path) if video_path else "video.mp4"),
-        )
-        if media is None:
+        try:
+            media = await upload_media(
+                video_path if video_file is None else "",
+                fileobj=video_file,
+                filename=filename or (os.path.basename(video_path) if video_path else "video.mp4"),
+            )
+        except RuntimeError as e:
+            # Ambiguous upload transport/5xx — do not classify as retryable failed.
             return {
                 "sent": False,
+                "outcome": "unknown",
+                "reason": str(e)[:150],
+                "provider_idempotency": False,
+            }
+        if media is None:
+            # No create-post was attempted. Missing/unreadable media is a
+            # definitive local failure (retryable after the file exists).
+            return {
+                "sent": False,
+                "outcome": "failed",
                 "reason": "media upload fail (ya file missing)",
                 "provider_idempotency": False,
             }
@@ -500,9 +530,28 @@ async def publish_video(
 
         async with httpx.AsyncClient(timeout=60) as cx:
             r = await cx.post(f"{_base()}/public/v1/posts", headers=_headers(), json=body)
-        ok = r.status_code // 100 == 2
+        code = int(r.status_code)
+        ok = code // 100 == 2
         if not ok:
-            logger.warning(f"[postiz] create {r.status_code}: {r.text[:160]}")
+            logger.warning(f"[postiz] create {code}: {r.text[:160]}")
+        # 5xx after the request left this process: remote may have accepted.
+        if code >= 500:
+            return {
+                "sent": False,
+                "outcome": "unknown",
+                "channels": ids,
+                "reason": f"{code}: {r.text[:160]}",
+                "provider_idempotency": False,
+            }
+        # Definitive client refusal — safe to classify as failed (retryable).
+        if code // 100 == 4:
+            return {
+                "sent": False,
+                "outcome": "failed",
+                "channels": ids,
+                "reason": f"{code}: {r.text[:160]}",
+                "provider_idempotency": False,
+            }
         payload: Any = None
         if ok:
             try:
@@ -528,17 +577,24 @@ async def publish_video(
         if ok and not post_ids:
             logger.warning("[postiz] create succeeded but response had no postId evidence")
         return {
-            "sent": ok,
+            "sent": bool(ok),
+            "outcome": "published" if ok else "failed",
             "channels": ids,
             "post_id": post_ids[0] if post_ids else "",
             "post_ids": post_ids,
             "post_url": post_urls[0] if post_urls else "",
             "provider_idempotency": False,
-            **({} if ok else {"reason": f"{r.status_code}: {r.text[:160]}"}),
+            **({} if ok else {"reason": f"{code}: {r.text[:160]}"}),
         }
     except Exception as e:
-        logger.warning(f"[postiz] publish failed: {e}")
-        return {"sent": False, "reason": str(e)[:150], "provider_idempotency": False}
+        # Timeout / disconnect after the request may already have been accepted.
+        logger.warning(f"[postiz] publish ambiguous: {e}")
+        return {
+            "sent": False,
+            "outcome": "unknown",
+            "reason": str(e)[:150],
+            "provider_idempotency": False,
+        }
 
 
 def effective_integration_ids(client: dict[str, Any] | None = None) -> list[str]:

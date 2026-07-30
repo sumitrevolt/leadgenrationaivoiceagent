@@ -179,7 +179,15 @@ def approve_version(
     except (TypeError, ValueError):
         approved_revision = None
     if status == "approved" and approved_revision == rev:
-        return {"ok": True, "already_decided": True, "status": "approved"}
+        # already_decided only when saga-finalized + hash-bound (publish-eligible).
+        # Legacy approved-without-hash/txn must re-enter the saga, not short-circuit.
+        txn_ok = str(rec.get("approval_txn_state") or "") == "finalized"
+        hash_ok = bool(str(rec.get("approved_content_sha256") or "").strip())
+        snap_ok = bool(str(rec.get("approval_snapshot_path") or "").strip())
+        if txn_ok and hash_ok and snap_ok:
+            return {"ok": True, "already_decided": True, "status": "approved"}
+        # Incomplete legacy approval — reopen as pending for coordinated re-approval.
+        status = "pending"
     if status != "pending":
         return {
             "ok": False,
@@ -251,6 +259,27 @@ async def schedule_approved(video_ad_id: str) -> dict[str, Any]:
             "zara", "video_published", f"published {video_ad_id}", {"channels": res.get("channels")}
         )
         return {"ok": True, "published": True, "channels": res.get("channels")}
+    idem_err = str(((res.get("channels") or {}).get("idempotency") or {}).get("error") or "")
+    attempt = str(res.get("publish_attempt_state") or "")
+    if idem_err == "publish_reservation_held":
+        return {
+            "ok": False,
+            "error": "publish_reservation_held",
+            "channels": res.get("channels"),
+        }
+    if idem_err == "publish_outcome_unknown" or attempt == "publish_outcome_unknown":
+        video_ad_cycle._update(
+            str(video_ad_id),
+            status="publish_outcome_unknown",
+            workflow_state="PUBLISH_OUTCOME_UNKNOWN",
+            publish_result=res.get("channels"),
+        )
+        return {
+            "ok": False,
+            "error": "publish_outcome_unknown",
+            "remedy": "provider reconciliation or explicit operator decision required",
+            "channels": res.get("channels"),
+        }
     video_ad_cycle._update(
         str(video_ad_id),
         status="publish_failed",

@@ -94,6 +94,7 @@ def publish_env(monkeypatch, iso):
     def _update(rid, **fields):
         if store["rec"].get("id") == rid:
             store["rec"].update(fields)
+        return True
 
     async def _spy(client, caption, video_path="", *, video_file=None, filename="video.mp4", **kw):
         store["provider"] += 1
@@ -106,7 +107,12 @@ def publish_env(monkeypatch, iso):
             video_file.seek(0)
             store["uploaded"] = video_file.read()
             video_file.seek(0)
-        return {"sent": True, "post_ids": ["p1"], "provider_idempotency": False}
+        return {
+            "sent": True,
+            "outcome": "published",
+            "post_ids": ["p1"],
+            "provider_idempotency": False,
+        }
 
     monkeypatch.setattr(pp, "enabled", lambda: True, raising=False)
     monkeypatch.setattr(pp, "publish_video", _spy, raising=False)
@@ -328,7 +334,12 @@ async def test_11_known_provider_failure_is_publish_failed(iso, publish_env, mon
 
     async def _fail(*a, **k):
         publish_env["provider"] += 1
-        return {"sent": False, "reason": "provider_down", "provider_idempotency": False}
+        return {
+            "sent": False,
+            "outcome": "failed",
+            "reason": "400: provider_down",
+            "provider_idempotency": False,
+        }
 
     monkeypatch.setattr(pp, "publish_video", _fail, raising=False)
     out = await vac._publish_one(publish_env["rec"])
@@ -357,6 +368,49 @@ async def test_11b_crash_after_provider_start_is_outcome_unknown(iso, publish_en
 
 
 @pytest.mark.asyncio
+async def test_11c_ambiguous_adapter_outcome_is_unknown_not_retryable(
+    iso, publish_env, monkeypatch
+):
+    """P0-1: Postiz timeout-shaped sent=False must become unknown, not failed."""
+    from app.marketing import postiz_publish as pp
+    from app.marketing import video_ad_cycle as vac
+    from app.marketing.video_production import cell
+
+    async def _timeout(*a, **k):
+        publish_env["provider"] += 1
+        return {
+            "sent": False,
+            "outcome": "unknown",
+            "reason": "ReadTimeout",
+            "provider_idempotency": False,
+        }
+
+    monkeypatch.setattr(pp, "publish_video", _timeout, raising=False)
+    out = await vac._publish_one(publish_env["rec"])
+    assert out["any_sent"] is False
+    assert out.get("publish_attempt_state") == ps.PUBLISH_OUTCOME_UNKNOWN
+    assert publish_env["rec"].get("publish_attempt_state") == ps.PUBLISH_OUTCOME_UNKNOWN
+
+    # _publish_one blind retry blocked.
+    again = await vac._publish_one(publish_env["rec"])
+    assert again["channels"]["idempotency"]["error"] == "publish_outcome_unknown"
+    assert publish_env["provider"] == 1
+
+    # schedule_approved while still status=approved must not blind-retry.
+    scheduled = await cell.schedule_approved("va_1")
+    assert scheduled.get("error") == "publish_outcome_unknown"
+    assert publish_env["provider"] == 1
+    assert publish_env["rec"].get("status") == "publish_outcome_unknown"
+
+    # publish_due must not pick unknown rows as ordinary approved retries.
+    due = await vac.publish_due()
+    assert due.get("published", 0) == 0
+    assert due.get("failed", 0) == 0
+    assert publish_env["provider"] == 1
+    assert publish_env["rec"].get("status") == "publish_outcome_unknown"
+
+
+@pytest.mark.asyncio
 async def test_12_concurrent_duplicate_shares_one_reservation(iso, publish_env):
     from app.marketing import video_ad_cycle as vac
 
@@ -375,6 +429,22 @@ async def test_12_concurrent_duplicate_shares_one_reservation(iso, publish_env):
     assert out["any_sent"] is False
     assert out["channels"]["idempotency"]["error"] == "publish_reservation_held"
     assert publish_env["provider"] == 0
+
+
+@pytest.mark.asyncio
+async def test_12b_reservation_write_failure_fail_closed(iso, publish_env, monkeypatch):
+    """P0-2: if durable reserve does not stick, provider must not be called."""
+    from app.marketing import video_ad_cycle as vac
+
+    def _fail_update(rid, **fields):
+        return False
+
+    monkeypatch.setattr(vac, "_update", _fail_update)
+    out = await vac._publish_one(publish_env["rec"])
+    assert out["any_sent"] is False
+    assert out["channels"]["idempotency"]["error"] == "publish_reservation_failed"
+    assert publish_env["provider"] == 0
+    assert out.get("provider_calls") == 0
 
 
 @pytest.mark.asyncio

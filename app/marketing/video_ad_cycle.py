@@ -66,13 +66,23 @@ def _now() -> str:
 
 
 # ------------------------------- store ------------------------------------ #
-def _append(rec: dict[str, Any]) -> None:
+def _store_lock():
+    """Cross-process lock for publish reservation CAS. Fail-closed on import/timeout."""
+    from filelock import FileLock
+
+    return FileLock(f"{_FILE}.lock", timeout=15)
+
+
+def _append(rec: dict[str, Any]) -> bool:
+    """Append one JSONL line. Returns whether the write landed."""
     try:
         os.makedirs(os.path.dirname(_FILE) or ".", exist_ok=True)
         with open(_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        return True
     except Exception as e:
         logger.warning(f"[video_ad] append failed: {e}")
+        return False
 
 
 def _latest() -> dict[str, dict[str, Any]]:
@@ -99,9 +109,82 @@ def _latest() -> dict[str, dict[str, Any]]:
     return out
 
 
-def _update(rec_id: str, **fields: Any) -> None:
+def _update(rec_id: str, **fields: Any) -> bool:
     fields["id"] = rec_id
-    _append(fields)
+    return _append(fields)
+
+
+def _acquire_publish_reservation(
+    rid: str,
+    idem_key: str,
+    identity: dict[str, Any],
+) -> dict[str, Any]:
+    """Atomically reserve one publish attempt (cross-process).
+
+    Under the store lock: re-read durable state, short-circuit known terminals,
+    append ``publish_reserved``, then CAS-confirm the durable row. Fail-closed
+    when the lock or write does not stick — never proceed to the provider.
+    """
+    from app.marketing.video_production import publish_snapshot as ps
+
+    try:
+        lock = _store_lock()
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "publish_reservation_unavailable",
+            "detail": str(exc)[:120],
+        }
+
+    try:
+        with lock:
+            current = dict(_latest().get(rid) or {})
+            prior_key = str(current.get("publish_idempotency_key") or "")
+            prior_state = str(current.get("publish_attempt_state") or "")
+            prior_result = current.get("publish_result")
+
+            if (
+                prior_key == idem_key
+                and prior_state == ps.PUBLISHED
+                and isinstance(prior_result, dict)
+            ):
+                return {
+                    "ok": True,
+                    "short_circuit": "published",
+                    "channels": prior_result,
+                }
+
+            if prior_key == idem_key and prior_state == ps.PUBLISH_OUTCOME_UNKNOWN:
+                return {"ok": False, "error": "publish_outcome_unknown"}
+
+            if prior_key == idem_key and prior_state in (
+                ps.PUBLISH_RESERVED,
+                ps.PROVIDER_INFLIGHT,
+            ):
+                return {"ok": False, "error": "publish_reservation_held"}
+
+            wrote = _update(
+                rid,
+                publish_idempotency_key=idem_key,
+                publish_attempt_state=ps.PUBLISH_RESERVED,
+                publish_attempt_identity=identity,
+            )
+            if wrote is False:
+                return {"ok": False, "error": "publish_reservation_failed"}
+
+            after = dict(_latest().get(rid) or {})
+            if str(after.get("publish_idempotency_key") or "") != idem_key:
+                return {"ok": False, "error": "publish_reservation_failed"}
+            if str(after.get("publish_attempt_state") or "") != ps.PUBLISH_RESERVED:
+                return {"ok": False, "error": "publish_reservation_failed"}
+            return {"ok": True, "reserved": True}
+    except Exception as exc:
+        logger.warning("[video_ad] publish reservation lock/CAS failed (%s): %s", rid[:40], exc)
+        return {
+            "ok": False,
+            "error": "publish_reservation_unavailable",
+            "detail": str(exc)[:120],
+        }
 
 
 def _load_state() -> dict[str, str]:
@@ -453,9 +536,13 @@ async def _tg_send_video(
     """Telegram Bot API sendVideo. Prefer ``video_file`` (verified descriptor)."""
     token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
     if not token:
-        return {"sent": False, "reason": "TELEGRAM_BOT_TOKEN unset"}
+        return {
+            "sent": False,
+            "outcome": "failed",
+            "reason": "TELEGRAM_BOT_TOKEN unset",
+        }
     if not chat_id or (video_file is None and (not video_path or not os.path.isfile(video_path))):
-        return {"sent": False, "reason": "chat_id/video missing"}
+        return {"sent": False, "outcome": "failed", "reason": "chat_id/video missing"}
     owns = False
     fh = video_file
     try:
@@ -469,7 +556,11 @@ async def _tg_send_video(
             try:
                 fh.seek(0)
             except (OSError, AttributeError):
-                pass
+                return {
+                    "sent": False,
+                    "outcome": "failed",
+                    "reason": "snapshot_unseekable",
+                }
             name = filename or (os.path.basename(video_path) if video_path else "video.mp4")
         api = f"https://api.telegram.org/bot{token}/sendVideo"
         async with httpx.AsyncClient(timeout=120) as cx:
@@ -478,10 +569,21 @@ async def _tg_send_video(
                 data={"chat_id": chat_id, "caption": (caption or "")[:1024]},
                 files={"video": (name, fh, "video/mp4")},
             )
-        ok = r.status_code == 200 and r.json().get("ok")
-        return {"sent": bool(ok), **({} if ok else {"reason": r.text[:160]})}
+        code = int(r.status_code)
+        if code >= 500:
+            return {
+                "sent": False,
+                "outcome": "unknown",
+                "reason": f"{code}: {r.text[:160]}",
+            }
+        ok = code == 200 and bool((r.json() or {}).get("ok"))
+        if ok:
+            return {"sent": True, "outcome": "published"}
+        if code // 100 == 4:
+            return {"sent": False, "outcome": "failed", "reason": r.text[:160]}
+        return {"sent": False, "outcome": "unknown", "reason": r.text[:160]}
     except Exception as e:
-        return {"sent": False, "reason": str(e)[:120]}
+        return {"sent": False, "outcome": "unknown", "reason": str(e)[:120]}
     finally:
         if owns and fh is not None:
             try:
@@ -578,59 +680,40 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
         channel="postiz",
     )
     idem_key = ps.publish_idempotency_key(identity)
-    prior_key = str(rec.get("publish_idempotency_key") or "")
-    prior_state = str(rec.get("publish_attempt_state") or "")
-    prior_result = rec.get("publish_result")
 
-    # Known success — return durable evidence; zero provider calls.
-    if prior_key == idem_key and prior_state == ps.PUBLISHED and isinstance(prior_result, dict):
+    reserved = _acquire_publish_reservation(rid, idem_key, identity)
+    if reserved.get("short_circuit") == "published":
         return {
             "any_sent": True,
-            "channels": prior_result,
+            "channels": reserved.get("channels") or {},
             "idempotent_local": True,
             "provider_calls": 0,
             "publish_idempotency_key": idem_key,
             "external_exactly_once": False,
         }
-
-    # Unknown prior outcome — never blind-retry (duplicate post risk).
-    if prior_key == idem_key and prior_state == ps.PUBLISH_OUTCOME_UNKNOWN:
+    if not reserved.get("ok"):
+        err = str(reserved.get("error") or "publish_reservation_failed")
         return {
             "any_sent": False,
             "channels": {
                 "idempotency": {
                     "ok": False,
-                    "error": "publish_outcome_unknown",
-                    "remedy": "provider reconciliation or explicit operator decision required",
+                    "error": err,
+                    **(
+                        {
+                            "remedy": (
+                                "provider reconciliation or explicit operator " "decision required"
+                            )
+                        }
+                        if err == "publish_outcome_unknown"
+                        else {}
+                    ),
                 }
             },
             "provider_calls": 0,
             "publish_idempotency_key": idem_key,
             "external_exactly_once": False,
         }
-
-    # Concurrent / shared reservation — one in-flight attempt only.
-    if prior_key == idem_key and prior_state in (
-        ps.PUBLISH_RESERVED,
-        ps.PROVIDER_INFLIGHT,
-    ):
-        return {
-            "any_sent": False,
-            "channels": {"idempotency": {"ok": False, "error": "publish_reservation_held"}},
-            "provider_calls": 0,
-            "publish_idempotency_key": idem_key,
-            "external_exactly_once": False,
-        }
-
-    try:
-        _update(
-            rid,
-            publish_idempotency_key=idem_key,
-            publish_attempt_state=ps.PUBLISH_RESERVED,
-            publish_attempt_identity=identity,
-        )
-    except Exception as exc:
-        logger.warning("[video_ad] publish reservation write failed (%s): %s", rid[:40], exc)
 
     opened = ps.open_verified_snapshot(
         snapshot_path=snap_path,
@@ -674,7 +757,24 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             try:
                 fh.seek(0)
             except (OSError, AttributeError):
-                pass
+                _finalize_publish_attempt(
+                    rid,
+                    idem_key,
+                    identity,
+                    {
+                        "any_sent": False,
+                        "channels": {"snapshot": {"ok": False, "error": "snapshot_unseekable"}},
+                        "provider_calls": 0,
+                    },
+                    state=ps.PUBLISH_REFUSED,
+                )
+                return {
+                    "any_sent": False,
+                    "channels": {"snapshot": {"ok": False, "error": "snapshot_unseekable"}},
+                    "provider_calls": 0,
+                    "publish_idempotency_key": idem_key,
+                    "external_exactly_once": False,
+                }
             pz = await postiz_publish.publish_video(
                 client,
                 caption,
@@ -685,21 +785,49 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             provider_calls += 1
             result["postiz"] = pz
             any_sent = any_sent or bool(pz.get("sent"))
+            provider_outcome = str(pz.get("outcome") or "")
         else:
             # Telegram fallback — same verified descriptor.
             chat_id = str(client.get("telegram_chat_id") or "").strip()
+            provider_outcome = ""
             if chat_id:
                 provider_started = True
                 try:
                     fh.seek(0)
                 except (OSError, AttributeError):
-                    pass
+                    _finalize_publish_attempt(
+                        rid,
+                        idem_key,
+                        identity,
+                        {
+                            "any_sent": False,
+                            "channels": {"snapshot": {"ok": False, "error": "snapshot_unseekable"}},
+                            "provider_calls": 0,
+                        },
+                        state=ps.PUBLISH_REFUSED,
+                    )
+                    return {
+                        "any_sent": False,
+                        "channels": {"snapshot": {"ok": False, "error": "snapshot_unseekable"}},
+                        "provider_calls": 0,
+                        "publish_idempotency_key": idem_key,
+                        "external_exactly_once": False,
+                    }
                 tg = await _tg_send_video(
                     chat_id, caption=caption, video_file=fh, filename=filename
                 )
                 provider_calls += 1
                 result["telegram"] = tg
                 any_sent = any_sent or bool(tg.get("sent"))
+                provider_outcome = str(tg.get("outcome") or "")
+
+        if any_sent:
+            final_state = ps.PUBLISHED
+        elif provider_started and provider_outcome != "failed":
+            # Missing/unknown outcome after invocation → never blind-retry.
+            final_state = ps.PUBLISH_OUTCOME_UNKNOWN
+        else:
+            final_state = ps.PUBLISH_FAILED
 
         out = {
             "any_sent": any_sent,
@@ -709,13 +837,14 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             "publish_identity": identity,
             "external_exactly_once": False,
             "provider_idempotency": bool(ps.PROVIDER_ACCEPTS_IDEMPOTENCY_KEY),
+            "publish_attempt_state": final_state,
         }
         _finalize_publish_attempt(
             rid,
             idem_key,
             identity,
             out,
-            state=ps.PUBLISHED if any_sent else ps.PUBLISH_FAILED,
+            state=final_state,
         )
         return out
     except Exception as e:
@@ -727,6 +856,9 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             "provider_calls": provider_calls,
             "publish_idempotency_key": idem_key,
             "external_exactly_once": False,
+            "publish_attempt_state": (
+                ps.PUBLISH_OUTCOME_UNKNOWN if provider_started else ps.PUBLISH_FAILED
+            ),
         }
         st = ps.PUBLISH_OUTCOME_UNKNOWN if provider_started else ps.PUBLISH_FAILED
         _finalize_publish_attempt(rid, idem_key, identity, out, state=st)
@@ -809,6 +941,7 @@ def _finalize_publish_attempt(
 async def publish_due(limit: int = 20) -> dict[str, Any]:
     """Approved (pending-publish) video ads ko channels pe bhejo. Scheduler se."""
     published = failed = 0
+    held = unknown = 0
     try:
         rows = [r for r in _latest().values() if r.get("status") == "approved"]
         rows.sort(key=lambda r: str(r.get("decided_at") or r.get("created_at") or ""))
@@ -824,16 +957,39 @@ async def publish_due(limit: int = 20) -> dict[str, Any]:
                     publish_result=res["channels"],
                 )
                 published += 1
-            else:
+                continue
+            idem_err = str(
+                ((res.get("channels") or {}).get("idempotency") or {}).get("error") or ""
+            )
+            attempt = str(res.get("publish_attempt_state") or "")
+            # Do NOT normalize unknown/held into ordinary publish_failed (retry bait).
+            if idem_err == "publish_reservation_held":
+                held += 1
+                continue
+            if idem_err == "publish_outcome_unknown" or attempt == "publish_outcome_unknown":
                 _update(
                     rid,
-                    status="publish_failed",
-                    workflow_state="PUBLISH_FAILED",
-                    publish_result=res["channels"],
-                    failed_at=_now(),
+                    status="publish_outcome_unknown",
+                    workflow_state="PUBLISH_OUTCOME_UNKNOWN",
+                    publish_result=res.get("channels") or {},
                 )
-                failed += 1
-        return {"ran": True, "published": published, "failed": failed}
+                unknown += 1
+                continue
+            _update(
+                rid,
+                status="publish_failed",
+                workflow_state="PUBLISH_FAILED",
+                publish_result=res["channels"],
+                failed_at=_now(),
+            )
+            failed += 1
+        return {
+            "ran": True,
+            "published": published,
+            "failed": failed,
+            "held": held,
+            "unknown": unknown,
+        }
     except Exception as e:
         logger.warning(f"[video_ad] publish_due failed: {e}")
         return {"ran": False, "reason": str(e)[:150]}
