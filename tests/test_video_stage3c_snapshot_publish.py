@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import hashlib
 import os
+import time
 from pathlib import Path
 
 import pytest
@@ -425,6 +426,8 @@ async def test_12_concurrent_duplicate_shares_one_reservation(iso, publish_env):
     )
     publish_env["rec"]["publish_idempotency_key"] = publish_idempotency_key(identity)
     publish_env["rec"]["publish_attempt_state"] = ps.PROVIDER_INFLIGHT
+    # Fresh timestamp → active hold (not stale recovery).
+    publish_env["rec"]["publish_attempt_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     out = await vac._publish_one(publish_env["rec"])
     assert out["any_sent"] is False
     assert out["channels"]["idempotency"]["error"] == "publish_reservation_held"
@@ -445,6 +448,128 @@ async def test_12b_reservation_write_failure_fail_closed(iso, publish_env, monke
     assert out["channels"]["idempotency"]["error"] == "publish_reservation_failed"
     assert publish_env["provider"] == 0
     assert out.get("provider_calls") == 0
+
+
+@pytest.mark.asyncio
+async def test_12c_inflight_write_failure_zero_provider_calls(iso, publish_env, monkeypatch):
+    """P0-B: provider_inflight must be durable before provider invocation."""
+    from app.marketing import video_ad_cycle as vac
+
+    real_cas = vac._cas_publish_state
+
+    def _fail_inflight(rid, idem_key, *, from_states, to_state, **kw):
+        if to_state == ps.PROVIDER_INFLIGHT:
+            return {"ok": False, "error": "publish_cas_write_failed"}
+        return real_cas(rid, idem_key, from_states=from_states, to_state=to_state, **kw)
+
+    monkeypatch.setattr(vac, "_cas_publish_state", _fail_inflight)
+    out = await vac._publish_one(publish_env["rec"])
+    assert out["any_sent"] is False
+    assert publish_env["provider"] == 0
+    assert out.get("provider_calls") == 0
+    assert out["channels"]["idempotency"]["error"] == "publish_cas_write_failed"
+
+
+@pytest.mark.asyncio
+async def test_12d_stale_inflight_becomes_unknown_not_retryable(iso, publish_env, monkeypatch):
+    """P1 hard-kill: aged provider_inflight → publish_outcome_unknown."""
+    from app.marketing import video_ad_cycle as vac
+
+    identity = canonical_publish_identity(
+        tenant="jiya-makeover",
+        video_id="va_1",
+        approval_txn="a" * 64,
+        revision=0,
+        snapshot_sha256=iso["digest"],
+        snapshot_bytes=iso["size"],
+        channel="postiz",
+    )
+    key = publish_idempotency_key(identity)
+    publish_env["rec"]["publish_idempotency_key"] = key
+    publish_env["rec"]["publish_attempt_state"] = ps.PROVIDER_INFLIGHT
+    publish_env["rec"]["publish_attempt_at"] = "2000-01-01T00:00:00"
+    monkeypatch.setenv("VIDEO_AD_PUBLISH_STALE_SECONDS", "60")
+
+    out = await vac._publish_one(publish_env["rec"])
+    assert out["any_sent"] is False
+    assert out["channels"]["idempotency"]["error"] == "publish_outcome_unknown"
+    assert publish_env["rec"].get("publish_attempt_state") == ps.PUBLISH_OUTCOME_UNKNOWN
+    assert publish_env["provider"] == 0
+
+    again = await vac._publish_one(publish_env["rec"])
+    assert again["channels"]["idempotency"]["error"] == "publish_outcome_unknown"
+    assert publish_env["provider"] == 0
+
+
+def test_12e_subprocess_kill_seam_recovers_stale_inflight(tmp_path, monkeypatch):
+    """Real subprocess termination seam: child dies while inflight; parent recovers."""
+    import json
+    import subprocess
+    import sys
+
+    from app.marketing import video_ad_cycle as vac
+
+    store = tmp_path / "video_ads.jsonl"
+    lock = str(store) + ".lock"
+    monkeypatch.setattr(vac, "_FILE", str(store))
+    monkeypatch.setenv("VIDEO_AD_PUBLISH_STALE_SECONDS", "0")
+
+    rid = "va_kill"
+    key = "vap:" + ("ab" * 32)
+    # Seed a fresh reserved row the child will advance to inflight.
+    seed = {
+        "id": rid,
+        "publish_idempotency_key": key,
+        "publish_attempt_state": ps.PUBLISH_RESERVED,
+        "publish_attempt_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
+    }
+    store.write_text(json.dumps(seed) + "\n", encoding="utf-8")
+
+    child = r"""
+import json, os, sys, time
+from filelock import FileLock
+path = sys.argv[1]
+rid = sys.argv[2]
+key = sys.argv[3]
+# Mark inflight under lock, then sleep until killed.
+with FileLock(path + ".lock", timeout=15):
+    with open(path, "a", encoding="utf-8") as f:
+        f.write(json.dumps({
+            "id": rid,
+            "publish_idempotency_key": key,
+            "publish_attempt_state": "provider_inflight",
+            "publish_attempt_at": "2000-01-01T00:00:00",
+        }) + "\n")
+    time.sleep(120)
+"""
+    proc = subprocess.Popen(
+        [sys.executable, "-c", child, str(store), rid, key],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    try:
+        # Wait until durable inflight is visible.
+        deadline = time.time() + 10
+        while time.time() < deadline:
+            cur = vac._latest().get(rid) or {}
+            if cur.get("publish_attempt_state") == ps.PROVIDER_INFLIGHT:
+                break
+            time.sleep(0.05)
+        else:
+            proc.kill()
+            raise AssertionError("child never wrote provider_inflight")
+        proc.kill()
+        proc.wait(timeout=10)
+    finally:
+        if proc.poll() is None:
+            proc.kill()
+
+    # Parent recover path: stale inflight must become unknown, never retry.
+    out = vac._acquire_publish_reservation(rid, key, {"tenant": "t", "video_id": rid})
+    assert out.get("ok") is False
+    assert out.get("error") == "publish_outcome_unknown"
+    durable = vac._latest().get(rid) or {}
+    assert durable.get("publish_attempt_state") == ps.PUBLISH_OUTCOME_UNKNOWN
 
 
 @pytest.mark.asyncio
