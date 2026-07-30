@@ -224,7 +224,7 @@ def test_demo_prospect_excluded(monkeypatch):
     assert "no_consent_basis" in r["reason_codes"]
 
 
-# 11. Email stub can never be selected/sent-live by the tick. --------------------------- #
+# 11. Scheduler tick stays WhatsApp-preferring; email live path is fail-closed. -------- #
 def test_scheduler_selects_whatsapp_only(monkeypatch):
     monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
     _seed_new(3)
@@ -233,8 +233,8 @@ def test_scheduler_selects_whatsapp_only(monkeypatch):
         assert item["channel"] == "whatsapp"
 
 
-def test_email_channel_never_calls_provider(monkeypatch):
-    # Even fully armed for email, the stub adapter simulates and never sends live.
+def test_email_channel_fail_closed_without_smtp(monkeypatch):
+    # Fully armed email + no SMTP/API creds ⇒ FAILED (fail-closed), never WhatsApp.
     monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
     monkeypatch.setenv("SALES_AUTOPILOT_EMAIL_ENABLED", "1")
     monkeypatch.setenv("SALES_AUTOPILOT_DRY_RUN", "0")
@@ -250,8 +250,9 @@ def test_email_channel_never_calls_provider(monkeypatch):
     )
     calls = _provider_spy(monkeypatch)  # WhatsApp provider spy — must stay 0
     res = asyncio.run(send_mod.send("e-1", channel="email", step=elig.STEP_INITIAL))
-    assert res["outcome"] == send_mod.SIMULATED
-    assert res["reason"] == "email_channel_not_wired_live"
+    assert res["outcome"] == send_mod.FAILED
+    assert res["reason"] == "smtp_not_configured"
+    assert (res.get("provider") or {}).get("provider_called") is False
     assert calls["n"] == 0
 
 
