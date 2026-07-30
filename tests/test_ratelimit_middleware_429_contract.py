@@ -1,24 +1,19 @@
-"""Flat per-IP `RateLimitMiddleware` 429 contract.
+"""Flat per-IP `RateLimitMiddleware` 429 contract (+ P1 safety harden).
 
-The user-visible defect was the body
+Original UX defect body:
 ``{"detail": "Rate limit exceeded. Please slow down.", "retry_after": 60}``.
-Three things were wrong with the path that produces it:
 
-1. ``retry_after`` was the literal 60 even though ``app.cache.RateLimiter`` is a
-   FIXED window keyed on ``int(time.time() // 60)`` — the counter resets at the
-   next minute boundary, so the real wait is 1..60s.
-2. ``detail`` was a bare string, so every FE 429 handler
-   (``typeof j.detail === "object" ? j.detail : {}``) dropped the countdown and
-   had no ``error``/``scope`` to branch on. ``app/api/ratelimit.py`` and
-   ``tests/test_ratelimit_uniform_429.py`` already require a dict.
-3. Static assets shared the API budget, so a single page load (StaticFiles is
-   mounted on ``/``) spent it on CSS/JS/fonts.
+Root causes locked here:
+1. Fixed-window ``Retry-After`` (not hardcoded 60).
+2. Structured dict ``detail`` for FE countdown parsers.
+3. Static assets use a separate higher bucket (not an exemption).
+4. Limiter failure must never double-invoke ``call_next`` (no write replay).
 
-Plus a latent write-safety bug: a failure inside ``call_next`` was caught by the
-limiter's ``except`` and the request was re-run through the in-memory fallback.
-
-Every test uses its own client IP — the limiter's backing store is process-wide
-and outlives a single test.
+P1 safety (cloud review @ 662c2b3):
+5. No broad auth/telephony prefix bypass — logout/reset/test-call stay limited.
+6. Canonical trusted IP = rightmost XFF (middleware + ``app.api.ratelimit``).
+7. Admin raised ceiling only for explicit safe GET/HEAD dashboard reads;
+   admin POST stays on the default API budget.
 """
 
 from __future__ import annotations
@@ -29,17 +24,26 @@ import pytest
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
-from app.middleware import RateLimitMiddleware, _fixed_window_retry_after, _is_asset_path
+from app.middleware import (
+    RateLimitMiddleware,
+    _fixed_window_retry_after,
+    _is_asset_path,
+    _is_safe_idempotent_admin_read,
+    _real_client_ip,
+)
 
 
 def _request(
     path: str = "/api/growth/summary",
     ip: str = "203.0.113.1",
     *,
+    method: str = "GET",
     authorization: str | None = None,
+    xff: str | None = None,
     extra_headers: list[tuple[bytes, bytes]] | None = None,
 ) -> Request:
-    headers: list[tuple[bytes, bytes]] = [(b"x-forwarded-for", ip.encode())]
+    forwarded = xff if xff is not None else ip
+    headers: list[tuple[bytes, bytes]] = [(b"x-forwarded-for", forwarded.encode())]
     if authorization:
         headers.append((b"authorization", authorization.encode()))
     if extra_headers:
@@ -48,7 +52,7 @@ def _request(
         {
             "type": "http",
             "http_version": "1.1",
-            "method": "GET",
+            "method": method,
             "path": path,
             "raw_path": path.encode(),
             "query_string": b"",
@@ -56,7 +60,7 @@ def _request(
             "server": ("testserver", 80),
             "root_path": "",
             "headers": headers,
-            "client": (ip, 12345),
+            "client": (ip.split(",")[-1].strip(), 12345),
         }
     )
 
@@ -70,12 +74,7 @@ def _body(response) -> dict:
 
 
 def _force_memory(mw: RateLimitMiddleware) -> RateLimitMiddleware:
-    """Drive the in-memory fallback so counting is deterministic.
-
-    The Redis-backed limiter fail-opens on any error, which would turn a real
-    regression into a silent pass. The Redis branch is covered separately by the
-    stub-limiter tests below; both branches build the 429 the same way.
-    """
+    """Drive the in-memory fallback so counting is deterministic."""
 
     async def _none(_bucket: str = "api"):
         return None
@@ -92,9 +91,9 @@ def _force_memory(mw: RateLimitMiddleware) -> RateLimitMiddleware:
 @pytest.mark.parametrize(
     ("now", "expected"),
     [
-        (1_800_000_000.0, 60),  # exactly on a boundary -> a full window ahead
-        (1_800_000_058.0, 2),  # 58s in -> 2s left, NOT 60
-        (1_800_000_059.5, 1),  # sub-second remainder still rounds up to >= 1
+        (1_800_000_000.0, 60),
+        (1_800_000_058.0, 2),
+        (1_800_000_059.5, 1),
         (1_800_000_030.0, 30),
     ],
 )
@@ -124,13 +123,11 @@ async def test_middleware_429_detail_is_a_dict_with_the_uniform_fields():
     assert blocked.status_code == 429
     body = _body(blocked)
     detail = body["detail"]
-    # FEs branch on `typeof j.detail === "object"`; a string loses the countdown.
     assert isinstance(detail, dict)
     assert detail["error"] == "rate_limited"
     assert detail["scope"] == "global_ip_api"
     assert detail["message"] == "Rate limit exceeded. Please slow down."
     assert isinstance(detail["retry_after"], int)
-    # Top-level retry_after retained for callers that already read it there.
     assert body["retry_after"] == detail["retry_after"]
 
 
@@ -151,7 +148,6 @@ async def test_middleware_429_header_matches_body_and_is_not_hardcoded_60():
 
 @pytest.mark.asyncio
 async def test_redis_branch_emits_the_same_uniform_429():
-    """The distributed limiter and the in-memory fallback must not diverge."""
     mw = RateLimitMiddleware(app=None, requests_per_minute=7)
 
     class _DenyAll:
@@ -204,7 +200,6 @@ def test_api_and_page_paths_are_never_assets(path: str):
 
 @pytest.mark.asyncio
 async def test_page_assets_do_not_exhaust_the_api_budget(monkeypatch):
-    """Spending the whole asset allowance must leave API calls untouched."""
     monkeypatch.setenv("RATE_LIMIT_ASSET_MULT", "5")
     mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=2))
     ip = "203.0.113.13"
@@ -223,19 +218,18 @@ async def test_page_assets_do_not_exhaust_the_api_budget(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_asset_mult_of_one_collapses_the_asset_ceiling(monkeypatch):
-    """`RATE_LIMIT_ASSET_MULT=1` is the kill switch back to a single budget."""
     monkeypatch.setenv("RATE_LIMIT_ASSET_MULT", "1")
     mw = RateLimitMiddleware(app=None, requests_per_minute=3)
     assert mw._ceiling_for("asset") == mw._ceiling_for("api") == 3
 
 
 # --------------------------------------------------------------------------- #
-# 3b. Admin bearer ceiling is raised, not a bypass; WS/auth skip after API burn.
+# 3b. Admin raised ceiling = GET/HEAD dashboard relief only (not writes).
 # --------------------------------------------------------------------------- #
 
 
 @pytest.mark.asyncio
-async def test_admin_bearer_gets_higher_api_ceiling_not_bypass(monkeypatch):
+async def test_admin_get_dashboard_read_gets_higher_ceiling_not_bypass(monkeypatch):
     mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=3))
 
     def _admin_rpm(request: Request) -> int | None:
@@ -254,12 +248,57 @@ async def test_admin_bearer_gets_higher_api_ceiling_not_bypass(monkeypatch):
     admin_codes = []
     for i in range(12):
         resp = await mw.dispatch(
-            _request(f"/api/b/{i}", ip=admin_ip, authorization="Bearer fake"),
+            _request(
+                f"/api/growth/probe/{i}",
+                ip=admin_ip,
+                method="GET",
+                authorization="Bearer fake",
+            ),
             _ok,
         )
         admin_codes.append(resp.status_code)
     assert admin_codes[:10].count(200) == 10
-    assert 429 in admin_codes  # still capped — not a bypass
+    assert 429 in admin_codes
+
+
+@pytest.mark.asyncio
+async def test_admin_post_stays_on_default_api_budget(monkeypatch):
+    """P1: admin bearer must NOT raise the ceiling for writes/external actions."""
+    mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=3))
+
+    def _admin_rpm(request: Request) -> int | None:
+        return 600
+
+    monkeypatch.setattr(mw, "_admin_rpm_from_bearer", _admin_rpm)
+    ip = "198.51.100.30"
+
+    codes = []
+    for i in range(5):
+        resp = await mw.dispatch(
+            _request(
+                f"/api/admin/clients/{i}",
+                ip=ip,
+                method="POST",
+                authorization="Bearer fake",
+            ),
+            _ok,
+        )
+        codes.append(resp.status_code)
+    assert codes[:3] == [200, 200, 200]
+    assert 429 in codes
+    blocked = await mw.dispatch(
+        _request("/api/admin/clients/x", ip=ip, method="POST", authorization="Bearer fake"),
+        _ok,
+    )
+    assert blocked.status_code == 429
+    assert _body(blocked)["detail"]["scope"] == "global_ip_api"
+
+
+def test_safe_admin_read_helper_is_method_and_prefix_gated():
+    assert _is_safe_idempotent_admin_read(_request("/api/growth/summary", method="GET")) is True
+    assert _is_safe_idempotent_admin_read(_request("/api/admin/clients", method="HEAD")) is True
+    assert _is_safe_idempotent_admin_read(_request("/api/admin/clients", method="POST")) is False
+    assert _is_safe_idempotent_admin_read(_request("/api/billing/charge", method="GET")) is False
 
 
 @pytest.mark.asyncio
@@ -280,47 +319,69 @@ async def test_websocket_upgrade_is_not_flat_limited():
     assert resp.status_code == 200
 
 
+# --------------------------------------------------------------------------- #
+# 4. Skip list must stay narrow — auth writes + telephony actions stay limited.
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/health", "/metrics", "/api/web-call/ws/token", "/robots.txt"],
+)
+def test_narrow_safe_paths_may_skip(path: str):
+    mw = RateLimitMiddleware(app=None, requests_per_minute=1)
+    assert mw._should_skip(_request(path)) is True
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("POST", "/api/admin/auth/logout"),
+        ("POST", "/api/customer/auth/login"),
+        ("POST", "/api/customer/auth/change-password"),
+        ("POST", "/api/team-access/auth/change-password"),
+        ("POST", "/api/admin/auth/reset-password"),
+        ("POST", "/api/telephony/vobiz/test-call"),
+        ("POST", "/api/telephony/vobiz/stream-call"),
+        ("GET", "/api/telephony/vobiz/stream/tok"),
+        ("GET", "/api/growth/summary"),
+        ("GET", "/app/inbox"),
+        ("POST", "/api/public/signup"),
+    ],
+)
+def test_auth_writes_and_telephony_actions_are_not_skipped(method: str, path: str):
+    mw = RateLimitMiddleware(app=None, requests_per_minute=1)
+    assert mw._should_skip(_request(path, method=method)) is False
+
+
 @pytest.mark.asyncio
-async def test_auth_login_path_skips_flat_limiter_after_api_burn():
-    """Dashboard burn must not lock out credential POST (route deps still apply)."""
+async def test_auth_logout_still_globally_limited_after_api_burn():
     mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=1))
     ip = "203.0.113.51"
 
     await mw.dispatch(_request("/api/burn", ip=ip), _ok)
     assert (await mw.dispatch(_request("/api/burn2", ip=ip), _ok)).status_code == 429
 
-    login = await mw.dispatch(_request("/api/customer/auth/login", ip=ip), _ok)
-    assert login.status_code == 200
+    logout = await mw.dispatch(
+        _request("/api/admin/auth/logout", ip=ip, method="POST"),
+        _ok,
+    )
+    assert logout.status_code == 429
 
 
-# --------------------------------------------------------------------------- #
-# 4. The skip list must not become an abuse hole.
-# --------------------------------------------------------------------------- #
+@pytest.mark.asyncio
+async def test_telephony_test_call_still_globally_limited_after_api_burn():
+    mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=1))
+    ip = "203.0.113.52"
 
+    await mw.dispatch(_request("/api/burn", ip=ip), _ok)
+    assert (await mw.dispatch(_request("/api/burn2", ip=ip), _ok)).status_code == 429
 
-@pytest.mark.parametrize(
-    "path",
-    [
-        "/health",
-        "/metrics",
-        "/api/admin/auth/login",
-        "/api/customer/auth/login",
-        "/api/team-access/auth/change-password",
-        "/api/telephony/vobiz/stream/tok",
-    ],
-)
-def test_skipped_paths(path: str):
-    mw = RateLimitMiddleware(app=None, requests_per_minute=1)
-    assert mw._should_skip(_request(path)) is True
-
-
-@pytest.mark.parametrize(
-    "path",
-    ["/api/growth/summary", "/app/inbox", "/api/public/signup", "/pricing"],
-)
-def test_ordinary_paths_are_still_counted(path: str):
-    mw = RateLimitMiddleware(app=None, requests_per_minute=1)
-    assert mw._should_skip(_request(path)) is False
+    call = await mw.dispatch(
+        _request("/api/telephony/vobiz/test-call", ip=ip, method="POST"),
+        _ok,
+    )
+    assert call.status_code == 429
 
 
 def _dependency_names(route) -> list[str]:
@@ -340,12 +401,7 @@ def _dependency_names(route) -> list[str]:
     ],
 )
 def test_credential_routes_keep_their_own_rate_limit(module_path: str, route_path: str):
-    """The flat limiter skips `/api/*/auth/*`, so the route dep is the only cover.
-
-    Every path here verifies a password. If one loses its `rate_limit` dep it
-    becomes unthrottled, which is exactly what the skip list assumes cannot
-    happen.
-    """
+    """Defense-in-depth: route deps still present even though global limiter covers auth."""
     import importlib
 
     module = importlib.import_module(module_path)
@@ -359,17 +415,46 @@ def test_credential_routes_keep_their_own_rate_limit(module_path: str, route_pat
 
 
 # --------------------------------------------------------------------------- #
+# 4b. Multi-value XFF cannot evade — rightmost is canonical for both layers.
+# --------------------------------------------------------------------------- #
+
+
+def test_real_client_ip_uses_rightmost_xff():
+    req = _request("/api/growth/summary", xff="198.51.100.99, 203.0.113.77")
+    assert _real_client_ip(req) == "203.0.113.77"
+
+
+def test_ratelimit_dep_ip_matches_middleware_canonical():
+    from app.api import ratelimit as rl
+
+    req = _request("/api/x", xff="8.8.8.8, 203.0.113.88")
+    assert rl._client_ip(req) == _real_client_ip(req) == "203.0.113.88"
+
+
+@pytest.mark.asyncio
+async def test_spoofed_leftmost_xff_cannot_evade_flat_limiter():
+    mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=1))
+    real_ip = "203.0.113.60"
+
+    await mw.dispatch(_request("/api/burn", ip=real_ip, xff=real_ip), _ok)
+    blocked = await mw.dispatch(_request("/api/burn2", ip=real_ip, xff=real_ip), _ok)
+    assert blocked.status_code == 429
+
+    # Attacker prepends a fresh leftmost IP — rightmost (trusted) still burned.
+    evade = await mw.dispatch(
+        _request("/api/burn3", ip=real_ip, xff=f"198.51.100.1, {real_ip}"),
+        _ok,
+    )
+    assert evade.status_code == 429
+
+
+# --------------------------------------------------------------------------- #
 # 5. A downstream failure must never silently replay the request.
 # --------------------------------------------------------------------------- #
 
 
 @pytest.mark.asyncio
 async def test_downstream_failure_is_not_retried_through_the_fallback():
-    """`call_next` raising is the application's error, not a limiter error.
-
-    Catching it alongside the limiter call meant the in-memory fallback ran the
-    same request again — a duplicate write for any POST.
-    """
     mw = RateLimitMiddleware(app=None, requests_per_minute=100)
 
     class _AllowAll:
