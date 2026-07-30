@@ -66,13 +66,36 @@ def _now() -> str:
 
 
 # ------------------------------- store ------------------------------------ #
-def _append(rec: dict[str, Any]) -> None:
+# Stale reserved/inflight older than this become publish_outcome_unknown.
+_DEFAULT_STALE_PUBLISH_SECONDS = 900
+
+
+def _stale_publish_seconds() -> int:
+    try:
+        return max(
+            0, int(os.getenv("VIDEO_AD_PUBLISH_STALE_SECONDS", str(_DEFAULT_STALE_PUBLISH_SECONDS)))
+        )
+    except Exception:
+        return _DEFAULT_STALE_PUBLISH_SECONDS
+
+
+def _store_lock():
+    """Cross-process lock for publish reservation CAS. Fail-closed on import/timeout."""
+    from filelock import FileLock
+
+    return FileLock(f"{_FILE}.lock", timeout=15)
+
+
+def _append(rec: dict[str, Any]) -> bool:
+    """Append one JSONL line. Returns whether the write landed."""
     try:
         os.makedirs(os.path.dirname(_FILE) or ".", exist_ok=True)
         with open(_FILE, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+        return True
     except Exception as e:
         logger.warning(f"[video_ad] append failed: {e}")
+        return False
 
 
 def _latest() -> dict[str, dict[str, Any]]:
@@ -99,9 +122,192 @@ def _latest() -> dict[str, dict[str, Any]]:
     return out
 
 
-def _update(rec_id: str, **fields: Any) -> None:
+def _update(rec_id: str, **fields: Any) -> bool:
     fields["id"] = rec_id
-    _append(fields)
+    return _append(fields)
+
+
+def _parse_attempt_epoch(raw: str) -> float | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    cleaned = text.replace("Z", "")
+    try:
+        return time.mktime(time.strptime(cleaned[:19], "%Y-%m-%dT%H:%M:%S"))
+    except Exception:
+        return None
+
+
+def _attempt_is_stale(rec: dict[str, Any]) -> bool:
+    """True when reserved/inflight should be recovered as unknown (hard-kill / hang)."""
+    epoch = _parse_attempt_epoch(str(rec.get("publish_attempt_at") or ""))
+    if epoch is None:
+        # Missing timestamp on an in-flight row is treated as stale: safer than
+        # forever-held after a crash that never wrote the clock field.
+        return True
+    return (time.time() - epoch) >= float(_stale_publish_seconds())
+
+
+def _cas_publish_state(
+    rid: str,
+    idem_key: str,
+    *,
+    from_states: set[str] | frozenset[str] | tuple[str, ...],
+    to_state: str,
+    identity: dict[str, Any] | None = None,
+    result: dict[str, Any] | None = None,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Under the store lock: CAS attempt state for the owning publish key."""
+    allowed = set(from_states)
+    try:
+        lock = _store_lock()
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "publish_reservation_unavailable",
+            "detail": str(exc)[:120],
+        }
+    try:
+        with lock:
+            current = dict(_latest().get(rid) or {})
+            if str(current.get("publish_idempotency_key") or "") != idem_key:
+                return {
+                    "ok": False,
+                    "error": "publish_cas_key_mismatch",
+                    "durable_state": str(current.get("publish_attempt_state") or ""),
+                }
+            prior = str(current.get("publish_attempt_state") or "")
+            if prior not in allowed:
+                return {
+                    "ok": False,
+                    "error": "publish_cas_state_mismatch",
+                    "durable_state": prior,
+                }
+            fields: dict[str, Any] = {
+                "publish_idempotency_key": idem_key,
+                "publish_attempt_state": to_state,
+                "publish_attempt_at": _now(),
+            }
+            if identity is not None:
+                fields["publish_attempt_identity"] = identity
+            if result is not None:
+                fields["publish_result"] = result
+            if extra:
+                fields.update(extra)
+            if _update(rid, **fields) is False:
+                return {"ok": False, "error": "publish_cas_write_failed"}
+            after = dict(_latest().get(rid) or {})
+            if str(after.get("publish_idempotency_key") or "") != idem_key:
+                return {"ok": False, "error": "publish_cas_write_failed"}
+            if str(after.get("publish_attempt_state") or "") != to_state:
+                return {"ok": False, "error": "publish_cas_write_failed"}
+            return {"ok": True, "state": to_state}
+    except Exception as exc:
+        logger.warning("[video_ad] publish CAS failed (%s): %s", rid[:40], exc)
+        return {
+            "ok": False,
+            "error": "publish_reservation_unavailable",
+            "detail": str(exc)[:120],
+        }
+
+
+def _acquire_publish_reservation(
+    rid: str,
+    idem_key: str,
+    identity: dict[str, Any],
+) -> dict[str, Any]:
+    """Atomically reserve one publish attempt (cross-process).
+
+    Under the store lock: re-read durable state, recover stale inflight/reserved
+    to ``publish_outcome_unknown``, short-circuit known terminals, append
+    ``publish_reserved``, then CAS-confirm. Fail-closed when the lock or write
+    does not stick — never proceed to the provider.
+    """
+    from app.marketing.video_production import publish_snapshot as ps
+
+    try:
+        lock = _store_lock()
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "publish_reservation_unavailable",
+            "detail": str(exc)[:120],
+        }
+
+    try:
+        with lock:
+            current = dict(_latest().get(rid) or {})
+            prior_key = str(current.get("publish_idempotency_key") or "")
+            prior_state = str(current.get("publish_attempt_state") or "")
+            prior_result = current.get("publish_result")
+
+            if (
+                prior_key == idem_key
+                and prior_state == ps.PUBLISHED
+                and isinstance(prior_result, dict)
+            ):
+                return {
+                    "ok": True,
+                    "short_circuit": "published",
+                    "channels": prior_result,
+                }
+
+            if prior_key == idem_key and prior_state == ps.PUBLISH_OUTCOME_UNKNOWN:
+                return {"ok": False, "error": "publish_outcome_unknown"}
+
+            if prior_key == idem_key and prior_state in (
+                ps.PUBLISH_RESERVED,
+                ps.PROVIDER_INFLIGHT,
+            ):
+                if _attempt_is_stale(current):
+                    # Hard-kill / hung attempt → durable unknown (never retryable).
+                    # Do NOT flip legacy status here — attempt-state alone blocks
+                    # retries; outer publish_due/schedule_approved make status visible.
+                    wrote = _update(
+                        rid,
+                        publish_idempotency_key=idem_key,
+                        publish_attempt_state=ps.PUBLISH_OUTCOME_UNKNOWN,
+                        publish_attempt_at=_now(),
+                        publish_result={
+                            "idempotency": {
+                                "ok": False,
+                                "error": "publish_outcome_unknown",
+                                "remedy": (
+                                    "stale provider_inflight/reserved recovered; "
+                                    "provider reconciliation or operator decision required"
+                                ),
+                            }
+                        },
+                    )
+                    if wrote is False:
+                        return {"ok": False, "error": "publish_reservation_failed"}
+                    return {"ok": False, "error": "publish_outcome_unknown"}
+                return {"ok": False, "error": "publish_reservation_held"}
+
+            wrote = _update(
+                rid,
+                publish_idempotency_key=idem_key,
+                publish_attempt_state=ps.PUBLISH_RESERVED,
+                publish_attempt_identity=identity,
+                publish_attempt_at=_now(),
+            )
+            if wrote is False:
+                return {"ok": False, "error": "publish_reservation_failed"}
+
+            after = dict(_latest().get(rid) or {})
+            if str(after.get("publish_idempotency_key") or "") != idem_key:
+                return {"ok": False, "error": "publish_reservation_failed"}
+            if str(after.get("publish_attempt_state") or "") != ps.PUBLISH_RESERVED:
+                return {"ok": False, "error": "publish_reservation_failed"}
+            return {"ok": True, "reserved": True}
+    except Exception as exc:
+        logger.warning("[video_ad] publish reservation lock/CAS failed (%s): %s", rid[:40], exc)
+        return {
+            "ok": False,
+            "error": "publish_reservation_unavailable",
+            "detail": str(exc)[:120],
+        }
 
 
 def _load_state() -> dict[str, str]:
@@ -272,25 +478,108 @@ async def generate_for_client(
 
 
 # ------------------------------- approve / change hooks --------------------- #
+
+# Canonical actor identities. An approval always has SOMEONE behind it; storing
+# an empty actor would make the audit trail lie, so callers that cannot resolve
+# a richer identity use one of these explicit contracts.
+APPROVAL_ACTOR_TOKEN = "customer:approval_token"  # signed review-link holder
+APPROVAL_ACTOR_ADMIN = "admin"  # admin acting on behalf of the customer
+
+
+def record_approval(rec_id: str, revision: int, *, actor: str) -> dict[str, Any]:
+    """THE approval writer. Every approval path must go through this function.
+
+    Loads the authoritative record by id, takes ``video_path`` from that record
+    (never from a caller argument), validates it against the canonical media
+    roots, streams a SHA-256 of the exact approval-time bytes, and persists the
+    approval atomically through ``_update``.
+
+    Fails WITHOUT marking approval when the content cannot be verified — a
+    record we cannot hash must not become publishable.
+    """
+    from app.marketing.video_production import states
+    from app.marketing.video_production.publish_gate import hash_video_file
+
+    rid = str(rec_id or "").strip()
+    who = str(actor or "").strip()
+    if not rid:
+        return {"ok": False, "error": "rec_id required"}
+    if not who:
+        return {"ok": False, "error": "approver_identity_required"}
+
+    rec = _latest().get(rid)
+    if not rec:
+        return {"ok": False, "error": "video_ad_not_found"}
+
+    digest, size = hash_video_file(str(rec.get("video_path") or ""))
+    if not digest:
+        return {"ok": False, "error": "content_unverifiable"}
+
+    _update(
+        rid,
+        status="approved",
+        workflow_state=states.APPROVED,
+        approved_version=int(revision),
+        final_approved=True,
+        approved_content_sha256=digest,
+        approved_content_bytes=size,
+        approved_by=who[:64],
+        approved_at=_now(),
+        decided_at=_now(),
+    )
+    return {
+        "ok": True,
+        "revision": int(revision),
+        "content_sha256": digest,
+        "content_bytes": size,
+        "approved_by": who[:64],
+    }
+
+
 def on_approved(approval_rec: dict[str, Any]) -> bool:
     """content_approval._decide(approved) se call (FAST, sync). Hamare video_ad rec
-    ko approved (pending-publish) mark karta — actual publish scheduler karta."""
+    ko approved (pending-publish) mark karta — actual publish scheduler karta.
+
+    Delegates to :func:`record_approval` — this function must never write
+    approval fields itself, or the content hash silently stops being recorded.
+    """
     try:
         aid = str(approval_rec.get("id") or "")
         if not aid:
             return False
         for rid, rec in _latest().items():
-            if str(rec.get("approval_id") or "") == aid and rec.get("status") == "pending":
-                rev = int(rec.get("revision") or 0)
-                _update(
-                    rid,
-                    status="approved",
-                    workflow_state="APPROVED",
-                    approved_version=rev,
-                    final_approved=True,
-                    decided_at=_now(),
+            if str(rec.get("approval_id") or "") != aid:
+                continue
+            # A saga-coordinated request already owns this record. Do NOT
+            # silently no-op: report explicitly that the coordinator handled it,
+            # with the transaction as evidence, so a caller can tell
+            # "already coordinated" apart from "nothing matched".
+            txn_state = str(rec.get("approval_txn_state") or "")
+            if txn_state:
+                logger.info(
+                    "[video_ad] on_approved skipped — already coordinated (%s, txn_state=%s)",
+                    str(rid)[:40],
+                    txn_state,
                 )
                 return True
+            # CONTAINMENT (Stage 3B-close). This branch used to call
+            # record_approval for an UNCOORDINATED transaction, which made every
+            # caller of content_approval._decide a full approval authority:
+            # the unauthenticated GET /api/clientops/approve/{token} link,
+            # decide_for_client (customer portal + boss_council) and
+            # decide_by_id (product_one_delivery automation). Four entrypoints,
+            # no principal, no snapshot, and a hash taken at approval time
+            # rather than of the bytes anyone previewed.
+            #
+            # on_approved is the single choke point for all four, so the refusal
+            # lives here rather than on any one route. Video approval may only
+            # be finalized by approval_saga.approve().
+            logger.warning(
+                "[video_ad] on_approved REFUSED — uncoordinated approval (%s); "
+                "video approval must go through approval_saga.approve",
+                str(rid)[:40],
+            )
+            return False
         return False
     except Exception as e:
         logger.debug(f"[video_ad] on_approved skip: {e}")
@@ -359,29 +648,71 @@ async def request_changes(approval_id: str, note: str = "") -> dict[str, Any]:
 
 
 # ------------------------------- publish ------------------------------------ #
-async def _tg_send_video(chat_id: str, video_path: str, caption: str = "") -> dict[str, Any]:
-    """Telegram Bot API sendVideo — self-contained (flaky telegram_publish par
-    dependency-free fallback). Gated TELEGRAM_BOT_TOKEN. NEVER raises."""
+async def _tg_send_video(
+    chat_id: str,
+    video_path: str = "",
+    caption: str = "",
+    *,
+    video_file: Any | None = None,
+    filename: str = "video.mp4",
+) -> dict[str, Any]:
+    """Telegram Bot API sendVideo. Prefer ``video_file`` (verified descriptor)."""
     token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
     if not token:
-        return {"sent": False, "reason": "TELEGRAM_BOT_TOKEN unset"}
-    if not chat_id or not video_path or not os.path.isfile(video_path):
-        return {"sent": False, "reason": "chat_id/video missing"}
+        return {
+            "sent": False,
+            "outcome": "failed",
+            "reason": "TELEGRAM_BOT_TOKEN unset",
+        }
+    if not chat_id or (video_file is None and (not video_path or not os.path.isfile(video_path))):
+        return {"sent": False, "outcome": "failed", "reason": "chat_id/video missing"}
+    owns = False
+    fh = video_file
     try:
         import httpx
 
+        if fh is None:
+            fh = open(video_path, "rb")
+            owns = True
+            name = os.path.basename(video_path)
+        else:
+            try:
+                fh.seek(0)
+            except (OSError, AttributeError):
+                return {
+                    "sent": False,
+                    "outcome": "failed",
+                    "reason": "snapshot_unseekable",
+                }
+            name = filename or (os.path.basename(video_path) if video_path else "video.mp4")
         api = f"https://api.telegram.org/bot{token}/sendVideo"
-        with open(video_path, "rb") as fh:
-            async with httpx.AsyncClient(timeout=120) as cx:
-                r = await cx.post(
-                    api,
-                    data={"chat_id": chat_id, "caption": (caption or "")[:1024]},
-                    files={"video": (os.path.basename(video_path), fh, "video/mp4")},
-                )
-        ok = r.status_code == 200 and r.json().get("ok")
-        return {"sent": bool(ok), **({} if ok else {"reason": r.text[:160]})}
+        async with httpx.AsyncClient(timeout=120) as cx:
+            r = await cx.post(
+                api,
+                data={"chat_id": chat_id, "caption": (caption or "")[:1024]},
+                files={"video": (name, fh, "video/mp4")},
+            )
+        code = int(r.status_code)
+        if code >= 500:
+            return {
+                "sent": False,
+                "outcome": "unknown",
+                "reason": f"{code}: {r.text[:160]}",
+            }
+        ok = code == 200 and bool((r.json() or {}).get("ok"))
+        if ok:
+            return {"sent": True, "outcome": "published"}
+        if code // 100 == 4:
+            return {"sent": False, "outcome": "failed", "reason": r.text[:160]}
+        return {"sent": False, "outcome": "unknown", "reason": r.text[:160]}
     except Exception as e:
-        return {"sent": False, "reason": str(e)[:120]}
+        return {"sent": False, "outcome": "unknown", "reason": str(e)[:120]}
+    finally:
+        if owns and fh is not None:
+            try:
+                fh.close()
+            except Exception:
+                pass
 
 
 def _resolve_publish_client(cid: str) -> dict[str, Any] | None:
@@ -411,10 +742,20 @@ def _resolve_publish_client(cid: str) -> dict[str, Any] | None:
 
 
 async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
-    from app.marketing import clients_store  # noqa: F401  (kept for downstream use)
+    """Publish ONE approved video through Postiz/Telegram/engine.
+
+    Stage 3C (descriptor-bound) contract:
+      * gate must be finalized + snapshot-bound
+      * ``open_verified_snapshot`` opens once (O_NOFOLLOW); provider streams that fd
+      * mutable ``video_path`` is never opened for upload
+      * local states: publish_reserved → provider_inflight → published
+        (or publish_outcome_unknown / publish_refused / publish_failed)
+      * Postiz has no provider idempotency — never claim exactly-once externally
+    """
+    from app.marketing.video_production import publish_snapshot as ps
 
     # Publish gate: when Video Production Cell master is ON → fail-closed on
-    # gate errors. When OFF → legacy VIDEO_AD_CYCLE fail-open if gate import fails.
+    # gate errors. When OFF → refuse rather than open a mutable path.
     _prod_cell = False
     try:
         from app.marketing.video_production import flags as _vflags
@@ -427,93 +768,343 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
 
         gate = assert_can_publish(rec)
         if not gate.get("ok"):
-            return {"any_sent": False, "channels": {"gate": gate}}
+            return {"any_sent": False, "channels": {"gate": gate}, "provider_calls": 0}
     except Exception as e:
-        if _prod_cell:
-            logger.warning(f"[video_ad] publish_gate fail-closed (cell ON): {e}")
-            return {
-                "any_sent": False,
-                "channels": {"gate": {"ok": False, "error": f"gate_exception:{str(e)[:120]}"}},
-            }
-        logger.debug(f"[video_ad] publish_gate skip (fail-open legacy): {e}")
+        logger.warning(f"[video_ad] publish_gate fail-closed: {e}")
+        return {
+            "any_sent": False,
+            "channels": {"gate": {"ok": False, "error": f"gate_exception:{str(e)[:120]}"}},
+            "provider_calls": 0,
+        }
 
     cid = str(rec.get("client_id") or "")
     client = _resolve_publish_client(cid)
     if client is None:
-        # Unresolved tenant — the record names a client id that no longer
-        # resolves. Falling through with `{}` would read as "own-brand, no
-        # client" downstream (postiz_publish._is_own_brand) and fan this
-        # customer's video out to the CORPORATE channels. Fail CLOSED.
         logger.warning(f"[video_ad] publish refused — unresolved tenant: {cid[:40]}")
         return {
             "any_sent": False,
             "channels": {"tenant": {"ok": False, "error": "unresolved_tenant"}},
+            "provider_calls": 0,
         }
+
+    snap_path = str(gate.get("snapshot_path") or "")
+    snap_sha = str(gate.get("content_sha256") or "")
+    snap_bytes = int(gate.get("content_bytes") or 0)
+    rid = str(rec.get("id") or "")
     caption = str(rec.get("caption") or "")
-    video_path = str(rec.get("video_path") or "")
-    # SOCIAL_ENGINE on -> durable native engine (Redis/Celery queue + provider adapters)
-    # ko handoff; engine khud Telegram/Meta/GBP/LinkedIn/X/YouTube/Postiz pe deliver karta.
-    try:
-        from app.social_engine import engine as _social_engine
 
-        if _social_engine.enabled():
-            media_url = ""
-            try:
-                from app.storage.minio_client import get_storage
+    identity = ps.canonical_publish_identity(
+        tenant=cid,
+        video_id=rid,
+        approval_txn=str(gate.get("approval_txn") or rec.get("approval_txn") or ""),
+        revision=int(gate.get("version") or rec.get("revision") or 0),
+        snapshot_sha256=snap_sha,
+        snapshot_bytes=snap_bytes,
+        channel="postiz",
+    )
+    idem_key = ps.publish_idempotency_key(identity)
 
-                _storage = get_storage()
-                if video_path and os.path.isfile(video_path):
-                    _key = f"video_ads/{cid}/{os.path.basename(video_path)}"
-                    with open(video_path, "rb") as _fh:
-                        _vdata = _fh.read()
-                    await _storage.put(_key, _vdata, content_type="video/mp4")
-                    media_url = _storage.public_url(_key)
-            except Exception as _ue:
-                logger.debug(f"[video_ad] MinIO upload skip (fail-open): {_ue}")
-            ids = _social_engine.enqueue_publish(
-                cid, caption=caption, media_path=video_path, media_url=media_url, media_type="video"
-            )
-            return {"any_sent": bool(ids), "channels": {"engine": {"queued_jobs": ids}}}
-    except Exception as e:
-        logger.warning(f"[video_ad] social_engine handoff skip: {e}")
+    reserved = _acquire_publish_reservation(rid, idem_key, identity)
+    if reserved.get("short_circuit") == "published":
+        return {
+            "any_sent": True,
+            "channels": reserved.get("channels") or {},
+            "idempotent_local": True,
+            "provider_calls": 0,
+            "publish_idempotency_key": idem_key,
+            "external_exactly_once": False,
+        }
+    if not reserved.get("ok"):
+        err = str(reserved.get("error") or "publish_reservation_failed")
+        return {
+            "any_sent": False,
+            "channels": {
+                "idempotency": {
+                    "ok": False,
+                    "error": err,
+                    **(
+                        {
+                            "remedy": (
+                                "provider reconciliation or explicit operator " "decision required"
+                            )
+                        }
+                        if err == "publish_outcome_unknown"
+                        else {}
+                    ),
+                }
+            },
+            "provider_calls": 0,
+            "publish_idempotency_key": idem_key,
+            "external_exactly_once": False,
+        }
+
+    opened = ps.open_verified_snapshot(
+        snapshot_path=snap_path,
+        expected_sha256=snap_sha,
+        expected_bytes=snap_bytes,
+    )
+    if not opened.get("ok"):
+        _finalize_publish_attempt(
+            rid,
+            idem_key,
+            identity,
+            {"any_sent": False, "channels": {"snapshot": opened}, "provider_calls": 0},
+            state=ps.PUBLISH_REFUSED,
+        )
+        return {
+            "any_sent": False,
+            "channels": {"snapshot": opened},
+            "provider_calls": 0,
+            "publish_idempotency_key": idem_key,
+            "external_exactly_once": False,
+        }
+
+    fh = opened["fh"]
+    provider_calls = 0
     result: dict[str, Any] = {}
     any_sent = False
-    # 1) Telegram native (free) — self-contained sendVideo (telegram_publish optional).
-    chat_id = str(client.get("telegram_chat_id") or "").strip()
-    if chat_id and video_path:
-        try:
-            sender = None
-            try:
-                from app.marketing import telegram_publish
+    provider_started = False
+    filename = os.path.basename(str(opened.get("snapshot_path") or "video.mp4")) or "video.mp4"
 
-                sender = getattr(telegram_publish, "send_video", None)
-            except Exception:
-                sender = None
-            tg = (
-                await sender(chat_id, video_path, caption)
-                if sender
-                else await _tg_send_video(chat_id, video_path, caption)
-            )
-            result["telegram"] = tg
-            any_sent = any_sent or bool(tg.get("sent"))
-        except Exception as e:
-            result["telegram"] = {"sent": False, "reason": str(e)[:120]}
-    # 2) Postiz (FB/IG/YT/LinkedIn) — gated POSTIZ_API_KEY
+    # P0-B: durable provider_inflight BEFORE any provider invocation.
+    marked = _cas_publish_state(
+        rid,
+        idem_key,
+        from_states={ps.PUBLISH_RESERVED},
+        to_state=ps.PROVIDER_INFLIGHT,
+        identity=identity,
+    )
+    if not marked.get("ok"):
+        return {
+            "any_sent": False,
+            "channels": {
+                "idempotency": {
+                    "ok": False,
+                    "error": str(marked.get("error") or "publish_inflight_failed"),
+                }
+            },
+            "provider_calls": 0,
+            "publish_idempotency_key": idem_key,
+            "external_exactly_once": False,
+        }
+
     try:
+        # Prefer Postiz when enabled — stream verified descriptor (no path reopen).
         from app.marketing import postiz_publish
 
         if postiz_publish.enabled():
-            pz = await postiz_publish.publish_video(client, caption, video_path)
+            provider_started = True
+            try:
+                fh.seek(0)
+            except (OSError, AttributeError):
+                _finalize_publish_attempt(
+                    rid,
+                    idem_key,
+                    identity,
+                    {
+                        "any_sent": False,
+                        "channels": {"snapshot": {"ok": False, "error": "snapshot_unseekable"}},
+                        "provider_calls": 0,
+                    },
+                    state=ps.PUBLISH_REFUSED,
+                )
+                return {
+                    "any_sent": False,
+                    "channels": {"snapshot": {"ok": False, "error": "snapshot_unseekable"}},
+                    "provider_calls": 0,
+                    "publish_idempotency_key": idem_key,
+                    "external_exactly_once": False,
+                }
+            pz = await postiz_publish.publish_video(
+                client,
+                caption,
+                video_file=fh,
+                filename=filename,
+                idempotency_key=idem_key,
+            )
+            provider_calls += 1
             result["postiz"] = pz
             any_sent = any_sent or bool(pz.get("sent"))
+            provider_outcome = str(pz.get("outcome") or "")
+        else:
+            # Telegram fallback — same verified descriptor.
+            chat_id = str(client.get("telegram_chat_id") or "").strip()
+            provider_outcome = ""
+            if chat_id:
+                provider_started = True
+                try:
+                    fh.seek(0)
+                except (OSError, AttributeError):
+                    _finalize_publish_attempt(
+                        rid,
+                        idem_key,
+                        identity,
+                        {
+                            "any_sent": False,
+                            "channels": {"snapshot": {"ok": False, "error": "snapshot_unseekable"}},
+                            "provider_calls": 0,
+                        },
+                        state=ps.PUBLISH_REFUSED,
+                    )
+                    return {
+                        "any_sent": False,
+                        "channels": {"snapshot": {"ok": False, "error": "snapshot_unseekable"}},
+                        "provider_calls": 0,
+                        "publish_idempotency_key": idem_key,
+                        "external_exactly_once": False,
+                    }
+                tg = await _tg_send_video(
+                    chat_id, caption=caption, video_file=fh, filename=filename
+                )
+                provider_calls += 1
+                result["telegram"] = tg
+                any_sent = any_sent or bool(tg.get("sent"))
+                provider_outcome = str(tg.get("outcome") or "")
+
+        if any_sent:
+            final_state = ps.PUBLISHED
+        elif provider_started and provider_outcome != "failed":
+            # Missing/unknown outcome after invocation → never blind-retry.
+            final_state = ps.PUBLISH_OUTCOME_UNKNOWN
+        else:
+            final_state = ps.PUBLISH_FAILED
+
+        out = {
+            "any_sent": any_sent,
+            "channels": result,
+            "provider_calls": provider_calls,
+            "publish_idempotency_key": idem_key,
+            "publish_identity": identity,
+            "external_exactly_once": False,
+            "provider_idempotency": bool(ps.PROVIDER_ACCEPTS_IDEMPOTENCY_KEY),
+            "publish_attempt_state": final_state,
+        }
+        finalized = _finalize_publish_attempt(
+            rid,
+            idem_key,
+            identity,
+            out,
+            state=final_state,
+        )
+        if (
+            not finalized.get("ok")
+            and provider_started
+            and final_state != ps.PUBLISH_OUTCOME_UNKNOWN
+        ):
+            # Persistence uncertainty after provider call → durable unknown.
+            out["publish_attempt_state"] = ps.PUBLISH_OUTCOME_UNKNOWN
+            out["any_sent"] = False
+            _finalize_publish_attempt(
+                rid,
+                idem_key,
+                identity,
+                out,
+                state=ps.PUBLISH_OUTCOME_UNKNOWN,
+            )
+        return out
     except Exception as e:
-        result["postiz"] = {"sent": False, "reason": str(e)[:120]}
-    return {"any_sent": any_sent, "channels": result}
+        # Crash/exception after provider invocation → unknown outcome; no blind retry.
+        logger.warning("[video_ad] provider invocation raised (%s): %s", rid[:40], e)
+        out = {
+            "any_sent": False,
+            "channels": {"provider": {"ok": False, "error": str(e)[:160]}},
+            "provider_calls": provider_calls,
+            "publish_idempotency_key": idem_key,
+            "external_exactly_once": False,
+            "publish_attempt_state": (
+                ps.PUBLISH_OUTCOME_UNKNOWN if provider_started else ps.PUBLISH_FAILED
+            ),
+        }
+        st = ps.PUBLISH_OUTCOME_UNKNOWN if provider_started else ps.PUBLISH_FAILED
+        _finalize_publish_attempt(rid, idem_key, identity, out, state=st)
+        return out
+    finally:
+        try:
+            fh.close()
+        except Exception:
+            pass
+        _ = _prod_cell  # retained for future cell-gated diagnostics
+
+
+def _finalize_publish_attempt(
+    rid: str,
+    idem_key: str,
+    identity: dict[str, Any],
+    out: dict[str, Any],
+    *,
+    state: str | None = None,
+) -> dict[str, Any]:
+    """Persist attempt evidence under the publish-store lock. Returns CAS result."""
+    from app.marketing.video_production import publish_snapshot as ps
+
+    st = state or (ps.PUBLISHED if out.get("any_sent") else ps.PUBLISH_FAILED)
+    # Owning attempt may still be reserved (pre-provider refuse) or inflight.
+    cas = _cas_publish_state(
+        rid,
+        idem_key,
+        from_states={ps.PUBLISH_RESERVED, ps.PROVIDER_INFLIGHT},
+        to_state=st,
+        identity=identity,
+        result=out.get("channels") or {},
+    )
+    if not cas.get("ok"):
+        logger.warning(
+            "[video_ad] publish finalize CAS failed (%s): %s",
+            rid[:40],
+            cas.get("error"),
+        )
+        return cas
+
+    # Only durable success writes post_published. Unknown outcomes must not
+    # look like published evidence.
+    if st == ps.PUBLISH_OUTCOME_UNKNOWN:
+        return cas
+    if st in (ps.PUBLISH_REFUSED, ps.PUBLISH_FAILED) or not out.get("any_sent"):
+        if st != ps.PUBLISHED:
+            try:
+                from app.marketing.delivery_ledger import log_event
+
+                log_event(
+                    str(identity.get("tenant") or ""),
+                    "post_failed",
+                    detail=f"video:{identity.get('video_id')}:r{identity.get('revision')}",
+                    meta={
+                        "publish_idempotency_key": idem_key,
+                        "publish_attempt_state": st,
+                        "provider_calls": out.get("provider_calls"),
+                    },
+                    actor="video_ad_publish",
+                    key=f"{idem_key[:140]}:fail",
+                )
+            except Exception:
+                pass
+            return cas
+    try:
+        from app.marketing.delivery_ledger import log_event
+
+        log_event(
+            str(identity.get("tenant") or ""),
+            "post_published",
+            detail=f"video:{identity.get('video_id')}:r{identity.get('revision')}",
+            meta={
+                "publish_idempotency_key": idem_key,
+                "snapshot_sha256": identity.get("snapshot_sha256"),
+                "approval_txn": identity.get("approval_txn"),
+                "provider_calls": out.get("provider_calls"),
+                "external_exactly_once": False,
+            },
+            actor="video_ad_publish",
+            key=idem_key[:160],
+        )
+    except Exception as exc:
+        logger.debug("[video_ad] delivery_ledger publish evidence skip: %s", exc)
+    return cas
 
 
 async def publish_due(limit: int = 20) -> dict[str, Any]:
     """Approved (pending-publish) video ads ko channels pe bhejo. Scheduler se."""
     published = failed = 0
+    held = unknown = 0
     try:
         rows = [r for r in _latest().values() if r.get("status") == "approved"]
         rows.sort(key=lambda r: str(r.get("decided_at") or r.get("created_at") or ""))
@@ -529,16 +1120,39 @@ async def publish_due(limit: int = 20) -> dict[str, Any]:
                     publish_result=res["channels"],
                 )
                 published += 1
-            else:
+                continue
+            idem_err = str(
+                ((res.get("channels") or {}).get("idempotency") or {}).get("error") or ""
+            )
+            attempt = str(res.get("publish_attempt_state") or "")
+            # Do NOT normalize unknown/held into ordinary publish_failed (retry bait).
+            if idem_err == "publish_reservation_held":
+                held += 1
+                continue
+            if idem_err == "publish_outcome_unknown" or attempt == "publish_outcome_unknown":
                 _update(
                     rid,
-                    status="publish_failed",
-                    workflow_state="PUBLISH_FAILED",
-                    publish_result=res["channels"],
-                    failed_at=_now(),
+                    status="publish_outcome_unknown",
+                    workflow_state="PUBLISH_OUTCOME_UNKNOWN",
+                    publish_result=res.get("channels") or {},
                 )
-                failed += 1
-        return {"ran": True, "published": published, "failed": failed}
+                unknown += 1
+                continue
+            _update(
+                rid,
+                status="publish_failed",
+                workflow_state="PUBLISH_FAILED",
+                publish_result=res["channels"],
+                failed_at=_now(),
+            )
+            failed += 1
+        return {
+            "ran": True,
+            "published": published,
+            "failed": failed,
+            "held": held,
+            "unknown": unknown,
+        }
     except Exception as e:
         logger.warning(f"[video_ad] publish_due failed: {e}")
         return {"ran": False, "reason": str(e)[:150]}

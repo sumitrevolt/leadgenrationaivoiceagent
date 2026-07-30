@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from app.api.auth_deps import require_admin
@@ -137,12 +137,38 @@ async def public_approve(
     action: str = Query("approve", max_length=10),
     note: str = Query("", max_length=300),
 ):
-    """Client ka 1-click approve/reject (PUBLIC, rate-limited) — Hinglish HTML."""
+    """Client ka 1-click approve/reject (PUBLIC, rate-limited) — Hinglish HTML.
+
+    CONTAINMENT (Stage 3B-close): a VIDEO approval may no longer be decided
+    here. This route is unauthenticated and the token carries no binding to
+    tenant, record, revision or content hash, so possession of a URL used to be
+    enough to mark a video finally approved and publishable.
+
+    The refusal happens BEFORE any decision is persisted — not after — so the
+    approval record and the video record are left byte-identical.
+    """
     from fastapi.responses import HTMLResponse
 
     from app.marketing import content_approval
 
     act = "reject" if action == "reject" else "approve"
+
+    if act == "approve":
+        rec = content_approval.get_by_token(token) or {}
+        if str((rec.get("content") or {}).get("type") or "") == "video_ad":
+            refusal = {
+                "ok": False,
+                "error": "approval_token_regeneration_required",
+                "detail": (
+                    "Is video ka approval link purana hai. Dashboard se approve "
+                    "karein — hum naya secure link bhej rahe hain."
+                ),
+            }
+            return HTMLResponse(
+                content_approval.decision_html(refusal, act),
+                status_code=409,
+            )
+
     if act == "reject":
         result = content_approval.reject(token, note)
     else:
@@ -417,16 +443,45 @@ async def video_production_generate(body: VideoCellGenIn, _user=Depends(require_
 
 class VideoApproveIn(BaseModel):
     expected_revision: int | None = None
+    #: The admin must have previewed the exact bytes, same as a customer.
+    expected_content_sha256: str = ""
 
 
 @router.post("/video-production/{video_ad_id}/approve")
 async def video_production_approve(
-    video_ad_id: str, body: VideoApproveIn, _user=Depends(require_admin)
+    video_ad_id: str, body: VideoApproveIn, user=Depends(require_admin)
 ):
-    """Version-bound approve (admin/support)."""
-    from app.marketing.video_production import cell
+    """Version-bound approve (admin/support).
 
-    return cell.approve_version(video_ad_id, body.expected_revision)
+    Previously this discarded the authenticated ``User`` and approved as the
+    literal string ``"admin"``, so the ledger could not say WHICH admin acted.
+    The User row carries a stable ``User.id``, so a real principal is built from
+    it. No caller-supplied actor is accepted.
+    """
+    import re as _re
+
+    from app.marketing import video_ad_cycle
+    from app.marketing.video_production import cell
+    from app.marketing.video_production.approval_principal import PrincipalRefused, from_admin_user
+
+    expected_hash = str(body.expected_content_sha256 or "").strip().lower()
+    if not _re.fullmatch(r"[0-9a-f]{64}", expected_hash):
+        raise HTTPException(status_code=400, detail="expected_content_sha256 required (64-hex)")
+
+    rec = (video_ad_cycle._latest() or {}).get(str(video_ad_id)) or {}
+    if not rec:
+        raise HTTPException(status_code=404, detail="video_ad_not_found")
+    try:
+        principal = from_admin_user(user, tenant_id=str(rec.get("client_id") or ""))
+    except PrincipalRefused as exc:
+        raise HTTPException(status_code=exc.status, detail=exc.code) from None
+
+    return cell.approve_version(
+        video_ad_id,
+        body.expected_revision,
+        principal=principal,
+        expected_sha256=expected_hash,
+    )
 
 
 # --------------- Creative Automation OS (ADR-143, flag-gated) --------------- #
