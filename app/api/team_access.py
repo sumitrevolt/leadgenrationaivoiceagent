@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.auth_deps import get_current_user, require_admin, require_super_admin
+from app.api.ratelimit import rate_limit
 from app.models.base import get_async_db
 from app.models.user import User, UserRole, UserStatus
 from app.platform import rbac
@@ -184,7 +185,14 @@ class ChangePasswordIn(BaseModel):
     new_password: str = Field(min_length=8)
 
 
-@router.post("/auth/change-password")
+# The flat per-IP limiter skips /api/team-access/auth/* (brute-force cover is
+# expected to live on the route, as it does for admin_login / cust_pw_change).
+# This route verifies a password, so it needs that cover here — same 5/300
+# budget as the customer change-password route.
+@router.post(
+    "/auth/change-password",
+    dependencies=[Depends(rate_limit("team_pw_change", 5, 300))],
+)
 async def change_own_password(
     body: ChangePasswordIn,
     user: User = Depends(get_current_user),
