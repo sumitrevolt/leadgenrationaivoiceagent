@@ -7,8 +7,9 @@ prospect list.
 
 Safety:
   - one recipient only (bulk-shaped addresses refused)
-  - suppression fail-closed (canary-local; does not change email_unsub globals)
-  - attempt ledger read/parse/authority failures block BEFORE provider I/O
+  - suppression fail-closed via ONE strict validated snapshot (canary-local;
+    never a second fail-open ``email_unsub`` reader; does not change globals)
+  - attempt ledger read/parse/structural/authority failures block BEFORE provider I/O
   - attempt claimed under file-lock BEFORE provider (lock released before I/O)
   - idempotency key ⇒ duplicate request does not re-send
   - hard daily provider-attempt cap of 1 (pending claims count)
@@ -122,6 +123,34 @@ def _append_attempt(row: dict[str, Any]) -> None:
         f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
+def _validate_attempt_row(row: dict[str, Any]) -> None:
+    """Strict shape for every historical row used by idempotency / daily-cap truth.
+
+    Syntactically valid but empty/partial objects (``{}``, ``{event:attempt}``)
+    must BLOCK — silently ignoring them would under-count the daily cap or miss
+    an in-flight claim.
+    """
+    event = row.get("event")
+    if event not in ("attempt", "status"):
+        raise AttemptLedgerError("attempt_ledger_corrupt", detail="bad_event")
+    key = row.get("idempotency_key")
+    if not isinstance(key, str) or not key.strip():
+        raise AttemptLedgerError("attempt_ledger_corrupt", detail="bad_idempotency_key")
+    ts = row.get("ts")
+    if isinstance(ts, bool) or not isinstance(ts, int | float):
+        raise AttemptLedgerError("attempt_ledger_corrupt", detail="bad_ts")
+    outcome = row.get("outcome")
+    if not isinstance(outcome, str) or not outcome.strip():
+        raise AttemptLedgerError("attempt_ledger_corrupt", detail="bad_outcome")
+    pc = row.get("provider_called")
+    if not isinstance(pc, bool):
+        raise AttemptLedgerError("attempt_ledger_corrupt", detail="bad_provider_called")
+    if event == "attempt":
+        to_masked = row.get("to_masked")
+        if not isinstance(to_masked, str) or not to_masked.strip():
+            raise AttemptLedgerError("attempt_ledger_corrupt", detail="bad_to_masked")
+
+
 def _iter_attempts() -> list[dict[str, Any]]:
     """Load attempt ledger. Missing file ⇒ []. Unreadable/corrupt ⇒ raise."""
     path = _attempts_path(create=False)
@@ -155,6 +184,7 @@ def _iter_attempts() -> list[dict[str, Any]]:
             ) from e
         if not isinstance(row, dict):
             raise AttemptLedgerError("attempt_ledger_corrupt", detail="not_object")
+        _validate_attempt_row(row)
         out.append(row)
     return out
 
@@ -327,47 +357,125 @@ def preflight() -> dict[str, Any]:
         }
 
 
-def _suppression_ledger_trustworthy() -> bool:
-    """Canary-only probe: ordinary read/decode/permission failures ⇒ untrusted.
+def _validate_suppression_row(row: dict[str, Any], *, email_unsub: Any) -> dict[str, Any]:
+    """Strict identity/shape for canary suppression truth. Unknown/partial ⇒ raise."""
+    email = email_unsub.normalize_email(row.get("email"))
+    phone = email_unsub.normalize_phone(row.get("phone"))
+    prospect_id = str(row.get("prospect_id") or "").strip()
+    # Empty / identity-less objects must not look like an empty ledger.
+    if not email and not phone and not prospect_id:
+        raise SuppressionLedgerError("suppression_ledger_untrusted")
+    scope_raw = row.get("scope", email_unsub.SCOPE_EMAIL_ADDRESS)
+    if scope_raw is None or not isinstance(scope_raw, str):
+        raise SuppressionLedgerError("suppression_ledger_untrusted")
+    scope = scope_raw.strip().lower() or email_unsub.SCOPE_EMAIL_ADDRESS
+    if scope not in email_unsub._VALID_SCOPES:
+        raise SuppressionLedgerError("suppression_ledger_untrusted")
+    if "ts" in row:
+        ts = row.get("ts")
+        if isinstance(ts, bool) or not isinstance(ts, int | float):
+            raise SuppressionLedgerError("suppression_ledger_untrusted")
+    if "channel" in row and row.get("channel") is not None:
+        if not isinstance(row.get("channel"), str):
+            raise SuppressionLedgerError("suppression_ledger_untrusted")
+    if "resolution" in row and row.get("resolution") is not None:
+        if not isinstance(row.get("resolution"), str):
+            raise SuppressionLedgerError("suppression_ledger_untrusted")
+    return {
+        "email": email,
+        "phone": phone,
+        "prospect_id": prospect_id,
+        "scope": scope,
+        "channel": str(row.get("channel") or "email"),
+        "resolution": str(row.get("resolution") or ""),
+        "ts": int(row.get("ts") or 0),
+    }
 
-    Does NOT change ``email_unsub`` global behaviour (bulk path may still treat
-    I/O errors as empty). Missing file is a legitimate empty ledger.
+
+def _quarantine_resolutions_from_snapshot(
+    rows: list[dict[str, Any]],
+) -> dict[str, str]:
+    """Latest quarantine resolution per destination from ONE snapshot (no re-read)."""
+    out: dict[str, tuple[int, str]] = {}
+    for row in rows:
+        res = str(row.get("resolution") or "")
+        if not res:
+            continue
+        dest = str(row.get("email") or "")
+        if not dest:
+            continue
+        ts = int(row.get("ts") or 0)
+        if dest not in out or ts >= out[dest][0]:
+            out[dest] = (ts, res)
+    return {k: v[1] for k, v in out.items()}
+
+
+def _email_blocked_by_snapshot(rows: list[dict[str, Any]], email: str) -> bool:
+    """Match email against a pre-validated snapshot. Never opens the ledger."""
+    if not email:
+        return False
+    resolutions = _quarantine_resolutions_from_snapshot(rows)
+    for row in rows:
+        if str(row.get("email") or "") != email:
+            continue
+        scope = str(row.get("scope") or "")
+        if scope == "quarantine" and resolutions.get(email) == "released":
+            continue
+        if scope in ("email_address", "all_outreach", "quarantine"):
+            return True
+        if scope == "channel_contact" and str(row.get("channel") or "") == "email":
+            return True
+    return False
+
+
+def _load_strict_suppression_snapshot() -> list[dict[str, Any]]:
+    """Single atomic strict read of the suppression ledger for canary decisions.
+
+    Missing file ⇒ []. Any I/O / decode / structural failure ⇒
+    ``SuppressionLedgerError`` (uncertainty blocks). Does NOT call
+    ``email_unsub.is_contact_suppressed`` / fail-open ``_iter_suppression_rows``.
+    """
+    from app.platform import email_unsub
+
+    path = email_unsub._store_or_none()
+    if path is None:
+        raise SuppressionLedgerError("suppression_ledger_untrusted")
+    try:
+        is_file = path.is_file()
+    except Exception as e:
+        raise SuppressionLedgerError("suppression_ledger_untrusted") from e
+    if not is_file:
+        return []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except Exception as e:
+        raise SuppressionLedgerError("suppression_ledger_untrusted") from e
+    out: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            raw = json.loads(line)
+        except Exception as e:
+            raise SuppressionLedgerError("suppression_ledger_untrusted") from e
+        if not isinstance(raw, dict):
+            raise SuppressionLedgerError("suppression_ledger_untrusted")
+        out.append(_validate_suppression_row(raw, email_unsub=email_unsub))
+    return out
+
+
+def _suppressed(email: str) -> bool:
+    """Fail closed on any suppression-ledger uncertainty (canary-only).
+
+    Send/no-send comes from the SAME strict validated snapshot — never a second
+    fail-open reader (TOCTOU with ``is_contact_suppressed`` eliminated).
     """
     try:
         from app.platform import email_unsub
 
-        path = email_unsub._store_or_none()
-        if path is None:
-            return False
-        if not path.is_file():
-            return True
-        try:
-            text = path.read_text(encoding="utf-8")
-        except Exception:
-            return False
-        for line in text.splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                row = json.loads(line)
-            except Exception:
-                return False
-            if not isinstance(row, dict):
-                return False
-        return True
-    except Exception:
-        return False
-
-
-def _suppressed(email: str) -> bool:
-    """Fail closed on any suppression-ledger uncertainty (canary-only)."""
-    try:
-        if not _suppression_ledger_trustworthy():
-            raise SuppressionLedgerError("suppression_ledger_untrusted")
-        from app.platform import email_unsub
-
-        return bool(email_unsub.is_contact_suppressed(email=email, channel="email"))
+        rows = _load_strict_suppression_snapshot()
+        return _email_blocked_by_snapshot(rows, email_unsub.normalize_email(email))
     except SuppressionLedgerError:
         raise
     except Exception as e:

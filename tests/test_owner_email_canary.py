@@ -767,16 +767,30 @@ def test_attempt_ledger_corrupt_blocks_before_provider(tmp_path, monkeypatch):
     assert pf["reason"] == "attempt_ledger_corrupt"
 
 
-def test_suppression_read_error_fail_closed_canary_only(monkeypatch):
-    """Ordinary suppression I/O errors must look suppressed to the canary."""
+def test_suppression_read_error_fail_closed_canary_only(monkeypatch, tmp_path):
+    """Ordinary suppression I/O errors must block the canary (no provider I/O)."""
+    from app.platform import email_unsub
+
+    ledger = tmp_path / "email_suppression.jsonl"
+    ledger.write_text("", encoding="utf-8")
+    monkeypatch.setattr(email_unsub, "_store_or_none", lambda: ledger)
+    monkeypatch.setattr(email_unsub, "_store_path", lambda: ledger)
+
+    real_read = Path.read_text
+
+    def _deny_read(self, *a, **k):
+        if self == ledger:
+            raise PermissionError("suppression locked for test")
+        return real_read(self, *a, **k)
+
     called = {"n": 0}
 
     async def _prov(*_a, **_k):
         called["n"] += 1
         return {"sent": True, "provider_called": True}
 
+    monkeypatch.setattr(Path, "read_text", _deny_read)
     monkeypatch.setattr(canary, "_provider_send", _prov)
-    monkeypatch.setattr(canary, "_suppression_ledger_trustworthy", lambda: False)
 
     res = asyncio.run(
         canary.send_canary(
@@ -805,7 +819,7 @@ def test_suppression_corrupt_ledger_fail_closed(monkeypatch, tmp_path):
         return {"sent": True, "provider_called": True}
 
     monkeypatch.setattr(canary, "_provider_send", _prov)
-    # Do NOT stub _suppressed — exercise canary-local trustworthy probe.
+    # Do NOT stub _suppressed — exercise canary-local strict snapshot.
     res = asyncio.run(
         canary.send_canary(
             to_email="owner@example.com",
@@ -816,6 +830,183 @@ def test_suppression_corrupt_ledger_fail_closed(monkeypatch, tmp_path):
     assert res["outcome"] == canary.BLOCKED
     assert res["reason"] == "suppression_ledger_untrusted"
     assert called["n"] == 0
+
+
+def test_suppression_toctou_no_second_fail_open_reader(monkeypatch, tmp_path):
+    """Mutate/break ledger after first strict read — must still use snapshot.
+
+    Old bug: trustworthy() validated, then is_contact_suppressed reopened via
+    fail-open reader which skipped corrupt lines ⇒ empty ⇒ send. Fixed path
+    decides from the same validated snapshot and never calls the fail-open API.
+    """
+    from app.platform import email_unsub
+
+    ledger = tmp_path / "email_suppression.jsonl"
+    good = (
+        json.dumps(
+            {
+                "email": "owner@example.com",
+                "scope": "email_address",
+                "channel": "email",
+                "ts": int(time.time()),
+            }
+        )
+        + "\n"
+    )
+    ledger.write_text(good, encoding="utf-8")
+    monkeypatch.setattr(email_unsub, "_store_or_none", lambda: ledger)
+    monkeypatch.setattr(email_unsub, "_store_path", lambda: ledger)
+
+    reads = {"n": 0}
+    real_read = Path.read_text
+
+    def _read_then_break(self, *a, **k):
+        if self == ledger:
+            reads["n"] += 1
+            if reads["n"] == 1:
+                text = real_read(self, *a, **k)
+                # Poison on-disk AFTER the snapshot bytes are in hand.
+                ledger.write_text("{broken-after-snapshot\n", encoding="utf-8")
+                return text
+            raise AssertionError("second suppression ledger read must not happen")
+        return real_read(self, *a, **k)
+
+    def _fail_open_must_not_run(**_k):
+        raise AssertionError("email_unsub.is_contact_suppressed must not be used")
+
+    called = {"n": 0}
+
+    async def _prov(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "provider_called": True}
+
+    monkeypatch.setattr(Path, "read_text", _read_then_break)
+    monkeypatch.setattr(email_unsub, "is_contact_suppressed", _fail_open_must_not_run)
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-sup-toctou-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.SKIPPED
+    assert res["reason"] == "suppressed"
+    assert res["provider_called"] is False
+    assert called["n"] == 0
+    assert reads["n"] == 1
+
+
+def test_suppression_structural_corruption_blocks(monkeypatch, tmp_path):
+    """Identity-less / partial suppression objects must block, not look empty."""
+    from app.platform import email_unsub
+
+    called = {"n": 0}
+
+    async def _prov(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "provider_called": True}
+
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+
+    for idx, payload in enumerate(("{}", '{"event":"attempt"}', '{"email":""}')):
+        bad = tmp_path / f"email_suppression_struct_{idx}.jsonl"
+        bad.write_text(payload + "\n", encoding="utf-8")
+        monkeypatch.setattr(email_unsub, "_store_or_none", lambda p=bad: p)
+        monkeypatch.setattr(email_unsub, "_store_path", lambda p=bad: p)
+        res = asyncio.run(
+            canary.send_canary(
+                to_email="owner@example.com",
+                idempotency_key=f"idem-sup-struct-{idx:02d}",
+                confirm=True,
+            )
+        )
+        assert res["outcome"] == canary.BLOCKED, payload
+        assert res["reason"] == "suppression_ledger_untrusted", payload
+        assert called["n"] == 0
+
+
+def test_suppression_valid_match_from_same_snapshot(monkeypatch, tmp_path):
+    """Valid suppression row blocks send from the strict snapshot (no fail-open)."""
+    from app.platform import email_unsub
+
+    ledger = tmp_path / "email_suppression.jsonl"
+    ledger.write_text(
+        json.dumps(
+            {
+                "email": "Owner@Example.com",
+                "scope": "email_address",
+                "channel": "email",
+                "ts": int(time.time()),
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(email_unsub, "_store_or_none", lambda: ledger)
+    monkeypatch.setattr(email_unsub, "_store_path", lambda: ledger)
+
+    def _fail_open_must_not_run(**_k):
+        raise AssertionError("fail-open is_contact_suppressed must not run")
+
+    called = {"n": 0}
+
+    async def _prov(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "provider_called": True}
+
+    monkeypatch.setattr(email_unsub, "is_contact_suppressed", _fail_open_must_not_run)
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-sup-match-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.SKIPPED
+    assert res["reason"] == "suppressed"
+    assert called["n"] == 0
+
+
+def test_attempt_ledger_structural_corruption_blocks(tmp_path, monkeypatch):
+    """Structurally invalid but JSON-valid attempt rows must block before I/O."""
+    called = {"n": 0}
+
+    async def _prov(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "provider_called": True}
+
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+
+    for idx, payload in enumerate(
+        (
+            "{}",
+            '{"event":"attempt"}',
+            json.dumps({"event": "attempt", "idempotency_key": "k", "ts": 1.0}),
+        )
+    ):
+        ledger = tmp_path / f"attempts_struct_{idx}.jsonl"
+        ledger.write_text(payload + "\n", encoding="utf-8")
+        monkeypatch.setattr(canary, "_attempts_path", lambda *, create=False, p=ledger: p)
+        monkeypatch.setattr(canary, "_lock_target", lambda p=ledger: str(p))
+        res = asyncio.run(
+            canary.send_canary(
+                to_email="owner@example.com",
+                idempotency_key=f"idem-attempt-struct-{idx:02d}",
+                confirm=True,
+            )
+        )
+        assert res["outcome"] == canary.BLOCKED, payload
+        assert res["reason"] == "attempt_ledger_corrupt", payload
+        assert res["provider_called"] is False
+        assert called["n"] == 0
+        pf = canary.preflight()
+        assert pf["ok"] is False
+        assert pf["reason"] == "attempt_ledger_corrupt"
 
 
 def test_definite_pre_network_failure_does_not_consume_cap(monkeypatch):
