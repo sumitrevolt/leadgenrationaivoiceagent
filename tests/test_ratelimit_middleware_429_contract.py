@@ -32,10 +32,22 @@ from starlette.responses import PlainTextResponse
 from app.middleware import RateLimitMiddleware, _fixed_window_retry_after, _is_asset_path
 
 
-def _request(path: str = "/api/growth/summary", ip: str = "203.0.113.1") -> Request:
+def _request(
+    path: str = "/api/growth/summary",
+    ip: str = "203.0.113.1",
+    *,
+    authorization: str | None = None,
+    extra_headers: list[tuple[bytes, bytes]] | None = None,
+) -> Request:
+    headers: list[tuple[bytes, bytes]] = [(b"x-forwarded-for", ip.encode())]
+    if authorization:
+        headers.append((b"authorization", authorization.encode()))
+    if extra_headers:
+        headers.extend(extra_headers)
     return Request(
         {
             "type": "http",
+            "http_version": "1.1",
             "method": "GET",
             "path": path,
             "raw_path": path.encode(),
@@ -43,7 +55,7 @@ def _request(path: str = "/api/growth/summary", ip: str = "203.0.113.1") -> Requ
             "scheme": "http",
             "server": ("testserver", 80),
             "root_path": "",
-            "headers": [(b"x-forwarded-for", ip.encode())],
+            "headers": headers,
             "client": (ip, 12345),
         }
     )
@@ -116,7 +128,7 @@ async def test_middleware_429_detail_is_a_dict_with_the_uniform_fields():
     assert isinstance(detail, dict)
     assert detail["error"] == "rate_limited"
     assert detail["scope"] == "global_ip_api"
-    assert detail["message"]
+    assert detail["message"] == "Rate limit exceeded. Please slow down."
     assert isinstance(detail["retry_after"], int)
     # Top-level retry_after retained for callers that already read it there.
     assert body["retry_after"] == detail["retry_after"]
@@ -215,6 +227,70 @@ async def test_asset_mult_of_one_collapses_the_asset_ceiling(monkeypatch):
     monkeypatch.setenv("RATE_LIMIT_ASSET_MULT", "1")
     mw = RateLimitMiddleware(app=None, requests_per_minute=3)
     assert mw._ceiling_for("asset") == mw._ceiling_for("api") == 3
+
+
+# --------------------------------------------------------------------------- #
+# 3b. Admin bearer ceiling is raised, not a bypass; WS/auth skip after API burn.
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.asyncio
+async def test_admin_bearer_gets_higher_api_ceiling_not_bypass(monkeypatch):
+    mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=3))
+
+    def _admin_rpm(request: Request) -> int | None:
+        auth = (request.headers.get("authorization") or "").lower()
+        return 10 if auth.startswith("bearer ") else None
+
+    monkeypatch.setattr(mw, "_admin_rpm_from_bearer", _admin_rpm)
+
+    anon_ip = "198.51.100.20"
+    anon_codes = [
+        (await mw.dispatch(_request(f"/api/a/{i}", ip=anon_ip), _ok)).status_code for i in range(5)
+    ]
+    assert 429 in anon_codes
+
+    admin_ip = "198.51.100.21"
+    admin_codes = []
+    for i in range(12):
+        resp = await mw.dispatch(
+            _request(f"/api/b/{i}", ip=admin_ip, authorization="Bearer fake"),
+            _ok,
+        )
+        admin_codes.append(resp.status_code)
+    assert admin_codes[:10].count(200) == 10
+    assert 429 in admin_codes  # still capped — not a bypass
+
+
+@pytest.mark.asyncio
+async def test_websocket_upgrade_is_not_flat_limited():
+    mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=1))
+    ip = "203.0.113.50"
+
+    await mw.dispatch(_request("/api/burn", ip=ip), _ok)
+    blocked = await mw.dispatch(_request("/api/burn2", ip=ip), _ok)
+    assert blocked.status_code == 429
+
+    ws_req = _request(
+        "/api/web-call/ws/token",
+        ip=ip,
+        extra_headers=[(b"upgrade", b"websocket")],
+    )
+    resp = await mw.dispatch(ws_req, _ok)
+    assert resp.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_auth_login_path_skips_flat_limiter_after_api_burn():
+    """Dashboard burn must not lock out credential POST (route deps still apply)."""
+    mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=1))
+    ip = "203.0.113.51"
+
+    await mw.dispatch(_request("/api/burn", ip=ip), _ok)
+    assert (await mw.dispatch(_request("/api/burn2", ip=ip), _ok)).status_code == 429
+
+    login = await mw.dispatch(_request("/api/customer/auth/login", ip=ip), _ok)
+    assert login.status_code == 200
 
 
 # --------------------------------------------------------------------------- #
