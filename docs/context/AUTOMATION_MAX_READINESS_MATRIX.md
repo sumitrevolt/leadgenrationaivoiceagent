@@ -34,8 +34,8 @@
 | 9 | Content generation (Isha) | **CODE-PRESENT** | `app/api/contentauto.py`, `app/api/growth_content.py` · scheduler `content` 07:00, `blog` 06:30, `afternoon_content` 15:00 (`scheduler_config.py:93-98,151`) | `CONTENT_APPROVAL_AUTO=0` (submits to approval only), free-LLM chain up | Isha | Draft-only into approval queue | `tests/test_content_approval_state_machine.py`, `tests/test_content_approval_evidence_url.py` | Beat entries live | Owner routes to approval queue reviewer |
 | 10 | Social publish (Postiz own-brand) | **CODE-PRESENT** | `app/api/social_oauth.py`, `app/platform/brand_pulse.py`, `app/social_engine/*` · scheduler `social_drain` hourly:10 (`staff_jobs.py:146`) | `SOCIAL_ENGINE=1`, `POSTIZ_INTEGRATIONS`, `SOCIAL_DRY_RUN=0` for live; own-brand only until Meta review for customers | Isha | `SOCIAL_DRY_RUN` fabricates `dry-*` post ids when set (ADR-098) | `tests/test_social_prefs_honored.py` | Beat entry present | Meta review for customer Pages (external-blocked); own-brand ready |
 | 11 | Video ad cycle | **CONFIGURED-INERT** | `app/marketing/video_ad_cycle.py`, `app/tasks/video_jobs.py` · scheduler slot inside content pipeline | `VIDEO_AD_CYCLE=1`, `VIDEO_PRODUCTION_ENABLED=1`, `VIDEO_CUSTOMER_REVIEW_ENABLED=1`, `VIDEO_SOCIAL_PUBLISH_ENABLED=1` | Isha / Boss | Reject-terminal + exact-hash approval (ADR-142) | `tests/test_video_approval_*` (8 tests) | Master flag off; approval saga tests green | Jiya canary owner login pending (per `## Current State`) |
-| 12 | Creative OS (ADR-143) | **CONFIGURED-INERT** (on-disk, not in Master Blueprint) | `app/marketing/creative_os/service.py:36-539` · `CREATIVE_OS_ENABLED` gate returns `{"ok":false,"error":"CREATIVE_OS_ENABLED off"}` at every entry | `CREATIVE_OS_ENABLED=1` + provider flags (`CREATIVE_PROVIDER_*`), tenant + GPU budgets; providers currently return `provider_unavailable` | Isha / Boss | Deterministic FFmpeg fallback; no external model downloads; consent + provenance required | `tests/test_creative_os.py`, `tests/test_creative_os_brief.py` | ON DISK but INERT (per `## Current State` and `.cursor/rules/creative-automation-os.mdc`) | **Not represented in `blueprint_graph.py`** — canonical drift (repair patch #2 below) |
-| 13 | Sales Autopilot canary | **CONFIGURED-INERT** (on-disk, not in Master Blueprint) | `app/platform/sales_autopilot/send.py`, `app/api/sales_autopilot_admin.py:28,57-164` (`/api/sales-autopilot/{summary,policy,prospects,attempts,eligibility/preview,run-canary,inbound/classify,seed-estique}`) · scheduler `sales_autopilot` hourly:25 (`scheduler_config.py:199-203`) but in `RUN_DUE_EXCLUDE` (line 211) | `SALES_AUTOPILOT_ENABLED=1`; per-channel `SALES_AUTOPILOT_{WHATSAPP,EMAIL}_ENABLED=1`; `SALES_AUTOPILOT_DRY_RUN` can only make it safer | Platform | Fail-closed; separate from `WHATSAPP_AUTO_SEND`; calling stays HARD OFF | `tests/test_sales_autopilot_{admin,eligibility,estique,flags,followup_reply,messages,scheduler,send}.py` (8 test files) | JOB_META entry + admin router mounted (`main.py:803-807`) | **Not represented in `blueprint_graph.py`** — canonical drift (repair patch #1 below) |
+| 12 | Creative OS (ADR-143) | **CONFIGURED-INERT** (on-disk) | `app/marketing/creative_os/service.py:36-539` · `CREATIVE_OS_ENABLED` gate returns `{"ok":false,"error":"CREATIVE_OS_ENABLED off"}` at every entry · **L1 node `detail_creative_os` registered** | `CREATIVE_OS_ENABLED=1` + provider flags (`CREATIVE_PROVIDER_*`), tenant + GPU budgets; providers currently return `provider_unavailable` | Isha / Boss | Deterministic FFmpeg fallback; no external model downloads; consent + provenance required | `tests/test_creative_os.py`, `tests/test_creative_os_brief.py` | ON DISK but INERT (per `## Current State` and `.cursor/rules/creative-automation-os.mdc`) | Keep flag OFF until provider weights provisioned + licence recorded |
+| 13 | Sales Autopilot canary | **CONFIGURED-INERT** (on-disk) | `app/platform/sales_autopilot/send.py`, `app/api/sales_autopilot_admin.py:28,57-164` · scheduler `sales_autopilot` hourly:25 but in `RUN_DUE_EXCLUDE` · **L1 node `detail_sales_autopilot` registered** | `SALES_AUTOPILOT_ENABLED=1`; per-channel flags; prefer `SALES_AUTOPILOT_DRY_RUN=1` first | Platform | Fail-closed; separate from `WHATSAPP_AUTO_SEND`; calling stays HARD OFF | `tests/test_sales_autopilot_*.py` (8 files) | JOB_META + admin router mounted; blueprint L1 present | Owner dry-run canary only; do not enable live channels |
 | 14 | Self-improve loop | **CODE-PRESENT** | `app/agents/self_improve.py` · scheduler `self_improve` in-process every tick (`team_scheduler.py:475-486`), `self_improve_tick` Celery task (`staff_jobs.py:176`) | `SELF_IMPROVE_LOOP=1`, `SELF_IMPROVE_APPROVAL=1` recommended, LLM budget guards | Boss | `eval_gate` observe-only until `EVAL_GATE_HARD=1` | `tests/test_self_improve_cap_watchdog.py` | Tick wiring is live-safe (falls back if Celery off) | Owner approval gate before enabling widely |
 | 15 | Agent runtime (Kavya/Isha/Zara canary) | **CONFIGURED-INERT** | `app/platform/agent_runtime.py` referenced by blueprint node `agent_runtime` | `AGENT_RUNTIME=1` (+`AGENT_RUNTIME_LLM=1` for LLM draft-brief) | Kavya | RED lane always blocked; safety-lane in blueprint | (contract via `blueprint_graph.validate_graph`) | Blueprint node present; runtime OFF | Owner approves canary pilots |
 | 16 | Flow runner / Process engine | **CODE-PRESENT** | `app/api/growth_process.py`, scheduler `flow_cron` every 5 min (`scheduler_config.py:43`), `process_autostart` daily 11:30 (line 141-145) · `process_tick` Celery task (`staff_jobs.py:306`) | `FLOW_RUNNER=1`, `FLOW_AUTO_TRIGGERS=1`, `PROCESS_ENGINE=1`, `PROCESS_AUTOSTART=1` | Platform | Draft-safe by default; per-flow triggers guarded | `tests/test_growth_automation_approvals_cache.py` (indirect) | Beat entries wired | Ops enables per surface |
@@ -58,42 +58,19 @@
 
 **Row totals by label:** 32 rows · PRODUCTION-PROVEN = 7 · TEST-PROVEN = 1 · CODE-PRESENT = 12 · CONFIGURED-INERT = 8 · HARD-OFF = 3 · OWNER-ACTION-REQUIRED = 1 (row 5 has this as an additional attribute but is labelled CODE-PRESENT until deploy completes).
 
-## Top 5 code-owned repair patches (identified — NOT implemented)
+## Remaining follow-ups (optional — not blocking)
 
-The patches below are each concrete, additive, and would not flip any runtime flag. Per the task contract they are **not implemented** in this session (each is > 20 lines or touches a flag-adjacent surface). Owner authorisation should precede implementation.
+Patches #1–#3 (blueprint L1 nodes for sales_autopilot / creative_os / owner_email_canary) are **implemented in this PR**. Still open:
 
-### Patch #1 — Add canonical `sales_autopilot` node to the Master Blueprint
+### Follow-up A — Sales Autopilot Mission Control tab
 
-- **File:** `app/platform/blueprint_detail_nodes.py` — extend `DETAIL_NODE_SPECS` (`:25-145`).
-- **Why:** `app/api/sales_autopilot_admin.py:28,57-164` and `app/platform/scheduler_config.py:199-203,211` prove the subsystem is registered as a scheduler job and as an admin router mounted from `app/main.py:803-807`, yet the canonical blueprint has zero representation. The blueprint validator (`blueprint_graph.py:1334-1546`) will not catch this drift because the node is simply *absent*.
-- **Suggested spec:** `depth_level=1`, `parent_domain_id="email_outreach"` (or a new domain `sales_autopilot` if the council prefers), `flags=["SALES_AUTOPILOT_ENABLED","SALES_AUTOPILOT_DRY_RUN","SALES_AUTOPILOT_WHATSAPP_ENABLED","SALES_AUTOPILOT_EMAIL_ENABLED"]`, `safety_lane="AMBER"`, `status="CODE-PRESENT"`, `files=["app/platform/sales_autopilot/send.py","app/api/sales_autopilot_admin.py"]`.
-- **Cost:** ~15 lines in `DETAIL_NODE_SPECS`; but it also needs a flow reference (adding `parent_flow_id`) and possibly a new flow — so real footprint is ≥25 lines when done right.
+- **File:** `frontend/automation.html`
+- **Why:** `/api/sales-autopilot/*` remains UI-orphan (existing "Sales Team AI" tab is a different engine).
 
-### Patch #2 — Add canonical `creative_os` node to the Master Blueprint
+### Follow-up B — Dedicated automation-flags admin surface
 
-- **File:** `app/platform/blueprint_detail_nodes.py`.
-- **Why:** `app/marketing/creative_os/service.py:36,97,240,417,438,539` and `app/marketing/creative_os/brief.py` are ON DISK per `## Current State`, but the canonical graph does not mention them. Anyone reading `/api/blueprint/graph` today sees no Creative OS at all.
-- **Suggested spec:** `depth_level=1`, `parent_domain_id="content_gen"`, `flags=["CREATIVE_OS_ENABLED","CREATIVE_PROVIDER_QWEN_IMAGE","CREATIVE_PROVIDER_FLUX_SCHNELL","CREATIVE_PROVIDER_WAN22","CREATIVE_PROVIDER_COMFYUI","CREATIVE_GPU_LAB_ENABLED"]`, `safety_lane="RED"` (per ADR-143 fail-closed), `status="CODE-PRESENT"`, `files=["app/marketing/creative_os/service.py","app/marketing/creative_os/brief.py"]`.
-- **Cost:** ~15 lines core + edges to `content_auto` and `social_publish`; ≥25 lines end-to-end.
-
-### Patch #3 — Add canonical `owner_email_canary` node to the Master Blueprint
-
-- **File:** `app/platform/blueprint_detail_nodes.py`.
-- **Why:** PR #187 landed `app/api/owner_email_canary.py:17,27,32,52` (`/api/admin/owner-email-canary/*`), `app/platform/owner_email_canary.py`, and a runtime-data allowlist entry. `tests/test_owner_email_canary.py` covers it. The graph does not reflect this new observability control plane.
-- **Suggested spec:** `depth_level=1`, `parent_domain_id="observability_ops"`, `safety_lane="GREEN"`, `status="CODE-PRESENT"`, `files=["app/api/owner_email_canary.py","app/platform/owner_email_canary.py"]`, plus one `emits` edge from `owner_email_canary` to `automation_health` and one `observes` edge from `owner_email_canary` to `obs_stack`.
-- **Cost:** ~12 lines node + 2 edges ≈ 20 lines. **Closest to eligible** for the "<20 lines tiny + safe" bar, but crosses domain boundaries into edges, so it still needs review.
-
-### Patch #4 — Wire a Sales Autopilot admin tab into `frontend/automation.html`
-
-- **File:** `frontend/automation.html` (tab list around `:60-90`, section list around `:200+`).
-- **Why:** The current "Sales Team AI" tab (`:73,217-260`) is the **5-agent prospect deep-dive** (Riya/Veer/Dev/Isha/Arjun) — a fundamentally different feature. `/api/sales-autopilot/{summary,policy,prospects,attempts,eligibility/preview,run-canary,inbound/classify,seed-estique}` is a live admin router with no cockpit; today an operator must call it with curl. The section should show `SALES_AUTOPILOT_ENABLED` state, per-channel kill switches, canary batch size, and the last `run-canary` result — all read-only until owner arms.
-- **Cost:** ≥60 lines HTML + JS (tab button, section, fetch handlers, kill switch UX). Cannot be done as a "tiny" patch. Owner sign-off + design review needed.
-
-### Patch #5 — Split a dedicated `/api/automation-flags/*` admin router out of `growth.py`
-
-- **File:** new `app/api/automation_flags_admin.py`; wire mount inside `app/main.py`. `app/api/automation_flags.py` stays a pure registry module.
-- **Why:** The only way to read the flag registry live today is `/api/growth/infra/flags` (`app/api/growth.py:1446-1468`). That path buries a critical operator surface inside the growth domain and is hard to alert on. A dedicated router would let admins hit `/api/automation-flags/status`, `/api/automation-flags/gates` (surface each flag's default, kill precedence, and dependent flags), and enable a test asserting every `JOB_META` scheduler job in `RUN_DUE_EXCLUDE` maps to a documented safety-gate flag.
-- **Cost:** ~40-60 lines of router + a new test module. Not tiny; also runs into "first-route-wins" — grep of any existing `/api/automation-flags` mount required.
+- **File:** `app/api/automation_flags.py` + optional router
+- **Why:** Only exposure today is `/api/growth/infra/flags`; no contract test mapping every `RUN_DUE_EXCLUDE` job to a documented gate.
 
 ### What must stay HARD-OFF (do not enable in any patch)
 
@@ -106,7 +83,7 @@ The patches below are each concrete, additive, and would not flip any runtime fl
 
 ## Provenance & how to falsify this file
 
-- Blueprint counts derived from reading `app/platform/blueprint_graph.py:456-989` and `app/platform/blueprint_detail_nodes.py:25-145` directly; run `python -m app.platform.blueprint_graph` in the container for a re-validation.
-- Scheduler contract read from `app/platform/scheduler_config.py:37-211`; `run_due` implementation at `:369-405` confirms the exclusion set.
-- Flag registry read from `app/api/automation_flags.py:9-391`; live admin exposure at `app/api/growth.py:1446-1468`.
-- PRODUCTION-PROVEN rows use the CLAUDE.md / task-header declaration as source-of-truth and are falsifiable by a `curl.exe https://leadsgenai.in/health` returning `environment != production` or `version != 58a3b70` once the current rollout finishes.
+- Blueprint counts derived from reading `app/platform/blueprint_graph.py` and `app/platform/blueprint_detail_nodes.py` directly; run `python -m app.platform.blueprint_graph` for re-validation.
+- Scheduler contract read from `app/platform/scheduler_config.py`; `RUN_DUE_EXCLUDE` confirms the exclusion set.
+- Flag registry read from `app/api/automation_flags.py`; live admin exposure at `/api/growth/infra/flags`.
+- PRODUCTION-PROVEN rows use declared Current State and are falsifiable by `curl.exe https://leadsgenai.in/health`.
