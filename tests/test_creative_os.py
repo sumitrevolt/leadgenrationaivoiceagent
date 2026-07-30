@@ -44,6 +44,20 @@ def _isolated_roots(tmp_path, monkeypatch):
     monkeypatch.delenv("CREATIVE_PROVIDER_QWEN_IMAGE", raising=False)
     monkeypatch.delenv("VIDEO_SOCIAL_PUBLISH_ENABLED", raising=False)
     Path("data/reels").mkdir(parents=True, exist_ok=True)
+    # Default: brief gate passes so existing enqueue lifecycle tests stay focused.
+    # Refuse-path coverage lives in test_enqueue_generate_brief_gate_*.
+    monkeypatch.setattr(
+        service,
+        "resolve_brief",
+        lambda **kw: {
+            "ok": True,
+            "outcome": "ready",
+            "brief": object(),
+            "missing": [],
+            "reason": "",
+            "error": "",
+        },
+    )
 
 
 def _mp4(name: str = "out.mp4", size: int = 5000) -> Path:
@@ -138,6 +152,116 @@ def test_api_enqueues_without_rendering(monkeypatch):
     assert out["status"] == "queued"
     assert out["job_id"] == "job-test-1"
     assert rendered["called"] is False
+
+
+def test_enqueue_generate_brief_gate_needs_customer_input(monkeypatch):
+    monkeypatch.setattr(
+        service,
+        "resolve_brief",
+        lambda **kw: {
+            "ok": False,
+            "outcome": "needs_customer_input",
+            "brief": None,
+            "missing": ["primary_color"],
+            "reason": "missing_required_fields",
+            "error": "missing required customer input: primary_color",
+        },
+    )
+    called = {"n": 0}
+
+    def boom(*a, **k):
+        called["n"] += 1
+        raise AssertionError("must not enqueue when brief incomplete")
+
+    monkeypatch.setattr(service, "_enqueue_celery", boom)
+    out = service.enqueue_generate(tenant_id="acme01", business_name="Acme")
+    assert out["ok"] is False
+    assert out["outcome"] == "needs_customer_input"
+    assert "primary_color" in out["missing"]
+    assert called["n"] == 0
+
+
+def test_enqueue_generate_brief_gate_blocked_entitlement(monkeypatch):
+    monkeypatch.setattr(
+        service,
+        "resolve_brief",
+        lambda **kw: {
+            "ok": False,
+            "outcome": "blocked",
+            "brief": None,
+            "missing": [],
+            "reason": "inactive_subscription",
+            "error": "inactive subscription",
+        },
+    )
+    monkeypatch.setattr(
+        service,
+        "_enqueue_celery",
+        lambda *a, **k: (_ for _ in ()).throw(AssertionError("no enqueue")),
+    )
+    out = service.enqueue_generate(tenant_id="acme01", business_name="Acme")
+    assert out["ok"] is False and out["outcome"] == "blocked"
+    assert out["reason"] == "inactive_subscription"
+
+
+def test_enqueue_generate_binds_verified_brand_not_caller_business_name(monkeypatch):
+    """Caller business_name must not leak into scenes when brief brand differs."""
+    from app.marketing.creative_os.brief import BrandProfile, CustomerVideoBrief
+
+    brand = BrandProfile(
+        tenant_id="acme01",
+        business_name="Acme Salon",
+        niche="salon",
+        primary_color="#101820",
+        accent_color="#f2aa4c",
+    )
+    brief = CustomerVideoBrief(
+        tenant_id="acme01",
+        objective="salon",
+        platform="instagram",
+        aspect_ratio="9:16",
+        language="hinglish",
+        brand=brand,
+        offer="Monsoon special",
+        cta="Book now",
+    )
+    monkeypatch.setattr(
+        service,
+        "resolve_brief",
+        lambda **kw: {
+            "ok": True,
+            "outcome": "ready",
+            "brief": brief,
+            "missing": [],
+            "reason": "",
+            "error": "",
+        },
+    )
+    captured: dict = {}
+    from app.marketing.creative_os import recipes as recipes_mod
+
+    real_plan = recipes_mod.build_scene_plan
+
+    def wrap_plan(recipe, **kw):
+        captured.update(kw)
+        return real_plan(recipe, **kw)
+
+    monkeypatch.setattr(service, "build_scene_plan", wrap_plan)
+    monkeypatch.setattr(
+        service,
+        "_enqueue_celery",
+        lambda *a, **k: {"ok": True, "job_id": "job-bind", "queue": "video"},
+    )
+    out = service.enqueue_generate(
+        tenant_id="acme01",
+        business_name="Acme — sirf ₹1,299",
+        niche="general",
+        offer="Monsoon special",
+    )
+    assert out["ok"] is True
+    assert captured.get("business_name") == "Acme Salon"
+    assert "1299" not in str(captured.get("business_name") or "")
+    assert captured.get("niche") == "salon"
 
 
 def test_worker_lifecycle_and_idempotency(monkeypatch):
