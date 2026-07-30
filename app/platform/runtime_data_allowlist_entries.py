@@ -357,6 +357,27 @@ ENTRIES: list[dict[str, Any]] = [
             "not live in a tree a deploy resets."
         ),
     },
+    {
+        "allowlist_id": "ops.owner_email_canary.dir",
+        "file": "app/platform/owner_email_canary.py",
+        "line_or_symbol": "path",
+        "path_pattern": "data/owner_email_canary",
+        "store_id": "ops.owner_email_canary",
+        "access_modes": ["CREATE", "READ"],
+        "reason": (
+            "Directory for append-only owner-inbox email canary attempts. "
+            "Created on demand before the first canary write. Recipient is "
+            "masked; losing the ledger only forces a fresh one-shot canary."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "ops",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Must remain append-only with masked recipient + idempotency key; "
+            "never enable AUTO_EMAIL_OUTREACH from this store."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]
