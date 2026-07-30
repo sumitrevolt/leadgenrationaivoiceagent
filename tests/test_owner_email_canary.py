@@ -4,6 +4,11 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import json
+import multiprocessing
+import time
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +17,10 @@ from app.api.auth_deps import get_current_user, require_super_admin
 from app.main import app
 from app.models.user import UserRole
 from app.platform import owner_email_canary as canary
+from app.platform import runtime_data as rd
+from app.platform import runtime_data_authority as auth
+from app.platform import runtime_data_manifest as manifest
+from app.platform import runtime_data_marker as mk
 from tests.conftest import create_mock_user
 
 
@@ -216,7 +225,7 @@ def test_timeout_unknown_no_retry(monkeypatch):
 
 
 def test_provider_false_maps_to_unknown_not_skipped(monkeypatch):
-    """EmailSender collapses errors to False — must not become SKIPPED."""
+    """Provider false must not become SKIPPED — ambiguous for retry safety."""
 
     async def _false(*a, **k):
         return {
@@ -422,8 +431,6 @@ def test_persist_before_provider(monkeypatch):
 
 
 def test_authority_refusal_no_checkout_fallback(monkeypatch):
-    from app.platform import runtime_data as rd
-
     def _boom(*, create: bool = False):
         raise rd.RuntimeDataError("canonical authority refused (test)")
 
@@ -586,3 +593,582 @@ def test_api_send_happy_path_masks_recipient(api_client, monkeypatch):
     assert body["outcome"] == canary.SENT
     assert "owner@example.com" not in r.text
     assert body["to_masked"].startswith("ow")
+
+
+# ---- Release-blocking safety regressions (cloud review @ 086e5c3) ---------- #
+
+
+def test_timeout_exactly_one_transport_no_cascade(monkeypatch):
+    """Ambiguous timeout must not fall through Resend→Brevo→SMTP."""
+    calls = {"resend": 0, "brevo": 0, "smtp": 0}
+
+    async def _resend(**_k):
+        calls["resend"] += 1
+        raise asyncio.TimeoutError()
+
+    async def _brevo(**_k):
+        calls["brevo"] += 1
+        return True
+
+    async def _smtp(**_k):
+        calls["smtp"] += 1
+        return True
+
+    monkeypatch.setattr(canary, "_pick_one_transport", lambda: "resend")
+    monkeypatch.setattr(canary, "_send_resend_once", _resend)
+    monkeypatch.setattr(canary, "_send_brevo_once", _brevo)
+    monkeypatch.setattr(canary, "_send_smtp_once", _smtp)
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-one-to-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.UNKNOWN_REQUIRES_REVIEW
+    assert res["reason"] == "provider_timeout_no_retry"
+    assert calls == {"resend": 1, "brevo": 0, "smtp": 0}
+
+
+def test_provider_error_exactly_one_transport_no_cascade(monkeypatch):
+    calls = {"resend": 0, "brevo": 0, "smtp": 0}
+
+    async def _resend(**_k):
+        calls["resend"] += 1
+        raise RuntimeError("provider_boom")
+
+    async def _brevo(**_k):
+        calls["brevo"] += 1
+        return True
+
+    async def _smtp(**_k):
+        calls["smtp"] += 1
+        return True
+
+    monkeypatch.setattr(canary, "_pick_one_transport", lambda: "resend")
+    monkeypatch.setattr(canary, "_send_resend_once", _resend)
+    monkeypatch.setattr(canary, "_send_brevo_once", _brevo)
+    monkeypatch.setattr(canary, "_send_smtp_once", _smtp)
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-one-err-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.UNKNOWN_REQUIRES_REVIEW
+    assert res["reason"] == "RuntimeError"
+    assert calls == {"resend": 1, "brevo": 0, "smtp": 0}
+
+
+def test_provider_send_never_uses_email_sender(monkeypatch):
+    """Canary must not enter EmailSender's multi-provider fallback chain."""
+    import inspect
+
+    import app.integrations.email_sender as sender_mod
+
+    src = inspect.getsource(canary._provider_send)
+    assert "EmailSender" not in src
+
+    async def _forbid(*_a, **_k):
+        raise AssertionError("EmailSender.send_email must not be used by canary")
+
+    monkeypatch.setattr(sender_mod.EmailSender, "send_email", _forbid)
+    monkeypatch.setattr(canary, "_pick_one_transport", lambda: "resend")
+
+    async def _ok(**_k):
+        return True
+
+    monkeypatch.setattr(canary, "_send_resend_once", _ok)
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-no-sender-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.SENT
+
+
+def test_attempt_ledger_unreadable_blocks_before_provider(tmp_path, monkeypatch):
+    ledger = tmp_path / "attempts.jsonl"
+    ledger.write_text('{"event":"attempt"}\n', encoding="utf-8")
+
+    real_read = Path.read_text
+
+    def _deny_read(self, *a, **k):
+        if self == ledger:
+            raise PermissionError("ledger locked for test")
+        return real_read(self, *a, **k)
+
+    called = {"n": 0}
+
+    async def _prov(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "provider_called": True}
+
+    monkeypatch.setattr(canary, "_attempts_path", lambda *, create=False: ledger)
+    monkeypatch.setattr(canary, "_lock_target", lambda: str(ledger))
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+    monkeypatch.setattr(Path, "read_text", _deny_read)
+
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-ledger-unreadable-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.BLOCKED
+    assert res["reason"] == "attempt_ledger_unreadable"
+    assert res["provider_called"] is False
+    assert called["n"] == 0
+
+    pf = canary.preflight()
+    assert pf["ok"] is False
+    assert pf["reason"] == "attempt_ledger_unreadable"
+
+
+def test_attempt_ledger_corrupt_blocks_before_provider(tmp_path, monkeypatch):
+    ledger = tmp_path / "attempts.jsonl"
+    ledger.write_text("{not-json\n", encoding="utf-8")
+
+    called = {"n": 0}
+
+    async def _prov(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "provider_called": True}
+
+    monkeypatch.setattr(canary, "_attempts_path", lambda *, create=False: ledger)
+    monkeypatch.setattr(canary, "_lock_target", lambda: str(ledger))
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-ledger-corrupt-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.BLOCKED
+    assert res["reason"] == "attempt_ledger_corrupt"
+    assert called["n"] == 0
+    assert res["provider_called"] is False
+
+    pf = canary.preflight()
+    assert pf["ok"] is False
+    assert pf["reason"] == "attempt_ledger_corrupt"
+
+
+def test_suppression_read_error_fail_closed_canary_only(monkeypatch):
+    """Ordinary suppression I/O errors must look suppressed to the canary."""
+    called = {"n": 0}
+
+    async def _prov(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "provider_called": True}
+
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+    monkeypatch.setattr(canary, "_suppression_ledger_trustworthy", lambda: False)
+
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-sup-io-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.BLOCKED
+    assert res["reason"] == "suppression_ledger_untrusted"
+    assert called["n"] == 0
+
+
+def test_suppression_corrupt_ledger_fail_closed(monkeypatch, tmp_path):
+    from app.platform import email_unsub
+
+    bad = tmp_path / "email_suppression.jsonl"
+    bad.write_text("{broken\n", encoding="utf-8")
+    monkeypatch.setattr(email_unsub, "_store_or_none", lambda: bad)
+    monkeypatch.setattr(email_unsub, "_store_path", lambda: bad)
+
+    called = {"n": 0}
+
+    async def _prov(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "provider_called": True}
+
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+    # Do NOT stub _suppressed — exercise canary-local trustworthy probe.
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-sup-corrupt-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.BLOCKED
+    assert res["reason"] == "suppression_ledger_untrusted"
+    assert called["n"] == 0
+
+
+def test_definite_pre_network_failure_does_not_consume_cap(monkeypatch):
+    """A local dependency/config failure is not a provider attempt."""
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+    monkeypatch.setattr(
+        canary,
+        "_smtp_or_api_configured",
+        lambda: {
+            "api_available": True,
+            "smtp_user_present": False,
+            "smtp_password_present": False,
+            "send_path_ready": True,
+        },
+    )
+    calls = {"n": 0}
+
+    async def _local_failure(*_a, **_k):
+        calls["n"] += 1
+        raise canary.ProviderNotCalledError("httpx_missing")
+
+    monkeypatch.setattr(canary, "_provider_send", _local_failure)
+    first = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-pre-network-a-01",
+            confirm=True,
+        )
+    )
+    assert first["outcome"] == canary.FAILED
+    assert first["reason"] == "httpx_missing"
+    assert first["provider_called"] is False
+
+    async def _sent(*_a, **_k):
+        calls["n"] += 1
+        return {"sent": True, "mode": "resend", "provider_called": True}
+
+    monkeypatch.setattr(canary, "_provider_send", _sent)
+    second = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-pre-network-b-02",
+            confirm=True,
+        )
+    )
+    assert second["outcome"] == canary.SENT
+    assert calls["n"] == 2
+
+
+def test_no_provider_io_while_file_lock_held(monkeypatch):
+    from app.utils import file_lock as locks
+
+    holding = {"lock": False}
+    orig = locks.file_lock
+
+    @contextlib.contextmanager
+    def _tracked(path, timeout_s=5.0):
+        with orig(path, timeout_s=timeout_s) as locked:
+            holding["lock"] = True
+            try:
+                yield locked
+            finally:
+                holding["lock"] = False
+
+    async def _prov(*_a, **_k):
+        assert holding["lock"] is False, "provider I/O must run outside the claim lock"
+        return {
+            "sent": True,
+            "mode": "resend",
+            "provider_called": True,
+            "list_unsubscribe_attached": True,
+        }
+
+    monkeypatch.setattr(locks, "file_lock", _tracked)
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-lock-scope-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.SENT
+    assert holding["lock"] is False
+
+
+def _child_hold_canary_lock(lock_target: str, ready_file: str, hold_s: float) -> None:
+    """Separate OS process — holds the sidecar lock so the parent cannot claim."""
+    import time as _t
+    from pathlib import Path as _P
+
+    from app.utils.file_lock import file_lock
+
+    with file_lock(lock_target, timeout_s=2.0) as locked:
+        if not locked:
+            _P(ready_file).write_text("lock_failed", encoding="utf-8")
+            return
+        _P(ready_file).write_text("ready", encoding="utf-8")
+        _t.sleep(hold_s)
+
+
+def test_cross_process_os_lock_blocks_second_claim(tmp_path, monkeypatch):
+    ledger = tmp_path / "attempts.jsonl"
+    ready = tmp_path / "ready.txt"
+    monkeypatch.setattr(canary, "_attempts_path", lambda *, create=False: ledger)
+    monkeypatch.setattr(canary, "_lock_target", lambda: str(ledger))
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+
+    called = {"n": 0}
+
+    async def _prov(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "mode": "resend", "provider_called": True}
+
+    monkeypatch.setattr(canary, "_provider_send", _prov)
+
+    import app.utils.file_lock as fl
+
+    real = fl.file_lock
+
+    @contextlib.contextmanager
+    def _short_lock(path, timeout_s=5.0):
+        with real(path, timeout_s=0.3) as locked:
+            yield locked
+
+    monkeypatch.setattr(fl, "file_lock", _short_lock)
+
+    ctx = multiprocessing.get_context("spawn")
+    child = ctx.Process(
+        target=_child_hold_canary_lock,
+        args=(str(ledger), str(ready), 8.0),
+    )
+    child.start()
+    try:
+        deadline = time.time() + 10
+        while time.time() < deadline and not ready.exists():
+            time.sleep(0.05)
+        assert ready.exists() and ready.read_text(encoding="utf-8") == "ready"
+
+        res = asyncio.run(
+            canary.send_canary(
+                to_email="owner@example.com",
+                idempotency_key="idem-xproc-01",
+                confirm=True,
+            )
+        )
+        assert res["outcome"] == canary.BLOCKED
+        assert res["reason"] == "idempotency_lock_unavailable"
+        assert res["provider_called"] is False
+        assert called["n"] == 0
+    finally:
+        child.join(timeout=15)
+        if child.is_alive():
+            child.terminate()
+            child.join(timeout=5)
+
+
+def test_canonical_cutover_refuses_hostile_checkout_ledger(monkeypatch, tmp_path):
+    """After cutover, poisoned checkout ledger must not be authoritative."""
+    root = tmp_path / "runtime_root"
+    root.mkdir()
+    checkout = tmp_path / "checkout" / "data" / "owner_email_canary"
+    checkout.mkdir(parents=True)
+    hostile = checkout / "attempts.jsonl"
+    # Hostile checkout claims today's slot already taken — must be ignored.
+    hostile.write_text(
+        json.dumps(
+            {
+                "event": "attempt",
+                "ts": time.time(),
+                "idempotency_key": "hostile-key-xxxxxxxx",
+                "outcome": "pending",
+                "provider_called": False,
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    for row in manifest.STORES:
+        if row["store_id"] == "ops.owner_email_canary":
+            monkeypatch.setitem(row, "migration_state", manifest.DUAL_READ_PRE_CUTOVER)
+
+    started = datetime.now(timezone.utc) - timedelta(minutes=5)
+    marker = {
+        "schema_version": mk.SCHEMA_VERSION,
+        "manifest_version": manifest.MANIFEST_VERSION,
+        "runtime_root_identifier": str(root),
+        "source_production_sha": "aaaaaaaa",
+        "migrated_store_ids": ["ops.owner_email_canary"],
+        "source_manifest_reference": "app/platform/runtime_data_manifest.py",
+        "verification_reference": "tests/test_owner_email_canary.py",
+        "cutover_started_at": started.isoformat(),
+        "cutover_completed_at": datetime.now(timezone.utc).isoformat(),
+        "validation_status": mk.VALIDATION_PASSED,
+        "rollback_reference": "legacy retained",
+    }
+    assert mk.validate_marker(marker) == [], mk.validate_marker(marker)
+    (root / "migration").mkdir(parents=True, exist_ok=True)
+    (root / "migration" / "cutover.json").write_text(json.dumps(marker), encoding="utf-8")
+    monkeypatch.setenv(rd.ENV_KEY, str(root))
+    monkeypatch.setenv(auth.CUTOVER_GATE_ENV, "1")
+    monkeypatch.delenv(rd.LEGACY_ENV_KEY, raising=False)
+
+    # Pass the poisoned checkout path as legacy — CANONICAL must still ignore it.
+    def _real_path(*, create: bool = False):
+        path = auth.resolve_store_path(
+            store_id="ops.owner_email_canary",
+            legacy_path=hostile,
+            target_segments=("ops", "owner_email_canary", "attempts.jsonl"),
+        )
+        if create:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        return path
+
+    monkeypatch.setattr(canary, "_attempts_path", _real_path)
+    monkeypatch.setattr(canary, "_lock_target", lambda: str(_real_path(create=False)))
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+
+    active = _real_path(create=False)
+    assert auth.authority_mode("ops.owner_email_canary") is auth.AuthorityMode.CANONICAL
+    assert active.resolve() != hostile.resolve()
+    assert str(root) in str(active.resolve())
+    assert canary._iter_attempts() == []  # empty canonical, not poison
+
+    called = {"n": 0}
+
+    async def _ok(*_a, **_k):
+        called["n"] += 1
+        return {
+            "sent": True,
+            "mode": "resend",
+            "provider_called": True,
+            "list_unsubscribe_attached": True,
+        }
+
+    monkeypatch.setattr(canary, "_provider_send", _ok)
+    res = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-canonical-01",
+            confirm=True,
+        )
+    )
+    assert res["outcome"] == canary.SENT
+    assert called["n"] == 1
+    # Write landed on canonical, not hostile checkout.
+    assert active.exists()
+    assert "idem-canonical-01" in active.read_text(encoding="utf-8")
+    assert "idem-canonical-01" not in hostile.read_text(encoding="utf-8")
+    assert "hostile-key-xxxxxxxx" in hostile.read_text(encoding="utf-8")
+
+
+def test_api_last_exposes_preflight_failure_not_fake_ok(api_client, monkeypatch):
+    app.dependency_overrides[require_super_admin] = lambda: create_mock_user(
+        role=UserRole.SUPER_ADMIN
+    )
+
+    def _boom_iter():
+        raise canary.AttemptLedgerError("attempt_ledger_corrupt", detail="JSONDecodeError")
+
+    monkeypatch.setattr(canary, "_iter_attempts", _boom_iter)
+    r = api_client.get("/api/admin/owner-email-canary/last")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["ok"] is False
+    assert body["reason"] == "attempt_ledger_corrupt"
+    assert body["outcome"] == canary.BLOCKED
+
+
+def test_api_last_requires_super_admin(api_client):
+    app.dependency_overrides.pop(require_super_admin, None)
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides[get_current_user] = lambda: create_mock_user(role=UserRole.ADMIN)
+    r = api_client.get("/api/admin/owner-email-canary/last")
+    assert r.status_code == 403
+
+
+def test_api_send_requires_super_admin_not_viewer(api_client):
+    app.dependency_overrides.pop(require_super_admin, None)
+    app.dependency_overrides.pop(get_current_user, None)
+    app.dependency_overrides[get_current_user] = lambda: create_mock_user(role=UserRole.VIEWER)
+    r = api_client.post(
+        "/api/admin/owner-email-canary/send",
+        json={
+            "to_email": "owner@example.com",
+            "idempotency_key": "idem-viewer-rbac-01",
+            "confirm": True,
+            "confirm_owner_inbox": True,
+        },
+    )
+    assert r.status_code == 403
+
+
+def test_pre_network_failure_allows_key_rotation(monkeypatch):
+    """smtp_not_configured must not consume daily cap — new key may proceed."""
+    called = {"n": 0}
+    monkeypatch.setattr(canary, "_suppressed", lambda _e: False)
+    monkeypatch.setattr(
+        canary,
+        "_smtp_or_api_configured",
+        lambda: {
+            "api_available": False,
+            "smtp_user_present": False,
+            "smtp_password_present": False,
+            "send_path_ready": False,
+        },
+    )
+
+    async def _boom(*_a, **_k):
+        called["n"] += 1
+        return {"sent": True, "provider_called": True}
+
+    monkeypatch.setattr(canary, "_provider_send", _boom)
+    r1 = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-rotate-a-01",
+            confirm=True,
+        )
+    )
+    assert r1["outcome"] == canary.FAILED
+    assert r1["provider_called"] is False
+    assert called["n"] == 0
+
+    monkeypatch.setattr(
+        canary,
+        "_smtp_or_api_configured",
+        lambda: {
+            "api_available": True,
+            "smtp_user_present": True,
+            "smtp_password_present": True,
+            "send_path_ready": True,
+        },
+    )
+
+    async def _ok(*_a, **_k):
+        called["n"] += 1
+        return {
+            "sent": True,
+            "mode": "resend",
+            "provider_called": True,
+            "list_unsubscribe_attached": True,
+        }
+
+    monkeypatch.setattr(canary, "_provider_send", _ok)
+    r2 = asyncio.run(
+        canary.send_canary(
+            to_email="owner@example.com",
+            idempotency_key="idem-rotate-b-02",
+            confirm=True,
+        )
+    )
+    assert r2["outcome"] == canary.SENT
+    assert called["n"] == 1
