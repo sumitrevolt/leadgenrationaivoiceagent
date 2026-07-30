@@ -293,7 +293,7 @@ def resolve_brief(
         }
 
     # Structural anti-fabrication gate over EVERY customer-visible copy field that
-    # may reach the renderer (including business_name / niche scene inputs).
+    # may reach the renderer — caller overrides AND store-resolved brand facts.
     bad: list[str] = []
     for label, text in (
         ("offer", offer),
@@ -301,6 +301,10 @@ def resolve_brief(
         ("objective", objective),
         ("business_name", business_name),
         ("niche", niche),
+        ("brand.business_name", brand.business_name),
+        ("brand.niche", brand.niche),
+        ("brand.tagline", brand.tagline),
+        ("brand.logo_text", brand.logo_text),
     ):
         for price in unverified_prices(text, brand):
             bad.append(f"{label}:{price}")
