@@ -4,7 +4,8 @@ Accepts ``prospect_id + channel + step`` (NOT arbitrary phone+text from a browse
 resolves the prospect, builds a versioned message, runs eligibility + safety, computes a
 deterministic idempotency key, PERSISTS the attempt BEFORE any provider call, and only
 then — when the engine + channel flag are on AND policy dry_run is false AND everything
-passed — calls the existing ban-safe provider (``whatsapp_campaign.send_one``).
+passed — calls the existing ban-safe WhatsApp provider (``whatsapp_campaign.send_one``)
+or the canonical email integration (``EmailSender`` + List-Unsubscribe headers).
 
 Dry-run is the default and is MANDATORY whenever any gate is unmet: we simulate, label the
 attempt ``SIMULATED``, and never touch a provider. A provider timeout yields
@@ -46,6 +47,73 @@ async def _provider_send_whatsapp(phone: str, message: str, timeout_s: float) ->
     from app.marketing import whatsapp_campaign
 
     return await asyncio.wait_for(whatsapp_campaign.send_one(phone, message), timeout=timeout_s)
+
+
+def _email_contact_is_one_to_one(contact: Any) -> bool:
+    """Refuse bulk-shaped addresses (comma/semicolon/newline lists). One recipient only."""
+    s = str(contact or "").strip()
+    if not s or "@" not in s:
+        return False
+    if any(sep in s for sep in (",", ";", "\n", "\r", " ")):
+        return False
+    return True
+
+
+async def _provider_send_email(
+    to_email: str,
+    *,
+    subject: str,
+    body: str,
+    timeout_s: float,
+) -> dict[str, Any]:
+    """Call canonical ``EmailSender`` under a hard timeout. One recipient. No auto-retry.
+
+    Reuses the existing Hostinger/API integration — does NOT introduce a second engine.
+    Missing SMTP/API credentials fail CLOSED (no provider call). Ambiguous timeout is
+    raised to the caller as ``asyncio.TimeoutError`` so the attempt stays
+    ``UNKNOWN_REQUIRES_REVIEW`` with no blind retry.
+    """
+    to = str(to_email or "").strip()
+    if not _email_contact_is_one_to_one(to):
+        return {"sent": False, "mode": "bulk_or_invalid_refused", "provider_called": False}
+
+    from app.integrations.email_sender import EmailSender
+
+    # Prefer API when available; otherwise require SMTP user+password.
+    api_ok = False
+    try:
+        from app.integrations.email_api import api_available
+
+        api_ok = bool(api_available())
+    except Exception:
+        api_ok = False
+
+    sender = EmailSender()
+    if not api_ok and not (sender.user and sender.password):
+        return {"sent": False, "mode": "smtp_not_configured", "provider_called": False}
+
+    extra_headers: dict[str, str] = {}
+    try:
+        from app.platform import email_unsub as _eu
+
+        extra_headers = _eu.headers_for(to) or {}
+    except Exception:
+        extra_headers = {}
+
+    ok = await asyncio.wait_for(
+        sender.send_email(
+            [to],
+            str(subject or "").strip() or "LeadGen AI",
+            str(body or ""),
+            extra_headers=extra_headers,
+        ),
+        timeout=timeout_s,
+    )
+    return {
+        "sent": bool(ok),
+        "mode": "email_sender" if ok else "provider_refused",
+        "provider_called": True,
+    }
 
 
 async def send(
@@ -153,13 +221,13 @@ async def send(
             result["reason"] = "suppressed_pre_provider"
             return result
 
-        # 7. LIVE path — only WhatsApp wired (email adapter is a handoff stub).
+        # 7. LIVE path — WhatsApp (ban-safe) + Email (canonical EmailSender).
         #
         # FAIL-CLOSED PROVIDER BOUNDARY. Step 4 already forces `dry` when a caller
-        # requested simulation, so this branch is unreachable today — that is the
-        # point. It is the last statement before real money/reputation is spent, so
-        # the guarantee is asserted here rather than inferred from a boolean
-        # expression 30 lines up that a future edit could reorder or weaken.
+        # requested simulation, so this branch is unreachable under dry-run — that
+        # is the point. It is the last statement before real money/reputation is
+        # spent, so the guarantee is asserted here rather than inferred from a
+        # boolean expression 30 lines up that a future edit could reorder or weaken.
         if forced:
             _store.update_attempt_status(idem, SIMULATED, note="forced_dry_run_guard")
             _advance_prospect(prospect_id, channel, step, simulated=True)
@@ -202,10 +270,61 @@ async def send(
             result["provider"] = res
             return result
 
-        # Email live-send is not implemented here (handoff adapter only) — simulate safely.
-        _store.update_attempt_status(idem, SIMULATED, note="email_not_wired")
-        result["outcome"] = SIMULATED
-        result["reason"] = "email_channel_not_wired_live"
+        if channel == "email":
+            # One-to-one only — bulk-shaped contact never reaches EmailSender.
+            if not _email_contact_is_one_to_one(contact):
+                _store.update_attempt_status(idem, SKIPPED, note="bulk_or_invalid_email_refused")
+                result["outcome"] = SKIPPED
+                result["reason"] = "bulk_or_invalid_email_refused"
+                result["provider"] = {
+                    "sent": False,
+                    "mode": "bulk_or_invalid_refused",
+                    "provider_called": False,
+                }
+                return result
+            try:
+                res = await _provider_send_email(
+                    str(contact).strip(),
+                    subject=str(envelope.get("subject") or ""),
+                    body=str(envelope.get("body") or ""),
+                    timeout_s=timeout_s,
+                )
+            except asyncio.TimeoutError:
+                # Ambiguous: may have sent. Hold — never blind-retry.
+                _store.update_attempt_status(idem, UNKNOWN_REQUIRES_REVIEW, note="provider_timeout")
+                result["outcome"] = UNKNOWN_REQUIRES_REVIEW
+                result["reason"] = "provider_timeout_no_retry"
+                return result
+            except Exception as e:  # pragma: no cover - defensive
+                _store.update_attempt_status(idem, FAILED, note=str(e)[:120])
+                result["outcome"] = FAILED
+                result["reason"] = str(e)[:120]
+                return result
+
+            mode = str(res.get("mode") or "")
+            if mode == "smtp_not_configured":
+                # Fail CLOSED — no credentials ⇒ no send, attempt not advanced as SENT.
+                _store.update_attempt_status(
+                    idem, FAILED, note="smtp_not_configured", provider_mode=mode
+                )
+                result["outcome"] = FAILED
+                result["reason"] = "smtp_not_configured"
+                result["provider"] = res
+                return result
+            if bool(res.get("sent")):
+                _store.update_attempt_status(idem, SENT, provider_mode=mode)
+                _advance_prospect(prospect_id, channel, step, simulated=False)
+                result["outcome"] = SENT
+            else:
+                _store.update_attempt_status(idem, SKIPPED, provider_mode=mode)
+                result["outcome"] = SKIPPED
+                result["reason"] = mode or "provider_refused"
+            result["provider"] = res
+            return result
+
+        _store.update_attempt_status(idem, SKIPPED, note="unknown_channel")
+        result["outcome"] = SKIPPED
+        result["reason"] = "unknown_channel"
         return result
     except Exception as e:  # pragma: no cover - defensive
         logger.warning("[sales_autopilot.send] send failed: %s", e)
