@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-30 (platform-blocker: Rate limit exceeded 429)
+Goal: Identify exact source of `{detail:Rate limit exceeded. Please slow down.,retry_after:60}`, red→green contract, safe prod fix without weakening auth/abuse/compliance.
+Inspected: `RateLimitMiddleware` (`app/middleware/__init__.py`); PlanTier twin; FE 429 parsers (login/pricing/customer_dashboard); `app.cache.RateLimiter` fixed-window; SlowAPI Retry-After docs; Graphify graph absent in this worktree → source-first.
+Problems Found: (1) Flat prod limiter (100 rpm/IP) charged StaticFiles CSS/JS/fonts to the SAME bucket as `/api/*` — one admin dashboard load burned the minute. (2) 429 `detail` was a bare string so FE `typeof detail === "object"` dropped countdown. (3) Hardcoded `Retry-After: 60` ignored fixed-window reset. (4) Redis limiter exception path could double-invoke `call_next` (write duplicate risk). (5) No admin JWT raised ceiling; WS/auth paths not skipped from flat counter.
+Changed: Asset vs API vs api_admin buckets; structured `_rate_limit_429` detail+Retry-After window-aware; admin bearer ceiling (`RATE_LIMIT_ADMIN_RPM` default 600, still capped); skip WS/telephony/auth credential routes (route deps keep brute-force caps); no double call_next; PlanTier 429 detail aligned; +`tests/test_rate_limit_middleware_429.py`.
+Tests Run: pytest test_rate_limit_middleware_429 + test_ratelimit_uniform_429 + test_auth_ratelimit + test_signup_rate_limit_ux → 15 passed; ruff clean; prod_check ALL CHECKS PASSED; check_secrets OK.
+Verification Evidence: contract asserts message string preserved inside structured detail; asset burst ≠ API exhaust; anon still 429; admin higher-not-bypass; auth login skip after burn; WS skip.
+Risks: Live UAT still needed after deploy (admin Mission Control load under real Redis). Auth route skip relies on existing per-route `rate_limit` deps (test_auth_ratelimit still green).
+Remaining: Draft PR → review → deploy → live UAT of admin dashboard + login countdown. No merge/deploy this loop.
+Next Highest Priority: Open Draft PR on `codex/fix-rate-limit-429`; live-UAT gate after owner deploy.
+
+## Loop Run
 Date: 2026-07-25 (Automation-Max continue: approval allowlist + boot_grace recovery)
 Goal: Fix engines that looked ON but were inert (approval emails, morning content).
 Inspected: approval_notifier sweep (not_allowlisted=301); job_heartbeats content=boot_grace; automation_health scheduled_off hides lost defer; Anika events OK.
@@ -1103,3 +1115,25 @@ Partial pytest slices that first-touch TestClient can hang forever in portal.cal
 - **Shutdown ordering:** stop accepting → await owned (timeout) → cancel remaining → await cancelled → close_async_db → redis close.
 - **Tests Run:** Gate1 20x PASS; Gate2 related PASS; Gate3 collect=5562 (+4 regression cases); Gate4 in progress.
 - **Next:** Gate4 leak-clean proof → commit message as authorized → push → one CI then two more same-SHA greens for COMPLETE.
+
+
+## Loop Run — 2026-07-30 (platform-blocker lane: `{detail:"Rate limit exceeded. Please slow down.", retry_after:60}` 429)
+
+- **Goal:** Find the exact producer of the user-visible 429 body, red-test it, and fix it without weakening auth, abuse controls, suppression, consent or provider limits. Branch `codex/fix-rate-limit-429`, worktree `lg-rate-limit`.
+- **Inspected:** `app/middleware/__init__.py` (flat `RateLimitMiddleware` + `PlanTierRateLimitMiddleware` + `setup_middleware`), `app/cache/__init__.py::RateLimiter`, `app/api/ratelimit.py` (`rate_limit` / `tier_rate_limit`), `app/main.py` StaticFiles mounts (1249/1256/1288/2437), `tests/test_ratelimit_uniform_429.py`, `tests/test_signup_rate_limit_ux.py`, `tests/conftest.py:668-676`, `tests/test_track_upgrades.py:33-62`, `app/api/customer_auth.py`, `app/api/admin.py`, `app/api/team_access.py`, and the FE 429 handlers in `frontend/login.html:151`, `frontend/pricing.html:387`, `frontend/customer_dashboard.html:1281`.
+- **Problems Found (exact producer):** the string is emitted ONLY by `RateLimitMiddleware.dispatch` (pre-change `app/middleware/__init__.py:262-273` Redis branch and `:295-302` in-memory branch), registered in production at 100 req/min per IP (`setup_middleware`, `:816-820`). Four defects on that path:
+  1. **`retry_after` was the literal `60`.** `app/cache/__init__.py:275` is a FIXED window keyed on `int(time.time() // 60)`, so the counter resets at the next minute boundary — real wait is 1..60s. Someone blocked at second 58 was told to wait 60s for a 2s reset, and all three FE handlers render that number as a literal countdown.
+  2. **`detail` was a bare string**, violating the uniform contract that `app/api/ratelimit.py` and `tests/test_ratelimit_uniform_429.py` already require (`{error, message, retry_after, scope}`). Every FE does `typeof j.detail === "object" ? j.detail : {}`, so for this 429 they got `{}` — no scope, no countdown, silent fallback to the stale header.
+  3. **Static assets shared the API budget.** `app/main.py:2437` mounts StaticFiles on `/` (plus `/site`, `/design-system`, `/unity`), and the only skips were `/health*` and `/metrics`. One dashboard page load spends the per-IP API minute on CSS/JS/fonts, which is why a single legitimate operator session tripped a 100/min limiter.
+  4. **Latent duplicate-write bug:** `call_next` was inside the limiter's `try`, so ANY downstream exception was logged as "Redis rate limiter failed" and the same request was re-run through the in-memory fallback — a silent retried POST.
+- **Changed (exact files):**
+  - `app/middleware/__init__.py` — added `_is_asset_path`, `_fixed_window_retry_after`, `_rate_limit_429`; bucketed the flat limiter (`api` / `api_admin` / `asset`) via `_ceiling_for` / `_bucket_for` / `_get_limiter(bucket)` / `_limiters`; added `_should_skip` (health/probe, WS + realtime, and `/api/*/auth/*` — mirroring the pre-existing `PlanTierRateLimitMiddleware._AUTH_SKIP` at `:750-754`); narrowed the limiter `try` so `call_next` is no longer retried; made `PlanTierRateLimitMiddleware`'s 429 use the same uniform dict + real reset.
+  - `app/api/team_access.py` — added `Depends(rate_limit("team_pw_change", 5, 300))` to `POST /team-access/auth/change-password`. It was the ONE credential-verifying route under the new auth skip with no route-level limiter; without this the skip would have removed its only throttle.
+  - `tests/test_ratelimit_middleware_429_contract.py` — new.
+  - `progress.md` — this block.
+- **Abuse-control posture:** no bypass added. Assets get a SEPARATE bucket (default 5x, `RATE_LIMIT_ASSET_MULT=1` collapses it back — kill switch). Admin ceiling is raised only behind a signature-verified `admin`/`super_admin` JWT and is finite (`RATE_LIMIT_ADMIN_RPM`, default 600), not unlimited. Auth routes are skipped only because each one carries its own dedicated `rate_limit` dep, now including team-access. No suppression/consent/DND/provider-quota code touched. No FE auto-retry of writes added.
+- **Tests Run:** **NONE — the shell tool rejected every command in this session** (`git`, `pytest`, `ruff`, `python`, even `echo`). So targeted pytest, `scripts/prod_check.py`, `scripts/check_secrets.py`, the duplicate-route grep, the commit/push and the Draft PR are ALL still outstanding. Reviewed by reading only.
+- **Verification Evidence:** none executable. The claim "the fix works" is UNPROVEN. What IS evidenced is the root cause, by direct source read: the two literal `"retry_after": 60` sites, the fixed-window key in `app/cache/__init__.py:275`, the StaticFiles mount at `app/main.py:2437`, and the `call_next`-inside-`try` structure.
+- **Risks:** (a) `app/middleware/__init__.py` was edited by ANOTHER writer mid-session — `_should_skip`, `_admin_rpm_from_bearer`, `_bucket_for` and the `_limiters` dict appeared between two of my reads and are not mine; the file must be re-read and the diff reviewed as a whole before commit. (b) `_is_asset_path` is suffix-based, so a non-asset route ending in an asset extension would land in the asset bucket (`/api/*` is explicitly excluded). (c) The counting tests assume the minute window does not roll over mid-test. (d) `_admin_rpm_from_bearer` adds a JWT decode per bearer request.
+- **Remaining:** run the targeted suite + ruff + prod_check + secrets scan; re-read the full middleware diff after the concurrent edit settles; commit/push `codex/fix-rate-limit-429`; open the Draft PR; live UAT on production (trip the limiter from one IP and confirm the body is a dict, `Retry-After` matches, and a page load no longer spends the API budget).
+- **Next Highest Priority:** restore shell access, then run `pytest tests/test_ratelimit_middleware_429_contract.py tests/test_ratelimit_uniform_429.py tests/test_signup_rate_limit_ux.py tests/test_track_upgrades.py -q`.

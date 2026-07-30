@@ -209,12 +209,140 @@ class RequestTracingMiddleware(BaseHTTPMiddleware):
 # RATE LIMITING MIDDLEWARE
 # =============================================================================
 
+# Asset requests are not API calls. `app.main` mounts StaticFiles on `/`,
+# `/site`, `/design-system` and `/unity`, so one dashboard page load fires
+# dozens of CSS/JS/font/image requests from a single IP. Charging them to the
+# same per-IP budget as API traffic is what let one legitimate operator session
+# trip the flat limiter. Assets get their OWN bucket — a separate budget, not an
+# exemption: flooding a static path is still capped, and `RATE_LIMIT_ASSET_MULT=1`
+# collapses the asset ceiling back onto the API ceiling.
+_ASSET_PATH_PREFIXES = (
+    "/static/",
+    "/assets/",
+    "/design-system/",
+    "/site/",
+    "/unity/",
+    "/css/",
+    "/js/",
+    "/img/",
+    "/images/",
+    "/fonts/",
+)
+_ASSET_SUFFIXES = (
+    ".css",
+    ".js",
+    ".mjs",
+    ".map",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".svg",
+    ".ico",
+    ".webp",
+    ".avif",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".otf",
+    ".eot",
+    ".mp4",
+    ".webm",
+    ".wasm",
+    ".br",
+    ".data",
+    ".webmanifest",
+)
+
+
+def _is_asset_path(path: str) -> bool:
+    """True for static-asset paths. `/api/*` is NEVER an asset."""
+    if not path or path.startswith("/api/"):
+        return False
+    if path.startswith(_ASSET_PATH_PREFIXES):
+        return True
+    return path.rsplit("/", 1)[-1].lower().endswith(_ASSET_SUFFIXES)
+
+
+def _fixed_window_retry_after(window_seconds: int = 60, now: float | None = None) -> int:
+    """Seconds until the CURRENT fixed window rolls over.
+
+    ``app.cache.RateLimiter`` keys on ``int(time.time() // window_seconds)``, so
+    the counter resets at the next window boundary — not ``window_seconds`` from
+    the moment the caller was blocked. A hardcoded 60 told someone who tripped
+    the limit at second 58 to wait a full minute for a 2-second reset, and every
+    FE renders that number as a literal countdown.
+    """
+    if window_seconds <= 0:
+        return 1
+    now = time.time() if now is None else now
+    remaining = window_seconds - (now % window_seconds)
+    secs = int(remaining)
+    if remaining > secs:
+        secs += 1
+    return max(1, min(secs, window_seconds))
+
+
+def _rate_limit_429(*, retry_after: int, scope: str, limit: int | None = None) -> JSONResponse:
+    """Uniform 429 body — same contract as ``app.api.ratelimit`` (Loop 6/16).
+
+    ``detail`` must be a dict: every FE 429 handler does
+    ``typeof j.detail === "object" ? j.detail : {}`` (login.html, pricing.html,
+    customer_dashboard.html), so a bare string silently drops the countdown and
+    the scope. The top-level ``retry_after`` is kept for older callers.
+    """
+    headers = {"Retry-After": str(retry_after)}
+    if limit is not None:
+        headers["X-RateLimit-Limit"] = str(limit)
+        headers["X-RateLimit-Remaining"] = "0"
+    return JSONResponse(
+        status_code=429,
+        content={
+            "detail": {
+                "error": "rate_limited",
+                "message": "Rate limit exceeded. Please slow down.",
+                "retry_after": retry_after,
+                "scope": scope,
+            },
+            "retry_after": retry_after,
+        },
+        headers=headers,
+    )
+
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
     """
     Production-ready rate limiter using Redis
     Falls back to in-memory if Redis is unavailable
+
+    Policy (2026-07-30 — platform-blocker 429 lane):
+    - Flat anon/customer API budget stays (abuse shield).
+    - Static assets use a SEPARATE higher bucket (not an exemption).
+    - Valid admin/super_admin bearer gets a raised API ceiling (not a bypass).
+    - Auth credential routes keep their dedicated ``rate_limit`` deps; this
+      flat middleware skips them so a dashboard burn cannot lock out login.
+    - WebSocket / telephony streams skip the flat counter (real-time path).
     """
+
+    # Exact health/probe paths — never burn operator budget on liveness.
+    _SKIP_EXACT = frozenset({"/health", "/health/live", "/health/ready", "/metrics", "/status"})
+    # Realtime + probes: PlanTier already skips these; flat limiter must match
+    # or a voice/web-call session burns the whole IP minute.
+    _SKIP_PREFIXES = (
+        "/ws",
+        "/api/web-call/ws",
+        "/api/web-call/stream",
+        "/api/telephony/",
+        "/api/voiceai",
+        "/robots.txt",
+        "/sitemap.xml",
+    )
+    # Brute-force protection lives on the route deps — do not double-count here.
+    _AUTH_SKIP_PREFIXES = (
+        "/api/admin/auth/",
+        "/api/customer/auth/",
+        "/api/team-access/auth/",
+    )
 
     def __init__(
         self,
@@ -225,80 +353,159 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self.requests_per_minute = requests_per_minute
         self.requests_per_hour = requests_per_hour
-        self._redis_limiter = None
+        self._limiters: dict = {}
         self._fallback_counts: dict = {}  # Fallback for when Redis unavailable
 
-    async def _get_limiter(self):
-        """Get or create Redis rate limiter"""
-        if self._redis_limiter is None:
-            try:
-                from app.cache import RateLimiter
+    def _should_skip(self, request: Request) -> bool:
+        if request.headers.get("upgrade", "").lower() == "websocket":
+            return True
+        path = request.url.path or ""
+        if path in self._SKIP_EXACT:
+            return True
+        if any(
+            path == p or path.startswith(p if p.endswith("/") else p + "/")
+            for p in self._SKIP_PREFIXES
+        ):
+            return True
+        if any(path.startswith(p) for p in self._AUTH_SKIP_PREFIXES):
+            return True
+        return False
 
-                self._redis_limiter = RateLimiter(
-                    prefix="ratelimit:api",
-                    max_requests=self.requests_per_minute,
-                    window_seconds=60,
-                )
-            except Exception as e:
-                logger.warning(f"Could not initialize Redis rate limiter: {e}")
-        return self._redis_limiter
+    def _admin_rpm_from_bearer(self, request: Request) -> int | None:
+        """Valid admin/super_admin JWT → raised API ceiling (still capped).
+
+        Mirrors PlanTierRateLimitMiddleware._rpm_from_bearer but returns a
+        finite operator budget instead of 9999 — abuse controls stay on.
+        Default 600 rpm (~10 req/s) covers Mission Control fan-out; override
+        via RATE_LIMIT_ADMIN_RPM. Invalid/missing token → None (anon budget).
+        """
+        auth = (request.headers.get("authorization") or "").strip()
+        if not auth.lower().startswith("bearer "):
+            return None
+        token = auth.split(" ", 1)[1].strip()
+        if not token:
+            return None
+        try:
+            import jwt
+
+            from app.api.admin import JWT_ALGORITHM, JWT_SECRET
+
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            if payload.get("type") != "access":
+                return None
+            role = str(payload.get("role") or "").lower()
+            if role not in ("admin", "super_admin"):
+                return None
+        except (ImportError, AttributeError, KeyError) as _e:
+            logger.debug("RateLimitMiddleware admin bearer parse skipped: %s", _e)
+            return None
+        except Exception as _e:
+            logger.debug("RateLimitMiddleware admin bearer parse error: %s", _e)
+            return None
+        try:
+            return max(1, int(os.environ.get("RATE_LIMIT_ADMIN_RPM", "600")))
+        except ValueError:
+            return 600
+
+    def _ceiling_for(self, bucket: str) -> int:
+        """Per-minute ceiling for a bucket. Read at call time so a runtime
+        change to `requests_per_minute` keeps the asset ceiling proportional."""
+        if bucket == "api_admin":
+            try:
+                return max(1, int(os.environ.get("RATE_LIMIT_ADMIN_RPM", "600")))
+            except ValueError:
+                return 600
+        if bucket != "asset":
+            return self.requests_per_minute
+        try:
+            mult = int(os.environ.get("RATE_LIMIT_ASSET_MULT", "5"))
+        except ValueError:
+            mult = 5
+        return self.requests_per_minute * max(1, mult)
+
+    def _bucket_for(self, request: Request) -> tuple[str, int]:
+        path = request.url.path or ""
+        if _is_asset_path(path):
+            return "asset", self._ceiling_for("asset")
+        admin_rpm = self._admin_rpm_from_bearer(request)
+        if admin_rpm is not None:
+            return "api_admin", admin_rpm
+        return "api", self._ceiling_for("api")
+
+    async def _get_limiter(self, bucket: str = "api"):
+        """Get or create the Redis rate limiter for a bucket."""
+        ceiling = self._ceiling_for(bucket)
+        existing = self._limiters.get(bucket)
+        if existing is not None:
+            # Keep cached limiter's cap in sync with runtime ceiling knobs.
+            try:
+                existing.max_requests = ceiling
+            except AttributeError:
+                pass
+            return existing
+        try:
+            from app.cache import RateLimiter
+
+            limiter = RateLimiter(
+                prefix=f"ratelimit:{bucket}",
+                max_requests=ceiling,
+                window_seconds=60,
+            )
+            self._limiters[bucket] = limiter
+            return limiter
+        except Exception as e:
+            logger.warning(f"Could not initialize Redis rate limiter: {e}")
+            return None
 
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Skip rate limiting for health checks and metrics
-        skip_paths = ["/health", "/health/live", "/health/ready", "/metrics"]
-        if request.url.path in skip_paths:
+        if self._should_skip(request):
             return await call_next(request)
 
         client_ip = _real_client_ip(request)
+        bucket, ceiling = self._bucket_for(request)
 
-        # Try Redis rate limiter first
-        limiter = await self._get_limiter()
+        # Try Redis rate limiter first. Only the limiter call is guarded — a
+        # downstream failure inside call_next used to be caught here too, which
+        # dropped through to the in-memory fallback and ran the SAME request a
+        # second time. On a POST that is a silent duplicate write.
+        limiter = await self._get_limiter(bucket)
+        allowed, remaining, limiter_ok = True, 0, False
         if limiter:
             try:
                 allowed, remaining = await limiter.is_allowed(client_ip)
-
-                if not allowed:
-                    logger.warning(f"Rate limit exceeded for {client_ip}")
-                    return JSONResponse(
-                        status_code=429,
-                        content={
-                            "detail": "Rate limit exceeded. Please slow down.",
-                            "retry_after": 60,
-                        },
-                        headers={
-                            "Retry-After": "60",
-                            "X-RateLimit-Limit": str(self.requests_per_minute),
-                            "X-RateLimit-Remaining": "0",
-                        },
-                    )
-
-                # Process request and add rate limit headers
-                response = await call_next(request)
-                response.headers["X-RateLimit-Limit"] = str(self.requests_per_minute)
-                response.headers["X-RateLimit-Remaining"] = str(remaining)
-                return response
-
+                limiter_ok = True
             except Exception as e:
                 logger.warning(f"Redis rate limiter failed, using fallback: {e}")
 
+        if limiter_ok:
+            if not allowed:
+                logger.warning(f"Rate limit exceeded for {client_ip} (bucket={bucket})")
+                return _rate_limit_429(
+                    retry_after=_fixed_window_retry_after(60),
+                    scope=f"global_ip_{bucket}",
+                    limit=ceiling,
+                )
+
+            response = await call_next(request)
+            response.headers["X-RateLimit-Limit"] = str(ceiling)
+            response.headers["X-RateLimit-Remaining"] = str(remaining)
+            return response
+
         # Fallback to in-memory rate limiting
         current_minute = int(time.time() / 60)
-        key = f"{client_ip}:{current_minute}"
+        key = f"{bucket}:{client_ip}:{current_minute}"
 
         if key not in self._fallback_counts:
             self._fallback_counts[key] = 0
 
         self._fallback_counts[key] += 1
 
-        if self._fallback_counts[key] > self.requests_per_minute:
-            logger.warning(f"Rate limit exceeded for {client_ip} (fallback)")
-            return JSONResponse(
-                status_code=429,
-                content={
-                    "detail": "Rate limit exceeded. Please slow down.",
-                    "retry_after": 60,
-                },
-                headers={"Retry-After": "60"},
+        if self._fallback_counts[key] > ceiling:
+            logger.warning(f"Rate limit exceeded for {client_ip} (fallback, bucket={bucket})")
+            return _rate_limit_429(
+                retry_after=_fixed_window_retry_after(60),
+                scope=f"global_ip_{bucket}",
+                limit=ceiling,
             )
 
         # Cleanup old entries periodically
@@ -653,16 +860,29 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
         key = f"plantier:{identity}:{minute}"
         allowed, remaining = await self._redis_check(key, rpm)
         if not allowed:
+            # Same fixed-minute window as the flat limiter, so the same real
+            # reset applies — and the same uniform detail dict every FE parses.
+            retry_after = _fixed_window_retry_after(60)
             return JSONResponse(
                 status_code=429,
                 content={
-                    "detail": f"Plan rate limit ({rpm} req/min) exceeded. Upgrade plan for higher limits.",
+                    "detail": {
+                        "error": "rate_limited",
+                        "message": (
+                            f"Plan rate limit ({rpm} req/min) exceeded. "
+                            "Upgrade plan for higher limits."
+                        ),
+                        "retry_after": retry_after,
+                        "scope": "plan_tier",
+                        "limit_rpm": rpm,
+                        "plan": plan or "anon",
+                    },
                     "limit_rpm": rpm,
                     "plan": plan or "anon",
-                    "retry_after": 60,
+                    "retry_after": retry_after,
                 },
                 headers={
-                    "Retry-After": "60",
+                    "Retry-After": str(retry_after),
                     "X-RateLimit-Limit": str(rpm),
                     "X-RateLimit-Remaining": "0",
                     "X-RateLimit-Plan": str(plan or "anon"),
