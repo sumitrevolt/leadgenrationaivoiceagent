@@ -1,36 +1,28 @@
 ﻿# ACTIVE_WORK - max 3 workstreams
 
-Fact tags: **GIT_VERIFIED** · **DIRECT_HOST_VERIFIED** · **LOCAL_ARTIFACT** · **ASSUMED**
-
 ---
 
-## WS-1 PR #188 rate-limit 429 — DONE (deployed + UAT)
+## WS-1 PR #189 blueprint + matrix — DONE (merged+deployed)
 - **ID:** WS-1
-- **Business outcome:** False dashboard `Rate limit exceeded` fixed without weakening auth/abuse.
-- **Current state:** MERGED `#188` → `58a3b70c7cd9431d0c70d4bc0744df1ae4753984`. **DIRECT_HOST_VERIFIED** 2026-07-30T13:12Z: `/health.version=58a3b70c`, 5/5 app-image services `:58a3b70c` healthy, smoke 200, celery/DLQ=0. Live UAT: 120 asset hits → 0×429 then 30 API OK (asset bucket isolated); anon API burn still 429 with structured detail + Retry-After (plan-tier 60 rpm). Claude review PASS @ `e5970f8a` ([Review](52cef277-be4f-456c-8629-0349edd2103d)).
-- **Next exact action:** None for this lane. Optional P2 follow-up: Redis TTL-based Retry-After on primary path.
-- **Out of scope:** flag flips · dial · WA auto.
+- **Outcome:** Blueprint L1 registry + readiness **matrix document** are production-proven at `7a280fdb`. **Automation Max itself is NOT fully launch-proven** — inert/code-present engines remain OFF.
+- **Evidence:** CI green @ `00faaa42`; merge `7a280fdb`; `DEPLOYED 7a280fdb OK`; `/health=7a280fdb`; 5/5 parity
+- **Next:** none
+- **Out of scope:** flag flips
 
 ---
 
-## WS-2 Automation Max matrix + blueprint drift repair — ACTIVE
+## WS-2 Revenue canary — OWNER ACTION
 - **ID:** WS-2
-- **Business outcome:** Honest capability matrix + Master Blueprint represents on-disk inert engines.
-- **Current state:** Matrix at `docs/context/AUTOMATION_MAX_READINESS_MATRIX.md`. Code repair: L1 nodes `detail_sales_autopilot`, `detail_creative_os`, `detail_owner_email_canary` added → counts **L0=48 / L1=8 / L2=1 = 57** (validate_graph ok). Branch `codex/blueprint-missing-nodes`.
-- **Next exact action:** Open/merge PR for blueprint nodes + matrix after CI green; do NOT enable inert flags.
-- **Out of scope:** PLATFORM_DIAL / WA auto / REPLY_AUTO_SEND / UPI_AUTO_ACTIVATE / sales-autopilot live channels.
+- **Outcome:** 2nd Marketing paid customer
+- **Current:** Owner-email canary preflight route live (401 unauth); Estique 1-click pending human
+- **Next:** Owner inbox canary send + Estique decision
+- **Out of scope:** bulk email · WA auto · dial
 
 ---
 
-## WS-3 Revenue canary — OWNER ACTION
+## WS-3 Safe readiness surfaces — READY (inert)
 - **ID:** WS-3
-- **Business outcome:** 2nd Marketing paid customer; first safe sales action.
-- **Current state:** Owner-email-canary routes LIVE on prod (`/api/admin/owner-email-canary/preflight` → 401 without token = auth gate OK). Activation summary `ready_for_first_paid_customer=true`. Estique 1-click send + Jiya video review login still owner-owned.
-- **Next exact action:** Owner: (1) admin login → owner-email-canary preflight/send one inbox canary, (2) Estique Hot Queue human send decision. Keep bulk/auto OFF.
-- **Out of scope:** cold auto-calls · bulk WA · platform_dial.
-
----
-
-## Open / recent PRs
-- **#188** — MERGED + DEPLOYED `58a3b70c` (DIRECT_HOST_VERIFIED).
-- **#187** — Owner Email Canary ancestry under prod tip.
+- **Outcome:** Video/voice/research/approvals prep without customer mutation
+- **Current:** Video production ON / social publish OFF; web-call config 200; dial HARD OFF; Deep Research CODE-PRESENT flag UNSET; approvals_bridge = Approval Manager (not 32nd agent)
+- **Next:** Owner dogfood browser web-call; optional DEEP_RESEARCH only if SearXNG already SET (it is) + explicit yes
+- **Out of scope:** publish · outbound dial · auto-send
