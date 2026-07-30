@@ -4,7 +4,7 @@
 
 ## WS-1 PR #189 blueprint + matrix — DONE (merged+deployed)
 - **ID:** WS-1
-- **Outcome:** Master Blueprint L1 nodes + Automation Max matrix LIVE at prod `7a280fdb`
+- **Outcome:** Blueprint L1 registry + readiness **matrix document** are production-proven at `7a280fdb`. **Automation Max itself is NOT fully launch-proven** — inert/code-present engines remain OFF.
 - **Evidence:** CI green @ `00faaa42`; merge `7a280fdb`; `DEPLOYED 7a280fdb OK`; `/health=7a280fdb`; 5/5 parity
 - **Next:** none
 - **Out of scope:** flag flips

@@ -4,10 +4,11 @@
 Continue from WAIT: finish PR #189 CI→merge→deploy; safe readiness prep; owner action packet.
 
 ## Outcome — WAIT (owner boundaries remain)
-- **PR #189 MERGED** `7a280fdb4cbd895247ddd8aab70bbebd56f552f6` from head `00faaa42` (all required CI green; Claude PASS applies).
-- **DEPLOYED** `7a280fdb` via `scripts/deploy_vps.sh` — REQUIRED because `app/platform/blueprint_detail_nodes.py` is production-consumed Master Blueprint registry.
-- DIRECT_HOST_VERIFIED: `/health.version=7a280fdb`, 5/5 services `:7a280fdb` healthy, celery/DLQ=0, blueprint_public=200, owner-email preflight=401 (auth gate), web-call config=200.
-- Matrix 32 rows; blueprint L0=48 / L1=8 / L2=1 = 57 (CODE-PRESENT inert engines registered, not activated).
+- **PR #189 MERGED + DEPLOYED** (production-proven) `7a280fdb4cbd895247ddd8aab70bbebd56f552f6` from head `00faaa42`.
+- **Automation Max is NOT fully launch-proven.** Matrix + blueprint L1 drift repair are on prod; sales_autopilot / Creative OS / Deep Research / owner-email engine stay CODE-PRESENT or INERT where applicable. Protected automation remains OFF.
+- DIRECT_HOST_VERIFIED: `/health.version=7a280fdb`, 5/5 `:7a280fdb` healthy, celery/DLQ=0, blueprint_public=200, owner-email preflight=401, web-call config=200.
+- Matrix 32 rows; blueprint L0=48 / L1=8 / L2=1 = 57 (registered ≠ activated).
+- Claude #189 P2 (matrix “NOT implemented” contradiction) was fixed on head `00faaa42` before merge.
 
 ## Head
 - Prod / origin/main: `7a280fdb`
