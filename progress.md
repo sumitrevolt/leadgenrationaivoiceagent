@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-30 (PR #189 CI→merge→deploy + readiness prep)
+Goal: Finish WAIT state — exact-head CI for #189, merge, classify deploy, prove prod, owner packet.
+Inspected: PR #189 head `00faaa42` files (blueprint_detail_nodes + matrix + tests + context); required GH checks; VPS deploy path; owner-email/video/voice/deep-research/approvals_bridge.
+Problems Found: (1) Concurrent duplicate `deploy_vps.sh` race during build — killed secondary. (2) Known Sentry `_IncludedRouter.path` secondary noise in app logs (pre-existing landmine, not deploy-blocker). (3) Owner send still external.
+Changed: Merged #189 → `7a280fdb`; deployed via `deploy_vps.sh 7a280fdb…`; SESSION_HANDOFF + ACTIVE_WORK updated; no protected flag flips.
+Tests Run: Exact-head CI green (lint, test, prod_check+pytest, harness redis, Trivy, GitGuardian); local blueprint validate earlier L0=48/L1=8/L2=1=57.
+Verification Evidence: `DEPLOYED 7a280fdb OK`; `/health=7a280fdb`; 5/5 APP_VERSION=7a280fdb; celery/DLQ=0; blueprint_public=200; canary preflight=401; web-call config=200; dial/WA/UPI/auto-email OFF; VIDEO_SOCIAL_PUBLISH=0.
+Risks: Owner canary/Estique still pending; VIDEO_PRODUCTION_ENABLED=1 already set (publish OFF).
+Remaining: Owner Action Packet only.
+Next Highest Priority: Owner inbox canary send OR Estique 1-click decision.
+
+## Loop Run
 Date: 2026-07-30 (PR #188 P1 harden @ cloud review 662c2b3)
 Goal: Close P1 safety regressions — remove broad auth/telephony skips, constrain admin RPM to safe GET/HEAD, unify trusted IP (rightmost XFF), rebase onto origin/main `6b1dabb`.
 Inspected: `RateLimitMiddleware` + `PlanTierRateLimitMiddleware`; `app.api.ratelimit._client_ip` (was leftmost); telephony `POST /test-call` `/stream-call`; contract suite.
