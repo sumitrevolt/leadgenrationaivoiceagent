@@ -177,6 +177,18 @@ def _build_segment_args(
 
 
 _OUT_DIR = os.path.join("data", "reels")
+
+
+def output_root() -> str:
+    """Public accessor for the ACTIVE render output directory.
+
+    Read at call time so runtime/test overrides of ``_OUT_DIR`` are honoured.
+    Consumers outside this module (e.g. the publish gate's media-root check)
+    must use this instead of importing the private constant.
+    """
+    return _OUT_DIR
+
+
 _MUSIC_DIR = os.path.join("data", "music_beds")
 _SAFE_NICHE_RE = re.compile(r"[^a-z0-9_-]")
 

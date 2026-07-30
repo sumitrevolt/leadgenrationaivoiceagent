@@ -142,8 +142,19 @@ async def render_and_queue_review(
     return r
 
 
-def approve_version(video_ad_id: str, expected_revision: int | None = None) -> dict[str, Any]:
-    """Bind approval to exact version — fail if mismatch."""
+def approve_version(
+    video_ad_id: str,
+    expected_revision: int | None = None,
+    *,
+    principal: Any = None,
+    expected_sha256: str = "",
+) -> dict[str, Any]:
+    """Bind approval to exact version AND exact content bytes — fail if mismatch.
+
+    ``principal`` is a server-created ``ApprovalPrincipal``. The old ``actor``
+    and ``channel`` strings are gone: they let each surface name itself, and the
+    audit trail recorded a WhatsApp phone reply as ``"admin"``.
+    """
     from app.marketing import content_approval, video_ad_cycle
 
     rec = None
@@ -168,7 +179,24 @@ def approve_version(video_ad_id: str, expected_revision: int | None = None) -> d
     except (TypeError, ValueError):
         approved_revision = None
     if status == "approved" and approved_revision == rev:
-        return {"ok": True, "already_decided": True, "status": "approved"}
+        # already_decided only when saga-finalized + hash-bound (publish-eligible).
+        # Explicit legacy reapproval ONLY when approval_txn_state is empty.
+        # Non-empty mid-saga states must refuse — never coerce back into the saga.
+        txn_state = str(rec.get("approval_txn_state") or "").strip()
+        hash_ok = bool(str(rec.get("approved_content_sha256") or "").strip())
+        snap_ok = bool(str(rec.get("approval_snapshot_path") or "").strip())
+        if txn_state == "finalized" and hash_ok and snap_ok:
+            return {"ok": True, "already_decided": True, "status": "approved"}
+        if txn_state == "":
+            # Legacy approved with no saga transaction — allow fresh coordinated approve.
+            status = "pending"
+        else:
+            return {
+                "ok": False,
+                "error": "approval_not_finalized",
+                "txn_state": txn_state,
+                "status": status,
+            }
     if status != "pending":
         return {
             "ok": False,
@@ -178,20 +206,34 @@ def approve_version(video_ad_id: str, expected_revision: int | None = None) -> d
     tok = str(rec.get("token") or "")
     if not tok:
         return {"ok": False, "error": "missing_token"}
-    out = content_approval.approve(tok)
-    if not out.get("ok"):
-        return out
-    approval_status = str((out.get("approval") or {}).get("status") or "").strip().lower()
-    if out.get("already_decided") and approval_status != "approved":
-        return {
-            "ok": False,
-            "error": "approval_already_decided",
-            "status": approval_status or "unknown",
-        }
-    if approval_status != "approved":
-        return {"ok": False, "error": "approval_not_approved", "status": approval_status}
-    mark_version_approved(str(video_ad_id), rev)
-    return out
+
+    # ONE coordinated path. approve_version no longer calls
+    # content_approval.approve() — that fired _decide's on_approved callback,
+    # which called record_approval, and then this function called it AGAIN
+    # (two writes per click, second overwriting approved_at). The coordinator
+    # owns the sequence and never re-enters this function.
+    from app.marketing.video_production import approval_saga
+
+    # No caller-supplied actor. A surface that cannot produce a trusted
+    # principal (WhatsApp inbound, harness executor) fails closed here rather
+    # than approving as the literal "admin".
+    if principal is None:
+        return {"ok": False, "error": "approver_identity_unavailable", "status": 403}
+
+    observed = str(expected_sha256 or "").strip().lower()
+    if not observed:
+        from app.marketing.video_production.publish_gate import hash_video_file
+
+        observed, _size = hash_video_file(str(rec.get("video_path") or ""))
+        if not observed:
+            return {"ok": False, "error": "content_unverifiable"}
+
+    return approval_saga.approve(
+        record_id=str(video_ad_id),
+        expected_revision=rev,
+        expected_sha256=observed,
+        principal=principal,
+    )
 
 
 async def schedule_approved(video_ad_id: str) -> dict[str, Any]:
@@ -226,6 +268,27 @@ async def schedule_approved(video_ad_id: str) -> dict[str, Any]:
             "zara", "video_published", f"published {video_ad_id}", {"channels": res.get("channels")}
         )
         return {"ok": True, "published": True, "channels": res.get("channels")}
+    idem_err = str(((res.get("channels") or {}).get("idempotency") or {}).get("error") or "")
+    attempt = str(res.get("publish_attempt_state") or "")
+    if idem_err == "publish_reservation_held":
+        return {
+            "ok": False,
+            "error": "publish_reservation_held",
+            "channels": res.get("channels"),
+        }
+    if idem_err == "publish_outcome_unknown" or attempt == "publish_outcome_unknown":
+        video_ad_cycle._update(
+            str(video_ad_id),
+            status="publish_outcome_unknown",
+            workflow_state="PUBLISH_OUTCOME_UNKNOWN",
+            publish_result=res.get("channels"),
+        )
+        return {
+            "ok": False,
+            "error": "publish_outcome_unknown",
+            "remedy": "provider reconciliation or explicit operator decision required",
+            "channels": res.get("channels"),
+        }
     video_ad_cycle._update(
         str(video_ad_id),
         status="publish_failed",

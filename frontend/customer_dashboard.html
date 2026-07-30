@@ -3212,11 +3212,27 @@ async function loadApprovals(){
 }
 
 const videoPreviewUrls={};
+// Identity of the bytes the customer has ACTUALLY VIEWED, keyed by video id.
+// Written only when a preview renders; cleared whenever it fails, the version
+// changes, or the server reports the content changed. Approve reads this and
+// never performs its own identity fetch.
+const viewedVideoIdentity={};
+
+function setApproveEnabled(id, on){
+  document.querySelectorAll('[data-video-action="approve"]').forEach(function(b){
+    if(b.dataset.videoId===id){
+      b.disabled=!on;
+      b.title=on?"":"Pehle preview dekho";
+    }
+  });
+}
 function clearVideoPreviewUrls(){
   Object.keys(videoPreviewUrls).forEach(function(id){
     try{ URL.revokeObjectURL(videoPreviewUrls[id]); }catch(e){}
     delete videoPreviewUrls[id];
   });
+  // A re-rendered list may carry new revisions — every viewed identity is stale.
+  Object.keys(viewedVideoIdentity).forEach(function(id){ delete viewedVideoIdentity[id]; });
 }
 
 function bindVideoReviewActions(body){
@@ -3297,12 +3313,32 @@ async function loadVideoPreview(id, revision, button){
     }
     const blob=await r.blob();
     if(!String(blob.type||"").startsWith("video/")) throw new Error("video response invalid");
+    // Capture the identity of the bytes ACTUALLY DISPLAYED, at display time.
+    // Approve later submits THIS, never a fresh read — otherwise a re-render
+    // between viewing and clicking would be approved unseen.
+    const pv=await fetch("/api/customer/videos/"+encodeURIComponent(id)+"/preview",
+      {headers:billAuthHdr()});
+    const pd=await pv.json().catch(function(){return {};});
+    if(!pv.ok||!pd.ok||!pd.content_sha256||Number(pd.revision)!==Number(revision)){
+      viewedVideoIdentity[id]=null;
+      throw new Error("preview identity verify nahi hua");
+    }
     if(videoPreviewUrls[id]) URL.revokeObjectURL(videoPreviewUrls[id]);
     videoPreviewUrls[id]=URL.createObjectURL(blob);
+    viewedVideoIdentity[id]={
+      video_id:id,
+      revision:Number(pd.revision),
+      content_sha256:pd.content_sha256,
+      content_bytes:Number(pd.content_bytes),
+      etag:pd.etag
+    };
     player.src=videoPreviewUrls[id];
     player.load();
+    setApproveEnabled(id, true);
     if(status) status.textContent="Exact v"+(revision+1)+" preview";
   }catch(e){
+    viewedVideoIdentity[id]=null;
+    setApproveEnabled(id, false);
     if(status) status.textContent="Preview load nahi hua: "+String(e.message||e);
   }finally{
     button.disabled=false;
@@ -3315,13 +3351,40 @@ async function videoFeedback(id, action, revision){
     text=window.prompt("Kya badalna hai? (jaise: logo bada karo, price update)")||"";
     if(!text.trim()) return;
   }
+  // Approve submits the identity captured WHEN THE PREVIEW WAS DISPLAYED.
+  // Never re-read it here: a fresh read would hash whatever is on disk at
+  // click time, so a re-render between viewing and clicking would be approved
+  // sight-unseen. No stored viewed identity => no approval.
+  var payload={action:action, text:text, expected_revision:revision};
+  if(action==="approve"){
+    var viewed=viewedVideoIdentity[id];
+    if(!viewed||viewed.video_id!==id||Number(viewed.revision)!==Number(revision)
+       ||!viewed.content_sha256){
+      alert("Pehle video preview kholo aur dekho — tabhi approve kar sakte ho.");
+      return;
+    }
+    payload.expected_content_sha256=viewed.content_sha256;
+    payload.expected_revision=viewed.revision;
+  }
   try{
     const r=await fetch("/api/customer/videos/"+encodeURIComponent(id)+"/feedback",{
       method:"POST", headers:Object.assign({"Content-Type":"application/json"}, billAuthHdr()),
-      body:JSON.stringify({action:action, text:text, expected_revision:revision})
+      body:JSON.stringify(payload)
     });
     const d=await r.json().catch(function(){return {};});
-    if(!r.ok||!d.ok){ alert(d.clarification||videoErrorMessage(d,"Fail")); return; }
+    if(!r.ok||!d.ok){
+      if(String(d.detail||d.error||"").indexOf("approval_content_changed")>=0){
+        // The artifact changed after the customer viewed it. Invalidate the
+        // stored identity, reload the preview so they see the NEW version, and
+        // require another deliberate approval click. Never auto-retry.
+        viewedVideoIdentity[id]=null;
+        setApproveEnabled(id, false);
+        alert("Video badal gaya hai — nayi version dekh kar phir approve karo.");
+        await loadVideoReviews();
+        return;
+      }
+      alert(d.clarification||videoErrorMessage(d,"Fail")); return;
+    }
     await loadVideoReviews();
     await loadApprovals();
   }catch(e){ alert("Video feedback fail"); }

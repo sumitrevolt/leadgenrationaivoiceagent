@@ -35,6 +35,7 @@ from urllib.parse import quote
 
 from fastapi import APIRouter, Body, Depends, Header, HTTPException, Query, Request
 from fastapi.responses import FileResponse, Response, StreamingResponse
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel, Field
 
 from app.api.customer_auth import require_customer
@@ -47,9 +48,10 @@ router = APIRouter(prefix="/api/customer", tags=["Customer Dashboard"])
 # Inquiries store (jsonl-first; same path public_site.py writes to).
 _INQUIRIES_FILE = os.path.join("data", "inquiries.jsonl")
 
-# Only canonical video output roots may be exposed to an authenticated customer.
-# Resolving the candidate before the containment check closes symlink/``..`` escapes.
-_VIDEO_MEDIA_ROOTS = (Path("data/video_ads").resolve(), Path("data/reels").resolve())
+# Media-root authority for the customer serve path lives in
+# app/marketing/video_media_paths.py (resolve_video_media_file). It is shared
+# with approval and publishing so the same artifact cannot be servable but
+# unapprovable, or vice versa. There is deliberately no local roots constant.
 
 
 # --------------------------------------------------------------------------- #
@@ -2338,22 +2340,18 @@ def _resolve_customer_video_path(rec: dict) -> Path | None:
     raw = str(rec.get("video_path") or "").strip()
     if not raw:
         return None
+    # SERVABLE == APPROVABLE == SNAPSHOTTABLE == PUBLISHABLE: one media-root
+    # authority for all four, so a file the publish gate rejects can never be
+    # served, and vice versa. A second local definition would drift.
     try:
-        candidate = Path(raw)
-        if not candidate.is_absolute():
-            candidate = Path.cwd() / candidate
-        resolved = candidate.resolve(strict=True)
-        if not resolved.is_file() or resolved.suffix.lower() != ".mp4":
+        from app.marketing.video_media_paths import resolve_video_media_file
+
+        resolved = resolve_video_media_file(raw)
+        if resolved is None or resolved.suffix.lower() != ".mp4":
             return None
-        for root in _VIDEO_MEDIA_ROOTS:
-            try:
-                resolved.relative_to(root.resolve())
-                return resolved
-            except ValueError:
-                continue
+        return resolved
     except (OSError, RuntimeError, ValueError):
         return None
-    return None
 
 
 def _customer_video_context(client_id: str) -> tuple[str, bool]:
@@ -2407,6 +2405,46 @@ def customer_videos_list(client_id: str = Depends(require_customer)):
         return {"ok": False, "enabled": False, "count": 0, "videos": []}
 
 
+@router.get("/videos/{video_ad_id}/preview")
+def customer_video_preview(
+    video_ad_id: str,
+    client_id: str = Depends(require_customer),
+):
+    """Identity of the EXACT artifact the customer is about to review.
+
+    Hashes only THIS video (never the whole list) through a single descriptor.
+    The customer approves the revision + digest returned here, so an in-place
+    re-render between preview and approve is detectable. No filesystem path is
+    ever exposed.
+    """
+    mcid, enabled = _customer_video_context(client_id)
+    if not enabled:
+        raise HTTPException(status_code=404, detail="video not found")
+    rec = _customer_video_record(mcid, video_ad_id)
+    if not rec:
+        raise HTTPException(status_code=404, detail="video not found")
+
+    from app.marketing.video_media_paths import observe_content_identity
+
+    observed = observe_content_identity(str(rec.get("video_path") or ""))
+    if not observed.get("ok"):
+        raise HTTPException(status_code=409, detail=str(observed.get("error") or "unverifiable"))
+    return {
+        "ok": True,
+        "id": str(rec.get("id") or ""),
+        "revision": int(rec.get("revision") or 0),
+        "status": rec.get("status"),
+        "caption": rec.get("caption"),
+        "content_sha256": observed["sha256"],
+        "content_bytes": observed["bytes"],
+        "etag": observed["etag"],
+        "media_url": (
+            f"/api/customer/videos/{quote(str(rec.get('id') or ''), safe='')}"
+            f"/media?revision={int(rec.get('revision') or 0)}"
+        ),
+    }
+
+
 @router.get("/videos/{video_ad_id}/media")
 def customer_video_media(
     video_ad_id: str,
@@ -2433,16 +2471,33 @@ def customer_video_media(
         logger.warning("customer video media refused id=%s tenant=%s", video_ad_id, mcid)
         raise HTTPException(status_code=404, detail="video not found")
 
-    file_size = media_path.stat().st_size
+    # ONE descriptor for identity AND streaming. Hashing via one open() and then
+    # re-open()ing the path to stream would let a path replacement in between
+    # serve bytes that do not match the advertised ETag.
+    from app.marketing.video_media_paths import open_verified_media
+
+    opened = open_verified_media(str(rec.get("video_path") or ""))
+    if not opened.get("ok"):
+        raise HTTPException(status_code=409, detail=str(opened.get("error") or "unverifiable"))
+    media_fh = opened["fh"]
+    observed = {"sha256": opened["sha256"], "bytes": opened["bytes"], "etag": opened["etag"]}
+
+    file_size = int(observed["bytes"])
     filename = f"video_ad_{video_ad_id}.mp4"
     base_headers = {
         "Content-Type": "video/mp4",
         "Content-Disposition": f'inline; filename="{filename}"',
         "Accept-Ranges": "bytes",
         "Cache-Control": "private, max-age=300, no-transform",
+        "ETag": observed["etag"],
+        "X-Content-SHA256": observed["sha256"],
     }
 
     def _unsatisfiable() -> Response:
+        try:
+            media_fh.close()
+        except OSError:
+            pass
         return Response(
             status_code=416,
             headers={
@@ -2489,16 +2544,24 @@ def customer_video_media(
         }
 
         def iter_range():
-            with open(media_path, "rb") as f:
-                f.seek(start)
+            # Same descriptor the ETag was computed from — no re-open, so a path
+            # replacement cannot change the bytes served. Closed deterministically
+            # on completion, exception, or client disconnect (GeneratorExit).
+            try:
+                media_fh.seek(start)
                 remaining = content_length
                 chunk_size = 64 * 1024
                 while remaining > 0:
-                    read_bytes = f.read(min(chunk_size, remaining))
+                    read_bytes = media_fh.read(min(chunk_size, remaining))
                     if not read_bytes:
                         break
                     remaining -= len(read_bytes)
                     yield read_bytes
+            finally:
+                try:
+                    media_fh.close()
+                except OSError:
+                    pass
 
         return StreamingResponse(
             iter_range(),
@@ -2513,10 +2576,17 @@ def customer_video_media(
     }
 
     def iter_full():
-        with open(media_path, "rb") as f:
+        # Same descriptor the ETag was computed from (see iter_range).
+        try:
+            media_fh.seek(0)
             chunk_size = 64 * 1024
-            while chunk := f.read(chunk_size):
+            while chunk := media_fh.read(chunk_size):
                 yield chunk
+        finally:
+            try:
+                media_fh.close()
+            except OSError:
+                pass
 
     return StreamingResponse(
         iter_full(),
@@ -2530,13 +2600,50 @@ class VideoFeedbackIn(BaseModel):
     text: str = Field("", max_length=300)
     action: str = "changes"  # approve | changes | reject
     expected_revision: int = Field(..., ge=0)
+    # Required for action="approve": the digest the customer actually previewed.
+    # Optional here so changes/reject keep working; the approve branch enforces
+    # presence and shape, fail-closed.
+    expected_content_sha256: str = Field("", max_length=64)
+
+
+async def _approval_session_facts(client_id: str, creds) -> tuple[bool, bool]:
+    """Establish, server-side, the two facts ``require_customer`` does not.
+
+    Returns ``(tenant_verified, revocation_verified)``. Both are POSITIVE
+    checks: an error anywhere yields False, so approval fails closed. The read
+    paths deliberately keep their existing fail-open behaviour — this stricter
+    rule applies only to the approval mutation.
+    """
+    tenant_verified = False
+    try:
+        from app.marketing import clients_store
+
+        rec = clients_store.resolve_client(client_id)
+        tenant_verified = bool(rec and str(rec.get("id") or "").strip())
+    except Exception:
+        tenant_verified = False
+
+    revocation_verified = False
+    try:
+        from app.cache import get_redis_client
+
+        token = getattr(creds, "credentials", "") or ""
+        if token:
+            redis_client = await get_redis_client()
+            revoked = await redis_client.exists(f"customer:logout:{token[:20]}")
+            revocation_verified = not revoked
+    except Exception:
+        # Store unreachable => we cannot prove the session is still valid.
+        revocation_verified = False
+    return tenant_verified, revocation_verified
 
 
 @router.post("/videos/{video_ad_id}/feedback")
-def customer_video_feedback(
+async def customer_video_feedback(
     video_ad_id: str,
     body: VideoFeedbackIn,
     client_id: str = Depends(require_customer),
+    creds: HTTPAuthorizationCredentials = Depends(HTTPBearer(auto_error=False)),
 ):
     """Dashboard video review — same intents as WhatsApp (version-bound)."""
     from app.marketing import clients_store, content_approval, video_ad_cycle
@@ -2567,10 +2674,61 @@ def customer_video_feedback(
             and current_status == "approved"
             and approved_revision == body.expected_revision
         ):
-            return {"ok": True, "already_decided": True, "status": "approved"}
-        raise HTTPException(status_code=409, detail="video review already decided; refresh")
+            txn_state = str(rec.get("approval_txn_state") or "").strip()
+            hash_ok = bool(str(rec.get("approved_content_sha256") or "").strip())
+            snap_ok = bool(str(rec.get("approval_snapshot_path") or "").strip())
+            if txn_state == "finalized" and hash_ok and snap_ok:
+                return {"ok": True, "already_decided": True, "status": "approved"}
+            if txn_state == "":
+                # Legacy approved with no saga transaction — fall through to fresh approve.
+                current_status = "pending"
+            else:
+                raise HTTPException(
+                    status_code=409,
+                    detail=f"approval_not_finalized:{txn_state}",
+                )
+        if current_status != "pending":
+            raise HTTPException(status_code=409, detail="video review already decided; refresh")
     if action == "approve":
-        out = cell.approve_version(str(video_ad_id), body.expected_revision)
+        # Bind the approval to the bytes the customer actually previewed. Every
+        # refusal below happens BEFORE any ledger write, record update, snapshot
+        # or provider call.
+        import re as _re
+
+        from app.marketing.video_media_paths import observe_content_identity
+
+        expected_hash = str(body.expected_content_sha256 or "").strip().lower()
+        if not _re.fullmatch(r"[0-9a-f]{64}", expected_hash):
+            raise HTTPException(status_code=400, detail="expected_content_sha256 required (64-hex)")
+        observed = observe_content_identity(str(rec.get("video_path") or ""))
+        if not observed.get("ok"):
+            raise HTTPException(
+                status_code=409, detail=str(observed.get("error") or "content_unverifiable")
+            )
+        if observed["sha256"] != expected_hash:
+            raise HTTPException(status_code=409, detail="approval_content_changed")
+        from app.marketing.video_production.approval_principal import (
+            PrincipalRefused,
+            from_customer_session,
+        )
+
+        # Server-constructed from the verified session. `mcid` is the canonical
+        # tenant from require_customer, never request input. Tenant existence
+        # and session revocation are proven POSITIVELY here — require_customer's
+        # revocation check fails open, which is not acceptable for a mutation.
+        tenant_ok, revocation_ok = await _approval_session_facts(mcid, creds)
+        try:
+            principal = from_customer_session(
+                mcid, tenant_verified=tenant_ok, revocation_verified=revocation_ok
+            )
+        except PrincipalRefused as exc:
+            raise HTTPException(status_code=exc.status, detail=exc.code) from None
+        out = cell.approve_version(
+            str(video_ad_id),
+            body.expected_revision,
+            principal=principal,
+            expected_sha256=expected_hash,
+        )
         if not out.get("ok"):
             raise HTTPException(status_code=409, detail=str(out.get("error") or "approval failed"))
         return out

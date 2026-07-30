@@ -20,6 +20,13 @@ from app.marketing.video_production.cell import approve_version, ops_summary
 from app.marketing.video_production.profiles import ratios_for_channels, resolve_profile
 
 
+def _principal(tenant: str):
+    """Server-created principal, same helper the customer route uses."""
+    from app.marketing.video_production.approval_principal import from_customer_session
+
+    return from_customer_session(tenant, tenant_verified=True, revocation_verified=True)
+
+
 def test_flags_default_off(monkeypatch):
     for k in (
         "VIDEO_PRODUCTION_ENABLED",
@@ -71,14 +78,26 @@ def test_feedback_approve_changes_reject_ambiguous():
     assert "pricing" in price["categories"]
 
 
-def test_state_transitions_and_publish_gate():
+def test_state_transitions_and_publish_gate(monkeypatch, tmp_path):
+    from app.marketing import video_pipeline
+    from app.marketing.video_production.publish_gate import hash_video_file
+
+    # Publish-eligible means the artifact really exists under the configured
+    # media root (SERVABLE == APPROVABLE == PUBLISHABLE).
+    root = tmp_path / "reels"
+    root.mkdir()
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(root))
+    artifact = root / "x.mp4"
+    artifact.write_bytes(b"real-bytes" * 64)
+    digest, size = hash_video_file(str(artifact))
+
     assert states.can_transition(states.RENDERED, states.INTERNAL_QA)
     assert not states.can_transition(states.CLIENT_REVIEW_PENDING, states.PUBLISHED)
     rec = {
         "status": "pending",
         "workflow_state": states.CLIENT_REVIEW_PENDING,
         "approval_id": "a1",
-        "video_path": "/tmp/x.mp4",
+        "video_path": "data/video_ads/x.mp4",  # writer-contract shape
     }
     ok, reason = states.publish_allowed(rec)
     assert ok is False and "publish_blocked" in reason
@@ -87,13 +106,26 @@ def test_state_transitions_and_publish_gate():
         "status": "approved",
         "workflow_state": states.APPROVED,
         "approval_id": "a1",
-        "video_path": "/tmp/x.mp4",
+        "video_path": str(artifact),
         "revision": 0,
         "approved_version": 0,
         "final_approved": True,
+        "approved_content_sha256": digest,
+        "approved_content_bytes": size,
+        # Stage 3B-close: publish eligibility requires a finalized saga-owned
+        # snapshot identity. Without it this record is exactly the legacy shape
+        # an uncoordinated writer produced, and it must refuse.
+        "approval_txn_state": "finalized",
+        "approval_txn": "t" * 64,
+        "approval_snapshot_path": str(artifact),
+        "approval_snapshot_sha256": digest,
+        "approval_snapshot_bytes": size,
     }
     gate = assert_can_publish(approved)
     assert gate["ok"] is True
+
+    uncoordinated = {k: v for k, v in approved.items() if not k.startswith("approval_txn")}
+    assert assert_can_publish(uncoordinated)["error"] == "approval_not_finalized"
 
     mismatch = {**approved, "approved_version": 1}
     assert assert_can_publish(mismatch)["ok"] is False
@@ -167,9 +199,10 @@ def test_approve_version_mismatch(iso_video):
 
     r = asyncio.run(V.generate_for_client("c1"))
     assert r["ok"]
-    bad = approve_version(r["id"], expected_revision=99)
+    who = _principal("c1")
+    bad = approve_version(r["id"], expected_revision=99, principal=who)
     assert bad["ok"] is False and bad["error"] == "version_mismatch"
-    good = approve_version(r["id"], expected_revision=0)
+    good = approve_version(r["id"], expected_revision=0, principal=who)
     assert good.get("ok") is True
     rows = V.list_for_client("c1")
     assert rows[0]["status"] == "approved"
@@ -194,7 +227,10 @@ def test_approve_version_never_flips_an_already_rejected_approval(iso_video):
         workflow_state=states.CLIENT_REVIEW_PENDING,
         final_approved=False,
     )
-    out = approve_version(r["id"], expected_revision=0)
+    # A VALID principal is supplied deliberately: the point of this test is
+    # reject terminality, and an identity refusal would mask whether the
+    # terminality check still runs.
+    out = approve_version(r["id"], expected_revision=0, principal=_principal("c1"))
     assert out["ok"] is False
     assert out["error"] == "approval_already_decided"
     rec = next(row for row in V.list_all() if row["id"] == r["id"])
@@ -280,8 +316,14 @@ def iso_video(monkeypatch, tmp_path):
     monkeypatch.setattr(clients_store, "product_lane", lambda c: "marketing")
     monkeypatch.setattr(team, "log_event", lambda *a, **k: None)
 
+    # SERVABLE == APPROVABLE == PUBLISHABLE media root: the fake renderer must
+    # write where the real one does, or the artifact is unservable by contract.
+    _render_root = tmp_path / "reels"
+    _render_root.mkdir(exist_ok=True)
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(_render_root))
+
     async def _fake_reel(**kw):
-        p = tmp_path / "reel.mp4"
+        p = _render_root / "reel.mp4"
         p.write_bytes(b"x" * 2000)
         return {"path": str(p), "slides": kw.get("slides"), "size_kb": 2}
 
@@ -434,7 +476,15 @@ def test_wa_inbound_never_reports_approve_for_rejected_ledger(monkeypatch, iso_v
 
     out = review_whatsapp.ingest_inbound("919876543210", "APPROVE", "mid-stale")
     assert out.get("handled") is False
-    assert out.get("reason") == "approval_already_decided"
+    # COVERAGE SHIFT (Stage 3B), recorded rather than silently re-baselined:
+    # WhatsApp now fails at the identity boundary, so it can no longer reach
+    # the reject-terminality check and the reason changed. The invariant this
+    # test exists for — WA never reports approve for a terminal ledger, and
+    # writes nothing — still holds and is asserted below. Terminality itself is
+    # proven with a valid principal in
+    # test_approve_version_never_flips_an_already_rejected_approval.
+    assert out.get("reason") == "whatsapp_approval_identity_unavailable"
+    assert out.get("intent") == "approve"
     rec = next(row for row in V.list_all() if row["id"] == made["id"])
     assert rec.get("approved_version") is None
     assert rec.get("final_approved") is False

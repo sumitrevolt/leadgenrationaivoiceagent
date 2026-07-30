@@ -69,7 +69,30 @@ def client(monkeypatch, tmp_path):
     monkeypatch.setattr(video_ad_cycle, "_STATE", str(tmp_path / ".cycle.json"))
     monkeypatch.setattr(content_approval, "_FILE", lambda: str(tmp_path / "approvals.jsonl"))
 
+    # Stage 3B-close: approval additionally requires two POSITIVE server-side
+    # facts (tenant really resolves; the logout blacklist was reachable). The
+    # session dependency establishes neither, and its revocation check fails
+    # OPEN — unacceptable for a mutation. Stubbed here to represent a healthy
+    # session; a test that omits them proves the fail-closed path instead.
+    monkeypatch.setattr(
+        clients_store,
+        "resolve_client",
+        lambda cid: {"id": "fixture-tenant-a"} if cid in ("fixture-tenant-a", "c1") else None,
+        raising=False,
+    )
+
+    class _Redis:
+        async def exists(self, _key):
+            return 0
+
+    async def _get_redis():
+        return _Redis()
+
+    monkeypatch.setattr("app.cache.get_redis_client", _get_redis)
+
     with TestClient(app) as c:
+        _fixture_auth = "Bearer fixture-session-token"  # nosecret - test fixture
+        c.headers.update({"Authorization": _fixture_auth})
         yield c
     app.dependency_overrides.clear()
 
@@ -85,8 +108,11 @@ def test_customer_videos_requires_auth_without_override():
 def test_customer_videos_list_authenticated(client, monkeypatch, tmp_path):
     import asyncio
 
-    from app.marketing import video_ad_cycle as V
-    from app.marketing import video_pipeline
+    # Alias after import: isort and ruff order a mixed alias/plain block from
+    # one module differently and each undoes the other indefinitely.
+    from app.marketing import video_ad_cycle, video_pipeline
+
+    V = video_ad_cycle
 
     async def _fake(**kw):
         p = tmp_path / "r.mp4"
@@ -122,7 +148,9 @@ def test_customer_video_media_is_tenant_scoped_path_safe_and_version_bound(
     media.parent.mkdir(parents=True)
     payload = b"safe-fixture-mp4"
     media.write_bytes(payload)
-    monkeypatch.setattr(customer_dashboard, "_VIDEO_MEDIA_ROOTS", (allowed.resolve(),))
+    from app.marketing import video_pipeline
+
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(allowed))
     V._append(
         {
             "id": "video-own-v3",
@@ -296,10 +324,17 @@ def test_customer_video_changes_stays_revision_request_not_terminal(client):
     assert rec["workflow_state"] == states.CHANGES_REQUESTED
 
 
-def test_customer_video_approve_revision_zero_is_idempotent(client):
-    from app.marketing import content_approval
+def test_customer_video_approve_revision_zero_is_idempotent(client, monkeypatch, tmp_path):
+    from app.marketing import content_approval, video_pipeline
     from app.marketing import video_ad_cycle as V
     from app.marketing.video_production import states
+
+    # Approval binds to real bytes, so the artifact must exist in-root.
+    root = tmp_path / "approve_reels"
+    root.mkdir()
+    monkeypatch.setattr(video_pipeline, "output_root", lambda: str(root))
+    artifact = root / "approve.mp4"
+    artifact.write_bytes(b"approve-fixture" * 32)
 
     submitted = content_approval.submit(
         "fixture-tenant-a", {"type": "video_ad", "title": "Fixture preview"}
@@ -314,19 +349,23 @@ def test_customer_video_approve_revision_zero_is_idempotent(client):
             "status": "pending",
             "workflow_state": states.CLIENT_REVIEW_PENDING,
             "revision": 0,
-            "video_path": "data/video_ads/fixture-tenant-a/approve.mp4",
+            "video_path": str(artifact),
         }
     )
 
-    first = client.post(
-        "/api/customer/videos/video-approve-v0/feedback",
-        json={"action": "approve", "expected_revision": 0},
-    )
+    # Approve is now bound to the previewed digest as well as the revision.
+    import hashlib
+
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    approve_body = {
+        "action": "approve",
+        "expected_revision": 0,
+        "expected_content_sha256": digest,
+    }
+
+    first = client.post("/api/customer/videos/video-approve-v0/feedback", json=approve_body)
     assert first.status_code == 200 and first.json()["ok"] is True
-    retry = client.post(
-        "/api/customer/videos/video-approve-v0/feedback",
-        json={"action": "approve", "expected_revision": 0},
-    )
+    retry = client.post("/api/customer/videos/video-approve-v0/feedback", json=approve_body)
     assert retry.status_code == 200
     assert retry.json()["ok"] is True
     assert retry.json()["already_decided"] is True

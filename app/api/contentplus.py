@@ -49,7 +49,19 @@ _SAFE_SEG_RE = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
 _CLIP_NAME_RE = re.compile(r"^clip_\d{1,2}\.mp4$")
 _GIF_NAME_RE = re.compile(r"^[a-f0-9]{10}\.gif$")
 _UPLOAD_DIR = os.path.join("data", "clips", "uploads")
-_UPLOAD_MAX_BYTES = 200 * 1024 * 1024  # 200MB cap
+
+
+# Canonical media ceiling lives in app/marketing/media_limits.py so the upload
+# path and the approved-snapshot path cannot drift. Read at call time via
+# _upload_max_bytes(); the module-level name is kept as a compatibility alias
+# for existing readers and reflects the default when no override is set.
+def _upload_max_bytes() -> int:
+    from app.marketing.media_limits import max_upload_bytes
+
+    return max_upload_bytes()
+
+
+_UPLOAD_MAX_BYTES = _upload_max_bytes()  # compat alias (default-config value)
 _VIDEO_EXTS = {".mp4", ".mov", ".mkv", ".webm", ".avi"}
 
 
@@ -132,14 +144,18 @@ async def start_clips(
         video_path = os.path.join(_UPLOAD_DIR, uuid.uuid4().hex[:12] + ext)
         size = 0
         try:
+            # Resolved per request from the shared authority; invalid
+            # configuration raises and is handled below as upload_failed
+            # (fail closed - never fall back to a wider limit).
+            cap = _upload_max_bytes()
             with open(video_path, "wb") as out:
                 while True:
                     chunk = await file.read(1 << 20)
                     if not chunk:
                         break
                     size += len(chunk)
-                    if size > _UPLOAD_MAX_BYTES:
-                        raise ValueError("upload too large (200MB cap)")
+                    if size > cap:
+                        raise ValueError(f"upload too large ({cap // (1024 * 1024)}MB cap)")
                     await asyncio.to_thread(out.write, chunk)
         except Exception as e:
             try:
