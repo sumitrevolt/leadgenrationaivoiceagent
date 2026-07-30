@@ -264,6 +264,25 @@ def _is_asset_path(path: str) -> bool:
     return path.rsplit("/", 1)[-1].lower().endswith(_ASSET_SUFFIXES)
 
 
+# Admin/Mission-Control fan-out may need a higher GET budget — NEVER a write
+# bypass. Prefixes are read-ish dashboard surfaces; method gate is mandatory.
+_ADMIN_READ_RELIEF_PREFIXES = (
+    "/api/growth/",
+    "/api/activation/",
+    "/api/admin/",
+)
+
+
+def _is_safe_idempotent_admin_read(request: Request) -> bool:
+    """True only for GET/HEAD on explicit dashboard read prefixes."""
+    method = (getattr(request, "method", None) or "GET").upper()
+    if method not in ("GET", "HEAD"):
+        return False
+    path = request.url.path if hasattr(request, "url") else ""
+    path = path or ""
+    return any(path.startswith(p) for p in _ADMIN_READ_RELIEF_PREFIXES)
+
+
 def _fixed_window_retry_after(window_seconds: int = 60, now: float | None = None) -> int:
     """Seconds until the CURRENT fixed window rolls over.
 
@@ -315,33 +334,26 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     Production-ready rate limiter using Redis
     Falls back to in-memory if Redis is unavailable
 
-    Policy (2026-07-30 — platform-blocker 429 lane):
+    Policy (2026-07-30 — platform-blocker 429 lane; P1 harden):
     - Flat anon/customer API budget stays (abuse shield).
     - Static assets use a SEPARATE higher bucket (not an exemption).
-    - Valid admin/super_admin bearer gets a raised API ceiling (not a bypass).
-    - Auth credential routes keep their dedicated ``rate_limit`` deps; this
-      flat middleware skips them so a dashboard burn cannot lock out login.
-    - WebSocket / telephony streams skip the flat counter (real-time path).
+    - Valid admin/super_admin bearer gets a raised ceiling ONLY on explicit
+      safe idempotent dashboard GET/HEAD paths — writes stay on default rpm.
+    - Auth credential routes stay under this global limiter (no prefix bypass);
+      route ``rate_limit`` deps remain defense-in-depth with the SAME trusted IP.
+    - Only WebSocket upgrades + narrow realtime web-call WS/stream prefixes skip;
+      telephony provider actions (test-call/stream-call) remain globally limited.
     """
 
     # Exact health/probe paths — never burn operator budget on liveness.
     _SKIP_EXACT = frozenset({"/health", "/health/live", "/health/ready", "/metrics", "/status"})
-    # Realtime + probes: PlanTier already skips these; flat limiter must match
-    # or a voice/web-call session burns the whole IP minute.
+    # Narrow realtime allowlist only — NOT /api/telephony/* (outbound actions).
     _SKIP_PREFIXES = (
         "/ws",
         "/api/web-call/ws",
         "/api/web-call/stream",
-        "/api/telephony/",
-        "/api/voiceai",
         "/robots.txt",
         "/sitemap.xml",
-    )
-    # Brute-force protection lives on the route deps — do not double-count here.
-    _AUTH_SKIP_PREFIXES = (
-        "/api/admin/auth/",
-        "/api/customer/auth/",
-        "/api/team-access/auth/",
     )
 
     def __init__(
@@ -367,17 +379,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             for p in self._SKIP_PREFIXES
         ):
             return True
-        if any(path.startswith(p) for p in self._AUTH_SKIP_PREFIXES):
-            return True
         return False
 
     def _admin_rpm_from_bearer(self, request: Request) -> int | None:
-        """Valid admin/super_admin JWT → raised API ceiling (still capped).
+        """Valid admin/super_admin JWT → raised READ ceiling (still capped).
 
-        Mirrors PlanTierRateLimitMiddleware._rpm_from_bearer but returns a
-        finite operator budget instead of 9999 — abuse controls stay on.
-        Default 600 rpm (~10 req/s) covers Mission Control fan-out; override
-        via RATE_LIMIT_ADMIN_RPM. Invalid/missing token → None (anon budget).
+        Only consulted for safe GET/HEAD dashboard paths via ``_bucket_for``.
+        Default 600 rpm (~10 req/s); override via RATE_LIMIT_ADMIN_RPM.
+        Invalid/missing token → None (anon/default budget).
         """
         auth = (request.headers.get("authorization") or "").strip()
         if not auth.lower().startswith("bearer "):
@@ -427,9 +436,11 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path or ""
         if _is_asset_path(path):
             return "asset", self._ceiling_for("asset")
-        admin_rpm = self._admin_rpm_from_bearer(request)
-        if admin_rpm is not None:
-            return "api_admin", admin_rpm
+        # Higher admin budget is GET/HEAD dashboard relief only — never writes.
+        if _is_safe_idempotent_admin_read(request):
+            admin_rpm = self._admin_rpm_from_bearer(request)
+            if admin_rpm is not None:
+                return "api_admin", admin_rpm
         return "api", self._ceiling_for("api")
 
     async def _get_limiter(self, bucket: str = "api"):
@@ -742,25 +753,15 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
         "/ws",
         "/api/web-call/ws",
         "/api/web-call/stream",
-        "/api/telephony/",
-        "/api/voiceai",
         "/status",
         "/robots.txt",
         "/sitemap.xml",
     )
-    # Auth + login surfaces — never block HTML login or credential POST (brute-force
-    # has dedicated rate_limit deps on those routes).
-    _AUTH_SKIP = (
-        "/api/admin/auth/",
-        "/api/customer/auth/",
-        "/api/team-access/auth/",
-    )
+    # No broad auth/telephony skip — provider actions + credential writes stay limited.
     _APP_HTML_PREFIX = "/app/"
 
     def _should_skip(self, path: str) -> bool:
         if any(path == p or path.startswith(p + "/") for p in self._SKIP):
-            return True
-        if path.startswith(self._AUTH_SKIP):
             return True
         # Plan limits = API abuse guard; static /app/* HTML pages never 429 here.
         if path.startswith(self._APP_HTML_PREFIX):
@@ -768,7 +769,7 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
         return False
 
     def _rpm_from_bearer(self, request: Request) -> int | None:
-        """Valid admin JWT → internal tier (logout se pehle dashboard burst safe)."""
+        """Valid admin JWT → elevated tier ONLY for safe GET/HEAD dashboard reads."""
         auth = (request.headers.get("authorization") or "").strip()
         if not auth.lower().startswith("bearer "):
             return None
@@ -777,7 +778,6 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
             return None
         try:
             import jwt
-            from jwt.exceptions import PyJWTError
 
             from app.api.admin import JWT_ALGORITHM, JWT_SECRET
 
@@ -786,6 +786,8 @@ class PlanTierRateLimitMiddleware(BaseHTTPMiddleware):
                 return None
             role = str(payload.get("role") or "").lower()
             if role in ("admin", "super_admin"):
+                if not _is_safe_idempotent_admin_read(request):
+                    return None  # writes / non-allowlisted → plan/default rpm
                 return _PLAN_LIMITS["admin"]
             if role == "customer":
                 return _DEFAULT_RPM_AUTHED

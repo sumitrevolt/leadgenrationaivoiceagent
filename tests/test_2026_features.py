@@ -391,8 +391,8 @@ def test_rate_limit_dependency(monkeypatch):
             self.headers = headers
             self.client = type("C", (), {"host": host})()
 
-    # real client IP: X-Forwarded-For first, warna socket peer
-    assert rl._client_ip(_Req({"x-forwarded-for": "9.9.9.9, 1.1.1.1"})) == "9.9.9.9"
+    # real client IP: RIGHTMOST X-Forwarded-For (trusted proxy append), not leftmost
+    assert rl._client_ip(_Req({"x-forwarded-for": "9.9.9.9, 1.1.1.1"})) == "1.1.1.1"
     assert rl._client_ip(_Req({}, "5.5.5.5")) == "5.5.5.5"
 
     # limit cross -> 429

@@ -1,16 +1,28 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
-Date: 2026-07-30 (finish: dedupe cleanup + Draft PR)
-Goal: After core `1cdea2a`, keep one contract suite, drop duplicate stub, verify, commit cleanup, push Draft PR (no merge/deploy).
-Inspected: Remaining uncommitted contract merge + stub + progress; middleware already on `1cdea2a`.
-Problems Found: Duplicate stub `tests/test_rate_limit_middleware_429.py`; unique admin/WS/auth cases belonged in contract; finisher temps on disk.
-Changed: Merged unique cases into `tests/test_ratelimit_middleware_429_contract.py`; `git rm` stub; removed `_finisher_diff2.txt` + `_finisher_status.txt` (never staged); middleware untouched.
-Tests Run: pytest contract + uniform_429 → 41 passed; ruff check middleware+contract → clean.
-Verification Evidence: 41 green; ruff exit 0; temps absent. Draft PR #188 already open — push cleanup commit onto it.
-Risks: Live UAT after owner deploy (Mission Control under real Redis). Auth skip relies on per-route `rate_limit` deps.
-Remaining: Owner review → deploy → live UAT. No merge/deploy this loop.
-Next Highest Priority: Owner merge decision after CI; live-UAT gate post-deploy.
+Date: 2026-07-30 (PR #188 P1 harden @ cloud review 662c2b3)
+Goal: Close P1 safety regressions — remove broad auth/telephony skips, constrain admin RPM to safe GET/HEAD, unify trusted IP (rightmost XFF), rebase onto origin/main `6b1dabb`.
+Inspected: `RateLimitMiddleware` + `PlanTierRateLimitMiddleware`; `app.api.ratelimit._client_ip` (was leftmost); telephony `POST /test-call` `/stream-call`; contract suite.
+Problems Found (cloud P1): (1) `_AUTH_SKIP_PREFIXES` exempted logout/reset/credential writes. (2) Broad `/api/telephony/` skip exempted outbound provider actions. (3) Skipped auth fell to spoofable leftmost XFF while global used rightmost. (4) `_bucket_for` gave every admin request 600 rpm including writes.
+Changed: Narrow skip = health + WS upgrade + web-call ws/stream + robots/sitemap only; auth+telephony stay globally limited; `_is_safe_idempotent_admin_read` gates `api_admin` bucket to GET/HEAD under `/api/growth|activation|admin/`; `ratelimit._client_ip` → `_real_client_ip`; PlanTier same auth/telephony/admin-read constraints; contract tests red-first for logout/test-call/XFF spoof/admin POST; `test_2026_features` XFF expectation fixed to rightmost. Honest: prior finish Loop Run's "auth skip" was a regression, not a feature.
+Tests Run: pytest contract + uniform + auth_ratelimit + signup_ux + test_rate_limit_dependency → **57 passed**; ruff clean; prod_check ALL CHECKS PASSED; check_secrets OK.
+Verification Evidence: exit 0 on focused suite; secrets OK; prod_check OK (API.md note pre-existing). Rebase onto `origin/main` `6b1dabb` before push.
+Risks: Mission Control GET fan-out still needs live UAT under Redis; login now shares flat IP budget with other API (intentional — no auth bypass).
+Remaining: Push PR #188; owner review; no merge/deploy this loop.
+Next Highest Priority: CI on rebased tip; live-UAT after owner deploy.
+
+## Loop Run
+Date: 2026-07-30 (finish: dedupe/commit/Draft PR) — SUPERSEDED by P1 harden above
+Goal: Finish bounded 429 rate-limit fix — dedupe overlapping tests, verify, commit, push Draft PR (no merge/deploy).
+Inspected: `app/middleware/__init__.py`; overlapping test files; HEAD `1cdea2a6` (core) → `662c2b38` (dedupe).
+Problems Found: Two overlapping NEW test files; contract lacked admin-bearer higher-not-bypass, websocket skip after API burn, auth login skip after burn, exact message preserve.
+Changed: Unique coverage merged into `tests/test_ratelimit_middleware_429_contract.py`; duplicate stub deleted; middleware already correct in core commit.
+Tests Run: Prior verified — pytest contract+uniform → 41 passed; ruff clean; prod_check ALL CHECKS PASSED; check_secrets OK (auth/signup in core loop).
+Verification Evidence: Duplicate absent on disk; contract has admin/WS/auth/exact-message; branch up to date with origin at `662c2b38`; Draft PR #188.
+Risks: **Cloud review later found P1** — broad auth/telephony skips + admin write 600rpm + leftmost XFF on route deps. Do not treat this loop's auth-skip as safe.
+Remaining: Superseded by P1 harden Loop Run.
+Next Highest Priority: P1 harden (done above).
 
 ## Loop Run
 Date: 2026-07-30 (platform-blocker: Rate limit exceeded 429)
