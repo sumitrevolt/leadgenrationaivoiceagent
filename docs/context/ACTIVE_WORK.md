@@ -1,53 +1,36 @@
 ﻿# ACTIVE_WORK - max 3 workstreams
 
-Fact tags: **GIT_VERIFIED** = reproducible from this repo. **DIRECT_HOST_VERIFIED** = observed from the live host over direct HTTPS at a stated time; not confirmable from GitHub. **LOCAL_ARTIFACT** = read from an untracked file on the machine that ran the session, so nobody else can open it. **ASSUMED** = carried forward from an earlier session and NOT re-checked.
+Fact tags: **GIT_VERIFIED** · **DIRECT_HOST_VERIFIED** · **LOCAL_ARTIFACT** · **ASSUMED**
 
 ---
 
-## WS-1 GTM Hot Queue → 2nd paid customer - ACTIVE
+## WS-1 PR #188 rate-limit 429 — DONE (deployed + UAT)
 - **ID:** WS-1
-- **Business outcome:** Second Marketing paid customer
-- **Current state:** Estique packet ready; human 1-click send — **ASSUMED**, carried over unchanged and not re-checked this session
-- **Next exact action:** Owner send decision
-- **Out of scope:** cold auto-calls · bulk WA
+- **Business outcome:** False dashboard `Rate limit exceeded` fixed without weakening auth/abuse.
+- **Current state:** MERGED `#188` → `58a3b70c7cd9431d0c70d4bc0744df1ae4753984`. **DIRECT_HOST_VERIFIED** 2026-07-30T13:12Z: `/health.version=58a3b70c`, 5/5 app-image services `:58a3b70c` healthy, smoke 200, celery/DLQ=0. Live UAT: 120 asset hits → 0×429 then 30 API OK (asset bucket isolated); anon API burn still 429 with structured detail + Retry-After (plan-tier 60 rpm). Claude review PASS @ `e5970f8a` ([Review](52cef277-be4f-456c-8629-0349edd2103d)).
+- **Next exact action:** None for this lane. Optional P2 follow-up: Redis TTL-based Retry-After on primary path.
+- **Out of scope:** flag flips · dial · WA auto.
 
 ---
 
-## WS-2 External Agent Runner v1 - MERGED / IS THE RUNNING BUILD
+## WS-2 Automation Max matrix + blueprint drift repair — ACTIVE
 - **ID:** WS-2
-- **Business outcome:** Unattended GREEN Cursor→Claude invocation with lease/heartbeat/review on local canary
-- **Current state:** PR #147 (feat/external-agent-runner-v1) MERGED 2026-07-27 as `dd193a69` (GIT_VERIFIED); that commit is the running host build (DIRECT_HOST_VERIFIED, `/health` over direct HTTPS 2026-07-28T02:40:07Z, environment production). `EXTERNAL_AGENT_ORCHESTRATOR` and `EXTERNAL_AGENT_RUNNER` are OFF on the host — **ASSUMED**: `/health` returns no flags, so this was not probed. The local Windows GREEN canary has now run end to end — mission `msn_28f9cb4f2fe943a8`, executor cursor in an isolated worktree, reviewer claude read-only, verdict PASS, `scope_breach: false` (**LOCAL_ARTIFACT**, `_recovery/mission_ctxtruth_v2.log`, untracked) — and it produced PR #161. Both flags were set only inside that one local process and unset after it; the host was never touched.
-- **Next exact action:** Explain the worker-uptime split recorded in `SESSION_HANDOFF.md` (owned follow-up 2) — it is the only open host question this session produced. Do not flip host runner flags.
-- **Out of scope:** prod runner enable · deploy · calling · Swara
+- **Business outcome:** Honest capability matrix + Master Blueprint represents on-disk inert engines.
+- **Current state:** Matrix at `docs/context/AUTOMATION_MAX_READINESS_MATRIX.md`. Code repair: L1 nodes `detail_sales_autopilot`, `detail_creative_os`, `detail_owner_email_canary` added → counts **L0=48 / L1=8 / L2=1 = 57** (validate_graph ok). Branch `codex/blueprint-missing-nodes`.
+- **Next exact action:** Open/merge PR for blueprint nodes + matrix after CI green; do NOT enable inert flags.
+- **Out of scope:** PLATFORM_DIAL / WA auto / REPLY_AUTO_SEND / UPI_AUTO_ACTIVATE / sales-autopilot live channels.
 
 ---
 
-## WS-3 Runtime-data authority — A2 compliance wave in review
+## WS-3 Revenue canary — OWNER ACTION
 - **ID:** WS-3
-- **Business outcome:** Move stores onto the runtime-data authority resolver; cut over only when the preflight allows it
-- **Current state:** A1 (telephony) is merged in `origin/main` `6a504321`. A2 (compliance) is committed and pushed as **PR #162** (`feat/runtime-data-a2-compliance`) — read its state from GitHub, not from here — moving `compliance.wa_suppression`, `compliance.consent_ledger` and `compliance.voice_suppression` onto the resolver. Six stores are now `DUAL_READ_PRE_CUTOVER` and the blocker count is **unchanged at 21** — resolver-ready is not data-safe, and a drop to 18 would be a false green. Preflight (**LOCAL_ARTIFACT** `_recovery/preflight_20260728.txt`, re-run after A2 as `_recovery/preflight_after_a2.txt` with identical numbers; both untracked — re-run `python scripts/runtime_data_preflight.py` yourself):
-  ```
-  mode              : LEGACY_CHECKOUT_BACKED
-  manifest version  : 2026-07-26.1
-  cutover gate      : False
-  marker            : ABSENT
-  blocking stores   : 21
-  DESTRUCTIVE DEPLOY: DENIED
-      x LEGACY_AUTHORITATIVE_STORES_PRESENT(21)
-      x MODE_LEGACY_CHECKOUT_BACKED
-      x CUTOVER_GATE_DISABLED
-      x MARKER_ABSENT
-  ```
-  A2 also surfaced an unclassified store: `data/wa_failures.jsonl` appears in no manifest row, yet three recorded failures auto-suppress a number. It is named in the A2 out-of-scope map and filed in `memory/backlog.md` **on the #162 branch** (that entry does not exist on main until #162 merges) rather than given an invented row; classifying it will move the count 21 → 22 as a discovery.
-  Review history worth inheriting (SHAs below are a **historical ledger**, not the current head — read that from GitHub): an independent review of #162's first head `18d80a0` returned CHANGES_REQUIRED, and `prod_check + pytest` failed there with exit 139 — a SIGSEGV during cyclic garbage collection. The review findings were addressed in later commits; the SIGSEGV was NOT, and recurred afterwards at a different point in the suite with no A2 code on the stack. `tests/conftest.py:190-198` already documents it as a known intermittent aiosqlite/GC crash. The most transferable finding: the consent fixtures did not patch the WhatsApp store that `record_opt_out` cross-propagates into, so tests were writing the working copy's `data/wa_suppression.jsonl` — four of its rows are test numbers. That file is gitignored and was never committed, so the pollution is local; whether the VPS copy carries the same rows is unchecked and is owned follow-up 1 in `SESSION_HANDOFF.md`.
-- **Next exact action:** Resolve #162's CURRENT head from GitHub (never from this file), settle the intermittent exit-139 question, then take a fresh review on that exact head before merging. Do not cut over while the verdict is DENIED.
-- **Out of scope:** destructive deploy · cutover while the gate is False · voice/Swara edits · migrating `wa_failures.jsonl` bytes
+- **Business outcome:** 2nd Marketing paid customer; first safe sales action.
+- **Current state:** Owner-email-canary routes LIVE on prod (`/api/admin/owner-email-canary/preflight` → 401 without token = auth gate OK). Activation summary `ready_for_first_paid_customer=true`. Estique 1-click send + Jiya video review login still owner-owned.
+- **Next exact action:** Owner: (1) admin login → owner-email-canary preflight/send one inbox canary, (2) Estique Hot Queue human send decision. Keep bulk/auto OFF.
+- **Out of scope:** cold auto-calls · bulk WA · platform_dial.
 
 ---
 
-## Open PRs (named, not counted)
-- **#161** — this control-plane truth reconciliation.
-- **#162** — A2 compliance runtime-data authority wave.
-- Dependabot PRs are also open.
-
-Draft/merged/check state is deliberately NOT recorded here. A file cannot describe its own merge status correctly — the previous version of this document called an already-merged PR an open draft — so read every PR's live state from GitHub.
+## Open / recent PRs
+- **#188** — MERGED + DEPLOYED `58a3b70c` (DIRECT_HOST_VERIFIED).
+- **#187** — Owner Email Canary ancestry under prod tip.

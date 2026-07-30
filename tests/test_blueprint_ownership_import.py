@@ -83,8 +83,7 @@ def test_ownership_always_requires_corroboration():
 
 
 def test_critical_domains_are_flagged_critical():
-    for d in ("voice_telephony", "billing_payments", "security_compliance",
-              "owner_os_copilot"):
+    for d in ("voice_telephony", "billing_payments", "security_compliance", "owner_os_copilot"):
         assert own.DOMAIN_OWNERSHIP_RULES[d]["critical"] is True
 
 
@@ -145,7 +144,8 @@ def test_imported_l2_has_same_domain_l1_group_parent():
 def test_detail_import_is_not_silently_optional():
     """A broken detail module must crash, not quietly drop back to 48 nodes."""
     src = (bg._ROOT / "app" / "platform" / "blueprint_graph.py").read_text(
-        encoding="utf-8", errors="replace")
+        encoding="utf-8", errors="replace"
+    )
     head = src.split("EDGES: list", 1)[0]
     assert "build_detail_nodes" in head
     assert "except Exception" not in head.split("blueprint_detail_nodes", 1)[1]
@@ -155,14 +155,21 @@ def test_registry_contains_every_declared_detail_node():
     ids = {n["id"] for n in bg.NODES}
     declared = {spec[0] for spec in bdn.DETAIL_NODE_SPECS}
     assert declared and declared <= ids
-    assert len(_imported()) == len(declared)
+    legacy_declared = {
+        spec[0]
+        for spec in bdn.DETAIL_NODE_SPECS
+        if (spec[8] or {}).get("source_provenance") == "legacy-migrated"
+    }
+    assert len(_imported()) == len(legacy_declared)
 
 
 def test_exact_expected_counts_for_this_pr():
     c = bg.build_graph()["counts"]
     assert c["l0"] == 48, c
-    assert c["nodes"] == 54, c
-    assert c["l1"] == 5 and c["l2"] == 1, c
+    # L0 curated map locked; L1 grows as verified CODE-PRESENT detail lands
+    # (sales_autopilot / creative_os / owner_email_canary added 2026-07-30).
+    assert c["l1"] == 8 and c["l2"] == 1, c
+    assert c["nodes"] == 57, c
     assert c["nodes"] == c["l0"] + c["l1"] + c["l2"]
 
 
@@ -174,7 +181,7 @@ def test_malformed_detail_spec_is_rejected_not_swallowed():
     orig = bdn.DETAIL_NODE_SPECS
     try:
         bdn.DETAIL_NODE_SPECS = bad  # type: ignore[assignment]
-        with pytest.raises(Exception):
+        with pytest.raises((TypeError, ValueError)):
             bdn.build_detail_nodes(bg._n)
     finally:
         bdn.DETAIL_NODE_SPECS = orig  # type: ignore[assignment]
@@ -183,9 +190,18 @@ def test_malformed_detail_spec_is_rejected_not_swallowed():
 def test_depth_ordering_is_enforced_globally(monkeypatch):
     """Any L2 parented on an L0 node must fail validation, not just ours."""
     l0 = next(n for n in bg.NODES if n["depth_level"] == 0)
-    bad = bg._n("tmp_depth_probe", "Probe", l0["layer"], l0["domain"], "engine",
-                "CODE-PRESENT", ["app/platform/blueprint_graph.py"], "probe",
-                depth_level=2, parent_node_id=l0["id"])
+    bad = bg._n(
+        "tmp_depth_probe",
+        "Probe",
+        l0["layer"],
+        l0["domain"],
+        "engine",
+        "CODE-PRESENT",
+        ["app/platform/blueprint_graph.py"],
+        "probe",
+        depth_level=2,
+        parent_node_id=l0["id"],
+    )
     monkeypatch.setattr(bg, "NODES", [l0, bad])
     monkeypatch.setattr(bg, "EDGES", [])
     monkeypatch.setattr(bg, "FLOWS", [])
@@ -196,9 +212,18 @@ def test_depth_ordering_is_enforced_globally(monkeypatch):
 def test_cross_domain_parent_rejected_globally(monkeypatch):
     a = next(n for n in bg.NODES if n["depth_level"] == 0)
     b = next(n for n in bg.NODES if n["depth_level"] == 0 and n["domain"] != a["domain"])
-    child = bg._n("tmp_xdomain", "Probe", a["layer"], a["domain"], "engine",
-                  "CODE-PRESENT", ["app/platform/blueprint_graph.py"], "probe",
-                  depth_level=1, parent_node_id=b["id"])
+    child = bg._n(
+        "tmp_xdomain",
+        "Probe",
+        a["layer"],
+        a["domain"],
+        "engine",
+        "CODE-PRESENT",
+        ["app/platform/blueprint_graph.py"],
+        "probe",
+        depth_level=1,
+        parent_node_id=b["id"],
+    )
     monkeypatch.setattr(bg, "NODES", [a, b, child])
     monkeypatch.setattr(bg, "EDGES", [])
     monkeypatch.setattr(bg, "FLOWS", [])
@@ -222,7 +247,7 @@ def test_imported_nodes_are_not_marked_live():
 def test_imported_harness_controls_are_not_fabricated():
     for n in _imported():
         for f in bg.HARNESS_CONTROL_FIELDS:
-            assert n[f] is None or isinstance(n[f], (str, int, list, dict)), (n["id"], f)
+            assert n[f] is None or isinstance(n[f], str | int | list | dict), (n["id"], f)
             assert n[f] is not True, f"{n['id']}.{f} fabricates a control"
 
 
@@ -238,7 +263,12 @@ def test_no_duplicate_legacy_mapping_after_import():
 def test_public_graph_still_sanitized_after_import():
     pub = bg.build_public_graph()
     forbidden = set(bg.HARNESS_CONTROL_FIELDS) | {
-        "files", "flags", "legacy_node_id", "source_provenance", "parent_node_id"}
+        "files",
+        "flags",
+        "legacy_node_id",
+        "source_provenance",
+        "parent_node_id",
+    }
     for n in pub["nodes"]:
         assert not (set(n) & forbidden), set(n) & forbidden
 
