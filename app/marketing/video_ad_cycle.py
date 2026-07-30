@@ -66,6 +66,19 @@ def _now() -> str:
 
 
 # ------------------------------- store ------------------------------------ #
+# Stale reserved/inflight older than this become publish_outcome_unknown.
+_DEFAULT_STALE_PUBLISH_SECONDS = 900
+
+
+def _stale_publish_seconds() -> int:
+    try:
+        return max(
+            0, int(os.getenv("VIDEO_AD_PUBLISH_STALE_SECONDS", str(_DEFAULT_STALE_PUBLISH_SECONDS)))
+        )
+    except Exception:
+        return _DEFAULT_STALE_PUBLISH_SECONDS
+
+
 def _store_lock():
     """Cross-process lock for publish reservation CAS. Fail-closed on import/timeout."""
     from filelock import FileLock
@@ -114,6 +127,91 @@ def _update(rec_id: str, **fields: Any) -> bool:
     return _append(fields)
 
 
+def _parse_attempt_epoch(raw: str) -> float | None:
+    text = str(raw or "").strip()
+    if not text:
+        return None
+    cleaned = text.replace("Z", "")
+    try:
+        return time.mktime(time.strptime(cleaned[:19], "%Y-%m-%dT%H:%M:%S"))
+    except Exception:
+        return None
+
+
+def _attempt_is_stale(rec: dict[str, Any]) -> bool:
+    """True when reserved/inflight should be recovered as unknown (hard-kill / hang)."""
+    epoch = _parse_attempt_epoch(str(rec.get("publish_attempt_at") or ""))
+    if epoch is None:
+        # Missing timestamp on an in-flight row is treated as stale: safer than
+        # forever-held after a crash that never wrote the clock field.
+        return True
+    return (time.time() - epoch) >= float(_stale_publish_seconds())
+
+
+def _cas_publish_state(
+    rid: str,
+    idem_key: str,
+    *,
+    from_states: set[str] | frozenset[str] | tuple[str, ...],
+    to_state: str,
+    identity: dict[str, Any] | None = None,
+    result: dict[str, Any] | None = None,
+    extra: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Under the store lock: CAS attempt state for the owning publish key."""
+    allowed = set(from_states)
+    try:
+        lock = _store_lock()
+    except Exception as exc:
+        return {
+            "ok": False,
+            "error": "publish_reservation_unavailable",
+            "detail": str(exc)[:120],
+        }
+    try:
+        with lock:
+            current = dict(_latest().get(rid) or {})
+            if str(current.get("publish_idempotency_key") or "") != idem_key:
+                return {
+                    "ok": False,
+                    "error": "publish_cas_key_mismatch",
+                    "durable_state": str(current.get("publish_attempt_state") or ""),
+                }
+            prior = str(current.get("publish_attempt_state") or "")
+            if prior not in allowed:
+                return {
+                    "ok": False,
+                    "error": "publish_cas_state_mismatch",
+                    "durable_state": prior,
+                }
+            fields: dict[str, Any] = {
+                "publish_idempotency_key": idem_key,
+                "publish_attempt_state": to_state,
+                "publish_attempt_at": _now(),
+            }
+            if identity is not None:
+                fields["publish_attempt_identity"] = identity
+            if result is not None:
+                fields["publish_result"] = result
+            if extra:
+                fields.update(extra)
+            if _update(rid, **fields) is False:
+                return {"ok": False, "error": "publish_cas_write_failed"}
+            after = dict(_latest().get(rid) or {})
+            if str(after.get("publish_idempotency_key") or "") != idem_key:
+                return {"ok": False, "error": "publish_cas_write_failed"}
+            if str(after.get("publish_attempt_state") or "") != to_state:
+                return {"ok": False, "error": "publish_cas_write_failed"}
+            return {"ok": True, "state": to_state}
+    except Exception as exc:
+        logger.warning("[video_ad] publish CAS failed (%s): %s", rid[:40], exc)
+        return {
+            "ok": False,
+            "error": "publish_reservation_unavailable",
+            "detail": str(exc)[:120],
+        }
+
+
 def _acquire_publish_reservation(
     rid: str,
     idem_key: str,
@@ -121,9 +219,10 @@ def _acquire_publish_reservation(
 ) -> dict[str, Any]:
     """Atomically reserve one publish attempt (cross-process).
 
-    Under the store lock: re-read durable state, short-circuit known terminals,
-    append ``publish_reserved``, then CAS-confirm the durable row. Fail-closed
-    when the lock or write does not stick — never proceed to the provider.
+    Under the store lock: re-read durable state, recover stale inflight/reserved
+    to ``publish_outcome_unknown``, short-circuit known terminals, append
+    ``publish_reserved``, then CAS-confirm. Fail-closed when the lock or write
+    does not stick — never proceed to the provider.
     """
     from app.marketing.video_production import publish_snapshot as ps
 
@@ -161,6 +260,29 @@ def _acquire_publish_reservation(
                 ps.PUBLISH_RESERVED,
                 ps.PROVIDER_INFLIGHT,
             ):
+                if _attempt_is_stale(current):
+                    # Hard-kill / hung attempt → durable unknown (never retryable).
+                    # Do NOT flip legacy status here — attempt-state alone blocks
+                    # retries; outer publish_due/schedule_approved make status visible.
+                    wrote = _update(
+                        rid,
+                        publish_idempotency_key=idem_key,
+                        publish_attempt_state=ps.PUBLISH_OUTCOME_UNKNOWN,
+                        publish_attempt_at=_now(),
+                        publish_result={
+                            "idempotency": {
+                                "ok": False,
+                                "error": "publish_outcome_unknown",
+                                "remedy": (
+                                    "stale provider_inflight/reserved recovered; "
+                                    "provider reconciliation or operator decision required"
+                                ),
+                            }
+                        },
+                    )
+                    if wrote is False:
+                        return {"ok": False, "error": "publish_reservation_failed"}
+                    return {"ok": False, "error": "publish_outcome_unknown"}
                 return {"ok": False, "error": "publish_reservation_held"}
 
             wrote = _update(
@@ -168,6 +290,7 @@ def _acquire_publish_reservation(
                 publish_idempotency_key=idem_key,
                 publish_attempt_state=ps.PUBLISH_RESERVED,
                 publish_attempt_identity=identity,
+                publish_attempt_at=_now(),
             )
             if wrote is False:
                 return {"ok": False, "error": "publish_reservation_failed"}
@@ -743,10 +866,27 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
     provider_started = False
     filename = os.path.basename(str(opened.get("snapshot_path") or "video.mp4")) or "video.mp4"
 
-    try:
-        _update(rid, publish_attempt_state=ps.PROVIDER_INFLIGHT)
-    except Exception:
-        pass
+    # P0-B: durable provider_inflight BEFORE any provider invocation.
+    marked = _cas_publish_state(
+        rid,
+        idem_key,
+        from_states={ps.PUBLISH_RESERVED},
+        to_state=ps.PROVIDER_INFLIGHT,
+        identity=identity,
+    )
+    if not marked.get("ok"):
+        return {
+            "any_sent": False,
+            "channels": {
+                "idempotency": {
+                    "ok": False,
+                    "error": str(marked.get("error") or "publish_inflight_failed"),
+                }
+            },
+            "provider_calls": 0,
+            "publish_idempotency_key": idem_key,
+            "external_exactly_once": False,
+        }
 
     try:
         # Prefer Postiz when enabled — stream verified descriptor (no path reopen).
@@ -839,13 +979,28 @@ async def _publish_one(rec: dict[str, Any]) -> dict[str, Any]:
             "provider_idempotency": bool(ps.PROVIDER_ACCEPTS_IDEMPOTENCY_KEY),
             "publish_attempt_state": final_state,
         }
-        _finalize_publish_attempt(
+        finalized = _finalize_publish_attempt(
             rid,
             idem_key,
             identity,
             out,
             state=final_state,
         )
+        if (
+            not finalized.get("ok")
+            and provider_started
+            and final_state != ps.PUBLISH_OUTCOME_UNKNOWN
+        ):
+            # Persistence uncertainty after provider call → durable unknown.
+            out["publish_attempt_state"] = ps.PUBLISH_OUTCOME_UNKNOWN
+            out["any_sent"] = False
+            _finalize_publish_attempt(
+                rid,
+                idem_key,
+                identity,
+                out,
+                state=ps.PUBLISH_OUTCOME_UNKNOWN,
+            )
         return out
     except Exception as e:
         # Crash/exception after provider invocation → unknown outcome; no blind retry.
@@ -878,27 +1033,34 @@ def _finalize_publish_attempt(
     out: dict[str, Any],
     *,
     state: str | None = None,
-) -> None:
-    """Persist attempt evidence + keyed delivery-ledger event. Never raises."""
+) -> dict[str, Any]:
+    """Persist attempt evidence under the publish-store lock. Returns CAS result."""
     from app.marketing.video_production import publish_snapshot as ps
 
-    try:
-        st = state or (ps.PUBLISHED if out.get("any_sent") else ps.PUBLISH_FAILED)
-        _update(
-            rid,
-            publish_idempotency_key=idem_key,
-            publish_attempt_state=st,
-            publish_attempt_identity=identity,
-            publish_result=out.get("channels") or {},
+    st = state or (ps.PUBLISHED if out.get("any_sent") else ps.PUBLISH_FAILED)
+    # Owning attempt may still be reserved (pre-provider refuse) or inflight.
+    cas = _cas_publish_state(
+        rid,
+        idem_key,
+        from_states={ps.PUBLISH_RESERVED, ps.PROVIDER_INFLIGHT},
+        to_state=st,
+        identity=identity,
+        result=out.get("channels") or {},
+    )
+    if not cas.get("ok"):
+        logger.warning(
+            "[video_ad] publish finalize CAS failed (%s): %s",
+            rid[:40],
+            cas.get("error"),
         )
-    except Exception as exc:
-        logger.warning("[video_ad] publish finalize write failed (%s): %s", rid[:40], exc)
+        return cas
+
     # Only durable success writes post_published. Unknown outcomes must not
     # look like published evidence.
-    if state != ps.PUBLISHED and not (state is None and out.get("any_sent")):
-        if state == ps.PUBLISH_OUTCOME_UNKNOWN:
-            return
-        if state in (ps.PUBLISH_REFUSED, ps.PUBLISH_FAILED) or not out.get("any_sent"):
+    if st == ps.PUBLISH_OUTCOME_UNKNOWN:
+        return cas
+    if st in (ps.PUBLISH_REFUSED, ps.PUBLISH_FAILED) or not out.get("any_sent"):
+        if st != ps.PUBLISHED:
             try:
                 from app.marketing.delivery_ledger import log_event
 
@@ -908,7 +1070,7 @@ def _finalize_publish_attempt(
                     detail=f"video:{identity.get('video_id')}:r{identity.get('revision')}",
                     meta={
                         "publish_idempotency_key": idem_key,
-                        "publish_attempt_state": state,
+                        "publish_attempt_state": st,
                         "provider_calls": out.get("provider_calls"),
                     },
                     actor="video_ad_publish",
@@ -916,7 +1078,7 @@ def _finalize_publish_attempt(
                 )
             except Exception:
                 pass
-            return
+            return cas
     try:
         from app.marketing.delivery_ledger import log_event
 
@@ -936,6 +1098,7 @@ def _finalize_publish_attempt(
         )
     except Exception as exc:
         logger.debug("[video_ad] delivery_ledger publish evidence skip: %s", exc)
+    return cas
 
 
 async def publish_due(limit: int = 20) -> dict[str, Any]:

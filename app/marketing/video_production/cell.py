@@ -180,14 +180,23 @@ def approve_version(
         approved_revision = None
     if status == "approved" and approved_revision == rev:
         # already_decided only when saga-finalized + hash-bound (publish-eligible).
-        # Legacy approved-without-hash/txn must re-enter the saga, not short-circuit.
-        txn_ok = str(rec.get("approval_txn_state") or "") == "finalized"
+        # Explicit legacy reapproval ONLY when approval_txn_state is empty.
+        # Non-empty mid-saga states must refuse — never coerce back into the saga.
+        txn_state = str(rec.get("approval_txn_state") or "").strip()
         hash_ok = bool(str(rec.get("approved_content_sha256") or "").strip())
         snap_ok = bool(str(rec.get("approval_snapshot_path") or "").strip())
-        if txn_ok and hash_ok and snap_ok:
+        if txn_state == "finalized" and hash_ok and snap_ok:
             return {"ok": True, "already_decided": True, "status": "approved"}
-        # Incomplete legacy approval — reopen as pending for coordinated re-approval.
-        status = "pending"
+        if txn_state == "":
+            # Legacy approved with no saga transaction — allow fresh coordinated approve.
+            status = "pending"
+        else:
+            return {
+                "ok": False,
+                "error": "approval_not_finalized",
+                "txn_state": txn_state,
+                "status": status,
+            }
     if status != "pending":
         return {
             "ok": False,
