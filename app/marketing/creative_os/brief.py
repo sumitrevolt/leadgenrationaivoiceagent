@@ -149,7 +149,13 @@ def entitlement_gate(tenant_id: str) -> dict[str, Any]:
         return {"ok": False, "error": "no plan on record", "reason": "no_plan"}
 
     catalog = _plan_catalog()
-    if catalog and plan not in catalog:
+    if not catalog:
+        return {
+            "ok": False,
+            "error": "plan catalog unavailable",
+            "reason": "catalog_unavailable",
+        }
+    if plan not in catalog:
         return {
             "ok": False,
             "error": f"unknown plan: {plan}",
@@ -161,7 +167,7 @@ def entitlement_gate(tenant_id: str) -> dict[str, Any]:
         "ok": True,
         "plan": plan,
         "status": status,
-        "plan_known": bool(catalog and plan in catalog),
+        "plan_known": True,
     }
 
 
@@ -247,6 +253,8 @@ def resolve_brief(
     language: str = "hinglish",
     offer: str = "",
     cta: str = "",
+    business_name: str = "",
+    niche: str = "",
     requested_duration_s: float = 20.0,
     brand_revision: str = "v1",
     calendar_slot: str = "",
@@ -284,9 +292,16 @@ def resolve_brief(
             "error": "missing required customer input: " + ", ".join(missing),
         }
 
-    # Structural anti-fabrication gate over every customer-visible copy field.
+    # Structural anti-fabrication gate over EVERY customer-visible copy field that
+    # may reach the renderer (including business_name / niche scene inputs).
     bad: list[str] = []
-    for label, text in (("offer", offer), ("cta", cta), ("objective", objective)):
+    for label, text in (
+        ("offer", offer),
+        ("cta", cta),
+        ("objective", objective),
+        ("business_name", business_name),
+        ("niche", niche),
+    ):
         for price in unverified_prices(text, brand):
             bad.append(f"{label}:{price}")
     if bad:

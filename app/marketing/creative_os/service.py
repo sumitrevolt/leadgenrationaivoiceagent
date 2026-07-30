@@ -106,6 +106,8 @@ def enqueue_generate(
             language=language,
             offer=offer,
             cta=cta,
+            business_name=business_name,
+            niche=niche,
             brand_revision=brand_revision,
         )
         if not brief_out.get("ok"):
@@ -116,6 +118,16 @@ def enqueue_generate(
                 "reason": brief_out.get("reason"),
                 "missing": list(brief_out.get("missing") or []),
             }
+
+        brief = brief_out.get("brief")
+        brand = getattr(brief, "brand", None)
+        # Bind render copy to verified brief facts — caller overrides cannot inject
+        # unverified business_name / niche into on-screen scene text.
+        biz_name = str(getattr(brand, "business_name", "") or business_name or "").strip()
+        niche_use = str(getattr(brand, "niche", "") or niche or "general").strip()
+        offer_use = str(getattr(brief, "offer", "") or offer or "").strip()
+        cta_use = str(getattr(brief, "cta", "") or cta or "").strip()
+        lang_use = str(getattr(brief, "language", "") or language or "hinglish").strip()
 
         allow = recipe_allowed(recipe, source_asset_ids=source_asset_ids or [])
         if not allow.get("ok"):
@@ -138,19 +150,19 @@ def enqueue_generate(
 
         scenes = build_scene_plan(
             recipe,
-            business_name=business_name,
-            offer=offer,
-            niche=niche,
-            language=language,
-            cta=cta,
+            business_name=biz_name,
+            offer=offer_use,
+            niche=niche_use,
+            language=lang_use,
+            cta=cta_use,
         )
         spec = CreativeSpec(
             creative_id=CreativeSpec.new_id(),
             tenant_id=tenant_id,
-            goal=niche or "general",
-            audience=business_name,
-            offer=offer or "",
-            language=language,
+            goal=niche_use or "general",
+            audience=biz_name,
+            offer=offer_use or "",
+            language=lang_use,
             platform=platform,
             aspect_ratio=aspect_ratio,
             recipe=recipe,
@@ -158,8 +170,8 @@ def enqueue_generate(
             source_asset_ids=list(source_asset_ids or []),
             script=" | ".join(s.text for s in scenes),
             scenes=scenes,
-            captions={"primary": scenes[0].text if scenes else business_name},
-            cta=cta or (scenes[-1].text if scenes else ""),
+            captions={"primary": scenes[0].text if scenes else biz_name},
+            cta=cta_use or (scenes[-1].text if scenes else ""),
             claims=[],
             provider=provider,
             model_name="ffmpeg-template" if provider == "deterministic" else provider,
