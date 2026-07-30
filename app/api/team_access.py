@@ -185,10 +185,9 @@ class ChangePasswordIn(BaseModel):
     new_password: str = Field(min_length=8)
 
 
-# The flat per-IP limiter skips /api/team-access/auth/* (brute-force cover is
-# expected to live on the route, as it does for admin_login / cust_pw_change).
-# This route verifies a password, so it needs that cover here — same 5/300
-# budget as the customer change-password route.
+# Defense-in-depth: password-verify write stays under route ``rate_limit``
+# (same 5/300 budget as customer change-password) in addition to the global
+# flat middleware — no prefix bypass.
 @router.post(
     "/auth/change-password",
     dependencies=[Depends(rate_limit("team_pw_change", 5, 300))],
