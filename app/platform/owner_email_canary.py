@@ -1,19 +1,20 @@
 """Owner-inbox one-shot email canary — live send WITHOUT enabling bulk outreach.
 
-Does NOT turn on ``AUTO_EMAIL_OUTREACH`` or Sales Autopilot schedulers. Reuses
-canonical ``EmailSender`` + ``email_unsub`` only. Super-admin API is the sole
-entry; this module never accepts a prospect list.
+Does NOT turn on ``AUTO_EMAIL_OUTREACH`` or Sales Autopilot schedulers. Uses a
+canary-specific ONE-SHOT transport (never ``EmailSender``'s Resend→Brevo→SMTP
+cascade). Super-admin API is the sole entry; this module never accepts a
+prospect list.
 
 Safety:
   - one recipient only (bulk-shaped addresses refused)
-  - suppression fail-closed
+  - suppression fail-closed (canary-local; does not change email_unsub globals)
+  - attempt ledger read/parse/authority failures block BEFORE provider I/O
   - attempt claimed under file-lock BEFORE provider (lock released before I/O)
   - idempotency key ⇒ duplicate request does not re-send
   - hard daily provider-attempt cap of 1 (pending claims count)
   - missing SMTP/API ⇒ FAILED, provider_called=false (does not consume cap)
-  - provider_called + not sent ⇒ UNKNOWN_REQUIRES_REVIEW (EmailSender collapses
-    errors to False — never treat as SKIPPED / never blind-retry)
-  - timeout ⇒ UNKNOWN_REQUIRES_REVIEW, no blind retry
+  - exactly ONE transport/provider network attempt; timeout/error/ambiguous
+    ⇒ UNKNOWN_REQUIRES_REVIEW (never fallback, never blind-retry)
   - recipient never logged in cleartext (masked only)
   - CANONICAL runtime-data: RuntimeDataError surfaces (no checkout fallback)
 """
@@ -26,8 +27,10 @@ import json
 import os
 import time
 from datetime import datetime, timezone
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from app.utils.logger import setup_logger
 
@@ -44,6 +47,25 @@ _CANARY_SUBJECT = "LeadGen AI — owner inbox canary (one-shot)"
 _TIMEOUT_S = float(os.getenv("OWNER_EMAIL_CANARY_TIMEOUT_S", "30") or "30")
 # Reputation safety: at most one provider attempt (or pending claim) per UTC day.
 _DAILY_PROVIDER_CAP = 1
+
+TransportName = Literal["resend", "brevo", "smtp"]
+
+
+class AttemptLedgerError(Exception):
+    """Attempt ledger unreadable or corrupt — fail closed before provider I/O."""
+
+    def __init__(self, reason: str, *, detail: str = ""):
+        self.reason = reason
+        self.detail = detail
+        super().__init__(reason)
+
+
+class SuppressionLedgerError(Exception):
+    """Suppression truth is unavailable, so the canary must not send."""
+
+
+class ProviderNotCalledError(Exception):
+    """A definite local failure occurred before any provider network call."""
 
 
 def _attempts_path(*, create: bool = False) -> Path:
@@ -101,21 +123,39 @@ def _append_attempt(row: dict[str, Any]) -> None:
 
 
 def _iter_attempts() -> list[dict[str, Any]]:
+    """Load attempt ledger. Missing file ⇒ []. Unreadable/corrupt ⇒ raise."""
     path = _attempts_path(create=False)
-    if not path.exists():
-        return []
-    out: list[dict[str, Any]] = []
     try:
-        for line in path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                out.append(json.loads(line))
-            except Exception:
-                continue
-    except Exception:
+        exists = path.exists()
+    except Exception as e:
+        raise AttemptLedgerError(
+            "attempt_ledger_unreadable",
+            detail=type(e).__name__,
+        ) from e
+    if not exists:
         return []
+    try:
+        text = path.read_text(encoding="utf-8")
+    except Exception as e:
+        raise AttemptLedgerError(
+            "attempt_ledger_unreadable",
+            detail=type(e).__name__,
+        ) from e
+    out: list[dict[str, Any]] = []
+    for line in text.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except Exception as e:
+            raise AttemptLedgerError(
+                "attempt_ledger_corrupt",
+                detail=type(e).__name__,
+            ) from e
+        if not isinstance(row, dict):
+            raise AttemptLedgerError("attempt_ledger_corrupt", detail="not_object")
+        out.append(row)
     return out
 
 
@@ -265,6 +305,16 @@ def preflight() -> dict[str, Any]:
                 "Refresh with same idempotency_key will not resend",
             ],
         }
+    except AttemptLedgerError as e:
+        logger.error("[owner_email_canary] preflight ledger refused: %s", e.reason)
+        return {
+            "ok": False,
+            "canary": "owner_inbox_one_shot",
+            "outcome": BLOCKED,
+            "reason": e.reason,
+            "error_type": e.detail or type(e).__name__,
+            "bulk_outreach_required": False,
+        }
     except rd.RuntimeDataError as e:
         logger.error("[owner_email_canary] preflight authority refused: %s", type(e).__name__)
         return {
@@ -277,14 +327,52 @@ def preflight() -> dict[str, Any]:
         }
 
 
-def _suppressed(email: str) -> bool:
+def _suppression_ledger_trustworthy() -> bool:
+    """Canary-only probe: ordinary read/decode/permission failures ⇒ untrusted.
+
+    Does NOT change ``email_unsub`` global behaviour (bulk path may still treat
+    I/O errors as empty). Missing file is a legitimate empty ledger.
+    """
     try:
         from app.platform import email_unsub
 
+        path = email_unsub._store_or_none()
+        if path is None:
+            return False
+        if not path.is_file():
+            return True
+        try:
+            text = path.read_text(encoding="utf-8")
+        except Exception:
+            return False
+        for line in text.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                row = json.loads(line)
+            except Exception:
+                return False
+            if not isinstance(row, dict):
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def _suppressed(email: str) -> bool:
+    """Fail closed on any suppression-ledger uncertainty (canary-only)."""
+    try:
+        if not _suppression_ledger_trustworthy():
+            raise SuppressionLedgerError("suppression_ledger_untrusted")
+        from app.platform import email_unsub
+
         return bool(email_unsub.is_contact_suppressed(email=email, channel="email"))
+    except SuppressionLedgerError:
+        raise
     except Exception as e:
         logger.warning("[owner_email_canary] suppression check failed: %s", type(e).__name__)
-        return True  # fail-closed
+        raise SuppressionLedgerError("suppression_check_failed") from e
 
 
 def _body_text() -> tuple[str, str]:
@@ -306,9 +394,159 @@ def _body_text() -> tuple[str, str]:
     return text, html
 
 
-async def _provider_send(to: str, timeout_s: float) -> dict[str, Any]:
-    from app.integrations.email_sender import EmailSender
+def _pick_one_transport() -> TransportName | None:
+    """Select exactly one transport. Prefer Resend, else Brevo, else SMTP."""
+    try:
+        from app.config import settings
 
+        if (settings.resend_api_key or "").strip():
+            return "resend"
+        if (settings.brevo_api_key or "").strip():
+            return "brevo"
+        if (settings.smtp_user or "").strip() and (settings.smtp_password or "").strip():
+            return "smtp"
+    except Exception:
+        return None
+    return None
+
+
+async def _send_resend_once(
+    *,
+    to: str,
+    subject: str,
+    text: str,
+    html: str,
+    headers: dict[str, str],
+) -> bool:
+    """Single Resend HTTPS POST. Never falls through to Brevo/SMTP."""
+    try:
+        import httpx
+
+        from app.config import settings
+        from app.integrations.email_api import _from
+
+        resend = (settings.resend_api_key or "").strip()
+        if not resend:
+            raise ProviderNotCalledError("resend_not_configured")
+        from_email, from_name = _from()
+        payload: dict[str, Any] = {
+            "from": f"{from_name} <{from_email}>",
+            "to": [to],
+            "subject": subject,
+            "html": html,
+            "text": text or "",
+        }
+        if headers:
+            payload["headers"] = dict(headers)
+        client = httpx.AsyncClient(timeout=20.0)
+    except ProviderNotCalledError:
+        raise
+    except Exception as e:
+        raise ProviderNotCalledError(type(e).__name__) from e
+    async with client:
+        r = await client.post(
+            "https://api.resend.com/emails",
+            headers={
+                "Authorization": f"Bearer {resend}",
+                "Content-Type": "application/json",
+            },
+            json=payload,
+        )
+    return 200 <= r.status_code < 300
+
+
+async def _send_brevo_once(
+    *,
+    to: str,
+    subject: str,
+    text: str,
+    html: str,
+    headers: dict[str, str],
+) -> bool:
+    """Single Brevo HTTPS POST. Never falls through to SMTP."""
+    try:
+        import httpx
+
+        from app.config import settings
+        from app.integrations.email_api import _from
+
+        brevo = (settings.brevo_api_key or "").strip()
+        if not brevo:
+            raise ProviderNotCalledError("brevo_not_configured")
+        from_email, from_name = _from()
+        payload: dict[str, Any] = {
+            "sender": {"email": from_email, "name": from_name},
+            "to": [{"email": to}],
+            "subject": subject,
+            "htmlContent": html,
+            "textContent": text or "",
+        }
+        if headers:
+            payload["headers"] = dict(headers)
+        client = httpx.AsyncClient(timeout=20.0)
+    except ProviderNotCalledError:
+        raise
+    except Exception as e:
+        raise ProviderNotCalledError(type(e).__name__) from e
+    async with client:
+        r = await client.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={
+                "api-key": brevo,
+                "Content-Type": "application/json",
+                "accept": "application/json",
+            },
+            json=payload,
+        )
+    return 200 <= r.status_code < 300
+
+
+async def _send_smtp_once(
+    *,
+    to: str,
+    subject: str,
+    text: str,
+    html: str,
+    headers: dict[str, str],
+) -> bool:
+    """Single SMTP send. Never falls back to another provider."""
+    try:
+        import aiosmtplib
+
+        from app.config import settings
+
+        user = (settings.smtp_user or "").strip()
+        password = (settings.smtp_password or "").strip()
+        if not user or not password:
+            raise ProviderNotCalledError("smtp_not_configured")
+        from_email = (settings.email_from or user).strip()
+        msg = MIMEMultipart("alternative")
+        msg["From"] = from_email
+        msg["To"] = to
+        msg["Subject"] = subject
+        for hk, hv in (headers or {}).items():
+            if hk and hv and hk not in msg:
+                msg[hk] = hv
+        msg.attach(MIMEText(text, "plain"))
+        msg.attach(MIMEText(html, "html"))
+    except ProviderNotCalledError:
+        raise
+    except Exception as e:
+        raise ProviderNotCalledError(type(e).__name__) from e
+    await aiosmtplib.send(
+        msg,
+        hostname=settings.smtp_host,
+        port=settings.smtp_port,
+        username=user,
+        password=password,
+        use_tls=True,
+        timeout=min(20.0, max(1.0, _TIMEOUT_S)),
+    )
+    return True
+
+
+async def _provider_send(to: str, timeout_s: float) -> dict[str, Any]:
+    """ONE transport network attempt total — no multi-provider cascade."""
     cfg = _smtp_or_api_configured()
     if not cfg["send_path_ready"]:
         return {"sent": False, "mode": "smtp_not_configured", "provider_called": False}
@@ -322,21 +560,29 @@ async def _provider_send(to: str, timeout_s: float) -> dict[str, Any]:
         headers = {}
 
     text, html = _body_text()
-    sender = EmailSender()
-    ok = await asyncio.wait_for(
-        sender.send_email(
-            [to],
-            _CANARY_SUBJECT,
-            text,
-            html_body=html,
-            extra_headers=headers,
-        ),
-        timeout=timeout_s,
-    )
+    transport = _pick_one_transport()
+    if transport is None:
+        return {"sent": False, "mode": "smtp_not_configured", "provider_called": False}
+
+    async def _once() -> bool:
+        if transport == "resend":
+            return await _send_resend_once(
+                to=to, subject=_CANARY_SUBJECT, text=text, html=html, headers=headers
+            )
+        if transport == "brevo":
+            return await _send_brevo_once(
+                to=to, subject=_CANARY_SUBJECT, text=text, html=html, headers=headers
+            )
+        return await _send_smtp_once(
+            to=to, subject=_CANARY_SUBJECT, text=text, html=html, headers=headers
+        )
+
+    ok = await asyncio.wait_for(_once(), timeout=timeout_s)
     return {
         "sent": bool(ok),
-        "mode": "email_sender" if ok else "provider_refused",
+        "mode": transport if ok else "provider_refused",
         "provider_called": True,
+        "transport": transport,
         "list_unsubscribe_attached": bool(headers),
     }
 
@@ -363,18 +609,45 @@ def _claim_under_lock(
                 "lock_failed": True,
                 "reason": "idempotency_lock_unavailable",
             }
-        existing = find_by_idempotency(idem)
-        if existing:
-            prior = latest_status(idem) or existing
-            return {
-                "claimed": False,
-                "duplicate": True,
-                "prior_outcome": prior.get("outcome") or existing.get("outcome"),
-            }
+        try:
+            existing = find_by_idempotency(idem)
+            if existing:
+                prior = latest_status(idem) or existing
+                return {
+                    "claimed": False,
+                    "duplicate": True,
+                    "prior_outcome": prior.get("outcome") or existing.get("outcome"),
+                }
 
-        cfg = _smtp_or_api_configured()
-        if not cfg["send_path_ready"]:
-            # Definite no-config — persist for audit, do NOT consume provider slot.
+            cfg = _smtp_or_api_configured()
+            if not cfg["send_path_ready"]:
+                # Definite no-config — persist for audit, do NOT consume provider slot.
+                _append_attempt(
+                    {
+                        "event": "attempt",
+                        "ts": time.time(),
+                        "idempotency_key": idem,
+                        "to_masked": mask_email(to),
+                        "to_hash": hashlib.sha256(to.lower().encode()).hexdigest()[:16],
+                        "actor_id": str(actor_id or "")[:64],
+                        "outcome": FAILED,
+                        "reason": "smtp_not_configured",
+                        "provider_called": False,
+                    }
+                )
+                return {
+                    "claimed": False,
+                    "config_failed": True,
+                    "reason": "smtp_not_configured",
+                }
+
+            if _provider_slot_taken_today():
+                return {
+                    "claimed": False,
+                    "capped": True,
+                    "reason": "daily_provider_attempt_cap",
+                }
+
             _append_attempt(
                 {
                     "event": "attempt",
@@ -383,37 +656,18 @@ def _claim_under_lock(
                     "to_masked": mask_email(to),
                     "to_hash": hashlib.sha256(to.lower().encode()).hexdigest()[:16],
                     "actor_id": str(actor_id or "")[:64],
-                    "outcome": FAILED,
-                    "reason": "smtp_not_configured",
+                    "outcome": "pending",
                     "provider_called": False,
                 }
             )
+            return {"claimed": True}
+        except AttemptLedgerError as e:
             return {
                 "claimed": False,
-                "config_failed": True,
-                "reason": "smtp_not_configured",
+                "ledger_failed": True,
+                "reason": e.reason,
+                "error_type": e.detail or type(e).__name__,
             }
-
-        if _provider_slot_taken_today():
-            return {
-                "claimed": False,
-                "capped": True,
-                "reason": "daily_provider_attempt_cap",
-            }
-
-        _append_attempt(
-            {
-                "event": "attempt",
-                "ts": time.time(),
-                "idempotency_key": idem,
-                "to_masked": mask_email(to),
-                "to_hash": hashlib.sha256(to.lower().encode()).hexdigest()[:16],
-                "actor_id": str(actor_id or "")[:64],
-                "outcome": "pending",
-                "provider_called": False,
-            }
-        )
-        return {"claimed": True}
 
 
 async def send_canary(
@@ -491,6 +745,13 @@ async def send_canary(
             result["provider_called"] = False
             return result
 
+        if claim.get("ledger_failed"):
+            result["outcome"] = BLOCKED
+            result["reason"] = str(claim.get("reason") or "attempt_ledger_unreadable")
+            result["error_type"] = claim.get("error_type")
+            result["provider_called"] = False
+            return result
+
         if not claim.get("claimed"):
             result["outcome"] = FAILED
             result["reason"] = "claim_failed"
@@ -499,6 +760,17 @@ async def send_canary(
         # Lock released — provider I/O outside the lock.
         try:
             res = await _provider_send(to, _TIMEOUT_S)
+        except ProviderNotCalledError as e:
+            _update_attempt(
+                idem,
+                outcome=FAILED,
+                reason=str(e) or "provider_not_called",
+                provider_called=False,
+            )
+            result["outcome"] = FAILED
+            result["reason"] = str(e) or "provider_not_called"
+            result["provider_called"] = False
+            return result
         except asyncio.TimeoutError:
             _update_attempt(
                 idem,
@@ -529,6 +801,7 @@ async def send_canary(
         result["provider"] = {
             "mode": mode,
             "provider_called": called,
+            "transport": res.get("transport"),
             "list_unsubscribe_attached": bool(res.get("list_unsubscribe_attached")),
         }
 
@@ -548,7 +821,7 @@ async def send_canary(
             result["outcome"] = SENT
             return result
 
-        # EmailSender collapses provider exceptions/timeouts to False — ambiguous.
+        # Ambiguous provider refusal — never retry / never cascade.
         _update_attempt(
             idem,
             outcome=UNKNOWN_REQUIRES_REVIEW,
@@ -557,6 +830,18 @@ async def send_canary(
         )
         result["outcome"] = UNKNOWN_REQUIRES_REVIEW
         result["reason"] = mode or "provider_false_ambiguous"
+        return result
+    except SuppressionLedgerError as e:
+        logger.error("[owner_email_canary] suppression refused: %s", str(e))
+        result["outcome"] = BLOCKED
+        result["reason"] = str(e) or "suppression_check_failed"
+        result["provider_called"] = False
+        return result
+    except AttemptLedgerError as e:
+        logger.error("[owner_email_canary] ledger refused: %s", e.reason)
+        result["outcome"] = BLOCKED
+        result["reason"] = e.reason
+        result["error_type"] = e.detail or type(e).__name__
         return result
     except rd.RuntimeDataError as e:
         logger.error("[owner_email_canary] authority refused: %s", type(e).__name__)
@@ -577,6 +862,9 @@ __all__ = [
     "DUPLICATE",
     "BLOCKED",
     "UNKNOWN_REQUIRES_REVIEW",
+    "AttemptLedgerError",
+    "SuppressionLedgerError",
+    "ProviderNotCalledError",
     "mask_email",
     "is_one_to_one",
     "preflight",

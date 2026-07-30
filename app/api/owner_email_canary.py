@@ -51,7 +51,17 @@ async def owner_email_canary_send(
 
 @router.get("/last")
 async def owner_email_canary_last(_user=Depends(require_super_admin)) -> dict[str, Any]:
+    """Expose last attempt OR failed preflight/authority truth (never fake ok)."""
     pf = _canary.preflight()
+    if not pf.get("ok"):
+        return {
+            "ok": False,
+            "outcome": pf.get("outcome") or _canary.BLOCKED,
+            "reason": pf.get("reason") or "preflight_failed",
+            "error_type": pf.get("error_type"),
+            "last_attempt": pf.get("last_attempt"),
+            "attempt_count": pf.get("attempt_count"),
+        }
     return {
         "ok": True,
         "last_attempt": pf.get("last_attempt"),
