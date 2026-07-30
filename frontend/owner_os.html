@@ -207,6 +207,25 @@ textarea{min-height:88px;resize:vertical}
       <div id="killBox"></div>
       <div class="teach" id="teach-kill"></div>
     </div>
+    <div class="card" style="margin-top:14px">
+      <h2>Owner-inbox email canary (one-shot)</h2>
+      <p class="muted">Does <b>not</b> enable <code>AUTO_EMAIL_OUTREACH</code>. Super-admin only. Enter your own inbox here — address is never shown in logs/toasts in cleartext. Same idempotency key = no resend.</p>
+      <div class="row" style="margin-bottom:8px;gap:8px;flex-wrap:wrap">
+        <button class="btn sec" onclick="emailCanaryPreflight()">Preflight</button>
+        <button class="btn sec" onclick="emailCanaryLast()">Last result</button>
+      </div>
+      <div class="pre" id="emailCanaryPre">—</div>
+      <div class="row" style="margin-top:10px;gap:8px;flex-wrap:wrap;align-items:center">
+        <label class="muted" for="emailCanaryTo">Owner inbox</label>
+        <input id="emailCanaryTo" type="email" autocomplete="off" placeholder="you@your-domain" style="min-width:220px;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" />
+        <label class="muted"><input id="emailCanaryConfirm" type="checkbox" /> Confirm send</label>
+        <label class="muted"><input id="emailCanaryOwner" type="checkbox" /> This is my owner-controlled inbox</label>
+      </div>
+      <div class="row" style="margin-top:10px;gap:8px">
+        <button class="btn ok" onclick="emailCanarySend()">Send exactly one canary</button>
+      </div>
+      <div class="pre" id="emailCanaryOut" style="margin-top:10px">—</div>
+    </div>
   </section>
 
   <section class="panel" id="panel-copilot">
@@ -603,6 +622,37 @@ async function setKill(key, engaged){
   const {status,body}=await api("/api/admin/owner-os/kill-switches",{method:"POST",body:JSON.stringify({key,engaged,reason})});
   toast(status===200&&body.ok? (engaged?"ENGAGED":"released") : (body.detail||body.error||"refused"));
   loadKills();
+}
+
+function _emailCanaryIdem(){
+  if(!_emailCanaryIdem._k){
+    _emailCanaryIdem._k = "oec_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2,10);
+  }
+  return _emailCanaryIdem._k;
+}
+async function emailCanaryPreflight(){
+  const {status,body}=await api("/api/admin/owner-email-canary/preflight");
+  document.getElementById("emailCanaryPre").textContent = status===200? JSON.stringify(body,null,2) : ("HTTP "+status+" "+JSON.stringify(body));
+}
+async function emailCanaryLast(){
+  const {status,body}=await api("/api/admin/owner-email-canary/last");
+  document.getElementById("emailCanaryOut").textContent = status===200? JSON.stringify(body,null,2) : ("HTTP "+status);
+}
+async function emailCanarySend(){
+  const to=(document.getElementById("emailCanaryTo").value||"").trim();
+  const confirm=!!document.getElementById("emailCanaryConfirm").checked;
+  const owner=!!document.getElementById("emailCanaryOwner").checked;
+  if(!to){ toast("Enter owner inbox in the field (not in chat)"); return; }
+  if(!confirm||!owner){ toast("Both confirmations required"); return; }
+  const idem=_emailCanaryIdem();
+  const {status,body}=await api("/api/admin/owner-email-canary/send",{
+    method:"POST",
+    body: JSON.stringify({to_email:to, idempotency_key:idem, confirm:true, confirm_owner_inbox:true})
+  });
+  // Clear the inbox field immediately so it is not left visible on screen longer than needed.
+  document.getElementById("emailCanaryTo").value="";
+  document.getElementById("emailCanaryOut").textContent = JSON.stringify({http:status, ...body, idempotency_key:idem}, null, 2);
+  toast(body.outcome || ("HTTP "+status));
 }
 
 async function loadTraining(){

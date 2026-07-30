@@ -808,6 +808,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Sales-autopilot admin router not mounted: {_e}")
 try:
+    from app.api.owner_email_canary import router as _owner_email_canary_router
+
+    # /api/admin/owner-email-canary/* — one-shot owner-inbox live canary (super_admin).
+    # Does NOT enable AUTO_EMAIL_OUTREACH. Recipient never logged in cleartext.
+    app.include_router(_owner_email_canary_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Owner-email-canary router not mounted: {_e}")
+try:
     from app.api import conversion as _conversion
 
     app.include_router(
