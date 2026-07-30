@@ -37,7 +37,8 @@ A1_MODULES = (
 #: 0 AFTER host cutover activate + CUTOVER_COMPLETE flip. DUAL_READ alone must
 #: never drop this count — only CUTOVER_COMPLETE after verified bytes move.
 EXPECTED_BLOCKERS = 0
-EXPECTED_ALLOWLIST_ENTRIES = 16
+# 2026-07-30: ops.owner_email_canary adds one narrowly-scoped CREATE entry.
+EXPECTED_ALLOWLIST_ENTRIES = 17
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 
