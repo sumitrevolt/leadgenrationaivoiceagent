@@ -2674,8 +2674,15 @@ async def customer_video_feedback(
             and current_status == "approved"
             and approved_revision == body.expected_revision
         ):
-            return {"ok": True, "already_decided": True, "status": "approved"}
-        raise HTTPException(status_code=409, detail="video review already decided; refresh")
+            txn_ok = str(rec.get("approval_txn_state") or "") == "finalized"
+            hash_ok = bool(str(rec.get("approved_content_sha256") or "").strip())
+            snap_ok = bool(str(rec.get("approval_snapshot_path") or "").strip())
+            if txn_ok and hash_ok and snap_ok:
+                return {"ok": True, "already_decided": True, "status": "approved"}
+            # Legacy incomplete approval — fall through after treating as pending.
+            current_status = "pending"
+        if current_status != "pending":
+            raise HTTPException(status_code=409, detail="video review already decided; refresh")
     if action == "approve":
         # Bind the approval to the bytes the customer actually previewed. Every
         # refusal below happens BEFORE any ledger write, record update, snapshot

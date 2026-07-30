@@ -387,11 +387,25 @@ async def test_toctou_gap_closed_provider_receives_snapshot_bytes(video, monkeyp
         "app.marketing.clients_store.resolve_client",
         _mutate_original_after_gate,
     )
-    monkeypatch.setattr(vac, "_update", lambda *a, **k: None)
+    store = {"rec": None}
+
+    def _latest():
+        return {store["rec"]["id"]: store["rec"]} if store["rec"] else {}
+
+    def _update(rid, **fields):
+        if store["rec"] is None:
+            return False
+        if store["rec"].get("id") == rid:
+            store["rec"].update(fields)
+        return True
+
+    monkeypatch.setattr(vac, "_latest", _latest)
+    monkeypatch.setattr(vac, "_update", _update)
     monkeypatch.setattr("app.marketing.delivery_ledger.log_event", lambda *a, **k: True)
 
     digest, size = pg.hash_video_file(str(video))
     rec = _rec(video, approved_content_sha256=digest, approved_content_bytes=size)
+    store["rec"] = rec
     snap_bytes = Path(rec["approval_snapshot_path"]).read_bytes()
 
     assert pg.assert_can_publish(rec)["ok"] is True
