@@ -26,6 +26,20 @@ def test_parse_pause_amber():
 def test_create_mission_records_executor_truth(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     (tmp_path / "data").mkdir()
+
+    def _off_proof(**kwargs):
+        return {"status": "flag_off", "session_id": None, "available": False}
+
+    monkeypatch.setattr(
+        "app.integrations.openclaw.owner_os_adapter.prove_edge_receipt",
+        _off_proof,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        "app.integrations.openclaw.policies.openclaw_enabled",
+        lambda: False,
+        raising=False,
+    )
     out = mc.create_mission(
         "revenue_ready", actor="test@local", base_sha="abc123", idempotency_key="k-rev"
     )
@@ -40,6 +54,40 @@ def test_create_mission_records_executor_truth(tmp_path, monkeypatch):
     assert ex["opencode_verifier"]["session_id"] is None
     assert all(p["state"] == "MANUAL_OR_UNAVAILABLE" for p in m["packets"])
     assert (tmp_path / "data/mission_control/ledger.jsonl").is_file()
+
+
+def test_openclaw_probe_can_become_available(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "data").mkdir()
+
+    def _proof(**kwargs):
+        return {
+            "status": "available",
+            "session_id": "oc_deadbeefcafebabe",
+            "available": True,
+            "command": "platform.status",
+            "command_id": "ocmd_cafebabe",
+            "correlation_id": "oc_deadbeefcafebabe",
+            "verified": True,
+            "note": "test receipt",
+        }
+
+    monkeypatch.setattr(
+        "app.integrations.openclaw.policies.openclaw_enabled",
+        lambda: True,
+    )
+    monkeypatch.setattr(
+        "app.integrations.openclaw.owner_os_adapter.prove_edge_receipt",
+        _proof,
+    )
+    ex = mc.probe_executors()
+    assert ex["openclaw"]["status"] == "available"
+    assert ex["openclaw"]["session_id"] == "oc_deadbeefcafebabe"
+    assert ex["cursor"]["session_id"] is None
+    out = mc.create_mission("income_today", actor="t", base_sha="sha", idempotency_key="k-income")
+    oc = [p for p in out["mission"]["packets"] if p["agent"] == "openclaw"][0]
+    assert oc["state"] == "READY"
+    assert oc["executor_session_id"] == "oc_deadbeefcafebabe"
 
 
 def test_idempotent_mission_create(tmp_path, monkeypatch):
