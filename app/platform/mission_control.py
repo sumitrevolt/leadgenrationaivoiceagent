@@ -215,17 +215,31 @@ def probe_executors() -> dict[str, Any]:
         ),
         "pid_hint": os.getpid(),
     }
-    # OpenClaw = flag + import gate (still no remote session receipt here)
+    # OpenClaw = real GREEN edge receipt (correlation_id), never a fabricated UUID.
     try:
+        from app.integrations.openclaw.owner_os_adapter import prove_edge_receipt
         from app.integrations.openclaw.policies import openclaw_enabled
 
         on = bool(openclaw_enabled())
-        out["openclaw"] = {
-            "status": "flag_on_no_session" if on else "flag_off",
-            "session_id": None,
-            "note": "Edge Copilot importable when OPENCLAW_ENABLED; no Gateway job ID in this probe",
-            "OPENCLAW_ENABLED": on,
-        }
+        if not on:
+            out["openclaw"] = {
+                "status": "flag_off",
+                "session_id": None,
+                "note": "OPENCLAW_ENABLED off",
+                "OPENCLAW_ENABLED": False,
+            }
+        else:
+            proof = prove_edge_receipt(actor="mission-control-probe")
+            out["openclaw"] = {
+                "status": proof.get("status") or "flag_on_no_session",
+                "session_id": proof.get("session_id"),
+                "note": proof.get("note"),
+                "OPENCLAW_ENABLED": True,
+                "command": proof.get("command"),
+                "command_id": proof.get("command_id"),
+                "correlation_id": proof.get("correlation_id"),
+                "verified": proof.get("verified"),
+            }
     except Exception as e:
         out["openclaw"] = {"status": "unavailable", "session_id": None, "error": type(e).__name__}
     out["opencode_verifier"] = {
@@ -454,6 +468,177 @@ def apply_amber_action(
     return {"ok": False, "error": "unknown_verb", "verb": verb}
 
 
+def dispatch_openclaw_lane(
+    mission_id: str,
+    *,
+    actor: str,
+    wa_limit: int = 5,
+    prep_limit: int = 10,
+) -> dict[str, Any]:
+    """Execute the OpenClaw ops lane with a real edge receipt + draft-only sprint work.
+
+    Never arms RED outbound. WA/email drafts only — human approval still required to send.
+    """
+    import asyncio
+
+    mid = (mission_id or "").strip()
+    m = _read_mission(mid)
+    if not m:
+        return {"ok": False, "error": "mission_not_found", "mission_id": mid}
+
+    proof = None
+    try:
+        from app.integrations.openclaw.owner_os_adapter import prove_edge_receipt
+
+        proof = prove_edge_receipt(actor=actor)
+    except Exception as e:
+        return {"ok": False, "error": "openclaw_probe_failed", "detail": type(e).__name__}
+
+    session_id = (proof or {}).get("session_id")
+    if not session_id or (proof or {}).get("status") != "available":
+        return {
+            "ok": False,
+            "error": "openclaw_unavailable",
+            "proof": proof,
+            "hint": "OPENCLAW_ENABLED + GREEN handler receipt required",
+        }
+
+    # Mark openclaw packet RUNNING with real session.
+    for p in m.get("packets") or []:
+        if p.get("agent") == "openclaw":
+            p["state"] = "RUNNING"
+            p["executor_status"] = "available"
+            p["executor_session_id"] = session_id
+            p["started_at"] = _utc()
+            p["heartbeat_at"] = _utc()
+    _write_mission(m)
+    _append_ledger(
+        {
+            "event": "openclaw_lane_started",
+            "mission_id": mid,
+            "session_id": session_id,
+            "command_id": (proof or {}).get("command_id"),
+            "actor": actor,
+        }
+    )
+
+    evidence: dict[str, Any] = {
+        "session_id": session_id,
+        "command_id": (proof or {}).get("command_id"),
+        "correlation_id": (proof or {}).get("correlation_id"),
+        "money_path": None,
+        "hot_wa_draft": None,
+        "dialer_prep": None,
+        "email_drafts": None,
+        "owner_actions": [],
+    }
+
+    # Money-path read-only check (loopback only).
+    try:
+        import urllib.request
+
+        url = "http://127.0.0.1:8080/api/activation/summary"
+        if not url.startswith("http://127.0.0.1:") and not url.startswith("http://localhost:"):
+            raise ValueError("loopback_only")
+        req = urllib.request.Request(url, headers={"User-Agent": "mission-openclaw-dispatch/1.0"})
+        with urllib.request.urlopen(req, timeout=10) as resp:  # nosec B310 — loopback scheme-gated
+            body = resp.read().decode("utf-8", errors="replace")
+            evidence["money_path"] = {
+                "code": int(resp.status),
+                "body_prefix": body[:300],
+            }
+    except Exception as e:
+        evidence["money_path"] = {"error": type(e).__name__}
+
+    async def _run_sprint() -> None:
+        from app.agents import sprint_actions
+
+        evidence["hot_wa_draft"] = await sprint_actions.hot_wa_draft(
+            limit=max(1, min(int(wa_limit or 5), 5))
+        )
+        evidence["dialer_prep"] = await sprint_actions.dialer_sprint_prep(
+            limit=max(1, min(int(prep_limit or 10), 10))
+        )
+
+    try:
+        asyncio.run(_run_sprint())
+    except RuntimeError:
+        # Nested event loop (rare) — create a fresh loop.
+        loop = asyncio.new_event_loop()
+        try:
+            try:
+                loop.run_until_complete(_run_sprint())
+            except Exception as e:
+                evidence["sprint_error"] = type(e).__name__
+        finally:
+            loop.close()
+    except Exception as e:
+        evidence["sprint_error"] = type(e).__name__
+
+    # Email drafts: no auto-send path — park as owner action if drafts not produced here.
+    wa_n = int((evidence.get("hot_wa_draft") or {}).get("drafted") or 0)
+    prep_n = int((evidence.get("dialer_prep") or {}).get("prepped") or 0)
+    if wa_n < 5:
+        evidence["owner_actions"].append(
+            {
+                "action": "complete_wa_drafts_or_refresh_hot_queue",
+                "have": wa_n,
+                "need": 5,
+            }
+        )
+    evidence["owner_actions"].append(
+        {
+            "action": "produce_or_approve_5_email_drafts",
+            "note": "Cold-email auto-send stays OFF; use existing approval inbox / human compose",
+            "need": 5,
+        }
+    )
+    evidence["owner_actions"].append(
+        {
+            "action": "human_1click_send_approved_drafts_only",
+            "note": "WHATSAPP_AUTO_SEND=0 · AUTO_EMAIL_OUTREACH=0",
+        }
+    )
+
+    for p in m.get("packets") or []:
+        if p.get("agent") == "openclaw":
+            p["state"] = "COMPLETE"
+            p["completed_at"] = _utc()
+            p["heartbeat_at"] = _utc()
+            p["evidence"] = evidence
+            p["retry"] = p.get("retry") or {"max": 2, "dlq": "data/mission_control/dlq.jsonl"}
+    m["final_ids"] = m.get("final_ids") or {}
+    m["final_ids"]["runtime"] = session_id
+    m["openclaw_dispatch"] = {
+        "at": _utc(),
+        "actor": actor,
+        "session_id": session_id,
+        "wa_drafted": wa_n,
+        "prep_briefs": prep_n,
+    }
+    # Mission stays CREATED/RUNNING until verifier + cursor lanes done — do not fake COMPLETE.
+    if m.get("state") == "CREATED":
+        m["state"] = "IN_PROGRESS"
+    _write_mission(m)
+    _append_ledger(
+        {
+            "event": "openclaw_lane_complete",
+            "mission_id": mid,
+            "session_id": session_id,
+            "wa_drafted": wa_n,
+            "prep_briefs": prep_n,
+            "actor": actor,
+        }
+    )
+    return {
+        "ok": True,
+        "mission_id": mid,
+        "session_id": session_id,
+        "evidence": evidence,
+        "mission": m,
+    }
+
+
 def handle_chat(
     text: str,
     *,
@@ -506,6 +691,7 @@ def handle_chat(
 __all__ = [
     "apply_amber_action",
     "create_mission",
+    "dispatch_openclaw_lane",
     "handle_chat",
     "list_missions",
     "mission_status",
