@@ -109,8 +109,9 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # writers this branch authored — telephony.voice_kill_switch (authority +
     # atomic temp) and telephony.call_recordings.
     # 2026-07-30 +1 entry / +1 family: ops.owner_email_canary (one-shot canary ledger).
-    assert len(entries) == 17
-    assert len(families) == 9, sorted(families)
+    # 2026-07-31 +4 entries / +1 family: governance.mission_control (Owner OS chat missions).
+    assert len(entries) == 21
+    assert len(families) == 10, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -121,12 +122,13 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "compliance.email_suppression",
         "customers.identity",
         "devcontrol.external_missions",
+        "governance.mission_control",
         "ops.owner_email_canary",
         "telephony.call_recordings",
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    assert len({f.split(".")[0] for f in families}) == 6
+    assert len({f.split(".")[0] for f in families}) == 7
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -386,7 +388,8 @@ def test_store_manifest_still_validates() -> None:
     # A7 (2026-07-29): sales.prospects -> DUAL_READ_PRE_CUTOVER (code-only;
     # ~20MB JSONL host cutover is a separate PR — blockers stay 21).
     # 2026-07-30: +1 ops.owner_email_canary (LEGACY_IN_CHECKOUT, non-blocker).
-    assert counts["unique_families"] == 28
+    # 2026-07-31: +1 governance.mission_control (LEGACY_IN_CHECKOUT, non-blocker).
+    assert counts["unique_families"] == 29
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]
