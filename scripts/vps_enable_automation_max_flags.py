@@ -41,7 +41,8 @@ WANT_SAFE = {
     "SALES_ENGINE": "1",
     "GROWTH_OPTIMIZER": "1",
     "CHANNEL_EXPERIMENTS": "1",
-    "SELF_IMPROVE_LOOP": "1",
+    # Containment: keep OFF until a named candidate completes clean 24h soak.
+    "SELF_IMPROVE_LOOP": "0",
     "LEAD_HARVESTER": "1",
     "DUNNING_ENGINE": "1",
     "HOT_QUEUE_BRIEF_DAILY": "1",
