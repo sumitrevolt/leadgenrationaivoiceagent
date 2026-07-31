@@ -101,6 +101,7 @@ def _clean_env(monkeypatch):
         "WHATSAPP_BUSINESS_NUMBER",
         "WHATSAPP_ENFORCE_BUSINESS_NUMBER",
         "WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN",
+        "WHATSAPP_SEND_ALLOWLIST",
         "WHATSAPP_BUSINESS_TOKEN",
         "WHATSAPP_PHONE_NUMBER_ID",
     ):
@@ -125,17 +126,32 @@ def _clean_env(monkeypatch):
     from app.platform import owner_os
 
     monkeypatch.setattr(owner_os, "kill_engaged", lambda _name: False, raising=False)
+    # The opt-out gate reads real relative data/ paths. Pin both suppression authorities
+    # to "not suppressed" so no test touches (or is decided by) live customer data —
+    # the opt-out tests below flip them explicitly. Same lesson as the 2026-07-18
+    # billing-ledger contamination: a test must never resolve a real data store.
+    from app.marketing import wa_campaign_runner
+    from app.telephony import consent_ledger
+
+    monkeypatch.setattr(consent_ledger, "is_suppressed", lambda _p: False, raising=False)
+    monkeypatch.setattr(wa_campaign_runner, "is_suppressed", lambda _p: False, raising=False)
+    wa._BLOCK_COUNTS.clear()
     yield
 
 
 def _arm_selfhost(monkeypatch, rec: _Recorder, auto_send: bool) -> None:
-    """Point the dual-engine selector at a faked, reachable WAHA stack."""
+    """Point the dual-engine selector at a faked, reachable WAHA stack.
+
+    ``auto_send=True`` arms BOTH the flag and the canary allowlist, because after the
+    allowlist landed the flag alone is deliberately no longer sufficient.
+    """
     monkeypatch.setattr(wahost.httpx, "AsyncClient", rec)
     monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
     monkeypatch.setenv("WHATSAPP_PROVIDER", "waha")
     monkeypatch.setenv("WHATSAPP_ENFORCE_BUSINESS_NUMBER", "0")
     if auto_send:
         monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")
+        monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "919876543210,919999999999")
 
 
 # --------------------------------------------------------------------------- #
@@ -395,8 +411,191 @@ def test_cloud_send_works_when_flag_on(monkeypatch):
     rec = _Recorder()
     client = _cloud_client(monkeypatch, rec)
     monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")
+    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "919876543210")
 
     res = asyncio.run(client.send_text_message("919876543210", "hi"))
 
     assert res.get("id") == "wamid.GATE"
     assert any("graph.facebook.com" in u for u in rec.posts)
+
+
+# --------------------------------------------------------------------------- #
+# Canary allowlist — the flag alone must NOT reach every customer on day one
+# --------------------------------------------------------------------------- #
+def test_empty_allowlist_blocks_even_with_flag_on(monkeypatch):
+    """The whole point of the canary posture: flipping WHATSAPP_AUTO_SEND=1 must not
+    immediately message all 9 active clients. Empty list = nobody, fail-closed."""
+    rec = _Recorder()
+    _arm_selfhost(monkeypatch, rec, auto_send=True)
+    monkeypatch.delenv("WHATSAPP_SEND_ALLOWLIST", raising=False)
+
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("919876543210", "hi"))
+
+    assert res["error"] == "allowlist_empty"
+    assert rec.calls == []
+
+
+def test_unlisted_recipient_blocked_while_listed_one_sends(monkeypatch):
+    rec = _Recorder()
+    _arm_selfhost(monkeypatch, rec, auto_send=True)
+    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "919876543210")
+
+    blocked = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("918888888888", "hi"))
+    assert blocked["error"] == "recipient_not_allowlisted"
+    assert rec.calls == []
+
+    ok = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("919876543210", "hi"))
+    assert ok.get("delivery_status") == "accepted"
+
+
+def test_allowlist_normalises_indian_number_forms(monkeypatch):
+    """A canary listed as 9876543210 must match a send to +91 98765 43210 — otherwise
+    the operator 'allowlisted' a number and it silently stayed blocked."""
+    rec = _Recorder()
+    _arm_selfhost(monkeypatch, rec, auto_send=True)
+    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "9876543210")
+
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("+91 98765 43210", "hi"))
+    assert res.get("delivery_status") == "accepted"
+
+
+def test_star_graduates_allowlist_to_everyone(monkeypatch):
+    """'*' is the EXPLICIT graduation (same convention as VIDEO_CUSTOMER_REVIEW_CLIENTS)."""
+    rec = _Recorder()
+    _arm_selfhost(monkeypatch, rec, auto_send=True)
+    monkeypatch.setenv("WHATSAPP_SEND_ALLOWLIST", "*")
+
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("918888888888", "hi"))
+    assert res.get("delivery_status") == "accepted"
+
+
+def test_allowlist_unreadable_denies(monkeypatch):
+    monkeypatch.setattr(wa, "send_allowlist", lambda: (_ for _ in ()).throw(RuntimeError("boom")))
+    allowed, reason = wa.allowlist_permits("919876543210")
+    assert allowed is False
+    assert reason == "allowlist_unreadable"
+
+
+# --------------------------------------------------------------------------- #
+# Opt-out / suppression at the boundary (DPDP + §5 instant cross-channel suppression)
+# --------------------------------------------------------------------------- #
+def test_opted_out_number_is_blocked_at_the_boundary(monkeypatch):
+    """Before this, ONLY the campaign path consulted suppression — onboarding,
+    customer_delivery, lead_delivery and post_call_hooks could message a number that
+    had explicitly opted out, the moment the flag went on."""
+    from app.telephony import consent_ledger
+
+    rec = _Recorder()
+    _arm_selfhost(monkeypatch, rec, auto_send=True)
+    monkeypatch.setattr(consent_ledger, "is_suppressed", lambda _p: True)
+
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("919876543210", "hi"))
+
+    assert res["error"] == "opted_out"
+    assert rec.calls == []
+
+
+def test_locally_suppressed_number_is_blocked(monkeypatch):
+    from app.marketing import wa_campaign_runner
+
+    rec = _Recorder()
+    _arm_selfhost(monkeypatch, rec, auto_send=True)
+    monkeypatch.setattr(wa_campaign_runner, "is_suppressed", lambda _p: True)
+
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("919876543210", "hi"))
+
+    assert res["error"] == "suppressed"
+    assert rec.calls == []
+
+
+@pytest.mark.parametrize(
+    "mod_path,attr,expected",
+    [
+        ("app.telephony.consent_ledger", "is_suppressed", "opt_out_unreadable"),
+        ("app.marketing.wa_campaign_runner", "is_suppressed", "suppression_unreadable"),
+    ],
+)
+def test_unreadable_opt_out_store_denies(monkeypatch, mod_path, attr, expected):
+    """'I cannot reach the opt-out list' must never be answered as 'they did not opt out'."""
+    import importlib
+
+    rec = _Recorder()
+    _arm_selfhost(monkeypatch, rec, auto_send=True)
+    mod = importlib.import_module(mod_path)
+    monkeypatch.setattr(mod, attr, lambda _p: (_ for _ in ()).throw(RuntimeError("store down")))
+
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("919876543210", "hi"))
+
+    assert res["error"] == expected
+    assert rec.calls == []
+
+
+# --------------------------------------------------------------------------- #
+# Observability — reason codes only, never PII
+# --------------------------------------------------------------------------- #
+def test_block_stats_count_reasons_and_carry_no_pii(monkeypatch):
+    rec = _Recorder()
+    _arm_selfhost(monkeypatch, rec, auto_send=False)
+
+    asyncio.run(wahost.SelfHostWhatsApp().send_text_message("919876543210", "secret text"))
+    asyncio.run(wahost.SelfHostWhatsApp().send_text_message("918888888888", "secret text"))
+
+    stats = wa.block_stats()
+    assert stats.get("auto_send_disabled") == 2
+    blob = repr(stats)
+    assert "919876543210" not in blob and "918888888888" not in blob
+    assert "secret text" not in blob
+
+
+# --------------------------------------------------------------------------- #
+# Static bypass ratchet — a future caller must not be able to reintroduce a hole
+# --------------------------------------------------------------------------- #
+def test_no_provider_egress_outside_the_guarded_boundary():
+    """RATCHET. Every real WhatsApp egress must live inside the two integration modules,
+    behind send_permitted(). If a future change adds a raw WAHA `sendText` POST or a
+    Meta `/messages` POST anywhere else, this fails — which is exactly how the original
+    defect would have been caught before it reached prod.
+
+    Scoped to WhatsApp messaging only: meta_graph.py and social_engine/providers.py post
+    to the Facebook/Instagram *page* Graph endpoints, which are a different product.
+    """
+    import pathlib
+    import re
+
+    root = pathlib.Path(__file__).resolve().parents[1] / "app"
+    allowed = {"integrations/whatsapp.py", "integrations/whatsapp_selfhost.py"}
+    # WAHA text-send endpoint, or the Meta messages endpoint reached from a whatsapp module.
+    waha_send = re.compile(r"""["'][^"']*/api/sendText""")
+
+    offenders = []
+    for path in root.rglob("*.py"):
+        rel = path.relative_to(root).as_posix()
+        if rel in allowed:
+            continue
+        try:
+            src = path.read_text(encoding="utf-8", errors="ignore")
+        except Exception:  # pragma: no cover - unreadable file
+            continue
+        if waha_send.search(src):
+            offenders.append(rel)
+
+    assert offenders == [], (
+        "raw WhatsApp provider egress found outside the guarded boundary: "
+        f"{offenders}. Route it through get_whatsapp_sender()/send_permitted() instead."
+    )
+
+
+def test_both_send_methods_consult_send_permitted():
+    """RATCHET (source-level): the four last-mile methods must each call send_permitted.
+    A refactor that drops one would otherwise only be caught if a behavioural test
+    happened to cover that exact method."""
+    import inspect
+
+    for fn in (
+        wa.WhatsAppIntegration.send_text_message,
+        wa.WhatsAppIntegration.send_template_message,
+        wa.WhatsAppIntegration._send_message,
+        wahost.SelfHostWhatsApp.send_text_message,
+        wahost.SelfHostWhatsApp._post,
+    ):
+        assert "send_permitted(" in inspect.getsource(fn), f"{fn.__qualname__} lost its gate"

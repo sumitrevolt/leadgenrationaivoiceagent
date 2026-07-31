@@ -19,10 +19,20 @@ scheduler job was doing exactly that: ``onboarding._send_whatsapp`` →
 active client's ``contact_phone``, hourly, with no flag in the chain. Only a FAILED WAHA
 session was stopping real delivery.
 
-Every send now passes :func:`auto_send_allowed` (fail-CLOSED) and, when the gate is
-off, returns the :func:`auto_send_blocked` "would-send" result carrying a ban-safe
-1-click ``wa.me`` link instead of POSTing. New callers are therefore gated by DEFAULT
-rather than by each caller remembering.
+Every send now passes :func:`send_permitted` and, when it denies, returns the
+:func:`auto_send_blocked` "would-send" result carrying a ban-safe 1-click ``wa.me``
+link instead of POSTing. New callers are therefore gated by DEFAULT rather than by
+each caller remembering.
+
+:func:`send_permitted` composes three fail-CLOSED stages, cheapest-and-most-likely-to-
+deny first, so a gated-off platform touches neither the opt-out ledger nor the network::
+
+    WHATSAPP_AUTO_SEND (+ Owner-OS kill)  ->  canary allowlist  ->  opt-out ledger
+
+The allowlist exists because flipping the flag must not immediately reach every client,
+and the opt-out check moved here because only the CAMPAIGN path used to consult it —
+`onboarding` / `customer_delivery` / `lead_delivery` / `post_call_hooks` would otherwise
+message a number that had explicitly opted out (DPDP + §5).
 """
 
 from __future__ import annotations
@@ -111,6 +121,7 @@ def auto_send_blocked(
     NOT recorded as an integration failure — nothing is broken, the operator just has
     auto-send off.
     """
+    _record_block(reason)
     logger.info("whatsapp auto-send BLOCKED (%s) — 1-click link only (§5 ban-safety)", reason)
     return {
         "error": reason,
@@ -119,6 +130,126 @@ def auto_send_blocked(
         "would_send": True,
         "link": _wa_link(to_number, message),
     }
+
+
+# --------------------------------------------------------------------------- #
+# Canary allowlist + opt-out — the two gates that matter the DAY the flag goes on
+# --------------------------------------------------------------------------- #
+def _digits_only(number: str) -> str:
+    """India-normalised digits (bare 10-digit and leading-0 forms get the 91 CC)."""
+    digits = "".join(c for c in str(number or "") if c.isdigit())
+    if len(digits) == 10:
+        digits = "91" + digits
+    elif digits.startswith("0"):
+        digits = "91" + digits[1:]
+    return digits
+
+
+def send_allowlist() -> list[str]:
+    """Normalised ``WHATSAPP_SEND_ALLOWLIST`` entries. Empty = nobody. ``*`` = everybody.
+
+    Canary posture: turning ``WHATSAPP_AUTO_SEND=1`` on must NOT immediately reach every
+    client. The operator names the canary recipients first, verifies, and only then
+    graduates by setting the list to ``*``. The ``*``-means-explicit-all convention is
+    copied from ``VIDEO_CUSTOMER_REVIEW_CLIENTS`` rather than invented here.
+
+    Never raises. Numbers live in ``.env`` only — never in a tracked file.
+    """
+    raw = os.getenv("WHATSAPP_SEND_ALLOWLIST", "") or ""
+    out: list[str] = []
+    for part in raw.replace(";", ",").replace("\n", ",").split(","):
+        tok = part.strip()
+        if not tok:
+            continue
+        if tok == "*":
+            return ["*"]
+        d = _digits_only(tok)
+        if d:
+            out.append(d)
+    return out
+
+
+def allowlist_permits(to_number: str) -> tuple[bool, str]:
+    """(allowed, reason). **Fail-CLOSED** — unreadable or empty list denies."""
+    try:
+        allow = send_allowlist()
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("whatsapp allowlist unreadable -> DENY: %s", exc)
+        return False, "allowlist_unreadable"
+    if not allow:
+        return False, "allowlist_empty"
+    if allow == ["*"]:
+        return True, ""
+    return (True, "") if _digits_only(to_number) in allow else (False, "recipient_not_allowlisted")
+
+
+def opt_out_permits(to_number: str) -> tuple[bool, str]:
+    """(allowed, reason). **Fail-CLOSED** on the DPDP/TCCCPR opt-out ledger.
+
+    Until now only the CAMPAIGN path consulted suppression — `onboarding`,
+    `customer_delivery`, `lead_delivery` and `post_call_hooks` could message a number
+    that had explicitly opted out. §5 requires opt-out to be an INSTANT cross-channel
+    suppression, so the check belongs at the boundary every send crosses, not in the
+    callers that happened to remember it.
+
+    ``consent_ledger.is_suppressed`` is already fail-closed when the ledger cannot be
+    resolved; the local suppression store (repeatedly-failed / blocked numbers) is
+    consulted too. An exception here denies.
+    """
+    try:
+        from app.telephony import consent_ledger
+
+        if consent_ledger.is_suppressed(to_number):
+            return False, "opted_out"
+    except Exception as exc:
+        logger.warning("whatsapp opt-out ledger unreadable -> DENY: %s", exc)
+        return False, "opt_out_unreadable"
+    try:
+        from app.marketing import wa_campaign_runner
+
+        if wa_campaign_runner.is_suppressed(to_number):
+            return False, "suppressed"
+    except Exception as exc:
+        logger.warning("whatsapp suppression store unreadable -> DENY: %s", exc)
+        return False, "suppression_unreadable"
+    return True, ""
+
+
+def send_permitted(to_number: str) -> tuple[bool, str]:
+    """The ONE composite decision every automated WhatsApp send passes. Fail-CLOSED.
+
+    Order is deliberate — cheapest and most-likely-to-deny first, so a gated-off
+    platform never touches the opt-out ledger or the network::
+
+        WHATSAPP_AUTO_SEND (+ Owner-OS kill)  ->  canary allowlist  ->  opt-out ledger
+
+    Returns ``(True, "")`` or ``(False, <machine-readable reason>)``.
+    """
+    if not auto_send_allowed():
+        return False, "auto_send_disabled"
+    ok, reason = allowlist_permits(to_number)
+    if not ok:
+        return False, reason
+    return opt_out_permits(to_number)
+
+
+# In-process block counters. Deliberately NOT `team.log_event`: the onboard job alone
+# would write ~216 DB rows/day of "still blocked", which is noise, not an audit trail.
+# NO phone number and NO message content is ever recorded here — reason codes only.
+_BLOCK_COUNTS: dict[str, int] = {}
+
+
+def _record_block(reason: str) -> None:
+    """Count one blocked send by REASON. No PII. Never raises."""
+    try:
+        _BLOCK_COUNTS[reason] = _BLOCK_COUNTS.get(reason, 0) + 1
+    except Exception:  # pragma: no cover - defensive
+        pass
+
+
+def block_stats() -> dict[str, int]:
+    """Blocked-send counts by reason, for admin visibility. No PII."""
+    return dict(_BLOCK_COUNTS)
 
 
 def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool:
@@ -277,8 +408,9 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
             return {"error": "whatsapp_not_configured"}
 
         # §5 ban-safety gate — before ANY network call. Default OFF/INERT.
-        if not auto_send_allowed():
-            return auto_send_blocked(to_number, message)
+        ok, reason = send_permitted(to_number)
+        if not ok:
+            return auto_send_blocked(to_number, message, reason)
 
         to_number = self._normalize_number(to_number)
 
@@ -306,8 +438,9 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
 
         # §5 ban-safety gate. Templates build their OWN payload and call _send_message
         # directly, so gating send_text_message alone would leave this path open.
-        if not auto_send_allowed():
-            return auto_send_blocked(to_number, template_name)
+        ok, reason = send_permitted(to_number)
+        if not ok:
+            return auto_send_blocked(to_number, template_name, reason)
 
         to_number = self._normalize_number(to_number)
 
@@ -342,8 +475,10 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
         # §5 EGRESS BACKSTOP — the public methods already gate, but this is the one
         # function that actually talks to Graph. Re-checking here means a future method
         # that forgets the gate still cannot send (same 3-layer idea as platform_dial).
-        if not auto_send_allowed():
-            return auto_send_blocked(str(payload.get("to") or ""))
+        _to = str(payload.get("to") or "")
+        ok, reason = send_permitted(_to)
+        if not ok:
+            return auto_send_blocked(_to, "", reason)
 
         url = f"{self.base_url}/messages"
 
