@@ -38,7 +38,8 @@ A1_MODULES = (
 #: never drop this count — only CUTOVER_COMPLETE after verified bytes move.
 EXPECTED_BLOCKERS = 0
 # 2026-07-30: ops.owner_email_canary adds one narrowly-scoped CREATE entry.
-EXPECTED_ALLOWLIST_ENTRIES = 17
+# 2026-07-31: governance.mission_control adds 4 entries (ledger/missions/idem/file).
+EXPECTED_ALLOWLIST_ENTRIES = 21
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 
