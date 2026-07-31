@@ -27,6 +27,80 @@ def _corr(explicit: str | None = None) -> str:
     return (explicit or "").strip() or ("oc_" + uuid.uuid4().hex[:16])
 
 
+def prove_edge_receipt(
+    *,
+    actor: str = "mission-control-probe",
+    command: str = "platform.status",
+) -> dict[str, Any]:
+    """Run one real GREEN Owner-Copilot command and return a durable receipt.
+
+    This proves the in-process OpenClaw → Owner OS edge is callable. It is NOT
+    an external OpenClaw Gateway session mint (LeadGen is inbound-only). The
+    returned ``session_id`` is the live ``correlation_id`` / ``command_id`` from
+    the executed handler — never a fabricated UUID.
+    """
+    from app.integrations.openclaw.policies import openclaw_enabled
+
+    if not openclaw_enabled():
+        return {
+            "status": "flag_off",
+            "session_id": None,
+            "available": False,
+            "note": "OPENCLAW_ENABLED off — edge not armed",
+        }
+    # Prefer mission.executors when registered (read-only), else platform.status.
+    preferred = command
+    try:
+        from app.integrations.openclaw import commands as cmd_mod
+
+        if preferred not in cmd_mod.HANDLERS and "platform.status" in cmd_mod.HANDLERS:
+            preferred = "platform.status"
+        elif preferred not in cmd_mod.HANDLERS and "mission.executors" in cmd_mod.HANDLERS:
+            preferred = "mission.executors"
+    except Exception:
+        preferred = "platform.status"
+
+    out = run_via_owner_os(
+        preferred,
+        {},
+        actor=actor,
+        idempotency_key=None,  # probe must mint a fresh receipt each time
+        confirm=False,
+    )
+    ok = bool(out.get("ok")) and str(out.get("status") or "") == "SUCCEEDED"
+    session_id = None
+    if ok:
+        session_id = str(out.get("correlation_id") or out.get("command_id") or "").strip() or None
+    if ok and session_id:
+        return {
+            "status": "available",
+            "session_id": session_id,
+            "available": True,
+            "command": preferred,
+            "command_id": out.get("command_id"),
+            "correlation_id": out.get("correlation_id"),
+            "verified": bool(out.get("verified")),
+            "safety_lane": out.get("safety_lane") or "GREEN",
+            "note": (
+                "In-process Owner-Copilot GREEN receipt "
+                "(not an external OpenClaw Gateway session)"
+            ),
+            "receipt": {
+                "status": out.get("status"),
+                "next_action": out.get("next_action"),
+            },
+        }
+    return {
+        "status": "flag_on_no_session" if openclaw_enabled() else "flag_off",
+        "session_id": None,
+        "available": False,
+        "command": preferred,
+        "error": out.get("error") or out.get("status"),
+        "note": "GREEN handler did not return SUCCEEDED receipt",
+        "receipt": {"status": out.get("status"), "error": out.get("error")},
+    }
+
+
 def _idem_get(key: str | None) -> dict[str, Any] | None:
     if not key:
         return None
