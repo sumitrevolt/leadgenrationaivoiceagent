@@ -48,6 +48,7 @@ _STORE_HINTS: tuple[tuple[re.Pattern[str], str], ...] = (
     (re.compile(r"recording|transcript"), "artifacts.call_recordings"),
     (re.compile(r"ollama|u2net|fastembed|model"), "cache.ml_models"),
     (re.compile(r"owner_os"), "governance.owner_os"),
+    (re.compile(r"mission_control"), "governance.mission_control"),
     (re.compile(r"autopilot|tick"), "automation.autopilot_tick"),
 )
 
