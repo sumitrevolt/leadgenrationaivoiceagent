@@ -2,27 +2,27 @@
 
 ---
 
-## WS-1 PR #189 blueprint + matrix — DONE (merged+deployed)
+## WS-1 Mission Control + Core Marketing launch - ACTIVE
 - **ID:** WS-1
-- **Outcome:** Blueprint L1 registry + readiness **matrix document** are production-proven at `7a280fdb`. **Automation Max itself is NOT fully launch-proven** — inert/code-present engines remain OFF.
-- **Evidence:** CI green @ `00faaa42`; merge `7a280fdb`; `DEPLOYED 7a280fdb OK`; `/health=7a280fdb`; 5/5 parity
-- **Next:** none
-- **Out of scope:** flag flips
+- **Business outcome:** Chat-first mission packets + revenue launch without 24h soak blocker
+- **Current state:** Code in worktree `lg-mission-launch` branch `feat/mission-control-revenue-launch`; soak cancelled; durable idempotency index; AMBER parked from chat; executors honest (no fake sessions)
+- **Next exact action:** Commit → PR → CI → merge → `deploy_vps.sh <sha>` → 20m burn-in
+- **Out of scope:** WA auto · dial · reply-auto · UPI auto · SI loop · Swara/voice
 
 ---
 
-## WS-2 Revenue canary — OWNER ACTION
+## WS-2 GTM Hot Queue → 2nd paid customer - ACTIVE
 - **ID:** WS-2
-- **Outcome:** 2nd Marketing paid customer
-- **Current:** Owner-email canary preflight route live (401 unauth); Estique 1-click pending human
-- **Next:** Owner inbox canary send + Estique decision
-- **Out of scope:** bulk email · WA auto · dial
+- **Business outcome:** Second Marketing paid customer
+- **Current state:** Estique packet ready; human 1-click send
+- **Next exact action:** Owner send decision
+- **Out of scope:** cold auto-calls · bulk WA
 
 ---
 
-## WS-3 Safe readiness surfaces — READY (inert)
+## WS-3 External Agent Runner v1 - PARKED
 - **ID:** WS-3
-- **Outcome:** Video/voice/research/approvals prep without customer mutation
-- **Current:** Video production ON / social publish OFF; web-call config 200; dial HARD OFF; Deep Research CODE-PRESENT flag UNSET; approvals_bridge = Approval Manager (not 32nd agent)
-- **Next:** Owner dogfood browser web-call; optional DEEP_RESEARCH only if SearXNG already SET (it is) + explicit yes
-- **Out of scope:** publish · outbound dial · auto-send
+- **Business outcome:** Unattended GREEN Cursor→Claude with lease/heartbeat
+- **Current state:** Draft on separate worktree; not this launch lane
+- **Next exact action:** Owner decision after Core Marketing launch
+- **Out of scope:** prod runner enable · calling
