@@ -130,6 +130,10 @@ def test_configured_but_not_selected_stays_cloud(monkeypatch):
 def test_send_text_happy_path(monkeypatch):
     monkeypatch.setattr(wahost.httpx, "AsyncClient", _FakeClient)
     monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    # 2026-07-31: sends are gated at the sender boundary by the §5 WHATSAPP_AUTO_SEND
+    # gate. This test covers WIRE FORMAT, so arm the flag explicitly. The gate's own
+    # behaviour lives in tests/test_whatsapp_auto_send_gate.py.
+    monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")
     res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("9876543210", "hello"))
     assert (res.get("messages") or [{}])[0].get("id") == "wamid.SELFHOST"
     assert res.get("delivery_status") == "accepted"
@@ -153,6 +157,7 @@ def test_unregistered_recipient_is_blocked_before_send(monkeypatch):
     client = _RecipientMissingClient()
     monkeypatch.setattr(wahost.httpx, "AsyncClient", lambda *a, **k: client)
     monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")  # §5 boundary gate — see happy-path note
     res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("9876543210", "hello"))
     assert res["error"] == "recipient_not_on_whatsapp"
     assert res["status"] == "blocked"
@@ -212,6 +217,7 @@ def test_selfhost_inherits_notification_helpers(monkeypatch):
     # Mixin gives the self-host client the same lead-alert/report surface as Cloud API.
     monkeypatch.setattr(wahost.httpx, "AsyncClient", _FakeClient)
     monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
+    monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")  # §5 boundary gate — see happy-path note
     sh = wahost.SelfHostWhatsApp()
     assert hasattr(sh, "send_lead_alert") and hasattr(sh, "send_daily_report")
     res = asyncio.run(sh.send_lead_alert("919999999999", {"company_name": "Acme"}))
@@ -380,6 +386,7 @@ def test_recipient_not_on_whatsapp_is_not_an_integration_failure(monkeypatch):
     monkeypatch.setattr(wahost, "_record_whatsapp_failure", lambda note="": recorded.append(note))
     monkeypatch.setenv("WAHA_BASE_URL", "http://waha:3000")
     monkeypatch.setenv("WHATSAPP_ENFORCE_BUSINESS_NUMBER", "0")
+    monkeypatch.setenv("WHATSAPP_AUTO_SEND", "1")  # §5 boundary gate — see happy-path note
 
     async def _fake_check(_self, _to):
         return {"known": True, "exists": False, "reason": "recipient_not_on_whatsapp"}
