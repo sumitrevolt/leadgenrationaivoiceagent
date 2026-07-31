@@ -265,6 +265,10 @@ JOB_INFO: dict[str, dict[str, str]] = {
         "label": "Sales Autopilot canary (hourly :25)",
         "kya": "Policy-driven sales tick — dry-run default, calling HARD OFF, INERT jab SALES_AUTOPILOT_ENABLED off",
     },
+    "task_lease_reap": {
+        "label": "Agent-task lease close-out (hourly :05)",
+        "kya": "Jo agent-task apne worker ke marne se claimed/running me atak gaya use terminally failed mark karta hai (re-assign human karta hai, auto-retry NAHI). INERT jab AGENT_TASK_LEASE_REAP off",
+    },
 }
 
 # Important flags jo OFF hon to admin ko batana chahiye (flag -> Hinglish reason).

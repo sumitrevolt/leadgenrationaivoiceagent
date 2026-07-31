@@ -63,8 +63,41 @@ Regression test: `test_a_reaped_task_cannot_be_reclaimed_or_overwritten`.
 
 "Surface, don't auto-fix" **remains the default**: the reclaim is gated by
 `AGENT_TASK_LEASE_REAP` (unset ⇒ INERT) and wired as scheduler job `task_lease_reap` at
-hourly `:05` — an unoccupied slot. Registered in `AUTOMATION_FLAGS` and in
-`automation_health`'s cadence map with a 3h grace, matching `meter_watch`/`social_drain`.
+hourly `:05`.
+
+### Adding a scheduled job means SIX registries, not one
+
+The first draft registered three and was wrong. Independent review caught `JOB_META`; comparing
+against `social_drain`/`sales_autopilot` then caught two more. Locked in by
+`test_job_is_registered_in_every_registry` so this cannot silently regress:
+
+| Registry | File | Consequence if missing |
+|---|---|---|
+| `STAFF_JOBS` | `app/tasks/staff_jobs.py` | Celery `run_staff_job` won't dispatch it; DLQ retry can't parse it |
+| `beat_schedule` | `app/worker.py` | **Job never fires in production** — see below |
+| `_last_ran` + dispatch + trigger | `app/platform/team_scheduler.py` | In-process scheduler can't run it |
+| `JOB_META` | `app/platform/scheduler_config.py` | `set_enabled`/`run_now`/`list_jobs` reject it as `unknown job` → no admin pause button, no manual run, no dashboard row; and `run_due()` recovery filters on it, so a dead `scheduler_loop` is never caught up |
+| `EXPECTED_GAP_MIN` | `app/platform/automation_health.py` | No dead-man overdue detection |
+| `JOB_INFO` | `app/platform/today_overview.py` | Admin "Aaj" view has no Hinglish label (guarded by `test_job_info_covers_every_scheduled_job`) |
+
+Plus the flag itself in `AUTOMATION_FLAGS`.
+
+**The serious one was `beat_schedule`.** Production runs `celery -A app.worker beat` with
+`RUN_IN_PROCESS_SCHEDULER=0` in **both** `app` and `scheduler` (verified by `docker inspect` +
+`printenv` on the live host, 2026-07-31). The in-process `scheduler_loop` where the `:05`
+trigger lives therefore **never executes in production**. Had this shipped as drafted, the job
+would have been dead in prod while every dashboard reported it registered — precisely the fault
+`call_kpi_digest` hit ("was in-process-only → dead on Celery topology", audit 2026-07-04). Both
+paths are now wired.
+
+Deliberately NOT added to `RUN_DUE_EXCLUDE`: the job is light, idempotent and sends nothing, so
+recovery auto-enqueue is desirable.
+
+Correction to an earlier draft of this ADR: `:05` is **not** an unoccupied slot — `ops` already
+triggers on the same `now.minute >= 5` condition (`team_scheduler.py:1435`). That is not a
+collision; both are awaited sequentially inside one tick, which is the established pattern here
+(`reply_triage` and `product_one_health` likewise share `>= 20`). The original claim was simply
+wrong and is corrected so nobody relies on it.
 
 ### 2. Coordinator consults the budget governor
 
@@ -120,10 +153,19 @@ This is INERT by construction: `check()` short-circuits to `allowed=True` while
 
 ## Evidence
 
-- `pytest tests/test_agent_task_lease_reap.py tests/test_coordinator_budget_gate.py -q` → **12 passed**
-- Related regression (coordinator + harness-coordinator + 6 scheduler + 2 automation_health +
-  office_hq + sales_autopilot_scheduler) → **242 passed, 13 weekday-skips, 0 failed**
+Measured on base `dfaac8e8` (= `origin/main`). An earlier lane reported "242 passed" against
+`ff949ae`, which is **4 commits behind** main; that number was discarded, not carried forward.
+
+- Focused + regression, 17 suites → **275 passed, 9 skipped, 0 failed**
 - `scripts/prod_check.py` → `ALL CHECKS PASSED`, 1216 routes, automation 0 gaps
 - `scripts/check_secrets.py` → `no secrets detected`
-- `ruff check` on all 7 touched files → clean
-- `git diff --stat` → 5 files, **132 insertions, 0 deletions**, no route decorators added
+- `ruff check` on every touched file → clean
+- Pre-commit (black/isort/ruff/bandit/detect-secrets) → all green
+- No route decorators added
+
+**One full-suite failure, proven pre-existing, NOT a regression from this change:**
+`tests/test_owner_email_canary.py::test_cross_process_os_lock_blocks_second_claim` fails
+identically on a clean `dfaac8e8` worktree with none of this change applied. It spawns a child
+process that must re-import the app and signal readiness within 10s; app import alone takes
+~9-15s on this Windows machine, so the deadline is marginal here. Baseline evidence was
+produced by re-running the same node on a detached clean checkout — not by assuming.
