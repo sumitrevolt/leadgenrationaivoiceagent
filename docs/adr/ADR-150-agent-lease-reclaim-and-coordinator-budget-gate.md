@@ -134,8 +134,22 @@ This is INERT by construction: `check()` short-circuits to `allowed=True` while
 
 ## Consequences
 
-- Nothing changes in production until the owner sets `AGENT_TASK_LEASE_REAP=1` (and,
-  separately, `AGENT_BUDGET_ENABLED=1` for the budget gate to bite).
+- **What actually changes on deploy — the honest version.** An earlier draft of this ADR said
+  the release was "a behavioural no-op by construction". That is **wrong** and is retracted.
+  Adding `staff-task-lease-reap-hourly` to `beat_schedule` means production dispatches one
+  Celery task per hour **regardless of the flag**, and `_run_job`'s `finally` block writes an
+  `automation_health.record_run` heartbeat and an `automation_log_service.log_event` row on
+  every invocation, *before* the flag is ever consulted. So the deploy adds: one hourly task,
+  one heartbeat, one AutomationLog row. What is INERT is the **reaping behaviour** — no row in
+  `agent_tasks` is read or written while `AGENT_TASK_LEASE_REAP` is unset.
+  This is the established convention for a gated job here (`obsidian_push` is documented the
+  same way: "`_run_job` heartbeats daily; job body no-ops unless `OBSIDIAN_SYNC=1`"), and the
+  hourly heartbeat is what keeps `EXPECTED_GAP_MIN=180` satisfied so the dead-man does not
+  false-page for a deliberately-off job. But "adds an hourly no-op tick and its bookkeeping" is
+  the accurate claim, not "changes nothing".
+- The coordinator budget gate **is** a true no-op until `AGENT_BUDGET_ENABLED=1`: `check()`
+  returns at `agent_budget.py:117` before any file or Redis access.
+- Reaping behaviour changes in production only when the owner sets `AGENT_TASK_LEASE_REAP=1`.
 - When armed, a dead worker's task is resolved as `failed` with a stated reason instead of
   sitting in `claimed` forever, so the Office HQ stuck-count becomes an actionable work list
   rather than a monotonically growing number. It does **not** auto-retry; re-assignment is

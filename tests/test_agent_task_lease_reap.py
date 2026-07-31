@@ -180,7 +180,7 @@ async def test_never_raises_when_the_db_is_unavailable(monkeypatch):
 
 
 def test_job_is_registered_in_every_registry():
-    """A scheduled job must land in FIVE registries here, not one.
+    """A scheduled job must land in SIX registries here, not one.
 
     Review of this PR caught it missing from `JOB_META`, and comparing against
     `sales_autopilot`/`social_drain` then caught it missing from `STAFF_JOBS` and the Celery
@@ -188,8 +188,12 @@ def test_job_is_registered_in_every_registry():
     `celery -A app.worker beat` with `RUN_IN_PROCESS_SCHEDULER=0`, so a job wired ONLY into
     `team_scheduler.scheduler_loop` never fires in prod — exactly the fault `call_kpi_digest`
     hit (audit 2026-07-04). This test exists so the next person cannot repeat it.
+
+    `JOB_INFO` is asserted here too. It is *also* covered transitively by
+    `test_today_overview.py::test_job_info_covers_every_scheduled_job`, but a reader of this
+    test should not have to know that to trust the name on the tin.
     """
-    from app.platform import automation_health, scheduler_config, team_scheduler
+    from app.platform import automation_health, scheduler_config, team_scheduler, today_overview
     from app.tasks.staff_jobs import STAFF_JOBS
     from app.worker import celery_app
 
@@ -197,11 +201,15 @@ def test_job_is_registered_in_every_registry():
     assert "task_lease_reap" in scheduler_config.JOB_META
     assert "task_lease_reap" in team_scheduler._last_ran
     assert "task_lease_reap" in automation_health.EXPECTED_GAP_MIN
-    # Light, idempotent, sends nothing → recovery SHOULD be allowed to catch it up.
+    assert "task_lease_reap" in today_overview.JOB_INFO
+    # Light, idempotent (optimistic-lock update → a re-reap of the same row is a no-op), and
+    # sends nothing → recovery SHOULD be allowed to catch it up.
     assert "task_lease_reap" not in scheduler_config.RUN_DUE_EXCLUDE
 
     beat = celery_app.conf.beat_schedule
     assert "staff-task-lease-reap-hourly" in beat
+    # A bare ("task_lease_reap") would be a plain string, not a 1-tuple, and would pass the
+    # wrong args to run_staff_job. Assert the tuple, not just presence.
     assert beat["staff-task-lease-reap-hourly"]["args"] == ("task_lease_reap",)
 
 
