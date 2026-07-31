@@ -1,27 +1,21 @@
 # SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-Continue from WAIT: finish PR #189 CI→merge→deploy; safe readiness prep; owner action packet.
+Safe production launch canary — Core Marketing live + authorized simulation flags; hard-offs preserved.
 
-## Outcome — WAIT (owner boundaries remain)
-- **PR #189 MERGED + DEPLOYED** (production-proven) `7a280fdb4cbd895247ddd8aab70bbebd56f552f6` from head `00faaa42`.
-- **Automation Max is NOT fully launch-proven.** Matrix + blueprint L1 drift repair are on prod; sales_autopilot / Creative OS / Deep Research / owner-email engine stay CODE-PRESENT or INERT where applicable. Protected automation remains OFF.
-- DIRECT_HOST_VERIFIED: `/health.version=7a280fdb`, 5/5 `:7a280fdb` healthy, celery/DLQ=0, blueprint_public=200, owner-email preflight=401, web-call config=200.
-- Matrix 32 rows; blueprint L0=48 / L1=8 / L2=1 = 57 (registered ≠ activated).
-- Claude #189 P2 (matrix “NOT implemented” contradiction) was fixed on head `00faaa42` before merge.
+## Outcome — IN PROGRESS / WAIT soak
+- Runtime before canary recreate: `ff949ae3` healthy, activation GO, 5/5 parity, queues/DLQ=0
+- Added `scripts/vps_enable_safe_launch_canary.py` (+ tests); Automation-Max now forces `SELF_IMPROVE_LOOP=0`
+- Authorized canary (after pin-safe recreate): `SALES_AUTOPILOT_ENABLED=1`+`DRY_RUN=1`, `CREATIVE_OS_ENABLED=1` (GPU/Comfy=0), `AGENT_RUNTIME=1`, `SELF_IMPROVE_LOOP=0`
+- HARD OFF held: dial · WA auto · reply-auto · cold email · UPI auto · sales live channels · video social publish
+- Gaps (owner/ops): Postiz container absent → `postiz.leadsgenai.in` 502; WAHA session FAILED earlier; Vobiz balance timeout (dial OFF)
 
-## Head
-- Prod / origin/main: `7a280fdb`
-- Rollback: `58a3b70c` (prior rate-limit ship)
+## Verdict target
+**WAIT** — Core Marketing launch live after canary arm; stability soak clock resets on flag recreate. Not false PRODUCTION READY until 24h clean soak.
 
-## Safety (unchanged / protected)
-PLATFORM_DIAL_DAILY=0 · WHATSAPP_AUTO_SEND=0 · UPI_AUTO_ACTIVATE=0 · AUTO_EMAIL_OUTREACH=0 · SALES_AUTOPILOT_* unset · CREATIVE_OS unset · DEEP_RESEARCH unset · VIDEO_SOCIAL_PUBLISH=0 (VIDEO_PRODUCTION_ENABLED=1 already on disk — publish still OFF)
+## Head / Prod
+- Branch: `ops/safe-launch-canary-20260731`
+- Prod baseline: `ff949ae3` (pin for recreate)
 
-## Owner Action Packet (no passwords)
-1. Super-admin UI: type **your inbox** into Owner Email Canary → preflight → exactly ONE send (double-confirm). Transport: BREVO+SMTP present; Resend unset.
-2. Estique Hot Queue **1-click human send** decision.
-3. Jiya video-review login (customer review flag still owner).
-4. Optional: browser web-call dogfood (no dial). Inbound voice only if consented DID path; dial stays HARD OFF.
-
-## Next automated action
-None until owner completes #1 or #2. Do not flip protected flags.
+## Safety
+No live outbound · no dial · no WA auto · no UPI auto-activate · Swara/Voice frozen

@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-07-31 (Safe Launch canary — Core Marketing)
+Goal: Complete safe production launch within authorized canary gates; hard-offs intact; soak-honest verdict.
+Inspected: prod `/health`+`/health/ready`+activation; 5-service parity `ff949ae3`; queues/DLQ; heartbeats; env shape; 24h logs; Postiz/WAHA/Vobiz; Automation-Max scripts.
+Problems Found: (1) Sales Autopilot / Creative OS / AGENT_RUNTIME canary not armed. (2) Automation-Max script would set `SELF_IMPROVE_LOOP=1` (containment conflict). (3) Postiz compose present but container none → 502. (4) WAHA session FAILED in worker logs. (5) Vobiz get_balance ConnectTimeout (dial OFF). (6) Sentry `_IncludedRouter.path` secondary noise.
+Changed: +`scripts/vps_enable_safe_launch_canary.py`; Automation-Max `SELF_IMPROVE_LOOP=0`; +`tests/test_safe_launch_canary_flags_script.py`; SESSION_HANDOFF.
+Tests Run: pytest safe-launch+automation-max scripts → 17 passed; `prod_check` ALL PASSED; `check_secrets` OK.
+Verification Evidence: pre-canary `/health=ff949ae3` healthy; activation blocker_count=0; money paths 200; `/app/admin`+`/app/automation` 200.
+Risks: Flag recreate resets soak; Postiz/WAHA owner ops; no live outbound by design.
+Remaining: pin-safe canary arm on VPS; CI merge; 24h soak; owner Estique/email canary/Jiya video-review.
+Next Highest Priority: Arm canary flags with APP_VERSION pin; do not enable live-send/dial.
+
+## Loop Run
 Date: 2026-07-30 (PR #189 CI→merge→deploy + readiness prep)
 Goal: Finish WAIT state — exact-head CI for #189, merge, classify deploy, prove prod, owner packet.
 Inspected: PR #189 head `00faaa42` files (blueprint_detail_nodes + matrix + tests + context); required GH checks; VPS deploy path; owner-email/video/voice/deep-research/approvals_bridge.
