@@ -116,6 +116,15 @@ def _clean_env(monkeypatch):
     # leak the business-number guard's verdict between tests.
     wahost._LINKED_CACHE["digits"] = None
     wahost._LINKED_CACHE["at"] = 0.0
+    # auto_send_enabled() short-circuits on the Owner-OS kill switch BEFORE it reads
+    # the env var, and that switch lives in an on-disk store this fixture would
+    # otherwise leave ambient. Pin it OFF so the flag is provably the deciding input:
+    # if someone engaged the kill locally or in CI, every "flag ON" test below would
+    # go red and read as "the gate is broken" when nothing is. The kill switch's own
+    # behaviour is asserted separately in test_owner_kill_switch_blocks_even_when_flag_on.
+    from app.platform import owner_os
+
+    monkeypatch.setattr(owner_os, "kill_engaged", lambda _name: False, raising=False)
     yield
 
 
@@ -251,6 +260,23 @@ def test_blocked_result_carries_an_error_key_and_a_1click_link():
     assert res["mode"] == "link"
     assert res["link"].startswith("https://wa.me/919876543210?text=")
     assert not (bool(res) and not res.get("error"))
+
+
+def test_owner_kill_switch_blocks_even_when_flag_on(monkeypatch):
+    """The boundary gate delegates to whatsapp_campaign.auto_send_enabled(), which
+    short-circuits on the Owner-OS `owner_whatsapp_outbound` kill BEFORE reading the
+    env var. Assert the delegation really carries that authority through — otherwise
+    the owner's kill switch would stop campaigns but not the boundary."""
+    from app.platform import owner_os
+
+    monkeypatch.setattr(owner_os, "kill_engaged", lambda name: name == "owner_whatsapp_outbound")
+    rec = _Recorder()
+    _arm_selfhost(monkeypatch, rec, auto_send=True)  # flag explicitly ON
+
+    res = asyncio.run(wahost.SelfHostWhatsApp().send_text_message("919876543210", "hi"))
+
+    assert res["error"] == "auto_send_disabled"
+    assert rec.calls == []
 
 
 def test_gate_fails_closed_when_unreadable(monkeypatch):
