@@ -15,6 +15,7 @@ MISSION_GREEN = frozenset(
         "mission.income_today",
         "mission.chat",
         "mission.executors",
+        "mission.dispatch_ops",
     }
 )
 
@@ -53,6 +54,40 @@ def _mission_executors(
         "result": mc.probe_executors(),
         "evidence": {"correlation_id": correlation_id, "actor": actor},
         "next_action": "Unavailable adapters implement karo ya lane manual mark karo",
+    }
+
+
+def _mission_dispatch_ops(
+    params: dict[str, Any], *, actor: str, correlation_id: str
+) -> dict[str, Any]:
+    from app.platform import mission_control as mc
+
+    mid = str(params.get("mission_id") or "").strip()
+    if not mid:
+        return {
+            "status": "FAILED",
+            "verified": True,
+            "result": {"ok": False, "error": "mission_id_required"},
+            "evidence": {"correlation_id": correlation_id, "actor": actor},
+            "next_action": "mission_id pass karo (income-today create ke baad)",
+        }
+    out = mc.dispatch_openclaw_lane(
+        mid,
+        actor=actor,
+        wa_limit=int(params.get("wa_limit") or 5),
+        prep_limit=int(params.get("prep_limit") or 10),
+    )
+    return {
+        "status": "SUCCEEDED" if out.get("ok") else "FAILED",
+        "verified": True,
+        "result": out,
+        "evidence": {
+            "correlation_id": correlation_id,
+            "actor": actor,
+            "session_id": out.get("session_id"),
+        },
+        "command_id": out.get("session_id") or f"ocmd_{correlation_id[-12:]}",
+        "next_action": "Owner approval inbox me drafts review/send; RED flags OFF",
     }
 
 
@@ -170,6 +205,7 @@ def _mission_rollback(params: dict[str, Any], *, actor: str, correlation_id: str
 MISSION_HANDLERS = {
     "mission.status": _mission_status,
     "mission.executors": _mission_executors,
+    "mission.dispatch_ops": _mission_dispatch_ops,
     "mission.launch_ready": _mission_launch_ready,
     "mission.revenue_ready": _mission_revenue_ready,
     "mission.income_today": _mission_income_today,
