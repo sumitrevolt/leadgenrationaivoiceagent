@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1196 operations)
+## Endpoint Index — auto-generated from OpenAPI (1240 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -338,7 +338,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/db/table/{name}/export.csv` — Export one table to CSV (read-only, capped, redacted)
 - `GET   ` `/api/admin/db/tables` — List all DB tables (read-only explorer)
 
-### Admin Dashboard  (21)
+### Admin Dashboard  (22)
 
 - `GET   ` `/api/admin/activity-feed` — Get Activity Feed
 - `GET   ` `/api/admin/agents` — Admin Agents
@@ -353,6 +353,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/delivery-assurance` — Admin Delivery Assurance
 - `GET   ` `/api/admin/delivery-cockpit` — Admin Delivery Cockpit
 - `GET   ` `/api/admin/delivery-logs` — Admin Delivery Logs
+- `GET   ` `/api/admin/entitlement-assurance` — Admin Entitlement Assurance
 - `GET   ` `/api/admin/hourly-activity` — Get Hourly Activity
 - `GET   ` `/api/admin/live-stats` — Get Live Stats
 - `GET   ` `/api/admin/ops-snapshot` — Get Ops Snapshot
@@ -469,6 +470,14 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/billing/webhook` — Unified Payment Webhook
 - `POST  ` `/api/billing/webhooks/stripe` — Stripe Webhook
 
+### Blueprint  (5)
+
+- `GET   ` `/api/blueprint/graph` — Blueprint Graph
+- `GET   ` `/api/blueprint/meta` — Blueprint Meta
+- `GET   ` `/api/blueprint/public` — Blueprint Public
+- `GET   ` `/api/blueprint/trace` — Blueprint Trace
+- `GET   ` `/api/blueprint/validate` — Blueprint Validate
+
 ### Booking  (3)
 
 - `POST  ` `/api/booking/book` — Book Slot
@@ -523,12 +532,19 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/clientcrm/wishes/drafts` — Wishes Drafts
 - `POST  ` `/api/clientcrm/wishes/run` — Wishes Run
 
-### ClientOps  (24)
+### ClientOps  (31)
 
 - `POST  ` `/api/clientops/approval` — Submit Approval
 - `GET   ` `/api/clientops/approvals` — List Approvals
 - `POST  ` `/api/clientops/approvals/{approval_id}/decide` — Admin Decide Approval
 - `GET   ` `/api/clientops/approve/{token}` — Public Approve
+- `POST  ` `/api/clientops/creative-os/generate` — Creative Os Generate
+- `GET   ` `/api/clientops/creative-os/ops` — Creative Os Ops
+- `POST  ` `/api/clientops/creative-os/{creative_id}/approve` — Creative Os Approve
+- `POST  ` `/api/clientops/creative-os/{creative_id}/changes` — Creative Os Changes
+- `GET   ` `/api/clientops/creative-os/{creative_id}/customer-view` — Creative Os Customer View
+- `GET   ` `/api/clientops/creative-os/{creative_id}/publish-gate` — Creative Os Publish Gate
+- `POST  ` `/api/clientops/creative-os/{creative_id}/quarantine` — Creative Os Quarantine
 - `GET   ` `/api/clientops/p/{token}` — Proposal Open
 - `GET   ` `/api/clientops/proposal-views` — Proposal Views
 - `GET   ` `/api/clientops/routing` — Routing Get
@@ -623,7 +639,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/2fa/status` — Status
 - `POST  ` `/api/customer/2fa/verify` — Verify
 
-### Customer Dashboard  (36)
+### Customer Dashboard  (40)
 
 - `GET   ` `/api/customer/approvals/pending` — Customer Pending Approvals
 - `POST  ` `/api/customer/approvals/{approval_id}/council-decide` — Customer Approval Council Decide
@@ -631,6 +647,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/autopilot` — Customer Autopilot Drafts
 - `GET   ` `/api/customer/branded-feed` — Customer Branded Feed
 - `POST  ` `/api/customer/campaigns/generate-first-week` — Customer Generate First Week
+- `GET   ` `/api/customer/creative-os` — Customer Creative Os List
+- `POST  ` `/api/customer/creative-os/{creative_id}/feedback` — Customer Creative Os Feedback
+- `GET   ` `/api/customer/creative-os/{creative_id}/media` — Customer Creative Os Media
 - `GET   ` `/api/customer/creatives` — Customer Creatives
 - `GET   ` `/api/customer/dashboard` — Get Customer Dashboard
 - `POST  ` `/api/customer/dashboard/send-to-crm` — Send Dashboard Leads To Crm
@@ -659,6 +678,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/customer/videos` — Customer Videos List
 - `POST  ` `/api/customer/videos/{video_ad_id}/feedback` — Customer Video Feedback
 - `GET   ` `/api/customer/videos/{video_ad_id}/media` — Customer Video Media
+- `GET   ` `/api/customer/videos/{video_ad_id}/preview` — Customer Video Preview
 - `POST  ` `/api/customer/voice/call-queue` — Customer Voice Call Queue
 - `GET   ` `/api/customer/voice/queue-status` — Customer Voice Queue Status
 
@@ -851,11 +871,26 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/research/deep/run` — Run
 - `GET   ` `/api/research/deep/status` — Status
 
-### Dev Task Control Plane  (19)
+### Dev Task Control Plane  (34)
 
 - `GET   ` `/api/dev-tasks` — List Tasks
 - `POST  ` `/api/dev-tasks` — Create Task
 - `POST  ` `/api/dev-tasks/claim-next` — Claim Next Task
+- `GET   ` `/api/dev-tasks/missions` — List Missions
+- `POST  ` `/api/dev-tasks/missions` — Create Mission
+- `POST  ` `/api/dev-tasks/missions/recover-stale` — Missions Recover Stale
+- `GET   ` `/api/dev-tasks/missions/status` — Missions Status
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/advance` — Mission Advance
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/cancel` — Mission Cancel
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/claim` — Mission Claim
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/heartbeat` — Mission Heartbeat
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/preflight` — Mission Preflight
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/result` — Mission Result
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/retry` — Mission Retry
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/review` — Mission Review
+- `GET   ` `/api/dev-tasks/missions/{mission_id}/rollback` — Mission Rollback
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/run-runner` — Mission Run Runner
+- `POST  ` `/api/dev-tasks/missions/{mission_id}/start` — Mission Start
 - `GET   ` `/api/dev-tasks/models` — List Models
 - `POST  ` `/api/dev-tasks/reconcile` — Reconcile
 - `POST  ` `/api/dev-tasks/route-preview` — Preview Route
@@ -1492,6 +1527,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/owner-copilot/nl` — Copilot Nl
 - `GET   ` `/api/owner-copilot/status` — Copilot Status
 
+### Owner Email Canary  (3)
+
+- `GET   ` `/api/admin/owner-email-canary/last` — Owner Email Canary Last
+- `GET   ` `/api/admin/owner-email-canary/preflight` — Owner Email Canary Preflight
+- `POST  ` `/api/admin/owner-email-canary/send` — Owner Email Canary Send
+
 ### Owner OS  (33)
 
 - `GET   ` `/api/admin/owner-os/agents` — Owner Agents
@@ -1597,6 +1638,17 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/seoops/rank/config` — Rank Config
 - `GET   ` `/api/seoops/rank/history` — Rank History
 - `POST  ` `/api/seoops/rank/run` — Rank Run
+
+### Sales Autopilot  (8)
+
+- `GET   ` `/api/sales-autopilot/attempts` — Attempts
+- `POST  ` `/api/sales-autopilot/eligibility/preview` — Eligibility Preview
+- `POST  ` `/api/sales-autopilot/inbound/classify` — Inbound Classify
+- `GET   ` `/api/sales-autopilot/policy` — Get Policy
+- `GET   ` `/api/sales-autopilot/prospects` — Prospects
+- `POST  ` `/api/sales-autopilot/run-canary` — Run Canary
+- `POST  ` `/api/sales-autopilot/seed-estique` — Seed Estique
+- `GET   ` `/api/sales-autopilot/summary` — Summary
 
 ### Segments  (6)
 
