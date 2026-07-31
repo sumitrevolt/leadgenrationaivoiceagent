@@ -401,6 +401,14 @@ try:
 except Exception:
     pass
 
+# --- Mission-control chat ingress (GREEN create/status + AMBER parked) ---
+try:
+    from app.integrations.openclaw.mission_commands import MISSION_HANDLERS
+
+    HANDLERS.update(MISSION_HANDLERS)
+except Exception:
+    pass
+
 
 def execute_typed_command(
     command: str,

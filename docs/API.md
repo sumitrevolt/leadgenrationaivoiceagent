@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1240 operations)
+## Endpoint Index — auto-generated from OpenAPI (1243 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1533,7 +1533,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/owner-email-canary/preflight` — Owner Email Canary Preflight
 - `POST  ` `/api/admin/owner-email-canary/send` — Owner Email Canary Send
 
-### Owner OS  (33)
+### Owner OS  (36)
 
 - `GET   ` `/api/admin/owner-os/agents` — Owner Agents
 - `GET   ` `/api/admin/owner-os/agents/{agent_id}` — Owner Agent Detail
@@ -1560,6 +1560,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/owner-os/inventory` — Owner Inventory
 - `GET   ` `/api/admin/owner-os/kill-switches` — Owner Kills
 - `POST  ` `/api/admin/owner-os/kill-switches` — Owner Set Kill
+- `GET   ` `/api/admin/owner-os/missions` — Owner Missions
+- `POST  ` `/api/admin/owner-os/missions/chat` — Owner Mission Chat
+- `GET   ` `/api/admin/owner-os/missions/{mission_id}` — Owner Mission One
 - `GET   ` `/api/admin/owner-os/routes` — Owner Route Matrix
 - `POST  ` `/api/admin/owner-os/routes/health-test` — Owner Route Health Test
 - `GET   ` `/api/admin/owner-os/runtime` — Owner Runtime Status
