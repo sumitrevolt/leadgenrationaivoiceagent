@@ -396,6 +396,47 @@ async def owner_runtime_status(user: User = Depends(require_admin)) -> dict[str,
     return out
 
 
+class MissionChatIn(BaseModel):
+    text: str = Field(..., min_length=2, max_length=500)
+    base_sha: str = Field("", max_length=64)
+    idempotency_key: str = Field("", max_length=80)
+    confirm: bool = False
+
+
+@router.get("/missions")
+async def owner_missions(user: User = Depends(require_admin)) -> dict[str, Any]:
+    """Chat-first mission control board (durable ledger; not a 32nd agent)."""
+    from app.platform import mission_control as mc
+
+    return mc.mission_status()
+
+
+@router.get("/missions/{mission_id}")
+async def owner_mission_one(mission_id: str, user: User = Depends(require_admin)) -> dict[str, Any]:
+    from app.platform import mission_control as mc
+
+    out = mc.mission_status(mission_id)
+    if not out.get("ok"):
+        raise HTTPException(status_code=404, detail=out.get("error") or "not_found")
+    return out
+
+
+@router.post("/missions/chat", dependencies=[Depends(rate_limit("owner_os", 30, 60))])
+async def owner_mission_chat(
+    body: MissionChatIn, user: User = Depends(require_admin)
+) -> dict[str, Any]:
+    """Short chat → durable mission packet. RED outbound cannot be armed here."""
+    from app.platform import mission_control as mc
+
+    return mc.handle_chat(
+        body.text,
+        actor=_actor(user),
+        base_sha=body.base_sha or None,
+        idempotency_key=body.idempotency_key or None,
+        confirm=body.confirm,
+    )
+
+
 @router.post(
     "/runtime/run",
     dependencies=[Depends(rate_limit("owner_os_runtime", 15, 60))],

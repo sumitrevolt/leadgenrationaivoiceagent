@@ -76,6 +76,15 @@ try:
 except Exception:
     pass
 
+# --- Mission-control chat ingress (GREEN observe/create + AMBER controls) ---
+try:
+    from app.integrations.openclaw.mission_commands import MISSION_AMBER, MISSION_GREEN
+
+    GREEN_COMMANDS = GREEN_COMMANDS | MISSION_GREEN
+    AMBER_COMMANDS = AMBER_COMMANDS | MISSION_AMBER
+except Exception:
+    pass
+
 # --- External Agent Orchestrator observe surface (additive GREEN only) ---
 try:
     from app.integrations.openclaw.external_agent_commands import EXTERNAL_AGENT_GREEN
