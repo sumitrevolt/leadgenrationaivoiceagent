@@ -378,6 +378,68 @@ ENTRIES: list[dict[str, Any]] = [
             "never enable AUTO_EMAIL_OUTREACH from this store."
         ),
     },
+    {
+        "allowlist_id": "governance.mission_control.ledger",
+        "file": "app/platform/mission_control.py",
+        "line_or_symbol": "_LEDGER",
+        "path_pattern": "data/mission_control/ledger.jsonl",
+        "store_id": "governance.mission_control",
+        "access_modes": ["APPEND", "CREATE", "READ"],
+        "reason": (
+            "Append-only mission/decision ledger for chat-first Owner OS control plane. "
+            "Chat history alone is not system state."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "governance",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Keep append-only + file_lock; never unlock RED outbound from this ledger; "
+            "idempotency_key required on create."
+        ),
+    },
+    {
+        "allowlist_id": "governance.mission_control.missions_dir",
+        "file": "app/platform/mission_control.py",
+        "line_or_symbol": "_MISSIONS",
+        "path_pattern": "data/mission_control/missions",
+        "store_id": "governance.mission_control",
+        "access_modes": ["CREATE", "READ"],
+        "reason": "Per-mission JSON packet directory under Owner OS mission control.",
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "governance",
+        "production_relevance": "LIVE",
+        "review_condition": "Mission files stay tenant/owner scoped; no fake executor session IDs.",
+    },
+    {
+        "allowlist_id": "governance.mission_control.idempotency",
+        "file": "app/platform/mission_control.py",
+        "line_or_symbol": "_IDEM_INDEX",
+        "path_pattern": "data/mission_control/idempotency_index.json",
+        "store_id": "governance.mission_control",
+        "access_modes": ["REWRITE", "CREATE", "READ"],
+        "reason": (
+            "Durable full-key idempotency index (not a scan-cap). Written under the "
+            "same ledger file_lock as mission create."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "governance",
+        "production_relevance": "LIVE",
+        "review_condition": "Index updates must stay inside ledger lock; no correlation_id auto-keys.",
+    },
+    {
+        "allowlist_id": "governance.mission_control.mission_file",
+        "file": "app/platform/mission_control.py",
+        "line_or_symbol": "path",
+        "path_pattern": "_MISSIONS / f'{mid}.json'",
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "governance",
+        "production_relevance": "LIVE",
+        "review_condition": "AMBER mutations require confirm=true; chat path must park AMBER.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]
