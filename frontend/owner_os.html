@@ -175,12 +175,16 @@ textarea{min-height:88px;resize:vertical}
       <div class="row" style="margin:8px 0; flex-wrap:wrap; gap:8px; align-items:center">
         <button class="btn sec" onclick="loadRuntime()">↻ Refresh</button>
         <button class="btn" onclick="runtimeKavya()">Run Kavya ops check (read-only)</button>
+        <button class="btn" onclick="runtimeSprint('dialer_sprint_prep',{limit:3})">Sprint: dialer prep briefs (read-only)</button>
+        <button class="btn" onclick="runtimeSprint('hot_wa_draft',{limit:5})">Sprint: Hot Queue WA drafts (draft-only)</button>
+        <button class="btn" onclick="runtimeSprint('job_heal_sweep',{max_jobs:3})">Sprint: job heal sweep (internal)</button>
         <label class="muted" for="rtTenant">Tenant</label>
         <input id="rtTenant" type="text" placeholder="ws3-canary (not Jiya for canary)" style="min-width:180px;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" autocomplete="off" />
         <label class="muted" for="rtTopic">Topic</label>
         <input id="rtTopic" type="text" placeholder="local business marketing" style="min-width:200px;padding:6px 8px;border-radius:6px;border:1px solid #334155;background:#0f172a;color:#e2e8f0" autocomplete="off" />
         <button class="btn ok" onclick="runtimeIsha()">Run Isha draft brief (draft-only)</button>
       </div>
+      <p class="muted" style="margin:0 0 8px">Sprint caps hosted under <b>kavya</b> (GREEN L0 read-only) — 31-agent invariant intact. Runtime gate <code>OPS_HEALTH_AGENT</code>; draft/brief only, no auto-send, <code>counts_contact=false</code>.</p>
       <p class="muted" style="margin:0 0 8px">Isha requires <code>tenant_id</code>. Empty tenant = client validation error. Output stays <code>published=false</code>.</p>
       <div id="rtAgents"></div>
       <h3 style="margin-top:12px">Runtime DLQ (last 20)</h3>
@@ -546,6 +550,16 @@ async function runtimeKavya(){
   const {body}=await api("/api/admin/owner-os/runtime/run",{method:"POST",body:JSON.stringify({agent_id:"kavya",action:"ops_health_check"})});
   const r=(body||{}).result||{};
   toast(r.status==="succeeded"?"Kavya check OK":(r.reason||r.status||"blocked/skipped"));
+  document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
+  loadRuntime();
+}
+async function runtimeSprint(action,payload){
+  const idem="ui-sprint-"+action+"-"+Date.now();
+  const {body}=await api("/api/admin/owner-os/runtime/run",{method:"POST",body:JSON.stringify({
+    agent_id:"kavya",action,payload:payload||{},idempotency_key:idem
+  })});
+  const r=(body||{}).result||{};
+  toast(r.status==="succeeded"?(r.output&&r.output.detail?r.output.detail:"Sprint OK"):(r.reason||r.status||"blocked/skipped"));
   document.getElementById("rtResult").textContent = JSON.stringify(body,null,2);
   loadRuntime();
 }
