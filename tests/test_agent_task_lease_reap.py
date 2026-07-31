@@ -179,6 +179,32 @@ async def test_never_raises_when_the_db_is_unavailable(monkeypatch):
     assert "error" in out
 
 
+def test_job_is_registered_in_every_registry():
+    """A scheduled job must land in FIVE registries here, not one.
+
+    Review of this PR caught it missing from `JOB_META`, and comparing against
+    `sales_autopilot`/`social_drain` then caught it missing from `STAFF_JOBS` and the Celery
+    beat schedule too. That second gap is the serious one: production runs
+    `celery -A app.worker beat` with `RUN_IN_PROCESS_SCHEDULER=0`, so a job wired ONLY into
+    `team_scheduler.scheduler_loop` never fires in prod — exactly the fault `call_kpi_digest`
+    hit (audit 2026-07-04). This test exists so the next person cannot repeat it.
+    """
+    from app.platform import automation_health, scheduler_config, team_scheduler
+    from app.tasks.staff_jobs import STAFF_JOBS
+    from app.worker import celery_app
+
+    assert "task_lease_reap" in STAFF_JOBS
+    assert "task_lease_reap" in scheduler_config.JOB_META
+    assert "task_lease_reap" in team_scheduler._last_ran
+    assert "task_lease_reap" in automation_health.EXPECTED_GAP_MIN
+    # Light, idempotent, sends nothing → recovery SHOULD be allowed to catch it up.
+    assert "task_lease_reap" not in scheduler_config.RUN_DUE_EXCLUDE
+
+    beat = celery_app.conf.beat_schedule
+    assert "staff-task-lease-reap-hourly" in beat
+    assert beat["staff-task-lease-reap-hourly"]["args"] == ("task_lease_reap",)
+
+
 def test_flag_is_inert_by_default(monkeypatch):
     monkeypatch.delenv("AGENT_TASK_LEASE_REAP", raising=False)
     assert atq.lease_reap_enabled() is False
