@@ -307,6 +307,15 @@ ACTIONS: dict[str, tuple[bool, str]] = {
     "voice_learn": (True, "real call transcripts analyze → voice lesson (brain consume, compound)"),
     "rescore_pipeline": (False, "DB leads rescore + hot-lead surface (Neha/Rohan, revenue)"),
     "cadence_sweep": (False, "omnichannel cadence due-steps advance (gated CADENCE_ENGINE)"),
+    "dialer_sprint_prep": (
+        False,
+        "untapped prospect phones ke human-dialer prep briefs (read-only)",
+    ),
+    "hot_wa_draft": (False, "Hot Queue warm leads ke WhatsApp reply drafts (draft-only, ban-safe)"),
+    "job_heal_sweep": (
+        False,
+        "stale scheduled-job heartbeats detect + bounded re-dispatch (reliability)",
+    ),
 }
 
 # funnel weakest-stage → preferred actions (deterministic bias)
@@ -324,6 +333,7 @@ _STAGE_ACTIONS = {
         "channel_experiments",
         "social_drafts",
         "cadence_sweep",
+        "dialer_sprint_prep",
     ],
     "inbound": ["seo_pages", "channel_experiments", "social_drafts"],
     "conversion": [
@@ -333,6 +343,8 @@ _STAGE_ACTIONS = {
         "voice_eval",
         "voice_learn",
         "rescore_pipeline",
+        "hot_wa_draft",
+        "dialer_sprint_prep",
     ],
     "retention": ["revenue_sweep", "content_pack"],
     "scale": [
@@ -341,6 +353,7 @@ _STAGE_ACTIONS = {
         "channel_experiments",
         "harvest_leads",
         "skill_sweep",
+        "job_heal_sweep",
     ],
 }
 
@@ -569,6 +582,30 @@ async def _execute(action: str, task: str) -> dict[str, Any]:
         return {
             "ok": True,
             "detail": f"cadence advanced={res.get('advanced', res.get('processed', res.get('count', 0)))}",
+        }
+    if action == "dialer_sprint_prep":
+        from app.agents import sprint_actions
+
+        res = await sprint_actions.dialer_sprint_prep(limit=3)
+        return {
+            "ok": bool(res.get("ok")),
+            "detail": f"dialer_prep={res.get('prepped', 0)} (untapped phones)",
+        }
+    if action == "hot_wa_draft":
+        from app.agents import sprint_actions
+
+        res = await sprint_actions.hot_wa_draft(limit=5)
+        return {
+            "ok": bool(res.get("ok")),
+            "detail": f"wa_drafts={res.get('drafted', 0)} skipped={res.get('skipped', 0)}",
+        }
+    if action == "job_heal_sweep":
+        from app.agents import sprint_actions
+
+        res = await sprint_actions.job_heal_sweep(max_jobs=3)
+        return {
+            "ok": bool(res.get("ok")),
+            "detail": f"overdue={len(res.get('overdue') or [])} started={len(res.get('started') or {})}",
         }
     return {"ok": False, "detail": f"unknown action '{action}'"}
 
