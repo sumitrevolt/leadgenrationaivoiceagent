@@ -39,7 +39,8 @@ A1_MODULES = (
 EXPECTED_BLOCKERS = 0
 # 2026-07-30: ops.owner_email_canary adds one narrowly-scoped CREATE entry.
 # 2026-07-31: governance.mission_control adds 4 entries (ledger/missions/idem/file).
-EXPECTED_ALLOWLIST_ENTRIES = 21
+# 2026-07-31: sales.prospects adds 5 entries (Prospect Score V2 backfill sidecar).
+EXPECTED_ALLOWLIST_ENTRIES = 26
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 
