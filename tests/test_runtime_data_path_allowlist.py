@@ -96,7 +96,7 @@ def test_dpdp_requests_entry_declares_the_atomic_replace(findings) -> None:
 def test_store_family_count_is_derived_not_typed() -> None:
     """I reported "4 store families" while listing five names.
 
-    The count must come from the data, and the names must reconcile with it —
+    The count must come from the data, and the names must reconcile with it â€”
     a summary that disagrees with its own list is how a wrong number survives
     a review.
     """
@@ -106,12 +106,13 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # 2026-07-27 +2 entries / +1 family for devcontrol.external_missions.
     # 2026-07-28 +5 entries / +2 families: the two external-mission call-site
     # entries (same family, previously undeclared modes) and the calling-safety
-    # writers this branch authored — telephony.voice_kill_switch (authority +
+    # writers this branch authored â€” telephony.voice_kill_switch (authority +
     # atomic temp) and telephony.call_recordings.
     # 2026-07-30 +1 entry / +1 family: ops.owner_email_canary (one-shot canary ledger).
     # 2026-07-31 +4 entries / +1 family: governance.mission_control (Owner OS chat missions).
-    assert len(entries) == 21
-    assert len(families) == 10, sorted(families)
+    # 2026-07-31 +5 entries / +1 family: sales.prospects (Prospect Score V2 backfill sidecar).
+    assert len(entries) == 26
+    assert len(families) == 11, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -124,11 +125,12 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "devcontrol.external_missions",
         "governance.mission_control",
         "ops.owner_email_canary",
+        "sales.prospects",
         "telephony.call_recordings",
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    assert len({f.split(".")[0] for f in families}) == 7
+    assert len({f.split(".")[0] for f in families}) == 8
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -209,8 +211,8 @@ def test_operation_mismatch_rejected(findings) -> None:
     """Declaring READ over code that appends must not pass.
 
     This check found real mismatches in the first draft of the shipped
-    allowlist — parent-directory CREATE calls that the entries had not
-    declared — which is precisely why it exists.
+    allowlist â€” parent-directory CREATE calls that the entries had not
+    declared â€” which is precisely why it exists.
     """
     narrow = _entry(allowlist_id="narrow", access_modes=["READ"])
     problems = al.validate([narrow], findings=findings)
@@ -259,7 +261,7 @@ def test_identity_store_is_jsonl_single_authority() -> None:
 def test_every_shipped_entry_binds_to_a_real_finding(findings) -> None:
     """The durable invariant: a declaration must describe detected code.
 
-    Text search alone is not evidence — a comment, docstring, error message or
+    Text search alone is not evidence â€” a comment, docstring, error message or
     dead constant satisfies it. That is exactly how `marketing_clients.json`
     survived: the module genuinely contains that substring, inside `.jsonl`.
     """
@@ -382,11 +384,11 @@ def test_store_manifest_still_validates() -> None:
     # devcontrol.external_missions (PR #147). It is a blocker because its root,
     # EXTERNAL_MISSION_DIR, defaults to data/external_missions INSIDE the
     # checkout. A8 (2026-07-29) moved the row to DUAL_READ_PRE_CUTOVER (writers
-    # follow the shared authority) but bytes have not moved — still a blocker.
+    # follow the shared authority) but bytes have not moved â€” still a blocker.
     # 2026-07-27, second evidence-backed edit: +4 calling-safety families
     # (23 -> 27, 17 -> 21). Each defaults inside the checkout, so each blocks.
     # A7 (2026-07-29): sales.prospects -> DUAL_READ_PRE_CUTOVER (code-only;
-    # ~20MB JSONL host cutover is a separate PR — blockers stay 21).
+    # ~20MB JSONL host cutover is a separate PR â€” blockers stay 21).
     # 2026-07-30: +1 ops.owner_email_canary (LEGACY_IN_CHECKOUT, non-blocker).
     # 2026-07-31: +1 governance.mission_control (LEGACY_IN_CHECKOUT, non-blocker).
     assert counts["unique_families"] == 29

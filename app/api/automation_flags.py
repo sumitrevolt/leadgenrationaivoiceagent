@@ -134,6 +134,7 @@ AUTOMATION_FLAGS = [
     "SALES_TEAM",
     "SELF_IMPROVE_LOOP",
     "LEAD_HARVESTER",
+    "PROSPECT_SCORE_V2",  # Prospect Score V2 (lead_scoring_v2) via prospect_lists._scorer_for — OFF default; V1 read path preserved (2026-07-31)
     "EMAIL_ENRICH_SWEEP",  # bounded Celery email-enrichment sweep over data/prospects.jsonl (app.tasks.scraping.email_enrichment_sweep, scraping queue) — INERT default; task no-ops when off
     "HARVEST_INGEST_VALIDATION",  # SERP-junk ingest gate (junk-title regex + websearch contact requirement) — ON default; =0 rollback (backlog 2026-07-05, platform_dial IVR root-enabler fix)
     "GTM_TARGETING",  # systematic City x Niche coverage matrix for the lead-harvester (gtm_targeting.py) — OFF default
