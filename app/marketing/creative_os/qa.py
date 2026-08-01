@@ -16,11 +16,17 @@ _PLACEHOLDER_RE = re.compile(
     re.I,
 )
 
-_ASPECT_DIMS = {
-    "9:16": (720, 1280),
-    "1:1": (1080, 1080),
-    "16:9": (1280, 720),
-    "4:5": (1080, 1350),
+# Every dimension pair that is a CORRECTLY-SHAPED render for an aspect ratio.
+# This gate only answers "is the frame the right shape?" — the deterministic
+# provider's 720x1280 and a HyperFrames 1080x1920 are both legitimately 9:16.
+# It deliberately does NOT decide "is this good enough to sell": the 1080 floor
+# for a customer deliverable lives in `enterprise_qa`, which is what keeps a
+# 720p draft out of the approvable path without failing it here.
+_ASPECT_DIMS: dict[str, tuple[tuple[int, int], ...]] = {
+    "9:16": ((720, 1280), (1080, 1920)),
+    "1:1": ((1080, 1080),),
+    "16:9": ((1280, 720), (1920, 1080)),
+    "4:5": ((1080, 1350),),
 }
 
 # Phase-1 blocking policy: only these severities fail the gate when result=failed
@@ -139,16 +145,20 @@ def run_qa(
                 )
             )
 
-        exp_w, exp_h = _ASPECT_DIMS.get(spec.aspect_ratio, (0, 0))
+        allowed_dims = _ASPECT_DIMS.get(spec.aspect_ratio, ())
         got_w = int(probe.get("width") or 0)
         got_h = int(probe.get("height") or 0)
-        if exp_w and exp_h:
+        if allowed_dims:
+            expected_str = " or ".join(f"{w}x{h}" for w, h in allowed_dims)
             checks.append(
                 _check(
                     "aspect_ratio",
-                    "passed" if (got_w, got_h) == (exp_w, exp_h) else "failed",
-                    detail=f"{got_w}x{got_h} vs {exp_w}x{exp_h}",
-                    evidence={"got": [got_w, got_h], "expected": [exp_w, exp_h]},
+                    "passed" if (got_w, got_h) in allowed_dims else "failed",
+                    detail=f"{got_w}x{got_h} vs {expected_str}",
+                    evidence={
+                        "got": [got_w, got_h],
+                        "allowed": [list(d) for d in allowed_dims],
+                    },
                 )
             )
 
