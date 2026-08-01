@@ -7,6 +7,22 @@ gateway (baileys/web get the number banned). Send helpers degrade gracefully —
 on any error they return a dict with an ``error`` key instead of raising, so
 background campaign runners never crash. Webhook payload signatures are verified
 with the Meta App Secret (``WHATSAPP_APP_SECRET``) via :func:`verify_meta_signature`.
+
+🚨 §5 BAN-SAFETY BOUNDARY GATE (2026-07-31)
+-------------------------------------------
+``WHATSAPP_AUTO_SEND`` is enforced HERE, at the sender boundary — not only in the
+campaign modules. Before this, only campaign-level callers
+(``whatsapp_campaign`` / ``review_engine`` / ``product_one_delivery``) consulted the
+flag, so any OTHER caller sent for real with nothing gating it. The hourly ``onboard``
+scheduler job was doing exactly that: ``onboarding._send_whatsapp`` →
+``get_whatsapp_sender().send_text_message`` → a live ``POST /api/sendText`` to every
+active client's ``contact_phone``, hourly, with no flag in the chain. Only a FAILED WAHA
+session was stopping real delivery.
+
+Every send now passes :func:`auto_send_allowed` (fail-CLOSED) and, when the gate is
+off, returns the :func:`auto_send_blocked` "would-send" result carrying a ban-safe
+1-click ``wa.me`` link instead of POSTing. New callers are therefore gated by DEFAULT
+rather than by each caller remembering.
 """
 
 from __future__ import annotations
@@ -16,6 +32,7 @@ import hmac
 import os
 from dataclasses import dataclass
 from typing import Any
+from urllib.parse import quote
 
 import httpx
 
@@ -47,6 +64,61 @@ def _record_whatsapp_success() -> None:
         integration_health.record_success("whatsapp")
     except Exception:
         pass
+
+
+# --------------------------------------------------------------------------- #
+# §5 ban-safety boundary gate — the single choke point every send passes through
+# --------------------------------------------------------------------------- #
+def _wa_link(to_number: str, message: str = "") -> str:
+    """Ban-safe 1-click ``wa.me`` link (a human taps Send). Always available, never raises."""
+    digits = "".join(c for c in str(to_number or "") if c.isdigit())
+    if len(digits) == 10:
+        digits = "91" + digits
+    elif digits.startswith("0"):
+        digits = "91" + digits[1:]
+    return f"https://wa.me/{digits}?text={quote(message or '')}"
+
+
+def auto_send_allowed() -> bool:
+    """§5 gate for EVERY automatic WhatsApp send. **Fail-CLOSED.**
+
+    Delegates to :func:`app.marketing.whatsapp_campaign.auto_send_enabled` so there is
+    exactly ONE definition of "auto-send is on" — that helper folds in both
+    ``WHATSAPP_AUTO_SEND`` and the Owner-OS ``owner_whatsapp_outbound`` kill switch.
+    Imported lazily (send-path idiom; also keeps ``integrations`` free of a marketing
+    import at module scope).
+
+    Unreadable gate == DENY. This is a compliance gate (§5 ban-safety), not a billing
+    meter — the fail-OPEN convention does not apply here.
+    """
+    try:
+        from app.marketing.whatsapp_campaign import auto_send_enabled
+
+        return bool(auto_send_enabled())
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.warning("whatsapp auto-send gate unreadable -> DENY: %s", exc)
+        return False
+
+
+def auto_send_blocked(
+    to_number: str, message: str = "", reason: str = "auto_send_disabled"
+) -> dict[str, Any]:
+    """The "would-send" result returned INSTEAD of POSTing when the gate is off.
+
+    Carries an ``error`` key on purpose: every caller in this repo detects success with
+    ``bool(res) and not res.get("error")`` (onboarding.py:215, reply_agent.py:1493,
+    whatsapp_campaign.py:162), so a shape without it would be read as a successful send.
+    NOT recorded as an integration failure — nothing is broken, the operator just has
+    auto-send off.
+    """
+    logger.info("whatsapp auto-send BLOCKED (%s) — 1-click link only (§5 ban-safety)", reason)
+    return {
+        "error": reason,
+        "status": "blocked",
+        "mode": "link",
+        "would_send": True,
+        "link": _wa_link(to_number, message),
+    }
 
 
 def verify_meta_signature(raw_body: bytes, signature_header: str | None) -> bool:
@@ -204,6 +276,10 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
             _record_whatsapp_failure("cloud_not_configured")
             return {"error": "whatsapp_not_configured"}
 
+        # §5 ban-safety gate — before ANY network call. Default OFF/INERT.
+        if not auto_send_allowed():
+            return auto_send_blocked(to_number, message)
+
         to_number = self._normalize_number(to_number)
 
         payload = {
@@ -227,6 +303,11 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
         if not self.token:
             _record_whatsapp_failure("cloud_not_configured")
             return {"error": "whatsapp_not_configured"}
+
+        # §5 ban-safety gate. Templates build their OWN payload and call _send_message
+        # directly, so gating send_text_message alone would leave this path open.
+        if not auto_send_allowed():
+            return auto_send_blocked(to_number, template_name)
 
         to_number = self._normalize_number(to_number)
 
@@ -258,6 +339,12 @@ class WhatsAppIntegration(WhatsAppMessageMixin):
         Returns the Graph API JSON on success, or ``{"error": ...}`` on failure
         (never raises) so background campaign runners stay crash-safe.
         """
+        # §5 EGRESS BACKSTOP — the public methods already gate, but this is the one
+        # function that actually talks to Graph. Re-checking here means a future method
+        # that forgets the gate still cannot send (same 3-layer idea as platform_dial).
+        if not auto_send_allowed():
+            return auto_send_blocked(str(payload.get("to") or ""))
+
         url = f"{self.base_url}/messages"
 
         headers = {"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"}
