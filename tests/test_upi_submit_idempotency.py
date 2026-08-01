@@ -89,6 +89,7 @@ def test_submit_payment_auto_activate_dedupe_prevents_double_activation(monkeypa
     import app.platform.upi_payments as upi_mod
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
 
     activations: list[tuple] = []
 

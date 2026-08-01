@@ -38,6 +38,26 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def auto_activate_clients_allowed(client_id: str) -> bool:
+    """Fail-closed tenant allowlist for ``UPI_AUTO_ACTIVATE``.
+
+    Master flag ``UPI_AUTO_ACTIVATE=1`` alone is never enough: the client must
+    also appear in ``UPI_AUTO_ACTIVATE_CLIENTS`` (comma list). Empty allowlist
+    refuses every auto-activation. ``*`` is an explicit graduation to all
+    tenants (same convention as ``VIDEO_CUSTOMER_REVIEW_CLIENTS``).
+    """
+    if os.environ.get("UPI_AUTO_ACTIVATE") != "1":
+        return False
+    raw = (os.environ.get("UPI_AUTO_ACTIVATE_CLIENTS") or "").strip()
+    if not raw:
+        return False
+    allowed = {part.strip().lower() for part in raw.split(",") if part.strip()}
+    cid = str(client_id or "").strip().lower()
+    if not cid:
+        return False
+    return "*" in allowed or cid in allowed
+
+
 def _read_store() -> list[dict]:
     """Read the payment records list. Never raises — bad/missing file → []."""
     try:
@@ -400,8 +420,8 @@ def submit_payment(
         # Best-effort admin notify (after persist so the record is durable first).
         _notify_admin(record)
 
-        # Optional instant activation (flag-gated, default OFF).
-        if os.environ.get("UPI_AUTO_ACTIVATE") == "1" and cid:
+        # Optional instant activation (flag + tenant allowlist, default OFF).
+        if auto_activate_clients_allowed(cid):
             if _try_activate(cid, plan_s, amount):
                 record["status"] = "auto_activated"
                 record["auto_activated"] = True
@@ -426,6 +446,11 @@ def submit_payment(
                     )
                 except Exception as e:  # pragma: no cover - defensive
                     logger.debug("upi_payments auto-activate alert skipped: %s", e)
+        elif os.environ.get("UPI_AUTO_ACTIVATE") == "1" and cid:
+            # Master flag on but tenant not allowlisted — stay pending (fail-closed).
+            logger.info(
+                "upi_payments auto-activate refused (client not on UPI_AUTO_ACTIVATE_CLIENTS)"
+            )
 
         return {"ok": True, **record}
     except Exception as e:  # pragma: no cover - defensive
