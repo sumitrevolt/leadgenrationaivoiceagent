@@ -19,6 +19,10 @@ the only truly ban-proof path; this is a deliberate verification-vs-banrisk trad
 DESIGN
 ------
 - Inert without ``WAHA_BASE_URL`` (returns ``{"error": "selfhost_not_configured"}``).
+- Inert without ``WHATSAPP_AUTO_SEND=1`` — the §5 ban-safety gate lives at the sender
+  boundary (:func:`app.integrations.whatsapp.auto_send_allowed`) and is checked before
+  ANY HTTP call, so a gated-off platform never touches WAHA. This is the engine that can
+  actually get a real number banned, so it is the one that most needs the default-deny.
 - Never raises — every send/HTTP path returns a dict on error so campaign runners stay
   crash-safe (same contract as the Cloud-API integration).
 - Thin HTTP client. WAHA wire-format is isolated in private helpers so swapping the engine
@@ -35,13 +39,19 @@ WAHA Core endpoints used (all free in Core):
 from __future__ import annotations
 
 import os
-from urllib.parse import urlencode
 from typing import Any
+from urllib.parse import urlencode
 
 import httpx
 
 from app.config import settings
-from app.integrations.whatsapp import WhatsAppMessageMixin, _record_whatsapp_failure, _record_whatsapp_success
+from app.integrations.whatsapp import (
+    WhatsAppMessageMixin,
+    _record_whatsapp_failure,
+    _record_whatsapp_success,
+    auto_send_allowed,
+    auto_send_blocked,
+)
 from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -52,8 +62,10 @@ logger = setup_logger(__name__)
 # --------------------------------------------------------------------------- #
 def _base_url() -> str:
     return (
-        os.getenv("WAHA_BASE_URL", "") or getattr(settings, "waha_base_url", "") or ""
-    ).strip().rstrip("/")
+        (os.getenv("WAHA_BASE_URL", "") or getattr(settings, "waha_base_url", "") or "")
+        .strip()
+        .rstrip("/")
+    )
 
 
 def _api_key() -> str:
@@ -109,8 +121,14 @@ async def linked_number_digits() -> str | None:
 def is_active_provider() -> bool:
     """True if the operator selected the self-host stack as the active WhatsApp provider."""
     prov = (
-        os.getenv("WHATSAPP_PROVIDER", "") or getattr(settings, "whatsapp_provider", "") or "cloud"
-    ).strip().lower()
+        (
+            os.getenv("WHATSAPP_PROVIDER", "")
+            or getattr(settings, "whatsapp_provider", "")
+            or "cloud"
+        )
+        .strip()
+        .lower()
+    )
     # Only "waha"/"selfhost" are wired (WAHA HTTP format). Evolution API is a documented
     # drop-in alt but a different wire-format — don't claim it until its client is added.
     return prov in ("waha", "selfhost", "self_host") and is_configured()
@@ -132,6 +150,21 @@ def _chat_id(number: str) -> str:
     elif digits.startswith("0"):
         digits = "91" + digits[1:]
     return f"{digits}@c.us"
+
+
+def _recipient_check_fail_open() -> bool:
+    """Ops escape hatch for the recipient-check gate. Default ``0`` = fail-CLOSED.
+
+    Set ``WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN=1`` only to restore the old behaviour where
+    a recipient check that never completed (transport/HTTP error) still let the send
+    through. Exists so a WAHA-side outage can be worked around without a code deploy.
+    """
+    return os.getenv("WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
 
 def _render(body: str, params: list[str] | None) -> str:
@@ -180,9 +213,17 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
                     timeout=10.0,
                 )
                 if resp.status_code >= 400:
-                    return {"known": False, "reason": "check_http_error", "status": resp.status_code}
+                    return {
+                        "known": False,
+                        "reason": "check_http_error",
+                        "status": resp.status_code,
+                        "transport_error": True,
+                    }
                 data = resp.json() if resp.content else {}
                 if not isinstance(data, dict) or "numberExists" not in data:
+                    # WAHA ANSWERED, we just can't read the shape (older WAHA / fake).
+                    # Deliberately NOT a transport error — see the fail-closed note in
+                    # send_text_message for why this one stays permissive.
                     return {"known": False, "reason": "check_shape_unknown"}
                 exists = bool(data.get("numberExists"))
                 return {
@@ -192,7 +233,7 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
                 }
         except Exception as e:
             logger.warning("waha recipient check failed: %s", e)
-            return {"known": False, "reason": "check_unreachable"}
+            return {"known": False, "reason": "check_unreachable", "transport_error": True}
 
     async def send_text_message(self, to_number: str, message: str) -> dict[str, Any]:
         """Send a plain text message via the self-hosted session. Never raises.
@@ -203,13 +244,22 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
         scanned by mistake), REFUSE the send instead of leaking a wrong sender to
         a customer. Fail-OPEN only when the linked number can't be determined
         (status hiccup) so a transient probe error never silently drops sends.
-        Kill-switch: WHATSAPP_ENFORCE_BUSINESS_NUMBER=0."""
+        Kill-switch: WHATSAPP_ENFORCE_BUSINESS_NUMBER=0.
+
+        §5 BAN-SAFETY GATE (2026-07-31): ``WHATSAPP_AUTO_SEND`` is checked FIRST — before
+        the business-number probe and before the recipient check — so a gated-off platform
+        makes NO HTTP call at all, not merely no POST. That matters: ``_recipient_check``
+        issues a ``GET /api/contacts/check-exists``, so gating later would still have the
+        hourly ``onboard`` job hammering WAHA once per active client."""
         if not self.base_url:
             _record_whatsapp_failure("selfhost_not_configured")
             return {"error": "selfhost_not_configured"}
-        if (
-            os.getenv("WHATSAPP_ENFORCE_BUSINESS_NUMBER", "1").strip().lower()
-            not in ("0", "false", "no")
+        if not auto_send_allowed():
+            return auto_send_blocked(to_number, message)
+        if os.getenv("WHATSAPP_ENFORCE_BUSINESS_NUMBER", "1").strip().lower() not in (
+            "0",
+            "false",
+            "no",
         ):
             want = _business_number_digits()
             if want:
@@ -222,7 +272,11 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
                         want[-4:],
                     )
                     _record_whatsapp_failure("wrong_linked_number")
-                    return {"error": "wrong_linked_number", "linked": linked[-4:], "want": want[-4:]}
+                    return {
+                        "error": "wrong_linked_number",
+                        "linked": linked[-4:],
+                        "want": want[-4:],
+                    }
         check = await self._recipient_check(to_number)
         if check.get("known") and check.get("exists") is False:
             reason = str(check.get("reason") or "recipient_not_on_whatsapp")
@@ -235,6 +289,19 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
             # errors in _post) are still recorded.
             logger.info("waha send blocked — recipient not on WhatsApp (%s)", reason)
             return {"error": "recipient_not_on_whatsapp", "status": "blocked", "reason": reason}
+        # FAIL-CLOSED (2026-07-31): a recipient check that never COMPLETED (network error,
+        # HTTP 4xx/5xx) used to fall straight through to a real send — the one guard on
+        # this path failed OPEN. §5 treats send-path compliance gates as fail-closed, so
+        # an unverifiable recipient is now a blocked send. Recorded as an integration
+        # failure because, unlike recipient_not_on_whatsapp, this IS our side breaking.
+        # Backward-compat: `check_shape_unknown` (older WAHA answered without
+        # `numberExists`) is NOT a transport error and still proceeds.
+        # Kill-switch: WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN=1.
+        if check.get("transport_error") and not _recipient_check_fail_open():
+            reason = str(check.get("reason") or "check_unreachable")
+            logger.error("waha send BLOCKED — recipient check did not complete (%s)", reason)
+            _record_whatsapp_failure(f"recipient_check_{reason}")
+            return {"error": "recipient_check_failed", "status": "blocked", "reason": reason}
         payload = {
             "session": self.session,
             "chatId": str(check.get("chat_id") or _chat_id(to_number)),
@@ -270,6 +337,13 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
         return await self.send_text_message(to_number, text)
 
     async def _post(self, path: str, payload: dict[str, Any]) -> dict[str, Any]:
+        # §5 EGRESS BACKSTOP — send_text_message already gated; this is the only function
+        # that actually POSTs to WAHA, so a future caller that skips the public method
+        # still cannot send (same 3-layer idea as platform_dial's hard-off).
+        if not auto_send_allowed():
+            return auto_send_blocked(
+                str(payload.get("chatId") or ""), str(payload.get("text") or "")
+            )
         url = f"{self.base_url}{path}"
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
@@ -404,7 +478,9 @@ async def start_session() -> dict[str, Any]:
                     (f"/api/sessions/{sess}", "delete"),
                 ):
                     try:
-                        await getattr(client, method)(f"{base}{path}", headers=_headers(), timeout=10.0)
+                        await getattr(client, method)(
+                            f"{base}{path}", headers=_headers(), timeout=10.0
+                        )
                     except Exception:
                         pass
                 await client.post(
