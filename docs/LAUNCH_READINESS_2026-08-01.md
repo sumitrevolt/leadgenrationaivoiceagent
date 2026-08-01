@@ -71,9 +71,20 @@ No form was submitted; no payment/OAuth/communication triggered.
 - **P1 — Gemini API key in `/root/.bash_history` (VPS):** a curl-pipe-to-bash deploy one-liner was run with `GEMINI_API_KEY=<value>` inline; the key value sits in plaintext shell history (also present in that process's env at the time). OWNER ACTION: rotate this key in the 9-key voice pool + remove the history line (`history -d` / edit file). Key value deliberately NOT recorded anywhere by this session.
 - P3 — `deploy_vps.sh` was once piped from `raw.githubusercontent.com` to bash — supply-chain-fragile pattern; prefer the checked-out `/opt/leadgen` copy (canonical runbook already does).
 
+## 4b. Local release gates on RC `48f0577` (this worktree ≡ origin/main, run 2026-08-01 ~15:01Z)
+
+| Gate | Result |
+|---|---|
+| `scripts/prod_check.py` | **PASS** — `[OK] ALL CHECKS PASSED`; 1219 routes; 48 pages 0 wiring gaps; automation 0 gaps; explorer graph 355 nodes/0 orphans; API.md in sync (1243 ops) |
+| `pytest tests/test_billing_truth_2026.py` | **15 passed** |
+| `scripts/check_secrets.py` | clean (0 changed files vs HEAD) |
+| PR #208 (ci-probe on PR #204 head `b6d059a`) | GitGuardian pass; blocking CI contexts pending at 15:02Z — owned by live session `local_29030ac0` |
+
+Coordination note (re-verified 14:43Z): PR #204 owner session `local_29030ac0` RUNNING (last activity 14:43:26Z), head advanced `5278510` → `b6d059a`, opened PR #208 to run blocking CI on that head. This session stays off that branch; Phase-4 verdict will cite its evidence.
+
 ## 5. Lane results (parallel read-only audit + research)
 
-_Pending — filled in as the 9 lanes return: security-pr204, security-surface, agent-os, harness, release-infra, frontend-funnel, research-hyperframes, research-celery-gha, research-providers._
+_Pending — filled in as the 9 lanes return: security-pr204, security-surface, agent-os, harness, release-infra, frontend-funnel, research-hyperframes, research-celery-gha, research-providers. First dispatch 14:45Z failed wholesale (subagent session limit, reset 20:30 IST); resumed 15:01Z run wf_11388add-232._
 
 ## 6. Launch matrix
 
