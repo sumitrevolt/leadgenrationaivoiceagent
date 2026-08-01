@@ -322,6 +322,24 @@ async def _run_agent(agent: str, task: str, blackboard: dict, execute: bool) -> 
         except Exception:
             pass
         return _out
+    # Budget governor on the DRAFT/LLM branch (the execute branch above already ran under
+    # staff's own governance at app/agents/staff.py:1436 — don't change its behaviour).
+    # fan_out/agentverse/debate/council issue one LLM call per agent per round, and
+    # _llm_rate_ok() caps burst-per-minute, NOT the daily total. Without this a swarm can
+    # eat the day's free-tier quota (Groq TPD) that the revenue-bearing voice path shares.
+    # INERT by construction: check() returns allowed=True when AGENT_BUDGET_ENABLED is off.
+    # Fail-OPEN — a budget-subsystem error must never block the agent.
+    try:
+        from app.platform import agent_budget
+
+        _b = agent_budget.check(agent)
+        if not _b.get("allowed", True):
+            logger.info(
+                "coordinator: %s skipped — budget exceeded (tier %s)", agent, _b.get("tier")
+            )
+            return {"mode": "skipped", "reason": "budget_exceeded", "budget": _b, "output": ""}
+    except Exception:
+        pass
     v = _roster().get(agent, {})
     prior = json.dumps(blackboard.get("results", [])[-3:], ensure_ascii=False)[:1200]
     sys = (

@@ -49,12 +49,13 @@ Container/soak numbers from the 2026-07-25 deploy are NOT restated here because 
 Label: PARTIAL (health DIRECT_HOST_VERIFIED; worker restart UNKNOWN)
 
 ## Newly-live-but-inert (shipped 2026-07-25, never previously run in prod)
-The autonomous sales engine and Creative OS Phase-1 are now ON DISK in production but gated OFF. Verified in the running containers **on 2026-07-25 and NOT re-probed on 2026-07-28** — `/health` returns no feature flags, so nothing below was re-confirmed this session (ASSUMED):
-- `SALES_AUTOPILOT_ENABLED` — **unset in both `app` and `scheduler`** → engine fully inert (master gate, `app/api/automation_flags.py:378`)
-- `sales_autopilot` is in `RUN_DUE_EXCLUDE` → recovery never auto-enqueues it
-- `WHATSAPP_AUTO_SEND=0`, `PLATFORM_DIAL_DAILY=0` (calling HARD OFF)
-- Zero autopilot activity in scheduler/worker logs since deploy
-Do NOT treat these as live capabilities. Label: CODE-PRESENT (inert) as of 2026-07-25 | ASSUMED as of 2026-07-28
+**CORRECTED 2026-07-31T05:41Z — two claims below were WRONG, re-probed directly in the running containers.** The engine is no longer "gated OFF at the master gate"; it is **armed in simulation**, which is a different posture with the same customer-facing effect (no sends). Both readings come from `docker exec leadgen_{app,scheduler} printenv`, not from `/health` — `/health` still returns no feature flags and can never confirm one.
+- `SALES_AUTOPILOT_ENABLED` — **`=1` in BOTH `app` and `scheduler`**, NOT unset. The old line said "unset → engine fully inert"; that is false as of this probe. Master gate is `app/api/automation_flags.py:378`. Consistent with PR #194's safe-launch canary lane.
+- `sales_autopilot` in `RUN_DUE_EXCLUDE` — **also false: `RUN_DUE_EXCLUDE` is unset** in `app`.
+- **What actually keeps it safe** (all DIRECT_HOST_VERIFIED at the same timestamp): `SALES_AUTOPILOT_DRY_RUN=1` · `SALES_AUTOPILOT_WHATSAPP_ENABLED=0` · `SALES_AUTOPILOT_EMAIL_ENABLED=0` · `SALES_AUTOPILOT_CANARY_BATCH=1` · `AUTO_EMAIL_OUTREACH=0`. So it simulates and does not send.
+- `WHATSAPP_AUTO_SEND=0`, `PLATFORM_DIAL_DAILY=0` (calling HARD OFF), `UPI_AUTO_ACTIVATE=0` — re-probed, all still correct.
+- **Zero** autopilot lines in 24h of `leadgen_scheduler` logs — behavioural corroboration that simulation is not producing sends.
+Do NOT treat these as live customer capabilities. Label: **DIRECT_HOST_VERIFIED (2026-07-31T05:41Z)** — supersedes the 2026-07-25 ASSUMED reading. Re-probe the container env before acting on any of these; do not quote this block after another deploy without re-probing.
 
 ## Calling / flag posture — read this before quoting any flag from this file
 Every flag value in this document was probed on 2026-07-25, not on 2026-07-28. `/health` exposes version, environment, status and uptime only, so a `/health` probe can never confirm one. Treat all of them as **ASSUMED** and re-probe the container env before acting on one. Nothing in this session's changes altered a flag.

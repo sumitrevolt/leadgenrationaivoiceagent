@@ -100,6 +100,7 @@ EXPECTED_GAP_MIN = {
     "product_one_health": 180,  # hourly :20 (2026-07-08): Product 1 Customer Health/Approval Reminder/SLA Recovery sweep, 3h grace like meter_watch
     "approval_email_sweep": 180,  # hourly pending-approval EMAIL (gated APPROVAL_EMAIL_NOTIFY); was scheduled but missing from dead-man
     "social_drain": 180,  # hourly :10 native social queue drain (gated SOCIAL_ENGINE); 3h grace
+    "task_lease_reap": 180,  # hourly :05 expired agent-task lease reclaim (gated AGENT_TASK_LEASE_REAP); 3h grace like meter_watch
 }
 
 
