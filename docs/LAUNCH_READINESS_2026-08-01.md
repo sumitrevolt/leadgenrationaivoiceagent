@@ -7,18 +7,18 @@
 
 | Fact | Value | Evidence |
 |---|---|---|
-| `origin/main` | `48f0577883e51bf0b2e573b81547dabe9afee18e` (PR #207 merge) | GIT_VERIFIED 2026-08-01T14:12Z after `git fetch` |
-| Production `/health.version` | `48f05778` — **EQUAL to origin/main tip** | DIRECT_HOST_VERIFIED 14:19:18Z (in-host curl) + external HTTPS |
+| `origin/main` | `b6ed6f8df2e3af6a6e8d1347313c976de1009d95` (PR #209 docs) — includes `48f05778` | GIT_VERIFIED 2026-08-01T18:55Z after `git fetch` |
+| Production `/health.version` | `48f05778` — **behind main by docs-only #209**; app image still PR #207 | DIRECT_HOST_VERIFIED 14:19Z + re-probed 18:57Z external HTTPS |
 | Deploy event | 14:12:55Z, canonical `deploy_vps.sh` → `/tmp/dep207.log` ends `DEPLOYED 48f05778 OK`; operator-run (CI deploy-vps run 30702944652 had Build & Deploy jobs **skipped** — Gate only) | DIRECT_HOST_VERIFIED |
 | 5-service image parity | app/worker/scheduler/worker-heavy/worker-video ALL `ghcr.io/...:48f05778`, `APP_VERSION=48f05778`, restarts=0, oom=false | DIRECT_HOST_VERIFIED 14:19Z |
 | Queues | `celery=0`, `dlq:failed_tasks=0`, `dlq:dead=0` | DIRECT_HOST_VERIFIED 14:19Z |
 | CI on `48f05778` | CI ✅, tests ✅, security-scan ✅, deploy-vps gate ✅ (all `push` runs 14:02:20Z success) | CI_VERIFIED |
 | Rollback reference | `9bfc2d6f` — image PRESENT on VPS (`docker images`: 48f05778, 9bfc2d6f, 3c843517) | DIRECT_HOST_VERIFIED |
 | Soak stream | `/tmp/continuous_monitor_ce14f9ff.log` logs q/dlq/health every 5 min; version flip 9bfc2d6f→48f05778 between 14:12:04Z and 14:17:04Z; **soak clock reset at 14:12Z deploy** | DIRECT_HOST_VERIFIED |
-| Open PRs | ONLY #204 (draft, HyperFrames video provider) | GIT_VERIFIED |
-| PR #204 head | `5278510`, base main, mergeStateStatus **DIRTY**; only real content conflict = `memory/decisions.md` (append-only); final head has **zero CI runs** (last green CI on `4931710`) | GIT_VERIFIED |
-| PR #204 ownership | LIVE session `local_29030ac0` ("HyperFrames video rendering integration") owns worktree+branch; findings transferred to it via session message at ~14:25Z; this session did NOT touch that branch | coordination log |
-| Worktrees | main checkout: `main`, clean · `hyperframes-video-rendering-d233cb`: clean, PR #204 (ACTIVE OWNER — preserve) · 2 temp cleanrooms (PR #204 verification scratch — preserve) · this launch worktree | GIT_VERIFIED |
+| Open PRs | #204 HyperFrames (draft) · #210 this packet (draft) · #208 ci-probe **CLOSED** obsolete | GIT_VERIFIED 18:56Z |
+| PR #204 head | `f040e9afda8b7817a3b4d728ce61b68c06b56121` — includes latest `origin/main`; **MERGEABLE**; blocking CI all SUCCESS | GIT_VERIFIED / CI_VERIFIED |
+| PR #204 ownership | Cursor takeover owns worktree `hyperframes-video-rendering-d233cb`; exact-head image chain rebuilt; 3-template hermetic canary IN PROGRESS (beauty+local done, agency encoding) | coordination log 2026-08-01T18:55Z |
+| Worktrees | main `b6ed6f8` clean · HF PR #204 @ `f040e9a` · this launch worktree (docs only; runtime `data/*` dirty preserved, not staged) | GIT_VERIFIED |
 
 ## 1. Runtime flag posture (DIRECT_HOST_VERIFIED 14:19Z — supersedes CLAUDE.md ops-facts of earlier today)
 
@@ -78,18 +78,71 @@ No form was submitted; no payment/OAuth/communication triggered.
 | `scripts/prod_check.py` | **PASS** — `[OK] ALL CHECKS PASSED`; 1219 routes; 48 pages 0 wiring gaps; automation 0 gaps; explorer graph 355 nodes/0 orphans; API.md in sync (1243 ops) |
 | `pytest tests/test_billing_truth_2026.py` | **15 passed** |
 | `scripts/check_secrets.py` | clean (0 changed files vs HEAD) |
-| PR #208 (ci-probe on PR #204 head `b6d059a`) | GitGuardian pass; blocking CI contexts pending at 15:02Z — owned by live session `local_29030ac0` |
+| PR #208 (ci-probe) | **CLOSED** 18:56Z — obsolete; #204 head now gets normal `pull_request` CI | GIT_VERIFIED |
 
-Coordination note (re-verified 14:43Z): PR #204 owner session `local_29030ac0` RUNNING (last activity 14:43:26Z), head advanced `5278510` → `b6d059a`, opened PR #208 to run blocking CI on that head. This session stays off that branch; Phase-4 verdict will cite its evidence.
+## 4c. PR #204 exact-head carry-forward (Cursor takeover, frozen `f040e9a`)
 
-## 5. Lane results (parallel read-only audit + research)
+| Gate | Result | Evidence |
+|---|---|---|
+| Local = remote = PR head | `f040e9a` | `git rev-parse` + `gh pr view 204` |
+| Includes latest `origin/main` | yes (`b6ed6f8` merged) | GIT_VERIFIED |
+| App image | `leadgen-app:pr204-f040e9a` = `sha256:615f00e3be90…` | docker inspect |
+| Video image FROM exact app (not `latest`) | `leadgen-video:pr204-f040e9a` = `sha256:702c2dfac860…`; **20/20 layer prefix match** | RootFS.Layers diff |
+| `hyperframes check` ×3 | **PASS** — 0 errors each (warnings only: composition size) | networked in-image run |
+| Clean-room approval + HyperFrames suites | **PASS** (pristine `git archive` inside video image, `/opt/venv` pytest) | `_proof/cleanroom_all.log` exit 0 |
+| Hermetic 3-template provider canary | **PARTIAL** — beauty `CUSTOMER_APPROVABLE` 1080×1920/30fps/25.4s/8.4Mbps; local mp4+frames written; agency still encoding under `--network none` | container `hfproof3-f040b` |
+| Blocking CI on frozen SHA | Lint/secrets · prod_check+pytest · harness-redis · tests · Trivy · GitGuardian = SUCCESS | CI_VERIFIED |
+| Jiya real-photo canary | **BLOCKED** (zero consented visual assets) — photo-free brand canary only | CODE + canary photos=0 |
 
-_Pending — filled in as the 9 lanes return: security-pr204, security-surface, agent-os, harness, release-infra, frontend-funnel, research-hyperframes, research-celery-gha, research-providers. First dispatch 14:45Z failed wholesale (subagent session limit, reset 20:30 IST); resumed 15:01Z run wf_11388add-232._
+## 5. Lane results
+
+| Lane | Verdict | Notes |
+|---|---|---|
+| security-pr204 | PASS (code+tests) | tenant/consent/symlink/injection/timeout/no-silent-fallback covered by HyperFrames suites in clean-room |
+| security-surface | P1 open | Gemini key in VPS bash_history — owner rotate (value not recorded) |
+| agent-os | CODE-PRESENT | **12 GREEN / 17 AMBER / 2 RED** via canonical Agent Runtime; `AGENT_RUNTIME` default OFF; registered ≠ live |
+| harness | CI_VERIFIED | harness real-redis integration green on #204 + #210 |
+| release-infra | PARTIAL | prod at `48f05778`; deploy path canonical; staging untagged image residual |
+| frontend-funnel | BROWSER_VERIFIED | public journeys 200; pricing honesty; no Growth leak |
+| research-hyperframes | IN PROGRESS | exact-head proof nearly closed; agency render pending |
+| research-celery-gha | PASS (assumed from 14:19Z) | celery=0, DLQs=0; beat dispatch observed |
+| research-providers | PASS (boundary) | WA auto / dial / reply / UPI fail-closed defaults in code; autopilot owner-armed email-only |
 
 ## 6. Launch matrix
 
-_Assembled after lane results._
+| Dimension | Ready? | Evidence |
+|---|---|---|
+| App health / provenance | YES | `/health` healthy `48f05778` |
+| Billing truth | YES | 15/15 billing-truth; INV path unchanged |
+| Protected send gates | YES (code) | WA=0, reply=0, UPI allowlisted, dial test-cap — **prod dial=10 is owner test-mode, not code default** |
+| Agent Runtime fleet | PARTIAL | 12 pilots canary-ready; master flag OFF; 2 voice RED frozen |
+| Video / Creative OS | PARTIAL | PR #204 additive flags OFF; exact-head proof almost done; Jiya photo gate owner-blocked |
+| WAHA | NO | session FAILED — owner QR / recreate |
+| Estique 2nd customer | WAIT | owner password reset + PAID |
+| Merge #204 | WAIT | finish agency canary + update PR body; owner merge decision |
+| Deploy newer SHA | NO | not requested; docs-only main tip not a deploy reason |
+
+**Verdict now:** `PARTIAL` — safe engineering packet ready; customer-facing launch still owner-gated.
 
 ## 7. Owner-action packet
 
-_Consolidated at session end._
+1. **Rotate** Gemini key that landed in VPS `/root/.bash_history`; scrub history line.
+2. **WAHA:** recreate/relink session → reply `WAHA CONNECTED` (AUTO stays 0 until boundary proof).
+3. **Estique:** private password reset → Billing ₹1,999 → reply `PAID` (never paste password/OTP in chat).
+4. **Jiya video photo canary:** register consented visual assets before any real-photo HyperFrames canary; until then photo-free only.
+5. **PR #204 merge:** only after Cursor posts final exact-head canary PASS on `f040e9a` (or successor SHA if HEAD moves); flags stay OFF.
+6. **Do not** flip `WHATSAPP_AUTO_SEND`, raise dial beyond test allowlist, or enable `AGENT_RUNTIME` fleet-wide without one-pilot arming.
+7. **Optional:** confirm intent of `CREATIVE_OS_ENABLED=1` in prod vs inert HyperFrames provider flags.
+
+### Canonical deploy / rollback (when owner authorizes — NOT run this session)
+
+```bash
+# Deploy exact SHA (VPS)
+cd /opt/leadgen && setsid nohup bash scripts/deploy_vps.sh <40-hex-sha> > /tmp/dep.log 2>&1 &
+# Rollback image reference currently proven present
+# APP_VERSION=9bfc2d6f  (or prior known-good tag on host)
+```
+
+### Explicit non-actions this session
+
+Not merged · not deployed · flags not flipped · nothing sent/published · no customer mutations · no unconsented assets used.
