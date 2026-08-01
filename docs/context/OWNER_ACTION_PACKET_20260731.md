@@ -13,7 +13,7 @@ release verdict is `WAIT` and not `GO`.
 |---|---|
 | Revenue funnel all 200 — `/`, `/pricing`, `/start`, `/audit`, `/demo`, `/site-audit`, `/privacy` | DIRECT_HOST_VERIFIED 2026-07-31T05:5xZ, curl, non-browser |
 | Owner-canary RBAC intact — `GET /preflight`, `GET /last`, `POST /send` all **401** unauthenticated | DIRECT_HOST_VERIFIED (POST probe carried `confirm:false`; rejected at auth, **no send occurred**) |
-| Protected actions OFF — `PLATFORM_DIAL_DAILY=0`, `WHATSAPP_AUTO_SEND=0`, `UPI_AUTO_ACTIVATE=0`, `AUTO_EMAIL_OUTREACH=0` | DIRECT_HOST_VERIFIED 05:41Z, `docker exec printenv` |
+| Protected actions bounded — `PLATFORM_DIAL_DAILY=10` (owner re-enabled 2026-07-31, TEST-MODE allowlist + bot/IVR detection, cap 10/day, no live call fired), `WHATSAPP_AUTO_SEND=0`, `UPI_AUTO_ACTIVATE=0`, `AUTO_EMAIL_OUTREACH=1` (email outreach LIVE, brevo sends verified) | DIRECT_HOST_VERIFIED 2026-08-01, `docker exec printenv` |
 | Queues clean — `celery=0`, `dlq:failed_tasks=0`, `dlq:dead=0` | DIRECT_HOST_VERIFIED 05:41Z |
 
 ---
