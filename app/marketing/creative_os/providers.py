@@ -158,9 +158,31 @@ class ComfyUIProvider(_UnavailableSkeleton):
 
 
 def _hyperframes_provider() -> Any:
-    from app.marketing.creative_os.hyperframes_provider import HyperFramesProvider
+    """Build the provider, degrading to a fail-closed stub if it cannot import.
 
-    return HyperFramesProvider()
+    This is evaluated at MODULE IMPORT time to populate ``_PROVIDERS``, so an
+    exception here would propagate to every importer of this module — and
+    `providers` is on the import path of `app.main`. A renderer-side problem must
+    disable the provider, never take down the web app. The stub keeps the
+    provider contract and refuses every call.
+    """
+    try:
+        from app.marketing.creative_os.hyperframes_provider import HyperFramesProvider
+
+        return HyperFramesProvider()
+    except Exception as exc:  # pragma: no cover - import-safety net
+        import logging
+
+        logging.getLogger(__name__).warning(
+            "[creative_os] hyperframes provider unavailable, using fail-closed stub: %s",
+            exc,
+        )
+
+        class _HyperFramesUnavailable(_UnavailableSkeleton):
+            name = "hyperframes"
+            model = "hyperframes-cli"
+
+        return _HyperFramesUnavailable()
 
 
 # Providers whose failure must NOT silently degrade to the deterministic
