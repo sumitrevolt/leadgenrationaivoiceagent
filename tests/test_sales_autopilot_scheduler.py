@@ -233,6 +233,33 @@ def test_scheduler_selects_whatsapp_only(monkeypatch):
         assert item["channel"] == "whatsapp"
 
 
+def test_scheduler_selects_email_when_whatsapp_off_email_on(monkeypatch):
+    monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
+    monkeypatch.setenv("SALES_AUTOPILOT_WHATSAPP_ENABLED", "0")
+    monkeypatch.setenv("SALES_AUTOPILOT_EMAIL_ENABLED", "1")
+    _seed_new(3)
+    res = asyncio.run(sched.run_tick())
+    assert res["enabled"] is True
+    assert len(res["items"]) >= 1
+    for item in res["items"]:
+        # Email-channel selection routes to the email template (no WhatsApp provider).
+        assert item["channel"] == "email"
+        assert item["step"] == elig.STEP_INITIAL
+    # No live WhatsApp/email provider call in this fixture (dry-run default).
+    assert res["outcomes"].get(send_mod.SENT, 0) == 0
+
+
+def test_scheduler_primary_channel_prefers_whatsapp_when_both_on(monkeypatch):
+    monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
+    monkeypatch.setenv("SALES_AUTOPILOT_WHATSAPP_ENABLED", "1")
+    monkeypatch.setenv("SALES_AUTOPILOT_EMAIL_ENABLED", "1")
+    pol = policy_mod.get_policy()
+    assert sched._primary_channel(pol) == "whatsapp"
+    monkeypatch.setenv("SALES_AUTOPILOT_WHATSAPP_ENABLED", "0")
+    monkeypatch.setenv("SALES_AUTOPILOT_EMAIL_ENABLED", "1")
+    assert sched._primary_channel(policy_mod.get_policy()) == "email"
+
+
 def test_email_channel_fail_closed_without_smtp(monkeypatch):
     # Fully armed email + no SMTP/API creds ⇒ FAILED (fail-closed), never WhatsApp.
     monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
