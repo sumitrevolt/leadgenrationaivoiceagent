@@ -349,7 +349,7 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 2. **Access:** GitHub repo (`main`) · VPS SSH (`root@72.61.245.204`, key `C:\Users\Ratanshila\.ssh\id_rsa`) · Hostinger panel · domain DNS · `.env` on VPS (`/opt/leadgen/.env` — saare secrets yahin).
 3. **Health check:** `curl https://leadsgenai.in/health` → `environment: production` hona chahiye.
 4. **Local setup:** repo clone → `requirements.txt` → `python scripts/prod_check.py` se sanity.
-5. **Samajh:** `app/main.py` (route mounts) → `app/api/marketing.py` (28-tab backend) → `app/billing/packages.py` (pricing truth) → `app/voice_agent/free_ai.py` (AI chain) → `app/platform/team.py` (staff).
+5. **Samajh:** `app/main.py` (route mounts) → `app/api/marketing.py` (28-tab backend) → `app/marketing/packages.py` (pricing truth) → `app/voice_agent/free_ai.py` (AI chain) → `app/platform/team.py` (staff).
 6. **Revenue:** UPI already LIVE — marketing tiers payable. Ab pehla customer **acquire** karo. (Voice = DLT + Vobiz recharge ka wait.)
 7. **Flags dekho:** `GET /api/growth/infra/flags` = saare automation flags live on/off.
 8. **Activation runbook:** `docs/SESSION_ACTIVATION_RUNBOOK_2026_06_16.md` (5 phases, env key + verify curl per item).
@@ -361,7 +361,7 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 **Code entry points:**
 - `app/main.py` — route mounts, page routes
 - `app/api/marketing.py` — marketing backend (28 tabs)
-- `app/billing/packages.py` — **pricing single source of truth**
+- `app/marketing/packages.py` — **pricing single source of truth**
 - `app/voice_agent/free_ai.py` — multi-provider AI chain
 - `app/platform/team.py` + `team_scheduler.py` — AI staff + cron
 - `app/niches.py` — 39 niches + band mapping
@@ -723,7 +723,7 @@ VPS           : root@72.61.245.204 (Mumbai, /opt/leadgen)
 SSH           : C:\PROGRA~1\Git\usr\bin\ssh.exe -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204
 HEALTH        : curl https://leadsgenai.in/health  (expect environment:production)
 SECRETS       : /opt/leadgen/.env (VPS) — NEVER in repo/CLAUDE.md
-PRICING TRUTH : app/billing/packages.py
+PRICING TRUTH : app/marketing/packages.py
 AI CHAIN      : app/voice_agent/free_ai.py
 FLAGS         : GET /api/growth/infra/flags
 EXPLORER      : /app/explorer (live system map, 4 views)  |  PRODUCT DOC: docs/PRODUCT_HANDOFF_SOP.md

@@ -651,18 +651,17 @@ async def get_credit_balance(
 
 @router.get("/credits/pricing")
 async def get_credit_pricing():
-    """Get credit costs for each operation"""
+    """Get credit costs for each operation.
+
+    Single source: app/models/data_credits.py CREDIT_COSTS. The old hardcoded
+    credit-PACK list (₹2,500/8,000/17,500/30,000) was dead data — no consumer
+    ever fetched it (grep 2026-08-01) aur hardcoded pricing billing-truth ka
+    violation hai. Operations costs hi kaafi hain."""
     return {
         "operations": {
             usage_type.value: {"credits": cost, "description": _get_usage_description(usage_type)}
             for usage_type, cost in CREDIT_COSTS.items()
         },
-        "packages": [
-            {"credits": 500, "price_inr": 2500, "price_usd": 30},
-            {"credits": 2000, "price_inr": 8000, "price_usd": 100},
-            {"credits": 5000, "price_inr": 17500, "price_usd": 210},
-            {"credits": 10000, "price_inr": 30000, "price_usd": 360},
-        ],
     }
 
 
