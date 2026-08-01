@@ -2,7 +2,7 @@
 
 Mounted at ``/api`` -> all paths here live under ``/api/wa/*``.
 
-  GET  /api/wa/status                 — auto-send readiness (flag + creds + cap)   [admin]
+  GET  /api/wa/status                 — auto-send readiness (flag + creds + allowlist) [admin]
   GET  /api/wa/templates              — list local template records                [admin]
   POST /api/wa/templates              — register/upsert a template record          [admin]
   POST /api/wa/templates/status       — track Meta approval status                 [admin]
@@ -14,8 +14,13 @@ Mounted at ``/api`` -> all paths here live under ``/api/wa/*``.
   GET  /api/wa/webhook                — Meta verify challenge (hub.challenge)       [PUBLIC]
   POST /api/wa/webhook                — Meta inbound messages/statuses              [PUBLIC, signed]
 
-SAFETY: every send path is ban-safe — auto-send only when WHATSAPP_AUTO_SEND=1 AND
-official creds are present AND template is approved AND number is opted-in/not-suppressed.
+SAFETY: ban-safety is enforced at the SENDER BOUNDARY
+(``app/integrations/whatsapp.py::send_permitted``), not by the callers in this module —
+that is deliberate, because the per-caller version of this rule is what let the hourly
+onboarding job send ungated. A send needs WHATSAPP_AUTO_SEND=1 AND the recipient on
+WHATSAPP_SEND_ALLOWLIST AND not opted-out/suppressed, all fail-CLOSED, plus official
+creds and (for business-initiated Cloud sends) an approved template.
+NOTE: this module's routes REPORT gate state; they do not enforce it.
 Admin routes require an admin JWT. Webhook routes are public (Meta calls them) but the
 POST is App-Secret signature-verified. Handlers never raise unhandled errors.
 """
@@ -43,22 +48,41 @@ router = APIRouter(prefix="/wa", tags=["WhatsApp"])
 # --------------------------------------------------------------------------- #
 @router.get("/status")
 async def wa_status(current_user: User = Depends(require_admin)) -> dict[str, Any]:
+    from app.integrations import whatsapp as wa_int
     from app.marketing import whatsapp_campaign as wac
 
     prov = wac.provider()
-    if wac.auto_ready():
-        note = f"Auto-send LIVE via {('self-host (WAHA)' if prov == 'waha' else 'Meta Cloud API')}."
+    # Canary allowlist state. This endpoint used to say "Auto-send LIVE" purely from
+    # flag+creds, which would now be a LIE: the boundary gate also requires the
+    # recipient to be allowlisted. Reporting a gate's VALUE while it is not the thing
+    # deciding is exactly the failure that let the ungated onboarding send hide.
+    allow = wa_int.send_allowlist()
+    graduated = allow == ["*"]
+    # Count/graduation only — never echo the numbers back out of the .env.
+    allow_count = 0 if graduated else len(allow)
+    sends_possible = wac.auto_ready() and bool(allow)
+
+    if sends_possible and graduated:
+        note = f"Auto-send LIVE to ALL recipients via {('self-host (WAHA)' if prov == 'waha' else 'Meta Cloud API')} — allowlist graduated to '*'."
+    elif sends_possible:
+        note = f"Auto-send LIVE but CANARY-LIMITED to {allow_count} allowlisted number(s) via {('self-host (WAHA)' if prov == 'waha' else 'Meta Cloud API')}."
+    elif wac.auto_ready():
+        note = "WHATSAPP_AUTO_SEND is on and a backend is ready, but WHATSAPP_SEND_ALLOWLIST is EMPTY — every automated send is blocked (fail-closed canary). Add canary numbers, or '*' to graduate."
     elif prov == "waha":
-        note = "Self-host (WAHA) selected — link the number (scan QR) + set WHATSAPP_AUTO_SEND=1 to auto-send."
+        note = "Self-host (WAHA) selected — link the number (scan QR) + set WHATSAPP_AUTO_SEND=1 AND WHATSAPP_SEND_ALLOWLIST to auto-send."
     else:
-        note = "Ban-safe mode: campaigns return 1-click links (set WHATSAPP_AUTO_SEND=1 + a backend — Cloud API creds OR self-host WAHA — to auto-send)."
+        note = "Ban-safe mode: campaigns return 1-click links (set WHATSAPP_AUTO_SEND=1 + WHATSAPP_SEND_ALLOWLIST + a backend — Cloud API creds OR self-host WAHA — to auto-send)."
     return {
         "provider": prov,  # "cloud" | "waha" — which backend is actually live
         "auto_send_flag": wac.auto_send_enabled(),
         "creds_present": wac.creds_present(),  # any usable backend
         "cloud_creds_present": wac.cloud_creds_present(),  # Meta Cloud API specifically
         "selfhost_active": wac.selfhost_present(),  # WAHA selected + reachable-configured
-        "auto_ready": wac.auto_ready(),
+        "auto_ready": wac.auto_ready(),  # flag + creds only — NOT the whole gate
+        "allowlist_count": allow_count,  # numbers themselves stay in .env
+        "allowlist_graduated": graduated,  # True only when the list is exactly '*'
+        "sends_possible": sends_possible,  # the honest "can anything actually go out"
+        "blocked_by_reason": wa_int.block_stats(),  # no PII — reason codes only
         "daily_cap": wac.daily_cap(),
         "sent_today": wac.sent_today_count(),
         "send_spacing_s": wac.send_spacing_s(),
