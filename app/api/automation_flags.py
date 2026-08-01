@@ -145,6 +145,7 @@ AUTOMATION_FLAGS = [
     "OUTREACH_AB",
     "OUTREACH_AUDIT_LED",  # cold-email leads with a personalized audit-gap hook (additive, no cap change) — OFF default
     "UPI_AUTO_ACTIVATE",  # self-serve UPI submit auto-activates plan immediately (reconcile later) — OFF default
+    "UPI_AUTO_ACTIVATE_CLIENTS",  # comma tenant allowlist required when UPI_AUTO_ACTIVATE=1; empty=fail-closed; '*'=all
     "SERVICE_REMINDERS",
     "LLM_CAPACITY_ALERTS",
     "KB_PREWARM",

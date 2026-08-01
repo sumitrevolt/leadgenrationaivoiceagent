@@ -55,6 +55,7 @@ def test_upi_auto_activate_full_path_stays_isolated(monkeypatch):
     from app.platform import upi_payments as up
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     monkeypatch.setattr(up, "_notify_admin", lambda rec: None)
     monkeypatch.setattr(up, "_trigger_onboarding", lambda *a, **k: None)
     monkeypatch.setattr(up, "_mark_deal_won", lambda *a, **k: None)

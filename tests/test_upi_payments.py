@@ -16,6 +16,7 @@ def up(tmp_path, monkeypatch):
 
     monkeypatch.setattr(mod, "_STORE", lambda: str(tmp_path / "upi_payments.json"))
     monkeypatch.delenv("UPI_AUTO_ACTIVATE", raising=False)
+    monkeypatch.delenv("UPI_AUTO_ACTIVATE_CLIENTS", raising=False)
     return mod
 
 
@@ -89,6 +90,7 @@ def test_auto_activate_flag(up, monkeypatch):
     from app.billing import usage
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
 
@@ -101,10 +103,45 @@ def test_auto_activate_flag(up, monkeypatch):
     assert len(up.list_payments("auto_activated")) == 1
 
 
+def test_auto_activate_fail_closed_without_clients_allowlist(up, monkeypatch):
+    """UPI_AUTO_ACTIVATE=1 with empty CLIENTS must NOT activate (fail-closed)."""
+    from app.billing import usage
+
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.delenv("UPI_AUTO_ACTIVATE_CLIENTS", raising=False)
+    called: list[str] = []
+    monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: called.append(cid) or True)
+
+    out = up.submit_payment("cli_blocked", "growth", "TXNNOALLOW", amount=2999)
+    assert out["ok"] is True
+    assert out["status"] == "pending"
+    assert out["auto_activated"] is False
+    assert called == []
+
+
+def test_auto_activate_wrong_tenant_refused(up, monkeypatch):
+    from app.billing import usage
+
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "allowed-client")
+    called: list[str] = []
+    monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: called.append(cid) or True)
+
+    out = up.submit_payment("other-client", "growth", "TXNWRONG", amount=2999)
+    assert out["status"] == "pending"
+    assert out["auto_activated"] is False
+    assert called == []
+
+    out2 = up.submit_payment("allowed-client", "growth", "TXNOK", amount=2999)
+    assert out2["status"] == "auto_activated"
+    assert called == ["allowed-client"]
+
+
 def test_auto_activate_skipped_without_client(up, monkeypatch):
     from app.billing import usage
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
 
     # no client_id → cannot auto-activate, stays pending
@@ -140,6 +177,7 @@ def test_auto_activate_triggers_onboarding(up, monkeypatch):
     from app.billing import usage
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
     fired: list[int] = []
@@ -158,6 +196,7 @@ def test_auto_activate_nudges_founder_spot_check(up, monkeypatch):
     from app.platform import ops_alerts
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
     monkeypatch.setattr(up, "_mark_deal_won", lambda phone: None)
@@ -188,6 +227,7 @@ def test_auto_activate_nudge_never_raises(up, monkeypatch):
     from app.platform import ops_alerts
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
 
@@ -251,6 +291,7 @@ def test_auto_activate_rejects_fabricated_low_amount(up, monkeypatch):
     from app.billing import usage
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     calls: list[tuple] = []
     monkeypatch.setattr(
         usage, "activate_plan", lambda cid, plan, **kw: calls.append((cid, plan)) or True
@@ -269,6 +310,7 @@ def test_auto_activate_accepts_real_amount(up, monkeypatch):
     from app.billing import usage
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
 
@@ -323,6 +365,7 @@ def test_auto_activate_rejects_low_amount_for_voice_and_combo(up, monkeypatch):
     from app.billing import usage
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     calls: list[tuple] = []
     monkeypatch.setattr(
         usage, "activate_plan", lambda cid, plan, **kw: calls.append((cid, plan)) or True
@@ -357,6 +400,7 @@ def test_auto_activate_marks_matching_voice_deal_won(up, monkeypatch, sp):
     )
 
     monkeypatch.setenv("UPI_AUTO_ACTIVATE", "1")
+    monkeypatch.setenv("UPI_AUTO_ACTIVATE_CLIENTS", "*")
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
 
