@@ -71,22 +71,22 @@ def _is_today_iso(ts: object) -> bool:
 
 
 def _plan_price(plan: str) -> int:
-    """Marketing plan key → monthly ₹ from packages (fallback Starter ₹1,999).
+    """Marketing plan key → monthly ₹ from packages (fallback = starter price).
 
     include_trial=True so plan="trial" resolves to its real ₹0 price instead
     of falling through to the "unknown plan" min-nonzero-price fallback (found
     2026-07-07 building Command Center — was silently attributing ₹1,999 MRR
     to every free-trial signup in revenue-trend/revenue-analytics too)."""
     try:
-        from app.marketing.packages import get_packages
+        from app.marketing.packages import get_packages, get_starter_price_inr
 
         key = (plan or "starter").strip().lower()
         for p in get_packages(include_trial=True):
             if str(p.get("key", "")).lower() == key:
                 return int(p.get("price_inr_month") or 0)
-        # default to the cheapest tier price
+        # default to the cheapest tier price (canonical starter from packages)
         prices = [int(p.get("price_inr_month") or 0) for p in get_packages(include_trial=True)]
-        return min([x for x in prices if x > 0] or [1999])
+        return min([x for x in prices if x > 0] or [get_starter_price_inr()])
     except Exception:
         return 999
 

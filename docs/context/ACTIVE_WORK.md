@@ -2,27 +2,27 @@
 
 ---
 
-## WS-1 Mission Control + Core Marketing launch - ACTIVE
+## WS-1 WAHA QR → live canary - ACTIVE (owner scan now)
 - **ID:** WS-1
-- **Business outcome:** Chat-first mission packets + revenue launch without 24h soak blocker
-- **Current state:** Code in worktree `lg-mission-launch` branch `feat/mission-control-revenue-launch`; soak cancelled; durable idempotency index; AMBER parked from chat; executors honest (no fake sessions)
-- **Next exact action:** Commit → PR → CI → merge → `deploy_vps.sh <sha>` → 20m burn-in
-- **Out of scope:** WA auto · dial · reply-auto · UPI auto · SI loop · Swara/voice
+- **Business outcome:** WORKING WAHA + one allowlisted canary
+- **Current state:** Provider fixed — `SCAN_QR_CODE` + real PNG QR; AUTO=0
+- **Next exact action:** Owner scan → reply `WAHA CONNECTED` → agent verify + canary
+- **Out of scope:** blind wipe loops · Meta Cloud · soak
 
 ---
 
-## WS-2 GTM Hot Queue → 2nd paid customer - ACTIVE
+## WS-2 Estique credential + payment - ACTIVE
 - **ID:** WS-2
-- **Business outcome:** Second Marketing paid customer
-- **Current state:** Estique packet ready; human 1-click send
-- **Next exact action:** Owner send decision
-- **Out of scope:** cold auto-calls · bulk WA
+- **Business outcome:** Second paid customer with ledger+browser proof
+- **Current state:** UPI allowlist ON for `81bd0bbe501d`; login invalidated after chat exposure; unpaid rows=0
+- **Next exact action:** Owner private password reset → Billing ₹1999 → reply `PAID`
+- **Out of scope:** requesting password in chat · manual mark-paid · soak
 
 ---
 
-## WS-3 External Agent Runner v1 - PARKED
+## WS-3 Immediate acceptance (soak waived) - WAIT gates
 - **ID:** WS-3
-- **Business outcome:** Unattended GREEN Cursor→Claude with lease/heartbeat
-- **Current state:** Draft on separate worktree; not this launch lane
-- **Next exact action:** Owner decision after Core Marketing launch
-- **Out of scope:** prod runner enable · calling
+- **Business outcome:** `TODAY VERDICT: GO` after WA + payment evidence
+- **Current state:** Core Marketing green at `3c843517`; soak SUPERSEDED
+- **Next exact action:** After both gates pass → infra/boundary acceptance → GO
+- **Out of scope:** time-based soak · fabricating delivery/payment

@@ -537,8 +537,9 @@ except Exception as _ph_e:  # pragma: no cover
     logger.warning(f"PostHog inject middleware skipped: {_ph_e}")
 
 # HTTP request/latency metrics for Prometheus (OBS-001). Pure-ASGI, fail-open,
-# WebSocket-safe. OFF unless PROMETHEUS_HTTP_METRICS=1 (additive rollout) — keeps
-# the metric surface and request path unchanged until explicitly enabled.
+# WebSocket-safe. ON by default in production (SLO alerts need these series);
+# OFF in dev unless PROMETHEUS_HTTP_METRICS=1; explicit =0|false|off disables
+# anywhere (see http_metrics.enabled()).
 try:
     from app.middleware.http_metrics import HttpMetricsMiddleware
     from app.middleware.http_metrics import enabled as _http_metrics_enabled

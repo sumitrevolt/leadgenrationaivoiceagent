@@ -123,7 +123,7 @@ def _build_onboarding_checklist(
 def _trial_banner(client_rec: dict | None, *, has_paid_plan: bool = False) -> TrialBanner | None:
     """Trial expiry nudge — day 5+ ya expired pe pay CTA."""
     from app.api.customer_dashboard_models import TrialBanner
-    from app.marketing.packages import PACKAGES, trial_status
+    from app.marketing.packages import PACKAGES, get_starter_price_inr, trial_status
 
     try:
         if has_paid_plan:
@@ -134,10 +134,12 @@ def _trial_banner(client_rec: dict | None, *, has_paid_plan: bool = False) -> Tr
         days = int(st.get("days_left") or 0)
         expired = bool(st.get("expired"))
         show = expired or days <= 7
-        starter = 1999
+        starter = get_starter_price_inr()  # canonical ₹1,999 — packages.py single source
         for p in PACKAGES:
             if str(p.get("key") or "") == "starter":
-                starter = int(p.get("price_inr_month") or p.get("price_inr") or 1999)
+                starter = int(
+                    p.get("price_inr_month") or p.get("price_inr") or get_starter_price_inr()
+                )
                 break
         if expired:
             msg = (
