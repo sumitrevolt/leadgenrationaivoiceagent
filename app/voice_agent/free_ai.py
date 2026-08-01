@@ -10,7 +10,7 @@ peeche (LLM) FREE, OpenAI-compatible providers ka chain lagata hai taaki quota
 khatam hone par bhi agent sunta + bolta rahe:
 
   STT chain (vobiz_stream._stt me): Groq whisper-large-v3 → Gemini audio → local faster-whisper
-  LLM chain (yahan chat() me):      Groq llama-3.1-8b → Cerebras gpt-oss-120b → Mistral/OpenRouter fallbacks
+  LLM chain (yahan chat() me):      Groq gpt-oss-20b → Cerebras gpt-oss-120b → Mistral/OpenRouter fallbacks
 
 Groq, Cerebras, OpenRouter — teeno OpenAI-compatible hain (sirf base_url + api_key
 badalta hai, wahi `openai` SDK seedha chalta hai). Keys env se:
@@ -136,7 +136,11 @@ _NVIDIA_BASE = "https://integrate.api.nvidia.com/v1"  # build.nvidia.com
 # Hindi/Hinglish; set GROQ_STT_MODEL=whisper-large-v3-turbo to trade accuracy for speed.
 _GROQ_STT_MODEL = _os.environ.get("GROQ_STT_MODEL", "").strip() or "whisper-large-v3"
 _CEREBRAS_LLM_MODEL = "gpt-oss-120b"  # free, fastest 120B
-_GROQ_LLM_MODEL = "llama-3.1-8b-instant"  # free, 6000 RPM, 14k RPD
+# Groq deprecation (console.groq.com/docs/deprecations, research 2026-08-01):
+# llama-3.1-8b-instant + llama-3.3-70b-versatile decommission 2026-08-16.
+# Official replacements: openai/gpt-oss-20b (8B) and openai/gpt-oss-120b (70B).
+# Env override keeps emergency pin until shutdown day if needed.
+_GROQ_LLM_MODEL = _os.environ.get("GROQ_LLM_MODEL", "").strip() or "openai/gpt-oss-20b"
 _GEMINI_LLM_MODEL = (
     "gemini-2.5-flash"  # paid tier — key set, 2.5-flash works (2.0-flash-lite free_tier=0)
 )
@@ -144,13 +148,14 @@ _SAMBANOVA_LLM_MODEL = "Meta-Llama-3.3-70B-Instruct"  # free, fast inference chi
 _MISTRAL_LLM_MODEL = "mistral-small-latest"  # free tier (La Plateforme)
 _NVIDIA_LLM_MODEL = "meta/llama-3.3-70b-instruct"  # NVIDIA NIM free — quality fallback (env override: NVIDIA_LLM_MODEL)
 # 2026 EXTRA low-priority free models — sirf tab hit hote hain jab proven primaries
-# (mistral/groq-8b/cerebras) exhaust ho jaayein (Groq-TPD case jahaan yeh sabse zyada
-# madad karte). Circuit-breaker per-provider hai → provider poora down ho to skip;
-# par jab sirf primary model 429/decommission ho aur provider chalu rahe, yeh strong
-# fallback dete. Widely-known FREE ids — galat/404 id ko breaker graceful sideline karta.
-_GROQ_QWEN3_MODEL = "qwen/qwen3-32b"  # Groq free Qwen3-32B (strong multilingual)
-_GROQ_LLAMA70B_MODEL = "llama-3.3-70b-versatile"  # Groq free Llama-3.3-70B (high quality)
-_GROQ_KIMI_K2_MODEL = "moonshotai/kimi-k2-instruct"  # Groq free Kimi K2 (strong multilingual)
+# (mistral/groq-head/cerebras) exhaust ho jaayein. Dead ids REMOVED (research 2026-08-01):
+# qwen/qwen3-32b shut 2026-07-17; moonshotai/kimi-k2-instruct shut 2025-10-10.
+_GROQ_QWEN3_MODEL = (
+    _os.environ.get("GROQ_QWEN3_MODEL", "").strip() or "qwen/qwen3.6-27b"
+)  # Groq recommended multilingual / strict-adjacent replacement
+_GROQ_LLAMA70B_MODEL = (
+    _os.environ.get("GROQ_LLAMA70B_MODEL", "").strip() or "openai/gpt-oss-120b"
+)  # name kept for callers; id is gpt-oss-120b (not Llama)
 # OpenRouter free models — cascade (deepseek/deepseek-chat:free deprecated 2026-06 → 404;
 # 2026-07-05: llama-3.1-8b-instruct:free / deepseek-r1:free / gemma-2-9b-it:free ALL
 # deprecated too → 404 on every openrouter_1..4 account, live-verified via
@@ -632,14 +637,14 @@ def _build_llm_chain(profile: str) -> list[tuple[str, str]]:
     chain += core
     if not _ollama_primary():
         chain.append(_ollama_entry)
-    # 2026 EXTRA free models — proven primaries (mistral/groq-8b/cerebras) ke BAAD,
+    # 2026 EXTRA free models — proven primaries (mistral/groq-head/cerebras) ke BAAD,
     # weaker gemini/openrouter-:free tail se PEHLE. Yeh tab kaam aate jab primary model
     # 429/TPD/decommission ho par provider zinda ho (Groq-TPD ke baad bhi Groq dusre
     # model serve kar sakta). Pure additive low-priority entries — koi flag nahi.
+    # Kimi K2 + qwen3-32b removed (already decommissioned on Groq — research 2026-08-01).
     chain += [
         ("groq", _GROQ_LLAMA70B_MODEL),
         ("groq", _GROQ_QWEN3_MODEL),
-        ("groq", _GROQ_KIMI_K2_MODEL),
     ]
 
     if not gemini_primary:

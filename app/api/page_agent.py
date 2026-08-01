@@ -44,7 +44,9 @@ _FRONTEND_DIR = Path(__file__).resolve().parents[2] / "frontend"
 _DEFAULT_SCRIPT_URL = (
     "https://cdn.jsdelivr.net/npm/page-agent@1.10.0/dist/iife/page-agent.demo.js?autoInit=false"
 )
-_DEFAULT_SCRIPT_SRI = "sha256-noeu3GDBmE6HTbB1d/RHK3hKHPqbeKaOawqWEROWy0I="
+_DEFAULT_SCRIPT_SRI = (
+    "sha256-noeu3GDBmE6HTbB1d/RHK3hKHPqbeKaOawqWEROWy0I="  # pragma: allowlist secret
+)
 
 # SELF-HOSTED vendored copy (PREFERRED when present) — 2026-07-03 finding: user ke
 # ISP se cdn.jsdelivr.net BLOCKED tha (India me common). File = same pinned 1.10.0
@@ -55,8 +57,18 @@ _VENDOR_URL = "/api/page-agent/vendor.js?autoInit=false"
 
 # provider -> (settings attr, upstream chat URL, enforced model env-default)
 _PROVIDERS: list[tuple[str, str, str, str]] = [
-    ("mistral", "mistral_api_key", "https://api.mistral.ai/v1/chat/completions", "mistral-small-latest"),
-    ("groq", "groq_api_key", "https://api.groq.com/openai/v1/chat/completions", "llama-3.1-8b-instant"),
+    (
+        "mistral",
+        "mistral_api_key",
+        "https://api.mistral.ai/v1/chat/completions",
+        "mistral-small-latest",
+    ),
+    (
+        "groq",
+        "groq_api_key",
+        "https://api.groq.com/openai/v1/chat/completions",
+        "openai/gpt-oss-20b",
+    ),
 ]
 
 _MAX_BODY_BYTES = 1_000_000  # DOM serialization badi ho sakti — 1MB cap (abuse guard)

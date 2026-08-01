@@ -10,7 +10,7 @@
 <meta property="og:type" content="website" />
 <meta property="og:site_name" content="LeadGenAI" />
 <meta property="og:title" content="AI Marketing & Voice Agent Pricing for Businesses — LeadGenAI" />
-<meta property="og:description" content="AI Marketing Automation (₹1,999/mo), aur Advanced/Combo (₹5,999/mo) = marketing + AI voice-agent feature (500 min/mo callbacks + qualification)." />
+<meta property="og:description" content="AI Marketing Automation (₹1,999/mo), aur Combo — Marketing + AI Voice (₹5,999/mo) = marketing + AI voice callback feature (500 min/mo)." />
 <meta property="og:url" content="https://leadsgenai.in/pricing" />
 <meta property="og:image" content="https://leadsgenai.in/icons/icon-512.png" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -35,15 +35,18 @@
   header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
   .brand{display:flex;align-items:center;gap:10px;font-family:"Plus Jakarta Sans",Inter,sans-serif;font-weight:800;font-size:20px}
   .brand .dot{color:var(--pri2)}
-  .nav a{margin-left:16px;color:var(--mut);font-size:14px}
+  .nav a{margin-left:16px;color:var(--mut);font-size:14px;min-height:44px;display:inline-flex;align-items:center}
   .hero{padding:34px 0 10px;text-align:center}
   .eyebrow{display:inline-flex;align-items:center;gap:8px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#d7def5;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.08);padding:8px 14px;border-radius:999px}
   .hero h1{font-size:clamp(2rem,4.8vw,3.7rem);line-height:1.05;margin:18px 0 10px;font-family:"Plus Jakarta Sans",Inter,sans-serif}
   .hero p{max-width:740px;margin:0 auto;color:var(--mut);font-size:1.06rem;line-height:1.6}
   .cta-row{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:22px}
-  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:14px 20px;font-weight:700;border:1px solid transparent;cursor:pointer}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:14px 20px;font-weight:700;border:1px solid transparent;cursor:pointer;min-height:44px}
   .btn.primary{background:linear-gradient(135deg,var(--pri),var(--pri2));color:#fff;box-shadow:0 18px 40px -24px rgba(91,140,255,.9)}
   .btn.ghost{background:transparent;color:#fff;border-color:var(--line)}
+  .cycle{display:inline-flex;gap:0;margin:18px auto 0;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:rgba(255,255,255,.04)}
+  .cycle button{min-height:40px;padding:8px 18px;border:0;background:transparent;color:var(--mut);font-weight:700;cursor:pointer}
+  .cycle button.on{background:rgba(91,140,255,.25);color:#fff}
   .trial{margin:28px auto 0;max-width:920px;background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);border-radius:22px;padding:18px 20px;display:flex;gap:16px;justify-content:space-between;align-items:center;flex-wrap:wrap}
   .trial b{display:block;font-size:16px}
   .trial span{color:var(--mut);font-size:14px}
@@ -110,11 +113,11 @@
   "name":"LeadGenAI Pricing",
   "operatingSystem":"Web",
   "applicationCategory":"BusinessApplication",
-  "description":"AI Marketing Automation, aur Advanced/Combo tier = marketing + AI voice-agent feature (500 min/mo callbacks + qualification), for local Indian businesses.",
+  "description":"AI Marketing Automation, aur Combo — Marketing + AI Voice = marketing + AI voice callback feature (500 min/mo), for local Indian businesses.",
   "url":"https://leadsgenai.in/pricing",
   "offers":[
     {"@type":"Offer","name":"AI Marketing Automation","price":"1999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"1999","priceCurrency":"INR","billingDuration":"P1M"}},
-    {"@type":"Offer","name":"Advanced (Marketing + AI Voice feature)","price":"5999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"5999","priceCurrency":"INR","billingDuration":"P1M"}}
+    {"@type":"Offer","name":"Combo — Marketing + AI Voice","price":"5999","priceCurrency":"INR","priceSpecification":{"@type":"UnitPriceSpecification","price":"5999","priceCurrency":"INR","billingDuration":"P1M"}}
   ],
   "publisher":{"@type":"Organization","name":"LeadGenAI","url":"https://leadsgenai.in"}
 }
@@ -150,9 +153,16 @@
     <button class="btn primary btn-nowrap" onclick="startTrial()">FREE Trial shuru karo</button>
   </div>
 
+  <div style="text-align:center">
+    <div class="cycle" role="group" aria-label="Billing cycle">
+      <button type="button" id="cycle-monthly" class="on" onclick="setCycle('monthly')">Monthly</button>
+      <button type="button" id="cycle-yearly" onclick="setCycle('yearly')">Yearly · 2 months free</button>
+    </div>
+  </div>
+
   <div id="plans" class="grid"><div class="cmp" style="grid-column:1/-1">Plans load ho rahe hain…</div></div>
 
-  <p class="fine">Marketing plan me koi calling charge nahi. Advanced Voice Agent me 500 min/mo included.</p>
+  <p class="fine">Marketing plan me koi calling charge nahi. Combo (₹5,999) me AI Voice callback feature — 500 min/mo included.</p>
   <div class="voice-callout">📞 Full AI telecaller chahiye? Wo alag product hai: <a href="/voice-agent"><b>AI Voice Calling Agent</b></a>. Hinglish AI jo unlimited calls karta hai aapke niche ke liye.</div>
 
   <section class="compare">
@@ -164,9 +174,9 @@
         <div class="wt">Content + leads + reviews + CRM automation. Marketing-only, no calling charge.</div>
       </div>
       <div class="cmp">
-        <div class="nm">Advanced Voice Agent</div>
+        <div class="nm">Combo — Marketing + AI Voice</div>
         <div class="pr">₹5,999<small>/mo</small></div>
-        <div class="wt">Inquiry callback + qualification + appointment booking + follow-ups. Voice-centric only.</div>
+        <div class="wt">Poora marketing + inquiry callback / qualify / booking feature (500 min/mo). Standalone telecaller alag product hai.</div>
       </div>
     </div>
   </section>
@@ -223,11 +233,12 @@ const FALLBACK = [
   },
   {
     id:"advanced",
-    name:"Advanced Voice Agent",
+    name:"Combo — Marketing + AI Voice",
     monthly_price:5999,
     yearly_discount:16.6666666667,
     features:[
-      "AI Voice Agent — har website/GBP inquiry ko ~2-minute me AI call",
+      "Everything in AI Marketing Automation",
+      "AI Voice callback FEATURE — har website/GBP inquiry ko ~2-minute me AI call",
       "Lead qualification — budget, timeline, interest score capture",
       "Appointment booking — slots offer + confirm",
       "Missed-call auto-callback (DID active hone par)",
@@ -242,6 +253,17 @@ const FALLBACK = [
     ]
   }
 ];
+
+function setCycle(c){
+  CYCLE = (c === "yearly") ? "yearly" : "monthly";
+  const m = document.getElementById("cycle-monthly");
+  const y = document.getElementById("cycle-yearly");
+  if(m && y){
+    m.classList.toggle("on", CYCLE === "monthly");
+    y.classList.toggle("on", CYCLE === "yearly");
+  }
+  if(PLANS.length) render();
+}
 
 function inr(n){ return "₹" + Number(n || 0).toLocaleString("en-IN"); }
 
@@ -290,13 +312,13 @@ function render(){
       <div class="plan ${featured ? "featured" : ""}">
         ${featured ? '<div class="badge">POPULAR</div>' : ""}
         <h2>${p.name || p.id || ""}</h2>
-        <div class="desc">${featured ? "Main marketing plan" : "Voice-centric plan"}</div>
+        <div class="desc">${featured ? "Main marketing plan" : "Marketing + AI Voice callback feature"}</div>
         <div class="price">${inr(pr.amt)}<small>${pr.suf}</small></div>
-        <div class="note">${isAdv ? "telephony usage included up to 500 min/mo" : "100% marketing-only — koi calling charge nahi"}</div>
+        <div class="note">${isAdv ? "marketing + 500 min/mo voice callback feature" : "100% marketing-only — koi calling charge nahi"}</div>
         ${featuresHtml(p)}
         <div class="actions">
           <button class="btn primary" onclick="openModalByIndex(${i})">Shuru karo</button>
-          <a class="btn ghost" href="#plans">Compare</a>
+          <a class="btn ghost" href="/compare">Compare</a>
         </div>
       </div>
     `);
