@@ -176,6 +176,7 @@ _last_ran: dict[str, str | None] = {
     "approval_email_sweep": None,  # hourly :40: bounded pending-approval EMAIL sweep (gated APPROVAL_EMAIL_NOTIFY, single-flight)
     "social_drain": None,  # hourly :10: native social queue drain (gated SOCIAL_ENGINE)
     "sales_autopilot": None,  # hourly :25: Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
+    "task_lease_reap": None,  # hourly :05: expired agent-task lease reclaim (gated AGENT_TASK_LEASE_REAP; INERT off)
 }
 
 
@@ -1259,6 +1260,18 @@ async def _run_job_inner(job: str) -> bool:
             # Never sends without customer consent + provider success; audit +
             # DB idempotency key make repeated runs safe.
             await approval_notifier.run_approval_email_sweep()
+        elif job == "task_lease_reap":
+            from app.platform import agent_task_queue as _atq
+
+            # Expired claim-lease close-out. `stale_tasks()` only SURFACES stuck work by
+            # design, so a worker that dies mid-task strands its lease forever. INERT
+            # unless AGENT_TASK_LEASE_REAP=1 — "surface, don't auto-fix" stays default.
+            # TERMINAL only (marks failed, never requeues): complete()/fail() don't guard
+            # on checkout_version, so a requeue could double-run this job's side effects.
+            # No sends, no customer mutation.
+            if _atq.lease_reap_enabled():
+                _reaped = await _atq.reap_stale_leases(dry_run=False)
+                logger.info(f"[team-scheduler] task_lease_reap: {_reaped}")
         elif job == "sales_autopilot":
             from app.platform.sales_autopilot import scheduler as _sales_ap
 
@@ -1542,6 +1555,10 @@ async def scheduler_loop() -> None:
             if now.minute >= 25 and _last_ran.get("sales_autopilot") != hour_key:
                 _last_ran["sales_autopilot"] = hour_key
                 await _run_job("sales_autopilot")
+            # Expired agent-task lease reclaim — hourly :05 (INERT unless AGENT_TASK_LEASE_REAP=1).
+            if now.minute >= 5 and _last_ran.get("task_lease_reap") != hour_key:
+                _last_ran["task_lease_reap"] = hour_key
+                await _run_job("task_lease_reap")
             # Native social queue drain — hourly :10 (INERT unless SOCIAL_ENGINE=1).
             if now.minute >= 10 and _last_ran.get("social_drain") != hour_key:
                 _last_ran["social_drain"] = hour_key
