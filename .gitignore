@@ -147,6 +147,10 @@ credentials/
 *.json
 !package.json
 !.mcp.json
+# The renderer lockfile MUST be tracked: `npm ci` in Dockerfile.video refuses to
+# run without it, and an untracked lockfile means the image is not reproducible.
+# The blanket `*.json` above silently excluded it.
+!package-lock.json
 
 # Test database
 test.db
