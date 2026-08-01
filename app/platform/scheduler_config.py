@@ -201,6 +201,11 @@ JOB_META: dict[str, dict[str, str]] = {
         "cadence": "hourly :25",
         "owner": "platform",
     },
+    "task_lease_reap": {
+        "label": "Expired agent-task lease close-out (gated AGENT_TASK_LEASE_REAP)",
+        "cadence": "hourly :05",
+        "owner": "platform",
+    },
 }
 
 

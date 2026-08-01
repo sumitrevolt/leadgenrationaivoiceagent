@@ -145,6 +145,7 @@ STAFF_JOBS = (
     "approval_email_sweep",  # bounded pending-approval EMAIL sweep, gated APPROVAL_EMAIL_NOTIFY (default OFF); single-flight (2026-07-12)
     "social_drain",  # hourly :10 native social queue drain (gated SOCIAL_ENGINE); Celery+in-process (audit 2026-07-17)
     "sales_autopilot",  # hourly :25 Sales Autopilot canary tick (gated SALES_AUTOPILOT_ENABLED; INERT off)
+    "task_lease_reap",  # hourly :05 expired agent-task lease close-out (gated AGENT_TASK_LEASE_REAP; INERT off)
 )
 
 

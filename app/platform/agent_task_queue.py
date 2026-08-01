@@ -24,6 +24,7 @@ Usage:
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -447,6 +448,101 @@ async def stale_tasks(threshold_minutes: int = 10) -> list[dict[str, Any]]:
     except Exception as e:
         logger.warning(f"[atq] stale_tasks failed: {e}")
         return []
+
+
+def lease_reap_enabled() -> bool:
+    """`AGENT_TASK_LEASE_REAP` gate — unset/0 = INERT (surface-only, default)."""
+    return os.environ.get("AGENT_TASK_LEASE_REAP", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+async def reap_stale_leases(
+    threshold_minutes: int = 30,
+    limit: int = 50,
+    dry_run: bool = True,
+) -> dict[str, Any]:
+    """Close out expired claim-leases TERMINALLY so stuck work stops being invisible.
+
+    `stale_tasks()` deliberately only SURFACES stuck work ("Paperclip philosophy"), so a
+    worker that dies between `claim_next()` and `complete()`/`fail()` leaves its task in
+    claimed/running FOREVER — it is never resolved and never re-assigned.
+
+    DELIBERATELY NOT A REQUEUE. Requeueing to `pending` would be unsafe here: `complete()`
+    (:197) and `fail()` (:236) match on `id` + `status` only — NEITHER guards on
+    `checkout_version`. So a slow-but-alive worker whose lease we requeued would keep
+    running, a second agent would claim the same row, and the original's `complete()` would
+    silently overwrite the second run. Bumping `checkout_version` on requeue does not help,
+    precisely because those two writers ignore it. And these leases wrap real side-effecting
+    work (`agent_runtime._durable_open` covers every runtime action; `team_scheduler`:309
+    covers every scheduled routine), so a double-run is customer-visible, not queue hygiene.
+
+    Terminal-fail keeps the safety property provable: once reaped, the row is `failed`, and
+    the original worker's late `complete()`/`fail()` no longer matches the claimed/running
+    filter, so it cannot resurrect or overwrite it. Re-assignment stays a human decision —
+    faithful to "surface, don't auto-fix". `checkout_version` is recorded in the reason for
+    diagnostics only.
+
+    Default `dry_run=True` — reports what it WOULD do and mutates nothing. Never raises.
+    """
+    out: dict[str, Any] = {
+        "scanned": 0,
+        "failed": 0,
+        "dry_run": bool(dry_run),
+        "at": _now().isoformat(),
+    }
+    try:
+        from datetime import timedelta
+
+        from app.models.agent_task import AgentTask
+        from app.models.base import get_db_session
+
+        cutoff = _now() - timedelta(minutes=max(1, int(threshold_minutes)))
+        with get_db_session() as db:
+            stuck = (
+                db.query(AgentTask)
+                .filter(
+                    AgentTask.status.in_(["claimed", "running"]),
+                    AgentTask.claimed_at < cutoff,
+                )
+                .order_by(AgentTask.claimed_at.asc())
+                .limit(max(1, int(limit)))
+                .all()
+            )
+            out["scanned"] = len(stuck)
+            for t in stuck:
+                attempts = t.checkout_version or 0
+                if dry_run:
+                    out["failed"] += 1
+                    continue
+                # Same optimistic-lock guard as claim_next — a reap must never clobber a
+                # live worker that finished legitimately between our read and this update.
+                rows = (
+                    db.query(AgentTask)
+                    .filter(
+                        AgentTask.id == t.id,
+                        AgentTask.checkout_version == attempts,
+                        AgentTask.status == t.status,
+                    )
+                    .update(
+                        {
+                            "status": "failed",
+                            "completed_at": _now(),
+                            "result_summary": f"lease_expired_after_{attempts}_attempts",
+                        },
+                        synchronize_session=False,
+                    )
+                )
+                db.commit()
+                if rows:
+                    out["failed"] += 1
+                    _log_event(
+                        t.agent_id,
+                        "lease_expired",
+                        f"⏱️ {(t.goal or '')[:80]} (attempt {attempts}) — needs re-assign",
+                    )
+    except Exception as e:
+        logger.warning(f"[atq] reap_stale_leases failed: {e}")
+        out["error"] = str(e)[:200]
+    return out
 
 
 def _log_event(member: str, action: str, detail: str) -> None:
