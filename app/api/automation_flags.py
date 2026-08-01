@@ -389,4 +389,12 @@ AUTOMATION_FLAGS = [
     "SALES_AUTOPILOT_PAYMENT_REMINDER_KILL",  # block payment/onboarding nudges
     "SALES_AUTOPILOT_CANARY_BATCH",  # per-tick batch size (default 1)
     "SALES_AUTOPILOT_LLM_TONE",  # OPTIONAL tone-only LLM review (never authoritative)
+    # --- Agent task-queue lease reclaim (2026-07-31, app/platform/agent_task_queue) ---
+    # stale_tasks() only SURFACES stuck work by design ("Paperclip philosophy"), so a worker
+    # that dies between claim_next() and complete()/fail() strands its lease forever and the
+    # task is never resolved. This arms the TERMINAL close-out: the expired lease is marked
+    # failed (never requeued — complete()/fail() ignore checkout_version, so a requeue could
+    # double-run side-effecting work). Re-assignment stays a human decision.
+    # No sends, no customer mutation, no migration. OFF default → surface-only.
+    "AGENT_TASK_LEASE_REAP",
 ]

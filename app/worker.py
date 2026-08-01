@@ -685,6 +685,16 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute=25),
         "args": ("sales_autopilot",),
     },
+    # Expired agent-task lease close-out (ADR-150). MUST be here, not only in the
+    # in-process scheduler_loop: production runs `celery -A app.worker beat` with
+    # RUN_IN_PROCESS_SCHEDULER=0, so an in-process-only job is DEAD in prod — the
+    # exact fault call_kpi_digest hit (audit 2026-07-04). Job body no-ops unless
+    # AGENT_TASK_LEASE_REAP=1.
+    "staff-task-lease-reap-hourly": {
+        "task": "app.tasks.staff_jobs.run_staff_job",
+        "schedule": crontab(minute=5),
+        "args": ("task_lease_reap",),
+    },
     # Periodic social-engine drain (audit 2026-07-17): enqueue fires a one-shot
     # Celery drain, but retry/dead/queued jobs need a scheduled sweep independent
     # of VIDEO_AD_CYCLE. STAFF_JOB path so prod_check + dead-man + admin toggle
