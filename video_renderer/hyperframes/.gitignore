@@ -1,0 +1,7 @@
+# Installed at image-build time from the committed lockfile — never committed.
+node_modules/
+
+# Render scratch space. Real outputs go to the canonical media roots
+# (app.marketing.video_media_paths), never here.
+renders/
+.debug/
