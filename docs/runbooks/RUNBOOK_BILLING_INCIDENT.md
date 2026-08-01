@@ -8,7 +8,7 @@ suspected duplicate invoice/charge, or a GST/invoice-numbering question.
 > are the proof that gate holds.
 
 ## Standing controls (the safety net)
-- **Single source of truth:** `app/billing/packages.py` (`subscription._sync_plans_from_packages`).
+- **Single source of truth:** `app/marketing/packages.py` (`subscription._sync_plans_from_packages`).
   Pricing change = `packages.py` + `test_billing_truth_2026.py` together.
 - **Invoice numbering:** atomic, sequential, Rule-46 (`INV/2026-27/0001`), SAC 998313.
   GST charged **only** when `GST_GSTIN` is set (unregistered = no tax).

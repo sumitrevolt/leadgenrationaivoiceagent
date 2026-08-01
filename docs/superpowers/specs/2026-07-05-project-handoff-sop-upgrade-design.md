@@ -27,7 +27,7 @@ Pointer-heavy (SKILLS_PARITY anti-duplication rule — skills/runbooks LINK karo
 1. **Ye project kya hai** — DO products (Marketing main ₹1,999/₹5,999 + Voice standalone band A/B/C), live https://leadsgenai.in, repo github.com/sumitrevolt/leadgenrationaivoiceagent
 2. **Teen-directory layout** — (a) `Documents\leadgenrationaiagent` = code (source of truth), (b) `Documents\leadsgenai-brain` = Obsidian vault, bot-synced nightly (manual edits overwrite-risk), (c) `source\repos` = generic vendored skills master (project-agnostic)
 3. **Live infra map** — VPS 72.61.245.204 (Hostinger Mumbai, Ubuntu 24.04), `/opt/leadgen`, Docker containers: leadgen_app :8000, worker, worker_heavy, scheduler, redis, redis-cache, db, pgbouncer, qdrant, postiz, waha; Caddy host-proxy; systemd `leadgen` installed-but-DISABLED (rollback)
-4. **Source-of-truth hierarchy** — CLAUDE.md (lean working memory, har turn load) → docs/SESSION_LOG.md (dated history) → app/billing/packages.py (billing truth) → .claude/skills/ (SOPs) → docs/runbooks/ (incidents). Kya kahan update hota hai + token discipline rule
+4. **Source-of-truth hierarchy** — CLAUDE.md (lean working memory, har turn load) → docs/SESSION_LOG.md (dated history) → app/marketing/packages.py (billing truth) → .claude/skills/ (SOPs) → docs/runbooks/ (incidents). Kya kahan update hota hai + token discipline rule
 5. **Operate karne ka din** — scheduled automation (team_scheduler, self-improve loops), cockpits: /app/office (Operating HQ), /app/automation (Mission Control), approvals flow (draft-safe, human ✓/✕)
 6. **Deploy** — 1-line gate summary + pointer to `.claude/skills/leadgen-ops` (4 gated steps + done-gate)
 7. **Incident** — pointer to `prod-incident-triage` skill + docs/runbooks/ index

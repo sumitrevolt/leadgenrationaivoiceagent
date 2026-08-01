@@ -9,6 +9,16 @@ from datetime import date, datetime  # noqa: F401
 from pydantic import BaseModel, Field
 
 
+def _starter_price_inr_default() -> int:
+    """Canonical starter price (packages.py single source) — import-safe (lazy)."""
+    try:
+        from app.marketing.packages import get_starter_price_inr
+
+        return get_starter_price_inr()
+    except Exception:
+        return 1999
+
+
 class Kpis(BaseModel):
     total_calls: int = Field(..., description="Total calls our agent dialled")
     connected_calls: int = Field(..., description="Calls that actually connected")
@@ -92,7 +102,10 @@ class TrialBanner(BaseModel):
     days_left: int = 0
     expires_at: str | None = None
     show_pay_cta: bool = False
-    starter_price_inr: int = 1999
+    starter_price_inr: int = Field(
+        default_factory=_starter_price_inr_default,
+        description="Starter plan monthly ₹ (canonical from packages.py)",
+    )
     message: str = ""
 
 
@@ -122,7 +135,6 @@ class DashboardResponse(BaseModel):
     trial_banner: TrialBanner | None = None
     approval_banner: ApprovalBanner | None = None
     social_error: str | None = None
-
 
 
 class CrmSyncLeadResult(BaseModel):

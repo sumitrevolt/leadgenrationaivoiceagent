@@ -1,7 +1,7 @@
 # PRD — Product Requirements Document
 
 > **Product:** LeadGenAI (leadgenrationaivoiceagent) · **Owner:** Sumit · **Updated:** 2026-06-20
-> **Truth:** Pricing = `app/billing/packages.py` · Niches = `app/niches.py` (39 builtin)
+> **Truth:** Pricing = `app/marketing/packages.py` · Niches = `app/niches.py` (39 builtin)
 
 ---
 

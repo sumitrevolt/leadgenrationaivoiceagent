@@ -588,31 +588,6 @@ def require_api_key(permissions: list = None):
 
 
 # =============================================================================
-# TENANT CONTEXT MIDDLEWARE
-# =============================================================================
-
-
-class TenantContextMiddleware(BaseHTTPMiddleware):
-    """
-    Extract and validate tenant context from request
-    """
-
-    async def dispatch(self, request: Request, call_next: Callable) -> Response:
-        # Extract tenant ID from header or subdomain
-        tenant_id = request.headers.get("X-Tenant-ID")
-
-        if not tenant_id and "subdomain" in request.url.netloc:
-            # Extract from subdomain if applicable
-            subdomain = request.url.netloc.split(".")[0]
-            tenant_id = subdomain
-
-        # Store in request state
-        request.state.tenant_id = tenant_id
-
-        return await call_next(request)
-
-
-# =============================================================================
 # COMPRESSION MIDDLEWARE
 # =============================================================================
 
@@ -1016,9 +991,11 @@ def setup_middleware(app: FastAPI, production: bool = False):
     # Plain serve karo (correct). Client-side compression Caddy `encode` se add ki ja sakti hai.
     # add_gzip_middleware(app)
 
-    # Tenant context
-    app.add_middleware(TenantContextMiddleware)
-
+    # Tenant context REMOVED 2026-08-01 (enterprise-audit fix): TenantContextMiddleware
+    # client-supplied `X-Tenant-ID` header ko request.state.tenant_id me daal raha tha
+    # bina kisi validation/consumption ke (write-only trust-by-header landmine) — future
+    # code isko scoping ke liye use karta to instant cross-tenant hole ban jata. Real
+    # tenant scoping per-route JWT `client_id` + store-layer ownership checks hai.
     # Reseller white-label branding (fail-open: attaches request.state.tenant).
     try:
         from app.middleware.tenant import TenantBrandingMiddleware
