@@ -79,14 +79,14 @@ _CATALOG: list[dict[str, Any]] = [
     },
     {
         "provider": "groq",
-        "model": "llama-3.1-8b-instant",
+        "model": "openai/gpt-oss-20b",
         "speed": "fast",
         "quality": "good",
         "multilingual": "good",
-        "rate_limit": "6000 RPM, 14k RPD",
+        "rate_limit": "free/developer tier (see Groq console)",
         "cost": "free-unlimited (soft cap)",
         "best_for": ["voice_reply", "planning", "quick_summary"],
-        "notes": "Sabse tez free-tier. TPD content-heavy days pe khatam ho jata.",
+        "notes": "Official replacement for llama-3.1-8b-instant (decommissions 2026-08-16).",
     },
     {
         "provider": "cerebras",
@@ -246,9 +246,7 @@ async def recommend(payload: RecommendIn, _user=Depends(require_admin)) -> dict:
     live_chain = [p for p in chain if live.get(p, False)]
 
     reason = (
-        f"niche='{niche}' matched tasks={tasks_chosen}"
-        if not task
-        else f"explicit task='{task}'"
+        f"niche='{niche}' matched tasks={tasks_chosen}" if not task else f"explicit task='{task}'"
     )
 
     return {

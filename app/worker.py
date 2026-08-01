@@ -193,6 +193,10 @@ celery_app.conf.update(
     task_acks_late=True,  # Acknowledge after task completion
     task_reject_on_worker_lost=True,  # Reject tasks if worker dies
     task_acks_on_failure_or_timeout=True,
+    # Celery 5.x + research 2026-08-01: with acks_late, cancel in-flight tasks when
+    # the broker connection drops so they can be redelivered instead of hanging.
+    # Celery 6.0 flips this default; set explicitly now for launch readiness.
+    worker_cancel_long_running_tasks_on_connection_loss=True,
     # Result backend settings
     result_expires=86400,  # 24 hours
     result_extended=True,  # Store task metadata

@@ -53,7 +53,12 @@ def _provider() -> tuple | None:
         return "https://api.cerebras.ai/v1", cb, os.getenv("DEFAULT_LLM", "gpt-oss-120b")
     gq = os.getenv("GROQ_API_KEY")
     if gq:
-        return "https://api.groq.com/openai/v1", gq, "llama-3.3-70b-versatile"
+        # Groq llama-3.3-70b-versatile decommissions 2026-08-16 → gpt-oss-120b.
+        return (
+            "https://api.groq.com/openai/v1",
+            gq,
+            os.getenv("STRUCTURED_GROQ_MODEL", "openai/gpt-oss-120b"),
+        )
     return None
 
 
@@ -75,8 +80,9 @@ def _strict_model(base_url: str) -> str | None:
             configured = os.getenv("STRUCTURED_STRICT_MODEL", "gpt-oss-120b").strip()
             return "gpt-oss-120b" if configured == "qwen-3-32b" else configured
         if "groq" in bu:
-            # Groq strict-capable free model.
-            return os.getenv("STRUCTURED_STRICT_MODEL", "llama-3.3-70b-versatile")
+            # Groq strict path: prefer qwen3.6-27b (langchain-groq migration note —
+            # gpt-oss may not honour strict json_schema the same way).
+            return os.getenv("STRUCTURED_STRICT_MODEL", "qwen/qwen3.6-27b")
     except Exception:
         return None
     return None
