@@ -42,12 +42,28 @@ def build_creative_video_task(
         return {"error": str(e)[:200]}
 
 
+def _render_soft_limit() -> int:
+    """Celery deadline — must be the OUTERMOST of the three nested timeouts.
+
+    Inward ordering: hyperframes subprocess < creative_os worker_timeout_s <
+    THIS. A full-HD HyperFrames render takes ~2 min, far beyond the 300s that
+    sufficed for the deterministic FFmpeg provider, and if Celery fires first the
+    provider's Chrome children are orphaned instead of reaped.
+    """
+    import os
+
+    try:
+        return max(120, min(3600, int(os.getenv("CREATIVE_VIDEO_SOFT_TIME_LIMIT_S", "1200"))))
+    except Exception:
+        return 1200
+
+
 @celery_app.task(
     name="app.tasks.video_jobs.render_creative_os_task",
     bind=True,
     max_retries=1,
-    soft_time_limit=300,
-    time_limit=360,
+    soft_time_limit=_render_soft_limit(),
+    time_limit=_render_soft_limit() + 120,
 )
 def render_creative_os_task(
     self,
