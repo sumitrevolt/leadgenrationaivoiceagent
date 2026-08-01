@@ -157,8 +157,23 @@ class ComfyUIProvider(_UnavailableSkeleton):
     model = "comfyui-lab"
 
 
+def _hyperframes_provider() -> Any:
+    from app.marketing.creative_os.hyperframes_provider import HyperFramesProvider
+
+    return HyperFramesProvider()
+
+
+# Providers whose failure must NOT silently degrade to the deterministic
+# flat-text render. If a customer asked for a professional animated deliverable
+# and it failed, handing back the low-quality fallback would let a DRAFT_ONLY
+# artifact walk into the approval queue looking like the real thing. The failure
+# is surfaced instead, with its evidence intact.
+NO_SILENT_FALLBACK = frozenset({"hyperframes"})
+
+
 _PROVIDERS: dict[str, CreativeProvider] = {
     "deterministic": DeterministicProvider(),
+    "hyperframes": _hyperframes_provider(),
     "qwen_image": QwenImageProvider(),
     "flux_schnell": FluxSchnellProvider(),
     "wan22": Wan22Provider(),
@@ -181,6 +196,14 @@ async def generate_with_fallback(spec: CreativeSpec) -> dict[str, Any]:
     primary = get_provider(requested)
     out = await primary.generate(spec)
     if out.get("ok"):
+        return out
+    if requested in NO_SILENT_FALLBACK:
+        # Preserve the failure evidence and stop. Callers classify this as
+        # failed / needs-customer-input; nothing reaches approval or Postiz.
+        warns = list(out.get("warnings") or [])
+        warns.append(f"no_silent_fallback:{requested}")
+        out["warnings"] = warns
+        out["fallback_suppressed"] = True
         return out
     if requested != "deterministic" and flags.os_enabled():
         fb = await _PROVIDERS["deterministic"].generate(spec)
