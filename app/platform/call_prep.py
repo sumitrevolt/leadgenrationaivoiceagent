@@ -33,10 +33,12 @@ def _prospect_record(ph10: str) -> dict[str, Any]:
 
 def _score(rec: dict[str, Any]) -> int | None:
     try:
-        from app.platform import lead_scoring
+        if not rec:
+            return None
+        from app.platform.prospect_lists import _scorer_for
 
-        if rec:
-            return lead_scoring.score_lead(rec)
+        scorer, _ver = _scorer_for()
+        return scorer(rec) if scorer else None
     except Exception as e:
         logger.debug(f"[prep] score skip: {e}")
     return None
