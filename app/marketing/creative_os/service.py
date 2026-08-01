@@ -24,6 +24,12 @@ from app.utils.logger import setup_logger
 
 logger = setup_logger(__name__)
 
+# Providers that promise a customer-grade animated deliverable. Output from
+# these MUST clear `enterprise_qa` before it can reach approval_pending; the
+# deterministic provider is deliberately absent because its flat-text render is
+# a legitimate internal draft, not a regression.
+ENTERPRISE_DELIVERABLE_PROVIDERS = frozenset({"hyperframes"})
+
 
 def list_cockpit(tenant_id: str = "", limit: int = 50) -> dict[str, Any]:
     if not flags.os_enabled():
@@ -341,7 +347,44 @@ def process_generation(tenant_id: str, creative_id: str) -> dict[str, Any]:
         spec.output_asset_id = str((reg.get("asset") or {}).get("asset_id") or "")
 
         qa = run_qa(path=path, spec=spec, brand_name=spec.audience)
+
+        # Enterprise deliverable classification. Recorded for EVERY provider so
+        # the cockpit can tell a draft from sellable agency work, but only
+        # ENFORCED for providers that promise a customer-grade deliverable —
+        # enforcing it globally would retroactively fail the deterministic
+        # provider's legitimate 720p drafts.
+        try:
+            from app.marketing.creative_os import enterprise_qa
+
+            grade = enterprise_qa.evaluate(path=path, spec=spec, provider_asset=asset0)
+            qa["enterprise"] = grade
+            qa["classification"] = grade.get("classification")
+        except Exception as e:  # pragma: no cover - defensive, never blocks QA
+            logger.warning(f"[creative_os] enterprise grading failed: {e}")
+            qa["classification"] = "UNKNOWN"
+
         spec.qa_results = qa
+
+        if spec.provider in ENTERPRISE_DELIVERABLE_PROVIDERS and not (
+            qa.get("enterprise") or {}
+        ).get("customer_approvable"):
+            grade = qa.get("enterprise") or {}
+            spec.status = (
+                "quarantined" if grade.get("classification") == "QUARANTINED" else "qa_failed"
+            )
+            spec.failure_reason = "enterprise_gate:" + ",".join(
+                grade.get("blockers") or ["unclassified"]
+            )
+            save_record(spec)
+            return {
+                "ok": False,
+                "error": "enterprise_gate_failed",
+                "creative_id": creative_id,
+                "classification": grade.get("classification"),
+                "qa": qa,
+                "status": spec.status,
+            }
+
         if qa.get("ok") is not True:
             trf = assert_transition("generating", "qa_failed")
             if not trf.get("ok"):
@@ -395,11 +438,23 @@ def _path_authorized(path: str) -> bool:
             return False
         if resolved.suffix.lower() != ".mp4":
             return False
-        roots = (
+        roots = [
             Path("data/reels").resolve(),
             Path("data/video_ads").resolve(),
             Path("data/creative_os").resolve(),
-        )
+        ]
+        # Also trust the canonical media roots resolved at CALL time. The literals
+        # above are CWD-relative, so in a container where the runtime data dir is
+        # redirected (LEADGEN_RUNTIME_DATA_DIR) a perfectly valid render lands
+        # outside them and would be wrongly quarantined. These are the same roots
+        # the approval snapshot and publish gate use, so trusting them here keeps
+        # the two authorities from disagreeing.
+        try:
+            from app.marketing.video_media_paths import media_roots
+
+            roots.extend(media_roots())
+        except Exception:  # pragma: no cover - defensive
+            pass
         for root in roots:
             try:
                 resolved.relative_to(root)

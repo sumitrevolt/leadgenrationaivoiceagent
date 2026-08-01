@@ -16,7 +16,9 @@ _ALLOWED_PLATFORMS = frozenset(
 )
 _ALLOWED_ASPECTS = frozenset({"9:16", "1:1", "16:9", "4:5"})
 _ALLOWED_LANGS = frozenset({"hinglish", "hi", "en", "gu", "mr", "ta", "te", "bn"})
-_ALLOWED_PROVIDERS = frozenset({"deterministic", "qwen_image", "flux_schnell", "wan22", "comfyui"})
+_ALLOWED_PROVIDERS = frozenset(
+    {"deterministic", "hyperframes", "qwen_image", "flux_schnell", "wan22", "comfyui"}
+)
 _TENANT_RE = re.compile(r"^[a-z0-9][a-z0-9_\-]{1,58}[a-z0-9]$", re.I)
 _PLACEHOLDER_RE = re.compile(
     r"\{\{|\[\s*(insert|todo|tbd|placeholder|xxx)\s*\]|lorem ipsum|test_tenant",

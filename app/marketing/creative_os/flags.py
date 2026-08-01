@@ -19,6 +19,12 @@ def provider_enabled(name: str) -> bool:
     key = str(name or "").strip().lower().replace("-", "_").replace(".", "_")
     if key in ("deterministic", "ffmpeg", "ffmpeg_template"):
         return os_enabled()
+    if key == "hyperframes":
+        # Named _ENABLED rather than the generic CREATIVE_PROVIDER_<NAME> shape.
+        # Kept here so this function stays the single answer to "is provider X
+        # on?" — a second, differently-named check elsewhere is how a provider
+        # ends up live while the flag snapshot still reports it off.
+        return os_enabled() and _on("CREATIVE_PROVIDER_HYPERFRAMES_ENABLED")
     return os_enabled() and _on(f"CREATIVE_PROVIDER_{key.upper()}")
 
 
@@ -61,6 +67,7 @@ def flag_snapshot() -> dict[str, bool | int]:
     return {
         "CREATIVE_OS_ENABLED": os_enabled(),
         "CREATIVE_PROVIDER_DETERMINISTIC": provider_enabled("deterministic"),
+        "CREATIVE_PROVIDER_HYPERFRAMES_ENABLED": provider_enabled("hyperframes"),
         "CREATIVE_PROVIDER_QWEN_IMAGE": provider_enabled("qwen_image"),
         "CREATIVE_PROVIDER_FLUX_SCHNELL": provider_enabled("flux_schnell"),
         "CREATIVE_PROVIDER_WAN22": provider_enabled("wan22"),
