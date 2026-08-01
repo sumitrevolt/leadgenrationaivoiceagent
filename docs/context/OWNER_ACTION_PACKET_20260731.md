@@ -75,12 +75,13 @@ Two steps, in order.
 Bulk email · WhatsApp auto-send · platform dialing · social publishing · UPI auto-activation ·
 sales-autopilot live channels. Each needs its own separate authorization and canary.
 
-**Sales Autopilot posture note:** the master gate `SALES_AUTOPILOT_ENABLED` is `=1` in **both**
-`app` and `scheduler` — this is the authorized safe-launch canary from PR #194, not a leak.
-It is held safe by `SALES_AUTOPILOT_DRY_RUN=1`, `WHATSAPP_ENABLED=0`, `EMAIL_ENABLED=0`,
-`CANARY_BATCH=1`, and corroborated by **zero** autopilot lines in 24h of scheduler logs.
-`docs/context/CURRENT_STATE.md` previously claimed this flag was unset; that claim was wrong and
-has been corrected. `DIRECT_HOST_VERIFIED 2026-07-31T05:41Z`.
+**Sales Autopilot posture note (UPDATED 2026-08-01):** owner mandate "sab on karo" →
+`SALES_AUTOPILOT_DRY_RUN=0` (REAL execution), `SALES_AUTOPILOT_EMAIL_ENABLED=1` (email live),
+`OPENCLAW_REQUIRE_APPROVAL_FOR_AMBER=0` (Boss autonomy). WhatsApp `WHATSAPP_AUTO_SEND=0`
+remains 1-click human + `platform_dial` test-mode cap 10 (legal/ban gates — do NOT flip).
+Prod `48f0577`, last tick 2026-08-01T14:55Z `dry_run:false` processed 0 (single prospect
+`converted`). Prior dry-run posture (from PR #194 canary) superseded by this owner action.
+`DIRECT_HOST_VERIFIED 2026-07-31T05:41Z`.
 
 ## Known infrastructure gaps (owner/ops, not launch blockers for Marketing P1)
 
