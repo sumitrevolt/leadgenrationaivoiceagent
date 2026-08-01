@@ -86,10 +86,11 @@ def renderer_root() -> Path:
 
 def get_template(template_id: str) -> dict[str, Any] | None:
     """Exact-match lookup. Unknown id = None (caller must fail closed)."""
-    key = str(template_id or "").strip()
-    # Deliberately NOT normalised (no lower()/strip of separators): the allowlist
-    # is exact so that no transformation can map hostile input onto a real id.
-    row = TEMPLATE_REGISTRY.get(key)
+    # Deliberately NOT normalised — no strip(), no lower(), no separator fixing.
+    # Normalisation is what lets a hostile or malformed id be *rewritten* into a
+    # real one; callers that read from env normalise at their own edge (see
+    # `hyperframes_provider.default_template`) so this boundary stays exact.
+    row = TEMPLATE_REGISTRY.get(str(template_id or ""))
     return dict(row) if row else None
 
 
