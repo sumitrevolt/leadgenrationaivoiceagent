@@ -99,10 +99,26 @@ def tenant_allowed(tenant_id: str) -> bool:
 
 
 def render_timeout_s() -> int:
+    """Subprocess deadline, always strictly INSIDE the worker's own deadline.
+
+    Three timeouts are nested here: this subprocess timeout, the orchestrator's
+    ``asyncio.wait_for(flags.worker_timeout_s())``, and Celery's
+    ``soft_time_limit``. They must decrease inward. If the outer one fires first
+    the provider never runs its cleanup, and the Chrome grandchildren are
+    orphaned rather than reaped — so the configured value is clamped below the
+    worker deadline instead of trusting two env vars to be set consistently.
+    """
     try:
-        return max(60, min(1800, int(os.getenv("CREATIVE_HYPERFRAMES_TIMEOUT_S", "900"))))
+        configured = int(os.getenv("CREATIVE_HYPERFRAMES_TIMEOUT_S", "900"))
     except Exception:
-        return 900
+        configured = 900
+    configured = max(60, min(1800, configured))
+    try:
+        outer = int(flags.worker_timeout_s())
+    except Exception:
+        outer = configured + 60
+    # Leave headroom for manifest write, ffprobe validation and cleanup.
+    return max(30, min(configured, outer - 30))
 
 
 def max_output_mb() -> int:
@@ -222,7 +238,10 @@ def build_manifest(
         return ""
 
     hook = scene_text("hook", 0)
-    showcase = scene_text("proof", 1) or scene_text("body", 1)
+    # Prefer the verified tagline: scene index 1 is usually the FIRST service,
+    # which would make the showcase card repeat a line the services scene just
+    # showed. Falls back to scene copy when the tenant has no tagline.
+    showcase = _clean(b.get("tagline"), 160) or scene_text("proof", 1) or scene_text("body", 1)
     offer_sub = _clean(spec.offer, 220) or scene_text("offer", -1)
     cta_text = _clean(spec.cta, 160)
 
