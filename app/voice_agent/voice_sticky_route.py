@@ -108,7 +108,7 @@ def select_at_call_start(*, prefer: str | None = None) -> StickyRoute:
         # Map prefer → default model for that provider.
         defaults = {
             "gemini": (os.environ.get("VOICE_LLM_MODEL") or "gemini-2.5-flash").strip(),
-            "groq": (os.environ.get("VOICE_GROQ_MODEL") or "llama-3.1-8b-instant").strip(),
+            "groq": (os.environ.get("VOICE_GROQ_MODEL") or "openai/gpt-oss-20b").strip(),
             "cerebras": (os.environ.get("VOICE_CEREBRAS_MODEL") or "gpt-oss-120b").strip(),
             "nvidia": (os.environ.get("NVIDIA_LLM_MODEL") or "meta/llama-3.1-8b-instruct").strip(),
             "mistral": "mistral-small-latest",
@@ -152,7 +152,7 @@ def logical_routes() -> dict[str, dict[str, str]]:
         },
         ROUTE_INTENT: {
             "provider": "groq",
-            "model": (os.environ.get("VOICE_GROQ_MODEL") or "llama-3.1-8b-instant").strip(),
+            "model": (os.environ.get("VOICE_GROQ_MODEL") or "openai/gpt-oss-20b").strip(),
             "job": "intent_classify",
             "latency_class": "fast",
         },

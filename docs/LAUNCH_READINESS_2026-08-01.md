@@ -96,17 +96,19 @@ No form was submitted; no payment/OAuth/communication triggered.
 
 ## 5. Lane results
 
+> **Research recovery (Cursor 2026-08-01 ~19:15 IST):** Claude's parallel workflow aggregator returned empty, but all 9 agent results were in `wf_11388add-232/journal.jsonl`. Durable packet: `docs/context/CLAUDE_WEB_RESEARCH_2026-08-01.md` (+ `.json`).
+
 | Lane | Verdict | Notes |
 |---|---|---|
-| security-pr204 | PASS (code+tests) | tenant/consent/symlink/injection/timeout/no-silent-fallback covered by HyperFrames suites in clean-room |
-| security-surface | P1 open | Gemini key in VPS bash_history — owner rotate (value not recorded) |
-| agent-os | CODE-PRESENT | **12 GREEN / 17 AMBER / 2 RED** via canonical Agent Runtime; `AGENT_RUNTIME` default OFF; registered ≠ live |
-| harness | CI_VERIFIED | harness real-redis integration green on #204 + #210 |
-| release-infra | PARTIAL | prod at `48f05778`; deploy path canonical; staging untagged image residual |
-| frontend-funnel | BROWSER_VERIFIED | public journeys 200; pricing honesty; no Growth leak |
-| research-hyperframes | IN PROGRESS | exact-head proof nearly closed; agency render pending |
-| research-celery-gha | PASS (assumed from 14:19Z) | celery=0, DLQs=0; beat dispatch observed |
-| research-providers | PASS (boundary) | WA auto / dial / reply / UPI fail-closed defaults in code; autopilot owner-armed email-only |
+| security-pr204 | GREEN | adversarial review PASS; flags OFF; residual P2 hermetic-env secret leak + network_disabled dead control |
+| security-surface | AMBER | Gemini key in VPS bash_history (owner); AUTO_EMAIL_OUTREACH 25/day is per-RUN (~275/day if hourly) |
+| agent-os | AMBER | 12G/17A/2R; dry-run burned live funnel sequencing; inbound email stop incomplete |
+| harness | AMBER | self_improve kill needs worker restart; dead-man alert in-band |
+| release-infra | AMBER | `Dockerfile.lock` can bake `data/` phone PII into GHCR (P1); Actions not SHA-pinned |
+| frontend-funnel | AMBER → patched in this PR | ₹5,999 was mislabeled voice-only; Compare was dead `#plans`; yearly toggle missing — **fixed on this branch** |
+| research-hyperframes | AMBER | pin 0.7.87 = latest; Apache-2.0; `--no-sandbox` hardcoded upstream; Linux canary still in progress on #204 |
+| research-celery-gha | AMBER → partial patch | Celery posture strong; set `worker_cancel_long_running_tasks_on_connection_loss`; Actions SHA-pin still open |
+| research-providers | AMBER → patched in this PR | Groq Llama 8B/70B shut **2026-08-16**; dead Qwen3-32B+Kimi removed; migrated to `openai/gpt-oss-20b` / `120b` + `qwen/qwen3.6-27b` |
 
 ## 6. Launch matrix
 

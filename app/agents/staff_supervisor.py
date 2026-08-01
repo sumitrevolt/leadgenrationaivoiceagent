@@ -42,7 +42,11 @@ def _provider() -> tuple | None:
         return "https://api.cerebras.ai/v1", cb, os.getenv("DEFAULT_LLM", "gpt-oss-120b")
     gq = os.getenv("GROQ_API_KEY")
     if gq:
-        return "https://api.groq.com/openai/v1", gq, "llama-3.3-70b-versatile"
+        return (
+            "https://api.groq.com/openai/v1",
+            gq,
+            os.getenv("STRUCTURED_GROQ_MODEL", "openai/gpt-oss-120b"),
+        )
     return None
 
 

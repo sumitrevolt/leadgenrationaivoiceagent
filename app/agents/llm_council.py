@@ -24,7 +24,7 @@ logger = setup_logger(__name__)
 # Free council members — sirf jinke keys set hon unhe use karenge
 _DEFAULT_MEMBERS: list[tuple[str, str, str]] = [
     ("mistral", "mistral-small-latest", "Mistral Small"),
-    ("groq", "llama-3.1-8b-instant", "Groq Llama 8B"),
+    ("groq", "openai/gpt-oss-20b", "Groq GPT-OSS 20B"),
     ("cerebras", "gpt-oss-120b", "Cerebras 120B"),
     ("gemini", "gemini-2.0-flash-lite", "Gemini Flash Lite"),
 ]
@@ -86,11 +86,15 @@ async def _ask(
         return "", provider
 
 
-async def stage1_collect_responses(user_query: str, members: list[dict[str, str]]) -> list[dict[str, Any]]:
+async def stage1_collect_responses(
+    user_query: str, members: list[dict[str, str]]
+) -> list[dict[str, Any]]:
     """Har available member se parallel opinion."""
 
     async def one(m: dict[str, str]) -> dict[str, Any]:
-        text, prov = await _ask(m["provider"], m["model"], user_query, max_tokens=700, temperature=0.55)
+        text, prov = await _ask(
+            m["provider"], m["model"], user_query, max_tokens=700, temperature=0.55
+        )
         return {
             "provider": m["provider"],
             "model": m["model"],
@@ -114,7 +118,11 @@ def parse_ranking_from_text(ranking_text: str) -> list[str]:
         section = text.split("FINAL RANKING:", 1)[1]
         numbered = re.findall(r"\d+\.\s*Response [A-Z]", section)
         if numbered:
-            return [re.search(r"Response [A-Z]", m).group() for m in numbered if re.search(r"Response [A-Z]", m)]
+            return [
+                re.search(r"Response [A-Z]", m).group()
+                for m in numbered
+                if re.search(r"Response [A-Z]", m)
+            ]
         matches = re.findall(r"Response [A-Z]", section)
         if matches:
             return matches
