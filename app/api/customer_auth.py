@@ -34,6 +34,72 @@ _security = HTTPBearer(auto_error=True)
 _STORE = os.path.join("data", "customer_auth.jsonl")
 _ITER = 120_000
 
+# Account-lockout (2026-08-01, enterprise-audit fix): per-account failed-attempt
+# counter + lockout — admin login pe pehle se hai (admin.py 5-fail -> 30min lock),
+# customer login pe sirf per-IP 10/60 limit thi. Ab Redis-backed lockout bhi.
+# Fail-open on Redis error (InMemoryCache fallback = rate-limiter convention) —
+# metering-class control, NOT a compliance gate; loud log on error.
+_LOCKOUT_MAX_ATTEMPTS = 5
+_LOCKOUT_WINDOW_S = 900  # 15 min lock
+
+
+def _lockout_fail_key(email: str) -> str:
+    return f"customer:login:fail:{(email or '').strip().lower()}"
+
+
+def _lockout_lock_key(email: str) -> str:
+    return f"customer:login:lock:{(email or '').strip().lower()}"
+
+
+async def _account_locked(email: str) -> bool:
+    """True agar account abhi locked hai (too many failed attempts).
+
+    Fail-open on Redis error: lockout is anti-brute-force metering, not a
+    compliance gate — per-IP rate limit abhi bhi pehle fire karta hai.
+    """
+    try:
+        from app.cache import get_redis_client
+
+        redis = await get_redis_client()
+        return bool(await redis.exists(_lockout_lock_key(email)))
+    except Exception as e:
+        logger.debug(f"[customer-auth] lockout check failed (fail-open): {e}")
+        return False
+
+
+async def _record_login_failure(email: str) -> None:
+    """Failed attempt increment; >= _LOCKOUT_MAX_ATTEMPTS pe account lock (15min).
+
+    Redis down = InMemoryCache fallback (in-process, request-scoped) — lockout
+    degrade karta, kabhi raise nahi.
+    """
+    try:
+        from app.cache import get_redis_client
+
+        redis = await get_redis_client()
+        fkey = _lockout_fail_key(email)
+        n = await redis.incr(fkey)
+        if n == 1:
+            await redis.expire(fkey, _LOCKOUT_WINDOW_S)
+        if n >= _LOCKOUT_MAX_ATTEMPTS:
+            await redis.set(_lockout_lock_key(email), "1", ex=_LOCKOUT_WINDOW_S)
+            logger.warning(
+                f"[customer-auth] account locked 15min after {n} failed attempts "
+                f"(email={str(email)[:120]})"
+            )
+    except Exception as e:
+        logger.debug(f"[customer-auth] lockout record failed (fail-open): {e}")
+
+
+async def _clear_login_failures(email: str) -> None:
+    try:
+        from app.cache import get_redis_client
+
+        redis = await get_redis_client()
+        await redis.delete(_lockout_fail_key(email), _lockout_lock_key(email))
+    except Exception as e:
+        logger.debug(f"[customer-auth] lockout clear failed (fail-open): {e}")
+
 
 # --------------------------------------------------------------------------- #
 # password hashing (stdlib pbkdf2) + jsonl credential store
@@ -233,6 +299,12 @@ async def require_customer(creds: HTTPAuthorizationCredentials = Depends(_securi
         raise HTTPException(status_code=401, detail="Invalid token payload")
 
     # Check if token is blacklisted (logged out)
+    # Fail-CLOSED (2026-08-01, enterprise-audit fix): pehle Redis error pe token pass
+    # ho jata tha — a REVOKED (logged-out) token Redis blip ke dauran chal sakta tha.
+    # Admin-tier revocation is_revoked(fail_closed=True) 503 deta hai (auth_deps.py);
+    # customer portal bhi customer-data gate hai — same fail-closed. Redis blip alert
+    # (RedisMainNearFull/outage) pehle se fire hota; transient 503 availability blip
+    # security hole se behtar hai.
     try:
         from app.cache import get_redis_client
 
@@ -245,7 +317,14 @@ async def require_customer(creds: HTTPAuthorizationCredentials = Depends(_securi
     except HTTPException:
         raise
     except Exception as e:
-        logger.debug(f"[require_customer] blacklist check failed: {e} (allowing request)")
+        logger.error(
+            f"[require_customer] blacklist check failed — FAIL-CLOSED 503 (revoked-token "
+            f"guard intact): {e}"
+        )
+        raise HTTPException(
+            status_code=503,
+            detail="Session store unavailable — thodi der me retry karein",
+        )
 
     return str(cid)
 
@@ -374,8 +453,33 @@ async def customer_login(req: LoginIn):
     instead of an access_token; customer then calls /api/customer/2fa/verify
     with the challenge + TOTP code to get the real JWT.
     """
+    # Account lockout (2026-08-01): 5 failed attempts -> 15min lock. Per-IP
+    # limiter (10/60) alag cheez hai — yeh ACCOUNT-level hai (known-email
+    # credential-stuffing). 429/403 detail enum reveal na kare.
+    if await _account_locked(req.email):
+        try:
+            from app.platform import automation_log_service as _als
+
+            _als.log_event(
+                job_type="login_locked",
+                status="blocked",
+                output_summary=f"Login blocked (account locked) for {(req.email or '')[:120]}",
+                error_message="account_locked",
+                triggered_by="customer_login",
+            )
+        except Exception as _log_err:
+            logger.debug(f"[customer-auth] login_locked log emit skip: {_log_err}")
+        raise HTTPException(
+            status_code=429, detail="Too many failed attempts — thodi der me try karein"
+        )
     rec = _find(req.email)
     if not rec or not _verify(req.password, rec.get("password_hash", "")):
+        # Account-level failed-attempt counter (Redis). Fire-and-forget — login
+        # response ke liye blocking nahi; best-effort.
+        try:
+            await _record_login_failure(req.email)
+        except Exception as _lf_err:
+            logger.debug(f"[customer-auth] lockout record skip: {_lf_err}")
         # Loop 8 (2026-07-10): admin observability for credential-stuffing spikes.
         # A single failure is boring; the ADR-064 automation-logs panel filter
         # (job_type=login_failed) surfaces the RATE so ops sees brute-force early.
@@ -400,6 +504,11 @@ async def customer_login(req: LoginIn):
             logger.debug(f"[customer-auth] login_failed log emit skip: {_log_err}")
         raise HTTPException(status_code=401, detail="Invalid email or password")
     cid = str(rec["client_id"])
+    # Successful password verify — clear any accumulated failed-attempts.
+    try:
+        await _clear_login_failures(req.email)
+    except Exception as _cl_err:
+        logger.debug(f"[customer-auth] lockout clear skip: {_cl_err}")
     # 2FA gate — if armed, do NOT issue the JWT here; force the verify step.
     _twofa = False
     try:

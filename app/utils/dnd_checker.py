@@ -114,7 +114,11 @@ class DNDChecker:
             for phone, result in zip(uncached, batch_results, strict=False):
                 if isinstance(result, Exception):
                     logger.error(f"DND check failed for ***{str(phone)[-4:]}: {result}")
-                    # Assume not DND on error (fail open for business continuity)
+                    # Not flagged DND, but UNVERIFIED (verified=False). Promotional gates
+                    # (compliance.py, orchestrator_pipeline, filter_dnd) treat unverified as
+                    # DND — so an error here = promotional BLOCK, not a pass. (2026-08-01:
+                    # comment was "fail open for business continuity" — misleading; only
+                    # confirmed non-DND numbers may be contacted. §5 TRAI fail-CLOSED.)
                     result = DNDCheckResult(
                         phone=phone,
                         is_dnd=False,
@@ -135,9 +139,13 @@ class DNDChecker:
 
         Returns:
             List of non-DND phone numbers
+
+        FAIL-CLOSED (2026-08-01, enterprise-audit fix): unverified results
+        (``verified=False`` — lookup error / no provider wired) ko non-DND maanna
+        §5 TRAI invariant todta hai. Ab sirf PROVEN non-DND numbers pass hote hain.
         """
         results = await self.check_batch(phones)
-        return [phone for phone, result in results.items() if not result.is_dnd]
+        return [phone for phone, result in results.items() if result.verified and not result.is_dnd]
 
     async def _check_via_registry(self, phone: str) -> DNDCheckResult:
         """External DND lookup when configured; else carrier-delegated (Vobiz) or unverified.
@@ -182,9 +190,7 @@ class DNDChecker:
             "yes",
         )
         provider = (os.environ.get("TELEPHONY_PROVIDER") or "vobiz").strip().lower()
-        vobiz_ok = bool(
-            os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN")
-        )
+        vobiz_ok = bool(os.environ.get("VOBIZ_AUTH_ID") and os.environ.get("VOBIZ_AUTH_TOKEN"))
         if carrier_scrub and provider == "vobiz" and vobiz_ok:
             return DNDCheckResult(
                 phone=phone,

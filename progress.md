@@ -1216,3 +1216,35 @@ Partial pytest slices that first-touch TestClient can hang forever in portal.cal
 - **Risks:** Reaping behaviour + budget enforcement both ship INERT. Arming preconditions are documented in ADR-150 and were NOT met this session (see Remaining). `celerybeat-schedule` is a persisted shelve at `/app/data/celerybeat-schedule`; the deploy recreates the scheduler container so beat re-reads `beat_schedule` on start — no repo-documented clearing step exists, but **confirm post-deploy that the new entry actually fires** rather than assuming.
 - **Remaining:** PR review + merge + canonical deploy; arming decisions for both flags; owner-boundary launch canaries.
 - **Next Highest Priority:** Owner Action Packet — the three launch gates are all owner-boundary (login/OTP, human send, authenticated approval) and cannot be crossed by an agent.
+
+## Loop Run — 2026-08-01 (enterprise-audit code-level gaps closure — LOCAL, NOT deployed)
+
+- **Goal:** 12-domain enterprise audit (79/120, bar ≥96) ke code-level gaps sab fix karna ("sab fix karo") — sab LOCAL verified; deploy = owner action per §8.
+- **Inspected:** `app/api/customer_auth.py` (login/blacklist/require_customer), `app/middleware/__init__.py` (TenantContextMiddleware), `app/automation/orchestrator_pipeline.py` + `app/utils/dnd_checker.py` (DND), `monitoring/alert_rules.yml` + `monitoring/prometheus.yml` (SLO alerts), `app/middleware/http_metrics.py` + `app/main.py:539-550` (metrics gating), `app/api/admin_dashboard_builders.py:73-91` + `customer_dashboard_builders.py:123-141` + `customer_dashboard_models.py:86-97` (hardcoded ₹1,999), `app/api/data.py:652-666` (credits/pricing orphan), `app/voice_agent/knowledge_base.py` (`_QdrantIndex._ns_filter` etc.), docs referencing `app/billing/packages.py` (doesn't exist), `tests/` FakeRedis/FakeClient patterns, `app/marketing/packages.py` (single pricing source).
+- **Problems Found:**
+  1. **Customer login: NO account lockout.** Admin login me 5-fail→30min lock tha (admin.py), customer login me sirf per-IP 10/60 — known-email credential-stuffing unprotected.
+  2. **`require_customer` blacklist check was FAIL-OPEN**: Redis error → allowed login (revoked-token guard leak). Admin path already fail-closed (503).
+  3. **`TenantContextMiddleware` was write-only trust-by-header** — `X-Tenant-Id` par bharosa karke `state.tenant_id` set karta tha, kisi ne read nahi kiya. Remove kiya.
+  4. **DND scrub unverified-pass**: `_is_dnd`/`filter_dnd` unverified numbers ko allowed karte the (TRAI §5 violation risk). Fixed fail-closed.
+  5. **SLO alerts can never fire**: `PROMETHEUS_HTTP_METRICS` default OFF tha → `http_requests_total`/latency series produce hi nahi hote (HighHttp5xxRate/HighRequestLatencyP95 dead). No burn-rate alerts either.
+  6. **Hardcoded ₹1,999** in 3 dashboard fallback spots + dead credit-pack list (₹2,500/8,000/17,500/30,000) in `/credits/pricing` — billing-truth violation (packages.py = single source).
+  7. **No Qdrant namespace-isolation enforcement test** — single `kb_main` payload-partitioned collection pe cross-tenant leak DPDP-critical hai.
+  8. **Docs drift**: 6 files cite `app/billing/packages.py` (retired) — canonical `app/marketing/packages.py`.
+- **Changed (exact files):**
+  - `app/api/customer_auth.py` — Redis-backed account lockout: `_LOCKOUT_MAX_ATTEMPTS=5`, `_LOCKOUT_WINDOW_S=900`, keys `customer:login:fail:{email_lower}`/`customer:login:lock:{email_lower}`, helpers `_account_locked`/`_record_login_failure`/`_clear_login_failures` (fail-open, metering-class); wired into login (429 blocked + `login_locked` automation event / 401 record / success clear).
+  - `app/api/customer_auth.py::require_customer` — blacklist Redis error → **503 fail-closed** (was allow), loud error log.
+  - `app/middleware/__init__.py` — `TenantContextMiddleware` class + `add_middleware` removed (write-only trust-by-header), comment kyun.
+  - `app/automation/orchestrator_pipeline.py::_is_dnd` + `app/utils/dnd_checker.py::filter_dnd` — unverified = DND/block (fail-closed); `error_fallback` comment corrected.
+  - `monitoring/alert_rules.yml` — new `slo_burn_rate` group: recording rules (error_ratio 5m/1h/6h) + `SLOAvailabilityFastBurn` (critical, 14.4x&6x) + `SLOAvailabilitySlowBurn` (warning, 2x&1x) against 99.5%/30d budget.
+  - `app/middleware/http_metrics.py::enabled` — default-ON in production (APP_ENV/ENVIRONMENT=production), explicit `=0|false|off` wins anywhere; `app/main.py` comment updated.
+  - `app/marketing/packages.py` — new `get_starter_price_inr()` (canonical single source).
+  - `app/api/admin_dashboard_builders.py`, `app/api/customer_dashboard_builders.py`, `app/api/customer_dashboard_models.py` — hardcoded ₹1,999 → `get_starter_price_inr()` / `Field(default_factory=...)`.
+  - `app/api/data.py::/credits/pricing` — dead hardcoded credit-pack list removed (operations cost only, from `CREDIT_COSTS`).
+  - Docs: `docs/PRD.md`, `docs/PROJECT_HANDOFF.md` (3 spots), `docs/runbooks/RUNBOOK_BILLING_INCIDENT.md`, `docs/superpowers/specs/2026-07-05-...md` — `app/billing/packages.py` → `app/marketing/packages.py`.
+  - New tests: `tests/test_customer_auth_lockout.py` (8), `tests/test_kb_namespace_isolation.py` (6), `tests/test_http_latency_alert_accuracy.py` (+4 enabled()-matrix).
+  - `progress.md` — this block.
+- **Tests Run:** new suites 18/18 green; regression batch `test_automation_hardening_2026` + `test_compliance` + `test_billing_truth_2026` + `test_http_latency_alert_accuracy` + `test_kb_delete_before_reseed` + `test_kb_readiness` + `test_kb_point_id` + `test_customer_auth_lockout` + `test_kb_namespace_isolation` = 75 passed; `test_customer_dashboard_product_routing` + `test_telephony_upgrades` + `test_pipeline_automation` = 30 passed.
+- **Verification Evidence:** `ruff` on all 14 touched files → clean. `app.main` import OK (`enabled()`=False in dev, correct). `scripts/prod_check.py` → `[OK] ALL CHECKS PASSED` (1220 routes, 48 pages 0 gaps, automation 0 gaps, API.md 1243 ops in sync). One test bug self-caught: comprehension `if _ == "query"` was testing the last-unpacked `_` (limit) — fixed to `c[0] == "query"`.
+- **Risks:** (1) Lockout fail-open on Redis error = degraded (documented, metering-class). (2) DND fail-closed now BLOCKS numbers when DND provider missing/broken — verify prod DND provider health post-deploy so legit promotional pipeline not silently reduced. (3) `PROMETHEUS_HTTP_METRICS` default-on in prod adds metric surface + per-request timing overhead (tiny; pure-ASGI dict increments). (4) All LOCAL — nothing deployed, no prod flags changed.
+- **Remaining:** owner review → commit/PR → canonical deploy; post-deploy: probe DND provider, confirm `/metrics` now emits `http_requests_total` + latency buckets, confirm SLO recording rules present, lockout live-trip test on one account.
+- **Next Highest Priority:** owner action packet (canary / Estique GTM / Jiya review) — audit is code-closed but business gates remain owner-boundary; phir CURRENT_STATE.md prod SHA refresh.

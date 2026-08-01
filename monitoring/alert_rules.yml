@@ -4,8 +4,9 @@
 #
 # `up`-based alerts har setup me kaam karte (Prometheus scrape se aata).
 # HTTP-rate alerts tabhi fire honge jab app `http_requests_total` /
-# `http_request_duration_seconds_bucket` expose kare (prometheus-fastapi-
-# instrumentator naming). Metric naam alag ho to inhe tune karna.
+# `http_request_duration_seconds_bucket` expose kare (2026-08-01: ab production
+# me default-on hota hai — app/middleware/http_metrics.py `enabled()`).
+# Metric naam alag ho to inhe tune karna.
 # =============================================================================
 groups:
   - name: availability
@@ -47,6 +48,52 @@ groups:
         annotations:
           summary: "p95 latency > 2s (10m)"
           description: "Requests slow — DB/LLM/TTS downstream check karo."
+
+  # ---------------------------------------------------------------------------
+  # SLO BURN-RATE (enterprise audit fix 2026-08-01). Availability SLO: 99.5% /
+  # 30d => error budget 0.5%. Multi-window burn-rate alerts fire on budget
+  # consumption RATE (Google SRE pattern) instead of a raw static threshold:
+  #   - Fast burn (critical): 14.4x rate on 5m AND 6x on 1h — budget khatam
+  #     hone se pehle page karta hai.
+  #   - Slow burn (warning): 2x on 1h AND 1x on 6h — sustained low-grade
+  #     degradation jo static-alert se chhoot jata.
+  # Recording rules budget exhaust-time ko Prometheus me expose karte hain.
+  # Requires http_requests_total series => production default-on (http_metrics).
+  # ---------------------------------------------------------------------------
+  - name: slo_burn_rate
+    rules:
+      - record: leadgen:slo:availability:error_ratio_5m
+        expr: |
+          sum(rate(http_requests_total{job="leadgen-app",status=~"5.."}[5m]))
+            / clamp_min(sum(rate(http_requests_total{job="leadgen-app"}[5m])), 0.001)
+      - record: leadgen:slo:availability:error_ratio_1h
+        expr: |
+          sum(rate(http_requests_total{job="leadgen-app",status=~"5.."}[1h]))
+            / clamp_min(sum(rate(http_requests_total{job="leadgen-app"}[1h])), 0.001)
+      - record: leadgen:slo:availability:error_ratio_6h
+        expr: |
+          sum(rate(http_requests_total{job="leadgen-app",status=~"5.."}[6h]))
+            / clamp_min(sum(rate(http_requests_total{job="leadgen-app"}[6h])), 0.001)
+
+      - alert: SLOAvailabilityFastBurn
+        expr: |
+          leadgen:slo:availability:error_ratio_5m > (1 - 0.995) * 14.4
+            and leadgen:slo:availability:error_ratio_1h > (1 - 0.995) * 6
+        for: 5m
+        labels: { severity: critical }
+        annotations:
+          summary: "Availability SLO fast burn — budget 30d/0.5% ~14.4x rate (5m)"
+          description: "5xx rate {{ $value }} — 30-din error budget is rate pe ~2 din me khatam. AppDown/5xx spike triage turant karo."
+
+      - alert: SLOAvailabilitySlowBurn
+        expr: |
+          leadgen:slo:availability:error_ratio_1h > (1 - 0.995) * 2
+            and leadgen:slo:availability:error_ratio_6h > (1 - 0.995) * 1
+        for: 1h
+        labels: { severity: warning }
+        annotations:
+          summary: "Availability SLO slow burn — sustained low-grade 5xx (1h)"
+          description: "Constant ~1% 5xx saal bhar = budget khatam. Intermittent route/upstream issue ho sakta — trend check karo."
 
   - name: resources
     rules:
