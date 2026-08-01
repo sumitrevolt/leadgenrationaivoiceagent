@@ -75,10 +75,23 @@ def _release_lock(token: str) -> None:
         pass
 
 
+def _primary_channel(pol: _policy_mod.Policy) -> str:
+    """Pick the enabled outbound channel. WhatsApp preferred when on, else email.
+
+    Neither enabled → whatsapp (send() still simulates/refuses on channel gate, so this
+    never produces a live provider call on a disabled channel).
+    """
+    if pol.get("whatsapp_enabled", False):
+        return "whatsapp"
+    if pol.get("email_enabled", False):
+        return "email"
+    return "whatsapp"
+
+
 def _new_outreach_targets(pol: _policy_mod.Policy, limit: int) -> list[dict[str, Any]]:
     """Prospects in NEW status eligible for an initial touch, capped at ``limit``."""
     out: list[dict[str, Any]] = []
-    channel = "whatsapp" if pol.get("whatsapp_enabled", False) or True else "email"
+    channel = _primary_channel(pol)
     for rec in _store.list_prospects(limit=1000):
         if len(out) >= limit:
             break
@@ -129,7 +142,7 @@ async def run_tick(limit: int | None = None, *, force_dry_run: bool = False) -> 
 
         # 2. Follow-ups fill remaining batch capacity (no catch-up flood).
         if not pol.kill("followups") and len(targets) < batch:
-            due = _followups.due_followups(pol, channel="whatsapp")
+            due = _followups.due_followups(pol, channel=_primary_channel(pol))
             targets.extend(due[: batch - len(targets)])
 
         for t in targets[:batch]:
