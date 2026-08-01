@@ -2,6 +2,26 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## 2026-08-01 - ADR-AUTOPILOT-REAL Sales Autopilot REAL + Boss autonomy (owner mandate)
+
+Decision: Owner mandate 2026-08-01 "sab on karo" â†’ `SALES_AUTOPILOT_DRY_RUN=0`
+(REAL execution), `SALES_AUTOPILOT_EMAIL_ENABLED=1` (email channel live),
+`OPENCLAW_REQUIRE_APPROVAL_FOR_AMBER=0` (Boss autonomy). WhatsApp `WHATSAPP_AUTO_SEND=0`
+stays 1-click human, `platform_dial` test-mode cap 10 stays (TRAI/DLT + Meta ban gates).
+Scheduler `_primary_channel()` (PR #207): routes to email when WhatsApp off (was hardcoded
+whatsapp via `or True` â†’ email never fired). Prod `48f0577`; last tick 2026-08-01T14:55Z
+`dry_run:false` processed 0 (single prospect `converted`). RED catalogue (`allowed_commands()`
+Stage A GREEN-only strip) + pre-provider suppression + fail-closed gates UNCHANGED.
+
+Context: Owner wants maximum automation; autopilot was hourly DRY-RUN since 2026-07-24.
+
+Alternatives rejected: WhatsApp auto-send ON (Meta ban risk); dial >10/day (TRAI/DLT illegal);
+AMBER full production (durable idempotency unavailable â†’ Stage B still not enabled).
+
+Consequence: Email outreach fires REAL from scheduler when NEW prospects exist; Boss decides
+AMBER controls without approval pause (prod structural GREEN-only remains); monitor hourly tick
+`dry_run:false` + attempts.jsonl; first NEW prospect = first live email.
+
 ## 2026-07-20 - ADR-OPENCLAW-OWNER-COPILOT OpenClaw as Owner Copilot edge layer
 
 Decision: OpenClaw integrates as optional Owner Copilot / Chief of Staff only â€”
@@ -2299,10 +2319,10 @@ Consequence: Contaminated numbers get VOID after deploy (ops plan); next real in
 
 ## 2026-08-01 - ADR-POSTIZ-RESTORE Postiz infra restore (temporal restart-loop + backend SSR 500)
 
-**Context:** Postiz (own-brand social scheduler, postiz.leadsgenai.in) was DOWN after a prior stack teardown — containers absent, only volumes persisted. Restore attempt (docker-compose.postiz.yml plain up) failed at two layers:
+**Context:** Postiz (own-brand social scheduler, postiz.leadsgenai.in) was DOWN after a prior stack teardown ï¿½ containers absent, only volumes persisted. Restore attempt (docker-compose.postiz.yml plain up) failed at two layers:
 1. **Temporal restart loop (unhealthy, Exit 1):** bind-mount ./deploy/postiz/dynamicconfig:/etc/temporal/config/dynamicconfig pointed at an EMPTY dir ? shadows the image's default development-sql.yaml ? auto-setup can't validate dynamic config ? Unable to create dynamic config client: stat ... development-sql.yaml loop. Fix: created deploy/postiz/dynamicconfig/development-sql.yaml (standard SQL + ES visibility config). Temporal then came up healthy, search attributes added.
 2. **Backend SSR 500 on /auth:** BACKEND_INTERNAL_URL=http://localhost:3000 is CORRECT (backend Nest binds 3000; nginx on 5000 routes /api/?3000 and /?4200 frontend). An intermediate change to http://localhost:5000 broke SSR: frontend internalFetch does aseUrl + /auth/can-register ? nginx / block ? frontend HTML ? SyntaxError: Unexpected token '<'. Reverted to 3000 ? live.
 
 **Result:** postiz.leadsgenai.in live (200), register/login 200, temporal healthy, 1 user + 28 scheduled posts + 6 connected integrations intact (data volumes survived).
 
-**Rules:** (1) NEVER --remove-orphans on docker-compose.postiz.yml (shares leadgen project with main stack — 2026-07-03 incident). (2) If temporal unhealthy with development-sql.yaml: stat error ? dynamicconfig bind-mount is EMPTY; re-add the file (VPS path /opt/leadgen/deploy/postiz/dynamicconfig/development-sql.yaml), plain up -d. (3) BACKEND_INTERNAL_URL must stay http://localhost:3000 (direct backend, NOT nginx:5000 — SSR JSON breaks through the / frontend block).
+**Rules:** (1) NEVER --remove-orphans on docker-compose.postiz.yml (shares leadgen project with main stack ï¿½ 2026-07-03 incident). (2) If temporal unhealthy with development-sql.yaml: stat error ? dynamicconfig bind-mount is EMPTY; re-add the file (VPS path /opt/leadgen/deploy/postiz/dynamicconfig/development-sql.yaml), plain up -d. (3) BACKEND_INTERNAL_URL must stay http://localhost:3000 (direct backend, NOT nginx:5000 ï¿½ SSR JSON breaks through the / frontend block).
