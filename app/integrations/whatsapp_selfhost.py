@@ -19,10 +19,11 @@ the only truly ban-proof path; this is a deliberate verification-vs-banrisk trad
 DESIGN
 ------
 - Inert without ``WAHA_BASE_URL`` (returns ``{"error": "selfhost_not_configured"}``).
-- Inert without ``WHATSAPP_AUTO_SEND=1`` — the §5 ban-safety gate lives at the sender
-  boundary (:func:`app.integrations.whatsapp.auto_send_allowed`) and is checked before
-  ANY HTTP call, so a gated-off platform never touches WAHA. This is the engine that can
-  actually get a real number banned, so it is the one that most needs the default-deny.
+- Inert unless :func:`app.integrations.whatsapp.send_permitted` says yes — the §5
+  ban-safety gate lives at the sender boundary (``WHATSAPP_AUTO_SEND`` + Owner-OS kill,
+  canary ``WHATSAPP_SEND_ALLOWLIST``, DPDP/TCCCPR opt-out ledger; all fail-CLOSED) and is
+  checked before ANY HTTP call, so a gated-off platform never touches WAHA. This is the
+  engine that can actually get a real number banned, so it most needs the default-deny.
 - Never raises — every send/HTTP path returns a dict on error so campaign runners stay
   crash-safe (same contract as the Cloud-API integration).
 - Thin HTTP client. WAHA wire-format is isolated in private helpers so swapping the engine
@@ -49,8 +50,8 @@ from app.integrations.whatsapp import (
     WhatsAppMessageMixin,
     _record_whatsapp_failure,
     _record_whatsapp_success,
-    auto_send_allowed,
     auto_send_blocked,
+    send_permitted,
 )
 from app.utils.logger import setup_logger
 
@@ -246,16 +247,19 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
         (status hiccup) so a transient probe error never silently drops sends.
         Kill-switch: WHATSAPP_ENFORCE_BUSINESS_NUMBER=0.
 
-        §5 BAN-SAFETY GATE (2026-07-31): ``WHATSAPP_AUTO_SEND`` is checked FIRST — before
+        §5 BAN-SAFETY GATE (2026-07-31): :func:`send_permitted` is checked FIRST — before
         the business-number probe and before the recipient check — so a gated-off platform
         makes NO HTTP call at all, not merely no POST. That matters: ``_recipient_check``
         issues a ``GET /api/contacts/check-exists``, so gating later would still have the
-        hourly ``onboard`` job hammering WAHA once per active client."""
+        hourly ``onboard`` job hammering WAHA once per active client. The gate covers
+        ``WHATSAPP_AUTO_SEND`` + Owner-OS kill, the canary allowlist, and the DPDP/TCCCPR
+        opt-out ledger — all fail-CLOSED."""
         if not self.base_url:
             _record_whatsapp_failure("selfhost_not_configured")
             return {"error": "selfhost_not_configured"}
-        if not auto_send_allowed():
-            return auto_send_blocked(to_number, message)
+        ok, reason = send_permitted(to_number)
+        if not ok:
+            return auto_send_blocked(to_number, message, reason)
         if os.getenv("WHATSAPP_ENFORCE_BUSINESS_NUMBER", "1").strip().lower() not in (
             "0",
             "false",
@@ -340,10 +344,10 @@ class SelfHostWhatsApp(WhatsAppMessageMixin):
         # §5 EGRESS BACKSTOP — send_text_message already gated; this is the only function
         # that actually POSTs to WAHA, so a future caller that skips the public method
         # still cannot send (same 3-layer idea as platform_dial's hard-off).
-        if not auto_send_allowed():
-            return auto_send_blocked(
-                str(payload.get("chatId") or ""), str(payload.get("text") or "")
-            )
+        _to = str(payload.get("chatId") or "")
+        ok, reason = send_permitted(_to)
+        if not ok:
+            return auto_send_blocked(_to, str(payload.get("text") or ""), reason)
         url = f"{self.base_url}{path}"
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:

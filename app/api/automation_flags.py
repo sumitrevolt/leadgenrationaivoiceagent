@@ -78,7 +78,9 @@ AUTOMATION_FLAGS = [
     "MODEL_COOKBOOK_ENABLED",  # admin-only niche→LLM recipe catalog (/api/cookbook/ui) — Odysseus-inspired, INERT default
     "DEEP_RESEARCH_ENABLED",  # admin-only multi-step cited web research (/api/research/deep/ui) — Odysseus-inspired, needs SEARXNG_URL, INERT default
     "DOCS_AI_EDIT_ENABLED",  # admin-only writing editor with AI actions (/api/docs/edit/ui) — Odysseus-inspired, INERT default
-    "WHATSAPP_AUTO_SEND",
+    "WHATSAPP_AUTO_SEND",  # §5 MASTER auto-send gate — enforced at the SENDER boundary (app/integrations/whatsapp.py::send_permitted), so EVERY caller is gated by default
+    "WHATSAPP_SEND_ALLOWLIST",  # canary recipients for automated WhatsApp. EMPTY = nobody (fail-closed); '*' = explicit graduation to all. Numbers live in .env only
+    "WHATSAPP_RECIPIENT_CHECK_FAIL_OPEN",  # 1 = restore pre-2026-07-31 fail-OPEN when the WAHA recipient check itself errors. Default 0 = fail-CLOSED
     "VOICE_CLOSE_WHATSAPP",  # voice-call close-signal auto WhatsApp (needs WHATSAPP_AUTO_SEND too) — default OFF, separate opt-in
     "WHATSAPP_PROVIDER",  # "cloud" (Meta Cloud API, default) | "waha"/"selfhost" (own WAHA stack)
     "WAHA_BASE_URL",  # self-hosted WhatsApp stack URL (set = reachable; sidesteps Meta verification)
