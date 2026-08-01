@@ -52,6 +52,35 @@ def _write_lists(rows: list[dict[str, Any]]) -> None:
         logger.warning(f"[lists] write failed: {e}")
 
 
+_V2_ENABLED = None  # lazily cached (env PROSPECT_SCORE_V2=1; default OFF)
+
+
+def _score_v2_on() -> bool:
+    """Feature-flag gate: PROSPECT_SCORE_V2=1 → V2 scorer. Default OFF (V1 read
+    path preserved — backward-compatible)."""
+    global _V2_ENABLED
+    if _V2_ENABLED is None:
+        _V2_ENABLED = (os.environ.get("PROSPECT_SCORE_V2", "0") or "0").strip() == "1"
+    return _V2_ENABLED
+
+
+def _scorer_for():
+    """V2 when flag on, else existing V1 (import-safe, never raises)."""
+    if _score_v2_on():
+        try:
+            from app.platform.lead_scoring_v2 import score_lead_v2
+
+            return score_lead_v2, "v2"
+        except Exception:
+            pass
+    try:
+        from app.platform.lead_scoring import score_lead
+
+        return score_lead, "v1"
+    except Exception:
+        return None, "v1"
+
+
 def search(
     niche: str = "",
     city: str = "",
@@ -71,12 +100,7 @@ def search(
         rows = []
     out: list[dict[str, Any]] = []
     qn = (q or "").strip().lower()
-    try:
-        from app.platform import lead_scoring
-
-        scorer = lead_scoring.score_lead
-    except Exception:
-        scorer = None
+    scorer, _ver = _scorer_for()
     for r in rows:
         try:
             if niche and str(r.get("niche", "")).lower() != niche.lower():

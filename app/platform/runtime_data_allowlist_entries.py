@@ -142,7 +142,7 @@ ENTRIES: list[dict[str, Any]] = [
         "store_id": "compliance.dpdp_audit",
         # REPLACE added 2026-07-27 (owner-authorised operation correction, not a
         # new store): `_atomic_write_lines(path, lines)` writes
-        # `path + ".tmp_dpdp"` and then `os.replace(tmp, path)` — the durable
+        # `path + ".tmp_dpdp"` and then `os.replace(tmp, path)` â€” the durable
         # authority is rewritten atomically. The entry always covered this file;
         # only the declared operation set was under-stated.
         "access_modes": ["APPEND", "READ", "CREATE", "REPLACE"],
@@ -256,7 +256,7 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "dev-control",
         "production_relevance": "LIVE",
         "review_condition": (
-            "Must move with devcontrol.external_missions.store — a read that "
+            "Must move with devcontrol.external_missions.store â€” a read that "
             "outlives its writer's root points at an empty directory and reports "
             "'no such mission' instead of failing."
         ),
@@ -329,7 +329,7 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "LIVE",
         "review_condition": (
             "Temp and target must stay on ONE filesystem or os.replace stops "
-            "being atomic and an interrupted flip leaves truncated JSON — which "
+            "being atomic and an interrupted flip leaves truncated JSON â€” which "
             "the fail-closed reader treats as ENGAGED, so the failure mode is "
             "safe but must not become routine."
         ),
@@ -442,6 +442,88 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "governance",
         "production_relevance": "LIVE",
         "review_condition": "AMBER mutations require confirm=true; chat path must park AMBER.",
+    },
+    {
+        "allowlist_id": "sales.prospects.backfill.source",
+        "file": "scripts/backfill_score_v2.py",
+        "line_or_symbol": "_SOURCE",
+        "path_pattern": "data/prospects.jsonl",
+        "store_id": "sales.prospects",
+        "access_modes": ["READ"],
+        "reason": (
+            "Prospect Score V2 backfill reads the prospect store READ-ONLY for scoring; "
+            "source is NEVER mutated (sidecar audit store only)."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "sales",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Backfill must stay read-only on prospects.jsonl; any write to the source "
+            "store from this script is a regression."
+        ),
+    },
+    {
+        "allowlist_id": "sales.prospects.backfill.sidecar",
+        "file": "scripts/backfill_score_v2.py",
+        "line_or_symbol": "_SIDECAR",
+        "path_pattern": "data/prospect_scores_v2.jsonl",
+        "store_id": "sales.prospects",
+        "access_modes": ["READ", "APPEND", "REWRITE"],
+        "reason": (
+            "Append-only sidecar audit store for Prospect Score V2 (keyed by prospect id). "
+            "Derived from the prospect store; rollback restores from data/backups."
+        ),
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "sales",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Sidecar stays append-only + idempotent (score_version re-score skipped); "
+            "source prospects.jsonl untouched."
+        ),
+    },
+    {
+        "allowlist_id": "sales.prospects.backfill.backup_dir",
+        "file": "scripts/backfill_score_v2.py",
+        "line_or_symbol": "_BACKUP_DIR",
+        "path_pattern": "data/backups",
+        "store_id": "sales.prospects",
+        "access_modes": ["CREATE", "READ"],
+        "reason": "Backup directory for the sidecar audit store (prospect_scores_v2.bak-<ts>.jsonl).",
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "sales",
+        "production_relevance": "LIVE",
+        "review_condition": "Backups are checkpoint-only; restoring must target the sidecar, never the source store.",
+    },
+    {
+        "allowlist_id": "sales.prospects.backfill.backup_write",
+        "file": "scripts/backfill_score_v2.py",
+        "line_or_symbol": "dest",
+        "path_pattern": "data/backups/prospect_scores_v2.bak",
+        "store_id": "sales.prospects",
+        "access_modes": ["REWRITE"],
+        "reason": "Checkpoint write of the sidecar before a bounded backfill batch.",
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "sales",
+        "production_relevance": "LIVE",
+        "review_condition": "Backup path derives from _BACKUP_DIR; never writes to the prospect source store.",
+    },
+    {
+        "allowlist_id": "sales.prospects.backfill.backup_read",
+        "file": "scripts/backfill_score_v2.py",
+        "line_or_symbol": "src",
+        "path_pattern": "data/backups/prospect_scores_v2.bak",
+        "store_id": "sales.prospects",
+        "access_modes": ["READ"],
+        "reason": "Rollback reads the sidecar checkpoint to restore the audit store.",
+        "migration_tier": 1,
+        "target_change_set": "runtime-data-cutover-wave-1",
+        "owner": "sales",
+        "production_relevance": "LIVE",
+        "review_condition": "Rollback restores the sidecar store only; source prospects.jsonl must stay untouched.",
     },
 ]
 
