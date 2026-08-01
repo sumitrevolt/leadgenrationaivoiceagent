@@ -20,6 +20,15 @@ on:
   # weaken the gate, so we run them for real instead.
   pull_request:
     branches: [main]
+  # Manual escape hatch (2026-08-01). GitHub silently dropped every
+  # pull_request event for PR #204's head for over two hours (no
+  # github-actions check suite was even created on its pushes, while other
+  # PRs' events fired normally), leaving the REQUIRED contexts above
+  # permanently unreported and the PR blocked. workflow_dispatch lets a
+  # maintainer run the exact same blocking jobs on any ref when event
+  # delivery fails; check runs attach to the ref's head commit, so the PR's
+  # required contexts report normally. No job behaviour differs by trigger.
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
