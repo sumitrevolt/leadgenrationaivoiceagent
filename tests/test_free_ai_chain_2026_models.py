@@ -1,11 +1,15 @@
 """
 test_free_ai_chain_2026_models.py — pure-python (no network/DB/LLM).
 
-Asserts the supported 2026 EXTRA free models (Qwen3-32B on Groq, Llama-3.3-70B,
-Kimi K2) are present in the free-LLM fallback chain AS ADDITIONAL low-priority
-entries — i.e. AFTER the proven primaries (mistral/groq-8b/cerebras) so they only
-get hit when the primaries exhaust (the Groq-TPD case they help), and BEFORE the
-weaker gemini/openrouter-:free tail.
+Asserts the supported 2026 EXTRA free Groq models (gpt-oss-120b + qwen3.6-27b)
+are present in the free-LLM fallback chain AS ADDITIONAL low-priority entries —
+i.e. AFTER the proven primaries (mistral/groq-head/cerebras) so they only get
+hit when the primaries exhaust, and BEFORE the weaker gemini/openrouter-:free
+tail.
+
+Updated 2026-08-01 from Claude web-research: Groq is decommissioning
+llama-3.1-8b-instant + llama-3.3-70b-versatile on 2026-08-16; qwen3-32b and
+kimi-k2-instruct are already dead and must not appear in the chain.
 """
 
 from app.voice_agent import free_ai
@@ -21,24 +25,24 @@ def test_new_models_present_in_both_profiles():
     for profile in ("realtime", "bulk"):
         chain = _chain(profile)
         models = [m for (_p, m) in chain]
-        pairs = [(p, m) for (p, m) in chain]
-        # Constants exist
-        assert free_ai._GROQ_QWEN3_MODEL == "qwen/qwen3-32b"
-        assert free_ai._GROQ_LLAMA70B_MODEL == "llama-3.3-70b-versatile"
-        assert free_ai._GROQ_KIMI_K2_MODEL == "moonshotai/kimi-k2-instruct"
-        # Qwen3 remains on Groq; retired Cerebras qwen-3-32b must never be called.
-        assert ("groq", free_ai._GROQ_QWEN3_MODEL) in pairs
+        pairs = list(chain)
+        # Constants / official Groq replacements
+        assert free_ai._GROQ_LLM_MODEL == "openai/gpt-oss-20b"
+        assert free_ai._GROQ_QWEN3_MODEL == "qwen/qwen3.6-27b"
+        assert free_ai._GROQ_LLAMA70B_MODEL == "openai/gpt-oss-120b"
+        # Dead ids must never be called
+        assert "llama-3.1-8b-instant" not in models
+        assert "llama-3.3-70b-versatile" not in models
+        assert "qwen/qwen3-32b" not in models
+        assert "moonshotai/kimi-k2-instruct" not in models
         assert ("cerebras", "qwen-3-32b") not in pairs
-        # One more strong free multilingual model (Kimi K2) + Llama-3.3-70B
-        assert ("groq", free_ai._GROQ_KIMI_K2_MODEL) in pairs
+        assert ("groq", free_ai._GROQ_QWEN3_MODEL) in pairs
         assert ("groq", free_ai._GROQ_LLAMA70B_MODEL) in pairs
-        # Sanity: new ids actually in the model list
         assert free_ai._GROQ_QWEN3_MODEL in models
-        assert free_ai._GROQ_KIMI_K2_MODEL in models
 
 
 def test_new_models_are_low_priority_after_primaries():
-    """New entries must come AFTER the proven primaries (mistral/groq-8b/cerebras)
+    """Extra entries must come AFTER the proven primaries (mistral/groq-head/cerebras)
     and BEFORE the gemini/sambanova tail."""
     for profile in ("realtime", "bulk"):
         chain = _chain(profile)
@@ -57,15 +61,10 @@ def test_new_models_are_low_priority_after_primaries():
         new_positions = [
             idx[("groq", free_ai._GROQ_LLAMA70B_MODEL)],
             idx[("groq", free_ai._GROQ_QWEN3_MODEL)],
-            idx[("groq", free_ai._GROQ_KIMI_K2_MODEL)],
         ]
-        # every new model must come AFTER the last proven primary
         for np in new_positions:
             assert np > last_primary, f"new model at {np} not after primaries ({last_primary})"
 
-        # and BEFORE the weaker tail (gemini) — first gemini entry of ANY model:
-        # chain ka gemini-model env/settings (GEMINI_LLM_MODEL/DEFAULT_LLM) se
-        # resolve hota, isliye exact-model lookup env-dependent tha (CI KeyError).
         gemini_pos = min(i for i, (p, _m) in enumerate(chain) if p == "gemini")
         for np in new_positions:
             assert np < gemini_pos, f"new model at {np} should precede gemini ({gemini_pos})"
@@ -76,17 +75,18 @@ def test_new_groq_entries_use_existing_provider_key():
     circuit-breaker + _client() lookup works unchanged."""
     for profile in ("realtime", "bulk"):
         for p, _m in _chain(profile):
-            # ollama entry uses dynamic name; all others must be configured providers
             assert p in free_ai._PROVIDER_CFG or p == "ollama"
 
 
 def test_describe_lists_new_models():
     d = free_ai.describe()
     llm = d.get("llm_chain", [])
+    assert f"groq:{free_ai._GROQ_LLM_MODEL}" in llm
     assert f"groq:{free_ai._GROQ_QWEN3_MODEL}" in llm
-    assert "cerebras:qwen-3-32b" not in llm
-    assert f"groq:{free_ai._GROQ_KIMI_K2_MODEL}" in llm
     assert f"groq:{free_ai._GROQ_LLAMA70B_MODEL}" in llm
+    assert "cerebras:qwen-3-32b" not in llm
+    assert "groq:llama-3.1-8b-instant" not in llm
+    assert "groq:moonshotai/kimi-k2-instruct" not in llm
 
 
 def test_nvidia_nim_present_and_configured():
@@ -111,7 +111,6 @@ def test_nvidia_nim_deep_tail_placement():
             idx.setdefault((p, m), i)
         nvidia_pos = idx[("nvidia", free_ai._NVIDIA_LLM_MODEL)]
         sambanova_pos = idx[("sambanova", free_ai._SAMBANOVA_LLM_MODEL)]
-        # first openrouter entry of any kind
         openrouter_pos = min(i for i, (p, _m) in enumerate(chain) if p.startswith("openrouter"))
         assert nvidia_pos > sambanova_pos, "nvidia should follow sambanova (credit conservation)"
         assert nvidia_pos < openrouter_pos, "nvidia should precede the openrouter :free tail"
@@ -124,7 +123,6 @@ def test_nvidia_credit_exhaustion_trips_max_cooldown():
     free_ai._LLM_TRIP_STREAK.pop("nvidia", None)
     free_ai._trip_cooldown("nvidia", "402 Payment Required: out of credits")
     remaining = free_ai._LLM_COOLDOWN_UNTIL.get("nvidia", 0.0) - __import__("time").time()
-    # near the 30-min max (allow scheduling slack), NOT the 60s transient base
     assert remaining > free_ai._LLM_COOLDOWN_MAX_S - 30
     free_ai._LLM_COOLDOWN_UNTIL.pop("nvidia", None)
     free_ai._LLM_TRIP_STREAK.pop("nvidia", None)
