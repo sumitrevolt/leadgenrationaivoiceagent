@@ -20,6 +20,30 @@ LICENCE_REGISTRY: dict[str, dict[str, Any]] = {
         "approval_date": "2026-07-24",
         "production_eligible": True,
     },
+    "hyperframes/hyperframes-cli": {
+        "provider": "hyperframes",
+        "model": "hyperframes-cli",
+        "model_revision": "0.7.87",
+        # Verified 2026-08-01 from the upstream repo's LICENSE via the GitHub API
+        # and the published package's own `license` field — both Apache-2.0.
+        "software_licence": "Apache-2.0",
+        # No ML weights are involved: this is an HTML -> Chrome -> FFmpeg
+        # renderer. "n/a" (not "unknown") is what keeps assert_provider_allowed
+        # from failing closed on the weight check.
+        "weight_licence": "n/a",
+        "checkpoint": "n/a",
+        "commercial_use": True,
+        "attribution_required": False,
+        "restrictions": (
+            "Local subprocess render only; HeyGen cloud/lambda/cloudrun subcommands "
+            "and telemetry are disabled. Fonts are bundled Noto (OFL-1.1). GSAP is "
+            "deliberately NOT bundled — its Standard 'no charge' licence is not OSI. "
+            "Upstream commit 343c0251 (2026-08-01), npm hyperframes@0.7.87."
+        ),
+        "approval_date": "2026-08-01",
+        "production_eligible": True,
+        "rollback_provider": "deterministic",
+    },
     "qwen_image/blocked": {
         "provider": "qwen_image",
         "model": "Qwen-Image",
