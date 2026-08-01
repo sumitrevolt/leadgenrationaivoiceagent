@@ -17,8 +17,9 @@ Design constraints honoured for this project:
 - asyncio is single-threaded per worker → plain dict increments are safe (no lock,
   no ``await`` between read-modify-write).
 - Fail-open everywhere: a recording error never affects the response.
-- Flag-gated: only active when ``PROMETHEUS_HTTP_METRICS`` is truthy, so rollout is
-  additive and the metric surface is unchanged until explicitly enabled.
+- Flag-gated: active when ``PROMETHEUS_HTTP_METRICS`` is truthy, OR by default in
+  production (SLO alerts need these series — 2026-08-01 enterprise audit fix).
+  Explicit ``PROMETHEUS_HTTP_METRICS=0|false|off`` still turns it off anywhere.
 - Bounded cardinality: labels are ``method`` + ``status`` only (no raw path), and
   the latency histogram is global (``le`` only). ~tens of series, never unbounded.
 """
@@ -33,7 +34,19 @@ import time
 # the old 1.0 -> 2.5 gap could report p95 >2s when every real request was <2s.
 # +Inf is emitted separately.
 _BUCKETS: tuple[float, ...] = (
-    0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 1.5, 2.0, 2.5, 5.0, 10.0,
+    0.005,
+    0.01,
+    0.025,
+    0.05,
+    0.1,
+    0.25,
+    0.5,
+    1.0,
+    1.5,
+    2.0,
+    2.5,
+    5.0,
+    10.0,
 )
 
 # (method, status) -> request count
@@ -45,8 +58,20 @@ _lat_sum: float = 0.0
 _lat_count: int = 0
 
 
+def _is_prod() -> bool:
+    return (os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "").strip().lower() == "production"
+
+
 def enabled() -> bool:
-    return os.getenv("PROMETHEUS_HTTP_METRICS", "").lower() in ("1", "true", "yes", "on")
+    raw = os.getenv("PROMETHEUS_HTTP_METRICS", "").strip().lower()
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    if raw in ("0", "false", "off", "no"):
+        return False
+    # Unset → default-on in production so SLO alerts (HighHttp5xxRate /
+    # HighRequestLatencyP95) can actually fire; additive elsewhere (dev keeps
+    # the metric surface unchanged unless explicitly enabled).
+    return _is_prod()
 
 
 def _record(method: str, status: int, dur: float) -> None:

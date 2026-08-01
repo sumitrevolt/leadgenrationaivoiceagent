@@ -372,17 +372,31 @@ class LeadGenPipeline:
         return kept
 
     async def _is_dnd(self, phone: str) -> bool:
-        """Defensively call whichever DND API the checker exposes."""
+        """Defensively call whichever DND API the checker exposes.
+
+        FAIL-CLOSED (2026-08-01, enterprise-audit fix): pehle yeh unverified result
+        (`is_dnd=False, verified=False`) ko non-DND maan leta tha — no-provider case me
+        har number promotional pipeline me pass. Ab UNVERIFIED = DND (promotional BLOCK)
+        taaki §5 fail-CLOSED invariant pura stack me ek jaisa ho.
+        """
         checker = self.dnd_checker
         if hasattr(checker, "check_single"):
             res = await checker.check_single(phone)
+            verified = bool(getattr(res, "verified", True))
+            if not verified:
+                return True  # unverified lookup = DND (fail-closed)
             return bool(getattr(res, "is_dnd", False))
         if hasattr(checker, "check"):
             res = await checker.check(phone)
             if isinstance(res, dict):
+                if not bool(res.get("verified", True)):
+                    return True
                 return bool(res.get("is_dnd", False))
+            verified = bool(getattr(res, "verified", True))
+            if not verified:
+                return True
             return bool(getattr(res, "is_dnd", False))
-        return False
+        return True  # checker has neither API = cannot prove non-DND (fail-closed)
 
     # ------------------------------------------------------------------ #
     # Stage 4: Compliance time-window gate

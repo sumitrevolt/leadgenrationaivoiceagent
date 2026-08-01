@@ -136,6 +136,14 @@ class InMemoryCache:
         self._cache.pop(key, None)
         self._expiry.pop(key, None)
 
+    async def exists(self, key: str) -> int:
+        import time
+
+        if key in self._expiry and self._expiry[key] < time.time():
+            del self._cache[key]
+            del self._expiry[key]
+        return 1 if key in self._cache else 0
+
     async def incr(self, key: str) -> int:
         val = int(self._cache.get(key, 0)) + 1
         self._cache[key] = str(val)
@@ -338,7 +346,7 @@ class Cache:
         try:
             redis = await get_cache_redis_client()
             full_key = f"{self.prefix}:{key}"
-            if isinstance(value, (dict, list)):
+            if isinstance(value, dict | list):
                 value = json.dumps(value)
             await redis.set(full_key, value, ex=ttl or self.default_ttl)
         except Exception:

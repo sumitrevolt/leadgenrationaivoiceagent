@@ -292,6 +292,21 @@ def get_public_packages(include_trial: bool = False) -> list:
     return out
 
 
+def get_starter_price_inr() -> int:
+    """Starter plan ka monthly ₹ — single source (₹1,999). Hardcoded 1999
+    fallbacks kahin bhi use mat karo — isi ko call karo (2026-08-01 audit fix:
+    admin/customer dashboard builders me scattered literals thhe)."""
+    try:
+        for p in PACKAGES:
+            if str(p.get("key") or "").strip().lower() == "starter":
+                price = int(p.get("price_inr_month") or 0)
+                if price > 0:
+                    return price
+    except Exception:
+        pass
+    return 1999
+
+
 # --------------------------------------------------------------------------- #
 # FREE TRIAL (₹0, 7 din, marketing-lite) — funnel-leak fix: paid-only signup
 # se hesitant SMBs nikal jaate the. Trial = ZERO payment, limited features.

@@ -1,24 +1,23 @@
 # SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-Cancel 24h soak as launch blocker; ship chat-first mission control; Core Marketing revenue launch gate = 20m burn-in + continuous monitoring.
+Fix WAHA QR (provider) + Estique credential compromise + prepare payment. Soak waived. No app redeploy.
 
-## Outcome — READY TO SHIP
-- Soak cancelled: `/tmp/soak_final_snapshot_20260731T055747Z.txt`; monitors stopped; prod untouched
-- Mission control: `app/platform/mission_control.py` + OpenClaw GREEN/AMBER + Owner OS `/api/admin/owner-os/missions*`
-- Durable `data/mission_control/idempotency_index.json` under file_lock (not 200-file scan)
-- Chat parks AMBER; typed `confirm=true` only applies pause/resume/approve/rollback
-- Executors: cursor=`manual_local` session=None; openclaw probe; opencode=`unavailable` — no fake parallelism
-- `scripts/prod_burn_in.py` replaces 24h soak; `--once` PASS on prod `c64cf152`
-- Attribution: concepts only (Awesome Orchestrators / Omnigent / OpenClaw) — no vendored runtime
-- RED flags still OFF
+## Outcome — WAIT (owner scan + private password reset + PAID)
+- Prod SHA `3c843517` (app untouched this wave; WAHA-only stack refreshed)
+- UPI (fresh-probed): `UPI_AUTO_ACTIVATE=1`, clients=`81bd0bbe501d` only; jiya/other refuse; Estique unpaid rows=0
+- Estique login: treated compromised → prod hash invalidated (random rotate, never printed). Owner must private-reset. Never request password/OTP in chat.
+- WAHA: pulled fresh `devlikeapro/waha:latest` (container created 2026-08-01), session wiped once, status **`SCAN_QR_CODE`**, real PNG QR 5398 bytes (292×292). `/app/whatsapp`=200. `WHATSAPP_AUTO_SEND=0`. restart=0 oom=false. No STARTING/FAILED flap after fix.
+- Post-connect canary dest: `***4977`. Suppressed: `***2607`.
 
-## Prod (re-probe before claim)
-- `/health.version` last seen: `c64cf152`
-- Branch base: `dfaac8e` (PR #194)
+## Owner actions (exact)
+1. Pre-open phone WhatsApp → Linked devices → Link a device (scanner waiting). Then open https://leadsgenai.in/app/whatsapp → scan QR → reply `WAHA CONNECTED`.
+2. Privately reset Estique portal password (Forgot password on `/app/login` or admin set-password). Do not paste password/OTP in chat.
+3. After reset only: log in Estique portal → Billing ₹1,999 → real UPI ref → reply `PAID`. Do not share password or OTP.
 
-## Next
-Merge PR → `deploy_vps.sh <full-sha>` → full 20m burn-in → continuous monitor (non-blocking)
+## After owner replies
+- WAHA CONNECTED → WORKING verify → unlisted+suppressed zero provider → AUTO=1 temp → one `***4977` canary + WAHA msg id → leave AUTO only if boundaries pass else restore 0.
+- PAID → signed ref + activate `81bd0bbe501d` only + one invoice/ledger + replay no dup + browser paid. Never manual-mark paid.
 
 ## Safety
-Dial/WA/reply/UPI/cold-email/SI=0 · Swara frozen · Core Marketing independent
+Soak waived. No app redeploy unless code change. Do not raise dial. Credential never stored/logged/committed.
