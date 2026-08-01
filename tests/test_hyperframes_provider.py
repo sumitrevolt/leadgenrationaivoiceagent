@@ -344,8 +344,9 @@ def test_disallowed_mime_is_refused(tmp_path, monkeypatch):
     assert hp._resolve_photo("tenant-a", reg["asset"]["asset_id"]) is None
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlink semantics")
-def test_symlinked_asset_is_refused(tmp_path, monkeypatch):
+@pytest.mark.skipif(sys.platform == "win32", reason="POSIX symlink creation")
+def test_symlinked_asset_is_refused_real_symlink(tmp_path, monkeypatch):
+    """Real-symlink version — only runs where symlinks can be created."""
     monkeypatch.setenv("CREATIVE_ASSET_ROOT", str(tmp_path / "assets"))
     real = tmp_path / "real.jpg"
     real.write_bytes(b"\xff\xd8\xff" + b"0" * 4096)
@@ -360,6 +361,35 @@ def test_symlinked_asset_is_refused(tmp_path, monkeypatch):
         consent_status="granted",
     )
     assert hp._resolve_photo("tenant-a", reg["asset"]["asset_id"]) is None
+
+
+def test_symlinked_asset_is_refused_on_every_platform(tmp_path, monkeypatch):
+    """Same boundary, exercised WITHOUT needing OS symlink support.
+
+    The real-symlink test above skips on Windows, which would leave this
+    security branch with zero executed coverage on a dev box. Here the symlink
+    signal itself is faked so the provider's REFUSAL LOGIC is what gets tested,
+    not the filesystem's ability to make links.
+    """
+    monkeypatch.setenv("CREATIVE_ASSET_ROOT", str(tmp_path / "assets"))
+    img = tmp_path / "swappable.jpg"
+    img.write_bytes(b"\xff\xd8\xff" + b"0" * 4096)
+    reg = register_asset(
+        tenant_id="tenant-a",
+        source_type="upload",
+        ref=str(img),
+        sha256="f" * 64,
+        mime_type="image/jpeg",
+        consent_status="granted",
+    )
+    aid = reg["asset"]["asset_id"]
+    # Sanity: it resolves while it is a regular file...
+    assert hp._resolve_photo("tenant-a", aid) is not None
+
+    # ...and is refused the moment it looks like a symlink, because an in-place
+    # link can be retargeted after the consent check passed.
+    monkeypatch.setattr(Path, "is_symlink", lambda self: True)
+    assert hp._resolve_photo("tenant-a", aid) is None
 
 
 # ------------------------------------------------------------- subprocess

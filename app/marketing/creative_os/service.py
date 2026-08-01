@@ -372,9 +372,14 @@ def process_generation(tenant_id: str, creative_id: str) -> dict[str, Any]:
             spec.status = (
                 "quarantined" if grade.get("classification") == "QUARANTINED" else "qa_failed"
             )
-            spec.failure_reason = "enterprise_gate:" + ",".join(
-                grade.get("blockers") or ["unclassified"]
-            )
+            # Carry the base-QA blockers too. This branch returns before the
+            # `qa_failed` branch, so without merging them a record that failed
+            # BOTH gates would show only the enterprise reason and lose the
+            # underlying defect (e.g. black_frame) the cockpit needs to triage.
+            reasons = ["enterprise_gate:" + ",".join(grade.get("blockers") or ["unclassified"])]
+            if qa.get("ok") is not True and qa.get("blockers"):
+                reasons.append("qa:" + ",".join(qa.get("blockers") or []))
+            spec.failure_reason = " | ".join(reasons)[:500]
             save_record(spec)
             return {
                 "ok": False,
