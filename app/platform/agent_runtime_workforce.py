@@ -309,11 +309,13 @@ _WAVE_B_CAPS: list[tuple[str, str, Callable, str, bool, bool]] = [
 
 
 def ensure_workforce_registered() -> None:
-    """Idempotent: pilots + Wave-B + frozen transfer + hold-roster inventory."""
+    """Idempotent: pilots + sprint caps + Wave-B + frozen transfer + hold-roster."""
     from app.platform.agent_runtime_pilots import ensure_pilots_registered
+    from app.platform.agent_runtime_sprint import ensure_sprint_registered
     from app.platform.team import STAFF
 
     ensure_pilots_registered()
+    ensure_sprint_registered()
 
     for aid in FROZEN_VOICE_AGENTS:
         register_capability(
