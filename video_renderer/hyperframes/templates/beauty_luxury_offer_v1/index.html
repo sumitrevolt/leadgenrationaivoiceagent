@@ -271,12 +271,16 @@
           // No consented imagery -> a designed typographic panel. Deliberately
           // NOT a grey "image missing" box, and never a stock photo we have no
           // licence for.
+          // `place-items:center` would size the panel to its content and render
+          // a narrow column in a wide frame; an explicit 1fr/1fr track makes it
+          // fill the slot the photo grid would have occupied.
           media.style.display = "grid";
-          media.style.placeItems = "center";
+          media.style.gridTemplateColumns = "1fr";
+          media.style.gridTemplateRows = "1fr";
           var panel = document.createElement("div");
           panel.className = "glass kb";
           panel.style.cssText +=
-            "width:100%;height:100%;display:grid;place-items:center;padding:70px;text-align:center;";
+            "display:grid;place-items:center;padding:70px;text-align:center;";
           panel.style.setProperty("--kb-dur", "4.2s");
           var mark = document.createElement("div");
           mark.style.cssText =
