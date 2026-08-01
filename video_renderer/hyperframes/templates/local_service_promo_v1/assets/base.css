@@ -1,0 +1,300 @@
+/* local_service_promo_v1 — clean editorial light system for local SMB services.
+ *
+ * Deliberately NOT a recolour of beauty_luxury_offer_v1. That template is a dark
+ * luxury piece; a plumber, tutor or clinic reads as trustworthy in a bright,
+ * high-contrast editorial layout, so this one inverts the base, uses solid brand
+ * blocks instead of glass, and structures around problem -> solution -> proof.
+ *
+ * Same hard rules as every template here: local bundled OFL fonts, CSS-only
+ * animation with FINITE iteration counts (infinite cannot be seeked), no CDN, no
+ * JS animation library, nothing fetched at render time.
+ */
+
+@font-face {
+  font-family: "LG Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("./fonts/noto-sans-latin-400-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F,
+    U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215;
+}
+@font-face {
+  font-family: "LG Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("./fonts/noto-sans-latin-700-normal.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+2000-206F,
+    U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215;
+}
+/* Devanagari — local-service copy is the MOST likely to be written in Hindi. */
+@font-face {
+  font-family: "LG Sans";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("./fonts/noto-sans-devanagari-devanagari-400-normal.woff2") format("woff2");
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+25CC,
+    U+A830-A839, U+A8E0-A8FF;
+}
+@font-face {
+  font-family: "LG Sans";
+  font-style: normal;
+  font-weight: 700;
+  font-display: block;
+  src: url("./fonts/noto-sans-devanagari-devanagari-700-normal.woff2") format("woff2");
+  unicode-range: U+0900-097F, U+1CD0-1CF9, U+200C-200D, U+20A8, U+20B9, U+25CC,
+    U+A830-A839, U+A8E0-A8FF;
+}
+
+:root {
+  --brand: #1d6f5c;
+  --accent: #f4a259;
+  --ink: #14181f;
+  --ink-dim: #59626f;
+  --paper: #f7f6f2;
+  --paper-2: #ffffff;
+  --line: #dcd9d1;
+
+  --safe-x: 88px;
+  --safe-top: 205px;
+  --safe-bottom: 275px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  width: 1080px;
+  height: 1920px;
+  background: var(--paper);
+  font-family: "LG Sans", sans-serif;
+  color: var(--ink);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root { position: relative; width: 1080px; height: 1920px; overflow: hidden; }
+
+.clip { position: absolute; inset: 0; }
+
+.stage {
+  position: absolute;
+  left: var(--safe-x);
+  right: var(--safe-x);
+  top: var(--safe-top);
+  bottom: var(--safe-bottom);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ------------------------------------------------------------- backdrop */
+/* Full-bleed CHILD, never the composition root: the compositor can drop the
+ * root element's own background and render the frame black. */
+.bg { position: absolute; inset: 0; background: var(--paper); }
+
+.bg-wash {
+  position: absolute;
+  inset: -12%;
+  background:
+    radial-gradient(48% 32% at 18% 12%, color-mix(in srgb, var(--brand) 16%, transparent) 0%, transparent 64%),
+    radial-gradient(42% 30% at 86% 78%, color-mix(in srgb, var(--accent) 22%, transparent) 0%, transparent 62%);
+  filter: blur(10px);
+  animation: washDrift 20s ease-in-out 2 alternate both;
+}
+@keyframes washDrift {
+  0%   { transform: translate3d(-1.6%, -1.2%, 0) scale(1.02); }
+  100% { transform: translate3d(2.0%, 1.8%, 0) scale(1.08); }
+}
+
+/* Editorial rule grid — static structure, gives the frame a designed feel
+ * without competing with the copy. */
+.grid-lines {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 180px 180px;
+  opacity: 0.5;
+}
+
+.corner-mark {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  border: 5px solid var(--brand);
+  animation: cornerIn 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.corner-mark.tl { top: 120px; left: 56px; border-right: 0; border-bottom: 0; }
+.corner-mark.br { bottom: 150px; right: 56px; border-left: 0; border-top: 0; }
+@keyframes cornerIn {
+  from { opacity: 0; transform: scale(0.7); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ---------------------------------------------------------- typography */
+.kicker {
+  font-size: 29px;
+  font-weight: 700;
+  letter-spacing: 0.34em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+.headline {
+  font-weight: 700;
+  line-height: 1.07;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.sub { font-size: 34px; line-height: 1.44; color: var(--ink-dim); }
+
+.w { display: inline-block; will-change: transform, opacity; }
+.rise .w { animation: wordRise 0.66s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes wordRise {
+  from { opacity: 0; transform: translate3d(0, 40px, 0); filter: blur(6px); }
+  to   { opacity: 1; transform: none; filter: blur(0); }
+}
+
+/* Struck-through "problem" line — the visual hinge of the problem->solution
+ * spine. Scales from the left so the strike reads as a deliberate action. */
+.strike {
+  position: relative;
+  display: inline-block;
+}
+.strike::after {
+  content: "";
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: 54%;
+  height: 7px;
+  background: var(--accent);
+  transform-origin: left center;
+  animation: strikeThrough 0.72s cubic-bezier(0.22, 1, 0.36, 1) 0.9s both;
+}
+@keyframes strikeThrough {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+
+.fade-in  { animation: fadeIn 0.6s ease both; }
+.slide-up { animation: slideUp 0.8s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.pop      { animation: pop 0.62s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translate3d(0, 52px, 0); } to { opacity: 1; transform: none; } }
+@keyframes pop     { from { opacity: 0; transform: scale(0.88); } to { opacity: 1; transform: scale(1); } }
+
+.kb { animation: kenBurns var(--kb-dur, 6s) ease-out both; }
+@keyframes kenBurns {
+  from { transform: scale(1); }
+  to   { transform: scale(1.08) translate3d(0, -14px, 0); }
+}
+
+/* --------------------------------------------------------------- blocks */
+.block {
+  background: var(--paper-2);
+  border: 2px solid var(--line);
+  border-radius: 24px;
+  box-shadow: 0 18px 42px rgba(20, 24, 31, 0.09);
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 28px;
+  padding: 34px 36px;
+}
+.step .n {
+  flex: 0 0 auto;
+  width: 68px;
+  height: 68px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--brand);
+}
+.step .t { font-size: 40px; font-weight: 700; line-height: 1.18; }
+.step .d { font-size: 26px; color: var(--ink-dim); margin-top: 7px; line-height: 1.36; }
+
+/* Trust row. Renders ONLY items the provider supplied — an empty slot is
+ * removed, never shown as a blank chip, and never auto-filled with a rating we
+ * cannot evidence. */
+.trust {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 30px;
+  border-radius: 999px;
+  font-size: 29px;
+  font-weight: 700;
+  background: color-mix(in srgb, var(--brand) 12%, var(--paper-2));
+  border: 2px solid color-mix(in srgb, var(--brand) 34%, transparent);
+  color: var(--ink);
+}
+.chip .tick {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--brand);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.offer-band {
+  padding: 44px 48px;
+  border-radius: 26px;
+  background: var(--brand);
+  color: #fff;
+  text-align: center;
+}
+.offer-band .t { font-size: 30px; letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.9; }
+
+.photo-frame { position: relative; overflow: hidden; border-radius: 24px; border: 2px solid var(--line); }
+.photo { position: absolute; inset: 0; background-size: cover; background-position: center; }
+
+.cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 38px 54px;
+  border-radius: 999px;
+  font-size: 45px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--ink);
+  box-shadow: 0 20px 46px rgba(20, 24, 31, 0.3);
+  animation: ctaPulse 1.9s ease-in-out 3 both;
+}
+@keyframes ctaPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+.cta svg { width: 48px; height: 48px; flex: 0 0 auto; }
+
+.footer-line {
+  position: absolute;
+  left: var(--safe-x);
+  right: var(--safe-x);
+  bottom: 148px;
+  text-align: center;
+  font-size: 26px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}

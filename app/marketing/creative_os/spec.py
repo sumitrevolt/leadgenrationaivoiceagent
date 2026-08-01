@@ -68,6 +68,11 @@ class CreativeSpec:
     cta: str = ""
     claims: list[str] = field(default_factory=list)
     provider: str = "deterministic"
+    # Optional render-template selector. Empty = the provider's configured
+    # default. Additive with a default so existing stored records keep loading
+    # unchanged; validated against the provider's exact allowlist, never used
+    # as a path.
+    template_id: str = ""
     model_name: str = "ffmpeg-template"
     model_version: str = "pinned"
     seed: int = 0

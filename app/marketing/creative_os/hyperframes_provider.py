@@ -183,16 +183,132 @@ def _resolve_photo(tenant_id: str, asset_id: str) -> str | None:
     if not ref:
         return None
     try:
-        p = Path(ref)
-        if not p.is_absolute():
-            p = (Path.cwd() / p).resolve()
-        resolved = p.resolve(strict=True)
-        # A symlink could be retargeted after the consent check.
-        if resolved.is_symlink() or not resolved.is_file():
+        candidate = Path(ref)
+        if not candidate.is_absolute():
+            candidate = Path.cwd() / candidate
+
+        # Symlink policy, checked on the UNRESOLVED path. `Path.resolve()` follows
+        # every link, so testing `resolved.is_symlink()` is always False and
+        # silently accepts a symlinked asset — the check has to happen before
+        # resolution, and on every parent component, because an in-path link can
+        # be retargeted after the consent check passed.
+        for part in (candidate, *candidate.parents):
+            if part.is_symlink():
+                return None
+
+        resolved = candidate.resolve(strict=True)
+        if not resolved.is_file():
             return None
-    except (OSError, ValueError):
+    except (OSError, ValueError, RuntimeError):
         return None
     return str(resolved)
+
+
+# ------------------------------------------------------- per-template binders
+# One binder per template. Each returns the EXACT variable set that template
+# declares — `build_manifest` then rejects any key outside the registry's
+# declared list and any missing required key, so a template/binder mismatch is
+# an error rather than a video that renders with silently blank slots.
+#
+# Rule shared by all of them: a fact we cannot evidence stays "" and the
+# composition drops that element. None of them invent a rating, review count,
+# price, metric or testimonial.
+
+
+def _bind_beauty(c: dict[str, Any]) -> dict[str, str]:
+    return {
+        "business_name": c["business_name"],
+        "monogram": c["monogram"],
+        "tagline": c["tagline"][:120],
+        "city": c["city"],
+        "primary_color": c["primary"],
+        "accent_color": c["accent"],
+        "hook_line": c["hook"],
+        "hook_sub": c["tagline"] if c["hook"] else "",
+        "services_json": json.dumps(c["body_items"], ensure_ascii=False),
+        "showcase_line": c["showcase"],
+        "proof_line": "",
+        "offer_title": _clean(c["brand"].get("offer_badge"), 40),
+        "offer_sub": c["offer_sub"],
+        "cta_text": c["cta_text"],
+        "cta_channel": c["channel"],
+        "contact_display": _clean(c["brand"].get("contact_display"), 80) or c["cta_text"],
+        "photos_json": c["photos_json"],
+        "footer_note": c["footer"],
+    }
+
+
+def _bind_local_service(c: dict[str, Any]) -> dict[str, str]:
+    # The problem/solution spine reuses the scene plan: the hook IS the problem
+    # statement and the tagline carries the solution promise.
+    return {
+        "business_name": c["business_name"],
+        "monogram": c["monogram"],
+        "tagline": c["tagline"][:120],
+        "city": c["city"],
+        "primary_color": c["primary"],
+        "accent_color": c["accent"],
+        "problem_line": c["hook"],
+        "problem_strike": _clean(c["brand"].get("problem_strike"), 90),
+        "solution_line": c["tagline"] or c["showcase"],
+        "solution_sub": c["showcase"] if c["tagline"] else "",
+        "steps_json": json.dumps(c["body_items"], ensure_ascii=False),
+        # Trust chips carry claims, so they come ONLY from an explicitly
+        # verified list on the brand record — never derived from scene copy.
+        "trust_json": json.dumps(
+            [_clean(x, 40) for x in (c["brand"].get("verified_trust") or []) if _clean(x, 40)][:3],
+            ensure_ascii=False,
+        ),
+        "proof_line": "",
+        "offer_title": _clean(c["brand"].get("offer_badge"), 40),
+        "offer_sub": c["offer_sub"],
+        "cta_text": c["cta_text"],
+        "cta_channel": c["channel"],
+        "contact_display": _clean(c["brand"].get("contact_display"), 80) or c["cta_text"],
+        "photos_json": c["photos_json"],
+        "footer_note": c["footer"],
+    }
+
+
+def _bind_agency(c: dict[str, Any]) -> dict[str, str]:
+    return {
+        "product_name": c["business_name"],
+        "monogram": c["monogram"],
+        "tagline": c["tagline"][:140],
+        "eyebrow": _clean(c["brand"].get("eyebrow"), 40),
+        "primary_color": c["primary"],
+        "accent_color": c["accent"],
+        "hook_line": c["hook"],
+        "hook_sub": c["showcase"],
+        "showcase_line": _clean(c["brand"].get("showcase_line"), 120),
+        "features_json": json.dumps(c["body_items"], ensure_ascii=False),
+        "workflow_json": json.dumps(
+            [_clean(x, 28) for x in (c["brand"].get("workflow") or []) if _clean(x, 28)][:4],
+            ensure_ascii=False,
+        ),
+        # Metrics are marketing CLAIMS. Only an explicitly verified list is
+        # emitted; there is no derivation and no default, so an unproven launch
+        # simply renders without the metrics row.
+        "metrics_json": json.dumps(
+            [
+                {"value": _clean(m.get("value"), 12), "label": _clean(m.get("label"), 40)}
+                for m in (c["brand"].get("verified_metrics") or [])
+                if isinstance(m, dict) and _clean(m.get("value"), 12)
+            ][:3],
+            ensure_ascii=False,
+        ),
+        "cta_text": c["cta_text"],
+        "contact_display": _clean(c["brand"].get("contact_display"), 80) or c["cta_text"],
+        "photos_json": c["photos_json"],
+        "footer_note": c["footer"],
+    }
+
+
+_BINDERS: dict[str, Any] = {
+    "beauty_luxury_offer_v1": _bind_beauty,
+    "local_service_promo_v1": _bind_local_service,
+    "agency_product_launch_v1": _bind_agency,
+}
 
 
 # ----------------------------------------------------------------- manifest
@@ -245,14 +361,14 @@ def build_manifest(
     offer_sub = _clean(spec.offer, 220) or scene_text("offer", -1)
     cta_text = _clean(spec.cta, 160)
 
-    services = []
+    body_items = []
     for sc in scenes:
         role = str(getattr(sc, "role", "")).lower()
-        if role in ("service", "benefit", "body"):
+        if role in ("service", "benefit", "body", "step", "feature"):
             title = _clean(getattr(sc, "text", ""), 60)
             if title:
-                services.append({"title": title, "subtitle": ""})
-    services = services[:4]
+                body_items.append({"title": title, "subtitle": ""})
+    body_items = body_items[:4]
 
     photos: list[str] = []
     for aid in list(photo_asset_ids or spec.source_asset_ids or []):
@@ -262,29 +378,34 @@ def build_manifest(
     photos = photos[:3]
 
     monogram = "".join(w[0] for w in business_name.split()[:2] if w).upper()
+    tagline = _clean(b.get("tagline"), 160)
+    city = _clean(b.get("city"), 60)
+    photos_json = json.dumps(photos, ensure_ascii=False)
+    footer = " · ".join(x for x in (business_name, city) if x)
+    channel = "call" if "call" in cta_text.lower() else "whatsapp"
 
-    variables: dict[str, str] = {
+    ctx = {
         "business_name": business_name,
         "monogram": monogram,
-        "tagline": _clean(b.get("tagline"), 120),
-        "city": _clean(b.get("city"), 60),
-        "primary_color": primary,
-        "accent_color": accent,
-        "hook_line": hook,
-        "hook_sub": _clean(b.get("tagline"), 160) if hook else "",
-        "services_json": json.dumps(services, ensure_ascii=False),
-        "showcase_line": showcase,
-        # Never auto-filled. A rating/testimonial must come from a verified
-        # source or stay empty; the composition drops the element when empty.
-        "proof_line": "",
-        "offer_title": _clean(b.get("offer_badge"), 40),
+        "tagline": tagline,
+        "city": city,
+        "primary": primary,
+        "accent": accent,
+        "hook": hook,
+        "showcase": showcase,
         "offer_sub": offer_sub,
         "cta_text": cta_text,
-        "cta_channel": "call" if "call" in cta_text.lower() else "whatsapp",
-        "contact_display": _clean(b.get("contact_display"), 80) or cta_text,
-        "photos_json": json.dumps(photos, ensure_ascii=False),
-        "footer_note": " · ".join(x for x in (business_name, _clean(b.get("city"), 60)) if x),
+        "channel": channel,
+        "body_items": body_items,
+        "photos_json": photos_json,
+        "footer": footer,
+        "brand": b,
     }
+
+    binder = _BINDERS.get(tpl["template_id"])
+    if binder is None:
+        raise RenderError("no_variable_binder", tpl["template_id"])
+    variables = binder(ctx)
 
     unknown = set(variables) - set(tpl["variables"])
     if unknown:
@@ -579,6 +700,15 @@ def _slug(text: str) -> str:
 
 
 def _template_for(spec: CreativeSpec) -> str:
+    """Caller-selected template, validated against the exact allowlist.
+
+    An unrecognised value falls back to the configured default rather than
+    reaching the renderer — `spec.template_id` is customer-adjacent input and
+    must never behave like a path.
+    """
+    requested = str(getattr(spec, "template_id", "") or "")
+    if requested and get_template(requested):
+        return requested
     return default_template()
 
 

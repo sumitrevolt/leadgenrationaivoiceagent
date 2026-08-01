@@ -17,6 +17,29 @@ templates/<template_id>/           ONE self-contained HyperFrames project
   assets/fonts/*.woff2             bundled OFL fonts
 ```
 
+`package-lock.json` is force-tracked past the repo's blanket `*.json` ignore (see
+the `!package-lock.json` negation in the root `.gitignore`). Without it `npm ci`
+in `Dockerfile.video` refuses to run and the image is not reproducible.
+
+## Templates
+
+| id | use | scenes | look |
+|---|---|---|---|
+| `beauty_luxury_offer_v1` | beauty / salon offer reel | 6 | dark editorial luxury — monogram reveal, glass cards, particles |
+| `local_service_promo_v1` | local SMB services | 6 | bright editorial trust — problem→solution→proof→offer→CTA, strike-through hinge, numbered steps |
+| `agency_product_launch_v1` | LeadGen AI own-brand launch | 6 | product/tech — CSS-drawn app frame, workflow nodes, metric cards |
+
+All three are 1080×1920, 30fps, 25.4s, CSS-runtime, Devanagari-capable.
+
+They are deliberately three different visual languages rather than one recoloured
+layout: a salon, a plumber and a SaaS launch do not read as credible in the same
+treatment.
+
+Trust chips (`local_service`) and metric cards (`agency`) render **only** from an
+explicitly verified list on the brand record. There is no default and no
+derivation — an unproven business simply renders without them, because an
+invented rating or "10,000+ customers" in a customer's ad is a false claim.
+
 Each template is its own project directory. That is not stylistic: HyperFrames
 refuses asset paths that traverse above the project root (`../shared/…` 404s in
 Studio and in preview), so shared assets are bundled per template instead.

@@ -7,8 +7,7 @@ and the subprocess contract is inspected as an argv list.
 
 from __future__ import annotations
 
-import asyncio
-import os
+import json
 import shutil
 import subprocess
 import sys
@@ -386,14 +385,55 @@ def test_symlinked_asset_is_refused_on_every_platform(tmp_path, monkeypatch):
     # Sanity: it resolves while it is a regular file...
     assert hp._resolve_photo("tenant-a", aid) is not None
 
-    # ...and is refused the moment it looks like a symlink, because an in-place
-    # link can be retargeted after the consent check passed.
-    monkeypatch.setattr(Path, "is_symlink", lambda self: True)
+    # ...and is refused the moment THAT path looks like a symlink. Only the exact
+    # target is faked: a blanket `is_symlink -> True` would also pass against an
+    # implementation that only inspects the RESOLVED path, which is precisely the
+    # bug this guards (Path.resolve follows links, so the resolved path is never
+    # a symlink and the check silently never fires).
+    real_is_symlink = Path.is_symlink
+
+    def _fake(self):
+        return str(self) == str(img) or real_is_symlink(self)
+
+    monkeypatch.setattr(Path, "is_symlink", _fake)
     assert hp._resolve_photo("tenant-a", aid) is None
 
 
 # ------------------------------------------------------------- subprocess
-def test_renderer_invocation_is_argv_not_shell(monkeypatch, tmp_path):
+@pytest.fixture
+def stub_renderer(tmp_path, monkeypatch):
+    """A renderer root containing only the CLI entrypoint.
+
+    These tests exercise HOW the child is invoked, not whether npm has run. CI
+    checks out the repo without `node_modules`, so pointing at the real root made
+    every one of them fail with `renderer_not_installed` — masking the argv,
+    exit-code and timeout contracts they exist to protect.
+    """
+    root = tmp_path / "renderer"
+    cli = root / "node_modules" / "hyperframes" / "bin" / "hyperframes.mjs"
+    cli.parent.mkdir(parents=True, exist_ok=True)
+    cli.write_text("// stub", encoding="utf-8")
+    monkeypatch.setattr(hp, "renderer_root", lambda: root)
+    project = tmp_path / "project"
+    project.mkdir(exist_ok=True)
+    return project
+
+
+def test_renderer_refuses_when_cli_is_absent(tmp_path, monkeypatch):
+    """The installed-check itself must still fail closed."""
+    monkeypatch.setattr(hp, "renderer_root", lambda: tmp_path / "empty")
+    with pytest.raises(hp.RenderError) as e:
+        hp._run_renderer(
+            project_dir=tmp_path,
+            manifest_path=tmp_path / "m.json",
+            output_path=tmp_path / "o.mp4",
+            preset="portrait",
+            timeout_s=60,
+        )
+    assert e.value.code == "renderer_not_installed"
+
+
+def test_renderer_invocation_is_argv_not_shell(monkeypatch, tmp_path, stub_renderer):
     """No shell=True and no interpolated command string, ever."""
     captured: dict = {}
 
@@ -413,9 +453,8 @@ def test_renderer_invocation_is_argv_not_shell(monkeypatch, tmp_path):
         return _P()
 
     monkeypatch.setattr(hp.subprocess, "Popen", _fake_popen)
-    tpl = ht.template_dir("beauty_luxury_offer_v1")
     hp._run_renderer(
-        project_dir=tpl,
+        project_dir=stub_renderer,
         manifest_path=tmp_path / "m.json",
         output_path=tmp_path / "o.mp4",
         preset="portrait",
@@ -441,7 +480,7 @@ def test_renderer_env_disables_telemetry_and_downloads(monkeypatch):
     assert env["HYPERFRAMES_API_KEY"] == "", "a render must never authenticate to cloud"
 
 
-def test_renderer_nonzero_exit_maps_to_render_error(monkeypatch, tmp_path):
+def test_renderer_nonzero_exit_maps_to_render_error(monkeypatch, tmp_path, stub_renderer):
     class _P:
         pid = 1
         returncode = 3
@@ -455,7 +494,7 @@ def test_renderer_nonzero_exit_maps_to_render_error(monkeypatch, tmp_path):
     monkeypatch.setattr(hp.subprocess, "Popen", lambda *a, **k: _P())
     with pytest.raises(hp.RenderError) as e:
         hp._run_renderer(
-            project_dir=ht.template_dir("beauty_luxury_offer_v1"),
+            project_dir=stub_renderer,
             manifest_path=tmp_path / "m.json",
             output_path=tmp_path / "o.mp4",
             preset="portrait",
@@ -464,7 +503,7 @@ def test_renderer_nonzero_exit_maps_to_render_error(monkeypatch, tmp_path):
     assert e.value.code == "renderer_exit_nonzero"
 
 
-def test_render_timeout_kills_process_tree(monkeypatch, tmp_path):
+def test_render_timeout_kills_process_tree(monkeypatch, tmp_path, stub_renderer):
     killed: dict = {}
 
     class _P:
@@ -485,7 +524,7 @@ def test_render_timeout_kills_process_tree(monkeypatch, tmp_path):
 
     with pytest.raises(hp.RenderError) as e:
         hp._run_renderer(
-            project_dir=ht.template_dir("beauty_luxury_offer_v1"),
+            project_dir=stub_renderer,
             manifest_path=tmp_path / "m.json",
             output_path=tmp_path / "o.mp4",
             preset="portrait",
@@ -633,6 +672,118 @@ async def test_failed_hyperframes_never_returns_deterministic_output(_clean_env)
     assert not out.get("assets"), "a failed deliverable must not carry a fallback asset"
     assert spec.provider == "hyperframes", "spec must not be rewritten to the fallback"
     assert any("no_silent_fallback" in w for w in out.get("warnings") or [])
+
+
+# ------------------------------------------------- multi-template contract
+ALL_TEMPLATES = ("beauty_luxury_offer_v1", "local_service_promo_v1", "agency_product_launch_v1")
+
+
+@pytest.mark.parametrize("tid", ALL_TEMPLATES)
+def test_every_registered_template_is_self_contained(tid):
+    """No `../` escapes and fonts bundled per template — a shared parent dir
+    404s in HyperFrames and silently drops the stylesheet."""
+    d = ht.template_dir(tid)
+    assert d is not None, tid
+    html = (d / "index.html").read_text(encoding="utf-8")
+    assert "../" not in html, f"{tid} references a parent-relative asset"
+    assert (d / "assets" / "base.css").is_file()
+    fonts = list((d / "assets" / "fonts").glob("*.woff2"))
+    assert len(fonts) >= 4, f"{tid} missing bundled fonts"
+    assert any("devanagari" in f.name for f in fonts), f"{tid} lacks Devanagari coverage"
+
+
+@pytest.mark.parametrize("tid", ALL_TEMPLATES)
+def test_templates_declare_required_composition_contract(tid):
+    d = ht.template_dir(tid)
+    html = (d / "index.html").read_text(encoding="utf-8")
+    assert html.lstrip().lower().startswith("<!doctype html>")
+    assert 'data-start="0"' in html
+    assert "data-no-timeline" in html, "no GSAP timeline -> must skip the 45s poll"
+    assert 'data-width="1080"' in html and 'data-height="1920"' in html
+
+
+@pytest.mark.parametrize("tid", ALL_TEMPLATES)
+def test_templates_have_no_network_dependency(tid):
+    """A CDN script/font/image would break the zero-network render guarantee."""
+    d = ht.template_dir(tid)
+    for f in (d / "index.html", d / "assets" / "base.css"):
+        text = f.read_text(encoding="utf-8")
+        for bad in ("http://", "https://", "//cdn", "@import url(http"):
+            assert bad not in text, f"{tid}:{f.name} references {bad}"
+
+
+@pytest.mark.parametrize("tid", ALL_TEMPLATES)
+def test_templates_use_only_finite_animation(tid):
+    """`infinite` has no computable end time and cannot be seeked."""
+    css = (ht.template_dir(tid) / "assets" / "base.css").read_text(encoding="utf-8")
+    body = "\n".join(ln for ln in css.splitlines() if not ln.strip().startswith("*"))
+    assert "infinite" not in body, f"{tid} has an infinite animation"
+
+
+@pytest.mark.parametrize("tid", ALL_TEMPLATES)
+def test_every_template_has_a_binder_producing_declared_variables(tid):
+    """Binder output must match the registry EXACTLY — an extra key raises and a
+    missing required key is NEEDS_CUSTOMER_INPUT, so a template/binder drift can
+    never render as silently blank slots."""
+    tpl = ht.get_template(tid)
+    assert tid in hp._BINDERS, f"{tid} has no variable binder"
+    spec = _make_spec(template_id=tid)
+    m = hp.build_manifest(spec, brand=_BRAND, template_id=tid)
+    assert set(m["variables"]) <= set(tpl["variables"])
+    for req in tpl["required_variables"]:
+        assert m["variables"].get(req), f"{tid} required var {req} unbound"
+    assert m["width"] == 1080 and m["height"] == 1920 and m["fps"] == 30
+
+
+@pytest.mark.parametrize("tid", ALL_TEMPLATES)
+def test_unverified_trust_and_metrics_stay_empty(tid):
+    """Ratings/review counts/launch metrics are CLAIMS: absent unless verified."""
+    m = hp.build_manifest(_make_spec(template_id=tid), brand=_BRAND, template_id=tid)
+    v = m["variables"]
+    assert json.loads(v.get("trust_json", "[]")) == []
+    assert json.loads(v.get("metrics_json", "[]")) == []
+    assert v.get("proof_line", "") == ""
+
+
+def test_verified_trust_and_metrics_are_emitted_when_present():
+    """The empty case must be a REFUSAL, not a broken binder."""
+    brand = dict(
+        _BRAND,
+        verified_trust=["Licensed", "5 saal experience"],
+        verified_metrics=[{"value": "500", "label": "minutes included"}],
+    )
+    local = hp.build_manifest(
+        _make_spec(template_id="local_service_promo_v1"),
+        brand=brand,
+        template_id="local_service_promo_v1",
+    )
+    assert json.loads(local["variables"]["trust_json"]) == ["Licensed", "5 saal experience"]
+
+    agency = hp.build_manifest(
+        _make_spec(template_id="agency_product_launch_v1"),
+        brand=brand,
+        template_id="agency_product_launch_v1",
+    )
+    assert json.loads(agency["variables"]["metrics_json"])[0]["value"] == "500"
+
+
+def test_template_id_selects_template_and_bad_value_falls_back():
+    assert hp._template_for(_make_spec(template_id="local_service_promo_v1")) == (
+        "local_service_promo_v1"
+    )
+    # Hostile / unknown values must never reach the renderer as a path.
+    for bad in ("../../etc", "unknown_v9", ""):
+        assert hp._template_for(_make_spec(template_id=bad)) == hp.default_template()
+
+
+def test_manifest_hash_differs_per_template():
+    hashes = {
+        tid: hp.manifest_hash(
+            hp.build_manifest(_make_spec(template_id=tid), brand=_BRAND, template_id=tid)
+        )
+        for tid in ALL_TEMPLATES
+    }
+    assert len(set(hashes.values())) == len(ALL_TEMPLATES)
 
 
 # -------------------------------------------------------------- regression
