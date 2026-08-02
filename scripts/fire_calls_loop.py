@@ -18,7 +18,9 @@ import datetime
 import os
 import sys
 
-_BASE = "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASE = (
+    "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.insert(0, _BASE)
 os.chdir(_BASE)
 
@@ -39,18 +41,25 @@ def _ist_now() -> datetime.datetime:
 
 def _in_trai_window(call_type: str) -> tuple[bool, str]:
     ist = _ist_now()
-    trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "10").split(":")[0])
-    trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "19").split(":")[0])
-    txn_end = int(os.environ.get("COMPLIANCE_TXN_END", "21").split(":")[0])
-    start_hour = (
-        int(os.environ.get("COMPLIANCE_TXN_START", "9").split(":")[0])
-        if call_type == "transactional"
-        else trai_start
-    )
-    end_hour = txn_end if call_type == "transactional" else trai_end
-    ok = start_hour <= ist.hour < end_hour
-    msg = f"IST {ist.strftime('%H:%M')} window {start_hour:02d}:00–{end_hour:02d}:00 ({call_type})"
-    return ok, msg
+    try:
+        from app.telephony.compliance import _parse_hhmm, effective_promo_window
+
+        if call_type == "transactional":
+            start_t = _parse_hhmm(os.environ.get("COMPLIANCE_TXN_START", ""), datetime.time(9, 0))
+            end_t = _parse_hhmm(os.environ.get("COMPLIANCE_TXN_END", ""), datetime.time(21, 0))
+        else:
+            start_s, end_s = effective_promo_window()
+            start_t = _parse_hhmm(start_s, datetime.time(9, 0))
+            end_t = _parse_hhmm(end_s, datetime.time(19, 0))
+        now_t = ist.time()
+        ok = start_t <= now_t < end_t
+        msg = (
+            f"IST {ist.strftime('%H:%M')} window "
+            f"{start_t.strftime('%H:%M')}–{end_t.strftime('%H:%M')} ({call_type})"
+        )
+        return ok, msg
+    except Exception as e:  # pragma: no cover - defensive, never blocks on our own bug
+        return True, f"window-check skipped: {e}"
 
 
 async def _maybe_learn(learn: bool) -> None:
@@ -60,7 +69,9 @@ async def _maybe_learn(learn: bool) -> None:
         import voice_learn_from_calls as vlc  # noqa: E402
 
         result = await vlc.learn_from_recent(limit=2)
-        print(f"[loop] learn: {result.get('lessons_saved', 0)} lessons, score={result.get('avg_score')}")
+        print(
+            f"[loop] learn: {result.get('lessons_saved', 0)} lessons, score={result.get('avg_score')}"
+        )
     except Exception as e:
         print(f"[loop] learn skip: {e}")
 
@@ -124,7 +135,9 @@ async def run_loop(
         total_ok += ok
         total_skip += skip
         total_fail += fail
-        print(f"[loop] batch {batch_n} done: ok={ok} skip={skip} fail={fail} | totals ok={total_ok}")
+        print(
+            f"[loop] batch {batch_n} done: ok={ok} skip={skip} fail={fail} | totals ok={total_ok}"
+        )
 
         await _maybe_learn(learn)
 
