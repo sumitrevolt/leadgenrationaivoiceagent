@@ -6,6 +6,7 @@ Run:
   docker exec leadgen_app python3 scripts/fire_calls.py --limit 10 --dry-run
   docker exec leadgen_app python3 scripts/fire_calls.py --limit 5 --transactional
 """
+
 from __future__ import annotations
 
 import argparse
@@ -15,7 +16,9 @@ import re
 import sys
 import uuid
 
-_BASE = "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_BASE = (
+    "/app" if os.path.isdir("/app") else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.insert(0, _BASE)
 os.chdir(_BASE)
 
@@ -27,7 +30,12 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--limit", type=int, default=10)
 parser.add_argument("--dry-run", action="store_true")
 parser.add_argument("--niche", type=str, default="")
-parser.add_argument("--client-id", type=str, default="", help="Campaign client (clients_store id) -> bot greets as that business + niche")
+parser.add_argument(
+    "--client-id",
+    type=str,
+    default="",
+    help="Campaign client (clients_store id) -> bot greets as that business + niche",
+)
 parser.add_argument(
     "--transactional",
     action="store_true",
@@ -49,15 +57,18 @@ def _provider() -> str:
         from app.config import settings
 
         return (
-            os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "exotel"
-        ).strip().lower()
+            (os.environ.get("TELEPHONY_PROVIDER") or settings.default_telephony or "exotel")
+            .strip()
+            .lower()
+        )
     except Exception:
         return (os.environ.get("TELEPHONY_PROVIDER") or "exotel").strip().lower()
 
 
 def get_db_conn():
-    import psycopg2
     import urllib.parse as up
+
+    import psycopg2
 
     p = up.urlparse(os.environ["DATABASE_URL"])
     return psycopg2.connect(
@@ -127,12 +138,29 @@ async def fire_vobiz(
     platform: bool = False,
 ) -> tuple[int, int, int]:
     from app.api.telephony_vobiz import start_stream_call
+    from app.telephony import voice_launch as vl
     from app.telephony.vobiz_handler import VobizClient
 
     client = VobizClient()
     if not dry_run and not client.available():
         print("ERROR: Vobiz not configured — VOBIZ_AUTH_ID + VOBIZ_AUTH_TOKEN set karo.")
         return 0, 0, len(prospects)
+
+    # Controlled-launch spine parity (2026-08-02): Celery path ke same session
+    # limiter — exactly VOICE_CALLS_PER_SESSION per session, fail-CLOSED. Subprocess
+    # fallback me bhi 31st attempt provider boundary se PEHLE block.
+    spine_on = vl.campaign_enabled()
+    session_id = None
+    if spine_on and not dry_run:
+        session_id = await vl.current_session_id()
+        if not session_id:
+            session_id = await vl.create_voice_session(owner="cli", niche="", label="fire_calls")
+        if not session_id:
+            print("BLOCKED(no_session) — voice launch session unavailable (Redis?)")
+            return 0, len(prospects), 0
+        if await vl.session_is_stopped(session_id):
+            print("BLOCKED(session_stopped)")
+            return 0, len(prospects), 0
 
     ok = fail = skip = 0
     for p in prospects:
@@ -152,6 +180,27 @@ async def fire_vobiz(
             skip += 1
             continue
 
+        if spine_on:
+            # eligibility (compose ke samay ke chokepoints) — fail-closed
+            elig = await vl.is_lead_eligible_for_voice_call("+91" + p10, call_type)
+            if not elig.eligible:
+                print(f"SKIP({elig.reason})")
+                await vl.record_session_disposition(session_id, vl.VoiceDisposition.SKIPPED)
+                skip += 1
+                continue
+            sslot = await vl.reserve_session_slot(session_id)
+            if not sslot.ok:
+                await vl.record_session_disposition(session_id, vl.VoiceDisposition.SKIPPED)
+                print(f"BLOCKED({sslot.reason})")
+                skip += 1
+                break
+            if not await vl.session_idem_claim(session_id, f"lead:{p['phone']}"):
+                await vl.release_session_slot(session_id)
+                await vl.record_session_retry_blocked(session_id)
+                print("SKIP(already_dispatched_this_session)")
+                skip += 1
+                continue
+
         result = await start_stream_call(
             to="+91" + p10, niche=niche, call_type=call_type, client_id=cid or None
         )
@@ -161,10 +210,16 @@ async def fire_vobiz(
             ok += 1
         elif result.get("error") == "compliance_blocked":
             print("BLOCKED(compliance)")
+            if spine_on:
+                await vl.release_session_slot(session_id)
+                await vl.session_idem_release(session_id, f"lead:{p['phone']}")
+                await vl.record_session_disposition(session_id, vl.VoiceDisposition.SKIPPED)
             skip += 1
         else:
             body = result.get("vobiz_response", {}).get("body", {})
             print(f"FAIL  {result.get('error') or body}")
+            if spine_on:
+                await vl.record_session_disposition(session_id, vl.VoiceDisposition.FAILED)
             fail += 1
         await asyncio.sleep(4)
     return ok, skip, fail
@@ -180,7 +235,9 @@ async def fire_exotel(prospects: list[dict], dry_run: bool, call_type: str) -> t
     if dry_run:
         for p in prospects:
             p10 = phone10(p["phone"])
-            print(f'  -> +91{p10} | {p["name"]} | {p.get("city","")} | niche={p.get("niche","general")} ... DRY')
+            print(
+                f'  -> +91{p10} | {p["name"]} | {p.get("city","")} | niche={p.get("niche","general")} ... DRY'
+            )
         return 0, 0, 0
 
     cm = CallManager(provider=provider)
@@ -236,7 +293,13 @@ async def fire_exotel(prospects: list[dict], dry_run: bool, call_type: str) -> t
     return ok, skip, fail
 
 
-async def fire(prospects: list[dict], dry_run: bool, call_type: str, client_id: str = "", platform: bool = False) -> None:
+async def fire(
+    prospects: list[dict],
+    dry_run: bool,
+    call_type: str,
+    client_id: str = "",
+    platform: bool = False,
+) -> None:
     provider = _provider()
     print(f"Provider: {provider} | call_type={call_type} | platform_pitch={platform}")
     if provider == "vobiz":
