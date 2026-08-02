@@ -1565,6 +1565,35 @@ def _register_customer_view_aliases() -> None:
         app.get(f"/app/customer/{_view}", tags=["Frontend"])(_make(_view))
 
 
+# 2026-08-02: legacy top-level page aliases people type/bookmark straight from a
+# browser were hard 404s (/admin, /voice, /dashboard, /app/dashboard). Static
+# GET-only 307s to the canonical pages — mirrors _register_customer_view_aliases.
+# Keep this list exclusive: /admin and /voice are ALSO API router prefixes, but
+# those live under /api/*, so these exact top-level paths are safe to own.
+def _register_legacy_alias_redirects() -> None:
+    _aliases = {
+        "/admin": "/app/admin",
+        "/voice": "/voice-agent",
+        "/dashboard": "/app/customer",
+        "/app/dashboard": "/app/customer",
+    }
+
+    for _src, _dst in _aliases.items():
+        app.get(_src, tags=["Frontend"])(_make_redirect(_src, _dst))
+
+
+def _make_redirect(src: str, dst: str):
+    async def _legacy_alias():
+        return RedirectResponse(dst, status_code=307)
+
+    _legacy_alias.__name__ = f"legacy_alias_{src.strip('/').replace('/', '_')}"
+    _legacy_alias.__doc__ = f"Legacy alias {src} -> {dst} (canonical page)."
+    return _legacy_alias
+
+
+_register_legacy_alias_redirects()
+
+
 _register_customer_view_aliases()
 
 

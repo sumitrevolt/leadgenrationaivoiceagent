@@ -2705,6 +2705,37 @@ async function scLoad(){
       h+='<td><button class="btn2" title="'+(en?'Pause karo (scheduler is job ko skip karega)':'Wapas ON karo')+'" onclick="scJobToggle(\''+esc(j.job)+'\','+(en?'false':'true')+')">'+(en?'🟢 ON':'⏸ paused')+'</button></td>';
       h+='<td><button class="btn2" title="Abhi chalao (background)" onclick="scJobRun(\''+esc(j.job)+'\')">▶</button></td></tr>';
     });
+    try{
+      var sa=await api('/api/sales-autopilot/summary');
+      var lt=sa&&sa.scheduler&&sa.scheduler.last_tick;
+      if(lt){
+        var idle=String(lt.idle_reason||'');
+        var cls2=idle==='no_eligible_prospects'?'warn':'mut';
+        var bits='processed '+esc(lt.processed||0);
+        if(idle)bits+=' · idle kyun: '+esc(idle);
+        if(lt.prospect_status_counts)bits+=' · prospects: '+esc(JSON.stringify(lt.prospect_status_counts));
+        h+='<div class="'+cls2+'" style="margin-top:8px;font-size:13px">🤖 Sales Autopilot · last tick '+esc(fmtTime(lt.at))+' · '+bits+'</div>';
+      }
+    }catch(e){}
+    try{
+      var er=await api('/api/platform/team/email-outreach/runs');
+      var runs=er&&Array.isArray(er.runs)?er.runs:[];
+      if(runs.length){
+        var lr=runs[0];
+        var m=lr.meta||{};
+        var bits=[];
+        if(m.sent!=null)bits.push('sent '+esc(m.sent));
+        if(m.failed!=null)bits.push('failed '+esc(m.failed));
+        if(m.cap!=null)bits.push('cap '+esc(m.cap));
+        if(m.skipped_no_email!=null)bits.push('skip(no-email) '+esc(m.skipped_no_email));
+        if(m.skipped_quality!=null)bits.push('skip(quality) '+esc(m.skipped_quality));
+        if(m.skipped)bits.push('skipped: '+esc(m.skipped));
+        var kind=lr.kind==='email_followup_run'?'followups':'outreach';
+        var txt='📧 Email '+kind+' · '+esc(fmtTime(lr.at))+' · '+(bits.length?bits.join(' · '):esc(lr.summary||''));
+        var cls2=(lr.status==='warn'||lr.status==='error')?'warn':'ok';
+        h+='<div class="'+cls2+'" style="margin-top:8px;font-size:13px">'+txt+'</div>';
+      }
+    }catch(e){}
     $('scHealthOut').innerHTML=h+'</table></div>';
   }catch(e){warnBox('scHealthOut','Health fail: '+e.message)}
   try{

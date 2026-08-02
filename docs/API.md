@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1243 operations)
+## Endpoint Index — auto-generated from OpenAPI (1246 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -363,7 +363,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/revenue-trend` — Get Revenue Trend
 - `GET   ` `/api/admin/sync-health` — Admin Sync Health
 
-### Admin Ops  (28)
+### Admin Ops  (31)
 
 - `GET   ` `/api/admin/calls/recent` — Recent call outcomes / qualified summary
 - `GET   ` `/api/admin/calls/{call_id}/detail` — Call transcript + termination detail
@@ -387,6 +387,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/upi/configure` — Set platform UPI VPA (data file — no container restart)
 - `GET   ` `/api/admin/upi/pending` — Clients waiting for UPI screenshot activation
 - `POST  ` `/api/admin/voice-launch/kill` — Engage/release the voice-calling kill switch
+- `GET   ` `/api/admin/voice-launch/session` — Current voice-launch session status
+- `POST  ` `/api/admin/voice-launch/session` — Start a NEW voice-launch session (canonical reset)
+- `POST  ` `/api/admin/voice-launch/session/stop` — Emergency-stop the current voice-launch session
 - `GET   ` `/api/admin/voice-launch/status` — Controlled voice-calling launch status
 - `GET   ` `/api/admin/voice/bookings` — Appointments the AI voice agent booked (durable ledger)
 - `GET   ` `/api/admin/voice/gemini-keys` — Voice Gemini key pool status (masked)
