@@ -306,3 +306,25 @@ def test_summary_reports_scheduler_truth(monkeypatch):
 def test_calling_untouched():
     assert not hasattr(sched, "dial")
     assert not hasattr(sched, "call")
+
+
+# 14. Empty queue is a NORMAL idle, not silent success — explicit idle_reason. ----------- #
+def test_empty_queue_records_idle_reason(monkeypatch):
+    monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
+    res = asyncio.run(sched.run_tick())
+    assert res["enabled"] is True
+    assert res["processed"] == 0
+    assert res["idle_reason"] == "no_eligible_prospects"
+    assert isinstance(res["prospect_status_counts"], dict)
+    # Persisted to last_tick so Mission Control reads the same truth.
+    lt = store.get_last_tick()
+    assert lt is not None
+    assert lt["idle_reason"] == "no_eligible_prospects"
+
+
+def test_idle_reason_absent_when_work_happens(monkeypatch):
+    monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
+    _seed_new(1)
+    res = asyncio.run(sched.run_tick())
+    assert res["processed"] == 1
+    assert "idle_reason" not in res

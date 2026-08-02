@@ -1,23 +1,22 @@
 # SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-Fix WAHA QR (provider) + Estique credential compromise + prepare payment. Soak waived. No app redeploy.
+Fix the 12 OpenCode issues found in the 2026-08-02 live launch-check session. No deploy unless the owner asks.
 
-## Outcome — WAIT (owner scan + private password reset + PAID)
-- Prod SHA `3c843517` (app untouched this wave; WAHA-only stack refreshed)
-- UPI (fresh-probed): `UPI_AUTO_ACTIVATE=1`, clients=`81bd0bbe501d` only; jiya/other refuse; Estique unpaid rows=0
-- Estique login: treated compromised → prod hash invalidated (random rotate, never printed). Owner must private-reset. Never request password/OTP in chat.
-- WAHA: pulled fresh `devlikeapro/waha:latest` (container created 2026-08-01), session wiped once, status **`SCAN_QR_CODE`**, real PNG QR 5398 bytes (292×292). `/app/whatsapp`=200. `WHATSAPP_AUTO_SEND=0`. restart=0 oom=false. No STARTING/FAILED flap after fix.
-- Post-connect canary dest: `***4977`. Suppressed: `***2607`.
+## Progress — ISSUES FIXED (local, 2026-08-02)
+- ISSUE-01 WAHA status UI — `frontend/whatsapp.html`: FAILED/SCAN_QR_CODE/WORKING states, QR auto-refresh (20s), Start-button poll. Backend endpoints already existed.
+- ISSUE-02 CSP PostHog — `app/middleware/__init__.py`: `_posthog_src` in script-src + connect-src on non-embeddable pages only. Tests: `tests/test_csp_posthog_allowlist.py` (3 passed).
+- ISSUE-03 Sales autopilot idle — `app/platform/sales_autopilot/scheduler.py`: explicit `idle_reason="no_eligible_prospects"` + status-count breakdown in `last_tick.json`; `frontend/automation.html` Schedule tab surfaces it. Tests: 2 added, scheduler+CSP suite green (21 passed).
+- ISSUE-04 Staging `:latest` — `docker-compose.staging.yml`: `APP_VERSION` now MANDATORY (`${APP_VERSION:?...}`), `:latest` refused (ADR-097). Compose fail-closed verified locally.
+- ISSUE-05 Context docs refresh — `CURRENT_STATE.md` (prod `15613b35`, autopilot live, WAHA FAILED, staging fail-closed) + `ACTIVE_WORK.md` (3 workstreams) rewritten.
+
+## Known (pre-existing, NOT mine)
+- `test_email_channel_fail_closed_without_smtp` FAILS locally because local `.env` has SMTP configured → send() attempts real send → outcome SKIPPED vs test's expected FAILED. Passes only in clean CI env (no SMTP creds). Verified pre-existing via git-stash isolation.
 
 ## Owner actions (exact)
-1. Pre-open phone WhatsApp → Linked devices → Link a device (scanner waiting). Then open https://leadsgenai.in/app/whatsapp → scan QR → reply `WAHA CONNECTED`.
-2. Privately reset Estique portal password (Forgot password on `/app/login` or admin set-password). Do not paste password/OTP in chat.
-3. After reset only: log in Estique portal → Billing ₹1,999 → real UPI ref → reply `PAID`. Do not share password or OTP.
-
-## After owner replies
-- WAHA CONNECTED → WORKING verify → unlisted+suppressed zero provider → AUTO=1 temp → one `***4977` canary + WAHA msg id → leave AUTO only if boundaries pass else restore 0.
-- PAID → signed ref + activate `81bd0bbe501d` only + one invoice/ledger + replay no dup + browser paid. Never manual-mark paid.
+1. Open `/app/whatsapp` → restart WAHA session → scan QR before timeout → reply `WAHA CONNECTED`
+2. Feed sales_autopilot new non-converted prospects (or accept idle until new leads)
+3. Confirm Estique payment ledger (autopilot shows `converted`)
 
 ## Safety
-Soak waived. No app redeploy unless code change. Do not raise dial. Credential never stored/logged/committed.
+No deploy this session. `WHATSAPP_AUTO_SEND=0` stays. Dial test-mode cap 10. Do not paste WAHA webhook tokens from logs into chat/PRs. Verify (pytest targeted + prod_check + secrets scan) before any deploy.

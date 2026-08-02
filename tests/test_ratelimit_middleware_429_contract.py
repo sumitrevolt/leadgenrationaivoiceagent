@@ -28,6 +28,7 @@ from app.middleware import (
     RateLimitMiddleware,
     _fixed_window_retry_after,
     _is_asset_path,
+    _is_html_navigation,
     _is_safe_idempotent_admin_read,
     _real_client_ip,
 )
@@ -221,6 +222,91 @@ async def test_asset_mult_of_one_collapses_the_asset_ceiling(monkeypatch):
     monkeypatch.setenv("RATE_LIMIT_ASSET_MULT", "1")
     mw = RateLimitMiddleware(app=None, requests_per_minute=3)
     assert mw._ceiling_for("asset") == mw._ceiling_for("api") == 3
+
+
+# --------------------------------------------------------------------------- #
+# 3a. Human HTML page navigation = own higher bucket (2026-08-02 429 burst).
+# --------------------------------------------------------------------------- #
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/app/admin",
+        "/app/admin/",
+        "/app/customer",
+        "/app/automation",
+        "/app/whatsapp",
+        "/app/admin-login",
+        "/app/test-call",
+        "/pricing",
+        "/start",
+        "/voice-agent",
+    ],
+)
+def test_html_page_navigation_is_classified_as_html(path: str):
+    assert _is_html_navigation(_request(path, method="GET")) is True
+    assert _is_html_navigation(_request(path, method="HEAD")) is True
+
+
+@pytest.mark.parametrize(
+    ("method", "path"),
+    [
+        ("POST", "/app/admin"),
+        ("POST", "/pricing"),
+        ("GET", "/api/growth/summary"),
+        ("GET", "/api/marketing/leads"),
+        ("GET", "/"),
+        ("GET", "/blog"),
+        ("GET", "/design-system/tokens.css"),
+    ],
+)
+def test_html_navigation_helper_never_catches_writes_api_or_other_paths(method: str, path: str):
+    assert _is_html_navigation(_request(path, method=method)) is False
+
+
+@pytest.mark.asyncio
+async def test_page_load_burst_does_not_exhaust_the_api_budget(monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_HTML_MULT", "10")
+    mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=5))
+    ip = "203.0.113.17"
+    page = "/app/admin"
+
+    for _ in range(mw._ceiling_for("html")):
+        allowed = await mw.dispatch(_request(page, ip=ip), _ok)
+        assert allowed.status_code == 200
+    blocked = await mw.dispatch(_request(page, ip=ip), _ok)
+    assert blocked.status_code == 429
+    assert _body(blocked)["detail"]["scope"] == "global_ip_html"
+
+    api = await mw.dispatch(_request("/api/growth/summary", ip=ip), _ok)
+    assert api.status_code == 200
+
+
+@pytest.mark.asyncio
+async def test_page_loads_do_not_trip_a_low_shared_api_ceiling(monkeypatch):
+    monkeypatch.setenv("RATE_LIMIT_HTML_MULT", "10")
+    mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=2))
+    ip = "203.0.113.18"
+
+    for i in range(3):
+        code = (await mw.dispatch(_request(f"/pricing?tab={i}", ip=ip), _ok)).status_code
+        assert code == 200
+
+
+@pytest.mark.asyncio
+async def test_html_post_stays_on_default_api_budget(monkeypatch):
+    """Page-navigation relief must NEVER apply to writes."""
+    mw = _force_memory(RateLimitMiddleware(app=None, requests_per_minute=2))
+    ip = "203.0.113.19"
+
+    for _ in range(mw._ceiling_for("api")):
+        assert (
+            await mw.dispatch(_request("/app/admin", ip=ip, method="POST"), _ok)
+        ).status_code == 200
+    blocked = await mw.dispatch(_request("/app/admin", ip=ip, method="POST"), _ok)
+    assert blocked.status_code == 429
+    assert _body(blocked)["detail"]["scope"] == "global_ip_api"
 
 
 # --------------------------------------------------------------------------- #

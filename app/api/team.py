@@ -147,6 +147,20 @@ async def get_email_outreach_stats(current_user: User = Depends(require_admin)):
         return {"error": str(e)}
 
 
+@router.get("/email-outreach/runs")
+async def get_email_outreach_runs(limit: int = 5, current_user: User = Depends(require_admin)):
+    """Last email-outreach / follow-up run outcomes (Schedule tab line ke liye).
+    Har run ka result AgentEvent meta me hota hai — yahan sirf filtered read."""
+    try:
+        from app.platform import auto_outreach
+
+        runs = auto_outreach.last_run_summaries(limit=limit)
+        return {"runs": runs, "total_returned": len(runs)}
+    except Exception as e:
+        logger.warning(f"[team-api] email-outreach runs failed: {e}")
+        return {"runs": [], "total_returned": 0, "error": str(e)}
+
+
 @router.get("/outreach-activity")
 async def get_outreach_activity(limit: int = 20, current_user: User = Depends(require_admin)):
     """Admin-friendly: kisko email bheja, kitne, kya reply aaya (ek nazar me)."""
@@ -226,6 +240,7 @@ async def get_outreach_review_decision_counts(current_user: User = Depends(requi
     except Exception as e:
         logger.warning(f"[team-api] outreach-review-decision-counts failed: {e}")
         return {"error": str(e), "unique_recipients": 0}
+
 
 @router.post("/email-followups/run")
 async def run_email_followups_now(current_user: User = Depends(require_admin)):

@@ -145,6 +145,20 @@ async def run_tick(limit: int | None = None, *, force_dry_run: bool = False) -> 
             due = _followups.due_followups(pol, channel=_primary_channel(pol))
             targets.extend(due[: batch - len(targets)])
 
+        # Empty queue is a NORMAL state, not silent success — record why so Mission
+        # Control doesn't read processed=0 as a failure or a lie. (ISSUE-03)
+        if not targets:
+            counts: dict[str, int] = {}
+            for r in _store.list_prospects(limit=1000):
+                st = str(r.get("status") or _store.STATUS_NEW)
+                counts[st] = counts.get(st, 0) + 1
+            summary["idle_reason"] = "no_eligible_prospects"
+            summary["prospect_status_counts"] = counts
+            summary["notes"] = (
+                "processed=0 kyunki koi eligible NEW/follow-up prospect nahi — "
+                "yeh expected idle hai, engine fail nahi hua."
+            )
+
         for t in targets[:batch]:
             rec = t["prospect"]
             res = await _send.send(
