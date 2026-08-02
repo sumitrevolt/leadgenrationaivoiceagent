@@ -151,6 +151,9 @@ credentials/
 # run without it, and an untracked lockfile means the image is not reproducible.
 # The blanket `*.json` above silently excluded it.
 !package-lock.json
+# Team plugin policy only (Warp PostToolUse OFF). Local hooks stay in
+# .claude/settings.local.json (still ignored). Do not put secrets here.
+!.claude/settings.json
 
 # Test database
 test.db
