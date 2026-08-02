@@ -202,7 +202,9 @@ def _save_lead_db(rec: dict[str, Any]) -> str | None:
             existing = db.query(Lead).filter(Lead.phone == rec["phone"]).first()
             if existing is not None:
                 stamp = datetime.utcnow().isoformat()
-                existing.notes = f"{existing.notes or ''}\n[Repeat inquiry {stamp}]\n{new_notes}".strip()
+                existing.notes = (
+                    f"{existing.notes or ''}\n[Repeat inquiry {stamp}]\n{new_notes}".strip()
+                )
                 existing.updated_at = datetime.utcnow()
                 db.commit()
                 return existing.id
@@ -308,7 +310,9 @@ async def _auto_callback(phone: str, niche: str, business: str, client_id: str =
                 try:
                     from app.marketing import delivery_ledger
 
-                    delivery_ledger.log_event(client_id, "followup_sent", detail=f"AI callback → {business}")
+                    delivery_ledger.log_event(
+                        client_id, "followup_sent", detail=f"AI callback → {business}"
+                    )
                 except Exception:
                     pass
     except Exception as e:  # absolute guard — task me unhandled exception nahi
@@ -358,13 +362,16 @@ class InquiryIn(BaseModel):
     name: str = Field("", max_length=120)
     business_name: str = Field("", max_length=200)
     phone: str = Field("", max_length=20)
+    email: str | None = Field(None, max_length=254)  # optional — sales_autopilot email channel feed
     niche: str | None = Field(None, max_length=60)
     city: str | None = Field(None, max_length=100)
     message: str | None = Field(None, max_length=1000)
     package: str | None = Field(None, max_length=40)  # Starter/Growth/Advanced (pricing card se)
     source_slug: str | None = Field(None, max_length=80)  # mini-site /b/{slug} se aayi inquiry
     preferred_time: str | None = Field(None, max_length=80)  # booking form ka "pasand ka time"
-    utm_source: str | None = Field(None, max_length=80)  # channel attribution (quora/reddit/seo/...) — bandit seekhta
+    utm_source: str | None = Field(
+        None, max_length=80
+    )  # channel attribution (quora/reddit/seo/...) — bandit seekhta
     website: str | None = Field("", max_length=200)  # honeypot — insaan ise kabhi nahi bharta
 
 
@@ -472,12 +479,18 @@ async def submit_inquiry(body: InquiryIn, request: Request):
             status_code=422, detail="Phone number sahi nahi lag raha (10 digit chahiye)."
         )
 
+    email_raw = (body.email or "").strip().lower()[:254]
+    email = (
+        email_raw if email_raw and "@" in email_raw and "." in email_raw.split("@")[-1] else None
+    )
+
     rec: dict[str, Any] = {
         "id": str(uuid.uuid4()),
         "at": datetime.utcnow().isoformat() + "Z",
         "name": name[:120],
         "business_name": business[:200],
         "phone": phone,
+        "email": email,
         "niche": ((body.niche or "").strip()[:50] or None),
         "city": ((body.city or "").strip()[:100] or None),
         "message": ((body.message or "").strip()[:1000] or None),
@@ -522,7 +535,9 @@ class SignupIn(BaseModel):
     niche: str | None = Field("general", max_length=60)
     city: str | None = Field("", max_length=100)
     plan: str | None = Field("starter", max_length=40)
-    ref_code: str | None = Field("", max_length=80)  # affiliate referral code (optional, from ?ref= URL param)
+    ref_code: str | None = Field(
+        "", max_length=80
+    )  # affiliate referral code (optional, from ?ref= URL param)
     website: str | None = Field("", max_length=200)  # honeypot — insaan kabhi nahi bharta
     # REAL website field (audit 2026-07-04): honeypot ne `website` naam le liya tha,
     # isliye self-serve signup se kabhi site capture nahi hoti thi -> AUTO_ONBOARD ka
@@ -530,7 +545,9 @@ class SignupIn(BaseModel):
     business_website: str | None = Field("", max_length=200)
 
 
-@router.post("/signup", dependencies=[Depends(rate_limit("signup", 10, 60)), Depends(verify_turnstile)])
+@router.post(
+    "/signup", dependencies=[Depends(rate_limit("signup", 10, 60)), Depends(verify_turnstile)]
+)
 async def public_signup(body: SignupIn, request: Request):
     """NO AUTH self-serve signup: client + customer-login banao -> client_id + JWT.
 
@@ -553,6 +570,7 @@ async def public_signup(body: SignupIn, request: Request):
         wait_s = int(_RL_WINDOW_S)
         try:
             from app.platform import automation_log_service as _als
+
             _als.log_event(
                 job_type="signup_rate_limited",
                 status="failed",
@@ -589,9 +607,26 @@ async def public_signup(body: SignupIn, request: Request):
     # would tripwire our Loop 8 `login_failed` monitoring. Never leak the list to the
     # attacker; return a generic "safer password" hint.
     _BREACHED = {
-        "password", "password1", "123456", "12345678", "123456789", "1234567890",
-        "qwerty", "abc123", "111111", "000000", "admin", "welcome", "letmein",
-        "iloveyou", "monkey", "dragon", "master", "shadow", "sunshine", "princess",
+        "password",
+        "password1",
+        "123456",
+        "12345678",
+        "123456789",
+        "1234567890",
+        "qwerty",
+        "abc123",
+        "111111",
+        "000000",
+        "admin",
+        "welcome",
+        "letmein",
+        "iloveyou",
+        "monkey",
+        "dragon",
+        "master",
+        "shadow",
+        "sunshine",
+        "princess",
     }
     if pw.strip().lower() in _BREACHED:
         raise HTTPException(
@@ -706,7 +741,10 @@ async def public_signup(body: SignupIn, request: Request):
         logger.warning(
             "[signup] auto-login token mint FAILED for cid=%s email=%s — client will "
             "need manual login (%s: %s)",
-            cid, email, type(e).__name__, e,
+            cid,
+            email,
+            type(e).__name__,
+            e,
         )
         # Loop 2 (2026-07-10): surface this in the admin Delivery Command Center's
         # Automation Runs panel (already live via /api/admin/automation-logs). Ops
@@ -741,7 +779,7 @@ async def public_signup(body: SignupIn, request: Request):
     #      call hota hai — yeh pre-payment safety-net hai, post-payment guarantee nahi.
     plan_provisioned = False
     if not is_trial:
-        plan_k = (body.plan or "starter")
+        plan_k = body.plan or "starter"
         try:
             from app.billing import usage as _usage
 
@@ -752,10 +790,14 @@ async def public_signup(body: SignupIn, request: Request):
                 logger.warning(
                     "[signup] plan provisioning PARTIAL for cid=%s plan=%s "
                     "(activate=%s reset=%s) — customer MUST get post-payment provisioning",
-                    cid, plan_k, plan_ok, watermark_ok,
+                    cid,
+                    plan_k,
+                    plan_ok,
+                    watermark_ok,
                 )
                 try:
                     from app.platform import ops_alerts
+
                     ops_alerts._ntfy(
                         f"Signup provisioning PARTIAL — {cid}",
                         f"plan={plan_k} activate={plan_ok} reset={watermark_ok}. "
@@ -768,10 +810,14 @@ async def public_signup(body: SignupIn, request: Request):
             logger.warning(
                 "[signup] plan provisioning RAISED for cid=%s plan=%s — "
                 "customer will have ZERO quota until post-payment fix (%s: %s)",
-                cid, plan_k, type(e).__name__, e,
+                cid,
+                plan_k,
+                type(e).__name__,
+                e,
             )
             try:
                 from app.platform import ops_alerts
+
                 ops_alerts._ntfy(
                     f"Signup provisioning CRASHED — {cid}",
                     f"plan={plan_k} error={type(e).__name__}: {e}. "
@@ -837,7 +883,11 @@ async def public_signup(body: SignupIn, request: Request):
     #       send_welcome=False — signup already sent its welcome above. Heavy work
     #       stays in Celery (web process never scrapes/LLMs). Gated SIGNUP_AUTO_ONBOARD
     #       (default ON); never blocks signup.
-    if (os.environ.get("SIGNUP_AUTO_ONBOARD", "1") or "1").strip().lower() not in ("0", "false", "no"):
+    if (os.environ.get("SIGNUP_AUTO_ONBOARD", "1") or "1").strip().lower() not in (
+        "0",
+        "false",
+        "no",
+    ):
         try:
             from app.tasks.staff_jobs import onboard_client
 
