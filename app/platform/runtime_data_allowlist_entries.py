@@ -298,7 +298,12 @@ ENTRIES: list[dict[str, Any]] = [
         # Must match what the SCANNER emits for this symbol, not the human-readable
         # shape: the path is computed, so the detected expression is the call itself.
         # It resolves to data/brand_kits/<_safe_id(client_id)>.json.
-        "path_pattern": "data/brand_kits",
+        # The gate matches the declared basename against the RESOLVED expression,
+        # which is os.path.join(_BRAND_DIR, ...). _BRAND_DIR is the store root
+        # constant (= os.path.join("data", "brand_kits")); tests monkeypatch it, so
+        # inlining the literal here would break per-test isolation and point a real
+        # DELETE at the shared data dir. Naming the constant is the honest match.
+        "path_pattern": "_BRAND_DIR",
         "store_id": "marketing.brand_kits",
         "access_modes": ["READ", "CREATE", "REWRITE", "DELETE"],
         "reason": (
