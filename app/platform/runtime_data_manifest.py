@@ -351,6 +351,32 @@ STORES: list[dict[str, Any]] = [
         deployment_blocker=False,
     ),
     _e(
+        store_id="marketing.brand_kits",
+        display_name="Per-tenant brand kit profile",
+        legacy_paths=["data/brand_kits/"],
+        writer_modules=["app/marketing/brand_kit.py:67", "app/marketing/brand_kit.py:90"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="content",
+        durability_class="rebuildable",
+        concurrency_model="single-writer per tenant file (admin/onboarding), no lock",
+        tenant_scope="per-tenant filename",
+        target_runtime_subpath="marketing/brand_kits/",
+        migration_tier=TIER_2,
+        migration_state=CUTOVER_COMPLETE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-02 when admin remove-customer added a DELETE against "
+            "this store and the runtime-data ratchet correctly refused an undeclared "
+            "destructive path. Colours/logo/handles are re-enterable from the admin "
+            "UI, so losing a file degrades poster branding rather than destroying "
+            "authoritative business state - hence rebuildable, not authoritative. "
+            "The DELETE is DPDP purge behaviour: removing a customer must not leave "
+            "their brand assets behind."
+        ),
+    ),
+    _e(
         store_id="content.queue",
         display_name="Per-tenant content queue",
         legacy_paths=["data/content_queue/"],
