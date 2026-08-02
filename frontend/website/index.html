@@ -1060,13 +1060,20 @@
       // silently "activates" a plan for an account that doesn't exist.
       let clientId = '';
       try { clientId = localStorage.getItem('lgai_cid') || ''; } catch (err) {}
+      // Logged-in customer? Attach JWT so backend resolves the real client_id
+      // (auto-activation path). Guest (no token) = pending record, admin reach-out.
+      let authHdr = {};
+      try {
+        const t = localStorage.getItem('lgai_token') || '';
+        if (t) authHdr = { 'Authorization': 'Bearer ' + t };
+      } catch (err) {}
       const btn = document.getElementById('payRefSubmit');
       const oldTxt = btn.textContent;
       btn.disabled = true; btn.textContent = 'Submit ho raha hai…';
       try {
         const res = await fetch('/api/upi/submit', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHdr),
           body: JSON.stringify({
             // amount:0 always — this is an unverified self-report (no receipt/screenshot
             // check here). Admin reviews + fills the real amount before approving; never
