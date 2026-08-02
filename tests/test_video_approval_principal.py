@@ -25,6 +25,16 @@ def _isolate(tmp_path, monkeypatch):
     from app.marketing import auto_content, delivery_ledger
     from app.marketing import video_media_paths as vmp
 
+    # HERMETIC PRECONDITION (do not remove): approve() snapshots the artifact, and
+    # prepare_snapshot refuses `insufficient_disk_headroom` when the DESTINATION
+    # filesystem would drop below VIDEO_SNAPSHOT_MIN_FREE_PCT (default floor). These
+    # tests assert approval IDENTITY, not disk policy, but without pinning the floor
+    # they silently inherit the host's free space: on a developer box under the floor
+    # every approval here returns 409 and four identity tests go red for a reason that
+    # has nothing to do with identity. The floor itself is covered on its own in
+    # tests/test_video_snapshot_primitive.py, so pinning it here removes no coverage.
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "1")
+
     monkeypatch.setattr(vmp, "approved_media_dir", lambda: tmp_path / "approved")
     for name, sub in (("_LEDGER_DIR", "ledger"), ("_QUEUE_DIR", "queue")):
         d = tmp_path / sub
