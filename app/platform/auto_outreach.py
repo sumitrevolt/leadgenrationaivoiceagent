@@ -74,6 +74,7 @@ _NICHE_HOOKS: dict[str, str] = {
     "travel": "kya aapke packages online easily milte hain jab log plan karte hain",
 }
 
+
 def _niche_hook(prospect: dict) -> str:
     """Niche-specific hook question — generic fallback."""
     niche = str((prospect or {}).get("niche") or (prospect or {}).get("category") or "").lower()
@@ -444,7 +445,8 @@ def _followup_subject_body(prospect: dict[str, Any], step: int) -> tuple[str, st
             "Ek chhota idea jo aapke kaam aa sakta hai:",
             idea,
             "",
-            "Aisa free sample + Google profile audit dekhna ho to 2 minute lagenge: " + _audit_url_tracked(),
+            "Aisa free sample + Google profile audit dekhna ho to 2 minute lagenge: "
+            + _audit_url_tracked(),
             "Ya seedha WhatsApp: " + _WA_LINK,
             "",
             _UNSUB_LINE,
@@ -629,11 +631,14 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         # ab sirf final chhote batch (<=cap<=25) pe hota hai (send loop me). Flag off
         # (OUTREACH_SELECT_SKIP_MX=0) = purana per-candidate MX behavior wapas.
         import os as _os_sel
-        _skip_sel_mx = (_os_sel.getenv("OUTREACH_SELECT_SKIP_MX", "1") or "").strip().lower() not in {"0", "false", "no", "off"}
+
+        _skip_sel_mx = (
+            _os_sel.getenv("OUTREACH_SELECT_SKIP_MX", "1") or ""
+        ).strip().lower() not in {"0", "false", "no", "off"}
         _suppressed = _suppressed_email_set()
         _seen_recipients: set[str] = set()
         for p in _ready_pool:
-            if (str(p.get("status") or "ready") != "ready"):
+            if str(p.get("status") or "ready") != "ready":
                 continue
             if not prospector.is_quality_approved(p):
                 result["skipped_quality"] = result.get("skipped_quality", 0) + 1
@@ -684,7 +689,13 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
         # ek saath likho — pehle har send poora prospects file rewrite karta tha
         # (O(N²) → OOM/SIGKILL). Flag off (OUTREACH_BULK_MARK=0) = purana per-send.
         import os as _os_mark
-        _bulk_mark = (_os_mark.getenv("OUTREACH_BULK_MARK", "1") or "").strip().lower() not in {"0", "false", "no", "off"}
+
+        _bulk_mark = (_os_mark.getenv("OUTREACH_BULK_MARK", "1") or "").strip().lower() not in {
+            "0",
+            "false",
+            "no",
+            "off",
+        }
         _pending_marks: dict[str, dict[str, Any]] = {}
 
         for idx, p in enumerate(batch):
@@ -785,7 +796,9 @@ async def run_email_outreach(limit: int | None = None) -> dict[str, Any]:
                                 fields["campaign_variant_id"] = variant_id
                             if _bulk_mark:
                                 _pending_marks[pid] = fields
-                                if len(_pending_marks) >= 10:  # periodic flush (crash pe ≤10 markers ka risk)
+                                if (
+                                    len(_pending_marks) >= 10
+                                ):  # periodic flush (crash pe ≤10 markers ka risk)
                                     prospector.set_prospect_fields_bulk(_pending_marks)
                                     _pending_marks = {}
                             else:
@@ -974,7 +987,12 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
         # (O(N²) → OOM). Same pattern jaisa run_email_outreach. Flag OUTREACH_BULK_MARK=0 = per-send.
         import os as _os_mark
 
-        _bulk_mark = (_os_mark.getenv("OUTREACH_BULK_MARK", "1") or "").strip().lower() not in {"0", "false", "no", "off"}
+        _bulk_mark = (_os_mark.getenv("OUTREACH_BULK_MARK", "1") or "").strip().lower() not in {
+            "0",
+            "false",
+            "no",
+            "off",
+        }
         _pending_marks: dict[str, dict[str, Any]] = {}
 
         for idx, (p, step) in enumerate(batch):
@@ -1024,7 +1042,9 @@ async def run_email_followups(limit: int | None = None) -> dict[str, Any]:
                             }
                             if _bulk_mark:
                                 _pending_marks[pid] = _fields
-                                if len(_pending_marks) >= 10:  # periodic flush (crash pe ≤10 markers ka risk)
+                                if (
+                                    len(_pending_marks) >= 10
+                                ):  # periodic flush (crash pe ≤10 markers ka risk)
                                     prospector.set_prospect_fields_bulk(_pending_marks)
                                     _pending_marks = {}
                             else:
@@ -1204,7 +1224,8 @@ def _pending_review_bucket(prospect: dict[str, Any]) -> dict[str, str]:
     p = prospect or {}
     niche = str(p.get("niche") or p.get("category") or "").strip().lower()
     text = " ".join(
-        str(p.get(k) or "") for k in ("business_name", "name", "category", "niche", "website", "email")
+        str(p.get(k) or "")
+        for k in ("business_name", "name", "category", "niche", "website", "email")
     ).lower()
     if niche in _LOW_FIT_NICHES or any(t in text for t in _LOW_FIT_TERMS):
         return {
@@ -1526,7 +1547,9 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
                         if len(pending_samples) < max(5, min(limit, 20)):
                             pending_samples.append(
                                 {
-                                    "business": str(r.get("business_name") or r.get("name") or "—")[:80],
+                                    "business": str(r.get("business_name") or r.get("name") or "—")[
+                                        :80
+                                    ],
                                     "email": recipient[:90],
                                     "city": str(r.get("city") or "")[:40],
                                     "niche": str(r.get("niche") or r.get("category") or "")[:50],
@@ -1639,6 +1662,46 @@ def outreach_activity(limit: int = 20) -> dict[str, Any]:
     return out
 
 
+def last_run_summaries(limit: int = 5) -> list[dict[str, Any]]:
+    """Last email-outreach / follow-up run outcomes (admin UI ke liye).
+
+    run_email_outreach/run_email_followups already record har run ka result
+    (sent/failed/cap/... meta) via _log_event -> team.log_event (AgentEvent).
+    Isse bas newest-first filter karke return karo — koi naya persistence nahi.
+    Never raises (failure pe safe-empty)."""
+    out: list[dict[str, Any]] = []
+    try:
+        from app.platform import team
+
+        rows = team.recent_events(limit=400)
+        wanted = {"email_outreach_run", "email_followup_run"}
+        try:
+            limit = max(1, min(int(limit or 5), 50))
+        except Exception:
+            limit = 5
+        for ev in rows:
+            action = str(ev.get("action") or "")
+            if action not in wanted:
+                continue
+            meta = ev.get("meta") or {}
+            if not isinstance(meta, dict):
+                meta = {}
+            out.append(
+                {
+                    "at": ev.get("at"),
+                    "kind": action,
+                    "status": str(ev.get("status") or "ok"),
+                    "summary": str(ev.get("detail") or ""),
+                    "meta": meta,
+                }
+            )
+            if len(out) >= limit:
+                break
+    except Exception as e:
+        logger.debug(f"[auto_outreach] last_run_summaries failed: {e}")
+    return out
+
+
 def _log_event(
     action: str, summary: str, status: str = "ok", meta: dict[str, Any] | None = None
 ) -> None:
@@ -1660,6 +1723,7 @@ __all__ = [
     "record_review_decision",
     "list_review_decisions",
     "review_decision_counts",
+    "last_run_summaries",
     "_email_subject_body",
     "_followup_subject_body",
 ]

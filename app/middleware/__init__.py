@@ -101,6 +101,16 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # fetch/WebSocket, and play mic-recorded audio from blobs.
         # img-src: QR (api.qrserver.com) + AI images (pollinations) admin pages me
         # direct render hote hain.
+        # PostHog (product analytics, POSTHOG_API_KEY set in prod): loader script
+        # serve hota hai https://us-assets.i.posthog.com se aur events beacon
+        # https://*.i.posthog.com pe jaate hain (api host = us.i.posthog.com).
+        # Allowed hosts — sirf PostHog infra, koi generic wildcard nahi.
+        # SIRF apni UI pages pe (non-embeddable): client-website me framed widget
+        # (/b/{slug}/embed, reviews-widget) apni CSP me PostHog nahi le sakta —
+        # embeddable pages ke liye _posthog_src empty rahta hai (no CSP widening).
+        _posthog_src = (
+            "" if embeddable else " https://*.i.posthog.com https://us-assets.i.posthog.com"
+        )
         if embeddable:
             _frame = "frame-ancestors *; "
         elif same_origin_embeddable:
@@ -110,12 +120,14 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers["Content-Security-Policy"] = (
             "default-src 'self'; "
             + _frame
-            + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+            + "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com"
+            + _posthog_src
+            + "; "
             "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
             "font-src 'self' https://fonts.gstatic.com; "
             "img-src 'self' data: blob: https://api.qrserver.com https://gen.pollinations.ai "
             "https://image.pollinations.ai https://media.pollinations.ai; "
-            "connect-src 'self' wss:; "
+            "connect-src 'self' wss:" + _posthog_src + "; "
             "media-src 'self' blob: data:"
         )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
@@ -283,6 +295,33 @@ def _is_safe_idempotent_admin_read(request: Request) -> bool:
     return any(path.startswith(p) for p in _ADMIN_READ_RELIEF_PREFIXES)
 
 
+# Human HTML page navigation gets its own higher bucket — same philosophy as the
+# asset bucket: a page-load burst (multi-tab dashboard browse) must not trip the
+# shared per-IP API budget, and API XHRs must not be starved by page loads.
+# NEVER a write bypass — method gate is mandatory, /api/* never qualifies.
+_HTML_BROWSE_PREFIXES = (
+    "/app/",
+    "/pricing",
+    "/start",
+    "/voice-agent",
+)
+
+
+def _is_html_navigation(request: Request) -> bool:
+    """True only for GET/HEAD on the HTML page families (never /api, never writes)."""
+    method = (getattr(request, "method", None) or "GET").upper()
+    if method not in ("GET", "HEAD"):
+        return False
+    path = request.url.path if hasattr(request, "url") else ""
+    path = path or ""
+    if path.startswith("/api/"):
+        return False
+    return any(
+        path == p or path.startswith(p if p.endswith("/") else p + "/")
+        for p in _HTML_BROWSE_PREFIXES
+    )
+
+
 def _fixed_window_retry_after(window_seconds: int = 60, now: float | None = None) -> int:
     """Seconds until the CURRENT fixed window rolls over.
 
@@ -337,6 +376,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     Policy (2026-07-30 — platform-blocker 429 lane; P1 harden):
     - Flat anon/customer API budget stays (abuse shield).
     - Static assets use a SEPARATE higher bucket (not an exemption).
+    - Human HTML page navigation (GET/HEAD on /app/*, /pricing, /start,
+      /voice-agent) uses its own higher bucket — multi-tab dashboard browsing
+      bursts must not trip the shared API budget (2026-08-02 429 burst).
     - Valid admin/super_admin bearer gets a raised ceiling ONLY on explicit
       safe idempotent dashboard GET/HEAD paths — writes stay on default rpm.
     - Auth credential routes stay under this global limiter (no prefix bypass);
@@ -424,6 +466,12 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
                 return max(1, int(os.environ.get("RATE_LIMIT_ADMIN_RPM", "600")))
             except ValueError:
                 return 600
+        if bucket == "html":
+            try:
+                mult = int(os.environ.get("RATE_LIMIT_HTML_MULT", "10"))
+            except ValueError:
+                mult = 10
+            return self.requests_per_minute * max(1, mult)
         if bucket != "asset":
             return self.requests_per_minute
         try:
@@ -436,6 +484,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         path = request.url.path or ""
         if _is_asset_path(path):
             return "asset", self._ceiling_for("asset")
+        # Human HTML navigation burst (multi-tab browse) — separate higher bucket.
+        if _is_html_navigation(request):
+            return "html", self._ceiling_for("html")
         # Higher admin budget is GET/HEAD dashboard relief only — never writes.
         if _is_safe_idempotent_admin_read(request):
             admin_rpm = self._admin_rpm_from_bearer(request)
