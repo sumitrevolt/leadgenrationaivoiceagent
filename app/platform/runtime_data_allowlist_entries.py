@@ -289,6 +289,31 @@ ENTRIES: list[dict[str, Any]] = [
     # rather than absorbed into the debt baseline: writers authored by the change
     # under review are new debt, not newly visible debt.
     {
+        "allowlist_id": "marketing.brand_kits.path",
+        "file": "app/marketing/brand_kit.py",
+        "line_or_symbol": "path",
+        "path_pattern": "data/brand_kits/{client_id}.json",
+        "store_id": "marketing.brand_kits",
+        "access_modes": ["READ", "CREATE", "REWRITE", "DELETE"],
+        "reason": (
+            "Per-tenant brand profile (colours, logo, handles) used to auto-brand "
+            "posters and content packs. save_brand() creates/rewrites it; "
+            "delete_brand() removes it during admin customer removal so a removed "
+            "customer leaves no brand assets behind (DPDP purge)."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "runtime-data-cutover-wave-2",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "DELETE is irreversible and admin-gated: it must stay behind the "
+            "confirm-required remove-customer path and must never be reachable "
+            "from a customer-facing or unauthenticated route. The client_id is "
+            "sanitised by _safe_id() before it reaches the filesystem - any change "
+            "there is a path-traversal review, since the id arrives from a URL."
+        ),
+    },
+    {
         "allowlist_id": "telephony.voice_kill_switch.authority",
         "file": "app/telephony/voice_launch.py",
         "line_or_symbol": "p",
