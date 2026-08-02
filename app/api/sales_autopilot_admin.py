@@ -167,4 +167,47 @@ async def seed_estique(_user=Depends(require_admin)) -> dict[str, Any]:
     return {"seeded": True, "prospect": rec}
 
 
+@router.post("/prospects")
+async def add_prospect(
+    payload: dict[str, Any] = Body(...),
+    _user=Depends(require_admin),
+) -> dict[str, Any]:
+    """Operator: feed sales_autopilot with a consented prospect (GTM queue fill).
+
+    Requires email and/or phone + explicit ``consent_basis`` (DPDP fail-closed).
+    Does NOT mark ``manual_owner_confirmed`` (that blocks initial outreach).
+    Never live-sends — next scheduler tick evaluates eligibility.
+    """
+    import uuid
+
+    email = str(payload.get("email") or "").strip().lower()
+    phone = str(payload.get("phone") or "").strip()
+    if not email and not phone:
+        return {"ok": False, "error": "email_or_phone_required"}
+    consent = str(payload.get("consent_basis") or "").strip()
+    if not consent:
+        return {"ok": False, "error": "consent_basis_required"}
+    pid = str(payload.get("id") or "").strip() or str(uuid.uuid4())
+    name = str(payload.get("name") or payload.get("business_name") or "").strip()[:200]
+    if not name:
+        return {"ok": False, "error": "name_required"}
+    rec = _store.upsert_prospect(
+        {
+            "id": pid,
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "city": str(payload.get("city") or "")[:100],
+            "niche": str(payload.get("niche") or "")[:60],
+            "source": str(payload.get("source") or "admin_manual")[:80],
+            "consent_basis": consent[:120],
+            "status": _store.STATUS_NEW,
+            "manual_owner_confirmed": False,
+        }
+    )
+    if rec.get("error"):
+        return {"ok": False, "error": rec.get("error")}
+    return {"ok": True, "prospect": rec}
+
+
 __all__ = ["router"]
