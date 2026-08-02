@@ -86,8 +86,14 @@ def get_brand(client_id: Any) -> dict[str, Any] | None:
 
 def delete_brand(client_id: Any) -> bool:
     """Delete saved brand profile file (admin customer removal). Returns True
-    if a file was removed; never raises."""
-    path = _path(client_id)
+    if a file was removed; never raises.
+
+    The path is built from _BRAND_DIR at the call site rather than via _path()
+    so the runtime-data scanner can prove WHICH store this DELETE touches. A
+    destructive operation whose target resolves to an opaque expression cannot
+    be reviewed, and the governance ratchet correctly refuses it.
+    """
+    path = os.path.join(_BRAND_DIR, _safe_id(client_id) + ".json")
     try:
         if os.path.isfile(path):
             os.remove(path)
