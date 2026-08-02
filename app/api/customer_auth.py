@@ -30,6 +30,7 @@ logger = setup_logger(__name__)
 
 router = APIRouter(prefix="/customer/auth", tags=["Customer Portal"])
 _security = HTTPBearer(auto_error=True)
+_security_optional = HTTPBearer(auto_error=False)
 
 _STORE = os.path.join("data", "customer_auth.jsonl")
 _ITER = 120_000
@@ -327,6 +328,23 @@ async def require_customer(creds: HTTPAuthorizationCredentials = Depends(_securi
         )
 
     return str(cid)
+
+
+async def optional_customer(
+    creds: HTTPAuthorizationCredentials | None = Depends(_security_optional),
+) -> str:
+    """Optional customer auth — guest (no/invalid header) → "" (never raises).
+
+    Used ONLY for public self-serve paths where a guest submission is legitimate
+    (e.g. homepage UPI ref submit: no JWT yet, record lands pending, admin
+    reaches out via payer_contact). A VALID customer token still returns the
+    real client_id (activation path intact). A PRESENT-but-invalid token is
+    still rejected (fail-closed) — only the absent-token case downgrades to
+    guest; we never silently treat a tampered credential as anonymous.
+    """
+    if creds is None:
+        return ""
+    return await require_customer(creds)
 
 
 # --------------------------------------------------------------------------- #

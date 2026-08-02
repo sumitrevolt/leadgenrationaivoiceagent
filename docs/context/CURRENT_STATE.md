@@ -43,8 +43,8 @@ Label: DIRECT_HOST_VERIFIED (2026-08-02)
 Label: CODE-PRESENT (2026-08-02)
 
 ## Calling / flag posture — read this before quoting any flag from this file
-`platform_dial` = **TEST-MODE** (owner re-enabled 2026-07-31): `PLATFORM_DIAL_DAILY=10`, `data/platform_dial.json enabled:true limit:10` + allowlist + bot/IVR detection. Calling window + DND gates still ACTIVE on the call path. No live call fired (no_call_log). `OPENCLAW_REQUIRE_APPROVAL_FOR_AMBER=0` but prod still GREEN-only structural. Self-improve loop ALIVE (120/day cap). Revenue snapshot: MRR ₹1,999 / 1 active / 0 churn.
-Label: DIRECT_HOST_VERIFIED (2026-08-02 live session probes) — re-probe container env before acting.
+`platform_dial` = **FULL CAMPAIGN LIVE** (owner go-ahead 2026-08-02): `VOICE_LAUNCH_KILL=0` (was 1) · `DIAL_TEST_MODE=0` (was 1) · `VOICE_DAILY_CALL_CAP=100` (was 5) · `PLATFORM_DIAL_DAILY=100` (was 10). LIVE proof: 3 real Vobiz calls placed 2026-08-02 (session `S20260802-a280d841`, state running, call_attempts+1). Daily 11:30 IST scheduler auto-dials up to 100/day (niche=all). Compliance spine UNTOUCHED (DND fail-closed · window 10–19 IST · AI-disclosure · consent · DLT_APPROVED=1 · phone-type · learned IVR blocklist · circuit breaker · 30-call training pause · recording gate · concurrency=1). Rollback = `.env.bak-fullcampaign-20260802075851`. `OPENCLAW_REQUIRE_APPROVAL_FOR_AMBER=0` but prod still GREEN-only structural. Self-improve loop ALIVE (120/day cap). Revenue snapshot: MRR ₹1,999 / 1 active / 0 churn.
+Label: DIRECT_HOST_VERIFIED (2026-08-02 live session probes + live call proof) — re-probe container env before acting.
 
 ## Migration
 No pending migration on the deployed release path. `008` is NOT the head — it is one revision in the 008..022 chain.

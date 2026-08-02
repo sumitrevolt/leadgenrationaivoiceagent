@@ -1,22 +1,22 @@
 # SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-Fix the 12 OpenCode issues found in the 2026-08-02 live launch-check session. No deploy unless the owner asks.
+Launch-readiness audit → fixes execution. **3 fixes done locally (UPI guest 401, pricing lie, golden eval suite) + FULL CAMPAIGN calling unblocked LIVE on prod.**
 
-## Progress — ISSUES FIXED (local, 2026-08-02)
-- ISSUE-01 WAHA status UI — `frontend/whatsapp.html`: FAILED/SCAN_QR_CODE/WORKING states, QR auto-refresh (20s), Start-button poll. Backend endpoints already existed.
-- ISSUE-02 CSP PostHog — `app/middleware/__init__.py`: `_posthog_src` in script-src + connect-src on non-embeddable pages only. Tests: `tests/test_csp_posthog_allowlist.py` (3 passed).
-- ISSUE-03 Sales autopilot idle — `app/platform/sales_autopilot/scheduler.py`: explicit `idle_reason="no_eligible_prospects"` + status-count breakdown in `last_tick.json`; `frontend/automation.html` Schedule tab surfaces it. Tests: 2 added, scheduler+CSP suite green (21 passed).
-- ISSUE-04 Staging `:latest` — `docker-compose.staging.yml`: `APP_VERSION` now MANDATORY (`${APP_VERSION:?...}`), `:latest` refused (ADR-097). Compose fail-closed verified locally.
-- ISSUE-05 Context docs refresh — `CURRENT_STATE.md` (prod `15613b35`, autopilot live, WAHA FAILED, staging fail-closed) + `ACTIVE_WORK.md` (3 workstreams) rewritten.
+## Live truth (probed 2026-08-02 ~08:05Z)
+- `/health` = `cc88efbd` healthy production (app/worker/scheduler all `cc88efbd`, no skew after env-only recreate).
+- **Calling = FULL CAMPAIGN LIVE (owner go-ahead 2026-08-02)**: `VOICE_LAUNCH_KILL=0` (was 1) · `DIAL_TEST_MODE=0` (was 1) · `VOICE_DAILY_CALL_CAP=100` (was 5) · `PLATFORM_DIAL_DAILY=100` (was 10). **LIVE proof: 3 real Vobiz calls placed** (session `S20260802-a280d841`, state `running`, call_attempts+1 on 3 leads). Daily 11:30 IST scheduler auto-dials up to 100/day (niche=all, 122 fresh-with-phone leads). Rollback = `/opt/leadgen/.env.bak-fullcampaign-20260802075851` (restore + recreate).
+- Compliance spine UNTOUCHED: DND fail-closed · TRAI window 10–19 IST · AI-disclosure · consent · DLT_APPROVED=1 · phone-type gate · learned IVR blocklist · circuit breaker · 30-call training pause · recording gate (recording_ok=true) · concurrency=1. launch_status: `admin_kill_engaged=false`, `daily_cap=100`, `remaining_today=97`, `circuit_open=false`.
+- Guest UPI 401 → **FIXED locally** (`optional_customer` in `customer_auth.py`, `upi_payments.py` swapped, `index.html` sends Bearer if token). Tests green. NOT deployed.
+- Pricing lie → **FIXED locally** (`pricing.html:184` → "UPI; card — international customers"). Tests green. NOT deployed.
+- Golden eval suite (`scripts/eval_golden.py` + `tests/test_eval_golden.py` + deploy-vps.yml step) → local verified. NOT committed/deployed.
+- Key env (unchanged this session): `EVAL_GATE_HARD=1`, `ENABLE_LLM_OBS=1`, `WHATSAPP_AUTO_SEND=0`, `UPI_AUTO_ACTIVATE=1` (memory said 0 — STALE), `VOICE_LAUNCH_CAMPAIGN=1`, `REPLY_AUTO_SEND=1` (guarded).
 
-## Known (pre-existing, NOT mine)
-- `test_email_channel_fail_closed_without_smtp` FAILS locally because local `.env` has SMTP configured → send() attempts real send → outcome SKIPPED vs test's expected FAILED. Passes only in clean CI env (no SMTP creds). Verified pre-existing via git-stash isolation.
-
-## Owner actions (exact)
-1. Open `/app/whatsapp` → restart WAHA session → scan QR before timeout → reply `WAHA CONNECTED`
-2. Feed sales_autopilot new non-converted prospects (or accept idle until new leads)
-3. Confirm Estique payment ledger (autopilot shows `converted`)
+## Owner decisions pending
+1. Commit+PR local fixes (golden suite + UPI fix + pricing fix) — user kenot karna hai
+2. Estique ledger proof vs reopen
+3. Feed 10–30 consented prospects (autopilot queue empty)
+4. Whether to enable STUDIO_ENTITLEMENT_GATE
 
 ## Safety
-No deploy this session. `WHATSAPP_AUTO_SEND=0` stays. Dial test-mode cap 10. Do not paste WAHA webhook tokens from logs into chat/PRs. Verify (pytest targeted + prod_check + secrets scan) before any deploy.
+Compliance gates untouched. WhatsApp stays 1-click human. DLT_APPROVED=1 confirmed. Calling rollback path documented.

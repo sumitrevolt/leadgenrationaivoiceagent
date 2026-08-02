@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1246 operations)
+## Endpoint Index — auto-generated from OpenAPI (1251 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -948,8 +948,9 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/events/publish` — Publish Event
 - `GET   ` `/api/events/stream` — Events Stream
 
-### Frontend  (68)
+### Frontend  (72)
 
+- `GET   ` `/admin` — Legacy Alias Admin
 - `GET   ` `/app/admin` — Admin Dashboard Page
 - `GET   ` `/app/admin-login` — Admin Login Page
 - `GET   ` `/app/admin/db` — Admin Db Explorer Page
@@ -978,6 +979,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/customer/setup` — Customer View Alias Setup
 - `GET   ` `/app/customer/support` — Customer View Alias Support
 - `GET   ` `/app/customer/voice` — Customer Voice Page
+- `GET   ` `/app/dashboard` — Legacy Alias App Dashboard
 - `GET   ` `/app/dashboards` — Dashboards Page
 - `GET   ` `/app/deals` — Deals Page
 - `GET   ` `/app/delivery-command-center` — Delivery Command Center Page
@@ -1005,6 +1007,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/app/whatsapp` — Whatsapp Page
 - `GET   ` `/audit` — Public Audit Page
 - `GET   ` `/compare` — Public Compare Page
+- `GET   ` `/dashboard` — Legacy Alias Dashboard
 - `GET   ` `/demo` — Public Demo Page
 - `GET   ` `/geo-check` — Public Geo Check Page
 - `GET   ` `/manifest.json` — Pwa Manifest
@@ -1017,6 +1020,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/status` — Status Page
 - `GET   ` `/sw.js` — Pwa Service Worker
 - `GET   ` `/terms` — Terms Page
+- `GET   ` `/voice` — Legacy Alias Voice
 - `GET   ` `/voice-agent` — Voice Agent Product Page
 
 ### Growth  (221)
@@ -1671,11 +1675,12 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/social/oauth/{platform}/callback` — Oauth Callback
 - `GET   ` `/api/social/oauth/{platform}/start` — Oauth Start
 
-### Team  (23)
+### Team  (24)
 
 - `GET   ` `/api/platform/team` — Get Team Status
 - `POST  ` `/api/platform/team/email-followups/run` — Run Email Followups Now
 - `POST  ` `/api/platform/team/email-outreach/run` — Run Email Outreach Now
+- `GET   ` `/api/platform/team/email-outreach/runs` — Get Email Outreach Runs
 - `GET   ` `/api/platform/team/email-outreach/stats` — Get Email Outreach Stats
 - `GET   ` `/api/platform/team/events` — Get Team Events
 - `GET   ` `/api/platform/team/growth` — Get Growth
