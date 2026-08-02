@@ -63,6 +63,17 @@ jobs:
       - name: Contract tests (billing/pricing truth â€” BLOCKING)
         # Deterministic, no-network. Pricing/plan/route regression => deploy blocked.
         run: pytest -q tests/test_billing_truth_2026.py
+      - name: Golden eval suite (advisory — non-blocking until stable)
+        # Tier-1 Salesforce-style golden dataset. Deterministic asserts always run;
+        # semantic LLM-judge skips without key. Flip continue-on-error off only after
+        # the suite is proven green across several main builds.
+        continue-on-error: true
+        env:
+          APP_ENV: test
+          ENVIRONMENT: development
+        run: |
+          python scripts/eval_golden.py --deterministic-only
+          pytest -q tests/test_eval_golden.py
       - name: Tests (full suite â€” BLOCKING, network-free)
         # 2026-07-06: HARD GATE. Full suite proven green (local exit 0) after the
         # drift-sweep fixed 8 stale tests. Network-marked tests excluded â€” CI has
