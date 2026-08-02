@@ -295,7 +295,7 @@ ENTRIES: list[dict[str, Any]] = [
         # Must match what the SCANNER emits for this symbol, not the human-readable
         # shape: the path is computed, so the detected expression is the call itself.
         # It resolves to data/brand_kits/<_safe_id(client_id)>.json.
-        "path_pattern": "<*>/<*>",
+        "path_pattern": "data/brand_kits",
         "store_id": "marketing.brand_kits",
         "access_modes": ["READ", "CREATE", "REWRITE", "DELETE"],
         "reason": (
