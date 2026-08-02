@@ -58,6 +58,7 @@ AUTOMATION_FLAGS = [
     "VOICE_LAUNCH_CAMPAIGN",  # master gate for controlled cold-call campaign — OFF default (INERT); UPAR of platform_dial 3-layer kill
     "VOICE_LAUNCH_KILL",  # global admin kill switch — 1 = ALL outbound calls ineligible (fail-safe); data/voice_launch_kill.json fallback
     "VOICE_DAILY_CALL_CAP",  # attempts/IST-day ceiling (default 100, hard-clamped ≤100). Every provider-accepted attempt counts
+    "VOICE_CALLS_PER_SESSION",  # attempts per launch session (default 30, hard-clamped ≤200) — Redis-backed, reset ONLY via session lifecycle (worker restart NO); 31st attempt blocked before provider
     "VOICE_TEST_DAILY_CAP",  # internal allowlist test-call quota (default 25) — SEPARATE from campaign cap
     "VOICE_CALL_CONCURRENCY",  # simultaneous outbound calls (default 1; launch starts at 1)
     "VOICE_TRAIN_BATCH",  # calls-per-batch before a training pause (default 30 → pause@30/60/90)
