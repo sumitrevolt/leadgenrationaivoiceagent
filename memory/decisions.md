@@ -2363,3 +2363,12 @@ Evidence chain, all at the frozen head: pristine archive checkout → **82 passe
 **Result:** postiz.leadsgenai.in live (200), register/login 200, temporal healthy, 1 user + 28 scheduled posts + 6 connected integrations intact (data volumes survived).
 
 **Rules:** (1) NEVER --remove-orphans on docker-compose.postiz.yml (shares leadgen project with main stack � 2026-07-03 incident). (2) If temporal unhealthy with development-sql.yaml: stat error ? dynamicconfig bind-mount is EMPTY; re-add the file (VPS path /opt/leadgen/deploy/postiz/dynamicconfig/development-sql.yaml), plain up -d. (3) BACKEND_INTERNAL_URL must stay http://localhost:3000 (direct backend, NOT nginx:5000 � SSR JSON breaks through the / frontend block).
+
+## 2026-08-02 - ADR-WARP-PLUGIN-OFF Disable Warp Claude Code plugin for LeadGen
+
+**Context:** Warp plugin `warp@claude-code-warp` registers an unconditional `PostToolUse` hook (`on-post-tool-use.sh`) that fires after every tool call. On Windows this reopens/noisy Cursor/Claude panels and adds ~1.7s per tool (upstream issue #77). It is terminal UX sugar, not a LeadGen product dependency.
+
+**Decision:** Track project `.claude/settings.json` with `"enabledPlugins": {"warp@claude-code-warp": false}` so this repo opts out. Guard/reward hooks stay machine-local in `.claude/settings.local.json` (still gitignored).
+
+**Consequence:** Claude Code in this project will not load Warp PostToolUse. No app/runtime/deploy impact. Users with an existing local `.claude/settings.json` should merge the `enabledPlugins` key (do not wipe local hooks). Rollback = set the key to `true` or delete the entry.
+
