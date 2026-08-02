@@ -44,6 +44,11 @@
   pre{background:#0b1020;color:#e2e8f0;padding:10px;border-radius:8px;font-size:12px;overflow:auto;max-height:220px;}
   code{background:#e2e8f0;padding:1px 5px;border-radius:5px;font-size:12px;}
   .qrimg{max-width:240px;border:1px solid #cbd5e1;border-radius:8px;}
+  .sh-state{margin-top:8px;padding:9px 11px;border-radius:10px;font-size:12px;line-height:1.55;}
+  .sh-state.ok-box{background:#dcfce7;color:#166534;border:1px solid #bbf7d0;}
+  .sh-state.bad-box{background:#fee2e2;color:var(--bad);border:1px solid #fecaca;}
+  .sh-state.scan-box{background:#dbeafe;color:#1e40af;border:1px solid #bfdbfe;}
+  .sh-state.info-box{background:#e2e8f0;color:#334155;border:1px solid #cbd5e1;}
 </style>
 </head>
 <body>
@@ -211,24 +216,70 @@
       return '<tr><td>'+esc(x.phone)+'</td><td>'+esc(x.reason)+'</td><td class="muted">'+esc((x.at||"").slice(0,10))+'</td></tr>';
     }).join("") : '<tr><td colspan="3" class="muted">Koi suppressed number nahi.</td></tr>';
   }
+  var shLast="", shQrUrl=null, shQrTimer=null, shPollTimer=null;
   async function loadSelfhost(){
     var el=document.getElementById("shStatus"); if(!el) return;
     var s = await getJSON("/api/wa/selfhost/status");
-    if(!s){ el.textContent="Status: —"; return; }
+    if(!s){ el.innerHTML="Status: <b>—</b>"; return; }
     if(!s.configured){ el.innerHTML='Status: <b>not configured</b> — VPS pe <code>WAHA_BASE_URL</code> set + container chalao.'; return; }
-    var st=s.status||"UNKNOWN", num=s.business_number?(" · "+esc(s.business_number)):"";
-    var em = st==="WORKING"?"✅":(st==="SCAN_QR_CODE"?"📷":(st==="UNREACHABLE"?"⚠️":"⏳"));
-    el.innerHTML='Status: '+em+' <b>'+esc(st)+'</b>'+num;
+    var st=s.status||"UNKNOWN";
+    var num=s.business_number?(" · "+esc(s.business_number)):"";
+    var me=s.me_number?(" · linked <b>"+esc(s.me_number)+"</b>"):"";
+    var box="";
+    if(st==="WORKING"){
+      box='<div class="sh-state ok-box"><b>✅ WORKING</b> — number linked'+me+'. Auto-send abhi bhi <code>WHATSAPP_AUTO_SEND</code> gate pe hai.</div>';
+    } else if(st==="FAILED"){
+      box='<div class="sh-state bad-box"><b>❌ FAILED</b> — session gir gayi. Neeche <b>Start session</b> dabao (logout+relink hoga) → naya QR aayega → phone pe <b>30 sec ke andar scan</b> karo (WhatsApp → Linked devices → Link a device).<br/>Scan nahi kiya to QR expire hoke session dobara FAILED ho jayega.</div>';
+    } else if(st==="SCAN_QR_CODE"){
+      box='<div class="sh-state scan-box"><b>📷 SCAN_QR_CODE</b> — QR neeche ready hai. Phone pe WhatsApp → Linked devices → Link a device → scan karo. QR har ~20s refresh hota hai; <b>WORKING</b> dikhne tak ruko mat.</div>';
+    } else if(st==="STARTING"){
+      box='<div class="sh-state info-box"><b>⏳ STARTING</b> — session start ho raha hai, QR ban raha hai…</div>';
+    } else if(st==="UNREACHABLE"){
+      box='<div class="sh-state bad-box"><b>⚠️ UNREACHABLE</b> — app WAHA container tak nahi pahunch pa raha. VPS pe <code>docker compose -f docker-compose.waha.yml ps</code> check karo, container up hona chahiye.</div>';
+    } else if(st==="NOT_CREATED"||st==="STOPPED"){
+      box='<div class="sh-state info-box"><b>⏸ '+esc(st)+'</b> — nayi session banegi. <b>Start session</b> dabao.</div>';
+    } else {
+      box='<div class="sh-state info-box"><b>'+esc(st)+'</b></div>';
+    }
+    el.innerHTML='Status: <b>'+esc(st)+'</b>'+num+me+box;
+
+    if(st==="SCAN_QR_CODE"){ shShowQr(); }
+    else if(st==="WORKING"){ shClearQr(); }
+    else if(shQrTimer){ shClearQr(); }
+
+    // Edge-transition alert: FAILED -> WORKING (recovery) ya SCAN_QR_CODE -> WORKING
+    if((shLast==="FAILED"||shLast==="SCAN_QR_CODE") && st==="WORKING"){
+      document.title="WAHA WORKING 🎉 — WhatsApp Campaigns";
+      setTimeout(function(){ document.title="WhatsApp Campaigns"; }, 6000);
+    }
+    shLast=st;
   }
   function shShowQr(){
     var box=document.getElementById("shQrBox");
+    if(shQrTimer) return; // already showing + refreshing
+    function fetchQr(){
+      fetch("/api/wa/selfhost/qr",{headers:hdr()}).then(function(r){ return r.ok? r.blob() : null; })
+        .then(function(b){
+          if(!b){ if(!box.querySelector("img")) box.innerHTML='<span class="muted">QR abhi nahi — session SCAN_QR_CODE tak pahunchne do.</span>'; return; }
+          var u=URL.createObjectURL(b);
+          if(shQrUrl) URL.revokeObjectURL(shQrUrl);
+          shQrUrl=u;
+          box.innerHTML='<img alt="WhatsApp link QR" src="'+u+'" class="qrimg"/><div class="muted">WhatsApp → Linked devices → Link a device → scan (QR auto-refresh ~20s)</div>';
+        }).catch(function(){ if(!box.querySelector("img")) box.innerHTML='<span class="muted">QR load error</span>'; });
+    }
     box.innerHTML='<span class="muted">QR load ho raha…</span>';
-    fetch("/api/wa/selfhost/qr",{headers:hdr()}).then(function(r){ return r.ok? r.blob() : null; })
-      .then(function(b){
-        if(!b){ box.innerHTML='<span class="muted">QR abhi nahi — pehle "Start session" + thoda ruko.</span>'; return; }
-        var u=URL.createObjectURL(b);
-        box.innerHTML='<img alt="WhatsApp link QR" src="'+u+'" class="qrimg"/><div class="muted">WhatsApp → Linked devices → Link a device → scan</div>';
-      }).catch(function(){ box.innerHTML='<span class="muted">QR load error</span>'; });
+    fetchQr();
+    shQrTimer=setInterval(fetchQr, 20000); // WAHA QR refs rotate — fresh scan always
+  }
+  function shClearQr(){
+    var box=document.getElementById("shQrBox");
+    if(shQrTimer){ clearInterval(shQrTimer); shQrTimer=null; }
+    if(shQrUrl){ URL.revokeObjectURL(shQrUrl); shQrUrl=null; }
+    box.innerHTML="";
+  }
+  function startShPoll(){
+    if(shPollTimer) return;
+    shPollTimer=setInterval(loadSelfhost, 10000);
   }
   async function loadAll(){ await loadStatus(); await loadTemplates(); await loadCampaigns(); await loadSuppression(); await loadSelfhost(); }
 
@@ -265,7 +316,17 @@
     btn.disabled=false; btn.textContent="Start session";
     if(!r){ setErr("Start failed — config check karo (token sahi hai?)"); return; }
     setErr("");
-    setTimeout(function(){ loadSelfhost(); shShowQr(); }, 1800);
+    // FAILED pe WAHA logout+delete+recreate karta hai; SCAN_QR_CODE me QR milne me
+    // kuch second lagte hain — poll karke SCAN_QR_CODE/WORKING tak QR dikhao.
+    var tries=0;
+    var t=setInterval(async function(){
+      tries++;
+      var s = await getJSON("/api/wa/selfhost/status");
+      var st = s && s.status ? s.status : "";
+      if(st==="SCAN_QR_CODE"){ clearInterval(t); loadSelfhost(); }
+      else if(st==="WORKING"){ clearInterval(t); loadSelfhost(); }
+      else if(tries>25){ clearInterval(t); loadSelfhost(); } // ~75s timeout, manual refresh
+    }, 3000);
   });
   document.getElementById("shQr").addEventListener("click", shShowQr);
   document.getElementById("shRefresh").addEventListener("click", loadSelfhost);
@@ -282,11 +343,8 @@
   }
 
   loadAll();
-  // Auto-show QR if session already in SCAN_QR_CODE on page load
-  setTimeout(async function(){
-    var s = await getJSON("/api/wa/selfhost/status");
-    if(s && s.status === "SCAN_QR_CODE"){ shShowQr(); }
-  }, 1000);
+  startShPoll();
+  // Auto-show QR if session already in SCAN_QR_CODE on page load (10s poll handles it)
 })();
 </script>
 <script>if('serviceWorker' in navigator)navigator.serviceWorker.register('/sw.js').catch(function(){});</script>

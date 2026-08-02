@@ -10,14 +10,16 @@
 #   2) docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
 #   3) Caddy me route: staging.leadsgenai.in -> 127.0.0.1:8001 (basic-auth lagao)
 #
-# Image prod jaisa hi (:latest) ya :${APP_VERSION}. DB prod se ALAG (prod data
-# safe). Migrations: docker compose -f docker-compose.staging.yml run --rm app_staging alembic upgrade head
+# Image prod jaisa hi — :${APP_VERSION} MANDATORY (ADR-097). Staging pe :latest
+# KABHI mat chalao: yeh unknown-provenance code chala sakta hai jo prod pe nahi
+# hai, aur `check_skew.sh` isi container ko watch karta hai. DB prod se ALAG (prod
+# data safe). Migrations: docker compose -f docker-compose.staging.yml run --rm app_staging alembic upgrade head
 # =============================================================================
 name: leadgen-staging
 
 services:
   app_staging:
-    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:-latest}
+    image: ghcr.io/sumitrevolt/leadgenrationaivoiceagent:${APP_VERSION:?APP_VERSION must be set — staging sirf pinned git-sha pe chale (ADR-097, :latest = unknown provenance)}
     container_name: leadgen_app_staging
     env_file: .env.staging
     environment:
