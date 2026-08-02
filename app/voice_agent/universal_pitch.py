@@ -7,6 +7,7 @@ Consumers: web_call (test) · vobiz_stream (real) · phone_stream · platform_pi
 niche_scripts ai_marketing · telecaller_brain opening_line · latency pre-synth.
 """
 
+
 def _marketing_start_price() -> str:
     try:
         from app.marketing.packages import get_public_packages
@@ -36,9 +37,9 @@ UNIVERSAL_AGENT_INTRO = (
 )
 
 PITCH_SHORT = (
-    "Aapko khud kuch nahi karna — roz ki posts, ads aur Google par upar aana, "
-    f"sab AI automatic karta hai. {_marketing_start_price()} mahine se, agency se kaafi sasta, "
-    "aur 7 din bilkul FREE trial."
+    "Roz ke posts, ads aur Google pe upar aana — sab AI automatic, aapka kuch "
+    f"kaam nahi. Agency ₹15-20 hazaar leti hai, hum {_marketing_start_price()} se. "
+    "Aapka ek naya customer hi poora kharcha nikal deta hai — aur 7 din FREE trial hai."
 )
 
 INTEREST_ASK = "Ek baar free me try karke dekhna chahenge?"
