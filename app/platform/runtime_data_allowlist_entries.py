@@ -291,7 +291,10 @@ ENTRIES: list[dict[str, Any]] = [
     {
         "allowlist_id": "marketing.brand_kits.path",
         "file": "app/marketing/brand_kit.py",
-        "line_or_symbol": "path",
+        # The scanner's symbol table is per-FILE, so the generic name `path`
+        # resolves from get_brand's assignment and the DELETE would inherit an
+        # opaque expression. The destructive path carries its own symbol.
+        "line_or_symbol": "brand_path",
         # Must match what the SCANNER emits for this symbol, not the human-readable
         # shape: the path is computed, so the detected expression is the call itself.
         # It resolves to data/brand_kits/<_safe_id(client_id)>.json.
