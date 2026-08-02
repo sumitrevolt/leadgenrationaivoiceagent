@@ -292,7 +292,10 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "marketing.brand_kits.path",
         "file": "app/marketing/brand_kit.py",
         "line_or_symbol": "path",
-        "path_pattern": "data/brand_kits/{client_id}.json",
+        # Must match what the SCANNER emits for this symbol, not the human-readable
+        # shape: the path is computed, so the detected expression is the call itself.
+        # It resolves to data/brand_kits/<_safe_id(client_id)>.json.
+        "path_pattern": "_path(client_id)",
         "store_id": "marketing.brand_kits",
         "access_modes": ["READ", "CREATE", "REWRITE", "DELETE"],
         "reason": (
