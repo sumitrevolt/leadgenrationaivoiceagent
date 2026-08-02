@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.api.auth_deps import require_admin
-from app.api.customer_auth import require_customer
+from app.api.customer_auth import optional_customer
 from app.api.ratelimit import rate_limit
 
 logger = logging.getLogger(__name__)
@@ -41,11 +41,14 @@ class UpiSubmitIn(BaseModel):
     summary="Customer self-serve: maine pay kiya (UPI ref submit)",
     dependencies=[Depends(rate_limit("upi_submit", 10, 60))],
 )
-async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(require_customer)):
-    """Customer apna UPI payment report karta hai. Never 500.
+async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_customer)):
+    """Customer (ya guest) apna UPI payment report karta hai. Never 500.
 
-    client_id is derived from the customer's JWT — a client CANNOT submit a
-    payment for someone else's account.
+    client_id is derived from the customer's JWT when logged in — a client CANNOT
+    submit for someone else's account. Guests (no token) submit a pending record
+    keyed by payer_contact; admin reaches out + activates (frontend home-page pay
+    modal path). Guests NEVER auto-activate: submit_payment only auto-activates
+    when client_id is non-empty AND on the UPI_AUTO_ACTIVATE_CLIENTS allowlist.
     """
     try:
         from app.platform import upi_payments
