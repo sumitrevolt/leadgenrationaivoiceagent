@@ -262,6 +262,21 @@ def test_scheduler_primary_channel_prefers_whatsapp_when_both_on(monkeypatch):
 
 def test_email_channel_fail_closed_without_smtp(monkeypatch):
     # Fully armed email + no SMTP/API creds ⇒ FAILED (fail-closed), never WhatsApp.
+    #
+    # HERMETIC PRECONDITION (do not remove): "no creds" must be ENFORCED, not assumed.
+    # EmailSender/api_available read app.config.settings, which is populated from .env at
+    # import time. On a machine with real SMTP configured this test used to skip straight
+    # past the smtp_not_configured branch and attempt a LIVE Hostinger send, returning
+    # SKIPPED instead of FAILED — so the fail-closed invariant was only ever asserted by
+    # accident on credential-less CI. Blanking the settings here makes the assertion mean
+    # the same thing on every machine and keeps the suite from touching a real provider.
+    from app.config import settings as _settings
+
+    monkeypatch.setattr(_settings, "smtp_user", "", raising=False)
+    monkeypatch.setattr(_settings, "smtp_password", "", raising=False)
+    monkeypatch.setattr(_settings, "resend_api_key", "", raising=False)
+    monkeypatch.setattr(_settings, "brevo_api_key", "", raising=False)
+
     monkeypatch.setenv("SALES_AUTOPILOT_ENABLED", "1")
     monkeypatch.setenv("SALES_AUTOPILOT_EMAIL_ENABLED", "1")
     monkeypatch.setenv("SALES_AUTOPILOT_DRY_RUN", "0")

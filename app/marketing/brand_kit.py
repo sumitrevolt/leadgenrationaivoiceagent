@@ -84,6 +84,19 @@ def get_brand(client_id: Any) -> dict[str, Any] | None:
         return None
 
 
+def delete_brand(client_id: Any) -> bool:
+    """Delete saved brand profile file (admin customer removal). Returns True
+    if a file was removed; never raises."""
+    path = _path(client_id)
+    try:
+        if os.path.isfile(path):
+            os.remove(path)
+            return True
+    except Exception as e:
+        logger.warning(f"[brand_kit] delete failed for {path}: {e}")
+    return False
+
+
 def apply_brand_to_poster_args(client_id: Any, args: dict[str, Any] | None) -> dict[str, Any]:
     """Poster args me brand merge karo (args ke explicit values jeet-te hain).
 
