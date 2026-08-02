@@ -10,17 +10,17 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 **GTM 0→1** — pehle paid customers on Marketing product; mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint); 2nd paying customer target.
 
 ## Production SHA
-`15613b35` — merge commit of PR #211 (`voice-session-limiter-2026-08-02`). Live-probed 2026-08-02 over direct HTTPS: `{"version":"15613b35","environment":"production","status":"healthy"}`.
-5 app-image services pinned equal to this SHA (no per-container skew); queues + DLQ = 0.
-Rollback reference: `15613b35` until the next deploy.
+`3cbf1164` — merge commit of PR #215 (`fix/launch-audit-2026-08-02`: UPI guest 401, pricing honesty, golden eval suite, API.md sync). Live-probed 2026-08-02 over direct HTTPS: `{"version":"3cbf1164","environment":"production","status":"healthy"}`.
+5 app-image services pinned equal to this SHA (no per-container skew after deploy + env-only recreate); queues + DLQ = 0.
+Rollback reference: `3cbf1164` until the next deploy.
 Label: DIRECT_HOST_VERIFIED (2026-08-02, live session) + GIT_VERIFIED (this file's git ref matches).
 
 ## Origin/main
-`15613b35` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks.
+`3cbf1164` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks.
 Label: GIT_VERIFIED (2026-08-02)
 
 ## Production health
-`status: healthy`, `environment: production` at `15613b35` (2026-08-02, direct HTTPS).
+`status: healthy`, `environment: production` at `3cbf1164` (2026-08-02, direct HTTPS).
 Label: DIRECT_HOST_VERIFIED (2026-08-02)
 
 ## Sales Autopilot (live, REAL sends — owner mandate 2026-08-01)
