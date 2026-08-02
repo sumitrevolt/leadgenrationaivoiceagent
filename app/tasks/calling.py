@@ -447,12 +447,17 @@ async def _dial_vobiz_campaign(
     # TOP of the existing compliance/dial_gate layers — never replaces them.
     spine_on = vl.campaign_enabled()
     kind = "campaign"
+    session_id: str | None = None
 
     if not dry_run and vl.admin_kill_engaged():
         await vl.set_campaign_state(vl.CampaignState.PAUSED_BY_ADMIN)
         return {
-            "ok": 0, "skip": len(prospects), "fail": 0, "placed_ids": [],
-            "state": vl.CampaignState.PAUSED_BY_ADMIN.value, "error": "admin_kill_switch",
+            "ok": 0,
+            "skip": len(prospects),
+            "fail": 0,
+            "placed_ids": [],
+            "state": vl.CampaignState.PAUSED_BY_ADMIN.value,
+            "error": "admin_kill_switch",
         }
 
     if spine_on and not dry_run:
@@ -461,14 +466,49 @@ async def _dial_vobiz_campaign(
             await vl.trip_circuit(rec_reason)
             await vl.set_campaign_state(vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER)
             return {
-                "ok": 0, "skip": len(prospects), "fail": 0, "placed_ids": [],
-                "state": vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER.value, "error": rec_reason,
+                "ok": 0,
+                "skip": len(prospects),
+                "fail": 0,
+                "placed_ids": [],
+                "state": vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER.value,
+                "error": rec_reason,
             }
         if await vl.circuit_open():
             await vl.set_campaign_state(vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER)
             return {
-                "ok": 0, "skip": len(prospects), "fail": 0, "placed_ids": [],
-                "state": vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER.value, "error": "circuit_open",
+                "ok": 0,
+                "skip": len(prospects),
+                "fail": 0,
+                "placed_ids": [],
+                "state": vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER.value,
+                "error": "circuit_open",
+            }
+        # ── Session binding (exactly VOICE_CALLS_PER_SESSION per session) ──
+        # Operator Fire (launch_campaign) = canonical create_voice_session = naya
+        # counter. Worker/scheduler restart counter reset NAHI karta. Loop kabhi
+        # EXISTING session ka count reset nahi karta; sirf koi session hi nahi hai
+        # to canonical lifecycle se create karta hai.
+        session_id = await vl.current_session_id()
+        if not session_id:
+            session_id = await vl.create_voice_session(owner="system", niche="", label="auto")
+        if not session_id:
+            return {
+                "ok": 0,
+                "skip": len(prospects),
+                "fail": 0,
+                "placed_ids": [],
+                "state": vl.CampaignState.SESSION_STOPPED.value,
+                "error": "no_session",
+            }
+        if await vl.session_is_stopped(session_id):
+            await vl.set_campaign_state(vl.CampaignState.SESSION_STOPPED)
+            return {
+                "ok": 0,
+                "skip": len(prospects),
+                "fail": 0,
+                "placed_ids": [],
+                "state": vl.CampaignState.SESSION_STOPPED.value,
+                "error": "session_stopped",
             }
         await vl.set_campaign_state(vl.CampaignState.RUNNING)
 
@@ -485,13 +525,16 @@ async def _dial_vobiz_campaign(
             skip += 1
             continue
 
-        # per-lead fail-closed eligibility + atomic daily-cap reservation
+        # per-lead fail-closed eligibility + atomic daily-cap reservation +
+        # session-cap reservation + session idempotency (dispatch boundary)
         slot = None
+        sslot = None
         if spine_on:
             elig = await vl.is_lead_eligible_for_voice_call("+91" + p10, call_type)
             if not elig.eligible:
                 skip += 1
                 await vl.record_disposition(vl.VoiceDisposition.SKIPPED, kind)
+                await vl.record_session_disposition(session_id, vl.VoiceDisposition.SKIPPED)
                 logger.info(f"[voice_launch] lead {p.id} ineligible: {elig.reason}")
                 continue
             slot = await vl.reserve_call_slot(kind)
@@ -504,6 +547,28 @@ async def _dial_vobiz_campaign(
                 )
                 logger.warning(f"[voice_launch] stop dialing — {slot.reason}")
                 break
+            sslot = await vl.reserve_session_slot(session_id)
+            if not sslot.ok:
+                # session exhausted (attempt cap+1) / stopped / no_session / redis down
+                # → roll back the daily slot we just claimed (didn't dispatch), stop.
+                await vl.release_call_slot(kind)
+                if sslot.reason == "session_limit_reached":
+                    stop_state = vl.CampaignState.SESSION_LIMIT_REACHED
+                elif sslot.reason == "session_stopped":
+                    stop_state = vl.CampaignState.SESSION_STOPPED
+                else:
+                    stop_state = vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER
+                logger.warning(f"[voice_launch] stop dialing — {sslot.reason}")
+                break
+            # Idempotency BEFORE provider dispatch: worker crash/retry ya is run me
+            # duplicate lead → claim already held → at-most-once per session.
+            if not await vl.session_idem_claim(session_id, f"lead:{p.id}"):
+                await vl.release_call_slot(kind)
+                await vl.release_session_slot(session_id)
+                await vl.record_session_retry_blocked(session_id)
+                skip += 1
+                logger.info(f"[voice_launch] lead {p.id} already dispatched this session — skip")
+                continue
 
         result = await start_stream_call(
             to="+91" + p10, niche=niche, call_type=call_type, client_id=cid or None
@@ -542,15 +607,19 @@ async def _dial_vobiz_campaign(
             skip += 1
             if spine_on and slot is not None:
                 # provider-side compliance block = NOT a provider-accepted attempt →
-                # roll back the reserved slot so it doesn't consume the daily cap.
+                # roll back the reserved slots so they don't consume the caps.
                 await vl.release_call_slot(kind)
                 await vl.record_disposition(vl.VoiceDisposition.SKIPPED, kind)
+                await vl.release_session_slot(session_id)
+                await vl.session_idem_release(session_id, f"lead:{p.id}")
+                await vl.record_session_disposition(session_id, vl.VoiceDisposition.SKIPPED)
         else:
             fail += 1
             if spine_on:
                 # provider failure IS a provider-accepted attempt → keep slot (counts);
                 # feed the circuit breaker (trips on a consecutive-failure spike).
                 await vl.record_disposition(vl.VoiceDisposition.FAILED, kind)
+                await vl.record_session_disposition(session_id, vl.VoiceDisposition.FAILED)
                 if await vl.record_provider_result(False, str(result.get("error") or "")):
                     stop_state = vl.CampaignState.PAUSED_BY_CIRCUIT_BREAKER
                     logger.warning("[voice_launch] circuit breaker tripped — pausing campaign")
@@ -558,11 +627,19 @@ async def _dial_vobiz_campaign(
 
         # 30-call training pause boundary — ATOMIC via the reservation counter
         # (slot.count is a single Redis INCR, so exactly one worker crosses 30/60/90).
-        if spine_on and slot is not None and result.get("placed") and vl.training_pause_due(slot.count):
+        if (
+            spine_on
+            and slot is not None
+            and result.get("placed")
+            and vl.training_pause_due(slot.count)
+        ):
             stop_state = vl.CampaignState.PAUSED_FOR_TRAINING
             logger.info(f"[voice_launch] training pause at call {slot.count}")
             try:
-                from app.voice_agent.postcall_qa import propose_training_correction, training_loop_enabled
+                from app.voice_agent.postcall_qa import (
+                    propose_training_correction,
+                    training_loop_enabled,
+                )
 
                 if training_loop_enabled():
                     propose_training_correction(

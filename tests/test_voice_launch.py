@@ -13,11 +13,7 @@ import asyncio
 import pytest
 
 from app.telephony import voice_launch as vl
-from app.telephony.voice_launch import (
-    CampaignState,
-    SkipReason,
-    VoiceDisposition,
-)
+from app.telephony.voice_launch import CampaignState, SkipReason, VoiceDisposition
 
 
 def _run(coro):
@@ -25,7 +21,8 @@ def _run(coro):
 
 
 class _FakeRedis:
-    """In-process async redis stand-in: incr/get/set/expire."""
+    """In-process async redis stand-in: incr/get/set/expire/delete + SET NX (for
+    session idempotency claims)."""
 
     def __init__(self):
         self.store: dict[str, str] = {}
@@ -39,8 +36,13 @@ class _FakeRedis:
     async def get(self, key: str):
         return self.store.get(key)
 
-    async def set(self, key: str, value, ex=None):
+    async def set(self, key: str, value, ex=None, nx=False):
+        if nx and key in self.store:
+            return None
         self.store[key] = str(value)
+        if ex is not None:
+            self.ttl[key] = ex
+        return True
 
     async def expire(self, key: str, seconds: int):
         self.ttl[key] = seconds
@@ -77,6 +79,7 @@ def _clean_env(monkeypatch):
     for k in (
         "VOICE_LAUNCH_KILL",
         "VOICE_DAILY_CALL_CAP",
+        "VOICE_CALLS_PER_SESSION",
         "VOICE_TEST_DAILY_CAP",
         "VOICE_CALL_CONCURRENCY",
         "VOICE_TRAIN_BATCH",
@@ -217,8 +220,12 @@ def test_allowlisted_promotional_reaches_compliance(kill_disengaged, monkeypatch
     monkeypatch.setenv("VOBIZ_CALLER_ID", "")
     res = _run(vl.is_lead_eligible_for_voice_call("+919876500000", "promotional"))
     assert res.eligible is False
-    assert res.reason in (SkipReason.DLT_NOT_APPROVED, SkipReason.DND_LOOKUP_FAILED,
-                          SkipReason.NO_CALLER_ID, SkipReason.OUTSIDE_WINDOW)
+    assert res.reason in (
+        SkipReason.DLT_NOT_APPROVED,
+        SkipReason.DND_LOOKUP_FAILED,
+        SkipReason.NO_CALLER_ID,
+        SkipReason.OUTSIDE_WINDOW,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -232,8 +239,7 @@ def test_state_disabled_when_flag_off(kill_disengaged, monkeypatch):
 def test_state_admin_kill_precedence(monkeypatch):
     monkeypatch.setenv("VOICE_LAUNCH_KILL", "1")
     assert (
-        vl.resolve_campaign_state(configured=CampaignState.RUNNING)
-        == CampaignState.PAUSED_BY_ADMIN
+        vl.resolve_campaign_state(configured=CampaignState.RUNNING) == CampaignState.PAUSED_BY_ADMIN
     )
 
 
@@ -255,9 +261,7 @@ def test_state_precedence_chain(kill_disengaged, monkeypatch):
         vl.resolve_campaign_state(configured=CampaignState.RUNNING, training_pause=True)
         == CampaignState.PAUSED_FOR_TRAINING
     )
-    assert (
-        vl.resolve_campaign_state(configured=CampaignState.PILOT) == CampaignState.PILOT
-    )
+    assert vl.resolve_campaign_state(configured=CampaignState.PILOT) == CampaignState.PILOT
 
 
 # --------------------------------------------------------------------------- #
@@ -325,9 +329,18 @@ def test_launch_status_shape(monkeypatch):
     monkeypatch.setenv("VOICE_DAILY_CALL_CAP", "100")
     st = _run(vl.launch_status())
     for key in (
-        "campaign_enabled", "admin_kill_engaged", "daily_cap", "attempts_today",
-        "remaining_today", "concurrency_limit", "next_training_boundary",
-        "circuit_open", "recording_ok", "state", "dispositions_today", "nup_today",
+        "campaign_enabled",
+        "admin_kill_engaged",
+        "daily_cap",
+        "attempts_today",
+        "remaining_today",
+        "concurrency_limit",
+        "next_training_boundary",
+        "circuit_open",
+        "recording_ok",
+        "state",
+        "dispositions_today",
+        "nup_today",
     ):
         assert key in st, key
     assert st["daily_cap"] == 100

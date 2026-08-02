@@ -72,10 +72,7 @@ async def vobiz_status_webhook(request: Request):
         or form_data.get("id")
     )
     status = (
-        form_data.get("Status")
-        or form_data.get("CallStatus")
-        or form_data.get("call_status")
-        or ""
+        form_data.get("Status") or form_data.get("CallStatus") or form_data.get("call_status") or ""
     ).lower()
     hangup_cause = (
         form_data.get("HangupCause")
@@ -117,6 +114,10 @@ async def vobiz_status_webhook(request: Request):
         disp_token = (hangup_cause or status or "").strip()
         if disp_token:
             await _vl.record_disposition(disp_token, "campaign")
+            # Session-scoped disposition tally (used/remaining ke saath visibility).
+            # Best-effort; attribute current session (async completion late aaye to
+            # current session pe count ho sakta hai — visibility, billing nahi).
+            await _vl.record_session_disposition(None, disp_token)
     except Exception:
         pass
 
