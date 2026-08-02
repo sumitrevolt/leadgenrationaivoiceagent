@@ -46,6 +46,13 @@ _DEFAULT_CONCURRENCY = 1
 _TRAIN_BATCH = 30  # 30-call batches: pause@30/60/90 → train → resume
 _COUNTER_TTL_S = 129600  # 36h — IST-date counter, midnight rollover buffer
 
+# Session-scoped ceiling — exactly VOICE_CALLS_PER_SESSION attempts per launch
+# session (default 30). Redis-backed → worker/scheduler restart counter RESET
+# NAHI karta; reset sirf canonical create_voice_session() lifecycle se.
+_DEFAULT_SESSION_CAP = 30
+_SESSION_CAP_CEILING = 200
+_SESSION_TTL_S = 7 * 86400  # 7 days — session training-pauses (ghanto tak) span karti hai
+
 
 # --------------------------------------------------------------------------- #
 # Campaign state machine
@@ -61,6 +68,8 @@ class CampaignState(str, Enum):
     PAUSED_BY_ADMIN = "paused_by_admin"
     PAUSED_BY_CIRCUIT_BREAKER = "paused_by_circuit_breaker"
     DAILY_LIMIT_REACHED = "daily_limit_reached"
+    SESSION_LIMIT_REACHED = "session_limit_reached"
+    SESSION_STOPPED = "session_stopped"
     COMPLETED = "completed"
     FAILED = "failed"
 
@@ -382,6 +391,18 @@ def daily_cap(kind: str = "campaign") -> int:
     return max(1, min(n, _DAILY_CAP_CEILING))
 
 
+def session_cap() -> int:
+    """Per-SESSION attempt ceiling — ``VOICE_CALLS_PER_SESSION`` (default 30,
+    hard-clamped ≤200). One session = one operator launch (create_voice_session);
+    counter Redis-backed (worker/scheduler restart = NO reset). Sirf canonical
+    session lifecycle counter ko reset karta hai."""
+    try:
+        n = int(_env("VOICE_CALLS_PER_SESSION", str(_DEFAULT_SESSION_CAP)))
+    except Exception:
+        n = _DEFAULT_SESSION_CAP
+    return max(1, min(n, _SESSION_CAP_CEILING))
+
+
 def concurrency_limit() -> int:
     try:
         n = int(_env("VOICE_CALL_CONCURRENCY", str(_DEFAULT_CONCURRENCY)))
@@ -608,6 +629,361 @@ async def release_call_slot(kind: str = "campaign") -> int:
     except Exception as e:
         logger.warning(f"[voice_launch] release_call_slot noop ({e})")
         return -1
+
+
+# --------------------------------------------------------------------------- #
+# Session-scoped call limiter (exactly VOICE_CALLS_PER_SESSION per session)
+# --------------------------------------------------------------------------- #
+# Session = one operator launch (create_voice_session). Counter Redis-backed →
+# worker/scheduler restart RESET nahi karta; reset SIRF canonical lifecycle se.
+_SESSION_CURRENT_KEY = "voice_launch:session:current"
+
+
+def _session_meta_key(sid: str) -> str:
+    return f"voice_launch:session:{sid}:meta"
+
+
+def _session_counter_key(sid: str) -> str:
+    return f"voice_launch:session:{sid}:attempts"
+
+
+def _session_stopped_key(sid: str) -> str:
+    return f"voice_launch:session:{sid}:stopped"
+
+
+def _session_disp_key(sid: str, disp: VoiceDisposition) -> str:
+    return f"voice_launch:session:{sid}:disp:{disp.value}"
+
+
+def _session_retried_key(sid: str) -> str:
+    return f"voice_launch:session:{sid}:retried"
+
+
+def _session_idem_key(sid: str, key: str) -> str:
+    return f"voice_launch:session:{sid}:idem:{key}"
+
+
+def new_session_id() -> str:
+    try:
+        import uuid
+
+        return f"S{datetime.now(IST).strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
+    except Exception:
+        return f"S{datetime.now(IST).strftime('%Y%m%d')}-{int(datetime.now().timestamp())}"
+
+
+async def create_voice_session(owner: str = "", niche: str = "", label: str = "") -> str:
+    """Canonical session LIFECYCLE — naya session banao (attempt counter 0 se).
+    YAHI single place hai jahan session attempt-count reset hota hai; worker or
+    scheduler restart kabhi reset NAHI karta. Never raises (Redis down => "")."""
+    try:
+        sid = new_session_id()
+        r = await _redis()
+        meta = json.dumps(
+            {
+                "sid": sid,
+                "owner": (owner or "").strip() or "admin",
+                "niche": (niche or "").strip(),
+                "label": (label or "").strip(),
+                "cap": session_cap(),
+                "created_at": datetime.now(IST).isoformat(timespec="seconds"),
+            }
+        )
+        await r.set(_session_meta_key(sid), meta, ex=_SESSION_TTL_S)
+        await r.set(_SESSION_CURRENT_KEY, sid, ex=_SESSION_TTL_S)
+        # Explicit SET (not INCR) — pichhle session ka stale 30 kabhi leak na ho.
+        await r.set(_session_counter_key(sid), "0", ex=_SESSION_TTL_S)
+        await r.delete(_session_stopped_key(sid))
+        return sid
+    except Exception as e:
+        logger.warning(f"[voice_launch] create_voice_session failed ({e})")
+        return ""
+
+
+async def current_session_id() -> str | None:
+    try:
+        r = await _redis()
+        v = await r.get(_SESSION_CURRENT_KEY)
+        return str(v) if v else None
+    except Exception:
+        return None
+
+
+async def get_session_meta(sid: str) -> dict[str, Any]:
+    try:
+        r = await _redis()
+        raw = await r.get(_session_meta_key(sid))
+        if not raw:
+            return {}
+        data = json.loads(raw)
+        return data if isinstance(data, dict) else {}
+    except Exception:
+        return {}
+
+
+async def session_attempts(sid: str) -> int:
+    """Is session me kitne provider-attempts reserve hue. Unknown (-1) = fail-CLOSED."""
+    try:
+        r = await _redis()
+        raw = await r.get(_session_counter_key(sid))
+        return int(raw) if raw is not None else 0
+    except Exception:
+        return -1
+
+
+async def session_is_stopped(sid: str | None = None) -> bool:
+    """Emergency-stop flag. Never raises; no-session/Redis-down => True (fail-closed)."""
+    if not sid:
+        sid = await current_session_id()
+        if not sid:
+            return True
+    try:
+        r = await _redis()
+        return bool(await r.get(_session_stopped_key(sid)))
+    except Exception:
+        return True
+
+
+async def session_stop(sid: str | None = None) -> bool:
+    """Session-level emergency stop — future reservations blocked (in-flight call
+    completes). Returns success. Never raises."""
+    try:
+        r = await _redis()
+        if not sid:
+            sid = await current_session_id()
+        if not sid:
+            return False
+        await r.set(_session_stopped_key(sid), "1", ex=_SESSION_TTL_S)
+        await set_campaign_state(CampaignState.SESSION_STOPPED)
+        return True
+    except Exception as e:
+        logger.warning(f"[voice_launch] session_stop failed ({e})")
+        return False
+
+
+async def reserve_session_slot(sid: str | None = None) -> SlotReservation:
+    """Atomically claim ONE provider-attempt slot for the current session.
+
+    ATOMIC (single Redis INCR, multi-worker safe) + FAIL-CLOSED. Blocks:
+      * cap+1 (attempt 31)  -> reason='session_limit_reached'
+      * emergency stop      -> reason='session_stopped'
+      * no active session   -> reason='no_session'
+      * Redis unavailable   -> reason='counter_unavailable'
+    Over-cap increment rollback hota hai (counter cap pe pin). Reservation = call
+    dispatch-boundary se PEHLE hona chahiye (attempt counted sirf jab provider
+    request actually jayega)."""
+    cap = session_cap()
+    if not sid:
+        sid = await current_session_id()
+        if not sid:
+            return SlotReservation(False, -1, cap, reason="no_session")
+    try:
+        r = await _redis()
+        if bool(await r.get(_session_stopped_key(sid))):
+            return SlotReservation(False, cap, cap, reason="session_stopped")
+        key = _session_counter_key(sid)
+        count = int(await r.incr(key))
+        if count == 1:
+            try:
+                await r.expire(key, _SESSION_TTL_S)
+            except Exception:
+                pass
+        if count > cap:
+            try:
+                await r.set(key, str(cap), ex=_SESSION_TTL_S)
+            except Exception:
+                pass
+            return SlotReservation(False, cap, cap, reason="session_limit_reached")
+        return SlotReservation(True, count, cap)
+    except Exception as e:
+        logger.warning(f"[voice_launch] reserve_session_slot fail-CLOSED ({e})")
+        return SlotReservation(False, -1, cap, reason="counter_unavailable")
+
+
+async def release_session_slot(sid: str | None = None) -> int:
+    """Roll back ONE reserved session slot (reserved but NEVER provider-accepted).
+    DECR floored at 0. Never raises."""
+    try:
+        r = await _redis()
+        if not sid:
+            sid = await current_session_id()
+        if not sid:
+            return -1
+        key = _session_counter_key(sid)
+        cur = await r.get(key)
+        n = max(0, (int(cur) if cur is not None else 0) - 1)
+        await r.set(key, str(n), ex=_SESSION_TTL_S)
+        return n
+    except Exception as e:
+        logger.warning(f"[voice_launch] release_session_slot noop ({e})")
+        return -1
+
+
+async def record_session_disposition(sid: str | None, disp: Any) -> None:
+    """Per-session disposition tally (answered/no_answer/busy/failed/nup/...).
+    Best-effort; never blocks the caller."""
+    try:
+        d = normalize_disposition(disp)
+        r = await _redis()
+        if not sid:
+            sid = await current_session_id()
+        if not sid:
+            return
+        key = _session_disp_key(sid, d)
+        n = int(await r.incr(key))
+        if n == 1:
+            try:
+                await r.expire(key, _SESSION_TTL_S)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+async def session_disposition_counts(sid: str | None = None) -> dict[str, int]:
+    """{disposition: count} for the session. Missing counter => 0. Never raises."""
+    out: dict[str, int] = {}
+    try:
+        r = await _redis()
+        if not sid:
+            sid = await current_session_id()
+        if not sid:
+            return out
+        for d in VoiceDisposition:
+            try:
+                raw = await r.get(_session_disp_key(sid, d))
+                if raw is not None and int(raw) > 0:
+                    out[d.value] = int(raw)
+            except Exception:
+                continue
+    except Exception:
+        pass
+    return out
+
+
+async def record_session_retry_blocked(sid: str | None) -> None:
+    """Duplicate-dispatch counter (idempotency claim already held) — 'retried'
+    calls count ALAG se. Best-effort."""
+    try:
+        r = await _redis()
+        if not sid:
+            sid = await current_session_id()
+        if not sid:
+            return
+        key = _session_retried_key(sid)
+        n = int(await r.incr(key))
+        if n == 1:
+            try:
+                await r.expire(key, _SESSION_TTL_S)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+async def session_retried(sid: str) -> int:
+    try:
+        r = await _redis()
+        raw = await r.get(_session_retried_key(sid))
+        return int(raw) if raw is not None else 0
+    except Exception:
+        return 0
+
+
+async def session_idem_claim(sid: str | None, key: str, ttl_s: int = 86400) -> bool:
+    """Idempotency claim: True jab is session me is dispatch-key ka provider request
+    PEHLI baar ho raha hai. Redis SET NX EX — worker retry/restart survive karta
+    hai (double provider request kabhi nahi). False = already dispatched (retry).
+    Never raises (Redis down => False = fail-closed)."""
+    try:
+        r = await _redis()
+        if not sid:
+            sid = await current_session_id()
+        if not sid:
+            return False
+        got = await r.set(_session_idem_key(sid, key), "1", nx=True, ex=ttl_s)
+        return bool(got)
+    except Exception as e:
+        logger.warning(f"[voice_launch] session_idem_claim fail-CLOSED ({e})")
+        return False
+
+
+async def session_idem_release(sid: str | None, key: str) -> None:
+    """Release a claim for a lead that was NEVER dispatched (pre-dial block) so a
+    future retry is allowed. Best-effort."""
+    try:
+        r = await _redis()
+        if not sid:
+            sid = await current_session_id()
+        if not sid:
+            return
+        await r.delete(_session_idem_key(sid, key))
+    except Exception:
+        pass
+
+
+async def session_status(sid: str | None = None) -> dict[str, Any]:
+    """Operator-visible session snapshot: used / cap / remaining / stopped / state /
+    separate disposition counts (attempted·connected·answered·failed·retried·completed).
+    Never raises."""
+    if not sid:
+        sid = await current_session_id()
+    if not sid:
+        cap = session_cap()
+        return {
+            "session_id": None,
+            "active": False,
+            "owner": "",
+            "niche": "",
+            "label": "",
+            "created_at": "",
+            "cap": cap,
+            "used": 0,
+            "remaining": cap,
+            "stopped": False,
+            "state": CampaignState.DRAFT.value,
+            "attempted": 0,
+            "connected": 0,
+            "answered": 0,
+            "failed": 0,
+            "completed": 0,
+            "retried_blocked": 0,
+            "dispositions": {},
+        }
+    cap = session_cap()
+    used = await session_attempts(sid)
+    disp = await session_disposition_counts(sid)
+    stopped = await session_is_stopped(sid)
+    meta = await get_session_meta(sid)
+    remaining = None if used < 0 else max(0, cap - used)
+    if stopped:
+        state = CampaignState.SESSION_STOPPED.value
+    elif used >= cap:
+        state = CampaignState.SESSION_LIMIT_REACHED.value
+    else:
+        state = CampaignState.RUNNING.value
+    attempted = max(0, used) if used >= 0 else None
+    connected = disp.get(VoiceDisposition.ANSWERED.value, 0)
+    return {
+        "session_id": sid,
+        "active": not stopped and used >= 0 and used < cap,
+        "owner": meta.get("owner", ""),
+        "niche": meta.get("niche", ""),
+        "label": meta.get("label", ""),
+        "created_at": meta.get("created_at", ""),
+        "cap": cap,
+        "used": used,
+        "remaining": remaining,
+        "stopped": stopped,
+        "state": state,
+        "attempted": attempted,
+        "connected": connected,
+        "answered": connected,
+        "failed": disp.get(VoiceDisposition.FAILED.value, 0),
+        "completed": connected,
+        "retried_blocked": await session_retried(sid),
+        "dispositions": disp,
+    }
 
 
 # --------------------------------------------------------------------------- #
@@ -859,6 +1235,7 @@ async def launch_status() -> dict[str, Any]:
     test_attempts = await attempts_today("test")
     rec_ok, rec_reason = recording_gate_ok()
     _kill_status = admin_kill_status()
+    _session = await session_status()
     return {
         "campaign_enabled": campaign_enabled(),
         # Single evaluation: the file is read once per status request, and the
@@ -875,6 +1252,8 @@ async def launch_status() -> dict[str, Any]:
         "concurrency_limit": concurrency_limit(),
         "training_batch_size": training_batch_size(),
         "next_training_boundary": next_training_boundary(max(0, attempts)),
+        "session_cap": session_cap(),
+        "session": _session,
         "circuit_open": await circuit_open(),
         "recording_required": recording_required(),
         "recording_ok": rec_ok,
@@ -950,6 +1329,23 @@ __all__ = [
     "training_batch_size",
     "training_pause_due",
     "next_training_boundary",
+    "session_cap",
+    "new_session_id",
+    "create_voice_session",
+    "current_session_id",
+    "get_session_meta",
+    "session_attempts",
+    "session_is_stopped",
+    "session_stop",
+    "reserve_session_slot",
+    "release_session_slot",
+    "record_session_disposition",
+    "session_disposition_counts",
+    "record_session_retry_blocked",
+    "session_retried",
+    "session_idem_claim",
+    "session_idem_release",
+    "session_status",
     "attempts_today",
     "daily_cap_reached",
     "reserve_call_slot",

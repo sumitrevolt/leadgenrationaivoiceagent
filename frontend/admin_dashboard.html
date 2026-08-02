@@ -1298,6 +1298,26 @@
             </div>
           </div>
 
+          <!-- Session cap (2026-08-02): exactly VOICE_CALLS_PER_SESSION per session -->
+          <div style="background:#eef2ff;border:1px solid #c7d2fe;border-radius:10px;padding:14px;margin-bottom:14px">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+              <div style="font-size:11px;font-weight:700;color:#3730a3;text-transform:uppercase;letter-spacing:.04em">Session cap</div>
+              <div id="session-used" style="font-size:20px;font-weight:800;color:var(--ink)">—</div>
+              <div style="font-size:12px;color:var(--muted)">used</div>
+              <div style="font-size:20px;font-weight:800;color:var(--ink)">/</div>
+              <div id="session-cap" style="font-size:20px;font-weight:800;color:var(--ink)">30</div>
+              <div style="font-size:12px;color:var(--muted)">cap</div>
+              <div style="font-size:20px;font-weight:800;color:var(--ink)" id="session-rem">—</div>
+              <div style="font-size:12px;color:var(--muted)">remaining</div>
+              <span id="session-state" style="font-size:11px;font-weight:700;padding:3px 8px;border-radius:20px;background:#dcfce7;color:#166534">—</span>
+              <span id="session-id" style="font-size:10px;color:var(--muted)"></span>
+              <span style="flex:1"></span>
+              <button class="btn" onclick="newVoiceSession()" style="background:#6366f1;padding:8px 14px;font-size:12px">➕ New Session</button>
+              <button class="btn" onclick="stopVoiceSession()" style="background:#ef4444;padding:8px 14px;font-size:12px">⏹ Stop Session</button>
+            </div>
+            <div id="session-disps" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
+          </div>
+
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px;background:#f8fafc;border:1px solid var(--line);border-radius:10px;margin-bottom:14px">
             <div>
               <label for="campLimit" style="font-size:11px;font-weight:700;color:var(--muted);display:block;margin-bottom:4px">Calls to fire</label>
@@ -3801,7 +3821,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
   /* Tier-3: secondary panels — stagger 400ms */
   setTimeout(()=>{ loadProspectsPanel(); loadOutreachActivity(); loadActivityFeed(); loadHourlyActivity(); loadLlmHealth(); loadSocialCockpit(); loadSocialPause(); loadSocialTokenHealth(); loadSocialLatestEvents(); },400);
   /* Tier-4: heavy/below-fold — stagger 700ms */
-  setTimeout(()=>{ loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail(); loadSyncHealth(); loadAgents(); loadAutomationHub(); loadRecordings(); loadWebCalls(); loadGodMode(); loadCampaignStatus(); loadUpiSelfServe(); loadMcpStatus(); load2FA(); },700);
+  setTimeout(()=>{ loadSpeedToLead(); loadInfraFlags(); loadHealthDetail(); loadSysHealthDetail(); loadSyncHealth(); loadAgents(); loadAutomationHub(); loadRecordings(); loadWebCalls(); loadGodMode(); loadCampaignStatus(); loadVoiceSession(); loadUpiSelfServe(); loadMcpStatus(); load2FA(); },700);
 });
 
 /* Auto-refresh REAL data every 30s (only after the live API has answered, so we
@@ -5177,6 +5197,67 @@ async function loadCampaignStatus(){
     renderCampaignStatus(d);
     $("camp-summary").textContent = d.status || "—";
   }catch(e){ $("campOut").innerHTML='<span style="color:var(--red)">Status load failed</span>'; }
+}
+
+/* Voice-launch session (2026-08-02): used / cap / remaining + dispositions */
+async function loadVoiceSession(){
+  try{
+    const d = await fetch("/api/admin/voice-launch/session",{headers:abAuthHdr(),cache:"no-store"}).then(r=>r.json());
+    renderVoiceSession(d);
+  }catch(e){}
+}
+
+function renderVoiceSession(d){
+  const used=$("session-used"), cap=$("session-cap"), rem=$("session-rem"), st=$("session-state"), sid=$("session-id"), disps=$("session-disps");
+  if(!used) return;
+  if(!d || !d.session_id){
+    used.textContent="0"; cap.textContent=(d&&d.cap)||30; rem.textContent=(d&&d.cap)||30;
+    if(st){ st.textContent="NO SESSION"; st.style.background="#fef2f2"; st.style.color="#991b1b"; }
+    if(sid) sid.textContent="";
+    if(disps) disps.textContent="";
+    return;
+  }
+  used.textContent = (d.used==null||d.used<0)?"?":d.used;
+  cap.textContent = d.cap||30;
+  rem.textContent = (d.remaining==null)?"?":d.remaining;
+  if(sid) sid.textContent = "sid="+escH(d.session_id);
+  if(st){
+    const color = (d.stopped||d.state==="session_stopped")?{bg:"#fee2e2",fg:"#991b1b"}:(d.state==="session_limit_reached")?{bg:"#fef3c7",fg:"#92400e"}:{bg:"#dcfce7",fg:"#166534"};
+    st.textContent = ((d.stopped||d.state==="session_stopped")?"STOPPED":(d.state==="session_limit_reached")?"LIMIT":"RUNNING");
+    st.style.background=color.bg; st.style.color=color.fg;
+  }
+  if(disps){
+    const dis=d.dispositions||{};
+    const parts=[];
+    if(d.attempted!=null) parts.push("attempted="+d.attempted);
+    if(d.connected) parts.push("answered="+d.connected);
+    if(d.failed) parts.push("failed="+d.failed);
+    if(d.retried_blocked) parts.push("retried_blocked="+d.retried_blocked);
+    for(const k of ["nup","busy","no_answer","rejected","voicemail","dnd"]){
+      if(dis[k]) parts.push(k+"="+dis[k]);
+    }
+    disps.textContent = parts.length? (" • "+parts.join(" • ")) : "";
+  }
+}
+
+async function newVoiceSession(){
+  if(!confirm("Naya voice-launch session shuru karein? Current session ka attempt-count canonical lifecycle se 0 par reset hoga.")) return;
+  try{
+    const r = await fetch("/api/admin/voice-launch/session",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr()),body:JSON.stringify({owner:"admin",label:"manual"})});
+    const d = await r.json();
+    if(d.ok) adminToast("New session: "+d.session_id); else adminToast(d.detail||"Failed","error");
+    loadVoiceSession();
+  }catch(e){ adminToast("Network error","error"); }
+}
+
+async function stopVoiceSession(){
+  if(!confirm("Is session ko emergency-stop karein? Naye provider calls ruk jayenge (in-flight call complete hogi).")) return;
+  try{
+    const r = await fetch("/api/admin/voice-launch/session/stop",{method:"POST",headers:abAuthHdr()});
+    const d = await r.json();
+    if(d.ok) adminToast("Session stopped"); else adminToast("Stop failed","error");
+    loadVoiceSession();
+  }catch(e){ adminToast("Network error","error"); }
 }
 
 function renderCampaignStatus(d){

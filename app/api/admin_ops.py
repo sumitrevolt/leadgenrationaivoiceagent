@@ -350,6 +350,25 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
     if not acquire_campaign_lock(ttl_s=max(400, req.limit * 8 + 120)):
         raise HTTPException(status_code=409, detail="Campaign already running")
 
+    # ── Session lifecycle (2026-08-02): operator Fire = canonical
+    # create_voice_session → fresh VOICE_CALLS_PER_SESSION counter. Isi single
+    # explicit lifecycle se session count reset hota hai — worker/scheduler
+    # restart kabhi nahi. Daily cap (VOICE_DAILY_CALL_CAP) session-cycling ka
+    # aggregate backstop rehta hai. Dry-run se koi session/reset nahi.
+    session_id = None
+    if not req.dry_run:
+        try:
+            from app.telephony import voice_launch as _vl_session
+
+            session_id = await _vl_session.create_voice_session(
+                owner=getattr(_user, "email", "admin") or "admin",
+                niche=req.niche or "",
+                label=f"launch:limit={req.limit}",
+            )
+        except Exception as _se:
+            logger.warning(f"[voice_launch] session create on launch failed: {_se}")
+            session_id = None
+
     try:
         from app.worker import celery_app
 
@@ -372,6 +391,7 @@ async def launch_campaign(req: CampaignLaunchReq, _user=Depends(require_admin)):
             "limit": req.limit,
             "dry_run": req.dry_run,
             "platform": req.platform,
+            "session_id": session_id,
             "via": "celery",
             "task_id": async_result.id,
             "poll": "/api/admin/campaign/status",
@@ -659,6 +679,49 @@ async def voice_launch_kill(req: _VoiceKillReq, _user=Depends(require_admin)):
         f"[voice_launch] admin kill switch set kill={req.kill} by {getattr(_user, 'email', 'admin')}"
     )
     return {"ok": ok, "kill": bool(req.kill), "status": await _vl.launch_status()}
+
+
+# ── Voice-launch SESSION endpoints (2026-08-02) ────────────────────────────────
+class _SessionCreateReq(BaseModel):
+    owner: str = "admin"
+    niche: str = ""
+    label: str = ""
+
+
+@router.get("/voice-launch/session", summary="Current voice-launch session status")
+async def voice_launch_session_status(_user=Depends(require_admin)):
+    """Operator-visible used / cap / remaining / stopped + per-disposition counts
+    for the current launch session (exactly VOICE_CALLS_PER_SESSION per session)."""
+    from app.telephony import voice_launch as _vl
+
+    return await _vl.session_status()
+
+
+@router.post("/voice-launch/session", summary="Start a NEW voice-launch session (canonical reset)")
+async def voice_launch_session_create(req: _SessionCreateReq, _user=Depends(require_admin)):
+    """CANONICAL session lifecycle — naya session (attempt counter 0). Isi single
+    explicit lifecycle se session count reset hota hai; worker/scheduler restart
+    se KABHI nahi."""
+    from app.telephony import voice_launch as _vl
+
+    sid = await _vl.create_voice_session(owner=req.owner, niche=req.niche, label=req.label)
+    if not sid:
+        raise HTTPException(status_code=503, detail="Session create failed (Redis?)")
+    logger.info(f"[voice_launch] new session {sid} by {getattr(_user, 'email', 'admin')}")
+    return {"ok": True, "session_id": sid, "status": await _vl.session_status(sid)}
+
+
+@router.post(
+    "/voice-launch/session/stop", summary="Emergency-stop the current voice-launch session"
+)
+async def voice_launch_session_stop(_user=Depends(require_admin)):
+    """Session-level emergency stop — naye provider calls block (jo call abhi
+    in-flight hai wo complete hoti hai). used/remaining visible in status."""
+    from app.telephony import voice_launch as _vl
+
+    ok = await _vl.session_stop()
+    logger.warning(f"[voice_launch] session STOP by {getattr(_user, 'email', 'admin')} ok={ok}")
+    return {"ok": ok, "status": await _vl.session_status()}
 
 
 @router.get(
