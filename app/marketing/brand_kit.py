@@ -93,13 +93,13 @@ def delete_brand(client_id: Any) -> bool:
     destructive operation whose target resolves to an opaque expression cannot
     be reviewed, and the governance ratchet correctly refuses it.
     """
-    path = os.path.join(_BRAND_DIR, _safe_id(client_id) + ".json")
+    brand_path = os.path.join(_BRAND_DIR, _safe_id(client_id) + ".json")
     try:
-        if os.path.isfile(path):
-            os.remove(path)
+        if os.path.isfile(brand_path):
+            os.remove(brand_path)
             return True
     except Exception as e:
-        logger.warning(f"[brand_kit] delete failed for {path}: {e}")
+        logger.warning(f"[brand_kit] delete failed for {brand_path}: {e}")
     return False
 
 
