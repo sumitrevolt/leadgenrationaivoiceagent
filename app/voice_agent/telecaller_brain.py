@@ -1136,6 +1136,52 @@ class TelecallerBrain:
             )
         except Exception as e:
             logger.debug(f"[telecaller-brain] close-signal sales_pipeline skip: {e}")
+
+        # 1b. DPDP consent record. The customer just verbally agreed to be
+        # contacted; that agreement is a lawful basis, but it only counts if it
+        # is WRITTEN with a source and a proof. Without this the downstream
+        # autopilot correctly refuses the number forever (eligibility fails
+        # CLOSED on a missing consent_basis), which is exactly why harvested
+        # leads never converted into follow-up.
+        _consent_ok = False
+        try:
+            from app.telephony import consent_ledger as _cl
+
+            _cl.record_consent(
+                self.caller_phone,
+                scope="all",
+                source="verbal_call_close",
+                proof=f"voice_call:{self.niche or 'unknown'}",
+            )
+            _consent_ok = True
+        except Exception as e:
+            logger.warning("[telecaller-brain] close-signal consent record failed: %s", e)
+
+        # 1c. Enrol into the sales autopilot queue so follow-up is automatic.
+        # Gated on the consent write succeeding: enrolling a prospect whose
+        # consent we failed to persist would hand the autopilot a number it has
+        # no provable basis to contact.
+        if _consent_ok:
+            try:
+                from app.platform.sales_autopilot import store as _ap
+
+                _digits = "".join(c for c in str(self.caller_phone) if c.isdigit())[-10:]
+                _ap.upsert_prospect(
+                    {
+                        "id": f"voice-{_digits}",
+                        "phone": self.caller_phone,
+                        "business_name": (
+                            self.client_name if self.niche != "ai_marketing" else ""
+                        ),
+                        "niche": self.niche,
+                        "status": _ap.STATUS_NEW,
+                        "consent_basis": "verbal_call_close",
+                        "source": "AI Voice Call",
+                    }
+                )
+            except Exception as e:
+                logger.warning("[telecaller-brain] close-signal autopilot enrol failed: %s", e)
+
         try:
             import asyncio
 
