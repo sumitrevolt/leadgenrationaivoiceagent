@@ -346,10 +346,15 @@ def test_proposal():
     from app.marketing import proposal
 
     r = asyncio.run(
-        proposal.generate_proposal("Sharma Solar", "solar_residential", "Pune", "growth")
+        proposal.generate_proposal("Sharma Solar", "solar_residential", "Pune", "starter")
     )
     assert r["ok"] and r["proposal"]
-    assert r["payment_link"].endswith("/pricing") and r["price_inr"] == 2999
+    assert r["payment_link"].endswith("/pricing") and r["price_inr"] == 1999
+    # Legacy growth key must NOT leak hidden ₹2,999 — maps to public starter.
+    legacy = asyncio.run(
+        proposal.generate_proposal("Sharma Solar", "solar_residential", "Pune", "growth")
+    )
+    assert legacy["price_inr"] == 1999
 
 
 def test_sales_assistant():
