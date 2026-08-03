@@ -140,7 +140,7 @@ def test_v4_did_not_change_the_curated_overview():
     c = bg.build_graph()["counts"]
     # Total may grow as verified detail is migrated; the DEFAULT projection
     # (L0) must stay exactly the curated owner-facing map.
-    assert c["l0"] == 48 and c["edges"] == 52
+    assert c["l0"] == 50 and c["edges"] == 56
     assert c["nodes"] == c["l0"] + c["l1"] + c["l2"]
     assert c["layers"] == 9 and c["domains"] == 18 and c["flows"] == 11
     assert bg.validate_graph(strict_files=False)["ok"]

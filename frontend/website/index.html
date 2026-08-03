@@ -557,6 +557,7 @@
           <div class="fld"><label for="f-name">Aapka naam *</label><input id="f-name" name="name" type="text" required placeholder="e.g. Rohan Sharma" autocomplete="name" /></div>
           <div class="fld"><label for="f-biz">Business ka naam *</label><input id="f-biz" name="business_name" type="text" required placeholder="e.g. Sharma Solar Solutions" autocomplete="organization" /></div>
           <div class="fld"><label for="f-phone">Phone / WhatsApp number *</label><input id="f-phone" name="phone" type="tel" required placeholder="98765 43210" autocomplete="tel" /></div>
+          <div class="fld"><label for="f-email">Business email (optional — follow-up ke liye)</label><input id="f-email" name="email" type="email" placeholder="info@yourbusiness.com" autocomplete="email" /></div>
           <div class="fld"><label for="f-niche">Business kis niche me hai?</label>
             <select id="f-niche" name="niche">
               <option value="">— Choose karo —</option>
@@ -896,6 +897,7 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name, business_name: biz, phone,
+            email:   (document.getElementById('f-email') || {}).value?.trim() || null,
             niche:   document.getElementById('f-niche').value || null,
             city:    document.getElementById('f-city').value.trim() || null,
             message: document.getElementById('f-msg').value.trim() || null,

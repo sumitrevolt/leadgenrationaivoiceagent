@@ -1315,6 +1315,12 @@ async def customer_login_page():
     return FileResponse(str(FRONTEND_DIR / "login.html"))
 
 
+@app.get("/login", tags=["Frontend"], include_in_schema=False)
+async def login_alias_redirect():
+    """Public `/login` → canonical `/app/login` (launch UX; bare /login was 404)."""
+    return RedirectResponse(url="/app/login", status_code=307)
+
+
 @app.get("/app/analytics", tags=["Frontend"])
 async def analytics_page():
     """Analytics dashboard — funnel, call/lead stats, revenue (Chart.js over live-stats)."""
