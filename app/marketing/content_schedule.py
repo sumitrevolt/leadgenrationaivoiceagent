@@ -103,6 +103,26 @@ def mark(item_id: str, status: str) -> bool:
     return hit
 
 
+def cancel_for_client(client_id: str, reason: str = "customer_removed") -> int:
+    """Cancel every pending (scheduled/ready) item for a client. Returns count."""
+    cid = (client_id or "").strip()
+    if not cid:
+        return 0
+    items = _read()
+    n = 0
+    for i in items:
+        if str(i.get("client_id") or "").strip() != cid:
+            continue
+        if i.get("status") in ("scheduled", "ready"):
+            i["status"] = "cancelled"
+            i["cancel_reason"] = reason
+            i["cancelled_at"] = _now()
+            n += 1
+    if n:
+        _write_all(items)
+    return n
+
+
 async def run_due(limit: int = 20) -> dict[str, Any]:
     """Prepare content for items due today or earlier (status=scheduled). Never raises."""
     res = {"due": 0, "prepared": 0}

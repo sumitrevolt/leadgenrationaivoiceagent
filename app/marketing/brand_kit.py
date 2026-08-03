@@ -84,6 +84,25 @@ def get_brand(client_id: Any) -> dict[str, Any] | None:
         return None
 
 
+def delete_brand(client_id: Any) -> bool:
+    """Delete saved brand profile file (admin customer removal). Returns True
+    if a file was removed; never raises.
+
+    The path is built from _BRAND_DIR at the call site rather than via _path()
+    so the runtime-data scanner can prove WHICH store this DELETE touches. A
+    destructive operation whose target resolves to an opaque expression cannot
+    be reviewed, and the governance ratchet correctly refuses it.
+    """
+    brand_path = os.path.join(_BRAND_DIR, _safe_id(client_id) + ".json")
+    try:
+        if os.path.isfile(brand_path):
+            os.remove(brand_path)
+            return True
+    except Exception as e:
+        logger.warning(f"[brand_kit] delete failed for {brand_path}: {e}")
+    return False
+
+
 def apply_brand_to_poster_args(client_id: Any, args: dict[str, Any] | None) -> dict[str, Any]:
     """Poster args me brand merge karo (args ke explicit values jeet-te hain).
 
