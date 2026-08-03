@@ -222,10 +222,12 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def calling_posture() -> dict[str, Any]:
+def calling_posture(*, voice_killed: bool | None = None) -> dict[str, Any]:
     """Honest outbound-calling status for Owner OS UI. Never fabricates.
 
     Owner OS still refuses ENABLE from this surface — arming stays env/data-file.
+    Pass ``voice_killed`` when the caller already evaluated ``admin_kill_status``
+    so kill_switch_board snapshots stay single-read.
     """
     live = False
     limit: int | None = None
@@ -239,13 +241,16 @@ def calling_posture() -> dict[str, Any]:
             limit = None
     except Exception:
         live = False
-    voice_killed = False
-    try:
-        from app.telephony.voice_launch import admin_kill_status
+    if voice_killed is None:
+        try:
+            from app.telephony.voice_launch import admin_kill_status
 
-        voice_killed = bool(admin_kill_status().engaged)
-    except Exception:
-        pass
+            # Read .engaged explicitly — never bool(status) (AdminKillStatus trap).
+            voice_killed = admin_kill_status().engaged is True
+        except Exception:
+            voice_killed = False
+    else:
+        voice_killed = voice_killed is True
     effective = bool(live) and not voice_killed
     if effective:
         badge = "Calling LIVE (compliance on)"
@@ -362,27 +367,7 @@ def kill_switch_board() -> dict[str, Any]:
             **KILL_ENFORCEMENT_MATRIX["owner_payment_mutation"],
         },
     }
-    try:
-        from app.platform import platform_dial as _pd
-
-        enabled = bool(_pd.enabled())
-        posture = calling_posture()
-        board["platform_dial"].update(
-            {
-                "engaged": not enabled,
-                "hard_off": not enabled,
-                "source": "platform_dial",
-                "can_enable_here": False,
-                "note": (
-                    "LIVE — arm/disarm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
-                    if enabled
-                    else "OFF — arm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
-                ),
-                "live": bool(posture.get("live")),
-            }
-        )
-    except Exception:
-        pass
+    _kill = None
     try:
         from app.telephony.voice_launch import admin_kill_status
 
@@ -397,6 +382,27 @@ def kill_switch_board() -> dict[str, Any]:
         board["voice_launch_kill"]["source"] = _kill.source
         board["voice_launch_kill"]["reason"] = _kill.reason
         board["voice_launch_kill"]["can_toggle"] = True
+    except Exception:
+        _kill = None
+    posture = calling_posture(voice_killed=(_kill.engaged is True) if _kill is not None else False)
+    try:
+        from app.platform import platform_dial as _pd
+
+        enabled = bool(_pd.enabled())
+        board["platform_dial"].update(
+            {
+                "engaged": not enabled,
+                "hard_off": not enabled,
+                "source": "platform_dial",
+                "can_enable_here": False,
+                "note": (
+                    "LIVE — arm/disarm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
+                    if enabled
+                    else "OFF — arm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
+                ),
+                "live": bool(posture.get("live")),
+            }
+        )
     except Exception:
         pass
     try:
@@ -418,7 +424,7 @@ def kill_switch_board() -> dict[str, Any]:
                 "can_toggle": True,
             }
     board["_matrix"] = KILL_ENFORCEMENT_MATRIX
-    board["_calling_badge"] = calling_posture().get("badge") or "Calling OFF"
+    board["_calling_badge"] = posture.get("badge") or "Calling OFF"
     return board
 
 
