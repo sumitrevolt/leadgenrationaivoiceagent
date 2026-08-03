@@ -838,6 +838,198 @@ async def admin_delete_client(
     return result
 
 
+class ClientRemoveIn(BaseModel):
+    confirm: bool = False
+    reason: str = ""
+
+
+@router.post("/clients/{client_id}/remove-customer")
+async def admin_remove_customer(
+    client_id: str, body: ClientRemoveIn, request: Request, admin=Depends(require_admin)
+) -> dict:
+    """Full customer removal — NOT just the clients_store record.
+
+    Revokes the portal login, cancels scheduled content, marks any autopilot
+    prospects that converted to this client as terminal ``removed`` (so they
+    stop counting as customers AND are never re-contacted), deletes the brand
+    kit + per-client derived stores (delivery ledger, blogs, crm, content
+    queue), then removes the clients_store record. Irreversible → confirm
+    required. Admin-gated + idempotent like the other destructive actions.
+
+    Returns a per-store cleanup summary so the operator can verify.
+    """
+    cid = (client_id or "").strip()
+    if not body.confirm:
+        await record_admin_action(
+            request=request,
+            actor=admin,
+            action="client.remove",
+            target_type="client",
+            target_id=cid,
+            tenant=cid,
+            result="rejected",
+            error="confirm required",
+        )
+        return {"ok": False, "error": "confirm required"}
+
+    _idem = admin_idempotency.begin(
+        request=request,
+        actor_id=getattr(admin, "id", None),
+        scope="client.remove",
+        payload={"client_id": cid, "confirm": True, "reason": body.reason},
+    )
+    if isinstance(_idem, admin_idempotency.Replay):
+        return _idem.response
+
+    # Billing/invoice ids (e.g. `d79d690f61b3`) differ from the canonical marketing
+    # id (`jiya-makeover`). Every derived store below is keyed on the MARKETING id,
+    # so resolving the alias FIRST is what stops a half-removal: without this, an
+    # alias id deletes nothing and still reports per-store `false` while the operator
+    # believes the customer is gone. Never raises — unknown ids fall through as-is.
+    requested_cid = cid
+    try:
+        from app.marketing import clients_store as _cs_resolve
+
+        _canon = _cs_resolve.resolve_client(cid)
+        if _canon and str(_canon.get("id") or "").strip():
+            cid = str(_canon["id"]).strip()
+    except Exception as e:  # pragma: no cover - defensive
+        logger.warning("[admin remove-customer] alias resolve failed: %s", e)
+
+    summary: dict = {
+        "client_id": cid,
+        "requested_client_id": requested_cid,
+        "reason": body.reason,
+        "auth_logins_revoked": 0,
+        "auth_emails": [],
+        "content_cancelled": 0,
+        "prospects_removed": 0,
+        "prospect_ids": [],
+        "brand_kit_deleted": False,
+        "delivery_deleted": False,
+        "blogs_deleted": False,
+        "crm_deleted": False,
+        "content_queue_deleted": False,
+        "clients_record_deleted": False,
+    }
+
+    def _rm(p: str) -> bool:
+        try:
+            if p and os.path.isfile(p):
+                os.remove(p)
+                return True
+        except Exception as e:
+            logger.warning("[admin remove-customer] rm %s failed: %s", p, e)
+        return False
+
+    # 1. Portal login(s) — customer can no longer log in.
+    try:
+        from app.api import customer_auth
+
+        auth = customer_auth.revoke_login_by_client(cid)
+        summary["auth_logins_revoked"] = auth.get("removed", 0)
+        summary["auth_emails"] = auth.get("emails", [])
+    except Exception as e:
+        logger.warning("[admin remove-customer] auth revoke failed: %s", e)
+
+    # 2. Scheduled content → cancelled (never published later).
+    try:
+        from app.marketing import content_schedule
+
+        summary["content_cancelled"] = content_schedule.cancel_for_client(cid)
+    except Exception as e:
+        logger.warning("[admin remove-customer] content cancel failed: %s", e)
+
+    # 3. Autopilot prospects that converted to this client → terminal removed.
+    try:
+        from app.platform.sales_autopilot import store as _ap
+
+        for prospect in _ap.find_by_converted_client(cid):
+            rec = _ap.mark_removed(
+                prospect.get("id") or prospect.get("prospect_id") or "",
+                by=getattr(admin, "id", "admin") or "admin",
+                reason=body.reason or "customer_removed",
+            )
+            if rec:
+                summary["prospects_removed"] += 1
+                summary["prospect_ids"].append(
+                    str(prospect.get("id") or prospect.get("prospect_id"))
+                )
+    except Exception as e:
+        logger.warning("[admin remove-customer] autopilot sweep failed: %s", e)
+
+    # 4. Brand kit + per-client derived stores.
+    try:
+        from app.marketing import brand_kit
+
+        summary["brand_kit_deleted"] = brand_kit.delete_brand(cid)
+    except Exception as e:
+        logger.warning("[admin remove-customer] brand kit delete failed: %s", e)
+    try:
+        from app.marketing import product_one_delivery as _pod
+
+        summary["delivery_deleted"] = _rm(_pod._events_path(cid))
+    except Exception as e:
+        logger.warning("[admin remove-customer] delivery delete failed: %s", e)
+    try:
+        from app.marketing import client_blog as _cb
+
+        summary["blogs_deleted"] = _rm(str(_cb._path(cid)))
+    except Exception as e:
+        logger.warning("[admin remove-customer] blogs delete failed: %s", e)
+    try:
+        from app.marketing import crm_lite as _crm
+
+        summary["crm_deleted"] = _rm(_crm._path(cid))
+    except Exception as e:
+        logger.warning("[admin remove-customer] crm delete failed: %s", e)
+    try:
+        from app.marketing import delivery_ledger as _dl
+
+        summary["content_queue_deleted"] = _rm(
+            os.path.join(_dl._CONTENT_QUEUE_DIR(), f"{_dl._safe_stem(cid)}.jsonl")
+        )
+    except Exception as e:
+        logger.warning("[admin remove-customer] content-queue delete failed: %s", e)
+
+    # 5. clients_store record (the old delete path, folded in).
+    try:
+        from app.marketing import clients_store
+
+        summary["clients_record_deleted"] = bool(clients_store.delete_client(cid))
+    except Exception as e:
+        logger.warning("[admin remove-customer] clients_store delete failed: %s", e)
+
+    ok = any(
+        [
+            summary["auth_logins_revoked"] > 0,
+            summary["content_cancelled"] > 0,
+            summary["prospects_removed"] > 0,
+            summary["brand_kit_deleted"],
+            summary["delivery_deleted"],
+            summary["blogs_deleted"],
+            summary["crm_deleted"],
+            summary["content_queue_deleted"],
+            summary["clients_record_deleted"],
+        ]
+    )
+    summary["ok"] = ok
+    admin_idempotency.store(_idem, summary)
+    await record_admin_action(
+        request=request,
+        actor=admin,
+        action="client.remove",
+        target_type="client",
+        target_id=cid,
+        tenant=cid,
+        after=summary,
+        result=("success" if ok else "failed"),
+        error=(None if ok else "no stores had data to remove"),
+        idempotency_key=admin_idempotency.key_of(request),
+    )
+    return summary
+
+
 @router.post("/clients/dedupe")
 async def admin_dedupe_clients(request: Request, admin=Depends(require_admin)) -> dict:
     """Remove exact-duplicate client records (same phone → keep newest)."""

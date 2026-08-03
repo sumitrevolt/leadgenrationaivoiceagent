@@ -29,6 +29,14 @@ def env(tmp_path, monkeypatch):
     from app.marketing import video_media_paths as vmp
     from app.marketing import video_pipeline
 
+    # HERMETIC PRECONDITION (do not remove): every test here that does a REAL copy
+    # writes to the host filesystem, and prepare_snapshot refuses when the destination
+    # would fall below VIDEO_SNAPSHOT_MIN_FREE_PCT. Left unpinned, the whole file goes
+    # red on any machine whose disk is under the default floor — a host-capacity fact,
+    # not a snapshot defect. Pinned low here; the tests that are ABOUT the floor set
+    # their own value (or stub _disk_free_total) and therefore still prove it.
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "1")
+
     src_root = tmp_path / "reels"
     src_root.mkdir()
     approved = tmp_path / "video_ads" / "_approved"
@@ -212,6 +220,10 @@ def test_oversized_source_refused(env, monkeypatch):
 
 def test_projected_free_crossing_threshold_refuses(env, monkeypatch):
     """Currently ABOVE the floor, but the copy would take it below."""
+    # States its OWN floor rather than inheriting one: the arithmetic below is written
+    # against 10%, so reading the ambient value would silently stop testing the
+    # crossing once the floor changes anywhere else.
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "10")
     size = env["source"].stat().st_size
     total = size * 100
     free = int(total * 0.105)  # 10.5% now; the copy costs 1% -> 9.5% after
@@ -224,6 +236,7 @@ def test_projected_free_crossing_threshold_refuses(env, monkeypatch):
 
 def test_projected_free_exactly_at_threshold_is_admitted(env, monkeypatch):
     """Documented boundary: >= floor passes; the floor itself is admissible."""
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "10")
     size = env["source"].stat().st_size
     total = size * 100
     free = size + int(total * 0.10)  # exactly 10.0% remains after the copy

@@ -43,7 +43,7 @@
 
 - **Skills (`.claude/skills/`, 178):** ~67 PROJECT skills are enterprise-grade (additive operating-loop + risk-tier + fail-closed gates). The rest are **generic marketing packs + superpowers/process skills, intentionally left portable** (stamping them with project-loops would degrade their reusability — do NOT mass-restamp). Invoke a skill, don't re-derive it. Index: `skills-index.md` · parity `SKILLS_PARITY.md`.
 - **Slash commands (`.claude/commands/`):** `/verify` `/ship` `/checkpoint` `/learn` `/optimize` `/test-expand` `/compact-check` `/council-advancement`.
-- **Guard hooks (`.claude/hooks/`):** `guard.py` (DENY `git add -A`/force-push/`rm -rf /`/CLAUDE.md-bash-edit; ASK reset--hard/prune/DROP/live-container-stop) + `skill_reminder.py`. Deterministic, fail-open, boundary-anchored. settings.json gitignored/local (self-mod gated).
+- **Guard hooks (`.claude/hooks/`):** `guard.py` (DENY `git add -A`/force-push/`rm -rf /`/CLAUDE.md-bash-edit; ASK reset--hard/prune/DROP/live-container-stop) + `skill_reminder.py`. Deterministic, fail-open, boundary-anchored. Hook registration stays in `.claude/settings.local.json` (gitignored, self-mod gated). Tracked `.claude/settings.json` is plugin-policy only — `warp@claude-code-warp` OFF (ADR-WARP-PLUGIN-OFF).
 
 ---
 
