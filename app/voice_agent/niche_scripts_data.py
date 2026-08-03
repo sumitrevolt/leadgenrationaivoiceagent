@@ -3,7 +3,11 @@
 Extracted from app/voice_agent/niche_scripts.py (2026-06-20 refactor) — pure data, re-exported.
 """
 
-from app.voice_agent.universal_pitch import INTEREST_ASK, PITCH_SHORT, UNIVERSAL_AGENT_INTRO
+from app.voice_agent.universal_pitch import (
+    INTEREST_ASK,
+    PITCH_SHORT,
+    UNIVERSAL_AGENT_INTRO,
+)
 
 NICHE_SCRIPTS: dict[str, dict] = {
     # ====================================================================== #
@@ -177,34 +181,31 @@ NICHE_SCRIPTS: dict[str, dict] = {
         "interest_ask": INTEREST_ASK,
         "yes_praise": (
             "Theek — pehle aapki situation samajh leti hoon. "
-            "Abhi naye customer aapke paas kaise aate hain — referral, Google, ya "
-            "social posts se?"
+            "Marketing abhi khud karte ho, staff se, ya agency?"
         ),
         "no_convince_once": (
-            "Samajh sakti hoon — bas ek question, 30 second: Google ya Instagram pe "
-            "aapka business search karne par upar dikhta hai? Agar nahi, to free audit "
-            "aur 7-din FREE trial bhej deti hoon — koi charge nahi, pehle result dekhiye."
+            "Samajh sakti hoon — 7 din ka FREE trial hai, pehle result dekho phir decide."
         ),
         "close_cold": "Theek hai, shukriya — din shubh!",
         "discovery": [
-            "Abhi naye customer aapke paas kaise aate hain — referral, Google, ya social posts se?",
-            "Google ya Instagram pe aapka business search karne par dikhta hai kya, ya competition peeche chhod raha hai?",
-            "Agar har mahine 5-10 naye customer aur aayein, to business pe kitna asar hoga?",
-            "Roz ka posts/ads banane me aapka kitna time jaata hai, aur kaun karta hai — aap ya koi staff?",
+            "Marketing abhi khud karte ho, staff se, ya agency?",
+            "Google pe search karne par upar dikhta hai kya?",
+            "Social pe regular post ho paata hai, ya time nahi milta?",
+            "Mahine me marketing pe approx kitna kharcha?",
         ],
         "objections": {
-            "mehenga": "Bilkul samajh sakti hoon — ₹1,999/mahina aapke ek extra customer se poora nikal jaata hai. 7 din FREE trial me khud check kar lijiye, phir decide.",
-            "abhi_nahi": "Koi baat nahi — tab tak free Google audit karwa doon? Score, fixes aur exact gaps, koi charge nahi, 5 minute ka kaam.",
-            "soch_ke": "Bilkul sochiye — free audit aur 7-din trial dono abhi bhej deti hoon; result aapke saamne, decision aapka.",
-            "pehle_se_hai": "Achha — agency ₹15-25 hazaar le rahi hai aur inquiry follow-up bhi chhuta hai. AI se wahi kaam ₹1,999 me, aur leads miss nahi hote. 7 din free try karo.",
-            "bharosa": "Sahi sawaal — isliye pehle free audit aur 7-din trial. Koi card nahi, result dekh ke hi aage badhiye.",
+            "mehenga": "₹1,999/mahina se shuru — din me ₹40 se kam. Ek extra customer se kharcha nikal jaata hai.",
+            "abhi_nahi": "Koi baat nahi — tab tak FREE Google audit karwa doon? Score aur fixes, koi charge nahi.",
+            "soch_ke": "Bilkul sochiye — FREE audit bhej deti hoon, 7-din trial bhi hai, aaram se decide kijiye.",
+            "pehle_se_hai": "Agency ₹15-25K leti hai, hum ₹1,999 se. Inquiry follow-up bhi AI se ho jaata hai.",
+            "bharosa": "Sahi sawaal — pehle FREE audit aur trial lijiye, pasand aaye tabhi aage badhiye.",
         },
         "value_lines": [
-            "Roz ke posts, festival posters aur Google profile — sab automatic; aapka sirf result check karna hai.",
-            "Har naya customer ₹1,999 ke kharch se kaafi zyada laayega — owner-math simple hai.",
-            "7 din FREE trial, bina card — pehle result, phir payment.",
+            "Roz ke posts, festival posters aur Google profile — sab automatic, aapka time bachta hai.",
+            "7 din FREE trial — bina card, pehle result dekho.",
+            "Advanced me inquiry pe 2 minute me AI callback bhi — koi lead miss nahi.",
         ],
-        "closing": "Toh free Google audit aaj bhej doon, ya 7-din trial kal se start kar doon?",
+        "closing": "Toh FREE Google audit abhi bhej doon? Saath me 7-din trial — aaj ya kal set kar doon?",
     },
     # ====================================================================== #
     # ADDITIONAL NICHE SCRIPTS (29 niches — professionally researched Hinglish)
