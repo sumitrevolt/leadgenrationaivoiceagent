@@ -125,6 +125,22 @@ def build_owner_context(*, tenant_id: str | None = None) -> dict[str, Any]:
         except Exception:
             customers["delivery_risks"] = ["status_unavailable"]
 
+    # ADR-154: compact workforce memory hub snapshot (no entry bodies / no PII dump).
+    workforce_memory: dict[str, Any] = {"enabled": False, "source": "workforce_memory"}
+    try:
+        from app.platform import workforce_memory as _wfm
+
+        snap = _wfm.hub_snapshot(max_agents=5)
+        workforce_memory = {
+            "enabled": bool(snap.get("enabled")),
+            "agents_with_memory": int(snap.get("agents_with_memory") or 0),
+            "sample_agent_ids": [s.get("agent_id") for s in (snap.get("sample") or [])][:5],
+            "counters": snap.get("counters") or {},
+            "source": "workforce_memory.hub_snapshot",
+        }
+    except Exception as exc:
+        workforce_memory["error"] = type(exc).__name__
+
     ctx = {
         "platform": platform,
         "agents": agents,
@@ -132,6 +148,7 @@ def build_owner_context(*, tenant_id: str | None = None) -> dict[str, Any]:
         "approvals": approvals,
         "customers": customers,
         "safety": safety,
+        "workforce_memory": workforce_memory,
         "next_actions": next_actions[:5],
         "generated_at": _now(),
         "max_payload_note": "compact context — no DB dump, no secrets, no cross-tenant",

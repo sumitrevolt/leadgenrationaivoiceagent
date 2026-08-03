@@ -2,6 +2,18 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## ADR-154 (2026-08-03) — Workforce Memory Hub learns TencentDB patterns; does NOT vendor the repo [CODE-PRESENT, flag OFF]
+
+**Decision:** Adopt architecture ideas from [TencentCloud/TencentDB-Agent-Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory) (4 assets chat/skill/wiki/code · L0→L3 pyramid · progressive disclosure · node_id offload · fixed agent bindings) as a **native** hub in `app/platform/workforce_memory.py` for all 31 STAFF agents. Do **not** vendor/subtree the TypeScript OpenClaw plugin, MemoryPanel/Proxy, or Tencent Cloud Vector DB.
+
+**Context:** 31 agents already have fragmented memory lanes (Qdrant `agent_memory`, skill_library, memory_vault, coordinator Reflexion JSONL, trajectory). Gap = no per-STAFF unified working/episodic API + no OpenClaw durable agent-knowledge snapshot. TencentDB stars prove the *patterns*; our stack already covers storage.
+
+**Alternatives rejected:** (1) Vendor full repo / npm plugin — second deploy product, Node≥22, conflicts free-stack + Qdrant. (2) Replace Qdrant/Postgres with sqlite-vec — rewrites working lanes. (3) Add 32nd “memory agent” — Boss/OpenClaw stay control plane, not new STAFF.
+
+**Consequence:** Flag `WORKFORCE_MEMORY` (OFF default). Admin `/api/workforce-memory/*`. Dual-write bridges from `skill_library.record_lesson` + `coordinator._remember`. OpenClaw `build_owner_context` gets compact hub snapshot (counts only). `team.memory_brief()` for prompt inject. Kill switch = unset flag. Does not auto-mutate prompts or touch voice hot-path sync.
+
+**Follow-up (same ADR, 2026-08-03 session B):** Also ship recall budgets/timeout, content-hash dedupe + provenance (`parent_id`/`source_refs`), private→team visibility + admin `equip` loadout (skill/wiki only; chat/L0 forced private), L0/L1 TTL prune (`POST /prune`, dry_run default), and `agent_runtime` `ctx.memory_brief` inject + L0 outcome crumb. Still no Tencent vendor / no voice hot-path.
+
 ## 2026-08-01 - ADR-AUTOPILOT-REAL Sales Autopilot REAL + Boss autonomy (owner mandate)
 
 Decision: Owner mandate 2026-08-01 "sab on karo" → `SALES_AUTOPILOT_DRY_RUN=0`
@@ -2371,4 +2383,3 @@ Evidence chain, all at the frozen head: pristine archive checkout → **82 passe
 **Decision:** Track project `.claude/settings.json` with `"enabledPlugins": {"warp@claude-code-warp": false}` so this repo opts out. Guard/reward hooks stay machine-local in `.claude/settings.local.json` (still gitignored).
 
 **Consequence:** Claude Code in this project will not load Warp PostToolUse. No app/runtime/deploy impact. Users with an existing local `.claude/settings.json` should merge the `enabledPlugins` key (do not wipe local hooks). Rollback = set the key to `true` or delete the entry.
-
