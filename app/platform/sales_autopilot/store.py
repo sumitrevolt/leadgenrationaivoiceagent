@@ -39,6 +39,7 @@ STATUS_REPLIED = "replied"
 STATUS_OPTED_OUT = "opted_out"
 STATUS_CONVERTED = "converted"
 STATUS_MANUAL_OWNER_CONFIRMED = "manual_owner_confirmed"
+STATUS_REMOVED = "removed"
 
 
 def _now() -> str:
@@ -143,6 +144,35 @@ def is_owner_confirmed(prospect_id: str) -> bool:
     return rec.get("status") == STATUS_MANUAL_OWNER_CONFIRMED or bool(
         rec.get("manual_owner_confirmed")
     )
+
+
+def mark_removed(prospect_id: str, *, by: str = "admin", reason: str = "") -> dict[str, Any] | None:
+    """Terminal state: this prospect is NO LONGER a customer (admin/owner decision).
+
+    Clears the converted linkage + manual-owner flags so it stops counting as a
+    converted customer AND the autopilot never re-contacts it (eligibility treats
+    ``removed`` as fail-closed INELIGIBLE). Adds an audit note to the record.
+    """
+    return mark_status(
+        str(prospect_id),
+        STATUS_REMOVED,
+        converted_client_id="",
+        manual_owner_confirmed=False,
+        removed_by=by,
+        removed_reason=reason or "",
+    )
+
+
+def find_by_converted_client(client_id: str) -> list[dict[str, Any]]:
+    """Prospects that converted to a given marketing client_id (customer-removal sweep)."""
+    cid = str(client_id or "").strip()
+    if not cid:
+        return []
+    return [
+        r
+        for r in list_prospects(limit=5000)
+        if str(r.get("converted_client_id") or "").strip() == cid
+    ]
 
 
 # ------------------------------------------------------------------ #
@@ -315,11 +345,14 @@ __all__ = [
     "STATUS_OPTED_OUT",
     "STATUS_CONVERTED",
     "STATUS_MANUAL_OWNER_CONFIRMED",
+    "STATUS_REMOVED",
     "digits",
     "get_prospect",
     "list_prospects",
     "upsert_prospect",
     "mark_status",
+    "mark_removed",
+    "find_by_converted_client",
     "add_step_done",
     "is_owner_confirmed",
     "attempt_exists",

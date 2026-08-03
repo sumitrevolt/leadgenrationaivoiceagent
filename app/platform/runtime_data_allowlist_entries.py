@@ -289,6 +289,42 @@ ENTRIES: list[dict[str, Any]] = [
     # rather than absorbed into the debt baseline: writers authored by the change
     # under review are new debt, not newly visible debt.
     {
+        "allowlist_id": "marketing.brand_kits.path",
+        "file": "app/marketing/brand_kit.py",
+        # The scanner's symbol table is per-FILE, so the generic name `path`
+        # resolves from get_brand's assignment and the DELETE would inherit an
+        # opaque expression. The destructive path carries its own symbol.
+        "line_or_symbol": "brand_path",
+        # Must match what the SCANNER emits for this symbol, not the human-readable
+        # shape: the path is computed, so the detected expression is the call itself.
+        # It resolves to data/brand_kits/<_safe_id(client_id)>.json.
+        # The gate matches the declared basename against the RESOLVED expression,
+        # which is os.path.join(_BRAND_DIR, ...). _BRAND_DIR is the store root
+        # constant (= os.path.join("data", "brand_kits")); tests monkeypatch it, so
+        # inlining the literal here would break per-test isolation and point a real
+        # DELETE at the shared data dir. Naming the constant is the honest match.
+        "path_pattern": "_BRAND_DIR",
+        "store_id": "marketing.brand_kits",
+        "access_modes": ["READ", "CREATE", "REWRITE", "DELETE"],
+        "reason": (
+            "Per-tenant brand profile (colours, logo, handles) used to auto-brand "
+            "posters and content packs. save_brand() creates/rewrites it; "
+            "delete_brand() removes it during admin customer removal so a removed "
+            "customer leaves no brand assets behind (DPDP purge)."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "runtime-data-cutover-wave-2",
+        "owner": "marketing",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "DELETE is irreversible and admin-gated: it must stay behind the "
+            "confirm-required remove-customer path and must never be reachable "
+            "from a customer-facing or unauthenticated route. The client_id is "
+            "sanitised by _safe_id() before it reaches the filesystem - any change "
+            "there is a path-traversal review, since the id arrives from a URL."
+        ),
+    },
+    {
         "allowlist_id": "telephony.voice_kill_switch.authority",
         "file": "app/telephony/voice_launch.py",
         "line_or_symbol": "p",

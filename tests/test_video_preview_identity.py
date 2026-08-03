@@ -28,6 +28,12 @@ def preview_client(monkeypatch, tmp_path):
     monkeypatch.setenv("ENVIRONMENT", "development")
     monkeypatch.setenv("VIDEO_CUSTOMER_REVIEW_ENABLED", "1")
     monkeypatch.setenv("VIDEO_CUSTOMER_REVIEW_CLIENTS", "*")
+    # HERMETIC PRECONDITION (do not remove): approve() snapshots to the host filesystem
+    # and refuses `insufficient_disk_headroom` below VIDEO_SNAPSHOT_MIN_FREE_PCT. These
+    # tests are about preview/approve IDENTITY, so the host's free space must not decide
+    # the result — unpinned, they go red on any box under the default floor. The floor
+    # has dedicated coverage in tests/test_video_snapshot_primitive.py.
+    monkeypatch.setenv("VIDEO_SNAPSHOT_MIN_FREE_PCT", "1")
 
     from app.api.customer_auth import require_customer
 
