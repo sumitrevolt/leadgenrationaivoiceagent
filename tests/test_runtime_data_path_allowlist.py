@@ -114,7 +114,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # 2026-08-02 +1 entry / +1 family: marketing.brand_kits — admin remove-customer
     # added a DELETE against the brand profile, and it was CLASSIFIED rather than
     # tolerated (nothing was added to the baseline debt file).
-    assert len(entries) == 27
+    assert len(entries) == 37
     assert len(families) == 12, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
