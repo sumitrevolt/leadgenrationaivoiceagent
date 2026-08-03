@@ -4,10 +4,10 @@
 # =============================================================================
 # Core Framework
 # =============================================================================
-fastapi==0.139.2
-uvicorn[standard]==0.51.0
+fastapi==0.141.1
+uvicorn[standard]==0.52.0
 pydantic==2.13.4
-pydantic-core==2.46.4
+pydantic-core==2.47.0
 pydantic-settings==2.14.2
 email-validator==2.3.0
 python-multipart==0.0.32
@@ -27,12 +27,12 @@ aioredis==2.0.1
 # AI/ML - Cloud-based APIs
 # =============================================================================
 openai==2.41.0  # also drives Groq/Cerebras/OpenRouter free LLMs (OpenAI-compatible base_url) ΓÇö see app/voice_agent/free_ai.py
-anthropic==0.117.0
-# langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.4.9 (langgraph)
+anthropic==0.120.2
+# langchain==0.1.6        # unused in codebase; pin conflicts with langchain-core>=1.5.3 (langgraph)
 # langchain-openai==0.0.5 # unused in codebase; same conflict
 google-generativeai==0.8.6
-google-genai>=2.12.1  # Gemini audio-in STT (phone hearing) ΓÇö NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
-google-cloud-aiplatform==1.161.0
+google-genai>=2.16.0  # Gemini audio-in STT (phone hearing) ΓÇö NEW SDK, namespace google.genai (old SDK ke saath coexist karta hai)
+google-cloud-aiplatform==1.163.0
 
 # =============================================================================
 # Vector RAG (Qdrant + fastembed e5 embeddings ΓÇö KB backend)
@@ -53,19 +53,19 @@ faster-whisper>=1.0.0
 
 # TTS
 elevenlabs==1.0.3
-azure-cognitiveservices-speech==1.50.0
+azure-cognitiveservices-speech==1.51.1
 edge-tts>=7.2.0  # 6.1.9 gets HTTP 403 from MS endpoint (Sec-MS-GEC token) ΓÇö must be 7.x
 
 # =============================================================================
 # Payment Gateways
 # =============================================================================
-stripe>=15.3.1
+stripe>=15.4.0
 # razorpay removed 2026-06-18 ΓÇö no online India gateway (payments via manual UPI)
 
 # =============================================================================
 # Web Scraping
 # =============================================================================
-playwright==1.61.0
+playwright==1.62.0
 beautifulsoup4==4.15.0
 selenium==4.46.0
 googlemaps==4.10.0
@@ -74,7 +74,7 @@ googlemaps==4.10.0
 # HTTP Clients & Email
 # =============================================================================
 requests==2.34.2
-aiohttp==3.14.2
+aiohttp==3.14.3
 httpx==0.28.1
 aiosmtplib==3.0.1
 
@@ -126,7 +126,7 @@ google-cloud-logging>=3.16.1
 # missing => local-disk fallback. Needed only if docker-compose.addons.yml minio used.
 boto3>=1.34.0
 google-cloud-monitoring>=2.18.0
-google-auth>=2.56.0
+google-auth>=2.56.2
 
 # =============================================================================
 # Authentication
@@ -144,22 +144,22 @@ scikit-learn>=1.3.2
 # =============================================================================
 # Agent Orchestration (LangGraph supervisor ΓÇö app/agents/)
 # =============================================================================
-langgraph>=1.2.9
-langgraph-checkpoint-sqlite>=2.0
-langchain-core>=1.4.9
+langgraph>=1.2.10
+langgraph-checkpoint-sqlite>=3.1.1
+langchain-core>=1.5.3
 # Multi-agent supervisor over MANY agents (app/agents/staff_supervisor.py) ΓÇö opt-in
 # (USE_LANGGRAPH_SUPERVISOR=1). Official LangChain supervisor pattern; reads STAFF roster.
 langgraph-supervisor>=0.0.27
-langchain-openai>=1.3.5  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
+langchain-openai>=1.4.1  # ChatOpenAI over free OpenAI-compatible providers (Cerebras/Groq)
 # Knowledge-graph RAG (app/voice_agent/graph_rag.py) ΓÇö opt-in USE_LIGHTRAG=1.
 # Lightweight entity/relation graph; uses free_ai LLM + the KB's fastembed embeddings.
 # (Agentic RAG, app/agents/agentic_rag.py, needs NO new dep ΓÇö reuses KB + free_ai.)
-lightrag-hku>=1.5.4
+lightrag-hku>=1.5.5
 # AI-automation + marketing helpers (opt-in, defensive ΓÇö graceful fallback if absent):
 instructor>=1.15.4     # validated/typed LLM outputs over free providers (app/llm/structured.py)
 advertools>=0.18.0    # SEM keyword + RSA ad generation (app/marketing/seo_tools.py)
-trafilatura>=2.0    # high-accuracy web text + contact extraction (app/lead_scraper/web_extract.py)
-markitdown>=0.1     # any file/URL -> LLM-ready markdown (app/lead_scraper/to_markdown.py)
+trafilatura>=2.2.0    # high-accuracy web text + contact extraction (app/lead_scraper/web_extract.py)
+markitdown>=0.1.7     # any file/URL -> LLM-ready markdown (app/lead_scraper/to_markdown.py)
 # crawl4ai>=0.4     # deep LLM-friendly web crawl -> clean markdown (app/lead_scraper/deep_extract.py)
 #                     OPTIONAL/heavy: needs `crawl4ai-setup` (Chromium). Falls back to trafilatura.
 # Lead-gen data quality (competitor-grade ΓÇö Hunter/Instantly verify before sending):
