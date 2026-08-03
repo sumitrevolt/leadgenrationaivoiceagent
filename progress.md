@@ -1,6 +1,18 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-03 (World-class revenue automation GTM-first)
+Goal: Implement plan WS-R1 refill + WS-R2 inquiry→HQ/STL + WS-R3 pay-truth; no deploy without owner.
+Inspected: sales_autopilot store/scheduler/eligibility/admin; prospector; reply_agent hot_queue; inquiry_hooks; speed_to_lead; upi_payments; owner_os.
+Problems Found: Autopilot idle empty store; inquiries not in Hot Queue; converted≠paid; empty-cid UPI activate ambiguity; STL lacked 5-min fields.
+Changed: refill.py, pay_truth.py, inquiry_hq_bridge.py; STATUS_AWAITING_PAYMENT; scheduler hooks; admin refill/pay-truth; SALES_AUTOPILOT_REFILL; HQ inquiry+chase; STL under_5min; owner OS SLA; UPI needs_client_bind; test_revenue_automation_gtm_2026_08_03.py (12).
+Tests Run: 12 revenue green; scheduler+eligibility+billing_truth green; prod_check ALL PASSED; secrets OK.
+Verification Evidence: local only — REFILL OFF until deploy+arm. New routes under /api/sales-autopilot only.
+Risks: force refill flood if cap high; Estique demote to awaiting_payment on reconcile (honest).
+Remaining: Owner PR/deploy; arm REFILL=1; Estique ₹1999 proof.
+Next Highest Priority: Owner ask → PR+deploy+arm refill; Estique payment chase.
+
+## Loop Run
 Date: 2026-08-02 (video-approval red suite root-caused: host disk, not governance)
 Goal: Diagnose the 4 pre-existing `test_video_approval_principal.py` failures on `main` WITHOUT weakening the approval gate, then finish the batch.
 Inspected: `approval_saga.approve` refusal ladder (TXN_FINALIZED / version_mismatch / approval_already_decided); `video_production/snapshot.prepare_snapshot` disk-headroom branch; `media_limits.min_free_percent`; `preview_client` + `_isolate` fixtures; existing floor coverage in `test_video_snapshot_primitive.py`; `monitoring/alert_rules.yml`.

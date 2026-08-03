@@ -410,6 +410,7 @@ def submit_payment(
             "payer_contact": (payer_contact or "").strip(),
             "status": "pending",
             "auto_activated": False,
+            "needs_client_bind": not bool(cid),
             "created_at": _now_iso(),
             "decided_at": None,
             "decided_by": None,
@@ -491,6 +492,17 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
         record["status"] = "approved" if approve else "rejected"
         record["decided_at"] = _now_iso()
         record["decided_by"] = (decided_by or "admin")[:80]
+
+        # Fail-closed: empty client_id cannot activate — bind client first.
+        if approve and not (record.get("client_id") or "").strip():
+            record["needs_client_bind"] = True
+            record["activation_blocked"] = "empty_client_id"
+            _write_store(rows)
+            return {
+                "ok": True,
+                **record,
+                "warning": "approved_but_unbound — client_id bind karo phir re-approve",
+            }
 
         # Idempotency: only activate if NOT already SUCCESSFULLY activated. _try_activate
         # → reset_usage_period() re-zeros a metered client's usage; a second approve of an

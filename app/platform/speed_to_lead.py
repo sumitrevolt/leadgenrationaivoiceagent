@@ -93,7 +93,7 @@ def _to_epoch(val: Any) -> float | None:
     try:
         if val is None:
             return None
-        if isinstance(val, (int, float)):
+        if isinstance(val, int | float):
             return float(val) if float(val) > 0 else None
         s = str(val).strip()
         if not s:
@@ -187,6 +187,10 @@ def summary(days: int = 30) -> dict[str, Any]:
                 "avg_seconds": None,
                 "median_seconds": None,
                 "under_2min_pct": 0.0,
+                "under_5min_pct": 0.0,
+                "sla_5min_ok": False,
+                "target_seconds": _TARGET_SECONDS,
+                "world_class_target_seconds": 300,
                 "verdict": (
                     "Abhi koi first-touch data nahi — inquiry aate hi 2 minute me "
                     "callback/alert ka system on rakho (lead 5 min me thanda hota hai)."
@@ -203,6 +207,8 @@ def summary(days: int = 30) -> dict[str, Any]:
         avg = sum(touched_sorted) / n
         under = sum(1 for s in touched_sorted if s <= _TARGET_SECONDS)
         under_pct = round(100.0 * under / n, 1)
+        under_5 = sum(1 for s in touched_sorted if s <= 300)
+        under_5_pct = round(100.0 * under_5 / n, 1)
 
         avg_min = avg / 60.0
         if under_pct >= 80:
@@ -221,6 +227,7 @@ def summary(days: int = 30) -> dict[str, Any]:
                 f"Sirf {under_pct}% leads ko 2 min me touch mila; auto-callback/alert "
                 f"on karke yeh number badhao (5 min baad lead thanda)."
             )
+        sla_ok = bool(n) and (median <= 300)
         return {
             "ok": True,
             "days": days,
@@ -230,7 +237,10 @@ def summary(days: int = 30) -> dict[str, Any]:
             "avg_seconds": round(avg, 1),
             "median_seconds": round(float(median), 1),
             "under_2min_pct": under_pct,
+            "under_5min_pct": under_5_pct,
+            "sla_5min_ok": sla_ok,
             "target_seconds": _TARGET_SECONDS,
+            "world_class_target_seconds": 300,
             "verdict": verdict,
             "inquiries": rows[-50:],
         }
