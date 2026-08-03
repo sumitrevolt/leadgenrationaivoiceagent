@@ -105,8 +105,8 @@ def test_graph_stays_valid_with_detail_nodes():
 
 def test_l0_projection_unchanged():
     c = bg.build_graph()["counts"]
-    assert c["l0"] == 48
-    assert c["edges"] == 52 and c["flows"] == 11
+    assert c["l0"] == 50
+    assert c["edges"] == 56 and c["flows"] == 11
     assert c["domains"] == 18 and c["layers"] == 9
 
 
@@ -165,11 +165,12 @@ def test_registry_contains_every_declared_detail_node():
 
 def test_exact_expected_counts_for_this_pr():
     c = bg.build_graph()["counts"]
-    assert c["l0"] == 48, c
+    assert c["l0"] == 50, c
     # L0 curated map locked; L1 grows as verified CODE-PRESENT detail lands
-    # (sales_autopilot / creative_os / owner_email_canary added 2026-07-30).
+    # (sales_autopilot / creative_os / owner_email_canary added 2026-07-30;
+    #  coordinator / omniroute added 2026-08-03).
     assert c["l1"] == 8 and c["l2"] == 1, c
-    assert c["nodes"] == 57, c
+    assert c["nodes"] == 59, c
     assert c["nodes"] == c["l0"] + c["l1"] + c["l2"]
 
 
