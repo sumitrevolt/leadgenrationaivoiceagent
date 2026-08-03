@@ -364,7 +364,9 @@ STORES: list[dict[str, Any]] = [
         tenant_scope="per-tenant filename",
         target_runtime_subpath="marketing/brand_kits/",
         migration_tier=TIER_2,
-        migration_state=CUTOVER_COMPLETE,
+        # NOT CUTOVER_COMPLETE: the bytes were never moved out of the checkout or
+        # verified, so claiming that would be unevidenced. Re-enterable content.
+        migration_state=REBUILDABLE_CACHE,
         deployment_blocker=False,
         evidence=(
             "Declared 2026-08-02 when admin remove-customer added a DELETE against "
