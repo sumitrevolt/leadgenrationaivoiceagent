@@ -40,7 +40,13 @@ EXPECTED_BLOCKERS = 0
 # 2026-07-30: ops.owner_email_canary adds one narrowly-scoped CREATE entry.
 # 2026-07-31: governance.mission_control adds 4 entries (ledger/missions/idem/file).
 # 2026-07-31: sales.prospects adds 5 entries (Prospect Score V2 backfill sidecar).
-EXPECTED_ALLOWLIST_ENTRIES = 26
+# 27 since 2026-08-02: admin remove-customer added a DELETE against the brand-kit
+# store, which was then CLASSIFIED (manifest store marketing.brand_kits + allowlist
+# entry with owner and review condition). This guard exists to catch green bought by
+# LOOSENING a control -- declaring a newly-added destructive path is the opposite:
+# the entry count rises because the reviewed surface grew, and the baseline
+# fingerprint count below is deliberately unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 27
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 

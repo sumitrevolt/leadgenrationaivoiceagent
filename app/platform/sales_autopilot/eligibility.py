@@ -173,6 +173,8 @@ def evaluate(
         # 7. Consent / opt-out state.
         rec = _store.get_prospect(pid) or {}
         status = rec.get("status") or prospect.get("status") or _store.STATUS_NEW
+        if status == _store.STATUS_REMOVED:
+            return _result(INELIGIBLE, "customer_removed")
         if status == _store.STATUS_OPTED_OUT or prospect.get("opted_out"):
             return _result(INELIGIBLE, "opted_out")
         if not (prospect.get("consent_basis") or rec.get("consent_basis")):

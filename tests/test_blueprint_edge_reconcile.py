@@ -192,8 +192,8 @@ def test_l0_projection_untouched_by_edge_analysis():
     from app.platform import blueprint_graph as bg
 
     c = bg.build_graph()["counts"]
-    assert c["l0"] == 48
-    assert c["edges"] == 52 and c["flows"] == 11
+    assert c["l0"] == 50
+    assert c["edges"] == 56 and c["flows"] == 11
     assert c["domains"] == 18 and c["layers"] == 9
 
 

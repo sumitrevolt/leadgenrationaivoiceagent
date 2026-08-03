@@ -445,6 +445,33 @@ def client_login_email(client_id: str) -> str | None:
     return None
 
 
+def revoke_login_by_client(client_id: str) -> dict:
+    """Revoke ALL portal logins attached to a client_id (admin customer removal).
+
+    Removes every credential row for this client so the customer can no longer
+    log in. Returns {ok, removed, emails}; never raises. The store's own backup
+    (``_write_all`` hourly gzip) protects against accidental loss.
+    """
+    cid = str(client_id or "").strip()
+    if not cid:
+        return {"ok": False, "removed": 0, "emails": []}
+    try:
+        rows = _read()
+        keep = [r for r in rows if str(r.get("client_id") or "").strip() != cid]
+        removed = len(rows) - len(keep)
+        emails = [
+            str(r.get("email") or "").strip().lower()
+            for r in rows
+            if str(r.get("client_id") or "").strip() == cid
+        ]
+        if removed:
+            _write_all(keep)
+        return {"ok": True, "removed": removed, "emails": emails}
+    except Exception as e:
+        logger.warning(f"[customer-auth] revoke_login_by_client failed: {e}")
+        return {"ok": False, "removed": 0, "emails": []}
+
+
 class SetPwIn(BaseModel):
     email: str = Field(..., min_length=3, max_length=200)
     password: str = Field(..., min_length=6, max_length=128)

@@ -16,8 +16,10 @@ owner-declared authoritative):
   * **Honest status** — unverified runtime is ``UNKNOWN``, never a fabricated
     "healthy"; roadmap items are ``PLANNED``; retired items ``LEGACY`` /
     ``DEPRECATED``. Never invent a node.
-  * **Fail-closed safety** — ``platform_dial`` / cold outbound is HARD OFF
-    (``disabled=True``) and this module never re-enables it.
+  * **Fail-closed safety** — cold outbound runs FULL CAMPAIGN LIVE (owner
+    go-ahead 2026-08-02) with the compliance spine ACTIVE in the call path
+    (DND fail-closed, TRAI window, AI-disclosure, consent, DLT, phone-type
+    gate, IVR blocklist, circuit breaker, concurrency=1, recording gate).
 
 No secrets ever live here (env-var *names* only, never values).
 """
@@ -30,7 +32,7 @@ import re
 from typing import Any
 
 # Canonical schema version — bump on any breaking node/edge/flow field change.
-SCHEMA_VERSION = "2026-07-24-mbp-v3"
+SCHEMA_VERSION = "2026-08-03-mbp-v4"
 
 _ROOT = pathlib.Path(__file__).resolve().parent.parent.parent
 
@@ -758,6 +760,29 @@ NODES: list[dict[str, Any]] = [
         triggers=["/api/agents/run", "scheduler jobs", "dashboard poll"],
         feedback_loop="agent_events feed today-counts back into status rollup.",
     ),
+    _n(
+        "coordinator",
+        "Coordinator orchestration",
+        3,
+        "ai_staff_runtime",
+        "engine",
+        "CODE-PRESENT",
+        ["app/agents/coordinator.py", "app/api/agents.py", "app/platform/team_scheduler.py"],
+        "LangGraph-supervisor multi-agent orchestration over the STAFF roster "
+        "(coordinate / fanout / coordinate-advanced / debate / council). Engine "
+        "live (available:true); scheduled path gated AGENT_STANDUP (default 0) "
+        "— no executed coordination runs yet.",
+        runtime="coordinator",
+        process="Dispatch a goal to STAFF agents via supervisor + worker pool.",
+        io={"input": "goal + optional team/agents filters", "output": "coordination run (jsonl journal)"},
+        triggers=["/api/agents/coordinate", "Boss daily standup (staff job)", "council"],
+        feedback_loop="_RUNS journal (data/coordination_runs.jsonl) feeds recent_runs back into /api/agents/roster.",
+        guards=["supervisor-only tool access", "COORDINATOR_LLM_CAP_PER_MIN (per-min LLM cap)"],
+        route="/api/agents/coordinate",
+        job="standup",
+        flags=["AGENT_STANDUP", "COORDINATOR_LLM_CAP_PER_MIN"],
+        rate_limit="15/60 per route (scope-coordinate/fanout/…)",
+    ),
     # Domain 12 — Scheduler / flow runner
     _n(
         "scheduler",
@@ -806,10 +831,27 @@ NODES: list[dict[str, Any]] = [
         2,
         "owner_os_copilot",
         "app",
-        "LOCAL-ONLY",
-        ["app/api/owner_copilot.py"],
-        "NL copilot edge; OPENCLAW_ENABLED off in prod.",
+        "CODE-PRESENT",
+        ["app/api/owner_copilot.py", "app/integrations/openclaw/policies.py", "app/integrations/openclaw/automation_commands.py", "app/integrations/openclaw/owner_os_adapter.py"],
+        "OpenClaw Admin Stage A (PR #105). Owner OS = sole action authority; "
+        "GREEN-only structural (allowed_commands strip); edge layer gated "
+        "OPENCLAW_ENABLED (default off); workforce stays 31 — Boss/OpenClaw is "
+        "a Copilot surface, not a 32nd agent.",
         flags=["OPENCLAW_ENABLED"],
+    ),
+    _n(
+        "omniroute",
+        "OmniRoute (dev gateway, not prod)",
+        2,
+        "owner_os_copilot",
+        "integration",
+        "LOCAL-ONLY",
+        ["app/platform/omniroute_client.py", "app/dev_control/governed_omniroute.py", "app/voice_agent/omniroute_voice.py"],
+        "Local WSL dev gateway for sanitized operator/coding review (Responses "
+        "API). NOT part of the prod customer/voice/billing path — inert until "
+        "OMNIROUTE_ENABLED=1 + OMNIROUTE_AGENTS=1 + key.",
+        flags=["OMNIROUTE_ENABLED", "OMNIROUTE_AGENTS"],
+        disabled=True,
     ),
     # Domain 14 — Customer delivery
     _n(
@@ -944,11 +986,16 @@ NODES: list[dict[str, Any]] = [
         9,
         "security_compliance",
         "compliance",
-        "DEPRECATED",
+        "PRODUCTION-PROVEN",
         ["app/platform/platform_dial.py"],
-        "HARD OFF (user-mandate 2026-07-05). 3-layer kill; never re-enabled.",
-        flags=["PLATFORM_DIAL_DAILY"],
-        disabled=True,
+        "FULL CAMPAIGN LIVE (owner go-ahead 2026-08-02): cap 100/day, niche=all, "
+        "3 real calls placed. Compliance spine ACTIVE in the call path: DND "
+        "fail-closed, TRAI window 10-19 IST, AI-disclosure, consent ledger, "
+        "DLT_APPROVED=1, phone-type gate, learned IVR blocklist, circuit "
+        "breaker, concurrency=1, recording gate. Rollback = "
+        ".env.bak-fullcampaign-20260802075851.",
+        flags=["PLATFORM_DIAL_DAILY", "VOICE_LAUNCH_KILL", "DIAL_TEST_MODE"],
+        disabled=False,
     ),
     # L6 stores
     _n(
@@ -1023,7 +1070,11 @@ EDGES: list[dict[str, Any]] = [
     {"source": "staff_jobs", "target": "prospector", "kind": "calls"},
     {"source": "agent_runtime", "target": "free_ai_chain", "kind": "calls"},
     {"source": "owner_os", "target": "owner_copilot", "kind": "calls"},
+    {"source": "owner_os", "target": "omniroute", "kind": "calls"},
     {"source": "owner_copilot", "target": "team_roster", "kind": "reads"},
+    {"source": "scheduler", "target": "coordinator", "kind": "calls"},
+    {"source": "coordinator", "target": "team_roster", "kind": "reads"},
+    {"source": "coordinator", "target": "free_ai_chain", "kind": "calls"},
     {"source": "customer_dashboard", "target": "delivery_assurance", "kind": "reads"},
     {"source": "kb_refresh", "target": "qdrant", "kind": "writes"},
     {"source": "skill_library", "target": "qdrant", "kind": "reads"},
@@ -1505,10 +1556,15 @@ def validate_graph(*, strict_files: bool = True) -> dict[str, Any]:
             if step not in idset:
                 errors.append(f"flow {f['id']}: step not a node: {step}")
 
-    # safety invariant — cold outbound stays HARD OFF
+    # safety invariant — cold outbound is FULL CAMPAIGN LIVE (owner go-ahead
+    # 2026-08-02). The compliance spine (DND fail-closed, TRAI window,
+    # AI-disclosure, consent, DLT, phone-type gate, IVR blocklist, circuit
+    # breaker, concurrency=1, recording gate) stays ACTIVE in the call path.
     pd = next((n for n in NODES if n["id"] == "platform_dial"), None)
-    if not pd or not pd.get("disabled"):
-        errors.append("platform_dial must be disabled=True (HARD OFF invariant)")
+    if not pd or pd.get("disabled"):
+        errors.append("platform_dial must be active (disabled=False) — FULL CAMPAIGN LIVE")
+    if pd and pd.get("status") != "PRODUCTION-PROVEN":
+        errors.append("platform_dial status must be PRODUCTION-PROVEN")
 
     # workforce-truth guard on layer descriptions too
     for l in LAYERS:

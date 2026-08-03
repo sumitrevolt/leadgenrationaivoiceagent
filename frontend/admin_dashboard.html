@@ -2204,7 +2204,7 @@ function _renderClientsFiltered(){
     const pb=productBadge(c.product);
     return `<tr data-company="${escH(c.company)}" data-client-id="${escH(c.client_id||"")}" data-product="${escH(c.product||"marketing")}" data-niche="${escH(c.niche)}" data-status="${escH(c.status)}" data-plan="${escH(c.plan)}" data-mrr="${c.mrr}">
       <td><input type="checkbox" class="client-cb" aria-label="Select ${escH(c.company)}" onchange="onClientCbChange()"></td>
-      <td class="co">${escH(c.company)}<div style="font-size:10px;color:var(--muted);font-weight:400">${escH(c.client_id||"")}</div><button class="btn primary" style="margin-top:4px;padding:2px 8px;font-size:10px" onclick="viewCustomer360('${escH(c.client_id||'')}')">Details 360</button></td>
+      <td class="co">${escH(c.company)}<div style="font-size:10px;color:var(--muted);font-weight:400">${escH(c.client_id||"")}</div><button class="btn primary" style="margin-top:4px;padding:2px 8px;font-size:10px" onclick="viewCustomer360('${escH(c.client_id||'')}')">Details 360</button> <button class="btn" style="margin-top:4px;padding:2px 8px;font-size:10px;background:#ef4444;color:#fff;border-color:#ef4444" onclick="removeCustomer('${escH(c.client_id||'')}','${escH(c.company||'')}')">Remove</button></td>
       <td><span class="tag ${pb.cls}">${escH(pb.label)}</span></td>
       <td><span class="tag">${escH(c.niche)}</span></td>
       <td>${escH(c.plan)}</td>
@@ -3076,6 +3076,26 @@ async function bulkDelete(){
   const msg = ok+" deleted"+(failed ? " · "+failed+" failed ("+failedNames.join(", ")+")" : "");
   adminToast(msg, failed ? "error" : "success");
   if(!failed) clearBulkSelect();
+  loadDashboard();
+}
+
+async function removeCustomer(cid, company){
+  if(!cid){ adminToast("Client id missing","error"); return; }
+  const name = (company||cid||"").replace(/</g,"&lt;");
+  if(!confirm("Remove customer '"+name+"'?\n\nThis revokes the portal login, cancels scheduled content, marks converted autopilot prospects as removed (never re-contacted), and deletes the brand kit + derived stores. IRREVERSIBLE.")) return;
+  const reason = prompt("Reason (optional, recorded in audit):")||"";
+  const btn=document.querySelector('[onclick="removeCustomer(\''+cid+'\',\''+name+'\')"]');
+  if(btn){ btn.disabled=true; const t=btn.textContent; btn.textContent="Removing…"; btn.dataset.prevText=t; }
+  try{
+    const r=await fetch("/api/admin/clients/"+encodeURIComponent(cid)+"/remove-customer",{method:"POST",headers:Object.assign({"Content-Type":"application/json"},abAuthHdr(),idemHdr()),body:JSON.stringify({confirm:true,reason:reason})});
+    const d=await r.json().catch(()=>({}));
+    if(r.ok && d && d.ok){
+      adminToast("Removed "+name+" · "+Object.entries(d).filter(([k,v])=>typeof v==="number"&&v>0||v===true).map(([k,v])=>(k+":"+v)).join(", "),"success");
+    } else {
+      adminToast((d&&d.error)||"Remove failed","error");
+    }
+  }catch(e){ adminToast("Remove failed: "+e,"error"); }
+  if(btn){ btn.disabled=false; btn.textContent=btn.dataset.prevText||"Remove"; }
   loadDashboard();
 }
 
