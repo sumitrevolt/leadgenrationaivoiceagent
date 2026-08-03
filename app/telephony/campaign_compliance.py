@@ -13,7 +13,7 @@ queuing/dialing an entire batch that would all get blocked anyway.
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 
 
 def call_type_for(transactional: bool) -> str:
@@ -23,21 +23,29 @@ def call_type_for(transactional: bool) -> str:
 def trai_window_ok(transactional: bool, now_utc: datetime | None = None) -> tuple[bool, str]:
     """(ok, reason) — IST calling-window check for promotional/transactional calls.
 
-    Mirrors TRAI's actual 9am-9pm; env defaults kept conservative (matches
-    scripts/fire_calls.py, unchanged). Never raises."""
+    Uses the SAME single source of truth as the per-call ComplianceGate._window
+    (app/telephony/compliance.py): effective_promo_window() for promotional
+    (minute-accurate + TRAI-clamped), COMPLIANCE_TXN_START/END for transactional.
+    Hour-only logic here previously BLOCKED the tail of a 10:00–19:30 window
+    (19:00–19:30 calls rejected) while the per-call gate allowed them. Never raises."""
     try:
+        from app.telephony.compliance import _parse_hhmm, effective_promo_window
+
         ist = (now_utc or datetime.utcnow()) + timedelta(hours=5, minutes=30)
-        trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "10").split(":")[0])
-        trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "19").split(":")[0])
-        txn_end = int(os.environ.get("COMPLIANCE_TXN_END", "21").split(":")[0])
-        txn_start = int(os.environ.get("COMPLIANCE_TXN_START", "9").split(":")[0])
-        end_hour = txn_end if transactional else trai_end
-        start_hour = txn_start if transactional else trai_start
-        if start_hour <= ist.hour < end_hour:
+        if transactional:
+            start_t = _parse_hhmm(os.environ.get("COMPLIANCE_TXN_START", ""), time(9, 0))
+            end_t = _parse_hhmm(os.environ.get("COMPLIANCE_TXN_END", ""), time(21, 0))
+        else:
+            start_s, end_s = effective_promo_window()
+            start_t = _parse_hhmm(start_s, time(9, 0))
+            end_t = _parse_hhmm(end_s, time(19, 0))
+        now_t = ist.time()
+        if start_t <= now_t < end_t:
             return True, ""
         return False, (
-            f"TRAI window CLOSED (IST {ist.hour:02d}:xx) — allowed "
-            f"{start_hour:02d}:00-{end_hour:02d}:00 IST for {call_type_for(transactional)}"
+            f"TRAI window CLOSED (IST {ist.strftime('%H:%M')}) — allowed "
+            f"{start_t.strftime('%H:%M')}-{end_t.strftime('%H:%M')} IST for "
+            f"{call_type_for(transactional)}"
         )
     except Exception as e:  # pragma: no cover - defensive, never blocks on our own bug
         return True, f"window-check skipped: {e}"
