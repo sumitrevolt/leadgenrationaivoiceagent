@@ -119,6 +119,39 @@ Deploy ke baad `/health` **direct HTTPS** se probe karo, browser se nahi.
 
 ---
 
+## R11. Remote/inline command me code EMBED mat karo — script file bhejo
+
+**Galti (2026-08-03, THIRD repeat):** `ssh ... "docker exec app python -c \"from app... \""` —
+PowerShell ne remote python ko apna code samajh kar parse kar diya (`The 'from' keyword is not supported`).
+Yehi galti maine ek hi session me **teen baar** ki. CLAUDE.md me pehle se likha hai
+("SSH one-liner quoting todta → script file likho") — maine phir bhi shortcut liya.
+
+**Rule:** Remote pe python/bash chalana ho to **file likho → `scp` → run karo**. Kabhi
+`-c "..."` / nested quotes / `$(...)` interpolation remote command me nahi.
+Local PowerShell `$(...)`, `"` aur `(` ko KHUD kha jata hai — jo bhejna hai wo pehle file me likho.
+
+**Checkpoint:** Command me nested quote ya `$(` dikh raha hai? → Ruk. Script file banao.
+
+---
+
+## R12. "X kaam nahi kar raha" bolne se pehle uska DESIGN padho
+
+**Galti (2026-08-03):** Blueprint ke 9 `detail_*` nodes ko "orphans, wiring chahiye" report kiya
+kyunki unke koi EDGE nahi the. Asliyat: hierarchy edges se nahi, `depth_level` + `domain` se
+banti hai — L1 = domain-rooted (parent hota hi nahi), L2 = parent-linked. Validator isliye
+`ok=True` deta hai. Ussi file me line 110-116 pe LIKHA tha ki validator ko khush karne ke liye
+parent bana dena "**would be fabrication**". Agar main wo "fix" kar deta to blueprint corrupt ho jata.
+
+**Rule:** Kisi cheez ko defect declare karne se pehle uska source + comment padho. Jo cheez
+"missing" lag rahi hai wo aksar **deliberate design** hoti hai, aur uske saath wajah likhi hoti hai.
+Checker ko satisfy karne ke liye data GHADNA sabse bada crime hai — usse silent corruption hoti hai
+jo kisi test me nahi pakdi jati.
+
+**Iska sahi output:** rule ko FABRICATE mat karo — usko **test me encode** kar do, taaki agla
+banda (ya agent) usko "theek" na kar de. (`tests/test_blueprint_hierarchy_invariant.py`)
+
+---
+
 ## Pre-flight checklist (har coding task se pehle 30 second)
 
 1. Sabse primitive error artifact mere paas hai? (R1)
@@ -131,3 +164,5 @@ Deploy ke baad `/health` **direct HTTPS** se probe karo, browser se nahi.
 8. Koi compliance/frozen surface chhu raha hoon? → rukо, poocho. (R8)
 9. Scratch saaf hai? `git status` clean? (R9)
 10. Deploy canonical script se + `/health` verify? (R10)
+11. Remote command me nested quote/`$(`? → script file bhejo. (R11)
+12. Defect bolne se pehle uska design/comment padha? (R12)
