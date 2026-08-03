@@ -114,8 +114,10 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # 2026-08-02 +1 entry / +1 family: marketing.brand_kits — admin remove-customer
     # added a DELETE against the brand profile, and it was CLASSIFIED rather than
     # tolerated (nothing was added to the baseline debt file).
-    assert len(entries) == 27
-    assert len(families) == 12, sorted(families)
+    # 2026-08-03 +10 entries / +1 family: platform.workforce_memory (ADR-154 hub for
+    # the 31 agents). Also CLASSIFIED, not tolerated — baseline unchanged.
+    assert len(entries) == 37
+    assert len(families) == 13, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -126,6 +128,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "compliance.email_suppression",
         "customers.identity",
         "marketing.brand_kits",
+        "platform.workforce_memory",
         "devcontrol.external_missions",
         "governance.mission_control",
         "ops.owner_email_canary",
@@ -134,9 +137,9 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    # 9 since 2026-08-02: 'marketing' joins as a top-level authority with
-    # marketing.brand_kits.
-    assert len({f.split(".")[0] for f in families}) == 9
+    # 10 since 2026-08-03: 'marketing' (brand_kits) and 'platform'
+    # (workforce_memory) both joined as top-level authorities.
+    assert len({f.split(".")[0] for f in families}) == 10
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -397,7 +400,7 @@ def test_store_manifest_still_validates() -> None:
     # ~20MB JSONL host cutover is a separate PR â€” blockers stay 21).
     # 2026-07-30: +1 ops.owner_email_canary (LEGACY_IN_CHECKOUT, non-blocker).
     # 2026-07-31: +1 governance.mission_control (LEGACY_IN_CHECKOUT, non-blocker).
-    assert counts["unique_families"] == 30
+    assert counts["unique_families"] == 31
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]

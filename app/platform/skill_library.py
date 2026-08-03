@@ -161,6 +161,13 @@ def record_lesson(topic: str, lesson: str, source: str = "auto", agent: str = ""
             "at": _now(),
         }
         _append(_LESSONS, rec)
+        # ADR-154: dual-write into workforce hub (L2 skill) — fail-open.
+        try:
+            from app.platform import workforce_memory as _wfm
+
+            _wfm.remember_lesson_bridge(t, body[:500], agent=(agent or "")[:30], source=source[:20])
+        except Exception:
+            pass
         return {"ok": True, "lesson": rec}
     except Exception as e:
         return {"ok": False, "error": str(e)}
