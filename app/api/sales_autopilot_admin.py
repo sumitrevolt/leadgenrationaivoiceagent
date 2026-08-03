@@ -60,9 +60,14 @@ async def summary(_user=Depends(require_admin)) -> dict[str, Any]:
     pol = _policy_mod.get_policy()
     prospects = _store.list_prospects(limit=1000)
     status_counts: dict[str, int] = {}
+    unpaid = 0
     for r in prospects:
         st = str(r.get("status") or "new")
         status_counts[st] = status_counts.get(st, 0) + 1
+        if st == getattr(_store, "STATUS_AWAITING_PAYMENT", "awaiting_payment"):
+            unpaid += 1
+    from app.platform.sales_autopilot import refill as _refill
+
     return {
         "enabled": pol.enabled,
         "dry_run": pol.dry_run,
@@ -78,6 +83,8 @@ async def summary(_user=Depends(require_admin)) -> dict[str, Any]:
         "scheduler": _scheduler_runtime(),
         "prospects_total": len(prospects),
         "status_counts": status_counts,
+        "awaiting_payment_count": unpaid,
+        "refill_enabled": _refill.refill_enabled(),
         "attempts_today_total": _store.attempts_today(),
         "simulated_today": _store.attempts_today(status=_send.SIMULATED),
         "sent_today": _store.attempts_today(status=_send.SENT),
@@ -96,8 +103,49 @@ async def prospects(
     limit: int = Query(100, ge=1, le=1000),
     _user=Depends(require_admin),
 ) -> dict[str, Any]:
-    rows = _store.list_prospects(limit=limit)
+    from app.platform.sales_autopilot import pay_truth as _pay
+
+    rows = [_pay.enrich_prospect(r) for r in _store.list_prospects(limit=limit)]
     return {"count": len(rows), "prospects": rows}
+
+
+@router.post("/refill")
+async def refill_now(
+    payload: dict[str, Any] = Body(default={}),
+    _user=Depends(require_admin),
+) -> dict[str, Any]:
+    """Manual prospector→autopilot refill. force=1 bypasses SALES_AUTOPILOT_REFILL flag."""
+    from app.platform.sales_autopilot import refill as _refill
+
+    force = bool(payload.get("force"))
+    limit = payload.get("limit")
+    return _refill.refill_from_prospector(
+        limit=int(limit) if limit is not None else None,
+        force=force,
+    )
+
+
+@router.post("/pay-truth/reconcile")
+async def pay_truth_reconcile(
+    payload: dict[str, Any] = Body(default={}),
+    _user=Depends(require_admin),
+) -> dict[str, Any]:
+    """Reconcile converted vs ledger; optional chase. Never marks paid without proof."""
+    from app.platform.sales_autopilot import pay_truth as _pay
+
+    chase = payload.get("chase", True)
+    return _pay.reconcile_pay_truth(chase=bool(chase))
+
+
+@router.get("/pay-truth/unpaid")
+async def pay_truth_unpaid(
+    limit: int = Query(50, ge=1, le=200),
+    _user=Depends(require_admin),
+) -> dict[str, Any]:
+    from app.platform.sales_autopilot import pay_truth as _pay
+
+    cards = _pay.unpaid_chase_cards(limit=limit)
+    return {"count": len(cards), "cards": cards}
 
 
 @router.get("/attempts")

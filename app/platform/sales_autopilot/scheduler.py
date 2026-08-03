@@ -135,6 +135,20 @@ async def run_tick(limit: int | None = None, *, force_dry_run: bool = False) -> 
     try:
         batch = pol.canary_batch() if limit is None else max(1, int(limit))
 
+        # 0. Pipeline refill (flag-gated) + pay-truth reconcile — never sends.
+        try:
+            from app.platform.sales_autopilot import refill as _refill
+
+            summary["refill"] = _refill.refill_from_prospector()
+        except Exception as e:  # pragma: no cover - defensive
+            summary["refill"] = {"error": str(e)[:120]}
+        try:
+            from app.platform.sales_autopilot import pay_truth as _pay
+
+            summary["pay_truth"] = _pay.reconcile_pay_truth(chase=True)
+        except Exception as e:  # pragma: no cover - defensive
+            summary["pay_truth"] = {"error": str(e)[:120]}
+
         # 1. New outreach (respecting per-stage kill).
         targets: list[dict[str, Any]] = []
         if not pol.kill("new_outreach"):

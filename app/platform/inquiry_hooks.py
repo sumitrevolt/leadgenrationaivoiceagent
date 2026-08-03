@@ -177,6 +177,14 @@ async def run_after_inquiry(
     except Exception:
         pass
 
+    # Owner Hot Queue bridge — platform inquiries only (speed-to-lead action).
+    try:
+        from app.platform.inquiry_hq_bridge import bridge_inquiry_to_hot_queue
+
+        bridge_inquiry_to_hot_queue(rec)
+    except Exception as e:
+        logger.debug(f"[inquiry_hooks] hq bridge skip: {e}")
+
     if cid:
         try:
             from app.platform import customer_webhooks as _cw

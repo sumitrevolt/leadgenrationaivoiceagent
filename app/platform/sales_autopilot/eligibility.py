@@ -186,7 +186,10 @@ def evaluate(
             status == _store.STATUS_REPLIED or int(rec.get("reply_count", 0)) > 0
         ):
             return _result(INELIGIBLE, "already_replied")
-        if pol.get("stop_on_payment", True) and status == _store.STATUS_CONVERTED:
+        if pol.get("stop_on_payment", True) and status in (
+            _store.STATUS_CONVERTED,
+            getattr(_store, "STATUS_AWAITING_PAYMENT", "awaiting_payment"),
+        ):
             return _result(INELIGIBLE, "already_converted")
 
         # 9. Channel contact present + suppression (fail-closed).

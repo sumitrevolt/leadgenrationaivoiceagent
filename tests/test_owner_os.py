@@ -48,7 +48,12 @@ def test_owner_os_page_served():
     r = client.get("/app/owner")
     assert r.status_code == 200
     assert "Owner OS" in r.text
-    assert "Pause Manual Runs" in r.text or "Calling HARD OFF" in r.text
+    assert (
+        "Pause Manual Runs" in r.text
+        or "Calling OFF" in r.text
+        or "Calling HARD OFF" in r.text
+        or "Calling LIVE" in r.text
+    )
 
 
 def test_canonical_agent_count_consistency(monkeypatch, tmp_path):
@@ -287,5 +292,39 @@ def test_secret_free_home(monkeypatch, tmp_path):
     dumped = json.dumps(home)
     assert "sk-" not in dumped.lower()
     assert "password" not in dumped.lower()
-    assert home.get("calling_badge") == "Calling HARD OFF"
+    assert home.get("calling_badge") in (
+        "Calling OFF",
+        "Calling OFF (voice kill)",
+        "Calling LIVE (compliance on)",
+    ) or str(home.get("calling_badge") or "").startswith("Calling LIVE")
     assert home.get("inventory", {}).get("canonical_agents") == 31
+    assert "speed_to_lead_badge" in home
+
+
+def test_calling_posture_live_when_dial_enabled(monkeypatch, tmp_path):
+    _patch_stores(monkeypatch, tmp_path)
+    monkeypatch.setattr("app.platform.platform_dial.enabled", lambda: True)
+    monkeypatch.setattr("app.platform.platform_dial.dial_limit", lambda: 10)
+
+    class _Kill:
+        engaged = False
+
+    monkeypatch.setattr("app.telephony.voice_launch.admin_kill_status", lambda: _Kill())
+    p = owner_os.calling_posture()
+    assert p["live"] is True
+    assert "LIVE" in p["badge"]
+    home = owner_os.owner_home()
+    assert home.get("calling_live") is True
+
+
+def test_calling_posture_off_when_dial_disabled(monkeypatch, tmp_path):
+    _patch_stores(monkeypatch, tmp_path)
+    monkeypatch.setattr("app.platform.platform_dial.enabled", lambda: False)
+
+    class _Kill:
+        engaged = False
+
+    monkeypatch.setattr("app.telephony.voice_launch.admin_kill_status", lambda: _Kill())
+    p = owner_os.calling_posture()
+    assert p["live"] is False
+    assert p["badge"] == "Calling OFF"

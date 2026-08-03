@@ -399,6 +399,7 @@ AUTOMATION_FLAGS = [
     "SALES_AUTOPILOT_PAYMENT_REMINDER_KILL",  # block payment/onboarding nudges
     "SALES_AUTOPILOT_CANARY_BATCH",  # per-tick batch size (default 1)
     "SALES_AUTOPILOT_LLM_TONE",  # OPTIONAL tone-only LLM review (never authoritative)
+    "SALES_AUTOPILOT_REFILL",  # prospector → autopilot store upsert (OFF default; tick + admin)
     # --- Agent task-queue lease reclaim (2026-07-31, app/platform/agent_task_queue) ---
     # stale_tasks() only SURFACES stuck work by design ("Paperclip philosophy"), so a worker
     # that dies between claim_next() and complete()/fail() strands its lease forever and the
