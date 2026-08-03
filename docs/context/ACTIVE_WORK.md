@@ -2,27 +2,32 @@
 
 ---
 
-## WS-R1 Autopilot refill - CODE READY (arm on deploy)
+## WS-R1 Autopilot refill - ARMED LIVE
 - **ID:** WS-R1
 - **Business outcome:** Autopilot not idle-only; scored Maps prospects enter store
-- **Current state:** Local code ready; Owner OS calling badge honesty fixed. Needs commit/PR/deploy + `SALES_AUTOPILOT_REFILL=1`.
-- **Next exact action:** Owner ask → PR/deploy `APP_VERSION=<sha>` → arm refill flag → recreate app/worker/scheduler
-- **Out of scope:** WHATSAPP_AUTO_SEND
+- **Current state:** `SALES_AUTOPILOT_REFILL=1` armed; email ON; **cold WA OFF**
+- **Next exact action:** Watch hourly email outreach on new prospects
+- **Out of scope:** cold WhatsApp blast
 
 ---
 
-## WS-R2 Speed-to-lead action - CODE READY
-- **ID:** WS-R2
-- **Business outcome:** Website inquiry → Hot Queue under 5 min
-- **Current state:** Bridge + STL fields + Owner OS SLA badge shipped locally
-- **Next exact action:** After deploy, test inquiry → `/app/inbox`
-- **Out of scope:** auto WA send
+## WS-R4 Swara → WhatsApp interested follow-up - ARMED LIVE
+- **ID:** WS-R4
+- **Business outcome:** Call pe interested lead ko automatic WhatsApp trial-link
+- **Current state:** `WHATSAPP_AUTO_SEND=1` · `POST_CALL_WHATSAPP=1` · `VOICE_CLOSE_WHATSAPP=1` · WAHA WORKING
+- **Next exact action:** Live interested call ke baad delivery smoke
+- **Out of scope:** Swara brain edits; cold autopilot WA
 
 ---
 
-## WS-R3 Pay-truth / Estique - OWNER PAY
+## WS-R3 Pay-truth / Estique - FREE TRIAL (not paid)
 - **ID:** WS-R3
 - **Business outcome:** Ledger-proven 2nd paid customer
-- **Current state:** Code demotes unpaid converted; Estique still needs real ₹1999
-- **Next exact action:** Owner password → Billing ₹1999 → reply `PAID`
-- **Out of scope:** fabricate payment / mark-paid
+- **Current state:** 7-day free trial; `payment_verified=false`
+- **Next exact action:** Real UPI ₹1999 → reply `PAID`
+- **Out of scope:** fabricate payment
+
+---
+
+## Closed this session
+- **Buzz Admin Plane** — COMPLETE (channels/team/owner-only/canvases/notes/`@Boss` YES). Detail: `docs/integrations/BUZZ_ADMIN_PLANE.md`
