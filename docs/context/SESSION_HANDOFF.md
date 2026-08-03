@@ -1,23 +1,29 @@
 # SESSION_HANDOFF - overwrite every session end
 
 ## Session objective
-Launch-readiness audit → fixes execution → **SHIPPED + DEPLOYED**. 3 fixes (UPI guest 401, pricing lie, golden eval suite) now LIVE on prod via PR #215, deploy `3cbf1164`.
+Cursor session: beat launch gaps after Claude/OpenCode shipped UPI+pricing+golden. **No deploy** this session unless owner asks. Avoided dirty files owned by parallel agents where possible.
 
-## Live truth (probed 2026-08-02 ~10:40Z)
-- `/health` = `3cbf1164` healthy production (app/worker/scheduler/worker-heavy/worker-video all `3cbf1164`, no skew after deploy + env-only recreate).
-- **Calling = FULL CAMPAIGN LIVE (owner go-ahead 2026-08-02)**: `VOICE_LAUNCH_KILL=0` · `DIAL_TEST_MODE=0` · `VOICE_DAILY_CALL_CAP=100` · `PLATFORM_DIAL_DAILY=100` (all confirmed inside container). LIVE proof: 3 real Vobiz calls placed 2026-08-02 (session `S20260802-a280d841`). Daily 11:30 IST scheduler auto-dials up to 100/day.
-- **Deploy gate note (2026-08-02)**: `prod_check.py --deployment` requires `VOICE_LAUNCH_KILL=1` (TRUE_TOKEN) — FULL CAMPAIGN kill=0 pe deploy REFUSED by design (commit `cb5e19a7`). Safe flow used: `.env` backup → kill=1 → deploy → verify → kill=0 restore + env-only recreate. Backups: `/opt/leadgen/.env.bak-predeploy-kill0-20260802_102240` (kill=0 pre-deploy) · rollback env `/opt/leadgen/.env.bak-fullcampaign-20260802075851`.
-- Compliance spine UNTOUCHED: DND fail-closed · TRAI window 10–19 IST · AI-disclosure · consent · DLT_APPROVED=1 · phone-type gate · learned IVR blocklist · circuit breaker · 30-call training pause · recording gate · concurrency=1. launch_status: `admin_kill_engaged=false`, `daily_cap=100`, `circuit_open=false`.
-- UPI guest 401 → **DEPLOYED** (`optional_customer` in `customer_auth.py`, `upi_payments.py` swapped, `website/index.html` sends Bearer if token).
-- Pricing lie → **DEPLOYED** (`pricing.html` → "UPI; card — international customers").
-- Golden eval suite (`scripts/eval_golden.py` + `tests/test_eval_golden.py` + advisory deploy-vps.yml step) → **DEPLOYED**.
-- Key env: `EVAL_GATE_HARD=1`, `WHATSAPP_AUTO_SEND=0`, `UPI_AUTO_ACTIVATE=1`, `VOICE_LAUNCH_CAMPAIGN=1`, `REPLY_AUTO_SEND=1` (guarded).
+## Live truth (probed ~2026-08-02 evening IST)
+- `/health` = `3cbf1164` healthy (prior PR #215 deploy).
+- Guest UPI LIVE: POST `/api/upi/submit` no-auth → `ok:true status:pending`.
+- Pricing copy LIVE (UPI; card international).
+- Calling FULL CAMPAIGN still live per prior handoff (owner go-ahead) — this session did NOT touch dial/WA flags.
+- Autopilot still only Estique=`converted` until new prospects ingested.
+- `STUDIO_ENTITLEMENT_GATE=1` already ON in prod container.
 
-## Owner decisions pending
-1. WAHA session restart + QR scan → `WAHA CONNECTED`.
-2. Estique ledger proof vs reopen.
-3. Feed 10–30 consented prospects (autopilot queue empty).
-4. Whether to enable STUDIO_ENTITLEMENT_GATE.
+## This session SHIPPED (local, uncommitted unless owner commits)
+1. **Proposal pricing truth** — `app/marketing/proposal.py`: default `starter` ₹1999; legacy `growth` maps → starter (no ₹2999 leak).
+2. **`/login` → `/app/login`** redirect (`app/main.py`) — bare /login was 404.
+3. **Inquiry → sales_autopilot feed** — `inquiry_hooks.maybe_ingest_sales_autopilot` + optional email on InquiryIn + homepage form email field. Platform leads only; `consent_basis=website_inquiry_form`.
+4. **Admin `POST /api/sales-autopilot/prospects`** — operator can fill empty GTM queue with explicit consent_basis.
+5. **Tests** — `tests/test_gtm_launch_fixes_2026_08_02.py` (7) + updated `test_proposal`. `prod_check` OK · secrets scan run.
+
+## Owner next (still needed for 2nd customer)
+1. Commit/PR/deploy these Cursor fixes when ready.
+2. Feed 10–30 consented prospects via `POST /api/sales-autopilot/prospects` OR wait for form inquiries with email.
+3. WAHA QR → `WAHA CONNECTED`.
+4. Estique ledger proof vs reopen.
+5. Do not flip `WHATSAPP_AUTO_SEND`.
 
 ## Safety
-Compliance gates untouched. WhatsApp stays 1-click human. DLT_APPROVED=1 confirmed. Calling rollback path documented. Deploy kill-gate bypass NOT performed — safe kill=1/0 cycle used instead.
+Compliance gates untouched. No WA auto-send / dial-cap change this session. Parallel agents may still have dirty work in admin_dashboard / sales_autopilot store+eligibility — coordinate before commit.
