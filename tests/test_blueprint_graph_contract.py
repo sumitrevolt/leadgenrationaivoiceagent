@@ -90,11 +90,11 @@ def test_all_layers_and_domains_have_at_least_one_node():
     assert covered_domains == {d["key"] for d in bg.DOMAINS}
 
 
-def test_platform_dial_hard_off_invariant():
+def test_platform_dial_full_campaign_live_invariant():
     pd = next(n for n in bg.NODES if n["id"] == "platform_dial")
-    assert pd["disabled"] is True
-    assert pd["status"] in ("DEPRECATED", "LEGACY")
-    assert "HARD OFF" in pd["desc"]
+    assert pd["disabled"] is False
+    assert pd["status"] == "PRODUCTION-PROVEN"
+    assert "FULL CAMPAIGN LIVE" in pd["desc"]
 
 
 def test_no_secret_shaped_literals_in_payload():
@@ -188,9 +188,9 @@ def test_public_graph_has_no_sensitive_metadata():
     # product names in titles, which a public architecture overview may show).
     for infra in ("app/", ".py", ".yml", "127.0.0.1", ":6432", ":6333", "8080", "docker-compose"):
         assert infra not in blob, f"public payload leaks infra: {infra}"
-    # disabled node surfaces as off, not a granular DEPRECATED label
+    # FULL CAMPAIGN LIVE node surfaces as live, not a granular DEPRECATED label
     pd = next(n for n in pub["nodes"] if n["id"] == "platform_dial")
-    assert pd["state"] == "off"
+    assert pd["state"] == "live"
 
 
 # --- P1: schema expansion present -----------------------------------------
@@ -311,6 +311,6 @@ def test_v3_contract_fields_present_and_honest():
     # visual type preserved (FE not broken)
     for n in bg.NODES:
         assert n["type"] in bg.NODE_TYPES
-    # deprecated lifecycle for the HARD-OFF node
+    # active lifecycle for the FULL CAMPAIGN LIVE node
     pd = next(n for n in bg.NODES if n["id"] == "platform_dial")
-    assert pd["lifecycle_status"] == "deprecated"
+    assert pd["lifecycle_status"] == "active"
