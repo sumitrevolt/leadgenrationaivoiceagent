@@ -273,6 +273,9 @@ def test_public_graph_still_sanitized_after_import():
         assert not (set(n) & forbidden), set(n) & forbidden
 
 
-def test_calling_stays_hard_off_after_import():
+def test_calling_full_campaign_live_after_import():
+    """§5 compliance spine stays ACTIVE; cold outbound is FULL CAMPAIGN LIVE
+    (owner go-ahead 2026-08-02), not a disabled/deprecated node."""
     pd = next(n for n in bg.NODES if n["id"] == "platform_dial")
-    assert pd["disabled"] is True
+    assert pd["disabled"] is False
+    assert pd["status"] == "PRODUCTION-PROVEN"
