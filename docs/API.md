@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1251 operations)
+## Endpoint Index — auto-generated from OpenAPI (1255 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -338,7 +338,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/db/table/{name}/export.csv` — Export one table to CSV (read-only, capped, redacted)
 - `GET   ` `/api/admin/db/tables` — List all DB tables (read-only explorer)
 
-### Admin Dashboard  (22)
+### Admin Dashboard  (23)
 
 - `GET   ` `/api/admin/activity-feed` — Get Activity Feed
 - `GET   ` `/api/admin/agents` — Admin Agents
@@ -347,6 +347,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/admin/clients/dedupe` — Admin Dedupe Clients
 - `POST  ` `/api/admin/clients/{client_id}/delete` — Admin Delete Client
 - `POST  ` `/api/admin/clients/{client_id}/delivery-action` — Admin Delivery Action
+- `POST  ` `/api/admin/clients/{client_id}/remove-customer` — Admin Remove Customer
 - `GET   ` `/api/admin/clients/{client_id}/timeline` — Get Client Timeline
 - `GET   ` `/api/admin/command-center` — Admin Command Center
 - `GET   ` `/api/admin/dashboard` — Get Admin Dashboard
@@ -1649,13 +1650,16 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/seoops/rank/history` — Rank History
 - `POST  ` `/api/seoops/rank/run` — Rank Run
 
-### Sales Autopilot  (8)
+### Sales Autopilot  (11)
 
 - `GET   ` `/api/sales-autopilot/attempts` — Attempts
 - `POST  ` `/api/sales-autopilot/eligibility/preview` — Eligibility Preview
 - `POST  ` `/api/sales-autopilot/inbound/classify` — Inbound Classify
+- `POST  ` `/api/sales-autopilot/pay-truth/reconcile` — Pay Truth Reconcile
+- `GET   ` `/api/sales-autopilot/pay-truth/unpaid` — Pay Truth Unpaid
 - `GET   ` `/api/sales-autopilot/policy` — Get Policy
 - `GET   ` `/api/sales-autopilot/prospects` — Prospects
+- `POST  ` `/api/sales-autopilot/refill` — Refill Now
 - `POST  ` `/api/sales-autopilot/run-canary` — Run Canary
 - `POST  ` `/api/sales-autopilot/seed-estique` — Seed Estique
 - `GET   ` `/api/sales-autopilot/summary` — Summary

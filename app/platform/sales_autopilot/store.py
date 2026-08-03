@@ -38,6 +38,7 @@ STATUS_FOLLOWUP = "followup"
 STATUS_REPLIED = "replied"
 STATUS_OPTED_OUT = "opted_out"
 STATUS_CONVERTED = "converted"
+STATUS_AWAITING_PAYMENT = "awaiting_payment"  # converted without ledger proof (pay-truth)
 STATUS_MANUAL_OWNER_CONFIRMED = "manual_owner_confirmed"
 STATUS_REMOVED = "removed"
 
@@ -344,6 +345,7 @@ __all__ = [
     "STATUS_REPLIED",
     "STATUS_OPTED_OUT",
     "STATUS_CONVERTED",
+    "STATUS_AWAITING_PAYMENT",
     "STATUS_MANUAL_OWNER_CONFIRMED",
     "STATUS_REMOVED",
     "digits",
