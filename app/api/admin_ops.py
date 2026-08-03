@@ -561,18 +561,9 @@ async def system_summary(_user=Depends(require_admin)):
         readiness = {"error": str(exc)}
 
     ist_now = datetime.datetime.utcnow() + datetime.timedelta(hours=5, minutes=30)
-    calling_open = False
-    try:
-        from app.telephony.compliance import _parse_hhmm, effective_promo_window
-
-        start_s, end_s = effective_promo_window()
-        start_t = _parse_hhmm(start_s, datetime.time(9, 0))
-        end_t = _parse_hhmm(end_s, datetime.time(19, 0))
-        calling_open = start_t <= ist_now.time() < end_t
-    except Exception:
-        trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "10").split(":")[0])
-        trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "19").split(":")[0])
-        calling_open = trai_start <= ist_now.hour < trai_end
+    trai_start = int(os.environ.get("COMPLIANCE_PROMO_START", "10").split(":")[0])
+    trai_end = int(os.environ.get("COMPLIANCE_PROMO_END", "19").split(":")[0])
+    calling_open = trai_start <= ist_now.hour < trai_end
 
     last_campaign = _redis_get(_CAMPAIGN_KEY) or {"status": "never_run"}
 
