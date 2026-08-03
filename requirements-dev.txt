@@ -60,7 +60,7 @@ watchfiles==0.21.0  # File watching for hot reload
 # =============================================================================
 py-spy==0.4.2  # Sampling profiler
 memory-profiler==0.61.0  # Memory profiling
-line-profiler==4.1.2  # Line-by-line profiling
+line-profiler==5.0.2  # Line-by-line profiling
 
 # =============================================================================
 # Database Tools
