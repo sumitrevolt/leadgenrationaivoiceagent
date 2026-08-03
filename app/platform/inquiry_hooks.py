@@ -467,5 +467,45 @@ async def run_after_inquiry(
         except Exception:
             pass
 
+        # Sales Autopilot feed — platform inquiries only (never client-owned leads).
+        # consent_basis = website form first-contact (DPDP purpose limitation).
+        try:
+            maybe_ingest_sales_autopilot(rec)
+        except Exception as e:
+            logger.debug(f"[inquiry_hooks] sales_autopilot ingest skip: {e}")
 
-__all__ = ["run_after_inquiry"]
+
+def maybe_ingest_sales_autopilot(rec: dict[str, Any]) -> dict[str, Any] | None:
+    """Upsert a platform inquiry into sales_autopilot prospects. Never raises to caller.
+
+    Skips when: client-owned (isolation), missing phone+email, or store unavailable.
+    """
+    if (rec.get("client_id") or "").strip():
+        return None
+    email = str(rec.get("email") or "").strip().lower()
+    phone = str(rec.get("phone") or "").strip()
+    if not email and not phone:
+        return None
+    from app.platform.sales_autopilot import store as _store
+
+    pid = str(rec.get("id") or "").strip()
+    if not pid:
+        digits = _store.digits(phone) or email.replace("@", "_").replace(".", "_")
+        pid = f"inq_{digits}"[:64]
+    return _store.upsert_prospect(
+        {
+            "id": pid,
+            "name": str(rec.get("business_name") or rec.get("name") or "")[:200],
+            "phone": phone,
+            "email": email,
+            "city": str(rec.get("city") or "")[:100],
+            "niche": str(rec.get("niche") or "")[:60],
+            "source": "website_inquiry",
+            "consent_basis": "website_inquiry_form",
+            "status": _store.STATUS_NEW,
+            "inquiry_id": str(rec.get("id") or ""),
+        }
+    )
+
+
+__all__ = ["run_after_inquiry", "maybe_ingest_sales_autopilot"]

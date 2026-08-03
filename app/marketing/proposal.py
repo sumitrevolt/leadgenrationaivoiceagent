@@ -16,34 +16,55 @@ from app.utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 BASE = "https://leadsgenai.in"
+
+# Fallback only — live prices ALWAYS prefer get_public_packages() (billing truth).
+# Legacy "growth" is intentionally mapped → starter so sales assets never quote ₹2,999.
 PLANS = {
     "starter": {
-        "name": "Starter",
+        "name": "AI Marketing Automation",
         "price": 1999,
-        "for": "marketing only (posts, GBP, reviews, WhatsApp)",
-    },
-    "growth": {
-        "name": "Growth",
-        "price": 2999,
-        "for": "+ content calendar, competitor, lead-form, monthly report",
+        "for": "posts, GBP, festivals, WhatsApp content, lead capture",
+        "key": "starter",
     },
     "advanced": {
-        "name": "Advanced",
+        "name": "Combo — Marketing + AI Voice",
         "price": 5999,
-        "for": "+ AI voice agent (inquiry call 2-min, qualification, 500 min/mo)",
+        "for": "marketing + AI voice callback feature (500 min/mo)",
+        "key": "advanced",
     },
 }
 
 
 def _plan(plan_key: str) -> dict[str, Any]:
-    return PLANS.get((plan_key or "growth").strip().lower(), PLANS["growth"])
+    """Resolve a public plan. Legacy `growth` → starter (hidden plan must not leak)."""
+    key = (plan_key or "starter").strip().lower() or "starter"
+    if key == "growth":
+        key = "starter"
+    try:
+        from app.marketing.packages import get_public_packages
+
+        for p in get_public_packages():
+            if str(p.get("key") or "").strip().lower() != key:
+                continue
+            price = int(p.get("price_inr_month") or 0)
+            if price <= 0:
+                break
+            return {
+                "key": key,
+                "name": str(p.get("name") or key.title()),
+                "price": price,
+                "for": str(p.get("tagline") or p.get("blurb") or "")[:160],
+            }
+    except Exception as exc:
+        logger.debug("[proposal] packages resolve skip: %s", exc)
+    return dict(PLANS.get(key) or PLANS["starter"])
 
 
 async def generate_proposal(
     business_name: str,
     niche: str = "general",
     city: str = "",
-    plan: str = "growth",
+    plan: str = "starter",
     missed_per_day: float = 5,
     avg_deal_value: float = 20000,
     phone: str = "",
@@ -79,11 +100,11 @@ async def generate_proposal(
         f"*Proposal for {biz}*\n\n"
         f"Problem: {(niche or 'aapke').replace('_',' ')} business me aadhe inquiries bina follow-up "
         f"ke nikal jaate — ~₹{lost:,}/mo ka nuksan.\n\n"
-        f"Solution: LeadGen AI har inquiry ko 2-min me AI se call karke qualify karta + marketing/"
-        f"Google/reviews automate. Aap sirf ready leads pe focus karo.\n\n"
-        f"Plan: *{p['name']} — ₹{p['price']}/mo* ({p['for']}). Pehle 10 leads FREE. Cancel anytime.\n\n"
+        f"Solution: LeadGen AI marketing automation — posts/GBP/reviews/WhatsApp drafts. "
+        f"Advanced plan me AI voice callback feature bhi. Aap ready leads pe focus karo.\n\n"
+        f"Plan: *{p['name']} — ₹{p['price']}/mo* ({p['for']}). Cancel anytime.\n\n"
         f"2-min live demo: {BASE}/app/test-call\n"
-        f"Shuru karein (online pay): {BASE}/pricing\n\n"
+        f"Shuru karein (UPI pay): {BASE}/pricing\n\n"
         f"— Sumit, LeadGen AI"
     )
 
@@ -93,8 +114,8 @@ async def generate_proposal(
 
         sys = (
             "Tum ek B2B sales-proposal writer ho (India). Ek SHORT (6-8 line) Hinglish proposal "
-            "likho: problem (ROI loss) → solution → plan+price → free-trial → demo+pay link. "
-            "Confident par pushy nahi. Sirf proposal text."
+            "likho: problem (ROI loss) → solution → plan+price → demo+pay link. "
+            "Confident par pushy nahi. Sirf proposal text. Card/netbanking mat bolo — UPI primary."
         )
         prompt = (
             f"Business: {biz}, Niche: {niche}, City: {city}. Plan: {p['name']} ₹{p['price']}/mo. "
@@ -114,6 +135,7 @@ async def generate_proposal(
         "ok": True,
         "business_name": biz,
         "plan": p["name"],
+        "plan_key": p.get("key") or "starter",
         "price_inr": p["price"],
         "monthly_loss_inr": lost,
         "proposal": proposal,
@@ -123,4 +145,4 @@ async def generate_proposal(
     }
 
 
-__all__ = ["generate_proposal", "PLANS"]
+__all__ = ["generate_proposal", "PLANS", "_plan"]
