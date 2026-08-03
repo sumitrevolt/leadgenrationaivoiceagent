@@ -731,6 +731,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Agent-memory admin router not mounted: {_e}")
 try:
+    from app.api.workforce_memory_admin import router as _workforce_memory_admin_router
+
+    # /api/workforce-memory/* — ADR-154 per-STAFF layered hub (TencentDB patterns).
+    # Admin-only; INERT when WORKFORCE_MEMORY unset.
+    app.include_router(_workforce_memory_admin_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Workforce-memory admin router not mounted: {_e}")
+try:
     from app.api.engineer_agents import router as _engineer_agents_router
 
     # /api/engineer-agents/* — F.5 SRE (Pranav) + FinOps (Vidya) + Security

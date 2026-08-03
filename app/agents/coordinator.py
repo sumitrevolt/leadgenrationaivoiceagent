@@ -537,6 +537,13 @@ def _remember(topic: str, reflection: str, score: float) -> None:
             )
     except Exception:
         pass
+    # ADR-154: dual-write into workforce hub for Boss (manager) — fail-open.
+    try:
+        from app.platform import workforce_memory as _wfm
+
+        _wfm.remember_reflection_bridge(topic, reflection, score=score, agent="manager")
+    except Exception:
+        pass
 
 
 def _recall(topic: str, k: int = _MAX_MEM) -> list[str]:
