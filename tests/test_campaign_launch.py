@@ -62,6 +62,24 @@ def test_trai_window_transactional_has_wider_hours(monkeypatch):
     assert txn_ok is True
 
 
+def test_trai_window_honors_minutes_in_10_to_1930(monkeypatch):
+    """10:00–19:30 window must allow calls in the 19:00–19:30 tail.
+
+    Hour-only pre-checks previously BLOCKED this tail (19 <= 19 false) while the
+    per-call ComplianceGate._window allowed it — so batch checks and per-call
+    gate disagreed at 19:15. Batch checks now reuse effective_promo_window()."""
+    from app.telephony.campaign_compliance import trai_window_ok
+
+    monkeypatch.setenv("COMPLIANCE_PROMO_START", "10:00")
+    monkeypatch.setenv("COMPLIANCE_PROMO_END", "19:30")
+    # 19:15 IST = 13:45 UTC — INSIDE 10:00-19:30 (hour-only logic said CLOSED)
+    ok, reason = trai_window_ok(False, now_utc=datetime(2026, 1, 1, 13, 45))
+    assert ok is True, reason
+    # 19:45 IST = 14:15 UTC — OUTSIDE 19:30 (but inside hour-19)
+    ok2, _ = trai_window_ok(False, now_utc=datetime(2026, 1, 1, 14, 15))
+    assert ok2 is False
+
+
 def test_call_type_for():
     from app.telephony.campaign_compliance import call_type_for
 
