@@ -5,7 +5,8 @@ Canonical workforce = app.platform.team.STAFF (31). `manager` key = display name
 
 HONEST SCOPE:
 - Agent pause gates ONLY manual Run-now (agent_controls) — labeled Pause Manual Runs.
-- Outbound calling cannot be enabled here (platform_dial stays HARD OFF).
+- Outbound calling cannot be *enabled from this UI* (use PLATFORM_DIAL_DAILY / data file);
+  badge reflects live `platform_dial.enabled()` truth (LIVE vs OFF).
 - Safe command intents may execute; high-risk intents stay APPROVAL_REQUIRED.
 - Storage: Postgres (Alembic 019) with hardened JSONL fallback (OWNER_OS_STORAGE=jsonl).
 - No shell/SQL/arbitrary code execution.
@@ -96,7 +97,7 @@ KILL_ENFORCEMENT_MATRIX: dict[str, dict[str, Any]] = {
     "platform_dial": {
         "enforcement": ["app.platform.platform_dial.enabled", "PLATFORM_DIAL_DAILY=0"],
         "can_enable_here": False,
-        "note": "HARD OFF — Owner OS ENABLE refuse",
+        "note": "Owner OS cannot ENABLE dial — arm via PLATFORM_DIAL_DAILY / data file",
     },
     "voice_launch_kill": {
         "enforcement": ["app.telephony.voice_launch.admin_kill_engaged"],
@@ -200,9 +201,9 @@ TRAINING_PAGES = {
     },
     "kill": {
         "title": "Kill Switches",
-        "hinglish": "Calling HARD OFF. Social pause / voice kill / owner kills yahan se.",
+        "hinglish": "Calling badge = live platform_dial truth. Social pause / voice kill / owner kills yahan se. Dial ENABLE Owner OS se refuse.",
         "safe_commands": ["Kill switch status dikhao"],
-        "next": "Calling ENABLE yahan se intentionally refuse hota hai.",
+        "next": "Calling ENABLE yahan se intentionally refuse hota hai — env/data-file se arm karo.",
     },
     "training": {
         "title": "Admin Training Mode",
@@ -219,6 +220,59 @@ PAUSE_SCOPE_NOTE = (
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def calling_posture() -> dict[str, Any]:
+    """Honest outbound-calling status for Owner OS UI. Never fabricates.
+
+    Owner OS still refuses ENABLE from this surface — arming stays env/data-file.
+    """
+    live = False
+    limit: int | None = None
+    try:
+        from app.platform import platform_dial as _pd
+
+        live = bool(_pd.enabled())
+        try:
+            limit = int(_pd.dial_limit())
+        except Exception:
+            limit = None
+    except Exception:
+        live = False
+    voice_killed = False
+    try:
+        from app.telephony.voice_launch import admin_kill_status
+
+        voice_killed = bool(admin_kill_status().engaged)
+    except Exception:
+        pass
+    effective = bool(live) and not voice_killed
+    if effective:
+        badge = "Calling LIVE (compliance on)"
+        if limit is not None and limit > 0:
+            badge = f"Calling LIVE · cap {limit}/run"
+        return {
+            "live": True,
+            "hard_off": False,
+            "badge": badge,
+            "voice_killed": False,
+            "dial_limit": limit,
+        }
+    if voice_killed:
+        return {
+            "live": False,
+            "hard_off": True,
+            "badge": "Calling OFF (voice kill)",
+            "voice_killed": True,
+            "dial_limit": limit,
+        }
+    return {
+        "live": False,
+        "hard_off": True,
+        "badge": "Calling OFF",
+        "voice_killed": False,
+        "dial_limit": limit,
+    }
 
 
 def _sync_store_paths() -> None:
@@ -312,13 +366,19 @@ def kill_switch_board() -> dict[str, Any]:
         from app.platform import platform_dial as _pd
 
         enabled = bool(_pd.enabled())
+        posture = calling_posture()
         board["platform_dial"].update(
             {
                 "engaged": not enabled,
                 "hard_off": not enabled,
                 "source": "platform_dial",
                 "can_enable_here": False,
-                "note": "HARD OFF mandate — Owner OS se enable nahi hota",
+                "note": (
+                    "LIVE — arm/disarm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
+                    if enabled
+                    else "OFF — arm via PLATFORM_DIAL_DAILY / data file; Owner OS ENABLE refuse"
+                ),
+                "live": bool(posture.get("live")),
             }
         )
     except Exception:
@@ -358,7 +418,7 @@ def kill_switch_board() -> dict[str, Any]:
                 "can_toggle": True,
             }
     board["_matrix"] = KILL_ENFORCEMENT_MATRIX
-    board["_calling_badge"] = "Calling HARD OFF"
+    board["_calling_badge"] = calling_posture().get("badge") or "Calling OFF"
     return board
 
 
@@ -369,7 +429,10 @@ def set_kill_switch(key: str, engaged: bool, by: str = "admin", reason: str = ""
         audit(by, "kill_switch_refused", {"key": key, "engaged": engaged})
         return {
             "ok": False,
-            "error": "platform_dial / outbound calling Owner OS se ENABLE nahi hota (HARD OFF mandate)",
+            "error": (
+                "platform_dial Owner OS se ENABLE/DISABLE nahi hota — "
+                "PLATFORM_DIAL_DAILY / data/platform_dial.json use karo"
+            ),
         }
     allowed = {
         "voice_launch_kill",
@@ -436,7 +499,7 @@ def owner_kill_blocks(intent: str) -> str | None:
     if intent in ("payment_mutate",) and km.get("owner_payment_mutation", {}).get("engaged"):
         return "payment mutation kill engaged"
     if intent in ("enable_calling",):
-        return "outbound calling HARD OFF"
+        return "outbound calling Owner OS se ENABLE refuse — use PLATFORM_DIAL_DAILY"
     return None
 
 
@@ -1007,7 +1070,7 @@ def parse_intent(text: str) -> dict[str, Any]:
         intent = "enable_calling"
         risk = "critical"
         approval = True
-        actions = ["REFUSED — outbound calling HARD OFF"]
+        actions = ["REFUSED — dial ENABLE Owner OS se nahi; PLATFORM_DIAL_DAILY use karo"]
         forbidden.append("enable_calling")
     elif any(x in low for x in ("publish", "post karo", "zara publish", "social pe daalo")):
         intent = "social_publish"
@@ -1507,11 +1570,24 @@ def owner_home() -> dict[str, Any]:
         attention.append(
             {
                 "kind": "safety",
-                "title": "Outbound calling HARD OFF (correct)",
+                "title": "Outbound calling OFF",
                 "href": "/app/owner#kill",
                 "priority": "info",
             }
         )
+    elif kills.get("platform_dial", {}).get("live") or not kills.get("platform_dial", {}).get(
+        "hard_off"
+    ):
+        # live when hard_off is false
+        if not kills.get("platform_dial", {}).get("hard_off"):
+            attention.append(
+                {
+                    "kind": "safety",
+                    "title": "Calling LIVE — DND/TRAI/AI-disclosure gates on call path",
+                    "href": "/app/dialer",
+                    "priority": "info",
+                }
+            )
     if tasks["counts"]["failed"]:
         attention.append(
             {
@@ -1521,6 +1597,58 @@ def owner_home() -> dict[str, Any]:
                 "priority": "high",
             }
         )
+    # Speed-to-lead SLA (world-class <5 min median) — red when breached.
+    stl_badge = "Speed-to-lead: Unknown"
+    try:
+        from app.platform import speed_to_lead as _stl
+
+        stl = _stl.summary(30) or {}
+        if stl.get("ok") and stl.get("touched"):
+            med = float(stl.get("median_seconds") or 0)
+            u5 = stl.get("under_5min_pct")
+            stl_badge = f"Speed-to-lead median {med / 60:.1f}m · <5min {u5}%"
+            if not stl.get("sla_5min_ok"):
+                attention.append(
+                    {
+                        "kind": "speed_to_lead",
+                        "title": f"SLA red — median {med / 60:.1f} min (>5 min). Hot Queue check karo.",
+                        "href": "/app/inbox",
+                        "priority": "high",
+                    }
+                )
+            else:
+                attention.append(
+                    {
+                        "kind": "speed_to_lead",
+                        "title": f"SLA green — {u5}% under 5 min",
+                        "href": "/app/automation#clientops",
+                        "priority": "info",
+                    }
+                )
+        elif stl.get("ok"):
+            stl_badge = "Speed-to-lead: no touched inquiries (30d)"
+    except Exception:
+        pass
+    # Unpaid converted chase
+    try:
+        from app.platform.sales_autopilot import store as _sap
+
+        unpaid_n = sum(
+            1
+            for r in _sap.list_prospects(limit=500)
+            if r.get("status") == _sap.STATUS_AWAITING_PAYMENT
+        )
+        if unpaid_n:
+            attention.append(
+                {
+                    "kind": "unpaid_converted",
+                    "title": f"{unpaid_n} converted awaiting payment (ledger proof missing)",
+                    "href": "/app/inbox",
+                    "priority": "high",
+                }
+            )
+    except Exception:
+        pass
     attention.append(
         {
             "kind": "hot_queue",
@@ -1529,6 +1657,7 @@ def owner_home() -> dict[str, Any]:
             "priority": "medium",
         }
     )
+    posture = calling_posture()
     return {
         "ok": True,
         "owner_os_flag": owner_os_flag_on(),
@@ -1548,7 +1677,9 @@ def owner_home() -> dict[str, Any]:
             "runnable": len(reg.get("runnable_members") or []),
         },
         "pause_semantics": reg.get("pause_semantics"),
-        "calling_badge": "Calling HARD OFF",
+        "calling_badge": posture.get("badge") or "Calling OFF",
+        "calling_live": bool(posture.get("live")),
+        "speed_to_lead_badge": stl_badge,
         "attention": attention,
         "approvals_pending": appr.get("pending"),
         "kill_switches": {

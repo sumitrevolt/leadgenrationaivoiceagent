@@ -79,7 +79,7 @@ textarea{min-height:88px;resize:vertical}
     <div class="card">
       <h2>Owner Home — business abhi kya kar raha hai?</h2>
       <p class="muted">Har metric actionable hai. Terminal/SSH ki zarurat nahi for routine ops.</p>
-      <div class="row" style="margin-bottom:8px"><span class="badge err" id="callingBadge">Calling HARD OFF</span></div>
+      <div class="row" style="margin-bottom:8px"><span class="badge err" id="callingBadge">Calling OFF</span></div>
       <div class="chips" id="homeChips"></div>
       <h3>Attention</h3>
       <div id="homeAttention" class="muted">Loading…</div>
@@ -236,9 +236,9 @@ textarea{min-height:88px;resize:vertical}
     <div class="grid">
       <div class="card">
         <h2>OpenClaw Owner Copilot</h2>
-        <p class="muted">Chief of Staff edge layer. Actions sirf Owner OS se. Calling HARD OFF. Flag: <code>OPENCLAW_ENABLED</code>.</p>
+        <p class="muted">Chief of Staff edge layer. Actions sirf Owner OS se. Dial ENABLE Owner OS se refuse. Flag: <code>OPENCLAW_ENABLED</code>.</p>
         <div class="row" style="margin-bottom:8px">
-          <span class="badge err" id="copilotCalling">Calling HARD OFF</span>
+          <span class="badge err" id="copilotCalling">Calling OFF</span>
           <span class="badge" id="copilotFlag">flag…</span>
           <span class="badge" id="copilotLane">lane…</span>
         </div>
@@ -329,7 +329,10 @@ async function loadHome(){
   const {status,body}=await api("/api/admin/owner-os/home");
   if(status!==200){ document.getElementById("homeAttention").textContent="Home load fail ("+status+")"; return; }
   const w=body.workforce||{};
-  document.getElementById("callingBadge").textContent = body.calling_badge || "Calling HARD OFF";
+  document.getElementById("callingBadge").textContent = body.calling_badge || "Calling OFF";
+  const cb = document.getElementById("callingBadge");
+  if (body.calling_live) { cb.className = "badge ok"; }
+  else { cb.className = "badge err"; }
   document.getElementById("homeChips").innerHTML = [
     ["Canonical agents", w.canonical_agents??w.total],
     ["Supervisors", w.system_supervisors],
@@ -705,7 +708,10 @@ async function loadCopilot(){
   const on=!!body.enabled;
   flagEl.textContent = on? "OPENCLAW_ENABLED=1":"OPENCLAW_ENABLED=0";
   flagEl.className = on? "badge ok":"badge warn";
-  document.getElementById("copilotCalling").textContent = "Calling HARD OFF";
+  document.getElementById("copilotCalling").textContent =
+    document.getElementById("callingBadge").textContent || "Calling OFF";
+  const cc = document.getElementById("copilotCalling");
+  cc.className = document.getElementById("callingBadge").className || "badge err";
   const ctx=body.context||{};
   const a=ctx.agents||{}, q=ctx.queues||{}, ap=ctx.approvals||{};
   // Built via DOM + textContent rather than innerHTML: these values come from an

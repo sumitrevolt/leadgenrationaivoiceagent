@@ -1558,6 +1558,19 @@ async def whatsapp_reply(
     return rec
 
 
+def enqueue_action_card(rec: dict[str, Any]) -> bool:
+    """Append a Hot Queue / inbox action card (inquiry, chase, etc.). Never raises."""
+    try:
+        if not isinstance(rec, dict):
+            return False
+        row = dict(rec)
+        row.setdefault("at", datetime.now(timezone.utc).isoformat())
+        return _save_draft(row)
+    except Exception as e:
+        logger.debug("enqueue_action_card err: %s", e)
+        return False
+
+
 def list_drafts(limit: int = 50) -> list[dict]:
     """Recent reply drafts for the dashboard (1-click human send)."""
     out: list[dict] = []
@@ -1629,6 +1642,11 @@ def _hq_id(row: dict) -> str:
 
     key = f"{row.get('from') or ''}|{row.get('at') or ''}"
     return hashlib.sha1(key.encode("utf-8", "ignore"), usedforsecurity=False).hexdigest()[:12]
+
+
+def hq_id_for(row: dict) -> str:
+    """Public wrapper for Hot Queue card ids (inquiry bridge / chase cards)."""
+    return _hq_id(row or {})
 
 
 def _india_wa_number(raw: Any) -> str:
@@ -2083,7 +2101,7 @@ def hot_queue(
         rows = [
             r
             for r in rows
-            if r.get("channel") == "whatsapp"
+            if r.get("channel") in ("whatsapp", "inquiry", "payment_chase")
             or bool((pmap.get(str(r.get("from") or "").strip().lower()) or {}).get("emailed_at"))
         ]
         latest: dict[str, dict] = {}
@@ -2122,7 +2140,16 @@ def hot_queue(
             final.append(r)
             if len(final) >= max(1, limit):
                 break
-        return final
+        # Pay-truth chase cards (converted without ledger) — owner action, ban-safe wa.me.
+        if scope_n in ("boss", "all") and len(final) < max(1, limit):
+            try:
+                from app.platform.sales_autopilot import pay_truth as _pt
+
+                for card in _pt.unpaid_chase_cards(limit=max(1, limit) - len(final)):
+                    final.append(card)
+            except Exception:
+                pass
+        return final[: max(1, limit)]
     except Exception as exc:
         logger.debug("hot_queue err: %s", exc)
         return []

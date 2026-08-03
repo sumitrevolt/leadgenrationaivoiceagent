@@ -2,27 +2,27 @@
 
 ---
 
-## WS-1 WAHA QR → live canary - ACTIVE (owner action needed)
-- **ID:** WS-1
-- **Business outcome:** WORKING WAHA + one allowlisted canary
-- **Current state:** Session status **FAILED** (QR timeout — not scanned, 2026-08-02 live probe). Provider fixed: `SCAN_QR_CODE` + real PNG QR; AUTO=0. Frontend now surfaces FAILED/SCAN_QR_CODE/WORKING + QR auto-refresh (ISSUE-01 landed).
-- **Next exact action:** Owner opens `/app/whatsapp` → restart session → scan QR before timeout → reply `WAHA CONNECTED` → agent verify + canary
-- **Out of scope:** blind wipe loops · Meta Cloud · soak · flipping `WHATSAPP_AUTO_SEND`
+## WS-R1 Autopilot refill - CODE READY (arm on deploy)
+- **ID:** WS-R1
+- **Business outcome:** Autopilot not idle-only; scored Maps prospects enter store
+- **Current state:** Local code ready; Owner OS calling badge honesty fixed. Needs commit/PR/deploy + `SALES_AUTOPILOT_REFILL=1`.
+- **Next exact action:** Owner ask → PR/deploy `APP_VERSION=<sha>` → arm refill flag → recreate app/worker/scheduler
+- **Out of scope:** WHATSAPP_AUTO_SEND
 
 ---
 
-## WS-2 Estique payment - VERIFY (autopilot says converted)
-- **ID:** WS-2
-- **Business outcome:** Second paid customer with ledger+browser proof
-- **Current state:** Sales autopilot store shows Estique `converted` (only non-owner prospect). Ledger/browser proof of the actual ₹1999 payment NOT independently re-verified this session.
-- **Next exact action:** Confirm ledger row + payment evidence; if unpaid, owner private password reset → Billing ₹1999 → reply `PAID`
-- **Out of scope:** requesting password in chat · manual mark-paid · fabricating evidence
+## WS-R2 Speed-to-lead action - CODE READY
+- **ID:** WS-R2
+- **Business outcome:** Website inquiry → Hot Queue under 5 min
+- **Current state:** Bridge + STL fields + Owner OS SLA badge shipped locally
+- **Next exact action:** After deploy, test inquiry → `/app/inbox`
+- **Out of scope:** auto WA send
 
 ---
 
-## WS-3 OpenCode issue batch (2026-08-02) - ACTIVE
-- **ID:** WS-3
-- **Business outcome:** 12 issues fixed local + verified (WAHA UI, CSP PostHog, autopilot idle, staging provenance, context docs, …)
-- **Current state:** ISSUE-01 WAHA UI ✅ · ISSUE-02 CSP PostHog allowlist ✅ (3 tests) · ISSUE-03 autopilot idle_reason ✅ (2 tests) · ISSUE-04 staging `:latest` fail-closed ✅ · ISSUE-05 context-docs refresh ✅. Remaining issues in queue.
-- **Next exact action:** Continue remaining issues; final verify (pytest targeted + prod_check + secrets scan) before any deploy.
-- **Out of scope:** any deploy without owner ask · WHATSAPP_AUTO_SEND · dial cap change
+## WS-R3 Pay-truth / Estique - OWNER PAY
+- **ID:** WS-R3
+- **Business outcome:** Ledger-proven 2nd paid customer
+- **Current state:** Code demotes unpaid converted; Estique still needs real ₹1999
+- **Next exact action:** Owner password → Billing ₹1999 → reply `PAID`
+- **Out of scope:** fabricate payment / mark-paid
