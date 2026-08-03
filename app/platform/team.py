@@ -1041,4 +1041,17 @@ def team_pulse(max_members: int = 4) -> dict[str, Any]:
     return {"pulsed": pulsed, "count": len(pulsed)}
 
 
-__all__ = ["STAFF", "log_event", "recent_events", "team_status"]
+def memory_brief(member: str, query: str = "", *, max_chars: int = 1200) -> str:
+    """Per-STAFF progressive memory brief (ADR-154 workforce hub). Never raises.
+
+    Agents / staff jobs can inject this into prompts. Empty when WORKFORCE_MEMORY off.
+    """
+    try:
+        from app.platform import workforce_memory as _wfm
+
+        return _wfm.composite_brief(member, query, max_chars=max_chars) or ""
+    except Exception:
+        return ""
+
+
+__all__ = ["STAFF", "log_event", "recent_events", "team_status", "memory_brief"]
