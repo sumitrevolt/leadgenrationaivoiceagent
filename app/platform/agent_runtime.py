@@ -333,6 +333,8 @@ class AgentExecutionContext:
     usage: dict[str, float] = field(
         default_factory=lambda: {"cost_inr": 0.0, "api_calls": 0.0, "contacts": 0.0}
     )
+    # ADR-154: bounded workforce-memory brief (empty when WORKFORCE_MEMORY off)
+    memory_brief: str = ""
 
     def add_usage(self, cost_inr: float = 0.0, api_calls: int = 0, contacts: int = 0) -> None:
         self.usage["cost_inr"] += float(cost_inr or 0.0)
@@ -1073,12 +1075,21 @@ async def run_task(task: AgentTask) -> AgentResult:
             effective_timeout = min(effective_timeout, float(task.timeout_s))
 
         attempts_allowed = _max_attempts(contract.retry_policy)
+        mem_brief = ""
+        try:
+            from app.platform import workforce_memory as _wfm
+
+            mem_brief = _wfm.inject_for_runtime(task.agent_id, task.action) or ""
+        except Exception:
+            mem_brief = ""
+
         ctx = AgentExecutionContext(
             task=task,
             contract=contract,
             tenant_id=task.tenant_id,
             mode=contract.default_mode,
             trace_id="tr_" + uuid.uuid4().hex[:10],
+            memory_brief=mem_brief[:2000],
         )
 
         lc.append(TaskStatus.RUNNING.value)
@@ -1177,6 +1188,14 @@ async def run_task(task: AgentTask) -> AgentResult:
                 _charge_usage(task.agent_id, ctx.usage)
                 _record_heartbeat(task.agent_id, useful=True, result=res)
                 _log_team_event(task.agent_id, "runtime_done", f"{task.action} ok ({dur}ms)")
+                try:
+                    from app.platform import workforce_memory as _wfm
+
+                    _wfm.remember_runtime_outcome(
+                        task.agent_id, task.action, ok=True, detail=f"{dur}ms"
+                    )
+                except Exception:
+                    pass
                 await _durable_close(durable_id, True, f"{task.action} succeeded")
                 return res
             except SkipTask as sk:

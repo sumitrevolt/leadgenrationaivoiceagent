@@ -157,6 +157,12 @@ AUTOMATION_FLAGS = [
     "CELERY_TRIM_MIN_DEPTH",
     "SEMANTIC_CACHE",  # semantic LLM response cache (Qdrant+Redis, off-loop) — OFF default, fail-open
     "AGENT_MEMORY",  # cross-session per-lead/client memory (Qdrant+free LLM, off-loop) — OFF default, fail-open
+    "WORKFORCE_MEMORY",  # ADR-154: per-STAFF-agent layered memory hub (TencentDB patterns, JSONL+refs) — OFF default, fail-open
+    "WORKFORCE_MEMORY_DIR",  # optional override root (default data/workforce_memory) — tests/canary only
+    "WORKFORCE_MEMORY_MAX_CHARS_PER",  # recall budget per entry (default 280)
+    "WORKFORCE_MEMORY_MAX_TOTAL",  # total brief char budget (default 1200)
+    "WORKFORCE_MEMORY_RECALL_TIMEOUT_MS",  # soft recall wall-clock (default 50)
+    "WORKFORCE_MEMORY_L0_L1_DAYS",  # L0/L1 retention days; 0=forever (default 90)
     "LLM_BUDGET_GUARD",  # per-scope LLM daily cost/usage cap + kill-switch — OFF default, fail-open
     "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
     "EXTERNAL_AGENT_ORCHESTRATOR",  # Cursor/Claude mission orchestrator (records only; no shell/deploy/send) — OFF default
