@@ -351,6 +351,30 @@ STORES: list[dict[str, Any]] = [
         deployment_blocker=False,
     ),
     _e(
+        store_id="platform.workforce_memory",
+        display_name="Per-STAFF workforce memory hub (ADR-154)",
+        legacy_paths=["data/workforce_memory/"],
+        writer_modules=["app/platform/workforce_memory.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="agents",
+        durability_class="rebuildable",
+        concurrency_model="append-mostly JSONL per agent; equipments.json rewrite; no lock",
+        tenant_scope="per-STAFF-agent directory (not customer tenant)",
+        target_runtime_subpath="platform/workforce_memory/",
+        migration_tier=TIER_2,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-03 with ADR-154 Workforce Memory Hub. Layered L0–L3 "
+            "JSONL + refs under data/workforce_memory/{agent}/. Losing files degrades "
+            "agent continuity (lessons/persona) but does not destroy billing, consent, "
+            "or invoice authority — hence rebuildable. Admin purge/prune are DPDP/ops "
+            "erase paths; chat/L0 stays private; team share is skill/wiki only."
+        ),
+    ),
+    _e(
         store_id="marketing.brand_kits",
         display_name="Per-tenant brand kit profile",
         legacy_paths=["data/brand_kits/"],

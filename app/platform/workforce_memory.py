@@ -130,11 +130,15 @@ def is_enabled() -> bool:
     )
 
 
+# Scanner-visible store root (runtime-data allowlist matches this symbol).
+_ROOT_DEFAULT = os.path.join("data", "workforce_memory")
+
+
 def _root() -> str:
     override = (os.getenv("WORKFORCE_MEMORY_DIR") or "").strip()
     if override:
         return override
-    return os.path.join("data", "workforce_memory")
+    return _ROOT_DEFAULT
 
 
 def _now() -> str:
@@ -199,17 +203,17 @@ def _allowed(agent_id: str, asset: str) -> bool:
 
 def _append_entry(agent_id: str, rec: dict[str, Any]) -> bool:
     try:
-        d = _agent_dir(agent_id)
-        os.makedirs(d, exist_ok=True)
-        path = _entries_path(agent_id)
-        with open(path, "a", encoding="utf-8") as f:
+        agent_dir = _agent_dir(agent_id)
+        os.makedirs(agent_dir, exist_ok=True)
+        entries_path = _entries_path(agent_id)
+        with open(entries_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
         # Soft trim — keep last N lines if file grows huge
         try:
-            if os.path.getsize(path) > 4_000_000:
+            if os.path.getsize(entries_path) > 4_000_000:
                 rows = _read_entries(agent_id, limit=_MAX_ENTRIES_PER_AGENT + 200)
                 keep = rows[:_MAX_ENTRIES_PER_AGENT]
-                with open(path, "w", encoding="utf-8") as f:
+                with open(entries_path, "w", encoding="utf-8") as f:
                     for r in reversed(keep):
                         f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
         except Exception:
@@ -223,11 +227,11 @@ def _append_entry(agent_id: str, rec: dict[str, Any]) -> bool:
 def _read_entries(agent_id: str, limit: int = 200) -> list[dict[str, Any]]:
     """Latest-first."""
     out: list[dict[str, Any]] = []
-    path = _entries_path(agent_id)
+    entries_path = _entries_path(agent_id)
     try:
-        if not os.path.exists(path):
+        if not os.path.exists(entries_path):
             return []
-        with open(path, encoding="utf-8") as f:
+        with open(entries_path, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     try:
@@ -252,9 +256,9 @@ def offload_ref(agent_id: str, text: str, *, label: str = "ref") -> str | None:
         node_id = uuid.uuid4().hex[:12]
         rd = _refs_dir(aid)
         os.makedirs(rd, exist_ok=True)
-        path = os.path.join(rd, f"{node_id}.md")
+        ref_path = os.path.join(rd, f"{node_id}.md")
         header = f"# {label[:80]}\n\nagent: {aid}\nat: {_now()}\nnode_id: {node_id}\n\n"
-        with open(path, "w", encoding="utf-8") as f:
+        with open(ref_path, "w", encoding="utf-8") as f:
             f.write(header + body[:_MAX_OFFLOAD_CHARS])
         _STATS["offloaded"] = _STATS.get("offloaded", 0) + 1
         return node_id
@@ -271,10 +275,11 @@ def drilldown(agent_id: str, node_id: str) -> str | None:
     if not aid or not nid:
         return None
     try:
-        path = os.path.join(_refs_dir(aid), f"{nid}.md")
-        if not os.path.exists(path):
+        rd = _refs_dir(aid)
+        ref_path = os.path.join(rd, f"{nid}.md")
+        if not os.path.exists(ref_path):
             return None
-        with open(path, encoding="utf-8") as f:
+        with open(ref_path, encoding="utf-8") as f:
             return f.read()[:_MAX_OFFLOAD_CHARS]
     except Exception:
         return None
@@ -385,8 +390,8 @@ def _mirror_shared(rec: dict[str, Any]) -> None:
     """Copy team-visible skill/wiki into _shared/ for equip/loadout."""
     try:
         os.makedirs(_shared_dir(), exist_ok=True)
-        path = os.path.join(_shared_dir(), "entries.jsonl")
-        with open(path, "a", encoding="utf-8") as f:
+        shared_path = os.path.join(_shared_dir(), "entries.jsonl")
+        with open(shared_path, "a", encoding="utf-8") as f:
             f.write(json.dumps(rec, ensure_ascii=False, default=str) + "\n")
     except Exception:
         pass
@@ -394,11 +399,11 @@ def _mirror_shared(rec: dict[str, Any]) -> None:
 
 def _read_shared(limit: int = 200) -> list[dict[str, Any]]:
     out: list[dict[str, Any]] = []
-    path = os.path.join(_shared_dir(), "entries.jsonl")
+    shared_path = os.path.join(_shared_dir(), "entries.jsonl")
     try:
-        if not os.path.exists(path):
+        if not os.path.exists(shared_path):
             return []
-        with open(path, encoding="utf-8") as f:
+        with open(shared_path, encoding="utf-8") as f:
             for line in f:
                 if line.strip():
                     try:
@@ -413,10 +418,10 @@ def _read_shared(limit: int = 200) -> list[dict[str, Any]]:
 def _load_equipments() -> dict[str, list[str]]:
     """agent_id -> list of shared entry ids equipped to them."""
     try:
-        path = _equipments_path()
-        if not os.path.exists(path):
+        equip_path = _equipments_path()
+        if not os.path.exists(equip_path):
             return {}
-        with open(path, encoding="utf-8") as f:
+        with open(equip_path, encoding="utf-8") as f:
             data = json.load(f)
         if isinstance(data, dict):
             return {
@@ -432,7 +437,8 @@ def _load_equipments() -> dict[str, list[str]]:
 def _save_equipments(data: dict[str, list[str]]) -> bool:
     try:
         os.makedirs(_root(), exist_ok=True)
-        with open(_equipments_path(), "w", encoding="utf-8") as f:
+        equip_path = _equipments_path()
+        with open(equip_path, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
     except Exception:
@@ -482,19 +488,19 @@ def list_equipments(agent_id: str | None = None) -> dict[str, Any]:
 def _maybe_update_persona(agent_id: str, content: str, topic: str) -> None:
     """Human-readable L3 persona.md (upper layer = structure, inspectable)."""
     try:
-        path = _persona_path(agent_id)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
+        persona_path = _persona_path(agent_id)
+        os.makedirs(os.path.dirname(persona_path), exist_ok=True)
         stamp = _now()
         block = f"\n## {topic or 'insight'} ({stamp})\n\n{content}\n"
         prev = ""
-        if os.path.exists(path):
-            with open(path, encoding="utf-8") as f:
+        if os.path.exists(persona_path):
+            with open(persona_path, encoding="utf-8") as f:
                 prev = f.read()
         # Keep persona file bounded
         merged = (prev + block)[-12_000:]
         if not merged.startswith("#"):
             merged = f"# Persona — {agent_id}\n" + merged
-        with open(path, "w", encoding="utf-8") as f:
+        with open(persona_path, "w", encoding="utf-8") as f:
             f.write(merged)
     except Exception:
         pass
@@ -579,8 +585,9 @@ def recall_brief(agent_id: str, query: str = "", *, max_chars: int | None = None
         rows = recall(agent_id, query, limit=6)
         if not rows:
             aid = _safe_agent(agent_id)
-            if aid and os.path.exists(_persona_path(aid)):
-                with open(_persona_path(aid), encoding="utf-8") as f:
+            persona_path = _persona_path(aid) if aid else ""
+            if persona_path and os.path.exists(persona_path):
+                with open(persona_path, encoding="utf-8") as f:
                     return f.read()[:budget]
             return ""
         lines: list[str] = []
@@ -708,8 +715,8 @@ def prune_expired(*, dry_run: bool = True) -> dict[str, Any]:
         for name in os.listdir(root):
             if name.startswith("_") or name == "equipments.json":
                 continue
-            path = os.path.join(root, name, "entries.jsonl")
-            if not os.path.isfile(path):
+            prune_path = os.path.join(root, name, "entries.jsonl")
+            if not os.path.isfile(prune_path):
                 continue
             keep: list[dict[str, Any]] = []
             removed = 0
@@ -727,7 +734,7 @@ def prune_expired(*, dry_run: bool = True) -> dict[str, Any]:
                         pass
                 keep.append(r)
             if removed and not dry_run:
-                with open(path, "w", encoding="utf-8") as f:
+                with open(prune_path, "w", encoding="utf-8") as f:
                     for r in reversed(keep):
                         f.write(json.dumps(r, ensure_ascii=False, default=str) + "\n")
             if removed:
@@ -787,11 +794,11 @@ def purge_agent(agent_id: str) -> dict[str, Any]:
     try:
         import shutil
 
-        d = _agent_dir(aid)
-        if os.path.isdir(d):
+        agent_dir = _agent_dir(aid)
+        if os.path.isdir(agent_dir):
             # Count entries before wipe
             purged = len(_read_entries(aid, limit=_MAX_ENTRIES_PER_AGENT))
-            shutil.rmtree(d, ignore_errors=True)
+            shutil.rmtree(agent_dir, ignore_errors=True)
         _STATS["purged"] = _STATS.get("purged", 0) + purged
         return {"ok": True, "agent_id": aid, "purged": purged}
     except Exception as e:
