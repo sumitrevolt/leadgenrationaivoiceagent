@@ -14,6 +14,14 @@
 
 OpenClaw Stage A + Boss → 31 STAFF remain the production control path. Buzz agents are a **separate plane** — do not invent a 32nd STAFF persona from Buzz setup.
 
+### Coordination Hub (ADR-150)
+
+If `COORDINATION_HUB_ENABLED=1`, Buzz can send **presence/events only** to
+`POST /api/admin/owner-os/coordination-hub/webhooks/buzz` using
+`COORD_HUB_BUZZ_SECRET` HMAC (`X-CoordHub-*` headers: timestamp, nonce, signature).
+This is **not** the human admin bearer / `ADMIN_API_KEY`. Hub is a thin Owner OS
+projection — not a second control plane or STAFF registry. Flag default OFF.
+
 ## Live workspace layout
 
 | Channel | Job | Agents |

@@ -335,6 +335,40 @@ STORES: list[dict[str, Any]] = [
         evidence="new store 2026-07-31; durable idempotency index + append-only ledger under file_lock",
     ),
     _e(
+        store_id="owner_os.coordination_hub",
+        display_name="Coordination Hub projection (presence + events + nonce fps)",
+        legacy_paths=[
+            "data/coordination_hub/",
+            "data/coordination_hub/events.jsonl",
+            "data/coordination_hub/presence.json",
+            "data/coordination_hub/nonce_fps.jsonl",
+        ],
+        writer_modules=[
+            "app/platform/coordination_hub_events.py",
+            "app/platform/coordination_hub_auth.py",
+        ],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        last_write="2026-08-04",
+        current_authority="FILE",
+        business_category="governance",
+        durability_class="rebuildable",
+        production_active=True,
+        mutable=True,
+        authoritative_or_required=False,
+        inside_checkout=True,
+        externally_protected=False,
+        target_runtime_subpath="owner_os/coordination_hub/",
+        migration_tier=TIER_2,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        blocker_reason="Hub projection only; safe to lose (tools re-heartbeat)",
+        evidence=(
+            "ADR-150 thin Owner OS projection; flag COORDINATION_HUB_ENABLED default OFF. "
+            "Not a mission ledger or STAFF registry."
+        ),
+    ),
+    _e(
         store_id="content.approvals",
         display_name="Content approvals",
         legacy_paths=["data/content_approvals.jsonl"],
