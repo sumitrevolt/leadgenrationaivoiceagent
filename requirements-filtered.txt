@@ -43,7 +43,7 @@ fastembed>=0.4.0
 # Speech Processing
 # =============================================================================
 # STT
-deepgram-sdk==3.0.0
+deepgram-sdk==7.6.0
 google-cloud-speech==2.40.0
 # Local STT for the conversational phone pipeline (app/voice_agent/phone_stream.py
 # + app/telephony/vobiz_stream.py) — faster-whisper 'tiny' runs CPU/int8, no API key.
