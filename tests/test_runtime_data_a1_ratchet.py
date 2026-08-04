@@ -46,7 +46,12 @@ EXPECTED_BLOCKERS = 0
 # LOOSENING a control -- declaring a newly-added destructive path is the opposite:
 # the entry count rises because the reviewed surface grew, and the baseline
 # fingerprint count below is deliberately unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 43
+# 2026-08-04: 43 -> 45. #240 added data/offers.jsonl (immutable offer/order store)
+# and its atomic temp. The reviewed surface GREW -- both paths are declared with
+# owner, migration_tier and review_condition under the existing
+# billing.upi_payments family; no baseline debt was tolerated and
+# EXPECTED_BASELINE_FINGERPRINTS below is deliberately unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 45
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 
