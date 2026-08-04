@@ -734,6 +734,61 @@ async def _classify(subject: str, body: str, history: str = "") -> str:
     return "other"
 
 
+def _interested_offer_block(biz: str = "") -> str:
+    """Offer + payment footer appended to an ``interested`` reply — the money step.
+
+    Two things this deliberately does NOT do, both fixed 2026-08-04:
+
+    1. It resolves the VPA through ``upi_config.get_vpa()`` (env -> settings ->
+       ``data/platform_upi.json``), NOT ``os.environ["UPI_VPA"]``. Admins arm UPI
+       at runtime via ``POST /api/admin/upi/configure`` with no restart, and every
+       other payment surface already reads the canonical resolver
+       (``activation._payments_ready``, ``public_site`` pay-info, ``dunning``).
+       Reading env directly meant a dashboard-armed VPA left the hottest email in
+       the funnel — the reply to an interested prospect — with no payment
+       instruction at all, while ``/api/public/pay-info`` reported enabled.
+    2. It ships a real NPCI ``upi://pay`` deep-link with amount + note instead of a
+       bare VPA string, so the prospect taps once instead of typing a handle and
+       guessing the price, and the note carries the business name so the owner can
+       reconcile the credit. Same shape as ``billing/dunning._ensure_pay_link`` and
+       ``marketing/upi_kit._build_upi_link``.
+
+    Price comes from ``packages.get_starter_price_inr()`` (billing-truth single
+    source) — never a hardcoded 1999. Returns the pricing line alone when UPI is
+    unarmed; never raises.
+    """
+    pricing = "\n\nAage badhne ke liye pricing: https://leadsgenai.in/pricing"
+    try:
+        from urllib.parse import quote
+
+        from app.platform import upi_config
+
+        vpa = (upi_config.get_vpa() or "").strip()
+        if not vpa:
+            return pricing
+
+        try:
+            from app.marketing.packages import get_starter_price_inr
+
+            amount = int(get_starter_price_inr() or 0)
+        except Exception:
+            amount = 0
+
+        note = f"LeadsGenAI {biz}".strip()[:80]
+        parts = [f"pa={quote(vpa, safe='@')}", "pn=LeadsGenAI"]
+        if amount > 0:
+            parts.append(f"am={amount}")
+        if note:
+            parts.append(f"tn={quote(note)}")
+        parts.append("cu=INR")
+        link = "upi://pay?" + "&".join(parts)
+
+        amt_txt = f" (₹{amount}/mo Starter)" if amount > 0 else ""
+        return pricing + f"\n1-tap UPI{amt_txt}: {link}\nYa UPI ID: {vpa}"
+    except Exception:  # pragma: no cover - defensive, never block the reply
+        return pricing
+
+
 async def _draft(
     biz: str,
     subject: str,
@@ -809,12 +864,7 @@ async def _draft(
         )
         reply = (reply or "").strip()
         if intent == "interested" and reply:
-            vpa = os.environ.get("UPI_VPA", "").strip()
-            if vpa:
-                reply += (
-                    "\n\nAage badhne ke liye pricing: https://leadsgenai.in/pricing"
-                    f" - UPI se pay: {vpa}"
-                )
+            reply += _interested_offer_block(biz)
         return reply
     except Exception:
         return ""

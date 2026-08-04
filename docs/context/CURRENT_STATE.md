@@ -4,24 +4,24 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-03 — Buzz Admin Plane completion pass + prior `/health`=`303b061f`. See `docs/context/SESSION_HANDOFF.md`.
+2026-08-04 — direct `/health` probe = `e06687c7`. See `docs/context/SESSION_HANDOFF.md`.
 
 ## Sprint goal (LOCKED)
 **GTM 0→1** — pehle paid customers on Marketing product; mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint); 2nd paying customer target.
 
 ## Production SHA
-`303b061f` — merge commit of PR #225 (revenue automation: refill / pay-truth / inquiry Hot Queue / Owner OS calling badge). Live-probed 2026-08-03 over direct HTTPS: `{"version":"303b061f","environment":"production","status":"healthy"}`.
-5 app-image services pinned equal to this SHA (no per-container skew); queues + DLQ = 0.
-Rollback reference: `fa9f47c7` (prior) / `303b061f` current.
-Label: DIRECT_HOST_VERIFIED (2026-08-03) + GIT_VERIFIED.
+`e06687c7` — ADR-155 litmus gate (PR #235). Live-probed 2026-08-04 over direct HTTPS: `{"version":"e06687c7","environment":"production","status":"healthy"}`.
+Rollback reference: `303b061f` (prior) / `e06687c7` current.
+Label: DIRECT_HOST_VERIFIED (2026-08-04) + GIT_VERIFIED.
+> Superseded `303b061f` (2026-08-03). Two deploys landed after it — `041501c2` (Unity WebGL) then `e06687c7`.
 
 ## Origin/main
-`303b061` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks. Open PRs = 0.
-Label: GIT_VERIFIED (2026-08-03)
+`e06687c` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks. Open PRs = 0.
+Label: GIT_VERIFIED (2026-08-04)
 
 ## Production health
-`status: healthy`, `environment: production` at `303b061f` (2026-08-03, direct HTTPS).
-Label: DIRECT_HOST_VERIFIED (2026-08-03)
+`status: healthy`, `environment: production` at `e06687c7` (2026-08-04, direct HTTPS).
+Label: DIRECT_HOST_VERIFIED (2026-08-04)
 
 ## Sales Autopilot (live, REAL email — owner 2026-08-03 refill arm)
 - `SALES_AUTOPILOT_ENABLED=1` · `DRY_RUN=0` · `EMAIL_ENABLED=1` · `WHATSAPP_ENABLED=0` · `REFILL=1` · `REFILL_CAP=25` · `REFILL_MIN_SCORE=0`.
