@@ -118,7 +118,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # the 31 agents). Also CLASSIFIED, not tolerated — baseline unchanged.
     # 2026-08-04 +4 entries / +1 family: owner_os.coordination_hub (ADR-150 thin
     # Owner OS projection — presence/events/nonces; not a second control plane).
-    assert len(entries) == 41
+    assert len(entries) == 43
     assert len(families) == 14, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}

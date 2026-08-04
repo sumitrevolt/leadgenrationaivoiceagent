@@ -21,6 +21,8 @@ def _hub_tmp(monkeypatch, tmp_path):
     monkeypatch.setattr(events_mod, "_ROOT", str(root))
     monkeypatch.setattr(events_mod, "_EVENTS", str(root / "events.jsonl"))
     monkeypatch.setattr(events_mod, "_PRESENCE", str(root / "presence.json"))
+    monkeypatch.setattr(events_mod, "_PRESENCE_TMP", str(root / "presence.json.tmp"))
+    monkeypatch.setattr(auth_mod, "_HUB_ROOT", str(root))
     monkeypatch.setattr(auth_mod, "_NONCE_FILE", str(root / "nonce_fps.jsonl"))
 
 

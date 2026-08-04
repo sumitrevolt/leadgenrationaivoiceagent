@@ -25,6 +25,7 @@ _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _NONCE_RE = re.compile(r"^[A-Za-z0-9_-]{16,128}$")
 _TOOL_RE = re.compile(r"^[a-z][a-z0-9_]{1,31}$")
 
+_HUB_ROOT = "data/coordination_hub"
 _NONCE_FILE = "data/coordination_hub/nonce_fps.jsonl"
 _MAX_NONCE_LINES = 5000
 
@@ -133,8 +134,7 @@ def _nonce_seen(fp: str) -> bool:
 
 
 def _record_nonce(fp: str) -> None:
-    parent = os.path.dirname(_NONCE_FILE) or "data/coordination_hub"
-    os.makedirs(parent, exist_ok=True)
+    os.makedirs(_HUB_ROOT, exist_ok=True)
     with open(_NONCE_FILE, "a", encoding="utf-8") as fh:
         fh.write(json.dumps({"fp": fp, "at": int(time.time())}, separators=(",", ":")) + "\n")
     try:

@@ -18,6 +18,7 @@ logger = setup_logger(__name__)
 _ROOT = "data/coordination_hub"
 _EVENTS = "data/coordination_hub/events.jsonl"
 _PRESENCE = "data/coordination_hub/presence.json"
+_PRESENCE_TMP = "data/coordination_hub/presence.json.tmp"
 _MAX_EVENT_BYTES = 4000
 _MAX_TAIL = 200
 
@@ -106,10 +107,9 @@ def update_presence(
             "meta": _sanitize_payload(meta or {}),
         }
         data = {"tools": tools, "updated_at": int(time.time())}
-        tmp = _PRESENCE + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
+        with open(_PRESENCE_TMP, "w", encoding="utf-8") as fh:
             json.dump(data, fh, indent=2)
-        os.replace(tmp, _PRESENCE)
+        os.replace(_PRESENCE_TMP, _PRESENCE)
         out["ok"] = True
         out["tool"] = tools[tid]
         return out
