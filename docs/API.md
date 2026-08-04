@@ -288,7 +288,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 
 <!-- AUTO-OPENAPI:START -->
 
-## Endpoint Index — auto-generated from OpenAPI (1255 operations)
+## Endpoint Index — auto-generated from OpenAPI (1272 operations)
 
 > Regenerate: `python scripts/sync_api_docs.py` · Full live spec: `/openapi.json` · Interactive: `/docs`. Edits between the AUTO markers are overwritten.
 
@@ -1266,7 +1266,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `POST  ` `/api/impersonate/stop` — Impersonation Stop
 - `GET   ` `/api/impersonate/targets` — Impersonation Targets
 
-### Infrastructure  (22)
+### Infrastructure  (32)
 
 - `GET   ` `/api/activation/readiness` — Activation Readiness
 - `GET   ` `/api/activation/summary` — Activation Summary Public
@@ -1290,6 +1290,16 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/rl/dev` — Rl Dev
 - `GET   ` `/api/rl/recent` — Rl Recent
 - `GET   ` `/api/rl/summary` — Rl Summary
+- `GET   ` `/api/workforce-memory/bindings/{agent_id}` — Bindings
+- `GET   ` `/api/workforce-memory/drilldown` — Drilldown
+- `POST  ` `/api/workforce-memory/equip` — Equip
+- `GET   ` `/api/workforce-memory/equipments` — Equipments
+- `GET   ` `/api/workforce-memory/inspect` — Inspect
+- `POST  ` `/api/workforce-memory/prune` — Prune
+- `POST  ` `/api/workforce-memory/purge` — Purge
+- `GET   ` `/api/workforce-memory/recall` — Recall
+- `POST  ` `/api/workforce-memory/remember` — Remember
+- `GET   ` `/api/workforce-memory/stats` — Stats
 
 ### Integrations  (2)
 
@@ -1580,6 +1590,15 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/admin/owner-os/workflows` — Owner Workflows
 - `GET   ` `/api/admin/owner-os/workflows/{workflow_id}` — Owner Workflow Detail
 
+### Owner OS Coordination Hub  (6)
+
+- `GET   ` `/api/admin/owner-os/coordination-hub/events` — Get Events
+- `GET   ` `/api/admin/owner-os/coordination-hub/git` — Get Git
+- `POST  ` `/api/admin/owner-os/coordination-hub/mutations/refuse` — Refuse Mutation
+- `GET   ` `/api/admin/owner-os/coordination-hub/snapshot` — Get Snapshot
+- `POST  ` `/api/admin/owner-os/coordination-hub/tools/{tool_id}/heartbeat` — Tool Heartbeat
+- `POST  ` `/api/admin/owner-os/coordination-hub/webhooks/buzz` — Buzz Webhook
+
 ### Page Agent  (2)
 
 - `GET   ` `/api/page-agent/config` — Page Agent Config
@@ -1650,7 +1669,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/seoops/rank/history` — Rank History
 - `POST  ` `/api/seoops/rank/run` — Rank Run
 
-### Sales Autopilot  (11)
+### Sales Autopilot  (12)
 
 - `GET   ` `/api/sales-autopilot/attempts` — Attempts
 - `POST  ` `/api/sales-autopilot/eligibility/preview` — Eligibility Preview
@@ -1659,6 +1678,7 @@ See [CHANGELOG.md](CHANGELOG.md) for API version history.
 - `GET   ` `/api/sales-autopilot/pay-truth/unpaid` — Pay Truth Unpaid
 - `GET   ` `/api/sales-autopilot/policy` — Get Policy
 - `GET   ` `/api/sales-autopilot/prospects` — Prospects
+- `POST  ` `/api/sales-autopilot/prospects` — Add Prospect
 - `POST  ` `/api/sales-autopilot/refill` — Refill Now
 - `POST  ` `/api/sales-autopilot/run-canary` — Run Canary
 - `POST  ` `/api/sales-autopilot/seed-estique` — Seed Estique

@@ -351,12 +351,21 @@ def submit_payment(
     amount: float = 0,
     payer_name: str = "",
     payer_contact: str = "",
+    order_ref: str = "",
 ) -> dict:
     """Customer self-serve "maine pay kiya" submission.
 
     Validates plan + upi_ref non-empty, appends a pending record, notifies admin,
     and (when ``UPI_AUTO_ACTIVATE=1`` + client_id) tries instant activation.
     Never raises — returns ``{"ok": False, "error": ...}`` on validation failure.
+
+    ``order_ref`` (#240, optional) binds the payment to an immutable offer so an
+    owner reconciling a bank credit sees the exact deal instead of matching on a
+    business name. It is NOT trusted as submitted: the reference is re-resolved
+    server-side against the offer store and must be payable right now. An
+    unknown, expired, superseded, already-paid or cancelled reference is
+    rejected fail-closed rather than being recorded as an unverified hint.
+    Omitting it preserves the pre-#240 behaviour exactly.
     """
     try:
         plan_s = (plan or "").strip()
@@ -365,6 +374,23 @@ def submit_payment(
             return {"ok": False, "error": "Plan zaroori hai"}
         if not ref_s:
             return {"ok": False, "error": "UPI reference / transaction id zaroori hai"}
+
+        order: dict | None = None
+        order_ref_s = (order_ref or "").strip()
+        if order_ref_s:
+            try:
+                from app.marketing import offers
+
+                order, reason = offers.resolve_payable(order_ref_s)
+            except Exception as exc:  # store unavailable => cannot verify => refuse
+                logger.warning("upi_payments offer lookup failed: %s", exc)
+                order, reason = None, "unavailable"
+            if not order:
+                return {"ok": False, "error": f"Order reference not payable ({reason})"}
+            # The offer owns the commercial truth; a client-supplied plan that
+            # disagrees with the issued order is a mismatch, not an override.
+            if str(order.get("package_code") or "").lower() != plan_s.lower():
+                return {"ok": False, "error": "Order reference does not match the submitted plan"}
 
         cid = (client_id or "").strip()
         rows = _read_store()
@@ -415,6 +441,22 @@ def submit_payment(
             "decided_at": None,
             "decided_by": None,
         }
+        if order:
+            # Server-resolved (#240) — reconciliation anchor for /upi/pending.
+            # `expected_amount` comes from the ISSUED offer, never a live
+            # catalogue lookup, so a later price change cannot retro-quote.
+            record["order_ref"] = str(order.get("order_ref") or "")
+            record["deal_id"] = str(order.get("deal_id") or "")
+            record["package_code"] = str(order.get("package_code") or "")
+            record["expected_amount"] = order.get("quoted_amount")
+            record["currency"] = str(order.get("currency") or "INR")
+            try:
+                record["amount_mismatch"] = bool(
+                    float(amount or 0) > 0
+                    and float(amount) != float(order.get("quoted_amount") or 0)
+                )
+            except Exception:
+                record["amount_mismatch"] = False
         rows.append(record)
         _write_store(rows)
 
