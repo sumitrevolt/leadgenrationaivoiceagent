@@ -4,47 +4,50 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 (`DIRECT_HOST_VERIFIED` = probed from the live host at a stated time; `GIT_VERIFIED` = re-derivable from this repo; `ASSUMED` = carried forward, not re-checked.)
 
 ## Last verified timestamp
-2026-08-02 — `/health` re-probed from the live host (live launch-check session, no browser). See `docs/context/SESSION_HANDOFF.md`.
+2026-08-03 — Buzz Admin Plane completion pass + prior `/health`=`303b061f`. See `docs/context/SESSION_HANDOFF.md`.
 
 ## Sprint goal (LOCKED)
 **GTM 0→1** — pehle paid customers on Marketing product; mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint); 2nd paying customer target.
 
 ## Production SHA
-`3cbf1164` — merge commit of PR #215 (`fix/launch-audit-2026-08-02`: UPI guest 401, pricing honesty, golden eval suite, API.md sync). Live-probed 2026-08-02 over direct HTTPS: `{"version":"3cbf1164","environment":"production","status":"healthy"}`.
-5 app-image services pinned equal to this SHA (no per-container skew after deploy + env-only recreate); queues + DLQ = 0.
-Rollback reference: `3cbf1164` until the next deploy.
-Label: DIRECT_HOST_VERIFIED (2026-08-02, live session) + GIT_VERIFIED (this file's git ref matches).
+`303b061f` — merge commit of PR #225 (revenue automation: refill / pay-truth / inquiry Hot Queue / Owner OS calling badge). Live-probed 2026-08-03 over direct HTTPS: `{"version":"303b061f","environment":"production","status":"healthy"}`.
+5 app-image services pinned equal to this SHA (no per-container skew); queues + DLQ = 0.
+Rollback reference: `fa9f47c7` (prior) / `303b061f` current.
+Label: DIRECT_HOST_VERIFIED (2026-08-03) + GIT_VERIFIED.
 
 ## Origin/main
-`3cbf1164` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks.
-Label: GIT_VERIFIED (2026-08-02)
+`303b061` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks. Open PRs = 0.
+Label: GIT_VERIFIED (2026-08-03)
 
 ## Production health
-`status: healthy`, `environment: production` at `3cbf1164` (2026-08-02, direct HTTPS).
-Label: DIRECT_HOST_VERIFIED (2026-08-02)
+`status: healthy`, `environment: production` at `303b061f` (2026-08-03, direct HTTPS).
+Label: DIRECT_HOST_VERIFIED (2026-08-03)
 
-## Sales Autopilot (live, REAL sends — owner mandate 2026-08-01)
-- `SALES_AUTOPILOT_ENABLED=1` · `SALES_AUTOPILOT_DRY_RUN=0` · `SALES_AUTOPILOT_EMAIL_ENABLED=1` · `SALES_AUTOPILOT_WHATSAPP_ENABLED=0`.
-- Scheduler routes to email channel when WhatsApp off (PR #207 `_primary_channel`).
-- Last tick `dry_run:false` processed 0 — only prospect Estique is `converted`. Empty queue = expected idle, NOT failure (idle_reason now explicit in `last_tick.json` + Mission Control Schedule tab, ISSUE-03).
-- WhatsApp stays 1-click human (`WHATSAPP_AUTO_SEND=0`), dial test-mode cap 10 (both legal/ban gates — do NOT flip).
-Label: DIRECT_HOST_VERIFIED (2026-08-02) — re-probe container env before acting.
+## Sales Autopilot (live, REAL email — owner 2026-08-03 refill arm)
+- `SALES_AUTOPILOT_ENABLED=1` · `DRY_RUN=0` · `EMAIL_ENABLED=1` · `WHATSAPP_ENABLED=0` · `REFILL=1` · `REFILL_CAP=25` · `REFILL_MIN_SCORE=0`.
+- Manual refill 2026-08-03: upserted 25 `new` prospects (store was idle on Estique-only).
+- **Cold** autopilot WhatsApp stays OFF (`SALES_AUTOPILOT_WHATSAPP_ENABLED=0`).
+Label: DIRECT_HOST_VERIFIED (2026-08-03)
 
 ## Cold email outreach
 `AUTO_EMAIL_OUTREACH=1` — LIVE. 2026-08-02 counts: 19 sent + 20 follow-ups.
 Label: DIRECT_HOST_VERIFIED (2026-08-02)
 
-## WAHA / WhatsApp self-host
-WAHA `default` session status **FAILED** (QR timeout — not scanned) as of 2026-08-02. Owner must re-start session + scan QR. Backend endpoints `/api/wa/selfhost/{status,start,qr}` exist; frontend now surfaces FAILED/SCAN_QR_CODE/WORKING states + QR auto-refresh (ISSUE-01).
-Label: DIRECT_HOST_VERIFIED (2026-08-02)
+## WAHA / WhatsApp — Swara interested follow-up ARMED
+WAHA `default` = **WORKING** (`918261030181`, `leadsgenai.in`). Owner 2026-08-03: post-call WA ON for Swara-interested — `WHATSAPP_AUTO_SEND=1` · `POST_CALL_WHATSAPP=1` · `VOICE_CLOSE_WHATSAPP=1` · allowlist `*`. Cold prospect WA remains OFF. Backup `.env.bak-postcall-wa-20260803115342`.
+Label: DIRECT_HOST_VERIFIED (2026-08-03 recreate + in-container env)
 
 ## Staging provenance
 `docker-compose.staging.yml` ab **fail-CLOSED**: `APP_VERSION` mandatory (`${APP_VERSION:?...}`) — `:latest` refused (ADR-097, ISSUE-04). `check_skew.sh` watches `leadgen_app_staging`.
 Label: CODE-PRESENT (2026-08-02)
 
 ## Calling / flag posture — read this before quoting any flag from this file
-`platform_dial` = **FULL CAMPAIGN LIVE** (owner go-ahead 2026-08-02): `VOICE_LAUNCH_KILL=0` (was 1) · `DIAL_TEST_MODE=0` (was 1) · `VOICE_DAILY_CALL_CAP=100` (was 5) · `PLATFORM_DIAL_DAILY=100` (was 10). LIVE proof: 3 real Vobiz calls placed 2026-08-02 (session `S20260802-a280d841`, state running, call_attempts+1). Daily 11:30 IST scheduler auto-dials up to 100/day (niche=all). Compliance spine UNTOUCHED (DND fail-closed · window 10–19 IST · AI-disclosure · consent · DLT_APPROVED=1 · phone-type · learned IVR blocklist · circuit breaker · 30-call training pause · recording gate · concurrency=1). Rollback = `.env.bak-fullcampaign-20260802075851`. `OPENCLAW_REQUIRE_APPROVAL_FOR_AMBER=0` but prod still GREEN-only structural. Self-improve loop ALIVE (120/day cap). Revenue snapshot: MRR ₹1,999 / 1 active / 0 churn.
-Label: DIRECT_HOST_VERIFIED (2026-08-02 live session probes + live call proof) — re-probe container env before acting.
+`platform_dial` = **FULL CAMPAIGN LIVE** (owner go-ahead 2026-08-02). **Naming trap:** `PLATFORM_DIAL_DAILY` = **boolean on/off** (prod `=1`); per-run cap = `PLATFORM_DIAL_LIMIT` (prod `=100`). Also: `VOICE_LAUNCH_KILL=0` · `DIAL_TEST_MODE=0` · `VOICE_DAILY_CALL_CAP=100`. LIVE proof: 3 real Vobiz calls 2026-08-02 (session `S20260802-a280d841`). Daily 11:30 IST auto-dial uses `PLATFORM_DIAL_LIMIT` (niche=all). Compliance spine UNTOUCHED. Rollback = `.env.bak-fullcampaign-20260802075851`. Docs previously mis-wrote `PLATFORM_DIAL_DAILY=100` — that was wrong wording, not a prod miss-set (re-proved 2026-08-03).
+Label: DIRECT_HOST_VERIFIED (2026-08-03 in-container env + 2026-08-02 live call proof).
+
+## Secret hygiene (owner action)
+`GEMINI_API_KEY` historically leaked in bash_history (scrubbed 2026-08-03). **Owner chose not to rotate** — voice primary moved off Gemini onto free stack (`VOICE_GEMINI_PRIMARY=0`, runtime `voice_primary=false`, `GEMINI_TTS=0`). Live smoke: `free_ai.chat` → **mistral**. Optional: still revoke burned Gemini key in Google console when convenient.
+Label: DIRECT_HOST_VERIFIED (2026-08-03 free-AI switch + chat smoke).
 
 ## Migration
 No pending migration on the deployed release path. `008` is NOT the head — it is one revision in the 008..022 chain.

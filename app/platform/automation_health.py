@@ -101,6 +101,7 @@ EXPECTED_GAP_MIN = {
     "approval_email_sweep": 180,  # hourly pending-approval EMAIL (gated APPROVAL_EMAIL_NOTIFY); was scheduled but missing from dead-man
     "social_drain": 180,  # hourly :10 native social queue drain (gated SOCIAL_ENGINE); 3h grace
     "task_lease_reap": 180,  # hourly :05 expired agent-task lease reclaim (gated AGENT_TASK_LEASE_REAP); 3h grace like meter_watch
+    "sales_autopilot": 180,  # hourly :25 Sales Autopilot (gated SALES_AUTOPILOT_ENABLED); RUN_DUE_EXCLUDE; 3h dead-man grace
 }
 
 
@@ -318,7 +319,7 @@ def health() -> dict[str, Any]:
                             "job": job,
                             "last_run": (b or {}).get("at") if b else None,
                             "status": "mandate_paused",
-                            "note": "PLATFORM_DIAL HARD OFF (user mandate)",
+                            "note": "platform_dial disabled (env/state) — compliance gates unchanged",
                         }
                     )
                     continue

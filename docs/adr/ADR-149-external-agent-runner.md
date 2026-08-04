@@ -1,8 +1,9 @@
 # ADR-149 — External Agent Runner (unattended Cursor/Claude invocation)
 
 - **Date:** 2026-07-27
-- **Status:** Proposed (code on `feat/external-agent-runner-v1`)
+- **Status:** Accepted for CODE-PRESENT dual-gate (2026-08-03 truth refresh) — **production flags remain OFF**. Runner is not a second Agent-OS.
 - **Flags:** `EXTERNAL_AGENT_RUNNER` (default OFF) · requires `EXTERNAL_AGENT_ORCHESTRATOR=1`
+- **Deployed/runtime:** CONFIGURED-INERT until owner arms both flags on an approved surface (Windows/local canary first). Orchestrator alone stays records/missions-only.
 
 ## Decision
 
