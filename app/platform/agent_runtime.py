@@ -1325,6 +1325,20 @@ def _agent_health(aid: str, contract: Any, row: dict[str, Any], event_only: bool
         return "unknown"
 
 
+def _calling_badge_for_runtime() -> str:
+    """Honest dial posture for runtime_status UI — never hard-code HARD OFF.
+
+    Agent Runtime still blocks Swara/Ananya RED dispatch; that is orthogonal to
+    whether the separately governed platform_dial / voice_launch campaign is live.
+    """
+    try:
+        from app.platform.owner_os import calling_posture
+
+        return str(calling_posture().get("badge") or "Calling OFF")
+    except Exception:
+        return "Calling OFF"
+
+
 def runtime_status() -> dict[str, Any]:
     """Owner OS panel rollup — 31 agents × mode/lane/hb/useful-work/budget/kill/DLQ.
     Never raises; degraded sources surface as fields, not exceptions."""
@@ -1430,7 +1444,10 @@ def runtime_status() -> dict[str, Any]:
             "cancellation": cancel_backend,
             "idempotency": idem_status,
             "agents": agents,
-            "calling_badge": "Calling HARD OFF",
+            # Reuse Owner OS posture — never hard-code HARD OFF when dial is live.
+            # Agent Runtime RED still blocks Swara/Ananya dispatch; that is separate
+            # from the compliance-gated platform_dial / voice_launch campaign.
+            "calling_badge": _calling_badge_for_runtime(),
             "generated_at": _now_iso(),
         }
     except Exception as e:

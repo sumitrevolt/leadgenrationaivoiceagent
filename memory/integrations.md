@@ -37,3 +37,6 @@ Schema per entry: `Service — purpose | auth env var(s) | rate limits | observe
 
 ## Wired-but-OFF (need only env keys)
 - **PostHog** (`POSTHOG_API_KEY`) · **LiteLLM** (`LITELLM_MASTER_KEY`) · **Cloudflare tunnel** (`CLOUDFLARE_TUNNEL_TOKEN`) · **OTel** (`ENABLE_OTEL=1`) · **RequestGuard** (`REQUEST_GUARD=1`). Checklist: `docs/INFRA_UPGRADE_2026.md` Part 8.
+
+## Collaboration / agent workspace (2026-08-03)
+- **Block Buzz** � human+agent collaboration plane (Nostr relay) | Desktop local keys in OS credential store | hosted community `leadsgenai.communities.buzz.xyz` | harness `claude-agent-acp` via `buzz-acp` | Nest `~/.buzz` + repo `docs/integrations/BUZZ_ADMIN_PLANE.md` | NOT a STAFF/runtime plane; secrets never in channels.
