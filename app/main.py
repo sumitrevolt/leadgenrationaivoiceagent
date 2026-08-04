@@ -1091,6 +1091,14 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Owner OS router not mounted: {_e}")
 try:
+    from app.api.coordination_hub import router as coordination_hub_router
+
+    app.include_router(
+        coordination_hub_router
+    )  # /api/admin/owner-os/coordination-hub/* — thin Owner OS projection
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Coordination Hub router not mounted: {_e}")
+try:
     from app.api.owner_copilot import router as owner_copilot_router
 
     app.include_router(
