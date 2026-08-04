@@ -50,13 +50,14 @@ def test_env_vpa_still_wins(cfg, block, monkeypatch):
     assert "envvpa@ybl" in out
 
 
-def test_unarmed_upi_still_ships_pricing_line(cfg, block):
-    """No VPA anywhere = pricing page only, never a broken/empty payment line."""
-    out = block("Sharma Salon")
+def test_unarmed_upi_appends_nothing(cfg, block):
+    """Gating unchanged from the original: no VPA = no footer at all.
 
-    assert "https://leadsgenai.in/pricing" in out
-    assert "upi://" not in out
-    assert "UPI ID:" not in out
+    The footer must stay conditional because `whatsapp_reply` drafts through the
+    same `_draft`. Making it unconditional put a pricing line into WhatsApp
+    replies that never carried one — caught by `test_wa_conversation` in CI.
+    """
+    assert block("Sharma Salon") == ""
 
 
 def test_deeplink_carries_amount_from_packages(cfg, block):
@@ -91,16 +92,18 @@ def test_business_name_is_url_quoted(cfg, block):
 
 
 def test_never_raises_on_broken_config(cfg, block, monkeypatch):
-    """Offer footer must never break the reply — pricing line is the floor."""
+    """Broken config behaves like unarmed — and must never lose the draft.
+
+    `pricing` is bound after the VPA check, so returning it from the handler
+    would UnboundLocalError and take the whole reply down with it.
+    """
 
     def boom() -> str:
         raise RuntimeError("store unreadable")
 
     monkeypatch.setattr(cfg, "get_vpa", boom)
 
-    out = block("Sharma Salon")
-
-    assert "https://leadsgenai.in/pricing" in out
+    assert block("Sharma Salon") == ""
 
 
 @pytest.mark.asyncio

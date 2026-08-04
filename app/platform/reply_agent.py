@@ -754,10 +754,14 @@ def _interested_offer_block(biz: str = "") -> str:
        ``marketing/upi_kit._build_upi_link``.
 
     Price comes from ``packages.get_starter_price_inr()`` (billing-truth single
-    source) — never a hardcoded 1999. Returns the pricing line alone when UPI is
-    unarmed; never raises.
+    source) — never a hardcoded 1999.
+
+    Gating is unchanged from the original: UPI unarmed -> **empty string**, no
+    footer at all. Only the footer's content changes here, never whether it
+    appears — the shared ``whatsapp_reply`` path drafts through ``_draft`` too,
+    and an unconditional footer would put a pricing line into WhatsApp replies
+    that never carried one (caught by ``test_wa_conversation`` in CI). Never raises.
     """
-    pricing = "\n\nAage badhne ke liye pricing: https://leadsgenai.in/pricing"
     try:
         from urllib.parse import quote
 
@@ -765,7 +769,9 @@ def _interested_offer_block(biz: str = "") -> str:
 
         vpa = (upi_config.get_vpa() or "").strip()
         if not vpa:
-            return pricing
+            return ""
+
+        pricing = "\n\nAage badhne ke liye pricing: https://leadsgenai.in/pricing"
 
         try:
             from app.marketing.packages import get_starter_price_inr
@@ -786,7 +792,10 @@ def _interested_offer_block(biz: str = "") -> str:
         amt_txt = f" (₹{amount}/mo Starter)" if amount > 0 else ""
         return pricing + f"\n1-tap UPI{amt_txt}: {link}\nYa UPI ID: {vpa}"
     except Exception:  # pragma: no cover - defensive, never block the reply
-        return pricing
+        # Broken/unreadable UPI config behaves exactly like unarmed: no footer.
+        # (Must not reference `pricing` here — it is bound after the VPA check,
+        # so a raising get_vpa() would UnboundLocalError and lose the whole draft.)
+        return ""
 
 
 async def _draft(
