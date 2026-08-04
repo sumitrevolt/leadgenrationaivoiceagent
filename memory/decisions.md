@@ -2391,3 +2391,13 @@ Evidence chain, all at the frozen head: pristine archive checkout → **82 passe
 **Decision:** Buzz is a **third plane** � collaboration only. Create narrow private channels (`#admin` `#gtm` `#ops` `#revenue` `#dev`), specialize Welcome agents for LeadGen rules, add Desktop team `LeadGen Admin`, and introduce **Boss** as Buzz Admin/Chief of Staff (owner-reviewed draft) � explicitly **not** a 32nd `team.py` STAFF persona. Nest guides under `~/.buzz/GUIDES/`; repo pointer `docs/integrations/BUZZ_ADMIN_PLANE.md`.
 
 **Consequence:** Coordination/mentions/canvases happen in Buzz; prod GREEN commands stay OpenClaw/Owner OS; business automation stays Celery STAFF. Owner must Save Desktop drafts (Boss + prompt updates) before Boss is live.
+
+## ADR-155 (2026-08-04) — desplega agent-swarm: NO vendor; patterns-only [EVAL ONLY]
+
+**Decision:** Do **not** clone/vendor [desplega-ai/agent-swarm](https://github.com/desplega-ai/agent-swarm) (Bun/Hono/SQLite/Docker coding workers) into LeadGen. Enterprise path = harden Owner OS + 31 STAFF + Celery + ADR-148 missions. Harvest ideas only (HITL/litmus/drain/persona) as native Python — same posture as ADR-154 vs TencentDB memory.
+
+**Context:** Owner asked best-fit / full-clone / enterprise. Swarm = internal AI company OS (Claude Code/Codex gravity, paid harnesses). LeadGen = customer SaaS + free LLM + TRAI/DPDP + locked control plane (Admin→OpenClaw→Owner OS→Boss→31→Celery).
+
+**Alternatives rejected:** (1) Full vendor/second runtime island. (2) Replace Celery STAFF with swarm workers. (3) Parallel authority beside Owner OS.
+
+**Consequence:** Docs ADR `docs/adr/ADR-155-desplega-agent-swarm-no-vendor.md`. Eval clone outside tree `Documents/_agent_swarm_eval_2026-08-04`. No compose/flag flip. Next enterprise work = scorecard gaps + GTM, not Bun OS.

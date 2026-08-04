@@ -1,23 +1,24 @@
-# SESSION_HANDOFF - coord-hub Owner OS adapter
+# SESSION_HANDOFF — 2026-08-04 (agent-swarm eval)
 
-## Session objective
-Greenfield Coordination Hub as Owner OS thin projection (ADR-150). Recovery of prior Hub: **not found**.
+## Decision (Chairman)
+**desplega-ai/agent-swarm = NOT best as a product dependency.**
+**NO full clone / NO second Agent-OS.** FEATURE_HARVEST patterns only into Owner OS / STAFF / ADR-148.
 
-## Isolation
-- Worktree: `C:\Users\Ratanshila\Documents\leadgen-wt-coord-hub-2026-08-04`
-- Branch: `cursor/coord-hub-owner-os-adapter-2026-08-04`
-- Base: `origin/main` @ `4db0ef5f…`
-- Primary checkout untouched
+## Evidence
+- Swarm = Bun + Hono + SQLite + Docker coding workers (Claude Code/Codex/OpenRouter) — company-internal OS
+- LeadGen already: 31 STAFF · Owner OS · Celery · OpenClaw GREEN · llm_council · free LLM · TRAI/DPDP
+- Locked by ADR-148/149/OPENCLAW + new **ADR-155**
+- Eval clone (outside repo): `C:\Users\Ratanshila\Documents\_agent_swarm_eval_2026-08-04`
 
-## Done
-- `coordination_hub*.py` projection + HMAC auth + events + bounded git
-- API under `/api/admin/owner-os/coordination-hub/*`
-- Owner OS Coord Hub tab; flag `COORDINATION_HUB_ENABLED` default OFF
-- ADR-150 + Buzz plane HMAC note; runtime-data store family + allowlist
-- Tests: auth / git / projection
+## Prod (prior session, still tip unless re-probed)
+- Last deploy session: `d451b56c` Dependabot cycle; re-probe `/health` before claiming SHA
 
-## Ship posture
-Draft PR only. No merge/deploy/prod flag flip without separate authorize.
+## Do NOT
+- Vendor agent-swarm into monorepo or compose
+- Flip `COORDINATION_HUB_ENABLED` without authorize
+- Add 32nd STAFF persona named “swarm”
 
-## Do not
-Second mission registry · shared admin bearer for tools · fabricate Estique PAID
+## Next (enterprise that actually moves GTM)
+1. Hot Queue → 2nd paid customer (WS-R3 pay-truth)
+2. Optional: pick ONE harvest pattern (HITL litmus / drain loop) as flag-gated Owner OS ticket
+3. Scorecard honesty gaps — not a second control plane

@@ -410,7 +410,12 @@ async function previewCmd(){
   const text=document.getElementById("cmdText").value.trim();
   if(text.length<3){ toast("Command likho"); return; }
   const {body}=await api("/api/admin/owner-os/commands/preview",{method:"POST",body:JSON.stringify({text})});
-  document.getElementById("cmdPreview").textContent = body.preview_summary || JSON.stringify(body,null,2);
+  const lit = body.litmus || {};
+  const litLine = lit.ok === false
+    ? ("\nLitmus FAIL: " + (lit.failed_must || []).join(", "))
+    : (lit.ok ? "\nLitmus: PASS" : "");
+  document.getElementById("cmdPreview").textContent =
+    (body.preview_summary || JSON.stringify(body,null,2)) + litLine;
 }
 
 let _lastIdem = null;
@@ -434,6 +439,7 @@ async function runCmd(){
       correlation_id: exec.correlation_id || (body.created&&body.created.command&&body.created.command.correlation_id),
       deduped: !!(body.created&&body.created.deduped) || !!(body.executed&&body.executed.deduped),
       evidence_keys: exec.evidence? Object.keys(exec.evidence): [],
+      litmus: plan.litmus || body.litmus || null,
       error: exec.error || body.error || null,
       note: body.note || null
     },null,2);
