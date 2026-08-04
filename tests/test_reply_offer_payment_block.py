@@ -60,20 +60,33 @@ def test_unarmed_upi_appends_nothing(cfg, block):
     assert block("Sharma Salon") == ""
 
 
-def test_deeplink_carries_amount_from_packages(cfg, block):
-    """Amount = billing-truth single source, never a hardcoded literal."""
-    from app.marketing.packages import get_starter_price_inr
+def test_deeplink_prefills_no_amount(cfg, block):
+    """No `am=` — the plan is unknown here and the catalogue is multi-price.
 
+    `_draft` gets no plan/deal binding, and the catalogue spans Marketing Main
+    ₹1,999, Combo ₹5,999 and Voice bands ₹4,999/₹9,999/₹19,999. Prefilling the
+    Starter price would give a Combo- or Voice-interested prospect a one-tap link
+    that underpays their plan — a billing-truth break (CLAUDE.md §5). Locked so a
+    later edit cannot silently re-add it without a real plan binding.
+    """
     cfg.set_vpa("leadsgen@okhdfcbank", set_by="test")
 
     out = block("Sharma Salon")
 
-    assert f"am={get_starter_price_inr()}" in out
+    assert "am=" not in out
+    assert "₹" not in out
+    assert "Starter" not in out
     assert "cu=INR" in out
+    assert "https://leadsgenai.in/pricing" in out  # plan choice stays on /pricing
 
 
-def test_note_carries_business_name_for_reconciliation(cfg, block):
-    """`tn` lets the owner match the bank credit back to a prospect."""
+def test_note_carries_business_name_as_context(cfg, block):
+    """`tn` is human-readable context only — NOT a unique payment reference.
+
+    No immutable prospect/deal/order id exists at this point in the state
+    machine, so business name alone does not guarantee bank reconciliation.
+    Open payment-automation gap, deliberately not papered over here.
+    """
     cfg.set_vpa("leadsgen@okhdfcbank", set_by="test")
 
     out = block("Sharma Salon")
