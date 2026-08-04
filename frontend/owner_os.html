@@ -72,6 +72,7 @@ textarea{min-height:88px;resize:vertical}
     <button data-tab="approvals">Approvals</button>
     <button data-tab="kill">Kill Switches</button>
     <button data-tab="copilot">Owner Copilot</button>
+    <button data-tab="hub">Coord Hub</button>
     <button data-tab="training">Training</button>
   </div>
 
@@ -264,6 +265,30 @@ textarea{min-height:88px;resize:vertical}
     </div>
   </section>
 
+  <section class="panel" id="panel-hub">
+    <div class="card">
+      <h2>Coordination Hub — Owner OS projection</h2>
+      <p class="muted">Read-only. Tools presence · missions slice · office coordination · bounded git · events.
+        <b>Not</b> a second control plane. Mutations → Owner OS Agents tab / <a href="/app/dev-control">Dev Control</a> / <a href="/app/office">Office</a>.</p>
+      <div class="row" style="margin-bottom:8px">
+        <span class="badge" id="hubEnabledBadge">Hub …</span>
+        <button class="btn sec" onclick="loadHub()">↻ Refresh Hub</button>
+      </div>
+      <div class="chips" id="hubChips"></div>
+      <h3 style="margin-top:12px">Tools presence</h3>
+      <div class="pre" id="hubPresence">—</div>
+      <h3 style="margin-top:12px">Missions summary</h3>
+      <div class="pre" id="hubMissions">—</div>
+      <h3 style="margin-top:12px">Office coordination</h3>
+      <div class="pre" id="hubOffice">—</div>
+      <h3 style="margin-top:12px">Git (redacted)</h3>
+      <div class="pre" id="hubGit">—</div>
+      <h3 style="margin-top:12px">Events tail</h3>
+      <div class="pre" id="hubEvents">—</div>
+      <div class="teach" id="teach-hub">HMAC tool heartbeats / Buzz webhook use per-tool secrets — never shared admin bearer.</div>
+    </div>
+  </section>
+
   <section class="panel" id="panel-training">
     <div class="card">
       <h2>Admin Training Mode</h2>
@@ -310,7 +335,33 @@ document.getElementById("tabs").addEventListener("click", (e)=>{
   if(b.dataset.tab==="routes"){ loadRoutes(); loadTeach("routes"); }
   if(b.dataset.tab==="runtime") loadRuntime();
   if(b.dataset.tab==="copilot") loadCopilot();
+  if(b.dataset.tab==="hub") loadHub();
 });
+
+async function loadHub(){
+  const {status,body}=await api("/api/admin/owner-os/coordination-hub/snapshot");
+  const badge=document.getElementById("hubEnabledBadge");
+  if(status!==200||!body){ badge.textContent="Hub load fail"; badge.className="badge err"; return; }
+  badge.textContent = body.enabled ? "Hub ENABLED (projection)" : "Hub OFF (inert)";
+  badge.className = body.enabled ? "badge ok" : "badge warn";
+  const oa=body.owner_agents||{};
+  const ms=body.missions||{};
+  const pr=(body.tools_presence&&body.tools_presence.tools)||{};
+  document.getElementById("hubChips").innerHTML = [
+    ["Role", body.role||"projection"],
+    ["Owner agents ok", oa.ok],
+    ["Missions on", ms.enabled],
+    ["Tools seen", Object.keys(pr).length],
+    ["Events", (body.events_tail||[]).length],
+    ["Mutations", body.mutations||"refused"]
+  ].map(([k,v])=>`<span class="chip">${k}: <b>${v??"—"}</b></span>`).join("");
+  document.getElementById("hubPresence").textContent = JSON.stringify(pr, null, 2);
+  document.getElementById("hubMissions").textContent = JSON.stringify(ms.summary||ms, null, 2);
+  document.getElementById("hubOffice").textContent = JSON.stringify((body.office_coordination||{}).rows||[], null, 2);
+  const g=body.git||{};
+  document.getElementById("hubGit").textContent = g.head ? ("HEAD "+g.head+"\n"+(g.commands&&g.commands.status&&g.commands.status.stdout||"")) : JSON.stringify(g, null, 2);
+  document.getElementById("hubEvents").textContent = JSON.stringify(body.events_tail||[], null, 2);
+}
 
 async function boot(){
   if(!tok()){ document.getElementById("authBadge").textContent="Login required"; document.getElementById("authBadge").className="badge err"; toast("Pehle /app/admin-login"); }

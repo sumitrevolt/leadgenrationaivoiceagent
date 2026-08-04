@@ -54,6 +54,7 @@ AUTOMATION_FLAGS = [
     "CHANNEL_EXPERIMENTS",
     "CAMPAIGN_OPTIMIZER",  # Kiran: orchestrates optimizer+bandit+feedback every 100 interactions
     "PLATFORM_DIAL_DAILY",  # daily 11:30 IST self-sale AI cold-call batch (Swara; limit=PLATFORM_DIAL_LIMIT, niche=PLATFORM_DIAL_NICHE)
+    "PLATFORM_DIAL_LIMIT",  # value-carrying daily dial attempt ceiling (NOT a boolean; default/clamp in platform_dial)
     # --- Controlled voice-calling launch spine (2026-07-17, app/telephony/voice_launch.py) ---
     "VOICE_LAUNCH_CAMPAIGN",  # master gate for controlled cold-call campaign — OFF default (INERT); UPAR of platform_dial 3-layer kill
     "VOICE_LAUNCH_KILL",  # global admin kill switch — 1 = ALL outbound calls ineligible (fail-safe); data/voice_launch_kill.json fallback
@@ -167,6 +168,10 @@ AUTOMATION_FLAGS = [
     "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
     "EXTERNAL_AGENT_ORCHESTRATOR",  # Cursor/Claude mission orchestrator (records only; no shell/deploy/send) — OFF default
     "EXTERNAL_AGENT_RUNNER",  # unattended Cursor/Claude CLI invocation (needs ORCHESTRATOR too); local/Windows canary — OFF default
+    "COORDINATION_HUB_ENABLED",  # Owner OS thin projection (tools/missions/events/git); NOT second control plane — OFF default
+    "COORD_HUB_BUZZ_SECRET",  # Buzz webhook HMAC secret (≥32) — unset = webhook fail-closed
+    "COORD_HUB_TOOL_CURSOR_SECRET",  # Cursor tool heartbeat HMAC — unset = fail-closed
+    "COORD_HUB_TOOL_CLAUDE_SECRET",  # Claude tool heartbeat HMAC — unset = fail-closed
     "DEV_ORCHESTRATOR",  # Claude-managed engineering task ledger; draft-safe and OFF by default
     "DEV_WORKER_ENABLED",  # arms the draft-only dev-task Celery runner (needs DEV_ORCHESTRATOR too) — OFF default
     "AUTO_APPLY_PATCH",  # dev-control hard gate: patch application is REFUSED regardless; OFF default

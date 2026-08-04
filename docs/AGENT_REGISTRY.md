@@ -83,9 +83,9 @@ Decision tree: [`AUTOMATION.md`](AUTOMATION.md)
 
 ---
 
-## 4. Scheduler parity (24 jobs)
+## 4. Scheduler parity (source of truth = `JOB_META`)
 
-Celery beat (`app/worker.py`) mirrors `team_scheduler._run_job`. Dead-man: heartbeat + revive-beat + ops watchdog.
+Celery beat (`app/worker.py`) mirrors `team_scheduler._run_job`. Job catalogue count lives in `app/platform/scheduler_config.JOB_META` — **do not hardcode a number here** (was stale at "24"; live count is whatever `len(JOB_META)` reports — currently 43 as of 2026-08-03). Dead-man: heartbeat + revive-beat + ops watchdog.
 
 **Rule:** worker recreate ke baad `redis-cli llen celery` — if >500 → `del celery`.
 

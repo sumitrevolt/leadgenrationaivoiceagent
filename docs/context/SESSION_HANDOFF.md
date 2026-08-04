@@ -1,18 +1,23 @@
-# SESSION_HANDOFF - overwrite every session end
+# SESSION_HANDOFF - coord-hub Owner OS adapter
 
 ## Session objective
-World-class revenue automation (WS-R1/R2/R3) + Owner OS calling badge honesty.
+Greenfield Coordination Hub as Owner OS thin projection (ADR-150). Recovery of prior Hub: **not found**.
 
-## Shipped on this branch (needs deploy)
-- Autopilot refill (`SALES_AUTOPILOT_REFILL` OFF default) + pay-truth `awaiting_payment` + inquiry→Hot Queue bridge
-- Owner OS `calling_posture()` — badge LIVE vs OFF from `platform_dial.enabled()` (ENABLE still refused from Owner OS UI)
-- API.md sync · tests for revenue automation + owner_os posture
+## Isolation
+- Worktree: `C:\Users\Ratanshila\Documents\leadgen-wt-coord-hub-2026-08-04`
+- Branch: `cursor/coord-hub-owner-os-adapter-2026-08-04`
+- Base: `origin/main` @ `4db0ef5f…`
+- Primary checkout untouched
 
-## Owner next
-1. Merge PR → deploy with `APP_VERSION=<sha>`
-2. Arm `SALES_AUTOPILOT_REFILL=1` on VPS after deploy
-3. Estique: password → Billing ₹1999 → reply `PAID` (never fabricate)
-4. Optional: `POST /api/sales-autopilot/pay-truth/reconcile` after deploy
+## Done
+- `coordination_hub*.py` projection + HMAC auth + events + bounded git
+- API under `/api/admin/owner-os/coordination-hub/*`
+- Owner OS Coord Hub tab; flag `COORDINATION_HUB_ENABLED` default OFF
+- ADR-150 + Buzz plane HMAC note; runtime-data store family + allowlist
+- Tests: auth / git / projection
+
+## Ship posture
+Draft PR only. No merge/deploy/prod flag flip without separate authorize.
 
 ## Do not
-Flip `WHATSAPP_AUTO_SEND` · weaken DND/TRAI · mark Estique paid without ledger · Owner OS ENABLE dial (use env)
+Second mission registry · shared admin bearer for tools · fabricate Estique PAID
