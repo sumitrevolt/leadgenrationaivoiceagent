@@ -187,7 +187,10 @@ async def signup_health(response: Response) -> dict[str, Any]:
         assert callable(getattr(_als, "log_event", None)), "log_event missing"
         checks["automation_log"] = {"status": "healthy"}
     except Exception as e:
-        checks["automation_log"] = {"status": "unhealthy", "error": f"{type(e).__name__}: {e}"[:200]}
+        checks["automation_log"] = {
+            "status": "unhealthy",
+            "error": f"{type(e).__name__}: {e}"[:200],
+        }
         overall_healthy = False
 
     # 5) Billing usage (activate_plan) reachable — the plan provisioning path
@@ -337,15 +340,57 @@ async def _check_redis() -> dict[str, Any]:
 
 
 def _check_llm_config() -> dict[str, Any]:
-    """Check LLM configuration"""
+    """Check LLM configuration — report free-stack truth, not "first key found".
+
+    Historical bug: readiness returned ``provider=gemini`` whenever
+    ``GEMINI_API_KEY`` was set, even when ``GEMINI_PRIMARY`` was false and the
+    live chat path used free_ai (Groq → Cerebras → Mistral…). That made
+    ``/health/ready`` contradict operational truth without any provider change.
+
+    ``provider`` = first hop of the realtime free_ai chain that has a key.
+    ``providers`` = all configured free_ai provider names. Never raises.
+    """
+    try:
+        from app.voice_agent import free_ai
+
+        desc = free_ai.describe()
+        flags = desc.get("providers") or {}
+        chain = list(desc.get("llm_chain") or [])
+        configured = sorted(p for p, ok in flags.items() if ok)
+        primary = ""
+        for entry in chain:
+            name = str(entry).split(":", 1)[0].strip()
+            if name and flags.get(name):
+                primary = name
+                break
+        if not primary and configured:
+            # Prefer free core over gemini/openrouter tails when chain empty.
+            for prefer in ("groq", "cerebras", "mistral", "gemini", "openrouter"):
+                if prefer in configured:
+                    primary = prefer
+                    break
+            if not primary:
+                primary = configured[0]
+        if primary or configured:
+            out: dict[str, Any] = {
+                "status": "configured",
+                "provider": primary or "unknown",
+                "providers": configured,
+            }
+            if chain:
+                out["llm_chain_head"] = chain[:6]
+            return out
+    except Exception as exc:
+        logger.debug("llm readiness free_ai describe skipped: %s", exc)
+
+    # Legacy fallback (paid-named keys only) — used if free_ai import fails.
     if settings.gemini_api_key or settings.google_cloud_project_id:
         return {"status": "configured", "provider": "gemini"}
-    elif settings.openai_api_key:
+    if settings.openai_api_key:
         return {"status": "configured", "provider": "openai"}
-    elif settings.anthropic_api_key:
+    if settings.anthropic_api_key:
         return {"status": "configured", "provider": "anthropic"}
-    else:
-        return {"status": "degraded", "error": "No LLM configured"}
+    return {"status": "degraded", "error": "No LLM configured"}
 
 
 def _check_telephony_config() -> dict[str, Any]:
@@ -717,7 +762,16 @@ async def prometheus_metrics():
             metrics.append("")
             metrics.append("# HELP leadgen_celery_queue_depth Pending tasks per Celery queue")
             metrics.append("# TYPE leadgen_celery_queue_depth gauge")
-            for q in ("celery", "heavy", "scraping", "calling", "reporting", "sync", "training", "dlq:failed_tasks"):
+            for q in (
+                "celery",
+                "heavy",
+                "scraping",
+                "calling",
+                "reporting",
+                "sync",
+                "training",
+                "dlq:failed_tasks",
+            ):
                 try:
                     depth = await redis.llen(q)
                 except Exception:

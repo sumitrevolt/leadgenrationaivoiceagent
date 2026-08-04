@@ -1283,7 +1283,14 @@ async def reply_hot_queue(
     if scope_n not in ("boss", "admin", "all"):
         scope_n = "boss"
     rows = reply_agent.hot_queue(limit=max(1, min(200, limit)), scope=scope_n)
-    return {"ok": True, "count": len(rows), "scope": scope_n, "items": rows}
+    summary = reply_agent.hot_queue_summary(rows, scope=scope_n)
+    return {
+        "ok": True,
+        "count": len(rows),
+        "scope": scope_n,
+        "summary": summary,
+        "items": rows,
+    }
 
 
 class HotQueueDoneIn(BaseModel):
@@ -1445,8 +1452,19 @@ async def infra_telephony_readiness(_user=Depends(require_admin)):
 
 @router.get("/infra/flags")
 async def infra_flags(_user=Depends(require_admin)):
-    """Saare automation flags ka live status (on/off/unset) ek nazar me."""
+    """Saare automation flags ka live status (on/off/unset) + typed kind/lifecycle.
+
+    ``on_count`` remains the legacy truthy-env tally (mixed kinds). Prefer
+    ``boolean_on_count`` / per-flag ``switch_on`` for switch semantics.
+    """
     import os as _os
+
+    from app.platform.automation_flag_manifest import (
+        FlagValueKind,
+        build_manifest,
+        enrich_flag_row,
+        is_secret_name,
+    )
 
     out = {}
     for f in AUTOMATION_FLAGS:
@@ -1454,18 +1472,31 @@ async def infra_flags(_user=Depends(require_admin)):
         # Never leak secret-valued flags (DR_REPLICA_URL w/ password, LITELLM_MASTER_KEY,
         # *_TOKEN/*_SECRET/*_KEY, TOTP_CHALLENGE_KEY…) — mask the value; plain on/off
         # toggles still show their "1"/"true". `set`/`on` stay visible for both.
-        _fu = f.upper()
-        _is_secret = (
-            _fu.endswith(("_KEY", "_TOKEN", "_SECRET", "PASSWORD", "_URL", "_DSN"))
-            or "PASSWORD" in _fu
-        )
-        out[f] = {
+        _is_secret = is_secret_name(f) or f.upper().endswith(("_URL", "_DSN"))
+        row = {
             "set": v is not None,
             "on": (v or "").strip().lower() in ("1", "true", "yes"),
             "value": ("***" if (_is_secret and v is not None) else v),
         }
+        out[f] = enrich_flag_row(f, row)
     on = [k for k, d in out.items() if d["on"]]
-    return {"on_count": len(on), "on": on, "flags": out}
+    boolean_on = [
+        k
+        for k, d in out.items()
+        if d.get("kind") == FlagValueKind.BOOLEAN.value and d.get("switch_on")
+    ]
+    manifest = build_manifest(list(AUTOMATION_FLAGS))
+    return {
+        "on_count": len(on),
+        "on": on,
+        "boolean_on_count": len(boolean_on),
+        "boolean_on": boolean_on,
+        "by_kind": manifest["by_kind"],
+        "by_lifecycle": manifest["by_lifecycle"],
+        "by_governance": manifest.get("by_governance") or manifest["by_lifecycle"],
+        "manifest_note": manifest["note"],
+        "flags": out,
+    }
 
 
 @router.get("/infra/judge-calibration")
