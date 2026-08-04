@@ -264,6 +264,16 @@ _OVERRIDES: dict[str, FlagMeta] = {
         default="0",
         canary="local/admin",
     ),
+    "OWNER_OS_LITMUS": _m(
+        "OWNER_OS_LITMUS",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.PRODUCTION_PROVEN,
+        notes="ADR-155 agent-swarm pattern harvest — deterministic Owner OS litmus; default ON",
+        risk="owner_os",
+        default="1",
+        kill="OWNER_OS_LITMUS=0",
+        evidence="CODE-PRESENT",
+    ),
     "COORD_HUB_BUZZ_SECRET": _m(
         "COORD_HUB_BUZZ_SECRET",
         FlagValueKind.SECRET,
