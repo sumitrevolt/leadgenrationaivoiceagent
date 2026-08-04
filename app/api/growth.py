@@ -1283,7 +1283,14 @@ async def reply_hot_queue(
     if scope_n not in ("boss", "admin", "all"):
         scope_n = "boss"
     rows = reply_agent.hot_queue(limit=max(1, min(200, limit)), scope=scope_n)
-    return {"ok": True, "count": len(rows), "scope": scope_n, "items": rows}
+    summary = reply_agent.hot_queue_summary(rows, scope=scope_n)
+    return {
+        "ok": True,
+        "count": len(rows),
+        "scope": scope_n,
+        "summary": summary,
+        "items": rows,
+    }
 
 
 class HotQueueDoneIn(BaseModel):

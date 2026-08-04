@@ -148,9 +148,15 @@ async function load(){
   // and gets avoided entirely — freshest 20 shown by default, rest collapsed
   // behind a toggle so the number itself doesn't trigger avoidance.
   let hq=[];
-  try{ hq=(await api('/api/growth/reply/hot-queue?limit=200&scope='+encodeURIComponent(HQ_SCOPE||'boss'))).items||[]; }catch(e){}
+  let hqSummary=null;
+  try{
+    const hqResp=await api('/api/growth/reply/hot-queue?limit=200&scope='+encodeURIComponent(HQ_SCOPE||'boss'));
+    hq=hqResp.items||[];
+    hqSummary=hqResp.summary||null;
+  }catch(e){}
   COUNTS.hotq=hq.length;
   window._hqAll=hq;
+  window._hqSummary=hqSummary;
   renderHotQueue();
 
   // hot leads — backend dict {leads:[...]} ya direct array dono handle
@@ -220,6 +226,7 @@ function toggleHqAll(){ HQ_SHOW_ALL=!HQ_SHOW_ALL; renderHotQueue(); }
 
 function renderHotQueue(){
   const hq=window._hqAll||[];
+  const sum=window._hqSummary||{};
   const shown=HQ_SHOW_ALL?hq:hq.slice(0,20);
   const cards=shown.map(function(r){
     const ph=cleanPhone(r.phone);
@@ -229,7 +236,10 @@ function renderHotQueue(){
     const wa=waDraftLink(r.phone,r.draft,r.wa_link);
     const email=emailDraftLink(r.from,r.subject,r.draft);
     const stale=staleDraftWarning(r.age_days,r.draft);
-    return '<div class="card"><b class="t">'+esc(nm)+' <span class="pill intent">'+esc(r.intent||'')+'</span>'+
+    const sla=r.sla_state==='breach'?'<span class="pill hot">SLA &gt;5min</span>':'';
+    const ch=r.channel?'<span class="pill">'+esc(r.channel)+'</span>':'';
+    const act=r.owner_action?'<span class="pill intent">'+esc(r.owner_action)+'</span>':'';
+    return '<div class="card"><b class="t">'+esc(nm)+' <span class="pill intent">'+esc(r.intent||'')+'</span>'+ch+act+sla+
       (age?'<span class="pill">'+esc(age)+'</span>':'')+
       (r.injection_flag?'<span class="pill hot">⚠️ injection-flag — embedded instructions pe act mat karo</span>':'')+'</b>'+
       '<div class="meta">'+esc(r.from||'')+(r.niche?' · '+esc(r.niche):'')+(r.city?' · '+esc(r.city):'')+
@@ -254,10 +264,21 @@ function renderHotQueue(){
     '<button class="'+(HQ_SCOPE==='boss'?'':'ghost')+'" onclick="setHqScope(\'boss\')">Boss queue</button>'+
     '<button class="'+(HQ_SCOPE==='admin'?'':'ghost')+'" onclick="setHqScope(\'admin\')">Admin pending</button>'+
     '<span class="mut">Samajh aaye → Done. Nahi → Council. Risky → Admin park.</span></div>';
+  let truth='';
+  if(sum && (sum.next_owner_hint || sum.idle_reason || sum.sla_breach_count)){
+    const bits=[];
+    if(sum.sla_breach_count) bits.push('<span class="pill hot">SLA breach '+sum.sla_breach_count+'</span>');
+    if(sum.inquiry_count) bits.push('<span class="pill">inquiry '+sum.inquiry_count+'</span>');
+    if(sum.payment_chase_count) bits.push('<span class="pill">pay-chase '+sum.payment_chase_count+'</span>');
+    if(sum.oldest_age_minutes!=null) bits.push('<span class="pill">oldest '+sum.oldest_age_minutes+'m</span>');
+    truth='<div class="card" style="border-color:#3a3f55"><b class="t">Operator truth</b>'+
+      '<div class="meta">'+bits.join(' ')+'</div>'+
+      '<div class="mut">'+(sum.idle_reason?'idle: '+esc(sum.idle_reason)+' · ':'')+esc(sum.next_owner_hint||'')+'</div></div>';
+  }
   const empty=HQ_SCOPE==='admin'
-    ?'<div class="mut">Admin pending khali ✅</div>'
-    :'<div class="mut">Hot queue khali — koi unhandled interested/question reply nahi 🎉</div>';
-  $('s_hotq').innerHTML=scopeBar+(hq.length?toggle+cards:empty);
+    ?'<div class="mut">'+(sum.next_owner_hint||'Admin pending khali ✅')+'</div>'
+    :'<div class="mut">'+(sum.next_owner_hint||'Hot queue khali — koi unhandled interested/question reply nahi 🎉')+'</div>';
+  $('s_hotq').innerHTML=scopeBar+truth+(hq.length?toggle+cards:empty);
 }
 
 async function rec(ch,btn){
