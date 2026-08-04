@@ -2383,3 +2383,11 @@ Evidence chain, all at the frozen head: pristine archive checkout â†’ **82 passe
 **Decision:** Track project `.claude/settings.json` with `"enabledPlugins": {"warp@claude-code-warp": false}` so this repo opts out. Guard/reward hooks stay machine-local in `.claude/settings.local.json` (still gitignored).
 
 **Consequence:** Claude Code in this project will not load Warp PostToolUse. No app/runtime/deploy impact. Users with an existing local `.claude/settings.json` should merge the `enabledPlugins` key (do not wipe local hooks). Rollback = set the key to `true` or delete the entry.
+
+## 2026-08-03 - ADR-BUZZ-ADMIN-PLANE Buzz as LeadGen collaboration admin plane
+
+**Context:** Owner set up Block Buzz (Honey/Fizz/Bumble) on `leadsgenai.communities.buzz.xyz`. Need best-practice layout for LeadGen without confusing Buzz agents with the 31 VPS STAFF or OpenClaw.
+
+**Decision:** Buzz is a **third plane** — collaboration only. Create narrow private channels (`#admin` `#gtm` `#ops` `#revenue` `#dev`), specialize Welcome agents for LeadGen rules, add Desktop team `LeadGen Admin`, and introduce **Boss** as Buzz Admin/Chief of Staff (owner-reviewed draft) — explicitly **not** a 32nd `team.py` STAFF persona. Nest guides under `~/.buzz/GUIDES/`; repo pointer `docs/integrations/BUZZ_ADMIN_PLANE.md`.
+
+**Consequence:** Coordination/mentions/canvases happen in Buzz; prod GREEN commands stay OpenClaw/Owner OS; business automation stays Celery STAFF. Owner must Save Desktop drafts (Boss + prompt updates) before Boss is live.
