@@ -10,10 +10,16 @@ Evidence labels: PRODUCTION-PROVEN | CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY | P
 **GTM 0→1** — pehle paid customers on Marketing product; mid-funnel bottleneck (Hot Queue `/app/inbox` + dialer sprint); 2nd paying customer target.
 
 ## Production SHA
-`e06687c7` — ADR-155 litmus gate (PR #235). Live-probed 2026-08-04 over direct HTTPS: `{"version":"e06687c7","environment":"production","status":"healthy"}`.
-Rollback reference: `303b061f` (prior) / `e06687c7` current.
+`33651cfc` — merge of PR #236 (interested-reply offer footer: canonical UPI resolver + NPCI deep-link, no amount prefill). Deployed 2026-08-04 via `scripts/deploy_vps.sh` under the `VOICE_LAUNCH_KILL=1` fence; `/health` = `{"version":"33651cfc","environment":"production","status":"healthy"}`.
+5/5 app-image services equal (`app`/`worker`/`scheduler`/`worker-heavy`/`worker-video`), all healthy; celery + `dlq:failed_tasks` + `dlq:dead` = 0; `.env` restored byte-identical to pre-deploy backup (md5 `1bb0dac0f6d522d130f9843cfa8e2625`, backup `.env.bak-upifooter-20260804`); `VOICE_LAUNCH_KILL=0` restored in all 5 containers.
+Rollback reference: `e06687c7` (prior) / `33651cfc` current.
 Label: DIRECT_HOST_VERIFIED (2026-08-04) + GIT_VERIFIED.
-> Superseded `303b061f` (2026-08-03). Two deploys landed after it — `041501c2` (Unity WebGL) then `e06687c7`.
+
+## ⚠️ UPI auto-activate — documentation drift found 2026-08-04
+Docs (this file, CLAUDE.md, AGENTS.md) recorded `UPI_AUTO_ACTIVATE=0` as the 2026-07-18 containment state. **Prod `.env` actually has `UPI_AUTO_ACTIVATE=1`.**
+Containment is still effective — the master flag alone is never enough (`upi_payments.auto_activate_clients_allowed`): `UPI_AUTO_ACTIVATE_CLIENTS` holds exactly **one** client id, and both a random client and an empty client id are refused (probed). So this is ARMED-but-scoped, not open auto-activation.
+Not changed by this session — flipping it is an owner money decision. Recorded so the next agent does not quote `=0` from docs.
+Label: DIRECT_HOST_VERIFIED (2026-08-04 in-container probe)
 
 ## Origin/main
 `e06687c` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks. Open PRs = 0.
