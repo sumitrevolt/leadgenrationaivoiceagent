@@ -22,7 +22,8 @@ Not changed by this session — flipping it is an owner money decision. Recorded
 Label: DIRECT_HOST_VERIFIED (2026-08-04 in-container probe)
 
 ## Origin/main
-`e06687c` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks. Open PRs = 0.
+`33651cf` — **EQUAL to production** (`git fetch origin && git rev-parse origin/main`). Prod holds zero commits main lacks.
+Open PRs: **#238** (this docs-only truth refresh). Open issues: **#237** (`tests` workflow red on main — pydantic-core drift).
 Label: GIT_VERIFIED (2026-08-04)
 
 ## Production health
