@@ -54,6 +54,7 @@ AUTOMATION_FLAGS = [
     "CHANNEL_EXPERIMENTS",
     "CAMPAIGN_OPTIMIZER",  # Kiran: orchestrates optimizer+bandit+feedback every 100 interactions
     "PLATFORM_DIAL_DAILY",  # daily 11:30 IST self-sale AI cold-call batch (Swara; limit=PLATFORM_DIAL_LIMIT, niche=PLATFORM_DIAL_NICHE)
+    "PLATFORM_DIAL_LIMIT",  # value-carrying daily dial attempt ceiling (NOT a boolean; default/clamp in platform_dial)
     # --- Controlled voice-calling launch spine (2026-07-17, app/telephony/voice_launch.py) ---
     "VOICE_LAUNCH_CAMPAIGN",  # master gate for controlled cold-call campaign — OFF default (INERT); UPAR of platform_dial 3-layer kill
     "VOICE_LAUNCH_KILL",  # global admin kill switch — 1 = ALL outbound calls ineligible (fail-safe); data/voice_launch_kill.json fallback
