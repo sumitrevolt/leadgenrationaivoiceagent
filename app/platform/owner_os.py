@@ -1110,7 +1110,7 @@ def parse_intent(text: str) -> dict[str, Any]:
         publish_allowed = False
         customer_notify_allowed = False
 
-    return {
+    plan_out: dict[str, Any] = {
         "ok": True,
         "original": raw[:2000],
         "intent": intent,
@@ -1134,6 +1134,19 @@ def parse_intent(text: str) -> dict[str, Any]:
             intent, tenant, agent, actions, will_not, risk, publish_allowed, customer_notify_allowed
         ),
     }
+    try:
+        from app.platform.owner_os_litmus import evaluate_plan_litmus
+
+        litmus = evaluate_plan_litmus(plan_out)
+        plan_out["litmus"] = litmus
+        plan_out["preview_summary"] = (
+            plan_out["preview_summary"]
+            + "\nLitmus: "
+            + ("PASS" if litmus.get("ok") else "FAIL " + ",".join(litmus.get("failed_must") or []))
+        )
+    except Exception:
+        plan_out["litmus"] = {"ok": True, "enabled": False, "error": "litmus_unavailable"}
+    return plan_out
 
 
 def _preview_summary(
@@ -1443,6 +1456,31 @@ def execute_command(command_id: str, actor: str = "admin") -> dict[str, Any]:
 
     if intent not in SAFE_INTENTS:
         return {"ok": False, "error": "intent not safe for Owner OS v1 execution"}
+
+    # ADR-155 litmus — deterministic HITL preflight (flag OWNER_OS_LITMUS, default ON).
+    try:
+        from app.platform.owner_os_litmus import gate_execute
+
+        plan = parse_intent(str(cur.get("original") or ""))
+        gated = gate_execute(cur, plan)
+        if not gated.get("ok"):
+            reason = str(gated.get("reason") or "litmus_failed")
+            _update_command(
+                command_id,
+                status="FAILED",
+                error=reason,
+                sanitized_error=reason,
+                progress=100,
+                evidence={"litmus": gated.get("litmus")},
+            )
+            audit(
+                actor,
+                "command_litmus_blocked",
+                {"command_id": command_id, "reason": reason},
+            )
+            return {"ok": False, "error": reason, "litmus": gated.get("litmus")}
+    except Exception:
+        pass
 
     # Safe reports always force publish/notify off
     if intent == "status_report":
