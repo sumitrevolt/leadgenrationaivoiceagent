@@ -23,11 +23,11 @@ Source: `team.STAFF` · `agent_registry` · `agent_runtime.PILOT_AGENTS` · `age
 | race rechecks | `integration_proven` |
 | idempotency_backend (after this PR) | `redis` fail-closed (code) |
 | idempotency_memory_fallback | `false` (agent runtime) |
-| idempotency_cross_process | `implementation_ready` — **not** production-proven |
-| idempotency_production_proven | `false` |
+| idempotency_cross_process | **SUPERSEDED for Pranav** — see `DISTRIBUTED_IDEMPOTENCY_PRODUCTION_PROOF.md` (`PRODUCTION-PROVEN`, Pranav-only). Matrix row below kept historically false until a third agent is proven. |
+| idempotency_production_proven | `false` (matrix scope = fleet-wide); Pranav-only proof = **true** per production-proof doc |
 
 ## Pilot allowlist
 
 `kavya, isha, zara, hermes, pranav, vidya, arnav, kabir, diya, aryan, arya, nikhil`
 
-See `DISTRIBUTED_CANCELLATION.md` · `DISTRIBUTED_IDEMPOTENCY.md` · `CANARY_PREFLIGHT.md`.
+See `DISTRIBUTED_CANCELLATION.md` · `DISTRIBUTED_IDEMPOTENCY.md` · `DISTRIBUTED_IDEMPOTENCY_PRODUCTION_PROOF.md` · `CANARY_PREFLIGHT.md`.
