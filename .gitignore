@@ -23,6 +23,9 @@ uat_evidence/
 # Distribution / packaging
 .Python
 build/
+# Unity WebGL build artifacts for the Blueprint Virtual Office MUST be versioned
+# (docs/UNITY_VIRTUAL_OFFICE_DEPLOYMENT.md §1: rollback = restore previous dir).
+!frontend/office_unity/Build/
 develop-eggs/
 dist/
 downloads/
