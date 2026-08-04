@@ -16,6 +16,7 @@ from app.platform.coordination_hub_auth import (
 
 
 def _nonce_tmp(monkeypatch, tmp_path):
+    monkeypatch.setattr(auth_mod, "_HUB_ROOT", str(tmp_path))
     monkeypatch.setattr(auth_mod, "_NONCE_FILE", str(tmp_path / "nonce_fps.jsonl"))
 
 

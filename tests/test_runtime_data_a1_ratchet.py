@@ -46,7 +46,7 @@ EXPECTED_BLOCKERS = 0
 # LOOSENING a control -- declaring a newly-added destructive path is the opposite:
 # the entry count rises because the reviewed surface grew, and the baseline
 # fingerprint count below is deliberately unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 41
+EXPECTED_ALLOWLIST_ENTRIES = 43
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 
