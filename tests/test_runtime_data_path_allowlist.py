@@ -118,7 +118,12 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # the 31 agents). Also CLASSIFIED, not tolerated — baseline unchanged.
     # 2026-08-04 +4 entries / +1 family: owner_os.coordination_hub (ADR-150 thin
     # Owner OS projection — presence/events/nonces; not a second control plane).
-    assert len(entries) == 43
+    # 2026-08-04 +2 entries / +0 families: data/offers.jsonl and its atomic temp
+    # (#240 immutable offer/order store). Filed under the EXISTING
+    # billing.upi_payments family — commercial quoting feeding payment
+    # reconciliation is the same authority, exactly as billing.upi_config.store
+    # already does. CLASSIFIED, not tolerated: baseline debt unchanged.
+    assert len(entries) == 45
     assert len(families) == 14, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
