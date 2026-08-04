@@ -1,12 +1,11 @@
 # LeadGen AI — Complete Architecture Blueprint
 
-> Source: Architecture Explorer (frontend/explorer.html) — 85 engine modules, 342 edges
-> prod_check: 1150 routes, 48 pages, 248 nodes, 0 wiring gaps
-> Live: https://leadsgenai.in | Version: cb321700 | Health: production healthy
+> **STALE narrative topology (kept for human orientation).** Canonical Master Blueprint counts come from `app.platform.blueprint_graph.validate_graph()` — as of 2026-08-03: **59 nodes · 56 edges · 11 flows · 0 orphans · workforce 31**. Explorer/prod_check numbers below may lag; do not treat this file as the count authority.
+> Live: https://leadsgenai.in | Health truth: direct HTTPS `/health.version` only
 
 ---
 
-## SYSTEM TOPOLOGY — Structural View (46 nodes)
+## SYSTEM TOPOLOGY — Structural View (illustrative — not node-count authority)
 
 ```
 ┌─ INTERNET ───────────────────────────────────────────────────────────┐

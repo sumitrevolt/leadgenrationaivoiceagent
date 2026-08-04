@@ -2134,9 +2134,29 @@ def hot_queue(
                 at = datetime.fromisoformat(str(r.get("at") or "").replace("Z", "+00:00"))
                 if at.tzinfo is None:
                     at = at.replace(tzinfo=timezone.utc)
-                r["age_days"] = max(0, (now - at).days)
+                age_s = max(0, int((now - at).total_seconds()))
+                r["age_days"] = age_s // 86400
+                r["age_minutes"] = age_s // 60
             except Exception:
                 r["age_days"] = None
+                r["age_minutes"] = None
+            ch = str(r.get("channel") or "")
+            # Inquiry 5-min owner SLA (inquiry_hq_bridge._TARGET_5MIN); others informational only.
+            if ch == "inquiry" and r.get("age_minutes") is not None:
+                r["sla_target_min"] = 5
+                r["sla_state"] = "breach" if int(r["age_minutes"]) > 5 else "ok"
+            elif ch == "payment_chase":
+                r["sla_target_min"] = None
+                r["sla_state"] = "payment_truth"
+            else:
+                r["sla_target_min"] = None
+                r["sla_state"] = "n/a"
+            if ch == "payment_chase":
+                r["owner_action"] = "chase_payment_upi_proof"
+            elif ch == "inquiry":
+                r["owner_action"] = "call_or_wa_draft_then_done"
+            else:
+                r["owner_action"] = "reply_or_call_then_done"
             final.append(r)
             if len(final) >= max(1, limit):
                 break
@@ -2146,6 +2166,8 @@ def hot_queue(
                 from app.platform.sales_autopilot import pay_truth as _pt
 
                 for card in _pt.unpaid_chase_cards(limit=max(1, limit) - len(final)):
+                    card.setdefault("sla_state", "payment_truth")
+                    card.setdefault("owner_action", "chase_payment_upi_proof")
                     final.append(card)
             except Exception:
                 pass
@@ -2153,6 +2175,44 @@ def hot_queue(
     except Exception as exc:
         logger.debug("hot_queue err: %s", exc)
         return []
+
+
+def hot_queue_summary(items: list[dict] | None, scope: str = "boss") -> dict:
+    """Operator-facing envelope for /app/inbox — idle reason + SLA counts. Never raises."""
+    rows = list(items or [])
+    scope_n = str(scope or "boss").strip().lower()
+    inquiry_n = sum(1 for r in rows if str(r.get("channel") or "") == "inquiry")
+    chase_n = sum(1 for r in rows if str(r.get("channel") or "") == "payment_chase")
+    breach_n = sum(1 for r in rows if str(r.get("sla_state") or "") == "breach")
+    ages = [int(r["age_minutes"]) for r in rows if r.get("age_minutes") is not None]
+    out: dict = {
+        "count": len(rows),
+        "scope": scope_n,
+        "inquiry_count": inquiry_n,
+        "payment_chase_count": chase_n,
+        "sla_breach_count": breach_n,
+        "oldest_age_minutes": max(ages) if ages else None,
+        "idle_reason": None,
+        "next_owner_hint": None,
+    }
+    if rows:
+        if breach_n:
+            out["next_owner_hint"] = f"{breach_n} inquiry SLA >5min — pehle unhe Call/WA karo"
+        elif chase_n:
+            out["next_owner_hint"] = "Payment-truth chase cards — UPI proof ke bina PAID mat bolo"
+        else:
+            out["next_owner_hint"] = "Top card se Call/WA draft → Done"
+        return out
+    if scope_n == "admin":
+        out["idle_reason"] = "admin_pending_empty"
+        out["next_owner_hint"] = "Koi parked card nahi — Boss queue check karo"
+    else:
+        out["idle_reason"] = "queue_empty_no_hot_drafts"
+        out["next_owner_hint"] = (
+            "Koi unhandled interested/inquiry/chase nahi — "
+            "reply_triage + website inquiry bridge + autopilot refill observe karo"
+        )
+    return out
 
 
 def mark_handled(hq_id: str) -> bool:

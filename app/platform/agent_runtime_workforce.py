@@ -87,11 +87,13 @@ async def frozen_transfer_status(ctx: AgentExecutionContext) -> dict[str, Any]:
         "openclaw_transfer": True,
         "status": "FROZEN",
         "modification_permission": "NONE",
-        "calling": "HARD_OFF",
+        "calling": "RUNTIME_RED_BLOCKED",
         "runtime_dispatch": "blocked_red_lane",
         "note": (
-            "Configured voice agent — OpenClaw observes via Owner OS only; "
-            "voice code untouched; platform_dial stays HARD OFF."
+            "Agent Runtime RED lane blocks Swara/Ananya dispatch here. "
+            "This does NOT report platform_dial / voice_launch campaign posture — "
+            "see owner_os.calling_posture() / runtime_status calling_badge for that. "
+            "Voice code stays frozen; compliance gates unchanged."
         ),
         "side_effects": False,
     }

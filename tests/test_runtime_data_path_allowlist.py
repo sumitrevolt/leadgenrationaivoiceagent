@@ -116,8 +116,10 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # tolerated (nothing was added to the baseline debt file).
     # 2026-08-03 +10 entries / +1 family: platform.workforce_memory (ADR-154 hub for
     # the 31 agents). Also CLASSIFIED, not tolerated — baseline unchanged.
-    assert len(entries) == 37
-    assert len(families) == 13, sorted(families)
+    # 2026-08-04 +4 entries / +1 family: owner_os.coordination_hub (ADR-150 thin
+    # Owner OS projection — presence/events/nonces; not a second control plane).
+    assert len(entries) == 43
+    assert len(families) == 14, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -131,15 +133,15 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "platform.workforce_memory",
         "devcontrol.external_missions",
         "governance.mission_control",
+        "owner_os.coordination_hub",
         "ops.owner_email_canary",
         "sales.prospects",
         "telephony.call_recordings",
         "telephony.voice_kill_switch",
     }
     # No alias: distinct manifest authorities, not renames of one another.
-    # 10 since 2026-08-03: 'marketing' (brand_kits) and 'platform'
-    # (workforce_memory) both joined as top-level authorities.
-    assert len({f.split(".")[0] for f in families}) == 10
+    # 11 since 2026-08-04: owner_os joined (Coordination Hub projection).
+    assert len({f.split(".")[0] for f in families}) == 11
 
 
 def test_every_entry_maps_to_a_real_store_family() -> None:
@@ -400,7 +402,8 @@ def test_store_manifest_still_validates() -> None:
     # ~20MB JSONL host cutover is a separate PR â€” blockers stay 21).
     # 2026-07-30: +1 ops.owner_email_canary (LEGACY_IN_CHECKOUT, non-blocker).
     # 2026-07-31: +1 governance.mission_control (LEGACY_IN_CHECKOUT, non-blocker).
-    assert counts["unique_families"] == 31
+    # 2026-08-04: +1 owner_os.coordination_hub (ADR-150 projection; rebuildable).
+    assert counts["unique_families"] == 32
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]

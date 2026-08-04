@@ -54,7 +54,14 @@ def bridge_inquiry_to_hot_queue(rec: dict[str, Any]) -> dict[str, Any]:
         from app.platform import reply_agent as _ra
 
         frm = phone or email
-        day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        # Idempotency day must follow the inquiry timestamp (not wall-clock
+        # "today") so CI/replay with fixed ``at`` still dedupes across UTC days.
+        at = str(rec.get("at") or datetime.now(timezone.utc).isoformat())
+        day = (
+            at[:10]
+            if len(at) >= 10 and at[4:5] == "-" and at[7:8] == "-"
+            else datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        )
         for d in _ra.list_drafts(limit=500):
             if d.get("channel") != "inquiry":
                 continue
@@ -69,7 +76,6 @@ def bridge_inquiry_to_hot_queue(rec: dict[str, Any]) -> dict[str, Any]:
                 return out
 
         draft = _draft_for(rec)
-        at = str(rec.get("at") or datetime.now(timezone.utc).isoformat())
         wa_num = _india_wa(phone)
         card = {
             "channel": "inquiry",
