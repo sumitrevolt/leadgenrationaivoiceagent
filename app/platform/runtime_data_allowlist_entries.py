@@ -801,6 +801,54 @@ ENTRIES: list[dict[str, Any]] = [
         "production_relevance": "CANARY",
         "review_condition": "Temp must colocate with presence.json on one filesystem.",
     },
+    {
+        "allowlist_id": "billing.offers.store",
+        "file": "app/marketing/offers.py",
+        "line_or_symbol": "path",
+        "path_pattern": "data/offers.jsonl",
+        # Same authority as upi_payments (commercial quoting feeding payment
+        # reconciliation), so NOT a separate logical family — mirrors how
+        # billing.upi_config.store also files under billing.upi_payments.
+        "store_id": "billing.upi_payments",
+        "access_modes": ["CREATE", "READ"],
+        "reason": (
+            "Immutable commercial offers (orders) bound to a sales deal (#240). Holds the "
+            "order_ref a bank credit is reconciled against, plus the package/amount frozen "
+            "at issuance. `path = _store()` inside _write_all; CREATE is the os.makedirs that "
+            "ensures data/ exists before the atomic replace."
+        ),
+        "migration_tier": 0,
+        "target_change_set": "runtime-data-cutover-wave-0",
+        "owner": "billing",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "An issued offer's package_code/quoted_amount/currency are immutable — a revision "
+            "must append a new order with supersedes_order_ref, never rewrite the original. "
+            "Any change that lets a catalogue price mutate an issued quote needs owner sign-off."
+        ),
+    },
+    {
+        "allowlist_id": "billing.offers.store_tmp",
+        "file": "app/marketing/offers.py",
+        "line_or_symbol": "tmp",
+        # Dynamic (pid-suffixed) temp — the declaration must name the expression
+        # the scanner actually detects, not a glob.
+        "path_pattern": 'f"{path}.tmp.{os.getpid()}"',
+        "store_id": "billing.upi_payments",
+        "access_modes": ["CREATE", "REWRITE", "REPLACE", "DELETE"],
+        "reason": (
+            "Atomic temp for the offers.jsonl rewrite (tmp + fsync + os.replace). DELETE is the "
+            "cleanup path when the write fails partway."
+        ),
+        "migration_tier": 0,
+        "target_change_set": "runtime-data-cutover-wave-0",
+        "owner": "billing",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Temp must colocate with offers.jsonl on one filesystem. Callers hold file_lock "
+            "around read-modify-write; the write itself must NOT re-enter locked_rewrite."
+        ),
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

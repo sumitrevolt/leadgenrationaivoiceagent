@@ -34,6 +34,10 @@ class UpiSubmitIn(BaseModel):
     payer_contact: str = ""
     # client_id is derived from the customer's JWT — client CANNOT submit for someone else.
     client_id: str = ""
+    # #240 reconciliation anchor. Accepted but NEVER trusted as submitted:
+    # submit_payment re-resolves it against the offer store and refuses unknown,
+    # expired, superseded, already-paid or plan-mismatched references.
+    order_ref: str = ""
 
 
 @router.post(
@@ -60,6 +64,7 @@ async def upi_submit(body: UpiSubmitIn, client_id: str = Depends(optional_custom
             amount=body.amount,
             payer_name=body.payer_name,
             payer_contact=body.payer_contact,
+            order_ref=body.order_ref,
         )
         if not res.get("ok"):
             return {
