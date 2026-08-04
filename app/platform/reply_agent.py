@@ -734,6 +734,73 @@ async def _classify(subject: str, body: str, history: str = "") -> str:
     return "other"
 
 
+def _interested_offer_block(biz: str = "") -> str:
+    """Offer + payment footer appended to an ``interested`` reply — the money step.
+
+    1. It resolves the VPA through ``upi_config.get_vpa()`` (env -> settings ->
+       ``data/platform_upi.json``), NOT ``os.environ["UPI_VPA"]``. Admins arm UPI
+       at runtime via ``POST /api/admin/upi/configure`` with no restart, and every
+       other payment surface already reads the canonical resolver
+       (``activation._payments_ready``, ``public_site`` pay-info, ``dunning``).
+       Scope of that inconsistency, stated precisely: prod probed 2026-08-04 has
+       ``upi_config.source() == "env"`` with ``UPI_VPA`` set, so the old env read
+       returned the right VPA and **the bug never fired in production**. It WOULD
+       fire the moment the documented no-restart admin path is used while env is
+       unset — ``/api/public/pay-info`` and ``activation.payments_ready`` would
+       both keep reporting healthy off the resolver while this footer went blank.
+    2. It ships an NPCI ``upi://pay`` deep-link instead of a bare VPA string, so
+       the prospect taps once instead of typing a handle. Same shape as
+       ``billing/dunning._ensure_pay_link`` / ``marketing/upi_kit._build_upi_link``.
+
+    **No ``am=`` amount is prefilled, deliberately.** This function has no plan or
+    deal binding — ``_draft`` receives only business name, subject, body, intent
+    and niche. The catalogue is not single-price (Marketing Main ₹1,999, Combo
+    ₹5,999, and Voice bands ₹4,999/₹9,999/₹19,999), so prefilling the Starter
+    price would hand a Combo- or Voice-interested prospect a one-tap link that
+    underpays their actual plan — a billing-truth break (CLAUDE.md §5), not a UX
+    nit. Amount-optional matches ``upi_kit`` (skips ``am`` when empty) and its
+    slip's "Amount aap khud enter karein" branch. The prospect picks the plan on
+    ``/pricing``. Re-adding ``am=`` requires a real plan binding first.
+
+    ``tn`` carries the business name as **human-readable context only** — it is
+    not unique and does NOT by itself guarantee bank reconciliation. No immutable
+    prospect/deal/order reference exists at this point in the state machine; that
+    remains an open payment-automation gap.
+
+    Gating is unchanged from the original: UPI unarmed -> **empty string**, no
+    footer at all. Only the footer's content changes here, never whether it
+    appears — the shared ``whatsapp_reply`` path drafts through ``_draft`` too,
+    and an unconditional footer would put a pricing line into WhatsApp replies
+    that never carried one (caught by ``test_wa_conversation`` in CI). Never raises.
+    """
+    try:
+        from urllib.parse import quote
+
+        from app.platform import upi_config
+
+        vpa = (upi_config.get_vpa() or "").strip()
+        if not vpa:
+            return ""
+
+        pricing = "\n\nAage badhne ke liye pricing: https://leadsgenai.in/pricing"
+
+        # No `am=` — see docstring. Plan is unknown here and the catalogue is
+        # multi-price, so an amount prefill would quote the wrong plan.
+        note = f"LeadsGenAI {biz}".strip()[:80]
+        parts = [f"pa={quote(vpa, safe='@')}", "pn=LeadsGenAI"]
+        if note:
+            parts.append(f"tn={quote(note)}")
+        parts.append("cu=INR")
+        link = "upi://pay?" + "&".join(parts)
+
+        return pricing + f"\n1-tap UPI: {link}\nYa UPI ID: {vpa}"
+    except Exception:  # pragma: no cover - defensive, never block the reply
+        # Broken/unreadable UPI config behaves exactly like unarmed: no footer.
+        # (Must not reference `pricing` here — it is bound after the VPA check,
+        # so a raising get_vpa() would UnboundLocalError and lose the whole draft.)
+        return ""
+
+
 async def _draft(
     biz: str,
     subject: str,
@@ -809,12 +876,7 @@ async def _draft(
         )
         reply = (reply or "").strip()
         if intent == "interested" and reply:
-            vpa = os.environ.get("UPI_VPA", "").strip()
-            if vpa:
-                reply += (
-                    "\n\nAage badhne ke liye pricing: https://leadsgenai.in/pricing"
-                    f" - UPI se pay: {vpa}"
-                )
+            reply += _interested_offer_block(biz)
         return reply
     except Exception:
         return ""
