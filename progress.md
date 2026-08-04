@@ -1,6 +1,42 @@
 # progress.md ? Loop Engineer Ledger (LeadGenAI)
 
 ## Loop Run
+Date: 2026-08-03 (Wave 3 scheduler + flag truth + Hot Queue SLA)
+Goal: Multi-registry scheduler contract; explicit flag kinds/governance; one HQ GTM visibility slice.
+Inspected: STAFF_JOBS/JOB_META/_last_ran/EXPECTED_GAP_MIN/JOB_INFO/beat; automation_flag_manifest; reply_agent.hot_queue + inbox.html.
+Problems Found: (1) sales_autopilot missing from EXPECTED_GAP_MIN (dead-man blind). (2) 263 unclassified flags. (3) Hot Queue empty state lacked idle/SLA operator truth.
+Changed: scheduler_parity.py + EXPECTED_GAP_MIN sales_autopilot + dial note; flag manifest v2 kinds/governance; reply_agent summary+SLA fields; growth hot-queue API; inbox Operator truth UI; tests.
+Tests Run: scheduler suite + flag manifest + infra flags + hot_queue(+sla) → exit 0 (46); ruff 0; secrets OK; blueprint 59/56/11/0/31; prod_check pending in parallel.
+Verification Evidence: local only. Prod unchanged (still 303b061f / ready gemini until deploy).
+Risks: 242 flags still unknown_requires_review (honest); HQ SLA only for inquiry channel.
+Remaining: Owner commit/PR/deploy; more flag overlays; Estique ₹1999.
+Next Highest Priority: READY FOR OWNER REVIEW — no commit without ask.
+
+## Loop Run
+Date: 2026-08-03 (Wave 1C/2 — docs drift + typed flag manifest)
+Goal: Close C3 docs count drift with contracts; document ADR-148/149; ship typed AUTOMATION_FLAGS honesty layer (no mass enable).
+Inspected: AGENT_REGISTRY/ARCHITECTURE_BLUEPRINT/TRUTH_MATRIX/AUTOMATION_MAX_READINESS_MATRIX; ADR-148/149 + runner/flags dual-gate; growth infra/flags; automation_flags registry.
+Problems Found: (1) Docs hardcoded 24 jobs / old blueprint topology / stale dial HARD-OFF matrix. (2) TRUTH_MATRIX vs Pranav idempotency proof contradiction. (3) on_count treated mixed kinds as switches. (4) PLATFORM_DIAL_LIMIT missing from registry.
+Changed: docs drift fixes + CONTRADICTION_LEDGER; ADR-149 status; app/platform/automation_flag_manifest.py; growth infra/flags enrichment; AUTOMATION_FLAGS +PLATFORM_DIAL_LIMIT; tests test_docs_inventory_drift + test_automation_flag_manifest.
+Tests Run: pytest docs+manifest+infra_observability+health_llm → exit 0 (31); ruff 0; check_secrets OK; prod_check ALL PASSED (1241 routes); blueprint_graph 59/56/11/0/31.
+Verification Evidence: local only. Prod `/health/ready` still `llm.provider=gemini` until deploy. Worktree uncommitted on `cursor/master-blueprint-world-class-2026-08-03` base `303b061f`.
+Risks: Majority of 328 flags still `unclassified` lifecycle (heuristic); overlays incomplete. Infra/flags JSON shape additive — old clients ignore new fields.
+Remaining: Wave 3 scheduler/agent contract gaps; more flag overlays; GTM Hot Queue slices; no commit until owner.
+Next Highest Priority: Scheduler multi-registry contract test OR Hot Queue speed-to-lead slice; stop for owner review of P0+W2 package.
+
+## Loop Run
+Date: 2026-08-03 (Wave 0/1 P0 truth honesty — isolated worktree)
+Goal: Revalidate prod/git; isolate from docs branch; fix misleading /health/ready LLM provider + agent_runtime Calling HARD OFF badge.
+Inspected: health._check_llm_config; free_ai.describe/_build_llm_chain; owner_os.calling_posture; agent_runtime.runtime_status; agent_runtime_workforce.frozen_transfer_status; blueprint validate_graph; AUTOMATION_FLAGS/JOB_META counts.
+Problems Found: (1) readiness said provider=gemini whenever GEMINI_API_KEY set — lied vs free-AI primary. (2) runtime_status hard-coded Calling HARD OFF while dial campaign live. (3) Swara frozen note claimed platform_dial HARD OFF — confuses Agent Runtime RED with campaign. (4) Docs count drift still open (blueprint/JOB_META/matrix).
+Changed: app/api/health.py; app/platform/agent_runtime.py; app/platform/agent_runtime_workforce.py; tests/test_health_llm_ready_honesty.py; docs/context/{CONTRADICTION_LEDGER_2026_08_03,ACTIVE_WORK,SESSION_HANDOFF}.md
+Tests Run: pytest test_health_llm_ready_honesty + test_calling_posture_live + test_runtime_status_budgets → exit 0 (6 passed); ruff exit 0; check_secrets OK; prod_check ALL PASSED.
+Verification Evidence: local only — prod /health/ready still shows gemini until deploy. Worktree HEAD still based on 303b061f + uncommitted P0. Primary checkout untouched.
+Risks: Deploy needed for ready label; consumers that assumed provider==gemini string may need providers[] field.
+Remaining: C3 docs drift contracts; typed flag manifest Wave 2; no commit until owner ask.
+Next Highest Priority: Drift-contract tests for blueprint node count + JOB_META vs AGENT_REGISTRY.md; then flag typing scaffold.
+
+## Loop Run
 Date: 2026-08-03 (World-class revenue automation GTM-first)
 Goal: Implement plan WS-R1 refill + WS-R2 inquiry→HQ/STL + WS-R3 pay-truth; no deploy without owner.
 Inspected: sales_autopilot store/scheduler/eligibility/admin; prospector; reply_agent hot_queue; inquiry_hooks; speed_to_lead; upi_payments; owner_os.
