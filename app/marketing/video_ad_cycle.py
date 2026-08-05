@@ -36,8 +36,23 @@ _STATE = os.path.join("data", ".video_ad_cycle.json")
 
 # ------------------------------- config ----------------------------------- #
 def enabled() -> bool:
-    """Scheduler auto-cycle gate. Manual generate_for_client isse independent."""
-    return os.getenv("VIDEO_AD_CYCLE", "0").strip().lower() in ("1", "true", "yes")
+    """Scheduler auto-cycle gate. Manual generate_for_client isse independent.
+
+    Honours legacy ``VIDEO_AD_CYCLE`` OR the Video Production Cell alias
+    ``VIDEO_DAILY_SCHEDULER_ENABLED`` (same contract as
+    ``video_production.flags.daily_scheduler_enabled``). Prod had the cell
+    flag ON while ``VIDEO_AD_CYCLE=0``, which left ``run_cycle`` inert and
+    stopped own-brand video generation/publish.
+    """
+    return os.getenv("VIDEO_AD_CYCLE", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ) or os.getenv("VIDEO_DAILY_SCHEDULER_ENABLED", "0").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
 
 def _interval_days() -> int:
@@ -1185,10 +1200,12 @@ async def _regen_due(limit: int = 10) -> int:
 
 # ------------------------------- scheduler tick ----------------------------- #
 async def run_cycle() -> dict[str, Any]:
-    """Scheduler entrypoint (GATED VIDEO_AD_CYCLE). 3 kaam: due clients ke naye ads,
-    change-requests regen, approved ads publish. Flag off = inert. NEVER raises."""
+    """Scheduler entrypoint (GATED VIDEO_AD_CYCLE / VIDEO_DAILY_SCHEDULER_ENABLED).
+
+    3 kaam: due clients ke naye ads, change-requests regen, approved ads publish.
+    Flag off = inert. NEVER raises."""
     if not enabled():
-        return {"ran": False, "reason": "VIDEO_AD_CYCLE off"}
+        return {"ran": False, "reason": "VIDEO_AD_CYCLE/VIDEO_DAILY_SCHEDULER off"}
     out: dict[str, Any] = {"ran": True}
     try:
         # Stuck rows: pending without a render path can never be approved/shared.

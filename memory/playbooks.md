@@ -58,13 +58,26 @@ docker exec leadgen_app python -c "from app.marketing import postiz_publish as p
 ```
 Empty list for a customer = no Postiz publish (honest). Also check `data/social_engine.json` `dry_run` — `true` fabricates `ok=True` (ADR-098). Hourly drain = staff job `social_drain` (:10 IST).
 
+### Postiz QUEUE stuck / zombie orchestrator (2026-08-05)
+Symptom: LeadGen API marks social jobs `published` + Postiz has `postId`, but FB/IG/X never show the post. DB: `SELECT state,count(*) FROM "Post" GROUP BY state` shows `QUEUE` growing; Temporal `workflow list` shows `post_*` Running for hours; `temporal task-queue describe --task-queue main` shows **empty Pollers** even though `pm2 list` says orchestrator online (~60–90MB = ghost).
+Recovery (NEVER `--remove-orphans` on postiz compose):
+```
+cd /opt/leadgen
+docker compose -f docker-compose.postiz.yml --env-file deploy/postiz/.env up -d --force-recreate --no-deps postiz
+# wait ≥150s for orchestrator compile
+docker exec leadgen_postiz npx pm2 list
+docker exec leadgen_temporal temporal task-queue describe --task-queue main --namespace default
+# expect Pollers Identity non-empty; QUEUE count → 0; PUBLISHED releaseURL set
+```
+X/`twitter` ERROR with `credits depleted` / 402 = operator must top up X API or set `POSTIZ_SKIP_PLATFORMS=x` (after deploy that ships the skip flag). Instagram/YouTube need media — text-only jobs skip those channels by design.
+
 ### Postiz multi-channel selection (2026-07-23 Stage 2 closure)
 - `POSTIZ_PINTEREST_BOARD` — required when a Pinterest integration is in the target list. **Unset/whitespace = Pinterest skipped**; other eligible channels still publish (one bad channel must not 400 the whole batch).
 - `POSTIZ_PUBLISH_MAX_CHANNELS` — integer cap after eligibility filtering. `unset` = uncapped (legacy). `0` / negative = **block** (no create-post API). Invalid string = uncapped + warning. Values >20 clamped to 20.
+- `POSTIZ_SKIP_PLATFORMS` — CSV of Postiz identifiers to skip (e.g. `x` when API credits=0).
 - Zero eligible targets → `sent=False`, **no** upload/create API call.
 - Dry-run (no publish): `from app.marketing.postiz_publish import plan_publish_channels` with a local `platform_map` — does not call create/upload.
-- Rollout: keep `VIDEO_SOCIAL_PUBLISH_ENABLED=0` while verifying selection. Rollback = revert PR; publishing flag stays OFF.
-- Legacy autonomous `VIDEO_AD_CYCLE` remains disabled. Any restoration requires a separate ownership and duplication review after the governed production cell is operational.
+- Video scheduler: `VIDEO_AD_CYCLE=1` **or** `VIDEO_DAILY_SCHEDULER_ENABLED=1` arms `video_ad_cycle.run_cycle` (alias parity). Publish still gated by approval + `VIDEO_SOCIAL_PUBLISH_ENABLED`.
 
 ## Prod incident (skill: `prod-incident-triage`)
 Health 000/502 → `docker ps` + logs → py-spy dump on stuck proc → recover (targeted restart, NOT blind) → root-cause → postmortem entry in `memory/incidents.md` + prevention rule. Self-heal cron `scripts/vps_selfheal.sh` */10 already running.

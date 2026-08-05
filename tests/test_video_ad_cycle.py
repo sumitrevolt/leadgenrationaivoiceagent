@@ -160,14 +160,27 @@ def test_reject_via_content_approval_triggers_changes(iso):
     assert V.list_for_client("c1")[0]["status"] == "changes_requested"
 
 
-def test_run_cycle_flag_off_inert(iso):
-    assert asyncio.run(V.run_cycle()) == {"ran": False, "reason": "VIDEO_AD_CYCLE off"}
+def test_run_cycle_flag_off_inert(iso, monkeypatch):
+    monkeypatch.delenv("VIDEO_AD_CYCLE", raising=False)
+    monkeypatch.delenv("VIDEO_DAILY_SCHEDULER_ENABLED", raising=False)
+    out = asyncio.run(V.run_cycle())
+    assert out["ran"] is False
+    assert "VIDEO_AD_CYCLE" in out["reason"]
 
 
 def test_run_cycle_flag_on_generates(iso, monkeypatch):
     monkeypatch.setenv("VIDEO_AD_CYCLE", "1")
     out = asyncio.run(V.run_cycle())
     assert out["ran"] is True and out.get("generated", 0) >= 1
+
+
+def test_run_cycle_honors_daily_scheduler_alias(iso, monkeypatch):
+    """VIDEO_DAILY_SCHEDULER_ENABLED alone must arm run_cycle (prod drift fix)."""
+    monkeypatch.delenv("VIDEO_AD_CYCLE", raising=False)
+    monkeypatch.setenv("VIDEO_DAILY_SCHEDULER_ENABLED", "1")
+    assert V.enabled() is True
+    out = asyncio.run(V.run_cycle())
+    assert out["ran"] is True
 
 
 def test_publish_no_channel_marks_failed(iso, monkeypatch):
