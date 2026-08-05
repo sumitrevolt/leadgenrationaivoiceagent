@@ -91,6 +91,10 @@ def enrich_prospect(rec: dict[str, Any]) -> dict[str, Any]:
     return row
 
 
+_CHASE_DONE_STEP = "hq_chase_done"
+_CHASE_PARK_STEP = "hq_chase_admin"
+
+
 def reconcile_pay_truth(*, chase: bool = True) -> dict[str, Any]:
     """Demote unpaid converted → awaiting_payment; restore proofed awaiting → converted.
 
@@ -122,8 +126,10 @@ def reconcile_pay_truth(*, chase: bool = True) -> dict[str, Any]:
                 summary["demoted"] += 1
                 summary["items"].append({"id": pid, "action": "demoted", "client_id": cid})
                 if chase:
-                    _chase_unpaid(pid, rec)
-                    summary["chased"] += 1
+                    steps = list(rec.get("steps_done") or [])
+                    if _CHASE_DONE_STEP not in steps and _CHASE_PARK_STEP not in steps:
+                        _chase_unpaid(pid, rec)
+                        summary["chased"] += 1
             elif st == _store.STATUS_AWAITING_PAYMENT and cid and proof.get("paid"):
                 _store.mark_status(
                     pid,
@@ -137,6 +143,10 @@ def reconcile_pay_truth(*, chase: bool = True) -> dict[str, Any]:
                     {"id": pid, "action": "restored", "client_id": cid, "via": proof.get("via")}
                 )
             elif st == _store.STATUS_AWAITING_PAYMENT and chase:
+                steps = list(rec.get("steps_done") or [])
+                # Hot Queue Done/Park must also silence scheduler ntfy chase.
+                if _CHASE_DONE_STEP in steps or _CHASE_PARK_STEP in steps:
+                    continue
                 _chase_unpaid(pid, rec)
                 summary["chased"] += 1
                 summary["items"].append({"id": pid, "action": "chased", "client_id": cid})
@@ -168,12 +178,55 @@ def _chase_unpaid(prospect_id: str, rec: dict[str, Any]) -> None:
         pass
 
 
+def _paychase_awaiting_id(hq_id: str) -> str:
+    """Return prospect_id only when hq_id is paychase:<id> and status is awaiting_payment."""
+    raw = (hq_id or "").strip()
+    if not raw.startswith("paychase:"):
+        return ""
+    pid = raw.split(":", 1)[1].strip()
+    if not pid:
+        return ""
+    rec = _store.get_prospect(pid)
+    if not rec or rec.get("status") != _store.STATUS_AWAITING_PAYMENT:
+        return ""
+    return pid
+
+
+def mark_paychase_done(hq_id: str) -> bool:
+    """Clear a synthetic pay-chase Hot Queue card (hq_id = paychase:<prospect_id>)."""
+    pid = _paychase_awaiting_id(hq_id)
+    if not pid:
+        return False
+    try:
+        _store.add_step_done(pid, _CHASE_DONE_STEP)
+        return True
+    except Exception as e:
+        logger.debug("[pay_truth] mark_paychase_done skip: %s", e)
+        return False
+
+
+def mark_paychase_parked(hq_id: str) -> bool:
+    """Park a synthetic pay-chase card out of the operator queue."""
+    pid = _paychase_awaiting_id(hq_id)
+    if not pid:
+        return False
+    try:
+        _store.add_step_done(pid, _CHASE_PARK_STEP)
+        return True
+    except Exception as e:
+        logger.debug("[pay_truth] mark_paychase_parked skip: %s", e)
+        return False
+
+
 def unpaid_chase_cards(limit: int = 50) -> list[dict[str, Any]]:
     """Hot-Queue-shaped cards for awaiting_payment prospects (owner chase)."""
     out: list[dict[str, Any]] = []
     try:
         for rec in _store.list_prospects(limit=500):
             if rec.get("status") != _store.STATUS_AWAITING_PAYMENT:
+                continue
+            steps = list(rec.get("steps_done") or [])
+            if _CHASE_DONE_STEP in steps or _CHASE_PARK_STEP in steps:
                 continue
             phone = str(rec.get("phone") or "")
             digits = "".join(c for c in phone if c.isdigit())
@@ -218,4 +271,6 @@ __all__ = [
     "enrich_prospect",
     "reconcile_pay_truth",
     "unpaid_chase_cards",
+    "mark_paychase_done",
+    "mark_paychase_parked",
 ]

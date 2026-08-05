@@ -1,27 +1,32 @@
-# SESSION_HANDOFF — 2026-08-05 (Social/Postiz QUEUE unblock)
+# SESSION_HANDOFF — 2026-08-05 Revenue Automation Max SAFE
 
-## Shipped (ops — LIVE now)
-- **Root cause:** Postiz Temporal orchestrator was a zombie (pm2 "online", **zero pollers**). API jobs showed `published` but FB posts stayed `QUEUE` for days.
-- **Recovery:** `docker compose -f docker-compose.postiz.yml --env-file deploy/postiz/.env up -d --force-recreate --no-deps postiz` (no `--remove-orphans`).
-- **Evidence:** Pollers back on task-queue `main`; QUEUE 6→0; Facebook posts PUBLISHED with releaseURL (e.g. Aug 2–4 LeadGen posts).
-- Prod `/health` observed during session: `095d10a3` (uptime reset during recreate window).
+## Status ladder (owner sequence)
+| Gate | State |
+|------|--------|
+| CODE_READY | **YES** — branch commits + PR in flight |
+| MERGED | NO |
+| DEPLOYED | NO |
+| LEDGER_PAID | NO (readiness ≠ revenue) |
+| SAFE_PACK_CANARY_VERIFIED | NO — env stays OFF until after LEDGER_PAID |
 
-## Code (this PR)
-- `video_ad_cycle.enabled()` now honours `VIDEO_DAILY_SCHEDULER_ENABLED` (prod had this ON while `VIDEO_AD_CYCLE=0` → video cycle inert).
-- `POSTIZ_SKIP_PLATFORMS` CSV skip (for X credits-depleted).
-- Temporal healthcheck hardened in `docker-compose.postiz.yml`.
-- Playbook: Postiz QUEUE / zombie orchestrator recovery.
+## Branch
+`cursor/revenue-automation-max-safe-2026-08-05` (base `origin/main` @ `266d772`)
 
-## Verify
-- Targeted: `test_run_cycle_honors_daily_scheduler_alias` + `test_select_skips_platforms_from_env` green.
-- `scripts/prod_check.py` → ALL CHECKS PASSED.
+## Plan lock
+`docs/context/lanes/revenue-automation-max-safe-20260805.md`
 
-## Do NOT
-- `docker compose ... postiz ... --remove-orphans` (wipes main stack).
-- Claim X posts work — X API `credits depleted` (402); set `POSTIZ_SKIP_PLATFORMS=x` after deploy or top up X credits.
+## Streams (max 3)
+| ID | Status |
+|----|--------|
+| WS-GTM1 | CODE_READY — deploy + real UPI ops after merge |
+| WS-AM1 | tooling ready — VPS APPLY forbidden until LEDGER_PAID |
+| WS-R3 | Trial only until ledger PAID |
+
+## Explicit non-goals this ship
+Cold WA · REPLY_AUTO_SEND · open UPI_AUTO_ACTIVATE · voice flips · ALLOW_TOS_SCRAPE · Creative OS · auto social · Safe Pack env with this deploy · PR #248 undraft
 
 ## Next
-1. Merge + deploy this PR (`deploy_vps.sh` + kill fence).
-2. After deploy: optional `POSTIZ_SKIP_PLATFORMS=x` in app `.env`.
-3. Own-brand videos still need approval (3 pending `leadgenai-self`); cycle will generate again once VIDEO_DAILY alias is live.
-4. GTM Hot Queue → 2nd paid (WS-R3).
+1. CI green + independent review PASS → merge
+2. `deploy_vps.sh` code-only (Safe Pack env untouched)
+3. Hot Queue real ₹1999 → LEDGER_PAID
+4. Then DRY_RUN → APPLY canary groups

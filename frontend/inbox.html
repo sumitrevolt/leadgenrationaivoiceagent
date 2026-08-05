@@ -136,6 +136,11 @@ async function hqCouncil(id,btn){
   }catch(e){ btn.disabled=false; btn.textContent='🤔 Council Decide'; $('err').textContent='council fail: '+e.message; }
 }
 function setHqScope(s){ HQ_SCOPE=s; load(); }
+function copyPayLink(btn){
+  navigator.clipboard.writeText('https://leadsgenai.in/start').then(function(){
+    btn.textContent='✅ copied'; setTimeout(function(){btn.textContent='Copy pay link';},1500);
+  });
+}
 
 async function load(){
   $('err').textContent=''; CLIPS=[];
@@ -247,6 +252,7 @@ function renderHotQueue(){
       (r.draft?'<pre>'+esc(r.draft)+'</pre>':'<span class="mut">draft empty</span>')+
       (stale?'<div class="stale-note">⚠️ '+esc(stale)+'</div>':'')+
       '<div style="margin-top:6px">'+
+      ((r.channel==='inquiry'||r.channel==='payment_chase')?'<a class="act" target="_blank" rel="noopener" href="https://leadsgenai.in/start">Open /start</a><button class="ghost" onclick="copyPayLink(this)">Copy pay link</button>':'')+
       (ph&&wa?'<a class="act wa" target="_blank" rel="noopener" href="'+esc(wa)+'">WhatsApp draft</a>':'')+
       (r.draft?'<button class="ghost" onclick="copyClip('+i+',this)">📋 Copy</button>':'')+
       (email?'<a class="act" href="'+esc(email)+'">✉️ Email draft</a>':'')+
