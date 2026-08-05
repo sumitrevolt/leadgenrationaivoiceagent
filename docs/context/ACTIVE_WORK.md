@@ -2,12 +2,12 @@
 
 ---
 
-## WS-MEM1 Memory Stack ADR-158/161 - MERGE+DEPLOY IN FLIGHT
-- **ID:** WS-MEM1
-- **Business outcome:** 7-layer memory facade + governance CODE on main; flags OFF until owner arms
-- **Current state:** Branch `feat/agent-memory-stack-pr` rebased on main (includes OKF #251)
-- **Next exact action:** Push → PR → CI green → merge → `deploy_vps.sh` code-only (`MEMORY_STACK_ENABLED` stays OFF)
-- **Out of scope:** arm MEMORY_STACK · Safe Pack · fake PAID · voice persona edits beyond governance gate
+## WS-GTM2 Admin Manual Call + Voice Dead-Air Fix - MERGED, DEPLOY PENDING
+- **ID:** WS-GTM2
+- **Business outcome:** Owner `/app/admin` par number daal kar canonical AI Marketing call place kar sake (SSH/manual script ki zarurat nahi), aur dead OmniRoute gateway live call ko dead-air na kare
+- **Current state:** Admin call UI + `omniroute_voice` gateway circuit breaker `TEST-PROVEN` local (115 voice tests + prod_check PASS 1266 routes); merged to `main`; **prod pe deploy NAHI hua** — `/health` abhi purana SHA
+- **Next exact action:** owner go-ahead pe `deploy_vps.sh` (kill-switch dance) → admin login canary → ek real call pe `llm_first` latency verify
+- **Out of scope:** voice persona/prompt edits · env flips (`OMNIROUTE_VOICE` waisa hi) · automatic retries · compliance bypass · billing FK follow-up
 
 ---
 

@@ -8,6 +8,13 @@ from app.platform.safe_ai_payload import SafePayloadError
 from app.voice_agent import omniroute_voice as ov
 
 
+@pytest.fixture(autouse=True)
+def _reset_voice_breaker():
+    ov.reset_breaker()
+    yield
+    ov.reset_breaker()
+
+
 class TestOmniRouteVoiceInert:
     def test_voice_disabled_by_default(self, monkeypatch):
         monkeypatch.delenv("OMNIROUTE_VOICE", raising=False)
@@ -205,6 +212,94 @@ class TestOmniRouteSingleRoute:
         assert got_free is True
         assert len(omni_calls) == 1
         assert omni_calls[0] == gen_id
+
+
+class TestGatewayBreaker:
+    """A dead gateway must not burn the voice turn's latency budget every turn."""
+
+    @staticmethod
+    def _enable(monkeypatch):
+        monkeypatch.setenv("OMNIROUTE_VOICE", "1")
+        monkeypatch.setenv("OMNIROUTE_ENABLED", "1")
+        monkeypatch.setenv("OMNIROUTE_API_KEY", "synthetic-test-key-not-real")
+
+    @pytest.mark.asyncio
+    async def test_dead_gateway_trips_breaker_and_stops_retrying(self, monkeypatch):
+        self._enable(monkeypatch)
+        monkeypatch.setenv("OMNIROUTE_VOICE_BREAKER_FAILS", "2")
+        attempts = {"n": 0}
+
+        class _FakeCompletions:
+            async def create(self, **kwargs):
+                attempts["n"] += 1
+                raise ConnectionError("gateway refused")
+
+        class _FakeClient:
+            chat = type("Chat", (), {"completions": _FakeCompletions()})()
+
+        monkeypatch.setattr("app.platform.omniroute_client.omniroute_client", lambda: _FakeClient())
+
+        for _ in range(2):
+            async for _tok in ov.chat_stream("", [{"role": "user", "content": "hi"}]):
+                pass
+
+        assert ov.breaker_open() is True
+        burned = attempts["n"]
+        assert burned > 0
+
+        # Quarantined: fail-open to free_ai instantly, zero gateway round-trips.
+        text, meta = await ov.chat("", [{"role": "user", "content": "hi"}])
+        assert (text, meta) == ("", None)
+        assert attempts["n"] == burned
+
+    @pytest.mark.asyncio
+    async def test_healthy_stream_resets_breaker(self, monkeypatch):
+        self._enable(monkeypatch)
+        ov._breaker["fails"] = 1.0
+
+        class _Delta:
+            def __init__(self, content: str):
+                self.content = content
+
+        class _Choice:
+            def __init__(self, content: str):
+                self.delta = _Delta(content)
+
+        class _Chunk:
+            def __init__(self, content: str):
+                self.choices = [_Choice(content)]
+
+        class _FakeStream:
+            def __init__(self):
+                self._chunks = [_Chunk("Namaste")]
+
+            def __aiter__(self):
+                return self
+
+            async def __anext__(self):
+                if not self._chunks:
+                    raise StopAsyncIteration
+                return self._chunks.pop(0)
+
+            async def aclose(self):
+                return None
+
+        class _FakeCompletions:
+            async def create(self, **kwargs):
+                return _FakeStream()
+
+        class _FakeClient:
+            chat = type("Chat", (), {"completions": _FakeCompletions()})()
+
+        monkeypatch.setattr("app.platform.omniroute_client.omniroute_client", lambda: _FakeClient())
+
+        parts = []
+        async for tok in ov.chat_stream("", [{"role": "user", "content": "hi"}]):
+            parts.append(tok)
+
+        assert "".join(parts) == "Namaste"
+        assert ov._breaker["fails"] == 0.0
+        assert ov.breaker_open() is False
 
 
 class TestCancelledBounded:

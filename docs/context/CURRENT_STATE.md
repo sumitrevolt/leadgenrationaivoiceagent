@@ -108,8 +108,11 @@ Label: CODE-PRESENT (registry) | PRODUCTION-PROVEN
 ## Paying customers
 1 - Jiya Makeover (`jiya-makeover`). MRR ₹1,999. Estique autopilot prospect `converted` (see WS-2 in ACTIVE_WORK).
 
+## Admin manual customer call
+`/app/admin` now has a prominent owner-only single-call form (phone + `ai_marketing` pitch + explicit transactional/promotional relation + confirmation). It reuses canonical `POST /api/telephony/vobiz/stream-call`; no second dialer route, no automatic retry, 60s same-number UI cooldown. Compliance remains backend fail-closed. Local evidence: 22 manual-call/Vobiz tests + 19 admin-nav tests green, `prod_check.py` PASS.
+Label: CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY (not committed/deployed)
+
 ## Top next actions
-1. OpenCode issue batch (this session): WAHA status UI ✅ · CSP PostHog allowlist ✅ · autopilot idle_reason ✅ · staging `:latest` fail-closed ✅ · context-docs refresh ✅ — remaining issues continue.
-2. Owner: restart WAHA session + scan QR → reply `WAHA CONNECTED`; then agent verify + canary.
+1. Review/commit/deploy admin manual-call slice only when owner asks; then admin-login canary.
+2. GTM Hot Queue `/app/inbox` → 2nd paying Marketing customer.
 3. Feed sales_autopilot new non-converted prospects (or accept idle until new leads).
-4. GTM Hot Queue `/app/inbox` → 2nd paying Marketing customer. Keep WhatsApp auto-send / dial / bulk WA OFF.

@@ -101,6 +101,52 @@ def stream_total_timeout_s() -> float:
     return max(2.0, min(_num("OMNIROUTE_VOICE_TOTAL_S", 10.0), 30.0))
 
 
+# --- gateway circuit breaker -------------------------------------------------
+# A dead gateway used to cost every single turn its full candidate ladder
+# (primary + fallback x first-token timeout) BEFORE fail-open to free_ai, and the
+# telecaller retries that per turn — measured 9-14s of dead air on a live call,
+# which the customer answers with "hello? hello?" and barges in, so the bot never
+# gets to speak. After N consecutive unusable attempts we skip the gateway for a
+# cooldown window and fail-open to free_ai immediately. One probe per window
+# (half-open) restores it automatically once the gateway is healthy again.
+_breaker: dict[str, float] = {"fails": 0.0, "open_until": 0.0}
+
+
+def _breaker_fail_threshold() -> int:
+    try:
+        return max(1, min(int(os.environ.get("OMNIROUTE_VOICE_BREAKER_FAILS", "2") or "2"), 20))
+    except (TypeError, ValueError):
+        return 2
+
+
+def _breaker_cooldown_s() -> float:
+    return max(5.0, min(_num("OMNIROUTE_VOICE_BREAKER_COOLDOWN_S", 120.0), 1800.0))
+
+
+def breaker_open() -> bool:
+    """True while the gateway is quarantined — callers must use free_ai."""
+    return time.monotonic() < _breaker["open_until"]
+
+
+def reset_breaker() -> None:
+    _breaker["fails"] = 0.0
+    _breaker["open_until"] = 0.0
+
+
+def _breaker_trip(reason: str) -> None:
+    _breaker["fails"] += 1
+    if _breaker["fails"] >= _breaker_fail_threshold():
+        cooldown = _breaker_cooldown_s()
+        _breaker["open_until"] = time.monotonic() + cooldown
+        logger.warning(
+            "[omniroute_voice] gateway breaker OPEN for %.0fs after %d failures "
+            "(last=%s) — voice turns fail-open to free_ai",
+            cooldown,
+            int(_breaker["fails"]),
+            reason,
+        )
+
+
 @dataclass(frozen=True)
 class VoiceRouteMeta:
     provider: str
@@ -182,6 +228,17 @@ async def chat_stream(
                 latency_ms=None,
                 fallback_reason="cancelled",
                 skip_reason="barge_in",
+                generation_id=gen_id,
+            )
+            return
+        if breaker_open():
+            _log_voice_decision(
+                ok=False,
+                provider=None,
+                model=None,
+                latency_ms=None,
+                fallback_reason="breaker_open",
+                skip_reason="breaker_open",
                 generation_id=gen_id,
             )
             return
@@ -292,6 +349,7 @@ async def chat_stream(
                         got = True
                         yield delta
                 if got:
+                    reset_breaker()
                     _log_voice_decision(
                         ok=True,
                         provider=_provider_label(model),
@@ -308,6 +366,7 @@ async def chat_stream(
                 if idx + 1 < len(candidates):
                     fallback_reason = type(exc).__name__.lower()
                     continue
+                _breaker_trip(type(exc).__name__.lower())
                 _log_voice_decision(
                     ok=False,
                     provider=_provider_label(model),
@@ -324,6 +383,7 @@ async def chat_stream(
                         await stream.aclose()
                     except Exception:
                         pass
+        _breaker_trip(fallback_reason or "candidates_exhausted")
         _log_voice_decision(
             ok=False,
             provider=None,
@@ -373,6 +433,8 @@ __all__ = [
     "new_generation_id",
     "cancel_generation",
     "is_cancelled",
+    "breaker_open",
+    "reset_breaker",
     "first_token_timeout_s",
     "chat_stream",
     "chat",
