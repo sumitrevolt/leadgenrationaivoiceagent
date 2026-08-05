@@ -30,6 +30,26 @@ def pol(tmp_path, monkeypatch):
     return mod
 
 
+def _good_row(**over):
+    row = {
+        "kind": "policy",
+        "policy_id": "p",
+        "policy_version": 1,
+        "product_family": "marketing",
+        "allowed_package_codes": ["starter"],
+        "default_package_code": "",
+        "currency": "INR",
+        "offer_validity_days": 30,
+        "message_variant": "",
+        "outreach_sequence_id": "",
+        "template_id": "",
+        "effective_from": "2026-08-05T00:00:00+00:00",
+        "created_by": "test",
+    }
+    row.update(over)
+    return row
+
+
 # ============================ A. version pinning (retroactive repricing) =====
 
 
@@ -159,19 +179,31 @@ def test_ambiguous_variant_resolution_returns_ambiguous(pol, tmp_path):
             "kind": "policy",
             "policy_id": "p1",
             "policy_version": 1,
-            "message_variant": "dup",
             "product_family": "marketing",
             "allowed_package_codes": ["starter"],
             "currency": "INR",
+            "default_package_code": "",
+            "offer_validity_days": 30,
+            "message_variant": "dup",
+            "outreach_sequence_id": "",
+            "template_id": "",
+            "effective_from": "2026-08-05T00:00:00+00:00",
+            "created_by": "test",
         },
         {
             "kind": "policy",
             "policy_id": "p2",
             "policy_version": 9,
-            "message_variant": "dup",
             "product_family": "marketing",
             "allowed_package_codes": ["advanced"],
             "currency": "INR",
+            "default_package_code": "",
+            "offer_validity_days": 30,
+            "message_variant": "dup",
+            "outreach_sequence_id": "",
+            "template_id": "",
+            "effective_from": "2026-08-05T00:00:00+00:00",
+            "created_by": "test",
         },
     ]
     (tmp_path / "policies.jsonl").write_text(
@@ -246,16 +278,7 @@ def test_retirement_is_idempotent(pol):
 
 def test_version_uses_max_plus_one_not_row_count(pol, tmp_path):
     """Row-count numbering reuses a version after any gap."""
-    rows = [
-        {
-            "kind": "policy",
-            "policy_id": "p",
-            "policy_version": 5,
-            "product_family": "marketing",
-            "allowed_package_codes": ["starter"],
-            "currency": "INR",
-        }
-    ]
+    rows = [_good_row(policy_id="p", policy_version=5)]
     (tmp_path / "policies.jsonl").write_text(
         "".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8"
     )
@@ -318,3 +341,141 @@ def test_qualify_never_raises_on_garbage(pol):
             pol.PACKAGE_SELECTED,
             pol.NOT_ELIGIBLE,
         )
+
+
+# ============ P1 round 2: schema-strict, reason propagation, retired id ======
+
+
+@pytest.mark.parametrize(
+    "over",
+    [
+        {"allowed_package_codes": "starter"},
+        {"allowed_package_codes": ["starter", "starter"]},
+        {"currency": "USD"},
+        {"product_family": "markting"},
+        {"product_family": "nonsense"},
+        {"offer_validity_days": 0},
+        {"offer_validity_days": "30"},
+        {"effective_from": "2026-08-05T00:00:00"},
+        {"created_by": ""},
+        {"default_package_code": "advanced"},
+        {"policy_version": 0},
+        {"policy_id": ""},
+        {"message_variant": 7},
+    ],
+    ids=[
+        "allowlist-is-string",
+        "duplicate-codes",
+        "bad-currency",
+        "misspelled-family",
+        "unknown-family",
+        "validity-zero",
+        "validity-string",
+        "naive-timestamp",
+        "empty-actor",
+        "default-outside-allowlist",
+        "version-zero",
+        "empty-id",
+        "variant-wrong-type",
+    ],
+)
+def test_valid_json_but_malformed_policy_row_is_corruption(pol, tmp_path, over):
+    """Valid JSON is not valid AUTHORITY. Each of these must refuse, not resolve."""
+    (tmp_path / "policies.jsonl").write_text(json.dumps(_good_row(**over)) + "\n", encoding="utf-8")
+
+    assert pol.store_health()["ok"] is False
+    got, reason = pol.resolve_exact_with_reason("p", 1)
+    assert got is None and reason == pol.POLICY_STORE_CORRUPT
+
+
+def test_unknown_row_kind_is_corruption(pol, tmp_path):
+    (tmp_path / "policies.jsonl").write_text(
+        json.dumps({"kind": "policy_reactivated", "policy_id": "p"}) + "\n", encoding="utf-8"
+    )
+
+    assert pol.store_health()["ok"] is False
+
+
+@pytest.mark.parametrize(
+    "evt",
+    [
+        {"kind": "policy_retired", "policy_id": "p"},
+        {
+            "kind": "policy_retired",
+            "policy_id": "p",
+            "retired_at": "2026-08-05T00:00:00",
+            "retired_by": "x",
+        },
+        {
+            "kind": "policy_retired",
+            "policy_id": "p",
+            "retired_at": "2026-08-05T00:00:00+00:00",
+            "retired_by": "",
+        },
+        {
+            "kind": "policy_retired",
+            "policy_id": "ghost",
+            "retired_at": "2026-08-05T00:00:00+00:00",
+            "retired_by": "x",
+        },
+    ],
+    ids=["missing-fields", "naive-timestamp", "empty-actor", "dangling-reference"],
+)
+def test_malformed_retirement_event_is_corruption(pol, tmp_path, evt):
+    (tmp_path / "policies.jsonl").write_text(
+        json.dumps(_good_row()) + "\n" + json.dumps(evt) + "\n", encoding="utf-8"
+    )
+
+    assert pol.store_health()["ok"] is False
+
+
+def test_corruption_is_not_reported_as_missing_policy(pol, tmp_path):
+    """Owner OS must not be told to create a policy when authority is unreadable."""
+    (tmp_path / "policies.jsonl").write_text("{broken}\n", encoding="utf-8")
+
+    _, reason = pol.resolve_for_prospect(
+        {"campaign_offer_policy_id": "p", "campaign_offer_policy_version": 1}
+    )
+
+    assert reason == pol.POLICY_STORE_CORRUPT
+
+
+def test_genuinely_missing_version_is_still_not_found(pol):
+    pol.put_policy("p", product_family="marketing", allowed_package_codes=["starter"])
+
+    _, reason = pol.resolve_for_prospect(
+        {"campaign_offer_policy_id": "p", "campaign_offer_policy_version": 99}
+    )
+
+    assert reason == "POLICY_NOT_FOUND"
+
+
+def test_retired_policy_id_refuses_a_new_version(pol, tmp_path):
+    """Otherwise the write succeeds but the row is permanently unreachable."""
+    pol.put_policy("camp", product_family="marketing", allowed_package_codes=["starter"])
+    pol.retire_policy("camp")
+    before = (tmp_path / "policies.jsonl").read_text(encoding="utf-8")
+
+    assert (
+        pol.put_policy("camp", product_family="marketing", allowed_package_codes=["advanced"])
+        is None
+    )
+    assert (tmp_path / "policies.jsonl").read_text(encoding="utf-8") == before
+    assert pol.resolve_exact("camp", 1)["allowed_package_codes"] == ["starter"]
+
+
+def test_replacement_policy_id_works_after_retirement(pol):
+    pol.put_policy("camp", product_family="marketing", allowed_package_codes=["starter"])
+    pol.retire_policy("camp")
+
+    fresh = pol.put_policy(
+        "camp-v2", product_family="marketing", allowed_package_codes=["advanced"]
+    )
+
+    assert fresh is not None
+    got, reason = pol.resolve_for_send(policy_id="camp-v2")
+    assert reason == "ok" and got["policy_id"] == "camp-v2"
+
+
+def test_creation_rejects_unknown_product_family(pol):
+    assert pol.put_policy("p", product_family="nonsense", allowed_package_codes=["starter"]) is None
