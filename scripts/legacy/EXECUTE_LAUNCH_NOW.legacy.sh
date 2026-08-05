@@ -1,4 +1,10 @@
 #!/bin/bash
+# ⛔ QUARANTINED — DO NOT RUN. This script is a one-time 2026-06-14 launch script
+# that predates the canonical deploy pipeline. It must never be used against the
+# live Hostinger VPS. Use `scripts/deploy_vps.sh` — the only supported deploy
+# entrypoint (mandatory APP_VERSION, 5-service skew check, /health gate).
+echo "⛔ QUARANTINED: this legacy launch script is dead. Use scripts/deploy_vps.sh (see memory/playbooks.md)." >&2
+exit 1
 ################################################################################
 # 🚀 EXECUTE LAUNCH NOW — Copy-Paste This Entire Script
 # Platform: LeadGenAI | Date: 2026-06-14

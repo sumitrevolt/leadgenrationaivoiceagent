@@ -1,4 +1,11 @@
 #!/bin/bash
+# ⛔ QUARANTINED — DO NOT RUN. This script bypasses the canonical deploy pipeline
+# (scripts/deploy_vps.sh) and re-creates the known worker-heavy/worker-video skew
+# bug: it only recreates `app worker scheduler`, skipping `worker-heavy` and
+# `worker-video`, and it does NOT enforce APP_VERSION (ADR-097).
+# Use `scripts/deploy_vps.sh` — the only supported deploy entrypoint.
+echo "⛔ QUARANTINED: this legacy deploy script is dead. Use scripts/deploy_vps.sh (see memory/playbooks.md)." >&2
+exit 1
 # PRODUCTION DEPLOYMENT AUTOMATION SCRIPT
 # Platform: LeadGenAI | Version: 1.0
 # Purpose: Bulletproof, zero-downtime deployment with automatic rollback
