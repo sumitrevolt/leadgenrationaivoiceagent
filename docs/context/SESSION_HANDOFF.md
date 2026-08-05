@@ -1,32 +1,30 @@
-# SESSION_HANDOFF — 2026-08-05 Revenue Automation Max SAFE
+# SESSION_HANDOFF — 2026-08-05 knowledge-stack polish first
 
-## Status ladder (owner sequence)
+## Status ladder
 | Gate | State |
 |------|--------|
-| CODE_READY | **YES** — branch commits + PR in flight |
-| MERGED | NO |
-| DEPLOYED | NO |
-| LEDGER_PAID | NO (readiness ≠ revenue) |
-| SAFE_PACK_CANARY_VERIFIED | NO — env stays OFF until after LEDGER_PAID |
+| CODE_READY (revenue) | YES — prod `/health`=`f0bdb4ee` |
+| LEDGER_PAID | **NO** |
+| OKF Phase-1 CODE | **IN PROGRESS** — branch `cursor/okf-knowledge-stack-polish-2026-08-05` |
+| OKF_INGEST armed | **NO** (flag OFF default — do not flip with deploy) |
+| SAFE_PACK_CANARY_VERIFIED | NO |
 
-## Branch
-`cursor/revenue-automation-max-safe-2026-08-05` (base `origin/main` @ `266d772`)
+## Truthful outcomes
+- Revenue: **CODE SHIPPED, REVENUE PENDING** (HQ empty; owner prospect pick).
+- Knowledge: ADR-119 Phase-1 polish — OKF bundle loader + public `/okf/` + admin dry-run/ingest gate.
 
-## Plan lock
-`docs/context/lanes/revenue-automation-max-safe-20260805.md`
+## This branch ships
+- `app/platform/okf_bundle.py`, `okf_ingest.py`
+- `app/api/okf_admin.py`, `okf_public.py`
+- Flags: `OKF_INGEST_ENABLED` (OFF), `OKF_PUBLIC_BUNDLE` (default ON), `OKF_BUNDLE_DIR`
+- `knowledge/index.md` + knowledge-stack Phase-1 status
+- Tests: `tests/test_okf_knowledge_stack_2026_08_05.py`
 
-## Streams (max 3)
-| ID | Status |
-|----|--------|
-| WS-GTM1 | CODE_READY — deploy + real UPI ops after merge |
-| WS-AM1 | tooling ready — VPS APPLY forbidden until LEDGER_PAID |
-| WS-R3 | Trial only until ledger PAID |
-
-## Explicit non-goals this ship
-Cold WA · REPLY_AUTO_SEND · open UPI_AUTO_ACTIVATE · voice flips · ALLOW_TOS_SCRAPE · Creative OS · auto social · Safe Pack env with this deploy · PR #248 undraft
+## Explicitly blocked
+Ingest auto-arm · Qdrant replace · hybrid BGE flip · fake PAID · #248 force · Safe Pack mutate with this PR
 
 ## Next
-1. CI green + independent review PASS → merge
-2. `deploy_vps.sh` code-only (Safe Pack env untouched)
-3. Hot Queue real ₹1999 → LEDGER_PAID
-4. Then DRY_RUN → APPLY canary groups
+1. Verify pytest + prod_check on this branch
+2. PR → merge → deploy code-only
+3. Owner may later `OKF_INGEST_ENABLED=1` + `POST /api/admin/okf/ingest` (separate)
+4. Parallel: owner picks real ₹1999 prospect for LEDGER_PAID
