@@ -1127,205 +1127,35 @@ def _emit_billing_customer_webhook(
 
 
 @router.post("/billing/webhooks/stripe", tags=["Billing"])
-async def stripe_webhook(request: Request, db: AsyncSession = Depends(get_async_db)):
-    """Stripe webhook (signature-verified). 503 if keys missing; never crashes.
+async def stripe_webhook_removed(request: Request):
+    """RETIRED. Stripe gateway removed 2026-07-10; manual UPI is canonical.
 
-    Handled: checkout.session.completed, invoice.paid / invoice.payment_succeeded,
-    customer.subscription.created/updated/deleted/paused/resumed. On a successful
-    pay/renew -> mark the Subscription ACTIVE + provision the minute ledger.
+    This is a permanent fail-closed compatibility stub. The route stays
+    registered so any stale caller gets a deterministic, documented refusal
+    instead of a 404 that looks like a routing bug.
+
+    It contains NO event parsing and NO activation capability, deliberately.
+    It previously kept the full subscription-activation body (activation,
+    minute-ledger provisioning, subscription status mutation, db.commit)
+    physically below an unconditional `raise`. That is one deleted line away
+    from executing against an unverified payload: a forged
+    `checkout.session.completed` carrying any `metadata.client_id` could have
+    activated a paid plan for an arbitrary tenant. A guard above dead code is
+    not a fix — removing the capability is. Regression-locked by
+    `tests/test_stripe_webhook_fail_closed.py`.
+
+    400 is kept (not 410) because that is the status the endpoint already
+    returned; changing it would be an unrequested contract change.
+
+    Owner decision 2026-08-05: manual UPI only (issue #243, not_planned).
+    Payments are reconciled through `/api/upi/*` with
+    `payment_verification_method = owner_confirmed_upi` — never
+    `PROVIDER_VERIFIED`.
     """
-    if not _stripe_configured() or not _stripe_webhook_configured():
-        raise HTTPException(status_code=503, detail="Stripe gateway not configured")
-
-    payload = await request.body()
-    signature = request.headers.get("Stripe-Signature", "")
-
-    try:
-        # Stripe removed 2026-07-10 — webhook verification unavailable.
-        raise HTTPException(status_code=400, detail="Stripe gateway removed — UPI-only payments")
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.warning(f"Stripe webhook verification failed: {e}")
-        raise HTTPException(status_code=400, detail="Invalid signature")
-
-    event_type = event.get("event_type", "")
-    obj = event.get("data") or {}
-    # event.data.object is a stripe object; coerce to plain dict access.
-    get = obj.get if isinstance(obj, dict) else (lambda k, d=None: getattr(obj, k, d))
-    meta = get("metadata", {}) or {}
-    client_id = (meta.get("client_id") if isinstance(meta, dict) else None) or None
-    plan_id = (meta.get("plan_id") if isinstance(meta, dict) else None) or None
-
-    # IDEMPOTENCY (audit): Stripe bhi at-least-once — event-id se dedupe (consumer ki job).
-    # Duplicate = early return (koi side-effect nahi). Fail-open + never-raise.
-    _evt_id = str(event.get("id") or event.get("event_id") or "")
-    _idem_key = f"stripe:{_evt_id}" if _evt_id else f"stripe:{event_type}:{get('id') or ''}"
-    try:
-        from app.billing import idempotency as _idem
-
-        if await _idem.seen_before(_idem_key):
-            logger.info("[stripe] duplicate event skipped: %s", _idem_key)
-            return {"received": True, "duplicate": True, "event": event_type}
-    except Exception:
-        pass
-
-    try:
-        if event_type == "checkout.session.completed":
-            sub_id = get("subscription")
-            customer_id = get("customer")
-            mode = get("mode")
-            if mode == "subscription" or sub_id:
-                sub = await _activate_subscription_row(
-                    db,
-                    client_id=client_id,
-                    plan_id=plan_id,
-                    gateway=PaymentGateway.STRIPE.value,
-                    stripe_subscription_id=sub_id,
-                    stripe_customer_id=customer_id,
-                )
-                await db.commit()
-                _provision_usage(
-                    client_id or (sub.client_id if sub else None),
-                    plan_id or (sub.plan_id if sub else None),
-                    sub.current_period_end if sub else None,
-                    sub_id,
-                    # actual charged amount (paise->INR) so the GST invoice matches what
-                    # was paid — annual/voice/combo otherwise fell back to monthly/₹0.
-                    amount_inr=(get("amount_total") or get("amount_subtotal") or 0) / 100 or None,
-                )
-                _cid = client_id or (sub.client_id if sub else None)
-                _emit_billing_customer_webhook(
-                    _cid,
-                    "payment.received",
-                    {
-                        "plan_id": plan_id or (sub.plan_id if sub else None),
-                        "gateway": "stripe",
-                        "event": event_type,
-                        "amount": get("amount_total") or get("amount_subtotal"),
-                        "currency": get("currency"),
-                    },
-                )
-                _emit_billing_customer_webhook(
-                    _cid,
-                    "subscription.created",
-                    {
-                        "plan_id": plan_id or (sub.plan_id if sub else None),
-                        "status": "active",
-                        "stripe_subscription_id": sub_id,
-                    },
-                )
-
-        elif event_type in ("invoice.paid", "invoice.payment_succeeded"):
-            sub_id = get("subscription")
-            customer_id = get("customer")
-            lines = get("lines", {}) or {}
-            period_start = period_end = None
-            try:
-                line0 = (lines.get("data") or [{}])[0] if isinstance(lines, dict) else {}
-                period = (line0 or {}).get("period") or {}
-                period_start = _period_dt(period.get("start"))
-                period_end = _period_dt(period.get("end"))
-            except Exception:
-                pass
-            sub = await _activate_subscription_row(
-                db,
-                client_id=client_id,
-                plan_id=plan_id,
-                gateway=PaymentGateway.STRIPE.value,
-                stripe_subscription_id=sub_id,
-                stripe_customer_id=customer_id,
-                period_start=period_start,
-                period_end=period_end,
-            )
-            await db.commit()
-            _provision_usage(
-                client_id or (sub.client_id if sub else None),
-                plan_id or (sub.plan_id if sub else None),
-                period_end,
-                sub_id,
-                # invoice.paid carries the real amount_paid (paise->INR) for the GST invoice
-                amount_inr=(get("amount_paid") or get("amount_total") or 0) / 100 or None,
-            )
-            _cid = client_id or (sub.client_id if sub else None)
-            _emit_billing_customer_webhook(
-                _cid,
-                "payment.received",
-                {
-                    "plan_id": plan_id or (sub.plan_id if sub else None),
-                    "gateway": "stripe",
-                    "event": event_type,
-                    "amount": get("amount_paid") or get("total"),
-                    "currency": get("currency"),
-                    "invoice_id": get("id"),
-                },
-            )
-
-        elif event_type in (
-            "customer.subscription.created",
-            "customer.subscription.updated",
-            "customer.subscription.resumed",
-        ):
-            sub_id = get("id")
-            status_raw = (get("status") or "").lower()
-            paused = bool(get("pause_collection"))
-            period_start = _period_dt(get("current_period_start"))
-            period_end = _period_dt(get("current_period_end"))
-            sub = await _find_subscription_by_gateway_id(db, stripe_id=sub_id)
-            if sub:
-                if paused:
-                    sub.status = SubscriptionStatus.PAUSED
-                elif status_raw in ("active", "trialing"):
-                    sub.status = SubscriptionStatus.ACTIVE
-                elif status_raw == "past_due":
-                    sub.status = SubscriptionStatus.PAST_DUE
-                if period_start:
-                    sub.current_period_start = period_start
-                if period_end:
-                    sub.current_period_end = period_end
-                sub.updated_at = datetime.utcnow()
-                await db.commit()
-                if sub.status == SubscriptionStatus.ACTIVE:
-                    _provision_usage(sub.client_id, sub.plan_id, period_end, sub_id, reset=False)
-                _emit_billing_customer_webhook(
-                    sub.client_id,
-                    "subscription.updated",
-                    {
-                        "plan_id": sub.plan_id,
-                        "status": _ev(sub.status) or "",
-                        "stripe_subscription_id": sub_id,
-                        "event": event_type,
-                    },
-                )
-
-        elif event_type in ("customer.subscription.deleted", "customer.subscription.paused"):
-            sub_id = get("id")
-            sub = await _find_subscription_by_gateway_id(db, stripe_id=sub_id)
-            if sub:
-                sub.status = (
-                    SubscriptionStatus.PAUSED
-                    if event_type.endswith("paused")
-                    else SubscriptionStatus.CANCELLED
-                )
-                if event_type.endswith("deleted"):
-                    sub.ended_at = datetime.utcnow()
-                sub.updated_at = datetime.utcnow()
-                await db.commit()
-                _emit_billing_customer_webhook(
-                    sub.client_id,
-                    "subscription.updated",
-                    {
-                        "plan_id": sub.plan_id,
-                        "status": _ev(sub.status) or "",
-                        "stripe_subscription_id": sub_id,
-                        "event": event_type,
-                    },
-                )
-    except Exception as e:  # never 500 a webhook for a downstream hiccup
-        logger.error(f"Stripe webhook handling error ({event_type}): {e}")
-
-    return {"received": True, "event": event_type}
+    raise HTTPException(
+        status_code=400,
+        detail="Stripe gateway removed — manual UPI is the canonical payment method",
+    )
 
 
 # /billing/webhooks/razorpay route removed 2026-06-18 — Razorpay gateway gone
