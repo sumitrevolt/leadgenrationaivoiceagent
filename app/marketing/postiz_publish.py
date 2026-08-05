@@ -157,6 +157,18 @@ def _pinterest_board() -> str:
     return (os.getenv("POSTIZ_PINTEREST_BOARD") or "").strip()
 
 
+def _skip_platforms() -> set[str]:
+    """Operator skip-list (e.g. ``POSTIZ_SKIP_PLATFORMS=x`` when X API credits=0).
+
+    CSV of Postiz ``identifier`` values (facebook/instagram/x/youtube/…).
+    Empty = skip none. Never raises.
+    """
+    raw = (os.getenv("POSTIZ_SKIP_PLATFORMS") or "").strip()
+    if not raw:
+        return set()
+    return {x.strip().lower() for x in raw.split(",") if x.strip()}
+
+
 def _publish_max_channels() -> int | None:
     """Channel cap for one create-post call.
 
@@ -203,8 +215,12 @@ def select_publish_channels(
     skipped: list[dict[str, str]] = []
     eligible: list[str] = []
 
+    skip_plats = _skip_platforms()
     for iid in raw_ids:
         plat = (platform_map.get(iid) or "").lower() if platform_map else ""
+        if plat and plat in skip_plats:
+            skipped.append({"id": iid, "platform": plat, "reason": "POSTIZ_SKIP_PLATFORMS"})
+            continue
         if not has_media and plat in _MEDIA_REQUIRED_PLATFORMS:
             skipped.append({"id": iid, "platform": plat or "unknown", "reason": "media_required"})
             continue

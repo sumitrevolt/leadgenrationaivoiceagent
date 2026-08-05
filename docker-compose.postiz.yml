@@ -113,7 +113,7 @@ services:
     container_name: leadgen_temporal_db
     restart: unless-stopped
     environment:
-      POSTGRES_PASSWORD: temporal
+      POSTGRES_PASSWORD: temporal  # pragma: allowlist secret — local Temporal stack default, not a prod credential
       POSTGRES_USER: temporal
     volumes:
       - temporal-db-data:/var/lib/postgresql/data
@@ -173,12 +173,19 @@ services:
         condition: service_healthy
       temporal-elasticsearch:
         condition: service_started
+    # Port-open alone is NOT enough — Postiz orchestrator can bind-race Temporal
+    # gRPC and silently lose pollers (posts stuck QUEUE forever). Prefer cluster
+    # health SERVING; fall back to nc if CLI missing in older images.
     healthcheck:
-      test: ["CMD", "nc", "-z", "localhost", "7233"]
-      interval: 5s
-      timeout: 3s
+      test:
+        [
+          "CMD-SHELL",
+          "temporal operator cluster health --address 127.0.0.1:7233 2>&1 | grep -q SERVING || nc -z 127.0.0.1 7233",
+        ]
+      interval: 10s
+      timeout: 5s
       retries: 60
-      start_period: 30s
+      start_period: 40s
 
 volumes:
   postiz-config:

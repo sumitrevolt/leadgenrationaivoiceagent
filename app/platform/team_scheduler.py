@@ -713,7 +713,8 @@ async def _run_job_inner(job: str) -> bool:
 
                 # AI video-ad cycle: har 5 din naya video (build_reel) -> client approval ->
                 # multi-channel publish. run_cycle khud interval/publish/regen handle karta
-                # (gated VIDEO_AD_CYCLE; off = inert). Scheduler/worker context = heavy OK.
+                # (gated VIDEO_AD_CYCLE or VIDEO_DAILY_SCHEDULER_ENABLED; off = inert).
+                # Scheduler/worker context = heavy OK.
                 await _run_content_engine("video_ad_cycle", video_ad_cycle.run_cycle())
                 from app.marketing import content_schedule
 
