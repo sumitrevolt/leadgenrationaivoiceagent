@@ -9,7 +9,7 @@ echo "=== MEM (MB) ==="; free -m | awk 'NR==1||NR==2'
 echo "=== RUNNING CONTAINERS ==="; docker ps --format '{{.Names}}  {{.Status}}' 2>/dev/null || echo none
 echo "=== REPO HEAD ==="; git log --oneline -1
 echo "=== compose+scripts present (after pull)? ==="
-for f in docker-compose.vps.yml scripts/migrate_sqlite_to_postgres.py scripts/vps_cutover_prep.sh Dockerfile.production; do
+for f in docker-compose.vps.yml scripts/migrate_sqlite_to_postgres.py scripts/vps_cutover_prep.sh deploy/legacy/Dockerfile.production; do
   [ -f "$f" ] && echo "  ok  $f" || echo "  MISS $f"
 done
 echo "=== systemd leadgen ==="; systemctl is-active leadgen 2>/dev/null || echo "not-active"

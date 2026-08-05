@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # LeadGen AI Voice Agent - Production Deployment Script
-# 
+#
 # This script handles the full deployment process to Google Cloud Run
 #
 # Usage:
@@ -81,7 +81,7 @@ IMAGE_TAG="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:
 docker build \
     -t "$IMAGE_TAG" \
     -t "${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPOSITORY}/${SERVICE_NAME}:latest" \
-    -f Dockerfile.production \
+    -f deploy/legacy/Dockerfile.production \
     --build-arg APP_VERSION="$VERSION" \
     .
 echo -e "${GREEN}✓ Docker image built: $IMAGE_TAG${NC}"

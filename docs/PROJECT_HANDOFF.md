@@ -381,7 +381,7 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 - `docs/PRODUCTION_CUTOVER.md` · `docs/INFRA_HARDENING_GUIDE.md` · `docs/INFRA_UPGRADE_2026.md`
 - `docs/API.md` · `docs/Competitor_Top20_Feature_Gap_2026.md` · `docs/PRODUCTION_READINESS_2026.md`
 - Pricing research: `Niche_Pricing_Research.xlsx` · `LeadGen_Costing_Model.xlsx`
-- Sales/marketing kits: `docs/Marketing_Kit_LeadGenAI.md` · `docs/Sales_Kit_Hinglish.md` · `Business_Playbook_Hinglish.md`
+- Sales/marketing kits: `docs/Marketing_Kit_LeadGenAI.md` · `docs/Sales_Kit_Hinglish.md` · `docs/playbooks/Business_Playbook_Hinglish.md`
 
 ---
 

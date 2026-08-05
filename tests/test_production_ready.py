@@ -213,14 +213,14 @@ class TestDockerConfiguration:
     def test_dockerfile_exists(self):
         import os
 
-        assert os.path.exists("Dockerfile")
-        assert os.path.exists("Dockerfile.production")
+        assert os.path.exists("Dockerfile.lock")
+        assert os.path.exists(os.path.join("deploy", "legacy", "Dockerfile.production"))
 
     def test_docker_compose_exists(self):
         import os
 
-        assert os.path.exists("docker-compose.yml")
-        assert os.path.exists("docker-compose.prod.yml")
+        assert os.path.exists("docker-compose.vps.yml")
+        assert os.path.exists(os.path.join("deploy", "legacy", "docker-compose.prod.yml"))
 
 
 class TestInfrastructure:
@@ -234,7 +234,7 @@ class TestInfrastructure:
     def test_github_actions_exists(self):
         import os
 
-        assert os.path.exists(".github/workflows/deploy.yml")
+        assert os.path.exists(".github/workflows/deploy-vps.yml")
 
     def test_nginx_config_exists(self):
         import os
@@ -314,8 +314,8 @@ class TestProductionChecklist:
     def test_github_workflows_exist(self):
         import os
 
-        assert os.path.exists(".github/workflows/deploy.yml")
-        assert os.path.exists(".github/workflows/test.yml")
+        assert os.path.exists(".github/workflows/deploy-vps.yml")
+        assert os.path.exists(".github/workflows/ci.yml")
 
 
 if __name__ == "__main__":

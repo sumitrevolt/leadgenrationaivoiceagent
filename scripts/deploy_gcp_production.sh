@@ -97,29 +97,29 @@ if ! gcloud sql instances describe ${DB_INSTANCE_NAME} --project=${PROJECT_ID} &
         --maintenance-window-day=SUN \
         --maintenance-window-hour=03 \
         --project=${PROJECT_ID}
-    
+
     echo -e "${GREEN}✓ Cloud SQL instance created${NC}"
-    
+
     # Create database
     gcloud sql databases create leadgen_ai \
         --instance=${DB_INSTANCE_NAME} \
         --project=${PROJECT_ID}
-    
+
     # Generate strong password
     DB_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 32)
-    
+
     # Create database user
     gcloud sql users create leadgen_user \
         --instance=${DB_INSTANCE_NAME} \
         --password=${DB_PASSWORD} \
         --project=${PROJECT_ID}
-    
+
     # Store password in Secret Manager
     echo -n ${DB_PASSWORD} | gcloud secrets create db-password \
         --data-file=- \
         --replication-policy="automatic" \
         --project=${PROJECT_ID}
-    
+
     echo -e "${GREEN}✓ Database and user created${NC}"
 else
     echo -e "${GREEN}✓ Cloud SQL instance already exists${NC}"
@@ -144,7 +144,7 @@ if ! gcloud redis instances describe ${REDIS_INSTANCE_NAME} --region=${REGION} -
         --network=leadgen-vpc \
         --connect-mode=PRIVATE_SERVICE_ACCESS \
         --project=${PROJECT_ID}
-    
+
     echo -e "${GREEN}✓ Redis instance created${NC}"
 else
     echo -e "${GREEN}✓ Redis instance already exists${NC}"
@@ -164,7 +164,7 @@ echo -e "${YELLOW}Step 5: Setting up Secret Manager...${NC}"
 create_secret() {
     local secret_name=$1
     local secret_value=$2
-    
+
     if ! gcloud secrets describe ${secret_name} --project=${PROJECT_ID} &>/dev/null; then
         echo -n "${secret_value}" | gcloud secrets create ${secret_name} \
             --data-file=- \
@@ -262,7 +262,7 @@ IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/${SERVICE_NAM
 gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 
 # Build image
-docker build -t ${IMAGE_URL}:latest -f Dockerfile.production .
+docker build -t ${IMAGE_URL}:latest -f deploy/legacy/Dockerfile.production .
 
 # Push image
 docker push ${IMAGE_URL}:latest

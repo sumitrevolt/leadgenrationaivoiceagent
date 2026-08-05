@@ -32,7 +32,11 @@ def test_legacy_duplicate_tree_is_absent() -> None:
 
 
 def test_no_dockerfile_bakes_legacy_root() -> None:
-    for df in ("Dockerfile", "Dockerfile.lock", "Dockerfile.production"):
+    for df in (
+        "Dockerfile.lock",
+        "deploy/legacy/Dockerfile",
+        "deploy/legacy/Dockerfile.production",
+    ):
         p = ROOT / df
         if p.exists():
             assert ".agents/skills" not in p.read_text(

@@ -43,7 +43,7 @@ Free, par har session me junk badhta hai; agents galat one-off script utha sakte
 - **Sab `app/` code** (legacy-looking app/ml, lead_scraper, automation bhi startup-imported hain).
 - `Dockerfile.lock` (canonical VPS build) · `Dockerfile.production` + `docker-compose.yml`/`docker-compose.prod.yml` (CI test.yml push-pe build + Makefile refs) · `docker-compose.{vps,staging,observability}.yml` · `Dockerfile`.
 - Scripts referenced by skills/crons: `prod_check.py`, `run_tests.bat`, `fix_push_redeploy.bat`, `vps_agents_test.py`, `ws_test.py`, `llm_probe.py`, `agent_tester.py`, `setup_status.py`, `env_set.py`, sab `vps_*.sh`, `pg_*.sh`, `offsite_email_backup.py`, `hostinger_dns.py`, `exotel_setup_audit.py`, sab `check_*.py`/`smoke_*.py`, `migrate_sqlite_to_postgres.py`, `scripts/ops/`.
-- Root: README, CLAUDE.md, AGENTS.md, CHANGELOG, CONTRIBUTING, SECURITY, LICENSE, Business_Playbook_Hinglish.md, dono `.xlsx`, `leadgen.db` (rollback-backup), `alembic/`, `monitoring/`, `infrastructure/`, `models/`, `data/`.
+- Root: README, CLAUDE.md, AGENTS.md, CHANGELOG, CONTRIBUTING, SECURITY, LICENSE, dono `.xlsx`, `leadgen.db` (rollback-backup), `alembic/`, `monitoring/`, `infrastructure/`, `models/`, `data/` (Business_Playbook ab `docs/playbooks/` me).
 
 ## Consequences
 - **Easier:** repo navigate, agent context, naya one-off = turant dikhega (gitignore se log clutter wapas nahi aayega).

@@ -5,7 +5,7 @@
 > - `len(AUTOMATION_FLAGS)` / typed manifest `app.platform.automation_flag_manifest` (mixed booleans + values + secrets — **not** "N enabled switches")
 > - `len(JOB_META)` in `scheduler_config.py`
 > - Direct HTTPS `/health` + Owner OS calling posture + env flags (never this file alone)
-> - Contradiction ledger: `docs/context/CONTRADICTION_LEDGER_2026_08_03.md`
+> - Contradiction ledger: `docs/archive/2026-08/CONTRADICTION_LEDGER_2026_08_03.md`
 >
 > **Scope:** Code-and-evidence audit of the Master Blueprint against automation-flag registry, scheduler contract, and admin/customer surfaces.
 >
