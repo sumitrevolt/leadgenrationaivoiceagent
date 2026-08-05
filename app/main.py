@@ -1780,6 +1780,13 @@ async def architecture_explorer_page():
     return FileResponse(str(FRONTEND_DIR / "explorer.html"))
 
 
+@app.get("/app/coordination", tags=["Frontend"])
+async def coordination_hub_page():
+    """Multi-tool Coordination Hub — Bolt/Cursor/MonkeyCode/OpenCode + Buzz desktop
+    notifications ek jagah: live tool sessions, git activity, event + buzz feed."""
+    return FileResponse(str(FRONTEND_DIR / "coordination_hub.html"))
+
+
 @app.get("/app/control-center", tags=["Frontend"])
 async def control_center_page():
     """Enterprise AI Control Center — 4-level ops cockpit (L1 Executive live)."""
