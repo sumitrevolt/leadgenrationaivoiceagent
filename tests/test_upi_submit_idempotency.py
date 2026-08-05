@@ -98,7 +98,7 @@ def test_submit_payment_auto_activate_dedupe_prevents_double_activation(monkeypa
         return True
 
     monkeypatch.setattr(upi_mod, "_try_activate", _fake_activate)
-    monkeypatch.setattr(upi_mod, "_trigger_onboarding", lambda: None)
+    monkeypatch.setattr(upi_mod, "_trigger_onboarding", lambda *_a, **_k: None)
     monkeypatch.setattr(upi_mod, "_mark_deal_won", lambda *_a: None)
     monkeypatch.setattr(upi_mod, "_fire_gst_invoice", lambda *_a: None)
 

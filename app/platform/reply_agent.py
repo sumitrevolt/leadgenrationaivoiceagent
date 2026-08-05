@@ -2279,9 +2279,23 @@ def hot_queue_summary(items: list[dict] | None, scope: str = "boss") -> dict:
 
 def mark_handled(hq_id: str) -> bool:
     """1-click 'Done' — set hq_status=done on the matching draft row (in-place
-    rewrite, temp-file + atomic replace). False if id not found / any error."""
+    rewrite, temp-file + atomic replace). False if id not found / any error.
+
+    Synthetic pay-chase cards (``paychase:<prospect_id>``) clear via sales_autopilot
+    store steps — they are not draft rows.
+    """
     hq_id = (hq_id or "").strip()
-    if not hq_id or not os.path.exists(_DRAFTS_FILE):
+    if not hq_id:
+        return False
+    if hq_id.startswith("paychase:"):
+        try:
+            from app.platform.sales_autopilot import pay_truth
+
+            return bool(pay_truth.mark_paychase_done(hq_id))
+        except Exception as exc:
+            logger.debug("mark_handled paychase err: %s", exc)
+            return False
+    if not os.path.exists(_DRAFTS_FILE):
         return False
     try:
         row = next(
@@ -2309,7 +2323,17 @@ def mark_handled(hq_id: str) -> bool:
 def park_for_admin(hq_id: str, note: str = "") -> bool:
     """Boss unclear / council PARK_ADMIN — queue se boss view hatao, admin scope me rakho."""
     hq_id = (hq_id or "").strip()
-    if not hq_id or not os.path.exists(_DRAFTS_FILE):
+    if not hq_id:
+        return False
+    if hq_id.startswith("paychase:"):
+        try:
+            from app.platform.sales_autopilot import pay_truth
+
+            return bool(pay_truth.mark_paychase_parked(hq_id))
+        except Exception as exc:
+            logger.debug("park_for_admin paychase err: %s", exc)
+            return False
+    if not os.path.exists(_DRAFTS_FILE):
         return False
     try:
         row = next(
