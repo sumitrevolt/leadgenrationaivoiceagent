@@ -114,14 +114,22 @@ def test_damaged_rules_fail_closed_for_durable_writes(gov_env, tmp_path):
     assert gov.check_write("tenantA", text="x", durable=False)["decision"] != gov.DECISION_DEFERRED
 
 
-def test_rule_evaluation_error_treated_as_suppressed(gov_env, monkeypatch):
-    """Cannot prove 'not suppressed' => behave as suppressed (never leak)."""
+def test_rule_evaluation_error_is_deferred_not_suppressed(gov_env, monkeypatch):
+    """Cannot prove 'not suppressed' => durable write is DEFERRED (never leak).
+
+    An outage is NOT a suppression (no fabrication of suppression audits / no
+    destructive delete). `is_suppressed` reports only real matches (error =>
+    False = "unknown"); the fail-closed decision lives in `check_write`.
+    """
 
     def boom(_tenant):
         raise RuntimeError("rule store exploded")
 
     monkeypatch.setattr(gov, "list_rules", boom)
-    assert gov.is_suppressed("tenantA", text="anything") is True
+    assert gov.is_suppressed("tenantA", text="anything") is False  # unknown, not suppressed
+    d = gov.check_write("tenantA", text="anything")
+    assert d["decision"] == gov.DECISION_DEFERRED
+    assert d["code"] == gov.DEFER_CODE
 
 
 def test_guard_is_a_noop_while_the_memory_stack_is_off(gov_env, tmp_path, monkeypatch):

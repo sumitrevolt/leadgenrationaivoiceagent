@@ -9,6 +9,14 @@
   POST /api/memory-stack/prospective/drain         — manual drain (super-admin)
   POST /api/memory-stack/purge                     — DPDP delete (super-admin)
 
+CSRF (verified 2026-08-05, not assumed): admin auth here is `HTTPBearer`
+(`app/api/auth_deps.py:19`) — the token travels in an `Authorization` header, not
+an ambient cookie, so a cross-site form/image cannot carry it. Classic CSRF is
+structurally not applicable to these routes; the repo has no CSRF middleware for
+that reason. The destructive-write safeguards used instead are the repo-native
+`Idempotency-Key` contract (`admin_idempotency`, bound to actor+scope+payload
+hash → 409 on payload reuse) plus an explicit `confirm=true`.
+
 SECURITY POSTURE (review P1):
   - Reads: `require_admin` (RBAC module grants apply). Writes/dispatch/purge:
     `require_super_admin` — a scoped module grant is NOT enough to create or
