@@ -426,8 +426,7 @@ def advance(
                     mission.transition(MissionState.OWNER_DECISION_REQUIRED)
                 mission.approval_state = "required"
                 mission.blocker = (
-                    f"AMBER approval required before {target_state.value}: "
-                    f"{verified.get('reason')}"
+                    f"AMBER approval required before {target_state.value}: {verified.get('reason')}"
                 )
                 mission.add_evidence(
                     "approval_gate",
