@@ -1121,6 +1121,18 @@ try:
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Brain router not mounted: {_e}")
 try:
+    from app.api.okf_admin import router as okf_admin_router
+
+    app.include_router(okf_admin_router)  # /api/admin/okf/* — ADR-119 OKF status/dry-run/ingest
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"OKF admin router not mounted: {_e}")
+try:
+    from app.api.okf_public import router as okf_public_router
+
+    app.include_router(okf_public_router)  # /okf/ — public agent-readable OKF Markdown bundle
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"OKF public router not mounted: {_e}")
+try:
     from app.api.admin_db_explorer import router as admin_db_router
 
     app.include_router(

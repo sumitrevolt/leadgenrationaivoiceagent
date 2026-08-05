@@ -2,34 +2,32 @@
 
 ---
 
-## WS-GTM1 Hot Queue → 2nd paid - CODE_READY
+## WS-OKF1 Knowledge-stack polish (ADR-119 Phase-1) - IN PROGRESS
+- **ID:** WS-OKF1
+- **Business outcome:** Curated OKF readable + optional Qdrant ingest (flag OFF) — not a second RAG OS
+- **Current state:** Code on `cursor/okf-knowledge-stack-polish-2026-08-05` — bundle loader, `/okf/`, admin dry-run/ingest gate
+- **Next exact action:** Targeted tests + prod_check → PR → merge → deploy code-only (do **not** flip `OKF_INGEST_ENABLED` until owner arms)
+- **Out of scope:** BGE-M3/hybrid sparse · replace Qdrant · voice · Safe Pack mutate · fake PAID
+
+---
+
+## WS-GTM1 Hot Queue → 2nd paid - CODE SHIPPED / REVENUE PENDING
 - **ID:** WS-GTM1
-- **Business outcome:** Operate `/app/inbox` → real ₹1999 UPI ledger-proof → onboard + first-value
-- **Current state:** CODE_READY on branch; MERGED/DEPLOYED/LEDGER_PAID = NO. Safe Pack env OFF.
-- **Next exact action:** PR CI + review → merge → deploy code-only → owner Hot Queue real UPI
-- **Out of scope:** fake PAID · cold WA · open UPI auto-activate · voice · Safe Pack with deploy
+- **Business outcome:** Real ₹1999 UPI → LEDGER_PAID → onboard once → first-value
+- **Current state:** Prod `f0bdb4ee`. HQ=0 · paychase=0 · Estique=`removed`. Owner pick needed.
+- **Next exact action:** After OKF ship (or parallel owner ops): pick real prospect → `/start` ₹1999 → approve → prove PAID
+- **Out of scope:** fake PAID · Safe Pack with payment · #248 force
 
 ---
 
-## WS-AM1 Automation Max safe pack - TOOLING READY / ENV OFF
+## WS-AM1 Safe Pack - SEPARATE / NOT THIS PATH
 - **ID:** WS-AM1
-- **Business outcome:** Safe engines after ledger proof only
-- **Current state:** Canary + MC strip shipped in code; **APPLY not authorized until LEDGER_PAID**
-- **Next exact action:** After LEDGER_PAID: DRY_RUN=1 capture → group canary APPLY
-- **Out of scope:** all-flags-ON · Creative OS · REPLY_AUTO_SEND · bundle with deploy
-
----
-
-## WS-R3 Pay-truth / Estique - FREE TRIAL
-- **ID:** WS-R3
-- **Business outcome:** Ledger-proven 2nd paid customer
-- **Current state:** Trial only
-- **Next exact action:** Real ₹1999 → PAID (WS-GTM1)
-- **Out of scope:** fabricate PAID
+- **Current state:** Keys may be =1; canary verification pending
+- **Next exact action:** Only after LEDGER_PAID + owner canary gate
+- **Out of scope:** payment-path env flips
 
 ---
 
 ## Parked
-- WS-PRF1 PR Factory Wave 1 — Draft PR #248
-- WS-CH1 Coordination Hub
-- WS-R1 Autopilot refill — ARMED LIVE observe-only
+- WS-R3 Estique — `removed` (owner re-open only if intentional)
+- #248 PR Factory Draft (CI fail)

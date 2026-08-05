@@ -196,6 +196,9 @@ AUTOMATION_FLAGS = [
     "HOT_QUEUE_BRIEF_DAILY",  # 08:15 admin revenue brief; health-gated, read-only, default OFF
     "SKILL_PACK",
     "SKILL_PACK_KB_INGEST",  # expensive embedding ingest from trainer; explicit opt-in, OFF default
+    "OKF_INGEST_ENABLED",  # ADR-119 Phase-1: knowledge/ → kb_main namespace=okf ingest — OFF default
+    "OKF_PUBLIC_BUNDLE",  # public agent-readable /okf/ Markdown surface — default ON (git-curated, no secrets)
+    "OKF_BUNDLE_DIR",  # optional override root for tests/canary (default repo knowledge/)
     "OBSIDIAN_SYNC",  # second-brain markdown staging + daily obsidian_push job (audit 2026-07-04: was registry-invisible)
     "COMBO_PRODUCT",  # Product-3 combo public router mount — OFF default (ADR-009 two-product truth; audit 2026-07-04)
     "STUDIO_ENTITLEMENT_GATE",  # customer studio: block expired trials + never-paid signups after 7-day grace — OFF default
