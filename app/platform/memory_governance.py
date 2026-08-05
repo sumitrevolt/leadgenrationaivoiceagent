@@ -168,10 +168,17 @@ def _read_rules() -> list[dict[str, Any]]:
 
 
 def _append(path: str, rec: dict[str, Any]) -> bool:
+    """Append one JSONL row. Secret-shaped tokens are scrubbed before disk write.
+
+    Rules are session/subject/pattern match keys — never credentials. Scrubbing
+    is defence-in-depth so a mistaken pattern cannot park an API key on disk.
+    """
     try:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        payload = scrub_secrets(json.dumps(rec, ensure_ascii=False))
         with open(path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+            # codeql[py/clear-text-storage-sensitive-data] — scrubbed JSONL; no credentials
+            f.write(payload + "\n")
         return True
     except Exception as e:
         logger.debug("[memory_governance] append failed: %s", e)
@@ -210,6 +217,9 @@ def suppress(
         return {"ok": False, "error": f"kind must be one of {sorted(RULE_KINDS)}"}
     if not val:
         return {"ok": False, "error": "value required"}
+    # Never persist secret-shaped tokens as match keys (API keys / JWTs / env secrets).
+    if scrub_secrets(val) != val:
+        return {"ok": False, "error": "value looks like a secret — refuse to store cleartext"}
     if k == RULE_PATTERN:
         try:
             re.compile(val)

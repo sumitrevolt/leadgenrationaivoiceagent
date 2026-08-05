@@ -121,8 +121,8 @@ def dispatch_ready() -> tuple[bool, str]:
 
         if not prospective_store.available():
             return False, "durable prospective store unavailable (no dispatch)"
-    except Exception as e:
-        return False, f"prospective store import failed: {str(e)[:80]}"
+    except Exception:
+        return False, "prospective store import failed"
     return True, "ok"
 
 
@@ -320,7 +320,7 @@ def _write_decision(
         return {
             "decision": "deferred",
             "code": DEFER_CODE,
-            "reason": f"governance module unavailable: {str(e)[:80]}",
+            "reason": "governance module unavailable",
         }
 
 
@@ -343,7 +343,8 @@ def _dedupe_lines(text: str, seen: set[str]) -> str:
         key = _norm_line(ln)
         if not key:
             continue
-        h = hashlib.sha1(key.encode("utf-8"), usedforsecurity=False).hexdigest()
+        # Non-crypto dedupe key only (collision-resistant id, not a password hash).
+        h = hashlib.sha256(key.encode("utf-8")).hexdigest()
         if h in seen:
             _STATS["deduped"] += 1
             continue
@@ -625,9 +626,9 @@ def schedule(
         if out.get("ok"):
             _STATS["scheduled"] += 1
         return out
-    except Exception as e:
+    except Exception:
         _STATS["error"] += 1
-        return {"ok": False, "error": str(e)[:200]}
+        return {"ok": False, "error": "schedule_failed"}
 
 
 async def _default_dispatch(row: dict[str, Any]) -> str:
@@ -709,9 +710,9 @@ async def drain_if_enabled(*, limit: int = 20) -> dict[str, Any]:
     """Scheduler hook (memory_vault.sync_if_enabled ka pattern)."""
     try:
         return await drain_due(limit=limit)
-    except Exception as e:
+    except Exception:
         _STATS["error"] += 1
-        return {"skipped": "error", "error": str(e)[:200], "fired": 0}
+        return {"skipped": "error", "error": "drain_failed", "fired": 0}
 
 
 # --------------------------------------------- lane delegates (sync, bounded)

@@ -194,12 +194,12 @@ def enqueue(
                 "code": g["code"],
                 "error": g["reason"],
             }
-    except Exception as e:
+    except Exception:
         return {
             "ok": False,
             "deferred": True,
             "code": "MEMORY_WRITE_DEFERRED_GOVERNANCE_UNAVAILABLE",
-            "error": f"governance unavailable: {str(e)[:80]}",
+            "error": "governance unavailable",
         }
 
     when = due_at or (_now() + timedelta(minutes=max(0, min(int(in_minutes or 0), 60 * 24 * 365))))
@@ -240,7 +240,7 @@ def enqueue(
         if "unique" in str(e).lower() or "duplicate" in str(e).lower():
             return {"ok": True, "duplicate": True, "error": "raced-unique"}
         logger.warning("[prospective_store] enqueue failed: %s", e)
-        return {"ok": False, "error": str(e)[:200]}
+        return {"ok": False, "error": "enqueue_failed"}
 
 
 # ------------------------------------------------------------------ consumer
@@ -501,7 +501,8 @@ def cancel(tenant_id: str, row_id: str) -> dict[str, Any]:
             db.commit()
             return {"ok": rows == 1, "cancelled": rows}
     except Exception as e:
-        return {"ok": False, "error": str(e)[:200]}
+        logger.warning("[prospective_store] cancel failed: %s", e)
+        return {"ok": False, "error": "cancel_failed"}
 
 
 def purge(tenant_id: str, *, agent_id: str = "") -> dict[str, Any]:
@@ -519,7 +520,8 @@ def purge(tenant_id: str, *, agent_id: str = "") -> dict[str, Any]:
             db.commit()
             return {"ok": True, "purged": int(n or 0)}
     except Exception as e:
-        return {"ok": False, "purged": 0, "error": str(e)[:200]}
+        logger.warning("[prospective_store] purge failed: %s", e)
+        return {"ok": False, "purged": 0, "error": "purge_failed"}
 
 
 def retention_sweep(*, days: int = 90, now: datetime | None = None) -> int:
