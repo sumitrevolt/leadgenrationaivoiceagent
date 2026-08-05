@@ -51,7 +51,11 @@ EXPECTED_BLOCKERS = 0
 # owner, migration_tier and review_condition under the existing
 # billing.upi_payments family; no baseline debt was tolerated and
 # EXPECTED_BASELINE_FINGERPRINTS below is deliberately unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 47
+# 2026-08-05: 45 -> 47 via campaign_offer_policies.jsonl (+temp) under billing.upi_payments.
+# 2026-08-05: 47 -> 50. ADR-158/161 memory stack declared platform.memory_governance
+# (+3 entries: rules_fn, rules_path_var, audit_fn). CLASSIFIED, not tolerated —
+# baseline fingerprint count unchanged.
+EXPECTED_ALLOWLIST_ENTRIES = 50
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 

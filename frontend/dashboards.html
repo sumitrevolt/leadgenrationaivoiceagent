@@ -125,6 +125,12 @@ a:hover{text-decoration:underline}
     <div id="memBody" class="muted">Loading…</div>
   </div>
 
+  <!-- Memory Stack: 7-layer agent-memory facade -->
+  <div class="card" id="cardMemStack">
+    <h3><span class="lbl">🧩 Memory Stack (7 layers)</span><span id="msPill" class="pill neutral">…</span></h3>
+    <div id="msBody" class="muted">Loading…</div>
+  </div>
+
   <!-- MCP Keys (H.3) -->
   <div class="card" id="cardMCP">
     <h3><span class="lbl">🔑 MCP Keys (as product)</span><span id="mcpPill" class="pill neutral">…</span></h3>
@@ -298,6 +304,50 @@ async function loadMemory(){
   </div>`;
 }
 
+// ---------- Memory Stack: 7-layer facade ----------
+async function loadMemStack(){
+  const d = await api("/api/memory-stack/stats");
+  const body = document.getElementById("msBody");
+  if(!body) return;
+  if(d.__auth===false){ pill("msPill","neutral","auth"); body.innerHTML='<div class="empty">Set admin token to view.</div>'; return; }
+  if(d.__err){ pill("msPill","bad","error"); body.innerHTML='<div class="err">'+esc(d.__err)+'</div>'; return; }
+  const en = !!d.enabled;
+  pill("msPill", en?"ok":"neutral", en?"armed":"off");
+  // NOTE: counts + config only — this card never renders memory CONTENT.
+  const p = d.prospective||{}, w = d.working||{}, c = d.counters||{}, lanes = d.lanes||{};
+  const b = d.budget||{}, cfg = d.config||{};
+  let html = `<div class="kv">
+    <div class="k">Master flag</div><div class="v">MEMORY_STACK_ENABLED=${en?"1":"0"} · tiers ${esc((cfg.tiers||[]).join("/"))}</div>
+    <div class="k">Token budget</div><div class="v">${b.effective||0} of ${b.context_tokens||0} (reserve ${b.reserve_tokens||0}) · ${b.deadline_ms||0} ms</div>
+    <div class="k">Dispatch</div><div class="v">${cfg.dispatch_ready?"ready":"BLOCKED"} — ${esc(cfg.dispatch_reason||"")}</div>
+    <div class="k">Working (L1, cache)</div><div class="v">${w.sessions||0} sessions · ${w.turns||0} turns · TTL ${w.ttl_seconds||0}s · non-authoritative</div>
+    <div class="k">Prospective (L6)</div><div class="v">${p.available?`${p.pending||0} pending · ${p.due_now||0} due · ${p.claimed||0} claimed · ${p.dispatched||0} dispatched · ${p.dead||0} dead`:"store unavailable"}</div>
+    <div class="k">Counters</div><div class="v">assembled ${c.assembled||0} · dispatched ${c.dispatched||0} · blocked ${c.drain_blocked||0} · timeouts ${c.layer_timeout||0} · errors ${(c.layer_error||0)+(c.error||0)}</div>
+  </div>`;
+  const probs = cfg.problems||[];
+  if(probs.length){
+    html += '<div style="font-size:.78rem;color:var(--bad);margin-top:8px">Config problems:</div>';
+    for(const x of probs.slice(0,4)) html += `<div class="row"><span>${esc(x)}</span></div>`;
+  }
+  const keys = Object.keys(lanes);
+  if(keys.length){
+    // configured (what env asks) vs effective (what actually runs) — never show
+    // a lane as "on" when its dependency is unhealthy.
+    html += '<div style="font-size:.78rem;color:var(--mut);margin-top:8px">Lanes — configured / effective:</div>';
+    const confMap = cfg.layers_configured||{}, depFail = cfg.dependency_failures||{};
+    for(const k of keys){
+      const conf = confMap[k]!==false, eff = !!lanes[k].enabled;
+      const state = depFail[k] ? '<span style="color:var(--bad)">on / BLOCKED</span>'
+                  : (conf?"on":"off") + " / " + (eff?"on":"off");
+      html += `<div class="row"><span>${esc(k)} <span class="muted">(${esc(lanes[k].tier||"")})</span></span><span>${state}</span></div>`;
+    }
+  }
+  const sr = cfg.suppression_rules||{};
+  html += `<div class="row"><span>Do-not-remember rules</span><span class="muted">${sr.readable===false?"UNREADABLE":(sr.lines||0)+" rules"+((sr.unparsable||0)?" · "+sr.unparsable+" damaged":"")}</span></div>`;
+  html += `<div class="row"><span>Warm (helpers resolved at startup)</span><span class="muted">${cfg.warm?"yes":"no"}</span></div>`;
+  body.innerHTML = html;
+}
+
 // ---------- H.3: MCP Keys ----------
 async function loadMCP(){
   const d = await api("/api/admin/mcp-keys");
@@ -430,7 +480,7 @@ async function issueMcpKey(){
 // ---------- master loop ----------
 async function refreshAll(){
   loadWizard();
-  loadReadiness(); loadEngineers(); loadEval(); loadMemory();
+  loadReadiness(); loadEngineers(); loadEval(); loadMemory(); loadMemStack();
   loadMCP(); loadH4(); loadWebhooks(); loadTurnstile();
 }
 refreshAll();

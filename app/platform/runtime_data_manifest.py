@@ -409,6 +409,31 @@ STORES: list[dict[str, Any]] = [
         ),
     ),
     _e(
+        store_id="platform.memory_governance",
+        display_name="Memory stack do-not-remember + governance audit (ADR-161)",
+        legacy_paths=[
+            "data/memory_suppression.jsonl",
+            "data/memory_governance_audit.jsonl",
+        ],
+        writer_modules=["app/platform/memory_governance.py"],
+        production_activity="PRODUCTION_ACTIVE",
+        size_bytes=0,
+        current_authority="FILE",
+        business_category="agents",
+        durability_class="authoritative",
+        concurrency_model="append-only JSONL; atomic rewrite for rules file",
+        tenant_scope="tenant-scoped rows inside shared files",
+        target_runtime_subpath="platform/memory_governance/",
+        migration_tier=TIER_2,
+        migration_state=REBUILDABLE_CACHE,
+        deployment_blocker=False,
+        evidence=(
+            "Declared 2026-08-05 with ADR-161 Memory Stack governance. Suppression "
+            "rules + hashed audit trail under data/. INERT until MEMORY_STACK_ENABLED; "
+            "fail-closed durable writes when authority unreadable."
+        ),
+    ),
+    _e(
         store_id="marketing.brand_kits",
         display_name="Per-tenant brand kit profile",
         legacy_paths=["data/brand_kits/"],

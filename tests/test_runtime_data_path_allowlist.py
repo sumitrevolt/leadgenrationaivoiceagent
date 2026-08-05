@@ -127,8 +127,10 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # its atomic temp (#240 Campaign Offer Policy — immutable versioned commercial
     # authority). Also filed under billing.upi_payments: it decides WHICH package an
     # offer may quote, so it is the same billing authority, not a new domain.
-    assert len(entries) == 47
-    assert len(families) == 14, sorted(families)
+    # 2026-08-05 +3 entries / +1 family: platform.memory_governance (ADR-158/161
+    # do-not-remember rules + governance audit). CLASSIFIED, not tolerated.
+    assert len(entries) == 50
+    assert len(families) == 15, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}
     assert families <= known, sorted(families - known)
@@ -139,6 +141,7 @@ def test_store_family_count_is_derived_not_typed() -> None:
         "compliance.email_suppression",
         "customers.identity",
         "marketing.brand_kits",
+        "platform.memory_governance",
         "platform.workforce_memory",
         "devcontrol.external_missions",
         "governance.mission_control",
@@ -412,7 +415,8 @@ def test_store_manifest_still_validates() -> None:
     # 2026-07-30: +1 ops.owner_email_canary (LEGACY_IN_CHECKOUT, non-blocker).
     # 2026-07-31: +1 governance.mission_control (LEGACY_IN_CHECKOUT, non-blocker).
     # 2026-08-04: +1 owner_os.coordination_hub (ADR-150 projection; rebuildable).
-    assert counts["unique_families"] == 32
+    # 2026-08-05: +1 platform.memory_governance (ADR-158/161; rebuildable cache).
+    assert counts["unique_families"] == 33
     assert counts["deployment_blockers"] == 0
     by_id = {s["store_id"]: s for s in manifest.STORES}
     ext = by_id["devcontrol.external_missions"]
