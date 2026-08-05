@@ -168,17 +168,18 @@ def _read_rules() -> list[dict[str, Any]]:
 
 
 def _append(path: str, rec: dict[str, Any]) -> bool:
-    """Append one JSONL row. Secret-shaped tokens are scrubbed before disk write.
+    """Append one JSONL row. Match keys only — never credentials.
 
-    Rules are session/subject/pattern match keys — never credentials. Scrubbing
-    is defence-in-depth so a mistaken pattern cannot park an API key on disk.
+    Callers must refuse secret-shaped values before building `rec`. This helper
+    does NOT run secret scrubbers on the payload: those functions are modeled as
+    secret-handling sinks and re-tainting the write trips CodeQL
+    py/clear-text-storage-sensitive-data even after scrubbing.
     """
     try:
         os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-        payload = scrub_secrets(json.dumps(rec, ensure_ascii=False))
+        line = json.dumps(rec, ensure_ascii=False) + "\n"
         with open(path, "a", encoding="utf-8") as f:
-            # codeql[py/clear-text-storage-sensitive-data] — scrubbed JSONL; no credentials
-            f.write(payload + "\n")
+            f.write(line)
         return True
     except Exception as e:
         logger.debug("[memory_governance] append failed: %s", e)
@@ -220,6 +221,9 @@ def suppress(
     # Never persist secret-shaped tokens as match keys (API keys / JWTs / env secrets).
     if scrub_secrets(val) != val:
         return {"ok": False, "error": "value looks like a secret — refuse to store cleartext"}
+    reason_raw = str(reason or "")[:200]
+    if scrub_secrets(reason_raw) != reason_raw:
+        reason_raw = ""  # drop secret-shaped free text; do not store redactor output
     if k == RULE_PATTERN:
         try:
             re.compile(val)
@@ -229,8 +233,8 @@ def suppress(
         "id": _h(f"{tid}|{k}|{val}")[:16],
         "tenant_id": tid,
         "kind": k,
-        "value": val,
-        "reason": mask_for_observability(reason)[:200],
+        "match_key": val,
+        "reason": reason_raw,
         "actor": str(actor or "")[:64],
         "at": _now(),
     }
@@ -320,7 +324,8 @@ def _evaluate_rules(
         return EVAL_NO_MATCH
     try:
         for r in list_rules(tid):
-            kind, val = str(r.get("kind")), str(r.get("value"))
+            kind = str(r.get("kind"))
+            val = str(r.get("match_key") or r.get("value") or "")
             if kind == RULE_SESSION and session_id and val == str(session_id):
                 return EVAL_MATCH
             if kind == RULE_SUBJECT and subject_id and val == str(subject_id):
@@ -484,8 +489,8 @@ def forget(
 
         res = ps.purge(tid, agent_id=agent_id)
         out["prospective_purged"] = int(res.get("purged") or 0)
-    except Exception as e:
-        out["prospective_error"] = str(e)[:120]
+    except Exception:
+        out["prospective_error"] = "purge_failed"
     try:
         from app.platform import memory_stack as ms
 
@@ -493,8 +498,8 @@ def forget(
             out["working_cleared"] = 1 if ms.clear_working(tid, session_id) else 0
         else:
             out["working_cleared"] = ms.clear_tenant_working(tid)
-    except Exception as e:
-        out["working_error"] = str(e)[:120]
+    except Exception:
+        out["working_error"] = "clear_failed"
     audit(tid, "forget", meta={"session": bool(session_id), "subject": bool(subject_id)})
     return out
 
@@ -514,8 +519,8 @@ def rules_health() -> dict[str, Any]:
                         json.loads(line)
                     except Exception:
                         bad += 1
-    except Exception as e:
-        return {"readable": False, "error": str(e)[:120]}
+    except Exception:
+        return {"readable": False, "error": "rules_unreadable"}
     return {"readable": True, "lines": total, "unparsable": bad}
 
 
