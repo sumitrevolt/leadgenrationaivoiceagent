@@ -17,9 +17,14 @@ from __future__ import annotations
 import asyncio
 import importlib
 import json
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+from app.models.prospective_memory import ProspectiveMemory
 
 INVENTORY = Path("docs/memory/DURABLE_WRITERS.json")
 GUARD_SYMBOLS = ("durable_writes_allowed", "guard_durable_write", "_write_decision", "check_write")
@@ -39,6 +44,32 @@ def broken_governance(tmp_path, monkeypatch):
     monkeypatch.setenv("MEMORY_VAULT", "1")
     monkeypatch.setenv("AGENT_RECALL", "1")
     yield tmp_path
+
+
+@pytest.fixture()
+def prospective_store_wired(tmp_path, monkeypatch):
+    """Give the L6 store a real (isolated) table so the test reaches the
+    governance gate instead of short-circuiting on `available()`."""
+    ps = importlib.import_module("app.platform.prospective_store")
+    engine = create_engine(f"sqlite:///{tmp_path / 'prospective.db'}", future=True)
+    ProspectiveMemory.__table__.create(bind=engine, checkfirst=True)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    @contextmanager
+    def _session():
+        db = Session()
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise
+        finally:
+            db.close()
+
+    monkeypatch.setattr(ps, "_models", lambda: (ProspectiveMemory, _session))
+    yield ps
+    engine.dispose()
 
 
 def _inventory() -> dict:
@@ -100,8 +131,8 @@ def test_no_unlisted_memory_writer_module_is_unguarded():
 # ------------------------------------------------- direct (bypass) enforcement
 
 
-def test_prospective_store_refuses_directly(broken_governance):
-    ps = importlib.import_module("app.platform.prospective_store")
+def test_prospective_store_refuses_directly(broken_governance, prospective_store_wired):
+    ps = prospective_store_wired
     out = ps.enqueue("tenantA", "rohan", "remember card 4111111111111111", in_minutes=5)
     assert out["ok"] is False and out.get("deferred") is True
     assert "4111111111111111" not in json.dumps(out)
