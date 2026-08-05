@@ -5,7 +5,7 @@
 > idempotency primitive wired into `sync_to_crm`, security suite fixed to test REAL
 > auth (it was running against mocked-open auth — false confidence), queue audit
 > made truthful (54 tasks not 15), CI security/queue scanners. Details + honest
-> score deltas: `docs/ADR-2026-06-26-Batch2-Testing-Queue-Deploy.md`. The scores
+> score deltas: `docs/archive/2026-06/ADR-2026-06-26-Batch2-Testing-Queue-Deploy.md`. The scores
 > in §10 below are the **pre-batch-2** baseline.
 
 > **Date:** 2026-06-25

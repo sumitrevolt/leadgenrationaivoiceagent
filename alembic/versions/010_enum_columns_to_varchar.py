@@ -55,7 +55,7 @@ bootstrapped via `alembic upgrade head` alone (3 native-enum columns:
 across 8 tables). Seeded real rows with real enum values before migrating,
 confirmed both the column type AND the stored value are correct afterward,
 and confirmed the ORM can still read the row back as the correct Python enum
-member post-migration. See TEST_RESULTS.md for the full command + output.
+member post-migration. See docs/archive/2026-07/TEST_RESULTS.md for the full command + output.
 
 Downgrade: intentionally a no-op. Reconstructing the exact original enum type
 + its full set of allowed values from live column data alone isn't reliably
