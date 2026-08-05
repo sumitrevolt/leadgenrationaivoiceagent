@@ -77,7 +77,17 @@ HISTORICAL_DISCOVERY = "HISTORICAL_DISCOVERY"
 
 FAMILY_DISCOVERY = "discovery"
 
+POLICY_ID_RETIRED = "POLICY_ID_RETIRED"
+
 _VALID_CURRENCIES = {"INR"}
+
+#: Commercial families grounded in the catalogue, not invented:
+#: packages.PACKAGES (starter/growth/advanced) = marketing;
+#: voice_packages bands = voice; packages.TOPUP_PACKS = topup.
+#: `discovery` is the honest label for outreach that pitched nothing.
+_VALID_FAMILIES = {FAMILY_DISCOVERY, "marketing", "voice", "topup"}
+
+_MAX_VALIDITY_DAYS = 365
 
 
 class PolicyStoreCorrupt(Exception):
@@ -92,6 +102,7 @@ __all__ = [
     "NOT_ELIGIBLE",
     "PACKAGE_SELECTED",
     "POLICY_AMBIGUOUS",
+    "POLICY_ID_RETIRED",
     "POLICY_STORE_CORRUPT",
     "STATUS_ACTIVE",
     "STATUS_RETIRED",
@@ -99,6 +110,7 @@ __all__ = [
     "put_policy",
     "qualify",
     "resolve_exact",
+    "resolve_exact_with_reason",
     "resolve_for_prospect",
     "resolve_for_send",
     "retire_policy",
@@ -138,19 +150,97 @@ def _read_strict() -> list[dict[str, Any]]:
         raise PolicyStoreCorrupt(str(exc)) from exc
 
     seen: set[tuple[str, int]] = set()
+    policy_ids: set[str] = set()
     for r in rows:
-        if r.get("kind") != KIND_POLICY:
-            continue
-        try:
-            key = (str(r["policy_id"]), int(r["policy_version"]))
-        except Exception as exc:
-            raise PolicyStoreCorrupt(f"bad policy identity: {exc}") from exc
-        if key[1] < 1:
-            raise PolicyStoreCorrupt(f"non-positive version for {key[0]}")
-        if key in seen:
-            raise PolicyStoreCorrupt(f"duplicate (policy_id, version): {key}")
-        seen.add(key)
+        kind = r.get("kind")
+        if kind == KIND_POLICY:
+            key = _validate_policy_row(r)
+            if key in seen:
+                raise PolicyStoreCorrupt(f"duplicate (policy_id, version): {key}")
+            seen.add(key)
+            policy_ids.add(key[0])
+        elif kind == KIND_RETIRED:
+            _validate_retired_row(r)
+        else:
+            # An unrecognised kind is not "future data" — it is authority we
+            # cannot interpret, on the money path. Refuse rather than ignore.
+            raise PolicyStoreCorrupt(f"unknown row kind: {kind!r}")
+
+    for r in rows:
+        if r.get("kind") == KIND_RETIRED and str(r.get("policy_id")) not in policy_ids:
+            raise PolicyStoreCorrupt(f"retirement references unknown policy: {r.get('policy_id')}")
     return rows
+
+
+def _ts_ok(value: Any) -> bool:
+    """Timezone-aware ISO timestamp."""
+    try:
+        dt = datetime.fromisoformat(str(value))
+    except Exception:
+        return False
+    return dt.tzinfo is not None
+
+
+def _validate_policy_row(r: dict[str, Any]) -> tuple[str, int]:
+    """Full-schema check. A valid-JSON but malformed row must never resolve."""
+    pid = r.get("policy_id")
+    if not isinstance(pid, str) or not pid.strip():
+        raise PolicyStoreCorrupt("policy_id must be a non-empty string")
+    ver = r.get("policy_version")
+    if not isinstance(ver, int) or isinstance(ver, bool) or ver < 1:
+        raise PolicyStoreCorrupt(f"{pid}: policy_version must be a positive int")
+
+    family = r.get("product_family")
+    if family not in _VALID_FAMILIES:
+        raise PolicyStoreCorrupt(f"{pid}: unrecognised product_family {family!r}")
+
+    allowed = r.get("allowed_package_codes")
+    if not isinstance(allowed, list) or any(
+        not isinstance(c, str) or not c.strip() for c in allowed
+    ):
+        raise PolicyStoreCorrupt(f"{pid}: allowed_package_codes must be a list of strings")
+    if len(set(allowed)) != len(allowed):
+        raise PolicyStoreCorrupt(f"{pid}: duplicate package codes")
+    if family != FAMILY_DISCOVERY and not allowed:
+        raise PolicyStoreCorrupt(f"{pid}: sellable policy needs a non-empty allowlist")
+
+    default = r.get("default_package_code", "")
+    if not isinstance(default, str):
+        raise PolicyStoreCorrupt(f"{pid}: default_package_code must be a string")
+    if default and default not in allowed:
+        raise PolicyStoreCorrupt(f"{pid}: default outside allowlist")
+
+    if r.get("currency") not in _VALID_CURRENCIES:
+        raise PolicyStoreCorrupt(f"{pid}: currency must be INR on the manual-UPI path")
+
+    days = r.get("offer_validity_days")
+    if not isinstance(days, int) or isinstance(days, bool) or not (1 <= days <= _MAX_VALIDITY_DAYS):
+        raise PolicyStoreCorrupt(f"{pid}: offer_validity_days out of bounds")
+
+    for field in ("message_variant", "outreach_sequence_id", "template_id"):
+        if not isinstance(r.get(field, ""), str):
+            raise PolicyStoreCorrupt(f"{pid}: {field} must be a string")
+
+    if not _ts_ok(r.get("effective_from")):
+        raise PolicyStoreCorrupt(f"{pid}: effective_from must be a tz-aware timestamp")
+    created_by = r.get("created_by")
+    if not isinstance(created_by, str) or not created_by.strip():
+        raise PolicyStoreCorrupt(f"{pid}: created_by must be a non-empty string")
+
+    return (pid, ver)
+
+
+def _validate_retired_row(r: dict[str, Any]) -> None:
+    pid = r.get("policy_id")
+    if not isinstance(pid, str) or not pid.strip():
+        raise PolicyStoreCorrupt("retirement: policy_id must be a non-empty string")
+    if not _ts_ok(r.get("retired_at")):
+        raise PolicyStoreCorrupt(f"retirement {pid}: retired_at must be tz-aware")
+    by = r.get("retired_by")
+    if not isinstance(by, str) or not by.strip():
+        raise PolicyStoreCorrupt(f"retirement {pid}: retired_by must be non-empty")
+    if not isinstance(r.get("reason", ""), str):
+        raise PolicyStoreCorrupt(f"retirement {pid}: reason must be a string")
 
 
 def store_health() -> dict[str, Any]:
@@ -238,7 +328,7 @@ def put_policy(
     """
     pid = (policy_id or "").strip()
     family = (product_family or "").strip().lower()
-    if not pid or not family:
+    if not pid or family not in _VALID_FAMILIES:
         return None
 
     cur = (currency or "INR").strip().upper()
@@ -274,6 +364,14 @@ def put_policy(
                 rows = _read_strict()
             except PolicyStoreCorrupt as exc:
                 logger.error("[policy] refusing write, store corrupt: %s", exc)
+                return None
+
+            # Retirement is permanent for a policy identity. Appending a version
+            # to a retired id would write an apparently valid row that
+            # resolve_for_send can never select — silently unreachable authority.
+            # Replacement commercial activity uses a NEW policy_id.
+            if pid in _retired_ids(rows):
+                logger.warning("[policy] %s is retired — refusing new version", pid)
                 return None
 
             versions = [
@@ -359,30 +457,38 @@ def retire_policy(policy_id: str, *, by: str = "system", reason: str = "") -> bo
         return False
 
 
-def resolve_exact(policy_id: str, policy_version: int) -> dict[str, Any] | None:
-    """THE reply-time authority: the exact historical row, retirement included.
+def resolve_exact_with_reason(
+    policy_id: str, policy_version: Any
+) -> tuple[dict[str, Any] | None, str]:
+    """THE reply-time authority: exact historical row + machine-readable reason.
 
-    Deliberately ignores newer versions and retirement, because the commercial
-    meaning of a sent message is fixed at send time.
+    Corruption must NOT be reported as "not found": Owner OS would be told to
+    create a missing policy when the real problem is unreadable authority.
     """
     pid = (policy_id or "").strip()
     try:
         ver = int(policy_version)
     except Exception:
-        return None
+        return None, POLICY_NOT_FOUND
     if not pid or ver < 1:
-        return None
+        return None, POLICY_NOT_FOUND
     try:
         rows = _read_strict()
     except PolicyStoreCorrupt as exc:
         logger.error("[policy] resolve_exact refused, store corrupt: %s", exc)
-        return None
+        return None, POLICY_STORE_CORRUPT
     for r in _definitions(rows):
         if r.get("policy_id") == pid and int(r.get("policy_version") or 0) == ver:
             out = dict(r)
             out["status"] = STATUS_RETIRED if pid in _retired_ids(rows) else STATUS_ACTIVE
-            return out
-    return None
+            return out, "ok"
+    return None, POLICY_NOT_FOUND
+
+
+def resolve_exact(policy_id: str, policy_version: Any) -> dict[str, Any] | None:
+    """Convenience wrapper. Prefer :func:`resolve_exact_with_reason` on the money
+    path so corruption is never mistaken for a missing policy."""
+    return resolve_exact_with_reason(policy_id, policy_version)[0]
 
 
 def resolve_for_send(
@@ -437,8 +543,7 @@ def resolve_for_prospect(prospect: dict[str, Any] | None) -> tuple[dict[str, Any
     ver = p.get("campaign_offer_policy_version")
     if not pid or ver in (None, ""):
         return None, HISTORICAL_DISCOVERY
-    got = resolve_exact(pid, ver)
-    return (got, "ok") if got else (None, POLICY_NOT_FOUND)
+    return resolve_exact_with_reason(pid, ver)
 
 
 def qualify(policy: dict[str, Any] | None, facts: dict[str, Any] | None = None) -> dict[str, Any]:
