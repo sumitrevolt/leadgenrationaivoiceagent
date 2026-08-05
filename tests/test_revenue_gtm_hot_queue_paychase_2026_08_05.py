@@ -54,6 +54,44 @@ def test_paychase_park_also_hides_card(tmp_path, monkeypatch):
     assert not any(c.get("hq_id") == "paychase:p_chase_2" for c in pay_truth.unpaid_chase_cards())
 
 
+def test_paychase_done_refuses_non_awaiting_status(tmp_path, monkeypatch):
+    from app.platform.sales_autopilot import pay_truth
+
+    sa_store = _iso_sa_store(tmp_path, monkeypatch)
+    sa_store.upsert_prospect(
+        {
+            "id": "p_cold",
+            "name": "Cold",
+            "status": sa_store.STATUS_NEW,
+        }
+    )
+    assert pay_truth.mark_paychase_done("paychase:p_cold") is False
+
+
+def test_reconcile_skips_chase_after_hq_done(tmp_path, monkeypatch):
+    from app.platform.sales_autopilot import pay_truth
+
+    sa_store = _iso_sa_store(tmp_path, monkeypatch)
+    sa_store.upsert_prospect(
+        {
+            "id": "p_chase_3",
+            "name": "Done Me",
+            "status": sa_store.STATUS_AWAITING_PAYMENT,
+            "converted_client_id": "c_x",
+        }
+    )
+    monkeypatch.setattr(pay_truth, "has_payment_proof", lambda *_a, **_k: {"paid": False})
+    chased: list[str] = []
+    monkeypatch.setattr(pay_truth, "_chase_unpaid", lambda pid, *_a: chased.append(pid))
+
+    pay_truth.reconcile_pay_truth(chase=True)
+    assert "p_chase_3" in chased
+    chased.clear()
+    assert pay_truth.mark_paychase_done("paychase:p_chase_3") is True
+    pay_truth.reconcile_pay_truth(chase=True)
+    assert chased == []
+
+
 def test_upi_activate_enqueues_onboard_client(monkeypatch, tmp_path):
     import app.platform.upi_payments as upi_mod
     import app.tasks.staff_jobs as sj
