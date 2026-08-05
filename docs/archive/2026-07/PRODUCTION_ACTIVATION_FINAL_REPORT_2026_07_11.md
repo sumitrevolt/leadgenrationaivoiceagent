@@ -26,7 +26,7 @@
 - **Commit:** a3752a20 (8 chars)
 - **Status:** 11 modified files, 72 untracked (CLI tools, no blocking changes)
 
-### Deployment State  
+### Deployment State
 - **VPS:** Hostinger Mumbai, single Docker host
 - **Image:** `43e877f0e457` (app + worker healthy, no restarts)
 - **Production Env:** `environment=production`, `healthy=true` (verified via `/health`)
@@ -43,7 +43,7 @@
 - **Backup:** Hourly to Google Drive (restore tested)
 - **Migrations:** 35 applied (alembic schema current)
 
-### Infrastructure  
+### Infrastructure
 - **Redis:** Healthy (Celery broker + state cache)
 - **Qdrant:** Live (RAG vector DB, kb_main + namespaces)
 - **PgBouncer:** Configured (production connection pooling)
@@ -72,12 +72,12 @@
 **Files Changed:**
 1. `data/marketing_clients.jsonl` — **ADDED** jiya-makeover record (line 7)
    ```json
-   {"id": "jiya-makeover", "business_name": "Jiya Makeover Studio", 
+   {"id": "jiya-makeover", "business_name": "Jiya Makeover Studio",
     "slug": "jiya-makeover", "niche": "beauty_makeover", "city": "Mumbai",
     "phone": "+919876543210", "plan": "starter", "product": "marketing",
-    "status": "active", "brand": {"primary": "#e63946", "accent": "#f1faee", 
+    "status": "active", "brand": {"primary": "#e63946", "accent": "#f1faee",
     "tagline": "Premium Bridal & Event Makeup", "logo_text": "Jiya Makeover"},
-    "socials": {}, "created_at": "2026-07-07T11:32:24+00:00", 
+    "socials": {}, "created_at": "2026-07-07T11:32:24+00:00",
     "updated_at": "2026-07-11T15:30:00+00:00"}
    ```
 
@@ -92,7 +92,7 @@
 
 4. `tests/test_jiya_makeover_e2e.py` — **CREATED** (244 lines, 10+ test functions)
    - Onboarding verification
-   - Content queue initialization  
+   - Content queue initialization
    - Delivery ledger event logging
    - Content generation for jiya
    - Social engine dry-run readiness
@@ -291,12 +291,12 @@ Step 5.3: Admin Dashboard Visibility
 
 **File: data/marketing_clients.jsonl (Line 7)**
 ```json
-{"id": "jiya-makeover", "business_name": "Jiya Makeover Studio", 
+{"id": "jiya-makeover", "business_name": "Jiya Makeover Studio",
  "slug": "jiya-makeover", "niche": "beauty_makeover", "city": "Mumbai",
  "phone": "+919876543210", "plan": "starter", "product": "marketing",
  "status": "active", "brand": {"primary": "#e63946", "accent": "#f1faee",
  "tagline": "Premium Bridal & Event Makeup", "logo_text": "Jiya Makeover"},
- "socials": {"instagram": "", "facebook": "", "gbp": ""}, 
+ "socials": {"instagram": "", "facebook": "", "gbp": ""},
  "created_at": "2026-07-07T11:32:24+00:00", "updated_at": "2026-07-11T15:30:00+00:00"}
 ```
 **Evidence:** ✅ Record fully populated, plan=starter (₹1,999/mo), status=active
@@ -305,10 +305,10 @@ Step 5.3: Admin Dashboard Visibility
 
 **File: data/delivery_ledger/jiya-makeover.jsonl**
 ```json
-{"at": "2026-07-07T11:32:24+00:00", "client_id": "jiya-makeover", 
+{"at": "2026-07-07T11:32:24+00:00", "client_id": "jiya-makeover",
  "event": "customer_created", "detail": "", "actor": "backfill", "key": "lc:created"}
-{"at": "2026-07-11T15:30:00+00:00", "client_id": "jiya-makeover", 
- "event": "marketing_client_onboarded", 
+{"at": "2026-07-11T15:30:00+00:00", "client_id": "jiya-makeover",
+ "event": "marketing_client_onboarded",
  "detail": "Added to marketing_clients.jsonl with starter plan (₹1,999/mo), niche=beauty_makeover, city=Mumbai",
  "actor": "production_operator", "key": "marketing:onboarded"}
 ```
@@ -418,7 +418,7 @@ Step 5.3: Admin Dashboard Visibility
 # Added jiya-makeover to marketing clients
 data/marketing_clients.jsonl              # +1 line (customer record)
 
-# Created content queue 
+# Created content queue
 data/content_queue/jiya-makeover.jsonl    # +0 lines (empty file, ready for generation)
 
 # Logged onboarding event
@@ -445,7 +445,7 @@ tests/test_jiya_makeover_e2e.py           # +244 lines (10+ test functions)
 
 Existing suites still PASS:
 ✅ 42 customer delivery test files
-✅ 6 customer dashboard tests  
+✅ 6 customer dashboard tests
 ✅ 38 scheduler/automation tests
 ✅ 80+ integration/contract tests
 ```
@@ -503,7 +503,7 @@ git commit -m "Complete jiya-makeover marketing onboarding + E2E test suite (202
 
 Prerequisites:
 - ✅ jiya-makeover fully onboarded (DONE)
-- ✅ Content generation ready (DONE)  
+- ✅ Content generation ready (DONE)
 - ✅ Dashboards verified (DONE)
 - ✅ Dry-run mode tested (DONE)
 - ⏳ SOCIAL_ENGINE flag enable (USER ACTION)
@@ -551,7 +551,7 @@ The only blocker for live publishing is the (intentional) absence of social plat
 
 ---
 
-**Report prepared by:** Claude Production Activation Agent  
-**Mandate:** Controlled Production Activation & Verified Customer Delivery (Phases 1-16)  
-**Evidence Quality:** High (repo inspection + test verification + API contract checks)  
+**Report prepared by:** Claude Production Activation Agent
+**Mandate:** Controlled Production Activation & Verified Customer Delivery (Phases 1-16)
+**Evidence Quality:** High (repo inspection + test verification + API contract checks)
 **Recommendation:** READY FOR AUTHORIZED CANARY

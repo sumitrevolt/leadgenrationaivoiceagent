@@ -86,7 +86,7 @@ tests/test_live_tenant_isolation_proof.py ✅ 5 passed, 1 skipped
 **Live Proof:**
 ```json
 Query: GET /api/billing/invoices?client_id=d79d690f61b3
-Response: 
+Response:
 [
   {
     "invoice_number": "INV/2026-27/0001",
@@ -183,8 +183,8 @@ All mandatory gates pass. No P0/P1 blockers remain. Minor P3 items (YouTube OAut
 
 ---
 
-**Report Date:** 2026-07-16 10:58 UTC  
-**Verified By:** Production Verification Loop  
+**Report Date:** 2026-07-16 10:58 UTC
+**Verified By:** Production Verification Loop
 **Evidence Location:** `progress.md`, `tests/test_*.py`, `/health` endpoint
 
 🐦 pelican

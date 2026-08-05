@@ -126,5 +126,5 @@ All zero-tolerance gates are closed. All critical features are hardened. Staging
 - This ADR: `docs/archive/2026-06/ADR-2026-06-26-Grade-A-Certification.md`
 
 ## Signed
-Executive Engineering Agent  
+Executive Engineering Agent
 2026-06-26

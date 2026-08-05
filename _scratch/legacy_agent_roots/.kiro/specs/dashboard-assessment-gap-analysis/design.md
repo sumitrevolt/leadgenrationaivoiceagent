@@ -298,7 +298,7 @@ def classify_moscow(gap: Gap, issues: List[UXIssue]) -> str:
     """
     Returns: "must_have" | "should_have" | "could_have" | "wont_have"
     """
-    
+
     # MUST HAVE criteria
     if gap.wcag_critical_violation:
         return "must_have"
@@ -306,7 +306,7 @@ def classify_moscow(gap: Gap, issues: List[UXIssue]) -> str:
         return "must_have"
     if gap.blocks_core_workflow:
         return "must_have"
-    
+
     # SHOULD HAVE criteria
     if gap.prevalence >= 3 and gap.impact == "high":  # In 3+ competitors
         return "should_have"
@@ -314,19 +314,19 @@ def classify_moscow(gap: Gap, issues: List[UXIssue]) -> str:
         return "should_have"
     if gap.ux_improvement_significant:
         return "should_have"
-    
+
     # COULD HAVE criteria
     if gap.prevalence <= 2:  # Only in 1-2 competitors
         return "could_have"
     if gap.effort == "low" and gap.impact == "medium":
         return "could_have"
-    
+
     # WON'T HAVE criteria
     if gap.requires_backend_redesign:
         return "wont_have"
     if gap.conflicts_with_product_vision:
         return "wont_have"
-    
+
     return "should_have"  # Default
 ```
 
@@ -336,11 +336,11 @@ def calculate_priority_rank(item) -> float:
     impact_map = {"high": 10, "medium": 5, "low": 2}
     effort_map = {"high": 8, "medium": 4, "low": 1}
     moscow_map = {"must_have": 100, "should_have": 50, "could_have": 20, "wont_have": 0}
-    
+
     impact_score = impact_map[item.impact]
     effort_score = effort_map[item.effort]
     moscow_score = moscow_map[item.moscow]
-    
+
     # Higher rank = higher priority
     rank = moscow_score + (impact_score * 10) - (effort_score * 2)
     return rank
@@ -500,7 +500,7 @@ class AssessmentReportParser:
     def parse(self, report_path: str) -> AssessmentData:
         """
         Parse DASHBOARD_ASSESSMENT_REPORT.md into structured data.
-        
+
         Returns AssessmentData with:
         - scores: Dict[str, float]
         - gaps: List[Gap]
@@ -509,15 +509,15 @@ class AssessmentReportParser:
         - backend_dependencies: List[Dependency]
         """
         pass
-    
+
     def validate_report_format(self, report_path: str) -> bool:
         """Check if report follows expected structure."""
         pass
-    
+
     def extract_section(self, content: str, section_name: str) -> str:
         """Extract specific section from report."""
         pass
-    
+
     def parse_table(self, table_markdown: str) -> List[Dict]:
         """Parse Markdown table into list of dicts."""
         pass
@@ -560,15 +560,15 @@ class AssessmentComparator:
         - Score deltas (changes in completeness/quality scores)
         """
         pass
-    
+
     def detect_regressions(self, baseline, current) -> List[Regression]:
         """Identify features that regressed from complete to broken."""
         pass
-    
+
     def detect_improvements(self, baseline, current) -> List[Improvement]:
         """Identify gaps that were closed."""
         pass
-    
+
     def calculate_score_deltas(self, baseline, current) -> Dict[str, float]:
         """Calculate percentage point changes in scores."""
         pass
@@ -766,13 +766,13 @@ def scan_dashboard(filepath: str) -> FeatureInventory:
     except PermissionError:
         log.error(f"Permission denied: {filepath}")
         return FeatureInventory.empty()
-    
+
     try:
         features = extract_features(content)
     except ParseError as e:
         log.warning(f"Partial parse failure: {e}")
         features = extract_features_fallback(content)  # Best-effort
-    
+
     return FeatureInventory(features=features)
 ```
 
@@ -873,23 +873,23 @@ def test_full_assessment_workflow():
     # Given: Sample dashboard HTML files
     customer_html = "fixtures/customer_dashboard_sample.html"
     admin_html = "fixtures/admin_dashboard_sample.html"
-    
+
     # When: Run full assessment
     assessment = run_assessment(
         customer_dashboard=customer_html,
         admin_dashboard=admin_html,
         competitive_benchmarks="fixtures/competitive_features.json"
     )
-    
+
     # Then: Reports are generated
     assert os.path.exists("docs/DASHBOARD_ASSESSMENT_REPORT.md")
     assert os.path.exists("docs/dashboard_metrics.json")
-    
+
     # And: Reports are valid
     report_data = parser.parse("docs/DASHBOARD_ASSESSMENT_REPORT.md")
     assert report_data.scores["customer_completeness"] > 0
     assert len(report_data.gaps) > 0
-    
+
     # And: JSON metrics match report
     metrics = json.load(open("docs/dashboard_metrics.json"))
     assert metrics["scores"]["customer_completeness"] == report_data.scores["customer_completeness"]
@@ -904,11 +904,11 @@ def test_regression_detection_workflow():
     # Given: Baseline assessment
     baseline = run_assessment(...)
     save_assessment(baseline, "baseline")
-    
+
     # When: Feature breaks in new version
     # (Simulate by modifying feature status in fixture)
     current = run_assessment(...)
-    
+
     # Then: Regression is detected
     diff = compare_assessments(baseline, current)
     assert len(diff.regressions) > 0
@@ -1258,7 +1258,7 @@ For each backend-dependent gap, document:
 
 **Backend Module**: `app/api/notifications.py`
 
-**Database Changes**: 
+**Database Changes**:
 - New table: `notifications` (id, user_id, type, title, message, timestamp, read)
 - Index on: `(user_id, read, timestamp DESC)`
 
@@ -1284,7 +1284,7 @@ When extracting code snippets as evidence:
 def sanitize_snippet(code: str) -> str:
     """Remove sensitive data from code snippets."""
     # Redact API keys
-    code = re.sub(r'(api[_-]?key|token|secret)["\s:=]+["\'][\w-]+["\']', 
+    code = re.sub(r'(api[_-]?key|token|secret)["\s:=]+["\'][\w-]+["\']',
                   r'\1="[REDACTED]"', code, flags=re.IGNORECASE)
     # Redact email addresses
     code = re.sub(r'\b[\w.-]+@[\w.-]+\.\w+\b', '[EMAIL]', code)
@@ -1456,8 +1456,7 @@ A successful implementation will:
 
 ---
 
-**Design Version**: 1.0  
-**Last Updated**: 2026-06-09  
-**Author**: Kiro AI Agent (feature-requirements-first-workflow)  
+**Design Version**: 1.0
+**Last Updated**: 2026-06-09
+**Author**: Kiro AI Agent (feature-requirements-first-workflow)
 **Status**: Ready for Implementation
-

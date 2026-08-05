@@ -1,6 +1,6 @@
 # PHASE 2: CUSTOMER JOURNEY TRACE
-**Date:** 2026-07-11  
-**Status:** Complete end-to-end journey mapped  
+**Date:** 2026-07-11
+**Status:** Complete end-to-end journey mapped
 **Scope:** Signup → Email verification → Plan selection → Activation → Content delivery → Reporting → Renewal → Support
 
 ---
@@ -76,7 +76,7 @@
       ├─ Auto-create Customer Auth JSONL record
       ├─ Auto-generate JWT token (60-min expiry, role=customer)
       └─ Return: {ok: true, access_token: "...JWT...", client_id: "..."}
-      
+
    **FAILURE MODES:**
    - Email already claimed → 409 + "email_claimed" (prevents cross-tenant leak)
    - Turnstile fail → 403
