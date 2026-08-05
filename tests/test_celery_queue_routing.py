@@ -114,9 +114,7 @@ def test_video_router_routes_when_flag_on(monkeypatch):
     from app import worker
 
     monkeypatch.setenv("CELERY_VIDEO_QUEUE", "1")
-    route = worker._route_video_task(
-        "app.tasks.video_jobs.build_creative_video_task", (), {}, {}
-    )
+    route = worker._route_video_task("app.tasks.video_jobs.build_creative_video_task", (), {}, {})
     assert route == {"queue": "video"}
 
 
@@ -124,9 +122,7 @@ def test_video_router_none_when_flag_off(monkeypatch):
     from app import worker
 
     monkeypatch.delenv("CELERY_VIDEO_QUEUE", raising=False)
-    route = worker._route_video_task(
-        "app.tasks.video_jobs.build_creative_video_task", (), {}, {}
-    )
+    route = worker._route_video_task("app.tasks.video_jobs.build_creative_video_task", (), {}, {})
     assert route is None
 
 
