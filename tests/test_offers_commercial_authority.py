@@ -98,19 +98,36 @@ def test_unknown_package_fails_closed():
     assert offers._price_for("") is None
 
 
-def test_topup_packs_are_not_priced_as_subscriptions():
-    """Top-ups are one-time charges from their own catalogue.
+def test_internal_only_package_cannot_become_a_customer_offer():
+    """`growth` is legacy/internal (public: False) but priced at Rs 2,999.
 
-    They must either resolve to their TOPUP_PACKS one-time price or refuse —
-    never silently borrow a monthly subscription amount.
+    A bare-code lookup returned that price, so it could become a customer-paid
+    offer. Driven by the catalogue's own `public` flag rather than a hardcoded
+    code, so a future internal package inherits the protection.
     """
-    for pack in getattr(packages, "TOPUP_PACKS", []):
-        code = str(pack.get("key"))
-        got = offers._price_for(code)
-        if got is not None:
-            assert got[0] == int(
-                pack["price_inr"]
-            ), f"{code} priced at {got[0]}, expected one-time {pack['price_inr']}"
+    internal = [p for p in packages.PACKAGES if not p.get("public", True)]
+    assert internal, "expected at least one non-public package in the catalogue"
+
+    for pkg in internal:
+        code = str(pkg["key"])
+        assert offers._price_for(code) is None, f"{code} is non-public but priced"
+        assert (
+            int(pkg.get("price_inr_month") or 0) > 0
+        ), f"{code} must actually carry a price, else this test proves nothing"
+
+
+def test_topup_packs_are_not_sellable_through_this_resolver():
+    """Top-up support is a separate commercial change, not a pricing fix.
+
+    Enabling a previously impossible order type inside an undercharge
+    correction would be an unrelated behaviour change. Top-ups return through
+    the descriptor with explicit one-time cadence and entitlement semantics.
+    """
+    packs = list(getattr(packages, "TOPUP_PACKS", []))
+    assert packs, "expected top-up packs in the catalogue"
+
+    for pack in packs:
+        assert offers._price_for(str(pack["key"])) is None
 
 
 # ----------------------------------------------- issued offers freeze the truth
