@@ -107,11 +107,11 @@ redis-cli LLEN dlq:dead
 
 ### P0 Changes (Credential Redaction)
 
-**Risk Level:** LOW  
-- Pure logging function, no business logic  
-- Redaction is fail-safe (returns original URL on error)  
-- No database or API changes  
-- Tests included  
+**Risk Level:** LOW
+- Pure logging function, no business logic
+- Redaction is fail-safe (returns original URL on error)
+- No database or API changes
+- Tests included
 
 **Rollback:** Remove line 142 update in `app/middleware/__init__.py` to restore original logging
 
@@ -119,11 +119,11 @@ redis-cli LLEN dlq:dead
 
 ### P1 Changes (Harvest Safety Wrapper)
 
-**Risk Level:** LOW-MEDIUM  
-- New code path for existing harvest jobs  
-- Wrapper is defensive (timeout + fail-safe exception handling)  
-- Returns error dict on failure (non-breaking)  
-- Scheduler already handles exceptions silently  
+**Risk Level:** LOW-MEDIUM
+- New code path for existing harvest jobs
+- Wrapper is defensive (timeout + fail-safe exception handling)
+- Returns error dict on failure (non-breaking)
+- Scheduler already handles exceptions silently
 
 **Rollback:** Revert `app/platform/team_scheduler.py` to use direct `lead_harvester.run_harvest()` calls (pre-line 791, 986, 1130)
 
@@ -131,11 +131,11 @@ redis-cli LLEN dlq:dead
 
 ### Feature Gate (HOT_QUEUE_BRIEF_DAILY)
 
-**Risk Level:** VERY LOW  
-- Code was already tested (ADR-074: 96/96 tests green)  
-- Feature flag isolates risk to single daily job  
-- Fail-closed health gate prevents damage  
-- Admin can disable at runtime  
+**Risk Level:** VERY LOW
+- Code was already tested (ADR-074: 96/96 tests green)
+- Feature flag isolates risk to single daily job
+- Fail-closed health gate prevents damage
+- Admin can disable at runtime
 
 **Rollback:** `HOT_QUEUE_BRIEF_DAILY=` (unset/0) in `.env` + app restart
 
