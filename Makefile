@@ -249,7 +249,7 @@ deploy-full:
 	@echo "Step 2: Running tests..."
 	pytest tests/test_production_ready.py -v
 	@echo "Step 3: Building Docker image..."
-	docker build -t leadgen-ai:latest -f Dockerfile.production .
+	docker build -t leadgen-ai:latest -f deploy/legacy/Dockerfile.production .
 	@echo "Step 4: Pushing to registry..."
 	docker tag leadgen-ai:latest asia-south1-docker.pkg.dev/$(GCP_PROJECT_ID)/leadgen-ai/leadgen-ai-voice-agent:latest
 	docker push asia-south1-docker.pkg.dev/$(GCP_PROJECT_ID)/leadgen-ai/leadgen-ai-voice-agent:latest

@@ -205,7 +205,7 @@ Minute top-ups: 100 / 250 / 500 min = ₹1,499 / ₹3,499 / ₹5,999.
 
 FREE pilot: 7 din / 50 calls (`voice_pilot`, ₹0). Niche→band mapping: `app/niches.py` `lead_band` A/B/C.
 
-> ⚠️ Purana per-qualified-lead / ₹10k-25k package system **REMOVED**. `Business_Playbook_Hinglish.md` me jo old pricing hai woh STALE — yeh table + `packages.py` use karo.
+> ⚠️ Purana per-qualified-lead / ₹10k-25k package system **REMOVED**. `docs/playbooks/Business_Playbook_Hinglish.md` me jo old pricing hai woh STALE — yeh table + `packages.py` use karo.
 
 ---
 

@@ -95,7 +95,7 @@ def test_vps_worker_does_not_drain_video():
 def test_prod_worker_consumes_every_routed_queue_plus_heavy_and_video():
     """docker-compose.prod.yml has no separate heavy or video worker, so its
     single `worker` service must drain both."""
-    cmd = _worker_command(REPO_ROOT / "docker-compose.prod.yml", "worker")
+    cmd = _worker_command(REPO_ROOT / "deploy" / "legacy" / "docker-compose.prod.yml", "worker")
     consumed = _dash_q_queues(cmd)
     missing = (_statically_routed_queues() | {"heavy", "video"}) - consumed
     assert not missing, f"docker-compose.prod.yml worker never drains: {missing}"
@@ -104,7 +104,7 @@ def test_prod_worker_consumes_every_routed_queue_plus_heavy_and_video():
 def test_base_compose_worker_consumes_every_routed_queue_plus_heavy_and_video():
     """docker-compose.yml has no separate heavy or video worker, so its
     single `worker` service must drain both."""
-    cmd = _worker_command(REPO_ROOT / "docker-compose.yml", "worker")
+    cmd = _worker_command(REPO_ROOT / "deploy" / "legacy" / "docker-compose.legacy.yml", "worker")
     consumed = _dash_q_queues(cmd)
     missing = (_statically_routed_queues() | {"heavy", "video"}) - consumed
     assert not missing, f"docker-compose.yml worker never drains: {missing}"

@@ -67,7 +67,7 @@
 | Action | File | Description |
 |--------|------|-------------|
 | Modified | `.gitignore` | Added ignore patterns for `scripts/_tmp_*`, `scripts/_canary_*`, `*_exit.txt`, `pytest_*.txt`, `*_result.txt`, `forensics_*.txt`, `*.bak`, `*.bak.*` — stops temp-artifact pollution of git status / agent context |
-| Created | `docs/AI_FIRSTIFY_REPORT_2026-07-18.md` | This report |
+| Created | `docs/archive/2026-07/AI_FIRSTIFY_REPORT_2026-07-18.md` | This report |
 
 *Only additive, non-colliding changes were applied. `.gitignore` is not part of the current parallel-agent WIP, so this edit does not risk clobbering in-progress work. No commit was made (per repo §8 — owner reviews/commits). No structural refactor, no file deletion, no touching of modified-in-WIP files.*
 

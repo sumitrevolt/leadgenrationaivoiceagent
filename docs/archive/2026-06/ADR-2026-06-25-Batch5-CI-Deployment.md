@@ -44,6 +44,6 @@ The queue idempotency audit currently reports 15/15 tasks without idempotency be
 
 ## References
 - Playbook Audit: `docs/PLAYBOOK_AUDIT_2026_06_25.md`
-- Batch 1 ADR: `docs/ADR-2026-06-25-Batch1-Security-Queue-Audit.md`
+- Batch 1 ADR: `docs/archive/2026-06/ADR-2026-06-25-Batch1-Security-Queue-Audit.md`
 - Batch 2 ADR: `docs/ADR-2026-06-25-Batch2-Testing-E2E.md`
-- Batch 3 ADR: `docs/ADR-2026-06-25-Batch3-Queue-Idempotency.md`
+- Batch 3 ADR: `docs/archive/2026-06/ADR-2026-06-25-Batch3-Queue-Idempotency.md`

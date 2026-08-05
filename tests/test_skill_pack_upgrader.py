@@ -74,7 +74,7 @@ def test_skill_pack_single_canonical_root_dedupes_by_name(tmp_path, monkeypatch)
 
 def test_dockerfiles_bake_skill_sources_for_runtime_agents():
     root = Path(__file__).resolve().parent.parent
-    for name in ("Dockerfile.lock", "Dockerfile", "Dockerfile.production"):
+    for name in ("Dockerfile.lock", "deploy/legacy/Dockerfile", "deploy/legacy/Dockerfile.production"):
         text = (root / name).read_text(encoding="utf-8")
         assert ".claude/skills/" in text, f"{name} must bake .claude skills"
         assert ".agents/skills/" not in text, f"{name} must NOT reference removed .agents skills"
