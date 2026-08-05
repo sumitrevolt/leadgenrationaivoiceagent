@@ -538,6 +538,22 @@ async def sync_if_enabled() -> dict[str, Any]:
     (event loop block na ho). Kabhi raise nahi."""
     if not enabled():
         return {"ok": False, "skipped": "MEMORY_VAULT off"}
+    # Governance gate (fail-CLOSED, active only while MEMORY_STACK_ENABLED is on):
+    # this background job grows durable per-prospect memory files, so an
+    # unreadable do-not-remember authority must pause it, not silently append.
+    try:
+        from app.platform.memory_governance import durable_writes_allowed
+
+        _g = durable_writes_allowed()
+        if not _g["ok"]:
+            return {"ok": False, "deferred": True, "code": _g["code"], "skipped": _g["reason"]}
+    except Exception:
+        return {
+            "ok": False,
+            "deferred": True,
+            "code": "MEMORY_WRITE_DEFERRED_GOVERNANCE_UNAVAILABLE",
+            "skipped": "governance module unavailable",
+        }
     try:
         import asyncio
 
