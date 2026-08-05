@@ -899,7 +899,9 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "platform.memory_governance.rules_fn",
         "file": "app/platform/memory_governance.py",
         "line_or_symbol": "_rules_path",
-        "path_pattern": "memory_suppression.jsonl",
+        "path_pattern": (
+            '(os.getenv("MEMORY_SUPPRESSION_PATH") or "").strip() or _RULES_PATH_DEFAULT'
+        ),
         "store_id": "platform.memory_governance",
         "access_modes": ["APPEND", "READ", "CREATE", "REWRITE"],
         "reason": (
@@ -930,26 +932,12 @@ ENTRIES: list[dict[str, Any]] = [
         "review_condition": "Same store as rules_fn; scanner fingerprints the call expression.",
     },
     {
-        "allowlist_id": "platform.memory_governance.rules_env",
-        "file": "app/platform/memory_governance.py",
-        "line_or_symbol": "_rules_path",
-        "path_pattern": (
-            "(os.getenv('MEMORY_SUPPRESSION_PATH') or '').strip() or _RULES_PATH_DEFAULT"
-        ),
-        "store_id": "platform.memory_governance",
-        "access_modes": ["APPEND", "READ", "CREATE"],
-        "reason": "Scanner fingerprint for env-override expression on rules path.",
-        "migration_tier": 2,
-        "target_change_set": "memory-stack-adr-161",
-        "owner": "platform",
-        "production_relevance": "LIVE",
-        "review_condition": "Override path must stay under ops control; no secrets in file.",
-    },
-    {
         "allowlist_id": "platform.memory_governance.audit_fn",
         "file": "app/platform/memory_governance.py",
         "line_or_symbol": "_audit_path",
-        "path_pattern": "memory_governance_audit.jsonl",
+        "path_pattern": (
+            '(os.getenv("MEMORY_GOVERNANCE_AUDIT_PATH") or "").strip() or _AUDIT_PATH_DEFAULT'
+        ),
         "store_id": "platform.memory_governance",
         "access_modes": ["APPEND", "READ", "CREATE"],
         "reason": (
@@ -961,22 +949,6 @@ ENTRIES: list[dict[str, Any]] = [
         "owner": "platform",
         "production_relevance": "LIVE",
         "review_condition": "Append-only; never store raw matched text — hash only.",
-    },
-    {
-        "allowlist_id": "platform.memory_governance.audit_env",
-        "file": "app/platform/memory_governance.py",
-        "line_or_symbol": "_audit_path",
-        "path_pattern": (
-            "(os.getenv('MEMORY_GOVERNANCE_AUDIT_PATH') or '').strip() or _AUDIT_PATH_DEFAULT"
-        ),
-        "store_id": "platform.memory_governance",
-        "access_modes": ["APPEND", "CREATE"],
-        "reason": "Scanner fingerprint for env-override expression on audit path.",
-        "migration_tier": 2,
-        "target_change_set": "memory-stack-adr-161",
-        "owner": "platform",
-        "production_relevance": "LIVE",
-        "review_condition": "Same store as audit_fn.",
     },
 ]
 
