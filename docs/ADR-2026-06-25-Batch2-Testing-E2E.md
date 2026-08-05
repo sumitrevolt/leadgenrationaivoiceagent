@@ -51,4 +51,4 @@ pytest tests/e2e/test_playbook_scenarios.py -v  # should pass
 
 ## References
 - Playbook Audit: `docs/PLAYBOOK_AUDIT_2026_06_25.md`
-- Batch 1 ADR: `docs/ADR-2026-06-25-Batch1-Security-Queue-Audit.md`
+- Batch 1 ADR: `docs/archive/2026-06/ADR-2026-06-25-Batch1-Security-Queue-Audit.md`

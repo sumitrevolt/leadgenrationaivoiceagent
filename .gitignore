@@ -187,6 +187,9 @@ auraleads_extracted/
 # OpenClaw local proof state (tokens, runtime) â€” never commit
 config/openclaw/.local/
 
+# Reorg scratch (AUDIT 2026-08-05): quarantined _tmp_* litter + legacy agent roots land here
+_scratch/
+
 # Local artifacts that must never ship
 source.tar.gz
 *.tar.gz
