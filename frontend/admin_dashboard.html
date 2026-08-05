@@ -267,6 +267,7 @@
       <a href="/app/automation#approvals" role="menuitem" aria-label="Approvals and workflows"><span class="ic" aria-hidden="true">✅</span> Approvals</a>
       <div class="sec nav-group" role="presentation">Customers</div>
       <a href="#sec-clients" role="menuitem" aria-label="All clients"><span class="ic" aria-hidden="true">★</span> Sabhi Clients <span class="badge" id="nav-clients" aria-label="client count">—</span></a>
+      <a href="#manualCallCard" onclick="scrollToSec('manualCallCard');return false;" role="menuitem" aria-label="Call a customer manually"><span class="ic" aria-hidden="true">📞</span> Customer ko Call</a>
       <a href="/app/clients" role="menuitem" aria-label="Client actions"><span class="ic" aria-hidden="true">📋</span> Client Actions</a>
       <a href="/app/impersonate" role="menuitem" aria-label="Login as customer (support)"><span class="ic" aria-hidden="true">🕵️</span> Login as Customer</a>
       <div class="sec nav-group" role="presentation">System</div>
@@ -361,11 +362,57 @@
             <a class="btn" href="/app/delivery-command-center" style="text-decoration:none;background:#0f766e;color:#fff">📦 Delivery</a>
             <a class="btn" href="/app/automation" style="text-decoration:none;background:#4f46e5;color:#fff">🎛 Automation</a>
             <a class="btn" href="/app/clients" style="text-decoration:none;background:#d97706;color:#fff">📋 Clients</a>
+            <a class="btn" href="#manualCallCard" onclick="scrollToSec('manualCallCard');return false;" style="text-decoration:none;background:#059669;color:#fff">📞 Customer Call</a>
             <a class="btn" href="/app/office" style="text-decoration:none;background:#334155;color:#fff">🏢 Office</a>
             <a class="btn" href="#openclawAdminCard" onclick="scrollToSec('openclawAdminCard');return false;" style="text-decoration:none;background:#4f46e5;color:#fff">🧠 OpenClaw</a>
             <a class="btn" href="#adminTasksCard" onclick="scrollToSec('adminTasksCard');return false;" style="text-decoration:none;background:#b45309;color:#fff">📋 Mere kaam</a>
           </div>
           <p style="margin:0;font-size:12px;color:#64748b;line-height:1.45">Roz ka kaam: upar ke 3 cards + yeh buttons. Neeche Technical/Ops chhupa hua hai — zarurat pe <b>Dikhao</b>.</p>
+        </div>
+      </div>
+
+      <!-- Owner-triggered single customer call. Reuses the canonical admin-authenticated
+           /api/telephony/vobiz/stream-call path so DND/DLT/window/AI-disclosure and
+           opt-out gates remain in one backend chokepoint. No second dialer path. -->
+      <div class="card" id="manualCallCard" style="margin-bottom:14px;border:1px solid #6ee7b7;background:linear-gradient(135deg,#ecfdf5 0%,#f8fafc 100%);scroll-margin-top:80px">
+        <div class="hd" style="border-bottom:1px solid rgba(5,150,105,.22)">
+          <h3 style="color:#065f46;font-size:16px;letter-spacing:-.3px">📞 Customer ko AI se call karayein</h3>
+          <span class="right" style="color:#047857;font-size:11px">Single call · admin only · compliance-gated</span>
+        </div>
+        <div class="bd" style="color:#0f172a">
+          <p style="margin:0 0 12px;font-size:12.5px;color:#475569;line-height:1.5">
+            Number daaliye, pitch select kijiye aur call lagaiye. AI pehle apni identity batayega; promotional call par DND, DLT aur calling-window checks backend me fail-closed rahenge.
+          </p>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px">
+            <label style="font-size:12px;font-weight:700;color:#334155">
+              Mobile number
+              <input id="manualCallPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="8459433410 ya +918459433410"
+                aria-label="Customer mobile number" style="display:block;width:100%;margin-top:5px;padding:10px 11px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#0f172a">
+            </label>
+            <label style="font-size:12px;font-weight:700;color:#334155">
+              Pitch / business
+              <select id="manualCallNiche" aria-label="Call pitch or niche" style="display:block;width:100%;margin-top:5px;padding:10px 11px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#0f172a">
+                <option value="ai_marketing" selected>LeadGen AI Marketing ₹1,999 pitch</option>
+                <option value="general">General business conversation</option>
+              </select>
+            </label>
+            <label style="font-size:12px;font-weight:700;color:#334155">
+              Customer ka relation
+              <select id="manualCallType" aria-label="Call consent type" style="display:block;width:100%;margin-top:5px;padding:10px 11px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#0f172a">
+                <option value="" selected disabled>Select zaroor karein</option>
+                <option value="transactional">Known inquiry/customer — consent hai</option>
+                <option value="promotional">Cold prospect — DND/DLT/window checks</option>
+              </select>
+            </label>
+          </div>
+          <label style="display:flex;align-items:flex-start;gap:8px;margin-top:12px;padding:10px;border:1px solid #a7f3d0;border-radius:8px;background:#fff;font-size:12px;color:#334155;line-height:1.45;cursor:pointer">
+            <input id="manualCallConfirm" type="checkbox" style="margin-top:2px">
+            <span>Main confirm karta hoon ki relation sahi select kiya hai. Transactional ke liye customer ki inquiry/consent hai; promotional ke liye system ke compliance checks ka result maana jayega.</span>
+          </label>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:12px">
+            <button class="btn" id="manualCallBtn" onclick="placeManualCustomerCall()" style="background:#059669;color:#fff;border:0;font-weight:800;padding:10px 18px">📞 Call abhi lagayein</button>
+            <span id="manualCallResult" role="status" aria-live="polite" style="font-size:12px;color:#64748b">Ready — number aur relation select karein.</span>
+          </div>
         </div>
       </div>
 
@@ -3867,6 +3914,128 @@ function idemHdr(){
     return {"Idempotency-Key": u};
   }catch(e){ return {"Idempotency-Key": "k-"+Date.now()+"-"+Math.random().toString(16).slice(2)}; }
 }
+
+/* ====== Owner manual customer call ======
+   UI-only control over the existing canonical stream-call route. Never retries
+   automatically: a retry is a second real phone call and can cost money / annoy
+   the recipient. Backend remains authoritative for compliance. */
+let manualCallInFlight = false;
+let manualCallCooldownUntil = Number(localStorage.getItem("manualCallCooldownUntil") || "0") || 0;
+let manualCallLastPhone = localStorage.getItem("manualCallLastPhone") || "";
+function normalizeManualCallPhone(raw){
+  const s = String(raw || "").trim();
+  const digits = s.replace(/\D/g, "");
+  if(digits.length === 10) return "+91" + digits;
+  if(digits.length === 12 && digits.indexOf("91") === 0) return "+" + digits;
+  if(s.indexOf("+") === 0 && digits.length >= 8 && digits.length <= 15) return "+" + digits;
+  return "";
+}
+function manualCallErrorText(data, status){
+  const wrapped = data && data.error && data.error.message;
+  const detail = (data && data.detail) || wrapped;
+  if(status === 401 || status === 403) return "Admin login expire hua — dobara login karein.";
+  if(detail && typeof detail === "object"){
+    const compliance = detail.compliance || {};
+    return detail.error || compliance.reason || "Compliance gate ne call block ki.";
+  }
+  return String(detail || (data && data.error && data.error.code) || "Call place nahi hui.");
+}
+function updateManualCallButton(){
+  const btn = document.getElementById("manualCallBtn");
+  if(!btn) return;
+  const phone = normalizeManualCallPhone((document.getElementById("manualCallPhone") || {}).value);
+  const cooling = phone && phone === manualCallLastPhone && Date.now() < manualCallCooldownUntil;
+  btn.disabled = manualCallInFlight || !!cooling;
+  btn.textContent = manualCallInFlight ? "⏳ Call laga rahe hain…" : (cooling ? "✓ Call queued — 60s wait" : "📞 Call abhi lagayein");
+  if(cooling) setTimeout(updateManualCallButton, Math.max(250, manualCallCooldownUntil - Date.now() + 50));
+}
+async function placeManualCustomerCall(){
+  const phoneEl = document.getElementById("manualCallPhone");
+  const typeEl = document.getElementById("manualCallType");
+  const nicheEl = document.getElementById("manualCallNiche");
+  const confirmEl = document.getElementById("manualCallConfirm");
+  const out = document.getElementById("manualCallResult");
+  const phone = normalizeManualCallPhone(phoneEl && phoneEl.value);
+  const callType = String((typeEl && typeEl.value) || "");
+  const niche = String((nicheEl && nicheEl.value) || "ai_marketing");
+  const hdr = abAuthHdr();
+  if(manualCallInFlight) return;
+  if(!hdr.Authorization){
+    if(out){ out.textContent = "❌ Pehle admin login karein."; out.style.color = "#b91c1c"; }
+    return;
+  }
+  if(!phone){
+    if(out){ out.textContent = "❌ Sahi mobile number daaliye (10 digits ya +91…)."; out.style.color = "#b91c1c"; }
+    if(phoneEl) phoneEl.focus();
+    return;
+  }
+  if(callType !== "transactional" && callType !== "promotional"){
+    if(out){ out.textContent = "❌ Customer ka relation select karna zaroori hai."; out.style.color = "#b91c1c"; }
+    if(typeEl) typeEl.focus();
+    return;
+  }
+  if(!confirmEl || !confirmEl.checked){
+    if(out){ out.textContent = "❌ Consent/compliance confirmation tick karein."; out.style.color = "#b91c1c"; }
+    return;
+  }
+  if(phone === manualCallLastPhone && Date.now() < manualCallCooldownUntil){
+    if(out){ out.textContent = "⚠️ Isi number par call abhi queued hai — 60 second wait karein."; out.style.color = "#b45309"; }
+    updateManualCallButton();
+    return;
+  }
+  const relation = callType === "transactional" ? "known/consented customer" : "cold promotional prospect";
+  if(!confirm("Real AI call " + phone + " par abhi lagegi (" + relation + "). Continue?")) return;
+
+  manualCallInFlight = true;
+  updateManualCallButton();
+  if(out){ out.textContent = "⏳ Compliance check aur Vobiz queue chal rahi hai…"; out.style.color = "#475569"; }
+  const ctrl = new AbortController();
+  const timer = setTimeout(function(){ ctrl.abort(); }, 20000);
+  try{
+    const response = await fetch("/api/telephony/vobiz/stream-call", {
+      method: "POST",
+      headers: Object.assign({"Content-Type":"application/json"}, hdr, idemHdr()),
+      body: JSON.stringify({to: phone, niche: niche, call_type: callType}),
+      signal: ctrl.signal
+    });
+    let data = {};
+    try{ data = await response.json(); }catch(e){}
+    if(!response.ok){
+      const msg = manualCallErrorText(data, response.status);
+      if(out){ out.textContent = "❌ " + msg; out.style.color = "#b91c1c"; }
+      adminToast(msg, "error");
+      return;
+    }
+    if(!data.placed){
+      const msg = manualCallErrorText(data, response.status);
+      if(out){ out.textContent = "❌ " + msg; out.style.color = "#b91c1c"; }
+      adminToast(msg, "error");
+      return;
+    }
+    const body = (data.vobiz_response && data.vobiz_response.body) || {};
+    const ref = body.request_uuid || data.stream_token || "";
+    manualCallLastPhone = phone;
+    manualCallCooldownUntil = Date.now() + 60000;
+    localStorage.setItem("manualCallLastPhone", manualCallLastPhone);
+    localStorage.setItem("manualCallCooldownUntil", String(manualCallCooldownUntil));
+    if(phoneEl) phoneEl.value = phone;
+    if(out){ out.textContent = "✅ Call queued" + (ref ? " · Ref " + ref : "") + ". Automatic retry nahi hoga."; out.style.color = "#047857"; }
+    adminToast("Call queued — " + phone, "success");
+  }catch(e){
+    const msg = e && e.name === "AbortError" ? "Request timeout — status check karke hi dobara try karein." : "Network error — call status unknown; turant retry mat karein.";
+    if(out){ out.textContent = "⚠️ " + msg; out.style.color = "#b45309"; }
+    adminToast(msg, "warning");
+  }finally{
+    clearTimeout(timer);
+    manualCallInFlight = false;
+    updateManualCallButton();
+  }
+}
+document.addEventListener("DOMContentLoaded", function(){
+  const phone = document.getElementById("manualCallPhone");
+  if(phone) phone.addEventListener("input", updateManualCallButton);
+  updateManualCallButton();
+});
 
 async function adminAuthBoot(){
   const t = localStorage.getItem("accessToken") || localStorage.getItem("adminToken") || "";
