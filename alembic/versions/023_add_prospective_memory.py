@@ -1,7 +1,7 @@
 """Add prospective_memory table — durable L6 agent memory (claim/lease/idempotency).
 
 Revision ID: 023_add_prospective_memory
-Revises: 022_add_request_depth_to_agent_tasks
+Revises: 022_add_request_depth
 
 Additive + idempotent (021 ka same pattern). Rollback drops the table if present.
 Table is INERT until MEMORY_STACK_ENABLED is armed — creating it changes no
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision = "023_add_prospective_memory"
-down_revision = "022_add_request_depth_to_agent_tasks"
+down_revision = "022_add_request_depth"
 branch_labels = None
 depends_on = None
 
