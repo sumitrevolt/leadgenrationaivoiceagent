@@ -144,3 +144,37 @@ def test_idempotent_resubmit_still_works_with_order_ref(env):
     assert first["ok"] is True
     assert second.get("duplicate") is True
     assert len(upi.list_payments("pending")) == 1
+
+
+def test_retry_after_offer_leaves_issued_still_returns_duplicate(env):
+    """Post-merge review of #241 — retry safety must survive approval/expiry.
+
+    Gating the order BEFORE the duplicate check meant that once the owner
+    approved (offer -> paid) or the quote expired, a legitimate resubmit of an
+    ALREADY-RECORDED payment started returning
+    "Order reference not payable (already_paid)". A payer who genuinely paid
+    would see a failure. Only genuinely NEW submissions need a payable order.
+    """
+    upi, offers = env
+    o = offers.issue_offer("deal1", "starter")
+    upi.submit_payment("cli1", "starter", "TXN9", amount=1999, order_ref=o["order_ref"])
+
+    offers.mark_status(o["order_ref"], offers.STATUS_PAID)  # owner approved
+    retry = upi.submit_payment("cli1", "starter", "TXN9", amount=1999, order_ref=o["order_ref"])
+
+    assert retry["ok"] is True
+    assert retry.get("duplicate") is True
+    assert len(upi.list_payments("pending")) == 1
+
+
+def test_new_submission_against_a_paid_offer_is_still_refused(env):
+    """The gate must still bite for a genuinely new payment — no replay hole."""
+    upi, offers = env
+    o = offers.issue_offer("deal1", "starter")
+    upi.submit_payment("cli1", "starter", "TXN9", amount=1999, order_ref=o["order_ref"])
+    offers.mark_status(o["order_ref"], offers.STATUS_PAID)
+
+    fresh = upi.submit_payment("cli1", "starter", "TXN_DIFFERENT", order_ref=o["order_ref"])
+
+    assert fresh["ok"] is False
+    assert "already_paid" in fresh["error"]
