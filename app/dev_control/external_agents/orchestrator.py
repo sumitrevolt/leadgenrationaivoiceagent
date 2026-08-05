@@ -77,7 +77,16 @@ def create_mission(
     priority: int = 50,
     token_budget: int | None = None,
     lock: Any = None,
+    initial_evidence: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    """Create a mission shell.
+
+    ``initial_evidence`` (optional) is attached on the in-memory mission
+    *before* the final canonical ``store.save`` in this function — callers
+    must not ``store.get`` + mutate + ``store.save`` after return (lost-update
+    risk vs later ``apply_cas`` writers). Each item is
+    ``{"kind": str, "ref": Any, "note": str?}``.
+    """
     _require_enabled()
 
     refusal = policy.refuse_red(title, description)
@@ -166,6 +175,13 @@ def create_mission(
     mission.add_evidence(
         "classification", classification | {"risk_class": classification["risk_class"].value}
     )
+    for item in initial_evidence or []:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "").strip()
+        if not kind:
+            continue
+        mission.add_evidence(kind, item.get("ref"), note=str(item.get("note") or ""))
     store.save(mission)
     store.record_event(
         mission.mission_id,

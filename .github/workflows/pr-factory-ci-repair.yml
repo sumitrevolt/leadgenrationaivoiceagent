@@ -1,23 +1,25 @@
 # =============================================================================
-# pr-factory-ci-repair.yml — DRAFT Wave 1 CI-repair worker (least privilege)
+# pr-factory-ci-repair.yml — Wave 1 READ-ONLY diagnosis (fail-closed)
 #
-# Pins anthropics/claude-code-action to commit SHA (v1.0.185), not a floating tag.
-# Triggers: workflow_dispatch + owner/collaborator issue_comment `/pr-factory-repair`
+# Wave 1 deliberately does NOT write code, push commits, or invoke a coding
+# agent with contents:write. Flags OFF must not allow a merged workflow to
+# mutate the tree. Code repair stays disabled until the Action is mechanically
+# bound to: EXTERNAL_AGENT_ORCHESTRATOR + PR_FACTORY_ENABLED + create_mission
+# allowed_paths + risk class + Owner OS approval_decision_id (Wave 3+).
 #
-# ALLOWED jobs only:
-#   - failed CI root-cause
-#   - missing regression tests
-#   - review-comment resolution
-#   - PR body / evidence fix
+# Triggers: workflow_dispatch ONLY (no issue_comment /pr-factory-repair).
+# Permissions: contents:read · actions:read · pull-requests:write (comment only).
 #
-# DENY-LIST (never grant these secrets / never instruct Claude to do these):
+# Pins:
+#   actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  (v4.2.2)
+#
+# DENY-LIST (never grant these secrets / never attempt these):
 #   - deploy / deploy_vps.sh / DEPLOY_ENABLED / prod SSH
 #   - secrets rotation / .env mutation
 #   - telephony / voice / Swara / DLT / Vobiz
 #   - billing / UPI / Stripe / invoice
-#   - production flag flips (PLATFORM_DIAL_*, WHATSAPP_*, EXTERNAL_AGENT_*, PR_FACTORY_*)
-#
-# This workflow does NOT replace Owner OS or EXTERNAL_AGENT_ORCHESTRATOR.
+#   - production flag flips
+#   - contents:write / push / PR branch mutation
 # =============================================================================
 name: pr-factory-ci-repair
 
@@ -25,7 +27,7 @@ on:
   workflow_dispatch:
     inputs:
       pr_number:
-        description: "PR number to repair"
+        description: "PR number to diagnose (read-only)"
         required: true
         type: string
       focus:
@@ -33,77 +35,61 @@ on:
         required: false
         type: string
         default: ""
-  issue_comment:
-    types: [created]
-  # Optional: pull_request_review_comment left disabled by default noise;
-  # enable later in Wave 3 when wired to factory budgets.
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
   actions: read
-  # Explicitly NO packages, id-token for deploy, or broader admin scopes.
+  pull-requests: write
+  # Explicitly NO contents:write, packages, id-token, or deploy scopes.
 
 concurrency:
-  group: pr-factory-ci-repair-${{ github.event.issue.number || github.event.inputs.pr_number || github.run_id }}
+  group: pr-factory-ci-repair-${{ github.event.inputs.pr_number || github.run_id }}
   cancel-in-progress: true
 
 jobs:
-  repair:
-    if: >-
-      github.event_name == 'workflow_dispatch'
-      || (
-        github.event_name == 'issue_comment'
-        && github.event.issue.pull_request
-        && contains(github.event.comment.body, '/pr-factory-repair')
-        && (
-          github.event.comment.author_association == 'OWNER'
-          || github.event.comment.author_association == 'MEMBER'
-          || github.event.comment.author_association == 'COLLABORATOR'
-        )
-      )
+  diagnose:
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout (read-only pin)
+        # actions/checkout v4.2.2 — full commit SHA (not floating @v4)
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
+          persist-credentials: false
 
-      - name: Resolve PR number
-        id: pr
+      - name: Read-only CI diagnosis comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
+          FOCUS: ${{ github.event.inputs.focus }}
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "number=${{ github.event.inputs.pr_number }}" >> "$GITHUB_OUTPUT"
-          else
-            echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          PR_NUMBER="$(echo "${PR_NUMBER}" | tr -cd '0-9')"
+          if [ -z "${PR_NUMBER}" ]; then
+            echo "pr_number required (digits only)"
+            exit 1
           fi
+          # Collect check runs — diagnosis only; never push, never edit files.
+          SUMMARY="$(gh pr checks "${PR_NUMBER}" --repo "${{ github.repository }}" 2>&1 || true)"
+          BODY="$(cat <<EOF
+          ## PR Factory Wave 1 — read-only CI diagnosis
 
-      - name: Claude CI repair (pinned SHA)
-        # Pin: anthropics/claude-code-action v1.0.185 → commit 9db594c7a0e82298c121c18b7f08aa1579ce7341
-        uses: anthropics/claude-code-action@9db594c7a0e82298c121c18b7f08aa1579ce7341
-        with:
-          # Prefer OIDC / repo secret ANTHROPIC_API_KEY — never bake keys into the workflow.
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            You are the LeadGen PR Factory CI-repair worker (Wave 1 draft).
+          **Mode:** diagnosis only (no code write, no push, no agent repair).
+          **Focus:** ${FOCUS:-"(none)"}
+          **Gates:** \`PR_FACTORY_ENABLED\` / \`EXTERNAL_AGENT_ORCHESTRATOR\` are **not** consulted here because this job cannot mutate the tree.
 
-            PR number: ${{ steps.pr.outputs.number }}
-            Focus: ${{ github.event.inputs.focus || github.event.comment.body || 'failing CI' }}
+          ### \`gh pr checks\`
+          \`\`\`
+          ${SUMMARY}
+          \`\`\`
 
-            ALLOWED only:
-            - Diagnose failed CI on this PR
-            - Add missing regression tests
-            - Resolve review comments that are purely code/test/docs
-            - Fix PR body / evidence sections
-
-            REFUSED (stop and comment why):
-            - deploy, SSH to VPS, DEPLOY_ENABLED, secrets/.env
-            - telephony, voice_agent, billing, UPI, Stripe
-            - production flag flips
-            - weakening TRAI/DPDP/compliance gates
-            - touching protected paths listed in app/dev_control/external_agents/policy.py
-
-            Keep changes minimal. Run targeted pytest for what you change.
-            Do not claim production deploy. Do not enable PR_FACTORY_ENABLED in prod.
+          Code repair stays **disabled** until Wave 3+ binds this workflow to a canonical external-agent mission (allowed_paths, risk class, Owner OS \`approval_decision_id\`).
+          EOF
+          )"
+          # Strip leading indentation from heredoc for readable comments
+          BODY="$(printf '%s\n' "${BODY}" | sed 's/^          //')"
+          gh pr comment "${PR_NUMBER}" --repo "${{ github.repository }}" --body "${BODY}"
+          echo "Posted read-only diagnosis comment on PR #${PR_NUMBER}"
