@@ -99,21 +99,21 @@ if ($LASTEXITCODE -ne 0) {
         --maintenance-window-day=SUN `
         --maintenance-window-hour=03 `
         --project=$ProjectId
-    
+
     Write-Host "✓ Cloud SQL instance created" -ForegroundColor Green
-    
+
     # Create database
     gcloud sql databases create leadgen_ai --instance=$DbInstanceName --project=$ProjectId
-    
+
     # Generate password
     $DbPassword = -join ((48..57) + (65..90) + (97..122) | Get-Random -Count 32 | ForEach-Object {[char]$_})
-    
+
     # Create user
     gcloud sql users create leadgen_user --instance=$DbInstanceName --password=$DbPassword --project=$ProjectId
-    
+
     # Store in Secret Manager
     $DbPassword | gcloud secrets create db-password --data-file=- --replication-policy="automatic" --project=$ProjectId
-    
+
     Write-Host "✓ Database and user created" -ForegroundColor Green
 } else {
     Write-Host "✓ Cloud SQL instance already exists" -ForegroundColor Green
@@ -137,7 +137,7 @@ if ($LASTEXITCODE -ne 0) {
         --network=leadgen-vpc `
         --connect-mode=PRIVATE_SERVICE_ACCESS `
         --project=$ProjectId
-    
+
     Write-Host "✓ Redis instance created" -ForegroundColor Green
 } else {
     Write-Host "✓ Redis instance already exists" -ForegroundColor Green
@@ -153,7 +153,7 @@ Write-Host "Step 5: Setting up Secret Manager..." -ForegroundColor Yellow
 
 function New-Secret {
     param([string]$SecretName, [string]$SecretValue)
-    
+
     $exists = gcloud secrets describe $SecretName --project=$ProjectId 2>&1
     if ($LASTEXITCODE -ne 0) {
         $SecretValue | gcloud secrets create $SecretName --data-file=- --replication-policy="automatic" --project=$ProjectId
