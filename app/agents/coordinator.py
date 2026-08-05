@@ -227,11 +227,78 @@ def _extract_list(text: str) -> list:
         return []
 
 
+# --- ADR-159 MetaGPT steal-#1: structured plan canary (INERT unless COORD_PLAN_NODE) ---
+# coordinator._extract_list() scrapes freeform JSON and silently drops to a hardcoded
+# chain on junk. plan_node.structured_plan runs the ActionNode fill -> review -> revise
+# cycle over a typed schema; on success it wins, on any failure we fall through to the
+# legacy parse + hardcoded chain unchanged. The injected llm_fn=_llm honours the
+# COORDINATOR_LLM_CAP_PER_MIN rate-cap and the free_ai circuit breaker.
+
+
+def _plan_node_enabled() -> bool:
+    return os.environ.get("COORD_PLAN_NODE", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def _plan_node_reviews() -> int:
+    try:
+        return max(0, int(os.environ.get("COORD_PLAN_NODE_REVIEWS", "1") or "1"))
+    except Exception:
+        return 1
+
+
+def _memory_canary_on() -> bool:
+    """Dedicated canary flag for the memory-stack context path (default OFF).
+
+    OFF = byte-identical legacy behaviour (`hint[:600]`). Subordinate to the
+    memory stack's own master flag — canary alone can never turn it on.
+    """
+    if (os.environ.get("MEMORY_STACK_COORDINATOR_CANARY", "").strip().lower()) not in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    ):
+        return False
+    try:
+        from app.platform import memory_stack
+
+        return memory_stack.is_enabled()
+    except Exception:
+        return False
+
+
+async def _plan_context(goal: str, hint: str) -> str:
+    """Canary: token-budgeted memory block; ANY problem => legacy hint slice.
+
+    Never raises and never blocks planning — a memory miss degrades to exactly
+    what the legacy path would have produced.
+    """
+    legacy = f"\nPichhle learnings (inhe dhyan me rakho): {hint[:600]}" if hint else ""
+    if not _memory_canary_on():
+        return legacy
+    try:
+        from app.platform import memory_stack
+
+        block = await memory_stack.assemble_block(
+            os.environ.get("MEMORY_STACK_PLATFORM_TENANT", "platform"),
+            "coordinator",
+            goal,
+            token_budget=int(os.environ.get("MEMORY_STACK_COORDINATOR_TOKENS", "300") or 300),
+        )
+        if not (block or "").strip():
+            return legacy  # empty recall = legacy, not a silently emptier prompt
+        return f"\nYaaddasht (memory stack):\n{block}" + legacy
+    except Exception as e:  # pragma: no cover - defensive
+        logger.debug("coordinator memory-stack canary fell back to legacy: %s", e)
+        return legacy
+
+
 async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
     """Goal -> ordered [{agent, task}] across allowlisted STAFF. Keyword fallback.
 
     `hint` = optional prior-learnings/reflection context (episodic memory) jo behtar
-    plan ke liye condition karta (Reflexion).
+    plan ke liye condition karta (Reflexion). Canary flag ON ho to yeh hint ke
+    saath memory-stack ka budgeted block bhi jodta hai (fallback = legacy).
     """
     roster_desc = "; ".join(f"{k}={v.get('title')}" for k, v in _roster().items())
     sys = (
@@ -241,8 +308,7 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
         f"Allowed keys: {', '.join(_agent_keys())}. Roster: {roster_desc}. Aur kuch mat likho."
     )
     user = f"Goal: {goal}"
-    if hint:
-        user += f"\nPichhle learnings (inhe dhyan me rakho): {hint[:600]}"
+    user += await _plan_context(goal, hint)
     # Inject obsidian second brain context (past decisions/patterns)
     try:
         from app.platform import obsidian_sync as _obs
@@ -270,6 +336,32 @@ async def plan(goal: str, max_steps: int = 5, hint: str = "") -> list[dict]:
                     user += f"\nPichhle successful patterns (KB skills):\n{_skill_ctx}"
         except Exception:
             pass
+    # ADR-159 canary: structured fill/review/revise BEFORE the legacy call so the
+    # failure path (and only it) costs the extra LLM call. INERT unless COORD_PLAN_NODE.
+    if _plan_node_enabled():
+        try:
+            from app.agents.harness import plan_node as _pn
+
+            _res = await _pn.structured_plan(
+                goal=goal,
+                system=sys,
+                user=user,
+                allowed_agents=_agent_keys(),
+                llm_fn=_llm,
+                max_review_rounds=_plan_node_reviews(),
+                max_steps=max_steps,
+            )
+            if _res and _res.get("steps"):
+                logger.info(
+                    "manager plan_node adopted (%s, reviews=%s) for goal %.60r",
+                    _res.get("source"),
+                    _res.get("reviews"),
+                    goal,
+                )
+                return _res["steps"]
+            logger.info("manager plan_node produced no plan — legacy fallback")
+        except Exception as e:  # defensive — canary never breaks plan()
+            logger.debug("manager plan_node canary err: %s", e)
     raw, _ = await _llm(sys, user, max_tokens=300, temperature=0.2)
     steps = [
         {"agent": s["agent"], "task": str(s["task"])[:240]}
