@@ -895,6 +895,66 @@ ENTRIES: list[dict[str, Any]] = [
             "around read-modify-write; the write itself must NOT re-enter locked_rewrite."
         ),
     },
+    {
+        "allowlist_id": "platform.memory_governance.rules_fn",
+        "file": "app/platform/memory_governance.py",
+        "line_or_symbol": "_rules_path",
+        "path_pattern": (
+            '(os.getenv("MEMORY_SUPPRESSION_PATH") or "").strip() or _RULES_PATH_DEFAULT'
+        ),
+        "store_id": "platform.memory_governance",
+        "access_modes": ["APPEND", "READ", "CREATE", "REWRITE"],
+        "reason": (
+            "Do-not-remember rules JSONL (ADR-161). Path may be overridden via "
+            "MEMORY_SUPPRESSION_PATH; default data/memory_suppression.jsonl."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "memory-stack-adr-161",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Fail-open on damaged file for suppression matching (must not wipe all "
+            "memory); durable write gate stays fail-closed when authority unreadable."
+        ),
+    },
+    {
+        "allowlist_id": "platform.memory_governance.rules_path_var",
+        "file": "app/platform/memory_governance.py",
+        "line_or_symbol": "path",
+        "path_pattern": (
+            '(os.getenv("MEMORY_SUPPRESSION_PATH") or "").strip() or _RULES_PATH_DEFAULT'
+        ),
+        "store_id": "platform.memory_governance",
+        "access_modes": ["APPEND", "READ", "CREATE", "REWRITE"],
+        "reason": (
+            "Local `path = _rules_path()` call sites — resolver walks to the "
+            "env-or-default expression, so path_pattern must match that form."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "memory-stack-adr-161",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": "Same store as rules_fn.",
+    },
+    {
+        "allowlist_id": "platform.memory_governance.audit_fn",
+        "file": "app/platform/memory_governance.py",
+        "line_or_symbol": "_audit_path",
+        "path_pattern": (
+            '(os.getenv("MEMORY_GOVERNANCE_AUDIT_PATH") or "").strip() or _AUDIT_PATH_DEFAULT'
+        ),
+        "store_id": "platform.memory_governance",
+        "access_modes": ["APPEND", "READ", "CREATE"],
+        "reason": (
+            "Governance audit JSONL (hashed matches only). Default "
+            "data/memory_governance_audit.jsonl; override MEMORY_GOVERNANCE_AUDIT_PATH."
+        ),
+        "migration_tier": 2,
+        "target_change_set": "memory-stack-adr-161",
+        "owner": "platform",
+        "production_relevance": "LIVE",
+        "review_condition": "Append-only; never store raw matched text — hash only.",
+    },
 ]
 
 __all__ = ["VERSION", "ENTRIES"]

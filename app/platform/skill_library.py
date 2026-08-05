@@ -147,7 +147,26 @@ def pick_action(actions: list[str], epsilon: float = 0.3, rng: random.Random | N
 
 
 def record_lesson(topic: str, lesson: str, source: str = "auto", agent: str = "") -> dict[str, Any]:
-    """Ek learned lesson save karo (reflection/manual). Kabhi raise nahi."""
+    """Ek learned lesson save karo (reflection/manual). Kabhi raise nahi.
+
+    PROCEDURAL memory is durable agent-authored text, so it sits behind the same
+    governance gate as the other lanes (inert while the memory stack is off).
+    """
+    # Governance gate (fail-CLOSED, active only while MEMORY_STACK_ENABLED is on):
+    # an unreadable do-not-remember authority must not let durable memory grow.
+    try:
+        from app.platform.memory_governance import durable_writes_allowed
+
+        _g = durable_writes_allowed()
+        if not _g["ok"]:
+            return {"ok": False, "deferred": True, "code": _g["code"], "error": _g["reason"]}
+    except Exception:
+        return {
+            "ok": False,
+            "deferred": True,
+            "code": "MEMORY_WRITE_DEFERRED_GOVERNANCE_UNAVAILABLE",
+            "error": "governance module unavailable",
+        }
     try:
         t = (topic or "general").strip().lower()[:60]
         body = (lesson or "").strip()

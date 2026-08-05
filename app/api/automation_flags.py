@@ -165,6 +165,23 @@ AUTOMATION_FLAGS = [
     "WORKFORCE_MEMORY_MAX_TOTAL",  # total brief char budget (default 1200)
     "WORKFORCE_MEMORY_RECALL_TIMEOUT_MS",  # soft recall wall-clock (default 50)
     "WORKFORCE_MEMORY_L0_L1_DAYS",  # L0/L1 retention days; 0=forever (default 90)
+    "MEMORY_STACK_ENABLED",  # MASTER gate for the 7-layer agent-memory facade — OFF default; every layer flag is subordinate to it
+    "MEMORY_STACK_LAYER_WORKING",  # per-layer override (default ON when master ON)
+    "MEMORY_STACK_LAYER_PROSPECTIVE",  # per-layer override; OFF = no durable dispatch
+    "MEMORY_STACK_LAYER_EPISODIC",  # per-layer override (needs AGENT_MEMORY to have data)
+    "MEMORY_STACK_LAYER_SEMANTIC",  # per-layer override (needs WORKFORCE_MEMORY)
+    "MEMORY_STACK_LAYER_PROCEDURAL",  # per-layer override (skill_library)
+    "MEMORY_STACK_LAYER_SHARED",  # per-layer override (needs WORKFORCE_MEMORY)
+    "MEMORY_STACK_CONTEXT_TOKENS",  # model context window used for budgeting (default 8000)
+    "MEMORY_STACK_RESERVE_TOKENS",  # completion/system headroom held back (default 1200)
+    "MEMORY_STACK_TOKEN_BUDGET",  # tokens the memory block may occupy (default 600)
+    "MEMORY_STACK_DEADLINE_MS",  # wall-clock for the whole assembly; lanes past it are dropped (default 250)
+    "MEMORY_STACK_TIERS",  # optional hot,warm,cold subset (default all three)
+    "MEMORY_STACK_WORKING_TURNS",  # working-memory FIFO depth per session (default 12)
+    "MEMORY_STACK_WORKING_TTL_S",  # working-memory idle TTL before eviction (default 1800)
+    "MEMORY_STACK_COORDINATOR_CANARY",  # coordinator.plan() context cutover — OFF default, legacy hint path preserved
+    "MEMORY_STACK_COORDINATOR_TOKENS",  # canary token budget for coordinator context (default 300)
+    "MEMORY_STACK_PLATFORM_TENANT",  # tenant id used for platform-internal (non-customer) agent runs
     "LLM_BUDGET_GUARD",  # per-scope LLM daily cost/usage cap + kill-switch — OFF default, fail-open
     "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
     "EXTERNAL_AGENT_ORCHESTRATOR",  # Cursor/Claude mission orchestrator (records only; no shell/deploy/send) — OFF default
@@ -173,6 +190,8 @@ AUTOMATION_FLAGS = [
     "COORD_HUB_BUZZ_SECRET",  # Buzz webhook HMAC secret (≥32) — unset = webhook fail-closed
     "COORD_HUB_TOOL_CURSOR_SECRET",  # Cursor tool heartbeat HMAC — unset = fail-closed
     "COORD_HUB_TOOL_CLAUDE_SECRET",  # Claude tool heartbeat HMAC — unset = fail-closed
+    "COORD_PLAN_NODE",  # ADR-159 MetaGPT steal-#1: ActionNode-style structured plan fill/review/revise canary for coordinator.plan() — OFF default, legacy _extract_list authoritative
+    "COORD_PLAN_NODE_REVIEWS",  # bounded self-correction rounds when the fill fails schema validation (default 1; 0 = no review, straight legacy fallback)
     "DEV_ORCHESTRATOR",  # Claude-managed engineering task ledger; draft-safe and OFF by default
     "DEV_WORKER_ENABLED",  # arms the draft-only dev-task Celery runner (needs DEV_ORCHESTRATOR too) — OFF default
     "AUTO_APPLY_PATCH",  # dev-control hard gate: patch application is REFUSED regardless; OFF default

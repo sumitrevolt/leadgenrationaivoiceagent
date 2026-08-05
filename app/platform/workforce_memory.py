@@ -299,10 +299,31 @@ def remember(
     parent_id: str | None = None,
     source_refs: list[str] | None = None,
 ) -> dict[str, Any]:
-    """Append a layered memory entry for a STAFF agent. Never raises."""
+    """Append a layered memory entry for a STAFF agent. Never raises.
+
+    GOVERNANCE (fail-CLOSED, only while MEMORY_STACK_ENABLED is on): an
+    untrustworthy do-not-remember authority refuses the durable write and
+    returns a typed deferral carrying a reason, never the content. With the
+    memory-stack master flag OFF this is a no-op (legacy behaviour intact).
+    """
     if not is_enabled():
         _STATS["disabled"] = _STATS.get("disabled", 0) + 1
         return {"ok": False, "error": "disabled"}
+    try:
+        from app.platform.memory_governance import durable_writes_allowed
+
+        _g = durable_writes_allowed()
+        if not _g["ok"]:
+            _STATS["deferred"] = _STATS.get("deferred", 0) + 1
+            return {"ok": False, "deferred": True, "error": _g["reason"], "code": _g["code"]}
+    except Exception as _e:  # cannot prove the write is allowed => do not write
+        logger.debug("[workforce_memory] governance gate unavailable: %s", _e)
+        return {
+            "ok": False,
+            "deferred": True,
+            "error": "governance module unavailable",
+            "code": "MEMORY_WRITE_DEFERRED_GOVERNANCE_UNAVAILABLE",
+        }
     try:
         aid = _safe_agent(agent_id)
         body = (content or "").strip()
