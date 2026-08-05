@@ -313,6 +313,19 @@ def test_select_pinterest_skipped_when_board_missing():
     assert any(s["reason"] == "POSTIZ_PINTEREST_BOARD_unset" for s in out["skipped"])
 
 
+def test_select_skips_platforms_from_env(monkeypatch):
+    """X credits-depleted etc. — operator can skip without rewriting integrations CSV."""
+    from app.marketing import postiz_publish as pp
+
+    monkeypatch.setenv("POSTIZ_SKIP_PLATFORMS", "x,youtube")
+    out = pp.select_publish_channels(
+        ["fb1", "x1", "yt1", "ig1"], _PLAT_MAP, has_media=True, board=""
+    )
+    assert out["ok"] is True
+    assert out["channels"] == ["fb1", "ig1"]
+    assert {s["reason"] for s in out["skipped"]} == {"POSTIZ_SKIP_PLATFORMS"}
+
+
 def test_select_whitespace_board_treated_as_missing():
     from app.marketing import postiz_publish as pp
 
