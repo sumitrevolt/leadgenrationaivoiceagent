@@ -159,32 +159,70 @@ def _is_expired(row: dict[str, Any], now: datetime | None = None) -> bool:
 
 
 def _price_for(package_code: str) -> tuple[int, str] | None:
-    """Resolve price from the canonical catalogue. None = unknown/unsupported.
+    """LEGACY offer price resolver — NOT the commercial authority.
 
-    Fails CLOSED: an unknown or unpriced package yields no offer at all, rather
-    than silently falling back to Starter and underpricing a Combo/Voice deal.
+    It takes a bare package code, which cannot by itself express product family,
+    billing cadence, customer visibility or sellability. That is a stated
+    limitation, not a claim about what it solves: it stays narrow on purpose
+    until ``CommercialPackageDescriptor`` replaces it, and must not be cited as
+    evidence that package/policy validation is complete.
+
+    What it does resolve correctly:
+
+    * **cadence**, from canonical voice-plan identity. Annual reads the band's
+      ``price_year``, monthly reads ``price_month``. Both previously went through
+      ``voice_packages.voice_plan_price()``, whose own docstring says it returns
+      the MONTHLY equivalent even for annual plans — so an annual order froze
+      Rs 4,999 against a Rs 49,990 commitment (~90% undercharge) and annual was
+      indistinguishable from monthly. Verified against the deployed image at
+      9f2ab9f8 before the fix.
+    * **customer visibility**, from the catalogue's own ``public`` flag. `growth`
+      is legacy/internal (``public: False``) yet priced at Rs 2,999, so a bare
+      code lookup could turn it into a customer-paid offer. Non-public packages
+      are refused — driven by catalogue metadata, not a hardcoded code list.
+    * **zero amounts** (pilot/trial) are refused: a Rs 0 UPI order is not a sale
+      and belongs on its own activation path.
+
+    Top-up packs remain deliberately unresolvable here. Enabling a previously
+    impossible order type is a commercial behaviour change, not a pricing
+    correction, and it needs an explicit one-time descriptor carrying its own
+    entitlement semantics.
     """
     code = (package_code or "").strip().lower()
     if not code:
         return None
+
+    # Marketing / combo monthly subscriptions.
     try:
         from app.marketing import packages as pkgs
 
         for p in list(getattr(pkgs, "PACKAGES", []) or []):
             if str(p.get("key") or "").strip().lower() == code:
+                if not bool(p.get("public", True)):
+                    logger.warning("[offers] refusing non-public package %r", code)
+                    return None
                 price = int(p.get("price_inr_month") or 0)
                 return (price, "INR") if price > 0 else None
     except Exception as e:
         logger.warning("[offers] package lookup failed: %s", e)
         return None
 
-    # Voice plans live in their own catalogue with band-derived pricing, reached
-    # through the canonical accessors rather than a module-level list.
+    # Standalone voice plans — cadence decides which field is payable.
     try:
         from app.marketing import voice_packages as vpkgs
 
         if vpkgs.is_voice_plan(code):
-            price = int(vpkgs.voice_plan_price(code) or 0)
+            key, band = vpkgs.voice_plan_parts(code)
+            info = vpkgs.BANDS.get(band) if band else None
+            if not key or not info:
+                return None
+            if key == info.get("plan_annual"):
+                price = int(info.get("price_year") or 0)
+            elif key == info.get("plan_monthly"):
+                price = int(info.get("price_month") or 0)
+            else:
+                # pilot / unrecognised cadence -> not a paid order
+                return None
             return (price, "INR") if price > 0 else None
     except Exception as e:
         logger.warning("[offers] voice package lookup failed: %s", e)
