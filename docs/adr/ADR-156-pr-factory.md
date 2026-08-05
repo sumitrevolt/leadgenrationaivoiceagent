@@ -20,12 +20,17 @@ leases, path ownership, review separation, and evidence.
    existing orchestrator. **Do not** vendor `openai/symphony`.
 3. **Dual-gate inert default:** `PR_FACTORY_ENABLED=0` and requires
    `EXTERNAL_AGENT_ORCHESTRATOR=1` when armed. Production enablement is out of Wave 1.
-4. **GitHub CI repair** — draft workflow pins
-   `anthropics/claude-code-action@9db594c7a0e82298c121c18b7f08aa1579ce7341`
-   (v1.0.185). Least privilege; no deploy/billing/telephony secrets.
-5. **Gate A** — non-required sketch workflow only; do not weaken existing required checks.
-6. **Merge** — keep `auto-merge` label train; native Merge Queue later (org migration).
-7. **Honest throughput:** Wave 1 ships the spine; target thereafter = 10–20 verified
+4. **GitHub CI repair (Wave 1)** — **read-only diagnosis** only:
+   `workflow_dispatch`, `contents: read`, `pull-requests: write` (comment),
+   no `issue_comment` trigger, no coding-agent write/push. Checkout pinned to
+   `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2).
+   Code repair deferred until mission + Owner OS mechanically bound (Wave 3+).
+5. **Factory evidence** — Task extras attach via `create_mission(initial_evidence=…)`
+   before the canonical create save. PR Factory must not `store.get`/`store.save`
+   after create (lost-update vs `apply_cas`).
+6. **Gate A** — non-required sketch workflow only; do not weaken existing required checks.
+7. **Merge** — keep `auto-merge` label train; native Merge Queue later (org migration).
+8. **Honest throughput:** Wave 1 ships the spine; target thereafter = 10–20 verified
    PRs per wave, not hour-scale 100-PR claims.
 
 ## Alternatives rejected

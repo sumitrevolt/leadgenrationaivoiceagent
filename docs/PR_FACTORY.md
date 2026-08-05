@@ -10,7 +10,7 @@
 | Spec compiler | `github/spec-kit` **pinned `v0.15.2`** — `.specify/PIN.md` + `scripts/setup_spec_kit.ps1` |
 | Execution | Symphony **spec only** → `tools/pr_factory/` (do **not** vendor `openai/symphony`) |
 | Coding workers | Existing Claude/Cursor runners under `app/dev_control/external_agents/runner/` |
-| GitHub CI repair | `.github/workflows/pr-factory-ci-repair.yml` — `anthropics/claude-code-action@9db594c7a0e82298c121c18b7f08aa1579ce7341` (v1.0.185) |
+| GitHub CI repair | `.github/workflows/pr-factory-ci-repair.yml` — Wave 1 **read-only diagnosis** (`workflow_dispatch` only; `contents: read`; no coding-agent write). Code repair deferred until mission-bound Wave 3+ |
 | Safety authority | Owner OS + `EXTERNAL_AGENT_ORCHESTRATOR` / `EXTERNAL_AGENT_RUNNER` — **not replaced** |
 | Merge | Existing `.github/workflows/auto-merge.yml` label train |
 | Deploy | Unchanged: Owner-gated `deploy_vps.sh` / `DEPLOY_ENABLED` |
@@ -57,7 +57,7 @@ Never invent a second mission store — always call `app.dev_control.external_ag
 ## CI
 
 - **Gate A** (non-required): `.github/workflows/pr-factory-gate-a.yml` — ruff/format on changed paths, secrets scan, path-policy stub, optional targeted pytest from task manifest.
-- **CI repair** (draft): `.github/workflows/pr-factory-ci-repair.yml` — `workflow_dispatch` + owner `/pr-factory-repair` comment only. No deploy secrets / prod SSH / billing envs.
+- **CI repair** (Wave 1): `.github/workflows/pr-factory-ci-repair.yml` — `workflow_dispatch` only, read-only diagnosis comment. No `issue_comment` trigger, no `contents: write`, no coding-agent push. Checkout pinned to `actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683` (v4.2.2).
 - Gate B/C + `merge_group` = Wave 2+ (not built here).
 - Native GitHub Merge Queue = after org migration (Wave 4).
 

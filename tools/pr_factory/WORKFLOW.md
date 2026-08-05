@@ -16,7 +16,7 @@ GitHub Issues → Spec Kit constitution → Task YAML → tools/pr_factory
 
 ## Hard rules
 
-- No second mission ledger.
+- No second mission ledger; no post-create `store.get`/`store.save` (use `initial_evidence`).
 - Executor ≠ reviewer.
 - Caps in `budgets.py`.
-- CI-repair Action has no deploy/billing/telephony secrets.
+- CI-repair Wave 1 = read-only diagnosis (`contents: read`, `workflow_dispatch` only).
