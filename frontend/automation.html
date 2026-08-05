@@ -929,7 +929,7 @@ a{color:var(--acc)}
   </div>
   <div class="card">
     <h2>🚦 Scraping/automation flags</h2>
-    <div class="mut">Multi-source ke liye <a href="#" onclick="show('harvest');return false">🌾 Harvester tab</a>. Flag change = VPS .env + restart (UI se flip nahi — safety).</div>
+    <div class="mut">Multi-source ke liye <a href="#" onclick="show('harvest');return false">🌾 Harvester tab</a>. Flag change = VPS .env + restart (UI se flip nahi — safety). Owner Safe Pack (Flow/Process/Trends/draft-content) alag highlight — UI se flip nahi.</div>
     <button class="btn2" onclick="srFlags()">🔄 Flags load</button>
     <div id="srFlagsOut"></div>
   </div>
@@ -2938,6 +2938,8 @@ async function srProspect(){
 }
 // Safety-critical flags — alag highlight (governance/ban-risk). automation-flags skill.
 var SR_SAFETY=['LLM_BUDGET_HARD_KILL','LLM_BUDGET_GUARD','PUBLIC_GUARDRAILS','WHATSAPP_AUTO_SEND','VOICE_CLOSE_WHATSAPP','PLATFORM_DIAL_DAILY','OMNIROUTE_ENABLED','OMNIROUTE_AGENTS','REPLY_AUTO_SEND_HARD_OFF','SOCIAL_DRY_RUN','AGENT_MEMORY','SEMANTIC_CACHE'];
+// Owner-locked Revenue Automation Max SAFE pack (2026-08-05) — sync scripts/safe_pack_flags.py
+var SR_SAFE_PACK=['FLOW_RUNNER','FLOW_AUTO_TRIGGERS','PROCESS_ENGINE','PROCESS_AUTOSTART','REVENUE_TRENDS','CONTENT_APPROVAL_AUTO'];
 async function srFlags(){
   try{
     var d=await api('/api/growth/infra/flags');
@@ -2946,18 +2948,34 @@ async function srFlags(){
     // ALL flags (live registry — naya flag auto-dikhega). Sort: ON -> set-off -> unset.
     var rank=function(f){return f.on?0:(f.set?1:2)};
     keys.sort(function(a,b){return (rank(fl[a])-rank(fl[b]))||a.localeCompare(b)});
+    var packOn=0, packKnown=0;
+    SR_SAFE_PACK.forEach(function(k){
+      if(fl[k]){ packKnown++; if(fl[k].on) packOn++; }
+    });
     var h='<div class="result"><span class="pill">ON: <b>'+esc(d.on_count!=null?d.on_count:'?')+'</b> / '+keys.length+' flags</span>';
-    h+='<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px">';
+    h+='<div style="margin-top:10px;padding:8px;border:1px solid #2a4a3a;border-radius:6px;background:#0d1a14">';
+    h+='<div style="font-weight:600;margin-bottom:6px">Safe Pack (owner-locked) — '+packOn+'/'+SR_SAFE_PACK.length+' ON'+(packKnown<SR_SAFE_PACK.length?' · some missing from registry view':'')+'</div>';
+    h+='<div style="display:flex;flex-wrap:wrap;gap:4px">';
+    SR_SAFE_PACK.forEach(function(k){
+      var f=fl[k]||{};
+      var lbl=f.on?'✅':(f.set?'❌':(fl[k]===undefined?'?':'—'));
+      var st=f.on?'background:#123524;color:var(--ok);border:1px solid #3d8f6a':'border:1px solid #3a4a40;opacity:.85';
+      h+='<span class="pill" style="'+st+'" title="draft-safe canary only; CONTENT_APPROVAL_AUTO=queue submit not publish">📦 '+esc(k)+' '+lbl+'</span>';
+    });
+    h+='</div><div class="mut" style="margin-top:6px">Flip = VPS <code>scripts/safe_pack_flag_canary.sh</code> (APPLY=1) + APP_VERSION recreate — not this UI.</div></div>';
+    h+='<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:4px">';
     keys.forEach(function(k){
       var f=fl[k]||{};
       var lbl=f.on?'✅':(f.set?'❌':'—');
       var safe=SR_SAFETY.indexOf(k)>=0;
+      var pack=SR_SAFE_PACK.indexOf(k)>=0;
       var st=f.on?'background:#123524;color:var(--ok)':(f.set?'':'opacity:.5');
       if(safe)st+=';border:1px solid var(--acc)';
-      var tip=(f.set?('value: '+esc(f.value)):'unset')+(safe?' · safety/governance flag':'');
-      h+='<span class="pill" style="'+st+'" title="'+tip+'">'+(safe?'🔒 ':'')+esc(k)+' '+lbl+'</span>';
+      if(pack)st+=';border:1px solid #3d8f6a';
+      var tip=(f.set?('value: '+esc(f.value)):'unset')+(safe?' · safety/governance flag':'')+(pack?' · safe pack':'');
+      h+='<span class="pill" style="'+st+'" title="'+tip+'">'+(safe?'🔒 ':pack?'📦 ':'')+esc(k)+' '+lbl+'</span>';
     });
-    h+='</div><div class="mut" style="margin-top:8px">Saare '+keys.length+' automation flags live (🔒 = safety/governance). Change = .env + restart (UI se flip nahi — safety). Detail: Ops page / automation-flags skill.</div></div>';
+    h+='</div><div class="mut" style="margin-top:8px">Saare '+keys.length+' automation flags live (🔒 = safety · 📦 = Safe Pack). Change = .env + restart (UI se flip nahi — safety). Detail: Ops page / automation-flags skill.</div></div>';
     $('srFlagsOut').innerHTML=h;
   }catch(e){warnBox('srFlagsOut','Flags fail: '+e.message)}
 }
