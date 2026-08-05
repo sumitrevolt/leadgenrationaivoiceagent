@@ -103,3 +103,64 @@ def test_no_provider_verified_claim_anywhere_in_the_response(client):
     r = client.post("/api/billing/webhooks/stripe", json=FORGED_PAID_EVENT)
 
     assert "provider_verified" not in r.text.lower()
+
+
+def test_handler_source_contains_no_activation_capability():
+    """Structural guard: the capability is GONE, not merely guarded.
+
+    The behavioural tests above prove the endpoint refuses today. This proves it
+    *cannot* be made to activate by deleting one line, which is what the previous
+    shape allowed — 200 lines of activation sat below an unconditional `raise`.
+
+    AST-based, so it inspects the real function body rather than grepping a file
+    (docstring prose describing the removed hazard must not trip it).
+    """
+    import ast
+    import inspect
+
+    from app.api import billing as billing_mod
+
+    src = inspect.getsource(billing_mod)
+    tree = ast.parse(src)
+
+    handler = None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AsyncFunctionDef) and "stripe_webhook" in node.name:
+            handler = node
+            break
+    assert handler is not None, "retired stripe webhook handler not found"
+
+    called = {
+        n.func.id if isinstance(n.func, ast.Name) else getattr(n.func, "attr", "")
+        for n in ast.walk(handler)
+        if isinstance(n, ast.Call)
+    }
+
+    forbidden = {
+        "_activate_subscription_row",
+        "_provision_usage",
+        "_find_subscription_by_gateway_id",
+        "_emit_billing_customer_webhook",
+        "commit",
+    }
+    leaked = called & forbidden
+    assert not leaked, f"retired handler regained activation capability: {sorted(leaked)}"
+
+    # And it must still refuse unconditionally.
+    raises = [n for n in ast.walk(handler) if isinstance(n, ast.Raise)]
+    assert raises, "retired handler no longer refuses"
+
+
+def test_manual_upi_routes_are_unaffected():
+    """Removing the Stripe body must not disturb the canonical payment rail.
+
+    Asserts against the UPI router itself rather than `app.routes` — the router
+    is mounted under `/api` by main, so its paths are not flattened into the
+    top-level route list.
+    """
+    from app.api.upi_payments import router as upi_router
+
+    paths = {getattr(r, "path", "") for r in upi_router.routes}
+
+    assert "/upi/submit" in paths
+    assert "/upi/pending" in paths
