@@ -51,7 +51,7 @@ EXPECTED_BLOCKERS = 0
 # owner, migration_tier and review_condition under the existing
 # billing.upi_payments family; no baseline debt was tolerated and
 # EXPECTED_BASELINE_FINGERPRINTS below is deliberately unchanged.
-EXPECTED_ALLOWLIST_ENTRIES = 45
+EXPECTED_ALLOWLIST_ENTRIES = 47
 EXPECTED_BASELINE_FINGERPRINTS = 839
 
 

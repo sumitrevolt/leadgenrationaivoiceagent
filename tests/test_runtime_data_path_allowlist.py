@@ -123,7 +123,11 @@ def test_store_family_count_is_derived_not_typed() -> None:
     # billing.upi_payments family — commercial quoting feeding payment
     # reconciliation is the same authority, exactly as billing.upi_config.store
     # already does. CLASSIFIED, not tolerated: baseline debt unchanged.
-    assert len(entries) == 45
+    # 2026-08-05 +2 entries / +0 families: data/campaign_offer_policies.jsonl and
+    # its atomic temp (#240 Campaign Offer Policy — immutable versioned commercial
+    # authority). Also filed under billing.upi_payments: it decides WHICH package an
+    # offer may quote, so it is the same billing authority, not a new domain.
+    assert len(entries) == 47
     assert len(families) == 14, sorted(families)
     # Every entry must name a family that the manifest actually knows.
     known = {s["store_id"] for s in manifest.STORES}

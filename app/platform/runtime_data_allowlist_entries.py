@@ -802,6 +802,52 @@ ENTRIES: list[dict[str, Any]] = [
         "review_condition": "Temp must colocate with presence.json on one filesystem.",
     },
     {
+        "allowlist_id": "billing.campaign_offer_policy.store",
+        "file": "app/marketing/campaign_offer_policy.py",
+        "line_or_symbol": "path",
+        "path_pattern": "data/campaign_offer_policies.jsonl",
+        # Same authority as the offers/payments family: this decides WHICH package
+        # an offer may quote, so it is commercial policy feeding the same billing
+        # truth, not a separate domain.
+        "store_id": "billing.upi_payments",
+        "access_modes": ["CREATE", "READ"],
+        "reason": (
+            "Immutable versioned Campaign Offer Policy (#240) — binds a live outbound "
+            "campaign/variant to the packages it may quote. Append-only: editing writes a "
+            "NEW version so a message already in flight is never re-priced. `path = _store()` "
+            "inside _write_all; CREATE is the os.makedirs before the atomic replace."
+        ),
+        "migration_tier": 0,
+        "target_change_set": "runtime-data-cutover-wave-0",
+        "owner": "billing",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Policy versions are immutable — a revision must APPEND, never rewrite a prior "
+            "version. Prices are never stored here; packages.py stays the single source. Any "
+            "change allowing package inference (niche/LLM/intent) needs owner sign-off."
+        ),
+    },
+    {
+        "allowlist_id": "billing.campaign_offer_policy.store_tmp",
+        "file": "app/marketing/campaign_offer_policy.py",
+        "line_or_symbol": "tmp",
+        "path_pattern": 'f"{path}.tmp.{os.getpid()}"',
+        "store_id": "billing.upi_payments",
+        "access_modes": ["CREATE", "REWRITE", "REPLACE", "DELETE"],
+        "reason": (
+            "Atomic temp for the policy-store rewrite (tmp + fsync + os.replace). DELETE is "
+            "the cleanup path when the write fails partway."
+        ),
+        "migration_tier": 0,
+        "target_change_set": "runtime-data-cutover-wave-0",
+        "owner": "billing",
+        "production_relevance": "LIVE",
+        "review_condition": (
+            "Temp must colocate with the policy store on one filesystem. Mutating callers hold "
+            "file_lock around read-modify-write; the write must NOT re-enter locked_rewrite."
+        ),
+    },
+    {
         "allowlist_id": "billing.offers.store",
         "file": "app/marketing/offers.py",
         "line_or_symbol": "path",
