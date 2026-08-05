@@ -159,14 +159,44 @@ def _is_expired(row: dict[str, Any], now: datetime | None = None) -> bool:
 
 
 def _price_for(package_code: str) -> tuple[int, str] | None:
-    """Resolve price from the canonical catalogue. None = unknown/unsupported.
+    """EXACT payable amount for ``package_code``. None = refuse, fail closed.
 
-    Fails CLOSED: an unknown or unpriced package yields no offer at all, rather
-    than silently falling back to Starter and underpricing a Combo/Voice deal.
+    Deliberately not "find a price anywhere". A bare code cannot say which
+    family it belongs to, whether the amount is monthly / annual / one-time, or
+    whether it may be sold at all — and getting that wrong is an under-charge,
+    not a cosmetic bug.
+
+    Confirmed against the production image (9f2ab9f8) before this fix:
+
+        voice_a_annual -> (4999, 'INR')      # BAND A price_year is 49990
+
+    ``voice_packages.voice_plan_price()`` documents itself as returning the
+    MONTHLY equivalent even for annual plans, so every annual voice order froze
+    a ~90% undercharge and was indistinguishable from the monthly plan. Annual
+    now resolves from the band's ``price_year``.
+
+    Also closed here: top-ups are one-time charges from ``TOPUP_PACKS`` (they
+    were unreachable, so a top-up order could not be created at all), and zero
+    amounts — pilot/trial — are refused, because a Rs 0 UPI order is not a sale
+    and belongs on its own activation path.
     """
     code = (package_code or "").strip().lower()
     if not code:
         return None
+
+    # One-time top-up packs, from their own catalogue.
+    try:
+        from app.marketing import packages as pkgs
+
+        for tp in list(getattr(pkgs, "TOPUP_PACKS", []) or []):
+            if str(tp.get("key") or "").strip().lower() == code:
+                price = int(tp.get("price_inr") or 0)
+                return (price, "INR") if price > 0 else None
+    except Exception as e:
+        logger.warning("[offers] topup lookup failed: %s", e)
+        return None
+
+    # Marketing / combo monthly subscriptions.
     try:
         from app.marketing import packages as pkgs
 
@@ -178,13 +208,22 @@ def _price_for(package_code: str) -> tuple[int, str] | None:
         logger.warning("[offers] package lookup failed: %s", e)
         return None
 
-    # Voice plans live in their own catalogue with band-derived pricing, reached
-    # through the canonical accessors rather than a module-level list.
+    # Standalone voice plans — cadence decides which field is payable.
     try:
         from app.marketing import voice_packages as vpkgs
 
         if vpkgs.is_voice_plan(code):
-            price = int(vpkgs.voice_plan_price(code) or 0)
+            key, band = vpkgs.voice_plan_parts(code)
+            info = vpkgs.BANDS.get(band) if band else None
+            if not key or not info:
+                return None
+            if key == info.get("plan_annual"):
+                price = int(info.get("price_year") or 0)
+            elif key == info.get("plan_monthly"):
+                price = int(info.get("price_month") or 0)
+            else:
+                # pilot / unrecognised cadence -> not a paid order
+                return None
             return (price, "INR") if price > 0 else None
     except Exception as e:
         logger.warning("[offers] voice package lookup failed: %s", e)
