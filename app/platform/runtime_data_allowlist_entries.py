@@ -921,15 +921,20 @@ ENTRIES: list[dict[str, Any]] = [
         "allowlist_id": "platform.memory_governance.rules_path_var",
         "file": "app/platform/memory_governance.py",
         "line_or_symbol": "path",
-        "path_pattern": "_rules_path()",
+        "path_pattern": (
+            '(os.getenv("MEMORY_SUPPRESSION_PATH") or "").strip() or _RULES_PATH_DEFAULT'
+        ),
         "store_id": "platform.memory_governance",
         "access_modes": ["APPEND", "READ", "CREATE", "REWRITE"],
-        "reason": "Local `path = _rules_path()` call sites in governance load/save.",
+        "reason": (
+            "Local `path = _rules_path()` call sites — resolver walks to the "
+            "env-or-default expression, so path_pattern must match that form."
+        ),
         "migration_tier": 2,
         "target_change_set": "memory-stack-adr-161",
         "owner": "platform",
         "production_relevance": "LIVE",
-        "review_condition": "Same store as rules_fn; scanner fingerprints the call expression.",
+        "review_condition": "Same store as rules_fn.",
     },
     {
         "allowlist_id": "platform.memory_governance.audit_fn",
