@@ -169,6 +169,7 @@ AUTOMATION_FLAGS = [
     "LLM_BUDGET_HARD_KILL",  # emergency manual stop: ALL LLM block (fail-closed) — OFF default
     "EXTERNAL_AGENT_ORCHESTRATOR",  # Cursor/Claude mission orchestrator (records only; no shell/deploy/send) — OFF default
     "EXTERNAL_AGENT_RUNNER",  # unattended Cursor/Claude CLI invocation (needs ORCHESTRATOR too); local/Windows canary — OFF default
+    "PR_FACTORY_ENABLED",  # ADR-156 PR Factory thin dispatcher (needs ORCHESTRATOR too); local canary — OFF default
     "COORDINATION_HUB_ENABLED",  # Owner OS thin projection (tools/missions/events/git); NOT second control plane — OFF default
     "COORD_HUB_BUZZ_SECRET",  # Buzz webhook HMAC secret (≥32) — unset = webhook fail-closed
     "COORD_HUB_TOOL_CURSOR_SECRET",  # Cursor tool heartbeat HMAC — unset = fail-closed

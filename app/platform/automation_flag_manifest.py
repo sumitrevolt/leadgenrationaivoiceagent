@@ -255,6 +255,18 @@ _OVERRIDES: dict[str, FlagMeta] = {
         default="0",
         canary="local/Windows",
     ),
+    "PR_FACTORY_ENABLED": _m(
+        "PR_FACTORY_ENABLED",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.CANARY_ONLY,
+        notes="ADR-156 thin dispatcher onto external_agents; dual-gate with ORCHESTRATOR; prod OFF",
+        risk="dev_control",
+        companions=("EXTERNAL_AGENT_ORCHESTRATOR",),
+        default="0",
+        canary="local/Windows",
+        kill="PR_FACTORY_ENABLED=0",
+        evidence="CODE-PRESENT",
+    ),
     "COORDINATION_HUB_ENABLED": _m(
         "COORDINATION_HUB_ENABLED",
         FlagValueKind.BOOLEAN,

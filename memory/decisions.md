@@ -2401,3 +2401,11 @@ Evidence chain, all at the frozen head: pristine archive checkout â†’ **82 passe
 **Alternatives rejected:** (1) Full vendor/second runtime island. (2) Replace Celery STAFF with swarm workers. (3) Parallel authority beside Owner OS.
 
 **Consequence:** Docs ADR `docs/adr/ADR-155-desplega-agent-swarm-no-vendor.md`. Eval clone outside tree `Documents/_agent_swarm_eval_2026-08-04`. No compose/flag flip. Next enterprise work = scorecard gaps + GTM, not Bun OS.
+
+## ADR-156 (2026-08-05) ? PR Factory Wave 1: Spec Kit pin + native dispatcher [CODE-PRESENT]
+
+**Decision:** Spec Kit pinned `v0.15.2` + LeadGen constitution under `.specify/`. Symphony **spec only** ? implement `tools/pr_factory/` that bridges TaskYAML to existing `external_agents.create_mission` (no second ledger, no `openai/symphony` vendor). Dual-gate `PR_FACTORY_ENABLED` (default OFF) requires `EXTERNAL_AGENT_ORCHESTRATOR=1`. Draft CI-repair Action pinned to `anthropics/claude-code-action@9db594c7a0e82298c121c18b7f08aa1579ce7341` (v1.0.185); Gate A non-required. Merge stays auto-merge label train; deploy stays Owner-gated.
+
+**Rejected:** Vibe Kanban / Parallel Code as primary · floating Spec Kit latest · auto-deploy from factory · 100-PR/hour claims.
+
+**Consequence:** Docs `docs/PR_FACTORY.md` + `docs/adr/ADR-156-pr-factory.md`. Prod flags stay OFF in Wave 1. Honest target after enablement = 10-20 verified PRs/wave.

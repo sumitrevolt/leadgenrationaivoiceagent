@@ -1,13 +1,14 @@
-﻿# ACTIVE_WORK - max 3 workstreams (coord-hub worktree)
+﻿# ACTIVE_WORK - max 3 workstreams
 
 ---
 
-## WS-CH1 Coordination Hub adapter - LOCAL / DRAFT PR
-- **ID:** WS-CH1
-- **Business outcome:** Tools/missions/git/events ek Owner OS projection pe — no second control plane
-- **Current state:** Worktree `leadgen-wt-coord-hub-2026-08-04` · branch `cursor/coord-hub-owner-os-adapter-2026-08-04` · ADR-150
-- **Next exact action:** Exact-head tests green → Draft PR → WAIT for merge/deploy authorize
-- **Out of scope:** prod flag flip · deploy · second mission registry · shared admin token for tools
+## WS-PRF1 PR Factory Wave 1 - IN PROGRESS
+- **ID:** WS-PRF1
+- **Business outcome:** Spec Kit constitution + thin `tools/pr_factory` dispatcher onto existing Owner OS `external_agents` (no second control plane); draft CI-repair Action + non-required Gate A
+- **Current state:** Branch `cursor/pr-factory-wave1-2026-08-05`; Wave 1 CODE-PRESENT; pytest pr_factory green; `prod_check` PASS; flags default OFF
+- **Next exact action:** Owner asks → commit/push/PR; do **not** enable `PR_FACTORY_ENABLED` / `EXTERNAL_AGENT_*` in prod
+- **Out of scope:** vendoring openai/symphony · 100-PR claims · Merge Queue · auto-deploy · prod flag flips
+- **Parked:** WS-CH1 Coordination Hub adapter (draft/worktree) — resume after Wave 1 lands or capacity frees
 
 ---
 

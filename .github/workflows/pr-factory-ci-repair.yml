@@ -1,0 +1,109 @@
+# =============================================================================
+# pr-factory-ci-repair.yml — DRAFT Wave 1 CI-repair worker (least privilege)
+#
+# Pins anthropics/claude-code-action to commit SHA (v1.0.185), not a floating tag.
+# Triggers: workflow_dispatch + owner/collaborator issue_comment `/pr-factory-repair`
+#
+# ALLOWED jobs only:
+#   - failed CI root-cause
+#   - missing regression tests
+#   - review-comment resolution
+#   - PR body / evidence fix
+#
+# DENY-LIST (never grant these secrets / never instruct Claude to do these):
+#   - deploy / deploy_vps.sh / DEPLOY_ENABLED / prod SSH
+#   - secrets rotation / .env mutation
+#   - telephony / voice / Swara / DLT / Vobiz
+#   - billing / UPI / Stripe / invoice
+#   - production flag flips (PLATFORM_DIAL_*, WHATSAPP_*, EXTERNAL_AGENT_*, PR_FACTORY_*)
+#
+# This workflow does NOT replace Owner OS or EXTERNAL_AGENT_ORCHESTRATOR.
+# =============================================================================
+name: pr-factory-ci-repair
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "PR number to repair"
+        required: true
+        type: string
+      focus:
+        description: "Optional focus (check name or failing summary)"
+        required: false
+        type: string
+        default: ""
+  issue_comment:
+    types: [created]
+  # Optional: pull_request_review_comment left disabled by default noise;
+  # enable later in Wave 3 when wired to factory budgets.
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  # Explicitly NO packages, id-token for deploy, or broader admin scopes.
+
+concurrency:
+  group: pr-factory-ci-repair-${{ github.event.issue.number || github.event.inputs.pr_number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (
+        github.event_name == 'issue_comment'
+        && github.event.issue.pull_request
+        && contains(github.event.comment.body, '/pr-factory-repair')
+        && (
+          github.event.comment.author_association == 'OWNER'
+          || github.event.comment.author_association == 'MEMBER'
+          || github.event.comment.author_association == 'COLLABORATOR'
+        )
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve PR number
+        id: pr
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "number=${{ github.event.inputs.pr_number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "number=${{ github.event.issue.number }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Claude CI repair (pinned SHA)
+        # Pin: anthropics/claude-code-action v1.0.185 → commit 9db594c7a0e82298c121c18b7f08aa1579ce7341
+        uses: anthropics/claude-code-action@9db594c7a0e82298c121c18b7f08aa1579ce7341
+        with:
+          # Prefer OIDC / repo secret ANTHROPIC_API_KEY — never bake keys into the workflow.
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the LeadGen PR Factory CI-repair worker (Wave 1 draft).
+
+            PR number: ${{ steps.pr.outputs.number }}
+            Focus: ${{ github.event.inputs.focus || github.event.comment.body || 'failing CI' }}
+
+            ALLOWED only:
+            - Diagnose failed CI on this PR
+            - Add missing regression tests
+            - Resolve review comments that are purely code/test/docs
+            - Fix PR body / evidence sections
+
+            REFUSED (stop and comment why):
+            - deploy, SSH to VPS, DEPLOY_ENABLED, secrets/.env
+            - telephony, voice_agent, billing, UPI, Stripe
+            - production flag flips
+            - weakening TRAI/DPDP/compliance gates
+            - touching protected paths listed in app/dev_control/external_agents/policy.py
+
+            Keep changes minimal. Run targeted pytest for what you change.
+            Do not claim production deploy. Do not enable PR_FACTORY_ENABLED in prod.
