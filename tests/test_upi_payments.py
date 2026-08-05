@@ -154,7 +154,7 @@ def test_decide_approve_triggers_onboarding(up, monkeypatch):
     """Admin approve → plan activates → onboarding is front-run (no <=1h wait)."""
     monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0, **kw: True)
     fired: list[int] = []
-    monkeypatch.setattr(up, "_trigger_onboarding", lambda: fired.append(1))
+    monkeypatch.setattr(up, "_trigger_onboarding", lambda *_a, **_k: fired.append(1))
 
     sub = up.submit_payment("cli_ob", "advanced", "TXNOB")
     up.decide(sub["id"], True)
@@ -165,7 +165,7 @@ def test_decide_reject_no_onboarding(up, monkeypatch):
     """Reject must NOT trigger onboarding."""
     monkeypatch.setattr(up, "_try_activate", lambda cid, plan, amount=0, **kw: True)
     fired: list[int] = []
-    monkeypatch.setattr(up, "_trigger_onboarding", lambda: fired.append(1))
+    monkeypatch.setattr(up, "_trigger_onboarding", lambda *_a, **_k: fired.append(1))
 
     sub = up.submit_payment("cli_rej", "starter", "TXNREJ")
     up.decide(sub["id"], False)
@@ -181,7 +181,7 @@ def test_auto_activate_triggers_onboarding(up, monkeypatch):
     monkeypatch.setattr(usage, "activate_plan", lambda cid, plan, **kw: True)
     monkeypatch.setattr(usage, "reset_usage_period", lambda cid, **kw: True)
     fired: list[int] = []
-    monkeypatch.setattr(up, "_trigger_onboarding", lambda: fired.append(1))
+    monkeypatch.setattr(up, "_trigger_onboarding", lambda *_a, **_k: fired.append(1))
 
     out = up.submit_payment("cli_auto_ob", "growth", "TXNAUTOOB", amount=2999)
     assert out["status"] == "auto_activated"
