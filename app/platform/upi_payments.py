@@ -375,23 +375,7 @@ def submit_payment(
         if not ref_s:
             return {"ok": False, "error": "UPI reference / transaction id zaroori hai"}
 
-        order: dict | None = None
         order_ref_s = (order_ref or "").strip()
-        if order_ref_s:
-            try:
-                from app.marketing import offers
-
-                order, reason = offers.resolve_payable(order_ref_s)
-            except Exception as exc:  # store unavailable => cannot verify => refuse
-                logger.warning("upi_payments offer lookup failed: %s", exc)
-                order, reason = None, "unavailable"
-            if not order:
-                return {"ok": False, "error": f"Order reference not payable ({reason})"}
-            # The offer owns the commercial truth; a client-supplied plan that
-            # disagrees with the issued order is a mismatch, not an override.
-            if str(order.get("package_code") or "").lower() != plan_s.lower():
-                return {"ok": False, "error": "Order reference does not match the submitted plan"}
-
         cid = (client_id or "").strip()
         rows = _read_store()
 
@@ -425,6 +409,30 @@ def submit_payment(
             # Signal to caller that this is a replay so FE can show a friendlier
             # "aapki payment already dekh liye" state instead of duplicate success.
             return {"ok": True, "duplicate": True, **existing}
+
+        # Order gate runs AFTER the duplicate check, deliberately (post-merge review
+        # of #241). Gating first meant a legitimate retry of an ALREADY-RECORDED
+        # payment — double-click, offline resubmit, network retry — started failing
+        # the moment its offer left `issued`: once the owner approves and the offer
+        # flips to `paid`, or once it expires, resolve_payable refuses and the payer
+        # who really did pay saw "Order reference not payable (already_paid)" instead
+        # of the reassuring duplicate acknowledgement. Only genuinely NEW submissions
+        # need a payable order.
+        order: dict | None = None
+        if order_ref_s:
+            try:
+                from app.marketing import offers
+
+                order, reason = offers.resolve_payable(order_ref_s)
+            except Exception as exc:  # store unavailable => cannot verify => refuse
+                logger.warning("upi_payments offer lookup failed: %s", exc)
+                order, reason = None, "unavailable"
+            if not order:
+                return {"ok": False, "error": f"Order reference not payable ({reason})"}
+            # The offer owns the commercial truth; a client-supplied plan that
+            # disagrees with the issued order is a mismatch, not an override.
+            if str(order.get("package_code") or "").lower() != plan_s.lower():
+                return {"ok": False, "error": "Order reference does not match the submitted plan"}
 
         record = {
             "id": _make_id(rows, ref_s),
