@@ -236,7 +236,7 @@ $ImageUrl = "$Region-docker.pkg.dev/$ProjectId/$ArtifactRepo/$ServiceName"
 gcloud auth configure-docker "$Region-docker.pkg.dev" --quiet
 
 # Build image
-docker build -t "${ImageUrl}:latest" -f Dockerfile.production .
+docker build -t "${ImageUrl}:latest" -f deploy/legacy/Dockerfile.production .
 
 # Push image
 docker push "${ImageUrl}:latest"

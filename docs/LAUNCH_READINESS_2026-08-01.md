@@ -96,7 +96,7 @@ No form was submitted; no payment/OAuth/communication triggered.
 
 ## 5. Lane results
 
-> **Research recovery (Cursor 2026-08-01 ~19:15 IST):** Claude's parallel workflow aggregator returned empty, but all 9 agent results were in `wf_11388add-232/journal.jsonl`. Durable packet: `docs/context/CLAUDE_WEB_RESEARCH_2026-08-01.md` (+ `.json`).
+> **Research recovery (Cursor 2026-08-01 ~19:15 IST):** Claude's parallel workflow aggregator returned empty, but all 9 agent results were in `wf_11388add-232/journal.jsonl`. Durable packet: `docs/archive/2026-08/CLAUDE_WEB_RESEARCH_2026-08-01.md` (+ `.json`).
 
 | Lane | Verdict | Notes |
 |---|---|---|

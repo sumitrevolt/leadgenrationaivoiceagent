@@ -271,13 +271,13 @@ def check_tests(report: ValidationReport, strict: bool):
 
 def check_docker(report: ValidationReport):
     """Check Docker configuration."""
-    dockerfile = Path("Dockerfile.production")
+    dockerfile = Path("deploy/legacy/Dockerfile.production")
     
     if not dockerfile.exists():
         report.add(CheckResult(
             "Dockerfile",
             CheckStatus.FAIL,
-            "Dockerfile.production not found",
+            "deploy/legacy/Dockerfile.production not found",
         ))
         return
     
@@ -310,7 +310,7 @@ def check_docker(report: ValidationReport):
         report.add(CheckResult(
             "Dockerfile",
             CheckStatus.PASS,
-            "Dockerfile.production looks good",
+            "deploy/legacy/Dockerfile.production looks good",
         ))
 
 

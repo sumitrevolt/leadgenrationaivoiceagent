@@ -80,8 +80,8 @@ pytest tests/load/ -v
 
 ## References
 - Original Audit: `docs/PLAYBOOK_AUDIT_2026_06_25.md`
-- Batch 1 ADR: `docs/ADR-2026-06-25-Batch1-Security-Queue-Audit.md`
+- Batch 1 ADR: `docs/archive/2026-06/ADR-2026-06-25-Batch1-Security-Queue-Audit.md`
 - Batch 2 ADR: `docs/ADR-2026-06-25-Batch2-Testing-E2E.md`
-- Batch 3 ADR: `docs/ADR-2026-06-25-Batch3-Queue-Idempotency.md`
-- Batch 5 ADR: `docs/ADR-2026-06-25-Batch5-CI-Deployment.md`
-- This ADR: `docs/ADR-2026-06-26-Final-Batch-Flow-Runner-Reaudit.md`
+- Batch 3 ADR: `docs/archive/2026-06/ADR-2026-06-25-Batch3-Queue-Idempotency.md`
+- Batch 5 ADR: `docs/archive/2026-06/ADR-2026-06-25-Batch5-CI-Deployment.md`
+- This ADR: `docs/archive/2026-06/ADR-2026-06-26-Final-Batch-Flow-Runner-Reaudit.md`

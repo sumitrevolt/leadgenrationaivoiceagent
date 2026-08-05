@@ -121,9 +121,9 @@ All zero-tolerance gates are closed. All critical features are hardened. Staging
 
 ## References
 - Playbook Audit: `docs/PLAYBOOK_AUDIT_2026_06_25.md`
-- B-Grade ADR: `docs/ADR-2026-06-26-Final-Reaudit-Grade-B.md`
+- B-Grade ADR: `docs/archive/2026-06/ADR-2026-06-26-Final-Reaudit-Grade-B.md`
 - Batch ADRs: `docs/ADR-2026-06-25-Batch1-*` through `docs/ADR-2026-06-25-Batch5-*`
-- This ADR: `docs/ADR-2026-06-26-Grade-A-Certification.md`
+- This ADR: `docs/archive/2026-06/ADR-2026-06-26-Grade-A-Certification.md`
 
 ## Signed
 Executive Engineering Agent  

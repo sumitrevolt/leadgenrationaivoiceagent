@@ -34,7 +34,7 @@ Coherent groups inferred from paths; each should be committed by its owner, not 
 | .cursorignore | untracked | B/config | tooling config | no | track | low |
 | ~97 scripts/_tmp_* (one-off) | ignored | **C** | past debug sessions | no | keep on disk (ignored); sweep to scripts/_debug/ or delete after owner ok | none |
 | scripts/_canary_run.log, _canary_run_out.txt, root pytest_*.txt / *_exit.txt | ignored | C | generated output | no | ignored (output) | none |
-| docs/AI_FIRSTIFY_REPORT_2026-07-18.md, docs/WORKTREE_RECONCILIATION_2026-07-18.md, docs/CONTEXT_HYGIENE_POLICY.md | untracked | **D** | this session | yes | track (Commit 2) | none |
+| docs/archive/2026-07/AI_FIRSTIFY_REPORT_2026-07-18.md, docs/archive/2026-07/WORKTREE_RECONCILIATION_2026-07-18.md, docs/CONTEXT_HYGIENE_POLICY.md | untracked | **D** | this session | yes | track (Commit 2) | none |
 | SESSION_HANDOFF.md | untracked | D | session handoff | yes | keep at root (referenced by continuation prompts); optionally move to docs/reports/ | none |
 | docs/plans/2026-07-18-commercial-launch-closure.md | untracked | D/A | planning | yes | track with its workstream | low |
 | root forensics_billing_dlq.txt, upi_flip_result.txt | ignored (root pattern) | D | raw capture | decision content already in SESSION_HANDOFF/CLAUDE.md | on-disk, reversible; convert to docs/evidence/*.md if tracking wanted | none |
@@ -62,8 +62,8 @@ Redacted scan of the reusable-candidate scripts (canary tools + call helpers + a
 ## Safe changes APPLIED this session (zero-collision)
 1. `.gitignore` — narrowed (see table). 0 tracked-file collisions; no reusable tool hidden; no evidence deleted.
 2. `docs/CONTEXT_HYGIENE_POLICY.md` — new policy doc (temp-artifact conventions).
-3. `docs/WORKTREE_RECONCILIATION_2026-07-18.md` — this record.
-4. `docs/AI_FIRSTIFY_REPORT_2026-07-18.md` — (prior turn) the audit report.
+3. `docs/archive/2026-07/WORKTREE_RECONCILIATION_2026-07-18.md` — this record.
+4. `docs/archive/2026-07/AI_FIRSTIFY_REPORT_2026-07-18.md` — (prior turn) the audit report.
 
 ## Changes deliberately NOT applied
 - No edit/commit/move/delete of the 17 modified tracked files (parallel WIP — owner's to commit).

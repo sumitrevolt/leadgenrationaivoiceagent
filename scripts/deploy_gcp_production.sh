@@ -262,7 +262,7 @@ IMAGE_URL="${REGION}-docker.pkg.dev/${PROJECT_ID}/${ARTIFACT_REPO}/${SERVICE_NAM
 gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
 
 # Build image
-docker build -t ${IMAGE_URL}:latest -f Dockerfile.production .
+docker build -t ${IMAGE_URL}:latest -f deploy/legacy/Dockerfile.production .
 
 # Push image
 docker push ${IMAGE_URL}:latest

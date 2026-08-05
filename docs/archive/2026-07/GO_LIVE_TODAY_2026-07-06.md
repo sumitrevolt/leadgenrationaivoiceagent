@@ -12,7 +12,7 @@
 - **Day-1 seed** — new customer now gets website→KB seed + first content pack + content queue **immediately** on signup/onboard (worker Celery task `onboard_client`), default-ON (`SIGNUP_AUTO_ONBOARD`), idempotent.
 - **Hands-free drafts now reach the customer** — `GET /api/customer/autopilot` + a "🤖 Aapki AI team ne ye taiyaar kiya" card in `customer_marketing.html` (browser-verified). Draft-only, 1-click WhatsApp/Copy.
 
-**Enterprise AI audit + security (report: `docs/ENTERPRISE_AI_AUDIT_2026-07-06.md`):**
+**Enterprise AI audit + security (report: `docs/archive/2026-07/ENTERPRISE_AI_AUDIT_2026-07-06.md`):**
 - KB integrity: no silent all-tenant wipe · dedup · delete-before-reseed.
 - Voice: 2nd-order prompt-injection sanitize (5 sites).
 - Infra: `mem_limit` on 7 observability containers.
@@ -24,7 +24,7 @@
 
 There are **two independent work-streams** uncommitted. Do NOT `git add -A`.
 
-- **This session's files:** `app/voice_agent/knowledge_base.py`, `app/voice_agent/telecaller_brain.py`, `app/marketing/onboarding.py`, `app/api/{public_site,customer_onboard,customer_dashboard,activation,platform,health,booking}.py`, `app/integrations/calendar_booking.py`, `app/agents/browser_tools.py`, `app/platform/customer_autopilot.py`, `app/tasks/staff_jobs.py`, `docker-compose.observability.yml`, `frontend/customer_marketing.html`, `docs/API.md`, `docs/ENTERPRISE_AI_AUDIT_2026-07-06.md`, and `tests/test_{kb_point_id,kb_delete_before_reseed,prompt_content_sanitize,booking_cancel_ownership,browser_tools_ssrf,onboard_day1_delivery,customer_autopilot_surface}.py` + `tests/security/test_rbac.py`.
+- **This session's files:** `app/voice_agent/knowledge_base.py`, `app/voice_agent/telecaller_brain.py`, `app/marketing/onboarding.py`, `app/api/{public_site,customer_onboard,customer_dashboard,activation,platform,health,booking}.py`, `app/integrations/calendar_booking.py`, `app/agents/browser_tools.py`, `app/platform/customer_autopilot.py`, `app/tasks/staff_jobs.py`, `docker-compose.observability.yml`, `frontend/customer_marketing.html`, `docs/API.md`, `docs/archive/2026-07/ENTERPRISE_AI_AUDIT_2026-07-06.md`, and `tests/test_{kb_point_id,kb_delete_before_reseed,prompt_content_sanitize,booking_cancel_ownership,browser_tools_ssrf,onboard_day1_delivery,customer_autopilot_surface}.py` + `tests/security/test_rbac.py`.
 - **Parallel session (W1.x scheduler/outreach — review separately):** `app/platform/team_scheduler.py`, `app/agents/self_improve.py`, `app/platform/auto_outreach.py`, `tests/test_scheduler_*.py`, `tests/test_self_improve_failclosed.py`, `tests/test_outreach_*.py`.
 - **Shared:** `progress.md` (both appended — keep both).
 
