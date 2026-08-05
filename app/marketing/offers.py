@@ -159,41 +159,37 @@ def _is_expired(row: dict[str, Any], now: datetime | None = None) -> bool:
 
 
 def _price_for(package_code: str) -> tuple[int, str] | None:
-    """EXACT payable amount for ``package_code``. None = refuse, fail closed.
+    """LEGACY offer price resolver — NOT the commercial authority.
 
-    Deliberately not "find a price anywhere". A bare code cannot say which
-    family it belongs to, whether the amount is monthly / annual / one-time, or
-    whether it may be sold at all — and getting that wrong is an under-charge,
-    not a cosmetic bug.
+    It takes a bare package code, which cannot by itself express product family,
+    billing cadence, customer visibility or sellability. That is a stated
+    limitation, not a claim about what it solves: it stays narrow on purpose
+    until ``CommercialPackageDescriptor`` replaces it, and must not be cited as
+    evidence that package/policy validation is complete.
 
-    Confirmed against the production image (9f2ab9f8) before this fix:
+    What it does resolve correctly:
 
-        voice_a_annual -> (4999, 'INR')      # BAND A price_year is 49990
+    * **cadence**, from canonical voice-plan identity. Annual reads the band's
+      ``price_year``, monthly reads ``price_month``. Both previously went through
+      ``voice_packages.voice_plan_price()``, whose own docstring says it returns
+      the MONTHLY equivalent even for annual plans — so an annual order froze
+      Rs 4,999 against a Rs 49,990 commitment (~90% undercharge) and annual was
+      indistinguishable from monthly. Verified against the deployed image at
+      9f2ab9f8 before the fix.
+    * **customer visibility**, from the catalogue's own ``public`` flag. `growth`
+      is legacy/internal (``public: False``) yet priced at Rs 2,999, so a bare
+      code lookup could turn it into a customer-paid offer. Non-public packages
+      are refused — driven by catalogue metadata, not a hardcoded code list.
+    * **zero amounts** (pilot/trial) are refused: a Rs 0 UPI order is not a sale
+      and belongs on its own activation path.
 
-    ``voice_packages.voice_plan_price()`` documents itself as returning the
-    MONTHLY equivalent even for annual plans, so every annual voice order froze
-    a ~90% undercharge and was indistinguishable from the monthly plan. Annual
-    now resolves from the band's ``price_year``.
-
-    Also closed here: top-ups are one-time charges from ``TOPUP_PACKS`` (they
-    were unreachable, so a top-up order could not be created at all), and zero
-    amounts — pilot/trial — are refused, because a Rs 0 UPI order is not a sale
-    and belongs on its own activation path.
+    Top-up packs remain deliberately unresolvable here. Enabling a previously
+    impossible order type is a commercial behaviour change, not a pricing
+    correction, and it needs an explicit one-time descriptor carrying its own
+    entitlement semantics.
     """
     code = (package_code or "").strip().lower()
     if not code:
-        return None
-
-    # One-time top-up packs, from their own catalogue.
-    try:
-        from app.marketing import packages as pkgs
-
-        for tp in list(getattr(pkgs, "TOPUP_PACKS", []) or []):
-            if str(tp.get("key") or "").strip().lower() == code:
-                price = int(tp.get("price_inr") or 0)
-                return (price, "INR") if price > 0 else None
-    except Exception as e:
-        logger.warning("[offers] topup lookup failed: %s", e)
         return None
 
     # Marketing / combo monthly subscriptions.
@@ -202,6 +198,9 @@ def _price_for(package_code: str) -> tuple[int, str] | None:
 
         for p in list(getattr(pkgs, "PACKAGES", []) or []):
             if str(p.get("key") or "").strip().lower() == code:
+                if not bool(p.get("public", True)):
+                    logger.warning("[offers] refusing non-public package %r", code)
+                    return None
                 price = int(p.get("price_inr_month") or 0)
                 return (price, "INR") if price > 0 else None
     except Exception as e:
