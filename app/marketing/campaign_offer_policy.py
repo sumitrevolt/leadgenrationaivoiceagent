@@ -1,43 +1,43 @@
 """campaign_offer_policy.py — immutable commercial policy for outbound campaigns.
 
-Issue #240. Before this, nothing connected a live outbound message to a sellable
-package. `_draft` received only business name / subject / body / intent / niche,
-so any package it picked would have been a guess — which is exactly why the
-interested-reply footer ships no `am=` amount today.
+Issue #240. Nothing connected a live outbound message to a sellable package, so
+any package the reply path picked would be a guess — which is why the
+interested-reply footer ships no ``am=``.
 
-WHY THIS IS NOT ATTACHED TO ``app/api/campaigns.py``
----------------------------------------------------
-That module's ``CampaignCreate`` is a LEAD-GENERATION campaign — ``niche``,
-``target_cities``, ``target_lead_count``, ``daily_call_limit``. It carries no
-package, price or currency, and the live email path never touches it:
+WHY NOT ``app/api/campaigns.py``
+--------------------------------
+That module's campaign is LEAD-GENERATION (``niche``, ``target_cities``,
+``target_lead_count``, ``daily_call_limit``) — no package, price or currency —
+and the live email path never touches it::
 
     grep -c "api.campaigns\\|campaign_id" app/platform/auto_outreach.py  ->  0
 
-The seam that actually exists in production is the PROSPECT RECORD. At send time
-``auto_outreach`` stamps it with ``emailed_at`` and, when a copy variant was
-chosen, ``campaign_variant_id``. That stamp is the only durable link between a
-sent message and the prospect who received it, so commercial provenance is
-resolved from there.
+PROVENANCE MODEL (corrected after release review of #246)
+---------------------------------------------------------
+``campaign_variant_id`` may LOCATE a policy when choosing what to send. It must
+never be the authority for a message already sent. Resolving a reply by
+"variant -> newest active version" is retroactive repricing: append version 2
+after version 1's message went out, and the old conversation silently acquires
+commercial terms that did not exist when it was sent.
 
-WHAT THIS DELIBERATELY REFUSES TO DO
-------------------------------------
-Package selection is a commercial decision, never an inference. This module will
-not derive a package from niche, business name, reply intent, email wording, the
-cheapest plan, or an LLM's opinion. An LLM may extract candidate FACTS; only the
-deterministic rules here may turn facts into a package, and the result must be a
-code the policy explicitly allows AND that the canonical catalogue prices.
+So the send path must pin ``(policy_id, policy_version)`` onto the outbound
+record, and reply processing must use :func:`resolve_exact` — which returns the
+exact historical row regardless of later versions or retirement. Retirement
+blocks NEW sends; it never rewrites what an old message meant.
 
-Historical generic cold email never pitched a specific package, so it is modelled
-honestly as a DISCOVERY campaign: interested replies return
-``NEEDS_QUALIFICATION`` and must ask a question rather than quote a price.
-Pretending otherwise would re-create the Starter-blind bug that would quote
-₹1,999 to a Combo (₹5,999) or Voice (₹4,999+) prospect.
+Prospects with no pinned stamp (all historical generic cold email) are
+``HISTORICAL_DISCOVERY``: qualify, never quote.
 
 IMMUTABILITY
 ------------
-A policy version is frozen once written. Editing appends a NEW version; the old
-row keeps its commercial meaning so a message already in flight is never
-re-priced retroactively. Resolution prefers the newest ACTIVE version.
+Definition rows are append-only and are NEVER mutated. Retirement is a separate
+appended lifecycle event, so history stays reconstructable.
+
+FAIL-CLOSED
+-----------
+Malformed rows, duplicate versions, ambiguous scope and unknown packages all
+stop the money path rather than degrade it. A commercial authority that guesses
+from partial data is worse than one that refuses.
 
 Pure logic + append-only store. No network, no LLM. Never raises.
 """
@@ -55,39 +55,54 @@ logger = setup_logger(__name__)
 
 _STORE_PATH = os.path.join("data", "campaign_offer_policies.jsonl")
 
+KIND_POLICY = "policy"
+KIND_RETIRED = "policy_retired"
+
 STATUS_ACTIVE = "active"
 STATUS_RETIRED = "retired"
 
-#: Qualification outcomes.
 PACKAGE_SELECTED = "PACKAGE_SELECTED"
 NEEDS_QUALIFICATION = "NEEDS_QUALIFICATION"
 NOT_ELIGIBLE = "NOT_ELIGIBLE"
 EXCEPTION_REQUIRED = "EXCEPTION_REQUIRED"
 
-#: Machine-readable fail-closed reasons (Owner OS exception codes).
 POLICY_NOT_FOUND = "POLICY_NOT_FOUND"
+POLICY_AMBIGUOUS = "POLICY_AMBIGUOUS"
 POLICY_RETIRED = "POLICY_RETIRED"
+POLICY_STORE_CORRUPT = "POLICY_STORE_CORRUPT"
 PACKAGE_UNRESOLVED = "PACKAGE_UNRESOLVED"
 PACKAGE_NOT_ALLOWED = "PACKAGE_NOT_ALLOWED"
 PRICE_UNAVAILABLE = "PRICE_UNAVAILABLE"
+HISTORICAL_DISCOVERY = "HISTORICAL_DISCOVERY"
 
-#: A discovery campaign pitched no package — it must qualify, never quote.
 FAMILY_DISCOVERY = "discovery"
+
+_VALID_CURRENCIES = {"INR"}
+
+
+class PolicyStoreCorrupt(Exception):
+    """Raised internally when the authority cannot be trusted. Never escapes."""
+
 
 __all__ = [
     "EXCEPTION_REQUIRED",
     "FAMILY_DISCOVERY",
+    "HISTORICAL_DISCOVERY",
     "NEEDS_QUALIFICATION",
     "NOT_ELIGIBLE",
     "PACKAGE_SELECTED",
+    "POLICY_AMBIGUOUS",
+    "POLICY_STORE_CORRUPT",
     "STATUS_ACTIVE",
     "STATUS_RETIRED",
     "list_policies",
     "put_policy",
     "qualify",
-    "resolve_policy",
+    "resolve_exact",
     "resolve_for_prospect",
+    "resolve_for_send",
     "retire_policy",
+    "store_health",
 ]
 
 
@@ -99,25 +114,63 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def _read() -> list[dict[str, Any]]:
+def _read_strict() -> list[dict[str, Any]]:
+    """Parse every row or refuse. A skipped row silently corrupts versioning."""
     rows: list[dict[str, Any]] = []
+    path = _store()
+    if not os.path.exists(path):
+        return rows
     try:
-        path = _store()
-        if os.path.exists(path):
-            with open(path, encoding="utf-8") as f:
-                for line in f:
-                    if line.strip():
-                        try:
-                            rows.append(json.loads(line))
-                        except Exception:
-                            pass
-    except Exception:
-        pass
+        with open(path, encoding="utf-8") as f:
+            for lineno, line in enumerate(f, 1):
+                if not line.strip():
+                    continue
+                try:
+                    obj = json.loads(line)
+                except Exception as exc:
+                    raise PolicyStoreCorrupt(f"line {lineno}: {exc}") from exc
+                if not isinstance(obj, dict):
+                    raise PolicyStoreCorrupt(f"line {lineno}: not an object")
+                rows.append(obj)
+    except PolicyStoreCorrupt:
+        raise
+    except Exception as exc:
+        raise PolicyStoreCorrupt(str(exc)) from exc
+
+    seen: set[tuple[str, int]] = set()
+    for r in rows:
+        if r.get("kind") != KIND_POLICY:
+            continue
+        try:
+            key = (str(r["policy_id"]), int(r["policy_version"]))
+        except Exception as exc:
+            raise PolicyStoreCorrupt(f"bad policy identity: {exc}") from exc
+        if key[1] < 1:
+            raise PolicyStoreCorrupt(f"non-positive version for {key[0]}")
+        if key in seen:
+            raise PolicyStoreCorrupt(f"duplicate (policy_id, version): {key}")
+        seen.add(key)
     return rows
 
 
+def store_health() -> dict[str, Any]:
+    """``{"ok": bool, "reason": str}`` — cheap corruption probe for Owner OS."""
+    try:
+        _read_strict()
+        return {"ok": True, "reason": ""}
+    except PolicyStoreCorrupt as exc:
+        return {"ok": False, "reason": POLICY_STORE_CORRUPT, "detail": str(exc)[:200]}
+
+
+def _retired_ids(rows: list[dict[str, Any]]) -> set[str]:
+    return {str(r.get("policy_id")) for r in rows if r.get("kind") == KIND_RETIRED}
+
+
+def _definitions(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [r for r in rows if r.get("kind") == KIND_POLICY]
+
+
 def _write_all(rows: list[dict[str, Any]]) -> bool:
-    """Atomic rewrite. Callers holding the lock must not re-enter locked_rewrite."""
     path = _store()
     tmp = f"{path}.tmp.{os.getpid()}"
     try:
@@ -140,10 +193,7 @@ def _write_all(rows: list[dict[str, Any]]) -> bool:
 
 
 def _price_of(package_code: str) -> int | None:
-    """Canonical catalogue price. None = unknown/unpriced -> fail closed.
-
-    Never duplicates prices here; `packages.py` stays the single source.
-    """
+    """Canonical catalogue price. None = unknown/unpriced -> fail closed."""
     code = (package_code or "").strip().lower()
     if not code:
         return None
@@ -181,15 +231,37 @@ def put_policy(
     offer_validity_days: int = 30,
     created_by: str = "system",
 ) -> dict[str, Any] | None:
-    """Append a NEW immutable version of ``policy_id``. Never mutates history."""
+    """Append a NEW immutable version. Validates up-front; never mutates history.
+
+    Returns None on any validation failure — an invalid policy must not be
+    storable and then explode at reply time.
+    """
     pid = (policy_id or "").strip()
-    if not pid or not (product_family or "").strip():
+    family = (product_family or "").strip().lower()
+    if not pid or not family:
+        return None
+
+    cur = (currency or "INR").strip().upper()
+    if cur not in _VALID_CURRENCIES:
+        logger.warning("[policy] currency %r not allowed on the manual-UPI path", cur)
+        return None
+    if not (1 <= int(offer_validity_days or 0) <= 365):
         return None
 
     allowed = [str(c).strip().lower() for c in (allowed_package_codes or []) if str(c).strip()]
     default = (default_package_code or "").strip().lower()
+
+    if family != FAMILY_DISCOVERY:
+        # A sellable policy must name the packages it may quote, and each must
+        # exist in the catalogue NOW — not be discovered missing at reply time.
+        if not allowed:
+            logger.warning("[policy] sellable policy needs a non-empty allowlist")
+            return None
+        for code in allowed:
+            if _price_of(code) is None:
+                logger.warning("[policy] allowed package %r is unknown/unpriced", code)
+                return None
     if default and default not in allowed:
-        logger.warning("[policy] default %r not in allowed list — refusing", default)
         return None
 
     try:
@@ -198,22 +270,47 @@ def put_policy(
         with file_lock(_store()) as locked:
             if not locked:
                 return None
-            rows = _read()
-            version = 1 + sum(1 for r in rows if r.get("policy_id") == pid)
+            try:
+                rows = _read_strict()
+            except PolicyStoreCorrupt as exc:
+                logger.error("[policy] refusing write, store corrupt: %s", exc)
+                return None
+
+            versions = [
+                int(r.get("policy_version") or 0)
+                for r in _definitions(rows)
+                if r.get("policy_id") == pid
+            ]
+            version = (max(versions) + 1) if versions else 1
+
+            # Scope uniqueness: an active variant scope must map to ONE policy.
+            variant = (message_variant or "").strip()
+            if variant:
+                retired = _retired_ids(rows)
+                clash = {
+                    str(r.get("policy_id"))
+                    for r in _definitions(rows)
+                    if str(r.get("message_variant") or "") == variant
+                    and str(r.get("policy_id")) != pid
+                    and str(r.get("policy_id")) not in retired
+                }
+                if clash:
+                    logger.warning("[policy] variant %r already owned by %s", variant, clash)
+                    return None
+
             rec: dict[str, Any] = {
+                "kind": KIND_POLICY,
                 "policy_id": pid,
                 "policy_version": version,
                 "outreach_sequence_id": (outreach_sequence_id or "").strip(),
                 "template_id": (template_id or "").strip(),
-                "message_variant": (message_variant or "").strip(),
-                "product_family": (product_family or "").strip().lower(),
+                "message_variant": variant,
+                "product_family": family,
                 "allowed_package_codes": allowed,
                 "default_package_code": default,
-                "currency": (currency or "INR").strip().upper(),
-                "offer_validity_days": max(1, int(offer_validity_days or 30)),
-                "status": STATUS_ACTIVE,
+                "currency": cur,
+                "offer_validity_days": int(offer_validity_days),
                 "effective_from": _now(),
-                "retired_at": None,
                 "created_by": created_by,
             }
             rows.append(rec)
@@ -223,8 +320,12 @@ def put_policy(
         return None
 
 
-def retire_policy(policy_id: str, *, by: str = "system") -> bool:
-    """Retire every active version of a policy. Retired policies cannot issue."""
+def retire_policy(policy_id: str, *, by: str = "system", reason: str = "") -> bool:
+    """Append a retirement EVENT. Definition rows are never rewritten.
+
+    Retirement blocks new sends. It must not change what an already-sent message
+    meant, so :func:`resolve_exact` keeps returning the historical version.
+    """
     pid = (policy_id or "").strip()
     if not pid:
         return False
@@ -234,83 +335,139 @@ def retire_policy(policy_id: str, *, by: str = "system") -> bool:
         with file_lock(_store()) as locked:
             if not locked:
                 return False
-            rows = _read()
-            hit = False
-            for r in rows:
-                if r.get("policy_id") == pid and r.get("status") == STATUS_ACTIVE:
-                    r["status"] = STATUS_RETIRED
-                    r["retired_at"] = _now()
-                    r["retired_by"] = by
-                    hit = True
-            return bool(hit and _write_all(rows))
+            try:
+                rows = _read_strict()
+            except PolicyStoreCorrupt as exc:
+                logger.error("[policy] refusing retire, store corrupt: %s", exc)
+                return False
+            if not any(r.get("policy_id") == pid for r in _definitions(rows)):
+                return False
+            if pid in _retired_ids(rows):
+                return True  # idempotent
+            rows.append(
+                {
+                    "kind": KIND_RETIRED,
+                    "policy_id": pid,
+                    "retired_at": _now(),
+                    "retired_by": by,
+                    "reason": reason,
+                }
+            )
+            return _write_all(rows)
     except Exception as e:
         logger.warning("[policy] retire failed: %s", e)
         return False
 
 
-def resolve_policy(
-    *, policy_id: str = "", message_variant: str = "", outreach_sequence_id: str = ""
-) -> dict[str, Any] | None:
-    """Newest ACTIVE version matching the given scope. None = fail closed.
+def resolve_exact(policy_id: str, policy_version: int) -> dict[str, Any] | None:
+    """THE reply-time authority: the exact historical row, retirement included.
 
-    A retired-only policy resolves to None on purpose: it must not issue new
-    offers, and callers must treat None as "do not quote".
+    Deliberately ignores newer versions and retirement, because the commercial
+    meaning of a sent message is fixed at send time.
     """
-    rows = [r for r in _read() if r.get("status") == STATUS_ACTIVE]
+    pid = (policy_id or "").strip()
+    try:
+        ver = int(policy_version)
+    except Exception:
+        return None
+    if not pid or ver < 1:
+        return None
+    try:
+        rows = _read_strict()
+    except PolicyStoreCorrupt as exc:
+        logger.error("[policy] resolve_exact refused, store corrupt: %s", exc)
+        return None
+    for r in _definitions(rows):
+        if r.get("policy_id") == pid and int(r.get("policy_version") or 0) == ver:
+            out = dict(r)
+            out["status"] = STATUS_RETIRED if pid in _retired_ids(rows) else STATUS_ACTIVE
+            return out
+    return None
+
+
+def resolve_for_send(
+    *, policy_id: str = "", message_variant: str = "", outreach_sequence_id: str = ""
+) -> tuple[dict[str, Any] | None, str]:
+    """Pick the policy for a NEW send. ``(policy, reason)``; fail-closed.
+
+    Ambiguity is an error, never "newest wins" — two policies claiming one
+    variant is a configuration bug that must stop the send.
+    """
+    try:
+        rows = _read_strict()
+    except PolicyStoreCorrupt as exc:
+        logger.error("[policy] resolve_for_send refused, store corrupt: %s", exc)
+        return None, POLICY_STORE_CORRUPT
+
+    retired = _retired_ids(rows)
+    defs = [r for r in _definitions(rows) if str(r.get("policy_id")) not in retired]
+
     pid = (policy_id or "").strip()
     variant = (message_variant or "").strip()
     seq = (outreach_sequence_id or "").strip()
-
     if pid:
-        rows = [r for r in rows if r.get("policy_id") == pid]
+        defs = [r for r in defs if r.get("policy_id") == pid]
     elif variant:
-        rows = [r for r in rows if str(r.get("message_variant") or "") == variant]
+        defs = [r for r in defs if str(r.get("message_variant") or "") == variant]
     elif seq:
-        rows = [r for r in rows if str(r.get("outreach_sequence_id") or "") == seq]
+        defs = [r for r in defs if str(r.get("outreach_sequence_id") or "") == seq]
     else:
-        return None
+        return None, POLICY_NOT_FOUND
 
-    if not rows:
-        return None
-    rows.sort(key=lambda r: int(r.get("policy_version") or 0), reverse=True)
-    return dict(rows[0])
+    if not defs:
+        return None, POLICY_NOT_FOUND
+    if len({str(r.get("policy_id")) for r in defs}) > 1:
+        return None, POLICY_AMBIGUOUS
+
+    defs.sort(key=lambda r: int(r.get("policy_version") or 0), reverse=True)
+    out = dict(defs[0])
+    out["status"] = STATUS_ACTIVE
+    return out, "ok"
 
 
-def resolve_for_prospect(prospect: dict[str, Any] | None) -> dict[str, Any] | None:
-    """Resolve policy from the LIVE provenance stamp on the prospect record.
+def resolve_for_prospect(prospect: dict[str, Any] | None) -> tuple[dict[str, Any] | None, str]:
+    """Reply-time resolution from the PINNED stamp only. ``(policy, reason)``.
 
-    ``auto_outreach`` writes ``campaign_variant_id`` at send time; that is the
-    only durable send->prospect link in production today. A prospect with no
-    stamp (all historical generic cold email) resolves to None, which callers
-    must treat as discovery -> qualify, never as a licence to quote.
+    ``campaign_variant_id`` is intentionally NOT used as a fallback here: it
+    would reintroduce variant -> newest-active retroactive repricing. A prospect
+    without a pinned version is historical discovery and must be qualified.
     """
-    variant = str((prospect or {}).get("campaign_variant_id") or "").strip()
-    if not variant:
-        return None
-    return resolve_policy(message_variant=variant)
+    p = prospect or {}
+    pid = str(p.get("campaign_offer_policy_id") or "").strip()
+    ver = p.get("campaign_offer_policy_version")
+    if not pid or ver in (None, ""):
+        return None, HISTORICAL_DISCOVERY
+    got = resolve_exact(pid, ver)
+    return (got, "ok") if got else (None, POLICY_NOT_FOUND)
 
 
 def qualify(policy: dict[str, Any] | None, facts: dict[str, Any] | None = None) -> dict[str, Any]:
     """Deterministically turn (policy, structured facts) into a package outcome.
 
-    Returns ``{"outcome", "package_code", "amount", "currency", "reason"}``.
     Facts may be LLM-extracted; the decision is not. Anything unresolved is a
-    question to the prospect or an exception — NEVER a fallback price.
+    question or an exception — never a fallback price.
     """
     f = {k: v for k, v in (facts or {}).items() if v not in (None, "")}
 
     if not policy:
         return _outcome(NEEDS_QUALIFICATION, reason=POLICY_NOT_FOUND)
-    if policy.get("status") != STATUS_ACTIVE:
-        return _outcome(EXCEPTION_REQUIRED, reason=POLICY_RETIRED)
 
     family = str(policy.get("product_family") or "").lower()
     allowed = [str(c).lower() for c in (policy.get("allowed_package_codes") or [])]
     currency = str(policy.get("currency") or "INR")
 
-    # A discovery campaign pitched nothing — it must ask, never quote.
-    if family == FAMILY_DISCOVERY and not f.get("requested_package"):
+    if policy.get("status") == STATUS_RETIRED:
+        # Historical resolution still works, but a retired policy cannot quote.
+        return _outcome(EXCEPTION_REQUIRED, reason=POLICY_RETIRED, currency=currency)
+
+    # Discovery pitched nothing. A prospect naming a package is a FACT to
+    # qualify against, never authorisation to sell an arbitrary catalogue item.
+    if family == FAMILY_DISCOVERY:
         return _outcome(NEEDS_QUALIFICATION, reason="DISCOVERY_CAMPAIGN", currency=currency)
+
+    # No allowlist => nothing is sellable. Empty must mean "none", not "any".
+    if not allowed:
+        return _outcome(EXCEPTION_REQUIRED, reason=PACKAGE_NOT_ALLOWED, currency=currency)
 
     candidate = str(f.get("requested_package") or "").strip().lower()
     if not candidate and len(allowed) == 1:
@@ -320,7 +477,7 @@ def qualify(policy: dict[str, Any] | None, facts: dict[str, Any] | None = None) 
     if not candidate:
         return _outcome(NEEDS_QUALIFICATION, reason=PACKAGE_UNRESOLVED, currency=currency)
 
-    if allowed and candidate not in allowed:
+    if candidate not in allowed:
         return _outcome(EXCEPTION_REQUIRED, reason=PACKAGE_NOT_ALLOWED, currency=currency)
 
     price = _price_of(candidate)
@@ -350,10 +507,14 @@ def _outcome(
 
 
 def list_policies(policy_id: str = "", limit: int = 200) -> list[dict[str, Any]]:
-    """Policy versions, newest first."""
+    """Policy DEFINITION versions, newest first. Empty when the store is corrupt."""
+    try:
+        rows = _read_strict()
+    except PolicyStoreCorrupt:
+        return []
     pid = (policy_id or "").strip()
-    rows = [r for r in _read() if not pid or r.get("policy_id") == pid]
-    rows.sort(
+    defs = [r for r in _definitions(rows) if not pid or r.get("policy_id") == pid]
+    defs.sort(
         key=lambda r: (str(r.get("policy_id")), int(r.get("policy_version") or 0)), reverse=True
     )
-    return rows[: max(1, min(int(limit or 200), 1000))]
+    return defs[: max(1, min(int(limit or 200), 1000))]
