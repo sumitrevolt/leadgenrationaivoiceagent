@@ -302,12 +302,22 @@ def _fire_gst_invoice(client_id: str, plan: str, amount: float = 0) -> None:
         logger.debug("upi_payments gst invoice hook skipped: %s", e)
 
 
-def _trigger_onboarding() -> None:
-    """Front-run the hourly onboarding sweep so a just-activated client gets their
-    KB seed + first content pack in seconds, not up to an hour. Best-effort: enqueues
-    the existing Celery staff job (runs on the WORKER, never in the web process) and
-    falls back to the hourly sweep if the broker is unavailable. Never raises."""
+def _trigger_onboarding(client_id: str = "") -> None:
+    """Front-run day-1 onboard for a just-activated client (KB seed + first pack).
+
+    Prefer per-client ``onboard_client`` (same as signup) so we do **not** depend on
+    the ``AUTO_ONBOARD``-gated hourly sweep. Falls back to the sweep task when
+    ``client_id`` is empty. Runs on the WORKER, never the web process. Never raises.
+    """
+    cid = (client_id or "").strip()
     try:
+        if cid:
+            from app.tasks.staff_jobs import onboard_client
+
+            # send_welcome=False — payment path already has its own notifies; avoid
+            # double WhatsApp on activate (ban-safety + signup parity).
+            onboard_client.delay(cid, False)
+            return
         from app.worker import celery_app
 
         # ignore_result=True → fire-and-forget; skips the Redis result-backend
@@ -480,8 +490,8 @@ def submit_payment(
                 record["decided_by"] = "auto"
                 # Persist the updated status (record is the same object in rows).
                 _write_store(rows)
-                # Just activated → front-run onboarding so output lands in seconds.
-                _trigger_onboarding()
+                # Just activated → per-client day-1 onboard (not AUTO_ONBOARD sweep).
+                _trigger_onboarding(cid)
                 _mark_deal_won(record.get("payer_contact", ""))
                 # GST invoice parity with Stripe path (best-effort, never-raise).
                 _fire_gst_invoice(cid, plan_s, amount)
@@ -575,9 +585,8 @@ def decide(payment_id: str, approve: bool, decided_by: str = "admin") -> dict:
                 enforce_floor=False,
             ):
                 record["activated"] = True
-                # Activation succeeded → front-run onboarding (KB seed + first content
-                # pack) instead of waiting for the hourly sweep.
-                _trigger_onboarding()
+                # Activation succeeded → per-client day-1 onboard (signup parity).
+                _trigger_onboarding(str(record.get("client_id") or ""))
                 _mark_deal_won(record.get("payer_contact", ""))
                 # GST invoice parity with Stripe path (best-effort, never-raise).
                 _fire_gst_invoice(
