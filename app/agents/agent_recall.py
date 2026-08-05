@@ -53,6 +53,21 @@ def record(kind: str, text: str, meta: dict | None = None) -> dict[str, Any]:
     body = (text or "").strip()
     if not body:
         return {"ok": False, "error": "empty text"}
+    # Governance gate (fail-CLOSED, active only while MEMORY_STACK_ENABLED is on):
+    # an unreadable do-not-remember authority must not let durable memory grow.
+    try:
+        from app.platform.memory_governance import durable_writes_allowed
+
+        _g = durable_writes_allowed()
+        if not _g["ok"]:
+            return {"ok": False, "deferred": True, "code": _g["code"], "error": _g["reason"]}
+    except Exception:
+        return {
+            "ok": False,
+            "deferred": True,
+            "code": "MEMORY_WRITE_DEFERRED_GOVERNANCE_UNAVAILABLE",
+            "error": "governance module unavailable",
+        }
     row = {
         "kind": str(kind or "note").strip()[:80],
         "text": body[:_TEXT_CAP],
