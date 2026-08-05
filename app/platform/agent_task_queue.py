@@ -42,6 +42,79 @@ def _id() -> str:
     return str(uuid.uuid4())
 
 
+# Deterministic-id namespace for idempotent dispatch (memory-stack L6 and any
+# other producer that may retry). Fixed constant — changing it would make old
+# dispatch keys map to new task ids and reopen the duplicate window.
+_DISPATCH_NS = uuid.UUID("6f1c2f4e-6a1a-4d0f-9c9a-2f0b8a5c31d7")
+
+
+def dispatch_task_id(dispatch_key: str) -> str:
+    """Same logical intent -> same task id, forever. Used as the PK."""
+    return str(uuid.uuid5(_DISPATCH_NS, str(dispatch_key or "")))
+
+
+async def assign_idempotent(
+    agent_id: str,
+    goal: str,
+    *,
+    dispatch_key: str,
+    **kwargs: Any,
+) -> dict[str, Any]:
+    """`assign()` that is safe to retry — at-most-ONE logical task per key.
+
+    WHY (review P0): a producer that crashes after `assign()` but before it can
+    record the result will retry, and a random uuid PK would happily create a
+    SECOND task. Here the PK is derived from `dispatch_key`, so the retry either
+    finds the existing row or loses the insert race — never duplicates.
+
+    Returns the normal assign shape plus `duplicate: bool`. Never raises.
+    """
+    key = str(dispatch_key or "").strip()
+    if not key:
+        return {"ok": False, "error": "dispatch_key required"}
+    task_id = dispatch_task_id(key)
+    try:
+        from app.models.agent_task import AgentTask
+        from app.models.base import get_db_session
+
+        with get_db_session() as db:
+            existing = db.query(AgentTask).filter(AgentTask.id == task_id).first()
+            if existing is not None:
+                return {
+                    "ok": True,
+                    "id": task_id,
+                    "agent_id": existing.agent_id,
+                    "goal": existing.goal,
+                    "duplicate": True,
+                }
+    except Exception as e:
+        logger.warning(f"[atq] assign_idempotent lookup failed: {e}")
+        return {"ok": False, "error": str(e)}
+
+    out = await assign(agent_id, goal, task_id=task_id, **kwargs)
+    if not out.get("ok"):
+        # Lost the insert race (unique PK) => the other writer's task IS our task.
+        try:
+            from app.models.agent_task import AgentTask
+            from app.models.base import get_db_session
+
+            with get_db_session() as db:
+                raced = db.query(AgentTask).filter(AgentTask.id == task_id).first()
+                if raced is not None:
+                    return {
+                        "ok": True,
+                        "id": task_id,
+                        "agent_id": raced.agent_id,
+                        "goal": raced.goal,
+                        "duplicate": True,
+                    }
+        except Exception:
+            pass
+        return out
+    out["duplicate"] = False
+    return out
+
+
 async def assign(
     agent_id: str,
     goal: str,
@@ -51,13 +124,18 @@ async def assign(
     goal_text: str = "",
     delegated_by: str = "human",
     parent_task_id: str | None = None,
+    task_id: str | None = None,
 ) -> dict[str, Any]:
-    """Create a new task for an agent. Returns the task dict."""
+    """Create a new task for an agent. Returns the task dict.
+
+    `task_id` optional — callers that need retry-safety pass a deterministic id
+    (see `assign_idempotent`). Default stays a random uuid (unchanged behaviour).
+    """
     try:
         from app.models.agent_task import AgentTask
         from app.models.base import get_db_session
 
-        task_id = _id()
+        task_id = task_id or _id()
         # Org chart depth
         _depth = 0
         try:

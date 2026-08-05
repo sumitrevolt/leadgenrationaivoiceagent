@@ -23,14 +23,40 @@ PROBLEMS: list[str] = []
 # "set = ON", or consumed by config/middleware/compose, not a plain getenv gate).
 # These are intentionally not simple boolean gates — exclude from "dead" check.
 KNOWN_INDIRECT = {
-    "OLLAMA_URL", "OLLAMA_PRIMARY", "SEARXNG_URL", "NTFY_URL", "NTFY_TOPIC",
-    "CLOUDFLARE_TUNNEL_TOKEN", "TURNSTILE_SITE_KEY", "TURNSTILE_SECRET_KEY",
-    "LITELLM_MASTER_KEY", "LITELLM_GATEWAY_URL", "DR_REPLICA_URL", "DR_LAG_WARN_S",
-    "DR_LAG_FAIL_S", "MEM0_BACKEND", "AGENT_MEMORY_MIN_SIM", "AGENT_MEMORY_RECALL_LIMIT",
-    "TOTP_CHALLENGE_KEY", "WHATSAPP_LEAD_FLOW_ID", "RUN_IN_PROCESS_SCHEDULER",
-    "OPS_ALERT_ENGINEER_THRESHOLD", "OPS_ALERT_EVAL_REJECT_BURST",
-    "OPS_ALERT_EVAL_REJECT_WINDOW", "OPS_ALERT_WEBHOOK_DEAD_LETTER_THRESHOLD",
-    "CUSTOMER_WEBHOOK_DENY_PRIVATE", "DLT_", "EVAL_GATE_HARD",
+    "OLLAMA_URL",
+    "OLLAMA_PRIMARY",
+    "SEARXNG_URL",
+    "NTFY_URL",
+    "NTFY_TOPIC",
+    "CLOUDFLARE_TUNNEL_TOKEN",
+    "TURNSTILE_SITE_KEY",
+    "TURNSTILE_SECRET_KEY",
+    "LITELLM_MASTER_KEY",
+    "LITELLM_GATEWAY_URL",
+    "DR_REPLICA_URL",
+    "DR_LAG_WARN_S",
+    "DR_LAG_FAIL_S",
+    "MEM0_BACKEND",
+    "AGENT_MEMORY_MIN_SIM",
+    "AGENT_MEMORY_RECALL_LIMIT",
+    "TOTP_CHALLENGE_KEY",
+    "WHATSAPP_LEAD_FLOW_ID",
+    "RUN_IN_PROCESS_SCHEDULER",
+    "OPS_ALERT_ENGINEER_THRESHOLD",
+    "OPS_ALERT_EVAL_REJECT_BURST",
+    "OPS_ALERT_EVAL_REJECT_WINDOW",
+    "OPS_ALERT_WEBHOOK_DEAD_LETTER_THRESHOLD",
+    "CUSTOMER_WEBHOOK_DENY_PRIVATE",
+    "DLT_",
+    "EVAL_GATE_HARD",
+    # Read DYNAMICALLY via f-string os.getenv(f"MEMORY_STACK_LAYER_{layer.upper()}")
+    # in app/platform/memory_stack.py:106 — literal names never appear in source.
+    "MEMORY_STACK_LAYER_WORKING",
+    "MEMORY_STACK_LAYER_PROSPECTIVE",
+    "MEMORY_STACK_LAYER_EPISODIC",
+    "MEMORY_STACK_LAYER_SEMANTIC",
+    "MEMORY_STACK_LAYER_PROCEDURAL",
+    "MEMORY_STACK_LAYER_SHARED",
 }
 
 # Intentionally-reserved future flags (declared now, engine ships later). Documented
@@ -69,7 +95,9 @@ def audit_flags(blob: str) -> None:
         # registry line itself counts as 1; need >=2 to prove a real read.
         if refs < 2:
             dead.append(flag)
-    print(f"[flags] {len(AUTOMATION_FLAGS)} declared, {reserved} reserved-future, {len(dead)} never read")
+    print(
+        f"[flags] {len(AUTOMATION_FLAGS)} declared, {reserved} reserved-future, {len(dead)} never read"
+    )
     for f in dead:
         PROBLEMS.append(f"DEAD FLAG: {f} declared in AUTOMATION_FLAGS but never read in app/")
 
@@ -95,7 +123,7 @@ def audit_beat() -> None:
     NON_JOB = {"selfimprove", "self-improve", "revive", "heartbeat", "growth", "watchdog-revive"}
     unknown = []
     for name in names:
-        mid = name[len("staff-"):].replace("-", "_")  # e.g. reply_triage_hourly
+        mid = name[len("staff-") :].replace("-", "_")  # e.g. reply_triage_hourly
         if any(mid.startswith(j) for j in STAFF_JOBS):
             continue
         if any(mid.startswith(n.replace("-", "_")) for n in NON_JOB):

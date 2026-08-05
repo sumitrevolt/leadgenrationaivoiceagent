@@ -479,9 +479,29 @@ async def remember(
     backend: Any = None,
 ) -> dict[str, Any]:
     """Conversation se durable facts extract karke store karo. Fire-and-forget friendly
-    (kabhi raise/block nahi). Returns {"stored": n}."""
+    (kabhi raise/block nahi). Returns {"stored": n}.
+
+    GOVERNANCE (fail-CLOSED, only while MEMORY_STACK_ENABLED is on): if the
+    do-not-remember authority is unreadable/unknown we refuse to persist and
+    return a typed deferral instead — the caller can still answer, it just does
+    not remember. Flag OFF = byte-identical legacy behaviour.
+    """
     if not is_enabled():
         return {"stored": 0, "disabled": True}
+    try:
+        from app.platform.memory_governance import durable_writes_allowed
+
+        _g = durable_writes_allowed()
+        if not _g["ok"]:
+            return {"stored": 0, "deferred": True, "code": _g["code"], "reason": _g["reason"]}
+    except Exception as _e:  # governance itself unavailable => cannot prove allowed
+        logger.debug("agent_memory governance gate unavailable: %s", _e)
+        return {
+            "stored": 0,
+            "deferred": True,
+            "code": "MEMORY_WRITE_DEFERRED_GOVERNANCE_UNAVAILABLE",
+            "reason": "governance module unavailable",
+        }
     subject = _subject(subject_id, scope)
     if not subject:
         return {"stored": 0}

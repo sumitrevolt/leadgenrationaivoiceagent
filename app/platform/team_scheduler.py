@@ -824,6 +824,17 @@ async def _run_job_inner(job: str) -> bool:
                 except Exception:
                     pass
                 try:
+                    from app.platform import memory_stack
+
+                    if _content_budget.ok():
+                        # prospective memory (L6): lease-recover + atomically claim due
+                        # rows, phir normal agent_task_queue me dispatch. Gated
+                        # MEMORY_STACK_ENABLED; durable store missing = fail-CLOSED
+                        # (zero dispatch). No LLM on this path.
+                        await memory_stack.drain_if_enabled()
+                except Exception:
+                    pass
+                try:
                     from app.platform import live_notes
 
                     if _content_budget.ok():
