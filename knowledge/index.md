@@ -2,7 +2,7 @@
 okf_version: "0.1"
 title: LeadGen AI Knowledge Bundle
 description: Curated project knowledge in Open Knowledge Format v0.1 (draft). Not a retrieval runtime — Qdrant Hybrid RAG remains the large-scale search path (ADR-119).
-timestamp: 2026-07-17T00:00:00Z
+timestamp: 2026-08-05T00:00:00Z
 ---
 
 # LeadGen AI — OKF Knowledge Bundle
@@ -26,11 +26,22 @@ It is **not**:
 | Code/workflow “what depends on what” | Graphify |
 | Short-lived chat/task state | Redis TTL |
 
+## Runtime surfaces (Phase-1 polish, 2026-08-05)
+
+| Surface | Path | Gate |
+|---|---|---|
+| Public agent-readable bundle | `GET /okf/` + `GET /okf/{path}` | `OKF_PUBLIC_BUNDLE` (default ON) |
+| Admin status / dry-run / recall | `/api/admin/okf/*` | admin auth |
+| Qdrant ingest (`namespace=okf`) | `POST /api/admin/okf/ingest` | `OKF_INGEST_ENABLED` OFF default |
+
+Ingest is **not** auto-run on boot. Dry-run is always safe.
+
 ## Bundle map
 
 - [Product — Starter plan](product/starter-plan.md)
 - [Product — Deliverables](product/deliverables.md)
 - [Product — Pricing rules](product/pricing-rules.md)
+- [Product — Agency methods](product/agency-methods.md)
 - [Agents — Routing policy](agents/routing-policy.md)
 - [Ops — Deployment](operations/deployment-runbook.md)
 - [Ops — Incident response](operations/incident-response.md)
