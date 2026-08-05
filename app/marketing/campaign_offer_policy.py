@@ -85,7 +85,7 @@ _VALID_CURRENCIES = {"INR"}
 #: packages.PACKAGES (starter/growth/advanced) = marketing;
 #: voice_packages bands = voice; packages.TOPUP_PACKS = topup.
 #: `discovery` is the honest label for outreach that pitched nothing.
-_VALID_FAMILIES = {FAMILY_DISCOVERY, "marketing", "voice", "topup"}
+_VALID_FAMILIES = {FAMILY_DISCOVERY, "marketing", "combo", "voice", "topup"}
 
 _MAX_VALIDITY_DAYS = 365
 
@@ -282,29 +282,82 @@ def _write_all(rows: list[dict[str, Any]]) -> bool:
         return False
 
 
-def _price_of(package_code: str) -> int | None:
-    """Canonical catalogue price. None = unknown/unpriced -> fail closed."""
+def _price_of(package_code: str, family: str = "") -> int | None:
+    """EXACT payable amount for ``package_code`` under ``family``. None = refuse.
+
+    Deliberately NOT "find a price anywhere". A bare price lookup cannot tell
+    marketing from combo from voice-annual from a top-up, and getting that wrong
+    is an under/over-charge, not a cosmetic bug.
+
+    Two hazards this closes, both real in the current catalogue:
+
+    * ``voice_plan_price()`` documents itself as returning the MONTHLY EQUIVALENT
+      even for annual plans ("annual plan pe bhi monthly equivalent deta hai").
+      Freezing that into an order would quote Rs 4,999 for a Rs 49,990 annual
+      commitment — a ~90% undercharge. Annual codes are refused here until a
+      descriptor model carries `price_inr_year` as the payable amount.
+    * a family/package mismatch (voice policy allowing `starter`, marketing
+      policy allowing `voice_a_monthly`, topup policy allowing `advanced`) would
+      otherwise price happily because the code exists *somewhere*.
+
+    Free/pilot/trial (Rs 0) is refused too: a zero-amount UPI order is not a sale
+    and must go through its own activation path.
+    """
     code = (package_code or "").strip().lower()
+    fam = (family or "").strip().lower()
     if not code:
         return None
+
+    # Top-up packs are one-time charges in their own catalogue.
     try:
         from app.marketing import packages as pkgs
 
-        for p in list(getattr(pkgs, "PACKAGES", []) or []):
-            if str(p.get("key") or "").strip().lower() == code:
-                price = int(p.get("price_inr_month") or 0)
+        for tp in list(getattr(pkgs, "TOPUP_PACKS", []) or []):
+            if str(tp.get("key") or "").strip().lower() == code:
+                if fam and fam != "topup":
+                    return None
+                price = int(tp.get("price_inr") or 0)
+                return price if price > 0 else None
+    except Exception as e:
+        logger.warning("[policy] topup lookup failed: %s", e)
+        return None
+
+    # Marketing / combo subscriptions.
+    try:
+        from app.marketing import packages as pkgs
+
+        for pk in list(getattr(pkgs, "PACKAGES", []) or []):
+            if str(pk.get("key") or "").strip().lower() == code:
+                if fam == "topup":
+                    return None
+                # `advanced` is Marketing + AI Voice — a COMBO, not plain
+                # marketing. Family must say so or the offer misdescribes itself.
+                expected = "combo" if code == "advanced" else "marketing"
+                if fam and fam != expected:
+                    return None
+                price = int(pk.get("price_inr_month") or 0)
                 return price if price > 0 else None
     except Exception as e:
         logger.warning("[policy] package lookup failed: %s", e)
         return None
+
+    # Standalone voice plans.
     try:
         from app.marketing import voice_packages as vp
 
         if vp.is_voice_plan(code):
+            if fam and fam != "voice":
+                return None
+            if code.endswith("_annual"):
+                # voice_plan_price() would return the MONTHLY equivalent here.
+                logger.warning(
+                    "[policy] refusing annual voice code %r — needs annual payable", code
+                )
+                return None
             price = int(vp.voice_plan_price(code) or 0)
-            return price if price > 0 else None
-    except Exception:
-        pass
+            return price if price > 0 else None  # pilot = 0 -> refused
+    except Exception as e:
+        logger.warning("[policy] voice package lookup failed: %s", e)
     return None
 
 
@@ -348,7 +401,7 @@ def put_policy(
             logger.warning("[policy] sellable policy needs a non-empty allowlist")
             return None
         for code in allowed:
-            if _price_of(code) is None:
+            if _price_of(code, family) is None:
                 logger.warning("[policy] allowed package %r is unknown/unpriced", code)
                 return None
     if default and default not in allowed:
@@ -585,7 +638,7 @@ def qualify(policy: dict[str, Any] | None, facts: dict[str, Any] | None = None) 
     if candidate not in allowed:
         return _outcome(EXCEPTION_REQUIRED, reason=PACKAGE_NOT_ALLOWED, currency=currency)
 
-    price = _price_of(candidate)
+    price = _price_of(candidate, family)
     if price is None:
         return _outcome(EXCEPTION_REQUIRED, reason=PRICE_UNAVAILABLE, currency=currency)
 

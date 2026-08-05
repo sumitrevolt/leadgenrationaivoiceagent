@@ -65,7 +65,7 @@ def test_pinned_prospect_keeps_its_original_version(pol):
     }
 
     pol.put_policy(
-        "camp", product_family="marketing", allowed_package_codes=["advanced"], message_variant="v"
+        "camp", product_family="combo", allowed_package_codes=["advanced"], message_variant="v"
     )
 
     got, reason = pol.resolve_for_prospect(prospect)
@@ -164,7 +164,7 @@ def test_same_variant_under_two_policies_is_refused_at_creation(pol):
     assert (
         pol.put_policy(
             "p2",
-            product_family="marketing",
+            product_family="combo",
             allowed_package_codes=["advanced"],
             message_variant="dup",
         )
@@ -283,7 +283,7 @@ def test_version_uses_max_plus_one_not_row_count(pol, tmp_path):
         "".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8"
     )
 
-    nxt = pol.put_policy("p", product_family="marketing", allowed_package_codes=["advanced"])
+    nxt = pol.put_policy("p", product_family="combo", allowed_package_codes=["advanced"])
 
     assert nxt["policy_version"] == 6  # not 2
 
@@ -306,7 +306,7 @@ def test_single_allowed_package_is_deterministic(pol):
 def test_combo_is_never_priced_as_starter(pol):
     from app.marketing.packages import get_starter_price_inr
 
-    p = pol.put_policy("c", product_family="marketing", allowed_package_codes=["advanced"])
+    p = pol.put_policy("c", product_family="combo", allowed_package_codes=["advanced"])
 
     out = pol.qualify(p, {})
 
@@ -316,9 +316,7 @@ def test_combo_is_never_priced_as_starter(pol):
 
 
 def test_intent_alone_never_selects_a_package(pol):
-    p = pol.put_policy(
-        "m", product_family="marketing", allowed_package_codes=["starter", "advanced"]
-    )
+    p = pol.put_policy("m", product_family="marketing", allowed_package_codes=["starter", "growth"])
 
     out = pol.qualify(p, {"intent": "interested", "niche": "salon"})
 
@@ -457,8 +455,7 @@ def test_retired_policy_id_refuses_a_new_version(pol, tmp_path):
     before = (tmp_path / "policies.jsonl").read_text(encoding="utf-8")
 
     assert (
-        pol.put_policy("camp", product_family="marketing", allowed_package_codes=["advanced"])
-        is None
+        pol.put_policy("camp", product_family="combo", allowed_package_codes=["advanced"]) is None
     )
     assert (tmp_path / "policies.jsonl").read_text(encoding="utf-8") == before
     assert pol.resolve_exact("camp", 1)["allowed_package_codes"] == ["starter"]
@@ -468,9 +465,7 @@ def test_replacement_policy_id_works_after_retirement(pol):
     pol.put_policy("camp", product_family="marketing", allowed_package_codes=["starter"])
     pol.retire_policy("camp")
 
-    fresh = pol.put_policy(
-        "camp-v2", product_family="marketing", allowed_package_codes=["advanced"]
-    )
+    fresh = pol.put_policy("camp-v2", product_family="combo", allowed_package_codes=["advanced"])
 
     assert fresh is not None
     got, reason = pol.resolve_for_send(policy_id="camp-v2")
@@ -479,3 +474,62 @@ def test_replacement_policy_id_works_after_retirement(pol):
 
 def test_creation_rejects_unknown_product_family(pol):
     assert pol.put_policy("p", product_family="nonsense", allowed_package_codes=["starter"]) is None
+
+
+# ============ P0: package family / exact payable amount =====================
+
+
+def test_voice_annual_is_refused_rather_than_undercharged(pol):
+    """voice_plan_price() returns the MONTHLY equivalent for annual plans.
+
+    Freezing it would quote ~Rs 4,999 for a ~Rs 49,990 annual commitment. Until a
+    descriptor carries price_inr_year as the payable amount, annual must refuse.
+    """
+    from app.marketing import voice_packages as vp
+
+    annual = next((c for c in vp.VOICE_PLAN_IDS if c.endswith("_annual")), None)
+    assert annual, "no annual voice plan in catalogue"
+
+    assert pol.put_policy("v", product_family="voice", allowed_package_codes=[annual]) is None
+
+
+def test_cross_family_packages_are_refused(pol):
+    """A code existing 'somewhere' is not authorisation to sell it."""
+    assert pol.put_policy("a", product_family="voice", allowed_package_codes=["starter"]) is None
+    assert pol.put_policy("b", product_family="topup", allowed_package_codes=["advanced"]) is None
+    assert (
+        pol.put_policy("c", product_family="marketing", allowed_package_codes=["voice_a_monthly"])
+        is None
+    )
+
+
+def test_advanced_is_combo_not_marketing(pol):
+    """`advanced` is Marketing + AI Voice — the family must say so."""
+    assert (
+        pol.put_policy("m", product_family="marketing", allowed_package_codes=["advanced"]) is None
+    )
+
+    combo = pol.put_policy("c", product_family="combo", allowed_package_codes=["advanced"])
+    assert combo is not None
+    assert pol.qualify(combo, {})["amount"] == 5999
+
+
+def test_topup_pack_prices_as_a_one_time_charge(pol):
+    p = pol.put_policy("t", product_family="topup", allowed_package_codes=["topup_100"])
+
+    assert p is not None
+    assert pol.qualify(p, {})["amount"] == 1499  # TOPUP_PACKS.price_inr
+
+
+def test_free_pilot_cannot_enter_the_paid_upi_path(pol):
+    assert (
+        pol.put_policy("f", product_family="voice", allowed_package_codes=["voice_pilot"]) is None
+    )
+
+
+def test_marketing_starter_still_prices_correctly(pol):
+    from app.marketing.packages import get_starter_price_inr
+
+    p = pol.put_policy("s", product_family="marketing", allowed_package_codes=["starter"])
+
+    assert pol.qualify(p, {})["amount"] == get_starter_price_inr()
