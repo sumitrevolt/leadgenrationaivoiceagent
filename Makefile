@@ -110,31 +110,35 @@ db-revision:
 # ============================================================================
 
 docker-build:
-	docker build -t leadgen-ai:latest -f Dockerfile.production .
+	docker build -t leadgen-ai:latest -f Dockerfile.lock .
 
 docker-build-dev:
-	docker build -t leadgen-ai:dev -f Dockerfile.production --target development .
+	docker build -t leadgen-ai:dev -f Dockerfile.lock --target development .
+
+# docker-compose.vps.yml is the CANONICAL production stack (AUDIT 2026-08-05);
+# root docker-compose.yml was quarantined to deploy/legacy/ (bare `up` = prod-502).
+COMPOSE := -f docker-compose.vps.yml
 
 docker-up:
-	docker-compose up -d
+	docker compose $(COMPOSE) --profile celery up -d
 
 docker-up-prod:
-	docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+	docker compose $(COMPOSE) --profile celery up -d
 
 docker-down:
-	docker-compose down
+	docker compose $(COMPOSE) down
 
 docker-logs:
-	docker-compose logs -f
+	docker compose $(COMPOSE) logs -f
 
 docker-logs-app:
-	docker-compose logs -f app
+	docker compose $(COMPOSE) logs -f app
 
 docker-shell:
-	docker-compose exec app /bin/bash
+	docker compose $(COMPOSE) exec app /bin/bash
 
 docker-clean:
-	docker-compose down -v --remove-orphans
+	docker compose $(COMPOSE) down -v --remove-orphans
 	docker system prune -f
 
 # ============================================================================
@@ -226,17 +230,17 @@ validate-full:
 setup-secrets:
 	@echo "Setting up secrets in GCP Secret Manager..."
 	@read -p "GCP Project ID: " project; \
-	python scripts/setup_secrets.py --project-id $$project --env production --interactive
+	python scripts/setup_secrets.py --project-id $$project --env production --interactive  # pragma: allowlist secret
 
 setup-secrets-staging:
 	@echo "Setting up staging secrets..."
 	@read -p "GCP Project ID: " project; \
-	python scripts/setup_secrets.py --project-id $$project --env staging --interactive
+	python scripts/setup_secrets.py --project-id $$project --env staging --interactive  # pragma: allowlist secret
 
 setup-secrets-dry-run:
 	@echo "Dry run - checking what secrets would be created..."
 	@read -p "GCP Project ID: " project; \
-	python scripts/setup_secrets.py --project-id $$project --env production --dry-run
+	python scripts/setup_secrets.py --project-id $$project --env production --dry-run  # pragma: allowlist secret
 
 deploy-full:
 	@echo "Full production deployment..."
