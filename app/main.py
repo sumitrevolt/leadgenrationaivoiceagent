@@ -229,6 +229,20 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Redis unavailable (in-memory fallback active): {e}")
 
+    # Memory-stack warm-up: resolve the tokenizer/redaction helpers HERE, at
+    # process startup, not inside the first request. Measured: paying that
+    # import cost inside `assemble()` blew the 250ms deadline and timed out
+    # every lane, so the first agent turn silently got an empty memory block.
+    # Never blocks boot — a failure only degrades to the builtin estimator and
+    # is visible in /api/memory-stack/diagnostics.
+    try:
+        from app.platform import memory_stack as _memory_stack
+
+        await _memory_stack.prewarm()
+        logger.info("✅ Memory stack warmed (helpers resolved off the request path)")
+    except Exception as e:
+        logger.warning(f"Memory-stack prewarm skipped (degraded, legacy fallback): {e}")
+
     # ML scheduler remains opt-in (heavy). All automation handled by team_scheduler.
     logger.info("⏭️ ML scheduler disabled (opt-in)")
 
@@ -738,6 +752,15 @@ try:
     app.include_router(_workforce_memory_admin_router)
 except Exception as _e:  # pragma: no cover
     logger.warning(f"Workforce-memory admin router not mounted: {_e}")
+try:
+    from app.api.memory_stack_admin import router as _memory_stack_admin_router
+
+    # /api/memory-stack/* — 7-layer agent-memory facade (working/episodic/semantic/
+    # procedural/hierarchical/prospective/shared). Admin-only; INERT when
+    # MEMORY_STACK unset (assemble returns enabled:false, drain skips).
+    app.include_router(_memory_stack_admin_router)
+except Exception as _e:  # pragma: no cover
+    logger.warning(f"Memory-stack admin router not mounted: {_e}")
 try:
     from app.api.engineer_agents import router as _engineer_agents_router
 
