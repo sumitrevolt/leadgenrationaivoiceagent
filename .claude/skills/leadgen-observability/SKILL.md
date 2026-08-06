@@ -11,10 +11,10 @@ description: Enterprise observability — logs, metrics, traces, dashboards, ale
 Failures customer-report se PEHLE dikhao. Sirf useful signals — revenue, automation, infra, customer-journey debug me help karein.
 
 ## Repo truth
-- **Obs stack**: deploy/compose/docker-compose.observability.yml me DEFINED (12 services) par 2026-07-05 live container list me NOT RUNNING — dashboards/alerts pe bharosa karne se pehle deployment verify karo. Grafana auto-provision `monitoring/grafana/provisioning/` + `dashboards/celery_tasks.json`.
+- **Obs stack**: docker-compose.observability.yml me DEFINED (12 services) par 2026-07-05 live container list me NOT RUNNING — dashboards/alerts pe bharosa karne se pehle deployment verify karo. Grafana auto-provision `monitoring/grafana/provisioning/` + `dashboards/celery_tasks.json`.
 - **Sentry ARMED** (`SENTRY_DSN` set on VPS, errors capturing; FastApiIntegration global).
 - **OTel** GenAI traces: Tempo raw-support ready → `ENABLE_OTEL=1` + attributes (see `genai-observability`).
-- **Addons** (`deploy/compose/docker-compose.addons.yml`): celery-exporter :9808 + flower :5555 task-UI.
+- **Addons** (`docker-compose.addons.yml`): celery-exporter :9808 + flower :5555 task-UI.
 - **Alerts**: `ops_alerts` ntfy fan-out (G.1) — engineer-score / eval-burst / dead-letter / readiness-digest, cooldowns. ntfy `https://ntfy.leadsgenai.in`.
 - **Wired-but-OFF**: PostHog (`POSTHOG_API_KEY`), LiteLLM, OTel — sirf .env keys chahiye.
 

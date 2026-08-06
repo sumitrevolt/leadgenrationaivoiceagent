@@ -5,15 +5,15 @@ description: Operate and extend the LeadGen AI monitoring stack — Prometheus, 
 
 # Observability Ops (monitoring stack)
 
-`deploy/compose/docker-compose.observability.yml` — 6 containers: Prometheus (:9090), Grafana (:3000), Alertmanager (:9093, email), Loki (:3100), Tempo (:4317 traces), Uptime Kuma (:3001). App side: `/metrics` (Prometheus) + Sentry (errors, gated `SENTRY_DSN`) + `/health` `/health/ready` + `ops_watchdog` (app-level email). Bring up: `docker compose -f deploy/compose/docker-compose.observability.yml up -d`.
+`docker-compose.observability.yml` — 6 containers: Prometheus (:9090), Grafana (:3000), Alertmanager (:9093, email), Loki (:3100), Tempo (:4317 traces), Uptime Kuma (:3001). App side: `/metrics` (Prometheus) + Sentry (errors, gated `SENTRY_DSN`) + `/health` `/health/ready` + `ops_watchdog` (app-level email). Bring up: `docker compose -f docker-compose.observability.yml up -d`.
 
 > **KYA measure + kab freeze →** `slo-error-budget` (SLO table, burn-rate rules, error-budget policy). Yeh skill = stack HOW; woh = targets WHAT.
 
-## Celery observability (addons — `deploy/compose/docker-compose.addons.yml`)
+## Celery observability (addons — `docker-compose.addons.yml`)
 Scheduler = Celery durable (LIVE), so Celery visibility zaroori hai:
 - **celery-exporter** (`leadgen_celery_exporter` :9808) — Prometheus Celery metrics (task counts/states/runtimes, `celery_workers_online`, `celery_queue_length` incl. DLQ watch). Bina iske 14 AI-staff tasks Grafana me DARK the.
 - **flower** (`leadgen_flower` :5555, HTTP Basic `FLOWER_USER`/`FLOWER_PASSWORD`) — real-time task UI (state/retry/ETA/worker health). SSH tunnel se access: `ssh -L 5555:127.0.0.1:5555 ...` → http://localhost:5555. Public expose mat karo.
-- prometheus.yml me dono scrape targets ALREADY hain (`celery` :9808 + `flower` :5555). Bring up: `docker compose -f deploy/compose/docker-compose.addons.yml up -d`. Grafana Celery dashboard auto-provisioned (`monitoring/grafana/dashboards/celery_tasks.json`).
+- prometheus.yml me dono scrape targets ALREADY hain (`celery` :9808 + `flower` :5555). Bring up: `docker compose -f docker-compose.addons.yml up -d`. Grafana Celery dashboard auto-provisioned (`monitoring/grafana/dashboards/celery_tasks.json`).
 - Same addons file me **minio** (`leadgen_minio` :9000 S3 API / :9001 console) — object store (AI images/client assets), abhi opt-in (app code `data/ai_images/` bind-mount pe graceful fallback; `app/storage/minio_client.py`).
 
 ## Add an alert
