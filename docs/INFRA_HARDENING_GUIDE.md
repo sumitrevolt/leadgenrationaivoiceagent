@@ -36,7 +36,7 @@ Yeh guide tumhare single-VPS Docker stack (leadsgenai.in) ke liye. Solo-scale ke
 
 - `docker-compose.vps.yml` me `pgbouncer` service add ho gaya (session mode, asyncpg-safe).
 - Switch: app ka `DATABASE_URL` ko `@pgbouncer:6432` pe point (deploy script ya .env).
-- **Verify pehle staging pe** (`docker-compose.staging.yml`), fir prod.
+- **Verify pehle staging pe** (`deploy/compose/docker-compose.staging.yml`), fir prod.
 - Session mode = asyncpg ke prepared statements safe. Transaction mode mat use karo (asyncpg break karta) jab tak `statement_cache_size=0` na ho.
 
 ---
@@ -44,10 +44,10 @@ Yeh guide tumhare single-VPS Docker stack (leadsgenai.in) ke liye. Solo-scale ke
 ## 3. Zero-downtime deploy + STAGING — ✅ staging file ready
 **Kyun:** Abhi `--force-recreate` = ~3-5s downtime; **koi staging nahi** (changes seedhe prod).
 
-- **Staging**: `docker-compose.staging.yml` bana (prod mirror, alag DB+Redis+port 8001, automation OFF). Use:
+- **Staging**: `deploy/compose/docker-compose.staging.yml` bana (prod mirror, alag DB+Redis+port 8001, automation OFF). Use:
   ```bash
   cp .env .env.staging   # test values
-  docker compose -f docker-compose.staging.yml --env-file .env.staging up -d
+  docker compose -f deploy/compose/docker-compose.staging.yml --env-file .env.staging up -d
   # Caddy: staging.leadsgenai.in -> 127.0.0.1:8001 (basic-auth)
   ```
 - **Zero-downtime** (2 options):
@@ -57,7 +57,7 @@ Yeh guide tumhare single-VPS Docker stack (leadsgenai.in) ke liye. Solo-scale ke
 ---
 
 ## 4. SPOF khatam — offsite backups + DR — ✅ cron / 🟡 offsite (R2/B2 creds)
-**Kyun:** Single VPS gir gaya = sab down + data-loss. 
+**Kyun:** Single VPS gir gaya = sab down + data-loss.
 
 - ✅ **restore-drill monthly cron** set (`0 3 1 * *` → `pg_restore_drill.sh`, throwaway-container restore-verify). "Untested backup = no backup" fix.
 - ✅ **fail2ban + unattended-upgrades** active.

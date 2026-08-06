@@ -102,7 +102,7 @@ security review (0 false-positive) â€” sab fix. Sab flag OFF default = prod
 Ye "gaps" nahi â€” ye **ready-but-OFF** hai. Yahi asli leverage hai:
 
 1. **Razorpay live keys** (ðŸš¨ P0 â€” pehla paid customer se pehle MUST) â€” `.env` me asli `rzp_live_...`.
-2. **Cloudflare free edge** (`docker-compose.edge.yml`) â€” origin-IP hide + WAF + CDN + DDoS. CF account + tunnel token. **Single biggest free security+perf win.**
+2. **Cloudflare free edge** (`deploy/compose/docker-compose.edge.yml`) â€” origin-IP hide + WAF + CDN + DDoS. CF account + tunnel token. **Single biggest free security+perf win.**
 3. **Offsite backup** â€” R2/B2 (10GB free) bucket â†’ `RCLONE_REMOTE` set. `pg_backup.sh` already wired.
 4. **LLM observability** â€” `ENABLE_LLM_OBS=1` (+ Langfuse cloud-free keys ya OTelâ†’Tempo). Code wired.
 5. **PostHog** â€” product-analytics + session-replay + flags (cloud-free key). Code wired.

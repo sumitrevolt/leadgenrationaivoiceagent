@@ -1,7 +1,7 @@
 # Activation Runbook — 2026-06-16
 **Scope:** Turn on (a) the capabilities coded this session, and (b) the ₹0 credential quick-wins from the infra audit. Every item is flag/credential-gated and **OFF by default** — nothing changes until you act here.
 
-> **Golden rules (your stack):** edit `/opt/leadgen/.env` on the VPS, then recreate only the app container. Validate on staging (`docker-compose.staging.yml`) first for anything touching deps. Roll back = unset the env var + recreate.
+> **Golden rules (your stack):** edit `/opt/leadgen/.env` on the VPS, then recreate only the app container. Validate on staging (`deploy/compose/docker-compose.staging.yml`) first for anything touching deps. Roll back = unset the env var + recreate.
 
 **SSH:** `C:\PROGRA~1\Git\usr\bin\ssh.exe -i C:\Users\Ratanshila\.ssh\id_rsa root@72.61.245.204`
 
@@ -76,10 +76,10 @@ AGENT_MEMORY_MAX_FACTS=4
 ## PART B — Credential quick-wins (audit Section F)
 
 ### B1. Cloudflare Tunnel + Turnstile · ₹0 · risk: low · **highest ROI**
-Already wired in `docker-compose.edge.yml` (profile `edge`). Hides origin IP, adds free WAF/DDoS; Turnstile blocks bot form-spam on lead magnets.
+Already wired in `deploy/compose/docker-compose.edge.yml` (profile `edge`). Hides origin IP, adds free WAF/DDoS; Turnstile blocks bot form-spam on lead magnets.
 1. Cloudflare dashboard → add `leadsgenai.in` → Zero Trust → Tunnels → create tunnel → copy token.
 2. VPS `.env`: `CLOUDFLARE_TUNNEL_TOKEN=eyJ...`
-3. Start: `docker compose -f docker-compose.edge.yml --profile edge up -d` (outbound only — no new port opens).
+3. Start: `docker compose -f deploy/compose/docker-compose.edge.yml --profile edge up -d` (outbound only — no new port opens).
 4. Point the tunnel's public hostname → `http://127.0.0.1:8000` (your Caddy/app), move DNS to Cloudflare (proxied/orange-cloud).
 5. **Turnstile:** create a widget, add the site-key to `/audit`, `/site-audit`, `/demo`, `/start` forms + verify the token server-side on submit.
 **Verify:** `curl -I https://leadsgenai.in` shows `server: cloudflare`; origin IP no longer resolvable publicly. **Rollback:** `--profile edge down` + revert DNS.

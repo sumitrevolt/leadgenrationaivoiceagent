@@ -41,12 +41,12 @@ OLLAMA_TIMEOUT_S=30
 ```
 phir app recreate. Bas — ab project tumhari GPU se LLM chalata hai.
 
-⚠️ **Note:** laptop on + tunnel running rehna chahiye. Sleep/off pe ollama-provider down → cloud fallback (graceful, no crash). 24×7 production ke liye: dedicated GPU box ya `docker-compose.ollama.yml` (Option B) ya cloud GPU.
+⚠️ **Note:** laptop on + tunnel running rehna chahiye. Sleep/off pe ollama-provider down → cloud fallback (graceful, no crash). 24×7 production ke liye: dedicated GPU box ya `deploy/compose/docker-compose.ollama.yml` (Option B) ya cloud GPU.
 
 ## Option B — VPS self-host (CPU-only, 4 core / 10GB)  — always-on, slower
-`docker-compose.ollama.yml` (CPU-limited Ollama container, same network):
+`deploy/compose/docker-compose.ollama.yml` (CPU-limited Ollama container, same network):
 ```
-docker compose -f docker-compose.ollama.yml up -d
+docker compose -f deploy/compose/docker-compose.ollama.yml up -d
 docker exec leadgen_ollama ollama pull qwen2.5:3b-instruct
 ```
 `.env`: `OLLAMA_URL=http://ollama:11434/v1` (in-network). CPU inference ~3-6s/short reply

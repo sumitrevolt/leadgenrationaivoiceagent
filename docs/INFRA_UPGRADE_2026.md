@@ -19,8 +19,8 @@ Tera existing stack **surprisingly mature** hai — rate limiting, security head
 | Redis-backed rate limiting (IP) | `app/middleware/__init__.py` | ✅ Built, ON prod | Already active in production |
 | Security headers middleware | `app/middleware/__init__.py` | ✅ Built, ON | Already active |
 | Request tracing (X-Request-ID) | `app/middleware/__init__.py` | ✅ Built, ON | Already active |
-| LiteLLM gateway + Redis cache | `deploy/litellm/config.yaml` + `docker-compose.edge.yml` | ✅ Built, OFF | Set `LITELLM_MASTER_KEY` → `--profile gateway up` |
-| Cloudflare Tunnel (WAF + CDN) | `docker-compose.edge.yml` | ✅ Built, OFF | Set `CLOUDFLARE_TUNNEL_TOKEN` → `--profile edge up` |
+| LiteLLM gateway + Redis cache | `deploy/litellm/config.yaml` + `deploy/compose/docker-compose.edge.yml` | ✅ Built, OFF | Set `LITELLM_MASTER_KEY` → `--profile gateway up` |
+| Cloudflare Tunnel (WAF + CDN) | `deploy/compose/docker-compose.edge.yml` | ✅ Built, OFF | Set `CLOUDFLARE_TUNNEL_TOKEN` → `--profile edge up` |
 | pgBackRest + PITR scripts | `scripts/pg_pitr_enable.sh` + `pg_backup.sh` + `pg_restore_drill.sh` | ✅ Scripts exist | Wire cron + enable WAL archiving |
 | WAL archive volume | `docker-compose.vps.yml` (`walarchive` volume) | ✅ Volume mounted | Run `scripts/pg_pitr_enable.sh` on VPS |
 | Sentry error tracking | `app/main.py` (FastApiIntegration) | ✅ Built, needs `SENTRY_DSN` | Set `SENTRY_DSN` in `.env` |
@@ -28,8 +28,8 @@ Tera existing stack **surprisingly mature** hai — rate limiting, security head
 | GZip compression | `app/middleware/__init__.py` | ✅ Built, ON | Active |
 | RequestGuard (timeout + shed) | `app/middleware/__init__.py` | ✅ Built, OFF | Set `REQUEST_GUARD=1` |
 | OpenTelemetry traces | `app/observability_otel.py` | ⚠️ Built, OFF — exporter deps NOT baked | **`ENABLE_OTEL=1` alone = silent no-op.** Lock me sirf `opentelemetry-api` baked; OTLP exporter + FastAPI/SQLAlchemy/Redis/httpx instrumentation `requirements-otel.txt` (un-baked) me → `ImportError`. Pehle in deps ko lock me add + image rebuild, PHIR `ENABLE_OTEL=1` + `OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317` |
-| Full observability stack | `docker-compose.observability.yml` | ✅ LIVE | Prometheus+Grafana+Loki+Tempo+Gatus+Uptime Kuma |
-| Node/cAdvisor/Postgres/Redis exporters | `docker-compose.observability.yml` | ✅ LIVE | Scraping active |
+| Full observability stack | `deploy/compose/docker-compose.observability.yml` | ✅ LIVE | Prometheus+Grafana+Loki+Tempo+Gatus+Uptime Kuma |
+| Node/cAdvisor/Postgres/Redis exporters | `deploy/compose/docker-compose.observability.yml` | ✅ LIVE | Scraping active |
 
 ---
 
@@ -37,7 +37,7 @@ Tera existing stack **surprisingly mature** hai — rate limiting, security head
 
 ### ✅ DONE — Added in this upgrade
 
-#### 1. Celery Monitoring (`docker-compose.addons.yml`)
+#### 1. Celery Monitoring (`deploy/compose/docker-compose.addons.yml`)
 **Gap:** 14 AI staff tasks (blog/prospect/outreach/qa/trainer/self-improve etc.) completely DARK in Prometheus/Grafana. Zero Celery metrics anywhere in `prometheus.yml`.
 
 **Added:**
@@ -45,11 +45,11 @@ Tera existing stack **surprisingly mature** hai — rate limiting, security head
 - `prometheus.yml` — celery + flower scrape targets added
 - `monitoring/grafana/dashboards/celery_tasks.json` — full dashboard (workers online, queue depths, task rate by state, P50/P95/P99 runtime, top slowest tasks, failure rate, DLQ watch)
 - `monitoring/grafana/provisioning/dashboards/default.yml` — auto-provision (no manual Grafana import needed)
-- `docker-compose.observability.yml` — Grafana provisioning volumes added
+- `deploy/compose/docker-compose.observability.yml` — Grafana provisioning volumes added
 
-**Activate:** `docker compose -f docker-compose.addons.yml up -d celery-exporter`
+**Activate:** `docker compose -f deploy/compose/docker-compose.addons.yml up -d celery-exporter`
 
-#### 2. Flower — Celery Task UI (`docker-compose.addons.yml`)
+#### 2. Flower — Celery Task UI (`deploy/compose/docker-compose.addons.yml`)
 **Gap:** No way to inspect running/failed/retry tasks for 14 AI staff agents without `celery inspect` CLI.
 
 **Added:** `leadgen_flower` (mher/flower:2.0, 256MB) — real-time task dashboard, worker management, task history, ETA/retry visibility.
@@ -60,11 +60,11 @@ Tera existing stack **surprisingly mature** hai — rate limiting, security head
 FLOWER_USER=admin
 FLOWER_PASSWORD=<strong_password>
 
-docker compose -f docker-compose.addons.yml up -d flower
+docker compose -f deploy/compose/docker-compose.addons.yml up -d flower
 # Access: ssh -L 5555:127.0.0.1:5555 root@72.61.245.204 → http://localhost:5555
 ```
 
-#### 3. MinIO S3-Compatible Storage (`docker-compose.addons.yml`)
+#### 3. MinIO S3-Compatible Storage (`deploy/compose/docker-compose.addons.yml`)
 **Gap:** `app/marketing/ai_image.py` images → `data/ai_images/` bind-mount. No S3 API, no presigned URLs, no CDN-ready paths, no lifecycle cleanup, no replication path.
 
 **Added:**
@@ -82,7 +82,7 @@ MINIO_URL=http://minio:9000
 MINIO_BUCKET=leadgen-assets
 MINIO_PRIVATE_BUCKET=leadgen-private
 
-docker compose -f docker-compose.addons.yml up -d minio minio-setup
+docker compose -f deploy/compose/docker-compose.addons.yml up -d minio minio-setup
 # Console: ssh -L 9001:127.0.0.1:9001 root@72.61.245.204 → http://localhost:9001
 ```
 
@@ -136,12 +136,12 @@ PLAN_RATE_LIMIT=1
 
 # 6. LiteLLM gateway (OpenAI-compatible endpoint + Redis prompt cache)
 LITELLM_MASTER_KEY=sk-leadgen-internal-xxxxx
-# Then: docker compose -f docker-compose.edge.yml --profile gateway up -d
+# Then: docker compose -f deploy/compose/docker-compose.edge.yml --profile gateway up -d
 
 # 7. Cloudflare Tunnel (WAF + DDoS + CDN for origin hide)
 # Get token: dash.cloudflare.com → Zero Trust → Tunnels
 CLOUDFLARE_TUNNEL_TOKEN=eyJh...
-# Then: docker compose -f docker-compose.edge.yml --profile edge up -d
+# Then: docker compose -f deploy/compose/docker-compose.edge.yml --profile edge up -d
 ```
 
 **After .env edit:**
@@ -236,7 +236,7 @@ bash /opt/leadgen/scripts/pg_restore_drill.sh
 
 ```
 [ ] 1. UPI_VPA → .env → app restart (REVENUE BLOCKER; Razorpay removed 2026-06-18)
-[ ] 2. docker compose -f docker-compose.addons.yml up -d   (Celery visibility + MinIO)
+[ ] 2. docker compose -f deploy/compose/docker-compose.addons.yml up -d   (Celery visibility + MinIO)
 [ ] 3. PostHog API key → .env → app restart (product analytics ON)
 [ ] 4. Sentry DSN → .env → app restart (error tracking ON)
 [ ] 5. REQUEST_GUARD=1 → .env → app restart (timeout protection)
@@ -246,7 +246,7 @@ bash /opt/leadgen/scripts/pg_restore_drill.sh
 [ ] 9. CLOUDFLARE_TUNNEL_TOKEN → .env + --profile edge up (CDN + WAF ON)
 [ ] 10. pg_pitr_enable.sh on VPS + backup cron (PITR active)
 [ ] 11. Infisical free tier → migrate secrets from .env
-[ ] 12. FLOWER_PASSWORD + FLOWER_USER → docker-compose.addons.yml up -d flower
+[ ] 12. FLOWER_PASSWORD + FLOWER_USER → deploy/compose/docker-compose.addons.yml up -d flower
 ```
 
 ---
@@ -257,7 +257,7 @@ Add to CLAUDE.md (infra section):
 
 ```
 ## Infra Additions (2026-06-15 upgrade)
-- docker-compose.addons.yml: celery-exporter (:9808) + flower (:5555) + minio (:9000/:9001)
+- deploy/compose/docker-compose.addons.yml: celery-exporter (:9808) + flower (:5555) + minio (:9000/:9001)
 - prometheus.yml: celery + flower scrape targets added
 - Grafana: celery_tasks dashboard auto-provisioned (monitoring/grafana/dashboards/)
 - app/middleware/__init__.py: PlanTierRateLimitMiddleware added (PLAN_RATE_LIMIT=1 to activate)

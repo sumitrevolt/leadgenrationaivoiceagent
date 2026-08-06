@@ -1,6 +1,7 @@
 """VPS infra setup: pg_backup cron, logrotate, PLAN_RATE_LIMIT, REQUEST_GUARD.
 Run on VPS: python3 scripts/vps_infra_setup.py
 """
+
 import os
 import subprocess
 import sys
@@ -9,7 +10,9 @@ LOG = []
 
 
 def run(cmd, shell=True):
-    r = subprocess.run(cmd, shell=shell, capture_output=True, text=True)
+    r = subprocess.run(
+        cmd, shell=shell, capture_output=True, text=True
+    )  # nosec B602 (ops script, explicit shell)
     out = (r.stdout + r.stderr).strip()
     LOG.append(f"$ {cmd}\n{out}")
     return r.returncode, out
@@ -26,7 +29,10 @@ rc, cur = run("crontab -l 2>/dev/null || true")
 if "pg_backup.sh" in cur:
     LOG.append("cron: pg_backup already set")
 else:
-    new_cron = cur + "\n30 21 * * * /opt/leadgen/scripts/pg_backup.sh >> /var/log/leadgen_backup.log 2>&1\n"
+    new_cron = (
+        cur
+        + "\n30 21 * * * /opt/leadgen/scripts/pg_backup.sh >> /var/log/leadgen_backup.log 2>&1\n"
+    )
     rc2, _ = run(f'echo "{new_cron}" | crontab -')
     LOG.append("cron: pg_backup added " + ("OK" if rc2 == 0 else "FAIL"))
 
@@ -38,11 +44,12 @@ LOG.append("backup dirs: OK")
 # 4) PLAN_RATE_LIMIT + REQUEST_GUARD in .env
 env_file = "/opt/leadgen/.env"
 try:
-    with open(env_file, "r") as f:
+    with open(env_file) as f:
         content = f.read()
     changed = False
     for var in ("PLAN_RATE_LIMIT", "REQUEST_GUARD"):
         import re
+
         if re.search(rf"^{var}=", content, re.MULTILINE):
             content = re.sub(rf"^{var}=.*$", f"{var}=1", content, flags=re.MULTILINE)
             LOG.append(f"{var}: updated to 1")
@@ -62,7 +69,9 @@ rc, running = run("docker ps --format '{{.Names}}' | grep leadgen_prometheus || 
 if "leadgen_prometheus" in running:
     LOG.append("observability: already running")
 else:
-    rc2, out2 = run("cd /opt/leadgen && docker compose -f docker-compose.observability.yml up -d 2>&1 | tail -10")
+    rc2, out2 = run(
+        "cd /opt/leadgen && docker compose -f deploy/compose/docker-compose.observability.yml up -d 2>&1 | tail -10"
+    )
     LOG.append("observability start: " + ("OK" if rc2 == 0 else f"FAIL\n{out2}"))
 
 # 6) alertmanager SMTP password

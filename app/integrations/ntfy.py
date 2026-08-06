@@ -2,7 +2,7 @@
 
 Email alerts (NOTIFY_EMAIL) ka complement: critical events Sumit ke phone pe
 turant pahunchte (ntfy Android/iOS app → topic subscribe). Self-hosted container
-`docker-compose.tools.yml` me; phone ke liye Caddy se `ntfy.leadsgenai.in` expose.
+`deploy/compose/docker-compose.tools.yml` me; phone ke liye Caddy se `ntfy.leadsgenai.in` expose.
 
 GATED: `NTFY_URL` (publish URL, e.g. http://ntfy:80 in-network) + `NTFY_TOPIC`.
 Optional `NTFY_TOKEN` (auth). Unset = inert no-op. NEVER raises — alerts kabhi
