@@ -1,13 +1,16 @@
-"""app/api/social_oauth.py — Social OAuth start/callback + readiness map.
+"""app/api/social_oauth.py — Social OAuth + Telegram bot readiness.
 
-Meta (Facebook + Instagram): real authorize URL + code→token→vault when
-``META_OAUTH_APPROVED=1`` AND ``META_APP_ID`` + ``META_APP_SECRET`` are set.
+Wired when env-approved AND credentials present:
+  - Meta facebook/instagram (META_APP_* / FACEBOOK_*)
+  - LinkedIn (LINKEDIN_CLIENT_*)
+  - YouTube (YOUTUBE_CLIENT_* / GOOGLE_CLIENT_*)
 
-GBP / LinkedIn / X / YouTube: honest stubs — never fake ``oauth_ready``.
-Customer fallback: ``/api/customer/social/accounts/connect`` (manual paste).
+Honest stubs (never fake oauth_ready): GBP, X.
 
-Own-brand publish rail remains Postiz; this path stores customer/page tokens
-in ``social_engine.vault`` for native Graph adapters when used.
+Telegram is NOT OAuth — bot_token readiness is reported on /state only.
+Do not re-add Telegram to social_engine default_providers (ban-risk).
+
+Own-brand publish rail remains Postiz.
 """
 
 from __future__ import annotations
@@ -20,6 +23,7 @@ import os
 import secrets
 import time
 import urllib.parse
+from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -35,6 +39,16 @@ router = APIRouter(prefix="/api/social/oauth", tags=["Social OAuth"])
 _META_PLATFORMS = frozenset({"facebook", "instagram"})
 _GRAPH_VERSION = "v21.0"
 _STATE_MAX_AGE_S = 600
+_HTTP_ALLOW_HOSTS = frozenset(
+    {
+        "graph.facebook.com",
+        "www.linkedin.com",
+        "api.linkedin.com",
+        "accounts.google.com",
+        "oauth2.googleapis.com",
+        "www.googleapis.com",
+    }
+)
 
 _ENV_APPROVED_FLAGS = {
     "facebook": "META_OAUTH_APPROVED",
@@ -54,7 +68,7 @@ _REQUIRED_SCOPES = {
         "pages_read_engagement",
     ],
     "gbp": ["https://www.googleapis.com/auth/business.manage"],
-    "linkedin": ["w_organization_social", "w_member_social", "r_liteprofile"],
+    "linkedin": ["w_organization_social", "w_member_social", "r_liteprofile", "openid", "profile"],
     "x": ["tweet.write", "tweet.read", "users.read"],
     "youtube": ["https://www.googleapis.com/auth/youtube.upload"],
 }
@@ -62,8 +76,7 @@ _REQUIRED_SCOPES = {
 _OWNER_ACTION_NOTES = {
     "facebook": (
         "Own-brand Meta app can post without Advanced Access. Arbitrary customer "
-        "Pages still need Meta App Review (Advanced Access). Console: "
-        "developers.facebook.com/apps → Facebook Login → Valid OAuth Redirect URIs."
+        "Pages still need Meta App Review (Advanced Access)."
     ),
     "instagram": (
         "Same Meta app as Facebook — instagram_content_publish. Own-brand IG OK; "
@@ -74,13 +87,13 @@ _OWNER_ACTION_NOTES = {
         "→ APIs & Services → Business Profile API."
     ),
     "linkedin": (
-        "LinkedIn Marketing / Community Management API partner access required. "
-        "linkedin.com/developers → Products."
+        "LinkedIn Marketing / Community Management API partner access required for "
+        "org posting. Console: linkedin.com/developers → Auth → Redirect URLs."
     ),
     "x": ("X API v2 free tier is READ-ONLY. `tweet.write` needs Basic ($100/mo) or Pro tier."),
     "youtube": (
-        "OAuth2 consent screen must be published + verified. Domain verification + "
-        "video upload consent = Google trust review."
+        "OAuth2 consent screen must allow youtube.upload. Redirect URI: "
+        "/api/social/oauth/youtube/callback"
     ),
 }
 
@@ -93,7 +106,6 @@ def _oauth_approved(platform: str) -> bool:
 
 
 def _meta_creds() -> tuple[str, str]:
-    # Prefer META_*; accept FACEBOOK_* aliases (Postiz deploy already stores these).
     app_id = (os.getenv("META_APP_ID") or "").strip() or (
         os.getenv("FACEBOOK_APP_ID") or ""
     ).strip()
@@ -103,13 +115,51 @@ def _meta_creds() -> tuple[str, str]:
     return app_id, app_secret
 
 
+def _linkedin_creds() -> tuple[str, str]:
+    return (
+        (os.getenv("LINKEDIN_CLIENT_ID") or "").strip(),
+        (os.getenv("LINKEDIN_CLIENT_SECRET") or "").strip(),
+    )
+
+
+def _youtube_creds() -> tuple[str, str]:
+    cid = (os.getenv("YOUTUBE_CLIENT_ID") or "").strip() or (
+        os.getenv("GOOGLE_CLIENT_ID") or ""
+    ).strip()
+    secret = (os.getenv("YOUTUBE_CLIENT_SECRET") or "").strip() or (
+        os.getenv("GOOGLE_CLIENT_SECRET") or ""
+    ).strip()
+    return cid, secret
+
+
+def _telegram_bot_ready() -> bool:
+    token = (os.getenv("TELEGRAM_BOT_TOKEN") or "").strip()
+    chat = (os.getenv("TELEGRAM_CHAT_ID") or "").strip()
+    return bool(token and chat)
+
+
 def _authorize_wired(platform: str) -> bool:
-    """True only when this platform's authorize + exchange path can actually run."""
     p = (platform or "").strip().lower()
     if p in _META_PLATFORMS:
         app_id, app_secret = _meta_creds()
         return bool(app_id and app_secret)
+    if p == "linkedin":
+        cid, secret = _linkedin_creds()
+        return bool(cid and secret)
+    if p == "youtube":
+        cid, secret = _youtube_creds()
+        return bool(cid and secret)
     return False
+
+
+def _creds_missing_reason(platform: str) -> str:
+    if platform in _META_PLATFORMS:
+        return "meta_app_credentials_missing"
+    if platform == "linkedin":
+        return "linkedin_client_credentials_missing"
+    if platform == "youtube":
+        return "youtube_client_credentials_missing"
+    return "oauth_authorize_url_not_wired"
 
 
 def _public_base() -> str:
@@ -147,12 +197,7 @@ def _safe_return_to(return_to: str) -> str:
     return rt[:500]
 
 
-def _sign_state(
-    *,
-    client_id: str,
-    platform: str,
-    return_to: str,
-) -> str:
+def _sign_state(*, client_id: str, platform: str, return_to: str) -> str:
     payload = {
         "c": (client_id or "").strip(),
         "p": (platform or "").strip().lower(),
@@ -198,24 +243,44 @@ def _verify_state(state: str, platform: str) -> dict[str, Any] | None:
         return None
 
 
-def _http_get_json(url: str, timeout: float = 30.0) -> dict[str, Any]:
-    """HTTPS GET JSON — Meta Graph only (scheme/host pinned)."""
+def _http_json(
+    method: str,
+    url: str,
+    *,
+    data: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    timeout: float = 30.0,
+) -> dict[str, Any]:
     try:
         parsed = urllib.parse.urlparse(url)
-        if parsed.scheme != "https" or parsed.hostname != "graph.facebook.com":
+        if parsed.scheme != "https" or parsed.hostname not in _HTTP_ALLOW_HOSTS:
             return {"error": {"message": "url_not_allowlisted"}}
         import httpx
 
+        hdrs = {"Accept": "application/json", **(headers or {})}
         with httpx.Client(timeout=timeout) as cx:
-            resp = cx.get(url, headers={"Accept": "application/json"})
-            data = resp.json() if resp.content else {}
-            if not isinstance(data, dict):
+            if method.upper() == "POST":
+                resp = cx.post(url, data=data or {}, headers=hdrs)
+            else:
+                resp = cx.get(url, headers=hdrs)
+            body = resp.json() if resp.content else {}
+            if not isinstance(body, dict):
                 return {"error": {"message": "non_object_response"}}
-            if resp.status_code >= 400 and "error" not in data:
-                data = {"error": {"message": f"http_{resp.status_code}", "code": resp.status_code}}
-            return data
+            if resp.status_code >= 400 and "error" not in body:
+                body = {
+                    "error": {
+                        "message": f"http_{resp.status_code}",
+                        "code": resp.status_code,
+                        "body": body,
+                    }
+                }
+            return body
     except Exception as e:
         return {"error": {"message": str(e)[:200]}}
+
+
+def _http_get_json(url: str, timeout: float = 30.0) -> dict[str, Any]:
+    return _http_json("GET", url, timeout=timeout)
 
 
 def _build_meta_authorize_url(platform: str, client_id: str, return_to: str) -> str:
@@ -234,11 +299,42 @@ def _build_meta_authorize_url(platform: str, client_id: str, return_to: str) -> 
     return f"https://www.facebook.com/{_GRAPH_VERSION}/dialog/oauth?{qs}"
 
 
-def _exchange_meta_code(platform: str, code: str) -> dict[str, Any]:
-    """code → short-lived → long-lived user token → page (+ optional IG) token.
+def _build_linkedin_authorize_url(client_id: str, return_to: str) -> str:
+    cid, _ = _linkedin_creds()
+    state = _sign_state(client_id=client_id, platform="linkedin", return_to=return_to)
+    scopes = " ".join(_REQUIRED_SCOPES["linkedin"])
+    qs = urllib.parse.urlencode(
+        {
+            "response_type": "code",
+            "client_id": cid,
+            "redirect_uri": _redirect_uri("linkedin"),
+            "state": state,
+            "scope": scopes,
+        }
+    )
+    return f"https://www.linkedin.com/oauth/v2/authorization?{qs}"
 
-    Returns {ok, token, account_ref, meta, expires_at, error}.
-    """
+
+def _build_youtube_authorize_url(client_id: str, return_to: str) -> str:
+    cid, _ = _youtube_creds()
+    state = _sign_state(client_id=client_id, platform="youtube", return_to=return_to)
+    scopes = " ".join(_REQUIRED_SCOPES["youtube"])
+    qs = urllib.parse.urlencode(
+        {
+            "client_id": cid,
+            "redirect_uri": _redirect_uri("youtube"),
+            "response_type": "code",
+            "scope": scopes,
+            "access_type": "offline",
+            "include_granted_scopes": "true",
+            "prompt": "consent",
+            "state": state,
+        }
+    )
+    return f"https://accounts.google.com/o/oauth2/v2/auth?{qs}"
+
+
+def _exchange_meta_code(platform: str, code: str) -> dict[str, Any]:
     app_id, app_secret = _meta_creds()
     if not app_id or not app_secret:
         return {"ok": False, "error": "meta_creds_missing"}
@@ -292,10 +388,7 @@ def _exchange_meta_code(platform: str, code: str) -> dict[str, Any]:
     pages = pages_data.get("data") if isinstance(pages_data.get("data"), list) else []
     if not pages:
         err = (pages_data.get("error") or {}) if isinstance(pages_data.get("error"), dict) else {}
-        return {
-            "ok": False,
-            "error": str(err.get("message") or "no_pages_returned")[:200],
-        }
+        return {"ok": False, "error": str(err.get("message") or "no_pages_returned")[:200]}
 
     page = pages[0] if isinstance(pages[0], dict) else {}
     page_token = str(page.get("access_token") or "").strip()
@@ -313,8 +406,6 @@ def _exchange_meta_code(platform: str, code: str) -> dict[str, Any]:
 
     expires_at = ""
     if expires_in > 0:
-        from datetime import datetime, timezone
-
         expires_at = datetime.fromtimestamp(time.time() + expires_in, tz=timezone.utc).isoformat()
 
     if platform == "instagram":
@@ -353,6 +444,137 @@ def _exchange_meta_code(platform: str, code: str) -> dict[str, Any]:
     }
 
 
+def _exchange_linkedin_code(code: str) -> dict[str, Any]:
+    cid, secret = _linkedin_creds()
+    if not cid or not secret:
+        return {"ok": False, "error": "linkedin_creds_missing"}
+    token_data = _http_json(
+        "POST",
+        "https://www.linkedin.com/oauth/v2/accessToken",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": _redirect_uri("linkedin"),
+            "client_id": cid,
+            "client_secret": secret,
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    access = str(token_data.get("access_token") or "").strip()
+    if not access:
+        err = token_data.get("error_description") or token_data.get("error") or token_data
+        return {"ok": False, "error": str(err)[:200]}
+
+    expires_in = int(token_data.get("expires_in") or 0)
+    expires_at = ""
+    if expires_in > 0:
+        expires_at = datetime.fromtimestamp(time.time() + expires_in, tz=timezone.utc).isoformat()
+
+    me = _http_json(
+        "GET",
+        "https://api.linkedin.com/v2/userinfo",
+        headers={"Authorization": f"Bearer {access}"},
+    )
+    if me.get("error") or not me.get("sub"):
+        # Fallback older people/~ endpoint shape
+        me = _http_json(
+            "GET",
+            "https://api.linkedin.com/v2/me",
+            headers={"Authorization": f"Bearer {access}"},
+        )
+    account_ref = str(me.get("sub") or me.get("id") or "").strip()
+    if account_ref and not account_ref.startswith("urn:"):
+        account_ref = f"urn:li:person:{account_ref}"
+
+    return {
+        "ok": True,
+        "token": access,
+        "account_ref": account_ref or "linkedin_user",
+        "expires_at": expires_at,
+        "meta": {
+            "token_kind": "linkedin_user_token",
+            "source": "linkedin_oauth",
+            "has_refresh": bool(token_data.get("refresh_token")),
+            "name": str(me.get("name") or ""),
+        },
+    }
+
+
+def _exchange_youtube_code(code: str) -> dict[str, Any]:
+    cid, secret = _youtube_creds()
+    if not cid or not secret:
+        return {"ok": False, "error": "youtube_creds_missing"}
+    token_data = _http_json(
+        "POST",
+        "https://oauth2.googleapis.com/token",
+        data={
+            "code": code,
+            "client_id": cid,
+            "client_secret": secret,
+            "redirect_uri": _redirect_uri("youtube"),
+            "grant_type": "authorization_code",
+        },
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+    )
+    access = str(token_data.get("access_token") or "").strip()
+    refresh = str(token_data.get("refresh_token") or "").strip()
+    if not access:
+        err = token_data.get("error_description") or token_data.get("error") or token_data
+        return {"ok": False, "error": str(err)[:200]}
+
+    expires_in = int(token_data.get("expires_in") or 0)
+    expires_at = ""
+    if expires_in > 0:
+        expires_at = datetime.fromtimestamp(time.time() + expires_in, tz=timezone.utc).isoformat()
+
+    # Prefer storing refresh token when present (upload sessions need refresh).
+    store_token = refresh or access
+    channels = _http_json(
+        "GET",
+        "https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true",
+        headers={"Authorization": f"Bearer {access}"},
+    )
+    items = channels.get("items") if isinstance(channels.get("items"), list) else []
+    ch0 = items[0] if items and isinstance(items[0], dict) else {}
+    account_ref = str(ch0.get("id") or "").strip() or "youtube_channel"
+    title = ""
+    snip = ch0.get("snippet") if isinstance(ch0.get("snippet"), dict) else {}
+    title = str((snip or {}).get("title") or "")
+
+    return {
+        "ok": True,
+        "token": store_token,
+        "account_ref": account_ref,
+        "expires_at": expires_at,
+        "meta": {
+            "token_kind": "google_refresh_or_access",
+            "source": "youtube_oauth",
+            "has_refresh": bool(refresh),
+            "channel_title": title,
+        },
+    }
+
+
+def _exchange_code(platform: str, code: str) -> dict[str, Any]:
+    if platform in _META_PLATFORMS:
+        return _exchange_meta_code(platform, code)
+    if platform == "linkedin":
+        return _exchange_linkedin_code(code)
+    if platform == "youtube":
+        return _exchange_youtube_code(code)
+    return {"ok": False, "error": "platform_not_wired"}
+
+
+def _build_authorize_url(platform: str, client_id: str, return_to: str) -> str:
+    if platform in _META_PLATFORMS:
+        return _build_meta_authorize_url(platform, client_id, return_to)
+    if platform == "linkedin":
+        return _build_linkedin_authorize_url(client_id, return_to)
+    if platform == "youtube":
+        return _build_youtube_authorize_url(client_id, return_to)
+    return ""
+
+
 class OAuthStateResponse(BaseModel):
     platform: str
     oauth_ready: bool
@@ -363,7 +585,7 @@ class OAuthStateResponse(BaseModel):
 
 @router.get("/state")
 def oauth_state_all(_client_id: str = Depends(require_customer)) -> dict:
-    """Per-platform OAuth readiness — customer wizard Connect button truth."""
+    """Per-platform OAuth readiness + Telegram bot_ready (non-OAuth)."""
     out = []
     for platform in _ENV_APPROVED_FLAGS.keys():
         env_ok = _oauth_approved(platform)
@@ -372,11 +594,7 @@ def oauth_state_all(_client_id: str = Depends(require_customer)) -> dict:
         if ready:
             blocker = ""
         elif env_ok and not wired:
-            blocker = (
-                "meta_app_credentials_missing"
-                if platform in _META_PLATFORMS
-                else "oauth_authorize_url_not_wired"
-            )
+            blocker = _creds_missing_reason(platform)
         else:
             blocker = _OWNER_ACTION_NOTES.get(platform, "")
         out.append(
@@ -390,6 +608,26 @@ def oauth_state_all(_client_id: str = Depends(require_customer)) -> dict:
                 "scopes_required": _REQUIRED_SCOPES.get(platform, []),
             }
         )
+
+    tg_ready = _telegram_bot_ready()
+    out.append(
+        {
+            "platform": "telegram",
+            "oauth_ready": False,
+            "bot_ready": tg_ready,
+            "env_approved": tg_ready,
+            "authorize_wired": False,
+            "external_blocker": (
+                "" if tg_ready else "TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID required (not OAuth)."
+            ),
+            "fallback": "bot_token",
+            "scopes_required": [],
+            "note": (
+                "Telegram is bot-token based; not in social_engine default_providers "
+                "(ban-risk). Own-brand canary uses TELEGRAM_AUTO_PUBLISH."
+            ),
+        }
+    )
     return {"ok": True, "platforms": out}
 
 
@@ -399,8 +637,23 @@ def oauth_start(
     return_to: str = Query("", max_length=500),
     client_id: str = Depends(require_customer),
 ) -> dict:
-    """Customer initiates OAuth. Meta returns authorize_url when armed; else honest stub."""
     p = str(platform or "").strip().lower()
+    if p == "telegram":
+        ready = _telegram_bot_ready()
+        return {
+            "ok": ready,
+            "status": "bot_ready" if ready else "not_available",
+            "platform": "telegram",
+            "oauth_ready": False,
+            "bot_ready": ready,
+            "reason": "" if ready else "telegram_bot_credentials_missing",
+            "message": (
+                "Telegram bot configured (token+chat). Not an OAuth flow."
+                if ready
+                else "TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID unset."
+            ),
+            "fallback": "bot_token",
+        }
     if p not in _ENV_APPROVED_FLAGS:
         raise HTTPException(status_code=400, detail={"error": "invalid_platform"})
     if not _oauth_approved(p):
@@ -414,22 +667,21 @@ def oauth_start(
             "fallback_endpoint": "/api/customer/social/accounts/connect",
         }
 
-    if p in _META_PLATFORMS and _authorize_wired(p):
-        url = _build_meta_authorize_url(p, client_id, return_to)
-        return {
-            "ok": True,
-            "status": "ready",
-            "platform": p,
-            "authorize_url": url,
-            "scopes_required": _REQUIRED_SCOPES.get(p, []),
-            "return_to": _safe_return_to(return_to),
-            "fallback": "manual_paste",
-            "fallback_endpoint": "/api/customer/social/accounts/connect",
-        }
+    if _authorize_wired(p):
+        url = _build_authorize_url(p, client_id, return_to)
+        if url:
+            return {
+                "ok": True,
+                "status": "ready",
+                "platform": p,
+                "authorize_url": url,
+                "scopes_required": _REQUIRED_SCOPES.get(p, []),
+                "return_to": _safe_return_to(return_to),
+                "fallback": "manual_paste",
+                "fallback_endpoint": "/api/customer/social/accounts/connect",
+            }
 
-    reason = (
-        "meta_app_credentials_missing" if p in _META_PLATFORMS else "oauth_authorize_url_not_wired"
-    )
+    reason = _creds_missing_reason(p)
     return {
         "ok": False,
         "status": "activation_pending",
@@ -438,7 +690,7 @@ def oauth_start(
             "Platform env-approved, lekin authorize URL / token exchange abhi activate "
             "nahi — manual paste use karo."
             if reason == "oauth_authorize_url_not_wired"
-            else "META_APP_ID / META_APP_SECRET unset — console se set karo, phir OAuth ready hoga."
+            else f"{reason} — console/env se set karo."
         ),
         "platform": p,
         "scopes_required": _REQUIRED_SCOPES.get(p, []),
@@ -454,7 +706,6 @@ def oauth_callback(
     code: str = Query("", max_length=2048),
     state: str = Query("", max_length=2048),
 ) -> dict:
-    """Provider redirects here with ?code=…&state=…. Meta: exchange + vault.put."""
     p = str(platform or "").strip().lower()
     if p not in _ENV_APPROVED_FLAGS:
         raise HTTPException(status_code=400, detail="invalid platform")
@@ -469,7 +720,7 @@ def oauth_callback(
     if not code or not state:
         raise HTTPException(status_code=400, detail="missing code / state")
 
-    if p not in _META_PLATFORMS or not _authorize_wired(p):
+    if not _authorize_wired(p):
         return {
             "ok": False,
             "status": "activation_pending",
@@ -481,10 +732,10 @@ def oauth_callback(
     if not verified:
         raise HTTPException(status_code=400, detail={"error": "invalid_or_expired_state"})
 
-    exchanged = _exchange_meta_code(p, code)
+    exchanged = _exchange_code(p, code)
     if not exchanged.get("ok"):
         logger.warning(
-            "[social_oauth] meta exchange failed platform=%s err=%s", p, exchanged.get("error")
+            "[social_oauth] exchange failed platform=%s err=%s", p, exchanged.get("error")
         )
         raise HTTPException(
             status_code=400,
@@ -518,9 +769,5 @@ def oauth_callback(
         "client_id": verified["client_id"],
         "account_ref": exchanged.get("account_ref") or "",
         "return_to": verified.get("return_to") or "/app/office",
-        "meta": {
-            "page_id": (exchanged.get("meta") or {}).get("page_id"),
-            "page_name": (exchanged.get("meta") or {}).get("page_name"),
-            "instagram_account_id": (exchanged.get("meta") or {}).get("instagram_account_id"),
-        },
+        "meta": dict(exchanged.get("meta") or {}),
     }

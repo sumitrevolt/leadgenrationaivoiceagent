@@ -167,7 +167,10 @@ services:
     networks:
       - temporal-network
     volumes:
-      - ./deploy/postiz/dynamicconfig:/etc/temporal/config/dynamicconfig
+      # Path relative to this compose file (deploy/compose/) — NOT repo root.
+      # Broken 2026-08-06 when compose moved under deploy/compose/ with old
+      # ./deploy/postiz/... path → temporal missing development-sql.yaml.
+      - ../postiz/dynamicconfig:/etc/temporal/config/dynamicconfig
     depends_on:
       temporal-postgresql:
         condition: service_healthy
