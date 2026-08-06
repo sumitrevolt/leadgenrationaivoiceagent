@@ -11,6 +11,9 @@ import pytest
 def wfm_env(tmp_path, monkeypatch):
     monkeypatch.setenv("WORKFORCE_MEMORY", "1")
     monkeypatch.setenv("WORKFORCE_MEMORY_DIR", str(tmp_path / "wfm"))
+    # Hermetic test deadline: the production default (50ms) is intentionally
+    # tight, but combined Windows suites can exceed it from scheduler jitter.
+    monkeypatch.setenv("WORKFORCE_MEMORY_RECALL_TIMEOUT_MS", "2000")
     monkeypatch.delenv("MEMORY_VAULT", raising=False)
     from app.platform import workforce_memory as wm
 
@@ -217,3 +220,70 @@ def test_inject_for_runtime(wfm_env):
     wm.remember("kavya", "Watch celery depth before pulsing", layer=wm.LAYER_L2, topic="ops")
     brief = wm.inject_for_runtime("kavya", "ops_pulse")
     assert "celery" in brief.lower() or "Workforce" in brief or "ops" in brief.lower()
+
+
+def test_tenant_scoped_memory_never_cross_recalls(wfm_env):
+    wm = wfm_env
+    a = wm.remember("isha", "tenant A private plan", tenant_id="tenant-A")
+    b = wm.remember("isha", "tenant B private plan", tenant_id="tenant-B")
+    assert a["ok"] and b["ok"]
+
+    a_rows = wm.recall("isha", "private plan", tenant_id="tenant-A")
+    b_rows = wm.recall("isha", "private plan", tenant_id="tenant-B")
+    platform_rows = wm.recall("isha", "private plan")
+    assert [row["content"] for row in a_rows] == ["tenant A private plan"]
+    assert [row["content"] for row in b_rows] == ["tenant B private plan"]
+    assert platform_rows == []
+    assert wm.memory_namespace("isha", "tenant-A") != wm.memory_namespace("isha", "tenant-B")
+
+
+def test_tenant_memory_cannot_be_mirrored_to_global_team_scope(wfm_env):
+    wm = wfm_env
+    out = wm.remember(
+        "isha",
+        "customer-specific playbook",
+        asset=wm.ASSET_SKILL,
+        visibility="team",
+        tenant_id="tenant-A",
+    )
+    assert out == {"ok": False, "error": "tenant_memory_cannot_be_team_visible"}
+
+
+def test_tenant_run_can_read_equipped_platform_skill(wfm_env):
+    wm = wfm_env
+    shared = wm.remember(
+        "guru",
+        "Platform-safe release checklist",
+        asset=wm.ASSET_SKILL,
+        layer=wm.LAYER_L2,
+        visibility="team",
+    )
+    assert shared["ok"] and shared["entry"]["tenant_id"] == "platform"
+    assert wm.equip(shared["entry"]["id"], "kiran")["ok"]
+    rows = wm.recall("kiran", "release checklist", assets=[wm.ASSET_SKILL], tenant_id="tenant-A")
+    assert any(row["id"] == shared["entry"]["id"] for row in rows)
+
+
+def test_tenant_purge_does_not_delete_other_tenant(wfm_env):
+    wm = wfm_env
+    wm.remember("isha", "A only", tenant_id="tenant-A")
+    wm.remember("isha", "B only", tenant_id="tenant-B")
+    out = wm.purge_agent("isha", tenant_id="tenant-A")
+    assert out["ok"] and out["purged"] == 1
+    assert wm.list_entries("isha", tenant_id="tenant-A") == []
+    assert len(wm.list_entries("isha", tenant_id="tenant-B")) == 1
+
+
+def test_tenant_do_not_remember_rule_blocks_only_matching_scope(wfm_env, tmp_path, monkeypatch):
+    wm = wfm_env
+    monkeypatch.setenv("MEMORY_STACK_ENABLED", "1")
+    monkeypatch.setenv("MEMORY_SUPPRESSION_PATH", str(tmp_path / "suppression.jsonl"))
+    monkeypatch.setenv("MEMORY_GOVERNANCE_AUDIT_PATH", str(tmp_path / "audit.jsonl"))
+    from app.platform import memory_governance as gov
+
+    assert gov.suppress("tenant-A", "pattern", "private plan")["ok"] is True
+    blocked = wm.remember("isha", "private plan", tenant_id="tenant-A")
+    allowed = wm.remember("isha", "private plan", tenant_id="tenant-B")
+    assert blocked["ok"] is False
+    assert blocked["code"] == "MEMORY_WRITE_SUPPRESSED_BY_RULE"
+    assert allowed["ok"] is True

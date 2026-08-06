@@ -132,6 +132,70 @@ MEMBER_ROOM: dict[str, str] = {
     "vidya": "admin_finance",
 }
 
+
+def coordination_topology() -> dict[str, Any]:
+    """Canonical Boss -> domain-team -> STAFF projection.
+
+    This is visibility/routing metadata only.  It never dispatches work and it
+    does not change Agent Runtime rollout gates.  Keeping it derived from the
+    office room map prevents the coordinator and UI from inventing a second
+    workforce taxonomy.
+    """
+    boss = "manager"
+    assigned: list[str] = []
+    teams: list[dict[str, Any]] = []
+    room_meta = {row["id"]: row for row in ROOM_DEFS}
+    for room in ROOM_DEFS:
+        room_id = room["id"]
+        if room_id == "coordinator":
+            continue
+        members = sorted(
+            key
+            for key, mapped_room in MEMBER_ROOM.items()
+            if mapped_room == room_id and key != boss
+        )
+        assigned.extend(members)
+        teams.append(
+            {
+                "id": room_id,
+                "name": room["name"],
+                "purpose": room["purpose"],
+                "members": members,
+                "member_count": len(members),
+            }
+        )
+
+    staff_ids = set(STAFF)
+    covered = {boss, *assigned}
+    duplicates = sorted({key for key in assigned if assigned.count(key) > 1})
+    return {
+        "boss": boss,
+        "boss_name": STAFF.get(boss, {}).get("name", "Boss"),
+        "boss_room": room_meta.get("coordinator", {}).get("name", "Coordinator Room"),
+        "teams": teams,
+        "team_count": len(teams),
+        "staff_count": len(staff_ids),
+        "covered_count": len(covered & staff_ids),
+        "missing_agents": sorted(staff_ids - covered),
+        "unknown_agents": sorted(covered - staff_ids),
+        "duplicate_assignments": duplicates,
+        "coverage_ok": covered == staff_ids and not duplicates,
+        "authority": {
+            "default_decision": "boss_within_agent_contract",
+            "owner_required": ["manual_upi_credit_confirmation"],
+            "system_hard_gates": [
+                "dnd_trai_consent_dpdp",
+                "kill_switches_and_budgets",
+                "red_lane_and_prohibited_actions",
+            ],
+        },
+        "claim_note": (
+            "31/31 coordination-ready means Boss can route every profile; "
+            "runtime rollout_state still decides whether an action may execute."
+        ),
+    }
+
+
 # STAFF keys with a REAL, individually re-triggerable manual-run wired today
 # (app/agents/staff.py run_member() dispatch table). All 31 STAFF members now
 # have run_* wrappers — Paperclip Plan B expansion (2026-07-19).
@@ -1321,9 +1385,20 @@ def build_coordination(limit: int = 5) -> list[dict[str, Any]]:
             )[:220]
             out.append(
                 {
+                    "run_id": str(r.get("run_id") or ""),
                     "goal": str(r.get("goal") or r.get("query") or "coordination run")[:140],
                     "mode": str(r.get("pattern") or r.get("mode") or "sequential"),
                     "executed": bool(r.get("execute")),
+                    "boss": str(r.get("boss") or "manager"),
+                    "assignments": list(r.get("assignments") or [])[:12],
+                    "handoffs": list(r.get("handoffs") or [])[:80],
+                    "verdict": r.get("verdict")
+                    or {
+                        "by": "manager",
+                        "status": "recorded" if outcome else "incomplete",
+                        "summary": outcome,
+                    },
+                    "coordination_coverage": r.get("coordination_coverage") or {},
                     "outcome": outcome,
                     "at": r.get("at") or "",
                 }

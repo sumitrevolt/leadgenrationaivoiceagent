@@ -658,12 +658,25 @@ def agent_registry() -> dict[str, Any]:
     except Exception:
         pass
 
+    maturity_portfolio: dict[str, Any] = {}
+    maturity_by_key: dict[str, dict[str, Any]] = {}
+    try:
+        from app.platform import agent_maturity
+
+        maturity_portfolio = agent_maturity.portfolio()
+        maturity_by_key = {
+            str(row.get("agent_id")): row for row in (maturity_portfolio.get("agents") or [])
+        }
+    except Exception as exc:
+        logger.debug("[owner_os] maturity projection unavailable: %s", exc)
+
     supervisors: list[dict[str, Any]] = []
     for key, meta in STAFF.items():
         live = members_live.get(key) or {}
         product = str(meta.get("product") or "platform")
         room = room_for_member(key, product)
         route = route_by_key.get(key) or {}
+        maturity = maturity_by_key.get(key) or {}
         is_supervisor = key in SYSTEM_SUPERVISOR_IDS
         row = {
             "id": key,
@@ -697,6 +710,19 @@ def agent_registry() -> dict[str, Any]:
                 if route.get("requires_human_approval_before_publish")
                 else "owner_for_high_risk"
             ),
+            "enterprise_profile": maturity.get("setup_state") or "unknown",
+            "rollout_state": maturity.get("rollout_state") or "unknown",
+            "memory_namespace": (maturity.get("memory") or {}).get("namespace") or "",
+            "knowledge_namespaces": maturity.get("knowledge") or {},
+            "role_skills": (maturity.get("skills") or {}).get("role_specific") or [],
+            "coordination_ready": bool((maturity.get("coordination") or {}).get("ready")),
+            "coordination_team": (maturity.get("coordination") or {}).get("team") or "",
+            "decision_authority": (maturity.get("coordination") or {}).get("decision_authority")
+            or "",
+            "enterprise_skill_count": len(
+                (maturity.get("skills") or {}).get("enterprise_baseline") or []
+            ),
+            "maturity_problems": maturity.get("problems") or [],
         }
         agents.append(row)
         if is_supervisor:
@@ -737,6 +763,15 @@ def agent_registry() -> dict[str, Any]:
         "service_identities": service_identities,
         "runnable_members": sorted(runnable),
         "paused_count": len(paused),
+        "maturity": {
+            "ok": maturity_portfolio.get("ok", False),
+            "profile_version": maturity_portfolio.get("profile_version"),
+            "enterprise_profiles_ready": maturity_portfolio.get("enterprise_profiles_ready", 0),
+            "rollout_counts": maturity_portfolio.get("rollout_counts") or {},
+            "claim_note": maturity_portfolio.get("claim_note") or "",
+            "coordination": maturity_portfolio.get("coordination") or {},
+            "problems": maturity_portfolio.get("problems") or [],
+        },
         "pause_semantics": {
             "label_pause": "Pause Manual Runs",
             "label_resume": "Resume Manual Runs",

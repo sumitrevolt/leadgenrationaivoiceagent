@@ -100,6 +100,32 @@ async def test_nikhil_delivery_scan_read_only(monkeypatch):
     assert res.output["customer_contacted"] is False
 
 
+async def test_runtime_context_carries_enterprise_profile_and_tenant_scope(monkeypatch):
+    monkeypatch.delenv("AGENT_MATURITY_CONTEXT", raising=False)
+    seen = {}
+
+    async def _probe(ctx):
+        seen["profile"] = ctx.maturity_profile
+        seen["skills"] = ctx.skill_brief
+        seen["knowledge"] = ctx.knowledge_brief
+        return {"ok": True}
+
+    rt.register_capability(
+        rt.AgentCapability(
+            agent_id="kavya",
+            action="maturity_probe",
+            fn=_probe,
+            side_effect="none",
+            tenant_scoped=True,
+        )
+    )
+    res = await rt.submit("kavya", "maturity_probe", tenant_id="tenant-A")
+    assert res.status == "succeeded"
+    assert seen["profile"]["setup_state"] == "enterprise_profile_ready"
+    assert seen["profile"]["memory"]["namespace"].startswith("staff/kavya/tenant/")
+    assert seen["skills"] == "" and seen["knowledge"] == ""
+
+
 async def test_amber_hold_not_in_pilot():
     wf.ensure_workforce_registered()
     assert "rohan" not in rt.PILOT_AGENTS
