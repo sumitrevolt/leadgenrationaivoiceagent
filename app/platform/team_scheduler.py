@@ -303,18 +303,36 @@ async def _run_job(job: str, retry_count: int = 0) -> bool:
     except Exception:
         pass
     # --- Paperclip Routine Bridge: every cron run → auditable AgentTask ---
+    # Unconditional until 2026-08-06 — one row per job invocation, ~700/day,
+    # with no retention/prune anywhere in the codebase. `begin()` below stops
+    # those rows LEAKING as `pending`, but they are still written: the fix turns
+    # an unbounded leak into unbounded correct growth (~255k rows/year), and the
+    # real outcome of every one of these jobs is already in `automation_logs`.
+    # ROUTINE_TASK_LEDGER defaults ON = current behaviour preserved; set 0 to
+    # stop writing the duplicate ledger without touching the jobs themselves.
     _routine_task_id = None
     try:
         from app.platform import agent_task_queue as atq
 
-        _rt = await atq.assign(
-            job,
-            f"Scheduled routine: {job}",
-            delegated_by="scheduler",
+        _rt = (
+            await atq.assign(
+                job,
+                f"Scheduled routine: {job}",
+                delegated_by="scheduler",
+            )
+            if atq.routine_ledger_enabled()
+            else {}
         )
         _routine_task_id = _rt.get("id") if _rt.get("ok") else None
         if _routine_task_id:
-            await atq.start(_routine_task_id)
+            # begin() = pending -> running. This used to call start(), which
+            # requires `claimed` — a state a self-assigned routine never enters
+            # because nothing calls claim_next() for a job-name pseudo-agent.
+            # So start() no-op'd, complete() (claimed|running) no-op'd too, and
+            # every SUCCEEDING routine leaked a `pending` row forever while only
+            # FAILING ones closed (fail() accepts pending). 12,631 orphans by
+            # 2026-08-06.
+            await atq.begin(_routine_task_id)
     except Exception:
         pass
 
@@ -1284,6 +1302,14 @@ async def _run_job_inner(job: str) -> bool:
             if _atq.lease_reap_enabled():
                 _reaped = await _atq.reap_stale_leases(dry_run=False)
                 logger.info(f"[team-scheduler] task_lease_reap: {_reaped}")
+            # Orphan-ledger sweep — DISJOINT population from the lease reap
+            # above (pending + claimed_at IS NULL, which that predicate cannot
+            # match on either clause). Separate gate AGENT_TASK_ORPHAN_REAP=1;
+            # bounded, backed up to JSONL first, closed as `cancelled` (they did
+            # not fail — automation_logs holds the real outcome), never requeued.
+            if _atq.orphan_reap_enabled():
+                _orph = await _atq.reap_orphan_routines(dry_run=False)
+                logger.info(f"[team-scheduler] task_orphan_reap: {_orph}")
         elif job == "sales_autopilot":
             from app.platform.sales_autopilot import scheduler as _sales_ap
 
