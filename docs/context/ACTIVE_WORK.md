@@ -2,30 +2,32 @@
 
 ---
 
-## WS-GTM2 Admin Manual Call + Voice Dead-Air Fix - MERGED, DEPLOY PENDING
+## WS-PRF1 PR Factory Wave 1 - MERGE+DEPLOY IN FLIGHT
+- **ID:** WS-PRF1
+- **Business outcome:** Spec Kit constitution + thin `tools/pr_factory` dispatcher onto existing Owner OS `external_agents` (no second control plane); draft CI-repair Action + non-required Gate A
+- **Current state:** Fixing Gate A pin contract (`pip install --upgrade pip` refused); rebase onto `main` @ `084cd990`
+- **Next exact action:** CI green → undraft #248 → merge → kill-fence deploy; flags stay OFF
+- **Out of scope:** vendoring openai/symphony · 100-PR claims · Merge Queue · auto-deploy · prod flag flips
+
+---
+
+## WS-GTM2 Admin Manual Call + Voice Dead-Air Fix - LIVE
 - **ID:** WS-GTM2
-- **Business outcome:** Owner `/app/admin` par number daal kar canonical AI Marketing call place kar sake (SSH/manual script ki zarurat nahi), aur dead OmniRoute gateway live call ko dead-air na kare
-- **Current state:** Admin call UI + `omniroute_voice` gateway circuit breaker `TEST-PROVEN` local (115 voice tests + prod_check PASS 1266 routes); merged to `main`; **prod pe deploy NAHI hua** — `/health` abhi purana SHA
-- **Next exact action:** owner go-ahead pe `deploy_vps.sh` (kill-switch dance) → admin login canary → ek real call pe `llm_first` latency verify
-- **Out of scope:** voice persona/prompt edits · env flips (`OMNIROUTE_VOICE` waisa hi) · automatic retries · compliance bypass · billing FK follow-up
+- **Business outcome:** Owner `/app/admin` manual AI call + OmniRoute dead-air breaker
+- **Current state:** Prod `/health`=`084cd990`
+- **Next exact action:** admin login canary → optional real call `llm_first` verify
+- **Out of scope:** env flips · compliance bypass
 
 ---
 
 ## WS-GTM1 Hot Queue → 2nd paid - REVENUE PENDING
 - **ID:** WS-GTM1
-- **Current state:** Prod still pre-deploy; after deploy SHA updates. HQ empty; owner prospect pick
+- **Current state:** HQ empty; owner prospect pick
 - **Next exact action:** Real ₹1999 UPI → LEDGER_PAID
 - **Out of scope:** fake PAID
 
 ---
 
-## WS-AM1 Safe Pack - SEPARATE
-- **ID:** WS-AM1
-- **Next exact action:** After LEDGER_PAID + owner canary
-- **Out of scope:** payment-path env flips
-
----
-
 ## Parked
-- #248 PR Factory Draft (CI fail)
+- WS-AM1 Safe Pack (after LEDGER_PAID)
 - Estique `removed`
