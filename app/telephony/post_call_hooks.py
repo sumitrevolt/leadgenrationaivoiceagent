@@ -434,10 +434,15 @@ def build_call_log(
     q: dict[str, Any] | None = None,
     caller_id: str = "",
     direction: str = "outbound",
+    lead_id: str = "",
 ) -> Any | None:
     """Construct an UNSAVED ``CallLog`` row from call metadata + optional
     qualification. Pure (no DB/session) so the score/outcome mapping is unit
     testable. Returns None when CALL_LOG_DB is off or the model is unavailable.
+
+    ``lead_id`` (2026-08-06) is the CRM ``leads.id`` threaded down from the
+    dialer. Set optimistically here; ``persist_call_log`` re-checks the row
+    actually exists before committing the FK, same as ``client_id``.
 
     ``q`` is the ``call_qualifier.qualify_transcript`` dict (interest_score 1-5,
     qualified, appointment_requested, summary, ...) or None when qualification
@@ -465,7 +470,12 @@ def build_call_log(
         appt = bool(q.get("appointment_requested"))
     try:
         qual_json = json.dumps(
-            {**(q or {}), "raw_client_id": client_id or "", "raw_phone": phone or ""},
+            {
+                **(q or {}),
+                "raw_client_id": client_id or "",
+                "raw_phone": phone or "",
+                "raw_lead_id": lead_id or "",
+            },
             ensure_ascii=False,
         )
     except Exception:
@@ -493,6 +503,7 @@ def build_call_log(
         ),
         to_number=(str(phone or "").strip()[:20] or "unknown"),  # column is NOT NULL
         from_number=(str(caller_id or "").strip()[:20] or None),
+        lead_id=(str(lead_id or "").strip() or None),
         initiated_at=started,
         answered_at=(started if int(user_turns or 0) > 0 else None),
         ended_at=ended,
@@ -526,6 +537,7 @@ async def persist_call_log(
     q: dict[str, Any] | None = None,
     caller_id: str = "",
     direction: str = "outbound",
+    lead_id: str = "",
 ) -> None:
     """Write ONE structured ``call_logs`` row so the (already-built) DB-backed
     analytics dashboard (`/api/analytics/*`, /app/analytics) lights up with real
@@ -551,6 +563,7 @@ async def persist_call_log(
         q=q,
         caller_id=caller_id,
         direction=direction,
+        lead_id=lead_id,
     )
     if row is None:
         return
@@ -576,6 +589,17 @@ async def persist_call_log(
                         row.client_id = cid
                 except Exception:
                     pass
+            # Same FK-safety for lead_id: build_call_log set it optimistically,
+            # but a stale/unknown id must NOT abort the whole analytics INSERT.
+            # Raw value survives in qualification_data.raw_lead_id either way.
+            lid = (lead_id or "").strip()
+            if lid:
+                try:
+                    from app.models.lead import Lead
+
+                    row.lead_id = lid if db.get(Lead, lid) is not None else None
+                except Exception:
+                    row.lead_id = None
             db.add(row)  # get_db_session commits on context exit
 
     try:
