@@ -1,0 +1,45 @@
+---
+description: Claim files before editing — Cursor / Claude / OpenCode / Monkey Code share this checkout
+alwaysApply: true
+---
+
+# Claim before you edit
+
+Four coding tools edit this tree: Cursor, Claude Code, OpenCode, Monkey Code.
+Parallel edits on the same file have already caused truncation and a `git add -A`
+sweep of another tool's work. So claim first.
+
+```bash
+python scripts/buzzlock.py status
+python scripts/buzzlock.py claim <paths> --tool CURSOR --reason "<one line>"
+# ... do the work ...
+python scripts/buzzlock.py release <paths> --tool CURSOR --evidence "<exit code / tests>"
+```
+
+Use `--tool CURSOR` from Cursor. Claude Code uses `CLAUDE`, OpenCode `OPENCODE`,
+Monkey Code `MONKEY`.
+
+**Exit code 2 on claim means the file is held by another tool — stop, do not edit
+it, pick different work.** A claim older than 4h is stale and can be taken with
+`buzzlock.py break <path> --tool CURSOR`.
+
+Registry: `docs/coordination/LOCKS.json`. Chat mirror: Buzz `#build`.
+Full protocol: `~/.buzz/GUIDES/CODING_AGENT_PROTOCOL.md` ·
+`docs/coordination/README.md`.
+
+## Handoff
+
+When you stop mid-task, post the handoff in `#build`:
+
+```
+[CURSOR] HANDOFF -> <next tool>
+Goal / Done / Evidence / Left / Touched
+```
+
+A handoff with no Evidence line is a rumour, not a handoff.
+
+## Never
+
+Never `git add -A` — stage explicit paths. No commit/push/deploy without the owner
+asking. Compliance gates (DND, TRAI window, consent, DPDP) are RED: weakening one is
+an abort, not a fix. Swara/voice path is FROZEN.
