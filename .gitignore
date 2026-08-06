@@ -181,6 +181,25 @@ data/*.db
 models/*.tmp
 revenue_pipeline/*.csv
 auraleads_extracted/
+
+# --- Personal data exports — DPDP Act 2023, never track (2026-08-06) ---
+# `prospect_leads_export.csv` reached the ROOT of this PUBLIC repo carrying 200
+# real businesses' name/phone/address/email/pitch/wa_link. `data/*` above did not
+# cover it because the file sat at the repo root. These patterns are deliberately
+# root-anchored AND recursive. Lead data belongs in Postgres or encrypted object
+# storage with source, collection date, legal basis, suppression state and
+# retention deadline — only synthetic fixtures belong in Git.
+# Guard test: tests/test_no_tracked_pii_exports.py
+# Note: root CSV is NOT under Dockerfile.lock `COPY data/` — image rebuild is
+# unnecessary for this containment; history purge (owner-run) remains separate.
+/*.csv
+prospect*.csv
+*_leads*.csv
+*leads_export*.csv
+*prospects_export*.csv
+*outreach_export*.csv
+!tests/fixtures/**/*.csv
+!.claude/skills/**/*.csv
 .env.production
 .env.local
 
