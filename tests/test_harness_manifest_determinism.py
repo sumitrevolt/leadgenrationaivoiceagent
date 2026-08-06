@@ -26,13 +26,14 @@ from app.agents.harness.registry import (
 # Deterministic canonical fingerprint of the current approved registry tool set.
 # To intentionally update: change the registry, run this test, and replace this
 # value with the new deterministic hash (identical across every PYTHONHASHSEED).
-GOLDEN_MANIFEST = "bf2b6a0826bf8202"
+GOLDEN_MANIFEST = "b4009738e32b2c82"  # pragma: allowlist secret
 
 CANONICAL_TOOLS = {
     "batch.internal.safe_calculation",
     "workflow.dag.internal_calculation",
     "agent.nikhil.revenue_operations",
     "agent.delegate.dev",
+    "agent.delegate.isha",
     "agent.delegate.rohan",
     "video.brief.create",
     "video.script.write",
@@ -242,6 +243,12 @@ def test_rohan_amber():
 
 def test_dev_green_readonly():
     d = REGISTRY.resolve("agent.delegate.dev", "1.0.0")
+    assert d.risk_class is RiskLane.GREEN
+    assert d.side_effect_class in (SideEffectClass.READ_ONLY, SideEffectClass.NONE)
+
+
+def test_isha_green_readonly():
+    d = REGISTRY.resolve("agent.delegate.isha", "1.0.0")
     assert d.risk_class is RiskLane.GREEN
     assert d.side_effect_class in (SideEffectClass.READ_ONLY, SideEffectClass.NONE)
 

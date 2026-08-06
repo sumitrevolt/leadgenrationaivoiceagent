@@ -276,6 +276,12 @@ def _otel_start(operation: str, model: Any, provider: Any) -> Any:
     try:
         from opentelemetry import trace
 
+        # start_span: current active context (FastAPIInstrumentor request span)
+        # ka child banata hai. The span stays OPEN; llm_span() makes it current
+        # via trace.use_span(end_on_exit=False) for its whole lifetime so
+        # set_current_attributes()/annotate() (audit.py gen_ai.run.id) stamp the
+        # LLM span itself, and _otel_finish() end()s it. Plain start_span used to
+        # leave the span NOT-current -> audit's setter was a silent dead-call.
         sp = trace.get_tracer("app.llm").start_span(f"llm.{operation}")
         try:
             sp.set_attribute("gen_ai.operation.name", operation)
@@ -331,6 +337,17 @@ def llm_span(
         return
     span = _Span(operation, model, provider, attrs)
     otsp = _otel_start(operation, model, provider) if ot_on else None
+    ot_ctx = None
+    if otsp is not None:
+        try:
+            from opentelemetry import trace
+
+            # Make the LLM span the CURRENT span for its lifetime so
+            # set_current_attributes()/annotate() stamp the right span. The span
+            # itself stays open; _otel_finish() end()s it (end_on_exit=False).
+            ot_ctx = trace.use_span(otsp, end_on_exit=False).__enter__()
+        except Exception:  # pragma: no cover - never break the hot path
+            ot_ctx = None
     try:
         yield span
     except BaseException:
@@ -341,6 +358,11 @@ def llm_span(
         except Exception:
             pass
         _otel_finish(otsp, span, ok=False)
+        if ot_ctx is not None:
+            try:
+                ot_ctx.__exit__(None, None, None)
+            except Exception:
+                pass
         raise
     else:
         try:
@@ -349,6 +371,11 @@ def llm_span(
         except Exception:
             pass
         _otel_finish(otsp, span, ok=True)
+        if ot_ctx is not None:
+            try:
+                ot_ctx.__exit__(None, None, None)
+            except Exception:
+                pass
 
 
 def observe_llm(
@@ -408,4 +435,34 @@ def _auto_record(span: Any, result: Any) -> None:
             pass
 
 
-__all__ = ["llm_span", "observe_llm"]
+def set_current_attributes(**attrs: Any) -> None:
+    """Stamp attrs on the CURRENT OTel span (if OTel enabled + a span is active).
+
+    Makes audit.py's gen_ai.run.id correlation real (OB-01): called inside an
+    active llm_span (or request) it lands on the live span. NEVER-RAISE. When
+    OTel is off (or no span active / API missing) this is a silent no-op — the
+    durable audit-log row still carries run_id (fail-open by design)."""
+    if not _otel_enabled():
+        return
+    try:
+        from opentelemetry import trace
+
+        sp = trace.get_current_span()
+        if sp is None or not sp.is_recording():
+            return
+        for k, v in attrs.items():
+            if v is not None:
+                try:
+                    sp.set_attribute(str(k), v)
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+
+def annotate(**attrs: Any) -> None:
+    """Alias of set_current_attributes (Langfuse-ish ergonomics; same no-op rules)."""
+    set_current_attributes(**attrs)
+
+
+__all__ = ["llm_span", "observe_llm", "set_current_attributes", "annotate"]

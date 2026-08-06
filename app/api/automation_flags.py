@@ -258,6 +258,7 @@ AUTOMATION_FLAGS = [
     # 2026-06-28 agent/queue governance guards (INERT default — docs/WORKFLOW_IMPROVEMENT_BACKLOG.md)
     "COORDINATOR_LLM_CAP_PER_MIN",  # coordinator LLM rate-cap/min (0=off) — over → call skipped fail-open
     "COORD_KB_SHARE",  # coordinator successful executed runs → Qdrant skills namespace (OFF default)
+    "COORD_GUARDRAILS",  # coordinator/_llm() PRE-LLM PII-redact + injection-block + POST-LLM system-leak/unsafe-promise block (OFF default, fail-open)
     "KB_SKILL_LEARN",  # self_improve high-value runs + reflections → Qdrant skills namespace (OFF default)
     "QUEUE_DEPTH_BACKPRESSURE",  # DLQ retry-sweep defers when celery depth > QUEUE_DEPTH_CAP (retry-storm guard)
     "QUEUE_DEPTH_CAP",  # default 800 — celery depth above which backpressure trips
