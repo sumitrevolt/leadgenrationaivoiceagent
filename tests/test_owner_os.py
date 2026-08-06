@@ -75,6 +75,22 @@ def test_canonical_agent_count_consistency(monkeypatch, tmp_path):
     dumped = json.dumps(body)
     assert "sk-" not in dumped.lower()
     assert "Bearer" not in dumped
+    maturity = body.get("maturity") or {}
+    assert maturity.get("enterprise_profiles_ready") == 31
+    assert maturity.get("ok") is True
+    assert sum((maturity.get("rollout_counts") or {}).values()) == 31
+
+
+def test_owner_os_maturity_projection_is_admin_read_only(monkeypatch, tmp_path):
+    _patch_stores(monkeypatch, tmp_path)
+    r = client.get("/api/admin/owner-os/maturity")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["staff_count"] == body["enterprise_profiles_ready"] == 31
+    assert len(body["agents"]) == 31
+    assert body["claim_note"].startswith("Profile-ready is not rollout-live")
+    assert all(row["memory"]["private_by_default"] for row in body["agents"])
+    assert all(row["skills"]["role_specific"] for row in body["agents"])
 
 
 def test_no_orphan_runnable_ids():

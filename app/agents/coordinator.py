@@ -831,19 +831,56 @@ async def debate(question: str, rounds: int = 1) -> dict:
 # Boss goal ko relevant DOMAIN sub-teams me baantta; har sub-team ka supervisor
 # apne members ko coordinate karta (teams PARALLEL); Boss top-level merge.
 # =========================================================================== #
-_TEAMS: dict[str, list[str]] = {
+_LEGACY_TEAMS: dict[str, list[str]] = {
     "growth": ["dev", "rohan", "isha"],  # research + outreach + marketing
     "ops": ["kavya", "arjun", "meera"],  # health + QA + training
     "sales": ["rohan", "swara"],  # outreach + close
 }
 
 
+def coordination_topology() -> dict[str, Any]:
+    """31/31 Boss-routing projection; never dispatches or widens rollout."""
+    try:
+        from app.platform.office_hq import coordination_topology as _topology
+
+        return _topology()
+    except Exception as exc:
+        members = sorted({"manager", *[m for rows in _LEGACY_TEAMS.values() for m in rows]})
+        return {
+            "boss": "manager",
+            "teams": [
+                {"id": key, "name": key, "purpose": key, "members": list(value)}
+                for key, value in _LEGACY_TEAMS.items()
+            ],
+            "staff_count": len(_agent_keys()),
+            "covered_count": len(members),
+            "coverage_ok": False,
+            "missing_agents": sorted(set(_agent_keys()) - set(members)),
+            "error": type(exc).__name__,
+        }
+
+
+def _coordination_teams() -> dict[str, list[str]]:
+    rows = coordination_topology().get("teams") or []
+    teams = {
+        str(row.get("id")): [str(member) for member in (row.get("members") or [])]
+        for row in rows
+        if row.get("id") and row.get("members")
+    }
+    return teams or dict(_LEGACY_TEAMS)
+
+
 async def _assign_teams(goal: str) -> dict[str, str]:
     """Boss decides which sub-team(s) handle the goal + each team's objective."""
+    topology = coordination_topology()
+    teams = _coordination_teams()
+    catalog = "; ".join(
+        f"{row.get('id')}({row.get('purpose')})" for row in (topology.get("teams") or [])
+    )
     sys = (
-        "Tum Manager (Boss) ho. Goal ke liye 1-2 relevant sub-teams chuno aur har ek ka chhota objective do. "
-        'SIRF JSON lautao: {"growth":"<obj>","ops":"<obj>","sales":"<obj>"} me se SIRF relevant keys. '
-        "Teams: growth(research/outreach/marketing), ops(health/QA/training), sales(outreach/close). Aur kuch nahi."
+        "Tum Manager (Boss) ho. Goal ke liye 1-3 relevant domain teams chuno aur har ek ka "
+        "chhota objective do. SIRF JSON object lautao; keys sirf allowed team ids hon. "
+        f"Allowed teams: {', '.join(teams)}. Catalog: {catalog}. Aur kuch nahi."
     )
     raw, _ = await _llm(sys, f"Goal: {goal}", max_tokens=200, temperature=0.2)
     t = (raw or "").strip()
@@ -852,17 +889,18 @@ async def _assign_teams(goal: str) -> dict[str, str]:
         t = t[i : j + 1]
     try:
         d = json.loads(t)
-        out = {k: str(v)[:200] for k, v in d.items() if k in _TEAMS and v}
+        out = {k: str(v)[:200] for k, v in d.items() if k in teams and v}
         if out:
             return out
     except Exception:
         pass
-    return {"growth": goal}  # fallback: growth team handles it
+    fallback = "marketing_team" if "marketing_team" in teams else next(iter(teams), "growth")
+    return {fallback: goal}
 
 
 async def _run_team(team: str, objective: str, execute: bool) -> dict:
     """Sub-supervisor: team ke members ko sequential handoff se coordinate kare."""
-    members = _TEAMS.get(team, [])
+    members = _coordination_teams().get(team, [])
     bb: dict[str, Any] = {"goal": objective, "results": []}
     for m in members:
         v = _roster().get(m, {})
@@ -904,12 +942,64 @@ async def coordinate_hierarchical(goal: str, execute: bool = False) -> dict:
         temperature=0.4,
     )
     _log("manager", "hier_done", summary or "done")
+    assignments = [
+        {
+            "team": team.get("team"),
+            "objective": team.get("objective"),
+            "members": list(team.get("members") or []),
+        }
+        for team in teams
+    ]
+    handoffs: list[dict[str, Any]] = []
+    for team in teams:
+        team_id = str(team.get("team") or "")
+        handoffs.append(
+            {
+                "from": "manager",
+                "to": f"team:{team_id}",
+                "status": "assigned",
+                "evidence": str(team.get("objective") or "")[:200],
+            }
+        )
+        for result in team.get("results") or []:
+            failed = bool(result.get("error")) or result.get("mode") == "skipped"
+            handoffs.append(
+                {
+                    "from": f"team:{team_id}",
+                    "to": str(result.get("agent") or ""),
+                    "status": "blocked" if failed else "completed",
+                    "mode": str(result.get("mode") or "unknown"),
+                    "evidence": str(result.get("error") or result.get("output") or "")[:240],
+                }
+            )
+    verdict_status = (
+        "completed"
+        if teams and summary and all(handoff.get("status") != "blocked" for handoff in handoffs)
+        else ("partial" if teams else "incomplete")
+    )
+    topology = coordination_topology()
     out = {
         "ok": True,
         "run_id": run_id,
         "goal": goal,
         "pattern": "hierarchical",
+        "execute": execute,
+        "boss": "manager",
         "teams": teams,
+        "assignments": assignments,
+        "handoffs": handoffs,
+        "verdict": {
+            "by": "manager",
+            "status": verdict_status,
+            "summary": summary or "(merge nahi bana)",
+            "owner_gate": "manual_upi_credit_confirmation_only",
+            "system_hard_gates": "unchanged",
+        },
+        "coordination_coverage": {
+            "staff_count": topology.get("staff_count"),
+            "covered_count": topology.get("covered_count"),
+            "coverage_ok": topology.get("coverage_ok"),
+        },
         "summary": summary or "(merge nahi bana)",
         "at": _now(),
     }
