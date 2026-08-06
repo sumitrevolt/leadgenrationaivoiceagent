@@ -2480,3 +2480,11 @@ Evidence chain, all at the frozen head: pristine archive checkout â **82 pa
 **Rejected:** Vibe Kanban / Parallel Code as primary · floating Spec Kit latest · auto-deploy from factory · 100-PR/hour claims.
 
 **Consequence:** Docs `docs/PR_FACTORY.md` + `docs/adr/ADR-163-pr-factory.md`. Prod flags stay OFF in Wave 1. Honest target after enablement = 10-20 verified PRs/wave.
+
+## ADR-164 (2026-08-06) - Free-stack upgrade audit: 2 ABORT/SKIP + 4 genuine wiring gaps [CODE-PRESENT, flags OFF]
+
+**Decision:** Audit the 6 suggested free-stack improvements (DeepSeek LLM, whisper.cpp STT, tool registry, handoff protocol, guardrails pipeline, OTel GenAI). Verdict: (1) **DeepSeek ABORT** — `app/platform/safe_ai_payload.py:64` `_UNSAFE_PROVIDERS` blocks Chinese providers (PII gate); primary = §5 security-gate violation. (2) **Whisper.cpp SKIP** — local STT already exists (`vobiz_stream._stt_chain` last link = vosk/faster-whisper). (3) **Registry PARTIAL** — registered `agent.delegate.isha` (GREEN/READ_ONLY, `_tool_isha`→`post_generator.generate_post` pure content-gen). kavya/arjun/meera stay UNREGISTERED by design (`run_ops` prunes/deletes, `run_qa`/`run_trainer` write). (4) **Handoff** — additive redacted `handoff` metadata per blackboard step (`_build_handoff_meta`, bounded 600-char, guardrails-redacted). (5) **Guardrails** — new `COORD_GUARDRAILS` flag (OFF default) wires voice guardrails `check_input`/`check_output` into `coordinator._llm()`. (6) **OTel** — added missing `set_current_attributes`/`annotate` (audit.py dead-call fix, `gen_ai.run.id` now real) + fixed `llm_span` parenting (`start_span` + `use_span(end_on_exit=False)`).
+
+**Rejected:** Registering kavya/arjun/meera as GREEN (side-effectful — dishonest classification); adding any paid/new LLM provider (free stack stays).
+
+**Consequence:** Local verified — manifest determinism (39) + coordinator registry (54) + coordinator helpers (4) + guardrails (5) + observability (6) + budget/plan-node (9) green; ruff 0; secrets OK; prod_check ALL PASSED (1266 routes, 0 gaps); app import OK (202 routes). Prod unchanged — deploy pending owner. Manifest GOLDEN_HASH moved `bf2b6a08`→`b4009738` (intentional registry addition).
