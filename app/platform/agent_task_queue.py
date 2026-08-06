@@ -596,12 +596,38 @@ def orphan_reap_enabled() -> bool:
     )
 
 
-def _orphan_backup_path() -> Any:
+def _write_orphan_backup(rows: list[dict[str, Any]]) -> str:
+    """Resolve + write the pre-mutation backup in ONE place. Returns the path.
+
+    Resolve and write are deliberately not split. CI's runtime-data debt ratchet
+    classifies a write by the path expression at the `open()` site: when that
+    expression comes straight from `resolve_store_path`, it is CANONICAL; when
+    it comes from a helper's return value it reads as an undeclared mutable
+    path and fails the gate. Keeping both in one function is also the honest
+    shape — nothing else should be able to hand this function a path.
+
+    The store is `automation.job_runs`: this file records what a scheduled job
+    (`task_lease_reap`) closed, which is exactly that store's purpose. Writing
+    beside it rather than inventing a new store keeps the manifest untouched.
+    """
+    import json as _json
     from pathlib import Path
 
-    d = Path("data/backups")
-    d.mkdir(parents=True, exist_ok=True)
-    return d / f"agent_task_orphans_{_now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+    from app.platform import runtime_data_authority as _auth
+
+    target = (
+        _auth.resolve_store_path(
+            store_id="automation.job_runs",
+            legacy_path=Path("data") / "job_runs.jsonl",
+            target_segments=("automation", "job_runs.jsonl"),
+        ).parent
+        / f"agent_task_orphans_{_now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+    )
+    target.parent.mkdir(parents=True, exist_ok=True)
+    with open(target, "a", encoding="utf-8") as fh:
+        for m in rows:
+            fh.write(_json.dumps(m, ensure_ascii=False) + "\n")
+    return str(target)
 
 
 async def reap_orphan_routines(
@@ -683,11 +709,7 @@ async def reap_orphan_routines(
             # Backup BEFORE mutating — a terminal close is not reversible from
             # the row itself once status/completed_at are overwritten.
             try:
-                p = _orphan_backup_path()
-                with open(p, "a", encoding="utf-8") as fh:
-                    for m in rows_meta:
-                        fh.write(_json.dumps(m, ensure_ascii=False) + "\n")
-                out["backup"] = str(p)
+                out["backup"] = _write_orphan_backup(rows_meta)
             except Exception as be:  # backup failure must ABORT, not proceed
                 out["error"] = f"backup_failed: {str(be)[:120]}"
                 return out

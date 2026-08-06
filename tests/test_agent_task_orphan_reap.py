@@ -181,13 +181,24 @@ def test_dry_run_mutates_nothing(monkeypatch):
     assert len(out.get("sample", [])) <= 5
 
 
+def _patch_backup(monkeypatch, tmp_path):
+    """Redirect the REAL writer's store resolution into tmp — keeps the actual
+    open()/write path under test instead of stubbing it out."""
+    from app.platform import runtime_data_authority as auth
+
+    monkeypatch.setattr(
+        auth, "resolve_store_path", lambda **_k: tmp_path / "job_runs.jsonl", raising=False
+    )
+    return tmp_path
+
+
 def test_live_run_closes_as_cancelled_not_failed(monkeypatch, tmp_path):
     """`failed` would fabricate an incident history — these routines mostly
     SUCCEEDED; only the ledger row was abandoned."""
     rows = [_Row("t1", "growth", "Scheduled routine: growth")]
     sess = _Session(rows)
     _patch_db(monkeypatch, sess)
-    monkeypatch.setattr(atq, "_orphan_backup_path", lambda: tmp_path / "bk.jsonl")
+    _patch_backup(monkeypatch, tmp_path)
 
     out = asyncio.run(atq.reap_orphan_routines(dry_run=False))
     assert out["cancelled"] == 1
@@ -205,12 +216,14 @@ def test_live_run_backs_up_before_mutating(monkeypatch, tmp_path):
     ]
     sess = _Session(rows)
     _patch_db(monkeypatch, sess)
-    bk = tmp_path / "orphans.jsonl"
-    monkeypatch.setattr(atq, "_orphan_backup_path", lambda: bk)
+    _patch_backup(monkeypatch, tmp_path)
 
     out = asyncio.run(atq.reap_orphan_routines(dry_run=False))
-    assert out["backup"] == str(bk)
-    assert bk.exists()
+    from pathlib import Path
+
+    bk = Path(out["backup"])
+    assert bk.exists(), "the real writer must have created the file"
+    assert bk.parent == tmp_path, "backup must land beside the resolved store, not in data/"
     assert len(bk.read_text(encoding="utf-8").strip().splitlines()) == 2
 
 
@@ -221,10 +234,10 @@ def test_backup_failure_aborts_without_mutating(monkeypatch):
     sess = _Session(rows)
     _patch_db(monkeypatch, sess)
 
-    def _boom():
+    def _boom(_rows):
         raise OSError("disk full")
 
-    monkeypatch.setattr(atq, "_orphan_backup_path", _boom)
+    monkeypatch.setattr(atq, "_write_orphan_backup", _boom)
 
     out = asyncio.run(atq.reap_orphan_routines(dry_run=False))
     assert "backup_failed" in str(out.get("error", ""))
@@ -267,7 +280,7 @@ def test_reaper_never_requeues(monkeypatch, tmp_path):
     rows = [_Row("t1", "platform_dial", "Scheduled routine: platform_dial")]
     sess = _Session(rows)
     _patch_db(monkeypatch, sess)
-    monkeypatch.setattr(atq, "_orphan_backup_path", lambda: tmp_path / "bk.jsonl")
+    _patch_backup(monkeypatch, tmp_path)
 
     asyncio.run(atq.reap_orphan_routines(dry_run=False))
     for upd in sess.updates:
