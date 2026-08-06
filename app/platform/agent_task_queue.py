@@ -256,6 +256,27 @@ async def start(task_id: str) -> dict[str, Any]:
     return await _update_status(task_id, "claimed", "running")
 
 
+async def begin(task_id: str) -> dict[str, Any]:
+    """Mark a SELF-ASSIGNED task as running: ``pending -> running``.
+
+    For producers where the assigner IS the executor there is no queue hand-off,
+    so ``claim_next()`` never runs and the row never reaches ``claimed``. Those
+    producers were calling ``start()`` (which requires ``claimed``), so it
+    no-op'd, and the later ``complete()`` — which matches ``claimed|running`` —
+    no-op'd too. Both discard their ``{"ok": False}``, so the row silently
+    leaked as ``pending`` forever.
+
+    Only ``fail()`` accepts ``pending``, which is why FAILING routines closed
+    correctly while SUCCEEDING ones leaked. Production showed the asymmetry
+    exactly: 12,631 orphaned ``pending`` vs 7 ``failed`` (2026-08-06).
+
+    Deliberately a separate verb rather than widening ``complete()`` to accept
+    ``pending``: that guard is what stops a genuine queue task from being
+    completed by someone who never claimed it, and it must stay strict.
+    """
+    return await _update_status(task_id, "pending", "running")
+
+
 async def complete(
     task_id: str,
     *,
@@ -400,6 +421,7 @@ async def agent_queue_snapshot() -> dict[str, dict[str, int]]:
                         "running": 0,
                         "done": 0,
                         "failed": 0,
+                        "cancelled": 0,
                     }
                 snap[agent_id][status] = count
             return snap
@@ -531,6 +553,147 @@ async def stale_tasks(threshold_minutes: int = 10) -> list[dict[str, Any]]:
 def lease_reap_enabled() -> bool:
     """`AGENT_TASK_LEASE_REAP` gate — unset/0 = INERT (surface-only, default)."""
     return os.environ.get("AGENT_TASK_LEASE_REAP", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def orphan_reap_enabled() -> bool:
+    """`AGENT_TASK_ORPHAN_REAP` gate — unset/0 = INERT (default).
+
+    Separate switch from `AGENT_TASK_LEASE_REAP` on purpose: that one closes
+    EXPIRED LEASES (work a worker may have half-done), this one closes rows that
+    were never claimable at all. Different risk profile, different owner
+    decision — arming one must not silently arm the other.
+    """
+    return os.environ.get("AGENT_TASK_ORPHAN_REAP", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+
+
+def _orphan_backup_path() -> Any:
+    from pathlib import Path
+
+    d = Path("data/backups")
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"agent_task_orphans_{_now().strftime('%Y%m%d_%H%M%S')}.jsonl"
+
+
+async def reap_orphan_routines(
+    older_than_hours: int = 24,
+    limit: int = 500,
+    dry_run: bool = True,
+) -> dict[str, Any]:
+    """Terminally close rows that were created ``pending`` and never claimable.
+
+    `reap_stale_leases()` cannot touch these. Its predicate is
+    ``status IN ('claimed','running') AND claimed_at < cutoff`` — these rows are
+    ``pending`` with ``claimed_at IS NULL``, so they fail BOTH clauses (and in
+    SQL ``NULL < cutoff`` is NULL, not TRUE, so widening the status alone would
+    still not match). The two predicates are disjoint, which is why the reaper
+    ran hourly, reported ``scanned: 0``, recorded a green run, and the ledger
+    grew to 12,631 rows at ~700/day (measured 2026-08-06).
+
+    Closed as **`cancelled`**, not `failed`: these routines did not fail — most
+    of them SUCCEEDED, and their real outcome is already recorded in
+    `automation_logs`. Marking them `failed` would fabricate an incident history
+    and corrupt any future failure-rate metric. `cancelled` says what actually
+    happened: the ledger row was abandoned by a bookkeeping bug.
+
+    NEVER requeues. These wrap real side-effecting jobs (`platform_dial`,
+    `email_outreach`, …); re-running one to "resolve" it would place real calls
+    or send real email. The work is long since done — only the row is stale.
+
+    Safety: bounded `limit`, `dry_run=True` by default, idempotent (only ever
+    matches ``pending``, so a second pass over the same rows is a no-op), and a
+    JSONL backup of every row is written BEFORE any mutation. Never raises.
+    """
+    out: dict[str, Any] = {
+        "scanned": 0,
+        "cancelled": 0,
+        "dry_run": bool(dry_run),
+        "backup": "",
+        "at": _now().isoformat(),
+    }
+    try:
+        import json as _json
+        from datetime import timedelta
+
+        from app.models.agent_task import AgentTask
+        from app.models.base import get_db_session
+
+        cutoff = _now() - timedelta(hours=max(1, int(older_than_hours)))
+        with get_db_session() as db:
+            orphans = (
+                db.query(AgentTask)
+                .filter(
+                    AgentTask.status == "pending",
+                    AgentTask.claimed_at.is_(None),
+                    AgentTask.created_at < cutoff,
+                )
+                .order_by(AgentTask.created_at.asc())
+                .limit(max(1, int(limit)))
+                .all()
+            )
+            out["scanned"] = len(orphans)
+            if not orphans:
+                return out
+
+            rows_meta = [
+                {
+                    "id": t.id,
+                    "agent_id": t.agent_id,
+                    "goal": (t.goal or "")[:200],
+                    "status": t.status,
+                    "created_at": str(t.created_at),
+                    "delegated_by": t.delegated_by,
+                }
+                for t in orphans
+            ]
+            if dry_run:
+                out["cancelled"] = len(orphans)
+                out["sample"] = rows_meta[:5]
+                return out
+
+            # Backup BEFORE mutating — a terminal close is not reversible from
+            # the row itself once status/completed_at are overwritten.
+            try:
+                p = _orphan_backup_path()
+                with open(p, "a", encoding="utf-8") as fh:
+                    for m in rows_meta:
+                        fh.write(_json.dumps(m, ensure_ascii=False) + "\n")
+                out["backup"] = str(p)
+            except Exception as be:  # backup failure must ABORT, not proceed
+                out["error"] = f"backup_failed: {str(be)[:120]}"
+                return out
+
+            for t in orphans:
+                rows = (
+                    db.query(AgentTask)
+                    .filter(
+                        AgentTask.id == t.id,
+                        AgentTask.status == "pending",
+                        AgentTask.claimed_at.is_(None),
+                    )
+                    .update(
+                        {
+                            "status": "cancelled",
+                            "completed_at": _now(),
+                            "result_summary": (
+                                "orphaned_ledger_row: assigned but never claimable "
+                                "(see automation_logs for the real job outcome)"
+                            ),
+                        },
+                        synchronize_session=False,
+                    )
+                )
+                if rows:
+                    out["cancelled"] += 1
+            db.commit()
+    except Exception as e:
+        logger.warning(f"[atq] reap_orphan_routines failed: {e}")
+        out["error"] = str(e)[:200]
+    return out
 
 
 async def reap_stale_leases(

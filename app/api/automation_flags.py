@@ -439,4 +439,14 @@ AUTOMATION_FLAGS = [
     # double-run side-effecting work). Re-assignment stays a human decision.
     # No sends, no customer mutation, no migration. OFF default → surface-only.
     "AGENT_TASK_LEASE_REAP",
+    # Orphan-ledger sweep. DISJOINT from AGENT_TASK_LEASE_REAP above: that one closes
+    # EXPIRED LEASES (claimed/running, claimed_at < cutoff); this one closes rows that were
+    # never claimable at all (pending + claimed_at IS NULL) — a bookkeeping leak from
+    # self-assigned producers that called start() (requires `claimed`) instead of begin().
+    # Closed as `cancelled`, NOT `failed`: most of those routines succeeded and their real
+    # outcome lives in automation_logs; marking them failed would fabricate an incident
+    # history. Bounded batch + JSONL backup before mutation + idempotent + NEVER requeues
+    # (these wrap platform_dial/email_outreach — a re-run would place real calls).
+    # OFF default.
+    "AGENT_TASK_ORPHAN_REAP",
 ]

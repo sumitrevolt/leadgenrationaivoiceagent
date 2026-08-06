@@ -2504,7 +2504,11 @@ async def run_agent_task(member: str, goal: str, scope: str = "solo") -> dict[st
         t_res = await atq.assign(key, goal, delegated_by="admin")
         task_id = t_res.get("id") if t_res.get("ok") else None
         if task_id:
-            await atq.start(task_id)
+            # begin() = pending -> running. Same self-assigned shape as the
+            # scheduler routine bridge: the admin dispatch executes the work
+            # itself, so claim_next() never runs and start() (which requires
+            # `claimed`) silently no-op'd, leaking a pending row on success.
+            await atq.begin(task_id)
     except Exception:
         pass
 
