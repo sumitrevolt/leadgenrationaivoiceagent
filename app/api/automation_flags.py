@@ -439,4 +439,21 @@ AUTOMATION_FLAGS = [
     # double-run side-effecting work). Re-assignment stays a human decision.
     # No sends, no customer mutation, no migration. OFF default → surface-only.
     "AGENT_TASK_LEASE_REAP",
+    # Orphan-ledger sweep. DISJOINT from AGENT_TASK_LEASE_REAP above: that one closes
+    # EXPIRED LEASES (claimed/running, claimed_at < cutoff); this one closes rows that were
+    # never claimable at all (pending + claimed_at IS NULL) — a bookkeeping leak from
+    # self-assigned producers that called start() (requires `claimed`) instead of begin().
+    # Closed as `cancelled`, NOT `failed`: most of those routines succeeded and their real
+    # outcome lives in automation_logs; marking them failed would fabricate an incident
+    # history. Bounded batch + JSONL backup before mutation + idempotent + NEVER requeues
+    # (these wrap platform_dial/email_outreach — a re-run would place real calls).
+    # OFF default.
+    "AGENT_TASK_ORPHAN_REAP",
+    # Scheduler routine-ledger switch. DEFAULT ON — this is the only flag in this
+    # block that is not INERT by default, because it preserves existing behaviour.
+    # The bridge writes one agent_tasks row per job invocation (~700/day) and nothing
+    # in the codebase prunes this table, so even once the rows close correctly the
+    # ledger grows ~255k/year. The authoritative job record is automation_logs; this
+    # is a duplicate audit trail. Set 0 to stop writing it without touching the jobs.
+    "ROUTINE_TASK_LEDGER",
 ]
