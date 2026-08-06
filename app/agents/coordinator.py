@@ -200,6 +200,23 @@ async def _llm(system: str, user: str, max_tokens: int = 260, temperature: float
     if not _llm_rate_ok():
         logger.info("coordinator LLM rate-cap reached — skipping call (fail-open)")
         return "", "rate_capped"
+    # COORD_GUARDRAILS (OFF default, INERT): PRE-LLM PII-redact + injection-block on
+    # the user prompt, POST-LLM system-leak/unsafe-promise block on the reply.
+    # Voice path (natural_dialog) already guards its brain; the agent/coordinator
+    # LLM path was the unwired one. Fail-open — guardrail error = original text.
+    grd = None
+    if os.environ.get("COORD_GUARDRAILS", "").strip().lower() in ("1", "true", "yes", "on"):
+        try:
+            from app.voice_agent.guardrails import get_guardrails
+
+            grd = get_guardrails()
+            _in = grd.check_input(user or "")
+            if not _in.allowed:
+                logger.info("coordinator guardrail blocked input: %s", _in.violations)
+                return "", "guardrail_blocked"
+            user = _in.text
+        except Exception as e:  # pragma: no cover - fail-open
+            logger.debug("coordinator guardrails pre-check skip: %s", e)
     try:
         from app.voice_agent import free_ai
 
@@ -209,10 +226,24 @@ async def _llm(system: str, user: str, max_tokens: int = 260, temperature: float
             max_tokens=max_tokens,
             temperature=temperature,
         )
-        return (reply or "").strip(), prov
+        reply = (reply or "").strip()
+        if grd is not None:
+            try:
+                _out = grd.check_output(reply)
+                reply = (_out.text if _out.allowed else _SAFE_OUTPUT_FALLBACK) or reply
+                if not _out.allowed:
+                    logger.info("coordinator guardrail blocked output: %s", _out.violations)
+            except Exception as e:  # pragma: no cover - fail-open
+                logger.debug("coordinator guardrails post-check skip: %s", e)
+        return reply, prov
     except Exception as e:  # pragma: no cover - defensive
         logger.debug("coordinator llm err: %s", e)
         return "", "none"
+
+
+_SAFE_OUTPUT_FALLBACK = (
+    "Mujhe is baar is sawaal ka confident jawab nahi mila. Aage ka kaam baki team kar sakti hai."
+)
 
 
 def _extract_list(text: str) -> list:
@@ -451,6 +482,29 @@ async def _run_agent(agent: str, task: str, blackboard: dict, execute: bool) -> 
     }
 
 
+def _build_handoff_meta(agent: str, seq: int, res: dict) -> dict:
+    """Additive handoff metadata for the shared blackboard (Item B). Bounded +
+    PII-redacted context_preview so the NEXT agent's prompt never inherits raw
+    PII across a handoff. Fail-open: guardrail error = bounded plain text."""
+    try:
+        from app.voice_agent.guardrails import get_guardrails
+
+        _txt = json.dumps(
+            {k: v for k, v in (res or {}).items() if k != "handoff"},
+            ensure_ascii=False,
+            default=str,
+        )
+        _red = get_guardrails().redact_pii(_txt)
+        return {
+            "from_agent": agent,
+            "seq": int(seq),
+            "context_preview": _red[:600],
+        }
+    except Exception as e:  # pragma: no cover - fail-open
+        logger.debug("coordinator handoff meta skip: %s", e)
+        return {"from_agent": agent, "seq": int(seq), "context_preview": ""}
+
+
 async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> dict:
     """Plan -> sequential handoff over agents (shared blackboard) -> Boss aggregate.
 
@@ -469,7 +523,8 @@ async def coordinate(goal: str, execute: bool = False, max_steps: int = 5) -> di
     for s in steps:
         agent, task = s["agent"], s["task"]
         res = await _run_agent(agent, task, blackboard, execute)
-        blackboard["results"].append({"agent": agent, "task": task, **res})
+        _handoff = _build_handoff_meta(agent, len(blackboard.get("results", [])), res)
+        blackboard["results"].append({"agent": agent, "task": task, "handoff": _handoff, **res})
         _log(agent, "coordinated_step", f"{task} [{res.get('mode')}]")
     summary, _ = await _llm(
         "Tum Manager (Boss) ho. Team ke kaam ko 3-4 line Hinglish summary + ek clear next-action me sameto. Sirf text.",

@@ -311,11 +311,25 @@ def test_dev_delegation_registry_match(monkeypatch, tmp_path):
 
 
 def test_peer_delegation_unregistered(monkeypatch, tmp_path):
+    # kavya/arjun/meera = side-effectful (run_ops prunes DELETES, run_qa/run_trainer
+    # write) -> stay UNREGISTERED_TOOL. isha IS registered (pure content-gen).
     tc = {}
-    coord = _patch_coord(monkeypatch, tmp_path, [{"agent": "isha", "task": "b"}], tc)
+    coord = _patch_coord(monkeypatch, tmp_path, [{"agent": "kavya", "task": "b"}], tc)
+    _env(monkeypatch, agents="dev,kavya")  # after _patch_coord (it resets env)
+    asyncio.run(coord.coordinate("build something real", execute=True))
+    ex = _shadow_rows(tmp_path, "kavya")[-1]
+    assert ex["registry_comparison"] == "UNREGISTERED_TOOL" and tc.get("kavya") == 1
+
+
+def test_isha_delegation_registry_match(monkeypatch, tmp_path):
+    tc = {}
+    coord = _patch_coord(monkeypatch, tmp_path, [{"agent": "isha", "task": "c"}], tc)
     asyncio.run(coord.coordinate("build something real", execute=True))
     ex = _shadow_rows(tmp_path, "isha")[-1]
-    assert ex["registry_comparison"] == "UNREGISTERED_TOOL" and tc.get("isha") == 1
+    assert ex["registry_comparison"] == "REGISTRY_MATCH"
+    assert ex["resolved_tool_name"] == "agent.delegate.isha"
+    assert ex["registry_risk_class"] == "GREEN"
+    assert ex["executor_boundary"] == "_run_agent" and ex["enforcement_applied"] is False
 
 
 def test_no_duplicate_delegation(monkeypatch, tmp_path):
@@ -401,8 +415,12 @@ def test_known_agent_delegation_validates():
 
 
 def test_peer_identity_scoped():
-    assert resolve_coordinator_tool("isha") is None  # peer not mapped
-    assert set(COORDINATOR_TOOL_MAP) == {"dev"}  # only dev mapped
+    assert resolve_coordinator_tool("isha") == ("agent.delegate.isha", "1.0.0")
+    # side-effectful peers are NOT mapped (honest registry boundary)
+    assert resolve_coordinator_tool("kavya") is None
+    assert resolve_coordinator_tool("arjun") is None
+    assert resolve_coordinator_tool("meera") is None
+    assert set(COORDINATOR_TOOL_MAP) == {"dev", "isha"}  # only read-only mapped
 
 
 def test_unknown_agent_denied_delegation():
