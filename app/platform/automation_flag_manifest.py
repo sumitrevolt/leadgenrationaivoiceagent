@@ -425,6 +425,35 @@ _OVERRIDES: dict[str, FlagMeta] = {
         customer=True,
         companions=("WHATSAPP_AUTO_SEND",),
     ),
+    "VOICE_KB_STRICT_GROUNDING": _m(
+        "VOICE_KB_STRICT_GROUNDING",
+        FlagValueKind.BOOLEAN,
+        FlagGovernance.CANARY_ONLY,
+        notes=(
+            "A1 typed KB grounding: ON = citation jo apne chunk me verbatim verify "
+            "na ho wo drop, sab drop ho gaye to refusal. OFF (default) = warn-only. "
+            "Reader = app/voice_agent/kb_grounding.py; voice reply path me WIRED "
+            "NAHI (Swara/voice FROZEN — wiring owner approval ka kaam)"
+        ),
+        owner="platform",
+        risk="product",
+        default="0",
+        canary="module present, zero callers; wire one niche namespace first",
+    ),
+    "VOICE_KB_MIN_GROUND_SCORE": _m(
+        "VOICE_KB_MIN_GROUND_SCORE",
+        FlagValueKind.INTEGER,
+        FlagGovernance.CONFIGURATION_NOT_SWITCH,
+        notes=(
+            "KB refusal threshold override. Unset = knowledge_base._MIN_GROUND_SCORE "
+            "(0.04) — aaj ka behaviour. Scores backend-dependent hain (keyword cosine "
+            "vs Chroma 1/(1+dist) vs Qdrant), isliye number guess mat karo"
+        ),
+        owner="platform",
+        risk="product",
+        default="",
+        parser="float_or_kb_default",
+    ),
     "APPROVAL_EMAIL_CLIENT_ALLOWLIST": _m(
         "APPROVAL_EMAIL_CLIENT_ALLOWLIST",
         FlagValueKind.CSV_ALLOWLIST,

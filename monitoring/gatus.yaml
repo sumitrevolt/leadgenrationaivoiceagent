@@ -2,7 +2,7 @@
 # Gatus — synthetic monitoring with BODY assertions (TwiN/gatus, Apache-2.0).
 # Uptime Kuma ping-style checks ke UPAR: yeh response BODY assert karta hai
 # (e.g. /health/ready me database+redis dono "healthy") + TLS expiry.
-# Run: docker compose -f docker-compose.observability.yml up -d gatus
+# Run: docker compose -f deploy/compose/docker-compose.observability.yml up -d gatus
 # UI:  ssh -L 8082:127.0.0.1:8082 root@72.61.245.204 -> http://localhost:8082
 # Alerts: Alertmanager pehle se email karta hai; Gatus apne alerting me bhi
 # email add kar sakte (abhi UI/status only — alert duplication avoid).
@@ -19,7 +19,7 @@ storage:
 # no-duplication note above does not apply. Left commented because the gatus
 # container does not yet receive NTFY_* env. To enable:
 #   1. pass NTFY_URL + NTFY_TOPIC (+ optional NTFY_TOKEN) into the gatus service
-#      env in docker-compose.observability.yml,
+#      env in deploy/compose/docker-compose.observability.yml,
 #   2. uncomment the block below,
 #   3. restart gatus and confirm it starts cleanly.
 # With default-alert every endpoint below inherits the ntfy alert automatically.

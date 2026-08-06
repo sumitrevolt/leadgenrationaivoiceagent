@@ -37,14 +37,14 @@ Check `GET /api/growth/infra/flags` → read flag's ban/cost risk → enable in 
 7. Treat the OLD key/token (committed in git history before 2026-07-14) as permanently burned — rotation (not history rewrite) is the fix; do not reuse those values anywhere.
 
 ## Postiz env change / restart (⚠️ WRONG COMMAND = WHOLE PROD STACK DELETED)
-🚨 **Read this before ANY `docker compose` on `docker-compose.postiz.yml`.** Both compose files live in `/opt/leadgen`, so Compose shares the implicit project name `leadgen` across them. On 2026-07-03 a `--remove-orphans` on the postiz file made Compose treat the ENTIRE main stack (app/db/redis/workers) as orphans and **STOP+DELETE it** (volumes survived; restart recovered). **NEVER pass `--remove-orphans` to the postiz compose file.** Plain `up -d` is safe.
+🚨 **Read this before ANY `docker compose` on `deploy/compose/docker-compose.postiz.yml`.** Both compose files live in `/opt/leadgen`, so Compose shares the implicit project name `leadgen` across them. On 2026-07-03 a `--remove-orphans` on the postiz file made Compose treat the ENTIRE main stack (app/db/redis/workers) as orphans and **STOP+DELETE it** (volumes survived; restart recovered). **NEVER pass `--remove-orphans` to the postiz compose file.** Plain `up -d` is safe.
 1. SSH: `ssh -i ~/.ssh/id_rsa root@72.61.245.204`, `cd /opt/leadgen`.
 2. Backup env first: `cp deploy/postiz/.env deploy/postiz/.env.bak_$(date +%Y%m%d-%H%M%S)` (the existing `.env.bak_*` files are prior manual edits — keep the convention).
 3. Edit `deploy/postiz/.env` (this file is env-only, no app secrets — the app's own `.env` is a DIFFERENT file and stays untouched).
 4. Apply — **exact command, no extra flags**:
-   `docker compose -f docker-compose.postiz.yml --env-file deploy/postiz/.env up -d`
+   `docker compose -f deploy/compose/docker-compose.postiz.yml --env-file deploy/postiz/.env up -d`
 5. Verify BEFORE walking away: `docker ps --format '{{.Names}} {{.Status}}' | grep -E 'leadgen_(app|db|redis|worker|scheduler|postiz)'` — **confirm the MAIN stack is still up**, not just postiz. Then `curl -s -o /dev/null -w '%{http_code}' https://leadsgenai.in/health` = 200 and `https://postiz.leadsgenai.in/` = 307.
-6. Env-name trap: compose passes `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET` (NOT Postiz-docs' `FACEBOOK_ID`/`FACEBOOK_SECRET`). Checking the wrong name reports a false "unset" — verify against `docker-compose.postiz.yml`, not upstream docs.
+6. Env-name trap: compose passes `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET` (NOT Postiz-docs' `FACEBOOK_ID`/`FACEBOOK_SECRET`). Checking the wrong name reports a false "unset" — verify against `deploy/compose/docker-compose.postiz.yml`, not upstream docs.
 
 **Close open registration:** `POSTIZ_DISABLE_REGISTRATION=true` in `deploy/postiz/.env`, then step 4–5. Lock-out-safe: existing operator account must already exist in Postiz DB. Verify: `https://postiz.leadsgenai.in/auth/register` should stop creating accounts; existing login still works.
 
@@ -63,7 +63,7 @@ Symptom: LeadGen API marks social jobs `published` + Postiz has `postId`, but FB
 Recovery (NEVER `--remove-orphans` on postiz compose):
 ```
 cd /opt/leadgen
-docker compose -f docker-compose.postiz.yml --env-file deploy/postiz/.env up -d --force-recreate --no-deps postiz
+docker compose -f deploy/compose/docker-compose.postiz.yml --env-file deploy/postiz/.env up -d --force-recreate --no-deps postiz
 # wait ≥150s for orchestrator compile
 docker exec leadgen_postiz npx pm2 list
 docker exec leadgen_temporal temporal task-queue describe --task-queue main --namespace default

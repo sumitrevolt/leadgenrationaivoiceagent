@@ -65,7 +65,7 @@ flowchart TB
 | **Vector RAG** | Qdrant | `app/ml/vector_store.py`, ns `niche:` / `client:` |
 | **Jobs** | Celery durable | `app/worker.py`, `app/tasks/staff_jobs.py` |
 | **Telephony** | Vobiz + WS stream | `app/telephony/vobiz_stream.py` |
-| **Obs** | Prometheus/Grafana/Loki (opt-in) | `docker-compose.observability.yml` |
+| **Obs** | Prometheus/Grafana/Loki (opt-in) | `deploy/compose/docker-compose.observability.yml` |
 
 ---
 

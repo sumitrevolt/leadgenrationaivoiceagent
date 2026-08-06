@@ -1123,7 +1123,7 @@ async def research_search(q: str, count: int = 10, user=Depends(require_admin)):
     if not searxng.enabled():
         return {
             "enabled": False,
-            "hint": "SEARXNG_URL env set karo (docker-compose.tools.yml)",
+            "hint": "SEARXNG_URL env set karo (deploy/compose/docker-compose.tools.yml)",
             "results": [],
         }
     results = await searxng.search(q, count=count)

@@ -23,7 +23,7 @@ Schema per entry: `Service — purpose | auth env var(s) | rate limits | observe
 
 ## Data / prospecting
 - **Google Maps Places (New)** — prospector real phones+reviews | `GOOGLE_MAPS_API_KEY` | self-cap `PROSPECT_MAX_LOOKUPS=60`/run (cost gate) | — | OSM Overpass = free fallback.
-- **SearXNG (self-host)** — free websearch for lead harvester | none | self-hosted | — | part of `docker-compose.tools.yml`.
+- **SearXNG (self-host)** — free websearch for lead harvester | none | self-hosted | — | part of `deploy/compose/docker-compose.tools.yml`.
 - **data.gov.in** — public business datasets for harvester | API key (pending) | — | — | flag-gated OFF till key.
 - **Zoho CRM (India DC) / HubSpot** — native CRM sync (`crm_sync.py`) | per-client or global creds | vendor quotas | — | `CRM_SYNC` flag OFF default.
 

@@ -115,6 +115,6 @@ karta hai (~60 din, business-verification ke saath), sirf console-click se nahi 
 Bas mujhe bata do "ho gaya" + keys paste kar do (ya sirf bata do "Facebook ho gaya" ek-ek
 karke jaise milein — sab ek saath ka wait nahi karna). Main turant:
 1. VPS `deploy/postiz/.env` me `FACEBOOK_APP_ID`/`FACEBOOK_APP_SECRET` (ya jo bhi platform) daalunga
-2. `docker compose -f docker-compose.postiz.yml up -d` (env-only change, safe restart)
+2. `docker compose -f deploy/compose/docker-compose.postiz.yml up -d` (env-only change, safe restart)
 3. Postiz "Add Channel" se actual connect karunga (tumhara login chahiye hoga usi waqt bas ek click ke liye)
 4. Verify karke confirm karunga ki channel LIVE hai

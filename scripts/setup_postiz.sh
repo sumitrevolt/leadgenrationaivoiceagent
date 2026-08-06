@@ -28,7 +28,7 @@ if [ ! -f "$ENV_FILE" ]; then
     echo "POSTIZ_JWT_SECRET=$(openssl rand -hex 32)"
     echo "POSTIZ_DB_PASSWORD=$(openssl rand -hex 16)"
     echo "POSTIZ_DISABLE_REGISTRATION=false"
-    echo "# Platform OAuth keys (jab milen tab bharo, phir: docker compose -f docker-compose.postiz.yml --env-file $ENV_FILE up -d)"
+    echo "# Platform OAuth keys (jab milen tab bharo, phir: docker compose -f deploy/compose/docker-compose.postiz.yml --env-file $ENV_FILE up -d)"
     echo "X_API_KEY="
     echo "X_API_SECRET="
     echo "LINKEDIN_CLIENT_ID="
@@ -43,8 +43,8 @@ else
 fi
 
 # 3) Stack up
-git fetch origin -q && git checkout origin/main -- docker-compose.postiz.yml scripts/setup_postiz.sh || true
-docker compose -f docker-compose.postiz.yml --env-file "$ENV_FILE" up -d
+git fetch origin -q && git checkout origin/main -- deploy/compose/docker-compose.postiz.yml scripts/setup_postiz.sh || true
+docker compose -f deploy/compose/docker-compose.postiz.yml --env-file "$ENV_FILE" up -d
 echo "✓ postiz stack up (leadgen_postiz on 127.0.0.1:5000)"
 
 # 4) Caddy route (host Caddy, idempotent append + reload)
@@ -72,7 +72,7 @@ cat <<'EOT'
 AGLA STEP (browser me, ~5 min):
 1. https://postiz.leadsgenai.in kholo -> account REGISTER karo (pehla = admin).
 2. Turant deploy/postiz/.env me POSTIZ_DISABLE_REGISTRATION=true karke:
-   docker compose -f docker-compose.postiz.yml --env-file deploy/postiz/.env up -d
+   docker compose -f deploy/compose/docker-compose.postiz.yml --env-file deploy/postiz/.env up -d
 3. Channels connect karo (X/LinkedIn/FB — jinke OAuth keys .env me bhare hon).
 4. Settings -> API se API key copy karo, channel ids note karo.
 5. Key ko app me daalo (encrypted vault, no-restart):

@@ -21,7 +21,7 @@ fi
 
 # 2) Start observability stack (Prometheus + Grafana + Alertmanager + exporters)
 echo "$(ts) Starting observability stack..." | tee -a "$LOG"
-docker compose -f docker-compose.observability.yml up -d 2>&1 | tail -10 | tee -a "$LOG"
+docker compose -f deploy/compose/docker-compose.observability.yml up -d 2>&1 | tail -10 | tee -a "$LOG"
 echo "$(ts) Observability stack started" | tee -a "$LOG"
 
 # 3) pg_backup.sh cron (2:30am IST = 21:00 UTC previous day)

@@ -15,7 +15,7 @@ yaml = pytest.importorskip("yaml")
 
 _REPO = Path(__file__).resolve().parents[1]
 _BASE = _REPO / "docker-compose.vps.yml"
-_OVERLAY = _REPO / "docker-compose.video.yml"
+_OVERLAY = _REPO / "deploy" / "compose" / "docker-compose.video.yml"
 _DOCKERFILE = _REPO / "Dockerfile.video"
 
 # Every service that shares the ONE application image and is checked for tag

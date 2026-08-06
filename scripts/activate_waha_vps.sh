@@ -47,7 +47,7 @@ WHATSAPP_AUTO_SEND=0
 ENVVARS
 
 echo "=== Step 2: WAHA container start kar raha hoon ==="
-docker compose -f docker-compose.waha.yml up -d
+docker compose -f deploy/compose/docker-compose.waha.yml up -d
 
 echo "=== Step 3: App container restart kar raha hoon (new env pick kare) ==="
 docker compose -f docker-compose.vps.yml up -d --no-deps app

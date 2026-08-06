@@ -15,7 +15,7 @@ Enable karne ke liye:
               opentelemetry-instrumentation-redis \
               opentelemetry-instrumentation-httpx
   ENABLE_OTEL=1
-  OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317   # docker-compose.observability.yml
+  OTEL_EXPORTER_OTLP_ENDPOINT=http://tempo:4317   # deploy/compose/docker-compose.observability.yml
 
 Reference stack: github.com/blueswen/fastapi-observability (Tempo+Loki+Prometheus+Grafana).
 """

@@ -177,7 +177,7 @@ FREE pilot: 7 din / 50 calls (`voice_pilot`, ₹0). Niche→band mapping = `app/
 - **Self-heal:** cron `scripts/vps_selfheal.sh` (*/10 min). Offsite email-backup cron (Hostinger mail). fail2ban + unattended-upgrades active.
 - **App image** (`Dockerfile.lock`): live-venv from `requirements.lock.txt` (`--no-deps`, py3.12). `app/` + `frontend/` + `.claude/skills/` BAKED into image. ML assets BAKED (fastembed 241M `/opt/fastembed_cache`, silero-vad torch-CPU). Lock refresh: `scripts/vps_freeze.sh` → commit `requirements.lock.txt`.
 - **Rollback path:** `.env` set `RUN_IN_PROCESS_SCHEDULER=1` + `WEB_CONCURRENCY=1`, stop worker/scheduler, recreate app. SQLite `/opt/leadgen/leadgen.db` = rollback-backup only (live DB = Postgres).
-- **Addons** (`docker-compose.addons.yml`, optional): celery-exporter (:9808) + flower (:5555) + minio (S3 :9000/:9001). Activate: `docker compose -f docker-compose.addons.yml up -d`.
+- **Addons** (`deploy/compose/docker-compose.addons.yml`, optional): celery-exporter (:9808) + flower (:5555) + minio (S3 :9000/:9001). Activate: `docker compose -f deploy/compose/docker-compose.addons.yml up -d`.
 
 ---
 
@@ -252,7 +252,7 @@ Helpers: `staff_for_product()` · `/api/platform/team?product=`. Events → `age
 - **Revenue automation** (ON): dunning · lifecycle nurture · client-health alerts · revenue digest · channel-experiments bandit (17 free+legal channels, auto-POST kahin NAHI) · growth optimizer.
 - **WhatsApp = 1-click human send** (bulk auto = ban). **Telegram REMOVED 2026-06-22** (no auto-post channel).
 - **Native CRM sync** (`crm_sync.py`, `CRM_SYNC` OFF): Zoho (India DC) + HubSpot. UI: growth-tools "CRM Sync" tab.
-- **Self-hosted tools** (`docker-compose.tools.yml`): SearXNG (ON) · ntfy phone-push `https://ntfy.leadsgenai.in` (ON) · changedetection.io.
+- **Self-hosted tools** (`deploy/compose/docker-compose.tools.yml`): SearXNG (ON) · ntfy phone-push `https://ntfy.leadsgenai.in` (ON) · changedetection.io.
 - **Per-client:** `clients_store.py` + `auto_content.py` + `mini_site.py` (`/b/{slug}`) + `onboarding.py` (`AUTO_ONBOARD=1` ON: website → KB seed + first content pack).
 
 ---
@@ -525,7 +525,7 @@ Indian local SMBs (chhote businesses) ke liye **₹0-marginal-cost SaaS** — sa
 
 **Gaps found & shipped (1 real, additive):**
 - **NEW reverse-sync gate** — the drift auditor checked code→graph (modules represented) + intra-graph connectivity, but NOT graph→code. Added `files_ref_audit()` to `explorer_sync.py`: every explicit `files:'x.py'` claim must resolve to a real repo file (loose capability-labels/routes/plan-ids ignored). Wired into `--check` CI gate + `test_explorer_sync.py::test_files_refs_resolve` + surfaced (INFO) in `prod_check.py`.
-- **2 genuine label drifts fixed** in `frontend/explorer.html` (caught by the new gate): `team.html`→`team_dashboard.html`, `observability.yml`→`docker-compose.observability.yml`. 183 explicit file-claims now 100% resolve.
+- **2 genuine label drifts fixed** in `frontend/explorer.html` (caught by the new gate): `team.html`→`team_dashboard.html`, `observability.yml`→`deploy/compose/docker-compose.observability.yml`. 183 explicit file-claims now 100% resolve.
 
 **Note on the task's "load test / security audit / UAT" asks:** the explorer is a static documentation graph — those apply to the backend, which is already gated by `final_integration_check.py` + `cross_path_audit.py` + `prod_check.py` (all green). No new prod-load/security defects surfaced.
 
