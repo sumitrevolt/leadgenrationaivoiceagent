@@ -115,12 +115,11 @@ jobs:
             echo "No $MANIFEST — skipping targeted pytest (Wave 1 optional)."
             exit 0
           fi
-          python -m pip install --upgrade pip
-          # Minimal: use lock if present; otherwise skip with notice.
+          # Deterministic install — no `pip install --upgrade pip` (Gate A pin contract).
           if [ -f requirements.lock.txt ]; then
-            pip install --no-deps -r requirements.lock.txt || pip install pytest pyyaml
+            python -m pip install --no-deps -r requirements.lock.txt || python -m pip install pytest pyyaml
           else
-            pip install pytest pyyaml
+            python -m pip install pytest pyyaml
           fi
           python - <<'PY'
           import json, subprocess, sys
