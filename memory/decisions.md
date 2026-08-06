@@ -2,6 +2,18 @@
 
 Schema per entry: `[DATE] [ID] Decision | Context | Alternatives rejected | Consequence`
 
+## ADR-166 (2026-08-06) — Voice latency defaults: clause-flush ON + faster processing-ack [LOCAL-ONLY, NOT deployed]
+
+**Decision:** `STREAM_TTS_CLAUSE_FLUSH` is DEFAULT ON (first chunk may flush at a clause boundary once `STREAM_TTS_CLAUSE_MIN` chars, now 45 default) and `VOICE_PROCESSING_ACK_DELAY_S` default drops 2.0s → 1.2s. Both env-tunable; OFF restores legacy.
+
+**Context:** Transcript analysis of 127 historical Vobiz calls / 188 turns: `tts_first_ms` p95=3.0s, `turn_ms` p95=13.3s — user-approved targets 1.5s/6s. Clause-flush cuts time-to-first-audio on long opening sentences; the 1.2s ack bridges the free-LLM first-token wait on mid-call turns before the caller perceives dead-air.
+
+**Alternatives rejected:** (1) Keep clause-flush OFF — p95 3s first-audio stays, dead-air complaints persist. (2) Instant ack (<0.5s) — ack becomes mid-speech interruptor on fast LLM turns. (3) Prompt rewrite for "enterprise" — prompt already 19-rule enterprise-grade; the scripted feel is the by-design self-pitch fast-path (LLM latency fallback), not prompt quality.
+
+**Consequence:** Local code + tests only; prod UNCHANGED (33651cfc). Deploy needs re-test on real openers. No compliance gate touched; no secrets. Rollback = set both envs back (no code revert needed).
+
+**Follow-up (same ADR, 2026-08-06):** `scripts/agent_tester.py` became the voice-engine tester: `--record` persists driven test-call transcripts into `data/call_transcripts/YYYY-MM-DD.jsonl` (vobiz schema) + audio into `data/call_recordings/YYYY-MM-DD/webcall_test_*.mp3` — the SAME store `voice_call_analysis.py`/`live_eval`/`campaign_optimizer` read, so synthetic test calls feed the improvement loop like real calls; `--baseline` prints before/after latency+quality diff.
+
 ## ADR-154 (2026-08-03) â Workforce Memory Hub learns TencentDB patterns; does NOT vendor the repo [CODE-PRESENT, flag OFF]
 
 **Decision:** Adopt architecture ideas from [TencentCloud/TencentDB-Agent-Memory](https://github.com/TencentCloud/TencentDB-Agent-Memory) (4 assets chat/skill/wiki/code Â· L0âL3 pyramid Â· progressive disclosure Â· node_id offload Â· fixed agent bindings) as a **native** hub in `app/platform/workforce_memory.py` for all 31 STAFF agents. Do **not** vendor/subtree the TypeScript OpenClaw plugin, MemoryPanel/Proxy, or Tencent Cloud Vector DB.
