@@ -103,7 +103,8 @@ Label: PRODUCTION-PROVEN (Stage A shipped PR #105) — re-probe env before actin
 
 ## Agent workforce
 Canonical workforce remains **31 agents**. OpenClaw/Boss is Owner OS Copilot surface — **not** a 32nd agent.
-Label: CODE-PRESENT (registry) | PRODUCTION-PROVEN
+ADR-164 adds a complete per-agent enterprise profile: agent+tenant-isolated memory/KB namespaces, eight common SaaS controls, role competencies and existing runtime governance. ADR-165 derives Boss → 7 domain teams → 30 workers from the canonical Office map, giving **31/31 coordination coverage** and visible mission assignments, handoffs and Boss verdicts in Owner OS/Coordination Hub. Coordination-ready remains setup truth: runtime is still **12 canary-ready / 17 rollout-hold / 2 intentionally disabled**; `AGENT_MATURITY_CONTEXT` and Coordination Hub flags default OFF.
+Label: CODE-PRESENT | TEST-PROVEN | LOCAL-ONLY (not committed/deployed)
 
 ## Paying customers
 1 - Jiya Makeover (`jiya-makeover`). MRR ₹1,999. Estique autopilot prospect `converted` (see WS-2 in ACTIVE_WORK).

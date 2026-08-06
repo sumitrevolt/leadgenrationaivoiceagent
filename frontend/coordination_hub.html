@@ -87,6 +87,11 @@ a{color:var(--acc)}
     <div id="agentsBrief"></div>
   </div>
   <div class="card">
+    <h2>🧭 Boss → STAFF coordination evidence</h2>
+    <div class="mut">Health pulse se alag: canonical coverage, mission assignments, handoffs aur final Boss verdict.</div>
+    <div id="staffCoordination"></div>
+  </div>
+  <div class="card">
     <h2>🌿 Git snapshot</h2>
     <div id="gitBrief"></div>
   </div>
@@ -200,8 +205,8 @@ async function loadSnapshot(){
       (enabled?'':'<div class="warn" style="margin-top:6px">🛑 Flag OFF — hub inert. Reads empty, writes (heartbeat/buzz) reject. Enable: <b>COORDINATION_HUB_ENABLED=1</b> + per-tool secrets in prod .env.</div>')
     const tools=(d.tools_presence&&d.tools_presence.tools)||{}
     const g=document.getElementById('toolsGrid')
-    if(!Object.keys(tools).length){g.innerHTML='<div class="mut">Koi tool abhi heartbeat nahi bheja — flag ON hone pe tools apni presence update karte hain (Tool Script tab).</div>';return}
-    g.innerHTML=Object.entries(tools).map(([tool,s])=>{
+    if(!Object.keys(tools).length){g.innerHTML='<div class="mut">Koi tool abhi heartbeat nahi bheja — flag ON hone pe tools apni presence update karte hain (Tool Script tab).</div>'}
+    else g.innerHTML=Object.entries(tools).map(([tool,s])=>{
       const m=TOOLMETA[tool]||{label:tool,color:'#8b91a5'};const st=s.status||'online'
       const meta=(s.meta&&typeof s.meta==='object')?Object.entries(s.meta).filter(([k])=>/channel|summary|task|branch/.test(k)).map(([k,v])=>esc(k)+': '+esc(String(v))).join(' · '):''
       return '<div class="toolcard"><div class="name"><span class="dot dot-'+(st==='offline'?'offline':(st==='done'?'done':'online'))+'"></span>'+m.label+'</div>'+
@@ -214,6 +219,12 @@ async function loadSnapshot(){
     ag.innerHTML='<table><tr><th>workforce</th><th>value</th></tr>'+
       Object.entries(wf).slice(0,8).map(([k,v])=>'<tr><td>'+esc(k)+'</td><td>'+esc(v)+'</td></tr>').join('')+
       '<tr><td>missions</td><td>'+((d.missions&&d.missions.enabled)?'on · '+((d.missions.summary||{}).running||0)+' running':'off')+'</td></tr></table>'
+    const coord=d.office_coordination||{}
+    const topology=coord.topology||{}
+    const rows=coord.rows||[]
+    const sc=document.getElementById('staffCoordination')
+    sc.innerHTML='<div class="result">Coverage: <b>'+esc(topology.covered_count||0)+'/'+esc(topology.staff_count||31)+'</b> · teams: <b>'+esc(topology.team_count||0)+'</b> · Boss: <b>'+esc(topology.boss_name||'Boss')+'</b> · owner gate: <b>manual UPI confirmation</b></div>'+
+      (rows.length?'<table><tr><th>goal</th><th>assignments</th><th>handoffs</th><th>Boss verdict</th></tr>'+rows.map(r=>'<tr><td>'+esc(r.goal||'')+'</td><td>'+esc((r.assignments||[]).map(a=>a.team+': '+(a.members||[]).join(', ')).join(' | ')||'legacy run')+'</td><td>'+esc(String((r.handoffs||[]).length))+'</td><td>'+esc(((r.verdict||{}).status||'recorded')+': '+((r.verdict||{}).summary||r.outcome||''))+'</td></tr>').join('')+'</table>':'<div class="mut" style="margin-top:8px">Abhi persisted Boss mission nahi. Topology ready hai; actual run ke baad assignment → handoff → verdict yahan dikhega.</div>')
     const gb=document.getElementById('gitBrief')
     gb.innerHTML=(d.git&&d.git.ok)
       ?'<div class="result">head: <b>'+esc(d.git.head||'—')+'</b> · timeout '+esc(d.git.timeout_s)+'s · byte cap '+esc(d.git.max_bytes)+' · redacted: '+esc(String(d.git.redacted))+'</div>'

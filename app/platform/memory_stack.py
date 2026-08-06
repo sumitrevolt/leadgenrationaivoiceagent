@@ -742,7 +742,7 @@ def _lane_prospective(tenant_id: str, agent_id: str, query: str, ctx: dict, mt: 
 def _lane_semantic(tenant_id: str, agent_id: str, query: str, ctx: dict, mt: int) -> str:
     from app.platform import workforce_memory as wm
 
-    return wm.recall_brief(agent_id, query, max_chars=mt * 4) or ""
+    return wm.recall_brief(agent_id, query, max_chars=mt * 4, tenant_id=tenant_id) or ""
 
 
 def _lane_procedural(tenant_id: str, agent_id: str, query: str, ctx: dict, mt: int) -> str:
@@ -755,7 +755,16 @@ def _lane_shared(tenant_id: str, agent_id: str, query: str, ctx: dict, mt: int) 
     """Cross-agent shared entries — workforce_memory ka ACL respect karta."""
     from app.platform import workforce_memory as wm
 
-    rows = wm.recall(agent_id, query, assets=[wm.ASSET_WIKI, wm.ASSET_SKILL], limit=3) or []
+    rows = (
+        wm.recall(
+            agent_id,
+            query,
+            assets=[wm.ASSET_WIKI, wm.ASSET_SKILL],
+            limit=3,
+            tenant_id=tenant_id,
+        )
+        or []
+    )
     lines: list[str] = []
     used = 0
     for r in rows:

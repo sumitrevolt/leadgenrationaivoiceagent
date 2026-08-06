@@ -105,6 +105,14 @@ async def owner_agents(user: User = Depends(require_admin)) -> dict[str, Any]:
     return owner_os.agent_registry()
 
 
+@router.get("/maturity")
+async def owner_agent_maturity(user: User = Depends(require_admin)) -> dict[str, Any]:
+    """31-agent memory/KB/skills/governance matrix; read-only projection."""
+    from app.platform import agent_maturity
+
+    return agent_maturity.portfolio()
+
+
 @router.get("/inventory")
 async def owner_inventory(user: User = Depends(require_admin)) -> dict[str, Any]:
     reg = owner_os.agent_registry()
@@ -140,9 +148,12 @@ async def owner_agent_detail(agent_id: str, user: User = Depends(require_admin))
             "calling_hard_off": True,
         }
     )
+    from app.platform import agent_maturity
+
     return {
         "ok": True,
         "agent": hit,
+        "maturity": agent_maturity.profile(agent_id),
         "pause_scope": "manual_runs_only",
         "pause_label": "Pause Manual Runs",
         "pause_note": owner_os.PAUSE_SCOPE_NOTE,

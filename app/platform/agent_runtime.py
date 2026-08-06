@@ -335,6 +335,12 @@ class AgentExecutionContext:
     )
     # ADR-154: bounded workforce-memory brief (empty when WORKFORCE_MEMORY off)
     memory_brief: str = ""
+    # ADR-161: deterministic 31-agent maturity contract plus optional bounded
+    # role/knowledge context. The profile is always present; KB recall remains
+    # explicitly canary-gated by AGENT_MATURITY_CONTEXT.
+    maturity_profile: dict[str, Any] = field(default_factory=dict)
+    skill_brief: str = ""
+    knowledge_brief: str = ""
 
     def add_usage(self, cost_inr: float = 0.0, api_calls: int = 0, contacts: int = 0) -> None:
         self.usage["cost_inr"] += float(cost_inr or 0.0)
@@ -1079,9 +1085,24 @@ async def run_task(task: AgentTask) -> AgentResult:
         try:
             from app.platform import workforce_memory as _wfm
 
-            mem_brief = _wfm.inject_for_runtime(task.agent_id, task.action) or ""
+            mem_brief = (
+                _wfm.inject_for_runtime(task.agent_id, task.action, tenant_id=task.tenant_id) or ""
+            )
         except Exception:
             mem_brief = ""
+
+        maturity_profile: dict[str, Any] = {}
+        maturity_briefs: dict[str, Any] = {}
+        try:
+            from app.platform import agent_maturity as _maturity
+
+            maturity_profile = _maturity.profile(task.agent_id, task.tenant_id)
+            maturity_briefs = await _maturity.runtime_briefs(
+                task.agent_id, task.tenant_id, task.action
+            )
+        except Exception:
+            maturity_profile = {}
+            maturity_briefs = {}
 
         ctx = AgentExecutionContext(
             task=task,
@@ -1090,6 +1111,9 @@ async def run_task(task: AgentTask) -> AgentResult:
             mode=contract.default_mode,
             trace_id="tr_" + uuid.uuid4().hex[:10],
             memory_brief=mem_brief[:2000],
+            maturity_profile=maturity_profile,
+            skill_brief=str(maturity_briefs.get("skill_brief") or "")[:1200],
+            knowledge_brief=str(maturity_briefs.get("knowledge_brief") or "")[:1600],
         )
 
         lc.append(TaskStatus.RUNNING.value)
@@ -1192,7 +1216,11 @@ async def run_task(task: AgentTask) -> AgentResult:
                     from app.platform import workforce_memory as _wfm
 
                     _wfm.remember_runtime_outcome(
-                        task.agent_id, task.action, ok=True, detail=f"{dur}ms"
+                        task.agent_id,
+                        task.action,
+                        ok=True,
+                        detail=f"{dur}ms",
+                        tenant_id=task.tenant_id,
                     )
                 except Exception:
                     pass

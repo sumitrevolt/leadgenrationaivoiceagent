@@ -118,6 +118,7 @@ textarea{min-height:88px;resize:vertical}
       <p class="muted">Canonical workforce = <b>31</b> STAFF. <b>manager</b> = Boss (system supervisor + runnable). Pause Manual Runs ≠ full agent stop.</p>
       <p class="muted" id="pauseNote">Scheduled jobs may continue. Use workflow or scheduler controls to stop scheduled execution.</p>
       <div class="chips" id="agentChips"></div>
+      <div class="teach" id="maturityNote" style="margin:10px 0">Loading agent maturity...</div>
       <div id="agentList"></div>
       <div id="ishaSlice" class="card" style="margin-top:12px;background:#0f172a">
         <h3>Isha — V1.1 execution controls</h3>
@@ -471,12 +472,19 @@ async function loadAgents(){
   const {body}=await api("/api/admin/owner-os/agents");
   const agents=body.agents||[];
   const inv=body.inventory||{};
+  const maturity=body.maturity||{};
   document.getElementById("agentChips").innerHTML =
     `<span class="chip">Canonical: <b>${inv.canonical_agents??body.staff_count??agents.length}</b></span>`+
     `<span class="chip">Supervisors: <b>${inv.system_supervisors??0}</b></span>`+
     `<span class="chip">Service IDs: <b>${inv.service_identities??0}</b></span>`+
     `<span class="chip">Manual-runnable: <b>${inv.runnable_workers??(body.runnable_members||[]).length}</b></span>`+
-    `<span class="chip">Paused manual: <b>${inv.paused_manual_runs ?? body.paused_count ?? 0}</b></span>`;
+    `<span class="chip">Paused manual: <b>${inv.paused_manual_runs ?? body.paused_count ?? 0}</b></span>`+
+    `<span class="chip">Enterprise profiles: <b>${maturity.enterprise_profiles_ready??0}/31</b></span>`;
+  document.getElementById("maturityNote").innerHTML = maturity.ok
+    ? `<b>Memory + Knowledge + Skills baseline ready.</b> ${esc(maturity.claim_note||"")} `+
+      `Boss coordination: ${esc((maturity.coordination||{}).covered_count??0)}/${esc((maturity.coordination||{}).staff_count??31)} · `+
+      `Rollout: ${Object.entries(maturity.rollout_counts||{}).map(([k,v])=>`${esc(k)} ${esc(v)}`).join(" / ")}`
+    : `<b>Maturity contract incomplete.</b> ${esc((maturity.problems||[]).join("; ")||"projection unavailable")}`;
   if(body.manager_explanation){
     document.getElementById("pauseNote").textContent =
       (body.pause_semantics&&body.pause_semantics.note? body.pause_semantics.note+" ":"")+
@@ -491,9 +499,13 @@ async function loadAgents(){
           ${a.is_system_supervisor?'<span class="badge warn">supervisor</span>':""}
           ${a.paused?'<span class="badge warn">manual paused</span>':""}
           ${a.runnable?'<span class="badge">manual-runnable</span>':""}
+          <span class="badge ${a.enterprise_profile==='enterprise_profile_ready'?'ok':'warn'}">${esc(a.enterprise_profile||'profile unknown')}</span>
+          <span class="badge">${esc(a.rollout_state||'rollout unknown')}</span>
         </div>
         <div class="muted">${esc(a.department)} · ${esc(a.title)}</div>
         <div class="muted">${esc((a.responsibility||"").slice(0,140))}</div>
+        <div class="muted">Memory: ${esc(a.memory_namespace||'-')} / Role skills: ${esc((a.role_skills||[]).join(', ')||'-')}</div>
+        <div class="muted">Boss route: ${esc(a.coordination_team||'-')} · ${a.coordination_ready?'ready':'incomplete'} · decision: ${esc(a.decision_authority||'-')}</div>
       </div>
       <div class="row">
         ${a.runnable?`<button class="btn warn" onclick="pauseAgent('${esc(a.id)}')">Pause Manual Runs</button>
